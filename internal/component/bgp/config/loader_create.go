@@ -181,6 +181,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		Hub:                       hubPtr,
 		RecentUpdateMax:           coreenv.GetInt("ze.bgp.reactor.cache-max", 1000000),
 	}
+	if port, ok := portOverrideFromEnv(); ok {
+		reactorCfg.Port = int(port)
+	}
 
 	r := reactor.New(reactorCfg)
 

@@ -76,6 +76,39 @@ func TestBGPOperationDecomposerPeerModifySameAddress(t *testing.T) {
 	assert.NotEmpty(t, ops[0].Params.OldConfig)
 }
 
+// TestBGPOperationDecomposerRouterIDRotationSplitsPeers verifies that a
+// cross-peer router-id rotation removes every affected peer before adding any
+// replacement peer.
+//
+// VALIDATES: router-id rotations decompose to REMOVE_PEER batch then ADD_PEER batch.
+// PREVENTS: adding a replacement while another old session still owns that router-id.
+func TestBGPOperationDecomposerRouterIDRotationSplitsPeers(t *testing.T) {
+	active := `{"bgp":{"session":{"asn":{"local":"65000"}},"peer":{"peer1":{"connection":{"remote":{"ip":"127.0.0.1"},"local":{"ip":"127.0.0.1"}},"session":{"asn":{"remote":"65000"},"router-id":"1.2.3.4"}},"peer2":{"connection":{"remote":{"ip":"127.0.0.2"},"local":{"ip":"127.0.0.2"}},"session":{"asn":{"remote":"65000"},"router-id":"5.6.7.8"}}}}}`
+	candidate := `{"bgp":{"session":{"asn":{"local":"65000"}},"peer":{"peer1":{"connection":{"remote":{"ip":"127.0.0.1"},"local":{"ip":"127.0.0.1"}},"session":{"asn":{"remote":"65000"},"router-id":"5.6.7.8"}},"peer2":{"connection":{"remote":{"ip":"127.0.0.2"},"local":{"ip":"127.0.0.2"}},"session":{"asn":{"remote":"65000"},"router-id":"1.2.3.4"}}}}}`
+
+	ops, err := decomposeBGPOperations(context.Background(), tx.DecomposeRequest{
+		TransactionID: "tx-bgp-router-id-rotation",
+		Root:          configRootBGP,
+		ActiveRoot:    active,
+		CandidateRoot: candidate,
+		Diff: tx.DiffSection{
+			Root:    configRootBGP,
+			Changed: `{"bgp/peer/peer1/session/router-id":{"old":"1.2.3.4","new":"5.6.7.8"},"bgp/peer/peer2/session/router-id":{"old":"5.6.7.8","new":"1.2.3.4"}}`,
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, ops, 4)
+
+	assert.Equal(t, tx.OperationRemovePeer, ops[0].Type)
+	assert.Equal(t, "peer1", ops[0].Params.Peer)
+	assert.Equal(t, tx.OperationRemovePeer, ops[1].Type)
+	assert.Equal(t, "peer2", ops[1].Params.Peer)
+	assert.Equal(t, tx.OperationAddPeer, ops[2].Type)
+	assert.Equal(t, "peer1", ops[2].Params.Peer)
+	assert.Equal(t, tx.OperationAddPeer, ops[3].Type)
+	assert.Equal(t, "peer2", ops[3].Params.Peer)
+}
+
 // TestBGPOperationDecomposerNoPeerChangesFallsBack verifies that non-peer BGP
 // changes do not enter the operation path until they have exact operation support.
 //

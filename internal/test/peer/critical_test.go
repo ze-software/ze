@@ -168,14 +168,14 @@ func TestNotificationSequence(t *testing.T) {
 	// after seq=1 is consumed
 }
 
-// TestMultiConnectionSequences verifies that conn=1,2,3 create separate sequences.
+// TestMultiConnectionSequences verifies that arbitrary conn values create separate sequences.
 //
 // VALIDATES: Different conn values create separate sequences with correct IDs.
 func TestMultiConnectionSequences(t *testing.T) {
 	inputs := []string{
 		"expect=bgp:conn=1:seq=1:hex=AAAA",
-		"expect=bgp:conn=2:seq=1:hex=BBBB",
-		"expect=bgp:conn=3:seq=1:hex=CCCC",
+		"expect=bgp:conn=3:seq=1:hex=BBBB",
+		"expect=bgp:conn=6:seq=1:hex=CCCC",
 	}
 
 	c, err := NewChecker(inputs)
@@ -191,8 +191,8 @@ func TestMultiConnectionSequences(t *testing.T) {
 		t.Errorf("expected 3 connectionIDs, got %d", len(c.connectionIDs))
 	}
 
-	// Verify connection IDs are correct (1, 2, 3)
-	expectedIDs := []int{1, 2, 3}
+	// Verify connection IDs are sorted and keep the declared high connection number.
+	expectedIDs := []int{1, 3, 6}
 	for i, want := range expectedIDs {
 		if i < len(c.connectionIDs) && c.connectionIDs[i] != want {
 			t.Errorf("connectionIDs[%d] = %d, want %d", i, c.connectionIDs[i], want)
@@ -232,11 +232,6 @@ func TestParseExpectRuleValidation(t *testing.T) {
 			wantErr: "invalid conn",
 		},
 		{
-			name:    "bgp invalid conn five",
-			input:   "expect=bgp:conn=5:seq=1:hex=FFFF",
-			wantErr: "invalid conn",
-		},
-		{
 			name:    "bgp invalid seq zero",
 			input:   "expect=bgp:conn=1:seq=0:hex=FFFF",
 			wantErr: "invalid seq",
@@ -268,11 +263,6 @@ func TestParseExpectRuleValidation(t *testing.T) {
 			wantErr: "invalid conn",
 		},
 		{
-			name:    "notification invalid conn five",
-			input:   "action=notification:conn=5:seq=1:text=hello",
-			wantErr: "invalid conn",
-		},
-		{
 			name:    "notification invalid seq zero",
 			input:   "action=notification:conn=1:seq=0:text=hello",
 			wantErr: "invalid seq",
@@ -301,11 +291,6 @@ func TestParseExpectRuleValidation(t *testing.T) {
 		{
 			name:    "send invalid conn zero",
 			input:   "action=send:conn=0:seq=1:hex=FFFF",
-			wantErr: "invalid conn",
-		},
-		{
-			name:    "send invalid conn five",
-			input:   "action=send:conn=5:seq=1:hex=FFFF",
 			wantErr: "invalid conn",
 		},
 		{
@@ -349,13 +334,13 @@ func TestParseExpectRuleValid(t *testing.T) {
 		input string
 	}{
 		{"bgp valid", "expect=bgp:conn=1:seq=1:hex=FFFF"},
-		{"bgp conn 4", "expect=bgp:conn=4:seq=1:hex=FFFF"},
+		{"bgp high conn", "expect=bgp:conn=6:seq=1:hex=FFFF"},
 		{"bgp high seq", "expect=bgp:conn=1:seq=99:hex=FFFF"},
 		{"notification valid", "action=notification:conn=1:seq=1:text=hello"},
 		{"notification with colons", "action=notification:conn=1:seq=1:text=a:b:c"},
 		{"send valid", "action=send:conn=1:seq=1:hex=FFFF"},
 		{"send with colons in hex", "action=send:conn=1:seq=1:hex=FF:FF:FF"},
-		{"send conn 4", "action=send:conn=4:seq=1:hex=FFFF"},
+		{"send high conn", "action=send:conn=6:seq=1:hex=FFFF"},
 	}
 
 	for _, tt := range tests {

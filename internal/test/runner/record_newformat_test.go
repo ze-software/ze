@@ -25,7 +25,8 @@ func TestParseCIExpectBGP(t *testing.T) {
 
 	ciContent := `option=file:path=test.conf
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02
+expect=bgp:conn=6:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001705`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -37,8 +38,8 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	rec := et.GetByNick("0")
 	require.NotNil(t, rec)
 
-	// Should have 2 messages
-	assert.Len(t, rec.Messages, 2, "should have 2 messages")
+	// Should have 3 messages, including a connection number above the old four-connection limit.
+	assert.Len(t, rec.Messages, 3, "should have 3 messages")
 
 	// First message: conn=1, seq=1 → index 101
 	msg1 := rec.GetMessage(101)
@@ -49,6 +50,11 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	msg2 := rec.GetMessage(102)
 	require.NotNil(t, msg2, "message 102 should exist")
 	assert.Equal(t, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02", msg2.RawHex)
+
+	// Sixth connection: conn=6, seq=1 → index 601.
+	msg3 := rec.GetMessage(601)
+	require.NotNil(t, msg3, "message 601 should exist")
+	assert.Equal(t, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001705", msg3.RawHex)
 }
 
 // TestParseCIExpectJSON verifies parsing of expect:json lines.

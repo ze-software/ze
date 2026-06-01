@@ -10,7 +10,6 @@ import (
 	"net/netip"
 
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -31,7 +30,7 @@ func (a *reactorAPIAdapter) verifyConfigOperation(op *rpc.ConfigOperation) error
 	}
 	switch op.Type {
 	case rpc.OperationAddPeer:
-		_, err := a.peerSettingsFromOperationConfig(op, op.Params.Config)
+		_, err := a.candidatePeerSettingsFromOperationConfig(op)
 		return err
 	case rpc.OperationRemovePeer:
 		_, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig)
@@ -40,7 +39,7 @@ func (a *reactorAPIAdapter) verifyConfigOperation(op *rpc.ConfigOperation) error
 		if _, err := a.peerSettingsFromOperationConfig(op, op.Params.OldConfig); err != nil {
 			return err
 		}
-		_, err := a.peerSettingsFromOperationConfig(op, op.Params.Config)
+		_, err := a.candidatePeerSettingsFromOperationConfig(op)
 		return err
 	default:
 		return fmt.Errorf("bgp operation %s not supported", op.Type)
@@ -56,7 +55,7 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 	}
 	switch op.Type {
 	case rpc.OperationAddPeer:
-		settings, err := a.peerSettingsFromOperationConfig(op, op.Params.Config)
+		settings, err := a.candidatePeerSettingsFromOperationConfig(op)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +84,7 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 		if err != nil {
 			return nil, err
 		}
-		newSettings, err := a.peerSettingsFromOperationConfig(op, op.Params.Config)
+		newSettings, err := a.candidatePeerSettingsFromOperationConfig(op)
 		if err != nil {
 			return nil, err
 		}
@@ -121,6 +120,40 @@ func (a *reactorAPIAdapter) emitOperationListenerReady(settings *PeerSettings) {
 	}
 }
 
+func (a *reactorAPIAdapter) candidatePeerSettingsFromOperationConfig(op *rpc.ConfigOperation) (*PeerSettings, error) {
+	if settings, ok, err := a.peerSettingsFromReloadConfig(op); ok || err != nil {
+		return settings, err
+	}
+	return a.peerSettingsFromOperationConfig(op, op.Params.Config)
+}
+
+func (a *reactorAPIAdapter) peerSettingsFromReloadConfig(op *rpc.ConfigOperation) (*PeerSettings, bool, error) {
+	if a == nil || a.r == nil || op == nil {
+		return nil, false, nil
+	}
+	a.r.mu.RLock()
+	reloadFn := a.r.reloadFunc
+	configPath := a.r.config.ConfigPath
+	a.r.mu.RUnlock()
+	if reloadFn == nil || configPath == "" {
+		return nil, false, nil
+	}
+	peerName := firstOperationString(op.Params.Peer, op.Target.Peer, op.Params.Name, op.Target.Name)
+	if peerName == "" {
+		return nil, true, fmt.Errorf("bgp operation %s requires peer name", op.Type)
+	}
+	peers, err := reloadFn(configPath)
+	if err != nil {
+		return nil, true, fmt.Errorf("bgp operation %s load candidate peer config: %w", op.Type, err)
+	}
+	for _, peer := range peers {
+		if peer != nil && peer.Name == peerName {
+			return peer, true, nil
+		}
+	}
+	return nil, true, fmt.Errorf("bgp operation %s peer %q not found in candidate config", op.Type, peerName)
+}
+
 func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperation, raw json.RawMessage) (*PeerSettings, error) {
 	if len(raw) == 0 {
 		return nil, fmt.Errorf("bgp operation %s requires peer config", op.Type)
@@ -154,18 +187,37 @@ func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperat
 		}
 		peerTree = m
 	}
+	explicitPort := operationPeerPortExplicit(peerTree)
 
 	settings, err := parsePeerFromTree(peerName, peerTree, localAS, routerID)
 	if err != nil {
 		return nil, err
 	}
+	if !explicitPort && a != nil && a.r != nil && a.r.config.Port > 0 && a.r.config.Port <= 65535 {
+		settings.Port = uint16(a.r.config.Port)
+	}
 	return settings, nil
 }
 
-func (a *reactorAPIAdapter) removePeerForOperation(settings *PeerSettings) error {
-	if err := a.TeardownPeer(settings.Address, message.NotifyCeaseOtherConfigChange, "configuration changed"); err != nil && !errors.Is(err, ErrPeerNotFound) {
-		return err
+func operationPeerPortExplicit(peer map[string]any) bool {
+	conn, ok := peer["connection"].(map[string]any)
+	if !ok {
+		return false
 	}
+	if local, ok := conn["local"].(map[string]any); ok {
+		if _, exists := local["port"]; exists {
+			return true
+		}
+	}
+	if remote, ok := conn["remote"].(map[string]any); ok {
+		if _, exists := remote["port"]; exists {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *reactorAPIAdapter) removePeerForOperation(settings *PeerSettings) error {
 	return a.r.RemovePeer(settings.Address)
 }
 

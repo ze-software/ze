@@ -802,7 +802,7 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 }
 
 // parseConnSeq extracts conn and seq from key-value pairs.
-// Validates: conn must be 1-4, seq must be >= 1.
+// Validates: conn and seq must both be >= 1.
 func parseConnSeq(kv map[string]string) (conn, seq int, err error) {
 	connStr := kv["conn"]
 	seqStr := kv["seq"]
@@ -815,8 +815,8 @@ func parseConnSeq(kv map[string]string) (conn, seq int, err error) {
 	}
 
 	conn, err = strconv.Atoi(connStr)
-	if err != nil || conn < 1 || conn > 4 {
-		return 0, 0, fmt.Errorf("invalid conn=%q (must be 1-4)", connStr)
+	if err != nil || conn < 1 {
+		return 0, 0, fmt.Errorf("invalid conn=%q (must be >= 1)", connStr)
 	}
 	seq, err = strconv.Atoi(seqStr)
 	if err != nil || seq < 1 {

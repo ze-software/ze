@@ -732,18 +732,27 @@ func filterChainContains(chain []string, name string) bool {
 	return false
 }
 
-// applyPortOverride overrides peer remote port from ze.test.bgp.port env var.
-// This is a runtime-only mechanism for the test infrastructure (not YANG config).
-func applyPortOverride(peers []*reactor.PeerSettings) {
+// portOverrideFromEnv returns the runtime-only BGP port override used by test
+// infrastructure.
+func portOverrideFromEnv() (uint16, bool) {
 	p := coreenv.Get(envKeyTCPPort)
 	if p == "" {
-		return
+		return 0, false
 	}
 	v, err := strconv.ParseUint(p, 10, 16)
 	if err != nil {
+		return 0, false
+	}
+	return uint16(v), true //nolint:gosec // Validated above
+}
+
+// applyPortOverride overrides peer remote port from ze.test.bgp.port env var.
+// This is a runtime-only mechanism for the test infrastructure (not YANG config).
+func applyPortOverride(peers []*reactor.PeerSettings) {
+	port, ok := portOverrideFromEnv()
+	if !ok {
 		return
 	}
-	port := uint16(v) //nolint:gosec // Validated above
 	for _, ps := range peers {
 		ps.Port = port
 	}

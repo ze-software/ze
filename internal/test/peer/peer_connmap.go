@@ -1,12 +1,11 @@
-// Design: docs/architecture/testing/ci-format.md -- router-id based connection mapping
-// Overview: peer.go -- Peer.Run dispatches here when ConnMap == "router-id"
+// Design: docs/architecture/testing/ci-format.md -- connection mapping
+// Overview: peer.go -- Peer.Run dispatches here when ConnMap is set
 //
-// When option=conn_map:value=router-id is set, ze-peer accepts all expected
-// connections concurrently, completes the OPEN handshake on each, extracts
-// the router-id, and sorts connections by router-id (lowest = conn=1). This
-// gives deterministic conn= assignment regardless of TCP accept order,
-// enabling multi-peer forwarding tests where action=send targets a specific
-// peer and expect=bgp verifies what another peer receives.
+// Connection mapping accepts a batch of TCP connections, completes OPEN on
+// each, sorts the batch by a stable key, then runs the checker's conn=N rules
+// in that sorted order. Reload tests can use several batches: after a SIGHUP
+// closes the current batch, ze-peer accepts the next batch and continues with
+// the remaining conn=N expectations.
 package peer
 
 import (
@@ -14,20 +13,27 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sort"
+	"net/netip"
+	"slices"
 	"strconv"
 	"sync"
 )
 
-// connWithID pairs a TCP connection with the router-id from its OPEN.
+const (
+	connMapRouterID = "router-id"
+	connMapRemoteIP = "remote-ip"
+)
+
+// connWithID pairs a TCP connection with the values used for conn_map sorting.
 type connWithID struct {
 	conn     net.Conn
 	routerID uint32
+	remoteIP netip.Addr
 }
 
-// runConnMapRouterID accepts N connections, handshakes each, sorts by
-// router-id, and processes expect/send rules sequentially per connection.
-func (p *Peer) runConnMapRouterID(ctx context.Context) Result {
+// runConnMap accepts mapped connection batches and processes expect/send rules
+// sequentially inside each sorted batch.
+func (p *Peer) runConnMap(ctx context.Context) Result {
 	host := p.config.BindAddr
 	if host == "" {
 		host = "127.0.0.1"
@@ -56,25 +62,45 @@ func (p *Peer) runConnMapRouterID(ctx context.Context) Result {
 		ln.Close() //nolint:errcheck // best-effort on context cancel
 	}()
 
-	maxConns := p.config.TCPConnections
-	if maxConns <= 0 {
-		maxConns = 1
+	batchSize := p.config.TCPConnections
+	if batchSize <= 0 {
+		batchSize = 1
 	}
 
-	// Phase 1: Accept all connections and complete OPEN handshake concurrently.
-	conns := make([]connWithID, maxConns)
+	for {
+		conns, result, done := p.acceptConnMapBatch(ctx, ln, batchSize)
+		if done {
+			return result
+		}
+		sortConnBatch(conns, p.config.ConnMap)
+		p.printConnBatch(conns)
+
+		result = p.processConnBatch(ctx, conns)
+		closeConnBatch(conns)
+		if !result.Success {
+			return result
+		}
+		if p.checker.Completed() {
+			return Result{Success: true}
+		}
+		p.printf("\nwaiting for next mapped connection batch (%d)...\n", batchSize)
+	}
+}
+
+func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSize int) ([]connWithID, Result, bool) {
+	conns := make([]connWithID, batchSize)
 	var wg sync.WaitGroup
 	var acceptErr error
 	var errOnce sync.Once
 
-	for i := range maxConns {
-		conn, aErr := ln.Accept()
-		if aErr != nil {
+	for i := range batchSize {
+		conn, err := ln.Accept()
+		if err != nil {
 			select {
 			case <-ctx.Done():
-				return Result{Success: true}
+				return nil, Result{Success: true}, true
 			default:
-				return Result{Success: false, Error: fmt.Errorf("accept: %w", aErr)}
+				return nil, Result{Success: false, Error: fmt.Errorf("accept: %w", err)}, true
 			}
 		}
 		if tcpConn, ok := conn.(*net.TCPConn); ok {
@@ -93,43 +119,23 @@ func (p *Peer) runConnMapRouterID(ctx context.Context) Result {
 				c.Close() //nolint:errcheck // cleanup on handshake failure
 				return
 			}
-			conns[idx] = connWithID{conn: c, routerID: rid}
+			conns[idx] = connWithID{
+				conn:     c,
+				routerID: rid,
+				remoteIP: remoteIPFromConn(c),
+			}
 		}(i, conn)
 	}
 	wg.Wait()
 
 	if acceptErr != nil {
-		for _, c := range conns {
-			if c.conn != nil {
-				c.conn.Close() //nolint:errcheck // cleanup
-			}
-		}
-		return Result{Success: false, Error: acceptErr}
+		closeConnBatch(conns)
+		return nil, Result{Success: false, Error: acceptErr}, true
 	}
+	return conns, Result{}, false
+}
 
-	// Phase 2: Sort by router-id (lowest = conn=1).
-	sort.Slice(conns, func(i, j int) bool { return conns[i].routerID < conns[j].routerID })
-
-	for i, c := range conns {
-		p.printf("\nconn=%d router-id=%d.%d.%d.%d\n", i+1,
-			(c.routerID>>24)&0xFF, (c.routerID>>16)&0xFF,
-			(c.routerID>>8)&0xFF, c.routerID&0xFF)
-	}
-
-	// Close all connections when done, regardless of which path returns.
-	defer func() {
-		for _, c := range conns {
-			if c.conn != nil {
-				c.conn.Close() //nolint:errcheck // cleanup
-			}
-		}
-	}()
-
-	// Phase 3: Process connections sequentially. The checker's SequenceEnded()
-	// signals when the current connection's rules are exhausted, so conn=1's
-	// loop returns after its send actions complete. Conn=2's loop then starts
-	// and reads the forwarded message. All TCP connections stay alive (deferred
-	// close) so ze can forward between them.
+func (p *Peer) processConnBatch(ctx context.Context, conns []connWithID) Result {
 	for _, c := range conns {
 		p.checker.Init()
 		result := p.runMessageLoop(ctx, c.conn)
@@ -140,9 +146,66 @@ func (p *Peer) runConnMapRouterID(ctx context.Context) Result {
 			return Result{Success: true}
 		}
 	}
-
 	if p.checker.Completed() {
 		return Result{Success: true}
 	}
-	return Result{Success: false, Error: errors.New("not all expectations met after all connections")}
+	return Result{Success: true}
+}
+
+func sortConnBatch(conns []connWithID, mode string) {
+	slices.SortFunc(conns, func(a, b connWithID) int {
+		switch mode {
+		case connMapRemoteIP:
+			if cmp := a.remoteIP.Compare(b.remoteIP); cmp != 0 {
+				return cmp
+			}
+			return compareRouterID(a.routerID, b.routerID)
+		default:
+			if cmp := compareRouterID(a.routerID, b.routerID); cmp != 0 {
+				return cmp
+			}
+			return a.remoteIP.Compare(b.remoteIP)
+		}
+	})
+}
+
+func compareRouterID(a, b uint32) int {
+	switch {
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func remoteIPFromConn(conn net.Conn) netip.Addr {
+	if conn == nil {
+		return netip.Addr{}
+	}
+	if tcpAddr, ok := conn.RemoteAddr().(*net.TCPAddr); ok {
+		return tcpAddr.AddrPort().Addr().Unmap()
+	}
+	addrPort, err := netip.ParseAddrPort(conn.RemoteAddr().String())
+	if err != nil {
+		return netip.Addr{}
+	}
+	return addrPort.Addr().Unmap()
+}
+
+func (p *Peer) printConnBatch(conns []connWithID) {
+	for i, c := range conns {
+		p.printf("\nconn=%d remote-ip=%s router-id=%d.%d.%d.%d\n", i+1, c.remoteIP,
+			(c.routerID>>24)&0xFF, (c.routerID>>16)&0xFF,
+			(c.routerID>>8)&0xFF, c.routerID&0xFF)
+	}
+}
+
+func closeConnBatch(conns []connWithID) {
+	for _, c := range conns {
+		if c.conn != nil {
+			c.conn.Close() //nolint:errcheck // cleanup
+		}
+	}
 }

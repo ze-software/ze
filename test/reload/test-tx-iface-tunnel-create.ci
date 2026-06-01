@@ -12,6 +12,7 @@
 # crash the daemon.
 
 # ze-peer expectations
+option=skip-os:value=darwin
 stdin=peer:terminator=EOF_PEER
 
 # Connection 1: peer from initial config sends route + EOR

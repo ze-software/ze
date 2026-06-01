@@ -128,9 +128,9 @@ type Config struct {
 	SendUnknownMessage bool
 	// CapabilityOverrides: capabilities to add/remove from mirrored OPEN response
 	CapabilityOverrides []CapabilityOverride
-	// ConnMap determines how connections map to conn= numbers in .ci files.
-	// "router-id": sort by OPEN router-id (lowest = conn=1). Requires all
-	// connections to complete OPEN before processing send/expect rules.
+	// ConnMap determines how accepted connections map to conn= numbers in .ci files.
+	// "router-id": sort each accepted batch by OPEN router-id.
+	// "remote-ip": sort each accepted batch by TCP source address.
 	// Empty: sequential accept order (default, existing behavior).
 	ConnMap string
 	// Expect: list of expected messages from .ci file
@@ -191,8 +191,12 @@ func (p *Peer) Run(ctx context.Context) Result {
 	if p.config.Dial != "" {
 		return p.runActive(ctx)
 	}
-	if p.config.ConnMap == "router-id" {
-		return p.runConnMapRouterID(ctx)
+	switch p.config.ConnMap {
+	case "":
+	case connMapRouterID, connMapRemoteIP:
+		return p.runConnMap(ctx)
+	default:
+		return Result{Success: false, Error: fmt.Errorf("unknown conn_map %q", p.config.ConnMap)}
 	}
 	host := p.config.BindAddr
 	if host == "" {

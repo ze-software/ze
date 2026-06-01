@@ -10,7 +10,8 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=4
+option=tcp_connections:value=2
+option=conn_map:value=remote-ip
 
 # Connection 1: peer1 static route (192.168.1.0/24) + EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
@@ -31,6 +32,7 @@ expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 # Connection 4: peer2 reconnects with swapped router-id, resends route
 expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0000
 expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=sigterm:conn=4:seq=2
 EOF_PEER
 
 # Initial ze bgp configuration (two peers, different router-ids)
@@ -79,10 +81,10 @@ bgp {
 	peer peer2 {
 		connection {
 			remote {
-				ip 127.0.0.1
+				ip 127.0.0.2
 			}
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.2
 				accept false
 			}
 		}
@@ -164,10 +166,10 @@ bgp {
 	peer peer2 {
 		connection {
 			remote {
-				ip 127.0.0.1
+				ip 127.0.0.2
 			}
 			local {
-				ip 127.0.0.1
+				ip 127.0.0.2
 				accept false
 			}
 		}
@@ -204,5 +206,5 @@ bgp {
 EOF_CONF2
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=ze-peer --bind 0.0.0.0 --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s

@@ -100,6 +100,7 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 	}
 
 	var ops []configtx.ConfigOperation
+	var sameAddressChanges []bgpPeerChange
 	for _, name := range sortedBGPPeerNames(activePeers) {
 		activePeer := activePeers[name]
 		candidatePeer, exists := candidatePeers[name]
@@ -107,15 +108,28 @@ func decomposeBGPOperations(_ context.Context, req configtx.DecomposeRequest) ([
 			ops = append(ops, bgpPeerOperation(configtx.OperationRemovePeer, name, activePeer.localAddress, nil, activePeer.raw))
 			continue
 		}
-		if string(activePeer.raw) != string(candidatePeer.raw) {
-			if activePeer.localAddress != candidatePeer.localAddress {
-				ops = append(ops,
-					bgpPeerOperation(configtx.OperationRemovePeer, name, activePeer.localAddress, nil, activePeer.raw),
-					bgpPeerOperation(configtx.OperationAddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil),
-				)
-			} else {
-				ops = append(ops, bgpModifyPeerOperation(name, candidatePeer.localAddress, candidatePeer.raw, activePeer.raw))
-			}
+		if string(activePeer.raw) == string(candidatePeer.raw) {
+			continue
+		}
+		if activePeer.localAddress != candidatePeer.localAddress {
+			ops = append(ops,
+				bgpPeerOperation(configtx.OperationRemovePeer, name, activePeer.localAddress, nil, activePeer.raw),
+				bgpPeerOperation(configtx.OperationAddPeer, name, candidatePeer.localAddress, candidatePeer.raw, nil),
+			)
+			continue
+		}
+		sameAddressChanges = append(sameAddressChanges, bgpPeerChange{name: name, active: activePeer, candidate: candidatePeer})
+	}
+	if peerRouterIDRotation(sameAddressChanges) {
+		for _, change := range sameAddressChanges {
+			ops = append(ops, bgpPeerOperation(configtx.OperationRemovePeer, change.name, change.active.localAddress, nil, change.active.raw))
+		}
+		for _, change := range sameAddressChanges {
+			ops = append(ops, bgpPeerOperation(configtx.OperationAddPeer, change.name, change.candidate.localAddress, change.candidate.raw, nil))
+		}
+	} else {
+		for _, change := range sameAddressChanges {
+			ops = append(ops, bgpModifyPeerOperation(change.name, change.candidate.localAddress, change.candidate.raw, change.active.raw))
 		}
 	}
 	for _, name := range sortedBGPPeerNames(candidatePeers) {
@@ -149,7 +163,14 @@ func decomposeBGPOperationInput(ctx context.Context, input sdk.ConfigOperationDe
 
 type bgpOperationPeer struct {
 	localAddress string
+	routerID     string
 	raw          json.RawMessage
+}
+
+type bgpPeerChange struct {
+	name      string
+	active    bgpOperationPeer
+	candidate bgpOperationPeer
 }
 
 func parseBGPOperationRoot(raw string) (map[string]any, error) {
@@ -190,7 +211,11 @@ func collectBGPOperationPeers(root map[string]any) (map[string]bgpOperationPeer,
 		if err != nil {
 			return nil, fmt.Errorf("marshal peer %s: %w", name, err)
 		}
-		peers[name] = bgpOperationPeer{localAddress: bgpPeerLocalAddress(merged), raw: data}
+		peers[name] = bgpOperationPeer{
+			localAddress: bgpPeerLocalAddress(merged),
+			routerID:     nestedString(merged, "session", "router-id"),
+			raw:          data,
+		}
 	}
 	return peers, nil
 }
@@ -263,6 +288,27 @@ func bgpDiffTouchesPeer(diff configtx.DiffSection) bool {
 			if key == "bgp/peer" || strings.HasPrefix(key, "bgp/peer/") || key == "peer" || strings.HasPrefix(key, "peer/") {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func peerRouterIDRotation(changes []bgpPeerChange) bool {
+	if len(changes) < 2 {
+		return false
+	}
+	activeOwner := make(map[string]string, len(changes))
+	for _, change := range changes {
+		if change.active.routerID != "" {
+			activeOwner[change.active.routerID] = change.name
+		}
+	}
+	for _, change := range changes {
+		if change.candidate.routerID == "" || change.candidate.routerID == change.active.routerID {
+			continue
+		}
+		if owner := activeOwner[change.candidate.routerID]; owner != "" && owner != change.name {
+			return true
 		}
 	}
 	return false

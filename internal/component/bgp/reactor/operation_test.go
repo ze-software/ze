@@ -66,6 +66,72 @@ func TestApplyConfigOperationAddPeerJournal(t *testing.T) {
 	assert.Empty(t, r.Peers())
 }
 
+// TestPeerSettingsFromOperationConfigUsesReactorPort verifies operation reload
+// peers inherit the reactor port when the peer config omits a per-peer port.
+//
+// VALIDATES: ADD_PEER/MODIFY_PEER operations keep test and daemon port overrides.
+// PREVENTS: reload-created peers falling back to TCP/179 after the initial
+// session used a custom port.
+func TestPeerSettingsFromOperationConfigUsesReactorPort(t *testing.T) {
+	r := New(&Config{Port: 1802})
+	adapter := &reactorAPIAdapter{r: r}
+	op := rpc.ConfigOperation{
+		ID:    "bgp-add-peer-edge",
+		Root:  "bgp",
+		Owner: "bgp",
+		Type:  rpc.OperationAddPeer,
+		Target: rpc.ResourceRef{
+			Kind: rpc.ResourcePeer,
+			Peer: "edge",
+		},
+		Params: rpc.ConfigOperationParams{
+			Peer:   "edge",
+			Config: json.RawMessage(`{"connection":{"remote":{"ip":"203.0.113.1"},"local":{"ip":"192.0.2.1"}},"session":{"asn":{"local":"65000","remote":"65001"}}}`),
+		},
+	}
+
+	settings, err := adapter.peerSettingsFromOperationConfig(&op, op.Params.Config)
+	require.NoError(t, err)
+	assert.Equal(t, uint16(1802), settings.Port)
+}
+
+// TestCandidatePeerSettingsFromOperationConfigUsesReloadFunc verifies operation
+// add/modify uses the full reload parser when it is available.
+//
+// VALIDATES: operation-created peers keep fields populated outside parsePeerFromTree.
+// PREVENTS: reload operations losing static routes and runtime port overrides.
+func TestCandidatePeerSettingsFromOperationConfigUsesReloadFunc(t *testing.T) {
+	r := New(&Config{ConfigPath: "ze.conf"})
+	want := NewPeerSettings(mustParseAddr("198.51.100.1"), 65000, 65001, 0)
+	want.Name = "edge"
+	want.Port = 1802
+	r.SetReloadFunc(func(path string) ([]*PeerSettings, error) {
+		assert.Equal(t, "ze.conf", path)
+		return []*PeerSettings{want}, nil
+	})
+	adapter := &reactorAPIAdapter{r: r}
+	op := rpc.ConfigOperation{
+		ID:    "bgp-add-peer-edge",
+		Root:  "bgp",
+		Owner: "bgp",
+		Type:  rpc.OperationAddPeer,
+		Target: rpc.ResourceRef{
+			Kind: rpc.ResourcePeer,
+			Peer: "edge",
+		},
+		Params: rpc.ConfigOperationParams{
+			Peer:   "edge",
+			Config: json.RawMessage(`{"connection":{"remote":{"ip":"203.0.113.1"},"local":{"ip":"192.0.2.1"}},"session":{"asn":{"local":"65000","remote":"65001"}}}`),
+		},
+	}
+
+	got, err := adapter.candidatePeerSettingsFromOperationConfig(&op)
+	require.NoError(t, err)
+	assert.Same(t, want, got)
+	assert.Equal(t, uint16(1802), got.Port)
+	assert.Equal(t, mustParseAddr("198.51.100.1"), got.Address)
+}
+
 // TestApplyConfigOperationAddPeerEmitsListenerReady verifies ADD_PEER makes
 // listener readiness observable for the operation settlement waiter.
 //

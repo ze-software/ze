@@ -7,6 +7,7 @@ package peer
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,7 +26,7 @@ const (
 type Checker struct {
 	messages            []string
 	sequences           [][]string
-	connectionIDs       []int  // Connection number (1-4) for each sequence
+	connectionIDs       []int  // Connection number for each sequence
 	currentConnection   int    // Current connection number (0 = none)
 	lastExpected        string // For diff output on mismatch
 	lastReceived        string // For diff output on mismatch
@@ -64,15 +65,21 @@ func (c *Checker) groupMessages(expected []string) ([][]string, []int, error) {
 
 	var result [][]string
 	var connIDs []int
-	for conn := 1; conn <= 4; conn++ {
-		if groups[conn] == nil {
-			continue
+	connKeys := make([]int, 0, len(groups))
+	for conn := range groups {
+		connKeys = append(connKeys, conn)
+	}
+	slices.Sort(connKeys)
+	for _, conn := range connKeys {
+		seqs := groups[conn]
+		seqKeys := make([]int, 0, len(seqs))
+		for seq := range seqs {
+			seqKeys = append(seqKeys, seq)
 		}
-		for seq := 1; seq <= 100; seq++ {
-			if msgs := groups[conn][seq]; len(msgs) > 0 {
-				result = append(result, msgs)
-				connIDs = append(connIDs, conn)
-			}
+		slices.Sort(seqKeys)
+		for _, seq := range seqKeys {
+			result = append(result, seqs[seq])
+			connIDs = append(connIDs, conn)
 		}
 	}
 
@@ -80,7 +87,7 @@ func (c *Checker) groupMessages(expected []string) ([][]string, []int, error) {
 }
 
 // parseExpectRule parses new format expect rules.
-// Returns conn (1-4), seq, and normalized content.
+// Returns conn, seq, and normalized content.
 // Only handles: expect=bgp:conn=N:seq=N:hex=... and action=notification:conn=N:seq=N:text=...
 // Returns error for invalid or incomplete rules.
 func parseExpectRule(rule string) (conn, seq int, content string, err error) {
@@ -93,8 +100,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("expect=bgp missing conn: %q", rule)
 		}
 		conn, err = strconv.Atoi(connStr)
-		if err != nil || conn < 1 || conn > 4 {
-			return 0, 0, "", fmt.Errorf("expect=bgp invalid conn=%q (must be 1-4): %q", connStr, rule)
+		if err != nil || conn < 1 {
+			return 0, 0, "", fmt.Errorf("expect=bgp invalid conn=%q (must be >= 1): %q", connStr, rule)
 		}
 
 		seqStr := kv["seq"]
@@ -130,8 +137,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("action:notification missing conn: %q", rule)
 		}
 		conn, err = strconv.Atoi(connStr)
-		if err != nil || conn < 1 || conn > 4 {
-			return 0, 0, "", fmt.Errorf("action:notification invalid conn=%q (must be 1-4): %q", connStr, rule)
+		if err != nil || conn < 1 {
+			return 0, 0, "", fmt.Errorf("action:notification invalid conn=%q (must be >= 1): %q", connStr, rule)
 		}
 
 		seqStr := kv["seq"]
@@ -160,8 +167,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("action:send missing conn: %q", rule)
 		}
 		conn, err = strconv.Atoi(connStr)
-		if err != nil || conn < 1 || conn > 4 {
-			return 0, 0, "", fmt.Errorf("action:send invalid conn=%q (must be 1-4): %q", connStr, rule)
+		if err != nil || conn < 1 {
+			return 0, 0, "", fmt.Errorf("action:send invalid conn=%q (must be >= 1): %q", connStr, rule)
 		}
 
 		seqStr := kv["seq"]
@@ -190,8 +197,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("action:rewrite missing conn: %q", rule)
 		}
 		conn, err = strconv.Atoi(connStr)
-		if err != nil || conn < 1 || conn > 4 {
-			return 0, 0, "", fmt.Errorf("action:rewrite invalid conn=%q (must be 1-4): %q", connStr, rule)
+		if err != nil || conn < 1 {
+			return 0, 0, "", fmt.Errorf("action:rewrite invalid conn=%q (must be >= 1): %q", connStr, rule)
 		}
 
 		seqStr := kv["seq"]
@@ -224,8 +231,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("action:sighup missing conn: %q", rule)
 		}
 		conn, err = strconv.Atoi(connStr)
-		if err != nil || conn < 1 || conn > 4 {
-			return 0, 0, "", fmt.Errorf("action:sighup invalid conn=%q (must be 1-4): %q", connStr, rule)
+		if err != nil || conn < 1 {
+			return 0, 0, "", fmt.Errorf("action:sighup invalid conn=%q (must be >= 1): %q", connStr, rule)
 		}
 
 		seqStr := kv["seq"]
@@ -250,8 +257,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("action:close missing conn: %q", rule)
 		}
 		conn, err = strconv.Atoi(connStr)
-		if err != nil || conn < 1 || conn > 4 {
-			return 0, 0, "", fmt.Errorf("action:close invalid conn=%q (must be 1-4): %q", connStr, rule)
+		if err != nil || conn < 1 {
+			return 0, 0, "", fmt.Errorf("action:close invalid conn=%q (must be >= 1): %q", connStr, rule)
 		}
 
 		seqStr := kv["seq"]
@@ -276,8 +283,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("action:sigterm missing conn: %q", rule)
 		}
 		conn, err = strconv.Atoi(connStr)
-		if err != nil || conn < 1 || conn > 4 {
-			return 0, 0, "", fmt.Errorf("action:sigterm invalid conn=%q (must be 1-4): %q", connStr, rule)
+		if err != nil || conn < 1 {
+			return 0, 0, "", fmt.Errorf("action:sigterm invalid conn=%q (must be >= 1): %q", connStr, rule)
 		}
 
 		seqStr := kv["seq"]
