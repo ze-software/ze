@@ -9,6 +9,8 @@ var (
 	KeySSHUsername           = MustRegister(KeyEntry{Pattern: "meta/ssh/{host}/{port}/username", Description: "SSH authentication username"})
 	KeySSHPassword           = MustRegister(KeyEntry{Pattern: "meta/ssh/{host}/{port}/password", Description: "SSH password (bcrypt hash)", Private: true})
 	KeySSHDefault            = MustRegister(KeyEntry{Pattern: "meta/ssh/default", Description: "Default remote target (host/port)"})
+	KeyLocalAdminUsername    = MustRegister(KeyEntry{Pattern: "meta/auth/local/username", Description: "Local administrative username"})
+	KeyLocalAdminPassword    = MustRegister(KeyEntry{Pattern: "meta/auth/local/password", Description: "Local administrative password (bcrypt hash)", Private: true})
 	KeyInstanceName          = MustRegister(KeyEntry{Pattern: "meta/instance/name", Description: "Router instance name"})
 	KeyInstanceManaged       = MustRegister(KeyEntry{Pattern: "meta/instance/managed", Description: "Managed mode flag (true/false)"})
 	KeyWebCert               = MustRegister(KeyEntry{Pattern: "meta/web/cert", Description: "HTTPS certificate (PEM)", Private: true})

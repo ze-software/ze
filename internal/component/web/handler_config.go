@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -39,12 +40,12 @@ const (
 )
 
 const (
-	webCommandConfigSet      = "config set"
+	webCommandConfigSet      = api.ConfigAuthSet
 	webCommandConfigAdd      = "config add"
-	webCommandConfigDelete   = "config delete"
+	webCommandConfigDelete   = api.ConfigAuthDelete
 	webCommandConfigRename   = "config rename"
-	webCommandConfigCommit   = "config commit"
-	webCommandConfigDiscard  = "config discard"
+	webCommandConfigCommit   = api.ConfigAuthCommit
+	webCommandConfigDiscard  = api.ConfigAuthDiscard
 	webCommandConfigRollback = "config rollback"
 	webCommandConfigSave     = "config save"
 )

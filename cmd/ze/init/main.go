@@ -245,6 +245,8 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 	entries := []entry{
 		{zefs.KeySSHUsername.Key(host, port), username},
 		{zefs.KeySSHPassword.Key(host, port), string(hashedPassword)},
+		{zefs.KeyLocalAdminUsername.Pattern, username},
+		{zefs.KeyLocalAdminPassword.Pattern, string(hashedPassword)},
 		{zefs.KeySSHDefault.Pattern, host + "/" + port},
 		{keyManaged, managedValue},
 	}

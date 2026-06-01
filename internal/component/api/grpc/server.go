@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	zepb "codeberg.org/thomas-mangin/ze/api/proto"
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -47,11 +48,12 @@ type Authenticator func(authHeader string) (username string, ok bool)
 // ListenAddrs must contain at least one entry; every entry becomes a
 // separate listener on the same *grpc.Server. Stop closes all of them.
 type GRPCConfig struct {
-	ListenAddrs   []string      // e.g. []string{"0.0.0.0:50051", "127.0.0.1:51051"}
-	Token         string        // Single bearer token (empty = no auth). Ignored when Authenticator is set.
-	Authenticator Authenticator // Per-user auth callback. When set, Token is not checked.
-	TLSCert       string        // Path to TLS certificate file (empty = plaintext)
-	TLSKey        string        // Path to TLS key file (empty = plaintext)
+	ListenAddrs   []string       // e.g. []string{"0.0.0.0:50051", "127.0.0.1:51051"}
+	Token         string         // Single bearer token (empty = no auth). Ignored when Authenticator is set.
+	Authenticator Authenticator  // Per-user auth callback. When set, Token is not checked.
+	Authorizer    aaa.Authorizer // Optional per-command profile authorizer for config sessions.
+	TLSCert       string         // Path to TLS certificate file (empty = plaintext)
+	TLSKey        string         // Path to TLS key file (empty = plaintext)
 	AuditRecorder audit.Recorder
 }
 
@@ -65,6 +67,7 @@ type GRPCServer struct {
 	sessions      *api.ConfigSessionManager
 	token         string
 	authenticator Authenticator
+	authorizer    aaa.Authorizer
 	auditRecorder audit.Recorder
 	srv           *grpc.Server
 	// configured holds the addresses passed in by the caller, in original order.
@@ -111,6 +114,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		sessions:      sessions,
 		token:         cfg.Token,
 		authenticator: cfg.Authenticator,
+		authorizer:    cfg.Authorizer,
 		auditRecorder: cfg.AuditRecorder,
 		configured:    append([]string(nil), cfg.ListenAddrs...),
 		listeners:     make(map[string]net.Listener),
@@ -136,7 +140,7 @@ func NewGRPCServer(cfg GRPCConfig, engine *api.APIEngine, sessions *api.ConfigSe
 
 	s.srv = grpc.NewServer(opts...)
 	zepb.RegisterZeServiceServer(s.srv, &zeServiceImpl{engine: engine})
-	zepb.RegisterZeConfigServiceServer(s.srv, &zeConfigServiceImpl{engine: engine, sessions: sessions, auditRecorder: cfg.AuditRecorder})
+	zepb.RegisterZeConfigServiceServer(s.srv, &zeConfigServiceImpl{engine: engine, sessions: sessions, authorizer: cfg.Authorizer, auditRecorder: cfg.AuditRecorder})
 	reflection.Register(s.srv)
 
 	return s, nil
@@ -494,13 +498,6 @@ func attemptedBearerUser(header string) string {
 	return username
 }
 
-func requireWriteAccess(ctx context.Context) error {
-	if !readOnlyFromContext(ctx) {
-		return nil
-	}
-	return status.Error(codes.PermissionDenied, "read-only API caller cannot modify configuration")
-}
-
 // --- ZeService implementation ---
 
 type zeServiceImpl struct {
@@ -589,6 +586,21 @@ type zeConfigServiceImpl struct {
 	engine        *api.APIEngine
 	sessions      *api.ConfigSessionManager
 	auditRecorder audit.Recorder
+	authorizer    aaa.Authorizer
+}
+
+func (s *zeConfigServiceImpl) requireWriteAccess(ctx context.Context, command string) error {
+	if readOnlyFromContext(ctx) {
+		return status.Error(codes.PermissionDenied, "read-only API caller cannot modify configuration")
+	}
+	if s.authorizer == nil {
+		return nil
+	}
+	caller := callerIdentityFromContext(ctx)
+	if s.authorizer.Authorize(caller.Username, caller.RemoteAddr, command, false) {
+		return nil
+	}
+	return status.Error(codes.PermissionDenied, "API caller is not authorized to modify configuration")
 }
 
 func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empty) (*zepb.ConfigResponse, error) {
@@ -613,7 +625,7 @@ func (s *zeConfigServiceImpl) EnterSession(ctx context.Context, _ *zepb.Empty) (
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := requireWriteAccess(ctx); err != nil {
+	if err := s.requireWriteAccess(ctx, api.ConfigAuthEdit); err != nil {
 		return nil, err
 	}
 	id, err := s.sessions.Enter(usernameFromContext(ctx))
@@ -627,7 +639,7 @@ func (s *zeConfigServiceImpl) SetConfig(ctx context.Context, req *zepb.ConfigSet
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := requireWriteAccess(ctx); err != nil {
+	if err := s.requireWriteAccess(ctx, api.ConfigAuthSet); err != nil {
 		return nil, err
 	}
 	if err := s.sessions.Set(fromProtoConfigSetRequest(req, usernameFromContext(ctx))); err != nil {
@@ -640,7 +652,7 @@ func (s *zeConfigServiceImpl) DeleteConfig(ctx context.Context, req *zepb.Config
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := requireWriteAccess(ctx); err != nil {
+	if err := s.requireWriteAccess(ctx, api.ConfigAuthDelete); err != nil {
 		return nil, err
 	}
 	if err := s.sessions.Delete(fromProtoConfigDeleteRequest(req, usernameFromContext(ctx))); err != nil {
@@ -664,7 +676,7 @@ func (s *zeConfigServiceImpl) CommitSession(ctx context.Context, req *zepb.Commi
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := requireWriteAccess(ctx); err != nil {
+	if err := s.requireWriteAccess(ctx, api.ConfigAuthCommit); err != nil {
 		return nil, err
 	}
 	caller := callerIdentityFromContext(ctx)
@@ -687,7 +699,7 @@ func (s *zeConfigServiceImpl) DiscardSession(ctx context.Context, req *zepb.Sess
 	if s.sessions == nil {
 		return nil, status.Error(codes.Unavailable, "config sessions not available")
 	}
-	if err := requireWriteAccess(ctx); err != nil {
+	if err := s.requireWriteAccess(ctx, api.ConfigAuthDiscard); err != nil {
 		return nil, err
 	}
 	caller := callerIdentityFromContext(ctx)

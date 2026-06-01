@@ -82,9 +82,10 @@ def main():
     expect_forbidden('/config/commit/', {}, 'config commit')
     expect_forbidden('/config/discard/', {}, 'config discard')
     expect_forbidden('/cli/terminal', {'command': 'set zeuser blocked-terminal'}, 'terminal config set')
+    expect_forbidden('/cli', {'command': 'set zeuser blocked-cli', 'path': 'environment/daemon'}, 'integrated CLI config set')
 
     body = request('GET', '/show/environment/daemon/').read().decode(errors='replace')
-    if 'blocked-user' in body or 'blocked-terminal' in body:
+    if 'blocked-user' in body or 'blocked-terminal' in body or 'blocked-cli' in body:
         print('FAIL: denied config set changed rendered config', file=sys.stderr)
         sys.exit(1)
     print('OK: denied web mutations left config unchanged', file=sys.stderr)

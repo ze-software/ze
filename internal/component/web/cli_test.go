@@ -408,6 +408,29 @@ func TestTerminalModeCommand(t *testing.T) {
 	assert.Contains(t, resp.Output, "commands:")
 }
 
+// VALIDATES: integrated web CLI enforces profile RBAC before config mutations.
+// PREVENTS: read-only web users bypassing /config/* guards through POST /cli.
+func TestCLIBarRBACDeny(t *testing.T) {
+	mgr, renderer := setupCLITest(t)
+	schema, _ := buildTestSchemaAndTree()
+	store := authz.NewStore()
+	store.AddProfile(authz.BuiltinReadOnlyProfile())
+	store.AssignProfiles("testuser", []string{"read-only"})
+	authorizer := authz.StoreAuthorizer{Store: store}
+	handler := HandleCLICommandWithAuthorizer(mgr, schema, renderer, authorizer)
+
+	body := url.Values{
+		"command": {"set router-id 10.0.0.2"},
+		"path":    {"bgp"},
+	}
+	w := httptest.NewRecorder()
+	r := authedRequest(http.MethodPost, "/cli", body)
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Equal(t, 0, mgr.ChangeCount("testuser"))
+}
+
 // PREVENTS: terminal-mode web config commands bypassing profile RBAC.
 func TestTerminalModeRBACDeny(t *testing.T) {
 	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)

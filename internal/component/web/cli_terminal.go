@@ -130,6 +130,10 @@ func HandleCLITerminalWithAuthorizerAndAudit(mgr *EditorManager, schema *config.
 	}
 }
 
+// terminalAuthCommand maps only state-changing verbs to RBAC commands.
+// Navigation verbs like edit/up/top are intentionally ungated here: in the web
+// CLI bar they only change the visible subtree, unlike the API's "config edit"
+// session creation which opens a mutable config session.
 func terminalAuthCommand(cmd cliCommand) string {
 	switch cmd.Verb {
 	case verbSet, verbActivate:

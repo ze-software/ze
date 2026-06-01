@@ -234,7 +234,12 @@ func ValidateAuthzConfig(tree *config.Tree) error {
 	return nil
 }
 
-// extractAuthzConfig extracts authorization profiles from the parsed config tree.
+// ExtractAuthzStore extracts authorization profiles and user assignments from a
+// parsed config tree. Returns nil when no system.authorization profiles exist.
+func ExtractAuthzStore(tree *config.Tree) *authz.Store {
+	return extractAuthzConfig(tree)
+}
+
 // Returns a populated Store if system.authorization is present with profiles, nil otherwise.
 // User-to-profile assignments come from system.authentication.user[*].profile (leaf-list).
 func extractAuthzConfig(tree *config.Tree) *authz.Store {

@@ -770,7 +770,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// swapAAABundle installs it as the live bundle so closeAAABundle (deferred
 		// at the top of runYANGConfig) drains backend workers on process exit.
 		aaaLog := slogutil.Logger("hub.aaa")
-		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, cfg.Users, nil, aaaLog)
+		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, cfg.Users, bgpconfig.ExtractAuthzStore(loadResult.Tree), aaaLog)
 		if aaaErr != nil {
 			aaaLog.Warn("AAA backend build failed; SSH authenticator not set", "error", aaaErr)
 			registerAAAAccountingProvider(nil)
@@ -920,7 +920,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 
 		var apiErr error
-		apiSrvs, apiErr = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, reloadAfterCommit, auditLog)
+		apiSrvs, apiErr = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, liveAAABundleAuthorizer{}, reloadAfterCommit, auditLog)
 		if apiErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
 			apiServer.Stop()

@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
@@ -124,5 +125,30 @@ func TestAPILoginAdmitsPowerAndConfigUsers(t *testing.T) {
 				t.Errorf("validate(%q) = (%q, %v), want (%q, %v)", c.header, user, ok, c.wantUser, c.wantOK)
 			}
 		})
+	}
+}
+
+// TestLiveAAABundleAuthorizerHonorsConfiguredProfiles proves the live bundle
+// authorizer path uses the extracted authz store, not just authentication.
+func TestLiveAAABundleAuthorizerHonorsConfiguredProfiles(t *testing.T) {
+	resetAAABundleForTest(t)
+
+	store := authz.NewStore()
+	store.AddProfile(authz.BuiltinReadOnlyProfile())
+	store.AssignProfiles("operator", []string{"read-only"})
+	users := []authz.UserConfig{{Name: "operator", Hash: bcryptHash(t, "operator-secret")}}
+
+	bundle, err := buildAAABundle(nil, users, store, nil)
+	if err != nil {
+		t.Fatalf("buildAAABundle: %v", err)
+	}
+	swapAAABundle(bundle, nil)
+
+	authorizer := liveAAABundleAuthorizer{}
+	if authorizer.Authorize("operator", "", api.ConfigAuthSet, false) {
+		t.Fatal("read-only operator unexpectedly allowed config set")
+	}
+	if authorizer.Authorize("operator", "", api.ConfigAuthCommit, false) {
+		t.Fatal("read-only operator unexpectedly allowed config commit")
 	}
 }

@@ -1162,13 +1162,14 @@ shell substitution into `ze config set ... password "$(echo s | ze passwd)"`.
 `ze cli`, `ze bgp plugin cli`, `ze signal`, `ze config set`, `ze config edit`,
 and `ze interface migrate` accept `--user <name>` (long) and `-u <name>`
 (short) to override the bootstrap super-admin username. Without the flag,
-the CLI uses the username stored in `meta/ssh/username` by `ze init`.
+the CLI uses the username stored for the selected zefs SSH target. By default it
+follows `meta/ssh/default`, then reads `meta/ssh/<host>/<port>/username`.
 
 | Source | Wins over |
 |--------|-----------|
 | `--user`/`-u` flag | env, zefs |
 | `ze.ssh.username` env var | zefs |
-| zefs `meta/ssh/username` | (default) |
+| zefs `meta/ssh/<host>/<port>/username` | (default) |
 
 The password for a non-super-admin user must come from `ze.ssh.password`
 (env) or an interactive prompt. There is intentionally no `--password`

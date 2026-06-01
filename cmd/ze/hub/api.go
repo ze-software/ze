@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	zeconfigcmd "codeberg.org/thomas-mangin/ze/cmd/ze/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
 	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
@@ -62,7 +63,7 @@ func configValidationHook(configPath string) api.ConfigValidationHook {
 // servers based on the config. Explicit transport configuration fails closed:
 // construction and bind errors return to the caller instead of silently
 // disabling the requested API listener.
-func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig, reloadAfterCommit func() error, recorder audit.Recorder) (*apiServers, error) {
+func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig, authorizer aaa.Authorizer, reloadAfterCommit func() error, recorder audit.Recorder) (*apiServers, error) {
 	engine := buildAPIEngine(server)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
 		ed, err := cli.NewEditorWithStorage(store, configPath)
@@ -111,6 +112,7 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 			ListenAddrs:   addrs,
 			Token:         cfg.Token,
 			Authenticator: authenticator,
+			Authorizer:    authorizer,
 			CORSOrigin:    cfg.RESTCORSOrigin,
 			AuditRecorder: recorder,
 		}, engine, sessions, lazySpec)
@@ -137,6 +139,7 @@ func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store 
 			ListenAddrs:   addrs,
 			Token:         cfg.Token,
 			Authenticator: authenticator,
+			Authorizer:    authorizer,
 			TLSCert:       cfg.GRPCTLSCert,
 			TLSKey:        cfg.GRPCTLSKey,
 			AuditRecorder: recorder,

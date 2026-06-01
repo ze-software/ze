@@ -41,6 +41,8 @@ func TestZeInitPipedStdin(t *testing.T) {
 
 	assertStoreFile(t, store, "meta/ssh/127.0.0.1/2222/username", "admin")
 	assertBcryptPassword(t, store, "meta/ssh/127.0.0.1/2222/password", "secret123")
+	assertStoreFile(t, store, zefs.KeyLocalAdminUsername.Pattern, "admin")
+	assertBcryptPassword(t, store, zefs.KeyLocalAdminPassword.Pattern, "secret123")
 	assertStoreFile(t, store, "meta/ssh/default", "127.0.0.1/2222")
 }
 

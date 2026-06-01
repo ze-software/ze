@@ -110,6 +110,8 @@ func assembleZeFS(baseDir, name string, cfg *ApplianceConfig, passphrase []byte,
 	entries := []struct{ key, value string }{
 		{zefs.KeySSHUsername.Key(cfg.SSH.Host, cfg.SSH.Port), cfg.Credentials.Username},
 		{zefs.KeySSHPassword.Key(cfg.SSH.Host, cfg.SSH.Port), string(passwordHash)},
+		{zefs.KeyLocalAdminUsername.Pattern, cfg.Credentials.Username},
+		{zefs.KeyLocalAdminPassword.Pattern, string(passwordHash)},
 		{zefs.KeySSHDefault.Pattern, cfg.SSH.Host + "/" + cfg.SSH.Port},
 		{zefs.KeyInstanceName.Pattern, cfg.Identity.Name},
 		{zefs.KeyInstanceManaged.Pattern, managedValue},

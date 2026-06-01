@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -52,10 +53,11 @@ type Authenticator func(authHeader string) (username string, ok bool)
 // ListenAddrs must contain at least one entry; every entry becomes a
 // separate listener on the same *http.Server. Shutdown closes all of them.
 type RESTConfig struct {
-	ListenAddrs   []string      // e.g. []string{"0.0.0.0:8081", "127.0.0.1:18081"}
-	Token         string        // Single bearer token (empty = no auth). Ignored when Authenticator is set.
-	Authenticator Authenticator // Per-user auth callback. When set, Token is not checked.
-	CORSOrigin    string        // Allowed CORS origin (empty = no CORS headers)
+	ListenAddrs   []string       // e.g. []string{"0.0.0.0:8081", "127.0.0.1:18081"}
+	Token         string         // Single bearer token (empty = no auth). Ignored when Authenticator is set.
+	Authenticator Authenticator  // Per-user auth callback. When set, Token is not checked.
+	Authorizer    aaa.Authorizer // Optional per-command profile authorizer for config sessions.
+	CORSOrigin    string         // Allowed CORS origin (empty = no CORS headers)
 	AuditRecorder audit.Recorder
 }
 
@@ -74,6 +76,7 @@ type RESTServer struct {
 	openAPI       OpenAPIProvider
 	token         string
 	authenticator Authenticator
+	authorizer    aaa.Authorizer
 	corsOrigin    string
 	auditRecorder audit.Recorder
 
@@ -115,6 +118,7 @@ func NewRESTServer(cfg RESTConfig, engine *api.APIEngine, sessions *api.ConfigSe
 		openAPI:       openAPI,
 		token:         cfg.Token,
 		authenticator: cfg.Authenticator,
+		authorizer:    cfg.Authorizer,
 		corsOrigin:    cfg.CORSOrigin,
 		auditRecorder: cfg.AuditRecorder,
 		configured:    append([]string(nil), cfg.ListenAddrs...),
@@ -465,11 +469,18 @@ func (s *RESTServer) callerIdentity(r *http.Request) api.CallerIdentity {
 	return api.CallerIdentity{Username: "api", RemoteAddr: r.RemoteAddr, Surface: audit.REST, ReadOnly: s.authenticator == nil && s.token == ""}
 }
 
-func requireWriteAccess(w http.ResponseWriter, caller api.CallerIdentity) bool {
-	if !caller.ReadOnly {
+func (s *RESTServer) requireWriteAccess(w http.ResponseWriter, caller api.CallerIdentity, command string) bool {
+	if caller.ReadOnly {
+		writeError(w, http.StatusForbidden, "read-only API caller cannot modify configuration")
+		return false
+	}
+	if s.authorizer == nil {
 		return true
 	}
-	writeError(w, http.StatusForbidden, "read-only API caller cannot modify configuration")
+	if s.authorizer.Authorize(caller.Username, caller.RemoteAddr, command, false) {
+		return true
+	}
+	writeError(w, http.StatusForbidden, "API caller is not authorized to modify configuration")
 	return false
 }
 
@@ -631,7 +642,7 @@ func (s *RESTServer) handleConfigEnter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	caller := s.callerIdentity(r)
-	if !requireWriteAccess(w, caller) {
+	if !s.requireWriteAccess(w, caller, api.ConfigAuthEdit) {
 		return
 	}
 	id, err := s.sessions.Enter(caller.Username)
@@ -661,7 +672,7 @@ func (s *RESTServer) handleConfigSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	caller := s.callerIdentity(r)
-	if !requireWriteAccess(w, caller) {
+	if !s.requireWriteAccess(w, caller, api.ConfigAuthSet) {
 		return
 	}
 	username := caller.Username
@@ -685,11 +696,16 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 		return
 	}
 	caller := s.callerIdentity(r)
-	if !requireWriteAccess(w, caller) {
+	discardRequest := len(parts) == 1 // safe: validateSessionID(id) rejected the empty-id case above
+	authCommand := api.ConfigAuthDelete
+	if discardRequest {
+		authCommand = api.ConfigAuthDiscard
+	}
+	if !s.requireWriteAccess(w, caller, authCommand) {
 		return
 	}
 	username := caller.Username
-	if len(parts) == 1 {
+	if discardRequest {
 		detail, _ := s.sessions.Diff(fromRESTConfigDiffRequest(username, id))
 		if err := s.sessions.Discard(fromRESTConfigDiscardRequest(username, id)); err != nil {
 			writeSessionError(w, err)
@@ -753,7 +769,7 @@ func (s *RESTServer) handleConfigCommit(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	caller := s.callerIdentity(r)
-	if !requireWriteAccess(w, caller) {
+	if !s.requireWriteAccess(w, caller, api.ConfigAuthCommit) {
 		return
 	}
 	detail, _ := s.sessions.Diff(fromRESTConfigDiffRequest(caller.Username, id))

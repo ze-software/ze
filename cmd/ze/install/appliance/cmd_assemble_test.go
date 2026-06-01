@@ -36,6 +36,8 @@ func TestAssembleProducesZeFS(t *testing.T) {
 	for _, key := range []string{
 		zefs.KeySSHUsername.Key(cfg.SSH.Host, cfg.SSH.Port),
 		zefs.KeySSHPassword.Key(cfg.SSH.Host, cfg.SSH.Port),
+		zefs.KeyLocalAdminUsername.Pattern,
+		zefs.KeyLocalAdminPassword.Pattern,
 		zefs.KeyInstanceName.Pattern,
 		zefs.KeyInstanceManaged.Pattern,
 		zefs.KeyWebCert.Pattern,

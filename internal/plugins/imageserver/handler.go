@@ -52,6 +52,8 @@ func buildZefsDB(dir, username, passwordHash string) (string, error) {
 	entries := []struct{ key, value string }{
 		{zefs.KeySSHUsername.Key(sshHost, sshPort), username},
 		{zefs.KeySSHPassword.Key(sshHost, sshPort), passwordHash},
+		{zefs.KeyLocalAdminUsername.Pattern, username},
+		{zefs.KeyLocalAdminPassword.Pattern, passwordHash},
 		{zefs.KeySSHDefault.Pattern, sshHost + "/" + sshPort},
 	}
 
@@ -89,6 +91,9 @@ func (h *imageHandler) serveBoot(w http.ResponseWriter, r *http.Request) {
 // initrd, and disk image are themselves fetched unauthenticated, so the trust
 // boundary is the network, not this endpoint.
 func (h *imageHandler) serveZefs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	http.ServeFile(w, r, h.zefsPath)
 }
 

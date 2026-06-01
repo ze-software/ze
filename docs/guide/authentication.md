@@ -9,14 +9,15 @@ passwords, and connecting as them with the `ze` CLI.
 
 | Source | Where stored | Created by | Used for |
 |--------|-------------|-----------|----------|
-| zefs super-admin | `database.zefs` (`meta/ssh/{username,password}`) | `ze init` | Bootstrap and recovery -- the operator who set the box up |
+| zefs super-admin | `database.zefs` (`meta/auth/local/{username,password}`) | `ze init` | Bootstrap and recovery -- the operator who set the box up |
 | YANG users | `system.authentication.user <name>` | Config edit | Day-to-day operators, auditors, scripts |
 
 The daemon merges both sources at config load: any login attempt is checked
 against the combined list. The super-admin always works; YANG users work
 only when the config is loaded.
 
-<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup user merge -->
+<!-- source: cmd/ze/init/main.go -- RunWithReader entries -->
+<!-- source: cmd/ze/hub/main_servers.go -- usersFromZefsDB -->
 
 ## Adding a user
 

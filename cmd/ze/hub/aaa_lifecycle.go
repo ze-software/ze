@@ -51,7 +51,13 @@ type liveAAABundleAuthorizer struct{}
 
 func (liveAAABundleAuthorizer) Authorize(username, remoteAddr, command string, isReadOnly bool) bool {
 	bundle := aaaBundle.Load()
-	if bundle == nil || bundle.Authorizer == nil {
+	if bundle == nil {
+		// Fail open until infra setup swaps in the live AAA bundle. Authenticated
+		// callers still need valid credentials; this only affects post-login RBAC.
+		return true
+	}
+	if bundle.Authorizer == nil {
+		// No local RBAC configured (no system.authorization profiles).
 		return true
 	}
 	return bundle.Authorizer.Authorize(username, remoteAddr, command, isReadOnly)

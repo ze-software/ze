@@ -60,3 +60,12 @@ const (
 	StatusDone  = "done"
 	StatusError = "error"
 )
+
+// Config session authorization command strings shared by REST and gRPC.
+const (
+	ConfigAuthEdit    = "config edit"
+	ConfigAuthSet     = "config set"
+	ConfigAuthDelete  = "config delete"
+	ConfigAuthCommit  = "config commit"
+	ConfigAuthDiscard = "config discard"
+)

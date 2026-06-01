@@ -371,7 +371,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	})
 
 	// CLI handlers: command execution, autocomplete, terminal mode.
-	cliHandler := zeweb.HandleCLICommand(editorMgr, schema, renderer)
+	cliHandler := zeweb.HandleCLICommandWithAuthorizer(editorMgr, schema, renderer, authorizer)
 	completeHandler := zeweb.HandleCLIComplete(completer, editorMgr, schema)
 	terminalHandler := zeweb.HandleCLITerminalWithAuthorizerAndAudit(editorMgr, schema, tree, authorizer, recorder)
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
@@ -495,14 +495,6 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	return srv, broker, editorMgr
 }
 
-// Well-known bootstrap SSH coordinates, matching ze init and the outbound SSH
-// client (cmd/ze/internal/ssh/client). Used only as a fallback when the
-// meta/ssh/default pointer is absent.
-const (
-	zefsDefaultSSHHost = "127.0.0.1"
-	zefsDefaultSSHPort = "2222"
-)
-
 // mergeAuthUsers returns the always-on zefs power user(s) followed by the
 // config-file users, so both authenticate on a surface. Mirrors the SSH paths
 // (infra_setup.go / main.go). Order puts the power user first; the result is a
@@ -537,46 +529,34 @@ func loadZefsUsers() ([]authz.UserConfig, error) {
 	return usersFromZefsDB(db)
 }
 
-// usersFromZefsDB resolves the stored SSH credential the same way the outbound
-// client does (cmd/ze/internal/ssh/client). The per-target keys carry
-// {host}/{port} placeholders, so the concrete entry is located by following the
-// meta/ssh/default pointer rather than reading the placeholder key literally
-// (which is never written). Missing or empty credentials return an error so the
-// caller fails closed (treats it as "no zefs users").
+// usersFromZefsDB reads the dedicated local power-user credentials from zefs.
+// Missing or empty credentials return an error so the caller fails closed.
 func usersFromZefsDB(db *zefs.BlobStore) ([]authz.UserConfig, error) {
-	host, port := zefsDefaultTarget(db)
-	username, err := db.ReadFile(zefs.KeySSHUsername.Key(host, port))
+	username, err := db.ReadFile(zefs.KeyLocalAdminUsername.Pattern)
 	if err != nil {
-		return nil, fmt.Errorf("read username: %w", err)
+		return nil, fmt.Errorf("read local username: %w", err)
 	}
-	hash, err := db.ReadFile(zefs.KeySSHPassword.Key(host, port))
+	hash, err := db.ReadFile(zefs.KeyLocalAdminPassword.Pattern)
 	if err != nil {
-		return nil, fmt.Errorf("read password hash: %w", err)
+		return nil, fmt.Errorf("read local password hash: %w", err)
 	}
-	name := string(username)
-	if name == "" {
-		return nil, errEmptyUsernameInZefs
-	}
-	if len(hash) == 0 {
-		// Fail closed: never hand an empty password hash to the authorizer.
-		return nil, errEmptyPasswordInZefs
+	name, err := validateLocalAdminCreds(username, hash)
+	if err != nil {
+		return nil, err
 	}
 	return []authz.UserConfig{{Name: name, Hash: string(hash)}}, nil
 }
 
-// zefsDefaultTarget returns the host/port named by the meta/ssh/default pointer,
-// falling back to the well-known bootstrap coordinates when it is absent or
-// malformed. Empty or ".."-containing components are rejected because they would
-// panic zefs.KeyEntry.Key (which is then used to read the credential), so a
-// corrupt pointer must never crash the daemon at startup.
-func zefsDefaultTarget(db *zefs.BlobStore) (host, port string) {
-	if data, err := db.ReadFile(zefs.KeySSHDefault.Pattern); err == nil {
-		if h, p, ok := strings.Cut(strings.TrimSpace(string(data)), "/"); ok &&
-			h != "" && p != "" && !strings.Contains(h, "..") && !strings.Contains(p, "..") {
-			return h, p
-		}
+func validateLocalAdminCreds(username, hash []byte) (string, error) {
+	name := string(username)
+	if name == "" {
+		return "", errEmptyUsernameInZefs
 	}
-	return zefsDefaultSSHHost, zefsDefaultSSHPort
+	if len(hash) == 0 {
+		// Fail closed: never hand an empty password hash to the authorizer.
+		return "", errEmptyPasswordInZefs
+	}
+	return name, nil
 }
 
 // blobCertStore implements web.CertStore backed by zefs blob storage.

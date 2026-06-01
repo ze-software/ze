@@ -254,6 +254,8 @@ func TestAllProductionKeysRegistered(t *testing.T) {
 		"meta/ssh/{host}/{port}/username": true,
 		"meta/ssh/{host}/{port}/password": true,
 		"meta/ssh/default":                true,
+		"meta/auth/local/username":        true,
+		"meta/auth/local/password":        true,
 		"meta/ssh/authorized-keys":        true,
 		"meta/instance/name":              true,
 		"meta/instance/managed":           true,
@@ -286,6 +288,7 @@ func TestAllProductionKeysRegistered(t *testing.T) {
 func TestPrivateKeysMarked(t *testing.T) {
 	privatePatterns := map[string]bool{
 		"meta/ssh/{host}/{port}/password": true,
+		"meta/auth/local/password":        true,
 		"meta/web/cert":                   true,
 		"meta/web/key":                    true,
 	}

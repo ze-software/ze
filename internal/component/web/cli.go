@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
@@ -179,6 +180,12 @@ func HandleCLIPageHTTP(renderer *Renderer, insecure bool) http.HandlerFunc {
 // Returns HTMX multi-target responses: content swap + breadcrumb OOB +
 // notification OOB as appropriate per command type.
 func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Renderer) http.HandlerFunc {
+	return HandleCLICommandWithAuthorizer(mgr, schema, renderer, nil)
+}
+
+// HandleCLICommandWithAuthorizer returns a POST handler for /cli that enforces
+// profile RBAC before integrated-mode config mutations.
+func HandleCLICommandWithAuthorizer(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -220,7 +227,14 @@ func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Rende
 			http.Error(w, "empty command", http.StatusBadRequest)
 			return
 		}
-
+		// Shared terminalAuthCommand intentionally leaves navigation verbs
+		// (edit/up/top) unauthorized: the web bar only changes the viewed subtree,
+		// it does not create a mutable API config session.
+		if authCommand := terminalAuthCommand(cmd); authCommand != "" {
+			if !authorizeWebConfigMutation(w, r, authorizer, username, authCommand) {
+				return
+			}
+		}
 		// If the path ends at a named list (not an entry), step back one level.
 		// The CLI can't be "at" a list -- you're before it or inside an entry.
 		// Skip for navigation commands (up/top) that manage their own path.

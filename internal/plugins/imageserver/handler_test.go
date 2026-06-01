@@ -276,6 +276,9 @@ func TestServeZefsDB(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
+	if resp.Header.Get("Cache-Control") != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", resp.Header.Get("Cache-Control"))
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -303,18 +306,34 @@ func TestServeZefsDB(t *testing.T) {
 
 	username, err := store.ReadFile(zefs.KeySSHUsername.Key("127.0.0.1", "2222"))
 	if err != nil {
-		t.Fatalf("read username: %v", err)
+		t.Fatalf("read remote username: %v", err)
 	}
 	if string(username) != "admin" {
-		t.Errorf("username = %q, want admin", string(username))
+		t.Errorf("remote username = %q, want admin", string(username))
 	}
 
 	password, err := store.ReadFile(zefs.KeySSHPassword.Key("127.0.0.1", "2222"))
 	if err != nil {
-		t.Fatalf("read password: %v", err)
+		t.Fatalf("read remote password: %v", err)
 	}
 	if string(password) != "$2a$10$examplehash" {
-		t.Errorf("password = %q, want $2a$10$examplehash", string(password))
+		t.Errorf("remote password = %q, want $2a$10$examplehash", string(password))
+	}
+
+	localUsername, err := store.ReadFile(zefs.KeyLocalAdminUsername.Pattern)
+	if err != nil {
+		t.Fatalf("read local username: %v", err)
+	}
+	if string(localUsername) != "admin" {
+		t.Errorf("local username = %q, want admin", string(localUsername))
+	}
+
+	localPassword, err := store.ReadFile(zefs.KeyLocalAdminPassword.Pattern)
+	if err != nil {
+		t.Fatalf("read local password: %v", err)
+	}
+	if string(localPassword) != "$2a$10$examplehash" {
+		t.Errorf("local password = %q, want $2a$10$examplehash", string(localPassword))
 	}
 
 	def, err := store.ReadFile(zefs.KeySSHDefault.Pattern)

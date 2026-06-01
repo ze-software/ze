@@ -175,10 +175,11 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 
 | Namespace | Purpose | Example |
 |-----------|---------|---------|
-| `meta/` | Instance metadata (credentials, identity, flags) | `meta/ssh/username`, `meta/instance/managed` |
+| `meta/` | Instance metadata (credentials, identity, flags) | `meta/auth/local/username`, `meta/instance/managed` |
 | `file/active/` | Current committed config files | `file/active/router.conf` |
 | `file/draft/` | Live edits in progress | `file/draft/router.conf` |
 | `file/<date>/` | Historical config versions | `file/20260318-100000.000/router.conf` |
+<!-- source: pkg/zefs/keys.go -- KeyLocalAdminUsername -->
 
 The Storage interface (`internal/component/config/storage/`) translates filesystem paths to namespaced keys via `resolveKey()`. The function is idempotent: already-namespaced keys pass through unchanged, so `List()` results can be fed back to `ReadFile()` without double-prefixing.
 <!-- source: internal/component/config/storage/ -- Storage interface, resolveKey -->
