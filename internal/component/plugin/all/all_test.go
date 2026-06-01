@@ -1,103 +1,44 @@
 package all
 
 import (
+	"context"
+	"os/exec"
+	"runtime"
 	"slices"
-	"sort"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
-// TestAllPluginsRegistered verifies that importing the all package
-// registers all expected internal plugins.
+// TestGeneratedPluginImportsCurrent verifies that the generated blank-import
+// file matches register.go discovery.
 //
-// VALIDATES: Every internal plugin registers via init().
+// VALIDATES: plugin/all generation is checked by the same generator that writes it.
+// PREVENTS: Missing plugin registration when a register.go package is not imported.
+func TestGeneratedPluginImportsCurrent(t *testing.T) {
+	ctx := context.Background()
+	if deadline, ok := t.Deadline(); ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, deadline)
+		defer cancel()
+	}
+	cmd := exec.CommandContext(ctx, "go", "run", "../../../../scripts/codegen/plugin_imports.go", "--check")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("plugin/all generated imports are stale: %v\n%s", err, out)
+	}
+}
+
+// TestAllPluginsRegistered verifies that importing the all package populates
+// the production plugin registry.
+//
+// VALIDATES: Production plugin aggregation registers plugins from plugin/all.
 // VALIDATES: Production plugin aggregation excludes internal/test/plugins.
-// PREVENTS: Missing plugin registration when a register.go is forgotten.
 // PREVENTS: Shipping test scaffolding in cmd/ze.
 func TestAllPluginsRegistered(t *testing.T) {
-	// All plugins that register unconditionally (no build tags).
-	expected := []string{
-		"bfd",
-		"bgp",
-		"bgp-adj-rib-in",
-		"bgp-aigp",
-		"bgp-bmp",
-		"bgp-filter-aspath",
-		"bgp-filter-aspath-length",
-		"bgp-filter-community",
-		"bgp-filter-community-match",
-		"bgp-filter-modify",
-		"bgp-filter-prefix",
-		"bgp-filter-remove-private-as",
-		"bgp-gr",
-		"bgp-healthcheck",
-		"bgp-hostname",
-		"bgp-llnh",
-		"bgp-nlri-evpn",
-		"bgp-nlri-flowspec",
-		"bgp-nlri-labeled",
-		"bgp-nlri-ls",
-		"bgp-nlri-mup",
-		"bgp-nlri-mvpn",
-		"bgp-nlri-rtc",
-		"bgp-nlri-vpls",
-		"bgp-nlri-vpn",
-		"bgp-persist",
-		"bgp-rib",
-		"bgp-role",
-		"bgp-route-refresh",
-		"bgp-rpki",
-		"bgp-rpki-decorator",
-		"bgp-rr",
-		"bgp-redistribute",
-		"bgp-rs",
-		"bgp-softver",
-		"bgp-watchdog",
-		"connected",
-		"dhcpserver",
-		"fib-kernel",
-		"fib-p4",
-		"fib-vpp",
-		"firewall",
-		"flow-export",
-		"imageserver",
-		"flowspec-firewall",
-		"ike",
-		"interface",
-		"kernel",
-		"ldp",
-		"l2tp-auth-local",
-		"l2tp-auth-radius",
-		"l2tp-pool",
-		"l2tp-shaper",
-		"loop",
-		"ntp",
-		"policy-routes",
-		"redistribute-orchestrator",
-		"rib",
-		"routing-table",
-		"rsvp-te",
-		"static",
-		"sysctl",
-		"tftpserver",
-		"traffic",
-		"vpp",
-	}
-
-	// Plugins with //go:build linux that only register on Linux.
-	linuxOnly := []string{
-		"iface-dhcp",
-	}
-
 	names := registry.Names()
-	sort.Strings(names)
-
-	// Every expected plugin must be registered.
-	for _, want := range expected {
-		if !slices.Contains(names, want) {
-			t.Errorf("expected plugin %q not registered", want)
-		}
+	if len(names) == 0 {
+		t.Fatal("plugin/all registered no plugins")
 	}
 
 	for _, testOnly := range []string{"fakel2tp", "fakeredist"} {
@@ -105,13 +46,23 @@ func TestAllPluginsRegistered(t *testing.T) {
 			t.Errorf("test-only plugin %q registered in production plugin/all", testOnly)
 		}
 	}
+}
 
-	// Every registered plugin must be in expected or linuxOnly.
-	all := append(append([]string{}, expected...), linuxOnly...)
-	for _, name := range names {
-		if !slices.Contains(all, name) {
-			t.Errorf("unexpected plugin %q registered (add to expected list)", name)
+// TestPlatformPlugins verifies platform-gated plugin registration.
+//
+// VALIDATES: Linux-only plugins register only on Linux builds.
+// PREVENTS: Accidental non-Linux registration of Linux-only plugins.
+func TestPlatformPlugins(t *testing.T) {
+	names := registry.Names()
+	hasIfaceDHCP := slices.Contains(names, "iface-dhcp")
+	if runtime.GOOS == "linux" {
+		if !hasIfaceDHCP {
+			t.Error("linux-only plugin \"iface-dhcp\" not registered on linux")
 		}
+		return
+	}
+	if hasIfaceDHCP {
+		t.Errorf("linux-only plugin %q registered on %s", "iface-dhcp", runtime.GOOS)
 	}
 }
 

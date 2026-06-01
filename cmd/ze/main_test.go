@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,25 +11,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
-// TestAvailablePlugins verifies the available plugins list.
+// TestAvailablePlugins verifies the available plugin list is derived from the
+// plugin registry.
 //
-// VALIDATES: All expected plugins are listed.
-// PREVENTS: Missing plugin entries in discovery output.
+// VALIDATES: Plugin discovery output uses the registry as its source of truth.
+// PREVENTS: A second hardcoded production plugin list in cmd/ze.
 func TestAvailablePlugins(t *testing.T) {
-	expected := []string{"bfd", "bgp", "bgp-adj-rib-in", "bgp-aigp", "bgp-bmp", "bgp-filter-aspath", "bgp-filter-aspath-length", "bgp-filter-community", "bgp-filter-community-match", "bgp-filter-modify", "bgp-filter-prefix", "bgp-filter-remove-private-as", "bgp-gr", "bgp-healthcheck", "bgp-hostname", "bgp-llnh", "bgp-nlri-evpn", "bgp-nlri-flowspec", "bgp-nlri-labeled", "bgp-nlri-ls", "bgp-nlri-mup", "bgp-nlri-mvpn", "bgp-nlri-rtc", "bgp-nlri-vpls", "bgp-nlri-vpn", "bgp-persist", "bgp-redistribute", "bgp-rib", "bgp-role", "bgp-route-refresh", "bgp-rpki", "bgp-rpki-decorator", "bgp-rr", "bgp-rs", "bgp-softver", "bgp-watchdog", "connected", "dhcpserver", "fib-kernel", "fib-p4", "fib-vpp", "firewall", "flow-export", "flowspec-firewall", "ike", "imageserver", "interface", "kernel", "ldp", "l2tp-auth-local", "l2tp-auth-radius", "l2tp-pool", "l2tp-shaper", "loop", "ntp", "policy-routes", "redistribute-orchestrator", "rib", "routing-table", "rsvp-te", "static", "sysctl", "tftpserver", "traffic", "vpp"}
-	// iface-dhcp only registers on linux (//go:build linux).
-	linuxOnly := []string{"iface-dhcp"}
-
 	got := plugin.AvailableInternalPlugins()
-	for _, want := range expected {
-		assert.Contains(t, got, want, "expected plugin %q not registered", want)
-	}
-	all := append(append([]string{}, expected...), linuxOnly...)
-	for _, name := range got {
-		assert.True(t, slices.Contains(all, name), "unexpected plugin %q registered (add to expected list)", name)
-	}
+	require.NotEmpty(t, got, "AvailableInternalPlugins must return registered names")
+	assert.Equal(t, registry.Names(), got)
 }
 
 // TestLooksLikeConfig verifies config file detection.
