@@ -16,10 +16,22 @@ func init() {
 }
 
 func handleShowCrashes(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) > 0 {
-		return showCrashContent(args[0])
+	switch len(args) {
+	case 0:
+		return showCrashList()
+	case 1:
+		if args[0] == "latest" {
+			return showCrashContent("latest")
+		}
+	case 2:
+		if args[0] == "name" {
+			return showCrashContent(args[1])
+		}
 	}
-	return showCrashList()
+	return &plugin.Response{
+		Status: plugin.StatusError,
+		Error:  "usage: show crashes [latest | name <filename>]",
+	}, nil
 }
 
 func showCrashList() (*plugin.Response, error) {

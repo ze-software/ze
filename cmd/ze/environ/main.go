@@ -41,8 +41,9 @@ func Run(args []string) int {
 		return showOne(args[1])
 	}
 
-	// Default: treat as a key to look up
-	return showOne(args[0])
+	fmt.Fprintf(os.Stderr, "error: unknown env command: %s\n", args[0])
+	usage()
+	return 1
 }
 
 // cmdRegistered lists all registered env vars or shows details for one.
@@ -217,7 +218,7 @@ func usage() {
 			"ze env registered                # List all registered env vars",
 			"ze env registered ze.log         # Show details for ze.log",
 			"ze env list -v                   # List with current values",
-			"ze env ZE_PLUGIN_HUB_HOST       # Look up by any notation",
+			"ze env get ZE_PLUGIN_HUB_HOST    # Look up by any notation",
 		},
 	}
 	p.Write()

@@ -1471,11 +1471,11 @@ Many commands take a `peer <selector>` argument:
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `show peer list` | read-only | List all peers (IP, ASN, state, uptime) |
-| `show peer detail <sel>` | read-only | Detailed peer info (config, state, counters, `prefix-updated` date, `prefix-stale` warning) |
-| `show peer capabilities <sel>` | read-only | Negotiated capabilities |
-| `show peer statistics <sel>` | read-only | Per-peer update statistics with rates |
-| `show peer history <sel>` | read-only | FSM transition history |
+| `show bgp peer list` | read-only | List all peers (IP, ASN, state, uptime) |
+| `show bgp peer <sel> detail` | read-only | Detailed peer info (config, state, counters, `prefix-updated` date, `prefix-stale` warning) |
+| `show bgp peer <sel> capabilities` | read-only | Negotiated capabilities |
+| `show bgp peer <sel> statistics` | read-only | Per-peer update statistics with rates |
+| `show bgp peer <sel> history` | read-only | FSM transition history |
 | `show summary` | read-only | BGP summary table (all peers) |
 | `show summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
 | `peer <sel> pause` | write | Pause read loop (flow control) |
@@ -1851,20 +1851,20 @@ Inside `ze cli`:
 
 | Feature | Syntax |
 |---------|--------|
-| Pipe: filter lines | `show peer list \| match established` |
-| Pipe: count | `show peer list \| count` |
+| Pipe: filter lines | `show bgp peer list \| match established` |
+| Pipe: count | `show bgp peer list \| count` |
 | Pipe: table format | `show bgp rib \| table` |
-| Pipe: text format | `show peer list \| text` |
-| Pipe: JSON pretty | `show peer list \| json` |
-| Pipe: JSON compact | `show peer list \| json compact` |
-| Pipe: NDJSON | `show peer list \| ndjson` |
-| Pipe: YAML | `show peer list \| yaml` |
+| Pipe: text format | `show bgp peer list \| text` |
+| Pipe: JSON pretty | `show bgp peer list \| json` |
+| Pipe: JSON compact | `show bgp peer list \| json compact` |
+| Pipe: NDJSON | `show bgp peer list \| ndjson` |
+| Pipe: YAML | `show bgp peer list \| yaml` |
 | Pipe: reverse DNS | `show traceroute 8.8.8.8 \| resolve` |
 | Pipe: ASN lookup | `show traceroute 8.8.8.8 \| origin` |
 | Pipe: streaming log | `monitor traceroute 8.8.8.8 \| log` |
 | Pipe: first N items | `show bgp rib \| first 100` |
 | Pipe: last N items | `show bgp rib \| last 10` |
-| Pipe: disable paging | `show peer list \| no-more` |
+| Pipe: disable paging | `show bgp peer list \| no-more` |
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |
 | Tab completion | Contextual command/argument completion |

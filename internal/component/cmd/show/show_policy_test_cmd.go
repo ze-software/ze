@@ -16,9 +16,14 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
-			WireMethod:       "ze-show:policy-test",
-			Handler:          handleShowPolicyTest,
-			RequiresSelector: true,
+			WireMethod: "ze-show:policy-test",
+			Handler:    handleShowPolicyTest,
+			// The peer selector is the first positional token after
+			// `show policy test peer <selector>`. The schema marks it as a
+			// mandatory leaf, so the dispatcher enforces its presence; the
+			// handler consumes it from args[0]. No RequiresSelector: that flag
+			// only recognizes the dispatcher's mid-path `selector` scope, which
+			// this trailing positional does not populate.
 		},
 	)
 }
@@ -32,6 +37,17 @@ func init() {
 //	export update HEXSTR source-asn4 false
 //
 // An optional legacy "hex" sub-keyword (update hex HEXSTR) is still tolerated.
+// isPolicyTestKeyword reports whether tok is one of the structural keywords
+// that follow the peer selector. Used to tell an omitted peer from a real one.
+func isPolicyTestKeyword(tok string) bool {
+	switch strings.ToLower(tok) {
+	case policyDirImport, policyDirExport, "filter", "update", "source-asn4":
+		return true
+	default:
+		return false
+	}
+}
+
 func parsePolicyTestArgs(args []string) (direction, filter, hexPayload string, asn4 bool, err error) {
 	asn4 = true // default
 
@@ -114,6 +130,19 @@ const (
 )
 
 func handleShowPolicyTest(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	// The first positional token is the peer selector
+	// (`show policy test peer <selector> ...`). Strip it before parsing the
+	// remaining import/export/filter/update tokens. If args[0] is already a
+	// known keyword the peer was omitted; fall back to the context scope.
+	peerSelector := ""
+	if ctx != nil {
+		peerSelector = ctx.Selector("selector")
+	}
+	if peerSelector == "" && len(args) > 0 && !isPolicyTestKeyword(args[0]) {
+		peerSelector = args[0]
+		args = args[1:]
+	}
+
 	direction, filter, hexPayload, asn4, err := parsePolicyTestArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
@@ -169,22 +198,25 @@ func handleShowPolicyTest(ctx *pluginserver.CommandContext, args []string) (*plu
 		return &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, nil
 	}
 
-	// Resolve peer.
+	// Resolve peer. Fall back to the context scope when the positional peer
+	// selector was omitted (kept for programmatic callers that set ctx.Peer).
+	if peerSelector == "" {
+		peerSelector = ctx.PeerSelector()
+	}
 	allPeers := ctx.Reactor().Peers()
-	selector := ctx.PeerSelector()
-	matched := filterPeersByPolicySelector(allPeers, selector)
+	matched := filterPeersByPolicySelector(allPeers, peerSelector)
 
 	if len(matched) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "peer not found: " + selector,
+			Error:  "peer not found: " + peerSelector,
 		}, nil
 	}
 
 	if len(matched) > 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "selector matches multiple peers, narrow to one: " + selector,
+			Error:  "selector matches multiple peers, narrow to one: " + peerSelector,
 		}, nil
 	}
 

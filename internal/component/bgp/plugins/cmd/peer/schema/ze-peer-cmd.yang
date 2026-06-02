@@ -25,55 +25,62 @@ Lists every peer with state, ASN, prefixes received, and uptime.
 Optionally scope by address family: ipv4, ipv6, or l2vpn.";
         }
 
-        container peer {
+        container bgp {
             config false;
-            description "Peer state, capabilities, statistics, and history";
+            description "BGP peers, sessions, RIB, and protocol tools";
 
-            container list {
+            container peer {
                 config false;
-                ze:command "ze-bgp:peer-list";
-                description "List your peers, one line each.
+                description "Peer state, capabilities, statistics, history, and RIB views";
+
+                container list {
+                    config false;
+                    ze:command "ze-bgp:peer-list";
+                    description "List your peers, one line each.
 Shows name, address, ASN, state, and uptime. Quick overview without
-the detail of 'peer detail'.";
-            }
+the detail of 'show bgp peer <selector> detail'.";
+                }
 
-            container detail {
-                config false;
-                ze:command "ze-bgp:peer-detail";
-                description "Show full detail for one or more peers.
-Returns config, state, timers, message counters, and notification
-history. Selector: IP, name, AS pattern (as65001), glob, or *.";
-                leaf selector { type string; description "Peer selector"; }
-            }
+                container detail {
+                    config false;
+                    ze:command "ze-bgp:peer-detail";
+                    description "Show full detail for one or more peers.
+Usage: show bgp peer <selector> detail. The selector can be an IP,
+peer name, AS pattern (as65001), glob, or *.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                }
 
-            container capabilities {
-                config false;
-                ze:command "ze-bgp:peer-capabilities";
-                description "Show what capabilities were negotiated with a peer.
-Compares the OPEN you sent vs the OPEN you received, so you can
-see which address families, add-path, or graceful-restart are active.
-Selector: IP, name, AS pattern, glob, or *.";
-                leaf selector { type string; description "Peer selector"; }
-            }
+                container capabilities {
+                    config false;
+                    ze:command "ze-bgp:peer-capabilities";
+                    description "Show what capabilities were negotiated with a peer.
+Usage: show bgp peer <selector> capabilities.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                }
 
-            container statistics {
-                config false;
-                ze:command "ze-bgp:peer-statistics";
-                description "Show UPDATE throughput for your peers.
-Returns message counts, prefix counts, and per-second receive/send
-rates. Useful for spotting slow or overloaded peers. Selector: IP,
-name, AS pattern, glob, or *.";
-                leaf selector { type string; description "Peer selector"; }
-            }
+                container statistics {
+                    config false;
+                    ze:command "ze-bgp:peer-statistics";
+                    description "Show UPDATE throughput for your peers.
+Usage: show bgp peer <selector> statistics.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                }
 
-            container history {
-                config false;
-                ze:command "ze-bgp:peer-history";
-                description "Show FSM state transitions for a peer over time.
-Timestamped entries show each state change (Idle, Connect, Active,
-OpenSent, OpenConfirm, Established) with the trigger. Check here
-when diagnosing flapping. Selector: IP, name, AS pattern, glob, or *.";
-                leaf selector { type string; description "Peer selector"; }
+                container history {
+                    config false;
+                    ze:command "ze-bgp:peer-history";
+                    description "Show FSM state transitions for a peer over time.
+Usage: show bgp peer <selector> history.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                }
+
+                container rib {
+                    config false;
+                    ze:command "ze-bgp:peer-rib";
+                    description "Show RIB data scoped to one peer.
+Usage: show bgp peer <selector> rib [scope|filters|terminal].";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                }
             }
         }
     }
@@ -89,64 +96,39 @@ when diagnosing flapping. Selector: IP, name, AS pattern, glob, or *.";
             config false;
             ze:command "ze-bgp:peer-list";
             description "List your peers, one line each.
-Shows name, address, ASN, state, and uptime. Quick overview without
-the detail of 'peer detail'.";
-        }
-
-        container detail {
-            config false;
-            ze:command "ze-bgp:peer-detail";
-            description "Show full detail for one or more peers.
-Returns config, state, timers, message counters, and notification
-history. Selector: IP, name, AS pattern (as65001), glob, or *.";
-        }
-
-        container capabilities {
-            config false;
-            ze:command "ze-bgp:peer-capabilities";
-            description "Show what capabilities were negotiated with a peer.
-Compares the OPEN you sent vs the OPEN you received.";
-        }
-
-        container statistics {
-            config false;
-            ze:command "ze-bgp:peer-statistics";
-            description "Show UPDATE throughput and message counters.
-Returns message counts, prefix counts, and per-second rates.";
+Shows name, address, ASN, state, and uptime.";
         }
 
         container teardown {
             config false;
             ze:command "ze-bgp:peer-teardown";
             description "Tear down a peer session.
-Sends a CEASE notification with an optional shutdown message (RFC 8203)
-so the remote side knows why you disconnected. Selector: IP, name,
-AS pattern, glob, or *. The session will not come back until you
-bring it up again.";
+Usage: peer <selector> teardown [cease-subcode].";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
         }
 
         container pause {
             config false;
             ze:command "ze-bgp:peer-pause";
             description "Pause reading from a peer's TCP socket.
-Stops processing incoming messages until you 'peer resume'. Useful
-for debugging or applying backpressure. The peer's hold timer may
-fire if you pause too long.";
+Usage: peer <selector> pause.";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
         }
 
         container resume {
             config false;
             ze:command "ze-bgp:peer-resume";
             description "Resume reading from a previously paused peer.
-Picks up message processing where you left off.";
+Usage: peer <selector> resume.";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
         }
 
         container flush {
             config false;
             ze:command "ze-bgp:peer-flush";
             description "Wait until all queued updates for a peer are sent.
-Blocks until the forward pool drains. Use this before teardown or
-maintenance to ensure nothing is left unsent.";
+Usage: peer <selector> flush.";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
         }
 
         container plugin {
@@ -161,8 +143,8 @@ maintenance to ensure nothing is left unsent.";
                     config false;
                     ze:command "ze-plugin:session-peer-ready";
                     description "Signal that per-peer plugin setup is complete.
-Call this after your plugin finishes per-peer initialization so
-Ze knows you are ready to process events for this peer.";
+Usage: peer <selector> plugin session ready.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
                 }
             }
         }

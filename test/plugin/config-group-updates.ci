@@ -34,7 +34,7 @@ def main():
 
     try:
         # Verify session established with group-updates disable
-        result = dispatch(api, 'peer peer1 detail')
+        result = dispatch(api, 'show bgp peer peer1 detail')
         if result.get('status') != 'done':
             print(f'FAIL: peer detail status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

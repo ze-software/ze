@@ -65,7 +65,7 @@ doing to it."
 | `<domain> <verb>` | `request bgp rib inject`, `commit start`, `log set`, `show rpki status` | State that belongs to a specific subsystem |
 | `<domain> <selector> <verb>` | `peer <sel> teardown`, `peer <sel> pause` | Operations targeting one or more instances within a subsystem |
 | `<domain> <verb> <object>` | `config rollback <n>` | Domain operations that produce or consume a named object |
-| `show <what>` | `show summary`, `show peer list`, `show warnings`, `show errors`, `show interface`, `show version`, `show system memory` | Cross-domain read-only introspection |
+| `show <what>` | `show summary`, `show bgp peer list`, `show warnings`, `show errors`, `show interface`, `show version`, `show system memory` | Cross-domain read-only introspection |
 | `generate <what>` | `generate wireguard keypair`, `generate tech-support archive` (planned) | Produce a new artifact from local state (keys, certs, bundles) |
 | `<bare verb>` | `ping`, `traceroute`, `help` | Universal diagnostics / reserved verbs |
 
@@ -131,9 +131,9 @@ close to fully shipped.
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
 | BGP summary | `show ip bgp summary` | `show bgp summary` | `show router bgp summary` | `show ip bgp summary` | `show ip bgp summary` | `show summary` | shipped | bgp | |
 | BGP summary per-family | `show ip bgp ipv4/ipv6 summary` | `show bgp summary family inet` | `show router bgp summary family ...` | `show bgp ipv4/ipv6 summary` | `show bgp ipv4/ipv6 summary` | `show summary <afi/safi>` | shipped | bgp | One handler (`ze-bgp:summary`) branches on argv; shorthands `ipv4`, `ipv6`, `l2vpn` expand to `/unicast` (or `/evpn`); unknown families rejected with the list actually negotiated on this daemon; length+charset guard on the argument |
-| Peer list brief | `show ip bgp neighbors` | `show bgp neighbor brief` | `show router bgp neighbor` | `show ip bgp neighbors` | `show bgp neighbors` | `show peer list` | shipped | bgp | |
-| Peer detail | `show ip bgp neighbors <addr>` | `show bgp neighbor <addr> extensive` | `show router bgp neighbor <addr> detail` | `show ip bgp neighbors <addr>` | `show bgp neighbors <addr>` | `show peer detail <sel>` | shipped | bgp | |
-| Peer negotiated capabilities | `show ip bgp neighbors <addr> received-capabilities` | included in detail | included in detail | `show ip bgp neighbors <addr> capabilities` | `show bgp neighbors <addr>` | `show peer capabilities <sel>` | shipped | bgp | |
+| Peer list brief | `show ip bgp neighbors` | `show bgp neighbor brief` | `show router bgp neighbor` | `show ip bgp neighbors` | `show bgp neighbors` | `show bgp peer list` | shipped | bgp | |
+| Peer detail | `show ip bgp neighbors <addr>` | `show bgp neighbor <addr> extensive` | `show router bgp neighbor <addr> detail` | `show ip bgp neighbors <addr>` | `show bgp neighbors <addr>` | `show bgp peer <sel> detail` | shipped | bgp | |
+| Peer negotiated capabilities | `show ip bgp neighbors <addr> received-capabilities` | included in detail | included in detail | `show ip bgp neighbors <addr> capabilities` | `show bgp neighbors <addr>` | `show bgp peer <sel> capabilities` | shipped | bgp | |
 | Adj-RIB-In per peer | `show ip bgp neighbors <addr> received-routes` | `show route receive-protocol bgp <addr>` | `show router bgp neighbor <addr> received-routes` | `show ip bgp neighbors <addr> received-routes` | `show bgp ipv4 unicast neighbors <addr> received-routes` | `show bgp rib \| received \| peer <peer>` | shipped | bgp | Pipe filters are command-specific and registered by the RIB command. |
 | Adj-RIB-Out per peer | `show ip bgp neighbors <addr> advertised-routes` | `show route advertising-protocol bgp <addr>` | `show router bgp neighbor <addr> advertised-routes` | `show ip bgp neighbors <addr> advertised-routes` | `show bgp ipv4 unicast neighbors <addr> advertised-routes` | `show bgp rib \| advertised \| peer <peer>` | shipped | bgp | `advertised` is the user-facing Adj-RIB-Out filter. |
 | BGP best RIB | `show ip bgp` | `show route protocol bgp` | `show router bgp routes` | `show ip bgp` | `show ip bgp` | `show bgp rib best` | shipped | bgp | |
@@ -144,7 +144,7 @@ close to fully shipped.
 | BGP large-communities | - | `show route large-community` | ~ | `show ip bgp large-community` | `show ip bgp large-community` | | planned | bgp | |
 | BGP memory / attr pool stats | - | `show bgp summary` (partial) | `show router bgp statistics` | ~ | `show bgp memory` | `show bgp rib status` counters | shipped | bgp | Ze reports per-attr pool dedup |
 | BGP update groups | - | `show bgp group` | `show router bgp group` | `show ip bgp peer-group` | `show bgp peer-group` | | planned | bgp | |
-| BGP graceful restart state | ~ | `show bgp neighbor` detail | `show router bgp graceful-restart` | `show ip bgp neighbors <addr>` detail | `show bgp neighbors <addr>` | inside `show peer detail <sel>`, gr plugin | shipped | bgp | |
+| BGP graceful restart state | ~ | `show bgp neighbor` detail | `show router bgp graceful-restart` | `show ip bgp neighbors <addr>` detail | `show bgp neighbors <addr>` | inside `show bgp peer <sel> detail`, gr plugin | shipped | bgp | |
 | BGP LLGR state | - | ~ | - | - | `show bgp ipv4 unicast` (long-lived) | bgp-gr plugin | shipped | bgp | |
 | BGP route-refresh send | `reset ip bgp <addr>` | `clear bgp neighbor <addr> soft-inbound` | `clear router bgp neighbor <addr> soft-inbound` | `clear ip bgp <addr> soft in` | `clear ip bgp <addr> soft in` | `route-refresh <family>` | shipped | bgp | |
 | BGP hard reset | `reset ip bgp <addr>` | `clear bgp neighbor <addr>` | `clear router bgp neighbor <addr>` | `clear ip bgp <addr>` | `clear ip bgp <addr>` | `peer <sel> teardown` | shipped | bgp | |

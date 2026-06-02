@@ -1162,7 +1162,7 @@ func usage() {
 			"ze --plugin ze.hostname config.conf  Start with hostname plugin",
 			"ze --plugins                         List available plugins",
 			"ze cli                               Interactive CLI",
-			"ze show peer list                    Show peer list",
+			"ze show bgp peer list                Show peer list",
 			"ze show help                         List available show commands",
 			"ze del bgp peer 10.0.0.1            Remove a peer",
 			"ze bgp decode <hex>                  Decode BGP message",

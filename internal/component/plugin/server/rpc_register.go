@@ -32,23 +32,33 @@ func runProcessCleanupHooks(processName string) {
 	}
 }
 
-// PeerSubcommandKeywords returns the set of first words that follow "peer"
-// in CLI command paths. Used by config validation to reject peer names
-// that would collide with subcommand dispatch.
+// PeerSubcommandKeywords returns the set of words that immediately follow
+// `peer` in BGP peer command paths. Used by config validation to reject peer
+// names that would collide with subcommand dispatch.
 // The wireToPath map is typically built via yang.WireMethodToPath(loader).
 func PeerSubcommandKeywords(wireToPath map[string]string) map[string]bool {
-	const prefix = "peer "
 	keywords := make(map[string]bool)
 	for _, path := range wireToPath {
-		cmd := strings.ToLower(path)
-		if !strings.HasPrefix(cmd, prefix) {
-			continue
-		}
-		rest := cmd[len(prefix):]
-		word, _, _ := strings.Cut(rest, " ")
-		if word != "" {
-			keywords[word] = true
+		words := strings.Fields(strings.ToLower(path))
+		for i := 0; i+1 < len(words); i++ {
+			if words[i] != "peer" || !isBGPPeerPath(words, i) || words[i+1] == "" {
+				continue
+			}
+			keywords[words[i+1]] = true
 		}
 	}
 	return keywords
+}
+
+func isBGPPeerPath(words []string, peerIdx int) bool {
+	if peerIdx == 0 {
+		return true
+	}
+	if peerIdx >= 2 && words[peerIdx-1] == bgpParticipantName {
+		switch words[peerIdx-2] {
+		case "show", "set", "del", "update":
+			return true
+		}
+	}
+	return false
 }

@@ -49,7 +49,7 @@ def main():
 
     try:
         # Test 1: show pki certificate dev-1 pem
-        resp = dispatch(api, 'show pki certificate dev-1 pem')
+        resp = dispatch(api, 'show pki certificate name dev-1 pem')
         data = parse_data('pem', check_status('pem', resp))
         pem_str = data.get('pem', '')
         if 'BEGIN CERTIFICATE' not in pem_str:
@@ -59,7 +59,7 @@ def main():
         print(f'OK: pki certificate pem returned {len(pem_str)} bytes', file=sys.stderr)
 
         # Test 2: show pki certificate dev-1 bundle pem
-        resp = dispatch(api, 'show pki certificate dev-1 bundle pem')
+        resp = dispatch(api, 'show pki certificate name dev-1 bundle pem')
         data = parse_data('bundle', check_status('bundle', resp))
         bundle_str = data.get('pem', '')
         if 'BEGIN CERTIFICATE' not in bundle_str:
@@ -73,7 +73,7 @@ def main():
         print(f'OK: pki certificate bundle pem returned {len(bundle_str)} bytes', file=sys.stderr)
 
         # Test 3: show pki certificate dev-1 fingerprint (default sha256)
-        resp = dispatch(api, 'show pki certificate dev-1 fingerprint')
+        resp = dispatch(api, 'show pki certificate name dev-1 fingerprint')
         data = parse_data('fingerprint', check_status('fingerprint', resp))
         fp = data.get('fingerprint', '')
         algo = data.get('algorithm', '')
@@ -87,7 +87,7 @@ def main():
         print(f'OK: pki certificate fingerprint = {fp}', file=sys.stderr)
 
         # Test 4: show pki certificate test-ca pem (CA cert)
-        resp = dispatch(api, 'show pki certificate test-ca pem')
+        resp = dispatch(api, 'show pki certificate name test-ca pem')
         data = parse_data('ca-pem', check_status('ca-pem', resp))
         ca_pem = data.get('pem', '')
         if 'BEGIN CERTIFICATE' not in ca_pem:
@@ -95,7 +95,7 @@ def main():
         print(f'OK: pki ca certificate pem returned {len(ca_pem)} bytes', file=sys.stderr)
 
         # Test 5: bundle pem rejects CA certs
-        resp = dispatch(api, 'show pki certificate test-ca bundle pem')
+        resp = dispatch(api, 'show pki certificate name test-ca bundle pem')
         if resp.get('status') != 'error':
             runtime_fail(f'ca-bundle: expected error for CA cert, got {resp.get("status")}')
         print(f'OK: pki bundle correctly rejects CA cert', file=sys.stderr)

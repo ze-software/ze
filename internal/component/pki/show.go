@@ -60,20 +60,33 @@ func handleShowPKICertificates(_ *pluginserver.CommandContext, _ []string) (*plu
 	}, nil
 }
 
-func handleShowPKICertificate(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) == 0 {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "usage: show pki certificate <name> [pem | bundle pem | fingerprint [sha256|sha384|sha512]]",
-		}, nil
+func handleShowPKICertificate(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	const usage = "usage: show pki certificate name <name> [pem | bundle pem | fingerprint [sha256|sha384|sha512]]"
+	// The certificate name is the typed `name <name>` selector
+	// (`show pki certificate name <name> ...`). The remaining args select the
+	// output form (pem, bundle pem, fingerprint). A bare positional name is
+	// accepted as a fallback for programmatic callers.
+	certName := ""
+	if ctx != nil {
+		certName = ctx.Selector("name")
+	}
+	if certName == "" {
+		if len(args) == 0 {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Error:  usage,
+			}, nil
+		}
+		certName = args[0]
+		args = args[1:]
 	}
 
-	name, ca, entry, errResp := lookupCert(args[0])
+	name, ca, entry, errResp := lookupCert(certName)
 	if errResp != nil {
 		return errResp, nil
 	}
 
-	sub := args[1:]
+	sub := args
 	switch {
 	case len(sub) == 0:
 		return certDetail(name, ca, entry)
@@ -90,7 +103,7 @@ func handleShowPKICertificate(_ *pluginserver.CommandContext, args []string) (*p
 	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: show pki certificate <name> [pem | bundle pem | fingerprint [sha256|sha384|sha512]]",
+			Error:  usage,
 		}, nil
 	}
 }

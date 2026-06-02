@@ -11,17 +11,30 @@ module ze-cli-clear-cmd {
 
         container interface {
             config false;
-            ze:command "ze-clear:interface-counters";
-            description "Reset interface traffic counters.
-Zeroes Rx/Tx byte and packet counters. Without a name, clears every
-managed interface. Some backends store a baseline instead of resetting
-the kernel counters directly.";
+            description "Reset interface traffic counters.";
 
             container counters {
                 config false;
                 ze:command "ze-clear:interface-counters";
-                description "Zero the Rx/Tx counters for one interface or all.
-Usage: clear interface counters [<name>].";
+                description "Zero the Rx/Tx counters for every managed interface.
+Usage: clear interface counters.";
+            }
+
+            container name {
+                config false;
+                description "Select one interface by name.";
+
+                container counters {
+                    config false;
+                    ze:command "ze-clear:interface-counters";
+                    description "Zero the Rx/Tx counters for one interface.
+Usage: clear interface name <name> counters.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "Interface name";
+                    }
+                }
             }
         }
 

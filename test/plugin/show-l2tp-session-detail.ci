@@ -213,7 +213,7 @@ def main():
     if not isinstance(local_sid, int) or local_sid == 0:
         runtime_fail('session never appeared in `show l2tp sessions`')
 
-    r = dispatch(api, f'show l2tp session {local_sid}')
+    r = dispatch(api, f'show l2tp session id {local_sid}')
     if r.get('status') != 'done':
         runtime_fail(f'show l2tp session {local_sid}: status={r.get("status")!r} data={result_text_data(r)[:120]}')
     try:

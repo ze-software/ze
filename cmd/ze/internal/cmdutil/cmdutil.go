@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
+	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
 )
 
 // LocalHandler is a function that handles a command locally (in-process),
@@ -59,9 +60,9 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 
 	tree := cli.BuildVerbCommandTree(cmdName)
 
-	// Extract peer selector (IP/glob) from command words.
-	// User types "peer 127.0.0.2 show" but the tree has peer → show.
-	// The selector is passed to the CLI client as a trailing argument.
+	// Extract inline selectors from command words when public grammar places a
+	// selector value between a resource token and a later action token, for
+	// example `show bgp peer edge1 detail`.
 	treeWords, selector := ExtractSelector(cmdWords, tree)
 
 	// Check local handler registry first (offline commands like version, completion).
@@ -99,8 +100,8 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	}
 
 	// Build the run command: tree words + selector as trailing arg.
-	// CLI client's resolveCommand("peer detail 127.0.0.2") matches "peer detail"
-	// and passes "127.0.0.2" as args to the handler.
+	// The CLI resolves the structural command path, then passes the extracted
+	// selector as a regular handler argument.
 	runCmd := strings.Join(treeWords, " ")
 	if selector != "" {
 		runCmd += " " + selector
@@ -190,9 +191,13 @@ func CommandList(tree *cli.Command) []CommandEntry {
 	return entries
 }
 
-// ExtractSelector detects and removes a peer selector (IP/glob) from command words.
-// Pattern: "peer 127.0.0.2 show" → treeWords=["peer","show"], selector="127.0.0.2".
-// Only extracts words that look like IP addresses or glob patterns (contain dots or *).
+// ExtractSelector detects and removes an inline selector from command words.
+// Patterns:
+//   - "show bgp peer edge1 detail" -> treeWords=["show","bgp","peer","detail"], selector="edge1"
+//   - "peer 127.0.0.2 teardown"    -> treeWords=["peer","teardown"], selector="127.0.0.2"
+//
+// This is driven by the command tree shape and ArgDefs, not by hardcoded
+// ownership of a specific command family.
 func ExtractSelector(words []string, tree *cli.Command) (treeWords []string, selector string) {
 	if len(words) < 2 {
 		return words, ""
@@ -207,9 +212,7 @@ func ExtractSelector(words []string, tree *cli.Command) (treeWords []string, sel
 			current = current.Children[word]
 			continue
 		}
-		// Word doesn't match tree. Treat it as a selector/value only when it
-		// looks like a peer selector or the command declares a positional arg.
-		if !looksLikeSelector(word) && len(current.ArgDefs) == 0 {
+		if !shouldExtractSelector(current, words, i) {
 			return words, ""
 		}
 		treeWords = make([]string, 0, len(words)-1)
@@ -218,6 +221,51 @@ func ExtractSelector(words []string, tree *cli.Command) (treeWords []string, sel
 		return treeWords, word
 	}
 	return words, ""
+}
+
+func shouldExtractSelector(current *cli.Command, words []string, idx int) bool {
+	word := words[idx]
+	if len(current.ArgDefs) > 0 {
+		return true
+	}
+	if idx+1 >= len(words) || current.Children == nil {
+		return false
+	}
+	if looksLikeSelector(word) && pathExpectsImplicitSelector(current, words[idx+1:]) {
+		return true
+	}
+	return pathExpectsImplicitSelector(current, words[idx+1:])
+}
+
+func pathExpectsImplicitSelector(current *cli.Command, remaining []string) bool {
+	node := current
+	for _, word := range remaining {
+		if node.Children == nil {
+			return false
+		}
+		child, ok := node.Children[word]
+		if !ok {
+			return false
+		}
+		node = child
+		if hasImplicitSelectorArg(node) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasImplicitSelectorArg(node *cli.Command) bool {
+	for i := range node.ArgDefs {
+		def := node.ArgDefs[i]
+		if def.Kind != cmd.ArgString || !def.Mandatory {
+			continue
+		}
+		if !strings.EqualFold(def.Name, node.Name) {
+			return true
+		}
+	}
+	return false
 }
 
 // looksLikeSelector returns true if the word looks like an IP address or glob pattern.

@@ -193,26 +193,30 @@ func TestPeerCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-bgp:summary", GetCommandExtension(entry.Dir["summary"]))
 	assert.False(t, HasEditShortcutExtension(entry.Dir["summary"]))
 
-	// peer grouping
+	show := entry.Dir["show"]
+	require.NotNil(t, show)
+
+	bgp := show.Dir["bgp"]
+	require.NotNil(t, bgp)
+
+	showPeer := bgp.Dir["peer"]
+	require.NotNil(t, showPeer)
+	assert.Equal(t, "ze-bgp:peer-list", GetCommandExtension(showPeer.Dir["list"]))
+	assert.Equal(t, "ze-bgp:peer-detail", GetCommandExtension(showPeer.Dir["detail"]))
+	assert.Equal(t, "ze-bgp:peer-capabilities", GetCommandExtension(showPeer.Dir["capabilities"]))
+	assert.Equal(t, "ze-bgp:peer-statistics", GetCommandExtension(showPeer.Dir["statistics"]))
+	assert.Equal(t, "ze-bgp:peer-history", GetCommandExtension(showPeer.Dir["history"]))
+	assert.Equal(t, "ze-bgp:peer-rib", GetCommandExtension(showPeer.Dir["rib"]))
+
 	peer := entry.Dir["peer"]
 	require.NotNil(t, peer)
 	assert.Equal(t, "", GetCommandExtension(peer), "peer grouping has no handler")
 	assert.Equal(t, gyang.TSFalse, peer.Config)
-
-	// peer commands (add/remove/save moved to set/del verbs)
 	assert.Equal(t, "ze-bgp:peer-list", GetCommandExtension(peer.Dir["list"]))
-	assert.Equal(t, "ze-bgp:peer-detail", GetCommandExtension(peer.Dir["detail"]))
 	assert.Equal(t, "ze-bgp:peer-teardown", GetCommandExtension(peer.Dir["teardown"]))
 	assert.Equal(t, "ze-bgp:peer-pause", GetCommandExtension(peer.Dir["pause"]))
 	assert.Equal(t, "ze-bgp:peer-resume", GetCommandExtension(peer.Dir["resume"]))
 	assert.Equal(t, "ze-bgp:peer-flush", GetCommandExtension(peer.Dir["flush"]))
-	assert.Equal(t, "ze-bgp:peer-capabilities", GetCommandExtension(peer.Dir["capabilities"]))
-	assert.Equal(t, "ze-bgp:peer-statistics", GetCommandExtension(peer.Dir["statistics"]))
-	assert.Nil(t, peer.Dir["add"], "add moved to set verb")
-	assert.Nil(t, peer.Dir["remove"], "remove moved to del verb")
-	assert.Nil(t, peer.Dir["save"], "save moved to set verb")
-
-	// deep nesting: peer > plugin > session > ready
 	assert.Equal(t, "ze-plugin:session-peer-ready",
 		GetCommandExtension(peer.Dir["plugin"].Dir["session"].Dir["ready"]))
 }
@@ -619,11 +623,16 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	require.NotNil(t, bgp)
 	rib := bgp.Children["rib"]
 	require.NotNil(t, rib)
-	assert.Equal(t, "Query routes in the BGP RIB", rib.Description, "show bgp rib grouping gets YANG description")
+	// show bgp rib is the routes command, owned by the BGP rib plugin schema.
+	assert.Equal(t, "ze-rib-api:routes", rib.WireMethod, "show bgp rib is the BGP-owned routes command")
+	assert.Contains(t, rib.Description, "Query routes in the BGP RIB", "show bgp rib has the routes description")
 
 	rpf := rib.Children["rpf"]
 	require.NotNil(t, rpf)
 	assert.Equal(t, "ze-rib-api:rpf", rpf.WireMethod)
+	assert.Equal(t, "ze-rib-api:best", rib.Children["best"].WireMethod)
+	assert.Equal(t, "ze-rib-api:best-status", rib.Children["best"].Children["status"].WireMethod)
+	assert.Equal(t, "ze-rib-api:status", rib.Children["status"].WireMethod)
 
 	clear := tree.Children["clear"]
 	require.NotNil(t, clear)

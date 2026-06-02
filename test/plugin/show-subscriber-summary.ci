@@ -66,13 +66,21 @@ def main():
     if len(sessions) != 0:
         runtime_fail(f'show subscriber sessions={len(sessions)} want 0')
 
-    # Probe `show subscriber detail` with missing ID returns error.
-    r2 = dispatch(api, 'show subscriber detail')
-    if r2.get('status') != 'error':
-        runtime_fail(f'show subscriber detail (no arg): expected status=error got {r2.get("status")!r}')
+    # Probe `show subscriber id detail` with a missing ID is rejected. The
+    # mandatory `id` selector is enforced by the dispatcher, so a missing value
+    # surfaces as a dispatch-level rejection (RuntimeError) rather than a handler
+    # status; either form counts as the expected rejection.
+    rejected = False
+    try:
+        r2 = dispatch(api, 'show subscriber id detail')
+        rejected = r2.get('status') == 'error'
+    except RuntimeError:
+        rejected = True
+    if not rejected:
+        runtime_fail('show subscriber id detail (no id): expected rejection')
 
-    # Probe `show subscriber detail` with unknown ID returns error.
-    r3 = dispatch(api, 'show subscriber detail nonexistent-id')
+    # Probe `show subscriber id <id> detail` with unknown ID returns error.
+    r3 = dispatch(api, 'show subscriber id nonexistent-id detail')
     if r3.get('status') != 'error':
         runtime_fail(f'show subscriber detail nonexistent-id: expected status=error got {r3.get("status")!r}')
     msg = result_text_data(r3)

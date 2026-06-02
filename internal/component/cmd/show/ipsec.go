@@ -81,12 +81,21 @@ func handleShowVPNIPsecStatus(_ *pluginserver.CommandContext, _ []string) (*plug
 	}, nil
 }
 
-func handleShowVPNIPsecPeer(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) < 1 {
-		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show vpn ipsec peer <name>"}, nil
+func handleShowVPNIPsecPeer(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	// The peer name is the typed `name <name>` selector
+	// (`show vpn ipsec peer name <name>`); a bare positional is accepted as a
+	// fallback for programmatic callers.
+	peerName := ""
+	if ctx != nil {
+		peerName = ctx.Selector("name")
 	}
-	peerName := args[0]
-	if peerName == "" || len(peerName) > 255 {
+	if peerName == "" && len(args) > 0 {
+		peerName = args[0]
+	}
+	if peerName == "" {
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show vpn ipsec peer name <name>"}, nil
+	}
+	if len(peerName) > 255 {
 		return &plugin.Response{Status: plugin.StatusError, Error: "peer name must be 1-255 characters"}, nil
 	}
 

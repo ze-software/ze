@@ -65,25 +65,27 @@ func handleShowSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Res
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Slice[bfdapi.SessionState](svc.Snapshot())}, nil
 }
 
-// handleShowSession returns one session matched by peer address. The
-// peer is read either from the first positional argument (interactive
-// CLI) or the `peer` YANG input leaf (programmatic callers); this
-// handler accepts the positional form because `ze show bfd session
-// <peer>` is how operators type it.
-func handleShowSession(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+// handleShowSession returns one session matched by peer address.
+// Called via `show bfd session address <peer>`.
+func handleShowSession(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	peer := ""
-	for _, a := range args {
-		if a == "" || strings.HasPrefix(a, "-") {
-			continue
-		}
-		peer = a
-		break
+	if ctx != nil {
+		peer = ctx.Selector("address")
 	}
 	if peer == "" {
-		return &plugin.Response{Status: plugin.StatusError, Error: "bfd show session: missing peer argument"}, nil
+		for _, a := range args {
+			if a == "" || strings.HasPrefix(a, "-") {
+				continue
+			}
+			peer = a
+			break
+		}
+	}
+	if peer == "" {
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show bfd session address <peer>"}, nil
 	}
 	if _, err := netip.ParseAddr(peer); err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "bfd show session: invalid peer " + peer + ": " + err.Error()}, nil //nolint:nilerr // operational error in Response
+		return &plugin.Response{Status: plugin.StatusError, Error: "bfd: invalid peer address " + peer + ": " + err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	svc := bfdapi.GetService()
 	if svc == nil {
@@ -97,22 +99,27 @@ func handleShowSession(_ *pluginserver.CommandContext, args []string) (*plugin.R
 }
 
 // handleShowProfile returns the set of configured profiles. An empty
-// argument list returns every profile; a single profile name filters
-// to one entry. An unknown profile returns an error so operators see
+// argument list returns every profile; `show bfd profile name <name>`
+// filters to one entry. An unknown profile returns an error so operators see
 // a clear "not found" message.
-func handleShowProfile(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleShowProfile(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	svc := bfdapi.GetService()
 	if svc == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: errBFDServiceUnavailable.Error()}, nil
 	}
 	profiles := svc.Profiles()
 	wanted := ""
-	for _, a := range args {
-		if a == "" || strings.HasPrefix(a, "-") {
-			continue
+	if ctx != nil {
+		wanted = ctx.Selector("name")
+	}
+	if wanted == "" {
+		for _, a := range args {
+			if a == "" || strings.HasPrefix(a, "-") {
+				continue
+			}
+			wanted = a
+			break
 		}
-		wanted = a
-		break
 	}
 	if wanted != "" {
 		for i := range profiles {

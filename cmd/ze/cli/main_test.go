@@ -190,7 +190,13 @@ func TestCommandTree(t *testing.T) {
 		t.Error("daemon missing status subcommand")
 	}
 
-	// Check peer subcommands
+	show := tree.Children["show"]
+	if show == nil {
+		t.Fatal("show command missing")
+		return
+	}
+
+	// Check peer command families
 	peer := tree.Children["peer"]
 	if peer == nil {
 		t.Fatal("peer command missing")
@@ -199,13 +205,20 @@ func TestCommandTree(t *testing.T) {
 	if _, ok := peer.Children["list"]; !ok {
 		t.Error("peer missing list subcommand")
 	}
-	if _, ok := peer.Children["detail"]; !ok {
-		t.Error("peer missing detail subcommand")
+	if _, ok := peer.Children["teardown"]; !ok {
+		t.Error("peer missing teardown subcommand")
+	}
+	if show.Children["bgp"] == nil || show.Children["bgp"].Children["peer"] == nil {
+		t.Fatal("show bgp peer command missing")
+		return
+	}
+	showPeer := show.Children["bgp"].Children["peer"]
+	if _, ok := showPeer.Children["detail"]; !ok {
+		t.Error("show bgp peer missing detail subcommand")
 	}
 
 	// Check RIB subcommands (proxy handlers forwarding to bgp-rib plugin).
-	show := tree.Children["show"]
-	if show == nil || show.Children["bgp"] == nil || show.Children["bgp"].Children["rib"] == nil {
+	if show.Children["bgp"] == nil || show.Children["bgp"].Children["rib"] == nil {
 		t.Fatal("show bgp rib command missing")
 		return
 	}

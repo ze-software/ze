@@ -137,11 +137,12 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, conn *plugipc.Plugi
 
 	// Reconstruct the full command for the dispatcher.
 	// Commands arrive in two forms:
-	// 1. Peer subcommands: just "<cmd>" (e.g., "update text ...") -- need "peer <sel> " prepended
+	// 1. Peer-scoped subcommands: just "<cmd>" (e.g., "update text ...") -- need
+	//    `peer <sel> ` prepended
 	// 2. Top-level commands: "cache ...", "peer ...", "commit ..." -- pass through directly
 	//
 	// Detect form by checking if the command matches a registered dispatch prefix.
-	// If it does, pass through. If not, it's a peer subcommand.
+	// If it does, pass through. If not, it's a peer-scoped subcommand.
 	var dispatchCmd string
 	if s.dispatcher.HasCommandPrefix(input.Command) {
 		dispatchCmd = input.Command

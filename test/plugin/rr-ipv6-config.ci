@@ -45,13 +45,13 @@ def main():
     # Poll until peer session is established
     for _ in range(20):
         time.sleep(0.3)
-        result = dispatch(api, 'peer peer-src detail')
+        result = dispatch(api, 'show bgp peer peer-src detail')
         if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
             break
     else:
         runtime_fail('peer-src never reached established state')
 
-    result = dispatch(api, 'peer peer-src detail')
+    result = dispatch(api, 'show bgp peer peer-src detail')
     if result.get('status') != 'done':
         runtime_fail(f'peer detail failed: {result}')
 

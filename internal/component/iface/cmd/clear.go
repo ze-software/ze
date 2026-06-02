@@ -20,50 +20,20 @@ func init() {
 
 // handleClearInterfaceCounters zeros RX/TX counters.
 //
-// Canonical grammar (action before identifier):
+// Canonical grammar:
 //
-//	clear interface counters             args=[]                   -> all
-//	clear interface counters             args=["counters"]         -> all
-//	clear interface counters <name>      args=["counters", <name>] -> one
-//
-// Deprecated grammars (accepted with deprecation warning):
-//
-//	clear interface <name> counters      args=[<name>, "counters"] -> one
-//	clear interface <name>               args=[<name>]             -> one
-func handleClearInterfaceCounters(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	const (
-		usage  = "usage: clear interface counters [<name>]"
-		kwCtrs = "counters"
-	)
-
+//	clear interface counters               -> all
+//	clear interface name <name> counters   -> one
+func handleClearInterfaceCounters(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	name := ""
-	deprecated := false
-
-	switch len(args) {
-	case 0:
-		// all
-	case 1:
-		if args[0] == kwCtrs {
-			// "clear interface counters" -> all
-		} else {
-			// Deprecated: "clear interface <name>" -> one
-			name = args[0]
-			deprecated = true
-		}
-	case 2:
-		switch {
-		case args[0] == kwCtrs:
-			// Canonical: "clear interface counters <name>" -> one
-			name = args[1]
-		case args[1] == kwCtrs:
-			// Deprecated: "clear interface <name> counters" -> one
-			name = args[0]
-			deprecated = true
-		default:
-			return &plugin.Response{Status: plugin.StatusError, Error: usage}, nil
-		}
-	default:
-		return &plugin.Response{Status: plugin.StatusError, Error: usage}, nil
+	if ctx != nil {
+		name = ctx.Selector("name")
+	}
+	if len(args) != 0 {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  "usage: clear interface counters or clear interface name <name> counters",
+		}, nil
 	}
 
 	if err := iface.ResetCounters(name); err != nil {
@@ -74,20 +44,10 @@ func handleClearInterfaceCounters(_ *pluginserver.CommandContext, args []string)
 	if scope == "" {
 		scope = "all"
 	}
-	resp := &plugin.Response{
+	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"cleared": scope,
 		},
-	}
-	if deprecated {
-		newForm := "clear interface counters"
-		if name != "" {
-			newForm += " " + name
-		}
-		if data, ok := resp.Data.(plugin.Map); ok {
-			data["deprecated"] = "use: " + newForm
-		}
-	}
-	return resp, nil
+	}, nil
 }

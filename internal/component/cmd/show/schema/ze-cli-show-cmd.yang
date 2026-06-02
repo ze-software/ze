@@ -729,27 +729,15 @@ they are.";
             }
         }
 
+        // NOTE: `show bgp peer ...` and `show bgp rib ...` are owned by the BGP
+        // plugin packages (internal/component/bgp/plugins/cmd/peer/schema and
+        // .../cmd/rib/schema) so that removing the BGP plugin removes them. Only
+        // the offline decode/encode diagnostics remain declared here; their
+        // handlers live in cmd/ze/bgp (offline command surface). See
+        // ai/rules/plugin-self-containment.md.
         container bgp {
             config false;
             description "BGP peers, sessions, RIB, and protocol tools";
-
-            container peer {
-                config false;
-                ze:command "ze-show:bgp-peer";
-                description "Show detailed state for one or more BGP peers.
-Returns IP, ASN, state, uptime, capabilities, message counters,
-policy, and notification history. Use a peer selector: IP address,
-name, AS pattern (as65001), glob (10.0.*), or * for all.";
-            }
-
-            container peer-history {
-                config false;
-                ze:command "ze-bgp:peer-history";
-                description "Show why a peer has been bouncing.
-Returns timestamped FSM state transitions with reasons (hold timer
-expired, notification received, etc.). Accepts a peer selector
-(IP or name). The go-to command when diagnosing flapping.";
-            }
 
             container decode {
                 config false;
@@ -767,41 +755,6 @@ wire issues. Also available in the web UI under tools.";
 Takes a route in API syntax and returns the BGP UPDATE as a hex
 string. Useful for building test payloads, feeding to ze-test, or
 verifying that your announcement encodes correctly.";
-            }
-
-            container rib {
-                config false;
-                ze:command "ze-rib-api:routes";
-                ze:task-support required;
-                description "Query routes in the BGP RIB.
-Look at received or advertised routes with flexible filters: peer,
-family, prefix, AS path regex, community, match expression. Pipe
-operators: | count, | prefix-summary, | graph. This is the main
-route inspection command.";
-
-                container best {
-                    config false;
-                    ze:command "ze-rib-api:best";
-                    description "Show the winning route for each prefix.
-Same filters as 'show bgp rib'. Use '| reason' to see why each
-path was selected (local-pref, AS path length, MED, etc.).";
-
-                    container status {
-                        config false;
-                        ze:command "ze-rib-api:best-status";
-                        description "Check whether best-path computation is still running.
-Reports idle, pending, or running, plus the last run duration.";
-                    }
-                }
-
-                container status {
-                    config false;
-                    ze:command "ze-rib-api:status";
-                    description "Get a quick RIB overview without dumping routes.
-Shows total peers, received/accepted/advertised route counts, and
-per-family breakdowns. Use this to confirm convergence after a
-peer comes up.";
-                }
             }
         }
 
@@ -1001,16 +954,10 @@ when building a new policy chain to see what filters you can use.";
                     config false;
                     ze:command "ze-show:policy-chain";
                     description "Show the import/export filter chain applied to a peer.
-Accepts a peer selector (IP, name, as<N>). Shows the effective chain
-after group inheritance is resolved. Without a direction keyword,
-shows both import and export.";
-                    leaf direction {
-                        type enumeration {
-                            enum import;
-                            enum export;
-                        }
-                        description "Policy direction to show (default: both)";
-                    }
+Usage: show policy chain peer <selector> [import|export]. The selector
+(IP, name, as<N>) and the optional direction are parsed by the handler.
+Shows the effective chain after group inheritance is resolved. Without
+a direction keyword, shows both import and export.";
                 }
             }
 
@@ -1025,29 +972,11 @@ shows both import and export.";
 Feed a hex-encoded BGP UPDATE through a peer's filter chain and see
 the accept/reject result plus attribute modifications at each stage.
 Read-only: no routes are actually forwarded. Great for validating
-policy changes before you commit.";
-                    leaf direction {
-                        type enumeration {
-                            enum import;
-                            enum export;
-                        }
-                        description "Policy direction to test";
-                    }
-                    leaf filter {
-                        type string;
-                        description "Optional single filter instance name to test instead of the full chain";
-                    }
-                    leaf update {
-                        type string;
-                        description "Hex-encoded BGP UPDATE message bytes (preceded by the 'update' keyword)";
-                    }
-                    leaf source-asn4 {
-                        type enumeration {
-                            enum true;
-                            enum false;
-                        }
-                        description "Source ASN4 encoding context (default: true)";
-                    }
+policy changes before you commit.
+Usage: show policy test peer <selector> import|export [filter <name>]
+update <hex> [source-asn4 true|false]. The selector and the
+import/export/filter/update/source-asn4 tokens are parsed by the
+handler so the peer selector can be a free-form name or address.";
                 }
             }
         }
@@ -1057,8 +986,8 @@ policy changes before you commit.";
             ze:command "ze-show:interface";
             description "Show network interfaces on this box.
 Without arguments, returns all interfaces with full detail.
-Subcommands: brief, type <t>, errors, rate, detail <name>,
-counters <name>.";
+Subcommands: brief, type <t>, errors, rate [<name>], name <name> detail,
+name <name> counters.";
 
             container brief {
                 config false;
@@ -1100,6 +1029,35 @@ counters. Quick way to find troubled links.";
 Returns rx/tx bytes and packets per second. Pass an interface name
 to narrow the output. Requires the rate tracker. For continuous
 monitoring, use 'monitor interface rate' instead.";
+            }
+
+            container name {
+                config false;
+                description "Select one interface by name.";
+
+                container detail {
+                    config false;
+                    ze:command "ze-show:interface-detail";
+                    description "Show full detail for one interface.
+Usage: show interface name <name> detail.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "Interface name";
+                    }
+                }
+
+                container counters {
+                    config false;
+                    ze:command "ze-show:interface-counters";
+                    description "Show counters for one interface.
+Usage: show interface name <name> counters.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "Interface name";
+                    }
+                }
             }
         }
 
@@ -1173,12 +1131,12 @@ ipv4, ipv6, or any as a positional argument.";
             config false;
             ze:command "ze-show:crashes";
             description "View saved crash reports from panics.
-Without arguments, lists available crash files. Use 'latest' or a
-specific filename to see the goroutine stack trace from that crash.
+Without arguments, lists available crash files. Use 'latest' to see
+the newest crash or 'name <filename>' to print one specific report.
 Send the output to support when reporting a crash.";
             leaf name {
                 type string;
-                description "Crash report name (latest or filename)";
+                description "Crash report name (used with 'name <filename>')";
             }
         }
 
@@ -1374,9 +1332,9 @@ Lists each RR client with session state and reflected route counts.";
                 config false;
                 ze:command "ze-show:firewall-ruleset";
                 ze:backend "nft";
-                description "Show firewall rules in a named table with hit counters.
-Returns each rule with packet and byte counters. Usage: show
-firewall ruleset <name>. Check counters to verify rules are matching.";
+                description "Show the live firewall ruleset with per-term counters.
+Usage: show firewall ruleset <name>. Joins applied desired state with
+kernel counters from the nft backend.";
             }
 
             container group {
@@ -1404,11 +1362,21 @@ expiration.";
 
             container certificate {
                 config false;
-                ze:command "ze-show:pki-certificate";
-                description "Inspect a specific certificate in detail.
-Usage: show pki certificate <name> [pem | bundle pem | fingerprint
+                description "Inspect a specific certificate in detail or export forms.";
+
+                container name {
+                    config false;
+                    ze:command "ze-show:pki-certificate";
+                    description "Inspect a specific certificate in detail.
+Usage: show pki certificate name <name> [pem | bundle pem | fingerprint
 [sha256|sha384|sha512]]. Use 'pem' to export for another system,
 'fingerprint' to verify identity.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "Certificate name";
+                    }
+                }
             }
         }
 
@@ -1439,10 +1407,20 @@ configured, and how many IKE SAs are Established.";
 
                 container peer {
                     config false;
-                    ze:command "ze-show:vpn-ipsec-peer";
-                    description "Show full detail for one IPsec peer.
+                    description "IPsec peer detail";
+
+                    container name {
+                        config false;
+                        ze:command "ze-show:vpn-ipsec-peer";
+                        description "Show full detail for one IPsec peer.
 Returns IKE SA state, all child SAs with traffic selectors, and
-byte counts. Usage: show vpn ipsec peer <name>.";
+byte counts. Usage: show vpn ipsec peer name <name>.";
+                        leaf name {
+                            type string;
+                            mandatory true;
+                            description "Configured IPsec peer name";
+                        }
+                    }
                 }
             }
         }
@@ -1465,9 +1443,13 @@ health before they cause data loss.";
             config false;
             ze:command "ze-show:flow-export";
             description "Show flow export (NetFlow/IPFIX) collector status.
-Without arguments, lists all configured collectors. With a name,
+Without arguments, lists all configured collectors. With 'name <name>',
 shows details for that collector including protocol stats and errors.
 Returns not-configured when no exporter is active.";
+            leaf name {
+                type string;
+                description "Collector name (used with 'name <name>')";
+            }
         }
     }
 }

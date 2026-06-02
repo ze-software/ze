@@ -22,8 +22,8 @@ module ze-cli-update-cmd {
                     ze:command "ze-update:bgp-peer-prefix";
                     description "Pull max-prefix limits from PeeringDB for your peers.
 Queries PeeringDB by ASN and updates the configured max-prefix
-values so you do not have to look them up manually. Selector: IP,
-name, AS pattern, glob, or *.";
+values so you do not have to look them up manually.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
                 }
             }
         }

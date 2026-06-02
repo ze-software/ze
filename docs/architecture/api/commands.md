@@ -396,11 +396,11 @@ daemon reload            # Reload the configuration
 ### Peer Commands
 
 ```
-show peer list                # List all peers
-show peer detail <selector>   # Show specific peer detail
-show peer capabilities <selector>  # Show specific peer capabilities
-show peer statistics <selector>    # Show specific peer statistics
-show peer history <selector>       # Show FSM transition history
+show bgp peer list                    # List all peers
+show bgp peer <selector> detail       # Show specific peer detail
+show bgp peer <selector> capabilities # Show specific peer capabilities
+show bgp peer <selector> statistics   # Show specific peer statistics
+show bgp peer <selector> history      # Show FSM transition history
 peer <ip> teardown <code> [<reason>]  # Disconnect peer
 set bgp peer <name> with <config>  # Create peer with configuration
 del bgp peer <name>                # Remove dynamic peer

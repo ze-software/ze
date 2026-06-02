@@ -8,6 +8,7 @@
 | Add a CLI command | `patterns/cli-command.md` | `rules/cli-patterns.md` |
 | Add a web page/endpoint | `patterns/web-endpoint.md` | `docs/architecture/web-interface.md` |
 | Create a plugin | `patterns/plugin.md` | `rules/plugin-design.md` |
+| Keep a plugin self-contained (removal test) | `rules/plugin-self-containment.md` | Remove the plugin and ALL its features vanish; other plugins and core keep working |
 | Add a config option | `patterns/config-option.md` | `rules/config-design.md` |
 | Add a .ci functional test | `patterns/functional-test.md` | `docs/architecture/testing/ci-format.md` |
 | Test linux-only code (QEMU) | `rules/qemu-testing.md` | `rules/testing.md` (Linux-Only Tests section) |

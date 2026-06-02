@@ -45,7 +45,7 @@ def main():
     # Poll until peer session is established and route is in RIB
     for _ in range(20):
         time.sleep(0.3)
-        result = dispatch(api, 'peer peer1 detail')
+        result = dispatch(api, 'show bgp peer peer1 detail')
         if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
             break
     else:

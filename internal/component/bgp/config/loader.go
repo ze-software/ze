@@ -518,7 +518,7 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []LoginWarning {
 			label := peerLabelFromSubject(issue.Subject, peerNames)
 			warnings = append(warnings, LoginWarning{
 				Message: label + " has stale prefix data (updated " + detailString(issue.Detail, "updated") + ")",
-				Command: "update bgp peer " + issue.Subject + " prefix",
+				Command: "set bgp peer " + issue.Subject + " prefix",
 			})
 		case "prefix-threshold":
 			peerAddr, fam, ok := splitThresholdSubject(issue.Subject)

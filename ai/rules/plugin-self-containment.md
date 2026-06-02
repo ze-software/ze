@@ -1,0 +1,83 @@
+# Plugin Self-Containment (BLOCKING)
+
+**A plugin owns its ENTIRE feature surface. Remove the plugin and every one of
+its features disappears; every OTHER plugin and the core keep working.**
+
+This is the load-bearing invariant of the registration architecture. It is the
+"delete the folder" test from `ai/rules/plugin-design.md` (Proximity Principle),
+stated for the full user-facing surface, not just internal wiring.
+
+## The Removal Test
+
+Deleting a plugin's package directory plus its blank import in
+`internal/component/plugin/all/all.go` MUST:
+
+1. **Remove every user-visible feature of that plugin** and nothing else:
+   CLI commands, `show`/`set`/`clear`/`del`/`update` subtrees, RPC registration,
+   offline command registration, YANG command schema, help and usage text,
+   completion entries, web/looking-glass routes, doctor checks, metrics.
+2. **Keep the build green.** No dangling reference, no orphaned command
+   spelling, no half-registered command anywhere.
+3. **Keep every other plugin and the core fully working.** Removing BGP must
+   not break iface, firewall, l2tp, or the generic command plumbing.
+
+If removing a plugin would break a different plugin, the core, or leave a
+broken/empty command, the surface is in the wrong package. Move it to the owner.
+
+## What This Forbids
+
+| Anti-pattern | Why it fails the removal test |
+|--------------|-------------------------------|
+| Plugin command spelling in generic dispatch (`internal/component/plugin/server`) | Deleting the plugin leaves dead BGP/iface knowledge in shared code |
+| A plugin's subtree in a central verb schema (e.g. `show bgp ...` in `internal/component/cmd/show/schema/ze-cli-show-cmd.yang`) | Deleting the plugin leaves a `show bgp` branch with no handler |
+| Plugin handlers registered from a central verb package (`cmd/show`, `cmd/del`, ...) | Deleting the plugin leaves the central package referencing gone symbols |
+| Help / usage / inventory strings that hardcode a plugin's commands in a generic package | Deleting the plugin leaves help advertising commands that no longer exist |
+| The CLI helper (`cmd/ze/internal/cmdutil`) special-casing a plugin's selectors | Selector handling is generic; per-plugin knowledge belongs to the owner |
+
+## What Shared Code MAY Do
+
+Generic command plumbing carries **selector scope**, not command spelling.
+The dispatcher may extract a typed selector value because a YANG `ArgDef`
+declares it (`internal/component/plugin/server/command.go`), but it must not
+contain the words `peer`, `bgp`, `bfd`, or any plugin's grammar. The
+classification rule from `plan/learned/844-command-grammar-ownership-first.md`:
+shared dispatch may carry selector scope; it must not own a plugin's command
+spelling.
+
+## Where a Plugin's Surface Lives
+
+| Surface | Owner location |
+|---------|----------------|
+| RPC handler + `pluginserver.RegisterRPCs` | `internal/component/<plugin>/plugins/<unit>/` |
+| YANG command schema (full path from root, e.g. `show bgp peer ...`) | owner `schema/` subpackage, blank-imported by the aggregator |
+| Offline/root command + handler | owner package via the offline command registry |
+| Help / usage / completion | derived from the owner's registry + schema (see `ai/rules/derive-not-hardcode.md`) |
+| Doctor check + its unit test | owner package (Proximity Principle) |
+
+Central verb packages (`internal/component/cmd/show`, `cmd/del`, ...) keep ONLY
+generic cross-system commands (`show warnings`, `show health`), never a specific
+plugin's commands.
+
+## Mechanical Check
+
+A removal-compliance test must exist and run in verification: build (or analyse
+the command/schema registries) with a plugin's provider import removed and
+assert no command, schema node, help string, or handler reference to that
+plugin survives in any generic or central package. See
+`ai/rules/discovery-updates.md` — adding this invariant means adding the gate
+that enforces it.
+
+The first instance is `TestShowSchemaHasNoBGPPluginCommands`
+(`internal/component/cmd/show/schema/self_containment_test.go`): it asserts the
+central `show` verb schema declares no `ze-rib-api:` or `ze-bgp:peer-` command,
+because `show bgp rib ...` and `show bgp peer ...` are owned by
+`internal/component/bgp/plugins/cmd/{rib,peer}/schema`. Extend the same pattern
+to the other central verb schemas (`cmd/del`, `cmd/set`, ...) and to other
+plugins as they are made compliant.
+
+## Related
+
+- `ai/rules/plugin-design.md` — Proximity Principle, import rules.
+- `ai/patterns/cli-command.md` — owner-owned command registration.
+- `ai/rules/cli-grammar.md` — typed selectors, command grammar ownership.
+- `plan/learned/844-command-grammar-ownership-first.md` — ownership-before-grammar.

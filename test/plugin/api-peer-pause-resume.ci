@@ -41,7 +41,7 @@ def main():
             sys.exit(1)
 
         # Check peer state after pause
-        result = dispatch(api, 'peer peer1 detail')
+        result = dispatch(api, 'show bgp peer peer1 detail')
         data = result.get('data', {})
         if isinstance(data, str):
             data = json.loads(data)

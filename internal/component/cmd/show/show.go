@@ -5,7 +5,6 @@
 package show
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -88,6 +87,14 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:interface",
 			Handler:    handleShowInterface,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:interface-detail",
+			Handler:    handleShowInterfaceDetail,
+		},
+		pluginserver.RPCRegistration{
+			WireMethod: "ze-show:interface-counters",
+			Handler:    handleShowInterfaceCounters,
 		},
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:interface-scan",
@@ -649,8 +656,9 @@ func handleShowUptime(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 }
 
 // handleShowInterface dispatches interface subcommands. Keywords: brief,
-// type, errors, rate, detail, counters. Old name-first grammar accepted
-// with deprecation warning.
+// type, errors, rate. Named views moved to typed-selector commands:
+// `show interface name <name> detail` and
+// `show interface name <name> counters`.
 func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return showInterfaceAll()
@@ -668,31 +676,40 @@ func handleShowInterface(_ *pluginserver.CommandContext, args []string) (*plugin
 		return showInterfaceErrors()
 	case "rate":
 		return handleShowInterfaceRate(args[1:])
-	case "detail":
-		if len(args) > 1 {
-			return showInterfaceDetail(args[1])
-		}
-		return showInterfaceAll()
-	case "counters":
-		if len(args) > 1 {
-			return showInterfaceCounters(args[1])
-		}
-		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show interface counters <name>"}, nil
+	default:
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  "usage: show interface [brief | type <type> | errors | rate [<name>]] or show interface name <name> detail|counters",
+		}, nil
 	}
+}
 
-	// Deprecated: "show interface <name> [counters]" -- name in keyword position.
-	if len(args) > 1 && args[1] == "counters" {
-		resp, err := showInterfaceCounters(args[0])
-		if err != nil {
-			return resp, err
-		}
-		return withDeprecation(resp, "show interface counters "+args[0]), nil
+func handleShowInterfaceDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	name := ""
+	if ctx != nil {
+		name = ctx.Selector("name")
 	}
-	resp, err := showInterfaceDetail(args[0])
-	if err != nil {
-		return resp, err
+	if name == "" && len(args) > 0 {
+		name = args[0]
 	}
-	return withDeprecation(resp, "show interface detail "+args[0]), nil
+	if name == "" {
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show interface name <name> detail"}, nil
+	}
+	return showInterfaceDetail(name)
+}
+
+func handleShowInterfaceCounters(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	name := ""
+	if ctx != nil {
+		name = ctx.Selector("name")
+	}
+	if name == "" && len(args) > 0 {
+		name = args[0]
+	}
+	if name == "" {
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show interface name <name> counters"}, nil
+	}
+	return showInterfaceCounters(name)
 }
 
 func showInterfaceDetail(name string) (*plugin.Response, error) {
@@ -726,27 +743,6 @@ func showInterfaceAll() (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Slice[iface.InterfaceInfo](ifaces)}, nil
-}
-
-// withDeprecation adds a deprecation hint to a successful response.
-func withDeprecation(resp *plugin.Response, newForm string) *plugin.Response {
-	if resp == nil || resp.Status != plugin.StatusDone || resp.Data == nil {
-		return resp
-	}
-	if data, ok := resp.Data.(plugin.Map); ok {
-		data["deprecated"] = "use: " + newForm
-		return resp
-	}
-	b, err := json.Marshal(resp.Data)
-	if err != nil {
-		return resp
-	}
-	var m plugin.Map
-	if json.Unmarshal(b, &m) == nil {
-		m["deprecated"] = "use: " + newForm
-		resp.Data = m
-	}
-	return resp
 }
 
 // handleShowInterfaceScan discovers OS interfaces, classifies them by Ze

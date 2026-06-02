@@ -20,12 +20,22 @@ module ze-subscriber-cmd {
 Counts by access type (PPPoE, L2TP, IPoE) with totals. Quick way
 to see how many subscribers are online.";
 
-            container detail {
+            container id {
                 config false;
-                ze:command "ze-subscriber-api:detail";
-                description "Show everything about one subscriber session.
+                description "Select one subscriber session by ID.";
+
+                container detail {
+                    config false;
+                    ze:command "ze-subscriber-api:detail";
+                    description "Show everything about one subscriber session.
 Pass the session ID. Returns access type, assigned addresses,
 authentication state, uptime, and traffic counters.";
+                    leaf id {
+                        type string;
+                        mandatory true;
+                        description "Subscriber session ID";
+                    }
+                }
             }
         }
     }

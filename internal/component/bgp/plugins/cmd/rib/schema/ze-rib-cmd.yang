@@ -15,7 +15,37 @@ module ze-rib-cmd {
 
             container rib {
                 config false;
-                description "Query routes in the BGP RIB";
+                ze:command "ze-rib-api:routes";
+                ze:task-support required;
+                description "Query routes in the BGP RIB.
+Look at received or advertised routes with flexible filters: peer,
+family, prefix, AS path regex, community, match expression. Pipe
+operators: | count, | prefix-summary, | graph. This is the main
+route inspection command.";
+
+                container best {
+                    config false;
+                    ze:command "ze-rib-api:best";
+                    description "Show the winning route for each prefix.
+Same filters as 'show bgp rib'. Use '| reason' to see why each
+path was selected (local-pref, AS path length, MED, etc.).";
+
+                    container status {
+                        config false;
+                        ze:command "ze-rib-api:best-status";
+                        description "Check whether best-path computation is still running.
+Reports idle, pending, or running, plus the last run duration.";
+                    }
+                }
+
+                container status {
+                    config false;
+                    ze:command "ze-rib-api:status";
+                    description "Get a quick RIB overview without dumping routes.
+Shows total peers, received/accepted/advertised route counts, and
+per-family breakdowns. Use this to confirm convergence after a
+peer comes up.";
+                }
 
                 container rpf {
                     config false;

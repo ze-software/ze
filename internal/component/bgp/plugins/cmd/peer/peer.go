@@ -43,9 +43,8 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", Handler: handleBgpPeerResume, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},
-		// CLI verb RPCs (moved from cmd/show, cmd/del, cmd/set, cmd/update).
-		pluginserver.RPCRegistration{WireMethod: "ze-show:bgp-peer", Handler: HandleBgpPeerDetail, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory},
+		// Additional owner-registered BGP peer commands.
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-del:bgp-peer", Handler: HandleBgpPeerRemove, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-with", Handler: HandleBgpPeerWith, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-save", Handler: HandleBgpPeerSave, RequiresSelector: true},

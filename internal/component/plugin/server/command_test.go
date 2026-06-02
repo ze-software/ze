@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net"
-	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -58,9 +57,9 @@ func TestDispatcherDispatch(t *testing.T) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
-	d.Register("peer show", handler, "Show peers")
+	d.Register("alpha show", handler, "Show alpha")
 
-	resp, err := d.Dispatch(nil, "peer show extensive")
+	resp, err := d.Dispatch(nil, "alpha show extensive")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	assert.Equal(t, []string{"extensive"}, receivedArgs)
@@ -123,38 +122,38 @@ func TestDispatcherEmptyCommand(t *testing.T) {
 //
 // VALIDATES: More specific commands take precedence.
 //
-// PREVENTS: "peer show" matching when "peer show extensive" is meant.
+// PREVENTS: "alpha show" matching when "alpha show extensive" is meant.
 func TestDispatcherLongestMatch(t *testing.T) {
 	d := NewDispatcher()
 
 	var matched string
-	d.Register("peer", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		matched = "peer"
+	d.Register("alpha", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		matched = "alpha"
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
-	d.Register("peer show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		matched = "peer show"
+	d.Register("alpha show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		matched = "alpha show"
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
-	d.Register("peer show extensive", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		matched = "peer show extensive"
+	d.Register("alpha show extensive", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		matched = "alpha show extensive"
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
 
-	// "peer show extensive" should match the most specific
-	_, err := d.Dispatch(nil, "peer show extensive")
+	// "alpha show extensive" should match the most specific
+	_, err := d.Dispatch(nil, "alpha show extensive")
 	require.NoError(t, err)
-	assert.Equal(t, "peer show extensive", matched)
+	assert.Equal(t, "alpha show extensive", matched)
 
-	// "peer show summary" should match "peer show" with arg "summary"
-	_, err = d.Dispatch(nil, "peer show summary")
+	// "alpha show summary" should match "alpha show" with arg "summary"
+	_, err = d.Dispatch(nil, "alpha show summary")
 	require.NoError(t, err)
-	assert.Equal(t, "peer show", matched)
+	assert.Equal(t, "alpha show", matched)
 
-	// "peer list" should match "peer" with arg "list"
-	_, err = d.Dispatch(nil, "peer list")
+	// "alpha list" should match "alpha" with arg "list"
+	_, err = d.Dispatch(nil, "alpha list")
 	require.NoError(t, err)
-	assert.Equal(t, "peer", matched)
+	assert.Equal(t, "alpha", matched)
 }
 
 // TestDispatcherTokenize verifies command tokenization.
@@ -167,10 +166,10 @@ func TestDispatcherTokenize(t *testing.T) {
 		input  string
 		tokens []string
 	}{
-		{"peer show", []string{"peer", "show"}},
-		{"peer  show", []string{"peer", "show"}},
-		{"  peer show  ", []string{"peer", "show"}},
-		{"peer\tshow", []string{"peer", "show"}},
+		{"alpha show", []string{"alpha", "show"}},
+		{"alpha  show", []string{"alpha", "show"}},
+		{"  alpha show  ", []string{"alpha", "show"}},
+		{"alpha\tshow", []string{"alpha", "show"}},
 		{"update text nlri ipv4/unicast add 10.0.0.0/24", []string{"update", "text", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
 		// Quoted strings
 		{`myapp check "hello world"`, []string{"myapp", "check", "hello world"}},
@@ -232,7 +231,7 @@ func TestDispatcherListCommands(t *testing.T) {
 	d := NewDispatcher()
 
 	d.Register("daemon shutdown", nil, "Shutdown the daemon")
-	d.Register("peer show", nil, "Show peers")
+	d.Register("alpha show", nil, "Show alpha")
 	d.Register("show bgp rib received", nil, "Show Adj-RIB-In")
 
 	cmds := d.Commands()
@@ -244,7 +243,7 @@ func TestDispatcherListCommands(t *testing.T) {
 		names[cmd.Name] = true
 	}
 	assert.True(t, names["daemon shutdown"])
-	assert.True(t, names["peer show"])
+	assert.True(t, names["alpha show"])
 	assert.True(t, names["show bgp rib received"])
 }
 
@@ -438,123 +437,125 @@ func TestDispatcherPluginMatch(t *testing.T) {
 //
 // VALIDATES: Commands are matched case-insensitively.
 //
-// PREVENTS: Users typing "Peer Show" failing when "peer show" works.
+// PREVENTS: Users typing "Alpha Show" failing when "alpha show" works.
 func TestDispatcherCaseInsensitive(t *testing.T) {
 	d := NewDispatcher()
 
 	called := false
-	d.Register("peer show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	d.Register("alpha show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		called = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
 
 	// Should match regardless of case
-	_, err := d.Dispatch(nil, "PEER SHOW")
+	_, err := d.Dispatch(nil, "ALPHA SHOW")
 	require.NoError(t, err)
 	assert.True(t, called)
 
 	called = false
-	_, err = d.Dispatch(nil, "Peer Show")
+	_, err = d.Dispatch(nil, "Alpha Show")
 	require.NoError(t, err)
 	assert.True(t, called)
 }
 
-// TestDispatchRejectsNoSelector verifies that mutating peer commands
-// without a peer selector are rejected at the dispatcher level.
-//
-// VALIDATES: spec-editor-3 AC-1: "peer eorr ipv4/unicast" → error.
-// PREVENTS: Destructive commands silently operating on all peers.
-func TestDispatchRejectsNoSelector(t *testing.T) {
+// TestDispatchTypedSelectorMissingValue verifies keyworded selectors fail cleanly
+// when the selector value is omitted.
+func TestDispatchTypedSelectorMissingValue(t *testing.T) {
 	d := NewDispatcher()
 
-	d.RegisterWithOptions("peer eorr", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("show demo name detail", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		t.Fatal("handler should not be called without selector value")
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Show demo detail", RegisterOptions{
+		ArgDefs: []command.ArgDef{{Name: "name", Kind: command.ArgString, Mandatory: true}},
+	})
+
+	ctx := &CommandContext{}
+	_, err := d.Dispatch(ctx, "show demo name detail")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "required argument missing: name")
+}
+
+// TestDispatchTypedSelectorExtractsValue verifies generic typed selectors populate
+// CommandContext.Selector and still allow trailing handler args.
+func TestDispatchTypedSelectorExtractsValue(t *testing.T) {
+	d := NewDispatcher()
+
+	var calledName string
+	var calledArgs []string
+	d.RegisterWithOptions("show demo name detail", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		calledName = ctx.Selector("name")
+		calledArgs = args
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Show demo detail", RegisterOptions{
+		ArgDefs: []command.ArgDef{{Name: "name", Kind: command.ArgString, Mandatory: true}},
+	})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "show demo name node-1 detail counters")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "node-1", calledName)
+	assert.Equal(t, []string{"counters"}, calledArgs)
+}
+
+// TestDispatchImplicitSelectorExtractsValue verifies the generic dispatcher can
+// carry one positional selector between a resource token and a later action token.
+func TestDispatchImplicitSelectorExtractsValue(t *testing.T) {
+	d := NewDispatcher()
+
+	var calledSelector string
+	var calledArgs []string
+	d.RegisterWithOptions("show demo entry detail", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		calledSelector = ctx.Selector("selector")
+		calledArgs = args
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Show entry detail", RegisterOptions{
+		RequiresSelector: true,
+		ArgDefs:          []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+	})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "show demo entry node-1 detail counters")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "node-1", calledSelector)
+	assert.Equal(t, []string{"counters"}, calledArgs)
+}
+
+// TestDispatchImplicitSelectorMissingValue verifies missing positional selectors
+// fail cleanly for generic commands that require them.
+func TestDispatchImplicitSelectorMissingValue(t *testing.T) {
+	d := NewDispatcher()
+
+	d.RegisterWithOptions("show demo entry detail", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		t.Fatal("handler should not be called without selector")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
+	}, "Show entry detail", RegisterOptions{
+		RequiresSelector: true,
+		ArgDefs:          []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+	})
 
 	ctx := &CommandContext{}
-	_, err := d.Dispatch(ctx, "peer eorr ipv4/unicast")
-	require.Error(t, err, "mutating command without selector must be rejected")
-	assert.Contains(t, err.Error(), "requires a peer selector")
+	_, err := d.Dispatch(ctx, "show demo entry detail")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires a selector")
 }
 
-// TestDispatchWithSelector verifies that mutating peer commands work with a selector.
-//
-// VALIDATES: spec-editor-3 AC-2: "peer 1.1.1.1 eorr ipv4/unicast" → works.
-// PREVENTS: Selector-requiring commands broken when selector is provided.
-func TestDispatchWithSelector(t *testing.T) {
+// TestDispatchNoSelectorNeeded verifies commands without selectors dispatch normally.
+func TestDispatchNoSelectorNeeded(t *testing.T) {
 	d := NewDispatcher()
 
-	var calledWithPeer string
-	d.RegisterWithOptions("peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		calledWithPeer = ctx.PeerSelector()
+	d.RegisterWithOptions("show demo brief", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		assert.Empty(t, ctx.Selector("name"))
+		assert.Empty(t, ctx.Selector("selector"))
 		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
+	}, "Show demo brief", RegisterOptions{})
 
 	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "peer 1.1.1.1 eorr ipv4/unicast")
+	resp, err := d.Dispatch(ctx, "show demo brief")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
-	assert.Equal(t, "1.1.1.1", calledWithPeer)
-}
-
-// TestDispatchReadOnlyNoSelector verifies that read-only peer commands
-// default to all peers when no selector is provided.
-//
-// VALIDATES: spec-editor-3 AC-5: "peer list" → works (defaults to *).
-// PREVENTS: Read-only commands broken by selector enforcement.
-func TestDispatchReadOnlyNoSelector(t *testing.T) {
-	d := NewDispatcher()
-
-	called := false
-	d.RegisterWithOptions("peer list", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
-		called = true
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "List peers", RegisterOptions{RequiresSelector: false})
-
-	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "peer list")
-	require.NoError(t, err)
-	assert.True(t, called)
-	assert.Equal(t, "done", resp.Status)
-}
-
-// TestDispatchTeardownNoSelector verifies teardown without selector is rejected.
-//
-// VALIDATES: spec-editor-3 AC-4: "peer teardown 3" → error.
-// PREVENTS: Teardown operating on all peers silently.
-func TestDispatchTeardownNoSelector(t *testing.T) {
-	d := NewDispatcher()
-
-	d.RegisterWithOptions("peer teardown", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
-		t.Fatal("handler should not be called without selector")
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Teardown peer", RegisterOptions{RequiresSelector: true})
-
-	ctx := &CommandContext{}
-	_, err := d.Dispatch(ctx, "peer teardown 3")
-	require.Error(t, err, "teardown without selector must be rejected")
-	assert.Contains(t, err.Error(), "requires a peer selector")
-}
-
-// TestDispatchWildcardSelector verifies that "*" counts as a valid selector.
-//
-// VALIDATES: spec-editor-3 AC-3: "peer * eorr ipv4/unicast" → works.
-// PREVENTS: Explicit wildcard rejected when it should be allowed.
-func TestDispatchWildcardSelector(t *testing.T) {
-	d := NewDispatcher()
-
-	var calledWithPeer string
-	d.RegisterWithOptions("peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		calledWithPeer = ctx.PeerSelector()
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
-
-	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "peer * eorr ipv4/unicast")
-	require.NoError(t, err)
-	assert.Equal(t, "done", resp.Status)
-	assert.Equal(t, "*", calledWithPeer)
 }
 
 // TestForwardToPluginNotRegistered verifies ForwardToPlugin returns error
@@ -652,53 +653,17 @@ func TestForwardToPluginUsesParentContext(t *testing.T) {
 	}
 }
 
-// TestDispatchPeerScopedPluginCommand verifies that "peer <addr> show bgp rib"
-// reaches the plugin registry after stripping the "peer" keyword.
-// The builtin table has "peer list" etc., but "show bgp rib" is only in the
-// plugin CommandRegistry. The dispatcher must strip "peer" before the
-// plugin fallback so "show bgp rib" matches.
-//
-// VALIDATES: Cross-domain peer-scoped commands reach plugin dispatch.
-// PREVENTS: "unknown command" for "peer 10.0.0.1 show bgp rib".
-func TestDispatchPeerScopedPluginCommand(t *testing.T) {
-	d := NewDispatcher()
-
-	// Register a peer command builtin (so "peer" is in the builtin table).
-	nop := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}
-	d.Register("peer list", nop, "List peers")
-
-	// Register "show bgp rib" as a plugin command (not a builtin).
-	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
-	d.Registry().Register(proc, []CommandDef{
-		{Name: "show bgp rib", Description: "Show routes"},
-	})
-
-	// Dispatch "peer 10.0.0.1 show bgp rib" -- should find "show bgp rib" in plugin registry.
-	ctx := &CommandContext{}
-	_, err := d.Dispatch(ctx, "peer 10.0.0.1 show bgp rib")
-
-	// routeToProcess fails because the process isn't running, but the LOOKUP
-	// must succeed (not ErrUnknownCommand). ErrPluginProcessNotRunning means
-	// the plugin command was found and routed correctly.
-	assert.ErrorIs(t, err, ErrPluginProcessNotRunning)
-	assert.False(t, errors.Is(err, ErrUnknownCommand),
-		"'show bgp rib' should be found after stripping 'peer' prefix, got: %v", err)
-	assert.Equal(t, "10.0.0.1", ctx.PeerSelector())
-}
-
 // TestHasCommandPrefix verifies the prefix matching for dispatch routing.
 //
 // VALIDATES: HasCommandPrefix correctly identifies registered builtin and plugin commands.
-// PREVENTS: Dispatch routing misclassifying commands as peer subcommands.
+// PREVENTS: Dispatch routing misclassifying commands before fallback dispatch.
 func TestHasCommandPrefix(t *testing.T) {
 	d := NewDispatcher()
 	nop := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
-	d.Register("peer list", nop, "List peers")
-	d.Register("peer teardown", nop, "Teardown peer")
+	d.Register("alpha list", nop, "Alpha list")
+	d.Register("alpha action", nop, "Alpha action")
 	d.Register("cache", nop, "Cache ops")
 	d.Register("summary", nop, "Summary")
 
@@ -707,21 +672,21 @@ func TestHasCommandPrefix(t *testing.T) {
 		want  bool
 	}{
 		// Exact matches
-		{"peer list", true},
+		{"alpha list", true},
 		{"cache", true},
 		{"summary", true},
 
 		// Prefix with args
-		{"peer list --verbose", true},
+		{"alpha list --verbose", true},
 		{"cache 7 forward 10.0.0.2", true},
 		{"summary --json", true},
 
 		// Case insensitive
-		{"PEER LIST", true},
+		{"ALPHA LIST", true},
 		{"Cache", true},
 
 		// Not a word boundary
-		{"peerlist", false},
+		{"alphalist", false},
 		{"cacheX", false},
 		{"summaryX", false},
 
@@ -733,8 +698,8 @@ func TestHasCommandPrefix(t *testing.T) {
 		{"", false},
 		{"   ", false},
 
-		// Peer with IP (not a registered command prefix)
-		{"peer 10.0.0.1 teardown", false},
+		// Commands with an embedded value are not bare registered prefixes.
+		{"alpha node-1 action", false},
 	}
 
 	for _, tt := range tests {
@@ -747,7 +712,7 @@ func TestHasCommandPrefix(t *testing.T) {
 // TestHasCommandPrefixPluginRegistry verifies plugin commands are also checked.
 //
 // VALIDATES: HasCommandPrefix checks plugin registry, not just builtins.
-// PREVENTS: Plugin commands being misrouted as peer subcommands.
+// PREVENTS: Plugin commands being misrouted before plugin fallback dispatch.
 func TestHasCommandPrefixPluginRegistry(t *testing.T) {
 	d := NewDispatcher()
 	// No builtins registered
@@ -802,13 +767,13 @@ func TestDispatcherAuthorizationAllow(t *testing.T) {
 	d.SetAuthorizer(&mockAuthorizer{allow: true})
 
 	called := false
-	d.Register("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.Register("alpha show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		called = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
 
 	ctx := &CommandContext{Username: "noc-user"}
-	resp, err := d.Dispatch(ctx, "peer show")
+	resp, err := d.Dispatch(ctx, "alpha show")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	assert.True(t, called)
@@ -865,7 +830,7 @@ func TestDispatcherAuthorizationUsesReadOnly(t *testing.T) {
 	var capturedReadOnly bool
 	d.SetAuthorizer(&readOnlyCapture{captured: &capturedReadOnly})
 
-	d.RegisterWithOptions("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("alpha show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "", RegisterOptions{ReadOnly: true})
 
@@ -876,10 +841,10 @@ func TestDispatcherAuthorizationUsesReadOnly(t *testing.T) {
 	ctx := &CommandContext{Username: "user1"}
 
 	// ReadOnly command
-	resp, err := d.Dispatch(ctx, "peer show")
+	resp, err := d.Dispatch(ctx, "alpha show")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
-	assert.True(t, capturedReadOnly, "peer show should be ReadOnly=true")
+	assert.True(t, capturedReadOnly, "alpha show should be ReadOnly=true")
 
 	// Write command
 	resp, err = d.Dispatch(ctx, "config set")
@@ -947,12 +912,12 @@ func TestDispatcherAuthorizationUsesUsername(t *testing.T) {
 	var capturedUsername string
 	d.SetAuthorizer(&usernameCapture{captured: &capturedUsername})
 
-	d.Register("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.Register("alpha show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
 
 	ctx := &CommandContext{Username: "admin-user"}
-	resp, err := d.Dispatch(ctx, "peer show")
+	resp, err := d.Dispatch(ctx, "alpha show")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	assert.Equal(t, "admin-user", capturedUsername)
@@ -976,13 +941,13 @@ func (u *usernameCapture) Authorize(username, _, _ string, _ bool) bool {
 func TestDispatcherWithAuthzStore(t *testing.T) {
 	store := authz.NewStore()
 
-	// Create a restrictive profile: allow "peer show", deny everything else
+	// Create a restrictive profile: allow "alpha show", deny everything else
 	store.AddProfile(authz.Profile{
 		Name: "noc",
 		Run: authz.Section{
 			Default: authz.Deny,
 			Entries: []authz.Entry{
-				{Number: 10, Action: authz.Allow, Match: "peer show"},
+				{Number: 10, Action: authz.Allow, Match: "alpha show"},
 			},
 		},
 		Edit: authz.Section{Default: authz.Deny},
@@ -993,7 +958,7 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 	d.SetAuthorizer(authz.StoreAuthorizer{Store: store})
 
 	showCalled := false
-	d.RegisterWithOptions("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("alpha show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		showCalled = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "", RegisterOptions{ReadOnly: true})
@@ -1007,7 +972,7 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 	ctx := &CommandContext{Username: "operator"}
 
 	// Allowed command
-	resp, err := d.Dispatch(ctx, "peer show")
+	resp, err := d.Dispatch(ctx, "alpha show")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.True(t, showCalled)
@@ -1048,176 +1013,6 @@ func TestDispatcherAuthorizationAppliesToUnknownCommands(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "authorization denied")
-}
-
-// TestLooksLikeASNSelector verifies that the ASN selector format is correctly
-// recognized by the dispatcher.
-//
-// VALIDATES: AC-5 — `as<digits>` recognized as a valid peer selector.
-// VALIDATES: AC-6 — `asnotanumber` and other invalid formats rejected.
-// PREVENTS: ASN selectors being silently ignored or misclassified.
-func TestLooksLikeASNSelector(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  string
-		expect bool
-	}{
-		{"simple ASN", "as65001", true},
-		{"ASN 1", "as1", true},
-		{"ASN zero", "as0", true},
-		{"max ASN 32-bit", "as4294967295", true},
-		{"overflow 32-bit", "as4294967296", false},
-		{"very large overflow", "as99999999999999", false},
-		{"not a number", "asnotanumber", false},
-		{"empty after prefix", "as", false},
-		{"uppercase AS", "AS65001", true},
-		{"mixed case", "As65001", true},
-		{"just a number", "65001", false},
-		{"IP address", "10.0.0.1", false},
-		{"peer name", "upstream", false},
-		{"wildcard", "*", false},
-		{"negative", "as-1", false},
-		{"decimal", "as65001.5", false},
-		{"space in value", "as 65001", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expect, looksLikeASNSelector(tt.input), "looksLikeASNSelector(%q)", tt.input)
-		})
-	}
-}
-
-// TestDispatchWithASNSelector verifies that ASN selectors are correctly
-// stripped by the dispatcher and set in CommandContext.
-//
-// VALIDATES: AC-5 — dispatcher recognizes as<N> and sets ctx.Peer.
-// PREVENTS: ASN selector not stripped, causing command lookup failure.
-func TestDispatchWithASNSelector(t *testing.T) {
-	d := NewDispatcher()
-
-	var calledWithPeer string
-	var calledWithArgs []string
-	d.RegisterWithOptions("peer show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		calledWithPeer = ctx.PeerSelector()
-		calledWithArgs = args
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Show peer", RegisterOptions{RequiresSelector: true})
-
-	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "peer as65001 show summary")
-	require.NoError(t, err)
-	assert.Equal(t, "done", resp.Status)
-	assert.Equal(t, "as65001", calledWithPeer)
-	assert.Equal(t, []string{"summary"}, calledWithArgs)
-}
-
-// TestDispatchWithNameSelector verifies that peer name selectors are recognized
-// when the reactor has a peer with that name.
-//
-// VALIDATES: isKnownPeerName branch is reachable through Dispatch.
-// PREVENTS: Name selectors silently failing when reactor is available.
-func TestDispatchWithNameSelector(t *testing.T) {
-	d := NewDispatcher()
-
-	var calledWithPeer string
-	d.RegisterWithOptions("peer show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		calledWithPeer = ctx.PeerSelector()
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Show peer", RegisterOptions{RequiresSelector: true})
-
-	srv := &Server{
-		reactor: &mockReactor{
-			peers: []plugin.PeerInfo{
-				{Address: netip.MustParseAddr("10.0.0.1"), Name: "router-a", PeerAS: 65001},
-			},
-		},
-	}
-
-	ctx := &CommandContext{Server: srv}
-	resp, err := d.Dispatch(ctx, "peer router-a show")
-	require.NoError(t, err)
-	assert.Equal(t, "done", resp.Status)
-	assert.Equal(t, "router-a", calledWithPeer)
-}
-
-// TestDispatchEmbeddedPeerSelector verifies peer selector extraction when "peer"
-// is not the first token (e.g., "update bgp peer * prefix").
-//
-// VALIDATES: Dispatcher extracts selector from "peer <selector>" at any position.
-// PREVENTS: Commands with embedded "peer <selector>" failing to match registered YANG paths.
-func TestDispatchEmbeddedPeerSelector(t *testing.T) {
-	d := NewDispatcher()
-
-	var calledWithPeer string
-	d.RegisterWithOptions("update bgp peer prefix", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		calledWithPeer = ctx.PeerSelector()
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Update prefix", RegisterOptions{RequiresSelector: true})
-
-	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "update bgp peer * prefix")
-	require.NoError(t, err)
-	assert.Equal(t, "done", resp.Status)
-	assert.Equal(t, "*", calledWithPeer)
-}
-
-// TestDispatchEmbeddedPeerSelectorIP verifies embedded selector with an IP address.
-//
-// VALIDATES: "update bgp peer 10.0.0.1 prefix" extracts IP selector correctly.
-// PREVENTS: IP selectors only working at position 0.
-func TestDispatchEmbeddedPeerSelectorIP(t *testing.T) {
-	d := NewDispatcher()
-
-	var calledWithPeer string
-	d.RegisterWithOptions("update bgp peer prefix", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		calledWithPeer = ctx.PeerSelector()
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Update prefix", RegisterOptions{RequiresSelector: true})
-
-	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "update bgp peer 10.0.0.1 prefix")
-	require.NoError(t, err)
-	assert.Equal(t, "done", resp.Status)
-	assert.Equal(t, "10.0.0.1", calledWithPeer)
-}
-
-// TestDispatchEmbeddedPeerSelectorASN verifies embedded selector with ASN.
-//
-// VALIDATES: "update bgp peer as65001 prefix" extracts ASN selector correctly.
-// PREVENTS: ASN selectors only working at position 0.
-func TestDispatchEmbeddedPeerSelectorASN(t *testing.T) {
-	d := NewDispatcher()
-
-	var calledWithPeer string
-	d.RegisterWithOptions("update bgp peer prefix", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		calledWithPeer = ctx.PeerSelector()
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Update prefix", RegisterOptions{RequiresSelector: true})
-
-	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "update bgp peer as65001 prefix")
-	require.NoError(t, err)
-	assert.Equal(t, "done", resp.Status)
-	assert.Equal(t, "as65001", calledWithPeer)
-}
-
-// TestDispatchEmbeddedNoSelector verifies RequiresSelector enforcement for embedded peer.
-//
-// VALIDATES: "update bgp peer prefix" without selector is rejected when RequiresSelector=true.
-// PREVENTS: Commands executing on all peers when explicit selector is required.
-func TestDispatchEmbeddedNoSelector(t *testing.T) {
-	d := NewDispatcher()
-
-	d.RegisterWithOptions("update bgp peer prefix", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
-		t.Fatal("handler should not be called without selector")
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "Update prefix", RegisterOptions{RequiresSelector: true})
-
-	ctx := &CommandContext{}
-	_, err := d.Dispatch(ctx, "update bgp peer prefix")
-	require.Error(t, err, "embedded peer without selector must be rejected")
-	assert.Contains(t, err.Error(), "requires a peer selector")
 }
 
 // fakeAccountant records accounting calls for testing.

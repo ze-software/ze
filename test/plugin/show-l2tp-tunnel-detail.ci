@@ -180,7 +180,7 @@ def main():
     if not isinstance(local_tid, int) or local_tid == 0:
         runtime_fail('tunnel never appeared in `show l2tp tunnels`')
 
-    r = dispatch(api, f'show l2tp tunnel {local_tid}')
+    r = dispatch(api, f'show l2tp tunnel id {local_tid}')
     if r.get('status') != 'done':
         runtime_fail(f'show l2tp tunnel {local_tid}: status={r.get("status")!r} data={result_text_data(r)[:120]}')
     try:

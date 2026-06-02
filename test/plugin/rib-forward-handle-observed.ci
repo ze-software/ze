@@ -48,7 +48,7 @@ def main():
     # Poll until peer session is established.
     for _ in range(40):
         time.sleep(0.1)
-        result = dispatch(api, 'peer peer1 detail')
+        result = dispatch(api, 'show bgp peer peer1 detail')
         if result.get('status') == 'done' and 'established' in result_text_data(result).lower():
             break
     else:

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
@@ -116,14 +115,15 @@ type Handler func(ctx *CommandContext, args []string) (*plugin.Response, error)
 // CommandContext provides access to reactor and session state.
 // Dependencies are accessed through Server; per-request state is stored directly.
 type CommandContext struct {
-	Server         *Server          // Gateway to all server state (reactor, dispatcher, etc.)
-	Process        *process.Process // The API process (for session state)
-	RequestContext context.Context  // Request-scoped context from the trusted transport.
-	Peer           string           // Peer selector: "*" for all, or specific IP. Empty = "*"
-	Username       string           // Authenticated username (empty = no auth, full access)
-	RemoteAddr     string           // Remote address of the client (e.g., SSH peer IP:port)
-	Surface        string           // Trusted caller surface for audit attribution.
-	Meta           map[string]any   // Route metadata from UpdateRoute RPC; nil if not set.
+	Server         *Server           // Gateway to all server state (reactor, dispatcher, etc.)
+	Process        *process.Process  // The API process (for session state)
+	RequestContext context.Context   // Request-scoped context from the trusted transport.
+	Peer           string            // Peer selector: "*" for all, or specific peer selector value. Empty = "*"
+	Username       string            // Authenticated username (empty = no auth, full access)
+	RemoteAddr     string            // Remote address of the client (e.g., SSH peer IP:port)
+	Surface        string            // Trusted caller surface for audit attribution.
+	Meta           map[string]any    // Route metadata from UpdateRoute RPC; nil if not set.
+	Selectors      map[string]string // Extracted typed selector values, keyed by selector keyword.
 }
 
 // Reactor returns the BGP reactor lifecycle interface via Server.
@@ -204,20 +204,29 @@ func (c *CommandContext) PeerSelector() string {
 	return c.Peer
 }
 
+// Selector returns the extracted typed selector value for keyword `name`.
+// Nil-safe. Lookup is case-insensitive.
+func (c *CommandContext) Selector(name string) string {
+	if c == nil || c.Selectors == nil {
+		return ""
+	}
+	return c.Selectors[strings.ToLower(name)]
+}
+
 // Command represents a registered command with metadata.
 type Command struct {
 	Name             string
 	Handler          Handler
 	Help             string
 	ReadOnly         bool             // True if command only reads state (safe for "ze show")
-	RequiresSelector bool             // True if command requires explicit peer selector (not default "*")
+	RequiresSelector bool             // True if command requires an explicit selector instead of implicit/all scope
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves.
 }
 
 // RegisterOptions holds optional settings for command registration.
 type RegisterOptions struct {
 	ReadOnly         bool             // True if command only reads state
-	RequiresSelector bool             // True if "bgp peer <command>" must have an explicit peer selector
+	RequiresSelector bool             // True if the command requires an explicit selector value
 	PluginProxy      bool             // True if this builtin proxies to a plugin command (allows plugin to register same name)
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves
 }
@@ -246,16 +255,17 @@ func NewDispatcher() *Dispatcher {
 
 // HasCommandPrefix returns true if the input matches any registered command prefix
 // (builtin or plugin). Used by dispatch routing to distinguish top-level commands
-// from peer subcommands that need "peer <selector> " prepended.
+// from scoped subcommands that need a selector prefix prepended.
 func (d *Dispatcher) HasCommandPrefix(input string) bool {
-	lower := strings.ToLower(strings.TrimSpace(input))
-	// Check builtin commands.
-	for _, key := range d.sortedKeys {
-		if strings.HasPrefix(lower, key) && (len(lower) == len(key) || lower[len(key)] == ' ') {
-			return true
-		}
+	tokens, err := tokenize(input)
+	if err != nil || len(tokens) == 0 {
+		return false
 	}
-	// Check plugin registry commands.
+	if _, _, _, ok := d.matchBuiltinTokens(tokens); ok {
+		return true
+	}
+	// Check plugin registry commands with plain longest-prefix matching.
+	lower := strings.ToLower(strings.TrimSpace(input))
 	if d.registry != nil {
 		for _, cmd := range d.registry.All() {
 			key := cmd.LowerName
@@ -354,6 +364,119 @@ func (d *Dispatcher) updateSortedKeys() {
 	})
 }
 
+func (d *Dispatcher) matchBuiltinTokens(tokens []string) (*Command, []string, map[string]string, bool) {
+	for _, key := range d.sortedKeys {
+		cmd := d.commands[key]
+		if cmd == nil {
+			continue
+		}
+		args, selectors, ok := matchCommandTokens(tokens, key, cmd.ArgDefs)
+		if ok {
+			return cmd, args, selectors, true
+		}
+	}
+	return nil, nil, nil, false
+}
+
+func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]string, map[string]string, bool) {
+	keyTokens := strings.Fields(key)
+	if len(keyTokens) == 0 || len(tokens) < len(keyTokens) {
+		return nil, nil, false
+	}
+	defByName := make(map[string]*command.ArgDef, len(defs))
+	for i := range defs {
+		defByName[strings.ToLower(defs[i].Name)] = &defs[i]
+	}
+	inIdx := 0
+	selectors := make(map[string]string)
+	for keyIdx, keyTok := range keyTokens {
+		if inIdx >= len(tokens) || !strings.EqualFold(tokens[inIdx], keyTok) {
+			return nil, nil, false
+		}
+
+		// Explicit typed selectors such as `name <value>` or `id <value>`.
+		if def, ok := defByName[strings.ToLower(keyTok)]; ok && inIdx+1 < len(tokens) {
+			if keyIdx+1 >= len(keyTokens) || !strings.EqualFold(tokens[inIdx+1], keyTokens[keyIdx+1]) {
+				value := tokens[inIdx+1]
+				if err := command.ValidateArgString(value, def); err != nil {
+					return nil, nil, false
+				}
+				selectors[def.Name] = value
+				inIdx += 2
+				continue
+			}
+		}
+
+		// Generic implicit selectors: a single unmatched selector-like leaf may
+		// appear between a resource token and a later action token.
+		if keyIdx+1 < len(keyTokens) && inIdx+1 < len(tokens) && !strings.EqualFold(tokens[inIdx+1], keyTokens[keyIdx+1]) {
+			if def := implicitSelectorDef(keyTokens, defs, selectors); def != nil {
+				value := tokens[inIdx+1]
+				if err := command.ValidateArgString(value, def); err != nil {
+					return nil, nil, false
+				}
+				selectors[def.Name] = value
+				inIdx += 2
+				continue
+			}
+		}
+
+		inIdx++
+	}
+	if len(selectors) == 0 {
+		selectors = nil
+	}
+	return tokens[inIdx:], selectors, true
+}
+
+func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[string]string) *command.ArgDef {
+	var candidate *command.ArgDef
+	for i := range defs {
+		def := &defs[i]
+		if _, ok := matched[def.Name]; ok {
+			continue
+		}
+		if def.Kind != command.ArgString || !def.Mandatory {
+			continue
+		}
+		if keyTokenPresent(keyTokens, def.Name) {
+			continue
+		}
+		if candidate != nil {
+			return nil
+		}
+		candidate = def
+	}
+	return candidate
+}
+
+func keyTokenPresent(keyTokens []string, name string) bool {
+	for _, token := range keyTokens {
+		if strings.EqualFold(token, name) {
+			return true
+		}
+	}
+	return false
+}
+
+func applyExtractedSelectors(ctx *CommandContext, selectors map[string]string) {
+	if ctx == nil {
+		return
+	}
+	if len(selectors) == 0 {
+		ctx.Selectors = nil
+		return
+	}
+	ctx.Selectors = make(map[string]string, len(selectors))
+	for name, value := range selectors {
+		ctx.Selectors[strings.ToLower(name)] = value
+	}
+	// Compatibility bridge for existing peer-scoped handlers.
+	if selector, ok := ctx.Selectors["selector"]; ok {
+		ctx.Peer = selector
+	}
+}
+
 // Lookup finds a command by exact name.
 func (d *Dispatcher) Lookup(name string) *Command {
 	return d.commands[strings.ToLower(name)]
@@ -402,7 +525,7 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bo
 
 // isAuthorizedCommandArgs checks if the user is allowed to execute a typed
 // command dispatch. This must prefer aaa.CommandArgsAuthorizer when available,
-// so built-in policy sees the exact command, args, and peer scope.
+// so built-in policy sees the exact command, args, and selector scope.
 // aaa.CanonicalCommand is fallback only for legacy string authorizers.
 func (d *Dispatcher) isAuthorizedCommandArgs(ctx *CommandContext, command string, args []string, peer string, readOnly bool) bool {
 	if d.authorizer == nil {
@@ -420,9 +543,9 @@ func (d *Dispatcher) isAuthorizedCommandArgs(ctx *CommandContext, command string
 }
 
 // Dispatch parses and executes a command.
-// Supports peer selector prefix: "peer <addr|name|*> <command>".
-// If no peer prefix, defaults to all peers ("*").
-// Priority: 1) builtin commands, 2) forked subsystems, 3) plugin registry.
+// Supports inline selector extraction both for typed forms like
+// `show demo name <name> detail` and for positional selector slots that
+// appear before a later action token.
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Response, error) {
 	tokens, err := tokenize(input)
 	if err != nil {
@@ -431,112 +554,78 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	if len(tokens) == 0 {
 		return nil, ErrEmptyCommand
 	}
+	if ctx != nil {
+		ctx.Selectors = nil
+	}
 
-	// Extract peer selector from "peer <selector>" at any position in the command.
-	// Format: ... peer <addr|name|*> <rest>
-	// Selector can be an IP address, glob pattern, peer name, or "*" for all.
-	// The selector is stripped from the input so it matches the registered YANG path.
-	peerSelector, hasExplicitSelector, selectorIdx := extractPeerSelector(ctx, tokens)
-	if hasExplicitSelector {
-		if ctx != nil {
-			ctx.Peer = peerSelector
+	// Find the longest matching builtin command prefix, allowing selector
+	// values to appear inline where the YANG arg metadata expects them.
+	matchedCmd, args, selectors, ok := d.matchBuiltinTokens(tokens)
+	if ok {
+		applyExtractedSelectors(ctx, selectors)
+
+		explicitSelector := false
+		if _, ok := selectors["selector"]; ok {
+			explicitSelector = true
 		}
-		input = rebuildWithoutSelector(tokens, selectorIdx)
-	}
-
-	// Build lowercase input for matching
-	lowerInput := strings.ToLower(input)
-	lowerInput = strings.TrimSpace(lowerInput)
-
-	// Find longest matching builtin command prefix
-	var matchedCmd *Command
-	var matchedLen int
-
-	for _, key := range d.sortedKeys {
-		if strings.HasPrefix(lowerInput, key) {
-			// Check it's a word boundary (end of input or followed by space)
-			if len(lowerInput) == len(key) || lowerInput[len(key)] == ' ' {
-				matchedCmd = d.commands[key]
-				matchedLen = len(key)
-				break // sortedKeys is longest-first, so first match is best
-			}
+		if matchedCmd.RequiresSelector && !explicitSelector && (ctx == nil || ctx.Peer == "") {
+			return nil, fmt.Errorf("%s requires a selector", matchedCmd.Name)
 		}
-	}
 
-	// Enforce peer selector for commands that require it
-	if matchedCmd != nil && matchedCmd.RequiresSelector && !hasExplicitSelector {
-		return nil, fmt.Errorf("%s requires a peer selector: peer <address> %s",
-			matchedCmd.Name,
-			strings.TrimPrefix(strings.ToLower(matchedCmd.Name), "peer "))
-	}
-
-	// Authorization check — after command resolution, before execution
-	if matchedCmd != nil && !d.isAuthorized(ctx, input, matchedCmd.ReadOnly) {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "authorization denied for " + input,
-		}, ErrUnauthorized
-	}
-
-	// If no builtin match, try forked subsystems and plugin registry.
-	// Authorization applies to these paths too — treat as non-ReadOnly (write).
-	if matchedCmd == nil {
-		if !d.isAuthorized(ctx, input, false) {
+		// Authorization check, after command resolution, before execution.
+		if !d.isAuthorized(ctx, input, matchedCmd.ReadOnly) {
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Error:  "authorization denied for " + input,
 			}, ErrUnauthorized
 		}
-		if d.subsystems != nil {
-			if handler := d.subsystems.FindHandler(input); handler != nil {
-				return d.dispatchSubsystem(ctx, handler, input)
+
+		// Validate args against YANG-declared types, counting inline selector
+		// values extracted during prefix matching as already matched.
+		if len(matchedCmd.ArgDefs) > 0 {
+			if valErr := validateCommandArgs(args, matchedCmd.ArgDefs, selectors); valErr != nil {
+				return &plugin.Response{
+					Status: plugin.StatusError,
+					Error:  valErr.Error(),
+				}, valErr
 			}
 		}
-		// When a peer selector was extracted, rebuildWithoutSelector keeps the
-		// "peer" keyword (needed for peer commands like "peer list"). But for
-		// cross-domain commands ("peer 10.0.0.1 show bgp rib"), the "peer"
-		// prefix is not part of the target command. Strip it and retry.
-		stripped := input
-		strippedLower := lowerInput
-		if hasExplicitSelector && strings.HasPrefix(lowerInput, "peer ") {
-			stripped = strings.TrimSpace(input[len("peer "):])
-			strippedLower = strings.TrimSpace(lowerInput[len("peer "):])
+
+		// Execute handler.
+		if matchedCmd.Handler == nil {
+			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}
-		return d.dispatchPlugin(ctx, stripped, strippedLower, peerSelector)
+
+		// Accounting: record command start/stop (AC-8).
+		// Accounting failures never block command execution.
+		defer d.BeginAccounting(ctx, input)()
+
+		resp, handlerErr := matchedCmd.Handler(ctx, args)
+		d.recordCommandAudit(ctx, input, resp, handlerErr)
+		return resp, handlerErr
 	}
 
-	// Extract remaining args
-	remaining := strings.TrimSpace(input[matchedLen:])
-	var args []string
-	if remaining != "" {
-		args, err = tokenize(remaining)
-		if err != nil {
-			return nil, err
-		}
+	// If no builtin match, try forked subsystems and plugin registry.
+	// Authorization applies to these paths too, treat as non-read-only (write).
+	if !d.isAuthorized(ctx, input, false) {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Error:  "authorization denied for " + input,
+		}, ErrUnauthorized
 	}
-
-	// Validate args against YANG-declared types (when present).
-	if len(matchedCmd.ArgDefs) > 0 {
-		if valErr := validateCommandArgs(args, matchedCmd.ArgDefs); valErr != nil {
-			return &plugin.Response{
-				Status: plugin.StatusError,
-				Error:  valErr.Error(),
-			}, valErr
+	if d.subsystems != nil {
+		if handler := d.subsystems.FindHandler(input); handler != nil {
+			return d.dispatchSubsystem(ctx, handler, input)
 		}
 	}
 
-	// Execute handler
-	if matchedCmd.Handler == nil {
-		return &plugin.Response{Status: plugin.StatusDone}, nil
+	pluginInput := input
+	pluginLower := strings.ToLower(strings.TrimSpace(input))
+	peerSelector := "*"
+	if ctx != nil {
+		peerSelector = ctx.PeerSelector()
 	}
-
-	// Accounting: record command start/stop (AC-8).
-	// Accounting failures never block command execution.
-	defer d.BeginAccounting(ctx, input)()
-
-	resp, handlerErr := matchedCmd.Handler(ctx, args)
-	d.recordCommandAudit(ctx, input, resp, handlerErr)
-	return resp, handlerErr
+	return d.dispatchPlugin(ctx, pluginInput, pluginLower, peerSelector)
 }
 
 // validateCommandArgs implements two-phase validation of command arguments
@@ -547,18 +636,20 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 // Phase 2 (positional matching): remaining args are validated against ArgDefs
 // with enum values. Unmatched args pass through to the handler.
 // Phase 3 (mandatory check): ArgDefs with Mandatory=true must have been matched.
-func validateCommandArgs(args []string, defs []command.ArgDef) error {
+func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[string]string) error {
 	if len(defs) == 0 {
 		return nil
 	}
 
+	consumed := make([]bool, len(args))
+	matched := make(map[string]bool, len(preMatched))
 	defByName := make(map[string]*command.ArgDef, len(defs))
 	for i := range defs {
 		defByName[defs[i].Name] = &defs[i]
 	}
-
-	consumed := make([]bool, len(args))
-	matched := make(map[string]bool)
+	for name := range preMatched {
+		matched[name] = true
+	}
 
 	// Phase 1: keyword-value extraction.
 	for i := 0; i < len(args); i++ {
@@ -587,11 +678,13 @@ func validateCommandArgs(args []string, defs []command.ArgDef) error {
 			continue
 		}
 		found := false
+		unmatchedDefs := 0
 		for j := range defs {
 			def := &defs[j]
 			if matched[def.Name] {
 				continue
 			}
+			unmatchedDefs++
 			if def.Kind == command.ArgEnum || def.Kind == command.ArgUnion {
 				if command.ValidateArgString(arg, def) == nil {
 					matched[def.Name] = true
@@ -607,6 +700,9 @@ func validateCommandArgs(args []string, defs []command.ArgDef) error {
 				found = true
 				break
 			}
+		}
+		if unmatchedDefs == 0 {
+			continue
 		}
 		if !found {
 			return positionalError(arg, defs)
@@ -814,86 +910,4 @@ func tokenize(input string) ([]string, error) {
 	}
 
 	return tokens, nil
-}
-
-// looksLikeIPOrGlob returns true if s looks like an IP address or glob pattern.
-// Examples: "*", "192.168.1.1", "192.168.*.*", "2001:db8::1", "10.0.0.1,10.0.0.2".
-func looksLikeIPOrGlob(s string) bool {
-	// Wildcard all
-	if s == "*" {
-		return true
-	}
-	// Contains comma (multi-IP: ip,ip,ip)
-	if strings.Contains(s, ",") {
-		return true
-	}
-	// Contains dots (IPv4 or IPv4 glob)
-	if strings.Contains(s, ".") {
-		return true
-	}
-	// Contains colons (IPv6)
-	if strings.Contains(s, ":") {
-		return true
-	}
-	return false
-}
-
-// isKnownPeerName checks whether s matches the name of any configured peer.
-// Uses the reactor's peer list for an exact match. Returns false if the
-// reactor is unavailable (e.g., during shell completion without a running daemon).
-func isKnownPeerName(ctx *CommandContext, s string) bool {
-	if ctx == nil || ctx.Reactor() == nil {
-		return false
-	}
-	peers := ctx.Reactor().Peers()
-	for i := range peers {
-		if peers[i].Name == s {
-			return true
-		}
-	}
-	return false
-}
-
-// looksLikeASNSelector returns true if s looks like an ASN selector: "as" prefix
-// (case-insensitive) followed by a valid 32-bit unsigned integer
-// (e.g., "as65001", "AS65001", "As4294967295").
-func looksLikeASNSelector(s string) bool {
-	if len(s) < 3 || (s[0] != 'a' && s[0] != 'A') || (s[1] != 's' && s[1] != 'S') {
-		return false
-	}
-	_, err := strconv.ParseUint(s[2:], 10, 32)
-	return err == nil
-}
-
-// extractPeerSelector scans tokens for "peer <selector>" at any position.
-// Returns the selector, whether one was found, and the index of the selector token.
-// The selector is a token that looks like an IP, glob, ASN selector, or known peer name.
-// If no selector is found, returns ("*", false, -1).
-func extractPeerSelector(ctx *CommandContext, tokens []string) (string, bool, int) {
-	for i, tok := range tokens {
-		if !strings.EqualFold(tok, "peer") {
-			continue
-		}
-		if i+1 >= len(tokens) {
-			continue
-		}
-		candidate := tokens[i+1]
-		if looksLikeIPOrGlob(candidate) || looksLikeASNSelector(candidate) || isKnownPeerName(ctx, candidate) {
-			return candidate, true, i + 1
-		}
-	}
-	return "*", false, -1
-}
-
-// rebuildWithoutSelector rebuilds a token list, removing the token at selectorIdx.
-// Used after extractPeerSelector found a selector to produce a YANG-matching path.
-func rebuildWithoutSelector(tokens []string, selectorIdx int) string {
-	out := make([]string, 0, len(tokens)-1)
-	for i, tok := range tokens {
-		if i == selectorIdx {
-			continue
-		}
-		out = append(out, tok)
-	}
-	return strings.Join(out, " ")
 }

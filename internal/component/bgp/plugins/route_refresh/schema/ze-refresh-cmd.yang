@@ -14,8 +14,8 @@ module ze-refresh-cmd {
             ze:command "ze-bgp:peer-refresh";
             description "Ask a peer to re-send all routes (RFC 2918).
 Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The
-peer will re-advertise its entire Adj-RIB-Out. Selector: IP,
-name, AS pattern, glob, or *.";
+peer will re-advertise its entire Adj-RIB-Out.";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
         }
 
         container borr {
@@ -24,6 +24,7 @@ name, AS pattern, glob, or *.";
             description "Start an Enhanced Route Refresh cycle (RFC 7313).
 Tells the peer to mark existing routes as stale. After re-sending,
 send EORR to purge anything not refreshed.";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
         }
 
         container eorr {
@@ -32,6 +33,7 @@ send EORR to purge anything not refreshed.";
             description "Finish an Enhanced Route Refresh cycle (RFC 7313).
 The peer purges any routes not re-advertised since the matching
 BORR. Only send this after the peer has finished re-advertising.";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
         }
 
         container clear {
@@ -43,8 +45,8 @@ BORR. Only send this after the peer has finished re-advertising.";
                 ze:command "ze-bgp:peer-clear-soft";
                 description "Soft-clear a peer without dropping the session.
 Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
-to re-send all routes. No session bounce, no traffic impact.
-Selector: IP, name, AS pattern, glob, or *.";
+to re-send all routes. No session bounce, no traffic impact.";
+                leaf selector { type string; mandatory true; description "Peer selector"; }
             }
         }
     }

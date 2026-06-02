@@ -381,8 +381,9 @@ func LookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 // handleSystemCommandComplete returns completions for partial input.
 // Usage:
 //
-//	system command complete "<partial>"           - command completion
-//	system command complete "<cmd>" args "<partial>" - arg completion
+//	system command complete "<partial>"                   - command completion
+//	system command complete args "<cmd>" "<partial>"      - arg completion
+//	system command complete args "<cmd>" <done...> "<partial>"
 func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return &plugin.Response{
@@ -391,13 +392,15 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 		}, errMissingPartialInput
 	}
 
-	partial := args[0]
-
-	// Check for "args" subcommand for argument completion
-	// Format: system command complete "<cmd>" args [<completed>...] "<partial>"
-	if len(args) >= 3 && args[1] == "args" {
-		cmdName := args[0]
-		// Last arg is the partial, everything between "args" and last is completed args
+	// Arg completion: the keyword must come before the free-form command string.
+	if args[0] == "args" {
+		if len(args) < 3 {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Error:  "usage: system command complete args \"<cmd>\" [<completed>...] \"<partial>\"",
+			}, errMissingPartialInput
+		}
+		cmdName := args[1]
 		partialArg := args[len(args)-1]
 		var completedArgs []string
 		if len(args) > 3 {
@@ -405,6 +408,8 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*plugin.Re
 		}
 		return handleArgComplete(ctx, cmdName, completedArgs, partialArg)
 	}
+
+	partial := args[0]
 
 	var completions []Completion
 

@@ -46,15 +46,21 @@ func handleSummary(_ *pluginserver.CommandContext, _ []string) (*plugin.Response
 	return jsonResponse("subscriber summary", payload)
 }
 
-func handleDetail(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	svc := subscriber.LookupService()
 	if svc == nil {
 		return errResponse(errRegistryUnavailable), nil
 	}
-	if len(args) == 0 {
-		return errResponse(errors.New("subscriber: missing session ID argument")), nil
+	id := ""
+	if ctx != nil {
+		id = ctx.Selector("id")
 	}
-	id := args[0]
+	if id == "" && len(args) > 0 {
+		id = args[0]
+	}
+	if id == "" {
+		return errResponse(errors.New("usage: show subscriber id <id> detail")), nil
+	}
 	sess, ok := svc.Registry.Get(id)
 	if !ok {
 		return errResponse(fmt.Errorf("subscriber: session %q not found", id)), nil

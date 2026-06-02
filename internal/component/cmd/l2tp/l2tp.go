@@ -103,9 +103,21 @@ func handleTunnels(_ *pluginserver.CommandContext, _ []string) (*plugin.Response
 	return jsonResponse("l2tp tunnels", out)
 }
 
+// idSelectorArgs returns the typed `id` selector value (from
+// `show l2tp tunnel id <n>` / `show l2tp session id <n>`) followed by any
+// positional args, so parseIDArg accepts both the typed and bare forms.
+func idSelectorArgs(ctx *pluginserver.CommandContext, args []string) []string {
+	if ctx != nil {
+		if id := ctx.Selector("id"); id != "" {
+			return append([]string{id}, args...)
+		}
+	}
+	return args
+}
+
 // handleTunnel returns one tunnel by ID.
-func handleTunnel(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	tid, err := parseIDArg(args, "tunnel-id")
+func handleTunnel(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	tid, err := parseIDArg(idSelectorArgs(ctx, args), "tunnel-id")
 	if err != nil {
 		return errResponse(err), nil
 	}
@@ -137,8 +149,8 @@ func handleSessions(_ *pluginserver.CommandContext, _ []string) (*plugin.Respons
 }
 
 // handleSession returns one session by ID.
-func handleSession(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	sid, err := parseIDArg(args, "session-id")
+func handleSession(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	sid, err := parseIDArg(idSelectorArgs(ctx, args), "session-id")
 	if err != nil {
 		return errResponse(err), nil
 	}

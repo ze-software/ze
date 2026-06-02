@@ -55,7 +55,7 @@ def main():
             runtime_fail(f'missing profile {want} in {sorted(names)}')
 
     # AC-4: specific profile
-    r = dispatch(api, 'show bfd profile fast')
+    r = dispatch(api, 'show bfd profile name fast')
     if r.get('status') != 'done':
         runtime_fail(f'fast status: {r.get("status")}')
     try:
@@ -69,7 +69,7 @@ def main():
         runtime_fail(f'fast timer: {one}')
 
     # unknown name
-    r = dispatch(api, 'show bfd profile nope')
+    r = dispatch(api, 'show bfd profile name nope')
     if r.get('status') != 'error':
         runtime_fail(f'unknown status: {r.get("status")}')
 

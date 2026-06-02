@@ -35,8 +35,8 @@ ze init --force                # prompts for confirmation interactively
 
 ```bash
 ze cli                         # interactive CLI
-ze cli -c "peer list"       # single command
-ze show peer list              # read-only shorthand
+ze cli -c "show bgp peer list"  # single command
+ze show bgp peer list                # read-only shorthand
 ze cli -c "peer transit teardown 2" # one-shot command
 ```
 <!-- source: cmd/ze/cli/main.go -- Run -->

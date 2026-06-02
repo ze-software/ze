@@ -29,10 +29,20 @@ and assigned addresses.";
 
             container session {
                 config false;
-                ze:command "ze-pppoe-api:session";
-                description "Show full detail for one PPPoE session.
+                description "Show full detail for one PPPoE session.";
+
+                container id {
+                    config false;
+                    ze:command "ze-pppoe-api:session";
+                    description "Show full detail for one PPPoE session.
 Pass the session ID. Returns discovery tags, LCP/NCP state,
 assigned addresses, and traffic counters.";
+                    leaf id {
+                        type string;
+                        mandatory true;
+                        description "PPPoE session ID";
+                    }
+                }
             }
 
             container statistics {

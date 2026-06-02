@@ -34,7 +34,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'peer peer1 capabilities')
+        result = dispatch(api, 'show bgp peer peer1 capabilities')
         if result.get('status') != 'done':
             print(f'FAIL: capabilities status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

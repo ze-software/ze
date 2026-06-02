@@ -16,6 +16,7 @@ module ze-raw-cmd {
 Injects arbitrary bytes with no BGP framing or validation. Intended
 for conformance testing and fuzzing only. Will likely break the
 session if used carelessly.";
+            leaf selector { type string; mandatory true; description "Peer selector"; }
         }
     }
 }

@@ -67,7 +67,7 @@ def main():
     # Destination expect=bgp lines are authoritative. Log peer detail only for
     # diagnostics; under parallel runs the destination can still be connecting
     # when the observer wakes up.
-    dest_result = dispatch(api, 'peer dest-peer detail')
+    dest_result = dispatch(api, 'show bgp peer dest-peer detail')
     dest_data = result_text_data(dest_result)
     print(f'INFO: dest-peer detail while wire assertion runs: {dest_data}', file=sys.stderr)
 

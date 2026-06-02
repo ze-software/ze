@@ -39,10 +39,20 @@ and uptime.";
 
             container tunnel {
                 config false;
-                ze:command "ze-l2tp-api:tunnel";
-                description "Show full detail for one L2TP tunnel.
+                description "Show full detail for one L2TP tunnel.";
+
+                container id {
+                    config false;
+                    ze:command "ze-l2tp-api:tunnel";
+                    description "Show full detail for one L2TP tunnel.
 Pass the local tunnel ID. Returns control channel state, peer
 endpoint, hello interval, and all assigned sessions.";
+                    leaf id {
+                        type string;
+                        mandatory true;
+                        description "Local tunnel ID";
+                    }
+                }
             }
 
             container sessions {
@@ -55,10 +65,20 @@ login, and uptime.";
 
             container session {
                 config false;
-                ze:command "ze-l2tp-api:session";
-                description "Show full detail for one L2TP session.
+                description "Show full detail for one L2TP session.";
+
+                container id {
+                    config false;
+                    ze:command "ze-l2tp-api:session";
+                    description "Show full detail for one L2TP session.
 Pass the local session ID. Returns PPP state, assigned addresses,
 negotiated LCP/NCP options, and traffic counters.";
+                    leaf id {
+                        type string;
+                        mandatory true;
+                        description "Local session ID";
+                    }
+                }
             }
 
             container statistics {

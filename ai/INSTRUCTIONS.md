@@ -108,6 +108,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Allocate memory, use pools, or build strings | `ai/rules/memory-architecture.md` -- data lifecycle, caller-owned buffers, pool strategy |
 | Add a map or dispatch table on a hot path | `ai/rules/enum-over-string.md` -- numeric keys, not strings; parse string at boundary |
 | Touch registration | `ai/patterns/registration.md` |
+| Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugin-self-containment.md` -- remove the plugin and ALL its features vanish; other plugins and core keep working; no plugin spelling in generic/central packages |
 | Add CLI/web/plugin/config | `ai/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
 | Add or change a CLI command grammar | `ai/rules/cli-grammar.md` -- closed keywords before free-form values, typed selectors, IDs as strings |
 | Write help text, usage strings, error messages, or docs that enumerate things | `ai/rules/derive-not-hardcode.md` -- derive from the registry/map, never re-hardcode; return structured data, not pre-formatted strings |

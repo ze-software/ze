@@ -42,7 +42,7 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    r = dispatch(api, 'show bfd profile fast-echo')
+    r = dispatch(api, 'show bfd profile name fast-echo')
     if r.get('status') != 'done':
         runtime_fail(f'profile status: {r.get("status")}')
     try:
@@ -53,7 +53,7 @@ def main():
     if profile.get('name') != 'fast-echo':
         runtime_fail(f'profile name: {profile}')
 
-    r = dispatch(api, 'show bfd session 203.0.113.9')
+    r = dispatch(api, 'show bfd session address 203.0.113.9')
     if r.get('status') != 'done':
         runtime_fail(f'session status: {r.get("status")}')
     try:

@@ -397,10 +397,11 @@ const maxPeerNameLen = 255
 // cannot tell if "peer list detail" means "show detail for peer named list"
 // or a syntax error. Reject these at config validation time.
 var reservedPeerNames = map[string]bool{
-	"list": true, "detail": true,
+	"list": true, "detail": true, "capabilities": true, "statistics": true,
+	"history": true, "rib": true,
 	"pause": true, "resume": true, "flush": true, "teardown": true,
-	"capabilities": true, "statistics": true, "update": true,
-	"raw": true, "refresh": true, "borr": true, "eorr": true,
+	"with": true, "save": true, "prefix": true,
+	"update": true, "raw": true, "refresh": true, "borr": true, "eorr": true,
 	"clear": true, "plugin": true,
 }
 

@@ -43,10 +43,7 @@ func TestDispatchBGPPeerList(t *testing.T) {
 	assert.Contains(t, peers, "192.0.2.1")
 }
 
-// TestDispatchBGPPeerDetail verifies "peer detail" dispatches through init() registration.
-//
-// VALIDATES: Dispatch chain reaches handleBgpPeerDetail via injected init() registration.
-// PREVENTS: init() registration silently failing for peer detail.
+// TestDispatchBGPPeerDetail verifies peer detail dispatches through init() registration.
 func TestDispatchBGPPeerDetail(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
@@ -55,7 +52,7 @@ func TestDispatchBGPPeerDetail(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer detail")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp peer 192.0.2.1 detail")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }
@@ -82,11 +79,8 @@ func TestDispatchShowSummary(t *testing.T) {
 	assert.True(t, ok)
 }
 
-// TestDispatchShowPeerList verifies the show-convention peer list command.
-//
-// VALIDATES: show peer list reaches the peer list handler.
-// PREVENTS: peer list remaining only as a noun-first command.
-func TestDispatchShowPeerList(t *testing.T) {
+// TestDispatchShowBGPPeerList verifies the show-convention peer list command.
+func TestDispatchShowBGPPeerList(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
@@ -94,7 +88,7 @@ func TestDispatchShowPeerList(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer list")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp peer list")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -105,11 +99,8 @@ func TestDispatchShowPeerList(t *testing.T) {
 	assert.Contains(t, peers, "192.0.2.1")
 }
 
-// TestDispatchShowPeerDetail verifies action-before-selector peer detail grammar.
-//
-// VALIDATES: show peer detail <selector> reaches peer detail handler with the selector as an arg.
-// PREVENTS: peer detail requiring the old noun-first command surface.
-func TestDispatchShowPeerDetail(t *testing.T) {
+// TestDispatchShowBGPPeerDetail verifies peer selector before detail grammar.
+func TestDispatchShowBGPPeerDetail(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
@@ -118,7 +109,7 @@ func TestDispatchShowPeerDetail(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer detail 192.0.2.2")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp peer 192.0.2.2 detail")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -130,11 +121,8 @@ func TestDispatchShowPeerDetail(t *testing.T) {
 	assert.Contains(t, peers, "192.0.2.2")
 }
 
-// TestDispatchShowPeerCapabilities verifies action-before-selector capabilities grammar.
-//
-// VALIDATES: show peer capabilities <selector> reaches the capabilities handler.
-// PREVENTS: capabilities requiring the old noun-first command surface.
-func TestDispatchShowPeerCapabilities(t *testing.T) {
+// TestDispatchShowBGPPeerCapabilities verifies peer selector before capabilities grammar.
+func TestDispatchShowBGPPeerCapabilities(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
@@ -143,7 +131,7 @@ func TestDispatchShowPeerCapabilities(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer capabilities 192.0.2.1")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp peer 192.0.2.1 capabilities")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -152,11 +140,8 @@ func TestDispatchShowPeerCapabilities(t *testing.T) {
 	assert.Equal(t, "192.0.2.1", data["peer"])
 }
 
-// TestDispatchShowPeerStatistics verifies action-before-selector statistics grammar.
-//
-// VALIDATES: show peer statistics <selector> reaches the statistics handler.
-// PREVENTS: statistics requiring the old noun-first command surface.
-func TestDispatchShowPeerStatistics(t *testing.T) {
+// TestDispatchShowBGPPeerStatistics verifies peer selector before statistics grammar.
+func TestDispatchShowBGPPeerStatistics(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished, Uptime: time.Minute},
@@ -164,7 +149,7 @@ func TestDispatchShowPeerStatistics(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer statistics 192.0.2.1")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp peer 192.0.2.1 statistics")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -173,11 +158,8 @@ func TestDispatchShowPeerStatistics(t *testing.T) {
 	assert.Equal(t, "192.0.2.1", data["address"])
 }
 
-// TestDispatchShowPeerHistory verifies action-before-selector history grammar.
-//
-// VALIDATES: show peer history <selector> reaches the FSM history handler.
-// PREVENTS: history requiring the old show bgp peer-history command surface.
-func TestDispatchShowPeerHistory(t *testing.T) {
+// TestDispatchShowBGPPeerHistory verifies peer selector before history grammar.
+func TestDispatchShowBGPPeerHistory(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
@@ -188,7 +170,7 @@ func TestDispatchShowPeerHistory(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show peer history 192.0.2.1")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp peer 192.0.2.1 history")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

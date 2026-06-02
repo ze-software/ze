@@ -30,9 +30,10 @@ func init() {
 			Handler:    handleShowPolicyList,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod:       "ze-show:policy-chain",
-			Handler:          handleShowPolicyChain,
-			RequiresSelector: true,
+			WireMethod: "ze-show:policy-chain",
+			Handler:    handleShowPolicyChain,
+			// The peer selector is the first positional token after
+			// `show policy chain peer <selector>`; the handler consumes it.
 		},
 	)
 }
@@ -72,8 +73,23 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 		return &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, nil
 	}
 
+	// The first positional token is the peer selector
+	// (`show policy chain peer <selector> [import|export]`). Strip it before
+	// reading the optional direction. If the first token is already a direction
+	// keyword the peer was omitted; fall back to the context scope.
+	selector := ""
+	if ctx != nil {
+		selector = ctx.Selector("selector")
+	}
+	if selector == "" && len(args) > 0 && args[0] != policyDirImport && args[0] != policyDirExport {
+		selector = args[0]
+		args = args[1:]
+	}
+	if selector == "" {
+		selector = ctx.PeerSelector()
+	}
+
 	allPeers := ctx.Reactor().Peers()
-	selector := ctx.PeerSelector()
 	matched := filterPeersByPolicySelector(allPeers, selector)
 
 	if len(matched) == 0 {
@@ -83,11 +99,11 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 		}, nil
 	}
 
-	// Optional direction filter from args.
+	// Optional direction filter from the remaining args.
 	direction := ""
 	if len(args) > 0 {
 		direction = args[0]
-		if direction != "import" && direction != "export" {
+		if direction != policyDirImport && direction != policyDirExport {
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Error:  "invalid direction " + strconv.Quote(direction) + " (expected import or export)",

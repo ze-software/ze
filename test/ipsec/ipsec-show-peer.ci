@@ -37,6 +37,6 @@ EOF_CONFIG
 
 expect=event:namespace=vpn-ipsec:name=sa-up:timeout=10
 
-command=show vpn ipsec peer peer-1
+command=show vpn ipsec peer name peer-1
 expect=output:contains=peer-1:timeout=5
 expect=output:contains=ike-sas:timeout=1

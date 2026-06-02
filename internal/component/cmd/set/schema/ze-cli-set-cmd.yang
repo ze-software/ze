@@ -44,8 +44,8 @@ immediately. Check current limits with 'show system file-descriptors'.";
                     ze:command "ze-set:bgp-peer-with";
                     description "Change a running peer's parameters on the fly.
 Modifies ASN, local-as, timers, and other settings without tearing
-down the session where possible. Usage: set bgp peer <selector>
-with <key> <value>.";
+down the session where possible.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
                 }
 
                 container save {
@@ -53,8 +53,8 @@ with <key> <value>.";
                     ze:command "ze-set:bgp-peer-save";
                     description "Persist peer configuration to the config file.
 Writes the current runtime peer config for matched peers back to
-disk so changes survive a restart. Selector: IP, name, AS pattern,
-glob, or *.";
+disk so changes survive a restart.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
                 }
             }
         }

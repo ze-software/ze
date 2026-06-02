@@ -37,6 +37,7 @@ func init() {
 		// Read-only commands (exposed via "ze show")
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:status", Handler: forwardRibStatus, PluginCommand: cmdRibStatus},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:routes", Handler: forwardRibRoutes, PluginCommand: cmdRibShow},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-rib", Handler: forwardRibRoutes, PluginCommand: cmdRibShow, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best", Handler: forwardRibBest, PluginCommand: cmdRibBest},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best-status", Handler: forwardRibBestStatus, PluginCommand: cmdRibBestStatus},
 		// Write commands (exposed via "ze run" only)
