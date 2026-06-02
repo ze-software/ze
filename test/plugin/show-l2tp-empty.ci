@@ -93,8 +93,9 @@ def main():
     r4 = dispatch(api, 'show l2tp tunnel 999')
     if r4.get('status') != 'error':
         runtime_fail(f'show l2tp tunnel 999: expected status=error got {r4.get("status")!r}')
-    if '999' not in (r4.get('data') or ''):
-        runtime_fail(f'show l2tp tunnel 999: error must name the missing ID; got {r4.get("data")!r}')
+    msg = result_text_data(r4)
+    if '999' not in msg:
+        runtime_fail(f'show l2tp tunnel 999: error must name the missing ID; got {msg!r}')
 
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()

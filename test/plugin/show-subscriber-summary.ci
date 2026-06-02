@@ -75,8 +75,9 @@ def main():
     r3 = dispatch(api, 'show subscriber detail nonexistent-id')
     if r3.get('status') != 'error':
         runtime_fail(f'show subscriber detail nonexistent-id: expected status=error got {r3.get("status")!r}')
-    if 'not found' not in (r3.get('data') or ''):
-        runtime_fail(f'show subscriber detail nonexistent-id: error must say not found; got {r3.get("data")!r}')
+    msg = result_text_data(r3)
+    if 'not found' not in msg:
+        runtime_fail(f'show subscriber detail nonexistent-id: error must say not found; got {msg!r}')
 
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()

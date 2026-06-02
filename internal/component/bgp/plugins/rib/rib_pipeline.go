@@ -1062,6 +1062,9 @@ func (r *RIBManager) showPipeline(selector string, args []string) any {
 	meta := current.Meta()
 
 	if meta.JSON != "" {
+		if hasTerminalKind(stages, "graph") {
+			return meta.JSON
+		}
 		return json.RawMessage(meta.JSON)
 	}
 
@@ -1233,6 +1236,15 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 func hasTerminal(stages []pipelineStage) bool {
 	for _, s := range stages {
 		if s.terminal {
+			return true
+		}
+	}
+	return false
+}
+
+func hasTerminalKind(stages []pipelineStage, kind string) bool {
+	for _, s := range stages {
+		if s.terminal && s.kind == kind {
 			return true
 		}
 	}

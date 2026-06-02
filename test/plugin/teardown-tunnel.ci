@@ -214,8 +214,9 @@ def main():
     r = dispatch(api, 'clear l2tp tunnel teardown 65535')
     if r.get('status') != 'error':
         runtime_fail(f'teardown unknown: expected status=error got {r.get("status")!r}')
-    if '65535' not in (r.get('data') or ''):
-        runtime_fail(f'teardown unknown: err must name missing id; got {r.get("data")!r}')
+    msg = result_text_data(r)
+    if '65535' not in msg:
+        runtime_fail(f'teardown unknown: err must name missing id; got {msg!r}')
 
     with open('peer.exit', 'w') as f:
         f.write('ok')

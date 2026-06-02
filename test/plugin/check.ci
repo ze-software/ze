@@ -71,14 +71,15 @@ def main() -> None:
             continue
 
         # Check for UPDATE event with expected content
-        # JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},"peer":{...},"update":{"attr":{...},"nlri":{...}}}}
-        # Type is in bgp.message.type, attr/nlri are inside update container
+        # JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},"peer":{"remote":{"address":"..."}},"update":{"attr":{...},"nlri":{...}}}}
+        # Type is in bgp.message.type, peer address is in bgp.peer.remote.address, attr/nlri are inside update container
         bgp = event.get('bgp', {})
         msg = bgp.get('message', {})
         if msg.get('type') != 'update':
             continue
         peer = bgp.get('peer', {})
-        if peer.get('address') != '127.0.0.1':
+        remote = peer.get('remote', {})
+        if remote.get('address') != '127.0.0.1':
             continue
 
         # Check for default route (0.0.0.0/32) announcement
@@ -115,7 +116,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external check-and-announce {
 		run ./check.run
-		encoder text
+		encoder json
 	}
 }
 bgp {

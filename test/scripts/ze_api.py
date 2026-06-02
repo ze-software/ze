@@ -1166,7 +1166,9 @@ def result_text_data(result: dict | None, default: str = "") -> str:
     """Return dispatch/result data as text for string checks and previews."""
     if result is None:
         return default
-    data = result.get("data", default)
+    data = result.get("data")
+    if data is None or data == "":
+        data = result.get("error", default)
     if data is None:
         return default
     if isinstance(data, str):

@@ -984,10 +984,11 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 
 	result := r.showPipeline("*", []string{"received", "graph"})
 	require.NotEmpty(t, result)
+	graphText, ok := result.(string)
+	require.True(t, ok, "graph terminal should return a string so dispatch-command encodes it as JSON string data")
 
-	resultStr := dataStr(t, result)
-	assert.Contains(t, resultStr, "AS65001")
-	assert.Contains(t, resultStr, "\u250C")
+	assert.Contains(t, graphText, "AS65001")
+	assert.Contains(t, graphText, "\u250C")
 }
 
 // TestGraphTerminalViaBestPipeline verifies graph terminal works with best-path pipeline.
@@ -1005,10 +1006,9 @@ func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	r.bgpPeers["192.0.2.1"] = peerRIB
 
 	result := r.bestPipeline("*", []string{"graph"})
-	require.NotEmpty(t, result)
-
-	resultStr := dataStr(t, result)
-	assert.Contains(t, resultStr, "AS65001")
+	graphText, ok := result.(string)
+	require.True(t, ok, "best graph terminal should return a string so dispatch-command encodes it as JSON string data")
+	assert.Contains(t, graphText, "AS65001")
 }
 
 // --- Helpers ---

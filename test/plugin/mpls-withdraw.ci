@@ -7,12 +7,15 @@
 # - peer sends withdraw for the prefix
 # - ze removes MPLS route from kernel
 
+option=skip-os:value=darwin
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.2 nlri ipv4/mpls-unicast add 10.1.0.0/24 label 1000
-expect=bgp:conn=1:seq=1:hex=TODO
-cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/mpls-unicast del 10.1.0.0/24 label 1000
-expect=bgp:conn=1:seq=1:hex=TODO
+option=asn:value=65002
+option=open:value=add-capability:code=1:hex=00010004
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.2 nlri ipv4/mpls-label label 1000 add 10.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020602010000FDE940050400000064800E10000104040A0000020030003E810A0100
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/mpls-label label 1000 del 10.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A00010430003E810A0100
 EOF_PEER
 
 # ze bgp configuration
@@ -35,7 +38,7 @@ bgp {
 			}
 			router-id 1.2.3.4
 			family {
-				ipv4/mpls-unicast { }
+				ipv4/mpls-label { prefix { maximum 10000; } }
 			}
 		}
 	}

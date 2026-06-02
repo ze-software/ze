@@ -188,7 +188,7 @@ func doRegisterBuiltinCommands() {
 			func(_ *RIBManager, _ string, _ []string) (string, any, error) {
 				return statusDone, ribEventList(), nil
 			}},
-		{[]string{"request bgp rib inject"}, "Inject route into adj-rib-in: <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]",
+		{[]string{"request bgp rib inject"}, "Inject route into adj-rib-in: <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop|nexthop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
 				return r.injectRoute(sel, args)
 			}},
@@ -216,7 +216,7 @@ func doRegisterBuiltinCommands() {
 }
 
 // injectRoute inserts a route into adj-rib-in as if received from a peer.
-// Syntax: request bgp rib inject <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]
+// Syntax: request bgp rib inject <peer> <family> <prefix> [origin <igp|egp|incomplete>] [nhop|nexthop <ip>] [aspath <asn,asn,...>] [localpref <n>] [med <n>]
 // The peer address is a label; no live BGP session required.
 func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 	if len(args) < 3 {
@@ -263,7 +263,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 			ab.SetOrigin(code)
 			continue
 		}
-		if key == "nhop" {
+		if key == "nhop" || key == "nexthop" {
 			nhAddr, err := netip.ParseAddr(val)
 			if err != nil {
 				return statusError, "", fmt.Errorf("invalid next-hop IP: %s", val)

@@ -245,8 +245,9 @@ def main():
     r = dispatch(api, 'clear l2tp session teardown 65534')
     if r.get('status') != 'error':
         runtime_fail(f'teardown unknown: status={r.get("status")!r} want error')
-    if '65534' not in (r.get('data') or ''):
-        runtime_fail(f'teardown unknown: err must name id; got {r.get("data")!r}')
+    msg = result_text_data(r)
+    if '65534' not in msg:
+        runtime_fail(f'teardown unknown: err must name id; got {msg!r}')
 
     with open('peer.exit', 'w') as f:
         f.write('ok')

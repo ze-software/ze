@@ -334,6 +334,21 @@ func TestInjectUsesProtocolSlot(t *testing.T) {
 	assert.True(t, found)
 }
 
+// TestInjectAcceptsNexthopAlias verifies the user-facing inject command accepts
+// both the historic nhop spelling and the full nexthop spelling.
+func TestInjectAcceptsNexthopAlias(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nexthop", "10.0.0.2",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "10.0.0.1")
+	assert.Equal(t, "10.0.0.2", route["next-hop"])
+}
+
 // TestWithdrawUsesProtocolSlot verifies request bgp rib withdraw reads from bgpPeers.
 func TestWithdrawUsesProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)

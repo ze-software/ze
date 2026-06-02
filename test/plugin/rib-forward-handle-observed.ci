@@ -62,7 +62,7 @@ def main():
     for _ in range(40):
         time.sleep(0.1)
         result = dispatch(api, 'show bgp rib best')
-        if '192.168.1.0/24' in result.get('data', ''):
+        if '192.168.1.0/24' in result_text_data(result):
             break
     else:
         runtime_fail('192.168.1.0/24 never appeared in bgp rib show best')

@@ -200,6 +200,9 @@ func (r *RIBManager) bestPipeline(selector string, args []string) any {
 	// Execute terminal — drain it and return metadata
 	meta := current.Meta()
 	if meta.JSON != "" {
+		if hasTerminalKind(stages, "graph") {
+			return meta.JSON
+		}
 		return json.RawMessage(meta.JSON)
 	}
 
