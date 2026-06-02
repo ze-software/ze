@@ -113,11 +113,12 @@ Command structure, text format, IPC, RPC dispatch.
 - [727](plan/learned/727-diag-core.md) -- 9 built-in diagnostic commands (procfs package, build-split patterns, singleflight without x/sync, BFD capture provider interface)
 - [728](plan/learned/728-diag-netlink-monitor.md) -- Netlink monitor streaming (unified output channel, YANG verb tree placement, register_*.go hook bypass)
 - [729](plan/learned/729-diag-traceroute.md) -- ICMP traceroute (ttlSetter interface for IPv4/IPv6 TTL, pure Go over library, argTimeout goconst pattern)
-- [738](plan/learned/738-cli-grammar.md) -- CLI grammar: action before identifier (YANG sub-containers consume dispatch tokens, deprecation via JSON unmarshal not wrapping)
+- [738](plan/learned/738-cli-grammar.md) -- CLI grammar: closed keywords before free-form values (YANG sub-containers consume dispatch tokens, compatibility only after release)
 - [730](plan/learned/730-diag-capture-interface.md) -- AF_PACKET live capture (mdlayher/packet + go-pcap BPF, portable/linux file split, Ethernet link type for raw sockets)
 - [755](plan/learned/755-ze-doctor.md) -- Offline system readiness checks: diagnostic code taxonomy, error/warning severity, platform-split checks, shared resolve package
 - [788](plan/learned/788-doctor-improvements.md) -- Doctor schema-driven listener inventory, RegisterListenerDefault pattern, show doctor provider, dependency inventory guardrail
 - [837](plan/learned/837-doctor-check-registry.md) -- Doctor check registry: explicit phase/order/component metadata, plugin binary check first migration, registry code metadata consistency through diagnostic.Lookup
+- [838](plan/learned/838-doctor-check-ownership.md) -- Doctor check ownership: runtime dependency check registration, check function, and unit test live in the owning plugin/component/backend/command package; `cmd/ze/doctor` owns only runner coverage and checks with no narrower owner
 - [791](plan/learned/791-spec-cli-default-format.md) -- Configurable default CLI output format: env.Get in command package, session override via env.Set, intercept placement before isConfigCommand
 - [795](plan/learned/795-cmd-typed-args.md) -- YANG-typed command arguments: ArgDefs on Node from YANG leaves, two-phase dispatcher validation, completer auto-generates enum suggestions, mergeYANGEntry second pass for leaf children
 - [792](plan/learned/792-platform-detection.md) -- Runtime platform detection: gokrazy/systemd/container/plain-linux/darwin classification, cgroups v1+v2, FD limits, set system file-descriptors
@@ -208,6 +209,8 @@ Test patterns, infrastructure, chaos testing.
 - [797](plan/learned/797-interop-gap-coverage.md) -- Interop gap coverage: 5 scenarios (RR, policy, RPKI, BMP, max-prefix) with FRR/BIRD/GoBGP peers, concurrent Docker subnet retry, parse coverage for IXP/large-scale/RPKI/redistribution
 - [800](plan/learned/800-bgp-chaos-integration.md) -- Chaos integration tests: fork mode default, run() testability, port auto-allocation
 - [802](plan/learned/802-chaos-multi-target.md) -- Multi-target chaos: FRR/BIRD config gen, temp-file fork, single-port dialing, BIRD channel mapping limits
+- [842](plan/learned/842-scoped-verify-committed-gap.md) -- Scoped verify committed gap: ze-verify-changed tested only the working-tree diff, so a regression committed before verifying was skipped on the clean tree; changed set now adds packages committed since the last green verify (`scripts/dev/changed-pkgs.sh`, baseline from `tmp/ze-verify.status`)
+- [843](plan/learned/843-verify-debugging-protocol.md) -- Verify failure-routing protocol: tested `verify_run.go` owns ze-verify, writes compact text+JSON failure index, groups by stage boundary first (never across), native `VERIFY FAILURE GROUP: {json}` manifests over text parsing, `ZE_VERIFY_MODE=1` env-gated rendering; the house convention for machine-readable test output
 
 ## Build/Deployment
 

@@ -497,4 +497,53 @@ This work stays as one spec. Splitting the orchestration layer from the stage em
 - The compact failure index is a routing artifact, not a replacement for the full stage log.
 
 ## Core Insight
+
+Stage boundary is the first routing boundary: a tested runner that owns native failure manifests (not scraped text) makes verify failures routeable -- compact index first, full logs preserved -- without making interactive runs verbose.
+
+## Implementation Summary
+
+### What Was Implemented
+Committed in `7cc0829f6` ("verify: add failure routing protocol"):
+- `scripts/status/verify_run.go` (+`verify_run_test.go`, `testdata/verify/`) -- the tested top-level verify protocol runner: per-stage + combined logs, compact text + JSON failure index, status refresh.
+- `internal/test/runner/failure_group.go` (+test) -- native suite-local failure grouping (`GroupFunctionalFailures`, `PrintFailureGroups`, `VERIFY FAILURE GROUP: {json}`).
+- Suite-aware rerun commands and headers across `cmd/ze-test/ci_runner.go`, `editor.go`, `internal/test/runner/{report,display,parallel,decoding,parsing}.go`.
+- `test/exabgp-compat/bin/functional` -- newline-safe verify-mode summary + exact reproducers.
+- Docs/discovery: `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md`, `ai/{INDEX,NAVIGATION}.md`, `ai/rules/{git-safety,testing}.md`, `ai/patterns/functional-test.md`.
+
+### Documentation Updates
+- `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` (verify-mode debug surfaces), `ai/rules/git-safety.md` (triage workflow). All in `7cc0829f6`.
+
+## Implementation Audit
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By |
+|-------|--------|-----------------|
+| AC-1 | Done | `TestVerifyRunWritesArtifactsAndContinuesAfterStageFailures`, `TestVerifyRunProducesStageAndGroupSummaries` |
+| AC-2 | Done | `TestVerifyRunWritesArtifactsAndContinuesAfterStageFailures` |
+| AC-3 | Done | `TestGoTestFailuresGroupByPackage`, `TestVerifyRunProducesStageAndGroupSummaries` |
+| AC-4 | Done | `TestVerifyRunProducesStageAndGroupSummaries` |
+| AC-5 | Done | `TestFunctionalFailureGroupsUseSuiteTypeAndSubsystemPrefix`, `TestVerifyRunFunctionalFixtureWithRelatedPluginFailures` |
+| AC-6 | Done | `TestCISubcommandPrintsHeaderAndTopLevelRerunHints`, `TestDisplayDebugHintsUseSuiteSpecificCommands`, `TestReportDebugCommandsUseSuiteSpecificCommands` |
+| AC-7 | Done | `TestParallelRunnerFailureLinesAppearWithoutVerboseWhenVerifyMode` |
+| AC-8 | Done | `TestWiringDocFailuresGroupBySubcheck`, `TestVerifyRunProducesStageAndGroupSummaries` |
+| AC-9 | Done | `TestExabgpVerifyModeSummaryUsesNewlinesAndExactReproducers` |
+| AC-10 | Done | `TestVerifyRunCapsInlineMembersAndExcerptLines` |
+| AC-11 | Done | `TestVerifyRunAllPassFixture` |
+| AC-12 | Done | `TestVerifyRunProducesStageAndGroupSummaries` (compact index written before/separate from combined log) |
+
+### Audit Summary
+- **Total ACs:** 12 — **Done:** 12 — **Partial/Skipped:** 0.
+- All 14 planned tests exist and pass (`go test ./scripts/status/ ./internal/test/runner/ ./cmd/ze-test/` → ok, 2026-06-02).
+
+## Goal Validation
+
+| Goal (Task constraint) | Evidence |
+|------------------------|----------|
+| Minimal first read | Compact `tmp/ze-verify-failures.{log,json}` index; `TestVerifyRunProducesStageAndGroupSummaries` |
+| Conservative grouping | Stage-first, never cross-stage; `TestFunctionalFailureGroupsUseSuiteTypeAndSubsystemPrefix` |
+| Exact reproducers | Suite-aware `FormatRerunCommand`; `TestCISubcommandPrintsHeaderAndTopLevelRerunHints` |
+| Full evidence preserved | Per-stage logs under `tmp/verify/`; groups cap inline detail and point at full log; `TestVerifyRunCapsInlineMembersAndExcerptLines` |
+
+## Closure
+Code + spec committed in `7cc0829f6`; further runner-selection unification merged in `829afd551`. Closed 2026-06-02 with learned summary `plan/learned/843-verify-debugging-protocol.md`. Tests green at closure.
 The main missing feature is not more diagnostics. It is a stable routing layer between existing diagnostics and the person or agent reading them. The protocol should therefore spend most of its complexity budget on stage boundaries, group identity, exact reproducers, and bounded summaries, not on inventing new per-test detail.
