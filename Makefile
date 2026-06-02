@@ -242,16 +242,17 @@ ze-ai-instructions:
 ze-ai-sync:
 	@scripts/dev/skill_sync.sh
 
-ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index
+ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index
 	@echo "All generated files updated"
 
 ze-regen-check: ze-regen
-	@if ! git diff --quiet -- CLAUDE.md AGENTS.md .claude/skills/ .codex/skills/ .agents/skills/ ai/CODE-TO-DOCS.md internal/component/plugin/all/all.go 2>/dev/null; then \
+	@if ! git diff --quiet -- CLAUDE.md AGENTS.md .claude/skills/ .codex/skills/ .agents/skills/ ai/CODE-TO-DOCS.md ai/rules/INDEX.md internal/component/plugin/all/all.go 2>/dev/null; then \
 		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
-		git diff --stat -- CLAUDE.md AGENTS.md .claude/skills/ .codex/skills/ .agents/skills/ ai/CODE-TO-DOCS.md internal/component/plugin/all/all.go; \
+		git diff --stat -- CLAUDE.md AGENTS.md .claude/skills/ .codex/skills/ .agents/skills/ ai/CODE-TO-DOCS.md ai/rules/INDEX.md internal/component/plugin/all/all.go; \
 		exit 1; \
 	fi
 	@python3 scripts/dev/code_to_docs.py --check
+	@python3 scripts/dev/rules_index.py --check
 	@echo "All generated files are up to date"
 
 clean:
@@ -466,6 +467,7 @@ help-dev:
 	@echo "    ze-doc-test              All doc checks (drift + anchors + YANG/handler contract)"
 	@echo "    ze-doc-drift             Docs claims vs live registry/Makefile/filesystem"
 	@echo "    ze-doc-index             Regenerate ai/CODE-TO-DOCS.md (code->docs reverse index)"
+	@echo "    ze-rules-index           Regenerate ai/rules/INDEX.md (one-line overview of every rule)"
 	@echo "    ze-validate-commands     YANG command tree vs registered handlers"
 	@echo "    ze-consistency           Code/doc consistency: design refs, cross-refs, stale refs"
 	@echo "    ze-verify-wiring-docs     Changed-file-aware wiring, docs, command, and inventory gate"
@@ -488,6 +490,7 @@ help-dev:
 	@echo "    ze-ai-instructions       Generate CLAUDE.md and AGENTS.md"
 	@echo "    ze-ai-sync               Sync canonical skills to tool directories"
 	@echo "    ze-doc-index             Regenerate ai/CODE-TO-DOCS.md"
+	@echo "    ze-rules-index           Regenerate ai/rules/INDEX.md"
 	@echo "    ze-sync-vendor-web       Sync vendored web assets"
 	@echo "    ze-check-vendor-web      Check for newer web asset versions"
 	@echo ""

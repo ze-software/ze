@@ -1,5 +1,7 @@
 # Git Safety
 
+**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the user-run commit-script path, and verify-status handling.
+
 Rationale: `ai/rationale/git-safety.md`
 
 ## Commit Rules

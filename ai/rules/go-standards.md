@@ -1,5 +1,7 @@
 # Go Standards
 
+**When:** Read before writing Go in Ze; covers env access, context handling, aliased imports, error wrapping, and other Ze-specific Go conventions.
+
 Rationale: `ai/rationale/go-standards.md`
 
 ## Required

@@ -1,5 +1,7 @@
 # Design Principles
 
+**When:** Read before any design decision; the checklist (no premature abstraction, no speculative features, single responsibility, minimal coupling, explicit behavior) gates new structure.
+
 Rationale + examples: `ai/rationale/design-principles.md`.
 Detail for the pool/buffer/lazy principles: `rules/buffer-first.md`,
 `rules/exact-or-reject.md`.

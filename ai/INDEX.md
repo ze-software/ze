@@ -22,6 +22,7 @@
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
 | Reorganize YANG tree | `scripts/dev/yang_move.py --help` | Preview diff, then `--apply` |
 | Find context for an unfamiliar area | `ai/NAVIGATION.md` | Task-to-context decision tree |
+| See which rule covers a topic | `ai/rules/INDEX.md` | One-line overview of every rule; open the listed file before acting |
 | Understand Ze vs standard Go | `ai/rules/ze-divergences.md` | Buffer-first, registration, YANG, etc. |
 | Know which hooks will check my code | `ai/rules/hook-mapping.md` | Pre-flight compliance checklist |
 | Edit the website or presentations | `docs/contributing/gh-pages.md` then `../gh-pages/AI.md` | Worktree layout, tooling, adding a talk |

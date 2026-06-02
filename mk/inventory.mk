@@ -9,7 +9,7 @@
 #
 .PHONY: ze-spec-status ze-spec-status-json ze-learned-counter
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-consistency
+.PHONY: ze-validate-commands ze-validate-commands-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-consistency
 .PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
 
 ze-spec-status:
@@ -68,6 +68,9 @@ ze-doc-test:
 	echo "  -> Source anchors (docs source references exist)..."; \
 	python3 scripts/dev/code_to_docs.py --check || FAIL=1; \
 	echo ""; \
+	echo "  -> Rules index (ai/rules/INDEX.md fresh, every rule has a summary)..."; \
+	python3 scripts/dev/rules_index.py --check || FAIL=1; \
+	echo ""; \
 	if [ $$FAIL -ne 0 ]; then \
 		echo "Documentation tests FAILED -- see output above."; \
 		echo "See docs/contributing/documentation-testing.md for how to fix."; \
@@ -80,6 +83,12 @@ ze-doc-index:
 
 ze-doc-check-stale:
 	@python3 scripts/dev/code_to_docs.py --check
+
+ze-rules-index:
+	@python3 scripts/dev/rules_index.py
+
+ze-rules-index-check:
+	@python3 scripts/dev/rules_index.py --check
 
 ze-consistency:
 	@echo "Running consistency checks..."

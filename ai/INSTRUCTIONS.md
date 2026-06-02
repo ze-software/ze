@@ -128,6 +128,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Run any test/build/lint command | `ai/rules/bash-output.md` -- no pipes, read log after |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first, always |
 | Look up anything | `ai/INDEX.md` (keyword->doc, keyword->RFC) |
+| See which rule covers a topic | `ai/rules/INDEX.md` -- one-line overview of every rule; open the listed file in full before acting |
 | Understand architecture | `docs/architecture/core-design.md` |
 | Check past decisions | `ai/LEARNED-INDEX.md` -> `plan/learned/` |
 | Understand why the code is shaped this way | `plan/learned/DESIGN-HISTORY.md` |

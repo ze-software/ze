@@ -151,6 +151,7 @@ echo "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\
 echo "Warning:   Do NOT skip because the task looks shell-only, docs-only, or trivial."
 echo "Warning:   See rules/session-start.md 'LSP Load (step 1) -- no-exceptions clause'."
 echo "Warning: RULE: Read spec + source files BEFORE writing any code"
+echo "Rules: ai/rules/INDEX.md is a one-line overview of every rule -- scan it, read the listed file in full before acting on a topic it covers"
 
 # Suggest /ze-status when no spec is selected
 if [ "$SELECTED_COUNT" -eq 0 ] && [ "$SPEC_COUNT" -gt 0 ]; then
