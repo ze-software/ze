@@ -279,6 +279,53 @@ func TestCheckPluginsInternalNoWarn(t *testing.T) {
 	}
 }
 
+func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
+	// VALIDATES: AC-1 runChecks executes a registered post-config plugin check through the production runner.
+	// PREVENTS: plugin check migration that only registers metadata but is never reached from ze doctor.
+	cfgPath := writeTestConfig(t, `plugin {
+	internal rib {
+		use bgp-rib
+	}
+}
+`)
+
+	reg := newDoctorCheckRegistry()
+	called := false
+	require.NoError(t, reg.register(doctorCheck{
+		Name:         "plugin-binaries",
+		Phase:        doctorCheckPhasePostConfig,
+		Order:        700,
+		Component:    "plugin",
+		Dependencies: []string{"external-binary"},
+		Platforms:    []string{doctorCheckPlatformAny},
+		Codes:        []string{"doctor-plugin-external-builtin"},
+		Check: func(ctx doctorCheckContext) []diagnostic.Diagnostic {
+			if ctx.Tree == nil || ctx.Store == nil || ctx.Platform == nil || ctx.ConfigDir == "" {
+				return nil
+			}
+			if len(ctx.Plugins) != 1 || ctx.Plugins[0].Name != "rib" {
+				return nil
+			}
+			called = true
+			return []diagnostic.Diagnostic{{
+				Code:     "doctor-plugin-external-builtin",
+				Severity: diagnostic.SeverityWarning,
+				Message:  "registered plugin check executed",
+			}}
+		},
+	}))
+
+	originalRegistry := defaultDoctorCheckRegistry
+	defaultDoctorCheckRegistry = reg
+	t.Cleanup(func() {
+		defaultDoctorCheckRegistry = originalRegistry
+	})
+
+	diags := runChecks(cfgPath)
+	assert.True(t, called, "registered plugin check did not receive parsed plugin context")
+	assertDiagCode(t, diags, "doctor-plugin-external-builtin")
+}
+
 func TestCheckPluginsBuiltinNamesFromRegistry(t *testing.T) {
 	builtins := zeplugin.AvailableInternalPlugins()
 	assert.NotEmpty(t, builtins, "AvailableInternalPlugins must return registered names")

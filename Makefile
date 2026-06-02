@@ -42,7 +42,8 @@ ZE_LINUX_GO_IMAGE ?= golang:1.26-alpine
 ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
 
 # Packages
-ZE_PACKAGES = $$(go list ./... | grep -v /cmd/ze-chaos)
+# Exclude the root module package: it only contains build-tagged tooling imports.
+ZE_PACKAGES = $$(go list ./... | grep -v '^codeberg.org/thomas-mangin/ze$$' | grep -v /cmd/ze-chaos)
 
 # Default target
 .DEFAULT_GOAL := help

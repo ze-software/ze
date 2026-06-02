@@ -128,8 +128,10 @@ Files: 11 | Docs: `docs/DESIGN.md`, `docs/architecture/config/deprecated-options
 
 ## `cmd/ze/doctor/`
 
+- `cmd/ze/doctor/check_plugins.go` -> `docs/features.md`
 - `cmd/ze/doctor/checks_linux.go` -> `docs/features.md`
 - `cmd/ze/doctor/doctor.go` -> `docs/features.md`
+- `cmd/ze/doctor/registry.go` -> `docs/features.md`
 
 ## `cmd/ze/environ/`
 

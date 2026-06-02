@@ -5,8 +5,11 @@ a `ze doctor` check so agents can verify readiness before starting the daemon.
 
 ## The Rule
 
-When your implementation introduces any of the following, add a corresponding
-check in `cmd/ze/doctor/doctor.go` (or the platform-specific `checks_linux.go`):
+When your implementation introduces any of the following, add a registered
+doctor check in `cmd/ze/doctor/` with explicit phase, order, component,
+dependency, platform, diagnostic-code, and check-function metadata. Do not add
+new runtime dependency checks by appending another direct call to the central
+`runChecks` list.
 
 | New dependency | Doctor check needed |
 |----------------|---------------------|
@@ -30,26 +33,26 @@ description, and examples. The code must be explainable via `ze explain`.
 
 ## Mechanical Check
 
-After implementation, run:
+After implementation, verify the check is registered and explainable:
 
 ```
-grep -c 'doctor-' internal/core/diagnostic/codes.go
+go test ./cmd/ze/doctor -run 'TestDoctorRegisteredCheckCodesHaveMetadata|TestRunChecksExecutesRegistered'
 ```
 
-If you added a runtime dependency and the count did not increase, you missed
-a doctor check.
+If you added a runtime dependency and no registered doctor check declares its
+`doctor-*` code, you missed the readiness check or its diagnostic metadata.
 
-## Where to Add Checks
+## Where to Register Checks
 
-| Dependency in | Check goes in |
-|---------------|---------------|
-| `environment.web`, `environment.mcp`, `environment.looking-glass` | `checkListeners`, `checkTLS` |
-| `environment.ssh` | `checkSSHHostKey` |
-| `interface/backend` | `checkIfaceBackend` |
-| `plugin/external` | `checkPlugins` |
-| Kernel module (IPsec, VPP, conntrack) | `checkKernelModules` (Linux) |
-| Procfs, sysctl, netlink | Platform-specific check in `checks_linux.go` with a stub in `checks_other.go` |
-| Blob storage | `checkStorage` |
+| Dependency in | Check registration |
+|---------------|--------------------|
+| `environment.web`, `environment.mcp`, `environment.looking-glass` | listener/TLS check registration in `cmd/ze/doctor/` |
+| `environment.ssh` | SSH host-key check registration |
+| `interface/backend` | interface backend check registration |
+| `plugin/external` | plugin binary check registration |
+| Kernel module (IPsec, VPP, conntrack) | kernel-module registration in `checks_linux.go` with non-Linux stub where needed |
+| Procfs, sysctl, netlink | platform-specific registration in `checks_linux.go` with a stub in `checks_other.go` |
+| Blob storage | storage check registration |
 
 ## Test Requirement
 

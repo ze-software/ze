@@ -130,6 +130,19 @@ cycle through `cli -> cmdutil -> cli`. `cmdregistry` is a leaf package
 **Pattern guidance:** `ai/patterns/cli-command.md` -- "Command
 Registration (BLOCKING)" section.
 
+### Doctor Check Registry
+
+Offline readiness checks for `ze doctor`. The runner owns execution phases so
+missing-config and parse-failure behavior stay explicit while individual checks
+register their metadata and check function.
+
+**Location:** `cmd/ze/doctor/registry.go`
+**Registration:** `mustRegisterDoctorCheck(doctorCheck{...})` in a doctor check file
+**Query:** `runChecks` calls registered checks by phase through `runDoctorChecks`
+**Metadata:** name, phase, order, component, dependencies, platforms, diagnostic codes, check function
+**Validation:** rejects duplicate check names, unknown phases, missing metadata, invalid lower-kebab identifiers, and duplicate codes within one check
+**Code metadata:** registered `doctor-*` codes must resolve through `diagnostic.Lookup`
+
 ### Attribute Name Registry
 
 Maps BGP attribute codes to human-readable names.

@@ -133,6 +133,8 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkSystemdServiceInstall(platform)...)
 	diags = append(diags, checkMachineID(platform, store)...)
 	diags = append(diags, checkRandomSeed(platform)...)
+	baseCtx := doctorCheckContext{Store: store, Platform: platform}
+	diags = append(diags, runDoctorChecks(doctorCheckPhasePreConfig, baseCtx)...)
 
 	configData, configName, err := loadConfigData(store, configPath)
 	if err != nil {
@@ -141,6 +143,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 			Severity: diagnostic.SeverityError,
 			Message:  err.Error(),
 		})
+		diags = append(diags, runDoctorChecks(doctorCheckPhaseMissingConfig, baseCtx)...)
 		diags = append(diags, checkKernelModules(nil)...)
 		return diags
 	}
@@ -156,6 +159,13 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	}
 
 	tree := result.Tree
+	checkCtx := doctorCheckContext{
+		Tree:      tree,
+		ConfigDir: result.ConfigDir,
+		Plugins:   result.Plugins,
+		Store:     store,
+		Platform:  platform,
+	}
 
 	diags = append(diags, checkSemanticValidation(tree)...)
 	diags = append(diags, checkIfaceBackend(tree)...)
@@ -168,7 +178,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkTLS(tree, result.ConfigDir)...)
 	diags = append(diags, checkWebTLS(tree, store)...)
 	diags = append(diags, checkPKICerts(tree)...)
-	diags = append(diags, checkPlugins(result.Plugins)...)
+	diags = append(diags, runDoctorChecks(doctorCheckPhasePostConfig, checkCtx)...)
 	diags = append(diags, checkSSHHostKey(tree, result.ConfigDir)...)
 	diags = append(diags, checkListeners(tree)...)
 	diags = append(diags, checkDiskSpace()...)
