@@ -26,7 +26,8 @@ type WBTestResult struct {
 
 // Browser wraps agent-browser CLI commands.
 type Browser struct {
-	baseURL string
+	baseURL       string
+	daemonStarted bool
 }
 
 // NewBrowser creates a browser instance targeting the given base URL.
@@ -37,8 +38,15 @@ func NewBrowser(baseURL string) *Browser {
 // Open navigates to baseURL + path.
 func (b *Browser) Open(path string) error {
 	url := b.baseURL + path
-	if err := runAgentWithHTTPSIgnore("open", url); err != nil {
-		return fmt.Errorf("open %s: %w", url, err)
+	if b.daemonStarted {
+		if err := runAgent("open", url); err != nil {
+			return fmt.Errorf("open %s: %w", url, err)
+		}
+	} else {
+		if err := runAgentWithHTTPSIgnore("open", url); err != nil {
+			return fmt.Errorf("open %s: %w", url, err)
+		}
+		b.daemonStarted = true
 	}
 	return b.WaitLoad()
 }
@@ -193,6 +201,7 @@ func (b *Browser) GetHTML() (string, error) {
 // Close closes the browser.
 func (b *Browser) Close() {
 	_ = runAgentWithHTTPSIgnore("close", "--all")
+	b.daemonStarted = false
 }
 
 // findRefByText searches the snapshot output for a line containing the text
