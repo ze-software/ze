@@ -491,7 +491,7 @@ bgp {
                 ip dynamic;
                 connect false;
                 range 192.0.2.0/24;
-                max-peers 500;
+                max-peers 200;
             }
             local {
                 ip 192.0.2.254;
