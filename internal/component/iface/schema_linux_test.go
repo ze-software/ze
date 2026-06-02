@@ -18,9 +18,10 @@ import (
 // address lifetimes (netlink RTM_NEWADDR valid_lft / preferred_lft are
 // netlink-only).
 //
-// The test is linux-only because both containers are marked ze:os "linux"
-// and the YANG schema walker prunes non-matching OS nodes at schema-build
-// time, so the containers are simply absent from the schema on darwin.
+// The ipv4/ipv6 containers are present on every OS (interface addressing is
+// OS-portable config, edited anywhere and applied on the Linux target), so the
+// assertion itself is platform-independent; it lives in a linux-tagged file
+// alongside the rest of the iface schema assertions.
 //
 // VALIDATES: the four-case verifier extension (see iface-vpp-rejects-dhcp.ci).
 // PREVENTS: a future YANG edit silently dropping the annotation, which

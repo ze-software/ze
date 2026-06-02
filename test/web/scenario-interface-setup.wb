@@ -13,7 +13,7 @@ action=press:key=Enter
 action=wait:ms=1000
 
 # Add unit and address
-action=fill:id=cli-input:value=set interface ethernet iface-test unit 0 address 192.0.2.2/30
+action=fill:id=cli-input:value=set interface ethernet iface-test unit 0 ipv4 address 192.0.2.2/30
 action=press:key=Enter
 action=wait:ms=1000
 

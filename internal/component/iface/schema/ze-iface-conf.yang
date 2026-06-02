@@ -224,7 +224,6 @@ module ze-iface-conf {
             }
 
             container ipv4 {
-                ze:os "linux";
                 description "IPv4 protocol settings";
 
                 leaf-list address {
@@ -303,7 +302,6 @@ module ze-iface-conf {
             }
 
             container ipv6 {
-                ze:os "linux";
                 description "IPv6 protocol settings";
 
                 leaf-list address {
