@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -51,10 +52,41 @@ func (b *Browser) Open(path string) error {
 	return b.WaitLoad()
 }
 
-// WaitLoad waits for network idle.
+// WaitLoad waits for in-flight fetch/XHR requests to drain. The finder UI
+// keeps a persistent EventSource(/events) open, so `wait --load networkidle`
+// never settles and burns a fixed ~1.44s on every call. Instead we poll an
+// in-flight counter installed via AGENT_BROWSER_INIT_SCRIPTS (inflightInitJS)
+// with `eval`, which returns instantly, under a hard wall-clock deadline.
+// Polling from here (never a blocking `wait --fn`) means a request that never
+// settles degrades to "proceed after the deadline" instead of hanging until
+// the process is killed mid-command, which wedges the agent-browser daemon.
+// Falls back to networkidle when the init script could not be written.
 func (b *Browser) WaitLoad() error {
-	return runAgent("wait", "--load", "networkidle")
+	if ensureInitScript() == "" {
+		return runAgent("wait", "--load", "networkidle")
+	}
+	deadline := time.Now().Add(waitLoadDeadline)
+	for {
+		out, err := runAgentOutput("eval", inflightIdleExpr)
+		if err == nil && strings.TrimSpace(out) == "true" {
+			return nil
+		}
+		if !time.Now().Before(deadline) {
+			// Proceed anyway: the explicit action=wait sleeps and the
+			// subsequent expectation provide the real assertion.
+			return nil
+		}
+		time.Sleep(waitLoadPoll)
+	}
 }
+
+const (
+	// waitLoadDeadline bounds WaitLoad so a request that never settles can
+	// never hang the runner or wedge the daemon.
+	waitLoadDeadline = 5 * time.Second
+	// waitLoadPoll is the gap between eval polls of the in-flight predicate.
+	waitLoadPoll = 40 * time.Millisecond
+)
 
 // WaitMs waits for a duration in milliseconds.
 func (b *Browser) WaitMs(ms string) error {
@@ -267,14 +299,84 @@ func runAgentOutput(args ...string) (string, error) {
 	return string(out), nil
 }
 
+// inflightInitJS instruments fetch and XHR with an in-flight counter,
+// registered as an agent-browser init script so it re-runs on every
+// navigation. It deliberately leaves EventSource alone: the finder UI's
+// persistent /events connection is what stops networkidle from ever
+// settling, and it must not count toward "requests in flight".
+const inflightInitJS = `(function () {
+  if (window.__zeWaitInstalled) return;
+  window.__zeWaitInstalled = true;
+  window.__zeInflight = 0;
+  window.__zeLastChange = performance.now();
+  function mark() { window.__zeLastChange = performance.now(); }
+  var origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function () {
+      window.__zeInflight++; mark();
+      return origFetch.apply(this, arguments).finally(function () { window.__zeInflight--; mark(); });
+    };
+  }
+  var origSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function () {
+    window.__zeInflight++; mark();
+    this.addEventListener('loadend', function () { window.__zeInflight--; mark(); });
+    return origSend.apply(this, arguments);
+  };
+})();
+`
+
+// inflightIdleExpr is the predicate WaitLoad polls: no in-flight fetch/XHR
+// and quiet for a short debounce. The debounce bridges chained requests --
+// cli.js issues fetch(/cli) -> htmx refresh -> fetch(/config/changes) in
+// sequence, so the counter dips to zero for a microtask between them.
+const inflightIdleExpr = `(window.__zeInflight||0)===0 && (performance.now()-(window.__zeLastChange||0))>=120`
+
+var (
+	initScriptOnce sync.Once
+	initScriptPath string
+)
+
+// ensureInitScript writes the in-flight instrumentation to a temp file once
+// and returns its path, or "" if it could not be written (WaitLoad then
+// falls back to networkidle). agent-browser loads it via the
+// AGENT_BROWSER_INIT_SCRIPTS env set in agentEnv.
+func ensureInitScript() string {
+	initScriptOnce.Do(func() {
+		f, err := os.CreateTemp("", "ze-inflight-*.js")
+		if err != nil {
+			return
+		}
+		_, werr := f.WriteString(inflightInitJS)
+		cerr := f.Close()
+		if werr != nil || cerr != nil {
+			return
+		}
+		initScriptPath = f.Name()
+	})
+	return initScriptPath
+}
+
 func agentEnv() []string {
 	env := os.Environ()
+	hasIdle, hasInit := false, false
 	for _, e := range env {
 		if strings.HasPrefix(e, "AGENT_BROWSER_IDLE_TIMEOUT_MS=") {
-			return env
+			hasIdle = true
+		}
+		if strings.HasPrefix(e, "AGENT_BROWSER_INIT_SCRIPTS=") {
+			hasInit = true
 		}
 	}
-	return append(env, "AGENT_BROWSER_IDLE_TIMEOUT_MS=60000")
+	if !hasIdle {
+		env = append(env, "AGENT_BROWSER_IDLE_TIMEOUT_MS=60000")
+	}
+	if !hasInit {
+		if p := ensureInitScript(); p != "" {
+			env = append(env, "AGENT_BROWSER_INIT_SCRIPTS="+p)
+		}
+	}
+	return env
 }
 
 // RunWBFile parses and executes a .wb test file.
