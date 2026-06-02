@@ -400,6 +400,9 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 	case "stderr":
 		// Support both pattern= (regex) and contains= (substring)
 		if pattern, ok := kv["pattern"]; ok {
+			if pattern == "" {
+				return errors.New("expect=stderr:pattern= must not be empty (an empty regex matches everything)")
+			}
 			r.ExpectStderr = append(r.ExpectStderr, pattern)
 		}
 		if contains := kv["contains"]; contains != "" {
@@ -417,6 +420,9 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 
 	case "syslog":
 		pattern := kv["pattern"]
+		if pattern == "" {
+			return errors.New("expect=syslog:pattern= must not be empty (an empty regex matches everything)")
+		}
 		r.ExpectSyslog = append(r.ExpectSyslog, pattern)
 
 	case "file":
@@ -471,10 +477,16 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 	switch rejType {
 	case "stderr":
 		pattern := kv["pattern"]
+		if pattern == "" {
+			return errors.New("reject=stderr:pattern= must not be empty (an empty regex matches everything)")
+		}
 		r.RejectStderr = append(r.RejectStderr, pattern)
 
 	case "syslog":
 		pattern := kv["pattern"]
+		if pattern == "" {
+			return errors.New("reject=syslog:pattern= must not be empty (an empty regex matches everything)")
+		}
 		r.RejectSyslog = append(r.RejectSyslog, pattern)
 
 	case "stdout":

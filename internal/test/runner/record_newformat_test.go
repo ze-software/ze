@@ -343,6 +343,47 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	assert.Equal(t, []string{"fatal", "panic"}, rec.RejectSyslog)
 }
 
+// TestParseCIEmptyPatternRejected verifies that an empty pattern= value on any
+// expect/reject stderr or syslog directive is rejected at parse time.
+//
+// VALIDATES: empty patterns fail parsing with a clear message.
+// PREVENTS: the false pass where `expect=stderr:pattern=` compiles to a regex
+//
+//	that matches every string, so the assertion passes vacuously and a typo
+//	silently disables a real check.
+func TestParseCIEmptyPatternRejected(t *testing.T) {
+	cases := []struct {
+		name      string
+		directive string
+		errSubstr string
+	}{
+		{"expect_stderr", "expect=stderr:pattern=", "expect=stderr:pattern= must not be empty"},
+		{"expect_syslog", "expect=syslog:pattern=", "expect=syslog:pattern= must not be empty"},
+		{"reject_stderr", "reject=stderr:pattern=", "reject=stderr:pattern= must not be empty"},
+		{"reject_syslog", "reject=syslog:pattern=", "reject=syslog:pattern= must not be empty"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ResetNickCounter()
+			tmpDir := t.TempDir()
+			ciFile := filepath.Join(tmpDir, "test.ci")
+			confFile := filepath.Join(tmpDir, "test.conf")
+
+			ciContent := "option=file:path=test.conf\n" + tc.directive +
+				"\nexpect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304"
+
+			require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+			require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
+
+			et := NewEncodingTests(tmpDir)
+			_, err := et.parseAndAdd(ciFile)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errSubstr)
+		})
+	}
+}
+
 // TestParseCIMissingConn verifies error when conn is missing from expect:bgp.
 //
 // VALIDATES: Missing conn field produces error.

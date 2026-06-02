@@ -283,9 +283,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	rec.State = StateRunning
 
-	// Start test-syslog server if syslog patterns are expected
+	// Start test-syslog server if syslog patterns are expected or rejected.
+	// Both expect=syslog and reject=syslog need the capture server: a reject is
+	// only meaningful when ze's logs are actually routed to and recorded by it.
 	var syslogSrv *syslog.Server
-	if len(rec.ExpectSyslog) > 0 {
+	if len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 {
 		syslogSrv = syslog.New(0)
 		if err := syslogSrv.Start(testCtx); err != nil {
 			_ = peerCmd.Process.Kill()
@@ -458,11 +460,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	rec.State = StateRunning
 
-	// Start test-syslog server if syslog patterns are expected.
+	// Start test-syslog server if syslog patterns are expected or rejected.
 	// Mirrors the setup in the non-orchestrated path: bound ze process env
 	// gets ze.log.backend=syslog and ze.log.destination=<host:port>.
 	var syslogSrv *syslog.Server
-	if len(rec.ExpectSyslog) > 0 {
+	if len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 {
 		syslogSrv = syslog.New(0)
 		if err := syslogSrv.Start(testCtx); err != nil {
 			rec.Error = fmt.Errorf("start syslog server: %w", err)
@@ -802,23 +804,20 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Execute HTTP checks (after background processes have started).
+	// Execute HTTP checks (after background processes have started). A passing
+	// HTTP check is a self-validation signal (folded into hasOutputAssertion
+	// below) but it must NOT short-circuit the remaining assertions: a test may
+	// combine http= with expect=stderr / expect=syslog / reject= / file checks,
+	// and the universal observer-failure sentinel must still be evaluated in the
+	// common success tail. The old early `return true` here skipped all of those,
+	// so an http= test that also declared logging assertions (or whose observer
+	// called runtime_fail) could pass on the HTTP check alone.
 	if len(rec.HTTPChecks) > 0 {
 		if httpErr := r.executeHTTPChecks(testCtx, rec); httpErr != nil {
 			rec.Error = httpErr
 			rec.FailureType = "http_check_failed"
 			rec.Duration = time.Since(rec.StartTime)
 			return false
-		}
-		// If HTTP checks are the only assertions (no peer, no exit code), pass.
-		if len(rec.Expects) == 0 && rec.ExpectExitCode == nil {
-			if fileErr := r.validateFileChecks(rec); fileErr != nil {
-				rec.Error = fileErr
-				rec.FailureType = fileCheckFailed
-				return false
-			}
-			rec.Duration = time.Since(rec.StartTime)
-			return true
 		}
 	}
 
@@ -972,7 +971,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		len(rec.ExpectStdoutNotMatch) > 0 ||
 		len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
 		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 ||
-		len(rec.FileChecks) > 0
+		len(rec.FileChecks) > 0 ||
+		len(rec.HTTPChecks) > 0
 	selfValidated := rec.ExpectExitCode != nil || (!hasPeer && hasOutputAssertion)
 
 	if !selfValidated {

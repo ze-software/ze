@@ -74,7 +74,20 @@ func (r *Runner) validateJSON(rec *Record) error {
 		expectedAction := extractAction(expectedMap)
 
 		if len(expectedNLRIs) == 0 {
-			continue // No NLRI to match (e.g., EOR)
+			// No NLRI could be extracted to match this expectation by content.
+			// That is correct for genuinely content-free messages (EOR, keepalive)
+			// and harmless when a wire-level expect=bgp (msg.RawHex) backs the same
+			// message: the peer's exact byte comparison is authoritative and the
+			// JSON check is supplementary. But when JSON is the ONLY assertion for
+			// this message (no RawHex) and it still carries route entries the
+			// matcher cannot extract (extractNLRIs only understands unicast/flow
+			// families), the comparison would be skipped and the message validated
+			// by nothing. Fail loudly so a json-only expectation in an unsupported
+			// family cannot pass vacuously.
+			if msg.RawHex == "" && jsonHasRouteContent(expectedMap) {
+				return fmt.Errorf("message %d: json-only expectation carries NLRI content the matcher cannot extract (unsupported family?); add a wire-level expect=bgp:hex= so the message is actually validated", msg.Index)
+			}
+			continue // genuinely no NLRI (EOR/keepalive), or wire-hex-backed
 		}
 
 		// Find received message with matching NLRI and action (not already used)
@@ -157,6 +170,34 @@ func extractAction(m map[string]any) string {
 		}
 	}
 	return ""
+}
+
+// jsonHasRouteContent reports whether a plugin-format JSON map carries routing
+// NLRI entries: an array whose entries have an "nlri" or "action" field. It is
+// family-agnostic (does not depend on the key name), so it returns true even for
+// families extractNLRIs does not understand (vpn, evpn, bgp-ls, mup, ...). Used
+// to tell a genuinely content-free message (EOR, keepalive, attribute-only) apart
+// from one whose family is simply not handled by the NLRI content matcher.
+func jsonHasRouteContent(m map[string]any) bool {
+	for _, v := range m {
+		entries, ok := v.([]any)
+		if !ok {
+			continue
+		}
+		for _, e := range entries {
+			em, ok := e.(map[string]any)
+			if !ok {
+				continue
+			}
+			if _, hasNLRI := em["nlri"]; hasNLRI {
+				return true
+			}
+			if _, hasAction := em["action"]; hasAction {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // extractNLRIFromEntry extracts NLRI identifiers from an entry map.
@@ -260,6 +301,9 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 
 	// Check expected stderr patterns
 	for _, pattern := range rec.ExpectStderr {
+		if pattern == "" {
+			return errors.New("expect=stderr pattern is empty (an empty regex matches everything); use a specific pattern")
+		}
 		re, err := regexp.Compile(pattern)
 		if err != nil {
 			return fmt.Errorf("invalid expect=stderr pattern %q: %w", pattern, err)
@@ -271,6 +315,9 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 
 	// Check rejected stderr patterns
 	for _, pattern := range rec.RejectStderr {
+		if pattern == "" {
+			return errors.New("reject=stderr pattern is empty (an empty regex matches everything); use a specific pattern")
+		}
 		re, err := regexp.Compile(pattern)
 		if err != nil {
 			return fmt.Errorf("invalid reject=stderr pattern %q: %w", pattern, err)
@@ -280,11 +327,39 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 		}
 	}
 
-	// Check expected syslog patterns
-	if syslogSrv != nil {
+	// Syslog assertions require the capture server. runner_exec starts it
+	// whenever ExpectSyslog OR RejectSyslog is present; a nil server here with
+	// syslog assertions declared means the harness failed to wire it up, so fail
+	// loudly rather than passing the assertion vacuously.
+	if len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 {
+		if syslogSrv == nil {
+			return errors.New("syslog assertions declared but no syslog server was started")
+		}
+		// Expected syslog patterns must appear.
 		for _, pattern := range rec.ExpectSyslog {
+			if pattern == "" {
+				return errors.New("expect=syslog pattern is empty (an empty regex matches everything); use a specific pattern")
+			}
+			if _, err := regexp.Compile(pattern); err != nil {
+				return fmt.Errorf("invalid expect=syslog pattern %q: %w", pattern, err)
+			}
 			if !syslogSrv.Match(pattern) {
 				return fmt.Errorf("expect=syslog pattern not found: %s", pattern)
+			}
+		}
+		// Rejected syslog patterns must NOT appear. Compile explicitly first: a
+		// bad regex must error rather than fail open. Server.Match returns false
+		// on an uncompilable pattern, which would otherwise silently satisfy the
+		// reject and let a forbidden log line through unnoticed.
+		for _, pattern := range rec.RejectSyslog {
+			if pattern == "" {
+				return errors.New("reject=syslog pattern is empty (an empty regex matches everything); use a specific pattern")
+			}
+			if _, err := regexp.Compile(pattern); err != nil {
+				return fmt.Errorf("invalid reject=syslog pattern %q: %w", pattern, err)
+			}
+			if syslogSrv.Match(pattern) {
+				return fmt.Errorf("reject=syslog pattern found: %s", pattern)
 			}
 		}
 	}

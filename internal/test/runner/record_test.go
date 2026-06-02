@@ -96,19 +96,6 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			wantExpSyslog: []string{"msg=test"},
 		},
 		{
-			name: "empty_patterns",
-			ciContent: `option=file:path=test.conf
-expect=stderr:pattern=
-reject=stderr:pattern=
-expect=syslog:pattern=
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
-			confContent:   minimalConfig,
-			wantEnvVars:   nil,
-			wantExpStderr: []string{""},
-			wantRejStderr: []string{""},
-			wantExpSyslog: []string{""},
-		},
-		{
 			name: "regex_patterns",
 			ciContent: `option=file:path=test.conf
 expect=stderr:pattern=level=(INFO|DEBUG)
