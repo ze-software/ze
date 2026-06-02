@@ -7,6 +7,7 @@ package bgp
 import (
 	"strings"
 
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/bgp/schema" // init() registers the show bgp decode/encode YANG module
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 )
 

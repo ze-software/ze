@@ -69,11 +69,15 @@ that enforces it.
 
 The first instance is `TestShowSchemaHasNoBGPPluginCommands`
 (`internal/component/cmd/show/schema/self_containment_test.go`): it asserts the
-central `show` verb schema declares no `ze-rib-api:` or `ze-bgp:peer-` command,
-because `show bgp rib ...` and `show bgp peer ...` are owned by
-`internal/component/bgp/plugins/cmd/{rib,peer}/schema`. Extend the same pattern
-to the other central verb schemas (`cmd/del`, `cmd/set`, ...) and to other
-plugins as they are made compliant.
+central `show` verb schema declares no part of the `show bgp ...` subtree
+(`ze-rib-api:`, `ze-bgp:peer-`, `ze-show:bgp-decode`, `ze-show:bgp-encode`),
+because `show bgp rib ...` / `show bgp peer ...` are owned by
+`internal/component/bgp/plugins/cmd/{rib,peer}/schema` and the offline
+`show bgp decode` / `show bgp encode` diagnostics are owned by
+`cmd/ze/bgp/schema`. The owner half is asserted by
+`cmd/ze/bgp/schema`'s `TestBGPToolsSchemaOwnsDecodeEncode` (the surface moved,
+it did not vanish). Extend the same pattern to the other central verb schemas
+(`cmd/del`, `cmd/set`, ...) and to other plugins as they are made compliant.
 
 ## Related
 

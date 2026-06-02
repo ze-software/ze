@@ -86,7 +86,7 @@ Registered handlers: 69
 
 ## YANG commands with no handler (30)
 
-  ze-show:bgp-decode  (show > bgp > decode in ze-cli-show-cmd)
+  ze-show:bgp-decode  (show > bgp > decode in ze-bgp-tools-cmd)
   ...
 
 ## Handlers with no YANG command (0)

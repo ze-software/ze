@@ -729,34 +729,13 @@ they are.";
             }
         }
 
-        // NOTE: `show bgp peer ...` and `show bgp rib ...` are owned by the BGP
-        // plugin packages (internal/component/bgp/plugins/cmd/peer/schema and
-        // .../cmd/rib/schema) so that removing the BGP plugin removes them. Only
-        // the offline decode/encode diagnostics remain declared here; their
-        // handlers live in cmd/ze/bgp (offline command surface). See
-        // ai/rules/plugin-self-containment.md.
-        container bgp {
-            config false;
-            description "BGP peers, sessions, RIB, and protocol tools";
-
-            container decode {
-                config false;
-                ze:command "ze-show:bgp-decode";
-                description "Decode a hex-encoded BGP message into readable JSON.
-Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and
-withdrawn prefixes. Handy for reading pcap captures or debugging
-wire issues. Also available in the web UI under tools.";
-            }
-
-            container encode {
-                config false;
-                ze:command "ze-show:bgp-encode";
-                description "Turn a route announcement into wire-format hex.
-Takes a route in API syntax and returns the BGP UPDATE as a hex
-string. Useful for building test payloads, feeding to ze-test, or
-verifying that your announcement encodes correctly.";
-            }
-        }
+        // NOTE: the entire `show bgp ...` subtree is owned by the BGP command
+        // packages so that removing the BGP surface removes it (no dangling
+        // command node). `show bgp peer ...` and `show bgp rib ...` live in
+        // internal/component/bgp/plugins/cmd/{peer,rib}/schema; the offline
+        // `show bgp decode` / `show bgp encode` diagnostics live in
+        // cmd/ze/bgp/schema next to their handlers. The central show schema
+        // declares no `container bgp`. See ai/rules/plugin-self-containment.md.
 
         container env {
             config false;

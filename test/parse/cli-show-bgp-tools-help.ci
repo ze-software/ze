@@ -1,0 +1,32 @@
+# Test: `ze show bgp help` lists the offline decode/encode tools from the tree
+# VALIDATES: ze-bgp-tools-cmd.yang (cmd/ze/bgp/schema) is registered and merged
+#   into the show bgp command tree -- the group help enumerates tree children,
+#   so these YANG descriptions appear only when the module is linked.
+# PREVENTS: silently dropping the cmd/ze/bgp/schema blank import, which would
+#   remove show bgp decode/encode from help and completion while their offline
+#   local handlers still ran. See ai/rules/plugin-self-containment.md.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show bgp help
+expect=exit:code=0
+expect=stderr:contains=Decode a hex-encoded BGP message
+expect=stderr:contains=Turn a route announcement into wire-format hex
