@@ -40,7 +40,32 @@ func TestDisplayDebugHintsUseEditorPatternCommand(t *testing.T) {
 	display.DebugHints()
 
 	out := buf.String()
-	if !strings.Contains(out, "ze-test editor -p test/editor/commands/show-full.et") {
+	if !strings.Contains(out, "ze-test editor "+rec.Nick) {
 		t.Fatalf("missing editor rerun command:\n%s", out)
+	}
+}
+
+func TestDisplayTestFinishedIncludesOrdinalNickAndName(t *testing.T) {
+	ResetNickCounter()
+	tests := NewTests()
+	first := tests.Add("alpha")
+	second := tests.Add("beta")
+	first.Active = true
+	second.Active = true
+
+	var buf bytes.Buffer
+	display := NewDisplay(tests, NewColorsWithOverride(false))
+	display.SetOutput(&buf)
+	display.SetParallel(1, tests.Count())
+	display.Start()
+
+	second.State = StateSuccess
+	display.TestFinished(second.Nick, second.State, 0)
+
+	out := buf.String()
+	for _, want := range []string{"2/2", "PASS", second.Nick, second.Name} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("completion line missing %q:\n%s", want, out)
+		}
 	}
 }

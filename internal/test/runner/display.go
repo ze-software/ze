@@ -116,7 +116,7 @@ func (d *Display) Status() {
 	d.tests.mu.RLock()
 	defer d.tests.mu.RUnlock()
 
-	var passed, failed, timedOut, running, pending int
+	var passed, failed, timedOut, skipped, running, pending int
 	var failedTests, timedOutTests, runningTests, pendingTests []string
 	var maxRunningElapsed time.Duration
 	maxRunningTimeout := d.timeout
@@ -149,7 +149,7 @@ func (d *Display) Status() {
 				}
 			}
 		case StateSkip:
-			// Skipped tests don't count toward pending
+			skipped++
 		case StateNone:
 			if r.Active {
 				pending++
@@ -161,10 +161,17 @@ func (d *Display) Status() {
 	// Build status parts
 	var parts []string
 
+	completed := passed + failed + timedOut + skipped
+	total := d.total
+	if total == 0 {
+		total = completed + running + pending
+	}
+	var bProgress textbuf.Buffer
+	parts = append(parts, bProgress.Reset().Str("progress ").Int(int64(completed)).Byte('/').Int(int64(total)).String())
+
 	// Batch indicator (only if parallel < total, meaning we're batching)
-	completed := passed + failed + timedOut
-	if d.parallel > 0 && d.parallel < d.total {
-		totalBatches := (d.total + d.parallel - 1) / d.parallel // ceil division
+	if d.parallel > 0 && d.parallel < total {
+		totalBatches := (total + d.parallel - 1) / d.parallel // ceil division
 		currentBatch := min((completed/d.parallel)+1, totalBatches)
 		var b textbuf.Buffer
 		parts = append(parts, b.Reset().Str("batch[").Int(int64(currentBatch)).Byte('/').Int(int64(totalBatches)).Str("]").String())
@@ -239,11 +246,11 @@ func (d *Display) Status() {
 		d.lastNonTTYStatus = now
 		maxParallel := d.parallel
 		if maxParallel <= 0 {
-			maxParallel = d.total
+			maxParallel = total
 		}
 		var b textbuf.Buffer
 		b.Str(padRight(formatDuration(now.Sub(d.startTime)), 7))
-		b.Str(padLeft(textbuf.Int(int64(completed)), 4)).Byte('/').Str(padRight(textbuf.Int(int64(completed+running+pending)), 4))
+		b.Str(padLeft(textbuf.Int(int64(completed)), 4)).Byte('/').Str(padRight(textbuf.Int(int64(total)), 4))
 		b.Str("  ").Str(padLeft(textbuf.Int(int64(running)), 2)).Byte('/').Str(padRight(textbuf.Int(int64(maxParallel)), 2))
 		b.Str(" running  ")
 		for i, nick := range runningTests {
@@ -258,10 +265,10 @@ func (d *Display) Status() {
 	}
 }
 
-// TestFinished emits a per-test result line in non-TTY mode so redirected
-// logs show each completion with its elapsed time and outcome.
+// TestFinished emits a per-test result line so logs and TTY runs show every
+// completion with its suite ordinal, elapsed time, outcome, nick, and name.
 func (d *Display) TestFinished(nick string, state State, elapsed time.Duration) {
-	if d.quiet || d.colors.Enabled() {
+	if d.quiet {
 		return
 	}
 	var tag string
@@ -277,10 +284,41 @@ func (d *Display) TestFinished(nick string, state State, elapsed time.Duration) 
 	default:
 		return
 	}
+	ordinal, total, name := d.testProgress(nick)
 	var b textbuf.Buffer
 	b.Str(padRight(formatDuration(elapsed), 7))
+	if ordinal > 0 && total > 0 {
+		b.Str("  ").Int(int64(ordinal)).Byte('/').Int(int64(total))
+	}
 	b.Str("  ").Str(tag).Str("  ").Str(nick)
+	if name != "" && name != nick {
+		b.Str("  ").Str(name)
+	}
+	if d.colors.Enabled() {
+		d.print(clearLine)
+	}
 	d.println(b.String())
+}
+
+func (d *Display) testProgress(nick string) (int, int, string) {
+	d.tests.mu.RLock()
+	defer d.tests.mu.RUnlock()
+
+	total := 0
+	ordinal := 0
+	name := ""
+	for _, candidate := range d.tests.ordered {
+		rec := d.tests.byNick[candidate]
+		if !rec.Active {
+			continue
+		}
+		total++
+		if rec.Nick == nick || rec.Name == nick {
+			ordinal = total
+			name = rec.Name
+		}
+	}
+	return ordinal, total, name
 }
 
 // Newline prints a newline to move past the status line.
@@ -422,7 +460,7 @@ func (d *Display) StressSummary(result *StressResult, count int) {
 
 	// Per-test stats header
 	d.Printf("%-6s %6s %6s %6s %10s %10s %10s %7s\n",
-		"Nick", "Pass", "Fail", "T/O", "Min", "Avg", "Max", "Rate")
+		"ID", "Pass", "Fail", "T/O", "Min", "Avg", "Max", "Rate")
 	d.println(strings.Repeat("-", 75))
 
 	// Collect nicks in order

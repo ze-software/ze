@@ -109,8 +109,9 @@ func (ts *TestSet[T]) GetByNick(nick string) (T, bool) {
 func (ts *TestSet[T]) List() {
 	fmt.Fprintln(os.Stdout, "\nAvailable tests:") //nolint:errcheck // user output
 	fmt.Fprintln(os.Stdout)                       //nolint:errcheck // user output
-	for _, t := range ts.tests {
-		fmt.Fprintf(os.Stdout, "  %s  %s\n", t.GetNick(), t.GetName()) //nolint:errcheck // user output
+	total := len(ts.tests)
+	for i, t := range ts.tests {
+		fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s\n", i+1, total, t.GetNick(), t.GetName()) //nolint:errcheck // user output
 	}
 	fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
 }

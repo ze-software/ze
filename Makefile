@@ -161,9 +161,9 @@ ze-linux-test:
 		$(ZE_LINUX_GO_IMAGE) \
 		go test $(ZE_LINUX_TEST_PACKAGES) -count=1
 
-ze-exabgp-test: bin/ze
+ze-exabgp-test: bin/ze bin/ze-test
 	@echo "Running ExaBGP compatibility tests..."
-	uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout $(ZE_EXABGP_TIMEOUT)
+	uv run --with paramiko bin/ze-test exabgp --all --timeout $(ZE_EXABGP_TIMEOUT)s
 
 # ─── Scoped targets (parallel-safe) ────────────────────────────────────────
 
@@ -366,7 +366,7 @@ help-test:
 	@echo "    ze-chaos-integration-test  End-to-end: Ze + chaos peers (.ci tests)"
 	@echo ""
 	@echo "  ExaBGP compatibility:"
-	@echo "    ze-exabgp-test            Ze encoding matches ExaBGP"
+	@echo "    ze-exabgp-test            Ze encoding matches ExaBGP (ZE_EXABGP_TIMEOUT=180)"
 	@echo ""
 	@echo "  Interop (Docker):"
 	@echo "    ze-interop-test           FRR/BIRD interop (INTEROP_SCENARIO=name for one)"

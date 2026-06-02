@@ -369,14 +369,16 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 func (pt *ParsingTests) List() {
 	fmt.Fprintln(os.Stdout, "\nAvailable parsing tests:") //nolint:errcheck // user output
 	fmt.Fprintln(os.Stdout)                               //nolint:errcheck // user output
-	for _, t := range pt.Registered() {
+	registered := pt.Registered()
+	total := len(registered)
+	for i, t := range registered {
 		switch {
 		case t.IsRegexMatch:
-			fmt.Fprintf(os.Stdout, "  %s  %s (expect failure, regex)\n", t.Nick, t.Name) //nolint:errcheck // user output
+			fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s (expect failure, regex)\n", i+1, total, t.Nick, t.Name) //nolint:errcheck // user output
 		case len(t.ExpectErrors) > 0:
-			fmt.Fprintf(os.Stdout, "  %s  %s (expect failure)\n", t.Nick, t.Name) //nolint:errcheck // user output
+			fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s (expect failure)\n", i+1, total, t.Nick, t.Name) //nolint:errcheck // user output
 		default:
-			fmt.Fprintf(os.Stdout, "  %s  %s\n", t.Nick, t.Name) //nolint:errcheck // user output
+			fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s\n", i+1, total, t.Nick, t.Name) //nolint:errcheck // user output
 		}
 	}
 	fmt.Fprintln(os.Stdout) //nolint:errcheck // user output

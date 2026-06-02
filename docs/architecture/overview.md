@@ -261,9 +261,11 @@ make ze-unit-test             # Ze unit tests
 ### Functional Tests
 ```bash
 make ze-functional-test       # All functional tests
-ze-test bgp encode --list     # List encoding tests
+ze-test bgp encode --list     # List N/TOTAL, id, and name
 ze-test bgp encode 0 1 2      # Run specific tests
+ze-test bgp encode --start 42 # Resume at id 42
 ```
+<!-- source: cmd/ze-test/bgp.go -- printRunUsage -->
 
 ### Linting
 ```bash

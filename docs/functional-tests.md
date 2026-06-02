@@ -42,17 +42,19 @@ must be run manually:
 
 | Suite | Runner | Why not gated |
 |-------|--------|---------------|
-| Static routes | `bin/ze-test static` | Separate route-installation fixture |
-| Traffic control | `bin/ze-test traffic` | Requires traffic-control platform support |
-| VPP | `bin/ze-test vpp` | Requires Python VPP stub setup |
-| L2TP wire | `bin/ze-test l2tp-wire` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
+| Static routes | `bin/ze-test static --all` | Separate route-installation fixture |
+| Traffic control | `bin/ze-test traffic --all` | Requires traffic-control platform support |
+| Flow export | `bin/ze-test flow-export --all` | Requires Linux packet-sampling support for release evidence |
+| VPP | `bin/ze-test vpp --all` | Requires Python VPP stub setup |
+| L2TP wire | `bin/ze-test l2tp-wire --all` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
 | BGP interop | `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds |
-| Chaos web | `bin/ze-test bgp chaos-web` | Chaos dashboard scenarios live under the BGP runner |
+| Chaos web | `bin/ze-test bgp chaos-web --all` | Chaos dashboard scenarios live under the BGP runner |
 
 These suites also have `make` targets: `make ze-static-test`,
-`make ze-traffic-test`, `make ze-vpp-test`, `make ze-l2tp-wire-test`.
-Chaos web is available through `make ze-chaos-web-test` and
-is also included in `make ze-chaos-test`.
+`make ze-traffic-test`, `make ze-flow-export-test`, `make ze-vpp-test`, and
+`make ze-l2tp-wire-test`. Chaos web is available through
+`make ze-chaos-web-test` and is also included in `make ze-chaos-test`.
+<!-- source: mk/test-functional.mk -- non-gated functional targets -->
 
 Linux-tagged Go unit tests are separate from the functional suites. From a
 non-Linux workstation, use `make ze-linux-test`; it runs the default Linux-only
@@ -98,22 +100,73 @@ or the `l2tp_ppp`/`pppol2tp` module is missing. Run individual scenarios with
 ## Quick Start
 
 ```bash
-# List available tests
+# List available tests with run number, total, id, and name
 ze-test bgp encode --list
-ze-test bgp plugin --list
+ze-test ui --list
 
-# Run specific tests by nick
+# Run specific tests by id or exact name
 ze-test bgp encode 4 5 6
+ze-test ui 4
 
 # Run all tests
 ze-test bgp encode --all
-ze-test bgp plugin --all
+ze-test ui --all
 
-# Stress test (detect flaky tests)
+# Resume a suite after a timeout or interrupted run
+ze-test bgp plugin --start 42
+ze-test editor --start 42
+
+# Stress test selected tests
 ze-test bgp encode --count 10 0 1
 ```
+<!-- source: cmd/ze-test/bgp.go -- parseRunCLI, printRunUsage -->
+<!-- source: cmd/ze-test/ci_runner.go -- runCISubcommand common options -->
+<!-- source: cmd/ze-test/editor.go -- editorMain common options -->
 
 ---
+## Functional Suite Inventory
+
+Every `ze-test` functional suite uses the same selection contract after the suite
+name: `--list`, `--all`, `--start ID`, `--pattern TEXT`, or positional
+`ID_OR_NAME...`. `--list` prints each test as `N/TOTAL ID NAME`. Each run prints
+one completion line per test with elapsed time, `N/TOTAL`, result, id, and name,
+plus periodic progress while tests are still running.
+<!-- source: internal/test/runner/selection.go -- Selection -->
+<!-- source: internal/test/runner/display.go -- Status, TestFinished -->
+<!-- source: cmd/ze-test/web.go -- webMain sequential output -->
+
+| Suite | Command | Files | How it works |
+|-------|---------|-------|--------------|
+| Encode | `ze-test bgp encode` | `test/encode/*.ci` | Builds Ze and `ze-peer`, starts peers, then checks BGP wire output from configured routes. |
+| Plugin | `ze-test bgp plugin` | `test/plugin/*.ci` | Runs Ze with embedded process/API fixtures, injects commands or plugin events, then checks BGP, stdout/stderr, syslog, HTTP, or file expectations. |
+| Parse | `ze-test bgp parse` | `test/parse/*.ci` | Runs foreground config validation commands and checks exit code plus stdout/stderr expectations. |
+| Decode | `ze-test bgp decode` | `test/decode/*.{ci,test}` | Feeds BGP message bytes to decode commands and compares JSON output with volatile fields normalized. |
+| Reload | `ze-test bgp reload` | `test/reload/*.ci` | Starts Ze, rewrites config, sends SIGHUP, then checks post-reload behavior. |
+| UI | `ze-test ui` | `test/ui/*.ci` | Runs foreground CLI commands and checks terminal output and exit status. |
+| Editor | `ze-test editor` | `test/editor/**/*.et` | Runs headless editor keystroke scripts through the CLI testing harness. |
+| Managed | `ze-test managed` | `test/managed/*.ci` | Exercises managed config, hub, auth, and fleet workflows through `.ci` process tests. |
+| L2TP | `ze-test l2tp` | `test/l2tp/*.ci` | Runs L2TP control-plane scenarios over loopback UDP with fake test plugins where needed. |
+| Firewall | `ze-test firewall` | `test/firewall/*.ci` | Exercises firewall configuration and daemon behavior through `.ci` process tests. |
+| Policy | `ze-test policy` | `test/policy/*.ci` | Exercises policy-routing configuration and daemon behavior through `.ci` process tests. |
+| Web | `ze-test web` | `test/web/*.wb` | Starts a Ze web server, runs browser scripts sequentially against one shared server, and reports each `.wb` file. |
+| Install | `ze-test install` | `test/install/*.ci` | Exercises offline install command and installer helper behavior. |
+| Static | `ze-test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
+| Traffic | `ze-test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |
+| Flow export | `ze-test flow-export` | `test/flow-export/*.ci` | Exercises sFlow, NetFlow, and IPFIX export behavior. |
+| VPP | `ze-test vpp` | `test/vpp/*.ci` | Runs stub-backed VPP scenarios and checks the stub request log. |
+| L2TP wire | `ze-test l2tp-wire` | `test/l2tp-wire/*.ci` | Exercises L2TP wire-level encode/decode and malformed-packet handling. |
+| Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
+| Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
+| ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
+<!-- source: cmd/ze-test/bgp.go -- BGP suite routing -->
+<!-- source: cmd/ze-test/ci_runner.go -- shared .ci suites -->
+<!-- source: cmd/ze-test/editor.go -- .et suite runner -->
+<!-- source: cmd/ze-test/web.go -- .wb suite runner -->
+<!-- source: cmd/ze-test/vpp.go -- VPP stub-backed suite runner -->
+<!-- source: cmd/ze-test/exabgp.go -- ExaBGP compatibility runner -->
+
+---
+
 
 ## Unit Tests
 
@@ -391,7 +444,7 @@ route.
 | `-t`, `--timeout` | Per-test timeout (default 30s) |
 | `-p`, `--parallel` | Concurrent tests (default 1 -- each test binds its own Unix socket) |
 | `-v`, `--verbose` | Show per-test output |
-| `-s`, `--save DIR` | Save client/peer logs under `DIR/<nick>-<name>/` for offline inspection |
+| `-s`, `--save DIR` | Save client/peer logs under `DIR/<id>-<name>/` for offline inspection |
 
 **Dependencies:**
 - Tests use the `vpp.external` YANG leaf (default `false`) so ze connects
@@ -437,10 +490,10 @@ require full-stack integration tests to cover every undo / reconcile branch.
 
 ### 7. Decode Tests (`test/decode/`)
 
-BGP message decoding tests - verify wire bytes decode to expected JSON.
-
-**Files:**
-- `*.ci` - Single file with hex payload, command, and expected JSON
+BGP message decoding tests verify that wire bytes decode to the expected JSON.
+They use `.ci` files for command-based tests and still accept legacy `.test`
+fixtures.
+<!-- source: internal/test/runner/decoding.go -- DecodingTests.Discover, DecodingRunner.Run -->
 
 **Format:**
 ```
@@ -449,21 +502,9 @@ cmd=foreground:seq=1:exec=ze-test decode --family <family> -:stdin=payload
 expect=json:json=<expected-json>
 ```
 
-**Example:**
-```
-# IPv4 unicast decoding test
-stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C4001010040020040030465016501...
-cmd=foreground:seq=1:exec=ze-test decode --family ipv4/unicast -:stdin=payload
-expect=json:json={ "type": "update", "neighbor": { ... }, "announce": { ... } }
-```
-
-
-
-**JSON Validation:**
-- Parsed and compared field-by-field (key order independent)
-- Volatile fields ignored: `exabgp`, `ze-bgp`, `time`, `host`, `pid`, `ppid`, `counter`
-- Neighbor normalization: `peer` ↔ `neighbor` equivalence, `direction` ignored
-
+JSON validation compares parsed objects field by field with key order ignored,
+volatile fields removed, and `peer`/`neighbor` naming normalized.
+<!-- source: internal/test/runner/decoding.go -- compareJSON, normalizeNeighborSection -->
 
 ### Install Tests (`test/install/`)
 
@@ -478,68 +519,78 @@ Real failures exit non-zero.
 
 | File | What it verifies |
 |------|------------------|
-| `appliance-push-image-escape.ci` | `ze install appliance push` rejects `--image` candidates that escape the appliance directory before any network or TLS work |
-| `appliance-iso-default-paths.ci` | `ze install appliance iso` succeeds with the default kernel/initrd artifact paths and stages those files into the installer tree |
+| `appliance-push-image-escape.ci` | `ze install appliance push` rejects `--image` candidates that escape the appliance directory before network or TLS work |
+| `appliance-iso-default-paths.ci` | `ze install appliance iso` succeeds with default kernel/initrd artifact paths and stages those files into the installer tree |
 | `appliance-iso-arm64.ci` | `ze install appliance iso` emits arm64 UEFI staging assets and arm64 kernel console settings when `image.arch=arm64` |
 | `initrd-flow.ci` | Shell tests for cmdline parsing, disk selection, ISO media discovery, and checksum-protected image writes |
 | `qemu-full.ci` | PXE installer path writes the image, injects ZeFS, boots the written disk, and authenticates |
 | `qemu-iso.ci` | Appliance ISO path writes the embedded image unchanged, skips PXE ZeFS injection, powers off safely, boots the written disk, and authenticates |
 
-Run the install suite with `bin/ze-test install --all`. For the exhaustive QEMU
+Run the install suite with `bin/ze-test install --all`. For exhaustive QEMU
 entry points, use `make ze-install-qemu-test` for PXE and
 `make ze-install-iso-qemu-test` for appliance ISO media.
 <!-- source: mk/test-integration.mk -- ze-install-qemu-test, ze-install-iso-qemu-test -->
+
 ---
 
 ## CLI Reference
 
+Common suite form:
+
 ```
-Usage: functional <command> [options] [tests...]
-
-Commands:
-  encode      Run encoding tests (static routes)
-  plugin      Run plugin tests (dynamic routes via .run scripts)
-
-Modes:
-  --list, -l          List available tests
-  --short-list        List numeric test ids only (space separated)
-  --all               Run all tests
-
-Options:
-  -t, --timeout N     Timeout per test (default: 15s)
-  -p, --parallel N    Max concurrent tests (0 = all, default: 0)
-  -v, --verbose       Show output for each test
-  -q, --quiet         Minimal output
-  -s, --save DIR      Save logs to directory
-  --port N            Port to use (0 or omit for OS-assigned dynamic port)
-  -c, --count N       Run each test N times (stress/benchmark mode)
-
-Debugging:
-  --server NICK       Run server only for test
-  --client NICK       Run client only for test
+ze-test bgp <suite> [options] [ID_OR_NAME...]
+ze-test <suite> [options] [ID_OR_NAME...]
 ```
+
+Common selection options:
+
+| Option | Meaning |
+|--------|---------|
+| `--list`, `-l` | List available tests as `N/TOTAL ID NAME` |
+| `--all`, `-a` | Run all tests in the suite |
+| `--start ID` | Run the test matching `ID` or exact name, then every later test in suite order |
+| `--pattern TEXT` | Run tests whose id, name, or path contains `TEXT` |
+| `ID_OR_NAME...` | Run only the listed tests |
+
+Common run options:
+
+| Option | Meaning |
+|--------|---------|
+| `-t`, `--timeout N` | Timeout per test for `.ci` BGP/VPP runners |
+| `-p`, `--parallel N` | Max concurrent tests for `.ci` runners |
+| `-v`, `--verbose` | Show verbose failure output |
+| `-q`, `--quiet` | Minimal output |
+| `-s`, `--save DIR` | Save logs for BGP/VPP `.ci` runners |
+| `--port N` | Base port for BGP/VPP `.ci` runners or web server port |
+| `-c`, `--count N` | BGP `.ci` stress mode, run each selected test N times |
+| `--server ID`, `--client ID` | BGP `.ci` manual split-debug modes |
+<!-- source: cmd/ze-test/bgp.go -- parseRunCLI, printRunUsage -->
+<!-- source: cmd/ze-test/ci_runner.go -- runCISubcommand -->
+<!-- source: cmd/ze-test/vpp.go -- parseVPPCLI, printVPPUsage -->
+<!-- source: cmd/ze-test/editor.go -- editorMain -->
+<!-- source: cmd/ze-test/web.go -- webMain -->
 
 ---
 
-## Nick System
+## Test IDs
 
-Tests are assigned single-character nicks for quick selection:
-
-```
-0-9  → First 10 tests (0, 1, 2, ... 9)
-A-Z  → Next 26 tests (A, B, C, ... Z)
-a-z  → Next 26 tests (a, b, c, ... z)
-```
-
-Total: 62 tests max per category.
+Each test has a decimal id printed by `--list`. The one-based `N/TOTAL` prefix
+is the progress position in the current suite order, while the id is the stable
+selector to pass positionally or to `--start`. A line like
+`43/120  42  bgp-open` means "test id 42 is the 43rd test in a 120-test suite."
+<!-- source: internal/test/runner/record.go -- GenerateNick -->
+<!-- source: internal/test/runner/record_collection.go -- Tests.List -->
 
 **Examples:**
 ```bash
-# Run test with nick "4"
+# Run test id 4
 ze-test bgp encode 4
 
-# Run tests 0, A, and B
-ze-test bgp encode 0 A B
+# Run tests 0, 41, and 42
+ze-test bgp encode 0 41 42
+
+# Resume at id 42
+ze-test bgp encode --start 42
 ```
 
 ---
@@ -821,18 +872,31 @@ The `N:json:` lines use ZeBGP plugin format (not ExaBGP envelope format):
 
 ## Display Output
 
-### Progress (during execution)
+### Progress and per-test lines
+
+During execution, TTY status updates include overall progress, longest-running
+test timer, pass/running/fail/timeout counts, and pending ids. Non-TTY logs emit
+periodic progress lines while tests are running.
 
 ```
-[5/20s] passed 12 running 4 [S:open, V:update] failed 2 [A, B]
+progress 12/42 [5/20s] passed 12 running 4 [12, 13, 14, 15] pending 26
+5.0s      12/42   4/8  running  12(5.0s), 13(5.0s), 14(5.0s), 15(5.0s)
+```
+
+Every completed test emits one line:
+
+```
+812ms    13/42  PASS  12  route-refresh-basic
 ```
 
 | Field | Meaning |
 |-------|---------|
+| `progress N/TOTAL` | Completed tests, including skipped tests, out of selected tests |
 | `[N/Ms]` | Longest running test: N seconds elapsed, M timeout |
-| `passed N` | N tests passed |
-| `running N [IDs]` | N tests currently executing (names shown when <= 5) |
-| `failed N [IDs]` | N tests failed, with nicks |
+| `running N [IDs]` | N tests currently executing, ids shown when at most five are running |
+| `13/42` | One-based run number out of selected total for a completion line |
+| `PASS  12  route-refresh-basic` | Result, decimal id, and test name |
+<!-- source: internal/test/runner/display.go -- Status, TestFinished -->
 
 ### Section Header
 
@@ -844,34 +908,33 @@ as `ui`, `managed`, `l2tp`, `firewall`, `policy`, `web`, and `install`:
 <!-- source: cmd/ze-test/bgp.go -- BGP suite headers -->
 <!-- source: cmd/ze-test/ci_runner.go -- top-level .ci suite headers -->
 
-### Summary (single line, parseable)
+### Summary
 
 On success:
 ```
-═══ PASS  42/42  100.0%  3.2s
+pass  42/42  100.0%  3.2s
 ```
 
 On failure:
 ```
-═══ FAIL  40/42  95.2%  3.2s  failed 2 [A, B]  timeout 1 [C]
+fail  40/42  95.2%  3.2s  failed 2 [4, 9]  timeout 1 [12]
 ```
 
 | Field | Format | Meaning |
 |-------|--------|---------|
-| Verdict | `PASS` or `FAIL` | Green if all passed, red otherwise |
-| Ratio | `N/M` | Passed / total |
+| Verdict | `pass` or `fail` | Green if all passed, red otherwise |
+| Ratio | `N/M` | Passed / total completed tests |
 | Rate | `N.N%` | Pass percentage |
 | Time | `N.Ns` or `Nms` | Wall-clock elapsed |
-| Failed | `failed N [nicks]` | Only shown when > 0, red |
-| Timeout | `timeout N [nicks]` | Only shown when > 0, yellow |
-
-**Regex for parsing:** `═══ (PASS|FAIL)\s+(\d+)/(\d+)\s+([0-9.]+%)\s+(\S+)`
+| Failed | `failed N [ids]` | Only shown when greater than zero |
+| Timeout | `timeout N [ids]` | Only shown when greater than zero |
+<!-- source: internal/test/runner/display.go -- Summary -->
 
 ### Verify Failure Groups
 
 In `ZE_VERIFY_MODE=1`, failed `.ci` suites emit native failure groups before
 the full `TEST FAILURE` blocks. A group records the suite label, group id,
-failure kind, related nicks, compact summary, exact rerun command, detail log,
+failure kind, related ids, compact summary, exact rerun command, detail log,
 and parallelization hint. The top-level verify runner copies only bounded group
 metadata into `tmp/ze-verify-failures.log`; the full evidence remains in the
 stage log.
@@ -906,7 +969,7 @@ STRESS TEST SUMMARY
 ═══════════════════════════════════════════════════════════════════════════════
 Iterations: 10
 
-Nick     Pass   Fail    T/O        Min        Avg        Max    Rate
+ID       Pass   Fail    T/O        Min        Avg        Max    Rate
 ---------------------------------------------------------------------------
 0          10      0      0      108ms      332ms      764ms  100.0%
 1           8      2      0      115ms      400ms      900ms   80.0%
@@ -941,6 +1004,15 @@ ze-test ui 4
 ze-test managed 4
 ze-test firewall 4
 ```
+
+Resume from the last printed id after a timeout or interrupted run:
+
+```bash
+ze-test bgp plugin --start 42
+ze-test ui --start 42
+ze-test editor --start 42
+```
+<!-- source: internal/test/runner/selection.go -- Selection.Start -->
 
 The compact verify index emits the smallest useful rerun command for each
 failure group. Use that command before widening scope.
@@ -1135,20 +1207,22 @@ Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 
 ### ExaBGP Compatibility Test Ports
 
-ExaBGP compatibility tests (`make ze-exabgp-test`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The test runner (`test/exabgp-compat/bin/functional`) reads this line from the server's stdout temp file and passes the discovered port to the client subprocess. This eliminates port collisions when running concurrent test instances. Use `--port N` to override with an explicit port for debugging.
+ExaBGP compatibility tests (`make ze-exabgp-test` or `bin/ze-test exabgp --all`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The Go runner reads this line from the server process output and passes the discovered port to the ExaBGP wrapper client. This eliminates port collisions when running concurrent test instances. Use `--server ID --port N` and `--client ID --port N` for split-terminal debugging.
 <!-- source: test/exabgp-compat/bin/bgp -- dynamic port binding and PORT line output -->
-<!-- source: test/exabgp-compat/bin/functional -- _discover_port method -->
+<!-- source: cmd/ze-test/exabgp.go -- waitExaBGPPort and split debug modes -->
 
 ### ExaBGP Verify Output
 
-When `ZE_VERIFY_MODE=1`, the ExaBGP compatibility runner disables
-carriage-return live status in saved logs and prints newline-delimited status
-and summary lines. Its debug hints use the Ze repository invocation path:
+The ExaBGP compatibility runner is now integrated into `ze-test`, so it uses the
+same `--list`, `--all`, `--start`, `--pattern`, per-test result lines, periodic
+progress, and summary format as the other functional suites. `make
+ze-exabgp-test` runs:
 
 ```bash
-uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 180 0
+uv run --with paramiko bin/ze-test exabgp --all --timeout 180s
 ```
-<!-- source: test/exabgp-compat/bin/functional -- verify-mode summary and reproducers -->
+<!-- source: cmd/ze-test/exabgp.go -- standard selection and progress output -->
+<!-- source: Makefile -- ze-exabgp-test -->
 
 ---
 
@@ -1186,9 +1260,10 @@ Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure
 
 ## Editor Tests (.et format)
 
-Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run with `make ze-editor-test` or `bin/ze-test editor`.
+Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run all editor tests with `make ze-editor-test` or `bin/ze-test editor --all`; select one with `bin/ze-test editor ID_OR_NAME`.
 
 <!-- source: internal/component/cli/testing/parser.go -- .et file parser -->
+<!-- source: cmd/ze-test/editor.go -- editorMain selection flags -->
 
 ### Key Directives
 

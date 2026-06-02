@@ -33,17 +33,21 @@ func webCmd() int {
 
 func webMain() error {
 	fs := flag.NewFlagSet("web", flag.ExitOnError)
+	all := fs.Bool("a", false, "run all tests")
+	fs.BoolVar(all, "all", false, "run all tests")
 	pattern := fs.String("p", "", "run only tests matching pattern")
 	fs.StringVar(pattern, "pattern", "", "run only tests matching pattern")
 	verbose := fs.Bool("v", false, "verbose output")
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
+	quiet := fs.Bool("q", false, "minimal output")
+	fs.BoolVar(quiet, "quiet", false, "minimal output")
 	listOnly := fs.Bool("l", false, "list tests without running")
 	fs.BoolVar(listOnly, "list", false, "list tests without running")
+	start := fs.String("start", "", "start at test id/name and run through the end")
 	port := fs.String("port", "", "port for test web server (default: random free port)")
-	fs.Bool("all", false, "run all tests (default behavior)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze-test web [options]
+		fmt.Fprintf(os.Stderr, `Usage: ze-test web [options] [test-ids...]
 
 Run web browser functional tests (.wb files).
 Requires: agent-browser CLI, ze binary in bin/.
@@ -53,10 +57,12 @@ Options:
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
-  ze-test web                  Run all tests in test/web/
-  ze-test web -p nav           Run tests matching "nav"
-  ze-test web -v               Verbose output
-  ze-test web -l               List tests without running
+  ze-test web --all          Run all tests in test/web/
+  ze-test web -p nav         Run tests matching "nav"
+  ze-test web --start 4      Resume at id 4 and run through the end
+  ze-test web 0 1            Run specific tests by id
+  ze-test web -v             Verbose output
+  ze-test web -l             List tests with N/TOTAL and id
 `)
 	}
 
@@ -69,20 +75,14 @@ Examples:
 		return err
 	}
 
-	if _, lookErr := exec.LookPath("agent-browser"); lookErr != nil {
-		fmt.Fprintf(os.Stdout, "agent-browser not found in PATH, skipping web tests\n") //nolint:errcheck // terminal output
-		return nil
-	}
-
 	baseDir, err := findBaseDir()
 	if err != nil {
 		return fmt.Errorf("find base dir: %w", err)
 	}
 
 	testDir := filepath.Join(baseDir, "test", "web")
-
-	// Discover .wb files.
-	var tests []webTest
+	runner.ResetNickCounter()
+	tests := runner.NewTestSet[*webTest]()
 	if walkErr := filepath.WalkDir(testDir, func(path string, d os.DirEntry, werr error) error {
 		if werr != nil {
 			return werr
@@ -94,36 +94,46 @@ Examples:
 		if rel == "" {
 			rel = path
 		}
-		tests = append(tests, webTest{Name: rel, Path: path})
+		tests.Add(&webTest{
+			BaseTest: runner.BaseTest{
+				Name: rel,
+				Nick: runner.GenerateNick(rel),
+			},
+			Path: path,
+		})
 		return nil
 	}); walkErr != nil {
 		return walkErr
 	}
 
-	if len(tests) == 0 {
+	if tests.Count() == 0 {
 		return fmt.Errorf("no .wb files found in %s", testDir)
 	}
 
-	// Filter by pattern.
-	if *pattern != "" {
-		var filtered []webTest
-		for _, t := range tests {
-			if strings.Contains(t.Name, *pattern) {
-				filtered = append(filtered, t)
-			}
-		}
-		if len(filtered) == 0 {
-			return fmt.Errorf("no tests matching pattern %q", *pattern)
-		}
-		tests = filtered
+	if !*all && *pattern == "" && *start == "" && fs.NArg() == 0 {
+		*all = true
+	}
+	selected, err := tests.Select(runner.Selection{
+		All:     *all,
+		Start:   *start,
+		Pattern: *pattern,
+		Args:    fs.Args(),
+	})
+	if err != nil {
+		return err
+	}
+	if selected == 0 && !*listOnly {
+		fs.Usage()
+		return nil
 	}
 
-	// List mode.
 	if *listOnly {
-		fmt.Fprintf(os.Stdout, "Found %d web tests:\n", len(tests)) //nolint:errcheck // terminal output
-		for _, t := range tests {
-			fmt.Fprintf(os.Stdout, "  %s\n", t.Name) //nolint:errcheck // terminal output
-		}
+		tests.List()
+		return nil
+	}
+
+	if _, lookErr := exec.LookPath("agent-browser"); lookErr != nil {
+		fmt.Fprintf(os.Stdout, "agent-browser not found in PATH, skipping web tests\n") //nolint:errcheck // terminal output
 		return nil
 	}
 
@@ -175,38 +185,65 @@ Examples:
 	// Run tests sequentially (one browser session, shared server).
 	colors := runner.NewColors()
 	passed, failed, skipped := 0, 0, 0
-	total := len(tests)
+	selectedTests := tests.Selected()
+	total := len(selectedTests)
 
-	runner.PrintHeader("web")
+	if !*quiet {
+		runner.PrintHeader("web")
+		fmt.Fprintf(os.Stdout, "progress 0/%d\n", total) //nolint:errcheck // terminal output
+	}
 
-	fmt.Fprintf(os.Stdout, "Running %d web tests...\n", total) //nolint:errcheck // terminal output
-
-	for i, t := range tests {
+	for i, t := range selectedTests {
 		if ctx.Err() != nil {
 			break
 		}
-		fmt.Fprintf(os.Stdout, "[%d/%d] %s ... ", i+1, total, t.Name) //nolint:errcheck // terminal output
 		start := time.Now()
+		done := make(chan struct{})
+		if !*quiet {
+			go func(index int, test *webTest) {
+				ticker := time.NewTicker(5 * time.Second)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-done:
+						return
+					case <-ticker.C:
+						fmt.Fprintf(os.Stdout, "%-7s  %d/%d  RUN   %s  %s\n", formatElapsed(time.Since(start)), index+1, total, test.Nick, test.Name) //nolint:errcheck // terminal output
+					}
+				}
+			}(i, t)
+		}
 		result := webtesting.RunWBFile(t.Path, baseURL)
+		close(done)
 		elapsed := time.Since(start)
+		tag := colors.Green("PASS")
 		switch {
 		case result.Skipped:
 			skipped++
-			fmt.Fprintf(os.Stdout, "skip (%s) %s\n", result.SkipReason, formatElapsed(elapsed)) //nolint:errcheck // terminal output
+			tag = colors.Gray("SKIP")
 		case result.Passed:
 			passed++
-			fmt.Fprintln(os.Stdout, colors.Green("pass")+" "+formatElapsed(elapsed)) //nolint:errcheck // terminal output
 		default:
 			failed++
-			fmt.Fprintln(os.Stdout, colors.Red("FAIL")+" "+formatElapsed(elapsed)) //nolint:errcheck // terminal output
-			fmt.Fprintf(os.Stdout, "  %s\n", result.Error)                         //nolint:errcheck // terminal output
+			tag = colors.Red("FAIL")
+		}
+		if !*quiet {
+			fmt.Fprintf(os.Stdout, "%-7s  %d/%d  %s  %s  %s\n", formatElapsed(elapsed), i+1, total, tag, t.Nick, t.Name) //nolint:errcheck // terminal output
+			if result.Skipped && result.SkipReason != "" {
+				fmt.Fprintf(os.Stdout, "  skip reason: %s\n", result.SkipReason) //nolint:errcheck // terminal output
+			}
+			if !result.Passed && !result.Skipped {
+				fmt.Fprintf(os.Stdout, "  %s\n", result.Error) //nolint:errcheck // terminal output
+			}
 		}
 	}
 
-	if skipped > 0 {
-		fmt.Fprintf(os.Stdout, "\n%d passed, %d failed, %d skipped\n", passed, failed, skipped) //nolint:errcheck // terminal output
-	} else {
-		fmt.Fprintf(os.Stdout, "\n%d passed, %d failed\n", passed, failed) //nolint:errcheck // terminal output
+	if !*quiet {
+		if skipped > 0 {
+			fmt.Fprintf(os.Stdout, "\n%d passed, %d failed, %d skipped\n", passed, failed, skipped) //nolint:errcheck // terminal output
+		} else {
+			fmt.Fprintf(os.Stdout, "\n%d passed, %d failed\n", passed, failed) //nolint:errcheck // terminal output
+		}
 	}
 
 	if failed > 0 {
@@ -230,7 +267,7 @@ func closeBrowser() {
 }
 
 type webTest struct {
-	Name string
+	runner.BaseTest
 	Path string
 }
 

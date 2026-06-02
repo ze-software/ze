@@ -368,8 +368,10 @@ func parseTypeLine(line string) (msgType, family string) {
 func (dt *DecodingTests) List() {
 	fmt.Fprintln(os.Stdout, "\nAvailable decoding tests:") //nolint:errcheck // user output
 	fmt.Fprintln(os.Stdout)                                //nolint:errcheck // user output
-	for _, t := range dt.Registered() {
-		fmt.Fprintf(os.Stdout, "  %s  %s (%s)\n", t.Nick, t.Name, t.Type) //nolint:errcheck // user output
+	registered := dt.Registered()
+	total := len(registered)
+	for i, t := range registered {
+		fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s (%s)\n", i+1, total, t.Nick, t.Name, t.Type) //nolint:errcheck // user output
 	}
 	fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
 }

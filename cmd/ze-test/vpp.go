@@ -64,31 +64,26 @@ func vppMain() error {
 		return fmt.Errorf("discover tests: %w", err)
 	}
 
+	tests.Sort()
+
 	if cli.list {
 		tests.List()
 		return nil
 	}
 
-	switch {
-	case cli.all:
-		tests.EnableAll()
-	case len(cli.testArgs) > 0:
-		for _, arg := range cli.testArgs {
-			if !tests.EnableByNick(arg) {
-				for _, r := range tests.Registered() {
-					if r.Name == arg {
-						r.Activate()
-						break
-					}
-				}
-			}
-		}
-	default:
+	selected, err := tests.Select(runner.Selection{
+		All:     cli.all,
+		Start:   cli.start,
+		Pattern: cli.pattern,
+		Args:    cli.testArgs,
+	})
+	if err != nil {
+		return err
+	}
+	if selected == 0 {
 		printVPPUsage()
 		return nil
 	}
-
-	tests.Sort()
 
 	r, err := runner.NewRunner(tests, baseDir)
 	if err != nil {
@@ -142,6 +137,8 @@ func vppMain() error {
 type vppCLIFlags struct {
 	all      bool
 	list     bool
+	start    string
+	pattern  string
 	timeout  time.Duration
 	parallel int
 	verbose  bool
@@ -163,6 +160,8 @@ func parseVPPCLI() (*vppCLIFlags, bool) {
 	fs.BoolVar(&cli.all, "all", false, "run all tests")
 	fs.BoolVar(&cli.list, "l", false, "list available tests")
 	fs.BoolVar(&cli.list, "list", false, "list available tests")
+	fs.StringVar(&cli.start, "start", "", "start at test id/name and run through the end")
+	fs.StringVar(&cli.pattern, "pattern", "", "run tests whose id, name, or path contains pattern")
 	fs.DurationVar(&cli.timeout, "t", 30*time.Second, "timeout per test")
 	fs.DurationVar(&cli.timeout, "timeout", 30*time.Second, "timeout per test")
 	fs.IntVar(&cli.parallel, "p", 1, "max concurrent tests (default 1 -- stub binds a Unix socket per test)")
@@ -195,9 +194,10 @@ func printVPPUsage() {
 Run VPP stub-backed functional tests from test/vpp/.
 
 Modes:
-  -l, --list          List available tests
+  -l, --list          List available tests with N/TOTAL and id
   -a, --all           Run all tests
-
+  --start ID          Start at test id/name and run through the end
+  --pattern TEXT      Run tests whose id, name, or path contains TEXT
 Options:
   -t, --timeout N     Timeout per test (default: 30s)
   -p, --parallel N    Max concurrent tests (default: 1)
@@ -208,7 +208,7 @@ Options:
 Examples:
   ze-test vpp -l
   ze-test vpp -a
-  ze-test vpp 001-boot
   ze-test vpp 0 1         # by numeric id
+  ze-test vpp --start 4
 `)
 }

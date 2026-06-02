@@ -27,8 +27,12 @@ func editorCmd() int {
 
 func editorMain() error {
 	fs := flag.NewFlagSet("editor", flag.ExitOnError)
+	all := fs.Bool("a", false, "run all tests")
+	fs.BoolVar(all, "all", false, "run all tests")
 	pattern := fs.String("p", "", "run only tests matching pattern")
 	fs.StringVar(pattern, "pattern", "", "run only tests matching pattern")
+	start := fs.String("start", "", "start at test id/name and run through the end")
+	dir := fs.String("dir", "", "test directory (default: test/editor)")
 	verbose := fs.Bool("v", false, "verbose output")
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
 	quiet := fs.Bool("q", false, "minimal output")
@@ -37,7 +41,7 @@ func editorMain() error {
 	fs.BoolVar(listOnly, "list", false, "list tests without running")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze-test editor [options] [test-dir]
+		fmt.Fprintf(os.Stderr, `Usage: ze-test editor [options] [test-ids...]
 
 Run editor functional tests (.et files).
 
@@ -46,11 +50,13 @@ Options:
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
-  ze-test editor                           # Run all tests in test/editor/
-  ze-test editor test/editor/navigation/   # Run navigation tests only
-  ze-test editor -p commit                 # Run tests matching "commit"
-  ze-test editor -v                        # Verbose output
-  ze-test editor -l                        # List tests without running
+  ze-test editor --all                    # Run all tests in test/editor/
+  ze-test editor --dir test/editor/navigation --all
+  ze-test editor -p commit                # Run tests matching "commit"
+  ze-test editor --start 42               # Resume at id 42 and run through the end
+  ze-test editor 0 1                      # Run specific tests by id
+  ze-test editor -v                       # Verbose output
+  ze-test editor -l                       # List tests with N/TOTAL and id
 `) //nolint:errcheck // terminal output
 	}
 
@@ -70,14 +76,23 @@ Examples:
 		return fmt.Errorf("find base dir: %w", err)
 	}
 
-	// Determine test directory
 	testDir := filepath.Join(baseDir, "test", "editor")
-	if fs.NArg() > 0 {
-		arg := fs.Arg(0)
-		if filepath.IsAbs(arg) {
-			testDir = arg
+	testArgs := fs.Args()
+	if *dir != "" {
+		if filepath.IsAbs(*dir) {
+			testDir = *dir
 		} else {
-			testDir = filepath.Join(baseDir, arg)
+			testDir = filepath.Join(baseDir, *dir)
+		}
+	} else if len(testArgs) > 0 {
+		candidate := testArgs[0]
+		candidatePath := candidate
+		if !filepath.IsAbs(candidatePath) {
+			candidatePath = filepath.Join(baseDir, candidatePath)
+		}
+		if info, statErr := os.Stat(candidatePath); statErr == nil && info.IsDir() {
+			testDir = candidatePath
+			testArgs = testArgs[1:]
 		}
 	}
 
@@ -91,28 +106,26 @@ Examples:
 		return fmt.Errorf("no .et files found in %s", testDir)
 	}
 
-	// Filter by pattern
-	if *pattern != "" {
-		matched := false
-		for _, t := range tests.Registered() {
-			if strings.Contains(t.Path, *pattern) || strings.Contains(t.Name, *pattern) {
-				t.SetActive(true)
-				matched = true
-			}
-		}
-		if !matched {
-			return fmt.Errorf("no tests matching pattern %q", *pattern)
-		}
-	} else {
-		tests.EnableAll()
+	if !*all && *pattern == "" && *start == "" && len(testArgs) == 0 {
+		*all = true
+	}
+	selected, err := tests.Select(runner.Selection{
+		All:     *all,
+		Start:   *start,
+		Pattern: *pattern,
+		Args:    testArgs,
+	})
+	if err != nil {
+		return err
+	}
+	if selected == 0 && !*listOnly {
+		fs.Usage()
+		return nil
 	}
 
 	// List mode
 	if *listOnly {
-		fmt.Fprintf(os.Stdout, "Found %d tests:\n", tests.Count()) //nolint:errcheck // terminal output
-		for _, t := range tests.Registered() {
-			fmt.Fprintf(os.Stdout, "  %s  %s\n", t.Nick, t.Name) //nolint:errcheck // terminal output
-		}
+		tests.List()
 		return nil
 	}
 

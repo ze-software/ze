@@ -52,7 +52,7 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-lint` | 26 linters |
 | `make ze-ci` | lint + unit + build |
 | `make ze-fuzz-test` | Fuzz tests (10s per target) |
-| `make ze-exabgp-test` | ExaBGP compatibility |
+| `make ze-exabgp-test` | ExaBGP compatibility via `ze-test exabgp --all` |
 | `make ze-test` | All tests including fuzz |
 | `make ze-editor-test` | Editor `.et` tests (headless TUI) |
 | `make ze-chaos-test` | Chaos unit + functional + integration + web |
@@ -135,9 +135,11 @@ component group -> whole suite or `ze-verify`.
 
 | Scope | Command | Speed |
 |-------|---------|-------|
-| Single functional test | `ze-test bgp plugin N` | seconds |
+| Single functional test | `ze-test bgp plugin N` or `ze-test ui N` | seconds |
+| Resume functional suite | `ze-test bgp plugin --start N` or `ze-test ui --start N` | seconds to remaining suite |
 | Single encode test | `ze-test bgp encode N` | seconds |
-| Single editor test | `ze-test editor -p pattern` | seconds |
+| Single editor test | `ze-test editor N` or `ze-test editor -p pattern` | seconds |
+| Single ExaBGP compatibility test | `ze-test exabgp N` or `ze-test exabgp --start N` | seconds |
 | Single Go test | `go test -race -run TestName ./pkg/...` | seconds |
 | Single package | `go test -race ./internal/component/bgp/reactor/...` | seconds |
 | Component group | `make ze-test-bgp` (or core, plugins, config, cli, rest) | 10s-1:30 |
@@ -181,7 +183,7 @@ After 3 samples, the baseline is used for two things:
 ## Test Tools
 
 - `ze-peer`: BGP test peer (`--sink`, `--echo`, `--port`, `--asn`)
-- `ze-test`: Test runner (`ze-test bgp encode --list`, `--all`, by index)
+- `ze-test`: Test runner. Common suite syntax is `--list`, `--all`, `--start N`, `--pattern TEXT`, or positional `N...`; `--list` prints `N/TOTAL id name`, and runs print one completion line per test plus periodic progress.
 
 When adding a test runner, test format, make target, or verification gate, update
 `ai/rules/discovery-updates.md` paths in the same change: `ai/INDEX.md` for the
@@ -218,7 +220,7 @@ line plus fresh artifacts. Never `| tail`.
 
 `.et` files in `test/editor/` test the interactive TUI editor via headless simulation.
 Infrastructure: `internal/component/cli/testing/` (parser, expect, headless, input, runner).
-Run: `make ze-editor-test` or `bin/ze-test editor [-p pattern] [-v] [-l]`.
+Run: `make ze-editor-test` or `bin/ze-test editor --all`; select by id/name with `bin/ze-test editor N`, and filter with `bin/ze-test editor -p pattern`.
 
 ### Directives
 

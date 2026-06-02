@@ -76,21 +76,30 @@ Each `test/` subdirectory has its own runner and format:
 | `test/l2tp/` | L2TP daemon | `ze-test l2tp` |
 | `test/firewall/` | Firewall | `ze-test firewall` |
 | `test/policy/` | Policy routing | `ze-test policy` |
+| `test/exabgp-compat/` | ExaBGP compatibility | `ze-test exabgp` |
 
-Run a single test by index or name:
+Run a single test by index or exact name, list the available ids, or resume from
+the last printed id after an interrupted run:
 
 ```sh
-bin/ze-test bgp plugin 42       # test #42
-bin/ze-test bgp encode --list   # list all tests
-bin/ze-test editor -p nav       # editor tests matching "nav"
+bin/ze-test bgp plugin 42          # test id 42
+bin/ze-test bgp encode --list      # list N/TOTAL, id, and name
+bin/ze-test bgp plugin --start 42  # run id 42 and every later test
+bin/ze-test editor 7               # editor test id 7
+bin/ze-test editor -p nav          # editor tests matching "nav"
+bin/ze-test exabgp --start 20      # resume ExaBGP compatibility
 ```
+<!-- source: internal/test/runner/selection.go -- Selection -->
+<!-- source: internal/test/runner/display.go -- TestFinished -->
+<!-- source: cmd/ze-test/exabgp.go -- ExaBGP compatibility selection -->
 
 Run a full suite:
 
 ```sh
 make ze-encode-test     # all encode tests
 make ze-plugin-test     # all plugin tests
-make ze-functional-test # all 12 release-gate suites
+make ze-functional-test # all release-gate suites
+make ze-exabgp-test     # ExaBGP compatibility through ze-test
 ```
 
 ### Interop and integration tests

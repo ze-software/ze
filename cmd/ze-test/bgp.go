@@ -88,12 +88,8 @@ func bgpMain() error {
 type testSuite interface {
 	Discover(dir string) error
 	List()
-	Count() int
-	EnableAll()
-	EnableByNick(nick string) bool
+	Select(runner.Selection) (int, error)
 	GetNicks() []string
-	GetNames() map[string]string
-	SetActive(name string)
 	Run(ctx context.Context, zePath string, verbose, quiet bool) bool
 }
 
@@ -117,22 +113,6 @@ func (d *decodeTestSuite) GetNicks() []string {
 		nicks = append(nicks, t.Nick)
 	}
 	return nicks
-}
-
-func (d *decodeTestSuite) GetNames() map[string]string {
-	names := make(map[string]string)
-	for _, t := range d.Registered() {
-		names[t.Name] = t.Nick
-	}
-	return names
-}
-
-func (d *decodeTestSuite) SetActive(name string) {
-	for _, t := range d.Registered() {
-		if t.Name == name {
-			t.Active = true
-		}
-	}
 }
 
 func (d *decodeTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
@@ -160,22 +140,6 @@ func (p *parseTestSuite) GetNicks() []string {
 		nicks = append(nicks, t.Nick)
 	}
 	return nicks
-}
-
-func (p *parseTestSuite) GetNames() map[string]string {
-	names := make(map[string]string)
-	for _, t := range p.Registered() {
-		names[t.Name] = t.Nick
-	}
-	return names
-}
-
-func (p *parseTestSuite) SetActive(name string) {
-	for _, t := range p.Registered() {
-		if t.Name == name {
-			t.Active = true
-		}
-	}
 }
 
 func (p *parseTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
@@ -216,21 +180,16 @@ func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSu
 		return nil
 	}
 
-	// Select tests
-	switch {
-	case cli.all:
-		tests.EnableAll()
-	case len(cli.testArgs) > 0:
-		names := tests.GetNames()
-		for _, arg := range cli.testArgs {
-			if !tests.EnableByNick(arg) {
-				// Try by name
-				if _, ok := names[arg]; ok {
-					tests.SetActive(arg)
-				}
-			}
-		}
-	default:
+	selected, err := tests.Select(runner.Selection{
+		All:     cli.all,
+		Start:   cli.start,
+		Pattern: cli.pattern,
+		Args:    cli.testArgs,
+	})
+	if err != nil {
+		return err
+	}
+	if selected == 0 {
 		printRunUsage()
 		return nil
 	}
@@ -301,28 +260,19 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 		return nil
 	}
 
-	// Select tests
-	switch {
-	case cli.all:
-		tests.EnableAll()
-	case len(cli.testArgs) > 0:
-		for _, arg := range cli.testArgs {
-			if !tests.EnableByNick(arg) {
-				// Try by name
-				for _, r := range tests.Registered() {
-					if r.Name == arg {
-						r.Activate()
-						break
-					}
-				}
-			}
-		}
-	default:
+	selected, err := tests.Select(runner.Selection{
+		All:     cli.all,
+		Start:   cli.start,
+		Pattern: cli.pattern,
+		Args:    cli.testArgs,
+	})
+	if err != nil {
+		return err
+	}
+	if selected == 0 {
 		printRunUsage()
 		return nil
 	}
-
-	tests.Sort()
 
 	// Create runner
 	r, err := runner.NewRunner(tests, baseDir)
@@ -590,6 +540,8 @@ type runCLIFlags struct {
 	command   string
 	all       bool
 	list      bool
+	start     string
+	pattern   string
 	shortList bool
 	timeout   time.Duration
 	parallel  int
@@ -638,6 +590,8 @@ func parseRunCLI() *runCLIFlags {
 	fs.BoolVar(&cli.all, "all", false, "run all tests")
 	fs.BoolVar(&cli.list, "l", false, "list available tests")
 	fs.BoolVar(&cli.list, "list", false, "list available tests")
+	fs.StringVar(&cli.start, "start", "", "start at test id/name and run through the end")
+	fs.StringVar(&cli.pattern, "pattern", "", "run tests whose id, name, or path contains pattern")
 	fs.BoolVar(&cli.shortList, "short-list", false, "list numeric test ids only")
 	fs.DurationVar(&cli.timeout, "t", 15*time.Second, "timeout per test")
 	fs.DurationVar(&cli.timeout, "timeout", 15*time.Second, "timeout per test")
@@ -677,10 +631,11 @@ Types:
   chaos-web Run chaos web dashboard tests (HTTP endpoint checks)
 
 Modes:
-  -l, --list          List available tests
+  -l, --list          List available tests with N/TOTAL and id
   --short-list        List numeric test ids only (space separated)
   -a, --all           Run all tests
-
+  --start ID          Start at test id/name and run through the end
+  --pattern TEXT      Run tests whose id, name, or path contains TEXT
 Options:
   -t, --timeout N     Timeout per test (default: 15s)
   -p, --parallel N    Max concurrent tests (0 = all, default: 20)
@@ -698,6 +653,7 @@ Examples:
   ze-test bgp encode -l
   ze-test bgp encode -a
   ze-test bgp encode 0 1 2
+  ze-test bgp encode --start 42
   ze-test bgp plugin -a -q
   ze-test bgp decode -a
   ze-test bgp parse -a

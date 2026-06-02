@@ -206,6 +206,40 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	assert.Equal(t, []string{"subsystem=server"}, rec.ExpectStderr)
 }
 
+func TestTestsSelectStartActivatesSuffix(t *testing.T) {
+	ResetNickCounter()
+	tests := NewTests()
+	tests.Add("alpha")
+	tests.Add("beta")
+	tests.Add("gamma")
+
+	selected, err := tests.Select(Selection{Start: "1"})
+	require.NoError(t, err)
+	require.Equal(t, 2, selected)
+
+	got := tests.Selected()
+	require.Len(t, got, 2)
+	assert.Equal(t, "1", got[0].Nick)
+	assert.Equal(t, "2", got[1].Nick)
+}
+
+func TestTestsSelectPatternThenStart(t *testing.T) {
+	ResetNickCounter()
+	tests := NewTests()
+	tests.Add("alpha-one")
+	tests.Add("beta-one")
+	tests.Add("alpha-two")
+	tests.Add("beta-two")
+
+	selected, err := tests.Select(Selection{Pattern: "alpha", Start: "2"})
+	require.NoError(t, err)
+	require.Equal(t, 1, selected)
+
+	got := tests.Selected()
+	require.Len(t, got, 1)
+	assert.Equal(t, "alpha-two", got[0].Name)
+}
+
 // minimalConfig is a minimal valid ZeBGP config for testing.
 const minimalConfig = `peer 127.0.0.1 {
     router-id 1.2.3.4

@@ -47,14 +47,19 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
 ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
-	@failed=0; failed_names=""; skipped_names=""; total=0; \
+	@failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
+	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy web install"; \
+	suite_total=0; \
+	for suite in $$all_suites; do \
+		case ",$(ZE_SKIP_SUITES)," in *,$$suite,*) ;; *) suite_total=$$((suite_total + 1));; esac; \
+	done; \
 	run_suite() { \
 		suite="$$1"; shift; \
-		if echo ",$(ZE_SKIP_SUITES)," | grep -q ",$$suite,"; then \
-			skipped_names="$${skipped_names:+$$skipped_names }$$suite"; \
-			return 0; \
-		fi; \
-		total=$$((total + 1)); \
+		case ",$(ZE_SKIP_SUITES)," in \
+			*,$$suite,*) skipped_names="$${skipped_names:+$$skipped_names }$$suite"; return 0 ;; \
+		esac; \
+		total=$$((total + 1)); suite_index=$$((suite_index + 1)); \
+		printf "\n[%d/%d] suite %s\n" "$$suite_index" "$$suite_total" "$$suite"; \
 		"$$@" || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }$$suite"; }; \
 	}; \
 	run_suite encode $(SUITE_RUN) bin/ze-test bgp encode --all -p $(ZE_ENCODE_PARALLEL); \
@@ -63,7 +68,7 @@ ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	run_suite decode $(SUITE_RUN) bin/ze-test bgp decode --all; \
 	run_suite reload $(SUITE_RUN) bin/ze-test bgp reload --all -p 1; \
 	run_suite ui $(SUITE_RUN) bin/ze-test ui --all; \
-	run_suite editor $(SUITE_RUN) bin/ze-test editor; \
+	run_suite editor $(SUITE_RUN) bin/ze-test editor --all; \
 	run_suite managed $(SUITE_RUN) bin/ze-test managed --all -p 1; \
 	run_suite l2tp $(SUITE_RUN) bin/ze-test l2tp --all; \
 	run_suite firewall $(SUITE_RUN) bin/ze-test firewall --all; \
@@ -111,10 +116,10 @@ ze-ui-test: bin/ze-test bin/ze-stripped
 	@$(SUITE_RUN) bin/ze-test ui --all
 
 ze-editor-test: bin/ze-test
-	@$(SUITE_RUN) bin/ze-test editor
+	@$(SUITE_RUN) bin/ze-test editor --all
 
 ze-web-test: bin/ze bin/ze-test
-	@$(SUITE_RUN) bin/ze-test web
+	@$(SUITE_RUN) bin/ze-test web --all
 
 ze-managed-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test managed --all -p 1

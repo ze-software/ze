@@ -31,7 +31,7 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `rules/testing.md`
 | `test/chaos-web/` | Chaos dashboard | Simulator web UI |
 | `test/hub/` | Hub daemon | Hub lifecycle |
 | `test/perf/` | Performance | Benchmarks, timing |
-| `test/exabgp/` | ExaBGP compat | Migration, format compat |
+| `test/exabgp-compat/` | ExaBGP compat | Migration, format compat |
 | `test/firewall/` | Firewall/nftables | Firewall rules, NAT |
 | `test/policy/` | Policy routing | Route policy, redistribution |
 | `test/l2tp/` | L2TP daemon | L2TP tunnel/session lifecycle |
@@ -46,28 +46,35 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `rules/testing.md`
 
 ## Runner Commands
 
+All `ze-test` suites use the same selection contract after the suite name:
+`--list`, `--all`, `--start N`, `--pattern TEXT`, or positional `N...`.
+`--list` prints `N/TOTAL id name`; runs print one completion line per test plus
+periodic progress.
+
 | Directory | Runner command | Make target |
 |-----------|---------------|-------------|
-| `test/encode/` | `ze-test bgp encode [N...]` | `make ze-encode-test` |
-| `test/plugin/` | `ze-test bgp plugin [N...]` | `make ze-plugin-test` |
-| `test/decode/` | `ze-test bgp decode [N...]` | `make ze-decode-test` |
-| `test/parse/` | `ze-test bgp parse [N...]` | `make ze-parse-test` |
-| `test/reload/` | `ze-test bgp reload [N...]` | `make ze-reload-test` |
-| `test/ui/` | `ze-test ui [N...]` | `make ze-ui-test` |
-| `test/editor/` | `ze-test editor [-p pattern]` | `make ze-editor-test` |
-| `test/web/` | `ze-test web [-p pattern]` | `make ze-web-test` |
-| `test/managed/` | `ze-test managed [N...]` | `make ze-managed-test` |
-| `test/l2tp/` | `ze-test l2tp [N...]` | `make ze-l2tp-test` |
-| `test/firewall/` | `ze-test firewall [N...]` | `make ze-firewall-test` |
-| `test/policy/` | `ze-test policy [N...]` | `make ze-policy-test` |
-| `test/static/` | `ze-test static [N...]` | `make ze-static-test` |
-| `test/traffic/` | `ze-test traffic [N...]` | `make ze-traffic-test` |
-| `test/vpp/` | `ze-test vpp [N...]` | `make ze-vpp-test` |
-| `test/exabgp/` | `ze-test bgp exabgp [N...]` | `make ze-exabgp-test` |
+| `test/encode/` | `ze-test bgp encode [--all|--start N|N...]` | `make ze-encode-test` |
+| `test/plugin/` | `ze-test bgp plugin [--all|--start N|N...]` | `make ze-plugin-test` |
+| `test/decode/` | `ze-test bgp decode [--all|--start N|N...]` | `make ze-decode-test` |
+| `test/parse/` | `ze-test bgp parse [--all|--start N|N...]` | `make ze-parse-test` |
+| `test/reload/` | `ze-test bgp reload [--all|--start N|N...]` | `make ze-reload-test` |
+| `test/ui/` | `ze-test ui [--all|--start N|N...]` | `make ze-ui-test` |
+| `test/editor/` | `ze-test editor [--all|--start N|N...]` | `make ze-editor-test` |
+| `test/web/` | `ze-test web [--all|--start N|N...]` | `make ze-web-test` |
+| `test/managed/` | `ze-test managed [--all|--start N|N...]` | `make ze-managed-test` |
+| `test/l2tp/` | `ze-test l2tp [--all|--start N|N...]` | `make ze-l2tp-test` |
+| `test/firewall/` | `ze-test firewall [--all|--start N|N...]` | `make ze-firewall-test` |
+| `test/policy/` | `ze-test policy [--all|--start N|N...]` | `make ze-policy-test` |
+| `test/static/` | `ze-test static [--all|--start N|N...]` | `make ze-static-test` |
+| `test/traffic/` | `ze-test traffic [--all|--start N|N...]` | `make ze-traffic-test` |
+| `test/flow-export/` | `ze-test flow-export [--all|--start N|N...]` | `make ze-flow-export-test` |
+| `test/vpp/` | `ze-test vpp [--all|--start N|N...]` | `make ze-vpp-test` |
+| `test/l2tp-wire/` | `ze-test l2tp-wire [--all|--start N|N...]` | `make ze-l2tp-wire-test` |
+| `test/exabgp-compat/` | `ze-test exabgp [--all|--start N|N...]` | `make ze-exabgp-test` |
 
 Gated suites (in `make ze-functional-test`): encode, plugin, parse, decode, reload,
-ui, editor, managed, l2tp, firewall, policy, web. Non-gated suites (run manually):
-static, traffic, vpp, l2tp-wire, chaos-web.
+ui, editor, managed, l2tp, firewall, policy, web, install. Non-gated suites
+(run manually): static, traffic, flow-export, vpp, l2tp-wire, chaos, chaos-web, exabgp.
 
 ## .ci File Structure
 

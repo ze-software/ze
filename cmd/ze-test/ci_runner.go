@@ -30,6 +30,8 @@ func runCISubcommand(cfg ciRunnerConfig) error {
 	fs.BoolVar(all, "all", false, "run all tests")
 	listOnly := fs.Bool("l", false, "list available tests")
 	fs.BoolVar(listOnly, "list", false, "list available tests")
+	start := fs.String("start", "", "start at test id/name and run through the end")
+	pattern := fs.String("pattern", "", "run tests whose id, name, or path contains pattern")
 	verbose := fs.Bool("v", false, "verbose output")
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
 	quiet := fs.Bool("q", false, "minimal output")
@@ -43,10 +45,12 @@ func runCISubcommand(cfg ciRunnerConfig) error {
 		fmt.Fprintf(os.Stderr, `
 Examples:
   ze-test %s -a              # Run all %s tests
-  ze-test %s -l              # List available tests
+  ze-test %s -l              # List available tests with N/TOTAL and id
   ze-test %s 0 1 2           # Run specific tests by id
+  ze-test %s --start 42      # Resume at id 42 and run through the end
+  ze-test %s --pattern bgp   # Run tests whose id, name, or path contains bgp
   ze-test %s -a -v           # Verbose output
-`, cfg.Name, cfg.Description, cfg.Name, cfg.Name, cfg.Name) //nolint:errcheck // terminal output
+`, cfg.Name, cfg.Description, cfg.Name, cfg.Name, cfg.Name, cfg.Name, cfg.Name) //nolint:errcheck // terminal output
 	}
 
 	if len(os.Args) > 1 && isHelpArg(os.Args[1]) {
@@ -75,31 +79,26 @@ Examples:
 		return fmt.Errorf("no .ci files found in %s", testDir)
 	}
 
+	tests.Sort()
+
 	if *listOnly {
 		tests.List()
 		return nil
 	}
 
-	switch {
-	case *all:
-		tests.EnableAll()
-	case fs.NArg() > 0:
-		for _, arg := range fs.Args() {
-			if !tests.EnableByNick(arg) {
-				for _, r := range tests.Registered() {
-					if r.Name == arg {
-						r.Activate()
-						break
-					}
-				}
-			}
-		}
-	default:
+	selected, err := tests.Select(runner.Selection{
+		All:     *all,
+		Start:   *start,
+		Pattern: *pattern,
+		Args:    fs.Args(),
+	})
+	if err != nil {
+		return err
+	}
+	if selected == 0 {
 		fs.Usage()
 		return nil
 	}
-
-	tests.Sort()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

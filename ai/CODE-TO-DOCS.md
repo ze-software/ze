@@ -56,11 +56,12 @@ Files: 4 | Docs: `docs/features/benchmarking.md`, `docs/guide/benchmarking.md`, 
 
 ## `cmd/ze-test/`
 
-Files: 10 | Docs: `docs/comparison.md`, `docs/features/ai-first.md`, `docs/features/mcp-integration.md`, `docs/functional-tests.md`, `docs/guide/debugging-tools.md`, `docs/guide/mcp/overview.md`, `docs/guide/quickstart.md`, `docs/guide/tacacs.md`
+Files: 32 | Docs: `docs/comparison.md`, `docs/contributing/testing.md`, `docs/features/ai-first.md`, `docs/features/mcp-integration.md`, `docs/functional-tests.md`, `docs/guide/debugging-tools.md`, `docs/guide/mcp/overview.md`, `docs/guide/quickstart.md`, `docs/guide/tacacs.md`
 
 | File | Docs |
 |------|------|
 | `bgp.go` | `docs/functional-tests.md`, `docs/guide/debugging-tools.md` |
+| `exabgp.go` | `docs/contributing/testing.md`, `docs/functional-tests.md` |
 | `l2tp.go` | `docs/functional-tests.md` |
 | `l2tp_scale.go` | `docs/comparison.md`, `docs/functional-tests.md` |
 | `main.go` | `docs/functional-tests.md` |

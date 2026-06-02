@@ -158,9 +158,7 @@ func FormatRerunCommand(suite string, args []string) string {
 	switch {
 	case suite == editorSuite:
 		command = append(command, editorSuite)
-		if len(args) > 0 {
-			command = append(command, "-p", args[0])
-		}
+		command = append(command, args...)
 	case isBGPSuite(suite):
 		command = append(command, "bgp", suite)
 		command = append(command, args...)
@@ -176,11 +174,11 @@ func FormatRecordRerunCommand(suite string, rec *Record) string {
 		return FormatRerunCommand(suite, nil)
 	}
 	if suite == editorSuite {
-		name := strings.TrimSpace(rec.Name)
-		if name == "" {
-			name = rec.Nick
+		arg := rec.Nick
+		if arg == "" {
+			arg = strings.TrimSpace(rec.Name)
 		}
-		return FormatRerunCommand(suite, []string{name})
+		return FormatRerunCommand(suite, []string{arg})
 	}
 	arg := rec.Nick
 	if arg == "" {

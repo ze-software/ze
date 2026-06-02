@@ -43,7 +43,7 @@ func TestTopLevelCIFailureGroupsDoNotMergeByFirstToken(t *testing.T) {
 	}
 }
 
-func TestEditorFailureGroupsUsePatternReruns(t *testing.T) {
+func TestEditorFailureGroupsUsePositionalReruns(t *testing.T) {
 	records := []*Record{
 		{Name: "test/editor/commands/show-full.et", Nick: "7", State: StateFail, FailureType: stateUnknown},
 		{Name: "test/editor/navigation/up-one-level.et", Nick: "8", State: StateFail, FailureType: stateUnknown},
@@ -52,10 +52,10 @@ func TestEditorFailureGroupsUsePatternReruns(t *testing.T) {
 	if len(groups) != 2 {
 		t.Fatalf("expected exact editor test groups, got %+v", groups)
 	}
-	if groups[0].Related[0] != "test/editor/commands/show-full.et" || groups[0].Rerun != "ze-test editor -p test/editor/commands/show-full.et" {
+	if groups[0].Related[0] != "test/editor/commands/show-full.et" || groups[0].Rerun != "ze-test editor test/editor/commands/show-full.et" {
 		t.Fatalf("unexpected first editor group: %+v", groups[0])
 	}
-	if groups[1].Related[0] != "test/editor/navigation/up-one-level.et" || groups[1].Rerun != "ze-test editor -p test/editor/navigation/up-one-level.et" {
+	if groups[1].Related[0] != "test/editor/navigation/up-one-level.et" || groups[1].Rerun != "ze-test editor test/editor/navigation/up-one-level.et" {
 		t.Fatalf("unexpected second editor group: %+v", groups[1])
 	}
 }
@@ -84,7 +84,7 @@ func TestFormatRerunCommandUsesSuiteSpecificCommands(t *testing.T) {
 	if got := FormatRerunCommand("ui", []string{"A"}); got != "ze-test ui A" {
 		t.Fatalf("top-level rerun mismatch: %s", got)
 	}
-	if got := FormatRerunCommand("editor", []string{"test/editor/show.et"}); got != "ze-test editor -p test/editor/show.et" {
+	if got := FormatRerunCommand("editor", []string{"7"}); got != "ze-test editor 7" {
 		t.Fatalf("editor rerun mismatch: %s", got)
 	}
 }

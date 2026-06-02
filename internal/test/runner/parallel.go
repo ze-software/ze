@@ -206,7 +206,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 		if !res.passed {
 			failures = append(failures, failure{test: res.test.Test, err: res.err})
 		}
-		r.display.TestFinished(res.test.Name, res.test.Record.State, res.test.Record.Duration)
+		r.display.TestFinished(res.test.Record.Nick, res.test.Record.State, res.test.Record.Duration)
 		r.display.Status()
 	}
 

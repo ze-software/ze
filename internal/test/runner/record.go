@@ -245,10 +245,10 @@ func (r *Record) Activate() {
 	r.Active = true
 }
 
-// Deactivate marks the test to be skipped.
+// Deactivate marks the test as not selected for execution.
 func (r *Record) Deactivate() {
 	r.Active = false
-	r.State = StateSkip
+	r.State = StateNone
 }
 
 // IsActive returns true if the test should run.

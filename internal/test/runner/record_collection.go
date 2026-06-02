@@ -213,10 +213,11 @@ func (ts *Tests) List() {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 
+	total := len(ts.ordered)
 	fmt.Print("\nAvailable tests:\n\n") //nolint:forbidigo // CLI output
-	for _, nick := range ts.ordered {
+	for i, nick := range ts.ordered {
 		r := ts.byNick[nick]
-		fmt.Printf("  %s  %s\n", r.Nick, r.Name)
+		fmt.Printf("  %d/%d  %s  %s\n", i+1, total, r.Nick, r.Name)
 	}
 	fmt.Print("\n") //nolint:forbidigo // CLI output
 }

@@ -25,14 +25,15 @@ action=type:key=value:key=value:...
 
 ## Key Concepts
 
-### Suite label, nick, and failure identity
+### Suite label, test id, and failure identity
 
 The verify debugging protocol identifies a functional failure with:
 
 | Field | Source | Purpose |
 |-------|--------|---------|
 | Suite label | `ze-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `ze-functional-test` |
-| Test nick | Stable short id printed by the runner | Exact single-test rerun scope |
+| Test id | Decimal id printed by `--list` and per-test result lines | Exact single-test rerun scope |
+| Run number | `N/TOTAL` printed by `--list` and result lines | Human progress marker for long suites |
 | CI file path | Parsed `.ci` source path | Full test definition and embedded fixtures |
 | Failure kind | Runner failure type, timeout state, or mismatch class | Conservative grouping key |
 | Expected / received evidence | `TEST FAILURE` block detail | Full debugging evidence in the stage log |
@@ -42,6 +43,7 @@ the full failure blocks. The compact verify index uses that metadata for group
 routing and keeps the full `TEST FAILURE` blocks in the stage log.
 <!-- source: internal/test/runner/failure_group.go -- suite-local failure groups -->
 <!-- source: internal/test/runner/report.go -- TEST FAILURE blocks -->
+<!-- source: internal/test/runner/display.go -- per-test result lines -->
 
 ### conn and seq
 
