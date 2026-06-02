@@ -18,6 +18,39 @@ const (
 	exitError = 1
 )
 
+type applianceCommandInfo struct {
+	Key     string
+	Usage   string
+	Desc    string
+	Handler func([]string) int
+}
+
+func applianceCommands() []applianceCommandInfo {
+	return []applianceCommandInfo{
+		{Key: "init", Usage: "init <name>", Desc: "Create a new appliance with config and secrets", Handler: cmdInit},
+		{Key: "init", Usage: "init --batch <manifest>", Desc: "Batch init from JSON manifest", Handler: cmdInit},
+		{Key: "assemble", Usage: "assemble <name>", Desc: "Build ZeFS database only (fast path)", Handler: cmdAssemble},
+		{Key: "build", Usage: "build <name>", Desc: "Build full disk image (assemble + gok + ext4)", Handler: cmdBuild},
+		{Key: "iso", Usage: "iso <name>", Desc: "Build bootable installer ISO from an existing appliance image", Handler: cmdIso},
+		{Key: "push", Usage: "push <name>", Desc: "Push image to device via OTA update", Handler: cmdPush},
+		{Key: "push", Usage: "push --all", Desc: "Push to all appliances with device.address", Handler: cmdPush},
+		{Key: "config", Usage: "config <name> --merged", Desc: "Show effective config (base + overlay)", Handler: cmdConfig},
+		{Key: "config-push", Usage: "config-push <name>", Desc: "Push config to running device via SSH", Handler: cmdConfigPush},
+		{Key: "config-push", Usage: "config-push --all", Desc: "Push config to all addressed devices", Handler: cmdConfigPush},
+		{Key: "passwd", Usage: "passwd <name>", Desc: "Change SSH password", Handler: cmdPasswd},
+		{Key: "replace-cert", Usage: "replace-cert <name>", Desc: "Replace TLS certificate", Handler: cmdReplaceCert},
+		{Key: "rekey", Usage: "rekey <name>", Desc: "Change encryption passphrase", Handler: cmdRekey},
+		{Key: "clone", Usage: "clone <src> <dst>", Desc: "Copy config (not secrets) to new appliance", Handler: cmdClone},
+		{Key: "list", Usage: "list", Desc: "List appliances", Handler: cmdList},
+		{Key: "show", Usage: "show <name>", Desc: "Show config summary and cert expiry", Handler: cmdShow},
+		{Key: "run", Usage: "run <name>", Desc: "Boot in QEMU", Handler: cmdRun},
+		{Key: "unlock", Usage: "unlock", Desc: "Start passphrase agent", Handler: cmdUnlock},
+		{Key: "export", Usage: "export <name>", Desc: "Export appliance to encrypted archive", Handler: cmdExport},
+		{Key: "export", Usage: "export --all", Desc: "Export all appliances to single encrypted archive", Handler: cmdExport},
+		{Key: "import", Usage: "import <archive>", Desc: "Import appliance from encrypted archive", Handler: cmdImport},
+	}
+}
+
 // dispatchTable maps each subcommand to its handler. It is built at call time,
 // NOT as a package-level var: the cmd*.go files install their real handlers
 // into the cmd* vars from func init(), and a map literal evaluated during
@@ -26,24 +59,20 @@ const (
 // every subcommand permanently stubbed. Building the map inside Run() reads the
 // vars after all init funcs have completed.
 func dispatchTable() map[string]func([]string) int {
-	return map[string]func([]string) int{
-		"init":         cmdInit,
-		"assemble":     cmdAssemble,
-		"build":        cmdBuild,
-		"passwd":       cmdPasswd,
-		"replace-cert": cmdReplaceCert,
-		"rekey":        cmdRekey,
-		"clone":        cmdClone,
-		"list":         cmdList,
-		"show":         cmdShow,
-		"run":          cmdRun,
-		"unlock":       cmdUnlock,
-		"export":       cmdExport,
-		"import":       cmdImport,
-		"push":         cmdPush,
-		"config":       cmdConfig,
-		"config-push":  cmdConfigPush,
+	handlers := make(map[string]func([]string) int)
+	for _, cmd := range applianceCommands() {
+		handlers[cmd.Key] = cmd.Handler
 	}
+	return handlers
+}
+
+func applianceHelpEntries() []helpfmt.HelpEntry {
+	commands := applianceCommands()
+	entries := make([]helpfmt.HelpEntry, 0, len(commands))
+	for _, cmd := range commands {
+		entries = append(entries, helpfmt.HelpEntry{Name: cmd.Usage, Desc: cmd.Desc})
+	}
+	return entries
 }
 
 // baseDir holds the resolved appliance directory for the current invocation.
@@ -114,6 +143,7 @@ var (
 	cmdInit        = stub
 	cmdAssemble    = stub
 	cmdBuild       = stub
+	cmdIso         = stub
 	cmdPasswd      = stub
 	cmdReplaceCert = stub
 	cmdRekey       = stub
@@ -135,28 +165,7 @@ func usage() {
 		Summary: "Manage gokrazy-based Ze appliance images",
 		Usage:   []string{"ze install appliance [--dir <path>] <command> [args...]"},
 		Sections: []helpfmt.HelpSection{
-			{Title: "Commands", Entries: []helpfmt.HelpEntry{
-				{Name: "init <name>", Desc: "Create a new appliance with config and secrets"},
-				{Name: "init --batch <manifest>", Desc: "Batch init from JSON manifest"},
-				{Name: "assemble <name>", Desc: "Build ZeFS database only (fast path)"},
-				{Name: "build <name>", Desc: "Build full disk image (assemble + gok + ext4)"},
-				{Name: "push <name>", Desc: "Push image to device via OTA update"},
-				{Name: "push --all", Desc: "Push to all appliances with device.address"},
-				{Name: "config <name> --merged", Desc: "Show effective config (base + overlay)"},
-				{Name: "config-push <name>", Desc: "Push config to running device via SSH"},
-				{Name: "config-push --all", Desc: "Push config to all addressed devices"},
-				{Name: "passwd <name>", Desc: "Change SSH password"},
-				{Name: "replace-cert <name>", Desc: "Replace TLS certificate"},
-				{Name: "rekey <name>", Desc: "Change encryption passphrase"},
-				{Name: "clone <src> <dst>", Desc: "Copy config (not secrets) to new appliance"},
-				{Name: "list", Desc: "List appliances"},
-				{Name: "show <name>", Desc: "Show config summary and cert expiry"},
-				{Name: "run <name>", Desc: "Boot in QEMU"},
-				{Name: "unlock", Desc: "Start passphrase agent"},
-				{Name: "export <name>", Desc: "Export appliance to encrypted archive"},
-				{Name: "export --all", Desc: "Export all appliances to single encrypted archive"},
-				{Name: "import <archive>", Desc: "Import appliance from encrypted archive"},
-			}},
+			{Title: "Commands", Entries: applianceHelpEntries()},
 			{Title: "Flags", Entries: []helpfmt.HelpEntry{
 				{Name: "--dir <path>", Desc: "Appliance directory (default: $ZE_APPLIANCE_DIR or ~/.config/ze/appliances)"},
 			}},
@@ -164,6 +173,7 @@ func usage() {
 		Examples: []string{
 			"ze install appliance init lab",
 			"ze install appliance build lab",
+			"ze install appliance iso lab",
 			"ze install appliance list",
 			"ze install appliance show lab",
 		},

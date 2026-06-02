@@ -27,10 +27,22 @@ func NewTests() *Tests {
 
 // Add creates and registers a new test record.
 func (ts *Tests) Add(name string) *Record {
+	return ts.add(name, "")
+}
+
+// AddWithNick creates and registers a new test record with a stable caller-supplied nick.
+func (ts *Tests) AddWithNick(name, nick string) *Record {
+	return ts.add(name, nick)
+}
+
+func (ts *Tests) add(name, nick string) *Record {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 
 	r := NewRecord(name)
+	if nick != "" {
+		r.Nick = nick
+	}
 	ts.byNick[r.Nick] = r
 	ts.ordered = append(ts.ordered, r.Nick)
 	return r

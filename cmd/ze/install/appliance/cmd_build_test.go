@@ -1,6 +1,7 @@
 package appliance
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,10 +10,12 @@ import (
 func TestBuildUsesGokBuildFn(t *testing.T) {
 	var called bool
 	var gotArgs []string
+	var gotArch string
 	old := gokBuildFn
 	gokBuildFn = func(args []string) error {
 		called = true
 		gotArgs = args
+		gotArch = os.Getenv("GOARCH")
 		return nil
 	}
 	defer func() { gokBuildFn = old }()
@@ -23,7 +26,10 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 	}
 	defer func() { runExternalFn = oldExt }()
 
+	t.Setenv("GOARCH", archAMD64)
+
 	cfg := &ApplianceConfig{}
+	cfg.Image.Arch = archARM64
 	cfg.Image.SizeBytes = 1073741824
 
 	runGokBuild(cfg, "/tmp/test.img")
@@ -50,6 +56,42 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 		if gotArgs[i] != wantArgs[i] {
 			t.Errorf("arg[%d] = %q, want %q", i, gotArgs[i], wantArgs[i])
 		}
+	}
+	if gotArch != archARM64 {
+		t.Fatalf("GOARCH = %q, want %q", gotArch, archARM64)
+	}
+}
+
+func TestGokrazyConfigBuildsStrippedZeBinary(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "gokrazy", "ze", "config.json")) //nolint:gosec // repo fixture
+	if err != nil {
+		t.Fatalf("read gokrazy config: %v", err)
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("parse gokrazy config: %v", err)
+	}
+	pkgConfig, ok := cfg["PackageConfig"].(map[string]any)
+	if !ok {
+		t.Fatal("PackageConfig missing")
+	}
+	zePkg, ok := pkgConfig["codeberg.org/thomas-mangin/ze/cmd/ze"].(map[string]any)
+	if !ok {
+		t.Fatal("ze package config missing")
+	}
+	tags, ok := zePkg["GoBuildTags"].([]any)
+	if !ok {
+		t.Fatal("GoBuildTags missing for ze package")
+	}
+	found := false
+	for _, tag := range tags {
+		if tag == "ze_stripped" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("GoBuildTags = %v, want ze_stripped", tags)
 	}
 }
 

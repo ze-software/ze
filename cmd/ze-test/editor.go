@@ -155,7 +155,7 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 
 	// Add selected tests to runner
 	for _, test := range tests.Selected() {
-		rec := pr.AddTest(test.Name, test, func(_ context.Context, t *runner.EditorTest) (bool, error) {
+		pr.AddTestWithNick(test.Name, test.Nick, test, func(_ context.Context, t *runner.EditorTest) (bool, error) {
 			testResult := editortesting.RunETFile(t.Path)
 
 			// Update test with results
@@ -168,7 +168,6 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 			}
 			return true, nil
 		})
-		rec.Nick = test.Nick
 	}
 
 	// Set failure callback for verbose output

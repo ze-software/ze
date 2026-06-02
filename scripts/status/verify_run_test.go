@@ -194,6 +194,16 @@ func TestVerifyRunFunctionalFixtureWithRelatedPluginFailures(t *testing.T) {
 	}
 }
 
+func TestClassifyFunctionalInstallFallbackUsesSuiteCommand(t *testing.T) {
+	groups := classifyFunctional("tmp/verify/install.log", "FAIL  1 suite(s) failed: install\n")
+	if len(groups) != 1 {
+		t.Fatalf("expected one install fallback group, got %+v", groups)
+	}
+	if groups[0].Rerun != "bin/ze-test install --all" {
+		t.Fatalf("install rerun = %q, want %q", groups[0].Rerun, "bin/ze-test install --all")
+	}
+}
+
 func TestVerifyRunCapsInlineMembersAndExcerptLines(t *testing.T) {
 	root := t.TempDir()
 	members := make([]string, 12)

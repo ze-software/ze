@@ -17,7 +17,7 @@ var (
 	errBgpRibClearOutRequiresA                    = errors.New("clear bgp rib out requires a selector (* for all peers)")
 	errBgpRibRetainRoutesRequiresA                = errors.New("request bgp rib retain-routes requires a selector (* for all peers)")
 	errBgpRibReleaseRoutesRequiresA               = errors.New("request bgp rib release-routes requires a selector (* for all peers)")
-	errUsageRibInjectPeerFamilyPrefix             = errors.New("usage: request bgp rib inject <peer> <family> <prefix> [origin <val>] [nhop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]")
+	errUsageRibInjectPeerFamilyPrefix             = errors.New("usage: request bgp rib inject <peer> <family> <prefix> [origin <val>] [nhop|nexthop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]")
 	errUsageRibWithdrawPeerFamilyPrefix           = errors.New("usage: request bgp rib withdraw <peer> <family> <prefix>")
 	errMarkStaleRequiresPeerRestartTime           = errors.New("mark-stale requires <peer> <restart-time> [level]")
 	errStaleLevelMustBe00                         = errors.New("stale level must be > 0 (0 means fresh)")

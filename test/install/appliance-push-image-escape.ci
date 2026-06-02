@@ -1,0 +1,40 @@
+# Test: ze install appliance push rejects image symlink escape.
+# spec-install-8: shared appliance image resolution protects push entrypoints too.
+#
+# Creates a real appliance directory with generated secrets, then places the only
+# candidate image as a symlink to a host file outside the appliance directory.
+# The push command must fail before network/TLS work and report the escape.
+
+option=env:var=ze.appliance.ssh.password:value=secret
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+mkdir appliances
+ze install appliance --dir appliances init --config push-config.json lab >/dev/null 2>&1
+printf 'outside image\n' > outside.img
+ln -s ../outside.img appliances/lab/ze-20260101-000000.img
+if ze install appliance --dir appliances push lab >/dev/null 2>push.err; then
+    echo "push unexpectedly succeeded" >&2
+    exit 1
+fi
+cat push.err >&2
+EOF_SH
+
+tmpfs=push-config.json:terminator=EOF_JSON
+{
+  "identity": {"name": "ignored", "hostname": "lab"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "lab", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_JSON
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=0
+expect=stderr:contains=error: image path ze-20260101-000000.img escapes appliance directory

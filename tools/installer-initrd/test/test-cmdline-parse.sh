@@ -30,24 +30,34 @@ extract_parse() {
     sed -n '/^validate_ipv4/,/^}/p' "$SCRIPT_DIR/../init"
     sed -n '/^validate_port/,/^}/p' "$SCRIPT_DIR/../init"
     sed -n '/^validate_image_name/,/^}/p' "$SCRIPT_DIR/../init"
+    sed -n '/^validate_source/,/^}/p' "$SCRIPT_DIR/../init"
+    sed -n '/^validate_media_id/,/^}/p' "$SCRIPT_DIR/../init"
+    sed -n '/^validate_decimal/,/^}/p' "$SCRIPT_DIR/../init"
+    sed -n '/^validate_target_path/,/^}/p' "$SCRIPT_DIR/../init"
 }
 
 eval "$(extract_parse)"
 
 # Test 1: ze.server, ze.image, ze.port all present
 mkdir -p "$TMPDIR/proc"
-echo "console=ttyS0 ze.server=10.0.0.1 ze.image=custom.img ze.port=8080 ip=dhcp" > "$TMPDIR/proc/cmdline"
+echo "console=ttyS0 ze.server=10.0.0.1 ze.image=custom.img ze.port=8080 ze.source=iso ze.target=/dev/vda ze.media-id=0123456789abcdef0123456789abcdef ip=dhcp" > "$TMPDIR/proc/cmdline"
 # Override parse_cmdline to use our mock. Mirrors the real parse_cmdline (it
 # reads /proc/cmdline directly, which cannot be faked when sourced).
 parse_cmdline_mock() {
+    ZE_SOURCE="http"
     ZE_SERVER=""
     ZE_IMAGE="ze.img"
     ZE_PORT="80"
+    ZE_TARGET=""
+    ZE_MEDIA_ID=""
     for param in $(cat "$TMPDIR/proc/cmdline"); do
         case "$param" in
+            ze.source=*) ZE_SOURCE="${param#ze.source=}" ;;
             ze.server=*) ZE_SERVER="${param#ze.server=}" ;;
             ze.image=*) ZE_IMAGE="${param#ze.image=}" ;;
             ze.port=*) ZE_PORT="${param#ze.port=}" ;;
+            ze.target=*) ZE_TARGET="${param#ze.target=}" ;;
+            ze.media-id=*) ZE_MEDIA_ID="${param#ze.media-id=}" ;;
         esac
     done
 }
@@ -56,6 +66,9 @@ parse_cmdline_mock
 assert_eq "server-present" "10.0.0.1" "$ZE_SERVER"
 assert_eq "image-present" "custom.img" "$ZE_IMAGE"
 assert_eq "port-present" "8080" "$ZE_PORT"
+assert_eq "source-present" "iso" "$ZE_SOURCE"
+assert_eq "target-present" "/dev/vda" "$ZE_TARGET"
+assert_eq "media-id-present" "0123456789abcdef0123456789abcdef" "$ZE_MEDIA_ID"
 
 # Test 2: ze.image and ze.port missing, defaults apply
 echo "ze.server=192.168.1.1 ip=dhcp" > "$TMPDIR/proc/cmdline"
@@ -63,6 +76,9 @@ parse_cmdline_mock
 assert_eq "server-only" "192.168.1.1" "$ZE_SERVER"
 assert_eq "image-default" "ze.img" "$ZE_IMAGE"
 assert_eq "port-default" "80" "$ZE_PORT"
+assert_eq "source-default" "http" "$ZE_SOURCE"
+assert_eq "target-default" "" "$ZE_TARGET"
+assert_eq "media-id-default" "" "$ZE_MEDIA_ID"
 
 # Test 3: neither present
 echo "console=ttyS0 ip=dhcp" > "$TMPDIR/proc/cmdline"
@@ -70,6 +86,9 @@ parse_cmdline_mock
 assert_eq "no-server" "" "$ZE_SERVER"
 assert_eq "no-image-default" "ze.img" "$ZE_IMAGE"
 assert_eq "no-port-default" "80" "$ZE_PORT"
+assert_eq "no-source-default" "http" "$ZE_SOURCE"
+assert_eq "no-target-default" "" "$ZE_TARGET"
+assert_eq "no-media-id-default" "" "$ZE_MEDIA_ID"
 
 # Test 4: validate_ipv4 with valid addresses
 validate_ipv4 "10.0.0.1" && assert_eq "valid-ip-10" "ok" "ok" || assert_eq "valid-ip-10" "ok" "fail"
@@ -104,6 +123,29 @@ validate_image_name "../etc/passwd" && assert_eq "invalid-image-traversal" "fail
 validate_image_name "a b" && assert_eq "invalid-image-space" "fail" "ok" || assert_eq "invalid-image-space" "fail" "fail"
 validate_image_name "x%0aHost: evil" && assert_eq "invalid-image-newline" "fail" "ok" || assert_eq "invalid-image-newline" "fail" "fail"
 
+
+# Test 7b: validate_source accepts only explicit source modes.
+validate_source "http" && assert_eq "valid-source-http" "ok" "ok" || assert_eq "valid-source-http" "ok" "fail"
+validate_source "iso" && assert_eq "valid-source-iso" "ok" "ok" || assert_eq "valid-source-iso" "ok" "fail"
+validate_source "" && assert_eq "invalid-source-empty" "fail" "ok" || assert_eq "invalid-source-empty" "fail" "fail"
+validate_source "nfs" && assert_eq "invalid-source-nfs" "fail" "ok" || assert_eq "invalid-source-nfs" "fail" "fail"
+
+# Test 7c: validate_media_id accepts lowercase 32-hex ids, rejects empty/bad chars/wrong length.
+validate_media_id "0123456789abcdef0123456789abcdef" && assert_eq "valid-media-id" "ok" "ok" || assert_eq "valid-media-id" "ok" "fail"
+validate_media_id "" && assert_eq "invalid-media-id-empty" "fail" "ok" || assert_eq "invalid-media-id-empty" "fail" "fail"
+validate_media_id "0123456789ABCDEF0123456789ABCDEF" && assert_eq "invalid-media-id-upper" "fail" "ok" || assert_eq "invalid-media-id-upper" "fail" "fail"
+validate_media_id "0123456789abcdef0123456789abcde" && assert_eq "invalid-media-id-short" "fail" "ok" || assert_eq "invalid-media-id-short" "fail" "fail"
+validate_media_id "0123456789abcdef0123456789abcdeg" && assert_eq "invalid-media-id-char" "fail" "ok" || assert_eq "invalid-media-id-char" "fail" "fail"
+
+# Test 7d: validate_target_path accepts whole block disks and rejects partitions/metacharacters.
+validate_target_path "/dev/sda" && assert_eq "valid-target-sda" "ok" "ok" || assert_eq "valid-target-sda" "ok" "fail"
+validate_target_path "/dev/vda" && assert_eq "valid-target-vda" "ok" "ok" || assert_eq "valid-target-vda" "ok" "fail"
+validate_target_path "/dev/nvme0n1" && assert_eq "valid-target-nvme" "ok" "ok" || assert_eq "valid-target-nvme" "ok" "fail"
+validate_target_path "/dev/mmcblk0" && assert_eq "valid-target-mmc" "ok" "ok" || assert_eq "valid-target-mmc" "ok" "fail"
+validate_target_path "" && assert_eq "invalid-target-empty" "fail" "ok" || assert_eq "invalid-target-empty" "fail" "fail"
+validate_target_path "vda" && assert_eq "invalid-target-relative" "fail" "ok" || assert_eq "invalid-target-relative" "fail" "fail"
+validate_target_path "/dev/vda1" && assert_eq "invalid-target-partition" "fail" "ok" || assert_eq "invalid-target-partition" "fail" "fail"
+validate_target_path "/dev/../sda" && assert_eq "invalid-target-traversal" "fail" "ok" || assert_eq "invalid-target-traversal" "fail" "fail"
 # Test 6: ze.server with spaces/special chars in cmdline
 echo "root=/dev/sda1 ze.server=172.16.0.1 quiet" > "$TMPDIR/proc/cmdline"
 parse_cmdline_mock

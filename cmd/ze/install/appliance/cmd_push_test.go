@@ -250,6 +250,33 @@ func TestPushSpecificImage(t *testing.T) {
 	}
 }
 
+func TestResolveImagePathRelativeBaseDir(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	appDir := filepath.Join("appliances", "lab")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatalf("mkdir appliance dir: %v", err)
+	}
+	imagePath := filepath.Join(appDir, "ze-20260101-000000.img")
+	if err := os.WriteFile(imagePath, []byte("image"), 0o644); err != nil { //nolint:gosec // test fixture
+		t.Fatalf("write image: %v", err)
+	}
+	resolved, err := resolveImagePath("appliances", "lab", "")
+	if err != nil {
+		t.Fatalf("resolveImagePath() error = %v", err)
+	}
+	absImagePath, err := filepath.Abs(imagePath)
+	if err != nil {
+		t.Fatalf("abs image path: %v", err)
+	}
+	want, err := filepath.EvalSymlinks(absImagePath)
+	if err != nil {
+		t.Fatalf("eval image path: %v", err)
+	}
+	if resolved != want {
+		t.Fatalf("resolved image path = %q, want %q", resolved, want)
+	}
+}
 func TestPushAllParallel(t *testing.T) {
 	received := make(map[string]bool)
 	var mu sync.Mutex

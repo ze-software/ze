@@ -12,6 +12,7 @@
 #   make ze-live-test                  Live tests (Docker + internet)
 #   make ze-qemu-integration-test      Integration tests in QEMU VM (macOS-friendly)
 #   make ze-deployment-preflight       Check deployment tooling availability
+#   make ze-install-iso-qemu-test       Appliance ISO installer evidence (QEMU)
 
 .PHONY: ze-interop-test ze-ipsec-interop-test
 .PHONY: ze-stress-test ze-stress-bird-test ze-stress-profile
@@ -20,7 +21,7 @@
 .PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-ldp-frr-test ze-install-qemu-test ze-qemu-all-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-ldp-frr-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -129,10 +130,11 @@ ze-deployment-preflight:
 # ─── QEMU ───────────────────────────────────────────────────────────────────
 
 # Full test suite in one QEMU Linux VM, host-compile / run-in-VM:
-#   - ze + ze-test are cross-compiled on the host (CGO off) to arch-suffixed
-#     names (bin/ze-linux-<arch>, bin/ze-test-linux-<arch>) and shared into the
-#     VM over 9p; ZE_BIN/ZE_TEST_BIN env vars tell the runner where to find
-#     them, and ZE_TEST_NO_BUILD=1 skips recompilation on the slow 9p mount.
+#   - ze, ze-stripped, and ze-test are cross-compiled on the host (CGO off) to
+#     arch-suffixed names (bin/ze-linux-<arch>, bin/ze-stripped-linux-<arch>,
+#     bin/ze-test-linux-<arch>) and shared into the VM over 9p; ZE_BIN,
+#     ZE_STRIPPED_BIN, and ZE_TEST_BIN tell the runner where to find them, and
+#     ZE_TEST_NO_BUILD=1 skips recompilation on the slow 9p mount.
 #   - unit + integration Go tests still compile in the VM (incremental, cache on
 #     9p), no -race (Alpine has no C compiler; race coverage comes from native /
 #     Linux-CI unit runs). The VM's unique value: //go:build linux paths and the
@@ -144,6 +146,7 @@ ze-deployment-preflight:
 # host-native binary. No need to run `make ze test` after QEMU testing.
 QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
 ZE_QEMU_BIN := bin/ze-linux-$(QEMU_GOARCH)
+ZE_QEMU_STRIPPED_BIN := bin/ze-stripped-linux-$(QEMU_GOARCH)
 ZE_QEMU_TEST_BIN := bin/ze-test-linux-$(QEMU_GOARCH)
 ZE_QEMU_SKIP_SUITES ?= web
 ZE_QEMU_PARALLEL ?= 4
@@ -155,15 +158,16 @@ ZE_QEMU_PARALLEL ?= 4
 # Stamping a real version here makes that test fail spuriously. Keep it unstamped.
 
 ze-qemu-all-test:
-	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
+	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
 	@mkdir -p bin
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_stripped $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o $(ZE_QEMU_TEST_BIN) ./cmd/ze-test
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--timeout 3600 \
-		--run 'ZE_BIN="$(ZE_QEMU_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="$(ZE_QEMU_SKIP_SUITES)" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
+		--run 'ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="$(ZE_QEMU_SKIP_SUITES)" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
 
 # Debug specific functional tests in the QEMU VM with verbose output.
 #
@@ -237,6 +241,15 @@ ze-install-qemu-test:
 		DOCKER_HOST="unix://$$HOME/.colima/default/docker.sock" python3 scripts/evidence/effective-install-qemu.py; \
 	else \
 		python3 scripts/evidence/effective-install-qemu.py; \
+	fi
+
+ze-install-iso-qemu-test:
+	@echo "Running appliance ISO installer QEMU evidence (builds initrd + image + ISO, boots ISO, verifies SSH login)..."
+	@echo "Set ZE_INSTALL_KERNEL=/path/to/vmlinuz (IP_PNP_DHCP/VIRTIO_NET/VIRTIO_BLK/EXT4/ISO9660/SR built in); self-skips otherwise."
+	@if [ "$$(uname)" = "Darwin" ] && [ -z "$$DOCKER_HOST" ] && [ -S "$$HOME/.colima/default/docker.sock" ]; then \
+		DOCKER_HOST="unix://$$HOME/.colima/default/docker.sock" python3 scripts/evidence/effective-install-iso-qemu.py; \
+	else \
+		python3 scripts/evidence/effective-install-iso-qemu.py; \
 	fi
 
 ze-qemu-l2tp-ppp-test:

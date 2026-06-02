@@ -16,6 +16,10 @@ const (
 	StatusUpdateInterval      = 200 * time.Millisecond
 )
 
+func verifyModeEnabled() bool {
+	return os.Getenv("ZE_VERIFY_MODE") == "1"
+}
+
 // ParallelTest represents a test that can be run in parallel.
 type ParallelTest[T any] struct {
 	Name   string
@@ -78,6 +82,15 @@ func (r *ParallelRunner[T]) SetOnFail(fn func(T, error)) {
 
 // AddTest adds a test to the runner.
 func (r *ParallelRunner[T]) AddTest(name string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
+	return r.addTest(name, "", test, runFn)
+}
+
+// AddTestWithNick adds a test to the runner with a stable caller-supplied nick.
+func (r *ParallelRunner[T]) AddTestWithNick(name, nick string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
+	return r.addTest(name, nick, test, runFn)
+}
+
+func (r *ParallelRunner[T]) addTest(name, nick string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
 	if r.display == nil {
 		// Lazy init - create Tests container and Display on first AddTest
 		tests := NewTests()
@@ -86,7 +99,7 @@ func (r *ParallelRunner[T]) AddTest(name string, test T, runFn func(ctx context.
 		r.display.SetTimeout(DefaultParallelTimeout)
 	}
 
-	rec := r.display.tests.Add(name)
+	rec := r.display.tests.AddWithNick(name, nick)
 	rec.Active = true
 
 	r.tests = append(r.tests, &ParallelTest[T]{
@@ -215,7 +228,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 			logger().Warn("save timings failed", "error", err)
 		}
 	}
-	if os.Getenv("ZE_VERIFY_MODE") == "1" && len(failures) > 0 {
+	if verifyModeEnabled() && len(failures) > 0 {
 		report := NewReport(r.colors)
 		report.SetOutput(r.display.output)
 		report.SetLabel(r.label)
@@ -226,7 +239,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 
 	// Verify mode must include concise failure detail in saved logs without
 	// making normal interactive runs verbose.
-	if (r.verbose || os.Getenv("ZE_VERIFY_MODE") == "1") && r.onFail != nil && len(failures) > 0 {
+	if (r.verbose || verifyModeEnabled()) && r.onFail != nil && len(failures) > 0 {
 		for _, f := range failures {
 			r.onFail(f.test, f.err)
 		}

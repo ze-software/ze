@@ -1,14 +1,14 @@
 # Build the ze installer kernel in a container.
 #
-#   make                         # build build/Image for the host arch
-#   make ARCH=x86_64             # cross-target (needs an x86_64 docker arch)
-#   make LINUX_VERSION=6.12.9    # pin a different kernel
+#   make                         # build build/Image for the selected ARCH (default: arm64)
+#   make ARCH=amd64             # cross-target x86_64 kernel
+#   make LINUX_VERSION=6.12.9   # pin a different kernel
 #   make clean
 #
-# The build runs natively for the docker daemon's architecture, so run it on a
-# host whose docker arch matches ARCH (arm64 on Apple Silicon / colima).
-# Produces build/Image (the installer kernel) and build/config (resolved .config).
-# Point the QEMU install test at it: ZE_INSTALL_KERNEL=$(pwd)/build/Image.
+# Produces build/Image (the installer kernel) and build/config (resolved
+# .config). The caller chooses the architecture via ARCH before invoking
+# `ze install appliance iso`, or passes an explicit `--kernel` path when
+# keeping multiple kernels side by side.
 
 ARCH ?= arm64
 LINUX_VERSION ?= 6.6.58

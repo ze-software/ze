@@ -68,7 +68,7 @@ generate:
 ze-plugin-imports-check:
 	@go run scripts/codegen/plugin_imports.go --check
 
-build: generate bin/ze bin/ze-test bin/ze-chaos bin/ze-analyse docs/comparison.html
+build: generate bin/ze bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-analyse docs/comparison.html
 	@echo "All binaries built"
 
 docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
@@ -77,6 +77,10 @@ docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
 ze:
 	@mkdir -p bin
 	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+
+ze-stripped:
+	@mkdir -p bin
+	$(GO) build -tags 'ze_stripped $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
 
 chaos:
 	@mkdir -p bin
@@ -95,6 +99,10 @@ bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@mkdir -p bin
 	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
+bin/ze-stripped: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-stripped..."
+	@mkdir -p bin
+	$(GO) build -tags 'ze_stripped $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
 bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p bin
@@ -301,8 +309,9 @@ help:
 	@echo "    make ze-verify-changed    Scoped verify: changed packages + wiring/docs, then full functional"
 	@echo ""
 	@echo "  Build:"
-	@echo "    make build                All binaries (ze, ze-test, ze-chaos, ze-analyse)"
+	@echo "    make build                All binaries (ze, ze-stripped, ze-test, ze-chaos, ze-analyse)"
 	@echo "    make ze                   Just bin/ze"
+	@echo "    make ze-stripped          Just bin/ze-stripped"
 	@echo ""
 	@echo "  More help:"
 	@echo "    make help-test            All test targets (unit, functional, fuzz, chaos, interop, ...)"

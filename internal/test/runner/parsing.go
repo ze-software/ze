@@ -416,9 +416,8 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	runner.SetNoHeader(true) // header managed by caller
 	runner.SetBaseDir(r.baseDir)
 
-	// Add tests to runner
 	for _, test := range selected {
-		rec := runner.AddTest(test.Name, test, func(runCtx context.Context, t *ParsingTest) (bool, error) {
+		rec := runner.AddTestWithNick(test.Name, test.Nick, test, func(runCtx context.Context, t *ParsingTest) (bool, error) {
 			success := r.runTest(runCtx, t)
 			if !success {
 				return false, t.Error
@@ -428,7 +427,6 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		// Propagate per-test SkipReason (from option=skip-os) onto the
 		// Record so ParallelRunner.Run honors it without running the test.
 		rec.SkipReason = test.SkipReason
-		rec.Nick = test.Nick
 	}
 
 	runner.SetOnFail(func(test *ParsingTest, _ error) {

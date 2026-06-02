@@ -1,3 +1,5 @@
+//go:build !ze_stripped
+
 // Design: plan/spec-cpe-6-self-update.md -- download, verify, stage, restart logic
 
 package system
@@ -40,24 +42,6 @@ const (
 	statusWaitingMaintenance = "waiting for maintenance window"
 )
 
-// SelfUpdateConfig holds the self-update config extracted from config tree.
-type SelfUpdateConfig struct {
-	AutoApply        bool
-	Spread           uint32
-	MaintenanceStart string // HH:MM
-	MaintenanceEnd   string // HH:MM
-	RestartImmediate bool
-	RestartTime      string // HH:MM
-}
-
-// UpdateEvent records one update attempt for history.
-type UpdateEvent struct {
-	Timestamp   time.Time `json:"timestamp"`
-	FromVersion string    `json:"from-version"`
-	ToVersion   string    `json:"to-version"`
-	Result      string    `json:"result"`
-}
-
 // extendedManifest is the enhanced server manifest (wire format, not config).
 type extendedManifest struct {
 	Ver            string `json:"version"`
@@ -66,23 +50,6 @@ type extendedManifest struct {
 	Paused         bool   `json:"paused,omitempty"`
 	MinimumVersion string `json:"minimum-version,omitempty"`
 	DownloadURL    string `json:"download-url,omitempty"`
-}
-
-// ExtendedUpdateStatus holds the full update status including self-update state.
-type ExtendedUpdateStatus struct {
-	UpdateStatus
-	Backend          BackendName
-	StatusText       string
-	Message          string
-	GokrazyReachable bool
-	GokrazyFeatures  []string
-	DownloadStatus   string
-	DownloadSHA256   string
-	StagedVersion    string
-	StagedPath       string
-	RestartPolicy    string
-	ServerPaused     bool
-	HeldVersion      string
 }
 
 // SelfUpdater extends UpdateChecker with download/verify/stage/restart logic.
@@ -935,25 +902,6 @@ func (su *SelfUpdater) cleanStaleTempFiles() {
 
 // --- maintenance window ---
 
-type hhmm struct {
-	hour   int
-	minute int
-}
-
-func parseHHMM(s string) (hhmm, error) {
-	if len(s) != 5 || s[2] != ':' {
-		return hhmm{}, fmt.Errorf("invalid HH:MM format: %q", s)
-	}
-	var h, m int
-	if _, err := fmt.Sscanf(s, "%02d:%02d", &h, &m); err != nil {
-		return hhmm{}, fmt.Errorf("invalid HH:MM format: %q", s)
-	}
-	if h < 0 || h > 23 || m < 0 || m > 59 {
-		return hhmm{}, fmt.Errorf("HH:MM out of range: %q", s)
-	}
-	return hhmm{hour: h, minute: m}, nil
-}
-
 func (su *SelfUpdater) inMaintenanceWindow() bool {
 	start, err := parseHHMM(su.cfg.MaintenanceStart)
 	if err != nil {
@@ -1033,60 +981,6 @@ func (su *SelfUpdater) saveHistory() {
 		return
 	}
 	os.Rename(tmpPath, hp) //nolint:errcheck // best-effort atomic persist; next save retries
-}
-
-// --- config validation ---
-
-// ValidateSelfUpdateConfig checks for config errors.
-func ValidateSelfUpdateConfig(cfg SelfUpdateConfig) error {
-	if cfg.RestartImmediate && cfg.RestartTime != "" {
-		return errors.New("restart { immediate } and restart { time } are mutually exclusive")
-	}
-	if cfg.RestartTime != "" {
-		if _, err := parseHHMM(cfg.RestartTime); err != nil {
-			return fmt.Errorf("restart time: %w", err)
-		}
-	}
-	if cfg.MaintenanceStart != "" {
-		if _, err := parseHHMM(cfg.MaintenanceStart); err != nil {
-			return fmt.Errorf("maintenance-window start: %w", err)
-		}
-	}
-	if cfg.MaintenanceEnd != "" {
-		if _, err := parseHHMM(cfg.MaintenanceEnd); err != nil {
-			return fmt.Errorf("maintenance-window end: %w", err)
-		}
-	}
-	return nil
-}
-
-// WarnConfigConflicts logs warnings for non-error config conflicts.
-func WarnConfigConflicts(cfg SelfUpdateConfig) {
-	if cfg.RestartTime == "" || cfg.MaintenanceStart == "" || cfg.MaintenanceEnd == "" {
-		return
-	}
-	start, startErr := parseHHMM(cfg.MaintenanceStart)
-	end, endErr := parseHHMM(cfg.MaintenanceEnd)
-	restartT, restartErr := parseHHMM(cfg.RestartTime)
-	if startErr != nil || endErr != nil || restartErr != nil {
-		return
-	}
-
-	restartMin := restartT.hour*60 + restartT.minute
-	startMin := start.hour*60 + start.minute
-	endMin := end.hour*60 + end.minute
-
-	var inWindow bool
-	if startMin <= endMin {
-		inWindow = restartMin >= startMin && restartMin < endMin
-	} else {
-		inWindow = restartMin >= startMin || restartMin < endMin
-	}
-	if !inWindow {
-		slogutil.Logger("self-update").Warn(
-			"restart time is outside maintenance-window; binary will be staged during window but restart will happen after it closes",
-			"restart", cfg.RestartTime, "window", cfg.MaintenanceStart+"-"+cfg.MaintenanceEnd)
-	}
 }
 
 // --- helpers ---

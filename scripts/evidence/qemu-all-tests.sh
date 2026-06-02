@@ -41,18 +41,39 @@ PARALLEL="${ZE_QEMU_PARALLEL:-4}"
 SUITE_TIMEOUT="${ZE_QEMU_SUITE_TIMEOUT:-900s}"
 
 # Resolve arch-suffixed binary names. The Makefile cross-compiles to
-# bin/ze-linux-<arch> so bin/ze stays the host-native binary.
+# bin/ze-linux-<arch>, bin/ze-stripped-linux-<arch>, and
+# bin/ze-test-linux-<arch> so bin/ze stays the host-native binary. Put stable
+# names in a VM-local directory because some UI tests execute `ze-stripped`
+# through PATH.
 ZE_BIN="${ZE_BIN:-bin/ze}"
+ZE_STRIPPED_BIN="${ZE_STRIPPED_BIN:-bin/ze-stripped}"
 ZE_TEST_BIN="${ZE_TEST_BIN:-bin/ze-test}"
-export ZE_BIN
 
-for bin in "$ZE_BIN" "$ZE_TEST_BIN"; do
-	if [ ! -x "$bin" ]; then
+workspace_path() {
+	case "$1" in
+	/*) printf '%s\n' "$1" ;;
+	*) printf '/workspace/%s\n' "$1" ;;
+	esac
+}
+
+for bin in "$ZE_BIN" "$ZE_STRIPPED_BIN" "$ZE_TEST_BIN"; do
+	resolved="$(workspace_path "$bin")"
+	if [ ! -x "$resolved" ]; then
 		echo "error: $bin missing or not executable -- cross-compile it on the host first" >&2
 		echo "       (make ze-qemu-all-test does this automatically)" >&2
 		exit 1
 	fi
 done
+
+QEMU_BIN_DIR="/tmp/ze-qemu-bin"
+mkdir -p "$QEMU_BIN_DIR"
+ln -sf "$(workspace_path "$ZE_BIN")" "$QEMU_BIN_DIR/ze"
+ln -sf "$(workspace_path "$ZE_STRIPPED_BIN")" "$QEMU_BIN_DIR/ze-stripped"
+ln -sf "$(workspace_path "$ZE_TEST_BIN")" "$QEMU_BIN_DIR/ze-test"
+ZE_BIN="$QEMU_BIN_DIR/ze"
+ZE_TEST_BIN="$QEMU_BIN_DIR/ze-test"
+export ZE_BIN
+export PATH="$QEMU_BIN_DIR:$PATH"
 
 green() { printf '\033[32m%s\033[0m\n' "$1"; }
 red() { printf '\033[31m%s\033[0m\n' "$1"; }

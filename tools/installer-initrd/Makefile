@@ -36,11 +36,11 @@ check-busybox:
 $(INITRD): check-busybox init
 	rm -rf $(ROOTFS)
 	mkdir -p $(ROOTFS)/bin $(ROOTFS)/sbin $(ROOTFS)/proc $(ROOTFS)/sys
-	mkdir -p $(ROOTFS)/dev $(ROOTFS)/mnt/perm $(ROOTFS)/tmp
+	mkdir -p $(ROOTFS)/dev $(ROOTFS)/mnt/perm $(ROOTFS)/mnt/iso $(ROOTFS)/tmp
 	cp "$(BUSYBOX)" $(ROOTFS)/bin/busybox
 	chmod 755 $(ROOTFS)/bin/busybox
 	for cmd in sh cat echo mount umount mkdir sleep wget dd sync \
-		reboot blockdev basename rm mktemp mkfifo sha256sum tee; do \
+		reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee wc tr ip; do \
 		ln -sf busybox $(ROOTFS)/bin/$$cmd; \
 	done
 	cp init $(ROOTFS)/init
@@ -56,5 +56,6 @@ test:
 	@echo "Running installer initrd tests..."
 	@sh test/test-cmdline-parse.sh
 	@sh test/test-disk-detect.sh
+	@sh test/test-iso-media.sh
 	@sh test/test-download.sh
 	@echo "All tests passed."

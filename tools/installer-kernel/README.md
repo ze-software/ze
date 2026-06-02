@@ -19,12 +19,14 @@ required options on; `build.sh` verifies they resolved to `=y` before building.
 ## Build
 
 ```sh
-make                      # build/Image for the host docker arch (arm64 on colima)
-make ARCH=x86_64          # for an x86_64 docker host
+make                      # build/Image for arm64
+make ARCH=amd64           # build/Image for x86_64
 make LINUX_VERSION=6.12.9 # pin a different kernel
 ```
 
 Output: `build/Image` (the kernel) and `build/config` (the resolved config).
+If you want to keep both architectures side by side, copy or rename the kernel
+after each build and pass it back to `ze install appliance iso --kernel ...`.
 
 ## Use with the QEMU install test
 

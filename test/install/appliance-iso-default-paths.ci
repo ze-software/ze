@@ -1,0 +1,83 @@
+# Test: ze install appliance iso uses default kernel/initrd paths.
+# Covers the no-flag path for tools/installer-kernel/build/Image and
+# tools/installer-initrd/build/initrd.img.gz without requiring external GRUB/xorriso.
+
+option=env:var=ze.appliance.ssh.password:value=secret
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+mkdir -p appliances tools/installer-kernel/build tools/installer-initrd/build
+printf 'kernel-default\n' > tools/installer-kernel/build/Image
+printf 'initrd-default\n' > tools/installer-initrd/build/initrd.img.gz
+cat > grub-mkstandalone <<'EOF_GRUB'
+#!/bin/sh
+set -eu
+target=""
+out=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -O) target="$2"; shift 2 ;;
+    -o) out="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+[ "$target" = "x86_64-efi" ]
+printf 'efi\n' > "$out"
+EOF_GRUB
+chmod +x grub-mkstandalone
+cat > xorriso <<'EOF_XORRISO'
+#!/bin/sh
+set -eu
+out=""
+image=""
+stage=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -as) shift 2 ;;
+    -R|-J|-eltorito-alt-boot|-no-emul-boot) shift ;;
+    -o) out="$2"; shift 2 ;;
+    -e) image="$2"; shift 2 ;;
+    *) stage="$1"; shift ;;
+  esac
+done
+[ -f "$stage/$image" ]
+printf 'iso\n' > "$out"
+EOF_XORRISO
+chmod +x xorriso
+export PATH="$PWD:$PATH"
+ze install appliance --dir appliances init --config iso-config.json lab >/dev/null 2>&1
+printf 'image-bytes\n' > appliances/lab/ze-20260101-000000.img
+python3 - <<'PY'
+from pathlib import Path
+import hashlib
+p = Path('appliances/lab/ze-20260101-000000.img')
+p.with_suffix(p.suffix + '.sha256').write_text(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n')
+PY
+ze install appliance --dir appliances iso --keep-staging lab >/dev/null
+set -- appliances/lab/.iso-staging-*
+stage="$1"
+[ -d "$stage" ]
+[ "$(cat "$stage/boot/kernel")" = "kernel-default" ]
+[ "$(cat "$stage/boot/initrd.img.gz")" = "initrd-default" ]
+grep -q 'console=ttyS0' "$stage/boot/grub/grub.cfg"
+echo OK
+EOF_SH
+
+tmpfs=iso-config.json:terminator=EOF_JSON
+{
+  "identity": {"name": "ignored", "hostname": "lab"},
+  "credentials": {"username": "admin", "admin-enabled": true},
+  "ssh": {"host": "0.0.0.0", "port": "22"},
+  "web": {"enabled": true, "host": "0.0.0.0", "port": "8080"},
+  "tls": {"cert-name": "lab", "validity-years": 10},
+  "managed": false,
+  "device": {"address": "192.0.2.10", "update-port": 443},
+  "image": {"arch": "amd64", "size-bytes": 2147483648},
+  "qemu": {"ssh-port": 2222, "web-port": 28080, "gokrazy-port": 18080}
+}
+EOF_JSON
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=0
+expect=stdout:contains=OK

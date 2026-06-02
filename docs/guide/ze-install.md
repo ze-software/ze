@@ -1,6 +1,6 @@
 # Installation
 
-Ze provides commands for local installation and remote (PXE) provisioning.
+Ze provides commands for local installation, remote PXE provisioning, and appliance ISO installer media.
 
 ## Local Installation
 
@@ -156,12 +156,13 @@ Use the structured appliance builder (full reference:
 
 ```bash
 ze install appliance init prod
-GOKRAZY_ARCH=amd64 ze install appliance build prod   # arm64 for ARM targets
+# For ARM targets, set image.arch to "arm64" in appliance.json before build.
+ze install appliance build prod
 ```
 
 This produces `~/.config/ze/appliances/prod/ze-<timestamp>.img` with TLS, SSH
 credentials, and a seed config baked into its `/perm` zefs. Match
-`GOKRAZY_ARCH` to the target CPU.
+`image.arch` in `appliance.json` to the target CPU.
 
 ### 2. Build the installer kernel and initrd
 
@@ -169,7 +170,7 @@ The target PXE-boots a kernel + initrd, *not* the disk image. Build both for the
 target architecture:
 
 ```bash
-make -C tools/installer-kernel ARCH=x86_64   # build/Image (bzImage); ARCH=arm64 for ARM
+make -C tools/installer-kernel ARCH=amd64    # build/Image for x86_64; ARCH=arm64 for ARM
 make -C tools/installer-initrd               # build/initrd.img.gz
 ```
 
@@ -239,6 +240,7 @@ ssh admin@<target-ip>      # the password given to --ssh-password
 ze's SSH endpoint is the network-OS CLI. Configure with `ze config edit` and
 commit; the committed config replaces the bootstrap config on the next restart.
 
+
 ### Troubleshooting
 
 - **Installer drops to a shell** instead of rebooting on a bad `ze.server`, no
@@ -250,6 +252,54 @@ commit; the committed config replaces the bootstrap config on the next restart.
   pass `ze.port=` in the iPXE cmdline.
 - **Dry-run first**: `make ze-install-qemu-test` reproduces the whole chain in
   QEMU and will surface a broken image, kernel, or initrd without hardware.
+
+## Appliance ISO Install
+
+For appliances built with `ze install appliance build`, ISO media is an offline
+install transport for the same raw gokrazy image. Create it with:
+<!-- source: cmd/ze/install/appliance/cmd_iso.go -- runIso -->
+
+```bash
+ze install appliance build prod
+ze install appliance iso prod
+make -C tools/installer-kernel ARCH=arm64
+ze install appliance iso --kernel tools/installer-kernel/build/Image prod
+```
+
+The ISO installer writes the embedded raw image unchanged. Unlike PXE
+provisioning, it does not download `/install/database.zefs` or write a separate
+database after the disk image, because the appliance build already injected
+`/perm/ze/database.zefs` into the image.
+<!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
+<!-- source: cmd/ze/install/appliance/cmd_build.go -- injectZeFS -->
+
+The ISO bootloader target follows `image.arch`: amd64 images produce
+`BOOTX64.EFI`, arm64 images produce `BOOTAA64.EFI`. By default the command looks
+for `tools/installer-kernel/build/Image` and pairs that kernel with the shared
+initrd. Build the matching architecture before running `ze install appliance
+iso`, or pass `--kernel` to keep multiple kernels side by side.
+<!-- source: cmd/ze/install/appliance/cmd_iso.go -- isoGRUBTarget, defaultISOKernelPath -->
+
+If the target has more than one fixed disk, create the ISO with an explicit
+whole-disk target. The initrd rejects ambiguous implicit disk selection in ISO
+mode, excludes the ISO source media from target candidates, and requires a
+builder-generated media id match before it trusts a mounted installer volume.
+<!-- source: tools/installer-initrd/init -- find_target_disk, find_iso_media -->
+
+```bash
+ze install appliance iso --target /dev/vda prod
+```
+
+The generated ISO includes the installer kernel, initrd, the selected image,
+its checksum, and metadata. It contains the full provisioned appliance image, so
+handle it like the `.img` artifact.
+
+ISO installs power off after the disk write so the removable installer media can
+be removed before the next boot. They do not auto-reboot while the ISO is still
+present.
+<!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
+
+<!-- source: cmd/ze/install/appliance/cmd_iso.go -- stageISO -->
 
 ## Remote Provisioning (PXE)
 
@@ -413,13 +463,16 @@ and the initrd's init script installs ze.
 
 ### What It Does
 
-1. Parses `ze.server`, `ze.port`, and `ze.image` from the kernel command line
-2. Downloads the gokrazy disk image from `http://<server>:<port>/install/image/<name>`
-3. Writes the image directly to the first non-removable block device
-4. Re-reads the partition table, mounts partition 4 (ext4, /perm)
-5. Downloads `database.zefs` from `http://<server>/install/database.zefs`
-6. Writes it to `/perm/ze/database.zefs`
-7. Reboots
+1. Parses `ze.source`, `ze.server`, `ze.port`, `ze.image`, `ze.target`, and
+   `ze.media-id` from the kernel command line
+2. In HTTP mode, downloads the gokrazy disk image from
+   `http://<server>:<port>/install/image/<name>`
+3. In ISO mode, mounts local ISO media read-only and selects the embedded image
+4. Writes the image directly to the selected non-removable block device
+5. In HTTP mode only, re-reads the partition table, mounts partition 4 (ext4,
+   `/perm`), downloads `database.zefs`, and writes it to `/perm/ze/database.zefs`
+6. In HTTP mode, reboots. In ISO mode, powers off so the operator can remove
+   the installer media before the next boot.
 
 ### Building the Initrd
 
@@ -441,30 +494,38 @@ make -C tools/installer-initrd BUSYBOX=/usr/bin/busybox-static
 
 ### Kernel Command Line
 
-The bootloader (iPXE) sets these parameters:
+The bootloader sets these parameters:
 
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `ze.server` | Yes | | IPv4 address of the ze-install server |
+| Parameter | Required | Default | Purpose |
+|-----------|----------|---------|---------|
+| `ze.source` | No | `http` | Source mode: `http` for PXE or `iso` for local ISO media |
+| `ze.server` | HTTP only | | IPv4 address of the ze-install server |
 | `ze.port` | No | `80` | TCP port of the install HTTP server (1-65535) |
-| `ze.image` | No | `ze.img` | Name of the disk image to download |
-| `ip=dhcp` | Yes | | Kernel-level network configuration |
+| `ze.image` | No | `ze.img` | Name of the disk image to install |
+| `ze.target` | No | | Explicit whole-disk target such as `/dev/vda` |
+| `ze.media-id` | ISO only | | Builder-generated 32-hex token that identifies the booted installer ISO |
+| `ip=dhcp` | HTTP only | | Kernel-level network configuration |
 
 `ze.port` exists for install servers that cannot bind the privileged port 80
 (for example an unprivileged HTTP server, or a QEMU test harness that serves on
-an ephemeral port). When omitted the initrd uses port 80, so existing
-`ze install remote` deployments need no change.
+an ephemeral port). ISO mode does not use `ze.server`, `ze.port`, or `ip=dhcp`.
+Existing `ze install remote` deployments need no `ze.source` change because the
+default source is `http`.
+<!-- source: tools/installer-initrd/init -- parse_cmdline, validate_source -->
 
-### Disk Selection
+The init script selects a non-removable block device via sysfs. Virtual devices
+(loop, ram, dm, zram, md), optical drives (sr), floppies (fd), and firmware/CFI
+flash (`mtdblock`, the QEMU `virt` machine's pflash) are skipped.
 
-The init script selects the first non-removable block device via the
-sysfs `removable` attribute. Virtual devices (loop, ram, dm, zram, md),
-optical drives (sr), floppies (fd), and firmware/CFI flash (`mtdblock`,
-the QEMU `virt` machine's pflash) are skipped.
+In HTTP mode, the installer preserves the existing first-candidate behavior. In
+ISO mode, it also excludes the ISO source media and refuses to choose
+implicitly when more than one fixed candidate remains. Use `ze.target=/dev/vda`
+to name an explicit whole disk.
 
-Supported device types: `/dev/sda` (SATA/SCSI), `/dev/vda` (virtio-blk,
-used by QEMU/KVM), `/dev/nvme0n1` (NVMe), `/dev/mmcblk0` (eMMC).
-
+Supported target disk forms include `/dev/sda` (SATA/SCSI), `/dev/vda`
+(virtio-blk, used by QEMU/KVM), `/dev/nvme0n1` (NVMe), and `/dev/mmcblk0`
+(eMMC).
+<!-- source: tools/installer-initrd/init -- find_target_disk, validate_target_path -->
 ### Error Handling
 
 If the init script encounters an error (missing server IP, no disk found,
@@ -478,14 +539,14 @@ hardware issues.
 make -C tools/installer-initrd test
 ```
 
-This runs the cmdline parsing, disk detection, and download unit tests
-without requiring QEMU or real hardware.
+This runs the cmdline parsing, disk detection, ISO media discovery, and image
+write unit tests without requiring QEMU or real hardware.
 
 ### Busybox Applets
 
 The initrd is a single static busybox plus symlinks. The Makefile symlinks
 every applet the init script uses (`sh cat mount umount mkdir sleep wget dd
-sync reboot blockdev basename rm mktemp mkfifo sha256sum tee` ...), and `/init`
+sync reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee` ...), and `/init`
 also runs `busybox --install -s /bin` at boot as defence in depth. A missing
 applet would otherwise surface only at install time as a `not found` error and
 a kernel panic, so the init avoids non-essential externals (for example it
@@ -503,8 +564,8 @@ the right kernel is site-specific.
 requirements (and is what the end-to-end QEMU test boots):
 
 ```bash
-make -C tools/installer-kernel                 # build/Image for the docker host arch (arm64 on colima)
-make -C tools/installer-kernel ARCH=x86_64     # for an x86_64 docker host
+make -C tools/installer-kernel                 # build/Image for arm64
+make -C tools/installer-kernel ARCH=amd64      # build/Image for x86_64
 make -C tools/installer-kernel LINUX_VERSION=6.12.9
 ```
 
@@ -527,6 +588,23 @@ loading from the installed zefs.
 ZE_INSTALL_KERNEL=$PWD/tools/installer-kernel/build/Image make ze-install-qemu-test
 ```
 
+`make ze-install-iso-qemu-test` exercises the appliance ISO transport. It builds
+the initrd and appliance image, creates an ISO through `ze install appliance
+iso`, boots that ISO in QEMU, verifies the embedded image is written without the
+PXE-only ZeFS download branch, verifies the installer powers off safely, inspects
+the written GPT layout, and logs in over SSH using credentials from the embedded
+ZeFS database.
+<!-- source: scripts/evidence/effective-install-iso-qemu.py -- main -->
+
+```bash
+ZE_INSTALL_KERNEL=$PWD/tools/installer-kernel/build/Image make ze-install-iso-qemu-test
+```
+
+The ISO evidence self-skips with `INSTALL-ISO-QEMU: SKIP` when QEMU, a suitable
+installer kernel, UEFI firmware, `grub-mkstandalone`/`grub2-mkstandalone`,
+`xorriso`, static busybox, or image-build tooling is unavailable.
+<!-- source: scripts/evidence/effective-install-iso-qemu.py -- main, skip -->
+
 The test self-skips (does not fail) when `ZE_INSTALL_KERNEL` is unset or a
 container runtime / `qemu-system-*` is unavailable, because there is no safe
 default installer kernel.
@@ -536,7 +614,7 @@ default installer kernel.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `ZE_INSTALL_KERNEL` | (none — self-skips) | Path to the installer kernel `Image`/`vmlinuz` |
-| `GOKRAZY_ARCH` | host arch | Target architecture for the appliance image (`arm64`/`amd64`) |
+| `ZE_INSTALL_ARCH` | host arch (`amd64` for ISO evidence) | Target architecture for QEMU installer evidence and generated appliance config (`arm64`/`amd64`) |
 | `ZE_INSTALL_BOOT_TIMEOUT` | `300` | Seconds to wait for the installer to write the disk |
 | `ZE_INSTALL_IMAGE_SIZE` | appliance default (2 GiB) | Override image `size-bytes` (must stay large enough for the gokrazy A/B layout) |
 | `ZE_INSTALL_SSH_USER` / `ZE_INSTALL_SSH_PASS` | `admin` / `secret` | Power-user credentials provisioned into the image and used for the AC login |

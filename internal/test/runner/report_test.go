@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 
@@ -132,4 +133,48 @@ func TestLikelyCauseEmptyClient(t *testing.T) {
 
 	// Empty client output should trigger specific hint
 	assert.Contains(t, output, "LIKELY CAUSE:", "must have LIKELY CAUSE section")
+}
+
+// TestRunnerPrintFailureReportsGatesVerifyGroups verifies that verify-only
+// failure-group metadata is hidden from ordinary ze-test output.
+//
+// VALIDATES: Native `VERIFY FAILURE GROUP:` blocks appear only in verify mode.
+// PREVENTS: Machine-oriented verify metadata leaking into normal CLI failures.
+func TestRunnerPrintFailureReportsGatesVerifyGroups(t *testing.T) {
+	tests := NewEncodingTests(t.TempDir())
+	rec := tests.Add("ui-failure")
+	rec.Active = true
+	rec.State = StateFail
+	rec.Error = errors.New("broken")
+	rec.CIFile = "test/ui/ui-failure.ci"
+
+	r := &Runner{
+		tests:  tests,
+		report: NewReport(NewColorsWithOverride(false)),
+	}
+	r.report.SetLabel("ui")
+
+	var buf bytes.Buffer
+	r.report.SetOutput(&buf)
+
+	t.Setenv("ZE_VERIFY_MODE", "")
+	r.printFailureReports(false, &RunOptions{})
+	normal := buf.String()
+	if strings.Contains(normal, "VERIFY FAILURE GROUP:") {
+		t.Fatalf("unexpected verify failure group in normal output:\n%s", normal)
+	}
+	if !strings.Contains(normal, "TEST FAILURE:") {
+		t.Fatalf("missing failure report in normal output:\n%s", normal)
+	}
+
+	buf.Reset()
+	t.Setenv("ZE_VERIFY_MODE", "1")
+	r.printFailureReports(false, &RunOptions{})
+	verify := buf.String()
+	if !strings.Contains(verify, "VERIFY FAILURE GROUP:") {
+		t.Fatalf("missing verify failure group in verify mode:\n%s", verify)
+	}
+	if !strings.Contains(verify, "TEST FAILURE:") {
+		t.Fatalf("missing failure report in verify mode:\n%s", verify)
+	}
 }

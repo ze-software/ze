@@ -227,6 +227,19 @@ func runGokBuild(cfg *ApplianceConfig, imgPath string) int {
 		return exitError
 	}
 
+	oldArch, hadArch := os.LookupEnv("GOARCH")
+	if err := os.Setenv("GOARCH", cfg.Image.Arch); err != nil {
+		fmt.Fprintf(os.Stderr, "error: set GOARCH: %v\n", err)
+		return exitError
+	}
+	defer func() {
+		if hadArch {
+			_ = os.Setenv("GOARCH", oldArch)
+			return
+		}
+		_ = os.Unsetenv("GOARCH")
+	}()
+
 	if err := gokBuildFn([]string{
 		"--parent_dir", parentDir,
 		"-i", "ze",

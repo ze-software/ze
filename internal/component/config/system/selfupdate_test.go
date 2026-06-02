@@ -1,3 +1,5 @@
+//go:build !ze_stripped
+
 package system
 
 import (

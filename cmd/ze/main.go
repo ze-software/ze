@@ -30,7 +30,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	zeiface "codeberg.org/thomas-mangin/ze/cmd/ze/iface"
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
-	zeinstall "codeberg.org/thomas-mangin/ze/cmd/ze/install"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
@@ -42,12 +41,10 @@ import (
 	zeremote "codeberg.org/thomas-mangin/ze/cmd/ze/remote"
 	zeresolve "codeberg.org/thomas-mangin/ze/cmd/ze/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
-	zeservice "codeberg.org/thomas-mangin/ze/cmd/ze/service"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	zesysctl "codeberg.org/thomas-mangin/ze/cmd/ze/sysctl"
 	zetacacs "codeberg.org/thomas-mangin/ze/cmd/ze/tacacs"
 	zetc "codeberg.org/thomas-mangin/ze/cmd/ze/tc"
-	zeuninstall "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -473,14 +470,13 @@ dispatch:
 	case "l2tp":
 		exit(zel2tp.Run(args[1:]))
 	case "appliance":
-		fmt.Fprintln(os.Stderr, "warning: \"ze appliance\" is deprecated, use \"ze install appliance\"")
-		exit(zeinstall.Run(append([]string{"appliance"}, args[1:]...)))
+		exit(runDeprecatedAppliance(args[1:]))
 	case "service":
-		exit(zeservice.Run(args[1:]))
+		exit(runService(args[1:]))
 	case "install":
-		exit(zeinstall.Run(args[1:]))
+		exit(runInstall(args[1:]))
 	case "uninstall":
-		exit(zeuninstall.Run(args[1:]))
+		exit(runUninstall(args[1:]))
 	case "run":
 		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
 		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")

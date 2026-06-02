@@ -83,6 +83,16 @@ run_read_expected_sha() {
     rm -f "$sha_file"
 }
 
+run_local_image() {
+    sha_file="$(mktemp)"
+    printf '%s  ze.img\n' "$1" > "$sha_file"
+    set +e
+    local_image_to_disk "/mock/ze.img" "$sha_file" "/dev/null" >/dev/null 2>&1
+    local_rc=$?
+    set -e
+    rm -f "$sha_file"
+}
+
 
 # Test 1: clean transfer, no checksum requested -> success.
 MOCK_WGET_RC=0 MOCK_DD_RC=0 MOCK_PAYLOAD="IMAGE"
@@ -147,6 +157,19 @@ assert_eq "sha-sidecar-malformed-rejected" "1" "$sha_rc"
 run_read_expected_sha "0123  ze.img
 "
 assert_eq "sha-sidecar-short-rejected" "1" "$sha_rc"
+
+
+echo 0 > "$DD_COUNT_FILE"
+MOCK_HASH="$VALID_SHA"
+run_local_image "$VALID_SHA"
+assert_eq "local-checksum-match" "0" "$local_rc"
+assert_eq "local-checksum-match-dd" "1" "$(cat "$DD_COUNT_FILE")"
+
+echo 0 > "$DD_COUNT_FILE"
+MOCK_HASH="$VALID_SHA"
+run_local_image "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+assert_eq "local-checksum-mismatch" "1" "$local_rc"
+assert_eq "local-checksum-mismatch-no-dd" "0" "$(cat "$DD_COUNT_FILE")"
 
 rm -f "$WGET_FAIL_MARKER" "$HASH_FILE" "$DD_COUNT_FILE"
 

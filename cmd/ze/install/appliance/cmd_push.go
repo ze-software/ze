@@ -24,7 +24,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/install/appliance/updater"
 )
 
-var errNoImagesFoundRunzeAppliance = errors.New("no images found; run `ze appliance build`")
+var errNoImagesFoundRunzeAppliance = errors.New("no images found; run `ze install appliance build <name>` first")
 
 var doPushFn = doPushUpdater
 
@@ -237,24 +237,18 @@ func verifyImageChecksum(f *os.File, imgPath string) error {
 
 func resolveImagePath(baseDir, name, imageFile string) (string, error) {
 	appDir := AppliancePath(baseDir, name)
+	absAppDir, err := filepath.Abs(appDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve appliance dir: %w", err)
+	}
+	realAppDir, err := filepath.EvalSymlinks(absAppDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve appliance dir: %w", err)
+	}
 
 	if imageFile != "" {
 		path := filepath.Join(appDir, imageFile)
-		resolved, err := filepath.Abs(path)
-		if err != nil {
-			return "", fmt.Errorf("resolve image path: %w", err)
-		}
-		absAppDir, absErr := filepath.Abs(appDir)
-		if absErr != nil {
-			return "", fmt.Errorf("resolve appliance dir: %w", absErr)
-		}
-		if !strings.HasPrefix(resolved, absAppDir+string(filepath.Separator)) {
-			return "", fmt.Errorf("image path %s escapes appliance directory", imageFile)
-		}
-		if _, err := os.Stat(resolved); err != nil {
-			return "", fmt.Errorf("image %s not found", imageFile)
-		}
-		return resolved, nil
+		return resolveContainedImagePath(realAppDir, path, imageFile)
 	}
 
 	entries, err := os.ReadDir(appDir)
@@ -274,7 +268,31 @@ func resolveImagePath(baseDir, name, imageFile string) (string, error) {
 	}
 
 	sort.Strings(images)
-	return filepath.Join(appDir, images[len(images)-1]), nil
+	selected := images[len(images)-1]
+	return resolveContainedImagePath(realAppDir, filepath.Join(appDir, selected), selected)
+}
+
+func resolveContainedImagePath(realAppDir, path, displayName string) (string, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve image path: %w", err)
+	}
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		return "", fmt.Errorf("image %s not found", displayName)
+	}
+	rel, err := filepath.Rel(realAppDir, realPath)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("image path %s escapes appliance directory", displayName)
+	}
+	st, err := os.Stat(realPath)
+	if err != nil {
+		return "", fmt.Errorf("image %s not found", displayName)
+	}
+	if !st.Mode().IsRegular() {
+		return "", fmt.Errorf("image %s is not a regular file", displayName)
+	}
+	return realPath, nil
 }
 
 func loadDeviceTLS(baseDir, name string) (*tls.Config, error) {

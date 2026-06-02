@@ -1,7 +1,7 @@
 # Functional tests: .ci-based suites run via bin/ze-test
 #
 # Quick reference:
-#   make ze-functional-test    All 12 gating suites
+#   make ze-functional-test    All 13 gating suites
 #   make ze-encode-test        Encoding only
 #   make ze-plugin-test        Plugin behavior only
 #   make ze-decode-test        Wire decoding only
@@ -40,13 +40,13 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 
 # Run ze functional tests (all types, continue on failure to show all results)
 # Release evidence matrix: encode, plugin, parse, decode, reload, ui, editor,
-# managed, l2tp, firewall, policy, web. Suites not in this list (static,
-# traffic, flow-export, vpp, l2tp-wire, chaos-web) have runners but need
+# managed, l2tp, firewall, policy, web, install. Suites not in this list
+# (static, traffic, flow-export, vpp, l2tp-wire, chaos-web) have runners but
 # platform deps or infra.
 # ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
-ze-functional-test: bin/ze bin/ze-test
+ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	@failed=0; failed_names=""; skipped_names=""; total=0; \
 	run_suite() { \
 		suite="$$1"; shift; \
@@ -107,7 +107,7 @@ ze-parse-test: bin/ze-test
 ze-reload-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test bgp reload --all -p 1
 
-ze-ui-test: bin/ze-test
+ze-ui-test: bin/ze-test bin/ze-stripped
 	@$(SUITE_RUN) bin/ze-test ui --all
 
 ze-editor-test: bin/ze-test

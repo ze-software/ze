@@ -290,11 +290,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	close(done)
 	r.display.Newline()
 
-	// Print failure reports
-	if !allSuccess && !opts.Quiet {
-		r.report.PrintFailureGroups(r.tests.Tests)
-		r.report.PrintAllFailures(r.tests.Tests)
-	}
+	r.printFailureReports(allSuccess, opts)
 
 	// Record and display per-test timings (skip during stress iterations)
 	if !opts.SkipTimings {
@@ -302,6 +298,16 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	}
 
 	return allSuccess
+}
+
+func (r *Runner) printFailureReports(allSuccess bool, opts *RunOptions) {
+	if allSuccess || opts.Quiet {
+		return
+	}
+	if verifyModeEnabled() {
+		r.report.PrintFailureGroups(r.tests.Tests)
+	}
+	r.report.PrintAllFailures(r.tests.Tests)
 }
 
 // Timings returns the runner's timing baseline (for display by caller).

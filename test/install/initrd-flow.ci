@@ -1,7 +1,7 @@
-# Installer initrd unit tests: cmdline parsing, disk detection, and the
-# image download/write path (transfer-failure detection + checksum verify).
+# Installer initrd unit tests: cmdline parsing, disk detection, ISO media
+# discovery, and the image download/write paths (HTTP stream + local checksum).
 # Runs the shell-based test scripts from tools/installer-initrd/test/.
-# spec-install-7 / installer-initrd build system.
+# spec-install-8 / installer-initrd build system.
 #
 # Each cmd= owns the expect= lines that follow it (the runner attaches
 # expectations to the most recent command and captures its stdout separately).
@@ -14,6 +14,11 @@ cmd=foreground:seq=2:exec=sh tools/installer-initrd/test/test-disk-detect.sh
 expect=exit:code=0
 expect=stdout:regex=disk-detect: [0-9]+ passed, 0 failed
 
-cmd=foreground:seq=3:exec=sh tools/installer-initrd/test/test-download.sh
+cmd=foreground:seq=3:exec=sh tools/installer-initrd/test/test-iso-media.sh
+expect=exit:code=0
+expect=stdout:regex=iso-media: [0-9]+ passed, 0 failed
+
+cmd=foreground:seq=4:exec=sh tools/installer-initrd/test/test-download.sh
 expect=exit:code=0
 expect=stdout:regex=download: [0-9]+ passed, 0 failed
+

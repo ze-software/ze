@@ -553,11 +553,18 @@ func classifyFunctional(detailLog, text string) []failureGroup {
 			if seenSuite[suite] {
 				continue
 			}
-			groups = append(groups, failureGroup{Stage: suite, GroupID: "suite:" + suite, Kind: "suite", Related: []string{suite}, Summary: "functional suite failed", Rerun: "make ze-" + suite + "-test", DetailLog: detailLog, Parallel: "stage", Excerpt: []string{line}})
+			groups = append(groups, failureGroup{Stage: suite, GroupID: "suite:" + suite, Kind: "suite", Related: []string{suite}, Summary: "functional suite failed", Rerun: functionalSuiteRerun(suite), DetailLog: detailLog, Parallel: "stage", Excerpt: []string{line}})
 			seenSuite[suite] = true
 		}
 	}
 	return groups
+}
+
+func functionalSuiteRerun(suite string) string {
+	if suite == "install" {
+		return "bin/ze-test install --all"
+	}
+	return "make ze-" + suite + "-test"
 }
 
 func classifyExabgp(st stage, detailLog, text string) []failureGroup {

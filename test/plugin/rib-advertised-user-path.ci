@@ -1,0 +1,139 @@
+# Test: show bgp rib advertised queries Adj-RIB-Out populated by user update
+# VALIDATES: show bgp rib advertised selects Adj-RIB-Out after a user-dispatched update path
+# PREVENTS: advertised scope reading Adj-RIB-In or only working in unit-level seeded state
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
+EOF_PEER
+
+# Python test plugin: sends a user update, then verifies advertised scope
+# reads the resulting Adj-RIB-Out entry through the command dispatcher.
+tmpfs=rib-advertised-user-path.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+
+from ze_api import API, result_text_data, runtime_fail
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def parse_data(result):
+    try:
+        return json.loads(result_text_data(result, '{}'))
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+def require_done(label, result):
+    if result.get('status') != 'done':
+        runtime_fail(f'FAIL: {label} status={result.get("status")} data={result.get("data")}')
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        update = 'peer * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24'
+        result = dispatch(api, update)
+        require_done('user update', result)
+        api.wait_for_ack(expected_count=1)
+
+        for _ in range(20):
+            result = dispatch(api, 'show bgp rib advertised prefix 1.1.0.0/24 count')
+            require_done('show advertised count', result)
+            data = parse_data(result)
+            if data.get('count') == 1:
+                break
+            time.sleep(0.1)
+        else:
+            runtime_fail(f'FAIL: advertised count did not reach 1: {parse_data(result)}')
+
+        result = dispatch(api, 'show bgp rib received prefix 1.1.0.0/24 count')
+        require_done('show received count', result)
+        received = parse_data(result)
+        if received.get('count') != 0:
+            runtime_fail(f'FAIL: expected received count 0 for user-sent prefix, got {received}')
+
+        print('OK: show bgp rib advertised selects Adj-RIB-Out from user update', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rib-advertised-user-path {
+		run ./rib-advertised-user-path.run
+		encoder json
+	}
+	internal bgp-rib {
+		use bgp-rib
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process rib-advertised-user-path {
+		}
+		process bgp-rib {
+			receive [ update sent state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

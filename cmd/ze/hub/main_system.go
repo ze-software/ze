@@ -267,11 +267,6 @@ func startBackend(cfg system.UpdateCheckConfig, action string) system.UpdateBack
 		platform = &host.PlatformInfo{Type: host.PlatformUnknown}
 	}
 	platformType := platform.Type
-	if platformType != host.PlatformGokrazy && cfg.URL == "" {
-		system.SetActiveBackend(nil)
-		return nil
-	}
-
 	backend, err := system.NewBackend(platformType, cfg, system.BackendOptions{
 		GokrazySocketPath: coreenv.Get("ze.gokrazy.socket"),
 		IdentityStore:     hubIdentityStore,
@@ -279,6 +274,13 @@ func startBackend(cfg system.UpdateCheckConfig, action string) system.UpdateBack
 	if err != nil {
 		slogutil.Logger("update-check").Warn("invalid config", "error", err)
 		return nil
+	}
+	if platformType != host.PlatformGokrazy && cfg.URL == "" {
+		status := backend.Status()
+		if status.StatusText == "" && status.Message == "" {
+			system.SetActiveBackend(nil)
+			return nil
+		}
 	}
 
 	backend.Start(context.Background())

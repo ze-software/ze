@@ -1,6 +1,6 @@
 # VM Appliance
 
-Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org). The default target is x86_64; set `GOKRAZY_ARCH=arm64` for a native Apple Silicon QEMU image. The result is a minimal Linux system that runs Ze as its only application, with no package manager, no shell (except emergency serial console), and automatic process supervision.
+Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org). The default target is x86_64. The legacy Make workflow uses `GOKRAZY_ARCH=arm64` for native Apple Silicon QEMU images; the structured `ze install appliance build` workflow uses `image.arch` in `appliance.json`. The result is a minimal Linux system that runs Ze as its only application, with no package manager, no shell (except emergency serial console), and automatic process supervision.
 
 Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 <!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
@@ -29,6 +29,11 @@ Install once on the build machine (macOS):
 brew install e2fsprogs    # ext4 filesystem tools
 brew install qemu         # VM runtime (testing only)
 ```
+
+For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
+plus `xorriso`.
+`ze install appliance iso` checks those tools before it stages an ISO.
+<!-- source: cmd/ze/install/appliance/cmd_iso.go -- resolveISOBuilder -->
 
 The gokrazy build tool (`gok`) is vendored in the repo at `gokrazy/tools/vendor/` and built automatically by Make. No separate install needed.
 <!-- source: gokrazy/tools/tools.go -- vendored gok tool -->
@@ -120,7 +125,7 @@ The first build:
 
 1. Builds `bin/ze` for the host
 2. Runs `ze init` with credentials and generates a self-signed TLS certificate
-3. Cross-compiles Ze for linux/`GOKRAZY_ARCH` and builds a 2GB disk image
+3. Cross-compiles Ze for linux/`GOKRAZY_ARCH` in the Make workflow, or linux/`image.arch` in the structured `ze install appliance build` workflow, and builds a 2GB disk image
 4. Formats the persistent `/perm` partition
 5. Injects `database.zefs` (credentials + TLS cert) into `/perm/ze/`
 
@@ -285,6 +290,7 @@ The `ze install appliance` command replaces the `make ze-gokrazy USER=x PASS=y` 
 ze install appliance init lab                  # interactive wizard
 ze install appliance assemble lab              # build ZeFS database only
 ze install appliance build lab                 # full image (assemble + gok + ext4)
+ze install appliance iso lab                   # bootable installer ISO from latest image
 ze install appliance list                      # show all appliances
 ze install appliance show lab                  # config summary + cert expiry
 ```
@@ -350,6 +356,7 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `assemble <name>` | Build ZeFS database only (auto-deletes; use `--keep` to retain) |
 | `build <name>` | Full image: assemble + gok + ext4 inject + checksum + manifest |
 | `build --all` | Build all appliances |
+| `iso <name>` | Bootable installer ISO from an existing image |
 | `passwd <name>` | Change SSH password |
 | `replace-cert <name>` | Replace TLS cert (regenerate or `--cert`/`--key` for CA) |
 | `rekey <name>` | Change encryption passphrase |
@@ -368,6 +375,57 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `export --all` | Export all appliances to single encrypted archive |
 | `import <archive>` | Import appliance from encrypted archive |
 
+
+### ISO installer media
+
+Create an installer ISO from an image already produced by `ze install appliance
+build`. By default the command selects the latest `ze-*.img` in the appliance
+directory, verifies its `.sha256` sidecar, and writes `ze-*.iso` next to the
+image. Use `--image` to select a specific image filename and `--output` to write
+the ISO elsewhere. The output path must not overwrite the selected `.img`, and
+the image filename must stay within `[A-Za-z0-9._-]` so the initrd can pass it
+on the kernel command line. By default the installer kernel path is
+`tools/installer-kernel/build/Image`; build the matching architecture before you
+run `ze install appliance iso`, or pass `--kernel` to keep multiple kernels
+side by side.
+<!-- source: cmd/ze/install/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
+
+    ze install appliance build lab
+    ze install appliance iso lab
+    ze install appliance iso --image ze-20260601-120000.img lab
+    ze install appliance iso --output /path/to/lab.iso lab
+    make -C tools/installer-kernel ARCH=arm64
+    ze install appliance iso --kernel tools/installer-kernel/build/Image lab
+
+The ISO is an installer envelope around the existing raw gokrazy image. It does
+not rebuild the appliance, regenerate credentials, fetch a separate ZeFS
+database, or mutate `/perm` after writing the disk image. The installed disk
+receives the selected image bytes, including the `/perm/ze/database.zefs` that
+`build` already injected.
+<!-- source: cmd/ze/install/appliance/cmd_iso.go -- stageISO -->
+<!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
+<!-- source: cmd/ze/install/appliance/cmd_build.go -- injectZeFS -->
+
+The ISO boot path accepts an optional explicit target disk. If no target is set,
+the installer writes only when exactly one non-removable candidate disk remains
+after excluding the ISO source media. The initrd also matches the booted ISO by
+a builder-generated `ze.media-id` token before it trusts a mounted installer
+volume, so identical image filenames on multiple attached installer media do not
+confuse the source selection. With multiple fixed disks, pass a whole disk path
+such as `/dev/vda` at ISO creation time:
+<!-- source: tools/installer-initrd/init -- find_target_disk, find_iso_media, validate_media_id -->
+
+    ze install appliance iso --target /dev/vda lab
+
+After the installer writes the disk in ISO mode, it powers off instead of
+rebooting. Remove the installer media, then power the target back on so the
+firmware boots from the written disk.
+<!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
+
+The ISO contains the full provisioned appliance image, including the embedded
+ZeFS database. Handle the ISO with the same care as the `.img` file.
+<!-- source: cmd/ze/install/appliance/cmd_iso.go -- stageISO -->
+
 ### Remote operations (push, config-push)
 
 Push a built image to a running gokrazy device via its HTTPS update endpoint:
@@ -378,6 +436,11 @@ Push a built image to a running gokrazy device via its HTTPS update endpoint:
     ze install appliance push --all --parallel 4                   # 4 concurrent uploads
 
 Push uses the update token (from `secrets/update.token`) for HTTP basic auth, and verifies the device TLS certificate against the stored `cert.pem`. No system CA pool is consulted.
+
+When `--image` is set, the file name must resolve to a regular file inside the
+appliance directory. Path traversal and symlinks escaping that directory are
+rejected before any network or TLS work starts.
+<!-- source: cmd/ze/install/appliance/cmd_push.go -- resolveImagePath -->
 
 Preview the effective configuration (base + overlay merged) without building:
 

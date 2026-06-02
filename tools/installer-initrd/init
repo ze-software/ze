@@ -1,13 +1,18 @@
 #!/bin/sh
 # PID 1 init script for ze installer initrd.
-# Downloads a gokrazy disk image from a ze-install server, writes it to the
-# first non-removable block device, injects a pre-provisioned zefs database
-# onto partition 4 (/perm), and reboots.
+# Installs a gokrazy disk image onto a target disk. The default PXE source
+# downloads image bytes from a ze-install HTTP server, injects a pre-provisioned
+# zefs database onto partition 4 (/perm), and reboots. ISO source mode mounts
+# the boot media read-only, writes the embedded appliance image unchanged, and
+# powers off so the removable media can be removed before the next boot.
 #
 # Kernel cmdline parameters:
-#   ze.server=<ip>    (required) ze-install server IP address
-#   ze.image=<name>   (optional) image name, defaults to "ze.img"
-#   ip=dhcp           (required) kernel-level DHCP for network config
+#   ze.source=http|iso   (optional) source mode, defaults to "http"
+#   ze.server=<ip>       (required for http) ze-install server IP address
+#   ze.image=<name>      (optional) image name, defaults to "ze.img"
+#   ze.port=<port>       (optional for http) install HTTP port, defaults to 80
+#   ze.target=<disk>     (optional) explicit target disk, for example /dev/vda
+#   ze.media-id=<hex32>  (required for iso) identifies the booted installer media
 
 set -e
 
@@ -21,6 +26,7 @@ WGET_FAIL_MARKER="/tmp/ze-wget.fail"
 HASH_FILE="/tmp/ze-image.sha256"
 WGET_ERR="/tmp/ze-wget.err"
 WGET_RC_FILE="/tmp/ze-wget.rc"
+ISO_MOUNT="/mnt/iso"
 
 # -- helpers --
 
@@ -37,9 +43,12 @@ fatal() {
 # -- cmdline parsing --
 
 parse_cmdline() {
+    ZE_SOURCE="http"
     ZE_SERVER=""
     ZE_IMAGE="ze.img"
     ZE_PORT="80"
+    ZE_TARGET=""
+    ZE_MEDIA_ID=""
 
     if [ ! -f /proc/cmdline ]; then
         return
@@ -47,6 +56,9 @@ parse_cmdline() {
 
     for param in $(cat /proc/cmdline); do
         case "$param" in
+            ze.source=*)
+                ZE_SOURCE="${param#ze.source=}"
+                ;;
             ze.server=*)
                 ZE_SERVER="${param#ze.server=}"
                 ;;
@@ -55,6 +67,12 @@ parse_cmdline() {
                 ;;
             ze.port=*)
                 ZE_PORT="${param#ze.port=}"
+                ;;
+            ze.target=*)
+                ZE_TARGET="${param#ze.target=}"
+                ;;
+            ze.media-id=*)
+                ZE_MEDIA_ID="${param#ze.media-id=}"
                 ;;
         esac
     done
@@ -110,6 +128,68 @@ validate_image_name() {
     return 0
 }
 
+validate_source() {
+    case "$1" in
+        http|iso)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+validate_media_id() {
+    case "$1" in
+        ""|*[!0-9a-f]*)
+            return 1
+            ;;
+    esac
+    [ ${#1} -eq 32 ]
+}
+validate_decimal() {
+    case "$1" in
+        ""|*[!0-9]*)
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+validate_target_path() {
+    case "$1" in
+        /dev/*)
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    name="${1#/dev/}"
+    case "$name" in
+        ""|*[!a-zA-Z0-9_-]*)
+            return 1
+            ;;
+        sd*[!a-z]*|vd*[!a-z]*|xvd*[!a-z]*|hd*[!a-z]*)
+            return 1
+            ;;
+        sd?*|vd?*|xvd?*|hd?*)
+            return 0
+            ;;
+        nvme*n*)
+            controller="${name#nvme}"
+            namespace="${controller#*n}"
+            controller="${controller%%n*}"
+            validate_decimal "$controller" && validate_decimal "$namespace"
+            return
+            ;;
+        mmcblk*)
+            index="${name#mmcblk}"
+            validate_decimal "$index"
+            return
+            ;;
+    esac
+    return 1
+}
+
 validate_sha256() {
     sha="$1"
     [ ${#sha} -eq 64 ] || return 1
@@ -131,22 +211,74 @@ read_expected_sha() {
 
 # -- disk detection --
 
+disk_name_from_path() {
+    name="${1#/dev/}"
+    case "$name" in
+        nvme*p[0-9]*|mmcblk*p[0-9]*)
+            echo "${name%p[0-9]*}"
+            ;;
+        sd*[0-9]|vd*[0-9]|xvd*[0-9]|hd*[0-9])
+            while :; do
+                case "$name" in
+                    *[0-9]) name="${name%?}" ;;
+                    *) break ;;
+                esac
+            done
+            echo "$name"
+            ;;
+        *)
+            echo "$name"
+            ;;
+    esac
+}
+
+is_skipped_disk_name() {
+    case "$1" in
+        loop*|ram*|dm-*|sr*|fd*|md*|zram*|mtdblock*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+is_source_disk_name() {
+    [ -n "$ISO_SOURCE_DISK" ] || return 1
+    [ "$1" = "$ISO_SOURCE_DISK" ]
+}
+
 find_target_disk() {
     TARGET_DISK=""
+    TARGET_DISK_ERROR=""
 
+    if [ -n "$ZE_TARGET" ]; then
+        if ! validate_target_path "$ZE_TARGET"; then
+            TARGET_DISK_ERROR="ze.target '$ZE_TARGET' is not a supported whole-disk /dev path"
+            return
+        fi
+        if [ ! -b "$ZE_TARGET" ]; then
+            TARGET_DISK_ERROR="ze.target '$ZE_TARGET' is not a block device"
+            return
+        fi
+        target_name="$(disk_name_from_path "$ZE_TARGET")"
+        if is_source_disk_name "$target_name"; then
+            TARGET_DISK_ERROR="ze.target '$ZE_TARGET' is the ISO source media"
+            return
+        fi
+        TARGET_DISK="$ZE_TARGET"
+        return
+    fi
+
+    count=0
     for dev in /sys/block/*; do
+        [ -d "$dev" ] || continue
         name="$(basename "$dev")"
 
-        case "$name" in
-            loop*|ram*|dm-*|sr*|fd*|md*|zram*|mtdblock*)
-                # mtdblock* is the QEMU `virt` machine's pflash/CFI flash, which
-                # sorts before vda in /sys/block and is never a gokrazy install
-                # target (gokrazy writes to SD/eMMC/NVMe/SATA/USB). Skipping it
-                # keeps the installer from clobbering firmware flash instead of
-                # the real disk.
-                continue
-                ;;
-        esac
+        if is_skipped_disk_name "$name"; then
+            continue
+        fi
+        if is_source_disk_name "$name"; then
+            continue
+        fi
 
         if [ -f "$dev/removable" ]; then
             removable="$(cat "$dev/removable")"
@@ -155,8 +287,19 @@ find_target_disk() {
             fi
         fi
 
-        TARGET_DISK="/dev/$name"
-        break
+        count=$((count + 1))
+        if [ "$count" -eq 1 ]; then
+            TARGET_DISK="/dev/$name"
+            if [ "$ZE_SOURCE" != "iso" ]; then
+                break
+            fi
+            continue
+        fi
+        if [ "$ZE_SOURCE" = "iso" ]; then
+            TARGET_DISK=""
+            TARGET_DISK_ERROR="multiple target disks found; set ze.target=/dev/<disk> on the kernel command line"
+            return
+        fi
     done
 }
 
@@ -280,6 +423,57 @@ download_to_disk() {
     return 1
 }
 
+
+# -- ISO local media --
+
+find_iso_media() {
+    ISO_SOURCE_DEV=""
+    ISO_SOURCE_DISK=""
+    mkdir -p "$ISO_MOUNT"
+
+    for dev in /sys/block/*; do
+        [ -d "$dev" ] || continue
+        name="$(basename "$dev")"
+        for node in "/dev/$name" /dev/"$name"[0-9]* /dev/"$name"p[0-9]*; do
+            [ -b "$node" ] || continue
+            if mount -t iso9660 -o ro "$node" "$ISO_MOUNT" 2>/dev/null; then
+                media_id_path="$ISO_MOUNT/ze-install/media-id"
+                if [ -f "$ISO_MOUNT/ze-install/manifest.json" ] && [ -f "$ISO_MOUNT/ze-install/images/$ZE_IMAGE" ] && [ -f "$media_id_path" ]; then
+                    candidate_media_id="$(cat "$media_id_path" 2>/dev/null)"
+                    if [ "$candidate_media_id" = "$ZE_MEDIA_ID" ]; then
+                        ISO_SOURCE_DEV="$node"
+                        ISO_SOURCE_DISK="$(disk_name_from_path "$node")"
+                        return 0
+                    fi
+                fi
+                umount "$ISO_MOUNT" 2>/dev/null || true
+            fi
+        done
+    done
+
+    return 1
+}
+
+local_image_to_disk() {
+    image="$1"
+    checksum="$2"
+    disk="$3"
+
+    expected_sha="$(read_expected_sha "$checksum")" || return 1
+    if ! actual_line="$(sha256sum "$image" 2>/dev/null)"; then
+        return 1
+    fi
+    actual_sha=""
+    set -- $actual_line
+    actual_sha="$1"
+    if [ "$actual_sha" != "$expected_sha" ]; then
+        log "Checksum mismatch: expected $expected_sha, got ${actual_sha:-<none>}"
+        return 1
+    fi
+
+    log "Local image checksum verified: $expected_sha"
+    dd if="$image" of="$disk" bs=4M 2>/dev/null
+}
 # -- main --
 
 main() {
@@ -295,86 +489,120 @@ main() {
     mount -t proc none /proc 2>/dev/null || true
     mount -t sysfs none /sys 2>/dev/null || true
     mount -t devtmpfs none /dev 2>/dev/null || true
-    mkdir -p /mnt/perm
+    mkdir -p /mnt/perm "$ISO_MOUNT"
 
     parse_cmdline
 
-    if [ -z "$ZE_SERVER" ]; then
-        fatal "ze.server not set on kernel cmdline"
+    if ! validate_source "$ZE_SOURCE"; then
+        fatal "ze.source '$ZE_SOURCE' is not supported (expected http or iso)"
     fi
 
-    if ! validate_ipv4 "$ZE_SERVER"; then
-        fatal "ze.server '$ZE_SERVER' is not a valid IPv4 address"
+    if [ "$ZE_SOURCE" = "iso" ] && ! validate_media_id "$ZE_MEDIA_ID"; then
+        fatal "ze.media-id '$ZE_MEDIA_ID' is missing or invalid for ISO source mode"
     fi
 
-    if ! validate_port "$ZE_PORT"; then
-        fatal "ze.port '$ZE_PORT' is not a valid TCP port (1-65535)"
-    fi
-
-    # Reject before logging or using in a URL: the raw value is not echoed so a
-    # crafted name cannot inject terminal escapes into the console at this point.
+    # Reject before logging or using in a URL/path: the raw value is not echoed
+    # so a crafted name cannot inject terminal escapes into the console here.
     if ! validate_image_name "$ZE_IMAGE"; then
         fatal "ze.image contains invalid characters (allowed: a-z A-Z 0-9 . _ -)"
     fi
 
-    # Base URL for all installer fetches. ze.port defaults to 80; an explicit
-    # port supports install servers that cannot bind the privileged port.
-    ZE_BASE="http://${ZE_SERVER}:${ZE_PORT}"
-
-    log "Server: $ZE_SERVER:$ZE_PORT"
+    log "Source: $ZE_SOURCE"
     log "Image: $ZE_IMAGE"
 
+    if [ "$ZE_SOURCE" = "http" ]; then
+        if [ -z "$ZE_SERVER" ]; then
+            fatal "ze.server not set on kernel cmdline"
+        fi
+        if ! validate_ipv4 "$ZE_SERVER"; then
+            fatal "ze.server '$ZE_SERVER' is not a valid IPv4 address"
+        fi
+        if ! validate_port "$ZE_PORT"; then
+            fatal "ze.port '$ZE_PORT' is not a valid TCP port (1-65535)"
+        fi
+        ZE_BASE="http://${ZE_SERVER}:${ZE_PORT}"
+        log "Server: $ZE_SERVER:$ZE_PORT"
+    else
+        if ! find_iso_media; then
+            fatal "No ze installer ISO media containing $ZE_IMAGE found"
+        fi
+        log "ISO media: $ISO_SOURCE_DEV"
+    fi
+
     find_target_disk
+    if [ -n "$TARGET_DISK_ERROR" ]; then
+        fatal "$TARGET_DISK_ERROR"
+    fi
     if [ -z "$TARGET_DISK" ]; then
         fatal "No non-removable block device found"
     fi
     log "Target disk: $TARGET_DISK"
 
-    # Fetch the image checksum first (best-effort). When present it lets
-    # download_to_disk reject a corrupt or truncated write before we reboot
-    # onto it; when absent we fall back to transfer-success detection only.
-    EXPECTED_SHA=""
-    if download "${ZE_BASE}/install/image/${ZE_IMAGE}.sha256" /tmp/image.sha256.txt; then
-        if ! EXPECTED_SHA="$(read_expected_sha /tmp/image.sha256.txt)"; then
-            fatal "${ZE_IMAGE}.sha256 is present but does not contain a valid SHA-256"
+    if [ "$ZE_SOURCE" = "http" ]; then
+        # Fetch the image checksum first (best-effort). When present it lets
+        # download_to_disk reject a corrupt or truncated write before we reboot
+        # onto it; when absent we fall back to transfer-success detection only.
+        EXPECTED_SHA=""
+        if download "${ZE_BASE}/install/image/${ZE_IMAGE}.sha256" /tmp/image.sha256.txt; then
+            if ! EXPECTED_SHA="$(read_expected_sha /tmp/image.sha256.txt)"; then
+                fatal "${ZE_IMAGE}.sha256 is present but does not contain a valid SHA-256"
+            fi
+            log "Expected image SHA-256: $EXPECTED_SHA"
+        else
+            log "WARNING: no ${ZE_IMAGE}.sha256 on server; skipping image checksum verification"
         fi
-        log "Expected image SHA-256: $EXPECTED_SHA"
+
+        log "Writing disk image..."
+        if ! download_to_disk "${ZE_BASE}/install/image/${ZE_IMAGE}" "$TARGET_DISK" "$EXPECTED_SHA"; then
+            fatal "Failed to download and write disk image after $RETRY_MAX attempts"
+        fi
+        sync
+        log "Disk image written successfully"
+
+        log "Re-reading partition table..."
+        blockdev --rereadpt "$TARGET_DISK" 2>/dev/null || true
+        sleep 1
+
+        find_partition_4
+        if [ ! -b "$PART4" ]; then
+            fatal "Partition 4 ($PART4) not found after image write"
+        fi
+
+        log "Mounting partition 4 ($PART4)..."
+        if ! mount -t ext4 "$PART4" /mnt/perm; then
+            fatal "Failed to mount $PART4 as ext4"
+        fi
+
+        mkdir -p /mnt/perm/ze
+
+        log "Downloading zefs database..."
+        if ! download "${ZE_BASE}/install/database.zefs" /mnt/perm/ze/database.zefs; then
+            umount /mnt/perm 2>/dev/null || true
+            fatal "Failed to download database.zefs after $RETRY_MAX attempts"
+        fi
+        log "zefs database written to /mnt/perm/ze/database.zefs"
+
+        umount /mnt/perm
+        sync
     else
-        log "WARNING: no ${ZE_IMAGE}.sha256 on server; skipping image checksum verification"
+        image_path="$ISO_MOUNT/ze-install/images/$ZE_IMAGE"
+        checksum_path="${image_path}.sha256"
+        if [ ! -f "$checksum_path" ]; then
+            fatal "ISO image checksum $ZE_IMAGE.sha256 not found"
+        fi
+        log "Writing disk image from ISO media..."
+        if ! local_image_to_disk "$image_path" "$checksum_path" "$TARGET_DISK"; then
+            umount "$ISO_MOUNT" 2>/dev/null || true
+            fatal "Failed to verify and write local ISO image"
+        fi
+        sync
+        log "Disk image written successfully"
+        umount "$ISO_MOUNT" 2>/dev/null || true
+        log "Installation complete. Powering off so install media can be removed safely."
+        sleep 2
+        poweroff -f 2>/dev/null || echo o > /proc/sysrq-trigger
+        return
     fi
-
-    log "Writing disk image..."
-    if ! download_to_disk "${ZE_BASE}/install/image/${ZE_IMAGE}" "$TARGET_DISK" "$EXPECTED_SHA"; then
-        fatal "Failed to download and write disk image after $RETRY_MAX attempts"
-    fi
-    sync
-    log "Disk image written successfully"
-
-    log "Re-reading partition table..."
-    blockdev --rereadpt "$TARGET_DISK" 2>/dev/null || true
-    sleep 1
-
-    find_partition_4
-    if [ ! -b "$PART4" ]; then
-        fatal "Partition 4 ($PART4) not found after image write"
-    fi
-
-    log "Mounting partition 4 ($PART4)..."
-    if ! mount -t ext4 "$PART4" /mnt/perm; then
-        fatal "Failed to mount $PART4 as ext4"
-    fi
-
-    mkdir -p /mnt/perm/ze
-
-    log "Downloading zefs database..."
-    if ! download "${ZE_BASE}/install/database.zefs" /mnt/perm/ze/database.zefs; then
-        umount /mnt/perm 2>/dev/null || true
-        fatal "Failed to download database.zefs after $RETRY_MAX attempts"
-    fi
-    log "zefs database written to /mnt/perm/ze/database.zefs"
-
-    umount /mnt/perm
-    sync
 
     log "Installation complete. Rebooting..."
     sleep 2

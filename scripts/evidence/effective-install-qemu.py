@@ -219,7 +219,6 @@ def build_image(root: Path, work: Path) -> Path:
     appliance_dir = work / "appliances"
     env = os.environ.copy()
     env["ZE_APPLIANCE_DIR"] = str(appliance_dir)
-    env.setdefault("GOKRAZY_ARCH", ARCH)
     # Non-interactive init: password via the CI env var, EOF stdin so the wizard
     # falls back to DefaultConfig (username defaults to "admin" == SSH_USER).
     env["ze.appliance.ssh.password"] = SSH_PASS
@@ -237,6 +236,11 @@ def build_image(root: Path, work: Path) -> Path:
     )
     if init.returncode != 0:
         raise SystemExit(f"ze install appliance init failed:\n{init.stdout}")
+    # Match the appliance config to ZE_INSTALL_ARCH. `ze install appliance build`
+    # reads image.arch from appliance.json, not GOKRAZY_ARCH.
+    cfg_path = appliance_dir / name / "appliance.json"
+    cfg_json = json.loads(cfg_path.read_text())
+    cfg_json.setdefault("image", {})["arch"] = ARCH
     # Optional image-size override for the test (e.g. to keep the streamed image
     # well under the 2 GiB / 2^31 boundary while debugging the transfer path).
     size_override = os.environ.get("ZE_INSTALL_IMAGE_SIZE")
@@ -247,10 +251,8 @@ def build_image(root: Path, work: Path) -> Path:
             raise SystemExit(
                 f"ZE_INSTALL_IMAGE_SIZE must be an integer byte count, got {size_override!r}"
             ) from None
-        cfg_path = appliance_dir / name / "appliance.json"
-        cfg_json = json.loads(cfg_path.read_text())
         cfg_json.setdefault("image", {})["size-bytes"] = size_bytes
-        cfg_path.write_text(json.dumps(cfg_json))
+    cfg_path.write_text(json.dumps(cfg_json))
     build = run(
         [ze, "install", "appliance", "build", name],
         stdout=subprocess.PIPE,

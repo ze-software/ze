@@ -1,0 +1,68 @@
+//go:build ze_stripped
+
+package system
+
+import "context"
+
+func init() {
+	registerBackend(BackendZeSelfUpdate, newStrippedZeBackend)
+}
+
+const (
+	strippedStatusText = "unsupported in ze-stripped"
+	strippedMessage    = "self-update unavailable in ze-stripped"
+)
+
+type strippedZeBackend struct{}
+
+func newStrippedZeBackend(cfg UpdateCheckConfig, _ BackendOptions) (UpdateBackend, error) {
+	backend := &strippedZeBackend{}
+	if cfg.URL == "" {
+		return backend, nil
+	}
+	if err := ValidateUpdateCheckURL(cfg.URL); err != nil {
+		return nil, err
+	}
+	if err := ValidateSelfUpdateConfig(cfg.SelfUpdate); err != nil {
+		return nil, err
+	}
+	WarnConfigConflicts(cfg.SelfUpdate)
+	return backend, nil
+}
+
+func (b *strippedZeBackend) Name() BackendName { return BackendZeSelfUpdate }
+
+func (b *strippedZeBackend) Start(context.Context) {}
+
+func (b *strippedZeBackend) Stop() {}
+
+func (b *strippedZeBackend) Status() ExtendedUpdateStatus {
+	return ExtendedUpdateStatus{
+		Backend:        BackendZeSelfUpdate,
+		StatusText:     strippedStatusText,
+		Message:        strippedMessage,
+		DownloadStatus: "unsupported",
+	}
+}
+
+func (b *strippedZeBackend) Check(context.Context) (ExtendedUpdateStatus, error) {
+	return b.Status(), ErrFirmwareUnsupported
+}
+
+func (b *strippedZeBackend) Download(context.Context) (FirmwareResult, error) {
+	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: "unsupported", Message: strippedMessage}, ErrFirmwareUnsupported
+}
+
+func (b *strippedZeBackend) Apply(context.Context) (FirmwareResult, error) {
+	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: "unsupported", Message: strippedMessage}, ErrFirmwareUnsupported
+}
+
+func (b *strippedZeBackend) Restart() (FirmwareResult, error) {
+	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: "unsupported", Message: strippedMessage}, ErrFirmwareUnsupported
+}
+
+func (b *strippedZeBackend) Rollback() (FirmwareResult, error) {
+	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: "unsupported", Message: strippedMessage}, ErrFirmwareUnsupported
+}
+
+func (b *strippedZeBackend) History() []UpdateEvent { return nil }

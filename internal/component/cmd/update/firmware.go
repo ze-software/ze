@@ -59,6 +59,9 @@ func handleFirmwareCheck(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 
 	ext, err := backend.Check(reqCtx(ctx))
 	if err != nil {
+		if errors.Is(err, system.ErrFirmwareUnsupported) {
+			return unsupportedCheckResponse(backend, ext), nil
+		}
 		return errorResponse(backend, system.FirmwareResult{}, err), nil
 	}
 	st := ext.UpdateStatus
@@ -146,6 +149,23 @@ func handleFirmwareRollback(_ *pluginserver.CommandContext, _ []string) (*plugin
 		Status: plugin.StatusDone,
 		Data:   plugin.Map(res.Map()),
 	}, nil
+}
+
+func unsupportedCheckResponse(backend system.UpdateBackend, status system.ExtendedUpdateStatus) *plugin.Response {
+	msg := status.LastError
+	if msg == "" {
+		msg = status.Message
+	}
+	if msg == "" {
+		msg = status.StatusText
+	}
+	if msg == "" {
+		msg = status.DownloadStatus
+	}
+	if msg == "" {
+		return errorResponse(backend, system.FirmwareResult{}, system.ErrFirmwareUnsupported)
+	}
+	return &plugin.Response{Status: plugin.StatusError, Error: "unsupported: " + msg}
 }
 
 func errorResponse(backend system.UpdateBackend, res system.FirmwareResult, err error) *plugin.Response {
