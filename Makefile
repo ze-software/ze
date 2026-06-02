@@ -461,7 +461,7 @@ help-dev:
 	@echo "    ze-wiki-commands         Regenerate wiki/command-reference.md"
 	@echo ""
 	@echo "  Documentation validation:"
-	@echo "    ze-doc-test              All doc checks (drift + YANG/handler contract)"
+	@echo "    ze-doc-test              All doc checks (drift + anchors + YANG/handler contract)"
 	@echo "    ze-doc-drift             Docs claims vs live registry/Makefile/filesystem"
 	@echo "    ze-doc-index             Regenerate ai/CODE-TO-DOCS.md (code->docs reverse index)"
 	@echo "    ze-validate-commands     YANG command tree vs registered handlers"

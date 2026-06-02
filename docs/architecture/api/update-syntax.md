@@ -95,12 +95,12 @@ peer upstream1 update text origin set igp nhop set self nlri ipv4/unicast add pr
 # Both equivalent - nhop accumulates
 ```
 
-**Output format** (event from engine to plugin): attributes have no `set` keyword, `next-hop` replaces `nhop set`, header includes `remote as`:
+**Output format** (event from engine to plugin): attributes have no `set` keyword, `next` is the emitted next-hop keyword, and the header includes `remote as`:
 ```bash
 # Output always shows next-hop with its nlri group:
-peer 10.0.0.1 remote as 65001 received update 123 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 1.0.0.0/24
-#                                            ^^^^^^^^^^                      ^^^^^^^^^^^^^^^^
-#                                            no "set"                        next-hop (not nhop set), resolved value
+peer 10.0.0.1 remote as 65001 received update 123 origin igp next 192.168.1.1 nlri ipv4/unicast add 1.0.0.0/24
+#                                            ^^^^^^^^^^                 ^^^^^^^^^^^^^^^^
+#                                            no "set"                   next-hop value for this NLRI group
 ```
 
 **Multiple nlri groups** - each gets its own next-hop in output:
@@ -109,13 +109,13 @@ peer 10.0.0.1 remote as 65001 received update 123 origin igp next-hop 192.168.1.
 peer * update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 \
                   nhop set 10.0.0.2 nlri ipv4/unicast add prefix 2.0.0.0/24
 
-# Output (two separate nlri groups, each with its next-hop):
-peer 10.0.0.1 remote as 65001 received update 123 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
-peer 10.0.0.1 remote as 65001 received update 124 next-hop 10.0.0.2 nlri ipv4/unicast add prefix 2.0.0.0/24
+# Output:
+peer 10.0.0.1 remote as 65001 received update 123 next 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 next 10.0.0.2 nlri ipv4/unicast add 2.0.0.0/24
 ```
 
-This ensures output is always self-contained per nlri group.
+This ensures output is self-contained per nlri group.
 <!-- source: internal/component/bgp/types/nexthop.go -- RouteNextHop, NextHopExplicit, NextHopSelf -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
 
 #### Next-Hop Overwriting
 
@@ -454,9 +454,10 @@ nlri ipv4/unicast add 18010a0018020b00
 
 **Text format:**
 ```
-peer 10.0.0.1 remote as 65001 received update 123 origin igp med 100 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 10.0.0.0/24
-peer 10.0.0.1 remote as 65001 received update 123 attr 400101... nlri ipv4/unicast add 18010a00 del 18020b00
+peer 10.0.0.1 remote as 65001 received update 123 origin igp med 100 next 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
+peer 10.0.0.1 remote as 65001 received update 123 attr-99 400101... nlri ipv4/unicast add 10.1.0.0/24
 ```
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText, appendAttributeText -->
 
 **JSON format:**
 ```json

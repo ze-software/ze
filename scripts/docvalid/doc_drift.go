@@ -18,6 +18,8 @@ package main
 
 import (
 	"bufio"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	"flag"
 	"fmt"
 	"io/fs"
 	"os"
@@ -27,20 +29,24 @@ import (
 	"strconv"
 	"strings"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
-
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
 func main() {
-	root, err := findModuleRoot()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "check-doc-drift: %v\n", err)
-		os.Exit(1)
-	}
+	strict := flag.Bool("strict", false, "exit 2 instead of 1 when drift is found")
+	rootFlag := flag.String("root", "", "repository root to check")
+	flag.Parse()
 
-	strict := len(os.Args) > 1 && os.Args[1] == "--strict"
+	root := *rootFlag
+	if root == "" {
+		var err error
+		root, err = findModuleRoot()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "check-doc-drift: %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	issues := runChecks(root)
 
@@ -58,7 +64,7 @@ func main() {
 	}
 	fmt.Fprintf(os.Stderr, "\n  Run: make ze-doc-drift\n\n")
 
-	if strict {
+	if *strict {
 		os.Exit(2)
 	}
 	os.Exit(1)
@@ -89,7 +95,58 @@ func runChecks(root string) []issue {
 	issues = append(issues, checkFeaturesMD(root)...)
 	issues = append(issues, checkFunctionalTestsMD(root, releaseGateSuites)...)
 	issues = append(issues, checkMakefileHelp(root, releaseGateSuites)...)
+	issues = append(issues, checkForbiddenDocClaims(root)...)
 
+	return issues
+}
+
+type forbiddenDocClaim struct {
+	File    string
+	Needle  string
+	Message string
+	Detail  string
+}
+
+var forbiddenDocClaims = []forbiddenDocClaim{
+	{
+		File:    "docs/architecture/api/text-parser.md",
+		Needle:  "strings.Fields",
+		Message: "stale text parser claim references strings.Fields",
+		Detail:  "The route-server text parser uses textparse.NewScanner; update this doc to source-linked scanner wording.",
+	},
+	{
+		File:    "docs/architecture/api/text-parser.md",
+		Needle:  "All functions allocate via",
+		Message: "stale text parser allocation summary",
+		Detail:  "Describe scanner tokenization and the remaining result allocations separately.",
+	},
+	{
+		File:    "docs/architecture/api/text-parser.md",
+		Needle:  "No manual byte scanning or zero-allocation parsing exists",
+		Message: "stale text parser allocation summary",
+		Detail:  "Describe scanner tokenization and the remaining result allocations separately.",
+	},
+}
+
+func checkForbiddenDocClaims(root string) []issue {
+	var issues []issue
+	for _, claim := range forbiddenDocClaims {
+		lines, err := readLines(filepath.Join(root, claim.File))
+		if err != nil {
+			continue
+		}
+		for i, line := range lines {
+			if !strings.Contains(line, claim.Needle) {
+				continue
+			}
+			issues = append(issues, issue{
+				File:    claim.File,
+				Line:    i + 1,
+				Message: claim.Message,
+				Detail:  claim.Detail,
+			})
+		}
+	}
 	return issues
 }
 

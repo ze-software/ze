@@ -94,7 +94,7 @@ Engine sends wire bytes to API in IPC Protocol format (when `format full` is con
 ```
 
 API decodes and stores in pool for deduplication.
-<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
 
 ### BGP Cache Control (✅ IMPLEMENTED)
 
@@ -848,8 +848,9 @@ Each address family contains a list of operations grouped by next-hop.
 ### Text Format
 
 ```
-peer 10.0.0.1 received update 1 announce origin igp as-path 65001 nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
+peer 10.0.0.1 remote as 65001 received update 1 origin igp path 65001 next 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
 ```
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
 
 ### NLRI Format by Family
 
@@ -1209,10 +1210,11 @@ peer 192.0.2.1 remote as 65001 state down
 
 **JSON format:**
 ```json
-{"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","local":{"address":"192.0.2.2","as":65000},"remote":{"address":"192.0.2.1","as":65001}},"state":"up"}}
-{"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","local":{"address":"192.0.2.2","as":65000},"remote":{"address":"192.0.2.1","as":65001}},"state":"down","reason":"hold timer expired"}}
+{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"192.0.2.2","as":65000},"name":"","remote":{"address":"192.0.2.1","as":65001}},"state":"up"}}
+{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"192.0.2.2","as":65000},"name":"","remote":{"address":"192.0.2.1","as":65001}},"state":"down","reason":"hold-timer-expired"}}
 ```
-<!-- source: internal/component/bgp/format/text.go -- FormatStateChange -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText -->
+<!-- source: internal/component/bgp/format/text_json.go -- appendStateChangeJSON -->
 
 ### Close Reasons
 
@@ -1234,7 +1236,7 @@ apiStateObserver.OnPeerEstablished/Closed()
     │ Build PeerInfo, call Server
     ▼
 api.Server.OnPeerStateChange(peer, "up"/"down")
-    │ FormatStateChange per process encoding
+    │ appendStateChangeText or appendStateChangeJSON per process encoding
     ▼
 Process stdin
 ```

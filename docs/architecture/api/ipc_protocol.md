@@ -172,7 +172,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | `raw` | object | If format=full | Wire bytes (see Raw Format below) |
 
 **State events:** Use simple `"state": "up"` string at bgp level (no container). Down events include `"reason": "..."` field.
-<!-- source: internal/component/bgp/format/text.go -- FormatStateChange -->
+<!-- source: internal/component/bgp/format/text_json.go -- appendStateChangeJSON -->
 
 **RIB event payload (`rib` key):**
 
@@ -199,7 +199,8 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | `withdrawn` | object | `{"<family>": "<hex>"}` - Withdrawn wire bytes per family |
 
 Events are only sent to plugins that have subscribed.
-<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText, FormatOpen, FormatNotification -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification -->
 
 ---
 
@@ -720,14 +721,15 @@ When `bgp plugin encoding text` is set, events use human-readable text format (n
 peer <ip> remote as <asn> <direction> <type> <msg-id> <fields...>
 ```
 
-**Note:** Text format intentionally stays flat for human readability. No JSON wrapping is applied.
-<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText, FormatStateChange -->
+State events use `peer <ip> remote as <asn> state <state> [reason <reason>]`. Text format intentionally stays flat for human readability. No JSON wrapping is applied.
+<!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText, appendFilterResultText -->
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
 
 Examples:
 
 ```
 peer 192.0.2.1 remote as 65001 state up
-peer 192.0.2.1 remote as 65001 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 192.0.2.1 nlri 10.0.0.0/24
+peer 192.0.2.1 remote as 65001 received update 1 origin igp path 65001 next 192.0.2.1 nlri ipv4/unicast add 10.0.0.0/24
 peer 192.0.2.1 remote as 65001 sent keepalive 42
 ```
 

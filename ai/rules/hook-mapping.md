@@ -91,7 +91,7 @@ it and which rule it enforces.
 | Post-verify agent review | `quality.md` | Bash (`make ze-verify*`) | Spawns Sonnet agent to review all uncommitted Go changes for bugs. |
 | `ze-verify-wiring-docs` | `wiring-completeness.md`, `impact-analysis.md`, `documentation.md` | Make (`ze-verify`, `ze-verify-changed`, or direct target) | Blocks changed command declarations, source-anchored docs, plugin inventory drift, and unwired exported symbols. BLOCKING. |
 | `check-wiring-at-commit.sh` | `integration-completeness.md` | Bash (git commit) | Warns about plugin code committed without `.ci` tests. Advisory fallback. |
-| `check-doc-drift.sh` | `documentation.md` | Bash (git commit) | Warns about doc counts/lists drifting from live registry. Advisory fallback. |
+| `check-doc-drift.sh` | `documentation.md` | Bash (git commit) | Warns about doc counts/lists and narrow stale claims drifting from live source. Advisory fallback. |
 
 ### Write/Edit
 

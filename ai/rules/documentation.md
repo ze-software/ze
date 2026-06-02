@@ -66,7 +66,7 @@ These are invisible in rendered markdown but let future sessions verify accuracy
 
 ## Validation
 
-Run `make ze-doc-test` after editing any file under `docs/`, after adding or removing a plugin, or after touching a YANG `ze:command` declaration. The umbrella target runs `check-doc-drift` (validates doc counts/lists vs live registry) and `validate-commands` (validates YANG `ze:command` <-> RPC handler contract). Both fail the make target on drift; both report all issues found.
+Run `make ze-doc-test` after editing any file under `docs/`, after adding or removing a plugin, or after touching a YANG `ze:command` declaration. The umbrella target runs `check-doc-drift` (validates doc counts/lists and narrow stale-claim checks), `validate-commands` (validates YANG `ze:command` <-> RPC handler contract), and the source-anchor stale-path check. These fail the make target on drift and report all issues found.
 
 Not part of `ze-verify` today because of a pre-existing drift backlog. Run on demand. See `docs/contributing/documentation-testing.md` for the full workflow and how to interpret output.
 

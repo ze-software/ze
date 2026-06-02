@@ -37,7 +37,7 @@
 | `make ze-verify-wiring-docs` | `mk/inventory.mk` | Changed-file-aware wiring, documentation, command, and inventory gate used by `make ze-verify`. |
 | `go run ./scripts/status/verify_run.go ze-verify` | `scripts/status/verify_run.go` | Verify protocol runner used by `make ze-verify`. Writes `tmp/ze-verify.log`, per-stage logs, compact failure indexes, and `tmp/ze-verify.status`. |
 | `verify-status.sh` | `scripts/dev/` | Checks whether the current tree is byte-identical to the last passing `ze-verify` run. Commit preparation must treat FRESH as authoritative and skip rerunning verify. |
-| `make ze-doc-test` | `mk/inventory.mk` | Documentation drift plus YANG command handler contract checks. |
+| `make ze-doc-test` | `mk/inventory.mk` | Documentation drift, stale source anchors, and YANG command handler contract checks. |
 | `make ze-inventory` / `make ze-inventory-json` | `mk/inventory.mk` | Registry-backed plugin, command, YANG, and test inventory. |
 | `make ze-command-list` / `make ze-command-list-json` | `mk/inventory.mk` | Live command inventory generated from registered handlers and schemas. |
 | `make ze-doc-index` | `mk/inventory.mk` | Regenerate `ai/CODE-TO-DOCS.md`, the source-to-document reverse index. |
@@ -150,6 +150,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | capability, OPEN, negotiate | `wire/capabilities.md` |
 | pool, memory, dedup, zero-copy, lifecycle | `rules/memory-architecture.md`, `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
 | textbuf, string building, AppendTo, alloc-free | `rules/no-sprintf-alloc.md`, `rules/memory-architecture.md`, `internal/core/textbuf/` |
+| error message, actionable error, corrective action, remediation, fail closed | `rules/error-messages.md`, `rules/exact-or-reject.md`, `rules/derive-not-hardcode.md` |
 | sync.Pool, buffer pool, ring buffer, peerPool | `rules/memory-architecture.md`, `forward-congestion-pool.md` |
 | forward, reflect, wire cache | `core-design.md`, `encoding-context.md`, `update-building.md` |
 | route, rib, storage | `core-design.md`, `route-types.md`, `rib-transition.md`, `plugin/rib-storage-design.md` |

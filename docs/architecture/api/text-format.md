@@ -1,47 +1,49 @@
 # Text Format Specification
 
 The text format is the high-performance IPC encoding for engine-to-plugin event delivery.
-It is used by bgp-rs (route server) on the hot path. Other plugins use JSON via `shared/event.go`.
+It is used by bgp-rs on the route-server hot path. Other plugins can use JSON or structured in-process callbacks.
 
-Source of truth: `internal/component/bgp/format/text.go` (formatter), `internal/component/bgp/plugins/rs/server.go` (parser).
+Source of truth: text formatters in `internal/component/bgp/format/`, parser functions in `internal/component/bgp/plugins/rs/server_text.go`, and shared token definitions in `internal/component/bgp/textparse/`.
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText, appendAttributesText -->
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent, parseTextNLRIOps -->
+<!-- source: internal/component/bgp/textparse/keywords.go -- keyword constants and aliases -->
 
 ## Current Format
 
 ### Message Headers
 
-Two header shapes exist depending on message type:
-<!-- source: internal/component/bgp/format/text.go -- formatPeerHeader, formatStateText -->
+All parsed text events start with `peer <address> remote as <asn>`. State events dispatch directly on `state`; BGP message events include direction, type, and message ID after the ASN.
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText -->
 
-| Shape | Layout | Used By |
+| Shape | Layout | Used by |
 |-------|--------|---------|
-| State | `peer <address> remote as <asn> state <state>` | State change events |
-| Message | `peer <address> <direction> <type> <msgid> <body...>` | UPDATE, OPEN, NOTIFICATION, KEEPALIVE, REFRESH, BORR, EORR |
-<!-- source: internal/component/bgp/format/text.go -- formatStateChangeText, formatFilterResultText -->
+| State | `peer <address> remote as <asn> state <state> [reason <reason>]` | State change events |
+| Message | `peer <address> remote as <asn> <direction> <type> <msgid> <body...>` | UPDATE, OPEN, NOTIFICATION, KEEPALIVE, REFRESH, BORR, EORR |
+<!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText, appendFilterResultText -->
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
 
-State events include the peer ASN early in the header. Message events do not include ASN in the header —
-ASN appears later in type-specific body fields (e.g., OPEN) or not at all (e.g., KEEPALIVE).
-
-Direction is `received` or `sent`. Message ID is a monotonically increasing integer per peer session.
+Direction is `received` or `sent`. Message ID is a monotonically increasing integer per peer session for BGP wire messages.
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- OnPeerEstablished, OnPeerClosed -->
 
 ### BNF Grammar
 
 ```
 <message>       ::= <state-event> | <message-event>
-<state-event>   ::= "peer" <address> "remote" "as" <asn> "state" <state-value> LF
-<message-event> ::= "peer" <address> <direction> <type> <msgid> <body> LF
+<state-event>   ::= "peer" <address> "remote" "as" <asn> "state" <state-value> [<reason>] LF
+<message-event> ::= "peer" <address> "remote" "as" <asn> <direction> <type> <msgid> <body> LF
 
 <direction>     ::= "received" | "sent"
 <type>          ::= "update" | "open" | "notification" | "keepalive" | "refresh" | "borr" | "eorr"
 <state-value>   ::= "up" | "down"
+<reason>        ::= "reason" <token>
 
-<update-body>   ::= <announce-body> | <withdraw-body> | <empty>
-<announce-body> ::= "announce" <attributes> <family-section>+
-<withdraw-body> ::= "withdraw" <family-section>+
-<empty>         ::= (nothing — End-of-RIB or attribute-only)
-
-<family-section-announce> ::= <family> "next" <address> "nlri" <nlri>+
-<family-section-withdraw> ::= <family> "nlri" <nlri>+
+<update-body>   ::= <attribute>* <nlri-section>* | <empty>
+<nlri-section>  ::= ["next" <address>] "nlri" <family> [<path-info>] <action> <nlri-token>+
+<path-info>     ::= "info" <path-id>
+<action>        ::= "add" | "del"
 <family>        ::= <afi> "/" <safi>
 
 <attributes>    ::= <attribute>*
@@ -58,7 +60,7 @@ Direction is `received` or `sent`. Message ID is a monotonically increasing inte
 <extended-community> ::= "x-com" <hex> ("," <hex>)*
 <unknown-attr>  ::= "attr-" <code> <space> <hex>
 
-<open-body>     ::= "asn" <asn> "router-id" <address> "hold-time" <seconds> <capability>*
+<open-body>     ::= "router-id" <address> "hold-time" <seconds> <capability>*
 <capability>    ::= "cap" <code> <name> [<value>]
 
 <notification-body> ::= "code" <integer> "subcode" <integer> "code-name" <name> "subcode-name" <name> "data" <hex>
@@ -67,8 +69,9 @@ Direction is `received` or `sent`. Message ID is a monotonically increasing inte
 
 <refresh-body>  ::= "family" <family>
 ```
-<!-- source: internal/component/bgp/format/text.go -- FormatOpen, FormatNotification, FormatKeepalive, FormatRouteRefresh -->
-<!-- source: internal/component/bgp/textparse/keywords.go -- KWOrigin, ShortPath, ShortNext, ShortPref, ShortSCom, ShortLCom, ShortXCom -->
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText, appendAttributesText -->
+<!-- source: internal/component/bgp/textparse/keywords.go -- KWOrigin, ShortPath, ShortNext, ShortPref, ShortSCom, ShortLCom, ShortXCom, ShortInfo -->
 
 ### Attribute Formats
 
@@ -145,113 +148,79 @@ Format: `<afi>/<safi>` — always slash-separated, lowercase.
 
 ### Complete Current Format Examples
 
-All examples verified against `format/text_test.go`.
+All examples below use the current uniform header and UPDATE body shape.
 
 ```
 peer 10.0.0.1 remote as 65001 state up
 
 peer 10.0.0.1 remote as 65001 state down
 
-peer 10.0.0.1 received update 1 announce origin igp path 65001,65002 pref 100 ipv4/unicast next 10.0.0.1 nlri 192.168.1.0/24
+peer 10.0.0.1 remote as 65001 state down reason tcp-failure
 
-peer 10.0.0.1 received update 2 withdraw ipv4/unicast nlri 172.16.0.0/16
+peer 10.0.0.1 remote as 65001 received update 1 origin igp path 65001,65002 pref 100 next 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
 
-peer 10.0.0.1 received update 3
+peer 10.0.0.1 remote as 65001 received update 2 nlri ipv4/unicast del 172.16.0.0/16
 
-peer 10.0.0.1 sent open 42 asn 65001 router-id 1.1.1.1 hold-time 90
+peer 10.0.0.1 remote as 65001 received update 3
 
-peer 10.0.0.1 received open 5 asn 42 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001 cap 2 route-refresh
+peer 10.0.0.1 remote as 65001 sent open 42 router-id 1.1.1.1 hold-time 90
 
-peer 10.0.0.1 sent notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data 0a0b0c0d
+peer 10.0.0.1 remote as 65001 received open 5 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001 cap 2 route-refresh
 
-peer 10.0.0.1 sent keepalive 42
+peer 10.0.0.1 remote as 65001 sent notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data 0a0b0c0d
 
-peer 10.0.0.1 received refresh 5 family ipv4/unicast
+peer 10.0.0.1 remote as 65001 sent keepalive 42
 
-peer 10.0.0.1 received borr 1 family ipv6/unicast
+peer 10.0.0.1 remote as 65001 received refresh 5 family ipv4/unicast
+
+peer 10.0.0.1 remote as 65001 received borr 1 family ipv6/unicast
 ```
-<!-- source: internal/component/bgp/format/text.go -- formatStateChangeText, FormatOpen, FormatNotification, FormatKeepalive, FormatRouteRefresh -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText, appendFilterResultText -->
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
 
 ### Multi-Family UPDATE
 
-A single UPDATE can carry multiple address families. Each family section follows the previous one:
+A single UPDATE can carry multiple address families. Each NLRI section follows the previous one:
 
 ```
-peer 10.0.0.1 received update 1 announce origin igp path 65001 ipv4/unicast next 10.0.0.1 nlri 10.0.0.0/24 ipv6/unicast next 2001:db8::1 nlri 2001:db8:1::/48
+peer 10.0.0.1 remote as 65001 received update 1 origin igp path 65001 next 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 next 2001:db8::1 nlri ipv6/unicast add 2001:db8:1::/48
 ```
 
-Announce and withdraw can appear in the same UPDATE as separate lines (same message ID):
+Announce and withdraw operations can appear in the same UPDATE line when both are present in the wire UPDATE:
 
 ```
-peer 10.0.0.1 received update 1 announce origin igp ipv4/unicast next 10.0.0.1 nlri 10.0.0.0/24
-peer 10.0.0.1 received update 1 withdraw ipv4/unicast nlri 172.16.0.0/16
+peer 10.0.0.1 remote as 65001 received update 1 origin igp next 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 nlri ipv4/unicast del 172.16.0.0/16
 ```
-<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
 
 ---
 
-## Remaining Proposed Changes (not yet implemented)
+## Current and Remaining Text Grammar Work
 
-The following changes were planned in the unified text protocol design but are not yet implemented.
-For implemented changes, see the current format sections above.
-
-### Already Implemented (by spec-utp-1, spec-utp-2, spec-utp-3)
+The unified text protocol work already landed the pieces used by the current formatter and parser:
 
 | Change | Status |
 |--------|--------|
-| Short keyword aliases (`path`, `next`, `pref`, `s-com`, `l-com`, `x-com`) | Implemented -- event formatter and command parser |
-| Comma-separated lists (AS_PATH, communities) | Implemented — event formatter |
-| No brackets around community lists | Implemented — event formatter |
-| Flat grammar for commands (no `set` keyword for attributes) | Implemented — command parser |
-| Alias resolution (short/long/legacy forms accepted) | Implemented — `textparse/keywords.go` |
-| Shared keyword tables across formatter, command parser, event parser | Implemented — `textparse/keywords.go` |
-| Text-mode 5-stage handshake (auto-detected from first byte) | Implemented — `rpc/text.go`, `rpc/text_conn.go` |
-| TextMuxConn with `#N` serial prefix for post-startup concurrent RPCs | Implemented — `rpc/text_mux.go` |
-| Heredoc config delivery (`root <name> json << END`) | Implemented — `rpc/text.go` FormatConfigureText/ParseConfigureText |
+| Uniform event header with `remote as` on parsed text messages | Implemented |
+| Short keyword aliases (`path`, `next`, `pref`, `s-com`, `l-com`, `x-com`) | Implemented in formatter, command parser, and event parser |
+| Alias resolution for long, short, and selected legacy forms | Implemented in `textparse/keywords.go` |
+| Shared keyword tables across formatter, command parser, and event parser | Implemented in `textparse/keywords.go` |
+| Event UPDATE operations as `nlri <family> add|del` | Implemented in formatter and route-server parser |
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps -->
 <!-- source: internal/component/bgp/textparse/keywords.go -- ShortPath, ShortNext, ShortPref, ShortSCom, ShortLCom, ShortXCom, aliasToCanonical -->
 
-### Still Proposed: Uniform Header
+### Still Proposed: Complex NLRI Dict Mode
 
-All messages start with `peer <ip> remote as <asn>`. After `as <n>`, the next token dispatches:
-- `state` — state event
-- `negotiated` — negotiated event (new addition)
-- `received` / `sent` — direction, followed by message type
+Complex NLRIs are still emitted from each NLRI type's `String()` method. Those strings can contain type-specific sub-fields and `set` tokens. The route-server event parser keeps them as opaque NLRI strings for forwarding.
+<!-- source: internal/component/bgp/format/text_human.go -- appendNLRIList -->
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- buildNLRIEntries, parseTextNLRIOps -->
 
-Currently, state events include `remote as` but message events do not.
+Dict mode remains proposed for any future parser that needs to understand complex NLRI sub-fields. Such a parser would need a family-specific sub-key table and would read sub-key-value pairs after `nlri <family> add|del` until the next top-level keyword.
+<!-- source: internal/component/bgp/textparse/keywords.go -- NLRITypeKeywords, IsTopLevelKeyword -->
 
-### Still Proposed: Event NLRI Restructuring
+### Token Invariants
 
-`announce`/`withdraw` keywords replaced by `nlri add`/`nlri del` in events (already implemented for commands).
-All `set` keywords in complex NLRIs dropped — sub-keys become `key value` directly.
-
-| Current Event | Proposed Event |
-|---------------|----------------|
-| `announce origin igp ipv4/unicast next 10.0.0.1 nlri 10.0.0.0/24` | `origin igp next 10.0.0.1 nlri ipv4/unicast add prefix 10.0.0.0/24` |
-| `withdraw ipv4/unicast nlri 172.16.0.0/16` | `nlri ipv4/unicast del prefix 172.16.0.0/16` |
-| `path-id set 42` (in NLRI String) | `info 42` (flat, no `set`) |
-| `rd set 65000:100 prefix set 10.0.0.0/24 label set 1000` (in NLRI String) | `rd 65000:100 prefix 10.0.0.0/24 label 1000` |
-
-ADD-PATH uses `info` (short for `path-information`) as a modifier before the action: `nlri ipv4/unicast info 42 add prefix 10.0.0.0/24`.
-<!-- source: internal/component/bgp/textparse/keywords.go -- KWAdd, KWDel, ShortInfo, KWPathInformation -->
-
-### Still Proposed: Dict Mode
-
-For complex NLRIs, the parser reads sub-key-value pairs after an action token until it encounters a token not in the family's sub-key set (that token becomes the next top-level key).
-
-The parser's sub-key table per family must be updated whenever an NLRI type adds a new field. `nlri` is the only key that may repeat within a single message line.
-<!-- source: internal/component/bgp/textparse/keywords.go -- NLRITypeKeywords -->
-
-### Design Principles (for remaining work)
-
-Three token patterns plus dict mode:
-
-| Pattern | Structure | Example |
-|---------|-----------|---------|
-| scalar | `key value` | `origin igp`, `med 100` |
-| list | `key value,value,value` | `path 65001,65002` |
-| action | `key family action type value[,value]` | `nlri ipv4/unicast add prefix 10.0.0.0/24,10.0.1.0/24` |
-| action+dict | `key family action subkey1 val1 subkey2 val2 ...` | `nlri ipv4/mpls-vpn add rd 65000:100 prefix 10.0.0.0/24` |
-
-**Comma tolerance:** The formatter always generates `value1,value2,value3` (no spaces after commas). The parser accepts `value1, value2, value3` by stripping whitespace after commas.
-
-**Token invariants:** No value token may contain a comma (comma is the list separator).
+The event parser is whitespace-based. Comma-separated lists are one token, for example `path 65001,65002` or `add 10.0.0.0/24,10.0.1.0/24`. Do not insert spaces after commas in text-format event output.
+<!-- source: internal/component/bgp/textparse/scanner.go -- Scanner, Next -->
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- buildNLRIEntries -->

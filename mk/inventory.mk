@@ -2,7 +2,7 @@
 #
 # Quick reference:
 #   make ze-verify-wiring-docs  Changed-file-aware wiring/doc/inventory gate
-#   make ze-doc-test             All doc checks (drift + YANG/handler)
+#   make ze-doc-test             All doc checks (drift + anchors + YANG/handler)
 #   make ze-inventory            Plugin/YANG/RPC/test inventory
 #   make ze-spec-status          Spec progress overview
 #   make ze-validate-commands    YANG command vs handler cross-check
@@ -64,6 +64,9 @@ ze-doc-test:
 	echo ""; \
 	echo "  -> YANG/handler contract (validate-commands)..."; \
 	go run scripts/docvalid/commands.go || FAIL=1; \
+	echo ""; \
+	echo "  -> Source anchors (docs source references exist)..."; \
+	python3 scripts/dev/code_to_docs.py --check || FAIL=1; \
 	echo ""; \
 	if [ $$FAIL -ne 0 ]; then \
 		echo "Documentation tests FAILED -- see output above."; \

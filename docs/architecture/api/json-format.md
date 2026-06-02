@@ -93,7 +93,7 @@ State events have the state value at `bgp` level:
 ```
 
 State values: `"up"`, `"down"`, `"connected"`
-<!-- source: internal/component/bgp/format/text.go -- FormatStateChange -->
+<!-- source: internal/component/bgp/format/text_json.go -- appendStateChangeJSON -->
 
 For `"down"` events, a `reason` field is included:
 
@@ -179,7 +179,7 @@ Each address family has an array of operations under `nlri`:
 - `next-hop`: Present only for "add" operations
 - `action`: "add" (announce) or "del" (withdraw)
 - `nlri`: Array of NLRI values
-<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText -->
+<!-- source: internal/component/bgp/format/text_json.go -- appendFilterResultJSON -->
 
 ### Attributes
 
@@ -295,7 +295,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   }
 }
 ```
-<!-- source: internal/component/bgp/format/text.go -- FormatOpen -->
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen -->
 
 ---
 
@@ -317,7 +317,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   }
 }
 ```
-<!-- source: internal/component/bgp/format/text.go -- FormatNotification -->
+<!-- source: internal/component/bgp/format/text.go -- AppendNotification -->
 
 ---
 
@@ -333,7 +333,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   }
 }
 ```
-<!-- source: internal/component/bgp/format/text.go -- FormatKeepalive -->
+<!-- source: internal/component/bgp/format/text.go -- AppendKeepalive -->
 
 ---
 
@@ -405,7 +405,7 @@ API command responses:
 
 ## Text Format
 
-Text format does NOT use JSON wrapping. All messages follow: `peer <ip> <direction> <type> <msg-id> ...`
+Text format does not use JSON wrapping. Parsed text events use `peer <ip> remote as <asn> ...`.
 
 **State:**
 ```
@@ -414,12 +414,12 @@ peer 192.0.2.1 remote as 65001 state up
 
 **UPDATE:**
 ```
-peer 192.0.2.1 remote as 65001 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 192.0.2.1 nlri 10.0.0.0/24
+peer 192.0.2.1 remote as 65001 received update 1 origin igp path 65001 next 192.0.2.1 nlri ipv4/unicast add 10.0.0.0/24
 ```
 
 **OPEN:**
 ```
-peer 192.0.2.1 remote as 65001 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast
+peer 192.0.2.1 remote as 65001 received open 1 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast
 ```
 
 **KEEPALIVE:**
@@ -431,7 +431,8 @@ peer 192.0.2.1 remote as 65001 sent keepalive 42
 ```
 peer 192.0.2.1 remote as 65001 sent notification 3 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data
 ```
-<!-- source: internal/component/bgp/format/text.go -- FormatOpen, FormatKeepalive, FormatNotification, FormatRouteRefresh -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendStateChangeText, appendFilterResultText -->
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendKeepalive, AppendNotification, AppendRouteRefresh -->
 
 ---
 

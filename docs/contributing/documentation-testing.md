@@ -24,20 +24,22 @@ checks needed for the current diff and is included in `make ze-verify`.
 
 | Tool | Make target | What it validates |
 |------|-------------|-------------------|
-| `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count -- compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, and `docs/functional-tests.md` release-gate suite claims derived from the Makefile. |
+| `scripts/docvalid/doc_drift.go` | `ze-doc-drift` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count, compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, `docs/functional-tests.md` release-gate suite claims derived from the Makefile, and narrow forbidden stale-claim checks such as the old text parser allocation claim. |
 | `scripts/docvalid/commands.go` | `ze-validate-commands` | Every YANG `ze:command` declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration. |
+| `scripts/dev/code_to_docs.py --check` | `ze-doc-check-stale` and `ze-doc-test` | Every `<!-- source: ... -->` path under `docs/` points to an existing source file or directory, and check mode does not regenerate `ai/CODE-TO-DOCS.md`. |
 | `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
 | `scripts/dev/verify_wiring_docs.py` | `ze-verify-wiring-docs` | Changed-file-aware router used by `make ze-verify`. It runs wiring checks for new exported Go symbols, `ze-validate-commands` for command sources, `ze-doc-test` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
 
-`ze-doc-test` runs doc drift and command validation unconditionally and reports
+`ze-doc-test` runs doc drift, command validation, and stale source-anchor validation unconditionally and reports
 a combined verdict. `ze-verify-wiring-docs` is the changed-file-aware gate used
 by `make ze-verify`; it delegates to the direct targets in the table only when
 the current diff touches matching sources. `ze-consistency` is left standalone
 because it covers both documentation and code-style concerns and is run as part
 of code review, not doc review.
 
-<!-- source: scripts/docvalid/doc_drift.go -- runChecks -->
+<!-- source: scripts/docvalid/doc_drift.go -- runChecks, checkForbiddenDocClaims -->
 <!-- source: scripts/docvalid/commands.go -- main -->
+<!-- source: scripts/dev/code_to_docs.py -- check_mode -->
 <!-- source: scripts/lint/consistency.go -- package doc -->
 <!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
 
@@ -103,10 +105,11 @@ Two-direction check. Both directions are contract bugs:
 | `.ci` test count claim wrong | Update the count or phrase it as an approximate dated claim |
 | Feature inventory row has no status | Add one of: Supported, Partial, Experimental, Stub-backed, Rejected, Future |
 | Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `ze-functional-test` in the Makefile |
+| Stale text parser allocation claim | Update `docs/architecture/api/text-parser.md` to describe `textparse.NewScanner` and source-linked result allocations |
+| Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `make ze-doc-test` |
 | Plugin in registry but not in Shipped Plugins table | Add a row to `docs/DESIGN.md`'s Shipped Plugins table |
 | YANG `ze:command` with no handler | Remove the YANG declaration OR write the handler in `internal/component/<area>/cmd/` or `cmd/ze/<area>/register.go` |
 | Handler with no YANG `ze:command` | Add a YANG declaration in the appropriate `*-cmd.yang` schema |
-
 ## How the tools find drift
 
 `scripts/docvalid/doc_drift.go` imports `internal/component/plugin/all` so all
@@ -115,12 +118,18 @@ plugins register themselves at init, then queries `registry.All()` and
 functional release-gate suite list from the Makefile, and compares those live
 counts/lists against documented claims in `docs/DESIGN.md`,
 `docs/comparison.md`, `README.md`, `docs/features.md`, and
-`docs/functional-tests.md`.
+`docs/functional-tests.md`. It also scans narrowly scoped stale claims that
+previously escaped the broad live-data checks.
 
 `scripts/docvalid/commands.go` imports the same set plus the BGP cmd plugin
 schema/handler packages, loads the YANG modules, and walks the schema tree
 looking for `ze:command` extensions. For each extension it checks
 `registry.CollectRPCHandlers()` for a matching method name.
+
+`scripts/dev/code_to_docs.py --check` scans every markdown source anchor under
+`docs/`, extracts referenced code paths, and fails if any referenced file or
+directory is missing. The same script regenerates `ai/CODE-TO-DOCS.md` when run
+without `--check`; check mode is read-only.
 
 `scripts/lint/consistency.go` walks `.go` files, parses `// Design:`,
 `// Detail:`, `// Overview:`, `// Related:` comments, checks for asymmetries,

@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	osexec "os/exec"
@@ -78,6 +79,45 @@ func TestDocDriftDerivesFunctionalSuites(t *testing.T) {
 	}
 }
 
+// VALIDATES: scripts/docvalid/doc_drift.go rejects stale parser allocation claims.
+// PREVENTS: reintroducing the old strings.Fields text-parser documentation after
+// the parser moved to textparse.NewScanner.
+func TestDocDriftRejectsStaleTextParserFieldsClaim(t *testing.T) {
+	root := t.TempDir()
+	writeTempDoc(t, root, "docs/architecture/api/text-parser.md", "# Text Parser Architecture\n\nAll functions allocate via `strings.Fields()`.\n")
+
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go", "--root", root)
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("doc_drift.go accepted stale strings.Fields parser claim:\n%s", out)
+	}
+	if !strings.Contains(string(out), "stale text parser claim references strings.Fields") {
+		t.Fatalf("doc_drift.go did not report the stale parser claim:\n%s", out)
+	}
+}
+
+// VALIDATES: scripts/docvalid/doc_drift.go accepts scanner-based parser docs.
+// PREVENTS: the narrow stale-claim check from rejecting the current source-linked wording.
+func TestDocDriftAllowsScannerTextParserDoc(t *testing.T) {
+	root := t.TempDir()
+	writeTempDoc(t, root, "docs/architecture/api/text-parser.md", "# Text Parser Architecture\n\nThe parser uses `textparse.NewScanner` for token-by-token scanning.\n")
+
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/doc_drift.go", "--root", root)
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("doc_drift.go rejected scanner parser wording: %v\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "No documentation drift detected") {
+		t.Fatalf("doc_drift.go did not report a clean scanner fixture:\n%s", out)
+	}
+}
+
 // VALIDATES: scripts/dev/code_to_docs.py accepts the source-anchor separators
 // already used by docs.
 // PREVENTS: false stale references when anchors use a single hyphen separator.
@@ -130,7 +170,7 @@ func TestCodeToDocsCheckModeIsReadOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read code-to-docs index after check: %v", err)
 	}
-	if string(before) != string(after) {
+	if !bytes.Equal(before, after) {
 		t.Fatalf("code-to-docs index changed in check mode")
 	}
 }
@@ -142,4 +182,15 @@ func repoRoot(t *testing.T) string {
 		t.Fatalf("resolve repository root: %v", err)
 	}
 	return root
+}
+
+func writeTempDoc(t *testing.T, root, rel, content string) {
+	t.Helper()
+	path := filepath.Join(root, rel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("create doc directory: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write temp doc: %v", err)
+	}
 }

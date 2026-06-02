@@ -168,7 +168,7 @@ peer peer-east eorr ipv4/unicast
 **RFC 7313 compliance:**
 - Enhanced Route Refresh capability check before sending BoRR/EoRR
 - Config `route-refresh` enables both RouteRefresh and EnhancedRouteRefresh capabilities
-<!-- source: internal/component/bgp/format/text.go -- FormatRouteRefresh -->
+<!-- source: internal/component/bgp/format/text.go -- AppendRouteRefresh -->
 
 ---
 

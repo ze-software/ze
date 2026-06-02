@@ -1,184 +1,131 @@
 # Text Parser Architecture
 
-The text parser lives in `internal/component/bgp/plugins/rs/server_text.go`. It is the only consumer of the text format
-on the hot path (route server forwarding). Other plugins use JSON via `shared/event.go`.
-
-Source of truth: `internal/component/bgp/plugins/rs/server_text.go` (all `parse*` functions).
-<!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent, parseTextNLRIOps -->
+The route-server text parser lives in `internal/component/bgp/plugins/rs/server_text.go`.
+It consumes text-format BGP events for route-server forwarding. Tokenization is shared through `internal/component/bgp/textparse`.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent, parseTextNLRIOps, parseTextOpen, parseTextState, parseTextRefresh -->
+<!-- source: internal/component/bgp/textparse/scanner.go -- Scanner, NewScanner, Next, Peek, Done -->
 
 ## Current Parser
 
+### Scanner
+
+`textparse.Scanner` holds the original input string and a byte offset. `Next()` skips ASCII whitespace, returns the next token as a substring of the original input, and advances the offset. `Peek()` saves and restores the offset. `Done()` checks whether any non-whitespace byte remains.
+<!-- source: internal/component/bgp/textparse/scanner.go -- Scanner, Next, Peek, Done -->
+
+The scanner does not build a token slice. Parser allocations now come from result data structures, such as UPDATE operation maps, NLRI token collection, normalized NLRI strings, OPEN capability slices, and the small `strings.SplitN` result used when decoding refresh families.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps, buildNLRIEntries, parseTextOpen, parseTextRefresh -->
+
 ### Two-Phase Parsing
 
-The parser uses a two-phase design to minimize work on the hot path:
+The parser uses a two-phase design so UPDATE forwarding can route by peer and message ID before doing full body work:
 
-| Phase | Function | Purpose | Allocations |
-|-------|----------|---------|-------------|
-| Quick parse | `quickParseTextEvent` | Extract event type, msgID, peer address | 1 (`strings.Fields` for first 5 tokens) |
-| Full parse | `parseText{Open,State,Refresh,NLRIOps}` | Type-specific field extraction | Per-type (all use `strings.Fields`) |
+| Phase | Function | Purpose | Allocation shape |
+|-------|----------|---------|------------------|
+| Quick parse | `quickParseTextEvent` | Extract event type, msgID, peer address, and raw payload | Scanner over the input; no token slice |
+| Family scan | `parseTextUpdateFamilies` | Discover registered UPDATE families when only family routing is needed | Result map only |
+| Full parse | `parseTextOpen`, `parseTextState`, `parseTextRefresh`, `parseTextNLRIOps` | Type-specific field extraction | Only the returned event, map, slices, or normalized strings |
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent, parseTextUpdateFamilies, parseTextNLRIOps, parseTextOpen, parseTextState, parseTextRefresh -->
 
-UPDATE messages are the hot path. Quick parse extracts just enough to route the message to a per-peer worker.
-Full NLRI parsing (`parseTextNLRIOps`) is deferred to the worker goroutine.
+UPDATE messages are the hot path. Quick parse extracts just enough to route the text to the per-peer worker. Full NLRI parsing is deferred to the worker goroutine.
+<!-- source: internal/component/bgp/plugins/rs/server.go -- dispatchText -->
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent, parseTextNLRIOps -->
 
 ### Entry Point: dispatchText
 
-`dispatchText(text string)` at `server.go:509` receives raw text lines from the engine socket.
+`dispatchText(text string)` receives raw text lines from the engine socket:
+
+1. Calls `quickParseTextEvent(text)` for lightweight routing.
+2. Routes by event type:
+   - `update`: stores raw text in forward context and dispatches to the per-peer worker.
+   - `state`: full parse with `parseTextState()`, then inline handling.
+   - `refresh`, `borr`, `eorr`: full parse with `parseTextRefresh()`, then inline handling.
+   - `open`: full parse with `parseTextOpen()`, then inline handling.
+
+UPDATE is the only type with deferred body parsing. The other parsed event types are infrequent and handled inline.
 <!-- source: internal/component/bgp/plugins/rs/server.go -- dispatchText -->
 
-1. Calls `quickParseTextEvent(text)` for lightweight routing
-2. Routes by event type:
-   - `update` — stores raw text in forward context, dispatches to per-peer worker (deferred parse)
-   - `state` — full parse with `parseTextState()`, inline handling
-   - `refresh` / `borr` / `eorr` — full parse with `parseTextRefresh()`, inline handling
-   - `open` — full parse with `parseTextOpen()`, inline handling
+### Uniform Header
 
-UPDATE is the only type with deferred parsing. All others are infrequent and parsed immediately.
+Text events use the uniform header `peer <addr> remote as <asn> ...`. After the ASN value, the next token decides the shape:
 
-### Quick Parse: quickParseTextEvent
-
-`quickParseTextEvent(text string) (eventType, msgID, peerAddr, payload, error)` at `server_text.go:116`.
+| Shape | Tokens after ASN | Type | ID |
+|-------|------------------|------|----|
+| State | `state <state>` | `state` | none, returns 0 |
+| Message | `<direction> <type> <id>` | token after direction | parsed unsigned integer, or 0 if absent or non-numeric |
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent -->
+<!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
+<!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText -->
 
-1. Trim trailing newline
-2. Split with `strings.Fields(text)` — requires minimum 5 fields, must start with `peer`
-3. Detect layout by positional check:
-   - If `fields[5] == "state"` — STATE event (different header shape): return `("state", 0, fields[1], text, nil)`
-   - Otherwise — MESSAGE event: type at `fields[3]`, msgID parsed from `fields[4]`
-4. Returns `(eventType, msgID, peerAddr, fullText, err)`
-
-The two header shapes require different field indices:
-
-| Header Shape | Type Location | ID Location | Example |
-|-------------|---------------|-------------|---------|
-| State | `fields[5]` (keyword "state") | none (returns 0) | `peer 10.0.0.1 remote as 65001 state up` |
-| Message | `fields[3]` | `fields[4]` | `peer 10.0.0.1 received update 1 ...` |
+`quickParseTextEvent` trims a trailing newline, validates the `peer`, `remote`, and `as` keywords, consumes the ASN value, and returns the full original text as payload for deferred parsing.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent -->
 
 ### UPDATE Parser: parseTextNLRIOps
 
-`parseTextNLRIOps(text string) map[string][]FamilyOperation` at `server_text.go:194`.
+`parseTextNLRIOps(text string) map[string][]FamilyOperation` parses text UPDATE bodies into family operation lists. It skips the eight-token uniform UPDATE header: `peer`, address, `remote`, `as`, ASN, direction, `update`, and msgID.
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps, FamilyOperation -->
 
-Handles multiline UPDATEs (announce + withdraw for same msgID on separate lines).
+The parser then runs a key-dispatch loop. It resolves keyword aliases through `textparse.ResolveAlias`, consumes known attribute values, and handles `nlri` sections as `nlri <family> [info <path-id>] add|del <tokens...>`.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps -->
+<!-- source: internal/component/bgp/textparse/keywords.go -- ResolveAlias, KWNLRI, KWPathInformation, KWAdd, KWDel -->
 
-1. Split text by newlines with `strings.SplitSeq`
-2. For each line, call `parseTextNLRIOpsLine(fields, result)`
+NLRI tokens are collected until `textparse.IsTopLevelKeyword` sees the next attribute or `nlri` section. `buildNLRIEntries` then normalizes the collected tokens:
 
-`parseTextNLRIOpsLine` implements a state machine:
+| Input shape | Result |
+|-------------|--------|
+| Comma list, for example `prefix 10.0.0.0/24,10.0.1.0/24` | one entry per comma item, with the type prefix preserved |
+| Repeated NLRI type keyword, for example `prefix 10.0.0.0/24 prefix 10.0.1.0/24` | one entry per keyword-bounded group |
+| Complex opaque NLRI tokens | one joined string |
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- buildNLRIEntries, parseTextNLRIOps -->
+<!-- source: internal/component/bgp/textparse/keywords.go -- IsTopLevelKeyword, NLRITypeKeywords -->
 
-1. Scan for action token: `announce` (maps to add) or `withdraw` (maps to del)
-2. After action, scan for family tokens and NLRI sequences:
-   - Family token detected by `isFamilyToken()` — sets current family context
-   - `next-hop` — consumes next token as address (skips it)
-   - `nlri` — enters NLRI collection mode
-   - Other tokens in NLRI mode — collected as prefix strings
-3. Family boundary: encountering a new family token flushes accumulated NLRIs
+### UPDATE Family Scan: parseTextUpdateFamilies
 
-Result is a map: family string to list of `FamilyOperation{Action, NLRIs}`.
-
-### Family Detection: isFamilyToken
-
-`isFamilyToken(s string) bool` in `server_text.go`.
-
-Distinguishes family strings from NLRI prefixes — both contain `/`:
-
-| Input | Result | Why |
-|-------|--------|-----|
-| `ipv4/unicast` | true | suffix `unicast` has non-digit characters |
-| `ipv6/mpls-vpn` | true | suffix `vpn` has non-digit characters |
-| `10.0.0.0/24` | false | suffix `24` is all digits |
-| `2001:db8::/32` | false | suffix `32` is all digits |
-
-Algorithm: find last `/`, check if all characters after it are digits. All-digits = NLRI prefix length. Non-digits = SAFI name.
+`parseTextUpdateFamilies(text string)` is a lighter scanner pass that looks only for `nlri <family>` pairs and returns registered families. Unknown family strings are dropped because the engine only forwards families known by the family registry.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextUpdateFamilies -->
+<!-- source: internal/core/family/family.go -- LookupFamily -->
 
 ### OPEN Parser: parseTextOpen
 
-`parseTextOpen(text string) *Event` at `server_text.go:280`.
-<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextOpen -->
+`parseTextOpen(text string) *Event` reads the uniform header, copies the peer address, parses the peer ASN from `remote as <n>`, skips direction, `open`, and msgID, then scans the OPEN body:
 
-Parses key-value pairs starting from `fields[5]`:
-- `asn <value>` — peer ASN
-- `router-id <value>` — router ID string
-- `hold-time <value>` — hold timer seconds
-- `cap <code> <name> [<value>]` — capability (value is optional; consumed only if next token is not a keyword)
-
-Capabilities are chained: `cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001 cap 2 route-refresh`.
+- `router-id <value>` sets `Open.RouterID`.
+- `hold-time <value>` parses the hold timer as uint16.
+- `cap <code> <name> [<value>]` appends a capability. The optional value is consumed only when the next token is not another OPEN keyword.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextOpen, OpenInfo, CapabilityInfo -->
 
 ### State Parser: parseTextState
 
-`parseTextState(text string) *Event` at `server_text.go:352`.
+`parseTextState(text string) *Event` scans the uniform state line. `remote as <value>` sets `PeerASN`; `state <value>` sets the state string.
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextState -->
-
-Parses key-value pairs from `fields[2]`:
-- `remote as <value>` — peer ASN
-- `state <value>` — state string (up, down, established, etc.)
 
 ### Refresh Parser: parseTextRefresh
 
-`parseTextRefresh(text string) *Event` at `server_text.go:392`.
+`parseTextRefresh(text string) *Event` reads the uniform message header, records the refresh subtype token (`refresh`, `borr`, or `eorr`), and scans for `family <afi>/<safi>`. The family string is split once on `/` and resolved through the family registry.
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextRefresh -->
+<!-- source: internal/core/family/family.go -- LookupAFI, LookupSAFI -->
 
-Type comes from `fields[3]` (one of: `refresh`, `borr`, `eorr`).
-Scans for `family` keyword, splits the value by `/` into AFI and SAFI.
-
-Note: `borr` and `eorr` (RFC 7313 subtypes) are parsed but silently ignored by `dispatchText()` — route servers don't track refresh boundaries.
+`borr` and `eorr` are parsed by the same function as `refresh`; route-server dispatch currently ignores refresh boundaries after parsing.
+<!-- source: internal/component/bgp/plugins/rs/server.go -- dispatchText -->
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextRefresh -->
 
 ### Error Handling
 
-All parsers are fail-safe:
+Quick parse fails closed for malformed headers by returning specific errors for missing `peer`, address, `remote`, `as`, ASN value, dispatch token, or event type. A missing or non-numeric message ID returns event type, peer address, payload, and msgID 0 without treating the event as malformed.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- errInvalidTextEventMissingPeerPrefix, errInvalidTextEventMissingEventType, quickParseTextEvent -->
 
-| Condition | Behavior |
-|-----------|----------|
-| Too few fields | Return nil (or error for quickParse) |
-| Non-numeric msgID | Silently returns 0 |
-| Missing keyword values | Silently skipped |
-| Unknown tokens | Ignored (not errors) |
-| Unknown event types | Silently ignored by dispatchText |
+Full parsers are tolerant of partial bodies. Missing mandatory peer address returns nil. Missing optional values, unknown tokens, and unparsable numeric body fields are skipped.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextOpen, parseTextState, parseTextRefresh, parseTextNLRIOps -->
 
 ### String Operations Used
 
-| Function | Primary Operation |
+| Function | Primary operation |
 |----------|-------------------|
-| quickParseTextEvent | `strings.Fields()` + positional index |
-| parseTextNLRIOps | `strings.SplitSeq()` + `strings.Fields()` per line |
-| parseTextNLRIOpsLine | Token scan loop over `strings.Fields()` result |
-| isFamilyToken | `strings.LastIndex()` + byte-level suffix scan |
-| parseTextOpen | `strings.Fields()` + keyword loop |
-| parseTextState | `strings.Fields()` + keyword loop |
-| parseTextRefresh | `strings.SplitN()` for family split |
-
-All functions allocate via `strings.Fields()`. No manual byte scanning or zero-allocation parsing exists in the current implementation.
-<!-- source: internal/component/bgp/plugins/rs/server_text.go -- all parse functions -->
-
----
-
-## Proposed Parser Design (not yet implemented)
-
-This section describes a planned redesign. No code implements this yet.
-
-### Tokenizer
-
-Split input by whitespace into byte-slice tokens pointing into the original buffer. Zero allocations if tokens remain as byte slices (no string conversion). This replaces `strings.Fields()` which allocates a string slice.
-
-### Key-Dispatch Parser
-
-After tokenizing, the parser reads tokens sequentially:
-
-1. Read token, look up in key table
-2. Key table returns: pattern (scalar / list / action) and known sub-keys (for dict)
-3. For scalar: consume next token as value
-4. For list: consume next token, split by `,` for individual values
-5. For action key (like `nlri`): peek at next token:
-   - `info` (`path-information`) — read modifier value, then expect action (`add`/`del`)
-   - `add` / `del` — proceed to step 5a
-   - 5a. After action, peek at following token:
-     - Known sub-key — dict mode: read sub-key-value pairs until unrecognized token
-     - Otherwise — consume as value (possibly comma-separated list)
-6. Repeat from step 1 with unrecognized token (it becomes the next key)
-
-### Proposed Quick Parse (hot path)
-
-All messages start with `peer <ip> remote as <n>`. Quick parse: byte-scan for first 5 tokens (2 key-value pairs, where the second is `remote as <n>`) plus dispatch token. Zero allocations — returns byte slices into original buffer.
-
-### Proposed Shared Parser Location (future)
-
-Move from bgp-rs to `internal/component/bgp/textparse.go` so other plugins can reuse the text parser.
+| `quickParseTextEvent` | `strings.TrimRight` plus `textparse.Scanner` |
+| `parseTextUpdateFamilies` | `textparse.Scanner`, `family.LookupFamily` |
+| `parseTextNLRIOps` | `strings.TrimRight`, `textparse.Scanner`, alias resolution |
+| `buildNLRIEntries` | comma detection, `strings.SplitSeq`, `strings.TrimSpace`, `strings.Join` for normalized NLRI strings |
+| `parseTextOpen` | `strings.TrimRight`, `textparse.Scanner`, numeric parsing |
+| `parseTextState` | `strings.TrimRight`, `textparse.Scanner`, numeric parsing |
+| `parseTextRefresh` | `strings.TrimRight`, `textparse.Scanner`, `strings.SplitN` for family split |
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent, parseTextUpdateFamilies, parseTextNLRIOps, buildNLRIEntries, parseTextOpen, parseTextState, parseTextRefresh -->
+<!-- source: internal/component/bgp/textparse/scanner.go -- Scanner -->
