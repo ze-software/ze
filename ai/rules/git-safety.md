@@ -49,7 +49,10 @@ cd "$(git rev-parse --show-toplevel)"
 
 # Commit a: type: subject line
 # Lesson: plan/learned/NNN-name.md
-git add -- file1.go file2.go file3_test.go
+git add -- \
+  file1.go \
+  file2.go \
+  file3_test.go
 git commit -F tmp/commit-msg-<SESSION>-a.txt
 ```
 

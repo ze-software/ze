@@ -251,6 +251,12 @@ def lesson_comment(
 def quote_paths(paths: tuple[str, ...]) -> str:
     return " ".join(shlex.quote(path) for path in paths)
 
+def render_git_add(paths: tuple[str, ...]) -> str:
+    lines = ["git add -- \\"]
+    for index, path in enumerate(paths):
+        suffix = " \\" if index + 1 < len(paths) else ""
+        lines.append("  " + shlex.quote(path) + suffix)
+    return "\n".join(lines)
 
 def render_block(block: CommitBlock) -> str:
     lines = [
@@ -258,7 +264,7 @@ def render_block(block: CommitBlock) -> str:
         f"# {block.lesson_comment}",
     ]
     if block.add_paths:
-        lines.append("git add -- " + quote_paths(block.add_paths))
+        lines.append(render_git_add(block.add_paths))
     if block.remove_paths:
         lines.append("git rm -- " + quote_paths(block.remove_paths))
     lines.append("git commit -F " + shlex.quote(block.message_path))

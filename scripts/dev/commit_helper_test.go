@@ -19,6 +19,7 @@ func TestCommitHelperCreatesMessageAndScript(t *testing.T) {
 	root := makeCommitHelperFixture(t)
 	writeFixture(t, root, ".gitignore", "tmp/*\n")
 	writeFixture(t, root, "docs-note.md", "notes\n")
+	writeFixture(t, root, "docs-extra.md", "more notes\n")
 
 	out, stderr, code := runCommitHelper(t, root,
 		"--repo", root,
@@ -28,6 +29,7 @@ func TestCommitHelperCreatesMessageAndScript(t *testing.T) {
 		"--subject", "tools: add commit helper",
 		"--body", "Generate the message file separately from the user-run script.",
 		"--file", "docs-note.md",
+		"--file", "docs-extra.md",
 		"--replace",
 	)
 	if code != 0 {
@@ -45,7 +47,8 @@ func TestCommitHelperCreatesMessageAndScript(t *testing.T) {
 	script := readPath(t, scriptPath)
 	mustContain(t, script, "#!/bin/bash")
 	mustContain(t, script, "set -euo pipefail")
-	mustContain(t, script, "git add -- docs-note.md")
+	mustContain(t, script, "git add -- \\\n  docs-note.md \\\n  docs-extra.md")
+	mustNotContain(t, script, "git add -- docs-note.md docs-extra.md")
 	mustContain(t, script, "git commit -F tmp/commit-msg-1234abcd-a.txt")
 	mustContain(t, script, "# Lesson: not required by helper heuristic")
 	mustNotContain(t, script, "git commit -m")
