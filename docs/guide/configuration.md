@@ -674,18 +674,18 @@ config entry and the physical (or virtual) hardware.
 
 ### MAC Address Binding
 
-For ethernet, veth, and bridge interfaces, `mac-address` is required and must be unique
-within each type. The MAC ties the named config entry to the actual hardware. Names are
-descriptive labels chosen by the operator; rename the config entry freely without losing
-the physical binding.
+For ethernet, veth, and bridge interfaces, the MAC address (`mac { address }`) is optional:
+omit it to keep the hardware-assigned MAC, or set it to override the address. When set it
+must be unique within each type. Names are descriptive labels chosen by the operator;
+when a MAC is set it ties the named config entry to a specific hardware address.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unique "mac-address", ze:required "mac-address" -->
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unique "mac/address" -->
 
 ### Discovery During Init
 
 Running `ze init` discovers OS interfaces via netlink (Linux) or stdlib (other platforms)
 and writes initial config to `ze.conf`. Each discovered interface gets an entry named
-after its OS name, with `mac-address` populated and an `os-name` hidden field preserving
+after its OS name, with `mac { address }` populated and an `os-name` hidden field preserving
 the original OS name. Loopback appears as an empty `loopback { }` container.
 
 <!-- source: cmd/ze/init/main.go -- generateInterfaceConfig -->
@@ -696,14 +696,20 @@ the original OS name. Loopback appears as an empty `loopback { }` container.
 ```
 interface {
     ethernet uplink {
-        mac-address 00:1a:2b:3c:4d:5e;
+        mac {
+            address 00:1a:2b:3c:4d:5e;
+        }
     }
     ethernet mgmt {
-        mac-address 00:1a:2b:3c:4d:5f;
+        mac {
+            address 00:1a:2b:3c:4d:5f;
+        }
         mtu 1500;
     }
     bridge fabric {
-        mac-address 00:1a:2b:3c:4d:60;
+        mac {
+            address 00:1a:2b:3c:4d:60;
+        }
         stp true;
     }
     dummy blackhole {
@@ -744,7 +750,9 @@ CLI program is not required.
 ```
 interface {
     ethernet uplink {
-        mac-address 00:1a:2b:3c:4d:5e;
+        mac {
+            address 00:1a:2b:3c:4d:5e;
+        }
         offload {
             gro true;
             tso true;
@@ -811,7 +819,9 @@ removal, `accept_ra_defrtr` is restored to 1.
 ```
 interface {
     ethernet uplink {
-        mac-address 00:1a:2b:3c:4d:5e;
+        mac {
+            address 00:1a:2b:3c:4d:5e;
+        }
         unit default {
             route-priority 1;
             ipv4 {
@@ -822,7 +832,9 @@ interface {
         }
     }
     ethernet backup {
-        mac-address 00:1a:2b:3c:4d:5f;
+        mac {
+            address 00:1a:2b:3c:4d:5f;
+        }
         unit default {
             route-priority 5;
             ipv4 {
@@ -854,7 +866,9 @@ Reverse Path Forwarding verification. Three modes are available:
 ```
 interface {
     ethernet eth0 {
-        mac-address 02:00:00:00:00:01;
+        mac {
+            address 02:00:00:00:00:01;
+        }
         unit default {
             ipv4 {
                 rpf-check strict;

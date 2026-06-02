@@ -7,7 +7,9 @@ stdin=config:terminator=EOF_CONF
 interface {
     backend netlink
     ethernet eth2 {
-        mac-address 60:be:b4:20:70:6e
+        mac {
+            address 60:be:b4:20:70:6e
+        }
     }
     pppoe-client pppoe0 {
         source-interface eth2

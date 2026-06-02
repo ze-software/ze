@@ -344,7 +344,7 @@ func TestPPPoEClientHomeConf(t *testing.T) {
 		"interface": {
 			"ethernet": {
 				"eth2": {
-					"mac-address": "60:be:b4:20:70:6e"
+					"mac": {"address": "60:be:b4:20:70:6e"}
 				}
 			},
 			"pppoe-client": {

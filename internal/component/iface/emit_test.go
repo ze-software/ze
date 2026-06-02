@@ -29,7 +29,8 @@ func TestEmitConfig(t *testing.T) {
 			contains: []string{
 				"interface {",
 				"ethernet eth0 {",
-				"mac-address aa:bb:cc:dd:ee:ff;",
+				"mac {",
+				"address aa:bb:cc:dd:ee:ff;",
 				"os-name eth0;",
 			},
 		},
@@ -43,7 +44,7 @@ func TestEmitConfig(t *testing.T) {
 				"os-name eth0;",
 			},
 			excludes: []string{
-				"mac-address",
+				"mac {",
 			},
 		},
 		{
@@ -335,9 +336,9 @@ func TestEmitConfigStructure(t *testing.T) {
 						t.Errorf("missing os-name line %q for %s", osLine, di.Name)
 					}
 					if di.MAC != "" {
-						macLine := "mac-address " + di.MAC + ";"
+						macLine := "address " + di.MAC + ";"
 						if !strings.Contains(got, macLine) {
-							t.Errorf("missing mac-address line %q for %s", macLine, di.Name)
+							t.Errorf("missing mac address line %q for %s", macLine, di.Name)
 						}
 					}
 				case "loopback":
@@ -460,7 +461,8 @@ func TestEmitBootstrapConfig(t *testing.T) {
 	mustContain := []string{
 		"interface {",
 		"ethernet eth0 {",
-		"mac-address aa:bb:cc:dd:ee:ff;",
+		"mac {",
+		"address aa:bb:cc:dd:ee:ff;",
 		"os-name eth0;",
 		"unit default {",
 		"ipv4 {",
@@ -619,8 +621,8 @@ func TestEmitBootstrapConfigUnsafeName(t *testing.T) {
 }
 
 // An unsafe MAC (config-breaking characters) must not be interpolated into the
-// config. The interface block is still emitted, just without the mac-address
-// line, and the output stays well-formed.
+// config. The interface block is still emitted, just without the mac block,
+// and the output stays well-formed.
 func TestEmitBootstrapConfigUnsafeMAC(t *testing.T) {
 	discovered := []DiscoveredInterface{
 		{Name: "eth0", Type: "ethernet", MAC: "aa;bb { injected"},
@@ -630,8 +632,8 @@ func TestEmitBootstrapConfigUnsafeMAC(t *testing.T) {
 	if strings.Contains(got, "aa;bb") || strings.Contains(got, "injected") {
 		t.Errorf("unsafe MAC was interpolated into config:\n%s", got)
 	}
-	if strings.Contains(got, "mac-address") {
-		t.Errorf("mac-address line should be skipped for an unsafe MAC:\n%s", got)
+	if strings.Contains(got, "mac {") {
+		t.Errorf("mac block should be skipped for an unsafe MAC:\n%s", got)
 	}
 	if !strings.Contains(got, "ethernet eth0 {") {
 		t.Errorf("interface block should still be emitted:\n%s", got)
@@ -716,5 +718,26 @@ func TestEmitSetConfigXFRM(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("EmitSetConfig missing %q in:\n%s", want, out)
 		}
+	}
+}
+
+// TestEmitSetConfigEthernetMAC verifies the set-form MAC emission uses the
+// two-token "mac address" path (container mac { leaf address }), not the old
+// single "mac-address" leaf.
+//
+// PREVENTS: set-form emit drifting back to the renamed leaf and producing
+// config that no longer parses against the schema.
+func TestEmitSetConfigEthernetMAC(t *testing.T) {
+	dis := []DiscoveredInterface{{
+		Name: "eth0",
+		Type: zeTypeEthernet,
+		MAC:  "aa:bb:cc:dd:ee:ff",
+	}}
+	out := EmitSetConfig(dis)
+	if want := "set interface ethernet eth0 mac address aa:bb:cc:dd:ee:ff"; !strings.Contains(out, want) {
+		t.Errorf("EmitSetConfig missing %q in:\n%s", want, out)
+	}
+	if strings.Contains(out, "mac-address") {
+		t.Errorf("EmitSetConfig must not emit the old mac-address leaf:\n%s", out)
 	}
 }

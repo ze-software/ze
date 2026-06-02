@@ -5,7 +5,9 @@ stdin=config:terminator=EOF_CONF
 interface {
 	backend netlink;
 	bridge br0 {
-		mac-address 02:00:00:00:00:03;
+		mac {
+			address 02:00:00:00:00:03;
+		}
 		offload {
 			gro true;
 			tso false;

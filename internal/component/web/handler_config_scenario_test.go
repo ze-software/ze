@@ -92,7 +92,7 @@ func TestScenario_InterfaceCreateWithUnit(t *testing.T) {
 
 	code := addEntry("interface/ethernet/", url.Values{
 		"name":              {"uplink-isp-a"},
-		"field:mac-address": {"00:1a:2b:3c:4d:01"},
+		"field:mac/address": {"00:1a:2b:3c:4d:01"},
 	})
 	assert.Equal(t, http.StatusOK, code, "add ethernet interface")
 
@@ -271,7 +271,7 @@ func TestScenario_FullRouterSetup(t *testing.T) {
 
 	add("interface/ethernet/", url.Values{
 		"name":              {"uplink"},
-		"field:mac-address": {"00:1a:2b:3c:4d:01"},
+		"field:mac/address": {"00:1a:2b:3c:4d:01"},
 	})
 	set("interface/ethernet/uplink/", "description", "ISP uplink")
 	add("interface/ethernet/uplink/unit/", url.Values{"name": {"0"}})
@@ -279,7 +279,7 @@ func TestScenario_FullRouterSetup(t *testing.T) {
 
 	add("interface/ethernet/", url.Values{
 		"name":              {"customer"},
-		"field:mac-address": {"00:1a:2b:3c:4d:02"},
+		"field:mac/address": {"00:1a:2b:3c:4d:02"},
 	})
 	add("interface/ethernet/customer/unit/", url.Values{"name": {"0"}})
 	set("interface/ethernet/customer/unit/0/", "description", "Customer unit")

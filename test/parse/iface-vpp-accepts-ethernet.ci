@@ -8,7 +8,9 @@ stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;
 	ethernet eth0 {
-		mac-address 02:00:00:00:00:02;
+		mac {
+			address 02:00:00:00:00:02;
+		}
 	}
 }
 EOF_CONF

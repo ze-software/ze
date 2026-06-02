@@ -8,7 +8,7 @@ action=open:path=/show/
 action=wait:ms=1000
 
 # Create interface via CLI with full path
-action=fill:id=cli-input:value=set interface ethernet iface-test mac-address 00:aa:bb:cc:dd:01
+action=fill:id=cli-input:value=set interface ethernet iface-test mac address 00:aa:bb:cc:dd:01
 action=press:key=Enter
 action=wait:ms=1000
 

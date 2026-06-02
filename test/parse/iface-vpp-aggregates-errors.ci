@@ -8,7 +8,9 @@ stdin=config:terminator=EOF_CONF
 interface {
 	backend vpp;
 	bridge br0 {
-		mac-address 02:00:00:00:00:04;
+		mac {
+			address 02:00:00:00:00:04;
+		}
 	}
 	tunnel t0 {
 		encapsulation {

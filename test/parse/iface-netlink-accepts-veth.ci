@@ -9,7 +9,9 @@ stdin=config:terminator=EOF_CONF
 interface {
 	backend netlink;
 	veth v0 {
-		mac-address 02:00:00:00:00:01;
+		mac {
+			address 02:00:00:00:00:01;
+		}
 		peer v0-peer;
 	}
 }

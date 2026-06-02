@@ -189,12 +189,12 @@ bridge, veth, dummy, or loopback. On Linux, the netlink `device` type maps to et
 
 The generated config uses descriptive names as YANG list keys (the OS interface name at
 discovery time). The MAC address serves as the physical binding between configuration and
-hardware. For ethernet, veth, and bridge interfaces, `mac-address` is required
-(`ze:required`) and must be unique within each list. This means the user can freely rename
-the config entry to a descriptive name while the MAC address maintains the link to the
-physical device.
+hardware. For ethernet, veth, and bridge interfaces, the MAC address (`mac { address }`) is
+optional and, when set, must be unique within each list. Omit it to keep the
+hardware-assigned MAC, or set it to override the address and pin the named config entry to
+a specific physical device.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unique, ze:required on ethernet/veth/bridge lists -->
+<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unique on ethernet/veth/bridge lists -->
 
 Each discovered interface also records an `os-name` hidden leaf that preserves the original
 OS interface name. This field is auto-populated during discovery and remains available for
@@ -299,8 +299,9 @@ The eight supported encapsulation kinds map to Linux netlink kinds:
 `ipip6` shares the kernel `ip6tnl` netdev with a different inner protocol byte (4 vs 41).
 Both surface as distinct YANG cases so the schema and config are unambiguous.
 
-L2 tunnel kinds (`gretap`, `ip6gretap`) support an optional `mac-address` leaf inside
-the case container. L3 kinds do not carry a MAC address (the kernel does not assign one).
+L2 tunnel kinds (`gretap`, `ip6gretap`) support an optional `mac` container (with an
+`address` leaf) inside the case container. L3 kinds do not carry a MAC address (the
+kernel does not assign one).
 
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
 out of scope for v1; see `plan/deferrals.md`.

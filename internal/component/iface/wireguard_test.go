@@ -329,7 +329,7 @@ func TestParseWireguardDuplicatePublicKey(t *testing.T) {
 	assert.Contains(t, err.Error(), "duplicate public-key")
 }
 
-// TestParseWireguardMACIgnored verifies that a hand-injected mac-address
+// TestParseWireguardMACIgnored verifies that a hand-injected mac/address
 // at the wireguard list level is cleared by the parser (defense-in-depth).
 //
 // VALIDATES: wireguard uses interface-common, not interface-l2.
@@ -337,7 +337,7 @@ func TestParseWireguardDuplicatePublicKey(t *testing.T) {
 func TestParseWireguardMACIgnored(t *testing.T) {
 	m := map[string]any{
 		"private-key": testPrivKeyB64,
-		"mac-address": "aa:bb:cc:dd:ee:ff",
+		"mac":         map[string]any{"address": "aa:bb:cc:dd:ee:ff"},
 		"peer": map[string]any{
 			"site1": map[string]any{"public-key": testPubKey1B64},
 		},
@@ -345,5 +345,5 @@ func TestParseWireguardMACIgnored(t *testing.T) {
 	entry, err := parseWireguardEntry("wg0", m)
 	require.NoError(t, err)
 	assert.Empty(t, entry.MACAddress,
-		"wireguard must not carry mac-address (cleared by parser)")
+		"wireguard must not carry mac/address (cleared by parser)")
 }

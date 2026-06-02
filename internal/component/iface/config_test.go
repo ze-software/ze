@@ -428,12 +428,12 @@ func TestParseTunnelGretap(t *testing.T) {
 	assert.Equal(t, TunnelKindGRETap, cfg.Tunnel[0].Spec.Kind)
 }
 
-// TestParseTunnelGretapMAC verifies that mac-address inside the gretap case
-// container is parsed correctly. After the YANG restructure, mac-address
-// lives inside the per-case container for bridgeable kinds (gretap/ip6gretap),
-// not at the list level.
+// TestParseTunnelGretapMAC verifies that the mac/address leaf inside the gretap
+// case container is parsed correctly. After the YANG restructure, the mac
+// container lives inside the per-case container for bridgeable kinds
+// (gretap/ip6gretap), not at the list level.
 //
-// VALIDATES: AC-2 (spec-iface-tunnel-mac-per-case) - mac-address inside gretap accepted.
+// VALIDATES: AC-2 (spec-iface-tunnel-mac-per-case) - mac/address inside gretap accepted.
 // PREVENTS: MAC address silently dropped when moved from list level to case container.
 func TestParseTunnelGretapMAC(t *testing.T) {
 	cfg := mustParseIfaceJSON(t, `{
@@ -444,7 +444,7 @@ func TestParseTunnelGretapMAC(t *testing.T) {
 						"gretap": {
 							"local":  {"ip": "10.0.0.1"},
 							"remote": {"ip": "10.0.0.2"},
-							"mac-address": "aa:bb:cc:dd:ee:ff"
+							"mac": {"address": "aa:bb:cc:dd:ee:ff"}
 						}
 					}
 				}
@@ -454,23 +454,23 @@ func TestParseTunnelGretapMAC(t *testing.T) {
 	require.Len(t, cfg.Tunnel, 1)
 	assert.Equal(t, TunnelKindGRETap, cfg.Tunnel[0].Spec.Kind)
 	assert.Equal(t, "aa:bb:cc:dd:ee:ff", cfg.Tunnel[0].MACAddress,
-		"mac-address inside gretap case must be parsed")
+		"mac/address inside gretap case must be parsed")
 }
 
 // TestParseTunnelGreNoMAC verifies that an L3 tunnel kind (gre) does not
-// carry a mac-address, and that any mac-address at the list level is ignored
+// carry a mac/address, and that any mac at the list level is ignored
 // for tunnels (YANG enforces this; parser provides defense-in-depth).
 //
 // VALIDATES: AC-3 (spec-iface-tunnel-mac-per-case) - L3 kind without MAC accepted.
-// VALIDATES: AC-4 (spec-iface-tunnel-mac-per-case) - mac-address not available on L3 kinds.
+// VALIDATES: AC-4 (spec-iface-tunnel-mac-per-case) - mac/address not available on L3 kinds.
 // PREVENTS: L3 tunnel silently accepting MAC that the kernel ignores.
 func TestParseTunnelGreNoMAC(t *testing.T) {
-	// mac-address at list level (old syntax) -- must be ignored for tunnels.
+	// mac at list level (hand-edited) -- must be ignored for tunnels.
 	cfg := mustParseIfaceJSON(t, `{
 		"interface": {
 			"tunnel": {
 				"gre0": {
-					"mac-address": "aa:bb:cc:dd:ee:ff",
+					"mac": {"address": "aa:bb:cc:dd:ee:ff"},
 					"encapsulation": {
 						"gre": {
 							"local":  {"ip": "192.0.2.1"},
@@ -484,15 +484,15 @@ func TestParseTunnelGreNoMAC(t *testing.T) {
 	require.Len(t, cfg.Tunnel, 1)
 	assert.Equal(t, TunnelKindGRE, cfg.Tunnel[0].Spec.Kind)
 	assert.Empty(t, cfg.Tunnel[0].MACAddress,
-		"L3 tunnel must not carry mac-address (list-level mac-address must be ignored)")
+		"L3 tunnel must not carry mac/address (list-level mac must be ignored)")
 }
 
-// TestParseTunnelIp6gretapMAC verifies that mac-address inside the ip6gretap
-// case container is parsed correctly, mirroring TestParseTunnelGretapMAC for
-// the v6-underlay L2 kind.
+// TestParseTunnelIp6gretapMAC verifies that the mac/address leaf inside the
+// ip6gretap case container is parsed correctly, mirroring TestParseTunnelGretapMAC
+// for the v6-underlay L2 kind.
 //
-// VALIDATES: ip6gretap mac-address parity with gretap.
-// PREVENTS: ip6gretap silently dropping mac-address.
+// VALIDATES: ip6gretap mac/address parity with gretap.
+// PREVENTS: ip6gretap silently dropping mac/address.
 func TestParseTunnelIp6gretapMAC(t *testing.T) {
 	cfg := mustParseIfaceJSON(t, `{
 		"interface": {
@@ -502,7 +502,7 @@ func TestParseTunnelIp6gretapMAC(t *testing.T) {
 						"ip6gretap": {
 							"local":  {"ip": "2001:db8::1"},
 							"remote": {"ip": "2001:db8::2"},
-							"mac-address": "11:22:33:44:55:66"
+							"mac": {"address": "11:22:33:44:55:66"}
 						}
 					}
 				}
@@ -512,7 +512,7 @@ func TestParseTunnelIp6gretapMAC(t *testing.T) {
 	require.Len(t, cfg.Tunnel, 1)
 	assert.Equal(t, TunnelKindIP6GRETap, cfg.Tunnel[0].Spec.Kind)
 	assert.Equal(t, "11:22:33:44:55:66", cfg.Tunnel[0].MACAddress,
-		"mac-address inside ip6gretap case must be parsed")
+		"mac/address inside ip6gretap case must be parsed")
 }
 
 // TestParseTunnelIp6gretap verifies the ip6gretap case is recognized as

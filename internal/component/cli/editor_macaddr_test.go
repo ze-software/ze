@@ -25,7 +25,7 @@ import (
 // The ipv6 case also guards the colon-heavy value `fd00::1/64` (a value with several
 // ':' plus '/') through the metadata-annotated change-file round-trip.
 //
-// VALIDATES: editor write-through of mac-address and unit ipv4/ipv6 address.
+// VALIDATES: editor write-through of mac/address and unit ipv4/ipv6 address.
 // PREVENTS: "discarding corrupt change file" / OS-divergent interface config syntax.
 func TestWriteThroughInterfaceAddressRoundTrip(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
@@ -37,16 +37,16 @@ func TestWriteThroughInterfaceAddressRoundTrip(t *testing.T) {
 	session := NewEditSession("insecure", "local")
 	ed.SetSession(session)
 
-	// mac-address (value contains ':'), unit ipv4 address (contains '/'), and unit
+	// mac/address (value contains ':'), unit ipv4 address (contains '/'), and unit
 	// ipv6 address (contains '::' and '/').
-	require.NoError(t, ed.SetValue([]string{"interface", "ethernet", "iface-test"}, "mac-address", "00:aa:bb:cc:dd:01"))
+	require.NoError(t, ed.SetValue([]string{"interface", "ethernet", "iface-test", "mac"}, "address", "00:aa:bb:cc:dd:01"))
 	require.NoError(t, ed.SetValue([]string{"interface", "ethernet", "iface-test", "unit", "0", "ipv4"}, "address", "192.0.2.2/30"))
 	require.NoError(t, ed.SetValue([]string{"interface", "ethernet", "iface-test", "unit", "0", "ipv6"}, "address", "fd00::1/64"))
 
 	changePath := ChangePath(configPath, session.User)
 	data, rerr := os.ReadFile(changePath) //nolint:gosec // test path
 	require.NoError(t, rerr)
-	assert.Contains(t, string(data), "mac-address 00:aa:bb:cc:dd:01")
+	assert.Contains(t, string(data), "mac address 00:aa:bb:cc:dd:01")
 	// address is a bracket-syntax leaf-list, serialized as `address [ <cidr> ]`.
 	assert.Contains(t, string(data), "unit 0 ipv4 address [ 192.0.2.2/30 ]")
 	assert.Contains(t, string(data), "unit 0 ipv6 address [ fd00::1/64 ]")

@@ -34,13 +34,13 @@ func TestWireguardYANGSensitive(t *testing.T) {
 
 // TestWireguardYANGStructure verifies that interface.wireguard exposes the
 // expected top-level leaves and nested peer list, and that it does NOT carry
-// mac-address (wireguard is L3 and uses interface-common, not interface-l2).
+// the mac container (wireguard is L3 and uses interface-common, not interface-l2).
 //
 // VALIDATES: schema shape matches spec-iface-wireguard's design; the YANG
 // grouping split from Phase 2 correctly keeps wireguard on interface-common.
 //
 // PREVENTS: silently losing leaves after future YANG refactors; silently
-// gaining mac-address if someone accidentally switches wireguard to
+// gaining the mac/address leaf if someone accidentally switches wireguard to
 // interface-l2.
 func TestWireguardYANGStructure(t *testing.T) {
 	s, err := config.YANGSchema()
@@ -73,10 +73,10 @@ func TestWireguardYANGStructure(t *testing.T) {
 	// interface-unit leaves (should be present via `uses interface-unit`):
 	assert.Contains(t, wgChildren, "unit")
 
-	// mac-address must NOT be present -- wireguard is L3 and uses
+	// the mac container must NOT be present -- wireguard is L3 and uses
 	// interface-common, not interface-l2.
-	assert.NotContains(t, wgChildren, "mac-address",
-		"wireguard is L3 and must not carry mac-address")
+	assert.NotContains(t, wgChildren, "mac",
+		"wireguard is L3 and must not carry the mac container")
 
 	// Verify the nested peer list and its required leaves.
 	peer := wgList.Get("peer")

@@ -14,7 +14,9 @@ option=skip-os:value=darwin
 stdin=config:terminator=EOF_CONF
 interface {
     ethernet eth0 {
-        mac-address aa:bb:cc:dd:ee:ff;
+        mac {
+            address aa:bb:cc:dd:ee:ff;
+        }
         os-name eth0;
         unit default {
             ipv4 {

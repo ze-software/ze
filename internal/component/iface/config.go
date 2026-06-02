@@ -419,7 +419,7 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 	entry := tunnelEntry{ifaceEntry: iface}
 	// MAC address for tunnels comes from inside the encapsulation case
 	// container (gretap/ip6gretap only), not from the list level. Clear
-	// any list-level mac-address that parseIfaceEntry may have read.
+	// any list-level mac/address that parseIfaceEntry may have read.
 	entry.MACAddress = ""
 	entry.Spec.Name = name
 
@@ -450,10 +450,12 @@ func parseTunnelEntry(name string, m map[string]any) (tunnelEntry, error) {
 		return entry, err
 	}
 	// MAC address lives inside the case container for bridgeable kinds
-	// (gretap/ip6gretap). L3 kinds have no mac-address leaf in YANG.
+	// (gretap/ip6gretap). L3 kinds have no mac/address leaf in YANG.
 	if matchedKind.IsBridgeable() {
-		if mac, ok := matchedCase["mac-address"].(string); ok {
-			entry.MACAddress = mac
+		if macC, ok := matchedCase["mac"].(map[string]any); ok {
+			if mac, ok := macC["address"].(string); ok {
+				entry.MACAddress = mac
+			}
 		}
 	}
 	if entry.Spec.LocalAddress != "" && entry.Spec.LocalInterface != "" {
@@ -603,8 +605,8 @@ func parseWireguardEntry(name string, m map[string]any) (wireguardEntry, error) 
 		return wireguardEntry{}, err
 	}
 	entry := wireguardEntry{ifaceEntry: iface}
-	// Wireguard uses interface-common (no mac-address leaf). Clear any
-	// list-level mac-address that parseIfaceEntry may have read from a
+	// Wireguard uses interface-common (no mac/address leaf). Clear any
+	// list-level mac/address that parseIfaceEntry may have read from a
 	// hand-edited config. Same defense-in-depth as parseTunnelEntry.
 	entry.MACAddress = ""
 	entry.Spec.Name = name
@@ -796,8 +798,10 @@ func parseIfaceEntry(name string, m map[string]any) (ifaceEntry, error) {
 	if mtu, ok := m["mtu"].(string); ok {
 		entry.MTU, _ = strconv.Atoi(mtu)
 	}
-	if mac, ok := m["mac-address"].(string); ok {
-		entry.MACAddress = mac
+	if macC, ok := m["mac"].(map[string]any); ok {
+		if mac, ok := macC["address"].(string); ok {
+			entry.MACAddress = mac
+		}
 	}
 	if _, ok := m["disable"]; ok {
 		entry.Disable = true

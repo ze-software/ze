@@ -12,7 +12,9 @@ stdin=config:terminator=EOF_CONF
 interface {
 	backend netlink;
 	ethernet eth0 {
-		mac-address 02:00:00:00:00:99;
+		mac {
+			address 02:00:00:00:00:99;
+		}
 		unit 0 {
 			ipv4 {
 				dhcp {

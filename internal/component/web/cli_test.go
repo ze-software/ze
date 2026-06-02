@@ -662,7 +662,9 @@ const terminalScopedConfig = `bgp {
 }
 interface {
     ethernet eth0 {
-        mac-address 00:11:22:33:44:55;
+        mac {
+            address 00:11:22:33:44:55;
+        }
         description "committed uplink";
     }
 }

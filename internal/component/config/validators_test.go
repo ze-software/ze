@@ -256,34 +256,34 @@ func TestMACAddressValidator_Validate(t *testing.T) {
 	v := MACAddressValidator()
 
 	// Valid MAC addresses.
-	assert.NoError(t, v.ValidateFn("interface.ethernet.mac-address", "aa:bb:cc:dd:ee:ff"))
-	assert.NoError(t, v.ValidateFn("interface.ethernet.mac-address", "AA:BB:CC:DD:EE:FF"))
-	assert.NoError(t, v.ValidateFn("interface.ethernet.mac-address", "00:11:22:33:44:55"))
-	assert.NoError(t, v.ValidateFn("interface.ethernet.mac-address", "01:23:45:67:89:aB"))
+	assert.NoError(t, v.ValidateFn("interface.ethernet.mac.address", "aa:bb:cc:dd:ee:ff"))
+	assert.NoError(t, v.ValidateFn("interface.ethernet.mac.address", "AA:BB:CC:DD:EE:FF"))
+	assert.NoError(t, v.ValidateFn("interface.ethernet.mac.address", "00:11:22:33:44:55"))
+	assert.NoError(t, v.ValidateFn("interface.ethernet.mac.address", "01:23:45:67:89:aB"))
 
 	// Invalid: wrong separator.
-	err := v.ValidateFn("interface.ethernet.mac-address", "aa-bb-cc-dd-ee-ff")
+	err := v.ValidateFn("interface.ethernet.mac.address", "aa-bb-cc-dd-ee-ff")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not a valid MAC address")
 
 	// Invalid: too short.
-	err = v.ValidateFn("interface.ethernet.mac-address", "aa:bb:cc:dd:ee")
+	err = v.ValidateFn("interface.ethernet.mac.address", "aa:bb:cc:dd:ee")
 	require.Error(t, err)
 
 	// Invalid: too long.
-	err = v.ValidateFn("interface.ethernet.mac-address", "aa:bb:cc:dd:ee:ff:00")
+	err = v.ValidateFn("interface.ethernet.mac.address", "aa:bb:cc:dd:ee:ff:00")
 	require.Error(t, err)
 
 	// Invalid: non-hex.
-	err = v.ValidateFn("interface.ethernet.mac-address", "gg:hh:ii:jj:kk:ll")
+	err = v.ValidateFn("interface.ethernet.mac.address", "gg:hh:ii:jj:kk:ll")
 	require.Error(t, err)
 
 	// Invalid: empty.
-	err = v.ValidateFn("interface.ethernet.mac-address", "")
+	err = v.ValidateFn("interface.ethernet.mac.address", "")
 	require.Error(t, err)
 
 	// Non-string rejected.
-	assert.Error(t, v.ValidateFn("interface.ethernet.mac-address", 42))
+	assert.Error(t, v.ValidateFn("interface.ethernet.mac.address", 42))
 }
 
 // TestMACAddressValidator_Complete verifies that MACAddressValidator has nil

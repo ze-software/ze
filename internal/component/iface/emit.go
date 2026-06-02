@@ -41,7 +41,9 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 			}
 			fmt.Fprintf(&b, "    %s %s {\n", di.Type, di.Name)
 			if di.MAC != "" && safeEmitName(di.MAC) {
-				fmt.Fprintf(&b, "        mac-address %s;\n", di.MAC)
+				b.WriteString("        mac {\n            address ")
+				b.WriteString(di.MAC)
+				b.WriteString(";\n        }\n")
 			}
 			fmt.Fprintf(&b, "        os-name %s;\n", di.Name)
 			b.WriteString("    }\n")
@@ -144,7 +146,13 @@ func EmitSetConfig(discovered []DiscoveredInterface) string {
 				continue
 			}
 			if di.MAC != "" && safeEmitName(di.MAC) {
-				fmt.Fprintf(&b, "set interface %s %s mac-address %s\n", di.Type, di.Name, di.MAC)
+				b.WriteString("set interface ")
+				b.WriteString(di.Type)
+				b.WriteString(" ")
+				b.WriteString(di.Name)
+				b.WriteString(" mac address ")
+				b.WriteString(di.MAC)
+				b.WriteString("\n")
 			}
 			fmt.Fprintf(&b, "set interface %s %s os-name %s\n", di.Type, di.Name, di.Name)
 		case zeTypeWireguard:
@@ -300,9 +308,9 @@ func EmitBootstrapConfig(discovered []DiscoveredInterface) string {
 		b.WriteString(di.Name)
 		b.WriteString(" {\n")
 		if di.MAC != "" && safeEmitName(di.MAC) {
-			b.WriteString("        mac-address ")
+			b.WriteString("        mac {\n            address ")
 			b.WriteString(di.MAC)
-			b.WriteString(";\n")
+			b.WriteString(";\n        }\n")
 		}
 		b.WriteString("        os-name ")
 		b.WriteString(di.Name)
