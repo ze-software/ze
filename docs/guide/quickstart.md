@@ -10,7 +10,7 @@ cd ze
 make build    # produces bin/ze, bin/ze-test, bin/ze-chaos
 ```
 
-Requires **Go 1.26+**.
+Requires **Go 1.26+** on a macOS or Linux development host. Windows is not a supported development platform.
 
 ## Initialize
 

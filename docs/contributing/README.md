@@ -3,6 +3,8 @@
 Guidance for working on Ze itself: how to test, how to keep documentation
 accurate, and how to implement RFC behaviour.
 
+Ze development is expected on macOS or Linux. Windows is not a supported development platform.
+
 | Document | Purpose |
 |----------|---------|
 | `testing.md` | How the test suites are organised and run (unit, functional, fuzz, race) |
