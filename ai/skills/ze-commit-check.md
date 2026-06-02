@@ -1,50 +1,38 @@
 # Scoped Commit with Verification
 
-Prepare a commit script with test verification and health checks. Does NOT run git commit or git add directly.
+Prepare a user-run commit script with verification only when needed. Does NOT
+run git commit or git add directly. This is not a late implementation review.
 
-See also: `/ze-commit` (commit without verification), `/ze-verify` (must pass before committing)
+See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone verification)
 
 ## Steps
 
-1. **Verify tests passed (if Go code changed):** Check if any `.go` files are in the commit scope. If yes: run `make ze-verify-changed` (scoped to modified packages only, timeout 180s); if it fails, stop and report all failures. If no `.go` files changed (docs-only, `.claude/` config, specs, etc.): skip verification entirely.
-2. **Show scope:** Run `git status` and `git diff --stat` to identify all changed files.
-3. **Identify task scope:** Determine which files belong to the current task. If unclear, ask the user.
-4. **Exclude unrelated changes:** If files outside the task scope are modified, explicitly list them and confirm with the user: "These files are outside the current task scope: [list]. Exclude from commit?"
-5. **Completeness gate (BLOCKING):** Before proceeding, verify that all expected
-   artifacts are present. For each changed file in scope, check the table below.
-   Present the checklist to the user. Any missing item is a BLOCKER unless the
-   user explicitly waives it.
-
-   | Change type | Required artifact | How to check |
-   |-------------|-------------------|--------------|
-   | New/changed CLI command | `docs/guide/command-reference.md` updated | grep for command name in docs |
-   | New/changed config option | `docs/guide/configuration.md` or YANG doc updated | grep for option name in docs |
-   | New/changed wire format | `docs/architecture/wire/` updated | check relevant wire doc |
-   | New/changed web endpoint | `docs/` or inline help updated | grep for route in docs |
-   | New/changed plugin behavior | `docs/guide/plugins.md` updated | grep for plugin name in docs |
-   | New feature | `docs/features.md` entry | grep for feature name |
-   | New/changed API | `docs/architecture/api/commands.md` updated | grep for endpoint/command |
-   | New/changed skill | `ai/skills/` canonical source exists | check file exists |
-   | New/changed `.claude/` rule | `ai/INSTRUCTIONS.md` pointer if needed | check "Before You..." table |
-   | New exported Go symbol | At least one non-test caller | grep per wiring-completeness |
-   | Functional test required | `.ci` or `.et` test exists | per functional-test-gate mapping |
-
-   ```
-   ## Completeness Check
-
-   | # | Requirement | Status |
-   |---|-------------|--------|
-   | 1 | docs/guide/command-reference.md | included / missing / n/a |
-   | 2 | functional test for new behavior | included / missing / n/a |
-
-   All requirements met. [or table above with missing items]
-   ```
-
-6. **Health check (conditional):** Only if `.claude/` files are in the commit scope, run the .claude health check (see below). Skip entirely for pure code/docs commits.
-7. **Check recent commits:** Run `git log --oneline -5` to match commit message style.
-8. **Draft commit message:** Based on the actual changes (not the spec), write a concise subject and body.
-9. **Lesson check:** If the commit changes agent workflow, rules, tooling, verification, discovery paths, or a reusable gotcha, write a `plan/learned/NNN-<name>.md` summary, bump `plan/learned/.counter`, and include both files. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"` to the helper.
-10. **Generate commit script:** Use `scripts/dev/commit_helper.py create` so the session ID, message file, executable script, ignored-path checks, `git commit -F`, and lesson gate are handled consistently:
+1. **Commit scope:** Use the user's request and current session context. If the
+   exact files are known, do not rediscover them. If not, inspect only a concise
+   changed-file list needed to avoid staging unrelated work. Ask one narrow
+   question only when files cannot be safely classified.
+2. **Verification decision:** Apply `ai/rules/git-safety.md`.
+   - If the scope is only `docs/`, `ai/`, `.claude/`, `plan/`, or `README.md`
+     files per the NO row, skip `ze-verify` entirely and record the skip reason.
+   - Before any verify target, run `scripts/dev/verify-status.sh check`.
+   - If it prints FRESH, MUST NOT run `make ze-verify` or
+     `make ze-verify-changed` again. Use the reported timestamp as evidence.
+   - If it prints STALE and `ze-verify` applies, run `make ze-verify` once.
+     Do not substitute `make ze-verify-changed` unless the user explicitly
+     requested a changed-only gate.
+3. **Failure handling:** If verification fails, read
+   `tmp/ze-verify-failures.log` first, report the blocking failure groups, and
+   stop. Do not prepare a commit script for failing code.
+4. **Draft commit message:** Base the subject and body on the scoped changes.
+   Do not run `git log` just to imitate style unless the user explicitly asks.
+5. **Lesson check:** If the commit changes agent workflow, rules, tooling,
+   verification, discovery paths, or a reusable gotcha, write a
+   `plan/learned/NNN-<name>.md` summary, bump `plan/learned/.counter`, and
+   include both files. If no reusable lesson is useful, pass
+   `--lesson-not-needed "<reason>"` to the helper.
+6. **Generate commit script:** Use `scripts/dev/commit_helper.py create` so the
+   session ID, message file, executable script, ignored-path checks,
+   `git commit -F`, and lesson gate are handled consistently:
 
 ```bash
 scripts/dev/commit_helper.py create \
@@ -56,94 +44,19 @@ scripts/dev/commit_helper.py create \
   --file file3_test.go
 ```
 
-11. **Remaining work table (BLOCKING -- must appear before the commit script):**
-   Before showing the commit script, present a table of what is NOT included in this commit.
-   This lets the user decide whether to continue working before committing.
-
-   ```
-   ## Remaining After This Commit
-
-   | # | Item | Status | Where |
-   |---|------|--------|-------|
-   | 1 | AC-3: warn-only mode | deferred | plan/deferrals.md |
-   | 2 | setparser edge case for empty lists | todo | internal/component/config/setparser.go:142 |
-   | 3 | functional test for reload with new option | todo | test/reload/ |
-
-   Nothing remaining. [or table above]
-   ```
-
-   Sources to check:
-   - **Spec ACs:** if work was driven by a spec, list any AC-N not covered by this commit
-   - **Deferrals:** open items in `plan/deferrals.md` related to this work
-   - **TODOs in code:** any TODO/FIXME added or pre-existing in the changed files
-   - **Uncommitted files:** files modified but excluded from this commit scope
-   - **Known gaps:** anything mentioned during the session as "not yet done"
-
-   If nothing remains, say "Nothing remaining." Do not skip this table.
-
-12. **Present to user:** Show the completeness check, remaining work table, then the staged files, commit message file, generated script path, and health check results. The user runs the script themselves.
-
-## Health Check
-
-**Only runs when `.claude/` files are in the commit scope.** Skip entirely for pure code/docs commits.
-
-Checks that the .claude system is consistent with the codebase. Reports findings as a table at the end of the commit preparation.
-
-### 5a. Stale file references
-
-Scan `.claude/rules/*.md`, `.claude/skills/*/SKILL.md`, and `ai/rationale/*.md` for file path references (backtick-quoted paths like `internal/foo/bar.go` or `docs/guide/thing.md`). For each path found:
-- Does the file exist? If not: **STALE REF** -- the rule/skill references a deleted file.
-
-Only check paths that look like project files (contain `/` and end in `.go`, `.md`, `.yang`, `.sh`, or a directory pattern). Skip URLs, rule references like `rules/foo.md`, and relative `.claude/` paths.
-
-### 5b. Skill cross-references
-
-Scan all `.claude/skills/*/SKILL.md` for `/ze-` references. For each:
-- Does the target skill directory exist? If not: **BROKEN SKILL REF**.
-
-### 5c. INDEX.md link check
-
-For each entry in `ai/INDEX.md` that points to a `docs/` file:
-- Does the target file exist? If not: **BROKEN INDEX LINK**.
-
-### 5d. Memory staleness (quick)
-
-For each file in the memory directory (`~/.claude/projects/.../memory/` or `.claude/memory/`):
-- If the memory references a specific file path, function, or type: does it still exist?
-- Only check memories that name concrete code artifacts. Skip preference/feedback memories.
-
-### 5e. Hook script existence
-
-For each hook in `.claude/settings.json` that references a script via `$CLAUDE_PROJECT_DIR/.claude/hooks/`:
-- Does the script file exist? If not: **MISSING HOOK SCRIPT**.
-
-### Report format
-
-```
-## Health Check
-
-| # | Type | Location | Reference | Status |
-|---|------|----------|-----------|--------|
-| 1 | stale ref | rules/foo.md:12 | `internal/old/deleted.go` | file not found |
-| 2 | broken link | INDEX.md:45 | `docs/gone.md` | file not found |
-
-N issues found. [or "Clean -- no issues."]
-```
-
-**On findings:**
-- Stale refs in rules/skills: fix them now (update or remove the reference), include fixes in the commit.
-- Broken INDEX.md links: fix them now.
-- Missing hook scripts: report to user -- do not fix (may require investigation).
-- Stale memories: report to user -- do not auto-delete.
+7. **Present to user:** Show only the included files, verification evidence or
+   skip reason, commit subject/body summary, generated message file path, and
+   generated script path. The user runs the script themselves.
 
 ## Rules
 
 - **NEVER run `git add` or `git commit` directly.** Write the commit script only.
 - Use `scripts/dev/commit_helper.py create` unless the commit shape cannot be expressed by the helper.
+- Always run `scripts/dev/verify-status.sh check` before any verify target. A FRESH PASS is authoritative and forbids rerunning `make ze-verify` or `make ze-verify-changed`.
+- If verification is STALE and required, run one required gate, then proceed from its result. Do not stack extra health checks or speculative gates.
+- Do not run late completeness audits, health checks, recent-commit style reviews, remaining-work tables, or companion-artifact reviews unless the user explicitly asks for them.
 - Never include spec files unless the user explicitly asks.
 - Never include documentation changes unless they're part of the task.
-- If `make ze-verify` hasn't passed this session, run it before preparing the commit.
-- If in doubt about scope, ask. The cost of asking is low; the cost of a bad commit is high.
+- Protect unrelated work: include only explicit paths. Ask one narrow question if scope cannot be determined from context and the concise file list.
 - Same system = one commit. Disjoint systems = separate commit scripts.
 - Never suggest, ask about, or hint at committing. Complete ALL work first. The user decides when.
-- Health check fixes go into the same commit if they touch files already in scope. Otherwise, note them as a separate follow-up.

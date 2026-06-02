@@ -36,7 +36,7 @@ action you're taking.
 
 | Task | Read first | Then use |
 |---|---|---|
-| Generate a user-run commit script | `rules/git-safety.md` | `scripts/dev/commit_helper.py create` for message files, session reuse, ignored-path rejection, and learned-summary checks |
+| Generate a user-run commit script | `rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`; if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH |
 
 ### Modifying Existing Code
 

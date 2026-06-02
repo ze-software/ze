@@ -192,6 +192,7 @@ Agent rules, self-improvement, discovery paths, and development-time inventories
 
 - [832](plan/learned/832-self-improving-discovery.md) -- Self-improving discovery: feature/tool/check/test changes must update docs, rules, indexes, and verification paths; `ze-verify-wiring-docs` backs changed-file discovery gates
 - [833](plan/learned/833-commit-helper-tooling.md) -- Commit helper tooling: `scripts/dev/commit_helper.py` owns session reuse, message files, executable user-run scripts, ignored-path rejection, `git commit -F`, and learned-summary gating for workflow/tooling/rule changes
+- [835](plan/learned/835-commit-request-fast-path.md) -- Commit requests are a fast path: create the user-run helper script, skip late completeness reviews, and treat `verify-status.sh check` FRESH as a hard no-rerun signal for `make ze-verify`
 
 ## Testing
 
@@ -260,3 +261,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (797) Interop helpers must not bind peer IPs as default args (subnet chosen at setup time); BMP sidecar must start before Ze (races PeerUp); structured adj-rib-in must preserve legacy IPv4 NEXT_HOP from path attributes; BGP interop runner accepts only one scenario filter argument
 - (801) YANG sub-containers do not work for positional-argument CLI commands: dispatcher prefix-match breaks when a `<name>` arg sits between the command and sub-keyword; route sub-commands inside the handler via arg inspection instead of separate wire methods
 - (833) Commit script generation should be mechanical: use `scripts/dev/commit_helper.py` so session IDs, message files, ignored-path checks, executable scripts, and learned-summary decisions are enforced before the user runs the script
+- (835) When the user asks for a commit, do not re-audit implementation or rerun gates. Use `scripts/dev/commit_helper.py` immediately, and if `scripts/dev/verify-status.sh check` is FRESH, never rerun `make ze-verify` or `make ze-verify-changed`

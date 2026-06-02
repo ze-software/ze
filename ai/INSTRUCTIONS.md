@@ -16,6 +16,10 @@
   the session ID, message file, executable script, ignored-path checks, and
   learned-summary gate. Full rules live in `ai/rules/git-safety.md` under
   "Commit Rules". Read them before writing any commit script.
+- When the user asks for a commit, prepare the user-run commit script
+  immediately. Do not perform a late review or rerun gates just because
+  commit was requested. If `scripts/dev/verify-status.sh check` is FRESH,
+  never rerun `make ze-verify` or `make ze-verify-changed`.
 - Never `--no-verify`, never `--no-gpg-sign`.
 
 ## Destructive git commands are FORBIDDEN
@@ -118,7 +122,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Add a CLI command that produces output | `ai/rules/pipe-completeness.md` -- every command must support all pipe operators |
 | Report friction or confusion | `ai/rules/friction-reporting.md` -- report immediately, propose .claude fix |
 | Complete work autonomously | `ai/rules/no-asking.md` -- finish the task, then report; don't ask permission to start |
-| Commit | `ai/rules/git-safety.md` -- `make ze-verify` |
+| Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-verify` rerun |
 | Run any test/build/lint command | `ai/rules/bash-output.md` -- no pipes, read log after |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first, always |
 | Look up anything | `ai/INDEX.md` (keyword->doc, keyword->RFC) |

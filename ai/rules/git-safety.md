@@ -9,6 +9,14 @@ Rationale: `ai/rationale/git-safety.md`
 `git add` is visible to every other session's `git commit` and files
 cross-commit. Package add + commit into a single user-triggered script.
 
+**Explicit commit requests are a fast path.** When the user asks for a
+commit, the implementation/review phase is over. Prepare the user-run
+commit script immediately. Do not re-audit the implementation, run late
+completeness/remaining-work tables, inspect speculative companion artifacts,
+or rerun lint/tests just because commit was requested. Inspect only enough
+state to avoid staging unrelated, ignored, generated, or out-of-scope paths.
+If scope is ambiguous, ask one narrow question; otherwise proceed.
+
 **Commit workflow:**
 1. Use `scripts/dev/commit_helper.py session` to create or reuse the 8-char session ID stored in `tmp/commit-session-id`.
 2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same user-run script.
@@ -16,7 +24,7 @@ cross-commit. Package add + commit into a single user-triggered script.
 4. Lesson learned check: when a commit changes agent workflow, rules, tooling, verification, or discovery surfaces, include `plan/learned/NNN-<name>.md` and `plan/learned/.counter` in `--file`. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"`. For known-required lessons, pass `--lesson-required`.
 5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
 6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
-7. Report what was done and what is left. User decides when to commit.
+7. Report included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
 8. Before writing a commit script, read `.gitignore` and never `git add` ignored paths. Key ignored paths: `CLAUDE.md`, `AGENTS.md`, `.claude/skills/`, `.codex/skills/`, `.agents/skills/`, `tmp/`, `/bin/`. Only add canonical sources (e.g., `ai/skills/`, `ai/INSTRUCTIONS.md`).
 
 `git commit`/`git add` inside the script is fine -- the ban is on
@@ -97,16 +105,18 @@ No = skip and note in commit summary. Unsure = run.
 ### Step 1: If `ze-verify` applies (BLOCKING)
 
 `make ze-verify` (timeout 240s). Not `go test`, not any subset.
-`ze-verify` uses a two-pass strategy: cached full pass (no `-race`) +
-`-race` only on component groups with changed `.go` files. For reactor
-concurrency changes, also run `make ze-race-reactor`. Output writes:
-`tmp/ze-verify.log`, per-stage logs under `tmp/verify/`,
-`tmp/ze-verify-failures.log`, `tmp/ze-verify-failures.json`, and
-`tmp/ze-verify.status`.
+Before any verify target, check freshness. A FRESH status covers the
+byte-identical tree and forbids rerunning `make ze-verify` or
+`make ze-verify-changed`. `ze-verify` uses a two-pass strategy: cached
+full pass (no `-race`) + `-race` only on component groups with changed
+`.go` files. For reactor concurrency changes, also run `make
+ze-race-reactor`. Output writes: `tmp/ze-verify.log`, per-stage logs
+under `tmp/verify/`, `tmp/ze-verify-failures.log`,
+`tmp/ze-verify-failures.json`, and `tmp/ze-verify.status`.
 
 ```
-[ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> skip step 1, note timestamp. STALE -> continue.
-[ ] 1. `make ze-verify` (240s). On failure read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open that group's `tmp/verify/<nn>-<stage>.log`.
+[ ] 0. `scripts/dev/verify-status.sh check`. FRESH -> MUST NOT run `make ze-verify` or `make ze-verify-changed` again; note timestamp. STALE -> continue only if the table above says verification applies.
+[ ] 1. `make ze-verify` (240s) only when status is STALE and the table above says YES. On failure read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open that group's `tmp/verify/<nn>-<stage>.log`.
 [ ] 2. Failure from current work: fix + re-run. Pre-existing: fix after primary task in separate commit; if >10 min, log to `plan/known-failures.md`.
 ```
 
