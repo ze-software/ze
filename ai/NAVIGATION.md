@@ -131,4 +131,5 @@ artifact type. Check them whenever your work touches the described concern.
 | JSON keys | `rules/json-format.md` | Any new JSON output |
 | Env vars | `rules/go-standards.md` env section | Any env var access |
 | Error handling | `rules/go-standards.md` forbidden section | Any `_` on error return |
+| Error / failure message content | `rules/error-messages.md` | Any error, log line, or failure output: name the subject + offending value + corrective action; greppable phrase; fail closed |
 | Discoverability | `rules/discovery-updates.md` | Any feature, tool, self-check, verification gate, test infrastructure, or agent workflow |
