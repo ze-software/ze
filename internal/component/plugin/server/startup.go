@@ -628,14 +628,17 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		results := s.dispatcher.Registry().Register(proc, defs)
 		for _, r := range results {
 			if !r.OK {
-				logger().Debug("command registration conflict", "plugin", proc.Name(), "command", r.Name, "error", r.Error)
+				logger().Warn("command registration rejected", "plugin", proc.Name(), "command", r.Name, "error", r.Error)
 			} else {
 				logger().Debug("command registered", "plugin", proc.Name(), "command", r.Name)
 			}
 		}
 		for canonicalName, oldNames := range reg.CommandDeprecatedNames {
 			for _, oldName := range oldNames {
-				s.dispatcher.Registry().RegisterDeprecated(proc, oldName, canonicalName)
+				if err := s.dispatcher.Registry().RegisterDeprecated(proc, oldName, canonicalName); err != nil {
+					logger().Warn("deprecated alias rejected", "plugin", proc.Name(), "old", oldName, "new", canonicalName, "error", err)
+					continue
+				}
 				logger().Debug("deprecated alias registered", "plugin", proc.Name(), "old", oldName, "new", canonicalName)
 			}
 		}

@@ -23,7 +23,7 @@ func TestCommandDefConstruction(t *testing.T) {
 		{
 			name: "basic",
 			def: CommandDef{
-				Name:        "myapp status",
+				Name:        "show status",
 				Description: "Show status",
 				Timeout:     DefaultCommandTimeout,
 			},
@@ -31,7 +31,7 @@ func TestCommandDefConstruction(t *testing.T) {
 		{
 			name: "with_args",
 			def: CommandDef{
-				Name:        "myapp check",
+				Name:        "request check",
 				Description: "Check component",
 				Args:        "<component>",
 				Timeout:     DefaultCommandTimeout,
@@ -40,7 +40,7 @@ func TestCommandDefConstruction(t *testing.T) {
 		{
 			name: "with_completable",
 			def: CommandDef{
-				Name:        "myapp status",
+				Name:        "show status",
 				Description: "Show status",
 				Args:        "<component>",
 				Completable: true,
@@ -50,7 +50,7 @@ func TestCommandDefConstruction(t *testing.T) {
 		{
 			name: "with_custom_timeout",
 			def: CommandDef{
-				Name:        "myapp dump",
+				Name:        "request dump",
 				Description: "Dump data",
 				Timeout:     60 * time.Second,
 			},
@@ -58,7 +58,7 @@ func TestCommandDefConstruction(t *testing.T) {
 		{
 			name: "all_options",
 			def: CommandDef{
-				Name:        "myapp full",
+				Name:        "request full",
 				Description: "Full command",
 				Args:        "<arg>",
 				Completable: true,
@@ -86,14 +86,14 @@ func TestCommandDefRegistration(t *testing.T) {
 
 	defs := []CommandDef{
 		{
-			Name:        "myapp status",
+			Name:        "show status",
 			Description: "Show status",
 			Args:        "<component>",
 			Completable: true,
 			Timeout:     DefaultCommandTimeout,
 		},
 		{
-			Name:        "myapp reload",
+			Name:        "request reload",
 			Description: "Reload config",
 			Timeout:     60 * time.Second,
 		},
@@ -107,15 +107,15 @@ func TestCommandDefRegistration(t *testing.T) {
 	}
 
 	// Verify fields are preserved through registration
-	cmd := registry.Lookup("myapp status")
+	cmd := registry.Lookup("show status")
 	require.NotNil(t, cmd)
-	assert.Equal(t, "myapp status", cmd.Name)
+	assert.Equal(t, "show status", cmd.Name)
 	assert.Equal(t, "Show status", cmd.Description)
 	assert.Equal(t, "<component>", cmd.Args)
 	assert.True(t, cmd.Completable)
 	assert.Equal(t, DefaultCommandTimeout, cmd.Timeout)
 
-	cmd = registry.Lookup("myapp reload")
+	cmd = registry.Lookup("request reload")
 	require.NotNil(t, cmd)
 	assert.Equal(t, 60*time.Second, cmd.Timeout)
 	assert.False(t, cmd.Completable)

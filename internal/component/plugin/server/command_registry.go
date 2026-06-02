@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-	"unicode"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -32,15 +32,78 @@ type deprecatedAlias struct {
 	Process      *process.Process
 }
 
-// validateCommandName checks that a command name contains only safe characters.
-// Prevents command shadowing via prefix matching with special characters.
+// commandVerbs is the canonical closed set of first tokens (verbs) a plugin
+// command may begin with, per the verb-first CLI grammar
+// (ai/rules/cli-grammar.md). It is the single source of truth for the allowed
+// verbs: validVerbList derives the verb list shown in error messages from this
+// map, so there is no second copy to drift (ai/rules/derive-not-hardcode.md).
+//
+// Seeded with the verbs reachable through plugin command registration today
+// (show/set/clear/request) plus the operator verbs commit/cache from the same
+// grammar. A command whose first token is absent is rejected at registration
+// with a message listing the valid verbs; add a verb here when a plugin
+// legitimately introduces it.
+var commandVerbs = map[string]bool{
+	"show":    true,
+	"set":     true,
+	"clear":   true,
+	"request": true,
+	"commit":  true,
+	"cache":   true,
+}
+
+// validVerbList returns the sorted, comma-separated list of valid command verbs,
+// derived from commandVerbs for use in error messages (never hardcoded twice).
+func validVerbList() string {
+	verbs := make([]string, 0, len(commandVerbs))
+	for v := range commandVerbs {
+		verbs = append(verbs, v)
+	}
+	sort.Strings(verbs)
+	return strings.Join(verbs, ", ")
+}
+
+// validateCommandName checks that a command name is well-formed for dispatch.
+// A name is one or more single-space-separated tokens; each token is ASCII
+// lowercase letters, digits, and interior hyphens. The first token must be a
+// known verb (commandVerbs). Rejecting uppercase, Unicode, repeated whitespace,
+// empty tokens, and unknown verbs prevents command shadowing and ambiguous
+// dispatch keys leaking into every command surface.
 func validateCommandName(name string) error {
 	if name == "" {
 		return errCommandNameCannotBeEmpty
 	}
-	for _, r := range name {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != ' ' && r != '-' {
-			return fmt.Errorf("command name %q contains invalid character %q (only letters, digits, spaces, hyphens allowed)", name, r)
+	if name != strings.TrimSpace(name) {
+		return fmt.Errorf("command name %q has leading or trailing whitespace", name)
+	}
+	tokens := strings.Split(name, " ")
+	for _, tok := range tokens {
+		if tok == "" {
+			return fmt.Errorf("command name %q contains repeated whitespace", name)
+		}
+		if err := validateCommandToken(name, tok); err != nil {
+			return err
+		}
+	}
+	if !commandVerbs[tokens[0]] {
+		return fmt.Errorf("command name %q has unknown verb %q (valid verbs: %s)", name, tokens[0], validVerbList())
+	}
+	return nil
+}
+
+// validateCommandToken checks a single non-empty command token: ASCII lowercase
+// letters, digits, and hyphens only, with no leading or trailing hyphen. name is
+// included for error context.
+func validateCommandToken(name, tok string) error {
+	if tok[0] == '-' || tok[len(tok)-1] == '-' {
+		return fmt.Errorf("command name %q has a token %q with a leading or trailing hyphen", name, tok)
+	}
+	for _, r := range tok {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+			// allowed
+		default:
+			return fmt.Errorf("command name %q contains invalid character %q (only lowercase ASCII letters, digits, hyphens within tokens, and single spaces allowed)", name, string(r))
 		}
 	}
 	return nil
@@ -224,17 +287,41 @@ func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
 // canonical command registered under newName. When the old name is looked
 // up, the canonical RegisteredCommand is returned and a deprecation
 // warning is logged once per session.
-func (r *CommandRegistry) RegisterDeprecated(proc *process.Process, oldName, newName string) {
+//
+// The alias name is validated with the same parser as a real command, and the
+// alias is rejected if it conflicts with a builtin, an already-registered
+// command, or an existing alias, or if the canonical command is not registered.
+// This makes an unreachable or shadowing alias impossible to register.
+func (r *CommandRegistry) RegisterDeprecated(proc *process.Process, oldName, newName string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if err := validateCommandName(oldName); err != nil {
+		return fmt.Errorf("deprecated alias %q: %w", oldName, err)
+	}
+
 	oldKey := strings.ToLower(oldName)
 	newKey := strings.ToLower(newName)
+
+	if r.builtins[oldKey] {
+		return fmt.Errorf("deprecated alias %q conflicts with builtin command", oldName)
+	}
+	if existing, ok := r.commands[oldKey]; ok {
+		return fmt.Errorf("deprecated alias %q conflicts with command registered by process %s", oldName, existing.Process.Config().Name)
+	}
+	if _, ok := r.deprecated[oldKey]; ok {
+		return fmt.Errorf("deprecated alias %q already registered", oldName)
+	}
+	if _, ok := r.commands[newKey]; !ok {
+		return fmt.Errorf("deprecated alias %q points to unregistered command %q", oldName, newName)
+	}
+
 	r.deprecated[oldKey] = &deprecatedAlias{
 		OldName:      oldName,
 		NewLowerName: newKey,
 		Process:      proc,
 	}
+	return nil
 }
 
 // republishFrozen rebuilds and stores a new frozen snapshot from the current

@@ -19,8 +19,8 @@ func TestCommandRegistry_Register(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	results := registry.Register(proc, []CommandDef{
-		{Name: "myapp status", Description: "Show status"},
-		{Name: "myapp reload", Description: "Reload config", Timeout: 60 * time.Second},
+		{Name: "show status", Description: "Show status"},
+		{Name: "request reload", Description: "Reload config", Timeout: 60 * time.Second},
 	})
 
 	if len(results) != 2 {
@@ -34,13 +34,13 @@ func TestCommandRegistry_Register(t *testing.T) {
 	}
 
 	// Verify lookup works
-	cmd := registry.Lookup("myapp status")
+	cmd := registry.Lookup("show status")
 	if cmd == nil {
 		t.Fatal("Lookup returned nil for registered command")
 		return
 	}
-	if cmd.Name != "myapp status" {
-		t.Errorf("expected name 'myapp status', got %q", cmd.Name)
+	if cmd.Name != "show status" {
+		t.Errorf("expected name 'show status', got %q", cmd.Name)
 	}
 	if cmd.Description != "Show status" {
 		t.Errorf("expected description 'Show status', got %q", cmd.Description)
@@ -50,9 +50,9 @@ func TestCommandRegistry_Register(t *testing.T) {
 	}
 
 	// Verify custom timeout
-	cmd = registry.Lookup("myapp reload")
+	cmd = registry.Lookup("request reload")
 	if cmd == nil {
-		t.Fatal("Lookup returned nil for myapp reload")
+		t.Fatal("Lookup returned nil for request reload")
 		return
 	}
 	if cmd.Timeout != 60*time.Second {
@@ -69,10 +69,10 @@ func TestCommandRegistry_BuiltinConflict(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	// Add a builtin
-	registry.AddBuiltin("daemon status")
+	registry.AddBuiltin("show status")
 
 	results := registry.Register(proc, []CommandDef{
-		{Name: "daemon status", Description: "Fake status"},
+		{Name: "show status", Description: "Fake status"},
 	})
 
 	if len(results) != 1 {
@@ -97,7 +97,7 @@ func TestCommandRegistry_ProcessConflict(t *testing.T) {
 
 	// First process registers
 	results := registry.Register(proc1, []CommandDef{
-		{Name: "myapp status", Description: "Status from proc1"},
+		{Name: "show status", Description: "Status from proc1"},
 	})
 	if !results[0].OK {
 		t.Fatalf("first registration should succeed: %s", results[0].Error)
@@ -105,14 +105,14 @@ func TestCommandRegistry_ProcessConflict(t *testing.T) {
 
 	// Second process tries same command
 	results = registry.Register(proc2, []CommandDef{
-		{Name: "myapp status", Description: "Status from proc2"},
+		{Name: "show status", Description: "Status from proc2"},
 	})
 	if results[0].OK {
 		t.Error("second registration should fail")
 	}
 
 	// Verify first process still owns it
-	cmd := registry.Lookup("myapp status")
+	cmd := registry.Lookup("show status")
 	if cmd.Process != proc1 {
 		t.Error("first process should still own the command")
 	}
@@ -128,21 +128,21 @@ func TestCommandRegistry_Unregister(t *testing.T) {
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
 	registry.Register(proc1, []CommandDef{
-		{Name: "myapp status", Description: "Status"},
+		{Name: "show status", Description: "Status"},
 	})
 	registry.Register(proc2, []CommandDef{
-		{Name: "otherapp status", Description: "Other status"},
+		{Name: "set timeout", Description: "Set timeout"},
 	})
 
 	// proc2 cannot unregister proc1's command (no-op)
-	registry.Unregister(proc2, []string{"myapp status"})
-	if registry.Lookup("myapp status") == nil {
+	registry.Unregister(proc2, []string{"show status"})
+	if registry.Lookup("show status") == nil {
 		t.Error("proc2 should not be able to unregister proc1's command")
 	}
 
 	// proc1 can unregister its own command
-	registry.Unregister(proc1, []string{"myapp status"})
-	if registry.Lookup("myapp status") != nil {
+	registry.Unregister(proc1, []string{"show status"})
+	if registry.Lookup("show status") != nil {
 		t.Error("proc1 should be able to unregister its own command")
 	}
 }
@@ -156,9 +156,9 @@ func TestCommandRegistry_UnregisterAll(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "myapp status", Description: "Status"},
-		{Name: "myapp reload", Description: "Reload"},
-		{Name: "myapp check", Description: "Check"},
+		{Name: "show status", Description: "Status"},
+		{Name: "request reload", Description: "Reload"},
+		{Name: "request check", Description: "Check"},
 	})
 
 	if len(registry.All()) != 3 {
@@ -181,27 +181,27 @@ func TestCommandRegistry_Complete(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "myapp status", Description: "Show status"},
-		{Name: "myapp start", Description: "Start myapp"},
-		{Name: "otherapp check", Description: "Check other"},
+		{Name: "show status", Description: "Show status"},
+		{Name: "show statistics", Description: "Show statistics"},
+		{Name: "set timeout", Description: "Set timeout"},
 	})
 
-	completions := registry.Complete("myapp st")
+	completions := registry.Complete("show st")
 
 	if len(completions) != 2 {
 		t.Fatalf("expected 2 completions, got %d", len(completions))
 	}
 
-	// Verify both myapp commands match
+	// Verify both "show st…" commands match (and "set timeout" does not)
 	found := make(map[string]bool)
 	for _, c := range completions {
 		found[c.Value] = true
 	}
-	if !found["myapp status"] {
-		t.Error("expected 'myapp status' in completions")
+	if !found["show status"] {
+		t.Error("expected 'show status' in completions")
 	}
-	if !found["myapp start"] {
-		t.Error("expected 'myapp start' in completions")
+	if !found["show statistics"] {
+		t.Error("expected 'show statistics' in completions")
 	}
 }
 
@@ -214,14 +214,14 @@ func TestCommandRegistry_CaseInsensitive(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "myapp status", Description: "Show status"},
+		{Name: "show status", Description: "Show status"},
 	})
 
 	// Lookup should be case-insensitive
-	if registry.Lookup("MYAPP STATUS") == nil {
+	if registry.Lookup("SHOW STATUS") == nil {
 		t.Error("Lookup should be case-insensitive")
 	}
-	if registry.Lookup("MyApp Status") == nil {
+	if registry.Lookup("Show Status") == nil {
 		t.Error("Lookup should be case-insensitive for mixed case")
 	}
 }
@@ -235,21 +235,21 @@ func TestCommandRegistry_Completable(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "myapp status", Description: "Show status", Args: "<component>", Completable: true},
-		{Name: "myapp reload", Description: "Reload config", Completable: false},
+		{Name: "show status", Description: "Show status", Args: "<component>", Completable: true},
+		{Name: "request reload", Description: "Reload config", Completable: false},
 	})
 
-	cmd := registry.Lookup("myapp status")
+	cmd := registry.Lookup("show status")
 	if !cmd.Completable {
-		t.Error("myapp status should be completable")
+		t.Error("show status should be completable")
 	}
 	if cmd.Args != "<component>" {
 		t.Errorf("expected args '<component>', got %q", cmd.Args)
 	}
 
-	cmd = registry.Lookup("myapp reload")
+	cmd = registry.Lookup("request reload")
 	if cmd.Completable {
-		t.Error("myapp reload should not be completable")
+		t.Error("request reload should not be completable")
 	}
 }
 
@@ -262,20 +262,20 @@ func TestCommandRegistryFreeze(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "myapp status", Description: "Show status"},
-		{Name: "myapp reload", Description: "Reload config"},
+		{Name: "show status", Description: "Show status"},
+		{Name: "request reload", Description: "Reload config"},
 	})
 
 	registry.Freeze()
 
 	// Lookup must work after freeze
-	cmd := registry.Lookup("myapp status")
+	cmd := registry.Lookup("show status")
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "myapp status", cmd.Name)
+	assert.Equal(t, "show status", cmd.Name)
 
-	cmd = registry.Lookup("myapp reload")
+	cmd = registry.Lookup("request reload")
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "myapp reload", cmd.Name)
+	assert.Equal(t, "request reload", cmd.Name)
 
 	// Unknown returns nil
 	assert.Nil(t, registry.Lookup("unknown"))
@@ -290,13 +290,13 @@ func TestCommandRegistryPreFreezeFallback(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "myapp status", Description: "Show status"},
+		{Name: "show status", Description: "Show status"},
 	})
 
 	// No Freeze() called -- must still work via RLock path
-	cmd := registry.Lookup("myapp status")
+	cmd := registry.Lookup("show status")
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "myapp status", cmd.Name)
+	assert.Equal(t, "show status", cmd.Name)
 }
 
 // TestCommandRegistryConcurrentLookup verifies race safety after Freeze.
@@ -308,7 +308,7 @@ func TestCommandRegistryConcurrentLookup(t *testing.T) {
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
 
 	registry.Register(proc, []CommandDef{
-		{Name: "myapp status", Description: "Show status"},
+		{Name: "show status", Description: "Show status"},
 	})
 
 	registry.Freeze()
@@ -316,9 +316,9 @@ func TestCommandRegistryConcurrentLookup(t *testing.T) {
 	done := make(chan bool, 100)
 	for range 100 {
 		go func() {
-			cmd := registry.Lookup("myapp status")
+			cmd := registry.Lookup("show status")
 			assert.NotNil(t, cmd)
-			assert.Equal(t, "myapp status", cmd.Name)
+			assert.Equal(t, "show status", cmd.Name)
 			done <- true
 		}()
 	}
@@ -336,21 +336,21 @@ func TestCommandRegistryUnregisterAfterFreeze(t *testing.T) {
 	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
-	registry.Register(proc1, []CommandDef{{Name: "cmd-a"}})
-	registry.Register(proc2, []CommandDef{{Name: "cmd-b"}})
+	registry.Register(proc1, []CommandDef{{Name: "show a"}})
+	registry.Register(proc2, []CommandDef{{Name: "show b"}})
 
 	registry.Freeze()
 
 	// Both visible after freeze
-	assert.NotNil(t, registry.Lookup("cmd-a"))
-	assert.NotNil(t, registry.Lookup("cmd-b"))
+	assert.NotNil(t, registry.Lookup("show a"))
+	assert.NotNil(t, registry.Lookup("show b"))
 
 	// Unregister proc1's commands
-	registry.Unregister(proc1, []string{"cmd-a"})
+	registry.Unregister(proc1, []string{"show a"})
 
-	// cmd-a gone, cmd-b still present
-	assert.Nil(t, registry.Lookup("cmd-a"))
-	assert.NotNil(t, registry.Lookup("cmd-b"))
+	// show a gone, show b still present
+	assert.Nil(t, registry.Lookup("show a"))
+	assert.NotNil(t, registry.Lookup("show b"))
 }
 
 // TestCommandRegistryUnregisterAllAfterFreeze verifies UnregisterAll republishes frozen snapshot.
@@ -362,23 +362,23 @@ func TestCommandRegistryUnregisterAllAfterFreeze(t *testing.T) {
 	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
 	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
 
-	registry.Register(proc1, []CommandDef{{Name: "cmd-a"}, {Name: "cmd-c"}})
-	registry.Register(proc2, []CommandDef{{Name: "cmd-b"}})
+	registry.Register(proc1, []CommandDef{{Name: "show a"}, {Name: "show c"}})
+	registry.Register(proc2, []CommandDef{{Name: "show b"}})
 
 	registry.Freeze()
 
 	// All visible
-	assert.NotNil(t, registry.Lookup("cmd-a"))
-	assert.NotNil(t, registry.Lookup("cmd-b"))
-	assert.NotNil(t, registry.Lookup("cmd-c"))
+	assert.NotNil(t, registry.Lookup("show a"))
+	assert.NotNil(t, registry.Lookup("show b"))
+	assert.NotNil(t, registry.Lookup("show c"))
 
 	// Kill proc1 -- UnregisterAll
 	registry.UnregisterAll(proc1)
 
 	// proc1 commands gone, proc2 commands remain
-	assert.Nil(t, registry.Lookup("cmd-a"))
-	assert.Nil(t, registry.Lookup("cmd-c"))
-	assert.NotNil(t, registry.Lookup("cmd-b"))
+	assert.Nil(t, registry.Lookup("show a"))
+	assert.Nil(t, registry.Lookup("show c"))
+	assert.NotNil(t, registry.Lookup("show b"))
 }
 
 // TestDeprecatedCommandWarning verifies deprecated aliases dispatch correctly
@@ -395,14 +395,14 @@ func TestDeprecatedCommandWarning(t *testing.T) {
 	})
 	assert.True(t, results[0].OK)
 
-	registry.RegisterDeprecated(proc, "legacy fixture state", "show fixture state")
+	assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
 
 	// Lookup by new name works directly
 	cmd := registry.Lookup("show fixture state")
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "show fixture state", cmd.Name)
 
-	cmd = registry.Lookup("legacy fixture state")
+	cmd = registry.Lookup("show fixture old")
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "show fixture state", cmd.Name, "deprecated alias should return canonical command")
 
@@ -421,7 +421,7 @@ func TestDeprecatedCommandAfterFreeze(t *testing.T) {
 	registry.Register(proc, []CommandDef{
 		{Name: "show fixture state", Description: "Show fixture state"},
 	})
-	registry.RegisterDeprecated(proc, "legacy fixture state", "show fixture state")
+	assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
 
 	registry.Freeze()
 
@@ -430,7 +430,7 @@ func TestDeprecatedCommandAfterFreeze(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "show fixture state", cmd.Name)
 
-	cmd = registry.Lookup("legacy fixture state")
+	cmd = registry.Lookup("show fixture old")
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "show fixture state", cmd.Name)
 }
@@ -446,13 +446,13 @@ func TestDeprecatedPrefixLookup(t *testing.T) {
 	registry.Register(proc, []CommandDef{
 		{Name: "show fixture state", Description: "Show fixture state"},
 	})
-	registry.RegisterDeprecated(proc, "legacy fixture state", "show fixture state")
+	assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
 
 	// Prefix lookup with trailing args
-	cmd, matchLen := registry.LookupDeprecatedPrefix("legacy fixture state extra-arg")
+	cmd, matchLen := registry.LookupDeprecatedPrefix("show fixture old extra-arg")
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "show fixture state", cmd.Name)
-	assert.Equal(t, len("legacy fixture state"), matchLen)
+	assert.Equal(t, len("show fixture old"), matchLen)
 
 	// Non-matching prefix returns nil
 	cmd, matchLen = registry.LookupDeprecatedPrefix("unknown prefix")
@@ -471,17 +471,151 @@ func TestDeprecatedUnregisterAll(t *testing.T) {
 	registry.Register(proc, []CommandDef{
 		{Name: "show fixture state", Description: "Show fixture state"},
 	})
-	registry.RegisterDeprecated(proc, "legacy fixture state", "show fixture state")
+	assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
 
 	registry.Freeze()
 
 	// Both work before unregister
 	assert.NotNil(t, registry.Lookup("show fixture state"))
-	assert.NotNil(t, registry.Lookup("legacy fixture state"))
+	assert.NotNil(t, registry.Lookup("show fixture old"))
 
 	registry.UnregisterAll(proc)
 
 	// Both gone after unregister
 	assert.Nil(t, registry.Lookup("show fixture state"))
-	assert.Nil(t, registry.Lookup("legacy fixture state"))
+	assert.Nil(t, registry.Lookup("show fixture old"))
+}
+
+// TestValidateCommandNameRejectsMalformed verifies the command-name grammar:
+// single-space-separated tokens of lowercase ASCII letters, digits, and
+// interior hyphens, with a known first verb (commandVerbs).
+//
+// VALIDATES: validateCommandName rejects uppercase, Unicode, repeated/edge
+// whitespace, empty tokens, unknown verbs, and edge hyphens.
+// PREVENTS: invalid command names leaking into every dispatch surface.
+func TestValidateCommandNameRejectsMalformed(t *testing.T) {
+	cases := []struct {
+		name string
+		cmd  string
+		want string // substring the error must contain
+	}{
+		{"empty", "", "empty"},
+		{"uppercase verb", "Show status", "invalid character"},
+		{"uppercase token", "show Status", "invalid character"},
+		{"unicode confusable", "shоw status", "invalid character"}, // Cyrillic 'о'
+		{"leading space", " show status", "leading or trailing whitespace"},
+		{"trailing space", "show status ", "leading or trailing whitespace"},
+		{"repeated whitespace", "show  status", "repeated whitespace"},
+		{"tab separator", "show\tstatus", "invalid character"},
+		{"unknown verb", "frob status", "unknown verb"},
+		{"verb only unknown", "peer", "unknown verb"},
+		{"leading hyphen token", "show -status", "leading or trailing hyphen"},
+		{"trailing hyphen token", "show status-", "leading or trailing hyphen"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateCommandName(tc.cmd)
+			if err == nil {
+				t.Fatalf("expected error for %q", tc.cmd)
+			}
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
+}
+
+// TestValidateCommandNameAcceptsShippingCommands verifies that real,
+// verb-first command names continue to register (no compatibility removed).
+//
+// VALIDATES: every verb in commandVerbs is accepted with realistic names.
+// PREVENTS: the tightened grammar rejecting a name that was always valid.
+func TestValidateCommandNameAcceptsShippingCommands(t *testing.T) {
+	for _, name := range []string{
+		"show bgp rib status",
+		"show ecmp-groups",
+		"request bgp rib inject",
+		"request adj-rib-in replay",
+		"clear bgp rib in",
+		"set sysctl",
+		"commit start",
+		"cache retain",
+	} {
+		assert.NoError(t, validateCommandName(name), "should accept %q", name)
+	}
+}
+
+// TestValidateCommandNameErrorNamesOffender verifies the error identifies the
+// offending command and reason, and derives the valid-verb list from the
+// registry rather than a second hardcoded copy.
+//
+// VALIDATES: error message names the command, the bad verb, and lists verbs.
+// PREVENTS: opaque registration errors; a drifting second verb list.
+func TestValidateCommandNameErrorNamesOffender(t *testing.T) {
+	err := validateCommandName("frob status")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	assert.Contains(t, err.Error(), `"frob status"`, "names the offending command")
+	assert.Contains(t, err.Error(), `"frob"`, "names the bad verb")
+	assert.Contains(t, err.Error(), validVerbList(), "lists valid verbs from the registry")
+}
+
+// TestRegisterDeprecatedRejectsConflicts verifies deprecated aliases are
+// validated with the same parser and rejected on every conflict class before
+// they are registered.
+//
+// VALIDATES: alias name validation plus alias-to-builtin, alias-to-command,
+// alias-to-alias, and unregistered-canonical conflicts (handover 06 W4/W5).
+// PREVENTS: an unreachable or shadowing alias entering the dispatch maps.
+func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
+	newProc := func() *process.Process {
+		return process.NewProcess(plugin.PluginConfig{Name: "fixture"})
+	}
+
+	t.Run("malformed alias rejected before registration", func(t *testing.T) {
+		registry := NewCommandRegistry()
+		proc := newProc()
+		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
+		err := registry.RegisterDeprecated(proc, "Frob fixture", "show fixture state")
+		assert.ErrorContains(t, err, "Frob fixture")
+		assert.Nil(t, registry.Lookup("Frob fixture"), "rejected alias must not be registered")
+	})
+
+	t.Run("unknown verb alias", func(t *testing.T) {
+		registry := NewCommandRegistry()
+		proc := newProc()
+		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
+		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "frob fixture", "show fixture state"), "unknown verb")
+	})
+
+	t.Run("alias conflicts with builtin", func(t *testing.T) {
+		registry := NewCommandRegistry()
+		proc := newProc()
+		registry.AddBuiltin("show builtin thing")
+		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
+		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "show builtin thing", "show fixture state"), "builtin")
+	})
+
+	t.Run("alias conflicts with registered command", func(t *testing.T) {
+		registry := NewCommandRegistry()
+		proc := newProc()
+		registry.Register(proc, []CommandDef{
+			{Name: "show fixture state"},
+			{Name: "show fixture other"},
+		})
+		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "show fixture other", "show fixture state"), "conflicts with command")
+	})
+
+	t.Run("alias conflicts with existing alias", func(t *testing.T) {
+		registry := NewCommandRegistry()
+		proc := newProc()
+		registry.Register(proc, []CommandDef{{Name: "show fixture state"}})
+		assert.NoError(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"))
+		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture state"), "already registered")
+	})
+
+	t.Run("alias to unregistered canonical", func(t *testing.T) {
+		registry := NewCommandRegistry()
+		proc := newProc()
+		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture missing"), "unregistered command")
+	})
 }

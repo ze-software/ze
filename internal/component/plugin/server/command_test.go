@@ -420,15 +420,15 @@ func TestDispatcherPluginMatch(t *testing.T) {
 	d := NewDispatcher()
 
 	// Register plugin command with full prefix — plugins that handle
-	// commands arriving via update-route RPC must include the domain prefix
-	// (e.g., "watchdog announce" not "watchdog announce").
+	// commands arriving via update-route RPC must include the verb and domain
+	// prefix (e.g., "request watchdog announce", not bare "announce").
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-watchdog"})
 	d.Registry().Register(proc, []CommandDef{
-		{Name: "watchdog announce", Description: "Announce watchdog group"},
+		{Name: "request watchdog announce", Description: "Announce watchdog group"},
 	})
 
 	// Prefixed command matches (process not running → error, but not ErrUnknownCommand)
-	_, err := d.Dispatch(nil, "watchdog announce dnsr")
+	_, err := d.Dispatch(nil, "request watchdog announce dnsr")
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, ErrUnknownCommand),
 		"plugin command should match, got: %v", err)
@@ -755,10 +755,10 @@ func TestHasCommandPrefixPluginRegistry(t *testing.T) {
 	// Register a plugin command
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-watchdog"})
 	d.Registry().Register(proc, []CommandDef{
-		{Name: "watchdog announce", Description: "Announce watchdog route"},
+		{Name: "request watchdog announce", Description: "Announce watchdog route"},
 	})
 
-	assert.True(t, d.HasCommandPrefix("watchdog announce dnsr"), "plugin command should match")
+	assert.True(t, d.HasCommandPrefix("request watchdog announce dnsr"), "plugin command should match")
 	assert.False(t, d.HasCommandPrefix("unknown command"), "non-registered should not match")
 }
 

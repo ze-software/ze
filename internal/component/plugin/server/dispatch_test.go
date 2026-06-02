@@ -475,8 +475,8 @@ func TestDispatchCommandArgsRoutesSameHandlerAsDispatchCommand(t *testing.T) {
 	t.Parallel()
 
 	d := NewDispatcher()
-	done := registerExecuteCommandTarget(t, d, "target echo", 2, func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
-		if input.Command != "target echo" {
+	done := registerExecuteCommandTarget(t, d, "request target echo", 2, func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+		if input.Command != "request target echo" {
 			return nil, fmt.Errorf("unexpected command: %s", input.Command)
 		}
 		if !slices.Equal(input.Args, []string{"alpha", "beta"}) {
@@ -496,10 +496,10 @@ func TestDispatchCommandArgsRoutesSameHandlerAsDispatchCommand(t *testing.T) {
 	defer s.cancel()
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
-	stringOut, err := s.dispatchCommand(caller, "target echo alpha beta")
+	stringOut, err := s.dispatchCommand(caller, "request target echo alpha beta")
 	require.NoError(t, err)
 
-	argsOut, err := s.dispatchCommandArgs(caller, "target echo", []string{"alpha", "beta"}, "")
+	argsOut, err := s.dispatchCommandArgs(caller, "request target echo", []string{"alpha", "beta"}, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, stringOut.Status, argsOut.Status)
@@ -518,8 +518,8 @@ func TestDispatchCommandArgsPreservesOddArguments(t *testing.T) {
 	d := NewDispatcher()
 	wantArgs := []string{"peer key with spaces", `quote"inside`, "tab\tinside", `slash\inside`}
 	wantPeer := "peer selector with spaces"
-	done := registerExecuteCommandTarget(t, d, "target odd", 1, func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
-		if input.Command != "target odd" {
+	done := registerExecuteCommandTarget(t, d, "request target odd", 1, func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+		if input.Command != "request target odd" {
 			return nil, fmt.Errorf("unexpected command: %s", input.Command)
 		}
 		if !slices.Equal(input.Args, wantArgs) {
@@ -536,7 +536,7 @@ func TestDispatchCommandArgsPreservesOddArguments(t *testing.T) {
 	defer s.cancel()
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
-	out, err := s.dispatchCommandArgs(caller, "target odd", wantArgs, wantPeer)
+	out, err := s.dispatchCommandArgs(caller, "request target odd", wantArgs, wantPeer)
 	require.NoError(t, err)
 	require.NotNil(t, out)
 	assert.Equal(t, plugin.StatusDone, out.Status)
@@ -552,8 +552,8 @@ func TestDispatchCommandArgsErrorsMatchDispatchCommand(t *testing.T) {
 	t.Parallel()
 
 	d := NewDispatcher()
-	done := registerExecuteCommandTarget(t, d, "target fails", 2, func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
-		if input.Command != "target fails" {
+	done := registerExecuteCommandTarget(t, d, "request target fails", 2, func(_ int, input *rpc.ExecuteCommandInput) (*rpc.ExecuteCommandOutput, error) {
+		if input.Command != "request target fails" {
 			return nil, fmt.Errorf("unexpected command: %s", input.Command)
 		}
 		return &rpc.ExecuteCommandOutput{
@@ -576,9 +576,9 @@ func TestDispatchCommandArgsErrorsMatchDispatchCommand(t *testing.T) {
 	assert.Nil(t, stringUnknownOut)
 	assert.Nil(t, argsUnknownOut)
 
-	stringOut, err := s.dispatchCommand(caller, "target fails")
+	stringOut, err := s.dispatchCommand(caller, "request target fails")
 	require.NoError(t, err)
-	argsOut, err := s.dispatchCommandArgs(caller, "target fails", nil, "")
+	argsOut, err := s.dispatchCommandArgs(caller, "request target fails", nil, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, stringOut.Status, argsOut.Status)
@@ -606,13 +606,13 @@ func TestDispatchCommandArgsPreservesPluginIdentity(t *testing.T) {
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
 	wantArgs := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
-	out, err := s.dispatchCommandArgs(caller, "target echo", wantArgs, "10.0.0.1")
+	out, err := s.dispatchCommandArgs(caller, "request target echo", wantArgs, "10.0.0.1")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.NotNil(t, out)
 	assert.Equal(t, plugin.StatusError, out.Status)
 	assert.Equal(t, "plugin:caller-plugin", auth.username)
-	assert.Equal(t, "target echo", auth.command)
+	assert.Equal(t, "request target echo", auth.command)
 	assert.Equal(t, wantArgs, auth.args)
 	assert.Equal(t, "10.0.0.1", auth.peer)
 	assert.False(t, auth.readOnly)
@@ -639,13 +639,13 @@ func TestDispatchCommandArgsLegacyAuthorizationCanonicalizesPeerScope(t *testing
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
 	wantArgs := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
-	out, err := s.dispatchCommandArgs(caller, "target echo", wantArgs, "10.0.0.1")
+	out, err := s.dispatchCommandArgs(caller, "request target echo", wantArgs, "10.0.0.1")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.NotNil(t, out)
 	assert.Equal(t, plugin.StatusError, out.Status)
 	assert.Equal(t, "plugin:caller-plugin", auth.username)
-	assert.Equal(t, aaa.CanonicalCommand("target echo", wantArgs, "10.0.0.1"), auth.command)
+	assert.Equal(t, aaa.CanonicalCommand("request target echo", wantArgs, "10.0.0.1"), auth.command)
 	assert.False(t, auth.readOnly)
 }
 
