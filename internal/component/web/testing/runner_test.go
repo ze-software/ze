@@ -20,9 +20,9 @@ func TestBrowserOpenUsesHTTPSIgnoreOnlyForDaemonStart(t *testing.T) {
 
 	assertAgentCommands(t, logPath, []string{
 		"--ignore-https-errors open https://127.0.0.1:1234/first",
-		"wait --load networkidle",
+		"eval " + inflightIdleExpr,
 		"open https://127.0.0.1:1234/second",
-		"wait --load networkidle",
+		"eval " + inflightIdleExpr,
 	})
 }
 
@@ -40,10 +40,10 @@ func TestBrowserCloseResetsDaemonStart(t *testing.T) {
 
 	assertAgentCommands(t, logPath, []string{
 		"--ignore-https-errors open https://127.0.0.1:1234/first",
-		"wait --load networkidle",
+		"eval " + inflightIdleExpr,
 		"--ignore-https-errors close --all",
 		"--ignore-https-errors open https://127.0.0.1:1234/second",
-		"wait --load networkidle",
+		"eval " + inflightIdleExpr,
 	})
 }
 
@@ -53,7 +53,12 @@ func installFakeAgentBrowser(t *testing.T) string {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "agent-browser.log")
 	scriptPath := filepath.Join(dir, "agent-browser")
-	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$AGENT_BROWSER_TEST_LOG\"\n"
+	// Log every invocation, and answer `eval` with "true" so WaitLoad's
+	// in-flight poll settles on the first call instead of spinning to its
+	// wall-clock deadline (which would emit ~125 eval lines and take ~5s).
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"$AGENT_BROWSER_TEST_LOG\"\n" +
+		"case \"$1\" in eval) echo true ;; esac\n"
 	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("write fake agent-browser: %v", err)
 	}
