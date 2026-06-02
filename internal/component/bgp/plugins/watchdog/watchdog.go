@@ -67,7 +67,7 @@ func setLogger(l *slog.Logger) {
 //  1. OnConfigure — parses config tree, builds per-peer route pools
 //  2. SetStartupSubscriptions — subscribes to state events
 //  3. OnEvent — handles peer up/down, resends announced routes
-//  4. OnExecuteCommand — handles watchdog announce/withdraw commands
+//  4. OnExecuteCommand — handles request watchdog announce/withdraw commands
 func RunWatchdogPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-watchdog", conn)
 	defer func() { _ = p.Close() }()
@@ -146,8 +146,6 @@ func RunWatchdogPlugin(conn net.Conn) int {
 		Commands: []sdk.CommandDecl{
 			{Name: commandRequestWatchdogAnnounce, Description: "Announce routes in watchdog group"},
 			{Name: commandRequestWatchdogWithdraw, Description: "Withdraw routes in watchdog group"},
-			{Name: commandWatchdogAnnounce, Description: "Announce routes in watchdog group"},
-			{Name: commandWatchdogWithdraw, Description: "Withdraw routes in watchdog group"},
 		},
 	})
 	if err != nil {

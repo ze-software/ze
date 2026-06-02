@@ -578,8 +578,8 @@ The `ParseUpdateText` function parses the "update text" command format for batch
 
 Standalone watchdog commands (separate from update text):
 ```
-watchdog announce <name>   # send all routes in pool to peers
-watchdog withdraw <name>   # withdraw all routes in pool from peers
+request watchdog announce <name>   # send all routes in pool to peers
+request watchdog withdraw <name>   # withdraw all routes in pool from peers
 ```
 
 ### Result Types

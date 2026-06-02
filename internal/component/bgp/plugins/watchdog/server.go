@@ -44,8 +44,6 @@ func newWatchdogServer(sendRoute func(peer, cmd string)) *watchdogServer {
 const (
 	commandRequestWatchdogAnnounce = "request watchdog announce"
 	commandRequestWatchdogWithdraw = "request watchdog withdraw"
-	commandWatchdogAnnounce        = "watchdog announce"
-	commandWatchdogWithdraw        = "watchdog withdraw"
 
 	statusDone  = "done"
 	statusError = "error"
@@ -74,10 +72,10 @@ type watchdogPeerResult struct {
 // value is double-encoded on the wire.
 // Called from OnExecuteCommand with the command name, arguments, and peer selector.
 func (s *watchdogServer) handleCommand(command string, args []string, peer string) (string, any, error) {
-	if command == commandRequestWatchdogAnnounce || command == commandWatchdogAnnounce {
+	if command == commandRequestWatchdogAnnounce {
 		return s.handlePoolAction(args, peer, true)
 	}
-	if command == commandRequestWatchdogWithdraw || command == commandWatchdogWithdraw {
+	if command == commandRequestWatchdogWithdraw {
 		return s.handlePoolAction(args, peer, false)
 	}
 	return statusError, nil, fmt.Errorf("unknown watchdog command: %s", command)
@@ -87,7 +85,7 @@ func (s *watchdogServer) handleCommand(command string, args []string, peer strin
 // for a named watchdog pool. Flips state even if the peer is down so
 // reconnect resend picks up the correct state.
 //
-// Announce syntax: watchdog announce <name> [med <N>] [peer]
+// Announce syntax: request watchdog announce <name> [med <N>] [peer]
 // When peer is "*", the action applies to all peers that have the named pool.
 func (s *watchdogServer) handlePoolAction(args []string, peer string, announce bool) (string, any, error) {
 	if len(args) < 1 {

@@ -324,7 +324,7 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		buf.WriteString("}\n")
 	}
 
-	// Watchdog block (routes controlled via "bgp watchdog announce/withdraw").
+	// Watchdog block (routes controlled via "request watchdog announce/withdraw").
 	if wdog := tree.GetContainer("watchdog"); wdog != nil {
 		buf.WriteString(indent)
 		buf.WriteString("watchdog {\n")

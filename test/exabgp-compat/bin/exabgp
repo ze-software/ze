@@ -161,9 +161,11 @@ def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: i
                        ze_process: subprocess.Popen, debug: bool = False):
     """Run an ExaBGP process and bridge its commands to Ze via SSH.
 
-    Translates ExaBGP stdout commands to Ze CLI commands over SSH exec:
-    - "announce watchdog <name>" -> "watchdog announce <name>"
-    - "withdraw watchdog <name>" -> "watchdog withdraw <name>"
+    Translates ExaBGP stdout commands to Ze CLI commands over SSH exec.
+    The ExaBGP API syntax is fixed; Ze uses the verb-first grammar, so the
+    verb leads the translated command:
+    - "announce watchdog <name>" -> "request watchdog announce <name>"
+    - "withdraw watchdog <name>" -> "request watchdog withdraw <name>"
 
     Uses a single persistent SSH connection for all commands to avoid
     repeated handshake/auth overhead (which causes timing failures on
@@ -218,10 +220,10 @@ def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: i
                 command = None
                 if line.startswith('announce watchdog '):
                     group = line.split(None, 2)[2]
-                    command = 'watchdog announce ' + group
+                    command = 'request watchdog announce ' + group
                 elif line.startswith('withdraw watchdog '):
                     group = line.split(None, 2)[2]
-                    command = 'watchdog withdraw ' + group
+                    command = 'request watchdog withdraw ' + group
 
                 if command:
                     try:

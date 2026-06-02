@@ -518,8 +518,8 @@ bgp plugin ack async            # Return immediately (default)
 
 ### Standalone Watchdog Commands
 ```
-watchdog announce <name>   # send all routes in pool to peers
-watchdog withdraw <name>   # withdraw all routes in pool from peers
+request watchdog announce <name>   # send all routes in pool to peers
+request watchdog withdraw <name>   # withdraw all routes in pool from peers
 ```
 
 ### Scalar `del [<value>]` Semantics

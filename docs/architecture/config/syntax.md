@@ -816,8 +816,8 @@ update {
 
 Standalone watchdog commands (via API):
 ```
-watchdog announce <name>   # send all routes in pool to peers
-watchdog withdraw <name>   # withdraw all routes in pool from peers
+request watchdog announce <name>   # send all routes in pool to peers
+request watchdog withdraw <name>   # withdraw all routes in pool from peers
 ```
 <!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container watchdog, leaf name, leaf withdraw -->
 

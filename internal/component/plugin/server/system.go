@@ -40,7 +40,7 @@ func init() {
 
 // handleSystemDispatch dispatches a text command through the standard command dispatcher.
 // This enables API socket clients to invoke any command reachable through the text
-// dispatcher, including plugin-registered commands (e.g., "watchdog announce dnsr").
+// dispatcher, including plugin-registered commands (e.g., "request watchdog announce dnsr").
 // Args are joined into a single command string for the dispatcher.
 func handleSystemDispatch(ctx *CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
