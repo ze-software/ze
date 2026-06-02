@@ -36,8 +36,8 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 
 ## Rules
 
-- **Grammar: action before identifier** (`ai/rules/cli-grammar.md`, BLOCKING).
-  First token after the noun must be a keyword, never an identifier. IDs are strings.
+- **Grammar: closed keywords before free-form values** (`ai/rules/cli-grammar.md`, BLOCKING).
+  First token after the noun must be a keyword. Member selection uses typed selectors (`name`, `id`, `index`, `address`, `type`, ...). IDs are strings.
 - Errors to stderr: `fmt.Fprintf(os.Stderr, "error: %v\n", err)`
 - Return exit codes, never `os.Exit()` in handlers
 - `-` for stdin, `--json` for JSON output

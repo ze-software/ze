@@ -24,6 +24,21 @@ Read the grammar rule before designing any new command.
 | **Offline** | `cmd/ze/<domain>/` | Tools that don't need a running daemon (config, decode, validate, yang) |
 | **Online** | `internal/component/cmd/<verb>/` | Commands that interact with the running daemon via RPC |
 
+
+## Ownership Check Before Grammar Work
+
+Before changing any command syntax, answer two questions from source:
+
+1. **Who owns the operation?**
+   - Config tree mutation -> engine `set` / `delete`
+   - Runtime operational action -> RPC/CLI command
+   - Read/query -> `show ...`
+2. **Which YANG module owns the command family?**
+   - Find the existing `ze:command`
+   - Find the matching `RPCRegistration`
+   - Edit that same module unless a broader architectural move is explicitly intended
+
+Do not do grammar cleanup before this ownership pass.
 ## Command Grammar
 
 ### Offline Commands
@@ -40,13 +55,26 @@ ze data ls
 ### Online Commands (daemon)
 
 The grammar has several classes. The YANG tree defines the dispatch path.
-The `peer <selector>` mechanism is handled specially by the dispatcher.
+Selector values should usually be introduced by selector keywords such as
+`name`, `id`, `index`, `address`, or `type`.
 
-#### Peer Selector Mechanism
+**Peer commands are the explicit exception.** Their public syntax keeps the
+peer selector immediately after `peer`:
 
-`peer` is a **selector keyword**, not a tree node in the grammar sense.
-The dispatcher extracts `peer <value>` from the token stream (position-independent),
-removes the selector value, and matches the remaining tokens against the YANG path.
+- `show bgp peer <name|address> detail`
+- `show bgp peer <name|address> rib`
+
+Do not write mutating peer examples in this pattern unless the exact grammar
+was explicitly agreed in source or by the user.
+Do not expose a user-facing `selector` keyword for peer commands.
+
+#### Peer Selector Mechanism (current implementation, provisional)
+
+The current dispatcher special-cases `peer <value>`.
+
+`peer` is a selector slot in the public grammar, and the current
+implementation extracts that raw selector value from the token stream,
+removes it, and matches the remaining tokens against the YANG path.
 
 ```
 show bgp peer 192.168.1.1
@@ -54,20 +82,24 @@ show bgp peer 192.168.1.1
   extract: peer selector = "192.168.1.1" (removed from tokens)
   match:   "show bgp peer" -> YANG path -> handler(ctx.Peer="192.168.1.1")
 
-set bgp peer 10.0.0.1 with as 65000
-  tokens:  ["set", "bgp", "peer", "10.0.0.1", "with", "as", "65000"]
+show bgp peer 10.0.0.1 rib
+  tokens:  ["show", "bgp", "peer", "10.0.0.1", "rib"]
   extract: peer selector = "10.0.0.1" (removed)
-  match:   "set bgp peer with" -> handler(ctx.Peer="10.0.0.1", args=["as","65000"])
+  match:   "show bgp peer rib" -> handler(ctx.Peer="10.0.0.1")
 
-peer * show bgp peer
-  tokens:  ["peer", "*", "show", "bgp", "peer"]
-  extract: peer selector = "*" (keyword + value both removed)
-  match:   "show bgp peer" -> handler(ctx.Peer="*")
+show bgp peer edge1 detail
+  tokens:  ["show", "bgp", "peer", "edge1", "detail"]
+  extract: peer selector = "edge1" (removed)
+  match:   "show bgp peer detail" -> handler(ctx.Peer="edge1")
 ```
 
-Valid selector formats: `*` (all), `192.168.1.1` (IPv4), `10.0.0.*` (glob),
-`2001:db8::1` (IPv6), `10.0.0.1,10.0.0.2` (comma-separated), `as65001` (ASN),
-or a named peer (validated against reactor peer list).
+This is an implementation detail of the current codepath, not a license to
+introduce `selector` into the public grammar.
+
+Current selector values accepted by the dispatcher: `*` (all), `192.168.1.1`
+(IPv4), `10.0.0.*` (glob), `2001:db8::1` (IPv6), `10.0.0.1,10.0.0.2`
+(comma-separated), `as65001` (ASN), or a named peer (validated against the
+reactor peer list).
 
 Commands with `RequiresSelector: true` reject invocation without an explicit selector.
 
@@ -76,7 +108,8 @@ Commands with `RequiresSelector: true` reject invocation without an explicit sel
 | Class | Pattern | Examples |
 |-------|---------|----------|
 | **Simple query** | `VERB COMPONENT RESOURCE [ARGS]` | `show version`, `show env list`, `show data ls` |
-| **Peer-scoped** | `VERB bgp peer [<sel>] [SUBACTION] [ARGS]` | `show bgp peer *`, `set bgp peer 10.0.0.1 with as 65000`, `del bgp peer upstream1` |
+| **Typed selector** | `VERB COMPONENT RESOURCE SELECTOR-KIND <value> [VIEW] [ARGS]` | `show interface type dummy`, `show interface name eth0 detail`, `show sysctl key net.ipv4.ip_forward` |
+| **Peer-scoped** | `VERB bgp peer <name|address> <view> [ARGS]` | `show bgp peer 192.0.2.1 detail`, `show bgp peer edge1 rib` |
 | **Named-resource** | `RESOURCE ACTION <id> [ARGS]` | `cache forward 123 *`, `commit start tx1`, `commit withdraw tx1 route 10.0.0.0/24` |
 | **Subscription** | `VERB [ARGS]` | `subscribe update`, `unsubscribe` |
 | **Meta** | `RESOURCE ACTION [ARGS]` | `command list`, `help`, `plugin encoding` |
@@ -86,7 +119,9 @@ Commands with `RequiresSelector: true` reject invocation without an explicit sel
 **show (read-only):**
 ```
 show version
-show bgp peer <sel>              show bgp warnings
+show bgp peer <name|address> detail
+show bgp peer <name|address> rib
+show bgp warnings
 show bgp decode                  show bgp encode
 show env list                    show env get <key>           show env registered
 show schema list                 show schema methods          show schema events
@@ -95,17 +130,14 @@ show yang tree [module]          show yang completion          show yang doc
 show data ls                     show data cat <key>          show data registered
 show config dump                 show config diff             show config history
 show config ls                   show config cat              show config fmt
-show interface
+show interface type <type>       show interface name <name> detail
+show interface name <name> counters
 ```
 
-**set/del/update (write):**
-```
-set bgp peer <sel> with <args>   set bgp peer <sel> save
-del bgp peer <sel>
-update bgp peer <sel> prefix <args>
+Do not add mutating peer examples here until the exact grammar is agreed.
 ```
 
-**cache/commit (named-resource, action before identifier):**
+**cache/commit (named-resource, action before ID):**
 ```
 cache list                       cache retain <id>            cache release <id>
 cache expire <id>                cache forward <id> <sel>
@@ -246,9 +278,7 @@ The YANG path maps directly: `show bgp peer` = container nesting = WireMethod `z
 | `ze-show:bgp-peer` | `show bgp peer` | Yes (`RequiresSelector: true`) |
 | `ze-show:bgp-warnings` | `show bgp warnings` | No |
 | `ze-show:version` | `show version` | No |
-| `ze-set:bgp-peer-with` | `set bgp peer with` | Yes |
-| `ze-set:bgp-peer-save` | `set bgp peer save` | Yes |
-| `ze-del:bgp-peer` | `del bgp peer` | Yes |
+| `ze-show:bgp-peer` | `show bgp peer` | Yes (`RequiresSelector: true`) |
 | `ze-show:env-list` | `show env list` | No |
 
 ## Conventions
@@ -326,7 +356,7 @@ func init() {
 | Root `ze <name> ...` | `ze bgp decode` | `RegisterRoot("bgp", ...)` in `cmd/ze/bgp/register.go`; dispatched by `main.go` switch to `bgp.Run(args[1:])` |
 | Bare verb | `ze ping <target>` | `RegisterRoot("ping", ...)` + `MustRegisterLocal("ping", RunPing)`; dispatched via `main.go`'s `LookupLocal` fallback |
 | `show X` offline shortcut | `ze show bgp decode` | `MustRegisterLocal("show bgp decode", wrapper)` in the owning package; reached via YANG tree or `LookupLocal` |
-| Online RPC | `show peer <sel> detail` | `pluginserver.RegisterRPCs(...)` in the plugin's `init()` (see Online Command section above). Independent of `cmdregistry` |
+| Online RPC | `show interface name <name> detail` | `pluginserver.RegisterRPCs(...)` in the plugin's `init()` (see Online Command section above). Independent of `cmdregistry` |
 
 ### Storage-dependent local commands
 

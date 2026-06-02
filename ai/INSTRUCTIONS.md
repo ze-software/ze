@@ -102,13 +102,14 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/` |
 | Add or modify JSON output or struct tags | `ai/rules/json-format.md` -- kebab-case keys matching YANG/config names, never camelCase |
 | Format strings or errors | `ai/rules/no-sprintf-alloc.md` -- no fmt.Sprintf on hot paths, use append-based alternatives |
+| Write an error message, log line, or failure output | `ai/rules/error-messages.md` -- name the subject + offending value + corrective action; one stable greppable phrase; fail closed, never skip |
 | Write a backend or config translator | `ai/rules/exact-or-reject.md` -- no silent approximation, lossy translation rejects at verify |
 | Touch wire encoding | `ai/rules/buffer-first.md` |
 | Allocate memory, use pools, or build strings | `ai/rules/memory-architecture.md` -- data lifecycle, caller-owned buffers, pool strategy |
 | Add a map or dispatch table on a hot path | `ai/rules/enum-over-string.md` -- numeric keys, not strings; parse string at boundary |
 | Touch registration | `ai/patterns/registration.md` |
 | Add CLI/web/plugin/config | `ai/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
-| Add or change a CLI command grammar | `ai/rules/cli-grammar.md` -- action before identifier, IDs as strings |
+| Add or change a CLI command grammar | `ai/rules/cli-grammar.md` -- closed keywords before free-form values, typed selectors, IDs as strings |
 | Write help text, usage strings, error messages, or docs that enumerate things | `ai/rules/derive-not-hardcode.md` -- derive from the registry/map, never re-hardcode; return structured data, not pre-formatted strings |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/interop-and-goal-validation.md` |
