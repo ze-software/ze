@@ -6,78 +6,78 @@ option=timeout:value=60s
 
 # Navigate to firewall tables page
 action=open:path=/show/firewall/table/
-action=wait:ms=1000
+action=wait:ms=300
 
 # Create a firewall table
 action=click:id=btn-add-entry
-action=wait:ms=1000
+action=wait:ms=400
 action=fill:text=name:value=filter
 action=press:key=Enter
-action=wait:ms=2000
+action=wait:ms=800
 expect=element:text=filter
 
 # Set the table family via CLI
 action=open:path=/show/
-action=wait:ms=1000
+action=wait:ms=300
 action=fill:id=cli-input:value=set firewall table filter family inet
 action=press:key=Enter
-action=wait:ms=1000
+action=wait:ms=300
 
 # Navigate to chains and add an input chain
 action=open:path=/show/firewall/table/filter/chain/
-action=wait:ms=1000
+action=wait:ms=300
 action=click:id=btn-add-entry
-action=wait:ms=1000
+action=wait:ms=400
 action=fill:text=name:value=input
 action=press:key=Enter
-action=wait:ms=2000
+action=wait:ms=800
 expect=element:text=input
 
 # Set chain properties via CLI
 action=open:path=/show/
-action=wait:ms=1000
+action=wait:ms=300
 action=fill:id=cli-input:value=set firewall table filter chain input type filter
 action=press:key=Enter
-action=wait:ms=500
+action=wait:ms=200
 action=fill:id=cli-input:value=set firewall table filter chain input hook input
 action=press:key=Enter
-action=wait:ms=500
+action=wait:ms=200
 action=fill:id=cli-input:value=set firewall table filter chain input priority 0
 action=press:key=Enter
-action=wait:ms=500
+action=wait:ms=200
 action=fill:id=cli-input:value=set firewall table filter chain input policy drop
 action=press:key=Enter
-action=wait:ms=1000
+action=wait:ms=300
 
 # Add a firewall rule (term)
 action=open:path=/show/firewall/table/filter/chain/input/term/
-action=wait:ms=1000
+action=wait:ms=300
 action=click:id=btn-add-entry
-action=wait:ms=1000
+action=wait:ms=400
 action=fill:text=name:value=allow-bgp
 action=press:key=Enter
-action=wait:ms=2000
+action=wait:ms=800
 expect=element:text=allow-bgp
 
 # Set match criteria on the term via CLI
 action=open:path=/show/
-action=wait:ms=1000
+action=wait:ms=300
 action=fill:id=cli-input:value=set firewall table filter chain input term allow-bgp from protocol tcp
 action=press:key=Enter
-action=wait:ms=500
+action=wait:ms=200
 action=fill:id=cli-input:value=set firewall table filter chain input term allow-bgp from destination-port 179
 action=press:key=Enter
-action=wait:ms=1000
+action=wait:ms=300
 
 # Commit
 action=fill:id=cli-input:value=top
 action=press:key=Enter
-action=wait:ms=500
+action=wait:ms=200
 action=fill:id=cli-input:value=commit
 action=press:key=Enter
-action=wait:ms=2000
+action=wait:ms=1200
 
 # Verify table still exists
 action=open:path=/show/firewall/table/
-action=wait:ms=1000
+action=wait:ms=400
 expect=element:text=filter
