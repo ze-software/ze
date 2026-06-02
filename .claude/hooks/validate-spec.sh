@@ -13,8 +13,13 @@ if [[ "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "Edit" ]]; then
     exit 0
 fi
 
-# Only process plan/spec-*.md files
-if [[ ! "$FILE_PATH" =~ plan/spec-.*\.md$ ]]; then
+# Only process real spec files: plan/spec-*.md at a path segment boundary.
+# Anchor `plan` to `^` or `/` so per-session state files like
+# tmp/session/session-state-plan/spec-<stem>-<SID>.md (created by the Go
+# pre-write hook when the selected spec lives under plan/) are NOT treated
+# as specs. The unanchored pattern matched the substring `plan/spec-...md`
+# inside those state paths and emitted spurious validation errors.
+if [[ ! "$FILE_PATH" =~ (^|/)plan/spec-[^/]*\.md$ ]]; then
     exit 0
 fi
 
