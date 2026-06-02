@@ -109,7 +109,11 @@ Before any verify target, check freshness. A FRESH status covers the
 byte-identical tree and forbids rerunning `make ze-verify` or
 `make ze-verify-changed`. `ze-verify` uses a two-pass strategy: cached
 full pass (no `-race`) + `-race` only on component groups with changed
-`.go` files. For reactor concurrency changes, also run `make
+`.go` files. `ze-verify-changed` scopes to packages with uncommitted
+`.go` changes PLUS packages committed since the last green verify
+(`scripts/dev/changed-pkgs.sh`, baseline = `git_sha` in
+`tmp/ze-verify.status`), so a package committed before it was verified is
+still tested rather than skipped on the now-clean tree. For reactor concurrency changes, also run `make
 ze-race-reactor`. Output writes: `tmp/ze-verify.log`, per-stage logs
 under `tmp/verify/`, `tmp/ze-verify-failures.log`,
 `tmp/ze-verify-failures.json`, and `tmp/ze-verify.status`.

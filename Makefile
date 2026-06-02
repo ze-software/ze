@@ -168,16 +168,18 @@ ze-exabgp-test: bin/ze bin/ze-test
 
 # ─── Scoped targets (parallel-safe) ────────────────────────────────────────
 
+# Changed-package set = uncommitted .go changes + packages committed since
+# the last green verify (scripts/dev/changed-pkgs.sh). The committed-since
+# term closes a gap where a regression committed before verifying left the
+# working-tree diff and was silently skipped by scoped verify.
 ze-lint-changed:
-	@pkgs=$$({ git diff --name-only -- '*.go'; git diff --cached --name-only -- '*.go'; git ls-files --others --exclude-standard -- '*.go'; } 2>/dev/null \
-		| sort -u | xargs -n1 dirname 2>/dev/null | sort -u | sed 's|^|./|'); \
+	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to lint"; exit 0; fi; \
 	echo "Linting changed packages: $$pkgs"; \
 	golangci-lint run $$pkgs
 
 ze-unit-test-changed:
-	@pkgs=$$({ git diff --name-only -- '*.go'; git diff --cached --name-only -- '*.go'; git ls-files --others --exclude-standard -- '*.go'; } 2>/dev/null \
-		| sort -u | xargs -n1 dirname 2>/dev/null | sort -u | sed 's|^|./|'); \
+	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to test"; exit 0; fi; \
 	echo "Testing changed packages: $$pkgs"; \
 	$(GO_TEST) -race $$pkgs
