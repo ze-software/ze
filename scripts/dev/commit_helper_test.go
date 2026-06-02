@@ -62,6 +62,61 @@ func TestCommitHelperCreatesMessageAndScript(t *testing.T) {
 	}
 }
 
+// VALIDATES: commit_helper wraps body text before writing the commit message file.
+// PREVENTS: generated commit messages containing overlong body lines.
+func TestCommitHelperWrapsCommitMessageBody(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "wrapped.txt", "wrapped\n")
+	longBody := "This commit body line is intentionally long enough to require automatic wrapping before the message file is written for the user-run script."
+
+	out, stderr, code := runCommitHelper(t, root,
+		"--repo", root,
+		"create",
+		"--session", "11223344",
+		"--subject", "tools: wrap body",
+		"--body", longBody,
+		"--file", "wrapped.txt",
+		"--replace",
+	)
+	if code != 0 {
+		t.Fatalf("commit_helper failed with %d\nstdout:\n%s\nstderr:\n%s", code, out, stderr)
+	}
+
+	message := readFixture(t, root, "tmp/commit-msg-11223344-a.txt")
+	lines := strings.Split(strings.TrimSuffix(message, "\n"), "\n")
+	for index, line := range lines {
+		if len(line) > 72 {
+			t.Fatalf("line %d is too long (%d): %q", index+1, len(line), line)
+		}
+	}
+	body := strings.Join(lines[2:], " ")
+	if body != longBody {
+		t.Fatalf("wrapped body changed text:\nwant: %s\n got: %s", longBody, body)
+	}
+}
+
+// VALIDATES: commit_helper keeps the subject line single-line and bounded.
+// PREVENTS: auto-wrapping a long subject into a malformed commit message.
+func TestCommitHelperRejectsLongSubject(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+	writeFixture(t, root, "subject.txt", "subject\n")
+
+	_, stderr, code := runCommitHelper(t, root,
+		"--repo", root,
+		"create",
+		"--session", "55667788",
+		"--subject", strings.Repeat("x", 73),
+		"--file", "subject.txt",
+		"--replace",
+	)
+	if code == 0 {
+		t.Fatalf("expected long subject to be rejected")
+	}
+	mustContain(t, stderr, "--subject must be at most 72 characters")
+}
+
 // VALIDATES: commit_helper reuses the persisted session id and appends additional logical commits deliberately.
 // PREVENTS: each commit block getting a new session id or clobbering the previous script by accident.
 func TestCommitHelperReusesSessionAndAppends(t *testing.T) {

@@ -40,6 +40,8 @@ scripts/dev/commit_helper.py create \
   --file file2.go \
   --file file3_test.go
 ```
+Body lines are wrapped to 72 characters. Subjects are single-line and
+must be at most 72 characters.
 
 The generated script has this shape:
 ```bash

@@ -11,12 +11,15 @@ import shlex
 import stat
 import subprocess
 import sys
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
 SESSION_RE = re.compile(r"^[0-9a-f]{8}$")
 TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
 LEARNED_RE = re.compile(r"^plan/learned/[0-9]{3,}-.+\.md$")
+COMMIT_MESSAGE_WIDTH = 72
+
 
 LESSON_WORTHY_PREFIXES = (
     "ai/rules/",
@@ -185,14 +188,68 @@ def normalize_tag(tag: str | None, repo: Path, session: str) -> str:
     return resolved
 
 
+def wrap_commit_body_line(line: str) -> list[str]:
+    indent_len = len(line) - len(line.lstrip())
+    indent = line[:indent_len]
+    content = line[indent_len:]
+    bullet = re.match(r"^((?:[-*+]|\d+[.)])\s+)(.*)$", content)
+    if bullet:
+        initial_indent = indent + bullet.group(1)
+        subsequent_indent = " " * len(initial_indent)
+        content = bullet.group(2)
+    else:
+        initial_indent = indent
+        subsequent_indent = indent
+    wrapped = textwrap.wrap(
+        content,
+        width=COMMIT_MESSAGE_WIDTH,
+        initial_indent=initial_indent,
+        subsequent_indent=subsequent_indent,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    if not wrapped:
+        return [line]
+    for wrapped_line in wrapped:
+        if len(wrapped_line) > COMMIT_MESSAGE_WIDTH:
+            raise UsageError(
+                "--body contains an unwrappable line longer than "
+                f"{COMMIT_MESSAGE_WIDTH} characters"
+            )
+    return wrapped
+
+
+def wrap_commit_body(body: list[str]) -> str:
+    wrapped: list[str] = []
+    for chunk in body:
+        if not chunk:
+            wrapped.append("")
+            continue
+        for raw_line in chunk.splitlines():
+            line = raw_line.rstrip()
+            if not line.strip():
+                wrapped.append("")
+                continue
+            wrapped.extend(wrap_commit_body_line(line))
+    while wrapped and wrapped[0] == "":
+        wrapped.pop(0)
+    while wrapped and wrapped[-1] == "":
+        wrapped.pop()
+    return "\n".join(wrapped)
+
+
 def message_text(subject: str, body: list[str]) -> str:
     cleaned_subject = subject.strip()
     if not cleaned_subject:
         raise UsageError("--subject is required")
     if "\n" in cleaned_subject:
         raise UsageError("--subject must be a single line")
+    if len(cleaned_subject) > COMMIT_MESSAGE_WIDTH:
+        raise UsageError(
+            f"--subject must be at most {COMMIT_MESSAGE_WIDTH} characters"
+        )
     parts = [cleaned_subject]
-    cleaned_body = "\n".join(part.rstrip() for part in body).strip()
+    cleaned_body = wrap_commit_body(body)
     if cleaned_body:
         parts.extend(("", cleaned_body))
     return "\n".join(parts) + "\n"
@@ -387,13 +444,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--tag", help="message tag, defaults to the next available letter"
     )
     create_cmd.add_argument(
-        "--subject", required=True, help="single-line commit subject"
+        "--subject", required=True, help="single-line commit subject, max 72 chars"
     )
     create_cmd.add_argument(
         "--body",
         action="append",
         default=[],
-        help="commit body paragraph or lines, repeat as needed",
+        help="commit body paragraph or lines, wrapped to 72 chars",
     )
     create_cmd.add_argument(
         "--file",
