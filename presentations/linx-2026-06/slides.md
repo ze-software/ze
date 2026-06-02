@@ -547,13 +547,13 @@ If you have comments or questions later, point your AI at the repo and ask it.
 
 It can answer on my behalf, probably more accurately.
 
-**Discord** https://discord.gg/ykJb8meS4
-
 ### Happy to help
 
 If you want to discuss Ze, ask for a change, report something wrong, or influence where the project goes, please talk to me.
 
 Contributions do not have to be code. Ideas, questions, operational feedback, and real weird deployment scenarios are all useful.
+
+**Discord** https://discord.gg/ykJb8meS4
 
 ### **https://github.com/ze-software/ze**
 
