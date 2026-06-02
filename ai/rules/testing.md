@@ -48,7 +48,7 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-verify-changed` | Changed-package lint/test plus wiring/doc/inventory, functional, and ExaBGP |
 | `make ze-verify-wiring-docs` | Changed-file-aware wiring, documentation, command, and inventory gate |
 | `make ze-unit-test` | All unit tests with `-race` (full recompile, ~5 min) |
-| `make ze-functional-test` | All 12 functional test suites |
+| `make ze-functional-test` | All 13 functional test suites |
 | `make ze-lint` | 26 linters |
 | `make ze-ci` | lint + unit + build |
 | `make ze-fuzz-test` | Fuzz tests (10s per target) |
@@ -104,7 +104,7 @@ problem to fix before merging, not a deferral to log.
 3. **Race pass on changed groups only** (`go test -race` on component groups containing
    modified `.go` files): catches data races in what you touched, without recompiling
    everything. Group detection uses `scripts/dev/changed-groups.sh`.
-4. **Functional tests** (12 suites via `ze-test`)
+4. **Functional tests** (13 suites via `ze-test`)
 5. **ExaBGP compatibility**
 
 Common case (one group changed): ~2 min total instead of 6+.
@@ -112,6 +112,17 @@ Common case (one group changed): ~2 min total instead of 6+.
 ## Iteration Workflow (BLOCKING)
 
 **One change, one test, then scale.** Never bulk-modify test files or source files without validating the pattern on a single case first.
+
+**Specific before generic.** For code changes, start with the narrowest test
+that can fail because of the changed file: direct Go test, matching `.ci`/`.et`
+case, file-level test, feature test, or suite-local command. Then move outward
+only after the narrower test passes. Do not spend CPU on unaffected packages or
+whole suites before proving the affected code path works.
+
+If a changed file has an associated test file, feature test, or suite test, run
+that first. After it passes, run the next broader relevant scope, then the
+remaining gate. Order is: direct test -> file/feature test -> package ->
+component group -> whole suite or `ze-verify`.
 
 | Step | Action | Command |
 |------|--------|---------|
@@ -134,13 +145,16 @@ Common case (one group changed): ~2 min total instead of 6+.
 | All editor tests | `make ze-editor-test` | ~30s |
 | Pre-commit gate | `make ze-verify` | ~2 min (common case) |
 
-**Escalation ladder:** single test -> single package -> component group -> `ze-verify`.
+**Escalation ladder:** direct test -> file/feature test -> single package -> component group -> whole suite or `ze-verify`. If any rung fails, fix from that evidence and rerun the failed rung or a narrower failing test, not a wider suite.
 
 `make ze-verify` is the **final gate**, not a development tool. Use targeted commands and component groups during iteration.
 On failure, `make ze-verify` writes the compact index `tmp/ze-verify-failures.log`.
-Read that file first, choose a stage-local group, then open the referenced
-`tmp/verify/<nn>-<stage>.log` for full evidence. The combined log is
-`tmp/ze-verify.log`, and automation can read `tmp/ze-verify-failures.json`.
+Read that file first. The next run MUST be the listed `Rerun` command for the
+failed stage, or an even narrower single test/package from the detail log. If
+multiple failures are listed, clear each one with its focused rerun. Only after
+all focused reruns pass may you rerun the whole suite or gate as final
+confirmation. The combined log is `tmp/ze-verify.log`, and automation can read
+`tmp/ze-verify-failures.json`.
 
 **Overlapping runs:** If a test run is failing, kill it before starting another. Never run `make ze-verify` twice concurrently.
 
@@ -183,6 +197,12 @@ Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep arti
 ## Debugging Failures
 
 **BLOCKING:** Read the failure index before opening full logs or re-running.
+**BLOCKING:** After a suite or gate fails, the next test command MUST target
+only the failing part: a single `.ci`/`.et` case, single Go test, single
+package, or the stage-local `Rerun` command from the failure index. If there
+are multiple failures, clear each one with its focused rerun. Only after all
+focused reruns pass may you rerun the whole suite or gate as final
+confirmation, except when the suite is the only available reproduction.
 
 ```bash
 make ze-verify
