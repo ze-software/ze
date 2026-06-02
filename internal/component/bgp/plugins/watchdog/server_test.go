@@ -112,6 +112,54 @@ func TestCommandWithdraw(t *testing.T) {
 	}
 }
 
+// VALIDATES: ExaBGP bridge spelling without "request" still dispatches to watchdog pools.
+// PREVENTS: conf-watchdog compatibility test failing with "unknown command".
+func TestCommandCompatAlias(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	mgr.peerPools["10.0.0.1"] = NewPoolSet()
+	entry := NewPoolEntry("10.0.0.0/24#0",
+		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+		"update text nlri ipv4/unicast del 10.0.0.0/24")
+	if err := mgr.peerPools["10.0.0.1"].AddRoute("dnsr", entry); err != nil {
+		t.Fatal(err)
+	}
+	mgr.peerUp["10.0.0.1"] = true
+
+	status, _, err := mgr.handleCommand(commandWatchdogAnnounce, []string{"dnsr"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("announce alias: %v", err)
+	}
+	if status != statusDone {
+		t.Errorf("announce status = %q, want done", status)
+	}
+	status, _, err = mgr.handleCommand(commandWatchdogWithdraw, []string{"dnsr"}, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("withdraw alias: %v", err)
+	}
+	if status != statusDone {
+		t.Errorf("withdraw status = %q, want done", status)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(sent) != 2 {
+		t.Fatalf("sent %d routes, want 2", len(sent))
+	}
+	if !strings.Contains(sent[0].cmd, "add 10.0.0.0/24") {
+		t.Errorf("first cmd = %q, want announce command", sent[0].cmd)
+	}
+	if !strings.Contains(sent[1].cmd, "del 10.0.0.0/24") {
+		t.Errorf("second cmd = %q, want withdraw command", sent[1].cmd)
+	}
+}
+
 // VALIDATES: Error returned for nonexistent watchdog group
 // PREVENTS: Silent success on typo'd group name
 

@@ -41,8 +41,12 @@ func newWatchdogServer(sendRoute func(peer, cmd string)) *watchdogServer {
 	}
 }
 
-// Command response status constants.
 const (
+	commandRequestWatchdogAnnounce = "request watchdog announce"
+	commandRequestWatchdogWithdraw = "request watchdog withdraw"
+	commandWatchdogAnnounce        = "watchdog announce"
+	commandWatchdogWithdraw        = "watchdog withdraw"
+
 	statusDone  = "done"
 	statusError = "error"
 )
@@ -70,10 +74,10 @@ type watchdogPeerResult struct {
 // value is double-encoded on the wire.
 // Called from OnExecuteCommand with the command name, arguments, and peer selector.
 func (s *watchdogServer) handleCommand(command string, args []string, peer string) (string, any, error) {
-	if command == "request watchdog announce" {
+	if command == commandRequestWatchdogAnnounce || command == commandWatchdogAnnounce {
 		return s.handlePoolAction(args, peer, true)
 	}
-	if command == "request watchdog withdraw" {
+	if command == commandRequestWatchdogWithdraw || command == commandWatchdogWithdraw {
 		return s.handlePoolAction(args, peer, false)
 	}
 	return statusError, nil, fmt.Errorf("unknown watchdog command: %s", command)

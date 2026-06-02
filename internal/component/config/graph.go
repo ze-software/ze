@@ -39,6 +39,8 @@ const (
 	EdgeUsesAddress  GraphEdgeKind = "uses-address"
 )
 
+const listenerServiceSSH = "ssh"
+
 // GraphNode is a node in the config dependency graph.
 type GraphNode struct {
 	ID   string        `json:"id"`
@@ -224,8 +226,8 @@ func listenerSectionName(service string) string {
 	switch {
 	case service == "web" || strings.HasPrefix(service, "web "):
 		return "web"
-	case service == "ssh" || strings.HasPrefix(service, "ssh "):
-		return "ssh"
+	case service == listenerServiceSSH || strings.HasPrefix(service, listenerServiceSSH+" "):
+		return listenerServiceSSH
 	case service == "looking-glass" || strings.HasPrefix(service, "looking-glass "):
 		return "looking-glass"
 	case service == "mcp" || strings.HasPrefix(service, "mcp "):
