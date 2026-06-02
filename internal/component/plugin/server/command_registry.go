@@ -34,15 +34,26 @@ type deprecatedAlias struct {
 
 // commandVerbs is the canonical closed set of first tokens (verbs) a plugin
 // command may begin with, per the verb-first CLI grammar
-// (ai/rules/cli-grammar.md). It is the single source of truth for the allowed
-// verbs: validVerbList derives the verb list shown in error messages from this
-// map, so there is no second copy to drift (ai/rules/derive-not-hardcode.md).
+// (ai/rules/cli-grammar.md). It is the single source of truth: validVerbList
+// derives the verb list shown in error messages from this map, so there is no
+// second copy to drift (ai/rules/derive-not-hardcode.md).
+//
+// Scope: this gate applies ONLY to plugin-registered commands (Register and
+// RegisterDeprecated). Core builtins are registered through a separate path
+// (AddBuiltin) and are not validated by this function.
 //
 // Seeded with the verbs reachable through plugin command registration today
 // (show/set/clear/request) plus the operator verbs commit/cache from the same
-// grammar. A command whose first token is absent is rejected at registration
-// with a message listing the valid verbs; add a verb here when a plugin
-// legitimately introduces it.
+// grammar. To add a plugin command whose first verb is not yet listed, add the
+// verb here in the same change. There is no compatibility escape hatch: a
+// noun-first duplicate of a verb-first command is layering to delete, not a
+// token to add (ai/rules/no-layering.md).
+//
+// Completeness note: a static grep of string-literal command names does not
+// enumerate what actually registers (names declared via constants or built by
+// append are invisible to it). The authoritative check that every shipping
+// command's verb is present is running the registration gate (functional and
+// exabgp suites), which exercises real plugin startup.
 var commandVerbs = map[string]bool{
 	"show":    true,
 	"set":     true,
@@ -292,6 +303,10 @@ func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
 // alias is rejected if it conflicts with a builtin, an already-registered
 // command, or an existing alias, or if the canonical command is not registered.
 // This makes an unreachable or shadowing alias impossible to register.
+//
+// Requiring the canonical to be already registered is safe because a plugin's
+// deprecated aliases (CommandDeprecatedNames) reference that same plugin's
+// commands, which startup registers immediately before the aliases.
 func (r *CommandRegistry) RegisterDeprecated(proc *process.Process, oldName, newName string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
