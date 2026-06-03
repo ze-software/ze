@@ -2,8 +2,9 @@ module ze-resolve-cmd {
     namespace "urn:ze:resolve:cmd";
     prefix resolvecmd;
     import ze-extensions { prefix ze; }
-    description "Look up DNS, ASN, PeeringDB, and IRR data from the router";
+    description "Look up DNS, ASN, PeeringDB, and IRR data from the router, and clear the DNS resolver cache. Owned by the resolve component because the clear handler resets the resolver cache (resolvers.DNS). Container-merges onto the resolve and clear verb roots. See ai/rules/plugin-self-containment.md.";
     revision 2026-04-04 { description "Initial revision"; }
+    revision 2026-06-03 { description "Relocated clear dns cache out of the central clear schema into the resolve component (plugin self-containment)."; }
 
     container resolve {
         config false;
@@ -89,6 +90,24 @@ list. Useful for building prefix filters from IRR data.";
                 description "Get all prefixes announced by an AS-SET's members.
 Expands the AS-SET, then returns every route/route6 object for
 each member ASN. Use this to build or verify prefix filters.";
+            }
+        }
+    }
+
+    container clear {
+        config false;
+        description "Reset operational state without changing configuration";
+
+        container dns {
+            config false;
+            description "DNS cache clearing operations";
+
+            container cache {
+                config false;
+                ze:command "ze-clear:dns-cache";
+                description "Clear the DNS cache.
+With no argument, flushes everything. Use 'record <name>' to evict
+one entry, or 'stats' to see hit/miss rates without flushing.";
             }
         }
     }

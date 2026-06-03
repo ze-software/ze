@@ -2,54 +2,16 @@ module ze-cli-clear-cmd {
     namespace "urn:ze:cli:clear:cmd";
     prefix cliclearcmd;
     import ze-extensions { prefix ze; }
-    description "Reset runtime counters and state without touching configuration";
+    description "Generic clear verb root. Every clear command is owned by its component and merges its own subtree onto this root.";
     revision 2026-04-18 { description "Initial revision"; }
+    revision 2026-06-03 { description "Relocated clear interface counters (-> iface), clear dns cache (-> resolve), and clear vpn ipsec sa (-> ike) out of this central schema into their owning components (plugin self-containment). This module is now a bare verb-root anchor."; }
 
     container clear {
         config false;
-        description "Reset counters, caches, and operational state. Config is never modified.";
-
-        container interface {
-            config false;
-            description "Reset interface traffic counters.";
-
-            container counters {
-                config false;
-                ze:command "ze-clear:interface-counters";
-                description "Zero the Rx/Tx counters for every managed interface.
-Usage: clear interface counters.";
-            }
-
-            container name {
-                config false;
-                description "Select one interface by name.";
-
-                container counters {
-                    config false;
-                    ze:command "ze-clear:interface-counters";
-                    description "Zero the Rx/Tx counters for one interface.
-Usage: clear interface name <name> counters.";
-                    leaf name {
-                        type string;
-                        mandatory true;
-                        description "Interface name";
-                    }
-                }
-            }
-        }
-
-        container dns {
-            config false;
-            description "DNS cache clearing operations";
-
-            container cache {
-                config false;
-                ze:command "ze-clear:dns-cache";
-                description "Clear the DNS cache.
-With no argument, flushes everything. Use 'record <name>' to evict
-one entry, or 'stats' to see hit/miss rates without flushing.";
-            }
-        }
-
+        description "Reset counters, caches, and operational state without changing
+configuration. This is the generic clear verb root; every clear command is
+owned by its component and merges its own subtree here: clear interface
+counters (iface), clear dns cache (resolve), clear vpn ipsec sa (ike),
+clear l2tp (l2tp), clear bgp rib (bgp). See ai/rules/plugin-self-containment.md.";
     }
 }

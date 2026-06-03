@@ -117,6 +117,29 @@ each owner container-merges only its own subtree onto that root. Precedent:
 their feature owners. The central package holds NO handlers; subcommand handlers
 register from their owners.
 
+**The root anchor stays even when it declares zero commands, and is REQUIRED, not
+optional.** Once every subcommand of a verb has carved out to an owner, the central
+verb schema is a bare `container <verb>` with no `ze:command` leaf of its own. Do
+NOT delete it. `internal/component/cmd/clear` is the precedent: `clear interface
+counters` (iface), `clear dns cache` (resolve), `clear vpn ipsec sa` (ike),
+`clear l2tp ...` (l2tp), and `clear bgp rib ...` (bgp) are all owner-owned, so
+`ze-cli-clear-cmd.yang` declares only the bare `container clear` anchor. Owners
+attach to that anchor two ways, and the second one has a hard dependency on it:
+
+- **Container-merge:** the owner declares its own `container <verb> { container <noun> ... }`
+  and the YANG loader unions same-named roots (iface, resolve, ike use this for `clear`).
+  Preferred for new carves (no base-module coupling; see "How to carve" above).
+- **Augment:** the owner declares `augment "/<prefix>:<verb>" { container <noun> ... }`
+  against the anchor module (l2tp and bgp use this for `clear`, via `augment "/cliclearcmd:clear"`).
+  An augment names its target module, so deleting the anchor breaks every augmenting
+  owner's build. This is the concrete reason the bare anchor must remain.
+
+The anchor still owns NO command. The central guard test bans each carved token so
+a command cannot drift back into the central schema (for `clear`:
+`internal/component/cmd/clear/schema/self_containment_test.go`,
+`TestClearSchemaHasNoMigratedOwnerCommands`; each owner `schema/` holds the matching
+presence test, e.g. `TestResolveCmdSchemaOwnsClearDNSCache`).
+
 ### Dedicated feature modules
 
 When one feature spreads across several verbs (a one-shot root command, a `show`

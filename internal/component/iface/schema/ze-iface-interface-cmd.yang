@@ -2,8 +2,8 @@ module ze-iface-interface-cmd {
     namespace "urn:ze:iface:interface:cmd";
     prefix ifaceifcmd;
     import ze-extensions { prefix ze; }
-    description "show interface family (interface, brief, scan, type, errors, rate, name detail/counters) and monitor interface rate. Owned by the iface component because every handler reads interface state through the iface backend (iface.ListInterfaces / GetInterface / DiscoverInterfaces / GetRate). Container-merges onto the show and monitor verb roots. See ai/rules/plugin-self-containment.md.";
-    revision 2026-06-03 { description "Relocated the show interface family and monitor interface rate out of the central show and monitor schemas into the iface component (plugin self-containment)."; }
+    description "show interface family (interface, brief, scan, type, errors, rate, name detail/counters), monitor interface rate, and clear interface counters. Owned by the iface component because every handler reads or resets interface state through the iface backend (iface.ListInterfaces / GetInterface / DiscoverInterfaces / GetRate / ClearCounters). Container-merges onto the show, monitor, and clear verb roots. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-03 { description "Relocated the show interface family, monitor interface rate, and clear interface counters out of the central show, monitor, and clear schemas into the iface component (plugin self-containment)."; }
 
     container show {
         config false;
@@ -105,6 +105,40 @@ Usage: show interface name <name> counters.";
                 description "Stream per-second traffic rates for your interfaces.
 Shows rx/tx bytes and packets per second, updating every second.
 Optionally pass an interface name to watch just one link.";
+            }
+        }
+    }
+
+    container clear {
+        config false;
+        description "Reset operational state without changing configuration";
+
+        container interface {
+            config false;
+            description "Reset interface traffic counters.";
+
+            container counters {
+                config false;
+                ze:command "ze-clear:interface-counters";
+                description "Zero the Rx/Tx counters for every managed interface.
+Usage: clear interface counters.";
+            }
+
+            container name {
+                config false;
+                description "Select one interface by name.";
+
+                container counters {
+                    config false;
+                    ze:command "ze-clear:interface-counters";
+                    description "Zero the Rx/Tx counters for one interface.
+Usage: clear interface name <name> counters.";
+                    leaf name {
+                        type string;
+                        mandatory true;
+                        description "Interface name";
+                    }
+                }
             }
         }
     }

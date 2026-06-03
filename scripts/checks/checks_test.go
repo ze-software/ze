@@ -74,11 +74,14 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 			t.Errorf("owner daemon-command package %s is missing: %v", owner, err)
 		}
 	}
-	// The generic clear verb keeps only its schema; owner-specific clear
-	// handlers were extracted to their owners.
+	// Every clear command is fully owned: its handler AND its YANG schema live
+	// in the owning component. The central clear verb package is a bare
+	// verb-root anchor that declares no owner command (each owner merges its own
+	// `clear <noun> ...` subtree). See ai/rules/plugin-self-containment.md.
 	for _, ownerHandler := range []string{
-		"internal/component/resolve/cmd/dns.go", // ze-clear:dns-cache
-		"internal/component/ike/cmd/ipsec.go",   // ze-clear:vpn-ipsec-sa
+		"internal/component/resolve/cmd/dns.go", // ze-clear:dns-cache (schema: resolve/schema)
+		"internal/component/ike/cmd/ipsec.go",   // ze-clear:vpn-ipsec-sa (schema: ike/schema)
+		"internal/component/iface/cmd/clear.go", // ze-clear:interface-counters (schema: iface/schema)
 	} {
 		if _, err := os.Stat(filepath.Join(root, ownerHandler)); err != nil {
 			t.Errorf("extracted clear handler %s is missing: %v", ownerHandler, err)
