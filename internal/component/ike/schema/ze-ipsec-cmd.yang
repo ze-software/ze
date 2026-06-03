@@ -2,8 +2,8 @@ module ze-ipsec-cmd {
     namespace "urn:ze:ipsec:cmd";
     prefix ipseccmd;
     import ze-extensions { prefix ze; }
-    description "show/monitor vpn ipsec command tree. Owned by the ike component so that removing the IPsec surface removes these command nodes together with the handlers. See ai/rules/plugin-self-containment.md.";
-    revision 2026-06-03 { description "Relocated show + monitor vpn ipsec out of the central show/monitor schemas (plugin self-containment)."; }
+    description "show/monitor/clear vpn ipsec command tree. Owned by the ike component so that removing the IPsec surface removes these command nodes together with the handlers. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-03 { description "Relocated show + monitor + clear vpn ipsec out of central schemas (plugin self-containment)."; }
 
     container show {
         config false;
@@ -50,6 +50,30 @@ byte counts. Usage: show vpn ipsec peer name <name>.";
                             description "Configured IPsec peer name";
                         }
                     }
+                }
+            }
+        }
+    }
+
+    container clear {
+        config false;
+        description "Reset counters, caches, and operational state. Config is never modified.";
+
+        container vpn {
+            config false;
+            description "VPN tunnel clearing operations";
+
+            container ipsec {
+                config false;
+                description "IPsec SA teardown";
+
+                container sa {
+                    config false;
+                    ze:command "ze-clear:vpn-ipsec-sa";
+                    description "Tear down IKE Security Associations.
+Without arguments, terminates all SAs. Use 'peer <name>' to clear
+just one peer. The tunnel will renegotiate automatically if the
+config is still active.";
                 }
             }
         }

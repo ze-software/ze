@@ -51,23 +51,5 @@ one entry, or 'stats' to see hit/miss rates without flushing.";
             }
         }
 
-        container vpn {
-            config false;
-            description "VPN tunnel clearing operations";
-
-            container ipsec {
-                config false;
-                description "IPsec SA teardown";
-
-                container sa {
-                    config false;
-                    ze:command "ze-clear:vpn-ipsec-sa";
-                    description "Tear down IKE Security Associations.
-Without arguments, terminates all SAs. Use 'peer <name>' to clear
-just one peer. The tunnel will renegotiate automatically if the
-config is still active.";
-                }
-            }
-        }
     }
 }

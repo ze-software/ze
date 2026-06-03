@@ -14,6 +14,7 @@ func TestIPsecCmdSchemaOwnsShowVPNIPsec(t *testing.T) {
 		`ze:command "ze-show:vpn-ipsec-status"`,
 		`ze:command "ze-show:vpn-ipsec-peer"`,
 		`ze:command "ze-monitor:vpn-ipsec"`,
+		`ze:command "ze-clear:vpn-ipsec-sa"`,
 		"container vpn",
 		"container ipsec",
 	} {
