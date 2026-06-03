@@ -4,6 +4,8 @@
 
 Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, web UI, and install flows.
 
+> For how the runner schedules and executes tests (the three execution engines, concurrency, reporting) and the web `.wb` test format, see [`architecture/testing/runner-architecture.md`](architecture/testing/runner-architecture.md).
+
 ```bash
 # Quick start
 make ze-functional-test   # Run all gating suites
@@ -519,9 +521,9 @@ Real failures exit non-zero.
 
 | File | What it verifies |
 |------|------------------|
-| `appliance-push-image-escape.ci` | `ze install appliance push` rejects `--image` candidates that escape the appliance directory before network or TLS work |
-| `appliance-iso-default-paths.ci` | `ze install appliance iso` succeeds with default kernel/initrd artifact paths and stages those files into the installer tree |
-| `appliance-iso-arm64.ci` | `ze install appliance iso` emits arm64 UEFI staging assets and arm64 kernel console settings when `image.arch=arm64` |
+| `appliance-push-image-escape.ci` | `ze appliance push` rejects `--image` candidates that escape the appliance directory before network or TLS work |
+| `appliance-iso-default-paths.ci` | `ze appliance iso` succeeds with default kernel/initrd artifact paths and stages those files into the installer tree |
+| `appliance-iso-arm64.ci` | `ze appliance iso` emits arm64 UEFI staging assets and arm64 kernel console settings when `image.arch=arm64` |
 | `initrd-flow.ci` | Shell tests for cmdline parsing, disk selection, ISO media discovery, and checksum-protected image writes |
 | `qemu-full.ci` | PXE installer path writes the image, injects ZeFS, boots the written disk, and authenticates |
 | `qemu-iso.ci` | Appliance ISO path writes the embedded image unchanged, skips PXE ZeFS injection, powers off safely, boots the written disk, and authenticates |

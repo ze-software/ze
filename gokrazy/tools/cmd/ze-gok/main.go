@@ -24,7 +24,7 @@ import (
 )
 
 func main() {
-	// Honor a GOMODCACHE supplied by the caller (e.g. `ze install appliance
+	// Honor a GOMODCACHE supplied by the caller (e.g. `ze appliance
 	// build`, which runs ze-gok with its working directory set to gokrazy/tools
 	// and so cannot rely on os.Getwd() resolving to the repo root). Only fall
 	// back to a CWD-relative cache when run standalone from the repo root.

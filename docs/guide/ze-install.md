@@ -152,12 +152,12 @@ each piece in detail; this section sequences them.
 ### 1. Build the disk image
 
 Use the structured appliance builder (full reference:
-[appliance guide](appliance.md), "ze install appliance"):
+[appliance guide](appliance.md), "ze appliance"):
 
 ```bash
-ze install appliance init prod
+ze appliance init prod
 # For ARM targets, set image.arch to "arm64" in appliance.json before build.
-ze install appliance build prod
+ze appliance build prod
 ```
 
 This produces `~/.config/ze/appliances/prod/ze-<timestamp>.img` with TLS, SSH
@@ -255,16 +255,16 @@ commit; the committed config replaces the bootstrap config on the next restart.
 
 ## Appliance ISO Install
 
-For appliances built with `ze install appliance build`, ISO media is an offline
+For appliances built with `ze appliance build`, ISO media is an offline
 install transport for the gokrazy image. The image is gzip-compressed inside the
 ISO; the installer initrd decompresses it during installation. Create it with:
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- runIso -->
 
 ```bash
-ze install appliance build prod
-ze install appliance iso prod
+ze appliance build prod
+ze appliance iso prod
 make -C tools/installer-kernel ARCH=arm64
-ze install appliance iso --kernel tools/installer-kernel/build/Image prod
+ze appliance iso --kernel tools/installer-kernel/build/Image prod
 ```
 
 The ISO installer decompresses and writes the embedded image to the target disk.
@@ -277,7 +277,7 @@ injected `/perm/ze/database.zefs` into the image.
 The ISO bootloader target follows `image.arch`: amd64 images produce
 `BOOTX64.EFI`, arm64 images produce `BOOTAA64.EFI`. By default the command looks
 for `tools/installer-kernel/build/Image` and pairs that kernel with the shared
-initrd. Build the matching architecture before running `ze install appliance
+initrd. Build the matching architecture before running `ze appliance
 iso`, or pass `--kernel` to keep multiple kernels side by side.
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- isoGRUBTarget, defaultISOKernelPath -->
 
@@ -288,7 +288,7 @@ builder-generated media id match before it trusts a mounted installer volume.
 <!-- source: tools/installer-initrd/init -- find_target_disk, find_iso_media -->
 
 ```bash
-ze install appliance iso --target /dev/vda prod
+ze appliance iso --target /dev/vda prod
 ```
 
 The generated ISO includes the installer kernel, initrd, the selected image,
@@ -580,7 +580,7 @@ for the full rationale and the list of forced options.
 ## End-to-End QEMU Verification
 
 `make ze-install-qemu-test` exercises the entire chain in QEMU with no hardware:
-it builds the initrd, builds a real appliance image with `ze install appliance`
+it builds the initrd, builds a real appliance image with `ze appliance`
 (see the [appliance guide](appliance.md)), boots the installer kernel + initrd
 against a blank virtio disk, has the initrd download and write the image and
 zefs over HTTP, then boots the **written disk** and logs in over SSH as the
@@ -592,7 +592,7 @@ ZE_INSTALL_KERNEL=$PWD/tools/installer-kernel/build/Image make ze-install-qemu-t
 ```
 
 `make ze-install-iso-qemu-test` exercises the appliance ISO transport. It builds
-the initrd and appliance image, creates an ISO through `ze install appliance
+the initrd and appliance image, creates an ISO through `ze appliance
 iso`, boots that ISO in QEMU, verifies the embedded image is written without the
 PXE-only ZeFS download branch, verifies the installer powers off safely, inspects
 the written GPT layout, and logs in over SSH using credentials from the embedded

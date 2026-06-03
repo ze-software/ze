@@ -74,7 +74,7 @@ func runBuild(args []string) int {
 	allFlag := fs.Bool("all", false, "Build all appliances in the directory")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze install appliance build [options] <name>\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: ze appliance build [options] <name>\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		fs.PrintDefaults()
 	}

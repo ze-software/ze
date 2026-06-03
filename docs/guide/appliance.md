@@ -1,6 +1,6 @@
 # VM Appliance
 
-Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org). The default target is x86_64. The legacy Make workflow uses `GOKRAZY_ARCH=arm64` for native Apple Silicon QEMU images; the structured `ze install appliance build` workflow uses `image.arch` in `appliance.json`. The result is a minimal Linux system that runs Ze as its only application, with no package manager, no shell (except emergency serial console), and automatic process supervision.
+Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org). The default target is x86_64. The legacy Make workflow uses `GOKRAZY_ARCH=arm64` for native Apple Silicon QEMU images; the structured `ze appliance build` workflow uses `image.arch` in `appliance.json`. The result is a minimal Linux system that runs Ze as its only application, with no package manager, no shell (except emergency serial console), and automatic process supervision.
 
 Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 <!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
@@ -32,7 +32,7 @@ brew install qemu         # VM runtime (testing only)
 
 For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
 plus `xorriso`.
-`ze install appliance iso` checks those tools before it stages an ISO.
+`ze appliance iso` checks those tools before it stages an ISO.
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- resolveISOBuilder -->
 
 The gokrazy build tool (`gok`) is vendored in the repo at `gokrazy/tools/vendor/` and built automatically by Make. No separate install needed.
@@ -125,7 +125,7 @@ The first build:
 
 1. Builds `bin/ze` for the host
 2. Runs `ze init` with credentials and generates a self-signed TLS certificate
-3. Cross-compiles Ze for linux/`GOKRAZY_ARCH` in the Make workflow, or linux/`image.arch` in the structured `ze install appliance build` workflow, and builds a 2GB disk image
+3. Cross-compiles Ze for linux/`GOKRAZY_ARCH` in the Make workflow, or linux/`image.arch` in the structured `ze appliance build` workflow, and builds a 2GB disk image
 4. Formats the persistent `/perm` partition
 5. Injects `database.zefs` (credentials + TLS cert) into `/perm/ze/`
 
@@ -227,12 +227,12 @@ Ze's environment is set in `gokrazy/ze/config.json` under `PackageConfig`:
 Gokrazy supports atomic A/B partition updates over the network:
 
 ```bash
-ze install appliance push <name>
+ze appliance push <name>
 ```
 
 This pushes the most recent image to the device. The system reboots into the new version. If the update fails mid-flight, the previous root partition is still intact.
 
-For full image rebuilds (when you also want to update the kernel or partition layout), use `ze install appliance build <name>` again and re-flash.
+For full image rebuilds (when you also want to update the kernel or partition layout), use `ze appliance build <name>` again and re-flash.
 
 ## Architecture notes
 
@@ -278,21 +278,19 @@ gokrazy/
 
 The `tools/vendor/` directory contains the gok build tool source (committed to git). The `builddir/` files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after `make ze-gokrazy-deps`.
 
-## ze install appliance (structured workflow)
+## ze appliance (structured workflow)
 
-The `ze install appliance` command replaces the `make ze-gokrazy USER=x PASS=y` workflow with structured appliance management. Each appliance has its own directory with a JSON config, encrypted secrets, and a TLS certificate.
-
-> **Note:** `ze appliance` is a deprecated alias for `ze install appliance` and will print a warning.
+The `ze appliance` command replaces the `make ze-gokrazy USER=x PASS=y` workflow with structured appliance management. Each appliance has its own directory with a JSON config, encrypted secrets, and a TLS certificate.
 
 ### Quick start
 
 ```bash
-ze install appliance init lab                  # interactive wizard
-ze install appliance assemble lab              # build ZeFS database only
-ze install appliance build lab                 # full image (assemble + gok + ext4)
-ze install appliance iso lab                   # bootable installer ISO from latest image
-ze install appliance list                      # show all appliances
-ze install appliance show lab                  # config summary + cert expiry
+ze appliance init lab                  # interactive wizard
+ze appliance assemble lab              # build ZeFS database only
+ze appliance build lab                 # full image (assemble + gok + ext4)
+ze appliance iso lab                   # bootable installer ISO from latest image
+ze appliance list                      # show all appliances
+ze appliance show lab                  # config summary + cert expiry
 ```
 
 ### Appliance directory
@@ -318,22 +316,22 @@ By default, appliances live in `~/.config/ze/appliances/`. Override with `--dir`
 
 ### Encryption
 
-Secrets are encrypted at rest with Argon2id + XChaCha20-Poly1305 when an encryption passphrase is set during `ze install appliance init`. The passphrase is never stored on disk. For fleet operations, `ze install appliance unlock` starts a passphrase agent (like ssh-agent) that holds the derived key in memory.
+Secrets are encrypted at rest with Argon2id + XChaCha20-Poly1305 when an encryption passphrase is set during `ze appliance init`. The passphrase is never stored on disk. For fleet operations, `ze appliance unlock` starts a passphrase agent (like ssh-agent) that holds the derived key in memory.
 
 ```bash
-ze install appliance unlock                    # start agent (prompts for passphrase)
-ze install appliance unlock --duration 15m     # auto-expire after 15 minutes
-ze install appliance unlock --stop             # stop agent
+ze appliance unlock                    # start agent (prompts for passphrase)
+ze appliance unlock --duration 15m     # auto-expire after 15 minutes
+ze appliance unlock --stop             # stop agent
 ```
 
 ### Day-2 operations
 
 ```bash
-ze install appliance passwd lab                # rotate SSH password
-ze install appliance replace-cert lab          # regenerate self-signed cert
-ze install appliance replace-cert lab --cert ca.pem --key ca.key   # use CA-signed cert
-ze install appliance rekey lab                 # change encryption passphrase
-ze install appliance clone lab lab2            # copy config (not secrets)
+ze appliance passwd lab                # rotate SSH password
+ze appliance replace-cert lab          # regenerate self-signed cert
+ze appliance replace-cert lab --cert ca.pem --key ca.key   # use CA-signed cert
+ze appliance rekey lab                 # change encryption passphrase
+ze appliance clone lab lab2            # copy config (not secrets)
 ```
 
 ### Config layering
@@ -378,7 +376,7 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 
 ### ISO installer media
 
-Create an installer ISO from an image already produced by `ze install appliance
+Create an installer ISO from an image already produced by `ze appliance
 build`. By default the command selects the latest `ze-*.img` in the appliance
 directory, verifies its `.sha256` sidecar, and writes `ze-*.iso` next to the
 image. Use `--image` to select a specific image filename and `--output` to write
@@ -386,16 +384,16 @@ the ISO elsewhere. The output path must not overwrite the selected `.img`, and
 the image filename must stay within `[A-Za-z0-9._-]` so the initrd can pass it
 on the kernel command line. By default the installer kernel path is
 `tools/installer-kernel/build/Image`; build the matching architecture before you
-run `ze install appliance iso`, or pass `--kernel` to keep multiple kernels
+run `ze appliance iso`, or pass `--kernel` to keep multiple kernels
 side by side.
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
 
-    ze install appliance build lab
-    ze install appliance iso lab
-    ze install appliance iso --image ze-20260601-120000.img lab
-    ze install appliance iso --output /path/to/lab.iso lab
+    ze appliance build lab
+    ze appliance iso lab
+    ze appliance iso --image ze-20260601-120000.img lab
+    ze appliance iso --output /path/to/lab.iso lab
     make -C tools/installer-kernel ARCH=arm64
-    ze install appliance iso --kernel tools/installer-kernel/build/Image lab
+    ze appliance iso --kernel tools/installer-kernel/build/Image lab
 
 The ISO is an installer envelope around the existing raw gokrazy image. The image
 is gzip-compressed inside the ISO to reduce media size (a 2 GiB image with ~100
@@ -417,7 +415,7 @@ confuse the source selection. With multiple fixed disks, pass a whole disk path
 such as `/dev/vda` at ISO creation time:
 <!-- source: tools/installer-initrd/init -- find_target_disk, find_iso_media, validate_media_id -->
 
-    ze install appliance iso --target /dev/vda lab
+    ze appliance iso --target /dev/vda lab
 
 After the installer writes the disk in ISO mode, it powers off instead of
 rebooting. Remove the installer media, then power the target back on so the
@@ -432,10 +430,10 @@ ZeFS database. Handle the ISO with the same care as the `.img` file.
 
 Push a built image to a running gokrazy device via its HTTPS update endpoint:
 
-    ze install appliance push lab
-    ze install appliance push --image ze-20260427-143022.img lab   # rollback to older image
-    ze install appliance push --all                                # all devices with address
-    ze install appliance push --all --parallel 4                   # 4 concurrent uploads
+    ze appliance push lab
+    ze appliance push --image ze-20260427-143022.img lab   # rollback to older image
+    ze appliance push --all                                # all devices with address
+    ze appliance push --all --parallel 4                   # 4 concurrent uploads
 
 Push uses the update token (from `secrets/update.token`) for HTTP basic auth, and verifies the device TLS certificate against the stored `cert.pem`. No system CA pool is consulted.
 
@@ -446,14 +444,14 @@ rejected before any network or TLS work starts.
 
 Preview the effective configuration (base + overlay merged) without building:
 
-    ze install appliance config lab --merged
+    ze appliance config lab --merged
 
 Push a config change to a running device without rebuilding the image:
 
-    ze install appliance config-push lab
-    ze install appliance config-push --dry-run lab    # preview only, no SSH connection
-    ze install appliance config-push --all            # all addressed devices
-    ze install appliance config-push --all --parallel 4
+    ze appliance config-push lab
+    ze appliance config-push --dry-run lab    # preview only, no SSH connection
+    ze appliance config-push --all            # all addressed devices
+    ze appliance config-push --all --parallel 4
 
 Config-push uses SSH (operator's key via ssh-agent) to upload the merged config to the device, which validates and applies it. No secrets are transmitted over SSH.
 
@@ -470,7 +468,7 @@ If a pushed config exists and passes validation (`config.LoadConfig`), the devic
 
 After loading the effective config, the device writes its SHA-256 hash to `/perm/ze/config-active-hash` for fleet drift detection.
 
-**Last-known-good hash:** at build time, `ze install appliance build` writes the SHA-256 of the validated seed config to `meta/config/last-known-good` in ZeFS. This is immutable and serves as the integrity baseline.
+**Last-known-good hash:** at build time, `ze appliance build` writes the SHA-256 of the validated seed config to `meta/config/last-known-good` in ZeFS. This is immutable and serves as the integrity baseline.
 
 **Auto-revert after config-push:** when `config-push` applies a new config, the device monitors BGP sessions for 30 seconds. If any session flaps during that window, the device reverts to the previous config (or the seed config if no previous exists). If all sessions remain stable, the new config is confirmed and its hash is written to `/perm/ze/last-known-good-pushed`.
 
@@ -478,7 +476,7 @@ After loading the effective config, the device writes its SHA-256 hash to `/perm
 
 Initialize multiple appliances from a JSON manifest:
 
-    ze install appliance init --batch manifest.json
+    ze appliance init --batch manifest.json
 
 Manifest format (array of entries):
 
@@ -497,20 +495,20 @@ Export creates an encrypted archive of an appliance directory for offsite backup
 
 Export a single appliance:
 
-    ze install appliance export lab
+    ze appliance export lab
     # creates lab.ze.enc in the current directory
 
 Export all appliances:
 
-    ze install appliance export --all
+    ze appliance export --all
     # creates appliances-YYYYMMDD-HHMMSS.ze.enc
 
 Import restores from an archive:
 
-    ze install appliance import lab.ze.enc
+    ze appliance import lab.ze.enc
 
 Import to a different bastion (migration):
 
-    ze install appliance import lab.ze.enc --dir /path/to/new/bastion
+    ze appliance import lab.ze.enc --dir /path/to/new/bastion
 
 Archives are always encrypted using the same Argon2id + XChaCha20-Poly1305 scheme as secrets at rest. The archive passphrase can differ from the secrets passphrase. Use `--force` on import to overwrite existing appliance directories.

@@ -63,7 +63,7 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 }
 
 func TestGokrazyConfigBuildsStrippedZeBinary(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "gokrazy", "ze", "config.json")) //nolint:gosec // repo fixture
+	data, err := os.ReadFile(filepath.Join("..", "..", "gokrazy", "ze", "config.json")) //nolint:gosec // repo fixture
 	if err != nil {
 		t.Fatalf("read gokrazy config: %v", err)
 	}

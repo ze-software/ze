@@ -3,7 +3,7 @@
 
 This is the real coverage behind test/install/qemu-full.ci. It builds the
 installer initrd from scratch, builds a credential-matched gokrazy image with
-`ze install appliance`, serves the image + checksum + zefs database over HTTP,
+`ze appliance`, serves the image + checksum + zefs database over HTTP,
 then boots the installer kernel + initrd in QEMU against a blank disk. It
 asserts the initrd's serial success markers (image written, install complete),
 and finally re-boots the written disk and logs in over SSH as the power user to
@@ -222,21 +222,21 @@ def build_image(root: Path, work: Path) -> Path:
     # Non-interactive init: password via the CI env var, EOF stdin so the wizard
     # falls back to DefaultConfig (username defaults to "admin" == SSH_USER).
     env["ze.appliance.ssh.password"] = SSH_PASS
-    # `ze install appliance build` shells out to debugfs/mkfs.ext4 by name; on
+    # `ze appliance build` shells out to debugfs/mkfs.ext4 by name; on
     # macOS those live in the (keg-only) e2fsprogs prefix, off PATH by default.
     e2fs_sbin = Path("/opt/homebrew/opt/e2fsprogs/sbin")
     if e2fs_sbin.is_dir():
         env["PATH"] = f"{e2fs_sbin}:{env.get('PATH', '')}"
     init = run(
-        [ze, "install", "appliance", "init", name],
+        [ze, "appliance", "init", name],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
     )
     if init.returncode != 0:
-        raise SystemExit(f"ze install appliance init failed:\n{init.stdout}")
-    # Match the appliance config to ZE_INSTALL_ARCH. `ze install appliance build`
+        raise SystemExit(f"ze appliance init failed:\n{init.stdout}")
+    # Match the appliance config to ZE_INSTALL_ARCH. `ze appliance build`
     # reads image.arch from appliance.json, not GOKRAZY_ARCH.
     cfg_path = appliance_dir / name / "appliance.json"
     cfg_json = json.loads(cfg_path.read_text())
@@ -254,13 +254,13 @@ def build_image(root: Path, work: Path) -> Path:
         cfg_json.setdefault("image", {})["size-bytes"] = size_bytes
     cfg_path.write_text(json.dumps(cfg_json))
     build = run(
-        [ze, "install", "appliance", "build", name],
+        [ze, "appliance", "build", name],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
     )
     if build.returncode != 0:
-        raise SystemExit(f"ze install appliance build failed:\n{build.stdout}")
+        raise SystemExit(f"ze appliance build failed:\n{build.stdout}")
     imgs = sorted(appliance_dir.rglob("ze-*.img"))
     if not imgs:
         raise SystemExit("appliance build produced no image")
@@ -268,13 +268,13 @@ def build_image(root: Path, work: Path) -> Path:
     # it into /perm, so re-run assemble --keep AFTERWARD to retain a copy of the
     # same credential-bearing database for the initrd to download.
     assemble = run(
-        [ze, "install", "appliance", "assemble", "--keep", name],
+        [ze, "appliance", "assemble", "--keep", name],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
     )
     if assemble.returncode != 0:
-        raise SystemExit(f"ze install appliance assemble failed:\n{assemble.stdout}")
+        raise SystemExit(f"ze appliance assemble failed:\n{assemble.stdout}")
     zefs = next(iter(sorted(appliance_dir.rglob("*.zefs"))), None)
     return imgs[-1], zefs
 

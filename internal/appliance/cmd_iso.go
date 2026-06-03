@@ -107,15 +107,15 @@ func runIso(args []string) int {
 	fs.BoolVar(&opts.keepStaging, "keep-staging", false, "Keep temporary ISO staging directory for inspection")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze install appliance iso [options] <name>\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: ze appliance iso [options] <name>\n\n")
 		fmt.Fprintf(os.Stderr, "Build a bootable installer ISO around an existing appliance image.\n")
 		fmt.Fprintf(os.Stderr, "The selected image must stay inside the appliance directory and must have a matching .sha256 sidecar.\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  ze install appliance iso lab\n")
-		fmt.Fprintf(os.Stderr, "  ze install appliance iso --image ze-20260601-120000.img lab\n")
-		fmt.Fprintf(os.Stderr, "  ze install appliance iso --target /dev/vda lab\n")
+		fmt.Fprintf(os.Stderr, "  ze appliance iso lab\n")
+		fmt.Fprintf(os.Stderr, "  ze appliance iso --image ze-20260601-120000.img lab\n")
+		fmt.Fprintf(os.Stderr, "  ze appliance iso --target /dev/vda lab\n")
 	}
 
 	if err := fs.Parse(args); err != nil {
@@ -443,7 +443,7 @@ func readRequiredImageChecksum(imgPath string) (string, error) {
 	data, err := os.ReadFile(checksumPath) //nolint:gosec // appliance sidecar
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", fmt.Errorf("checksum sidecar %s is required; run `ze install appliance build <name>` to create it", filepath.Base(checksumPath))
+			return "", fmt.Errorf("checksum sidecar %s is required; run `ze appliance build <name>` to create it", filepath.Base(checksumPath))
 		}
 		return "", fmt.Errorf("read checksum sidecar: %w", err)
 	}

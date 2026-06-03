@@ -507,8 +507,6 @@ dispatch:
 		exit(zesignal.Run(args[1:]))
 	case "status":
 		exit(zesignal.RunStatus(args[1:]))
-	case "appliance":
-		exit(runDeprecatedAppliance(args[1:]))
 	case "service":
 		exit(runService(args[1:]))
 	case "install":

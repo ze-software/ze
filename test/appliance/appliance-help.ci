@@ -1,7 +1,7 @@
-# Test: ze install appliance — help output
-# spec-install-8 AC-18: ze install appliance --help shows ISO command safety surface.
+# Test: ze appliance -- help output
+# spec-appliance-command-plugin AC-4/AC-9: ze appliance --help shows the action surface.
 
-cmd=foreground:seq=1:exec=ze install appliance --help
+cmd=foreground:seq=1:exec=ze appliance --help
 expect=exit:code=0
 expect=stdout:contains=init
 expect=stdout:contains=build

@@ -134,6 +134,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [829](plan/learned/829-command-verb-first.md) -- Verb-first commands: small root verb set, deprecated aliases only for released names, longest-prefix dispatch needs deprecated-prefix lookup
 - [814](plan/learned/814-pol-4-explain.md) -- Policy dry-run: show policy test command, TracePolicyFilterChain trace helper, narrow PolicyDryRunner interface, per-filter decision trace, wire diff output
 - [849](plan/learned/849-command-surface-ownership.md) -- Command surface ownership: container-merge YANG, owner/cmd handler pattern, dedicated feature modules (ping/traceroute), exported doctor check registry, generic-stay allowlist, substring-marker YANG gotcha
+- [850](plan/learned/850-appliance-command-plugin.md) -- Appliance command plugin: reversed 815, moved appliance from cmd/ze/install/appliance/ to internal/appliance/ as self-contained command provider, ze appliance replaces ze install appliance, clean break (supersedes 815)
 
 ## Web Interface
 

@@ -1,5 +1,5 @@
-# Test: ze install appliance push rejects image symlink escape.
-# spec-install-8: shared appliance image resolution protects push entrypoints too.
+# Test: ze appliance push rejects image symlink escape.
+# spec-appliance-command-plugin: shared appliance image resolution protects push entrypoints too.
 #
 # Creates a real appliance directory with generated secrets, then places the only
 # candidate image as a symlink to a host file outside the appliance directory.
@@ -11,10 +11,10 @@ tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
 set -eu
 mkdir appliances
-ze install appliance --dir appliances init --config push-config.json lab >/dev/null 2>&1
+ze appliance --dir appliances init --config push-config.json lab >/dev/null 2>&1
 printf 'outside image\n' > outside.img
 ln -s ../outside.img appliances/lab/ze-20260101-000000.img
-if ze install appliance --dir appliances push lab >/dev/null 2>push.err; then
+if ze appliance --dir appliances push lab >/dev/null 2>push.err; then
     echo "push unexpectedly succeeded" >&2
     exit 1
 fi

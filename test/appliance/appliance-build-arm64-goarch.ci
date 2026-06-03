@@ -1,4 +1,4 @@
-# Test: ze install appliance build honors image.arch=arm64 for gok go subprocesses.
+# Test: ze appliance build honors image.arch=arm64 for gok go subprocesses.
 # The fake go executable must be reached through the CLI build path and fails if
 # gok inherits the host/default GOARCH instead of the appliance image arch.
 
@@ -54,7 +54,7 @@ exit 0
 EOF_GO
 chmod +x "$work/fakebin/go"
 
-ze install appliance --dir "$work/appliances" init --config "$work/build-config.json" lab >/dev/null 2>&1
+ze appliance --dir "$work/appliances" init --config "$work/build-config.json" lab >/dev/null 2>&1
 : > "$work/goarch.log"
 (
 	cd "$repo"
@@ -62,7 +62,7 @@ ze install appliance --dir "$work/appliances" init --config "$work/build-config.
 	ZE_GOARCH_LOG="$work/goarch.log" \
 	ZE_FAKE_PKGDIR="$work/fakepkg" \
 	PATH="$work/fakebin:$PATH" \
-	ze install appliance --dir "$work/appliances" build lab >"$work/build.out" 2>"$work/build.err" || code=$?
+	ze appliance --dir "$work/appliances" build lab >"$work/build.out" 2>"$work/build.err" || code=$?
 	: "${code:=0}"
 	# The fake go must not be the reason build failed. Later image assembly may
 	# stop because the fake builder did not create a real gokrazy disk image.

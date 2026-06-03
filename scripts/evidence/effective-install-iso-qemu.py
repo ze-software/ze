@@ -3,7 +3,7 @@
 
 This is the real coverage behind test/install/qemu-iso.ci. It builds the
 installer initrd, builds a credential-bearing appliance image, wraps that exact
-image in a bootable ISO via `ze install appliance iso`, boots the ISO in QEMU
+image in a bootable ISO via `ze appliance iso`, boots the ISO in QEMU
 against a blank disk, checks the installer serial markers, verifies that the ISO
 path did not run the PXE-only zefs injection branch, compares the source and
 ISO-contained image hashes, inspects the written GPT partition layout, verifies
@@ -102,14 +102,14 @@ def write_checksum(path: Path) -> None:
 
 def init_appliance(ze: Path, appliance_dir: Path, env: dict[str, str]) -> Path:
     init = run(
-        [str(ze), "install", "appliance", "init", IMAGE_NAME],
+        [str(ze), "appliance", "init", IMAGE_NAME],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
     )
     if init.returncode != 0:
-        raise SystemExit(f"ze install appliance init failed:\n{init.stdout}")
+        raise SystemExit(f"ze appliance init failed:\n{init.stdout}")
     return appliance_dir / IMAGE_NAME
 
 
@@ -153,13 +153,13 @@ def prepare_image(
     cfg_path.write_text(json.dumps(cfg))
 
     build = run(
-        [str(ze), "install", "appliance", "build", IMAGE_NAME],
+        [str(ze), "appliance", "build", IMAGE_NAME],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
     )
     if build.returncode != 0:
-        raise SystemExit(f"ze install appliance build failed:\n{build.stdout}")
+        raise SystemExit(f"ze appliance build failed:\n{build.stdout}")
     imgs = sorted(app_dir.glob("ze-*.img"))
     if not imgs:
         raise SystemExit("appliance build produced no image")
@@ -178,7 +178,6 @@ def create_iso(
     iso = app_dir / "ze-install.iso"
     cmd = [
         str(ze),
-        "install",
         "appliance",
         "iso",
         "--kernel",
@@ -195,7 +194,7 @@ def create_iso(
     cmd.append(IMAGE_NAME)
     built = run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
     if built.returncode != 0:
-        raise SystemExit(f"ze install appliance iso failed:\n{built.stdout}")
+        raise SystemExit(f"ze appliance iso failed:\n{built.stdout}")
     if not iso.is_file():
         raise SystemExit("ISO command returned success but produced no ISO")
     return iso

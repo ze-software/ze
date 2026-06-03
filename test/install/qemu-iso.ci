@@ -2,7 +2,7 @@
 #
 # Drives scripts/evidence/effective-install-iso-qemu.py, which builds the
 # installer initrd + a credential-bearing appliance image, creates a bootable
-# ISO via `ze install appliance iso --target`, boots that ISO in QEMU against
+# ISO via `ze appliance iso --target`, boots that ISO in QEMU against
 # two blank disks, asserts the initrd consumes ze.target, writes the embedded
 # image without PXE zefs injection, powers off safely, then boots the written
 # disk and logs in over SSH using the image's embedded ZeFS credentials.

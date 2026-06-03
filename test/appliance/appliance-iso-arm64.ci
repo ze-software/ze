@@ -1,4 +1,4 @@
-# Test: ze install appliance iso builds arm64 UEFI media.
+# Test: ze appliance iso builds arm64 UEFI media.
 # Covers the arm64 user path with default kernel/initrd lookup and verifies the
 # generated staging tree carries arm64-specific EFI and kernel-console settings.
 
@@ -47,7 +47,7 @@ printf 'iso-arm64\n' > "$out"
 EOF_XORRISO
 chmod +x xorriso
 export PATH="$PWD:$PATH"
-ze install appliance --dir appliances init --config iso-config.json lab >/dev/null 2>&1
+ze appliance --dir appliances init --config iso-config.json lab >/dev/null 2>&1
 printf 'image-bytes\n' > appliances/lab/ze-20260101-000000.img
 python3 - <<'PY'
 from pathlib import Path
@@ -55,7 +55,7 @@ import hashlib
 p = Path('appliances/lab/ze-20260101-000000.img')
 p.with_suffix(p.suffix + '.sha256').write_text(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n')
 PY
-ze install appliance --dir appliances iso --keep-staging lab >/dev/null
+ze appliance --dir appliances iso --keep-staging lab >/dev/null
 set -- appliances/lab/.iso-staging-*
 stage="$1"
 [ -d "$stage" ]

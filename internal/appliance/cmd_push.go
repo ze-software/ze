@@ -21,10 +21,10 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/install/appliance/updater"
+	"codeberg.org/thomas-mangin/ze/internal/appliance/updater"
 )
 
-var errNoImagesFoundRunzeAppliance = errors.New("no images found; run `ze install appliance build <name>` first")
+var errNoImagesFoundRunzeAppliance = errors.New("no images found; run `ze appliance build <name>` first")
 
 var doPushFn = doPushUpdater
 
@@ -41,15 +41,15 @@ func runPush(args []string) int {
 	noRebootFlag := fs.Bool("no-reboot", false, "Stream and switch but do not reboot")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze install appliance push [options] <name>\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: ze appliance push [options] <name>\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  ze install appliance push lab\n")
-		fmt.Fprintf(os.Stderr, "  ze install appliance push --image ze-20260427-143022.img lab\n")
-		fmt.Fprintf(os.Stderr, "  ze install appliance push --testboot lab\n")
-		fmt.Fprintf(os.Stderr, "  ze install appliance push --all\n")
-		fmt.Fprintf(os.Stderr, "  ze install appliance push --all --parallel 4\n")
+		fmt.Fprintf(os.Stderr, "  ze appliance push lab\n")
+		fmt.Fprintf(os.Stderr, "  ze appliance push --image ze-20260427-143022.img lab\n")
+		fmt.Fprintf(os.Stderr, "  ze appliance push --testboot lab\n")
+		fmt.Fprintf(os.Stderr, "  ze appliance push --all\n")
+		fmt.Fprintf(os.Stderr, "  ze appliance push --all --parallel 4\n")
 	}
 
 	if err := fs.Parse(args); err != nil {

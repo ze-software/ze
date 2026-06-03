@@ -203,7 +203,7 @@ func mustReadFile(t *testing.T, path string) []byte {
 }
 
 func TestRunDispatchesIso(t *testing.T) {
-	// VALIDATES: `ze install appliance iso <name>` reaches the ISO command handler.
+	// VALIDATES: `ze appliance iso <name>` reaches the ISO command handler.
 	// PREVENTS: adding the command to help without wiring it into dispatch.
 	handler, ok := dispatchTable()["iso"]
 	if !ok {

@@ -1,0 +1,5 @@
+# Test: ze appliance list -- registry dispatch wiring
+# spec-appliance-command-plugin AC-4: ze appliance list runs through registry-dispatched provider.
+
+cmd=foreground:seq=1:exec=ze appliance list
+expect=exit:code=0

@@ -1,7 +1,9 @@
 // Design: plan/learned/675-appliance-1-builder.md — appliance CLI dispatch
 //
-// Package appliance provides the ze install appliance subcommand for managing
-// gokrazy-based Ze appliance images.
+// Package appliance is the self-contained command provider for ze appliance.
+// It owns the entire appliance command surface and registers it through the
+// importable offline command registry. It has no daemon, bus, or engine
+// presence; all commands are offline shell commands for build-host tooling.
 package appliance
 
 import (
@@ -9,8 +11,8 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
+	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
 )
 
 const (
@@ -161,9 +163,9 @@ var (
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze install appliance",
+		Command: "ze appliance",
 		Summary: "Manage gokrazy-based Ze appliance images",
-		Usage:   []string{"ze install appliance [--dir <path>] <command> [args...]"},
+		Usage:   []string{"ze appliance [--dir <path>] <command> [args...]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: applianceHelpEntries()},
 			{Title: "Flags", Entries: []helpfmt.HelpEntry{
@@ -171,11 +173,11 @@ func usage() {
 			}},
 		},
 		Examples: []string{
-			"ze install appliance init lab",
-			"ze install appliance build lab",
-			"ze install appliance iso lab",
-			"ze install appliance list",
-			"ze install appliance show lab",
+			"ze appliance init lab",
+			"ze appliance build lab",
+			"ze appliance iso lab",
+			"ze appliance list",
+			"ze appliance show lab",
 		},
 	}
 	p.Write()

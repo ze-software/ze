@@ -26,7 +26,7 @@ make LINUX_VERSION=6.12.9 # pin a different kernel
 
 Output: `build/Image` (the kernel) and `build/config` (the resolved config).
 If you want to keep both architectures side by side, copy or rename the kernel
-after each build and pass it back to `ze install appliance iso --kernel ...`.
+after each build and pass it back to `ze appliance iso --kernel ...`.
 
 ## Use with the QEMU install test
 

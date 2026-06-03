@@ -1,8 +1,0 @@
-# Test: ze appliance — deprecated alias prints warning
-# spec-install-7a AC-3: ze appliance prints deprecation warning then delegates.
-
-cmd=foreground:seq=1:exec=ze appliance --help
-expect=exit:code=0
-expect=stderr:contains=deprecated
-expect=stdout:contains=init
-expect=stdout:contains=build
