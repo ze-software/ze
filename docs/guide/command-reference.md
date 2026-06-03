@@ -786,7 +786,7 @@ ze show dns lookup example.com type MX         # MX record
 Returns structured JSON with name, type, records, count, query-time-ms.
 Supported types: A, AAAA, MX, NS, TXT, CNAME, PTR.
 
-<!-- source: internal/component/cmd/show/dns.go -- handleDNSLookup -->
+<!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSLookup -->
 
 ### show dns cache
 
@@ -800,7 +800,7 @@ ze show dns cache record example.com  # Show cached entries for a specific name
 `list` returns each entry with name, type, records, and ttl-seconds.
 `record <name>` filters cached entries by name (all types for that name).
 
-<!-- source: internal/component/cmd/show/dns.go -- handleDNSCache -->
+<!-- source: internal/component/resolve/cmd/show_dns.go -- handleDNSCache -->
 
 ### clear dns cache
 

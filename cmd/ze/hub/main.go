@@ -619,7 +619,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		command.SetOriginResolver(cymruOriginAdapter{resolvers.Cymru})
 	}
 	if resolvers.DNS != nil {
-		showCmd.RegisterDNSStatsProvider(func() map[string]any {
+		resolvecmd.RegisterDNSStatsProvider(func() map[string]any {
 			s := resolvers.DNS.CacheStats()
 			total := s.Hits + s.Misses
 			var hitRate, missRate float64
@@ -638,14 +638,14 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				"expired":   s.Expired,
 			}
 		})
-		showCmd.RegisterDNSLookupProvider(func(name string, qtype uint16) (*showCmd.DNSLookupResult, error) {
+		resolvecmd.RegisterDNSLookupProvider(func(name string, qtype uint16) (*resolvecmd.DNSLookupResult, error) {
 			records, ttl, err := resolvers.DNS.ResolveWithTTL(name, qtype)
 			if err != nil {
 				return nil, err
 			}
-			return &showCmd.DNSLookupResult{Records: records, TTL: ttl}, nil
+			return &resolvecmd.DNSLookupResult{Records: records, TTL: ttl}, nil
 		})
-		showCmd.RegisterDNSEntriesProvider(func() []map[string]any {
+		resolvecmd.RegisterDNSEntriesProvider(func() []map[string]any {
 			entries := resolvers.DNS.CacheEntries()
 			out := make([]map[string]any, len(entries))
 			for i, e := range entries {

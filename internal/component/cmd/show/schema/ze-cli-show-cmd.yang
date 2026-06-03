@@ -4,6 +4,7 @@ module ze-cli-show-cmd {
     import ze-extensions { prefix ze; }
     description "Show command tree for read-only inspection of system and protocol state";
     revision 2026-03-26 { description "Initial revision"; }
+    revision 2026-06-03 { description "Relocated show dns lookup/cache out of this central schema into the resolve component (plugin self-containment)."; }
 
     container show {
         config false;
@@ -415,58 +416,6 @@ address. Quick way to verify a peer's BGP port is reachable.";
                     pattern '\d+[smh]?';
                 }
                 description "Connection timeout";
-            }
-        }
-
-        container dns {
-            config false;
-            description "DNS lookups and cache inspection";
-
-            container lookup {
-                config false;
-                ze:command "ze-show:dns-lookup";
-                description "Look up a DNS name from the router.
-Resolves <hostname> using the daemon's DNS resolver (falls back to
-the system resolver if no DNS component is configured). Default type
-is A. Returns records, TTL, and query time. Supports A, AAAA, MX,
-NS, TXT, CNAME, and PTR.";
-                leaf hostname {
-                    type string;
-                    description "Hostname to resolve";
-                }
-                leaf type {
-                    type enumeration {
-                        enum A;
-                        enum AAAA;
-                        enum MX;
-                        enum NS;
-                        enum TXT;
-                        enum CNAME;
-                        enum PTR;
-                    }
-                    description "DNS record type";
-                }
-            }
-
-            container cache {
-                config false;
-                ze:command "ze-show:dns-cache";
-                description "Inspect the DNS cache.
-'stats' shows hit/miss/eviction counters. 'list' shows all cached
-entries. 'record <name>' shows one specific entry. Requires the DNS
-component to be active.";
-                leaf action {
-                    type enumeration {
-                        enum stats;
-                        enum list;
-                        enum record;
-                    }
-                    description "Cache operation";
-                }
-                leaf name {
-                    type string;
-                    description "Record name (for record action)";
-                }
             }
         }
 

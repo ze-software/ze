@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md -- clear verb RPC registration
-// Related: ../show/dns.go -- show dns cache stats/entries (read-only)
+// Related: show_dns.go -- show dns cache stats/entries (read-only)
 
 package cmd
 

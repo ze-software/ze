@@ -1,7 +1,7 @@
 // Design: plan/spec-diag-core.md -- DNS lookup and cache stats (dig replacement)
-// Related: show.go -- sibling show handlers
+// Related: dns.go -- clear dns cache (same resolve component owner)
 
-package show
+package cmd
 
 import (
 	"context"

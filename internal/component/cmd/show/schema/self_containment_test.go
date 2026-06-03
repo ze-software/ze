@@ -69,6 +69,8 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 		`"ze-show:interface-counters"`: "interface counters -> internal/component/iface/schema",
 		`"ze-show:interface-scan"`:     "interface scan -> internal/component/iface/schema",
 		`"ze-show:traffic"`:            "traffic control (QoS) -> internal/component/traffic/schema",
+		`"ze-show:dns-lookup"`:         "DNS lookup -> internal/component/resolve/schema",
+		`"ze-show:dns-cache"`:          "DNS cache inspection -> internal/component/resolve/schema",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliShowCmdYANG, token) {
