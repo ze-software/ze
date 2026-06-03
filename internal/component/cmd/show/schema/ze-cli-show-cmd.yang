@@ -810,18 +810,11 @@ Send the output to support when reporting a crash.";
             }
         }
 
-        container mpls {
-            config false;
-            description "MPLS forwarding table and label operations";
-
-            container forwarding {
-                config false;
-                ze:command "ze-show:mpls-forwarding";
-                description "Show MPLS forwarding entries installed in the kernel.
-Each entry shows the incoming label, swap/push/pop operation, and
-outgoing next-hop. Use --limit N for large tables. Linux only.";
-            }
-        }
+        // NOTE: the `show mpls ...` subtree is owned by the MPLS component
+        // so that removing MPLS removes it (no dangling command node).
+        // `show mpls forwarding` lives in
+        // internal/component/mpls/schema/ze-mpls-cmd.yang next to its
+        // handler. See ai/rules/plugin-self-containment.md.
 
         // NOTE: the `show storage ...` subtree is owned by the storage
         // component so that removing storage removes it (no dangling

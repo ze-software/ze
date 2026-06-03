@@ -549,8 +549,8 @@ disposition / implicit-null), any `out-labels`, the `next-hop`, and the
 egress `device`. On non-Linux platforms the table is empty (the kernel
 MPLS FIB is Linux-only).
 
-<!-- source: internal/component/cmd/show/mpls_forwarding.go -- handleShowMPLSForwarding -->
-<!-- source: internal/component/cmd/show/mpls_forwarding_linux.go -- dumpMPLSRoutes -->
+<!-- source: internal/component/mpls/show_forwarding.go -- handleShowMPLSForwarding -->
+<!-- source: internal/component/mpls/forwarding_linux.go -- dumpMPLSRoutes -->
 
 ### show pki
 

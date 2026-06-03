@@ -80,6 +80,7 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 		`"ze-show:storage-smart"`:      "storage SMART -> internal/component/storage/schema",
 		`"ze-show:gnmi"`:               "gNMI server status -> internal/component/gnmi/schema",
 		`"ze-show:aaa-accounting"`:     "AAA accounting -> internal/component/aaa/schema",
+		`"ze-show:mpls-forwarding"`:    "MPLS forwarding -> internal/component/mpls/schema",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliShowCmdYANG, token) {

@@ -78,4 +78,4 @@ neighbor.
 <!-- source: internal/plugins/fib/kernel/mpls.go -- label validation -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap (push) -->
 <!-- source: internal/component/iface/config_sysctl.go -- net.mpls.conf.<iface>.input -->
-<!-- source: internal/component/cmd/show/mpls_forwarding.go -- show mpls forwarding -->
+<!-- source: internal/component/mpls/show_forwarding.go -- show mpls forwarding -->
