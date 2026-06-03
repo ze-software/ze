@@ -60,7 +60,16 @@ stage="$1"
 [ -d "$stage" ]
 [ "$(cat "$stage/boot/kernel")" = "kernel-default" ]
 [ "$(cat "$stage/boot/initrd.img.gz")" = "initrd-default" ]
-grep -q 'console=ttyS0' "$stage/boot/grub/grub.cfg"
+grep -q 'console=tty0 console=ttyS0' "$stage/boot/grub/grub.cfg"
+[ -f "$stage/ze-install/images/ze-20260101-000000.img.gz" ]
+[ -f "$stage/ze-install/images/ze-20260101-000000.img.gz.sha256" ]
+grep -q 'ze.image=ze-20260101-000000.img.gz' "$stage/boot/grub/grub.cfg"
+python3 -c "
+import gzip, sys
+with gzip.open(sys.argv[1], 'rb') as f:
+    content = f.read()
+assert content == b'image-bytes\n', f'decompressed content: {content!r}'
+" "$stage/ze-install/images/ze-20260101-000000.img.gz"
 echo OK
 EOF_SH
 

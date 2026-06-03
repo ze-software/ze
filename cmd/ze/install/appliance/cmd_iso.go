@@ -3,6 +3,7 @@
 package appliance
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -69,15 +70,16 @@ type isoBuildInput struct {
 }
 
 type isoManifest struct {
-	Appliance   string `json:"appliance"`
-	Arch        string `json:"arch"`
-	Image       string `json:"image"`
-	ImageSHA256 string `json:"image-sha256"`
-	Kernel      string `json:"kernel"`
-	Initrd      string `json:"initrd"`
-	Target      string `json:"target,omitempty"`
-	MediaID     string `json:"media-id"`
-	CreatedAt   string `json:"created-at"`
+	Appliance        string `json:"appliance"`
+	Arch             string `json:"arch"`
+	Image            string `json:"image"`
+	ImageSHA256      string `json:"image-sha256"`
+	ImageCompression string `json:"image-compression,omitempty"`
+	Kernel           string `json:"kernel"`
+	Initrd           string `json:"initrd"`
+	Target           string `json:"target,omitempty"`
+	MediaID          string `json:"media-id"`
+	CreatedAt        string `json:"created-at"`
 }
 
 type isoBuilderCall struct {
@@ -490,24 +492,27 @@ func stageISO(input isoBuildInput, img *os.File, staging string) error {
 	if err := copyFile(input.initrdPath, filepath.Join(staging, "boot", "initrd.img.gz")); err != nil {
 		return err
 	}
-	imageDest := filepath.Join(staging, "ze-install", "images", input.imageName)
-	if err := copyOpenFile(img, imageDest); err != nil {
+	compressedName := input.imageName + ".gz"
+	imageDest := filepath.Join(staging, "ze-install", "images", compressedName)
+	compressedSHA, err := compressOpenFileGzip(img, imageDest)
+	if err != nil {
 		return err
 	}
-	checksumLine := input.imageSHA + "  " + input.imageName + "\n"
+	checksumLine := compressedSHA + "  " + compressedName + "\n"
 	if err := os.WriteFile(imageDest+".sha256", []byte(checksumLine), 0o644); err != nil { //nolint:gosec // checksum metadata
 		return fmt.Errorf("write staged checksum: %w", err)
 	}
 	manifest := isoManifest{
-		Appliance:   input.appliance,
-		Arch:        input.arch,
-		Image:       input.imageName,
-		ImageSHA256: input.imageSHA,
-		Kernel:      "boot/kernel",
-		Initrd:      "boot/initrd.img.gz",
-		Target:      input.target,
-		MediaID:     input.mediaID,
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		Appliance:        input.appliance,
+		Arch:             input.arch,
+		Image:            compressedName,
+		ImageSHA256:      input.imageSHA,
+		ImageCompression: "gzip",
+		Kernel:           "boot/kernel",
+		Initrd:           "boot/initrd.img.gz",
+		Target:           input.target,
+		MediaID:          input.mediaID,
+		CreatedAt:        time.Now().UTC().Format(time.RFC3339),
 	}
 	manifestData, err := json.MarshalIndent(&manifest, "", "  ")
 	if err != nil {
@@ -520,6 +525,7 @@ func stageISO(input isoBuildInput, img *os.File, staging string) error {
 	if err := os.WriteFile(filepath.Join(staging, "ze-install", "media-id"), []byte(input.mediaID+"\n"), 0o644); err != nil { //nolint:gosec // metadata
 		return fmt.Errorf("write ISO media id: %w", err)
 	}
+	input.imageName = compressedName
 	return writeGrubConfig(filepath.Join(staging, "boot", "grub", "grub.cfg"), input)
 }
 
@@ -545,6 +551,39 @@ func copyOpenFile(src *os.File, dst string) error {
 		return fmt.Errorf("copy %s: %w", dst, err)
 	}
 	return nil
+}
+
+func compressOpenFileGzip(src *os.File, dst string) (string, error) {
+	if _, err := src.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("seek %s: %w", src.Name(), err)
+	}
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644) //nolint:gosec // staged artifact
+	if err != nil {
+		return "", fmt.Errorf("create %s: %w", dst, err)
+	}
+	closeOut := true
+	defer func() {
+		if closeOut {
+			_ = out.Close()
+		}
+	}()
+	h := sha256.New()
+	w := io.MultiWriter(out, h)
+	gz, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return "", fmt.Errorf("create gzip writer: %w", err)
+	}
+	if _, err := io.Copy(gz, src); err != nil {
+		return "", fmt.Errorf("compress %s: %w", src.Name(), err)
+	}
+	if err := gz.Close(); err != nil {
+		return "", fmt.Errorf("finalize gzip: %w", err)
+	}
+	if err := out.Close(); err != nil {
+		return "", fmt.Errorf("close %s: %w", dst, err)
+	}
+	closeOut = false
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func writeGrubConfig(path string, input isoBuildInput) error {
@@ -578,9 +617,9 @@ func writeGrubConfig(path string, input isoBuildInput) error {
 func isoKernelConsoleArgs(arch string) (string, error) {
 	switch arch {
 	case archAMD64:
-		return "console=ttyS0", nil
+		return "console=tty0 console=ttyS0", nil
 	case archARM64:
-		return "console=ttyAMA0", nil
+		return "console=tty0 console=ttyAMA0", nil
 	default:
 		return "", fmt.Errorf("unsupported appliance ISO architecture %q", arch)
 	}

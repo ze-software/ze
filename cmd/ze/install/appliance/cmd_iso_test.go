@@ -1,10 +1,13 @@
 package appliance
 
 import (
+	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -266,7 +269,7 @@ func TestIsoBuildsArm64BootArtifacts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read grub.cfg: %v", err)
 	}
-	if !strings.Contains(string(grub), "console=ttyAMA0") {
+	if !strings.Contains(string(grub), "console=tty0 console=ttyAMA0") {
 		t.Fatalf("grub.cfg missing arm64 console: %s", string(grub))
 	}
 }
@@ -319,18 +322,30 @@ func TestIsoUsesLatestImageByDefault(t *testing.T) {
 
 	calls := runIsoWithTestBuilder(t, appDir, "--keep-staging")
 	manifest := readIsoManifestFromStage(t, calls[0].StagingDir)
-	if manifest.Image != filepath.Base(newImg) {
-		t.Fatalf("manifest image = %q, want %q", manifest.Image, filepath.Base(newImg))
+	wantImage := filepath.Base(newImg) + ".gz"
+	if manifest.Image != wantImage {
+		t.Fatalf("manifest image = %q, want %q", manifest.Image, wantImage)
 	}
 	if manifest.ImageSHA256 != newSHA {
 		t.Fatalf("manifest sha = %q, want %q", manifest.ImageSHA256, newSHA)
 	}
-	copied, err := os.ReadFile(filepath.Join(calls[0].StagingDir, "ze-install", "images", filepath.Base(newImg))) //nolint:gosec // test fixture
-	if err != nil {
-		t.Fatalf("read staged image: %v", err)
+	if manifest.ImageCompression != "gzip" {
+		t.Fatalf("manifest compression = %q, want gzip", manifest.ImageCompression)
 	}
-	if string(copied) != "newer" {
-		t.Fatalf("staged image = %q, want newer", string(copied))
+	compressed, err := os.ReadFile(filepath.Join(calls[0].StagingDir, "ze-install", "images", wantImage)) //nolint:gosec // test fixture
+	if err != nil {
+		t.Fatalf("read staged compressed image: %v", err)
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(compressed))
+	if err != nil {
+		t.Fatalf("open gzip: %v", err)
+	}
+	decompressed, err := io.ReadAll(gz)
+	if err != nil {
+		t.Fatalf("decompress staged image: %v", err)
+	}
+	if string(decompressed) != "newer" {
+		t.Fatalf("staged image content = %q, want newer", string(decompressed))
 	}
 }
 
@@ -347,8 +362,9 @@ func TestIsoUsesExplicitImage(t *testing.T) {
 
 	calls := runIsoWithTestBuilder(t, appDir, "--image", filepath.Base(oldImg), "--keep-staging")
 	manifest := readIsoManifestFromStage(t, calls[0].StagingDir)
-	if manifest.Image != filepath.Base(oldImg) {
-		t.Fatalf("manifest image = %q, want %q", manifest.Image, filepath.Base(oldImg))
+	wantImage := filepath.Base(oldImg) + ".gz"
+	if manifest.Image != wantImage {
+		t.Fatalf("manifest image = %q, want %q", manifest.Image, wantImage)
 	}
 }
 
@@ -479,8 +495,8 @@ func TestIsoBuildsExpectedStagingPlan(t *testing.T) {
 		"boot/grub/grub.cfg",
 		"ze-install/manifest.json",
 		"ze-install/media-id",
-		"ze-install/images/ze-20260101-000000.img",
-		"ze-install/images/ze-20260101-000000.img.sha256",
+		"ze-install/images/ze-20260101-000000.img.gz",
+		"ze-install/images/ze-20260101-000000.img.gz.sha256",
 	} {
 		if _, err := os.Stat(filepath.Join(stage, rel)); err != nil {
 			t.Fatalf("staged %s missing: %v", rel, err)
@@ -501,8 +517,8 @@ func TestIsoBuildsExpectedStagingPlan(t *testing.T) {
 	if strings.TrimSpace(string(mediaIDData)) != manifest.MediaID {
 		t.Fatalf("media-id file = %q, manifest = %q", strings.TrimSpace(string(mediaIDData)), manifest.MediaID)
 	}
-	if !strings.Contains(string(grub), "search --no-floppy --file /ze-install/media-id --set=root") || !strings.Contains(string(grub), "ze.source=iso") || !strings.Contains(string(grub), "ze.target=/dev/vda") || !strings.Contains(string(grub), "ze.media-id="+manifest.MediaID) || !strings.Contains(string(grub), "console=ttyS0") {
-		t.Fatalf("grub.cfg does not contain ISO source, media search, target, media id, and amd64 console: %s", string(grub))
+	if !strings.Contains(string(grub), "search --no-floppy --file /ze-install/media-id --set=root") || !strings.Contains(string(grub), "ze.source=iso") || !strings.Contains(string(grub), "ze.target=/dev/vda") || !strings.Contains(string(grub), "ze.media-id="+manifest.MediaID) || !strings.Contains(string(grub), "console=tty0 console=ttyS0") || !strings.Contains(string(grub), "ze.image=ze-20260101-000000.img.gz") {
+		t.Fatalf("grub.cfg does not contain ISO source, media search, target, media id, compressed image name, and amd64 console: %s", string(grub))
 	}
 }
 
