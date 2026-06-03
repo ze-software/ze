@@ -1,6 +1,6 @@
 // Design: plan/spec-ipsec-10-cli-diag.md -- clear vpn ipsec handler tests
 
-package clear
+package cmd
 
 import (
 	"testing"

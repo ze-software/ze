@@ -8,3 +8,6 @@ var ZeL2TPConfYANG string
 
 //go:embed ze-l2tp-api.yang
 var ZeL2TPAPIYANG string
+
+//go:embed ze-l2tp-cmd.yang
+var ZeL2TPCmdYANG string

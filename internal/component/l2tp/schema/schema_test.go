@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema"
 )

@@ -63,7 +63,7 @@ conflict detection via `ze:listener`.
 | `show l2tp listeners` | Bound UDP endpoints |
 | `show l2tp config` | Effective runtime config; `shared-secret` redacted to `<set>`/`<unset>` |
 
-<!-- source: internal/component/cmd/l2tp/l2tp.go -->
+<!-- source: internal/component/l2tp/cmd/l2tp.go -->
 
 ### Destructive commands
 
@@ -86,7 +86,7 @@ Destructive commands live under the `clear` verb (not a top-level `l2tp`
 noun) to match ze's CLI grammar. The `clear` prefix is denied in the
 built-in read-only authz profile.
 
-<!-- source: internal/component/cmd/l2tp/schema/ze-l2tp-cmd.yang -->
+<!-- source: internal/component/l2tp/schema/ze-l2tp-cmd.yang -->
 
 ### Offline dispatcher
 

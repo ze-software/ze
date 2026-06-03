@@ -20,13 +20,13 @@ import (
 	// Blank imports trigger init() registration for RPC handlers.
 	// These packages call pluginserver.RegisterRPCs in init() but are not
 	// included in plugin/all due to import cycles (see plugin_imports.go rpcDirs).
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/bfd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del"

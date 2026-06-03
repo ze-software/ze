@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/cmd"                           // init() registers BFD show RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor"           // init() registers monitor streaming RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
@@ -26,8 +27,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
 	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/archive"   // init() registers config archive trigger RPC
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/bfd"       // init() registers BFD show RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"     // init() registers cache command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"    // init() registers commit command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del"       // init() registers del verb RPCs
@@ -39,6 +38,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"    // init() registers update verb RPCs
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/config/archive/cmd" // init() registers config archive trigger RPC
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"  // init() registers interface show/migrate RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // init() registers all YANG schemas

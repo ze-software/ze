@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md -- clear verb RPC registration
 // Related: ../show/dns.go -- show dns cache stats/entries (read-only)
 
-package clear
+package cmd
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"

@@ -13,7 +13,7 @@
 //
 // Both are imported here so a blank import of this package wires the
 // full CLI surface without touching the core dispatcher.
-package l2tp
+package cmd
 
 import (
 	"encoding/json"
@@ -27,8 +27,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/l2tp/schema" // register ze-l2tp-cmd.yang
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema"     // register ze-l2tp-api.yang
+	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema" // register ze-l2tp-api.yang
 )
 
 var (

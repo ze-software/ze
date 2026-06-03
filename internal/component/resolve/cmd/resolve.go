@@ -19,7 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 
 	// Blank import triggers YANG schema registration.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/schema"
 )
 
 var errTargetMustNotBeEmpty = errors.New("target must not be empty")

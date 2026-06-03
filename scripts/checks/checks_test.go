@@ -11,6 +11,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -46,4 +47,37 @@ func repoRoot(t *testing.T) string {
 		t.Fatalf("resolve repository root: %v", err)
 	}
 	return root
+}
+
+// TestMigratedDaemonCommandsLiveInOwners asserts the command-surface-ownership
+// daemon-RPC migrations stay migrated: each owner-specific command package
+// lives under its owner, not under the central internal/component/cmd/ verb
+// tree. Prevents a regression that re-adds an owner command centrally.
+func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
+	root := repoRoot(t)
+	moved := map[string]string{
+		"internal/component/cmd/l2tp":       "internal/component/l2tp/cmd",
+		"internal/component/cmd/pppoe":      "internal/component/pppoe/cmd",
+		"internal/component/cmd/subscriber": "internal/component/subscriber/cmd",
+		"internal/component/cmd/bfd":        "internal/component/bfd/cmd",
+		"internal/component/cmd/archive":    "internal/component/config/archive/cmd",
+	}
+	for central, owner := range moved {
+		if _, err := os.Stat(filepath.Join(root, central)); err == nil {
+			t.Errorf("central daemon-command package %s still exists; it must live in %s", central, owner)
+		}
+		if _, err := os.Stat(filepath.Join(root, owner)); err != nil {
+			t.Errorf("owner daemon-command package %s is missing: %v", owner, err)
+		}
+	}
+	// The generic clear verb keeps only its schema; owner-specific clear
+	// handlers were extracted to their owners.
+	for _, ownerHandler := range []string{
+		"internal/component/resolve/cmd/dns.go", // ze-clear:dns-cache
+		"internal/component/ike/cmd/ipsec.go",   // ze-clear:vpn-ipsec-sa
+	} {
+		if _, err := os.Stat(filepath.Join(root, ownerHandler)); err != nil {
+			t.Errorf("extracted clear handler %s is missing: %v", ownerHandler, err)
+		}
+	}
 }

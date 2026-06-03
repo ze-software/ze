@@ -207,7 +207,7 @@ are all merged. The production path is now:
 Stage 4 adds the operator-facing surface on top of the engine Snapshot:
 three `show bfd` commands and five `ze_bfd_*` Prometheus metrics.
 <!-- source: internal/plugins/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
-<!-- source: internal/component/cmd/bfd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
+<!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
 <!-- source: internal/plugins/bfd/metrics.go — bfdMetrics, metricsHook, refreshSessionsGauge -->
 
 | Layer | File | Responsibility |
@@ -218,7 +218,7 @@ three `show bfd` commands and five `ze_bfd_*` Prometheus metrics.
 | Metrics hook | `internal/plugins/bfd/engine/engine.go` | `Loop.SetMetricsHook`, `MetricsHook` interface |
 | Prometheus wiring | `internal/plugins/bfd/metrics.go` | `bindMetricsRegistry`, `metricsHook`, `refreshSessionsGauge` |
 | Service surface | `internal/plugins/bfd/api/service.go` | `Snapshot`, `SessionDetail`, `Profiles` |
-| CLI handlers | `internal/component/cmd/bfd/bfd.go` | `handleShowSessions`, `handleShowSession`, `handleShowProfile` |
+| CLI handlers | `internal/component/bfd/cmd/bfd.go` | `handleShowSessions`, `handleShowSession`, `handleShowProfile` |
 | YANG API | `internal/plugins/bfd/schema/ze-bfd-api.yang` | `show-sessions`, `show-session`, `show-profile` RPCs |
 | YANG cmd tree | `internal/component/cmd/bfd/schema/ze-bfd-cmd.yang` | augments `clishowcmd:show` with `bfd { sessions, session, profile }` |
 

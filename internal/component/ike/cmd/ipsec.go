@@ -1,6 +1,6 @@
 // Design: plan/spec-ipsec-10-cli-diag.md -- clear vpn ipsec sa handler
 
-package clear
+package cmd
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/engine"

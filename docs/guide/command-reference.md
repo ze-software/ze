@@ -811,7 +811,7 @@ clear dns cache record example.com                  # Delete all entries matchin
 clear dns cache record example.com type AAAA        # Delete a single entry by name and type
 ```
 
-<!-- source: internal/component/cmd/clear/dns.go -- handleClearDNSCache -->
+<!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache -->
 
 ### show system profile
 
@@ -1702,8 +1702,8 @@ The `clear l2tp session teardown` command accepts optional keyword arguments:
 - `reason <text...>`: free-text audit reason, recorded in the per-session event ring
 - `cause <code>`: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
 
-<!-- source: internal/component/cmd/l2tp/schema/ze-l2tp-cmd.yang -->
-<!-- source: internal/component/cmd/l2tp/l2tp.go -- handleSessionTeardown, parseKeywordArgs -->
+<!-- source: internal/component/l2tp/schema/ze-l2tp-cmd.yang -->
+<!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs -->
 
 ### PPPoE Commands
 
@@ -1715,8 +1715,8 @@ The `clear l2tp session teardown` command accepts optional keyword arguments:
 | `show pppoe statistics` | run | Per-interface session counts and limits |
 | `show pppoe interfaces` | run | Configured PPPoE access interfaces |
 
-<!-- source: internal/component/cmd/pppoe/schema/ze-pppoe-cmd.yang -->
-<!-- source: internal/component/cmd/pppoe/pppoe.go -- RPC handlers -->
+<!-- source: internal/component/pppoe/schema/ze-pppoe-cmd.yang -->
+<!-- source: internal/component/pppoe/cmd/pppoe.go -- RPC handlers -->
 
 ### L2TPv2 Web UI
 

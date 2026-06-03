@@ -194,3 +194,31 @@ func writeTempDoc(t *testing.T, root, rel, content string) {
 		t.Fatalf("write temp doc: %v", err)
 	}
 }
+
+// TestAllYangCommandsHaveRegisteredRPC asserts that every YANG ze:command
+// leaf (every command WireMethod) has a registered handler. This is the
+// command-surface-ownership contract (AC-5/AC-6): relocating a handler into
+// its owner package must not drop its registration. Unlike
+// TestValidateCommandsScriptRuns, which only asserts the script runs, this
+// test fails if any YANG command is left without a handler -- exactly the
+// breakage an owner move can silently cause when one of the four command
+// import islands (plugin/all, config/yang/cli/tree.go, cli/client/main.go,
+// and this validator) is not kept in sync.
+func TestAllYangCommandsHaveRegisteredRPC(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), scriptTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, "go", "run", "scripts/docvalid/commands.go")
+	cmd.Dir = repoRoot(t)
+	out, err := cmd.CombinedOutput() //nolint:errcheck // asserted on stdout below
+	s := string(out)
+	if !strings.Contains(s, "Command Validation") {
+		t.Fatalf("commands.go did not run:\n%s", s)
+	}
+	if strings.Contains(s, "YANG commands with no handler") {
+		t.Fatalf("a YANG command has no registered handler (an owner move dropped "+
+			"a registration across the command import islands):\n%s", s)
+	}
+	if !strings.Contains(s, "All commands validated.") {
+		t.Fatalf("command contract not satisfied (expected \"All commands validated.\"):\n%s\nerr=%v", s, err)
+	}
+}

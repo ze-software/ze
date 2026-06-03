@@ -1,4 +1,4 @@
-package bfd
+package cmd
 
 import (
 	"strings"

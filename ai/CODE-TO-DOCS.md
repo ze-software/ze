@@ -894,7 +894,7 @@ Files: 12 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/config
 
 ## `internal/component/cmd/bfd/`
 
-- `internal/component/cmd/bfd/bfd.go` -> `docs/architecture/bfd.md`, `docs/guide/bfd.md`
+- `internal/component/bfd/cmd/bfd.go` -> `docs/architecture/bfd.md`, `docs/guide/bfd.md`
 
 ## `internal/component/cmd/cache/`
 
@@ -902,8 +902,8 @@ Files: 12 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/config
 
 ## `internal/component/cmd/clear/`
 
-- `internal/component/cmd/clear/dns.go` -> `docs/guide/command-reference.md`
-- `internal/component/cmd/clear/ipsec.go` -> `docs/features.md`
+- `internal/component/resolve/cmd/dns.go` -> `docs/guide/command-reference.md`
+- `internal/component/ike/cmd/ipsec.go` -> `docs/features.md`
 
 ## `internal/component/cmd/commit/`
 
@@ -916,11 +916,11 @@ Files: 12 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/config
 
 ## `internal/component/cmd/l2tp/`
 
-- `internal/component/cmd/l2tp/l2tp.go` -> `docs/guide/command-reference.md`, `docs/guide/l2tp.md`
+- `internal/component/l2tp/cmd/l2tp.go` -> `docs/guide/command-reference.md`, `docs/guide/l2tp.md`
 
 ## `internal/component/cmd/l2tp/schema/`
 
-- `internal/component/cmd/l2tp/schema/ze-l2tp-cmd.yang` -> `docs/guide/command-reference.md`, `docs/guide/l2tp.md`
+- `internal/component/l2tp/schema/ze-l2tp-cmd.yang` -> `docs/guide/command-reference.md`, `docs/guide/l2tp.md`
 
 ## `internal/component/cmd/log/`
 
@@ -944,11 +944,11 @@ Files: 12 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/config
 
 ## `internal/component/cmd/pppoe/`
 
-- `internal/component/cmd/pppoe/pppoe.go` -> `docs/guide/command-reference.md`
+- `internal/component/pppoe/cmd/pppoe.go` -> `docs/guide/command-reference.md`
 
 ## `internal/component/cmd/pppoe/schema/`
 
-- `internal/component/cmd/pppoe/schema/ze-pppoe-cmd.yang` -> `docs/guide/command-reference.md`
+- `internal/component/pppoe/schema/ze-pppoe-cmd.yang` -> `docs/guide/command-reference.md`
 
 ## `internal/component/cmd/set/`
 

@@ -1,6 +1,6 @@
 // Design: plan/spec-subscriber-session-model.md -- subscriber CLI handlers
 
-package subscriber
+package cmd
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscriber/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/subscriber/schema"
 )
 
 var errRegistryUnavailable = errors.New("subscriber: registry not available")

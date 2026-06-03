@@ -29,7 +29,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	zecli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
-	clearCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear"
 	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -659,7 +658,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			}
 			return out
 		})
-		clearCmd.RegisterDNSCacheClearProvider(func(action, name, typeName string) map[string]any {
+		resolvecmd.RegisterDNSCacheClearProvider(func(action, name, typeName string) map[string]any {
 			switch action {
 			case "record":
 				if typeName != "" {

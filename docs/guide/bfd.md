@@ -340,9 +340,9 @@ sequence — no session flap.
 
 Stage 4 adds three operator-facing commands served by a snapshot of
 the engine's live session state. The handlers live in
-`internal/component/cmd/bfd/bfd.go` and publish JSON payloads so
+`internal/component/bfd/cmd/bfd.go` and publish JSON payloads so
 scripts can parse the output while the interactive CLI renders them.
-<!-- source: internal/component/cmd/bfd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
+<!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
 <!-- source: internal/plugins/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
 
 ### List all sessions

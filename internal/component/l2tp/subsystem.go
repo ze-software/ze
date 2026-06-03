@@ -350,7 +350,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	}
 
 	s.started = true
-	// Publish the Service so CLI handlers (internal/component/cmd/l2tp/)
+	// Publish the Service so CLI handlers (internal/component/l2tp/cmd/)
 	// can reach the subsystem without importing it directly. Cleared in
 	// Stop below so late callers observe nil rather than racing teardown.
 	PublishService(s)

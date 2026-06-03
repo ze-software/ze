@@ -139,7 +139,13 @@ var pluginDirs = []string{
 // Populate after Phase 5 breaks the bgp dependencies in cmd/*.
 var rpcDirs = []string{
 	"internal/component/cmd",
+	"internal/component/config/archive/cmd",
+	"internal/component/bfd/cmd",
 	"internal/component/iface/cmd",
+	"internal/component/ike/cmd",
+	"internal/component/l2tp/cmd",
+	"internal/component/pppoe/cmd",
+	"internal/component/subscriber/cmd",
 }
 
 // discoverPlugins finds plugin packages by looking for register.go files

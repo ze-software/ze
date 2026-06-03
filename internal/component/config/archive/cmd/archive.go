@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/commands.md -- config archive trigger handler
 
-package archive
+package cmd
 
 import (
 	"os"

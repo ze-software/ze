@@ -1,4 +1,4 @@
-package clear
+package cmd
 
 import (
 	"testing"

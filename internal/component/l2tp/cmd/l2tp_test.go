@@ -1,4 +1,4 @@
-package l2tp
+package cmd
 
 import (
 	"encoding/json"

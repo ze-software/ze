@@ -3,7 +3,7 @@
 // Package pppoe registers engine-side RPC handlers that expose the PPPoE
 // subsystem's observability surface to the CLI. Handlers reach the
 // subsystem through pppoe.LookupService() rather than crossing a plugin pipe.
-package pppoe
+package cmd
 
 import (
 	"encoding/json"
@@ -16,8 +16,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/pppoe"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/pppoe/schema" // register ze-pppoe-cmd.yang
-	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/schema"     // register ze-pppoe-api.yang
+	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/schema" // register ze-pppoe-api.yang
 )
 
 var (

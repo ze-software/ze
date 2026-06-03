@@ -7,3 +7,6 @@ var ZePPPoEConfYANG string
 
 //go:embed ze-pppoe-api.yang
 var ZePPPoEAPIYANG string
+
+//go:embed ze-pppoe-cmd.yang
+var ZePPPoECmdYANG string

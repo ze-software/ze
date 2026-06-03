@@ -13,7 +13,7 @@ import (
 // cmdShow forwards `ze l2tp show [subcmd] [args...]` to the daemon as
 // the equivalent `show l2tp [subcmd] [args...]` text command. The
 // response is printed verbatim (JSON from the daemon-side handlers in
-// internal/component/cmd/l2tp/); pipe operators are available via
+// internal/component/l2tp/cmd/); pipe operators are available via
 // `ze cli -c "..."` when an operator wants formatting.
 func cmdShow(args []string) int {
 	parts := append([]string{"show", "l2tp"}, args...)
