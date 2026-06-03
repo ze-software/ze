@@ -398,29 +398,6 @@ class/filter counts. With an interface name, shows the full qdisc
 and class breakdown. Use this to verify your shaping is applied.";
         }
 
-        container ping {
-            config false;
-            ze:command "ze-show:ping";
-            description "Ping a target from the router itself.
-Sends ICMP echo requests to <dest> (IP or hostname). Default count
-is 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms
-reachability from this box, not from your workstation.";
-            leaf dest {
-                type string;
-                description "Target host or IP address";
-            }
-            leaf count {
-                type uint32;
-                description "Number of ping packets";
-            }
-            leaf timeout {
-                type string {
-                    pattern '\d+[smh]?';
-                }
-                description "Timeout duration";
-            }
-        }
-
         container traceroute {
             config false;
             ze:command "ze-show:traceroute";

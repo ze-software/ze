@@ -1,8 +1,7 @@
 // Design: plan/spec-diag-5-active-probes.md -- ICMP ping from the router
-// Related: tcp_check.go -- similar active probe pattern
-// Related: traceroute.go -- ICMP traceroute, shares internal/core/probe helpers
+// Related: stream.go -- streaming ping session; ICMP helpers in internal/core/probe
 
-package show
+package cmd
 
 import (
 	"context"
@@ -20,6 +19,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 )
 
+// CLI argument keywords shared across the ping handlers in this package.
+const (
+	argCount   = "count"
+	argTimeout = "timeout"
+)
+
 var (
 	errPingCountRequiresAValue       = errors.New("ping: count requires a value")
 	errPingTimeoutRequiresAValueE    = errors.New("ping: timeout requires a value (e.g. 5s)")
@@ -33,7 +38,10 @@ const (
 	maxPingTimeout     = 30 * time.Second
 )
 
-func handlePing(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+// handleShowPing is the RPC handler for `show ping` (ze-show:ping): a bounded
+// batch of ICMP echo requests sent from the router, returning per-reply RTT
+// and an aggregate summary.
+func handleShowPing(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	dest, count, timeout, err := parsePingArgs(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
@@ -52,7 +60,7 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "count": //nolint:goconst // CLI arg, unrelated to map key uses in show.go
+		case argCount:
 			if i+1 >= len(args) {
 				return dest, 0, 0, errPingCountRequiresAValue
 			}

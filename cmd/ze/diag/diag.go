@@ -1,11 +1,14 @@
-// Design: docs/guide/command-catalogue.md -- diagnostics (ping, wireguard keygen)
-// Related: ../main.go -- registers RunPing / RunWgKeypair as local commands
+// Design: docs/guide/command-catalogue.md -- diagnostics (wireguard keygen)
+// Related: ../main.go -- registers RunWgKeypair as a local command
 //
-// Package diag is the offline home for network diagnostic commands that
-// wrap OS tools with validated argv (no shell). The daemon is not
-// required: subcommands are local shell-outs from the `ze` binary.
-// Per rules/cli-patterns.md each subcommand uses its own
-// flag.NewFlagSet with a custom Usage printer.
+// Package diag is the offline home for diagnostic commands that wrap OS
+// tools with validated argv (no shell). The daemon is not required:
+// subcommands are local shell-outs from the `ze` binary. Per
+// rules/cli-patterns.md each subcommand uses its own flag.NewFlagSet with
+// a custom Usage printer.
+//
+// The `ze ping` offline root and the daemon-side ping handlers now live in
+// the dedicated ping feature module (internal/component/ping/cmd).
 
 package diag
 
@@ -14,140 +17,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
-	"regexp"
-	"strconv"
 	"strings"
 )
-
-// hostnameRE matches RFC 1123 hostnames, IP literals, and interface
-// names. Accepts: letters, digits, dot, underscore, colon (IPv6),
-// hyphen. No shell meta-characters.
-var hostnameRE = regexp.MustCompile(`^[A-Za-z0-9._:-]+$`)
-
-const (
-	maxPingCount        = 100000 // per-invocation echo-request ceiling
-	maxTargetLen        = 253    // RFC 1035 hostname ceiling
-	maxInterfaceNameLen = 15     // Linux IFNAMSIZ minus NUL
-)
-
-// validateTarget accepts a hostname or IP literal. Caller must have
-// already stripped flags.
-func validateTarget(t string) error {
-	if t == "" {
-		return errors.New("target is required")
-	}
-	if len(t) > maxTargetLen {
-		return fmt.Errorf("target too long (%d > %d chars)", len(t), maxTargetLen)
-	}
-	if !hostnameRE.MatchString(t) {
-		return fmt.Errorf("invalid target %q: only letters, digits, dot, underscore, colon, hyphen allowed", t)
-	}
-	// If it looks like a numeric IP, verify it parses.
-	if strings.ContainsAny(t, ":") || (strings.Count(t, ".") == 3 && strings.IndexFunc(t, func(r rune) bool {
-		return (r < '0' || r > '9') && r != '.'
-	}) == -1) {
-		if net.ParseIP(t) == nil {
-			return fmt.Errorf("invalid IP literal %q", t)
-		}
-	}
-	return nil
-}
-
-// validateInterfaceName rejects interface names outside IFNAMSIZ or
-// containing shell meta-characters. Empty string is allowed and means
-// do not pass --interface to the tool.
-func validateInterfaceName(name string) error {
-	if name == "" {
-		return nil
-	}
-	if len(name) > maxInterfaceNameLen {
-		return fmt.Errorf("interface name too long (%d > %d chars)", len(name), maxInterfaceNameLen)
-	}
-	if !hostnameRE.MatchString(name) {
-		return fmt.Errorf("invalid interface name %q", name)
-	}
-	return nil
-}
-
-// diagSpec describes one diagnostic tool with a single integer knob.
-// runDiag handles flag parsing, target validation, integer bound
-// checks, and exec.
-type diagSpec struct {
-	name       string
-	countName  string
-	countShort string
-	countDesc  string
-	toolFlag   string
-	ifaceFlag  string
-	maxCount   int
-	usageTail  string
-}
-
-var pingSpec = diagSpec{
-	name:       "ping",
-	countName:  "count",
-	countShort: "c",
-	countDesc:  "number of echo requests (1..100000; 0 = tool default)",
-	toolFlag:   "-c",
-	ifaceFlag:  "-I",
-	maxCount:   maxPingCount,
-	usageTail:  "Send ICMP echo-request to <target>. Arguments are validated before\nexec; no shell is involved.",
-}
-
-// RunPing invokes the OS `ping` utility against target with optional
-// count/interface flags (usage: `ze ping <target> [--count N]
-// [--interface IF]`). Returns the exit code from `ping`.
-func RunPing(args []string) int { return runDiag(pingSpec, args) }
-
-// runDiag is the shared validation+exec path for ping.
-func runDiag(spec diagSpec, args []string) int {
-	fs := flag.NewFlagSet(spec.name, flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	fs.Usage = func() {
-		if _, err := fmt.Fprintf(fs.Output(), "Usage: ze %s <target> [--%s N] [--interface IF]\n\n%s\n\n", spec.name, spec.countName, spec.usageTail); err != nil {
-			return // writing to stderr; nothing to recover
-		}
-		fs.PrintDefaults()
-	}
-	var (
-		count int
-		iface string
-	)
-	fs.IntVar(&count, spec.countName, 0, spec.countDesc)
-	fs.IntVar(&count, spec.countShort, 0, "short form of --"+spec.countName)
-	fs.StringVar(&iface, "interface", "", "source interface")
-	fs.StringVar(&iface, "i", "", "short form of --interface")
-	if err := fs.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return 0
-		}
-		return 1
-	}
-	target, rc := extractTarget(fs, spec.name)
-	if rc != 0 {
-		return rc
-	}
-	if count < 0 || count > spec.maxCount {
-		fmt.Fprintf(os.Stderr, "%s: --%s must be in 0..%d (0 = tool default)\n", spec.name, spec.countName, spec.maxCount)
-		return 1
-	}
-	if err := validateInterfaceName(iface); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", spec.name, err)
-		return 1
-	}
-	argv := []string{}
-	if count > 0 {
-		argv = append(argv, spec.toolFlag, strconv.Itoa(count))
-	}
-	if iface != "" {
-		argv = append(argv, spec.ifaceFlag, iface)
-	}
-	argv = append(argv, target)
-	return runExec(spec.name, argv)
-}
 
 // RunWgKeypair generates a WireGuard keypair by invoking `wg genkey`
 // and `wg pubkey`. Prints two lines to stdout:
@@ -162,7 +35,7 @@ func RunWgKeypair(args []string) int {
 	fs := flag.NewFlagSet("generate wireguard keypair", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	fs.Usage = func() {
-		if _, err := fmt.Fprintln(fs.Output(), "Usage: ze generate wireguard keypair\n\nGenerate a WireGuard keypair by invoking `wg genkey` and `wg pubkey`.\nThe system must have the `wg` binary installed."); err != nil {
+		if _, err := fmt.Fprintln(os.Stderr, "Usage: ze generate wireguard keypair\n\nGenerate a WireGuard keypair by invoking `wg genkey` and `wg pubkey`.\nThe system must have the `wg` binary installed."); err != nil {
 			return // writing to stderr; nothing to recover
 		}
 	}
@@ -191,54 +64,7 @@ func RunWgKeypair(args []string) int {
 		fmt.Fprintf(os.Stderr, "generate wireguard keypair: wg pubkey failed: %v\n", err)
 		return 1
 	}
-	fmt.Printf("private: %s\n", privStr)
-	fmt.Printf("public:  %s\n", strings.TrimSpace(string(pub)))
-	return 0
-}
-
-// extractTarget pulls the single target positional argument from fs
-// and validates it. On error, it prints to stderr and returns a
-// non-zero exit code so the caller can bail immediately.
-func extractTarget(fs *flag.FlagSet, name string) (string, int) {
-	rest := fs.Args()
-	if len(rest) == 0 {
-		fmt.Fprintf(os.Stderr, "%s: target is required\n", name)
-		fs.Usage()
-		return "", 1
-	}
-	if len(rest) > 1 {
-		fmt.Fprintf(os.Stderr, "%s: multiple targets not allowed\n", name)
-		return "", 1
-	}
-	target := rest[0]
-	if err := validateTarget(target); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", name, err)
-		return "", 1
-	}
-	return target, 0
-}
-
-// runExec invokes tool with args, streaming stdout/stderr through.
-// The tool path is looked up via exec.LookPath; missing binary returns 1.
-//
-// exec.LookPath honors PATH, so ze trusts its environment's PATH to
-// resolve `ping` and `traceroute` to the expected binaries. Running ze
-// under a hardened PATH (or with explicit tool paths in a future config
-// option) is the caller's responsibility.
-func runExec(tool string, args []string) int {
-	path, err := exec.LookPath(tool)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: not installed: %v\n", tool, err)
-		return 1
-	}
-	cmd := exec.CommandContext(context.Background(), path, args...) //nolint:gosec // args are validated above
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return exitErr.ExitCode()
-		}
+	if _, err := fmt.Fprintf(os.Stdout, "private: %s\npublic:  %s\n", privStr, strings.TrimSpace(string(pub))); err != nil {
 		return 1
 	}
 	return 0

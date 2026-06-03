@@ -46,7 +46,6 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:peeringdb-as-set", Handler: handlePeeringDBASSet},
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:irr-expand", Handler: handleIRRExpand},
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:irr-prefix", Handler: handleIRRPrefix},
-		pluginserver.RPCRegistration{WireMethod: "ze-resolve:ping", Handler: handlePing},
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:traceroute", Handler: handleTraceroute},
 	)
 }
@@ -111,17 +110,6 @@ func validateTarget(s string) error {
 func validateSourceIP(s string) error {
 	if net.ParseIP(s) == nil {
 		return fmt.Errorf("source %q: not a valid IP address", s)
-	}
-	return nil
-}
-
-func validateUint(s, name string, lo, hi uint64) error {
-	n, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return fmt.Errorf("%s %q: not a valid number", name, s)
-	}
-	if n < lo || n > hi {
-		return fmt.Errorf("%s %d: out of range %d..%d", name, n, lo, hi)
 	}
 	return nil
 }
@@ -284,75 +272,6 @@ func handleIRRPrefix(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data:   plugin.Map{"prefixes": lines},
-	}, nil
-}
-
-func handlePing(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	target, errResp := requireArg(args, "target")
-	if errResp != nil {
-		return errResp, nil
-	}
-	if err := validateTarget(target); err != nil {
-		return errResponse(err.Error())
-	}
-
-	cmdArgs := []string{"-c", "4", "-W", "2"}
-
-	for i := 1; i < len(args); i++ {
-		switch args[i] {
-		case "source":
-			if i+1 >= len(args) {
-				return errResponse("ping: \"source\" requires a value")
-			}
-			i++
-			if err := validateSourceIP(args[i]); err != nil {
-				return errResponse(err.Error())
-			}
-			cmdArgs = append(cmdArgs, "-I", args[i])
-		case "count":
-			if i+1 >= len(args) {
-				return errResponse("ping: \"count\" requires a value")
-			}
-			i++
-			if err := validateUint(args[i], "count", 1, 100); err != nil {
-				return errResponse(err.Error())
-			}
-			cmdArgs = append(cmdArgs, "-c", args[i])
-		case "size":
-			if i+1 >= len(args) {
-				return errResponse("ping: \"size\" requires a value")
-			}
-			i++
-			if err := validateUint(args[i], "size", 0, 65535); err != nil {
-				return errResponse(err.Error())
-			}
-			cmdArgs = append(cmdArgs, "-s", args[i])
-		default:
-			return errResponse(fmt.Sprintf("ping: unknown option %q", args[i]))
-		}
-	}
-	cmdArgs = append(cmdArgs, target)
-
-	reqCtx, cancel := context.WithTimeout(ctx.Context(), 15*time.Second)
-	defer cancel()
-
-	out, err := execCommand(reqCtx, "ping", cmdArgs...)
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusDone,
-			Data: plugin.Map{
-				"target": target,
-				"output": string(out),
-				"error":  err.Error(),
-			},
-		}, nil
-	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"target": target,
-			"output": string(out),
-		},
 	}, nil
 }
 

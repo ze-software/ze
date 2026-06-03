@@ -144,6 +144,7 @@ var rpcDirs = []string{
 	"internal/component/iface/cmd",
 	"internal/component/ike/cmd",
 	"internal/component/l2tp/cmd",
+	"internal/component/ping/cmd",
 	"internal/component/pppoe/cmd",
 	"internal/component/subscriber/cmd",
 }

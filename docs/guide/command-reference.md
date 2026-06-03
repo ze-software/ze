@@ -913,12 +913,13 @@ exactly what is reachable on the running daemon.
 
 ```
 ze ping <target> [--count N] [--interface IF]
-ze traceroute <target> [--probes N] [--interface IF]
 ```
 
-Thin wrappers over the OS's `ping` and `traceroute` binaries.
+`ze ping` is a thin offline wrapper over the OS `ping` binary, owned by the
+dedicated ping feature module. Traceroute has no offline wrapper: run
+`show traceroute <target>` on the daemon (a pure Go ICMP implementation).
 
-<!-- source: cmd/ze/diag/diag.go -- RunPing, RunTraceroute -->
+<!-- source: internal/component/ping/cmd/offline.go -- RunPing -->
 
 ### show crashes / ze crashes show
 

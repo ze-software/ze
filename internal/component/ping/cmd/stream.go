@@ -1,8 +1,11 @@
 // Design: docs/architecture/api/commands.md -- streaming ping session
-// Related: ping.go -- batch ping (show ping RPC)
-// Related: traceroute_stream.go -- similar streaming probe pattern
+// Overview: register.go -- RPC + offline-root registration for this module
+//
+// stream.go provides the continuous ping session used by `monitor ping`. The
+// CLI/hub streaming factories call NewPingSession; ICMP echo packets and target
+// resolution come from internal/core/probe.
 
-package show
+package cmd
 
 import (
 	"context"

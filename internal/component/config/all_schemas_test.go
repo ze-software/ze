@@ -41,6 +41,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/ping/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"

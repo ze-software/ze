@@ -38,8 +38,9 @@ import (
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/archive/cmd" // init() registers config archive trigger RPC
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"  // init() registers interface show/migrate RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // init() registers all YANG schemas
+	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"      // init() registers interface show/migrate RPCs
+	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"     // init() registers all YANG schemas
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
@@ -908,7 +909,7 @@ func streamingTracerouteFactory(ctx context.Context, target string, maxHops int)
 }
 
 func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
-	return show.NewPingSession(ctx, target, interval, timeout)
+	return pingcmd.NewPingSession(ctx, target, interval, timeout)
 }
 
 func parseRemote(s string) (string, string) {

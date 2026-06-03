@@ -48,7 +48,6 @@ var noOwnerAllowlist = map[string]string{
 	"service":      "Host service (systemd) management for the ze binary.",
 	"support":      "Cross-system support bundle aggregator; archive orchestration is process-global.",
 	"skills":       "Agent skill inventory tied to the current binary and generated support files.",
-	"ping":         "Offline host diagnostic wrapper around the OS ping tool; no component owns it.",
 	"generate":     "Offline crypto artifact generation; no narrower PKI command owner exists yet.",
 	"signal":       "Daemon process control over the management channel; no narrower owner.",
 	"status":       "Daemon process control over the management channel; no narrower owner.",

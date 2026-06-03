@@ -16,6 +16,7 @@ import (
 	show "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -133,5 +134,5 @@ func streamingTracerouteFactory(ctx context.Context, target string, maxHops int)
 }
 
 func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
-	return show.NewPingSession(ctx, target, interval, timeout)
+	return pingcmd.NewPingSession(ctx, target, interval, timeout)
 }

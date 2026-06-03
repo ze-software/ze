@@ -88,10 +88,6 @@ Files: 15 | Docs: `docs/architecture/overview.md`, `docs/architecture/testing/ru
 
 - `cmd/ze/debug/debug.go` -> `docs/features.md`, `docs/guide/command-reference.md`
 
-## `cmd/ze/diag/`
-
-- `cmd/ze/diag/diag.go` -> `docs/guide/command-reference.md`
-
 ## `cmd/ze/doctor/`
 
 - `cmd/ze/doctor/checks_linux.go` -> `docs/features.md`
@@ -1299,6 +1295,10 @@ Files: 12 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/mcp/ov
 ## `internal/component/mcp/ui/`
 
 - `internal/component/mcp/ui/embed.go` -> `docs/architecture/mcp/overview.md`
+
+## `internal/component/ping/cmd/`
+
+- `internal/component/ping/cmd/offline.go` -> `docs/guide/command-reference.md`
 
 ## `internal/component/pki/`
 

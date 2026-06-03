@@ -154,10 +154,6 @@ func init() {
 			Handler:    handleShowEventNamespaces,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:ping",
-			Handler:    handlePing,
-		},
-		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:capture",
 			Handler:    handleShowCapture,
 		},

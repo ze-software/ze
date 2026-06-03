@@ -66,6 +66,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ldp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/ping/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pki/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/schema"
@@ -195,6 +196,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/cmd"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/subscriber/cmd"
 )

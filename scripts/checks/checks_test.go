@@ -108,4 +108,34 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	if strings.Contains(string(metricsSchema), "ze-bgp:pool-stats") {
 		t.Error("central metrics schema still declares ze-bgp:pool-stats; it is owned by bgp/plugins/cmd/rib/schema")
 	}
+
+	// The ping feature (show ping, monitor ping, resolve ping, and the offline
+	// `ze ping` root) is owned by the dedicated ping module. None of its handlers
+	// may remain in the central show, BGP monitor, resolve, or diag packages.
+	pingOwner := "internal/component/ping/cmd"
+	if _, err := os.Stat(filepath.Join(root, pingOwner)); err != nil {
+		t.Errorf("ping feature module %s is missing: %v", pingOwner, err)
+	}
+	for _, gone := range []string{
+		"internal/component/cmd/show/ping.go",        // show ping handler -> ping module
+		"internal/component/cmd/show/ping_stream.go", // monitor ping stream -> ping module
+	} {
+		if _, err := os.Stat(filepath.Join(root, gone)); err == nil {
+			t.Errorf("central ping file %s still exists; the ping feature is owned by %s", gone, pingOwner)
+		}
+	}
+	for _, c := range []struct{ file, symbol string }{
+		{"internal/component/bgp/plugins/cmd/monitor/monitor.go", "handleMonitorPing"},
+		{"internal/component/resolve/cmd/resolve.go", "func handlePing"},
+		{"cmd/ze/diag/diag.go", "func RunPing"},
+	} {
+		body, err := os.ReadFile(filepath.Join(root, c.file))
+		if err != nil {
+			t.Errorf("read %s: %v", c.file, err)
+			continue
+		}
+		if strings.Contains(string(body), c.symbol) {
+			t.Errorf("%s still defines %q; the ping feature is owned by %s", c.file, c.symbol, pingOwner)
+		}
+	}
 }

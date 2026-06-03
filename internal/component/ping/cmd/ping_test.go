@@ -1,6 +1,6 @@
 // Design: plan/spec-diag-5-active-probes.md -- ping argument parsing tests
 
-package show
+package cmd
 
 import (
 	"testing"

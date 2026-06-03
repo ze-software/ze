@@ -72,13 +72,6 @@ Usage: resolve peeringdb as-set <asn>. Feed the result into
             }
         }
 
-        container ping {
-            config false;
-            ze:command "ze-resolve:ping";
-            description "Ping from the router with optional source binding.
-Usage: resolve ping <target> [source <ip>] [count <n>] [size <bytes>].";
-        }
-
         container traceroute {
             config false;
             ze:command "ze-resolve:traceroute";
