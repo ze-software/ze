@@ -47,6 +47,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/monitor/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe/schema"
