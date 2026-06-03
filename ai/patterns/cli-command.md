@@ -235,6 +235,8 @@ func cmd<Name>(args []string) int {
 
 ## Online Command: File Structure
 
+The central `cmd/<verb>/` layout below is for **generic** cross-system verbs only.
+
 ```
 internal/component/cmd/<verb>/
   <verb>.go                    # init() -> pluginserver.RegisterRPCs()
@@ -242,6 +244,16 @@ internal/component/cmd/<verb>/
 ```
 
 Handler implementation lives in `internal/component/bgp/plugins/cmd/<noun>/`.
+
+**Owner-specific commands do NOT use the central `cmd/<verb>/` layout.** Put the
+handler `init()` + `RegisterRPCs` and a container-merge schema module in the
+package that owns the behaviour (the one whose code the handler calls), per
+`ai/rules/plugin-self-containment.md` ("Finding the Owner", "How to carve a
+command into its owner"). The owner schema lives in `<owner>/schema/ze-<x>-cmd.yang`
+(top level, sibling of `cli`/`cmd`), re-declaring `container <verb> { container <x> {...} }`
+so the loader merges it onto the verb tree with no central edit. Determine the
+owner from the handler's dependencies, not from the `ze-<ns>:` WireMethod prefix
+(that prefix is a label, often a legacy misnomer).
 
 ### RPC Registration
 

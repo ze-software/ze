@@ -44,12 +44,34 @@ classification rule from `plan/learned/844-command-grammar-ownership-first.md`:
 shared dispatch may carry selector scope; it must not own a plugin's command
 spelling.
 
+## Finding the Owner: follow the code, not the wire-method namespace
+
+**The `ze-<ns>:` prefix on a WireMethod is a label, not an ownership claim, and is
+often a legacy misnomer. Determine the owner by what the handler actually calls,
+then place the handler, schema, and registration in that package.**
+
+Trace the handler's real dependencies:
+
+| Command (WireMethod) | What the handler calls | Owner |
+|----------------------|------------------------|-------|
+| `ze-show:ip-route` / `ze-show:neighbors` / `ze-show:kernel-routes` | `iface.ListKernelRoutes` / `iface.ListNeighbors` (kernel tables via the iface backend) | `internal/component/iface` (NOT central `show`; NOT the BGP RIB) |
+| `ze-bgp:pool-stats` | `bgp/plugins/rib/pool` attribute-pool metrics | BGP RIB plugin |
+| `ze-bgp:metrics-values` / `ze-bgp:metrics-list` | generic core Prometheus registry (`internal/core/metrics`) | generic, stays central |
+| `ze-bgp:subscribe` / `ze-bgp:unsubscribe` | generic `pluginserver` subscription manager | generic, stays central |
+| `ze-show:policy-list` | cross-plugin filter-type registry (`registry.FilterTypesMap`) | generic, stays central |
+
+A command is **generic (stays central)** only when it has no single removable
+owner: it aggregates a cross-plugin registry, reads a generic core system, or is
+process-global (`show warnings`, `show health`, `subscribe`). Everything that
+reads one plugin's or component's state belongs to that owner, regardless of the
+`ze-<ns>:` label on its WireMethod.
+
 ## Where a Plugin's Surface Lives
 
 | Surface | Owner location |
 |---------|----------------|
-| RPC handler + `pluginserver.RegisterRPCs` | `internal/component/<plugin>/plugins/<unit>/` |
-| YANG command schema (full path from root, e.g. `show bgp peer ...`) | owner `schema/` subpackage, blank-imported by the aggregator |
+| RPC handler + `pluginserver.RegisterRPCs` | owner package (e.g. `internal/component/<owner>/cmd/` or the plugin's own package) |
+| YANG command schema (full path from root, e.g. `show bgp peer ...`) | `<owner>/schema/ze-<x>-cmd.yang`, NEVER `<owner>/cmd/schema/` |
 | Offline/root command + handler | owner package via the offline command registry |
 | Help / usage / completion | derived from the owner's registry + schema (see `ai/rules/derive-not-hardcode.md`) |
 | Doctor check + its unit test | owner package (Proximity Principle) |
@@ -57,6 +79,30 @@ spelling.
 Central verb packages (`internal/component/cmd/show`, `cmd/del`, ...) keep ONLY
 generic cross-system commands (`show warnings`, `show health`), never a specific
 plugin's commands.
+
+### How to carve a command into its owner
+
+1. **Handler:** add `func init() { pluginserver.RegisterRPCs(...) }` + the handler
+   in the owner package. If the owner package is already blank-imported (it has a
+   `register.go` found by the generator's `pluginDirs`, or sits in `rpcDirs`),
+   the registration links with NO generator or manual-island change. The handler
+   imports only `plugin` + `pluginserver` (+ the owner's own API), so it does not
+   create an import cycle.
+2. **Schema (container merge, NOT `augment`):** add `<owner>/schema/ze-<x>-cmd.yang`,
+   a standalone module that re-declares the path from the root:
+   `container show { container <x> { ... ze:command "ze-show:<x>"; } }`. The YANG
+   loader unions same-named top-level containers across all registered modules, so
+   the owner module needs no `import`/`augment` of the central schema and has no
+   base-module coupling. Give it a unique `namespace`/`prefix` and
+   `import ze-extensions`. Add the embed var + `yang.RegisterModule` call. A NEW
+   `<owner>/schema/` package whose `register.go` imports `config/yang` is
+   auto-discovered, so run `go run scripts/codegen/plugin_imports.go` to refresh
+   `internal/component/plugin/all/all.go`.
+3. **Schema location:** the command YANG lives in `<owner>/schema/` (top level,
+   sibling of `cli`/`cmd`), NEVER nested under `<owner>/cmd/schema`.
+4. **Both halves of the invariant:** the owner `schema/` gets a presence test
+   asserting its command tokens ARE declared; the central verb schema test bans
+   the moved tokens (below).
 
 ## Mechanical Check
 
@@ -76,8 +122,16 @@ because `show bgp rib ...` / `show bgp peer ...` are owned by
 `show bgp decode` / `show bgp encode` diagnostics are owned by
 `internal/component/bgp/cli/schema`. The owner half is asserted by
 `internal/component/bgp/cli/schema`'s `TestBGPToolsSchemaOwnsDecodeEncode` (the surface moved,
-it did not vanish). Extend the same pattern to the other central verb schemas
-(`cmd/del`, `cmd/set`, ...) and to other plugins as they are made compliant.
+it did not vanish).
+
+Non-BGP owners share one general central guard,
+`TestShowSchemaHasNoMigratedOwnerCommands` (same file), whose banned-token map
+grows by one entry per carved owner (flow-export, rsvp-te, ldp, policy-routes,
+static, vpn-ipsec, vpp, the iface kernel reads, ...); each owner's `schema/`
+package holds the matching presence test (e.g. `TestRSVPTECmdSchemaOwnsShowRSVPTE`).
+When you carve a new command, add both halves: the banned token here and the
+presence assertion in the owner. Extend the same pattern to the other central
+verb schemas (`cmd/del`, `cmd/set`, ...) as they are made compliant.
 
 ## Related
 
