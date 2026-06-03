@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
@@ -434,7 +433,7 @@ func startSmartManager(tree *zeconfig.Tree) {
 	}
 	smartManager = zestorage.NewManager(*cfg)
 	smartManager.Start()
-	showCmd.SetStorageManager(smartManager)
+	zestorage.SetStorageManager(smartManager)
 }
 
 func stopSmartManager() {
@@ -452,7 +451,7 @@ func reloadSmartManager(tree *zeconfig.Tree) {
 		if smartManager != nil {
 			smartManager.Stop()
 			smartManager = nil
-			showCmd.SetStorageManager(nil)
+			zestorage.SetStorageManager(nil)
 		}
 		return
 	}
@@ -461,7 +460,7 @@ func reloadSmartManager(tree *zeconfig.Tree) {
 	} else {
 		smartManager = zestorage.NewManager(*cfg)
 		smartManager.Start()
-		showCmd.SetStorageManager(smartManager)
+		zestorage.SetStorageManager(smartManager)
 	}
 }
 

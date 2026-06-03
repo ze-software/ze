@@ -7,4 +7,5 @@ import (
 func init() {
 	yang.RegisterModule("ze-pki-conf.yang", ZePKIConfYANG)
 	yang.RegisterModule("ze-pki-api.yang", ZePKIAPIYANG)
+	yang.RegisterModule("ze-pki-cmd.yang", ZePKICmdYANG)
 }

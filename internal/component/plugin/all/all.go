@@ -9,6 +9,7 @@ package all
 
 import (
 	// Infrastructure schema packages — YANG module registration.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/aaa/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/api/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/authz/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/schema"
@@ -185,6 +186,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/aaa/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
@@ -203,4 +205,3 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/cmd"
 )
-

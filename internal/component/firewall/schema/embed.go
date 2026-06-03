@@ -5,3 +5,6 @@ import _ "embed"
 
 //go:embed ze-firewall-conf.yang
 var ZeFirewallConfYANG string
+
+//go:embed ze-firewall-cmd.yang
+var ZeFirewallCmdYANG string

@@ -317,13 +317,11 @@ bundles or automated inventory collection.";
             }
         }
 
-        container gnmi {
-            config false;
-            ze:command "ze-show:gnmi";
-            description "Show whether the gNMI server is running and how it is configured.
-Returns listen address, TLS details, authentication mode, and the
-number of active streaming subscribers.";
-        }
+        // NOTE: the `show gnmi` command is owned by the gNMI component
+        // so that removing gNMI removes it (no dangling command node).
+        // `show gnmi` lives in internal/component/gnmi/schema/ze-gnmi-cmd.yang
+        // next to its handler. The central show schema declares no
+        // `container gnmi`. See ai/rules/plugin-self-containment.md.
 
         container warnings {
             config false;
@@ -334,18 +332,12 @@ resource limits approaching, etc.). Use 'source <name>' to filter
 to a single subsystem.";
         }
 
-        container aaa {
-            config false;
-            description "Authentication, authorization, and accounting state";
-
-            container accounting {
-                config false;
-                ze:command "ze-show:aaa-accounting";
-                description "Show AAA accounting counters and any dropped records.
-Tells you whether TACACS+ accounting is working or if records are
-being lost due to server unreachability.";
-            }
-        }
+        // NOTE: the `show aaa` subtree is owned by the AAA component
+        // so that removing AAA removes it (no dangling command node).
+        // `show aaa accounting` lives in
+        // internal/component/aaa/schema/ze-aaa-cmd.yang next to its
+        // handler. The central show schema declares no `container aaa`.
+        // See ai/rules/plugin-self-containment.md.
 
         container audit {
             config false;
@@ -417,15 +409,6 @@ address. Quick way to verify a peer's BGP port is reachable.";
                 }
                 description "Connection timeout";
             }
-        }
-
-        container l2tp-health {
-            config false;
-            ze:command "ze-show:l2tp-health";
-            description "Find your worst L2TP sessions at a glance.
-Sorts sessions by echo loss ratio (worst first). Shows subscriber
-login, session state, echo count, average RTT, and CQM bucket count.
-Reports how many sessions are degraded.";
         }
 
         container health {
@@ -840,75 +823,12 @@ outgoing next-hop. Use --limit N for large tables. Linux only.";
             }
         }
 
-        container firewall {
-            config false;
-            description "Firewall rules and groups (nftables)";
-
-            container ruleset {
-                config false;
-                ze:command "ze-show:firewall-ruleset";
-                ze:backend "nft";
-                description "Show the live firewall ruleset with per-term counters.
-Usage: show firewall ruleset <name>. Joins applied desired state with
-kernel counters from the nft backend.";
-            }
-
-            container group {
-                config false;
-                ze:command "ze-show:firewall-group";
-                ze:backend "nft";
-                description "Show members of a firewall address/port group.
-Without arguments, lists all known groups. With a name, shows the
-set elements. Reads from the last applied config, not the kernel.";
-            }
-        }
-
-        container pki {
-            config false;
-            description "TLS certificates and CA trust store";
-
-            container certificates {
-                config false;
-                ze:command "ze-show:pki-certificates";
-                description "List all loaded certificates with expiry dates.
-Shows name, type (CA or device), subject, issuer, expiry, and
-validity status. Check here to find certificates approaching
-expiration.";
-            }
-
-            container certificate {
-                config false;
-                description "Inspect a specific certificate in detail or export forms.";
-
-                container name {
-                    config false;
-                    ze:command "ze-show:pki-certificate";
-                    description "Inspect a specific certificate in detail.
-Usage: show pki certificate name <name> [pem | bundle pem | fingerprint
-[sha256|sha384|sha512]]. Use 'pem' to export for another system,
-'fingerprint' to verify identity.";
-                    leaf name {
-                        type string;
-                        mandatory true;
-                        description "Certificate name";
-                    }
-                }
-            }
-        }
-
-        container storage {
-            config false;
-            description "Storage device health and diagnostics";
-
-            container smart {
-                config false;
-                ze:command "ze-show:storage-smart";
-                description "Show disk health via SMART data.
-Returns health status, temperature, power-on hours, and self-test
-schedule for each block device. Replace drives that report failing
-health before they cause data loss.";
-            }
-        }
+        // NOTE: the `show storage ...` subtree is owned by the storage
+        // component so that removing storage removes it (no dangling
+        // command node). `show storage smart` lives in
+        // internal/component/storage/schema/ze-storage-cmd.yang next to
+        // its handler. The central show schema declares no `container
+        // storage`. See ai/rules/plugin-self-containment.md.
 
     }
 }

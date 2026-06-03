@@ -11,6 +11,10 @@ module ze-l2tp-cmd {
          Adds 'show l2tp' commands for inspection and 'clear l2tp'
          commands for teardown.";
 
+    revision 2026-06-03 {
+        description "Relocate show l2tp-health from central show schema (plugin self-containment).";
+    }
+
     revision 2026-04-22 {
         description "Move destructive tree from top-level l2tp to clear verb (spec-l2tp-11-web).";
     }
@@ -23,6 +27,15 @@ module ze-l2tp-cmd {
     // Read tree: `show l2tp ...`
     // -----------------------------------------------------------------
     augment "/clishowcmd:show" {
+        container l2tp-health {
+            config false;
+            ze:command "ze-show:l2tp-health";
+            description "Find your worst L2TP sessions at a glance.
+Sorts sessions by echo loss ratio (worst first). Shows subscriber
+login, session state, echo count, average RTT, and CQM bucket count.
+Reports how many sessions are degraded.";
+        }
+
         container l2tp {
             config false;
             ze:command "ze-l2tp-api:summary";

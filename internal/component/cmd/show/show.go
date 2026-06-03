@@ -65,10 +65,6 @@ func init() {
 			Handler:    handleShowWarnings,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:aaa-accounting",
-			Handler:    handleShowAAAAccounting,
-		},
-		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:audit",
 			Handler:    handleShowAudit,
 		},
@@ -109,10 +105,6 @@ func init() {
 			Handler:    handleShowSystemUpdateHistory,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:l2tp-health",
-			Handler:    handleShowL2TPHealth,
-		},
-		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:metrics-query",
 			Handler:    handleShowMetricsQuery,
 		},
@@ -135,10 +127,6 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:doctor",
 			Handler:    handleShowDoctor,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:gnmi",
-			Handler:    handleShowGNMI,
 		},
 	)
 	// ze-show:host-* RPCs are registered from host.go's own init()
@@ -219,43 +207,6 @@ func filterIssuesBySource(issues []report.Issue, source string) []report.Issue {
 		}
 	}
 	return filtered
-}
-
-func handleShowL2TPHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	svc := l2tp.LookupService()
-	if svc == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "l2tp subsystem not running"}, nil
-	}
-	summaries := svc.LoginSummaries()
-	if summaries == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "observer not enabled (CQM disabled)"}, nil
-	}
-	rows := make([]map[string]any, 0, len(summaries))
-	for i := range summaries {
-		s := &summaries[i]
-		rows = append(rows, map[string]any{
-			"login":        s.Login,
-			"last-state":   s.LastState,
-			"echo-count":   int(s.EchoCount),
-			"avg-rtt-ms":   float64(s.AvgRTT.Microseconds()) / 1000.0,
-			"bucket-count": s.BucketCount,
-		})
-	}
-	sort.Slice(rows, func(i, j int) bool {
-		ri, _ := rows[i]["avg-rtt-ms"].(float64)
-		rj, _ := rows[j]["avg-rtt-ms"].(float64)
-		return ri > rj
-	})
-	degraded := 0
-	for _, r := range rows {
-		if st, _ := r["last-state"].(string); st != "established" {
-			degraded++
-		}
-	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data:   plugin.Map{"logins": rows, "count": len(rows), "degraded": degraded},
-	}, nil
 }
 
 func handleShowMetricsQuery(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

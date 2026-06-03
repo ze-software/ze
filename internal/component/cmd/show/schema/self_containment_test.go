@@ -72,6 +72,14 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 		`"ze-show:traffic"`:            "traffic control (QoS) -> internal/component/traffic/schema",
 		`"ze-show:dns-lookup"`:         "DNS lookup -> internal/component/resolve/schema",
 		`"ze-show:dns-cache"`:          "DNS cache inspection -> internal/component/resolve/schema",
+		`"ze-show:firewall-ruleset"`:   "firewall ruleset -> internal/component/firewall/schema",
+		`"ze-show:firewall-group"`:     "firewall group -> internal/component/firewall/schema",
+		`"ze-show:pki-certificates"`:   "PKI certificate list -> internal/component/pki/schema",
+		`"ze-show:pki-certificate"`:    "PKI certificate detail -> internal/component/pki/schema",
+		`"ze-show:l2tp-health"`:        "L2TP health -> internal/component/l2tp/schema",
+		`"ze-show:storage-smart"`:      "storage SMART -> internal/component/storage/schema",
+		`"ze-show:gnmi"`:               "gNMI server status -> internal/component/gnmi/schema",
+		`"ze-show:aaa-accounting"`:     "AAA accounting -> internal/component/aaa/schema",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliShowCmdYANG, token) {

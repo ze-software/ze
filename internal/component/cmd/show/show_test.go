@@ -38,23 +38,8 @@ func TestHandleShowWarningsEmpty(t *testing.T) {
 	assert.NotNil(t, warnings, "warnings should be empty slice, not nil, for consistent JSON encoding")
 }
 
-// VALIDATES: AC-12 -- show aaa accounting exposes TACACS+ accounting drop count.
-// PREVENTS: Accounting queue drops being invisible to operators.
-func TestHandleShowAAAAccounting(t *testing.T) {
-	RegisterAAAAccountingProvider(func() map[string]any {
-		return map[string]any{"dropped-records": uint64(7)}
-	})
-	t.Cleanup(func() { RegisterAAAAccountingProvider(nil) })
-
-	resp, err := handleShowAAAAccounting(nil, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
-	assert.Equal(t, uint64(7), data["dropped-records"])
-}
+// TestHandleShowAAAAccounting relocated to internal/component/aaa/cmd/show_test.go
+// for plugin self-containment (ai/rules/plugin-self-containment.md).
 
 // VALIDATES: AC-13 -- show audit returns structured audit records filterable by time range and action.
 // PREVENTS: Audit log existing on disk but being unavailable to operators.

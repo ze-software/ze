@@ -298,7 +298,7 @@ Filters are optional and can be combined. Time filters use RFC 3339.
 be queued because the worker was stopped or the queue was full.
 
 <!-- source: internal/component/cmd/show/audit.go -- handleShowAudit -->
-<!-- source: internal/component/cmd/show/aaa.go -- handleShowAAAAccounting -->
+<!-- source: internal/component/aaa/cmd/show.go -- handleShowAAAAccounting -->
 
 ### ze show system
 
@@ -392,7 +392,7 @@ Online RPC (requires running daemon with `storage { smart { enabled true } }` co
 show storage smart                 # Per-device SMART health status
 ```
 
-<!-- source: internal/component/cmd/show/storage.go -- handleShowStorageSmart -->
+<!-- source: internal/component/storage/show.go -- handleShowStorageSmart -->
 <!-- source: internal/component/storage/manager.go -- Manager.Status -->
 
 Returns a JSON array of per-device objects:

@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi/schema"
 )
 

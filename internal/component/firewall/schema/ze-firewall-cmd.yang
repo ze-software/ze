@@ -1,0 +1,32 @@
+module ze-firewall-cmd {
+    namespace "urn:ze:firewall:cmd";
+    prefix firewallcmd;
+    import ze-extensions    { prefix ze; }
+    import ze-cli-show-cmd  { prefix clishowcmd; }
+    description "Firewall show commands: ruleset inspection and address/port group listing.
+         Relocated from the central show schema for plugin self-containment.";
+    revision 2026-06-03 { description "Initial revision: relocated from ze-cli-show-cmd."; }
+
+    augment "/clishowcmd:show" {
+        container firewall {
+            config false;
+            description "Firewall rules and groups (nftables)";
+            container ruleset {
+                config false;
+                ze:command "ze-show:firewall-ruleset";
+                ze:backend "nft";
+                description "Show the live firewall ruleset with per-term counters.
+Usage: show firewall ruleset <name>. Joins applied desired state with
+kernel counters from the nft backend.";
+            }
+            container group {
+                config false;
+                ze:command "ze-show:firewall-group";
+                ze:backend "nft";
+                description "Show members of a firewall address/port group.
+Without arguments, lists all known groups. With a name, shows the
+set elements. Reads from the last applied config, not the kernel.";
+            }
+        }
+    }
+}

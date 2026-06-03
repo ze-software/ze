@@ -18,7 +18,6 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
-	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
@@ -61,7 +60,7 @@ func registerAAAAccountingProvider(bundle *aaa.Bundle) {
 	if bundle != nil {
 		counter, _ = bundle.Accountant.(accountingDropCounter)
 	}
-	showCmd.RegisterAAAAccountingProvider(func() map[string]any {
+	aaa.RegisterAAAAccountingProvider(func() map[string]any {
 		var drops uint64
 		if counter != nil {
 			drops = counter.DropCount()
