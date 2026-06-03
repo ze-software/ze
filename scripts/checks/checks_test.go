@@ -228,3 +228,98 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 		t.Errorf("central monitor schema still declares ze-monitor:vpn-ipsec; it is owned by %s", ikeMonitorSchema)
 	}
 }
+
+// TestGenericCentralCommandsStayCentral is the inverse of
+// TestMigratedDaemonCommandsLiveInOwners: it asserts that generic, cross-cutting
+// commands that have NO removable owner intentionally remain in the central verb
+// packages. Prevents a future session from migrating a command that was already
+// decided to stay central.
+//
+// Criterion for inclusion: the handler reads from multiple subsystems, the
+// process, or a cross-plugin registry. Removing any single component must not
+// remove these commands.
+func TestGenericCentralCommandsStayCentral(t *testing.T) {
+	root := repoRoot(t)
+
+	// Central verb packages that must continue to exist.
+	centralDirs := []string{
+		"internal/component/cmd/show",
+		"internal/component/cmd/meta",
+		"internal/component/cmd/log",
+		"internal/component/cmd/subscribe",
+		"internal/component/cmd/set",
+		"internal/component/cmd/update",
+		"internal/component/cmd/metrics",
+		"internal/component/cmd/monitor",
+		"internal/component/cmd/clear",
+	}
+	for _, d := range centralDirs {
+		if _, err := os.Stat(filepath.Join(root, d)); err != nil {
+			t.Errorf("generic central verb package %s must exist: %v", d, err)
+		}
+	}
+
+	// Generic show handlers that read process/system state, not a single
+	// removable component. Each must remain in cmd/show/show.go.
+	showFile := filepath.Join(root, "internal/component/cmd/show/show.go")
+	showBody, err := os.ReadFile(showFile)
+	if err != nil {
+		t.Fatalf("read show.go: %v", err)
+	}
+	genericShowHandlers := []string{
+		"ze-show:version",
+		"ze-show:uptime",
+		"ze-show:warnings",
+		"ze-show:errors",
+		"ze-show:health",
+		"ze-show:doctor",
+	}
+	for _, h := range genericShowHandlers {
+		if !strings.Contains(string(showBody), h) {
+			t.Errorf("generic central handler %q missing from show.go; it has no removable owner and must stay central", h)
+		}
+	}
+
+	// Generic show subcommands that read process/kernel/cross-cutting state.
+	// Listed by schema file so the test survives handler refactoring within
+	// the central show package.
+	showSchema := filepath.Join(root, "internal/component/cmd/show/schema/ze-cli-show-cmd.yang")
+	schemaBody, err := os.ReadFile(showSchema)
+	if err != nil {
+		t.Fatalf("read show schema: %v", err)
+	}
+	genericShowCommands := []string{
+		`"ze-show:version"`,
+		`"ze-show:uptime"`,
+		`"ze-show:warnings"`,
+		`"ze-show:errors"`,
+		`"ze-show:health"`,
+		`"ze-show:doctor"`,
+		`"ze-show:tcp-check"`,
+		`"ze-show:capture"`,
+		`"ze-show:system-memory"`,
+		`"ze-show:system-cpu"`,
+		`"ze-show:system-date"`,
+	}
+	for _, cmd := range genericShowCommands {
+		if !strings.Contains(string(schemaBody), cmd) {
+			t.Errorf("generic central YANG command %s missing from show schema; it has no removable owner and must stay central", cmd)
+		}
+	}
+
+	// Generic monitor subcommands (event viewer, kernel netlink stream).
+	monSchema := filepath.Join(root, "internal/component/cmd/monitor/schema/ze-cli-monitor-cmd.yang")
+	monBody, err := os.ReadFile(monSchema)
+	if err != nil {
+		t.Fatalf("read monitor schema: %v", err)
+	}
+	genericMonitorCommands := []string{
+		`"ze-event:monitor"`,
+		`"ze-monitor:system-netlink"`,
+	}
+	for _, cmd := range genericMonitorCommands {
+		if !strings.Contains(string(monBody), cmd) {
+			t.Errorf("generic central YANG command %s missing from monitor schema; it has no removable owner and must stay central", cmd)
+		}
+	}
+}
