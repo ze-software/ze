@@ -197,4 +197,14 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 			t.Errorf("central show.go still defines %q; the interface surface is owned by %s", symbol, ifaceOwner)
 		}
 	}
+
+	// The `show traffic` (QoS) command is owned by the traffic component: its
+	// handler reads traffic.GetBackend(). It must not remain in central show.
+	trafficOwner := "internal/component/traffic/cmd/traffic.go"
+	if _, err := os.Stat(filepath.Join(root, trafficOwner)); err != nil {
+		t.Errorf("traffic command handler %s is missing: %v", trafficOwner, err)
+	}
+	if strings.Contains(string(showBody), "func handleShowTraffic") {
+		t.Errorf("central show.go still defines handleShowTraffic; the traffic surface is owned by %s", trafficOwner)
+	}
 }

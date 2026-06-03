@@ -201,5 +201,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/subscriber/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/cmd"
 )
 

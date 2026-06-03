@@ -148,6 +148,7 @@ var rpcDirs = []string{
 	"internal/component/pppoe/cmd",
 	"internal/component/subscriber/cmd",
 	"internal/component/traceroute/cmd",
+	"internal/component/traffic/cmd",
 }
 
 // discoverPlugins finds plugin packages by looking for register.go files

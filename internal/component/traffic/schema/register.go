@@ -6,4 +6,5 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-traffic-control-conf.yang", ZeTrafficControlConfYANG)
+	yang.RegisterModule("ze-traffic-cmd.yang", ZeTrafficCmdYANG)
 }

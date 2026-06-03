@@ -389,15 +389,6 @@ with source <name> to narrow to one subsystem, count <N> to limit
 output.";
         }
 
-        container traffic {
-            config false;
-            ze:command "ze-show:traffic";
-            description "Show traffic control (QoS) configuration per interface.
-Without arguments, lists every interface with its qdisc type and
-class/filter counts. With an interface name, shows the full qdisc
-and class breakdown. Use this to verify your shaping is applied.";
-        }
-
         container tcp-check {
             config false;
             ze:command "ze-show:tcp-check";
