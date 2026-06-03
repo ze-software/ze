@@ -1003,11 +1003,11 @@ func TestPXEOption43(t *testing.T) {
 	if opt43 == nil {
 		t.Fatal("missing option 43 (vendor-specific)")
 	}
-	if len(opt43) < 6 {
+	if len(opt43) < 3 {
 		t.Fatalf("option 43 too short: %d bytes", len(opt43))
 	}
-	if opt43[0] != 71 || opt43[1] != 4 {
-		t.Errorf("option 43 boot item suboption: type=%d len=%d, want type=71 len=4", opt43[0], opt43[1])
+	if opt43[0] != 6 || opt43[1] != 1 || opt43[2] != 0x08 {
+		t.Errorf("option 43 discovery control: type=%d len=%d val=0x%02x, want type=6 len=1 val=0x08", opt43[0], opt43[1], opt43[2])
 	}
 }
 

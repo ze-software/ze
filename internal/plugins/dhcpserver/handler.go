@@ -310,9 +310,11 @@ func (h *dhcpHandler) appendPXEOptions(req, resp []byte, off, limit int) int {
 	// RFC 2132 Section 9.10: option 67 bootfile name.
 	off = safeAppendOption(resp, off, limit, optBootfileName, []byte(bootfile))
 
-	// PXE Specification 2.1: option 43 vendor-specific with boot item suboption (type 71).
+	// PXE Specification 2.1 §3.3: option 43 vendor-specific.
+	// Sub-option 6 (PXE_DISCOVERY_CONTROL) bit 3: download the bootfile from
+	// DHCP option 67 directly, skip Boot Server Discovery entirely.
 	off = safeAppendOption(resp, off, limit, optVendorSpecific, []byte{
-		71, 4, 0, 0, 0, 0,
+		6, 1, 0x08,
 		255,
 	})
 
