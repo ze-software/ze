@@ -1,0 +1,24 @@
+# Test: ze interface dispatches through the owner-registered root handler
+# VALIDATES: command-surface-ownership Phase 3 — the `interface` root command
+# moved from the cmd/ze static switch to its owner package
+# internal/component/iface/cli and is now dispatched through the command
+# registry. User-visible behavior (help text, unknown-subcommand rejection,
+# help inventory) is unchanged by the ownership move. Platform-independent:
+# these paths run before any netlink backend is loaded.
+
+# Root help reaches the owner's usage via the registry root handler.
+cmd=foreground:seq=1:exec=ze interface help
+expect=exit:code=0
+expect=stderr:contains=manage OS network interfaces
+expect=stderr:contains=ze interface
+
+# Unknown subcommand is rejected by the owner's own subcommand gate, proving
+# dispatch reached the owner code (not a central "unknown command").
+cmd=foreground:seq=2:exec=ze interface bogus-subcommand
+expect=exit:code=1
+expect=stderr:contains=unknown interface subcommand
+
+# The interface root still appears in `ze help`, derived from the registry.
+cmd=foreground:seq=3:exec=ze help
+expect=exit:code=0
+expect=stderr:contains=Manage OS network interfaces

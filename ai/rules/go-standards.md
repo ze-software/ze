@@ -61,7 +61,7 @@ Never add new third-party imports (not already in `go.mod`) without asking the u
 
 ## Aliased Imports
 
-When two packages in the module share the same name (e.g., `cmd/ze/iface/` and
+When two packages in the module share the same name (e.g., `internal/component/iface/cli/` and
 `internal/component/iface/`), goimports cannot resolve which to use and silently removes
 the import. Always use an aliased import in this case:
 `ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"`.

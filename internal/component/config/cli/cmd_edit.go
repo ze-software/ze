@@ -1,0 +1,682 @@
+// Design: docs/architecture/config/syntax.md — config edit command
+// Overview: main.go — dispatch and exit codes
+
+package cli
+
+import (
+	"bufio"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
+	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+)
+
+// fallbackConfigName is used when meta/instance/name is not set.
+const fallbackConfigName = "ze.conf"
+
+// defaultConfigName returns the default config filename from the blob's
+// meta/instance/name (e.g. "ze-first" -> "ze-first.conf"), falling back
+// to "ze.conf" when the key is absent or the storage is not blob-backed.
+func defaultConfigName(store storage.Storage) string {
+	if !storage.IsBlobStorage(store) {
+		return fallbackConfigName
+	}
+	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
+	if err != nil || len(data) == 0 {
+		return fallbackConfigName
+	}
+	name := strings.TrimSpace(string(data))
+	if name == "" {
+		return fallbackConfigName
+	}
+	return name + ".conf"
+}
+
+// ephemeralPollInterval is the interval between SSH port readiness checks.
+const ephemeralPollInterval = 100 * time.Millisecond
+
+// ephemeralPollTimeout is the maximum time to wait for the ephemeral daemon to start.
+const ephemeralPollTimeout = 10 * time.Second
+
+// startEphemeralDaemon starts a background ze daemon for the given config.
+// Waits for the SSH port to become reachable before returning.
+// Returns the process (caller must stop and wait) or an error.
+func startEphemeralDaemon(configPath, host, port string, extraArgs []string) (*os.Process, string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, "", fmt.Errorf("find ze binary: %w", err)
+	}
+
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		return nil, "", fmt.Errorf("open devnull: %w", err)
+	}
+
+	// Ephemeral SSH address file: the daemon starts SSH on port 0 (OS-assigned)
+	// and writes the actual address here so we can connect.
+	sshAddrFile := filepath.Join("tmp", fmt.Sprintf("ephemeral-ssh-%d.addr", os.Getpid()))
+
+	daemonEnv := append(os.Environ(), "ZE_SSH_EPHEMERAL="+sshAddrFile)
+
+	argv := make([]string, 0, 1+len(extraArgs)+1)
+	argv = append(argv, exe)
+	argv = append(argv, extraArgs...)
+	argv = append(argv, configPath)
+
+	proc, err := os.StartProcess(exe, argv, &os.ProcAttr{
+		Env:   daemonEnv,
+		Files: []*os.File{devnull, devnull, os.Stderr},
+	})
+	devnull.Close() //nolint:errcheck // devnull close is non-fatal
+	if err != nil {
+		return nil, "", fmt.Errorf("start ephemeral daemon: %w", err)
+	}
+
+	// Poll for SSH: try configured port and ephemeral addr file.
+	configuredAddr := net.JoinHostPort(host, port)
+	deadline := time.Now().Add(ephemeralPollTimeout)
+	for time.Now().Before(deadline) {
+		if probeSSHWithTimeout(host, port, 200*time.Millisecond) {
+			return proc, configuredAddr, nil
+		}
+		if data, readErr := os.ReadFile(sshAddrFile); readErr == nil && len(data) > 0 { //nolint:gosec // path is constructed by us, not user input
+			addr := string(data)
+			if probeAddr(addr, 200*time.Millisecond) {
+				return proc, addr, nil
+			}
+		}
+		time.Sleep(ephemeralPollInterval)
+	}
+
+	if killErr := proc.Kill(); killErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: kill ephemeral daemon: %v\n", killErr)
+	}
+	if _, waitErr := proc.Wait(); waitErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: wait ephemeral daemon: %v\n", waitErr)
+	}
+	os.Remove(sshAddrFile) //nolint:errcheck // best-effort cleanup of temp file
+	return nil, "", fmt.Errorf("ephemeral daemon failed to start within %v", ephemeralPollTimeout)
+}
+
+// startWebOnlyDaemon starts an ephemeral daemon that runs in web-only mode.
+// Polls the web port for readiness instead of SSH (RunWebOnly has no SSH).
+func startWebOnlyDaemon(configPath, webPort string, extraArgs []string) (*os.Process, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("find ze binary: %w", err)
+	}
+
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		return nil, fmt.Errorf("open devnull: %w", err)
+	}
+
+	argv := make([]string, 0, 1+len(extraArgs)+1)
+	argv = append(argv, exe)
+	argv = append(argv, extraArgs...)
+	argv = append(argv, configPath)
+
+	proc, err := os.StartProcess(exe, argv, &os.ProcAttr{
+		Env:   os.Environ(),
+		Files: []*os.File{devnull, devnull, os.Stderr},
+	})
+	devnull.Close() //nolint:errcheck // devnull close is non-fatal
+	if err != nil {
+		return nil, fmt.Errorf("start web daemon: %w", err)
+	}
+
+	webAddr := net.JoinHostPort("127.0.0.1", webPort)
+	deadline := time.Now().Add(ephemeralPollTimeout)
+	for time.Now().Before(deadline) {
+		if probeAddr(webAddr, 200*time.Millisecond) {
+			return proc, nil
+		}
+		time.Sleep(ephemeralPollInterval)
+	}
+
+	if killErr := proc.Kill(); killErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: kill web daemon: %v\n", killErr)
+	}
+	if _, waitErr := proc.Wait(); waitErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: wait web daemon: %v\n", waitErr)
+	}
+	return nil, fmt.Errorf("web daemon failed to start within %v", ephemeralPollTimeout)
+}
+
+// extractWebPort returns the --web port from daemon args, or "" if not present.
+func extractWebPort(args []string) string {
+	for i, arg := range args {
+		if arg == "--web" && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
+// probeAddr dials a host:port address to check reachability.
+func probeAddr(addr string, timeout time.Duration) bool {
+	d := net.Dialer{Timeout: timeout}
+	conn, dialErr := d.Dial("tcp", addr)
+	if dialErr != nil {
+		return false
+	}
+	conn.Close() //nolint:errcheck // probe connection
+	return true
+}
+
+// stopEphemeralDaemon sends a stop command via SSH and waits for the process to exit.
+// If the process doesn't exit within 5 seconds, it is killed.
+func stopEphemeralDaemon(proc *os.Process, creds sshclient.Credentials) {
+	// Best-effort stop via SSH
+	if _, err := sshclient.ExecCommand(creds, "stop"); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: stop ephemeral daemon: %v\n", err)
+		// SSH failed (web-only daemon or unreachable) — send SIGINT so the
+		// process shuts down via its signal handler instead of waiting for kill.
+		_ = proc.Signal(os.Interrupt)
+	}
+
+	// Wait for process to exit with timeout.
+	// Single goroutine owns proc.Wait to avoid race between Wait and Kill.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		// Wait blocks until the process exits (from SSH stop or kill below).
+		if _, err := proc.Wait(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: wait ephemeral daemon: %v\n", err)
+		}
+	}()
+
+	select {
+	case <-done:
+		return
+	case <-time.After(5 * time.Second):
+		// Process didn't exit after SSH stop — force kill, then wait for goroutine.
+		if err := proc.Kill(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: kill ephemeral daemon: %v\n", err)
+		}
+		<-done // wait for goroutine to finish after kill
+	}
+}
+
+// probeDaemonSSH checks if a daemon is reachable at host:port via TCP dial.
+// Uses the provided timeout (0 means default 2s).
+func probeDaemonSSH(host, port string) bool {
+	return probeSSHWithTimeout(host, port, 2*time.Second)
+}
+
+func probeSSHWithTimeout(host, port string, timeout time.Duration) bool {
+	addr := net.JoinHostPort(host, port)
+	d := net.Dialer{Timeout: timeout}
+	conn, err := d.Dial("tcp", addr)
+	if err != nil {
+		return false
+	}
+	conn.Close() //nolint:errcheck // probe connection
+	return true
+}
+
+// wireSSHCommandExecutor sets up a command executor that dispatches via SSH exec,
+// optionally wrapping with transcript recording if enabled. Returns the
+// TranscriptWriter (nil if disabled) so the caller can defer Close.
+func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials, username, remoteHost string) *cli.TranscriptWriter {
+	executor := func(input string) (string, error) {
+		return sshclient.ExecCommand(creds, input)
+	}
+
+	var tw *cli.TranscriptWriter
+	if tf := openTranscriptFile(); tf != nil {
+		tw = cli.NewTranscriptWriter(tf, username, remoteHost)
+		executor = cli.WrapExecutorWithTranscript(executor, tw)
+	}
+
+	m.SetCommandExecutor(executor)
+	return tw
+}
+
+const createPromptTimeout = 10 * time.Second
+
+// buildEditorCommandTree builds a command.Node tree from YANG command modules.
+func buildEditorCommandTree() *command.Node {
+	loader, _ := yang.DefaultLoader()
+	return yang.BuildCommandTree(loader)
+}
+
+// promptCreateConfig asks the user whether to create a missing config file.
+// Returns true if the file was created, false otherwise.
+func promptCreateConfig(path string) bool {
+	return doPromptCreateConfig(path, os.Stdin, os.Stderr, createPromptTimeout)
+}
+
+// doPromptCreateConfig is the testable core of promptCreateConfig.
+func doPromptCreateConfig(path string, in io.Reader, errw io.Writer, timeout time.Duration) bool { //nolint:cyclop // linear flow with early returns
+	fmt.Fprintf(errw, "config file not found: %s\n", path) //nolint:errcheck // terminal output
+	fmt.Fprintf(errw, "create it? [y/N] ")                 //nolint:errcheck // terminal output
+
+	ch := make(chan string, 1)
+	go func() {
+		reader := bufio.NewReader(in)
+		line, _ := reader.ReadString('\n') //nolint:errcheck // EOF returns empty string, handled below
+		ch <- strings.ToLower(strings.TrimSpace(line))
+	}()
+
+	var answer string
+	select {
+	case answer = <-ch:
+	case <-time.After(timeout):
+		fmt.Fprintln(errw)                                 //nolint:errcheck // terminal output
+		fmt.Fprintf(errw, "error: no response, exiting\n") //nolint:errcheck // terminal output
+		return false
+	}
+
+	if answer != "y" && answer != "yes" {
+		return false
+	}
+
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			fmt.Fprintf(errw, "error: cannot create directory: %v\n", err) //nolint:errcheck // terminal output
+			return false
+		}
+	}
+
+	// Use O_CREATE|O_EXCL for atomic create — prevents TOCTOU symlink attacks
+	// between the Stat check and file creation.
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // config path from user
+	if err != nil {
+		fmt.Fprintf(errw, "error: cannot create file: %v\n", err) //nolint:errcheck // terminal output
+		return false
+	}
+	f.Close() //nolint:errcheck,gosec // empty file, close error is non-fatal
+
+	return true
+}
+
+// selectConfig prompts the user to select a config from available configs in blob storage.
+// Returns the selected config path, or empty string if canceled/error.
+func selectConfig(store storage.Storage, configDir, defaultPath string) string {
+	return doSelectConfig(store, configDir, defaultPath, os.Stdin, os.Stderr, createPromptTimeout)
+}
+
+// doSelectConfig is the testable core of selectConfig.
+// Lists .conf files in configDir via storage; if none exist (AC-7), creates defaultPath.
+// If multiple exist (AC-6), presents numbered list and accepts selection.
+func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.Reader, errw io.Writer, timeout time.Duration) string { //nolint:cyclop // linear flow with early returns
+	files, err := store.List(configDir)
+	if err != nil {
+		// Empty blob has no directory entries - treat as "no configs"
+		files = nil
+	}
+
+	// Filter to .conf files (excludes .draft, .lock, ssh_host_*, etc.)
+	var configs []string
+	for _, f := range files {
+		if strings.HasSuffix(f, ".conf") {
+			configs = append(configs, f)
+		}
+	}
+	sort.Strings(configs)
+
+	// AC-7: no configs exist, create default config
+	if len(configs) == 0 {
+		fmt.Fprintf(errw, "no configs found, creating %s\n", filepath.Base(defaultPath)) //nolint:errcheck // terminal output
+		if writeErr := store.WriteFile(defaultPath, []byte{}, 0o600); writeErr != nil {
+			fmt.Fprintf(errw, "error: cannot create %s: %v\n", filepath.Base(defaultPath), writeErr) //nolint:errcheck // terminal output
+			return ""
+		}
+		return defaultPath
+	}
+
+	// AC-6: list available configs and prompt for selection
+	fmt.Fprintf(errw, "%s not found in store. Available configs:\n", filepath.Base(defaultPath)) //nolint:errcheck // terminal output
+	for i, c := range configs {
+		fmt.Fprintf(errw, "  %d) %s\n", i+1, filepath.Base(c)) //nolint:errcheck // terminal output
+	}
+	fmt.Fprintf(errw, "select [1-%d]: ", len(configs)) //nolint:errcheck // terminal output
+
+	ch := make(chan string, 1)
+	go func() {
+		reader := bufio.NewReader(in)
+		line, _ := reader.ReadString('\n') //nolint:errcheck // EOF returns empty string, handled below
+		ch <- strings.TrimSpace(line)
+	}()
+
+	var answer string
+	select {
+	case answer = <-ch:
+	case <-time.After(timeout):
+		fmt.Fprintln(errw)                                 //nolint:errcheck // terminal output
+		fmt.Fprintf(errw, "error: no response, exiting\n") //nolint:errcheck // terminal output
+		return ""
+	}
+
+	if answer == "" {
+		return ""
+	}
+
+	n, parseErr := strconv.Atoi(answer)
+	if parseErr != nil || n < 1 || n > len(configs) {
+		fmt.Fprintf(errw, "error: invalid selection\n") //nolint:errcheck // terminal output
+		return ""
+	}
+
+	return configs[n-1]
+}
+
+// cmdEditWithStorage handles the edit command with a given storage backend.
+// Supports -f flag to override to filesystem. Defaults to <identity>.conf from blob.
+func cmdEditWithStorage(store storage.Storage, args []string) int {
+	fs := flag.NewFlagSet("config edit", flag.ExitOnError)
+	fileOverride := fs.Bool("f", false, "Use filesystem directly, bypass blob store")
+	user := fs.String("user", "", "SSH login username (overrides zefs super-admin)")
+	fs.StringVar(user, "u", "", "Short alias for --user")
+	webPort := fs.String("web", "", "Start web UI on given port (passed to ephemeral daemon)")
+	insecureWeb := fs.Bool("insecure-web", false, "Disable web auth (implies localhost bind)")
+
+	fs.Usage = func() {
+		p := helpfmt.Page{
+			Command: "ze config edit",
+			Summary: "Interactive configuration editor with VyOS-like set commands",
+			Usage:   []string{"ze config edit [options] [config-file]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "-f", Desc: "Use filesystem directly, bypass blob store"},
+					{Name: "--web <port>", Desc: "Start web UI on given port (ephemeral daemon)"},
+					{Name: "--insecure-web", Desc: "Disable web auth (binds localhost)"},
+				}},
+				{Title: "Commands", Entries: []helpfmt.HelpEntry{
+					{Name: "set <path> <value>", Desc: "Set a configuration value"},
+					{Name: "delete <path>", Desc: "Delete a configuration value"},
+					{Name: "edit <path>", Desc: "Enter a subsection (narrowed context)"},
+					{Name: "edit <list> *", Desc: "Edit template for all entries (inheritance)"},
+					{Name: "top", Desc: "Return to root context"},
+					{Name: "up", Desc: "Go up one level"},
+					{Name: "show [section]", Desc: "Display current configuration"},
+					{Name: "show | <filter>", Desc: "Pipe: blame, changes, compare, errors, history"},
+					{Name: "commit", Desc: "Save changes (creates backup)"},
+					{Name: "discard", Desc: "Revert all changes"},
+					{Name: "rollback <N>", Desc: "Restore backup N"},
+					{Name: "run <command>", Desc: "Execute operational command"},
+					{Name: "exit/quit", Desc: "Exit (prompts if unsaved changes)"},
+				}},
+				{Title: "Mode switching", Entries: []helpfmt.HelpEntry{
+					{Name: "command", Desc: "Switch to operational command mode"},
+					{Name: "edit", Desc: "Switch back to config edit mode (in command mode)"},
+				}},
+				{Title: "Tab completion", Entries: []helpfmt.HelpEntry{
+					{Name: "Tab", Desc: "Type partial text + Tab for completion"},
+					{Name: "Multiple matches", Desc: "Show dropdown, Tab cycles through"},
+					{Name: "Ghost text", Desc: "Shows best match in gray"},
+				}},
+			},
+			Examples: []string{
+				"ze config edit                         Edit default config (<identity>.conf)",
+				"ze config edit router.conf             Edit specific config",
+				"ze config edit -f /etc/ze/config.conf  Edit from filesystem",
+			},
+		}
+		p.Write()
+		fmt.Fprintf(os.Stderr, "\nConfig file defaults to <name>.conf (from meta/instance/name) or ze.conf.\n")
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
+	// Override to filesystem if -f flag is set
+	if *fileOverride {
+		store.Close() //nolint:errcheck // closing blob before switching to filesystem
+		store = storage.NewFilesystem()
+	}
+
+	// Refuse if no zefs database and -f not set (user expects blob storage)
+	if !*fileOverride && !storage.IsBlobStorage(store) {
+		fmt.Fprintf(os.Stderr, "error: database not found (run ze init first)\n")
+		return 1
+	}
+
+	// Default config name from meta/instance/name, fall back to ze.conf
+	configPath := defaultConfigName(store)
+	userProvided := fs.NArg() >= 1
+	if userProvided {
+		configPath = fs.Arg(0)
+	}
+
+	configPath = config.ResolveConfigPath(configPath)
+
+	// For filesystem storage, offer to create if file doesn't exist
+	if !storage.IsBlobStorage(store) {
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			if !promptCreateConfig(configPath) {
+				return 1
+			}
+		}
+	}
+
+	// For blob storage with default config name, handle missing config (AC-6/AC-7)
+	if storage.IsBlobStorage(store) && !userProvided && !store.Exists(configPath) {
+		selected := selectConfig(store, "file/active", configPath)
+		if selected == "" {
+			return 1
+		}
+		configPath = selected
+	}
+
+	// Create editor with storage backend
+	ed, err := cli.NewEditorWithStorage(store, configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	var daemonArgs []string
+	if *webPort != "" {
+		daemonArgs = append(daemonArgs, "--web", *webPort)
+	}
+	if *insecureWeb {
+		daemonArgs = append(daemonArgs, "--insecure-web")
+	}
+
+	return runEditor(ed, store, configPath, *user, daemonArgs)
+}
+
+// runEditor runs the interactive editor TUI after the Editor is created.
+func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, daemonArgs []string) int {
+	defer ed.Close() //nolint:errcheck // Best effort cleanup
+
+	// Probe daemon SSH port at startup.
+	// If no daemon is running and credentials are available, start an ephemeral daemon.
+	// The daemon handles all config types (BGP, hub, unknown) via runYANGConfig.
+	// When --web is requested without SSH in the config, the daemon runs in web-only
+	// mode (no SSH), so we poll the web port instead.
+	creds, credsErr := sshclient.LoadCredentialsWithFlags(user)
+	var ephemeralProc *os.Process
+	daemonReachable := false
+	if credsErr == nil {
+		if probeDaemonSSH(creds.Host, creds.Port) {
+			daemonReachable = true
+		} else {
+			proc, sshAddr, ephErr := startEphemeralDaemon(configPath, creds.Host, creds.Port, daemonArgs)
+			if ephErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: ephemeral daemon: %v\n", ephErr)
+			} else {
+				ephemeralProc = proc
+				daemonReachable = true
+				if sshHost, sshPort, splitErr := net.SplitHostPort(sshAddr); splitErr == nil {
+					creds.Host = sshHost
+					creds.Port = sshPort
+				}
+			}
+		}
+		// Reload notifier only when a daemon is confirmed reachable;
+		// otherwise commit succeeds silently (blob write) without a
+		// confusing SSH error from a missing daemon.
+		if daemonReachable {
+			ed.SetReloadNotifier(func() error {
+				_, err := sshclient.ExecCommand(creds, "daemon reload")
+				return err
+			})
+		}
+	}
+
+	// Web-only daemon: no ephemeral daemon started (SSH probe succeeded or
+	// ephemeral failed) but --web was requested.
+	webPort := extractWebPort(daemonArgs)
+	if ephemeralProc == nil && webPort != "" {
+		configType := config.ProbeConfigType(ed.OriginalContent())
+		if configType == config.ConfigTypeUnknown {
+			proc, ephErr := startWebOnlyDaemon(configPath, webPort, daemonArgs)
+			if ephErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: web daemon: %v\n", ephErr)
+			} else {
+				ephemeralProc = proc
+			}
+		}
+	}
+
+	// Stop ephemeral daemon when editor exits
+	if ephemeralProc != nil {
+		defer stopEphemeralDaemon(ephemeralProc, creds)
+	}
+
+	// Wire archive notifier if config has commit-triggered archive blocks
+	if ed.Tree() != nil {
+		sys := system.ExtractSystemConfig(ed.Tree())
+		allConfigs := archive.ExtractConfigs(ed.Tree())
+		commitConfigs := archive.FilterByTrigger(allConfigs, archive.TriggerCommit)
+		if len(commitConfigs) > 0 {
+			ed.SetArchiveNotifier(archive.NewNotifier(configPath, commitConfigs, &sys, nil))
+		}
+	}
+
+	// Create session for concurrent editing.
+	username := os.Getenv("USER")
+	if username == "" {
+		username = "unknown"
+	}
+	if err := cli.ValidateUser(username); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	session := cli.NewEditSession(username, "local")
+	ed.SetSession(session)
+
+	// Auto-load draft if it exists.
+	draftPath := cli.DraftPath(configPath)
+	if store.Exists(draftPath) {
+		// Load draft first so ActiveSessions can see draft sessions.
+		if !ed.LoadDraft() {
+			fmt.Fprintf(os.Stderr, "warning: draft file exists but could not be loaded\n") //nolint:errcheck // terminal output
+		}
+
+		// Draft exists: check for same-user orphaned sessions.
+		activeSessions := ed.ActiveSessions()
+		orphaned := session.OrphanedSessions(activeSessions)
+		stdinScanner := bufio.NewScanner(os.Stdin)
+		for _, sid := range orphaned {
+			// Same user, different session -- offer adoption.
+			changes := ed.PendingChanges(sid)
+			fmt.Fprintf(os.Stderr, "\nFound pending changes from previous session (%s, %d changes):\n", sid, len(changes)) //nolint:errcheck // terminal output
+			for _, change := range changes {
+				fmt.Fprintf(os.Stderr, "  %s\n", change.Summary()) //nolint:errcheck // terminal output
+			}
+			fmt.Fprintf(os.Stderr, "\nAdopt these changes? (yes/no) ") //nolint:errcheck // terminal output
+
+			if !stdinScanner.Scan() {
+				break // stdin closed or error
+			}
+			if strings.TrimSpace(stdinScanner.Text()) == "yes" {
+				if adoptErr := ed.AdoptSession(sid); adoptErr != nil {
+					fmt.Fprintf(os.Stderr, "error adopting session: %v\n", adoptErr) //nolint:errcheck // terminal output
+				}
+			}
+		}
+
+		// Display remaining active sessions (other users).
+		remaining := ed.ActiveSessions()
+		otherSessions := make([]string, 0)
+		for _, sid := range remaining {
+			if sid != session.ID {
+				otherSessions = append(otherSessions, sid)
+			}
+		}
+		if len(otherSessions) > 0 {
+			fmt.Fprintf(os.Stderr, "Active editing sessions:\n") //nolint:errcheck // terminal output
+			for _, sid := range otherSessions {
+				fmt.Fprintf(os.Stderr, "  %s\n", sid) //nolint:errcheck // terminal output
+			}
+		}
+	} else if ed.HasPendingEdit() {
+		// Legacy pending edit file (pre-session format).
+		switch ed.PromptPendingEdit() {
+		case cli.PendingEditContinue:
+			if err := ed.LoadPendingEdit(); err != nil {
+				fmt.Fprintf(os.Stderr, "error loading edit file: %v\n", err)
+				return 1
+			}
+		case cli.PendingEditDiscard:
+			if err := ed.Discard(); err != nil {
+				fmt.Fprintf(os.Stderr, "error discarding edit file: %v\n", err)
+				return 1
+			}
+		case cli.PendingEditQuit:
+			return 0
+		}
+	}
+
+	// Create model
+	m, err := cli.NewModel(ed)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	// Wire persistent command history from blob storage (graceful no-op for filesystem).
+	if storage.IsBlobStorage(store) {
+		m.SetHistory(cli.NewHistory(store, username))
+	}
+
+	// Wire command mode: completer from RPC registrations, executor via SSH.
+	// Executor is wired whenever credentials are available, not only when the
+	// daemon was reachable at startup. ExecCommand connects per-call, so a
+	// daemon that starts after the editor (or was missed by the probe) still works.
+	m.SetCommandCompleter(cli.NewCommandCompleter(buildEditorCommandTree()))
+	if credsErr == nil {
+		remoteHost := creds.Host + ":" + creds.Port
+		if tw := wireSSHCommandExecutor(&m, creds, username, remoteHost); tw != nil {
+			defer tw.Close() //nolint:errcheck // best-effort transcript
+		}
+	}
+
+	// Run Bubble Tea program
+	p := tea.NewProgram(m)
+	if _, err := p.Run(); err != nil {
+		if errors.Is(err, tea.ErrProgramPanic) {
+			crashlog.HandleCaughtPanic(err)
+		}
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	return 0
+}

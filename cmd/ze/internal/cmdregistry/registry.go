@@ -1,224 +1,109 @@
-// Package cmdregistry holds the process-wide registries for ze's
-// command-line surface: offline local handlers and top-level root
-// commands. It is a leaf package -- no dependencies on anything else
-// under cmd/ze -- so every subcommand package can import it from
-// `init()` without risking an import cycle with cmdutil (which imports
-// cli, which cannot import back into cmdutil).
+// Package cmdregistry is a thin compatibility shim over
+// internal/component/command/registry, the importable leaf package that now
+// owns ze's command-line registries.
+//
+// The registry moved out of cmd/ze/internal so that command owners under
+// internal/component and internal/plugins can register their own commands and
+// root handlers from init() without importing anything under cmd/ze. This shim
+// re-exports the registry's API at the old import path so existing cmd/ze
+// callers keep compiling during the ownership migration. New code -- and any
+// migrated owner -- should import
+// codeberg.org/thomas-mangin/ze/internal/component/command/registry directly.
+//
+// The shim holds no state of its own; every function delegates to the leaf
+// package, so the shim and direct importers share one registry.
 //
 // Design: docs/architecture/core-design.md -- ze's registration pattern
 package cmdregistry
 
-import (
-	"errors"
-	"fmt"
-	"sort"
-	"strings"
-	"sync"
+import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+
+// Re-exported types. Aliases keep callers' `cmdregistry.Meta` etc. assignable
+// to and from the leaf package's types.
+type (
+	// LocalHandler runs a CLI command in-process (no daemon required).
+	LocalHandler = registry.LocalHandler
+	// RootHandler runs an owner-backed root command in-process.
+	RootHandler = registry.RootHandler
+	// RuntimeContext carries process-entry dependencies for owner handlers.
+	RuntimeContext = registry.RuntimeContext
+	// Meta holds human-facing metadata for a registered command.
+	Meta = registry.Meta
+	// LocalCommandEntry pairs a registered local-command path with its metadata.
+	LocalCommandEntry = registry.LocalCommandEntry
+	// RootCommand pairs a registered root-command name with its metadata.
+	RootCommand = registry.RootCommand
+	// SectionEntry pairs a section title with its commands.
+	SectionEntry = registry.SectionEntry
 )
 
-var errCmdregistryRegisterlocalEmptyPath = errors.New("cmdregistry.RegisterLocal: empty path")
-
-// LocalHandler runs a CLI command in-process (no daemon required).
-type LocalHandler func(args []string) int
-
+// Re-exported section constants.
 const (
-	SectionOperations    = "operations"
-	SectionConfiguration = "configuration"
-	SectionSystem        = "system"
+	SectionOperations    = registry.SectionOperations
+	SectionConfiguration = registry.SectionConfiguration
+	SectionSystem        = registry.SectionSystem
 )
-
-var sectionOrder = []string{SectionOperations, SectionConfiguration, SectionSystem}
 
 // SectionTitle returns the display title for a section constant.
-func SectionTitle(section string) string {
-	return sectionTitles[section]
-}
+func SectionTitle(section string) string { return registry.SectionTitle(section) }
 
-var sectionTitles = map[string]string{
-	SectionOperations:    "Operations (interact with the running daemon)",
-	SectionConfiguration: "Configuration (change how the box behaves)",
-	SectionSystem:        "System (manage the process and environment)",
-}
-
-// Meta holds human-facing metadata for a registered command. Optional;
-// empty fields render as blank in help output. Mode is a short tag
-// used by the help printer ("offline", "daemon", "setup", "read-only").
-// Section groups the command in help output ("operations",
-// "configuration", "system"). Subs is a one-line hint at commonly-used
-// sub-paths.
-type Meta struct {
-	Description string
-	Mode        string
-	Section     string
-	Subs        string
-}
-
-// LocalCommandEntry pairs a registered local-command path with its
-// metadata.
-type LocalCommandEntry struct {
-	Path string
-	Meta Meta
-}
-
-// RootCommand pairs a registered root-command name with its metadata.
-type RootCommand struct {
-	Name string
-	Meta Meta
-}
-
-var (
-	mu            sync.RWMutex
-	localHandlers = make(map[string]LocalHandler)
-	localMeta     = make(map[string]Meta)
-	rootCommands  = make(map[string]Meta)
-)
-
-// RegisterLocal registers a handler for a CLI command path (for
-// example, "show version" or "ping"). The path is the full
-// space-separated command. Called at startup before dispatch.
+// RegisterLocal registers a handler for a CLI command path.
 func RegisterLocal(path string, handler LocalHandler) error {
-	if path == "" {
-		return errCmdregistryRegisterlocalEmptyPath
-	}
-	if handler == nil {
-		return fmt.Errorf("cmdregistry.RegisterLocal: nil handler for %q", path)
-	}
-	mu.Lock()
-	localHandlers[path] = handler
-	mu.Unlock()
-	return nil
+	return registry.RegisterLocal(path, handler)
 }
 
 // RegisterLocalMeta registers a handler AND its human-facing metadata.
-// Metadata is surfaced by `ze help --ai`.
 func RegisterLocalMeta(path string, handler LocalHandler, meta Meta) error {
-	if err := RegisterLocal(path, handler); err != nil {
-		return err
-	}
-	mu.Lock()
-	localMeta[path] = meta
-	mu.Unlock()
-	return nil
+	return registry.RegisterLocalMeta(path, handler, meta)
 }
 
 // MustRegisterLocal is the panicking variant, intended for init().
 func MustRegisterLocal(path string, handler LocalHandler) {
-	if err := RegisterLocal(path, handler); err != nil {
-		panic("BUG: cmdregistry.MustRegisterLocal: " + err.Error())
-	}
+	registry.MustRegisterLocal(path, handler)
 }
 
 // MustRegisterLocalMeta is the panicking variant, intended for init().
 func MustRegisterLocalMeta(path string, handler LocalHandler, meta Meta) {
-	if err := RegisterLocalMeta(path, handler, meta); err != nil {
-		panic("BUG: cmdregistry.MustRegisterLocalMeta: " + err.Error())
-	}
+	registry.MustRegisterLocalMeta(path, handler, meta)
 }
 
-// RegisterRoot registers metadata for a top-level `ze <name>`
-// subcommand. Dispatch itself lives in cmd/ze/main.go; this registry
-// drives the help printer so root commands do not need a hand-
-// maintained static list.
-func RegisterRoot(name string, meta Meta) {
-	mu.Lock()
-	rootCommands[name] = meta
-	mu.Unlock()
+// RegisterRoot registers metadata for a `ze <name>` subcommand dispatched by
+// cmd/ze/main.go.
+func RegisterRoot(name string, meta Meta) { registry.RegisterRoot(name, meta) }
+
+// RegisterRootHandler registers an owner-backed root command (handler + meta).
+func RegisterRootHandler(name string, handler RootHandler, meta Meta) error {
+	return registry.RegisterRootHandler(name, handler, meta)
 }
 
-// LookupLocal finds the longest prefix of words that matches a
-// registered local handler. Returns the handler and the remaining
-// words as args. Returns nil handler if no match.
-//
-// Caller joins words with spaces to form the match key; iteration
-// tries longest first, so "show bgp decode" is preferred over
-// "show bgp" or "show".
-func LookupLocal(words []string) (LocalHandler, []string) {
-	mu.RLock()
-	defer mu.RUnlock()
-	for i := len(words); i > 0; i-- {
-		path := strings.Join(words[:i], " ")
-		if handler, ok := localHandlers[path]; ok {
-			return handler, append([]string(nil), words[i:]...)
-		}
-	}
-	return nil, nil
+// MustRegisterRootHandler is the panicking variant, intended for init().
+func MustRegisterRootHandler(name string, handler RootHandler, meta Meta) {
+	registry.MustRegisterRootHandler(name, handler, meta)
 }
+
+// LookupRoot returns the registered handler for a root command name, or nil.
+func LookupRoot(name string) RootHandler { return registry.LookupRoot(name) }
+
+// SetRuntimeStorage installs the process storage resolver for local handlers.
+func SetRuntimeStorage(fn func() any) { registry.SetRuntimeStorage(fn) }
+
+// HasRootHandler reports whether an owner-backed handler exists for name.
+func HasRootHandler(name string) bool { return registry.HasRootHandler(name) }
+
+// LookupLocal finds the longest prefix of words matching a local handler.
+func LookupLocal(words []string) (LocalHandler, []string) { return registry.LookupLocal(words) }
 
 // ListLocal returns every registered local command sorted by path.
-// Handlers are not returned; only path + metadata.
-func ListLocal() []LocalCommandEntry {
-	mu.RLock()
-	defer mu.RUnlock()
-	out := make([]LocalCommandEntry, 0, len(localHandlers))
-	for path := range localHandlers {
-		out = append(out, LocalCommandEntry{Path: path, Meta: localMeta[path]})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
-	return out
-}
+func ListLocal() []LocalCommandEntry { return registry.ListLocal() }
 
-// ResetForTest clears every registry. Only intended for use from unit
-// tests that want a clean slate between cases.
-func ResetForTest() {
-	mu.Lock()
-	localHandlers = make(map[string]LocalHandler)
-	localMeta = make(map[string]Meta)
-	rootCommands = make(map[string]Meta)
-	mu.Unlock()
-}
+// ResetForTest clears every registry. Intended for unit tests only.
+func ResetForTest() { registry.ResetForTest() }
 
 // HasLocal reports whether a handler is registered for the exact path.
-// Only intended for tests that need an existence check without pulling
-// a handler.
-func HasLocal(path string) bool {
-	mu.RLock()
-	_, ok := localHandlers[path]
-	mu.RUnlock()
-	return ok
-}
+func HasLocal(path string) bool { return registry.HasLocal(path) }
 
 // ListRoot returns every registered root command sorted by name.
-func ListRoot() []RootCommand {
-	mu.RLock()
-	defer mu.RUnlock()
-	out := make([]RootCommand, 0, len(rootCommands))
-	for name, meta := range rootCommands {
-		out = append(out, RootCommand{Name: name, Meta: meta})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out
-}
+func ListRoot() []RootCommand { return registry.ListRoot() }
 
-// SectionEntry pairs a section title with its commands.
-type SectionEntry struct {
-	Section  string
-	Commands []RootCommand
-}
-
-// ListRootBySection returns root commands grouped by section in
-// display order (operations, configuration, system). Commands
-// within each section are sorted by name.
-func ListRootBySection() []SectionEntry {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	bySection := make(map[string][]RootCommand, len(sectionOrder))
-	for name, meta := range rootCommands {
-		s := meta.Section
-		if s == "" {
-			s = SectionSystem
-		}
-		bySection[s] = append(bySection[s], RootCommand{Name: name, Meta: meta})
-	}
-
-	out := make([]SectionEntry, 0, len(sectionOrder))
-	for _, s := range sectionOrder {
-		cmds := bySection[s]
-		if len(cmds) == 0 {
-			continue
-		}
-		sort.Slice(cmds, func(i, j int) bool { return cmds[i].Name < cmds[j].Name })
-		out = append(out, SectionEntry{Section: s, Commands: cmds})
-	}
-	return out
-}
+// ListRootBySection returns root commands grouped by section in display order.
+func ListRootBySection() []SectionEntry { return registry.ListRootBySection() }

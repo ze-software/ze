@@ -12,9 +12,9 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
+	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
 )
 

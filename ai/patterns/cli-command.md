@@ -21,8 +21,15 @@ Read the grammar rule before designing any new command.
 
 | Type | Location | When to use |
 |------|----------|-------------|
-| **Offline** | `cmd/ze/<domain>/` | Tools that don't need a running daemon (config, decode, validate, yang) |
+| **Offline** | the owner package, e.g. `internal/component/<owner>/cli/` (or `internal/plugins/<owner>/cli/`, `internal/core/<owner>/cli/`) | Tools that don't need a running daemon (config, decode, validate, yang). The command lives with the component that owns the behaviour, not under `cmd/ze`. |
 | **Online** | `internal/component/cmd/<verb>/` | Commands that interact with the running daemon via RPC |
+
+**Command ownership (`ai/rules/plugin-self-containment.md`):** a command's offline
+CLI, root registration, daemon RPC, schema, and doctor check live in the package
+that owns the behaviour. `cmd/ze` is the process entry point only -- it consumes
+registrations and keeps no-owner / process-global commands (see the no-owner
+allowlist). Removing an owner package removes all its commands with no dangling
+node elsewhere.
 
 
 ## Ownership Check Before Grammar Work
@@ -159,7 +166,8 @@ subscribe <type>                 unsubscribe
 ## Offline Command: File Structure
 
 ```
-cmd/ze/<domain>/
+internal/component/<owner>/cli/      # the owner package, NOT cmd/ze
+  register.go      # init() -> registry.MustRegisterRootHandler + show-shortcuts
   main.go          # Run() + dispatch + usage()
   cmd_<sub>.go     # One file per subcommand handler
 ```
@@ -167,7 +175,7 @@ cmd/ze/<domain>/
 ### main.go Template
 
 ```go
-package <domain>
+package cli
 
 func Run(args []string) int {
     if len(args) < 1 { usage(); return 1 }
@@ -296,89 +304,103 @@ The YANG path maps directly: `show bgp peer` = container nesting = WireMethod `z
 
 ## Command Registration (BLOCKING)
 
-Every subcommand package owns a `register.go` file whose `init()` registers
-its root command + any local (daemon-side or offline-shortcut) commands
-with the process-wide registry in `cmd/ze/internal/cmdregistry`. **Do not**
-register commands from `cmd/ze/main.go`; its dispatch switch consumes what
-was registered at init time.
+The owner package owns a `register.go` whose `init()` registers its root
+command + any `show X` offline shortcuts with the importable command registry
+`internal/component/command/registry`. The registry **dispatches** owner-backed
+roots, so the owner can live anywhere under `internal/` without `cmd/ze`
+importing it directly. **Do not** add a dispatch case to `cmd/ze/main.go`'s
+static switch for an owner-backed command, and do not register from `main.go`.
 
-### Why a dedicated registry package
+### Why a dedicated leaf registry package
 
-`cmdregistry` is a leaf package (no dependencies on anything else under
-`cmd/ze/`). `cmdutil` imports `cli` for tree-walking, so `cli` and
-everything else that imports `cmdutil` would cycle if they tried to
-register back into `cmdutil`. Routing all registration through
-`cmdregistry` breaks the cycle.
+`internal/component/command/registry` imports only the standard library, so any
+owner (`internal/component/*`, `internal/plugins/*`, `internal/core/*`) can
+import it from `init()` with no import cycle. It must never import a concrete
+owner, storage, the plugin server, the CLI package, or the hub package;
+dispatch-time dependencies (storage, plugin list, process flags) flow through
+`RuntimeContext`, whose heavy types are exposed as function values so the
+package stays leaf-like.
 
-`cmdutil.RegisterLocalCommand` still exists as a thin passthrough for
-callers that already use it; new code should call `cmdregistry` directly.
+`cmd/ze/internal/cmdregistry` is now a thin re-export shim over this package, so
+old importers still compile; new code imports
+`internal/component/command/registry` directly.
 
-### Per-package `register.go` template
+### Per-owner `register.go` template
 
 ```go
-// cmd/ze/<pkg>/register.go
-package <pkg>
+// internal/component/<owner>/cli/register.go
+package cli
 
-import "codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 
 func init() {
-    // 1. Root command metadata for `ze <name>`.
-    cmdregistry.RegisterRoot("<name>", cmdregistry.Meta{
+    // 1. Root command: handler + metadata. The registry dispatches it.
+    registry.MustRegisterRootHandler("<name>", func(_ *registry.RuntimeContext, args []string) int {
+        return Run(args)
+    }, registry.Meta{
         Description: "<short one-liner>",
-        Mode:        "offline",           // or "daemon", "setup", "read-only"
+        Mode:        "offline",            // or "daemon", "setup", "read-only"
+        Section:     registry.SectionConfiguration,
         Subs:        "<example sub-paths>", // shown in help
     })
 
-    // 2. Local shortcuts dispatched by path (e.g. `ze show <pkg> <op>`).
-    cmdregistry.MustRegisterLocal("show <pkg> <op>", func(args []string) int {
+    // 2. `show X` offline shortcuts dispatched by path.
+    registry.MustRegisterLocal("show <owner> <op>", func(args []string) int {
         return Run(append([]string{"<op>"}, args...))
     })
 }
 ```
 
-### Registry API
+The owner package needs its `init()` linked into the binary: until the Phase 7
+generated command-provider aggregator lands, add a blank import to
+`cmd/ze/main.go` (`_ "codeberg.org/thomas-mangin/ze/internal/component/<owner>/cli"`).
+
+### Registry API (`internal/component/command/registry`)
 
 | Call | Use |
 |------|-----|
-| `cmdregistry.RegisterRoot(name, Meta)` | Top-level `ze <name>` subcommand metadata. Display-only; dispatch stays in `main.go` (switch case or `LookupLocal` fallback) |
-| `cmdregistry.RegisterLocal(path, handler)` | Path-keyed local handler (`"ping"`, `"show bgp decode"`). Error-returning; use in non-init setup |
-| `cmdregistry.MustRegisterLocal(path, handler)` | Panicking variant, for `init()` use |
-| `cmdregistry.RegisterLocalMeta(path, handler, meta)` | Local handler + display metadata |
-| `cmdregistry.MustRegisterLocalMeta(path, handler, meta)` | Panicking variant |
-| `cmdregistry.LookupLocal(words)` | Longest-prefix handler lookup; used by `main.go`'s fallback dispatch |
-| `cmdregistry.ListLocal()` / `ListRoot()` | Enumerate everything; used by `help --ai` |
-| `cmdregistry.HasLocal(path)` / `ResetForTest()` | Test helpers |
+| `registry.RegisterRootHandler(name, handler, meta)` / `MustRegisterRootHandler` | **Owner-backed** `ze <name>`: handler + metadata, **dispatched by the registry**. Rejects empty name / nil handler / duplicate owner |
+| `registry.RegisterRoot(name, meta)` | **No-owner / process-global** `ze <name>` metadata only; dispatch stays in `cmd/ze/main.go` (start, version, help, ...) |
+| `registry.RootHandler` = `func(rctx *RuntimeContext, args []string) int` | Owner root handler signature; ignore `rctx` if no process deps needed |
+| `registry.RuntimeContext` / `StorageAs[T](rctx)` | Process-entry deps built by `main.go` (storage resolver, plugin list, version printer, web/MCP flags). `StorageAs` type-asserts the storage value |
+| `registry.RegisterLocal` / `MustRegisterLocal` / `RegisterLocalMeta` / `MustRegisterLocalMeta` | Path-keyed local handler (`"show bgp decode"`) for offline shortcuts |
+| `registry.SetRuntimeStorage(fn)` / `RuntimeStorage()` | Storage resolver for local shortcuts (their `func(args)int` signature gets no context). `main.go` installs it; shortcuts read it lazily |
+| `registry.LookupRoot(name)` / `LookupLocal(words)` | Dispatch lookups used by `main.go` |
+| `registry.ListLocal()` / `ListRoot()` / `ListRootBySection()` | Enumerate everything; used by `help --ai` |
+| `registry.HasLocal` / `HasRootHandler` / `ResetForTest` | Test helpers (do not `ResetForTest` from `cmd/ze` tests -- it wipes init-registered roots; use sentinel names) |
 
 ### Registration shape per command class
 
 | Command shape | Example | Register |
 |---------------|---------|----------|
-| Root `ze <name> ...` | `ze bgp decode` | `RegisterRoot("bgp", ...)` in `cmd/ze/bgp/register.go`; dispatched by `main.go` switch to `bgp.Run(args[1:])` |
-| Bare verb | `ze ping <target>` | `RegisterRoot("ping", ...)` + `MustRegisterLocal("ping", RunPing)`; dispatched via `main.go`'s `LookupLocal` fallback |
-| `show X` offline shortcut | `ze show bgp decode` | `MustRegisterLocal("show bgp decode", wrapper)` in the owning package; reached via YANG tree or `LookupLocal` |
-| Online RPC | `show interface name <name> detail` | `pluginserver.RegisterRPCs(...)` in the plugin's `init()` (see Online Command section above). Independent of `cmdregistry` |
+| Root `ze <name> ...` (owner-backed) | `ze bgp decode` | `MustRegisterRootHandler("bgp", wrap(Run), Meta)` in `internal/component/bgp/cli/register.go`; **registry-dispatched** |
+| Root `ze <name> ...` (no-owner) | `ze start`, `ze version` | `RegisterRoot("start", Meta)` from `cmd/ze`; dispatched by `main.go` static switch (allowlisted) |
+| `show X` offline shortcut | `ze show bgp decode` | `MustRegisterLocal("show bgp decode", wrapper)` in the owner package; reached via YANG tree or `LookupLocal` |
+| Online RPC | `show interface name <name> detail` | `pluginserver.RegisterRPCs(...)` in the plugin's `init()` (see Online Command section). Independent of the command registry |
 
-### Storage-dependent local commands
+### Storage-dependent commands
 
-If a handler needs the blob store, accept a resolver thunk and expose a
-`BindStorage...` setter rather than opening the store from `init()`
-(storage is configured only after global flag parsing).
+Storage is opened only after global flag parsing, so never open it from
+`init()`. The root **handler** receives the resolver through `RuntimeContext`;
+**local shortcuts** (no context) read it lazily from the registry, which
+`cmd/ze/main.go` installs once via `registry.SetRuntimeStorage(...)`.
 
 ```go
-// cmd/ze/config/register.go
-type StorageResolver func() storage.Storage
+// internal/component/config/cli/register.go
+registry.MustRegisterRootHandler("config", func(rctx *registry.RuntimeContext, args []string) int {
+    store, ok := registry.StorageAs[storage.Storage](rctx)
+    if !ok { /* error */ return 1 }
+    defer store.Close() //nolint:errcheck
+    return RunWithStorage(store, args)
+}, registry.Meta{ /* ... */ })
 
-func BindStorageCommands(resolve StorageResolver) {
-    cmdregistry.MustRegisterLocal("show config history", func(args []string) int {
-        store := resolve()
-        defer store.Close() //nolint:errcheck
-        return RunWithStorage(store, append([]string{"history"}, args...))
-    })
-}
+registry.MustRegisterLocalMeta("show config history", func(args []string) int {
+    store, ok := registry.RuntimeStorage().(storage.Storage)
+    if !ok { /* error */ return 1 }
+    defer store.Close() //nolint:errcheck
+    return RunWithStorage(store, append([]string{"history"}, args...))
+}, registry.Meta{Description: "..."})
 ```
-
-`cmd/ze/main.go` calls `zeconfig.BindStorageCommands(resolveStorage)`
-after parsing global flags.
 
 ### How `help --ai` consumes the registry
 
@@ -395,13 +417,13 @@ automatically.
 
 | Variant | File | Notes |
 |---------|------|-------|
-| Switch dispatch | `cmd/ze/bgp/main.go` | Standard pattern |
-| Map dispatch | `cmd/ze/config/main.go` | Many subcommands, storage-aware |
-| Map dispatch (simple) | `cmd/ze/data/main.go` | Stateless subcommands |
-| Registry dispatch | `cmd/ze/plugin/main.go` | Plugin CLI routing |
-| **Root + local registration** | `cmd/ze/bgp/register.go` | Canonical `register.go` shape |
-| **Bare-verb registration** | `cmd/ze/diag/register.go` | Multiple root names in one init() (ping, generate) |
-| **Storage-bound local** | `cmd/ze/config/register.go` | `BindStorageCommands(resolve)` for blob-store-dependent handlers |
+| Switch dispatch | `internal/component/bgp/cli/main.go` | Standard pattern |
+| Map dispatch | `internal/component/config/cli/main.go` | Many subcommands, storage-aware |
+| Map dispatch (simple) | `internal/component/config/storage/cli/main.go` | Stateless subcommands (`ze data`) |
+| **Root handler registration** | `internal/component/bgp/cli/register.go` | Canonical owner `register.go` (RegisterRootHandler + `show` shortcuts) |
+| **Root + owner schema** | `internal/component/bgp/cli/register.go` + `internal/component/bgp/cli/schema/` | Owner-owned YANG tools schema, blank-imported by the owner |
+| **Storage-bound** | `internal/component/config/cli/register.go` | `StorageAs` (root) + `RuntimeStorage` (local shortcuts) |
+| **No-owner / process-global** | `cmd/ze/diag/register.go` | Stays in `cmd/ze`; `RegisterRoot` metadata + `MustRegisterLocal` (ping, generate) |
 | Online RPC | `internal/component/cmd/show/show.go` | Read-only verb |
 | Online RPC | `internal/component/cmd/set/set.go` | Write verb |
 
@@ -415,10 +437,12 @@ automatically.
 [ ] Errors to stderr, proper exit codes (0/1/2)
 [ ] Register in parent dispatch (switch/map/registry)
 [ ] Unknown subcommand: suggest + usage + return 1
-[ ] register.go: cmdregistry.RegisterRoot(<name>, Meta{...}) for `ze <name>`
-[ ] register.go: cmdregistry.MustRegisterLocal(<path>, handler) for every `show X` / bare-verb shortcut
-[ ] If storage-dependent: expose BindStorageCommands(resolve); main.go calls after flag parse
-[ ] If only registered (no main.go switch case): confirm main.go's LookupLocal fallback will route it
+[ ] Owner package: register.go in internal/component/<owner>/cli (NOT cmd/ze) -- owner is cmd/ze-free
+[ ] register.go: registry.MustRegisterRootHandler(<name>, wrap(Run), Meta{...}) for `ze <name>` (registry-dispatched)
+[ ] register.go: registry.MustRegisterLocal(<path>, handler) for every `show X` shortcut
+[ ] Owner init() linked: blank import in cmd/ze/main.go (until the Phase 7 generated aggregator)
+[ ] If storage-dependent: root handler uses StorageAs(rctx); local shortcuts use registry.RuntimeStorage()
+[ ] No-owner / process-global only: stays in cmd/ze with RegisterRoot + main.go switch (allowlist)
 [ ] If online: YANG tree with ze:command extension
 [ ] If online: WireMethod in kebab-case matching YANG
 [ ] If online: RequiresSelector set correctly

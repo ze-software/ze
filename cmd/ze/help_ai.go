@@ -12,9 +12,9 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
+	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"

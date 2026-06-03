@@ -253,6 +253,21 @@ func localCommandRegistryFiles() []string {
 		fatal("local command registry glob: " + err.Error())
 	}
 	files = append(files, "cmd/ze/main.go")
+	// Migrated owners register their offline `show X` shortcuts from
+	// internal/.../cli/register.go (and internal/component/cli/client) via the
+	// importable registry, not from cmd/ze. Scan those owner command packages
+	// too. Until the Phase 7 command-provider aggregator lands, this filesystem
+	// walk keeps the YANG/handler contract honest across the migration.
+	_ = filepath.Walk("internal", func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || filepath.Base(path) != "register.go" {
+			return nil
+		}
+		switch filepath.Base(filepath.Dir(path)) {
+		case "cli", "client":
+			files = append(files, path)
+		}
+		return nil
+	})
 	sort.Strings(files)
 	return files
 }
@@ -272,8 +287,10 @@ func collectLocalHandlersFromFile(path string, paths map[string]bool) {
 		if !ok {
 			return true
 		}
+		// cmd/ze packages call the cmdregistry shim; migrated owners call the
+		// registry leaf package directly. Accept both.
 		pkg, ok := selector.X.(*ast.Ident)
-		if !ok || pkg.Name != "cmdregistry" {
+		if !ok || (pkg.Name != "cmdregistry" && pkg.Name != "registry") {
 			return true
 		}
 		switch selector.Sel.Name {

@@ -52,7 +52,7 @@ decode, and round-trip paths share the same wire representation.
 ze-native format. `ze exabgp plugin` runs existing ExaBGP processes with Ze as the BGP
 engine. The migration is external tooling only -- the engine itself has zero ExaBGP
 format awareness.
-<!-- source: cmd/ze/config/cmd_migrate.go -- ze config migrate command -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate command -->
 <!-- source: cmd/ze/exabgp/main.go -- ze exabgp plugin command -->
 <!-- source: internal/exabgp/migration/migrate.go -- ExaBGP migration logic -->
 
@@ -664,11 +664,11 @@ Ze uses a domain-based CLI dispatch. Each domain (`bgp`, `config`, `schema`, `hu
 `exabgp`) has its own `cmd/ze/<domain>/main.go` with `func Run(args []string) int`.
 Subcommands use their own `flag.FlagSet`. Exit codes: 0 = success, 1 = error,
 2 = file not found.
-<!-- source: cmd/ze/bgp/main.go -- bgp domain Run() -->
-<!-- source: cmd/ze/config/main.go -- config domain Run() -->
-<!-- source: cmd/ze/yang/main.go -- schema domain Run() -->
+<!-- source: internal/component/bgp/cli/main.go -- bgp domain Run() -->
+<!-- source: internal/component/config/cli/main.go -- config domain Run() -->
+<!-- source: internal/component/config/yang/cli/main.go -- schema domain Run() -->
 <!-- source: cmd/ze/exabgp/main.go -- exabgp domain Run() -->
-<!-- source: cmd/ze/cli/main.go -- cli domain Run() -->
+<!-- source: internal/component/cli/client/main.go -- cli domain Run() -->
 
 Key commands:
 

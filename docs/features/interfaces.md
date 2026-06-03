@@ -337,7 +337,7 @@ consistency and backend feature gates, is visible in static validation. Any
 third-party external plugin that only implements a live `OnConfigVerify`
 callback is verified at daemon transaction time, not by `ze config validate`.
 
-<!-- source: cmd/ze/config/cmd_validate.go -- runValidation generic in-process plugin verifier loop -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation generic in-process plugin verifier loop -->
 <!-- source: internal/component/config/plugin_verify.go -- VerifyPluginConfig uses InProcessConfigVerifier only -->
 <!-- source: internal/component/iface/config.go -- parseTunnelEntry used by iface in-process verifier and OnConfigVerify -->
 <!-- source: internal/component/api/config_session.go -- failed reload restores previous content -->
@@ -383,7 +383,7 @@ interface {
 `private-key` and peer `preshared-key` are marked `ze:sensitive` in YANG.
 The config parser auto-decodes `$9$`-prefixed values on load
 (`internal/component/config/parser.go:127`); `ze config show` / `ze config
-dump` always re-encodes them on output (`cmd/ze/config/cmd_dump.go:132`),
+dump` always re-encodes them on output (`internal/component/config/cli/cmd_dump.go:132`),
 so the plaintext base64 form never reaches the config file on disk. Public
 keys are public and stored plaintext.
 

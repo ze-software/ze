@@ -15,12 +15,12 @@ import (
 	"sync"
 	"time"
 
-	zeconfigcmd "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	zeconfigcmd "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	zegnmi "codeberg.org/thomas-mangin/ze/internal/component/gnmi"

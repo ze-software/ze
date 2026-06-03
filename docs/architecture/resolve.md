@@ -49,7 +49,7 @@ These are genuine data dependencies, not architectural coupling.
 
 ## CLI
 
-<!-- source: cmd/ze/resolve/main.go -- resolve CLI dispatch -->
+<!-- source: internal/component/resolve/cli/main.go -- resolve CLI dispatch -->
 
 The `ze resolve` offline command exposes all resolvers as standalone tools.
 Each subcommand creates a fresh resolver instance, queries, prints, and exits.

@@ -97,9 +97,9 @@ ze config edit edge-01.conf         # Edit config for edge-01
 ze config archive backup edge-01.conf  # Archive to named destination
 ze config history edge-01.conf      # View rollback history
 ```
-<!-- source: cmd/ze/config/cmd_edit.go -- config edit command -->
-<!-- source: cmd/ze/config/cmd_history.go -- config history command -->
-<!-- source: cmd/ze/config/cmd_archive.go -- config archive command -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
+<!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
+<!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
 
 ## Resilience
 

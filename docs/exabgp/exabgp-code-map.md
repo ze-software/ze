@@ -224,7 +224,7 @@
 |-------------|---------|------------|
 | `loop.py` | Main event loop | `internal/component/bgp/reactor/reactor.go` |
 | `asynchronous.py` | Async handling | `internal/component/bgp/reactor/reactor.go` (goroutines) |
-| `daemon.py` | Daemon management | `cmd/ze/bgp/daemon.go` |
+| `daemon.py` | Daemon management | `internal/component/bgp/cli/daemon.go` |
 | `protocol.py` | Protocol handler | `internal/component/bgp/reactor/protocol.go` |
 | `listener.py` | TCP listener | `internal/component/bgp/reactor/listener.go` |
 | `timing.py` | Timing utilities | `internal/component/bgp/reactor/timing.go` |
@@ -318,14 +318,14 @@
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `main.py` | Entry point | `cmd/ze/bgp/main.go` |
-| `run.py` | Run daemon | `cmd/ze/bgp/run.go` |
-| `cli.py` | CLI interface | `cmd/ze/cli/main.go`, `internal/component/cli/` |
+| `main.py` | Entry point | `internal/component/bgp/cli/main.go` |
+| `run.py` | Run daemon | `internal/component/bgp/cli/run.go` |
+| `cli.py` | CLI interface | `internal/component/cli/client/main.go`, `internal/component/cli/` |
 | `shell.py` | Interactive shell | `internal/component/cli/` |
-| `unixsocket.py` | Unix socket client | SSH CLI and command dispatcher (`cmd/ze/cli/`, `internal/component/command/`) |
-| `decode.py` | Message decoder | `cmd/ze/bgp/decode.go` |
-| `encode.py` | Message encoder | `cmd/ze/bgp/encode.go` |
-| `validate.py` | Config validator | `cmd/ze/config/cmd_validate.go` |
+| `unixsocket.py` | Unix socket client | SSH CLI and command dispatcher (`internal/component/cli/client/`, `internal/component/command/`) |
+| `decode.py` | Message decoder | `internal/component/bgp/cli/decode.go` |
+| `encode.py` | Message encoder | `internal/component/bgp/cli/encode.go` |
+| `validate.py` | Config validator | `internal/component/config/cli/cmd_validate.go` |
 | `healthcheck.py` | Health checking | `internal/component/bgp/plugins/healthcheck/`, `cmd/ze/doctor/` |
 | `pipe.py` | Pipe handling | `internal/component/command/pipe.go` |
 | `server.py` | Server mode | `cmd/ze/main.go`, `cmd/ze/hub/main.go` |
@@ -333,8 +333,8 @@
 | `netlink.py` | Netlink interface | `internal/plugins/fib/kernel/`, `internal/plugins/iface/netlink/`, `internal/core/routewatch/` |
 | `shortcuts.py` | CLI shortcuts | command registry and help metadata (`cmd/ze/internal/cmdregistry/`, `internal/component/cmd/`) |
 | `environ.py` | Environment | `internal/component/config/environment.go`, `internal/component/config/env/` |
-| `schema.py` | Schema command | `cmd/ze/bgp/schema.go` |
-| `version.py` | Version command | `cmd/ze/bgp/version.go` |
+| `schema.py` | Schema command | `internal/component/bgp/cli/schema.go` |
+| `version.py` | Version command | `internal/component/bgp/cli/version.go` |
 | `error.py` | Error handling | Go errors in owning packages, for example `internal/component/bgp/message/errors.go` |
 
 ---

@@ -21,7 +21,7 @@ ze plugin test [options] <config-file>
 | `--tree` | Show raw config tree that would be sent to plugins |
 | `--json` | Show exact JSON delivery format |
 | `--root <name>` | Config root to show (default: `bgp`) |
-<!-- source: cmd/ze/plugin/test_cmd.go -- cmdPluginTest, flag parsing -->
+<!-- source: internal/component/plugin/cli/test_cmd.go -- cmdPluginTest, flag parsing -->
 
 ### Examples
 
@@ -84,7 +84,7 @@ Output shows the exact line sent to plugins:
 | "unknown field in capability: hostname" | Plugin YANG not loaded | Add `--plugin bgp-hostname` |
 | "root not found in tree" | Wrong root name | Check available roots in tree output |
 | Empty hostname in tree | Config syntax error | Check config file syntax |
-<!-- source: cmd/ze/plugin/test_cmd.go -- cmdPluginTest, --schema/--tree/--json modes -->
+<!-- source: internal/component/plugin/cli/test_cmd.go -- cmdPluginTest, --schema/--tree/--json modes -->
 
 ## Unit Tests
 

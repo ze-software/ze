@@ -72,7 +72,7 @@ The current binary reports 65 registered plugins covering protocol features, all
 | ExaBGP config migration | Working -- auto-detect and convert |
 | ExaBGP plugin bridge | Partial -- compatibility bridge exists, but not all ExaBGP behavior is equivalent |
 | Chaos testing (ze-chaos) | Working -- deterministic replay, property validation |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- YANG config; cmd/ze/config/ -- config CLI; internal/component/cli/ -- interactive CLI; internal/core/slogutil/ -- hierarchical logging; internal/exabgp/ -- ExaBGP migration -->
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- YANG config; internal/component/config/cli/ -- config CLI; internal/component/cli/ -- interactive CLI; internal/core/slogutil/ -- hierarchical logging; internal/exabgp/ -- ExaBGP migration -->
 
 ### Test Suite
 

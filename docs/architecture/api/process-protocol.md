@@ -1108,8 +1108,8 @@ Plugin reads decode requests from stdin, writes responses to stdout, exits on EO
 
 | File | Purpose |
 |------|---------|
-| `cmd/ze/bgp/decode_plugin.go` | Invokes plugin decode API |
-| `cmd/ze/bgp/cmd_plugin.go` | `ze plugin <name> --decode` entrypoint |
+| `internal/component/bgp/cli/decode_plugin.go` | Invokes plugin decode API |
+| `internal/component/bgp/cli/cmd_plugin.go` | `ze plugin <name> --decode` entrypoint |
 | `internal/component/bgp/plugins/hostname/hostname.go` | `RunDecodeMode()` - hostname capability |
 | `internal/component/bgp/plugins/nlri/flowspec/plugin.go` | `RunFlowSpecDecode()` - FlowSpec NLRI |
 

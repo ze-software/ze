@@ -102,30 +102,36 @@ Custom validators for YANG leaves that need runtime validation beyond enum/range
 **Validation:** `CheckAllValidatorsRegistered()` panics if any `ze:validate` name has no handler
 **YANG ref:** `ze:validate "name"` on leaf. Pipe-separated for multiple: `"a|b"`.
 
-### CLI Command Registry
+### CLI Command Registry (in-process command providers)
 
-Root subcommand metadata (`ze bgp`, `ze ping`, ...) and offline local
-command handlers (`show bgp decode`, `ping`, ...). Every subcommand
-package under `cmd/ze/` owns a `register.go` whose `init()` registers
-itself; `cmd/ze/main.go` imports the packages for side-effects and the
-registry is populated before dispatch.
+Root commands (`ze bgp`, `ze interface`, ...) and offline local handlers
+(`show bgp decode`, `show config history`, ...). The **owner package** owns a
+`register.go` whose `init()` registers itself; the registry **dispatches**
+owner-backed roots, so the owner lives under `internal/` and `cmd/ze` never
+imports it directly. `cmd/ze` keeps only no-owner / process-global commands.
 
-**Location:** `cmd/ze/internal/cmdregistry/registry.go`
+**Location:** `internal/component/command/registry/registry.go` (stdlib-only leaf;
+`cmd/ze/internal/cmdregistry` is now a re-export shim).
 **Registration:**
-- `cmdregistry.RegisterRoot(name, Meta)` for `ze <name>` metadata
-- `cmdregistry.MustRegisterLocal(path, handler)` for path-keyed handlers
-- `cmdregistry.MustRegisterLocalMeta(path, handler, meta)` when the handler also wants display metadata
+- `registry.MustRegisterRootHandler(name, handler, Meta)` -- **owner-backed** `ze <name>`: handler + metadata, dispatched by the registry. `handler` is `func(*RuntimeContext, []string) int`. Rejects empty name / nil handler / duplicate owner.
+- `registry.RegisterRoot(name, Meta)` -- **no-owner / process-global** metadata only; `cmd/ze/main.go` dispatches it (start, version, help, ...).
+- `registry.MustRegisterLocal(path, handler)` / `MustRegisterLocalMeta(...)` -- path-keyed offline shortcuts.
+- `registry.SetRuntimeStorage(fn)` (main.go) + `registry.RuntimeStorage()` -- blob store for storage-backed local shortcuts.
 
 **Query:**
-- `cmdregistry.LookupLocal(words)` -- longest-prefix handler lookup (used by `RunCommand` and `main.go`'s dispatch fallback)
-- `cmdregistry.ListRoot()` / `ListLocal()` -- used by `help --ai`
+- `registry.LookupRoot(name)` -- owner root dispatch (used by `main.go` before the static switch).
+- `registry.LookupLocal(words)` -- longest-prefix handler lookup (used by `RunCommand` and `main.go`).
+- `registry.ListRoot()` / `ListLocal()` / `ListRootBySection()` -- used by `help --ai`.
 
-**Cycle avoidance:** `cmdutil` imports `cli` for tree walking. A
-subcommand package that imports `cmdutil` from its `register.go` would
-cycle through `cli -> cmdutil -> cli`. `cmdregistry` is a leaf package
-(stdlib-only), so every `register.go` can import it safely.
-`cmdutil.RegisterLocalCommand` remains as a thin passthrough to
-`cmdregistry.RegisterLocal` for backward compatibility.
+**Leaf guarantee:** the registry imports only the standard library, so any owner
+(`internal/component/*`, `internal/plugins/*`, `internal/core/*`) imports it from
+`init()` with no cycle. Dispatch-time deps (storage, plugin list, process flags)
+flow through `RuntimeContext` (heavy types as function values), never imported
+into the registry.
+
+**Linking:** owner `init()` runs because the package is blank-imported. Until the
+generated command-provider aggregator lands (Phase 7 of command-surface-ownership),
+the blank imports are hand-listed in `cmd/ze/main.go`.
 
 **Pattern guidance:** `ai/patterns/cli-command.md` -- "Command
 Registration (BLOCKING)" section.
@@ -133,12 +139,13 @@ Registration (BLOCKING)" section.
 ### Doctor Check Registry
 
 Offline readiness checks for `ze doctor`. The runner owns execution phases so
-missing-config and parse-failure behavior stay explicit while individual checks
-register their metadata and check function.
+missing-config and parse-failure behavior stay explicit. The component,
+backend, command, or plugin that owns the runtime dependency owns the check
+registration, check function, and unit test.
 
-**Location:** `cmd/ze/doctor/registry.go`
-**Registration:** `mustRegisterDoctorCheck(doctorCheck{...})` in a doctor check file
-**Query:** `runChecks` calls registered checks by phase through `runDoctorChecks`
+**Current implementation:** `cmd/ze/doctor/registry.go`
+**Registration:** owner package `register.go` or `doctor_check.go`, using the doctor check registry. If the current registry location is not importable from the owner, move or expose a leaf registry API before adding the check.
+**Runner boundary:** `cmd/ze/doctor` queries registered checks by phase and keeps only runner/output tests plus checks with no narrower owner.
 **Metadata:** name, phase, order, component, dependencies, platforms, diagnostic codes, check function
 **Validation:** rejects duplicate check names, unknown phases, missing metadata, invalid lower-kebab identifiers, and duplicate codes within one check
 **Code metadata:** registered `doctor-*` codes must resolve through `diagnostic.Lookup`

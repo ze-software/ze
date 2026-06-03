@@ -76,7 +76,7 @@ Files: 15 | Docs: `docs/architecture/overview.md`, `docs/comparison.md`, `docs/c
 | `vpp.go` | `docs/functional-tests.md` |
 | `web.go` | `docs/functional-tests.md` |
 
-## `cmd/ze/bgp/`
+## `internal/component/bgp/cli/`
 
 Files: 5 | Docs: `docs/DESIGN.md`, `docs/architecture/cli/plugin-modes.md`, `docs/features/cli-commands.md`, `docs/guide/chaos-testing.md`, `docs/guide/command-reference.md`, `docs/guide/plugins.md`
 
@@ -88,15 +88,15 @@ Files: 5 | Docs: `docs/DESIGN.md`, `docs/architecture/cli/plugin-modes.md`, `doc
 | `encode.go` | `docs/guide/command-reference.md` |
 | `main.go` | `docs/DESIGN.md`, `docs/features/cli-commands.md`, `docs/guide/command-reference.md` |
 
-## `cmd/ze/cli/`
+## `internal/component/cli/client/`
 
-- `cmd/ze/cli/main.go` -> `docs/DESIGN.md`, `docs/guide/cli.md`, `docs/guide/command-reference.md`, `docs/guide/monitoring.md`, `docs/guide/operations.md`, `docs/guide/quickstart.md`
+- `internal/component/cli/client/main.go` -> `docs/DESIGN.md`, `docs/guide/cli.md`, `docs/guide/command-reference.md`, `docs/guide/monitoring.md`, `docs/guide/operations.md`, `docs/guide/quickstart.md`
 
 ## `cmd/ze/completion/`
 
 - `cmd/ze/completion/main.go` -> `docs/features/cli-commands.md`, `docs/guide/command-reference.md`
 
-## `cmd/ze/config/`
+## `internal/component/config/cli/`
 
 Files: 11 | Docs: `docs/DESIGN.md`, `docs/architecture/config/deprecated-options.md`, `docs/architecture/config/exabgp-syntax.md`, `docs/architecture/core-design.md`, `docs/comparison.md`, `docs/config-migration.md`, `docs/config-reference.md`, `docs/features.md`, `docs/features/cli-commands.md`, `docs/features/interfaces.md`, `docs/guide/command-reference.md`, `docs/guide/config-archive.md`, `docs/guide/config-editor.md`, `docs/guide/configuration.md`, `docs/guide/debugging-tools.md`, `docs/guide/fleet-config.md`, `docs/guide/operations.md`, `docs/guide/quickstart.md`, `docs/guide/status.md`, `docs/why-ze.md`
 
@@ -118,9 +118,9 @@ Files: 11 | Docs: `docs/DESIGN.md`, `docs/architecture/config/deprecated-options
 
 - `cmd/ze/crashes/crashes.go` -> `docs/guide/command-reference.md`
 
-## `cmd/ze/data/`
+## `internal/component/config/storage/cli/`
 
-- `cmd/ze/data/main.go` -> `docs/guide/command-reference.md`
+- `internal/component/config/storage/cli/main.go` -> `docs/guide/command-reference.md`
 
 ## `cmd/ze/debug/`
 
@@ -135,9 +135,9 @@ Files: 11 | Docs: `docs/DESIGN.md`, `docs/architecture/config/deprecated-options
 - `cmd/ze/doctor/checks_linux.go` -> `docs/features.md`
 - `cmd/ze/doctor/doctor.go` -> `docs/features.md`
 
-## `cmd/ze/environ/`
+## `internal/core/env/cli/`
 
-- `cmd/ze/environ/main.go` -> `docs/features/introspection.md`, `docs/guide/command-reference.md`
+- `internal/core/env/cli/main.go` -> `docs/features/introspection.md`, `docs/guide/command-reference.md`
 
 ## `cmd/ze/exabgp/`
 
@@ -163,11 +163,11 @@ Files: 8 | Docs: `docs/architecture.md`, `docs/architecture/behavior/signals.md`
 | `mcp.go` | `docs/architecture/mcp/overview.md`, `docs/guide/configuration.md` |
 | `pidfile.go` | `docs/architecture/config/environment.md`, `docs/features.md` |
 
-## `cmd/ze/iface/`
+## `internal/component/iface/cli/`
 
-- `cmd/ze/iface/main.go` -> `docs/guide/command-reference.md`
-- `cmd/ze/iface/migrate.go` -> `docs/guide/command-reference.md`
-- `cmd/ze/iface/show.go` -> `docs/guide/command-reference.md`
+- `internal/component/iface/cli/main.go` -> `docs/guide/command-reference.md`
+- `internal/component/iface/cli/migrate.go` -> `docs/guide/command-reference.md`
+- `internal/component/iface/cli/show.go` -> `docs/guide/command-reference.md`
 
 ## `cmd/ze/init/`
 
@@ -196,31 +196,31 @@ Files: 4 | Docs: `docs/architecture/core-design.md`, `docs/features.md`, `docs/g
 | `cmd_iso.go` | `docs/features.md`, `docs/guide/appliance.md`, `docs/guide/ze-install.md` |
 | `cmd_push.go` | `docs/guide/appliance.md` |
 
-## `cmd/ze/internal/ssh/client/`
+## `internal/core/ssh/client/`
 
-- `cmd/ze/internal/ssh/client/client.go` -> `docs/guide/authentication.md`, `docs/guide/command-reference.md`, `docs/guide/operations.md`
+- `internal/core/ssh/client/client.go` -> `docs/guide/authentication.md`, `docs/guide/command-reference.md`, `docs/guide/operations.md`
 
-## `cmd/ze/l2tp/`
+## `internal/component/l2tp/cli/`
 
-- `cmd/ze/l2tp/decode.go` -> `docs/architecture/wire/l2tp.md`, `docs/guide/command-reference.md`, `docs/guide/l2tp.md`
-- `cmd/ze/l2tp/show.go` -> `docs/guide/l2tp.md`
+- `internal/component/l2tp/cli/decode.go` -> `docs/architecture/wire/l2tp.md`, `docs/guide/command-reference.md`, `docs/guide/l2tp.md`
+- `internal/component/l2tp/cli/show.go` -> `docs/guide/l2tp.md`
 
 ## `cmd/ze/passwd/`
 
 - `cmd/ze/passwd/main.go` -> `docs/guide/authentication.md`, `docs/guide/command-reference.md`
 
-## `cmd/ze/plugin/`
+## `internal/component/plugin/cli/`
 
-- `cmd/ze/plugin/main.go` -> `docs/features/cli-commands.md`, `docs/guide/command-reference.md`
-- `cmd/ze/plugin/test_cmd.go` -> `docs/architecture/debugging/plugin-testing.md`, `docs/plugin-development/README.md`
+- `internal/component/plugin/cli/main.go` -> `docs/features/cli-commands.md`, `docs/guide/command-reference.md`
+- `internal/component/plugin/cli/test_cmd.go` -> `docs/architecture/debugging/plugin-testing.md`, `docs/plugin-development/README.md`
 
-## `cmd/ze/resolve/`
+## `internal/component/resolve/cli/`
 
-- `cmd/ze/resolve/main.go` -> `docs/architecture/resolve.md`, `docs/guide/command-reference.md`
+- `internal/component/resolve/cli/main.go` -> `docs/architecture/resolve.md`, `docs/guide/command-reference.md`
 
-## `cmd/ze/schema/`
+## `internal/component/config/schema/cli/`
 
-- `cmd/ze/schema/main.go` -> `docs/guide/command-reference.md`
+- `internal/component/config/schema/cli/main.go` -> `docs/guide/command-reference.md`
 
 ## `cmd/ze/service/`
 
@@ -248,9 +248,9 @@ Files: 5 | Docs: `docs/features.md`, `docs/guide/command-reference.md`, `docs/gu
 
 - `cmd/ze/uninstall/main.go` -> `docs/features.md`
 
-## `cmd/ze/yang/`
+## `internal/component/config/yang/cli/`
 
-- `cmd/ze/yang/main.go` -> `docs/DESIGN.md`, `docs/features/cli-commands.md`, `docs/features/introspection.md`, `docs/guide/command-reference.md`
+- `internal/component/config/yang/cli/main.go` -> `docs/DESIGN.md`, `docs/features/cli-commands.md`, `docs/features/introspection.md`, `docs/guide/command-reference.md`
 
 ## `internal/chaos/mcp/`
 

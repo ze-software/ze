@@ -858,7 +858,7 @@ in the diagnostic.
 <!-- source: internal/component/iface/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/firewall/engine.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/traffic/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
-<!-- source: cmd/ze/config/cmd_validate.go -- runValidation, backend-gate loop over gated components -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation, backend-gate loop over gated components -->
 
 ---
 

@@ -1853,4 +1853,4 @@ Ze auto-detects and migrates ExaBGP configuration files:
 ```
 ze config migrate exabgp.conf > ze.conf
 ```
-<!-- source: cmd/ze/config/cmd_migrate.go -- cmdMigrate; internal/exabgp/migration/ -- ExaBGP config conversion -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate; internal/exabgp/migration/ -- ExaBGP config conversion -->

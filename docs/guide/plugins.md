@@ -622,4 +622,4 @@ Available post-handshake commands:
 | `bye` | Disconnect |
 
 Use `--name <name>` to set a custom plugin name for the session.
-<!-- source: cmd/ze/bgp/cmd_plugin.go -- cmdPluginCLI -->
+<!-- source: internal/component/bgp/cli/cmd_plugin.go -- cmdPluginCLI -->

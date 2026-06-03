@@ -62,7 +62,7 @@ business rules, Ze's plugin model is more flexible than any built-in policy lang
 existing ExaBGP processes with Ze as the BGP engine. If you have ExaBGP deployments
 and want multithreading, broader address family support, or the plugin ecosystem,
 Ze provides a migration path that does not require rewriting your scripts.
-<!-- source: cmd/ze/config/cmd_migrate.go -- ze config migrate -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate -->
 <!-- source: cmd/ze/exabgp/main.go -- ze exabgp plugin -->
 
 ### Wire-level protocol tooling

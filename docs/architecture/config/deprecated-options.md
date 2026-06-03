@@ -1,6 +1,6 @@
 # Deprecated Configuration Options
 
-<!-- source: cmd/ze/config/cmd_migrate.go -- migration implementation -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- migration implementation -->
 
 This document lists configuration syntax that has been deprecated and the migration path for each.
 

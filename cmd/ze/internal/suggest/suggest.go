@@ -1,49 +1,18 @@
-// Design: (none — utility package)
+// Design: docs/architecture/core-design.md — CLI command suggestions
 //
-// Package suggest provides "did you mean?" suggestions for CLI commands.
+// Package suggest is a thin compatibility shim over internal/core/suggest.
+//
+// The "did you mean?" helper moved to internal/core so that command owners
+// under internal/component and internal/plugins can offer suggestions without
+// importing anything beneath cmd/ze. This shim re-exports the API at the old
+// import path so existing cmd/ze callers keep compiling; new code should import
+// codeberg.org/thomas-mangin/ze/internal/core/suggest directly.
 package suggest
 
-// Command returns the closest match from candidates for the given input,
-// or "" if no candidate is close enough (distance > len(input)/2).
-func Command(input string, candidates []string) string {
-	if len(candidates) == 0 {
-		return ""
-	}
-	best := ""
-	bestDist := len(input)/2 + 1 // max acceptable distance
-	for _, c := range candidates {
-		d := levenshtein(input, c)
-		if d < bestDist {
-			bestDist = d
-			best = c
-		}
-	}
-	return best
-}
+import core "codeberg.org/thomas-mangin/ze/internal/core/suggest"
 
-func levenshtein(a, b string) int {
-	la, lb := len(a), len(b)
-	if la == 0 {
-		return lb
-	}
-	if lb == 0 {
-		return la
-	}
-	prev := make([]int, lb+1)
-	curr := make([]int, lb+1)
-	for j := range prev {
-		prev[j] = j
-	}
-	for i := 1; i <= la; i++ {
-		curr[0] = i
-		for j := 1; j <= lb; j++ {
-			cost := 1
-			if a[i-1] == b[j-1] {
-				cost = 0
-			}
-			curr[j] = min(curr[j-1]+1, min(prev[j]+1, prev[j-1]+cost))
-		}
-		prev, curr = curr, prev
-	}
-	return prev[lb]
+// Command returns the closest match from candidates for the given input, or ""
+// if no candidate is close enough.
+func Command(input string, candidates []string) string {
+	return core.Command(input, candidates)
 }

@@ -121,7 +121,7 @@ cat router.conf | ze config archive local-backup -
 ```
 
 If the named block does not exist, the command prints the available archive names and exits with code 1.
-<!-- source: cmd/ze/config/cmd_archive.go -- cmdArchiveImpl -->
+<!-- source: internal/component/config/cli/cmd_archive.go -- cmdArchiveImpl -->
 
 ### Exit Codes
 
@@ -129,14 +129,14 @@ If the named block does not exist, the command prints the available archive name
 |------|---------|
 | 0 | Archive succeeded |
 | 1 | Error (missing arguments, block not found, parse failure, upload failure) |
-<!-- source: cmd/ze/config/cmd_archive.go -- exitOK, exitError -->
+<!-- source: internal/component/config/cli/cmd_archive.go -- exitOK, exitError -->
 
 ## Editor Integration
 
 When the editor starts, it reads archive blocks from the config. Blocks with `trigger commit` are wired into the editor's commit path. After every successful `commit`, the editor archives the current config content to all `trigger commit` destinations.
 
 Archive errors during commit are non-fatal. The commit succeeds and the editor reports the number of archive failures in the status line. Other trigger types (`manual`, `daily`, `hourly`) are not fired by the editor.
-<!-- source: cmd/ze/config/cmd_edit.go -- Wire archive notifier -->
+<!-- source: internal/component/config/cli/cmd_edit.go -- Wire archive notifier -->
 <!-- source: internal/component/cli/model_commands.go -- cmdCommit archive dispatch -->
 
 Archive locations are read from the config at editor startup. Adding an `archive` block during an editing session requires restarting the editor for it to take effect.

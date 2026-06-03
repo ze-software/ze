@@ -27,6 +27,7 @@ class Symbol:
 TARGET_ORDER = (
     "wiring",
     "ze-validate-commands",
+    "ze-command-ownership-check",
     "ze-doc-test",
     "ze-doc-check-stale",
     "ze-inventory-json",
@@ -36,6 +37,7 @@ TARGET_ORDER = (
 
 MAKE_TARGETS = {
     "ze-validate-commands",
+    "ze-command-ownership-check",
     "ze-doc-test",
     "ze-doc-check-stale",
     "ze-inventory-json",
@@ -52,9 +54,10 @@ TYPE_RE = re.compile(r"^type\s+([A-Z][A-Za-z0-9_]*)\b")
 CONST_RE = re.compile(r"^const\s+(.+)$")
 VAR_RE = re.compile(r"^var\s+(.+)$")
 BLOCK_RE = re.compile(r"^(type|const|var)\s*\(")
-IDENT_LIST_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*)*)\b")
+IDENT_LIST_RE = re.compile(
+    r"^([A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*)*)\b"
+)
 TOKEN_TEMPLATE = r"\b{}\b"
-
 
 
 class GateFailure(Exception):
@@ -64,9 +67,20 @@ class GateFailure(Exception):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="repository root, defaults to cwd")
-    parser.add_argument("--changed-file", action="append", default=[], help="changed file to evaluate; repeatable")
-    parser.add_argument("--dry-run", action="store_true", help="print selected gates instead of running them")
-    parser.add_argument("--make", default="make", help="make executable used for delegated targets")
+    parser.add_argument(
+        "--changed-file",
+        action="append",
+        default=[],
+        help="changed file to evaluate; repeatable",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print selected gates instead of running them",
+    )
+    parser.add_argument(
+        "--make", default="make", help="make executable used for delegated targets"
+    )
     parser.add_argument(
         "--check-plugin-imports",
         action="store_true",
@@ -142,7 +156,9 @@ def changed_files(root: Path) -> list[str]:
         ("git", "ls-files", "--others", "--exclude-standard"),
     )
     for cmd in commands:
-        proc = subprocess.run(cmd, cwd=root, text=True, capture_output=True, check=False)
+        proc = subprocess.run(
+            cmd, cwd=root, text=True, capture_output=True, check=False
+        )
         if proc.returncode != 0:
             raise GateFailure(proc.stderr.strip() or f"{' '.join(cmd)} failed")
         for line in proc.stdout.splitlines():
@@ -160,6 +176,8 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
             selected.add("wiring")
         if is_command_source(root, path):
             selected.add("ze-validate-commands")
+        if is_command_ownership_source(path):
+            selected.add("ze-command-ownership-check")
         if is_doc_source(root, path):
             selected.add("ze-doc-test")
             selected.add("ze-doc-check-stale")
@@ -176,6 +194,26 @@ def is_wiring_source(path: str) -> bool:
         and not path.endswith("_test.go")
         and (path.startswith("internal/") or path.startswith("cmd/"))
     )
+
+
+def is_command_ownership_source(path: str) -> bool:
+    """Changed files that must re-run the command-surface-ownership gate:
+    the checker, the command registry + shim, any owner command package
+    register.go, and the cmd/ze dispatch + central-registration files."""
+    if path in {
+        "scripts/checks/command_ownership.go",
+        "cmd/ze/main.go",
+    }:
+        return True
+    if path.startswith("internal/component/command/registry/"):
+        return True
+    if path.startswith("cmd/ze/internal/cmdregistry/"):
+        return True
+    if path.endswith("register.go") and (
+        "/cli/" in path or "/client/" in path or path.startswith("cmd/ze/")
+    ):
+        return True
+    return False
 
 
 def is_command_source(root: Path, path: str) -> bool:
@@ -246,9 +284,10 @@ def is_inventory_source(root: Path, path: str) -> bool:
     return False
 
 
-
 def file_or_head_contains(root: Path, path: str, needle: str) -> bool:
-    return needle in read_current_or_empty(root, path) or needle in read_head_or_empty(root, path)
+    return needle in read_current_or_empty(root, path) or needle in read_head_or_empty(
+        root, path
+    )
 
 
 def file_or_head_contains_any(root: Path, path: str, needles: Iterable[str]) -> bool:
@@ -325,7 +364,9 @@ def exported_symbols(path: str, content: str) -> list[Symbol]:
                 block_kind = ""
                 continue
             for name in leading_exported_idents(code):
-                symbols.append(Symbol(path=path, line=line_no, kind=block_kind, name=name))
+                symbols.append(
+                    Symbol(path=path, line=line_no, kind=block_kind, name=name)
+                )
             continue
 
         block_match = BLOCK_RE.match(code)
@@ -335,12 +376,16 @@ def exported_symbols(path: str, content: str) -> list[Symbol]:
 
         func_match = FUNC_RE.match(code)
         if func_match:
-            symbols.append(Symbol(path=path, line=line_no, kind="func", name=func_match.group(1)))
+            symbols.append(
+                Symbol(path=path, line=line_no, kind="func", name=func_match.group(1))
+            )
             continue
 
         type_match = TYPE_RE.match(code)
         if type_match:
-            symbols.append(Symbol(path=path, line=line_no, kind="type", name=type_match.group(1)))
+            symbols.append(
+                Symbol(path=path, line=line_no, kind="type", name=type_match.group(1))
+            )
             continue
 
         const_match = CONST_RE.match(code)

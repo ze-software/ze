@@ -266,7 +266,7 @@ plugins extend policy further via the JSON event and text command protocol.
 <!-- source: internal/component/bgp/context/registry.go -- ContextID encoding context matching -->
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- RPKI validation plugin -->
 <!-- source: internal/component/web/decorator.go -- DecoratorRegistry, YANG decorator framework -->
-<!-- source: cmd/ze/config/cmd_migrate.go -- ze config migrate -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate -->
 
 **ExaBGP** is the automation specialist. It pioneered the external-process model where BGP events
 are delivered as JSON to stdin/stdout of user scripts in any language. Deployed worldwide for

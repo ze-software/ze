@@ -94,7 +94,7 @@ response-bearing message: 2 for SCCRP, 3 for SCCCN. Verification uses
 `ze l2tp decode` reads hex from stdin and emits JSON describing the parsed
 header and AVPs. See `docs/guide/command-reference.md`.
 
-<!-- source: cmd/ze/l2tp/decode.go — decode subcommand -->
+<!-- source: internal/component/l2tp/cli/decode.go — decode subcommand -->
 
 ## Reliable delivery engine
 

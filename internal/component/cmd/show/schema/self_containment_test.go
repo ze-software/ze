@@ -11,7 +11,7 @@ import (
 // VALIDATES: the central show schema declares no part of the `show bgp ...`
 // subtree. BGP peer state and RIB queries are owned by the BGP plugin schemas
 // (internal/component/bgp/plugins/cmd/{peer,rib}/schema); the offline
-// decode/encode diagnostics are owned by cmd/ze/bgp/schema next to their
+// decode/encode diagnostics are owned by internal/component/bgp/cli/schema next to their
 // handlers. Removing the BGP surface must remove the whole `show bgp ...`
 // branch with no dangling YANG node.
 //
@@ -24,8 +24,8 @@ func TestShowSchemaHasNoBGPPluginCommands(t *testing.T) {
 	banned := map[string]string{
 		"ze-rib-api:":          "BGP RIB queries -> internal/component/bgp/plugins/cmd/rib/schema",
 		`"ze-bgp:peer-`:        "BGP peer state -> internal/component/bgp/plugins/cmd/peer/schema",
-		`"ze-show:bgp-decode"`: "offline BGP decode -> cmd/ze/bgp/schema",
-		`"ze-show:bgp-encode"`: "offline BGP encode -> cmd/ze/bgp/schema",
+		`"ze-show:bgp-decode"`: "offline BGP decode -> internal/component/bgp/cli/schema",
+		`"ze-show:bgp-encode"`: "offline BGP encode -> internal/component/bgp/cli/schema",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliShowCmdYANG, token) {

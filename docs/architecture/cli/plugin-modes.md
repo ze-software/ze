@@ -9,7 +9,7 @@ Plugins have three distinct operating modes with different input/output formats.
 | **CLI Mode** | `ze plugin <name> --nlri <hex>` | Flag value or `-` for stdin | Direct user invocation |
 | **Engine Decode Mode** | `ze plugin <name> --decode` | Decode commands on stdin/stdout | Engine decode delegation |
 | **Engine Mode** | `ze plugin <name>` | YANG RPC over TLS connect-back | Engine-plugin communication |
-<!-- source: cmd/ze/bgp/cmd_plugin.go -- plugin CLI dispatch -->
+<!-- source: internal/component/bgp/cli/cmd_plugin.go -- plugin CLI dispatch -->
 
 ## Design Principle
 
@@ -131,7 +131,7 @@ MAC/IP advertisement rd=1:37.44.55.55:1 mac=FC:15:B4:78:7B:8F
 | `--family <fam>` | string | Address family context (flowspec only) |
 | `--features` | bool | List supported decode features |
 | `--yang` | bool | Output YANG schema |
-<!-- source: cmd/ze/bgp/cmd_plugin.go -- CLI flag parsing, --nlri, --capa, --text -->
+<!-- source: internal/component/bgp/cli/cmd_plugin.go -- CLI flag parsing, --nlri, --capa, --text -->
 
 ## Engine Decode Mode (`--decode` flag)
 

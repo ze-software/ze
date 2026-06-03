@@ -39,7 +39,7 @@ ze cli -c "show bgp peer list"  # single command
 ze show bgp peer list                # read-only shorthand
 ze cli -c "peer transit teardown 2" # one-shot command
 ```
-<!-- source: cmd/ze/cli/main.go -- Run -->
+<!-- source: internal/component/cli/client/main.go -- Run -->
 
 ### Override Host/Port
 
@@ -51,7 +51,7 @@ export ZE_SSH_PORT=2222
 # Per-command flags
 ze signal reload --host 10.0.0.1 --port 2222
 ```
-<!-- source: cmd/ze/internal/ssh/client/client.go -- ze.ssh.host, ze.ssh.port env vars -->
+<!-- source: internal/core/ssh/client/client.go -- ze.ssh.host, ze.ssh.port env vars -->
 
 ## Signals
 
@@ -142,7 +142,7 @@ ze env get ze.log              # details for one var
 | `ze.ssh.port` | -- | Override SSH port for CLI commands |
 | `ze.config.dir` | -- | Override config directory |
 | `ze.storage.blob` | `true` | Use blob storage (false = filesystem) |
-<!-- source: internal/core/slogutil/slogutil.go -- ze.log registration; cmd/ze/internal/ssh/client/client.go -- ze.ssh.host/port; cmd/ze/main.go -- ze.storage.blob, ze.config.dir -->
+<!-- source: internal/core/slogutil/slogutil.go -- ze.log registration; internal/core/ssh/client/client.go -- ze.ssh.host/port; cmd/ze/main.go -- ze.storage.blob, ze.config.dir -->
 
 ## CLI Flags
 
@@ -289,7 +289,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 2. **Port in use:** Check if another ze instance or BGP daemon holds port 179
 3. **SSH port conflict:** Default SSH is 2222. Check with `netstat -tlnp | grep 2222`
 4. **Missing credentials:** Run `ze init` before starting
-<!-- source: cmd/ze/config/cmd_validate.go -- cmdValidate; internal/component/ssh/ -- SSH server -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate; internal/component/ssh/ -- SSH server -->
 
 ### Plugin Not Working
 

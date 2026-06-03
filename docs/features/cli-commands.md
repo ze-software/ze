@@ -7,7 +7,7 @@
 | `ze bgp decode` | Decode BGP message from hex to JSON |
 | `ze bgp encode` | Encode text route command to BGP wire hex |
 
-<!-- source: cmd/ze/bgp/main.go -- bgp decode/encode dispatch -->
+<!-- source: internal/component/bgp/cli/main.go -- bgp decode/encode dispatch -->
 
 ### Configuration Management
 
@@ -26,12 +26,12 @@
 | `ze config history` | List rollback revisions |
 | `ze config rollback <N>` | Restore revision N |
 
-<!-- source: cmd/ze/config/main.go -- config subcommand dispatch -->
-<!-- source: cmd/ze/config/cmd_archive.go -- archive subcommand -->
-<!-- source: cmd/ze/config/cmd_validate.go -- validate command -->
-<!-- source: cmd/ze/config/cmd_migrate.go -- migrate command -->
-<!-- source: cmd/ze/config/cmd_dump.go -- dump command -->
-<!-- source: cmd/ze/config/cmd_diff.go -- diff command -->
+<!-- source: internal/component/config/cli/main.go -- config subcommand dispatch -->
+<!-- source: internal/component/config/cli/cmd_archive.go -- archive subcommand -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- validate command -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- migrate command -->
+<!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
 
 ### Schema Discovery
 
@@ -44,7 +44,7 @@
 | `ze schema events` | List notifications from YANG |
 | `ze schema protocol` | Show protocol version and format info |
 
-<!-- source: cmd/ze/yang/main.go -- schema subcommand dispatch -->
+<!-- source: internal/component/config/yang/cli/main.go -- schema subcommand dispatch -->
 
 ### Daemon Control
 
@@ -80,7 +80,7 @@
 <!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
 
 **Plugin debug shell:** `ze bgp plugin cli` connects to the daemon via SSH, runs the 5-stage plugin handshake, and enters interactive command mode. Developers can test plugin protocol interactions by hand -- sending dispatch-command, subscribe-events, decode-nlri, etc. Accepts defaults (Enter through Q&A) or custom registration parameters (families, plugin name).
-<!-- source: cmd/ze/bgp/cmd_plugin.go -- cmdPluginCLI -->
+<!-- source: internal/component/bgp/cli/cmd_plugin.go -- cmdPluginCLI -->
 
 ### Other
 
@@ -93,5 +93,5 @@
 | `ze --plugins` | List available internal plugins |
 
 <!-- source: cmd/ze/completion/main.go -- completion subcommand -->
-<!-- source: cmd/ze/plugin/main.go -- plugin subcommand -->
+<!-- source: internal/component/plugin/cli/main.go -- plugin subcommand -->
 <!-- source: cmd/ze/exabgp/main.go -- exabgp subcommand -->

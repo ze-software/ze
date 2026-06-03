@@ -178,7 +178,7 @@ editing text files and sending SIGHUP (though SIGHUP reload is also supported).
 | `ze config import <file>` | Import a config file into the blob store |
 | `ze config migrate <file>` | Convert ExaBGP config to ze-native format |
 | `ze signal reload` | Trigger config reload (same as SIGHUP) |
-<!-- source: cmd/ze/config/main.go -- config domain commands -->
+<!-- source: internal/component/config/cli/main.go -- config domain commands -->
 
 ## System Configuration
 

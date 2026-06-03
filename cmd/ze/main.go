@@ -18,34 +18,20 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/bgp"
-	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	zecompletion "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
-	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
-	zedata "codeberg.org/thomas-mangin/ze/cmd/ze/data"
 	zedebug "codeberg.org/thomas-mangin/ze/cmd/ze/debug"
-	zeenv "codeberg.org/thomas-mangin/ze/cmd/ze/environ"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
-	zefirewall "codeberg.org/thomas-mangin/ze/cmd/ze/firewall"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
-	zeiface "codeberg.org/thomas-mangin/ze/cmd/ze/iface"
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	internalresolve "codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
-	zel2tp "codeberg.org/thomas-mangin/ze/cmd/ze/l2tp"
 	zepasswd "codeberg.org/thomas-mangin/ze/cmd/ze/passwd"
-	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
 	zeremote "codeberg.org/thomas-mangin/ze/cmd/ze/remote"
-	zeresolve "codeberg.org/thomas-mangin/ze/cmd/ze/resolve"
-	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
-	zesysctl "codeberg.org/thomas-mangin/ze/cmd/ze/sysctl"
-	zetacacs "codeberg.org/thomas-mangin/ze/cmd/ze/tacacs"
-	zetc "codeberg.org/thomas-mangin/ze/cmd/ze/tc"
-	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
+	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -66,6 +52,48 @@ import (
 	// Must happen at the binary entry point (not in internal/plugin)
 	// to avoid import cycles: format → plugin → all → bgp-rs → format.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+
+	// Blank import: the interface command owner registers the `interface` root
+	// handler and `show interface` shortcut with the command registry from its
+	// init(). The owner lives under internal/component/iface (not cmd/ze) per
+	// the command-surface-ownership model. Phase 7 moves this link into the
+	// generated command-provider aggregator.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cli"
+
+	// Blank import: the firewall command owner registers the `firewall` root
+	// handler with the command registry. Owner lives under
+	// internal/component/firewall per command-surface-ownership.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall/cli"
+
+	// Blank import: the sysctl command owner registers the `sysctl` root handler
+	// with the command registry. Owner lives under internal/plugins/sysctl per
+	// command-surface-ownership.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/cli"
+
+	// Blank imports: the tacacs, resolve, and l2tp command owners register their
+	// root handlers with the command registry from init(). Owners live under
+	// internal/component/{tacacs,resolve,l2tp} per command-surface-ownership.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs/cli"
+
+	// Blank imports: the traffic-control, plugin, and yang command owners
+	// register their root handlers with the command registry from init().
+	// Owners live under internal/component/{traffic,plugin,config/yang} per
+	// command-surface-ownership.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/config/yang/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/cli"
+
+	// Blank imports: the data (ZeFS) and env command owners register their root
+	// handlers with the command registry from init(). Owners live under
+	// internal/component/config/storage and internal/core/env per
+	// command-surface-ownership.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/config/schema/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/config/storage/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/core/env/cli"
 
 	// Blank import: diag's init() registers ping/generate wireguard
 	// keypair with cmdregistry. Not referenced by main() directly
@@ -200,9 +228,42 @@ func registerLocalCommands() {
 		Mode:        "offline",
 	})
 
-	// Storage-dependent config subcommands are bound here because the
-	// blob store is opened only after global flag parsing.
-	zeconfig.BindStorageCommands(resolveStorage)
+	// Install the process storage resolver so storage-backed local command
+	// handlers (e.g. the config owner's `show config history/ls/cat`) can open
+	// the blob store lazily at dispatch time. The blob store is opened only
+	// after global flag parsing, so handlers must resolve it on demand.
+	cmdregistry.SetRuntimeStorage(func() any { return resolveStorage() })
+}
+
+// newRuntimeContext assembles the process-entry dependencies passed to
+// owner-backed root handlers. Storage is resolved lazily so that registering
+// and dispatching commands which never touch storage do not open the blob
+// store. The returned context is leaf-safe: the registry package does not
+// import storage, so owners type-assert ResolveStorage's result (see
+// registry.StorageAs).
+func newRuntimeContext(plugins []string, configOverride, webPort string, insecureWeb bool, mcpAddr, mcpToken string) *cmdregistry.RuntimeContext {
+	return &cmdregistry.RuntimeContext{
+		ResolveStorage: func() any { return resolveStorage() },
+		Plugins:        plugins,
+		ConfigOverride: configOverride,
+		PrintVersion:   printVersion,
+		WebPort:        webPort,
+		InsecureWeb:    insecureWeb,
+		MCPAddr:        mcpAddr,
+		MCPToken:       mcpToken,
+	}
+}
+
+// dispatchRegisteredRoot runs the owner-backed root handler registered for arg,
+// if any. It returns the handler's exit code and handled=true when the registry
+// owns the command; (0, false) means no owner registered arg and the caller
+// must fall through to the legacy static switch.
+func dispatchRegisteredRoot(arg string, rctx *cmdregistry.RuntimeContext, rest []string) (code int, handled bool) {
+	handler := cmdregistry.LookupRoot(arg)
+	if handler == nil {
+		return 0, false
+	}
+	return handler(rctx, rest), true
 }
 
 func main() {
@@ -420,55 +481,32 @@ dispatch:
 		exit(code)
 	}
 
+	// Owner-backed root commands: ask the registry before the legacy static
+	// switch. A migrated owner registers a RootHandler from its init(); roots
+	// still handled below (process-global commands and not-yet-migrated owners)
+	// have no registered handler, so dispatchRegisteredRoot reports handled=false
+	// and control falls through unchanged.
+	rctx := newRuntimeContext(plugins, fileOverride, webPort, insecureWeb, mcpAddr, mcpToken)
+	if code, handled := dispatchRegisteredRoot(arg, rctx, args[1:]); handled {
+		exit(code)
+	}
+
 	// Static dispatch for commands not yet migrated to YANG verb registration.
 	switch arg {
-	case "bgp":
-		exit(bgp.Run(args[1:]))
-	case "plugin":
-		exit(zeplugin.Run(args[1:]))
-	case "cli":
-		exit(cli.Run(args[1:]))
-	case "config":
-		store := resolveStorage()
-		code := zeconfig.RunWithStorage(store, args[1:])
-		store.Close() //nolint:errcheck // best-effort cleanup before exit
-		exit(code)
 	case "init":
 		exit(zeinit.Run(args[1:]))
 	case "passwd":
 		exit(zepasswd.Run(args[1:]))
-	case "data":
-		exit(zedata.Run(args[1:]))
 	case "debug":
 		exit(zedebug.Run(args[1:]))
-	case "schema":
-		exit(schema.Run(args[1:], plugins))
-	case "yang":
-		exit(zeyang.Run(args[1:]))
-	case "interface":
-		exit(zeiface.Run(args[1:]))
-	case "firewall":
-		exit(zefirewall.Run(args[1:]))
-	case "traffic-control":
-		exit(zetc.Run(args[1:]))
 	case "remote":
 		exit(zeremote.Run(args[1:]))
-	case "resolve":
-		exit(zeresolve.Run(args[1:]))
 	case "exabgp":
 		exit(exabgp.Run(args[1:]))
 	case "signal":
 		exit(zesignal.Run(args[1:]))
 	case "status":
 		exit(zesignal.RunStatus(args[1:]))
-	case "env":
-		exit(zeenv.Run(args[1:]))
-	case "sysctl":
-		exit(zesysctl.Run(args[1:]))
-	case "tacacs":
-		exit(zetacacs.Run(args[1:]))
-	case "l2tp":
-		exit(zel2tp.Run(args[1:]))
 	case "appliance":
 		exit(runDeprecatedAppliance(args[1:]))
 	case "service":

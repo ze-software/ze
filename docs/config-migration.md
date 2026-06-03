@@ -2,9 +2,9 @@
 
 ZeBGP migrates configurations using named transformations. Each transformation has a specific purpose and can be previewed before applying.
 
-<!-- source: cmd/ze/config/cmd_migrate.go -- ze config migrate command -->
-<!-- source: cmd/ze/config/cmd_fmt.go -- ze config fmt command -->
-<!-- source: cmd/ze/config/cmd_validate.go -- ze config validate command -->
+<!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate command -->
+<!-- source: internal/component/config/cli/cmd_fmt.go -- ze config fmt command -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- ze config validate command -->
 
 ## Quick Start
 

@@ -1,7 +1,7 @@
 # Self-Documenting System
 
-<!-- source: cmd/ze/yang/main.go -- ze schema subcommands -->
-<!-- source: cmd/ze/environ/main.go -- ze env subcommands -->
+<!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
+<!-- source: internal/core/env/cli/main.go -- ze env subcommands -->
 <!-- source: cmd/ze/help_ai.go -- ze help --ai output -->
 <!-- source: scripts/inventory/inventory.go -- make ze-inventory -->
 <!-- source: scripts/inventory/commands.go -- make ze-command-list -->

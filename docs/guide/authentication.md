@@ -88,7 +88,7 @@ ze cli -u alice
 ze cli -u alice -c "show version"
 ```
 
-<!-- source: cmd/ze/internal/ssh/client/client.go -- ReadCredentialsWithFlags -->
+<!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
 
 The same flag works on `ze bgp plugin cli`, `ze signal`, `ze config set`,
 `ze config edit`, and `ze interface migrate`.
@@ -232,5 +232,5 @@ a `slog.Warn` so the truncation surfaces in daemon logs.
 | Validator | `internal/component/cli/validator.go` |
 | SSH server password handler | `internal/component/ssh/ssh.go` |
 | Local authenticator | `internal/component/authz/auth.go` |
-| Client credential resolver | `cmd/ze/internal/ssh/client/client.go` |
+| Client credential resolver | `internal/core/ssh/client/client.go` |
 | `ze passwd` | `cmd/ze/passwd/main.go` |

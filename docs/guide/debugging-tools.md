@@ -16,8 +16,8 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 
 ## 1. Config Dump Command
 
-**Location:** `cmd/ze/config/cmd_dump.go`
-<!-- source: cmd/ze/config/cmd_dump.go -- config dump command -->
+**Location:** `internal/component/config/cli/cmd_dump.go`
+<!-- source: internal/component/config/cli/cmd_dump.go -- config dump command -->
 
 Parses a config file and displays the interpreted values. Useful for verifying that config parsing works correctly.
 
@@ -328,7 +328,7 @@ Subsystem naming convention: `ze.log.` + simplified package path (e.g., `bgp.rea
 | `internal/test/runner/decode.go` | BGP message decoder |
 | `internal/test/peer/peer.go` | Test peer with decode support |
 | `internal/core/slogutil/slogutil.go` | Logging infrastructure |
-| `cmd/ze/config/cmd_dump.go` | config dump command |
+| `internal/component/config/cli/cmd_dump.go` | config dump command |
 | `cmd/ze-test/peer.go` | --decode flag |
 | `internal/component/config/parser.go` | Parser warnings |
 | `internal/component/bgp/config/loader.go` | Config logging (configLogger) |
@@ -339,5 +339,5 @@ Subsystem naming convention: `ze.log.` + simplified package path (e.g., `bgp.rea
 <!-- source: internal/core/slogutil/slogutil.go -- logging infrastructure -->
 <!-- source: internal/test/peer/peer.go -- test peer -->
 <!-- source: internal/test/runner/decode.go -- BGP message decoder -->
-<!-- source: cmd/ze/config/cmd_dump.go -- config-dump command -->
+<!-- source: internal/component/config/cli/cmd_dump.go -- config-dump command -->
 <!-- source: cmd/ze-test/peer.go -- ze-test peer subcommand -->

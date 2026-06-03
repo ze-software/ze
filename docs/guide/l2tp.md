@@ -99,8 +99,8 @@ daemon.
 echo c8020044... | ze l2tp decode --pretty
 ```
 
-<!-- source: cmd/ze/l2tp/show.go -- offline forwarder -->
-<!-- source: cmd/ze/l2tp/decode.go -- cmdDecode -->
+<!-- source: internal/component/l2tp/cli/show.go -- offline forwarder -->
+<!-- source: internal/component/l2tp/cli/decode.go -- cmdDecode -->
 
 ## PPP negotiation
 

@@ -1,7 +1,7 @@
 # CLI Reference
 
 Ze provides an interactive CLI and single-command execution for runtime queries and control. All CLI access goes through the daemon's SSH server.
-<!-- source: cmd/ze/cli/main.go -- Run -->
+<!-- source: internal/component/cli/client/main.go -- Run -->
 
 ## Usage
 
@@ -118,4 +118,4 @@ In `ze cli` interactive mode:
 - **Pipe operators:** `| json`, `| table`, `| match <regex>`, `| count`, `| no-more`
 - **History** persisted across sessions
 - **Ctrl-C** cancels current command, **Ctrl-D** exits
-<!-- source: cmd/ze/cli/main.go -- pipe operators, bubbletea model, history -->
+<!-- source: internal/component/cli/client/main.go -- pipe operators, bubbletea model, history -->

@@ -88,7 +88,7 @@ bgp {
 ```bash
 bin/ze config validate example.conf
 ```
-<!-- source: cmd/ze/config/cmd_validate.go -- cmdValidate -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate -->
 
 Expected output:
 
@@ -133,7 +133,7 @@ bin/ze cli -c "peer test-peer detail"
 # Watch live events
 bin/ze cli -c "bgp monitor"
 ```
-<!-- source: cmd/ze/cli/main.go -- Execute, StreamMonitor -->
+<!-- source: internal/component/cli/client/main.go -- Execute, StreamMonitor -->
 
 ## Test Without a Real Peer
 

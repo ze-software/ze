@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	zeconfigcmd "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
@@ -23,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	zeconfigcmd "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"

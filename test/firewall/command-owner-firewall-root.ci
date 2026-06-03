@@ -1,0 +1,17 @@
+# Test: ze firewall dispatches through the owner-registered root handler
+# VALIDATES: command-surface-ownership Phase 4 — the `firewall` root command
+# moved from the cmd/ze static switch to its owner package
+# internal/component/firewall/cli and is now dispatched through the command
+# registry. The help paths run before any nft backend is loaded, so these
+# assertions are platform-independent (no CAP_NET_ADMIN, no Linux required).
+
+# Root help reaches the owner usage via the registry root handler.
+cmd=foreground:seq=1:exec=ze firewall help
+expect=exit:code=0
+expect=stderr:contains=Firewall table visibility
+expect=stderr:contains=ze firewall
+
+# The firewall root still appears in `ze help`, derived from the registry.
+cmd=foreground:seq=2:exec=ze help
+expect=exit:code=0
+expect=stderr:contains=Firewall management

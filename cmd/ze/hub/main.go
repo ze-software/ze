@@ -25,10 +25,10 @@ import (
 
 	mdns "github.com/miekg/dns"
 
-	zecli "codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	zecli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	clearCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear"
 	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"

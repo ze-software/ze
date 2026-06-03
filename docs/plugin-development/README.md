@@ -67,7 +67,7 @@ go build -o my-plugin
 ```
 
 `ze plugin test [options] <config-file>` inspects plugin YANG loading and config delivery. It does not validate an arbitrary plugin binary. To exercise an external binary, run ze with a config that declares it in `plugin { external ... }`, or add a functional test that starts the plugin through the normal process manager.
-<!-- source: cmd/ze/plugin/test_cmd.go -- cmdPluginTest usage -->
+<!-- source: internal/component/plugin/cli/test_cmd.go -- cmdPluginTest usage -->
 
 ### 3. Configure Ze
 

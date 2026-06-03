@@ -71,7 +71,7 @@ with a `bridge`, `tunnel`, `wireguard`, `veth`, or `mirror` entry) is
 rejected with one error per offending YANG path, matching the diagnostic
 the running daemon produces on reload. See
 [Backend Capability Errors](configuration.md#backend-capability-errors).
-<!-- source: cmd/ze/config/cmd_validate.go -- cmdValidate, backend-gate loop -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
 <!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures -->
 
 ### ze config
@@ -124,7 +124,7 @@ ze config archive <name> <file>  # Archive config (see config-archive.md)
 ```
 ze config migrate <file>         # Convert old format to current
 ```
-<!-- source: cmd/ze/config/main.go -- subcommandHandlers, storageHandlers -->
+<!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
 
 | Flag | Purpose |
 |------|---------|
@@ -211,7 +211,7 @@ ze show bgp encode <route-command>
 | `-n` | Dry run |
 | `--no-header` | Exclude BGP header |
 | `--asn4` | 4-byte ASN (default: true) |
-<!-- source: cmd/ze/bgp/main.go -- Run; cmd/ze/bgp/decode.go -- cmdDecode; cmd/ze/bgp/encode.go -- cmdEncode -->
+<!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode -->
 
 ### ze show warnings / ze show errors
 
@@ -986,7 +986,7 @@ without underflow.
 | `--address <cidr>` | IP address to migrate (required) |
 | `--create <type>` | Create new interface: dummy, veth, bridge |
 | `--timeout <duration>` | BGP readiness timeout (default: 30s) |
-<!-- source: cmd/ze/iface/main.go -- Run; cmd/ze/iface/show.go -- cmdShow; cmd/ze/iface/migrate.go -- cmdMigrate -->
+<!-- source: internal/component/iface/cli/main.go -- Run; internal/component/iface/cli/show.go -- cmdShow; internal/component/iface/cli/migrate.go -- cmdMigrate -->
 
 ### ze exabgp
 
@@ -1034,7 +1034,7 @@ ze schema protocol               # Show protocol version
 ```
 
 All subcommands accept `--json`.
-<!-- source: cmd/ze/schema/main.go -- Run -->
+<!-- source: internal/component/config/schema/cli/main.go -- Run -->
 
 ### ze yang
 
@@ -1053,7 +1053,7 @@ ze yang doc [command]            # Command documentation
 | `--config` | Show config tree (tree) |
 | `--min-prefix <N>` | Minimum prefix length (completion, default: 1) |
 | `--list` | List commands (doc) |
-<!-- source: cmd/ze/yang/main.go -- Run -->
+<!-- source: internal/component/config/yang/cli/main.go -- Run -->
 
 ### ze init
 
@@ -1176,7 +1176,7 @@ The password for a non-super-admin user must come from `ze.ssh.password`
 flag (passwords in argv leak into shell history and `ps`).
 
 See [authentication.md](authentication.md) for the full multi-user workflow.
-<!-- source: cmd/ze/internal/ssh/client/client.go -- ReadCredentialsWithFlags -->
+<!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
 <!-- source: docs/guide/authentication.md -- Logging in as a YANG user -->
 
 ### ze start --web
@@ -1233,7 +1233,7 @@ ze data registered <pattern>       # Show details for a key pattern
 | Flag | Purpose |
 |------|---------|
 | `--path <store>` | Blob store path |
-<!-- source: cmd/ze/data/main.go -- Run, subcommandHandlers -->
+<!-- source: internal/component/config/storage/cli/main.go -- Run, subcommandHandlers -->
 
 ### ze plugin
 
@@ -1243,7 +1243,7 @@ Plugin management.
 ze plugin <name> [args]          # Run plugin CLI handler
 ze plugin test                   # Test plugin schema/config
 ```
-<!-- source: cmd/ze/plugin/main.go -- Run -->
+<!-- source: internal/component/plugin/cli/main.go -- Run -->
 
 ### ze completion
 
@@ -1280,7 +1280,7 @@ ze env get <key>                 # Show single env var details
 | Flag | Purpose |
 |------|---------|
 | `-v`, `--verbose` | Show current effective values (list) |
-<!-- source: cmd/ze/environ/main.go -- Run -->
+<!-- source: internal/core/env/cli/main.go -- Run -->
 
 ### ze resolve
 
@@ -1303,7 +1303,7 @@ ze resolve irr prefix AS-CLOUDFLARE                    # Lookup announced prefix
 | `--server <host>` | dns, irr | Override DNS/whois server |
 | `--dns-server <host>` | cymru | Override DNS server for TXT queries |
 | `--url <url>` | peeringdb | Override PeeringDB API base URL |
-<!-- source: cmd/ze/resolve/main.go -- Run -->
+<!-- source: internal/component/resolve/cli/main.go -- Run -->
 
 ### ze-perf
 
@@ -1450,7 +1450,7 @@ via local handlers before attempting SSH connection.
 
 `ze cli` accepts `-c <command>` for single-shot execution and
 `--format <format>` (default: yaml).
-<!-- source: cmd/ze/cli/main.go -- Run -->
+<!-- source: internal/component/cli/client/main.go -- Run -->
 
 ### Peer Selector
 
@@ -1757,7 +1757,7 @@ echo c8020044... | ze l2tp decode --pretty
 
 Exit code is 0 on successful parse, 1 on invalid hex, truncated header, or
 malformed AVPs; stderr carries the reason.
-<!-- source: cmd/ze/l2tp/decode.go -- cmdDecode, avpName -->
+<!-- source: internal/component/l2tp/cli/decode.go -- cmdDecode, avpName -->
 
 ### Event Monitoring
 
@@ -1868,7 +1868,7 @@ Inside `ze cli`:
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |
 | Tab completion | Contextual command/argument completion |
-<!-- source: cmd/ze/cli/main.go -- pipe operators, interactive model -->
+<!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model -->
 <!-- source: internal/component/command/pipe.go -- pipe operator definitions -->
 <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat -->
 
