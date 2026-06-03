@@ -883,7 +883,7 @@ Files: 4 | Docs: `docs/architecture/testing/ci-format.md`, `docs/architecture/te
 
 ## `internal/component/cmd/show/`
 
-Files: 23 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/core-design.md`, `docs/comparison.md`, `docs/features.md`, `docs/guide/audit.md`, `docs/guide/command-reference.md`, `docs/guide/mpls.md`, `docs/guide/plugins.md`
+Files: 22 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/core-design.md`, `docs/comparison.md`, `docs/features.md`, `docs/guide/audit.md`, `docs/guide/command-reference.md`, `docs/guide/mpls.md`, `docs/guide/plugins.md`
 
 | File | Docs |
 |------|------|
@@ -896,7 +896,6 @@ Files: 23 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/core-d
 | `fd_linux.go` | `docs/guide/command-reference.md` |
 | `goroutines.go` | `docs/guide/command-reference.md` |
 | `host.go` | `docs/features.md` |
-| `interface_rate.go` | `docs/guide/command-reference.md` |
 | `kernel_log_linux.go` | `docs/guide/command-reference.md` |
 | `memory_map_linux.go` | `docs/guide/command-reference.md` |
 | `mpls_forwarding.go` | `docs/features.md`, `docs/guide/command-reference.md`, `docs/guide/mpls.md` |
@@ -1154,6 +1153,7 @@ Files: 16 | Docs: `docs/architecture/config/transaction-protocol.md`, `docs/arch
 ## `internal/component/iface/cmd/`
 
 - `internal/component/iface/cmd/clear.go` -> `docs/guide/command-reference.md`
+- `internal/component/iface/cmd/interface_rate.go` -> `docs/guide/command-reference.md`
 - `internal/component/iface/cmd/show_ip.go` -> `docs/guide/command-reference.md`
 
 ## `internal/component/iface/schema/`

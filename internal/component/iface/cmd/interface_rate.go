@@ -1,8 +1,12 @@
-// Design: docs/features/interfaces.md — Interface rate CLI commands
-// Related: show.go — handleShowInterface dispatch (rate branch)
-// Related: register_netlink_monitor.go — streaming handler registration pattern
+// Design: docs/features/interfaces.md -- interface rate show + monitor handlers
+// Related: show_interface.go -- the `show interface` family; this adds the rate branch
+//
+// Owned by the iface component: the rate handlers read per-interface rate
+// counters through the iface backend (iface.GetRate / ListRates). Relocated
+// from the central cmd/show package together with the rest of the interface
+// surface. See ai/rules/plugin-self-containment.md.
 
-package show
+package cmd
 
 import (
 	"context"

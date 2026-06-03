@@ -9,4 +9,5 @@ func init() {
 	yang.RegisterModule("ze-iface-conf.yang", ZeIfaceConfYANG)
 	yang.RegisterModule("ze-iface-cmd.yang", ZeIfaceCmdYANG)
 	yang.RegisterModule("ze-iface-show-cmd.yang", ZeIfaceShowCmdYANG)
+	yang.RegisterModule("ze-iface-interface-cmd.yang", ZeIfaceInterfaceCmdYANG)
 }

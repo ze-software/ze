@@ -25,3 +25,23 @@ func TestIfaceShowCmdSchemaOwnsKernelReads(t *testing.T) {
 		}
 	}
 }
+
+// TestIfaceInterfaceCmdSchemaOwnsInterface is the owner half of the
+// self-containment invariant for the `show interface` family and
+// `monitor interface rate`: the central show and monitor schemas must NOT
+// declare any of them, and this package MUST. See
+// ai/rules/plugin-self-containment.md.
+func TestIfaceInterfaceCmdSchemaOwnsInterface(t *testing.T) {
+	for _, want := range []string{
+		`ze:command "ze-show:interface"`,
+		`ze:command "ze-show:interface-scan"`,
+		`ze:command "ze-show:interface-detail"`,
+		`ze:command "ze-show:interface-counters"`,
+		`ze:command "ze-monitor:interface-rate"`,
+		"container interface",
+	} {
+		if !strings.Contains(ZeIfaceInterfaceCmdYANG, want) {
+			t.Errorf("ze-iface-interface-cmd.yang must declare %q so removing iface removes the interface surface", want)
+		}
+	}
+}

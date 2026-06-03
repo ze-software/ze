@@ -169,4 +169,32 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 			t.Errorf("%s still defines %q; the traceroute feature is owned by %s", c.file, c.symbol, tracerouteOwner)
 		}
 	}
+
+	// The `show interface` family (interface, detail, counters, scan, rate) and
+	// `monitor interface rate` are owned by the iface component: every handler
+	// reads interface state through the iface backend. None may remain in the
+	// central show package.
+	ifaceOwner := "internal/component/iface/cmd"
+	for _, want := range []string{
+		"internal/component/iface/cmd/show_interface.go", // show interface family
+		"internal/component/iface/cmd/interface_rate.go", // show/monitor interface rate
+	} {
+		if _, err := os.Stat(filepath.Join(root, want)); err != nil {
+			t.Errorf("iface interface command file %s is missing: %v", want, err)
+		}
+	}
+	centralRate := "internal/component/cmd/show/interface_rate.go"
+	if _, err := os.Stat(filepath.Join(root, centralRate)); err == nil {
+		t.Errorf("central %s still exists; the interface rate surface is owned by %s", centralRate, ifaceOwner)
+	}
+	centralShow := "internal/component/cmd/show/show.go"
+	showBody, err := os.ReadFile(filepath.Join(root, centralShow))
+	if err != nil {
+		t.Fatalf("read central show.go: %v", err)
+	}
+	for _, symbol := range []string{"func handleShowInterface", "func handleMonitorInterfaceRate"} {
+		if strings.Contains(string(showBody), symbol) {
+			t.Errorf("central show.go still defines %q; the interface surface is owned by %s", symbol, ifaceOwner)
+		}
+	}
 }

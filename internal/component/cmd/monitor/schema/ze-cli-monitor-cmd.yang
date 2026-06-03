@@ -19,20 +19,6 @@ include <pattern> or exclude <pattern> to focus on what matters.
 Patterns match event type names.";
         }
 
-        container interface {
-            config false;
-            description "Interface traffic monitoring";
-
-            container rate {
-                config false;
-                ze:command "ze-monitor:interface-rate";
-                ze:task-support required;
-                description "Stream per-second traffic rates for your interfaces.
-Shows rx/tx bytes and packets per second, updating every second.
-Optionally pass an interface name to watch just one link.";
-            }
-        }
-
         container system {
             config false;
             description "System-level event streams";

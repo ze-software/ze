@@ -1804,7 +1804,7 @@ Stream per-second interface rate data as JSON lines (one line per tick, 1s inter
 Each JSON line contains: `name`, `rx-bps`, `tx-bps`, `rx-pps`, `tx-pps`, and the raw kernel `stats` snapshot (8 counters). Rate values are computed from raw kernel counter deltas; counter wraps produce 0 rather than negative spikes.
 
 Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
-<!-- source: internal/component/cmd/show/interface_rate.go -- streamInterfaceRate -->
+<!-- source: internal/component/iface/cmd/interface_rate.go -- streamInterfaceRate -->
 
 ### Metrics
 
