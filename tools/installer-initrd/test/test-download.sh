@@ -93,6 +93,27 @@ run_local_image() {
     rm -f "$sha_file"
 }
 
+run_local_image_gz() {
+    sha_file="$(mktemp)"
+    printf '%s  ze.img.gz\n' "$1" > "$sha_file"
+    set +e
+    local_image_to_disk "/mock/ze.img.gz" "$sha_file" "/dev/null" >/dev/null 2>&1
+    local_rc=$?
+    set -e
+    rm -f "$sha_file"
+}
+
+GUNZIP_COUNT_FILE="$(mktemp)"
+echo 0 > "$GUNZIP_COUNT_FILE"
+
+gunzip() {
+    cat >/dev/null 2>&1
+    n=$(cat "$GUNZIP_COUNT_FILE" 2>/dev/null || echo 0)
+    n=$((n + 1))
+    echo "$n" > "$GUNZIP_COUNT_FILE"
+    return "${MOCK_GUNZIP_RC:-0}"
+}
+
 
 # Test 1: clean transfer, no checksum requested -> success.
 MOCK_WGET_RC=0 MOCK_DD_RC=0 MOCK_PAYLOAD="IMAGE"
@@ -171,7 +192,29 @@ run_local_image "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 assert_eq "local-checksum-mismatch" "1" "$local_rc"
 assert_eq "local-checksum-mismatch-no-dd" "0" "$(cat "$DD_COUNT_FILE")"
 
-rm -f "$WGET_FAIL_MARKER" "$HASH_FILE" "$DD_COUNT_FILE"
+echo 0 > "$DD_COUNT_FILE"
+echo 0 > "$GUNZIP_COUNT_FILE"
+MOCK_HASH="$VALID_SHA"
+run_local_image_gz "$VALID_SHA"
+assert_eq "local-gz-checksum-match" "0" "$local_rc"
+assert_eq "local-gz-uses-gunzip" "1" "$(cat "$GUNZIP_COUNT_FILE")"
+assert_eq "local-gz-uses-dd" "1" "$(cat "$DD_COUNT_FILE")"
+
+echo 0 > "$DD_COUNT_FILE"
+echo 0 > "$GUNZIP_COUNT_FILE"
+MOCK_HASH="$VALID_SHA"
+run_local_image_gz "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+assert_eq "local-gz-checksum-mismatch" "1" "$local_rc"
+assert_eq "local-gz-mismatch-no-gunzip" "0" "$(cat "$GUNZIP_COUNT_FILE")"
+
+echo 0 > "$DD_COUNT_FILE"
+echo 0 > "$GUNZIP_COUNT_FILE"
+MOCK_HASH="$VALID_SHA" MOCK_GUNZIP_RC=1
+run_local_image_gz "$VALID_SHA"
+assert_eq "local-gz-gunzip-fail" "1" "$local_rc"
+MOCK_GUNZIP_RC=0
+
+rm -f "$WGET_FAIL_MARKER" "$HASH_FILE" "$DD_COUNT_FILE" "$GUNZIP_COUNT_FILE"
 
 echo "---"
 echo "download: $PASS passed, $FAIL failed"

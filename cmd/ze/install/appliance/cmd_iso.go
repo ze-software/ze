@@ -569,7 +569,7 @@ func compressOpenFileGzip(src *os.File, dst string) (string, error) {
 	}()
 	h := sha256.New()
 	w := io.MultiWriter(out, h)
-	gz, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	gz, err := gzip.NewWriterLevel(w, gzip.DefaultCompression)
 	if err != nil {
 		return "", fmt.Errorf("create gzip writer: %w", err)
 	}

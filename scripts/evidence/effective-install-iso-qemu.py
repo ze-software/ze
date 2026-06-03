@@ -95,7 +95,9 @@ def build_host_ze(root: Path, work: Path) -> Path:
 
 
 def write_checksum(path: Path) -> None:
-    path.with_name(path.name + ".sha256").write_text(f"{sha256_file(path)}  {path.name}\n")
+    path.with_name(path.name + ".sha256").write_text(
+        f"{sha256_file(path)}  {path.name}\n"
+    )
 
 
 def init_appliance(ze: Path, appliance_dir: Path, env: dict[str, str]) -> Path:
@@ -111,7 +113,9 @@ def init_appliance(ze: Path, appliance_dir: Path, env: dict[str, str]) -> Path:
     return appliance_dir / IMAGE_NAME
 
 
-def prepare_image(root: Path, work: Path, ze: Path) -> tuple[Path, Path, dict[str, str]]:
+def prepare_image(
+    root: Path, work: Path, ze: Path
+) -> tuple[Path, Path, dict[str, str]]:
     appliance_dir = work / "appliances"
     env = os.environ.copy()
     env["ZE_APPLIANCE_DIR"] = str(appliance_dir)
@@ -162,7 +166,15 @@ def prepare_image(root: Path, work: Path, ze: Path) -> tuple[Path, Path, dict[st
     return imgs[-1], app_dir, env
 
 
-def create_iso(ze: Path, kernel: Path, initrd: Path, image: Path, app_dir: Path, env: dict[str, str], target: str) -> Path:
+def create_iso(
+    ze: Path,
+    kernel: Path,
+    initrd: Path,
+    image: Path,
+    app_dir: Path,
+    env: dict[str, str],
+    target: str,
+) -> Path:
     iso = app_dir / "ze-install.iso"
     cmd = [
         str(ze),
@@ -190,7 +202,11 @@ def create_iso(ze: Path, kernel: Path, initrd: Path, image: Path, app_dir: Path,
 
 
 def extract_iso_image(iso: Path, image_name: str, work: Path) -> Path:
-    dest = work / "iso-contained.img"
+    compressed = image_name.endswith(".gz")
+    raw_dest = work / "iso-contained.img"
+    extract_dest = work / (
+        "iso-contained.img.gz" if compressed else "iso-contained.img"
+    )
     xorriso = shutil.which("xorriso")
     if xorriso is None:
         raise SystemExit("xorriso missing after prerequisite check")
@@ -203,14 +219,21 @@ def extract_iso_image(iso: Path, image_name: str, work: Path) -> Path:
             str(iso),
             "-extract",
             f"/ze-install/images/{image_name}",
-            str(dest),
+            str(extract_dest),
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
-    if extracted.returncode != 0 or not dest.is_file():
+    if extracted.returncode != 0 or not extract_dest.is_file():
         raise SystemExit(f"extract ISO-contained image failed:\n{extracted.stdout}")
-    return dest
+    if compressed:
+        import gzip as gzmod
+
+        with gzmod.open(extract_dest, "rb") as gz_in:
+            with open(raw_dest, "wb") as out:
+                shutil.copyfileobj(gz_in, out)
+        return raw_dest
+    return extract_dest
 
 
 def find_x86_uefi_firmware() -> Path | None:
@@ -230,7 +253,9 @@ def find_x86_uefi_firmware() -> Path | None:
     return None
 
 
-def boot_iso_installer(iso: Path, disk: Path, extra_disk: Path, firmware: Path, timeout: float) -> str:
+def boot_iso_installer(
+    iso: Path, disk: Path, extra_disk: Path, firmware: Path, timeout: float
+) -> str:
     cmd = [
         base.QEMU_BIN,
         "-smp",
@@ -283,7 +308,9 @@ def assert_partition_layout(source: Path, installed: Path) -> None:
     src_entries = gpt_entries(source)
     dst_entries = gpt_entries(installed)
     if len(src_entries) < 4:
-        raise SystemExit(f"source image has {len(src_entries)} GPT entries, want at least 4")
+        raise SystemExit(
+            f"source image has {len(src_entries)} GPT entries, want at least 4"
+        )
     if dst_entries[:4] != src_entries[:4]:
         raise SystemExit(
             "installed disk GPT entries do not match source image\n"
@@ -293,10 +320,15 @@ def assert_partition_layout(source: Path, installed: Path) -> None:
 
 def main() -> int:
     if base.ARCH != "amd64":
-        return skip("ISO QEMU proof currently supports amd64 UEFI only; set ZE_INSTALL_ARCH=amd64")
+        return skip(
+            "ISO QEMU proof currently supports amd64 UEFI only; set ZE_INSTALL_ARCH=amd64"
+        )
     if shutil.which(base.QEMU_BIN) is None:
         return skip(f"{base.QEMU_BIN} not found")
-    if shutil.which("grub-mkstandalone") is None and shutil.which("grub2-mkstandalone") is None:
+    if (
+        shutil.which("grub-mkstandalone") is None
+        and shutil.which("grub2-mkstandalone") is None
+    ):
         return skip("grub-mkstandalone not found")
     if shutil.which("xorriso") is None:
         return skip("xorriso not found")
@@ -318,9 +350,13 @@ def main() -> int:
     try:
         busybox = base.find_static_busybox(work)
         if busybox is None:
-            return skip("no static busybox (set ZE_INSTALL_BUSYBOX or run a container runtime)")
+            return skip(
+                "no static busybox (set ZE_INSTALL_BUSYBOX or run a container runtime)"
+            )
 
-        print(f"INSTALL-ISO-QEMU: arch={base.ARCH} accel={base.QEMU_ACCEL} kernel={kernel}")
+        print(
+            f"INSTALL-ISO-QEMU: arch={base.ARCH} accel={base.QEMU_ACCEL} kernel={kernel}"
+        )
         initrd = base.build_initrd(ROOT, busybox)
         print(f"INSTALL-ISO-QEMU: initrd built ({initrd.stat().st_size} bytes)")
 
@@ -332,11 +368,13 @@ def main() -> int:
         iso = create_iso(ze, kernel, initrd, image, app_dir, env, install_target)
         print(f"INSTALL-ISO-QEMU: iso ready {iso}")
 
-        extracted = extract_iso_image(iso, image.name, work)
+        extracted = extract_iso_image(iso, image.name + ".gz", work)
         source_sha = sha256_file(image)
         extracted_sha = sha256_file(extracted)
         if source_sha != extracted_sha:
-            print("INSTALL-ISO-QEMU: FAIL ISO-contained image hash differs from source image")
+            print(
+                "INSTALL-ISO-QEMU: FAIL ISO-contained image hash differs from source image"
+            )
             print(f"source={source_sha} iso={extracted_sha}")
             return 1
         print("INSTALL-ISO-QEMU: ISO-contained image hash matches source")
@@ -355,16 +393,24 @@ def main() -> int:
         )
         if f"[ze-install] Target disk: {install_target}" not in serial:
             sys.stdout.write(serial)
-            print("INSTALL-ISO-QEMU: FAIL ISO installer did not consume explicit ze.target")
+            print(
+                "INSTALL-ISO-QEMU: FAIL ISO installer did not consume explicit ze.target"
+            )
             return 1
-        print(f"INSTALL-ISO-QEMU: installer consumed explicit ze.target={install_target}")
+        print(
+            f"INSTALL-ISO-QEMU: installer consumed explicit ze.target={install_target}"
+        )
         if base.MARK_WRITTEN not in serial or MARK_ISO_DONE not in serial:
             sys.stdout.write(serial)
-            print("INSTALL-ISO-QEMU: FAIL ISO installer did not report safe poweroff completion on serial")
+            print(
+                "INSTALL-ISO-QEMU: FAIL ISO installer did not report safe poweroff completion on serial"
+            )
             return 1
         if base.MARK_DONE in serial:
             sys.stdout.write(serial)
-            print("INSTALL-ISO-QEMU: FAIL ISO path still reported reboot instead of safe poweroff")
+            print(
+                "INSTALL-ISO-QEMU: FAIL ISO path still reported reboot instead of safe poweroff"
+            )
             return 1
         if "zefs database written" in serial:
             sys.stdout.write(serial)

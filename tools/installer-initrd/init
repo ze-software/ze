@@ -472,7 +472,22 @@ local_image_to_disk() {
     fi
 
     log "Local image checksum verified: $expected_sha"
-    dd if="$image" of="$disk" bs=4M 2>/dev/null
+    case "$image" in
+        *.gz)
+            log "Decompressing gzip image to $disk..."
+            gz_fail="/tmp/ze-gunzip.fail"
+            rm -f "$gz_fail"
+            { gunzip -c "$image" 2>/dev/null || : > "$gz_fail"; } | dd of="$disk" bs=4M 2>/dev/null
+            if [ -f "$gz_fail" ]; then
+                log "Decompression failed"
+                rm -f "$gz_fail"
+                return 1
+            fi
+            ;;
+        *)
+            dd if="$image" of="$disk" bs=4M 2>/dev/null
+            ;;
+    esac
 }
 # -- main --
 

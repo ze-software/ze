@@ -397,11 +397,13 @@ side by side.
     make -C tools/installer-kernel ARCH=arm64
     ze install appliance iso --kernel tools/installer-kernel/build/Image lab
 
-The ISO is an installer envelope around the existing raw gokrazy image. It does
-not rebuild the appliance, regenerate credentials, fetch a separate ZeFS
-database, or mutate `/perm` after writing the disk image. The installed disk
-receives the selected image bytes, including the `/perm/ze/database.zefs` that
-`build` already injected.
+The ISO is an installer envelope around the existing raw gokrazy image. The image
+is gzip-compressed inside the ISO to reduce media size (a 2 GiB image with ~100
+MiB of content compresses to roughly 100 MiB). The installer initrd decompresses
+the image during installation. The ISO does not rebuild the appliance, regenerate
+credentials, fetch a separate ZeFS database, or mutate `/perm` after writing the
+disk image. The installed disk receives the selected image bytes, including the
+`/perm/ze/database.zefs` that `build` already injected.
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- stageISO -->
 <!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
 <!-- source: cmd/ze/install/appliance/cmd_build.go -- injectZeFS -->

@@ -40,7 +40,7 @@ $(INITRD): check-busybox init
 	cp "$(BUSYBOX)" $(ROOTFS)/bin/busybox
 	chmod 755 $(ROOTFS)/bin/busybox
 	for cmd in sh cat echo mount umount mkdir sleep wget dd sync \
-		reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee wc tr ip; do \
+		reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee wc tr ip gunzip; do \
 		ln -sf busybox $(ROOTFS)/bin/$$cmd; \
 	done
 	cp init $(ROOTFS)/init

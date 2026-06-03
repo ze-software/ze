@@ -256,7 +256,8 @@ commit; the committed config replaces the bootstrap config on the next restart.
 ## Appliance ISO Install
 
 For appliances built with `ze install appliance build`, ISO media is an offline
-install transport for the same raw gokrazy image. Create it with:
+install transport for the gokrazy image. The image is gzip-compressed inside the
+ISO; the installer initrd decompresses it during installation. Create it with:
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- runIso -->
 
 ```bash
@@ -266,10 +267,10 @@ make -C tools/installer-kernel ARCH=arm64
 ze install appliance iso --kernel tools/installer-kernel/build/Image prod
 ```
 
-The ISO installer writes the embedded raw image unchanged. Unlike PXE
-provisioning, it does not download `/install/database.zefs` or write a separate
-database after the disk image, because the appliance build already injected
-`/perm/ze/database.zefs` into the image.
+The ISO installer decompresses and writes the embedded image to the target disk.
+Unlike PXE provisioning, it does not download `/install/database.zefs` or write a
+separate database after the disk image, because the appliance build already
+injected `/perm/ze/database.zefs` into the image.
 <!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
 <!-- source: cmd/ze/install/appliance/cmd_build.go -- injectZeFS -->
 
@@ -467,8 +468,10 @@ and the initrd's init script installs ze.
    `ze.media-id` from the kernel command line
 2. In HTTP mode, downloads the gokrazy disk image from
    `http://<server>:<port>/install/image/<name>`
-3. In ISO mode, mounts local ISO media read-only and selects the embedded image
-4. Writes the image directly to the selected non-removable block device
+3. In ISO mode, mounts local ISO media read-only and selects the embedded
+   compressed image
+4. Writes the image to the selected non-removable block device (decompressing
+   in ISO mode)
 5. In HTTP mode only, re-reads the partition table, mounts partition 4 (ext4,
    `/perm`), downloads `database.zefs`, and writes it to `/perm/ze/database.zefs`
 6. In HTTP mode, reboots. In ISO mode, powers off so the operator can remove
