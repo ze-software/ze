@@ -246,7 +246,7 @@ Result:  exit 0 → valid
 
 ```bash
 # User types:
-$ ze set bgp peer upstream1 with remote as <TAB>
+$ ze show bgp peer upstream1 detail
 
 # Shell runs:
 $ ze bgp schema complete peer-group name

@@ -1,8 +1,6 @@
 // Design: docs/architecture/api/commands.md — BGP peer lifecycle and introspection handlers
 // Detail: summary.go — BGP summary and capabilities handlers
 // Detail: session.go — BGP peer session handlers
-// Detail: save.go — BGP peer config persistence
-// Detail: prefix_update.go — PeeringDB prefix update command
 
 package peer
 
@@ -21,11 +19,10 @@ import (
 )
 
 var (
-	errReactorNotAvailable     = errors.New("reactor not available")
-	errMissingCeaseSubcode     = errors.New("missing cease subcode")
-	errNoPeerSpecified         = errors.New("no peer specified")
-	errEmptyString             = errors.New("empty string")
-	errMissingRequiredRemoteAs = errors.New("missing required remote as")
+	errReactorNotAvailable = errors.New("reactor not available")
+	errMissingCeaseSubcode = errors.New("missing cease subcode")
+	errNoPeerSpecified     = errors.New("no peer specified")
+	errEmptyString         = errors.New("empty string")
 )
 
 func notifDirection(recv bool) string {
@@ -46,17 +43,7 @@ func init() {
 		// Additional owner-registered BGP peer commands.
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: HandleBgpPeerRemove, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-with", Handler: HandleBgpPeerWith, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-save", Handler: HandleBgpPeerSave, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-update:bgp-peer-prefix", Handler: HandleBgpPeerPrefixUpdate, RequiresSelector: true},
 	)
-}
-
-// filterPeersBySelector returns peers matching the context's peer selector.
-// If the selector is "*", all peers are returned. Otherwise, filters by IP,
-// peer name, or ASN ("as<N>" format).
-func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo, *plugin.Response, error) {
-	return filterPeersBySelectorValue(ctx, ctx.PeerSelector())
 }
 
 func filterPeersByArgs(ctx *pluginserver.CommandContext, args []string) ([]plugin.PeerInfo, *plugin.Response, error) {
@@ -408,57 +395,6 @@ func parseUint(s string) (uint64, error) {
 		return 0, errEmptyString
 	}
 	return strconv.ParseUint(s, 10, 64)
-}
-
-// HandleBgpPeerWith handles "set bgp peer <ip> with <config>" command.
-// Delegates to pluginserver.HandleNodeWith with peer-specific validation and apply.
-func HandleBgpPeerWith(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return pluginserver.HandleNodeWith(ctx, args, "bgp/peer", "peer", preparePeerTree,
-		func(selector string, tree map[string]any) error {
-			addr, _ := netip.ParseAddr(selector) // already validated in preparePeerTree
-			return ctx.Reactor().AddDynamicPeer(addr, tree)
-		},
-	)
-}
-
-// preparePeerTree validates and injects peer-specific defaults into the parsed tree.
-// selector is the peer IP from the dispatcher; nodeTree is the YANG-parsed config.
-func preparePeerTree(selector string, nodeTree map[string]any) (*plugin.Response, error) {
-	addr, err := netip.ParseAddr(selector)
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "invalid peer address: " + selector,
-		}, fmt.Errorf("invalid peer address %s: %w", selector, err)
-	}
-
-	// Validate required session.asn.remote and inject connection.remote.ip from selector.
-	session, _ := nodeTree["session"].(map[string]any)
-	var asn map[string]any
-	if session != nil {
-		asn, _ = session["asn"].(map[string]any)
-	}
-	if asn == nil || asn["remote"] == nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "remote as is required: set bgp peer <ip> with session asn remote <asn>",
-		}, errMissingRequiredRemoteAs
-	}
-
-	// Inject connection.remote.ip from the peer selector address.
-	conn, ok := nodeTree["connection"].(map[string]any)
-	if !ok {
-		conn = map[string]any{}
-		nodeTree["connection"] = conn
-	}
-	remote, ok := conn["remote"].(map[string]any)
-	if !ok {
-		remote = map[string]any{}
-		conn["remote"] = remote
-	}
-	remote["ip"] = addr.String()
-
-	return nil, nil //nolint:nilnil // success
 }
 
 // HandleBgpPeerRemove handles "delete bgp peer <ip>" command.

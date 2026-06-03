@@ -26,7 +26,6 @@ Dispatch keys follow YANG tree paths:
 ```
 show bgp peer <selector>
 show version
-set bgp peer <selector> with <args>
 delete bgp peer <selector>
 ```
 

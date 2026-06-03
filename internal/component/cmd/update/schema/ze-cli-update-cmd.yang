@@ -4,29 +4,11 @@ module ze-cli-update-cmd {
     import ze-extensions { prefix ze; }
     description "Refresh data from external sources and manage firmware updates";
     revision 2026-03-23 { description "Initial revision"; }
+    revision 2026-06-03 { description "Removed update bgp peer prefix (PeeringDB lookup stays in resolve; applying limits goes through the editor)."; }
 
     container update {
         config false;
         description "Pull fresh data from external sources or manage firmware";
-
-        container bgp {
-            config false;
-            description "Refresh BGP operational data from external databases";
-
-            container peer {
-                config false;
-                description "Refresh peer configuration from external sources";
-
-                container prefix {
-                    config false;
-                    ze:command "ze-update:bgp-peer-prefix";
-                    description "Pull max-prefix limits from PeeringDB for your peers.
-Queries PeeringDB by ASN and updates the configured max-prefix
-values so you do not have to look them up manually.";
-                    leaf selector { type string; mandatory true; description "Peer selector"; }
-                }
-            }
-        }
 
         container system {
             config false;

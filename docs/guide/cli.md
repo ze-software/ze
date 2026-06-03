@@ -27,7 +27,6 @@ ze cli -c "peer upstream1 teardown 2" # One-shot command (full access)
 | `peer list` | List all peers (brief) |
 | `peer * show` | Show peer details and statistics |
 | `peer <sel> teardown <code>` | Graceful session closure with NOTIFICATION |
-| `set bgp peer <name> with <config>` | Dynamic peer creation |
 | `delete bgp peer <name>` | Remove peer |
 | `peer <sel> pause` | Pause reading from peer (flow control) |
 | `peer <sel> resume` | Resume reading from peer |

@@ -222,9 +222,3 @@ func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContex
 }
 
 // newTestContextWithConfig creates a CommandContext with a config path set.
-func newTestContextWithConfig(reactor plugin.ReactorLifecycle, configPath string) *pluginserver.CommandContext {
-	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{
-		ConfigPath: configPath,
-	}, reactor)
-	return &pluginserver.CommandContext{Server: server}
-}

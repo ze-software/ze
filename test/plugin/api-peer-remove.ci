@@ -1,6 +1,6 @@
-# Test: bgp peer remove dynamically removes a peer
-# VALIDATES: peer add then remove, verified absent by subsequent peer list
-# PREVENTS: peer remove silently failing or leaving stale entries
+# Test: delete bgp peer removes a config-defined peer at runtime
+# VALIDATES: delete bgp peer tears down a peer and removes it from the peer list
+# PREVENTS: delete silently failing or leaving stale entries
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -9,7 +9,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for peer add+remove
+# Python test plugin: exercises dispatch-command for peer delete
 tmpfs=peer-remove-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
@@ -34,28 +34,31 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'set bgp peer 10.0.0.99 with remote as 2 local as 1')
-        if result.get('status') != 'done':
-            print(f'FAIL: add status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-        time.sleep(0.5)
-
-        result = dispatch(api, 'delete bgp peer 10.0.0.99')
-        if result.get('status') != 'done':
-            print(f'FAIL: remove status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-
-        # Verify the peer is gone
         result = dispatch(api, 'peer * list')
         data = result.get('data', {})
         if isinstance(data, str):
             data = json.loads(data)
         peers = data.get('peers', {})
-        if '10.0.0.99' in peers:
-            print(f'FAIL: 10.0.0.99 still in peers after remove', file=sys.stderr)
+        if '127.0.0.1' not in peers:
+            print(f'FAIL: config peer 127.0.0.1 not in initial peer list', file=sys.stderr)
             sys.exit(1)
 
-        print('OK: peer add+remove verified', file=sys.stderr)
+        result = dispatch(api, 'delete bgp peer 127.0.0.1')
+        if result.get('status') != 'done':
+            print(f'FAIL: remove status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+        time.sleep(0.5)
+
+        result = dispatch(api, 'peer * list')
+        data = result.get('data', {})
+        if isinstance(data, str):
+            data = json.loads(data)
+        peers = data.get('peers', {})
+        if '127.0.0.1' in peers:
+            print(f'FAIL: 127.0.0.1 still in peers after delete', file=sys.stderr)
+            sys.exit(1)
+
+        print('OK: peer delete verified', file=sys.stderr)
     finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()

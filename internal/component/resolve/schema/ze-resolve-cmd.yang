@@ -61,8 +61,7 @@ Usage: resolve cymru asn-name <asn>.";
                 config false;
                 ze:command "ze-resolve:peeringdb-max-prefix";
                 description "Get max-prefix limits for an ASN from PeeringDB.
-Returns IPv4 and IPv6 prefix limits. Use 'update bgp peer prefix'
-to apply them automatically. Usage: resolve peeringdb max-prefix <asn>.";
+Returns IPv4 and IPv6 prefix limits. Apply via the config editor. Usage: resolve peeringdb max-prefix <asn>.";
             }
             container as-set {
                 config false;

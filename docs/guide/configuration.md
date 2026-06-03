@@ -184,7 +184,7 @@ system {
 | `url` | `https://www.peeringdb.com` | PeeringDB-compatible API base URL. |
 | `margin` | `10` | Percentage added above PeeringDB prefix count (0-100). |
 
-Run `ze update bgp peer * prefix` to query PeeringDB and update prefix maximums. Review changes with `ze config diff`, then apply with `ze config commit`.
+Use `resolve peeringdb max-prefix <asn>` to look up prefix limits, then apply them via the config editor.
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement; internal/component/bgp/schema/ze-bgp-conf.yang -- prefix config -->
 <!-- source: internal/component/config/system/schema/ze-system-conf.yang -- peeringdb config -->
 

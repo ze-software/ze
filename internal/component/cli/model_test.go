@@ -1318,12 +1318,12 @@ func TestModelDisplaysLoginWarnings(t *testing.T) {
 	m.height = 24
 
 	m.SetLoginWarnings([]LoginWarning{
-		{Message: "3 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
+		{Message: "TLS certificate expires in 7 days", Command: "ze show pki certificates"},
 	})
 
 	view := m.View().Content
-	assert.Contains(t, view, "3 peer(s) have stale prefix data", "warning message should appear")
-	assert.Contains(t, view, "ze update bgp peer * prefix", "actionable command should appear")
+	assert.Contains(t, view, "TLS certificate expires in 7 days", "warning message should appear")
+	assert.Contains(t, view, "ze show pki certificates", "actionable command should appear")
 }
 
 // TestModelNoLoginWarnings verifies that View() renders normally without login warnings.
@@ -1351,14 +1351,14 @@ func TestModelMultipleLoginWarnings(t *testing.T) {
 	m.height = 24
 
 	m.SetLoginWarnings([]LoginWarning{
-		{Message: "3 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
+		{Message: "TLS certificate expires in 7 days", Command: "ze show pki certificates"},
 		{Message: "RPKI cache expired", Command: "ze update rpki"},
 	})
 
 	view := m.View().Content
-	assert.Contains(t, view, "3 peer(s) have stale prefix data")
+	assert.Contains(t, view, "TLS certificate expires in 7 days")
 	assert.Contains(t, view, "RPKI cache expired")
-	assert.Contains(t, view, "ze update bgp peer * prefix")
+	assert.Contains(t, view, "ze show pki certificates")
 	assert.Contains(t, view, "ze update rpki")
 }
 
@@ -1383,12 +1383,12 @@ func TestModelDisplaysLoginWarningsWithEditor(t *testing.T) {
 	model.height = 24
 
 	model.SetLoginWarnings([]LoginWarning{
-		{Message: "2 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
+		{Message: "2 RPKI caches unreachable", Command: "ze show rpki status"},
 	})
 
 	view := model.View().Content
-	assert.Contains(t, view, "2 peer(s) have stale prefix data", "warning should appear in editor mode")
-	assert.Contains(t, view, "ze update bgp peer * prefix", "command should appear in editor mode")
+	assert.Contains(t, view, "2 RPKI caches unreachable", "warning should appear in editor mode")
+	assert.Contains(t, view, "ze show rpki status", "command should appear in editor mode")
 }
 
 // TestWarningWithEmptyCommand verifies warning renders without "run:" when Command is empty.

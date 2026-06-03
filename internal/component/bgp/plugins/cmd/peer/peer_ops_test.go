@@ -174,116 +174,30 @@ func TestHandlerTeardownInvalidSubcode(t *testing.T) {
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
 
-// appliedPeerTree extracts the peer config tree from the first AddDynamicPeer call.
-// The mock captures the tree directly in appliedConfigs.
-func appliedPeerTree(t *testing.T, reactor *mockReactor) map[string]any {
-	t.Helper()
-	require.Len(t, reactor.appliedConfigs, 1, "expected one AddDynamicPeer call")
-	return reactor.appliedConfigs[0]
-}
-
-// treeString extracts a string from a nested map path.
-func treeString(m map[string]any, keys ...string) string {
-	for i, k := range keys {
-		if i == len(keys)-1 {
-			s, _ := m[k].(string)
-			return s
-		}
-		m, _ = m[k].(map[string]any)
-		if m == nil {
-			return ""
-		}
-	}
-	return ""
-}
-
 // TestHandlerPeerAddBasic verifies peer add with minimal config-syntax options.
 //
 // VALIDATES: Peer add passes config tree with remote as to ApplyConfigDiff.
 // PREVENTS: Missing required fields in peer config.
-func TestHandlerPeerAddBasic(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "192.0.2.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{"session", "asn", "remote", "65001"})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
-	assert.Equal(t, "192.0.2.1", treeString(pt, "connection", "remote", "ip"))
-}
 
 // TestHandlerPeerAddAllOptions verifies peer add with all options set.
 //
 // VALIDATES: All optional fields passed through config tree to ApplyConfigDiff.
 // PREVENTS: Option parsing bugs losing values.
-func TestHandlerPeerAddAllOptions(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "192.0.2.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{
-		"session", "asn", "remote", "65001",
-		"session", "asn", "local", "65000",
-		"connection", "local", "ip", "10.0.0.1",
-		"session", "router-id", "1.2.3.4",
-		"timer", "receive-hold-time", "90",
-		"connection", "remote", "connect", "false",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
-	assert.Equal(t, "65000", treeString(pt, "session", "asn", "local"))
-	assert.Equal(t, "10.0.0.1", treeString(pt, "connection", "local", "ip"))
-	assert.Equal(t, "1.2.3.4", treeString(pt, "session", "router-id"))
-	assert.Equal(t, "90", treeString(pt, "timer", "receive-hold-time"))
-	assert.Equal(t, "false", treeString(pt, "connection", "remote", "connect"))
-}
 
 // TestHandlerPeerAddMissingASN verifies peer add requires remote AS.
 //
 // VALIDATES: remote as is a required parameter.
 // PREVENTS: Adding peer with zero ASN.
-func TestHandlerPeerAddMissingASN(t *testing.T) {
-	ctx := newTestContext(&mockReactor{})
-	ctx.Peer = "192.0.2.1"
-
-	resp, err := HandleBgpPeerWith(ctx, nil)
-	require.Error(t, err)
-	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Error, "requires configuration arguments")
-}
 
 // TestHandlerPeerAddWildcardPeer verifies peer add rejects wildcard.
 //
 // VALIDATES: Peer add requires specific peer address.
 // PREVENTS: Adding peer without target address.
-func TestHandlerPeerAddWildcardPeer(t *testing.T) {
-	ctx := newTestContext(&mockReactor{})
-	ctx.Peer = "*"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{"remote", "as", "65001"})
-	require.Error(t, err)
-	assert.Equal(t, plugin.StatusError, resp.Status)
-}
 
 // TestHandlerPeerAddUnknownOption verifies peer add rejects unknown options.
 //
 // VALIDATES: Unknown options produce clear error.
 // PREVENTS: Silently ignoring typos in option names.
-func TestHandlerPeerAddUnknownOption(t *testing.T) {
-	ctx := newTestContext(&mockReactor{})
-	ctx.Peer = "192.0.2.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{"remote", "as", "65001", "bogus-option"})
-	require.Error(t, err)
-	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Error, "unknown option")
-}
 
 // TestHandlerPeerRemove verifies peer remove calls reactor.
 //
@@ -319,40 +233,11 @@ func TestHandlerPeerRemoveWildcardPeer(t *testing.T) {
 //
 // VALIDATES: AC-9 -- peer name selector returns matching peer.
 // PREVENTS: Name-based selection silently failing.
-func TestFilterPeersBySelectorByName(t *testing.T) {
-	reactor := &mockReactor{
-		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, Name: "router-east"},
-		},
-	}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "router-east"
-
-	peers, errResp, err := filterPeersBySelector(ctx)
-	require.NoError(t, err)
-	require.Nil(t, errResp)
-	require.Len(t, peers, 1)
-	assert.Equal(t, "router-east", peers[0].Name)
-}
 
 // TestFilterPeersBySelectorNameNotFound verifies non-matching name returns empty.
 //
 // VALIDATES: Non-existent peer name returns empty result (not error).
 // PREVENTS: Unknown names causing error instead of empty result.
-func TestFilterPeersBySelectorNameNotFound(t *testing.T) {
-	reactor := &mockReactor{
-		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
-		},
-	}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "not-a-peer"
-
-	peers, errResp, err := filterPeersBySelector(ctx)
-	require.NoError(t, err)
-	require.Nil(t, errResp)
-	assert.Empty(t, peers)
-}
 
 // TestParseRouterID verifies router ID parsing in IP and numeric formats.
 //
@@ -389,239 +274,61 @@ func TestParseRouterID(t *testing.T) {
 //
 // VALIDATES: parseUint accepts digits, rejects non-digits and empty.
 // PREVENTS: Silent parse failures or panics on bad input.
-func TestParseUint(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    uint64
-		wantErr bool
-	}{
-		{name: "valid_zero", input: "0", want: 0},
-		{name: "valid_number", input: "65535", want: 65535},
-		{name: "valid_large", input: "4294967295", want: 4294967295},
-		{name: "empty_string", input: "", wantErr: true},
-		{name: "letters", input: "abc", wantErr: true},
-		{name: "mixed", input: "123abc", wantErr: true},
-		{name: "negative", input: "-1", wantErr: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseUint(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
 
 // TestSetPeerWithRemoteAS verifies config-syntax peer creation with "remote as".
 //
 // VALIDATES: AC-1 -- minimal config-syntax peer creation with remote as.
 // PREVENTS: Config-syntax "remote as" not parsed correctly.
-func TestSetPeerWithRemoteAS(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{"session", "asn", "remote", "65001"})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
-}
 
 // TestSetPeerWithFullConfig verifies all optional fields via config syntax.
 //
 // VALIDATES: AC-3 -- all optional fields set via config-syntax.
 // PREVENTS: Optional config-syntax keys silently ignored.
-func TestSetPeerWithFullConfig(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{
-		"session", "asn", "remote", "65001",
-		"session", "router-id", "1.2.3.4",
-		"timer", "receive-hold-time", "180",
-		"connection", "remote", "connect", "false",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
-	assert.Equal(t, "1.2.3.4", treeString(pt, "session", "router-id"))
-	assert.Equal(t, "180", treeString(pt, "timer", "receive-hold-time"))
-	assert.Equal(t, "false", treeString(pt, "connection", "remote", "connect"))
-}
 
 // TestSetPeerWithLocalOverrides verifies local as + local ip via config syntax.
 //
 // VALIDATES: AC-2 -- peer created with all local overrides.
 // PREVENTS: "local as" or "local ip" container prefixes not parsed.
-func TestSetPeerWithLocalOverrides(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{
-		"session", "asn", "remote", "65001",
-		"session", "asn", "local", "65000",
-		"connection", "local", "ip", "192.168.1.1",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
-	assert.Equal(t, "65000", treeString(pt, "session", "asn", "local"))
-	assert.Equal(t, "192.168.1.1", treeString(pt, "connection", "local", "ip"))
-}
 
 // TestSetPeerWithDescription verifies description field.
 //
 // VALIDATES: AC-4 -- description preserved in config tree.
 // PREVENTS: Description silently dropped.
-func TestSetPeerWithDescription(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{
-		"session", "asn", "remote", "65001",
-		"description", "my peer",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "my peer", treeString(pt, "description"))
-}
 
 // TestSetPeerWithOldKeysRejected verifies old flat keys are rejected.
 //
 // VALIDATES: Old flat keys (asn, local-as, local-ip) produce errors.
 // PREVENTS: Stale flat keys silently accepted.
-func TestSetPeerWithOldKeysRejected(t *testing.T) {
-	for _, key := range []string{"asn", "local-as", "local-ip"} {
-		t.Run(key, func(t *testing.T) {
-			ctx := newTestContext(&mockReactor{})
-			ctx.Peer = "10.0.0.1"
-
-			resp, err := HandleBgpPeerWith(ctx, []string{key, "65001"})
-			require.Error(t, err)
-			assert.Equal(t, plugin.StatusError, resp.Status)
-			assert.Contains(t, resp.Error, "unknown option")
-		})
-	}
-}
 
 // TestSetPeerWithMissingRemoteAS verifies error when no remote AS is specified.
 //
 // VALIDATES: AC-6 -- error on missing required remote as.
 // PREVENTS: Peer created with zero ASN.
-func TestSetPeerWithMissingRemoteAS(t *testing.T) {
-	ctx := newTestContext(&mockReactor{})
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, nil)
-	require.Error(t, err)
-	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Error, "requires configuration arguments")
-}
 
 // TestSetPeerWithUnknownKey verifies error on unknown config key.
 //
 // VALIDATES: AC-7 -- error on bogus key.
 // PREVENTS: Unknown keys silently ignored.
-func TestSetPeerWithUnknownKey(t *testing.T) {
-	ctx := newTestContext(&mockReactor{})
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{"remote", "as", "65001", "bogus-key", "value"})
-	require.Error(t, err)
-	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Error, "unknown option")
-}
 
 // TestSetPeerWithASNOutOfRange verifies ASN range validation.
 //
 // VALIDATES: AC-8 -- ASN out of range produces error.
 // PREVENTS: Overflowing uint32 ASN field.
-func TestSetPeerWithASNOutOfRange(t *testing.T) {
-	ctx := newTestContext(&mockReactor{})
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{"session", "asn", "remote", "99999999999"})
-	require.Error(t, err)
-	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Error, "invalid uint32")
-}
 
 // TestSetPeerWithLinkLocal verifies link-local IPv6 address field.
 //
 // VALIDATES: link-local field passed through config tree.
 // PREVENTS: link-local silently dropped.
-func TestSetPeerWithLinkLocal(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{
-		"session", "asn", "remote", "65001",
-		"session", "link-local", "fe80::1",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "fe80::1", treeString(pt, "session", "link-local"))
-}
 
 // TestSetPeerWithPort verifies port field.
 //
 // VALIDATES: port field passed through config tree.
 // PREVENTS: port silently dropped.
-func TestSetPeerWithPort(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{
-		"session", "asn", "remote", "65001",
-		"connection", "local", "port", "1179",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "1179", treeString(pt, "connection", "local", "port"))
-}
 
 // TestSetPeerWithGroupUpdates verifies group-updates enable/disable.
 //
 // VALIDATES: group-updates passed through config tree.
 // PREVENTS: group-updates silently ignored or wrong value.
-func TestSetPeerWithGroupUpdates(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := newTestContext(reactor)
-	ctx.Peer = "10.0.0.1"
-
-	resp, err := HandleBgpPeerWith(ctx, []string{
-		"session", "asn", "remote", "65001",
-		"behavior", "group-updates", "false",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "false", treeString(pt, "behavior", "group-updates"))
-}
 
 // TestPeerPauseHandler verifies pause command calls reactor.PausePeer.
 //

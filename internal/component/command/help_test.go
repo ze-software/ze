@@ -30,10 +30,10 @@ func testVerbTree() *Node {
 				Name:        "set",
 				Description: "Modify configuration",
 				Children: map[string]*Node{
-					"bgp": {
-						Name: "bgp",
+					"system": {
+						Name: "system",
 						Children: map[string]*Node{
-							"peer": {Name: "peer", Description: "Add or modify a peer", WireMethod: "ze-set:bgp-peer"},
+							"file-descriptors": {Name: "file-descriptors", Description: "Raise file descriptor limit", WireMethod: "ze-set:system-file-descriptors"},
 						},
 					},
 				},
@@ -245,9 +245,9 @@ func TestHelpDescribeChildren(t *testing.T) {
 	WriteHelp(&buf, tree, []string{"set"})
 	output := buf.String()
 
-	// set > bgp has no description, should show "subcommands: peer"
-	if !strings.Contains(output, "subcommands: peer") {
-		t.Errorf("set help should describe bgp children, got: %q", output)
+	// set > system has no description, should show "subcommands: file-descriptors"
+	if !strings.Contains(output, "subcommands: file-descriptors") {
+		t.Errorf("set help should describe system children, got: %q", output)
 	}
 }
 

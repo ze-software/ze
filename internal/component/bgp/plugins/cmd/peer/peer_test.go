@@ -2,8 +2,6 @@ package peer
 
 import (
 	"net/netip"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -85,126 +83,16 @@ func TestHandlerPeerListNilReactor(t *testing.T) {
 //
 // VALIDATES: Save handler creates peer entries in config file via Editor.
 // PREVENTS: Save handler silently failing or writing incorrect config values.
-func TestHandlerPeerSave(t *testing.T) {
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "test.conf")
-
-	// Write minimal valid config for the editor to parse (bgp container required)
-	initial := "bgp {\n\trouter-id 1.2.3.4;\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000;\n\t\t}\n\t}\n}\n"
-	err := os.WriteFile(configPath, []byte(initial), 0o600)
-	require.NoError(t, err)
-
-	reactor := &mockReactor{
-		peers: []plugin.PeerInfo{
-			{
-				Address:         netip.MustParseAddr("192.0.2.1"),
-				PeerAS:          65001,
-				LocalAS:         65000,
-				ReceiveHoldTime: 90 * time.Second, // default — should NOT be saved
-			},
-		},
-		stats: plugin.ReactorStats{LocalAS: 65000, RouterID: 0x01020304},
-	}
-
-	ctx := newTestContextWithConfig(reactor, configPath)
-	ctx.Peer = "*"
-
-	resp, err := HandleBgpPeerSave(ctx, nil)
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
-	saved, ok := data["saved"].([]string)
-	require.True(t, ok)
-	assert.Equal(t, []string{"192.0.2.1"}, saved)
-
-	// Verify the config file was modified
-	content, err := os.ReadFile(configPath)
-	require.NoError(t, err)
-	assert.Contains(t, string(content), "192.0.2.1")
-	assert.Contains(t, string(content), "remote 65001")
-	// local-as matches reactor default, so should NOT be written for this peer
-	// receive-hold-time is default 90s, so should NOT be written
-}
 
 // TestHandlerPeerSaveNonDefaultHoldTime verifies hold-time 0 (RFC 4271) is saved.
 //
 // VALIDATES: Non-default hold-time (including 0) is persisted to config.
 // PREVENTS: RFC 4271 hold-time 0 (no keepalives) being silently dropped.
-func TestHandlerPeerSaveNonDefaultHoldTime(t *testing.T) {
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "test.conf")
-
-	initial := "bgp {\n\trouter-id 1.2.3.4;\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000;\n\t\t}\n\t}\n}\n"
-	err := os.WriteFile(configPath, []byte(initial), 0o600)
-	require.NoError(t, err)
-
-	reactor := &mockReactor{
-		peers: []plugin.PeerInfo{
-			{
-				Address:         netip.MustParseAddr("10.0.0.1"),
-				PeerAS:          65002,
-				LocalAS:         65000,
-				ReceiveHoldTime: 0, // RFC 4271: no keepalives
-				Connect:         false,
-				Accept:          true,
-			},
-		},
-		stats: plugin.ReactorStats{LocalAS: 65000, RouterID: 0x01020304},
-	}
-
-	ctx := newTestContextWithConfig(reactor, configPath)
-	ctx.Peer = "*"
-
-	resp, err := HandleBgpPeerSave(ctx, nil)
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	content, err := os.ReadFile(configPath)
-	require.NoError(t, err)
-	s := string(content)
-	assert.Contains(t, s, "10.0.0.1")
-	assert.Contains(t, s, "hold-time 0")
-	assert.Contains(t, s, "connect disable")
-}
 
 // TestHandlerPeerSaveLocalAddress verifies local-address is saved to config.
 //
 // VALIDATES: Save handler persists local-address when set on a peer.
 // PREVENTS: LocalAddress being silently dropped during config save.
-func TestHandlerPeerSaveLocalAddress(t *testing.T) {
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "test.conf")
-
-	initial := "bgp {\n\trouter-id 1.2.3.4;\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000;\n\t\t}\n\t}\n}\n"
-	err := os.WriteFile(configPath, []byte(initial), 0o600)
-	require.NoError(t, err)
-
-	reactor := &mockReactor{
-		peers: []plugin.PeerInfo{
-			{
-				Address:         netip.MustParseAddr("192.0.2.1"),
-				PeerAS:          65001,
-				LocalAS:         65000,
-				LocalAddress:    netip.MustParseAddr("192.168.1.1"),
-				ReceiveHoldTime: 90 * time.Second, // default — should NOT be saved
-			},
-		},
-		stats: plugin.ReactorStats{LocalAS: 65000, RouterID: 0x01020304},
-	}
-
-	ctx := newTestContextWithConfig(reactor, configPath)
-	ctx.Peer = "*"
-
-	resp, err := HandleBgpPeerSave(ctx, nil)
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	content, err := os.ReadFile(configPath)
-	require.NoError(t, err)
-	assert.Contains(t, string(content), "ip 192.168.1.1")
-}
 
 // TestDefaultReceiveHoldTimeMatchesReactor verifies the local defaultReceiveHoldTime constant
 // matches the reactor's DefaultReceiveHoldTime (90s per RFC 4271 Section 10).
@@ -212,60 +100,13 @@ func TestHandlerPeerSaveLocalAddress(t *testing.T) {
 //
 // VALIDATES: defaultReceiveHoldTime is consistent with reactor.DefaultReceiveHoldTime.
 // PREVENTS: Silent divergence between command handler and reactor defaults.
-func TestDefaultReceiveHoldTimeMatchesReactor(t *testing.T) {
-	// Cannot import reactor (import cycle via blank import in reactor.go).
-	// Verify the value matches the expected RFC 4271 default directly.
-	// reactor.DefaultReceiveHoldTime is defined in internal/component/bgp/reactor/peersettings.go
-	// and is tested by TestDefaultReceiveHoldTime in peersettings_test.go.
-	assert.Equal(t, 90*time.Second, defaultReceiveHoldTime,
-		"defaultReceiveHoldTime must be 90s to match reactor.DefaultReceiveHoldTime (reactor/peersettings.go)")
-}
 
 // TestHandlerPeerSaveNoConfigPath verifies save errors when config path is empty.
 //
 // VALIDATES: Handler returns error when config path is not set.
 // PREVENTS: Nil pointer or empty-string file operations.
-func TestHandlerPeerSaveNoConfigPath(t *testing.T) {
-	reactor := &mockReactor{
-		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
-		},
-	}
-
-	ctx := newTestContext(reactor) // no config path
-	ctx.Peer = "*"
-
-	_, err := HandleBgpPeerSave(ctx, nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "config path")
-}
 
 // TestValidatePeeringDBURL verifies URL scheme validation.
 //
 // VALIDATES: Security -- only http/https schemes allowed for PeeringDB URL.
 // PREVENTS: file:// or ftp:// URLs being used to exfiltrate data.
-func TestValidatePeeringDBURL(t *testing.T) {
-	tests := []struct {
-		name    string
-		url     string
-		wantErr bool
-	}{
-		{"https valid", "https://www.peeringdb.com", false},
-		{"http valid", "http://127.0.0.1:8080", false},
-		{"ftp rejected", "ftp://evil.com", true},
-		{"file rejected", "file:///etc/passwd", true},
-		{"empty scheme rejected", "peeringdb.com/api", true},
-		{"no scheme rejected", "/api/net", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validatePeeringDBURL(tt.url)
-			if tt.wantErr {
-				assert.Error(t, err, "expected error for %q", tt.url)
-			} else {
-				assert.NoError(t, err, "unexpected error for %q", tt.url)
-			}
-		})
-	}
-}

@@ -436,7 +436,7 @@ func TestUpdateCmdModule(t *testing.T) {
 
 // TestCliUpdateCmdModule verifies ze-cli-update-cmd.yang (update verb from cmd/update).
 //
-// VALIDATES: Update verb YANG module loads with update > bgp > peer > prefix hierarchy.
+// VALIDATES: Update verb YANG module loads with update > system hierarchy (bgp peer removed).
 // PREVENTS: Update verb missing from the command tree.
 func TestCliUpdateCmdModule(t *testing.T) {
 	loader := NewLoader()
@@ -453,21 +453,16 @@ func TestCliUpdateCmdModule(t *testing.T) {
 	require.NotNil(t, update, "update container must exist")
 	assert.Equal(t, "", GetCommandExtension(update), "update is a grouping, no handler")
 
-	bgp := update.Dir["bgp"]
-	require.NotNil(t, bgp, "update > bgp must exist")
+	assert.Nil(t, update.Dir["bgp"], "update > bgp must not exist (update bgp peer prefix removed)")
 
-	peer := bgp.Dir["peer"]
-	require.NotNil(t, peer, "update > bgp > peer must exist")
-
-	prefix := peer.Dir["prefix"]
-	require.NotNil(t, prefix, "update > bgp > peer > prefix must exist")
-	assert.Equal(t, "ze-update:bgp-peer-prefix", GetCommandExtension(prefix))
+	sys := update.Dir["system"]
+	require.NotNil(t, sys, "update > system must exist")
 }
 
 // TestCliSetCmdModule verifies ze-cli-set-cmd.yang (set verb from cmd/set).
 //
-// VALIDATES: Set verb YANG module loads with set > bgp > peer > with/save hierarchy.
-// PREVENTS: Set verb commands missing from the command tree.
+// VALIDATES: Set verb YANG module loads with set > system hierarchy (bgp peer removed).
+// PREVENTS: Set verb missing from the command tree.
 func TestCliSetCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
@@ -483,19 +478,10 @@ func TestCliSetCmdModule(t *testing.T) {
 	require.NotNil(t, set, "set container must exist")
 	assert.Equal(t, "", GetCommandExtension(set), "set is a grouping, no handler")
 
-	bgp := set.Dir["bgp"]
-	require.NotNil(t, bgp, "set > bgp must exist")
+	assert.Nil(t, set.Dir["bgp"], "set > bgp must not exist (set bgp peer with/save removed)")
 
-	peer := bgp.Dir["peer"]
-	require.NotNil(t, peer, "set > bgp > peer must exist")
-
-	with := peer.Dir["with"]
-	require.NotNil(t, with, "set > bgp > peer > with must exist")
-	assert.Equal(t, "ze-set:bgp-peer-with", GetCommandExtension(with))
-
-	save := peer.Dir["save"]
-	require.NotNil(t, save, "set > bgp > peer > save must exist")
-	assert.Equal(t, "ze-set:bgp-peer-save", GetCommandExtension(save))
+	sys := set.Dir["system"]
+	require.NotNil(t, sys, "set > system must exist")
 }
 
 // TestPeerCmdModuleOwnsDeleteBgpPeer verifies the BGP peer command owner declares

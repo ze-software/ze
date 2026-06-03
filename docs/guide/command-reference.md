@@ -1509,8 +1509,6 @@ This command does not forward routes, update the RIB, populate cache, or mutate 
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `set system file-descriptors <N\|max>` | write | Raise process FD soft limit (Linux only; `max` sets to hard limit) |
-| `set bgp peer <name> with <config>` | write | Create peer with configuration |
-| `set bgp peer <sel> save` | write | Save running peers to config |
 
 #### Peer Config Keys
 
@@ -1532,8 +1530,6 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 | `port` | 1-65535 | No | Per-peer listen port |
 | `group-updates` | enable/disable | No | UPDATE grouping |
 
-Example: `set bgp peer upstream1 with remote ip 10.0.0.1 remote as 65001 local as 65000 timer hold-time 90 remote connect false`
-
 <!-- source: internal/component/config/setparser_inline.go -- ParseInlineArgs YANG-driven parser -->
 <!-- source: internal/component/plugin/server/node_with.go -- HandleNodeWith generic set handler -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- HandleBgpPeerWith, preparePeerTree -->
@@ -1549,7 +1545,6 @@ Example: `set bgp peer upstream1 with remote ip 10.0.0.1 remote as 65001 local a
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `update bgp peer <sel> prefix` | write | Update prefix maximums from PeeringDB |
 <!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/schema/ze-cli-update-cmd.yang -->
 
 ### Route Injection

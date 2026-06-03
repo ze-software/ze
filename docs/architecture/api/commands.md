@@ -44,7 +44,7 @@ The action verb determines the command's behavior; the module implements it.
 | `show` | Read-only display (returns data, exits) | `show peer detail X`, `show bgp warnings` |
 | `set` | Create or modify | `set bgp peer X ...` |
 | `delete` | Remove | `delete bgp peer X` |
-| `update` | Route operations (announce, withdraw, refresh) | `update bgp peer * prefix ...` |
+| `update` | Route operations (announce, withdraw, refresh), firmware | `update system firmware check` |
 | `monitor` | Long-running auto-refreshing display | `monitor bgp` (TUI dashboard) |
 
 <!-- source: internal/component/cmd/show/doc.go -- show verb -->
@@ -402,7 +402,6 @@ show bgp peer <selector> capabilities # Show specific peer capabilities
 show bgp peer <selector> statistics   # Show specific peer statistics
 show bgp peer <selector> history      # Show FSM transition history
 peer <ip> teardown <code> [<reason>]  # Disconnect peer
-set bgp peer <name> with <config>  # Create peer with configuration
 delete bgp peer <name>             # Remove dynamic peer
 peer <sel> flush         # Wait for forward pool to drain (barrier)
 ```

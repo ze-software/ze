@@ -9,7 +9,6 @@ Commands sent through `ze cli`, `ze cli -c`, `ze show`, or process stdin.
 | `bgp peer * list` | List peers (brief) |
 | `bgp peer * show` | Show peer details and statistics |
 | `bgp peer <addr> teardown <code>` | Graceful session closure with NOTIFICATION |
-| `set bgp peer <name> with <config>` | Dynamic peer creation |
 | `delete bgp peer <name>` | Remove peer |
 | `bgp peer <addr> pause` | Pause reading from peer (flow control) |
 | `bgp peer <addr> resume` | Resume reading from peer |

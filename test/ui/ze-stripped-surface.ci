@@ -20,7 +20,6 @@ for forbidden in (
 ):
     require(forbidden not in cmds, f'{forbidden} unexpectedly present')
 for required in (
-    'update bgp peer prefix',
     'update system firmware check',
     'update system firmware download',
     'update system firmware apply',
