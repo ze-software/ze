@@ -11,13 +11,15 @@ import (
 	"net/netip"
 	"os"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 )
 
 // NewPingSession starts a continuous ping stream to the given target.
 // Each reply is sent as a map on the returned channel. The channel is
 // closed when the context is canceled. Cancel stops the session.
 func NewPingSession(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
-	addr, err := resolveTarget(target)
+	addr, err := probe.ResolveTarget(target)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -33,11 +35,11 @@ func NewPingSession(ctx context.Context, target string, interval, timeout time.D
 func streamPing(ctx context.Context, dest netip.Addr, interval, timeout time.Duration, out chan<- map[string]any) {
 	defer close(out)
 
-	network := networkICMPv4
+	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	if dest.Is6() {
-		network = networkICMPv6
+		network = probe.NetworkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 	}
@@ -57,7 +59,7 @@ func streamPing(ctx context.Context, dest netip.Addr, interval, timeout time.Dur
 			return
 		}
 
-		pkt := buildICMPEcho(icmpEcho, pid, uint16(seq&0xffff), []byte("ze-ping"))
+		pkt := probe.BuildICMPEcho(icmpEcho, pid, uint16(seq&0xffff), []byte("ze-ping"))
 		start := time.Now()
 
 		if deadlineErr := conn.SetDeadline(start.Add(timeout)); deadlineErr != nil {

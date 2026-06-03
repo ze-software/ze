@@ -1,5 +1,5 @@
 // Design: plan/spec-diag-traceroute.md -- ICMP traceroute from the router
-// Related: ping.go -- ICMP ping, provides buildICMPEcho/icmpChecksum reused here
+// Related: ping.go -- ICMP ping, shares internal/core/probe helpers
 
 package show
 
@@ -19,6 +19,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 )
 
 var (
@@ -91,7 +92,7 @@ func parseTracerouteArgs(args []string) (netip.Addr, int, time.Duration, int, er
 			i++
 		default:
 			if !target.IsValid() {
-				addr, err := resolveTarget(args[i])
+				addr, err := probe.ResolveTarget(args[i])
 				if err != nil {
 					return target, 0, 0, 0, fmt.Errorf("traceroute: invalid target %q: %w", args[i], err)
 				}
@@ -103,20 +104,6 @@ func parseTracerouteArgs(args []string) (netip.Addr, int, time.Duration, int, er
 		return target, 0, 0, 0, errTracerouteMissingTarget
 	}
 	return target, maxHops, timeout, probes, nil
-}
-
-func resolveTarget(s string) (netip.Addr, error) {
-	if addr, err := netip.ParseAddr(s); err == nil {
-		return addr, nil
-	}
-	ips, err := net.DefaultResolver.LookupNetIP(context.Background(), "ip", s)
-	if err != nil {
-		return netip.Addr{}, err
-	}
-	if len(ips) == 0 {
-		return netip.Addr{}, fmt.Errorf("no addresses for %q", s)
-	}
-	return ips[0], nil
 }
 
 type ttlSetter interface {
@@ -180,7 +167,7 @@ func embeddedICMPOffset(rb []byte, n int, isV6 bool) int {
 }
 
 func doTraceroute(dest netip.Addr, maxHops int, timeout time.Duration, probes int) ([]map[string]any, error) {
-	network := networkICMPv4
+	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	icmpTimeExceeded := byte(11)
@@ -188,7 +175,7 @@ func doTraceroute(dest netip.Addr, maxHops int, timeout time.Duration, probes in
 	portUnreach := byte(icmpv4PortUnreach)
 	isV6 := dest.Is6()
 	if isV6 {
-		network = networkICMPv6
+		network = probe.NetworkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 		icmpTimeExceeded = 3
@@ -226,7 +213,7 @@ func doTraceroute(dest netip.Addr, maxHops int, timeout time.Duration, probes in
 
 		for p := range probes {
 			seq := uint16((ttl-1)*probes + p)
-			pkt := buildICMPEcho(icmpEcho, pid, seq, []byte("ze-trace"))
+			pkt := probe.BuildICMPEcho(icmpEcho, pid, seq, []byte("ze-trace"))
 
 			start := time.Now()
 			if deadlineErr := conn.SetDeadline(start.Add(timeout)); deadlineErr != nil {

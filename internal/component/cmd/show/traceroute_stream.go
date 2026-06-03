@@ -1,5 +1,5 @@
 // Design: traceroute_parallel.go -- batch probe round (show probe-round RPC)
-// Related: ping.go -- buildICMPEcho/icmpChecksum shared helpers
+// Related: ping.go -- sibling probe command; ICMP helpers in internal/core/probe
 
 package show
 
@@ -13,12 +13,14 @@ import (
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 )
 
 // NewTracerouteSession starts a streaming probe round for the given target.
 // Returns a channel of hop results, a cancel function, and an error.
 func NewTracerouteSession(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
-	addr, err := resolveTarget(target)
+	addr, err := probe.ResolveTarget(target)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -46,7 +48,7 @@ func randProbeID() uint16 {
 func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadline time.Duration, out chan<- map[string]any) {
 	defer close(out)
 
-	network := networkICMPv4
+	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	icmpTimeExceeded := byte(11)
@@ -54,7 +56,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 	portUnreach := byte(icmpv4PortUnreach)
 	isV6 := dest.Is6()
 	if isV6 {
-		network = networkICMPv6
+		network = probe.NetworkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 		icmpTimeExceeded = 3
@@ -85,7 +87,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 			continue
 		}
 		seq := uint16(ttl - 1)
-		pkt := buildICMPEcho(icmpEcho, pid, seq, []byte("ze-probe"))
+		pkt := probe.BuildICMPEcho(icmpEcho, pid, seq, []byte("ze-probe"))
 		sendTimes[ttl-1] = time.Now()
 		if _, writeErr := conn.WriteTo(pkt, dst); writeErr != nil {
 			continue

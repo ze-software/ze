@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -122,19 +123,19 @@ func TestTracerouteHopResult(t *testing.T) {
 }
 
 func TestResolveTarget_IP(t *testing.T) {
-	addr, err := resolveTarget("127.0.0.1")
+	addr, err := probe.ResolveTarget("127.0.0.1")
 	require.NoError(t, err)
 	assert.Equal(t, "127.0.0.1", addr.String())
 }
 
 func TestResolveTarget_IPv6(t *testing.T) {
-	addr, err := resolveTarget("::1")
+	addr, err := probe.ResolveTarget("::1")
 	require.NoError(t, err)
 	assert.True(t, addr.Is6())
 }
 
 func TestResolveTarget_Hostname(t *testing.T) {
-	addr, err := resolveTarget("localhost")
+	addr, err := probe.ResolveTarget("localhost")
 	require.NoError(t, err)
 	assert.True(t, addr.IsLoopback())
 }

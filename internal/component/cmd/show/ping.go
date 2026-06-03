@@ -1,6 +1,6 @@
 // Design: plan/spec-diag-5-active-probes.md -- ICMP ping from the router
 // Related: tcp_check.go -- similar active probe pattern
-// Related: traceroute.go -- ICMP traceroute, reuses buildICMPEcho/icmpChecksum
+// Related: traceroute.go -- ICMP traceroute, shares internal/core/probe helpers
 
 package show
 
@@ -17,6 +17,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 )
 
 var (
@@ -73,7 +74,7 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 			i++
 		default:
 			if !dest.IsValid() {
-				addr, err := resolveTarget(args[i])
+				addr, err := probe.ResolveTarget(args[i])
 				if err != nil {
 					return dest, 0, 0, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)
 				}
@@ -88,11 +89,11 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 }
 
 func doPing(dest netip.Addr, count int, timeout time.Duration) (map[string]any, error) {
-	network := networkICMPv4
+	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	if dest.Is6() {
-		network = networkICMPv6
+		network = probe.NetworkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 	}
@@ -111,7 +112,7 @@ func doPing(dest netip.Addr, count int, timeout time.Duration) (map[string]any, 
 	rb := make([]byte, 1500)
 
 	for seq := range count {
-		pkt := buildICMPEcho(icmpEcho, pid, uint16(seq), []byte("ze-ping"))
+		pkt := probe.BuildICMPEcho(icmpEcho, pid, uint16(seq), []byte("ze-ping"))
 
 		start := time.Now()
 		if deadlineErr := conn.SetDeadline(start.Add(timeout)); deadlineErr != nil {
@@ -191,28 +192,4 @@ func doPing(dest netip.Addr, count int, timeout time.Duration) (map[string]any, 
 		result["max-rtt-ms"] = float64(maxRTT.Microseconds()) / 1000.0
 	}
 	return result, nil
-}
-
-func buildICMPEcho(typ byte, id, seq uint16, data []byte) []byte {
-	b := make([]byte, 8+len(data))
-	b[0] = typ
-	b[1] = 0
-	binary.BigEndian.PutUint16(b[4:], id)
-	binary.BigEndian.PutUint16(b[6:], seq)
-	copy(b[8:], data)
-	binary.BigEndian.PutUint16(b[2:], icmpChecksum(b))
-	return b
-}
-
-func icmpChecksum(b []byte) uint16 {
-	var sum uint32
-	for i := 0; i+1 < len(b); i += 2 {
-		sum += uint32(binary.BigEndian.Uint16(b[i:]))
-	}
-	if len(b)%2 == 1 {
-		sum += uint32(b[len(b)-1]) << 8
-	}
-	sum = (sum >> 16) + (sum & 0xffff)
-	sum += sum >> 16
-	return ^uint16(sum)
 }

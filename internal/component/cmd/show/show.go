@@ -38,9 +38,6 @@ const (
 	argCount               = "count"
 	argTimeout             = "timeout"
 	msgSubsystemNotRunning = "subsystem not running"
-
-	networkICMPv4 = "ip4:icmp"
-	networkICMPv6 = "ip6:ipv6-icmp"
 )
 
 func init() {

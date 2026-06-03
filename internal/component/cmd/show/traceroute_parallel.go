@@ -1,5 +1,5 @@
 // Design: traceroute.go -- sequential traceroute (show traceroute)
-// Related: ping.go -- buildICMPEcho/icmpChecksum shared helpers
+// Related: ping.go -- sibling probe command; ICMP helpers in internal/core/probe
 
 package show
 
@@ -17,6 +17,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 )
 
 const defaultProbeMaxHops = 16
@@ -48,7 +49,7 @@ type probeResult struct {
 }
 
 func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[string]any, error) {
-	network := networkICMPv4
+	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
 	icmpTimeExceeded := byte(11)
@@ -56,7 +57,7 @@ func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[s
 	portUnreach := byte(icmpv4PortUnreach)
 	isV6 := dest.Is6()
 	if isV6 {
-		network = networkICMPv6
+		network = probe.NetworkICMPv6
 		icmpEcho = 128
 		icmpEchoReply = 129
 		icmpTimeExceeded = 3
@@ -87,7 +88,7 @@ func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[s
 			return nil, fmt.Errorf("probe: set TTL %d: %w", ttl, setErr)
 		}
 		seq := uint16(ttl - 1)
-		pkt := buildICMPEcho(icmpEcho, pid, seq, []byte("ze-probe"))
+		pkt := probe.BuildICMPEcho(icmpEcho, pid, seq, []byte("ze-probe"))
 		sendTimes[ttl-1] = time.Now()
 		if _, writeErr := conn.WriteTo(pkt, dst); writeErr != nil {
 			return nil, fmt.Errorf("probe: write TTL %d: %w", ttl, writeErr)

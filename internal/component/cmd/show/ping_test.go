@@ -65,11 +65,3 @@ func TestPingParseArgsIPv6(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, dest.Is6())
 }
-
-func TestICMPChecksum(t *testing.T) {
-	pkt := buildICMPEcho(8, 1234, 0, []byte("test"))
-	cs := icmpChecksum(pkt)
-	if cs != 0 {
-		t.Errorf("checksum of valid packet should verify to 0, got %d", cs)
-	}
-}
