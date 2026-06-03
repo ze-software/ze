@@ -1,0 +1,57 @@
+module ze-ipsec-cmd {
+    namespace "urn:ze:ipsec:cmd";
+    prefix ipseccmd;
+    import ze-extensions { prefix ze; }
+    description "show vpn ipsec ... command tree. Owned by the ike component so that removing the IPsec surface removes these command nodes together with the handlers. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-03 { description "Relocated show vpn ipsec ... out of the central show schema (plugin self-containment)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container vpn {
+            config false;
+            description "VPN tunnel state (IPsec)";
+
+            container ipsec {
+                config false;
+                description "IPsec SAs, tunnels, and peer connections";
+
+                container sa {
+                    config false;
+                    ze:command "ze-show:vpn-ipsec-sa";
+                    description "Show all IKE and Child Security Associations.
+Lists every SA with peer, negotiated algorithms, byte counts, rekey
+timers, and uptime. Includes SPIs, NAT detection, and child SA
+traffic selectors. Your main IPsec status command.";
+                }
+
+                container status {
+                    config false;
+                    ze:command "ze-show:vpn-ipsec-status";
+                    description "Quick IPsec health check.
+Reports whether the IKE engine is running, how many peers are
+configured, and how many IKE SAs are Established.";
+                }
+
+                container peer {
+                    config false;
+                    description "IPsec peer detail";
+
+                    container name {
+                        config false;
+                        ze:command "ze-show:vpn-ipsec-peer";
+                        description "Show full detail for one IPsec peer.
+Returns IKE SA state, all child SAs with traffic selectors, and
+byte counts. Usage: show vpn ipsec peer name <name>.";
+                        leaf name {
+                            type string;
+                            mandatory true;
+                            description "Configured IPsec peer name";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

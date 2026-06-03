@@ -6,4 +6,5 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-policyroute-conf.yang", ZePolicyrouteConfYANG)
+	yang.RegisterModule("ze-policyroute-cmd.yang", ZePolicyrouteCmdYANG)
 }

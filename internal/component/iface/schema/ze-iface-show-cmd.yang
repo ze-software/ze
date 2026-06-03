@@ -1,0 +1,85 @@
+module ze-iface-show-cmd {
+    namespace "urn:ze:iface:show:cmd";
+    prefix ifaceshowcmd;
+    import ze-extensions { prefix ze; }
+    description "show ip / show neighbors / show kernel-routes command tree. Owned by the iface component because these handlers read the kernel neighbor and routing tables through the iface backend. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-03 { description "Relocated show ip / neighbors / kernel-routes out of the central show schema (plugin self-containment)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container ip {
+            config false;
+            description "IP neighbors (ARP/ND) and kernel routing table";
+
+            container arp {
+                config false;
+                ze:command "ze-show:ip-arp";
+                description "Show the ARP and neighbor discovery table.
+Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states.
+Filter with --family ipv4 or ipv6. Same data as 'show neighbors',
+just a different path.";
+                leaf family {
+                    type enumeration {
+                        enum ipv4;
+                        enum ipv6;
+                        enum any;
+                        enum all;
+                    }
+                    description "Address family filter";
+                }
+            }
+
+            container route {
+                config false;
+                ze:command "ze-show:ip-route";
+                description "Show the kernel routing table.
+Lists installed routes with next-hop, interface, protocol, and metric.
+Pass a CIDR prefix or 'default' to filter. Same data as 'show
+kernel-routes'.";
+                leaf prefix {
+                    type string;
+                    description "CIDR prefix filter";
+                }
+                leaf limit {
+                    type uint32;
+                    description "Maximum number of routes";
+                }
+
+                container lookup {
+                    config false;
+                    ze:command "ze-show:route-lookup";
+                    description "Look up which route the kernel would use for a given IP.
+Performs a longest-prefix-match and returns the matching route with
+gateway, interface, protocol, and metric. Usage: show ip route
+lookup <ip>.";
+                }
+            }
+        }
+
+        container neighbors {
+            config false;
+            ze:command "ze-show:neighbors";
+            description "Show the ARP/ND neighbor table (shortcut for 'show ip arp').
+Lists neighbor entries with MAC address and state. Filter with
+ipv4, ipv6, or any as a positional argument.";
+            leaf family {
+                type enumeration {
+                    enum ipv4;
+                    enum ipv6;
+                    enum any;
+                    enum all;
+                }
+                description "Address family filter";
+            }
+        }
+
+        container kernel-routes {
+            config false;
+            ze:command "ze-show:kernel-routes";
+            description "Show kernel routes (shortcut for 'show ip route').
+Pass a CIDR prefix, 'default', or --limit N to narrow output.";
+        }
+    }
+}

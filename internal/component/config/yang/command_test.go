@@ -1075,11 +1075,15 @@ func TestArgDefsPopulated(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 
-	// Load all real -cmd YANG modules.
+	// Load all real -cmd YANG modules. The show ip/neighbors/kernel-routes
+	// subtree is owned by the iface component (it reads the kernel tables
+	// through the iface backend), so its command module lives next to that
+	// owner rather than in the central show schema.
 	cmdFiles := []string{
 		cmdBase + "show/schema/ze-cli-show-cmd.yang",
 		cmdBase + "set/schema/ze-cli-set-cmd.yang",
 		cmdBase + "log/schema/ze-cli-log-cmd.yang",
+		"../../../component/iface/schema/ze-iface-show-cmd.yang",
 	}
 	for _, path := range cmdFiles {
 		loadCmdModule(t, loader, path)

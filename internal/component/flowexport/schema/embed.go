@@ -5,3 +5,6 @@ import _ "embed"
 
 //go:embed ze-flowexport-conf.yang
 var ZeFlowExportConfYANG string
+
+//go:embed ze-flowexport-cmd.yang
+var ZeFlowExportCmdYANG string

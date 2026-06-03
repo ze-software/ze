@@ -497,7 +497,7 @@ Each entry reports `name`, `address`, `port`, `protocol`, `datagrams-sent`,
 omitted before the first poll). JSON by default; full pipe operators supported.
 See the [Flow Export guide](flow-export.md).
 
-<!-- source: internal/component/cmd/show/flow_export.go -- handleShowFlowExport, ze-show:flow-export -->
+<!-- source: internal/component/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
 <!-- source: internal/component/flowexport/exporter.go -- Exporter.Status -->
 
 ### show ip
@@ -528,7 +528,7 @@ ospf/isis/rip/eigrp/babel) and as a decimal string otherwise. Connected
 routes have an empty `nexthop`; the `source` field carries the
 preferred-source IP when the kernel reports one.
 
-<!-- source: internal/component/cmd/show/ip.go -- handleShowArp, handleShowIPRoute -->
+<!-- source: internal/component/iface/cmd/show_ip.go -- handleShowArp, handleShowIPRoute -->
 <!-- source: internal/plugins/iface/netlink/neighbor_linux.go -- ListNeighbors -->
 <!-- source: internal/plugins/iface/netlink/route_linux.go -- ListKernelRoutes -->
 
@@ -1612,7 +1612,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status) |
 | `show bmp collectors` | read-only | Show BMP sender collector connection status |
 | `show bmp rib` | read-only | Show BMP-monitored routes |
-<!-- source: internal/component/cmd/show/show_bmp.go -- ForwardToPlugin proxy -->
+<!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy -->
 
 ### Commit (Atomic Updates)
 
@@ -1652,7 +1652,7 @@ Batch operations: `cache forward <id1>,<id2> <selector>`.
 | `show static` | read-only | Show all configured static routes in JSON: prefix, action, next-hops with address/weight/BFD status, metric, tag |
 
 The static route plugin programs routes directly to the kernel (netlink multipath) or VPP. It auto-loads when the config contains a `static { }` section. See [Static Routes Guide](static-routes.md).
-<!-- source: internal/component/cmd/show/show_static.go -- ForwardToPlugin proxy -->
+<!-- source: internal/plugins/static/cmd_show.go -- ForwardToPlugin proxy -->
 
 ### Sysctl (Kernel Tunables)
 

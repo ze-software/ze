@@ -26,10 +26,45 @@ func TestShowSchemaHasNoBGPPluginCommands(t *testing.T) {
 		`"ze-bgp:peer-`:        "BGP peer state -> internal/component/bgp/plugins/cmd/peer/schema",
 		`"ze-show:bgp-decode"`: "offline BGP decode -> internal/component/bgp/cli/schema",
 		`"ze-show:bgp-encode"`: "offline BGP encode -> internal/component/bgp/cli/schema",
+		`"ze-show:bmp-`:        "BMP monitoring -> internal/component/bgp/plugins/bmp/schema",
+		`"ze-show:rr-`:         "BGP route reflector -> internal/component/bgp/plugins/rr/schema",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliShowCmdYANG, token) {
 			t.Errorf("central show schema declares BGP-owned command %q; move it to %s (see ai/rules/plugin-self-containment.md)", token, owner)
+		}
+	}
+}
+
+// TestShowSchemaHasNoMigratedOwnerCommands enforces ai/rules/plugin-self-containment.md
+// for non-BGP owners whose `show ...` subtree has been relocated to the owning
+// component or plugin schema package.
+//
+// VALIDATES: the central show schema declares none of these owner-specific
+// command nodes. Each owner's schema package re-declares the node via container
+// merge and asserts its own presence (the owner half of the invariant).
+//
+// PREVENTS: regression where an owner command's schema drifts back into the
+// central show package, which would leave a handler-less command node after the
+// owner is removed.
+func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
+	banned := map[string]string{
+		`"ze-show:flow-export"`:   "flow export -> internal/component/flowexport/schema",
+		`"ze-show:rsvp-te-`:       "RSVP-TE -> internal/component/rsvpte/schema",
+		`"ze-show:ldp-`:           "LDP -> internal/component/ldp/schema",
+		`"ze-show:policy-routes"`: "policy routing -> internal/plugins/policyroute/schema",
+		`"ze-show:static"`:        "static routes -> internal/plugins/static/schema",
+		`"ze-show:vpn-ipsec-`:     "IPsec -> internal/component/ike/schema",
+		`"ze-show:vpp-`:           "VPP dataplane -> internal/plugins/iface/vpp/schema",
+		`"ze-show:ip-arp"`:        "kernel ARP/ND read -> internal/component/iface/schema",
+		`"ze-show:ip-route"`:      "kernel FIB read -> internal/component/iface/schema",
+		`"ze-show:route-lookup"`:  "kernel FIB lookup -> internal/component/iface/schema",
+		`"ze-show:neighbors"`:     "kernel neighbor read -> internal/component/iface/schema",
+		`"ze-show:kernel-routes"`: "kernel FIB read -> internal/component/iface/schema",
+	}
+	for token, owner := range banned {
+		if strings.Contains(ZeCliShowCmdYANG, token) {
+			t.Errorf("central show schema declares owner command %q; move it to %s (see ai/rules/plugin-self-containment.md)", token, owner)
 		}
 	}
 }

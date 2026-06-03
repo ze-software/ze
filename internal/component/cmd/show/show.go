@@ -161,10 +161,6 @@ func init() {
 			Handler:    handlePing,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:route-lookup",
-			Handler:    handleRouteLookup,
-		},
-		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:capture",
 			Handler:    handleShowCapture,
 		},

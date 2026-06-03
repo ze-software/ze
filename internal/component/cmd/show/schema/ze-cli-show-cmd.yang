@@ -1040,72 +1040,6 @@ Usage: show interface name <name> counters.";
             }
         }
 
-        container ip {
-            config false;
-            description "IP neighbors (ARP/ND) and kernel routing table";
-
-            container arp {
-                config false;
-                ze:command "ze-show:ip-arp";
-                description "Show the ARP and neighbor discovery table.
-Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states.
-Filter with --family ipv4 or ipv6. Same data as 'show neighbors',
-just a different path.";
-                leaf family {
-                    type enumeration {
-                        enum ipv4;
-                        enum ipv6;
-                        enum any;
-                        enum all;
-                    }
-                    description "Address family filter";
-                }
-            }
-
-            container route {
-                config false;
-                ze:command "ze-show:ip-route";
-                description "Show the kernel routing table.
-Lists installed routes with next-hop, interface, protocol, and metric.
-Pass a CIDR prefix or 'default' to filter. Same data as 'show
-kernel-routes'.";
-                leaf prefix {
-                    type string;
-                    description "CIDR prefix filter";
-                }
-                leaf limit {
-                    type uint32;
-                    description "Maximum number of routes";
-                }
-
-                container lookup {
-                    config false;
-                    ze:command "ze-show:route-lookup";
-                    description "Look up which route the kernel would use for a given IP.
-Performs a longest-prefix-match and returns the matching route with
-gateway, interface, protocol, and metric. Usage: show ip route
-lookup <ip>.";
-                }
-            }
-        }
-
-        container neighbors {
-            config false;
-            ze:command "ze-show:neighbors";
-            description "Show the ARP/ND neighbor table (shortcut for 'show ip arp').
-Lists neighbor entries with MAC address and state. Filter with
-ipv4, ipv6, or any as a positional argument.";
-            leaf family {
-                type enumeration {
-                    enum ipv4;
-                    enum ipv6;
-                    enum any;
-                    enum all;
-                }
-                description "Address family filter";
-            }
-        }
-
         container crashes {
             config false;
             ze:command "ze-show:crashes";
@@ -1119,13 +1053,6 @@ Send the output to support when reporting a crash.";
             }
         }
 
-        container kernel-routes {
-            config false;
-            ze:command "ze-show:kernel-routes";
-            description "Show kernel routes (shortcut for 'show ip route').
-Pass a CIDR prefix, 'default', or --limit N to narrow output.";
-        }
-
         container mpls {
             config false;
             description "MPLS forwarding table and label operations";
@@ -1136,170 +1063,6 @@ Pass a CIDR prefix, 'default', or --limit N to narrow output.";
                 description "Show MPLS forwarding entries installed in the kernel.
 Each entry shows the incoming label, swap/push/pop operation, and
 outgoing next-hop. Use --limit N for large tables. Linux only.";
-            }
-        }
-
-        container rsvp-te {
-            config false;
-            description "RSVP-TE LSPs, tunnels, and bandwidth reservations";
-
-            container lsp {
-                config false;
-                ze:command "ze-show:rsvp-te-lsp";
-                description "Show RSVP-TE label-switched paths.
-Returns state, role (ingress/transit/egress), reserved bandwidth,
-and in/out labels for each LSP.";
-            }
-
-            container interface {
-                config false;
-                ze:command "ze-show:rsvp-te-interface";
-                description "Show RSVP-TE bandwidth allocation per interface.
-Returns reserved, available, and maximum bandwidth for each
-TE-enabled interface.";
-            }
-
-            container tunnel {
-                config false;
-                ze:command "ze-show:rsvp-te-tunnel";
-                description "Show configured RSVP-TE tunnels and their current state.
-Returns tunnel name, endpoints, signaling state, and active LSP.";
-            }
-        }
-
-        container ldp {
-            config false;
-            description "LDP neighbors and label bindings";
-
-            container neighbor {
-                config false;
-                ze:command "ze-show:ldp-neighbor";
-                description "Show LDP neighbors and their session state.
-Returns peer address, transport address, session state, and
-hold time for each LDP neighbor.";
-            }
-
-            container binding {
-                config false;
-                ze:command "ze-show:ldp-binding";
-                description "Show LDP FEC-to-label bindings.
-Lists local and remote label bindings for each FEC (prefix).
-Use this to verify label distribution is working.";
-            }
-        }
-
-        container vpp {
-            config false;
-            ze:backend "vpp";
-            description "VPP dataplane tracing and runtime statistics";
-
-            container trace {
-                config false;
-                description "Capture and inspect VPP dataplane packet traces";
-
-                container start {
-                    config false;
-                    ze:command "ze-show:vpp-trace-start";
-                    description "Start capturing packets in the VPP dataplane.
-Default input node is dpdk-input, default count is 100 (max 10000).
-After starting, use 'show vpp trace show' to retrieve the captured
-packets. Requires the VPP backend.";
-                }
-
-                container show {
-                    config false;
-                    ze:command "ze-show:vpp-trace-show";
-                    description "Retrieve packets captured since the last trace start.
-Shows per-packet VPP graph node traversal. Requires the VPP backend.";
-                }
-
-                container clear {
-                    config false;
-                    ze:command "ze-show:vpp-trace-clear";
-                    description "Discard the captured VPP trace buffer.
-Clears all packets so you can start a fresh trace. Requires the
-VPP backend.";
-                }
-            }
-
-            container runtime {
-                config false;
-                ze:command "ze-show:vpp-runtime";
-                description "Show VPP graph node processing statistics.
-Returns per-node packet counts, vectors, clocks, and suspends.
-Helps you find which node is the bottleneck. Requires the VPP
-backend.";
-            }
-        }
-
-        container static {
-            config false;
-            ze:command "ze-show:static";
-            description "Show static routes defined in the configuration.
-Lists each static route with its prefix, next-hop, and interface.";
-        }
-
-        container policy-routes {
-            config false;
-            ze:command "ze-show:policy-routes";
-            description "Show policy-based routing rules.
-Lists PBR rules with match criteria and routing actions.";
-        }
-
-        container bmp {
-            config false;
-            description "BMP monitoring sessions, peers, and routes";
-
-            container sessions {
-                config false;
-                ze:command "ze-show:bmp-sessions";
-                description "Show active BMP receiver sessions.
-Lists each session with connection state and message counters.
-Check here to confirm your BMP collector is receiving data.";
-            }
-
-            container peers {
-                config false;
-                ze:command "ze-show:bmp-peers";
-                description "Show BGP peers as seen through BMP monitoring.
-Lists peers reported via BMP with their state and route statistics.";
-            }
-
-            container collectors {
-                config false;
-                ze:command "ze-show:bmp-collectors";
-                description "Show BMP collector connection status.
-Lists configured collectors with connection state, sent message
-counts, and error statistics. Check here if your collector is
-not receiving data.";
-            }
-
-            container rib {
-                config false;
-                ze:command "ze-show:bmp-rib";
-                description "Show routes received via BMP monitoring sessions.
-Returns the BMP RIB content. Use this to verify what your
-collector is seeing from remote peers.";
-            }
-        }
-
-        container rr {
-            config false;
-            description "Route reflector status and client peers";
-
-            container status {
-                config false;
-                ze:command "ze-show:rr-status";
-                description "Show whether the route reflector is active.
-Returns cluster ID, running state, and summary statistics
-(reflected routes, client count).";
-            }
-
-            container peers {
-                config false;
-                ze:command "ze-show:rr-peers";
-                description "Show route reflector client peers.
-Lists each RR client with session state and reflected route counts.";
             }
         }
 
@@ -1359,51 +1122,6 @@ Usage: show pki certificate name <name> [pem | bundle pem | fingerprint
             }
         }
 
-        container vpn {
-            config false;
-            description "VPN tunnel state (IPsec)";
-
-            container ipsec {
-                config false;
-                description "IPsec SAs, tunnels, and peer connections";
-
-                container sa {
-                    config false;
-                    ze:command "ze-show:vpn-ipsec-sa";
-                    description "Show all IKE and Child Security Associations.
-Lists every SA with peer, negotiated algorithms, byte counts, rekey
-timers, and uptime. Includes SPIs, NAT detection, and child SA
-traffic selectors. Your main IPsec status command.";
-                }
-
-                container status {
-                    config false;
-                    ze:command "ze-show:vpn-ipsec-status";
-                    description "Quick IPsec health check.
-Reports whether the IKE engine is running, how many peers are
-configured, and how many IKE SAs are Established.";
-                }
-
-                container peer {
-                    config false;
-                    description "IPsec peer detail";
-
-                    container name {
-                        config false;
-                        ze:command "ze-show:vpn-ipsec-peer";
-                        description "Show full detail for one IPsec peer.
-Returns IKE SA state, all child SAs with traffic selectors, and
-byte counts. Usage: show vpn ipsec peer name <name>.";
-                        leaf name {
-                            type string;
-                            mandatory true;
-                            description "Configured IPsec peer name";
-                        }
-                    }
-                }
-            }
-        }
-
         container storage {
             config false;
             description "Storage device health and diagnostics";
@@ -1418,17 +1136,5 @@ health before they cause data loss.";
             }
         }
 
-        container flow-export {
-            config false;
-            ze:command "ze-show:flow-export";
-            description "Show flow export (NetFlow/IPFIX) collector status.
-Without arguments, lists all configured collectors. With 'name <name>',
-shows details for that collector including protocol stats and errors.
-Returns not-configured when no exporter is active.";
-            leaf name {
-                type string;
-                description "Collector name (used with 'name <name>')";
-            }
-        }
     }
 }

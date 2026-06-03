@@ -1195,7 +1195,7 @@ metrics use the `ze_flowexport_*` prefix.
 management VLAN. Per-flow records are IPv4-only; sampling requires Linux with
 `CAP_NET_ADMIN` and the kernel `psample` module.
 <!-- source: internal/component/flowexport/schema/ze-flowexport-conf.yang -- flow-export container -->
-<!-- source: internal/component/cmd/show/flow_export.go -- ze-show:flow-export RPC -->
+<!-- source: internal/component/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
 
 ## Environment Block
 

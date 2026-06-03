@@ -6,4 +6,5 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-rsvp-te-conf.yang", ZeRSVPTEConfYANG)
+	yang.RegisterModule("ze-rsvp-te-cmd.yang", ZeRSVPTECmdYANG)
 }

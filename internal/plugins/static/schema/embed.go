@@ -5,3 +5,6 @@ import _ "embed"
 
 //go:embed ze-static-conf.yang
 var ZeStaticConfYANG string
+
+//go:embed ze-static-cmd.yang
+var ZeStaticCmdYANG string

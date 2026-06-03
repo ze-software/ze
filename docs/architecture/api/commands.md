@@ -131,16 +131,16 @@ the bus from buggy or malicious producers.
 | `ze-show:warnings` | `handleShowWarnings` in `internal/component/cmd/show/show.go` | `{"warnings": [Issue, ...], "count": N}` |
 | `ze-show:errors` | `handleShowErrors` in `internal/component/cmd/show/show.go` | `{"errors": [Issue, ...], "count": N}` |
 | `ze-show:traffic` | `handleShowTraffic` in `internal/component/cmd/show/show.go` | `{"interfaces": [...], "count": N}` or single interface detail |
-| `ze-show:static` | `forwardShowStatic` in `internal/component/cmd/show/show_static.go` | JSON array of configured static routes (proxy to static plugin) |
-| `ze-show:policy-routes` | `forwardShowPolicyRoutes` in `internal/component/cmd/show/show_policy_routes.go` | JSON array of PBR policy routes (proxy to policyroute plugin) |
+| `ze-show:static` | `forwardShowStatic` in `internal/plugins/static/cmd_show.go` | JSON array of configured static routes (proxy to static plugin) |
+| `ze-show:policy-routes` | `forwardShowPolicyRoutes` in `internal/plugins/policyroute/cmd_show.go` | JSON array of PBR policy routes (proxy to policyroute plugin) |
 | `ze-show:policy-chain` | `handleShowPolicyChain` in `internal/component/cmd/show/show_policy.go` | `{"chains": [{"peer": "...", "name": "...", "import": [{"name": "...", "canonical": "..."}], "export": [...]}]}` — per-peer effective filter chains, plain name plus canonical ref |
 | `ze-show:policy-test` | `handleShowPolicyTest` in `internal/component/cmd/show/show_policy_test_cmd.go` | `{"direction": "...", "peer": "...", "action": "accept\|reject\|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}` — read-only policy dry-run, no forwarding or mutation |
-| `ze-show:bmp-sessions` | `forwardShowBMPSessions` in `internal/component/cmd/show/show_bmp.go` | JSON array of BMP receiver sessions (proxy to BMP plugin) |
-| `ze-show:bmp-peers` | `forwardShowBMPPeers` in `internal/component/cmd/show/show_bmp.go` | JSON array of BMP monitored peers (proxy to BMP plugin) |
-| `ze-show:bmp-collectors` | `forwardShowBMPCollectors` in `internal/component/cmd/show/show_bmp.go` | JSON array of BMP sender collectors (proxy to BMP plugin) |
-| `ze-show:bmp-rib` | `forwardShowBMPRib` in `internal/component/cmd/show/show_bmp.go` | BMP-monitored routes (proxy to BMP plugin, dispatches to RIB) |
-| `ze-show:rr-status` | `forwardShowRRStatus` in `internal/component/cmd/show/show_rr.go` | `{"running": true}` (proxy to RR plugin) |
-| `ze-show:rr-peers` | `forwardShowRRPeers` in `internal/component/cmd/show/show_rr.go` | JSON array of RR peer states (proxy to RR plugin) |
+| `ze-show:bmp-sessions` | `forwardShowBMPSessions` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP receiver sessions (proxy to BMP plugin) |
+| `ze-show:bmp-peers` | `forwardShowBMPPeers` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP monitored peers (proxy to BMP plugin) |
+| `ze-show:bmp-collectors` | `forwardShowBMPCollectors` in `internal/component/bgp/plugins/bmp/cmd_show.go` | JSON array of BMP sender collectors (proxy to BMP plugin) |
+| `ze-show:bmp-rib` | `forwardShowBMPRib` in `internal/component/bgp/plugins/bmp/cmd_show.go` | BMP-monitored routes (proxy to BMP plugin, dispatches to RIB) |
+| `ze-show:rr-status` | `forwardShowRRStatus` in `internal/component/bgp/plugins/rr/cmd_show.go` | `{"running": true}` (proxy to RR plugin) |
+| `ze-show:rr-peers` | `forwardShowRRPeers` in `internal/component/bgp/plugins/rr/cmd_show.go` | JSON array of RR peer states (proxy to RR plugin) |
 | `ze-show:system-sockets` | `handleShowSystemSockets` in `sockets_linux.go` | `{"sockets": [...], "count": N}` (Linux only) |
 | `ze-show:system-kernel-log` | `handleShowSystemKernelLog` in `kernel_log_linux.go` | `{"entries": [...], "count": N}` (Linux only) |
 | `ze-show:system-goroutines` | `handleShowSystemGoroutines` in `goroutines.go` | `{"total": N, "by-state": {...}, "mode": "..."}` |
@@ -162,7 +162,7 @@ the bus from buggy or malicious producers.
 | `ze-show:interface` (args: `rate [<name>]`) | `handleShowInterfaceRate` in `interface_rate.go` | JSON array of `InterfaceRate` (all) or single object (named); fields: `name`, `rx-bps`, `tx-bps`, `rx-pps`, `tx-pps`, `stats` |
 | `ze-monitor:interface-rate` | `streamInterfaceRate` in `interface_rate.go` | Streaming JSON lines (1/s); optional `<name>` filter |
 | `ze-show:storage-smart` | `handleShowStorageSmart` in `storage.go` | JSON array of per-device objects: `name`, `transport`, `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe), `smart-enabled`, `last-checked`, `last-short-test`, `last-long-test`. Returns error if SMART management not configured. |
-| `ze-show:flow-export` (args: `[<collector>]`) | `handleShowFlowExport` in `internal/component/cmd/show/flow_export.go` | No arg: JSON array of per-collector objects. Named: single collector object, or error `collector not found: <name>`. Per-collector fields: `name`, `address`, `port`, `protocol`, `datagrams-sent`, `bytes-sent`, `errors`, `sequence`, `last-export-time` (Unix seconds, omitted before first poll). When unconfigured: `{"status": "not-configured"}`. Backed by `flowexport.Exporter.Status()`. |
+| `ze-show:flow-export` (args: `[<collector>]`) | `handleShowFlowExport` in `internal/component/flowexport/cmd_show.go` | No arg: JSON array of per-collector objects. Named: single collector object, or error `collector not found: <name>`. Per-collector fields: `name`, `address`, `port`, `protocol`, `datagrams-sent`, `bytes-sent`, `errors`, `sequence`, `last-export-time` (Unix seconds, omitted before first poll). When unconfigured: `{"status": "not-configured"}`. Backed by `flowexport.Exporter.Status()`. |
 | `ze-show:pki-certificates` | `handleShowPKICertificates` in `internal/component/pki/show.go` | `{"certificates": [CertSummary, ...], "count": N}` |
 | `ze-show:pki-certificate` (args: `<name> [pem \| bundle pem \| fingerprint [algo]]`) | `handleShowPKICertificate` in `internal/component/pki/show.go` | No sub-command: full detail map. `pem`: `{"pem": "..."}`. `bundle pem`: `{"pem": "cert+key"}`. `fingerprint`: `{"name": "...", "algorithm": "sha256", "fingerprint": "aa:bb:..."}`. |
 
@@ -170,10 +170,10 @@ Both warnings/errors handlers accept optional `source <name>` filter and
 errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
 
 <!-- source: internal/component/cmd/show/show.go -- handleShowWarnings, handleShowErrors -->
-<!-- source: internal/component/cmd/show/show_static.go -- ForwardToPlugin proxy -->
-<!-- source: internal/component/cmd/show/show_policy_routes.go -- ForwardToPlugin proxy -->
-<!-- source: internal/component/cmd/show/show_bmp.go -- ForwardToPlugin proxy -->
-<!-- source: internal/component/cmd/show/show_rr.go -- ForwardToPlugin proxy -->
+<!-- source: internal/plugins/static/cmd_show.go -- ForwardToPlugin proxy -->
+<!-- source: internal/plugins/policyroute/cmd_show.go -- ForwardToPlugin proxy -->
+<!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy -->
+<!-- source: internal/component/bgp/plugins/rr/cmd_show.go -- ForwardToPlugin proxy -->
 <!-- source: internal/component/cmd/show/schema/ze-cli-show-cmd.yang -- top-level warnings / errors containers -->
 
 ### Issue JSON shape
