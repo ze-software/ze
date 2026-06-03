@@ -13,11 +13,12 @@ func TestIPsecCmdSchemaOwnsShowVPNIPsec(t *testing.T) {
 		`ze:command "ze-show:vpn-ipsec-sa"`,
 		`ze:command "ze-show:vpn-ipsec-status"`,
 		`ze:command "ze-show:vpn-ipsec-peer"`,
+		`ze:command "ze-monitor:vpn-ipsec"`,
 		"container vpn",
 		"container ipsec",
 	} {
 		if !strings.Contains(ZeIPsecCmdYANG, want) {
-			t.Errorf("ze-ipsec-cmd.yang must declare %q so removing the ike component removes the show vpn ipsec surface", want)
+			t.Errorf("ze-ipsec-cmd.yang must declare %q so removing the ike component removes the vpn ipsec surface", want)
 		}
 	}
 }

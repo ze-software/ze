@@ -207,4 +207,24 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	if strings.Contains(string(showBody), "func handleShowTraffic") {
 		t.Errorf("central show.go still defines handleShowTraffic; the traffic surface is owned by %s", trafficOwner)
 	}
+
+	// The `monitor vpn ipsec` command is owned by the ike component: its
+	// handler reads ike/engine events. The YANG node must live in ike/schema,
+	// not in the central monitor schema.
+	ikeMonitorSchema := "internal/component/ike/schema/ze-ipsec-cmd.yang"
+	centralMonitorSchema := "internal/component/cmd/monitor/schema/ze-cli-monitor-cmd.yang"
+	ikeSchemaBody, err := os.ReadFile(filepath.Join(root, ikeMonitorSchema))
+	if err != nil {
+		t.Fatalf("read ike schema: %v", err)
+	}
+	if !strings.Contains(string(ikeSchemaBody), `ze:command "ze-monitor:vpn-ipsec"`) {
+		t.Errorf("ike schema %s must declare ze-monitor:vpn-ipsec", ikeMonitorSchema)
+	}
+	centralMonBody, err := os.ReadFile(filepath.Join(root, centralMonitorSchema))
+	if err != nil {
+		t.Fatalf("read central monitor schema: %v", err)
+	}
+	if strings.Contains(string(centralMonBody), `ze-monitor:vpn-ipsec`) {
+		t.Errorf("central monitor schema still declares ze-monitor:vpn-ipsec; it is owned by %s", ikeMonitorSchema)
+	}
 }

@@ -33,18 +33,5 @@ address assignments. Filter with route, link, address, or all.";
             }
         }
 
-        container vpn {
-            config false;
-            description "VPN event streams";
-
-            container ipsec {
-                config false;
-                ze:command "ze-monitor:vpn-ipsec";
-                ze:task-support required;
-                description "Watch IPsec SA events as they happen.
-Streams sa-up, sa-down, child-up, child-down, and child-rekey
-events. Useful for debugging tunnel flaps or rekey issues.";
-            }
-        }
     }
 }

@@ -1,7 +1,6 @@
 // Design: plan/spec-ipsec-10-cli-diag.md -- monitor vpn ipsec streaming handler.
-// Owned by the ike component (see ai/rules/plugin-self-containment.md). The
-// `ze-monitor:vpn-ipsec` command node is still declared in the central monitor
-// schema; only the handler lives here with the ike engine it reads.
+// Owned by the ike component (see ai/rules/plugin-self-containment.md).
+// Related: show_ipsec.go -- show vpn ipsec handlers
 
 package cmd
 
