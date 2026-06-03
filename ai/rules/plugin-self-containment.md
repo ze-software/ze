@@ -104,6 +104,30 @@ plugin's commands.
    asserting its command tokens ARE declared; the central verb schema test bans
    the moved tokens (below).
 
+### Unowned verb roots (multi-owner verbs)
+
+A verb whose subcommands belong to several owners (e.g. `monitor bgp`,
+`monitor vpn ipsec`, `monitor ping`) must NOT declare its root container inside
+any one plugin. If it does, deleting that plugin deletes the whole verb. The
+root lives in a central, plugin-free package `internal/component/cmd/<verb>`
+(a `doc.go` that blank-imports its `schema/` subpackage, mirroring `cmd/del`);
+each owner container-merges only its own subtree onto that root. Precedent:
+`internal/component/cmd/monitor` holds the `container monitor` root, while
+`monitor bgp` stays in the BGP plugin and the other subcommands carve out to
+their feature owners. The central package holds NO handlers; subcommand handlers
+register from their owners.
+
+### Dedicated feature modules
+
+When one feature spreads across several verbs (a one-shot root command, a `show`
+view, a `monitor` stream, a `resolve` variant), give the feature its own module
+`internal/component/<feature>` that owns every one of those commands, rather than
+scattering them across the verb packages. Create the module if none exists. When
+two such modules would share low-level primitives (e.g. ping and traceroute both
+build ICMP echo packets and resolve targets), extract those primitives to a
+`internal/core/<x>` package (e.g. `internal/core/probe`) so neither feature
+module depends on the other or on a central verb package.
+
 ## Mechanical Check
 
 A removal-compliance test must exist and run in verification: build (or analyse
