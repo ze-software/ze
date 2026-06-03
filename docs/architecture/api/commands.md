@@ -43,13 +43,13 @@ The action verb determines the command's behavior; the module implements it.
 |------|---------|---------|
 | `show` | Read-only display (returns data, exits) | `show peer detail X`, `show bgp warnings` |
 | `set` | Create or modify | `set bgp peer X ...` |
-| `del` | Remove | `del bgp peer X` |
+| `delete` | Remove | `delete bgp peer X` |
 | `update` | Route operations (announce, withdraw, refresh) | `update bgp peer * prefix ...` |
 | `monitor` | Long-running auto-refreshing display | `monitor bgp` (TUI dashboard) |
 
 <!-- source: internal/component/cmd/show/doc.go -- show verb -->
 <!-- source: internal/component/cmd/set/doc.go -- set verb -->
-<!-- source: internal/component/cmd/del/doc.go -- del verb -->
+<!-- source: internal/component/cmd/delete/doc.go -- delete verb -->
 <!-- source: internal/component/cmd/update/doc.go -- update verb -->
 
 **Internal dispatch:** `<action> <module>` is dispatched as the module implementing the action.
@@ -69,7 +69,7 @@ produce continuously-updating output.
 | Daemon | shutdown, reload, restart, status |
 | Session | ack, sync, reset, ping, bye |
 | System | help, version, api version |
-| Peer | list, detail, capabilities, statistics, set (add/save), del, teardown, flush |
+| Peer | list, detail, capabilities, statistics, set (add/save), delete, teardown, flush |
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
 | RIB | routes, best, status, clear |
@@ -403,7 +403,7 @@ show bgp peer <selector> statistics   # Show specific peer statistics
 show bgp peer <selector> history      # Show FSM transition history
 peer <ip> teardown <code> [<reason>]  # Disconnect peer
 set bgp peer <name> with <config>  # Create peer with configuration
-del bgp peer <name>                # Remove dynamic peer
+delete bgp peer <name>             # Remove dynamic peer
 peer <sel> flush         # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- peer RPCs -->

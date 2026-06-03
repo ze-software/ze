@@ -1,0 +1,16 @@
+module ze-cli-delete-cmd {
+    namespace "urn:ze:cli:delete:cmd";
+    prefix clideletecmd;
+    import ze-extensions { prefix ze; }
+    description "Generic delete verb root. Every delete command is owned by its component and merges its own subtree onto this root.";
+    revision 2026-03-23 { description "Initial revision"; }
+    revision 2026-06-03 { description "Relocated delete bgp peer into the BGP peer command owner and renamed the verb del -> delete (plugin self-containment). This module is now a bare verb-root anchor."; }
+
+    container delete {
+        config false;
+        description "Delete elements from the running configuration. This is the
+generic delete verb root; every delete command is owned by its component and
+merges its own subtree here: delete bgp peer (bgp peer command owner).
+See ai/rules/plugin-self-containment.md.";
+    }
+}

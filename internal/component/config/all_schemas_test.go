@@ -26,7 +26,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki_decorator/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/delete/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics/schema"

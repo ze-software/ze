@@ -230,6 +230,36 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	if strings.Contains(string(centralMonBody), `ze-monitor:vpn-ipsec`) {
 		t.Errorf("central monitor schema still declares ze-monitor:vpn-ipsec; it is owned by %s", ikeMonitorSchema)
 	}
+
+	// The `show bgp-health` overview and the `delete bgp peer` command surface
+	// are owned by the BGP peer command package: their handlers live in
+	// bgp/plugins/cmd/peer and the YANG nodes live in that owner's schema, not
+	// the central show/delete schemas. Removing the delete command leaves the
+	// central delete schema a bare verb-root anchor.
+	peerOwnerSchema := "internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang"
+	peerSchemaBody, err := os.ReadFile(filepath.Join(root, peerOwnerSchema))
+	if err != nil {
+		t.Fatalf("read peer owner schema: %v", err)
+	}
+	for _, tok := range []string{
+		"ze-show:bgp-health",
+		"ze-delete:bgp-peer",
+	} {
+		if !strings.Contains(string(peerSchemaBody), tok) {
+			t.Errorf("peer owner schema %s must declare %q", peerOwnerSchema, tok)
+		}
+	}
+	if strings.Contains(string(showBody), "func handleShowBGPHealth") {
+		t.Error("central show.go still defines handleShowBGPHealth; show bgp-health is owned by bgp/plugins/cmd/peer")
+	}
+	deleteSchema := "internal/component/cmd/delete/schema/ze-cli-delete-cmd.yang"
+	deleteBody, err := os.ReadFile(filepath.Join(root, deleteSchema))
+	if err != nil {
+		t.Fatalf("read delete schema: %v", err)
+	}
+	if strings.Contains(string(deleteBody), "ze:command") {
+		t.Errorf("central delete schema %s must be a bare verb-root anchor (no ze:command); delete bgp peer is owned by the BGP peer command package", deleteSchema)
+	}
 }
 
 // TestGenericCentralCommandsStayCentral is the inverse of
@@ -264,7 +294,7 @@ func TestGenericCentralCommandsStayCentral(t *testing.T) {
 
 	// Generic show handlers that read process/system state, not a single
 	// removable component. Each must remain in cmd/show/show.go.
-	showFile := filepath.Join(root, "internal/component/cmd/show/show.go")
+	showFile := filepath.Join(root, "internal", "component", "cmd", "show", "show.go")
 	showBody, err := os.ReadFile(showFile)
 	if err != nil {
 		t.Fatalf("read show.go: %v", err)
@@ -286,7 +316,7 @@ func TestGenericCentralCommandsStayCentral(t *testing.T) {
 	// Generic show subcommands that read process/kernel/cross-cutting state.
 	// Listed by schema file so the test survives handler refactoring within
 	// the central show package.
-	showSchema := filepath.Join(root, "internal/component/cmd/show/schema/ze-cli-show-cmd.yang")
+	showSchema := filepath.Join(root, "internal", "component", "cmd", "show", "schema", "ze-cli-show-cmd.yang")
 	schemaBody, err := os.ReadFile(showSchema)
 	if err != nil {
 		t.Fatalf("read show schema: %v", err)
@@ -311,7 +341,7 @@ func TestGenericCentralCommandsStayCentral(t *testing.T) {
 	}
 
 	// Generic monitor subcommands (event viewer, kernel netlink stream).
-	monSchema := filepath.Join(root, "internal/component/cmd/monitor/schema/ze-cli-monitor-cmd.yang")
+	monSchema := filepath.Join(root, "internal", "component", "cmd", "monitor", "schema", "ze-cli-monitor-cmd.yang")
 	monBody, err := os.ReadFile(monSchema)
 	if err != nil {
 		t.Fatalf("read monitor schema: %v", err)

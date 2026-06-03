@@ -89,7 +89,7 @@ func runCompletionTree(path []string) (*command.Node, []string) {
 		return cli.BuildCommandTree(false), nil
 	}
 	switch path[0] {
-	case "show", "set", "del", "clear", "request", "monitor", "resolve", "validate":
+	case "show", "set", "delete", "clear", "request", "monitor", "resolve", "validate":
 		return cli.BuildVerbCommandTree(path[0]), path[1:]
 	case "rib":
 		tree := cli.BuildVerbCommandTree("show")

@@ -466,7 +466,7 @@ func TestCliUpdateCmdModule(t *testing.T) {
 
 // TestCliSetCmdModule verifies ze-cli-set-cmd.yang (set verb from cmd/set).
 //
-// VALIDATES: Set verb YANG module loads with set > bgp > peer > add/save hierarchy.
+// VALIDATES: Set verb YANG module loads with set > bgp > peer > with/save hierarchy.
 // PREVENTS: Set verb commands missing from the command tree.
 func TestCliSetCmdModule(t *testing.T) {
 	loader := NewLoader()
@@ -498,31 +498,39 @@ func TestCliSetCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-set:bgp-peer-save", GetCommandExtension(save))
 }
 
-// TestCliDelCmdModule verifies ze-cli-del-cmd.yang (del verb from cmd/del).
-//
-// VALIDATES: Del verb YANG module loads with del > bgp > peer hierarchy.
-// PREVENTS: Del verb command missing from the command tree.
-func TestCliDelCmdModule(t *testing.T) {
+// TestPeerCmdModuleOwnsDeleteBgpPeer verifies the BGP peer command owner declares
+// delete > bgp > peer (ze-delete:bgp-peer), relocated out of the central delete
+// schema, which is now a bare verb-root anchor.
+func TestPeerCmdModuleOwnsDeleteBgpPeer(t *testing.T) {
 	loader := NewLoader()
-	err := loader.LoadEmbedded()
-	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"del/schema/ze-cli-del-cmd.yang")
-	err = loader.Resolve()
-	require.NoError(t, err)
+	require.NoError(t, loader.LoadEmbedded())
+	loadCmdModule(t, loader, "../../../component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang")
+	require.NoError(t, loader.Resolve())
 
-	entry := loader.GetEntry("ze-cli-del-cmd")
+	entry := loader.GetEntry("ze-peer-cmd")
 	require.NotNil(t, entry)
 
-	del := entry.Dir["del"]
-	require.NotNil(t, del, "del container must exist")
-	assert.Equal(t, "", GetCommandExtension(del), "del is a grouping, no handler")
+	peer := entry.Dir["delete"].Dir["bgp"].Dir["peer"]
+	require.NotNil(t, peer, "delete > bgp > peer must exist in the peer owner module")
+	assert.Equal(t, "ze-delete:bgp-peer", GetCommandExtension(peer))
+}
 
-	bgp := del.Dir["bgp"]
-	require.NotNil(t, bgp, "del > bgp must exist")
+// TestCliDeleteCmdModule verifies the central delete verb module is a bare
+// verb-root anchor: the `delete` container exists with no handler and no bgp
+// subtree (delete bgp peer moved to the BGP peer command owner).
+func TestCliDeleteCmdModule(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	loadCmdModule(t, loader, cmdBase+"delete/schema/ze-cli-delete-cmd.yang")
+	require.NoError(t, loader.Resolve())
 
-	peer := bgp.Dir["peer"]
-	require.NotNil(t, peer, "del > bgp > peer must exist")
-	assert.Equal(t, "ze-del:bgp-peer", GetCommandExtension(peer))
+	entry := loader.GetEntry("ze-cli-delete-cmd")
+	require.NotNil(t, entry)
+
+	deleteRoot := entry.Dir["delete"]
+	require.NotNil(t, deleteRoot, "delete container must exist")
+	assert.Equal(t, "", GetCommandExtension(deleteRoot), "delete is a bare verb-root anchor, no handler")
+	assert.Nil(t, deleteRoot.Dir["bgp"], "delete > bgp must not exist in the central anchor (owned by the peer module)")
 }
 
 // TestBuildCommandTree verifies BuildCommandTree merges multiple -cmd modules into one command.Node tree.
@@ -1078,9 +1086,10 @@ func TestArgDefsPopulated(t *testing.T) {
 	// Load all real -cmd YANG modules. The show ip/neighbors/kernel-routes
 	// subtree is owned by the iface component (it reads the kernel tables
 	// through the iface backend), the show ping node is owned by the dedicated
-	// ping feature module, and the show traceroute / show probe-round nodes are
-	// owned by the dedicated traceroute feature module, so those command modules
-	// live next to their owners rather than in the central show schema.
+	// ping feature module, the show traceroute / show probe-round nodes are
+	// owned by the dedicated traceroute feature module, and the show dns
+	// lookup/cache nodes are owned by the resolve component, so those command
+	// modules live next to their owners rather than in the central show schema.
 	cmdFiles := []string{
 		cmdBase + "show/schema/ze-cli-show-cmd.yang",
 		cmdBase + "set/schema/ze-cli-set-cmd.yang",
@@ -1088,6 +1097,7 @@ func TestArgDefsPopulated(t *testing.T) {
 		"../../../component/iface/schema/ze-iface-show-cmd.yang",
 		"../../../component/ping/schema/ze-ping-cmd.yang",
 		"../../../component/traceroute/schema/ze-traceroute-cmd.yang",
+		"../../../component/resolve/schema/ze-resolve-cmd.yang",
 	}
 	for _, path := range cmdFiles {
 		loadCmdModule(t, loader, path)

@@ -27,7 +27,7 @@ Dispatch keys follow YANG tree paths:
 show bgp peer <selector>
 show version
 set bgp peer <selector> with <args>
-del bgp peer <selector>
+delete bgp peer <selector>
 ```
 
 Use `ze help --ai --json` for the full generated command reference.

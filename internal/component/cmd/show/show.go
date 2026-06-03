@@ -113,10 +113,6 @@ func init() {
 			Handler:    handleShowL2TPHealth,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:bgp-health",
-			Handler:    handleShowBGPHealth,
-		},
-		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:metrics-query",
 			Handler:    handleShowMetricsQuery,
 		},
@@ -259,33 +255,6 @@ func handleShowL2TPHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data:   plugin.Map{"logins": rows, "count": len(rows), "degraded": degraded},
-	}, nil
-}
-
-func handleShowBGPHealth(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	if ctx == nil || ctx.Reactor() == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, nil
-	}
-	peers := ctx.Reactor().Peers()
-	rows := make([]map[string]any, 0, len(peers))
-	notEstablished := 0
-	for i := range peers {
-		p := &peers[i]
-		state := p.State.String()
-		if p.State != plugin.PeerStateEstablished {
-			notEstablished++
-		}
-		row := map[string]any{
-			"peer":   p.Address.String(),
-			"state":  state,
-			"as":     p.PeerAS,
-			"uptime": p.Uptime.Truncate(time.Second).String(),
-		}
-		rows = append(rows, row)
-	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data:   plugin.Map{"peers": rows, "count": len(rows), "not-established": notEstablished},
 	}, nil
 }
 

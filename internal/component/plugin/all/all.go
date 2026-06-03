@@ -43,7 +43,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/delete/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics/schema"

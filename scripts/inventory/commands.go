@@ -122,7 +122,7 @@ func classifyVerb(path string) string {
 	first, _, _ := strings.Cut(path, " ")
 	first = strings.ToLower(first)
 	switch first {
-	case "show", "set", "del", "update", "monitor":
+	case "show", "set", "delete", "update", "monitor":
 		return first
 	}
 	return "-"

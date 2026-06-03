@@ -2,8 +2,9 @@ module ze-peer-cmd {
     namespace "urn:ze:peer:cmd";
     prefix peercmd;
     import ze-extensions { prefix ze; }
-    description "BGP peer operations: show, manage, and control peer sessions";
+    description "BGP peer operations: show, delete, and control peer sessions. Owns the show bgp-health overview and the delete bgp peer command surface; container-merges onto the show and delete verb roots.";
     revision 2026-03-16 { description "Initial revision"; }
+    revision 2026-06-03 { description "Relocated show bgp-health and delete bgp peer out of the central show/delete schemas into this owner (plugin self-containment)."; }
 
     container summary {
         config false;
@@ -81,6 +82,35 @@ Usage: show bgp peer <selector> history.";
 Usage: show bgp peer <selector> rib [scope|filters|terminal].";
                     leaf selector { type string; mandatory true; description "Peer selector"; }
                 }
+            }
+        }
+
+        container bgp-health {
+            config false;
+            ze:command "ze-show:bgp-health";
+            description "Quick health check for all your BGP peers.
+Lists every peer with address, state, ASN, and uptime. Reports how
+many are not Established. Much faster than 'show bgp peer *' when
+you just need a status overview.";
+        }
+    }
+
+    container delete {
+        config false;
+        description "Delete elements from the running configuration";
+
+        container bgp {
+            config false;
+            description "Remove BGP peers from running config";
+
+            container peer {
+                config false;
+
+                ze:command "ze-delete:bgp-peer";
+                description "Remove a peer from the running config.
+Tears down the TCP session and deletes the peer from the running
+configuration. Does not modify the config file on disk.";
+                leaf selector { type string; mandatory true; description "Peer selector"; }
             }
         }
     }

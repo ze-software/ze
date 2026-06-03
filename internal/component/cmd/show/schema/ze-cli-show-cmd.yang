@@ -4,7 +4,7 @@ module ze-cli-show-cmd {
     import ze-extensions { prefix ze; }
     description "Show command tree for read-only inspection of system and protocol state";
     revision 2026-03-26 { description "Initial revision"; }
-    revision 2026-06-03 { description "Relocated show dns lookup/cache out of this central schema into the resolve component (plugin self-containment)."; }
+    revision 2026-06-03 { description "Relocated show dns lookup/cache (-> resolve) and show bgp-health (-> bgp peer command owner) out of this central schema (plugin self-containment)."; }
 
     container show {
         config false;
@@ -426,15 +426,6 @@ address. Quick way to verify a peer's BGP port is reachable.";
 Sorts sessions by echo loss ratio (worst first). Shows subscriber
 login, session state, echo count, average RTT, and CQM bucket count.
 Reports how many sessions are degraded.";
-        }
-
-        container bgp-health {
-            config false;
-            ze:command "ze-show:bgp-health";
-            description "Quick health check for all your BGP peers.
-Lists every peer with address, state, ASN, and uptime. Reports how
-many are not Established. Much faster than 'show bgp peer *' when
-you just need a status overview.";
         }
 
         container health {

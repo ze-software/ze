@@ -47,7 +47,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler"
 
 	// General cmd handler packages (register RPCs via init()).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/delete"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"
@@ -85,17 +85,17 @@ type CommandEntry struct {
 
 // ValidationResult holds the cross-check output.
 type ValidationResult struct {
-	YANGCommands         []CommandEntry `json:"yang-commands"`
-	Handlers             []string       `json:"handlers"`
-	LocalHandlers        []string       `json:"local-handlers"`
-	OrphanYANG           []CommandEntry `json:"orphan-yang"`
-	OrphanHandlers       []string       `json:"orphan-handlers"`
-	OrphanLocalHandlers  []string       `json:"orphan-local-handlers"`
-	SkippedHandlers      []string       `json:"skipped-handlers"`
-	Total                int            `json:"total-yang"`
-	TotalHandlers        int            `json:"total-handlers"`
-	TotalLocal           int            `json:"total-local-handlers"`
-	Valid                bool           `json:"valid"`
+	YANGCommands        []CommandEntry `json:"yang-commands"`
+	Handlers            []string       `json:"handlers"`
+	LocalHandlers       []string       `json:"local-handlers"`
+	OrphanYANG          []CommandEntry `json:"orphan-yang"`
+	OrphanHandlers      []string       `json:"orphan-handlers"`
+	OrphanLocalHandlers []string       `json:"orphan-local-handlers"`
+	SkippedHandlers     []string       `json:"skipped-handlers"`
+	Total               int            `json:"total-yang"`
+	TotalHandlers       int            `json:"total-handlers"`
+	TotalLocal          int            `json:"total-local-handlers"`
+	Valid               bool           `json:"valid"`
 }
 
 func main() {
@@ -217,17 +217,17 @@ func validate() ValidationResult {
 	}
 
 	return ValidationResult{
-		YANGCommands:         commands,
-		Handlers:             handlers,
-		LocalHandlers:        localHandlers,
-		OrphanYANG:           orphanYANG,
-		OrphanHandlers:       orphanHandlers,
-		OrphanLocalHandlers:  orphanLocalHandlers,
-		SkippedHandlers:      skipped,
-		Total:                len(commands),
-		TotalHandlers:        len(handlers),
-		TotalLocal:           len(localHandlers),
-		Valid:                len(orphanYANG) == 0 && len(orphanHandlers) == 0,
+		YANGCommands:        commands,
+		Handlers:            handlers,
+		LocalHandlers:       localHandlers,
+		OrphanYANG:          orphanYANG,
+		OrphanHandlers:      orphanHandlers,
+		OrphanLocalHandlers: orphanLocalHandlers,
+		SkippedHandlers:     skipped,
+		Total:               len(commands),
+		TotalHandlers:       len(handlers),
+		TotalLocal:          len(localHandlers),
+		Valid:               len(orphanYANG) == 0 && len(orphanHandlers) == 0,
 	}
 }
 

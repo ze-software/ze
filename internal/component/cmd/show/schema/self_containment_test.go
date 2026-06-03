@@ -28,6 +28,7 @@ func TestShowSchemaHasNoBGPPluginCommands(t *testing.T) {
 		`"ze-show:bgp-encode"`: "offline BGP encode -> internal/component/bgp/cli/schema",
 		`"ze-show:bmp-`:        "BMP monitoring -> internal/component/bgp/plugins/bmp/schema",
 		`"ze-show:rr-`:         "BGP route reflector -> internal/component/bgp/plugins/rr/schema",
+		`"ze-show:bgp-health"`: "BGP health overview -> internal/component/bgp/plugins/cmd/peer/schema",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliShowCmdYANG, token) {

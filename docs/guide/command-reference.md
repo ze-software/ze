@@ -1542,7 +1542,7 @@ Example: `set bgp peer upstream1 with remote ip 10.0.0.1 remote as 65001 local a
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `del bgp peer <sel>` | write | Remove peer |
+| `delete bgp peer <sel>` | write | Remove peer |
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- del peer handler -->
 
 ### Update Commands

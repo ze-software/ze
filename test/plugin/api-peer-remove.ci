@@ -40,7 +40,7 @@ def main():
             sys.exit(1)
         time.sleep(0.5)
 
-        result = dispatch(api, 'del bgp peer 10.0.0.99')
+        result = dispatch(api, 'delete bgp peer 10.0.0.99')
         if result.get('status') != 'done':
             print(f'FAIL: remove status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

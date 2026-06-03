@@ -56,7 +56,7 @@ func isBGPPeerPath(words []string, peerIdx int) bool {
 	}
 	if peerIdx >= 2 && words[peerIdx-1] == bgpParticipantName {
 		switch words[peerIdx-2] {
-		case "show", "set", "del", "update":
+		case "show", "set", "delete", "update":
 			return true
 		}
 	}

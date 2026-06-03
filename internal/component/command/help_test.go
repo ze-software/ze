@@ -50,14 +50,14 @@ func testVerbTree() *Node {
 					},
 				},
 			},
-			"del": {
-				Name:        "del",
+			"delete": {
+				Name:        "delete",
 				Description: "Remove configuration",
 				Children: map[string]*Node{
 					"bgp": {
 						Name: "bgp",
 						Children: map[string]*Node{
-							"peer": {Name: "peer", Description: "Remove a peer dynamically", WireMethod: "ze-del:bgp-peer"},
+							"peer": {Name: "peer", Description: "Remove a peer dynamically", WireMethod: "ze-delete:bgp-peer"},
 						},
 					},
 				},
@@ -118,7 +118,7 @@ func TestHelpTopLevel(t *testing.T) {
 		"set":      "Modify configuration",
 		"clear":    "Reset operational state",
 		"request":  "Request an operational action",
-		"del":      "Remove configuration",
+		"delete":   "Remove configuration",
 		"update":   "Refresh stale data from external sources",
 		"validate": "Check without changing",
 		"monitor":  "Streaming, continuous observation",
@@ -194,7 +194,7 @@ func TestHelpIncludesDescriptions(t *testing.T) {
 // PREVENTS: missing verb classification.
 func TestUnifiedTreeVerbs(t *testing.T) {
 	tree := testVerbTree()
-	expectedVerbs := []string{"show", "set", "clear", "request", "del", "update", "validate", "monitor"}
+	expectedVerbs := []string{"show", "set", "clear", "request", "delete", "update", "validate", "monitor"}
 
 	for _, verb := range expectedVerbs {
 		if _, ok := tree.Children[verb]; !ok {
@@ -207,7 +207,7 @@ func TestUnifiedTreeVerbs(t *testing.T) {
 // PREVENTS: wrong authorization for commands.
 func TestVerbClassification(t *testing.T) {
 	readOnlyVerbs := []string{"show", "validate", "monitor"}
-	mutatingVerbs := []string{"set", "clear", "request", "del", "update"}
+	mutatingVerbs := []string{"set", "clear", "request", "delete", "update"}
 
 	for _, verb := range readOnlyVerbs {
 		if !IsReadOnlyVerb(verb) {
@@ -322,7 +322,7 @@ func TestFindNode(t *testing.T) {
 		{[]string{"show"}, "show"},
 		{[]string{"show", "bgp"}, "bgp"},
 		{[]string{"show", "bgp", "peer"}, "peer"},
-		{[]string{"del", "bgp", "peer"}, "peer"},
+		{[]string{"delete", "bgp", "peer"}, "peer"},
 		{[]string{"nonexistent"}, ""},
 		{[]string{"show", "nonexistent"}, ""},
 	}

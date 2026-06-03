@@ -45,7 +45,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, RequiresSelector: true},
 		// Additional owner-registered BGP peer commands.
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-del:bgp-peer", Handler: HandleBgpPeerRemove, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: HandleBgpPeerRemove, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-with", Handler: HandleBgpPeerWith, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-set:bgp-peer-save", Handler: HandleBgpPeerSave, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-update:bgp-peer-prefix", Handler: HandleBgpPeerPrefixUpdate, RequiresSelector: true},
@@ -461,7 +461,7 @@ func preparePeerTree(selector string, nodeTree map[string]any) (*plugin.Response
 	return nil, nil //nolint:nilnil // success
 }
 
-// HandleBgpPeerRemove handles "del bgp peer <ip>" command.
+// HandleBgpPeerRemove handles "delete bgp peer <ip>" command.
 // Removes a peer dynamically at runtime.
 func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
