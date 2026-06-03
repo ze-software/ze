@@ -76,6 +76,21 @@ func runDoctorChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagnosti
 		}
 		diags = append(diags, checks[i].Check(ctx)...)
 	}
+
+	exportedCtx := diagnostic.DoctorCheckContext{
+		Tree:      ctx.Tree,
+		ConfigDir: ctx.ConfigDir,
+		Plugins:   ctx.Plugins,
+		Store:     ctx.Store,
+		Platform:  ctx.Platform,
+	}
+	exported := diagnostic.DoctorChecksForPhase(diagnostic.DoctorCheckPhase(phase))
+	for i := range exported {
+		if !diagnostic.DoctorCheckSupportsPlatform(exported[i], ctx.Platform) {
+			continue
+		}
+		diags = append(diags, exported[i].Check(exportedCtx)...)
+	}
 	return diags
 }
 

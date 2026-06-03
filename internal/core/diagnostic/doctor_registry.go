@@ -1,0 +1,221 @@
+// Design: docs/features/ai-first.md -- doctor check registration
+// Related: doctor_provider.go -- provider bridge for show doctor
+
+package diagnostic
+
+import (
+	"errors"
+	"sort"
+	"strings"
+	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
+	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+)
+
+// DoctorCheckPhase determines when a doctor check runs relative to config loading.
+type DoctorCheckPhase string
+
+const (
+	DoctorPhasePreConfig     DoctorCheckPhase = "pre-config"
+	DoctorPhaseMissingConfig DoctorCheckPhase = "missing-config"
+	DoctorPhasePostConfig    DoctorCheckPhase = "post-config"
+)
+
+// DoctorPlatformAny matches all platforms.
+const DoctorPlatformAny = "any"
+
+// DoctorCheckContext is the runtime context passed to each doctor check.
+// Tree is typed as any to avoid a cycle between diagnostic and config;
+// check functions that need *config.Tree should type-assert.
+type DoctorCheckContext struct {
+	Tree      any
+	ConfigDir string
+	Plugins   []zeplugin.PluginConfig
+	Store     storage.Storage
+	Platform  *host.PlatformInfo
+}
+
+// DoctorCheckFunc is the signature of a doctor check function.
+type DoctorCheckFunc func(DoctorCheckContext) []Diagnostic
+
+// DoctorCheck is a registered doctor readiness check.
+type DoctorCheck struct {
+	Name         string
+	Phase        DoctorCheckPhase
+	Order        int
+	Component    string
+	Dependencies []string
+	Platforms    []string
+	Codes        []string
+	Check        DoctorCheckFunc
+}
+
+var doctorCheckRegistry = struct {
+	sync.Mutex
+	entries []DoctorCheck
+	names   map[string]struct{}
+}{names: make(map[string]struct{})}
+
+// RegisterDoctorCheck adds a doctor check to the global registry.
+// Returns an error on validation failure or duplicate name.
+// Owner packages call this from init() to register their runtime dependency checks.
+func RegisterDoctorCheck(check DoctorCheck) error {
+	doctorCheckRegistry.Lock()
+	defer doctorCheckRegistry.Unlock()
+	if err := validateDoctorCheckReg(check); err != nil {
+		return err
+	}
+	if _, exists := doctorCheckRegistry.names[check.Name]; exists {
+		return errors.New("diagnostic: duplicate doctor check " + check.Name)
+	}
+	doctorCheckRegistry.names[check.Name] = struct{}{}
+	doctorCheckRegistry.entries = append(doctorCheckRegistry.entries, cloneDoctorCheckReg(check))
+	return nil
+}
+
+// DoctorChecksForPhase returns all registered checks for the given phase,
+// sorted by order then name.
+func DoctorChecksForPhase(phase DoctorCheckPhase) []DoctorCheck {
+	doctorCheckRegistry.Lock()
+	defer doctorCheckRegistry.Unlock()
+	checks := make([]DoctorCheck, 0, len(doctorCheckRegistry.entries))
+	for i := range doctorCheckRegistry.entries {
+		if doctorCheckRegistry.entries[i].Phase == phase {
+			checks = append(checks, cloneDoctorCheckReg(doctorCheckRegistry.entries[i]))
+		}
+	}
+	sort.Slice(checks, func(i, j int) bool {
+		return doctorCheckLessReg(checks[i], checks[j])
+	})
+	return checks
+}
+
+// DoctorCheckNames returns the names of all registered checks, sorted.
+func DoctorCheckNames() []string {
+	doctorCheckRegistry.Lock()
+	defer doctorCheckRegistry.Unlock()
+	names := make([]string, 0, len(doctorCheckRegistry.entries))
+	for i := range doctorCheckRegistry.entries {
+		names = append(names, doctorCheckRegistry.entries[i].Name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// DoctorCheckSupportsPlatform reports whether a check should run on the given platform.
+func DoctorCheckSupportsPlatform(check DoctorCheck, platform *host.PlatformInfo) bool {
+	for _, allowed := range check.Platforms {
+		if allowed == DoctorPlatformAny {
+			return true
+		}
+		if platform != nil && allowed == platform.Type.String() {
+			return true
+		}
+	}
+	return false
+}
+
+// ResetDoctorChecksForTest clears the doctor check registry. Test use only.
+func ResetDoctorChecksForTest() {
+	doctorCheckRegistry.Lock()
+	defer doctorCheckRegistry.Unlock()
+	doctorCheckRegistry.entries = nil
+	doctorCheckRegistry.names = make(map[string]struct{})
+}
+
+func validateDoctorCheckReg(check DoctorCheck) error {
+	const p = "diagnostic doctor check: "
+	if check.Name == "" || !isLowerKebabDiag(check.Name) {
+		return errors.New(p + "invalid name " + check.Name)
+	}
+	if !check.Phase.Valid() {
+		return errors.New(p + "unknown phase " + string(check.Phase))
+	}
+	if check.Component == "" || !isLowerKebabDiag(check.Component) {
+		return errors.New(p + "invalid component " + check.Component)
+	}
+	if check.Check == nil {
+		return errors.New(p + "missing check function for " + check.Name)
+	}
+	if len(check.Dependencies) == 0 {
+		return errors.New(p + "missing dependency for " + check.Name)
+	}
+	if len(check.Platforms) == 0 {
+		return errors.New(p + "missing platform for " + check.Name)
+	}
+	if len(check.Codes) == 0 {
+		return errors.New(p + "missing diagnostic code for " + check.Name)
+	}
+	for _, code := range check.Codes {
+		if !strings.HasPrefix(code, "doctor-") {
+			return errors.New(p + "invalid diagnostic code " + code)
+		}
+	}
+	return nil
+}
+
+// Valid reports whether the phase is a known doctor check phase.
+func (phase DoctorCheckPhase) Valid() bool {
+	switch phase {
+	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhasePostConfig:
+		return true
+	default:
+		return false
+	}
+}
+
+func doctorCheckLessReg(a, b DoctorCheck) bool {
+	ar, br := doctorPhaseRank(a.Phase), doctorPhaseRank(b.Phase)
+	if ar != br {
+		return ar < br
+	}
+	if a.Order != b.Order {
+		return a.Order < b.Order
+	}
+	return a.Name < b.Name
+}
+
+func doctorPhaseRank(phase DoctorCheckPhase) int {
+	switch phase {
+	case DoctorPhasePreConfig:
+		return 0
+	case DoctorPhaseMissingConfig:
+		return 1
+	case DoctorPhasePostConfig:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func isLowerKebabDiag(value string) bool {
+	if value == "" {
+		return false
+	}
+	prevHyphen := true
+	for i := range len(value) {
+		c := value[i]
+		if c == '-' {
+			if prevHyphen {
+				return false
+			}
+			prevHyphen = true
+			continue
+		}
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+			prevHyphen = false
+			continue
+		}
+		return false
+	}
+	return !prevHyphen
+}
+
+func cloneDoctorCheckReg(check DoctorCheck) DoctorCheck {
+	check.Dependencies = append([]string(nil), check.Dependencies...)
+	check.Platforms = append([]string(nil), check.Platforms...)
+	check.Codes = append([]string(nil), check.Codes...)
+	return check
+}

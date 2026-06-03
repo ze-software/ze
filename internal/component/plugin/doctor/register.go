@@ -1,0 +1,26 @@
+// Design: docs/features/ai-first.md -- plugin binary readiness check
+
+package doctor
+
+import (
+	"fmt"
+	"os"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+)
+
+func init() {
+	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
+		Name:         "plugin-binaries",
+		Phase:        diagnostic.DoctorPhasePostConfig,
+		Order:        700,
+		Component:    "plugin",
+		Dependencies: []string{"external-binary"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{"doctor-plugin-missing", "doctor-plugin-external-builtin"},
+		Check:        checkPlugins,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "doctor check registration: %v\n", err)
+		os.Exit(2)
+	}
+}

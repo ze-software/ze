@@ -33,6 +33,7 @@ import (
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	zeradius "codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	plugindoctor "codeberg.org/thomas-mangin/ze/internal/component/plugin/doctor"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -197,7 +198,7 @@ func TestCheckPlugins_InternalSkipped(t *testing.T) {
 	plugins := []zeplugin.PluginConfig{
 		{Name: "rib", Internal: true, Run: "bgp-rib"},
 	}
-	diags := checkPlugins(plugins)
+	diags := plugindoctor.CheckPluginBinaries(plugins)
 	assert.Empty(t, diags)
 }
 
@@ -205,7 +206,7 @@ func TestCheckPlugins_MissingBinary(t *testing.T) {
 	plugins := []zeplugin.PluginConfig{
 		{Name: "custom", Internal: false, Run: "/nonexistent/binary"},
 	}
-	diags := checkPlugins(plugins)
+	diags := plugindoctor.CheckPluginBinaries(plugins)
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-plugin-missing", diags[0].Code)
 }
@@ -223,7 +224,7 @@ func TestCheckPluginsExternalBuiltinWarns(t *testing.T) {
 	plugins := []zeplugin.PluginConfig{
 		{Name: "feed", Internal: true, Run: "ze." + name},
 	}
-	diags := checkPlugins(plugins)
+	diags := plugindoctor.CheckPluginBinaries(plugins)
 	var found bool
 	for _, d := range diags {
 		assert.NotEqual(t, "doctor-plugin-missing", d.Code, "in-process ze.X must not report a missing binary")
@@ -249,7 +250,7 @@ func TestCheckPluginsExternalBareBuiltinWarns(t *testing.T) {
 	plugins := []zeplugin.PluginConfig{
 		{Name: "feed", Internal: false, Run: name},
 	}
-	diags := checkPlugins(plugins)
+	diags := plugindoctor.CheckPluginBinaries(plugins)
 	var advisory bool
 	for _, d := range diags {
 		if d.Code == "doctor-plugin-external-builtin" {
@@ -263,7 +264,7 @@ func TestCheckPluginsExternalScriptNoWarn(t *testing.T) {
 	plugins := []zeplugin.PluginConfig{
 		{Name: "collector", Internal: false, Run: "./collector.py"},
 	}
-	diags := checkPlugins(plugins)
+	diags := plugindoctor.CheckPluginBinaries(plugins)
 	for _, d := range diags {
 		assert.NotEqual(t, "doctor-plugin-external-builtin", d.Code)
 	}
@@ -273,7 +274,7 @@ func TestCheckPluginsInternalNoWarn(t *testing.T) {
 	plugins := []zeplugin.PluginConfig{
 		{Name: "rib", Internal: true, Run: "bgp-rib"},
 	}
-	diags := checkPlugins(plugins)
+	diags := plugindoctor.CheckPluginBinaries(plugins)
 	for _, d := range diags {
 		assert.NotEqual(t, "doctor-plugin-external-builtin", d.Code)
 	}
