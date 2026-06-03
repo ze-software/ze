@@ -319,8 +319,8 @@ func TestSimpleCmdModules(t *testing.T) {
 		container  string
 		wireMethod string
 	}{
-		{"cache", cmdBase + "cache/schema/ze-cli-cache-cmd.yang", "ze-cli-cache-cmd", "cache", "ze-bgp:cache"},
-		{"commit", cmdBase + "commit/schema/ze-cli-commit-cmd.yang", "ze-cli-commit-cmd", "commit", "ze-bgp:commit"},
+		{"cache", cmdPluginBase + "cmd/cache/schema/ze-cli-cache-cmd.yang", "ze-cli-cache-cmd", "cache", "ze-bgp:cache"},
+		{"commit", cmdPluginBase + "cmd/commit/schema/ze-cli-commit-cmd.yang", "ze-cli-commit-cmd", "commit", "ze-bgp:commit"},
 		{"subscribe", cmdBase + "subscribe/schema/ze-cli-subscribe-cmd.yang", "ze-cli-subscribe-cmd", "subscribe", "ze-bgp:subscribe"},
 	}
 
@@ -349,7 +349,7 @@ func TestCommitNoEditShortcut(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"commit/schema/ze-cli-commit-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/commit/schema/ze-cli-commit-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -539,7 +539,7 @@ func TestBuildCommandTree(t *testing.T) {
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/raw/schema/ze-raw-cmd.yang")
 	loadCmdModule(t, loader, cmdPluginBase+"route_refresh/schema/ze-refresh-cmd.yang")
 	// Load a non-overlapping module
-	loadCmdModule(t, loader, cmdBase+"cache/schema/ze-cli-cache-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/cache/schema/ze-cli-cache-cmd.yang")
 
 	err = loader.Resolve()
 	require.NoError(t, err)

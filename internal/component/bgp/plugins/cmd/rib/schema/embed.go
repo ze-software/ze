@@ -5,3 +5,6 @@ import _ "embed"
 
 //go:embed ze-rib-cmd.yang
 var ZeRibCmdYANG string
+
+//go:embed ze-rib-poolstats-cmd.yang
+var ZeRibPoolStatsCmdYANG string

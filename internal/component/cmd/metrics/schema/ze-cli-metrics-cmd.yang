@@ -23,14 +23,5 @@ for feeding into Prometheus, Grafana, or curl-based monitoring.";
             description "List all registered metric names (no values).
 Useful for discovering what metrics exist before querying them.";
         }
-
-        container pool {
-            config false;
-            ze:command "ze-bgp:pool-stats";
-            description "Show attribute pool memory usage and dedup efficiency.
-Returns allocated entries, reference counts, and deduplication hit
-rates per attribute type. Watch the dedup rate to gauge how much
-memory pooling is saving you.";
-        }
     }
 }

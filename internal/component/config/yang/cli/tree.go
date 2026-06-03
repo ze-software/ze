@@ -27,8 +27,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"

@@ -409,6 +409,15 @@ Files: 8 | Docs: `docs/architecture/api/text-coverage.md`, `docs/architecture/ap
 
 - `internal/component/bgp/plugins/bmp/schema/ze-bmp-conf.yang` -> `docs/guide/bmp.md`
 
+## `internal/component/bgp/plugins/cmd/cache/`
+
+- `internal/component/bgp/plugins/cmd/cache/` -> `docs/guide/cli.md`, `docs/guide/command-reference.md`
+
+## `internal/component/bgp/plugins/cmd/commit/`
+
+- `internal/component/bgp/plugins/cmd/commit/` -> `docs/guide/command-reference.md`, `docs/guide/route-injection.md`
+- `internal/component/bgp/plugins/cmd/commit/commit.go` -> `docs/architecture/api/ipc_protocol.md`, `docs/features/api-commands.md`
+
 ## `internal/component/bgp/plugins/cmd/monitor/`
 
 - `internal/component/bgp/plugins/cmd/monitor/` -> `docs/guide/command-reference.md`, `docs/guide/monitoring.md`
@@ -847,15 +856,6 @@ Files: 4 | Docs: `docs/architecture/testing/ci-format.md`, `docs/architecture/te
 | `parser.go` | `docs/architecture/testing/ci-format.md`, `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md` |
 | `runner.go` | `docs/architecture/testing/runner-architecture.md` |
 | `session_test.go` | `docs/architecture/testing/ci-format.md` |
-
-## `internal/component/cmd/cache/`
-
-- `internal/component/cmd/cache/` -> `docs/guide/cli.md`, `docs/guide/command-reference.md`
-
-## `internal/component/cmd/commit/`
-
-- `internal/component/cmd/commit/` -> `docs/guide/command-reference.md`, `docs/guide/route-injection.md`
-- `internal/component/cmd/commit/commit.go` -> `docs/architecture/api/ipc_protocol.md`, `docs/features/api-commands.md`
 
 ## `internal/component/cmd/del/`
 

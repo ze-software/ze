@@ -358,7 +358,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `bgp commit <name> show` | Show queued count |
 | `bgp commit list` | List active batches |
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager -->
-<!-- source: internal/component/cmd/commit/commit.go -- commit handlers -->
+<!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- commit handlers -->
 
 **Raw Passthrough:**
 

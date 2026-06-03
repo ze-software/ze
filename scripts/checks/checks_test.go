@@ -61,6 +61,10 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 		"internal/component/cmd/subscriber": "internal/component/subscriber/cmd",
 		"internal/component/cmd/bfd":        "internal/component/bfd/cmd",
 		"internal/component/cmd/archive":    "internal/component/config/archive/cmd",
+		// cache/commit handlers live in bgp/plugins/cmd/{cache,commit}; their
+		// YANG schema was the last central remnant and now lives beside them.
+		"internal/component/cmd/cache":  "internal/component/bgp/plugins/cmd/cache/schema",
+		"internal/component/cmd/commit": "internal/component/bgp/plugins/cmd/commit/schema",
 	}
 	for central, owner := range moved {
 		if _, err := os.Stat(filepath.Join(root, central)); err == nil {
@@ -79,5 +83,29 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(root, ownerHandler)); err != nil {
 			t.Errorf("extracted clear handler %s is missing: %v", ownerHandler, err)
 		}
+	}
+
+	// The metrics verb is generic (Prometheus registry); only ze-bgp:pool-stats
+	// is owner-specific (reads the BGP RIB attribute pools). Its handler moved to
+	// the RIB command cluster and must not return to the central metrics package.
+	poolStatsHandler := "internal/component/bgp/plugins/cmd/rib/pool_stats.go"
+	centralMetrics := "internal/component/cmd/metrics/metrics.go"
+	centralMetricsSchema := "internal/component/cmd/metrics/schema/ze-cli-metrics-cmd.yang"
+	if _, err := os.Stat(filepath.Join(root, poolStatsHandler)); err != nil {
+		t.Errorf("pool-stats handler must live in the RIB command owner: %v", err)
+	}
+	metricsBody, err := os.ReadFile(filepath.Join(root, centralMetrics))
+	if err != nil {
+		t.Fatalf("read central metrics handler: %v", err)
+	}
+	if strings.Contains(string(metricsBody), "handlePoolStats") {
+		t.Error("central metrics package still defines handlePoolStats; pool-stats is owned by the BGP RIB command cluster")
+	}
+	metricsSchema, err := os.ReadFile(filepath.Join(root, centralMetricsSchema))
+	if err != nil {
+		t.Fatalf("read central metrics schema: %v", err)
+	}
+	if strings.Contains(string(metricsSchema), "ze-bgp:pool-stats") {
+		t.Error("central metrics schema still declares ze-bgp:pool-stats; it is owned by bgp/plugins/cmd/rib/schema")
 	}
 }

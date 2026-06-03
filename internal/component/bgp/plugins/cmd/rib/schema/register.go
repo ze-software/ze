@@ -6,4 +6,5 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-rib-cmd.yang", ZeRibCmdYANG)
+	yang.RegisterModule("ze-rib-poolstats-cmd.yang", ZeRibPoolStatsCmdYANG)
 }

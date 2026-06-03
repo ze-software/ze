@@ -27,6 +27,8 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 
 	// BGP cmd plugin schema packages (not in all.go -- triggered via reactor.go at runtime).
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw/schema"
@@ -45,8 +47,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler"
 
 	// General cmd handler packages (register RPCs via init()).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"

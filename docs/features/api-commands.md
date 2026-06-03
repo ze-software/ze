@@ -78,7 +78,7 @@ Named update windows for atomic route changes:
 | `commit withdraw <name>` | Withdraw all routes in window |
 | `commit list` | List named commits |
 
-<!-- source: internal/component/cmd/commit/commit.go -- commit workflow handlers -->
+<!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- commit workflow handlers -->
 
 ### Raw & Introspection
 

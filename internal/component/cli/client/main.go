@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — interactive CLI
-// Related: ../internal/cmdutil/cmdutil.go — shared command utilities (uses BuildCommandTree)
+// Related: ../../../../cmd/ze/internal/cmdutil/cmdutil.go — shared command utilities (uses BuildCommandTree)
 //
 // Package cli provides the ze cli subcommand.
 package client
@@ -27,8 +27,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
 	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"     // init() registers cache command RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"    // init() registers commit command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del"       // init() registers del verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"       // init() registers log show/set RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"      // init() registers help/discovery RPCs

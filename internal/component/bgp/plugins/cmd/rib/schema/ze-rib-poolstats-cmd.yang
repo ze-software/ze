@@ -1,0 +1,21 @@
+module ze-rib-poolstats-cmd {
+    namespace "urn:ze:rib:poolstats:cmd";
+    prefix ribpoolstatscmd;
+    import ze-extensions { prefix ze; }
+    description "metrics pool command tree. Owned by the BGP RIB command cluster because pool-stats reads the BGP RIB attribute pools (bgp/plugins/rib/pool); the central metrics verb keeps only the generic Prometheus-registry commands. Removing the BGP RIB surface removes this node with its handler. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-03 { description "Relocated metrics pool (ze-bgp:pool-stats) out of the central metrics schema (plugin self-containment)."; }
+
+    container metrics {
+        config false;
+        description "Access Prometheus metrics and internal pool stats";
+
+        container pool {
+            config false;
+            ze:command "ze-bgp:pool-stats";
+            description "Show attribute pool memory usage and dedup efficiency.
+Returns allocated entries, reference counts, and deduplication hit
+rates per attribute type. Watch the dedup rate to gauge how much
+memory pooling is saving you.";
+        }
+    }
+}

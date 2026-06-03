@@ -1630,7 +1630,7 @@ Commit names must not collide with action keywords (`list`, `start`, `end`,
 `eor`, `rollback`, `show`, `withdraw`). The old grammar `commit <name> <action>`
 is accepted with a deprecation warning but does not work when the name equals
 a keyword.
-<!-- source: internal/component/cmd/commit/ -- commit command RPCs -->
+<!-- source: internal/component/bgp/plugins/cmd/commit/ -- commit command RPCs -->
 
 ### Cache Commands
 
@@ -1643,7 +1643,7 @@ a keyword.
 | `cache forward <id> <peer-sel>` | write | Re-inject UPDATE to peer(s) |
 
 Batch operations: `cache forward <id1>,<id2> <selector>`.
-<!-- source: internal/component/cmd/cache/ -- cache command RPCs -->
+<!-- source: internal/component/bgp/plugins/cmd/cache/ -- cache command RPCs -->
 
 ### Static Routes
 
