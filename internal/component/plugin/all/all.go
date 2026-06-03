@@ -77,6 +77,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/subscriber/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/web/schema"
@@ -199,5 +200,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/subscriber/cmd"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd"
 )
 

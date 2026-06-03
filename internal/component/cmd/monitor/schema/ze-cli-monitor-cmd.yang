@@ -19,15 +19,6 @@ include <pattern> or exclude <pattern> to focus on what matters.
 Patterns match event type names.";
         }
 
-        container traceroute {
-            config false;
-            ze:command "ze-monitor:traceroute";
-            ze:task-support required;
-            description "Live mtr-style traceroute that updates continuously.
-Shows each hop with running RTT statistics. Keeps probing so you
-can watch path changes and latency shifts over time.";
-        }
-
         container interface {
             config false;
             description "Interface traffic monitoring";

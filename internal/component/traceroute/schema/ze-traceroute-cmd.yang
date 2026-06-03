@@ -1,0 +1,92 @@
+module ze-traceroute-cmd {
+    namespace "urn:ze:traceroute:cmd";
+    prefix traceroutecmd;
+    import ze-extensions { prefix ze; }
+    description "traceroute command tree (show traceroute, show probe-round, monitor traceroute, resolve traceroute). Owned by the dedicated traceroute feature module so that the whole traceroute surface lives in one place and container-merges onto the show, monitor, and resolve verb roots. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-03 { description "Relocate the traceroute command surface out of the central show, monitor, and resolve schemas into the dedicated traceroute module."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container traceroute {
+            config false;
+            ze:command "ze-show:traceroute";
+            description "Trace the network path from this router to a target.
+Shows each hop with its IP and round-trip time. Dest can be an IP
+or hostname. Defaults: 30 max hops, 3 probes per hop. Increase
+probes for more reliable RTT measurements.";
+            leaf dest {
+                type string;
+                description "Target host or IP address";
+            }
+            leaf max-hops {
+                type uint32;
+                description "Maximum number of hops";
+            }
+            leaf timeout {
+                type string {
+                    pattern '\d+[smh]?';
+                }
+                description "Timeout duration";
+            }
+            leaf probes {
+                type uint32;
+                description "Number of probes per hop";
+            }
+        }
+
+        container probe-round {
+            config false;
+            ze:command "ze-show:probe-round";
+            description "Run a parallel traceroute probe round to a target.
+Sends all probes concurrently for faster results than sequential
+traceroute. Returns per-hop RTT and IP. Use probes and max-hops
+to tune accuracy vs speed.";
+            leaf dest {
+                type string;
+                description "Target host or IP address";
+            }
+            leaf probes {
+                type uint32;
+                description "Number of probes per hop";
+            }
+            leaf max-hops {
+                type uint32;
+                description "Maximum number of hops";
+            }
+            leaf timeout {
+                type string {
+                    pattern '\d+[smh]?';
+                }
+                description "Timeout duration";
+            }
+        }
+    }
+
+    container monitor {
+        config false;
+        description "Continuous monitoring commands (Ctrl-C to stop)";
+
+        container traceroute {
+            config false;
+            ze:command "ze-monitor:traceroute";
+            ze:task-support required;
+            description "Live mtr-style traceroute that updates continuously.
+Shows each hop with running RTT statistics. Keeps probing so you
+can watch path changes and latency shifts over time.";
+        }
+    }
+
+    container resolve {
+        config false;
+        description "DNS, ASN, PeeringDB, and IRR resolution tools";
+
+        container traceroute {
+            config false;
+            ze:command "ze-resolve:traceroute";
+            description "Traceroute from the router with optional source binding.
+Usage: resolve traceroute <target> [source <ip>].";
+        }
+    }
+}

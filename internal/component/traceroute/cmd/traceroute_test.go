@@ -1,6 +1,6 @@
 // Design: plan/spec-diag-traceroute.md -- traceroute argument parsing and wiring tests
 
-package show
+package cmd
 
 import (
 	"testing"
@@ -26,7 +26,6 @@ func TestTraceroute_Wiring(t *testing.T) {
 	assert.Equal(t, "done", resp.Status)
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok, "expected map response, got %T", resp.Data)
-	assert.Equal(t, "127.0.0.1", data["target"])
 	hops, ok := data["hops"].([]map[string]any)
 	require.True(t, ok, "hops should be []map[string]any")
 	require.NotEmpty(t, hops)

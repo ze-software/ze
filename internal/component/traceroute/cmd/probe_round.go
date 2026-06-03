@@ -1,53 +1,54 @@
-// Design: traceroute_parallel.go -- batch probe round (show probe-round RPC)
-// Related: ping.go -- sibling probe command; ICMP helpers in internal/core/probe
+// Design: plan/spec-diag-traceroute.md -- batch probe round (show probe-round RPC)
+// Related: traceroute.go -- shared ICMP helpers (ttlSetter, embeddedICMPOffset, addrFromNetAddr)
 
-package show
+package cmd
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"net"
 	"net/netip"
+	"os"
 	"time"
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 )
 
-// NewTracerouteSession starts a streaming probe round for the given target.
-// Returns a channel of hop results, a cancel function, and an error.
-func NewTracerouteSession(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
-	addr, err := probe.ResolveTarget(target)
+const defaultProbeMaxHops = 16
+
+// HandleProbeRound runs a single parallel traceroute probe round.
+func HandleProbeRound(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	target, maxHops, _, _, err := parseTracerouteArgs(args)
 	if err != nil {
-		return nil, nil, err
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-
-	ch := make(chan map[string]any, maxHops)
-	roundCtx, cancel := context.WithCancel(ctx)
-
-	go StreamProbeRound(roundCtx, addr, maxHops, time.Second, ch)
-
-	return ch, cancel, nil
+	if maxHops == defaultTracerouteMaxHops {
+		maxHops = defaultProbeMaxHops
+	}
+	hops, probeErr := doProbeRound(target, maxHops, time.Second)
+	if probeErr != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: probeErr.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
+		"hops": hops,
+	}}, nil
 }
 
-func randProbeID() uint16 {
-	var b [2]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return 0xBEEF
-	}
-	return binary.BigEndian.Uint16(b[:])
+type probeResult struct {
+	ttl     int
+	addr    string
+	rttMS   float64
+	hasRTT  bool
+	reached bool
 }
 
-// StreamProbeRound sends all TTL probes simultaneously and writes hop results
-// to out as ICMP responses arrive. After deadline, unanswered hops are sent
-// with addr="*" and rtt-ms=nil. The channel is closed when the round ends.
-// Each message is a map with keys: "ttl" (int), "addr" (string), "rtt-ms" (float64 or nil).
-func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadline time.Duration, out chan<- map[string]any) {
-	defer close(out)
-
+func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[string]any, error) {
 	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
@@ -65,9 +66,9 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 	}
 
 	var lc net.ListenConfig
-	rawConn, err := lc.ListenPacket(ctx, network, "")
+	rawConn, err := lc.ListenPacket(context.Background(), network, "")
 	if err != nil {
-		return
+		return nil, fmt.Errorf("probe: %w (requires CAP_NET_RAW)", err)
 	}
 
 	var conn ttlSetter
@@ -78,39 +79,34 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 	}
 	defer func() { _ = conn.Close() }()
 
-	pid := randProbeID()
+	pid := uint16(os.Getpid() & 0xffff)
 	dst := &net.IPAddr{IP: dest.AsSlice()}
 	sendTimes := make([]time.Time, maxHops)
 
 	for ttl := 1; ttl <= maxHops; ttl++ {
 		if setErr := conn.SetTTL(ttl); setErr != nil {
-			continue
+			return nil, fmt.Errorf("probe: set TTL %d: %w", ttl, setErr)
 		}
 		seq := uint16(ttl - 1)
 		pkt := probe.BuildICMPEcho(icmpEcho, pid, seq, []byte("ze-probe"))
 		sendTimes[ttl-1] = time.Now()
 		if _, writeErr := conn.WriteTo(pkt, dst); writeErr != nil {
-			continue
+			return nil, fmt.Errorf("probe: write TTL %d: %w", ttl, writeErr)
 		}
 	}
 
-	type hopResult struct {
-		addr    string
-		rttMS   float64
-		hasRTT  bool
-		reached bool
+	results := make([]probeResult, maxHops)
+	for i := range results {
+		results[i].ttl = i + 1
+		results[i].addr = "*"
 	}
 
-	results := make([]hopResult, maxHops)
-	reachedTTL := 0
-	end := time.Now().Add(deadline)
+	probeStart := time.Now()
+	end := probeStart.Add(deadline)
 	rb := make([]byte, 1500)
-	total := 0
+	answered := 0
 
-	for total < maxHops {
-		if ctx.Err() != nil {
-			return
-		}
+	for answered < maxHops {
 		remaining := time.Until(end)
 		if remaining <= 0 {
 			break
@@ -142,19 +138,19 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 				continue
 			}
 			ttl := int(embSeq) + 1
-			if ttl < 1 || ttl > maxHops || results[ttl-1].hasRTT {
+			if ttl < 1 || ttl > maxHops {
 				continue
 			}
 			r := &results[ttl-1]
+			if r.hasRTT {
+				continue
+			}
 			r.addr = addr
 			r.rttMS = float64(time.Since(sendTimes[ttl-1]).Microseconds()) / 1000.0
 			r.hasRTT = true
-			total++
+			answered++
 			if msgType == icmpDestUnreach && rb[1] == portUnreach {
 				r.reached = true
-				if reachedTTL == 0 || ttl < reachedTTL {
-					reachedTTL = ttl
-				}
 			}
 
 		case icmpEchoReply:
@@ -164,45 +160,46 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 				continue
 			}
 			ttl := int(replySeq) + 1
-			if ttl < 1 || ttl > maxHops || results[ttl-1].hasRTT {
+			if ttl < 1 || ttl > maxHops {
 				continue
 			}
 			r := &results[ttl-1]
+			if r.hasRTT {
+				continue
+			}
 			r.addr = addr
 			r.rttMS = float64(time.Since(sendTimes[ttl-1]).Microseconds()) / 1000.0
 			r.hasRTT = true
 			r.reached = true
-			total++
-			if reachedTTL == 0 || ttl < reachedTTL {
-				reachedTTL = ttl
-			}
+			answered++
 		}
 	}
 
-	// Pad remaining time so rounds are consistently ~1s.
 	if wait := time.Until(end); wait > 0 {
 		time.Sleep(wait)
 	}
 
-	// Send results up to the destination (or all if destination not found).
+	// Find the lowest TTL that reached the destination and trim beyond it.
 	limit := maxHops
-	if reachedTTL > 0 {
-		limit = reachedTTL
+	for i := range results {
+		if results[i].reached {
+			limit = i + 1
+			break
+		}
 	}
-	for i := range limit {
-		r := &results[i]
-		hop := map[string]any{"ttl": i + 1}
-		if r.hasRTT {
-			hop["addr"] = r.addr
-			hop["rtt-ms"] = r.rttMS
+
+	hops := make([]map[string]any, limit)
+	for i := range hops {
+		hop := map[string]any{
+			"ttl":  results[i].ttl,
+			"addr": results[i].addr,
+		}
+		if results[i].hasRTT {
+			hop["rtt-ms"] = results[i].rttMS
 		} else {
-			hop["addr"] = "*"
 			hop["rtt-ms"] = nil
 		}
-		select {
-		case out <- hop:
-		case <-ctx.Done():
-			return
-		}
+		hops[i] = hop
 	}
+	return hops, nil
 }

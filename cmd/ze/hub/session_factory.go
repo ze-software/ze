@@ -13,11 +13,11 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
-	show "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	traceroutecmd "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -130,7 +130,7 @@ func dashboardFactoryFromExecutor(cmdExec zessh.CommandExecutor) cli.DashboardFa
 }
 
 func streamingTracerouteFactory(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
-	return show.NewTracerouteSession(ctx, target, maxHops)
+	return traceroutecmd.NewTracerouteSession(ctx, target, maxHops)
 }
 
 func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {

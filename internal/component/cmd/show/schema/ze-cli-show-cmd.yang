@@ -398,33 +398,6 @@ class/filter counts. With an interface name, shows the full qdisc
 and class breakdown. Use this to verify your shaping is applied.";
         }
 
-        container traceroute {
-            config false;
-            ze:command "ze-show:traceroute";
-            description "Trace the network path from this router to a target.
-Shows each hop with its IP and round-trip time. Dest can be an IP
-or hostname. Defaults: 30 max hops, 3 probes per hop. Increase
-probes for more reliable RTT measurements.";
-            leaf dest {
-                type string;
-                description "Target host or IP address";
-            }
-            leaf max-hops {
-                type uint32;
-                description "Maximum number of hops";
-            }
-            leaf timeout {
-                type string {
-                    pattern '\d+[smh]?';
-                }
-                description "Timeout duration";
-            }
-            leaf probes {
-                type uint32;
-                description "Number of probes per hop";
-            }
-        }
-
         container tcp-check {
             config false;
             ze:command "ze-show:tcp-check";
@@ -451,33 +424,6 @@ address. Quick way to verify a peer's BGP port is reachable.";
                     pattern '\d+[smh]?';
                 }
                 description "Connection timeout";
-            }
-        }
-
-        container probe-round {
-            config false;
-            ze:command "ze-show:probe-round";
-            description "Run a parallel traceroute probe round to a target.
-Sends all probes concurrently for faster results than sequential
-traceroute. Returns per-hop RTT and IP. Use probes and max-hops
-to tune accuracy vs speed.";
-            leaf dest {
-                type string;
-                description "Target host or IP address";
-            }
-            leaf probes {
-                type uint32;
-                description "Number of probes per hop";
-            }
-            leaf max-hops {
-                type uint32;
-                description "Maximum number of hops";
-            }
-            leaf timeout {
-                type string {
-                    pattern '\d+[smh]?';
-                }
-                description "Timeout duration";
             }
         }
 

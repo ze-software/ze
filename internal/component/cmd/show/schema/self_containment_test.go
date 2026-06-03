@@ -62,6 +62,8 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 		`"ze-show:neighbors"`:     "kernel neighbor read -> internal/component/iface/schema",
 		`"ze-show:kernel-routes"`: "kernel FIB read -> internal/component/iface/schema",
 		`"ze-show:ping"`:          "ICMP ping -> internal/component/ping/schema",
+		`"ze-show:traceroute"`:    "ICMP traceroute -> internal/component/traceroute/schema",
+		`"ze-show:probe-round"`:   "parallel probe round -> internal/component/traceroute/schema",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliShowCmdYANG, token) {

@@ -72,13 +72,6 @@ Usage: resolve peeringdb as-set <asn>. Feed the result into
             }
         }
 
-        container traceroute {
-            config false;
-            ze:command "ze-resolve:traceroute";
-            description "Traceroute from the router with optional source binding.
-Usage: resolve traceroute <target> [source <ip>].";
-        }
-
         container irr {
             config false;
             description "Internet Routing Registry (WHOIS) queries";

@@ -32,7 +32,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"      // init() registers help/discovery RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"   // init() registers metrics show/list RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set"       // init() registers set verb RPCs
-	show "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"   // init() registers show verb RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"      // init() registers show verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"    // init() registers update verb RPCs
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -42,6 +42,7 @@ import (
 	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"     // init() registers all YANG schemas
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	traceroutecmd "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd" // init() registers traceroute RPCs; NewTracerouteSession used below
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
@@ -905,7 +906,7 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 }
 
 func streamingTracerouteFactory(ctx context.Context, target string, maxHops int) (<-chan map[string]any, context.CancelFunc, error) {
-	return show.NewTracerouteSession(ctx, target, maxHops)
+	return traceroutecmd.NewTracerouteSession(ctx, target, maxHops)
 }
 
 func streamingPingFactory(ctx context.Context, target string, interval, timeout time.Duration) (<-chan map[string]any, context.CancelFunc, error) {

@@ -1077,15 +1077,17 @@ func TestArgDefsPopulated(t *testing.T) {
 
 	// Load all real -cmd YANG modules. The show ip/neighbors/kernel-routes
 	// subtree is owned by the iface component (it reads the kernel tables
-	// through the iface backend), and the show ping node is owned by the
-	// dedicated ping feature module, so those command modules live next to
-	// their owners rather than in the central show schema.
+	// through the iface backend), the show ping node is owned by the dedicated
+	// ping feature module, and the show traceroute / show probe-round nodes are
+	// owned by the dedicated traceroute feature module, so those command modules
+	// live next to their owners rather than in the central show schema.
 	cmdFiles := []string{
 		cmdBase + "show/schema/ze-cli-show-cmd.yang",
 		cmdBase + "set/schema/ze-cli-set-cmd.yang",
 		cmdBase + "log/schema/ze-cli-log-cmd.yang",
 		"../../../component/iface/schema/ze-iface-show-cmd.yang",
 		"../../../component/ping/schema/ze-ping-cmd.yang",
+		"../../../component/traceroute/schema/ze-traceroute-cmd.yang",
 	}
 	for _, path := range cmdFiles {
 		loadCmdModule(t, loader, path)

@@ -138,4 +138,35 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 			t.Errorf("%s still defines %q; the ping feature is owned by %s", c.file, c.symbol, pingOwner)
 		}
 	}
+
+	// The traceroute feature (show traceroute, show probe-round, monitor
+	// traceroute, resolve traceroute) is owned by the dedicated traceroute
+	// module. None of its handlers may remain in the central show, BGP monitor,
+	// or resolve packages. There is no offline `ze traceroute` root.
+	tracerouteOwner := "internal/component/traceroute/cmd"
+	if _, err := os.Stat(filepath.Join(root, tracerouteOwner)); err != nil {
+		t.Errorf("traceroute feature module %s is missing: %v", tracerouteOwner, err)
+	}
+	for _, gone := range []string{
+		"internal/component/cmd/show/traceroute.go",          // show traceroute -> traceroute module
+		"internal/component/cmd/show/traceroute_parallel.go", // show probe-round -> traceroute module
+		"internal/component/cmd/show/traceroute_stream.go",   // monitor traceroute stream -> traceroute module
+	} {
+		if _, err := os.Stat(filepath.Join(root, gone)); err == nil {
+			t.Errorf("central traceroute file %s still exists; the traceroute feature is owned by %s", gone, tracerouteOwner)
+		}
+	}
+	for _, c := range []struct{ file, symbol string }{
+		{"internal/component/bgp/plugins/cmd/monitor/monitor.go", "handleMonitorTraceroute"},
+		{"internal/component/resolve/cmd/resolve.go", "func handleTraceroute"},
+	} {
+		body, err := os.ReadFile(filepath.Join(root, c.file))
+		if err != nil {
+			t.Errorf("read %s: %v", c.file, err)
+			continue
+		}
+		if strings.Contains(string(body), c.symbol) {
+			t.Errorf("%s still defines %q; the traceroute feature is owned by %s", c.file, c.symbol, tracerouteOwner)
+		}
+	}
 }

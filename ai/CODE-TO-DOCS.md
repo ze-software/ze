@@ -883,7 +883,7 @@ Files: 4 | Docs: `docs/architecture/testing/ci-format.md`, `docs/architecture/te
 
 ## `internal/component/cmd/show/`
 
-Files: 24 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/core-design.md`, `docs/comparison.md`, `docs/features.md`, `docs/guide/audit.md`, `docs/guide/command-reference.md`, `docs/guide/mpls.md`, `docs/guide/plugins.md`
+Files: 23 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/core-design.md`, `docs/comparison.md`, `docs/features.md`, `docs/guide/audit.md`, `docs/guide/command-reference.md`, `docs/guide/mpls.md`, `docs/guide/plugins.md`
 
 | File | Docs |
 |------|------|
@@ -909,7 +909,6 @@ Files: 24 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/core-d
 | `storage.go` | `docs/features.md`, `docs/guide/command-reference.md` |
 | `system.go` | `docs/guide/command-reference.md` |
 | `tcp_check.go` | `docs/guide/command-reference.md` |
-| `traceroute.go` | `docs/guide/command-reference.md` |
 | `update.go` | `docs/guide/command-reference.md` |
 
 ## `internal/component/cmd/show/schema/`
@@ -1520,6 +1519,10 @@ Files: 7 | Docs: `docs/architecture/core-design.md`, `docs/features.md`, `docs/g
 ## `internal/component/telemetry/schema/`
 
 - `internal/component/telemetry/schema/ze-telemetry-conf.yang` -> `docs/guide/monitoring.md`
+
+## `internal/component/traceroute/cmd/`
+
+- `internal/component/traceroute/cmd/traceroute.go` -> `docs/guide/command-reference.md`
 
 ## `internal/component/traffic/`
 

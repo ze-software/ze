@@ -6,13 +6,8 @@
 package cmd
 
 import (
-	"context"
-	"errors"
 	"fmt"
-	"net"
-	"os/exec"
 	"strconv"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -21,8 +16,6 @@ import (
 	// Blank import triggers YANG schema registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/schema"
 )
-
-var errTargetMustNotBeEmpty = errors.New("target must not be empty")
 
 // resolvers holds the shared resolver instances. Set once at hub startup
 // via SetResolvers, read by handler functions. Safe because SetResolvers
@@ -46,7 +39,6 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:peeringdb-as-set", Handler: handlePeeringDBASSet},
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:irr-expand", Handler: handleIRRExpand},
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:irr-prefix", Handler: handleIRRPrefix},
-		pluginserver.RPCRegistration{WireMethod: "ze-resolve:traceroute", Handler: handleTraceroute},
 	)
 }
 
@@ -87,31 +79,6 @@ func dnsResult(records []string, resolveErr error) (*plugin.Response, error) {
 		Status: plugin.StatusDone,
 		Data:   plugin.Map{"records": records},
 	}, nil
-}
-
-func validateTarget(s string) error {
-	if s == "" {
-		return errTargetMustNotBeEmpty
-	}
-	if net.ParseIP(s) != nil {
-		return nil
-	}
-	if len(s) > 253 {
-		return fmt.Errorf("target %q: exceeds 253-character hostname limit", s)
-	}
-	for _, c := range s {
-		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '-' && c != '.' {
-			return fmt.Errorf("target %q: invalid character %q", s, string(c))
-		}
-	}
-	return nil
-}
-
-func validateSourceIP(s string) error {
-	if net.ParseIP(s) == nil {
-		return fmt.Errorf("source %q: not a valid IP address", s)
-	}
-	return nil
 }
 
 // DNS handlers.
@@ -273,59 +240,4 @@ func handleIRRPrefix(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 		Status: plugin.StatusDone,
 		Data:   plugin.Map{"prefixes": lines},
 	}, nil
-}
-
-func handleTraceroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	target, errResp := requireArg(args, "target")
-	if errResp != nil {
-		return errResp, nil
-	}
-	if err := validateTarget(target); err != nil {
-		return errResponse(err.Error())
-	}
-
-	cmdArgs := []string{"-n", "-w", "2", "-q", "1"}
-
-	for i := 1; i < len(args); i++ {
-		switch args[i] {
-		case "source":
-			if i+1 >= len(args) {
-				return errResponse("traceroute: \"source\" requires a value")
-			}
-			i++
-			if err := validateSourceIP(args[i]); err != nil {
-				return errResponse(err.Error())
-			}
-			cmdArgs = append(cmdArgs, "-s", args[i])
-		default:
-			return errResponse(fmt.Sprintf("traceroute: unknown option %q", args[i]))
-		}
-	}
-	cmdArgs = append(cmdArgs, target)
-
-	reqCtx, cancel := context.WithTimeout(ctx.Context(), 30*time.Second)
-	defer cancel()
-
-	out, err := execCommand(reqCtx, "traceroute", cmdArgs...)
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusDone,
-			Data: plugin.Map{
-				"target": target,
-				"output": string(out),
-				"error":  err.Error(),
-			},
-		}, nil
-	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"target": target,
-			"output": string(out),
-		},
-	}, nil
-}
-
-func execCommand(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput() //nolint:gosec // fixed-allowlist name, no shell
 }

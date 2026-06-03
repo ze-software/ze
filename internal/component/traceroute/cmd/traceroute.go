@@ -1,7 +1,7 @@
 // Design: plan/spec-diag-traceroute.md -- ICMP traceroute from the router
-// Related: ping.go -- ICMP ping, shares internal/core/probe helpers
+// Related: register.go -- registers ze-show:traceroute and the rest of the surface
 
-package show
+package cmd
 
 import (
 	"context"
@@ -21,6 +21,11 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 )
+
+// argTimeout is the keyword for the per-probe timeout argument. The traceroute
+// feature module owns its own copy so it does not depend on a central verb
+// package (the central show package keeps its own for tcp-check).
+const argTimeout = "timeout"
 
 var (
 	errTracerouteMissingTarget      = errors.New("traceroute: missing target address")

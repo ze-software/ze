@@ -46,6 +46,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/web/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/schema"

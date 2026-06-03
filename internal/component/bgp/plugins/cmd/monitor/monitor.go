@@ -13,7 +13,6 @@ import (
 	"sync/atomic"
 
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
-	show "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -41,10 +40,6 @@ func init() {
 			WireMethod: WireMethod,
 			Handler:    handleMonitor,
 		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-monitor:traceroute",
-			Handler:    handleMonitorTraceroute,
-		},
 	)
 	// Register the compact one-liner formatter for monitor event display.
 	pluginserver.RegisterMonitorEventFormatter(FormatMonitorLine)
@@ -52,13 +47,9 @@ func init() {
 	pluginserver.RegisterStreamingHandler("monitor event", pluginserver.StreamEventMonitor)
 
 	// "monitor bgp" is the dashboard command, handled by the TUI model.
-	// "monitor traceroute" is also TUI-side (mtr-style live view).
-	// No streaming handler needed -- the CLI intercepts both before
-	// they reach the streaming path.
-}
-
-func handleMonitorTraceroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return show.HandleProbeRound(ctx, args)
+	// No streaming handler needed -- the CLI intercepts it before it
+	// reaches the streaming path. (monitor traceroute is owned by the
+	// dedicated traceroute feature module, internal/component/traceroute/cmd.)
 }
 
 // handleMonitor is the RPC handler for non-streaming callers (interactive CLI dispatch).

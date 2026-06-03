@@ -696,7 +696,7 @@ Returns JSON with target and per-hop array. Each hop has: hop (int), addr
 (string or "*" for timeout), rtt-ms (float or null), ttl (int). Requires
 CAP_NET_RAW (root privilege enforced at startup).
 
-<!-- source: internal/component/cmd/show/traceroute.go -- handleTraceroute -->
+<!-- source: internal/component/traceroute/cmd/traceroute.go -- handleTraceroute -->
 
 ### monitor traceroute
 
