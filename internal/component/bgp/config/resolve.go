@@ -400,7 +400,6 @@ var reservedPeerNames = map[string]bool{
 	"list": true, "detail": true, "capabilities": true, "statistics": true,
 	"history": true, "rib": true,
 	"pause": true, "resume": true, "flush": true, "teardown": true,
-	"with": true, "save": true, "prefix": true,
 	"update": true, "raw": true, "refresh": true, "borr": true, "eorr": true,
 	"clear": true, "plugin": true,
 }

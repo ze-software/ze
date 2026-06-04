@@ -207,8 +207,11 @@ func TestCommandTree(t *testing.T) {
 		t.Fatal("peer command missing")
 		return
 	}
-	if _, ok := peer.Children["teardown"]; !ok {
-		t.Error("peer missing teardown subcommand")
+	reqPeer := reqNode.Children["peer"]
+	if reqPeer == nil {
+		t.Fatal("request peer command missing")
+	} else if _, ok := reqPeer.Children["teardown"]; !ok {
+		t.Error("request peer missing teardown subcommand")
 	}
 	if show.Children["bgp"] == nil || show.Children["bgp"].Children["peer"] == nil {
 		t.Fatal("show bgp peer command missing")
