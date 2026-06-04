@@ -326,7 +326,7 @@
 | `decode.py` | Message decoder | `internal/component/bgp/cli/decode.go` |
 | `encode.py` | Message encoder | `internal/component/bgp/cli/encode.go` |
 | `validate.py` | Config validator | `internal/component/config/cli/cmd_validate.go` |
-| `healthcheck.py` | Health checking | `internal/component/bgp/plugins/healthcheck/`, `cmd/ze/doctor/` |
+| `healthcheck.py` | Health checking | `internal/component/bgp/plugins/healthcheck/`, `internal/plugins/doctor/` |
 | `pipe.py` | Pipe handling | `internal/component/command/pipe.go` |
 | `server.py` | Server mode | `cmd/ze/main.go`, `cmd/ze/hub/main.go` |
 | `flow.py` | Flow generator | N/A (separate tool) |

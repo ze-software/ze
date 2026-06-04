@@ -1,0 +1,21 @@
+// Design: docs/architecture/core-design.md — support command registration
+
+// codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
+
+package support
+
+import (
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+)
+
+func init() {
+	registry.RegisterRoot("support", registry.Meta{
+		Description: "Collect logs, config, and diagnostics into a support archive",
+		Mode:        "offline",
+		Section:     registry.SectionSystem,
+		Subs:        "[--module M] [--exclude M] [--since T] [--reason R] [--sensitive] [--json] [--list-modules]",
+	})
+	registry.MustRegisterLocalMeta("support", Run, registry.Meta{
+		Description: "Bundle logs, config, state, and diagnostics into one archive file. Send the result to support when reporting an issue.",
+	})
+}

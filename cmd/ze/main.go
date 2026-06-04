@@ -21,7 +21,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
-	internalresolve "codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -36,6 +35,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	internalresolve "codeberg.org/thomas-mangin/ze/internal/core/resolve"
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
 	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -88,21 +88,21 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/storage/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/env/cli"
 
-	// Blank imports: root command owners register their handlers via
-	// init() and are dispatched by dispatchRegisteredRoot.
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/crashes"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/debug"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/diag"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/doctor"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/explain"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/host"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/init"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/passwd"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/skills"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/support"
+	// Blank imports: command plugin owners register their handlers via
+	// init() and are dispatched by dispatchRegisteredRoot or LookupLocal.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/completion"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/crashes"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/debug"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/diag"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/doctor"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/exabgp"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/explain"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/host"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/init"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/passwd"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/signal"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/skills"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/support"
 
 	// Import all AAA backends so their init() fires and aaa.Default
 	// contains the backend factories before the hub calls aaa.Default.Build.

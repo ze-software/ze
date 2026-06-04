@@ -16,7 +16,7 @@ The daemon merges both sources at config load: any login attempt is checked
 against the combined list. The super-admin always works; YANG users work
 only when the config is loaded.
 
-<!-- source: cmd/ze/init/main.go -- RunWithReader entries -->
+<!-- source: internal/plugins/init/main.go -- RunWithReader entries -->
 <!-- source: cmd/ze/hub/main_servers.go -- usersFromZefsDB -->
 
 ## Adding a user
@@ -33,7 +33,7 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 
 Interactive use prompts twice for confirmation.
 
-<!-- source: cmd/ze/passwd/main.go -- runImpl -->
+<!-- source: internal/plugins/passwd/main.go -- runImpl -->
 
 ### Step 2: declare the user in YANG
 
@@ -233,4 +233,4 @@ a `slog.Warn` so the truncation surfaces in daemon logs.
 | SSH server password handler | `internal/component/ssh/ssh.go` |
 | Local authenticator | `internal/component/authz/auth.go` |
 | Client credential resolver | `internal/core/ssh/client/client.go` |
-| `ze passwd` | `cmd/ze/passwd/main.go` |
+| `ze passwd` | `internal/plugins/passwd/main.go` |

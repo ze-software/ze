@@ -688,7 +688,7 @@ and writes initial config to `ze.conf`. Each discovered interface gets an entry 
 after its OS name, with `mac { address }` populated and an `os-name` hidden field preserving
 the original OS name. Loopback appears as an empty `loopback { }` container.
 
-<!-- source: cmd/ze/init/main.go -- generateInterfaceConfig -->
+<!-- source: internal/plugins/init/main.go -- generateInterfaceConfig -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 
 ### Example

@@ -63,7 +63,7 @@ existing ExaBGP processes with Ze as the BGP engine. If you have ExaBGP deployme
 and want multithreading, broader address family support, or the plugin ecosystem,
 Ze provides a migration path that does not require rewriting your scripts.
 <!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate -->
-<!-- source: cmd/ze/exabgp/main.go -- ze exabgp plugin -->
+<!-- source: internal/plugins/exabgp/main.go -- ze exabgp plugin -->
 
 ### Wire-level protocol tooling
 

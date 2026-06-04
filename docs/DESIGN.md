@@ -53,7 +53,7 @@ ze-native format. `ze exabgp plugin` runs existing ExaBGP processes with Ze as t
 engine. The migration is external tooling only -- the engine itself has zero ExaBGP
 format awareness.
 <!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate command -->
-<!-- source: cmd/ze/exabgp/main.go -- ze exabgp plugin command -->
+<!-- source: internal/plugins/exabgp/main.go -- ze exabgp plugin command -->
 <!-- source: internal/exabgp/migration/migrate.go -- ExaBGP migration logic -->
 
 **Observable by default.** Structured logging via slog, JSON events for every BGP state
@@ -667,7 +667,7 @@ Subcommands use their own `flag.FlagSet`. Exit codes: 0 = success, 1 = error,
 <!-- source: internal/component/bgp/cli/main.go -- bgp domain Run() -->
 <!-- source: internal/component/config/cli/main.go -- config domain Run() -->
 <!-- source: internal/component/config/yang/cli/main.go -- schema domain Run() -->
-<!-- source: cmd/ze/exabgp/main.go -- exabgp domain Run() -->
+<!-- source: internal/plugins/exabgp/main.go -- exabgp domain Run() -->
 <!-- source: internal/component/cli/client/main.go -- cli domain Run() -->
 
 Key commands:

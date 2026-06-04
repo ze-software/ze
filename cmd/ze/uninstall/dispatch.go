@@ -2,7 +2,7 @@
 
 package uninstall
 
-import "codeberg.org/thomas-mangin/ze/cmd/ze/internal/subdispatch"
+import "codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 
 var dispatcher = subdispatch.New("uninstall", "Remove ze binary or systemd service")
 

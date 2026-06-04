@@ -1,7 +1,7 @@
 # ExaBGP Compatibility
 
-<!-- source: cmd/ze/exabgp/main.go -- ze exabgp subcommands -->
-<!-- source: cmd/ze/exabgp/main_sdk.go -- SDK/TLS connect-back mode -->
+<!-- source: internal/plugins/exabgp/main.go -- ze exabgp subcommands -->
+<!-- source: internal/plugins/exabgp/main_sdk.go -- SDK/TLS connect-back mode -->
 <!-- source: internal/exabgp/migration/migrate.go -- ExaBGP config migration -->
 
 - Automatic detection and migration of ExaBGP configuration files

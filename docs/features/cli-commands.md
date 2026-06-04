@@ -58,7 +58,7 @@
 | `ze signal quit` | Send SIGQUIT — goroutine dump + halt |
 | `ze status` | Check if daemon is running |
 
-<!-- source: cmd/ze/signal/main.go -- Commands registry -->
+<!-- source: internal/plugins/signal/main.go -- Commands registry -->
 
 ### Runtime Interaction
 
@@ -92,6 +92,6 @@
 | `ze completion bash/zsh/fish/nushell` | Generate shell completion scripts |
 | `ze --plugins` | List available internal plugins |
 
-<!-- source: cmd/ze/completion/main.go -- completion subcommand -->
+<!-- source: internal/plugins/completion/main.go -- completion subcommand -->
 <!-- source: internal/component/plugin/cli/main.go -- plugin subcommand -->
-<!-- source: cmd/ze/exabgp/main.go -- exabgp subcommand -->
+<!-- source: internal/plugins/exabgp/main.go -- exabgp subcommand -->

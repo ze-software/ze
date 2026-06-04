@@ -29,7 +29,7 @@ ze init                             # Interactive setup
 ze init --managed                   # Managed client (connects to hub)
 ze init --force                     # Replace existing database
 ```
-<!-- source: cmd/ze/init/main.go -- managedFlag, forceFlag -->
+<!-- source: internal/plugins/init/main.go -- managedFlag, forceFlag -->
 
 `ze init` prompts for:
 - SSH username and password

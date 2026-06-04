@@ -1,7 +1,7 @@
 # ExaBGP Migration
 
 Ze provides tools for converting ExaBGP configurations and running existing ExaBGP plugins with ze as the BGP engine.
-<!-- source: cmd/ze/exabgp/main.go -- Run; internal/exabgp/migration/ -- config conversion; internal/exabgp/bridge/ -- plugin bridge -->
+<!-- source: internal/plugins/exabgp/main.go -- Run; internal/exabgp/migration/ -- config conversion; internal/exabgp/bridge/ -- plugin bridge -->
 
 ## Config Migration
 
@@ -72,7 +72,7 @@ uses stdin/stdout with inline MuxConn framing.
 After each route command, the bridge injects a `peer <addr> flush` to block until
 the forward pool drains, ensuring the engine processes the route before continuing.
 
-<!-- source: cmd/ze/exabgp/main_sdk.go -- runSDKMode TLS connect-back -->
+<!-- source: internal/plugins/exabgp/main_sdk.go -- runSDKMode TLS connect-back -->
 
 ### Bridge Flags
 
@@ -81,7 +81,7 @@ the forward pool drains, ensuring the engine processes the route before continui
 | `--family <family>` | Address families to support (repeatable) |
 | `--route-refresh` | Enable route refresh capability |
 | `--add-path <mode>` | ADD-PATH mode: `receive`, `send`, or `both` |
-<!-- source: cmd/ze/exabgp/main.go -- cmdPlugin flags -->
+<!-- source: internal/plugins/exabgp/main.go -- cmdPlugin flags -->
 
 Example with flags:
 

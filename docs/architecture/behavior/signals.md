@@ -250,11 +250,11 @@ Ze diverges from ExaBGP's signal mapping. The following reflects the actual impl
 ### Daemon Liveness
 
 Daemon liveness is detected by TCP dial to the SSH port. CLI tools (`ze signal stop`, `ze signal reload`, `ze signal status`) connect via SSH to send commands. No PID files or Unix sockets are used.
-<!-- source: cmd/ze/signal/main.go -- Run, cmdSignalReload, cmdSignalStop -->
+<!-- source: internal/plugins/signal/main.go -- Run, cmdSignalReload, cmdSignalStop -->
 
 ### `ze signal` CLI
 
-**Package:** `cmd/ze/signal/`
+**Package:** `internal/plugins/signal/`
 
 Usage: `ze signal <command>`
 
@@ -266,7 +266,7 @@ Usage: `ze signal <command>`
 | reboot | SSH exec `reboot` | Reboot sent | Not running / SSH error |
 | status | SSH exec `show status` | Status returned | Not running / SSH error |
 | quit | SSH exec `request halt` | Quit sent | Not running / SSH error |
-<!-- source: cmd/ze/signal/main.go -- Commands registry, ExitSuccess, ExitNotRunning -->
+<!-- source: internal/plugins/signal/main.go -- Commands registry, ExitSuccess, ExitNotRunning -->
 
 ### Startup Paths
 

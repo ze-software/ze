@@ -15,7 +15,7 @@ ze init                        # interactive: prompts for username, password, ho
 Defaults: `127.0.0.1:2222`, ED25519 host key auto-generated.
 
 Credentials are stored in the ze database (`database.zefs`) with bcrypt-hashed passwords.
-<!-- source: cmd/ze/init/main.go -- keyUsername/keyPassword/keyHost/keyPort, defaultHost, defaultPort -->
+<!-- source: internal/plugins/init/main.go -- keyUsername/keyPassword/keyHost/keyPort, defaultHost, defaultPort -->
 
 ### Reinitializing
 
@@ -29,7 +29,7 @@ ze init --force                # prompts for confirmation interactively
 ```
 
 `--force` moves the old database to `database.zefs.replaced-<date>` as a backup before creating a new one. The backup contains your previous SSH credentials and any stored configs. Non-interactive use (piped stdin) is rejected for safety -- `--force` requires interactive confirmation.
-<!-- source: cmd/ze/init/main.go -- forceFlag -->
+<!-- source: internal/plugins/init/main.go -- forceFlag -->
 
 ### Connection
 
@@ -64,7 +64,7 @@ ze signal reload --host 10.0.0.1 --port 2222
 | `ze signal restart` | Graceful restart (writes GR marker for RFC 4724) |
 | `ze signal status` | Dump process status |
 | `ze signal quit` | Goroutine dump to stderr, then exit |
-<!-- source: cmd/ze/signal/main.go -- Commands registry -->
+<!-- source: internal/plugins/signal/main.go -- Commands registry -->
 
 ### Via Unix Signals
 
@@ -87,7 +87,7 @@ clears the candidate and keeps the previous active config.
 | 1 | Daemon not running |
 | 2 | No SSH credentials (run `ze init`) |
 | 4 | Signal delivery failed |
-<!-- source: cmd/ze/signal/main.go -- ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
+<!-- source: internal/plugins/signal/main.go -- ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
 
 ## Health Checks
 
@@ -98,7 +98,7 @@ ze status                      # exit 0 = running, exit 1 = not running
 ```
 
 This dials the SSH port without completing a handshake. Suitable for systemd watchdog or load balancer TCP check.
-<!-- source: cmd/ze/signal/main.go -- RunStatus, net.Dialer -->
+<!-- source: internal/plugins/signal/main.go -- RunStatus, net.Dialer -->
 
 ### Scripting
 
@@ -226,8 +226,8 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 ```
-<!-- source: cmd/ze/systemd/cmd_install.go -- cmdInstall -->
-<!-- source: cmd/ze/systemd/unit.go -- buildUnitFile -->
+<!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall -->
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
 
 ## Troubleshooting
 

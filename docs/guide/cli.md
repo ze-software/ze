@@ -107,7 +107,7 @@ Named update windows for atomic route changes:
 | `ze signal restart` | Graceful restart (with GR marker) |
 | `ze signal quit` | Goroutine dump and exit |
 | `ze status` | Check if daemon is running |
-<!-- source: cmd/ze/signal/main.go -- Run, RunStatus -->
+<!-- source: internal/plugins/signal/main.go -- Run, RunStatus -->
 
 ## Interactive Features
 

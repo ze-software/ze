@@ -21,7 +21,7 @@ bin/ze init
 ```
 
 This prompts for username, password, SSH host (default `127.0.0.1`), and port (default `2222`). Credentials are stored locally with bcrypt-hashed passwords. For scripting:
-<!-- source: cmd/ze/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
+<!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
 
 ```bash
 echo -e "admin\nsecret" | bin/ze init
@@ -33,7 +33,7 @@ Running `ze init` a second time will refuse with `error: database already exists
 bin/ze signal stop             # stop daemon first
 bin/ze init --force            # prompts for confirmation, then backs up and reinitializes
 ```
-<!-- source: cmd/ze/init/main.go -- forceFlag -->
+<!-- source: internal/plugins/init/main.go -- forceFlag -->
 
 ## Minimal Config
 
@@ -156,7 +156,7 @@ Where `example-local.conf` uses `remote { ip 127.0.0.1; }` and `port 1179`.
 bin/ze signal stop             # graceful shutdown
 bin/ze signal restart          # graceful restart (preserves routes via GR)
 ```
-<!-- source: cmd/ze/signal/main.go -- Run -->
+<!-- source: internal/plugins/signal/main.go -- Run -->
 
 ## Next Steps
 

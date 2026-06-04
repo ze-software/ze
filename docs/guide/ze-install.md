@@ -175,7 +175,7 @@ virtio/ext4/IP-autoconfig built in. The reference kernel above does; see
 ### 3. Start the provisioning server
 
 On a ze device on the (isolated) provisioning network:
-<!-- source: cmd/ze/provision/main.go -- Run -->
+<!-- source: internal/plugins/provision/main.go -- Run -->
 
 ```bash
 sudo ze install remote \
@@ -192,7 +192,7 @@ sudo ze install remote \
 Stock iPXE binaries from `tools/ipxe-binaries/` are copied to
 `/var/lib/ze/install/tftp/` if not already present. If the files are already
 staged from a previous run, omit `--kernel` and `--initrd`.
-<!-- source: cmd/ze/provision/staging.go -- stageArtifacts -->
+<!-- source: internal/plugins/provision/staging.go -- stageArtifacts -->
 
 This runs DHCP (with PXE options and iPXE chainloading), TFTP (bootloaders),
 and the HTTP image server on `eth0`. It serves the image at

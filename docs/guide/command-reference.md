@@ -156,7 +156,7 @@ Exit codes: 0 = ok, 1 = not running, 4 = command failed.
 Reload is transactional: the daemon stages the new config as a candidate version,
 runs verification and apply, then promotes the candidate to active only after the
 runtime accepts it.
-<!-- source: cmd/ze/signal/main.go -- Commands registry, ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
+<!-- source: internal/plugins/signal/main.go -- Commands registry, ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
 
 ### ze status
 
@@ -172,7 +172,7 @@ ze status
 | `--port` | SSH port |
 
 Exit codes: 0 = running, 1 = not running.
-<!-- source: cmd/ze/signal/main.go -- RunStatus -->
+<!-- source: internal/plugins/signal/main.go -- RunStatus -->
 
 ### ze bgp
 
@@ -351,7 +351,7 @@ ze host show all                   # Every section in one payload
 ze host show --text cpu            # Human-readable summary
 ```
 
-<!-- source: cmd/ze/host/host.go -- RunShow, validSections -->
+<!-- source: internal/plugins/host/host.go -- RunShow, validSections -->
 <!-- source: internal/component/host/inventory.go -- Inventory struct and types -->
 
 The same sections are also available as RPCs over `ze cli` to a running
@@ -433,8 +433,8 @@ ze support --since 2h                  # Time scope for log collection
 ze support --output /var/support/      # Output directory (default: cwd)
 ```
 
-<!-- source: cmd/ze/support/support.go -- Run, collect, moduleRegistry -->
-<!-- source: cmd/ze/support/modules.go -- ModuleNames, ModuleList -->
+<!-- source: internal/plugins/support/support.go -- Run, collect, moduleRegistry -->
+<!-- source: internal/plugins/support/modules.go -- ModuleNames, ModuleList -->
 
 ### ze interface
 
@@ -943,7 +943,7 @@ The offline variant works when the daemon is down (which is when you need
 it most, after a crash).
 
 <!-- source: internal/component/cmd/show/crashes.go -- show crashes command -->
-<!-- source: cmd/ze/crashes/crashes.go -- crash storage commands -->
+<!-- source: internal/plugins/crashes/crashes.go -- crash storage commands -->
 
 ### clear interface counters
 
@@ -1018,8 +1018,8 @@ When launched by ze's process manager (as an external plugin), the bridge detect
 `ZE_PLUGIN_HUB_TOKEN` and automatically uses TLS connect-back with the SDK.
 In standalone mode (no env var), it uses stdin/stdout with inline MuxConn framing.
 
-<!-- source: cmd/ze/exabgp/main.go -- Run, cmdPlugin, cmdMigrate -->
-<!-- source: cmd/ze/exabgp/main_sdk.go -- runSDKMode TLS connect-back -->
+<!-- source: internal/plugins/exabgp/main.go -- Run, cmdPlugin, cmdMigrate -->
+<!-- source: internal/plugins/exabgp/main_sdk.go -- runSDKMode TLS connect-back -->
 
 ### ze schema
 
@@ -1070,7 +1070,7 @@ Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
 After credentials are stored, ze init discovers OS network interfaces via netlink
 and writes initial interface configuration (ethernet, bridge, veth, dummy, loopback)
 to the database as `ze.conf`.
-<!-- source: cmd/ze/init/main.go -- Run, defaultHost, defaultPort, generateInterfaceConfig -->
+<!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, generateInterfaceConfig -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 
 ### ze install
@@ -1131,10 +1131,10 @@ forks `ze -` to start DHCP+PXE, TFTP, and HTTP servers for PXE-booting
 target machines with a gokrazy image. The DHCP pool range scales with
 subnet size. Requires root on Linux.
 <!-- source: cmd/ze/install/dispatch.go -- dispatch -->
-<!-- source: cmd/ze/install/local/ -- binary copy -->
-<!-- source: cmd/ze/install/systemd/ -- unit file -->
-<!-- source: cmd/ze/install/remote/ -- PXE provisioning -->
-<!-- source: cmd/ze/systemd/ -- shared service runtime -->
+<!-- source: internal/plugins/local/ -- binary copy -->
+<!-- source: internal/plugins/systemd/ -- unit file -->
+<!-- source: internal/plugins/provision/ -- PXE provisioning -->
+<!-- source: internal/plugins/systemd/ -- shared service runtime -->
 
 ### ze uninstall
 
@@ -1147,8 +1147,8 @@ sudo ze uninstall systemd            # stop, disable, and remove the unit
 sudo ze uninstall systemd --purge    # also remove the ze user and group
 ```
 <!-- source: cmd/ze/uninstall/dispatch.go -- dispatch -->
-<!-- source: cmd/ze/uninstall/local/ -- binary removal -->
-<!-- source: cmd/ze/uninstall/systemd/ -- unit removal -->
+<!-- source: internal/plugins/local/ -- binary removal -->
+<!-- source: internal/plugins/systemd/ -- unit removal -->
 
 
 ### ze passwd
@@ -1164,7 +1164,7 @@ ze passwd                                                # interactive
 
 The output is suitable for direct paste into a YANG `password` leaf, or as a
 shell substitution into `ze config set ... password "$(echo s | ze passwd)"`.
-<!-- source: cmd/ze/passwd/main.go -- runImpl -->
+<!-- source: internal/plugins/passwd/main.go -- runImpl -->
 
 ### --user / -u flag (all client CLIs)
 
@@ -1224,7 +1224,7 @@ ze debug show                      # Show debug state for all subsystems
 
 Three-tier resolution: global override > per-subsystem key > default (off).
 Hierarchical prefixes work: `ze debug enable bgp` enables all bgp.* subsystems.
-<!-- source: cmd/ze/debug/debug.go -- Run -->
+<!-- source: internal/plugins/debug/debug.go -- Run -->
 
 ### ze data
 
@@ -1273,7 +1273,7 @@ ze completion nushell
 | Zsh | `eval "$(ze completion zsh)"` | `ze completion zsh > ~/.zsh/completions/_ze && autoload -Uz compinit && compinit` |
 | Fish | `ze completion fish \| source` | `ze completion fish > ~/.config/fish/completions/ze.fish` |
 | Nushell | `ze completion nushell \| save -f ($nu.default-config-dir \| path join "completions" "ze.nu")` | Add `source completions/ze.nu` to `config.nu` |
-<!-- source: cmd/ze/completion/main.go -- Run -->
+<!-- source: internal/plugins/completion/main.go -- Run -->
 
 ### ze env
 

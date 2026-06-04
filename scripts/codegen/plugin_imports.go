@@ -157,6 +157,12 @@ func discoverPlugins(root, module string) ([]string, error) {
 			if filepath.Base(filepath.Dir(path)) == "schema" {
 				return nil
 			}
+			// Skip packages marked with "codegen:skip" (e.g. CLI-only
+			// command plugins wired via cmd/ze/main.go that would create
+			// import cycles if added to plugin/all).
+			if fileImports(path, "codegen:skip") {
+				return nil
+			}
 			// Convert to full import path relative to module root.
 			pkgRel, err := filepath.Rel(root, filepath.Dir(path))
 			if err != nil {
