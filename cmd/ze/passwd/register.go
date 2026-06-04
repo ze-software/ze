@@ -1,16 +1,17 @@
-// Register the passwd root command with the cmd/ze dispatcher.
+// Register the passwd root command with the command registry.
 
 package passwd
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func init() {
-	cmdregistry.RegisterRoot("passwd", cmdregistry.Meta{
+	registry.MustRegisterRootHandler("passwd", func(_ *registry.RuntimeContext, args []string) int {
+		return Run(args)
+	}, registry.Meta{
 		Description: "Change stored SSH/HTTP passwords",
 		Mode:        "setup",
-		Section:     cmdregistry.SectionConfiguration,
-		Subs:        "",
+		Section:     registry.SectionConfiguration,
 	})
 }

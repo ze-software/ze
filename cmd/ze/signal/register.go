@@ -1,22 +1,26 @@
-// Register the signal + status root commands with the cmd/ze dispatcher.
+// Register the signal + status root commands with the command registry.
 
 package signal
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func init() {
-	cmdregistry.RegisterRoot("signal", cmdregistry.Meta{
+	registry.MustRegisterRootHandler("signal", func(_ *registry.RuntimeContext, args []string) int {
+		return Run(args)
+	}, registry.Meta{
 		Description: "Send signals to the daemon via SSH",
 		Mode:        "daemon",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "reload, stop, restart, quit",
 	})
-	cmdregistry.RegisterRoot("status", cmdregistry.Meta{
+	registry.MustRegisterRootHandler("status", func(_ *registry.RuntimeContext, args []string) int {
+		return RunStatus(args)
+	}, registry.Meta{
 		Description: "Check if daemon is running",
 		Mode:        "daemon",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "exit 0 = running, 1 = not",
 	})
 }

@@ -18,18 +18,12 @@ import (
 	"strings"
 	"time"
 
-	zecompletion "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
-	zedebug "codeberg.org/thomas-mangin/ze/cmd/ze/debug"
-	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
-	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	internalresolve "codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
-	zepasswd "codeberg.org/thomas-mangin/ze/cmd/ze/passwd"
-	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -94,46 +88,29 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/storage/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/env/cli"
 
-	// Blank import: diag's init() registers ping/generate wireguard
-	// keypair with cmdregistry. Not referenced by main() directly
-	// because dispatch goes through the registry fallback.
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/diag"
-
-	// Blank import: crashes' init() registers `crashes show` with
-	// cmdregistry. Reads crash files from disk (no daemon required).
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/crashes"
-
-	// Blank import: host's init() registers `host show` with
-	// cmdregistry. Dispatch via the registry fallback — there is no
-	// daemon dependency on this side (sysfs/procfs read-only).
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/host"
-
-	// Blank import: doctor's init() registers `doctor` with
-	// cmdregistry for system readiness checks.
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/doctor"
-
-	// Blank imports: install/uninstall dispatch + their targets, and
-	// connect register root handlers via the command registry.
+	// Blank imports: root command owners register their handlers via
+	// init() and are dispatched by dispatchRegisteredRoot.
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/connect"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/crashes"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/debug"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/diag"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/doctor"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/explain"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/host"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/init"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install/local"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install/remote"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install/systemd"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/passwd"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/skills"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/support"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall/local"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall/systemd"
-
-	// Blank import: explain's init() registers `explain` with
-	// cmdregistry for diagnostic code explanations.
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/explain"
-
-	// Blank import: skills' init() registers `skills` with
-	// cmdregistry for version-matched agent skill content.
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/skills"
-
-	// Blank import: support's init() registers `support` with
-	// cmdregistry for tech-support archive generation.
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/support"
 
 	// Import all AAA backends so their init() fires and aaa.Default
 	// contains the backend factories before the hub calls aaa.Default.Build.
@@ -206,29 +183,52 @@ func registerLocalCommands() {
 	})
 
 	// Root commands that live in main() itself (not a package).
-	cmdregistry.RegisterRoot("start", cmdregistry.Meta{
+	cmdregistry.MustRegisterRootHandler("start", func(rctx *cmdregistry.RuntimeContext, args []string) int {
+		if len(args) > 0 && isHelpArg(args[0]) {
+			startUsage()
+			return 0
+		}
+		return cmdStart(args, rctx.Plugins, rctx.ChaosSeed, rctx.ChaosRate, rctx.MCPAddr, rctx.MCPToken, rctx.WebPort, rctx.InsecureWeb)
+	}, cmdregistry.Meta{
 		Description: "Start the Ze daemon from blob storage config",
 		Mode:        "setup",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "--web <port>, --insecure-web, --mcp <port>",
 	})
-	cmdregistry.RegisterRoot("version", cmdregistry.Meta{
+	cmdregistry.MustRegisterRootHandler("version", func(rctx *cmdregistry.RuntimeContext, args []string) int {
+		rctx.PrintVersion(slices.Contains(args, "--extended"))
+		return 0
+	}, cmdregistry.Meta{
 		Description: "Show the running Ze version and build date",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "--extended",
 	})
-	cmdregistry.RegisterRoot("update-serve", cmdregistry.Meta{
+	cmdregistry.MustRegisterRootHandler("update-serve", func(_ *cmdregistry.RuntimeContext, args []string) int {
+		return runUpdateServe(args)
+	}, cmdregistry.Meta{
 		Description: "Run a local update server for firmware checks",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "--listen <addr>",
 	})
-	cmdregistry.RegisterRoot("help", cmdregistry.Meta{
+	cmdregistry.MustRegisterRootHandler("help", func(_ *cmdregistry.RuntimeContext, args []string) int {
+		dispatchHelp(args)
+		return 0
+	}, cmdregistry.Meta{
 		Description: "Show available commands and how to use them",
 		Mode:        "offline",
 		Section:     cmdregistry.SectionSystem,
 		Subs:        "command [<filter>] [--json], --ai [--cli|--api|--mcp|--dispatch|--all]",
+	})
+	cmdregistry.MustRegisterRootHandler("--plugins", func(_ *cmdregistry.RuntimeContext, args []string) int {
+		printPlugins(len(args) > 0 && args[0] == "--json")
+		return 0
+	}, cmdregistry.Meta{
+		Description: "List loaded plugins",
+		Mode:        "offline",
+		Section:     cmdregistry.SectionSystem,
+		Subs:        "--json",
 	})
 	cmdregistry.MustRegisterLocalMeta("help command", func(args []string) int {
 		printHelpCommand(args)
@@ -251,7 +251,7 @@ func registerLocalCommands() {
 // store. The returned context is leaf-safe: the registry package does not
 // import storage, so owners type-assert ResolveStorage's result (see
 // registry.StorageAs).
-func newRuntimeContext(plugins []string, configOverride, webPort string, insecureWeb bool, mcpAddr, mcpToken string) *cmdregistry.RuntimeContext {
+func newRuntimeContext(plugins []string, configOverride, webPort string, insecureWeb bool, mcpAddr, mcpToken string, chaosSeed int64, chaosRate float64) *cmdregistry.RuntimeContext {
 	return &cmdregistry.RuntimeContext{
 		ResolveStorage: func() any { return resolveStorage() },
 		Plugins:        plugins,
@@ -261,6 +261,8 @@ func newRuntimeContext(plugins []string, configOverride, webPort string, insecur
 		InsecureWeb:    insecureWeb,
 		MCPAddr:        mcpAddr,
 		MCPToken:       mcpToken,
+		ChaosSeed:      chaosSeed,
+		ChaosRate:      chaosRate,
 	}
 }
 
@@ -491,89 +493,18 @@ dispatch:
 		exit(code)
 	}
 
-	// Owner-backed root commands: ask the registry before the legacy static
-	// switch. A migrated owner registers a RootHandler from its init(); roots
-	// still handled below (process-global commands and not-yet-migrated owners)
-	// have no registered handler, so dispatchRegisteredRoot reports handled=false
-	// and control falls through unchanged.
-	rctx := newRuntimeContext(plugins, fileOverride, webPort, insecureWeb, mcpAddr, mcpToken)
-	if code, handled := dispatchRegisteredRoot(arg, rctx, args[1:]); handled {
-		exit(code)
+	// Normalize flag-style aliases to their registered root command names
+	// so the registry lookup handles them uniformly.
+	switch arg {
+	case "-h", "--help":
+		arg = "help"
 	}
 
-	// Static dispatch for commands not yet migrated to YANG verb registration.
-	switch arg {
-	case "init":
-		exit(zeinit.Run(args[1:]))
-	case "passwd":
-		exit(zepasswd.Run(args[1:]))
-	case "debug":
-		exit(zedebug.Run(args[1:]))
-	case "exabgp":
-		exit(exabgp.Run(args[1:]))
-	case "signal":
-		exit(zesignal.Run(args[1:]))
-	case "status":
-		exit(zesignal.RunStatus(args[1:]))
-	case "completion":
-		exit(zecompletion.Run(args[1:]))
-	case "version":
-		printVersion(slices.Contains(args[1:], "--extended"))
-		exit(0)
-	case "update-serve":
-		exit(runUpdateServe(args[1:]))
-	case "start":
-		if len(args) > 1 && isHelpArg(args[1]) {
-			p := helpfmt.Page{
-				Command: "ze start",
-				Summary: "Start the Ze daemon from blob storage",
-				Usage:   []string{"ze start [options]"},
-				Sections: []helpfmt.HelpSection{
-					{Title: "Options", Entries: []helpfmt.HelpEntry{
-						{Name: "--cli", Desc: "Attach interactive CLI after startup"},
-						{Name: "--web <port>", Desc: "Enable web UI on given port"},
-						{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
-						{Name: "--mcp <port>", Desc: "Enable MCP server on given port"},
-						{Name: "--mcp-token <token>", Desc: "Bearer token for MCP authentication"},
-					}},
-					{Title: "Prerequisites", Entries: []helpfmt.HelpEntry{
-						{Name: "ze init", Desc: "Bootstrap database (required before first start)"},
-						{Name: "ze config edit", Desc: "Create or edit configuration"},
-					}},
-				},
-				Examples: []string{
-					"ze start                           Start daemon with default config",
-					"ze start --cli                     Start daemon and attach interactive CLI",
-					"ze start --web 3443                Start with web UI on port 3443",
-					"ze start --web 3443 --insecure-web Start with web UI, no auth (localhost)",
-				},
-			}
-			p.Write()
-			exit(0)
-		}
-		exit(cmdStart(args[1:], plugins, chaosSeed, chaosRate, mcpAddr, mcpToken, webPort, insecureWeb))
-	case "help", "-h", "--help": //nolint:goconst // case labels can't call functions
-		subArgs := args[1:]
-		switch {
-		case len(subArgs) > 0 && subArgs[0] == "command":
-			if slices.Contains(subArgs[1:], "--help") || slices.Contains(subArgs[1:], "-h") {
-				helpCommandUsage()
-			} else {
-				printHelpCommand(subArgs[1:])
-			}
-		case aiHelpRequested(subArgs):
-			printAIHelp(subArgs)
-		case slices.Contains(subArgs, "--help") || slices.Contains(subArgs, "-h"):
-			helpUsage()
-		default:
-			usage()
-		}
-		exit(0)
-	case "--plugins":
-		// Check for --json flag
-		jsonOutput := len(os.Args) > 2 && os.Args[2] == "--json"
-		printPlugins(jsonOutput)
-		exit(0)
+	// Owner-backed root commands: every root command registers a handler
+	// from init() and is dispatched here. No static switch needed.
+	rctx := newRuntimeContext(plugins, fileOverride, webPort, insecureWeb, mcpAddr, mcpToken, chaosSeed, chaosRate)
+	if code, handled := dispatchRegisteredRoot(arg, rctx, args[1:]); handled {
+		exit(code)
 	}
 
 	// Derive web settings from global flags.
@@ -679,6 +610,51 @@ func isYANGVerb(arg string) bool {
 // isHelpArg returns true if the argument is a help flag.
 func isHelpArg(s string) bool {
 	return s == "help" || s == "-h" || s == "--help"
+}
+
+func startUsage() {
+	p := helpfmt.Page{
+		Command: "ze start",
+		Summary: "Start the Ze daemon from blob storage",
+		Usage:   []string{"ze start [options]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Name: "--cli", Desc: "Attach interactive CLI after startup"},
+				{Name: "--web <port>", Desc: "Enable web UI on given port"},
+				{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
+				{Name: "--mcp <port>", Desc: "Enable MCP server on given port"},
+				{Name: "--mcp-token <token>", Desc: "Bearer token for MCP authentication"},
+			}},
+			{Title: "Prerequisites", Entries: []helpfmt.HelpEntry{
+				{Name: "ze init", Desc: "Bootstrap database (required before first start)"},
+				{Name: "ze config edit", Desc: "Create or edit configuration"},
+			}},
+		},
+		Examples: []string{
+			"ze start                           Start daemon with default config",
+			"ze start --cli                     Start daemon and attach interactive CLI",
+			"ze start --web 3443                Start with web UI on port 3443",
+			"ze start --web 3443 --insecure-web Start with web UI, no auth (localhost)",
+		},
+	}
+	p.Write()
+}
+
+func dispatchHelp(args []string) {
+	switch {
+	case len(args) > 0 && args[0] == "command":
+		if slices.Contains(args[1:], "--help") || slices.Contains(args[1:], "-h") {
+			helpCommandUsage()
+		} else {
+			printHelpCommand(args[1:])
+		}
+	case aiHelpRequested(args):
+		printAIHelp(args)
+	case slices.Contains(args, "--help") || slices.Contains(args, "-h"):
+		helpUsage()
+	default:
+		usage()
+	}
 }
 
 func extractHelpPath(args []string) []string {

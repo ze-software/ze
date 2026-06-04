@@ -81,6 +81,9 @@ type RuntimeContext struct {
 	InsecureWeb bool
 	MCPAddr     string
 	MCPToken    string
+	// ChaosSeed and ChaosRate are the chaos-testing parameters from global flags.
+	ChaosSeed int64
+	ChaosRate float64
 }
 
 // StorageAs type-asserts ResolveStorage's result to the requested type T,

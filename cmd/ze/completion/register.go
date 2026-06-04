@@ -1,11 +1,11 @@
-// Register the completion root command with the cmd/ze dispatcher.
+// Register the completion root command with the command registry.
 
 package completion
 
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 // shells lists the user-facing shell names for completion generation.
@@ -20,10 +20,12 @@ func subcommands() string {
 }
 
 func init() {
-	cmdregistry.RegisterRoot("completion", cmdregistry.Meta{
+	registry.MustRegisterRootHandler("completion", func(_ *registry.RuntimeContext, args []string) int {
+		return Run(args)
+	}, registry.Meta{
 		Description: "Shell completion scripts",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        subcommands(),
 	})
 }

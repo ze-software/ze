@@ -65,6 +65,8 @@ func TestRootDispatchPassesRuntimeContext(t *testing.T) {
 		true,
 		"127.0.0.1:9000",
 		"tok",
+		42,
+		0.25,
 	)
 
 	if rctx.ResolveStorage == nil {
@@ -84,6 +86,12 @@ func TestRootDispatchPassesRuntimeContext(t *testing.T) {
 	}
 	if rctx.MCPAddr != "127.0.0.1:9000" || rctx.MCPToken != "tok" {
 		t.Errorf("mcp flags = (%q, %q), want (127.0.0.1:9000, tok)", rctx.MCPAddr, rctx.MCPToken)
+	}
+	if rctx.ChaosSeed != 42 {
+		t.Errorf("ChaosSeed = %d, want 42", rctx.ChaosSeed)
+	}
+	if rctx.ChaosRate != 0.25 {
+		t.Errorf("ChaosRate = %f, want 0.25", rctx.ChaosRate)
 	}
 
 	// The handler receives the identical context instance built by main().

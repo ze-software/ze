@@ -1,16 +1,18 @@
-// Register the exabgp root command with the cmd/ze dispatcher.
+// Register the exabgp root command with the command registry.
 
 package exabgp
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func init() {
-	cmdregistry.RegisterRoot("exabgp", cmdregistry.Meta{
+	registry.MustRegisterRootHandler("exabgp", func(_ *registry.RuntimeContext, args []string) int {
+		return Run(args)
+	}, registry.Meta{
 		Description: "ExaBGP bridge tools",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionConfiguration,
+		Section:     registry.SectionConfiguration,
 		Subs:        "plugin, migrate",
 	})
 }
