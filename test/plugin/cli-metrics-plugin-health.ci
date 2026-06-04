@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes with telemetry enabled
-# 2. Python plugin dispatches "metrics list" via dispatch-command
+# 2. Python plugin dispatches "show metrics list" via dispatch-command
 # 3. Verifies response names array contains plugin health metrics
 # 4. Shuts down daemon
 #
@@ -55,7 +55,7 @@ def main():
     failed = False
 
     # Test: bgp metrics list should include plugin health metric names
-    r = dispatch(api, 'metrics list')
+    r = dispatch(api, 'show metrics list')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
@@ -74,7 +74,7 @@ def main():
             failed = True
         else:
             # Plugin health metrics registered by ProcessManager.
-            # Vec metrics appear in "metrics list" even without observations.
+            # Vec metrics appear in "show metrics list" even without observations.
             required = [
                 'ze_plugin_status',
                 'ze_plugin_restarts_total',

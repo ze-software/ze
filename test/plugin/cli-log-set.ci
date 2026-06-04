@@ -2,9 +2,9 @@
 #
 # Flow:
 # 1. BGP session establishes
-# 2. Python plugin dispatches "log levels" to see initial levels
-# 3. Dispatches "log set <subsystem> debug" to change a level
-# 4. Dispatches "log levels" again to verify the change
+# 2. Python plugin dispatches "show log levels" to see initial levels
+# 3. Dispatches "set log <subsystem> debug" to change a level
+# 4. Dispatches "show log levels" again to verify the change
 # 5. Shuts down daemon
 #
 # VALIDATES: AC-2 — bgp log set changes subsystem to specified level.
@@ -19,7 +19,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for bgp log set
+# Python test plugin: exercises dispatch-command for set log
 tmpfs=log-set-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Test: bgp log set via dispatch-command."""
@@ -59,7 +59,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     # Get initial levels to find a subsystem to modify
-    r = dispatch(api, 'log levels')
+    r = dispatch(api, 'show log levels')
     data = parse_data(r)
     levels = data.get('levels', {})
 
@@ -73,14 +73,14 @@ def main():
     print(f'INFO: changing {subsystem} from {original_level} to debug', file=sys.stderr)
 
     # Set level to debug
-    r = dispatch(api, f'log set {subsystem} debug')
+    r = dispatch(api, f'set log {subsystem} debug')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: set returned status={status}', file=sys.stderr)
         sys.exit(1)
 
     # Verify the change via log levels
-    r = dispatch(api, 'log levels')
+    r = dispatch(api, 'show log levels')
     data = parse_data(r)
     new_levels = data.get('levels', {})
 
@@ -91,7 +91,7 @@ def main():
     print(f'OK: {subsystem} level changed to debug', file=sys.stderr)
 
     # Test error case: unknown subsystem
-    r = dispatch(api, 'log set nonexistent info')
+    r = dispatch(api, 'set log nonexistent info')
     if r.get('status') != 'error':
         print(f'FAIL: expected error for unknown subsystem', file=sys.stderr)
         sys.exit(1)

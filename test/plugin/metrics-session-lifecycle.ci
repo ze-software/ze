@@ -57,7 +57,7 @@ def main():
     failed = False
 
     # Get metrics values
-    r = dispatch(api, 'metrics values')
+    r = dispatch(api, 'show metrics values')
     status = r.get('status')
     metrics_text = ''
     if status != 'done':

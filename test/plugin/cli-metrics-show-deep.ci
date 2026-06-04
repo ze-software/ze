@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes with telemetry enabled
-# 2. Python plugin dispatches "metrics values" via dispatch-command
+# 2. Python plugin dispatches "show metrics values" via dispatch-command
 # 3. Verifies response contains session lifecycle, wire, config, and GR metric names
 # 4. Shuts down daemon
 #
@@ -55,7 +55,7 @@ def main():
     failed = False
 
     # Test: metrics values should contain deep instrumentation metrics
-    r = dispatch(api, 'metrics values')
+    r = dispatch(api, 'show metrics values')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: expected status=done, got={status}', file=sys.stderr)

@@ -21,9 +21,9 @@ func newDispatchContext() *pluginserver.CommandContext {
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPMetricsValues verifies "metrics values" dispatches through init() registration.
+// TestDispatchBGPMetricsValues verifies "show metrics values" dispatches through init() registration.
 //
-// VALIDATES: AC-5 — metrics values registered and dispatchable.
+// VALIDATES: AC-5 — show metrics values registered and dispatchable.
 // PREVENTS: Metrics values handler not registered in dispatcher.
 func TestDispatchBGPMetricsValues(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
@@ -34,14 +34,14 @@ func TestDispatchBGPMetricsValues(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := newDispatchContext()
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "metrics values")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show metrics values")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }
 
-// TestDispatchBGPMetricsList verifies "metrics list" dispatches through init() registration.
+// TestDispatchBGPMetricsList verifies "show metrics list" dispatches through init() registration.
 //
-// VALIDATES: AC-5 — metrics list registered and dispatchable.
+// VALIDATES: AC-5 — show metrics list registered and dispatchable.
 // PREVENTS: Metrics list handler not registered in dispatcher.
 func TestDispatchBGPMetricsList(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
@@ -52,7 +52,7 @@ func TestDispatchBGPMetricsList(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := newDispatchContext()
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "metrics list")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show metrics list")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }

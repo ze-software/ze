@@ -127,11 +127,11 @@ case "$OUTPUT" in
 esac
 
 # Test 2: restricted user denied for metrics command (not in allow list)
-ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "metrics list" 2>/dev/null && {
-	echo "FAIL: operator should be denied 'metrics list'" >&2
+ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "show metrics list" 2>/dev/null && {
+	echo "FAIL: operator should be denied 'show metrics list'" >&2
 	exit 1
 }
-echo "OK: operator denied metrics list" >&2
+echo "OK: operator denied show metrics list" >&2
 
 echo "OK: all deny tests passed" >&2
 exit 0

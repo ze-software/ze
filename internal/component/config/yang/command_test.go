@@ -370,10 +370,18 @@ func TestLogCmdModule(t *testing.T) {
 	entry := loader.GetEntry("ze-cli-log-cmd")
 	require.NotNil(t, entry)
 
-	log := entry.Dir["log"]
-	require.NotNil(t, log)
-	assert.Equal(t, "ze-bgp:log-levels", GetCommandExtension(log.Dir["levels"]))
-	assert.Equal(t, "ze-bgp:log-set", GetCommandExtension(log.Dir["set"]))
+	show := entry.Dir["show"]
+	require.NotNil(t, show)
+	showLog := show.Dir["log"]
+	require.NotNil(t, showLog)
+	assert.Equal(t, "ze-bgp:log-levels", GetCommandExtension(showLog.Dir["levels"]))
+	assert.Equal(t, "ze-bgp:log-recent", GetCommandExtension(showLog.Dir["recent"]))
+
+	set := entry.Dir["set"]
+	require.NotNil(t, set)
+	setLog := set.Dir["log"]
+	require.NotNil(t, setLog)
+	assert.Equal(t, "ze-bgp:log-set", GetCommandExtension(setLog))
 }
 
 // TestMetricsCmdModule verifies ze-cli-metrics-cmd.yang (metrics operations from cmd/metrics plugin).
@@ -391,7 +399,9 @@ func TestMetricsCmdModule(t *testing.T) {
 	entry := loader.GetEntry("ze-cli-metrics-cmd")
 	require.NotNil(t, entry)
 
-	metrics := entry.Dir["metrics"]
+	showM := entry.Dir["show"]
+	require.NotNil(t, showM)
+	metrics := showM.Dir["metrics"]
 	require.NotNil(t, metrics)
 	assert.Equal(t, "ze-bgp:metrics-values", GetCommandExtension(metrics.Dir["values"]))
 	assert.Equal(t, "ze-bgp:metrics-list", GetCommandExtension(metrics.Dir["list"]))
@@ -1105,8 +1115,8 @@ func TestArgDefsPopulated(t *testing.T) {
 		"show neighbors":               1, // family
 		"show crashes":                 1, // name
 		"set system file-descriptors":  1, // limit
-		"log set":                      2, // logger, level
-		"log recent":                   3, // level, component, count
+		"set log":                      2, // logger, level
+		"show log recent":              3, // level, component, count
 	}
 
 	for path, wantCount := range wantArgDefs {

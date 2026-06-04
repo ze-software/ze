@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes with telemetry enabled
-# 2. Python plugin dispatches "metrics values" via dispatch-command
+# 2. Python plugin dispatches "show metrics values" via dispatch-command
 # 3. Verifies Phase 5 congestion metrics appear in output
 # 4. Shuts down daemon
 #
@@ -50,7 +50,7 @@ def main():
     metrics_text = ''
     for attempt in range(10):
         time.sleep(0.5)
-        r = dispatch(api, 'metrics values')
+        r = dispatch(api, 'show metrics values')
         status = r.get('status')
         if status != 'done':
             continue

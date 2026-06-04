@@ -56,7 +56,7 @@ def dispatch(api, command):
 
 def get_metrics(api):
     """Fetch Prometheus metrics text via dispatch."""
-    r = dispatch(api, 'metrics values')
+    r = dispatch(api, 'show metrics values')
     if r.get('status') != 'done':
         return ''
     data_str = result_text_data(r, '{}')

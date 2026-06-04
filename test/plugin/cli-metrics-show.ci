@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes with telemetry enabled
-# 2. Python plugin dispatches "metrics values" via dispatch-command
+# 2. Python plugin dispatches "show metrics values" via dispatch-command
 # 3. Verifies response contains Prometheus text output
 # 4. Shuts down daemon
 #
@@ -49,7 +49,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     # Test: bgp metrics values should return Prometheus text
-    r = dispatch(api, 'metrics values')
+    r = dispatch(api, 'show metrics values')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: expected status=done, got={status}', file=sys.stderr)

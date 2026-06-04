@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes
-# 2. Python plugin dispatches "log levels" via dispatch-command
+# 2. Python plugin dispatches "show log levels" via dispatch-command
 # 3. Verifies response contains levels map with subsystem entries
 # 4. Shuts down daemon
 #
@@ -18,7 +18,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for bgp log levels
+# Python test plugin: exercises dispatch-command for show log levels
 tmpfs=log-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """Test: bgp log levels via dispatch-command."""
@@ -49,7 +49,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     # Test: bgp log levels should return subsystem levels
-    r = dispatch(api, 'log levels')
+    r = dispatch(api, 'show log levels')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: expected status=done, got={status}', file=sys.stderr)

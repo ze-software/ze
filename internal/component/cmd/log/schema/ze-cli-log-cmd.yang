@@ -4,24 +4,62 @@ module ze-cli-log-cmd {
     import ze-extensions { prefix ze; }
     description "View and control daemon logging";
     revision 2026-03-16 { description "Initial revision"; }
+    revision 2026-06-04 { description "Verb-first grammar: reads under show log, mutation under set log."; }
 
-    container log {
+    container show {
         config false;
-        description "View log entries and adjust log levels at runtime";
+        description "Read-only log inspection";
 
-        container levels {
+        container log {
             config false;
-            ze:command "ze-bgp:log-levels";
-            description "Show what log level each subsystem is using.
-Lists every registered logger with its current level. Use 'log set'
-to change a level at runtime without restarting.";
-        }
+            description "View log entries and current levels";
 
-        container set {
+            container levels {
+                config false;
+                ze:command "ze-bgp:log-levels";
+                description "Show what log level each subsystem is using.
+Lists every registered logger with its current level. Use 'set log'
+to change a level at runtime without restarting.";
+            }
+
+            container recent {
+                config false;
+                ze:command "ze-bgp:log-recent";
+                description "Show recent log entries from the in-memory ring.
+Filters (all optional): level <lvl>, component <name>, count <N>.
+Newest entries first. Useful when you cannot access the log file
+directly.";
+                leaf level {
+                    type enumeration {
+                        enum disabled;
+                        enum debug;
+                        enum info;
+                        enum warn;
+                        enum err;
+                    }
+                    description "Filter by log level";
+                }
+                leaf component {
+                    type string;
+                    description "Filter by component name";
+                }
+                leaf count {
+                    type uint32;
+                    description "Maximum number of entries";
+                }
+            }
+        }
+    }
+
+    container set {
+        config false;
+        description "Runtime log configuration";
+
+        container log {
             config false;
             ze:command "ze-bgp:log-set";
             description "Change a subsystem's log level without restarting.
-Usage: log set <logger> <level>. Takes effect immediately. Set to
+Usage: set log <logger> <level>. Takes effect immediately. Set to
 debug when troubleshooting, then back to info when you are done.";
             leaf logger {
                 type string;
@@ -36,33 +74,6 @@ debug when troubleshooting, then back to info when you are done.";
                     enum err;
                 }
                 description "Target log level";
-            }
-        }
-
-        container recent {
-            config false;
-            ze:command "ze-bgp:log-recent";
-            description "Show recent log entries from the in-memory ring.
-Filters (all optional): level <lvl>, component <name>, count <N>.
-Newest entries first. Useful when you cannot access the log file
-directly.";
-            leaf level {
-                type enumeration {
-                    enum disabled;
-                    enum debug;
-                    enum info;
-                    enum warn;
-                    enum err;
-                }
-                description "Filter by log level";
-            }
-            leaf component {
-                type string;
-                description "Filter by component name";
-            }
-            leaf count {
-                type uint32;
-                description "Maximum number of entries";
             }
         }
     }
