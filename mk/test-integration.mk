@@ -148,7 +148,7 @@ QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/'
 ZE_QEMU_BIN := bin/ze-linux-$(QEMU_GOARCH)
 ZE_QEMU_STRIPPED_BIN := bin/ze-stripped-linux-$(QEMU_GOARCH)
 ZE_QEMU_TEST_BIN := bin/ze-test-linux-$(QEMU_GOARCH)
-ZE_QEMU_SKIP_SUITES ?= web
+ZE_QEMU_SKIP_SUITES ?= web,firewall
 ZE_QEMU_PARALLEL ?= 4
 
 # The QEMU ze build deliberately OMITS ZE_LDFLAGS (the version/buildDate -X

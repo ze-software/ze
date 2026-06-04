@@ -1,6 +1,6 @@
-// Design: docs/architecture/cli/plugin-modes.md — ze_linux build tag validation
+// Design: docs/architecture/cli/plugin-modes.md — ze_distro build tag validation
 //
-//go:build ze_linux && !ze_appliance && !ze_setup
+//go:build ze_distro && !ze_appliance && !ze_setup
 
 package main
 
@@ -19,10 +19,10 @@ func TestZeLinuxBinaryCommands(t *testing.T) {
 
 	for _, name := range []string{"install", "uninstall", "connect"} {
 		if !seen[name] {
-			t.Fatalf("root %q missing in ze_linux build", name)
+			t.Fatalf("root %q missing in ze_distro build", name)
 		}
 	}
 	if seen["appliance"] {
-		t.Fatal("root \"appliance\" unexpectedly registered in ze_linux-only build")
+		t.Fatal("root \"appliance\" unexpectedly registered in ze_distro-only build")
 	}
 }

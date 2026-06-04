@@ -1,6 +1,6 @@
 // Design: plan/spec-unified-update-backend.md -- minimal-build Ze self-update stub
 //
-//go:build !ze_linux
+//go:build !ze_distro
 
 package system
 

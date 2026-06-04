@@ -1,6 +1,6 @@
-// Design: docs/architecture/cli/plugin-modes.md — ze_linux feature wiring
+// Design: docs/architecture/cli/plugin-modes.md — ze_distro feature wiring
 //
-//go:build ze_linux
+//go:build ze_distro
 
 package main
 

@@ -77,7 +77,7 @@ docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
 
 ze:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_linux $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_distro $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 ze-appliance:
 	@mkdir -p bin
@@ -106,7 +106,7 @@ analyse:
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_linux $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_distro $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 bin/ze-appliance: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-appliance..."

@@ -1,4 +1,4 @@
-//go:build !ze_linux
+//go:build !ze_distro
 
 // Design: plan/spec-unified-update-backend.md -- minimal-build firmware command dispatch tests
 

@@ -1,4 +1,4 @@
-//go:build ze_linux
+//go:build ze_distro
 
 package system
 

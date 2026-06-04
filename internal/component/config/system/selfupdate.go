@@ -1,4 +1,4 @@
-//go:build ze_linux
+//go:build ze_distro
 
 // Design: plan/spec-cpe-6-self-update.md -- download, verify, stage, restart logic
 
