@@ -315,6 +315,25 @@ module ze-extensions {
         description "CSP directive string advertised in _meta.ui.csp.";
     }
 
+    // Extension: ensure-exists
+    // Marks a command container as creating a resource that descendant commands
+    // depend on. When the dispatcher executes a descendant command whose path
+    // passes through this node, it first calls this node's handler to ensure the
+    // resource exists (idempotent: succeeds if already present). If the
+    // descendant command fails and this handler created the resource, the
+    // dispatcher calls the rollback handler to clean up.
+    //
+    // The argument names the WireMethod of the undo/delete handler
+    // (e.g., "ze-iface:interface-delete"). The dispatcher looks up this
+    // handler at registration time to build the rollback chain.
+    extension ensure-exists {
+        argument rollback-handler;
+        description "Marks a command container as a resource checkpoint.
+                     Descendant commands auto-ensure this resource exists.
+                     Argument: WireMethod of the rollback handler for undo
+                     on descendant failure.";
+    }
+
     // Extension: bcrypt
     // Marks a leaf as a one-way bcrypt-hashed value. Distinct from ze:sensitive
     // (which uses $9$ reversible obfuscation). Parser does NOT apply $9$ decode.

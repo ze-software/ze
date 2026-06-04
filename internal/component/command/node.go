@@ -43,13 +43,14 @@ type ArgDef struct {
 // Node represents a node in the operational command tree.
 // Used for completion and command validation across CLI and editor command mode.
 type Node struct {
-	Name        string
-	Description string
-	WireMethod  string   // Handler dispatch key (from ze:command argument). Empty for grouping nodes.
-	TaskSupport string   // MCP task-support level (from ze:task-support). Empty = optional.
-	Backend     []string // Allowed backends (from ze:backend). Nil = unrestricted.
-	Children    map[string]*Node
-	ArgDefs     []ArgDef // Typed argument definitions from YANG leaves inside ze:command.
+	Name         string
+	Description  string
+	WireMethod   string   // Handler dispatch key (from ze:command argument). Empty for grouping nodes.
+	TaskSupport  string   // MCP task-support level (from ze:task-support). Empty = optional.
+	Backend      []string // Allowed backends (from ze:backend). Nil = unrestricted.
+	EnsureExists string   // Rollback WireMethod from ze:ensure-exists. Empty = not a checkpoint.
+	Children     map[string]*Node
+	ArgDefs      []ArgDef // Typed argument definitions from YANG leaves inside ze:command.
 
 	// DynamicChildren returns additional completion suggestions at this node.
 	// Called alongside static Children when completing. Used for runtime data

@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Related: ensure.go -- ze:ensure-exists chain wrapping for compound commands
 
 package server
 
@@ -64,15 +65,28 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string, pathT
 }
 
 // LoadBuiltinsWithAliases registers all builtin handlers with the dispatcher,
-// including all YANG command aliases for each wire method.
-func LoadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef) {
+// including all YANG command aliases for each wire method. When cmdTree is
+// non-nil, commands whose YANG path passes through a ze:ensure-exists node
+// are wrapped to auto-ensure the parent resource and rollback on failure.
+func LoadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) {
+	wireToHandler := make(map[string]Handler, len(AllBuiltinRPCs()))
+	for _, reg := range AllBuiltinRPCs() {
+		if reg.Handler != nil {
+			wireToHandler[reg.WireMethod] = reg.Handler
+		}
+	}
+
 	for _, reg := range AllBuiltinRPCs() {
 		paths := wireToPaths[reg.WireMethod]
 		if len(paths) == 0 {
 			continue
 		}
 		for _, name := range paths {
-			d.RegisterWithOptions(name, reg.Handler, pathToDesc[name], RegisterOptions{
+			handler := reg.Handler
+			if chain := buildEnsureChain(cmdTree, name, wireToHandler); len(chain) > 0 {
+				handler = wrapWithEnsureChain(handler, chain)
+			}
+			d.RegisterWithOptions(name, handler, pathToDesc[name], RegisterOptions{
 				ReadOnly:         IsReadOnlyPath(name),
 				RequiresSelector: reg.RequiresSelector,
 				PluginProxy:      reg.PluginCommand != "",
@@ -249,19 +263,15 @@ func NewDispatcher() *Dispatcher {
 	}
 }
 
-// HasCommandPrefix returns true if the input matches any registered command prefix
-// (builtin or plugin). Used by dispatch routing to distinguish top-level commands
-// from scoped subcommands that need a selector prefix prepended.
+// HasCommandPrefix reports whether input starts with a registered builtin
+// or plugin command prefix (word-boundary match, case-insensitive).
 func (d *Dispatcher) HasCommandPrefix(input string) bool {
-	tokens, err := tokenize(input)
-	if err != nil || len(tokens) == 0 {
-		return false
-	}
-	if _, _, _, ok := d.matchBuiltinTokens(tokens); ok {
-		return true
-	}
-	// Check plugin registry commands with plain longest-prefix matching.
 	lower := strings.ToLower(strings.TrimSpace(input))
+	for _, key := range d.sortedKeys {
+		if strings.HasPrefix(lower, key) && (len(lower) == len(key) || lower[len(key)] == ' ') {
+			return true
+		}
+	}
 	if d.registry != nil {
 		for _, cmd := range d.registry.All() {
 			key := cmd.LowerName

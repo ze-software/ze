@@ -224,6 +224,10 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 			target.Backend = be
 		}
 
+		if ee := GetEnsureExistsExtension(child); ee != "" && target.EnsureExists == "" {
+			target.EnsureExists = ee
+		}
+
 		// Extract typed argument definitions from leaf children of ze:command nodes.
 		if wm != "" && len(target.ArgDefs) == 0 {
 			target.ArgDefs = extractArgDefs(child)
@@ -497,6 +501,21 @@ func GetBackendExtension(entry *gyang.Entry) []string {
 		}
 	}
 	return out
+}
+
+// GetEnsureExistsExtension reads the ze:ensure-exists extension from a YANG entry.
+// Returns the rollback WireMethod string (e.g., "ze-iface:interface-delete"),
+// or empty string if the entry has no ze:ensure-exists extension.
+func GetEnsureExistsExtension(entry *gyang.Entry) string {
+	if entry == nil {
+		return ""
+	}
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:ensure-exists" || strings.HasSuffix(ext.Keyword, ":ensure-exists") {
+			return ext.Argument
+		}
+	}
+	return ""
 }
 
 // HasEditShortcutExtension returns true if the YANG entry has the ze:edit-shortcut extension.

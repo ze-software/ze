@@ -182,7 +182,8 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 
 	// Register core handlers (text dispatcher for plugin protocol),
 	// including all YANG command aliases.
-	LoadBuiltinsWithAliases(s.dispatcher, wireToPaths, pathToDesc, pathToArgDefs)
+	cmdTree := yang.BuildCommandTree(loader)
+	LoadBuiltinsWithAliases(s.dispatcher, wireToPaths, pathToDesc, pathToArgDefs, cmdTree)
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {

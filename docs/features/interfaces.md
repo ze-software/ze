@@ -458,6 +458,37 @@ and `wg(8)`.
 
 <!-- source: internal/component/iface/iface.go — Topic* constants, *Payload structs -->
 
+## Compound Commands (Auto-Ensure Parent)
+
+When a command creates a sub-resource (VLAN unit, address) on an interface
+that may not exist yet, the compound form auto-creates the parent:
+
+| Command | Behavior |
+|---------|----------|
+| `create interface dummy <name> unit <vid>` | Creates dummy `<name>` if missing, then creates VLAN `<name>.<vid>` |
+| `create interface dummy <name> address <prefix>` | Creates dummy `<name>` if missing, then adds address |
+| `create interface bridge <name> unit <vid>` | Creates bridge `<name>` if missing, then creates VLAN |
+| `create interface bridge <name> address <prefix>` | Creates bridge `<name>` if missing, then adds address |
+| `create interface <name> unit <vid>` | Direct form: parent must already exist |
+| `create interface <name> address <prefix>` | Direct form: interface must already exist |
+
+The type keyword (`dummy`, `bridge`) is required when the parent does not
+exist, because the system needs to know what kind of interface to create.
+If the parent already exists with a different type, the command fails
+(e.g., `create interface dummy br0 unit 100` rejects if `br0` is a bridge).
+
+Rollback: if the sub-resource creation fails after the parent was
+auto-created, the parent is deleted. Pre-existing parents are never
+deleted on failure.
+
+The mechanism is driven by the `ze:ensure-exists` YANG extension on the
+type containers (`dummy`, `bridge`). The dispatch system builds an ensure
+chain at registration time and wraps the leaf handler automatically.
+
+<!-- source: internal/component/iface/schema/ze-iface-cmd.yang — ze:ensure-exists on dummy, bridge -->
+<!-- source: internal/component/plugin/server/ensure.go — wrapWithEnsureChain, buildEnsureChain -->
+<!-- source: internal/component/iface/cmd/manage.go — idempotent handleCreateDummy, handleCreateBridge -->
+
 ## Backend Implementations
 
 The `Backend` interface declares 34 methods. Three implementations ship in

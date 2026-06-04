@@ -17,9 +17,28 @@ module ze-iface-cmd {
                 config false;
                 ze:command "ze-iface:interface-create-dummy";
                 ze:backend "netlink";
+                ze:ensure-exists "ze-iface:interface-delete";
                 description "Create a dummy (loopback-style) interface.
 Usage: create interface dummy <name>.";
                 leaf name { type string; mandatory true; description "Interface name"; }
+
+                container unit {
+                    config false;
+                    ze:command "ze-iface:interface-unit-add";
+                    ze:backend "netlink";
+                    description "Create a dummy interface (if needed) and add a VLAN sub-interface.
+Usage: create interface dummy <name> unit <vid>.";
+                    leaf name { type string; mandatory true; description "Parent interface name"; }
+                }
+
+                container address {
+                    config false;
+                    ze:command "ze-iface:interface-addr-add";
+                    ze:backend "netlink";
+                    description "Create a dummy interface (if needed) and add an IP address.
+Usage: create interface dummy <name> address <prefix>.";
+                    leaf name { type string; mandatory true; description "Interface name"; }
+                }
             }
 
             container veth {
@@ -35,16 +54,35 @@ Usage: create interface veth <name> <peer>.";
                 config false;
                 ze:command "ze-iface:interface-create-bridge";
                 ze:backend "netlink";
+                ze:ensure-exists "ze-iface:interface-delete";
                 description "Create a Linux bridge for L2 forwarding.
 Usage: create interface bridge <name>.";
                 leaf name { type string; mandatory true; description "Interface name"; }
+
+                container unit {
+                    config false;
+                    ze:command "ze-iface:interface-unit-add";
+                    ze:backend "netlink";
+                    description "Create a bridge (if needed) and add a VLAN sub-interface.
+Usage: create interface bridge <name> unit <vid>.";
+                    leaf name { type string; mandatory true; description "Parent interface name"; }
+                }
+
+                container address {
+                    config false;
+                    ze:command "ze-iface:interface-addr-add";
+                    ze:backend "netlink";
+                    description "Create a bridge (if needed) and add an IP address.
+Usage: create interface bridge <name> address <prefix>.";
+                    leaf name { type string; mandatory true; description "Interface name"; }
+                }
             }
 
             container unit {
                 config false;
                 ze:command "ze-iface:interface-unit-add";
                 description "Add a VLAN sub-interface (802.1Q tagged).
-Usage: create interface <parent> unit <vid>.";
+Usage: create interface <parent> unit <vid>. Parent must already exist.";
                 leaf name { type string; mandatory true; description "Parent interface name"; }
             }
 
@@ -52,7 +90,7 @@ Usage: create interface <parent> unit <vid>.";
                 config false;
                 ze:command "ze-iface:interface-addr-add";
                 description "Add an IP address to an interface.
-Usage: create interface <name> address <prefix>.";
+Usage: create interface <name> address <prefix>. Interface must already exist.";
                 leaf name { type string; mandatory true; description "Interface name"; }
             }
         }

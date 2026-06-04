@@ -206,7 +206,9 @@ func TestPeerCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-bgp:peer-history", GetCommandExtension(showPeer.Dir["history"]))
 	assert.Equal(t, "ze-bgp:peer-rib", GetCommandExtension(showPeer.Dir["rib"]))
 
-	peer := entry.Dir["peer"]
+	request := entry.Dir["request"]
+	require.NotNil(t, request)
+	peer := request.Dir["peer"]
 	require.NotNil(t, peer)
 	assert.Equal(t, "", GetCommandExtension(peer), "peer grouping has no handler")
 	assert.Equal(t, gyang.TSFalse, peer.Config)
@@ -275,7 +277,9 @@ func TestRefreshCmdModule(t *testing.T) {
 	entry := loader.GetEntry("ze-refresh-cmd")
 	require.NotNil(t, entry)
 
-	peer := entry.Dir["peer"]
+	request := entry.Dir["request"]
+	require.NotNil(t, request)
+	peer := request.Dir["peer"]
 	require.NotNil(t, peer)
 	assert.Equal(t, "ze-bgp:peer-refresh", GetCommandExtension(peer.Dir["refresh"]))
 	assert.Equal(t, "ze-bgp:peer-borr", GetCommandExtension(peer.Dir["borr"]))
@@ -316,8 +320,8 @@ func TestSimpleCmdModules(t *testing.T) {
 		container  string
 		wireMethod string
 	}{
-		{"commit", cmdPluginBase + "cmd/commit/schema/ze-cli-commit-cmd.yang", "ze-cli-commit-cmd", "commit", "ze-bgp:commit"},
-		{"subscribe", cmdBase + "subscribe/schema/ze-cli-subscribe-cmd.yang", "ze-cli-subscribe-cmd", "subscribe", "ze-bgp:subscribe"},
+		{"commit", cmdPluginBase + "cmd/commit/schema/ze-cli-commit-cmd.yang", "ze-cli-commit-cmd", "request/commit", "ze-bgp:commit"},
+		{"subscribe", cmdBase + "subscribe/schema/ze-cli-subscribe-cmd.yang", "ze-cli-subscribe-cmd", "request/subscribe", "ze-bgp:subscribe"},
 	}
 
 	for _, tt := range tests {
@@ -331,7 +335,12 @@ func TestSimpleCmdModules(t *testing.T) {
 
 			entry := loader.GetEntry(tt.module)
 			require.NotNil(t, entry)
-			assert.Equal(t, tt.wireMethod, GetCommandExtension(entry.Dir[tt.container]))
+			node := entry
+			for seg := range strings.SplitSeq(tt.container, "/") {
+				require.NotNil(t, node.Dir[seg], "missing segment %q in path %q", seg, tt.container)
+				node = node.Dir[seg]
+			}
+			assert.Equal(t, tt.wireMethod, GetCommandExtension(node))
 		})
 	}
 }
@@ -553,28 +562,28 @@ func TestBuildCommandTree(t *testing.T) {
 	require.NotNil(t, showCache, "show > cache should exist")
 	assert.Equal(t, "ze-bgp:cache-list", showCache.WireMethod)
 
-	// "peer" merged from 3 modules
+	// "peer" at top level from ze-raw-cmd
 	peer := tree.Children["peer"]
-	require.NotNil(t, peer, "peer should exist (merged)")
-	assert.Equal(t, "Peer lifecycle and flow control operations", peer.Description, "peer grouping gets YANG description")
-	assert.Equal(t, "", peer.WireMethod, "peer grouping has no WireMethod")
-
-	assert.Nil(t, peer.Children["add"], "peer.add moved to set verb")
-
-	// From ze-raw-cmd
+	require.NotNil(t, peer, "peer should exist (from ze-raw-cmd)")
 	require.NotNil(t, peer.Children["raw"], "peer.raw from ze-raw-cmd")
 	assert.Equal(t, "ze-bgp:peer-raw", peer.Children["raw"].WireMethod)
 
-	// From ze-refresh-cmd
-	require.NotNil(t, peer.Children["refresh"], "peer.refresh from ze-refresh-cmd")
-	assert.Equal(t, "ze-bgp:peer-refresh", peer.Children["refresh"].WireMethod)
-	assert.NotNil(t, peer.Children["borr"], "peer.borr from ze-refresh-cmd")
+	// Lifecycle actions moved under request > peer
+	request := tree.Children["request"]
+	require.NotNil(t, request, "request should exist")
+	reqPeer := request.Children["peer"]
+	require.NotNil(t, reqPeer, "request > peer should exist")
 
-	// Deep merge: peer > clear > soft from ze-refresh-cmd
-	clearNode := peer.Children["clear"]
-	require.NotNil(t, clearNode, "peer.clear should exist")
-	assert.Equal(t, "", clearNode.WireMethod, "peer.clear is grouping")
-	require.NotNil(t, clearNode.Children["soft"], "peer.clear.soft from ze-refresh-cmd")
+	// From ze-refresh-cmd
+	require.NotNil(t, reqPeer.Children["refresh"], "request.peer.refresh from ze-refresh-cmd")
+	assert.Equal(t, "ze-bgp:peer-refresh", reqPeer.Children["refresh"].WireMethod)
+	assert.NotNil(t, reqPeer.Children["borr"], "request.peer.borr from ze-refresh-cmd")
+
+	// Deep merge: request > peer > clear > soft from ze-refresh-cmd
+	clearNode := reqPeer.Children["clear"]
+	require.NotNil(t, clearNode, "request.peer.clear should exist")
+	assert.Equal(t, "", clearNode.WireMethod, "request.peer.clear is grouping")
+	require.NotNil(t, clearNode.Children["soft"], "request.peer.clear.soft from ze-refresh-cmd")
 	assert.Equal(t, "ze-bgp:peer-clear-soft", clearNode.Children["soft"].WireMethod)
 
 	assert.Nil(t, tree.Children["summary"])
@@ -1147,4 +1156,63 @@ func navigateTree(root *command.Node, path string) *command.Node {
 		current = child
 	}
 	return current
+}
+
+// TestBuildCommandTreeEnsureExists verifies ze:ensure-exists is extracted from the iface YANG.
+//
+// VALIDATES: BuildCommandTree propagates EnsureExists (rollback wire method) to command.Node.
+// PREVENTS: Compound commands silently losing auto-ensure behavior.
+func TestBuildCommandTreeEnsureExists(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+	loadCmdModule(t, loader, "../../../component/iface/schema/ze-iface-cmd.yang")
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	tree := BuildCommandTree(loader)
+	require.NotNil(t, tree)
+
+	create := tree.Children["create"]
+	require.NotNil(t, create)
+	ifc := create.Children["interface"]
+	require.NotNil(t, ifc)
+
+	dummy := ifc.Children["dummy"]
+	require.NotNil(t, dummy, "dummy container must exist")
+	assert.Equal(t, "ze-iface:interface-delete", dummy.EnsureExists, "dummy must have ze:ensure-exists with rollback handler")
+	assert.Equal(t, "ze-iface:interface-create-dummy", dummy.WireMethod)
+
+	bridge := ifc.Children["bridge"]
+	require.NotNil(t, bridge, "bridge container must exist")
+	assert.Equal(t, "ze-iface:interface-delete", bridge.EnsureExists, "bridge must have ze:ensure-exists with rollback handler")
+
+	// Nested unit under dummy inherits the parent's ensure-exists via chain building
+	dummyUnit := dummy.Children["unit"]
+	require.NotNil(t, dummyUnit, "dummy > unit must exist")
+	assert.Equal(t, "ze-iface:interface-unit-add", dummyUnit.WireMethod)
+	assert.Empty(t, dummyUnit.EnsureExists, "unit itself has no ensure-exists")
+
+	// Flat unit (sibling of dummy) has no ensure-exists
+	flatUnit := ifc.Children["unit"]
+	require.NotNil(t, flatUnit, "flat unit must exist")
+	assert.Empty(t, flatUnit.EnsureExists, "flat unit has no ensure-exists")
+
+	// veth has no ensure-exists
+	veth := ifc.Children["veth"]
+	require.NotNil(t, veth)
+	assert.Empty(t, veth.EnsureExists, "veth has no ensure-exists")
+
+	// Nested compound commands inherit backend restriction from parent
+	assert.Equal(t, []string{"netlink"}, dummyUnit.Backend, "dummy > unit must have netlink backend")
+	dummyAddr := dummy.Children["address"]
+	require.NotNil(t, dummyAddr, "dummy > address must exist")
+	assert.Equal(t, []string{"netlink"}, dummyAddr.Backend, "dummy > address must have netlink backend")
+
+	bridgeUnit := bridge.Children["unit"]
+	require.NotNil(t, bridgeUnit, "bridge > unit must exist")
+	assert.Equal(t, []string{"netlink"}, bridgeUnit.Backend, "bridge > unit must have netlink backend")
+	bridgeAddr := bridge.Children["address"]
+	require.NotNil(t, bridgeAddr, "bridge > address must exist")
+	assert.Equal(t, []string{"netlink"}, bridgeAddr.Backend, "bridge > address must have netlink backend")
 }

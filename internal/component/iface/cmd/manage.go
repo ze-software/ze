@@ -18,12 +18,21 @@ func handleCreateDummy(ctx *pluginserver.CommandContext, args []string) (*plugin
 	if name == "" {
 		return errResp("usage: create interface dummy <name>")
 	}
+	if info, _ := iface.GetInterface(name); info != nil {
+		if info.Type != "dummy" {
+			return errResp("interface " + name + " exists with type " + info.Type + ", not dummy")
+		}
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   plugin.Map{"message": "interface " + name + " already exists", "created": false},
+		}, nil
+	}
 	if err := iface.CreateDummy(name); err != nil {
 		return errResp(err.Error())
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "created dummy interface " + name},
+		Data:   plugin.Map{"message": "created dummy interface " + name, "created": true},
 	}, nil
 }
 
@@ -47,12 +56,21 @@ func handleCreateBridge(ctx *pluginserver.CommandContext, args []string) (*plugi
 	if name == "" {
 		return errResp("usage: create interface bridge <name>")
 	}
+	if info, _ := iface.GetInterface(name); info != nil {
+		if info.Type != "bridge" {
+			return errResp("interface " + name + " exists with type " + info.Type + ", not bridge")
+		}
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data:   plugin.Map{"message": "interface " + name + " already exists", "created": false},
+		}, nil
+	}
 	if err := iface.CreateBridge(name); err != nil {
 		return errResp(err.Error())
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "created bridge interface " + name},
+		Data:   plugin.Map{"message": "created bridge interface " + name, "created": true},
 	}, nil
 }
 
