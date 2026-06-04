@@ -4,7 +4,7 @@ module ze-cli-log-cmd {
     import ze-extensions { prefix ze; }
     description "View and control daemon logging";
     revision 2026-03-16 { description "Initial revision"; }
-    revision 2026-06-04 { description "Verb-first grammar: reads under show log, mutation under set log."; }
+    revision 2026-06-04 { description "Verb-first grammar: reads under show log, runtime mutation under request log level."; }
 
     container show {
         config false;
@@ -18,8 +18,8 @@ module ze-cli-log-cmd {
                 config false;
                 ze:command "ze-bgp:log-levels";
                 description "Show what log level each subsystem is using.
-Lists every registered logger with its current level. Use 'set log'
-to change a level at runtime without restarting.";
+Lists every registered logger with its current level. Use
+'request log level' to change a level at runtime without restarting.";
             }
 
             container recent {
@@ -51,29 +51,34 @@ directly.";
         }
     }
 
-    container set {
+    container request {
         config false;
-        description "Runtime log configuration";
+        description "Operational actions";
 
         container log {
             config false;
-            ze:command "ze-bgp:log-set";
-            description "Change a subsystem's log level without restarting.
-Usage: set log <logger> <level>. Takes effect immediately. Set to
-debug when troubleshooting, then back to info when you are done.";
-            leaf logger {
-                type string;
-                description "Logger/subsystem name";
-            }
-            leaf level {
-                type enumeration {
-                    enum disabled;
-                    enum debug;
-                    enum info;
-                    enum warn;
-                    enum err;
+            description "Runtime log operations";
+
+            container level {
+                config false;
+                ze:command "ze-bgp:log-set";
+                description "Change a subsystem's log level without restarting.
+Usage: request log level <logger> <level>. Takes effect immediately.
+Set to debug when troubleshooting, then back to info when you are done.";
+                leaf logger {
+                    type string;
+                    description "Logger/subsystem name";
                 }
-                description "Target log level";
+                leaf target {
+                    type enumeration {
+                        enum disabled;
+                        enum debug;
+                        enum info;
+                        enum warn;
+                        enum err;
+                    }
+                    description "Target log level";
+                }
             }
         }
     }

@@ -3,7 +3,7 @@
 # Flow:
 # 1. BGP session establishes
 # 2. Python plugin dispatches "show log levels" to see initial levels
-# 3. Dispatches "set log <subsystem> debug" to change a level
+# 3. Dispatches "request log level <subsystem> debug" to change a level
 # 4. Dispatches "show log levels" again to verify the change
 # 5. Shuts down daemon
 #
@@ -73,7 +73,7 @@ def main():
     print(f'INFO: changing {subsystem} from {original_level} to debug', file=sys.stderr)
 
     # Set level to debug
-    r = dispatch(api, f'set log {subsystem} debug')
+    r = dispatch(api, f'request log level {subsystem} debug')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: set returned status={status}', file=sys.stderr)
@@ -91,7 +91,7 @@ def main():
     print(f'OK: {subsystem} level changed to debug', file=sys.stderr)
 
     # Test error case: unknown subsystem
-    r = dispatch(api, 'set log nonexistent info')
+    r = dispatch(api, 'request log level nonexistent info')
     if r.get('status') != 'error':
         print(f'FAIL: expected error for unknown subsystem', file=sys.stderr)
         sys.exit(1)

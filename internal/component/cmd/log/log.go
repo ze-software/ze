@@ -38,7 +38,7 @@ func handleLogSet(_ *pluginserver.CommandContext, args []string) (*plugin.Respon
 	if len(args) < 2 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: set log <subsystem> <level>",
+			Error:  "usage: request log level <subsystem> <level>",
 		}, nil
 	}
 

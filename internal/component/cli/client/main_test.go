@@ -526,29 +526,34 @@ func TestBuildCommandTreeFamilyValueHints(t *testing.T) {
 func TestBuildCommandTreeLogLevelArgDefs(t *testing.T) {
 	tree := BuildCommandTree(false)
 
-	setNode := tree.Children["set"]
-	if setNode == nil {
-		t.Fatal("set node missing from command tree")
+	reqNode := tree.Children["request"]
+	if reqNode == nil {
+		t.Fatal("request node missing from command tree")
 	}
 
-	logNode := setNode.Children["log"]
+	logNode := reqNode.Children["log"]
 	if logNode == nil {
-		t.Fatal("set log node missing from command tree")
+		t.Fatal("request log node missing from command tree")
 	}
 
-	if len(logNode.ArgDefs) == 0 {
-		t.Fatal("set log node should have ArgDefs for log levels")
+	levelNode := logNode.Children["level"]
+	if levelNode == nil {
+		t.Fatal("request log level node missing from command tree")
+	}
+
+	if len(levelNode.ArgDefs) == 0 {
+		t.Fatal("request log level node should have ArgDefs for log levels")
 	}
 
 	found := make(map[string]bool)
-	for _, def := range logNode.ArgDefs {
+	for _, def := range levelNode.ArgDefs {
 		for _, v := range def.EnumValues {
 			found[v] = true
 		}
 	}
 	for _, want := range []string{"debug", "info", "warn", "err", "disabled"} {
 		if !found[want] {
-			t.Errorf("set log ArgDefs missing level %q", want)
+			t.Errorf("request log level ArgDefs missing level %q", want)
 		}
 	}
 }
