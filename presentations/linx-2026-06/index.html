@@ -22,7 +22,7 @@
             width: 94vw;
             max-width: 1600px;
             height: 82vh;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); /* v3 */
+            background: linear-gradient(in oklch 135deg, #1a1a2e 0%, #16213e 100%);
             border-radius: 16px;
             padding: clamp(35px, 4vw, 55px) clamp(25px, 4vw, 60px) clamp(20px, 3vw, 40px);
             position: fixed;
@@ -34,10 +34,10 @@
         .slide.active { display: block; }
         .slide.title-slide {
             padding-top: clamp(140px, 22vh, 300px);
-            background: linear-gradient(135deg, #0d1117 0%, #16213e 40%, #1a1a2e 100%);
+            background: linear-gradient(in oklch 135deg, #0d1117 0%, #16213e 40%, #1a1a2e 100%);
         }
         .slide.title-slide h1 {
-            background: linear-gradient(90deg, var(--purple) 0%, var(--cyan) 100%);
+            background: linear-gradient(in oklch 90deg, var(--purple) 0%, var(--cyan) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             font-size: clamp(28px, 3.5vw, 56px);
@@ -81,7 +81,7 @@
             color: rgba(255, 255, 255, 0.85);
         }
         blockquote > :last-child { margin-bottom: 0; }
-        .progress { position: fixed; top: 0; left: 0; height: 4px; background: linear-gradient(90deg, var(--purple) 0%, var(--cyan) 100%); transition: width 0.3s; z-index: 1002; }
+        .progress { position: fixed; top: 0; left: 0; height: 4px; background: linear-gradient(in oklch 90deg, var(--purple) 0%, var(--cyan) 100%); transition: width 0.3s; z-index: 1002; }
         .nav { position: fixed; bottom: 8px; right: 40px; z-index: 1001; }
         .footer { position: fixed; bottom: 10px; left: 40px; font-size: clamp(10px, 0.9vw, 14px); opacity: 0.5; z-index: 1001; }
         .nav button { background: rgba(0, 159, 227, 0.2); border: 2px solid var(--cyan); color: #fff; padding: clamp(6px, 0.8vw, 12px) clamp(12px, 1.5vw, 24px); margin: 0 5px; border-radius: 30px; cursor: pointer; font-size: clamp(11px, 1vw, 16px); font-weight: 600; }

@@ -9,7 +9,10 @@
 * **Network engineers who use or used ExaBGP:** thank you for your trust
 * **Network engineers who didn't:** it's okay, I now have a better solution for you
 
-### https://ze-software.github.io/ze/presentations/linx-2026-06/index.html
+### TL;DR
+
+*https://github.com/ze-software/ze*
+*https://ze-software.github.io/ze/presentations/linx-2026-06/index.html*
 
 ---
 
@@ -65,7 +68,7 @@ AGPL-3.0, developed on Codeberg, hosted on GitHub.
 
 ## The Enabler: AI
 
-## Agentic Engineering (Not Vibe Coding)
+### Agentic Engineering (Not Vibe Coding)
 
 - The latest ExaBGP release had many features added by Claude
 - Use ExaBGP to explain to Claude what I wanted (and did not get)
