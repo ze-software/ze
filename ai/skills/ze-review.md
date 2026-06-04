@@ -17,7 +17,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
     | Exported function/method | `grep` or LSP `findReferences` for at least one caller outside its own file and test files |
     | Struct / type | Same: at least one non-test consumer |
     | HTTP handler / web route | Registered on a mux (`srv.Handle`, `mux.HandleFunc`, etc.) and reachable from `hub/main.go` or `web/server.go` |
-    | CLI command | Registered via `cmdregistry.MustRegisterLocal` or `cmdregistry.RegisterRoot` in a `register.go` with a blank import chain to `main.go` |
+    | CLI command | Registered via `registry.MustRegisterLocal` or `registry.RegisterRoot` in a `register.go` with a blank import chain to `main.go` |
     | Plugin | Has `register.go` with `registry.Register()`, appears in generated `all.go` (or will after `make generate`) |
     | Config option / YANG leaf | YANG module registered, leaf read by runtime code (not just parsed) |
     | Env var | `env.MustRegister()` call exists, `env.Get*()` call exists |

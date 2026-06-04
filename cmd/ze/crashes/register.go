@@ -3,20 +3,20 @@
 package crashes
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func init() {
-	cmdregistry.RegisterRoot("crashes", cmdregistry.Meta{
+	registry.RegisterRoot("crashes", registry.Meta{
 		Description: "View saved crash reports from panics (offline)",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "show [latest]",
 	})
-	cmdregistry.MustRegisterLocalMeta("crashes show", RunShow, cmdregistry.Meta{
+	registry.MustRegisterLocalMeta("crashes show", RunShow, registry.Meta{
 		Description: "Show a crash report. Use 'latest' for the most recent, or pass a filename. Contains the goroutine stack trace at the time of panic.",
 	})
-	cmdregistry.MustRegisterLocalMeta("crashes", RunHint, cmdregistry.Meta{
+	registry.MustRegisterLocalMeta("crashes", RunHint, registry.Meta{
 		Description: "View saved crash reports from panics (offline)",
 	})
 }

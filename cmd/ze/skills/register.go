@@ -3,17 +3,17 @@
 package skills
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func init() {
-	cmdregistry.RegisterRoot("skills", cmdregistry.Meta{
+	registry.RegisterRoot("skills", registry.Meta{
 		Description: "Agent skills matched to this Ze version",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "list, get <name> [--full]",
 	})
-	cmdregistry.MustRegisterLocalMeta("skills", Run, cmdregistry.Meta{
+	registry.MustRegisterLocalMeta("skills", Run, registry.Meta{
 		Description: "List or retrieve agent skill definitions matching this Ze version. Use 'get <name>' to fetch a specific skill.",
 	})
 }

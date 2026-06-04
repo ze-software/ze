@@ -3,18 +3,18 @@
 package doctor
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
 
 func init() {
-	cmdregistry.RegisterRoot("doctor", cmdregistry.Meta{
+	registry.RegisterRoot("doctor", registry.Meta{
 		Description: "Check if this box is ready to run Ze",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "[--json] [<config-file>]",
 	})
-	cmdregistry.MustRegisterLocalMeta("doctor", Run, cmdregistry.Meta{
+	registry.MustRegisterLocalMeta("doctor", Run, registry.Meta{
 		Description: "Verify kernel features, file descriptor limits, sockets, and required dependencies. Run this before first start or after platform changes.",
 	})
 	diagnostic.RegisterDoctorProvider(runChecks)

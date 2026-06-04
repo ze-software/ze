@@ -15,10 +15,10 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -129,7 +129,7 @@ func collectCommands() []commandEntry {
 		}
 	}
 
-	for _, lc := range cmdregistry.ListLocal() {
+	for _, lc := range registry.ListLocal() {
 		if seen[lc.Path] {
 			continue
 		}

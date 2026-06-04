@@ -19,13 +19,13 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	internalresolve "codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
@@ -142,7 +142,7 @@ func printVersion(extended bool) {
 // registerLocalCommands wires the small set of local commands that
 // belong to main itself (not to any subcommand package). Other local
 // commands are registered by their owning package's init() via
-// cmdregistry -- see e.g. cmd/ze/bgp/register.go, cmd/ze/diag/register.go.
+// registry -- see e.g. cmd/ze/bgp/register.go, cmd/ze/diag/register.go.
 // Root commands (`ze bgp`, `ze ping`, ...) are also registered by
 // their package's init() for the same reason; main.go's dispatch
 // switch stays, but help enumeration is driven by the registry.
@@ -166,66 +166,66 @@ func withPanicCapture(fn func() int) (exitCode int) {
 // after global flag parsing.
 func registerLocalCommands() {
 	// Commands specific to cmd/ze/main (no subcommand package home).
-	cmdregistry.MustRegisterLocalMeta("show version", func(args []string) int {
+	registry.MustRegisterLocalMeta("show version", func(args []string) int {
 		printVersion(slices.Contains(args, "--extended"))
 		return 0
-	}, cmdregistry.Meta{
+	}, registry.Meta{
 		Description: "Show the running Ze version and build date",
 		Mode:        "offline",
 	})
 
 	// Root commands that live in main() itself (not a package).
-	cmdregistry.MustRegisterRootHandler("start", func(rctx *cmdregistry.RuntimeContext, args []string) int {
+	registry.MustRegisterRootHandler("start", func(rctx *registry.RuntimeContext, args []string) int {
 		if len(args) > 0 && isHelpArg(args[0]) {
 			startUsage()
 			return 0
 		}
 		return cmdStart(args, rctx.Plugins, rctx.ChaosSeed, rctx.ChaosRate, rctx.MCPAddr, rctx.MCPToken, rctx.WebPort, rctx.InsecureWeb)
-	}, cmdregistry.Meta{
+	}, registry.Meta{
 		Description: "Start the Ze daemon from blob storage config",
 		Mode:        "setup",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "--web <port>, --insecure-web, --mcp <port>",
 	})
-	cmdregistry.MustRegisterRootHandler("version", func(rctx *cmdregistry.RuntimeContext, args []string) int {
+	registry.MustRegisterRootHandler("version", func(rctx *registry.RuntimeContext, args []string) int {
 		rctx.PrintVersion(slices.Contains(args, "--extended"))
 		return 0
-	}, cmdregistry.Meta{
+	}, registry.Meta{
 		Description: "Show the running Ze version and build date",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "--extended",
 	})
-	cmdregistry.MustRegisterRootHandler("update-serve", func(_ *cmdregistry.RuntimeContext, args []string) int {
+	registry.MustRegisterRootHandler("update-serve", func(_ *registry.RuntimeContext, args []string) int {
 		return runUpdateServe(args)
-	}, cmdregistry.Meta{
+	}, registry.Meta{
 		Description: "Run a local update server for firmware checks",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "--listen <addr>",
 	})
-	cmdregistry.MustRegisterRootHandler("help", func(_ *cmdregistry.RuntimeContext, args []string) int {
+	registry.MustRegisterRootHandler("help", func(_ *registry.RuntimeContext, args []string) int {
 		dispatchHelp(args)
 		return 0
-	}, cmdregistry.Meta{
+	}, registry.Meta{
 		Description: "Show available commands and how to use them",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "command [<filter>] [--json], --ai [--cli|--api|--mcp|--dispatch|--all]",
 	})
-	cmdregistry.MustRegisterRootHandler("--plugins", func(_ *cmdregistry.RuntimeContext, args []string) int {
+	registry.MustRegisterRootHandler("--plugins", func(_ *registry.RuntimeContext, args []string) int {
 		printPlugins(len(args) > 0 && args[0] == "--json")
 		return 0
-	}, cmdregistry.Meta{
+	}, registry.Meta{
 		Description: "List loaded plugins",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "--json",
 	})
-	cmdregistry.MustRegisterLocalMeta("help command", func(args []string) int {
+	registry.MustRegisterLocalMeta("help command", func(args []string) int {
 		printHelpCommand(args)
 		return 0
-	}, cmdregistry.Meta{
+	}, registry.Meta{
 		Description: "List every command with its description. Use a filter to narrow the list.",
 		Mode:        "offline",
 	})
@@ -234,7 +234,7 @@ func registerLocalCommands() {
 	// handlers (e.g. the config owner's `show config history/ls/cat`) can open
 	// the blob store lazily at dispatch time. The blob store is opened only
 	// after global flag parsing, so handlers must resolve it on demand.
-	cmdregistry.SetRuntimeStorage(func() any { return resolveStorage() })
+	registry.SetRuntimeStorage(func() any { return resolveStorage() })
 }
 
 // newRuntimeContext assembles the process-entry dependencies passed to
@@ -243,8 +243,8 @@ func registerLocalCommands() {
 // store. The returned context is leaf-safe: the registry package does not
 // import storage, so owners type-assert ResolveStorage's result (see
 // registry.StorageAs).
-func newRuntimeContext(plugins []string, configOverride, webPort string, insecureWeb bool, mcpAddr, mcpToken string, chaosSeed int64, chaosRate float64) *cmdregistry.RuntimeContext {
-	return &cmdregistry.RuntimeContext{
+func newRuntimeContext(plugins []string, configOverride, webPort string, insecureWeb bool, mcpAddr, mcpToken string, chaosSeed int64, chaosRate float64) *registry.RuntimeContext {
+	return &registry.RuntimeContext{
 		ResolveStorage: func() any { return resolveStorage() },
 		Plugins:        plugins,
 		ConfigOverride: configOverride,
@@ -262,8 +262,8 @@ func newRuntimeContext(plugins []string, configOverride, webPort string, insecur
 // if any. It returns the handler's exit code and handled=true when the registry
 // owns the command; (0, false) means no owner registered arg and the caller
 // must fall through to the legacy static switch.
-func dispatchRegisteredRoot(arg string, rctx *cmdregistry.RuntimeContext, rest []string) (code int, handled bool) {
-	handler := cmdregistry.LookupRoot(arg)
+func dispatchRegisteredRoot(arg string, rctx *registry.RuntimeContext, rest []string) (code int, handled bool) {
+	handler := registry.LookupRoot(arg)
 	if handler == nil {
 		return 0, false
 	}
@@ -544,12 +544,12 @@ dispatch:
 		}
 	}
 
-	// Registry fallback: root-level commands registered via cmdregistry
+	// Registry fallback: root-level commands registered via registry
 	// (ping, generate wireguard keypair, ...) whose init()
 	// wired a handler. Longest-prefix match on the raw argv so that
 	// multi-word commands ("generate wireguard keypair") win over
 	// shorter prefixes.
-	if handler, remaining := cmdregistry.LookupLocal(args); handler != nil {
+	if handler, remaining := registry.LookupLocal(args); handler != nil {
 		exit(handler(remaining))
 	}
 
@@ -566,7 +566,7 @@ dispatch:
 // knownCommands returns all valid top-level command names, derived from
 // the YANG verb map and the root command registry.
 func knownCommands() []string {
-	roots := cmdregistry.ListRoot()
+	roots := registry.ListRoot()
 	names := make([]string, 0, len(yangVerbs)+len(roots))
 	for verb := range yangVerbs {
 		names = append(names, verb)
@@ -1111,18 +1111,18 @@ func usage() {
 	// Build command sections from registered metadata.
 	// Operations section: root commands (cli) first, then YANG verbs.
 	sections := []helpfmt.HelpSection{
-		{Title: cmdregistry.SectionTitle(cmdregistry.SectionOperations)},
+		{Title: registry.SectionTitle(registry.SectionOperations)},
 	}
-	for _, se := range cmdregistry.ListRootBySection() {
+	for _, se := range registry.ListRootBySection() {
 		entries := make([]helpfmt.HelpEntry, len(se.Commands))
 		for i, rc := range se.Commands {
 			entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description}
 		}
-		title := cmdregistry.SectionTitle(se.Section)
+		title := registry.SectionTitle(se.Section)
 		if title == "" {
 			title = se.Section
 		}
-		if se.Section == cmdregistry.SectionOperations {
+		if se.Section == registry.SectionOperations {
 			sections[0].Entries = append(entries, sections[0].Entries...)
 		} else {
 			sections = append(sections, helpfmt.HelpSection{Title: title, Entries: entries})

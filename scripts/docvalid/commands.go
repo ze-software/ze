@@ -288,8 +288,8 @@ func collectLocalHandlersFromFile(path string, paths map[string]bool) {
 		if !ok {
 			return true
 		}
-		// cmd/ze packages call the cmdregistry shim; migrated owners call the
-		// registry leaf package directly. Accept both.
+		// Most callers use the bare `registry` name; help_ai.go aliases it
+		// as `cmdregistry` to avoid collision with plugin/registry. Accept both.
 		pkg, ok := selector.X.(*ast.Ident)
 		if !ok || (pkg.Name != "cmdregistry" && pkg.Name != "registry") {
 			return true

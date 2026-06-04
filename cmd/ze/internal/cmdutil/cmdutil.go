@@ -1,5 +1,4 @@
 // Design: docs/architecture/api/commands.md — shared CLI command utilities
-// Related: ../../cli/main.go — CLI client and BuildCommandTree
 //
 // Package cmdutil provides shared logic for unified CLI verb dispatch.
 // Verb commands (show, set, del, etc.) use this package for tree walking,
@@ -12,31 +11,31 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 // LocalHandler is a function that handles a command locally (in-process),
 // without connecting to the daemon. Kept as a type alias so callers that
 // imported `cmdutil.LocalHandler` continue to compile.
-type LocalHandler = cmdregistry.LocalHandler
+type LocalHandler = registry.LocalHandler
 
-// RegisterLocalCommand is a thin passthrough to the cmdregistry package.
+// RegisterLocalCommand is a thin passthrough to the registry package.
 // cmdutil historically owned this registry but cannot own it now because
 // cmdutil imports cli (for BuildCommandTree), which would create an
 // import cycle when each subcommand package's register.go registers
-// itself. The canonical owner is cmdregistry (leaf package, no cmd/ze
+// itself. The canonical owner is the registry (leaf package, no cmd/ze
 // deps); cmdutil forwards for source-compatibility with old callers.
 func RegisterLocalCommand(path string, handler LocalHandler) error {
-	return cmdregistry.RegisterLocal(path, handler)
+	return registry.RegisterLocal(path, handler)
 }
 
-// matchLocalHandler is a thin adapter over cmdregistry.LookupLocal that
+// matchLocalHandler is a thin adapter over registry.LookupLocal that
 // re-applies the selector-as-trailing-arg convention used by RunCommand.
 func matchLocalHandler(words []string, selector string) (LocalHandler, []string) {
-	handler, args := cmdregistry.LookupLocal(words)
+	handler, args := registry.LookupLocal(words)
 	if handler == nil {
 		return nil, nil
 	}

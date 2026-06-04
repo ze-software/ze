@@ -5,11 +5,11 @@ package main
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func TestStrippedBuildOmitsSetupRoots(t *testing.T) {
-	roots := cmdregistry.ListRoot()
+	roots := registry.ListRoot()
 	seen := make(map[string]bool, len(roots))
 	for _, root := range roots {
 		seen[root.Name] = true

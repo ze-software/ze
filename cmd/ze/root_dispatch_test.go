@@ -3,11 +3,11 @@ package main
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 // These tests register sentinel root names rather than calling
-// cmdregistry.ResetForTest(): the cmd/ze test binary shares one process-wide
+// registry.ResetForTest(): the cmd/ze test binary shares one process-wide
 // registry populated by every imported package's init(), and a reset would
 // wipe the real roots other tests (e.g. setup_features_stripped_test.go) depend
 // on. Sentinel names cannot collide with real roots.
@@ -20,13 +20,13 @@ func TestRootDispatchUsesRegisteredOwnerHandler(t *testing.T) {
 
 	called := false
 	var gotArgs []string
-	cmdregistry.MustRegisterRootHandler(name, func(_ *cmdregistry.RuntimeContext, args []string) int {
+	registry.MustRegisterRootHandler(name, func(_ *registry.RuntimeContext, args []string) int {
 		called = true
 		gotArgs = append([]string(nil), args...)
 		return 7
-	}, cmdregistry.Meta{Description: "sentinel owner root", Mode: "offline"})
+	}, registry.Meta{Description: "sentinel owner root", Mode: "offline"})
 
-	code, handled := dispatchRegisteredRoot(name, &cmdregistry.RuntimeContext{}, []string{"sub", "x", "y"})
+	code, handled := dispatchRegisteredRoot(name, &registry.RuntimeContext{}, []string{"sub", "x", "y"})
 	if !handled {
 		t.Fatal("registry should have handled the owner-backed root")
 	}
@@ -48,7 +48,7 @@ func TestRootDispatchUsesRegisteredOwnerHandler(t *testing.T) {
 
 	// An unregistered root must NOT be handled by the registry; control falls
 	// through to the legacy static switch in main().
-	if _, handled := dispatchRegisteredRoot("ztest-definitely-unregistered", &cmdregistry.RuntimeContext{}, nil); handled {
+	if _, handled := dispatchRegisteredRoot("ztest-definitely-unregistered", &registry.RuntimeContext{}, nil); handled {
 		t.Error("unregistered root must not be handled by the registry")
 	}
 }
@@ -96,11 +96,11 @@ func TestRootDispatchPassesRuntimeContext(t *testing.T) {
 
 	// The handler receives the identical context instance built by main().
 	const name = "ztest-ctx-root"
-	var seen *cmdregistry.RuntimeContext
-	cmdregistry.MustRegisterRootHandler(name, func(c *cmdregistry.RuntimeContext, _ []string) int {
+	var seen *registry.RuntimeContext
+	registry.MustRegisterRootHandler(name, func(c *registry.RuntimeContext, _ []string) int {
 		seen = c
 		return 0
-	}, cmdregistry.Meta{})
+	}, registry.Meta{})
 
 	dispatchRegisteredRoot(name, rctx, nil)
 	if seen != rctx {
@@ -115,9 +115,9 @@ func TestHelpAIUsesOwnerRegistry(t *testing.T) {
 	const name = "ztest-help-root"
 	const desc = "sentinel owner root for help inventory"
 
-	cmdregistry.MustRegisterRootHandler(name, func(_ *cmdregistry.RuntimeContext, _ []string) int {
+	registry.MustRegisterRootHandler(name, func(_ *registry.RuntimeContext, _ []string) int {
 		return 0
-	}, cmdregistry.Meta{Description: desc, Mode: "offline", Subs: "alpha, beta"})
+	}, registry.Meta{Description: desc, Mode: "offline", Subs: "alpha, beta"})
 
 	found := false
 	for _, c := range cliSubcommands() {

@@ -110,8 +110,7 @@ Root commands (`ze bgp`, `ze interface`, ...) and offline local handlers
 owner-backed roots, so the owner lives under `internal/` and `cmd/ze` never
 imports it directly. `cmd/ze` keeps only no-owner / process-global commands.
 
-**Location:** `internal/component/command/registry/registry.go` (stdlib-only leaf;
-`cmd/ze/internal/cmdregistry` is now a re-export shim).
+**Location:** `internal/component/command/registry/registry.go` (stdlib-only leaf).
 **Registration:**
 - `registry.MustRegisterRootHandler(name, handler, Meta)` -- **owner-backed** `ze <name>`: handler + metadata, dispatched by the registry. `handler` is `func(*RuntimeContext, []string) int`. Rejects empty name / nil handler / duplicate owner.
 - `registry.RegisterRoot(name, Meta)` -- **no-owner / process-global** metadata only; `cmd/ze/main.go` dispatches it (start, version, help, ...).

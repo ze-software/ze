@@ -333,9 +333,7 @@ dispatch-time dependencies (storage, plugin list, process flags) flow through
 `RuntimeContext`, whose heavy types are exposed as function values so the
 package stays leaf-like.
 
-`cmd/ze/internal/cmdregistry` is now a thin re-export shim over this package, so
-old importers still compile; new code imports
-`internal/component/command/registry` directly.
+All callers import `internal/component/command/registry` directly.
 
 ### Per-owner `register.go` template
 
@@ -419,7 +417,7 @@ registry.MustRegisterLocalMeta("show config history", func(args []string) int {
 `cmd/ze/help_ai.go:cliSubcommands()` enumerates:
 
 1. YANG verb subtree (show, set, del, update, ...).
-2. `cmdregistry.ListRoot()` for top-level subcommands.
+2. `registry.ListRoot()` for top-level subcommands.
 
 De-dupe on root-name collisions. No static list. Adding a new
 subcommand package means adding its `register.go`; help picks it up

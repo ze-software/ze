@@ -36,14 +36,14 @@ Derived surfaces:
 |---------|-----------|
 | Error: unknown section | `"unknown section; valid: " + sectionList()` |
 | Usage line | `"Usage: ze host show [" + strings.ReplaceAll(sectionList(), ", ", "|") + "]"` |
-| Registry metadata | `cmdregistry.Meta{Subs: "show [" + ... + "]"}` at `init()` |
+| Registry metadata | `registry.Meta{Subs: "show [" + ... + "]"}` at `init()` |
 | Online reject response | `"valid: " + validHostSections()` |
 
 Anti-pattern — the forbidden shape:
 
 ```
 // NO — second hardcoded copy that will drift
-cmdregistry.RegisterRoot("host", cmdregistry.Meta{
+registry.RegisterRoot("host", registry.Meta{
     Subs: "show [cpu|nic|dmi|memory|thermal|storage|kernel|all] [--text]",
 })
 ```

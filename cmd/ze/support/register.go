@@ -3,17 +3,17 @@
 package support
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func init() {
-	cmdregistry.RegisterRoot("support", cmdregistry.Meta{
+	registry.RegisterRoot("support", registry.Meta{
 		Description: "Collect logs, config, and diagnostics into a support archive",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "[--module M] [--exclude M] [--since T] [--reason R] [--sensitive] [--json] [--list-modules]",
 	})
-	cmdregistry.MustRegisterLocalMeta("support", Run, cmdregistry.Meta{
+	registry.MustRegisterLocalMeta("support", Run, registry.Meta{
 		Description: "Bundle logs, config, state, and diagnostics into one archive file. Send the result to support when reporting an issue.",
 	})
 }

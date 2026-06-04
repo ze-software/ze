@@ -149,11 +149,6 @@ func checkRootHandlersAreInternal() []finding {
 		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
-		// The cmdregistry shim re-exports the registry API (forwarding wrappers);
-		// those calls are not command registrations.
-		if strings.Contains(filepath.ToSlash(path), "cmd/ze/internal/cmdregistry/") {
-			return nil
-		}
 		for _, name := range registerCalls(path) {
 			if name == "RegisterRootHandler" || name == "MustRegisterRootHandler" {
 				out = append(out, finding{
@@ -286,7 +281,7 @@ func registerRootNames(path string) []string {
 }
 
 // forEachRegistryCall invokes fn for every call whose selector package is
-// `registry` or `cmdregistry`.
+// `registry` (or `cmdregistry` as an import alias).
 func forEachRegistryCall(path string, fn func(method string, call *ast.CallExpr)) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, 0)

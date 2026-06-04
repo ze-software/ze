@@ -3,17 +3,17 @@
 package explain
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func init() {
-	cmdregistry.RegisterRoot("explain", cmdregistry.Meta{
+	registry.RegisterRoot("explain", registry.Meta{
 		Description: "Look up what a Ze diagnostic code means",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "--json <code>",
 	})
-	cmdregistry.MustRegisterLocalMeta("explain", Run, cmdregistry.Meta{
+	registry.MustRegisterLocalMeta("explain", Run, registry.Meta{
 		Description: "Print the meaning, likely cause, and recommended fix for a Ze diagnostic code. Pass the code you saw in a log or error message.",
 	})
 }

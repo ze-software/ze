@@ -6,17 +6,17 @@
 package diag
 
 import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 func init() {
-	cmdregistry.RegisterRoot("generate", cmdregistry.Meta{
+	registry.RegisterRoot("generate", registry.Meta{
 		Description: "Generate cryptographic artifacts (keypairs, bundles)",
 		Mode:        "offline",
-		Section:     cmdregistry.SectionSystem,
+		Section:     registry.SectionSystem,
 		Subs:        "wireguard keypair",
 	})
-	cmdregistry.MustRegisterLocalMeta("generate wireguard keypair", RunWgKeypair, cmdregistry.Meta{
+	registry.MustRegisterLocalMeta("generate wireguard keypair", RunWgKeypair, registry.Meta{
 		Description: "Generate a WireGuard keypair. Prints private and public keys to stdout for use in your config.",
 	})
 }
