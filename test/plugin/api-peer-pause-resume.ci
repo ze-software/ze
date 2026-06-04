@@ -35,7 +35,7 @@ def main():
 
     try:
         # Pause peer
-        result = dispatch(api, 'peer peer1 pause')
+        result = dispatch(api, 'request peer peer1 pause')
         if result.get('status') != 'done':
             print(f'FAIL: pause status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -50,7 +50,7 @@ def main():
         print(f'peer state after pause: {state}', file=sys.stderr)
 
         # Resume peer
-        result = dispatch(api, 'peer peer1 resume')
+        result = dispatch(api, 'request peer peer1 resume')
         if result.get('status') != 'done':
             print(f'FAIL: resume status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

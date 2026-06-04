@@ -111,7 +111,7 @@ def main():
             errors.append(f'duration: expected > 0, got {duration}')
 
     # Teardown: send CEASE/AdminReset NOTIFICATION to peer
-    r = dispatch(api, 'peer 127.0.0.1 teardown 4')
+    r = dispatch(api, 'request peer 127.0.0.1 teardown 4')
     if r.get('status') != 'done':
         errors.append(f'teardown: expected status=done, got={r.get("status")}')
 

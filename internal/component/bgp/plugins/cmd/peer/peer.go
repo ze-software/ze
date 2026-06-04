@@ -294,7 +294,7 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 	}, nil
 }
 
-// handleTeardown handles "peer <ip> teardown <subcode> [message]" command.
+// handleTeardown handles "request peer <sel> teardown <subcode> [message]" command.
 // The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
 // RFC 8203: optional message is included in the NOTIFICATION for subcodes 2/4.
@@ -439,7 +439,7 @@ func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	}, nil
 }
 
-// handleBgpPeerPause handles "peer <ip> pause" command.
+// handleBgpPeerPause handles "request peer <sel> pause" command.
 // Pauses the peer's read loop for flow control (backpressure from plugins).
 func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "pause", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
@@ -447,7 +447,7 @@ func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 	})
 }
 
-// handleBgpPeerResume handles "peer <ip> resume" command.
+// handleBgpPeerResume handles "request peer <sel> resume" command.
 // Resumes the peer's read loop after a flow-control pause.
 func handleBgpPeerResume(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "resume", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
@@ -494,7 +494,7 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	}, nil
 }
 
-// handleBgpPeerFlush handles "peer <selector> flush" command.
+// handleBgpPeerFlush handles "request peer <sel> flush" command.
 // Blocks until the forward pool has drained all queued items for the targeted peers.
 // If selector is "*", flushes all peers. If a specific peer, flushes only that peer.
 func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {

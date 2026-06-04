@@ -36,7 +36,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'peer peer1 refresh ipv4/unicast')
+        result = dispatch(api, 'request peer peer1 refresh ipv4/unicast')
         if result.get('status') != 'done':
             print(f'FAIL: refresh status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

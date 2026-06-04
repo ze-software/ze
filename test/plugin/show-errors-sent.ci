@@ -54,7 +54,7 @@ def main():
 
     try:
         # Send teardown 4 (Administrative Reset) -> ze sends NOTIFICATION code=6 subcode=4.
-        td = dispatch(api, 'peer 127.0.0.1 teardown 4')
+        td = dispatch(api, 'request peer 127.0.0.1 teardown 4')
         if td.get('status') != 'done':
             print(f'FAIL: teardown status={td.get("status")} data={td.get("data")}', file=sys.stderr)
             sys.exit(1)
