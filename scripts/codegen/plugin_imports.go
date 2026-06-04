@@ -132,24 +132,9 @@ var pluginDirs = []string{
 	"internal/plugins",
 }
 
-// rpcDirs lists directories that contain RPC command packages.
-// These packages have init() functions that call pluginserver.RegisterRPCs
-// but do not have a top-level register.go file.
-// Empty: all cmd/* packages create import cycles via all_import_test.go -> plugin/all.
-// Populate after Phase 5 breaks the bgp dependencies in cmd/*.
-var rpcDirs = []string{
-	"internal/component/cmd",
-	"internal/component/config/archive/cmd",
-	"internal/component/bfd/cmd",
-	"internal/component/iface/cmd",
-	"internal/component/ike/cmd",
-	"internal/component/l2tp/cmd",
-	"internal/component/ping/cmd",
-	"internal/component/pppoe/cmd",
-	"internal/component/subscriber/cmd",
-	"internal/component/traceroute/cmd",
-	"internal/component/traffic/cmd",
-}
+// rpcRoot is the tree scanned for RPC command packages (any non-test,
+// non-schema .go file that calls pluginserver.RegisterRPCs).
+const rpcRoot = "internal/component"
 
 // discoverPlugins finds plugin packages by looking for register.go files
 // across all known plugin directories. Any register.go that is NOT in a
@@ -245,44 +230,42 @@ func fileImports(path, substr string) bool {
 }
 
 // discoverRPCPackages finds packages that register RPCs via pluginserver.RegisterRPCs.
-// These packages have init() functions but no register.go file.
+// Scans all of internal/component/ and filters out packages that would create
+// import cycles (plugin infrastructure, packages that import plugin/all).
 func discoverRPCPackages(root, module string) ([]string, error) {
+	allPkg := module + "/internal/component/plugin/all"
+	serverPkg := module + "/internal/component/plugin/server"
+
 	var rpcs []string
 
-	for _, rel := range rpcDirs {
-		dir := filepath.Join(root, rel)
-		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
-				return nil
-			}
-			// Skip test files and schema subdirectories.
-			if strings.HasSuffix(d.Name(), "_test.go") {
-				return nil
-			}
-			if filepath.Base(filepath.Dir(path)) == "schema" {
-				return nil
-			}
-			// Check if file contains RegisterRPCs.
-			if !fileImports(path, "RegisterRPCs") {
-				return nil
-			}
-			// Convert to full import path relative to module root.
-			pkgRel, err := filepath.Rel(root, filepath.Dir(path))
-			if err != nil {
-				return err
-			}
-			rpcs = append(rpcs, module+"/"+pkgRel)
-			return nil
-		})
-		if err != nil && !os.IsNotExist(err) {
-			return nil, err
+	dir := filepath.Join(root, rpcRoot)
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".go") {
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), "_test.go") {
+			return nil
+		}
+		if filepath.Base(filepath.Dir(path)) == "schema" {
+			return nil
+		}
+		if !fileCallsRegisterRPCs(path) {
+			return nil
+		}
+		pkgRel, err := filepath.Rel(root, filepath.Dir(path))
+		if err != nil {
+			return err
+		}
+		rpcs = append(rpcs, module+"/"+pkgRel)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	// Deduplicate (multiple files in same package).
 	sort.Strings(rpcs)
 	deduped := rpcs[:0]
 	for i, p := range rpcs {
@@ -290,7 +273,89 @@ func discoverRPCPackages(root, module string) ([]string, error) {
 			deduped = append(deduped, p)
 		}
 	}
-	return deduped, nil
+
+	filtered := deduped[:0]
+	for _, imp := range deduped {
+		if imp == allPkg || imp == serverPkg {
+			continue
+		}
+		rel := strings.TrimPrefix(imp, module+"/")
+		if pkgImportsPath(filepath.Join(root, rel), "plugin/all") {
+			continue
+		}
+		filtered = append(filtered, imp)
+	}
+	return filtered, nil
+}
+
+// fileCallsRegisterRPCs reports whether path contains a call to RegisterRPCs(
+// (not just a reference in comments or the function definition).
+func fileCallsRegisterRPCs(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "//") {
+			continue
+		}
+		if strings.Contains(line, "RegisterRPCs(") && !strings.Contains(line, "func ") {
+			return true
+		}
+	}
+	return false
+}
+
+// pkgImportsPath reports whether any non-test .go file in dir has an
+// import statement containing the given path fragment.
+func pkgImportsPath(dir, path string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		if fileImportsPath(filepath.Join(dir, e.Name()), path) {
+			return true
+		}
+	}
+	return false
+}
+
+// fileImportsPath checks for path inside import statements only, ignoring comments.
+func fileImportsPath(file, path string) bool {
+	f, err := os.Open(file)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	inImport := false
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "import (") {
+			inImport = true
+			continue
+		}
+		if inImport && line == ")" {
+			inImport = false
+			continue
+		}
+		if inImport && strings.Contains(line, path) && !strings.HasPrefix(line, "//") {
+			return true
+		}
+		if !inImport && strings.HasPrefix(line, "import ") && strings.Contains(line, path) {
+			return true
+		}
+	}
+	return false
 }
 
 // discoverEventNamespaces finds packages that call .RegisterNamespace() via
