@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -149,19 +150,21 @@ func TestHandleInterfaceMigrateNoBus(t *testing.T) {
 // passed to the backend and fails with a generic EINVAL.
 func TestHandleInterfaceMTU_Validation(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
+		name      string
+		selectors map[string]string
+		args      []string
+		wantErr   string
 	}{
-		{"missing args", nil, "usage: interface mtu"},
-		{"only name", []string{"eth0"}, "usage: interface mtu"},
-		{"non-numeric", []string{"eth0", "abc"}, "invalid MTU"},
-		{"below min", []string{"eth0", "67"}, "out of range"},
-		{"above max", []string{"eth0", "65536"}, "out of range"},
+		{"missing all", nil, nil, "usage: request interface"},
+		{"missing bytes", map[string]string{"name": "eth0"}, nil, "usage: request interface"},
+		{"non-numeric", map[string]string{"name": "eth0"}, []string{"abc"}, "invalid MTU"},
+		{"below min", map[string]string{"name": "eth0"}, []string{"67"}, "out of range"},
+		{"above max", map[string]string{"name": "eth0"}, []string{"65536"}, "out of range"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleInterfaceMTU(nil, tt.args)
+			ctx := &pluginserver.CommandContext{Selectors: tt.selectors}
+			resp, err := handleInterfaceMTU(ctx, tt.args)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
@@ -178,19 +181,21 @@ func TestHandleInterfaceMTU_Validation(t *testing.T) {
 // backend and fails with a less specific kernel error.
 func TestHandleInterfaceMAC_Validation(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
+		name      string
+		selectors map[string]string
+		args      []string
+		wantErr   string
 	}{
-		{"missing args", nil, "usage: interface mac"},
-		{"only name", []string{"eth0"}, "usage: interface mac"},
-		{"too short", []string{"eth0", "02:00:00:00:00"}, "invalid MAC"},
-		{"non-hex", []string{"eth0", "zz:zz:zz:zz:zz:zz"}, "invalid MAC"},
-		{"wrong separator", []string{"eth0", "02-00-00-00-00-01"}, "invalid MAC"},
+		{"missing all", nil, nil, "usage: request interface"},
+		{"missing address", map[string]string{"name": "eth0"}, nil, "usage: request interface"},
+		{"too short", map[string]string{"name": "eth0"}, []string{"02:00:00:00:00"}, "invalid MAC"},
+		{"non-hex", map[string]string{"name": "eth0"}, []string{"zz:zz:zz:zz:zz:zz"}, "invalid MAC"},
+		{"wrong separator", map[string]string{"name": "eth0"}, []string{"02-00-00-00-00-01"}, "invalid MAC"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := handleInterfaceMAC(nil, tt.args)
+			ctx := &pluginserver.CommandContext{Selectors: tt.selectors}
+			resp, err := handleInterfaceMAC(ctx, tt.args)
 			require.NoError(t, err)
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
@@ -235,25 +240,27 @@ func TestIsValidMACAddress(t *testing.T) {
 // PREVENTS: regressions where `interface up` with no name reaches the
 // backend and is rejected by it with a less helpful error.
 func TestHandleInterfaceUpDown_UsageGate(t *testing.T) {
-	resp, err := handleInterfaceUp(nil, nil)
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleInterfaceUp(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "usage: interface up")
+	assert.Contains(t, resp.Error, "usage: request interface")
 
-	resp, err = handleInterfaceDown(nil, nil)
+	resp, err = handleInterfaceDown(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "usage: interface down")
+	assert.Contains(t, resp.Error, "usage: request interface")
 }
 
 // TestHandleCreateBridge_UsageGate verifies the create-bridge handler
 // rejects an empty arg list with the usage line.
 func TestHandleCreateBridge_UsageGate(t *testing.T) {
-	resp, err := handleCreateBridge(nil, nil)
+	ctx := &pluginserver.CommandContext{}
+	resp, err := handleCreateBridge(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "usage: interface create-bridge")
+	assert.Contains(t, resp.Error, "usage: create interface bridge")
 }

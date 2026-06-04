@@ -3,116 +3,137 @@ module ze-iface-cmd {
     prefix ifacecmd;
     import ze-extensions { prefix ze; }
     description "Create, configure, and manage network interfaces";
-    revision 2026-04-01 { description "Initial revision"; }
+    revision 2026-06-04 { description "Verb-first grammar: create/delete/request interface"; }
 
-    container interface {
+    container create {
         config false;
-        description "Interface lifecycle: create, delete, configure addresses, VLANs, and properties";
+        description "Create new resources";
 
-        container create-dummy {
+        container interface {
             config false;
-            ze:command "ze-iface:interface-create-dummy";
-            ze:backend "netlink";
-            description "Create a dummy (loopback-style) interface.
-Usage: interface create-dummy <name>. Good for hosting service
-IPs that are not tied to a physical link.";
-        }
+            description "Create interfaces, units, and addresses";
 
-        container create-veth {
-            config false;
-            ze:command "ze-iface:interface-create-veth";
-            ze:backend "netlink";
-            description "Create a veth pair (two linked virtual Ethernet interfaces).
-Usage: interface create-veth <name>. Commonly used for connecting
-namespaces or testing.";
-        }
+            container dummy {
+                config false;
+                ze:command "ze-iface:interface-create-dummy";
+                ze:backend "netlink";
+                description "Create a dummy (loopback-style) interface.
+Usage: create interface dummy <name>.";
+                leaf name { type string; mandatory true; description "Interface name"; }
+            }
 
-        container create-bridge {
-            config false;
-            ze:command "ze-iface:interface-create-bridge";
-            ze:backend "netlink";
-            description "Create a Linux bridge for L2 forwarding.
-Usage: interface create-bridge <name>. Add ports to it with
-standard bridge configuration.";
-        }
+            container veth {
+                config false;
+                ze:command "ze-iface:interface-create-veth";
+                ze:backend "netlink";
+                description "Create a veth pair (two linked virtual Ethernet interfaces).
+Usage: create interface veth <name> <peer>.";
+                leaf name { type string; mandatory true; description "Interface name"; }
+            }
 
-        container delete {
+            container bridge {
+                config false;
+                ze:command "ze-iface:interface-create-bridge";
+                ze:backend "netlink";
+                description "Create a Linux bridge for L2 forwarding.
+Usage: create interface bridge <name>.";
+                leaf name { type string; mandatory true; description "Interface name"; }
+            }
+
+            container unit {
+                config false;
+                ze:command "ze-iface:interface-unit-add";
+                description "Add a VLAN sub-interface (802.1Q tagged).
+Usage: create interface <parent> unit <vid>.";
+                leaf name { type string; mandatory true; description "Parent interface name"; }
+            }
+
+            container address {
+                config false;
+                ze:command "ze-iface:interface-addr-add";
+                description "Add an IP address to an interface.
+Usage: create interface <name> address <prefix>.";
+                leaf name { type string; mandatory true; description "Interface name"; }
+            }
+        }
+    }
+
+    container delete {
+        config false;
+        description "Delete resources";
+
+        container interface {
             config false;
             ze:command "ze-iface:interface-delete";
             description "Delete an interface from the kernel.
-Usage: interface delete <name>. The interface and all its addresses
-are removed immediately.";
-        }
+Usage: delete interface <name>.";
+            leaf name { type string; mandatory true; description "Interface name"; }
 
-        container up {
-            config false;
-            ze:command "ze-iface:interface-up";
-            description "Bring an interface up.
-Usage: interface up <name>. Traffic starts flowing once the link
-is also physically up.";
-        }
+            container unit {
+                config false;
+                ze:command "ze-iface:interface-unit-del";
+                description "Remove a VLAN sub-interface.
+Usage: delete interface <name> unit.";
+                leaf name { type string; mandatory true; description "Sub-interface name (e.g. eth0.100)"; }
+            }
 
-        container down {
-            config false;
-            ze:command "ze-iface:interface-down";
-            description "Shut down an interface.
-Usage: interface down <name>. All traffic stops immediately.";
+            container address {
+                config false;
+                ze:command "ze-iface:interface-addr-del";
+                description "Remove an IP address from an interface.
+Usage: delete interface <name> address <prefix>.";
+                leaf name { type string; mandatory true; description "Interface name"; }
+            }
         }
+    }
 
-        container mtu {
-            config false;
-            ze:command "ze-iface:interface-mtu";
-            description "Set the MTU on an interface.
-Usage: interface mtu <name> <bytes>. Range: 68 to 65535. Standard
-Ethernet is 1500; jumbo frames typically 9000.";
-        }
+    container request {
+        config false;
+        description "Operational actions on network interfaces";
 
-        container mac {
+        container interface {
             config false;
-            ze:command "ze-iface:interface-mac";
-            description "Set the MAC address on an interface.
-Usage: interface mac <name> <aa:bb:cc:dd:ee:ff>. Some backends
-require the interface to be down first.";
-        }
+            description "Interface operational state";
 
-        container addr-add {
-            config false;
-            ze:command "ze-iface:interface-addr-add";
-            description "Add an IP address to an interface.
-Usage: interface addr-add <name> <prefix>. Use CIDR notation
-(e.g. 10.0.0.1/24). Multiple addresses on one interface are fine.";
-        }
+            container up {
+                config false;
+                ze:command "ze-iface:interface-up";
+                description "Bring an interface up.
+Usage: request interface <name> up.";
+                leaf name { type string; mandatory true; description "Interface name"; }
+            }
 
-        container addr-del {
-            config false;
-            ze:command "ze-iface:interface-addr-del";
-            description "Remove an IP address from an interface.
-Usage: interface addr-del <name> <prefix>. The prefix must match
-an assigned address exactly (including mask length).";
-        }
+            container down {
+                config false;
+                ze:command "ze-iface:interface-down";
+                description "Shut down an interface.
+Usage: request interface <name> down.";
+                leaf name { type string; mandatory true; description "Interface name"; }
+            }
 
-        container unit-add {
-            config false;
-            ze:command "ze-iface:interface-unit-add";
-            description "Add a VLAN sub-interface (802.1Q tagged).
-Usage: interface unit-add <parent> <vlan-id>. Creates a new
-sub-interface on the parent with the given VLAN tag.";
-        }
+            container mtu {
+                config false;
+                ze:command "ze-iface:interface-mtu";
+                description "Set the MTU on an interface.
+Usage: request interface <name> mtu <bytes>. Range: 68 to 65535.";
+                leaf name { type string; mandatory true; description "Interface name"; }
+            }
 
-        container unit-del {
-            config false;
-            ze:command "ze-iface:interface-unit-del";
-            description "Remove a VLAN sub-interface.
-Usage: interface unit-del <parent> <vlan-id>.";
-        }
+            container mac {
+                config false;
+                ze:command "ze-iface:interface-mac";
+                description "Set the MAC address on an interface.
+Usage: request interface <name> mac <aa:bb:cc:dd:ee:ff>.";
+                leaf name { type string; mandatory true; description "Interface name"; }
+            }
 
-        container migrate {
-            config false;
-            ze:command "ze-iface:interface-migrate";
-            description "Move IP addresses between interfaces with minimal downtime.
-Adds addresses to the target before removing them from the source
-(make-before-break). Useful during NIC replacements or interface
-consolidation.";
+            container migrate {
+                config false;
+                ze:command "ze-iface:interface-migrate";
+                description "Move IP addresses between interfaces with minimal downtime.
+Uses --from, --to, --address flags. Adds addresses to the target
+before removing them from the source (make-before-break).";
+            }
         }
     }
 }
