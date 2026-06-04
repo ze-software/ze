@@ -222,13 +222,6 @@ a `slog.Warn` so the truncation surfaces in daemon logs.
 | Reading the YANG bcrypt hash and passing it as `ZE_SSH_PASSWORD` | The daemon's `CheckPassword` does plaintext-bcrypt comparison and timing-safe equality with the SAME hash; it works for the super-admin only because zefs stores the same bytes the daemon stores | Use the plaintext password; the daemon hashes on receive |
 | Forgetting to add the user, then trying to log in as them | Daemon authenticator has no entry, returns `SSH auth failure source=local` | Add user, reload config |
 
-## Authorization
-
-Authentication decides *who the user is*. For controlling *what they can
-do*, see `authorization.md`, which covers profile-based command
-authorization (RBAC): prefix and regex matching, entry ordering,
-run/edit sections, built-in profiles, and fail-closed behavior.
-
 ## Reference
 
 | Symbol | Location |
