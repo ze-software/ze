@@ -4,9 +4,11 @@
 
 `ze doctor` previously sequenced checks by directly appending every probe in `cmd/ze/doctor/doctor.go`. That made each new runtime dependency touch the central runner and left no mechanical link between a check's emitted `doctor-*` codes and `ze explain` metadata. The goal was to prove a registration-first path without changing `ze doctor --json` shape or early-return behavior for missing or invalid config. Plugin binary checks were the safe first migration because they are post-config, platform-neutral, and already covered by unit and UI functional tests.
 
+Update: future ownership placement is superseded by [838](838-doctor-check-ownership.md). New runtime dependency checks should register from the owning package, not from `cmd/ze/doctor`, unless no narrower owner exists.
+
 ## Decisions
 
-- Chose an unexported registry in `cmd/ze/doctor` over a new internal package because the doctor command still owns readiness execution and no component needs to import it yet.
+- Historical, now superseded for future checks by [838](838-doctor-check-ownership.md): chose an unexported registry in `cmd/ze/doctor` over a new internal package because the doctor command still owned readiness execution and no component needed to import it yet.
 - Chose explicit phases over one flat list because missing-config and parse-failure behavior are semantic boundaries, not just ordering details.
 - Chose plugin binary checks over listener or Linux checks because they avoid build-tag and schema-listener breadth while still proving a real user-visible diagnostic path.
 - Chose central diagnostic metadata plus a consistency test over moving metadata into check registration because `diagnostic.Lookup` is already the source used by `ze explain`.

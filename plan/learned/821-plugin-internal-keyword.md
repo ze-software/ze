@@ -10,7 +10,7 @@ Plugin declarations lived under a single YANG list named `external`. Whether a p
 
 1. **Explicit `internal` list, sibling to `external`.** `plugin { internal <name> { use <builtin> } }` declares a built-in plugin running in-process. Maps to the same `PluginConfig{Internal:true}` as the existing `external { use }` form.
 2. **Back-compat preserved.** `external { use X }` and `external { run ze.X }` still resolve to `Internal=true`. No existing config breaks.
-3. **Doctor advisory for external-of-builtin.** `ze doctor` emits `doctor-plugin-external-builtin` (warning severity) when an external plugin's `run` command resolves to a built-in name via token matching (split on whitespace, strip `ze.` prefix, `filepath.Base`, check against `AvailableInternalPlugins()`).
+3. **Doctor advisory for external-of-builtin.** `ze doctor` emits `doctor-plugin-external-builtin` (warning severity) when an external plugin's `run` command resolves to a built-in plugin name via token matching (split on whitespace, strip `ze.` prefix, `filepath.Base`, check against `AvailableInternalPlugins()`).
 4. **Built-in names from registry.** Doctor and YANG validator both query `AvailableInternalPlugins()` / `registry.Has()` at call time, never a hardcoded list.
 
 ## Consequences
