@@ -5,15 +5,19 @@ import (
 	"testing"
 )
 
-func TestClearSchemaHasNoMigratedOwnerCommands(t *testing.T) {
+func TestClearOwnerRemovalLeavesNoResidue(t *testing.T) {
 	banned := map[string]string{
 		`"ze-clear:vpn-ipsec-sa"`:       "IPsec clear -> internal/component/ike/schema",
 		`"ze-clear:dns-cache"`:          "DNS cache clear -> internal/component/resolve/schema",
 		`"ze-clear:interface-counters"`: "interface counters clear -> internal/component/iface/schema",
+		`"ze-l2tp-api:`:                 "L2TP clear -> internal/component/cmd/l2tp (already owned)",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliClearCmdYANG, token) {
-			t.Errorf("central clear schema declares owner command %q; move it to %s (see ai/rules/plugin-self-containment.md)", token, owner)
+			t.Errorf("central clear schema contains owner token %q; owner removal would leave a dangling node (owner: %s)", token, owner)
+		}
+		if strings.Contains(ZeCliClearAPIYANG, token) {
+			t.Errorf("central clear API schema contains owner token %q; owner removal would leave a dangling RPC (owner: %s)", token, owner)
 		}
 	}
 }

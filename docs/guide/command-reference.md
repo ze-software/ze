@@ -813,6 +813,23 @@ clear dns cache record example.com type AAAA        # Delete a single entry by n
 
 <!-- source: internal/component/resolve/cmd/dns.go -- handleClearDNSCache -->
 
+### clear vpn ipsec sa
+
+```
+clear vpn ipsec sa                          # Terminate all IPsec SAs
+clear vpn ipsec sa peer <name>              # Terminate SAs for one peer (1-255 chars)
+```
+
+Without arguments, terminates every active Security Association and
+returns the count. With `peer <name>`, terminates only the named
+peer's SAs and returns the peer name. Peers configured with `connection-type initiate` re-establish
+automatically; `respond`-only peers wait for the remote side.
+
+Peer name must be 1-255 characters. A missing name after `peer`
+returns an error. An unknown peer name returns "peer not found".
+
+<!-- source: internal/component/ike/cmd/ipsec.go -- handleClearIPsecSA -->
+
 ### show system profile
 
 ```
