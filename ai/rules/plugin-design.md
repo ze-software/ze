@@ -51,12 +51,22 @@ what callbacks exist.
 
 **Related code belongs together.** The "delete the folder" test is a mechanical check for proximity.
 
+The full user-facing version of this test is `ai/rules/plugin-self-containment.md`:
+remove a plugin and ALL its features (commands, schema, help, doctor checks)
+vanish while every other plugin and the core keep working.
+
 | Rule | Meaning |
 |------|---------|
 | All code for a concern in its folder | Commands, handlers, registration, logic — not scattered across packages |
 | No external references to internals | Infrastructure, reactor, other units never import a specific plugin/command module |
 | Blank import is the only coupling | A single `_ "package"` triggers init(); removing it cleanly disables the unit |
 | Engine core works without any command module | Reactor, FSM, wire layer must function without CLI command handlers |
+
+Doctor checks follow the same proximity rule. A runtime dependency check,
+its registration, and its unit test belong in the plugin, component, backend,
+or command package that owns the dependency. `cmd/ze/doctor` keeps the runner,
+the user-entry functional tests, and checks for dependencies with no narrower
+owner.
 
 ## YANG Is Required (BLOCKING)
 

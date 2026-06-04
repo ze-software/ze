@@ -2,6 +2,8 @@
 
 The `.ci` format is used by Ze's test runner to define functional tests. It supports embedded files (Tmpfs), test options, expectations, and commands.
 
+> For the execution architecture (how tests are scheduled and run concurrently) and the web `.wb` format, see [`runner-architecture.md`](runner-architecture.md).
+
 ## Syntax Overview
 
 All lines use key=value format with `:` separators:
