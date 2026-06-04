@@ -373,7 +373,9 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	}
 }
 
-// peerAction dispatches a peer lifecycle action (pause, resume) via dispatch-command.
+// peerAction dispatches a peer lifecycle or route-refresh action (pause, resume,
+// refresh) via dispatch-command. These commands live under the "request peer
+// <sel>" YANG path, not the route-injection "peer <sel>" path used by updateRoute.
 func (rs *RouteServer) peerAction(peerSelector, action string) {
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()

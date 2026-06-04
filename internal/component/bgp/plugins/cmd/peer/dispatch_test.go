@@ -189,6 +189,26 @@ func TestDispatchBGPPeerTeardown(t *testing.T) {
 	assert.Equal(t, uint8(2), reactor.teardownCalls[0].subcode)
 }
 
+// TestDispatchBGPPeerSessionReady verifies "request peer <addr> plugin session
+// ready" dispatches to handlePeerSessionReady. The RIB plugin sends this signal
+// after replaying routes on reconnect; the update-route split moved its YANG
+// container under request-peer, so the dispatch path must resolve there (a bare
+// "peer <addr> plugin session ready" no longer exists).
+//
+// VALIDATES: Dispatch chain reaches handlePeerSessionReady with the peer selector.
+// PREVENTS: Reconnect ready signal failing to resolve after the update-route split.
+func TestDispatchBGPPeerSessionReady(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newDispatchContext(reactor)
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "request peer 192.0.2.1 plugin session ready")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	require.Len(t, reactor.signalPeerReadyCalls, 1)
+	assert.Equal(t, "192.0.2.1", reactor.signalPeerReadyCalls[0])
+}
+
 // TestDispatchBGPNilReactor verifies dispatch returns error when reactor is nil.
 //
 // VALIDATES: Handlers return clean error when reactor unavailable.

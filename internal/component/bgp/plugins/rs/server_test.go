@@ -271,7 +271,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 	// The replay command must keep the peer in args[0] so bgp-adj-rib-in can
 	// replay routes from ALL source peers EXCEPT the target peer itself.
 	call, _ := replayCall.Load().(dispatchCall)
-	if call.command != "request adj-rib-in replay" || !slices.Equal(call.args, []string{"10.0.0.1", "0"}) {
+	if call.command != cmdAdjRIBInReplay || !slices.Equal(call.args, []string{"10.0.0.1", "0"}) {
 		t.Errorf("replay command should preserve typed split, got command=%q args=%v", call.command, call.args)
 	}
 }
@@ -1209,7 +1209,7 @@ func TestHandleStateUpReplay(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if dispatchCmds[0].command != "request adj-rib-in replay" || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0"}) {
+	if dispatchCmds[0].command != cmdAdjRIBInReplay || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0"}) {
 		t.Errorf("expected typed replay command+args, got command=%q args=%v", dispatchCmds[0].command, dispatchCmds[0].args)
 	}
 	for _, cmd := range updateCmds {
@@ -1367,10 +1367,10 @@ func TestHandleStateUpDelta(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	if dispatchCmds[0].command != "request adj-rib-in replay" || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0"}) {
+	if dispatchCmds[0].command != cmdAdjRIBInReplay || !slices.Equal(dispatchCmds[0].args, []string{"10.0.0.1", "0"}) {
 		t.Errorf("expected full typed replay, got command=%q args=%v", dispatchCmds[0].command, dispatchCmds[0].args)
 	}
-	if dispatchCmds[1].command != "request adj-rib-in replay" || !slices.Equal(dispatchCmds[1].args, []string{"10.0.0.1", "5"}) {
+	if dispatchCmds[1].command != cmdAdjRIBInReplay || !slices.Equal(dispatchCmds[1].args, []string{"10.0.0.1", "5"}) {
 		t.Errorf("expected delta typed replay from 5, got command=%q args=%v", dispatchCmds[1].command, dispatchCmds[1].args)
 	}
 }

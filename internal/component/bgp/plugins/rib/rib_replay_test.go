@@ -181,6 +181,42 @@ func TestReplayEmptyRibOut(t *testing.T) {
 	assert.Equal(t, "plugin session ready", commands[0])
 }
 
+// TestReplayReadySignalUsesRequestPeer verifies the post-replay "plugin session
+// ready" terminator dispatches through the request-peer command path, not the
+// route-injection update-route path. The YANG container for this signal lives
+// under "request peer <sel> plugin session ready" (ze-peer-cmd); sending it via
+// update-route, which prepends a bare "peer <sel>", would no longer resolve.
+//
+// VALIDATES: replayRoutesWithCursor emits "request peer <addr> plugin session ready".
+// PREVENTS: Reconnect ready signal silently lost after the update-route split.
+func TestReplayReadySignalUsesRequestPeer(t *testing.T) {
+	var dispatched []string
+	r := &RIBManager{dispatchHook: func(cmd string) { dispatched = append(dispatched, cmd) }}
+
+	r.replayRoutesWithCursor("10.0.0.1", nil)
+
+	require.Len(t, dispatched, 1)
+	assert.Equal(t, "request peer 10.0.0.1 plugin session ready", dispatched[0])
+}
+
+// TestDispatchPeerActionRequestPeerPrefix verifies RFC 7313 refresh markers
+// (BoRR/EoRR) are dispatched with the "request peer <sel>" prefix that
+// ze-refresh-cmd requires after the update-route split.
+//
+// VALIDATES: dispatchPeerAction builds "request peer <sel> <action>".
+// PREVENTS: Refresh markers routed through the wrong (route-injection) path.
+func TestDispatchPeerActionRequestPeerPrefix(t *testing.T) {
+	var dispatched []string
+	r := &RIBManager{dispatchHook: func(cmd string) { dispatched = append(dispatched, cmd) }}
+
+	r.dispatchPeerAction("10.0.0.1", "borr "+family.IPv4Unicast.String())
+	r.dispatchPeerAction("10.0.0.1", "eorr "+family.IPv4Unicast.String())
+
+	require.Len(t, dispatched, 2)
+	assert.Equal(t, "request peer 10.0.0.1 borr "+family.IPv4Unicast.String(), dispatched[0])
+	assert.Equal(t, "request peer 10.0.0.1 eorr "+family.IPv4Unicast.String(), dispatched[1])
+}
+
 // TestReplayLargeGroupSplit verifies splitting at max BGP UPDATE size.
 func TestReplayLargeGroupSplit(t *testing.T) {
 	origin := attribute.Origin(0)

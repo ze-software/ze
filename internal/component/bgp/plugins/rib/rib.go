@@ -207,6 +207,11 @@ type RIBManager struct {
 	// plugin is the SDK plugin handle for engine RPCs (update-route, subscribe-events).
 	plugin *sdk.Plugin
 
+	// dispatchHook, when non-nil, intercepts dispatchPeerAction for test
+	// inspection instead of issuing the dispatch-command RPC. Production leaves
+	// it nil.
+	dispatchHook func(command string)
+
 	// ribInPool stores routes received FROM peers (Adj-RIB-In), keyed by
 	// source protocol then peer address. Uses pool storage for memory
 	// efficiency (attributes deduplicated).
@@ -673,6 +678,24 @@ func (r *RIBManager) updateRouteWithMeta(peerSelector, command string, meta map[
 	}
 }
 
+// dispatchPeerAction sends a peer lifecycle or route-refresh command through the
+// engine command dispatcher. These commands (plugin session ready, borr, eorr)
+// live under the "request peer <sel>" YANG path (ze-peer-cmd, ze-refresh-cmd),
+// NOT the route-injection "peer <sel>" path that updateRoute targets, so they
+// must go through dispatch-command rather than the update-route RPC.
+func (r *RIBManager) dispatchPeerAction(peerSelector, action string) {
+	command := "request peer " + peerSelector + " " + action
+	if r.dispatchHook != nil {
+		r.dispatchHook(command)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, _, err := r.plugin.DispatchCommand(ctx, command); err != nil {
+		logger().Warn("dispatch peer-action failed", "peer", peerSelector, "action", action, "error", err)
+	}
+}
+
 // dispatch routes an event to the appropriate handler.
 func (r *RIBManager) dispatch(event *Event) {
 	eventType := event.GetEventType()
@@ -920,10 +943,11 @@ func (r *RIBManager) handleRefresh(event *Event) {
 	routesToSend := r.collectRibOutRoutes(peerAddr, fam)
 	r.peerMu.RUnlock()
 
-	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence
-	r.updateRoute(peerAddr, "borr "+fam.String())
+	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence.
+	// Markers dispatch through request-peer; only the routes use update-route.
+	r.dispatchPeerAction(peerAddr, "borr "+fam.String())
 	r.sendRoutes(peerAddr, routesToSend)
-	r.updateRoute(peerAddr, "eorr "+fam.String())
+	r.dispatchPeerAction(peerAddr, "eorr "+fam.String())
 
 	logger().Debug("completed route refresh", "peer", peerAddr, "family", fam, "routes", len(routesToSend))
 }

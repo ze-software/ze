@@ -247,7 +247,7 @@ func asPathString(path []uint32) string {
 // replayRoutesWithCursor replays routes using cursor mode for efficiency.
 func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGroup) {
 	if len(groups) == 0 {
-		r.updateRoute(peerAddr, "plugin session ready")
+		r.dispatchPeerAction(peerAddr, "plugin session ready")
 		return
 	}
 
@@ -271,7 +271,7 @@ func (r *RIBManager) replayRoutesWithCursor(peerAddr string, groups []replayGrou
 	}
 
 	r.updateRoute(peerAddr, "update cursor done")
-	r.updateRoute(peerAddr, "plugin session ready")
+	r.dispatchPeerAction(peerAddr, "plugin session ready")
 }
 
 // resendRoutesWithCursor replays routes using cursor mode for manual resend.

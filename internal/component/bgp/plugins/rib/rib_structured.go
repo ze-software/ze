@@ -443,9 +443,9 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	routesToSend := r.collectRibOutRoutes(peerAddr, fam)
 	r.peerMu.RUnlock()
 
-	r.updateRoute(peerAddr, "borr "+fam.String())
+	r.dispatchPeerAction(peerAddr, "borr "+fam.String())
 	r.sendRoutes(peerAddr, routesToSend)
-	r.updateRoute(peerAddr, "eorr "+fam.String())
+	r.dispatchPeerAction(peerAddr, "eorr "+fam.String())
 }
 
 // insertLabeled handles a single labeled unicast NLRI announce. It strips

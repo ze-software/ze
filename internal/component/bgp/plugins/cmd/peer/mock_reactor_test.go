@@ -45,6 +45,8 @@ type mockReactor struct {
 	pausedPeers    []netip.Addr
 	resumedPeers   []netip.Addr
 
+	signalPeerReadyCalls []string // peers passed to SignalPeerAPIReady
+
 	// NLRI batch tracking (used by update_wire integration tests)
 	announcedBatches []struct {
 		peer  string
@@ -83,12 +85,14 @@ func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapab
 func (m *mockReactor) PeerFSMHistory(addr string) []plugin.FSMTransitionRecord {
 	return m.history[addr]
 }
-func (m *mockReactor) GetConfigTree() map[string]any          { return m.configTree }
-func (m *mockReactor) SetConfigTree(_ map[string]any)         {}
-func (m *mockReactor) SignalAPIReady()                        {}
-func (m *mockReactor) AddAPIProcessCount(_ int)               {}
-func (m *mockReactor) SignalPluginStartupComplete()           {}
-func (m *mockReactor) SignalPeerAPIReady(_ string)            {}
+func (m *mockReactor) GetConfigTree() map[string]any  { return m.configTree }
+func (m *mockReactor) SetConfigTree(_ map[string]any) {}
+func (m *mockReactor) SignalAPIReady()                {}
+func (m *mockReactor) AddAPIProcessCount(_ int)       {}
+func (m *mockReactor) SignalPluginStartupComplete()   {}
+func (m *mockReactor) SignalPeerAPIReady(peer string) {
+	m.signalPeerReadyCalls = append(m.signalPeerReadyCalls, peer)
+}
 func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
 func (m *mockReactor) UnregisterCacheConsumer(_ string)       {}
 func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string) error {
