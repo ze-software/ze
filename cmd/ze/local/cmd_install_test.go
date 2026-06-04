@@ -1,6 +1,6 @@
-// Design: plan/spec-install-0-umbrella.md — tests for ze install local
+// Design: docs/architecture/cli/plugin-modes.md — tests for local install
 
-package install
+package local
 
 import (
 	"bytes"
@@ -44,14 +44,6 @@ func TestPromptPrefix_Invalid(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid choice")
 }
 
-func TestPromptPrefix_NonNumeric(t *testing.T) {
-	r := strings.NewReader("abc\n")
-	var w bytes.Buffer
-	_, err := promptPrefix(r, &w)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid choice")
-}
-
 func TestPromptPrefix_NoInput(t *testing.T) {
 	r := strings.NewReader("")
 	var w bytes.Buffer
@@ -60,26 +52,17 @@ func TestPromptPrefix_NoInput(t *testing.T) {
 	assert.Contains(t, err.Error(), "no input")
 }
 
-func TestBuildSystemdUnit(t *testing.T) {
-	unit := buildSystemdUnit("/usr/local/bin/ze")
-	assert.Contains(t, unit, "ExecStart=/usr/local/bin/ze start")
-	assert.Contains(t, unit, "Description=Ze Network OS")
-	assert.Contains(t, unit, "After=network-online.target")
-	assert.Contains(t, unit, "Restart=on-failure")
-	assert.Contains(t, unit, "WantedBy=multi-user.target")
-}
-
-func TestBuildSystemdUnit_OptPrefix(t *testing.T) {
-	unit := buildSystemdUnit("/opt/ze/bin/ze")
-	assert.Contains(t, unit, "ExecStart=/opt/ze/bin/ze start")
-}
-
-func TestRunLocal_Help(t *testing.T) {
-	code := runLocal([]string{"-h"})
+func TestInstallHelp(t *testing.T) {
+	code := RunInstall([]string{"-h"})
 	assert.Equal(t, 0, code)
 }
 
-func TestRunLocal_MutuallyExclusiveFlags(t *testing.T) {
-	code := runLocal([]string{"--systemd", "--no-systemd", "--prefix", "/usr/local", "--dry-run"})
-	assert.Equal(t, 1, code, "should reject --systemd and --no-systemd together")
+func TestUninstallHelp(t *testing.T) {
+	code := RunUninstall([]string{"-h"})
+	assert.Equal(t, 0, code)
+}
+
+func TestInstallRejectsWhitespacePrefix(t *testing.T) {
+	code := RunInstall([]string{"--prefix", "/usr local", "--dry-run"})
+	assert.Equal(t, 1, code)
 }

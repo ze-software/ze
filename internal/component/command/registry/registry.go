@@ -119,12 +119,23 @@ var sectionTitles = map[string]string{
 // fields render as blank in help output. Mode is a short tag used by the help
 // printer ("offline", "daemon", "setup", "read-only"). Section groups the
 // command in help output ("operations", "configuration", "system"). Subs is a
-// one-line hint at commonly-used sub-paths.
+// one-line hint at commonly-used sub-paths. SubsFunc, when non-nil, is called
+// instead of reading Subs directly; use it when sub-paths are registered by
+// other packages whose init() order is not guaranteed.
 type Meta struct {
 	Description string
 	Mode        string
 	Section     string
 	Subs        string
+	SubsFunc    func() string
+}
+
+// ResolveSubs returns the Subs string, calling SubsFunc if set.
+func (m Meta) ResolveSubs() string {
+	if m.SubsFunc != nil {
+		return m.SubsFunc()
+	}
+	return m.Subs
 }
 
 // LocalCommandEntry pairs a registered local-command path with its metadata.

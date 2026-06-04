@@ -9,7 +9,7 @@ Ze provides an interactive CLI and single-command execution for runtime queries 
 ze cli                              # Interactive CLI with tab completion
 ze cli -c "show bgp peer list"   # Execute single command and exit
 ze show peer upstream1 detail         # Read-only query (safe for scripts)
-ze cli -c "peer upstream1 teardown 2" # One-shot command (full access)
+ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 ```
 
 ### Modes
@@ -26,10 +26,10 @@ ze cli -c "peer upstream1 teardown 2" # One-shot command (full access)
 |---------|-------------|
 | `show bgp peer list` | List all peers (brief) |
 | `show bgp peer <sel> detail` | Show peer details and statistics |
-| `peer <sel> teardown <code>` | Graceful session closure with NOTIFICATION |
+| `request peer <sel> teardown <code>` | Graceful session closure with NOTIFICATION |
 | `delete bgp peer <name>` | Remove peer |
-| `peer <sel> pause` | Pause reading from peer (flow control) |
-| `peer <sel> resume` | Resume reading from peer |
+| `request peer <sel> pause` | Pause reading from peer (flow control) |
+| `request peer <sel> resume` | Resume reading from peer |
 | `show bgp peer <sel> capabilities` | Show negotiated capabilities |
 | `show bgp summary` | BGP summary table |
 

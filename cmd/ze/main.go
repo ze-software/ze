@@ -29,7 +29,6 @@ import (
 	internalresolve "codeberg.org/thomas-mangin/ze/cmd/ze/internal/resolve"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zepasswd "codeberg.org/thomas-mangin/ze/cmd/ze/passwd"
-	zeremote "codeberg.org/thomas-mangin/ze/cmd/ze/remote"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -112,6 +111,17 @@ import (
 	// Blank import: doctor's init() registers `doctor` with
 	// cmdregistry for system readiness checks.
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/doctor"
+
+	// Blank imports: install/uninstall dispatch + their targets, and
+	// connect register root handlers via the command registry.
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/connect"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install/local"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install/remote"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install/systemd"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall/local"
+	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall/systemd"
 
 	// Blank import: explain's init() registers `explain` with
 	// cmdregistry for diagnostic code explanations.
@@ -499,26 +509,12 @@ dispatch:
 		exit(zepasswd.Run(args[1:]))
 	case "debug":
 		exit(zedebug.Run(args[1:]))
-	case "remote":
-		exit(zeremote.Run(args[1:]))
 	case "exabgp":
 		exit(exabgp.Run(args[1:]))
 	case "signal":
 		exit(zesignal.Run(args[1:]))
 	case "status":
 		exit(zesignal.RunStatus(args[1:]))
-	case "service":
-		exit(runService(args[1:]))
-	case "install":
-		exit(runInstall(args[1:]))
-	case "uninstall":
-		exit(runUninstall(args[1:]))
-	case "run":
-		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
-		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")
-		fmt.Fprintf(os.Stderr, "hint: use 'ze set/clear/request/delete/update <command>' for mutations\n")
-		fmt.Fprintf(os.Stderr, "hint: run 'ze help' for available verbs\n")
-		exit(1)
 	case "completion":
 		exit(zecompletion.Run(args[1:]))
 	case "version":

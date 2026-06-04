@@ -1,6 +1,6 @@
-// Design: (none — offline CLI command for systemd service management)
+// Design: docs/architecture/cli/plugin-modes.md — ze systemd unit file generation
 
-package service
+package systemd
 
 import "strings"
 

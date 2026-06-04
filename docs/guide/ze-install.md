@@ -4,13 +4,13 @@ Ze provides commands for local installation, remote PXE provisioning, and applia
 
 ## Local Installation
 
-`ze install local` copies the ze binary to a standard system location,
-optionally sets up a systemd service, and creates the config directory.
+`ze install local` copies the ze binary to a standard system location
+and creates the config directory.
 
 ### Quick Start
 
 ```bash
-sudo ze install local --no-systemd
+sudo ze install local
 ```
 
 This presents an interactive menu to select the installation prefix:
@@ -26,7 +26,7 @@ Choice [1]:
 Use `--prefix` for non-interactive use:
 
 ```bash
-sudo ze install local --prefix /usr/local --no-systemd
+sudo ze install local --prefix /usr/local
 ```
 
 ### Flags
@@ -34,15 +34,12 @@ sudo ze install local --prefix /usr/local --no-systemd
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--prefix` | interactive | Installation prefix (binary goes to `<prefix>/bin/ze`) |
-| `--systemd` | | Force systemd service setup |
-| `--no-systemd` | | Skip systemd service setup |
 | `--dry-run` | | Print what would be done without making changes |
 
 ### What It Does
 
 1. Copies the running ze binary to `<prefix>/bin/ze`
-2. If systemd is available (auto-detected): creates `/etc/systemd/system/ze.service`, runs `systemctl daemon-reload` and `systemctl enable ze`
-3. If no `database.zefs` exists at the config path: creates the config directory
+2. If no `database.zefs` exists at the config path: creates the config directory
 
 The config directory is resolved from the binary path following GNU prefix
 conventions:
@@ -55,17 +52,15 @@ conventions:
 
 After installation, run `ze init` to bootstrap the database.
 
-### Systemd Unit
+### Systemd Service
 
-`ze install local` can install a minimal unit as part of binary installation.
-For the current service-management path, install the binary with `--no-systemd`,
-then use `ze service install` after `ze init`. This avoids creating a legacy
-unit first and then having `ze service install` refuse the existing unit.
+After installing the binary and bootstrapping the database, use
+`ze install systemd` to set up the systemd service:
 
 ```bash
-sudo ze install local --prefix /usr/local --no-systemd
+sudo ze install local --prefix /usr/local
 sudo ze init
-sudo ze service install --start
+sudo ze install systemd --start
 ```
 
 The generated service-management unit file:
@@ -99,7 +94,7 @@ RuntimeDirectory=ze
 WantedBy=multi-user.target
 ```
 
-`ze service install` refuses to run unless `<config-dir>/database.zefs` exists.
+`ze install systemd` refuses to run unless `<config-dir>/database.zefs` exists.
 It creates the `ze` user and group if missing, changes ownership of the config
 directory and `database.zefs` to `ze:ze`, writes `/etc/systemd/system/ze.service`,
 runs `systemctl daemon-reload`, and enables the service. Use `--dry-run` to
@@ -113,12 +108,15 @@ The systemd unit sets `XDG_RUNTIME_DIR=/run/ze`, so the daemon socket is
 
 ## Uninstalling
 
-`ze uninstall` reverses a local installation.
+`ze uninstall local` removes the binary and optionally the config directory.
+`ze uninstall systemd` removes the systemd service.
 
 ```bash
-ze uninstall              # remove binary + systemd unit
-ze uninstall --purge      # also remove config directory and database
-ze uninstall --dry-run    # preview what would be removed
+ze uninstall local              # remove binary
+ze uninstall local --purge      # also remove config directory and database
+ze uninstall local --dry-run    # preview what would be removed
+ze uninstall systemd            # stop, disable, and remove the systemd unit
+ze uninstall systemd --purge    # also remove the ze user and group
 ```
 
 ### Flags
@@ -133,11 +131,7 @@ ze uninstall --dry-run    # preview what would be removed
 Without `--yes`, uninstall shows what will be removed and asks for
 confirmation before proceeding.
 
-To remove only the systemd service unit and keep the binary and config, use:
-
-```bash
-sudo ze service uninstall
-```
+To check the service status, use `systemctl status ze.service` directly.
 
 ## Installing on Real Hardware (End to End)
 

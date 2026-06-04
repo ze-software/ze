@@ -1,4 +1,4 @@
-package service
+package systemd
 
 import (
 	"bytes"
@@ -12,13 +12,13 @@ import (
 )
 
 func TestServiceInstallGeneratesUnit(t *testing.T) {
-	// VALIDATES: AC-1 ze service install writes the unit and enables ze.service.
+	// VALIDATES: AC-1 ze install systemd writes the unit and enables ze.service.
 	// VALIDATES: AC-9/AC-11 install creates ze account and chowns config dir/database.zefs.
 	// PREVENTS: wiring the CLI to a partial installer that never reaches systemd or ownership setup.
 	fake := newFakeServiceOps()
 	rt, stdout, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install"})
+	code := rt.cmdInstall(nil)
 	if code != 0 {
 		t.Fatalf("install exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -43,12 +43,12 @@ func TestServiceInstallGeneratesUnit(t *testing.T) {
 }
 
 func TestServiceInstallStartRunsSystemctlStart(t *testing.T) {
-	// VALIDATES: AC-2 ze service install --start starts ze.service after enabling it.
+	// VALIDATES: AC-2 ze install systemd --start starts ze.service after enabling it.
 	// PREVENTS: accepting --start while only installing the unit file.
 	fake := newFakeServiceOps()
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install", "--start"})
+	code := rt.cmdInstall([]string{"--start"})
 	if code != 0 {
 		t.Fatalf("install --start exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -57,13 +57,13 @@ func TestServiceInstallStartRunsSystemctlStart(t *testing.T) {
 }
 
 func TestServiceUninstallRemovesUnit(t *testing.T) {
-	// VALIDATES: AC-3 ze service uninstall stops, disables, removes unit, and reloads systemd.
+	// VALIDATES: AC-3 ze uninstall systemd stops, disables, removes unit, and reloads systemd.
 	// PREVENTS: leaving a stale enabled unit after uninstall.
 	fake := newFakeServiceOps()
 	fake.files[defaultUnitPath] = "unit"
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"uninstall"})
+	code := rt.cmdUninstall(nil)
 	if code != 0 {
 		t.Fatalf("uninstall exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -87,7 +87,7 @@ func TestServiceUninstallPurgeRemovesAccount(t *testing.T) {
 	fake.outputs["getent group ze"] = "ze:x:999:"
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"uninstall", "--purge"})
+	code := rt.cmdUninstall([]string{"--purge"})
 	if code != 0 {
 		t.Fatalf("uninstall --purge exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -104,7 +104,7 @@ func TestServiceUninstallPurgeSkipsMissingAccount(t *testing.T) {
 	fake.files[defaultUnitPath] = "unit"
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"uninstall", "--purge"})
+	code := rt.cmdUninstall([]string{"--purge"})
 	if code != 0 {
 		t.Fatalf("uninstall --purge no-account exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -126,7 +126,7 @@ func TestServiceUninstallPurgeSkipsGroupOnUserdelFailure(t *testing.T) {
 	fake.runErrors["userdel ze"] = errors.New("userdel: user ze is currently used by process 1234")
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"uninstall", "--purge"})
+	code := rt.cmdUninstall([]string{"--purge"})
 	if code != 1 {
 		t.Fatalf("uninstall --purge userdel-fail exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -147,7 +147,7 @@ func TestServiceUninstallPurgeWithoutUnit(t *testing.T) {
 	fake.outputs["getent group ze"] = "ze:x:999:"
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"uninstall", "--purge"})
+	code := rt.cmdUninstall([]string{"--purge"})
 	if code != 0 {
 		t.Fatalf("uninstall --purge no-unit exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -155,42 +155,28 @@ func TestServiceUninstallPurgeWithoutUnit(t *testing.T) {
 	assertCalls(t, fake.runCalls, "userdel ze", "groupdel ze")
 }
 
-func TestServiceStatusRuns(t *testing.T) {
-	// VALIDATES: AC-5 ze service status runs systemctl status ze.service.
-	// PREVENTS: status dispatch being registered but not connected to systemctl.
-	fake := newFakeServiceOps()
-	rt, _, stderr := newTestRuntime(fake)
-
-	code := rt.run([]string{"status"})
-	if code != 0 {
-		t.Fatalf("status exit code = %d, stderr=%s", code, stderr.String())
-	}
-
-	assertCalls(t, fake.runCalls, "systemctl status ze.service")
-}
-
 func TestServiceRefusesNonLinux(t *testing.T) {
-	// VALIDATES: AC-4 ze service install refuses on non-Linux platforms.
+	// VALIDATES: AC-4 ze install systemd refuses on non-Linux platforms.
 	// PREVENTS: attempting systemd writes on Darwin or other non-systemd hosts.
 	fake := newFakeServiceOps()
 	fake.linux = false
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install"})
+	code := rt.cmdInstall(nil)
 	if code != 1 {
 		t.Fatalf("install on non-linux exit code = %d", code)
 	}
-	assertContains(t, stderr.String(), "requires Linux")
+	assertContains(t, stderr.String(), "ze systemd requires Linux")
 }
 
 func TestServiceRefusesNoSystemctl(t *testing.T) {
-	// VALIDATES: AC-4 ze service install refuses on Linux hosts without systemctl.
+	// VALIDATES: AC-4 ze install systemd refuses on Linux hosts without systemctl.
 	// PREVENTS: treating non-systemd Linux hosts like supported systemd targets.
 	fake := newFakeServiceOps()
 	delete(fake.lookPaths, "systemctl")
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install"})
+	code := rt.cmdInstall(nil)
 	if code != 1 {
 		t.Fatalf("install without systemctl exit code = %d", code)
 	}
@@ -205,7 +191,7 @@ func TestServiceInstallCustomConfig(t *testing.T) {
 	fake.files["/custom/path/database.zefs"] = "zefs"
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install", "--config", "/custom/path"})
+	code := rt.cmdInstall([]string{"--config", "/custom/path"})
 	if code != 0 {
 		t.Fatalf("install custom config exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -222,14 +208,14 @@ func TestServiceInstallExistingUnitRequiresForce(t *testing.T) {
 	fake.files[defaultUnitPath] = "existing"
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install"})
+	code := rt.cmdInstall(nil)
 	if code != 1 {
 		t.Fatalf("install existing unit exit code = %d", code)
 	}
 	assertContains(t, stderr.String(), "service already installed")
 
 	stderr.Reset()
-	code = rt.run([]string{"install", "--force"})
+	code = rt.cmdInstall([]string{"--force"})
 	if code != 0 {
 		t.Fatalf("install --force exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -245,7 +231,7 @@ func TestUnitFilePrerequisite(t *testing.T) {
 	delete(fake.files, "/etc/ze/database.zefs")
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install"})
+	code := rt.cmdInstall(nil)
 	if code != 1 {
 		t.Fatalf("install without zefs exit code = %d", code)
 	}
@@ -258,7 +244,7 @@ func TestInstallPrintsSocketHint(t *testing.T) {
 	fake := newFakeServiceOps()
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install"})
+	code := rt.cmdInstall(nil)
 	if code != 0 {
 		t.Fatalf("install exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -273,7 +259,7 @@ func TestInstallWarnsDaemonUserConfig(t *testing.T) {
 	fake.activeConfigData = [][]byte{[]byte("daemon { user \"nobody\"; }\n")}
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install"})
+	code := rt.cmdInstall(nil)
 	if code != 0 {
 		t.Fatalf("install exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -281,7 +267,7 @@ func TestInstallWarnsDaemonUserConfig(t *testing.T) {
 }
 
 func TestServiceInstallDryRunPrintsUnitOnly(t *testing.T) {
-	// VALIDATES: ze service install --dry-run prints the unit file and makes no system changes.
+	// VALIDATES: ze install systemd --dry-run prints the unit file and makes no system changes.
 	// PREVENTS: dry-run requiring root/systemd or mutating system files during functional tests.
 	fake := newFakeServiceOps()
 	fake.linux = false
@@ -289,7 +275,7 @@ func TestServiceInstallDryRunPrintsUnitOnly(t *testing.T) {
 	delete(fake.lookPaths, "systemctl")
 	rt, stdout, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install", "--dry-run", "--config", "/custom/path"})
+	code := rt.cmdInstall([]string{"--dry-run", "--config", "/custom/path"})
 	if code != 0 {
 		t.Fatalf("dry-run exit code = %d, stderr=%s", code, stderr.String())
 	}
@@ -309,7 +295,7 @@ func TestServiceInstallRejectsRelativeConfig(t *testing.T) {
 	fake := newFakeServiceOps()
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install", "--config", "relative/path"})
+	code := rt.cmdInstall([]string{"--config", "relative/path"})
 	if code != 1 {
 		t.Fatalf("install relative config exit code = %d", code)
 	}
@@ -322,7 +308,7 @@ func TestServiceInstallRejectsNewlineInConfig(t *testing.T) {
 	fake := newFakeServiceOps()
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install", "--config", "/etc/ze\nExecStartPre=/bin/evil"})
+	code := rt.cmdInstall([]string{"--config", "/etc/ze\nExecStartPre=/bin/evil"})
 	if code != 1 {
 		t.Fatalf("install newline config exit code = %d", code)
 	}
@@ -335,7 +321,7 @@ func TestServiceInstallRejectsWhitespaceInConfig(t *testing.T) {
 	fake := newFakeServiceOps()
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install", "--config", "/etc/ze config"})
+	code := rt.cmdInstall([]string{"--config", "/etc/ze config"})
 	if code != 1 {
 		t.Fatalf("install whitespace config exit code = %d", code)
 	}
@@ -349,7 +335,7 @@ func TestServiceInstallRejectsWhitespaceInBinaryPath(t *testing.T) {
 	fake.executablePath = "/usr/local/bin/ze test"
 	rt, _, stderr := newTestRuntime(fake)
 
-	code := rt.run([]string{"install", "--dry-run", "--config", "/etc/ze"})
+	code := rt.cmdInstall([]string{"--dry-run", "--config", "/etc/ze"})
 	if code != 1 {
 		t.Fatalf("install whitespace binary exit code = %d", code)
 	}

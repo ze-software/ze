@@ -206,7 +206,7 @@ func cliSubcommands() []cliCmd {
 		if seen[rc.Name] {
 			continue // YANG verb already covered the slot
 		}
-		cmds = append(cmds, cliCmd{rc.Name, rc.Meta.Mode, rc.Meta.Description, rc.Meta.Subs})
+		cmds = append(cmds, cliCmd{rc.Name, rc.Meta.Mode, rc.Meta.Description, rc.Meta.ResolveSubs()})
 	}
 
 	return cmds

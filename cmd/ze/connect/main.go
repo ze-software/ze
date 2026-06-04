@@ -1,6 +1,6 @@
-// Design: docs/architecture/system-architecture.md -- ze remote credential management
+// Design: docs/architecture/system-architecture.md -- ze connect: SSH credential management
 
-package remote
+package connect
 
 import (
 	"bufio"
@@ -43,7 +43,7 @@ func Run(args []string) int {
 		usage()
 		return 0
 	default:
-		fmt.Fprintf(os.Stderr, "error: unknown remote subcommand %q\n", args[0])
+		fmt.Fprintf(os.Stderr, "error: unknown connect subcommand %q\n", args[0])
 		usage()
 		return 1
 	}
@@ -51,7 +51,7 @@ func Run(args []string) int {
 
 func runAdd(args []string) int {
 	if len(args) < 1 {
-		fmt.Fprintf(os.Stderr, "error: usage: ze remote add <host> [--port N] [--user name]\n")
+		fmt.Fprintf(os.Stderr, "error: usage: ze connect add <host> [--port N] [--user name]\n")
 		return 1
 	}
 
@@ -120,7 +120,7 @@ func runList() int {
 func runRemove(args []string) int {
 	host, port := parseHostPort(args)
 	if host == "" {
-		fmt.Fprintf(os.Stderr, "error: usage: ze remote remove <host> [--port N]\n")
+		fmt.Fprintf(os.Stderr, "error: usage: ze connect remove <host> [--port N]\n")
 		return 1
 	}
 
@@ -135,7 +135,7 @@ func runRemove(args []string) int {
 func runDefault(args []string) int {
 	host, port := parseHostPort(args)
 	if host == "" {
-		fmt.Fprintf(os.Stderr, "error: usage: ze remote default <host> [--port N]\n")
+		fmt.Fprintf(os.Stderr, "error: usage: ze connect default <host> [--port N]\n")
 		return 1
 	}
 
@@ -380,19 +380,19 @@ func readPassword() string {
 
 func usage() {
 	p := helpfmt.Page{
-		Command: "ze remote",
+		Command: "ze connect",
 		Summary: "Manage SSH credentials for remote ze daemons",
 		Usage: []string{
-			"ze remote add <host> [--port N] [--user name]",
-			"ze remote list",
-			"ze remote remove <host> [--port N]",
-			"ze remote default <host> [--port N]",
+			"ze connect add <host> [--port N] [--user name]",
+			"ze connect list",
+			"ze connect remove <host> [--port N]",
+			"ze connect default <host> [--port N]",
 		},
 		Examples: []string{
-			"ze remote add 10.0.1.5 --port 2223 --user admin",
-			"ze remote list",
-			"ze remote default 10.0.1.5 --port 2223",
-			"ze remote remove 10.0.1.5 --port 2223",
+			"ze connect add 10.0.1.5 --port 2223 --user admin",
+			"ze connect list",
+			"ze connect default 10.0.1.5 --port 2223",
+			"ze connect remove 10.0.1.5 --port 2223",
 		},
 	}
 	p.Write()

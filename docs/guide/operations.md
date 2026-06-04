@@ -37,7 +37,7 @@ ze init --force                # prompts for confirmation interactively
 ze cli                         # interactive CLI
 ze cli -c "show bgp peer list"  # single command
 ze show bgp peer list                # read-only shorthand
-ze cli -c "peer transit teardown 2" # one-shot command
+ze cli -c "request peer transit teardown 2" # one-shot command
 ```
 <!-- source: internal/component/cli/client/main.go -- Run -->
 
@@ -160,11 +160,11 @@ ze env get ze.log              # details for one var
 
 ## systemd
 
-Use `ze service install` on standard Linux hosts:
+Use `ze install systemd` on standard Linux hosts:
 
 ```bash
 sudo ze init
-sudo ze service install --start
+sudo ze install systemd --start
 ```
 
 This writes `/etc/systemd/system/ze.service`, creates the `ze` user/group if
@@ -174,7 +174,7 @@ systemd, enables the service, and starts it when `--start` is present.
 Inspect the generated unit without writing anything:
 
 ```bash
-ze service install --dry-run --config /etc/ze
+ze install systemd --dry-run --config /etc/ze
 ```
 
 Run doctor after installation to verify the service account and binary path:
@@ -194,7 +194,7 @@ The service runs with `XDG_RUNTIME_DIR=/run/ze`, so the daemon socket is
 Remove only the service unit:
 
 ```bash
-sudo ze service uninstall
+sudo ze uninstall systemd
 ```
 
 Generated unit shape:
@@ -226,8 +226,8 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 ```
-<!-- source: cmd/ze/service/cmd_install.go -- cmdInstall -->
-<!-- source: cmd/ze/service/unit.go -- buildUnitFile -->
+<!-- source: cmd/ze/systemd/cmd_install.go -- cmdInstall -->
+<!-- source: cmd/ze/systemd/unit.go -- buildUnitFile -->
 
 ## Troubleshooting
 

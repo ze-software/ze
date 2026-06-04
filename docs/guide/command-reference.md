@@ -1130,7 +1130,7 @@ Zero-touch provisioning server. Generates a ze config from CLI flags and
 forks `ze -` to start DHCP+PXE, TFTP, and HTTP servers for PXE-booting
 target machines with a gokrazy image. The DHCP pool range scales with
 subnet size. Requires root on Linux.
-<!-- source: cmd/ze/install/main.go -- dispatch -->
+<!-- source: cmd/ze/install/dispatch.go -- dispatch -->
 <!-- source: cmd/ze/install/local/ -- binary copy -->
 <!-- source: cmd/ze/install/systemd/ -- unit file -->
 <!-- source: cmd/ze/install/remote/ -- PXE provisioning -->
@@ -1146,7 +1146,7 @@ ze uninstall local --purge           # also remove config directory and database
 sudo ze uninstall systemd            # stop, disable, and remove the unit
 sudo ze uninstall systemd --purge    # also remove the ze user and group
 ```
-<!-- source: cmd/ze/uninstall/main.go -- dispatch -->
+<!-- source: cmd/ze/uninstall/dispatch.go -- dispatch -->
 <!-- source: cmd/ze/uninstall/local/ -- binary removal -->
 <!-- source: cmd/ze/uninstall/systemd/ -- unit removal -->
 

@@ -1,16 +1,16 @@
-// Design: plan/spec-install-0-umbrella.md — ze uninstall command registration
+// Design: docs/architecture/cli/plugin-modes.md — ze uninstall root handler registration
 
 package uninstall
 
-import (
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdregistry"
-)
+import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 
 func init() {
-	cmdregistry.RegisterRoot("uninstall", cmdregistry.Meta{
-		Description: "Remove ze binary, systemd unit, and optionally config",
+	registry.MustRegisterRootHandler("uninstall", func(_ *registry.RuntimeContext, args []string) int {
+		return Dispatch(args)
+	}, registry.Meta{
+		Description: "Remove ze binary or systemd service",
 		Mode:        "setup",
-		Section:     cmdregistry.SectionSystem,
-		Subs:        "[--prefix] [--purge] [--dry-run] [--yes]",
+		Section:     registry.SectionSystem,
+		SubsFunc:    Subcommands,
 	})
 }

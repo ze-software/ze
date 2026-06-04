@@ -1,4 +1,4 @@
-package remote_test
+package connect_test
 
 import (
 	"path/filepath"
@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	zeremote "codeberg.org/thomas-mangin/ze/cmd/ze/remote"
+	zeconnect "codeberg.org/thomas-mangin/ze/cmd/ze/connect"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -26,7 +26,7 @@ func seedDB(t *testing.T) string {
 func TestAddCredentials(t *testing.T) {
 	dbPath := seedDB(t)
 
-	code := zeremote.AddCredentialsFromReader(
+	code := zeconnect.AddCredentialsFromReader(
 		strings.NewReader("secret123\n"),
 		dbPath, "10.0.1.5", "2223", "admin",
 	)
@@ -60,7 +60,7 @@ func TestAddCredentials(t *testing.T) {
 func TestAddDefaultPort(t *testing.T) {
 	dbPath := seedDB(t)
 
-	code := zeremote.AddCredentialsFromReader(
+	code := zeconnect.AddCredentialsFromReader(
 		strings.NewReader("pass\n"),
 		dbPath, "10.0.1.5", "2222", "admin",
 	)
@@ -82,10 +82,10 @@ func TestAddDefaultPort(t *testing.T) {
 func TestListRemotes(t *testing.T) {
 	dbPath := seedDB(t)
 
-	zeremote.AddCredentialsFromReader(strings.NewReader("pw1\n"), dbPath, "10.0.1.5", "2222", "alice")
-	zeremote.AddCredentialsFromReader(strings.NewReader("pw2\n"), dbPath, "10.0.1.6", "2223", "bob")
+	zeconnect.AddCredentialsFromReader(strings.NewReader("pw1\n"), dbPath, "10.0.1.5", "2222", "alice")
+	zeconnect.AddCredentialsFromReader(strings.NewReader("pw2\n"), dbPath, "10.0.1.6", "2223", "bob")
 
-	code := zeremote.ListRemotes(dbPath)
+	code := zeconnect.ListRemotes(dbPath)
 	if code != 0 {
 		t.Fatalf("ListRemotes: exit %d", code)
 	}
@@ -94,10 +94,10 @@ func TestListRemotes(t *testing.T) {
 func TestListRemotesMarksDefault(t *testing.T) {
 	dbPath := seedDB(t)
 
-	zeremote.AddCredentialsFromReader(strings.NewReader("pw1\n"), dbPath, "10.0.1.5", "2222", "alice")
-	zeremote.SetDefault(dbPath, "10.0.1.5", "2222")
+	zeconnect.AddCredentialsFromReader(strings.NewReader("pw1\n"), dbPath, "10.0.1.5", "2222", "alice")
+	zeconnect.SetDefault(dbPath, "10.0.1.5", "2222")
 
-	code := zeremote.ListRemotes(dbPath)
+	code := zeconnect.ListRemotes(dbPath)
 	if code != 0 {
 		t.Fatalf("ListRemotes: exit %d", code)
 	}
@@ -106,9 +106,9 @@ func TestListRemotesMarksDefault(t *testing.T) {
 func TestRemoveCredentials(t *testing.T) {
 	dbPath := seedDB(t)
 
-	zeremote.AddCredentialsFromReader(strings.NewReader("pw\n"), dbPath, "10.0.1.5", "2222", "admin")
+	zeconnect.AddCredentialsFromReader(strings.NewReader("pw\n"), dbPath, "10.0.1.5", "2222", "admin")
 
-	code := zeremote.RemoveCredentials(dbPath, "10.0.1.5", "2222")
+	code := zeconnect.RemoveCredentials(dbPath, "10.0.1.5", "2222")
 	if code != 0 {
 		t.Fatalf("RemoveCredentials: exit %d", code)
 	}
@@ -130,7 +130,7 @@ func TestRemoveCredentials(t *testing.T) {
 func TestRemoveNonExistent(t *testing.T) {
 	dbPath := seedDB(t)
 
-	code := zeremote.RemoveCredentials(dbPath, "unknown", "2222")
+	code := zeconnect.RemoveCredentials(dbPath, "unknown", "2222")
 	if code == 0 {
 		t.Fatal("expected non-zero exit for removing non-existent remote")
 	}
@@ -139,9 +139,9 @@ func TestRemoveNonExistent(t *testing.T) {
 func TestSetDefault(t *testing.T) {
 	dbPath := seedDB(t)
 
-	zeremote.AddCredentialsFromReader(strings.NewReader("pw\n"), dbPath, "10.0.1.5", "2223", "admin")
+	zeconnect.AddCredentialsFromReader(strings.NewReader("pw\n"), dbPath, "10.0.1.5", "2223", "admin")
 
-	code := zeremote.SetDefault(dbPath, "10.0.1.5", "2223")
+	code := zeconnect.SetDefault(dbPath, "10.0.1.5", "2223")
 	if code != 0 {
 		t.Fatalf("SetDefault: exit %d", code)
 	}
@@ -164,7 +164,7 @@ func TestSetDefault(t *testing.T) {
 func TestSetDefaultNonExistent(t *testing.T) {
 	dbPath := seedDB(t)
 
-	code := zeremote.SetDefault(dbPath, "unknown", "2222")
+	code := zeconnect.SetDefault(dbPath, "unknown", "2222")
 	if code == 0 {
 		t.Fatal("expected non-zero exit for setting default to non-existent remote")
 	}

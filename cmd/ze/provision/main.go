@@ -1,17 +1,79 @@
-// Design: plan/spec-install-0-umbrella.md — config generation for ze install remote
+// Design: docs/architecture/cli/plugin-modes.md — ze provision: PXE/DHCP remote provisioning
 
-package install
+package provision
 
 import (
+	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"net"
 	"net/netip"
 	"os"
+	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+func Run(args []string) int {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "-h" || args[0] == "--help") {
+		usage()
+		return 0
+	}
+
+	fs := flag.NewFlagSet("provision", flag.ContinueOnError)
+
+	iface := fs.String("interface", "", "Network interface for provisioning")
+	network := fs.String("network", "", "Provisioning network CIDR (e.g. 10.0.0.0/24)")
+	image := fs.String("image", "", "Path to gokrazy disk image")
+	sshUser := fs.String("ssh-username", "", "Admin username for installed target")
+	sshPass := fs.String("ssh-password", "", "Admin password for installed target (bcrypt-hashed before use)")
+	address := fs.String("address", "", "Override server IP (default: first IPv4 on interface)")
+
+	fs.Usage = func() { usage() }
+
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 1
+	}
+
+	if errs := validateFlags(*iface, *network, *image, *sshUser, *sshPass); len(errs) > 0 {
+		for _, e := range errs {
+			fmt.Fprintf(os.Stderr, "error: %s\n", e)
+		}
+		return 1
+	}
+
+	serverIP, ipErr := resolveServerIP(*iface, *address)
+	if ipErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", ipErr)
+		return 1
+	}
+
+	hash, hashErr := hashPassword(*sshPass)
+	if hashErr != nil {
+		fmt.Fprintf(os.Stderr, "error: hashing password: %v\n", hashErr)
+		return 1
+	}
+
+	cfg := generateConfig(configParams{
+		iface:       *iface,
+		network:     *network,
+		image:       *image,
+		serverIP:    serverIP,
+		sshUsername: *sshUser,
+		sshPassHash: hash,
+	})
+
+	return forkAndServe(cfg)
+}
 
 type configParams struct {
 	iface       string
@@ -252,4 +314,96 @@ func u32ToAddr(v uint32) netip.Addr {
 	return netip.AddrFrom4([4]byte{
 		byte(v >> 24), byte(v >> 16), byte(v >> 8), byte(v),
 	})
+}
+
+func forkAndServe(config string) int {
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: cannot find own binary: %v\n", err)
+		return 1
+	}
+
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, self, "-") // #nosec G204 - self is our own binary
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	stdin, pipeErr := cmd.StdinPipe()
+	if pipeErr != nil {
+		fmt.Fprintf(os.Stderr, "error: creating stdin pipe: %v\n", pipeErr)
+		return 1
+	}
+
+	if startErr := cmd.Start(); startErr != nil {
+		fmt.Fprintf(os.Stderr, "error: starting ze: %v\n", startErr)
+		return 1
+	}
+
+	if _, writeErr := stdin.Write([]byte(config)); writeErr != nil {
+		fmt.Fprintf(os.Stderr, "error: writing config to ze: %v\n", writeErr)
+		killAndWait(cmd)
+		return 1
+	}
+	if _, writeErr := stdin.Write([]byte{0}); writeErr != nil {
+		fmt.Fprintf(os.Stderr, "error: writing config sentinel: %v\n", writeErr)
+		killAndWait(cmd)
+		return 1
+	}
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+
+	go func() {
+		sig := <-sigCh
+		if closeErr := stdin.Close(); closeErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: closing stdin pipe: %v\n", closeErr)
+		}
+		if sigErr := cmd.Process.Signal(sig); sigErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: forwarding signal: %v\n", sigErr)
+		}
+	}()
+
+	if waitErr := cmd.Wait(); waitErr != nil {
+		var exitErr *exec.ExitError
+		if errors.As(waitErr, &exitErr) {
+			return exitErr.ExitCode()
+		}
+		fmt.Fprintf(os.Stderr, "error: ze exited: %v\n", waitErr)
+		return 1
+	}
+
+	return 0
+}
+
+func killAndWait(cmd *exec.Cmd) {
+	if killErr := cmd.Process.Kill(); killErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: killing ze: %v\n", killErr)
+	}
+	if waitErr := cmd.Wait(); waitErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: waiting for ze: %v\n", waitErr)
+	}
+}
+
+func usage() {
+	p := helpfmt.Page{
+		Command: "ze provision",
+		Summary: "Start DHCP+PXE, TFTP, and HTTP provisioning servers (requires root)",
+		Usage:   []string{"ze provision --interface <name> --network <cidr> --image <path> --ssh-username <user> --ssh-password <pass>"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Required flags", Entries: []helpfmt.HelpEntry{
+				{Name: "--interface", Desc: "Network interface for provisioning"},
+				{Name: "--network", Desc: "Provisioning network CIDR (e.g. 10.0.0.0/24)"},
+				{Name: "--image", Desc: "Path to gokrazy disk image"},
+				{Name: "--ssh-username", Desc: "Admin username for installed target"},
+				{Name: "--ssh-password", Desc: "Admin password (bcrypt-hashed before embedding in config)"},
+			}},
+			{Title: "Optional flags", Entries: []helpfmt.HelpEntry{
+				{Name: "--address", Desc: "Override server IP (default: first IPv4 on --interface)"},
+			}},
+		},
+		Examples: []string{
+			"ze provision --interface eth0 --network 10.0.0.0/24 --image /path/to/gokrazy.img --ssh-username admin --ssh-password secret",
+		},
+	}
+	p.Write()
 }

@@ -1,6 +1,6 @@
-// Design: (none — offline CLI command for systemd service management)
+// Design: docs/architecture/cli/plugin-modes.md — ze systemd uninstall: remove unit + account
 
-package service
+package systemd
 
 import (
 	"errors"
@@ -14,7 +14,7 @@ import (
 func (rt *serviceRuntime) cmdUninstall(args []string) int {
 	var purge bool
 
-	fs := newFlagSet("service uninstall", rt.stderr, func() { uninstallUsageTo(rt.stderr) })
+	fs := newFlagSet("systemd uninstall", rt.stderr, func() { uninstallUsageTo(rt.stderr) })
 	fs.BoolVar(&purge, "purge", false, "Also remove the ze user and group")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -23,7 +23,7 @@ func (rt *serviceRuntime) cmdUninstall(args []string) int {
 		return exitError
 	}
 	if fs.NArg() != 0 {
-		writeln(rt.stderr, "error: ze service uninstall takes no positional arguments")
+		writeln(rt.stderr, "error: ze systemd uninstall takes no positional arguments")
 		fs.Usage()
 		return exitError
 	}
@@ -93,17 +93,17 @@ func (rt *serviceRuntime) purgeServiceAccount() int {
 
 func uninstallUsageTo(w io.Writer) {
 	p := helpfmt.Page{
-		Command: "ze service uninstall",
+		Command: "ze systemd uninstall",
 		Summary: "Stop, disable, and remove ze.service",
-		Usage:   []string{"ze service uninstall [--purge]"},
+		Usage:   []string{"ze systemd uninstall [--purge]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--purge", Desc: "Also remove the ze user and group"},
 			}},
 		},
 		Examples: []string{
-			"sudo ze service uninstall",
-			"sudo ze service uninstall --purge",
+			"sudo ze systemd uninstall",
+			"sudo ze systemd uninstall --purge",
 		},
 	}
 	p.WriteTo(w, false)

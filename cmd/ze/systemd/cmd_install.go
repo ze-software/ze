@@ -1,6 +1,6 @@
-// Design: (none — offline CLI command for systemd service management)
+// Design: docs/architecture/cli/plugin-modes.md — ze systemd install: unit file + account setup
 
-package service
+package systemd
 
 import (
 	"errors"
@@ -27,7 +27,7 @@ func (rt *serviceRuntime) cmdInstall(args []string) int {
 	var force bool
 	var dryRun bool
 
-	fs := newFlagSet("service install", rt.stderr, func() { installUsageTo(rt.stderr) })
+	fs := newFlagSet("systemd install", rt.stderr, func() { installUsageTo(rt.stderr) })
 	fs.StringVar(&configDirFlag, "config", "", "Override config directory in the unit file")
 	fs.BoolVar(&start, "start", false, "Start ze.service after install")
 	fs.BoolVar(&force, "force", false, "Overwrite an existing ze.service unit file")
@@ -40,7 +40,7 @@ func (rt *serviceRuntime) cmdInstall(args []string) int {
 		return exitError
 	}
 	if fs.NArg() != 0 {
-		writeln(rt.stderr, "error: ze service install takes no positional arguments")
+		writeln(rt.stderr, "error: ze systemd install takes no positional arguments")
 		fs.Usage()
 		return exitError
 	}
@@ -297,9 +297,9 @@ func printSocketHint(w io.Writer) {
 
 func installUsageTo(w io.Writer) {
 	p := helpfmt.Page{
-		Command: "ze service install",
+		Command: "ze systemd install",
 		Summary: "Install ze as a systemd service",
-		Usage:   []string{"ze service install [--config <dir>] [--start] [--force]", "ze service install --dry-run [--config <dir>]"},
+		Usage:   []string{"ze systemd install [--config <dir>] [--start] [--force]", "ze systemd install --dry-run [--config <dir>]"},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--config <dir>", Desc: "Override config directory in the unit file"},
@@ -312,10 +312,10 @@ func installUsageTo(w io.Writer) {
 			}},
 		},
 		Examples: []string{
-			"sudo ze service install",
-			"sudo ze service install --start",
-			"sudo ze service install --config /opt/ze/etc/ze",
-			"ze service install --dry-run",
+			"sudo ze systemd install",
+			"sudo ze systemd install --start",
+			"sudo ze systemd install --config /opt/ze/etc/ze",
+			"ze systemd install --dry-run",
 		},
 	}
 	p.WriteTo(w, false)
