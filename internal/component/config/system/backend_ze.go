@@ -1,4 +1,4 @@
-//go:build !ze_stripped
+//go:build ze_linux
 
 // Design: plan/spec-unified-update-backend.md -- Ze self-update backend wrapper
 

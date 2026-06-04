@@ -1,4 +1,4 @@
-.PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
+.PHONY: all build ze ze-appliance ze-setup-bin chaos test analyse clean fmt vet tidy generate help
 .PHONY: ze-docker
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
 .PHONY: ze-test ze-verify ze-verify-changed ze-smoke ze-ci ze-all ze-all-test
@@ -69,7 +69,7 @@ generate:
 ze-plugin-imports-check:
 	@go run scripts/codegen/plugin_imports.go --check
 
-build: generate bin/ze bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-analyse docs/comparison.html
+build: generate bin/ze bin/ze-appliance bin/ze-setup bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-analyse docs/comparison.html
 	@echo "All binaries built"
 
 docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
@@ -77,11 +77,19 @@ docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
 
 ze:
 	@mkdir -p bin
-	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_linux $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+
+ze-appliance:
+	@mkdir -p bin
+	$(GO) build -tags 'ze_appliance $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
+
+ze-setup-bin:
+	@mkdir -p bin
+	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
 
 ze-stripped:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_stripped $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
+	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
 
 chaos:
 	@mkdir -p bin
@@ -98,12 +106,22 @@ analyse:
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p bin
-	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_linux $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+
+bin/ze-appliance: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-appliance..."
+	@mkdir -p bin
+	$(GO) build -tags 'ze_appliance $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
+
+bin/ze-setup: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-setup..."
+	@mkdir -p bin
+	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
 
 bin/ze-stripped: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-stripped..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_stripped $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
+	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
 bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p bin

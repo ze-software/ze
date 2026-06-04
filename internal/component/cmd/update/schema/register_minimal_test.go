@@ -1,4 +1,4 @@
-//go:build ze_stripped
+//go:build !ze_linux
 
 package schema
 
@@ -8,9 +8,9 @@ import (
 	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
-func TestStrippedRegistersUpdateSchema(t *testing.T) {
-	// VALIDATES: ze_stripped still registers the shared update command tree.
-	// PREVENTS: stripping firmware implementation code from removing update bgp peer prefix.
+func TestMinimalBuildRegistersUpdateSchema(t *testing.T) {
+	// VALIDATES: minimal (no-tag) build still registers the shared update command tree.
+	// PREVENTS: gating firmware implementation code from removing update bgp peer prefix.
 	loader := configyang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		t.Fatalf("LoadEmbedded() error = %v", err)

@@ -2,17 +2,17 @@
 
 ## Context
 
-The appliance installer work added a second Ze product shape (`ze_stripped`) and a new offline ISO path. Two regressions followed quickly: the stripped backend reused validation helpers from the full self-update implementation, which pulled `selfupdate.go` and its heavy imports back into the appliance build, and the first test pass proved only unit behavior while missing the real no-flag ISO path and the shipped `ze-stripped` CLI surface.
+The appliance installer work added a second Ze product shape (the minimal/stripped build, now the no-tag default) and a new offline ISO path. Two regressions followed quickly: the stripped backend reused validation helpers from the full self-update implementation, which pulled `selfupdate.go` and its heavy imports back into the appliance build, and the first test pass proved only unit behavior while missing the real no-flag ISO path and the shipped `ze-stripped` CLI surface.
 
 ## Decisions
 
-- Split self-update shared types and config validation into stripped-safe files, and gate the runtime self-update implementation behind `!ze_stripped`.
+- Split self-update shared types and config validation into stripped-safe files, and gate the runtime self-update implementation behind `ze_linux`.
 - Keep the appliance ISO default kernel contract aligned with the installer-kernel tool output (`tools/installer-kernel/build/Image`) instead of inventing per-arch default filenames.
 - Add functional `.ci` coverage for the default ISO artifact path, the arm64 ISO staging path, and the `ze-stripped` command surface instead of relying on unit tests or ad hoc shell checks.
 
 ## Consequences
 
-- `go list -tags ze_stripped .../config/system` now excludes `selfupdate.go`, so appliance images no longer drag the full self-update implementation into the stripped binary.
+- `go list .../config/system` (no tags) now excludes `selfupdate.go`, so appliance images no longer drag the full self-update implementation into the minimal binary.
 - `ze install appliance iso` is exercised through both the default no-flag path and the arm64 staging path in the install suite.
 - `ze-stripped` is now covered as a user-facing artifact in `test/ui`, proving command omission and runtime errors through the actual binary surface.
 
@@ -26,7 +26,7 @@ The appliance installer work added a second Ze product shape (`ze_stripped`) and
 - `internal/component/config/system/selfupdate_shared.go`
 - `internal/component/config/system/selfupdate_validate.go`
 - `internal/component/config/system/selfupdate.go`
-- `internal/component/config/system/backend_ze_stripped.go`
+- `internal/component/config/system/backend_ze_minimal.go`
 - `cmd/ze/install/appliance/cmd_iso.go`
 - `test/install/appliance-iso-default-paths.ci`
 - `test/install/appliance-iso-arm64.ci`

@@ -1,6 +1,6 @@
-//go:build ze_stripped
+//go:build !ze_linux
 
-// Design: plan/spec-unified-update-backend.md -- stripped firmware command dispatch tests
+// Design: plan/spec-unified-update-backend.md -- minimal-build firmware command dispatch tests
 
 package update
 
@@ -13,9 +13,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
-func TestStrippedFirmwareHandlersReachBackend(t *testing.T) {
-	// VALIDATES: ze_stripped keeps update system firmware RPC handlers wired to the stripped backend.
-	// PREVENTS: manual firmware commands disappearing instead of returning the stripped unsupported result.
+func TestMinimalBuildFirmwareHandlersReachBackend(t *testing.T) {
+	// VALIDATES: minimal (no-tag) build keeps update system firmware RPC handlers wired to the stub backend.
+	// PREVENTS: manual firmware commands disappearing instead of returning the unsupported result.
 	backend, err := system.NewBackend(host.PlatformSystemd, system.UpdateCheckConfig{}, system.BackendOptions{})
 	if err != nil {
 		t.Fatalf("NewBackend() error = %v", err)
@@ -43,8 +43,8 @@ func TestStrippedFirmwareHandlersReachBackend(t *testing.T) {
 			if resp.Status != plugin.StatusError {
 				t.Fatalf("Status = %q, want %q", resp.Status, plugin.StatusError)
 			}
-			if !strings.Contains(resp.Error, "self-update unavailable in ze-stripped") {
-				t.Fatalf("Error = %q, want stripped unsupported message", resp.Error)
+			if !strings.Contains(resp.Error, "self-update unavailable in minimal build") {
+				t.Fatalf("Error = %q, want minimal build unsupported message", resp.Error)
 			}
 		})
 	}

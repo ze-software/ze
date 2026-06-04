@@ -1,4 +1,4 @@
-//go:build !ze_stripped
+//go:build ze_linux
 
 package system
 

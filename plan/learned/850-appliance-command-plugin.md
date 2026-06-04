@@ -18,7 +18,7 @@ The appliance command surface lived in `cmd/ze/install/appliance/`, nested under
 
 - Appliance is now the second offline-only command provider after iface/cli to use `RegisterRootHandler`. It validates the ownership model for shell-only build-host tooling.
 - `ze install` is reduced to `local` and `remote`. Any future appliance features register in `internal/appliance/`, not `cmd/ze/install/`.
-- The blank import lives in `cmd/ze/appliance_import.go` (gated `!ze_stripped`). Removing that file plus `internal/appliance/` removes the entire surface.
+- The blank import lives in `cmd/ze/setup_features_appliance.go` (gated `ze_appliance`). Removing that file plus `internal/appliance/` removes the entire surface.
 - Future specs referencing `ze install appliance` (e.g. spec-install-8, spec-install-9) need updating if they are implemented; their current text references the old path.
 
 ## Gotchas
@@ -32,7 +32,7 @@ The appliance command surface lived in `cmd/ze/install/appliance/`, nested under
 - Created: `internal/appliance/` (41 .go files + `updater/` subpackage, moved from `cmd/ze/install/appliance/`)
 - Created: `internal/appliance/register.go` (root handler registration)
 - Created: `internal/appliance/register_test.go`
-- Created: `cmd/ze/appliance_import.go` (blank import, `!ze_stripped`)
+- Created: `cmd/ze/setup_features_appliance.go` (blank import, `ze_appliance`; was `cmd/ze/appliance_import.go`)
 - Created: `test/appliance/` (7 `.ci` files: help, list, build-no-gok, build-arm64-goarch, iso-arm64, iso-default-paths, push-image-escape, no-install-appliance)
 - Modified: `cmd/ze/main.go` (removed deprecated `case "appliance"`)
 - Modified: `cmd/ze/setup_features_full.go` (removed `runDeprecatedAppliance`)

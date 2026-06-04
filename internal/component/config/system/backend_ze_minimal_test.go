@@ -1,4 +1,4 @@
-//go:build ze_stripped
+//go:build !ze_linux
 
 package system
 
@@ -22,10 +22,10 @@ func TestStrippedBackendDisablesZeSelfUpdateWithoutURL(t *testing.T) {
 	if !errors.Is(err, ErrFirmwareUnsupported) {
 		t.Fatalf("Check() error = %v, want ErrFirmwareUnsupported", err)
 	}
-	if status.StatusText != "unsupported in ze-stripped" {
-		t.Fatalf("StatusText = %q, want unsupported in ze-stripped", status.StatusText)
+	if status.StatusText != "unsupported in minimal build" {
+		t.Fatalf("StatusText = %q, want unsupported in minimal build", status.StatusText)
 	}
-	if status.Message != "self-update unavailable in ze-stripped" {
+	if status.Message != "self-update unavailable in minimal build" {
 		t.Fatalf("Message = %q, want stripped unsupported message", status.Message)
 	}
 	if status.LastError != "" {

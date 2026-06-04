@@ -1025,7 +1025,7 @@ Files: 8 | Docs: `docs/architecture/core-design.md`, `docs/features.md`, `docs/g
 | `backend.go` | `docs/architecture/core-design.md`, `docs/features.md` |
 | `backend_gokrazy.go` | `docs/architecture/core-design.md`, `docs/features.md` |
 | `backend_ze.go` | `docs/architecture/core-design.md`, `docs/features.md` |
-| `backend_ze_stripped.go` | `docs/features.md` |
+| `backend_ze_minimal.go` | `docs/features.md` |
 | `conntrack.go` | `docs/features.md`, `docs/guide/configuration.md` |
 | `selfupdate.go` | `docs/architecture/core-design.md`, `docs/guide/configuration.md` |
 | `system.go` | `docs/guide/config-archive.md` |

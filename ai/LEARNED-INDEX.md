@@ -220,6 +220,7 @@ Build system, Docker, CI, toolchain upgrades.
 
 - [753](plan/learned/753-docker-go126.md) -- Docker support: two-stage build to scratch, CGO_ENABLED=0, Go 1.26 upgrade across all project references
 - [754](plan/learned/754-makefile-split.md) -- Makefile split into mk/ includes: tiered help, component test groups, contributor testing docs
+- [853](plan/learned/853-build-tag-split.md) -- Positive build tags (ze_linux, ze_appliance, ze_setup) replace negative ze_stripped; no-tag default is minimal; Go _linux.go suffix gotcha
 
 ## Gotchas
 

@@ -1,4 +1,6 @@
-//go:build ze_stripped
+// Design: plan/spec-unified-update-backend.md -- minimal-build Ze self-update stub
+//
+//go:build !ze_linux
 
 package system
 
@@ -9,8 +11,8 @@ func init() {
 }
 
 const (
-	strippedStatusText = "unsupported in ze-stripped"
-	strippedMessage    = "self-update unavailable in ze-stripped"
+	strippedStatusText = "unsupported in minimal build"
+	strippedMessage    = "self-update unavailable in minimal build"
 )
 
 type strippedZeBackend struct{}
