@@ -132,6 +132,42 @@ func TestCandidatePeerSettingsFromOperationConfigUsesReloadFunc(t *testing.T) {
 	assert.Equal(t, mustParseAddr("198.51.100.1"), got.Address)
 }
 
+// TestCandidatePeerSettingsFallsBackToEmbeddedConfig verifies that when the
+// reloadFunc is configured and loads successfully but the target peer is absent,
+// candidatePeerSettingsFromOperationConfig falls through to the embedded config.
+//
+// VALIDATES: new peers added via config commit use the operation's embedded config.
+// PREVENTS: add-peer failing because the on-disk config is stale during commit.
+func TestCandidatePeerSettingsFallsBackToEmbeddedConfig(t *testing.T) {
+	r := New(&Config{ConfigPath: "ze.conf"})
+	other := NewPeerSettings(mustParseAddr("198.51.100.99"), 65000, 65099, 0)
+	other.Name = "other-peer"
+	r.SetReloadFunc(func(path string) ([]*PeerSettings, error) {
+		return []*PeerSettings{other}, nil
+	})
+	adapter := &reactorAPIAdapter{r: r}
+	op := rpc.ConfigOperation{
+		ID:    "bgp-add-peer-new",
+		Root:  "bgp",
+		Owner: "bgp",
+		Type:  rpc.OperationAddPeer,
+		Target: rpc.ResourceRef{
+			Kind: rpc.ResourcePeer,
+			Peer: "new-peer",
+		},
+		Params: rpc.ConfigOperationParams{
+			Peer:   "new-peer",
+			Config: json.RawMessage(`{"connection":{"remote":{"ip":"203.0.113.1"},"local":{"ip":"192.0.2.1"}},"session":{"asn":{"local":"65000","remote":"65001"}}}`),
+		},
+	}
+
+	got, err := adapter.candidatePeerSettingsFromOperationConfig(&op)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, mustParseAddr("203.0.113.1"), got.Address)
+	assert.Equal(t, uint32(65001), got.PeerAS)
+}
+
 // TestApplyConfigOperationAddPeerEmitsListenerReady verifies ADD_PEER makes
 // listener readiness observable for the operation settlement waiter.
 //

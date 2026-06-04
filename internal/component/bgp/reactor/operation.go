@@ -14,6 +14,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+var errPeerNotInReloadConfig = errors.New("peer not found in reload config")
+
 // VerifyConfigOperation validates one BGP config operation without mutating state.
 func (r *Reactor) VerifyConfigOperation(op *rpc.ConfigOperation) error {
 	return (&reactorAPIAdapter{r: r}).verifyConfigOperation(op)
@@ -121,37 +123,41 @@ func (a *reactorAPIAdapter) emitOperationListenerReady(settings *PeerSettings) {
 }
 
 func (a *reactorAPIAdapter) candidatePeerSettingsFromOperationConfig(op *rpc.ConfigOperation) (*PeerSettings, error) {
-	if settings, ok, err := a.peerSettingsFromReloadConfig(op); ok || err != nil {
-		return settings, err
+	settings, err := a.peerSettingsFromReloadConfig(op)
+	if err == nil {
+		return settings, nil
+	}
+	if !errors.Is(err, errPeerNotInReloadConfig) {
+		return nil, err
 	}
 	return a.peerSettingsFromOperationConfig(op, op.Params.Config)
 }
 
-func (a *reactorAPIAdapter) peerSettingsFromReloadConfig(op *rpc.ConfigOperation) (*PeerSettings, bool, error) {
+func (a *reactorAPIAdapter) peerSettingsFromReloadConfig(op *rpc.ConfigOperation) (*PeerSettings, error) {
 	if a == nil || a.r == nil || op == nil {
-		return nil, false, nil
+		return nil, errPeerNotInReloadConfig
 	}
 	a.r.mu.RLock()
 	reloadFn := a.r.reloadFunc
 	configPath := a.r.config.ConfigPath
 	a.r.mu.RUnlock()
 	if reloadFn == nil || configPath == "" {
-		return nil, false, nil
+		return nil, errPeerNotInReloadConfig
 	}
 	peerName := firstOperationString(op.Params.Peer, op.Target.Peer, op.Params.Name, op.Target.Name)
 	if peerName == "" {
-		return nil, true, fmt.Errorf("bgp operation %s requires peer name", op.Type)
+		return nil, fmt.Errorf("bgp operation %s requires peer name", op.Type)
 	}
 	peers, err := reloadFn(configPath)
 	if err != nil {
-		return nil, true, fmt.Errorf("bgp operation %s load candidate peer config: %w", op.Type, err)
+		return nil, fmt.Errorf("bgp operation %s load candidate peer config: %w", op.Type, err)
 	}
 	for _, peer := range peers {
 		if peer != nil && peer.Name == peerName {
-			return peer, true, nil
+			return peer, nil
 		}
 	}
-	return nil, true, fmt.Errorf("bgp operation %s peer %q not found in candidate config", op.Type, peerName)
+	return nil, errPeerNotInReloadConfig
 }
 
 func (a *reactorAPIAdapter) peerSettingsFromOperationConfig(op *rpc.ConfigOperation, raw json.RawMessage) (*PeerSettings, error) {

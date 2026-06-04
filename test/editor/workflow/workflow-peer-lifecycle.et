@@ -1,0 +1,144 @@
+# Test: Complete peer lifecycle — add, modify, delete, re-add via CLI set/delete/commit
+# VALIDATES: set adds a peer, set modifies it, delete removes it, set re-adds it
+# PREVENTS: Config set/delete/commit not updating the configuration tree correctly
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  peer peer-alpha {
+  	connection {
+  		remote {
+  			ip 10.0.0.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  	}
+    timer { receive-hold-time 90; }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Verify initial state: peer-alpha present, clean
+expect=dirty:false
+input=type:text=show
+input=enter
+expect=viewport:contains=peer-alpha
+expect=viewport:contains=10.0.0.1
+expect=viewport:contains=65001
+
+# Step 1: Add peer-beta with required fields
+input=type:text=set bgp peer peer-beta session asn remote 65002
+input=enter
+expect=status:contains=set
+expect=dirty:true
+expect=error:none
+
+input=type:text=set bgp peer peer-beta connection remote ip 10.0.0.2
+input=enter
+expect=status:contains=set
+expect=error:none
+
+input=type:text=set bgp peer peer-beta timer receive-hold-time 90
+input=enter
+expect=status:contains=set
+expect=error:none
+
+# Commit: both peers should be present
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+
+# Verify both peers exist
+input=type:text=show
+input=enter
+expect=viewport:contains=peer-alpha
+expect=viewport:contains=10.0.0.1
+expect=viewport:contains=peer-beta
+expect=viewport:contains=10.0.0.2
+expect=viewport:contains=65002
+
+# Step 2: Modify peer-beta ASN
+input=type:text=set bgp peer peer-beta session asn remote 65099
+input=enter
+expect=status:contains=set
+expect=dirty:true
+expect=error:none
+
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+
+# Verify modified ASN
+input=type:text=show
+input=enter
+expect=viewport:contains=65099
+expect=viewport:contains=peer-alpha
+expect=viewport:contains=peer-beta
+
+# Step 3: Delete peer-alpha
+input=type:text=delete bgp peer peer-alpha
+input=enter
+expect=dirty:true
+expect=error:none
+
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+
+# Verify peer-alpha gone, peer-beta remains
+input=type:text=show
+input=enter
+expect=viewport:not-contains=peer-alpha
+expect=viewport:not-contains=10.0.0.1
+expect=viewport:contains=peer-beta
+expect=viewport:contains=10.0.0.2
+
+# Step 4: Re-add peer-alpha
+input=type:text=set bgp peer peer-alpha session asn remote 65001
+input=enter
+expect=status:contains=set
+expect=dirty:true
+expect=error:none
+
+input=type:text=set bgp peer peer-alpha connection remote ip 10.0.0.1
+input=enter
+expect=status:contains=set
+expect=error:none
+
+input=type:text=set bgp peer peer-alpha timer receive-hold-time 90
+input=enter
+expect=status:contains=set
+expect=error:none
+
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+
+# Verify both peers are back
+input=type:text=show
+input=enter
+expect=viewport:contains=peer-alpha
+expect=viewport:contains=10.0.0.1
+expect=viewport:contains=65001
+expect=viewport:contains=peer-beta
+expect=viewport:contains=10.0.0.2
+expect=viewport:contains=65099
