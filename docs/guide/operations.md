@@ -249,7 +249,7 @@ Symptom: peer stays in Connect/Active state
 
 3. **Enable debug logging:**
    ```bash
-   ze cli -c "bgp log set bgp.fsm debug"
+   ze cli -c "request log level bgp.fsm debug"
    ze cli -c "bgp monitor event state"
    ```
 
@@ -280,7 +280,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 
 3. **Capability issues:** Enable debug to see negotiated vs offered capabilities:
    ```bash
-   ze cli -c "bgp log set bgp.reactor debug"
+   ze cli -c "request log level bgp.reactor debug"
    ```
 
 ### Daemon Won't Start

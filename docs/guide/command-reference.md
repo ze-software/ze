@@ -1805,20 +1805,21 @@ Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `metrics show` | read-only | Prometheus text format metrics |
-| `metrics list` | read-only | List metric names |
-| `metrics pool` | read-only | Per-attribute-pool occupancy, dedup rates, and aggregate totals (13 BGP pools) |
-<!-- source: internal/component/cmd/metrics/ -- metrics show/list/pool RPCs -->
+| `show metrics values` | read-only | Prometheus text format metrics |
+| `show metrics list` | read-only | List metric names |
+| `show metrics pool` | read-only | Per-attribute-pool occupancy, dedup rates, and aggregate totals (13 BGP pools) |
+<!-- source: internal/component/cmd/metrics/ -- show metrics values/list/pool RPCs -->
 
 ### Logging
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `log show` | read-only | List subsystems with current log levels |
-| `log set <subsystem> <level>` | write | Set log level at runtime |
+| `show log levels` | read-only | List subsystems with current log levels |
+| `show log recent` | read-only | Show recent log entries from in-memory ring |
+| `request log level <subsystem> <level>` | write | Set log level at runtime |
 
 Levels: debug, info, warn, err, disabled.
-<!-- source: internal/component/cmd/log/ -- log show/set RPCs; internal/core/slogutil/slogutil.go -- level definitions -->
+<!-- source: internal/component/cmd/log/ -- show log levels/recent, request log level RPCs; internal/core/slogutil/slogutil.go -- level definitions -->
 
 ### Plugin Configuration (from plugin context)
 
