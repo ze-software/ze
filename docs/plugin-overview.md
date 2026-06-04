@@ -168,7 +168,7 @@ plugin list. The groups below mirror the current registrations in
 | `bfd` | BFD session management (RFC 5880, RFC 5881, RFC 5883) |
 | `dhcpserver` | DHCP server for LAN/PXE clients |
 | `imageserver` | HTTP image server for provisioning |
-| `tftpserver` | Read-only TFTP server for PXE |
+| `tftpserver` | Read-only TFTP server for PXE (RFC 2347 option negotiation) |
 | `ntp` | NTP time synchronization |
 | `vpp` | VPP lifecycle and telemetry management |
 | `ike` | IKEv2 engine for native IPsec VPN |

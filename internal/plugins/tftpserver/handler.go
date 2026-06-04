@@ -1,4 +1,4 @@
-// Design: plan/spec-install-2-tftpserver.md -- TFTP packet handling (RFC 1350)
+// Design: plan/spec-install-2-tftpserver.md -- TFTP packet handling (RFC 1350, RFC 2347 option negotiation)
 
 package tftpserver
 
@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,6 +22,7 @@ const (
 	opDATA  uint16 = 3
 	opACK   uint16 = 4
 	opERROR uint16 = 5
+	opOACK  uint16 = 6 // RFC 2347 Section "Packet Formats"
 )
 
 // RFC 1350 Section 5: error codes.
@@ -32,17 +34,33 @@ const (
 )
 
 // RFC 1350 Section 2: data block size.
-const blockSize = 512
+const defaultBlockSize = 512
+
+// RFC 2348: blksize valid range.
+const (
+	blksizeMin = 8
+	blksizeMax = 65464
+)
+
+// RFC 2348: practical upper bound for one untagged Ethernet frame
+// (1500 MTU - 20 IP - 8 UDP - 4 TFTP header).
+const blksizeEthernet = 1468
 
 const (
 	ackTimeout    = 5 * time.Second
 	maxRetransmit = 3
 )
 
-// RFC 1350 Section 2: RRQ/WRQ packet format is opcode (2) + filename (NUL) + mode (NUL).
-func parseRRQ(pkt []byte) (filename, mode string, err error) {
+type rrqOptions struct {
+	blksize    int
+	tsize      bool
+	windowsize bool
+}
+
+// RFC 2347: RRQ/WRQ with options appends NUL-terminated key/value pairs after mode.
+func parseRRQ(pkt []byte) (filename, mode string, opts rrqOptions, err error) {
 	if len(pkt) < 6 {
-		return "", "", errors.New("packet too short")
+		return "", "", opts, errors.New("packet too short")
 	}
 
 	payload := pkt[2:]
@@ -54,7 +72,7 @@ func parseRRQ(pkt []byte) (filename, mode string, err error) {
 		}
 	}
 	if nulIdx < 1 {
-		return "", "", errors.New("missing filename")
+		return "", "", opts, errors.New("missing filename")
 	}
 	filename = string(payload[:nulIdx])
 
@@ -67,14 +85,71 @@ func parseRRQ(pkt []byte) (filename, mode string, err error) {
 		}
 	}
 	if nulIdx2 < 1 {
-		return "", "", errors.New("missing mode")
+		return "", "", opts, errors.New("missing mode")
 	}
 	mode = string(rest[:nulIdx2])
 
-	return filename, mode, nil
+	// RFC 2347: parse option/value pairs after mode NUL.
+	remaining := rest[nulIdx2+1:]
+	for len(remaining) > 0 {
+		optEnd := -1
+		for i, b := range remaining {
+			if b == 0 {
+				optEnd = i
+				break
+			}
+		}
+		if optEnd < 1 {
+			break
+		}
+		optName := string(remaining[:optEnd])
+		remaining = remaining[optEnd+1:]
+
+		valEnd := -1
+		for i, b := range remaining {
+			if b == 0 {
+				valEnd = i
+				break
+			}
+		}
+		if valEnd < 0 {
+			break
+		}
+		optVal := string(remaining[:valEnd])
+		remaining = remaining[valEnd+1:]
+
+		switch strings.ToLower(optName) {
+		case "blksize":
+			n, parseErr := strconv.Atoi(optVal)
+			if parseErr == nil && n >= blksizeMin && n <= blksizeMax {
+				opts.blksize = n
+			}
+		case "tsize":
+			opts.tsize = true
+		case "windowsize":
+			opts.windowsize = true
+		}
+	}
+
+	return filename, mode, opts, nil
 }
 
-// RFC 1350 Section 2: DATA packet is opcode (2) + block# (2) + data (0-512).
+// RFC 2347: OACK packet is opcode (2) + option/value NUL-terminated pairs.
+func buildOACK(opts []string) []byte {
+	size := 2
+	for _, o := range opts {
+		size += len(o) + 1
+	}
+	pkt := make([]byte, 2, size)
+	binary.BigEndian.PutUint16(pkt[0:2], opOACK)
+	for _, o := range opts {
+		pkt = append(pkt, o...)
+		pkt = append(pkt, 0)
+	}
+	return pkt
+}
+
+// RFC 1350 Section 2: DATA packet is opcode (2) + block# (2) + data (0-blksize).
 func buildData(block uint16, data []byte) []byte {
 	pkt := make([]byte, 4+len(data))
 	binary.BigEndian.PutUint16(pkt[0:2], opDATA)
@@ -130,6 +205,7 @@ func resolvePath(rootDir, filename string) (string, error) {
 }
 
 func serve(conn *net.UDPConn, rootDir string, sem chan struct{}, log *slog.Logger) {
+	// RFC 2347: RRQ with options can be up to 512 octets.
 	buf := make([]byte, 516)
 	for {
 		n, clientAddr, err := conn.ReadFromUDP(buf)
@@ -163,7 +239,7 @@ func handleRRQ(mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootD
 		}
 	}
 
-	filename, mode, err := parseRRQ(pkt)
+	filename, mode, opts, err := parseRRQ(pkt)
 	if err != nil {
 		sendErr(errNotDefined, "malformed request")
 		return
@@ -185,6 +261,20 @@ func handleRRQ(mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootD
 		return
 	}
 
+	// RFC 2348 Blocksize Option Specification: "The specified value must be
+	// less than or equal to the value specified by the client."
+	negotiatedBlksize := defaultBlockSize
+	if opts.blksize > 0 {
+		negotiatedBlksize = min(opts.blksize, blksizeEthernet)
+		negotiatedBlksize = max(negotiatedBlksize, blksizeMin)
+	}
+
+	if opts.windowsize {
+		log.Debug("tftpserver: windowsize option not supported, falling back to lockstep")
+	}
+
+	hasOptions := opts.blksize > 0 || opts.tsize
+
 	select {
 	case sem <- struct{}{}:
 		go func() {
@@ -201,15 +291,55 @@ func handleRRQ(mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootD
 				}
 			}()
 
-			serveFile(transferConn, resolved, log)
+			if hasOptions {
+				if !sendOACKAndWait(transferConn, resolved, opts, negotiatedBlksize, log) {
+					return
+				}
+			}
+
+			serveFile(transferConn, resolved, negotiatedBlksize, log)
 		}()
 	default:
 		sendErr(errNotDefined, "service unavailable")
 	}
 }
 
+// RFC 2347: send OACK, wait for ACK block 0.
+func sendOACKAndWait(conn *net.UDPConn, filePath string, opts rrqOptions, blksize int, log *slog.Logger) bool {
+	var oackOpts []string
+
+	if opts.blksize > 0 {
+		oackOpts = append(oackOpts, "blksize", strconv.Itoa(blksize))
+	}
+
+	// RFC 2349: tsize in RRQ with value "0" is a query; respond with file size.
+	if opts.tsize {
+		info, err := os.Stat(filePath)
+		if err != nil {
+			if _, wErr := conn.Write(buildError(errFileNotFound, "file not found")); wErr != nil {
+				log.Debug("tftpserver: error response failed", "error", wErr)
+			}
+			return false
+		}
+		var buf [20]byte
+		oackOpts = append(oackOpts, "tsize", string(strconv.AppendInt(buf[:0], info.Size(), 10)))
+	}
+
+	if len(oackOpts) == 0 {
+		return true
+	}
+
+	oack := buildOACK(oackOpts)
+	ackBuf := make([]byte, 4)
+
+	// RFC 2347 Negotiation Protocol: "an ACK (with the data block number
+	// set to 0) is sent by the client to confirm the values in the server's
+	// OACK packet."
+	return sendAndWaitACK(conn, oack, 0, ackBuf)
+}
+
 // RFC 1350 Section 4: each transfer uses its own connection (TID pair).
-func serveFile(conn *net.UDPConn, filePath string, log *slog.Logger) {
+func serveFile(conn *net.UDPConn, filePath string, blksize int, log *slog.Logger) {
 	f, err := os.Open(filePath) //nolint:gosec // path validated by resolvePath
 	if err != nil {
 		if _, wErr := conn.Write(buildError(errFileNotFound, "file not found")); wErr != nil {
@@ -223,7 +353,7 @@ func serveFile(conn *net.UDPConn, filePath string, log *slog.Logger) {
 		}
 	}()
 
-	readBuf := make([]byte, blockSize)
+	readBuf := make([]byte, blksize)
 	ackBuf := make([]byte, 4)
 	block := uint16(1)
 
@@ -242,7 +372,7 @@ func serveFile(conn *net.UDPConn, filePath string, log *slog.Logger) {
 			return
 		}
 
-		if n < blockSize {
+		if n < blksize {
 			return
 		}
 		block++

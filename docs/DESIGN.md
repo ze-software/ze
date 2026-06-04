@@ -362,7 +362,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `l2tp-shaper` | L2TP per-subscriber traffic shaping |
 | `ntp` | NTP time synchronization |
 | `dhcpserver` | DHCP server for LAN client address assignment |
-| `tftpserver` | Read-only TFTP file server for PXE boot |
+| `tftpserver` | Read-only TFTP file server for PXE boot (RFC 2347 option negotiation) |
 | `imageserver` | HTTP provisioning server for disk images and boot files |
 | `connected` | Redistribute directly connected interface prefixes |
 | `policy-routes` | Policy-based routing |

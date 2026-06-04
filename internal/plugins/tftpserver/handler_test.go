@@ -6,6 +6,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,7 +31,7 @@ func TestTFTPParseRRQ(t *testing.T) {
 	pkt = append(pkt, "octet"...)
 	pkt = append(pkt, 0)
 
-	filename, mode, err := parseRRQ(pkt)
+	filename, mode, _, err := parseRRQ(pkt)
 	if err != nil {
 		t.Fatalf("parseRRQ: %v", err)
 	}
@@ -83,7 +85,7 @@ func TestTFTPParseRRQInvalid(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := parseRRQ(tc.pkt)
+			_, _, _, err := parseRRQ(tc.pkt)
 			if err == nil {
 				t.Error("expected error")
 			}
@@ -192,6 +194,15 @@ func buildRRQPacket(filename, mode string) []byte {
 	pkt = append(pkt, 0)
 	pkt = append(pkt, mode...)
 	pkt = append(pkt, 0)
+	return pkt
+}
+
+func buildRRQPacketWithOptions(filename string, opts ...string) []byte {
+	pkt := buildRRQPacket(filename, "octet")
+	for _, o := range opts {
+		pkt = append(pkt, o...)
+		pkt = append(pkt, 0)
+	}
 	return pkt
 }
 
@@ -561,7 +572,7 @@ func TestTFTPConcurrentLimit(t *testing.T) {
 
 	rootDir := t.TempDir()
 	// Create a file large enough that transfers take time
-	content := make([]byte, 10*blockSize)
+	content := make([]byte, 10*defaultBlockSize)
 	if err := os.WriteFile(filepath.Join(rootDir, "big.bin"), content, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -675,6 +686,401 @@ func TestTFTPRetransmitOnTimeout(t *testing.T) {
 	}
 }
 
+// VALIDATES: RFC 2347 option parsing extracts blksize and tsize from RRQ.
+func TestTFTPParseRRQWithOptions(t *testing.T) {
+	t.Parallel()
+
+	pkt := buildRRQPacketWithOptions("ipxe.efi",
+		"tsize", "0", "blksize", "1468", "windowsize", "4")
+
+	filename, mode, opts, err := parseRRQ(pkt)
+	if err != nil {
+		t.Fatalf("parseRRQ: %v", err)
+	}
+	if filename != "ipxe.efi" {
+		t.Errorf("filename = %q, want ipxe.efi", filename)
+	}
+	if mode != "octet" {
+		t.Errorf("mode = %q, want octet", mode)
+	}
+	if opts.blksize != 1468 {
+		t.Errorf("blksize = %d, want 1468", opts.blksize)
+	}
+	if !opts.tsize {
+		t.Error("tsize = false, want true")
+	}
+	if !opts.windowsize {
+		t.Error("windowsize = false, want true")
+	}
+}
+
+// VALIDATES: parseRRQ with no options returns zero-value rrqOptions.
+func TestTFTPParseRRQNoOptions(t *testing.T) {
+	t.Parallel()
+
+	pkt := buildRRQPacket("file.bin", "octet")
+	_, _, opts, err := parseRRQ(pkt)
+	if err != nil {
+		t.Fatalf("parseRRQ: %v", err)
+	}
+	if opts.blksize != 0 {
+		t.Errorf("blksize = %d, want 0", opts.blksize)
+	}
+	if opts.tsize {
+		t.Error("tsize = true, want false")
+	}
+}
+
+// VALIDATES: blksize out of RFC 2348 range [8, 65464] is ignored.
+func TestTFTPParseRRQBlksizeOutOfRange(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		val  string
+	}{
+		{"too small", "4"},
+		{"too large", "70000"},
+		{"negative", "-1"},
+		{"not a number", "abc"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			pkt := buildRRQPacketWithOptions("f.bin", "blksize", tc.val)
+			_, _, opts, err := parseRRQ(pkt)
+			if err != nil {
+				t.Fatalf("parseRRQ: %v", err)
+			}
+			if opts.blksize != 0 {
+				t.Errorf("blksize = %d, want 0 (ignored)", opts.blksize)
+			}
+		})
+	}
+}
+
+// VALIDATES: RFC 2347 option names are case-insensitive.
+func TestTFTPParseRRQOptionsCaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	pkt := buildRRQPacketWithOptions("f.bin", "BLKSIZE", "1024", "TSIZE", "0")
+	_, _, opts, err := parseRRQ(pkt)
+	if err != nil {
+		t.Fatalf("parseRRQ: %v", err)
+	}
+	if opts.blksize != 1024 {
+		t.Errorf("blksize = %d, want 1024", opts.blksize)
+	}
+	if !opts.tsize {
+		t.Error("tsize = false, want true")
+	}
+}
+
+// VALIDATES: buildOACK produces correct wire format per RFC 2347.
+func TestTFTPBuildOACK(t *testing.T) {
+	t.Parallel()
+
+	pkt := buildOACK([]string{"blksize", "1468", "tsize", "65536"})
+
+	if binary.BigEndian.Uint16(pkt[0:2]) != opOACK {
+		t.Fatalf("opcode = %d, want %d (OACK)", binary.BigEndian.Uint16(pkt[0:2]), opOACK)
+	}
+
+	// Parse the option pairs back out.
+	payload := pkt[2:]
+	var parts []string
+	for len(payload) > 0 {
+		nul := -1
+		for i, b := range payload {
+			if b == 0 {
+				nul = i
+				break
+			}
+		}
+		if nul < 0 {
+			break
+		}
+		parts = append(parts, string(payload[:nul]))
+		payload = payload[nul+1:]
+	}
+
+	want := []string{"blksize", "1468", "tsize", "65536"}
+	if len(parts) != len(want) {
+		t.Fatalf("got %d parts, want %d", len(parts), len(want))
+	}
+	for i := range want {
+		if parts[i] != want[i] {
+			t.Errorf("part[%d] = %q, want %q", i, parts[i], want[i])
+		}
+	}
+}
+
+// VALIDATES: UEFI-style RRQ with tsize+blksize gets OACK then DATA with negotiated blksize.
+func TestTFTPReadWithOACK(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	content := []byte("hello uefi pxe boot")
+	if err := os.WriteFile(filepath.Join(rootDir, "ipxe.efi"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacketWithOptions("ipxe.efi", "tsize", "0", "blksize", "1468")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 2000)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, senderAddr, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no OACK response: %v", err)
+	}
+
+	if binary.BigEndian.Uint16(buf[0:2]) != opOACK {
+		t.Fatalf("expected OACK (opcode %d), got opcode %d", opOACK, binary.BigEndian.Uint16(buf[0:2]))
+	}
+
+	// Verify OACK contains tsize with correct file size.
+	oackPayload := string(buf[2:n])
+	wantTsize := strconv.Itoa(len(content))
+	if !strings.Contains(oackPayload, "tsize\x00"+wantTsize+"\x00") {
+		t.Errorf("OACK missing tsize=%s, payload=%q", wantTsize, oackPayload)
+	}
+	if !strings.Contains(oackPayload, "blksize\x00") {
+		t.Error("OACK missing blksize")
+	}
+
+	// RFC 2347: ACK block 0 to confirm OACK.
+	ack := buildACKPacket(0)
+	if _, err := client.WriteToUDP(ack, senderAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now expect DATA block 1 with the file content.
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err = client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no DATA after OACK: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+		t.Fatalf("expected DATA, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
+	}
+	if binary.BigEndian.Uint16(buf[2:4]) != 1 {
+		t.Fatalf("block = %d, want 1", binary.BigEndian.Uint16(buf[2:4]))
+	}
+	if !bytes.Equal(buf[4:n], content) {
+		t.Errorf("data = %q, want %q", buf[4:n], content)
+	}
+}
+
+// VALIDATES: large file transfer with negotiated blksize uses the negotiated block size.
+func TestTFTPReadLargeFileWithBlksize(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	content := make([]byte, 3000)
+	for i := range content {
+		content[i] = byte(i % 256)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, "big.efi"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacketWithOptions("big.efi", "blksize", "1468")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 2000)
+
+	// Expect OACK first.
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	_, senderAddr, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no OACK: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opOACK {
+		t.Fatalf("expected OACK, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
+	}
+
+	// ACK block 0.
+	if _, err := client.WriteToUDP(buildACKPacket(0), senderAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	// With blksize=1468: 3000 bytes = block 1 (1468) + block 2 (1468) + block 3 (64).
+	var received []byte
+	for block := uint16(1); block <= 3; block++ {
+		if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+			t.Fatal(err)
+		}
+		n, addr, readErr := client.ReadFromUDP(buf)
+		if readErr != nil {
+			t.Fatalf("block %d: %v", block, readErr)
+		}
+		if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+			t.Fatalf("block %d: expected DATA, got opcode %d", block, binary.BigEndian.Uint16(buf[0:2]))
+		}
+		if binary.BigEndian.Uint16(buf[2:4]) != block {
+			t.Fatalf("expected block %d, got %d", block, binary.BigEndian.Uint16(buf[2:4]))
+		}
+		received = append(received, buf[4:n]...)
+
+		if _, wErr := client.WriteToUDP(buildACKPacket(block), addr); wErr != nil {
+			t.Fatal(wErr)
+		}
+	}
+
+	if !bytes.Equal(received, content) {
+		t.Errorf("received %d bytes, want %d", len(received), len(content))
+	}
+}
+
+// VALIDATES: RFC 2348 zero-length final block when file is exact multiple of negotiated blksize.
+func TestTFTPReadExactBlksizeMultiple(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	content := make([]byte, 1468)
+	for i := range content {
+		content[i] = byte(i % 256)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, "exact-blk.efi"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacketWithOptions("exact-blk.efi", "blksize", "1468")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 2000)
+
+	// OACK
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	_, senderAddr, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no OACK: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opOACK {
+		t.Fatalf("expected OACK, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
+	}
+	if _, err := client.WriteToUDP(buildACKPacket(0), senderAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	// Block 1: 1468 bytes (full block)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, addr, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("block 1: %v", err)
+	}
+	if n-4 != 1468 {
+		t.Fatalf("block 1: data = %d bytes, want 1468", n-4)
+	}
+	if _, err := client.WriteToUDP(buildACKPacket(1), addr); err != nil {
+		t.Fatal(err)
+	}
+
+	// Block 2: 0 bytes (signals end per RFC 2348)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err = client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("block 2: %v", err)
+	}
+	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+		t.Fatalf("block 2: expected DATA, got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
+	}
+	if binary.BigEndian.Uint16(buf[2:4]) != 2 {
+		t.Fatalf("block number = %d, want 2", binary.BigEndian.Uint16(buf[2:4]))
+	}
+	if n-4 != 0 {
+		t.Fatalf("block 2: data = %d bytes, want 0 (end signal)", n-4)
+	}
+}
+
+// VALIDATES: plain RFC 1350 RRQ (no options) still works after option support added.
+func TestTFTPReadPlainRRQStillWorks(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	content := []byte("plain rfc1350 transfer")
+	if err := os.WriteFile(filepath.Join(rootDir, "plain.bin"), content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	srvAddr := startTestTFTPServer(t, rootDir, 10)
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("plain.bin", "octet")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 516)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _, err := client.ReadFromUDP(buf)
+	if err != nil {
+		t.Fatalf("no DATA response: %v", err)
+	}
+
+	// Plain RRQ must get DATA directly (no OACK).
+	if binary.BigEndian.Uint16(buf[0:2]) != opDATA {
+		t.Fatalf("expected DATA (no OACK for plain RRQ), got opcode %d", binary.BigEndian.Uint16(buf[0:2]))
+	}
+	if binary.BigEndian.Uint16(buf[2:4]) != 1 {
+		t.Fatalf("block = %d, want 1", binary.BigEndian.Uint16(buf[2:4]))
+	}
+	if !bytes.Equal(buf[4:n], content) {
+		t.Errorf("data = %q, want %q", buf[4:n], content)
+	}
+}
+
 func TestTFTPIOErrorMidTransfer(t *testing.T) {
 	t.Parallel()
 
@@ -734,14 +1140,14 @@ func TestTFTPIOErrorMidTransfer(t *testing.T) {
 
 	opcode := binary.BigEndian.Uint16(buf[0:2])
 	// Either an ERROR packet (read error) or a short DATA block (file truncated
-	// between reads, Read returns 0 bytes which is < blockSize, ending transfer)
+	// between reads, Read returns 0 bytes which is < defaultBlockSize, ending transfer)
 	// are acceptable. Both correctly handle the I/O anomaly.
 	switch opcode {
 	case opERROR:
 		// Server detected I/O error
 	case opDATA:
 		dataLen := n - 4
-		if dataLen >= blockSize {
+		if dataLen >= defaultBlockSize {
 			t.Errorf("expected short DATA block after truncation, got %d bytes", dataLen)
 		}
 	default:

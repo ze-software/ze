@@ -24,7 +24,7 @@ func init() {
 
 	reg := registry.Registration{
 		Name:                    "tftpserver",
-		Description:             "TFTP server: read-only file serving for PXE boot (RFC 1350)",
+		Description:             "TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation)",
 		Features:                "yang",
 		YANG:                    tftpschema.ZeTFTPServerConfYANG,
 		ConfigRoots:             []string{configRootService},
