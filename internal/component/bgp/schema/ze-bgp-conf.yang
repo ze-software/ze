@@ -148,8 +148,8 @@ module ze-bgp-conf {
                 ze:related 'id=peer-detail; label="Peer Detail"; command="peer ${path-inherit:connection/remote/ip|key} detail"; placement=row; presentation=drawer; class=inspect';
                 ze:related 'id=peer-capabilities; label="Capabilities"; command="peer ${path-inherit:connection/remote/ip|key} capabilities"; placement=row; presentation=modal; class=inspect';
                 ze:related 'id=peer-statistics; label="Statistics"; command="peer ${path-inherit:connection/remote/ip|key} statistics"; placement=row; presentation=modal; class=inspect';
-                ze:related 'id=peer-flush; label="Flush"; command="peer ${path-inherit:connection/remote/ip|key} flush"; placement=row; presentation=modal; class=refresh';
-                ze:related 'id=peer-teardown; label="Teardown"; command="peer ${path-inherit:connection/remote/ip|key} teardown"; placement=row; presentation=modal; confirm="Tear down BGP session?"; class=danger';
+                ze:related 'id=peer-flush; label="Flush"; command="request peer ${path-inherit:connection/remote/ip|key} flush"; placement=row; presentation=modal; class=refresh';
+                ze:related 'id=peer-teardown; label="Teardown"; command="request peer ${path-inherit:connection/remote/ip|key} teardown"; placement=row; presentation=modal; confirm="Tear down BGP session?"; class=danger';
 
                 leaf name {
                     type string {
@@ -182,8 +182,8 @@ module ze-bgp-conf {
             ze:related 'id=peer-detail; label="Peer Detail"; command="peer ${path:connection/remote/ip|key} detail"; placement=row; presentation=drawer; class=inspect';
             ze:related 'id=peer-capabilities; label="Capabilities"; command="peer ${path:connection/remote/ip|key} capabilities"; placement=row; presentation=modal; class=inspect';
             ze:related 'id=peer-statistics; label="Statistics"; command="peer ${path:connection/remote/ip|key} statistics"; placement=row; presentation=modal; class=inspect';
-            ze:related 'id=peer-flush; label="Flush"; command="peer ${path:connection/remote/ip|key} flush"; placement=row; presentation=modal; class=refresh';
-            ze:related 'id=peer-teardown; label="Teardown"; command="peer ${path:connection/remote/ip|key} teardown"; placement=row; presentation=modal; confirm="Tear down BGP session?"; class=danger';
+            ze:related 'id=peer-flush; label="Flush"; command="request peer ${path:connection/remote/ip|key} flush"; placement=row; presentation=modal; class=refresh';
+            ze:related 'id=peer-teardown; label="Teardown"; command="request peer ${path:connection/remote/ip|key} teardown"; placement=row; presentation=modal; confirm="Tear down BGP session?"; class=danger';
 
             leaf name {
                 type string {

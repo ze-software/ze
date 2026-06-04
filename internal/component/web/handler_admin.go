@@ -297,8 +297,8 @@ func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 func BuildAdminCommandTree() map[string][]string {
 	return map[string][]string{
 		"":       {"peer", "route", "cache", "system"},
-		"peer":   {"list", "show", "summary", "capabilities", "statistics", "add", "remove", "teardown", "clear-soft", "flush"},
-		"route":  {"update", "borr", "eorr", "raw"},
+		"peer":   {"list", "show", "summary", "capabilities", "statistics", "add", "remove"},
+		"route":  {"update", "raw"},
 		"cache":  {"list", "retain", "release", "expire", "forward"},
 		"system": {"events"},
 	}

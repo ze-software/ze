@@ -50,8 +50,12 @@ func TestUnifiedTreeCommandNodes(t *testing.T) {
 	require.True(t, ok, "peer should be in unified tree from commands")
 	assert.Contains(t, peer.Source, SourceCommand)
 
-	teardown, ok := peer.Children["teardown"]
-	require.True(t, ok, "peer > teardown should exist")
+	request, ok := root.Children["request"]
+	require.True(t, ok, "request should be in unified tree from commands")
+	reqPeer, ok := request.Children["peer"]
+	require.True(t, ok, "request > peer should exist")
+	teardown, ok := reqPeer.Children["teardown"]
+	require.True(t, ok, "request > peer > teardown should exist")
 	assert.Equal(t, SourceCommand, teardown.Source)
 }
 

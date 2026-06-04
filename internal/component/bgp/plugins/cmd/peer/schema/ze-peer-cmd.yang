@@ -108,59 +108,64 @@ configuration. Does not modify the config file on disk.";
         }
     }
 
-    container peer {
+    container request {
         config false;
         description "Peer lifecycle and flow control operations";
-        ze:ui-resource "bgp-peer/index.html";
-        ze:ui-permissions "network";
-        ze:ui-csp "default-src 'self'";
 
-        container teardown {
+        container peer {
             config false;
-            ze:command "ze-bgp:peer-teardown";
-            description "Tear down a peer session.
-Usage: peer <selector> teardown [cease-subcode].";
-            leaf selector { type string; mandatory true; description "Peer selector"; }
-        }
+            description "Peer lifecycle and flow control operations";
+            ze:ui-resource "bgp-peer/index.html";
+            ze:ui-permissions "network";
+            ze:ui-csp "default-src 'self'";
 
-        container pause {
-            config false;
-            ze:command "ze-bgp:peer-pause";
-            description "Pause reading from a peer's TCP socket.
-Usage: peer <selector> pause.";
-            leaf selector { type string; mandatory true; description "Peer selector"; }
-        }
-
-        container resume {
-            config false;
-            ze:command "ze-bgp:peer-resume";
-            description "Resume reading from a previously paused peer.
-Usage: peer <selector> resume.";
-            leaf selector { type string; mandatory true; description "Peer selector"; }
-        }
-
-        container flush {
-            config false;
-            ze:command "ze-bgp:peer-flush";
-            description "Wait until all queued updates for a peer are sent.
-Usage: peer <selector> flush.";
-            leaf selector { type string; mandatory true; description "Peer selector"; }
-        }
-
-        container plugin {
-            config false;
-            description "Plugin-level peer operations";
-
-            container session {
+            container teardown {
                 config false;
-                description "Plugin session lifecycle";
+                ze:command "ze-bgp:peer-teardown";
+                description "Tear down a peer session.
+Usage: request peer <selector> teardown [cease-subcode].";
+                leaf selector { type string; mandatory true; description "Peer selector"; }
+            }
 
-                container ready {
+            container pause {
+                config false;
+                ze:command "ze-bgp:peer-pause";
+                description "Pause reading from a peer's TCP socket.
+Usage: request peer <selector> pause.";
+                leaf selector { type string; mandatory true; description "Peer selector"; }
+            }
+
+            container resume {
+                config false;
+                ze:command "ze-bgp:peer-resume";
+                description "Resume reading from a previously paused peer.
+Usage: request peer <selector> resume.";
+                leaf selector { type string; mandatory true; description "Peer selector"; }
+            }
+
+            container flush {
+                config false;
+                ze:command "ze-bgp:peer-flush";
+                description "Wait until all queued updates for a peer are sent.
+Usage: request peer <selector> flush.";
+                leaf selector { type string; mandatory true; description "Peer selector"; }
+            }
+
+            container plugin {
+                config false;
+                description "Plugin-level peer operations";
+
+                container session {
                     config false;
-                    ze:command "ze-plugin:session-peer-ready";
-                    description "Signal that per-peer plugin setup is complete.
-Usage: peer <selector> plugin session ready.";
-                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                    description "Plugin session lifecycle";
+
+                    container ready {
+                        config false;
+                        ze:command "ze-plugin:session-peer-ready";
+                        description "Signal that per-peer plugin setup is complete.
+Usage: request peer <selector> plugin session ready.";
+                        leaf selector { type string; mandatory true; description "Peer selector"; }
+                    }
                 }
             }
         }

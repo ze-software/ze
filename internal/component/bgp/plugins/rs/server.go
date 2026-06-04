@@ -373,6 +373,23 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	}
 }
 
+// peerAction dispatches a peer lifecycle action (pause, resume) via dispatch-command.
+func (rs *RouteServer) peerAction(peerSelector, action string) {
+	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	defer cancel()
+	cmd := "request peer " + peerSelector + " " + action
+	_, _, err := rs.plugin.DispatchCommand(ctx, cmd)
+	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
+		if rs.stopping.Load() {
+			logger().Debug("peer-action failed (shutting down)", "peer", peerSelector, "action", action, "error", err)
+		} else if isConnectionError(err) {
+			logger().Warn("peer-action failed (peer disconnected)", "peer", peerSelector, "action", action, "error", err)
+		} else {
+			logger().Error("peer-action failed", "peer", peerSelector, "action", action, "error", err)
+		}
+	}
+}
+
 // isConnectionError reports whether err indicates the target peer's
 // connection is already closed (broken pipe, reset, EOF). RPC errors
 // cross a string boundary, so errors.Is cannot unwrap them.
@@ -403,7 +420,7 @@ func (rs *RouteServer) wireFlowControl() {
 
 		if wasPaused {
 			logger().Info("resuming peer", "source-peer", key.sourcePeer)
-			rs.updateRoute(key.sourcePeer, "resume")
+			rs.peerAction(key.sourcePeer, "resume")
 		}
 	}
 }
@@ -421,7 +438,7 @@ func (rs *RouteServer) resumeAllPaused() {
 
 	for _, addr := range paused {
 		logger().Info("shutdown: resuming peer", "source-peer", addr)
-		rs.updateRoute(addr, "resume")
+		rs.peerAction(addr, "resume")
 	}
 }
 
@@ -472,7 +489,7 @@ func (rs *RouteServer) dispatchText(text string) {
 				rs.pausedPeers[peerAddr] = true
 				rs.mu.Unlock()
 				logger().Debug("pausing peer", "source-peer", peerAddr)
-				rs.updateRoute(peerAddr, "pause")
+				rs.peerAction(peerAddr, "pause")
 			} else {
 				rs.mu.Unlock()
 			}
@@ -527,7 +544,7 @@ func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMess
 			rs.pausedPeers[peerAddr] = true
 			rs.mu.Unlock()
 			logger().Debug("pausing peer", "source-peer", peerAddr)
-			rs.updateRoute(peerAddr, "pause")
+			rs.peerAction(peerAddr, "pause")
 		} else {
 			rs.mu.Unlock()
 		}

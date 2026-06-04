@@ -779,11 +779,46 @@ class API:
         if msg:
             self.send(msg)
 
+    # Peer lifecycle actions that go through dispatch-command, not update-route.
+    # Single-word actions matched against the first token after peer <sel>.
+    _PEER_ACTIONS = frozenset(
+        {
+            "teardown",
+            "pause",
+            "resume",
+            "flush",
+            "refresh",
+            "borr",
+            "eorr",
+            "plugin",
+        }
+    )
+
+    # Two-word action prefixes matched against the first two tokens after peer <sel>.
+    _PEER_ACTION_PAIRS = frozenset(
+        {
+            "clear soft",
+        }
+    )
+
+    @staticmethod
+    def _is_peer_action(action_rest: str) -> bool:
+        """Check if the text after 'peer <sel>' is a lifecycle action."""
+        tokens = action_rest.split()
+        if not tokens:
+            return False
+        if tokens[0] in API._PEER_ACTIONS:
+            return True
+        if len(tokens) >= 2 and tokens[0] + " " + tokens[1] in API._PEER_ACTION_PAIRS:
+            return True
+        return False
+
     def send(self, command: str) -> None:
         """Send a command to ZeBGP.
 
         Routes to the appropriate RPC based on command prefix:
-        - 'peer ...' -> ze-plugin-engine:update-route
+        - 'peer <sel> <action>' (lifecycle) -> ze-plugin-engine:dispatch-command
+        - 'peer <sel> <route-cmd>' -> ze-plugin-engine:update-route
         - 'subscribe ...' -> accumulates for ready RPC
 
         Args:
@@ -795,10 +830,17 @@ class API:
 
         if command.startswith("subscribe "):
             self._handle_subscribe_command(command)
-        elif command.startswith("peer ") or command.startswith("update "):
+        elif command.startswith("peer "):
+            rest = command[len("peer ") :]
+            parts = rest.split(" ", 1)
+            action_rest = parts[1] if len(parts) > 1 else ""
+            if self._is_peer_action(action_rest):
+                self._send_dispatch_command("request " + command)
+            else:
+                self._send_update_route(command)
+        elif command.startswith("update "):
             self._send_update_route(command)
         else:
-            # Unknown command type -- try as update-route
             self._send_update_route(command)
 
     def _handle_subscribe_command(self, command: str) -> None:
@@ -864,6 +906,27 @@ class API:
             "command": cmd,
         }
         self._call_engine("ze-plugin-engine:update-route", params)
+
+    def _send_dispatch_command(self, command: str) -> None:
+        """Send ze-plugin-engine:dispatch-command RPC.
+
+        Args:
+            command: Full dispatch command string (e.g., 'request peer * teardown')
+        """
+        self._call_engine("ze-plugin-engine:dispatch-command", {"command": command})
+
+    def dispatch(self, command: str) -> dict | None:
+        """Dispatch an arbitrary command via ze-plugin-engine:dispatch-command.
+
+        Args:
+            command: Full command string for the dispatcher
+
+        Returns:
+            RPC result dict or None
+        """
+        return self._call_engine(
+            "ze-plugin-engine:dispatch-command", {"command": command}
+        )
 
     # ==================================================================
     # Runtime: Read events / responses
@@ -1186,7 +1249,6 @@ def result_json_data(result: dict | None, default: Any) -> Any:
     if not isinstance(data, str):
         return data
     return json.loads(data)
-
 
 
 def wait_for_shutdown(timeout: float = 5.0) -> None:

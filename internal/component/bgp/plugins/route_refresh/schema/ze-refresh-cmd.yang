@@ -5,48 +5,53 @@ module ze-refresh-cmd {
     description "Request peers to re-send routes (RFC 2918, RFC 7313)";
     revision 2026-03-16 { description "Initial revision"; }
 
-    container peer {
+    container request {
         config false;
         description "Route refresh and soft-clear operations";
 
-        container refresh {
+        container peer {
             config false;
-            ze:command "ze-bgp:peer-refresh";
-            description "Ask a peer to re-send all routes (RFC 2918).
+            description "Route refresh and soft-clear operations";
+
+            container refresh {
+                config false;
+                ze:command "ze-bgp:peer-refresh";
+                description "Ask a peer to re-send all routes (RFC 2918).
 Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The
 peer will re-advertise its entire Adj-RIB-Out.";
-            leaf selector { type string; mandatory true; description "Peer selector"; }
-        }
+                leaf selector { type string; mandatory true; description "Peer selector"; }
+            }
 
-        container borr {
-            config false;
-            ze:command "ze-bgp:peer-borr";
-            description "Start an Enhanced Route Refresh cycle (RFC 7313).
+            container borr {
+                config false;
+                ze:command "ze-bgp:peer-borr";
+                description "Start an Enhanced Route Refresh cycle (RFC 7313).
 Tells the peer to mark existing routes as stale. After re-sending,
 send EORR to purge anything not refreshed.";
-            leaf selector { type string; mandatory true; description "Peer selector"; }
-        }
+                leaf selector { type string; mandatory true; description "Peer selector"; }
+            }
 
-        container eorr {
-            config false;
-            ze:command "ze-bgp:peer-eorr";
-            description "Finish an Enhanced Route Refresh cycle (RFC 7313).
+            container eorr {
+                config false;
+                ze:command "ze-bgp:peer-eorr";
+                description "Finish an Enhanced Route Refresh cycle (RFC 7313).
 The peer purges any routes not re-advertised since the matching
 BORR. Only send this after the peer has finished re-advertising.";
-            leaf selector { type string; mandatory true; description "Peer selector"; }
-        }
+                leaf selector { type string; mandatory true; description "Peer selector"; }
+            }
 
-        container clear {
-            config false;
-            description "Non-disruptive peer refresh";
-
-            container soft {
+            container clear {
                 config false;
-                ze:command "ze-bgp:peer-clear-soft";
-                description "Soft-clear a peer without dropping the session.
+                description "Non-disruptive peer refresh";
+
+                container soft {
+                    config false;
+                    ze:command "ze-bgp:peer-clear-soft";
+                    description "Soft-clear a peer without dropping the session.
 Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
 to re-send all routes. No session bounce, no traffic impact.";
-                leaf selector { type string; mandatory true; description "Peer selector"; }
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                }
             }
         }
     }

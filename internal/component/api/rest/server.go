@@ -571,7 +571,7 @@ func (s *RESTServer) handlePeerAction(action string) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "peer " + name + " " + action})
+		result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "request peer " + name + " " + action})
 		if errors.Is(execErr, api.ErrUnauthorized) {
 			writeError(w, http.StatusForbidden, result.Error)
 			return
@@ -591,7 +591,7 @@ func (s *RESTServer) handlePeerRefresh(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "peer " + name + " refresh"})
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "request peer " + name + " refresh"})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return

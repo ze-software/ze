@@ -110,8 +110,8 @@ identical to calling `execute` directly.
 |--------|------|---------|
 | `GET` | `/api/v1/peers` | `bgp summary` |
 | `GET` | `/api/v1/peers/{name}` | `peer {name} detail` |
-| `DELETE` | `/api/v1/peers/{name}` | `peer {name} teardown` |
-| `POST` | `/api/v1/peers/{name}/refresh` | `peer {name} refresh` |
+| `DELETE` | `/api/v1/peers/{name}` | `request peer {name} teardown` |
+| `POST` | `/api/v1/peers/{name}/refresh` | `request peer {name} refresh` |
 | `GET` | `/api/v1/rib/{family}` | `show bgp rib family {family}` |
 | `GET` | `/api/v1/rib/{family}/best` | `show bgp rib best family {family}` |
 | `GET` | `/api/v1/system/version` | `show version` |

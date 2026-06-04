@@ -135,20 +135,10 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, conn *plugipc.Plugi
 		cmdCtx.Peer = "*"
 	}
 
-	// Reconstruct the full command for the dispatcher.
-	// Commands arrive in two forms:
-	// 1. Peer-scoped subcommands: just "<cmd>" (e.g., "update text ...") -- need
-	//    `peer <sel> ` prepended
-	// 2. Top-level commands: "cache ...", "peer ...", "commit ..." -- pass through directly
-	//
-	// Detect form by checking if the command matches a registered dispatch prefix.
-	// If it does, pass through. If not, it's a peer-scoped subcommand.
-	var dispatchCmd string
-	if s.dispatcher.HasCommandPrefix(input.Command) {
-		dispatchCmd = input.Command
-	} else {
-		dispatchCmd = "peer " + cmdCtx.Peer + " " + input.Command
-	}
+	// Route injection commands are always peer-scoped subcommands
+	// (e.g., "update text ...", "announce route ..."). Prepend unconditionally.
+	// Peer lifecycle actions (teardown, pause, etc.) use dispatch-command instead.
+	dispatchCmd := "peer " + cmdCtx.Peer + " " + input.Command
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err != nil {
@@ -599,12 +589,7 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 		cmdCtx.Peer = "*"
 	}
 
-	var dispatchCmd string
-	if s.dispatcher.HasCommandPrefix(input.Command) {
-		dispatchCmd = input.Command
-	} else {
-		dispatchCmd = "peer " + cmdCtx.Peer + " " + input.Command
-	}
+	dispatchCmd := "peer " + cmdCtx.Peer + " " + input.Command
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err != nil {

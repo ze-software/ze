@@ -172,7 +172,7 @@ func TestDispatchShowBGPPeerHistory(t *testing.T) {
 	assert.Equal(t, 1, data["count"])
 }
 
-// TestDispatchBGPPeerTeardown verifies "peer <addr> teardown" dispatches correctly.
+// TestDispatchBGPPeerTeardown verifies "request peer <addr> teardown" dispatches correctly.
 //
 // VALIDATES: Dispatch chain reaches handleBgpPeerTeardown with peer selector.
 // PREVENTS: Peer selector not propagated through dispatch.
@@ -180,7 +180,7 @@ func TestDispatchBGPPeerTeardown(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer 192.0.2.1 teardown 2")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "request peer 192.0.2.1 teardown 2")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

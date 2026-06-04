@@ -1075,15 +1075,47 @@ to the database as `ze.conf`.
 
 ### ze install
 
-Zero-touch provisioning server. Generates a ze config from CLI flags and
-forks `ze -` to start DHCP+PXE, TFTP, and HTTP servers for PXE-booting
-target machines with a gokrazy image.
+Install ze binary, systemd service, or provision remote devices.
 
 ```
+ze install local                     # copy binary and create config directory
+ze install local --prefix /usr/local # non-interactive prefix selection
+ze install local --dry-run           # preview what would be done
+sudo ze install systemd              # write and enable ze.service
+sudo ze install systemd --start      # install, enable, and start
+ze install systemd --dry-run         # print the unit file, no writes
 ze install remote --interface eth0 --network 10.0.0.0/24 \
   --image /path/to/gokrazy.img \
   --ssh-username admin --ssh-password secret
 ```
+
+#### ze install local
+
+| Flag | Purpose |
+|------|---------|
+| `--prefix` | Installation prefix (default: interactive selection) |
+| `--dry-run` | Print what would be done without making changes |
+
+#### ze install systemd
+
+| Flag | Purpose |
+|------|---------|
+| `--config <dir>` | Override the config directory used in the unit file |
+| `--start` | Start the service after enabling it |
+| `--force` | Overwrite an existing `/etc/systemd/system/ze.service` |
+| `--dry-run` | Print the generated unit file to stdout without root, systemctl, or filesystem writes |
+
+`ze install systemd` requires Linux, `systemctl`, root, and an existing
+`<config-dir>/database.zefs`. Run `sudo ze init` first. The generated unit runs
+as user/group `ze`, sets `XDG_RUNTIME_DIR=/run/ze`, creates `/run/ze` through
+`RuntimeDirectory=ze`, and grants `CAP_NET_ADMIN`, `CAP_NET_RAW`, and
+`CAP_NET_BIND_SERVICE` through systemd capabilities.
+
+The daemon socket is `/run/ze/ze.socket` under this unit. Configure
+`daemon { socket "/run/ze/ze.socket"; }` or run operator commands with
+`XDG_RUNTIME_DIR=/run/ze` so local CLI commands connect to the same socket.
+
+#### ze install remote
 
 | Flag | Purpose |
 |------|---------|
@@ -1094,54 +1126,30 @@ ze install remote --interface eth0 --network 10.0.0.0/24 \
 | `--ssh-password` | Admin password, bcrypt-hashed before use (required) |
 | `--address` | Override server IP (default: first IPv4 on interface) |
 
-The DHCP pool range scales with subnet size: for a /24 the pool spans
-the full host range minus the server IP; for a /28 only the available
-hosts are offered. PXE options select BIOS or UEFI bootfile based on
-client architecture (option 93).
+Zero-touch provisioning server. Generates a ze config from CLI flags and
+forks `ze -` to start DHCP+PXE, TFTP, and HTTP servers for PXE-booting
+target machines with a gokrazy image. The DHCP pool range scales with
+subnet size. Requires root on Linux.
+<!-- source: cmd/ze/install/main.go -- dispatch -->
+<!-- source: cmd/ze/install/local/ -- binary copy -->
+<!-- source: cmd/ze/install/systemd/ -- unit file -->
+<!-- source: cmd/ze/install/remote/ -- PXE provisioning -->
+<!-- source: cmd/ze/systemd/ -- shared service runtime -->
 
-Requires root on Linux (DHCP port 67, TFTP port 69, HTTP port 80).
-On gokrazy appliances ze runs as root by default.
+### ze uninstall
 
-SIGTERM/SIGINT are forwarded to the child ze process for clean shutdown.
-<!-- source: cmd/ze/install/main.go -- Run, usage -->
-<!-- source: cmd/ze/install/serve.go -- runRemote, remoteUsage -->
-<!-- source: cmd/ze/install/config.go -- generateConfig, validateFlags -->
-<!-- source: cmd/ze/install/fork.go -- forkAndServe -->
-
-### ze service
-
-Manage ze as a systemd service on standard Linux hosts. This command is for
-non-gokrazy deployments where ze runs under systemd.
+Remove ze binary or systemd service.
 
 ```
-sudo ze service install              # write and enable ze.service
-sudo ze service install --start      # install, enable, and start
-ze service install --dry-run         # print the unit file, no writes
-ze service status                    # run systemctl status ze.service
-sudo ze service uninstall            # stop, disable, and remove the unit
+ze uninstall local                   # remove binary
+ze uninstall local --purge           # also remove config directory and database
+sudo ze uninstall systemd            # stop, disable, and remove the unit
+sudo ze uninstall systemd --purge    # also remove the ze user and group
 ```
+<!-- source: cmd/ze/uninstall/main.go -- dispatch -->
+<!-- source: cmd/ze/uninstall/local/ -- binary removal -->
+<!-- source: cmd/ze/uninstall/systemd/ -- unit removal -->
 
-| Flag | Purpose |
-|------|---------|
-| `--config <dir>` | Override the config directory used in the unit file |
-| `--start` | Start the service after enabling it |
-| `--force` | Overwrite an existing `/etc/systemd/system/ze.service` |
-| `--dry-run` | Print the generated unit file to stdout without root, systemctl, or filesystem writes |
-
-`ze service install` requires Linux, `systemctl`, root, and an existing
-`<config-dir>/database.zefs`. Run `sudo ze init` first. The generated unit runs
-as user/group `ze`, sets `XDG_RUNTIME_DIR=/run/ze`, creates `/run/ze` through
-`RuntimeDirectory=ze`, and grants `CAP_NET_ADMIN`, `CAP_NET_RAW`, and
-`CAP_NET_BIND_SERVICE` through systemd capabilities.
-
-The daemon socket is `/run/ze/ze.socket` under this unit. Configure
-`daemon { socket "/run/ze/ze.socket"; }` or run operator commands with
-`XDG_RUNTIME_DIR=/run/ze` so local CLI commands connect to the same socket.
-<!-- source: cmd/ze/service/main.go -- Run -->
-<!-- source: cmd/ze/service/cmd_install.go -- cmdInstall -->
-<!-- source: cmd/ze/service/cmd_uninstall.go -- cmdUninstall -->
-<!-- source: cmd/ze/service/cmd_status.go -- cmdStatus -->
-<!-- source: cmd/ze/service/unit.go -- buildUnitFile -->
 
 ### ze passwd
 
@@ -1479,10 +1487,10 @@ Many commands take a `peer <selector>` argument:
 | `show bgp peer <sel> history` | read-only | FSM transition history |
 | `show summary` | read-only | BGP summary table (all peers) |
 | `show summary <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
-| `peer <sel> pause` | write | Pause read loop (flow control) |
-| `peer <sel> resume` | write | Resume read loop |
-| `peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
-| `peer <sel> flush` | write | Block until all queued updates for peer are on the wire |
+| `request peer <sel> pause` | write | Pause read loop (flow control) |
+| `request peer <sel> resume` | write | Resume read loop |
+| `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
+| `request peer <sel> flush` | write | Block until all queued updates for peer are on the wire |
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang -->
 
 ### Policy Test (Dry-Run)

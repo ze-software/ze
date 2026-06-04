@@ -170,7 +170,7 @@ func TestHandleRelatedToolRun_ConfirmRequired(t *testing.T) {
 	handler.ServeHTTP(rec2, toolsRequest("/tools/related/run", form, "alice"))
 
 	assert.Equal(t, http.StatusOK, rec2.Code)
-	assert.Equal(t, "peer 10.0.0.1 teardown", disp.command)
+	assert.Equal(t, "request peer 10.0.0.1 teardown", disp.command)
 }
 
 // TestHandleRelatedToolRun_StripsANSI verifies that ANSI escape sequences

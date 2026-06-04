@@ -13,18 +13,10 @@ import (
 )
 
 // testCommandTree builds a static command tree for admin handler tests.
-// Structure:
-//
-//	(root) -> [peer, rib]
-//	peer -> [teardown, refresh]
-//	rib -> [clear]
-//	peer/teardown -> leaf (no children)
-//	peer/refresh -> leaf (no children)
-//	rib/clear -> leaf (no children)
 func testCommandTree() map[string][]string {
 	return map[string][]string{
 		"":     {"peer", "bgp rib"},
-		"peer": {"teardown", "refresh"},
+		"peer": {"raw"},
 		"rib":  {"clear"},
 	}
 }
@@ -72,8 +64,7 @@ func TestAdminRouteDispatch(t *testing.T) {
 		itemNames[item.Name] = true
 	}
 
-	assert.True(t, itemNames["teardown"], "teardown must be in finder column")
-	assert.True(t, itemNames["refresh"], "refresh must be in finder column")
+	assert.True(t, itemNames["raw"], "raw must be in finder column")
 }
 
 // TestAdminBreadcrumb verifies that /admin/peer/ produces breadcrumb segments
@@ -316,7 +307,7 @@ func TestAdminContentNegotiationView(t *testing.T) {
 
 	kids, ok := data["children"].([]any)
 	require.True(t, ok, "children must be an array")
-	assert.Len(t, kids, 2)
+	assert.Len(t, kids, 1)
 }
 
 // TestAdminExecuteMethodNotAllowed verifies that GET to the execute handler
@@ -358,7 +349,6 @@ func TestBuildAdminCommandTree(t *testing.T) {
 	// Peer must have operational sub-commands.
 	peer := tree["peer"]
 	require.NotEmpty(t, peer, "peer must have children")
-	assert.Contains(t, peer, "teardown")
 	assert.Contains(t, peer, "show")
 	assert.Contains(t, peer, "list")
 }
