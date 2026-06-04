@@ -77,7 +77,7 @@ produce continuously-updating output.
 | Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
 | Monitor | monitor bgp (TUI dashboard), monitor event (live event streaming), monitor system netlink (kernel events) |
-| Subscribe | subscribe, unsubscribe (event filtering) |
+| Subscribe | request subscribe, request unsubscribe (event filtering) |
 | Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 
@@ -276,10 +276,10 @@ bgp plugin ack async         # Return immediately (default)
 Plugins subscribe to events via API instead of config. Replaces config-driven `receive {}` blocks.
 
 ```
-subscribe <namespace> event <type> [direction received|sent|both]
-subscribe peer <selector> <namespace> event <type> [direction ...]
-subscribe plugin <name> <namespace> event <type> [direction ...]
-unsubscribe <namespace> event <type> [direction received|sent|both]
+request subscribe <namespace> event <type> [direction received|sent|both]
+request subscribe peer <selector> event <type> [direction ...]
+request subscribe plugin <name> <namespace> event <type> [direction ...]
+request unsubscribe <namespace> event <type> [direction received|sent|both]
 ```
 
 **Namespaces:**
@@ -312,12 +312,12 @@ Plugins may register additional event types via `Registration.EventTypes`. These
 
 **Examples:**
 ```
-subscribe bgp event update                              # All peers, both directions
-subscribe bgp event update direction received           # Received only
-subscribe peer upstream1 bgp event update               # Specific peer
-subscribe peer * bgp event state                        # All peers, state changes
-subscribe peer !upstream1 bgp event update direction sent  # Exclude one peer
-subscribe rib event route                               # RIB route events
+request subscribe bgp event update                              # All peers, both directions
+request subscribe bgp event update direction received           # Received only
+request subscribe peer upstream1 event update                    # Specific peer
+request subscribe peer * event state                            # All peers, state changes
+request subscribe peer !upstream1 event update direction sent      # Exclude one peer
+request subscribe rib event route                               # RIB route events
 ```
 
 ### Monitor Commands

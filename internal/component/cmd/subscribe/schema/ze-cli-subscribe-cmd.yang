@@ -5,20 +5,24 @@ module ze-cli-subscribe-cmd {
     description "Subscribe to and unsubscribe from daemon events";
     revision 2026-03-16 { description "Initial revision"; }
 
-    container subscribe {
+    container request {
         config false;
-        ze:command "ze-bgp:subscribe";
-        ze:task-support required;
-        description "Start receiving events of one or more types.
+
+        container subscribe {
+            config false;
+            ze:command "ze-bgp:subscribe";
+            ze:task-support required;
+            description "Start receiving events of one or more types.
 Events are delivered asynchronously to your plugin session until
 you unsubscribe. Use 'event list' to see available event types.";
-    }
+        }
 
-    container unsubscribe {
-        config false;
-        ze:command "ze-bgp:unsubscribe";
-        description "Stop receiving events you previously subscribed to.
+        container unsubscribe {
+            config false;
+            ze:command "ze-bgp:unsubscribe";
+            description "Stop receiving events you previously subscribed to.
 Removes the subscription for the specified event type from your
 current plugin session.";
+        }
     }
 }

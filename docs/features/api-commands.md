@@ -60,8 +60,8 @@ Inject attributes: `origin <igp|egp|incomplete>`, `nhop|nexthop <ip>`, `aspath <
 
 | Command | Description |
 |---------|-------------|
-| `subscribe <filter>` | Subscribe to BGP events |
-| `unsubscribe <id>` | Unsubscribe from events |
+| `request subscribe <filter>` | Subscribe to BGP events |
+| `request unsubscribe <filter>` | Unsubscribe from events |
 
 ### Commit Workflow
 
@@ -69,13 +69,13 @@ Named update windows for atomic route changes:
 
 | Command | Description |
 |---------|-------------|
-| `commit start <name>` | Begin named update window |
-| `commit end <name>` | End window and send updates |
-| `commit eor <name>` | Send End-of-RIB for window |
-| `commit rollback <name>` | Discard changes |
-| `commit show <name>` | Show commit status |
-| `commit withdraw <name>` | Withdraw all routes in window |
-| `commit list` | List named commits |
+| `request commit start <name>` | Begin named update window |
+| `request commit end <name>` | End window and send updates |
+| `request commit eor <name>` | Send End-of-RIB for window |
+| `request commit rollback <name>` | Discard changes |
+| `request commit show <name>` | Show commit status |
+| `request commit withdraw <name>` | Withdraw all routes in window |
+| `request commit list` | List named commits |
 
 <!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- commit workflow handlers -->
 

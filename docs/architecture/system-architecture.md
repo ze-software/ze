@@ -271,7 +271,7 @@ ze gr                         ze (hub)                      ze bgp
    │── capability hex 64 ... ───►│─── (routes to BGP) ────────►│
    │   peer 192.168.1.1          │      (BGP stores for OPEN)  │
    │                             │                             │
-   │── subscribe bgp.peer.* ────►│                             │
+   │── request subscribe bgp.peer.*►│                             │
    │                             │                             │
    │                             │◄── event bgp.peer.restart ──│
    │◄── event bgp.peer.restart ──│                             │
@@ -368,7 +368,7 @@ Plugins subscribe to events during startup:
 
 ```
 # ze rib subscribes to BGP events
-subscribe bgp.event.*
+request subscribe bgp.event.*
 ```
 
 ### Event Publishing

@@ -19,14 +19,14 @@ func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandCo
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPCommitList verifies "commit list" dispatches through init() registration.
+// TestDispatchBGPCommitList verifies "request commit list" dispatches through init() registration.
 //
 // VALIDATES: Dispatch chain reaches handleCommit via injected init() registration.
 // PREVENTS: Commit handler not registered in dispatcher.
 func TestDispatchBGPCommitList(t *testing.T) {
 	ctx := newDispatchContext(&mockReactor{})
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "commit list")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "request commit list")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -43,12 +43,12 @@ func TestDispatchBGPCommitStartEnd(t *testing.T) {
 	ctx := newDispatchContext(&mockReactor{})
 
 	// Start
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "commit test-dispatch start")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "request commit test-dispatch start")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
 	// End
-	resp, err = ctx.Server.Dispatcher().Dispatch(ctx, "commit test-dispatch end")
+	resp, err = ctx.Server.Dispatcher().Dispatch(ctx, "request commit test-dispatch end")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 }

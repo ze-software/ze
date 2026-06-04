@@ -35,7 +35,7 @@ def main():
 
     try:
         # Subscribe to congested events -- proves the event type is registered
-        result = dispatch(api, 'subscribe bgp event congested')
+        result = dispatch(api, 'request subscribe bgp event congested')
         if result.get('status') != 'done':
             print(f'FAIL: subscribe congested status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
@@ -51,7 +51,7 @@ def main():
         print(f'OK: subscribed to {ns} event {ev}', file=sys.stderr)
 
         # Subscribe to resumed events -- proves the event type is registered
-        result = dispatch(api, 'subscribe bgp event resumed')
+        result = dispatch(api, 'request subscribe bgp event resumed')
         if result.get('status') != 'done':
             print(f'FAIL: subscribe resumed status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)

@@ -28,7 +28,9 @@ var (
 // Command keywords for subscription parsing.
 const (
 	kwPeer      = "peer"
+	kwEvent     = "event"
 	kwDirection = "direction"
+	nsBGP       = "bgp"
 )
 
 // Subscription represents an event subscription.
@@ -176,7 +178,8 @@ func (sm *SubscriptionManager) GetSubscriptions(proc *process.Process) []*Subscr
 }
 
 // ParseSubscription parses a subscribe/unsubscribe command.
-// Format: [peer <sel> | plugin <name>] <namespace> event <type> [direction received|sent|both].
+// Format: [peer <sel> | plugin <name>] [<namespace>] event <type> [direction received|sent|both].
+// Namespace defaults to "bgp" when peer is set.
 func ParseSubscription(args []string) (*Subscription, error) {
 	sub := &Subscription{
 		Direction: events.DirBoth,
@@ -203,19 +206,23 @@ func ParseSubscription(args []string) (*Subscription, error) {
 		i += 2
 	}
 
-	// Namespace
+	// Namespace (implicit "bgp" when peer filter is set and next token is kwEvent).
 	if len(args) <= i {
 		return nil, errMissingNamespace
 	}
 	ns := args[i]
-	if !events.IsValidNamespace(ns) {
-		return nil, fmt.Errorf("invalid namespace: %s (valid: %s)", ns, events.ValidNamespaceNames())
+	if sub.PeerFilter != nil && ns == kwEvent {
+		ns = nsBGP
+	} else {
+		if !events.IsValidNamespace(ns) {
+			return nil, fmt.Errorf("invalid namespace: %s (valid: %s)", ns, events.ValidNamespaceNames())
+		}
+		i++
 	}
 	sub.Namespace = events.LookupNamespaceID(ns)
-	i++
 
-	// "event" keyword
-	if len(args) <= i || args[i] != "event" {
+	// kwEvent keyword
+	if len(args) <= i || args[i] != kwEvent {
 		return nil, errExpectedEventKeyword
 	}
 	i++

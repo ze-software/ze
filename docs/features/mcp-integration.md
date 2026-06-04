@@ -28,9 +28,9 @@ The `ze_execute` tool is the key to full control: anything you can do in `ze cli
 - **Route management:** `bgp peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24`
 - **RIB queries:** `show bgp rib received`, `show bgp rib sent`, `clear bgp rib in`
 - **Peer lifecycle:** `bgp peer * show`, `bgp peer 10.0.0.1 teardown 6`, `delete bgp peer-peer with ...`
-- **Configuration:** `commit start window1`, route changes, `commit end window1`
+- **Configuration:** `request commit start window1`, route changes, `request commit end window1`
 - **Cache operations:** `cache list`, `cache forward`
-- **Event subscription:** `subscribe bgp/update`
+- **Event subscription:** `request subscribe bgp/update`
 - **Schema discovery:** `command-list`, `command-help <name>`
 
 ## Starting the MCP Server

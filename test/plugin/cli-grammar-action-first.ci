@@ -1,5 +1,5 @@
 # Test: CLI grammar action-before-identifier for commit commands
-# VALIDATES: new grammar (commit start <name>) and deprecated grammar (commit <name> start) both work
+# VALIDATES: canonical grammar (request commit start <name>) and deprecated grammar (request commit <name> start) both work
 # PREVENTS: grammar refactor breaking commit dispatch
 
 # ze-peer expectations
@@ -34,7 +34,7 @@ def main():
 
     try:
         # Canonical grammar: commit start <name>
-        result = dispatch(api, 'commit start canonical-test')
+        result = dispatch(api, 'request commit start canonical-test')
         if result.get('status') != 'done':
             print(f'FAIL: commit start canonical-test: {result}', file=sys.stderr)
             sys.exit(1)
@@ -47,21 +47,21 @@ def main():
         print('OK: canonical commit start', file=sys.stderr)
 
         # Canonical grammar: commit show <name>
-        result = dispatch(api, 'commit show canonical-test')
+        result = dispatch(api, 'request commit show canonical-test')
         if result.get('status') != 'done':
             print(f'FAIL: commit show canonical-test: {result}', file=sys.stderr)
             sys.exit(1)
         print('OK: canonical commit show', file=sys.stderr)
 
         # Canonical grammar: commit rollback <name>
-        result = dispatch(api, 'commit rollback canonical-test')
+        result = dispatch(api, 'request commit rollback canonical-test')
         if result.get('status') != 'done':
             print(f'FAIL: commit rollback canonical-test: {result}', file=sys.stderr)
             sys.exit(1)
         print('OK: canonical commit rollback', file=sys.stderr)
 
         # Deprecated grammar: commit <name> start (should work with deprecation)
-        result = dispatch(api, 'commit deprecated-test start')
+        result = dispatch(api, 'request commit deprecated-test start')
         if result.get('status') != 'done':
             print(f'FAIL: deprecated commit start: {result}', file=sys.stderr)
             sys.exit(1)
@@ -74,13 +74,13 @@ def main():
         print(f'OK: deprecated commit start (warning: {data["deprecated"]})', file=sys.stderr)
 
         # Clean up deprecated commit
-        result = dispatch(api, 'commit rollback deprecated-test')
+        result = dispatch(api, 'request commit rollback deprecated-test')
         if result.get('status') != 'done':
             print(f'FAIL: rollback deprecated-test: {result}', file=sys.stderr)
             sys.exit(1)
 
         # Verify commit list is empty
-        result = dispatch(api, 'commit list')
+        result = dispatch(api, 'request commit list')
         if result.get('status') != 'done':
             print(f'FAIL: commit list: {result}', file=sys.stderr)
             sys.exit(1)

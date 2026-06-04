@@ -34,19 +34,19 @@ def main():
 
     try:
         # Start a named commit
-        result = dispatch(api, 'commit rollback-test start')
+        result = dispatch(api, 'request commit rollback-test start')
         if result.get('status') != 'done':
             print(f'FAIL: commit start status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
 
         # Rollback (discard)
-        result = dispatch(api, 'commit rollback-test rollback')
+        result = dispatch(api, 'request commit rollback-test rollback')
         if result.get('status') != 'done':
             print(f'FAIL: commit rollback status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
 
         # Verify commit list shows no active commits
-        result = dispatch(api, 'commit list')
+        result = dispatch(api, 'request commit list')
         if result.get('status') != 'done':
             print(f'FAIL: commit list status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

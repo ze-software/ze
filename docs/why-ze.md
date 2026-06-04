@@ -23,7 +23,7 @@ multithreaded, with broader protocol coverage, and a plugin SDK for deeper integ
 | BGP events as structured JSON | External process on stdin/stdout, or plugin SDK |
 | Route injection from scripts | Text command protocol or plugin API |
 | Any programming language | Anything that reads lines and writes lines |
-| Atomic route updates | `commit start` / `commit end` workflow |
+| Atomic route updates | `request commit start` / `request commit end` workflow |
 | Raw wire access | Hex-mode encoding and decoding, `bgp cache forward` |
 
 <!-- source: pkg/plugin/sdk/sdk.go -- plugin SDK entry point -->

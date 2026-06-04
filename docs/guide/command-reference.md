@@ -1614,13 +1614,13 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `commit start <name>` | write | Begin named update window |
-| `commit end <name>` | write | Flush queued updates |
-| `commit eor <name>` | write | Flush updates and send End-of-RIB |
-| `commit show <name>` | read-only | Show queue status |
-| `commit rollback <name>` | write | Discard queued updates |
-| `commit withdraw <name> route <prefix>` | write | Withdraw prefix from window |
-| `commit list` | read-only | List active commits |
+| `request commit start <name>` | write | Begin named update window |
+| `request commit end <name>` | write | Flush queued updates |
+| `request commit eor <name>` | write | Flush updates and send End-of-RIB |
+| `request commit show <name>` | read-only | Show queue status |
+| `request commit rollback <name>` | write | Discard queued updates |
+| `request commit withdraw <name> route <prefix>` | write | Withdraw prefix from window |
+| `request commit list` | read-only | List active commits |
 
 Commit names must not collide with action keywords (`list`, `start`, `end`,
 `eor`, `rollback`, `show`, `withdraw`). The old grammar `commit <name> <action>`

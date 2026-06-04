@@ -71,12 +71,12 @@ Named update windows for atomic route changes:
 
 | Command | Description |
 |---------|-------------|
-| `commit start <name>` | Begin named update window |
-| `commit end <name>` | End window and send updates |
-| `commit eor <name>` | Send End-of-RIB for window |
-| `commit rollback <name>` | Discard changes |
-| `commit show <name>` | Show commit status |
-| `commit list` | List named commits |
+| `request commit start <name>` | Begin named update window |
+| `request commit end <name>` | End window and send updates |
+| `request commit eor <name>` | Send End-of-RIB for window |
+| `request commit rollback <name>` | Discard changes |
+| `request commit show <name>` | Show commit status |
+| `request commit list` | List named commits |
 
 ## RPKI Commands
 

@@ -34,19 +34,19 @@ def main():
 
     try:
         # Start a named commit
-        result = dispatch(api, 'commit test-commit start')
+        result = dispatch(api, 'request commit test-commit start')
         if result.get('status') != 'done':
             print(f'FAIL: commit start status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
 
         # Show queued count
-        result = dispatch(api, 'commit test-commit show')
+        result = dispatch(api, 'request commit test-commit show')
         if result.get('status') != 'done':
             print(f'FAIL: commit show status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
 
         # End commit (flush)
-        result = dispatch(api, 'commit test-commit end')
+        result = dispatch(api, 'request commit test-commit end')
         if result.get('status') != 'done':
             print(f'FAIL: commit end status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

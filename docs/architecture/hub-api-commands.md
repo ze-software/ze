@@ -525,15 +525,15 @@ Returns validation errors if any.
 
 | Command | Description |
 |---------|-------------|
-| `subscribe [peer <sel>] <ns> event <type> [direction <dir>]` | Subscribe to events |
-| `unsubscribe [peer <sel>] <ns> event <type> [direction <dir>]` | Unsubscribe |
+| `request subscribe [peer <sel>] <ns> event <type> [direction <dir>]` | Subscribe to events |
+| `request unsubscribe [peer <sel>] <ns> event <type> [direction <dir>]` | Unsubscribe |
 <!-- source: internal/component/plugin/server/events.go -- event subscription -->
 
 **Example:**
 ```
-subscribe bgp event update direction received
-subscribe peer * bgp event state
-subscribe rib event cache
+request subscribe bgp event update direction received
+request subscribe peer * event state
+request subscribe rib event cache
 ```
 
 ---

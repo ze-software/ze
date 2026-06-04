@@ -62,7 +62,7 @@ doing to it."
 
 | Form | Example | When to use |
 |------|---------|-------------|
-| `<domain> <verb>` | `request bgp rib inject`, `commit start`, `request log level`, `show rpki status` | State that belongs to a specific subsystem |
+| `<domain> <verb>` | `request bgp rib inject`, `request commit start`, `request log level`, `show rpki status` | State that belongs to a specific subsystem |
 | `<domain> <selector> <verb>` | `peer <sel> teardown`, `peer <sel> pause` | Operations targeting one or more instances within a subsystem |
 | `<domain> <verb> <object>` | `config rollback <n>` | Domain operations that produce or consume a named object |
 | `show <what>` | `show bgp summary`, `show bgp peer list`, `show warnings`, `show errors`, `show interface`, `show version`, `show system memory` | Cross-domain read-only introspection |

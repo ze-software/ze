@@ -351,12 +351,12 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 
 | Command | Description |
 |---------|-------------|
-| `bgp commit <name> start` | Begin batch |
-| `bgp commit <name> end` | Flush batch |
-| `bgp commit <name> eor` | Flush + send EOR |
-| `bgp commit <name> rollback` | Discard batch |
-| `bgp commit <name> show` | Show queued count |
-| `bgp commit list` | List active batches |
+| `bgp request commit <name> start` | Begin batch |
+| `bgp request commit <name> end` | Flush batch |
+| `bgp request commit <name> eor` | Flush + send EOR |
+| `bgp request commit <name> rollback` | Discard batch |
+| `bgp request commit <name> show` | Show queued count |
+| `bgp request commit list` | List active batches |
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager -->
 <!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- commit handlers -->
 
@@ -420,8 +420,8 @@ Plugins subscribe to events via commands (not config).
 ### Subscription Commands
 
 ```
-subscribe [peer <sel> | plugin <name>] <namespace> event <type> [direction received|sent|both]
-unsubscribe [peer <sel> | plugin <name>] <namespace> event <type> [direction received|sent|both]
+request subscribe [peer <sel> | plugin <name>] <namespace> event <type> [direction received|sent|both]
+request unsubscribe [peer <sel> | plugin <name>] <namespace> event <type> [direction received|sent|both]
 ```
 
 Selector patterns:
@@ -436,13 +436,13 @@ Direction (for message events):
 Examples:
 
 ```
-subscribe bgp event update                              # all peers, both directions
-subscribe bgp event update direction received           # all peers, received only
-subscribe peer upstream1 bgp event update               # specific peer, both directions
-subscribe peer * bgp event state                        # explicit all peers
-subscribe peer !upstream1 bgp event update direction sent # all except one, sent only
-subscribe plugin rib-cache rib event cache             # events from specific plugin
-subscribe rib event route                               # RIB route events
+request subscribe bgp event update                              # all peers, both directions
+request subscribe bgp event update direction received           # all peers, received only
+request subscribe peer upstream1 event update                   # specific peer, both directions
+request subscribe peer * event state                            # explicit all peers
+request subscribe peer !upstream1 event update direction sent   # all except one, sent only
+request subscribe plugin rib-cache rib event cache              # events from specific plugin
+request subscribe rib event route                               # RIB route events
 ```
 
 ### BGP Event Types
@@ -609,11 +609,11 @@ bgp plugin encoding json
 bgp plugin format full
 bgp plugin ack async
 
-subscribe bgp event update direction received
-subscribe bgp event update direction sent
-subscribe peer * bgp event state
-subscribe rib event cache
-subscribe rib event route
+request subscribe bgp event update direction received
+request subscribe bgp event update direction sent
+request subscribe peer * event state
+request subscribe rib event cache
+request subscribe rib event route
 ```
 
 **Barrier semantics:** All plugins must complete each stage before any proceed to next.

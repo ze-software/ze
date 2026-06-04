@@ -120,10 +120,10 @@ Routes are sent to peers matching the selector:
 For atomic multi-route updates:
 
 ```bash
-ze cli -c "commit start my-batch"
+ze cli -c "request commit start my-batch"
 ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
 ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24"
-ze cli -c "commit end my-batch"    # All routes sent together
+ze cli -c "request commit end my-batch"    # All routes sent together
 ```
 <!-- source: internal/component/bgp/plugins/cmd/commit/ -- commit command RPCs; internal/component/bgp/transaction/ -- commit manager -->
 

@@ -5,13 +5,17 @@ module ze-cli-commit-cmd {
     description "Named commit groups for atomic route updates";
     revision 2026-03-16 { description "Initial revision"; }
 
-    container commit {
+    container request {
         config false;
-        ze:command "ze-bgp:commit";
-        description "Group route changes into named atomic commits.
+
+        container commit {
+            config false;
+            ze:command "ze-bgp:commit";
+            description "Group route changes into named atomic commits.
 Actions: start (begin a commit), end (finalize), eor (signal end of
 RIB), rollback (undo), show (inspect), withdraw (remove all routes
-in a commit), list (show all commits). Grammar: commit <action>
+in a commit), list (show all commits). Grammar: request commit <action>
 <name> [args].";
+        }
     }
 }

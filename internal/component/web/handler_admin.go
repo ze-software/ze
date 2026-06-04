@@ -300,7 +300,7 @@ func BuildAdminCommandTree() map[string][]string {
 		"peer":   {"list", "show", "summary", "capabilities", "statistics", "add", "remove", "teardown", "clear-soft", "flush"},
 		"route":  {"update", "borr", "eorr", "raw"},
 		"cache":  {"list", "retain", "release", "expire", "forward"},
-		"system": {"commit", "subscribe", "unsubscribe", "events"},
+		"system": {"events"},
 	}
 }
 

@@ -55,6 +55,16 @@ func TestParseSubscriptionWithPeerGlob(t *testing.T) {
 	assert.Equal(t, "*", sub.PeerFilter.Selector)
 }
 
+// TestParseSubscriptionPeerImplicitNamespace verifies peer implies bgp namespace.
+func TestParseSubscriptionPeerImplicitNamespace(t *testing.T) {
+	sub, err := ParseSubscription([]string{"peer", "*", "event", "state"})
+	require.NoError(t, err)
+	assert.Equal(t, bgpevents.Namespace, sub.Namespace.String())
+	assert.Equal(t, bgpevents.EventState, sub.EventType.String())
+	require.NotNil(t, sub.PeerFilter)
+	assert.Equal(t, "*", sub.PeerFilter.Selector)
+}
+
 // TestParseSubscriptionWithPeerExclude verifies exclusion selector.
 //
 // VALIDATES: "peer !10.0.0.1 bgp event update" uses exclusion.

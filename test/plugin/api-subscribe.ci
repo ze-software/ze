@@ -34,7 +34,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'subscribe bgp event update')
+        result = dispatch(api, 'request subscribe bgp event update')
         if result.get('status') != 'done':
             print(f'FAIL: subscribe status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
