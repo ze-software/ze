@@ -128,6 +128,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Complete work autonomously | `ai/rules/no-asking.md` -- finish the task, then report; don't ask permission to start |
 | Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-verify` rerun |
 | Run any test/build/lint command | `ai/rules/bash-output.md` -- no pipes, read log after |
+| Write a shell for-loop or Bash tool call | `ai/rules/no-fork-loops.md` -- no per-file forks; single invocation or xargs |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first, always |
 | Look up anything | `ai/INDEX.md` (keyword->doc, keyword->RFC) |
 | See which rule covers a topic | `ai/rules/INDEX.md` -- one-line overview of every rule; open the listed file in full before acting |

@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 68 rules
+Total: 69 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -54,6 +54,7 @@ Total: 68 rules
 | Never Destroy Uncommitted Work | Never delete, revert, or overwrite files holding uncommitted work the user wrote or requested without explicit permission. Never leave a file undeleted solely because deletion requires permission;... | `ai/rules/never-destroy-work.md` |
 | Don't Ask, Do | Never use phrases like "would you like me to", "want me to", "shall I", or "I can" before completing work. Finish the task first, then report what was done. The user delegated the work; asking for... | `ai/rules/no-asking.md` |
 | No Fabrication | When the user asks a factual question, answer only from what the source explicitly states. | `ai/rules/no-fabrication.md` |
+| No Fork Loops | Never write a shell for-loop that forks an external command per iteration when a single invocation can process all inputs. | `ai/rules/no-fork-loops.md` |
 | No Layering | When replacing X with Y: DELETE X first, then implement Y. Never keep both. | `ai/rules/no-layering.md` |
 | No Partial Completion | Read before claiming any work "done"; every acceptance criterion needs working code plus a test, "deferred" is not "done," and scope cuts require explicit user approval. | `ai/rules/no-partial-completion.md` |
 | No Printf Allocations | Never use `fmt.Sprintf`, `fmt.Fprintf`, or `fmt.Errorf` when a zero-allocation or lower-allocation alternative exists. Never use `.String()` concatenation on a hot path when an append-into-buffer... | `ai/rules/no-sprintf-alloc.md` |
