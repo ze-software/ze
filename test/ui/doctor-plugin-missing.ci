@@ -1,0 +1,17 @@
+# Test: ze doctor --json reports missing external plugin binaries
+# VALIDATES: plugin-binaries owner check reports runtime dependency failures.
+# PREVENTS: owner-registered plugin doctor checks disappearing from ze doctor.
+
+tmpfs=missing-plugin.conf:terminator=EOF_CONF
+plugin {
+    external feed {
+        run /nonexistent/ze-plugin-binary
+        encoder json
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json missing-plugin.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-plugin-missing
+expect=stdout:contains=/nonexistent/ze-plugin-binary

@@ -1,15 +1,16 @@
-# Test: ze doctor --json on internal { use } produces no external-builtin advisory
-# VALIDATES: AC-7 internal plugins do not trigger the advisory
+# Test: ze doctor --json on internal { use } does not require an external binary
+# VALIDATES: internal plugins are excluded from plugin-binary runtime checks.
+# PREVENTS: in-process plugins being reported as missing subprocess binaries.
 
 tmpfs=internal-clean.conf:terminator=EOF_CONF
 plugin {
-	internal rib {
-		use bgp-rib
-	}
+    internal rib {
+        use bgp-rib
+    }
 }
 EOF_CONF
 
 cmd=foreground:seq=1:exec=ze doctor --json internal-clean.conf
 expect=exit:code=0
 expect=stdout:contains=diagnostics
-expect=stdout:!contains=doctor-plugin-external-builtin
+expect=stdout:!contains=doctor-plugin-missing

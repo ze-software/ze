@@ -43,7 +43,6 @@ var noOwnerAllowlist = map[string]string{
 	"update-serve": "Release/update test infrastructure helper around the running binary.",
 	"completion":   "Shell integration for the whole binary.",
 	"install":      "Host installation for the ze binary; no runtime component owns host package installation.",
-	"appliance":    "Deprecated appliance install shim; host installation.",
 	"uninstall":    "Host removal of the ze binary, unit, and config.",
 	"service":      "Host service (systemd) management for the ze binary.",
 	"support":      "Cross-system support bundle aggregator; archive orchestration is process-global.",
@@ -60,8 +59,6 @@ var noOwnerAllowlist = map[string]string{
 	"doctor":       "Process readiness aggregator; owner-specific checks register with the doctor registry.",
 	"explain":      "Diagnostic-code lookup tied to the process binary.",
 	"host":         "Offline hardware inventory for the box.",
-	"data":         "ZeFS blob store management (owner: internal/component/config/storage/cli).",
-	"env":          "Environment variable inspection (owner: internal/core/env/cli).",
 }
 
 type finding struct {
@@ -82,7 +79,7 @@ func main() {
 	findings = append(findings, checkOwnersAreCmdZeFree()...)
 	findings = append(findings, checkRootHandlersAreInternal()...)
 	findings = append(findings, checkNoOwnerAllowlist()...)
-
+	findings = append(findings, checkNoOwnerAllowlistHasNoOwnerHandlers()...)
 	if jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -191,6 +188,59 @@ func checkNoOwnerAllowlist() []finding {
 		return nil
 	})
 	return out
+}
+
+// checkNoOwnerAllowlistHasNoOwnerHandlers verifies the central no-owner
+// allowlist does not name roots that already have an internal owner handler.
+func checkNoOwnerAllowlistHasNoOwnerHandlers() []finding {
+	handlers := internalRootHandlerNames()
+	var names []string
+	for name := range noOwnerAllowlist {
+		if _, ok := handlers[name]; ok {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+
+	var out []finding
+	for _, name := range names {
+		out = append(out, finding{
+			Kind: "allowlisted-owned-root",
+			File: handlers[name],
+			Msg:  "root " + strconv.Quote(name) + " is owner-registered but still listed in noOwnerAllowlist; remove the no-owner allowlist entry",
+		})
+	}
+	return out
+}
+
+func internalRootHandlerNames() map[string]string {
+	handlers := make(map[string]string)
+	_ = filepath.Walk("internal", func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		forEachRegistryCall(path, func(method string, call *ast.CallExpr) {
+			if method != "RegisterRootHandler" && method != "MustRegisterRootHandler" {
+				return
+			}
+			if len(call.Args) == 0 {
+				return
+			}
+			lit, ok := call.Args[0].(*ast.BasicLit)
+			if !ok || lit.Kind != token.STRING {
+				return
+			}
+			name, err := strconv.Unquote(lit.Value)
+			if err != nil {
+				return
+			}
+			if _, exists := handlers[name]; !exists {
+				handlers[name] = path
+			}
+		})
+		return nil
+	})
+	return handlers
 }
 
 func fileImports(path string) []string {

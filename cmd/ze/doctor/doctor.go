@@ -764,7 +764,6 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 	return nil
 }
 
-
 func checkSSHHostKey(tree *config.Tree, configDir string) []diagnostic.Diagnostic {
 	if configDir == "" {
 		return nil

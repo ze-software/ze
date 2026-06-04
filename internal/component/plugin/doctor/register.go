@@ -17,7 +17,7 @@ func init() {
 		Component:    "plugin",
 		Dependencies: []string{"external-binary"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{"doctor-plugin-missing", "doctor-plugin-external-builtin"},
+		Codes:        []string{"doctor-plugin-missing"},
 		Check:        checkPlugins,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "doctor check registration: %v\n", err)

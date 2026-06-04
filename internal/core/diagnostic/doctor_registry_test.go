@@ -89,6 +89,21 @@ func TestRegisterDoctorCheckValidation(t *testing.T) {
 			Dependencies: []string{"x"}, Platforms: []string{DoctorPlatformAny},
 			Codes: []string{"not-doctor"}, Check: func(DoctorCheckContext) []Diagnostic { return nil },
 		}},
+		{"bad platform", DoctorCheck{
+			Name: "bad-platform", Phase: DoctorPhasePreConfig, Component: "test",
+			Dependencies: []string{"x"}, Platforms: []string{"system"},
+			Codes: []string{"doctor-x"}, Check: func(DoctorCheckContext) []Diagnostic { return nil },
+		}},
+		{"duplicate platform", DoctorCheck{
+			Name: "duplicate-platform", Phase: DoctorPhasePreConfig, Component: "test",
+			Dependencies: []string{"x"}, Platforms: []string{DoctorPlatformAny, DoctorPlatformAny},
+			Codes: []string{"doctor-x"}, Check: func(DoctorCheckContext) []Diagnostic { return nil },
+		}},
+		{"duplicate code", DoctorCheck{
+			Name: "duplicate-code", Phase: DoctorPhasePreConfig, Component: "test",
+			Dependencies: []string{"x"}, Platforms: []string{DoctorPlatformAny},
+			Codes: []string{"doctor-x", "doctor-x"}, Check: func(DoctorCheckContext) []Diagnostic { return nil },
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -30,26 +30,6 @@ func TestCheckPluginBinaries_NoDiagForInternalPlugin(t *testing.T) {
 	}
 }
 
-func TestCheckPluginBinaries_ExternalBuiltin(t *testing.T) {
-	builtins := zeplugin.AvailableInternalPlugins()
-	if len(builtins) == 0 {
-		t.Skip("no built-in plugins registered")
-	}
-	plugins := []zeplugin.PluginConfig{
-		{Name: "test-ext", Run: builtins[0], Internal: false},
-	}
-	diags := CheckPluginBinaries(plugins)
-	found := false
-	for _, d := range diags {
-		if d.Code == "doctor-plugin-external-builtin" {
-			found = true
-		}
-	}
-	if !found {
-		t.Error("expected doctor-plugin-external-builtin diagnostic")
-	}
-}
-
 func TestCheckPluginsRegistered(t *testing.T) {
 	names := diagnostic.DoctorCheckNames()
 	found := false

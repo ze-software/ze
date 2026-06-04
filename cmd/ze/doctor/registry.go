@@ -60,13 +60,6 @@ func newDoctorCheckRegistry() *doctorCheckRegistry {
 	return &doctorCheckRegistry{names: make(map[string]struct{})}
 }
 
-func mustRegisterDoctorCheck(check doctorCheck) doctorCheck {
-	if err := defaultDoctorCheckRegistry.register(check); err != nil {
-		panic(err)
-	}
-	return check
-}
-
 func runDoctorChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagnostic.Diagnostic {
 	checks := defaultDoctorCheckRegistry.checksForPhase(phase)
 	var diags []diagnostic.Diagnostic

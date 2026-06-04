@@ -31,9 +31,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	plugindoctor "codeberg.org/thomas-mangin/ze/internal/component/plugin/doctor"
 	zeradius "codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
-	plugindoctor "codeberg.org/thomas-mangin/ze/internal/component/plugin/doctor"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -192,9 +192,8 @@ func TestCheckCertExpiry_InvalidPEM(t *testing.T) {
 }
 
 func TestCheckPlugins_InternalSkipped(t *testing.T) {
-	// A plugin declared with the `internal` keyword (Internal=true, Run carries
-	// no ze. prefix because the keyword uses `use`) is already in-process:
-	// no external-builtin advisory and no missing-binary error.
+	// A plugin declared with the `internal` keyword is already in-process:
+	// no external binary is required.
 	plugins := []zeplugin.PluginConfig{
 		{Name: "rib", Internal: true, Run: "bgp-rib"},
 	}
@@ -209,75 +208,6 @@ func TestCheckPlugins_MissingBinary(t *testing.T) {
 	diags := plugindoctor.CheckPluginBinaries(plugins)
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-plugin-missing", diags[0].Code)
-}
-
-func TestCheckPluginsExternalBuiltinWarns(t *testing.T) {
-	builtins := zeplugin.AvailableInternalPlugins()
-	if len(builtins) == 0 {
-		t.Skip("no internal plugins registered")
-	}
-	name := builtins[0]
-	// Production shape: `external feed { run ze.X }` is reclassified to
-	// Internal=true by MarkInternalPlugin (it runs in-process) but keeps the
-	// ze. prefix in Run. It must warn (use the internal keyword) WITHOUT a
-	// spurious missing-binary error, since there is no subprocess binary.
-	plugins := []zeplugin.PluginConfig{
-		{Name: "feed", Internal: true, Run: "ze." + name},
-	}
-	diags := plugindoctor.CheckPluginBinaries(plugins)
-	var found bool
-	for _, d := range diags {
-		assert.NotEqual(t, "doctor-plugin-missing", d.Code, "in-process ze.X must not report a missing binary")
-		if d.Code == "doctor-plugin-external-builtin" {
-			found = true
-			assert.Equal(t, diagnostic.SeverityWarning, d.Severity)
-			assert.Contains(t, d.Message, name)
-			assert.Contains(t, d.Message, "internal")
-		}
-	}
-	assert.True(t, found, "expected doctor-plugin-external-builtin diagnostic")
-}
-
-// TestCheckPluginsExternalBareBuiltinWarns covers a genuinely external plugin
-// (subprocess) whose bare command name matches a builtin: it advises using the
-// internal keyword (and, separately, reports the binary missing from PATH).
-func TestCheckPluginsExternalBareBuiltinWarns(t *testing.T) {
-	builtins := zeplugin.AvailableInternalPlugins()
-	if len(builtins) == 0 {
-		t.Skip("no internal plugins registered")
-	}
-	name := builtins[0]
-	plugins := []zeplugin.PluginConfig{
-		{Name: "feed", Internal: false, Run: name},
-	}
-	diags := plugindoctor.CheckPluginBinaries(plugins)
-	var advisory bool
-	for _, d := range diags {
-		if d.Code == "doctor-plugin-external-builtin" {
-			advisory = true
-		}
-	}
-	assert.True(t, advisory, "expected external-builtin advisory for a bare builtin name")
-}
-
-func TestCheckPluginsExternalScriptNoWarn(t *testing.T) {
-	plugins := []zeplugin.PluginConfig{
-		{Name: "collector", Internal: false, Run: "./collector.py"},
-	}
-	diags := plugindoctor.CheckPluginBinaries(plugins)
-	for _, d := range diags {
-		assert.NotEqual(t, "doctor-plugin-external-builtin", d.Code)
-	}
-}
-
-func TestCheckPluginsInternalNoWarn(t *testing.T) {
-	plugins := []zeplugin.PluginConfig{
-		{Name: "rib", Internal: true, Run: "bgp-rib"},
-	}
-	diags := plugindoctor.CheckPluginBinaries(plugins)
-	for _, d := range diags {
-		assert.NotEqual(t, "doctor-plugin-external-builtin", d.Code)
-	}
 }
 
 func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
@@ -299,7 +229,7 @@ func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
 		Component:    "plugin",
 		Dependencies: []string{"external-binary"},
 		Platforms:    []string{doctorCheckPlatformAny},
-		Codes:        []string{"doctor-plugin-external-builtin"},
+		Codes:        []string{"doctor-plugin-missing"},
 		Check: func(ctx doctorCheckContext) []diagnostic.Diagnostic {
 			if ctx.Tree == nil || ctx.Store == nil || ctx.Platform == nil || ctx.ConfigDir == "" {
 				return nil
@@ -309,8 +239,8 @@ func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
 			}
 			called = true
 			return []diagnostic.Diagnostic{{
-				Code:     "doctor-plugin-external-builtin",
-				Severity: diagnostic.SeverityWarning,
+				Code:     "doctor-plugin-missing",
+				Severity: diagnostic.SeverityError,
 				Message:  "registered plugin check executed",
 			}}
 		},
@@ -324,12 +254,7 @@ func TestRunChecksExecutesRegisteredPluginCheck(t *testing.T) {
 
 	diags := runChecks(cfgPath)
 	assert.True(t, called, "registered plugin check did not receive parsed plugin context")
-	assertDiagCode(t, diags, "doctor-plugin-external-builtin")
-}
-
-func TestCheckPluginsBuiltinNamesFromRegistry(t *testing.T) {
-	builtins := zeplugin.AvailableInternalPlugins()
-	assert.NotEmpty(t, builtins, "AvailableInternalPlugins must return registered names")
+	assertDiagCode(t, diags, "doctor-plugin-missing")
 }
 
 func TestCheckSystemdServiceInstallMissingAccountAndExecutable(t *testing.T) {

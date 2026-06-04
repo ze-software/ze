@@ -139,19 +139,80 @@ func validateDoctorCheckReg(check DoctorCheck) error {
 	if check.Check == nil {
 		return errors.New(p + "missing check function for " + check.Name)
 	}
-	if len(check.Dependencies) == 0 {
-		return errors.New(p + "missing dependency for " + check.Name)
+	if err := validateDoctorCheckKebabListReg("dependency", check.Dependencies); err != nil {
+		return err
 	}
-	if len(check.Platforms) == 0 {
-		return errors.New(p + "missing platform for " + check.Name)
+	if err := validateDoctorCheckPlatformsReg(check.Platforms); err != nil {
+		return err
 	}
-	if len(check.Codes) == 0 {
-		return errors.New(p + "missing diagnostic code for " + check.Name)
+	return validateDoctorCheckCodesReg(check.Codes)
+}
+
+func validateDoctorCheckKebabListReg(field string, values []string) error {
+	const p = "diagnostic doctor check: "
+	if len(values) == 0 {
+		return errors.New(p + "missing " + field)
 	}
-	for _, code := range check.Codes {
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if !isLowerKebabDiag(value) {
+			return errors.New(p + "invalid " + field + " " + value)
+		}
+		if _, exists := seen[value]; exists {
+			return errors.New(p + "duplicate " + field + " " + value)
+		}
+		seen[value] = struct{}{}
+	}
+	return nil
+}
+
+func validateDoctorCheckPlatformsReg(platforms []string) error {
+	const p = "diagnostic doctor check: "
+	if len(platforms) == 0 {
+		return errors.New(p + "missing platform")
+	}
+	seen := make(map[string]struct{}, len(platforms))
+	for _, platform := range platforms {
+		if !validDoctorCheckPlatformReg(platform) {
+			return errors.New(p + "invalid platform " + platform)
+		}
+		if _, exists := seen[platform]; exists {
+			return errors.New(p + "duplicate platform " + platform)
+		}
+		seen[platform] = struct{}{}
+	}
+	return nil
+}
+
+func validDoctorCheckPlatformReg(platform string) bool {
+	switch platform {
+	case DoctorPlatformAny,
+		host.PlatformUnknown.String(),
+		host.PlatformGokrazy.String(),
+		host.PlatformSystemd.String(),
+		host.PlatformContainer.String(),
+		host.PlatformPlainLinux.String(),
+		host.PlatformDarwin.String():
+		return true
+	default:
+		return false
+	}
+}
+
+func validateDoctorCheckCodesReg(codes []string) error {
+	const p = "diagnostic doctor check: "
+	if len(codes) == 0 {
+		return errors.New(p + "missing diagnostic code")
+	}
+	seen := make(map[string]struct{}, len(codes))
+	for _, code := range codes {
 		if !strings.HasPrefix(code, "doctor-") {
 			return errors.New(p + "invalid diagnostic code " + code)
 		}
+		if _, exists := seen[code]; exists {
+			return errors.New(p + "duplicate diagnostic code " + code)
+		}
+		seen[code] = struct{}{}
 	}
 	return nil
 }
