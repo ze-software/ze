@@ -38,10 +38,10 @@ const maxRequestBody = 1 << 20
 // convenience routes. Used by parity tests to detect drift from the
 // live command registry.
 var ConvenienceCommands = []string{
-	"summary",
+	"show bgp summary",
 	"show version",
-	"daemon status",
-	"daemon reload",
+	"show status",
+	"request reload",
 }
 
 // Authenticator validates an Authorization header value and returns the
@@ -383,14 +383,14 @@ func (s *RESTServer) registerRoutes(mux *http.ServeMux) {
 
 	// Convenience routes (map to Execute).
 	// Commands listed in ConvenienceCommands for parity testing.
-	mux.HandleFunc("GET /api/v1/peers", s.withAuth(s.handleConvenience("summary")))
+	mux.HandleFunc("GET /api/v1/peers", s.withAuth(s.handleConvenience("show bgp summary")))
 	mux.HandleFunc("GET /api/v1/peers/", s.withAuth(s.handlePeerByName))
 	mux.HandleFunc("DELETE /api/v1/peers/", s.withAuth(s.handlePeerAction("teardown")))
 	mux.HandleFunc("POST /api/v1/peers/", s.withAuth(s.handlePeerRefresh))
 	mux.HandleFunc("GET /api/v1/rib/", s.withAuth(s.handleRIB))
 	mux.HandleFunc("GET /api/v1/system/version", s.withAuth(s.handleConvenience("show version")))
-	mux.HandleFunc("GET /api/v1/system/status", s.withAuth(s.handleConvenience("daemon status")))
-	mux.HandleFunc("POST /api/v1/system/reload", s.withAuth(s.handleConvenience("daemon reload")))
+	mux.HandleFunc("GET /api/v1/system/status", s.withAuth(s.handleConvenience("show status")))
+	mux.HandleFunc("POST /api/v1/system/reload", s.withAuth(s.handleConvenience("request reload")))
 
 	// Config session routes.
 	mux.HandleFunc("GET /api/v1/config/running", s.withAuth(s.handleConfigRunning))

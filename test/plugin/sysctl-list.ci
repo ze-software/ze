@@ -71,7 +71,7 @@ def main():
     if not found_forwarding:
         runtime_fail(f'sysctl list: no forwarding key found in {sorted(key_names)[:5]}')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

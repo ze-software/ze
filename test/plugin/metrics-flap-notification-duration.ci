@@ -160,7 +160,7 @@ def main():
         print('OK: flap, notification, and duration metrics verified', file=sys.stderr)
 
     # Always shutdown daemon
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
     if failed:

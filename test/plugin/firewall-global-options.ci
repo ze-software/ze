@@ -80,7 +80,7 @@ def main():
         if entry.get('source') != 'firewall:global-options':
             runtime_fail(f'{key}: source={entry.get("source")!r} want "firewall:global-options"')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

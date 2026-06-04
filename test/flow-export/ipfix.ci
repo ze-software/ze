@@ -59,7 +59,7 @@ def main():
     if set_id != 2:
         runtime_fail(f'first Set id={set_id} want 2 (template)')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

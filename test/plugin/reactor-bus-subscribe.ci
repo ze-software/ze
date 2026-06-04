@@ -43,7 +43,7 @@ def main():
 
         print('OK: Bus lifecycle — session established, EOR sent', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

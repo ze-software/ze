@@ -75,7 +75,7 @@ def main():
     if not got_ipfix:
         runtime_fail('no IPFIX datagram received on $PORT')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

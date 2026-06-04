@@ -75,7 +75,7 @@ def main():
     print(f'INFO: dest-peer detail while wire assertion runs: {dest_data}', file=sys.stderr)
 
     print('OK: dest peer wire assertion verified stripped wire output', file=sys.stderr)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

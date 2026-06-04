@@ -12,6 +12,10 @@ module ze-system-cmd {
         description "Initial revision";
     }
 
+    revision 2026-06-04 {
+        description "Verb-first grammar: process reads under show, lifecycle actions under request.";
+    }
+
     // System group
 
     container system {
@@ -82,40 +86,47 @@ module ze-system-cmd {
         }
     }
 
-    // Daemon group
+    // Process status
 
-    container daemon {
+    container show {
         config false;
-        description "Daemon lifecycle";
+        description "Read-only process inspection";
+
+        container status {
+            config false;
+            ze:command "ze-system:daemon-status";
+            description "Show process status, uptime, and resource usage.";
+        }
+    }
+
+    // Process lifecycle actions
+
+    container request {
+        config false;
+        description "Process lifecycle actions";
 
         container shutdown {
             config false;
             ze:command "ze-system:daemon-shutdown";
-            description "Gracefully shutdown the daemon";
+            description "Gracefully shutdown: drain connections, close peers, exit.";
         }
 
         container reboot {
             config false;
             ze:command "ze-system:daemon-reboot";
-            description "Gracefully shutdown then reboot the system";
+            description "Gracefully shutdown then reboot the system.";
         }
 
-        container quit {
+        container halt {
             config false;
             ze:command "ze-system:daemon-quit";
-            description "Dump goroutine stacks and shutdown";
-        }
-
-        container status {
-            config false;
-            ze:command "ze-system:daemon-status";
-            description "Show daemon status";
+            description "Dump goroutine stacks to stderr and terminate immediately.";
         }
 
         container reload {
             config false;
             ze:command "ze-system:daemon-reload";
-            description "Reload the configuration";
+            description "Reload the configuration without restarting.";
         }
     }
 }

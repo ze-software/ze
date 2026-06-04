@@ -50,12 +50,12 @@ def main():
 
     if total != 0:
         print(f'FAIL: expected 0 routes (implicit deny), got {total}', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
         sys.exit(1)
 
     print('OK: route correctly rejected by prefix-list (implicit deny)', file=sys.stderr)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

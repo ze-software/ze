@@ -72,7 +72,7 @@ def main():
 
         print('OK: rpki event has 10.0.1.0/24=valid', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

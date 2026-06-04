@@ -57,7 +57,7 @@ def main():
     else:
         print('INFO: filter not called (route may not have triggered filter)', file=sys.stderr)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

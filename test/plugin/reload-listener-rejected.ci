@@ -91,7 +91,7 @@ def main():
     if after_port != initial_port:
         runtime_fail(f'after SIGHUP: listener port changed {initial_port}->{after_port}; expected no change')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

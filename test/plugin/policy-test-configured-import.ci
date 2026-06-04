@@ -58,7 +58,7 @@ def main():
         sys.exit(1)
 
     print(f'OK: show policy test import returned action={action} direction={direction}')
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 main()

@@ -51,7 +51,7 @@ def main():
 
     print('OK AC-3: route with table-id 100 emitted to fib-kernel via sysrib EventBus', file=sys.stderr)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

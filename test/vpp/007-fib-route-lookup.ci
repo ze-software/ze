@@ -76,7 +76,7 @@ def main():
         print(f'OK: route lookup returned prefix={prefix} dest={dest} proto={proto}',
               file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 

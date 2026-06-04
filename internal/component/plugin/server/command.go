@@ -97,8 +97,6 @@ func IsReadOnlyPath(path string) bool {
 		"system", "plugin", verbRIB,
 		"subscribe", "unsubscribe":
 		return true
-	case "daemon":
-		return path == "daemon status" || path == "show daemon status"
 	}
 	return false
 }
@@ -762,7 +760,7 @@ func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp 
 
 func auditActionForCommand(input string) string {
 	lower := strings.ToLower(strings.TrimSpace(input))
-	if lower == "daemon reload" || lower == "request daemon reload" {
+	if lower == "request reload" {
 		return audit.ActionDaemonReload
 	}
 	return ""

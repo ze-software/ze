@@ -111,7 +111,7 @@ def main():
     except (json.JSONDecodeError, TypeError):
         runtime_fail(f'show ecmp-groups parse error: {data_str[:200]}')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

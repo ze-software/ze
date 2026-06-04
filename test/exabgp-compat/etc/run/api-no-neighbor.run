@@ -49,7 +49,7 @@ def main() -> None:
 
         # Test 2: shutdown command (v6 format)
         fail('TEST: shutdown command\n')
-        flush('daemon shutdown\n')
+        flush('request shutdown\n')
 
         response = sys.stdin.readline().strip()
 

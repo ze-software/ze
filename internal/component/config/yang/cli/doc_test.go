@@ -38,7 +38,7 @@ func TestDocList(t *testing.T) {
 
 	out := buf.String()
 	assert.Contains(t, out, "show bgp peer list", "should list show bgp peer list")
-	assert.Contains(t, out, "daemon shutdown", "should list daemon shutdown")
+	assert.Contains(t, out, "request shutdown", "should list request shutdown")
 	assert.Contains(t, out, "Command", "should have header")
 }
 
@@ -58,11 +58,11 @@ func TestDocCommandWithOutputParams(t *testing.T) {
 // PREVENTS: Doc output not showing commands with no parameters.
 func TestDocCommandNoParams(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "daemon shutdown")
+	err := FormatDocCommand(&buf, "request shutdown")
 	require.NoError(t, err)
 
 	out := buf.String()
-	assert.Contains(t, out, "daemon shutdown")
+	assert.Contains(t, out, "request shutdown")
 	assert.NotContains(t, out, "Parameters", "shutdown has no YANG params")
 }
 

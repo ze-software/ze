@@ -54,8 +54,8 @@
 | `ze signal reload` | Send SIGHUP — reload configuration |
 | `ze signal stop` | Graceful shutdown (no GR marker) |
 | `ze signal restart` | Graceful restart (writes GR marker, then shuts down) |
-| `ze signal status` | Dump daemon status (SIGUSR1 equivalent) |
-| `ze signal quit` | Send SIGQUIT — goroutine dump + exit |
+| `ze signal status` | Dump process status (SIGUSR1 equivalent) |
+| `ze signal quit` | Send SIGQUIT — goroutine dump + halt |
 | `ze status` | Check if daemon is running |
 
 <!-- source: cmd/ze/signal/main.go -- Commands registry -->

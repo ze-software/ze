@@ -69,7 +69,7 @@ def main():
         sys.exit(1)
 
     print('OK: show policy chain exposes plain name and canonical ref')
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 main()

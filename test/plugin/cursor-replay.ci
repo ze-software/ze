@@ -59,12 +59,12 @@ def main():
             api.send(cmd)
         except RuntimeError as e:
             print(f'FAIL: cursor command {i} rejected: {e}', file=sys.stderr)
-            dispatch(api, 'daemon shutdown')
+            dispatch(api, 'request shutdown')
             api.wait_for_shutdown()
             sys.exit(1)
 
     print(f'OK: all {len(commands)} cursor commands accepted', file=sys.stderr)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

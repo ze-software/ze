@@ -65,7 +65,7 @@ def main():
             sys.exit(1)
 
         print(f'OK: show warnings returned {count} warning(s)', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
     except SystemExit:
         raise

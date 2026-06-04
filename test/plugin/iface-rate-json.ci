@@ -71,7 +71,7 @@ def main():
     if raw.startswith('"') and raw.endswith('"'):
         runtime_fail(f'system help: data is double-encoded: {raw[:100]}')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

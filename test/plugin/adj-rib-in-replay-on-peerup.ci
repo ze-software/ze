@@ -46,7 +46,7 @@ def main():
             break
     else:
         print('FAIL: no routes stored after 10s', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
         sys.exit(1)
 
@@ -54,19 +54,19 @@ def main():
     result = dispatch(api, 'request adj-rib-in replay 10.0.0.99 0')
     if result.get('status') != 'done':
         print(f'FAIL: replay failed: {result}', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
         sys.exit(1)
 
     replay_data = result_json_data(result, {})
     if replay_data.get('replayed', 0) == 0:
         print(f'FAIL: replay returned 0 commands', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
         sys.exit(1)
 
     print(f'OK: replayed {replay_data["replayed"]} route(s)', file=sys.stderr)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

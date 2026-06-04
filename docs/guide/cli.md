@@ -91,7 +91,7 @@ Named update windows for atomic route changes:
 
 | Command | Description |
 |---------|-------------|
-| `daemon shutdown` | Graceful shutdown |
+| `request shutdown` | Graceful shutdown |
 | `route-refresh <family>` | Send route refresh request |
 | `help` | List all commands |
 | `command-list` | All commands with descriptions |

@@ -60,7 +60,7 @@ def main():
 
         print(f'OK: traceroute hops={len(hops)} first-hop-addr={hop["addr"]}', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

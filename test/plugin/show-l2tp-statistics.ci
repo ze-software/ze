@@ -186,7 +186,7 @@ def main():
     with open('peer.exit', 'w') as f:
         f.write('ok')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

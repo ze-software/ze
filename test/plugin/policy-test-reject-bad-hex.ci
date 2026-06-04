@@ -54,7 +54,7 @@ def main():
     print(f'OK: non-UPDATE rejected: {result.get("error", "")}')
 
     print('ALL PASS: bad hex rejection tests')
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 main()

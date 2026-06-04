@@ -66,7 +66,7 @@ def main():
     if c.get('protocol') != 'sflow':
         runtime_fail(f'collector protocol={c.get("protocol")!r} want "sflow"')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

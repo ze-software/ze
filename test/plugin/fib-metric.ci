@@ -81,7 +81,7 @@ def main():
 
     print('OK AC-2: route with metric 200 delivered through sysrib to fib-kernel', file=sys.stderr)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

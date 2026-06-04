@@ -70,7 +70,7 @@ def main():
     time.sleep(1.0)
     print('OK AC-4: plain route (no SRv6 SID) emitted', file=sys.stderr)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

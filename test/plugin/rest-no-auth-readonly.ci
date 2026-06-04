@@ -66,7 +66,7 @@ def main():
         print('OK: no-auth REST read command allowed', file=sys.stderr)
 
         try:
-            post_json(f'{BASE_URL}/execute', {'command': 'daemon reload'}).read()
+            post_json(f'{BASE_URL}/execute', {'command': 'request reload'}).read()
             print('FAIL: no-auth REST write command succeeded', file=sys.stderr)
             sys.exit(1)
         except urllib.error.HTTPError as err:
@@ -86,7 +86,7 @@ def main():
                 sys.exit(1)
         print('OK: no-auth REST config session denied', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

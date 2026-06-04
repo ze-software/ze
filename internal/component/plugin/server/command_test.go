@@ -856,9 +856,9 @@ func TestDispatcherAuthorizationUsesReadOnly(t *testing.T) {
 // VALIDATES: AC-8 -- daemon lifecycle commands are write commands for API read-only enforcement.
 // PREVENTS: no-auth API callers running daemon reload/shutdown because the daemon prefix was treated as read-only.
 func TestIsReadOnlyPathDaemonLifecycle(t *testing.T) {
-	assert.True(t, IsReadOnlyPath("daemon status"), "status is a read-only daemon query")
+	assert.True(t, IsReadOnlyPath("show status"), "show status is read-only")
 
-	for _, path := range []string{"daemon reload", "daemon shutdown", "daemon reboot", "daemon quit"} {
+	for _, path := range []string{"request reload", "request shutdown", "request reboot", "request halt"} {
 		t.Run(path, func(t *testing.T) {
 			assert.False(t, IsReadOnlyPath(path), "%s mutates daemon state", path)
 		})
@@ -869,7 +869,7 @@ func TestIsReadOnlyPathDaemonLifecycle(t *testing.T) {
 // PREVENTS: Lifecycle operations bypassing the unified audit trail.
 func TestDispatcherDaemonReloadAuditRecord(t *testing.T) {
 	d := NewDispatcher()
-	d.RegisterWithOptions("daemon reload", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("request reload", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"result": "ok"}}, nil
 	}, "reload", RegisterOptions{})
 	recorder, err := audit.NewMemory(100)
@@ -880,7 +880,7 @@ func TestDispatcherDaemonReloadAuditRecord(t *testing.T) {
 		Username:   "alice",
 		RemoteAddr: "192.0.2.10:2222",
 		Surface:    audit.SSH,
-	}, "daemon reload")
+	}, "request reload")
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)

@@ -50,7 +50,7 @@ def main():
 
         print(f'OK: subscribed to {ns} event {ev}', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

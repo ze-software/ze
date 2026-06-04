@@ -54,7 +54,7 @@ def main():
             sys.exit(1)
 
         print(f'OK: show health has {len(components)} components including {required}', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
     except SystemExit:
         raise

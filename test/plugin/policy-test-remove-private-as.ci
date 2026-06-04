@@ -73,7 +73,7 @@ def main():
     if trace:
         print(f'OK: first filter: {trace[0].get("filter", "")} action={trace[0].get("action", "")}')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 main()

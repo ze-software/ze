@@ -40,7 +40,7 @@ def main():
             sys.exit(1)
         print('OK: show bgp rib received dispatched', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

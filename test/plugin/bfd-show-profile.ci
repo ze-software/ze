@@ -73,7 +73,7 @@ def main():
     if r.get('status') != 'error':
         runtime_fail(f'unknown status: {r.get("status")}')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

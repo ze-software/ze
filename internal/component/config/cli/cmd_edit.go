@@ -533,7 +533,7 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 		// confusing SSH error from a missing daemon.
 		if daemonReachable {
 			ed.SetReloadNotifier(func() error {
-				_, err := sshclient.ExecCommand(creds, "daemon reload")
+				_, err := sshclient.ExecCommand(creds, "request reload")
 				return err
 			})
 		}

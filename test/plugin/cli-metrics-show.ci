@@ -69,7 +69,7 @@ def main():
     print(f'OK: metrics values returned {len(metrics_text)} bytes', file=sys.stderr)
 
     # Shutdown daemon
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

@@ -159,7 +159,7 @@ def main():
 
     print(f'OK AC-3: multipath 3-path: best={entry.get("best-peer")}, siblings={mp_peers}', file=sys.stderr)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

@@ -75,7 +75,7 @@ def main():
         runtime_fail(msg)
 
     print('OK: multicast route with OTC accepted while dest wire assertion verified bypass', file=sys.stderr)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

@@ -74,7 +74,7 @@ def main():
     print(f'OK: metrics list returned {count} names', file=sys.stderr)
 
     # Shutdown daemon
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

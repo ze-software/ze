@@ -44,7 +44,7 @@ def main():
 
     # Give the consumer + reactor time to dispatch the UPDATE.
     time.sleep(2.0)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

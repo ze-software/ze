@@ -50,7 +50,7 @@ def main():
     print(f'OK: unknown filter rejected: {result.get("error", "")}')
 
     print('ALL PASS: policy test error paths')
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 main()

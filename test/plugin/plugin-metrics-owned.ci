@@ -87,7 +87,7 @@ def main():
             print(f'OK: {prefix}* metrics present', file=sys.stderr)
 
     # Always shutdown before exiting
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
     if failures:

@@ -68,7 +68,7 @@ def main():
 
     print(f'PASS: show rr peers returned {len(peers)} peer(s)', flush=True)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

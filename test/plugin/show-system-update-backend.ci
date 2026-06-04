@@ -43,7 +43,7 @@ def main():
         if data.get('backend') != 'ze-self-update':
             runtime_fail(f'backend={data.get("backend")} data={data}')
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

@@ -59,7 +59,7 @@ def main():
     else:
         print('INFO: export filter not called (no forward triggered)', file=sys.stderr)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

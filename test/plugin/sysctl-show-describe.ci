@@ -85,7 +85,7 @@ def main():
     if not detail.get('type'):
         runtime_fail(f'show sysctl key {first_key}: missing type')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

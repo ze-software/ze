@@ -238,14 +238,14 @@ typo from causing memory exhaustion.
 
 ## Target-First Syntax
 
-### Daemon Commands
+### Process Lifecycle Commands
 
 ```
-daemon shutdown          # Graceful shutdown
-daemon reboot            # Graceful shutdown + OS reboot (requires root on Linux)
-daemon reload            # Reload configuration
-daemon restart           # Restart all peers
-daemon status            # Get daemon status
+request shutdown         # Graceful shutdown
+request reboot           # Graceful shutdown + OS reboot (requires root on Linux)
+request reload           # Reload configuration
+request halt             # Goroutine dump + immediate exit
+show status              # Get process status
 ```
 
 ### Session Commands
@@ -384,13 +384,13 @@ system command complete "<cmd>" args [<completed>...] "<partial>"  # Arg complet
 ```
 <!-- source: internal/core/ipc/schema/ze-system-api.yang -- system RPCs -->
 
-### Daemon Commands
+### Process Lifecycle Commands
 
 ```
-daemon shutdown          # Gracefully shutdown the daemon
-daemon reboot            # Gracefully shutdown then reboot the system
-daemon status            # Show daemon status
-daemon reload            # Reload the configuration
+request shutdown         # Gracefully shutdown
+request reboot           # Gracefully shutdown then reboot the system
+show status              # Show process status
+request reload           # Reload the configuration
 ```
 
 ### Peer Commands

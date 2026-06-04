@@ -680,13 +680,16 @@ func TestSystemCmdModuleLoads(t *testing.T) {
 	require.NotNil(t, cmd)
 	assert.Equal(t, "ze-system:command-list", GetCommandExtension(cmd.Dir["list"]))
 
-	// daemon group
-	daemon := entry.Dir["daemon"]
-	require.NotNil(t, daemon)
-	assert.Equal(t, "ze-system:daemon-shutdown", GetCommandExtension(daemon.Dir["shutdown"]))
-	assert.Equal(t, "ze-system:daemon-quit", GetCommandExtension(daemon.Dir["quit"]))
-	assert.Equal(t, "ze-system:daemon-status", GetCommandExtension(daemon.Dir["status"]))
-	assert.Equal(t, "ze-system:daemon-reload", GetCommandExtension(daemon.Dir["reload"]))
+	// process status under show, lifecycle actions under request
+	show := entry.Dir["show"]
+	require.NotNil(t, show)
+	assert.Equal(t, "ze-system:daemon-status", GetCommandExtension(show.Dir["status"]))
+
+	request := entry.Dir["request"]
+	require.NotNil(t, request)
+	assert.Equal(t, "ze-system:daemon-shutdown", GetCommandExtension(request.Dir["shutdown"]))
+	assert.Equal(t, "ze-system:daemon-quit", GetCommandExtension(request.Dir["halt"]))
+	assert.Equal(t, "ze-system:daemon-reload", GetCommandExtension(request.Dir["reload"]))
 }
 
 // TestPluginCmdModuleLoads verifies ze-plugin-cmd.yang loads and has expected structure.

@@ -44,7 +44,7 @@ def main():
         print('OK: raw keepalive sent', file=sys.stderr)
         time.sleep(1.0)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

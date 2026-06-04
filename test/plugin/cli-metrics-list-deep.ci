@@ -112,7 +112,7 @@ def main():
                 print(f'OK: metrics list contains all {len(required)} deep metrics (total: {len(names)})', file=sys.stderr)
 
     # Always shutdown daemon
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
     if failed:

@@ -97,7 +97,7 @@ def main():
     if '999' not in msg:
         runtime_fail(f'show l2tp tunnel id 999: error must name the missing ID; got {msg!r}')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

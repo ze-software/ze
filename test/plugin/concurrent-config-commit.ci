@@ -155,7 +155,7 @@ def main():
     while True:
         api.read_line(timeout=0.1)
         if driver_done.is_set() and not shutdown_sent:
-            api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'daemon shutdown'})
+            api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
             shutdown_sent = True
         if api._shutdown:
             break

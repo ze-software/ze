@@ -72,7 +72,7 @@ def main():
 
     print(f'OK: show policy test export returned action={action} direction={direction}')
     print(f'OK: trace entries: {len(data.get("trace", []))}')
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 main()

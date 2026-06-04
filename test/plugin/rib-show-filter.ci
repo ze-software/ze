@@ -83,7 +83,7 @@ def main():
     check('unknown-keyword', dispatch(api, 'show bgp rib bogus'), 'done', expect_error=True)
 
     # All passed — shutdown daemon
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

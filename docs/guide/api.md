@@ -115,8 +115,8 @@ identical to calling `execute` directly.
 | `GET` | `/api/v1/rib/{family}` | `show bgp rib family {family}` |
 | `GET` | `/api/v1/rib/{family}/best` | `show bgp rib best family {family}` |
 | `GET` | `/api/v1/system/version` | `show version` |
-| `GET` | `/api/v1/system/status` | `daemon status` |
-| `POST` | `/api/v1/system/reload` | `daemon reload` |
+| `GET` | `/api/v1/system/status` | `show status` |
+| `POST` | `/api/v1/system/reload` | `request reload` |
 
 ### Config editing
 

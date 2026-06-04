@@ -129,7 +129,7 @@ def main():
         print(f'OK: all 3 validation states found in {len(events)} update-rpki events', file=sys.stderr)
 
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

@@ -56,7 +56,7 @@ def main():
     if version != 5:
         runtime_fail(f'sFlow version={version} want 5')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

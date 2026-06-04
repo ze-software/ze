@@ -184,7 +184,7 @@ def main():
         print(f'\n{msg}', file=sys.stderr)
         sys.stderr.flush()
         runtime_fail(msg)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

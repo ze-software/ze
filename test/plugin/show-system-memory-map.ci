@@ -54,7 +54,7 @@ def main():
 
         print(f'OK: memory-map returned {list(data.keys())}', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

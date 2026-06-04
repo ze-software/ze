@@ -62,7 +62,7 @@ ze signal reload --host 10.0.0.1 --port 2222
 | `ze signal reload` | Transactionally reload configuration (add/remove/update peers) |
 | `ze signal stop` | Graceful shutdown (no GR marker) |
 | `ze signal restart` | Graceful restart (writes GR marker for RFC 4724) |
-| `ze signal status` | Dump daemon status |
+| `ze signal status` | Dump process status |
 | `ze signal quit` | Goroutine dump to stderr, then exit |
 <!-- source: cmd/ze/signal/main.go -- Commands registry -->
 

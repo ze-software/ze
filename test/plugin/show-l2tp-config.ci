@@ -85,7 +85,7 @@ def main():
     if '127.0.0.1:' not in listeners[0]:
         runtime_fail(f'show l2tp config listeners[0]={listeners[0]!r}')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

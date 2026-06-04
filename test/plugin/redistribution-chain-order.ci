@@ -58,7 +58,7 @@ def main():
     else:
         print(f'INFO: {len(call_order)} filter call(s) (expected 2)', file=sys.stderr)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

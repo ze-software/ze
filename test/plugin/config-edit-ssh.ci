@@ -61,7 +61,7 @@ def main():
 
     # Shutdown
     api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': 'daemon shutdown'})
+        'ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
     api.wait_for_shutdown()
 
 

@@ -170,23 +170,28 @@ func TestCommandTree(t *testing.T) {
 	tree := BuildCommandTree(false)
 
 	// Check top-level commands exist
-	topLevel := []string{"daemon", "peer", "show", "clear", "request", "system"}
+	topLevel := []string{"peer", "show", "clear", "request", "system"}
 	for _, c := range topLevel {
 		if _, ok := tree.Children[c]; !ok {
 			t.Errorf("missing top-level command: %s", c)
 		}
 	}
 
-	// Check daemon subcommands
-	daemon := tree.Children["daemon"]
-	if daemon == nil {
-		t.Fatal("daemon command missing")
+	// Check lifecycle commands under request and show
+	reqNode := tree.Children["request"]
+	if reqNode == nil {
+		t.Fatal("request command missing")
 		return
 	}
-	if _, ok := daemon.Children["shutdown"]; !ok {
-		t.Error("daemon missing shutdown subcommand")
+	if _, ok := reqNode.Children["shutdown"]; !ok {
+		t.Error("request missing shutdown subcommand")
 	}
-	if _, ok := daemon.Children["status"]; !ok {
+	showNode := tree.Children["show"]
+	if showNode == nil {
+		t.Fatal("show command missing")
+		return
+	}
+	if _, ok := showNode.Children["status"]; !ok {
 		t.Error("daemon missing status subcommand")
 	}
 
@@ -305,8 +310,8 @@ func TestBuildRuntimeTree_FallbackToStatic(t *testing.T) {
 	if _, ok := tree.Children["peer"]; !ok {
 		t.Error("expected 'peer' in fallback tree")
 	}
-	if _, ok := tree.Children["daemon"]; !ok {
-		t.Error("expected 'daemon' in fallback tree")
+	if _, ok := tree.Children["request"]; !ok {
+		t.Error("expected 'request' in fallback tree")
 	}
 }
 

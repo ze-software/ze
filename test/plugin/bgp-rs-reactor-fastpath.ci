@@ -47,7 +47,7 @@ def main():
     api.wait_for_registry()
     api.ready()
     time.sleep(2.0)
-    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'daemon shutdown'})
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

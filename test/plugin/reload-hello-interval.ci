@@ -102,7 +102,7 @@ def main():
     if after != 90:
         runtime_fail(f'after SIGHUP: hello-interval={after!r} want 90 (reload did not apply)')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

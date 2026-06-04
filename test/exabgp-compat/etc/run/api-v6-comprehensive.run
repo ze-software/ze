@@ -337,9 +337,9 @@ class APITest:
         self.log('\n=== Phase 3: Daemon Commands ===')
 
         self.expect(
-            'daemon status',
+            'show status',
             {'version': '*', 'uuid': '*', 'pid': '*'},
-            'daemon status returns full info',
+            'show status returns full info',
         )
 
         # Note: daemon shutdown/reload/restart would terminate test - skip
@@ -455,7 +455,7 @@ class APITest:
 
         # Invalid daemon action
         self.expect_error(
-            'daemon invalid_action_xyz',
+            'request invalid_action_xyz',
             'invalid daemon action returns error',
         )
 
@@ -545,7 +545,7 @@ class APITest:
             self.report()
 
             # Send shutdown command to exit cleanly
-            self.send('daemon shutdown', timeout=1.0)
+            self.send('request shutdown', timeout=1.0)
 
         except (IOError, BrokenPipeError):
             self.log('Connection lost')

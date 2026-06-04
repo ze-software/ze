@@ -24,7 +24,7 @@ import (
 func testEngine() *api.APIEngine {
 	exec := func(_ context.Context, _ api.CallerIdentity, command string) (string, error) {
 		switch command {
-		case "bgp summary":
+		case "show bgp summary":
 			return `{"peer-count":3}`, nil
 		case "show version":
 			return `{"version":"1.0"}`, nil
@@ -34,13 +34,13 @@ func testEngine() *api.APIEngine {
 	}
 	cmds := func() []api.CommandMeta {
 		return []api.CommandMeta{
-			{Name: "summary", Description: "Show summary", ReadOnly: true},
-			{Name: "bgp summary", Description: "Show BGP summary", ReadOnly: true},
+			{Name: "show bgp summary", Description: "Show BGP summary", ReadOnly: true},
+			{Name: "show status", Description: "Show process status", ReadOnly: true},
 			{Name: "bgp monitor", Description: "Monitor BGP events", ReadOnly: true},
 			{Name: "show bgp rib", Description: "Show routes", ReadOnly: true, Params: []api.ParamMeta{
 				{Name: "family", Type: "string", Description: "Address family"},
 			}},
-			{Name: "daemon reload", Description: "Reload config", ReadOnly: false},
+			{Name: "request reload", Description: "Reload config", ReadOnly: false},
 		}
 	}
 	auth := func(_, _ string) bool { return true }
@@ -203,7 +203,7 @@ func TestRESTListCommands(t *testing.T) {
 // PREVENTS: execute endpoint broken.
 func TestRESTExecute(t *testing.T) {
 	srv := testServer(t)
-	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"bgp summary"}`)
+	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp summary"}`)
 	assert.Equal(t, http.StatusOK, r.Status)
 
 	var result api.ExecResult
@@ -228,7 +228,7 @@ func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
 			return "ok: " + command, nil
 		},
 		func() []api.CommandMeta {
-			return []api.CommandMeta{{Name: "bgp summary", ReadOnly: true}}
+			return []api.CommandMeta{{Name: "show bgp summary", ReadOnly: true}}
 		},
 		func(_, _ string) bool { return true },
 		nil,
@@ -240,7 +240,7 @@ func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
 	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"bgp summary"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"show bgp summary"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.RemoteAddr = "198.51.100.10:4444"
 	req = req.WithContext(context.WithValue(req.Context(), ctxKey{}, "trace-id"))
@@ -264,18 +264,18 @@ func TestRESTExecuteUnauthorized(t *testing.T) {
 	require.NoError(t, err)
 
 	// No Authorization header.
-	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"bgp summary"}`)
+	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp summary"}`)
 	assert.Equal(t, http.StatusUnauthorized, r.Status)
 
 	// Wrong token.
-	r = doWithHeader(t, srv, "POST", "/api/v1/execute", `{"command":"bgp summary"}`, map[string]string{
+	r = doWithHeader(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp summary"}`, map[string]string{
 		"Authorization": "Bearer wrong",
 		"Content-Type":  "application/json",
 	})
 	assert.Equal(t, http.StatusUnauthorized, r.Status)
 
 	// Correct token.
-	r = doWithHeader(t, srv, "POST", "/api/v1/execute", `{"command":"bgp summary"}`, map[string]string{
+	r = doWithHeader(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp summary"}`, map[string]string{
 		"Authorization": "Bearer secret",
 		"Content-Type":  "application/json",
 	})
@@ -297,7 +297,7 @@ func TestRESTAuthFailureAuditRecord(t *testing.T) {
 		AuditRecorder: recorder,
 	}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"bgp summary"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"show bgp summary"}`))
 	req.Header.Set("Authorization", "Bearer alice:wrong")
 	req.Header.Set("Content-Type", "application/json")
 	req.RemoteAddr = "192.0.2.10:4444"
@@ -319,10 +319,10 @@ func TestRESTAuthFailureAuditRecord(t *testing.T) {
 func TestRESTNoAuthReadOnly(t *testing.T) {
 	srv := testServer(t)
 
-	read := do(t, srv, "POST", "/api/v1/execute", `{"command":"bgp summary"}`)
+	read := do(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp summary"}`)
 	assert.Equal(t, http.StatusOK, read.Status)
 
-	write := do(t, srv, "POST", "/api/v1/execute", `{"command":"daemon reload"}`)
+	write := do(t, srv, "POST", "/api/v1/execute", `{"command":"request reload"}`)
 	assert.Equal(t, http.StatusForbidden, write.Status)
 
 	session := do(t, srv, "POST", "/api/v1/config/sessions", "")
@@ -632,7 +632,7 @@ func TestRESTExecuteWithParams(t *testing.T) {
 // PREVENTS: command injection via param keys.
 func TestRESTExecuteParamKeyInjection(t *testing.T) {
 	srv := testServer(t)
-	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"bgp summary","params":{"bad key":"value"}}`)
+	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp summary","params":{"bad key":"value"}}`)
 	assert.Equal(t, http.StatusBadRequest, r.Status)
 	assert.Contains(t, r.Body, "whitespace")
 }
@@ -641,7 +641,7 @@ func TestRESTExecuteParamKeyInjection(t *testing.T) {
 // PREVENTS: command injection via param values.
 func TestRESTExecuteParamValueInjection(t *testing.T) {
 	srv := testServer(t)
-	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"bgp summary","params":{"family":"ipv4 unicast"}}`)
+	r := do(t, srv, "POST", "/api/v1/execute", `{"command":"show bgp summary","params":{"family":"ipv4 unicast"}}`)
 	assert.Equal(t, http.StatusBadRequest, r.Status)
 	assert.Contains(t, r.Body, "whitespace")
 }
@@ -810,7 +810,7 @@ func TestRESTServer_MultiListener(t *testing.T) {
 		require.NoError(t, resp.Body.Close())
 		require.NoError(t, readErr)
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "listener %d (%s)", i, addr)
-		assert.Contains(t, string(body), "bgp summary", "listener %d (%s)", i, addr)
+		assert.Contains(t, string(body), "show bgp summary", "listener %d (%s)", i, addr)
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

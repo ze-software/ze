@@ -90,7 +90,7 @@ def main():
 
     print(f'OK: multipath: best={found.get("best-peer")}, siblings={mp_peers}', file=sys.stderr)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

@@ -201,7 +201,7 @@ def main():
         print(f'FAIL: {exc}', file=sys.stderr)
         sys.exit(1)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 

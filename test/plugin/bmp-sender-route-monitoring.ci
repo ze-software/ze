@@ -54,7 +54,7 @@ def main():
     # Small grace period so any in-flight BMP writes flush before we kill ze.
     time.sleep(0.3)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

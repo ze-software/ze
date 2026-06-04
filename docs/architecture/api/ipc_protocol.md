@@ -378,9 +378,9 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `system subsystem list` | List available subsystems |
 | `system version software` | Ze version |
 | `system version api` | IPC protocol version |
-| `daemon shutdown` | Gracefully shutdown the daemon |
-| `daemon status` | Show daemon status |
-| `daemon reload` | Reload the configuration |
+| `request shutdown` | Gracefully shutdown |
+| `show status` | Show process status |
+| `request reload` | Reload the configuration |
 <!-- source: internal/core/ipc/schema/ze-system-api.yang -- system RPCs -->
 <!-- source: internal/component/plugin/server/handler.go -- APIVersion -->
 

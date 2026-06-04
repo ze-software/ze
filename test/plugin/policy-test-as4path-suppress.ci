@@ -75,7 +75,7 @@ def main():
         sys.exit(1)
 
     print('OK: AS4_PATH suppressed surfaced in dry-run wire-changes')
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 main()

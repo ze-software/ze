@@ -61,7 +61,7 @@ def main():
 
         print(f'OK: summary has router-id={summary["router-id"]} local-as={summary["local-as"]} peers={len(peers)}', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

@@ -70,7 +70,7 @@ def main():
     if session.get('tx-packets', 0) == 0:
         runtime_fail(f'no signed tx packets recorded: {session}')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

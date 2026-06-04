@@ -71,7 +71,7 @@ def main():
             sys.exit(1)
 
         print(f'OK: filter works (total={total} bgp={bgp_count} nonexistent=0)', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
     except SystemExit:
         raise

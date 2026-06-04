@@ -51,7 +51,7 @@ def main():
         time.sleep(0.2)
 
     time.sleep(2.0)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

@@ -98,7 +98,7 @@ def main():
     # Shutdown
     if failures > 0:
         print(f'\n{failures} failures', file=sys.stderr)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
     if failures > 0:

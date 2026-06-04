@@ -45,12 +45,12 @@ def main():
 
     if total < 1:
         print(f'FAIL: expected >=1 route, got {total}', file=sys.stderr)
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
         sys.exit(1)
 
     print(f'OK: daemon running with policy YANG, {total} route(s) accepted', file=sys.stderr)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

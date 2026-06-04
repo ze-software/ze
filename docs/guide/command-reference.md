@@ -143,8 +143,8 @@ ze signal reload                 # Reload configuration
 ze signal stop                   # Graceful shutdown (no GR marker)
 ze signal restart                # Graceful restart (with GR marker)
 ze signal reboot                 # Graceful shutdown + OS reboot (with GR marker, requires root on Linux)
-ze signal status                 # Dump daemon status
-ze signal quit                   # Immediate exit + goroutine dump
+ze signal status                 # Dump process status
+ze signal quit                   # Immediate exit + goroutine dump (halt)
 ```
 
 | Flag | Purpose |

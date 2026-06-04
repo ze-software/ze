@@ -72,7 +72,7 @@ def main():
     if 'ze_bfd_sessions' not in body:
         runtime_fail('missing ze_bfd_sessions in scrape body')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

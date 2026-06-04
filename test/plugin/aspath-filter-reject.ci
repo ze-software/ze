@@ -46,7 +46,7 @@ def main():
     # Wait for session establishment and filter dispatch.
     time.sleep(3.0)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

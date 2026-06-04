@@ -61,7 +61,7 @@ def main():
 
         print(f'OK: fd-set previous={data["previous"]} current={data["current"]} hard={data["hard-limit"]}', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

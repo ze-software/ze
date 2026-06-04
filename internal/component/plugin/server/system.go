@@ -85,11 +85,12 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 	// Fallback if no dispatcher
 	if len(commands) == 0 {
 		commands = []string{
-			"daemon shutdown - Gracefully shutdown the daemon",
-			"daemon reboot - Gracefully shutdown then reboot the system",
-			"daemon status - Show daemon status",
-			"peer <selector> list - List peer(s) (brief)",
-			"peer <selector> show - Show peer(s) details",
+			"request shutdown - Gracefully shutdown",
+			"request reboot - Gracefully shutdown then reboot the system",
+			"request halt - Dump goroutine stacks and terminate",
+			"show status - Show process status",
+			"show bgp peer list - List peers (brief)",
+			"show bgp summary - BGP summary table",
 			"system help - Show available commands",
 			"system version software - Show ze version",
 			"system version api - Show IPC protocol version",

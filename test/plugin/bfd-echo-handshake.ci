@@ -216,7 +216,7 @@ def main():
     if not has_rtt:
         runtime_fail('ze_bfd_echo_rtt_us histogram has no buckets')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

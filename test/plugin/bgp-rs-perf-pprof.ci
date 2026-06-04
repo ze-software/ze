@@ -52,7 +52,7 @@ def main():
         return
 
     print("OK: pprof endpoint responded with expected profile links", file=sys.stderr)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

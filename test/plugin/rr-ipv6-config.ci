@@ -61,7 +61,7 @@ def main():
 
     print('OK: IPv6 RR client config accepted, peer detail shows RR fields', file=sys.stderr)
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

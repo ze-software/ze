@@ -39,7 +39,7 @@ def main():
 
     # Wait long enough that if an UPDATE were going to arrive, it would.
     time.sleep(3.0)
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

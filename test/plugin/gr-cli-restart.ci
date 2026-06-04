@@ -3,7 +3,7 @@
 # Flow:
 # 1. BGP daemon starts with GR plugin and test plugin
 # 2. Plugin completes 5-stage handshake, waits for session
-# 3. Plugin dispatches 'daemon shutdown' to verify lifecycle dispatch mechanism
+# 3. Plugin dispatches 'request shutdown' to verify lifecycle dispatch mechanism
 # 4. Daemon exits cleanly (exit code 0)
 #
 # The interactive CLI 'restart' command (model.go:882) calls restartFunc, which
@@ -49,7 +49,7 @@ def main():
 
     # Verify daemon lifecycle dispatch works (same mechanism restart uses)
     resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': 'daemon shutdown'})
+        'ze-plugin-engine:dispatch-command', {'command': 'request shutdown'})
     status = resp.get('result', {}).get('status')
     if status != 'done':
         print(f'FAIL: daemon shutdown status={status}', file=sys.stderr)

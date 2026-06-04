@@ -67,7 +67,7 @@ def main():
     else:
         runtime_fail('192.168.1.0/24 never appeared in bgp rib show best')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 if __name__ == '__main__':

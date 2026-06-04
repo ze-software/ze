@@ -52,7 +52,7 @@ def main():
 
         print('OK: route 10.0.1.0/24 correctly rejected (Invalid)', file=sys.stderr)
     finally:
-        dispatch(api, 'daemon shutdown')
+        dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
 if __name__ == '__main__':

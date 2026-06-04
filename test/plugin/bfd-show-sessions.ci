@@ -73,7 +73,7 @@ def main():
         if s.get('profile') != 'fast':
             runtime_fail(f'show bfd sessions: profile={s.get("profile")!r} want fast ({s.get("peer")})')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 

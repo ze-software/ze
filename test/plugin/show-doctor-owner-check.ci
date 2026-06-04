@@ -70,7 +70,7 @@ def main():
     if 'doctor-plugin-missing' not in codes:
         runtime_fail(f'show doctor missing owner-registered plugin check: codes={codes!r}')
 
-    dispatch(api, 'daemon shutdown')
+    dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
 
