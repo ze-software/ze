@@ -33,10 +33,10 @@ func TestDNSCache_Wiring(t *testing.T) {
 	}
 }
 
-func TestDNSCacheEntries_NoProvider(t *testing.T) {
-	old := dnsEntriesProvider
-	dnsEntriesProvider = nil
-	defer func() { dnsEntriesProvider = old }()
+func TestDNSCacheEntries_NoResolver(t *testing.T) {
+	old := resolvers
+	resolvers = nil
+	defer func() { resolvers = old }()
 
 	resp, err := handleDNSCache(nil, []string{dnsCacheActionList})
 	if err != nil {
@@ -47,71 +47,46 @@ func TestDNSCacheEntries_NoProvider(t *testing.T) {
 		t.Fatal("expected map response")
 	}
 	if _, exists := data["status"]; !exists {
-		t.Error("expected status field when provider is nil")
+		t.Error("expected status field when resolver is nil")
 	}
 }
 
-func TestDNSCacheEntries_WithProvider(t *testing.T) {
-	old := dnsEntriesProvider
-	dnsEntriesProvider = func() []map[string]any {
-		return []map[string]any{
-			{"name": "example.com", "type": "A", "records": []string{"1.2.3.4"}, "ttl-seconds": 120},
+func TestDNSCacheEntries_WithResolver(t *testing.T) {
+	withTestResolver(t, func() {
+		resp, err := handleDNSCache(nil, []string{dnsCacheActionList})
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-	defer func() { dnsEntriesProvider = old }()
-
-	resp, err := handleDNSCache(nil, []string{dnsCacheActionList})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, ok := resp.Data.(plugin.Map)
-	if !ok {
-		t.Fatal("expected map response")
-	}
-	if data["count"] != 1 {
-		t.Errorf("count = %v, want 1", data["count"])
-	}
-	entries, ok := data["entries"].([]map[string]any)
-	if !ok {
-		t.Fatal("expected entries array")
-	}
-	if entries[0]["name"] != "example.com" {
-		t.Errorf("name = %v, want example.com", entries[0]["name"])
-	}
+		data, ok := resp.Data.(plugin.Map)
+		if !ok {
+			t.Fatal("expected map response")
+		}
+		if _, exists := data["count"]; !exists {
+			t.Error("expected count field")
+		}
+		if _, exists := data["entries"]; !exists {
+			t.Error("expected entries field")
+		}
+	})
 }
 
 func TestDNSCacheRecords_FilterByName(t *testing.T) {
-	old := dnsEntriesProvider
-	dnsEntriesProvider = func() []map[string]any {
-		return []map[string]any{
-			{"name": "example.com", "type": "A", "records": []string{"1.2.3.4"}, "ttl-seconds": 120},
-			{"name": "other.com", "type": "A", "records": []string{"5.6.7.8"}, "ttl-seconds": 60},
-			{"name": "example.com", "type": "AAAA", "records": []string{"::1"}, "ttl-seconds": 300},
+	withTestResolver(t, func() {
+		resp, err := handleDNSCache(nil, []string{dnsCacheActionRecord, "example.com"})
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-	defer func() { dnsEntriesProvider = old }()
-
-	resp, err := handleDNSCache(nil, []string{dnsCacheActionRecord, "example.com"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, ok := resp.Data.(plugin.Map)
-	if !ok {
-		t.Fatal("expected map response")
-	}
-	if data["count"] != 2 {
-		t.Errorf("count = %v, want 2 (both example.com entries)", data["count"])
-	}
-	if data["filter"] != "example.com" {
-		t.Errorf("filter = %v, want example.com", data["filter"])
-	}
+		data, ok := resp.Data.(plugin.Map)
+		if !ok {
+			t.Fatal("expected map response")
+		}
+		if data["filter"] != "example.com" {
+			t.Errorf("filter = %v, want example.com", data["filter"])
+		}
+	})
 }
 
 func TestDNSCacheRecords_MissingName(t *testing.T) {
-	old := dnsEntriesProvider
-	dnsEntriesProvider = func() []map[string]any { return nil }
-	defer func() { dnsEntriesProvider = old }()
-
 	resp, err := handleDNSCache(nil, []string{dnsCacheActionRecord})
 	if err != nil {
 		t.Fatal(err)

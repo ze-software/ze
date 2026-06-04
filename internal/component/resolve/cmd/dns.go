@@ -4,6 +4,10 @@
 package cmd
 
 import (
+	"strings"
+
+	mdns "github.com/miekg/dns"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
@@ -20,14 +24,8 @@ func init() {
 	)
 }
 
-var dnsCacheClearProvider func(action, name, typeName string) map[string]any
-
-func RegisterDNSCacheClearProvider(fn func(action, name, typeName string) map[string]any) {
-	dnsCacheClearProvider = fn
-}
-
 func handleClearDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if dnsCacheClearProvider == nil {
+	if resolvers == nil || resolvers.DNS == nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: "DNS cache not available"}, nil
 	}
 
@@ -57,6 +55,29 @@ func handleClearDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin
 		return &plugin.Response{Status: plugin.StatusError, Error: "clear dns cache record: missing name"}, nil
 	}
 
-	result := dnsCacheClearProvider(action, name, typeName)
+	var result map[string]any
+
+	switch action {
+	case clearActionRecord:
+		if typeName != "" {
+			qtype, ok := mdns.StringToType[strings.ToUpper(typeName)]
+			if !ok {
+				result = map[string]any{"action": "delete-entry", "error": "unknown type: " + typeName}
+			} else {
+				found := resolvers.DNS.CacheDelete(name, qtype)
+				result = map[string]any{"action": "delete-entry", "name": name, "type": typeName, "found": found}
+			}
+		} else {
+			removed := resolvers.DNS.CacheDeleteByName(name)
+			result = map[string]any{"action": "delete-entry", "name": name, "removed": removed}
+		}
+	case clearActionStats:
+		resolvers.DNS.CacheResetStats()
+		result = map[string]any{"action": "reset-stats"}
+	default:
+		resolvers.DNS.CacheClear()
+		result = map[string]any{"action": "clear-all"}
+	}
+
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }

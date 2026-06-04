@@ -144,14 +144,8 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	var ttl uint32
 	var lookupErr error
 
-	if dnsLookupProvider != nil {
-		res, err := dnsLookupProvider(name, qtypeNum)
-		if err != nil {
-			lookupErr = err
-		} else if res != nil {
-			records = res.Records
-			ttl = res.TTL
-		}
+	if resolvers != nil && resolvers.DNS != nil {
+		records, ttl, lookupErr = resolvers.DNS.ResolveWithTTL(name, qtypeNum)
 	} else {
 		records, lookupErr = dnsLookupStdlib(name, qtype)
 	}
@@ -213,61 +207,62 @@ func handleDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 	}
 }
 
-var dnsStatsProvider func() map[string]any
-
-func RegisterDNSStatsProvider(fn func() map[string]any) {
-	dnsStatsProvider = fn
-}
-
-// DNSLookupResult is returned by the lookup provider when available.
-type DNSLookupResult struct {
-	Records []string
-	TTL     uint32
-}
-
-var dnsLookupProvider func(name string, qtype uint16) (*DNSLookupResult, error)
-
-func RegisterDNSLookupProvider(fn func(name string, qtype uint16) (*DNSLookupResult, error)) {
-	dnsLookupProvider = fn
-}
-
 func getDNSCacheStats() map[string]any {
-	if dnsStatsProvider != nil {
-		return dnsStatsProvider()
+	if resolvers == nil || resolvers.DNS == nil {
+		return map[string]any{
+			"status": "DNS cache not available",
+		}
+	}
+	s := resolvers.DNS.CacheStats()
+	total := s.Hits + s.Misses
+	var hitRate, missRate float64
+	if total > 0 {
+		hitRate = float64(s.Hits) / float64(total) * 100
+		missRate = float64(s.Misses) / float64(total) * 100
 	}
 	return map[string]any{
-		"status": "DNS cache not available",
+		"entries":   s.Entries,
+		"capacity":  s.Capacity,
+		"hits":      s.Hits,
+		"misses":    s.Misses,
+		"hit-rate":  hitRate,
+		"miss-rate": missRate,
+		"evictions": s.Evictions,
+		"expired":   s.Expired,
 	}
-}
-
-var dnsEntriesProvider func() []map[string]any
-
-func RegisterDNSEntriesProvider(fn func() []map[string]any) {
-	dnsEntriesProvider = fn
 }
 
 func getDNSCacheEntries(filterName string) map[string]any {
-	if dnsEntriesProvider != nil {
-		all := dnsEntriesProvider()
-		if filterName == "" {
-			return map[string]any{
-				"entries": all,
-				"count":   len(all),
-			}
-		}
-		var filtered []map[string]any
-		for _, e := range all {
-			if name, _ := e["name"].(string); name == filterName {
-				filtered = append(filtered, e)
-			}
-		}
+	if resolvers == nil || resolvers.DNS == nil {
 		return map[string]any{
-			"entries": filtered,
-			"count":   len(filtered),
-			"filter":  filterName,
+			"status": "DNS cache not available",
+		}
+	}
+	entries := resolvers.DNS.CacheEntries()
+	all := make([]map[string]any, len(entries))
+	for i, e := range entries {
+		all[i] = map[string]any{
+			"name":        e.Name,
+			"type":        e.TypeName,
+			"records":     e.Records,
+			"ttl-seconds": e.TTLSeconds,
+		}
+	}
+	if filterName == "" {
+		return map[string]any{
+			"entries": all,
+			"count":   len(all),
+		}
+	}
+	var filtered []map[string]any
+	for _, e := range all {
+		if name, _ := e["name"].(string); name == filterName {
+			filtered = append(filtered, e)
 		}
 	}
 	return map[string]any{
-		"status": "DNS cache not available",
+		"entries": filtered,
+		"count":   len(filtered),
+		"filter":  filterName,
 	}
 }

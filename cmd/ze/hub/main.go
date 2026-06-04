@@ -18,12 +18,9 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
-
-	mdns "github.com/miekg/dns"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
@@ -617,68 +614,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 	if resolvers.Cymru != nil {
 		command.SetOriginResolver(cymruOriginAdapter{resolvers.Cymru})
-	}
-	if resolvers.DNS != nil {
-		resolvecmd.RegisterDNSStatsProvider(func() map[string]any {
-			s := resolvers.DNS.CacheStats()
-			total := s.Hits + s.Misses
-			var hitRate, missRate float64
-			if total > 0 {
-				hitRate = float64(s.Hits) / float64(total) * 100
-				missRate = float64(s.Misses) / float64(total) * 100
-			}
-			return map[string]any{
-				"entries":   s.Entries,
-				"capacity":  s.Capacity,
-				"hits":      s.Hits,
-				"misses":    s.Misses,
-				"hit-rate":  hitRate,
-				"miss-rate": missRate,
-				"evictions": s.Evictions,
-				"expired":   s.Expired,
-			}
-		})
-		resolvecmd.RegisterDNSLookupProvider(func(name string, qtype uint16) (*resolvecmd.DNSLookupResult, error) {
-			records, ttl, err := resolvers.DNS.ResolveWithTTL(name, qtype)
-			if err != nil {
-				return nil, err
-			}
-			return &resolvecmd.DNSLookupResult{Records: records, TTL: ttl}, nil
-		})
-		resolvecmd.RegisterDNSEntriesProvider(func() []map[string]any {
-			entries := resolvers.DNS.CacheEntries()
-			out := make([]map[string]any, len(entries))
-			for i, e := range entries {
-				out[i] = map[string]any{
-					"name":        e.Name,
-					"type":        e.TypeName,
-					"records":     e.Records,
-					"ttl-seconds": e.TTLSeconds,
-				}
-			}
-			return out
-		})
-		resolvecmd.RegisterDNSCacheClearProvider(func(action, name, typeName string) map[string]any {
-			switch action {
-			case "record":
-				if typeName != "" {
-					qtype, ok := mdns.StringToType[strings.ToUpper(typeName)]
-					if !ok {
-						return map[string]any{"action": "delete-entry", "error": "unknown type: " + typeName}
-					}
-					found := resolvers.DNS.CacheDelete(name, qtype)
-					return map[string]any{"action": "delete-entry", "name": name, "type": typeName, "found": found}
-				}
-				removed := resolvers.DNS.CacheDeleteByName(name)
-				return map[string]any{"action": "delete-entry", "name": name, "removed": removed}
-			case "stats":
-				resolvers.DNS.CacheResetStats()
-				return map[string]any{"action": "reset-stats"}
-			default:
-				resolvers.DNS.CacheClear()
-				return map[string]any{"action": "clear-all"}
-			}
-		})
 	}
 
 	if len(sc.NameServers) > 0 {
