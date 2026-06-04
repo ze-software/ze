@@ -3,6 +3,33 @@
 Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before Any
 Commit" → pre-existing failures >10 min): logged, not blocking unrelated commits.
 
+
+### 2026-06-04 — `make ze-verify-wiring-docs` command validation drift
+
+**Open (triage).** While verifying a rules-only change, `make ze-verify-wiring-docs`
+failed in the `ze-doc-test` YANG/handler contract stage. Wiring passed and
+documentation drift passed. Command validation reported two YANG commands with no
+handler:
+
+- `ze-show:gnmi` (`show > gnmi` in `ze-cli-show-cmd`)
+- `ze-show:storage-smart` (`show > storage > smart` in `ze-cli-show-cmd`)
+
+It also reported 15 local handlers with no YANG command: `crashes`, `crashes show`,
+`debug disable`, `debug enable`, `debug show`, `doctor`, `explain`,
+`generate wireguard keypair`, `help command`, `host`, `host show`,
+`show config graph`, `skills`, `support`, and `validate config`.
+
+**Root-cause hypothesis:** command registration/YANG schema drift in the CLI command
+inventory, unrelated to rules documentation. Needs focused triage before treating
+`make ze-verify-wiring-docs` as a clean baseline.
+
+**Reproduce:**
+```
+make ze-verify-wiring-docs
+```
+
+Observed output artifact from the first run: `artifact://4`.
+
 ### 2026-05-31 — pppoe-client `no-default-route` rejected by config parser
 
 **Resolved 2026-05-31** (commit pending). Fixed with a dedicated `TypeEmpty`

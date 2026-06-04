@@ -1,7 +1,9 @@
 # Never Destroy Uncommitted Work
 
 **BLOCKING:** Never delete, revert, or overwrite files holding uncommitted
-work the user wrote or requested. Ask first, every time.
+work the user wrote or requested without explicit permission. Never leave a
+file undeleted solely because deletion requires permission; ask the user for
+permission instead.
 Rationale: `ai/rationale/never-destroy-work.md`.
 
 Extends `rules/git-safety.md` (which covers destructive git operations) to
@@ -13,7 +15,7 @@ losing work the user paid for is high.
 
 | Operation | Scope | Replacement |
 |-----------|-------|-------------|
-| `rm <path>` on user-visible files | Any path not already in git's untracked-trash-bin category | Ask: "This file has uncommitted content. Should I delete it?" |
+| `rm <path>` on user-visible files | Any path not already in git's untracked-trash-bin category | Ask for permission before deleting it. If deletion is the correct fix, do not leave the file behind as a workaround. |
 | `git restore <path>` | Any modified working-tree file | Already in `rules/git-safety.md`; same rule |
 | `git reset --hard`, `git clean -f` | Any | Already forbidden |
 | Overwriting an existing file with content that drops user edits | Overwriting unsaved changes | Read the current file; merge or ask |
@@ -42,10 +44,14 @@ Writing down the excuses so they become identifiable:
 | "It'll be rewritten anyway" | The user may want to diff the current version, or have a different plan than you assume. |
 | "I just wrote it one turn ago" | Doesn't matter. You wrote it at their direction; it is theirs now. |
 | "It's clearly an error / dead code / scaffolding" | Ask. "Clearly" is often wrong. |
-| "Reverting my own mistake" | If the mistake was writing the file, the fix is almost never `rm`. It's "leave it and move on." |
+| "Reverting my own mistake" | If deletion is the correct fix and the file is user-visible, ask for permission instead of leaving it behind. |
 | "The tree is in a broken state" | Tree-broken is preferable to work-lost. Tell the user; let them decide. |
 
-## When In Doubt
+## When Deletion Is The Correct Fix
 
-Do nothing. State the situation ("file X exists, lint is flagging Y,
-tests are failing because of Z") and ask what to do.
+If a file should be deleted but this rule requires permission, ask the user
+directly. Do not claim the work is complete while leaving an unwanted file in
+place only because permission was needed.
+
+When unsure whether the file should be deleted, state the situation ("file X
+exists, lint is flagging Y, tests are failing because of Z") and ask what to do.

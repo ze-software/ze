@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 67 rules
+Total: 68 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -51,13 +51,14 @@ Total: 67 rules
 | Lint Gate | Run before claiming implementation work is complete. | `ai/rules/lint-gate.md` |
 | Memory Architecture | Conceptual model for Ze's memory management. Ties together `buffer-first.md`, `no-sprintf-alloc.md`, and `design-principles.md` into a coherent picture. Read this before making any allocation or... | `ai/rules/memory-architecture.md` |
 | Naming | "Ze" = "The" with a French accent. Use "ze" where "the" works grammatically. | `ai/rules/naming.md` |
-| Never Destroy Uncommitted Work | Never delete, revert, or overwrite files holding uncommitted work the user wrote or requested. Ask first, every time. | `ai/rules/never-destroy-work.md` |
+| Never Destroy Uncommitted Work | Never delete, revert, or overwrite files holding uncommitted work the user wrote or requested without explicit permission. Never leave a file undeleted solely because deletion requires permission;... | `ai/rules/never-destroy-work.md` |
 | Don't Ask, Do | Never use phrases like "would you like me to", "want me to", "shall I", or "I can" before completing work. Finish the task first, then report what was done. The user delegated the work; asking for... | `ai/rules/no-asking.md` |
 | No Fabrication | When the user asks a factual question, answer only from what the source explicitly states. | `ai/rules/no-fabrication.md` |
 | No Layering | When replacing X with Y: DELETE X first, then implement Y. Never keep both. | `ai/rules/no-layering.md` |
 | No Partial Completion | Read before claiming any work "done"; every acceptance criterion needs working code plus a test, "deferred" is not "done," and scope cuts require explicit user approval. | `ai/rules/no-partial-completion.md` |
 | No Printf Allocations | Never use `fmt.Sprintf`, `fmt.Fprintf`, or `fmt.Errorf` when a zero-allocation or lower-allocation alternative exists. Never use `.String()` concatenation on a hot path when an append-into-buffer... | `ai/rules/no-sprintf-alloc.md` |
 | Test Deletion | ASK user before deleting any test code (`*_test.go`, `.ci`, `Test*`, `t.Run`, assertions, table entries). Exception: user already explicitly requested the deletion. | `ai/rules/no-test-deletion.md` |
+| No Workarounds For Missing Behavior | If a user could experience a problem while trying to achieve a goal, implement the missing behavior at the source. Do not bypass, mask, special-case, weaken a check, adjust a fixture, or route... | `ai/rules/no-workarounds-for-missing-behavior.md` |
 | OS-Specific Tests | A test that cannot run on every OS MUST either carry a build tag (`//go:build linux`) on its file, or skip (`t.Skip`) with a reason on the OSes where it cannot run. Never weaken the assertion to... | `ai/rules/os-specific-tests.md` |
 | Pipe Completeness | Every command that produces output MUST support all pipe operators. | `ai/rules/pipe-completeness.md` |
 | Planning | Complete before implementing any non-trivial feature. | `ai/rules/planning.md` |
