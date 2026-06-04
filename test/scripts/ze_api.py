@@ -819,6 +819,7 @@ class API:
         Routes to the appropriate RPC based on command prefix:
         - 'peer <sel> <action>' (lifecycle) -> ze-plugin-engine:dispatch-command
         - 'peer <sel> <route-cmd>' -> ze-plugin-engine:update-route
+        - 'request ...' -> ze-plugin-engine:dispatch-command
         - 'subscribe ...' -> accumulates for ready RPC
 
         Args:
@@ -840,6 +841,8 @@ class API:
                 self._send_update_route(command)
         elif command.startswith("update "):
             self._send_update_route(command)
+        elif command.startswith("request "):
+            self._send_dispatch_command(command)
         else:
             self._send_update_route(command)
 

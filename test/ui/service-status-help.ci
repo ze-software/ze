@@ -1,6 +1,6 @@
-# Test: ze service status help is reachable
-# VALIDATES: service-1-systemd status option is exposed through the CLI.
+# Test: ze install systemd help is reachable
+# VALIDATES: service-1-systemd install option is exposed through the CLI.
 
-cmd=foreground:seq=1:exec=ze service status -h
+cmd=foreground:seq=1:exec=ze install systemd -h
 expect=exit:code=0
-expect=stdout:contains=ze service status
+expect=stdout:contains=ze systemd install

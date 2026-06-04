@@ -1,5 +1,5 @@
-# Test: ze uninstall --dry-run — prints planned removals
+# Test: ze uninstall local --dry-run — prints planned removals
 
-cmd=foreground:seq=1:exec=ze uninstall --dry-run
+cmd=foreground:seq=1:exec=ze uninstall local --dry-run
 expect=exit:code=0
 expect=stderr:contains=would remove

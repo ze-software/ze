@@ -94,8 +94,8 @@ case "$OUTPUT" in
 		;;
 esac
 
-RELOAD_OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "daemon reload" 2>&1) || {
-	echo "FAIL: daemon reload failed" >&2
+RELOAD_OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "request reload" 2>&1) || {
+	echo "FAIL: request reload failed" >&2
 	echo "$RELOAD_OUTPUT" >&2
 	exit 1
 }

@@ -1,6 +1,6 @@
-# Test: ze uninstall -h — uninstall help
+# Test: ze uninstall local -h — uninstall local help
 
-cmd=foreground:seq=1:exec=ze uninstall -h
+cmd=foreground:seq=1:exec=ze uninstall local -h
 expect=exit:code=0
 expect=stdout:contains=--prefix
 expect=stdout:contains=--purge

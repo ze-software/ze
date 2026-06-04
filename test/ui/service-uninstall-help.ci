@@ -1,6 +1,6 @@
-# Test: ze service uninstall help is reachable
+# Test: ze uninstall systemd help is reachable
 # VALIDATES: service-1-systemd uninstall option is exposed through the CLI.
 
-cmd=foreground:seq=1:exec=ze service uninstall -h
+cmd=foreground:seq=1:exec=ze uninstall systemd -h
 expect=exit:code=0
-expect=stdout:contains=ze service uninstall
+expect=stdout:contains=ze systemd uninstall

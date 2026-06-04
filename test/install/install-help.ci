@@ -2,7 +2,7 @@
 # spec-install-4 AC-9: ze install with no subcommand prints usage help.
 
 cmd=foreground:seq=1:exec=ze install
-expect=exit:code=0
+expect=exit:code=1
 expect=stdout:contains=local
 expect=stdout:contains=remote
-expect=stdout:contains=appliance
+expect=stdout:contains=systemd

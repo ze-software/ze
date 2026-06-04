@@ -341,11 +341,11 @@ func (c *mcpClient) waitReady(timeout time.Duration) error {
 	return fmt.Errorf("timeout after %v", timeout)
 }
 
-// waitEstablished polls "peer list" via MCP until at least one peer is Established.
+// waitEstablished polls "show bgp peer list" via MCP until at least one peer is Established.
 func (c *mcpClient) waitEstablished(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		result, err := c.execute("peer list")
+		result, err := c.execute("show bgp peer list")
 		if err == nil && strings.Contains(strings.ToLower(result), "established") {
 			return nil
 		}
@@ -354,13 +354,13 @@ func (c *mcpClient) waitEstablished(timeout time.Duration) error {
 	return fmt.Errorf("no peer established after %v", timeout)
 }
 
-// waitPeers polls "peer list" via MCP until the result contains at least one
+// waitPeers polls "show bgp peer list" via MCP until the result contains at least one
 // peer name (non-empty JSON object). Used by tests that need the BGP config
 // to be applied but don't need an established session.
 func (c *mcpClient) waitPeers(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		result, err := c.execute("peer list")
+		result, err := c.execute("show bgp peer list")
 		if err == nil && !strings.Contains(result, `"peers":{}`) && strings.Contains(result, `"peers":{`) {
 			return nil
 		}

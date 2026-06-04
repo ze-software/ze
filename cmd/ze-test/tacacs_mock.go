@@ -274,9 +274,9 @@ func tacacsMockReplyAuthor(conn net.Conn, hdr tacacs.PacketHeader, body, key []b
 	}
 }
 
-// parseAuthorCmd extracts the value of the cmd= arg from an AUTHOR REQUEST
-// body. Returns "" if the body is malformed or no cmd arg is present. Mirrors
-// `tacacs.AuthorRequest.MarshalBinary` layout (RFC 8907 §6.1).
+// parseAuthorCmd reconstructs the full command from the cmd= and cmd-arg=
+// arguments in an AUTHOR REQUEST body. Returns "" if the body is malformed
+// or no cmd arg is present. Layout per RFC 8907 Section 6.1.
 func parseAuthorCmd(body []byte) string {
 	if len(body) < 8 {
 		return ""
@@ -293,18 +293,27 @@ func parseAuthorCmd(body []byte) string {
 		argLens[i] = int(body[8+i])
 	}
 	off := 8 + argCount + userLen + portLen + remLen
-	for i, alen := range argLens {
+	var cmd string
+	var cmdArgs []string
+	for _, alen := range argLens {
 		if off+alen > len(body) {
 			return ""
 		}
 		arg := string(body[off : off+alen])
 		off += alen
 		if v, ok := strings.CutPrefix(arg, "cmd="); ok {
-			return v
+			cmd = v
+		} else if v, ok := strings.CutPrefix(arg, "cmd-arg="); ok {
+			cmdArgs = append(cmdArgs, v)
 		}
-		_ = i
 	}
-	return ""
+	if cmd == "" {
+		return ""
+	}
+	if len(cmdArgs) == 0 {
+		return cmd
+	}
+	return cmd + " " + strings.Join(cmdArgs, " ")
 }
 
 func tacacsMockReplyAcct(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, replyFlags uint8, logPackets bool) {

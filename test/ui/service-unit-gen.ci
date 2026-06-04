@@ -1,7 +1,7 @@
-# Test: ze service install --dry-run prints systemd unit content
+# Test: ze install systemd --dry-run prints systemd unit content
 # VALIDATES: service-1-systemd AC-6/AC-8/AC-10/AC-13/AC-14 dry-run exposes unit generation through the CLI.
 
-cmd=foreground:seq=1:exec=ze service install --dry-run --config /custom/path
+cmd=foreground:seq=1:exec=ze install systemd --dry-run --config /custom/path
 expect=exit:code=0
 expect=stdout:contains=[Unit]
 expect=stdout:contains=Description=Ze Network OS
