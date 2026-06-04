@@ -65,11 +65,11 @@ system {
 				default-action deny
 				entry 10 {
 					action allow
-					match "peer list"
+					match "show bgp peer list"
 				}
 				entry 20 {
 					action allow
-					match "summary"
+					match "show bgp summary"
 				}
 			}
 			edit {
@@ -124,33 +124,33 @@ trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev
 printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
 # Test 1: admin can run read-only command
-OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer list" 2>&1) || {
-	echo "FAIL: admin should be allowed to run 'peer list'" >&2
+OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp peer list" 2>&1) || {
+	echo "FAIL: admin should be allowed to run 'show bgp peer list'" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
 }
-echo "OK: admin allowed peer list" >&2
+echo "OK: admin allowed show bgp peer list" >&2
 
 # Set up operator credentials
 OP_DIR=$(mktemp -d)
 trap 'rm -rf "$ADMIN_DIR" "$OP_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 printf 'operator\noppass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$OP_DIR" ze init >/dev/null
 
-# ... "peer list")
-OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "peer list" 2>&1) || {
-	echo "FAIL: operator should be allowed to run 'peer list' (entry 10)" >&2
+# ... "show bgp peer list")
+OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "show bgp peer list" 2>&1) || {
+	echo "FAIL: operator should be allowed to run 'show bgp peer list' (entry 10)" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
 }
-echo "OK: operator allowed peer list (entry match)" >&2
+echo "OK: operator allowed show bgp peer list (entry match)" >&2
 
-# ... "summary")
-OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "summary" 2>&1) || {
-	echo "FAIL: operator should be allowed to run 'summary' (entry 20)" >&2
+# ... "show bgp summary")
+OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "show bgp summary" 2>&1) || {
+	echo "FAIL: operator should be allowed to run 'show bgp summary' (entry 20)" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
 }
-echo "OK: operator allowed summary (entry match)" >&2
+echo "OK: operator allowed show bgp summary (entry match)" >&2
 
 echo "OK: all allow tests passed" >&2
 exit 0

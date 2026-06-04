@@ -125,10 +125,10 @@ In another terminal:
 bin/ze status
 
 # List peers
-bin/ze cli -c "peer list"
+bin/ze cli -c "show bgp peer list"
 
 # Show peer details
-bin/ze cli -c "peer test-peer detail"
+bin/ze cli -c "show bgp peer test-peer detail"
 
 # Watch live events
 bin/ze cli -c "bgp monitor"

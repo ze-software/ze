@@ -23,7 +23,7 @@ const maxFormBytes = 4096
 
 // handleUIPeers renders the peer dashboard page.
 func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
-	result := s.query("summary")
+	result := s.query("show bgp summary")
 	zeData := parseJSON(result)
 
 	peers := s.extractPeers(zeData)
@@ -202,7 +202,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get peer info first to confirm the peer exists.
-	peerResult := s.query("summary")
+	peerResult := s.query("show bgp summary")
 	peerData := parseJSON(peerResult)
 	peerInfo := findPeer(peerData, address)
 
@@ -477,7 +477,7 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			result := s.query("summary")
+			result := s.query("show bgp summary")
 			zeData := parseJSON(result)
 
 			if zeData == nil {

@@ -348,10 +348,10 @@ class APITest:
         """Phase 4: Test peer operations (requires established peer)."""
         self.log('\n=== Phase 4: Peer Commands ===')
 
-        # peer list
+        # peer list (show form is canonical; bare 'peer list' removed)
         self.expect_any(
-            'peer list',
-            'peer list returns peer array',
+            'show bgp peer list',
+            'show bgp peer list returns peer array',
         )
 
         # peer show (may fail if peer not established yet)

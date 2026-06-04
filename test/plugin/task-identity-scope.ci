@@ -3,7 +3,7 @@
 
 # MCP session 1 (alice): create a task, verify it appears in list
 stdin=mcp1:terminator=EOF_MCP1
-task-call ze_execute {"command":"peer list"}
+task-call ze_execute {"command":"show bgp peer list"}
 task-wait $LAST completed
 task-list
 EOF_MCP1

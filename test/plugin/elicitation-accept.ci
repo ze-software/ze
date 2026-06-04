@@ -5,7 +5,7 @@
 # The ze-test mcp client declares capabilities.elicitation={} at initialize,
 # queues an accept reply, then calls ze_execute with command="". The daemon
 # upgrades the POST response to SSE, emits elicitation/create, and receives
-# the POSTed reply. ze_execute dispatches the accepted command ("peer list")
+# the POSTed reply. ze_execute dispatches the accepted command ("show bgp peer list")
 # and the result (containing the configured peer name) reaches stdout.
 #
 # PREVENTS: regressions where the POST->SSE upgrade fails silently, the
@@ -15,7 +15,7 @@
 
 stdin=mcp:terminator=EOF_MCP
 wait-peers
-elicit-accept {"command":"peer list"}
+elicit-accept {"command":"show bgp peer list"}
 @ze_execute {"command":""}
 EOF_MCP
 

@@ -8,7 +8,7 @@
 # Flow:
 # 1. Generate an ed25519 key pair at test time.
 # 2. Daemon starts with YANG user "keyuser" whose public-keys block contains the generated key.
-# 3. SSH with matching key -> succeeds (exec "peer list").
+# 3. SSH with matching key -> succeeds (exec "show bgp peer list").
 # 4. SSH with wrong key -> rejected.
 # 5. Daemon log shows "source=public-key" for the successful auth.
 
@@ -106,7 +106,7 @@ OUTPUT=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o PasswordAuthentication=no -o BatchMode=yes \
     -o IdentitiesOnly=yes \
     -i "$KEYDIR/testkey" \
-    -p "$SSH_PORT" keyuser@127.0.0.1 "peer list" 2>/dev/null) || {
+    -p "$SSH_PORT" keyuser@127.0.0.1 "show bgp peer list" 2>/dev/null) || {
     echo "FAIL: SSH with matching public key should authenticate" >&2
     echo "OUTPUT: $OUTPUT" >&2
     tail -20 daemon.log >&2
@@ -126,7 +126,7 @@ if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o PasswordAuthentication=no -o BatchMode=yes \
     -o IdentitiesOnly=yes -o KbdInteractiveAuthentication=no \
     -i "$KEYDIR/wrongkey" \
-    -p "$SSH_PORT" keyuser@127.0.0.1 "peer list" >/dev/null 2>&1; then
+    -p "$SSH_PORT" keyuser@127.0.0.1 "show bgp peer list" >/dev/null 2>&1; then
     echo "FAIL: SSH with wrong key should NOT authenticate" >&2
     exit 1
 fi

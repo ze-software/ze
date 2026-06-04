@@ -5,30 +5,23 @@ module ze-peer-cmd {
     description "BGP peer operations: show, delete, and control peer sessions. Owns the show bgp-health overview and the delete bgp peer command surface; container-merges onto the show and delete verb roots.";
     revision 2026-03-16 { description "Initial revision"; }
     revision 2026-06-03 { description "Relocated show bgp-health and delete bgp peer out of the central show/delete schemas into this owner (plugin self-containment)."; }
-
-    container summary {
-        config false;
-        ze:command "ze-bgp:summary";
-        description "Show a one-line-per-peer BGP summary.
-Lists every peer with state, ASN, prefixes received, and uptime.
-Optionally scope by address family: ipv4, ipv6, or l2vpn.";
-    }
+    revision 2026-06-04 { description "Removed bare 'summary' and 'peer list' duplicates; moved summary under show bgp; canonical paths are 'show bgp summary' and 'show bgp peer list'."; }
 
     container show {
         config false;
         description "Peer inspection and diagnostics";
 
-        container summary {
-            config false;
-            ze:command "ze-bgp:summary";
-            description "Show a one-line-per-peer BGP summary.
-Lists every peer with state, ASN, prefixes received, and uptime.
-Optionally scope by address family: ipv4, ipv6, or l2vpn.";
-        }
-
         container bgp {
             config false;
             description "BGP peers, sessions, RIB, and protocol tools";
+
+            container summary {
+                config false;
+                ze:command "ze-bgp:summary";
+                description "Show a one-line-per-peer BGP summary.
+Lists every peer with state, ASN, prefixes received, and uptime.
+Optionally scope by address family: ipv4, ipv6, or l2vpn.";
+            }
 
             container peer {
                 config false;
@@ -121,13 +114,6 @@ configuration. Does not modify the config file on disk.";
         ze:ui-resource "bgp-peer/index.html";
         ze:ui-permissions "network";
         ze:ui-csp "default-src 'self'";
-
-        container list {
-            config false;
-            ze:command "ze-bgp:peer-list";
-            description "List your peers, one line each.
-Shows name, address, ASN, state, and uptime.";
-        }
 
         container teardown {
             config false;

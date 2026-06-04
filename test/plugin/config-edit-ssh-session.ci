@@ -68,7 +68,7 @@ def main():
         sys.exit(1)
 
     # Verify daemon is operational via dispatch
-    r = dispatch(api, 'peer list')
+    r = dispatch(api, 'show bgp peer list')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: dispatch status={status}', file=sys.stderr)

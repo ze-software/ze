@@ -189,15 +189,13 @@ func TestPeerCmdModule(t *testing.T) {
 	entry := loader.GetEntry("ze-peer-cmd")
 	require.NotNil(t, entry)
 
-	// summary is top-level
-	assert.Equal(t, "ze-bgp:summary", GetCommandExtension(entry.Dir["summary"]))
-	assert.False(t, HasEditShortcutExtension(entry.Dir["summary"]))
-
 	show := entry.Dir["show"]
 	require.NotNil(t, show)
 
 	bgp := show.Dir["bgp"]
 	require.NotNil(t, bgp)
+
+	assert.Equal(t, "ze-bgp:summary", GetCommandExtension(bgp.Dir["summary"]))
 
 	showPeer := bgp.Dir["peer"]
 	require.NotNil(t, showPeer)
@@ -212,7 +210,6 @@ func TestPeerCmdModule(t *testing.T) {
 	require.NotNil(t, peer)
 	assert.Equal(t, "", GetCommandExtension(peer), "peer grouping has no handler")
 	assert.Equal(t, gyang.TSFalse, peer.Config)
-	assert.Equal(t, "ze-bgp:peer-list", GetCommandExtension(peer.Dir["list"]))
 	assert.Equal(t, "ze-bgp:peer-teardown", GetCommandExtension(peer.Dir["teardown"]))
 	assert.Equal(t, "ze-bgp:peer-pause", GetCommandExtension(peer.Dir["pause"]))
 	assert.Equal(t, "ze-bgp:peer-resume", GetCommandExtension(peer.Dir["resume"]))
@@ -553,9 +550,6 @@ func TestBuildCommandTree(t *testing.T) {
 	assert.Equal(t, "Peer lifecycle and flow control operations", peer.Description, "peer grouping gets YANG description")
 	assert.Equal(t, "", peer.WireMethod, "peer grouping has no WireMethod")
 
-	// From ze-peer-cmd -- verify WireMethod on merged leaves
-	require.NotNil(t, peer.Children["list"], "peer.list from ze-peer-cmd")
-	assert.Equal(t, "ze-bgp:peer-list", peer.Children["list"].WireMethod)
 	assert.Nil(t, peer.Children["add"], "peer.add moved to set verb")
 
 	// From ze-raw-cmd
@@ -574,10 +568,7 @@ func TestBuildCommandTree(t *testing.T) {
 	require.NotNil(t, clearNode.Children["soft"], "peer.clear.soft from ze-refresh-cmd")
 	assert.Equal(t, "ze-bgp:peer-clear-soft", clearNode.Children["soft"].WireMethod)
 
-	// "summary" from ze-peer-cmd (top-level, not under peer)
-	summary := tree.Children["summary"]
-	require.NotNil(t, summary, "summary should exist")
-	assert.Equal(t, "ze-bgp:summary", summary.WireMethod)
+	assert.Nil(t, tree.Children["summary"])
 }
 
 // TestBuildCommandTreeEmpty verifies BuildCommandTree handles no -cmd modules.

@@ -98,7 +98,7 @@ printf 'operator\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ZE_DI
 # Test 1 (baseline): super-admin path with env password (zefs hash != YANG hash
 # because they were generated with different bcrypt salts; env password sends
 # plaintext which both code paths accept).
-OUTPUT=$(ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer list" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp peer list" 2>&1) || {
 	echo "FAIL: super-admin baseline failed" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
@@ -108,7 +108,7 @@ echo "OK: super-admin baseline" >&2
 # Test 2 (AC-9): --user alice with ze.ssh.password env.
 # Capture the daemon log size so we can assert the next "auth success" line is alice.
 DLOG_BEFORE=$(wc -c < daemon.log)
-OUTPUT=$(ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="testpass" ze cli --user alice -c "peer list" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="testpass" ze cli --user alice -c "show bgp peer list" 2>&1) || {
 	echo "FAIL: ze cli --user alice should authenticate (env password)" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	cat daemon.log >&2
@@ -129,7 +129,7 @@ echo "OK: --user alice authenticated and was identified as alice" >&2
 
 # Test 3 (AC-12): -u short flag is identical to --user.
 DLOG_BEFORE=$(wc -c < daemon.log)
-OUTPUT=$(ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="testpass" ze cli -u alice -c "peer list" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="testpass" ze cli -u alice -c "show bgp peer list" 2>&1) || {
 	echo "FAIL: ze cli -u alice (short flag) should authenticate" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
@@ -143,7 +143,7 @@ fi
 echo "OK: -u alice authenticated as alice" >&2
 
 # Test 4 (AC-7): wrong password is rejected. Expect non-zero exit.
-if ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="wrongpass" ze cli --user alice -c "peer list" >/dev/null 2>&1; then
+if ZE_CONFIG_DIR="$ZE_DIR" ZE_SSH_PASSWORD="wrongpass" ze cli --user alice -c "show bgp peer list" >/dev/null 2>&1; then
 	echo "FAIL: wrong password should NOT authenticate" >&2
 	exit 1
 fi

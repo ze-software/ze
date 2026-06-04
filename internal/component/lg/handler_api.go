@@ -36,7 +36,7 @@ func (s *LGServer) handleAPIStatus(w http.ResponseWriter, _ *http.Request) {
 
 // handleAPIProtocols returns the peer list in birdwatcher format (GET /api/looking-glass/protocols/bgp).
 func (s *LGServer) handleAPIProtocols(w http.ResponseWriter, _ *http.Request) {
-	result := s.query("summary")
+	result := s.query("show bgp summary")
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -50,7 +50,7 @@ func (s *LGServer) handleAPIProtocols(w http.ResponseWriter, _ *http.Request) {
 
 // handleAPIProtocolsShort returns short protocol status in birdwatcher format.
 func (s *LGServer) handleAPIProtocolsShort(w http.ResponseWriter, _ *http.Request) {
-	result := s.query("summary")
+	result := s.query("show bgp summary")
 
 	zeData := parseJSON(result)
 	if zeData == nil {

@@ -65,7 +65,7 @@ func usage() {
 			"ze yang tree --config",
 			"ze yang tree --json",
 			"ze yang doc --list",
-			`ze yang doc "peer list"`,
+			`ze yang doc "show bgp peer list"`,
 		},
 	}
 	p.Write()

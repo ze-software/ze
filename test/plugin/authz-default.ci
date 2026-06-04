@@ -54,7 +54,7 @@ system {
 				default-action deny
 				entry 10 {
 					action allow
-					match "peer list"
+					match "show bgp peer list"
 				}
 			}
 			edit {
@@ -110,12 +110,12 @@ printf 'unknown\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$UNK_DI
 
 # Test 1: unknown user (no profile assignment) is DENIED when other assignments exist
 # Store.Authorize returns Deny for unassigned users when assignments are configured (fail closed)
-OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer list" 2>&1) && {
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp peer list" 2>&1) && {
 	echo "FAIL: unknown user should be denied (fail closed) but was allowed" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
 }
-echo "OK: unknown user denied peer list (fail closed)" >&2
+echo "OK: unknown user denied show bgp peer list (fail closed)" >&2
 
 # Test 2: unknown user also denied on other commands
 OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer detail" 2>&1) && {

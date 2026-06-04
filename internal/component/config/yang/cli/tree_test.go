@@ -50,10 +50,9 @@ func TestUnifiedTreeCommandNodes(t *testing.T) {
 	require.True(t, ok, "peer should be in unified tree from commands")
 	assert.Contains(t, peer.Source, SourceCommand)
 
-	// peer > list should exist
-	list, ok := peer.Children["list"]
-	require.True(t, ok, "peer > list should exist")
-	assert.Equal(t, SourceCommand, list.Source)
+	teardown, ok := peer.Children["teardown"]
+	require.True(t, ok, "peer > teardown should exist")
+	assert.Equal(t, SourceCommand, teardown.Source)
 }
 
 // VALIDATES: AC-12 -- cross-domain nodes tagged as SourceBoth.
@@ -198,12 +197,12 @@ func TestAllRPCDocsHaveParams(t *testing.T) {
 	docs, err := AllRPCDocs()
 	require.NoError(t, err)
 
-	// "peer list" has a "selector" input parameter in ze-bgp-api.yang
+	// "show bgp peer list" has a "selector" input parameter in ze-bgp-api.yang
 	for _, d := range docs {
-		if d.CLICommand != "peer list" {
+		if d.CLICommand != "show bgp peer list" {
 			continue
 		}
-		assert.NotEmpty(t, d.Input, "peer list should have input parameters")
+		assert.NotEmpty(t, d.Input, "show bgp peer list should have input parameters")
 		found := false
 		for _, leaf := range d.Input {
 			if leaf.Name == "selector" {
@@ -211,10 +210,10 @@ func TestAllRPCDocsHaveParams(t *testing.T) {
 				break
 			}
 		}
-		assert.True(t, found, "peer list should have 'selector' input parameter")
+		assert.True(t, found, "show bgp peer list should have 'selector' input parameter")
 		return
 	}
-	t.Fatal("peer list not found in docs")
+	t.Fatal("show bgp peer list not found in docs")
 }
 
 // PREVENTS: SourceBoth merge logic not working when command node precedes config node.

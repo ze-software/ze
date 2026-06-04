@@ -121,7 +121,7 @@ replies:
 
 ```
 # Stdin lines (in order)
-elicit-accept {"command":"peer list"}
+elicit-accept {"command":"show bgp peer list"}
 @ze_execute {"command":""}
 ```
 

@@ -101,7 +101,7 @@ func TestRunTreeCommandsConfigConflict(t *testing.T) {
 
 // PREVENTS: doc with specific command crash through CLI dispatch.
 func TestRunDocSpecificCommand(t *testing.T) {
-	code := Run([]string{"doc", "peer", "list"})
+	code := Run([]string{"doc", "show", "bgp", "peer", "list"})
 	assert.Equal(t, 0, code)
 }
 

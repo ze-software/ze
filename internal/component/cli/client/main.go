@@ -93,7 +93,7 @@ func usage() {
 		Examples: []string{
 			"ze cli                           Interactive BGP CLI",
 			"ze cli bgp                       Interactive BGP CLI (explicit)",
-			`ze cli -c "peer list"            Execute command and exit`,
+			`ze cli -c "show bgp peer list"   Execute command and exit`,
 			`ze cli -c "show version"         One-shot command`,
 		},
 	}

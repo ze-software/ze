@@ -44,18 +44,18 @@ func TestWordsShowProducesOutput(t *testing.T) {
 
 func TestWordsDeepPath(t *testing.T) {
 	var buf bytes.Buffer
-	code := writeWords(&buf, []string{"show", "peer"})
+	code := writeWords(&buf, []string{"show", "bgp", "peer"})
 	if code != 0 {
 		t.Fatalf("expected exit 0, got %d", code)
 	}
 
 	output := buf.String()
 	if output == "" {
-		t.Fatal("expected non-empty output for 'show peer' subcommands")
+		t.Fatal("expected non-empty output for 'show bgp peer' subcommands")
 	}
 
 	if !strings.Contains(output, "list\t") {
-		t.Errorf("expected 'list' in peer subcommands, got: %s", output)
+		t.Errorf("expected 'list' in show bgp peer subcommands, got: %s", output)
 	}
 }
 

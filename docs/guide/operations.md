@@ -113,8 +113,8 @@ fi
 ### Peer Health
 
 ```bash
-ze cli -c "peer list"       # brief peer list with state
-ze cli -c "bgp summary"    # summary table with uptime and prefix counts
+ze cli -c "show bgp peer list"  # brief peer list with state
+ze cli -c "show bgp summary"   # summary table with uptime and prefix counts
 ```
 
 ## Environment Variables
@@ -364,8 +364,8 @@ For bug reports, collect:
 ze --version                   # ze version
 ze config validate config.conf        # config validity
 ze status                      # daemon state
-ze cli -c "peer list"       # peer states
-ze cli -c "bgp summary"    # session summary
+ze cli -c "show bgp peer list"  # peer states
+ze cli -c "show bgp summary"   # session summary
 ze env list -v                 # effective configuration
 ze signal quit                 # goroutine dump (kills daemon!)
 ```

@@ -48,11 +48,11 @@ system {
 				default-action deny
 				entry 10 {
 					action allow
-					match "peer list"
+					match "show bgp peer list"
 				}
 				entry 20 {
 					action allow
-					match "summary"
+					match "show bgp summary"
 				}
 			}
 			edit {

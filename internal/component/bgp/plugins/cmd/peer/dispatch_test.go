@@ -19,11 +19,11 @@ func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandCo
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPPeerList verifies "peer list" dispatches through init() registration.
+// TestDispatchPeerListRequiresShowVerb verifies "peer list" requires the show verb.
 //
-// VALIDATES: Dispatch chain reaches handleBgpPeerList via injected init() registration.
-// PREVENTS: init() registration registration silently failing for peer list.
-func TestDispatchBGPPeerList(t *testing.T) {
+// VALIDATES: Read commands use verb-first grammar (show bgp peer list).
+// PREVENTS: Noun-first read commands bypassing the verb-first grammar.
+func TestDispatchPeerListRequiresShowVerb(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished, Uptime: time.Minute},
@@ -31,16 +31,8 @@ func TestDispatchBGPPeerList(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer list")
-	require.NoError(t, err)
-	assert.Equal(t, plugin.StatusDone, resp.Status)
-
-	data, ok := resp.Data.(plugin.Map)
-	require.True(t, ok)
-	peers, ok := data["peers"].(map[string]any)
-	require.True(t, ok)
-	assert.Len(t, peers, 1)
-	assert.Contains(t, peers, "192.0.2.1")
+	_, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer list")
+	require.Error(t, err, "read commands require show verb")
 }
 
 // TestDispatchBGPPeerDetail verifies peer detail dispatches through init() registration.
@@ -69,7 +61,7 @@ func TestDispatchShowSummary(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show summary")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp summary")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -204,8 +196,8 @@ func TestDispatchBGPPeerTeardown(t *testing.T) {
 func TestDispatchBGPNilReactor(t *testing.T) {
 	ctx := newDispatchContext(nil)
 
-	// Peer list calls RequireReactor
-	_, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer list")
+	// show bgp peer list calls RequireReactor
+	_, err := ctx.Server.Dispatcher().Dispatch(ctx, "show bgp peer list")
 	require.Error(t, err)
 }
 

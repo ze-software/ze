@@ -202,9 +202,6 @@ func TestCommandTree(t *testing.T) {
 		t.Fatal("peer command missing")
 		return
 	}
-	if _, ok := peer.Children["list"]; !ok {
-		t.Error("peer missing list subcommand")
-	}
 	if _, ok := peer.Children["teardown"]; !ok {
 		t.Error("peer missing teardown subcommand")
 	}
@@ -213,6 +210,9 @@ func TestCommandTree(t *testing.T) {
 		return
 	}
 	showPeer := show.Children["bgp"].Children["peer"]
+	if _, ok := showPeer.Children["list"]; !ok {
+		t.Error("show bgp peer missing list subcommand")
+	}
 	if _, ok := showPeer.Children["detail"]; !ok {
 		t.Error("show bgp peer missing detail subcommand")
 	}
