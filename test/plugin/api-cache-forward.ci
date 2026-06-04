@@ -35,7 +35,7 @@ def main():
     try:
         # Forward with a non-existent cache ID -- proves the handler is wired
         # and reachable even though no cached messages exist
-        result = dispatch(api, 'cache 999 forward 127.0.0.1')
+        result = dispatch(api, 'request cache forward 999 127.0.0.1')
         # Expected: error (no such cache entry) or done (empty forward)
         status = result.get('status', '')
         print(f'cache forward status={status}', file=sys.stderr)

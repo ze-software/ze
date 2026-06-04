@@ -17,18 +17,30 @@ func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandCo
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPCacheList verifies "cache list" dispatches through init() registration.
+// TestDispatchShowCache verifies "show cache" dispatches through init() registration.
 //
-// VALIDATES: Dispatch chain reaches handleBgpCache via injected init() registration.
-// PREVENTS: Cache handler not registered in dispatcher.
-func TestDispatchBGPCacheList(t *testing.T) {
+// VALIDATES: Dispatch chain reaches handleCacheListRPC via init() registration.
+// PREVENTS: Cache list handler not registered in dispatcher.
+func TestDispatchShowCache(t *testing.T) {
 	ctx := newDispatchContext(&mockReactor{})
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "cache list")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "show cache")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	data, ok := resp.Data.(plugin.Map)
 	require.True(t, ok)
 	assert.Equal(t, 0, data["count"])
+}
+
+// TestDispatchRequestCacheRetain verifies "request cache retain" dispatches.
+func TestDispatchRequestCacheRetain(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newDispatchContext(reactor)
+
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "request cache retain 42")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	require.Len(t, reactor.retainedIDs, 1)
+	assert.Equal(t, uint64(42), reactor.retainedIDs[0])
 }

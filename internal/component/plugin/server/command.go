@@ -94,7 +94,7 @@ func IsReadOnlyPath(path string) bool {
 	case "show", "monitor", "resolve", "validate",
 		// Legacy noun-first forms still in YANG tree (not yet migrated).
 		"help", "command", "event",
-		"system", "plugin", verbRIB, "cache",
+		"system", "plugin", verbRIB,
 		"subscribe", "unsubscribe":
 		return true
 	case "daemon":

@@ -316,7 +316,6 @@ func TestSimpleCmdModules(t *testing.T) {
 		container  string
 		wireMethod string
 	}{
-		{"cache", cmdPluginBase + "cmd/cache/schema/ze-cli-cache-cmd.yang", "ze-cli-cache-cmd", "cache", "ze-bgp:cache"},
 		{"commit", cmdPluginBase + "cmd/commit/schema/ze-cli-commit-cmd.yang", "ze-cli-commit-cmd", "commit", "ze-bgp:commit"},
 		{"subscribe", cmdBase + "subscribe/schema/ze-cli-subscribe-cmd.yang", "ze-cli-subscribe-cmd", "subscribe", "ze-bgp:subscribe"},
 	}
@@ -548,11 +547,11 @@ func TestBuildCommandTree(t *testing.T) {
 	tree := BuildCommandTree(loader)
 	require.NotNil(t, tree)
 
-	// "cache" from ze-cli-cache-cmd
-	cache := tree.Children["cache"]
-	require.NotNil(t, cache, "cache should exist")
-	assert.Equal(t, "Manage cached BGP UPDATE messages.\nActions: list (show cached entries), retain (hold a message),\nrelease (free a retained message), expire (force eviction),\nforward (send a cached message to peers). Grammar: cache <action>\n<id> [args].", cache.Description)
-	assert.Equal(t, "ze-bgp:cache", cache.WireMethod)
+	// "cache" moved under show and request verbs from ze-cli-cache-cmd
+	assert.Nil(t, tree.Children["cache"])
+	showCache := tree.Children["show"].Children["cache"]
+	require.NotNil(t, showCache, "show > cache should exist")
+	assert.Equal(t, "ze-bgp:cache-list", showCache.WireMethod)
 
 	// "peer" merged from 3 modules
 	peer := tree.Children["peer"]
