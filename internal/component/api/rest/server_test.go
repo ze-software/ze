@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -118,7 +119,8 @@ func doWithHeader(t *testing.T, srv *RESTServer, method, path, body string, head
 
 // fakeEditor implements api.ConfigEditor for testing.
 type fakeEditor struct {
-	values map[string]string
+	values           map[string]string
+	committedContent string
 }
 
 func (e *fakeEditor) SetValue(path []string, key, value string) error {
@@ -141,16 +143,36 @@ func (e *fakeEditor) Diff() string {
 	}
 	return b.String()
 }
-
-func (e *fakeEditor) Save() error { return nil }
+func (e *fakeEditor) Save() error {
+	e.committedContent = e.WorkingContent()
+	return nil
+}
 func (e *fakeEditor) StageCandidate(time.Time) (string, string, error) {
 	return e.WorkingContent(), "test-version", nil
 }
-func (e *fakeEditor) MarkCommittedContent(string)         {}
+func (e *fakeEditor) MarkCommittedContent(content string) { e.committedContent = content }
 func (e *fakeEditor) RestoreOriginalContent(string) error { return nil }
 func (e *fakeEditor) Discard() error                      { e.values = make(map[string]string); return nil }
 func (e *fakeEditor) OriginalContent() string             { return "# original\n" }
-func (e *fakeEditor) WorkingContent() string              { return "# config\n" }
+func (e *fakeEditor) WorkingContent() string {
+	if len(e.values) == 0 {
+		return "# config\n"
+	}
+	keys := make([]string, 0, len(e.values))
+	for key := range e.values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	b.WriteString("# config\n")
+	for _, key := range keys {
+		b.WriteString(key)
+		b.WriteString(" = ")
+		b.WriteString(e.values[key])
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
 
 type denyAllAuthorizer struct {
 	username string
@@ -325,8 +347,10 @@ func TestRESTConfigSession(t *testing.T) {
 	engine := testEngine()
 	openAPI, err := api.OpenAPISchema(engine.ListCommands(&api.ListCommandsRequest{}))
 	require.NoError(t, err)
+	var editor *fakeEditor
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
-		return &fakeEditor{values: make(map[string]string)}, nil
+		editor = &fakeEditor{values: make(map[string]string)}
+		return editor, nil
 	})
 	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}, Token: "secret"}, engine, sessions, func() []byte { return openAPI })
 	require.NoError(t, err)
@@ -354,6 +378,8 @@ func TestRESTConfigSession(t *testing.T) {
 	r = doWithHeader(t, srv, "POST", "/api/v1/config/sessions/"+id+"/commit", "", headers)
 	assert.Equal(t, http.StatusOK, r.Status)
 	assert.Contains(t, r.Body, "committed")
+	require.NotNil(t, editor)
+	assert.Contains(t, editor.committedContent, "bgp.router-id = 10.0.0.1")
 }
 
 // VALIDATES: config session writes consult profile RBAC for authenticated users.

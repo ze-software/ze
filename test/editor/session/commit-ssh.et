@@ -1,0 +1,40 @@
+# Test: SSH-origin session commits config edit
+# VALIDATES: SSH-origin config edit session applies set command and commit to config file
+# PREVENTS: SSH sessions carrying identity but failing to persist committed edits
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+session=alice:user=alice,origin=ssh
+
+# Initial state clean
+expect=dirty:false
+
+# Set a value through the same editor command path used by SSH sessions
+input=type:text=set bgp session asn local 65001
+input=enter
+expect=dirty:true
+expect=error:none
+expect=file:path=test.conf.change.alice:contains=#alice @ssh
+
+# Commit the change
+input=type:text=commit
+input=enter
+expect=dirty:false
+expect=error:none
+expect=status:contains=committed
+
+# Verify committed config changed and per-session draft state was removed
+expect=file:path=test.conf:contains=65001
+expect=file:path=test.conf.change.alice:absent
+expect=file:path=test.conf.draft:absent
