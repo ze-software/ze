@@ -78,6 +78,11 @@ func runInit(args []string) int {
 		return exitError
 	}
 
+	pw, owned := openPromptWriter()
+	if owned {
+		defer pw.Close() //nolint:errcheck // prompt tty close
+	}
+
 	var cfg ApplianceConfig
 	if *configFile != "" {
 		loaded, err := LoadConfig(*configFile)
@@ -93,7 +98,7 @@ func runInit(args []string) int {
 	} else {
 		cfg = DefaultConfig(name)
 		cfg.Managed = *managedFlag
-		if err := promptConfig(&cfg, os.Stdin, os.Stderr); err != nil {
+		if err := promptConfig(&cfg, os.Stdin, pw); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return exitError
 		}
@@ -120,13 +125,13 @@ func runInit(args []string) int {
 		}
 	}()
 
-	password := readPasswordValue(&cfg)
+	password := readPasswordValue(&cfg, pw)
 	if password == "" {
 		fmt.Fprintf(os.Stderr, "error: password is required\n")
 		return exitError
 	}
 
-	passphrase := readPassphraseForInit()
+	passphrase := readPassphraseForInit(pw)
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -220,7 +225,7 @@ func promptConfig(cfg *ApplianceConfig, r io.Reader, w io.Writer) error {
 
 func prompt(scanner *bufio.Scanner, w io.Writer, text string) string {
 	if w != nil {
-		fmt.Fprint(w, text) //nolint:errcheck // prompt output to stderr
+		fmt.Fprint(w, text) //nolint:errcheck // interactive prompt
 	}
 	if scanner.Scan() {
 		return scanner.Text()
@@ -228,7 +233,7 @@ func prompt(scanner *bufio.Scanner, w io.Writer, text string) string {
 	return ""
 }
 
-func readPasswordValue(_ *ApplianceConfig) string {
+func readPasswordValue(_ *ApplianceConfig, pw io.Writer) string {
 	if envPass := env.Get(sshPasswordKey); envPass != "" {
 		fmt.Fprintf(os.Stderr, "WARNING: password from environment variable\n")
 		return envPass
@@ -236,16 +241,16 @@ func readPasswordValue(_ *ApplianceConfig) string {
 	if !isTerminal(os.Stdin) {
 		return ""
 	}
-	fmt.Fprint(os.Stderr, "SSH password: ")
+	fmt.Fprint(pw, "SSH password: ") //nolint:errcheck // interactive prompt
 	pass, err := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(pw) //nolint:errcheck // newline after hidden input
 	if err != nil {
 		return ""
 	}
 	return string(pass)
 }
 
-func readPassphraseForInit() []byte {
+func readPassphraseForInit(pw io.Writer) []byte {
 	if !isTerminal(os.Stdin) {
 		if envPass := env.Get(passphraseKey); envPass != "" {
 			fmt.Fprintf(os.Stderr, "WARNING: passphrase from environment variable (not recommended for production)\n")
@@ -253,9 +258,9 @@ func readPassphraseForInit() []byte {
 		}
 		return nil
 	}
-	fmt.Fprint(os.Stderr, "Encryption passphrase (empty for no encryption): ")
+	fmt.Fprint(pw, "Encryption passphrase (empty for no encryption): ") //nolint:errcheck // interactive prompt
 	pass, err := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(pw) //nolint:errcheck // newline after hidden input
 	if err != nil || len(pass) == 0 {
 		return nil
 	}
@@ -301,6 +306,16 @@ func isTerminal(f *os.File) bool {
 	return term.IsTerminal(int(f.Fd()))
 }
 
+// openPromptWriter opens /dev/tty for prompt output, bypassing any
+// stdout/stderr redirection. Falls back to stderr when unavailable.
+func openPromptWriter() (io.WriteCloser, bool) {
+	f, err := os.OpenFile("/dev/tty", os.O_WRONLY, 0)
+	if err != nil {
+		return os.Stderr, false
+	}
+	return f, true
+}
+
 type batchEntry struct {
 	Name              string   `json:"name"`
 	Hostname          string   `json:"hostname"`
@@ -328,7 +343,12 @@ func runBatchInit(manifestPath string) int {
 	}
 
 	dir := getBaseDir()
-	passphrase := readPassphraseForInit()
+
+	pw, owned := openPromptWriter()
+	if owned {
+		defer pw.Close() //nolint:errcheck // prompt tty close
+	}
+	passphrase := readPassphraseForInit(pw)
 
 	succeeded, failed := 0, 0
 	for _, entry := range entries {
