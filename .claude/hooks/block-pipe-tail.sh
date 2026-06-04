@@ -13,11 +13,17 @@ if [[ "$COMMAND" == *"| tail"* ]]; then
     exit 2
 fi
 
-# Block piping make ze-* commands through grep/head/tail instead of capturing to file
+# Block piping make ze-* commands through lossy filters (grep/head/tail/awk/sed).
+# Allow: | tee <file> (non-lossy, writes to file and passes all output through).
 if [[ "$COMMAND" =~ make\ ze-.*\| ]]; then
-    echo "❌ Blocked: piping make ze-* output" >&2
-    echo "  -- Use: make ze-verify (auto-captures to tmp/ze-verify.log)" >&2
-    echo "  -- Then: grep -E 'FAIL|TEST FAILURE' tmp/ze-verify.log" >&2
+    AFTER_PIPE="${COMMAND##*|}"
+    if [[ "$AFTER_PIPE" =~ ^[[:space:]]*tee[[:space:]] ]]; then
+        exit 0
+    fi
+    echo "❌ Blocked: piping make ze-* output through a lossy filter" >&2
+    echo "  -- Use: make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-\$\$.log" >&2
+    echo "  -- Or:  make ze-verify 2>&1 | tee tmp/ze-verify-\$\$.log" >&2
+    echo "  -- Then: Read the log with offset/limit" >&2
     exit 2
 fi
 

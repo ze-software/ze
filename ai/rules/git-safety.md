@@ -42,14 +42,42 @@ committing the file's current state (see Spec Closure in planning rules).
 
 **Helper format:**
 ```bash
+# Single commit (most common):
 scripts/dev/commit_helper.py create \
   --replace \
-  --subject "type: subject line" \
-  --body "Body explaining why." \
-  --file file1.go \
-  --file file2.go \
-  --file file3_test.go
+  --subject "hook: allow tee pipe, per-session log paths" \
+  --body "Explanation of why the change was made." \
+  --file .claude/hooks/block-pipe-tail.sh \
+  --file ai/rules/bash-output.md \
+  --lesson-not-needed "hook fix, no novel pattern"
+
+# Second commit in the same script:
+scripts/dev/commit_helper.py create \
+  --append \
+  --subject "feat: add widget support" \
+  --body "Implements widget rendering for the dashboard." \
+  --file internal/component/web/widget.go \
+  --file internal/component/web/widget_test.go
+
+# Spec closure (remove spec file):
+scripts/dev/commit_helper.py create \
+  --append \
+  --subject "spec: close spec-widget" \
+  --remove plan/spec-widget.md
+
+# With a learned summary:
+scripts/dev/commit_helper.py create \
+  --replace \
+  --subject "rules: add goroutine lifecycle rule" \
+  --file ai/rules/goroutine-lifecycle.md \
+  --file plan/learned/042-goroutine-lifecycle.md \
+  --file plan/learned/.counter
 ```
+
+Key flags: `--replace` for the first commit in a session, `--append`
+for subsequent commits. `--file` per path to add, `--remove` per
+tracked path to delete. `--lesson-not-needed "<reason>"` when no
+learned summary applies; `--lesson-required` to enforce one.
 Body lines are wrapped to 72 characters. Subjects are single-line and
 must be at most 72 characters.
 
@@ -60,7 +88,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 # Commit a: type: subject line
-# Lesson: plan/learned/NNN-name.md
+# Lesson: not needed - hook fix, no novel pattern
 git add -- \
   file1.go \
   file2.go \
