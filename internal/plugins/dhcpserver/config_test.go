@@ -2,6 +2,7 @@ package dhcpserver
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 )
 
@@ -408,6 +409,46 @@ func TestParsePXEConfig(t *testing.T) {
 	}
 }
 
+func TestParsePXEConfigBootScriptURL(t *testing.T) {
+	t.Parallel()
+
+	data := `{
+		"service": {
+			"dhcp-server": {
+				"enabled": "true",
+				"listen-interface": ["eth0"],
+				"pxe": {
+					"enabled": "true",
+					"tftp-server": "192.168.1.1",
+					"bootfile-bios": "ipxe.pxe",
+					"bootfile-uefi": "ipxe.efi",
+					"boot-script-url": "http://192.168.1.1/install/boot/boot.ipxe"
+				},
+				"shared-network": {
+					"LAN": {
+						"subnet": {
+							"192.168.1.0/24": {
+								"range": {
+									"start": "192.168.1.100",
+									"stop": "192.168.1.200"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	cfg, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+	if cfg.PXE.BootScriptURL != "http://192.168.1.1/install/boot/boot.ipxe" {
+		t.Errorf("PXE boot-script-url = %q, want http://192.168.1.1/install/boot/boot.ipxe", cfg.PXE.BootScriptURL)
+	}
+}
+
 func TestParsePXEConfigMissing(t *testing.T) {
 	t.Parallel()
 
@@ -435,6 +476,18 @@ func TestParsePXEConfigInvalid(t *testing.T) {
 		{
 			name: "IPv6 tftp-server",
 			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"::1"}}}}`,
+		},
+		{
+			name: "boot-script-url with ftp scheme",
+			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"192.168.1.1","bootfile-bios":"ipxe.pxe","bootfile-uefi":"ipxe.efi","boot-script-url":"ftp://192.168.1.1/boot.ipxe"}}}}`,
+		},
+		{
+			name: "boot-script-url bare path",
+			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"192.168.1.1","bootfile-bios":"ipxe.pxe","bootfile-uefi":"ipxe.efi","boot-script-url":"/install/boot/boot.ipxe"}}}}`,
+		},
+		{
+			name: "boot-script-url exceeds DHCP option length",
+			data: `{"service":{"dhcp-server":{"pxe":{"enabled":"true","tftp-server":"192.168.1.1","bootfile-bios":"ipxe.pxe","bootfile-uefi":"ipxe.efi","boot-script-url":"http://192.168.1.1/` + strings.Repeat("a", 240) + `"}}}}`,
 		},
 	}
 

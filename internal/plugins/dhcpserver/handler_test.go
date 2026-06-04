@@ -1090,3 +1090,182 @@ func TestResponseAddr(t *testing.T) {
 		})
 	}
 }
+
+func newTestPXEServerWithBootScript(t *testing.T) *dhcpHandler {
+	t.Helper()
+	sub := subnetConfig{
+		Prefix:        netip.MustParsePrefix("192.168.1.0/24"),
+		Ranges:        []addressRange{{Name: "pool", Start: netip.MustParseAddr("192.168.1.100"), Stop: netip.MustParseAddr("192.168.1.200")}},
+		LeaseTimeSec:  3600,
+		DefaultRouter: netip.MustParseAddr("192.168.1.1"),
+		DNSServers:    []netip.Addr{netip.MustParseAddr("8.8.8.8")},
+	}
+	serverIP := netip.MustParseAddr("192.168.1.1")
+	pxe := pxeConfig{
+		Enabled:       true,
+		TFTPServer:    netip.MustParseAddr("192.168.1.1"),
+		BootfileBIOS:  "ipxe.pxe",
+		BootfileUEFI:  "ipxe.efi",
+		BootScriptURL: "http://192.168.1.1/install/boot/boot.ipxe",
+	}
+	return newDHCPHandler(sub, serverIP, pxe)
+}
+
+func buildIPXEDiscover(mac net.HardwareAddr, xid uint32, arch uint16) []byte {
+	pkt := make([]byte, 500)
+	pkt[0] = opRequest
+	pkt[1] = htypeEthernet
+	pkt[2] = hlenEthernet
+	binary.BigEndian.PutUint32(pkt[4:8], xid)
+	copy(pkt[28:34], mac)
+	binary.BigEndian.PutUint32(pkt[236:240], magicCookie)
+	off := 240
+	pkt[off] = optMessageType
+	pkt[off+1] = 1
+	pkt[off+2] = msgDiscover
+	off += 3
+
+	vendorClass := []byte("PXEClient:Arch:00007:UNDI:003016")
+	pkt[off] = optVendorClassID
+	pkt[off+1] = byte(len(vendorClass))
+	copy(pkt[off+2:], vendorClass)
+	off += 2 + len(vendorClass)
+
+	pkt[off] = optClientArch
+	pkt[off+1] = 2
+	binary.BigEndian.PutUint16(pkt[off+2:off+4], arch)
+	off += 4
+
+	userClass := []byte("iPXE")
+	pkt[off] = optUserClass
+	pkt[off+1] = byte(len(userClass))
+	copy(pkt[off+2:], userClass)
+	off += 2 + len(userClass)
+
+	pkt[off] = optEnd
+	return pkt
+}
+
+func TestIsIPXEClient(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		opt77 string
+		want  bool
+	}{
+		{"iPXE exact", "iPXE", true},
+		{"iPXE with version", "iPXE/1.21.1+", true},
+		{"empty", "", false},
+		{"short", "iPX", false},
+		{"different client", "MSFT 5.0", false},
+		{"case sensitive", "IPXE", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			pkt := make([]byte, 400)
+			binary.BigEndian.PutUint32(pkt[236:240], magicCookie)
+			off := 240
+			if tc.opt77 != "" {
+				pkt[off] = optUserClass
+				pkt[off+1] = byte(len(tc.opt77))
+				copy(pkt[off+2:], tc.opt77)
+				off += 2 + len(tc.opt77)
+			}
+			pkt[off] = optEnd
+
+			got := isIPXE(pkt)
+			if got != tc.want {
+				t.Errorf("isIPXE = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestPXEBootScriptForIPXE(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServerWithBootScript(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0xD1}
+	discover := buildIPXEDiscover(mac, 0xD100, 7)
+	resp := h.handle(discover)
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	opt67 := getResponseOption(resp, optBootfileName)
+	if opt67 == nil {
+		t.Fatal("missing option 67 (bootfile name)")
+	}
+	if string(opt67) != "http://192.168.1.1/install/boot/boot.ipxe" {
+		t.Errorf("option 67 = %q, want boot script URL", string(opt67))
+	}
+
+	if getResponseOption(resp, optTFTPServerName) != nil {
+		t.Error("iPXE client should not get option 66 (TFTP server)")
+	}
+
+	siaddr := netip.AddrFrom4([4]byte(resp[20:24]))
+	if siaddr != h.serverIP {
+		t.Errorf("siaddr = %v, want %v (not overwritten to TFTP for iPXE)", siaddr, h.serverIP)
+	}
+}
+
+func TestPXEBootfileForROMWithBootScriptURL(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServerWithBootScript(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0xD2}
+	discover := buildPXEDiscover(mac, 0xD200, 7)
+	resp := h.handle(discover)
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	opt67 := getResponseOption(resp, optBootfileName)
+	if opt67 == nil {
+		t.Fatal("missing option 67 (bootfile name)")
+	}
+	if string(opt67) != "ipxe.efi" {
+		t.Errorf("option 67 = %q, want ipxe.efi (TFTP bootfile for ROM client)", string(opt67))
+	}
+
+	opt66 := getResponseOption(resp, optTFTPServerName)
+	if opt66 == nil {
+		t.Fatal("missing option 66 (TFTP server)")
+	}
+
+	siaddr := netip.AddrFrom4([4]byte(resp[20:24]))
+	tftpIP := netip.MustParseAddr("192.168.1.1")
+	if siaddr != tftpIP {
+		t.Errorf("siaddr = %v, want %v (TFTP server for ROM)", siaddr, tftpIP)
+	}
+}
+
+func TestPXEBackwardCompatNoBootScriptURL(t *testing.T) {
+	t.Parallel()
+
+	h := newTestPXEServer(t)
+	defer h.leases.stop()
+
+	mac := net.HardwareAddr{0x11, 0x22, 0x33, 0x44, 0x55, 0xD3}
+	discover := buildIPXEDiscover(mac, 0xD300, 7)
+	resp := h.handle(discover)
+	if resp == nil {
+		t.Fatal("expected DHCPOFFER, got nil")
+	}
+
+	opt67 := getResponseOption(resp, optBootfileName)
+	if opt67 == nil {
+		t.Fatal("missing option 67")
+	}
+	if string(opt67) != "ipxe.efi" {
+		t.Errorf("option 67 = %q, want ipxe.efi (backward compat: no boot-script-url means TFTP bootfile for all)", string(opt67))
+	}
+}

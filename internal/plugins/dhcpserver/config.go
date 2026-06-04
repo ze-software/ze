@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 const defaultLeaseTimeSec = 86400
@@ -26,10 +27,11 @@ var (
 const maxRangesPerSubnet = 10
 
 type pxeConfig struct {
-	Enabled      bool
-	TFTPServer   netip.Addr
-	BootfileBIOS string
-	BootfileUEFI string
+	Enabled       bool
+	TFTPServer    netip.Addr
+	BootfileBIOS  string
+	BootfileUEFI  string
+	BootScriptURL string
 }
 
 type serverConfig struct {
@@ -386,6 +388,16 @@ func parsePXEConfig(dhcpMap map[string]any) (pxeConfig, error) {
 
 	if v, ok := pxeMap["bootfile-uefi"].(string); ok {
 		pxe.BootfileUEFI = v
+	}
+
+	if v, ok := pxeMap["boot-script-url"].(string); ok && v != "" {
+		if !strings.HasPrefix(v, "http://") && !strings.HasPrefix(v, "https://") {
+			return pxe, fmt.Errorf("pxe boot-script-url: must be an http:// or https:// URL")
+		}
+		if len(v) > 255 {
+			return pxe, fmt.Errorf("pxe boot-script-url: length %d exceeds DHCP option maximum 255", len(v))
+		}
+		pxe.BootScriptURL = v
 	}
 
 	if pxe.Enabled {

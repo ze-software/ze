@@ -1,0 +1,57 @@
+# iPXE chainloading: DHCP PXE config with boot-script-url validates.
+# spec-install-10 AC-11: Generated config includes boot-script-url.
+# spec-install-10 AC-12: PXE config without boot-script-url remains valid.
+stdin=config_with_url:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface eth0
+        pxe {
+            enabled true
+            tftp-server 192.168.1.1
+            bootfile-bios ipxe.pxe
+            bootfile-uefi ipxe.efi
+            boot-script-url http://192.168.1.1/install/boot/boot.ipxe
+        }
+        shared-network install {
+            subnet 192.168.1.0/24 {
+                range pool1 {
+                    start 192.168.1.100
+                    stop 192.168.1.200
+                }
+                default-router 192.168.1.1
+            }
+        }
+    }
+}
+EOF_CONF
+
+stdin=config_without_url:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface eth0
+        pxe {
+            enabled true
+            tftp-server 192.168.1.1
+            bootfile-bios ipxe.pxe
+            bootfile-uefi ipxe.efi
+        }
+        shared-network install {
+            subnet 192.168.1.0/24 {
+                range pool1 {
+                    start 192.168.1.100
+                    stop 192.168.1.200
+                }
+                default-router 192.168.1.1
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config_with_url
+expect=exit:code=0
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=config_without_url
+expect=exit:code=0

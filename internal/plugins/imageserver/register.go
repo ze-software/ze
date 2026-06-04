@@ -117,8 +117,6 @@ func runImageServerPlugin(conn net.Conn) int {
 			}
 		}
 
-		mux := newMux(cfg, zefsPath)
-
 		bindIP := ""
 		if len(cfg.ListenInterfaces) > 0 {
 			resolved, resolveErr := resolveInterfaceIPv4(cfg.ListenInterfaces[0])
@@ -129,6 +127,8 @@ func runImageServerPlugin(conn net.Conn) int {
 			}
 			bindIP = resolved
 		}
+
+		mux := newMux(cfg, zefsPath, bindIP)
 		addr := bindIP + ":" + strconv.Itoa(cfg.ListenPort)
 		httpServer = &http.Server{
 			Addr:              addr,

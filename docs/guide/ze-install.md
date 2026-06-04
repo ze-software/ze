@@ -172,60 +172,52 @@ A stock distro kernel will **not** boot the module-free initrd — it needs
 virtio/ext4/IP-autoconfig built in. The reference kernel above does; see
 [Installer Kernel](#installer-kernel).
 
-### 3. Stage the boot artifacts
-
-`ze install remote` serves from fixed directories on the provisioning device:
-
-| Artifact | Location |
-|----------|----------|
-| iPXE bootloaders (`ipxe.pxe`, `ipxe.efi`) | `/var/lib/ze/install/tftp/` |
-| installer kernel | `/var/lib/ze/install/boot/` |
-| installer initrd | `/var/lib/ze/install/boot/` |
-| disk image | path passed to `--image` (served at `/install/image/<filename>`) |
-
-The kernel command line is set by **your iPXE script** (ze does not generate
-one). After DHCP chainloads iPXE, point it at the kernel/initrd over HTTP and
-pass the installer parameters — `ze.image` must match the served image filename:
-
-```ipxe
-#!ipxe
-kernel http://${next-server}/install/boot/vmlinuz ze.server=${next-server} ze.image=ze-<timestamp>.img ip=dhcp panic=-1
-initrd http://${next-server}/install/boot/initrd.img.gz
-boot
-```
-
-Add `ze.port=<port>` only if the image server does not listen on port 80.
-
-### 4. Start the provisioning server
+### 3. Start the provisioning server
 
 On a ze device on the (isolated) provisioning network:
+<!-- source: cmd/ze/provision/main.go -- Run -->
 
 ```bash
 sudo ze install remote \
   --interface eth0 \
   --network 192.168.50.0/24 \
   --image ~/.config/ze/appliances/prod/ze-<timestamp>.img \
+  --kernel tools/installer-kernel/build/Image \
+  --initrd tools/installer-initrd/build/initrd.img.gz \
   --ssh-username admin \
   --ssh-password 'choose-a-strong-one'
 ```
 
-This runs DHCP (with PXE options), TFTP (bootloaders), and the HTTP image
-server on `eth0`. It serves the image at `/install/image/<filename>` and a
-credential `database.zefs` (generated from `--ssh-*`, password stored hashed) at
-`/install/database.zefs`. See [Remote Provisioning (PXE)](#remote-provisioning-pxe).
+`--kernel` and `--initrd` copy the installer files to `/var/lib/ze/install/boot/`.
+Stock iPXE binaries from `tools/ipxe-binaries/` are copied to
+`/var/lib/ze/install/tftp/` if not already present. If the files are already
+staged from a previous run, omit `--kernel` and `--initrd`.
+<!-- source: cmd/ze/provision/staging.go -- stageArtifacts -->
 
-### 5. Net-boot the target
+This runs DHCP (with PXE options and iPXE chainloading), TFTP (bootloaders),
+and the HTTP image server on `eth0`. It serves the image at
+`/install/image/<filename>`, a dynamically generated iPXE boot script at
+`/install/boot/boot.ipxe`, and a credential `database.zefs` (generated from
+`--ssh-*`, password stored hashed) at `/install/database.zefs`.
+See [Remote Provisioning (PXE)](#remote-provisioning-pxe).
+<!-- source: internal/plugins/imageserver/handler.go -- serveBootIPXE -->
+
+### 4. Net-boot the target
 
 Set the target firmware to network boot. It then:
 
-1. DHCPs an address and bootfile, and chainloads iPXE.
-2. iPXE loads the installer kernel + initrd with your `ze.server` / `ze.image`.
-3. The initrd downloads the image and `database.zefs`, writes the first fixed
+1. DHCPs an address and TFTP bootfile, chainloads iPXE.
+2. iPXE sends a second DHCP request; the server detects iPXE via option 77 and
+   responds with the HTTP boot script URL instead of the TFTP bootfile.
+3. iPXE fetches `boot.ipxe` from the image server, which contains the kernel
+   command line with `ze.server`, `ze.image`, and `ip=dhcp`.
+4. iPXE loads the installer kernel + initrd via HTTP and boots.
+5. The initrd downloads the image and `database.zefs`, writes the first fixed
    disk (`/dev/sda`, `/dev/nvme0n1`, `/dev/mmcblk0` ...; removable, virtual,
    optical and `mtdblock` flash devices are skipped), and reboots.
 4. The target boots ze in [bootstrap mode](#bootstrap-mode) and starts SSH.
 
-### 6. Log in and configure
+### 5. Log in and configure
 
 ```bash
 ssh admin@<target-ip>      # the password given to --ssh-password
@@ -348,6 +340,8 @@ Use `--address` to override.
 | `--ssh-username` | Yes | | Admin username for the installed target |
 | `--ssh-password` | Yes | | Admin password (bcrypt-hashed before embedding) |
 | `--address` | No | First IPv4 on interface | Server IP override |
+| `--kernel` | No | | Path to installer kernel (copied to boot directory) |
+| `--initrd` | No | | Path to installer initrd (copied to boot directory) |
 
 ### DHCP Pool
 
@@ -364,15 +358,30 @@ excluded from the pool. Examples:
 
 The DHCP server detects PXE clients via option 60 (`PXEClient:`) and
 reads option 93 (client architecture) to select the bootfile:
+<!-- source: internal/plugins/dhcpserver/handler.go -- appendPXEOptions -->
 
 | Architecture | Bootfile |
 |-------------|----------|
 | BIOS (type 0) | `ipxe.pxe` |
 | UEFI (type 6, 7, 9) | `ipxe.efi` |
 
+When the PXE client is iPXE (detected via option 77 user-class prefix "iPXE")
+and `boot-script-url` is configured, the DHCP server sends the HTTP boot script
+URL as the bootfile instead of the TFTP binary. This two-stage chainload
+(firmware -> iPXE via TFTP -> boot.ipxe via HTTP) eliminates the need for
+custom-embedded iPXE builds.
+<!-- source: internal/plugins/dhcpserver/handler.go -- isIPXE -->
+
+The image server generates `boot.ipxe` dynamically at `/install/boot/boot.ipxe`
+with the correct `ze.server`, `ze.image` (lexicographically last `.img` file),
+and `ze.port` (when not 80). A static `boot.ipxe` file in the boot directory
+takes precedence over dynamic generation for operator customization.
+<!-- source: internal/plugins/imageserver/handler.go -- serveBootIPXE -->
+
 Bootfiles are served from `/var/lib/ze/install/tftp/` via TFTP.
 The installer kernel and initrd are served from `/var/lib/ze/install/boot/`
-via HTTP.
+via HTTP. Stock iPXE binaries are bundled in `tools/ipxe-binaries/` and
+staged automatically by `ze install remote`.
 
 ### SSH Credentials
 
@@ -397,9 +406,11 @@ manually and running `ze <config-file>`.
 ### Requirements
 
 - Root privileges (DHCP, TFTP, and HTTP bind to privileged ports)
-- Bootloader files in `/var/lib/ze/install/tftp/` (iPXE binaries)
-- Installer kernel and initrd in `/var/lib/ze/install/boot/`
 - Disk image at the path specified by `--image`
+- Installer kernel and initrd: pass `--kernel` and `--initrd` on first run,
+  or pre-stage files in `/var/lib/ze/install/boot/`
+- iPXE binaries: bundled in `tools/ipxe-binaries/`, auto-staged to
+  `/var/lib/ze/install/tftp/` if not present
 
 ### Shutdown
 

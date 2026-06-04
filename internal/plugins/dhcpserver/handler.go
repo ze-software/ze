@@ -53,6 +53,7 @@ const (
 	optVendorClassID  = 60
 	optTFTPServerName = 66
 	optBootfileName   = 67
+	optUserClass      = 77
 	optClientArch     = 93
 	optEnd            = 255
 )
@@ -291,6 +292,12 @@ func (h *dhcpHandler) appendPXEOptions(req, resp []byte, off, limit int) int {
 		return off
 	}
 
+	if h.pxe.BootScriptURL != "" && isIPXE(req) {
+		off = safeAppendOption(resp, off, limit, optVendorClassID, []byte("PXEClient"))
+		off = safeAppendOption(resp, off, limit, optBootfileName, []byte(h.pxe.BootScriptURL))
+		return off
+	}
+
 	arch := parsePXEArch(req)
 	bootfile := h.pxe.BootfileBIOS
 	if arch == pxeArchUEFIx64 {
@@ -433,6 +440,11 @@ func parseOptionBytes(pkt []byte, code byte) []byte {
 func isPXEClient(pkt []byte) bool {
 	opt60 := parseOptionBytes(pkt, optVendorClassID)
 	return len(opt60) >= 10 && string(opt60[:10]) == "PXEClient:"
+}
+
+func isIPXE(pkt []byte) bool {
+	opt77 := parseOptionBytes(pkt, optUserClass)
+	return len(opt77) >= 4 && string(opt77[:4]) == "iPXE"
 }
 
 // RFC 4578 Section 2.1: option 93 contains one or more 2-byte architecture types.

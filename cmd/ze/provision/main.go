@@ -34,6 +34,8 @@ func Run(args []string) int {
 	sshUser := fs.String("ssh-username", "", "Admin username for installed target")
 	sshPass := fs.String("ssh-password", "", "Admin password for installed target (bcrypt-hashed before use)")
 	address := fs.String("address", "", "Override server IP (default: first IPv4 on interface)")
+	kernel := fs.String("kernel", "", "Path to installer kernel (staged to boot directory)")
+	initrd := fs.String("initrd", "", "Path to installer initrd (staged to boot directory)")
 
 	fs.Usage = func() { usage() }
 
@@ -57,31 +59,51 @@ func Run(args []string) int {
 		return 1
 	}
 
+	ipxeDir := locateIPXEDir()
+	sc := stagingConfig{
+		KernelPath: *kernel,
+		InitrdPath: *initrd,
+		IPXEDir:    ipxeDir,
+	}
+	if stageErr := stageArtifacts(sc); stageErr != nil {
+		fmt.Fprintf(os.Stderr, "error: staging: %v\n", stageErr)
+		return 1
+	}
+
+	if valErr := validateStaging(sc); valErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", valErr)
+		return 1
+	}
+
 	hash, hashErr := hashPassword(*sshPass)
 	if hashErr != nil {
 		fmt.Fprintf(os.Stderr, "error: hashing password: %v\n", hashErr)
 		return 1
 	}
 
+	bootScriptURL := "http://" + serverIP + "/install/boot/boot.ipxe"
+
 	cfg := generateConfig(configParams{
-		iface:       *iface,
-		network:     *network,
-		image:       *image,
-		serverIP:    serverIP,
-		sshUsername: *sshUser,
-		sshPassHash: hash,
+		iface:         *iface,
+		network:       *network,
+		image:         *image,
+		serverIP:      serverIP,
+		sshUsername:   *sshUser,
+		sshPassHash:   hash,
+		bootScriptURL: bootScriptURL,
 	})
 
 	return forkAndServe(cfg)
 }
 
 type configParams struct {
-	iface       string
-	network     string
-	image       string
-	serverIP    string
-	sshUsername string
-	sshPassHash string
+	iface         string
+	network       string
+	image         string
+	serverIP      string
+	sshUsername   string
+	sshPassHash   string
+	bootScriptURL string
 }
 
 func generateConfig(p configParams) string {
@@ -121,6 +143,11 @@ func generateConfig(p configParams) string {
 	b.WriteString(";\n")
 	b.WriteString("            bootfile-bios ipxe.pxe;\n")
 	b.WriteString("            bootfile-uefi ipxe.efi;\n")
+	if p.bootScriptURL != "" {
+		b.WriteString("            boot-script-url ")
+		b.WriteString(p.bootScriptURL)
+		b.WriteString(";\n")
+	}
 	b.WriteString("        }\n")
 	b.WriteString("    }\n")
 
@@ -399,6 +426,8 @@ func usage() {
 			}},
 			{Title: "Optional flags", Entries: []helpfmt.HelpEntry{
 				{Name: "--address", Desc: "Override server IP (default: first IPv4 on --interface)"},
+				{Name: "--kernel", Desc: "Path to installer kernel (copied to boot directory)"},
+				{Name: "--initrd", Desc: "Path to installer initrd (copied to boot directory)"},
 			}},
 		},
 		Examples: []string{

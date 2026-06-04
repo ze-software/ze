@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -57,7 +58,7 @@ func newTestMux(t *testing.T) *http.ServeMux {
 		ImageDirectory: imageDir,
 		BootDirectory:  bootDir,
 	}
-	return newMux(cfg, "")
+	return newMux(cfg, "", "127.0.0.1")
 }
 
 func TestServeImage(t *testing.T) {
@@ -266,7 +267,7 @@ func TestServeZefsDB(t *testing.T) {
 		ImageDirectory: imageDir,
 		BootDirectory:  bootDir,
 	}
-	mux := newMux(cfg, zefsPath)
+	mux := newMux(cfg, zefsPath, "127.0.0.1")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -360,7 +361,7 @@ func TestServeZefsDBNoCreds(t *testing.T) {
 		ImageDirectory: imageDir,
 		BootDirectory:  bootDir,
 	}
-	mux := newMux(cfg, "")
+	mux := newMux(cfg, "", "127.0.0.1")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -385,4 +386,275 @@ func TestServeImageEmptyName(t *testing.T) {
 	if resp.StatusCode == http.StatusOK {
 		t.Error("empty name should not return 200")
 	}
+}
+
+func TestServeDynamicBootIPXE(t *testing.T) {
+	t.Parallel()
+
+	imageDir := t.TempDir()
+	bootDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(imageDir, "ze-20260601-120000.img"), []byte("IMG1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := imageConfig{
+		Enabled:        true,
+		ImageDirectory: imageDir,
+		BootDirectory:  bootDir,
+		ListenPort:     80,
+	}
+	mux := newMux(cfg, "", "198.19.255.1")
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp := testGet(t, ts.URL+"/install/boot/boot.ipxe")
+	defer closeBody(t, resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(body)
+
+	if !strings.HasPrefix(script, "#!ipxe\n") {
+		t.Error("missing iPXE shebang")
+	}
+	if !strings.Contains(script, "ze.server=198.19.255.1") {
+		t.Errorf("missing ze.server in script:\n%s", script)
+	}
+	if !strings.Contains(script, "ze.image=ze-20260601-120000.img") {
+		t.Errorf("missing ze.image in script:\n%s", script)
+	}
+	if !strings.Contains(script, "ip=dhcp") {
+		t.Errorf("missing ip=dhcp in script:\n%s", script)
+	}
+	if strings.Contains(script, "ze.port=") {
+		t.Errorf("port 80 should not include ze.port in script:\n%s", script)
+	}
+}
+
+func TestServeDynamicBootIPXENonDefaultPort(t *testing.T) {
+	t.Parallel()
+
+	imageDir := t.TempDir()
+	bootDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(imageDir, "ze.img"), []byte("IMG"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := imageConfig{
+		Enabled:        true,
+		ImageDirectory: imageDir,
+		BootDirectory:  bootDir,
+		ListenPort:     8080,
+	}
+	mux := newMux(cfg, "", "198.19.255.1")
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp := testGet(t, ts.URL+"/install/boot/boot.ipxe")
+	defer closeBody(t, resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(body)
+
+	if !strings.Contains(script, "ze.port=8080") {
+		t.Errorf("missing ze.port=8080 in script:\n%s", script)
+	}
+	if !strings.Contains(script, ":8080/install/boot/") {
+		t.Errorf("missing port in URLs:\n%s", script)
+	}
+}
+
+func TestServeDynamicBootIPXENoBootDir(t *testing.T) {
+	t.Parallel()
+
+	imageDir := t.TempDir()
+
+	cfg := imageConfig{
+		Enabled:        true,
+		ImageDirectory: imageDir,
+		ListenPort:     80,
+	}
+	mux := newMux(cfg, "", "198.19.255.1")
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp := testGet(t, ts.URL+"/install/boot/boot.ipxe")
+	defer closeBody(t, resp)
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404 when boot-directory not configured", resp.StatusCode)
+	}
+}
+
+func TestServeDynamicBootIPXENoServerAddr(t *testing.T) {
+	t.Parallel()
+
+	imageDir := t.TempDir()
+	bootDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(imageDir, "ze.img"), []byte("IMG"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := imageConfig{
+		Enabled:        true,
+		ImageDirectory: imageDir,
+		BootDirectory:  bootDir,
+		ListenPort:     80,
+	}
+	mux := newMux(cfg, "", "")
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp := testGet(t, ts.URL+"/install/boot/boot.ipxe")
+	defer closeBody(t, resp)
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404 when serverAddr is empty (no dynamic boot.ipxe)", resp.StatusCode)
+	}
+}
+
+func TestServeDynamicBootIPXEStaticOverride(t *testing.T) {
+	t.Parallel()
+
+	imageDir := t.TempDir()
+	bootDir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(imageDir, "ze.img"), []byte("IMG"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	staticScript := "#!ipxe\n# custom operator script\nboot\n"
+	if err := os.WriteFile(filepath.Join(bootDir, "boot.ipxe"), []byte(staticScript), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := imageConfig{
+		Enabled:        true,
+		ImageDirectory: imageDir,
+		BootDirectory:  bootDir,
+		ListenPort:     80,
+	}
+	mux := newMux(cfg, "", "198.19.255.1")
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	resp := testGet(t, ts.URL+"/install/boot/boot.ipxe")
+	defer closeBody(t, resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != staticScript {
+		t.Errorf("expected static override, got:\n%s", string(body))
+	}
+}
+
+func TestServeDynamicBootIPXEImageDetection(t *testing.T) {
+	t.Parallel()
+
+	t.Run("latest image selected", func(t *testing.T) {
+		t.Parallel()
+
+		imageDir := t.TempDir()
+		bootDir := t.TempDir()
+
+		for _, name := range []string{"ze-20260601-120000.img", "ze-20260604-090000.img", "ze-20260602-060000.img"} {
+			if err := os.WriteFile(filepath.Join(imageDir, name), []byte("IMG"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		cfg := imageConfig{
+			Enabled:        true,
+			ImageDirectory: imageDir,
+			BootDirectory:  bootDir,
+			ListenPort:     80,
+		}
+		mux := newMux(cfg, "", "198.19.255.1")
+		ts := httptest.NewServer(mux)
+		defer ts.Close()
+
+		resp := testGet(t, ts.URL+"/install/boot/boot.ipxe")
+		defer closeBody(t, resp)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("status = %d, want 200", resp.StatusCode)
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(body), "ze.image=ze-20260604-090000.img") {
+			t.Errorf("expected lexicographically last image, got:\n%s", string(body))
+		}
+	})
+
+	t.Run("no images returns 503", func(t *testing.T) {
+		t.Parallel()
+
+		imageDir := t.TempDir()
+		bootDir := t.TempDir()
+
+		cfg := imageConfig{
+			Enabled:        true,
+			ImageDirectory: imageDir,
+			BootDirectory:  bootDir,
+			ListenPort:     80,
+		}
+		mux := newMux(cfg, "", "198.19.255.1")
+		ts := httptest.NewServer(mux)
+		defer ts.Close()
+
+		resp := testGet(t, ts.URL+"/install/boot/boot.ipxe")
+		defer closeBody(t, resp)
+
+		if resp.StatusCode != http.StatusServiceUnavailable {
+			t.Errorf("status = %d, want 503 when no images", resp.StatusCode)
+		}
+	})
+
+	t.Run("hidden dotfile .img ignored", func(t *testing.T) {
+		t.Parallel()
+
+		imageDir := t.TempDir()
+		bootDir := t.TempDir()
+
+		if err := os.WriteFile(filepath.Join(imageDir, ".img"), []byte("hidden"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		cfg := imageConfig{
+			Enabled:        true,
+			ImageDirectory: imageDir,
+			BootDirectory:  bootDir,
+			ListenPort:     80,
+		}
+		mux := newMux(cfg, "", "198.19.255.1")
+		ts := httptest.NewServer(mux)
+		defer ts.Close()
+
+		resp := testGet(t, ts.URL+"/install/boot/boot.ipxe")
+		defer closeBody(t, resp)
+
+		if resp.StatusCode != http.StatusServiceUnavailable {
+			t.Errorf("status = %d, want 503 when only hidden .img file exists", resp.StatusCode)
+		}
+	})
 }

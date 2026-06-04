@@ -48,6 +48,11 @@ module ze-dhcp-server-conf {
                     type string;
                     description "Boot file path for UEFI clients (option 67)";
                 }
+
+                leaf boot-script-url {
+                    type string;
+                    description "HTTP URL for iPXE boot script (sent as option 67 to iPXE clients)";
+                }
             }
 
             list shared-network {

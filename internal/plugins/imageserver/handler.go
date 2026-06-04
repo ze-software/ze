@@ -3,11 +3,14 @@
 package imageserver
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -17,16 +20,20 @@ const (
 )
 
 type imageHandler struct {
-	imageDir string
-	bootDir  string
-	zefsPath string
+	imageDir   string
+	bootDir    string
+	zefsPath   string
+	serverAddr string
+	serverPort int
 }
 
-func newMux(cfg imageConfig, zefsPath string) *http.ServeMux {
+func newMux(cfg imageConfig, zefsPath, serverAddr string) *http.ServeMux {
 	h := &imageHandler{
-		imageDir: cfg.ImageDirectory,
-		bootDir:  cfg.BootDirectory,
-		zefsPath: zefsPath,
+		imageDir:   cfg.ImageDirectory,
+		bootDir:    cfg.BootDirectory,
+		zefsPath:   zefsPath,
+		serverAddr: serverAddr,
+		serverPort: cfg.ListenPort,
 	}
 
 	mux := http.NewServeMux()
@@ -34,6 +41,9 @@ func newMux(cfg imageConfig, zefsPath string) *http.ServeMux {
 		mux.HandleFunc("/install/image/", h.serveImage)
 	}
 	if cfg.BootDirectory != "" {
+		if serverAddr != "" {
+			mux.HandleFunc("/install/boot/boot.ipxe", h.serveBootIPXE)
+		}
 		mux.HandleFunc("/install/boot/", h.serveBoot)
 	}
 	if zefsPath != "" {
@@ -83,6 +93,67 @@ func (h *imageHandler) serveImage(w http.ResponseWriter, r *http.Request) {
 func (h *imageHandler) serveBoot(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(r.URL.Path, "/install/boot/")
 	h.serveFromDir(w, r, h.bootDir, name)
+}
+
+func (h *imageHandler) serveBootIPXE(w http.ResponseWriter, r *http.Request) {
+	if _, err := os.Stat(filepath.Join(h.bootDir, "boot.ipxe")); err == nil {
+		h.serveFromDir(w, r, h.bootDir, "boot.ipxe")
+		return
+	}
+
+	imgName, err := latestImage(h.imageDir)
+	if err != nil {
+		http.Error(w, "no image found in image-directory", http.StatusServiceUnavailable)
+		return
+	}
+
+	tb := textbuf.Get()
+	defer tb.Release()
+
+	baseURL := tb.Reset().Str("http://").Str(h.serverAddr).String()
+	if h.serverPort != 0 && h.serverPort != 80 {
+		baseURL = tb.Reset().Str("http://").Str(h.serverAddr).Str(":").Int(int64(h.serverPort)).String()
+	}
+
+	var portArg string
+	if h.serverPort != 0 && h.serverPort != 80 {
+		portArg = tb.Reset().Str(" ze.port=").Int(int64(h.serverPort)).String()
+	}
+
+	script := tb.Reset().
+		Str("#!ipxe\nkernel ").Str(baseURL).Str("/install/boot/vmlinuz ze.server=").Str(h.serverAddr).
+		Str(" ze.image=").Str(imgName).Str(portArg).Str(" ip=dhcp panic=-1\n").
+		Str("initrd ").Str(baseURL).Str("/install/boot/initrd.img.gz\n").
+		Str("boot\n").
+		String()
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(script)) //nolint:errcheck // best-effort HTTP write
+}
+
+func latestImage(dir string) (string, error) {
+	if dir == "" {
+		return "", fmt.Errorf("no image directory")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", err
+	}
+	var imgs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(e.Name(), ".img") && !strings.HasPrefix(e.Name(), ".") {
+			imgs = append(imgs, e.Name())
+		}
+	}
+	if len(imgs) == 0 {
+		return "", fmt.Errorf("no .img files")
+	}
+	sort.Strings(imgs)
+	return imgs[len(imgs)-1], nil
 }
 
 // serveZefs serves the pre-provisioned zefs database (SSH username + password
