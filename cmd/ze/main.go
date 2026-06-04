@@ -91,7 +91,6 @@ import (
 	// Blank imports: root command owners register their handlers via
 	// init() and are dispatched by dispatchRegisteredRoot.
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/connect"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/crashes"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/debug"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/diag"
@@ -100,17 +99,10 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/explain"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/host"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/init"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install/local"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install/remote"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install/systemd"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/passwd"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/skills"
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/support"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall/local"
-	_ "codeberg.org/thomas-mangin/ze/cmd/ze/uninstall/systemd"
 
 	// Import all AAA backends so their init() fires and aaa.Default
 	// contains the backend factories before the hub calls aaa.Default.Build.

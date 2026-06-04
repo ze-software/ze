@@ -30,7 +30,7 @@ for required in (
 
 install = subprocess.run(['ze-stripped', 'install'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
 require(install.returncode != 0, 'install unexpectedly succeeded')
-require('not included in ze-stripped' in install.stderr, install.stderr)
+require('unknown command: install' in install.stderr, install.stderr)
 
 password_hash = subprocess.check_output(['ze-stripped', 'passwd'], input='secret\n', text=True).strip()
 with open('stripped.conf', 'w', encoding='utf-8') as fh:
