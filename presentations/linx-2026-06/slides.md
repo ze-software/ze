@@ -43,7 +43,6 @@ AGPL-3.0, developed on Codeberg, hosted on GitHub.
 - Programmable and written in Python, but not a NOS
 - HTTP+CGI for BGP: a programmable toolkit, not an integrated system
 - Well received by the community and still used, but limited in scope
-- Your scripts still work: `ze config migrate` + `ze exabgp plugin`
 
 ### VyOS
 
@@ -66,21 +65,21 @@ AGPL-3.0, developed on Codeberg, hosted on GitHub.
 
 ## The Enabler: AI
 
-### AI collaboration
+## Agentic Engineering (Not Vibe Coding)
 
 - The latest ExaBGP release had many features added by Claude
-- Learned a lot: lots went wrong before the patterns existed
+- Use ExaBGP to explain to Claude what I wanted (and did not get)
 - Then Claude 4.5 came out: from fighting the AI to pleasant collaboration
-- Claude 4.6 has a **1M token context window**: game changer
+- Claude 4.6 then offered a **1M token context window**: game changer
 - A single feature often needs 350-500k tokens of context to be easy to develop
 - This work would **not have been possible** without AI
 
 ### Why Go
 
-- Python is not the right language for a NOS
-- **Go** has good concurrency, tooling, cross-compilation, profiling, and mature libraries
+- **Go** has good concurrency, tooling, cross-compilation, profiling, and
+- Mature libraries
   - SSH and HTTPS, where security matters
-  - Kernel programming
+  - Kernel/Netlink programming
   - gokrazy for appliance builds
 - Single static binary: copy one file, run it
   - yes, ExaBGP can also be installed that way with zipapp
@@ -101,6 +100,7 @@ AGPL-3.0, developed on Codeberg, hosted on GitHub.
 - Trained on average code, and average code is not what we want
 - Conflicting information does not stop it. It will still write something
 - Any trace of an old decision can spread back into the code
+- AI Rage, Vendors changing the AI behaviour without notice and disclosure
 
 ### The lesson
 
@@ -141,21 +141,22 @@ AI code: industrial process. Staff need induction and ISO processes, or you get 
 ### What worked
 
 - Test-driven development, test generation, refactoring across files
-- **2,632 co-authored commits**
+- **2,641 co-authored commits**
 - 98 RFC summaries so the AI can implement from condensed protocol specs
 - Letting it write tools, then reviewing the tool and the result
 
 ### What does not work
 
-- Trusting the first version of generated code, even with tests
 - Hoping an AI can design innovative software from high-level instructions
+- Trusting the first version of generated code, even with tests
 - Letting it continue after it misunderstood the shape of the codebase
 
 ### How to work with it
 
+- Outsource code authorship, not the **design**
 - Give the AI **context**, not wishes
+- Give the AI **a goal**, not what you think
 - Stop and argue when it is wrong
-- Outsource code authorship, not the design
 
 ---
 
@@ -179,7 +180,7 @@ Those problems do not go away, so you build systems to catch them.
 - Skills: How-To instructions for repeatable work
 - Hooks: heavy-handed control. The code does not land. No negotiation. No override
 - Review: never trust the work done
-- 853 learned summaries: institutional memory across sessions
+- 869 learned summaries: institutional memory across sessions
 
 The system is as much a deliverable as the code itself.
 
@@ -251,7 +252,7 @@ From Anthropic `/insights`
 
 ### Self-contained plugins
 
-- **22 plugins** today, each self-contained with its own YANG schemas
+- **39 plugins** today, each self-contained with its own YANG schemas
 - Plugins register via Go `init()`: anyone can add or remove modules
 
 ```
@@ -276,7 +277,7 @@ Ze Engine Core (event bus for components and plugins)
 ### Plugin-owned schema
 
 - The global model is assembled from the plugins compiled into the binary
-- **2,337 config nodes** across 180 YANG schemas today, but this is not one monolith
+- **2,434 config nodes** across 203 YANG schemas today, but this is not one monolith
 - Remove a plugin and its config, CLI, web UI, API, MCP tools, validation, and docs disappear with it
 
 ### Same model, many interfaces
@@ -410,7 +411,7 @@ Ze Engine Core (event bus for components and plugins)
 
 ### Coverage
 
-- **1,044 functional tests** (.ci): real config, real daemon, real wire output
+- **1,050 functional tests** (.ci): real config, real daemon, real wire output
 - 42 interop scenarios against 7 implementations in Docker: FRR, BIRD, GoBGP, OpenBGPd, RustyBGP, rustbgpd, FreeRTR
 - Fuzz testing on all wire parsers
 
@@ -518,19 +519,19 @@ bgp {
 - Lab and interop tested, including ExaBGP compatibility, BGP route-server support, RPKI, BMP, VPP, IPsec, and L2TP
 - No production deployment I can point at today
 - Exa Networks plans to run it, but LINX lands a few weeks before that cutover
-- Early adopters should treat it as controlled trial software first
+- Early adopters should treat it as controlled trial, it is not finished (UI in particular)
 
 ### Since the NetMcr unveiling, April 9th
 
 - IPsec, L2TP, firewall, VPP, REST/gRPC, gNMI, BMP, policy framework, and config transactions are all native
-- The development system compounds: patterns, specs, reviews, and 853 learned summaries make the next feature easier
-- Only **853k lines** of Go code
+- The development system compounds: patterns, specs, reviews, and 869 learned summaries make the next feature easier
+- Only **857k lines** of Go code
 - Only **43M** of vendored code
 
 ### Release position
 
 - **Pre-release:** looking for early adopters and feedback
-- **Careful release:** the YANG model *is* the API. Once public, every consumer depends on it
+- **Careful release:** the YANG model *is* the API and not stable yet. Once released it will change.
 - Battle testing is the next hard part
 
 ---
@@ -555,8 +556,8 @@ Contributions do not have to be code. Ideas, questions, operational feedback, an
 
 **Discord** https://discord.gg/ykJb8meS4
 
-### **https://github.com/ze-software/ze**
-
 ### Thank you
 
 *LINX, June 2026*
+
+### **https://github.com/ze-software/ze**
