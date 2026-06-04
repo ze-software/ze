@@ -9,7 +9,7 @@
 # Mounts: /src (this dir, ro) for kernel.config; /out for the artifacts.
 set -eu
 
-LINUX_VERSION="${LINUX_VERSION:-6.6.58}"
+LINUX_VERSION="${LINUX_VERSION:-7.0.11}"
 ARCH="${ARCH:-arm64}"
 JOBS="${JOBS:-$(nproc)}"
 

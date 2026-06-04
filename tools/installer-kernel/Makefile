@@ -11,7 +11,7 @@
 # keeping multiple kernels side by side.
 
 ARCH ?= arm64
-LINUX_VERSION ?= 6.6.58
+LINUX_VERSION ?= 7.0.11
 JOBS ?=
 IMG := ze-installer-kernel-builder
 OUT := build
