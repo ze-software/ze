@@ -17,7 +17,7 @@ Total: 68 rules
 | No Pipes On Expensive Commands | Never pipe `make`, `go test`, `go build`, `golangci-lint`, `bin/ze*`, or any test/verify/build command through `head`, `tail`, `grep`, `awk`, `sed`, `cat`. Run clean. Read the log after. | `ai/rules/bash-output.md` |
 | Before Writing Code | Complete before writing any code, tests, or documentation. | `ai/rules/before-writing-code.md` |
 | Buffer-First Encoding -- Mechanical Reference | All wire encoding MUST write into pooled, bounded buffers. | `ai/rules/buffer-first.md` |
-| Canonical Sources and Sync Direction | Never edit a generated file. Edit the canonical source, then sync. | `ai/rules/canonical-sources.md` |
+| Canonical Sources and Sync Direction | Never edit a generated file. Edit the canonical source, then sync. Project behavior rules belong in `ai/rules/` and project startup guidance belongs in `ai/INSTRUCTIONS.md`, so Claude, Codex, and... | `ai/rules/canonical-sources.md` |
 | CLI Grammar: Keywords Before Values | Every CLI command must place a closed keyword before any user-supplied value. This eliminates ambiguity where a free-form value could collide with a keyword. | `ai/rules/cli-grammar.md` |
 | CLI Patterns | All CLI commands MUST follow these patterns. | `ai/rules/cli-patterns.md` |
 | No Backwards Compatibility | Ze has never been released. No users. No compat code, comments, shims, or fallbacks anywhere — including the plugin API. If something needs to change, just change it. | `ai/rules/compatibility.md` |

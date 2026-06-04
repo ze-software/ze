@@ -21,6 +21,7 @@
 | Implement an RFC | `rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `rules/planning.md` | `plan/TEMPLATE.md` |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
+| Add or change an agent behavior rule | `rules/canonical-sources.md` | Put shared Ze rules in `ai/rules/` and startup pointers in `ai/INSTRUCTIONS.md` |
 | Reorganize YANG tree | `scripts/dev/yang_move.py --help` | Preview diff, then `--apply` |
 | Find context for an unfamiliar area | `ai/NAVIGATION.md` | Task-to-context decision tree |
 | See which rule covers a topic | `ai/rules/INDEX.md` | One-line overview of every rule; open the listed file before acting |
@@ -44,6 +45,7 @@
 | `make ze-inventory` / `make ze-inventory-json` | `mk/inventory.mk` | Registry-backed plugin, command, YANG, and test inventory. |
 | `make ze-command-list` / `make ze-command-list-json` | `mk/inventory.mk` | Live command inventory generated from registered handlers and schemas. |
 | `make ze-doc-index` | `mk/inventory.mk` | Regenerate `ai/CODE-TO-DOCS.md`, the source-to-document reverse index. |
+| `make ze-ai-sync` | `scripts/dev/skill_sync.sh` | Sync canonical `ai/skills/*.md` to `.claude/skills/`, `.codex/skills/`, and `.agents/skills/`; also regenerates `CLAUDE.md` and `AGENTS.md` from `ai/INSTRUCTIONS.md`. |
 | `make ze-spec-status` / `make ze-spec-status-json` | `mk/inventory.mk` | Spec progress overview for active planning and handoff. |
 
 ## Pattern Cookbooks

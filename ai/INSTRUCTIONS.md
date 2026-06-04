@@ -97,6 +97,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Action | Read first |
 |--------|-----------|
 | Edit CLAUDE.md, AGENTS.md, or any synced file | `ai/rules/canonical-sources.md` -- never edit generated files, edit canonical source + sync |
+| Add or change an agent behavior rule | `ai/rules/canonical-sources.md` -- shared Ze rules go in `ai/rules/`, not tool-specific home directories |
 | Start a session | `rules/session-start.md` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/` |
