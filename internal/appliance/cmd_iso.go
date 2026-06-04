@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -98,6 +99,7 @@ func init() {
 
 func runIso(args []string) int {
 	opts := isoOptions{}
+	var checkOnly bool
 	fs := flag.NewFlagSet("appliance iso", flag.ContinueOnError)
 	fs.StringVar(&opts.imageFile, "image", "", "Specific image file inside the appliance directory (default: most recent)")
 	fs.StringVar(&opts.outputPath, "output", "", "ISO output path (default: selected image name with .iso in appliance directory)")
@@ -106,6 +108,7 @@ func runIso(args []string) int {
 	fs.StringVar(&opts.target, "target", "", "Optional explicit installer target disk, for example /dev/vda")
 	fs.StringVar(&opts.builderPath, "builder", "", "GRUB standalone builder binary (default: grub-mkstandalone or grub2-mkstandalone from PATH)")
 	fs.BoolVar(&opts.keepStaging, "keep-staging", false, "Keep temporary ISO staging directory for inspection")
+	fs.BoolVar(&checkOnly, "check", false, "Check prerequisites without building")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: ze appliance iso [options] <name>\n\n")
@@ -125,6 +128,9 @@ func runIso(args []string) int {
 		}
 		return exitError
 	}
+	if checkOnly {
+		return checkISOPrerequisites(opts)
+	}
 	if fs.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "error: requires <name>\n")
 		fs.Usage()
@@ -142,6 +148,58 @@ func runIso(args []string) int {
 		return exitError
 	}
 	fmt.Fprintf(os.Stdout, "iso ready: %s\n", out) //nolint:errcheck // CLI output
+	return exitOK
+}
+
+func checkISOPrerequisites(opts isoOptions) int {
+	allReady := true
+
+	kernelPath := opts.kernelPath
+	if kernelPath == "" {
+		kernelPath = defaultISOKernelPath()
+	}
+	if _, err := resolveISOArtifact(kernelPath, "installer kernel", ""); err != nil {
+		fmt.Fprintf(os.Stdout, "kernel:   missing (run ze appliance kernel)\n") //nolint:errcheck // CLI output
+		allReady = false
+	} else {
+		fmt.Fprintf(os.Stdout, "kernel:   ready (%s)\n", kernelPath) //nolint:errcheck // CLI output
+	}
+
+	initrdPath := opts.initrdPath
+	if _, err := resolveISOArtifact(initrdPath, "installer initrd", ""); err != nil {
+		fmt.Fprintf(os.Stdout, "initrd:   missing (run ze appliance initrd)\n") //nolint:errcheck // CLI output
+		allReady = false
+	} else {
+		fmt.Fprintf(os.Stdout, "initrd:   ready (%s)\n", initrdPath) //nolint:errcheck // CLI output
+	}
+
+	grubPath := opts.builderPath
+	if grubPath == "" {
+		for _, candidate := range []string{"grub-mkstandalone", "grub2-mkstandalone"} {
+			if p, err := isoLookPathFn(candidate); err == nil {
+				grubPath = p
+				break
+			}
+		}
+	}
+	if grubPath == "" {
+		fmt.Fprintf(os.Stdout, "grub:     missing (install grub-mkstandalone)\n") //nolint:errcheck // CLI output
+		allReady = false
+	} else {
+		fmt.Fprintf(os.Stdout, "grub:     ready (%s)\n", grubPath) //nolint:errcheck // CLI output
+	}
+
+	xorrisoPath, xorrisoErr := isoLookPathFn("xorriso")
+	if xorrisoErr != nil {
+		fmt.Fprintf(os.Stdout, "xorriso:  missing (install xorriso)\n") //nolint:errcheck // CLI output
+		allReady = false
+	} else {
+		fmt.Fprintf(os.Stdout, "xorriso:  ready (%s)\n", xorrisoPath) //nolint:errcheck // CLI output
+	}
+
+	if !allReady {
+		return exitError
+	}
 	return exitOK
 }
 
@@ -313,6 +371,10 @@ func resolveISOArtifact(path, label, hint string) (string, error) {
 }
 
 func defaultISOKernelPath() string {
+	cached := kernelCachePath(defaultKernelVersion, runtime.GOARCH)
+	if _, err := os.Stat(cached); err == nil {
+		return cached
+	}
 	return filepath.Join("tools", "installer-kernel", "build", "Image")
 }
 

@@ -50,6 +50,8 @@ func applianceCommands() []applianceCommandInfo {
 		{Key: "export", Usage: "export <name>", Desc: "Export appliance to encrypted archive", Handler: cmdExport},
 		{Key: "export", Usage: "export --all", Desc: "Export all appliances to single encrypted archive", Handler: cmdExport},
 		{Key: "import", Usage: "import <archive>", Desc: "Import appliance from encrypted archive", Handler: cmdImport},
+		{Key: "kernel", Usage: "kernel [--arch <arch>] [--version <ver>]", Desc: "Download or build the installer kernel", Handler: cmdKernel},
+		{Key: "initrd", Usage: "initrd", Desc: "Download or build the installer initrd", Handler: cmdInitrd},
 	}
 }
 
@@ -159,6 +161,8 @@ var (
 	cmdPush        = stub
 	cmdConfig      = stub
 	cmdConfigPush  = stub
+	cmdKernel      = stub
+	cmdInitrd      = stub
 )
 
 func usage() {

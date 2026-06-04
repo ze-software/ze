@@ -288,6 +288,8 @@ The `ze appliance` command replaces the `make ze-gokrazy USER=x PASS=y` workflow
 ze appliance init lab                  # interactive wizard
 ze appliance assemble lab              # build ZeFS database only
 ze appliance build lab                 # full image (assemble + gok + ext4)
+ze appliance kernel --arch amd64       # download or build installer kernel
+ze appliance initrd                    # download or build installer initrd
 ze appliance iso lab                   # bootable installer ISO from latest image
 ze appliance list                      # show all appliances
 ze appliance show lab                  # config summary + cert expiry
@@ -354,7 +356,10 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `assemble <name>` | Build ZeFS database only (auto-deletes; use `--keep` to retain) |
 | `build <name>` | Full image: assemble + gok + ext4 inject + checksum + manifest |
 | `build --all` | Build all appliances |
+| `kernel [--arch] [--version]` | Download or build the installer kernel |
+| `initrd` | Download or build the installer initrd |
 | `iso <name>` | Bootable installer ISO from an existing image |
+| `iso --check` | Check ISO prerequisites without building |
 | `passwd <name>` | Change SSH password |
 | `replace-cert <name>` | Replace TLS cert (regenerate or `--cert`/`--key` for CA) |
 | `rekey <name>` | Change encryption passphrase |
@@ -374,6 +379,31 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `import <archive>` | Import appliance from encrypted archive |
 
 
+### ISO prerequisites
+
+The ISO build requires an installer kernel, an initrd, `grub-mkstandalone`, and
+`xorriso`. Use `ze appliance iso --check` to see what is ready and what is
+missing. The `kernel` and `initrd` commands handle downloading or building these
+artifacts automatically:
+
+    ze appliance iso --check               # report readiness
+    ze appliance kernel --arch amd64       # download or build kernel
+    ze appliance initrd                    # download or build initrd
+    ze appliance iso lab                   # build ISO
+
+Both commands try three tiers in order: XDG cache hit, download from a release
+server, and local build (Docker for the kernel, make for the initrd). Downloaded
+artifacts are cached under `$XDG_CACHE_HOME/ze/` (default `~/.cache/ze/`) and
+also copied to `tools/installer-kernel/build/` and `tools/installer-initrd/build/`
+so `ze appliance iso` finds them without extra flags.
+
+The download URL defaults to the project release server. Override with the
+`ze.appliance.kernel.url` and `ze.appliance.initrd.url` environment variables.
+
+`ze doctor` includes checks for kernel, initrd, grub, xorriso, and e2fsprogs
+availability, reporting warnings with actionable hints when prerequisites are
+missing.
+
 ### ISO installer media
 
 Create an installer ISO from an image already produced by `ze appliance
@@ -383,7 +413,8 @@ image. Use `--image` to select a specific image filename and `--output` to write
 the ISO elsewhere. The output path must not overwrite the selected `.img`, and
 the image filename must stay within `[A-Za-z0-9._-]` so the initrd can pass it
 on the kernel command line. By default the installer kernel path is
-`tools/installer-kernel/build/Image`; build the matching architecture before you
+`tools/installer-kernel/build/Image` or a cached download under
+`$XDG_CACHE_HOME/ze/`; build the matching architecture before you
 run `ze appliance iso`, or pass `--kernel` to keep multiple kernels
 side by side.
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->

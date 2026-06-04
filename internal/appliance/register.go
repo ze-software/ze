@@ -2,10 +2,13 @@
 package appliance
 
 import (
+	"fmt"
+	"os"
 	"sort"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
 
 func subcommands() string {
@@ -30,4 +33,11 @@ func init() {
 		Section:     registry.SectionSystem,
 		Subs:        subcommands(),
 	})
+
+	for _, check := range applianceDoctorChecks() {
+		if err := diagnostic.RegisterDoctorCheck(check); err != nil {
+			fmt.Fprintf(os.Stderr, "appliance doctor check registration: %v\n", err)
+			os.Exit(2)
+		}
+	}
 }
