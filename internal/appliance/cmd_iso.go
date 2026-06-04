@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -244,6 +245,9 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 	if err != nil {
 		return isoBuildInput{}, err
 	}
+	if err := verifyKernelArch(kernel, cfg.Image.Arch); err != nil {
+		return isoBuildInput{}, err
+	}
 	initrd, err := resolveISOArtifact(opts.initrdPath, "installer initrd", "make -C tools/installer-initrd or pass --initrd")
 	if err != nil {
 		return isoBuildInput{}, err
@@ -310,6 +314,42 @@ func resolveISOArtifact(path, label, hint string) (string, error) {
 
 func defaultISOKernelPath() string {
 	return filepath.Join("tools", "installer-kernel", "build", "Image")
+}
+
+// arm64 Image: magic 0x644d5241 at offset 56 ("ARM\x64" little-endian).
+// x86 bzImage: magic 0x53726448 at offset 0x202 ("HdrS" little-endian).
+func verifyKernelArch(path, arch string) error {
+	f, err := os.Open(path) //nolint:gosec // path already validated
+	if err != nil {
+		return fmt.Errorf("open kernel: %w", err)
+	}
+	defer f.Close() //nolint:errcheck // read-only
+
+	var buf [0x206]byte
+	if _, err := io.ReadFull(f, buf[:]); err != nil {
+		return fmt.Errorf("kernel too small to identify architecture: %w", err)
+	}
+
+	arm64Magic := binary.LittleEndian.Uint32(buf[56:60]) == 0x644d5241
+	x86Magic := binary.LittleEndian.Uint32(buf[0x202:0x206]) == 0x53726448
+
+	switch arch {
+	case archAMD64:
+		if !x86Magic {
+			if arm64Magic {
+				return fmt.Errorf("kernel %s is arm64 but appliance arch is %s; rebuild with: make -C tools/installer-kernel ARCH=amd64", path, arch)
+			}
+			return fmt.Errorf("kernel %s does not look like an x86 bzImage", path)
+		}
+	case archARM64:
+		if !arm64Magic {
+			if x86Magic {
+				return fmt.Errorf("kernel %s is x86 but appliance arch is %s; rebuild with: make -C tools/installer-kernel ARCH=arm64", path, arch)
+			}
+			return fmt.Errorf("kernel %s does not look like an arm64 Image", path)
+		}
+	}
+	return nil
 }
 
 func resolveISOBuilder(builder string) (grubPath, xorrisoPath string, err error) {
@@ -617,9 +657,9 @@ func writeGrubConfig(path string, input isoBuildInput) error {
 func isoKernelConsoleArgs(arch string) (string, error) {
 	switch arch {
 	case archAMD64:
-		return "console=tty0 console=ttyS0", nil
+		return "console=tty0 console=ttyS0,115200n8", nil
 	case archARM64:
-		return "console=tty0 console=ttyAMA0", nil
+		return "console=tty0 console=ttyAMA0,115200n8", nil
 	default:
 		return "", fmt.Errorf("unsupported appliance ISO architecture %q", arch)
 	}

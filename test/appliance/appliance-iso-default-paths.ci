@@ -8,7 +8,12 @@ tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
 set -eu
 mkdir -p appliances tools/installer-kernel/build tools/installer-initrd/build
-printf 'kernel-default\n' > tools/installer-kernel/build/Image
+python3 -c "
+import struct, sys
+buf = bytearray(0x206)
+struct.pack_into('<I', buf, 0x202, 0x53726448)  # x86 bzImage magic
+sys.stdout.buffer.write(buf)
+" > tools/installer-kernel/build/Image
 printf 'initrd-default\n' > tools/installer-initrd/build/initrd.img.gz
 cat > grub-mkstandalone <<'EOF_GRUB'
 #!/bin/sh
@@ -58,9 +63,9 @@ ze appliance --dir appliances iso --keep-staging lab >/dev/null
 set -- appliances/lab/.iso-staging-*
 stage="$1"
 [ -d "$stage" ]
-[ "$(cat "$stage/boot/kernel")" = "kernel-default" ]
+[ "$(stat -c %s "$stage/boot/kernel" 2>/dev/null || stat -f %z "$stage/boot/kernel")" -eq 518 ]
 [ "$(cat "$stage/boot/initrd.img.gz")" = "initrd-default" ]
-grep -q 'console=tty0 console=ttyS0' "$stage/boot/grub/grub.cfg"
+grep -q 'console=tty0 console=ttyS0,115200n8' "$stage/boot/grub/grub.cfg"
 [ -f "$stage/ze-install/images/ze-20260101-000000.img.gz" ]
 [ -f "$stage/ze-install/images/ze-20260101-000000.img.gz.sha256" ]
 grep -q 'ze.image=ze-20260101-000000.img.gz' "$stage/boot/grub/grub.cfg"

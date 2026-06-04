@@ -8,7 +8,12 @@ tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
 set -eu
 mkdir -p appliances tools/installer-kernel/build tools/installer-initrd/build
-printf 'kernel-arm64\n' > tools/installer-kernel/build/Image
+python3 -c "
+import struct, sys
+buf = bytearray(0x206)
+struct.pack_into('<I', buf, 56, 0x644d5241)  # arm64 magic
+sys.stdout.buffer.write(buf)
+" > tools/installer-kernel/build/Image
 printf 'initrd-arm64\n' > tools/installer-initrd/build/initrd.img.gz
 cat > grub-mkstandalone <<'EOF_GRUB'
 #!/bin/sh
@@ -61,7 +66,7 @@ stage="$1"
 [ -d "$stage" ]
 [ -f "$stage/EFI/BOOT/BOOTAA64.EFI" ]
 [ -f "$stage/EFI/BOOT/efiboot.img" ]
-grep -q 'console=tty0 console=ttyAMA0' "$stage/boot/grub/grub.cfg"
+grep -q 'console=tty0 console=ttyAMA0,115200n8' "$stage/boot/grub/grub.cfg"
 grep -q 'search --no-floppy --file /ze-install/media-id --set=root' "$stage/boot/grub/grub.cfg"
 [ -f "$stage/ze-install/images/ze-20260101-000000.img.gz" ]
 grep -q 'ze.image=ze-20260101-000000.img.gz' "$stage/boot/grub/grub.cfg"

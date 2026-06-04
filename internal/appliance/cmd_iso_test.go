@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -58,6 +59,32 @@ func writeIsoTestFile(t *testing.T, path, data string) {
 	}
 }
 
+// writeIsoTestKernelAny writes a fake kernel that passes verifyKernelArch for
+// both amd64 and arm64 (the magic offsets don't overlap).
+func writeIsoTestKernelAny(t *testing.T, path string) {
+	t.Helper()
+	buf := make([]byte, 0x206)
+	binary.LittleEndian.PutUint32(buf[0x202:], 0x53726448) // x86 "HdrS"
+	binary.LittleEndian.PutUint32(buf[56:], 0x644d5241)    // arm64 "ARM\x64"
+	if err := os.WriteFile(path, buf, 0o644); err != nil {
+		t.Fatalf("write test kernel %s: %v", path, err)
+	}
+}
+
+func writeIsoTestKernel(t *testing.T, path, arch string) {
+	t.Helper()
+	buf := make([]byte, 0x206)
+	switch arch {
+	case archAMD64:
+		binary.LittleEndian.PutUint32(buf[0x202:], 0x53726448) // "HdrS"
+	case archARM64:
+		binary.LittleEndian.PutUint32(buf[56:], 0x644d5241) // "ARM\x64"
+	}
+	if err := os.WriteFile(path, buf, 0o644); err != nil {
+		t.Fatalf("write test kernel %s: %v", path, err)
+	}
+}
+
 func writeIsoTestChecksum(t *testing.T, imgPath string) string {
 	t.Helper()
 	data, err := os.ReadFile(imgPath) //nolint:gosec // test fixture
@@ -76,7 +103,7 @@ func setupIsoBuilderTest(t *testing.T) (kernel, initrd string, calls *[]isoBuild
 	t.Helper()
 	kernel = filepath.Join(t.TempDir(), "Image")
 	initrd = filepath.Join(t.TempDir(), "initrd.img.gz")
-	writeIsoTestFile(t, kernel, "kernel")
+	writeIsoTestKernelAny(t, kernel)
 	writeIsoTestFile(t, initrd, "initrd")
 
 	oldLookPath := isoLookPathFn
@@ -269,8 +296,51 @@ func TestIsoBuildsArm64BootArtifacts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read grub.cfg: %v", err)
 	}
-	if !strings.Contains(string(grub), "console=tty0 console=ttyAMA0") {
+	if !strings.Contains(string(grub), "console=tty0 console=ttyAMA0,115200n8") {
 		t.Fatalf("grub.cfg missing arm64 console: %s", string(grub))
+	}
+}
+
+func TestIsoRejectsKernelArchMismatch(t *testing.T) {
+	cases := []struct {
+		name       string
+		kernelArch string
+		configArch string
+	}{
+		{"arm64 kernel for amd64 config", archARM64, archAMD64},
+		{"amd64 kernel for arm64 config", archAMD64, archARM64},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			appDir := setupIsoTestAppliance(t)
+			if tc.configArch != archAMD64 {
+				rewriteIsoTestConfig(t, appDir, func(cfg *ApplianceConfig) {
+					cfg.Image.Arch = tc.configArch
+				})
+			}
+			img := filepath.Join(appDir, "ze-20260101-000000.img")
+			writeIsoTestFile(t, img, "image")
+			writeIsoTestChecksum(t, img)
+
+			kernel := filepath.Join(t.TempDir(), "Image")
+			writeIsoTestKernel(t, kernel, tc.kernelArch)
+			initrd := filepath.Join(t.TempDir(), "initrd.img.gz")
+			writeIsoTestFile(t, initrd, "initrd")
+
+			oldLookPath := isoLookPathFn
+			oldBuilder := isoBuilderFn
+			isoLookPathFn = func(file string) (string, error) { return "/tool/" + file, nil }
+			isoBuilderFn = func(call isoBuilderCall) error { return os.WriteFile(call.OutputPath, []byte("iso"), 0o644) }
+			t.Cleanup(func() {
+				isoLookPathFn = oldLookPath
+				isoBuilderFn = oldBuilder
+			})
+
+			code := runIso([]string{"--kernel", kernel, "--initrd", initrd, isoTestApplianceName})
+			if code == exitOK {
+				t.Fatalf("runIso accepted %s kernel for %s appliance", tc.kernelArch, tc.configArch)
+			}
+		})
 	}
 }
 
@@ -285,7 +355,7 @@ func TestIsoUsesDefaultKernelAndInitrdArtifactPaths(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(initrdPath), 0o755); err != nil {
 		t.Fatalf("mkdir initrd dir: %v", err)
 	}
-	writeIsoTestFile(t, kernelPath, "default-kernel")
+	writeIsoTestKernelAny(t, kernelPath)
 	writeIsoTestFile(t, initrdPath, "default-initrd")
 
 	appDir := setupIsoTestAppliance(t)
@@ -302,8 +372,8 @@ func TestIsoUsesDefaultKernelAndInitrdArtifactPaths(t *testing.T) {
 		t.Fatalf("builder calls = %d, want 1", len(*calls))
 	}
 	stage := (*calls)[0].StagingDir
-	if got := string(mustReadFile(t, filepath.Join(stage, "boot", "kernel"))); got != "default-kernel" {
-		t.Fatalf("staged kernel = %q, want default-kernel", got)
+	if len(mustReadFile(t, filepath.Join(stage, "boot", "kernel"))) != 0x206 {
+		t.Fatal("staged kernel size does not match default kernel stub")
 	}
 	if got := string(mustReadFile(t, filepath.Join(stage, "boot", "initrd.img.gz"))); got != "default-initrd" {
 		t.Fatalf("staged initrd = %q, want default-initrd", got)
@@ -517,7 +587,7 @@ func TestIsoBuildsExpectedStagingPlan(t *testing.T) {
 	if strings.TrimSpace(string(mediaIDData)) != manifest.MediaID {
 		t.Fatalf("media-id file = %q, manifest = %q", strings.TrimSpace(string(mediaIDData)), manifest.MediaID)
 	}
-	if !strings.Contains(string(grub), "search --no-floppy --file /ze-install/media-id --set=root") || !strings.Contains(string(grub), "ze.source=iso") || !strings.Contains(string(grub), "ze.target=/dev/vda") || !strings.Contains(string(grub), "ze.media-id="+manifest.MediaID) || !strings.Contains(string(grub), "console=tty0 console=ttyS0") || !strings.Contains(string(grub), "ze.image=ze-20260101-000000.img.gz") {
+	if !strings.Contains(string(grub), "search --no-floppy --file /ze-install/media-id --set=root") || !strings.Contains(string(grub), "ze.source=iso") || !strings.Contains(string(grub), "ze.target=/dev/vda") || !strings.Contains(string(grub), "ze.media-id="+manifest.MediaID) || !strings.Contains(string(grub), "console=tty0 console=ttyS0,115200n8") || !strings.Contains(string(grub), "ze.image=ze-20260101-000000.img.gz") {
 		t.Fatalf("grub.cfg does not contain ISO source, media search, target, media id, compressed image name, and amd64 console: %s", string(grub))
 	}
 }
