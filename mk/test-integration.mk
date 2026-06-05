@@ -140,8 +140,9 @@ ze-deployment-preflight:
 #     Linux-CI unit runs). The VM's unique value: //go:build linux paths and the
 #     integration-tagged netlink/nft/fib/socket tests.
 # GOARCH is derived from the host (Apple Silicon -> arm64, Intel -> amd64) so the
-# binaries match the VM. ZE_QEMU_SKIP_SUITES (default: web, which needs
-# agent-browser) lets you drop suites that cannot run headless in the VM.
+# binaries match the VM. ZE_QEMU_SKIP_SUITES (default: web,firewall) lets you
+# drop suites: web needs agent-browser; firewall crashes the Alpine QEMU kernel
+# on nft set-element-timeout operations.
 # Cross-compiled binaries go to bin/ze-linux-<arch> so bin/ze stays the
 # host-native binary. No need to run `make ze test` after QEMU testing.
 QEMU_GOARCH := $(shell uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
@@ -160,7 +161,7 @@ ZE_QEMU_PARALLEL ?= 4
 ze-qemu-all-test:
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build $(ZE_TAGFLAG) -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o $(ZE_QEMU_TEST_BIN) ./cmd/ze-test
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
@@ -192,7 +193,7 @@ ze-qemu-debug:
 ifneq ($(NOBUILD),1)
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o $(ZE_QEMU_TEST_BIN) ./cmd/ze-test
 endif
 	python3 scripts/evidence/qemu-run.py \
@@ -213,7 +214,7 @@ ze-qemu-shell:
 ifneq ($(NOBUILD),1)
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -o $(ZE_QEMU_TEST_BIN) ./cmd/ze-test
 endif
 	python3 scripts/evidence/qemu-run.py \

@@ -105,7 +105,7 @@ try:
     )
     combined = result.stdout + result.stderr
     require(result.returncode != 0, 'firmware check unexpectedly succeeded: ' + combined)
-    require('self-update unavailable in ze-stripped' in combined, combined)
+    require('self-update unavailable in minimal build' in combined, combined)
     require('update checker not configured' not in combined, combined)
 finally:
     daemon.terminate()

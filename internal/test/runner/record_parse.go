@@ -31,6 +31,7 @@ var (
 	errOptionUpdateMissingValue         = errors.New("option:update missing value=")
 	errOptionEnvMissingVar              = errors.New("option:env missing var=")
 	errOptionSkipOsMissingValue         = errors.New("option:skip-os missing value=")
+	errOptionRequireTagMissingValue     = errors.New("option:require-tag missing value=")
 	errExpectBgpMissingHex              = errors.New("expect:bgp missing hex=")
 	errExpectJsonMissingJson            = errors.New("expect:json missing json=")
 	errExpectExitMissingCode            = errors.New("expect:exit missing code=")
@@ -343,6 +344,24 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 				r.SkipReason = "skip-os=" + value + " (current GOOS=" + runtime.GOOS + ")"
 				return nil
 			}
+		}
+
+	case "require-tag":
+		value := kv["value"]
+		if value == "" {
+			return errOptionRequireTagMissingValue
+		}
+		active := TestBuildTags()
+		found := false
+		for tag := range strings.SplitSeq(active, ",") {
+			if strings.TrimSpace(tag) == value {
+				found = true
+				break
+			}
+		}
+		if !found {
+			r.SkipReason = "require-tag=" + value + " (not in build tags: " + active + ")"
+			return nil
 		}
 
 	default:

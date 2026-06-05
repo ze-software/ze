@@ -17,11 +17,11 @@ tmpfs=mpls.conf:terminator=EOF_CONF
 bgp {
 	peer peer1 {
 		connection {
-			remote { ip 10.0.0.2 }
-			local { ip 10.0.0.1 }
+			remote { ip 10.0.0.2; }
+			local { ip 10.0.0.1; }
 		}
 		session {
-			asn { local 65001; remote 65002 }
+			asn { local 65001; remote 65002; }
 			router-id 1.2.3.4
 			family { ipv4/mpls-unicast { } }
 		}
