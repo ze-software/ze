@@ -10,6 +10,8 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
 // structuredEventPool eliminates per-event heap allocation of StructuredEvent
@@ -62,6 +64,8 @@ type DirectBridge struct {
 	hasReleaseCached    atomic.Bool                // set atomically when releaseCached is written
 	injectWireRoute     InjectWireRouteHandler     // Typed fast path (no JSON) -- bmp-6
 	hasInjectWireRoute  atomic.Bool                // set atomically when injectWireRoute is written
+	updateRouteSel      UpdateRouteSelHandler      // Typed fast path with *selector.Selector
+	hasUpdateRouteSel   atomic.Bool                // set atomically when updateRouteSel is written
 	callbackCh          chan BridgeCallback        // Engine->plugin callbacks (replaces pipe after startup)
 	closeOnce           sync.Once                  // Guards callbackCh close (Stop may be called multiple times)
 	ready               atomic.Bool
@@ -238,6 +242,29 @@ func (b *DirectBridge) DispatchCommandArgs(command string, args []string, peer s
 // HasDispatchCommandArgs reports whether the typed dispatch-command-args handler is set.
 func (b *DirectBridge) HasDispatchCommandArgs() bool {
 	return b.ready.Load() && b.hasDispatchCmdArgs.Load()
+}
+
+// UpdateRouteSelHandler is the typed handler for update-route that carries
+// a *selector.Selector instead of a peer selector string.
+type UpdateRouteSelHandler func(sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error)
+
+// SetUpdateRouteSel registers the engine-side typed selector update-route handler.
+func (b *DirectBridge) SetUpdateRouteSel(fn UpdateRouteSelHandler) {
+	b.updateRouteSel = fn
+	b.hasUpdateRouteSel.Store(fn != nil)
+}
+
+// UpdateRouteSel calls the typed selector update-route handler directly.
+func (b *DirectBridge) UpdateRouteSel(sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
+	if !b.hasUpdateRouteSel.Load() {
+		return 0, 0, errors.New("update-route-sel handler not set")
+	}
+	return b.updateRouteSel(sel, command, meta)
+}
+
+// HasUpdateRouteSel reports whether the typed selector update-route handler is set.
+func (b *DirectBridge) HasUpdateRouteSel() bool {
+	return b.ready.Load() && b.hasUpdateRouteSel.Load()
 }
 
 // ExecuteCommandHandler is the plugin-side typed handler for execute-command.

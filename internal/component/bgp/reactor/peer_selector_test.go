@@ -3,6 +3,8 @@ package reactor
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,14 +31,22 @@ func setupSelectorReactor() *reactorAPIAdapter {
 	return &reactorAPIAdapter{r: r}
 }
 
+// matchPeers is a test helper: parses a selector string and resolves matching peers.
+func matchPeers(adapter *reactorAPIAdapter, s string) []*Peer {
+	sel := selector.ParseDefault(s)
+	adapter.r.mu.RLock()
+	defer adapter.r.mu.RUnlock()
+	return adapter.getMatchingPeersSel(sel)
+}
+
 // TestPeerSelectorByName verifies that a peer can be resolved by its Name field.
 //
-// VALIDATES: getMatchingPeersLocked returns the peer whose settings.Name matches the selector.
+// VALIDATES: getMatchingPeersSel returns the peer whose settings.Name matches the selector.
 // PREVENTS: Name-based peer selection silently returning empty results.
 func TestPeerSelectorByName(t *testing.T) {
 	adapter := setupSelectorReactor()
 
-	peers := adapter.getMatchingPeers("upstream")
+	peers := matchPeers(adapter, "upstream")
 	require.Len(t, peers, 1, "should match exactly one peer by name")
 	assert.Equal(t, "upstream", peers[0].settings.Name)
 	assert.Equal(t, mustParseAddr("10.0.0.1"), peers[0].settings.Address)
@@ -44,12 +54,12 @@ func TestPeerSelectorByName(t *testing.T) {
 
 // TestPeerSelectorByIP verifies that a peer can be resolved by bare IP address.
 //
-// VALIDATES: getMatchingPeersLocked returns the peer whose Address matches a bare IP selector.
+// VALIDATES: getMatchingPeersSel returns the peer whose Address matches a bare IP selector.
 // PREVENTS: Bare IP selectors failing when peers have names configured.
 func TestPeerSelectorByIP(t *testing.T) {
 	adapter := setupSelectorReactor()
 
-	peers := adapter.getMatchingPeers("10.0.0.1")
+	peers := matchPeers(adapter, "10.0.0.1")
 	require.Len(t, peers, 1, "should match exactly one peer by IP")
 	assert.Equal(t, mustParseAddr("10.0.0.1"), peers[0].settings.Address)
 	assert.Equal(t, "upstream", peers[0].settings.Name)
@@ -62,10 +72,10 @@ func TestPeerSelectorByIP(t *testing.T) {
 func TestPeerSelectorByIPWhenNameExists(t *testing.T) {
 	adapter := setupSelectorReactor()
 
-	byName := adapter.getMatchingPeers("downstream")
+	byName := matchPeers(adapter, "downstream")
 	require.Len(t, byName, 1)
 
-	byIP := adapter.getMatchingPeers("10.0.0.2")
+	byIP := matchPeers(adapter, "10.0.0.2")
 	require.Len(t, byIP, 1)
 
 	assert.Equal(t, byName[0], byIP[0], "name and IP should resolve to the same peer object")
@@ -75,24 +85,24 @@ func TestPeerSelectorByIPWhenNameExists(t *testing.T) {
 
 // TestPeerSelectorWildcard verifies that "*" matches all peers.
 //
-// VALIDATES: getMatchingPeersLocked with "*" returns every peer in the reactor.
+// VALIDATES: getMatchingPeersSel with KindAll returns every peer in the reactor.
 // PREVENTS: Wildcard selector missing peers or returning empty.
 func TestPeerSelectorWildcard(t *testing.T) {
 	adapter := setupSelectorReactor()
 
-	peers := adapter.getMatchingPeers("*")
+	peers := matchPeers(adapter, "*")
 	assert.Len(t, peers, 3, "wildcard should match all 3 peers")
 }
 
 // TestPeerSelectorGlob verifies that glob patterns match by IP octets.
 //
-// VALIDATES: getMatchingPeersLocked with "10.0.0.*" matches peers in that subnet.
+// VALIDATES: getMatchingPeersSel with KindGlob matches peers in that subnet.
 // PREVENTS: Glob patterns failing to match or matching too broadly.
 func TestPeerSelectorGlob(t *testing.T) {
 	adapter := setupSelectorReactor()
 
 	// "10.0.0.*" should match 10.0.0.1 and 10.0.0.2, but not 10.0.1.1
-	peers := adapter.getMatchingPeers("10.0.0.*")
+	peers := matchPeers(adapter, "10.0.0.*")
 	assert.Len(t, peers, 2, "glob 10.0.0.* should match 2 peers")
 
 	addrs := make(map[string]bool)
@@ -104,26 +114,14 @@ func TestPeerSelectorGlob(t *testing.T) {
 	assert.False(t, addrs["10.0.1.1"], "should NOT include 10.0.1.1")
 }
 
-// TestPeerSelectorExactKey verifies that "addr:port" exact key match works.
-//
-// VALIDATES: getMatchingPeersLocked with full "addr:port" key returns the peer directly.
-// PREVENTS: Full key lookup broken or falling through to slow path.
-func TestPeerSelectorExactKey(t *testing.T) {
-	adapter := setupSelectorReactor()
-
-	peers := adapter.getMatchingPeers("10.0.0.1:179")
-	require.Len(t, peers, 1, "exact key should match one peer")
-	assert.Equal(t, mustParseAddr("10.0.0.1"), peers[0].settings.Address)
-}
-
 // TestPeerSelectorExclusion verifies that "!name" returns all peers except the named one.
 //
-// VALIDATES: getMatchingPeers with "!upstream" excludes the upstream peer.
+// VALIDATES: getMatchingPeersSel with exclude flag excludes the upstream peer.
 // PREVENTS: Exclusion selector including the excluded peer or returning empty.
 func TestPeerSelectorExclusion(t *testing.T) {
 	adapter := setupSelectorReactor()
 
-	peers := adapter.getMatchingPeers("!upstream")
+	peers := matchPeers(adapter, "!upstream")
 	assert.Len(t, peers, 2, "exclusion should return all peers except upstream")
 
 	for _, p := range peers {
@@ -133,28 +131,23 @@ func TestPeerSelectorExclusion(t *testing.T) {
 
 // TestPeerSelectorNoMatch verifies that an unknown selector returns empty.
 //
-// VALIDATES: getMatchingPeersLocked with a non-matching selector returns nil/empty.
+// VALIDATES: getMatchingPeersSel with a non-matching selector returns nil/empty.
 // PREVENTS: Unknown selectors matching random peers.
 func TestPeerSelectorNoMatch(t *testing.T) {
 	adapter := setupSelectorReactor()
 
-	peers := adapter.getMatchingPeers("nonexistent")
+	peers := matchPeers(adapter, "nonexistent")
 	assert.Empty(t, peers, "unknown selector should return empty")
 }
 
-// TestPeerSelectorNamePriority verifies name match takes priority over glob.
-// A selector that is a valid name should match by name, not fall through to glob.
-//
-// VALIDATES: Name match short-circuits before glob evaluation.
-// PREVENTS: Name selectors being interpreted as glob patterns.
 // TestPeerSelectorByASN verifies that a peer can be resolved by ASN selector.
 //
-// VALIDATES: AC-1 — unique ASN selects exactly one peer.
+// VALIDATES: AC-1 -- unique ASN selects exactly one peer.
 // PREVENTS: ASN selectors silently returning empty or wrong peers.
 func TestPeerSelectorByASN(t *testing.T) {
 	adapter := setupSelectorReactor()
 
-	peers := adapter.getMatchingPeers("as65001")
+	peers := matchPeers(adapter, "as65001")
 	require.Len(t, peers, 1, "should match exactly one peer by ASN")
 	assert.Equal(t, "upstream", peers[0].settings.Name)
 	assert.Equal(t, uint32(65001), peers[0].settings.PeerAS)
@@ -162,7 +155,7 @@ func TestPeerSelectorByASN(t *testing.T) {
 
 // TestPeerSelectorByASNMultiple verifies that shared ASN selects all matching peers.
 //
-// VALIDATES: AC-2 — multiple peers with same ASN are all returned.
+// VALIDATES: AC-2 -- multiple peers with same ASN are all returned.
 // PREVENTS: ASN selector only returning first match instead of all.
 func TestPeerSelectorByASNMultiple(t *testing.T) {
 	r := New(&Config{})
@@ -183,7 +176,7 @@ func TestPeerSelectorByASNMultiple(t *testing.T) {
 
 	adapter := &reactorAPIAdapter{r: r}
 
-	peers := adapter.getMatchingPeers("as65000")
+	peers := matchPeers(adapter, "as65000")
 	assert.Len(t, peers, 2, "should match both iBGP peers with same ASN")
 
 	names := make(map[string]bool)
@@ -197,23 +190,23 @@ func TestPeerSelectorByASNMultiple(t *testing.T) {
 
 // TestPeerSelectorByASNNoMatch verifies that unknown ASN returns empty.
 //
-// VALIDATES: AC-3 — non-existent ASN returns empty result.
+// VALIDATES: AC-3 -- non-existent ASN returns empty result.
 // PREVENTS: ASN selector matching wrong peers when no peer has that ASN.
 func TestPeerSelectorByASNNoMatch(t *testing.T) {
 	adapter := setupSelectorReactor()
 
-	peers := adapter.getMatchingPeers("as99999")
+	peers := matchPeers(adapter, "as99999")
 	assert.Empty(t, peers, "unknown ASN should return empty")
 }
 
 // TestPeerSelectorASNExclusion verifies that "!as<N>" excludes ASN-matched peers.
 //
-// VALIDATES: AC-4 — exclusion with ASN selector returns all peers except matching.
+// VALIDATES: AC-4 -- exclusion with ASN selector returns all peers except matching.
 // PREVENTS: Exclusion prefix not working with ASN selectors.
 func TestPeerSelectorASNExclusion(t *testing.T) {
 	adapter := setupSelectorReactor()
 
-	peers := adapter.getMatchingPeers("!as65001")
+	peers := matchPeers(adapter, "!as65001")
 	assert.Len(t, peers, 2, "exclusion should return all peers except AS 65001")
 
 	for _, p := range peers {
@@ -224,7 +217,7 @@ func TestPeerSelectorASNExclusion(t *testing.T) {
 // TestPeerSelectorASNNameCollision verifies that a peer named "as65001" is
 // resolved by name (not ASN) because name matching has priority over ASN.
 //
-// VALIDATES: Name match at line 777 runs before ASN match at line 783.
+// VALIDATES: Name match runs before ASN match in ParseDefault -> matchPositive.
 // PREVENTS: Peer with ASN-like name being resolved as ASN selector.
 func TestPeerSelectorASNNameCollision(t *testing.T) {
 	r := New(&Config{})
@@ -242,7 +235,7 @@ func TestPeerSelectorASNNameCollision(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// "as65001" should match by name (peer 10.0.0.1), not by ASN (peer 10.0.0.2)
-	peers := adapter.getMatchingPeers("as65001")
+	peers := matchPeers(adapter, "as65001")
 	require.Len(t, peers, 1, "should match exactly one peer by name, not ASN")
 	assert.Equal(t, "as65001", peers[0].settings.Name)
 	assert.Equal(t, uint32(65002), peers[0].settings.PeerAS, "should be the named peer, not the ASN-matched one")
@@ -258,7 +251,7 @@ func TestPeerSelectorNamePriority(t *testing.T) {
 
 	adapter := &reactorAPIAdapter{r: r}
 
-	peers := adapter.getMatchingPeers("router-a")
+	peers := matchPeers(adapter, "router-a")
 	require.Len(t, peers, 1)
 	assert.Equal(t, "router-a", peers[0].settings.Name)
 }

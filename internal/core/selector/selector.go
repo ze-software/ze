@@ -209,6 +209,10 @@ func parsePositive(s string) (*Selector, error) {
 		return Addr(ip), nil
 	}
 
+	if ap, err := netip.ParseAddrPort(s); err == nil {
+		return Addr(ap.Addr()), nil
+	}
+
 	if asn, ok := parseASNSelector(s); ok {
 		return ASN(asn), nil
 	}

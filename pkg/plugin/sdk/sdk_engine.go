@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -17,6 +18,21 @@ import (
 // Returns the number of NLRIs announced and withdrawn.
 func (p *Plugin) UpdateRoute(ctx context.Context, peerSelector, command string) (announced, withdrawn uint32, err error) {
 	return p.UpdateRouteWithMeta(ctx, peerSelector, command, nil)
+}
+
+// UpdateRouteSel is the typed-selector variant of UpdateRoute.
+// In-process plugins use this to pass a *selector.Selector through DirectBridge
+// without stringifying. Falls back to the string path for external plugins.
+func (p *Plugin) UpdateRouteSel(ctx context.Context, sel *selector.Selector, command string) (announced, withdrawn uint32, err error) {
+	return p.UpdateRouteSelWithMeta(ctx, sel, command, nil)
+}
+
+// UpdateRouteSelWithMeta is the typed-selector variant of UpdateRouteWithMeta.
+func (p *Plugin) UpdateRouteSelWithMeta(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
+	if p.bridge != nil && p.bridge.HasUpdateRouteSel() {
+		return p.bridge.UpdateRouteSel(sel, command, meta)
+	}
+	return p.UpdateRouteWithMeta(ctx, sel.String(), command, meta)
 }
 
 // UpdateRouteWithMeta injects a route update with metadata to matching peers.

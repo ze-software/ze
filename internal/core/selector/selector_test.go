@@ -530,6 +530,53 @@ func TestParseDefaultMalformedMultiIP(t *testing.T) {
 	}
 }
 
+// TestParseExclamationName verifies that "!<name>" is a valid exclude-by-name
+// selector, not an error. A peer literally named "!router1" cannot be expressed
+// in the string syntax (the "!" is always parsed as exclude prefix).
+//
+// VALIDATES: AC-7 -- "!" prefix is always exclusion, never part of a name.
+// PREVENTS: Confusion between exclude syntax and peer names containing "!".
+func TestParseExclamationName(t *testing.T) {
+	sel, err := Parse("!router1")
+	if err != nil {
+		t.Fatalf("Parse(\"!router1\") error: %v", err)
+	}
+	if sel.SelectorKind() != KindName {
+		t.Errorf("Parse(\"!router1\") kind = %v, want KindName", sel.SelectorKind())
+	}
+	if !sel.IsExclude() {
+		t.Error("Parse(\"!router1\") should have exclude flag set")
+	}
+	if sel.NameValue() != "router1" {
+		t.Errorf("Parse(\"!router1\").NameValue() = %q, want \"router1\"", sel.NameValue())
+	}
+	if sel.String() != "!router1" {
+		t.Errorf("String() = %q, want \"!router1\"", sel.String())
+	}
+}
+
+// TestParseDefaultEmpty verifies ParseDefault("") returns KindAll.
+//
+// VALIDATES: AC-8 -- empty string defaults to all peers.
+// PREVENTS: Empty selector causing errors or matching nothing.
+func TestParseDefaultEmpty(t *testing.T) {
+	sel := ParseDefault("")
+	if sel.SelectorKind() != KindAll {
+		t.Errorf("ParseDefault(\"\") kind = %v, want KindAll", sel.SelectorKind())
+	}
+}
+
+// TestParseDefaultStar verifies ParseDefault("*") returns KindAll.
+//
+// VALIDATES: AC-8 -- star defaults to all peers.
+// PREVENTS: Wildcard handling inconsistency.
+func TestParseDefaultStar(t *testing.T) {
+	sel := ParseDefault("*")
+	if sel.SelectorKind() != KindAll {
+		t.Errorf("ParseDefault(\"*\") kind = %v, want KindAll", sel.SelectorKind())
+	}
+}
+
 func must(sel *Selector, err error) *Selector {
 	if err != nil {
 		panic(err)

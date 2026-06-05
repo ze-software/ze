@@ -36,6 +36,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -708,9 +709,10 @@ func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.
 
 	// Handle EOR markers (RFC 4724)
 	peerSelector := ctx.PeerSelector()
+	sel := selector.ParseDefault(peerSelector)
 	var eorSent int
 	for _, fam := range result.EORFamilies {
-		if err := bgpReactor.AnnounceEOR(peerSelector, uint16(fam.AFI), uint8(fam.SAFI)); err != nil {
+		if err := bgpReactor.AnnounceEOR(sel, uint16(fam.AFI), uint8(fam.SAFI)); err != nil {
 			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 		}
 		eorSent++
@@ -755,7 +757,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 		return errResp, bgpErr
 	}
 
-	peerSelector := ctx.PeerSelector()
+	sel := selector.ParseDefault(ctx.PeerSelector())
 	var announced, withdrawn int
 	var warnings []string
 
@@ -767,7 +769,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				NextHop: group.NextHop,
 				Wire:    group.Wire,
 			}
-			if err := bgpReactor.AnnounceNLRIBatch(peerSelector, batch); err != nil {
+			if err := bgpReactor.AnnounceNLRIBatch(sel, batch); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
@@ -781,7 +783,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				Family: group.Family,
 				NLRIs:  group.Withdraw,
 			}
-			if err := bgpReactor.WithdrawNLRIBatch(peerSelector, batch); err != nil {
+			if err := bgpReactor.WithdrawNLRIBatch(sel, batch); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
 					continue

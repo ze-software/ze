@@ -79,6 +79,7 @@ Registration, SDK, event flow, lifecycle, hook integration.
 - [821](plan/learned/821-plugin-internal-keyword.md) -- Plugin internal keyword: explicit `plugin internal <name> { use <builtin> }` config, cross-list uniqueness, internal plugins do not use external encoder/respawn/timeout leaves
 - [828](plan/learned/828-codec-callback-passthrough.md) -- NLRI decode single-marshal: DecodeNLRIHex returns any, registry marshals once; RunCLIDecode callers share function so need own marshal
 - [830](plan/learned/830-typed-inter-plugin-dispatch.md) -- Typed exact-command inter-plugin dispatch: `DispatchCommandArgs` over rebuilt strings, `CommandArgsAuthorizer` over canonical fallback, command/args boundary pinned by tests
+- [858](plan/learned/858-typed-peer-selector.md) -- Typed peer selector: BGPReactor takes `*selector.Selector` not string; SDK `*Sel` variants for DirectBridge; `SoftClearPeer` fixed for name/ASN; GR stays string at args boundary
 
 ## Configuration
 

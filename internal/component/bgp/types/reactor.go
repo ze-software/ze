@@ -21,35 +21,35 @@ type BGPReactor interface {
 
 	// AnnounceNLRIBatch announces a batch of NLRIs with shared attributes.
 	// RFC 4271 Section 4.3, RFC 4760, RFC 8654.
-	AnnounceNLRIBatch(peerSelector string, batch NLRIBatch) error
+	AnnounceNLRIBatch(sel *selector.Selector, batch NLRIBatch) error
 
 	// AnnounceEOR sends an End-of-RIB marker for the given address family.
-	AnnounceEOR(peerSelector string, afi uint16, safi uint8) error
+	AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8) error
 
 	// --- Route withdraw ---
 
 	// WithdrawNLRIBatch withdraws a batch of NLRIs.
 	// RFC 4271 Section 4.3, RFC 4760.
-	WithdrawNLRIBatch(peerSelector string, batch NLRIBatch) error
+	WithdrawNLRIBatch(sel *selector.Selector, batch NLRIBatch) error
 
 	// --- BGP messages (3 methods) ---
 
 	// SendBoRR sends a Beginning of Route Refresh marker to matching peers.
 	// RFC 7313 Section 4.
-	SendBoRR(peerSelector string, afi uint16, safi uint8) error
+	SendBoRR(sel *selector.Selector, afi uint16, safi uint8) error
 
 	// SendEoRR sends an End of Route Refresh marker to matching peers.
 	// RFC 7313 Section 4.
-	SendEoRR(peerSelector string, afi uint16, safi uint8) error
+	SendEoRR(sel *selector.Selector, afi uint16, safi uint8) error
 
 	// SendRefresh sends a normal ROUTE-REFRESH message to matching peers.
 	// RFC 2918 Section 3.
-	SendRefresh(peerSelector string, afi uint16, safi uint8) error
+	SendRefresh(sel *selector.Selector, afi uint16, safi uint8) error
 
 	// SoftClearPeer sends ROUTE-REFRESH for all negotiated families of matching peers.
 	// Returns the list of families refreshed.
 	// RFC 2918 Section 3: soft reset via route refresh.
-	SoftClearPeer(peerSelector string) ([]string, error)
+	SoftClearPeer(sel *selector.Selector) ([]string, error)
 
 	// SendRawMessage sends raw bytes to a peer.
 	SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte) error
@@ -70,7 +70,7 @@ type BGPReactor interface {
 	// --- Commit (1 method) ---
 
 	// SendRoutes sends routes directly to matching peers using CommitService.
-	SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (TransactionResult, error)
+	SendRoutes(sel *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (TransactionResult, error)
 
 	// --- UPDATE cache (5 methods) ---
 

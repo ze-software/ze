@@ -116,20 +116,20 @@ func (m *mockReactor) RemovePeer(addr netip.Addr) error {
 func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error { return nil }
 
 // BGP reactor stubs (not tracked unless needed).
-func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error { return nil }
-func (m *mockReactor) AnnounceNLRIBatch(peer string, batch bgptypes.NLRIBatch) error {
+func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8) error { return nil }
+func (m *mockReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
 	m.announcedBatches = append(m.announcedBatches, struct {
 		peer  string
 		batch bgptypes.NLRIBatch
-	}{peer, batch})
+	}{sel.String(), batch})
 	return nil
 }
 
-func (m *mockReactor) WithdrawNLRIBatch(peer string, batch bgptypes.NLRIBatch) error {
+func (m *mockReactor) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
 	m.withdrawnBatches = append(m.withdrawnBatches, struct {
 		peer  string
 		batch bgptypes.NLRIBatch
-	}{peer, batch})
+	}{sel.String(), batch})
 	return nil
 }
 
@@ -138,7 +138,7 @@ func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON { return nil }
 func (m *mockReactor) RIBStats() bgptypes.RIBStatsInfo      { return bgptypes.RIBStatsInfo{} }
 func (m *mockReactor) ClearRIBIn() int                      { return 0 }
 
-func (m *mockReactor) SendRoutes(_ string, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
+func (m *mockReactor) SendRoutes(_ *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{
 		RoutesAnnounced: len(routes),
 		RoutesWithdrawn: len(withdrawals),
@@ -182,22 +182,22 @@ func (m *mockReactor) SendRawMessage(addr netip.Addr, msgType uint8, payload []b
 	return nil
 }
 
-func (m *mockReactor) SendRefresh(_ string, _ uint16, _ uint8) error {
+func (m *mockReactor) SendRefresh(_ *selector.Selector, _ uint16, _ uint8) error {
 	m.sendRefreshCalled = true
 	return nil
 }
 
-func (m *mockReactor) SendBoRR(_ string, _ uint16, _ uint8) error {
+func (m *mockReactor) SendBoRR(_ *selector.Selector, _ uint16, _ uint8) error {
 	m.sendBoRRCalled = true
 	return nil
 }
 
-func (m *mockReactor) SendEoRR(_ string, _ uint16, _ uint8) error {
+func (m *mockReactor) SendEoRR(_ *selector.Selector, _ uint16, _ uint8) error {
 	m.sendEoRRCalled = true
 	return nil
 }
 
-func (m *mockReactor) SoftClearPeer(selector string) ([]string, error) {
-	m.softClearCalls = append(m.softClearCalls, selector)
+func (m *mockReactor) SoftClearPeer(sel *selector.Selector) ([]string, error) {
+	m.softClearCalls = append(m.softClearCalls, sel.String())
 	return []string{"ipv4/unicast", "ipv6/unicast"}, nil
 }

@@ -19,6 +19,7 @@ import (
 	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -604,6 +605,32 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 	return directResultResponse(output)
 }
 
+// handleUpdateRouteSelDirect handles update-route with a typed *selector.Selector.
+// Reuses the existing Dispatch path by stringifying the selector for the peer field.
+func (s *Server) handleUpdateRouteSelDirect(proc *process.Process, sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
+	peer := sel.String()
+	cmdCtx := &CommandContext{
+		Server:         s,
+		Process:        proc,
+		RequestContext: s.Context(),
+		Peer:           peer,
+		Meta:           meta,
+	}
+
+	dispatchCmd := "peer " + peer + " " + command
+
+	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
+	if err != nil {
+		if errors.Is(err, ErrSilent) {
+			return 0, 0, nil
+		}
+		return 0, 0, err
+	}
+
+	output := extractUpdateRouteOutput(resp)
+	return output.Announced, output.Withdrawn, nil
+}
+
 // extractUpdateRouteOutput reads announced/withdrawn counts from a Dispatch response.
 // DispatchNLRIGroups returns *plugin.RouteResult as resp.Data.
 func extractUpdateRouteOutput(resp *plugin.Response) *rpc.UpdateRouteOutput {
@@ -790,6 +817,9 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 	})
 	proc.Bridge().SetDispatchCommandArgs(func(command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
 		return s.dispatchCommandArgs(proc, command, args, peer)
+	})
+	proc.Bridge().SetUpdateRouteSel(func(sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
+		return s.handleUpdateRouteSelDirect(proc, sel, command, meta)
 	})
 	// rs-fastpath-3: typed fast paths for forward-cached + release-cached.
 	proc.Bridge().SetForwardCached(func(_ context.Context, ids []uint64, destinations []string) error {

@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
 var errNoPeerSpecified = errors.New("no peer specified")
@@ -46,7 +47,7 @@ func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plug
 		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
-	families, err := r.SoftClearPeer(addr.String())
+	families, err := r.SoftClearPeer(selector.Addr(addr))
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,

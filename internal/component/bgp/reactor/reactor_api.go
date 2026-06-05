@@ -231,22 +231,22 @@ func (a *reactorAPIAdapter) PeerNegotiatedCapabilities(addr netip.Addr) *plugin.
 
 // SoftClearPeer sends ROUTE-REFRESH for all negotiated families of matching peers.
 // RFC 2918 Section 3: soft reset via route refresh.
-func (a *reactorAPIAdapter) SoftClearPeer(peerSelector string) ([]string, error) {
+func (a *reactorAPIAdapter) SoftClearPeer(sel *selector.Selector) ([]string, error) {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
+	peers := a.getMatchingPeersSel(sel)
+	if len(peers) == 0 {
+		return nil, ErrPeerNotFound
+	}
+
 	familySet := make(map[string]bool)
 	var lastErr error
-	matched := false
 
-	for addrPort, peer := range a.r.peers {
-		if !ipGlobMatch(peerSelector, addrPort.Addr().String()) {
-			continue
-		}
+	for _, peer := range peers {
 		if peer.State() != PeerStateEstablished {
 			continue
 		}
-		matched = true
 
 		neg := peer.negotiated.Load()
 		if neg == nil {
@@ -270,10 +270,6 @@ func (a *reactorAPIAdapter) SoftClearPeer(peerSelector string) ([]string, error)
 				familySet[f.String()] = true
 			}
 		}
-	}
-
-	if !matched {
-		return nil, ErrPeerNotFound
 	}
 
 	families := make([]string, 0, len(familySet))
@@ -990,35 +986,6 @@ func (a *reactorAPIAdapter) getPluginEncoder(name string) string {
 		}
 	}
 	return ""
-}
-
-// getMatchingPeers returns peers matching the selector string.
-// Parses the string once to a typed selector, then dispatches on Kind.
-func (a *reactorAPIAdapter) getMatchingPeers(selectorStr string) []*Peer {
-	sel := parseReactorSel(selectorStr)
-	a.r.mu.RLock()
-	defer a.r.mu.RUnlock()
-	return a.getMatchingPeersSel(sel)
-}
-
-// parseReactorSel parses a selector string, treating empty as all-peers.
-// Handles reactor-specific "addr:port" format before delegating to selector.Parse.
-func parseReactorSel(s string) *selector.Selector {
-	if s == "" || s == "*" {
-		return selector.All()
-	}
-	raw := s
-	negated := strings.HasPrefix(s, "!")
-	if negated {
-		raw = s[1:]
-	}
-	if ap, err := netip.ParseAddrPort(raw); err == nil {
-		if negated {
-			return selector.ExcludeAddr(ap.Addr())
-		}
-		return selector.Addr(ap.Addr())
-	}
-	return selector.ParseDefault(s)
 }
 
 // getMatchingPeersSel resolves peers matching a typed selector.

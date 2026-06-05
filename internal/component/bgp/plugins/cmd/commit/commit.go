@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -263,7 +264,7 @@ func handleNamedCommitEnd(ctx *pluginserver.CommandContext, name string, sendEOR
 	if bgpErr != nil {
 		return errResp, bgpErr
 	}
-	result, err := bgpReactor.SendRoutes(tx.PeerSelector(), routes, withdrawals, sendEOR)
+	result, err := bgpReactor.SendRoutes(selector.ParseDefault(tx.PeerSelector()), routes, withdrawals, sendEOR)
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,

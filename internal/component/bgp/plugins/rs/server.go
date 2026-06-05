@@ -25,6 +25,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -369,6 +370,25 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 			logger().Warn("update-route failed (peer disconnected)", "peer", peerSelector, "command", command, "error", err)
 		} else {
 			logger().Error("update-route failed", "peer", peerSelector, "command", command, "error", err)
+		}
+	}
+}
+
+// updateRouteSel sends a route update using a typed selector via DirectBridge.
+func (rs *RouteServer) updateRouteSel(sel *selector.Selector, command string) {
+	if rs.updateRouteHook != nil {
+		rs.updateRouteHook(sel.String(), command)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	defer cancel()
+	_, _, err := rs.plugin.UpdateRouteSel(ctx, sel, command)
+	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
+		if rs.stopping.Load() {
+			logger().Debug("update-route failed (shutting down)", "peer", sel, "command", command, "error", err)
+		} else if isConnectionError(err) {
+			logger().Warn("update-route failed (peer disconnected)", "peer", sel, "command", command, "error", err)
+		} else {
+			logger().Error("update-route failed", "peer", sel, "command", command, "error", err)
 		}
 	}
 }

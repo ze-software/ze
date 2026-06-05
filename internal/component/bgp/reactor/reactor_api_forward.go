@@ -31,19 +31,18 @@ var errNoEstablishedPeersToForwardTo = errors.New("no established peers to forwa
 
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
 // Inlined peer iteration (not sendToMatchingPeers) to count EOR sent per peer.
-func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi uint8) error {
+func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8) error {
 	update := message.BuildEOR(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
 
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
+	peers := a.getMatchingPeersSel(sel)
+
 	var errs []error
 	sentCount := 0
 
-	for _, peer := range a.r.peers {
-		if !ipGlobMatch(peerSelector, peer.addrString) {
-			continue
-		}
+	for _, peer := range peers {
 		if peer.State() != PeerStateEstablished {
 			continue
 		}
@@ -65,22 +64,22 @@ func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi ui
 // SendRefresh sends a normal ROUTE-REFRESH message to matching peers.
 // RFC 2918 Section 3: "A BGP speaker may send a ROUTE-REFRESH message to
 // its peer only if it has received the Route Refresh Capability from its peer.".
-func (a *reactorAPIAdapter) SendRefresh(peerSelector string, afi uint16, safi uint8) error {
-	return a.sendRouteRefresh(peerSelector, afi, safi, message.RouteRefreshNormal)
+func (a *reactorAPIAdapter) SendRefresh(sel *selector.Selector, afi uint16, safi uint8) error {
+	return a.sendRouteRefresh(sel, afi, safi, message.RouteRefreshNormal)
 }
 
 // SendBoRR sends a Beginning of Route Refresh marker to matching peers.
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".
-func (a *reactorAPIAdapter) SendBoRR(peerSelector string, afi uint16, safi uint8) error {
-	return a.sendRouteRefresh(peerSelector, afi, safi, message.RouteRefreshBoRR)
+func (a *reactorAPIAdapter) SendBoRR(sel *selector.Selector, afi uint16, safi uint8) error {
+	return a.sendRouteRefresh(sel, afi, safi, message.RouteRefreshBoRR)
 }
 
 // SendEoRR sends an End of Route Refresh marker to matching peers.
 // RFC 7313 Section 4: "After the speaker completes the re-advertisement
 // of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
-func (a *reactorAPIAdapter) SendEoRR(peerSelector string, afi uint16, safi uint8) error {
-	return a.sendRouteRefresh(peerSelector, afi, safi, message.RouteRefreshEoRR)
+func (a *reactorAPIAdapter) SendEoRR(sel *selector.Selector, afi uint16, safi uint8) error {
+	return a.sendRouteRefresh(sel, afi, safi, message.RouteRefreshEoRR)
 }
 
 // sendRouteRefresh sends a ROUTE-REFRESH message with the specified subtype.
@@ -97,8 +96,7 @@ func (a *reactorAPIAdapter) SendEoRR(peerSelector string, afi uint16, safi uint8
 //
 // RFC 7313: "If peer did not advertise Enhanced Route Refresh Capability:
 // Do NOT send BoRR or EoRR." Only subtype 0 is allowed without Enhanced RR.
-func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, safi uint8, subtype message.RouteRefreshSubtype) error {
-	// RFC 7313: BoRR/EoRR require Enhanced Route Refresh capability
+func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16, safi uint8, subtype message.RouteRefreshSubtype) error {
 	requiresEnhancedRR := subtype == message.RouteRefreshBoRR || subtype == message.RouteRefreshEoRR
 
 	rr := &message.RouteRefresh{
@@ -107,18 +105,15 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 		Subtype: subtype,
 	}
 
-	// WriteTo includes the BGP header
 	data := message.PackTo(rr, nil)
 
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
-	var errs []error
-	for _, peer := range a.r.peers {
-		if !ipGlobMatch(peerSelector, peer.addrString) {
-			continue
-		}
+	peers := a.getMatchingPeersSel(sel)
 
+	var errs []error
+	for _, peer := range peers {
 		if peer.State() != PeerStateEstablished {
 			continue
 		}
@@ -139,7 +134,6 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 			}
 		}
 
-		// Send full packet (msgType=0 means data includes header)
 		if err := peer.SendRawMessage(0, data); err != nil {
 			errs = append(errs, err)
 		} else {

@@ -34,7 +34,7 @@ ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 | `show bgp summary` | BGP summary table |
 
 **Peer selector:** `*` (all), exact IP, glob patterns (`192.168.*.*`), exclusion (`!addr`), or peer name.
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/reactor/reactor_api.go -- getMatchingPeers -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
 
 ## Route Commands
 

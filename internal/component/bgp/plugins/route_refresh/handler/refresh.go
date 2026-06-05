@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
 var errMissingFamily = errors.New("missing family")
@@ -62,7 +63,7 @@ func handleRefreshMarker(
 	ctx *pluginserver.CommandContext,
 	args []string,
 	cmd string,
-	send func(string, uint16, uint8) error,
+	send func(*selector.Selector, uint16, uint8) error,
 ) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return &plugin.Response{
@@ -80,9 +81,9 @@ func handleRefreshMarker(
 		}, fmt.Errorf("invalid family: %s", args[0])
 	}
 
-	peerSelector := ctx.PeerSelector()
+	sel := selector.ParseDefault(ctx.PeerSelector())
 
-	if err := send(peerSelector, uint16(fam.AFI), uint8(fam.SAFI)); err != nil {
+	if err := send(sel, uint16(fam.AFI), uint8(fam.SAFI)); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  fmt.Sprintf("%s failed: %v", cmd, err),
@@ -92,7 +93,7 @@ func handleRefreshMarker(
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"selector": peerSelector,
+			"selector": sel.String(),
 			"family":   fam.String(),
 		},
 	}, nil

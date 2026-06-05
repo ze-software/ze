@@ -215,6 +215,26 @@ func (rr *RouteReflector) updateRoute(peerSelector, command string) {
 	}
 }
 
+// updateRouteSel sends a route update using a typed selector via DirectBridge.
+func (rr *RouteReflector) updateRouteSel(sel *selector.Selector, command string) {
+	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
+	defer cancel()
+
+	_, _, err := rr.plugin.UpdateRouteSel(ctx, sel, command)
+	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
+		if rr.stopping.Load() {
+			logger().Debug("update-route failed (shutting down)",
+				"peer", sel, "command", command, "error", err)
+		} else if isConnectionError(err) {
+			logger().Warn("update-route failed (peer disconnected)",
+				"peer", sel, "command", command, "error", err)
+		} else {
+			logger().Error("update-route failed",
+				"peer", sel, "command", command, "error", err)
+		}
+	}
+}
+
 // isConnectionError reports whether err indicates the target peer's connection is closed.
 func isConnectionError(err error) bool {
 	msg := err.Error()
@@ -282,12 +302,12 @@ func (rr *RouteReflector) handleStateDown(peerAddr string) {
 		logger().Error("invalid peer address in withdrawal", "peer", peerAddr, "error", err)
 		return
 	}
-	excludeSel := selector.ExcludeAddr(addr).String()
+	excludeSel := selector.ExcludeAddr(addr)
 	go func() {
 		for fam, prefixes := range byFamily {
 			for i := 0; i < len(prefixes); i += withdrawalBatchSize {
 				end := min(i+withdrawalBatchSize, len(prefixes))
-				rr.updateRoute(excludeSel, nlriDelCmd(fam, strings.Join(prefixes[i:end], ",")))
+				rr.updateRouteSel(excludeSel, nlriDelCmd(fam, strings.Join(prefixes[i:end], ",")))
 			}
 		}
 	}()

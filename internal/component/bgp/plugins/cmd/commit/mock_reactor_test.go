@@ -64,19 +64,19 @@ func (m *mockReactor) ReleaseUpdates(_ []uint64, _ string) error { return nil }
 
 // --- BGPReactor: route operations ---
 
-func (m *mockReactor) AnnounceNLRIBatch(_ string, _ bgptypes.NLRIBatch) error { return nil }
-func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error          { return nil }
-func (m *mockReactor) WithdrawNLRIBatch(_ string, _ bgptypes.NLRIBatch) error { return nil }
-func (m *mockReactor) SendBoRR(_ string, _ uint16, _ uint8) error             { return nil }
-func (m *mockReactor) SendEoRR(_ string, _ uint16, _ uint8) error             { return nil }
-func (m *mockReactor) SendRefresh(_ string, _ uint16, _ uint8) error          { return nil }
-func (m *mockReactor) SoftClearPeer(_ string) ([]string, error)               { return nil, nil }
-func (m *mockReactor) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error   { return nil }
-func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON                   { return nil }
-func (m *mockReactor) RIBStats() bgptypes.RIBStatsInfo                        { return bgptypes.RIBStatsInfo{} }
-func (m *mockReactor) ClearRIBIn() int                                        { return 0 }
+func (m *mockReactor) AnnounceNLRIBatch(_ *selector.Selector, _ bgptypes.NLRIBatch) error { return nil }
+func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8) error          { return nil }
+func (m *mockReactor) WithdrawNLRIBatch(_ *selector.Selector, _ bgptypes.NLRIBatch) error { return nil }
+func (m *mockReactor) SendBoRR(_ *selector.Selector, _ uint16, _ uint8) error             { return nil }
+func (m *mockReactor) SendEoRR(_ *selector.Selector, _ uint16, _ uint8) error             { return nil }
+func (m *mockReactor) SendRefresh(_ *selector.Selector, _ uint16, _ uint8) error          { return nil }
+func (m *mockReactor) SoftClearPeer(_ *selector.Selector) ([]string, error)               { return nil, nil }
+func (m *mockReactor) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error               { return nil }
+func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON                               { return nil }
+func (m *mockReactor) RIBStats() bgptypes.RIBStatsInfo                                    { return bgptypes.RIBStatsInfo{} }
+func (m *mockReactor) ClearRIBIn() int                                                    { return 0 }
 
-func (m *mockReactor) SendRoutes(_ string, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
+func (m *mockReactor) SendRoutes(_ *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{
 		RoutesAnnounced: len(routes),
 		RoutesWithdrawn: len(withdrawals),

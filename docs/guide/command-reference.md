@@ -1491,7 +1491,7 @@ Many commands take a `peer <selector>` argument:
 | Glob | `peer 192.168.*.*` | Pattern match |
 | Exclusion | `peer !10.0.0.1` | All except this peer |
 | ASN exclusion | `peer !as65001` | All except peers with this ASN |
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeers; internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handler -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel; internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handler -->
 
 ### Peer Commands
 

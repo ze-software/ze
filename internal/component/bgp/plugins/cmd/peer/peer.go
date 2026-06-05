@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	peersel "codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
 var (
@@ -54,48 +55,86 @@ func filterPeersByArgs(ctx *pluginserver.CommandContext, args []string) ([]plugi
 	return filterPeersBySelectorValue(ctx, selector)
 }
 
-func filterPeersBySelectorValue(ctx *pluginserver.CommandContext, selector string) ([]plugin.PeerInfo, *plugin.Response, error) {
+func filterPeersBySelectorValue(ctx *pluginserver.CommandContext, selectorStr string) ([]plugin.PeerInfo, *plugin.Response, error) {
 	if ctx.Reactor() == nil {
 		return nil, &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, errReactorNotAvailable
 	}
 	allPeers := ctx.Reactor().Peers()
 
-	if selector == "*" {
-		return allPeers, nil, nil
-	}
+	sel := peersel.ParseDefault(selectorStr)
 
-	// Try IP address match first.
-	filterIP, err := netip.ParseAddr(selector)
-	if err == nil {
+	switch sel.SelectorKind() {
+	case peersel.KindAll:
+		return allPeers, nil, nil
+
+	case peersel.KindAddr:
+		ip := sel.IP()
 		for i := range allPeers {
-			if allPeers[i].Address == filterIP {
+			if allPeers[i].Address == ip {
+				if sel.IsExclude() {
+					return excludePeer(allPeers, i), nil, nil
+				}
 				return []plugin.PeerInfo{allPeers[i]}, nil, nil
 			}
 		}
+		if sel.IsExclude() {
+			return allPeers, nil, nil
+		}
+		return nil, nil, nil
+
+	case peersel.KindName:
+		name := sel.NameValue()
+		for i := range allPeers {
+			if allPeers[i].Name == name {
+				if sel.IsExclude() {
+					return excludePeer(allPeers, i), nil, nil
+				}
+				return []plugin.PeerInfo{allPeers[i]}, nil, nil
+			}
+		}
+		if sel.IsExclude() {
+			return allPeers, nil, nil
+		}
+		return nil, nil, nil
+
+	case peersel.KindASN:
+		asn := sel.ASNValue()
+		var matched []plugin.PeerInfo
+		for i := range allPeers {
+			asnMatch := allPeers[i].PeerAS == asn
+			if sel.IsExclude() {
+				asnMatch = !asnMatch
+			}
+			if asnMatch {
+				matched = append(matched, allPeers[i])
+			}
+		}
+		return matched, nil, nil
+
+	case peersel.KindAddrs:
+		var matched []plugin.PeerInfo
+		for i := range allPeers {
+			if sel.Matches(allPeers[i].Address) {
+				matched = append(matched, allPeers[i])
+			}
+		}
+		return matched, nil, nil
+
+	case peersel.KindGlob:
 		return nil, nil, nil
 	}
 
-	// Not a valid IP -- try peer name match.
-	for i := range allPeers {
-		if allPeers[i].Name == selector {
-			return []plugin.PeerInfo{allPeers[i]}, nil, nil
-		}
-	}
-
-	// Try ASN selector: "as<N>" (case-insensitive) matches all peers with that remote AS.
-	if len(selector) > 2 && (selector[0] == 'a' || selector[0] == 'A') && (selector[1] == 's' || selector[1] == 'S') {
-		if asn, err := strconv.ParseUint(selector[2:], 10, 32); err == nil {
-			var matched []plugin.PeerInfo
-			for i := range allPeers {
-				if uint64(allPeers[i].PeerAS) == asn {
-					matched = append(matched, allPeers[i])
-				}
-			}
-			return matched, nil, nil
-		}
-	}
-
 	return nil, nil, nil
+}
+
+func excludePeer(all []plugin.PeerInfo, idx int) []plugin.PeerInfo {
+	result := make([]plugin.PeerInfo, 0, len(all)-1)
+	for i := range all {
+		if i != idx {
+			result = append(result, all[i])
+		}
+	}
+	return result
 }
 
 // handleBgpPeerList returns a brief list of peer(s) indexed by IP.

@@ -8,6 +8,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -83,7 +84,7 @@ func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
-	err := adapter.AnnounceNLRIBatch("192.168.1.1", batch)
+	err := adapter.AnnounceNLRIBatch(selector.Addr(netip.MustParseAddr("192.168.1.1")), batch)
 	assert.ErrorIs(t, err, route.ErrNoPeersMatch)
 }
 
@@ -103,7 +104,7 @@ func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
 	}
 
-	err := adapter.WithdrawNLRIBatch("192.168.1.1", batch)
+	err := adapter.WithdrawNLRIBatch(selector.Addr(netip.MustParseAddr("192.168.1.1")), batch)
 	assert.ErrorIs(t, err, route.ErrNoPeersMatch)
 }
 
@@ -142,7 +143,7 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	}
 
 	// Should return warning error when all peers skipped
-	err := adapter.AnnounceNLRIBatch("*", batch)
+	err := adapter.AnnounceNLRIBatch(selector.All(), batch)
 	assert.ErrorIs(t, err, route.ErrNoPeersAcceptedFamily)
 }
 
@@ -180,7 +181,7 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	}
 
 	// Should return warning error when all peers skipped
-	err := adapter.WithdrawNLRIBatch("*", batch)
+	err := adapter.WithdrawNLRIBatch(selector.All(), batch)
 	assert.ErrorIs(t, err, route.ErrNoPeersAcceptedFamily)
 }
 
@@ -215,7 +216,7 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
-	err := adapter.AnnounceNLRIBatch("*", batch)
+	err := adapter.AnnounceNLRIBatch(selector.All(), batch)
 	require.NoError(t, err)
 
 	// Check queue has 2 routes (one per NLRI)
@@ -256,7 +257,7 @@ func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 		},
 	}
 
-	err := adapter.WithdrawNLRIBatch("*", batch)
+	err := adapter.WithdrawNLRIBatch(selector.All(), batch)
 	require.NoError(t, err)
 
 	// Check queue has 2 withdrawals

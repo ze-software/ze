@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -24,8 +25,10 @@ import (
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 // RFC 8654: Respects peer's max message size (4096 or 65535).
-func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
-	peers := a.getMatchingPeers(peerSelector)
+func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+	a.r.mu.RLock()
+	peers := a.getMatchingPeersSel(sel)
+	a.r.mu.RUnlock()
 	if len(peers) == 0 {
 		return route.ErrNoPeersMatch
 	}
@@ -180,8 +183,10 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 // WithdrawNLRIBatch withdraws a batch of NLRIs.
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
-	peers := a.getMatchingPeers(peerSelector)
+func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch) error {
+	a.r.mu.RLock()
+	peers := a.getMatchingPeersSel(sel)
+	a.r.mu.RUnlock()
 	if len(peers) == 0 {
 		return route.ErrNoPeersMatch
 	}
@@ -580,8 +585,10 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 
 // SendRoutes sends routes directly to matching peers using CommitService.
 // This bypasses OutgoingRIB transaction and is used for named commits.
-func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (bgptypes.TransactionResult, error) {
-	peers := a.getMatchingPeers(peerSelector)
+func (a *reactorAPIAdapter) SendRoutes(sel *selector.Selector, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (bgptypes.TransactionResult, error) {
+	a.r.mu.RLock()
+	peers := a.getMatchingPeersSel(sel)
+	a.r.mu.RUnlock()
 	if len(peers) == 0 {
 		return bgptypes.TransactionResult{}, errors.New("no peers match selector")
 	}

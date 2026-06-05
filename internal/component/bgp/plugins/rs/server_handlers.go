@@ -113,7 +113,7 @@ func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[strin
 		logger().Error("invalid peer address in withdrawal", "peer", peerAddr, "error", err)
 		return
 	}
-	sel := selector.ExcludeAddr(addr).String()
+	excludeSel := selector.ExcludeAddr(addr)
 	var buf strings.Builder
 
 	for fam, prefixes := range byFamily {
@@ -128,7 +128,7 @@ func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[strin
 				buf.WriteString(" del ")
 				buf.WriteString(p)
 			}
-			rs.updateRoute(sel, buf.String())
+			rs.updateRouteSel(excludeSel, buf.String())
 		}
 	}
 }
