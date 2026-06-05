@@ -601,10 +601,11 @@ def save_container_stderr(cname, out_path):
         return False
 
 
-def run_perf(dut):
+def run_perf(dut, sender_first=False):
     """Run ze-perf inside a Docker container against the DUT."""
     runner = f"ze-perf-runner-{SUFFIX}"
-    result_name = f"{dut['name']}.json"
+    suffix = "-propagation" if sender_first else ""
+    result_name = f"{dut['name']}{suffix}.json"
 
     # Start runner container at SENDER_IP.
     docker(
@@ -726,6 +727,8 @@ def run_perf(dut):
             cmd += ["--receiver-port", str(dut["receiver_port"])]
         if dut.get("passive"):
             cmd += ["--passive-listen"]
+        if sender_first:
+            cmd += ["-sender-first"]
 
         docker(*cmd, timeout=subprocess_timeout_s)
         return True
@@ -908,6 +911,12 @@ def main():
             print(f"  PASS")
             passed += 1
             result_files.append(result_file)
+            # Run propagation benchmark for ze (sender-first mode).
+            if name == "ze":
+                prop_ok = run_perf(dut, sender_first=True)
+                prop_file = os.path.join(RESULTS_DIR, f"{name}-propagation.json")
+                if prop_ok:
+                    result_files.append(prop_file)
         else:
             print(f"  FAIL")
             failed += 1

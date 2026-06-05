@@ -48,6 +48,8 @@ type Result struct {
 	LatencyP99Ms        int          `json:"latency-p99-ms"`
 	LatencyP99StddevMs  int          `json:"latency-p99-stddev-ms"`
 	LatencyMaxMs        int          `json:"latency-max-ms"`
+	WithdrawalMs        int          `json:"withdrawal-ms"`
+	WithdrawalStddevMs  int          `json:"withdrawal-stddev-ms"`
 }
 
 // ReadNDJSON reads newline-delimited JSON results from the reader.

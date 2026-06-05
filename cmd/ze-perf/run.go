@@ -47,6 +47,7 @@ func cmdRun(args []string) int {
 	iterDelay := fs.Duration("iter-delay", 3*time.Second, "Delay between iterations")
 	batchSize := fs.Int("batch-size", 0, "NLRIs per UPDATE (0 = auto-max within 4096 bytes, 1 = one prefix per UPDATE)")
 	passiveListen := fs.Bool("passive-listen", false, "Listen on port 179 for inbound DUT connections (requires root)")
+	senderFirst := fs.Bool("sender-first", false, "Connect sender before receiver (measures RIB propagation instead of live forwarding)")
 
 	// Output flags.
 	jsonOutput := fs.Bool("json", false, "JSON output")
@@ -155,6 +156,7 @@ Flags:
 		IterDelay:      *iterDelay,
 		BatchSize:      *batchSize,
 		PassiveListen:  *passiveListen,
+		SenderFirst:    *senderFirst,
 	}
 
 	// Set up context with signal cancellation.
@@ -256,5 +258,14 @@ func printHumanResult(r *perf.Result) {
 		fmt.Printf("  p99:   %dms\n", r.LatencyP99Ms)
 	}
 
-	fmt.Printf("  max:   %dms\n", r.LatencyMaxMs)
+	fmt.Fprintf(os.Stdout, "  max:   %dms\n", r.LatencyMaxMs) //nolint:errcheck // CLI output
+
+	if r.WithdrawalMs > 0 {
+		fmt.Fprintf(os.Stdout, "\nWithdrawal:\n") //nolint:errcheck // CLI output
+		if r.WithdrawalStddevMs > 0 {
+			fmt.Fprintf(os.Stdout, "  time:  %dms +/- %dms\n", r.WithdrawalMs, r.WithdrawalStddevMs) //nolint:errcheck // CLI output
+		} else {
+			fmt.Fprintf(os.Stdout, "  time:  %dms\n", r.WithdrawalMs) //nolint:errcheck // CLI output
+		}
+	}
 }

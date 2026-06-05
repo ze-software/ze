@@ -22,6 +22,7 @@ type IterationResult struct {
 	RoutesReceived    int
 	SessionSenderMs   int
 	SessionReceiverMs int
+	WithdrawalMs      int
 }
 
 // AggregatedResult holds median and stddev values computed across iterations.
@@ -40,6 +41,8 @@ type AggregatedResult struct {
 	RoutesReceived      int
 	SessionSenderMs     int
 	SessionReceiverMs   int
+	WithdrawalMs        int
+	WithdrawalStddevMs  int
 }
 
 // Median returns the median of a slice of ints. Returns 0 for empty input.
@@ -272,6 +275,7 @@ func Aggregate(results []IterationResult) AggregatedResult {
 	routes := make([]int, n)
 	sessSender := make([]int, n)
 	sessReceiver := make([]int, n)
+	withdrawal := make([]int, n)
 
 	for i, r := range results {
 		convergence[i] = r.ConvergenceMs
@@ -285,6 +289,7 @@ func Aggregate(results []IterationResult) AggregatedResult {
 		routes[i] = r.RoutesReceived
 		sessSender[i] = r.SessionSenderMs
 		sessReceiver[i] = r.SessionReceiverMs
+		withdrawal[i] = r.WithdrawalMs
 	}
 
 	return AggregatedResult{
@@ -302,5 +307,7 @@ func Aggregate(results []IterationResult) AggregatedResult {
 		RoutesReceived:      Median(routes),
 		SessionSenderMs:     Median(sessSender),
 		SessionReceiverMs:   Median(sessReceiver),
+		WithdrawalMs:        Median(withdrawal),
+		WithdrawalStddevMs:  Stddev(withdrawal),
 	}
 }

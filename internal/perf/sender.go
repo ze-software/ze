@@ -245,6 +245,64 @@ func (s *Sender) buildMPBatch(prefixes []netip.Prefix) []byte {
 	})
 }
 
+// BuildWithdrawBatch constructs a serialized UPDATE withdrawing multiple prefixes.
+// For ipv4/unicast: uses the inline Withdrawn Routes field.
+// For ipv6/unicast: uses MP_UNREACH_NLRI attribute.
+func (s *Sender) BuildWithdrawBatch(prefixes []netip.Prefix) []byte {
+	if len(prefixes) == 0 {
+		return nil
+	}
+
+	var fam family.Family
+	switch s.cfg.Family {
+	case FamilyIPv4Unicast:
+		fam = family.IPv4Unicast
+	case FamilyIPv6Unicast:
+		fam = family.IPv6Unicast
+	default:
+		return nil
+	}
+
+	nlriTotal := 0
+	for _, p := range prefixes {
+		nlriTotal += nlri.LenWithContext(nlri.NewINET(fam, p, 0), false)
+	}
+
+	nlriBytes := make([]byte, nlriTotal)
+	off := 0
+	for _, p := range prefixes {
+		inet := nlri.NewINET(fam, p, 0)
+		off += nlri.WriteNLRI(inet, nlriBytes, off, false)
+	}
+
+	if s.cfg.Family == FamilyIPv4Unicast && !s.cfg.ForceMP {
+		return SerializeMsg(&message.Update{
+			WithdrawnRoutes: nlriBytes[:off],
+		})
+	}
+
+	var afi attribute.AFI
+	var safi attribute.SAFI
+	switch s.cfg.Family {
+	case FamilyIPv4Unicast:
+		afi = attribute.AFIIPv4
+		safi = attribute.SAFIUnicast
+	case FamilyIPv6Unicast:
+		afi = attribute.AFIIPv6
+		safi = attribute.SAFIUnicast
+	}
+
+	mpUnreach := &attribute.MPUnreachNLRI{AFI: afi, SAFI: safi, NLRI: nlriBytes[:off]}
+	attrs := []attribute.Attribute{mpUnreach}
+	attrSize := attribute.AttributesSize(attrs)
+	attrBytes := make([]byte, attrSize)
+	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
+
+	return SerializeMsg(&message.Update{
+		PathAttributes: attrBytes,
+	})
+}
+
 // buildForceMPRoute builds an UPDATE with MP_REACH_NLRI for IPv4/unicast.
 // This places the NLRI inside MP_REACH_NLRI (type 14) instead of the
 // trailing NLRI field, which some DUTs require.

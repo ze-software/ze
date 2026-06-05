@@ -133,25 +133,21 @@ func Markdown(results []perf.Result, w io.Writer) error {
 		grouped := groups[key]
 		sortByConvergence(grouped)
 
-		if _, err := fmt.Fprintln(w, "| DUT | Version | Convergence | +/- | Throughput | +/- | p99 | +/- |"); err != nil {
+		if _, err := fmt.Fprintln(w, "| DUT | Version | Convergence | +/- | Throughput | +/- | p99 | +/- | Withdrawal | +/- |"); err != nil {
 			return fmt.Errorf("writing table header: %w", err)
 		}
 
-		if _, err := fmt.Fprintln(w, "|-----|---------|-------------|-----|------------|-----|-----|-----|"); err != nil {
+		if _, err := fmt.Fprintln(w, "|-----|---------|-------------|-----|------------|-----|-----|-----|------------|-----|"); err != nil {
 			return fmt.Errorf("writing table separator: %w", err)
 		}
 
 		for j := range grouped {
-			line := fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s |",
-				grouped[j].DUTName,
-				grouped[j].DUTVersion,
-				fmtMs(grouped[j].ConvergenceMs),
-				fmtMs(grouped[j].ConvergenceStddevMs),
-				fmtNum(grouped[j].ThroughputAvg),
-				fmtNum(grouped[j].ThroughputAvgStddev),
-				fmtMs(grouped[j].LatencyP99Ms),
-				fmtMs(grouped[j].LatencyP99StddevMs),
-			)
+			r := &grouped[j]
+			line := "| " + r.DUTName + " | " + r.DUTVersion +
+				" | " + fmtMs(r.ConvergenceMs) + " | " + fmtMs(r.ConvergenceStddevMs) +
+				" | " + fmtNum(r.ThroughputAvg) + " | " + fmtNum(r.ThroughputAvgStddev) +
+				" | " + fmtMs(r.LatencyP99Ms) + " | " + fmtMs(r.LatencyP99StddevMs) +
+				" | " + fmtMs(r.WithdrawalMs) + " | " + fmtMs(r.WithdrawalStddevMs) + " |"
 			if _, err := fmt.Fprintln(w, line); err != nil {
 				return fmt.Errorf("writing table row: %w", err)
 			}

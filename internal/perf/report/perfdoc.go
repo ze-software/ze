@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"strconv"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/perf"
@@ -116,28 +117,28 @@ median convergence time) are automatically discarded.
 		grouped := groups[key]
 		sortByConvergence(grouped)
 
-		if _, err := fmt.Fprintln(w, "| DUT | Convergence | +/- | Throughput (r/s) | +/- | p50 | p99 | +/- | Max | Lost |"); err != nil {
+		if _, err := fmt.Fprintln(w, "| DUT | Convergence | +/- | Throughput (r/s) | +/- | p50 | p99 | +/- | Max | Lost | Withdrawal | +/- |"); err != nil {
 			return fmt.Errorf("writing table header: %w", err)
 		}
 
-		if _, err := fmt.Fprintln(w, "|-----|-------------|-----|------------------|-----|-----|-----|-----|-----|------|"); err != nil {
+		if _, err := fmt.Fprintln(w, "|-----|-------------|-----|------------------|-----|-----|-----|-----|-----|------|------------|-----|"); err != nil {
 			return fmt.Errorf("writing table sep: %w", err)
 		}
 
 		for j := range grouped {
 			r := &grouped[j]
-			line := fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s | %s | %s | %d |",
-				r.DUTName,
-				fmtMs(r.ConvergenceMs),
-				fmtMs(r.ConvergenceStddevMs),
-				fmtNum(r.ThroughputAvg),
-				fmtNum(r.ThroughputAvgStddev),
-				fmtMs(r.LatencyP50Ms),
-				fmtMs(r.LatencyP99Ms),
-				fmtMs(r.LatencyP99StddevMs),
-				fmtMs(r.LatencyMaxMs),
-				r.RoutesLost,
-			)
+			line := "| " + r.DUTName +
+				" | " + fmtMs(r.ConvergenceMs) +
+				" | " + fmtMs(r.ConvergenceStddevMs) +
+				" | " + fmtNum(r.ThroughputAvg) +
+				" | " + fmtNum(r.ThroughputAvgStddev) +
+				" | " + fmtMs(r.LatencyP50Ms) +
+				" | " + fmtMs(r.LatencyP99Ms) +
+				" | " + fmtMs(r.LatencyP99StddevMs) +
+				" | " + fmtMs(r.LatencyMaxMs) +
+				" | " + strconv.Itoa(r.RoutesLost) +
+				" | " + fmtMs(r.WithdrawalMs) +
+				" | " + fmtMs(r.WithdrawalStddevMs) + " |"
 			if _, err := fmt.Fprintln(w, line); err != nil {
 				return fmt.Errorf("writing row: %w", err)
 			}
@@ -165,6 +166,10 @@ consistent the DUT's forwarding is.
 
 **+/-** columns show standard deviation across iterations. Small stddev means
 consistent performance; large stddev means the measurement is noisy.
+
+**Withdrawal** is the time from sending route withdrawals to the receiver
+going idle. Lower is better. Measures how fast the DUT propagates route
+removals.
 
 **Lost** should always be zero. Any lost routes indicate the DUT failed to
 forward some prefixes.

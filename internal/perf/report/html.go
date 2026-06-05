@@ -79,26 +79,27 @@ func writeHTMLTable(w io.Writer, results []perf.Result) error {
 		return fmt.Errorf("writing table open: %w", err)
 	}
 
-	if _, err := fmt.Fprintln(w, "<tr><th>DUT</th><th>Version</th><th>Convergence</th><th>+/-</th><th>Throughput</th><th>+/-</th><th>p99</th><th>+/-</th></tr>"); err != nil {
+	if _, err := fmt.Fprintln(w, "<tr><th>DUT</th><th>Version</th><th>Convergence</th><th>+/-</th><th>Throughput</th><th>+/-</th><th>p99</th><th>+/-</th><th>Withdrawal</th><th>+/-</th></tr>"); err != nil {
 		return fmt.Errorf("writing table header: %w", err)
 	}
 
 	bestConv, worstConv := minMaxConvergence(results)
 
 	for i := range results {
-		convClass := cellClass(results[i].ConvergenceMs, bestConv, worstConv)
+		r := &results[i]
+		convClass := cellClass(r.ConvergenceMs, bestConv, worstConv)
 
-		if _, err := fmt.Fprintf(w, "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-			html.EscapeString(results[i].DUTName),
-			html.EscapeString(results[i].DUTVersion),
-			convClass,
-			fmtMs(results[i].ConvergenceMs),
-			fmtMs(results[i].ConvergenceStddevMs),
-			fmtNum(results[i].ThroughputAvg),
-			fmtNum(results[i].ThroughputAvgStddev),
-			fmtMs(results[i].LatencyP99Ms),
-			fmtMs(results[i].LatencyP99StddevMs),
-		); err != nil {
+		row := "<tr><td>" + html.EscapeString(r.DUTName) +
+			"</td><td>" + html.EscapeString(r.DUTVersion) +
+			"</td><td class=\"" + convClass + "\">" + fmtMs(r.ConvergenceMs) +
+			"</td><td>" + fmtMs(r.ConvergenceStddevMs) +
+			"</td><td>" + fmtNum(r.ThroughputAvg) +
+			"</td><td>" + fmtNum(r.ThroughputAvgStddev) +
+			"</td><td>" + fmtMs(r.LatencyP99Ms) +
+			"</td><td>" + fmtMs(r.LatencyP99StddevMs) +
+			"</td><td>" + fmtMs(r.WithdrawalMs) +
+			"</td><td>" + fmtMs(r.WithdrawalStddevMs) + "</td></tr>"
+		if _, err := fmt.Fprintln(w, row); err != nil {
 			return fmt.Errorf("writing table row: %w", err)
 		}
 	}

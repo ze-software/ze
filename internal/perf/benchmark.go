@@ -38,6 +38,9 @@ type rawMessage struct {
 	when time.Time
 }
 
+// batchRange maps a contiguous slice of prefixes to one UPDATE message.
+type batchRange struct{ start, end int }
+
 // Address family constants for benchmark configuration.
 const (
 	FamilyIPv4Unicast = "ipv4/unicast"
@@ -69,6 +72,7 @@ type BenchmarkConfig struct {
 	IterDelay      time.Duration
 	BatchSize      int
 	PassiveListen  bool // Listen on port 179 for inbound DUT connections (requires root)
+	SenderFirst    bool // Connect sender before receiver (measures RIB propagation)
 }
 
 // RunBenchmark runs the full benchmark: generate routes, run iterations,
@@ -157,6 +161,8 @@ func RunBenchmark(ctx context.Context, cfg BenchmarkConfig, progress io.Writer) 
 		LatencyP99Ms:        agg.LatencyP99Ms,
 		LatencyP99StddevMs:  agg.LatencyP99StddevMs,
 		LatencyMaxMs:        agg.LatencyMaxMs,
+		WithdrawalMs:        agg.WithdrawalMs,
+		WithdrawalStddevMs:  agg.WithdrawalStddevMs,
 	}
 
 	return result, nil
@@ -205,6 +211,8 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 
 	var receiverConn net.Conn
 	var senderConn net.Conn
+	var receiverSetup time.Duration
+	var sendStart time.Time
 	var err error
 
 	if cfg.PassiveListen {
@@ -221,20 +229,28 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 			senderCh <- connResult{conn: conn, err: err}
 		}()
 
-		receiverRes := <-receiverCh
-		if receiverRes.err != nil {
-			return IterationResult{}, fmt.Errorf("connecting receiver: %w", receiverRes.err)
-		}
-		receiverConn = receiverRes.conn
-
 		senderRes := <-senderCh
 		if senderRes.err != nil {
-			_ = receiverConn.Close()
+			receiverRes := <-receiverCh
+			if receiverRes.conn != nil {
+				receiverRes.conn.Close() //nolint:errcheck // cleanup
+			}
 			return IterationResult{}, fmt.Errorf("connecting sender: %w", senderRes.err)
 		}
 		senderConn = senderRes.conn
+
+		receiverRes := <-receiverCh
+		if receiverRes.err != nil {
+			senderConn.Close() //nolint:errcheck // cleanup
+			return IterationResult{}, fmt.Errorf("connecting receiver: %w", receiverRes.err)
+		}
+		receiverConn = receiverRes.conn
+	} else if cfg.SenderFirst {
+		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, false)
+		if err != nil {
+			return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
+		}
 	} else {
-		// Connect receiver first.
 		receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, false)
 		if err != nil {
 			return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)
@@ -242,32 +258,13 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 
 		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, false)
 		if err != nil {
-			_ = receiverConn.Close()
+			receiverConn.Close() //nolint:errcheck // cleanup
 			return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
 		}
 	}
 
-	defer func() { _ = receiverConn.Close() }()
-	defer func() { _ = senderConn.Close() }()
-
-	receiverCfg := SessionConfig{
-		ASN:      uint32(cfg.ReceiverASN), //nolint:gosec // CLI-validated range
-		RouterID: mustRouterID(cfg.ReceiverAddr),
-		HoldTime: 90,
-		Family:   cfg.Family,
-	}
-
-	if err := receiverConn.SetDeadline(time.Now().Add(cfg.ConnectTimeout)); err != nil {
-		return IterationResult{}, fmt.Errorf("setting receiver deadline: %w", err)
-	}
-
-	receiverSetup, err := DoHandshake(receiverConn, receiverCfg)
-	if err != nil {
-		return IterationResult{}, fmt.Errorf("receiver handshake: %w", err)
-	}
-
-	if err := receiverConn.SetDeadline(time.Time{}); err != nil {
-		return IterationResult{}, fmt.Errorf("clearing receiver deadline: %w", err)
+	if senderConn != nil {
+		defer senderConn.Close() //nolint:errcheck // cleanup
 	}
 
 	senderCfg := SessionConfig{
@@ -275,6 +272,30 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		RouterID: mustRouterID(cfg.SenderAddr),
 		HoldTime: 90,
 		Family:   cfg.Family,
+	}
+
+	// In receiver-first mode, handshake receiver before sender (matches
+	// the test forwarder's accept-handshake-accept-handshake sequence).
+	if !cfg.SenderFirst && !cfg.PassiveListen {
+		receiverCfg := SessionConfig{
+			ASN:      uint32(cfg.ReceiverASN), //nolint:gosec // CLI-validated range
+			RouterID: mustRouterID(cfg.ReceiverAddr),
+			HoldTime: 90,
+			Family:   cfg.Family,
+		}
+
+		if err := receiverConn.SetDeadline(time.Now().Add(cfg.ConnectTimeout)); err != nil {
+			return IterationResult{}, fmt.Errorf("setting receiver deadline: %w", err)
+		}
+
+		receiverSetup, err = DoHandshake(receiverConn, receiverCfg)
+		if err != nil {
+			return IterationResult{}, fmt.Errorf("receiver handshake: %w", err)
+		}
+
+		if err := receiverConn.SetDeadline(time.Time{}); err != nil {
+			return IterationResult{}, fmt.Errorf("clearing receiver deadline: %w", err)
+		}
 	}
 
 	if err := senderConn.SetDeadline(time.Now().Add(cfg.ConnectTimeout)); err != nil {
@@ -290,21 +311,6 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		return IterationResult{}, fmt.Errorf("clearing sender deadline: %w", err)
 	}
 
-	// Receiver keepalive starts immediately (writes don't conflict with receiveRaw reads).
-	recvKaCtx, recvKaCancel := context.WithCancel(ctx)
-	defer recvKaCancel()
-
-	var recvKaWg sync.WaitGroup
-
-	recvKaWg.Go(func() {
-		keepaliveLoop(recvKaCtx, receiverConn)
-	})
-
-	// Sender keepalive deferred until after the send loop. During sends, the main
-	// goroutine writes through bufio.Writer; a concurrent keepalive would corrupt framing.
-
-	// Pre-build all UPDATE wire bytes before the timing loop.
-	// This keeps encoding CPU out of the send timing path.
 	sender := NewSender(SenderConfig{
 		ASN:     uint32(cfg.SenderASN), //nolint:gosec // CLI-validated range
 		IsEBGP:  cfg.SenderASN != cfg.DUTASN,
@@ -313,30 +319,20 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		ForceMP: cfg.ForceMP,
 	})
 
-	// Group prefixes into batches for multi-NLRI UPDATEs.
-	// BatchSize <= 0 means pack as many NLRIs as fit per UPDATE (like BIRD/FRR),
-	// computed dynamically from RFC 4271 4096-byte max and actual attribute overhead.
-	// BatchSize == 1 means one NLRI per UPDATE (ze's native forwarding pattern).
 	batchSize := cfg.BatchSize
 	if batchSize <= 0 {
-		// Build a single-prefix UPDATE to measure attribute overhead, then compute
-		// how many NLRIs fit within the RFC 4271 4096-byte maximum.
 		probe := sender.BuildRoute(prefixes[0])
 		if probe == nil {
 			return IterationResult{}, errBuildrouteReturnedNilForProbePrefix
 		}
 
-		perNLRI := 1 + (prefixes[0].Bits()+7)/8 // wire size per prefix
-		overhead := len(probe) - perNLRI        // header + attrs without NLRI
+		perNLRI := 1 + (prefixes[0].Bits()+7)/8
+		overhead := len(probe) - perNLRI
 		if overhead >= message.MaxMsgLen {
 			return IterationResult{}, fmt.Errorf("attribute overhead %d exceeds max message size %d", overhead, message.MaxMsgLen)
 		}
-		// -1 accounts for possible attribute extended-length promotion (1->2 byte length field).
 		batchSize = max((message.MaxMsgLen-overhead-1)/perNLRI, 1)
 	}
-
-	// batchRanges[i] = [startIdx, endIdx) into the prefixes slice for each UPDATE.
-	type batchRange struct{ start, end int }
 
 	var batches []batchRange
 
@@ -344,7 +340,6 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		batches = append(batches, batchRange{i, min(i+batchSize, len(prefixes))})
 	}
 
-	// Build each batched UPDATE.
 	prebuilt := make([][]byte, len(batches))
 
 	totalSendBytes := 0
@@ -359,9 +354,6 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		totalSendBytes += len(b)
 	}
 
-	// Consolidate all pre-built UPDATEs into one contiguous slab for cache locality.
-	// prebuilt[] entries become sub-slices of sendSlab. sendSlab MUST outlive all
-	// prebuilt references (guaranteed: Flush at line below completes before return).
 	sendSlab := make([]byte, totalSendBytes)
 	off := 0
 
@@ -371,71 +363,130 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		off += len(b)
 	}
 
-	// Start receiver goroutine with buffered reader (64 KB, matching ze production).
-	// Buffers raw UPDATE messages with timestamps -- no parsing in the timing path.
-	recvBufReader := bufio.NewReaderSize(receiverConn, 65536)
-
-	// Pre-allocate contiguous receive slab. Estimate: DUT may repack NLRIs into
-	// different-sized UPDATEs, so allocate generously (128 bytes per expected prefix).
-	// Slab offset advances forward-only (never rewinds), so message sub-slices
-	// stored in rawMsgs never alias each other.
-	recvSlab := make([]byte, len(prefixes)*128) //nolint:mnd // generous estimate for variable UPDATE sizes
+	sendBufWriter := bufio.NewWriterSize(senderConn, 16384)
+	sendTimes := make(map[netip.Prefix]time.Time, len(prefixes))
+	recvSlab := make([]byte, len(prefixes)*128) //nolint:mnd // generous estimate
+	rawMsgs := make([]rawMessage, 0, len(prefixes))
 
 	recvCtx, recvCancel := context.WithCancel(ctx)
 	defer recvCancel()
-
-	// DUT may repack NLRIs into different-sized UPDATEs, so allocate for worst
-	// case (one UPDATE per prefix) to avoid append reallocation in the timing path.
-	rawMsgs := make([]rawMessage, 0, len(prefixes))
 
 	recvDone := make(chan struct{})
 
 	var recvWg sync.WaitGroup
 
-	recvWg.Go(func() {
-		defer close(recvDone)
-		rawMsgs, _ = receiveRaw(recvCtx, recvBufReader, receiverConn, len(prefixes), rawMsgs, recvSlab)
-	})
-
-	// Wait warmup duration.
-	if cfg.Warmup > 0 {
-		select {
-		case <-ctx.Done():
-			return IterationResult{}, ctx.Err()
-		case <-time.After(cfg.Warmup):
-		}
-	}
-
-	// Send pre-built routes using buffered writer (16 KB, matching ze production).
-	// All prefixes in a batch share the same send timestamp.
-	sendBufWriter := bufio.NewWriterSize(senderConn, 16384)
-	sendTimes := make(map[netip.Prefix]time.Time, len(prefixes))
-	sendStart := time.Now()
-
-	for i, br := range batches {
-		if _, err := sendBufWriter.Write(prebuilt[i]); err != nil {
-			return IterationResult{}, fmt.Errorf("sending batch %d: %w", i, err)
-		}
-
-		now := time.Now()
-		for _, prefix := range prefixes[br.start:br.end] {
-			sendTimes[prefix] = now
-		}
-	}
-
-	if err := sendBufWriter.Flush(); err != nil {
-		return IterationResult{}, fmt.Errorf("flushing sender: %w", err)
-	}
-
-	// Now safe to start sender keepalive (send loop done, no more bufio.Writer use).
 	senderKaCtx, senderKaCancel := context.WithCancel(ctx)
 	defer senderKaCancel()
 
 	var senderKaWg sync.WaitGroup
 
-	senderKaWg.Go(func() {
-		keepaliveLoop(senderKaCtx, senderConn)
-	})
+	recvKaCtx, recvKaCancel := context.WithCancel(ctx)
+	defer recvKaCancel()
+
+	var recvKaWg sync.WaitGroup
+	var recvBufReader *bufio.Reader
+
+	if cfg.SenderFirst {
+		// Sender-first: send routes, wait for ingestion, connect receiver, measure.
+		if err := writeSendBatches(sendBufWriter, prebuilt, prefixes, batches, sendTimes); err != nil {
+			return IterationResult{}, fmt.Errorf("sending batches: %w", err)
+		}
+		if err := sendBufWriter.Flush(); err != nil {
+			return IterationResult{}, fmt.Errorf("flushing sender: %w", err)
+		}
+
+		senderKaWg.Go(func() {
+			keepaliveLoop(senderKaCtx, senderConn)
+		})
+
+		if cfg.Warmup > 0 {
+			select {
+			case <-ctx.Done():
+				return IterationResult{}, ctx.Err()
+			case <-time.After(cfg.Warmup):
+			}
+		}
+
+		// Connect receiver after RIB populated.
+		if !cfg.PassiveListen {
+			receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, false)
+			if err != nil {
+				return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)
+			}
+
+			rcfg := SessionConfig{
+				ASN:      uint32(cfg.ReceiverASN), //nolint:gosec // CLI-validated range
+				RouterID: mustRouterID(cfg.ReceiverAddr),
+				HoldTime: 90,
+				Family:   cfg.Family,
+			}
+
+			if err := receiverConn.SetDeadline(time.Now().Add(cfg.ConnectTimeout)); err != nil {
+				return IterationResult{}, fmt.Errorf("setting receiver deadline: %w", err)
+			}
+
+			receiverSetup, err = DoHandshake(receiverConn, rcfg)
+			if err != nil {
+				return IterationResult{}, fmt.Errorf("receiver handshake: %w", err)
+			}
+
+			if err := receiverConn.SetDeadline(time.Time{}); err != nil {
+				return IterationResult{}, fmt.Errorf("clearing receiver deadline: %w", err)
+			}
+
+			recvBufReader = bufio.NewReaderSize(receiverConn, 65536)
+		}
+
+		recvKaWg.Go(func() {
+			keepaliveLoop(recvKaCtx, receiverConn)
+		})
+
+		sendStart = time.Now()
+
+		// Reset sendTimes to receiver-connect time so per-prefix latencies
+		// measure RIB propagation, not the Phase 1 send + warmup overhead.
+		for k := range sendTimes {
+			sendTimes[k] = sendStart
+		}
+
+		recvWg.Go(func() {
+			defer close(recvDone)
+			rawMsgs, _ = receiveRaw(recvCtx, recvBufReader, receiverConn, len(prefixes), rawMsgs, recvSlab)
+		})
+	} else {
+		// Receiver-first (default): warmup, start receiver, send routes, measure.
+		recvBufReader = bufio.NewReaderSize(receiverConn, 65536)
+
+		recvKaWg.Go(func() {
+			keepaliveLoop(recvKaCtx, receiverConn)
+		})
+
+		if cfg.Warmup > 0 {
+			select {
+			case <-ctx.Done():
+				return IterationResult{}, ctx.Err()
+			case <-time.After(cfg.Warmup):
+			}
+		}
+
+		recvWg.Go(func() {
+			defer close(recvDone)
+			rawMsgs, _ = receiveRaw(recvCtx, recvBufReader, receiverConn, len(prefixes), rawMsgs, recvSlab)
+		})
+
+		sendStart = time.Now()
+
+		if err := writeSendBatches(sendBufWriter, prebuilt, prefixes, batches, sendTimes); err != nil {
+			return IterationResult{}, fmt.Errorf("sending batches: %w", err)
+		}
+		if err := sendBufWriter.Flush(); err != nil {
+			return IterationResult{}, fmt.Errorf("flushing sender: %w", err)
+		}
+
+		senderKaWg.Go(func() {
+			keepaliveLoop(senderKaCtx, senderConn)
+		})
+	}
 
 	// Wait for convergence (receiver idle) or timeout.
 	deadline := time.NewTimer(cfg.Duration)
@@ -505,19 +556,60 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	p50, p90, p99, latMax := CalculateLatencies(durations)
 	tpAvg, tpPeak := CalculateThroughput(recvTimestamps, time.Duration(convergenceMs)*time.Millisecond)
 
-	// Stop keepalives before sending Cease to avoid concurrent writes.
-	recvKaCancel()
+	// Stop sender keepalive before writing withdrawals to avoid concurrent writes.
 	senderKaCancel()
-	recvKaWg.Wait()
 	senderKaWg.Wait()
+
+	// Send route withdrawals so the DUT can clean its RIB for the next iteration.
+	withdrawalStart := time.Now()
+	sendWithdrawals(senderConn, sender, prefixes, batches)
+
+	// Drain forwarded withdrawal UPDATEs using the existing buffered reader.
+	wdDrainCtx, wdDrainCancel := context.WithCancel(ctx)
+	wdDone := make(chan struct{})
+	var wdUpdates int
+	var wdDrainWg sync.WaitGroup
+	if receiverConn != nil && recvBufReader != nil {
+		wdDrainWg.Go(func() {
+			defer close(wdDone)
+			wdUpdates = drainMessages(wdDrainCtx, recvBufReader, receiverConn)
+		})
+	} else {
+		close(wdDone)
+	}
+
+	wdDeadline := time.NewTimer(cfg.Duration)
+	defer wdDeadline.Stop()
+	select {
+	case <-wdDone:
+	case <-wdDeadline.C:
+	case <-ctx.Done():
+	}
+	withdrawalMs := 0
+	if wdUpdates > 0 {
+		withdrawalMs = int(time.Since(withdrawalStart) / time.Millisecond)
+	}
+
+	wdDrainCancel()
+	wdDrainWg.Wait()
+
+	// Stop receiver keepalive before sending Cease.
+	recvKaCancel()
+	recvKaWg.Wait()
 
 	// Send NOTIFICATION Cease on both connections.
 	cease := BuildCeaseNotification()
 	_ = WriteMessage(senderConn, cease)
-	_ = WriteMessage(receiverConn, cease)
+	if receiverConn != nil {
+		_ = WriteMessage(receiverConn, cease)
+	}
 
 	// Give 100ms for NOTIFICATION to be sent before closing.
 	time.Sleep(100 * time.Millisecond)
+
+	if receiverConn != nil {
+		receiverConn.Close() //nolint:errcheck // cleanup before next iteration
+	}
 
 	return IterationResult{
 		ConvergenceMs:     convergenceMs,
@@ -529,9 +621,76 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		LatencyP99Ms:      p99,
 		LatencyMaxMs:      latMax,
 		RoutesReceived:    received,
+		WithdrawalMs:      withdrawalMs,
 		SessionSenderMs:   int(senderSetup / time.Millisecond),
 		SessionReceiverMs: int(receiverSetup / time.Millisecond),
 	}, nil
+}
+
+// writeSendBatches writes pre-built UPDATE batches to the sender, recording per-prefix send times.
+func writeSendBatches(w *bufio.Writer, prebuilt [][]byte, prefixes []netip.Prefix, batches []batchRange, sendTimes map[netip.Prefix]time.Time) error {
+	for i, br := range batches {
+		if _, err := w.Write(prebuilt[i]); err != nil {
+			return err
+		}
+		now := time.Now()
+		for _, prefix := range prefixes[br.start:br.end] {
+			sendTimes[prefix] = now
+		}
+	}
+	return nil
+}
+
+// drainMessages reads and discards BGP messages until the connection goes idle
+// (no UPDATE messages for 500ms) or ctx is canceled. Returns the number of
+// UPDATE messages drained.
+func drainMessages(ctx context.Context, r io.Reader, conn net.Conn) int {
+	hdr := make([]byte, message.HeaderLen)
+	discard := make([]byte, message.MaxMsgLen)
+	updates := 0
+	for {
+		if err := ctx.Err(); err != nil {
+			return updates
+		}
+		if err := conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond)); err != nil {
+			return updates
+		}
+		if _, err := io.ReadFull(r, hdr); err != nil {
+			return updates
+		}
+		msgType := message.MessageType(hdr[18])
+		msgLen := int(binary.BigEndian.Uint16(hdr[16:18]))
+		if msgLen < message.HeaderLen {
+			return updates
+		}
+		bodyLen := msgLen - message.HeaderLen
+		if bodyLen > 0 && bodyLen <= len(discard) {
+			if _, err := io.ReadFull(r, discard[:bodyLen]); err != nil {
+				return updates
+			}
+		}
+		if msgType == message.TypeUPDATE {
+			updates++
+		}
+	}
+}
+
+// sendWithdrawals sends route withdrawals for all prefixes to clear the DUT's RIB.
+// Best-effort: errors are ignored since this is cleanup before session teardown.
+func sendWithdrawals(conn net.Conn, sender *Sender, prefixes []netip.Prefix, batches []batchRange) {
+	w := bufio.NewWriterSize(conn, 16384)
+	for _, br := range batches {
+		wd := sender.BuildWithdrawBatch(prefixes[br.start:br.end])
+		if wd == nil {
+			continue
+		}
+		if _, err := w.Write(wd); err != nil {
+			return
+		}
+	}
+	if err := w.Flush(); err != nil {
+		return
+	}
 }
 
 // connectBGP establishes a BGP TCP connection.
