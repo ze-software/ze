@@ -306,7 +306,7 @@ bin/ze-setup appliance build prod
 
 # 4. Prepare ISO prerequisites (download or build automatically)
 bin/ze-setup appliance iso --check               # see what is ready
-bin/ze-setup appliance kernel --arch amd64       # download or Docker-build the installer kernel
+bin/ze-setup appliance kernel prod                # download or Docker-build the installer kernel
 bin/ze-setup appliance initrd                    # download or build the installer initrd
 
 # 5. Build the bootable installer ISO
@@ -337,7 +337,7 @@ The `ze appliance` command provides structured appliance management. Each applia
 ```bash
 bin/ze-setup appliance init lab                  # interactive wizard
 bin/ze-setup appliance build lab                 # full image (assemble + gok + ext4)
-bin/ze-setup appliance kernel --arch amd64       # download or build installer kernel
+bin/ze-setup appliance kernel prod                # download or build installer kernel
 bin/ze-setup appliance initrd                    # download or build installer initrd
 bin/ze-setup appliance iso lab                   # bootable installer ISO from latest image
 bin/ze-setup appliance list                      # show all appliances
@@ -405,7 +405,7 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `assemble <name>` | Build ZeFS database only (auto-deletes; use `--keep` to retain) |
 | `build <name>` | Full image: assemble + gok + ext4 inject + checksum + manifest |
 | `build --all` | Build all appliances |
-| `kernel [--arch] [--version]` | Download or build the installer kernel |
+| `kernel [--arch] [--version] [<name>]` | Download or build the installer kernel |
 | `initrd` | Download or build the installer initrd |
 | `iso <name>` | Bootable installer ISO from an existing image |
 | `iso --check` | Check ISO prerequisites without building |
@@ -436,7 +436,7 @@ missing. The `kernel` and `initrd` commands handle downloading or building these
 artifacts automatically:
 
     bin/ze-setup appliance iso --check               # report readiness
-    bin/ze-setup appliance kernel --arch amd64       # download or build kernel
+    bin/ze-setup appliance kernel prod                # download or build kernel
     bin/ze-setup appliance initrd                    # download or build initrd
     bin/ze-setup appliance iso lab                   # build ISO
 

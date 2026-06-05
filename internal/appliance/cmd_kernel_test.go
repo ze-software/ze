@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -221,6 +223,73 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 	}
 	if _, err := os.Stat(got); err != nil {
 		t.Errorf("cached kernel not at %q: %v", got, err)
+	}
+}
+
+func TestKernelReadsArchFromAppliance(t *testing.T) {
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+
+	appDir := t.TempDir()
+	oldBase := baseDir
+	baseDir = appDir
+	defer func() { baseDir = oldBase }()
+
+	cfg := DefaultConfig("testapp")
+	cfg.Image.Arch = archAMD64
+	appPath := filepath.Join(appDir, "testapp")
+	if err := os.MkdirAll(appPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfgData, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(appPath, "appliance.json"), cfgData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cached := kernelCachePath(defaultKernelVersion, archAMD64)
+	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cached, []byte("fake-amd64-kernel"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Pre-cache at the host arch too, so exit code alone can't prove the config was read.
+	// If runKernel ignores the config and falls back to runtime.GOARCH, it would find this
+	// cache entry and succeed -- but the output path would not contain "amd64".
+	hostCached := kernelCachePath(defaultKernelVersion, runtime.GOARCH)
+	if hostCached != cached {
+		if err := os.MkdirAll(filepath.Dir(hostCached), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(hostCached, []byte("fake-host-kernel"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	code := runKernel([]string{"testapp"})
+
+	w.Close() //nolint:errcheck // test pipe
+	os.Stdout = old
+
+	if code != exitOK {
+		t.Fatalf("runKernel(testapp) = %d, want %d", code, exitOK)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
+
+	want := defaultKernelVersion + "-" + archAMD64
+	if !strings.Contains(output, want) {
+		t.Fatalf("expected output to contain %q, got %q", want, output)
 	}
 }
 

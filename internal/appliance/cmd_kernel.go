@@ -40,24 +40,24 @@ func init() {
 
 func runKernel(args []string) int {
 	fs := flag.NewFlagSet("appliance kernel", flag.ContinueOnError)
-	archFlag := fs.String("arch", runtime.GOARCH, "Target architecture (amd64 or arm64)")
+	archFlag := fs.String("arch", "", "Target architecture: amd64 or arm64 (default: from appliance config or host)")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command: "ze appliance kernel",
 			Summary: "Download or build the installer kernel",
-			Usage:   []string{"ze appliance kernel [--arch <arch>] [--version <version>]"},
+			Usage:   []string{"ze appliance kernel [options] [<name>]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--arch <arch>", Desc: "Target architecture: amd64 or arm64 (default: host)"},
+					{Name: "--arch <arch>", Desc: "Target architecture: amd64 or arm64 (default: from appliance config or host)"},
 					{Name: "--version <ver>", Desc: "Linux kernel version (default: " + defaultKernelVersion + ")"},
 				}},
 			},
 			Examples: []string{
-				"ze appliance kernel",
+				"ze appliance kernel prod",
 				"ze appliance kernel --arch amd64",
-				"ze appliance kernel --version 6.12.9 --arch arm64",
+				"ze appliance kernel --version 6.12.9 prod",
 			},
 		}
 		p.Write()
@@ -68,6 +68,20 @@ func runKernel(args []string) int {
 	}
 
 	arch := *archFlag
+	if arch == "" && fs.NArg() > 0 {
+		name := fs.Arg(0)
+		dir := getBaseDir()
+		cfg, err := LoadConfig(ConfigPath(dir, name))
+		if err != nil {
+			cliErrorf("load appliance %q config: %v", name, err)
+			return exitError
+		}
+		arch = cfg.Image.Arch
+	}
+	if arch == "" {
+		arch = runtime.GOARCH
+	}
+
 	if arch != archAMD64 && arch != archARM64 {
 		cliErrorf("arch %q must be amd64 or arm64", arch)
 		return exitError
