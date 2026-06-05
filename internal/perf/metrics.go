@@ -292,12 +292,20 @@ func Aggregate(results []IterationResult) AggregatedResult {
 		withdrawal[i] = r.WithdrawalMs
 	}
 
+	medianConv := Median(convergence)
+	medianTP := Median(tpAvg)
+	convSD := Stddev(convergence)
+	tpSD := 0
+	if medianConv > 0 {
+		tpSD = medianTP * convSD / medianConv
+	}
+
 	return AggregatedResult{
-		ConvergenceMs:       Median(convergence),
-		ConvergenceStddevMs: Stddev(convergence),
+		ConvergenceMs:       medianConv,
+		ConvergenceStddevMs: convSD,
 		FirstRouteMs:        Median(firstRoute),
-		ThroughputAvg:       Median(tpAvg),
-		ThroughputAvgStddev: Stddev(tpAvg),
+		ThroughputAvg:       medianTP,
+		ThroughputAvgStddev: tpSD,
 		ThroughputPeak:      Median(tpPeak),
 		LatencyP50Ms:        Median(latP50),
 		LatencyP90Ms:        Median(latP90),
