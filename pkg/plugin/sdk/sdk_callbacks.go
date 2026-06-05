@@ -11,6 +11,74 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+// ConfigureHandler handles Stage 2 config delivery. Return nil to accept, error to reject.
+type ConfigureHandler func([]ConfigSection) error
+
+// ShareRegistryHandler handles Stage 4 registry delivery.
+type ShareRegistryHandler func([]RegistryCommand)
+
+// EventHandler handles runtime text event delivery (one JSON-encoded event string per call).
+type EventHandler func(event string) error
+
+// StructuredEventHandler handles structured event delivery via DirectBridge.
+// Each element is a *rpc.StructuredEvent.
+type StructuredEventHandler func(events []any) error
+
+// ByeHandler handles shutdown notification with the shutdown reason.
+type ByeHandler func(reason string)
+
+// EncodeNLRIHandler handles NLRI encoding requests. Returns hex-encoded NLRI.
+type EncodeNLRIHandler func(family string, args []string) (string, error)
+
+// DecodeNLRIHandler handles NLRI decoding requests. Returns a Go value (JSON-marshaled by the SDK).
+type DecodeNLRIHandler func(family string, hex string) (any, error)
+
+// DecodeCapabilityHandler handles capability decoding requests. Returns a Go value (JSON-marshaled by the SDK).
+type DecodeCapabilityHandler func(code uint8, hex string) (any, error)
+
+// ExecuteCommandHandler handles command execution requests.
+// Returns status, data (JSON-marshaled by the SDK), and error.
+type ExecuteCommandHandler func(serial, command string, args []string, peer string) (string, any, error)
+
+// ConfigVerifyHandler handles config verification in the reload pipeline.
+// Return nil to accept the candidate config, error to reject.
+type ConfigVerifyHandler func([]ConfigSection) error
+
+// ConfigApplyHandler handles config apply in the reload pipeline.
+type ConfigApplyHandler func([]ConfigDiffSection) error
+
+// ConfigRollbackHandler handles config rollback in the transaction protocol.
+type ConfigRollbackHandler func(txID string) error
+
+// ConfigOperationDecomposeHandler handles operation decomposition.
+type ConfigOperationDecomposeHandler func(ConfigOperationDecomposeInput) (*ConfigOperationDecomposeOutput, error)
+
+// ConfigOperationVerifyHandler handles operation verification.
+type ConfigOperationVerifyHandler func(ConfigOperationVerifyInput) error
+
+// ConfigOperationApplyHandler handles applying one config operation.
+type ConfigOperationApplyHandler func(ConfigOperationApplyInput) (*ConfigOperationApplyOutput, error)
+
+// ConfigOperationRollbackHandler handles rolling back config operations.
+type ConfigOperationRollbackHandler func(ConfigOperationRollbackInput) error
+
+// ConfigOperationCommitHandler handles committing operation journals.
+type ConfigOperationCommitHandler func(ConfigOperationCommitInput) error
+
+// ValidateOpenHandler handles OPEN validation requests. Returns accept/reject decision.
+type ValidateOpenHandler func(*ValidateOpenInput) *ValidateOpenOutput
+
+// FilterUpdateHandler handles route filter requests (accept/reject/modify with optional delta).
+type FilterUpdateHandler func(*FilterUpdateInput) (*FilterUpdateOutput, error)
+
+// StartedHandler runs after the 5-stage startup completes but before the event loop.
+// Do NOT call DispatchCommand from here targeting other plugins; use AllPluginsReadyHandler.
+type StartedHandler func(ctx context.Context) error
+
+// AllPluginsReadyHandler runs via the event loop after all plugins are loaded and registries frozen.
+// This is the only safe place to DispatchCommand targeting another plugin at startup.
+type AllPluginsReadyHandler func() error
+
 // initCallbackDefaults registers default handlers for callbacks that have
 // graceful no-handler behavior (accept/no-op). Called from constructors.
 func (p *Plugin) initCallbackDefaults() {
@@ -42,21 +110,21 @@ func marshalStatusOK(json.RawMessage) (json.RawMessage, error) {
 }
 
 // OnConfigure sets the handler for Stage 2 config delivery.
-func (p *Plugin) OnConfigure(fn func([]ConfigSection) error) {
+func (p *Plugin) OnConfigure(fn ConfigureHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onConfigure = fn
 }
 
 // OnShareRegistry sets the handler for Stage 4 registry delivery.
-func (p *Plugin) OnShareRegistry(fn func([]RegistryCommand)) {
+func (p *Plugin) OnShareRegistry(fn ShareRegistryHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onShareRegistry = fn
 }
 
 // OnEvent sets the handler for runtime event delivery.
-func (p *Plugin) OnEvent(fn func(string) error) {
+func (p *Plugin) OnEvent(fn EventHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onEvent = fn // Keep field for bridge direct delivery hot path.
@@ -90,14 +158,14 @@ func (p *Plugin) OnEvent(fn func(string) error) {
 // OnStructuredEvent sets the handler for structured event delivery via DirectBridge.
 // When registered, the bridge delivers structured events directly (no text formatting).
 // The handler receives []any where each element is a *rpc.StructuredEvent.
-func (p *Plugin) OnStructuredEvent(fn func([]any) error) {
+func (p *Plugin) OnStructuredEvent(fn StructuredEventHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onStructuredEvent = fn
 }
 
 // OnBye sets the handler for shutdown notification.
-func (p *Plugin) OnBye(fn func(string)) {
+func (p *Plugin) OnBye(fn ByeHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackBye] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -114,7 +182,7 @@ func (p *Plugin) OnBye(fn func(string)) {
 
 // OnEncodeNLRI sets the handler for NLRI encoding requests.
 // The handler receives the address family and arguments, and returns hex-encoded NLRI.
-func (p *Plugin) OnEncodeNLRI(fn func(family string, args []string) (string, error)) {
+func (p *Plugin) OnEncodeNLRI(fn EncodeNLRIHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackEncodeNLRI] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -135,7 +203,7 @@ func (p *Plugin) OnEncodeNLRI(fn func(family string, args []string) (string, err
 // OnDecodeNLRI sets the handler for NLRI decoding requests.
 // The handler receives the address family and hex-encoded NLRI, and returns
 // a Go data structure. The SDK marshals it once into the response.
-func (p *Plugin) OnDecodeNLRI(fn func(family string, hex string) (any, error)) {
+func (p *Plugin) OnDecodeNLRI(fn DecodeNLRIHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackDecodeNLRI] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -160,7 +228,7 @@ func (p *Plugin) OnDecodeNLRI(fn func(family string, hex string) (any, error)) {
 // OnDecodeCapability sets the handler for capability decoding requests.
 // The handler receives the capability code and hex-encoded bytes, and returns
 // a Go data structure. The SDK marshals it once into the response.
-func (p *Plugin) OnDecodeCapability(fn func(code uint8, hex string) (any, error)) {
+func (p *Plugin) OnDecodeCapability(fn DecodeCapabilityHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackDecodeCapability] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -186,7 +254,7 @@ func (p *Plugin) OnDecodeCapability(fn func(code uint8, hex string) (any, error)
 // The handler receives serial, command, args, peer and returns (status, data, error).
 // The SDK marshals the data value into ExecuteCommandOutput.Data as json.RawMessage,
 // producing a single marshal instead of double-encoding.
-func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string, peer string) (string, any, error)) {
+func (p *Plugin) OnExecuteCommand(fn ExecuteCommandHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onExecuteCommand = fn
@@ -204,7 +272,7 @@ func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string,
 }
 
 func executeCommandOutput(
-	fn executeCommandFunc,
+	fn ExecuteCommandHandler,
 	serial string,
 	command string,
 	args []string,
@@ -227,7 +295,7 @@ func executeCommandOutput(
 // OnConfigVerify sets the handler for config verification requests (reload pipeline).
 // The handler receives the full candidate config sections and returns nil to accept
 // or an error to reject. If no handler is registered, config-verify returns OK (no-op).
-func (p *Plugin) OnConfigVerify(fn func([]ConfigSection) error) {
+func (p *Plugin) OnConfigVerify(fn ConfigVerifyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackConfigVerify] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -245,7 +313,7 @@ func (p *Plugin) OnConfigVerify(fn func([]ConfigSection) error) {
 // OnConfigApply sets the handler for config apply requests (reload pipeline).
 // The handler receives diff sections describing what changed and returns nil to accept
 // or an error to reject. If no handler is registered, config-apply returns OK (no-op).
-func (p *Plugin) OnConfigApply(fn func([]ConfigDiffSection) error) {
+func (p *Plugin) OnConfigApply(fn ConfigApplyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackConfigApply] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -264,7 +332,7 @@ func (p *Plugin) OnConfigApply(fn func([]ConfigDiffSection) error) {
 // The handler receives the transaction ID and should undo changes applied during this
 // transaction (typically by calling journal.Rollback()). If no handler is registered,
 // rollback is a no-op.
-func (p *Plugin) OnConfigRollback(fn func(txID string) error) {
+func (p *Plugin) OnConfigRollback(fn ConfigRollbackHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackConfigRollback] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -281,7 +349,7 @@ func (p *Plugin) OnConfigRollback(fn func(txID string) error) {
 }
 
 // OnConfigOperationDecompose sets the handler for operation decomposition.
-func (p *Plugin) OnConfigOperationDecompose(fn func(ConfigOperationDecomposeInput) (*ConfigOperationDecomposeOutput, error)) {
+func (p *Plugin) OnConfigOperationDecompose(fn ConfigOperationDecomposeHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackOpDecompose] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -304,7 +372,7 @@ func (p *Plugin) OnConfigOperationDecompose(fn func(ConfigOperationDecomposeInpu
 }
 
 // OnConfigOperationVerify sets the handler for operation verification.
-func (p *Plugin) OnConfigOperationVerify(fn func(ConfigOperationVerifyInput) error) {
+func (p *Plugin) OnConfigOperationVerify(fn ConfigOperationVerifyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackOpVerify] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -320,7 +388,7 @@ func (p *Plugin) OnConfigOperationVerify(fn func(ConfigOperationVerifyInput) err
 }
 
 // OnConfigOperationApply sets the handler for applying one operation.
-func (p *Plugin) OnConfigOperationApply(fn func(ConfigOperationApplyInput) (*ConfigOperationApplyOutput, error)) {
+func (p *Plugin) OnConfigOperationApply(fn ConfigOperationApplyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackOpApply] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -343,7 +411,7 @@ func (p *Plugin) OnConfigOperationApply(fn func(ConfigOperationApplyInput) (*Con
 }
 
 // OnConfigOperationRollback sets the handler for rolling back operations.
-func (p *Plugin) OnConfigOperationRollback(fn func(ConfigOperationRollbackInput) error) {
+func (p *Plugin) OnConfigOperationRollback(fn ConfigOperationRollbackHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackOpRollback] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -359,7 +427,7 @@ func (p *Plugin) OnConfigOperationRollback(fn func(ConfigOperationRollbackInput)
 }
 
 // OnConfigOperationCommit sets the handler for committing operation journals.
-func (p *Plugin) OnConfigOperationCommit(fn func(ConfigOperationCommitInput) error) {
+func (p *Plugin) OnConfigOperationCommit(fn ConfigOperationCommitHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackOpCommit] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -378,7 +446,7 @@ func (p *Plugin) OnConfigOperationCommit(fn func(ConfigOperationCommitInput) err
 // The handler receives both local and remote OPEN messages and returns accept/reject.
 // When registered, WantsValidateOpen is automatically set in Stage 1 registration.
 // If no handler is registered, validate-open returns accept (no-op).
-func (p *Plugin) OnValidateOpen(fn func(*ValidateOpenInput) *ValidateOpenOutput) {
+func (p *Plugin) OnValidateOpen(fn ValidateOpenHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackValidateOpen] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -395,7 +463,7 @@ func (p *Plugin) OnValidateOpen(fn func(*ValidateOpenInput) *ValidateOpenOutput)
 // OnFilterUpdate sets the handler for route filter requests (redistribution).
 // The handler receives filter input (filter name, direction, peer, update text)
 // and returns a PolicyResponse (accept/reject/modify with optional delta).
-func (p *Plugin) OnFilterUpdate(fn func(*FilterUpdateInput) (*FilterUpdateOutput, error)) {
+func (p *Plugin) OnFilterUpdate(fn FilterUpdateHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.callbacks[callbackFilterUpdate] = func(params json.RawMessage) (json.RawMessage, error) {
@@ -423,7 +491,7 @@ func (p *Plugin) OnFilterUpdate(fn func(*FilterUpdateInput) (*FilterUpdateOutput
 // NOT call DispatchCommand from OnStarted targeting a plugin that lives in a
 // different startup phase: the dispatcher command registry may not yet contain
 // the target command. Use OnAllPluginsReady for cross-plugin dispatches.
-func (p *Plugin) OnStarted(fn func(ctx context.Context) error) {
+func (p *Plugin) OnStarted(fn StartedHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onStarted = fn
@@ -444,7 +512,7 @@ func (p *Plugin) OnStarted(fn func(ctx context.Context) error) {
 // context.Background() with an explicit timeout. Errors returned from fn are
 // propagated as an RPC error response to the engine and logged there; the
 // plugin continues running.
-func (p *Plugin) OnAllPluginsReady(fn func() error) {
+func (p *Plugin) OnAllPluginsReady(fn AllPluginsReadyHandler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onAllPluginsReady = fn

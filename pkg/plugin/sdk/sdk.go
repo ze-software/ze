@@ -45,7 +45,6 @@ import (
 // Returns result JSON (nil for status-only OK responses) and error.
 // Registered via On* methods, dispatched by both pipe and bridge event loops.
 type callbackHandler func(json.RawMessage) (json.RawMessage, error)
-type executeCommandFunc func(serial, command string, args []string, peer string) (string, any, error)
 
 // Plugin represents a ze plugin using the YANG RPC protocol.
 type Plugin struct {
@@ -69,9 +68,9 @@ type Plugin struct {
 
 	// Startup-only callbacks (stages 2, 4, post-startup). Not in the map
 	// because they run during the sequential startup protocol, not the event loop.
-	onConfigure     func([]ConfigSection) error
-	onShareRegistry func([]RegistryCommand)
-	onStarted       func(context.Context) error
+	onConfigure     ConfigureHandler
+	onShareRegistry ShareRegistryHandler
+	onStarted       StartedHandler
 
 	// onAllPluginsReady fires via the event loop after the engine sends the
 	// post-startup callback. Unlike onStarted (which runs synchronously before
@@ -79,13 +78,13 @@ type Plugin struct {
 	// plugins), onAllPluginsReady runs only after every plugin across every
 	// startup phase is running and both registries are frozen. This is the
 	// only safe place to dispatch commands to other plugins during startup.
-	onAllPluginsReady func() error
+	onAllPluginsReady AllPluginsReadyHandler
 
 	// Direct delivery handlers for bridge hot path (bypasses callback channel).
 	// onEvent is also captured by the deliver-event/deliver-batch map entries.
-	onEvent           func(string) error
-	onStructuredEvent func([]any) error
-	onExecuteCommand  executeCommandFunc
+	onEvent           EventHandler
+	onStructuredEvent StructuredEventHandler
+	onExecuteCommand  ExecuteCommandHandler
 
 	// Startup subscriptions: included in the "ready" RPC so the engine
 	// registers them atomically before SignalAPIReady, avoiding the race

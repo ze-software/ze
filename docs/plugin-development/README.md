@@ -213,20 +213,20 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 
 ### Callback Registration (call before `Run`)
 
-| Method | Signature | When Called |
-|--------|-----------|------------|
-| `OnConfigure` | `func([]ConfigSection) error` | Stage 2: engine delivers config |
-| `OnShareRegistry` | `func([]RegistryCommand)` | Stage 4: engine shares command registry |
-| `OnEvent` | `func(string) error` | Runtime: BGP event delivery |
-| `OnExecuteCommand` | `func(serial, command string, args []string, peer string) (status, data string, err error)` | Runtime: command execution |
-| `OnEncodeNLRI` | `func(family string, args []string) (string, error)` | Runtime: NLRI encoding request |
-| `OnDecodeNLRI` | `func(family string, hex string) (string, error)` | Runtime: NLRI decoding request |
-| `OnDecodeCapability` | `func(code uint8, hex string) (string, error)` | Runtime: capability decoding request |
-| `OnConfigVerify` | `func([]ConfigSection) error` | Reload: validate candidate config |
-| `OnConfigApply` | `func([]ConfigDiffSection) error` | Reload: apply config diff |
-| `OnValidateOpen` | `func(*ValidateOpenInput) *ValidateOpenOutput` | Runtime: validate OPEN messages |
-| `OnBye` | `func(string)` | Shutdown: reason string |
-| `OnStarted` | `func(ctx context.Context) error` | Post-startup: safe to make engine calls |
+| Method | Handler Type | When Called |
+|--------|-------------|------------|
+| `OnConfigure` | `ConfigureHandler` | Stage 2: engine delivers config |
+| `OnShareRegistry` | `ShareRegistryHandler` | Stage 4: engine shares command registry |
+| `OnEvent` | `EventHandler` | Runtime: BGP event delivery |
+| `OnExecuteCommand` | `ExecuteCommandHandler` | Runtime: command execution |
+| `OnEncodeNLRI` | `EncodeNLRIHandler` | Runtime: NLRI encoding request |
+| `OnDecodeNLRI` | `DecodeNLRIHandler` | Runtime: NLRI decoding request |
+| `OnDecodeCapability` | `DecodeCapabilityHandler` | Runtime: capability decoding request |
+| `OnConfigVerify` | `ConfigVerifyHandler` | Reload: validate candidate config |
+| `OnConfigApply` | `ConfigApplyHandler` | Reload: apply config diff |
+| `OnValidateOpen` | `ValidateOpenHandler` | Runtime: validate OPEN messages |
+| `OnBye` | `ByeHandler` | Shutdown: reason string |
+| `OnStarted` | `StartedHandler` | Post-startup: safe to make engine calls |
 
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- all On* methods -->
 

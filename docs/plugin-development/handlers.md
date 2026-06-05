@@ -11,13 +11,13 @@ Register handlers before calling `Run()`:
 ```go
 p := sdk.NewWithConn("my-plugin", conn)
 
-// Startup handlers
+// Startup handlers (named handler types defined in sdk package)
 p.OnConfigure(func(sections []sdk.ConfigSection) error { ... })
 p.OnShareRegistry(func(commands []sdk.RegistryCommand) { ... })
 
 // Runtime handlers
 p.OnEvent(func(event string) error { ... })
-p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) { ... })
+p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) { ... })
 p.OnConfigVerify(func(sections []sdk.ConfigSection) error { ... })
 p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error { ... })
 p.OnValidateOpen(func(input *sdk.ValidateOpenInput) *sdk.ValidateOpenOutput { ... })
@@ -28,8 +28,8 @@ p.OnStarted(func(ctx context.Context) error { ... })
 
 // NLRI handlers
 p.OnEncodeNLRI(func(family string, args []string) (string, error) { ... })
-p.OnDecodeNLRI(func(family string, hex string) (string, error) { ... })
-p.OnDecodeCapability(func(code uint8, hex string) (string, error) { ... })
+p.OnDecodeNLRI(func(family string, hex string) (any, error) { ... })
+p.OnDecodeCapability(func(code uint8, hex string) (any, error) { ... })
 
 p.Run(ctx, sdk.Registration{...})
 ```
