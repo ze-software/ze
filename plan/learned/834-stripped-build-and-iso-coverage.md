@@ -6,7 +6,7 @@ The appliance installer work added a second Ze product shape (the minimal/stripp
 
 ## Decisions
 
-- Split self-update shared types and config validation into stripped-safe files, and gate the runtime self-update implementation behind `ze_linux`.
+- Split self-update shared types and config validation into stripped-safe files, and gate the runtime self-update implementation behind `ze_distro`.
 - Keep the appliance ISO default kernel contract aligned with the installer-kernel tool output (`tools/installer-kernel/build/Image`) instead of inventing per-arch default filenames.
 - Add functional `.ci` coverage for the default ISO artifact path, the arm64 ISO staging path, and the `ze-stripped` command surface instead of relying on unit tests or ad hoc shell checks.
 
