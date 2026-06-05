@@ -248,8 +248,21 @@ ISO; the installer initrd decompresses it during installation. Create it with:
 
 ```bash
 ze appliance build prod
+ze appliance kernel --arch amd64       # download or build installer kernel
+ze appliance initrd                    # download or build installer initrd
 ze appliance iso prod
-make -C tools/installer-kernel ARCH=arm64
+```
+
+Use `ze appliance iso --check` to verify all prerequisites (kernel, initrd,
+grub, xorriso) are available before building. The `kernel` and `initrd` commands
+download pre-built artifacts from the release server when available, falling
+back to a local Docker build (kernel) or make build (initrd). Cached artifacts
+are stored under `$XDG_CACHE_HOME/ze/` (default `~/.cache/ze/`).
+
+For arm64 targets or a specific kernel version:
+
+```bash
+ze appliance kernel --arch arm64 --version 6.12.9
 ze appliance iso --kernel tools/installer-kernel/build/Image prod
 ```
 
@@ -258,14 +271,14 @@ Unlike PXE provisioning, it does not download `/install/database.zefs` or write 
 separate database after the disk image, because the appliance build already
 injected `/perm/ze/database.zefs` into the image.
 <!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
-<!-- source: cmd/ze/install/appliance/cmd_build.go -- injectZeFS -->
+<!-- source: internal/appliance/cmd_build.go -- injectZeFS -->
 
 The ISO bootloader target follows `image.arch`: amd64 images produce
-`BOOTX64.EFI`, arm64 images produce `BOOTAA64.EFI`. By default the command looks
-for `tools/installer-kernel/build/Image` and pairs that kernel with the shared
-initrd. Build the matching architecture before running `ze appliance
-iso`, or pass `--kernel` to keep multiple kernels side by side.
-<!-- source: cmd/ze/install/appliance/cmd_iso.go -- isoGRUBTarget, defaultISOKernelPath -->
+`BOOTX64.EFI`, arm64 images produce `BOOTAA64.EFI`. By default the command
+checks for a cached kernel under `$XDG_CACHE_HOME/ze/installer-kernel/` then
+falls back to `tools/installer-kernel/build/Image`. Pass `--kernel` to use a
+specific kernel path.
+<!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget, defaultISOKernelPath -->
 
 If the target has more than one fixed disk, create the ISO with an explicit
 whole-disk target. The initrd rejects ambiguous implicit disk selection in ISO
