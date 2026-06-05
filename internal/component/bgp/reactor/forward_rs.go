@@ -364,7 +364,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 		}
 
-		item := fwdItem{peer: peer, meta: update.Meta, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
+		item := fwdItem{peer: peer, meta: update.Meta, sourcePeerStr: update.SourcePeerStr, peerBufIdx: modBufIdx, peerPoolRef: modPoolRef}
 
 		extendedMessage := facts.extendedMsg
 		maxMsgSize := facts.maxMsgSize

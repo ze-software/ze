@@ -58,7 +58,12 @@ type ReceivedUpdate struct {
 
 	// Meta holds route metadata set at ingress by filters.
 	// Read-only after creation. May be nil if no filter set metadata.
+	// Does NOT contain "source-peer"; use SourcePeerIP or SourcePeerStr instead.
 	Meta map[string]any
+
+	// SourcePeerStr caches SourcePeerIP.String() to avoid per-forward allocations.
+	// Set once at creation from the peer's cached address string.
+	SourcePeerStr string
 
 	// ebgpMu protects lazy EBGP wire generation.
 	ebgpMu sync.Mutex

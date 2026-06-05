@@ -98,8 +98,9 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 	merged := scratch.merged[:0]
 	used := make([]bool, len(items))
 
-	// Track metadata for each merged body (from reference item of each group).
+	// Track metadata and source peer for each merged body (from reference item of each group).
 	var mergedMeta []map[string]any
+	var mergedSourcePeer []string
 
 	for _, grp := range scratch.groups {
 		if len(grp) < 2 {
@@ -118,6 +119,7 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 
 		refParts := &eligible[grp[0]].parts
 		refMeta := items[eligible[grp[0]].idx].meta
+		refSourcePeer := items[eligible[grp[0]].idx].sourcePeerStr
 		attrOverhead := 2 + refParts.wdLen + 2 + refParts.attrLen
 
 		var nlriBuf []byte
@@ -134,6 +136,7 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 			if len(nlriBuf)+len(nlri)+attrOverhead > maxBodySize && len(nlriBuf) > 0 {
 				merged = append(merged, buildBucketBody(refParts, nlriBuf))
 				mergedMeta = append(mergedMeta, refMeta)
+				mergedSourcePeer = append(mergedSourcePeer, refSourcePeer)
 				nlriBuf = nil
 			}
 			nlriBuf = append(nlriBuf, nlri...)
@@ -143,6 +146,7 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 		if len(nlriBuf) > 0 {
 			merged = append(merged, buildBucketBody(refParts, nlriBuf))
 			mergedMeta = append(mergedMeta, refMeta)
+			mergedSourcePeer = append(mergedSourcePeer, refSourcePeer)
 		}
 	}
 	scratch.merged = merged
@@ -165,9 +169,10 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 	}
 	for i, body := range merged {
 		result = append(result, fwdItem{
-			peer:      items[0].peer,
-			rawBodies: [][]byte{body},
-			meta:      mergedMeta[i],
+			peer:          items[0].peer,
+			rawBodies:     [][]byte{body},
+			meta:          mergedMeta[i],
+			sourcePeerStr: mergedSourcePeer[i],
 		})
 	}
 	return result

@@ -537,9 +537,9 @@ func TestPeerOpQueueMultipleTeardowns(t *testing.T) {
 	peer.mu.RUnlock()
 }
 
-// TestPeerOpQueueOverflow verifies queue respects MaxOpQueueSize limit.
+// TestPeerOpQueueOverflow verifies queue respects DefaultOpQueueSize limit.
 //
-// VALIDATES: Operations are dropped when queue reaches MaxOpQueueSize.
+// VALIDATES: Operations are dropped when queue reaches DefaultOpQueueSize.
 //
 // PREVENTS: Unbounded memory growth when session is disconnected.
 func TestPeerOpQueueOverflow(t *testing.T) {
@@ -552,12 +552,12 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 
 	// Fill queue to capacity with valid routes
 	route := testRoute("10.0.0.0/8")
-	for range MaxOpQueueSize {
+	for range DefaultOpQueueSize {
 		peer.QueueAnnounce(route)
 	}
 
 	peer.mu.RLock()
-	require.Len(t, peer.opQueue, MaxOpQueueSize, "queue should be at max capacity")
+	require.Len(t, peer.opQueue, DefaultOpQueueSize, "queue should be at max capacity")
 	peer.mu.RUnlock()
 
 	// Additional operations should be dropped
@@ -565,7 +565,7 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 	require.ErrorIs(t, peer.Teardown(4, ""), ErrOpQueueFull)
 
 	peer.mu.RLock()
-	require.Len(t, peer.opQueue, MaxOpQueueSize, "queue should not exceed max capacity")
+	require.Len(t, peer.opQueue, DefaultOpQueueSize, "queue should not exceed max capacity")
 	peer.mu.RUnlock()
 }
 

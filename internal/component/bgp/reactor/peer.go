@@ -116,9 +116,10 @@ type PeerOp struct {
 	Message string     // For PeerOpTeardown: RFC 8203 shutdown communication
 }
 
-// MaxOpQueueSize is the maximum number of operations that can be queued
-// when the session is not established. Prevents unbounded memory growth.
-const MaxOpQueueSize = 10000
+// DefaultOpQueueSize is the default maximum number of operations that can be
+// queued when the session is not established. Scaled up when the peer has
+// prefix-maximum configured (one queue slot per expected prefix).
+const DefaultOpQueueSize = 10000
 
 // Peer wraps a Session with reconnection logic.
 //
@@ -214,7 +215,8 @@ type Peer struct {
 	// Ordered operation queue: Used when session is NOT established.
 	// Maintains strict ordering of announce/withdraw/teardown operations.
 	// Processed on session establishment; teardowns act as batch separators.
-	opQueue []PeerOp
+	opQueue    []PeerOp
+	opQueueMax int
 
 	// sendingInitialRoutes gates route sending during session establishment.
 	// States: 0=idle, 1=flag set by FSM (queuing enabled), 2=goroutine running.
@@ -294,6 +296,18 @@ func NewPeer(settings *PeerSettings) *Peer {
 	}
 	addrStr := settings.Address.String()
 	clk := clock.RealClock{}
+
+	const maxOpQueueCap = 2_000_000
+	queueMax := DefaultOpQueueSize
+	for _, v := range settings.PrefixMaximum {
+		if int(v) > queueMax {
+			queueMax = int(v)
+		}
+	}
+	if queueMax > maxOpQueueCap {
+		queueMax = maxOpQueueCap
+	}
+
 	p := &Peer{
 		settings:        settings,
 		clock:           clk,
@@ -301,6 +315,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		reconnectMin:    reconnectMin,
 		reconnectMax:    DefaultReconnectMax,
 		opQueue:         make([]PeerOp, 0, 16), // Pre-allocate small capacity
+		opQueueMax:      queueMax,
 		sourceID:        source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
 		inboundNotify:   make(chan struct{}, 1),
 		addrString:      addrStr,
@@ -784,7 +799,7 @@ func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
 	// so it can send EOR before executing the teardown. This ensures proper
 	// BGP protocol sequencing: routes + EOR + NOTIFICATION.
 	if p.sendingInitialRoutes.Load() != 0 {
-		if len(p.opQueue) < MaxOpQueueSize {
+		if len(p.opQueue) < p.opQueueMax {
 			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg})
 			p.mu.Unlock()
 			return nil
@@ -807,7 +822,7 @@ func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
 	}
 
 	// No active session - queue teardown to maintain operation order
-	if len(p.opQueue) < MaxOpQueueSize {
+	if len(p.opQueue) < p.opQueueMax {
 		p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg})
 		p.mu.Unlock()
 		return nil
@@ -836,11 +851,11 @@ func (p *Peer) ShouldQueue() bool {
 
 // QueueAnnounce queues a route announcement for when session establishes.
 // Used when session is not established to maintain operation order.
-// If queue is full (MaxOpQueueSize), the operation is dropped with a warning.
+// If queue is full, the operation is dropped with a warning.
 func (p *Peer) QueueAnnounce(route *rib.Route) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if len(p.opQueue) >= MaxOpQueueSize {
+	if len(p.opQueue) >= p.opQueueMax {
 		routesLogger().Warn("opQueue full, dropping announce", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", route.NLRI())
 		return
 	}
@@ -849,11 +864,11 @@ func (p *Peer) QueueAnnounce(route *rib.Route) {
 
 // QueueWithdraw queues a route withdrawal for when session establishes.
 // Used when session is not established to maintain operation order.
-// If queue is full (MaxOpQueueSize), the operation is dropped with a warning.
+// If queue is full, the operation is dropped with a warning.
 func (p *Peer) QueueWithdraw(n nlri.NLRI) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if len(p.opQueue) >= MaxOpQueueSize {
+	if len(p.opQueue) >= p.opQueueMax {
 		routesLogger().Warn("opQueue full, dropping withdraw", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", n)
 		return
 	}

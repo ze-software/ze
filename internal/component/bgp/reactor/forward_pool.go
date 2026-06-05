@@ -49,16 +49,17 @@ type fwdKey struct {
 // Pre-computed send operations for one destination peer from one ForwardUpdate call.
 // The worker executes rawBodies (SendRawUpdateBody) then updates (SendUpdate).
 type fwdItem struct {
-	rawBodies    [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
-	updates      []*message.Update // Re-encode path: SendUpdate per entry
-	peer         *Peer             // Target peer for all operations
-	done         func()            // Called after all ops complete (Release cache entry)
-	peerBufIdx   int               // 1-based index into per-peer pool; 0 = not from per-peer pool
-	peerPoolRef  *peerPool         // Pool to return buffer to (avoids map lookup + lock)
-	overflowBuf  BufHandle         // Holds overflow MixedBufMux handle; nil Buf = not from overflow
-	meta         map[string]any    // Route metadata from ReceivedUpdate; set on sent events
-	supersedeKey uint64            // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
-	withdrawal   bool              // True if this item contains only withdrawals (AC-25)
+	rawBodies     [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
+	updates       []*message.Update // Re-encode path: SendUpdate per entry
+	peer          *Peer             // Target peer for all operations
+	done          func()            // Called after all ops complete (Release cache entry)
+	peerBufIdx    int               // 1-based index into per-peer pool; 0 = not from per-peer pool
+	peerPoolRef   *peerPool         // Pool to return buffer to (avoids map lookup + lock)
+	overflowBuf   BufHandle         // Holds overflow MixedBufMux handle; nil Buf = not from overflow
+	meta          map[string]any    // Route metadata from ReceivedUpdate; set on sent events
+	sourcePeerStr string            // Source peer address string for ribOut stale-scoping
+	supersedeKey  uint64            // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
+	withdrawal    bool              // True if this item contains only withdrawals (AC-25)
 }
 
 // fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
@@ -143,7 +144,8 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		return
 	}
 	defer func() {
-		session.sentMeta = nil // Clear route metadata on all exit paths.
+		session.sentMeta = nil         // Clear route metadata on all exit paths.
+		session.sentSourcePeerStr = "" // Clear source peer string on all exit paths.
 		// Clear write deadline (zero value = no deadline).
 		_ = conn.SetWriteDeadline(time.Time{})
 	}()
@@ -156,7 +158,8 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	items = fwdBucketMerge(items, fwdBucketMaxBodySize(extMsg))
 
 	for i := range items {
-		session.sentMeta = items[i].meta // Route metadata for sent event callbacks.
+		session.sentMeta = items[i].meta                   // Route metadata for sent event callbacks.
+		session.sentSourcePeerStr = items[i].sourcePeerStr // Source peer for ribOut stale-scoping.
 		for _, body := range items[i].rawBodies {
 			if err := session.writeRawUpdateBody(body); err != nil {
 				fwdLogger().Warn("forward batch write failed",

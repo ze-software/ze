@@ -491,20 +491,21 @@ func (b *DirectBridge) DispatchRPC(method string, params json.RawMessage) (json.
 // Pooled via GetStructuredEvent/PutStructuredEvent — callers MUST return via
 // PutStructuredEvent after all consumers have processed the event.
 type StructuredEvent struct {
-	PeerAddress  string           // Source peer address string
-	PeerName     string           // Peer name from config
-	PeerGroup    string           // Peer group name from config
-	PeerAS       uint32           // Remote peer AS number
-	LocalAS      uint32           // Local AS number
-	RouterID     uint32           // Remote peer's BGP Identifier (from OPEN)
-	LocalAddress string           // Local address string
-	EventType    EventKind        // EventKindUpdate, EventKindOpen, etc.
-	Direction    MessageDirection // DirectionSent / DirectionReceived
-	MessageID    uint64           // Unique message ID (0 for non-message events)
-	State        SessionState     // For state events: SessionStateUp, SessionStateDown
-	Reason       string           // For state events: close reason
-	RawMessage   any              // *types.RawMessage for wire messages, nil for synthetic events
-	Meta         map[string]any   // Route metadata (sent events only)
+	PeerAddress   string           // Source peer address string
+	PeerName      string           // Peer name from config
+	PeerGroup     string           // Peer group name from config
+	PeerAS        uint32           // Remote peer AS number
+	LocalAS       uint32           // Local AS number
+	RouterID      uint32           // Remote peer's BGP Identifier (from OPEN)
+	LocalAddress  string           // Local address string
+	EventType     EventKind        // EventKindUpdate, EventKindOpen, etc.
+	Direction     MessageDirection // DirectionSent / DirectionReceived
+	MessageID     uint64           // Unique message ID (0 for non-message events)
+	State         SessionState     // For state events: SessionStateUp, SessionStateDown
+	Reason        string           // For state events: close reason
+	RawMessage    any              // *types.RawMessage for wire messages, nil for synthetic events
+	Meta          map[string]any   // Route metadata (sent events only)
+	SourcePeerStr string           // Source peer address for ribOut stale-scoping (sent events only)
 }
 
 // GetStructuredEvent returns a StructuredEvent from the pool.
@@ -534,6 +535,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.Reason = ""
 	se.RawMessage = nil
 	se.Meta = nil
+	se.SourcePeerStr = ""
 	structuredEventPool.Put(se)
 }
 

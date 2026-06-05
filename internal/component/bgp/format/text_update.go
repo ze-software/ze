@@ -530,11 +530,32 @@ func appendFullFromResult(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMes
 	// Inject route metadata if present (sideband, not in wire bytes).
 	// Marshal error silently drops metadata (meta contains only string/bool values
 	// from ingress filters; marshal failure requires a code bug, not external input).
-	if len(msg.Meta) > 0 {
-		if metaBytes, err := json.Marshal(msg.Meta); err == nil {
-			buf = append(buf, `,"route-meta":`...)
-			buf = append(buf, metaBytes...)
+	hasMeta := len(msg.Meta) > 0 || msg.SourcePeerStr != ""
+	if hasMeta {
+		buf = append(buf, `,"route-meta":{`...)
+		first := true
+		if msg.SourcePeerStr != "" {
+			buf = append(buf, `"source-peer":`...)
+			if sb, err := json.Marshal(msg.SourcePeerStr); err == nil {
+				buf = append(buf, sb...)
+				first = false
+			}
 		}
+		for k, v := range msg.Meta {
+			kb, kerr := json.Marshal(k)
+			vb, verr := json.Marshal(v)
+			if kerr != nil || verr != nil {
+				continue
+			}
+			if !first {
+				buf = append(buf, ',')
+			}
+			buf = append(buf, kb...)
+			buf = append(buf, ':')
+			buf = append(buf, vb...)
+			first = false
+		}
+		buf = append(buf, '}')
 	}
 
 	// Close bgp and outer wrapper

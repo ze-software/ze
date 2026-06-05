@@ -15,15 +15,16 @@ import (
 // RawMessage represents a BGP message sent or received.
 // Contains raw wire bytes for on-demand parsing based on format config.
 type RawMessage struct {
-	Type       message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
-	RawBytes   []byte              // Original wire bytes (without marker/header)
-	Timestamp  time.Time
-	MessageID  uint64                    // Unique ID for all message types
-	AttrsWire  *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
-	WireUpdate *wireu.WireUpdate         // UPDATE wire wrapper (nil if not UPDATE)
-	Direction  rpc.MessageDirection      // DirectionSent / DirectionReceived
-	ParseError error                     // Non-nil if lazy parsing failed
-	Meta       map[string]any            // Route metadata from ReceivedUpdate (sent events only)
+	Type          message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
+	RawBytes      []byte              // Original wire bytes (without marker/header)
+	Timestamp     time.Time
+	MessageID     uint64                    // Unique ID for all message types
+	AttrsWire     *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
+	WireUpdate    *wireu.WireUpdate         // UPDATE wire wrapper (nil if not UPDATE)
+	Direction     rpc.MessageDirection      // DirectionSent / DirectionReceived
+	ParseError    error                     // Non-nil if lazy parsing failed
+	Meta          map[string]any            // Route metadata from ReceivedUpdate (sent events only)
+	SourcePeerStr string                    // Source peer address for ribOut stale-scoping (sent events only)
 
 	// ReactorForwarded is true when reactorForwardRS already forwarded this
 	// UPDATE to eligible RS peers. bgp-rs checks this to skip ForwardCached.

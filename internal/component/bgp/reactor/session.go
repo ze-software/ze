@@ -255,6 +255,11 @@ type Session struct {
 	// MUST NOT be read outside writeMu. Zero-value (nil) for non-forward writes.
 	sentMeta map[string]any
 
+	// sentSourcePeerStr holds the source peer address string for the current
+	// forward pool write. Set alongside sentMeta by fwdBatchHandler. Used by
+	// sent event callbacks for ribOut stale-scoping without map allocation.
+	sentSourcePeerStr string
+
 	// fwdDirty tracks destination sessions with unflushed writes from the RS
 	// fast path (tryDirectWriteNoFlush). Flushed by flushFwdDirty when the
 	// source bufReader has no more data. Only accessed from this session's

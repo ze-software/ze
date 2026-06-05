@@ -286,10 +286,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		}
 	}
 
-	var sourcePeer string
-	if se.Meta != nil {
-		sourcePeer, _ = se.Meta["source-peer"].(string)
-	}
+	sourcePeer := se.SourcePeerStr
 
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()

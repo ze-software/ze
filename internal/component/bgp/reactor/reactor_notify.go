@@ -325,13 +325,19 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			}
 		}
 
+		var sentSourcePeerStr string
+		if direction == rpc.DirectionSent && hasPeer && peer.session != nil {
+			sentSourcePeerStr = peer.session.sentSourcePeerStr
+		}
+
 		msg = bgptypes.RawMessage{
-			Type:      msgType,
-			RawBytes:  bytes,
-			Timestamp: timestamp,
-			Direction: direction,
-			MessageID: messageID,
-			Meta:      sentMeta,
+			Type:          msgType,
+			RawBytes:      bytes,
+			Timestamp:     timestamp,
+			Direction:     direction,
+			MessageID:     messageID,
+			Meta:          sentMeta,
+			SourcePeerStr: sentSourcePeerStr,
 		}
 
 		// For sent UPDATE messages, create WireUpdate + AttrsWire from body.
@@ -403,12 +409,17 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 	}
 
-	// Always record source peer in metadata for ribOut stale-scoping.
+	// Source peer identity for ribOut stale-scoping.
+	// Stored as typed field on ReceivedUpdate (SourcePeerStr) instead of
+	// allocating a map per UPDATE. The forward path threads it into
+	// fwdItem.sourcePeerStr for sent event callbacks.
+	var sourcePeerStr string
 	if direction == rpc.DirectionReceived {
-		if routeMeta == nil {
-			routeMeta = make(map[string]any, 1)
+		if hasPeer {
+			sourcePeerStr = peer.addrString
+		} else {
+			sourcePeerStr = peerAddr.String()
 		}
-		routeMeta["source-peer"] = peerAddr.String()
 	}
 
 	// Policy filter chain: external plugin filters (after in-process filters).
@@ -463,10 +474,11 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// (negative is corrected when Activate adds N).
 	if direction == rpc.DirectionReceived && wireUpdate != nil && buf.Buf != nil {
 		ru := &ReceivedUpdate{
-			poolBuf:      buf, // Cache owns buf
-			SourcePeerIP: peerAddr,
-			ReceivedAt:   timestamp,
-			Meta:         routeMeta,
+			poolBuf:       buf, // Cache owns buf
+			SourcePeerIP:  peerAddr,
+			SourcePeerStr: sourcePeerStr,
+			ReceivedAt:    timestamp,
+			Meta:          routeMeta,
 		}
 		// Initialize WireUpdate inline to co-locate it within the ReceivedUpdate
 		// allocation (one fewer heap object per UPDATE). Fresh init from the same
