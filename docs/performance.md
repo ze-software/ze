@@ -47,24 +47,82 @@ the receiver.
 - **Ze** -- Go BGP daemon, goroutine-based, kernel TCP stack.
   Config: passive peers, route-reflector plugin (bgp-rs), 1M prefix limit per family.
   Transport: kernel TCP (standard Docker networking).
-- **FRR** (Free Range Routing) -- C BGP daemon, kernel TCP stack.
-  Config: passive peers, PERMIT route-maps in/out (no filtering).
-  Transport: kernel TCP (standard Docker networking).
 - **BIRD** -- C BGP daemon, kernel TCP stack.
   Config: passive peers, import/export all (no filtering).
   Transport: kernel TCP (standard Docker networking).
+- **FRR** (Free Range Routing) -- C BGP daemon, kernel TCP stack.
+  Config: passive peers, PERMIT route-maps in/out (no filtering).
+  Transport: kernel TCP (standard Docker networking).
+- **GoBGP** -- Go BGP daemon, kernel TCP stack.
+  Config: passive peers, default accept policy.
+  Transport: kernel TCP (standard Docker networking).
+- **RustyBGP** -- Rust BGP daemon, kernel TCP stack.
+  Config: passive peers, default policy.
+  Transport: kernel TCP (standard Docker networking).
+- **freeRtr** -- Java BGP daemon with its own TCP/IP stack.
+  Config: passive peers, 256KB buffer-size, extended-update enabled,
+  advertisement-interval-tx 0, incremental bestpath (1M limit), no safe-ebgp.
+  JVM: 2GB heap with ZGC (low-pause garbage collector).
+  Transport: rawInt bridge (UDP encapsulation between Docker eth0 and freeRtr's
+  virtual interface layer) -- adds latency vs kernel TCP used by other DUTs.
 
 Config files: `test/perf/configs/`
 
 ## Results
 
-### ipv4/unicast
+### ipv4/unicast (2026-06-05, 4 GB VM)
 
-| DUT | Convergence | +/- | Throughput (r/s) | +/- | p50 | p99 | +/- | Max | Lost | Withdrawal | +/- |
-|-----|-------------|-----|------------------|-----|-----|-----|-----|-----|------|------------|-----|
-| bird | 29ms | 0ms | 3,448,275 | 97,221 | 22ms | 35ms | 0ms | 35ms | 0 | 513ms | 0ms |
-| ze | 53ms | 18ms | 1,886,792 | 939,982 | 27ms | 57ms | 16ms | 57ms | 0 | 571ms | 22ms |
-| frr | 548ms | 7ms | 182,481 | 2,414 | 367ms | 549ms | 6ms | 549ms | 0 | 633ms | 5ms |
+Fixed RPKI validation gate (was adding 30s pending delay without cache servers)
+and throughput stddev (now derived from convergence via error propagation).
+
+| DUT | Convergence | +/- | Throughput (r/s) | +/- | p99 | +/- | Withdrawal | +/- |
+|-----|-------------|-----|------------------|-----|-----|-----|------------|-----|
+| ze | 62ms | 10ms | 1,612,903 | 260,145 | 43ms | 13ms | 596ms | 15ms |
+| bird | 65ms | 0ms | 1,538,461 | 0 | 28ms | 3ms | 518ms | 0ms |
+| rustybgp | 327ms | 17ms | 305,810 | 15,898 | 266ms | 2ms | 683ms | 18ms |
+| frr | 595ms | 11ms | 168,067 | 3,107 | 568ms | 11ms | 637ms | 12ms |
+| gobgp | 1,198ms | 20ms | 83,472 | 1,393 | 1,145ms | 22ms | 1,319ms | 7ms |
+| freertr | 2,218ms | 56ms | 45,085 | 1,138 | 2,209ms | 57ms | 1,145ms | 4,609ms |
+
+### ipv4/unicast (2026-06-05, 4 GB VM, pre-fixes)
+
+Throughput stddev inflated by reciprocal transform (raw per-iteration stddev).
+Ze penalized by RPKI validation gate enabling without cache servers (30s fail-open).
+
+| DUT | Convergence | +/- | Throughput (r/s) | +/- | p99 | +/- | Withdrawal | +/- |
+|-----|-------------|-----|------------------|-----|-----|-----|------------|-----|
+| bird | 29ms | 0ms | 3,448,275 | 97,221 | 35ms | 0ms | 513ms | 0ms |
+| ze | 53ms | 18ms | 1,886,792 | 939,982 | 57ms | 16ms | 571ms | 22ms |
+| frr | 548ms | 7ms | 182,481 | 2,414 | 549ms | 6ms | 633ms | 5ms |
+
+### ipv4/unicast (2026-05-24, post-optimization)
+
+After pool dedup, buffer-first encoding, and forwarding fast-path work.
+
+| DUT | Convergence | +/- | Throughput (r/s) | +/- | p99 | +/- |
+|-----|-------------|-----|------------------|-----|-----|-----|
+| bird | 44ms | 1ms | 2,272,727 | 62,858 | 28ms | 5ms |
+| ze | 71ms | 2ms | 1,408,450 | 44,964 | 54ms | 4ms |
+| rustbgpd | 179ms | 5ms | 558,659 | 15,247 | 151ms | 12ms |
+| rustybgp | 252ms | 14ms | 396,825 | 20,283 | 233ms | 13ms |
+| openbgpd | 472ms | 0ms | 211,864 | 0 | 461ms | 0ms |
+| frr | 537ms | 10ms | 186,219 | 3,764 | 532ms | 10ms |
+| gobgp | 1,147ms | 13ms | 87,183 | 1,031 | 1,118ms | 14ms |
+| freertr | 2,294ms | 146ms | 43,591 | 7,872 | 1,992ms | 619ms |
+
+### ipv4/unicast (2026-04-22, initial)
+
+First benchmark run, before any optimization work.
+
+| DUT | Convergence | +/- | Throughput (r/s) | +/- | p99 | +/- |
+|-----|-------------|-----|------------------|-----|-----|-----|
+| bird | 50ms | 0ms | 2,000,000 | 32,675 | 26ms | 0ms |
+| ze | 91ms | 27ms | 1,098,901 | 461,693 | 81ms | 27ms |
+| rustbgpd | 179ms | 5ms | 558,659 | 15,247 | 151ms | 12ms |
+| rustybgp | 252ms | 14ms | 396,825 | 20,283 | 233ms | 13ms |
+| frr | 537ms | 10ms | 186,219 | 3,764 | 532ms | 10ms |
+| gobgp | 1,147ms | 13ms | 87,183 | 1,031 | 1,118ms | 14ms |
+| freertr | 2,294ms | 146ms | 43,591 | 7,872 | 1,992ms | 619ms |
 
 ## Reading the Results
 
