@@ -40,8 +40,9 @@ These tests pass on macOS and are skipped via `option=skip-env:var=ZE_QEMU`:
   sees all connections from 127.0.0.1 in QEMU; needs real loopback multi-IP.
 - **Reload 28, 29 (wireguard key validation):** `OnConfigVerify` not firing for
   wireguard section during reload in QEMU. Needs interactive investigation.
-- **L2TP 15 (session-stopccn-cascade):** kernel tunnel state leaks between tests
-  ("file exists" on genl create). Needs kernel cleanup fix.
+- **L2TP 15 (session-stopccn-cascade):** kernel tunnel state leaked between tests
+  ("file exists" on genl create). Fixed: `setupSession` now detects EEXIST, deletes
+  the stale tunnel, and retries. Still skip-env gated pending QEMU verification.
 - **Plugin 356 (show-policy-routes):** nftables "operation not supported" in
   Alpine QEMU kernel.
 

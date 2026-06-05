@@ -17,6 +17,7 @@ import (
 	"os/exec"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"golang.org/x/sys/unix"
@@ -245,6 +246,12 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 	ts, tunnelExisted := w.tunnels[ev.localTID]
 	if !tunnelExisted {
 		connFD, err := w.ops.tunnelCreate(ev.localTID, ev.remoteTID, ev.socketFD, ev.peerAddr)
+		if errors.Is(err, syscall.EEXIST) {
+			w.logger.Warn("l2tp: stale kernel tunnel; deleting and retrying",
+				"local-tid", ev.localTID, "remote-tid", ev.remoteTID)
+			_ = w.ops.tunnelDelete(ev.localTID)
+			connFD, err = w.ops.tunnelCreate(ev.localTID, ev.remoteTID, ev.socketFD, ev.peerAddr)
+		}
 		if err != nil {
 			w.logger.Error("l2tp: kernel tunnel create failed",
 				"local-tid", ev.localTID, "remote-tid", ev.remoteTID,

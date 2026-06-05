@@ -199,6 +199,7 @@ func NewL2TPReactor(listener *UDPListener, logger *slog.Logger, params ReactorPa
 		listener:         listener,
 		logger:           logger,
 		params:           params,
+		nextLocalTID:     listener.bind.Port(),
 		tunnelsByLocalID: make(map[uint16]*L2TPTunnel),
 		tunnelsByPeer:    make(map[peerKey]*L2TPTunnel),
 		tickCh:           make(chan tickReq, 1),
