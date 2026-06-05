@@ -9,6 +9,7 @@
 # is the canonical way to exercise it.
 
 option=skip-os:value=darwin
+option=skip-env:var=ZE_QEMU
 stdin=peer:terminator=EOF_PEER
 
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801

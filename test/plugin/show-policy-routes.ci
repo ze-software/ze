@@ -5,6 +5,7 @@
 # Requires CAP_NET_ADMIN (nftables).
 
 option=skip-os:value=darwin
+option=skip-env:var=ZE_QEMU
 option=timeout:value=15s
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY

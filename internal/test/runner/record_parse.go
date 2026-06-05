@@ -31,6 +31,7 @@ var (
 	errOptionUpdateMissingValue         = errors.New("option:update missing value=")
 	errOptionEnvMissingVar              = errors.New("option:env missing var=")
 	errOptionSkipOsMissingValue         = errors.New("option:skip-os missing value=")
+	errOptionSkipEnvMissingVar          = errors.New("option:skip-env missing var=")
 	errOptionRequireTagMissingValue     = errors.New("option:require-tag missing value=")
 	errExpectBgpMissingHex              = errors.New("expect:bgp missing hex=")
 	errExpectJsonMissingJson            = errors.New("expect:json missing json=")
@@ -344,6 +345,23 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 				r.SkipReason = "skip-os=" + value + " (current GOOS=" + runtime.GOOS + ")"
 				return nil
 			}
+		}
+
+	case "skip-env":
+		varName := kv["var"]
+		if varName == "" {
+			return errOptionSkipEnvMissingVar
+		}
+		expected := kv["value"]
+		actual := os.Getenv(varName)
+		if expected == "" {
+			if actual != "" {
+				r.SkipReason = "skip-env=" + varName + " (set to " + actual + ")"
+				return nil
+			}
+		} else if actual == expected {
+			r.SkipReason = "skip-env=" + varName + "=" + expected
+			return nil
 		}
 
 	case "require-tag":

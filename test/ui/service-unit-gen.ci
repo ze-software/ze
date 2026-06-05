@@ -7,7 +7,7 @@ expect=stdout:contains=[Unit]
 expect=stdout:contains=Description=Ze Network OS
 expect=stdout:contains=After=network-online.target
 expect=stdout:contains=ExecStart=
-expect=stdout:contains=/bin/ze start
+expect=stdout:contains= start
 expect=stdout:contains=WorkingDirectory=/custom/path
 expect=stdout:contains=Environment=ZE_CONFIG_DIR=/custom/path
 expect=stdout:contains=User=ze

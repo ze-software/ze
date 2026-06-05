@@ -519,6 +519,22 @@ func (p *Process) startInternal() error {
 	return nil
 }
 
+// execBinDir returns the directory of the running binary, preferring the
+// argv[0] path (which preserves symlinks) over os.Executable (which resolves
+// them). This matters when ze runs from a symlink in a QEMU VM: the resolved
+// path can land in a directory that also contains a host-architecture binary.
+func execBinDir() string {
+	if arg0 := os.Args[0]; filepath.IsAbs(arg0) {
+		return filepath.Dir(arg0)
+	} else if abs, err := filepath.Abs(arg0); err == nil {
+		return filepath.Dir(abs)
+	}
+	if exe, err := os.Executable(); err == nil {
+		return filepath.Dir(exe)
+	}
+	return ""
+}
+
 // startExternal starts an external plugin via exec.Command.
 // Passes ZE_PLUGIN_HUB_HOST/PORT/TOKEN env vars and waits for TLS connect-back.
 func (p *Process) startExternal() error {
@@ -546,9 +562,11 @@ func (p *Process) startExternal() error {
 	// Prepend the engine binary's directory to PATH so that run commands
 	// like "ze plugin bgp-rib" can find the ze binary even when it is
 	// not installed system-wide (e.g., running from ./bin/ze in dev/test).
+	// Use os.Args[0] instead of os.Executable(): the latter follows symlinks,
+	// which can resolve to a directory containing a different-architecture
+	// binary with the same name (QEMU 9p mount with both host and VM binaries).
 	p.cmd.Env = os.Environ()
-	if exe, exeErr := os.Executable(); exeErr == nil {
-		binDir := filepath.Dir(exe)
+	if binDir := execBinDir(); binDir != "" {
 		p.cmd.Env = append(p.cmd.Env, "PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
 	// Generate a per-plugin token for name-bound authentication.

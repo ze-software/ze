@@ -199,7 +199,7 @@ endif
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--timeout 1200 \
-		--run 'ZE_TEST_NO_BUILD=1 ZE_BIN="$(ZE_QEMU_BIN)" $(RUN)'
+		--run 'ZE_TEST_NO_BUILD=1 ZE_QEMU=1 ZE_BIN="$(ZE_QEMU_BIN)" $(RUN)'
 
 # Boot a QEMU VM and keep it alive for interactive failure investigation.
 #

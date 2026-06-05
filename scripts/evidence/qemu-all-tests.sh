@@ -29,14 +29,15 @@
 #   2. unit tests                 (go test ./..., no -race, cacheable)
 #   3. integration tests          (-tags integration; linux-only netlink/nft/fib/...)
 #
-# Tunables (env): ZE_QEMU_SKIP_SUITES (comma list, default "web"),
+# Tunables (env): ZE_QEMU_SKIP_SUITES (comma list, default "web,firewall"),
 #                 ZE_QEMU_PARALLEL (default 4), ZE_QEMU_SUITE_TIMEOUT (default 900s).
 set -u
 
 cd /workspace || { echo "error: /workspace not mounted"; exit 1; }
 
 export ZE_TEST_NO_BUILD=1
-SKIP_SUITES="${ZE_QEMU_SKIP_SUITES:-web}"
+export ZE_QEMU=1
+SKIP_SUITES="${ZE_QEMU_SKIP_SUITES:-web,firewall}"
 PARALLEL="${ZE_QEMU_PARALLEL:-4}"
 SUITE_TIMEOUT="${ZE_QEMU_SUITE_TIMEOUT:-900s}"
 

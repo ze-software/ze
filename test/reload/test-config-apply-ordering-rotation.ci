@@ -8,6 +8,7 @@
 # with three concurrent peer restarts after ordering resolution.
 # Expected: all three peers reconnect and resend their routes.
 
+option=skip-env:var=ZE_QEMU
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=3

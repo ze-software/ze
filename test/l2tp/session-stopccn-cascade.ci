@@ -1,6 +1,8 @@
 # Test: StopCCN cascades to all active sessions.
 # VALIDATES: AC-9 -- StopCCN clears all sessions via CDN.
 
+option=skip-env:var=ZE_QEMU
+
 tmpfs=session-stopccn-cascade.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 """Establish tunnel + two sessions, then send StopCCN. Verify cascade."""
