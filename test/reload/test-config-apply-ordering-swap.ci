@@ -8,17 +8,16 @@
 #   MODIFY_PEER(peer1) and MODIFY_PEER(peer2) without deadlock.
 # Expected: both peers reconnect and resend their routes.
 
-option=skip-env:var=ZE_QEMU
-# ze-peer expectations
+# ze-peer expectations (router-id ordering works on both macOS and Linux)
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
-option=conn_map:value=remote-ip
+option=conn_map:value=router-id
 
-# Connection 1: peer1 static route (192.168.1.0/24) + EOR
+# Connection 1: peer1 rid=1.2.3.4 static route (192.168.1.0/24) + EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Connection 2: peer2 static route (10.0.0.0/24) + EOR
+# Connection 2: peer2 rid=5.6.7.8 static route (10.0.0.0/24) + EOR
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0000
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
@@ -26,12 +25,12 @@ expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 action=rewrite:conn=2:seq=2:source=config2.conf:dest=ze-bgp.conf
 action=sighup:conn=2:seq=2
 
-# Connection 3: peer1 reconnects with swapped router-id, resends route
-expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+# Connection 3: peer2 now rid=1.2.3.4 (lowest), resends 10.0.0.0/24
+expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0000
 expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Connection 4: peer2 reconnects with swapped router-id, resends route
-expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0000
+# Connection 4: peer1 now rid=5.6.7.8 (highest), resends 192.168.1.0/24
+expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 action=sigterm:conn=4:seq=2
 EOF_PEER

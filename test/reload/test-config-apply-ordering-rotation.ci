@@ -8,21 +8,20 @@
 # with three concurrent peer restarts after ordering resolution.
 # Expected: all three peers reconnect and resend their routes.
 
-option=skip-env:var=ZE_QEMU
-# ze-peer expectations
+# ze-peer expectations (router-id ordering works on both macOS and Linux)
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=3
-option=conn_map:value=remote-ip
+option=conn_map:value=router-id
 
-# Connection 1: peer1 static route (192.168.1.0/24) + EOR
+# Connection 1: peer1 rid=1.2.3.4 static route (192.168.1.0/24) + EOR
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Connection 2: peer2 static route (10.0.0.0/24) + EOR
+# Connection 2: peer2 rid=5.6.7.8 static route (10.0.0.0/24) + EOR
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0000
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Connection 3: peer3 static route (172.16.0.0/16) + EOR
+# Connection 3: peer3 rid=9.10.11.12 static route (172.16.0.0/16) + EOR
 expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040A0000014005040000006410AC10
 expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
@@ -30,16 +29,16 @@ expect=bgp:conn=3:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 action=rewrite:conn=3:seq=2:source=config2.conf:dest=ze-bgp.conf
 action=sighup:conn=3:seq=2
 
-# Connection 4: peer1 reconnects with rotated router-id, resends route
-expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+# Connection 4: peer3 now rid=1.2.3.4 (lowest), resends 172.16.0.0/16
+expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040A0000014005040000006410AC10
 expect=bgp:conn=4:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Connection 5: peer2 reconnects with rotated router-id, resends route
-expect=bgp:conn=5:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0000
+# Connection 5: peer1 now rid=5.6.7.8, resends 192.168.1.0/24
+expect=bgp:conn=5:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=5:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
-# Connection 6: peer3 reconnects with rotated router-id, resends route
-expect=bgp:conn=6:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040A0000014005040000006410AC10
+# Connection 6: peer2 now rid=9.10.11.12 (highest), resends 10.0.0.0/24
+expect=bgp:conn=6:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0000
 expect=bgp:conn=6:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 action=sigterm:conn=6:seq=2
 EOF_PEER
