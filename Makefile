@@ -6,7 +6,7 @@
 .PHONY: _ze-verify-impl _ze-verify-changed-impl
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-regen ze-regen-check
-.PHONY: check ze-setup
+.PHONY: check ze-setup ze-setup-build ze-setup-lint
 .PHONY: help-test help-deploy help-dev
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -292,27 +292,37 @@ check: fmt vet
 
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
-ze-setup:
+ze-setup-build:
 	@echo "Vendoring Go dependencies (includes tools from tools.go)..."
 	go mod tidy
 	go mod vendor
 	@echo ""
-	@echo "Installing golangci-lint..."
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
-	@echo ""
 	@echo "Installing system packages..."
 ifeq ($(shell uname -s),Darwin)
-	brew install protobuf jq pipx
+	brew install protobuf jq
 else
 	@echo "Run: sudo apt install -y protobuf-compiler jq pipx"
 	@echo "(requires sudo -- not run automatically)"
 endif
 	@echo ""
+	@echo "Build setup complete. Verify with: make build"
+
+ze-setup-lint: ze-setup-build
+	@echo "Installing golangci-lint..."
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+	@echo ""
 	@echo "Installing ruff (Python linter) via pipx..."
-	@command -v pipx >/dev/null 2>&1 || { echo "pipx missing -- install it first (see above), then re-run 'make ze-setup'"; exit 1; }
+ifeq ($(shell uname -s),Darwin)
+	@command -v pipx >/dev/null 2>&1 || brew install pipx
+else
+	@command -v pipx >/dev/null 2>&1 || { echo "pipx missing -- run: sudo apt install -y pipx"; exit 1; }
+endif
 	pipx install --force ruff
 	@echo ""
-	@echo "Setup complete. Verify with: make ze-smoke"
+	@echo "Lint setup complete."
+
+ze-setup: ze-setup-lint
+	@echo "Full dev setup complete. Verify with: make ze-smoke"
 
 # ─── Help ───────────────────────────────────────────────────────────────────
 
@@ -320,7 +330,9 @@ help:
 	@echo "Ze Network OS -- Build & Test"
 	@echo ""
 	@echo "  Start here (new contributor):"
-	@echo "    make ze-setup             Install dev tools (one-time)"
+	@echo "    make ze-setup             Full dev setup: build deps + linters (one-time)"
+	@echo "    make ze-setup-build       Build deps only: vendor, protobuf, jq (no linters)"
+	@echo "    make ze-setup-lint        Add linters: golangci-lint, ruff (requires ze-setup-build)"
 	@echo "    make ze-smoke             Verify setup: lint + unit + build (~2 min)"
 	@echo ""
 	@echo "  Daily development:"
