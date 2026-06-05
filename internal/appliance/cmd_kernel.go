@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
@@ -18,9 +19,9 @@ import (
 const (
 	defaultKernelVersion = "7.0.11"
 	kernelURLKey         = "ze.appliance.kernel.url"
-	defaultKernelBaseURL = "https://codeberg.org/thomas-mangin/ze/releases/download/installer-kernel"
 	kernelDockerImage    = "ze-installer-kernel-builder"
 	kernelToolsDir       = "tools/installer-kernel"
+	kernelBuildTimeout   = 60 * time.Minute
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -103,24 +104,23 @@ func resolveKernel(version, arch string) (string, error) {
 		return cached, nil
 	}
 
-	baseURL := env.Get(kernelURLKey)
-	if baseURL == "" {
-		baseURL = defaultKernelBaseURL
-	}
-	artifactURL := baseURL + "/" + version + "-" + arch + "/" + kernelFileName
-	checksumURL := artifactURL + checksumSuffix
-
 	toolsDst := filepath.Join(kernelToolsDir, "build", kernelFileName)
 
-	if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
-		if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
-			fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
+	if baseURL := env.Get(kernelURLKey); baseURL != "" {
+		artifactURL := baseURL + "/" + version + "-" + arch + "/" + kernelFileName
+		checksumURL := artifactURL + checksumSuffix
+		if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
+			if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
+				fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
+			}
+			return cached, nil
+		} else {
+			fmt.Fprintf(os.Stdout, "warning: download from %s failed: %v; falling back to local build\n", baseURL, err) //nolint:errcheck // CLI warning
 		}
-		return cached, nil
 	}
 
 	if err := kernelDockerCheckFn(); err != nil {
-		return "", fmt.Errorf("installer kernel not cached and download failed; install Docker to build locally or set %s", kernelURLKey)
+		return "", fmt.Errorf("installer kernel not cached; install Docker to build locally or set %s for remote download", kernelURLKey)
 	}
 
 	if err := kernelDockerBuildFn(version, arch, cached); err != nil {
@@ -159,10 +159,10 @@ func defaultDockerBuild(version, arch, destPath string) error {
 	}
 	defer os.RemoveAll(outDir) //nolint:errcheck // cleanup
 
-	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
-	defer cancel()
+	buildCtx, buildCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
+	defer buildCancel()
 
-	buildCmd := exec.CommandContext(ctx, "docker", "build", "-t", kernelDockerImage, ".") //nolint:gosec // controlled args
+	buildCmd := exec.CommandContext(buildCtx, "docker", "build", "-t", kernelDockerImage, ".") //nolint:gosec // controlled args
 	buildCmd.Dir = srcDir
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stdout
@@ -170,7 +170,10 @@ func defaultDockerBuild(version, arch, destPath string) error {
 		return fmt.Errorf("docker build: %w", err)
 	}
 
-	runCmd := exec.CommandContext(ctx, "docker", "run", "--rm", //nolint:gosec // controlled args
+	runCtx, runCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
+	defer runCancel()
+
+	runCmd := exec.CommandContext(runCtx, "docker", "run", "--rm", //nolint:gosec // controlled args
 		"-e", "LINUX_VERSION="+version,
 		"-e", "ARCH="+arch,
 		"-v", srcDir+":/src:ro",

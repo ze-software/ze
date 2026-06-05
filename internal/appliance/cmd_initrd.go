@@ -17,7 +17,6 @@ import (
 const (
 	defaultInitrdVersion = "v1"
 	initrdURLKey         = "ze.appliance.initrd.url"
-	defaultInitrdBaseURL = "https://codeberg.org/thomas-mangin/ze/releases/download/installer-initrd"
 	initrdToolsDir       = "tools/installer-initrd"
 )
 
@@ -72,25 +71,24 @@ func resolveInitrd() (string, error) {
 		return cached, nil
 	}
 
-	baseURL := env.Get(initrdURLKey)
-	if baseURL == "" {
-		baseURL = defaultInitrdBaseURL
-	}
-	artifactURL := baseURL + "/" + version + "/" + initrdFileName
-	checksumURL := artifactURL + checksumSuffix
-
 	toolsDst := filepath.Join(initrdToolsDir, "build", initrdFileName)
 
-	if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
-		if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
-			fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
+	if baseURL := env.Get(initrdURLKey); baseURL != "" {
+		artifactURL := baseURL + "/" + version + "/" + initrdFileName
+		checksumURL := artifactURL + checksumSuffix
+		if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
+			if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
+				fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
+			}
+			return cached, nil
+		} else {
+			fmt.Fprintf(os.Stdout, "warning: download from %s failed: %v; falling back to local build\n", baseURL, err) //nolint:errcheck // CLI warning
 		}
-		return cached, nil
 	}
 
 	missing := checkInitrdBuildTools()
 	if len(missing) > 0 {
-		return "", fmt.Errorf("installer initrd not cached and download failed; missing build tools: %v", missing)
+		return "", fmt.Errorf("installer initrd not cached; missing build tools: %v (or set %s for remote download)", missing, initrdURLKey)
 	}
 
 	if err := initrdMakeBuildFn(cached); err != nil {
