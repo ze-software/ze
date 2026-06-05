@@ -209,6 +209,10 @@ func RunRPKIPlugin(conn net.Conn) int {
 	// signalStartupComplete has frozen the dispatcher command registry, so
 	// the cross-plugin dispatch is guaranteed to find the target command.
 	p.OnAllPluginsReady(func() error {
+		if !rp.active.Load() {
+			logger().Info("rpki: no cache servers configured, skipping validation gate")
+			return nil
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		status, _, err := p.DispatchCommandArgs(ctx, "request adj-rib-in enable-validation", nil, "")
