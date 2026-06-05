@@ -56,6 +56,7 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr string, filterF
 
 	type pendingGroup struct {
 		key      groupKey
+		firstKey ribOutKey
 		prefixes []string
 		minMsgID uint64
 		srcPeer  string
@@ -69,11 +70,10 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr string, filterF
 			continue
 		}
 		for key, entry := range familyRoutes {
-			prefix, pathID := parseOutRouteKey(key)
 			gk := groupKey{
 				Family:     fam,
 				AttrHandle: entry.AttrHandle,
-				PathID:     pathID,
+				PathID:     key.PathID,
 				StaleLevel: entry.StaleLevel,
 			}
 			pg, ok := groups[gk]
@@ -81,12 +81,13 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr string, filterF
 				src := r.ribOutSourcePeer(fam, key)
 				pg = &pendingGroup{
 					key:      gk,
+					firstKey: key,
 					minMsgID: entry.MsgID,
 					srcPeer:  src,
 				}
 				groups[gk] = pg
 			}
-			pg.prefixes = append(pg.prefixes, prefix)
+			pg.prefixes = append(pg.prefixes, key.Prefix.String())
 			if entry.MsgID < pg.minMsgID {
 				pg.minMsgID = entry.MsgID
 			}
@@ -106,7 +107,7 @@ func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr string, filterF
 			route = reconstructRoute(ribOutEntry{
 				MsgID:      pg.minMsgID,
 				AttrHandle: pg.key.AttrHandle,
-			}, pg.key.Family, pg.prefixes[0], pg.srcPeer)
+			}, pg.key.Family, pg.firstKey, pg.srcPeer)
 			decoded[pg.key.AttrHandle] = route
 		}
 

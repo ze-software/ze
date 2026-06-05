@@ -11,6 +11,7 @@ import (
 
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 
+	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -129,10 +130,10 @@ func TestHandleSent_StoresRoutes(t *testing.T) {
 
 	require.Contains(t, r.ribOut["10.0.0.1"], family.IPv4Unicast)
 	assert.Len(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], 2)
-	assert.Contains(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], "10.0.0.0/24")
-	assert.Contains(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], "10.0.1.0/24")
+	assert.Contains(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")})
+	assert.Contains(t, r.ribOut["10.0.0.1"][family.IPv4Unicast], ribOutKey{Prefix: netip.MustParsePrefix("10.0.1.0/24")})
 
-	entry := r.ribOut["10.0.0.1"][family.IPv4Unicast]["10.0.0.0/24"]
+	entry := r.ribOut["10.0.0.1"][family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}]
 	assert.Equal(t, uint64(100), entry.MsgID)
 }
 
@@ -501,8 +502,8 @@ func TestRIBRouteKeyWithPathID(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := routeKey(tt.family, tt.prefix, tt.pathID)
-		assert.Equal(t, tt.want, got, "routeKey(%q, %q, %d)", tt.family, tt.prefix, tt.pathID)
+		got := bgp.RouteKey(tt.family, tt.prefix, tt.pathID)
+		assert.Equal(t, tt.want, got, "RouteKey(%q, %q, %d)", tt.family, tt.prefix, tt.pathID)
 	}
 }
 
@@ -1841,7 +1842,7 @@ func TestHandleSentPerFamily(t *testing.T) {
 	assert.Len(t, peerFamilies[family.IPv6Unicast], 1)
 
 	// Verify entry exists
-	_, hasEntry := peerFamilies[family.IPv4Unicast]["10.0.0.0/24"]
+	_, hasEntry := peerFamilies[family.IPv4Unicast][ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}]
 	assert.True(t, hasEntry, "should have entry for 10.0.0.0/24")
 }
 
@@ -2073,27 +2074,19 @@ func TestOutboundSourceMultiFamily(t *testing.T) {
 	assert.True(t, families[family.IPv6Unicast.String()], "should include ipv6/unicast")
 }
 
-// TestOutRouteKey verifies the ribOut-specific prefix-only key function.
+// TestRibOutKey verifies the ribOutKey struct produces distinct map keys.
 //
-// VALIDATES: outRouteKey produces prefix-only keys (no family prefix).
-// PREVENTS: Key collisions or missing pathID in ribOut keys.
-func TestOutRouteKey(t *testing.T) {
-	tests := []struct {
-		prefix string
-		pathID uint32
-		want   string
-	}{
-		{"10.0.0.0/24", 0, "10.0.0.0/24"},
-		{"10.0.0.0/24", 1, "10.0.0.0/24:1"},
-		{"10.0.0.0/24", 2, "10.0.0.0/24:2"},
-		{"2001:db8::/32", 0, "2001:db8::/32"},
-		{"2001:db8::/32", 100, "2001:db8::/32:100"},
-	}
+// VALIDATES: ribOutKey with different pathIDs are not equal.
+// PREVENTS: ADD-PATH routes overwriting each other in ribOut.
+func TestRibOutKey(t *testing.T) {
+	pfx := netip.MustParsePrefix("10.0.0.0/24")
+	k0 := ribOutKey{Prefix: pfx, PathID: 0}
+	k1 := ribOutKey{Prefix: pfx, PathID: 1}
+	k2 := ribOutKey{Prefix: pfx, PathID: 2}
 
-	for _, tt := range tests {
-		got := outRouteKey(tt.prefix, tt.pathID)
-		assert.Equal(t, tt.want, got, "outRouteKey(%q, %d)", tt.prefix, tt.pathID)
-	}
+	assert.NotEqual(t, k0, k1, "different pathIDs must produce different keys")
+	assert.NotEqual(t, k1, k2, "different pathIDs must produce different keys")
+	assert.Equal(t, k0, ribOutKey{Prefix: pfx, PathID: 0}, "same values must be equal")
 }
 
 // TestOutboundResendSelectorFromArgs verifies clear bgp rib out extracts the selector

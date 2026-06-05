@@ -5,21 +5,9 @@
 package rs
 
 import (
-	"strings"
-
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
-
-// nlriKey extracts the compact routing key from an NLRI string.
-// Strips the "prefix " type keyword since it is redundant within a family.
-// Other NLRI types (VPN, BGP-LS, EVPN) use the full string as key.
-func nlriKey(nlri string) string {
-	if after, ok := strings.CutPrefix(nlri, "prefix "); ok {
-		return after
-	}
-	return nlri
-}
 
 // processForward handles a forwarding work item in a worker goroutine.
 // Reads source peer and payload directly from the work item (no sync.Map lookup).
@@ -138,23 +126,24 @@ func isUnicast(f family.Family) bool {
 // Caller must hold rs.withdrawalMu.
 func (rs *RouteServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation) {
 	for famName, familyOps := range ops {
+		fam, _ := family.LookupFamily(famName)
 		for _, op := range familyOps {
 			switch op.Action {
 			case actionAdd:
 				if rs.withdrawals[sourcePeer] == nil {
-					rs.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
+					rs.withdrawals[sourcePeer] = make(map[withdrawalKey]struct{})
 				}
 				for _, n := range op.NLRIs {
 					if s, ok := n.(string); ok && s != "" {
-						routeKey := famName + "|" + nlriKey(s)
-						rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: s}
+						wk := withdrawalKey{fam: fam, nlriStr: s}
+						rs.withdrawals[sourcePeer][wk] = struct{}{}
 					}
 				}
 			case actionDel:
 				if rs.withdrawals[sourcePeer] != nil {
 					for _, n := range op.NLRIs {
 						if s, ok := n.(string); ok && s != "" {
-							delete(rs.withdrawals[sourcePeer], famName+"|"+nlriKey(s))
+							delete(rs.withdrawals[sourcePeer], withdrawalKey{fam: fam, nlriStr: s})
 						}
 					}
 				}

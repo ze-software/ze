@@ -37,10 +37,10 @@ func newTestManager(t *testing.T) *AdjRIBInManager {
 	t.Cleanup(func() { _ = p.Close() })
 	return &AdjRIBInManager{
 		plugin:         p,
-		ribIn:          make(map[string]*seqmap.Map[string, *RawRoute]),
+		ribIn:          make(map[string]*seqmap.Map[compactRouteKey, *RawRoute]),
 		peerUp:         make(map[string]bool),
-		pending:        make(map[string]*PendingRoute),
-		earlyDecisions: make(map[string]*EarlyDecision),
+		pending:        make(map[compactPendingKey]*PendingRoute),
+		earlyDecisions: make(map[compactPendingKey]*EarlyDecision),
 	}
 }
 
@@ -106,7 +106,7 @@ func TestStoreReceivedRoute(t *testing.T) {
 	// Find the stored route via Range
 	var route *RawRoute
 	var routeSeq uint64
-	routes.Range(func(_ string, seq uint64, rt *RawRoute) bool {
+	routes.Range(func(_ compactRouteKey, seq uint64, rt *RawRoute) bool {
 		route = rt
 		routeSeq = seq
 		return true
@@ -152,7 +152,7 @@ func TestHandleReceivedStructuredIPv4NextHop(t *testing.T) {
 	require.True(t, ok, "should have peer entry")
 	require.Equal(t, 3, routes.Len(), "should store all announced routes")
 
-	routes.Range(func(key string, _ uint64, route *RawRoute) bool {
+	routes.Range(func(key compactRouteKey, _ uint64, route *RawRoute) bool {
 		assert.Equal(t, "ac1e0003", route.NHopHex, "route %s should keep NEXT_HOP", key)
 		return true
 	})
@@ -189,7 +189,7 @@ func TestStoreAllFamilies(t *testing.T) {
 
 	// Verify the raw blob is used, not prefixToWireHex output.
 	var route *RawRoute
-	r.ribIn["10.0.0.1"].Range(func(_ string, _ uint64, rt *RawRoute) bool {
+	r.ribIn["10.0.0.1"].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
 		route = rt
 		return true
 	})
@@ -246,24 +246,24 @@ func TestReplayAllSources(t *testing.T) {
 	r := newTestManager(t)
 
 	// Store routes from peer A
-	m1 := seqmap.New[string, *RawRoute]()
-	m1.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+	m1 := seqmap.New[compactRouteKey, *RawRoute]()
+	m1.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m1
 
 	// Store routes from peer B
-	m2 := seqmap.New[string, *RawRoute]()
-	m2.Put("ipv4/unicast:10.0.1.0/24", 2, &RawRoute{
+	m2 := seqmap.New[compactRouteKey, *RawRoute]()
+	m2.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0), 2, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000002", NLRIHex: "180a0001",
 	})
 	r.ribIn["10.0.0.2"] = m2
 
 	// Store routes from target peer X (should be excluded)
-	m3 := seqmap.New[string, *RawRoute]()
-	m3.Put("ipv4/unicast:10.0.2.0/24", 3, &RawRoute{
+	m3 := seqmap.New[compactRouteKey, *RawRoute]()
+	m3.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.2.0/24", 0), 3, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000003", NLRIHex: "180a0002",
 	})
@@ -290,16 +290,16 @@ func TestReplayAllSources(t *testing.T) {
 func TestReplayFromIndex(t *testing.T) {
 	r := newTestManager(t)
 
-	m := seqmap.New[string, *RawRoute]()
-	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+	m := seqmap.New[compactRouteKey, *RawRoute]()
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
-	m.Put("ipv4/unicast:10.0.1.0/24", 5, &RawRoute{
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0), 5, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0001",
 	})
-	m.Put("ipv4/unicast:10.0.2.0/24", 10, &RawRoute{
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.2.0/24", 0), 10, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0002",
 	})
@@ -317,8 +317,8 @@ func TestReplayFromIndex(t *testing.T) {
 func TestReplayReturnsLastIndex(t *testing.T) {
 	r := newTestManager(t)
 
-	m := seqmap.New[string, *RawRoute]()
-	m.Put("ipv4/unicast:10.0.0.0/24", 42, &RawRoute{
+	m := seqmap.New[compactRouteKey, *RawRoute]()
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 42, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
@@ -355,7 +355,7 @@ func TestSequenceIndexMonotonic(t *testing.T) {
 
 	// Collect sequence indices via Range
 	var indices []uint64
-	r.ribIn["10.0.0.1"].Range(func(_ string, seq uint64, _ *RawRoute) bool {
+	r.ribIn["10.0.0.1"].Range(func(_ compactRouteKey, seq uint64, _ *RawRoute) bool {
 		indices = append(indices, seq)
 		return true
 	})
@@ -378,8 +378,8 @@ func TestClearPeerOnDown(t *testing.T) {
 	r := newTestManager(t)
 
 	// Pre-populate routes
-	m := seqmap.New[string, *RawRoute]()
-	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+	m := seqmap.New[compactRouteKey, *RawRoute]()
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
@@ -448,13 +448,13 @@ func TestReplayCommandFormat(t *testing.T) {
 func TestHandleCommand_Status(t *testing.T) {
 	r := newTestManager(t)
 
-	m1 := seqmap.New[string, *RawRoute]()
-	m1.Put("k1", 1, &RawRoute{Family: family.IPv4Unicast})
-	m1.Put("k2", 2, &RawRoute{Family: family.IPv4Unicast})
+	m1 := seqmap.New[compactRouteKey, *RawRoute]()
+	m1.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{Family: family.IPv4Unicast})
+	m1.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0), 2, &RawRoute{Family: family.IPv4Unicast})
 	r.ribIn["10.0.0.1"] = m1
 
-	m2 := seqmap.New[string, *RawRoute]()
-	m2.Put("k3", 3, &RawRoute{Family: family.IPv6Unicast})
+	m2 := seqmap.New[compactRouteKey, *RawRoute]()
+	m2.Put(routeKeyFromStrings(family.IPv6Unicast, "2001:db8::/32", 0), 3, &RawRoute{Family: family.IPv6Unicast})
 	r.ribIn["10.0.0.2"] = m2
 	status, data, err := r.handleCommand("show adj-rib-in status", nil, "")
 	require.NoError(t, err)
@@ -474,8 +474,8 @@ func TestHandleCommand_Status(t *testing.T) {
 func TestHandleCommand_Show(t *testing.T) {
 	r := newTestManager(t)
 
-	m := seqmap.New[string, *RawRoute]()
-	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+	m := seqmap.New[compactRouteKey, *RawRoute]()
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 		Family:  family.IPv4Unicast,
 		AttrHex: "40010100",
 		NHopHex: "0a000001",
@@ -497,15 +497,15 @@ func TestHandleCommand_Show(t *testing.T) {
 func TestHandleCommand_ShowSelectorArgCompatibility(t *testing.T) {
 	r := newTestManager(t)
 
-	m1 := seqmap.New[string, *RawRoute]()
-	m1.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+	m1 := seqmap.New[compactRouteKey, *RawRoute]()
+	m1.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 		Family:  family.IPv4Unicast,
 		AttrHex: "40010100",
 		NHopHex: "0a000001",
 		NLRIHex: "180a0000",
 	})
-	m2 := seqmap.New[string, *RawRoute]()
-	m2.Put("ipv4/unicast:10.0.1.0/24", 2, &RawRoute{
+	m2 := seqmap.New[compactRouteKey, *RawRoute]()
+	m2.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0), 2, &RawRoute{
 		Family:  family.IPv4Unicast,
 		AttrHex: "40010100",
 		NHopHex: "0a000002",
@@ -547,7 +547,7 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 	require.Equal(t, 2, r.ribIn["10.0.0.1"].Len(), "each NLRI should be stored separately")
 
 	// Both should share the same AttrHex (from same UPDATE)
-	r.ribIn["10.0.0.1"].Range(func(_ string, _ uint64, rt *RawRoute) bool {
+	r.ribIn["10.0.0.1"].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
 		assert.Equal(t, "40010100", rt.AttrHex, "all NLRIs share same attributes")
 		assert.Equal(t, "0a000001", rt.NHopHex, "all NLRIs share same next-hop")
 		return true
@@ -562,8 +562,8 @@ func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
 	r := newTestManager(t)
 
 	// Store a route from source peer 10.0.0.1
-	m := seqmap.New[string, *RawRoute]()
-	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+	m := seqmap.New[compactRouteKey, *RawRoute]()
+	m.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
@@ -607,16 +607,16 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 	}
 
 	// Pre-populate routes from peer A (10.0.0.1)
-	m1 := seqmap.New[string, *RawRoute]()
-	m1.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+	m1 := seqmap.New[compactRouteKey, *RawRoute]()
+	m1.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m1
 
 	// Pre-populate routes from peer B (10.0.0.2)
-	m2 := seqmap.New[string, *RawRoute]()
-	m2.Put("ipv4/unicast:10.0.1.0/24", 2, &RawRoute{
+	m2 := seqmap.New[compactRouteKey, *RawRoute]()
+	m2.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0), 2, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000002", NLRIHex: "180a0001",
 	})
@@ -682,16 +682,16 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 
 	// Peer 10.0.0.1 has routes from itself (shouldn't happen normally,
 	// but tests the exclusion logic).
-	m1 := seqmap.New[string, *RawRoute]()
-	m1.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+	m1 := seqmap.New[compactRouteKey, *RawRoute]()
+	m1.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0), 1, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000001", NLRIHex: "180a0000",
 	})
 	r.ribIn["10.0.0.1"] = m1
 
 	// Also routes from another peer
-	m2 := seqmap.New[string, *RawRoute]()
-	m2.Put("ipv4/unicast:10.0.1.0/24", 2, &RawRoute{
+	m2 := seqmap.New[compactRouteKey, *RawRoute]()
+	m2.Put(routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0), 2, &RawRoute{
 		Family: family.IPv4Unicast, AttrHex: "40010100",
 		NHopHex: "0a000002", NLRIHex: "180a0001",
 	})
@@ -743,7 +743,7 @@ func TestComplexFamilyMultiNLRI(t *testing.T) {
 		"complex family multi-NLRI should store one entry with full raw blob")
 
 	var route *RawRoute
-	r.ribIn["10.0.0.1"].Range(func(_ string, _ uint64, rt *RawRoute) bool {
+	r.ribIn["10.0.0.1"].Range(func(_ compactRouteKey, _ uint64, rt *RawRoute) bool {
 		route = rt
 		return true
 	})

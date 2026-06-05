@@ -5,6 +5,36 @@
 // This file contains shared helper functions for NLRI encoding.
 package nlri
 
+import (
+	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
+)
+
+// WirePrefixToKey converts NLRI wire prefix bytes [prefix-len][prefix-bytes...]
+// to a netip.Prefix value type. Returns (prefix, true) on success.
+func WirePrefixToKey(wire []byte, fam family.Family) (netip.Prefix, bool) {
+	if len(wire) == 0 {
+		return netip.Prefix{}, false
+	}
+	prefixLen := int(wire[0])
+	byteCount := (prefixLen + 7) / 8
+	if len(wire) < 1+byteCount {
+		return netip.Prefix{}, false
+	}
+	var buf [16]byte
+	copy(buf[:], wire[1:1+byteCount])
+	addrLen := 4
+	if fam.AFI == family.AFIIPv6 {
+		addrLen = 16
+	}
+	addr, ok := netip.AddrFromSlice(buf[:addrLen])
+	if !ok {
+		return netip.Prefix{}, false
+	}
+	return netip.PrefixFrom(addr, prefixLen), true
+}
+
 // PrefixBytes returns the number of bytes needed for a prefix of given bit length.
 //
 // RFC 4271 Section 4.3 - UPDATE Message Format:

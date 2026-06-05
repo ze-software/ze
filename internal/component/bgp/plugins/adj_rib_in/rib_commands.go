@@ -7,11 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
-	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -108,7 +107,8 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 	var accepted, rejected, early int
 	for i := range decisions {
 		d := &decisions[i]
-		rKey := bgp.RouteKey(d.fam, d.prefix, d.pathID)
+		dFam, _ := family.LookupFamily(d.fam)
+		rKey := routeKeyFromStrings(dFam, d.prefix, d.pathID)
 		pKey := pendingKey(d.peerAddr, rKey)
 
 		switch d.action {
@@ -181,10 +181,14 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 			continue
 		}
 		routeList := make([]map[string]any, 0, routes.Len())
-		routes.Range(func(key string, seq uint64, rt *RawRoute) bool {
+		routes.Range(func(key compactRouteKey, seq uint64, rt *RawRoute) bool {
+			keyStr := key.Fam.String() + ":" + key.Prefix.String()
+			if key.PathID > 0 {
+				keyStr += ":" + textbuf.Uint32(key.PathID)
+			}
 			routeMap := map[string]any{
 				"family":           rt.Family.String(),
-				"key":              key,
+				"key":              keyStr,
 				"nhop-hex":         rt.NHopHex,
 				"attr-hex":         rt.AttrHex,
 				"nlri-hex":         rt.NLRIHex,
@@ -263,7 +267,8 @@ func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rKey := bgp.RouteKey(fam, prefix, uint32(pathID))
+	lookupFam, _ := family.LookupFamily(fam)
+	rKey := routeKeyFromStrings(lookupFam, prefix, uint32(pathID))
 	key := pendingKey(peerAddr, rKey)
 	pr, ok := r.pending[key]
 	if !ok {
@@ -295,7 +300,8 @@ func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	rKey := bgp.RouteKey(fam, prefix, uint32(pathID))
+	lookupFam, _ := family.LookupFamily(fam)
+	rKey := routeKeyFromStrings(lookupFam, prefix, uint32(pathID))
 	key := pendingKey(peerAddr, rKey)
 	if _, ok := r.pending[key]; !ok {
 		r.storeEarlyDecision(peerAddr, rKey, earlyReject, 0)
@@ -329,13 +335,11 @@ func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) 
 	var routes []map[string]any
 	allPrefixes := prefix == "*"
 	for peer, peerRoutes := range r.ribIn {
-		peerRoutes.Range(func(key string, _ uint64, rt *RawRoute) bool {
+		peerRoutes.Range(func(key compactRouteKey, _ uint64, rt *RawRoute) bool {
 			if rt.Family != fam {
 				return true
 			}
-			// Match exact prefix via RouteKey, or all prefixes with "*".
-			if !allPrefixes && !strings.HasPrefix(key, famStr+":"+prefix+":") &&
-				key != famStr+":"+prefix {
+			if !allPrefixes && key.Prefix.String() != prefix {
 				return true
 			}
 			routes = append(routes, map[string]any{

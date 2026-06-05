@@ -97,15 +97,20 @@ func (rs *RouteServer) handleStateDown(peerAddr string) {
 // into a single "update text nlri <family> del <prefix1> del <prefix2> ..."
 // command, reducing the number of RPC roundtrips by ~500x compared to
 // one-prefix-per-RPC.
-func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[string]withdrawalInfo) {
+func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[withdrawalKey]struct{}) {
 	if len(entries) == 0 {
 		return
 	}
 
-	// Group by family for batched commands.
+	// Group by family for batched commands. String conversion on cold path only.
 	byFamily := make(map[string][]string)
-	for _, info := range entries {
-		byFamily[info.Family] = append(byFamily[info.Family], info.Prefix)
+	for wk := range entries {
+		famStr := wk.fam.String()
+		if wk.nlriStr != "" {
+			byFamily[famStr] = append(byFamily[famStr], wk.nlriStr)
+		} else {
+			byFamily[famStr] = append(byFamily[famStr], "prefix "+wk.prefix.String())
+		}
 	}
 
 	addr, err := netip.ParseAddr(peerAddr)

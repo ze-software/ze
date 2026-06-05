@@ -5,6 +5,7 @@ package rib
 import (
 	"encoding/binary"
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,7 +45,7 @@ func TestPackEventAttrs_AllFields(t *testing.T) {
 	defer func() { _ = pool.RibOut.Release(handle) }()
 
 	entry := ribOutEntry{MsgID: 1, AttrHandle: handle}
-	route := reconstructRoute(entry, family.IPv4Unicast, "10.0.0.0/24", "")
+	route := reconstructRoute(entry, family.IPv4Unicast, ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}, "")
 
 	assert.Equal(t, "10.0.0.1", route.NextHop, "NextHop must survive round-trip")
 	assert.NotNil(t, route.Origin, "Origin must survive round-trip")
@@ -79,7 +80,7 @@ func TestPackEventAttrs_ASPathOver255(t *testing.T) {
 	defer func() { _ = pool.RibOut.Release(handle) }()
 
 	entry := ribOutEntry{MsgID: 1, AttrHandle: handle}
-	route := reconstructRoute(entry, family.IPv4Unicast, "10.0.0.0/24", "")
+	route := reconstructRoute(entry, family.IPv4Unicast, ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}, "")
 
 	assert.Len(t, route.ASPath, 300, "all 300 ASNs must survive multi-segment encoding")
 	for i, asn := range route.ASPath {
@@ -109,7 +110,7 @@ func TestRibOutSourceRefCount(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	fam := family.IPv4Unicast
-	key := "10.0.0.0/24"
+	key := ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}
 
 	r.setRibOutSource(fam, key, "src-peer", true)
 	assert.Equal(t, "src-peer", r.ribOutSourcePeer(fam, key))
@@ -132,7 +133,7 @@ func TestRibOutSourceRefCount_ReannounceNoDouble(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	fam := family.IPv4Unicast
-	key := "10.0.0.0/24"
+	key := ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}
 
 	// First announcement: new entry
 	r.setRibOutSource(fam, key, "src-peer", true)
@@ -146,7 +147,7 @@ func TestRibOutSourceRefCount_ReannounceNoDouble(t *testing.T) {
 
 func TestReconstructRoute_InvalidHandle(t *testing.T) {
 	entry := ribOutEntry{MsgID: 42}
-	route := reconstructRoute(entry, family.IPv4Unicast, "10.0.0.0/24", "src")
+	route := reconstructRoute(entry, family.IPv4Unicast, ribOutKey{Prefix: netip.MustParsePrefix("10.0.0.0/24")}, "src")
 
 	assert.Equal(t, uint64(42), route.MsgID)
 	assert.Equal(t, "10.0.0.0/24", route.Prefix)
@@ -196,7 +197,7 @@ func TestPackEventAttrs_IPv6NextHopNotPacked(t *testing.T) {
 	defer func() { _ = pool.RibOut.Release(handle) }()
 
 	entry := ribOutEntry{MsgID: 1, AttrHandle: handle}
-	route := reconstructRoute(entry, family.IPv6Unicast, "2001:db8::/32", "")
+	route := reconstructRoute(entry, family.IPv6Unicast, ribOutKey{Prefix: netip.MustParsePrefix("2001:db8::/32")}, "")
 
 	assert.Empty(t, route.NextHop, "IPv6 next-hop not encoded by packEventAttrs (requires MP_REACH)")
 }

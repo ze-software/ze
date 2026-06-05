@@ -8,7 +8,7 @@
 package rib
 
 import (
-	"net/netip"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -20,6 +20,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+var affectedPool = sync.Pool{
+	New: func() any {
+		s := make([]affectedPrefix, 0, 128)
+		return &s
+	},
+}
 
 // dispatchStructured routes a StructuredEvent to the appropriate handler.
 func (r *RIBManager) dispatchStructured(se *rpc.StructuredEvent) {
@@ -81,11 +88,18 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 	asn4 := ctx == nil || ctx.ASN4()
 
-	// Track affected prefixes for best-path change detection. Preallocate
-	// for a typical stress-sized UPDATE; cap 16 left ~70 MB of regrowth on
-	// the profile, cap 128 covers the common case without over-allocating
-	// the small-UPDATE path (entries are ~40 bytes each).
-	affected := make([]affectedPrefix, 0, 128)
+	// Track affected prefixes for best-path change detection.
+	// Pooled to amortize the per-UPDATE allocation across calls.
+	affectedPtr, _ := affectedPool.Get().(*[]affectedPrefix)
+	if affectedPtr == nil {
+		s := make([]affectedPrefix, 0, 128)
+		affectedPtr = &s
+	}
+	affected := (*affectedPtr)[:0]
+	defer func() {
+		*affectedPtr = affected
+		affectedPool.Put(affectedPtr)
+	}()
 
 	// Phase 1: lazily create the peer's slots under a brief write lock.
 	// Only mutates the peer-keyed maps; the rest of UPDATE processing runs
@@ -226,26 +240,45 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// internally for their brief map reads. The sharded bestPrev and the
 	// self-locking bestPathInterner handle their own concurrency.
 	//
-	// Group changes by family so each family gets its own batch with
-	// correct metadata. Preallocate the per-family slices with
-	// len(affected) -- all changes in a single UPDATE almost always
-	// belong to one family, so one grow-free append per batch.
-	changesByFamily := make(map[family.Family][]bestChangeEntry)
+	// >99% of UPDATEs carry a single address family. Use a stack-local
+	// slice for the common case; spill to a map only when a second family
+	// appears.
+	var singleFam family.Family
+	var singleChanges []bestChangeEntry
+	var multiFam map[family.Family][]bestChangeEntry
+
 	for _, ap := range affected {
 		change, ok := r.checkBestPathChange(ap.fam, ap.nlriBytes, ap.addPath, forward)
 		if !ok {
 			continue
 		}
-		slice, seen := changesByFamily[ap.fam]
-		if !seen {
-			slice = make([]bestChangeEntry, 0, len(affected))
+		if multiFam != nil {
+			multiFam[ap.fam] = append(multiFam[ap.fam], change)
+			continue
 		}
-		changesByFamily[ap.fam] = append(slice, change)
+		if singleChanges == nil {
+			singleFam = ap.fam
+			singleChanges = make([]bestChangeEntry, 0, len(affected))
+			singleChanges = append(singleChanges, change)
+			continue
+		}
+		if ap.fam == singleFam {
+			singleChanges = append(singleChanges, change)
+			continue
+		}
+		// Second family: spill to map.
+		multiFam = make(map[family.Family][]bestChangeEntry, 2)
+		multiFam[singleFam] = singleChanges
+		multiFam[ap.fam] = append(multiFam[ap.fam], change)
+		singleChanges = nil
 	}
 
-	// Publish one batch per family.
-	for fam, changes := range changesByFamily {
-		publishBestChanges(changes, fam)
+	if multiFam != nil {
+		for fam, changes := range multiFam {
+			publishBestChanges(changes, fam)
+		}
+	} else if len(singleChanges) > 0 {
+		publishBestChanges(singleChanges, singleFam)
 	}
 }
 
@@ -292,7 +325,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 	defer r.peerMu.Unlock()
 
 	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[family.Family]map[string]ribOutEntry)
+		r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
 	}
 
 	// Process IPv4 unicast announces (NLRI section).
@@ -344,7 +377,7 @@ func (r *RIBManager) storeSentEntries(peerAddr string, fam family.Family, nlriDa
 	msgID uint64, attrHandle attrpool.Handle, sourcePeer string) {
 
 	if r.ribOut[peerAddr][fam] == nil {
-		r.ribOut[peerAddr][fam] = make(map[string]ribOutEntry)
+		r.ribOut[peerAddr][fam] = make(map[ribOutKey]ribOutEntry)
 	}
 
 	iter := nlri.NewNLRIIterator(nlriData, addPath)
@@ -353,11 +386,11 @@ func (r *RIBManager) storeSentEntries(peerAddr string, fam family.Family, nlriDa
 		if !ok {
 			break
 		}
-		prefix := wirePrefixToString(wirePrefix, fam)
-		if prefix == "" {
+		pfx, valid := nlri.WirePrefixToKey(wirePrefix, fam)
+		if !valid {
 			continue
 		}
-		key := outRouteKey(prefix, pathID)
+		key := ribOutKey{Prefix: pfx, PathID: pathID}
 		_, existed := r.ribOut[peerAddr][fam][key]
 		if existed {
 			r.ribOut[peerAddr][fam][key].release()
@@ -387,11 +420,11 @@ func (r *RIBManager) removeSentNLRIs(peerAddr string, fam family.Family, wdData 
 		if !ok {
 			break
 		}
-		prefix := wirePrefixToString(wirePrefix, fam)
-		if prefix == "" {
+		pfx, valid := nlri.WirePrefixToKey(wirePrefix, fam)
+		if !valid {
 			continue
 		}
-		key := outRouteKey(prefix, pathID)
+		key := ribOutKey{Prefix: pfx, PathID: pathID}
 		if old, exists := familyRoutes[key]; exists {
 			old.release()
 			delete(familyRoutes, key)
@@ -491,44 +524,4 @@ func (r *RIBManager) removeLabeled(peerRIB *storage.PeerRIB, fam family.Family, 
 	peerRIB.Remove(fam, cidrBytes)
 	peerRIB.RemoveLabels(fam, cidrBytes)
 	*affected = append(*affected, affectedPrefix{fam: fam, nlriBytes: cidrBytes, addPath: addPath})
-}
-
-// wirePrefixToString converts NLRI wire prefix bytes [prefix-len][prefix-bytes...] to "ip/len" string.
-// Returns "" if the wire bytes are malformed.
-// Uses stack-allocated [16]byte to avoid heap allocation.
-//
-// Does not bounds-check prefixLen against the family maximum (32 for IPv4,
-// 128 for IPv6). That validation lives at the wire layer: RFC 7606 Section
-// 5.3 requires treat-as-withdraw for over-length prefixes, enforced in
-// internal/component/bgp/message/rfc7606.go during UPDATE parse. By the time
-// bytes reach this helper they are guaranteed in-range, so an asymmetry with
-// store.NLRIToPrefix (which rejects over-length) is unreachable in
-// practice.
-func wirePrefixToString(wire []byte, fam family.Family) string {
-	if len(wire) == 0 {
-		return ""
-	}
-	prefixLen := int(wire[0])
-	prefixBytes := wire[1:]
-	byteCount := (prefixLen + 7) / 8
-	if len(prefixBytes) < byteCount {
-		return ""
-	}
-
-	// Stack-allocated buffer — large enough for IPv6 (16 bytes), zeroed by default.
-	var buf [16]byte
-	copy(buf[:], prefixBytes[:byteCount])
-
-	var addrLen int
-	if fam.AFI == family.AFIIPv6 {
-		addrLen = 16
-	} else {
-		addrLen = 4
-	}
-
-	addr, ok := netip.AddrFromSlice(buf[:addrLen])
-	if !ok {
-		return ""
-	}
-	return netip.PrefixFrom(addr, prefixLen).String()
 }

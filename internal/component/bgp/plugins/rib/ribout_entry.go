@@ -10,8 +10,7 @@ package rib
 import (
 	"encoding/binary"
 	"net"
-	"strconv"
-	"strings"
+	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
@@ -19,6 +18,13 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
+
+// ribOutKey is a value-type map key for ribOut entries: zero-allocation
+// replacement for the string key previously built by outRouteKey.
+type ribOutKey struct {
+	Prefix netip.Prefix
+	PathID uint32
+}
 
 // ribOutEntry is a compact per-peer per-route record for Adj-RIB-Out.
 // Wire attribute bytes live in pool.RibOut (shared across peers).
@@ -50,14 +56,12 @@ type ribOutSourceRef struct {
 
 // reconstructRoute rebuilds a full *Route from the compact entry, the pool,
 // and the map keys. Called only on infrequent paths (replay, show, refresh).
-func reconstructRoute(entry ribOutEntry, fam family.Family, key, sourcePeer string) *Route {
-	prefix, pathID := parseOutRouteKey(key)
-
+func reconstructRoute(entry ribOutEntry, fam family.Family, key ribOutKey, sourcePeer string) *Route {
 	route := &Route{
 		MsgID:      entry.MsgID,
 		Family:     fam,
-		Prefix:     prefix,
-		PathID:     pathID,
+		Prefix:     key.Prefix.String(),
+		PathID:     key.PathID,
 		StaleLevel: entry.StaleLevel,
 		SourcePeer: sourcePeer,
 	}
@@ -106,24 +110,6 @@ func reconstructRoute(entry ribOutEntry, fam family.Family, key, sourcePeer stri
 	}
 
 	return route
-}
-
-// parseOutRouteKey reverses outRouteKey: "prefix" or "prefix:pathID".
-// The pathID separator is the last ':' after the '/' in the prefix.
-func parseOutRouteKey(key string) (string, uint32) {
-	slashIdx := strings.LastIndexByte(key, '/')
-	if slashIdx < 0 {
-		return key, 0
-	}
-	colonIdx := strings.LastIndexByte(key[slashIdx:], ':')
-	if colonIdx < 0 {
-		return key, 0
-	}
-	colonIdx += slashIdx
-	if id, err := strconv.ParseUint(key[colonIdx+1:], 10, 32); err == nil {
-		return key[:colonIdx], uint32(id)
-	}
-	return key, 0
 }
 
 // parseASPathWire extracts ASN sequence from wire AS_PATH value (4-byte ASNs).
@@ -213,12 +199,12 @@ func extractNextHopFromMPReach(value []byte) string {
 
 // setRibOutSource records the originating peer for a route key.
 // isNew indicates the entry is new for this destination peer (not a re-announcement).
-func (r *RIBManager) setRibOutSource(fam family.Family, key, sourcePeer string, isNew bool) {
+func (r *RIBManager) setRibOutSource(fam family.Family, key ribOutKey, sourcePeer string, isNew bool) {
 	if sourcePeer == "" {
 		return
 	}
 	if r.ribOutSource[fam] == nil {
-		r.ribOutSource[fam] = make(map[string]ribOutSourceRef)
+		r.ribOutSource[fam] = make(map[ribOutKey]ribOutSourceRef)
 	}
 	ref := r.ribOutSource[fam][key]
 	ref.peer = sourcePeer
@@ -230,7 +216,7 @@ func (r *RIBManager) setRibOutSource(fam family.Family, key, sourcePeer string, 
 
 // releaseRibOutSource decrements the reference count for a source entry.
 // Deletes the entry when no destination peer holds the route.
-func (r *RIBManager) releaseRibOutSource(fam family.Family, key string) {
+func (r *RIBManager) releaseRibOutSource(fam family.Family, key ribOutKey) {
 	m := r.ribOutSource[fam]
 	if m == nil {
 		return
@@ -251,7 +237,7 @@ func (r *RIBManager) releaseRibOutSource(fam family.Family, key string) {
 }
 
 // ribOutSourcePeer returns the source peer for a route key, or "".
-func (r *RIBManager) ribOutSourcePeer(fam family.Family, key string) string {
+func (r *RIBManager) ribOutSourcePeer(fam family.Family, key ribOutKey) string {
 	if m := r.ribOutSource[fam]; m != nil {
 		return m[key].peer
 	}

@@ -5,6 +5,7 @@ package adj_rib_in
 
 import (
 	"fmt"
+	"net/netip"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -27,16 +28,15 @@ type PendingRoute struct {
 	peerAddr   string
 	family     family.Family
 	prefix     string
-	routeKey   string    // Key for insertion into installed seqmap
-	route      *RawRoute // The raw route data
+	routeKey   compactRouteKey // Key for insertion into installed seqmap
+	route      *RawRoute       // The raw route data
 	receivedAt time.Time
 	state      uint8
 }
 
 // pendingKey builds a lookup key for the pending routes map.
-// Uses peerAddr + routeKey (which includes pathID for ADD-PATH).
-func pendingKey(peerAddr, routeKey string) string {
-	return peerAddr + "|" + routeKey
+func pendingKey(peerAddr string, routeKey compactRouteKey) compactPendingKey {
+	return pendingKeyFromStrings(peerAddr, routeKey)
 }
 
 // promoteToInstalled moves a pending route to the installed ribIn map.
@@ -73,14 +73,14 @@ func (r *AdjRIBInManager) sweepExpiredPending() {
 // clearPeerPending removes all pending routes and early decisions for a peer.
 // Caller must hold r.mu write lock.
 func (r *AdjRIBInManager) clearPeerPending(peerAddr string) {
-	for key, pr := range r.pending {
-		if pr.peerAddr == peerAddr {
+	peerAddr2, _ := netip.ParseAddr(peerAddr)
+	for key := range r.pending {
+		if key.PeerAddr == peerAddr2 {
 			delete(r.pending, key)
 		}
 	}
-	prefix := peerAddr + "|"
 	for key := range r.earlyDecisions {
-		if len(key) > len(prefix) && key[:len(prefix)] == prefix {
+		if key.PeerAddr == peerAddr2 {
 			delete(r.earlyDecisions, key)
 		}
 	}
@@ -88,7 +88,7 @@ func (r *AdjRIBInManager) clearPeerPending(peerAddr string) {
 
 // removePending removes a specific pending route by routeKey.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) removePending(peerAddr, routeKey string) {
+func (r *AdjRIBInManager) removePending(peerAddr string, routeKey compactRouteKey) {
 	key := pendingKey(peerAddr, routeKey)
 	delete(r.pending, key)
 }
@@ -126,7 +126,7 @@ const earlyDecisionTimeout = 1 * time.Minute
 // applyEarlyDecision checks for a buffered decision and applies it to a
 // newly-pending route. Returns true if a decision was found and applied.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) applyEarlyDecision(peerAddr, routeKey string, pr *PendingRoute) bool {
+func (r *AdjRIBInManager) applyEarlyDecision(peerAddr string, routeKey compactRouteKey, pr *PendingRoute) bool {
 	key := pendingKey(peerAddr, routeKey)
 	ed, ok := r.earlyDecisions[key]
 	if !ok {
@@ -137,10 +137,10 @@ func (r *AdjRIBInManager) applyEarlyDecision(peerAddr, routeKey string, pr *Pend
 	case earlyAccept:
 		r.promoteToInstalled(pr, ed.state)
 	case earlyReject:
-		logger().Debug("applied early reject", "peer", peerAddr, "route", routeKey)
+		logger().Debug("applied early reject", "peer", peerAddr)
 	default:
 		logger().Warn("early decision with unknown action, ignoring",
-			"peer", peerAddr, "route", routeKey, "action", ed.action)
+			"peer", peerAddr, "action", ed.action)
 		return false
 	}
 	return true
@@ -148,7 +148,7 @@ func (r *AdjRIBInManager) applyEarlyDecision(peerAddr, routeKey string, pr *Pend
 
 // storeEarlyDecision buffers a validation decision for a route not yet pending.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) storeEarlyDecision(peerAddr, routeKey string, action earlyAction, state uint8) {
+func (r *AdjRIBInManager) storeEarlyDecision(peerAddr string, routeKey compactRouteKey, action earlyAction, state uint8) {
 	key := pendingKey(peerAddr, routeKey)
 	r.earlyDecisions[key] = &EarlyDecision{
 		action:     action,

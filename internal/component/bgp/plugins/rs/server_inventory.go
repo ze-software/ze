@@ -19,6 +19,7 @@ import (
 // no allocation). For non-unicast families, nlriStr is set (allocating but
 // rare in the grouped-input benchmark).
 type nlriRecord struct {
+	fam        family.Family
 	familyName string
 	action     string // actionAdd or actionDel
 	prefix     netip.Prefix
@@ -61,7 +62,7 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *[]nlriRecord {
 		fam := mp.Family()
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
-			*sp = appendUnicastRecords(*sp, fam.String(), mp.NLRIIterator(addPath), actionAdd)
+			*sp = appendUnicastRecords(*sp, fam, fam.String(), mp.NLRIIterator(addPath), actionAdd)
 		} else {
 			*sp = appendAllocatingRecords(*sp, fam, mp, addPath, actionAdd)
 		}
@@ -72,7 +73,7 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *[]nlriRecord {
 		fam := mp.Family()
 		addPath := encCtx != nil && encCtx.AddPath(fam)
 		if isUnicast(fam) {
-			*sp = appendUnicastRecords(*sp, fam.String(), mp.NLRIIterator(addPath), actionDel)
+			*sp = appendUnicastRecords(*sp, fam, fam.String(), mp.NLRIIterator(addPath), actionDel)
 		} else {
 			nlris, nlriErr := mp.NLRIs(addPath)
 			*sp = appendAllocatingUnreachRecords(*sp, fam, nlris, nlriErr)
@@ -82,12 +83,12 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *[]nlriRecord {
 	// IPv4 body NLRIs -- announced routes.
 	addPathV4 := encCtx != nil && encCtx.AddPath(family.IPv4Unicast)
 	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
-		*sp = appendUnicastRecords(*sp, "ipv4/unicast", iter, actionAdd)
+		*sp = appendUnicastRecords(*sp, family.IPv4Unicast, "ipv4/unicast", iter, actionAdd)
 	}
 
 	// IPv4 body Withdrawn -- withdrawn routes.
 	if iter, err := wu.WithdrawnIterator(addPathV4); err == nil && iter != nil {
-		*sp = appendUnicastRecords(*sp, "ipv4/unicast", iter, actionDel)
+		*sp = appendUnicastRecords(*sp, family.IPv4Unicast, "ipv4/unicast", iter, actionDel)
 	}
 
 	return sp
@@ -104,7 +105,7 @@ func returnNLRIRecords(sp *[]nlriRecord) {
 
 // appendUnicastRecords appends compact prefix records from an NLRIIterator.
 // Uses netip.PrefixFrom for zero-allocation prefix extraction.
-func appendUnicastRecords(records []nlriRecord, famName string, iter *nlri.NLRIIterator, action string) []nlriRecord {
+func appendUnicastRecords(records []nlriRecord, f family.Family, famName string, iter *nlri.NLRIIterator, action string) []nlriRecord {
 	if iter == nil {
 		return records
 	}
@@ -130,6 +131,7 @@ func appendUnicastRecords(records []nlriRecord, famName string, iter *nlri.NLRII
 			p = netip.PrefixFrom(netip.AddrFrom4(addr), bitLen)
 		}
 		records = append(records, nlriRecord{
+			fam:        f,
 			familyName: famName,
 			action:     action,
 			prefix:     p.Masked(),
@@ -150,6 +152,7 @@ func appendAllocatingRecords(records []nlriRecord, fam family.Family, mp interfa
 	famStr := fam.String()
 	for _, n := range nlris {
 		records = append(records, nlriRecord{
+			fam:        fam,
 			familyName: famStr,
 			action:     action,
 			nlriStr:    n.String(),
@@ -166,6 +169,7 @@ func appendAllocatingUnreachRecords(records []nlriRecord, fam family.Family, nlr
 	famStr := fam.String()
 	for _, n := range nlris {
 		records = append(records, nlriRecord{
+			fam:        fam,
 			familyName: famStr,
 			action:     actionDel,
 			nlriStr:    n.String(),
@@ -183,22 +187,21 @@ func (rs *RouteServer) applyNLRIRecords(sourcePeer string, records []nlriRecord)
 		switch rec.action {
 		case actionAdd:
 			if rs.withdrawals[sourcePeer] == nil {
-				rs.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
+				rs.withdrawals[sourcePeer] = make(map[withdrawalKey]struct{})
 			}
 			if rec.nlriStr != "" {
-				routeKey := rec.familyName + "|" + nlriKey(rec.nlriStr)
-				rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: rec.familyName, Prefix: rec.nlriStr}
+				wk := withdrawalKey{fam: rec.fam, nlriStr: rec.nlriStr}
+				rs.withdrawals[sourcePeer][wk] = struct{}{}
 			} else {
-				key := rec.prefix.String()
-				routeKey := rec.familyName + "|" + key
-				rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: rec.familyName, Prefix: "prefix " + key}
+				wk := withdrawalKey{fam: rec.fam, prefix: rec.prefix}
+				rs.withdrawals[sourcePeer][wk] = struct{}{}
 			}
 		case actionDel:
 			if rs.withdrawals[sourcePeer] != nil {
 				if rec.nlriStr != "" {
-					delete(rs.withdrawals[sourcePeer], rec.familyName+"|"+nlriKey(rec.nlriStr))
+					delete(rs.withdrawals[sourcePeer], withdrawalKey{fam: rec.fam, nlriStr: rec.nlriStr})
 				} else {
-					delete(rs.withdrawals[sourcePeer], rec.familyName+"|"+rec.prefix.String())
+					delete(rs.withdrawals[sourcePeer], withdrawalKey{fam: rec.fam, prefix: rec.prefix})
 				}
 			}
 		}

@@ -43,7 +43,7 @@ func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
 	rs := &RouteServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
-		withdrawals: make(map[string]map[string]withdrawalInfo),
+		withdrawals: make(map[string]map[withdrawalKey]struct{}),
 	}
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		rs.processForward(key, item)
@@ -1111,12 +1111,16 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	if len(peerWd) != 1 {
 		t.Fatalf("expected 1 VPN withdrawal entry, got %d", len(peerWd))
 	}
-	entry, ok := peerWd["ipv4/mpls-vpn|10.0.0.0/24"]
-	if !ok {
-		t.Fatal("missing withdrawal entry for VPN route")
+	vpnFam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}
+	found := false
+	for wk := range peerWd {
+		if wk.fam == vpnFam {
+			found = true
+			break
+		}
 	}
-	if entry.Family != "ipv4/mpls-vpn" {
-		t.Errorf("expected family ipv4/mpls-vpn, got %s", entry.Family)
+	if !found {
+		t.Fatal("missing withdrawal entry for VPN route")
 	}
 
 	// Verify forward target
@@ -1182,10 +1186,10 @@ func TestPropagation_PeerDownClearsAllRoutes(t *testing.T) {
 
 	// Populate withdrawal map for multiple families.
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.0.0/24":   {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
-		"ipv4/unicast|10.0.1.0/24":   {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
-		"ipv6/unicast|2001:db8::/32": {Family: "ipv6/unicast", Prefix: "2001:db8::/32"},
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}:   {},
+		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.1.0/24"}:   {},
+		{fam: family.IPv6Unicast, nlriStr: "prefix 2001:db8::/32"}: {},
 	}
 	rs.withdrawalMu.Unlock()
 

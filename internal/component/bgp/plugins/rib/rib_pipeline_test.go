@@ -1436,8 +1436,8 @@ func BenchmarkShowLargeTable(b *testing.B) {
 	newRIB := func() *RIBManager {
 		r := &RIBManager{
 			bgpPeers:     make(map[string]*storage.PeerRIB),
-			ribOut:       make(map[string]map[family.Family]map[string]ribOutEntry),
-			ribOutSource: make(map[family.Family]map[string]ribOutSourceRef),
+			ribOut:       make(map[string]map[family.Family]map[ribOutKey]ribOutEntry),
+			ribOutSource: make(map[family.Family]map[ribOutKey]ribOutSourceRef),
 			ribInPool:    make(map[redistevents.ProtocolID]map[string]*storage.PeerRIB),
 			peerUp:       make(map[string]bool),
 			peerMeta:     make(map[string]*PeerMeta),

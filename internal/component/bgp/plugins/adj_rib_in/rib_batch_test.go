@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -81,27 +80,27 @@ func BenchmarkAcceptRoutesBatch(b *testing.B) {
 func benchManager(b *testing.B) *AdjRIBInManager {
 	b.Helper()
 	return &AdjRIBInManager{
-		ribIn:          make(map[string]*seqmap.Map[string, *RawRoute]),
+		ribIn:          make(map[string]*seqmap.Map[compactRouteKey, *RawRoute]),
 		peerUp:         make(map[string]bool),
-		pending:        make(map[string]*PendingRoute),
-		earlyDecisions: make(map[string]*EarlyDecision),
+		pending:        make(map[compactPendingKey]*PendingRoute),
+		earlyDecisions: make(map[compactPendingKey]*EarlyDecision),
 	}
 }
 
-func benchPrefixTable() ([]string, []string) {
+func benchPrefixTable() ([]string, []compactRouteKey) {
 	prefixes := make([]string, benchN)
-	rKeys := make([]string, benchN)
+	rKeys := make([]compactRouteKey, benchN)
 	for i := range benchN {
 		var b textbuf.Buffer
 		a := i / 256
 		c := i % 256
 		prefixes[i] = b.Str("10.").Int(int64(a)).Byte('.').Int(int64(c)).Str(".0/24").String()
-		rKeys[i] = bgp.RouteKey("ipv4/unicast", prefixes[i], 0)
+		rKeys[i] = routeKeyFromStrings(family.IPv4Unicast, prefixes[i], 0)
 	}
 	return prefixes, rKeys
 }
 
-func benchPopulatePending(r *AdjRIBInManager, prefixes, rKeys []string) {
+func benchPopulatePending(r *AdjRIBInManager, prefixes []string, rKeys []compactRouteKey) {
 	r.mu.Lock()
 	for i := range benchN {
 		r.pending[pendingKey("10.0.0.1", rKeys[i])] = &PendingRoute{
@@ -119,9 +118,9 @@ func TestBatchValidateMixedAcceptReject(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 
-	rKey1 := bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0)
-	rKey2 := bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0)
-	rKey3 := bgp.RouteKey("ipv6/unicast", "2001:db8::/32", 0)
+	rKey1 := routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0)
+	rKey2 := routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0)
+	rKey3 := routeKeyFromStrings(family.IPv6Unicast, "2001:db8::/32", 0)
 
 	r.mu.Lock()
 	r.pending[pendingKey("10.0.0.1", rKey1)] = &PendingRoute{
@@ -180,7 +179,7 @@ func TestBatchValidateOddPeerIdentifiers(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 	peer := `peer "odd\name" with spaces`
-	rKey := bgp.RouteKey("ipv4/unicast", "203.0.113.0/24", 42)
+	rKey := routeKeyFromStrings(family.IPv4Unicast, "203.0.113.0/24", 42)
 
 	r.mu.Lock()
 	r.pending[pendingKey(peer, rKey)] = &PendingRoute{
@@ -227,13 +226,13 @@ func TestBatchValidateEarlyDecisions(t *testing.T) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	rKey1 := bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0)
+	rKey1 := routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0)
 	ed1, ok := r.earlyDecisions[pendingKey("10.0.0.1", rKey1)]
 	require.True(t, ok, "early accept should be stored")
 	assert.Equal(t, earlyAccept, ed1.action)
 	assert.Equal(t, ValidationValid, ed1.state)
 
-	rKey2 := bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0)
+	rKey2 := routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0)
 	ed2, ok := r.earlyDecisions[pendingKey("10.0.0.1", rKey2)]
 	require.True(t, ok, "early reject should be stored")
 	assert.Equal(t, earlyReject, ed2.action)
@@ -311,7 +310,7 @@ func TestBatchValidateMatchesIndividual(t *testing.T) {
 		r.validationEnabled = true
 		r.mu.Lock()
 		for i, p := range prefixes {
-			rKey := bgp.RouteKey("ipv4/unicast", p, uint32(i))
+			rKey := routeKeyFromStrings(family.IPv4Unicast, p, uint32(i))
 			r.pending[pendingKey("10.0.0.1", rKey)] = &PendingRoute{
 				peerAddr: "10.0.0.1", family: family.IPv4Unicast, prefix: p,
 				routeKey: rKey, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001"},
@@ -354,11 +353,11 @@ func TestBatchValidateMatchesIndividual(t *testing.T) {
 		require.True(t, ok, "batched missing peer %s", peer)
 		assert.Equal(t, indRoutes.Len(), batRoutes.Len(), "route count mismatch for peer %s", peer)
 
-		indRoutes.Range(func(key string, _ uint64, indRT *RawRoute) bool {
+		indRoutes.Range(func(key compactRouteKey, _ uint64, indRT *RawRoute) bool {
 			batRT, ok := batRoutes.Get(key)
-			require.True(t, ok, "batched missing route key %s", key)
+			require.True(t, ok, "batched missing route key %v", key)
 			assert.Equal(t, indRT.ValidationState, batRT.ValidationState,
-				"validation state mismatch for %s", key)
+				"validation state mismatch for %v", key)
 			return true
 		})
 	}

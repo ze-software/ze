@@ -152,30 +152,6 @@ func TestBuildNLRIEntries_SingleKeyword(t *testing.T) {
 	assert.Equal(t, "prefix 192.168.0.0/16", result[0])
 }
 
-// --- nlriKey ---
-
-// VALIDATES: nlriKey strips "prefix " prefix from unicast NLRIs.
-// PREVENTS: Withdrawal map keys containing redundant type keyword.
-func TestNlriKey_StripsPrefixKeyword(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{name: "ipv4 prefix", input: "prefix 10.0.0.0/24", want: "10.0.0.0/24"},
-		{name: "ipv6 prefix", input: "prefix 2001:db8::/32", want: "2001:db8::/32"},
-		{name: "non-prefix", input: "rd 65001:1 10.0.0.0/24", want: "rd 65001:1 10.0.0.0/24"},
-		{name: "empty", input: "", want: ""},
-		{name: "prefix only", input: "prefix ", want: ""},
-		{name: "prefix without space", input: "prefixfoo", want: "prefixfoo"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, nlriKey(tt.input))
-		})
-	}
-}
-
 // --- isUnicast ---
 
 // VALIDATES: isUnicast returns true for IPv4Unicast and IPv6Unicast only.

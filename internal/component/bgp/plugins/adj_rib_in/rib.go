@@ -23,6 +23,7 @@ import (
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	adjschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/schema"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -77,8 +78,8 @@ type AdjRIBInManager struct {
 	plugin *sdk.Plugin
 
 	// ribIn stores routes received FROM peers.
-	// sourcePeer → seqmap of routeKey → RawRoute
-	ribIn map[string]*seqmap.Map[string, *RawRoute]
+	// sourcePeer → seqmap of compactRouteKey → RawRoute
+	ribIn map[string]*seqmap.Map[compactRouteKey, *RawRoute]
 
 	// peerUp tracks which peers are currently up.
 	peerUp map[string]bool
@@ -87,12 +88,10 @@ type AdjRIBInManager struct {
 	seqCounter uint64
 
 	// pending stores routes awaiting RPKI validation.
-	// Key: "peerAddr|family|prefix". Empty when validation is disabled.
-	pending map[string]*PendingRoute
+	pending map[compactPendingKey]*PendingRoute
 
 	// earlyDecisions buffers RPKI decisions that arrived before the route.
-	// Key: same as pending. Swept on the same ticker.
-	earlyDecisions map[string]*EarlyDecision
+	earlyDecisions map[compactPendingKey]*EarlyDecision
 
 	// validationEnabled is set by "request adj-rib-in enable-validation".
 	// When true, received routes are stored as pending instead of installed.
@@ -110,8 +109,8 @@ type AdjRIBInManager struct {
 }
 
 // newSeqMap creates a new seqmap for route storage.
-func newSeqMap() *seqmap.Map[string, *RawRoute] {
-	return seqmap.New[string, *RawRoute]()
+func newSeqMap() *seqmap.Map[compactRouteKey, *RawRoute] {
+	return seqmap.New[compactRouteKey, *RawRoute]()
 }
 
 // RunAdjRIBInPlugin runs the Adj-RIB-In plugin using the SDK RPC protocol.
@@ -123,10 +122,10 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 
 	r := &AdjRIBInManager{
 		plugin:         p,
-		ribIn:          make(map[string]*seqmap.Map[string, *RawRoute]),
+		ribIn:          make(map[string]*seqmap.Map[compactRouteKey, *RawRoute]),
 		peerUp:         make(map[string]bool),
-		pending:        make(map[string]*PendingRoute),
-		earlyDecisions: make(map[string]*EarlyDecision),
+		pending:        make(map[compactPendingKey]*PendingRoute),
+		earlyDecisions: make(map[compactPendingKey]*EarlyDecision),
 	}
 
 	// Structured event handler for DirectBridge delivery.
@@ -204,109 +203,250 @@ func (r *AdjRIBInManager) updateRoute(peerSelector, command string) {
 }
 
 // handleReceivedStructured processes received UPDATE events from StructuredEvent wire types.
-// Builds a bgp.Event with raw hex fields from WireUpdate sections and delegates to dispatch.
-// This eliminates the JSON round-trip while reusing the existing handleReceived logic.
+// Walks wire bytes directly using NLRIIterator, skipping the bgp.Event intermediary
+// and wireNLRIsToAny boxing. The legacy handleReceived path is preserved for external
+// text/JSON plugins.
 func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil || msg.WireUpdate == nil {
 		return
 	}
 
+	peerAddr := se.PeerAddress
+	if peerAddr == "" {
+		return
+	}
+
 	wu := msg.WireUpdate
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
 
-	// Build a bgp.Event with raw byte fields from wire data.
-	// Byte fields are set directly, skipping the hex encode/decode round-trip.
-	// Hex string fields are left empty; they are only needed for JSON serialization
-	// to external plugins, and consumers use GetRaw*Bytes() accessors that
-	// prefer the byte fields.
-	event := &bgp.Event{Type: "update", TypeKind: rpc.EventKindUpdate}
-
+	// Hex-encode attributes once per UPDATE (shared across all NLRIs).
+	var attrHex string
 	if msg.AttrsWire != nil {
-		event.RawAttributeBytes = msg.AttrsWire.Packed()
+		if packed := msg.AttrsWire.Packed(); len(packed) > 0 {
+			attrHex = hex.EncodeToString(packed)
+		}
 	}
 
-	event.FamilyOps = make(map[family.Family][]bgp.FamilyOperation)
-	event.AddPath = make(map[family.Family]bool)
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	// IPv4 unicast announces.
-	nlriData, err := wu.NLRI()
-	if err == nil && len(nlriData) > 0 {
+	// IPv4 unicast announces (body NLRI section).
+	if nlriData, err := wu.NLRI(); err == nil && len(nlriData) > 0 {
 		fam := family.IPv4Unicast
-		nhop := legacyNextHop(msg.AttrsWire)
-		if event.RawNLRIBytes == nil {
-			event.RawNLRIBytes = make(map[family.Family][]byte, 2)
-		}
-		event.RawNLRIBytes[fam] = nlriData
 		addPath := ctx != nil && ctx.AddPath(fam)
-		event.AddPath[fam] = addPath
-		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
-			Action:  bgptypes.RouteActionAdd,
-			NextHop: nhop,
-			NLRIs:   wireNLRIsToAny(nlriData, addPath, fam),
-		})
+		nhopHex := nhopHexFromWireAttr(msg.AttrsWire)
+		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex)
 	}
 
-	// IPv4 unicast withdrawals.
-	wdData, err := wu.Withdrawn()
-	if err == nil && len(wdData) > 0 {
+	// IPv4 unicast withdrawals (body Withdrawn section).
+	if wdData, err := wu.Withdrawn(); err == nil && len(wdData) > 0 {
 		fam := family.IPv4Unicast
-		if event.RawWithdrawnBytes == nil {
-			event.RawWithdrawnBytes = make(map[family.Family][]byte, 2)
-		}
-		event.RawWithdrawnBytes[fam] = wdData
 		addPath := ctx != nil && ctx.AddPath(fam)
-		event.AddPath[fam] = addPath
-		event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
-			Action: bgptypes.RouteActionDel,
-			NLRIs:  wireNLRIsToAny(wdData, addPath, fam),
-		})
+		r.removeStructuredNLRIs(peerAddr, fam, wdData, addPath)
 	}
 
 	// MP_REACH_NLRI announces.
-	mpReach, err := wu.MPReach()
-	if err == nil && mpReach != nil {
+	if mpReach, err := wu.MPReach(); err == nil && mpReach != nil {
 		fam := mpReach.Family()
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
-			if event.RawNLRIBytes == nil {
-				event.RawNLRIBytes = make(map[family.Family][]byte, 2)
-			}
-			event.RawNLRIBytes[fam] = nlriBytes
 			addPath := ctx != nil && ctx.AddPath(fam)
-			event.AddPath[fam] = addPath
-			nhop := mpReach.NextHop().String()
-			event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
-				Action:  bgptypes.RouteActionAdd,
-				NextHop: nhop,
-				NLRIs:   wireNLRIsToAny(nlriBytes, addPath, fam),
-			})
+			if isSimplePrefixFamily(fam) {
+				nhopHex := nhopHexFromAddr(mpReach.NextHop())
+				r.installStructuredNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, nhopHex)
+			} else {
+				// Complex families: fall back to Event path for correct NLRI handling.
+				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, mpReach.NextHop().String())
+			}
 		}
 	}
 
 	// MP_UNREACH_NLRI withdrawals.
-	mpUnreach, err := wu.MPUnreach()
-	if err == nil && mpUnreach != nil {
+	if mpUnreach, err := wu.MPUnreach(); err == nil && mpUnreach != nil {
 		fam := mpUnreach.Family()
 		wdBytes := mpUnreach.WithdrawnBytes()
 		if len(wdBytes) > 0 {
-			if event.RawWithdrawnBytes == nil {
-				event.RawWithdrawnBytes = make(map[family.Family][]byte, 2)
-			}
-			event.RawWithdrawnBytes[fam] = wdBytes
 			addPath := ctx != nil && ctx.AddPath(fam)
-			event.AddPath[fam] = addPath
-			event.FamilyOps[fam] = append(event.FamilyOps[fam], bgp.FamilyOperation{
-				Action: bgptypes.RouteActionDel,
-				NLRIs:  wireNLRIsToAny(wdBytes, addPath, fam),
-			})
+			if isSimplePrefixFamily(fam) {
+				r.removeStructuredNLRIs(peerAddr, fam, wdBytes, addPath)
+			} else {
+				r.removeComplexNLRIs(peerAddr, fam, wdBytes, addPath)
+			}
 		}
 	}
+}
 
-	// Set peer field so GetPeerAddress works.
-	event.Peer = []byte(`{"remote":{"address":"` + se.PeerAddress + `"}}`)
+// installStructuredNLRIs walks simple-prefix wire bytes and installs routes.
+// Caller must hold r.mu.
+func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr string, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string) {
+	if attrHex == "" || nhopHex == "" {
+		return
+	}
+	iter := nlri.NewNLRIIterator(data, addPath)
+	for {
+		wirePrefix, pathID, ok := iter.Next()
+		if !ok {
+			break
+		}
+		pfx, valid := nlri.WirePrefixToKey(wirePrefix, fam)
+		if !valid {
+			continue
+		}
+		rk := routeKeyFromWire(fam, pfx, pathID)
+		nlriHex := hex.EncodeToString(wirePrefix)
 
-	r.dispatch(event)
+		route := &RawRoute{
+			Family:  fam,
+			AttrHex: attrHex,
+			NHopHex: nhopHex,
+			NLRIHex: nlriHex,
+		}
+
+		if r.validationEnabled {
+			pr := &PendingRoute{
+				peerAddr:   peerAddr,
+				family:     fam,
+				prefix:     pfx.String(),
+				routeKey:   rk,
+				route:      route,
+				receivedAt: time.Now(),
+				state:      ValidationPending,
+			}
+			if !r.applyEarlyDecision(peerAddr, rk, pr) {
+				pKey := pendingKey(peerAddr, rk)
+				r.pending[pKey] = pr
+			}
+		} else {
+			if r.ribIn[peerAddr] == nil {
+				r.ribIn[peerAddr] = newSeqMap()
+			}
+			r.seqCounter++
+			r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
+		}
+	}
+}
+
+// removeStructuredNLRIs walks simple-prefix wire bytes and removes routes.
+// Caller must hold r.mu.
+func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr string, fam family.Family, data []byte, addPath bool) {
+	iter := nlri.NewNLRIIterator(data, addPath)
+	for {
+		wirePrefix, pathID, ok := iter.Next()
+		if !ok {
+			break
+		}
+		pfx, valid := nlri.WirePrefixToKey(wirePrefix, fam)
+		if !valid {
+			continue
+		}
+		rk := routeKeyFromWire(fam, pfx, pathID)
+		r.removePending(peerAddr, rk)
+		if r.ribIn[peerAddr] != nil {
+			r.ribIn[peerAddr].Delete(rk)
+		}
+	}
+}
+
+// installComplexNLRIs handles non-simple-prefix families (VPN, EVPN) via wireNLRIsToAny.
+// These are rare in benchmarks and their wire format prevents direct prefix extraction.
+// Caller must hold r.mu.
+func (r *AdjRIBInManager) installComplexNLRIs(peerAddr string, fam family.Family, data []byte, addPath bool, attrHex, nhopStr string) {
+	if attrHex == "" {
+		return
+	}
+	nhopHex := nhopToHex(nhopStr)
+	if nhopHex == "" {
+		return
+	}
+	nlris := wireNLRIsToAny(data, addPath, fam)
+	rawNLRIHex := hex.EncodeToString(data)
+	for i, nlriVal := range nlris {
+		prefix, pathID := bgp.ParseNLRIValue(nlriVal)
+		if prefix == "" {
+			continue
+		}
+		rk := routeKeyFromStrings(fam, prefix, pathID)
+		var nlriHex string
+		if i == 0 {
+			nlriHex = rawNLRIHex
+		} else {
+			continue
+		}
+		route := &RawRoute{
+			Family:  fam,
+			AttrHex: attrHex,
+			NHopHex: nhopHex,
+			NLRIHex: nlriHex,
+		}
+		if r.validationEnabled {
+			pr := &PendingRoute{
+				peerAddr:   peerAddr,
+				family:     fam,
+				prefix:     prefix,
+				routeKey:   rk,
+				route:      route,
+				receivedAt: time.Now(),
+				state:      ValidationPending,
+			}
+			if !r.applyEarlyDecision(peerAddr, rk, pr) {
+				pKey := pendingKey(peerAddr, rk)
+				r.pending[pKey] = pr
+			}
+		} else {
+			if r.ribIn[peerAddr] == nil {
+				r.ribIn[peerAddr] = newSeqMap()
+			}
+			r.seqCounter++
+			r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
+		}
+	}
+}
+
+// removeComplexNLRIs handles withdrawal of non-simple-prefix families.
+// Caller must hold r.mu.
+func (r *AdjRIBInManager) removeComplexNLRIs(peerAddr string, fam family.Family, data []byte, addPath bool) {
+	nlris := wireNLRIsToAny(data, addPath, fam)
+	for _, nlriVal := range nlris {
+		prefix, pathID := bgp.ParseNLRIValue(nlriVal)
+		if prefix == "" {
+			continue
+		}
+		rk := routeKeyFromStrings(fam, prefix, pathID)
+		r.removePending(peerAddr, rk)
+		if r.ribIn[peerAddr] != nil {
+			r.ribIn[peerAddr].Delete(rk)
+		}
+	}
+}
+
+// nhopHexFromWireAttr extracts next-hop from wire NEXT_HOP attribute and hex-encodes it.
+func nhopHexFromWireAttr(attrs *attribute.AttributesWire) string {
+	if attrs == nil {
+		return ""
+	}
+	attr, err := attrs.Get(attribute.AttrNextHop)
+	if err != nil || attr == nil {
+		return ""
+	}
+	nhop, ok := attr.(*attribute.NextHop)
+	if !ok || !nhop.Addr.IsValid() {
+		return ""
+	}
+	return nhopHexFromAddr(nhop.Addr)
+}
+
+// nhopHexFromAddr hex-encodes a netip.Addr for RawRoute storage.
+func nhopHexFromAddr(addr netip.Addr) string {
+	if !addr.IsValid() {
+		return ""
+	}
+	if addr.Unmap().Is4() {
+		b := addr.Unmap().As4()
+		return hex.EncodeToString(b[:])
+	}
+	b := addr.As16()
+	return hex.EncodeToString(b[:])
 }
 
 func legacyNextHop(attrs *attribute.AttributesWire) string {
@@ -430,7 +570,6 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 	defer r.mu.Unlock()
 
 	for fam, ops := range event.FamilyOps {
-		famStr := fam.String()
 		// Split raw NLRI hex into individual prefixes for simple families.
 		// For complex families (VPN, EVPN), splitRawNLRIHex returns nil
 		// and the raw blob is used directly (see switch below).
@@ -458,26 +597,18 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					if prefix == "" {
 						continue
 					}
-					routeKey := bgp.RouteKey(famStr, prefix, pathID)
+					rk := routeKeyFromStrings(fam, prefix, pathID)
 
-					// Get individual NLRI hex from the correct source:
-					// - Simple families: split raw bytes give per-prefix hex
-					// - Complex families: raw blob IS the correct wire format
-					//   (contains RD + labels + prefix); prefixToWireHex would
-					//   produce wrong bytes (bare prefix without RD/labels)
-					// - No raw data: compute from parsed prefix (simple families only)
 					var nlriHex string
 					switch {
 					case i < len(splitHexEntries):
 						nlriHex = splitHexEntries[i]
 					case rawNLRIHex != "" && !isSimplePrefixFamily(fam):
-						// Complex family: use entire raw blob (correct wire format).
-						// Store only for the first parsed NLRI — the blob covers all.
 						if i > 0 {
 							continue
 						}
 						nlriHex = rawNLRIHex
-					default: // simple family without raw bytes — compute from parsed prefix
+					default:
 						nlriHex = prefixToWireHex(fam, prefix, pathID)
 					}
 
@@ -493,22 +624,21 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							peerAddr:   peerAddr,
 							family:     fam,
 							prefix:     prefix,
-							routeKey:   routeKey,
+							routeKey:   rk,
 							route:      route,
 							receivedAt: time.Now(),
 							state:      ValidationPending,
 						}
-						if !r.applyEarlyDecision(peerAddr, routeKey, pr) {
-							pKey := pendingKey(peerAddr, routeKey)
+						if !r.applyEarlyDecision(peerAddr, rk, pr) {
+							pKey := pendingKey(peerAddr, rk)
 							r.pending[pKey] = pr
 						}
 					} else {
-						// No validation — install immediately (zero overhead path).
 						if r.ribIn[peerAddr] == nil {
 							r.ribIn[peerAddr] = newSeqMap()
 						}
 						r.seqCounter++
-						r.ribIn[peerAddr].Put(routeKey, r.seqCounter, route)
+						r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
 					}
 				}
 
@@ -518,12 +648,10 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					if prefix == "" {
 						continue
 					}
-					routeKey := bgp.RouteKey(famStr, prefix, pathID)
-					// Remove from pending if present.
-					r.removePending(peerAddr, routeKey)
-					// Remove from installed if present.
+					rk := routeKeyFromStrings(fam, prefix, pathID)
+					r.removePending(peerAddr, rk)
 					if r.ribIn[peerAddr] != nil {
-						r.ribIn[peerAddr].Delete(routeKey)
+						r.ribIn[peerAddr].Delete(rk)
 					}
 				}
 			}
@@ -592,7 +720,7 @@ func (r *AdjRIBInManager) buildReplayCommands(targetPeer string, fromIndex uint6
 		if sourcePeer == targetPeer {
 			continue // Don't replay a peer's own routes back to it.
 		}
-		routes.Since(fromIndex, func(_ string, seq uint64, rt *RawRoute) bool {
+		routes.Since(fromIndex, func(_ compactRouteKey, seq uint64, rt *RawRoute) bool {
 			cmds = append(cmds, formatHexCommand(rt))
 			if seq > maxSeq {
 				maxSeq = seq

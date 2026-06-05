@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/netip"
 	"reflect"
 	"slices"
 	"strings"
@@ -37,7 +38,7 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 	rs := &RouteServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
-		withdrawals: make(map[string]map[string]withdrawalInfo),
+		withdrawals: make(map[string]map[withdrawalKey]struct{}),
 	}
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		rs.processForward(key, item)
@@ -88,15 +89,9 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	if len(peerWd) != 1 {
 		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
-	entry, ok := peerWd["ipv4/unicast|10.0.0.0/24"]
-	if !ok {
+	wk := withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}
+	if _, ok := peerWd[wk]; !ok {
 		t.Fatal("missing withdrawal entry for 10.0.0.0/24")
-	}
-	if entry.Family != "ipv4/unicast" {
-		t.Errorf("expected family ipv4/unicast, got %s", entry.Family)
-	}
-	if entry.Prefix != "prefix 10.0.0.0/24" {
-		t.Errorf("expected prefix field 'prefix 10.0.0.0/24', got %s", entry.Prefix)
 	}
 }
 
@@ -114,8 +109,8 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 
 	// Pre-populate withdrawal map (simulating prior add).
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.0.0/24"},
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}: {},
 	}
 	rs.withdrawalMu.Unlock()
 
@@ -125,7 +120,7 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 	rs.withdrawalMu.Lock()
 	peerWd := rs.withdrawals["10.0.0.1"]
 	rs.withdrawalMu.Unlock()
-	if _, found := peerWd["ipv4/unicast|10.0.0.0/24"]; found {
+	if _, found := peerWd[withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}]; found {
 		t.Error("expected withdrawal entry removed after del")
 	}
 }
@@ -145,8 +140,8 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 
 	// Pre-populate withdrawal map with route that will be withdrawn.
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.2.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.2.0/24"},
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.2.0/24"}: {},
 	}
 	rs.withdrawalMu.Unlock()
 
@@ -159,13 +154,13 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 	if len(peerWd) != 2 {
 		t.Fatalf("expected 2 withdrawal entries, got %d", len(peerWd))
 	}
-	if _, found := peerWd["ipv4/unicast|10.0.0.0/24"]; !found {
-		t.Error("missing ipv4/unicast|10.0.0.0/24")
+	if _, found := peerWd[withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}]; !found {
+		t.Error("missing ipv4/unicast 10.0.0.0/24")
 	}
-	if _, found := peerWd["ipv6/unicast|2001:db8::/32"]; !found {
-		t.Error("missing ipv6/unicast|2001:db8::/32")
+	if _, found := peerWd[withdrawalKey{fam: family.IPv6Unicast, nlriStr: "prefix 2001:db8::/32"}]; !found {
+		t.Error("missing ipv6/unicast 2001:db8::/32")
 	}
-	if _, found := peerWd["ipv4/unicast|10.0.2.0/24"]; found {
+	if _, found := peerWd[withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.2.0/24"}]; found {
 		t.Error("10.0.2.0/24 should have been withdrawn")
 	}
 }
@@ -179,9 +174,9 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 
 	// Populate withdrawal map (replaces old rs.rib.Insert).
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.0.0/24"},
-		"ipv4/unicast|10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.1.0/24"},
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}: {},
+		{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.1.0/24"}: {},
 	}
 	rs.withdrawalMu.Unlock()
 
@@ -373,12 +368,9 @@ func TestFilterUpdateByFamily(t *testing.T) {
 	if len(peerWd) != 1 {
 		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
-	entry, ok := peerWd["ipv6/unicast|2001:db8::/32"]
-	if !ok {
+	wk6 := withdrawalKey{fam: family.IPv6Unicast, nlriStr: "prefix 2001:db8::/32"}
+	if _, ok := peerWd[wk6]; !ok {
 		t.Fatal("missing withdrawal entry for 2001:db8::/32")
-	}
-	if entry.Family != "ipv6/unicast" {
-		t.Errorf("expected family ipv6/unicast, got %s", entry.Family)
 	}
 }
 
@@ -927,9 +919,8 @@ func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 	if len(peerWd) != 1 {
 		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
-	entry, ok := peerWd["ipv4/unicast|10.0.0.0/24"]
-	if !ok || entry.Prefix != "prefix 10.0.0.0/24" {
-		t.Errorf("expected prefix field 'prefix 10.0.0.0/24', got %+v", entry)
+	if _, ok := peerWd[withdrawalKey{fam: family.IPv4Unicast, nlriStr: "prefix 10.0.0.0/24"}]; !ok {
+		t.Error("missing withdrawal entry for 10.0.0.0/24")
 	}
 }
 
@@ -1448,9 +1439,9 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 
 	// Populate withdrawal map directly.
 	rs.withdrawalMu.Lock()
-	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.0.0/24"},
-		"ipv4/unicast|10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.1.0/24"},
+	rs.withdrawals["10.0.0.1"] = map[withdrawalKey]struct{}{
+		{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.0.0/24")}: {},
+		{fam: family.IPv4Unicast, prefix: netip.MustParsePrefix("10.0.1.0/24")}: {},
 	}
 	rs.withdrawalMu.Unlock()
 

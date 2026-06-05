@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -225,13 +226,13 @@ type RIBManager struct {
 	// ribOut stores routes sent TO peers (Adj-RIB-Out), keyed per-family.
 	// Enables per-family operations (route refresh, LLGR readvertisement).
 	// Wire attribute bytes are deduplicated in pool.RibOut (idx 16).
-	ribOut map[string]map[family.Family]map[string]ribOutEntry // peerAddr -> family -> prefixKey -> entry
+	ribOut map[string]map[family.Family]map[ribOutKey]ribOutEntry // peerAddr -> family -> ribOutKey -> entry
 
 	// ribOutSource tracks the originating peer per (family, routeKey).
 	// One entry per unique route (not per destination peer), used for
 	// GR stale propagation (RFC 9494). Refcounted: cleaned up when the
 	// last destination peer withdraws the route.
-	ribOutSource map[family.Family]map[string]ribOutSourceRef
+	ribOutSource map[family.Family]map[ribOutKey]ribOutSourceRef
 
 	// peerUp tracks which peers are currently up
 	peerUp map[string]bool
@@ -493,8 +494,8 @@ func NewRIBManager(plugin *sdk.Plugin) *RIBManager {
 			bmpProtocolID: make(map[string]*storage.PeerRIB),
 		},
 		bgpPeers:         bgpInner,
-		ribOut:           make(map[string]map[family.Family]map[string]ribOutEntry),
-		ribOutSource:     make(map[family.Family]map[string]ribOutSourceRef),
+		ribOut:           make(map[string]map[family.Family]map[ribOutKey]ribOutEntry),
+		ribOutSource:     make(map[family.Family]map[ribOutKey]ribOutSourceRef),
 		peerUp:           make(map[string]bool),
 		peerMeta:         make(map[string]*PeerMeta),
 		retainedPeers:    make(map[string]bool),
@@ -763,7 +764,7 @@ func (r *RIBManager) handleSent(event *Event) {
 	defer r.peerMu.Unlock()
 
 	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[family.Family]map[string]ribOutEntry)
+		r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
 	}
 
 	for fam, ops := range event.FamilyOps {
@@ -771,7 +772,7 @@ func (r *RIBManager) handleSent(event *Event) {
 			switch op.Action { //nolint:exhaustive // only Add/Del relevant for rib-out
 			case bgptypes.RouteActionAdd:
 				if r.ribOut[peerAddr][fam] == nil {
-					r.ribOut[peerAddr][fam] = make(map[string]ribOutEntry)
+					r.ribOut[peerAddr][fam] = make(map[ribOutKey]ribOutEntry)
 				}
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := parseNLRIValue(nlriVal)
@@ -779,7 +780,12 @@ func (r *RIBManager) handleSent(event *Event) {
 						logger().Warn("sent: invalid nlri value", "peer", peerAddr, "family", fam)
 						continue
 					}
-					key := outRouteKey(prefix, pathID)
+					pfx, err := netip.ParsePrefix(prefix)
+					if err != nil {
+						logger().Warn("sent: invalid prefix", "peer", peerAddr, "prefix", prefix)
+						continue
+					}
+					key := ribOutKey{Prefix: pfx, PathID: pathID}
 					_, existed := r.ribOut[peerAddr][fam][key]
 					if existed {
 						r.ribOut[peerAddr][fam][key].release()
@@ -803,7 +809,11 @@ func (r *RIBManager) handleSent(event *Event) {
 					if prefix == "" {
 						continue
 					}
-					key := outRouteKey(prefix, pathID)
+					pfx, err := netip.ParsePrefix(prefix)
+					if err != nil {
+						continue
+					}
+					key := ribOutKey{Prefix: pfx, PathID: pathID}
 					if old, exists := familyRoutes[key]; exists {
 						old.release()
 						delete(familyRoutes, key)

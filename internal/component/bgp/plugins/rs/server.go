@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -111,12 +112,13 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// withdrawalInfo stores the minimum information needed to send withdrawal
-// commands when a source peer goes down. Only family+prefix are needed
-// for "update text nlri <family> del <prefix>" commands.
-type withdrawalInfo struct {
-	Family string
-	Prefix string // Full NLRI string including type keyword (e.g., "prefix 10.0.0.0/24").
+// withdrawalKey is a value-type map key for the withdrawal set.
+// For unicast families, prefix is set and nlriStr is empty (zero-alloc).
+// For non-unicast families, nlriStr stores the full NLRI string.
+type withdrawalKey struct {
+	fam     family.Family
+	prefix  netip.Prefix
+	nlriStr string
 }
 
 // RouteServer implements a BGP Route Server API plugin.
@@ -142,8 +144,8 @@ type RouteServer struct {
 	withdrawalMu sync.Mutex
 	// withdrawals tracks announced routes per source peer for withdrawal on peer-down.
 	// Populated by processForward from NLRI parsing. Cleared by handleStateDown.
-	// sourcePeer → routeKey (family|prefix) → withdrawalInfo.
-	withdrawals map[string]map[string]withdrawalInfo
+	// sourcePeer → withdrawalKey → struct{}.
+	withdrawals map[string]map[withdrawalKey]struct{}
 
 	// updateRouteHook is called before each updateRoute RPC for test inspection.
 	// Nil in production (zero overhead).
@@ -183,7 +185,7 @@ func RunRouteServer(conn net.Conn) int {
 	rs := &RouteServer{
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
-		withdrawals: make(map[string]map[string]withdrawalInfo),
+		withdrawals: make(map[string]map[withdrawalKey]struct{}),
 	}
 
 	// ze.rs.chan.size overrides the per-source-peer worker channel capacity.
