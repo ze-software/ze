@@ -22,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
 
@@ -531,43 +532,15 @@ func ribEventList() any {
 	return map[string]any{"events": events}
 }
 
-// matchesPeer returns true if peerAddr matches the selector string.
-// Supports: *, IP, !IP (negation), IP,IP,IP (multi-IP).
-func matchesPeer(peerAddr, selector string) bool {
-	selector = strings.TrimSpace(selector)
-
-	if selector == "" || selector == "*" {
-		return true
-	}
-
-	// Negation: !IP matches all except that IP
-	if strings.HasPrefix(selector, "!") {
-		excludeIP := strings.TrimSpace(selector[1:])
-		return peerAddr != excludeIP
-	}
-
-	// Multi-IP: IP,IP,IP matches any in list
-	if strings.Contains(selector, ",") {
-		for s := range strings.SplitSeq(selector, ",") {
-			if strings.TrimSpace(s) == peerAddr {
-				return true
-			}
-		}
-		return false
-	}
-
-	// Single IP
-	return peerAddr == selector
-}
-
 // inboundEmpty clears Adj-RIB-In routes for matching peers.
-func (r *RIBManager) inboundEmpty(selector string) any {
+func (r *RIBManager) inboundEmpty(selectorStr string) any {
+	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.Lock()
 	cleared := 0
 	var purgedPeers []string
 
 	for peer, peerRIB := range r.bgpPeers {
-		if !matchesPeer(peer, selector) {
+		if !sel.MatchesPeerKey(peer) {
 			continue
 		}
 		cleared += peerRIB.Len()
@@ -587,13 +560,14 @@ func (r *RIBManager) inboundEmpty(selector string) any {
 // If family is non-empty, only routes from that family are resent.
 // Does NOT send "plugin session ready" - that's only for initial reconnect.
 // Uses cursor mode for efficient batched replay with delta encoding.
-func (r *RIBManager) outboundResend(selector, famStr string) any {
+func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
+	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.RLock()
 	var peersToResend []string
 	groupsToResend := make(map[string][]replayGroup)
 
 	for peer := range r.ribOut {
-		if !matchesPeer(peer, selector) {
+		if !sel.MatchesPeerKey(peer) {
 			continue
 		}
 		if !r.peerUp[peer] {
@@ -688,13 +662,14 @@ func (r *RIBManager) status() any {
 // retainRoutes marks a peer's Adj-RIB-In for retention during GR.
 // RFC 4724: Receiving speaker retains routes from restarting peer.
 // Called by bgp-gr plugin via DispatchCommandArgs("request bgp rib retain-routes", []string{peer}).
-func (r *RIBManager) retainRoutes(selector string) any {
+func (r *RIBManager) retainRoutes(selectorStr string) any {
+	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
 
 	retained := 0
 	for peer := range r.bgpPeers {
-		if !matchesPeer(peer, selector) {
+		if !sel.MatchesPeerKey(peer) {
 			continue
 		}
 		r.retainedPeers[peer] = true
@@ -707,13 +682,14 @@ func (r *RIBManager) retainRoutes(selector string) any {
 // releaseRoutes clears the retain flag and deletes Adj-RIB-In for matching peers.
 // RFC 4724: Called when restart timer expires or GR completes.
 // Called by bgp-gr plugin via DispatchCommandArgs("request bgp rib release-routes", []string{peer}).
-func (r *RIBManager) releaseRoutes(selector string) any {
+func (r *RIBManager) releaseRoutes(selectorStr string) any {
+	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.Lock()
 
 	released := 0
 	var purgedPeers []string
 	for peer := range r.retainedPeers {
-		if !matchesPeer(peer, selector) {
+		if !sel.MatchesPeerKey(peer) {
 			continue
 		}
 		delete(r.retainedPeers, peer)

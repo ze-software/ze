@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -38,7 +39,8 @@ func bestRouteKey(familyS, prefixS string) string {
 // item is written into it keyed by bestRouteKey(family, prefix). This lets
 // the "reason" terminal re-run the decision process with narration without
 // re-querying gatherCandidates under a second lock acquisition.
-func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]*Candidate) *bestSource {
+func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string][]*Candidate) *bestSource {
+	sel := selector.ParseDefault(selectorStr)
 	// Collect all unique (family, nlriKey) across matching peers.
 	type routeKey struct {
 		fam     family.Family
@@ -52,7 +54,7 @@ func newBestSource(r *RIBManager, selector string, stashCandidates map[string][]
 	// ribInPool iteration below is protected by that outer lock.
 	for _, protoPeers := range r.ribInPool {
 		for peer, peerRIB := range protoPeers {
-			if !matchesPeer(peer, selector) {
+			if !sel.MatchesPeerKey(peer) {
 				continue
 			}
 			peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
@@ -275,11 +277,17 @@ func (rr *RouteReflector) handleStateDown(peerAddr string) {
 
 	// Send batched withdrawals to all peers except the one that went down.
 	// Cap each RPC at withdrawalBatchSize prefixes to bound command length.
+	addr, err := netip.ParseAddr(peerAddr)
+	if err != nil {
+		logger().Error("invalid peer address in withdrawal", "peer", peerAddr, "error", err)
+		return
+	}
+	excludeSel := selector.ExcludeAddr(addr).String()
 	go func() {
 		for fam, prefixes := range byFamily {
 			for i := 0; i < len(prefixes); i += withdrawalBatchSize {
 				end := min(i+withdrawalBatchSize, len(prefixes))
-				rr.updateRoute("!"+peerAddr, nlriDelCmd(fam, strings.Join(prefixes[i:end], ",")))
+				rr.updateRoute(excludeSel, nlriDelCmd(fam, strings.Join(prefixes[i:end], ",")))
 			}
 		}
 	}()

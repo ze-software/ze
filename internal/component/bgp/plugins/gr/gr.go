@@ -27,12 +27,15 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"net/netip"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -123,9 +126,15 @@ func RunGRPlugin(conn net.Conn) int {
 		gp.dispatchCommand("request bgp rib mark-stale", peerAddr, "0", "2")
 	}
 	gp.state.onLLGREntryDone = func(peerAddr string, families []family.Family) {
+		addr, err := netip.ParseAddr(peerAddr)
+		if err != nil {
+			logger().Error("gr: invalid peer address in LLGR entry done", "peer", peerAddr, "error", err)
+			return
+		}
+		excludeSel := selector.ExcludeAddr(addr).String()
 		// RFC 9494: readvertise per-fam (not all-fam) to avoid resending unrelated families.
 		for _, fam := range families {
-			gp.dispatchCommand("clear bgp rib out", "!"+peerAddr, fam.String())
+			gp.dispatchCommand("clear bgp rib out", excludeSel, fam.String())
 		}
 		// Increment LLGR active count for egress filter fast-path.
 		if s := egressState.Load(); s != nil {

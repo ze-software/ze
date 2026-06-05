@@ -1,13 +1,17 @@
 // Design: docs/architecture/core-design.md — peer selector
 //
-// Package selector provides peer selection patterns for ze.
-// The selector syntax is used throughout ze for targeting peers.
+// Package selector provides typed peer selection patterns for ze.
+// Parse at CLI/RPC boundaries, pass the typed Selector internally,
+// convert back to string only when crossing to external plugins.
 //
 // Syntax:
 //   - "*" - all peers
 //   - "<ip>" - specific peer
-//   - "!<ip>" - all peers except this IP
+//   - "!<selector>" - all peers except those matching <selector>
 //   - "<ip>,<ip>,..." - multiple specific peers
+//   - "as<N>" - all peers with ASN N
+//   - "<glob>" - glob pattern (e.g. "192.168.*.*")
+//   - "<name>" - peer name
 package selector
 
 import (
@@ -15,10 +19,40 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
+
+// Kind identifies the selector variant. Zero is invalid.
+type Kind uint8
+
+const (
+	KindAll   Kind = iota + 1 // match all peers
+	KindAddr                  // single IP
+	KindAddrs                 // comma-separated IP list
+	KindName                  // peer name
+	KindASN                   // as<N>
+	KindGlob                  // IP glob pattern (e.g. 192.168.*.*)
+)
+
+var kindNames = [...]string{
+	KindAll:   "all",
+	KindAddr:  "addr",
+	KindAddrs: "addrs",
+	KindName:  "name",
+	KindASN:   "asn",
+	KindGlob:  "glob",
+}
+
+func (k Kind) String() string {
+	if int(k) < len(kindNames) {
+		return kindNames[k]
+	}
+	return "unknown"
+}
 
 var (
 	errEmptySelector                        = errors.New("empty selector")
@@ -28,29 +62,109 @@ var (
 	errInvalidSelectorEmptyIpInList         = errors.New("invalid selector: empty IP in list")
 )
 
-// Selector represents a peer selection pattern.
-// Supports: specific IP, all (*), exclude (!IP), or multiple IPs (ip,ip,ip).
+// Selector represents a typed peer selection pattern.
+// Exclusion is a flag that can negate any kind.
 type Selector struct {
-	All     bool                    // Match all peers
-	IP      netip.Addr              // Specific peer IP (if All=false and Exclude/IPs are empty)
-	Exclude netip.Addr              // Exclude this peer (if All=false and IP/IPs are empty)
-	IPs     []netip.Addr            // Multiple specific peers (if All=false and IP/Exclude are empty)
-	ipSet   map[netip.Addr]struct{} // O(1) lookup for multi-IP; built at parse time when len(IPs) > 16
+	kind    Kind
+	exclude bool                    // negate the match ("!" prefix)
+	ip      netip.Addr              // KindAddr (both include and exclude)
+	ips     []netip.Addr            // KindAddrs
+	ipSet   map[netip.Addr]struct{} // KindAddrs O(1) lookup when len(ips) > 16
+	name    string                  // KindName, KindGlob
+	asn     uint32                  // KindASN
 }
 
-// Parse parses a peer selector string.
+// Constructors — prefer these over Parse for in-process code.
+
+func All() *Selector                      { return &Selector{kind: KindAll} }
+func Addr(ip netip.Addr) *Selector        { return &Selector{kind: KindAddr, ip: ip} }
+func ExcludeAddr(ip netip.Addr) *Selector { return &Selector{kind: KindAddr, ip: ip, exclude: true} }
+
+func MultiAddr(ips []netip.Addr) *Selector {
+	sel := &Selector{kind: KindAddrs, ips: ips}
+	if len(ips) > 16 {
+		sel.ipSet = make(map[netip.Addr]struct{}, len(ips))
+		for _, ip := range ips {
+			sel.ipSet[ip] = struct{}{}
+		}
+	}
+	return sel
+}
+
+func PeerName(name string) *Selector    { return &Selector{kind: KindName, name: name} }
+func excludeName(name string) *Selector { return &Selector{kind: KindName, name: name, exclude: true} }
+func ASN(asn uint32) *Selector          { return &Selector{kind: KindASN, asn: asn} }
+func Glob(pattern string) *Selector     { return &Selector{kind: KindGlob, name: pattern} }
+
+// Accessors
+
+func (s *Selector) SelectorKind() Kind  { return s.kind }
+func (s *Selector) IsExclude() bool     { return s.exclude }
+func (s *Selector) IP() netip.Addr      { return s.ip }
+func (s *Selector) IPs() []netip.Addr   { return s.ips }
+func (s *Selector) NameValue() string   { return s.name }
+func (s *Selector) ASNValue() uint32    { return s.asn }
+func (s *Selector) GlobPattern() string { return s.name }
+
+// ParseDefault parses a selector string, treating empty/"*" as All.
+// On parse error, falls back to PeerName (fail-closed: no accidental match-all).
+func ParseDefault(s string) *Selector {
+	if s == "" || s == "*" {
+		return All()
+	}
+	sel, err := Parse(s)
+	if err != nil {
+		return PeerName(s)
+	}
+	return sel
+}
+
+// MatchesPeerKey returns true if the selector matches a peer identified by key.
+// The key may be an IP address string or a non-IP name (e.g. BMP "router1:peer1").
+// For KindASN and KindGlob, returns false (reactor-level resolution needed).
+func (sel *Selector) MatchesPeerKey(peerKey string) bool {
+	switch sel.kind {
+	case KindAll:
+		return true
+	case KindName:
+		match := peerKey == sel.name
+		if sel.exclude {
+			return !match
+		}
+		return match
+	case KindAddr:
+		addr, err := netip.ParseAddr(peerKey)
+		if err != nil {
+			match := peerKey == sel.ip.String()
+			if sel.exclude {
+				return !match
+			}
+			return match
+		}
+		return sel.Matches(addr)
+	case KindAddrs:
+		addr, err := netip.ParseAddr(peerKey)
+		if err != nil {
+			return false
+		}
+		return sel.Matches(addr)
+	default:
+		return false
+	}
+}
+
+// Parse parses a peer selector string into a typed Selector.
+// This is the boundary parser — call it at CLI/RPC entry points.
 //
-// Syntax:
-//   - "*" - all peers
-//   - "<ip>" - specific peer
-//   - "!<ip>" - all peers except this IP
-//   - "<ip>,<ip>,..." - multiple specific peers
-//
-// Invalid:
-//   - "!*" - cannot exclude all
-//   - "!" - empty exclude
-//   - "" - empty selector
-//   - "!<ip>,<ip>" - negation with multi-IP not supported
+// Detection order:
+//  1. "*" → KindAll
+//  2. "!*" → error
+//  3. "!" prefix → parse remainder, set exclude flag
+//  4. comma-separated → KindAddrs (negation rejected)
+//  5. valid IP → KindAddr
+//  6. "as<N>" (case-insensitive) → KindASN
+//  7. contains "*" → KindGlob
+//  8. non-empty → KindName
 func Parse(s string) (*Selector, error) {
 	s = strings.TrimSpace(s)
 
@@ -59,20 +173,11 @@ func Parse(s string) (*Selector, error) {
 	}
 
 	if s == "*" {
-		return &Selector{All: true}, nil
+		return All(), nil
 	}
 
 	if s == "!*" {
 		return nil, errInvalidSelectorCannotExcludeAllPeers
-	}
-
-	// Check for multi-IP (comma-separated) before checking negation
-	if strings.Contains(s, ",") {
-		// Negation with multi-IP not supported
-		if strings.HasPrefix(s, "!") {
-			return nil, errInvalidSelectorNegationWithMultiIp
-		}
-		return parseMultiIP(s)
 	}
 
 	if strings.HasPrefix(s, "!") {
@@ -80,21 +185,58 @@ func Parse(s string) (*Selector, error) {
 		if rest == "" {
 			return nil, errInvalidSelectorEmptyExclude
 		}
-		ip, err := netip.ParseAddr(rest)
-		if err != nil {
-			return nil, fmt.Errorf("invalid exclude IP %q: %w", rest, err)
+		if strings.Contains(rest, ",") {
+			return nil, errInvalidSelectorNegationWithMultiIp
 		}
-		return &Selector{Exclude: ip}, nil
+		inner, err := parsePositive(rest)
+		if err != nil {
+			return nil, fmt.Errorf("invalid exclude selector %q: %w", rest, err)
+		}
+		inner.exclude = true
+		return inner, nil
 	}
 
-	ip, err := netip.ParseAddr(s)
-	if err != nil {
-		return nil, fmt.Errorf("invalid peer IP %q: %w", s, err)
+	if strings.Contains(s, ",") {
+		return parseMultiIP(s)
 	}
-	return &Selector{IP: ip}, nil
+
+	return parsePositive(s)
 }
 
-// parseMultiIP parses comma-separated IPs.
+// parsePositive parses a non-negated, non-comma selector.
+func parsePositive(s string) (*Selector, error) {
+	if ip, err := netip.ParseAddr(s); err == nil {
+		return Addr(ip), nil
+	}
+
+	if asn, ok := parseASNSelector(s); ok {
+		return ASN(asn), nil
+	}
+
+	if strings.ContainsRune(s, '*') {
+		return Glob(s), nil
+	}
+
+	return PeerName(s), nil
+}
+
+func parseASNSelector(s string) (uint32, bool) {
+	if len(s) <= 2 {
+		return 0, false
+	}
+	if s[0] != 'a' && s[0] != 'A' {
+		return 0, false
+	}
+	if s[1] != 's' && s[1] != 'S' {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(s[2:], 10, 32)
+	if err != nil {
+		return 0, false
+	}
+	return uint32(n), true
+}
+
 func parseMultiIP(s string) (*Selector, error) {
 	parts, count := stringsx.SplitCount(s, ",")
 	ips := make([]netip.Addr, 0, count)
@@ -111,58 +253,62 @@ func parseMultiIP(s string) (*Selector, error) {
 		ips = append(ips, ip)
 	}
 
-	sel := &Selector{IPs: ips}
-	if len(ips) > 16 {
-		sel.ipSet = make(map[netip.Addr]struct{}, len(ips))
-		for _, ip := range ips {
-			sel.ipSet[ip] = struct{}{}
-		}
-	}
-	return sel, nil
+	return MultiAddr(ips), nil
 }
 
 // Matches returns true if the selector matches the given peer address.
+// For KindName, KindASN, and KindGlob, this method returns false because
+// IP-only matching is insufficient — use SelectorKind() to dispatch at the reactor level.
+// Exclusion is handled: KindAddr with exclude returns true for non-matching addresses.
 func (sel *Selector) Matches(peer netip.Addr) bool {
-	if sel.All {
-		return true
-	}
-
-	if len(sel.IPs) > 0 {
+	var match bool
+	switch sel.kind {
+	case KindAll:
+		match = true
+	case KindAddr:
+		match = sel.ip == peer
+	case KindAddrs:
 		if sel.ipSet != nil {
-			_, ok := sel.ipSet[peer]
-			return ok
+			_, match = sel.ipSet[peer]
+		} else {
+			match = slices.Contains(sel.ips, peer)
 		}
-		return slices.Contains(sel.IPs, peer)
+	case KindName, KindASN, KindGlob:
+		match = false
+	default:
+		match = false
 	}
-
-	if sel.IP.IsValid() {
-		return sel.IP == peer
+	if sel.exclude {
+		return !match
 	}
-
-	if sel.Exclude.IsValid() {
-		return sel.Exclude != peer
-	}
-
-	return false
+	return match
 }
 
-// String returns a string representation of the selector.
+// String returns the canonical string representation.
 func (sel *Selector) String() string {
-	if sel.All {
-		return "*"
-	}
-	if len(sel.IPs) > 0 {
-		strs := make([]string, len(sel.IPs))
-		for i, ip := range sel.IPs {
+	var base string
+	switch sel.kind {
+	case KindAll:
+		base = "*"
+	case KindAddr:
+		base = sel.ip.String()
+	case KindAddrs:
+		strs := make([]string, len(sel.ips))
+		for i, ip := range sel.ips {
 			strs[i] = ip.String()
 		}
-		return strings.Join(strs, ",")
+		base = strings.Join(strs, ",")
+	case KindName:
+		base = sel.name
+	case KindASN:
+		base = "as" + textbuf.Uint32(sel.asn)
+	case KindGlob:
+		base = sel.name
+	default:
+		return "<invalid>"
 	}
-	if sel.IP.IsValid() {
-		return sel.IP.String()
+	if sel.exclude {
+		return "!" + base
 	}
-	if sel.Exclude.IsValid() {
-		return "!" + sel.Exclude.String()
-	}
-	return "<invalid>"
+	return base
 }

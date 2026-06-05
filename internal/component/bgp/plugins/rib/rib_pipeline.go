@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -79,11 +80,12 @@ type inboundSource struct {
 	count   int
 }
 
-func newInboundSource(r *RIBManager, selector string) *inboundSource {
+func newInboundSource(r *RIBManager, selectorStr string) *inboundSource {
+	sel := selector.ParseDefault(selectorStr)
 	// Caller holds r.peerMu.RLock (see type doc); read r.bgpPeers under it.
 	var peers []inboundPeerRef
 	for peer, peerRIB := range r.bgpPeers {
-		if matchesPeer(peer, selector) {
+		if sel.MatchesPeerKey(peer) {
 			peers = append(peers, inboundPeerRef{peer: peer, peerRIB: peerRIB})
 		}
 	}
@@ -140,15 +142,16 @@ type protocolInboundSource struct {
 	count    int
 }
 
-func newProtocolInboundSource(r *RIBManager, protoID redistevents.ProtocolID, selector string) *protocolInboundSource {
+func newProtocolInboundSource(r *RIBManager, protoID redistevents.ProtocolID, selectorStr string) *protocolInboundSource {
+	sel := selector.ParseDefault(selectorStr)
 	protoPeers := r.ribInPool[protoID]
 	var peers []string
 	for peer := range protoPeers {
-		if selector == "" || matchesPeer(peer, selector) {
+		if sel.MatchesPeerKey(peer) {
 			peers = append(peers, peer)
 		}
 	}
-	return &protocolInboundSource{r: r, protoID: protoID, selector: selector, peers: peers}
+	return &protocolInboundSource{r: r, protoID: protoID, selector: selectorStr, peers: peers}
 }
 
 func (s *protocolInboundSource) Next() (RouteItem, bool) {
@@ -208,10 +211,11 @@ type outboundSource struct {
 	count   int
 }
 
-func newOutboundSource(r *RIBManager, selector string) *outboundSource {
+func newOutboundSource(r *RIBManager, selectorStr string) *outboundSource {
+	sel := selector.ParseDefault(selectorStr)
 	var peers []string
 	for peer := range r.ribOut {
-		if matchesPeer(peer, selector) {
+		if sel.MatchesPeerKey(peer) {
 			peers = append(peers, peer)
 		}
 	}

@@ -59,3 +59,29 @@ func BenchmarkSelectorMatches(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkSelectorParseKinds(b *testing.B) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"all", "*"},
+		{"addr", "10.0.0.1"},
+		{"exclude", "!10.0.0.1"},
+		{"name", "peer1"},
+		{"asn", "as65000"},
+		{"glob", "192.168.*.*"},
+	}
+	for _, c := range cases {
+		b.Run(c.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for range b.N {
+				sel, err := Parse(c.input)
+				if err != nil {
+					b.Fatal(err)
+				}
+				_ = sel
+			}
+		})
+	}
+}

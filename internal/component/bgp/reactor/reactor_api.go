@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -991,21 +992,45 @@ func (a *reactorAPIAdapter) getPluginEncoder(name string) string {
 	return ""
 }
 
-// getMatchingPeers returns peers matching the selector.
-// Supports: "*" (all peers), exact IP, glob patterns (e.g., "192.168.*.*"),
-// or "!addr" exclusion (all peers except the named one).
-func (a *reactorAPIAdapter) getMatchingPeers(selector string) []*Peer {
+// getMatchingPeers returns peers matching the selector string.
+// Parses the string once to a typed selector, then dispatches on Kind.
+func (a *reactorAPIAdapter) getMatchingPeers(selectorStr string) []*Peer {
+	sel := parseReactorSel(selectorStr)
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
+	return a.getMatchingPeersSel(sel)
+}
 
-	// Exclusion: "!addr" returns all peers except the one matching addr.
-	if strings.HasPrefix(selector, "!") {
-		excluded := a.getMatchingPeersLocked(selector[1:])
-		excludeSet := make(map[*Peer]struct{}, len(excluded))
-		for _, p := range excluded {
+// parseReactorSel parses a selector string, treating empty as all-peers.
+// Handles reactor-specific "addr:port" format before delegating to selector.Parse.
+func parseReactorSel(s string) *selector.Selector {
+	if s == "" || s == "*" {
+		return selector.All()
+	}
+	raw := s
+	negated := strings.HasPrefix(s, "!")
+	if negated {
+		raw = s[1:]
+	}
+	if ap, err := netip.ParseAddrPort(raw); err == nil {
+		if negated {
+			return selector.ExcludeAddr(ap.Addr())
+		}
+		return selector.Addr(ap.Addr())
+	}
+	return selector.ParseDefault(s)
+}
+
+// getMatchingPeersSel resolves peers matching a typed selector.
+// Caller must hold a.r.mu (read or write).
+func (a *reactorAPIAdapter) getMatchingPeersSel(sel *selector.Selector) []*Peer {
+	if sel.IsExclude() {
+		included := a.matchPositive(sel)
+		excludeSet := make(map[*Peer]struct{}, len(included))
+		for _, p := range included {
 			excludeSet[p] = struct{}{}
 		}
-		peers := make([]*Peer, 0, len(a.r.peers)-len(excluded))
+		peers := make([]*Peer, 0, len(a.r.peers)-len(included))
 		for _, peer := range a.r.peers {
 			if _, skip := excludeSet[peer]; !skip {
 				peers = append(peers, peer)
@@ -1013,57 +1038,89 @@ func (a *reactorAPIAdapter) getMatchingPeers(selector string) []*Peer {
 		}
 		return peers
 	}
-
-	return a.getMatchingPeersLocked(selector)
+	return a.matchPositive(sel)
 }
 
-// getMatchingPeersLocked resolves a positive selector (no "!" prefix).
+// matchPositive resolves the positive (non-excluded) peers for a selector.
 // Caller must hold a.r.mu (read or write).
-func (a *reactorAPIAdapter) getMatchingPeersLocked(selector string) []*Peer {
-	// Fast path: all peers
-	if selector == "*" || selector == "" {
+func (a *reactorAPIAdapter) matchPositive(sel *selector.Selector) []*Peer {
+	switch sel.SelectorKind() {
+	case selector.KindAll:
 		peers := make([]*Peer, 0, len(a.r.peers))
 		for _, peer := range a.r.peers {
 			peers = append(peers, peer)
 		}
 		return peers
-	}
 
-	// Fast path: exact match by parsed AddrPort key.
-	if key := parsePeerAddrToKey(selector); key.IsValid() {
-		if peer, ok := a.r.peers[key]; ok {
-			return []*Peer{peer}
+	case selector.KindAddr:
+		if key := addrToKey(sel.IP()); key.IsValid() {
+			if peer, ok := a.r.peers[key]; ok {
+				return []*Peer{peer}
+			}
 		}
-	}
-
-	// Try selector as peer name or bare IP (peers are selectable by either).
-	for _, peer := range a.r.peers {
-		if peer.settings.Name == selector || peer.settings.Address.String() == selector {
-			return []*Peer{peer}
+		addrStr := sel.IP().String()
+		for _, peer := range a.r.peers {
+			if peer.settings.Name == addrStr || peer.settings.Address.String() == addrStr {
+				return []*Peer{peer}
+			}
 		}
-	}
+		return nil
 
-	// Try selector as ASN: "as<N>" (case-insensitive) matches all peers with that PeerAS.
-	if len(selector) > 2 && (selector[0] == 'a' || selector[0] == 'A') && (selector[1] == 's' || selector[1] == 'S') {
-		if asn, err := strconv.ParseUint(selector[2:], 10, 32); err == nil {
-			var peers []*Peer
-			for _, peer := range a.r.peers {
-				if uint64(peer.settings.PeerAS) == asn {
+	case selector.KindAddrs:
+		var peers []*Peer
+		for _, ip := range sel.IPs() {
+			if key := addrToKey(ip); key.IsValid() {
+				if peer, ok := a.r.peers[key]; ok {
 					peers = append(peers, peer)
 				}
 			}
-			return peers
 		}
+		return peers
+
+	case selector.KindName:
+		name := sel.NameValue()
+		for _, peer := range a.r.peers {
+			if peer.settings.Name == name {
+				return []*Peer{peer}
+			}
+		}
+		return nil
+
+	case selector.KindASN:
+		// Name has priority over ASN: a peer named "as65001" matches before ASN 65001.
+		// Use a fresh non-excluded ASN selector for the name string (sel.String() would include "!" for excluded selectors).
+		asnName := selector.ASN(sel.ASNValue()).String()
+		for _, peer := range a.r.peers {
+			if peer.settings.Name == asnName {
+				return []*Peer{peer}
+			}
+		}
+		asn := sel.ASNValue()
+		var peers []*Peer
+		for _, peer := range a.r.peers {
+			if peer.settings.PeerAS == asn {
+				peers = append(peers, peer)
+			}
+		}
+		return peers
+
+	case selector.KindGlob:
+		pattern := sel.GlobPattern()
+		var peers []*Peer
+		for addrPort, peer := range a.r.peers {
+			if ipGlobMatch(pattern, addrPort.Addr().String()) {
+				peers = append(peers, peer)
+			}
+		}
+		return peers
 	}
 
-	// Glob pattern match against the IP portion of each key.
-	var peers []*Peer
-	for addrPort, peer := range a.r.peers {
-		if ipGlobMatch(selector, addrPort.Addr().String()) {
-			peers = append(peers, peer)
-		}
-	}
-	return peers
+	return nil
+}
+
+// addrToKey converts a netip.Addr to the AddrPort key format used by the reactor.
+func addrToKey(addr netip.Addr) netip.AddrPort {
+	return netip.AddrPortFrom(addr, DefaultBGPPort)
 }
 
 // ipGlobMatch checks if an IP address matches a glob pattern.

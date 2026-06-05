@@ -11,6 +11,7 @@ import (
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 )
 
 var (
@@ -72,14 +73,15 @@ func (r *AdjRIBInManager) status() any {
 }
 
 // show returns routes for a peer as human-readable JSON.
-func (r *AdjRIBInManager) show(selector string) any {
+func (r *AdjRIBInManager) show(selectorStr string) any {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
+	sel := selector.ParseDefault(selectorStr)
 	result := make(map[string][]map[string]any)
 
 	for peer, routes := range r.ribIn {
-		if !matchesPeer(peer, selector) {
+		if !sel.MatchesPeerKey(peer) {
 			continue
 		}
 		routeList := make([]map[string]any, 0, routes.Len())
@@ -254,17 +256,4 @@ func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) 
 	}
 
 	return statusDone, map[string]any{"routes": routes}, nil
-}
-
-// matchesPeer returns true if peerAddr matches the selector string.
-// Supports: *, empty (all), IP, !IP (negation).
-func matchesPeer(peerAddr, selector string) bool {
-	selector = strings.TrimSpace(selector)
-	if selector == "" || selector == "*" {
-		return true
-	}
-	if strings.HasPrefix(selector, "!") {
-		return peerAddr != strings.TrimSpace(selector[1:])
-	}
-	return peerAddr == selector
 }

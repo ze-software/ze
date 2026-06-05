@@ -7,11 +7,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -106,7 +108,12 @@ func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[strin
 		byFamily[info.Family] = append(byFamily[info.Family], info.Prefix)
 	}
 
-	selector := "!" + peerAddr
+	addr, err := netip.ParseAddr(peerAddr)
+	if err != nil {
+		logger().Error("invalid peer address in withdrawal", "peer", peerAddr, "error", err)
+		return
+	}
+	sel := selector.ExcludeAddr(addr).String()
 	var buf strings.Builder
 
 	for fam, prefixes := range byFamily {
@@ -121,7 +128,7 @@ func (rs *RouteServer) sendBatchedWithdrawals(peerAddr string, entries map[strin
 				buf.WriteString(" del ")
 				buf.WriteString(p)
 			}
-			rs.updateRoute(selector, buf.String())
+			rs.updateRoute(sel, buf.String())
 		}
 	}
 }
