@@ -1,6 +1,6 @@
 // Design: docs/architecture/cli/plugin-modes.md — ze_appliance build tag validation
 //
-//go:build ze_appliance
+//go:build ze_appliance && !ze_setup
 
 package main
 
@@ -17,7 +17,7 @@ func TestZeApplianceBinaryCommands(t *testing.T) {
 		seen[root.Name] = true
 	}
 
-	if !seen["appliance"] {
-		t.Fatal("root \"appliance\" missing in ze_appliance build")
+	if seen["appliance"] {
+		t.Fatal("root \"appliance\" unexpectedly registered in ze_appliance-only build; appliance commands are in ze_setup")
 	}
 }
