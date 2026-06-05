@@ -48,7 +48,7 @@ func setTestDockerCheck(t *testing.T, fn func() error) {
 	t.Cleanup(func() { kernelDockerCheckFn = old })
 }
 
-func setTestDockerBuild(t *testing.T, fn func(string, string, string) error) {
+func setTestDockerBuild(t *testing.T, fn func(string, string, string, string) error) {
 	t.Helper()
 	old := kernelDockerBuildFn
 	kernelDockerBuildFn = fn
@@ -68,7 +68,7 @@ func TestKernelResolvesCache(t *testing.T) {
 
 	version := "7.0.11"
 	arch := archAMD64
-	cached := kernelCachePath(version, arch)
+	cached := kernelCachePath(version, arch+"-"+ProfileQEMU)
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestKernelResolvesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel(version, arch)
+	got, err := resolveKernel(version, arch, ProfileQEMU)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestKernelDownloadsAndCaches(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL)
 	env.ResetCache()
 
-	got, err := resolveKernel("7.0.11", archAMD64)
+	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestKernelDownloadChecksumMismatch(t *testing.T) {
 
 	setTestDockerCheck(t, func() error { return errors.New("no docker") })
 
-	_, err := resolveKernel("7.0.11", archAMD64)
+	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
 	if err == nil {
 		t.Fatal("expected error from checksum mismatch + no docker fallback")
 	}
@@ -141,14 +141,14 @@ func TestKernelFallsBackToDocker(t *testing.T) {
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
 	setTestDockerCheck(t, func() error { return nil })
-	setTestDockerBuild(t, func(version, arch, destPath string) error {
+	setTestDockerBuild(t, func(version, arch, profile, destPath string) error {
 		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 			return err
 		}
 		return os.WriteFile(destPath, []byte("docker-built-kernel"), 0o644)
 	})
 
-	got, err := resolveKernel("7.0.11", archAMD64)
+	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestKernelFailsWithoutDocker(t *testing.T) {
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
 	setTestDockerCheck(t, func() error { return errors.New("docker not found") })
 
-	_, err := resolveKernel("7.0.11", archAMD64)
+	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
 	if err == nil {
 		t.Fatal("expected error when both download and docker fail")
 	}
@@ -184,12 +184,19 @@ func TestKernelArchFlag(t *testing.T) {
 	}
 }
 
+func TestKernelProfileFlag(t *testing.T) {
+	code := runKernel([]string{"--profile", "invalid"})
+	if code != exitError {
+		t.Errorf("runKernel(--profile invalid) = %d, want %d", code, exitError)
+	}
+}
+
 func TestKernelVersionFlag(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	version := "6.12.9"
-	cached := kernelCachePath(version, archAMD64)
+	cached := kernelCachePath(version, archAMD64+"-"+ProfileQEMU)
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -210,14 +217,14 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("no network") })
 	setTestDockerCheck(t, func() error { return nil })
-	setTestDockerBuild(t, func(version, arch, destPath string) error {
+	setTestDockerBuild(t, func(version, arch, profile, destPath string) error {
 		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 			return err
 		}
 		return os.WriteFile(destPath, []byte("built-kernel"), 0o644)
 	})
 
-	got, err := resolveKernel("7.0.11", archAMD64)
+	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -249,7 +256,7 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cached := kernelCachePath(defaultKernelVersion, archAMD64)
+	cached := kernelCachePath(defaultKernelVersion, archAMD64+"-"+ProfileQEMU)
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +267,7 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 	// Pre-cache at the host arch too, so exit code alone can't prove the config was read.
 	// If runKernel ignores the config and falls back to runtime.GOARCH, it would find this
 	// cache entry and succeed -- but the output path would not contain "amd64".
-	hostCached := kernelCachePath(defaultKernelVersion, runtime.GOARCH)
+	hostCached := kernelCachePath(defaultKernelVersion, runtime.GOARCH+"-"+ProfileQEMU)
 	if hostCached != cached {
 		if err := os.MkdirAll(filepath.Dir(hostCached), 0o755); err != nil {
 			t.Fatal(err)
@@ -293,6 +300,59 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 	}
 }
 
+func TestKernelReadsProfileFromAppliance(t *testing.T) {
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+
+	appDir := t.TempDir()
+	oldBase := baseDir
+	baseDir = appDir
+	defer func() { baseDir = oldBase }()
+
+	cfg := DefaultConfig("hwapp")
+	cfg.Image.KernelProfile = ProfileHardware
+	appPath := filepath.Join(appDir, "hwapp")
+	if err := os.MkdirAll(appPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfgData, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(appPath, "appliance.json"), cfgData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cached := kernelCachePath(defaultKernelVersion, archAMD64+"-"+ProfileHardware)
+	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cached, []byte("fake-hardware-kernel"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	code := runKernel([]string{"hwapp"})
+
+	w.Close() //nolint:errcheck // test pipe
+	os.Stdout = old
+
+	if code != exitOK {
+		t.Fatalf("runKernel(hwapp) = %d, want %d", code, exitOK)
+	}
+
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
+
+	if !strings.Contains(output, "profile=hardware") {
+		t.Errorf("expected output to mention profile=hardware, got %q", output)
+	}
+}
+
 func TestKernelEnvURL(t *testing.T) {
 	t.Chdir(t.TempDir())
 	cacheDir := t.TempDir()
@@ -320,7 +380,7 @@ func TestKernelEnvURL(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL+"/custom-base")
 	env.ResetCache()
 
-	_, err := resolveKernel("7.0.11", archAMD64)
+	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}

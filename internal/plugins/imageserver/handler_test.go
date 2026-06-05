@@ -432,6 +432,9 @@ func TestServeDynamicBootIPXE(t *testing.T) {
 	if !strings.Contains(script, "ip=dhcp") {
 		t.Errorf("missing ip=dhcp in script:\n%s", script)
 	}
+	if !strings.Contains(script, "console=tty0 console=ttyS0,115200n8 console=ttyAMA0,115200n8") {
+		t.Errorf("missing console args in script:\n%s", script)
+	}
 	if strings.Contains(script, "ze.port=") {
 		t.Errorf("port 80 should not include ze.port in script:\n%s", script)
 	}

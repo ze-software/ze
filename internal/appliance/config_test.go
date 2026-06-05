@@ -170,6 +170,23 @@ func TestConfigValidation(t *testing.T) {
 			modify: func(c *ApplianceConfig) { c.Image.Arch = "arm64" },
 		},
 		{
+			name:   "kernel profile qemu valid",
+			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = ProfileQEMU },
+		},
+		{
+			name:   "kernel profile hardware valid",
+			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = ProfileHardware },
+		},
+		{
+			name:   "kernel profile empty valid",
+			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = "" },
+		},
+		{
+			name:    "kernel profile invalid",
+			modify:  func(c *ApplianceConfig) { c.Image.KernelProfile = "bare-metal" },
+			wantErr: "must be qemu or hardware",
+		},
+		{
 			name:    "qemu port below 1024",
 			modify:  func(c *ApplianceConfig) { c.QEMU.SSHPort = 1023 },
 			wantErr: "must be 1024-65535",

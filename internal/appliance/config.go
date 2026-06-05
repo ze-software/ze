@@ -48,8 +48,9 @@ type DeviceConfig struct {
 }
 
 type ImageConfig struct {
-	Arch      string `json:"arch"`
-	SizeBytes int64  `json:"size-bytes"`
+	Arch          string `json:"arch"`
+	SizeBytes     int64  `json:"size-bytes"`
+	KernelProfile string `json:"kernel-profile"`
 }
 
 type QEMUConfig struct {
@@ -76,6 +77,9 @@ const (
 	archAMD64       = "amd64"
 	archARM64       = "arm64"
 	defaultUsername = "admin"
+
+	ProfileQEMU     = "qemu"
+	ProfileHardware = "hardware"
 )
 
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
@@ -106,8 +110,9 @@ func DefaultConfig(name string) ApplianceConfig {
 			UpdatePort: 443,
 		},
 		Image: ImageConfig{
-			Arch:      archAMD64,
-			SizeBytes: 2 * 1024 * 1024 * 1024, // 2 GiB
+			Arch:          archAMD64,
+			SizeBytes:     2 * 1024 * 1024 * 1024, // 2 GiB
+			KernelProfile: ProfileQEMU,
 		},
 		QEMU: QEMUConfig{
 			SSHPort:     2222,
@@ -152,6 +157,9 @@ func (c *ApplianceConfig) Validate() error {
 	}
 	if c.Image.Arch != archAMD64 && c.Image.Arch != archARM64 {
 		return fmt.Errorf("image.arch %q: must be amd64 or arm64", c.Image.Arch)
+	}
+	if c.Image.KernelProfile != "" && c.Image.KernelProfile != ProfileQEMU && c.Image.KernelProfile != ProfileHardware {
+		return fmt.Errorf("image.kernel-profile %q: must be qemu or hardware", c.Image.KernelProfile)
 	}
 	if c.QEMU.SSHPort != 0 {
 		if c.QEMU.SSHPort < 1024 || c.QEMU.SSHPort > 65535 {

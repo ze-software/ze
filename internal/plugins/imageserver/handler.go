@@ -122,7 +122,7 @@ func (h *imageHandler) serveBootIPXE(w http.ResponseWriter, r *http.Request) {
 
 	script := tb.Reset().
 		Str("#!ipxe\nkernel ").Str(baseURL).Str("/install/boot/vmlinuz ze.server=").Str(h.serverAddr).
-		Str(" ze.image=").Str(imgName).Str(portArg).Str(" ip=dhcp panic=-1\n").
+		Str(" ze.image=").Str(imgName).Str(portArg).Str(" ip=dhcp panic=-1 console=tty0 console=ttyS0,115200n8 console=ttyAMA0,115200n8\n").
 		Str("initrd ").Str(baseURL).Str("/install/boot/initrd.img.gz\n").
 		Str("boot\n").
 		String()

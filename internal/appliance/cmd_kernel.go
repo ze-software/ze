@@ -32,7 +32,7 @@ var _ = env.MustRegister(env.EnvEntry{
 
 var (
 	kernelDockerCheckFn = defaultDockerCheck
-	kernelDockerBuildFn = defaultDockerBuild
+	kernelDockerBuildFn = defaultDockerBuild // func(version, arch, profile, destPath string) error
 )
 
 func init() {
@@ -42,6 +42,7 @@ func init() {
 func runKernel(args []string) int {
 	fs := flag.NewFlagSet("appliance kernel", flag.ContinueOnError)
 	archFlag := fs.String("arch", "", "Target architecture: amd64 or arm64 (default: from appliance config or host)")
+	profileFlag := fs.String("profile", "", "Kernel profile: qemu or hardware (default: from appliance config or qemu)")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
 
 	fs.Usage = func() {
@@ -52,11 +53,13 @@ func runKernel(args []string) int {
 			Sections: []helpfmt.HelpSection{
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--arch <arch>", Desc: "Target architecture: amd64 or arm64 (default: from appliance config or host)"},
+					{Name: "--profile <profile>", Desc: "Kernel profile: qemu or hardware (default: from appliance config or qemu)"},
 					{Name: "--version <ver>", Desc: "Linux kernel version (default: " + defaultKernelVersion + ")"},
 				}},
 			},
 			Examples: []string{
 				"ze appliance kernel prod",
+				"ze appliance kernel --profile hardware prod",
 				"ze appliance kernel --arch amd64",
 				"ze appliance kernel --version 6.12.9 prod",
 			},
@@ -69,7 +72,8 @@ func runKernel(args []string) int {
 	}
 
 	arch := *archFlag
-	if arch == "" && fs.NArg() > 0 {
+	profile := *profileFlag
+	if fs.NArg() > 0 {
 		name := fs.Arg(0)
 		dir := getBaseDir()
 		cfg, err := LoadConfig(ConfigPath(dir, name))
@@ -77,29 +81,41 @@ func runKernel(args []string) int {
 			cliErrorf("load appliance %q config: %v", name, err)
 			return exitError
 		}
-		arch = cfg.Image.Arch
+		if arch == "" {
+			arch = cfg.Image.Arch
+		}
+		if profile == "" && cfg.Image.KernelProfile != "" {
+			profile = cfg.Image.KernelProfile
+		}
 	}
 	if arch == "" {
 		arch = runtime.GOARCH
+	}
+	if profile == "" {
+		profile = ProfileQEMU
 	}
 
 	if arch != archAMD64 && arch != archARM64 {
 		cliErrorf("arch %q must be amd64 or arm64", arch)
 		return exitError
 	}
+	if profile != ProfileQEMU && profile != ProfileHardware {
+		cliErrorf("profile %q must be qemu or hardware", profile)
+		return exitError
+	}
 
-	path, err := resolveKernel(*versionFlag, arch)
+	path, err := resolveKernel(*versionFlag, arch, profile)
 	if err != nil {
 		cliErrorf("%v", err)
 		return exitError
 	}
 
-	fmt.Fprintf(os.Stdout, "kernel ready: %s\n", path) //nolint:errcheck // CLI output
+	fmt.Fprintf(os.Stdout, "kernel ready: %s (profile=%s)\n", path, profile) //nolint:errcheck // CLI output
 	return exitOK
 }
 
-func resolveKernel(version, arch string) (string, error) {
-	cached := kernelCachePath(version, arch)
+func resolveKernel(version, arch, profile string) (string, error) {
+	cached := kernelCachePath(version, arch+"-"+profile)
 	if _, err := os.Stat(cached); err == nil {
 		return cached, nil
 	}
@@ -107,7 +123,7 @@ func resolveKernel(version, arch string) (string, error) {
 	toolsDst := filepath.Join(kernelToolsDir, "build", kernelFileName)
 
 	if baseURL := env.Get(kernelURLKey); baseURL != "" {
-		artifactURL := baseURL + "/" + version + "-" + arch + "/" + kernelFileName
+		artifactURL := baseURL + "/" + version + "-" + arch + "-" + profile + "/" + kernelFileName
 		checksumURL := artifactURL + checksumSuffix
 		if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
 			if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
@@ -123,7 +139,7 @@ func resolveKernel(version, arch string) (string, error) {
 		return "", fmt.Errorf("installer kernel not cached; install Docker to build locally or set %s for remote download", kernelURLKey)
 	}
 
-	if err := kernelDockerBuildFn(version, arch, cached); err != nil {
+	if err := kernelDockerBuildFn(version, arch, profile, cached); err != nil {
 		return "", fmt.Errorf("docker kernel build: %w", err)
 	}
 
@@ -143,7 +159,7 @@ func defaultDockerCheck() error {
 	return cmd.Run()
 }
 
-func defaultDockerBuild(version, arch, destPath string) error {
+func defaultDockerBuild(version, arch, profile, destPath string) error {
 	srcDir, err := filepath.Abs(kernelToolsDir)
 	if err != nil {
 		return fmt.Errorf("resolve kernel tools dir: %w", err)
@@ -176,6 +192,7 @@ func defaultDockerBuild(version, arch, destPath string) error {
 	runCmd := exec.CommandContext(runCtx, "docker", "run", "--rm", //nolint:gosec // controlled args
 		"-e", "LINUX_VERSION="+version,
 		"-e", "ARCH="+arch,
+		"-e", "PROFILE="+profile,
 		"-v", srcDir+":/src:ro",
 		"-v", outDir+":/out",
 		kernelDockerImage, "sh", "/src/build.sh",
