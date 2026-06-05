@@ -405,7 +405,7 @@ The base config is read first, then per-appliance `ze.conf` is appended. Later `
 | `assemble <name>` | Build ZeFS database only (auto-deletes; use `--keep` to retain) |
 | `build <name>` | Full image: assemble + gok + ext4 inject + checksum + manifest |
 | `build --all` | Build all appliances |
-| `kernel [--arch] [--version] [<name>]` | Download or build the installer kernel |
+| `kernel [--arch] [--profile] [--version] [<name>]` | Download or build the installer kernel (reads `kernel-profile` from config) |
 | `initrd` | Download or build the installer initrd |
 | `iso <name>` | Bootable installer ISO from an existing image |
 | `iso --check` | Check ISO prerequisites without building |
@@ -436,7 +436,8 @@ missing. The `kernel` and `initrd` commands handle downloading or building these
 artifacts automatically:
 
     bin/ze-setup appliance iso --check               # report readiness
-    bin/ze-setup appliance kernel prod                # download or build kernel
+    bin/ze-setup appliance kernel prod                # download or build kernel (reads profile from config)
+    bin/ze-setup appliance kernel --profile hardware prod   # explicit hardware profile
     bin/ze-setup appliance initrd                    # download or build initrd
     bin/ze-setup appliance iso lab                   # build ISO
 
@@ -469,10 +470,10 @@ side by side.
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
 
     bin/ze-setup appliance build lab
+    bin/ze-setup appliance kernel --profile hardware lab    # build hardware kernel
     bin/ze-setup appliance iso lab
     bin/ze-setup appliance iso --image ze-20260601-120000.img lab
     bin/ze-setup appliance iso --output /path/to/lab.iso lab
-    make -C tools/installer-kernel ARCH=arm64
     bin/ze-setup appliance iso --kernel tools/installer-kernel/build/Image lab
 
 The ISO is an installer envelope around the existing raw gokrazy image. The image

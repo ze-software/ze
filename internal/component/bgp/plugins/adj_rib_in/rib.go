@@ -181,6 +181,7 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 			{Name: "request adj-rib-in enable-validation"},
 			{Name: "request adj-rib-in accept-routes"},
 			{Name: "request adj-rib-in reject-routes"},
+			{Name: "request adj-rib-in batch-validate"},
 			{Name: "request adj-rib-in revalidate"},
 		},
 	})

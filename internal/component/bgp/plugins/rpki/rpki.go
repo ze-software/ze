@@ -521,58 +521,134 @@ func (rp *RPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, m
 	}
 }
 
-// validationWorker is a long-lived goroutine that processes validation decisions.
-// It drains validateCh and issues DispatchCommand calls. adj-rib-in buffers
-// early decisions, so no retry loop is needed for event ordering races.
+const (
+	maxBatchSize = 128
+	batchWait    = 1 * time.Millisecond
+)
+
+// validationWorker is a long-lived goroutine that coalesces validation
+// decisions from validateCh into batches and dispatches them to adj-rib-in
+// in a single command. Bounded batch size (maxBatchSize) and bounded wait
+// (batchWait) control latency. Shutdown drains remaining decisions.
 func (rp *RPKIPlugin) validationWorker() {
+	batch := make([]validationRequest, 0, maxBatchSize)
+	timer := time.NewTimer(batchWait)
+	timer.Stop()
+
 	for {
 		select {
 		case <-rp.stopCh:
+			rp.drainAndDispatch(batch[:0])
 			return
 		case req := <-rp.validateCh:
-			rp.dispatchValidation(req)
+			if req.state == ValidationNotValidated {
+				continue
+			}
+			batch = append(batch[:0], req)
+		}
+
+		timer.Reset(batchWait)
+		timerFired := false
+	fill:
+		for len(batch) < maxBatchSize {
+			select {
+			case req := <-rp.validateCh:
+				if req.state == ValidationNotValidated {
+					continue
+				}
+				batch = append(batch, req)
+			case <-timer.C:
+				timerFired = true
+				break fill
+			case <-rp.stopCh:
+				if !timer.Stop() {
+					<-timer.C
+				}
+				rp.drainAndDispatch(batch)
+				return
+			}
+		}
+		if !timerFired && !timer.Stop() {
+			<-timer.C
+		}
+
+		rp.dispatchBatch(batch)
+		batch = batch[:0]
+	}
+}
+
+// drainAndDispatch drains remaining validateCh items and dispatches them
+// in maxBatchSize chunks so the lock hold time stays bounded.
+func (rp *RPKIPlugin) drainAndDispatch(batch []validationRequest) {
+	for {
+		select {
+		case req := <-rp.validateCh:
+			if req.state != ValidationNotValidated {
+				batch = append(batch, req)
+			}
+			if len(batch) >= maxBatchSize {
+				rp.dispatchBatch(batch)
+				batch = batch[:0]
+			}
+		default:
+			rp.dispatchBatch(batch)
+			return
 		}
 	}
 }
 
-// dispatchValidation sends a single accept/reject command to adj-rib-in.
-func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
-	if req.state == ValidationNotValidated {
+// dispatchBatch sends a batch of validation decisions to adj-rib-in
+// as a single batch-validate command with stride-6 args.
+func (rp *RPKIPlugin) dispatchBatch(batch []validationRequest) {
+	if len(batch) == 0 {
 		return
 	}
 
-	if m := rpkiMetricsPtr.Load(); m != nil {
-		m.validationOutcomes.With(validationStateString(req.state)).Inc()
-	}
-
-	pathIDStr := textbuf.Uint32(req.pathID)
-
-	command := "request adj-rib-in accept-routes"
-	stateStr := "2" // NotFound
-	if req.state == ValidationValid {
-		stateStr = "1"
-	}
-	args := []string{req.peerAddr, req.family, req.prefix, pathIDStr, stateStr}
-
-	if req.state == ValidationInvalid {
-		command = "request adj-rib-in reject-routes"
-		args = []string{req.peerAddr, req.family, req.prefix, pathIDStr}
-	} else if req.aspaState != aspaStateNone {
-		if aspaOverridesAccept(req.aspaState,
-			uint8(rp.aspaInvalidAction.Load()),   //nolint:gosec // stored as uint8, fits
-			uint8(rp.aspaUnknownAction.Load())) { //nolint:gosec // stored as uint8, fits
-			command = "request adj-rib-in reject-routes"
-			args = []string{req.peerAddr, req.family, req.prefix, pathIDStr}
-		}
-	}
+	args := rp.buildBatchArgs(batch)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	_, _, err := rp.plugin.DispatchCommandArgs(ctx, command, args, "")
+	_, _, err := rp.plugin.DispatchCommandArgs(ctx, "request adj-rib-in batch-validate", args, "")
 	cancel()
 	if err != nil {
-		logger().Warn("rpki: validation command failed",
-			"command", command, "args", args, "error", err)
+		logger().Warn("rpki: batch validation command failed",
+			"count", len(batch), "error", err)
 	}
+}
+
+// buildBatchArgs converts validation decisions into stride-6 string args
+// for the batch-validate command. Updates metrics counters.
+func (rp *RPKIPlugin) buildBatchArgs(batch []validationRequest) []string {
+	m := rpkiMetricsPtr.Load()
+
+	args := make([]string, 0, len(batch)*6)
+	invalidAction := uint8(rp.aspaInvalidAction.Load()) //nolint:gosec // stored as uint8, fits
+	unknownAction := uint8(rp.aspaUnknownAction.Load()) //nolint:gosec // stored as uint8, fits
+
+	var buf textbuf.Buffer
+	for i := range batch {
+		req := &batch[i]
+		if m != nil {
+			m.validationOutcomes.With(validationStateString(req.state)).Inc()
+		}
+
+		pathIDStr := buf.Reset().Uint32(req.pathID).String()
+
+		reject := req.state == ValidationInvalid
+		if !reject && req.aspaState != aspaStateNone {
+			reject = aspaOverridesAccept(req.aspaState, invalidAction, unknownAction)
+		}
+
+		if reject {
+			args = append(args, "r", req.peerAddr, req.family, req.prefix, pathIDStr, "0")
+		} else {
+			stateStr := "2"
+			if req.state == ValidationValid {
+				stateStr = "1"
+			}
+			args = append(args, "a", req.peerAddr, req.family, req.prefix, pathIDStr, stateStr)
+		}
+	}
+	return args
 }
 
 // originASFromParsed extracts origin AS from a pre-parsed AS_PATH ([]uint32).

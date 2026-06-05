@@ -150,7 +150,8 @@ Use the structured appliance builder (full reference:
 
 ```bash
 ze appliance init prod
-# For ARM targets, set image.arch to "arm64" in appliance.json before build.
+# For real hardware: set image.kernel-profile to "hardware" and
+# image.arch to match the target CPU in appliance.json before build.
 ze appliance build prod
 ```
 
@@ -164,13 +165,22 @@ The target PXE-boots a kernel + initrd, *not* the disk image. Build both for the
 target architecture:
 
 ```bash
-make -C tools/installer-kernel ARCH=amd64    # build/Image for x86_64; ARCH=arm64 for ARM
+ze appliance kernel prod                     # reads arch + profile from appliance.json
 make -C tools/installer-initrd               # build/initrd.img.gz
 ```
 
-A stock distro kernel will **not** boot the module-free initrd — it needs
-virtio/ext4/IP-autoconfig built in. The reference kernel above does; see
-[Installer Kernel](#installer-kernel).
+Or build directly with Make:
+
+```bash
+make -C tools/installer-kernel PROFILE=hardware ARCH=amd64   # real hardware, x86_64
+make -C tools/installer-kernel PROFILE=hardware ARCH=arm64   # real hardware, ARM
+make -C tools/installer-initrd
+```
+
+The `PROFILE` selects the driver set: `qemu` (default, virtio only) or
+`hardware` (EFI stub, framebuffer, Intel/Realtek/Broadcom/Mellanox NICs,
+AHCI, NVMe). A stock distro kernel will **not** boot the module-free initrd;
+see [Installer Kernel](#installer-kernel).
 
 ### 3. Start the provisioning server
 
@@ -248,8 +258,8 @@ ISO; the installer initrd decompresses it during installation. Create it with:
 
 ```bash
 ze appliance build prod
-ze appliance kernel --arch amd64       # download or build installer kernel
-ze appliance initrd                    # download or build installer initrd
+ze appliance kernel --profile hardware prod   # download or build installer kernel (reads arch from config)
+ze appliance initrd                           # download or build installer initrd
 ze appliance iso prod
 ```
 
@@ -576,24 +586,37 @@ parses the checksum file with the shell `read` builtin rather than `cut`).
 ## Installer Kernel
 
 The initrd carries **no kernel modules**, so the kernel it boots alongside must
-have virtio-net, virtio-blk, ext4, devtmpfs, initramfs and `ip=dhcp`
+have NIC drivers, disk drivers, ext4, devtmpfs, initramfs and `ip=dhcp`
 autoconfiguration all built in (`=y`). Stock distro/cloud kernels ship these as
 modules and cannot boot the initrd. `ze` deliberately ships no installer kernel:
 the right kernel is site-specific.
 
-`tools/installer-kernel/` builds a reference kernel that satisfies these
-requirements (and is what the end-to-end QEMU test boots):
+`tools/installer-kernel/` builds a reference kernel with two profiles:
+
+| Profile | File | Drivers | Use case |
+|---------|------|---------|----------|
+| `qemu` (default) | `qemu.config` | virtio NIC + block | QEMU tests, fast build |
+| `hardware` | `hardware.config` | virtio + EFI + framebuffer + Intel/Realtek/Broadcom/Mellanox NICs + AHCI + NVMe | Bare metal PXE/ISO install |
+
+Both profiles merge onto a shared base (`kernel.config`) that provides IP
+autoconfiguration, SCSI, ext4, initramfs, devtmpfs and serial console.
 
 ```bash
-make -C tools/installer-kernel                 # build/Image for arm64
-make -C tools/installer-kernel ARCH=amd64      # build/Image for x86_64
-make -C tools/installer-kernel LINUX_VERSION=6.12.9
+ze appliance kernel prod                       # reads arch + profile from appliance.json
+ze appliance kernel --profile hardware --arch amd64   # explicit flags
+
+# Or build directly with Make:
+make -C tools/installer-kernel                              # qemu profile, arm64 (default)
+make -C tools/installer-kernel PROFILE=hardware ARCH=amd64  # hardware profile, x86_64
 ```
+
+Set `image.kernel-profile` to `"hardware"` in `appliance.json` so
+`ze appliance kernel <name>` picks it up automatically.
 
 `build.sh` verifies the required options resolved to `=y` before building and
 fails loudly if any did not. Output is `build/Image` (the kernel) and
 `build/config` (the resolved config). See `tools/installer-kernel/README.md`
-for the full rationale and the list of forced options.
+for the full rationale and driver lists.
 
 ## End-to-End QEMU Verification
 

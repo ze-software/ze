@@ -19,6 +19,7 @@ var (
 	errAcceptRoutesRequiresPeerFamilyPrefix = errors.New("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
 	errRejectRoutesRequiresPeerFamilyPrefix = errors.New("reject-routes requires: <peer> <family> <prefix> <pathID>")
 	errRevalidateRequiresFamilyPrefix       = errors.New("revalidate requires: <family> <prefix>")
+	errBatchValidateStride                  = errors.New("batch-validate requires args in groups of 6: action peer family prefix pathID state")
 )
 
 // handleCommand processes command requests via SDK execute-command callback.
@@ -37,10 +38,105 @@ func (r *AdjRIBInManager) handleCommand(command string, args []string, peer stri
 		return r.acceptRoutesCommand(args)
 	case "request adj-rib-in reject-routes":
 		return r.rejectRoutesCommand(args)
+	case "request adj-rib-in batch-validate":
+		return r.batchValidateCommand(args)
 	case "request adj-rib-in revalidate":
 		return r.revalidateCommand(args)
 	} // unknown commands return error below
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
+}
+
+const (
+	batchValidateStride   = 6
+	maxBatchValidateCount = 256
+)
+
+// batchValidateCommand processes multiple accept/reject decisions under a single lock.
+// Args are groups of 6: action("a"|"r"), peer, family, prefix, pathID, state.
+// State is "1" (Valid) or "2" (NotFound) for accepts; ignored for rejects.
+//
+// Pre-validates the entire args slice before mutating state so a parse error
+// mid-batch does not leave the RIB partially applied.
+func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, error) {
+	if len(args) == 0 {
+		return statusDone, map[string]any{"accepted": 0, "rejected": 0, "early": 0}, nil
+	}
+	if len(args)%batchValidateStride != 0 {
+		return statusError, "", errBatchValidateStride
+	}
+
+	n := len(args) / batchValidateStride
+	if n > maxBatchValidateCount {
+		return statusError, "", fmt.Errorf("batch-validate: %d decisions exceeds maximum %d", n, maxBatchValidateCount)
+	}
+	type decision struct {
+		action   byte
+		peerAddr string
+		fam      string
+		prefix   string
+		pathID   uint32
+		valState uint8
+	}
+	decisions := make([]decision, n)
+
+	for i := range n {
+		off := i * batchValidateStride
+		act := args[off]
+		if act != "a" && act != "r" {
+			return statusError, "", fmt.Errorf("batch-validate: unknown action %q at index %d (expected \"a\" or \"r\")", act, off)
+		}
+		pathID, err := strconv.ParseUint(args[off+4], 10, 32)
+		if err != nil {
+			return statusError, "", fmt.Errorf("batch-validate: invalid pathID %q at index %d: %w", args[off+4], off+4, err)
+		}
+		var valState uint8
+		if act == "a" {
+			valState, err = parseValidationState(args[off+5])
+			if err != nil {
+				return statusError, "", err
+			}
+		}
+		decisions[i] = decision{
+			action: act[0], peerAddr: args[off+1], fam: args[off+2],
+			prefix: args[off+3], pathID: uint32(pathID), valState: valState,
+		}
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var accepted, rejected, early int
+	for i := range decisions {
+		d := &decisions[i]
+		rKey := bgp.RouteKey(d.fam, d.prefix, d.pathID)
+		pKey := pendingKey(d.peerAddr, rKey)
+
+		switch d.action {
+		case 'a':
+			pr, ok := r.pending[pKey]
+			if !ok {
+				r.storeEarlyDecision(d.peerAddr, rKey, earlyAccept, d.valState)
+				early++
+				accepted++
+				continue
+			}
+			r.promoteToInstalled(pr, d.valState)
+			delete(r.pending, pKey)
+			accepted++
+		case 'r':
+			if _, ok := r.pending[pKey]; !ok {
+				r.storeEarlyDecision(d.peerAddr, rKey, earlyReject, 0)
+				early++
+				rejected++
+				continue
+			}
+			delete(r.pending, pKey)
+			logger().Debug("rejected pending route (batch)", "peer", d.peerAddr, "family", d.fam, "prefix", d.prefix, "pathID", d.pathID)
+			rejected++
+		}
+	}
+
+	return statusDone, map[string]any{"accepted": accepted, "rejected": rejected, "early": early}, nil
 }
 
 func showSelector(args []string, peer string) string {
