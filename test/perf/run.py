@@ -645,6 +645,26 @@ def run_perf(dut, sender_first=False):
             capture=True,
         )
 
+        # Announce the receiver IP's new MAC via gratuitous ARP.  When the
+        # runner container is recreated between benchmark runs (standard then
+        # propagation), the DUT keeps a stale ARP entry mapping the receiver
+        # IP to the old container's MAC.  Without this, the DUT's SYN-ACK
+        # goes to the dead MAC and the receiver dial times out.
+        docker(
+            "exec",
+            runner,
+            "arping",
+            "-U",
+            "-c",
+            "1",
+            "-I",
+            "eth0",
+            RECEIVER_IP,
+            check=False,
+            timeout=5,
+            capture=True,
+        )
+
         # freeRtr has its own TCP/IP stack and validates checksums.
         # Docker veth uses checksum offloading, so disable it on the runner.
         if dut["name"] == "freertr":
