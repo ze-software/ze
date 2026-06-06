@@ -28,7 +28,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	diagCmd "codeberg.org/thomas-mangin/ze/internal/component/diag/cmd"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
@@ -37,6 +36,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/engine"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/transport"
+	diagCmd "codeberg.org/thomas-mangin/ze/internal/plugins/diag/cmd"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
