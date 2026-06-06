@@ -466,6 +466,14 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		return
 	}
 
+	// Validate doctor check declarations before conversion.
+	if err := validateDoctorCheckDecls(regInput.DoctorChecks); err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "invalid doctor check: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
 	// Convert RPC input to engine registration type
 	reg := registrationFromRPC(&regInput)
 	reg.Name = proc.Config().Name
@@ -859,6 +867,21 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		})
 	}
 
+	for _, dc := range input.DoctorChecks {
+		platforms := dc.Platforms
+		if len(platforms) == 0 {
+			platforms = []string{"any"}
+		}
+		reg.DoctorChecks = append(reg.DoctorChecks, plugin.DoctorCheckRegistration{
+			Name:         dc.Name,
+			Phase:        dc.Phase,
+			Order:        dc.Order,
+			Dependencies: dc.Dependencies,
+			Platforms:    platforms,
+			Codes:        dc.Codes,
+		})
+	}
+
 	return reg
 }
 
@@ -878,6 +901,70 @@ func capabilitiesFromRPC(input *rpc.DeclareCapabilitiesInput) *plugin.PluginCapa
 	}
 
 	return caps
+}
+
+// validateDoctorCheckDecls validates doctor check declarations from Stage 1 registration.
+func validateDoctorCheckDecls(checks []rpc.DoctorCheckDecl) error {
+	const maxChecks = 16
+	const maxNameLen = 128
+	const maxOrder = 9999
+	const maxCodes = 16
+
+	if len(checks) > maxChecks {
+		return fmt.Errorf("too many doctor checks: %d (max %d)", len(checks), maxChecks)
+	}
+	seen := make(map[string]struct{}, len(checks))
+	for _, dc := range checks {
+		if dc.Name == "" || len(dc.Name) > maxNameLen {
+			return fmt.Errorf("invalid doctor check name %q (must be 1-%d chars)", dc.Name, maxNameLen)
+		}
+		if !isLowerKebab(dc.Name) {
+			return fmt.Errorf("invalid doctor check name %q (must be kebab-case)", dc.Name)
+		}
+		if _, exists := seen[dc.Name]; exists {
+			return fmt.Errorf("duplicate doctor check name %q", dc.Name)
+		}
+		seen[dc.Name] = struct{}{}
+		if !dc.Phase.Valid() {
+			return fmt.Errorf("invalid doctor check phase %q for %q", dc.Phase, dc.Name)
+		}
+		if dc.Order < 0 || dc.Order > maxOrder {
+			return fmt.Errorf("invalid doctor check order %d for %q (must be 0-%d)", dc.Order, dc.Name, maxOrder)
+		}
+		if len(dc.Codes) == 0 || len(dc.Codes) > maxCodes {
+			return fmt.Errorf("invalid doctor check codes count %d for %q (must be 1-%d)", len(dc.Codes), dc.Name, maxCodes)
+		}
+		for _, code := range dc.Codes {
+			if !strings.HasPrefix(code, "doctor-") {
+				return fmt.Errorf("invalid doctor check code %q for %q (must start with \"doctor-\")", code, dc.Name)
+			}
+		}
+	}
+	return nil
+}
+
+// isLowerKebab reports whether s is a valid lower-kebab-case identifier.
+func isLowerKebab(s string) bool {
+	if s == "" {
+		return false
+	}
+	prevHyphen := true
+	for i := range len(s) {
+		c := s[i]
+		if c == '-' {
+			if prevHyphen {
+				return false
+			}
+			prevHyphen = true
+			continue
+		}
+		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
+			prevHyphen = false
+			continue
+		}
+		return false
+	}
+	return !prevHyphen
 }
 
 // validHandoffPort reports whether port is in the valid range for connection handoff (1-65535).

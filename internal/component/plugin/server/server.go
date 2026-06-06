@@ -380,6 +380,42 @@ func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, input 
 	return conn.SendFilterUpdate(ctx, input)
 }
 
+// CallDoctorCheck invokes a plugin's doctor check callback and returns diagnostics.
+func (s *Server) CallDoctorCheck(ctx context.Context, pluginName, checkName string) (*rpc.DoctorCheckOutput, error) {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil, fmt.Errorf("doctor-check: no process manager")
+	}
+	proc := pm.GetProcess(pluginName)
+	if proc == nil {
+		return nil, fmt.Errorf("doctor-check: unknown plugin %q", pluginName)
+	}
+	conn := proc.Conn()
+	if conn == nil {
+		return nil, fmt.Errorf("doctor-check: plugin %q not connected", pluginName)
+	}
+	return conn.SendDoctorCheck(ctx, checkName)
+}
+
+// DoctorCheckPlugins returns plugin names and their doctor check registrations.
+func (s *Server) DoctorCheckPlugins() map[string][]plugin.DoctorCheckRegistration {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil
+	}
+	result := make(map[string][]plugin.DoctorCheckRegistration)
+	for _, proc := range pm.AllProcesses() {
+		reg := proc.Registration()
+		if reg == nil || len(reg.DoctorChecks) == 0 {
+			continue
+		}
+		checks := make([]plugin.DoctorCheckRegistration, len(reg.DoctorChecks))
+		copy(checks, reg.DoctorChecks)
+		result[proc.Name()] = checks
+	}
+	return result
+}
+
 // FilterOnError returns the declared on-error mode for a named filter.
 // Returns rpc.OnErrorReject (fail-closed) if the plugin or filter is not found.
 func (s *Server) FilterOnError(pluginName, filterName string) rpc.OnErrorPolicy {

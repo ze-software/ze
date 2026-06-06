@@ -71,6 +71,9 @@ type ValidateOpenHandler func(*ValidateOpenInput) *ValidateOpenOutput
 // FilterUpdateHandler handles route filter requests (accept/reject/modify with optional delta).
 type FilterUpdateHandler func(*FilterUpdateInput) (*FilterUpdateOutput, error)
 
+// DoctorCheckHandler handles doctor check requests. Receives the check name, returns diagnostics.
+type DoctorCheckHandler func(name string) ([]rpc.DoctorCheckDiagnostic, error)
+
 // StartedHandler runs after the 5-stage startup completes but before the event loop.
 // Do NOT call DispatchCommand from here targeting other plugins; use AllPluginsReadyHandler.
 type StartedHandler func(ctx context.Context) error
@@ -93,6 +96,10 @@ func (p *Plugin) initCallbackDefaults() {
 		// Validate-open: accept when no handler registered.
 		callbackValidateOpen: func(json.RawMessage) (json.RawMessage, error) {
 			return json.Marshal(&rpc.ValidateOpenOutput{Accept: true})
+		},
+		// Doctor check: empty diagnostics when no handler registered.
+		callbackDoctorCheck: func(json.RawMessage) (json.RawMessage, error) {
+			return json.Marshal(&rpc.DoctorCheckOutput{Diagnostics: []rpc.DoctorCheckDiagnostic{}})
 		},
 		// Bye: no-op when no handler registered.
 		callbackBye: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
@@ -476,6 +483,28 @@ func (p *Plugin) OnFilterUpdate(fn FilterUpdateHandler) {
 			return nil, err
 		}
 		return json.Marshal(out)
+	}
+}
+
+// OnDoctorCheck sets the handler for doctor check requests.
+// The handler receives the check name and returns diagnostics.
+// If no handler is registered, doctor-check returns empty diagnostics (no-op).
+func (p *Plugin) OnDoctorCheck(fn DoctorCheckHandler) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackDoctorCheck] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.DoctorCheckInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal doctor-check: %w", err)
+		}
+		diags, err := fn(input.Name)
+		if err != nil {
+			return nil, err
+		}
+		if diags == nil {
+			diags = []rpc.DoctorCheckDiagnostic{}
+		}
+		return json.Marshal(&rpc.DoctorCheckOutput{Diagnostics: diags})
 	}
 }
 

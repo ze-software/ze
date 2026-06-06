@@ -141,6 +141,11 @@ class API:
         self._config_apply_handler: Callable | None = None
         self._config_rollback_handler: Callable | None = None
 
+        # Accumulated doctor check declarations for Stage 1
+        self._doctor_checks: list[dict[str, Any]] = []
+        # Doctor check callback handler (runtime)
+        self._doctor_check_handler: Callable | None = None
+
         # Accumulated capabilities for Stage 3
         self._capabilities: list[dict[str, Any]] = []
 
@@ -405,6 +410,12 @@ class API:
             if self._config_rollback_handler:
                 self._config_rollback_handler(params or {})
             self._respond_ok(req_id)
+        elif method == "ze-plugin-callback:doctor-check":
+            if self._doctor_check_handler and params:
+                diags = self._doctor_check_handler(params.get("name", ""))
+                self._respond_result(req_id, {"diagnostics": diags or []})
+            else:
+                self._respond_result(req_id, {"diagnostics": []})
         else:
             self._respond_ok(req_id)
 
@@ -542,6 +553,37 @@ class API:
         """
         self._filter_handler = handler
 
+    def declare_doctor_check(
+        self,
+        name: str,
+        phase: str = "post-config",
+        codes: list[str] | None = None,
+        order: int = 0,
+    ) -> None:
+        """Declare a doctor readiness check (Stage 1).
+
+        Args:
+            name: Check name (kebab-case)
+            phase: 'pre-config', 'missing-config', or 'post-config'
+            codes: Diagnostic codes (must start with 'doctor-')
+            order: Ordering within phase (0-9999)
+        """
+        dc: dict[str, Any] = {"name": name, "phase": phase, "codes": codes or []}
+        if order:
+            dc["order"] = order
+        self._doctor_checks.append(dc)
+
+    def on_doctor_check(self, handler: Callable[[str], list[dict]]) -> None:
+        """Register a handler for doctor-check callbacks (runtime).
+
+        The handler receives the check name and must return a list of
+        diagnostic dicts with 'code', 'severity', and 'message' keys.
+
+        Args:
+            handler: Callback function(name) -> [{'code':..., 'severity':..., 'message':...}]
+        """
+        self._doctor_check_handler = handler
+
     def on_config_verify(self, handler: Callable[[dict], dict]) -> None:
         """Register a handler for config-verify RPCs (runtime, reload).
 
@@ -598,6 +640,8 @@ class API:
             params["connection-handlers"] = self._connection_handlers
         if self._filters:
             params["filters"] = self._filters
+        if self._doctor_checks:
+            params["doctor-checks"] = self._doctor_checks
 
         self._call_engine("ze-plugin-engine:declare-registration", params)
 
@@ -1007,6 +1051,10 @@ class API:
                 "ze-plugin-callback:config-apply",
                 "ze-plugin-callback:config-rollback",
             ):
+                self._handle_callback(req_id, method, params)
+                continue
+
+            if method == "ze-plugin-callback:doctor-check":
                 self._handle_callback(req_id, method, params)
                 continue
 

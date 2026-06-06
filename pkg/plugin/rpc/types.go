@@ -39,6 +39,54 @@ type DeclareRegistrationInput struct {
 	CacheConsumerUnordered bool                    `json:"cache-consumer-unordered,omitempty"`
 	ConnectionHandlers     []ConnectionHandlerDecl `json:"connection-handlers,omitempty"`
 	Filters                []FilterDecl            `json:"filters,omitempty"`
+	DoctorChecks           []DoctorCheckDecl       `json:"doctor-checks,omitempty"`
+}
+
+// DoctorCheckDecl declares a doctor readiness check the plugin provides.
+// Declared during Stage 1 registration; invoked at runtime via callback.
+type DoctorCheckDecl struct {
+	Name         string           `json:"name"`                   // Check name (kebab-case, e.g. "rpki-cache-reachable")
+	Phase        DoctorCheckPhase `json:"phase"`                  // When to run: pre-config, missing-config, post-config
+	Order        int              `json:"order,omitempty"`        // Ordering within phase (0-9999)
+	Dependencies []string         `json:"dependencies,omitempty"` // Other check names that must run first
+	Platforms    []string         `json:"platforms,omitempty"`    // Platform filter (empty = "any")
+	Codes        []string         `json:"codes"`                  // Diagnostic codes (must have "doctor-" prefix)
+}
+
+// DoctorCheckPhase determines when a doctor check runs relative to config loading.
+type DoctorCheckPhase string
+
+const (
+	DoctorPhasePreConfig     DoctorCheckPhase = "pre-config"
+	DoctorPhaseMissingConfig DoctorCheckPhase = "missing-config"
+	DoctorPhasePostConfig    DoctorCheckPhase = "post-config"
+)
+
+// Valid reports whether the phase is a known doctor check phase.
+func (phase DoctorCheckPhase) Valid() bool {
+	switch phase {
+	case DoctorPhasePreConfig, DoctorPhaseMissingConfig, DoctorPhasePostConfig:
+		return true
+	default:
+		return false
+	}
+}
+
+// DoctorCheckInput is the input for ze-plugin-callback:doctor-check.
+type DoctorCheckInput struct {
+	Name string `json:"name"` // Which declared check to run
+}
+
+// DoctorCheckDiagnostic is a single diagnostic result from a plugin doctor check.
+type DoctorCheckDiagnostic struct {
+	Code     string `json:"code"`     // Diagnostic code (e.g. "doctor-rpki-cache-unreachable")
+	Severity string `json:"severity"` // "error", "warning", "info"
+	Message  string `json:"message"`  // Human-readable description
+}
+
+// DoctorCheckOutput is the output for ze-plugin-callback:doctor-check.
+type DoctorCheckOutput struct {
+	Diagnostics []DoctorCheckDiagnostic `json:"diagnostics"`
 }
 
 // ConnectionHandlerDecl declares a listen socket the plugin wants to receive via fd passing.

@@ -1070,6 +1070,46 @@ func TestRPCDeliverBatchTextEvents(t *testing.T) {
 	require.NoError(t, <-done)
 }
 
+func TestSendDoctorCheckRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		output *rpc.DoctorCheckOutput
+		err    error
+	}, 1)
+	go func() {
+		out, err := engineConn.SendDoctorCheck(context.Background(), "rpki-cache-reachable")
+		done <- struct {
+			output *rpc.DoctorCheckOutput
+			err    error
+		}{out, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:doctor-check", req.Method)
+
+	var input rpc.DoctorCheckInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "rpki-cache-reachable", input.Name)
+
+	result := &rpc.DoctorCheckOutput{
+		Diagnostics: []rpc.DoctorCheckDiagnostic{
+			{Code: "doctor-rpki-cache-unreachable", Severity: "warning", Message: "cache not responding"},
+		},
+	}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	require.Len(t, r.output.Diagnostics, 1)
+	assert.Equal(t, "doctor-rpki-cache-unreachable", r.output.Diagnostics[0].Code)
+	assert.Equal(t, "warning", r.output.Diagnostics[0].Severity)
+	assert.Equal(t, "cache not responding", r.output.Diagnostics[0].Message)
+}
+
 // TestRPCDeliverBatchTimeout verifies batch delivery respects context deadline.
 //
 // VALIDATES: AC-5 — batch write respects context deadline.

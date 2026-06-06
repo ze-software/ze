@@ -172,6 +172,30 @@ filter RPC errors.
 <!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC filters -->
 <!-- source: internal/component/plugin/server/server.go -- FilterInfo and FilterOnError -->
 
+**Doctor Check Declaration (Stage 1):**
+
+Plugins may include a `doctor-checks` list in their `declare-registration` to provide
+runtime health checks. Each entry declares a check name, phase, ordering, and the
+diagnostic codes it may emit. The engine stores declarations in `PluginRegistration`
+and invokes them via the `doctor-check` callback when `show doctor` runs.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `doctor-checks[].name` | string | Check name (kebab-case, 1-128 chars) |
+| `doctor-checks[].phase` | enum | `pre-config`, `missing-config`, or `post-config` |
+| `doctor-checks[].order` | int | Ordering within phase (0-9999, default 0) |
+| `doctor-checks[].dependencies` | list | Other check names that must run first |
+| `doctor-checks[].platforms` | list | Platform filter (empty defaults to `any`) |
+| `doctor-checks[].codes` | list | Diagnostic codes (1-16, must start with `doctor-`) |
+
+Offline `ze doctor` does not invoke plugin doctor checks (plugins are runtime
+processes). Plugin checks cover runtime health; Go-registered checks cover
+pre-start readiness.
+
+<!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC doctor checks, validateDoctorCheckDecls -->
+<!-- source: internal/component/plugin/registration.go -- DoctorCheckRegistration -->
+
 ### Tier-Ordered Startup
 
 Plugins are grouped into dependency tiers before handshake begins. All processes
@@ -264,8 +288,19 @@ For external plugins, the process is expected to exit cleanly after receiving by
 | `decode-capability` | `DecodeCapabilityInput` | `{"json":<raw JSON>}` | Decode capability |
 | `bye` | `ByeInput` | `ok` | Shutdown signal |
 | `filter-update` | `FilterUpdateInput` | `FilterUpdateOutput` | Route filter request |
+| `doctor-check` | `DoctorCheckInput` | `DoctorCheckOutput` | Doctor readiness check |
 
 All methods are prefixed with `ze-plugin-callback:`.
+
+**doctor-check:** Engine invokes a plugin's declared doctor check by name.
+Plugin runs the check and returns diagnostics (code, severity, message).
+Declared during Stage 1 via `doctor-checks` field in `declare-registration`.
+Only invoked at runtime via `show doctor`; offline `ze doctor` does not reach plugins.
+
+<!-- source: pkg/plugin/rpc/types.go -- DoctorCheckDecl, DoctorCheckInput, DoctorCheckOutput -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnDoctorCheck -->
+<!-- source: internal/component/plugin/server/server.go -- CallDoctorCheck, DoctorCheckPlugins -->
+<!-- source: internal/component/doctor/cmd/show.go -- HandleShowDoctor plugin integration -->
 
 **filter-update:** Engine sends UPDATE attributes to a named filter.
 Plugin responds accept, reject, or modify (delta-only changed attributes).

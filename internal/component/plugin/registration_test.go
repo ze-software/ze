@@ -9,6 +9,36 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+// TestPluginRegistryDoctorChecks verifies doctor checks are stored and retrievable per plugin.
+func TestPluginRegistryDoctorChecks(t *testing.T) {
+	t.Parallel()
+	reg := NewPluginRegistry()
+
+	p := &PluginRegistration{
+		Name: "rpki-plugin",
+		DoctorChecks: []DoctorCheckRegistration{
+			{
+				Name:      "rpki-cache-reachable",
+				Phase:     rpc.DoctorPhasePostConfig,
+				Order:     100,
+				Platforms: []string{"any"},
+				Codes:     []string{"doctor-rpki-cache-unreachable"},
+			},
+		},
+	}
+	require.NoError(t, reg.Register(p))
+
+	// Retrieve and verify
+	reg.mu.RLock()
+	stored := reg.plugins["rpki-plugin"]
+	reg.mu.RUnlock()
+
+	require.NotNil(t, stored)
+	require.Len(t, stored.DoctorChecks, 1)
+	assert.Equal(t, "rpki-cache-reachable", stored.DoctorChecks[0].Name)
+	assert.Equal(t, rpc.DoctorPhasePostConfig, stored.DoctorChecks[0].Phase)
+}
+
 // TestConflictDetection verifies command/capability conflict detection.
 //
 // VALIDATES: Duplicate registrations are rejected at startup.

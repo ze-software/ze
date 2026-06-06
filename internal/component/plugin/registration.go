@@ -85,6 +85,9 @@ type PluginRegistration struct {
 
 	// Route filter declarations (filter chain protocol)
 	Filters []FilterRegistration // Named filters this plugin offers
+
+	// Doctor check declarations (runtime health checks)
+	DoctorChecks []DoctorCheckRegistration // Doctor checks this plugin provides
 }
 
 // FilterRegistration holds a named filter declaration from stage 1.
@@ -111,6 +114,16 @@ type FilterRegistration struct {
 	Raw        bool                // Include raw wire bytes; REQUIRED for non-CIDR families
 	OnError    rpc.OnErrorPolicy   // reject (fail-closed) or accept (fail-open)
 	Overrides  []string            // Default filters this filter replaces
+}
+
+// DoctorCheckRegistration holds a doctor check declaration from Stage 1.
+type DoctorCheckRegistration struct {
+	Name         string               // Check name (kebab-case)
+	Phase        rpc.DoctorCheckPhase // When to run: pre-config, missing-config, post-config
+	Order        int                  // Ordering within phase (0-9999)
+	Dependencies []string             // Other check names that must run first
+	Platforms    []string             // Platform filter (empty = "any")
+	Codes        []string             // Diagnostic codes (must have "doctor-" prefix)
 }
 
 // PluginSchemaDecl holds YANG schema declaration from a plugin.

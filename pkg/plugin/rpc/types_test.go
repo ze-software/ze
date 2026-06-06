@@ -33,6 +33,102 @@ func TestConfigVerifyInputMarshal(t *testing.T) {
 	assert.Equal(t, "hub", decoded.Sections[1].Root)
 }
 
+// TestDoctorCheckDeclJSON verifies JSON round-trip for DoctorCheckDecl with kebab-case keys.
+func TestDoctorCheckDeclJSON(t *testing.T) {
+	t.Parallel()
+
+	decl := DoctorCheckDecl{
+		Name:         "rpki-cache-reachable",
+		Phase:        DoctorPhasePostConfig,
+		Order:        100,
+		Dependencies: []string{"config-loaded"},
+		Platforms:    []string{"any"},
+		Codes:        []string{"doctor-rpki-cache-unreachable"},
+	}
+
+	data, err := json.Marshal(decl)
+	require.NoError(t, err)
+
+	// Verify kebab-case wire keys
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.Contains(t, raw, "name")
+	assert.Contains(t, raw, "phase")
+	assert.Contains(t, raw, "order")
+	assert.Contains(t, raw, "dependencies")
+	assert.Contains(t, raw, "platforms")
+	assert.Contains(t, raw, "codes")
+	assert.NotContains(t, raw, "Name")
+
+	// Round-trip
+	var decoded DoctorCheckDecl
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, "rpki-cache-reachable", decoded.Name)
+	assert.Equal(t, DoctorPhasePostConfig, decoded.Phase)
+	assert.Equal(t, 100, decoded.Order)
+	assert.Equal(t, []string{"config-loaded"}, decoded.Dependencies)
+	assert.Equal(t, []string{"any"}, decoded.Platforms)
+	assert.Equal(t, []string{"doctor-rpki-cache-unreachable"}, decoded.Codes)
+}
+
+// TestDoctorCheckDeclOmitempty verifies omitempty fields are omitted when zero.
+func TestDoctorCheckDeclOmitempty(t *testing.T) {
+	t.Parallel()
+
+	decl := DoctorCheckDecl{
+		Name:  "simple-check",
+		Phase: DoctorPhasePreConfig,
+		Codes: []string{"doctor-simple-fail"},
+	}
+
+	data, err := json.Marshal(decl)
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.NotContains(t, raw, "order")
+	assert.NotContains(t, raw, "dependencies")
+	assert.NotContains(t, raw, "platforms")
+}
+
+// TestDeclareRegistrationInputDoctorChecks verifies doctor-checks field in DeclareRegistrationInput.
+func TestDeclareRegistrationInputDoctorChecks(t *testing.T) {
+	t.Parallel()
+
+	input := DeclareRegistrationInput{
+		DoctorChecks: []DoctorCheckDecl{
+			{
+				Name:  "my-check",
+				Phase: DoctorPhasePostConfig,
+				Codes: []string{"doctor-my-fail"},
+			},
+		},
+	}
+
+	data, err := json.Marshal(input)
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.Contains(t, raw, "doctor-checks")
+
+	var decoded DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	require.Len(t, decoded.DoctorChecks, 1)
+	assert.Equal(t, "my-check", decoded.DoctorChecks[0].Name)
+}
+
+// TestDeclareRegistrationInputNoDoctorChecks verifies backward compat: no doctor-checks field.
+func TestDeclareRegistrationInputNoDoctorChecks(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{"commands":[{"name":"test-cmd"}]}`)
+	var decoded DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Empty(t, decoded.DoctorChecks)
+	assert.Len(t, decoded.Commands, 1)
+}
+
 // TestConfigApplyInputMarshal verifies JSON round-trip for ConfigApplyInput.
 //
 // VALIDATES: ConfigApplyInput with ConfigDiffSection marshals/unmarshals correctly.

@@ -34,6 +34,7 @@ const (
 	callbackOpCommit         = "ze-plugin-callback:config-operation-commit"
 	callbackValidateOpen     = "ze-plugin-callback:validate-open"
 	callbackFilterUpdate     = "ze-plugin-callback:filter-update"
+	callbackDoctorCheck      = "ze-plugin-callback:doctor-check"
 	// callbackPostStartup is sent by the engine after all startup phases
 	// complete and both the plugin registry and dispatcher command registry
 	// have been frozen. It is the only guaranteed-safe point for a plugin to

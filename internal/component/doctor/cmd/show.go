@@ -3,14 +3,23 @@
 package cmd
 
 import (
+	"context"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
 
+const (
+	doctorCheckTimeout     = 5 * time.Second
+	maxDiagnosticsPerCheck = 64
+)
+
 // HandleShowDoctor is the RPC handler for ze-show:doctor.
 // Registration is deferred until the central show.go entry is removed.
-func HandleShowDoctor(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func HandleShowDoctor(cmdCtx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	var configPath string
 	if len(args) > 0 {
 		configPath = args[0]
@@ -19,6 +28,11 @@ func HandleShowDoctor(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 	diags := diagnostic.RunDoctorChecks(configPath)
 	if diags == nil {
 		diags = []diagnostic.Diagnostic{}
+	}
+
+	if cmdCtx.Server != nil {
+		pluginDiags := collectPluginDoctorChecks(cmdCtx)
+		diags = append(diags, pluginDiags...)
 	}
 
 	ready := true
@@ -31,4 +45,83 @@ func HandleShowDoctor(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 
 	result := diagnostic.NewDoctorResult(ready, diags)
 	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
+}
+
+func collectPluginDoctorChecks(cmdCtx *pluginserver.CommandContext) []diagnostic.Diagnostic {
+	plugins := cmdCtx.Server.DoctorCheckPlugins()
+	if len(plugins) == 0 {
+		return nil
+	}
+
+	// Skip the calling plugin to avoid deadlock: the caller is blocked
+	// waiting for our response, so a callback to it would hang.
+	var callerName string
+	if cmdCtx.Process != nil {
+		callerName = cmdCtx.Process.Name()
+	}
+
+	platform, _ := host.DetectPlatform()
+
+	ctx, cancel := context.WithTimeout(context.Background(), doctorCheckTimeout)
+	defer cancel()
+
+	var diags []diagnostic.Diagnostic
+	for pluginName, checks := range plugins {
+		if pluginName == callerName {
+			continue
+		}
+		for _, check := range checks {
+			if !platformMatches(check.Platforms, platform) {
+				continue
+			}
+			out, err := cmdCtx.Server.CallDoctorCheck(ctx, pluginName, check.Name)
+			if err != nil {
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-plugin-unreachable",
+					Severity: diagnostic.SeverityWarning,
+					Message:  "plugin " + pluginName + " doctor check " + check.Name + " failed: " + err.Error(),
+				})
+				continue
+			}
+			count := len(out.Diagnostics)
+			if count > maxDiagnosticsPerCheck {
+				count = maxDiagnosticsPerCheck
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-plugin-excessive-diagnostics",
+					Severity: diagnostic.SeverityWarning,
+					Message:  "plugin " + pluginName + " check " + check.Name + " returned too many diagnostics, truncated",
+				})
+			}
+			for _, d := range out.Diagnostics[:count] {
+				sev := normalizeSeverity(d.Severity)
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     d.Code,
+					Severity: sev,
+					Message:  d.Message,
+				})
+			}
+		}
+	}
+	return diags
+}
+
+func platformMatches(platforms []string, info *host.PlatformInfo) bool {
+	for _, p := range platforms {
+		if p == "any" {
+			return true
+		}
+		if info != nil && p == info.Type.String() {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeSeverity(s string) diagnostic.Severity {
+	switch diagnostic.Severity(s) {
+	case diagnostic.SeverityError, diagnostic.SeverityWarning:
+		return diagnostic.Severity(s)
+	default:
+		return diagnostic.SeverityWarning
+	}
 }

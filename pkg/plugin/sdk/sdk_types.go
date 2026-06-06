@@ -167,6 +167,22 @@ type DecodeMPUnreachOutput = rpc.DecodeMPUnreachOutput
 // DecodeUpdateOutput is the output for decode-update (plugin→engine).
 type DecodeUpdateOutput = rpc.DecodeUpdateOutput
 
+// DoctorCheckDecl declares a doctor readiness check the plugin provides.
+type DoctorCheckDecl = rpc.DoctorCheckDecl
+
+// DoctorCheckPhase determines when a doctor check runs relative to config loading.
+type DoctorCheckPhase = rpc.DoctorCheckPhase
+
+// DoctorCheckPhase values: wire form is "pre-config", "missing-config", "post-config".
+const (
+	DoctorPhasePreConfig     = rpc.DoctorPhasePreConfig
+	DoctorPhaseMissingConfig = rpc.DoctorPhaseMissingConfig
+	DoctorPhasePostConfig    = rpc.DoctorPhasePostConfig
+)
+
+// DoctorCheckDiagnostic is a single diagnostic result from a plugin doctor check.
+type DoctorCheckDiagnostic = rpc.DoctorCheckDiagnostic
+
 // ConnectionHandlerDecl declares a listen socket the plugin wants via fd passing.
 type ConnectionHandlerDecl = rpc.ConnectionHandlerDecl
 

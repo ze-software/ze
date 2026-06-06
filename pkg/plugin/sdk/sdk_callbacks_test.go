@@ -175,6 +175,62 @@ func TestOnExecuteCommandRawMessagePassthrough(t *testing.T) {
 	<-errCh
 }
 
+// TestOnDoctorCheckCallback verifies the doctor-check callback dispatches correctly.
+func TestOnDoctorCheckCallback(t *testing.T) {
+	t.Parallel()
+	p, engine := newTestPair(t)
+
+	p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+		return []rpc.DoctorCheckDiagnostic{
+			{Code: "doctor-rpki-cache-unreachable", Severity: "warning", Message: "cache at 10.0.0.1:8282 not responding"},
+		}, nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	completeStartup(t, ctx, engine)
+
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:doctor-check",
+		rpc.DoctorCheckInput{Name: "rpki-cache-reachable"})
+	require.NoError(t, err)
+
+	var out rpc.DoctorCheckOutput
+	require.NoError(t, json.Unmarshal(raw, &out))
+	require.Len(t, out.Diagnostics, 1)
+	assert.Equal(t, "doctor-rpki-cache-unreachable", out.Diagnostics[0].Code)
+	assert.Equal(t, "warning", out.Diagnostics[0].Severity)
+
+	cancel()
+	<-errCh
+}
+
+// TestOnDoctorCheckDefaultNoOp verifies empty diagnostics when no handler registered.
+func TestOnDoctorCheckDefaultNoOp(t *testing.T) {
+	t.Parallel()
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	completeStartup(t, ctx, engine)
+
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:doctor-check",
+		rpc.DoctorCheckInput{Name: "any-check"})
+	require.NoError(t, err)
+
+	var out rpc.DoctorCheckOutput
+	require.NoError(t, json.Unmarshal(raw, &out))
+	assert.Empty(t, out.Diagnostics)
+
+	cancel()
+	<-errCh
+}
+
 // TestOnExecuteCommandStringIsDoubleEncoded documents the hazard that motivated
 // the single-marshal sweep: a handler that returns a pre-marshaled JSON *string*
 // (instead of a Go value) is re-quoted by the SDK, so the wire Data is a JSON

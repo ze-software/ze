@@ -417,6 +417,20 @@ func (pc *PluginConn) SendValidateOpen(ctx context.Context, input *rpc.ValidateO
 	return &out, nil
 }
 
+// SendDoctorCheck invokes a plugin's doctor check callback and returns diagnostics.
+func (pc *PluginConn) SendDoctorCheck(ctx context.Context, name string) (*rpc.DoctorCheckOutput, error) {
+	input := &rpc.DoctorCheckInput{Name: name}
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:doctor-check", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.DoctorCheckOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal doctor-check result: %w", err)
+	}
+	return &out, nil
+}
+
 // SendBye sends a shutdown request to the plugin.
 func (pc *PluginConn) SendBye(ctx context.Context, reason string) error {
 	input := &rpc.ByeInput{Reason: reason}

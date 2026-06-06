@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,8 +33,11 @@ func TestRPCRegistrationTable(t *testing.T) {
 			_, _, err := ipc.ParseMethod(reg.WireMethod)
 			require.NoError(t, err, "invalid wire method format")
 
-			// All server-package RPCs must have handlers (editor RPCs moved to editor package)
-			assert.NotNil(t, reg.Handler, "nil handler for %s", reg.WireMethod)
+			// Editor RPCs register handlers from the cli package (import cycle
+			// prevents this test binary from importing it).
+			if !strings.HasPrefix(reg.WireMethod, "ze-editor:") {
+				assert.NotNil(t, reg.Handler, "nil handler for %s", reg.WireMethod)
+			}
 
 			// Unique wire method
 			assert.False(t, wireMethodsSeen[reg.WireMethod], "duplicate wire method: %s", reg.WireMethod)
@@ -59,7 +63,7 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 
 	assert.Greater(t, counts["ze-bgp"], 0, "ze-bgp RPCs registered via plugin/all")
 	assert.Equal(t, 13, counts["ze-system"], "ze-system RPCs (server-only, stable count)")
-	assert.Equal(t, 7, counts["ze-plugin"], "ze-plugin RPCs (session-peer-ready in bgp/plugins/cmd/peer)")
+	assert.Equal(t, 8, counts["ze-plugin"], "ze-plugin RPCs (session-peer-ready in bgp/plugins/cmd/peer)")
 	// ze-editor RPCs may or may not be loaded depending on plugin/all
 	// ze-rib RPCs may or may not be loaded depending on plugin/all
 }
