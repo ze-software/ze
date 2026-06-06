@@ -17,3 +17,6 @@ var ZeIfaceShowCmdYANG string
 
 //go:embed ze-iface-interface-cmd.yang
 var ZeIfaceInterfaceCmdYANG string
+
+//go:embed ze-iface-monitor-cmd.yang
+var ZeIfaceMonitorCmdYANG string

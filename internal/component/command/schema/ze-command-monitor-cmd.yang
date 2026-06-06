@@ -1,0 +1,22 @@
+module ze-command-monitor-cmd {
+    namespace "urn:ze:command:monitor:cmd";
+    prefix commandmonitorcmd;
+    import ze-extensions { prefix ze; }
+    description "Event monitor streaming command. Owned by the command component because the handler reads the cross-plugin event registry. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-06 { description "Relocated monitor event out of the central monitor schema (plugin self-containment)."; }
+
+    container monitor {
+        config false;
+        description "Continuous monitoring commands (Ctrl-C to stop)";
+
+        container event {
+            config false;
+            ze:command "ze-event:monitor";
+            ze:task-support required;
+            description "Stream live events as they happen.
+Shows a real-time feed of internal events. Filter with
+include <pattern> or exclude <pattern> to focus on what matters.
+Patterns match event type names.";
+        }
+    }
+}

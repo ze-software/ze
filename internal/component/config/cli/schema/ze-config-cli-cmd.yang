@@ -1,0 +1,64 @@
+module ze-config-cli-cmd {
+    namespace "urn:ze:config:cli:cmd";
+    prefix configclicmd;
+    import ze-extensions { prefix ze; }
+    description "show config command tree. Owned by the config CLI because these handlers inspect, compare, and format configuration files through the config backend. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-06 { description "Relocated show config out of the central show schema (plugin self-containment)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container config {
+            config false;
+            description "Inspect, compare, and format configuration";
+
+            container dump {
+                config false;
+                ze:command "ze-show:config-dump";
+                description "Show the fully resolved configuration tree.
+Parses the config and outputs it after includes, defaults, and group
+inheritance have been applied. What you see here is exactly what the
+daemon is using.";
+            }
+
+            container diff {
+                config false;
+                ze:command "ze-show:config-diff";
+                description "Compare two configuration versions side by side.
+Shows what was added, removed, or changed. Commonly used with
+rollback revisions to review what changed before you roll back.";
+            }
+
+            container history {
+                config false;
+                ze:command "ze-show:config-history";
+                description "List available configuration rollback points.
+Shows revisions with timestamps and commit metadata. Pair with
+'show config diff' to review changes before rolling back.";
+            }
+
+            container ls {
+                config false;
+                ze:command "ze-show:config-ls";
+                description "List all configuration files stored in the database.
+Shows archived snapshots and the active config.";
+            }
+
+            container cat {
+                config false;
+                ze:command "ze-show:config-cat";
+                description "Print the full text of a stored configuration snapshot.
+Usage: show config cat <id>. Outputs the config as-is.";
+            }
+
+            container fmt {
+                config false;
+                ze:command "ze-show:config-fmt";
+                description "Pretty-print the configuration with consistent formatting.
+Normalizes indentation and ordering. Output goes to stdout (read-only).
+To rewrite the file in place, use 'ze config fmt -w' from the CLI.";
+            }
+        }
+    }
+}

@@ -1,27 +1,14 @@
-// Design: docs/architecture/api/commands.md -- show policy introspection handlers
-// Related: show.go -- show verb RPC registration
-// Related: show_policy_test_cmd.go -- policy dry-run test handler
-//
-// Policy introspection commands: list filter types/instances, show peer chains.
-// Read-only queries with no state mutation.
+// Design: docs/architecture/api/commands.md -- show policy list handler (cross-plugin)
 
 package show
 
 import (
-	"net/netip"
 	"sort"
-	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
-
-type policyFilterRef struct {
-	Name      string `json:"name"`
-	Canonical string `json:"canonical"`
-}
 
 func init() {
 	pluginserver.RegisterRPCs(
@@ -29,17 +16,9 @@ func init() {
 			WireMethod: "ze-show:policy-list",
 			Handler:    handleShowPolicyList,
 		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:policy-chain",
-			Handler:    handleShowPolicyChain,
-			// The peer selector is the first positional token after
-			// `show policy chain peer <selector>`; the handler consumes it.
-		},
 	)
 }
 
-// handleShowPolicyList returns all registered filter types and their plugin names.
-// Used by `show policy list`.
 func handleShowPolicyList(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	typesMap := registry.FilterTypesMap()
 
@@ -64,144 +43,4 @@ func handleShowPolicyList(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 			"count":        len(entries),
 		},
 	}, nil
-}
-
-// handleShowPolicyChain returns the effective import/export filter chains for
-// a peer after group inheritance. Used by `show policy chain peer X [import|export]`.
-func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if ctx.Reactor() == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "reactor not available"}, nil
-	}
-
-	// The first positional token is the peer selector
-	// (`show policy chain peer <selector> [import|export]`). Strip it before
-	// reading the optional direction. If the first token is already a direction
-	// keyword the peer was omitted; fall back to the context scope.
-	selector := ""
-	if ctx != nil {
-		selector = ctx.Selector("selector")
-	}
-	if selector == "" && len(args) > 0 && args[0] != policyDirImport && args[0] != policyDirExport {
-		selector = args[0]
-		args = args[1:]
-	}
-	if selector == "" {
-		selector = ctx.PeerSelector()
-	}
-
-	allPeers := ctx.Reactor().Peers()
-	matched := filterPeersByPolicySelector(allPeers, selector)
-
-	if len(matched) == 0 {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "peer not found: " + selector,
-		}, nil
-	}
-
-	// Optional direction filter from the remaining args.
-	direction := ""
-	if len(args) > 0 {
-		direction = args[0]
-		if direction != policyDirImport && direction != policyDirExport {
-			return &plugin.Response{
-				Status: plugin.StatusError,
-				Error:  "invalid direction " + strconv.Quote(direction) + " (expected import or export)",
-			}, nil
-		}
-	}
-
-	type peerChain struct {
-		Peer   string            `json:"peer"`
-		Name   string            `json:"name,omitempty"`
-		Import []policyFilterRef `json:"import,omitempty"`
-		Export []policyFilterRef `json:"export,omitempty"`
-	}
-
-	chains := make([]peerChain, 0, len(matched))
-	for i := range matched {
-		p := &matched[i]
-		entry := peerChain{
-			Peer: p.Address.String(),
-			Name: p.Name,
-		}
-		if direction == "" || direction == "import" {
-			entry.Import = toFilterRefs(p.ImportFilters)
-		}
-		if direction == "" || direction == "export" {
-			entry.Export = toFilterRefs(p.ExportFilters)
-		}
-		chains = append(chains, entry)
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"chains": chains,
-		},
-	}, nil
-}
-
-// filterPeersByPolicySelector returns peers matching the selector.
-// Supports: "*" (all), IP address (parsed), peer name (string), ASN ("as65001").
-// Mirrors the logic in bgp/plugins/cmd/peer/peer.go:filterPeersBySelector
-// without importing that package.
-func filterPeersByPolicySelector(peers []plugin.PeerInfo, selector string) []plugin.PeerInfo {
-	if selector == "*" {
-		return peers
-	}
-
-	// Try parsed IP address match.
-	if filterIP, err := netip.ParseAddr(selector); err == nil {
-		for i := range peers {
-			if peers[i].Address == filterIP {
-				return []plugin.PeerInfo{peers[i]}
-			}
-		}
-		return nil
-	}
-
-	// Try peer name match.
-	for i := range peers {
-		if peers[i].Name == selector {
-			return []plugin.PeerInfo{peers[i]}
-		}
-	}
-
-	// Try ASN selector: "as<N>" (case-insensitive).
-	if len(selector) > 2 && (selector[0] == 'a' || selector[0] == 'A') && (selector[1] == 's' || selector[1] == 'S') {
-		if asn, err := strconv.ParseUint(selector[2:], 10, 32); err == nil {
-			var matched []plugin.PeerInfo
-			for i := range peers {
-				if uint64(peers[i].PeerAS) == asn {
-					matched = append(matched, peers[i])
-				}
-			}
-			return matched
-		}
-	}
-
-	return nil
-}
-
-// toFilterRefs converts canonical runtime refs (e.g. "bgp-filter-prefix:CUSTOMERS")
-// into policyFilterRef entries exposing both the operator-facing plain name and the
-// canonical form for diagnostics.
-func toFilterRefs(canonicals []string) []policyFilterRef {
-	if len(canonicals) == 0 {
-		return nil
-	}
-	refs := make([]policyFilterRef, len(canonicals))
-	for i, c := range canonicals {
-		inactive := strings.TrimPrefix(c, "inactive:")
-		name := inactive
-		if _, after, ok := strings.Cut(inactive, ":"); ok {
-			name = after
-		}
-		if c != inactive {
-			name = "inactive:" + name
-		}
-		refs[i] = policyFilterRef{Name: name, Canonical: c}
-	}
-	return refs
 }

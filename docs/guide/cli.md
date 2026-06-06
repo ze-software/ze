@@ -96,7 +96,7 @@ Named update windows for atomic route changes:
 | `help` | List all commands |
 | `command-list` | All commands with descriptions |
 | `command-help <name>` | Detailed help for a command |
-<!-- source: internal/component/cmd/meta/ -- help/discovery RPCs; internal/component/bgp/plugins/cmd/cache/ -- cache RPCs -->
+<!-- source: internal/component/command/cmd/ -- help/discovery RPCs; internal/component/bgp/plugins/cmd/cache/ -- cache RPCs -->
 
 ## Signals
 

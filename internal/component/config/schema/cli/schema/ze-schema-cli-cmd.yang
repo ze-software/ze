@@ -1,0 +1,52 @@
+module ze-schema-cli-cmd {
+    namespace "urn:ze:schema:cli:cmd";
+    prefix schemaclicmd;
+    import ze-extensions { prefix ze; }
+    description "show schema command tree. Owned by the config schema subsystem because these handlers inspect registered YANG schemas, RPCs, and events. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-06 { description "Relocated show schema out of the central show schema (plugin self-containment)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container schema {
+            config false;
+            description "Discover registered YANG schemas, RPCs, and events";
+
+            container list {
+                config false;
+                ze:command "ze-show:schema-list";
+                description "List all YANG schemas loaded by the daemon.
+Shows module name, namespace, and revision for each schema.";
+            }
+
+            container methods {
+                config false;
+                ze:command "ze-show:schema-methods";
+                description "List all RPC methods defined in YANG API modules.
+Useful for plugin developers to discover available operations.";
+            }
+
+            container events {
+                config false;
+                ze:command "ze-show:schema-events";
+                description "List all notification types defined in YANG API modules.
+Shows which events a plugin can subscribe to.";
+            }
+
+            container handlers {
+                config false;
+                ze:command "ze-show:schema-handlers";
+                description "Show which handler serves each YANG module.
+Maps module names to their implementing Go handler.";
+            }
+
+            container protocol {
+                config false;
+                ze:command "ze-show:schema-protocol";
+                description "Show the wire protocol version and format details.
+Useful for checking compatibility between Ze versions.";
+            }
+        }
+    }
+}

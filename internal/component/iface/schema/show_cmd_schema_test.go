@@ -26,6 +26,23 @@ func TestIfaceShowCmdSchemaOwnsKernelReads(t *testing.T) {
 	}
 }
 
+// TestIfaceMonitorCmdSchemaOwnsNetlink is the owner half of the
+// self-containment invariant for `monitor system netlink`: the central
+// monitor schema must NOT declare it, and this package MUST.
+// See ai/rules/plugin-self-containment.md.
+func TestIfaceMonitorCmdSchemaOwnsNetlink(t *testing.T) {
+	for _, want := range []string{
+		`ze:command "ze-monitor:system-netlink"`,
+		"container monitor",
+		"container system",
+		"container netlink",
+	} {
+		if !strings.Contains(ZeIfaceMonitorCmdYANG, want) {
+			t.Errorf("ze-iface-monitor-cmd.yang must declare %q so removing iface removes the netlink monitor surface", want)
+		}
+	}
+}
+
 // TestIfaceInterfaceCmdSchemaOwnsInterface is the owner half of the
 // self-containment invariant for the `show interface` family,
 // `monitor interface rate`, and `clear interface counters`: the central show,

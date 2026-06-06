@@ -4,34 +4,16 @@ module ze-cli-monitor-cmd {
     import ze-extensions { prefix ze; }
     description "Live streaming commands that auto-refresh until you stop them. This is the generic, unowned monitor verb root: each owner (BGP, ping, traceroute, iface, ike) container-merges its own monitor subtree onto it. See ai/rules/plugin-self-containment.md.";
     revision 2026-06-03 { description "Relocate the monitor verb root out of the BGP plugin into an unowned central package; BGP keeps only monitor bgp."; }
+    revision 2026-06-06 { description "Relocated event monitor (-> command component) and system-netlink (-> iface component). Bare anchor only."; }
 
     container monitor {
         config false;
         description "Continuous monitoring commands (Ctrl-C to stop)";
 
-        container event {
-            config false;
-            ze:command "ze-event:monitor";
-            ze:task-support required;
-            description "Stream live events as they happen.
-Shows a real-time feed of internal events. Filter with
-include <pattern> or exclude <pattern> to focus on what matters.
-Patterns match event type names.";
-        }
+        // NOTE: `monitor event` is owned by the command component.
+        // See internal/component/command/schema/ze-command-monitor-cmd.yang.
 
-        container system {
-            config false;
-            description "System-level event streams";
-
-            container netlink {
-                config false;
-                ze:command "ze-monitor:system-netlink";
-                ze:task-support required;
-                description "Watch kernel networking changes in real time.
-Streams netlink events: route adds/deletes, link state changes,
-address assignments. Filter with route, link, address, or all.";
-            }
-        }
-
+        // NOTE: `monitor system netlink` is owned by the iface component.
+        // See internal/component/iface/schema/ze-iface-monitor-cmd.yang.
     }
 }

@@ -28,5 +28,17 @@ Without arguments, lists all known groups. With a name, shows the
 set elements. Reads from the last applied config, not the kernel.";
             }
         }
+        container system {
+            config false;
+            container conntrack {
+                config false;
+                ze:command "ze-show:system-conntrack";
+                ze:backend "nft";
+                description "Show the kernel connection tracking table.
+Returns conntrack entry count, table size, timeouts, and loaded
+modules. Requires the nft backend. Check this when you suspect
+conntrack table exhaustion is dropping traffic.";
+            }
+        }
     }
 }

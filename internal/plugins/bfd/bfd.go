@@ -28,7 +28,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
+	diagCmd "codeberg.org/thomas-mangin/ze/internal/component/diag/cmd"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
@@ -628,7 +628,7 @@ func RunBFDPlugin(conn net.Conn) int {
 		// clients see nil and skip BFD wiring instead of receiving a
 		// handle whose underlying loop is about to tear down.
 		api.SetService(nil)
-		showCmd.SetBFDRawCaptureProvider(nil)
+		diagCmd.SetBFDRawCaptureProvider(nil)
 		runtimeStateGuard.Lock()
 		defer runtimeStateGuard.Unlock()
 		state.stopAll()
@@ -704,7 +704,7 @@ func RunBFDPlugin(conn net.Conn) int {
 		// EnsureSession does not race the loop creation.
 		svc := &pluginService{state: state}
 		api.SetService(svc)
-		showCmd.SetBFDRawCaptureProvider(svc)
+		diagCmd.SetBFDRawCaptureProvider(svc)
 
 		// Re-bind the Prometheus registry at OnStarted time in case
 		// the registry was not yet installed when ConfigureMetrics

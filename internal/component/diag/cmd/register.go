@@ -1,0 +1,16 @@
+// Design: plan/spec-diag-0-umbrella.md -- diag component RPC registration
+
+package cmd
+
+import (
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+)
+
+func init() {
+	pluginserver.RegisterRPCs(
+		pluginserver.RPCRegistration{WireMethod: "ze-show:tcp-check", Handler: HandleTCPCheck},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:capture", Handler: HandleShowCapture},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:capture-raw", Handler: HandleCaptureRaw},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:capture-interface", Handler: HandleCaptureInterface},
+	)
+}

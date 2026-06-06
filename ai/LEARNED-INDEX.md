@@ -99,6 +99,7 @@ YANG schema, migration, config reload, editor, environment variables.
 - [746](plan/learned/746-cpe-4-firewall-global-options.md) -- Firewall global-options: keyword-to-sysctl mapping via EventBus default layer; inverted semantics for ignore-type sysctls
 - [758](plan/learned/758-config-graph.md) -- Config dependency graph for agent impact analysis: derived from validation code paths, 7 edge kinds, plugin registry integration
 - [759](plan/learned/759-archive-pruning.md) -- Archive commit-revisions pruning: stable prefix from dual-timestamp diff, mtime-oldest-first, file:// only, uint16 max-keep
+- [860](plan/learned/860-yang-required-generic.md) -- Generic ze:required enforcement: anchor-scoped walker, ValidateTreeAllModules for multi-module YANG sections, bare-form migration to mandatory true
 
 ## CLI/API
 

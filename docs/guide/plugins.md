@@ -502,7 +502,7 @@ ze show policy test peer upstream1 export filter STRIP update <BGP-UPDATE-HEX>
 
 This returns per-filter trace output showing accept/reject/modify decisions and
 changed attributes. See the [command reference](command-reference.md) for full syntax.
-<!-- source: internal/component/cmd/show/show_policy_test_cmd.go -- handleShowPolicyTest -->
+<!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyTest -->
 
 ### NLRI Encoders/Decoders
 

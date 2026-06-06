@@ -1,0 +1,39 @@
+module ze-env-cmd {
+    namespace "urn:ze:env:cmd";
+    prefix envcmd;
+    import ze-extensions { prefix ze; }
+    description "show env command tree. Owned by core/env because these handlers read the environment variable registry. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-06 { description "Relocated show env out of the central show schema (plugin self-containment)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container env {
+            config false;
+            description "Ze environment variable inspection";
+
+            container list {
+                config false;
+                ze:command "ze-show:env-list";
+                description "List all Ze environment variables with their current values.
+Shows which env vars are set and their defaults.";
+            }
+
+            container get {
+                config false;
+                ze:command "ze-show:env-get";
+                description "Show one environment variable in detail.
+Returns the variable name, current value, default, and what it
+controls. Usage: show env get <name>.";
+            }
+
+            container registered {
+                config false;
+                ze:command "ze-show:env-registered";
+                description "List every registered environment variable with metadata.
+Includes type, default, description, and whether it is currently set.";
+            }
+        }
+    }
+}

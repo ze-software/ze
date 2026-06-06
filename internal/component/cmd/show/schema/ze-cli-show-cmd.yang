@@ -5,6 +5,7 @@ module ze-cli-show-cmd {
     description "Show command tree for read-only inspection of system and protocol state";
     revision 2026-03-26 { description "Initial revision"; }
     revision 2026-06-03 { description "Relocated show dns lookup/cache (-> resolve) and show bgp-health (-> bgp peer command owner) out of this central schema (plugin self-containment)."; }
+    revision 2026-06-06 { description "Relocated host, ntp, conntrack, update, kernel-log, capture, tcp-check, doctor, crashes, config, data, env, schema, yang, policy-chain, policy-test commands to their owning components/plugins (plugin self-containment)."; }
 
     container show {
         config false;
@@ -75,47 +76,14 @@ stopped, or failed.";
                 }
             }
 
-            container ntp {
-                config false;
-                description "NTP clock synchronization status";
+            // NOTE: `show system ntp` is owned by the NTP plugin.
+            // See internal/plugins/ntp/schema/ze-ntp-cmd.yang.
 
-                ze:command "ze-show:system-ntp";
+            // NOTE: `show system conntrack` is owned by the firewall component.
+            // See internal/component/firewall/schema/ze-firewall-cmd.yang.
 
-                container peers {
-                    config false;
-                    ze:command "ze-show:system-ntp-peers";
-                    description "Show NTP peers with offset, RTT, stratum, and reachability.
-Tells you whether your clock is synced and how far off each
-NTP server thinks you are.";
-                }
-            }
-
-            container conntrack {
-                config false;
-                ze:command "ze-show:system-conntrack";
-                ze:backend "nft";
-                description "Show the kernel connection tracking table.
-Returns conntrack entry count, table size, timeouts, and loaded
-modules. Requires the nft backend. Check this when you suspect
-conntrack table exhaustion is dropping traffic.";
-            }
-
-            container update {
-                config false;
-                ze:command "ze-show:system-update";
-                description "Check if a firmware update is available.
-Shows the running version, latest available version, and when the
-last check ran. Use 'update system firmware check' to trigger an
-immediate re-check.";
-
-                container history {
-                    config false;
-                    ze:command "ze-show:system-update-history";
-                    description "Show recent firmware update activity.
-Lists the last 20 update events: checks, downloads, installs,
-and rollbacks with timestamps and outcomes.";
-                }
-            }
+            // NOTE: `show system update` is owned by the update component.
+            // See internal/component/update/schema/ze-update-show-cmd.yang.
 
             container sockets {
                 config false;
@@ -141,31 +109,8 @@ Linux only. Good for confirming listeners or spotting stuck connections.";
                 }
             }
 
-            container kernel-log {
-                config false;
-                ze:command "ze-show:system-kernel-log";
-                description "Show kernel log messages (dmesg-style).
-Reads from /dev/kmsg. Filter by syslog level (emerg through debug)
-and limit with count. Without count, you get everything available.
-Linux only. Useful for spotting NIC errors or OOM events.";
-                leaf level {
-                    type enumeration {
-                        enum emerg;
-                        enum alert;
-                        enum crit;
-                        enum err;
-                        enum warn;
-                        enum notice;
-                        enum info;
-                        enum debug;
-                    }
-                    description "Filter by syslog level";
-                }
-                leaf count {
-                    type uint32;
-                    description "Maximum number of messages";
-                }
-            }
+            // NOTE: `show system kernel-log` is owned by the host component.
+            // See internal/component/host/schema/ze-host-cmd.yang.
 
             container goroutines {
                 config false;
@@ -233,89 +178,8 @@ Complements 'show system memory' (Go runtime) with the OS-level picture.";
             }
         }
 
-        container host {
-            config false;
-            description "Hardware inventory for this box.
-Sections: cpu, nic, dmi, memory, thermal, storage, kernel, platform.
-Use a subcommand for one section, or 'show host all' for everything.";
-
-            container cpu {
-                config false;
-                ze:command "ze-show:host-cpu";
-                description "Show what CPUs are in this box.
-Returns vendor, model, core/thread topology, hybrid layout, scaling
-driver, current/min/max frequencies, and throttle counts.";
-            }
-
-            container nic {
-                config false;
-                ze:command "ze-show:host-nic";
-                description "Show physical NICs installed in this box.
-Returns driver, PCI vendor/device IDs, link speed, queue counts, and
-firmware version. Virtual interfaces are excluded. Use this to confirm
-NIC firmware before an upgrade.";
-            }
-
-            container dmi {
-                config false;
-                ze:command "ze-show:host-dmi";
-                description "Show the box's identity from SMBIOS/DMI.
-Returns system vendor, board name, BIOS version, and chassis type.
-Useful for inventory or confirming which hardware model you are on.";
-            }
-
-            container memory {
-                config false;
-                ze:command "ze-show:host-memory";
-                description "Show installed memory and ECC health.
-Returns DIMM sizes and, when the edac driver is present, correctable
-and uncorrectable error counters. Non-zero ECC counts mean you should
-plan a DIMM replacement.";
-            }
-
-            container thermal {
-                config false;
-                ze:command "ze-show:host-thermal";
-                description "Show temperature sensors and thermal throttle events.
-Returns hwmon sensor readings and per-CPU throttle counters. Non-zero
-throttle counts mean the box has been running hot enough to slow down.";
-            }
-
-            container storage {
-                config false;
-                ze:command "ze-show:host-storage";
-                description "Show storage devices attached to this box.
-Returns size, model, transport type (nvme, sata, mmc, virtio),
-rotational flag, and NVMe firmware version where applicable.";
-            }
-
-            container kernel {
-                config false;
-                ze:command "ze-show:host-kernel";
-                description "Show the running kernel version and boot parameters.
-Returns kernel release, command line, CPU microcode revision, boot
-time, and security-relevant CPU flags (spectre mitigations, etc.).";
-            }
-
-            container platform {
-                config false;
-                ze:command "ze-show:host-platform";
-                description "Show platform capabilities and constraints.
-Reports read-only root, privilege level, systemd presence, gokrazy
-update socket, reboot-allowed flag, persistent-storage writability,
-and fd limits. Helps you understand what operations are possible
-on this particular deployment.";
-            }
-
-            container all {
-                config false;
-                ze:command "ze-show:host-all";
-                description "Show the full hardware inventory in one shot.
-Returns every section (cpu, nic, dmi, memory, thermal, storage,
-kernel, platform) as a single JSON response. Ideal for support
-bundles or automated inventory collection.";
-            }
-        }
+        // NOTE: `show host` subtree is owned by the host component.
+        // See internal/component/host/schema/ze-host-cmd.yang.
 
         // NOTE: the `show gnmi` command is owned by the gNMI component
         // so that removing gNMI removes it (no dangling command node).
@@ -382,34 +246,8 @@ with source <name> to narrow to one subsystem, count <N> to limit
 output.";
         }
 
-        container tcp-check {
-            config false;
-            ze:command "ze-show:tcp-check";
-            description "Test TCP connectivity to a remote host and port.
-Tries to open a TCP connection and reports success or failure with
-the connection time. Use 'source <IP>' to bind a specific local
-address. Quick way to verify a peer's BGP port is reachable.";
-            leaf host {
-                type string;
-                mandatory true;
-                description "Target host";
-            }
-            leaf port {
-                type uint16;
-                mandatory true;
-                description "Target port";
-            }
-            leaf source {
-                type string;
-                description "Source IP address";
-            }
-            leaf timeout {
-                type string {
-                    pattern '\d+[smh]?';
-                }
-                description "Connection timeout";
-            }
-        }
+        // NOTE: `show tcp-check` is owned by the diag component.
+        // See internal/component/diag/schema/ze-diag-cmd.yang.
 
         container health {
             config false;
@@ -420,14 +258,8 @@ plus an overall status. Each component reports healthy, degraded, or
 unhealthy with a reason. Start here when troubleshooting.";
         }
 
-        container doctor {
-            config false;
-            ze:command "ze-show:doctor";
-            description "Check if this box is ready to run Ze.
-Verifies runtime dependencies: required files, sockets, ports, and
-kernel modules. Each check reports pass or fail with a reason. Run
-this before first start or after changing the platform setup.";
-        }
+        // NOTE: `show doctor` is owned by the doctor plugin.
+        // See internal/plugins/doctor/schema/ze-doctor-cmd.yang.
 
         container metrics-query {
             config false;
@@ -438,111 +270,8 @@ time series from the internal registry. Multiple label filters are
 ANDed. More targeted than the full metrics dump.";
         }
 
-        container capture {
-            config false;
-            ze:command "ze-show:capture";
-            description "Show captured control-plane messages.
-Returns protocol messages you previously enabled capture for. Without
-a protocol keyword, shows all protocols. Filters: tunnel-id (L2TP),
-peer (remote address), count (limit entries). Use this to debug
-session establishment issues.";
-            leaf protocol {
-                type enumeration {
-                    enum l2tp;
-                    enum bgp;
-                }
-                description "Protocol filter";
-            }
-            leaf tunnel-id {
-                type uint16;
-                description "L2TP tunnel ID filter";
-            }
-            leaf count {
-                type uint32;
-                description "Maximum number of messages";
-            }
-            leaf peer {
-                type string;
-                description "Peer address filter";
-            }
-
-            container raw {
-                config false;
-                ze:command "ze-show:capture-raw";
-                description "Control raw byte capture for protocol debugging.
-Actions: start (begin capturing), stop (halt), dump (retrieve).
-Protocols: l2tp, bgp. Output formats: pcap (for Wireshark), json.
-Limit with count <N>.";
-                leaf action {
-                    type enumeration {
-                        enum start;
-                        enum stop;
-                        enum dump;
-                    }
-                    description "Capture action";
-                }
-                leaf protocol {
-                    type enumeration {
-                        enum l2tp;
-                        enum bgp;
-                    }
-                    description "Protocol to capture";
-                }
-                leaf format {
-                    type enumeration {
-                        enum pcap;
-                        enum json;
-                    }
-                    description "Output format";
-                }
-                leaf count {
-                    type uint32;
-                    description "Maximum number of messages";
-                }
-            }
-
-            container interface {
-                config false;
-                ze:command "ze-show:capture-interface";
-                description "Capture live packets on an interface (like tcpdump).
-Uses AF_PACKET for zero-copy capture. Filter by protocol and port.
-Limit with count or duration. Output as pcap (for Wireshark) or text.
-Snap-len controls how many bytes per packet are captured.";
-                leaf iface {
-                    type string;
-                    description "Interface name";
-                }
-                leaf count {
-                    type uint32 {
-                        range "1..10000";
-                    }
-                    description "Packet count";
-                }
-                leaf duration {
-                    type string {
-                        pattern '\d+[smh]?';
-                    }
-                    description "Capture duration";
-                }
-                leaf snap-len {
-                    type uint32 {
-                        range "64..65535";
-                    }
-                    description "Snap length in bytes";
-                }
-                leaf format {
-                    type enumeration {
-                        enum pcap;
-                        enum text;
-                    }
-                    description "Output format";
-                }
-                leaf protocol {
-                    type string;
-                    description "Protocol filter";
-                }
-            }
-        }
+        // NOTE: `show capture` subtree is owned by the diag component.
+        // See internal/component/diag/schema/ze-diag-cmd.yang.
 
         container event {
             config false;
@@ -574,181 +303,20 @@ they are.";
         // cmd/ze/bgp/schema next to their handlers. The central show schema
         // declares no `container bgp`. See ai/rules/plugin-self-containment.md.
 
-        container env {
-            config false;
-            description "Ze environment variable inspection";
+        // NOTE: `show env` subtree is owned by core/env.
+        // See internal/core/env/schema/ze-env-cmd.yang.
 
-            container list {
-                config false;
-                ze:command "ze-show:env-list";
-                description "List all Ze environment variables with their current values.
-Shows which env vars are set and their defaults.";
-            }
+        // NOTE: `show schema` subtree is owned by config/schema.
+        // See internal/component/config/schema/cli/schema/ze-schema-cli-cmd.yang.
 
-            container get {
-                config false;
-                ze:command "ze-show:env-get";
-                description "Show one environment variable in detail.
-Returns the variable name, current value, default, and what it
-controls. Usage: show env get <name>.";
-            }
+        // NOTE: `show yang` subtree is owned by config/yang.
+        // See internal/component/config/yang/schema/ze-yang-cli-cmd.yang.
 
-            container registered {
-                config false;
-                ze:command "ze-show:env-registered";
-                description "List every registered environment variable with metadata.
-Includes type, default, description, and whether it is currently set.";
-            }
-        }
+        // NOTE: `show data` subtree is owned by config/storage.
+        // See internal/component/config/storage/schema/ze-storage-cli-cmd.yang.
 
-        container schema {
-            config false;
-            description "Discover registered YANG schemas, RPCs, and events";
-
-            container list {
-                config false;
-                ze:command "ze-show:schema-list";
-                description "List all YANG schemas loaded by the daemon.
-Shows module name, namespace, and revision for each schema.";
-            }
-
-            container methods {
-                config false;
-                ze:command "ze-show:schema-methods";
-                description "List all RPC methods defined in YANG API modules.
-Useful for plugin developers to discover available operations.";
-            }
-
-            container events {
-                config false;
-                ze:command "ze-show:schema-events";
-                description "List all notification types defined in YANG API modules.
-Shows which events a plugin can subscribe to.";
-            }
-
-            container handlers {
-                config false;
-                ze:command "ze-show:schema-handlers";
-                description "Show which handler serves each YANG module.
-Maps module names to their implementing Go handler.";
-            }
-
-            container protocol {
-                config false;
-                ze:command "ze-show:schema-protocol";
-                description "Show the wire protocol version and format details.
-Useful for checking compatibility between Ze versions.";
-            }
-        }
-
-        container yang {
-            config false;
-            description "YANG model tree visualization and documentation";
-
-            container tree {
-                config false;
-                ze:command "ze-show:yang-tree";
-                description "Print the YANG tree for a module in a readable hierarchy.
-Shows node types, data types, and config-vs-state annotations.
-Similar to 'pyang -f tree'. Useful for understanding the config
-or command structure.";
-            }
-
-            container completion {
-                config false;
-                ze:command "ze-show:yang-completion";
-                description "Show YANG paths available for tab completion.
-Lists every valid completion point in the command tree.";
-            }
-
-            container doc {
-                config false;
-                ze:command "ze-show:yang-doc";
-                description "Generate command reference docs from YANG schemas.
-Produces structured documentation with descriptions, arguments, and
-usage patterns for every registered command.";
-            }
-        }
-
-        container data {
-            config false;
-            description "ZeFS blob store keys and content";
-
-            container ls {
-                config false;
-                ze:command "ze-show:data-ls";
-                description "List everything stored in the ZeFS blob store.
-Shows all keys and their sizes. Use 'show data cat <key>' to see
-the content of a specific entry.";
-            }
-
-            container cat {
-                config false;
-                ze:command "ze-show:data-cat";
-                description "Print the raw content of a blob store entry.
-Usage: show data cat <key>. Outputs the value for the given key,
-like 'cat' for ZeFS.";
-            }
-
-            container registered {
-                config false;
-                ze:command "ze-show:data-registered";
-                description "List the key patterns registered by all subsystems.
-Shows you what types of data ZeFS knows about.";
-            }
-        }
-
-        container config {
-            config false;
-            description "Inspect, compare, and format configuration";
-
-            container dump {
-                config false;
-                ze:command "ze-show:config-dump";
-                description "Show the fully resolved configuration tree.
-Parses the config and outputs it after includes, defaults, and group
-inheritance have been applied. What you see here is exactly what the
-daemon is using.";
-            }
-
-            container diff {
-                config false;
-                ze:command "ze-show:config-diff";
-                description "Compare two configuration versions side by side.
-Shows what was added, removed, or changed. Commonly used with
-rollback revisions to review what changed before you roll back.";
-            }
-
-            container history {
-                config false;
-                ze:command "ze-show:config-history";
-                description "List available configuration rollback points.
-Shows revisions with timestamps and commit metadata. Pair with
-'show config diff' to review changes before rolling back.";
-            }
-
-            container ls {
-                config false;
-                ze:command "ze-show:config-ls";
-                description "List all configuration files stored in the database.
-Shows archived snapshots and the active config.";
-            }
-
-            container cat {
-                config false;
-                ze:command "ze-show:config-cat";
-                description "Print the full text of a stored configuration snapshot.
-Usage: show config cat <id>. Outputs the config as-is.";
-            }
-
-            container fmt {
-                config false;
-                ze:command "ze-show:config-fmt";
-                description "Pretty-print the configuration with consistent formatting.
-Normalizes indentation and ordering. Output goes to stdout (read-only).
-To rewrite the file in place, use 'ze config fmt -w' from the CLI.";
-            }
-        }
+        // NOTE: `show config` subtree is owned by config/cli.
+        // See internal/component/config/cli/schema/ze-config-cli-cmd.yang.
 
         container policy {
             config false;
@@ -762,53 +330,13 @@ Shows each filter type and its implementing plugin. Check here
 when building a new policy chain to see what filters you can use.";
             }
 
-            container chain {
-                config false;
-                description "Show the effective filter chain for a peer";
-
-                container peer {
-                    config false;
-                    ze:command "ze-show:policy-chain";
-                    description "Show the import/export filter chain applied to a peer.
-Usage: show policy chain peer <selector> [import|export]. The selector
-(IP, name, as<N>) and the optional direction are parsed by the handler.
-Shows the effective chain after group inheritance is resolved. Without
-a direction keyword, shows both import and export.";
-                }
-            }
-
-            container test {
-                config false;
-                description "Dry-run a BGP UPDATE through a policy chain (read-only, safe)";
-
-                container peer {
-                    config false;
-                    ze:command "ze-show:policy-test";
-                    description "Test what your policy does to a specific UPDATE.
-Feed a hex-encoded BGP UPDATE through a peer's filter chain and see
-the accept/reject result plus attribute modifications at each stage.
-Read-only: no routes are actually forwarded. Great for validating
-policy changes before you commit.
-Usage: show policy test peer <selector> import|export [filter <name>]
-update <hex> [source-asn4 true|false]. The selector and the
-import/export/filter/update/source-asn4 tokens are parsed by the
-handler so the peer selector can be a free-form name or address.";
-                }
-            }
+            // NOTE: `show policy chain` and `show policy test` are owned
+            // by the BGP plugin.
+            // See internal/component/bgp/plugins/cmd/policy/schema/ze-policy-cmd.yang.
         }
 
-        container crashes {
-            config false;
-            ze:command "ze-show:crashes";
-            description "View saved crash reports from panics.
-Without arguments, lists available crash files. Use 'latest' to see
-the newest crash or 'name <filename>' to print one specific report.
-Send the output to support when reporting a crash.";
-            leaf name {
-                type string;
-                description "Crash report name (used with 'name <filename>')";
-            }
-        }
+        // NOTE: `show crashes` is owned by the crashes plugin.
+        // See internal/plugins/crashes/schema/ze-crashes-cmd.yang.
 
         // NOTE: the `show mpls ...` subtree is owned by the MPLS component
         // so that removing MPLS removes it (no dangling command node).

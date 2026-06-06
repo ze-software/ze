@@ -1,0 +1,21 @@
+module ze-doctor-cmd {
+    namespace "urn:ze:doctor:cmd";
+    prefix doctorcmd;
+    import ze-extensions { prefix ze; }
+    description "show doctor command tree. Owned by the doctor plugin because the handler calls diagnostic.RunDoctorChecks which is registered by this plugin. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-06 { description "Relocated show doctor out of the central show schema (plugin self-containment)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container doctor {
+            config false;
+            ze:command "ze-show:doctor";
+            description "Check if this box is ready to run Ze.
+Verifies runtime dependencies: required files, sockets, ports, and
+kernel modules. Each check reports pass or fail with a reason. Run
+this before first start or after changing the platform setup.";
+        }
+    }
+}

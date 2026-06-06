@@ -28,13 +28,9 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
 	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/delete"    // init() registers del verb RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"       // init() registers log show/set RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"      // init() registers help/discovery RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"   // init() registers metrics show/list RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set"       // init() registers set verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"      // init() registers show verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"    // init() registers update verb RPCs
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/archive/cmd" // init() registers config archive trigger RPC
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"

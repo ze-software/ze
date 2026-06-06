@@ -366,7 +366,7 @@ monitor system netlink all               # Explicit all (same as no argument)
 ```
 
 Wire method: `ze-monitor:system-netlink`. Linux only; returns "not available on this platform" on other OSes.
-<!-- source: internal/component/cmd/show/netlink_monitor_linux.go -- streamNetlinkMonitor -->
+<!-- source: internal/component/iface/cmd/monitor_netlink_linux.go -- streamNetlinkMonitor -->
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
 ### System Commands
@@ -457,7 +457,7 @@ bgp log set <subsystem> <level>   # Change subsystem log level at runtime
 ```
 
 Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slog.LevelVar` atomic swap. Only loggers created via `slogutil.Logger()` or `slogutil.LazyLogger()` (non-disabled) are shown and modifiable.
-<!-- source: internal/component/cmd/log/schema/ -- ze-bgp-cmd-log-api.yang -->
+<!-- source: internal/core/slogutil/schema/ze-log-cmd.yang -- log command YANG -->
 
 ### Metrics Commands (Ze)
 

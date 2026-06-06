@@ -1,0 +1,32 @@
+module ze-ntp-cmd {
+    namespace "urn:ze:ntp:cmd";
+    prefix ntpcmd;
+    import ze-extensions { prefix ze; }
+    description "show system ntp command tree. Owned by the ntp plugin because the handlers read NTP peer and sync state. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-06 { description "Relocated show system ntp out of the central show schema (plugin self-containment)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container system {
+            config false;
+            description "System-level monitoring and diagnostics";
+
+            container ntp {
+                config false;
+                description "NTP clock synchronization status";
+
+                ze:command "ze-show:system-ntp";
+
+                container peers {
+                    config false;
+                    ze:command "ze-show:system-ntp-peers";
+                    description "Show NTP peers with offset, RTT, stratum, and reachability.
+Tells you whether your clock is synced and how far off each
+NTP server thinks you are.";
+                }
+            }
+        }
+    }
+}

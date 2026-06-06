@@ -2,34 +2,16 @@ module ze-cli-set-cmd {
     namespace "urn:ze:cli:set:cmd";
     prefix clisetcmd;
     import ze-extensions { prefix ze; }
-    description "Create or modify running configuration";
+    description "Create or modify running configuration. Bare verb-root anchor; set file-descriptors owned by component/host.";
     revision 2026-03-23 { description "Initial revision"; }
     revision 2026-06-03 { description "Removed set bgp peer with/save (peer config goes through the editor; the parallel runtime-then-persist path is dropped)."; }
+    revision 2026-06-06 { description "Relocated set system file-descriptors to component/host (plugin self-containment). Bare anchor only."; }
 
     container set {
         config false;
         description "Modify running configuration parameters";
 
-        container system {
-            config false;
-            description "System-level runtime tunables";
-
-            container file-descriptors {
-                config false;
-                ze:command "ze-set:system-file-descriptors";
-                description "Raise the file descriptor limit for the daemon process.
-Pass a number or 'max' to go to the hard limit. Takes effect
-immediately. Check current limits with 'show system file-descriptors'.";
-                leaf limit {
-                    type union {
-                        type uint64;
-                        type enumeration {
-                            enum max;
-                        }
-                    }
-                    description "New limit or max for hard limit";
-                }
-            }
-        }
+        // NOTE: `set system file-descriptors` is owned by the host component.
+        // See internal/component/host/schema/ze-host-set-cmd.yang.
     }
 }

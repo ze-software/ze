@@ -654,7 +654,7 @@ ze show system kernel-log level err count 10    # Combined
 Reads /dev/kmsg. Returns entries with level, sequence, timestamp-us, message.
 Levels: emerg, alert, crit, err, warning, notice, info, debug. Linux only.
 
-<!-- source: internal/component/cmd/show/kernel_log_linux.go -- handleShowSystemKernelLog -->
+<!-- source: internal/component/host/cmd/show_kernel_log_linux.go -- handleShowSystemKernelLog -->
 
 ### show system goroutines
 
@@ -679,7 +679,7 @@ ze show tcp-check <host> <port> source 10.0.0.1    # Bind source IP
 
 Returns result (connected/refused/timeout) and latency-ms.
 
-<!-- source: internal/component/cmd/show/tcp_check.go -- handleTCPCheck -->
+<!-- source: internal/component/diag/cmd/tcp_check.go -- HandleTCPCheck -->
 
 ### show traceroute
 
@@ -761,7 +761,7 @@ packet: `TIMESTAMP PROTO SRC:PORT -> DST:PORT FLAGS LEN HEX`. Limits: count
 1-10000, duration 1s-60s, snap-len 64-65535. One active capture per interface.
 Linux only (requires CAP_NET_RAW). Pure Go, no libpcap/cgo dependency.
 
-<!-- source: internal/component/cmd/show/capture_interface_linux.go -- handleCaptureInterface -->
+<!-- source: internal/component/diag/cmd/capture_interface_linux.go -- HandleCaptureInterface -->
 
 ### show system file-descriptors
 
@@ -869,7 +869,7 @@ Status values: "up to date", "update available", "downloading", "verifying", "st
 "paused by server", "waiting for maintenance window", "waiting for spread",
 "check failed", "not configured", "error: ...".
 
-<!-- source: internal/component/cmd/show/update.go -- handleShowSystemUpdate -->
+<!-- source: internal/component/update/cmd/show.go -- handleShowSystemUpdate -->
 
 ### show system update history
 
@@ -885,7 +885,7 @@ Result values: "success", "failed-download", "failed-checksum", "failed-stage",
 History is persisted to `ze-update-history.json` in the binary's directory and
 survives restarts.
 
-<!-- source: internal/component/cmd/show/update.go -- handleShowSystemUpdateHistory -->
+<!-- source: internal/component/update/cmd/show.go -- handleShowSystemUpdateHistory -->
 
 ### update system firmware
 
@@ -907,7 +907,7 @@ sha256 is absent from the manifest.
 `rollback` renames the `.prev` backup to the target binary and restarts. After
 rollback, `.prev` no longer exists and the new version is gone from disk.
 
-<!-- source: internal/component/cmd/update/firmware.go -- firmware CLI handlers -->
+<!-- source: internal/component/update/cmd/firmware.go -- firmware CLI handlers -->
 
 ### show summary
 
@@ -959,7 +959,7 @@ are stored in the autodetected crash directory (see `ze.crash.dir` env var).
 The offline variant works when the daemon is down (which is when you need
 it most, after a crash).
 
-<!-- source: internal/component/cmd/show/crashes.go -- show crashes command -->
+<!-- source: internal/plugins/crashes/cmd/show.go -- show crashes command -->
 <!-- source: internal/plugins/crashes/crashes.go -- crash storage commands -->
 
 ### clear interface counters
@@ -1527,7 +1527,7 @@ Optional: `source-asn4 false` to test with ASN2 encoding context (default: ASN4)
 Output is structured JSON with fields: `direction`, `peer`, `action` (accept/reject/modify), `trace` (per-filter decisions), `text-before`, `text-after`, `changed-attrs`, and `wire-changes` (wire-level attribute ops such as `AS4_PATH suppressed` that the flat filter text cannot express).
 
 This command does not forward routes, update the RIB, populate cache, or mutate peer state.
-<!-- source: internal/component/cmd/show/show_policy_test_cmd.go -->
+<!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyTest -->
 
 ### Set Commands
 
@@ -1811,7 +1811,7 @@ Stream kernel netlink events as one JSON line per event. Replaces `ip monitor` o
 | `all` | All of the above (default when no group specified) |
 
 Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
-<!-- source: internal/component/cmd/show/netlink_monitor_linux.go -- streamNetlinkMonitor -->
+<!-- source: internal/component/iface/cmd/monitor_netlink_linux.go -- streamNetlinkMonitor -->
 
 ### Interface Rate Monitoring
 
@@ -1844,7 +1844,7 @@ Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
 | `request log level <subsystem> <level>` | write | Set log level at runtime |
 
 Levels: debug, info, warn, err, disabled.
-<!-- source: internal/component/cmd/log/ -- show log levels/recent, request log level RPCs; internal/core/slogutil/slogutil.go -- level definitions -->
+<!-- source: internal/core/slogutil/cmd/handlers.go -- show log levels/recent, request log level RPCs; internal/core/slogutil/slogutil.go -- level definitions -->
 
 ### Plugin Configuration (from plugin context)
 
@@ -1863,7 +1863,7 @@ Levels: debug, info, warn, err, disabled.
 | `command-list` | read-only | List all commands with descriptions |
 | `command-help <name>` | read-only | Detailed help for a command |
 | `event-list` | read-only | List available event types |
-<!-- source: internal/component/cmd/meta/ -- help/discovery RPCs -->
+<!-- source: internal/component/command/cmd/ -- help/discovery RPCs -->
 
 ---
 

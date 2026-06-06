@@ -31,7 +31,6 @@ import (
 // flagging the literal repetition across the show package.
 const (
 	argCount               = "count"
-	argTimeout             = "timeout"
 	msgSubsystemNotRunning = "subsystem not running"
 )
 
@@ -93,18 +92,6 @@ func init() {
 			Handler:    handleShowSystemPlatform,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-conntrack",
-			Handler:    handleShowSystemConntrack,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-update",
-			Handler:    handleShowSystemUpdate,
-		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:system-update-history",
-			Handler:    handleShowSystemUpdateHistory,
-		},
-		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:metrics-query",
 			Handler:    handleShowMetricsQuery,
 		},
@@ -117,20 +104,10 @@ func init() {
 			Handler:    handleShowEventNamespaces,
 		},
 		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:capture",
-			Handler:    handleShowCapture,
-		},
-		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:health",
 			Handler:    handleShowHealth,
 		},
-		pluginserver.RPCRegistration{
-			WireMethod: "ze-show:doctor",
-			Handler:    handleShowDoctor,
-		},
 	)
-	// ze-show:host-* RPCs are registered from host.go's own init()
-	// via a loop over host.SectionNames(). See rules/derive-not-hardcode.md.
 }
 
 // handleShowWarnings returns the snapshot of all active warnings on the report bus.
@@ -338,12 +315,6 @@ func handleShowEventNamespaces(ctx *pluginserver.CommandContext, _ []string) (*p
 	}, nil
 }
 
-const (
-	capL2TP = "l2tp"
-	capBGP  = "bgp"
-	capBFD  = "bfd"
-)
-
 func handleShowHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	report := health.Check()
 	components := make([]map[string]any, 0, len(report.Components))
@@ -367,70 +338,6 @@ func handleShowHealth(_ *pluginserver.CommandContext, _ []string) (*plugin.Respo
 			"checked-at": report.CheckedAt,
 		},
 	}, nil
-}
-
-func handleShowCapture(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	protocol := ""
-	tunnelIDFilter := uint16(0)
-	peerFilter := ""
-	limit := 0
-	for i, a := range args {
-		switch a {
-		case capL2TP, capBGP:
-			protocol = a
-		case "tunnel-id":
-			if i+1 < len(args) {
-				if n, err := strconv.ParseUint(args[i+1], 10, 16); err == nil {
-					tunnelIDFilter = uint16(n)
-				}
-			}
-		case "peer":
-			if i+1 < len(args) {
-				peerFilter = args[i+1]
-			}
-		case argCount:
-			if i+1 < len(args) {
-				if n, err := strconv.Atoi(args[i+1]); err == nil && n > 0 {
-					limit = n
-				}
-			}
-		}
-	}
-
-	result := map[string]any{}
-
-	if protocol == "" || protocol == capL2TP {
-		svc := l2tp.LookupService()
-		if svc != nil {
-			entries := svc.CaptureSnapshot(limit, tunnelIDFilter, peerFilter)
-			if entries != nil {
-				result["l2tp"] = entries
-				result["l2tp-count"] = len(entries)
-			} else {
-				result["l2tp"] = "capture not enabled"
-			}
-		} else if protocol == capL2TP {
-			result["l2tp"] = msgSubsystemNotRunning
-		}
-	}
-
-	if protocol == "" || protocol == capBGP {
-		if ctx != nil && ctx.Reactor() != nil {
-			if cp, ok := ctx.Reactor().(plugin.BGPCaptureProvider); ok {
-				entries := cp.BGPCaptureSnapshot(limit, peerFilter)
-				if entries != nil {
-					result["bgp"] = entries
-					result["bgp-count"] = len(entries)
-				} else {
-					result["bgp"] = "capture not enabled"
-				}
-			}
-		} else if protocol == capBGP {
-			result["bgp"] = "reactor not available"
-		}
-	}
-
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(result)}, nil
 }
 
 // handleShowVersion returns the ze version and build date.
