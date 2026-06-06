@@ -1,14 +1,10 @@
-package schema
+package yang
 
 import (
 	"strings"
 	"testing"
 )
 
-// TestCommandMetaCmdSchemaOwnsMetaCommands is the owner half of the
-// self-containment invariant: the central meta schema must NOT declare
-// help, command, event, or plugin commands, and this package MUST.
-// See ai/rules/plugin-self-containment.md.
 func TestCommandMetaCmdSchemaOwnsMetaCommands(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-bgp:help"`,
@@ -30,10 +26,6 @@ func TestCommandMetaCmdSchemaOwnsMetaCommands(t *testing.T) {
 	}
 }
 
-// TestCommandMonitorCmdSchemaOwnsEventMonitor is the owner half of the
-// self-containment invariant for the event monitor command: the central
-// monitor schema must NOT declare ze-event:monitor, and this package MUST.
-// See ai/rules/plugin-self-containment.md.
 func TestCommandMonitorCmdSchemaOwnsEventMonitor(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-event:monitor"`,
