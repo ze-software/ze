@@ -290,6 +290,9 @@ ze gr                         ze (hub)                      ze bgp
 
 ## CLI Commands
 
+See [Command Ownership](command-ownership.md) for the plugin self-containment
+pattern: how each component owns its CLI commands, YANG schema, and tests.
+
 ### Command Routing
 
 CLI commands are routed to plugins by prefix:
@@ -535,6 +538,10 @@ This library is part of the Ze codebase, available to all plugins.
 ---
 
 ## YANG Schema
+
+See [Command Ownership](command-ownership.md) for how command YANG schemas use
+container merge to live in their owning component rather than a central verb
+package.
 
 ### What YANG Provides
 

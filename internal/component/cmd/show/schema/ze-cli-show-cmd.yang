@@ -259,7 +259,7 @@ unhealthy with a reason. Start here when troubleshooting.";
         }
 
         // NOTE: `show doctor` is owned by the doctor plugin.
-        // See internal/plugins/doctor/schema/ze-doctor-cmd.yang.
+        // See internal/component/doctor/schema/ze-doctor-cmd.yang.
 
         container metrics-query {
             config false;

@@ -89,7 +89,7 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 		`"ze-show:system-kernel-log"`:     "kernel log -> internal/component/host/schema",
 		`"ze-show:host-`:                  "host inventory -> internal/component/host/schema",
 		`"ze-show:crashes"`:               "crash reports -> internal/plugins/crashes/schema",
-		`"ze-show:doctor"`:                "doctor checks -> internal/plugins/doctor/schema",
+		`"ze-show:doctor"`:                "doctor checks -> internal/component/doctor/schema",
 		`"ze-show:capture"`:               "packet capture -> internal/component/diag/schema",
 		`"ze-show:capture-raw"`:           "raw capture -> internal/component/diag/schema",
 		`"ze-show:capture-interface"`:     "interface capture -> internal/component/diag/schema",

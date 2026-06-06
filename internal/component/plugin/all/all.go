@@ -63,6 +63,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/yang/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/diag/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/doctor/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/flowexport/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi/schema"
@@ -99,7 +100,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/connected/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/crashes/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/dhcpserver/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/doctor/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/schema"
@@ -172,7 +172,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/connected"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/crashes/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/dhcpserver"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/doctor/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp"
@@ -224,6 +223,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/archive/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/schema/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/diag/cmd"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/doctor/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/flowexport"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
@@ -244,5 +244,5 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/update/cmd"
-	_ "codeberg.org/thomas-mangin/ze/internal/core/slogutil/cmd"
 )
+

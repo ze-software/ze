@@ -90,11 +90,11 @@ import (
 
 	// Blank imports: command plugin owners register their handlers via
 	// init() and are dispatched by dispatchRegisteredRoot or LookupLocal.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/doctor"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/completion"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/crashes"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/debug"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/diag"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/doctor"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/exabgp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/explain"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/host"
