@@ -86,7 +86,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/schema/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/storage/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/core/env/cli"
 
 	// Blank imports: command plugin owners register their handlers via
 	// init() and are dispatched by dispatchRegisteredRoot or LookupLocal.

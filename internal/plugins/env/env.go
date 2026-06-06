@@ -1,10 +1,9 @@
 // Design: docs/architecture/config/environment.md — ze env CLI command
-//
-// Package environ provides the "ze env" subcommand to list and inspect
-// Ze environment variables with their defaults and current values.
-package cli
+
+package env
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
@@ -17,8 +16,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
-// Run executes the env subcommand with the given arguments.
-// Returns exit code.
 func Run(args []string) int {
 	if len(args) == 0 {
 		usage()
@@ -35,18 +32,17 @@ func Run(args []string) int {
 		return cmdList(args[1:])
 	case "get":
 		if len(args) < 2 {
-			fmt.Fprintf(os.Stderr, "error: ze env get requires a key\n")
+			writeErr("error: ze env get requires a key")
 			return 1
 		}
 		return showOne(args[1])
 	}
 
-	fmt.Fprintf(os.Stderr, "error: unknown env command: %s\n", args[0])
+	writeErr("error: unknown env command: " + args[0])
 	usage()
 	return 1
 }
 
-// cmdRegistered lists all registered env vars or shows details for one.
 func cmdRegistered(args []string) int {
 	if len(args) > 0 {
 		return showOne(args[0])
@@ -54,7 +50,6 @@ func cmdRegistered(args []string) int {
 	return showAll(false)
 }
 
-// cmdList parses flags for "ze env list" and displays the table.
 func cmdList(args []string) int {
 	fs := flag.NewFlagSet("ze env list", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
@@ -65,14 +60,12 @@ func cmdList(args []string) int {
 		return 1
 	}
 	if fs.NArg() > 0 {
-		fmt.Fprintf(os.Stderr, "error: unexpected argument %q\n", fs.Arg(0))
+		writeErr("error: unexpected argument \"" + fs.Arg(0) + "\"")
 		return 1
 	}
 	return showAll(*verbose)
 }
 
-// showAll displays all known env vars in a table.
-// If verbose, also shows the current effective value.
 func showAll(verbose bool) int {
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 
@@ -99,17 +92,17 @@ func showAll(verbose bool) int {
 	}
 
 	if err := w.Flush(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		writeErr("error: " + err.Error())
 		return 1
 	}
 
-	// Show registered log subsystems.
 	if subs := slogutil.Subsystems(); len(subs) > 0 {
-		fmt.Println()
-		fmt.Println("Log subsystems (ze.log.<name>=<level>, hierarchical: ze.log.bgp sets all bgp.* subsystems):")
-		fmt.Println("Levels: disabled, debug, info, warn, err")
-		fmt.Println()
-		sw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		out := bufio.NewWriter(os.Stdout)
+		writeLine(out, "")
+		writeLine(out, "Log subsystems (ze.log.<name>=<level>, hierarchical: ze.log.bgp sets all bgp.* subsystems):")
+		writeLine(out, "Levels: disabled, debug, info, warn, err")
+		writeLine(out, "")
+		sw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 		for _, sub := range subs {
 			desc := sub.Description
 			if desc == "" {
@@ -118,7 +111,11 @@ func showAll(verbose bool) int {
 			printRow(sw, "  ze.log."+sub.Name, desc)
 		}
 		if err := sw.Flush(); err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			writeErr("error: " + err.Error())
+			return 1
+		}
+		if err := out.Flush(); err != nil {
+			writeErr("error: " + err.Error())
 			return 1
 		}
 	}
@@ -126,16 +123,18 @@ func showAll(verbose bool) int {
 	return 0
 }
 
-// printRow writes a tab-separated row to w.
 func printRow(w *tabwriter.Writer, cols ...string) {
 	if _, err := fmt.Fprintln(w, strings.Join(cols, "\t")); err != nil {
 		return
 	}
 }
 
-// currentValue returns the effective value for an env var key.
-// Skips pattern keys like "ze.log.<subsystem>" that contain angle brackets.
-// Masks secret vars to prevent accidental exposure.
+func writeLine(w *bufio.Writer, s string) {
+	if _, err := w.WriteString(s + "\n"); err != nil {
+		return
+	}
+}
+
 func currentValue(key string) string {
 	if strings.Contains(key, "<") {
 		return "-"
@@ -150,9 +149,7 @@ func currentValue(key string) string {
 	return valueOrDash(env.Get(key))
 }
 
-// showOne displays a single env var with its current value and metadata.
 func showOne(key string) int {
-	// Normalize key to dot notation for matching
 	normalized := strings.ReplaceAll(strings.ToLower(key), "_", ".")
 
 	for _, e := range env.AllEntries() {
@@ -161,28 +158,32 @@ func showOne(key string) int {
 		}
 
 		current := currentValue(e.Key)
-		fmt.Printf("Key:         %s\n", e.Key)
-		fmt.Printf("Type:        %s\n", e.Type)
-		fmt.Printf("Default:     %s\n", valueOrDash(e.Default))
-		fmt.Printf("Current:     %s\n", valueOrDash(current))
-		fmt.Printf("Description: %s\n", e.Description)
+		out := bufio.NewWriter(os.Stdout)
+		writeLine(out, "Key:         "+e.Key)
+		writeLine(out, "Type:        "+e.Type)
+		writeLine(out, "Default:     "+valueOrDash(e.Default))
+		writeLine(out, "Current:     "+valueOrDash(current))
+		writeLine(out, "Description: "+e.Description)
 		if e.Private {
-			fmt.Printf("Private:     yes\n")
+			writeLine(out, "Private:     yes")
 		}
 		if e.Secret {
-			fmt.Printf("Secret:      yes\n")
+			writeLine(out, "Secret:      yes")
 		}
 
-		// Show all notation forms
 		under := strings.ReplaceAll(e.Key, ".", "_")
-		fmt.Printf("\nAccepted forms:\n")
-		fmt.Printf("  %s\n", e.Key)
-		fmt.Printf("  %s\n", under)
-		fmt.Printf("  %s\n", strings.ToUpper(under))
+		writeLine(out, "")
+		writeLine(out, "Accepted forms:")
+		writeLine(out, "  "+e.Key)
+		writeLine(out, "  "+under)
+		writeLine(out, "  "+strings.ToUpper(under))
+		if err := out.Flush(); err != nil {
+			return 1
+		}
 		return 0
 	}
 
-	fmt.Fprintf(os.Stderr, "error: unknown env var %q\n", key)
+	writeErr("error: unknown env var \"" + key + "\"")
 	return 1
 }
 
@@ -191,6 +192,12 @@ func valueOrDash(v string) string {
 		return "-"
 	}
 	return v
+}
+
+func writeErr(s string) {
+	if _, err := os.Stderr.WriteString(s + "\n"); err != nil {
+		return
+	}
 }
 
 func usage() {

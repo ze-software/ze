@@ -1,9 +1,4 @@
-// Design: docs/architecture/api/commands.md — env command ownership
-//
-// Register the `env` root command and its `show env *` offline shortcuts with
-// the importable command registry. This is the owner package: the offline
-// environment-inspection CLI lives with internal/core/env, not under cmd/ze.
-package cli
+package env
 
 import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 

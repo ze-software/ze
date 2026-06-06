@@ -1,4 +1,4 @@
-package cli
+package env
 
 import (
 	"bytes"
@@ -18,7 +18,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// captureStdout runs fn and returns what it wrote to stdout.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stdout
@@ -37,7 +36,6 @@ func captureStdout(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-// captureStderr runs fn and returns what it wrote to stderr.
 func captureStderr(t *testing.T, fn func()) string {
 	t.Helper()
 	old := os.Stderr
@@ -56,10 +54,6 @@ func captureStderr(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-// TestShowAllExcludesPrivate verifies "ze env list" hides private entries.
-//
-// VALIDATES: Private env vars are hidden from listing output.
-// PREVENTS: Private vars leaking into ze env list.
 func TestShowAllExcludesPrivate(t *testing.T) {
 	var code int
 	out := captureStdout(t, func() {
@@ -71,10 +65,6 @@ func TestShowAllExcludesPrivate(t *testing.T) {
 	assert.NotContains(t, out, "ze.test.environ.secret", "private var should not appear in list")
 }
 
-// TestShowOneFindsPrivate verifies "ze env get" can look up private entries.
-//
-// VALIDATES: Direct lookup by key finds private entries and shows Private flag.
-// PREVENTS: Regression if showOne() reverts to using Entries() instead of AllEntries().
 func TestShowOneFindsPrivate(t *testing.T) {
 	var code int
 	out := captureStdout(t, func() {
@@ -86,10 +76,6 @@ func TestShowOneFindsPrivate(t *testing.T) {
 	assert.Contains(t, out, "Private:     yes")
 }
 
-// TestShowOnePublicNoPrivateLabel verifies public entries don't show "Private:".
-//
-// VALIDATES: Public entries omit the Private label.
-// PREVENTS: Spurious "Private:" line on non-private entries.
 func TestShowOnePublicNoPrivateLabel(t *testing.T) {
 	var code int
 	out := captureStdout(t, func() {
@@ -101,10 +87,6 @@ func TestShowOnePublicNoPrivateLabel(t *testing.T) {
 	assert.NotContains(t, out, "Private:")
 }
 
-// TestShowOneUnknownKey verifies unknown key returns error.
-//
-// VALIDATES: Unknown key produces exit code 1 and stderr message.
-// PREVENTS: Silent failure on unknown keys.
 func TestShowOneUnknownKey(t *testing.T) {
 	var code int
 	stderr := captureStderr(t, func() {
@@ -115,10 +97,6 @@ func TestShowOneUnknownKey(t *testing.T) {
 	assert.Contains(t, stderr, "unknown env var")
 }
 
-// TestListRejectsUnknownFlags verifies "ze env list --garbage" fails.
-//
-// VALIDATES: Unknown flags are rejected via flag.NewFlagSet.
-// PREVENTS: Silent ignore of typos in flags.
 func TestListRejectsUnknownFlags(t *testing.T) {
 	var code int
 	_ = captureStderr(t, func() {
