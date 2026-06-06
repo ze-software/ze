@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
@@ -13,7 +14,7 @@ import (
 )
 
 const (
-	doctorCheckTimeout     = 5 * time.Second
+	perCheckTimeout        = 5 * time.Second
 	maxDiagnosticsPerCheck = 64
 )
 
@@ -62,10 +63,11 @@ func collectPluginDoctorChecks(cmdCtx *pluginserver.CommandContext) []diagnostic
 
 	platform, _ := host.DetectPlatform()
 
-	ctx, cancel := context.WithTimeout(context.Background(), doctorCheckTimeout)
-	defer cancel()
-
-	var diags []diagnostic.Diagnostic
+	type pendingCheck struct {
+		plugin string
+		check  plugin.DoctorCheckRegistration
+	}
+	var pending []pendingCheck
 	for pluginName, checks := range plugins {
 		if pluginName == callerName {
 			continue
@@ -74,38 +76,51 @@ func collectPluginDoctorChecks(cmdCtx *pluginserver.CommandContext) []diagnostic
 			if !platformMatches(check.Platforms, platform) {
 				continue
 			}
-			out, err := cmdCtx.Server.CallDoctorCheck(ctx, pluginName, check.Name)
-			if err != nil {
-				diags = append(diags, diagnostic.Diagnostic{
-					Code:     "doctor-plugin-unreachable",
-					Severity: diagnostic.SeverityWarning,
-					Message:  "plugin " + pluginName + " doctor check " + check.Name + " failed: " + err.Error(),
-				})
-				continue
-			}
-			count := len(out.Diagnostics)
-			if count > maxDiagnosticsPerCheck {
-				count = maxDiagnosticsPerCheck
-				diags = append(diags, diagnostic.Diagnostic{
-					Code:     "doctor-plugin-excessive-diagnostics",
-					Severity: diagnostic.SeverityWarning,
-					Message:  "plugin " + pluginName + " check " + check.Name + " returned too many diagnostics, truncated",
-				})
-			}
-			for _, d := range out.Diagnostics[:count] {
-				sev := normalizeSeverity(d.Severity)
-				diags = append(diags, diagnostic.Diagnostic{
-					Code:     d.Code,
-					Severity: sev,
-					Message:  d.Message,
-				})
-			}
+			pending = append(pending, pendingCheck{pluginName, check})
+		}
+	}
+	sort.Slice(pending, func(i, j int) bool {
+		return pending[i].check.Order < pending[j].check.Order
+	})
+
+	var diags []diagnostic.Diagnostic
+	for _, pc := range pending {
+		ctx, cancel := context.WithTimeout(context.Background(), perCheckTimeout)
+		out, err := cmdCtx.Server.CallDoctorCheck(ctx, pc.plugin, pc.check.Name)
+		cancel()
+		if err != nil {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-plugin-unreachable",
+				Severity: diagnostic.SeverityWarning,
+				Message:  "plugin " + pc.plugin + " doctor check " + pc.check.Name + " failed: " + err.Error(),
+			})
+			continue
+		}
+		count := len(out.Diagnostics)
+		if count > maxDiagnosticsPerCheck {
+			count = maxDiagnosticsPerCheck
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-plugin-excessive-diagnostics",
+				Severity: diagnostic.SeverityWarning,
+				Message:  "plugin " + pc.plugin + " check " + pc.check.Name + " returned too many diagnostics, truncated",
+			})
+		}
+		for _, d := range out.Diagnostics[:count] {
+			sev := normalizeSeverity(d.Severity)
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     d.Code,
+				Severity: sev,
+				Message:  d.Message,
+			})
 		}
 	}
 	return diags
 }
 
 func platformMatches(platforms []string, info *host.PlatformInfo) bool {
+	if len(platforms) == 0 {
+		return true
+	}
 	for _, p := range platforms {
 		if p == "any" {
 			return true

@@ -80,7 +80,7 @@ type DoctorCheckInput struct {
 // DoctorCheckDiagnostic is a single diagnostic result from a plugin doctor check.
 type DoctorCheckDiagnostic struct {
 	Code     string `json:"code"`     // Diagnostic code (e.g. "doctor-rpki-cache-unreachable")
-	Severity string `json:"severity"` // "error", "warning", "info"
+	Severity string `json:"severity"` // "error" or "warning"
 	Message  string `json:"message"`  // Human-readable description
 }
 
