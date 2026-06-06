@@ -77,13 +77,13 @@ stopped, or failed.";
             }
 
             // NOTE: `show system ntp` is owned by the NTP plugin.
-            // See internal/plugins/ntp/schema/ze-ntp-cmd.yang.
+            // See internal/plugins/ntp/yang/ze-ntp-cmd.yang.
 
             // NOTE: `show system conntrack` is owned by the firewall component.
             // See internal/component/firewall/schema/ze-firewall-cmd.yang.
 
-            // NOTE: `show system update` is owned by the update component.
-            // See internal/component/update/schema/ze-update-show-cmd.yang.
+            // NOTE: `show system update` is owned by the update-cmd plugin.
+            // See internal/plugins/update-cmd/yang/ze-update-show-cmd.yang.
 
             container sockets {
                 config false;
@@ -109,8 +109,8 @@ Linux only. Good for confirming listeners or spotting stuck connections.";
                 }
             }
 
-            // NOTE: `show system kernel-log` is owned by the host component.
-            // See internal/component/host/schema/ze-host-cmd.yang.
+            // NOTE: `show system kernel-log` is owned by the host-cmd plugin.
+            // See internal/plugins/host-cmd/yang/ze-host-cmd.yang.
 
             container goroutines {
                 config false;
@@ -178,8 +178,8 @@ Complements 'show system memory' (Go runtime) with the OS-level picture.";
             }
         }
 
-        // NOTE: `show host` subtree is owned by the host component.
-        // See internal/component/host/schema/ze-host-cmd.yang.
+        // NOTE: `show host` subtree is owned by the host-cmd plugin.
+        // See internal/plugins/host-cmd/yang/ze-host-cmd.yang.
 
         // NOTE: the `show gnmi` command is owned by the gNMI component
         // so that removing gNMI removes it (no dangling command node).
@@ -246,8 +246,8 @@ with source <name> to narrow to one subsystem, count <N> to limit
 output.";
         }
 
-        // NOTE: `show tcp-check` is owned by the diag component.
-        // See internal/component/diag/schema/ze-diag-cmd.yang.
+        // NOTE: `show tcp-check` is owned by the diag plugin.
+        // See internal/plugins/diag/yang/ze-diag-cmd.yang.
 
         container health {
             config false;
@@ -270,8 +270,8 @@ time series from the internal registry. Multiple label filters are
 ANDed. More targeted than the full metrics dump.";
         }
 
-        // NOTE: `show capture` subtree is owned by the diag component.
-        // See internal/component/diag/schema/ze-diag-cmd.yang.
+        // NOTE: `show capture` subtree is owned by the diag plugin.
+        // See internal/plugins/diag/yang/ze-diag-cmd.yang.
 
         container event {
             config false;
@@ -303,20 +303,20 @@ they are.";
         // cmd/ze/bgp/schema next to their handlers. The central show schema
         // declares no `container bgp`. See ai/rules/plugin-self-containment.md.
 
-        // NOTE: `show env` subtree is owned by core/env.
-        // See internal/core/env/schema/ze-env-cmd.yang.
+        // NOTE: `show env` subtree is owned by the env plugin.
+        // See internal/plugins/env/yang/ze-env-cmd.yang.
 
-        // NOTE: `show schema` subtree is owned by config/schema.
-        // See internal/component/config/schema/cli/schema/ze-schema-cli-cmd.yang.
+        // NOTE: `show schema` subtree is owned by the config-schema plugin.
+        // See internal/plugins/config-schema/yang/ze-schema-cli-cmd.yang.
 
-        // NOTE: `show yang` subtree is owned by config/yang.
-        // See internal/component/config/yang/schema/ze-yang-cli-cmd.yang.
+        // NOTE: `show yang` subtree is owned by the config-yang plugin.
+        // See internal/plugins/config-yang/yang/ze-yang-cli-cmd.yang.
 
-        // NOTE: `show data` subtree is owned by config/storage.
-        // See internal/component/config/storage/schema/ze-storage-cli-cmd.yang.
+        // NOTE: `show data` subtree is owned by the config-storage plugin.
+        // See internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang.
 
-        // NOTE: `show config` subtree is owned by config/cli.
-        // See internal/component/config/cli/schema/ze-config-cli-cmd.yang.
+        // NOTE: `show config` subtree is owned by the config-cli plugin.
+        // See internal/plugins/config-cli/yang/ze-config-cli-cmd.yang.
 
         container policy {
             config false;
@@ -336,7 +336,7 @@ when building a new policy chain to see what filters you can use.";
         }
 
         // NOTE: `show crashes` is owned by the crashes plugin.
-        // See internal/plugins/crashes/schema/ze-crashes-cmd.yang.
+        // See internal/plugins/crashes/yang/ze-crashes-cmd.yang.
 
         // NOTE: the `show mpls ...` subtree is owned by the MPLS component
         // so that removing MPLS removes it (no dangling command node).
