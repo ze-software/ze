@@ -103,9 +103,10 @@ const (
 	SectionOperations    = "operations"
 	SectionConfiguration = "configuration"
 	SectionSystem        = "system"
+	SectionTest          = "test"
 )
 
-var sectionOrder = []string{SectionOperations, SectionConfiguration, SectionSystem}
+var sectionOrder = []string{SectionOperations, SectionConfiguration, SectionSystem, SectionTest}
 
 // SectionTitle returns the display title for a section constant.
 func SectionTitle(section string) string {
@@ -116,6 +117,7 @@ var sectionTitles = map[string]string{
 	SectionOperations:    "Operations (interact with the running daemon)",
 	SectionConfiguration: "Configuration (change how the box behaves)",
 	SectionSystem:        "System (manage the process and environment)",
+	SectionTest:          "Test (functional test runners, mock servers, tools)",
 }
 
 // Meta holds human-facing metadata for a registered command. Optional; empty

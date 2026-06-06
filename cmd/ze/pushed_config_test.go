@@ -1,5 +1,7 @@
 // Design: plan/spec-appliance-4-device-config.md — pushed config loading tests
 
+//go:build !ze_test
+
 package main
 
 import (

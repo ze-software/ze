@@ -1,3 +1,5 @@
+//go:build !ze_test
+
 package main
 
 import (

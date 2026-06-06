@@ -101,7 +101,7 @@ chaos:
 
 test:
 	@mkdir -p bin
-	$(GO) build -o bin/ze-test ./cmd/ze-test
+	$(GO) build -tags ze_test -o bin/ze-test ./cmd/ze
 
 analyse:
 	@mkdir -p bin
@@ -126,10 +126,10 @@ bin/ze-stripped: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-stripped..."
 	@mkdir -p bin
 	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
-bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
+bin/ze-test: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p bin
-	$(GO) build -o bin/ze-test ./cmd/ze-test
+	$(GO) build -tags ze_test -o bin/ze-test ./cmd/ze
 
 bin/ze-chaos: $(shell find cmd/ze-chaos internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-chaos..."
@@ -161,7 +161,7 @@ ze-docker:
 
 ze-lint:
 	@echo "Running ze linter..."
-	@golangci-lint run ./cmd/ze/... ./cmd/ze-test/... ./internal/... ./pkg/... ./parked/... ./test/...
+	@golangci-lint run ./cmd/ze/... ./internal/... ./pkg/... ./parked/... ./test/...
 
 ze-vet-evidence:
 	@echo "Vetting evidence scripts (GOOS=linux)..."

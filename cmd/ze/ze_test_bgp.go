@@ -1,0 +1,594 @@
+// Design: docs/architecture/testing/ci-format.md — test runner CLI
+
+//go:build ze_test
+
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"strconv"
+	"syscall"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/test/peer"
+	"codeberg.org/thomas-mangin/ze/internal/test/runner"
+)
+
+var errPeerCheckFailed = errors.New("peer check failed")
+
+const (
+	cmdPlugin    = "plugin"
+	cmdChaosWeb  = "chaos-web"
+	cmdChaosIntg = "chaos"
+)
+
+func zeTestBgpCmd(args []string) int {
+	if err := zeTestBgpMain(args); err != nil {
+		if !errors.Is(err, errTestsFailed) {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
+		return 1
+	}
+	return 0
+}
+
+func zeTestBgpMain(args []string) error {
+	cli := zeTestParseRunCLI(args)
+	if cli == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
+	baseDir, err := findBaseDir()
+	if err != nil {
+		return fmt.Errorf("find base dir: %w", err)
+	}
+
+	switch cli.command {
+	case "encode", cmdPlugin, "reload", cmdChaosWeb, cmdChaosIntg:
+		return zeTestRunEncodingOrAPI(ctx, cli, baseDir)
+	case "decode":
+		return zeTestRunSimpleTests(ctx, cli, baseDir, zeTestNewDecodingTestSuite)
+	case "parse":
+		return zeTestRunSimpleTests(ctx, cli, baseDir, zeTestNewParsingTestSuite)
+	default:
+		return fmt.Errorf("unknown command: %s", cli.command)
+	}
+}
+
+type zeTestSuite interface {
+	Discover(dir string) error
+	List()
+	Select(runner.Selection) (int, error)
+	GetNicks() []string
+	Run(ctx context.Context, zePath string, verbose, quiet bool) bool
+}
+
+type zeTestDecodeTestSuite struct {
+	*runner.DecodingTests
+	baseDir string
+}
+
+func zeTestNewDecodingTestSuite(baseDir string) zeTestSuite {
+	return &zeTestDecodeTestSuite{
+		DecodingTests: runner.NewDecodingTests(baseDir),
+		baseDir:       baseDir,
+	}
+}
+
+func (d *zeTestDecodeTestSuite) GetNicks() []string {
+	registered := d.Registered()
+	nicks := make([]string, 0, len(registered))
+	for _, t := range registered {
+		nicks = append(nicks, t.Nick)
+	}
+	return nicks
+}
+
+func (d *zeTestDecodeTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
+	r := runner.NewDecodingRunner(d.DecodingTests, d.baseDir, zePath)
+	return r.Run(ctx, verbose, quiet)
+}
+
+type zeTestParseTestSuite struct {
+	*runner.ParsingTests
+	baseDir string
+}
+
+func zeTestNewParsingTestSuite(baseDir string) zeTestSuite {
+	return &zeTestParseTestSuite{
+		ParsingTests: runner.NewParsingTests(baseDir),
+		baseDir:      baseDir,
+	}
+}
+
+func (p *zeTestParseTestSuite) GetNicks() []string {
+	registered := p.Registered()
+	nicks := make([]string, 0, len(registered))
+	for _, t := range registered {
+		nicks = append(nicks, t.Nick)
+	}
+	return nicks
+}
+
+func (p *zeTestParseTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
+	r := runner.NewParsingRunner(p.ParsingTests, p.baseDir, zePath)
+	return r.Run(ctx, verbose, quiet)
+}
+
+func zeTestRunSimpleTests(ctx context.Context, cli *zeTestRunCLIFlags, baseDir string, newSuite func(string) zeTestSuite) error {
+	runner.ResetNickCounter()
+
+	tests := newSuite(baseDir)
+
+	var testDir string
+	switch cli.command {
+	case "decode":
+		testDir = filepath.Join(baseDir, "test", "decode")
+	case "parse":
+		testDir = filepath.Join(baseDir, "test", "parse")
+	}
+
+	if err := tests.Discover(testDir); err != nil {
+		return fmt.Errorf("discover tests: %w", err)
+	}
+
+	if cli.list {
+		tests.List()
+		return nil
+	}
+
+	if cli.shortList {
+		for _, nick := range tests.GetNicks() {
+			fmt.Fprintf(os.Stdout, "%s ", nick)
+		}
+		fmt.Fprintln(os.Stdout)
+		return nil
+	}
+
+	selected, err := tests.Select(runner.Selection{
+		All:     cli.all,
+		Start:   cli.start,
+		Pattern: cli.pattern,
+		Args:    cli.testArgs,
+	})
+	if err != nil {
+		return err
+	}
+	if selected == 0 {
+		zeTestPrintRunUsage()
+		return nil
+	}
+
+	if !cli.quiet {
+		runner.PrintHeader(cli.command)
+	}
+
+	zePath, err := zeTestBuildZe(ctx, baseDir)
+	if err != nil {
+		return err
+	}
+
+	success := tests.Run(ctx, zePath, cli.verbose, cli.quiet)
+
+	if !success {
+		return errTestsFailed
+	}
+
+	return nil
+}
+
+func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir string) error {
+	runner.ResetNickCounter()
+
+	tests := runner.NewEncodingTests(baseDir)
+	testDir := filepath.Join(baseDir, "test", "encode")
+	switch cli.command {
+	case cmdPlugin:
+		testDir = filepath.Join(baseDir, "test", "plugin")
+	case "reload":
+		testDir = filepath.Join(baseDir, "test", "reload")
+	case cmdChaosWeb:
+		testDir = filepath.Join(baseDir, "test", "chaos-web")
+	case cmdChaosIntg:
+		testDir = filepath.Join(baseDir, "test", "chaos")
+	}
+
+	if err := tests.Discover(testDir); err != nil {
+		return fmt.Errorf("discover tests: %w", err)
+	}
+
+	if cli.server != "" {
+		return zeTestRunServerOnly(ctx, cli, tests, baseDir)
+	}
+	if cli.client != "" {
+		return zeTestRunClientOnly(ctx, cli, tests, baseDir)
+	}
+
+	if cli.list {
+		tests.List()
+		return nil
+	}
+
+	if cli.shortList {
+		for _, r := range tests.Registered() {
+			fmt.Fprintf(os.Stdout, "%s ", r.Nick)
+		}
+		fmt.Fprintln(os.Stdout)
+		return nil
+	}
+
+	selected, err := tests.Select(runner.Selection{
+		All:     cli.all,
+		Start:   cli.start,
+		Pattern: cli.pattern,
+		Args:    cli.testArgs,
+	})
+	if err != nil {
+		return err
+	}
+	if selected == 0 {
+		zeTestPrintRunUsage()
+		return nil
+	}
+
+	r, err := runner.NewRunner(tests, baseDir)
+	if err != nil {
+		return fmt.Errorf("create runner: %w", err)
+	}
+	defer r.Cleanup()
+
+	switch cli.command {
+	case cmdChaosWeb:
+		r.SetExtraBinaries(map[string]string{
+			"ze-chaos": "./cmd/ze-chaos",
+		})
+	case cmdChaosIntg:
+		r.SetExtraBinaries(map[string]string{
+			"ze-chaos": "./cmd/ze-chaos",
+			"ze":       "./cmd/ze",
+		})
+	}
+
+	r.Display().SetLabel(cli.command)
+	r.Report().SetLabel(cli.command)
+	r.Display().Header()
+
+	limitCheck, err := runner.CheckUlimit(cli.parallel)
+	if err != nil {
+		return fmt.Errorf("ulimit check: %w", err)
+	}
+	r.Display().UlimitInfo(limitCheck)
+
+	portReservation, shifted, err := runner.ReservePorts(cli.port, tests.Count()*2)
+	if err != nil {
+		return fmt.Errorf("allocate ports: %w", err)
+	}
+	defer portReservation.Release()
+	pr := portReservation.PortRange
+
+	basePort := pr.Start
+	for _, rr := range tests.Registered() {
+		rr.Port = basePort
+		basePort += 2
+	}
+
+	r.Display().PortInfo(pr, shifted)
+
+	if err := r.Build(ctx); err != nil {
+		return err
+	}
+
+	opts := &runner.RunOptions{
+		Timeout:  cli.timeout,
+		Parallel: cli.parallel,
+		Verbose:  cli.verbose,
+		Quiet:    cli.quiet,
+		SaveDir:  cli.saveDir,
+	}
+
+	var success bool
+	if cli.count > 1 {
+		result := r.RunWithCount(ctx, opts, cli.count)
+		success = result.AllPassed
+		r.Display().StressSummary(result, cli.count)
+	} else {
+		success = r.Run(ctx, opts)
+		r.Display().Summary()
+		r.Display().TimingDetail(cli.command, r.Timings())
+		r.Display().DebugHints()
+	}
+
+	if !success {
+		return errTestsFailed
+	}
+
+	return nil
+}
+
+func zeTestRunServerOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *runner.EncodingTests, _ string) error {
+	rec := tests.GetByNick(cli.server)
+	if rec == nil {
+		for _, r := range tests.Registered() {
+			if r.Name == cli.server {
+				rec = r
+				break
+			}
+		}
+	}
+	if rec == nil {
+		return fmt.Errorf("test not found: %s", cli.server)
+	}
+
+	expects := make([]string, 0, len(rec.Options)+len(rec.Expects))
+	expects = append(expects, rec.Options...)
+	expects = append(expects, rec.Expects...)
+
+	port := cli.port
+	if rec.Port != 0 {
+		port = rec.Port
+	}
+
+	config := &peer.Config{
+		Port:   port,
+		Mode:   peer.ModeCheck,
+		Expect: expects,
+		Output: os.Stdout,
+	}
+
+	if asn, ok := rec.Extra["asn"]; ok {
+		if v, err := strconv.Atoi(asn); err == nil {
+			config.ASN = v
+		}
+	}
+	if rec.Extra["bind"] == "ipv6" {
+		config.IPv6 = true
+	}
+
+	fmt.Fprintf(os.Stdout, "Server mode for test: %s (%s)\n", rec.Nick, rec.Name)
+	fmt.Fprintf(os.Stdout, "Config: %s\n", rec.ConfigFile)
+	fmt.Fprintf(os.Stdout, "Port: %d\n", port)
+	fmt.Fprintf(os.Stdout, "Waiting for client connection...\n")
+	fmt.Fprintf(os.Stdout, "\nRun client in another terminal:\n")
+	fmt.Fprintf(os.Stdout, "   ze-test bgp %s --client %s --port %d\n\n", cli.command, cli.server, port)
+
+	p, err := peer.New(config)
+	if err != nil {
+		return fmt.Errorf("create peer: %w", err)
+	}
+	result := p.Run(ctx)
+
+	fmt.Fprintln(os.Stdout)
+
+	if result.Error != nil {
+		return result.Error
+	}
+	if !result.Success {
+		return errPeerCheckFailed
+	}
+
+	fmt.Fprintln(os.Stdout, "successful")
+	return nil
+}
+
+func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *runner.EncodingTests, baseDir string) error {
+	rec := tests.GetByNick(cli.client)
+	if rec == nil {
+		for _, r := range tests.Registered() {
+			if r.Name == cli.client {
+				rec = r
+				break
+			}
+		}
+	}
+	if rec == nil {
+		return fmt.Errorf("test not found: %s", cli.client)
+	}
+
+	configPath, ok := rec.Conf["config"].(string)
+	if !ok || configPath == "" {
+		return fmt.Errorf("test %s has no config file", cli.client)
+	}
+
+	zePath, err := zeTestBuildZe(ctx, baseDir)
+	if err != nil {
+		return err
+	}
+
+	port := cli.port
+	if rec.Port != 0 {
+		port = rec.Port
+	}
+	fmt.Fprintf(os.Stdout, "Client mode for test: %s (%s)\n", rec.Nick, rec.Name)
+	fmt.Fprintf(os.Stdout, "Config: %s\n", configPath)
+	fmt.Fprintf(os.Stdout, "Port: %d\n", port)
+	fmt.Fprintf(os.Stdout, "Starting ze bgp client...\n")
+	fmt.Fprintf(os.Stdout, "\nServer should be running. If not:\n")
+	fmt.Fprintf(os.Stdout, "   ze-test bgp %s --server %s --port %d\n\n", cli.command, cli.client, port)
+
+	zeDir := filepath.Dir(zePath)
+	existingPath := os.Getenv("PATH")
+	clientEnv := append(os.Environ(),
+		"ze_test_bgp_port="+strconv.Itoa(port),
+		"PATH="+zeDir+":"+existingPath,
+	)
+
+	clientCmd := exec.CommandContext(ctx, zePath, "server", configPath) //nolint:gosec // test runner, paths from temp dir
+	clientCmd.Cancel = func() error {
+		if clientCmd.Process == nil {
+			return nil
+		}
+		return clientCmd.Process.Signal(syscall.SIGTERM)
+	}
+	clientCmd.WaitDelay = 5 * time.Second
+	clientCmd.Env = clientEnv
+	clientCmd.Stdout = os.Stdout
+	clientCmd.Stderr = os.Stderr
+
+	return clientCmd.Run()
+}
+
+func zeTestBuildZe(ctx context.Context, baseDir string) (string, error) {
+	zePath := filepath.Join(baseDir, "bin", "ze")
+	if v := os.Getenv("ZE_BIN"); v != "" {
+		if !filepath.IsAbs(v) {
+			v = filepath.Join(baseDir, v)
+		}
+		zePath = v
+	}
+	if os.Getenv("ZE_TEST_NO_BUILD") == "1" {
+		if _, err := os.Stat(zePath); err != nil {
+			return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)
+		}
+		return zePath, nil
+	}
+	cmd := exec.CommandContext(ctx, "go", "build", "-tags", runner.TestBuildTags(), "-o", zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	cmd.Dir = baseDir
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("build ze: %w: %s", err, output)
+	}
+
+	return zePath, nil
+}
+
+type zeTestRunCLIFlags struct {
+	command   string
+	all       bool
+	list      bool
+	start     string
+	pattern   string
+	shortList bool
+	timeout   time.Duration
+	parallel  int
+	verbose   bool
+	quiet     bool
+	saveDir   string
+	port      int
+	server    string
+	client    string
+	count     int
+	testArgs  []string
+}
+
+func zeTestParseRunCLI(args []string) *zeTestRunCLIFlags {
+	if len(args) < 1 {
+		zeTestPrintRunUsage()
+		return nil
+	}
+
+	command := args[0]
+	if isHelpArg(command) {
+		zeTestPrintRunUsage()
+		return nil
+	}
+
+	validCommands := map[string]bool{
+		"encode":     true,
+		cmdPlugin:    true,
+		"decode":     true,
+		"parse":      true,
+		"reload":     true,
+		cmdChaosIntg: true,
+		cmdChaosWeb:  true,
+	}
+
+	if !validCommands[command] {
+		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
+		zeTestPrintRunUsage()
+		return nil
+	}
+
+	cli := &zeTestRunCLIFlags{command: command}
+
+	fs := flag.NewFlagSet(command, flag.ExitOnError)
+	fs.BoolVar(&cli.all, "a", false, "run all tests")
+	fs.BoolVar(&cli.all, "all", false, "run all tests")
+	fs.BoolVar(&cli.list, "l", false, "list available tests")
+	fs.BoolVar(&cli.list, "list", false, "list available tests")
+	fs.StringVar(&cli.start, "start", "", "start at test id/name and run through the end")
+	fs.StringVar(&cli.pattern, "pattern", "", "run tests whose id, name, or path contains pattern")
+	fs.BoolVar(&cli.shortList, "short-list", false, "list numeric test ids only")
+	fs.DurationVar(&cli.timeout, "t", 15*time.Second, "timeout per test")
+	fs.DurationVar(&cli.timeout, "timeout", 15*time.Second, "timeout per test")
+	fs.IntVar(&cli.parallel, "p", runner.DefaultParallelConcurrent, "max concurrent tests (0 = all)")
+	fs.IntVar(&cli.parallel, "parallel", runner.DefaultParallelConcurrent, "max concurrent tests (0 = all)")
+	fs.BoolVar(&cli.verbose, "v", false, "verbose output")
+	fs.BoolVar(&cli.verbose, "verbose", false, "verbose output")
+	fs.BoolVar(&cli.quiet, "q", false, "minimal output")
+	fs.BoolVar(&cli.quiet, "quiet", false, "minimal output")
+	fs.StringVar(&cli.saveDir, "s", "", "save logs to directory")
+	fs.StringVar(&cli.saveDir, "save", "", "save logs to directory")
+	fs.IntVar(&cli.port, "port", 1790, "base port to use")
+	fs.StringVar(&cli.server, "server", "", "run server only for test")
+	fs.StringVar(&cli.client, "client", "", "run client only for test")
+	fs.IntVar(&cli.count, "c", 1, "run each test N times")
+	fs.IntVar(&cli.count, "count", 1, "run each test N times")
+
+	if err := fs.Parse(args[1:]); err != nil {
+		return nil
+	}
+
+	cli.testArgs = fs.Args()
+
+	return cli
+}
+
+func zeTestPrintRunUsage() {
+	fmt.Fprintf(os.Stderr, `Usage: ze-test bgp <type> [options] [tests...]
+
+Types:
+  encode    Run encode tests (static routes)
+  plugin    Run plugin tests (dynamic routes via .run scripts)
+  decode    Run decode tests (BGP message hex to JSON)
+  parse     Run parse tests (config file validation)
+  reload    Run reload tests (SIGHUP config reload)
+  chaos     Run chaos integration tests (Ze + chaos peers end-to-end)
+  chaos-web Run chaos web dashboard tests (HTTP endpoint checks)
+
+Modes:
+  -l, --list          List available tests with N/TOTAL and id
+  --short-list        List numeric test ids only (space separated)
+  -a, --all           Run all tests
+  --start ID          Start at test id/name and run through the end
+  --pattern TEXT      Run tests whose id, name, or path contains TEXT
+Options:
+  -t, --timeout N     Timeout per test (default: 15s)
+  -p, --parallel N    Max concurrent tests (0 = all, default: 20)
+  -v, --verbose       Show output for each test
+  -q, --quiet         Minimal output
+  -s, --save DIR      Save logs to directory
+  --port N            Base port to use (default: 1790)
+  -c, --count N       Run each test N times (stress testing)
+
+Debugging:
+  --server ID         Run server only for test
+  --client ID         Run client only for test
+
+Examples:
+  ze-test bgp encode -l
+  ze-test bgp encode -a
+  ze-test bgp encode 0 1 2
+  ze-test bgp encode --start 42
+  ze-test bgp plugin -a -q
+  ze-test bgp decode -a
+  ze-test bgp parse -a
+  ze-test bgp encode -c 10 0 1    # stress test: run tests 0,1 ten times
+`)
+}

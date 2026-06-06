@@ -41,20 +41,13 @@ var noOwnerAllowlist = map[string]string{
 	"version":      "Uses binary stamp and process build metadata.",
 	"start":        "Starts the daemon and wires global process dependencies.",
 	"update-serve": "Release/update test infrastructure helper around the running binary.",
-	"completion":   "Shell integration for the whole binary.",
 	"install":      "Host installation for the ze binary; no runtime component owns host package installation.",
 	"uninstall":    "Host removal of the ze binary, unit, and config.",
 	"service":      "Host service (systemd) management for the ze binary.",
 	"support":      "Cross-system support bundle aggregator; archive orchestration is process-global.",
 	"skills":       "Agent skill inventory tied to the current binary and generated support files.",
 	"generate":     "Offline crypto artifact generation; no narrower PKI command owner exists yet.",
-	"signal":       "Daemon process control over the management channel; no narrower owner.",
-	"status":       "Daemon process control over the management channel; no narrower owner.",
-	"init":         "Process bootstrap: creates the blob database before any component exists.",
-	"passwd":       "Process credential setup (SSH/HTTP) before the daemon runs.",
-	"debug":        "Toggles persistent debug flags in ZeFS; process-global glue.",
 	"remote":       "Remote device management over SSH; no narrower runtime owner.",
-	"exabgp":       "Bridge tool for the legacy predecessor; no runtime owner.",
 	"crashes":      "Reads crash files written by the process panic handler.",
 	"doctor":       "Process readiness aggregator; owner-specific checks register with the doctor registry.",
 	"explain":      "Diagnostic-code lookup tied to the process binary.",
@@ -147,6 +140,9 @@ func checkRootHandlersAreInternal() []finding {
 	var out []finding
 	_ = filepath.Walk("cmd/ze", func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		if hasZeTestBuildTag(path) {
 			return nil
 		}
 		for _, name := range registerCalls(path) {
@@ -278,6 +274,18 @@ func registerRootNames(path string) []string {
 		}
 	})
 	return names
+}
+
+// hasZeTestBuildTag reports whether a Go file starts with //go:build ze_test.
+func hasZeTestBuildTag(path string) bool {
+	f, err := os.Open(path) //nolint:gosec // path from filepath.Walk under cmd/ze
+	if err != nil {
+		return false
+	}
+	defer f.Close() //nolint:errcheck // read-only
+	buf := make([]byte, 512)
+	n, _ := f.Read(buf)
+	return strings.Contains(string(buf[:n]), "//go:build ze_test")
 }
 
 // forEachRegistryCall invokes fn for every call whose selector package is

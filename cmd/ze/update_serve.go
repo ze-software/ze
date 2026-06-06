@@ -1,5 +1,7 @@
 // Design: plan/spec-cpe-6-self-update.md — standalone update server with enhanced manifest
 
+//go:build !ze_test
+
 package main
 
 import (

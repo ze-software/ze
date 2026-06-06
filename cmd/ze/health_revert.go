@@ -1,5 +1,7 @@
 // Design: plan/spec-appliance-4-device-config.md — auto-revert on runtime failure after config push
 
+//go:build !ze_test
+
 package main
 
 import (

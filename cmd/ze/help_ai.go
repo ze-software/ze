@@ -1,5 +1,7 @@
 // Design: docs/guide/mcp/overview.md -- AI help reference generator
 
+//go:build !ze_test
+
 package main
 
 import (

@@ -163,7 +163,7 @@ func (r *Runner) Build(ctx context.Context) error {
 	}
 
 	// Build ze-test (provides peer subcommand)
-	cmd = exec.CommandContext(ctx, "go", "build", "-o", r.testPath, "./cmd/ze-test") //nolint:gosec // paths from internal runner
+	cmd = exec.CommandContext(ctx, "go", "build", "-tags", "ze_test", "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {

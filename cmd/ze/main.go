@@ -1,6 +1,9 @@
 // Design: docs/architecture/system-architecture.md — ze main entry point
 //
 // Package main provides the ze command entry point.
+
+//go:build !ze_test
+
 package main
 
 import (
