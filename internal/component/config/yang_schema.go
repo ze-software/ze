@@ -581,6 +581,11 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	}
 	node.Ranges = numericRangesFromType(entry.Type, path)
 	node.Patterns = patternsFromType(entry.Type)
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:required" || strings.HasSuffix(ext.Keyword, ":required") {
+			recordSchemaBuildError(fmt.Errorf("at %s: ze:required on a leaf is invalid (use mandatory true instead)", path))
+		}
+	}
 	return node
 }
 
@@ -747,6 +752,10 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	// Extract ze:required and ze:suggest extensions from Entry.Exts.
 	for _, ext := range entry.Exts {
 		if ext.Keyword == "ze:required" || strings.HasSuffix(ext.Keyword, ":required") {
+			if ext.Argument == "" {
+				recordSchemaBuildError(fmt.Errorf("at %s: bare ze:required; is invalid (use mandatory true for leaf-level required, or ze:required \"path\" for list-level)", path))
+				continue
+			}
 			if fields := strings.Split(ext.Argument, "/"); len(fields) > 0 && fields[0] != "" {
 				l.Required = append(l.Required, fields)
 			}

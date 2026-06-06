@@ -974,7 +974,7 @@ Ze defines custom extensions in `ze-extensions.yang` that control config parsing
 | `ze:validate` | name | leaf, leaf-list | References a custom validator function |
 | `ze:cumulative` | -- | leaf-list | Accumulate values across config inheritance levels |
 | `ze:decorate` | name | leaf | Attaches display-time decorator for web UI |
-| `ze:required` | path | list | Field must have value after config inheritance resolution |
+| `ze:required` | path | list | Descendant field must have value after config inheritance resolution. Path argument is mandatory; bare `ze:required;` is rejected at schema load (use `mandatory true` for leaf-level required). Enforced generically for any list at validate, editor, and startup. |
 | `ze:suggest` | path | list | Field shown in creation form with inherited defaults |
 | `ze:listener` | -- | list | Marks a named `list server { key "name"; }` as a network listener. `CollectListeners` walks every enabled service with this extension at parse time and feeds `ValidateListenerConflicts`, which rejects overlapping `ip:port` pairs with a message naming both services. Covers web, ssh, mcp, looking-glass, prometheus, plugin hub, and api-server rest/grpc. |
 | `ze:command` | handler | container | Marks a config-false container as executable CLI command |

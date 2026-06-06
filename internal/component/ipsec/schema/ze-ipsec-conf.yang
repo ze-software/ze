@@ -80,7 +80,7 @@ module ze-ipsec-conf {
 
                     leaf encryption {
                         type encryption-algo;
-                        ze:required;
+                        mandatory true;
                         description "Encryption algorithm.";
                     }
 
@@ -170,13 +170,13 @@ module ze-ipsec-conf {
 
                     leaf encryption {
                         type encryption-algo;
-                        ze:required;
+                        mandatory true;
                         description "Encryption algorithm.";
                     }
 
                     leaf hash {
                         type hash-algo;
-                        ze:required;
+                        mandatory true;
                         description "PRF/integrity algorithm.";
                     }
 
@@ -184,7 +184,7 @@ module ze-ipsec-conf {
                         type uint8 {
                             range "1..31";
                         }
-                        ze:required;
+                        mandatory true;
                         description "Diffie-Hellman group number (RFC 7296 Section 3.3.2).";
                     }
                 }
@@ -195,13 +195,13 @@ module ze-ipsec-conf {
 
                 leaf ike-group {
                     type string;
-                    ze:required;
+                    mandatory true;
                     description "Reference to an IKE group name.";
                 }
 
                 leaf esp-group {
                     type string;
-                    ze:required;
+                    mandatory true;
                     description "Reference to an ESP group name.";
                 }
 
@@ -213,7 +213,7 @@ module ze-ipsec-conf {
                             enum eap-tls;
                             enum eap-mschapv2;
                         }
-                        ze:required;
+                        mandatory true;
                         description "EAP authentication method.";
                     }
 
@@ -298,13 +298,13 @@ module ze-ipsec-conf {
 
                     leaf ike-group {
                         type string;
-                        ze:required;
+                        mandatory true;
                         description "Reference to an IKE group name.";
                     }
 
                     leaf esp-group {
                         type string;
-                        ze:required;
+                        mandatory true;
                         description "Reference to an ESP group name.";
                     }
 
@@ -337,7 +337,7 @@ module ze-ipsec-conf {
                                 enum eap-tls;
                                 enum eap-mschapv2;
                             }
-                            ze:required;
+                            mandatory true;
                             description "Authentication mode.";
                         }
 

@@ -30,7 +30,7 @@ The `ze:required` and `ze:suggest` YANG extensions declare which fields must be 
 
 | Extension | Behavior |
 |-----------|----------|
-| `ze:required` | Field must have a value after inheritance. Validated at `ze config validate`, editor commit, and daemon startup. |
+| `ze:required "path"` | Descendant field must have a value in each list entry after inheritance. Validated at `ze config validate`, editor commit, and daemon startup for any list (generic, not BGP-only). |
 | `ze:suggest` | Field shown in the web creation form with inherited defaults but not mandatory. |
 
 Peer required fields: `connection/remote/ip`, `session/asn/local`, `session/asn/remote`. Suggested: `connection/local/ip`.
@@ -38,7 +38,8 @@ Peer required fields: `connection/remote/ip`, `session/asn/local`, `session/asn/
 Fields can be satisfied by inheritance: `session/asn/local` set at bgp level satisfies the requirement for all peers; `session/asn/remote` set at group level satisfies it for group members.
 
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- ze:required, ze:suggest extensions -->
-<!-- source: internal/component/bgp/config/resolve.go -- CheckRequiredFields -->
+<!-- source: internal/component/config/required.go -- CheckRequired (generic, any list) -->
+<!-- source: internal/component/bgp/config/resolve.go -- CheckRequiredFields (BGP-specific) -->
 
 ### Prefix Limits (RFC 4486)
 

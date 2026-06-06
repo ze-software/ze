@@ -203,61 +203,72 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 		return nil, nil
 	}
 
-	// Get BGP container
-	bgp := tree.GetContainer("bgp")
-	if bgp == nil {
-		return nil, nil // No BGP config
-	}
-
 	lines := strings.Split(content, "\n")
 	var errs, warns []ConfigValidationError
 
-	// Validate standalone peers (directly under bgp)
-	peers := bgp.GetList(keyPeer)
-	for peerAddr, peerTree := range peers {
-		v.validatePeer(peerAddr, "", peerTree, nil, bgp, lines, &errs, &warns)
+	// BGP-specific validation when bgp {} is present.
+	bgp := tree.GetContainer("bgp")
+	if bgp != nil {
+		// Validate standalone peers (directly under bgp)
+		peers := bgp.GetList(keyPeer)
+		for peerAddr, peerTree := range peers {
+			v.validatePeer(peerAddr, "", peerTree, nil, bgp, lines, &errs, &warns)
+		}
+
+		// Validate group peers (bgp > group > peer) — merge group defaults with peer values
+		groups := bgp.GetList(keyGroup)
+		for groupName, groupTree := range groups {
+			groupPeers := groupTree.GetList(keyPeer)
+			for peerAddr, peerTree := range groupPeers {
+				v.validatePeer(peerAddr, groupName, peerTree, groupTree, bgp, lines, &errs, &warns)
+			}
+		}
+
+		// Check for duplicate remote > ip across all peers.
+		v.checkDuplicateRemoteIPs(bgp, lines, &errs)
+
+		// Validate BGP-level fields — YANG schema defines which are mandatory.
+		bgpMap := bgp.ToMap()
+		// Remove peer and group sub-maps to avoid re-validating (already done above).
+		delete(bgpMap, keyPeer)
+		delete(bgpMap, keyGroup)
+		yangErrs := v.yangValidator.ValidateTree("bgp", bgpMap)
+		for i := range yangErrs {
+			field := yangLeafName(yangErrs[i].Path)
+			setPath := strings.ReplaceAll(yangErrs[i].Path, ".", " ")
+			var msg string
+			if yangErrs[i].Type == yang.ErrTypeMissing {
+				msg = "missing required field \"" + field + "\" (set " + setPath + " <value>)"
+			} else {
+				msg = field + ": " + yangErrs[i].Message
+			}
+			severity := severityError
+			if yangErrs[i].Type == yang.ErrTypeMissing {
+				severity = severityWarning
+			}
+			ve := ConfigValidationError{
+				Line:     findFieldLine(lines, "bgp", field),
+				Message:  msg,
+				Severity: severity,
+			}
+			if severity == severityWarning {
+				warns = append(warns, ve)
+			} else {
+				errs = append(errs, ve)
+			}
+		}
 	}
 
-	// Validate group peers (bgp > group > peer) — merge group defaults with peer values
-	groups := bgp.GetList(keyGroup)
-	for groupName, groupTree := range groups {
-		groupPeers := groupTree.GetList(keyPeer)
-		for peerAddr, peerTree := range groupPeers {
-			v.validatePeer(peerAddr, groupName, peerTree, groupTree, bgp, lines, &errs, &warns)
-		}
-	}
-
-	// Check for duplicate remote > ip across all peers.
-	v.checkDuplicateRemoteIPs(bgp, lines, &errs)
-
-	// Validate BGP-level fields — YANG schema defines which are mandatory.
-	bgpMap := bgp.ToMap()
-	// Remove peer and group sub-maps to avoid re-validating (already done above).
-	delete(bgpMap, keyPeer)
-	delete(bgpMap, keyGroup)
-	yangErrs := v.yangValidator.ValidateTree("bgp", bgpMap)
-	for i := range yangErrs {
-		field := yangLeafName(yangErrs[i].Path)
-		setPath := strings.ReplaceAll(yangErrs[i].Path, ".", " ")
-		var msg string
-		if yangErrs[i].Type == yang.ErrTypeMissing {
-			msg = "missing required field \"" + field + "\" (set " + setPath + " <value>)"
-		} else {
-			msg = field + ": " + yangErrs[i].Message
-		}
-		severity := severityError
-		if yangErrs[i].Type == yang.ErrTypeMissing {
-			severity = severityWarning
-		}
-		ve := ConfigValidationError{
-			Line:     findFieldLine(lines, "bgp", field),
-			Message:  msg,
-			Severity: severity,
-		}
-		if severity == severityWarning {
-			warns = append(warns, ve)
-		} else {
-			errs = append(errs, ve)
+	// Generic ze:required enforcement for non-BGP sections.
+	// BGP is handled above with group-merge inheritance awareness.
+	if config.HasNonBGPRequired(v.schema) {
+		treeData := tree.ToMap()
+		delete(treeData, "bgp")
+		for _, rv := range config.CheckRequired(v.schema, treeData) {
+			warns = append(warns, ConfigValidationError{
+				Message:  rv.AnchorPath + " " + rv.EntryKey + ": missing required field \"" + rv.FieldPath + "\" (" + rv.SetHint + ")",
+				Severity: severityWarning,
+			})
 		}
 	}
 

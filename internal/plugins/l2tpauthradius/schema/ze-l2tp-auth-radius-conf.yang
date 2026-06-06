@@ -42,7 +42,7 @@ module ze-l2tp-auth-radius-conf {
                     }
                     leaf address {
                         type string;
-                        ze:required;
+                        mandatory true;
                         description "RADIUS server IP address or hostname.";
                     }
                     leaf port {

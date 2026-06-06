@@ -1335,3 +1335,29 @@ func TestYangToNodeKeepsMatchingOS(t *testing.T) {
 	node := yangToNode(entry, "test")
 	assert.NotNil(t, node, "node with ze:os matching runtime.GOOS should be kept")
 }
+
+// VALIDATES: AC-6 -- bare ze:required; (no path argument) rejected at schema build.
+// PREVENTS: silent no-op where ze:required; populates nothing.
+func TestBareRequiredRejectedAtLoad(t *testing.T) {
+	resetSchemaBuildErrors()
+
+	entry := &gyang.Entry{
+		Kind: gyang.DirectoryEntry,
+		Name: "test-list",
+		Key:  "name",
+		Dir: map[string]*gyang.Entry{
+			"name": {Kind: gyang.LeafEntry, Name: "name", Type: &gyang.YangType{Kind: gyang.Ystring}},
+			"leaf": {Kind: gyang.LeafEntry, Name: "leaf", Type: &gyang.YangType{Kind: gyang.Ystring}},
+		},
+		ListAttr: &gyang.ListAttr{},
+		Exts:     []*gyang.Statement{{Keyword: "ze:required", Argument: ""}},
+	}
+
+	listNode := yangToList(entry, "test/test-list")
+	require.NotNil(t, listNode)
+	assert.Empty(t, listNode.Required, "bare ze:required should not populate Required")
+
+	buildErr := flushSchemaBuildErrors()
+	require.Error(t, buildErr, "bare ze:required; should produce a schema build error")
+	assert.Contains(t, buildErr.Error(), "bare ze:required;")
+}

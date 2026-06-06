@@ -364,6 +364,17 @@ func runValidation(input, path string) *validationResult {
 		}
 	}
 
+	// Generic ze:required enforcement for non-BGP sections.
+	// BGP is handled above via CheckRequiredFields (inheritance-aware).
+	if config.HasNonBGPRequired(schema) {
+		nonBGPData := tree.ToMap()
+		delete(nonBGPData, "bgp")
+		for _, v := range config.CheckRequired(schema, nonBGPData) {
+			result.addWarning("config-required-missing",
+				v.AnchorPath+" "+v.EntryKey+": missing required field \""+v.FieldPath+"\" ("+v.SetHint+")")
+		}
+	}
+
 	// Hub config validation (secret length, client blocks).
 	if tree.GetContainer("plugin") != nil {
 		if _, hubErr := config.ExtractHubConfig(tree); hubErr != nil {
