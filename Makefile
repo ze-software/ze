@@ -5,7 +5,7 @@
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp
 .PHONY: _ze-verify-impl _ze-verify-changed-impl
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
-.PHONY: ze-plugin-imports-check ze-regen ze-regen-check
+.PHONY: ze-plugin-imports-check ze-yang-glue-check ze-regen ze-regen-check
 .PHONY: check ze-setup ze-setup-build ze-setup-lint
 .PHONY: help-test help-deploy help-dev
 
@@ -64,10 +64,14 @@ include mk/gokrazy.mk
 all: ze-lint ze-unit-test build
 
 generate:
+	@go run scripts/codegen/yang_glue.go
 	@go run scripts/codegen/plugin_imports.go
 
 ze-plugin-imports-check:
 	@go run scripts/codegen/plugin_imports.go --check
+
+ze-yang-glue-check:
+	@go run scripts/codegen/yang_glue.go --check
 
 build: generate bin/ze bin/ze-appliance bin/ze-setup bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-analyse docs/comparison.html
 	@echo "All binaries built"

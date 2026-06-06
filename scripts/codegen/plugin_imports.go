@@ -153,8 +153,9 @@ func discoverPlugins(root, module string) ([]string, error) {
 			if d.IsDir() || d.Name() != "register.go" {
 				return nil
 			}
-			// Skip schema/register.go (handled by discoverSchemaPackages).
-			if filepath.Base(filepath.Dir(path)) == "schema" {
+			// Skip schema/register.go and yang/register.go (handled by discoverSchemaPackages).
+			dirName := filepath.Base(filepath.Dir(path))
+			if dirName == "schema" || dirName == "yang" {
 				return nil
 			}
 			// Skip packages marked with "codegen:skip" (e.g. CLI-only
@@ -197,8 +198,14 @@ func discoverSchemaPackages(internalDir, module string) ([]string, error) {
 		if info.IsDir() {
 			return nil
 		}
-		// Only look at schema/register.go files
-		if filepath.Base(path) != "register.go" || filepath.Base(filepath.Dir(path)) != "schema" {
+		// Only look at schema/register.go or yang/register.go files.
+		dirName := filepath.Base(filepath.Dir(path))
+		if filepath.Base(path) != "register.go" || (dirName != "schema" && dirName != "yang") {
+			return nil
+		}
+		// Skip config/yang itself — that's the registry, not a schema package.
+		schemaRel, _ := filepath.Rel(internalDir, filepath.Dir(path))
+		if schemaRel == filepath.Join("component", "config", "yang") {
 			return nil
 		}
 		// Verify it imports the yang package (for RegisterModule)
