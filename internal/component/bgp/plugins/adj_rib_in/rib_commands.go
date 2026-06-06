@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 var (
@@ -47,8 +48,61 @@ func (r *AdjRIBInManager) handleCommand(command string, args []string, peer stri
 
 const (
 	batchValidateStride   = 6
-	maxBatchValidateCount = 256
+	maxBatchValidateCount = 256 // higher than rpki sender's 128: external plugins may batch up to 256
 )
+
+// handleBatchValidateTyped processes typed validation decisions from the
+// DirectBridge fast path, bypassing string serialization entirely.
+// Pre-validates all decisions before mutating state (same as batchValidateCommand).
+func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
+	if len(decisions) == 0 {
+		return &rpc.BatchValidateResult{}, nil
+	}
+	if len(decisions) > maxBatchValidateCount {
+		return nil, fmt.Errorf("batch-validate: %d decisions exceeds maximum %d", len(decisions), maxBatchValidateCount)
+	}
+	for i := range decisions {
+		if decisions[i].Accept && decisions[i].ValState != ValidationValid && decisions[i].ValState != ValidationNotFound {
+			return nil, fmt.Errorf("batch-validate: invalid validation state %d at index %d (expected 1=Valid or 2=NotFound)", decisions[i].ValState, i)
+		}
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var accepted, rejected, early int
+	for i := range decisions {
+		d := &decisions[i]
+		dFam, _ := family.LookupFamily(d.Family)
+		rKey := routeKeyFromStrings(dFam, d.Prefix, d.PathID)
+		pKey := pendingKey(d.PeerAddr, rKey)
+
+		if d.Accept {
+			pr, ok := r.pending[pKey]
+			if !ok {
+				r.storeEarlyDecision(d.PeerAddr, rKey, earlyAccept, d.ValState)
+				early++
+				accepted++
+				continue
+			}
+			r.promoteToInstalled(pr, d.ValState)
+			delete(r.pending, pKey)
+			accepted++
+		} else {
+			if _, ok := r.pending[pKey]; !ok {
+				r.storeEarlyDecision(d.PeerAddr, rKey, earlyReject, 0)
+				early++
+				rejected++
+				continue
+			}
+			delete(r.pending, pKey)
+			logger().Debug("rejected pending route (batch-typed)", "peer", d.PeerAddr, "family", d.Family, "prefix", d.Prefix, "pathID", d.PathID)
+			rejected++
+		}
+	}
+
+	return &rpc.BatchValidateResult{Accepted: accepted, Rejected: rejected, Early: early}, nil
+}
 
 // batchValidateCommand processes multiple accept/reject decisions under a single lock.
 // Args are groups of 6: action("a"|"r"), peer, family, prefix, pathID, state.

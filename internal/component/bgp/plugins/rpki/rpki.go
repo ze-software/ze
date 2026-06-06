@@ -602,57 +602,57 @@ func (rp *RPKIPlugin) drainAndDispatch(batch []validationRequest) {
 }
 
 // dispatchBatch sends a batch of validation decisions to adj-rib-in
-// as a single batch-validate command with stride-6 args.
+// via the typed BatchValidate path (no string serialization for internal plugins).
 func (rp *RPKIPlugin) dispatchBatch(batch []validationRequest) {
 	if len(batch) == 0 {
 		return
 	}
 
-	args := rp.buildBatchArgs(batch)
+	decisions := rp.buildDecisions(batch)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	_, _, err := rp.plugin.DispatchCommandArgs(ctx, "request adj-rib-in batch-validate", args, "")
-	cancel()
+	defer cancel()
+	_, err := rp.plugin.BatchValidate(ctx, decisions)
 	if err != nil {
 		logger().Warn("rpki: batch validation command failed",
 			"count", len(batch), "error", err)
 	}
 }
 
-// buildBatchArgs converts validation decisions into stride-6 string args
-// for the batch-validate command. Updates metrics counters.
-func (rp *RPKIPlugin) buildBatchArgs(batch []validationRequest) []string {
+// buildDecisions converts validation requests into typed decisions.
+// Updates metrics counters and applies ASPA override logic.
+func (rp *RPKIPlugin) buildDecisions(batch []validationRequest) []rpc.ValidationDecision {
 	m := rpkiMetricsPtr.Load()
 
-	args := make([]string, 0, len(batch)*6)
+	decisions := make([]rpc.ValidationDecision, len(batch))
 	invalidAction := uint8(rp.aspaInvalidAction.Load()) //nolint:gosec // stored as uint8, fits
 	unknownAction := uint8(rp.aspaUnknownAction.Load()) //nolint:gosec // stored as uint8, fits
 
-	var buf textbuf.Buffer
 	for i := range batch {
 		req := &batch[i]
 		if m != nil {
 			m.validationOutcomes.With(validationStateString(req.state)).Inc()
 		}
 
-		pathIDStr := buf.Reset().Uint32(req.pathID).String()
-
 		reject := req.state == ValidationInvalid
 		if !reject && req.aspaState != aspaStateNone {
 			reject = aspaOverridesAccept(req.aspaState, invalidAction, unknownAction)
 		}
 
-		if reject {
-			args = append(args, "r", req.peerAddr, req.family, req.prefix, pathIDStr, "0")
-		} else {
-			stateStr := "2"
-			if req.state == ValidationValid {
-				stateStr = "1"
-			}
-			args = append(args, "a", req.peerAddr, req.family, req.prefix, pathIDStr, stateStr)
+		var valState uint8
+		if !reject {
+			valState = req.state
+		}
+		decisions[i] = rpc.ValidationDecision{
+			Accept:   !reject,
+			PeerAddr: req.peerAddr,
+			Family:   req.family,
+			Prefix:   req.prefix,
+			PathID:   req.pathID,
+			ValState: valState,
 		}
 	}
-	return args
+	return decisions
 }
 
 // originASFromParsed extracts origin AS from a pre-parsed AS_PATH ([]uint32).

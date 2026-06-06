@@ -167,6 +167,9 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 	r.startTimeoutScanner(stopCh)
 	defer close(stopCh)
 
+	// Register typed batch-validate handler for DirectBridge fast path.
+	rpc.RegisterBatchValidator(r.handleBatchValidateTyped)
+
 	// Subscribe to received events with format=full (includes raw hex bytes).
 	p.SetStartupSubscriptions([]string{"update direction received", "state"}, nil, "full")
 

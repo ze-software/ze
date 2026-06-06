@@ -16,9 +16,9 @@ func benchPipelinePlugin(b *testing.B) (*RPKIPlugin, *atomic.Int64, func()) {
 
 	var dispatched atomic.Int64
 	bridge := rpc.NewDirectBridge()
-	bridge.SetDispatchCommandArgs(func(_ string, args []string, _ string) (*rpc.DispatchCommandOutput, error) {
-		dispatched.Add(int64(len(args) / 6))
-		return &rpc.DispatchCommandOutput{Status: rpc.StatusDone}, nil
+	bridge.SetBatchValidate(func(decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
+		dispatched.Add(int64(len(decisions)))
+		return &rpc.BatchValidateResult{Accepted: len(decisions)}, nil
 	})
 	bridge.SetReady()
 
@@ -60,14 +60,10 @@ func benchRequests(n int) []validationRequest {
 }
 
 // BenchmarkDispatchPipelineBatch measures the full rpki-to-adj-rib-in pipeline
-// with batching enabled (up to 128 decisions per DispatchCommandArgs call).
+// with batching enabled (up to 128 decisions per BatchValidate call).
 // Each iteration sends 128 decisions through validationWorker (channel +
-// timer coalescing) -> buildBatchArgs -> DispatchCommandArgs -> DirectBridge
+// timer coalescing) -> buildDecisions -> BatchValidate -> DirectBridge
 // -> mock handler. Per-decision cost = ns/op / 128.
-//
-// Note: includes channel and timer overhead that the Individual benchmark
-// skips (it calls dispatchBatch directly). The real per-call savings from
-// batching are larger than the raw ratio suggests.
 func BenchmarkDispatchPipelineBatch(b *testing.B) {
 	rp, dispatched, cleanup := benchPipelinePlugin(b)
 	defer cleanup()
@@ -90,7 +86,7 @@ func BenchmarkDispatchPipelineBatch(b *testing.B) {
 // BenchmarkDispatchPipelineIndividual measures the per-call cost of
 // dispatchBatch with a single decision (no channel, no coalescing worker).
 // Compare per-decision cost with BenchmarkDispatchPipelineBatch to see the
-// DispatchCommandArgs overhead that batching eliminates.
+// BatchValidate overhead that batching eliminates.
 func BenchmarkDispatchPipelineIndividual(b *testing.B) {
 	rp, _, cleanup := benchPipelinePlugin(b)
 	defer cleanup()

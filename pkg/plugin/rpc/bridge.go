@@ -66,6 +66,8 @@ type DirectBridge struct {
 	hasInjectWireRoute  atomic.Bool                // set atomically when injectWireRoute is written
 	updateRouteSel      UpdateRouteSelHandler      // Typed fast path with *selector.Selector
 	hasUpdateRouteSel   atomic.Bool                // set atomically when updateRouteSel is written
+	batchValidate       BatchValidateHandler       // Typed fast path (no string serialization) -- rpki batching
+	hasBatchValidate    atomic.Bool                // set atomically when batchValidate is written
 	callbackCh          chan BridgeCallback        // Engine->plugin callbacks (replaces pipe after startup)
 	closeOnce           sync.Once                  // Guards callbackCh close (Stop may be called multiple times)
 	ready               atomic.Bool
@@ -489,6 +491,69 @@ func (b *DirectBridge) InjectWireRoute(protocol, peerKey string, updateBody []by
 // HasInjectWireRoute reports whether the typed inject-wire-route handler is set.
 func (b *DirectBridge) HasInjectWireRoute() bool {
 	return b.ready.Load() && b.hasInjectWireRoute.Load()
+}
+
+// ValidationDecision carries a single RPKI validation accept/reject decision
+// without string serialization. Used by the typed BatchValidate bridge path.
+type ValidationDecision struct {
+	Accept   bool // true=accept, false=reject
+	PeerAddr string
+	Family   string
+	Prefix   string
+	PathID   uint32
+	ValState uint8 // validation state for accepts (1=Valid, 2=NotFound); ignored for rejects
+}
+
+// BatchValidateResult carries the outcome counters from a batch validation.
+type BatchValidateResult struct {
+	Accepted int `json:"accepted"`
+	Rejected int `json:"rejected"`
+	Early    int `json:"early"`
+}
+
+// BatchValidateHandler is the typed handler for batch-validate via DirectBridge.
+// Skips string serialization for internal plugins.
+type BatchValidateHandler func(decisions []ValidationDecision) (*BatchValidateResult, error)
+
+// globalBatchValidator holds the process-wide BatchValidateHandler registered
+// by the adj-rib-in plugin. The engine-side bridge handler reads this to dispatch
+// batch-validate calls from any plugin to adj-rib-in.
+var globalBatchValidator atomic.Value
+
+// RegisterBatchValidator stores the batch validate handler (called by
+// adj-rib-in at startup). Thread-safe via atomic.Value.
+func RegisterBatchValidator(fn BatchValidateHandler) {
+	globalBatchValidator.Store(fn)
+}
+
+// GetBatchValidator returns the registered batch validate handler, or nil.
+func GetBatchValidator() BatchValidateHandler {
+	v := globalBatchValidator.Load()
+	if v == nil {
+		return nil
+	}
+	fn, _ := v.(BatchValidateHandler)
+	return fn
+}
+
+// SetBatchValidate registers the engine-side typed batch-validate handler.
+func (b *DirectBridge) SetBatchValidate(fn BatchValidateHandler) {
+	b.batchValidate = fn
+	b.hasBatchValidate.Store(fn != nil)
+}
+
+// BatchValidate calls the engine's typed batch-validate handler directly.
+// Returns error if the handler is not set.
+func (b *DirectBridge) BatchValidate(decisions []ValidationDecision) (*BatchValidateResult, error) {
+	if !b.hasBatchValidate.Load() {
+		return nil, errors.New("batch-validate handler not set")
+	}
+	return b.batchValidate(decisions)
+}
+
+// HasBatchValidate reports whether the typed batch-validate handler is set.
+func (b *DirectBridge) HasBatchValidate() bool {
+	return b.ready.Load() && b.hasBatchValidate.Load()
 }
 
 // DispatchRPC calls the engine's RPC handler directly. Returns error if

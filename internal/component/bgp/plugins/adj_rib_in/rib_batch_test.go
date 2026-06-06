@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 const benchN = 4096
@@ -274,6 +275,30 @@ func TestBatchValidateInvalidAction(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown action")
 }
 
+// TestBatchValidateAtMaxCount verifies a batch of exactly maxBatchValidateCount
+// decisions is accepted. The internal rpki sender caps at 128 but external
+// plugins may send up to 256 via the command protocol.
+func TestBatchValidateAtMaxCount(t *testing.T) {
+	r := newTestManager(t)
+	r.validationEnabled = true
+
+	n := maxBatchValidateCount
+	args := make([]string, 0, n*batchValidateStride)
+	for i := range n {
+		prefix := "10.0." + strconv.Itoa(i/256) + "." + strconv.Itoa(i%256) + "/32"
+		args = append(args, "a", "10.0.0.1", "ipv4/unicast", prefix, "0", "1")
+	}
+
+	status, data, err := r.handleCommand("request adj-rib-in batch-validate", args, "")
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	result, ok := data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, n, result["accepted"])
+	assert.Equal(t, n, result["early"])
+}
+
 // TestBatchValidateExceedsMaxCount verifies batches larger than
 // maxBatchValidateCount are rejected before mutating state.
 func TestBatchValidateExceedsMaxCount(t *testing.T) {
@@ -361,4 +386,90 @@ func TestBatchValidateMatchesIndividual(t *testing.T) {
 			return true
 		})
 	}
+}
+
+// TestBatchValidateTypedMatchesString verifies the typed bridge path produces
+// identical state to the string-based batchValidateCommand path.
+func TestBatchValidateTypedMatchesString(t *testing.T) {
+	prefixes := []string{"10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"}
+
+	setup := func() *AdjRIBInManager {
+		r := newTestManager(t)
+		r.validationEnabled = true
+		r.mu.Lock()
+		for i, p := range prefixes {
+			rKey := routeKeyFromStrings(family.IPv4Unicast, p, uint32(i))
+			r.pending[pendingKey("10.0.0.1", rKey)] = &PendingRoute{
+				peerAddr: "10.0.0.1", family: family.IPv4Unicast, prefix: p,
+				routeKey: rKey, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001"},
+				receivedAt: time.Now(), state: ValidationPending,
+			}
+		}
+		r.mu.Unlock()
+		return r
+	}
+
+	stringPath := setup()
+	stringArgs := []string{
+		"a", "10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "0", "1",
+		"r", "10.0.0.1", "ipv4/unicast", "10.0.1.0/24", "1", "0",
+		"a", "10.0.0.1", "ipv4/unicast", "10.0.2.0/24", "2", "2",
+		"r", "10.0.0.1", "ipv4/unicast", "10.0.3.0/24", "3", "0",
+	}
+	_, stringData, err := stringPath.handleCommand("request adj-rib-in batch-validate", stringArgs, "")
+	require.NoError(t, err)
+
+	typedPath := setup()
+	typedDecisions := []rpc.ValidationDecision{
+		{Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", PathID: 0, ValState: 1},
+		{Accept: false, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", PathID: 1},
+		{Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.2.0/24", PathID: 2, ValState: 2},
+		{Accept: false, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.3.0/24", PathID: 3},
+	}
+	typedResult, err := typedPath.handleBatchValidateTyped(typedDecisions)
+	require.NoError(t, err)
+
+	stringResult, ok := stringData.(map[string]any)
+	require.True(t, ok, "string path should return map[string]any")
+	assert.Equal(t, stringResult["accepted"], typedResult.Accepted)
+	assert.Equal(t, stringResult["rejected"], typedResult.Rejected)
+	assert.Equal(t, stringResult["early"], typedResult.Early)
+
+	stringPath.mu.RLock()
+	typedPath.mu.RLock()
+	defer stringPath.mu.RUnlock()
+	defer typedPath.mu.RUnlock()
+
+	assert.Equal(t, len(stringPath.pending), len(typedPath.pending), "pending count mismatch")
+	for peer, strRoutes := range stringPath.ribIn {
+		typRoutes, ok := typedPath.ribIn[peer]
+		require.True(t, ok, "typed path missing peer %s", peer)
+		assert.Equal(t, strRoutes.Len(), typRoutes.Len(), "route count mismatch for peer %s", peer)
+
+		strRoutes.Range(func(key compactRouteKey, _ uint64, strRT *RawRoute) bool {
+			typRT, ok := typRoutes.Get(key)
+			require.True(t, ok, "typed path missing route key %v", key)
+			assert.Equal(t, strRT.ValidationState, typRT.ValidationState,
+				"validation state mismatch for %v", key)
+			return true
+		})
+	}
+}
+
+// TestBatchValidateTypedRejectsInvalidState verifies the typed handler
+// rejects accepts with invalid validation state (parity with parseValidationState).
+func TestBatchValidateTypedRejectsInvalidState(t *testing.T) {
+	r := newTestManager(t)
+	r.validationEnabled = true
+
+	decisions := []rpc.ValidationDecision{
+		{Accept: true, PeerAddr: "10.0.0.1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", PathID: 0, ValState: 3},
+	}
+	_, err := r.handleBatchValidateTyped(decisions)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid validation state")
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	assert.Empty(t, r.ribIn, "no routes should be installed on invalid state")
 }

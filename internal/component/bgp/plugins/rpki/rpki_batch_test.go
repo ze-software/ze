@@ -68,9 +68,9 @@ func TestDrainAndDispatchChunks(t *testing.T) {
 	assert.Empty(t, rp.validateCh, "all 200 items should be drained")
 }
 
-// TestBuildBatchArgsASPAOverride verifies that ASPA reject policy
-// flips an origin-valid accept into a reject in the batch args.
-func TestBuildBatchArgsASPAOverride(t *testing.T) {
+// TestBuildDecisionsASPAOverride verifies that ASPA reject policy
+// flips an origin-valid accept into a reject in the typed decisions.
+func TestBuildDecisionsASPAOverride(t *testing.T) {
 	rp := &RPKIPlugin{
 		cache:     NewROACache(),
 		aspaCache: NewASPACache(),
@@ -90,13 +90,13 @@ func TestBuildBatchArgsASPAOverride(t *testing.T) {
 			pathID: 3, state: ValidationInvalid, aspaState: aspaStateNone},
 	}
 
-	args := rp.buildBatchArgs(batch)
-	require.Len(t, args, 4*6)
+	decisions := rp.buildDecisions(batch)
+	require.Len(t, decisions, 4)
 
-	assert.Equal(t, "a", args[0], "origin valid, no ASPA -> accept")
-	assert.Equal(t, "r", args[6], "origin valid, ASPA invalid + reject policy -> reject")
-	assert.Equal(t, "a", args[12], "origin valid, ASPA unknown + accept policy -> accept")
-	assert.Equal(t, "r", args[18], "origin invalid -> reject regardless of ASPA")
+	assert.True(t, decisions[0].Accept, "origin valid, no ASPA -> accept")
+	assert.False(t, decisions[1].Accept, "origin valid, ASPA invalid + reject policy -> reject")
+	assert.True(t, decisions[2].Accept, "origin valid, ASPA unknown + accept policy -> accept")
+	assert.False(t, decisions[3].Accept, "origin invalid -> reject regardless of ASPA")
 }
 
 // TestBatchSizeBound verifies maxBatchSize is explicit and bounded.

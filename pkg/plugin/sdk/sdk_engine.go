@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -97,6 +98,47 @@ func (p *Plugin) InjectWireRoute(protocol, peerKey string, updateBody []byte) er
 		return p.bridge.InjectWireRoute(protocol, peerKey, updateBody)
 	}
 	return fmt.Errorf("inject-wire-route: bridge not available")
+}
+
+// BatchValidate sends a batch of RPKI validation decisions to adj-rib-in.
+// Fast path: typed DirectBridge dispatch (no string serialization).
+// Slow path: builds stride-6 string args and falls back to DispatchCommandArgs.
+func (p *Plugin) BatchValidate(ctx context.Context, decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
+	if p.bridge != nil && p.bridge.HasBatchValidate() {
+		return p.bridge.BatchValidate(decisions)
+	}
+	args := make([]string, 0, len(decisions)*6)
+	var buf [20]byte
+	for i := range decisions {
+		d := &decisions[i]
+		var action, stateStr string
+		if d.Accept {
+			action = "a"
+			stateStr = "2"
+			if d.ValState == 1 {
+				stateStr = "1"
+			}
+		} else {
+			action = "r"
+			stateStr = "0"
+		}
+		pathIDStr := string(strconv.AppendUint(buf[:0], uint64(d.PathID), 10))
+		args = append(args, action, d.PeerAddr, d.Family, d.Prefix, pathIDStr, stateStr)
+	}
+	status, data, err := p.DispatchCommandArgs(ctx, "request adj-rib-in batch-validate", args, "")
+	if err != nil {
+		return nil, err
+	}
+	if status != rpc.StatusDone {
+		return nil, fmt.Errorf("batch-validate: status %s", status)
+	}
+	var result rpc.BatchValidateResult
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &result); err != nil {
+			return nil, fmt.Errorf("batch-validate: unmarshal result: %w", err)
+		}
+	}
+	return &result, nil
 }
 
 // DispatchCommand dispatches a command through the engine's command dispatcher.

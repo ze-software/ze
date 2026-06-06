@@ -836,6 +836,14 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 		}
 		return fn(protocol, peerKey, updateBody)
 	})
+	// rpki batching: typed fast path for batch-validate (rpki -> adj-rib-in, no string serialization).
+	proc.Bridge().SetBatchValidate(func(decisions []rpc.ValidationDecision) (*rpc.BatchValidateResult, error) {
+		fn := rpc.GetBatchValidator()
+		if fn == nil {
+			return nil, errors.New("batch-validate: no batch validator registered")
+		}
+		return fn(decisions)
+	})
 }
 
 // handleForwardCachedRPC handles ze-plugin-engine:forward-cached from a plugin
