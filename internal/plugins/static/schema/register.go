@@ -6,5 +6,4 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-static-conf.yang", ZeStaticConfYANG)
-	yang.RegisterModule("ze-static-cmd.yang", ZeStaticCmdYANG)
 }

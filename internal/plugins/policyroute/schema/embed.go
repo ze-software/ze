@@ -5,6 +5,3 @@ import _ "embed"
 
 //go:embed ze-policyroute-conf.yang
 var ZePolicyrouteConfYANG string
-
-//go:embed ze-policyroute-cmd.yang
-var ZePolicyrouteCmdYANG string

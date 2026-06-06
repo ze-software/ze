@@ -5,6 +5,3 @@ import _ "embed"
 
 //go:embed ze-ntp-conf.yang
 var ZeNTPConfYANG string
-
-//go:embed ze-ntp-cmd.yang
-var ZeNTPCmdYANG string

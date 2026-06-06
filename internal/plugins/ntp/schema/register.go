@@ -6,5 +6,4 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-ntp-conf.yang", ZeNTPConfYANG)
-	yang.RegisterModule("ze-ntp-cmd.yang", ZeNTPCmdYANG)
 }
