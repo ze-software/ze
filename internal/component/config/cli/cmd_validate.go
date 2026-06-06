@@ -52,6 +52,7 @@ func ValidateContent(input, path string) error {
 var yangSectionsToValidate = []string{
 	"interface", "sysctl", "fib", "plugin", "web", "ssh", "dns",
 	"telemetry", "looking-glass", "mcp", "managed", "vpp",
+	"vpn", "pki", "l2tp",
 }
 
 // validationResult holds validation results with structured diagnostics.
@@ -274,7 +275,7 @@ func runValidation(input, path string) *validationResult {
 			if container == nil {
 				continue
 			}
-			for _, ve := range yangValidator.ValidateTree(section, container.ToMap()) {
+			for _, ve := range yangValidator.ValidateTreeAllModules(section, container.ToMap()) {
 				sensitive := isSensitiveLeaf(ve.Path, sensitiveKeys)
 
 				msg := ve.Message
