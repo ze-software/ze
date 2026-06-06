@@ -550,6 +550,27 @@ func (v *Validator) ValidateTree(path string, data map[string]any) []ValidationE
 	return errs
 }
 
+// ValidateTreeAllModules validates a config section against every conf module
+// that defines a top-level container matching the section name. This handles
+// sections like l2tp where multiple modules contribute children under the
+// same top-level container. Each module is validated independently; unknown
+// fields from other modules are silently skipped.
+func (v *Validator) ValidateTreeAllModules(section string, data map[string]any) []ValidationError {
+	var errs []ValidationError
+	for _, modName := range v.loader.ConfModuleNames() {
+		entry := v.loader.GetEntry(modName)
+		if entry == nil || entry.Dir == nil {
+			continue
+		}
+		sectionEntry, ok := entry.Dir[section]
+		if !ok {
+			continue
+		}
+		v.walkTree(section, sectionEntry, data, &errs)
+	}
+	return errs
+}
+
 // walkTree recursively validates a container/list against its YANG entry.
 func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any, errs *[]ValidationError) {
 	// Check mandatory children at this level.
