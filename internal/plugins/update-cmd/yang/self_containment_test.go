@@ -1,4 +1,4 @@
-package schema
+package yang
 
 import (
 	"strings"
