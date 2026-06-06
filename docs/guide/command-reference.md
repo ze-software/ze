@@ -1924,4 +1924,4 @@ ze-chaos --mcp :8001 --web :8000 --peers 4  # MCP + web dashboard
 ze-chaos --ze-mcp 9718 --peers 4             # Inject MCP into Ze config
 ze-chaos --ai-help                           # Print tool schemas
 ```
-<!-- source: cmd/ze-chaos/main.go -- CLI flags -->
+<!-- source: cmd/ze/ze_chaos_run.go -- CLI flags -->

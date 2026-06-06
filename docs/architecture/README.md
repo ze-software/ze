@@ -17,7 +17,7 @@ Architecture documents describe how the current implementation is wired. Prefer 
 | Route and RIB behavior | `route-selection.md`, `route-types.md`, `rib-transition.md` | `internal/core/rib/`, `internal/component/bgp/plugins/rib/` |
 | Pools and buffers | `pool-architecture.md`, `buffer-architecture.md` | `internal/component/bgp/attrpool/`, `internal/core/bufpool/` |
 | Web and UI | `web-interface.md`, `web-components.md` | `internal/component/web/` |
-| Testing architecture | `testing/` | `cmd/ze-test/`, `internal/test/`, `test/` |
+| Testing architecture | `testing/` | `cmd/ze/ze_test_*.go`, `internal/test/`, `test/` |
 | Decisions | `decisions/` | Decision records tied to current implementation |
 
 ## Reading Order

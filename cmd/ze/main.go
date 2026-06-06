@@ -2,7 +2,7 @@
 //
 // Package main provides the ze command entry point.
 
-//go:build !ze_test
+//go:build !ze_test && !ze_chaos
 
 package main
 

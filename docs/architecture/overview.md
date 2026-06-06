@@ -90,7 +90,7 @@ Key characteristics:
 | Area | Location | Purpose |
 |------|----------|---------|
 | Main binary | `cmd/ze/` | CLI verbs, daemon startup, install/service/support tooling |
-| Other binaries | `cmd/ze-test/`, `cmd/ze-perf/`, `cmd/ze-chaos/`, `cmd/ze-analyse/` | Functional tests, benchmarks, chaos testing, MRT/RIB analysis |
+| Other binaries | `cmd/ze-perf/`, `cmd/ze-analyse/` | Benchmarks, MRT/RIB analysis. ze-test and ze-chaos are build-tag variants of cmd/ze (`ze_test`, `ze_chaos`). |
 | Components | `internal/component/` | Engine, BGP, config, CLI, command dispatcher, API, web, gNMI, MCP, interface, firewall, traffic, IPsec/IKE, L2TP, PPPoE, LDP, RSVP-TE, telemetry, storage, and related services |
 | BGP subsystem | `internal/component/bgp/` | FSM, reactor, wire parsing, attributes, capabilities, NLRI, BGP plugins, and command handlers |
 | Generic plugins | `internal/plugins/` | FIB, static routes, sysrib, sysctl, BFD, connected/kernel redistribution, policy routing, DHCP/TFTP/image services, VPP/firewall/traffic backends, L2TP helpers |
@@ -265,7 +265,7 @@ ze-test bgp encode --list     # List N/TOTAL, id, and name
 ze-test bgp encode 0 1 2      # Run specific tests
 ze-test bgp encode --start 42 # Resume at id 42
 ```
-<!-- source: cmd/ze-test/bgp.go -- printRunUsage -->
+<!-- source: cmd/ze/ze_test_bgp.go -- printRunUsage -->
 
 ### Linting
 ```bash

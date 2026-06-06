@@ -70,10 +70,9 @@ type Runner struct {
 	colors   *Colors
 	timings  Timings // rolling timing baseline
 
-	// extraBinaries maps binary name -> Go package path for additional
+	// extraBinaries maps binary name -> build spec for additional
 	// binaries that should be built alongside ze and ze-test.
-	// Example: {"ze-chaos": "./cmd/ze-chaos"}
-	extraBinaries map[string]string
+	extraBinaries map[string]ExtraBinary
 }
 
 // NewRunner creates a test runner.
@@ -124,10 +123,14 @@ func (r *Runner) Report() *Report {
 	return r.report
 }
 
+// ExtraBinary describes an additional Go binary to build alongside ze.
+type ExtraBinary struct {
+	Pkg  string
+	Tags string
+}
+
 // SetExtraBinaries configures additional Go binaries to build alongside ze.
-// The map keys are binary names and values are Go package paths.
-// Example: runner.SetExtraBinaries(map[string]string{"ze-chaos": "./cmd/ze-chaos"}).
-func (r *Runner) SetExtraBinaries(binaries map[string]string) {
+func (r *Runner) SetExtraBinaries(binaries map[string]ExtraBinary) {
 	r.extraBinaries = binaries
 }
 
@@ -172,9 +175,14 @@ func (r *Runner) Build(ctx context.Context) error {
 	}
 
 	// Build extra binaries (e.g., ze-chaos for chaos-web tests).
-	for name, pkg := range r.extraBinaries {
+	for name, spec := range r.extraBinaries {
 		outPath := filepath.Join(r.tmpDir, name)
-		cmd = exec.CommandContext(ctx, "go", "build", "-o", outPath, pkg) //nolint:gosec // paths from internal runner
+		buildArgs := []string{"build"}
+		if spec.Tags != "" {
+			buildArgs = append(buildArgs, "-tags", spec.Tags)
+		}
+		buildArgs = append(buildArgs, "-o", outPath, spec.Pkg)
+		cmd = exec.CommandContext(ctx, "go", buildArgs...) //nolint:gosec // paths from internal runner
 		cmd.Dir = r.baseDir
 		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if output, err := cmd.CombinedOutput(); err != nil {

@@ -1,3 +1,5 @@
+//go:build ze_chaos
+
 package main
 
 import (

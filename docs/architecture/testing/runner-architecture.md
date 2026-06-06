@@ -29,7 +29,7 @@ where the system currently forks into three separate engines.**
 ## The three execution engines
 
 `ze-test` subcommands register themselves in a dispatch table.
-<!-- source: cmd/ze-test/main.go -- subcommands registry, register() -->
+<!-- source: cmd/ze/ze_test_main.go -- subcommands registry, register() -->
 Each subcommand routes to one of three engines that independently re-implement
 the same goroutine-pool + semaphore + live-display orchestration.
 
@@ -37,11 +37,11 @@ the same goroutine-pool + semaphore + live-display orchestration.
 |--------|--------|------------|-------------|------------------------------------------|
 | `Runner.Run` | `internal/test/runner/runner.go` | own goroutine pool + semaphore | `RunOptions.Parallel` (0 → all selected) | yes |
 | `ParallelRunner[T]` | `internal/test/runner/parallel.go` | own goroutine pool + semaphore (generic over test type `T`) | fixed `DefaultParallelConcurrent = 20` | yes |
-| web loop | `cmd/ze-test/web.go` | sequential `for` loop | 1 (sequential) | no (bespoke pass/fail counting) |
+| web loop | `cmd/ze/ze_test_web.go` | sequential `for` loop | 1 (sequential) | no (bespoke pass/fail counting) |
 
 <!-- source: internal/test/runner/runner.go -- Runner.Run, the .ci scheduling + process-orchestration engine -->
 <!-- source: internal/test/runner/parallel.go -- ParallelRunner[T] generic scheduler, DefaultParallelConcurrent -->
-<!-- source: cmd/ze-test/web.go -- bespoke sequential web test loop -->
+<!-- source: cmd/ze/ze_test_web.go -- bespoke sequential web test loop -->
 
 ### Which suites use which engine
 
@@ -51,12 +51,12 @@ the same goroutine-pool + semaphore + live-display orchestration.
 | `ParallelRunner[T]` | bgp decode, bgp parse, editor (`.et`) | per-suite `Run` func: `DecodingTest`, `ParsingTest`, `EditorTest` |
 | web loop | web (`.wb`) | `RunWBFile` — drives a headless browser |
 
-<!-- source: cmd/ze-test/bgp.go -- runEncodingOrAPI selects Runner for encode/plugin/reload/chaos -->
-<!-- source: cmd/ze-test/ci_runner.go -- runCISubcommand wires the non-bgp .ci suites to Runner -->
+<!-- source: cmd/ze/ze_test_bgp.go -- runEncodingOrAPI selects Runner for encode/plugin/reload/chaos -->
+<!-- source: cmd/ze/ze_test_ci_runner.go -- runCISubcommand wires the non-bgp .ci suites to Runner -->
 <!-- source: internal/test/runner/decoding.go -- DecodingTest scheduled via NewParallelRunner -->
 <!-- source: internal/test/runner/parsing.go -- ParsingTest scheduled via NewParallelRunner -->
-<!-- source: cmd/ze-test/editor.go -- EditorTest scheduled via NewParallelRunner -->
-<!-- source: cmd/ze-test/web.go -- RunWBFile invoked in a sequential loop -->
+<!-- source: cmd/ze/ze_test_editor.go -- EditorTest scheduled via NewParallelRunner -->
+<!-- source: cmd/ze/ze_test_web.go -- RunWBFile invoked in a sequential loop -->
 
 ### Shared reporting
 
@@ -138,7 +138,7 @@ Unknown directives or kinds fail parsing immediately.
 
 The web runner shells out to the external `agent-browser` CLI for every browser
 operation; if it is not on `PATH`, the suite skips.
-<!-- source: cmd/ze-test/web.go -- exec.LookPath("agent-browser") skip when absent -->
+<!-- source: cmd/ze/ze_test_web.go -- exec.LookPath("agent-browser") skip when absent -->
 <!-- source: internal/component/web/testing/runner.go -- Browser methods invoke agent-browser via runAgent -->
 
 Today the web suite runs against **one shared `ze` web server** (a single
@@ -146,7 +146,7 @@ Today the web suite runs against **one shared `ze` web server** (a single
 between tests), which is why it executes sequentially: `.wb` scenarios that mutate
 and `commit` config would otherwise corrupt each other on a shared daemon, and a
 single browser shares cookies/refs across tests.
-<!-- source: cmd/ze-test/web.go -- startTestWebServer, single shared listenAddr/baseURL -->
+<!-- source: cmd/ze/ze_test_web.go -- startTestWebServer, single shared listenAddr/baseURL -->
 <!-- source: internal/component/web/testing/runner.go -- closeBrowser / runAgentWithHTTPSIgnore("close","--all") -->
 
 `agent-browser` itself supports isolated concurrent sessions via `--session <name>`

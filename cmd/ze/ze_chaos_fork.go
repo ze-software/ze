@@ -1,5 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — fork ze as child process with stdin pipe
-// Overview: main.go — CLI entry, mode selection (fork/pipe/config-only)
+
+//go:build ze_chaos
 
 package main
 

@@ -1,7 +1,7 @@
 # MCP Integration
 
 <!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
-<!-- source: cmd/ze-test/mcp.go -- MCP test client -->
+<!-- source: cmd/ze/ze_test_mcp.go -- MCP test client -->
 
 Ze includes an MCP (Model Context Protocol) server that makes the BGP daemon **AI-ready**. Any AI assistant (Claude, GPT, or custom agents) can connect via MCP and fully control Ze -- the same operations available through the CLI are accessible programmatically through typed tools.
 

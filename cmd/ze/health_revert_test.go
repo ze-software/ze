@@ -1,6 +1,6 @@
 // Design: plan/spec-appliance-4-device-config.md — auto-revert tests
 
-//go:build !ze_test
+//go:build !ze_test && !ze_chaos
 
 package main
 

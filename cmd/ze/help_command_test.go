@@ -1,4 +1,4 @@
-//go:build !ze_test
+//go:build !ze_test && !ze_chaos
 
 package main
 

@@ -1,20 +1,7 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos test orchestrator
-// Detail: orchestrator.go — config types, established state, event processor
-// Detail: orchestrator_run.go — orchestrator run loop and reporting setup
-// Detail: scheduler.go — chaos and route dynamics schedulers
-// Detail: subcommand.go — replay, shrink, diff subcommands and network utilities
-//
-// Command ze-chaos is a chaos monkey tool for testing Ze BGP route server
-// (route server) route propagation behavior.
-//
-// It simulates multiple BGP peers, generates deterministic route announcements
-// from a seed, validates that the route server correctly propagates routes,
-// and injects chaos events (disconnects, hold-timer expiry, etc.).
-//
-// Usage:
-//
-//	ze-chaos [options]
-//	ze-chaos --seed 42 --peers 4 --duration 30s --config-out chaos.conf
+
+//go:build ze_chaos
+
 package main
 
 import (
@@ -66,11 +53,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ze.mcp.port", Type: "int", Default: "0", Description: "Ze MCP server port injected into generated config (0 = disabled)"})
 )
 
-func main() {
-	os.Exit(run(os.Args[1:]))
-}
-
-func run(args []string) int {
+func zeChaosRun(args []string) int {
 	fs := flag.NewFlagSet("ze-chaos", flag.ContinueOnError)
 
 	// Scenario flags

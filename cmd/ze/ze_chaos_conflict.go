@@ -1,5 +1,7 @@
 // Design: docs/architecture/chaos-web-dashboard.md -- listener conflict detection for ze-chaos
 
+//go:build ze_chaos
+
 package main
 
 import (

@@ -256,13 +256,13 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 
 	switch cli.command {
 	case cmdChaosWeb:
-		r.SetExtraBinaries(map[string]string{
-			"ze-chaos": "./cmd/ze-chaos",
+		r.SetExtraBinaries(map[string]runner.ExtraBinary{
+			"ze-chaos": {Pkg: "./cmd/ze", Tags: "ze_chaos"},
 		})
 	case cmdChaosIntg:
-		r.SetExtraBinaries(map[string]string{
-			"ze-chaos": "./cmd/ze-chaos",
-			"ze":       "./cmd/ze",
+		r.SetExtraBinaries(map[string]runner.ExtraBinary{
+			"ze-chaos": {Pkg: "./cmd/ze", Tags: "ze_chaos"},
+			"ze":       {Pkg: "./cmd/ze"},
 		})
 	}
 

@@ -142,7 +142,7 @@ func checkRootHandlersAreInternal() []finding {
 		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
-		if hasZeTestBuildTag(path) {
+		if hasVariantBuildTag(path) {
 			return nil
 		}
 		for _, name := range registerCalls(path) {
@@ -276,8 +276,10 @@ func registerRootNames(path string) []string {
 	return names
 }
 
-// hasZeTestBuildTag reports whether a Go file starts with //go:build ze_test.
-func hasZeTestBuildTag(path string) bool {
+// hasVariantBuildTag reports whether a Go file starts with a build tag
+// for a binary variant (ze_test, ze_chaos) that is exempt from the
+// ownership check because its handlers are test/tool infrastructure.
+func hasVariantBuildTag(path string) bool {
 	f, err := os.Open(path) //nolint:gosec // path from filepath.Walk under cmd/ze
 	if err != nil {
 		return false
@@ -285,7 +287,9 @@ func hasZeTestBuildTag(path string) bool {
 	defer f.Close() //nolint:errcheck // read-only
 	buf := make([]byte, 512)
 	n, _ := f.Read(buf)
-	return strings.Contains(string(buf[:n]), "//go:build ze_test")
+	header := string(buf[:n])
+	return strings.Contains(header, "//go:build ze_test") ||
+		strings.Contains(header, "//go:build ze_chaos")
 }
 
 // forEachRegistryCall invokes fn for every call whose selector package is

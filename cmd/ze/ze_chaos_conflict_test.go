@@ -1,3 +1,5 @@
+//go:build ze_chaos
+
 // Design: docs/architecture/chaos-web-dashboard.md -- tests for listener conflict detection
 
 package main

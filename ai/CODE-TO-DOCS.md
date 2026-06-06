@@ -38,10 +38,9 @@ Files: 5 | Docs: `docs/architecture/update-density-analysis.md`, `docs/guide/mrt
 | `download.go` | `docs/guide/mrt-analysis.md` |
 | `main.go` | `docs/guide/mrt-analysis.md` |
 
-## `cmd/ze-chaos/`
+## `cmd/ze/ze_chaos_*.go` (build tag: `ze_chaos`)
 
-- `cmd/ze-chaos/` -> `docs/guide/chaos-testing.md`
-- `cmd/ze-chaos/main.go` -> `docs/guide/chaos-testing.md`, `docs/guide/command-reference.md`
+- `cmd/ze/ze_chaos_run.go` -> `docs/guide/chaos-testing.md`, `docs/guide/command-reference.md`
 
 ## `cmd/ze-perf/`
 
@@ -54,27 +53,27 @@ Files: 4 | Docs: `docs/features/benchmarking.md`, `docs/guide/benchmarking.md`, 
 | `run.go` | `docs/guide/benchmarking.md`, `docs/guide/command-reference.md` |
 | `track.go` | `docs/guide/benchmarking.md`, `docs/guide/command-reference.md` |
 
-## `cmd/ze-test/`
+## `cmd/ze/ze_test_*.go` (build tag: `ze_test`)
 
 Files: 15 | Docs: `docs/architecture/overview.md`, `docs/architecture/testing/runner-architecture.md`, `docs/comparison.md`, `docs/contributing/testing.md`, `docs/features/ai-first.md`, `docs/features/mcp-integration.md`, `docs/functional-tests.md`, `docs/guide/debugging-tools.md`, `docs/guide/mcp/overview.md`, `docs/guide/quickstart.md`, `docs/guide/tacacs.md`
 
 | File | Docs |
 |------|------|
-| `bgp.go` | `docs/architecture/overview.md`, `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md`, `docs/guide/debugging-tools.md` |
-| `ci_runner.go` | `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md` |
-| `editor.go` | `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md` |
-| `exabgp.go` | `docs/contributing/testing.md`, `docs/functional-tests.md` |
-| `install.go` | `docs/functional-tests.md` |
-| `l2tp.go` | `docs/functional-tests.md` |
-| `l2tp_scale.go` | `docs/comparison.md`, `docs/functional-tests.md` |
-| `main.go` | `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md` |
-| `mcp.go` | `docs/features/ai-first.md`, `docs/features/mcp-integration.md`, `docs/guide/mcp/overview.md` |
-| `peer.go` | `docs/guide/debugging-tools.md`, `docs/guide/quickstart.md` |
-| `rpki.go` | `docs/functional-tests.md` |
-| `syslog.go` | `docs/functional-tests.md` |
-| `tacacs_mock.go` | `docs/guide/tacacs.md` |
-| `vpp.go` | `docs/functional-tests.md` |
-| `web.go` | `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md` |
+| `ze_test_bgp.go` | `docs/architecture/overview.md`, `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md`, `docs/guide/debugging-tools.md` |
+| `ze_test_ci_runner.go` | `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md` |
+| `ze_test_editor.go` | `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md` |
+| `ze_test_exabgp.go` | `docs/contributing/testing.md`, `docs/functional-tests.md` |
+| `ze_test_install.go` | `docs/functional-tests.md` |
+| `ze_test_l2tp.go` | `docs/functional-tests.md` |
+| `ze_test_l2tp_scale.go` | `docs/comparison.md`, `docs/functional-tests.md` |
+| `ze_test_main.go` | `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md` |
+| `ze_test_mcp.go` | `docs/features/ai-first.md`, `docs/features/mcp-integration.md`, `docs/guide/mcp/overview.md` |
+| `ze_test_peer.go` | `docs/guide/debugging-tools.md`, `docs/guide/quickstart.md` |
+| `ze_test_rpki.go` | `docs/functional-tests.md` |
+| `ze_test_syslog.go` | `docs/functional-tests.md` |
+| `ze_test_tacacs_mock.go` | `docs/guide/tacacs.md` |
+| `ze_test_vpp.go` | `docs/functional-tests.md` |
+| `ze_test_web.go` | `docs/architecture/testing/runner-architecture.md`, `docs/functional-tests.md` |
 
 ## `cmd/ze/completion/`
 

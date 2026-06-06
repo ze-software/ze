@@ -273,6 +273,6 @@ td.ze-col { border-left: 2px solid var(--accent); border-right: 2px solid var(--
 <tr><td>Acct-Input-Gigawords (52)</td><td>RFC 2869 S5.1</td><td>Input octet counter wraps (present when >0)</td></tr>
 <tr><td>Acct-Output-Gigawords (53)</td><td>RFC 2869 S5.2</td><td>Output octet counter wraps (present when >0)</td></tr>
 </table></div>
-<p class="note"><!-- source: internal/plugins/l2tpauthradius/acct.go -- buildAcctPacket, splitGigawords --> ### Scale Validation Ze includes control-plane scale test infrastructure (`ze-test l2tp-scale`) that validates 2000 concurrent L2TP sessions across 10 tunnels on loopback. The test measures session establishment rate, RADIUS auth/accounting handling, IP pool allocation correctness, and teardown completeness without requiring root, kernel modules, or Docker. <!-- source: cmd/ze-test/l2tp_scale.go -- LAC simulator + mock RADIUS --></p>
+<p class="note"><!-- source: internal/plugins/l2tpauthradius/acct.go -- buildAcctPacket, splitGigawords --> ### Scale Validation Ze includes control-plane scale test infrastructure (`ze-test l2tp-scale`) that validates 2000 concurrent L2TP sessions across 10 tunnels on loopback. The test measures session establishment rate, RADIUS auth/accounting handling, IP pool allocation correctness, and teardown completeness without requiring root, kernel modules, or Docker. <!-- source: cmd/ze/ze_test_l2tp_scale.go -- LAC simulator + mock RADIUS --></p>
 </body>
 </html>

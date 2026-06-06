@@ -43,7 +43,7 @@ ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
 
 # Packages
 # Exclude the root module package: it only contains build-tagged tooling imports.
-ZE_PACKAGES = $$(go list ./... | grep -v '^codeberg.org/thomas-mangin/ze$$' | grep -v /cmd/ze-chaos)
+ZE_PACKAGES = $$(go list ./... | grep -v '^codeberg.org/thomas-mangin/ze$$')
 
 # Default target
 .DEFAULT_GOAL := help
@@ -97,7 +97,7 @@ ze-stripped:
 
 chaos:
 	@mkdir -p bin
-	$(GO) build -o bin/ze-chaos ./cmd/ze-chaos
+	$(GO) build -tags ze_chaos -o bin/ze-chaos ./cmd/ze
 
 test:
 	@mkdir -p bin
@@ -131,10 +131,10 @@ bin/ze-test: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@mkdir -p bin
 	$(GO) build -tags ze_test -o bin/ze-test ./cmd/ze
 
-bin/ze-chaos: $(shell find cmd/ze-chaos internal -name '*.go' 2>/dev/null)
+bin/ze-chaos: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-chaos..."
 	@mkdir -p bin
-	$(GO) build -o bin/ze-chaos ./cmd/ze-chaos
+	$(GO) build -tags ze_chaos -o bin/ze-chaos ./cmd/ze
 
 bin/ze-analyse: $(shell find cmd/ze-analyse -name '*.go' 2>/dev/null)
 	@echo "Building ze-analyse..."

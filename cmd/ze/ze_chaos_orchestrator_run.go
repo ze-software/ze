@@ -1,7 +1,10 @@
 // Design: docs/architecture/chaos-web-dashboard.md — orchestrator run loop and reporting setup
-// Overview: main.go — CLI entry and flag parsing
-// Related: orchestrator.go — config types, established state, event processor
-// Related: scheduler.go — chaos and route dynamics schedulers
+// Related: ze_chaos_run.go — CLI entry and flag parsing
+// Related: ze_chaos_orchestrator.go — config types, established state, event processor
+// Related: ze_chaos_scheduler.go — chaos and route dynamics schedulers
+
+//go:build ze_chaos
+
 package main
 
 import (

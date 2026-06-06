@@ -291,7 +291,7 @@ ze-test bgp encode --client 0
 - Client connects, sends configured messages, exits when server disconnects
 
 Press Ctrl+C in the client terminal once the server has finished validating: the runner sends SIGTERM to ze for a graceful shutdown.
-<!-- source: cmd/ze-test/bgp.go -- runClientOnly, clientCmd.Cancel -->
+<!-- source: cmd/ze/ze_test_bgp.go -- runClientOnly, clientCmd.Cancel -->
 
 **Use `--port` to avoid conflicts:**
 ```bash
@@ -329,7 +329,7 @@ Subsystem naming convention: `ze.log.` + simplified package path (e.g., `bgp.rea
 | `internal/test/peer/peer.go` | Test peer with decode support |
 | `internal/core/slogutil/slogutil.go` | Logging infrastructure |
 | `internal/component/config/cli/cmd_dump.go` | config dump command |
-| `cmd/ze-test/peer.go` | --decode flag |
+| `cmd/ze/ze_test_peer.go` | --decode flag |
 | `internal/component/config/parser.go` | Parser warnings |
 | `internal/component/bgp/config/loader.go` | Config logging (configLogger) |
 | `internal/component/bgp/reactor/peer.go` | Peer/route logging (peerLogger, routesLogger) |
@@ -340,4 +340,4 @@ Subsystem naming convention: `ze.log.` + simplified package path (e.g., `bgp.rea
 <!-- source: internal/test/peer/peer.go -- test peer -->
 <!-- source: internal/test/runner/decode.go -- BGP message decoder -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- config-dump command -->
-<!-- source: cmd/ze-test/peer.go -- ze-test peer subcommand -->
+<!-- source: cmd/ze/ze_test_peer.go -- ze-test peer subcommand -->

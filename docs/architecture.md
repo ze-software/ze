@@ -164,7 +164,7 @@ Best-path decisions flow through the bus:
 | BGP engine | `internal/component/bgp/` (reactor, FSM, wire, message, capability) |
 | Plugin implementations | `internal/plugins/` and `internal/component/bgp/plugins/` |
 | Plugin infrastructure | `internal/component/plugin/` (registry, process, hub, SDK) |
-| Programs | `cmd/ze/`, `cmd/ze-chaos/`, `cmd/ze-perf/`, `cmd/ze-analyse/`, `cmd/ze-test/` |
+| Programs | `cmd/ze/` (build tags: `ze_test`, `ze_chaos`), `cmd/ze-perf/`, `cmd/ze-analyse/` |
 | Public SDKs | `pkg/plugin/sdk/`, `pkg/plugin/rpc/`, `pkg/zefs/` |
 | Tests | `test/` (.ci files), `*_test.go` |
 <!-- source: cmd/ -- program binaries -->

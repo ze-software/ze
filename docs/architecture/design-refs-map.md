@@ -40,8 +40,8 @@ add the annotation to the new files.
 | `cmd/ze/service` | `// Design: docs/architecture/system-architecture.md - service management` |
 | `cmd/ze/signal` | `// Design: docs/architecture/behavior/signals.md - signal handling CLI` |
 | `cmd/ze/support` | `// Design: docs/architecture/system-architecture.md - support bundle generation` |
-| `cmd/ze-chaos` | `// Design: docs/architecture/chaos-web-dashboard.md - chaos test orchestrator` |
-| `cmd/ze-test` | `// Design: docs/architecture/testing/ci-format.md - test runner CLI` |
+| `cmd/ze/ze_chaos_*.go` | `// Design: docs/architecture/chaos-web-dashboard.md - chaos test orchestrator` |
+| `cmd/ze/ze_test_*.go` | `// Design: docs/architecture/testing/ci-format.md - test runner CLI` |
 
 ### `internal/component/`
 

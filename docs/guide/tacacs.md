@@ -153,7 +153,7 @@ INFO SSH auth success subsystem=ssh username=alice remote=10.0.0.1:51408 source=
 `source=local` means TACACS+ was unreachable (or unconfigured) and the
 local bcrypt user accepted the credentials.
 
-<!-- source: cmd/ze-test/tacacs_mock.go -- ze-test tacacs-mock for .ci tests -->
+<!-- source: cmd/ze/ze_test_tacacs_mock.go -- ze-test tacacs-mock for .ci tests -->
 
 ## Operational notes
 

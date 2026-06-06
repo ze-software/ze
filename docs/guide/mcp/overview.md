@@ -206,7 +206,7 @@ and fix config before committing.
 
 ## Testing
 
-<!-- source: cmd/ze-test/mcp.go -- MCP test client -->
+<!-- source: cmd/ze/ze_test_mcp.go -- MCP test client -->
 <!-- source: test/plugin/mcp-announce.ci -- MCP functional test -->
 
 `ze-test mcp` is an MCP client for functional tests. It reads commands from

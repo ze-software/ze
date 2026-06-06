@@ -389,7 +389,7 @@ This gives ~5 SSE updates/second -- smooth visual updates without overload.
 | style.css | Custom (this project) | web/assets/style.css | ~5KB |
 | HTML templates | Go templates (this project) | web/templates/*.html | ~10KB total |
 
-All files are vendored into `cmd/ze-chaos/web/` and embedded via `go:embed` directives. The binary is self-contained — no CDN, no internet, works in air-gapped lab environments.
+All files are vendored into `internal/chaos/web/` and embedded via `go:embed` directives. The binary is self-contained — no CDN, no internet, works in air-gapped lab environments.
 
 Served at `/assets/htmx.min.js`, `/assets/sse.js`, `/assets/style.css` with appropriate `Content-Type` headers and `Cache-Control: immutable` (assets are versioned with the binary).
 

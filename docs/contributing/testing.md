@@ -91,7 +91,7 @@ bin/ze-test exabgp --start 20      # resume ExaBGP compatibility
 ```
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- TestFinished -->
-<!-- source: cmd/ze-test/exabgp.go -- ExaBGP compatibility selection -->
+<!-- source: cmd/ze/ze_test_exabgp.go -- ExaBGP compatibility selection -->
 
 Run a full suite:
 

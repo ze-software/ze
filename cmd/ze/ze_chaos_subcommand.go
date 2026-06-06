@@ -1,5 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — replay, shrink, diff subcommands and network utilities
-// Overview: main.go — CLI entry dispatches to these subcommands
+
+//go:build ze_chaos
 
 package main
 
