@@ -21,6 +21,7 @@ import (
 	webtesting "codeberg.org/thomas-mangin/ze/internal/component/web/testing"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
+	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
 func zeTestWebCmd(args []string) int {
@@ -230,6 +231,12 @@ Examples:
 			}
 			if !result.Passed && !result.Skipped {
 				fmt.Fprintf(os.Stdout, "  %s\n", result.Error) //nolint:errcheck // terminal output
+				if len(result.Steps) > 0 {
+					trace.PrintTrace(os.Stdout, t.Name, result.Steps, colors.Enabled())
+				}
+			}
+			if *verbose && result.Passed && len(result.Steps) > 0 {
+				trace.PrintTrace(os.Stdout, t.Name, result.Steps, colors.Enabled())
 			}
 		}
 	}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -26,6 +27,7 @@ type TestResult struct {
 	Error    string // Error message if failed
 	TempDir  string // Temp directory used (empty if cleaned up)
 	Duration time.Duration
+	Steps    []trace.StepResult
 }
 
 // RunETTest parses and executes an .et test from content string.
@@ -45,6 +47,7 @@ func RunETTest(content string) *TestResult {
 	runResult := runTestCase(tc)
 	result.Passed = runResult.Passed
 	result.Error = runResult.Error
+	result.Steps = runResult.Steps
 	result.Duration = time.Since(start)
 
 	return result
@@ -240,26 +243,36 @@ func runTestCase(tc *TestCase) *TestResult {
 
 	// Process steps in order (inputs, expectations, waits, sessions interleaved)
 	for stepIdx, step := range tc.Steps {
+		stepNum := stepIdx + 1
 		switch step.Type {
 		case StepSession:
 			sa := tc.Sessions[step.SessionIndex]
 			if sa.User != "" {
-				// Create new session model.
 				newHM, sessionErr := NewHeadlessModelWithSession(configPath, sa.User, sa.Origin)
+				result.Steps = append(result.Steps, trace.StepResult{
+					Step: stepNum, Kind: "session", Assert: sa.Name,
+					Passed: sessionErr == nil, Detail: trace.ErrString(sessionErr),
+				})
 				if sessionErr != nil {
-					result.Error = fmt.Sprintf("step %d (session %s): %v", stepIdx+1, sa.Name, sessionErr)
+					result.Error = "step " + strconv.Itoa(stepNum) + " (session " + sa.Name + "): " + sessionErr.Error()
 					return result
 				}
 				newHM.SetTmpDir(tmpDir)
 				sessions[sa.Name] = newHM
 				hm = newHM
 			} else {
-				// Switch to existing session.
 				existing, ok := sessions[sa.Name]
 				if !ok {
-					result.Error = fmt.Sprintf("step %d: unknown session %q", stepIdx+1, sa.Name)
+					result.Steps = append(result.Steps, trace.StepResult{
+						Step: stepNum, Kind: "session", Assert: sa.Name,
+						Passed: false, Detail: "unknown session",
+					})
+					result.Error = "step " + strconv.Itoa(stepNum) + ": unknown session " + sa.Name
 					return result
 				}
+				result.Steps = append(result.Steps, trace.StepResult{
+					Step: stepNum, Kind: "session", Assert: sa.Name, Passed: true,
+				})
 				hm = existing
 			}
 
@@ -267,12 +280,13 @@ func runTestCase(tc *TestCase) *TestResult {
 			// Drain pending commands on the old model before replacing it,
 			// so timer goroutines don't outlive the model.
 			hm.SettleWait()
-			// Simulate exit + relaunch: create a fresh headless model
-			// from the same config file. The blob store persists, so
-			// history is reloaded from zefs on the new model.
 			newHM, restartErr := createModel()
+			result.Steps = append(result.Steps, trace.StepResult{
+				Step: stepNum, Kind: "restart",
+				Passed: restartErr == nil, Detail: trace.ErrString(restartErr),
+			})
 			if restartErr != nil {
-				result.Error = fmt.Sprintf("step %d (restart): %v", stepIdx+1, restartErr)
+				result.Error = "step " + strconv.Itoa(stepNum) + " (restart): " + restartErr.Error()
 				return result
 			}
 			newHM.SetTmpDir(tmpDir)
@@ -284,14 +298,26 @@ func runTestCase(tc *TestCase) *TestResult {
 			input := inp.ToInput()
 			msgs, err := input.ToMessages()
 			if err != nil {
-				result.Error = fmt.Sprintf("step %d (input): %v", stepIdx+1, err)
+				result.Steps = append(result.Steps, trace.StepResult{
+					Step: stepNum, Kind: "input", Assert: inp.Action,
+					Passed: false, Detail: err.Error(),
+				})
+				result.Error = "step " + strconv.Itoa(stepNum) + " (input): " + err.Error()
 				return result
 			}
+			var sendErr error
 			for _, msg := range msgs {
-				if err := hm.SendMsg(msg); err != nil {
-					result.Error = fmt.Sprintf("step %d (input): sending: %v", stepIdx+1, err)
-					return result
+				if sendErr = hm.SendMsg(msg); sendErr != nil {
+					break
 				}
+			}
+			result.Steps = append(result.Steps, trace.StepResult{
+				Step: stepNum, Kind: "input", Assert: inp.Action,
+				Passed: sendErr == nil, Detail: trace.ErrString(sendErr),
+			})
+			if sendErr != nil {
+				result.Error = "step " + strconv.Itoa(stepNum) + " (input): sending: " + sendErr.Error()
+				return result
 			}
 
 		case StepExpect:
@@ -313,14 +339,21 @@ func runTestCase(tc *TestCase) *TestResult {
 				}
 				_ = attempt
 			}
+			result.Steps = append(result.Steps, trace.StepResult{
+				Step: stepNum, Kind: "expect", Assert: exp.Type,
+				Passed: lastErr == nil, Detail: trace.ErrString(lastErr),
+			})
 			if lastErr != nil {
-				result.Error = fmt.Sprintf("step %d (expect %s): %v", stepIdx+1, exp.Type, lastErr)
+				result.Error = "step " + strconv.Itoa(stepNum) + " (expect " + exp.Type + "): " + lastErr.Error()
 				return result
 			}
 
 		case StepWait:
 			// Handle wait actions (currently just skip - timer handling needs real time)
 			_ = tc.Waits[step.WaitIndex]
+			result.Steps = append(result.Steps, trace.StepResult{
+				Step: stepNum, Kind: "wait", Passed: true,
+			})
 		}
 	}
 

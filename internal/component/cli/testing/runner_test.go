@@ -36,6 +36,11 @@ expect=dirty:false
 	require.NotNil(t, result)
 	assert.True(t, result.Passed, "test should pass: %s", result.Error)
 	assert.Empty(t, result.Error)
+	assert.Len(t, result.Steps, 2, "should record 2 expect steps")
+	for _, s := range result.Steps {
+		assert.True(t, s.Passed, "step %d should pass", s.Step)
+		assert.Equal(t, "expect", s.Kind)
+	}
 }
 
 // TestRunnerWithInput verifies input actions are executed.
@@ -92,6 +97,10 @@ expect=context:path=bgp
 	require.NotNil(t, result)
 	assert.False(t, result.Passed, "test should fail")
 	assert.Contains(t, result.Error, "context")
+	require.NotEmpty(t, result.Steps, "should record steps before failure")
+	last := result.Steps[len(result.Steps)-1]
+	assert.False(t, last.Passed, "last step should be the failure")
+	assert.Equal(t, "expect", last.Kind)
 }
 
 // TestRunnerMissingConfigFile verifies error on missing config.

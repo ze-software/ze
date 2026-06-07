@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
 var recordLogger = slogutil.LazyLogger("test.record")
@@ -150,6 +151,9 @@ type Record struct {
 
 	// File checks for post-run filesystem assertions.
 	FileChecks []FileCheck
+
+	// StepTrace records per-assertion outcomes for trace output.
+	StepTrace []trace.StepResult
 
 	// Skip reason: when non-empty, the runner skips the test without executing
 	// it and reports the reason (e.g. option=skip-os:value=darwin on non-Linux

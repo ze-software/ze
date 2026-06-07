@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
+	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
 var errEmptyExecCommand = errors.New("empty exec command")
@@ -395,25 +396,46 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		return false
 	}
 
+	stepN := 0
+	recStep := func(assert string, passed bool, detail string) {
+		stepN++
+		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
+			Step: stepN, Kind: "expect", Assert: assert,
+			Passed: passed, Detail: detail,
+		})
+	}
+
 	// Check for success
 	if err == nil && strings.Contains(rec.PeerOutput, "successful") {
+		recStep("peer-exchange", true, "")
 		// Validate JSON expectations if raw check passed
 		if jsonErr := r.validateJSON(rec); jsonErr != nil {
 			rec.Error = jsonErr
 			rec.FailureType = FailTypeJSONMismatch
+			recStep("json-match", false, jsonErr.Error())
 			return false
 		}
+		recStep("json-match", true, "")
 
 		// Validate logging expectations
 		if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
 			rec.Error = logErr
 			rec.FailureType = FailTypeLoggingMismatch
+			recStep("logging", false, logErr.Error())
 			return false
+		}
+		if len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
+			len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 {
+			recStep("logging", true, "")
 		}
 		if fileErr := r.validateFileChecks(rec); fileErr != nil {
 			rec.Error = fileErr
 			rec.FailureType = fileCheckFailed
+			recStep("file-check", false, fileErr.Error())
 			return false
+		}
+		if len(rec.FileChecks) > 0 {
+			recStep("file-check", true, "")
 		}
 
 		return true
@@ -433,6 +455,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	if err != nil {
 		rec.Error = err
 	}
+	recStep("peer-exchange", false, rec.FailureType)
 	return false
 }
 
@@ -795,13 +818,23 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	}
 
 	// Execute HTTP waits (readiness polls) before assertion checks.
+	httpStepN := 0
 	if len(rec.HTTPWaits) > 0 {
 		if waitErr := r.executeHTTPWaits(testCtx, rec); waitErr != nil {
 			rec.Error = waitErr
 			rec.FailureType = "http_check_failed"
 			rec.Duration = time.Since(rec.StartTime)
+			httpStepN++
+			rec.StepTrace = append(rec.StepTrace, trace.StepResult{
+				Step: httpStepN, Kind: "expect", Assert: "http-wait",
+				Passed: false, Detail: waitErr.Error(),
+			})
 			return false
 		}
+		httpStepN++
+		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
+			Step: httpStepN, Kind: "expect", Assert: "http-wait", Passed: true,
+		})
 	}
 
 	// Execute HTTP checks (after background processes have started). A passing
@@ -817,8 +850,17 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			rec.Error = httpErr
 			rec.FailureType = "http_check_failed"
 			rec.Duration = time.Since(rec.StartTime)
+			httpStepN++
+			rec.StepTrace = append(rec.StepTrace, trace.StepResult{
+				Step: httpStepN, Kind: "expect", Assert: "http-check",
+				Passed: false, Detail: httpErr.Error(),
+			})
 			return false
 		}
+		httpStepN++
+		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
+			Step: httpStepN, Kind: "expect", Assert: "http-check", Passed: true,
+		})
 	}
 
 	// Build set of peer processes for exclusion from graceful stop and fgProc detection.
@@ -912,6 +954,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		return false
 	}
 
+	stepN := len(rec.StepTrace)
+	recStep := func(assert string, passed bool, detail string) {
+		stepN++
+		rec.StepTrace = append(rec.StepTrace, trace.StepResult{
+			Step: stepN, Kind: "expect", Assert: assert,
+			Passed: passed, Detail: detail,
+		})
+	}
+
 	// Validate the asserted exit code, if any. The comparison only makes sense
 	// when the test declared one; the output/logging/file assertions below run
 	// regardless.
@@ -926,8 +977,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if actualCode != expectedCode {
 			rec.Error = fmt.Errorf("expected exit code %d, got %d", expectedCode, actualCode)
 			rec.FailureType = "exit_code_mismatch"
+			recStep("exit-code", false, rec.Error.Error())
 			return false
 		}
+		recStep("exit-code", true, "")
 	}
 
 	// Output assertions (stdout/stderr substrings) run whenever the test
@@ -940,22 +993,28 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if !strings.Contains(rec.ClientOutput, rec.ExpectStderrMatch) {
 			rec.Error = fmt.Errorf("stderr does not contain %q", rec.ExpectStderrMatch)
 			rec.FailureType = "stderr_mismatch"
+			recStep("stderr-contains", false, rec.Error.Error())
 			return false
 		}
+		recStep("stderr-contains", true, "")
 	}
 	for _, expected := range rec.ExpectStdoutMatch {
 		if !strings.Contains(rec.ClientOutput, expected) {
 			rec.Error = fmt.Errorf("stdout does not contain %q", expected)
 			rec.FailureType = "stdout_mismatch"
+			recStep("stdout-contains", false, rec.Error.Error())
 			return false
 		}
+		recStep("stdout-contains", true, "")
 	}
 	for _, forbidden := range rec.ExpectStdoutNotMatch {
 		if strings.Contains(rec.ClientOutput, forbidden) {
 			rec.Error = fmt.Errorf("stdout unexpectedly contains %q", forbidden)
 			rec.FailureType = "stdout_mismatch"
+			recStep("stdout-not-contains", false, rec.Error.Error())
 			return false
 		}
+		recStep("stdout-not-contains", true, "")
 	}
 
 	// Decide what governs this test's success:
@@ -991,14 +1050,18 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			if err != nil {
 				rec.Error = err
 			}
+			recStep("peer-exchange", false, rec.FailureType)
 			return false
 		}
+		recStep("peer-exchange", true, "")
 		// Peer reported success: validate JSON expectations (peer path only).
 		if jsonErr := r.validateJSON(rec); jsonErr != nil {
 			rec.Error = jsonErr
 			rec.FailureType = FailTypeJSONMismatch
+			recStep("json-match", false, jsonErr.Error())
 			return false
 		}
+		recStep("json-match", true, "")
 	}
 
 	// Common success tail: logging and file assertions apply to every passing
@@ -1006,12 +1069,21 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
 		rec.Error = logErr
 		rec.FailureType = FailTypeLoggingMismatch
+		recStep("logging", false, logErr.Error())
 		return false
+	}
+	if len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
+		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 {
+		recStep("logging", true, "")
 	}
 	if fileErr := r.validateFileChecks(rec); fileErr != nil {
 		rec.Error = fileErr
 		rec.FailureType = fileCheckFailed
+		recStep("file-check", false, fileErr.Error())
 		return false
+	}
+	if len(rec.FileChecks) > 0 {
+		recStep("file-check", true, "")
 	}
 	return true
 }

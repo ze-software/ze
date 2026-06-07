@@ -10,9 +10,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
 var errPressActionRequiresKeyParameter = errors.New("press action requires key= parameter")
@@ -23,6 +26,7 @@ type WBTestResult struct {
 	Error      string
 	Skipped    bool
 	SkipReason string
+	Steps      []trace.StepResult
 }
 
 // Browser wraps agent-browser CLI commands.
@@ -403,23 +407,42 @@ func runWBTestCase(tc *WBTestCase, baseURL string) *WBTestResult {
 	_ = runAgentWithHTTPSIgnore("close", "--all")
 
 	browser := NewBrowser(baseURL)
+	var steps []trace.StepResult
 
-	for _, step := range tc.Steps {
+	for i, step := range tc.Steps {
 		switch step.Type {
 		case WBStepAction:
 			a := tc.Actions[step.ActionIndex]
-			if err := executeAction(browser, &a); err != nil {
-				return &WBTestResult{Error: fmt.Sprintf("line %d: action %s: %v", a.Line, a.Kind, err)}
+			err := executeAction(browser, &a)
+			steps = append(steps, trace.StepResult{
+				Step: i + 1, Line: a.Line,
+				Kind: "action", Assert: a.Kind,
+				Passed: err == nil, Detail: trace.ErrString(err),
+			})
+			if err != nil {
+				return &WBTestResult{
+					Error: "line " + strconv.Itoa(a.Line) + ": action " + a.Kind + ": " + err.Error(),
+					Steps: steps,
+				}
 			}
 		case WBStepExpect:
 			e := tc.Expects[step.ExpectIndex]
-			if err := checkExpectation(browser, &e); err != nil {
-				return &WBTestResult{Error: fmt.Sprintf("line %d: expect %s: %v", e.Line, e.Kind, err)}
+			err := checkExpectation(browser, &e)
+			steps = append(steps, trace.StepResult{
+				Step: i + 1, Line: e.Line,
+				Kind: "expect", Assert: e.Kind,
+				Passed: err == nil, Detail: trace.ErrString(err),
+			})
+			if err != nil {
+				return &WBTestResult{
+					Error: "line " + strconv.Itoa(e.Line) + ": expect " + e.Kind + ": " + err.Error(),
+					Steps: steps,
+				}
 			}
 		}
 	}
 
-	return &WBTestResult{Passed: true}
+	return &WBTestResult{Passed: true, Steps: steps}
 }
 
 func executeAction(b *Browser, a *WBAction) error {

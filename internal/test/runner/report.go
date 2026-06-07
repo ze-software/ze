@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
 // Report generates AI-friendly failure output.
@@ -74,6 +75,13 @@ func (r *Report) PrintFailure(rec *Record) {
 		r.printMismatchReport(rec)
 	default:
 		r.printGenericReport(rec)
+	}
+
+	// Step trace
+	if len(rec.StepTrace) > 0 {
+		r.writeln(c.Yellow("STEP TRACE:"))
+		trace.PrintTrace(r.output, rec.Name, rec.StepTrace, c.Enabled())
+		r.writeln("")
 	}
 
 	// Debug commands

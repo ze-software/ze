@@ -15,6 +15,7 @@ import (
 	editortesting "codeberg.org/thomas-mangin/ze/internal/component/cli/testing"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
+	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
 func zeTestEditorCmd(args []string) int {
@@ -164,6 +165,7 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 
 			t.ErrMsg = testResult.Error
 			t.TempDir = testResult.TempDir
+			t.Steps = testResult.Steps
 
 			if !testResult.Passed {
 				t.SetError(fmt.Errorf("%s", testResult.Error))
@@ -179,9 +181,22 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 		if t.TempDir != "" {
 			fmt.Fprintf(os.Stdout, "  temp dir: %s\n", t.TempDir) //nolint:errcheck // terminal output
 		}
+		if len(t.Steps) > 0 {
+			trace.PrintTrace(os.Stdout, t.Name, t.Steps, colors.Enabled())
+		}
 	})
 
-	if !pr.Run(context.Background()) {
+	success := pr.Run(context.Background())
+
+	if verbose {
+		for _, t := range tests.Selected() {
+			if t.GetError() == nil && len(t.Steps) > 0 {
+				trace.PrintTrace(os.Stdout, t.Name, t.Steps, colors.Enabled())
+			}
+		}
+	}
+
+	if !success {
 		return errTestsFailed
 	}
 

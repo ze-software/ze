@@ -2,6 +2,8 @@
 
 package runner
 
+import "codeberg.org/thomas-mangin/ze/internal/test/trace"
+
 // EditorTest holds a single editor test case.
 type EditorTest struct {
 	BaseTest // Embeds Name, Nick, Active, Error
@@ -10,6 +12,7 @@ type EditorTest struct {
 	// Results (filled during execution)
 	ErrMsg  string
 	TempDir string
+	Steps   []trace.StepResult
 }
 
 // EditorTests manages editor test discovery and execution.

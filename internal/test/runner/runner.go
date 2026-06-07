@@ -309,6 +309,7 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 			rec.State = StateNone
 			rec.Error = nil
 			rec.Duration = 0
+			rec.StepTrace = rec.StepTrace[:0]
 		}
 
 		// Run iteration (with quiet mode to suppress failure reports)
