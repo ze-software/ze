@@ -4,6 +4,7 @@ package mrt
 
 import (
 	"log/slog"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -18,12 +19,14 @@ import (
 // Three independent streams: updates-only, all-messages, and periodic RIB snapshots.
 // Implements reactor.MessageObserver for raw wire byte delivery.
 type Component struct {
-	config Config
-	logger *slog.Logger
+	config    Config
+	logger    *slog.Logger
+	peerSet   map[netip.Addr]struct{} // precomputed from config.PeerFilter
+	filterDir int8                    // -1=received only, 1=sent only, 0=both
 
-	updates   *mrtfmt.Writer // BGP4MP update stream
-	allMsgs   *mrtfmt.Writer // BGP4MP all messages + state changes
-	routes    *mrtfmt.Writer // TABLE_DUMP_V2 periodic RIB snapshots
+	updates   *asyncWriter   // BGP4MP update stream (async, non-blocking)
+	allMsgs   *asyncWriter   // BGP4MP all messages + state changes (async)
+	routes    *mrtfmt.Writer // TABLE_DUMP_V2 periodic RIB snapshots (sync, own goroutine)
 	ribDumper registry.RIBDumpCallback
 
 	stopCh chan struct{}
@@ -36,11 +39,26 @@ func New(cfg Config, logger *slog.Logger) *Component {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Component{
+	c := &Component{
 		config: cfg,
 		logger: logger,
 		stopCh: make(chan struct{}),
 	}
+	if len(cfg.PeerFilter) > 0 {
+		c.peerSet = make(map[netip.Addr]struct{}, len(cfg.PeerFilter))
+		for _, s := range cfg.PeerFilter {
+			if a, err := netip.ParseAddr(s); err == nil {
+				c.peerSet[a] = struct{}{}
+			}
+		}
+	}
+	switch cfg.Direction {
+	case "received":
+		c.filterDir = -1
+	case "sent":
+		c.filterDir = 1
+	}
+	return c
 }
 
 // Start opens writers and subscribes to BGP state change events on the bus.
@@ -52,12 +70,14 @@ func (c *Component) Start(bus ze.EventBus) {
 	}
 
 	if c.config.HasUpdates() {
-		c.updates = mrtfmt.NewWriter(c.config.UpdatesPath,
+		w := mrtfmt.NewWriter(c.config.UpdatesPath,
 			mrtfmt.WithInterval(c.config.UpdatesInterval))
+		c.updates = newAsyncWriter(w, c.logger)
 	}
 	if c.config.HasAll() {
-		c.allMsgs = mrtfmt.NewWriter(c.config.AllPath,
+		w := mrtfmt.NewWriter(c.config.AllPath,
 			mrtfmt.WithInterval(c.config.AllInterval))
+		c.allMsgs = newAsyncWriter(w, c.logger)
 	}
 	if c.config.HasRoutes() {
 		c.routes = mrtfmt.NewWriter(c.config.RoutesPath)
@@ -80,6 +100,9 @@ func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageT
 	if c.updates == nil && c.allMsgs == nil {
 		return
 	}
+	if !c.shouldRecord(peer, sent) {
+		return
+	}
 
 	isUpdate := msgType == message.TypeUPDATE
 
@@ -94,21 +117,18 @@ func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageT
 	}
 
 	var ipBuf [32]byte
-	hdr := peerInfoToHeader(peer, ipBuf[:])
+	var hdr mrtfmt.BGP4MPHeader
+	peerInfoToHeader(peer, ipBuf[:], &hdr)
 	off := c.headerSize()
-	msgLen := mrtfmt.WriteBGP4MPMessage(pb.b, off, hdr, as4, rawBytes)
+	msgLen := mrtfmt.WriteBGP4MPMessage(pb.b, off, &hdr, as4, rawBytes)
 	record := pb.b[:off+msgLen]
 	writeHeader(record, c.config.ExtendedTimestamp, now, typ, subtype, msgLen)
 
 	if c.updates != nil && isUpdate {
-		if err := c.updates.Write(record); err != nil {
-			c.logger.Warn("mrt: write update", "error", err)
-		}
+		c.updates.Write(record)
 	}
 	if c.allMsgs != nil {
-		if err := c.allMsgs.Write(record); err != nil {
-			c.logger.Warn("mrt: write all", "error", err)
-		}
+		c.allMsgs.Write(record)
 	}
 }
 
@@ -139,6 +159,20 @@ func (c *Component) onPeerClosed(peer any) {
 	c.writeStateChange(pi, mrtfmt.FSMEstablished, mrtfmt.FSMIdle)
 }
 
+func (c *Component) shouldRecord(peer *plugin.PeerInfo, sent bool) bool {
+	if c.filterDir != 0 {
+		if (c.filterDir == -1 && sent) || (c.filterDir == 1 && !sent) {
+			return false
+		}
+	}
+	if c.peerSet != nil {
+		if _, ok := c.peerSet[peer.Address]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (c *Component) writeStateChange(peer *plugin.PeerInfo, oldState, newState uint16) {
 	if c.allMsgs == nil {
 		return
@@ -153,15 +187,14 @@ func (c *Component) writeStateChange(peer *plugin.PeerInfo, oldState, newState u
 	}
 
 	var ipBuf [32]byte
-	hdr := peerInfoToHeader(peer, ipBuf[:])
+	var hdr mrtfmt.BGP4MPHeader
+	peerInfoToHeader(peer, ipBuf[:], &hdr)
 	off := c.headerSize()
 	now := time.Now()
-	msgLen := mrtfmt.WriteBGP4MPStateChange(pb.b, off, hdr, true, oldState, newState)
+	msgLen := mrtfmt.WriteBGP4MPStateChange(pb.b, off, &hdr, true, oldState, newState)
 	writeHeader(pb.b, c.config.ExtendedTimestamp, now, typ, mrtfmt.BGP4MPStateChangeAS4, msgLen)
 
-	if err := c.allMsgs.Write(pb.b[:off+msgLen]); err != nil {
-		c.logger.Warn("mrt: write state-change", "error", err)
-	}
+	c.allMsgs.Write(pb.b[:off+msgLen])
 }
 
 // Stop unsubscribes from events, stops the RIB dump loop, and closes all writers.
@@ -179,11 +212,19 @@ func (c *Component) Stop() {
 }
 
 func (c *Component) closeWriters() {
-	for _, w := range []*mrtfmt.Writer{c.updates, c.allMsgs, c.routes} {
-		if w != nil {
-			if err := w.Close(); err != nil {
-				c.logger.Warn("mrt: close writer", "error", err)
-			}
+	if c.updates != nil {
+		if err := c.updates.Close(); err != nil {
+			c.logger.Warn("mrt: close updates writer", "error", err)
+		}
+	}
+	if c.allMsgs != nil {
+		if err := c.allMsgs.Close(); err != nil {
+			c.logger.Warn("mrt: close all writer", "error", err)
+		}
+	}
+	if c.routes != nil {
+		if err := c.routes.Close(); err != nil {
+			c.logger.Warn("mrt: close routes writer", "error", err)
 		}
 	}
 }

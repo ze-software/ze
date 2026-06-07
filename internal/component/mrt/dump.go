@@ -39,13 +39,12 @@ func writeHeader(buf []byte, extTimestamp bool, now time.Time, typ, subtype uint
 }
 
 // peerInfoToHeader writes peer/local IP into ipBuf (caller-owned, avoids heap escape)
-// and returns a BGP4MPHeader whose IP slices point into ipBuf.
+// and fills hdr whose IP slices point into ipBuf.
 // ipBuf must be at least 32 bytes (2 x 16 for IPv6).
-func peerInfoToHeader(peer *plugin.PeerInfo, ipBuf []byte) *mrtfmt.BGP4MPHeader {
-	hdr := &mrtfmt.BGP4MPHeader{
-		PeerAS:  peer.PeerAS,
-		LocalAS: peer.LocalAS,
-	}
+func peerInfoToHeader(peer *plugin.PeerInfo, ipBuf []byte, hdr *mrtfmt.BGP4MPHeader) {
+	hdr.PeerAS = peer.PeerAS
+	hdr.LocalAS = peer.LocalAS
+	hdr.IfIndex = 0
 	addr := peer.Address
 	localAddr := peer.LocalAddress
 	if addr.Is6() {
@@ -65,7 +64,6 @@ func peerInfoToHeader(peer *plugin.PeerInfo, ipBuf []byte) *mrtfmt.BGP4MPHeader 
 		hdr.PeerIP = ipBuf[0:4]
 		hdr.LocalIP = ipBuf[4:8]
 	}
-	return hdr
 }
 
 func localSubtype(subtype uint16) uint16 {

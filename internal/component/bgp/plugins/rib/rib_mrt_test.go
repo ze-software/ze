@@ -36,7 +36,7 @@ func TestReconstructWireAttrs_RoundTrip(t *testing.T) {
 	}
 	defer entry.Release()
 
-	wire := reconstructWireAttrs(entry)
+	wire := reconstructWireAttrs(entry, nil)
 	require.NotNil(t, wire)
 	require.True(t, len(wire) > 0)
 
@@ -58,7 +58,7 @@ func TestReconstructWireAttrs_EmptyEntry(t *testing.T) {
 	entry.Bundle = storage.Bundles.Intern(storage.NewBundle())
 	defer entry.Release()
 
-	wire := reconstructWireAttrs(entry)
+	wire := reconstructWireAttrs(entry, nil)
 	assert.Equal(t, 0, len(wire))
 }
 
@@ -78,7 +78,7 @@ func TestReconstructWireAttrs_ExtendedLength(t *testing.T) {
 	}
 	defer entry.Release()
 
-	wire := reconstructWireAttrs(entry)
+	wire := reconstructWireAttrs(entry, nil)
 	require.True(t, len(wire) > 300)
 
 	iter := attribute.NewAttrIterator(wire)
@@ -102,7 +102,7 @@ func TestReconstructWireAttrs_AttributeOrder(t *testing.T) {
 	entry := storage.RouteEntry{Bundle: bundleH, ASPath: aspathH}
 	defer entry.Release()
 
-	wire := reconstructWireAttrs(entry)
+	wire := reconstructWireAttrs(entry, nil)
 
 	var codes []attribute.AttributeCode
 	iter := attribute.NewAttrIterator(wire)

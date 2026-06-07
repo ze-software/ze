@@ -53,6 +53,24 @@ module ze-mrt-conf {
                  with the peer.";
         }
 
+        leaf-list peer-filter {
+            type string;
+            description
+                "If set, only record messages from/to these peer addresses.
+                 Empty list means record all peers.";
+        }
+
+        leaf direction {
+            type enumeration {
+                enum both;
+                enum received;
+                enum sent;
+            }
+            default both;
+            description
+                "Which direction of BGP messages to record.";
+        }
+
         container updates {
             description "BGP UPDATE message stream (BGP4MP records)";
             uses dump-stream-settings;

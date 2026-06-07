@@ -61,6 +61,7 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 		peerIndices[s.addr] = idx
 	}
 
+	attrBuf := make([]byte, 0, 4096)
 	for i := range snaps {
 		s := &snaps[i]
 		peerIdx := peerIndices[s.addr]
@@ -69,17 +70,17 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 		}
 
 		s.rib.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
-			attrs := reconstructWireAttrs(entry)
-			if attrs == nil {
+			attrBuf = reconstructWireAttrs(entry, attrBuf[:0])
+			if len(attrBuf) == 0 {
 				return true
 			}
 			afi := uint16(fam.AFI)
 			safi := uint16(fam.SAFI)
 			switch {
 			case (fam.AFI == 1 || fam.AFI == 2) && fam.SAFI == 1 && len(nlriBytes) > 0:
-				visitor.OnRoute(peerIdx, afi, safi, nlriBytes[0], nlriBytes[1:], attrs)
+				visitor.OnRoute(peerIdx, afi, safi, nlriBytes[0], nlriBytes[1:], attrBuf)
 			default:
-				visitor.OnRoute(peerIdx, afi, safi, 0, nlriBytes, attrs)
+				visitor.OnRoute(peerIdx, afi, safi, 0, nlriBytes, attrBuf)
 			}
 			return true
 		})
@@ -87,9 +88,9 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 }
 
 // reconstructWireAttrs rebuilds full BGP path attribute bytes from pooled handles.
-func reconstructWireAttrs(entry storage.RouteEntry) []byte {
+// buf is a reusable buffer (caller passes buf[:0] to reuse capacity).
+func reconstructWireAttrs(entry storage.RouteEntry, buf []byte) []byte {
 	b := entry.GetBundle()
-	buf := make([]byte, 0, 256)
 
 	type attr struct {
 		code  uint8

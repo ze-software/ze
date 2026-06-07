@@ -183,12 +183,27 @@ func runEngine(conn net.Conn) int {
 		return nil
 	})
 
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+		switch command {
+		case "request mrt dump-rib":
+			comp := activeComp.Load()
+			if comp == nil {
+				return "mrt not configured", nil, nil
+			}
+			comp.dumpRIB()
+			return "rib dump triggered", nil, nil
+		default:
+			return "", nil, nil
+		}
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 2,
 		ApplyBudget:  10,
+		Commands:     []sdk.CommandDecl{{Name: "request mrt dump-rib"}},
 	}); err != nil {
 		log.Error("mrt plugin failed", "error", err)
 		return 1
@@ -204,8 +219,10 @@ func runEngine(conn net.Conn) int {
 // ParseConfig parses MRT config from JSON section data.
 func ParseConfig(data json.RawMessage) (*Config, error) {
 	var raw struct {
-		ExtendedTimestamp *bool `json:"extended-timestamp"`
-		AddPath           *bool `json:"add-path"`
+		ExtendedTimestamp *bool    `json:"extended-timestamp"`
+		AddPath           *bool    `json:"add-path"`
+		PeerFilter        []string `json:"peer-filter"`
+		Direction         string   `json:"direction"`
 		Updates           *struct {
 			File     string `json:"file"`
 			Interval int    `json:"interval"`
@@ -229,6 +246,10 @@ func ParseConfig(data json.RawMessage) (*Config, error) {
 	}
 	if raw.AddPath != nil {
 		cfg.AddPath = *raw.AddPath
+	}
+	cfg.PeerFilter = raw.PeerFilter
+	if raw.Direction != "" && raw.Direction != "both" {
+		cfg.Direction = raw.Direction
 	}
 	if raw.Updates != nil {
 		cfg.UpdatesPath = raw.Updates.File
