@@ -21,64 +21,99 @@ Before writing any `fmt.Sprintf` (or `Fprintf`, `Errorf`):
    → errors.New (for Errorf), literal string (for Sprintf)
 
 2. Is the only verb %d?
-   → strconv.Itoa(n) or strconv.FormatUint(uint64(n), 10)
+   → textbuf.Uint(uint64(n)) or textbuf.Int(int64(n))
 
-3. Is the only verb %s?
-   → string concatenation: "prefix " + s + " suffix"
+3. Is it a string with separators or mixed types?
+   → textbuf.Buffer chain: b.Str(a).Byte(':').Str(b).String()
 
-4. Are there 2-3 string/int args with fixed separators?
-   → concatenation: a + ":" + b
-   → or strconv.Itoa(a) + ":" + strconv.Itoa(b)
+4. Is it formatting an IP address?
+   → textbuf.Addr(a) or textbuf.Prefix(p)
 
-5. Is it formatting an IP address (%d.%d.%d.%d)?
-   → netip.AddrFrom4([4]byte{...}).AppendTo(buf[:0])
-   → Never .String() on hot paths (see stack buffer pattern below)
+5. Is it formatting a MAC address?
+   → textbuf.MAC(mac)
 
-6. Is it hex formatting (%x, %02x, %X)?
-   → hex.EncodeToString(data) for cold paths
-   → hex.AppendEncode(buf, data) for hot paths
-   → hex digit table for single bytes
+6. Is it host:port?
+   → textbuf.HostPort(host, port)
 
-7. Is it on a hot path (per-UPDATE, per-route, per-NLRI)?
+7. Is it hex formatting (%x, %02x, %X)?
+   → textbuf.Hex(data) or textbuf.HexUpper(data)
+   → textbuf.AppendHex(buf, data) for hot paths
+
+8. Is it joining strings with a separator?
+   → textbuf.Join(items, sep) or b.Join(items, sep)
+
+9. Is it on a hot path (per-UPDATE, per-route, per-NLRI)?
    → AppendTo(buf []byte) []byte pattern (see text_append.go)
-   → strconv.AppendUint, netip.Addr.AppendTo, hex.AppendEncode
+   → textbuf.AppendUint, textbuf.AppendAddr, textbuf.AppendPrefix
    → Never fmt.Sprintf. No exceptions.
    → Never .String() + concatenation. Use stack buffer.
 
-8. Is it building a string in a loop?
-   → strings.Builder, or append into []byte + final string()
+10. Is it writing to an io.Writer?
+    → w.Write([]byte(...)) or io.WriteString(w, s)
+    → strconv.AppendInt into a [20]byte scratch, then w.Write
 
-9. Is it writing to an io.Writer?
-   → w.Write([]byte(...)) or io.WriteString(w, s)
-   → strconv.AppendInt into a [20]byte scratch, then w.Write
-
-10. None of the above?
+11. None of the above?
     → fmt.Sprintf is acceptable (cold path, complex format)
 ```
 
 ## Banned Patterns
 
+### String concatenation with `+` is BANNED
+
+**BLOCKING.** Never use `+` to concatenate strings. Every `+` between strings
+allocates a new backing array and copies both sides. Use `textbuf.Buffer` instead.
+
+The only exception is a compile-time constant expression where both sides are
+untyped string literals: `const x = "foo" + "bar"` (the compiler folds these).
+
+| `+` pattern | Replacement |
+|-------------|-------------|
+| `a + "/" + b` | `var b textbuf.Buffer; b.Str(a).Byte('/').Str(b).String()` |
+| `"prefix:" + s` | `var b textbuf.Buffer; b.Str("prefix:").Str(s).String()` |
+| `s + strconv.Itoa(n)` | `var b textbuf.Buffer; b.Str(s).Int(int64(n)).String()` |
+| `addr.String() + "/" + strconv.Itoa(n)` | `var b textbuf.Buffer; b.Addr(addr).Byte('/').Int(int64(n)).String()` |
+| `">" + textbuf.Uint(v)` | `var b textbuf.Buffer; b.Byte('>').Uint(v).String()` |
+| `strings.Join(items, sep)` | `textbuf.Join(items, sep)` |
+
+### fmt patterns
+
 | Pattern | Replacement |
 |---------|-------------|
 | `fmt.Sprintf("%d", n)` | `textbuf.Int(int64(n))` (standalone) or `b.Int(int64(n))` (in chain) |
 | `fmt.Sprintf("%s", s)` | `s` |
-| `fmt.Sprintf("%s/%s", a, b)` | `a + "/" + b` (pure string concat, no numeric conversion) |
 | `fmt.Sprintf("%s:%d", s, n)` | `var b textbuf.Buffer; b.Str(s).Byte(':').Int(int64(n)).String()` |
 | `fmt.Sprintf("%d:%d", a, b)` | `var b textbuf.Buffer; b.Int(int64(a)).Byte(':').Int(int64(b)).String()` |
-| `fmt.Sprintf("%d.%d.%d.%d", a,b,c,d)` | `netip.AddrFrom4` + `AppendTo` into stack buffer |
-| `fmt.Sprintf("%02x:%02x:...", mac...)` | hex digit table or `appendMAC` helper |
-| `fmt.Sprintf("%x", data)` | `hex.EncodeToString(data)` or `hex.AppendEncode` |
+| `fmt.Sprintf("%d.%d.%d.%d", a,b,c,d)` | `netip.AddrFrom4` + `textbuf.Addr` |
+| `fmt.Sprintf("%02x:%02x:...", mac...)` | `textbuf.MAC(mac)` |
+| `fmt.Sprintf("%x", data)` | `textbuf.Hex(data)` or `textbuf.AppendHex(buf, data)` |
+| `fmt.Sprintf("%X", data)` | `textbuf.HexUpper(data)` |
+| `fmt.Sprintf("%q", s)` | `var b textbuf.Buffer; b.Quoted(s).String()` |
+| `fmt.Sprintf("%.1f", v)` | `var b textbuf.Buffer; b.Float(v, 1).String()` |
+| `fmt.Sprintf("ctx: %v", err)` | `var b textbuf.Buffer; b.Str("ctx: ").Err(err).String()` |
+| `fmt.Sprintf("%-20s", s)` | `var b textbuf.Buffer; b.PadRight(s, 20).String()` |
+| `fmt.Sprintf("%6s", s)` | `var b textbuf.Buffer; b.PadLeft(s, 6).String()` |
+| `fmt.Sprintf("127.0.0.1:%d", port)` | `textbuf.HostPort("127.0.0.1", port)` |
 | `fmt.Errorf("constant string")` | `var ErrFoo = errors.New("constant string")` at package level |
 | `fmt.Fprintf(w, "%s", s)` | `io.WriteString(w, s)` |
-| `fmt.Fprintf(w, "%d", n)` | `io.WriteString(w, strconv.Itoa(n))` |
+| `fmt.Fprintf(w, "%d", n)` | `io.WriteString(w, textbuf.Int(int64(n)))` |
 | Sprintf in a function that discards the result | Split into no-alloc + with-string variants |
-| `addr.String() + "/" + strconv.Itoa(n)` | `var b textbuf.Buffer; b.Addr(addr).Byte('/').Int(int64(n)).String()` |
+
+### strings patterns
+
+| Pattern | Replacement |
+|---------|-------------|
+| `strings.Join(items, ", ")` | `textbuf.Join(items, ", ")` |
+| `strings.Builder` + loop | `textbuf.Buffer` + loop with `Reset()` |
+| `strings.Repeat(s, n)` | `var b textbuf.Buffer; b.Repeat(s, n).String()` |
+| `b.WriteString(strings.Repeat("\t", indent))` | `b.Repeat("\t", indent)` |
+
+### Other
+
+| Pattern | Replacement |
+|---------|-------------|
 | Storing `string` then parsing back for comparison | Store `netip.Addr` (or typed value), compare directly |
 | `net.ParseIP(s)` in a comparison function | Store `netip.Addr` at construction, use `.Compare()` |
-| `">" + textbuf.Uint(v)` in a loop | `textbuf.Buffer` outside loop: `b.Byte('>').Uint(v)` |
 | `parts[i] = prefix + strconv.Itoa(n)` in a loop | Single Buffer: `b.Str(prefix).Uint(uint64(n))` |
-| `strings.Join(parts, " ")` after building parts from values | Build directly into a Buffer with `.Byte(' ')` separators |
-| `b.WriteString(strings.Repeat("\t", indent))` | `b.Repeat("\t", indent)` (zero alloc) |
 | `fmt.Fprintf(b, "%-*s...", width, s, ...)` | `b.PadRight(s, width).Str(...)` |
 
 ## Typed Comparison Rule
@@ -154,17 +189,24 @@ Methods (all return `*Buffer` for chaining):
 | `Uint(v uint64)` | Append decimal uint64 |
 | `Uint8(v)`, `Uint16(v)`, `Uint32(v)` | Typed variants (no cast at call site) |
 | `Int(v int64)` | Append decimal int64 |
+| `Float(v, prec)` | Append float with N decimal places |
+| `Float2(v)` | Append float with 2 decimal places |
+| `Bool(v)` | Append "true" or "false" |
 | `Addr(a netip.Addr)` | Append IP address |
+| `Prefix(p netip.Prefix)` | Append CIDR prefix (e.g. "10.0.0.0/24") |
 | `Hex(data []byte)` | Append lowercase hex |
+| `HexUpper(data)` | Append uppercase hex |
+| `MAC(mac []byte)` | Append MAC address (e.g. "de:ad:be:ef:ca:fe") |
+| `Quoted(s)` | Append Go-quoted string with escapes (wraps in `"..."`) |
+| `Err(err)` | Append error string (nil-safe, no-op on nil) |
+| `Join(items, sep)` | Append strings joined by separator |
+| `PadRight(s, width)` | Append `s` then spaces to fill `width` (rune-aware) |
+| `PadLeft(s, width)` | Prepend spaces then `s` to fill `width` (rune-aware) |
+| `Repeat(s, n)` | Append `s` N times (indentation, padding) |
+| `Grow(n)` | Pre-grow capacity to avoid mid-chain reallocation |
 | `String()` | Return built string (single alloc for inline, zero-copy for heap). Does NOT freeze: writes continue safely |
 | `Slice()` | Return string **zero-copy at any size**. Freezes buffer: writes panic until `Reset()` |
 | `Reset()` | Clear the buffer for reuse. Resets to inline array. Chainable |
-| `Grow(n)` | Pre-grow capacity to avoid mid-chain reallocation |
-| `Float2(v)` | Append float with 2 decimal places |
-| `Bool(v)` | Append "true" or "false" |
-| `HexUpper(data)` | Append uppercase hex |
-| `Repeat(s, n)` | Append `s` N times (indentation, padding) |
-| `PadRight(s, width)` | Append `s` then spaces to fill `width` |
 | `Write(p)` | Append raw bytes (implements `io.Writer`) |
 | `WriteString(s)` | Append string (implements `io.StringWriter`). Returns `(int, error)` |
 | `WriteByte(c)` | Append byte (implements `io.ByteWriter`). Returns `error` |
@@ -216,8 +258,35 @@ for _, p := range prefixes {
 }
 ```
 
-Standalone functions for single-value returns: `textbuf.Uint32(v)`,
-`textbuf.Addr(a)`, `textbuf.Hex(data)`, etc.
+Standalone functions for single-value returns:
+
+| Function | Returns |
+|----------|---------|
+| `textbuf.Uint(v)`, `Uint8(v)`, `Uint16(v)`, `Uint32(v)` | Decimal string |
+| `textbuf.Int(v)` | Signed decimal string |
+| `textbuf.Addr(a)` | IP address string |
+| `textbuf.Prefix(p)` | CIDR prefix string |
+| `textbuf.Hex(data)`, `HexUpper(data)` | Hex-encoded string |
+| `textbuf.MAC(mac)` | MAC address string (e.g. "de:ad:be:ef:ca:fe") |
+| `textbuf.HostPort(host, port)` | "host:port" string |
+| `textbuf.Join(items, sep)` | Joined string (replaces `strings.Join`) |
+| `textbuf.StrInt(prefix, v)` | "prefix" + decimal |
+| `textbuf.StrUint(prefix, v)` | "prefix" + unsigned decimal |
+| `textbuf.IntStr(v, suffix)` | Decimal + "suffix" |
+| `textbuf.UintStr(v, suffix)` | Unsigned decimal + "suffix" |
+| `textbuf.StrIntStr(prefix, v, suffix)` | "prefix" + decimal + "suffix" |
+| `textbuf.StrUintStr(prefix, v, suffix)` | "prefix" + unsigned decimal + "suffix" |
+
+Append-into-buffer functions (for wire encoding / hot paths):
+
+| Function | Appends |
+|----------|---------|
+| `textbuf.AppendUint(dst, v)` | Decimal bytes |
+| `textbuf.AppendInt(dst, v)` | Signed decimal bytes |
+| `textbuf.AppendAddr(dst, a)` | IP address bytes |
+| `textbuf.AppendPrefix(dst, p)` | CIDR prefix bytes |
+| `textbuf.AppendHex(dst, data)` | Hex-encoded bytes |
+| `textbuf.AppendMAC(dst, mac)` | MAC address bytes |
 
 | Pattern | Use |
 |---------|-----|
@@ -231,8 +300,10 @@ Standalone functions for single-value returns: `textbuf.Uint32(v)`,
 
 | Anti-pattern | Fix |
 |-------------|-----|
+| `a + ":" + b` (any `+` concatenation) | `var b textbuf.Buffer; b.Str(a).Byte(':').Str(b).String()` |
 | `fmt.Sprintf("%d:%d", a, b)` | `b.Uint32(a).Byte(':').Uint32(b).String()` |
 | `strconv.Itoa(n) + ":" + strconv.Itoa(m)` | Same |
+| `strings.Join(items, sep)` | `textbuf.Join(items, sep)` |
 | `var buf [N]byte; b := append(buf[:0]...); return string(b)` | `var b textbuf.Buffer; return b.Str(...).String()` |
 | `addr.String() + "/" + strconv.Itoa(n)` | `b.Addr(addr).Byte('/').Int(n).String()` |
 | `uint64(v)` cast at call site | Use typed method: `Uint16(v)`, `Uint32(v)` |
@@ -277,12 +348,27 @@ func (t *MyType) String() string {
 }
 ```
 
-## Loop Anti-Pattern
+## String `+` Concatenation is BANNED
 
-**BLOCKING.** Never build strings with `+` concatenation inside a loop. Each
-`">" + textbuf.Uint(v)` allocates twice (the Uint result and the concat),
-and collecting into `[]string` + `strings.Join` adds a third. Use a single
-`textbuf.Buffer` declared before the loop:
+**BLOCKING.** Never use `+` to build strings. Every `+` between non-constant
+strings allocates a new backing array and copies both operands. This applies
+everywhere, not just loops.
+
+The only exception: compile-time constant expressions where both sides are
+untyped string literals (`const x = "foo" + "bar"` -- the compiler folds these
+at compile time, zero runtime cost).
+
+```go
+// BAD: 2 allocations (Uint result + concat)
+return "peer:" + textbuf.Uint32(asn)
+
+// GOOD: 1 allocation (String())
+var b textbuf.Buffer
+return b.Str("peer:").Uint32(asn).String()
+```
+
+In loops the cost compounds. Each iteration allocates, and collecting into
+`[]string` + `strings.Join` adds yet another:
 
 ```go
 // BAD: N*2 + 1 allocations
@@ -301,17 +387,17 @@ return b.String()
 ```
 
 The standalone `textbuf.Uint32(v)` functions are for **single-value returns**
-outside loops. Inside a loop, always chain into a Buffer.
+(the entire result is one formatted value). For anything multi-part, use a Buffer.
 
 ## Self-Check
 
 Before submitting code that builds strings:
 
-1. Am I using `fmt.Sprintf`? Use `textbuf.Buffer` or standalone `textbuf.Uint32` etc.
-2. Am I using `strconv.FormatUint` + `"` concatenation? Use `textbuf.Buffer` chain.
-3. Am I writing `var buf [N]byte` + `append` + `string(b)`? Use `textbuf.Buffer`.
-4. Am I calling `.String()` just to concatenate? Use `textbuf.Buffer.Addr()` etc.
-5. Am I storing a string that will be parsed back for comparison? Store the typed value.
-6. Am I building a string that gets immediately discarded? Split the function.
-7. Am I building strings with `+` inside a loop? Use a single Buffer outside the loop.
-7. Could this error be a package-level sentinel?
+1. Am I using `+` to concatenate strings? Use `textbuf.Buffer` chain instead.
+2. Am I using `fmt.Sprintf`? Use `textbuf.Buffer` or standalone functions.
+3. Am I using `strings.Join`? Use `textbuf.Join` or `b.Join(items, sep)`.
+4. Am I using `strings.Builder`? Use `textbuf.Buffer` (128B inline, poolable).
+5. Am I calling `.String()` just to concatenate? Use `textbuf.Buffer.Addr()` etc.
+6. Am I storing a string that will be parsed back for comparison? Store the typed value.
+7. Am I building a string that gets immediately discarded? Split the function.
+8. Could this error be a package-level sentinel?
