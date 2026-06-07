@@ -2,6 +2,7 @@ package family
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -266,6 +267,53 @@ func TestLookupFamilyStringIsLockFree(t *testing.T) {
 	assert.Contains(t, results, "ipv4/unicast")
 	assert.Contains(t, results, "ipv4")
 	assert.Contains(t, results, "unicast")
+}
+
+func TestFamilyLessOrdering(t *testing.T) {
+	a := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	b := Family{AFI: AFIIPv4, SAFI: SAFIMulticast}
+	c := Family{AFI: AFIIPv6, SAFI: SAFIUnicast}
+
+	assert.True(t, FamilyLess(a, b), "same AFI, lower SAFI should be less")
+	assert.False(t, FamilyLess(b, a), "same AFI, higher SAFI should not be less")
+	assert.True(t, FamilyLess(a, c), "lower AFI should be less regardless of SAFI")
+	assert.False(t, FamilyLess(c, a), "higher AFI should not be less")
+	assert.False(t, FamilyLess(a, a), "equal should not be less")
+}
+
+func TestPackedBufferLongNames(t *testing.T) {
+	withCleanRegistry(t, func() {
+		longAFI := "ipv4"
+		for i := range 12 {
+			safi := SAFI(i + 1)
+			safiName := strings.Repeat("x", 22) + fmt.Sprintf("%02d", i)
+			_, err := RegisterFamily(AFIIPv4, safi, longAFI, safiName)
+			require.NoError(t, err)
+
+			f := Family{AFI: AFIIPv4, SAFI: safi}
+			got := f.String()
+			want := longAFI + "/" + safiName
+			assert.Equal(t, want, got, "family string mismatch for SAFI %d", safi)
+		}
+	})
+}
+
+func TestLookupUnknownAFI(t *testing.T) {
+	withCleanRegistry(t, func() {
+		RegisterTestFamilies()
+		f := Family{AFI: 9999, SAFI: 1}
+		assert.Equal(t, "", lookupFamilyString(f))
+	})
+}
+
+func TestLookupUnregisteredSAFI(t *testing.T) {
+	withCleanRegistry(t, func() {
+		_, err := RegisterFamily(AFIIPv4, SAFIUnicast, "ipv4", "unicast")
+		require.NoError(t, err)
+
+		f := Family{AFI: AFIIPv4, SAFI: 200}
+		assert.Equal(t, "", lookupFamilyString(f))
+	})
 }
 
 // BenchmarkFamilyString verifies the read path is zero-allocation for registered families.

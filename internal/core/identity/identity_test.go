@@ -150,3 +150,43 @@ func TestResolveZefsPreferredOverFilesystem(t *testing.T) {
 		t.Errorf("Resolve() = %q, want zefs-id (should prefer zefs over filesystem)", got)
 	}
 }
+
+func TestResolveZefsEmptyFallsThrough(t *testing.T) {
+	store := newMemStore()
+	store.data["meta/instance/machine-id"] = []byte("   \n")
+
+	orig := readFile
+	readFile = func(path string) ([]byte, error) {
+		if path == "/etc/machine-id" {
+			return []byte("fs-fallback\n"), nil
+		}
+		return nil, os.ErrNotExist
+	}
+	defer func() { readFile = orig }()
+
+	got := Resolve(store)
+	if got != "fs-fallback" {
+		t.Errorf("Resolve() = %q, want fs-fallback (empty zefs should fall through)", got)
+	}
+}
+
+func TestResolveEmptyMachineIDFallsThrough(t *testing.T) {
+	store := newMemStore()
+
+	orig := readFile
+	readFile = func(path string) ([]byte, error) {
+		if path == "/etc/machine-id" {
+			return []byte("  \n"), nil
+		}
+		return nil, os.ErrNotExist
+	}
+	defer func() { readFile = orig }()
+
+	got := Resolve(store)
+	if got == "" {
+		t.Error("Resolve() should not return empty string")
+	}
+	if got == "unknown" {
+		t.Error("Resolve() should fall back to hostname before unknown")
+	}
+}

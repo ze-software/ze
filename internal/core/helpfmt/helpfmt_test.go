@@ -181,6 +181,77 @@ func TestSeeAlso(t *testing.T) {
 	assert.Contains(t, out, "ze config validate")
 }
 
+func TestOneLine(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{"simple", "simple"},
+		{"First sentence. Second sentence.", "First sentence."},
+		{"Multi\nline\ntext", "Multi"},
+		{"With trailing spaces   \nmore", "With trailing spaces"},
+		{"No period no newline", "No period no newline"},
+		{"", ""},
+	}
+	for _, tc := range tests {
+		got := oneLine(tc.in)
+		assert.Equal(t, tc.want, got, "oneLine(%q)", tc.in)
+	}
+}
+
+func TestEntryWidth(t *testing.T) {
+	entries := []HelpEntry{
+		{Name: "short", Desc: "x"},
+		{Name: "a-longer-command-name", Desc: "y"},
+	}
+	w := entryWidth(entries)
+	assert.Equal(t, 21, w)
+
+	small := []HelpEntry{{Name: "hi", Desc: "x"}}
+	w = entryWidth(small)
+	assert.Equal(t, 16, w)
+}
+
+func TestHighlightArgsUnclosed(t *testing.T) {
+	got := highlightArgs(true, "ze test <file")
+	assert.Contains(t, got, "<file")
+	assert.NotContains(t, got, styleArg)
+
+	got = highlightArgs(true, "ze test [opt")
+	assert.Contains(t, got, "[opt")
+	assert.NotContains(t, got, styleArg)
+}
+
+func TestHighlightArgsMultiple(t *testing.T) {
+	got := highlightArgs(true, "ze <cmd> [opt] <file>")
+	assert.Equal(t, 3, strings.Count(got, styleArg))
+	assert.Equal(t, 3, strings.Count(got, colorReset))
+}
+
+func TestExamplesSection(t *testing.T) {
+	p := Page{
+		Command:  "ze test",
+		Summary:  "test",
+		Examples: []string{"ze test run", "ze test --all"},
+	}
+	var buf bytes.Buffer
+	p.WriteTo(&buf, false)
+	out := buf.String()
+	assert.Contains(t, out, "Examples:")
+	assert.Contains(t, out, "  ze test run\n")
+	assert.Contains(t, out, "  ze test --all\n")
+}
+
+func TestNoExamplesNoSection(t *testing.T) {
+	p := Page{
+		Command: "ze test",
+		Summary: "test",
+	}
+	var buf bytes.Buffer
+	p.WriteTo(&buf, false)
+	assert.NotContains(t, buf.String(), "Examples:")
+}
+
 // TestOutputMatchesLayout verifies the overall layout structure.
 //
 // VALIDATES: AC-7: output layout matches expected format.

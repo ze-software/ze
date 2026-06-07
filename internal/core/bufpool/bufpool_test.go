@@ -53,3 +53,24 @@ func TestSizeAndName(t *testing.T) {
 		t.Fatalf("Name = %q, want %q", p.Name(), "mypool")
 	}
 }
+
+func TestPutDropsLargerBuffer(t *testing.T) {
+	p := New(0, 64, "test")
+	big := make([]byte, 128)
+	p.Put(big)
+	b := p.Get()
+	if cap(b) != 64 {
+		t.Fatalf("Get after oversized Put cap = %d, want 64", cap(b))
+	}
+}
+
+func TestGetReturnsSameBufferAfterPut(t *testing.T) {
+	p := New(0, 64, "test")
+	b := p.Get()
+	b[0] = 0xAB
+	p.Put(b)
+	b2 := p.Get()
+	if b2[0] != 0xAB {
+		t.Fatalf("expected same buffer back from pool (got b2[0]=%x, want 0xAB)", b2[0])
+	}
+}
