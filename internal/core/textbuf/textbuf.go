@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"strconv"
 	"sync"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -61,7 +62,9 @@ func HexUpper(data []byte) string {
 // Stack use: var b textbuf.Buffer; b.Reset().Str("x").Uint(1).String().
 // Pooled use: b := textbuf.Get(); defer b.Release(); b.Str("x").String().
 //
-// Both String and Slice freeze the buffer; all writes panic until Reset.
+// String does not freeze the buffer: writes after String are safe because
+// inline data is copied and heap data is detached. Slice freezes the buffer;
+// writes after Slice panic until Reset.
 //
 // String: inline (<=128B) copies, heap (>128B) is zero-copy and transfers
 // the heap slice to the returned string. The buffer reverts to its inline
@@ -69,6 +72,8 @@ func HexUpper(data []byte) string {
 //
 // Slice: always zero-copy regardless of size. The returned string shares
 // the buffer's memory and is only valid until the next Reset or Release.
+//
+// Implements io.Writer, io.StringWriter, and io.ByteWriter.
 type Buffer struct {
 	arr    [128]byte
 	b      []byte
@@ -208,13 +213,36 @@ func (b *Buffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+func (b *Buffer) WriteString(s string) (int, error) {
+	b.mustBeWritable()
+	b.b = append(b.b, s...)
+	return len(s), nil
+}
+
+func (b *Buffer) WriteByte(c byte) error {
+	b.mustBeWritable()
+	b.b = append(b.b, c)
+	return nil
+}
+
+func (b *Buffer) WriteRune(r rune) (int, error) {
+	b.mustBeWritable()
+	if r < utf8.RuneSelf {
+		b.b = append(b.b, byte(r))
+		return 1, nil
+	}
+	l := len(b.b)
+	b.b = utf8.AppendRune(b.b, r)
+	return len(b.b) - l, nil
+}
+
 func (b *Buffer) Len() int { return len(b.b) }
 
-// String freezes the buffer and returns its contents. Inline data (<=128B) is
-// copied. Heap data (>128B) is returned zero-copy; the buffer detaches the
-// heap slice so the string is safe to hold past Reset or Release.
+// String returns the buffer contents. Inline data (<=128B) is copied; heap
+// data (>128B) is returned zero-copy with the heap slice detached. Unlike
+// Slice, String does NOT freeze the buffer: subsequent writes are safe
+// because inline data was copied and heap data was detached.
 func (b *Buffer) String() string {
-	b.done = true
 	if len(b.b) == 0 {
 		return ""
 	}
@@ -228,7 +256,8 @@ func (b *Buffer) String() string {
 
 // Slice freezes the buffer and returns its contents zero-copy at any size.
 // The returned string shares the buffer's memory and is invalid after Reset
-// or Release. Use for short-lived strings consumed before the next build.
+// or Release. Unlike String, Slice freezes the buffer: writes after Slice
+// would corrupt the returned view, so they panic.
 func (b *Buffer) Slice() string {
 	b.done = true
 	return unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // zero-copy always; caller must not hold past Reset()

@@ -144,20 +144,32 @@ func TestAppendToEmptyDst(t *testing.T) {
 	assert.Equal(t, "ff", string(AppendHex(nil, []byte{0xff})))
 }
 
-func TestBufferFreezeAfterString(t *testing.T) {
+func TestBufferWriteAfterString(t *testing.T) {
 	t.Parallel()
 	var b Buffer
-	b.Reset().Str("hello")
-	_ = b.String()
-	assert.PanicsWithValue(t, "BUG: textbuf write after String", func() { b.Str("more") })
+	s1 := b.Reset().Str("hello").String()
+	assert.Equal(t, "hello", s1)
+	s2 := b.Str(" world").String()
+	assert.Equal(t, "hello world", s2)
+	assert.Equal(t, "hello", s1)
 }
 
 func TestBufferFreezeAfterSlice(t *testing.T) {
 	t.Parallel()
+	const msg = "BUG: textbuf write after String"
 	var b Buffer
 	b.Reset().Str("hello")
 	_ = b.Slice()
-	assert.PanicsWithValue(t, "BUG: textbuf write after String", func() { b.Byte('x') })
+	assert.PanicsWithValue(t, msg, func() { b.Byte('x') })
+	b.Reset().Str("hello")
+	_ = b.Slice()
+	assert.PanicsWithValue(t, msg, func() { _, _ = b.WriteString("x") })
+	b.Reset().Str("hello")
+	_ = b.Slice()
+	assert.PanicsWithValue(t, msg, func() { _ = b.WriteByte('x') })
+	b.Reset().Str("hello")
+	_ = b.Slice()
+	assert.PanicsWithValue(t, msg, func() { _, _ = b.WriteRune('x') })
 }
 
 func TestBufferResetUnfreezes(t *testing.T) {
@@ -203,11 +215,14 @@ func TestBufferGrowNoOpWhenSufficient(t *testing.T) {
 	assert.Equal(t, "hi", got)
 }
 
-func TestBufferGrowFrozenPanics(t *testing.T) {
+func TestBufferGrowAfterString(t *testing.T) {
 	t.Parallel()
 	var b Buffer
-	_ = b.Reset().Str("x").String()
-	assert.PanicsWithValue(t, "BUG: textbuf write after String", func() { b.Grow(10) })
+	s := b.Reset().Str("x").String()
+	assert.Equal(t, "x", s)
+	got := b.Grow(10).Str("y").String()
+	assert.Equal(t, "xy", got)
+	assert.Equal(t, "x", s)
 }
 
 func TestBufferWrite(t *testing.T) {
@@ -288,4 +303,54 @@ func TestReleaseNoopOnStackBuffer(t *testing.T) {
 	b.Release()
 	got := b.Reset().Str("still works").String()
 	assert.Equal(t, "still works", got)
+}
+
+func TestWriteString(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset()
+	n, err := b.WriteString("hello")
+	assert.NoError(t, err)
+	assert.Equal(t, 5, n)
+	n, err = b.WriteString(" world")
+	assert.NoError(t, err)
+	assert.Equal(t, 6, n)
+	assert.Equal(t, "hello world", b.String())
+}
+
+func TestWriteByte(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset()
+	assert.NoError(t, b.WriteByte('a'))
+	assert.NoError(t, b.WriteByte(':'))
+	assert.NoError(t, b.WriteByte('b'))
+	assert.Equal(t, "a:b", b.String())
+}
+
+func TestWriteRune(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset()
+	n, err := b.WriteRune('A')
+	assert.NoError(t, err)
+	assert.Equal(t, 1, n)
+	n, err = b.WriteRune('é')
+	assert.NoError(t, err)
+	assert.Equal(t, 2, n)
+	n, err = b.WriteRune('\U0001F600')
+	assert.NoError(t, err)
+	assert.Equal(t, 4, n)
+	assert.Equal(t, "Aé\U0001F600", b.String())
+}
+
+func TestWriteAfterStringHeap(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	long := strings.Repeat("x", 200)
+	s1 := b.Reset().Str(long).String()
+	assert.Equal(t, long, s1)
+	s2 := b.Str("after").String()
+	assert.Equal(t, "after", s2)
+	assert.Equal(t, long, s1)
 }

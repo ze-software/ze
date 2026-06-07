@@ -154,17 +154,20 @@ Methods (all return `*Buffer` for chaining):
 | `Int(v int64)` | Append decimal int64 |
 | `Addr(a netip.Addr)` | Append IP address |
 | `Hex(data []byte)` | Append lowercase hex |
-| `String()` | Terminal: return built string (single alloc for inline, zero-copy for heap) |
-| `Slice()` | Terminal: return string **zero-copy at any size**. Valid only until `Reset()` or `Release()` |
+| `String()` | Return built string (single alloc for inline, zero-copy for heap). Does NOT freeze: writes continue safely |
+| `Slice()` | Return string **zero-copy at any size**. Freezes buffer: writes panic until `Reset()` |
 | `Reset()` | Clear the buffer for reuse. Resets to inline array. Chainable |
 | `Grow(n)` | Pre-grow capacity to avoid mid-chain reallocation |
 | `Float2(v)` | Append float with 2 decimal places |
 | `Bool(v)` | Append "true" or "false" |
 | `HexUpper(data)` | Append uppercase hex |
 | `Write(p)` | Append raw bytes (implements `io.Writer`) |
+| `WriteString(s)` | Append string (implements `io.StringWriter`). Returns `(int, error)` |
+| `WriteByte(c)` | Append byte (implements `io.ByteWriter`). Returns `error` |
+| `WriteRune(r)` | Append rune. Returns `(int, error)` |
 | `Len()` | Current content length |
 
-### Terminals: String() vs Slice()
+### String() vs Slice()
 
 **Prefer `Slice()` when the string is consumed immediately** (passed to a
 function, used as a map lookup, parsed, or appended into another buffer).
