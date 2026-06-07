@@ -83,4 +83,9 @@ type Event struct {
 	// BytesRecv is the number of bytes read from the connection for this event (delta).
 	// Set on the first EventRouteReceived or EventRouteWithdrawn per BGP message.
 	BytesRecv int64
+
+	// BGPMessage is the complete BGP wire bytes (marker + length + type + body)
+	// for message events (EventRouteSent, EventRouteReceived, EventWithdrawalSent).
+	// Nil for non-message events and when recording is not needed.
+	BGPMessage []byte
 }

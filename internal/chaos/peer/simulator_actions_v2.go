@@ -57,7 +57,7 @@ func executeRouteBurst(ctx context.Context, action engine.ChaosAction, conn net.
 			emit(Event{Type: EventError, Err: fmt.Errorf("route-burst: %w", writeErr)})
 			return
 		}
-		emit(Event{Type: EventRouteSent, Prefix: prefix, Family: params.Family, BytesSent: int64(len(data))})
+		emit(Event{Type: EventRouteSent, Prefix: prefix, Family: params.Family, BytesSent: int64(len(data)), BGPMessage: data})
 	}
 }
 
@@ -121,7 +121,7 @@ func executeRouteFlap(ctx context.Context, action engine.ChaosAction, conn net.C
 				emit(Event{Type: EventError, Err: fmt.Errorf("route-flap announce cycle %d: %w", cycle, writeErr)})
 				return
 			}
-			emit(Event{Type: EventRouteSent, Prefix: prefix, Family: familyIPv4Unicast, BytesSent: int64(len(data))})
+			emit(Event{Type: EventRouteSent, Prefix: prefix, Family: familyIPv4Unicast, BytesSent: int64(len(data)), BGPMessage: data})
 		}
 
 		// Inter-cycle delay.

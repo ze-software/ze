@@ -1,11 +1,8 @@
 // Design: docs/architecture/chaos-web-dashboard.md -- chaos CLI entry point
 
-
 package orchestrator
 
 import (
-	
-
 	"context"
 	"crypto/rand"
 	"encoding/binary"
@@ -28,7 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/inprocess"
 	chaosmcp "codeberg.org/thomas-mangin/ze/internal/chaos/mcp"
-	
+
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
@@ -106,6 +103,7 @@ func CLIRun(args []string) int {
 	// Output flags (addr:port flags are env-aware)
 	configOut := fs.String("config-out", "", "Write Ze config to file instead of stdout")
 	eventLog := fs.String("event-log", "", "NDJSON event log file")
+	mrtFile := fs.String("mrt-file", "", "MRT file (BGP4MP records, strftime patterns supported)")
 	metricsDefault, metricsDesc := env.AddrPortDefault("ze.chaos.metrics", "", "Prometheus metrics endpoint (addr:port)")
 	metricsAddr := fs.String("metrics", metricsDefault, metricsDesc)
 	webDefault, webDesc := env.AddrPortDefault("ze.chaos.web", "", "Live web dashboard (addr:port, e.g. :8000)")
@@ -191,6 +189,7 @@ Network:
 Output:
   --config-out <path>        Write Ze config to file instead of stdout
   --event-log <path>         NDJSON event log file (replayable)
+  --mrt-file <path>          MRT file (BGP4MP records, strftime patterns supported)
   --metrics <addr:port>      Prometheus metrics endpoint
   --web <addr:port>          Live web dashboard (e.g. :8000)
   --pprof <addr:port>        pprof HTTP server for ze-chaos (e.g. :6060)
@@ -805,6 +804,7 @@ Control:
 			RouteCfg:            routeCfg,
 			ZePID:               *zePID,
 			EventLog:            *eventLog,
+			MRTFile:             *mrtFile,
 			MetricsAddr:         *metricsAddr,
 			WebAddr:             *webAddr,
 			McpAddr:             *mcpAddr,

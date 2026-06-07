@@ -93,6 +93,13 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 			continue
 		}
 
+		// Assemble full BGP message (header + body) for MRT recording.
+		// One copy per received UPDATE; attached to the first prefix event.
+		fullMsg := make([]byte, msgLen)
+		copy(fullMsg, header)
+		copy(fullMsg[message.HeaderLen:], body)
+		buf.SetBGPMessage(fullMsg)
+
 		// Parse IPv4/unicast UPDATE for announced and withdrawn prefixes.
 		parseUpdatePrefixes(body, peerIndex, buf)
 	}

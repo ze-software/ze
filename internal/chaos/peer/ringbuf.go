@@ -24,6 +24,11 @@ type EventBuffer struct {
 	// (e.g., KEEPALIVE). Flushed to the next pushed event's BytesRecv field.
 	// Only accessed from the readLoop goroutine — no lock needed.
 	pendingBytesRecv int64
+
+	// pendingBGPMessage holds the raw BGP message for the current UPDATE.
+	// Flushed to the next pushed event's BGPMessage field (first prefix event).
+	// Only accessed from the readLoop goroutine — no lock needed.
+	pendingBGPMessage []byte
 }
 
 // NewEventBuffer creates an unbounded event buffer.
@@ -40,6 +45,12 @@ func (b *EventBuffer) AddBytesRecv(n int64) {
 	b.pendingBytesRecv += n
 }
 
+// SetBGPMessage stores raw BGP wire bytes to attach to the next pushed event.
+// Only called from the readLoop goroutine — no lock needed.
+func (b *EventBuffer) SetBGPMessage(msg []byte) {
+	b.pendingBGPMessage = msg
+}
+
 // Push appends an event to the buffer. Never blocks, never drops.
 // If AddBytesRecv was called since the last Push, the accumulated bytes
 // are assigned to this event's BytesRecv field (first event gets the total).
@@ -47,6 +58,10 @@ func (b *EventBuffer) Push(ev Event) {
 	if b.pendingBytesRecv > 0 {
 		ev.BytesRecv += b.pendingBytesRecv
 		b.pendingBytesRecv = 0
+	}
+	if b.pendingBGPMessage != nil {
+		ev.BGPMessage = b.pendingBGPMessage
+		b.pendingBGPMessage = nil
 	}
 
 	b.mu.Lock()

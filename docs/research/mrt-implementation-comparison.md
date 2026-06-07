@@ -37,9 +37,10 @@ Last updated: 2026-06-07
 | BGP4MP (16) | Encode | Yes | Yes | No | Yes | Yes | Yes |
 | BGP4MP_ET (17) | Encode | Yes | No | Yes | No | No | No |
 
-Ze has encoders for all types but the daemon component is not yet wired to the
-BGP event pipeline. "Encode" means the wire format encoder exists and is tested;
-daemon-side dump production requires Phase 2 EventDispatcher integration.
+Ze has encoders for all types. The ze-chaos tool uses BGP4MP encoders to produce
+MRT recordings from chaos test sessions (`--mrt-file` flag). The daemon component
+is not yet wired to the BGP event pipeline; daemon-side dump production requires
+Phase 2 EventDispatcher integration.
 
 ### Read (parse MRT files)
 

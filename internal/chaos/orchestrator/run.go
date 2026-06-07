@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"net/netip"
+
 	"golang.org/x/term"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
@@ -386,6 +388,20 @@ func setupReporting(cfg *OrchestratorConfig, peerCount int) (*reportingResult, e
 				fmt.Fprintf(os.Stderr, "error: closing event file: %v\n", err)
 			}
 		})
+	}
+
+	if cfg.MRTFile != "" {
+		peers := make([]report.MRTPeer, len(cfg.Profiles))
+		for i, p := range cfg.Profiles {
+			peers[i] = report.MRTPeer{ASN: p.ASN, Addr: p.RouterID}
+		}
+		localAddr := netip.MustParseAddr(cfg.LocalAddr)
+		mrtlog := report.NewMRTLog(cfg.MRTFile, report.MRTLogConfig{
+			LocalAS:   65000,
+			LocalAddr: localAddr,
+			Peers:     peers,
+		})
+		consumers = append(consumers, mrtlog)
 	}
 
 	if cfg.WebAddr != "" {

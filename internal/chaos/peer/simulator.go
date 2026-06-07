@@ -278,7 +278,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case familyIPv6Unicast:
@@ -291,7 +291,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv4/mpls-vpn":
@@ -307,7 +307,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv6/mpls-vpn":
@@ -323,7 +323,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "l2vpn/evpn":
@@ -339,7 +339,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv4/flow":
@@ -355,7 +355,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv6/flow":
@@ -371,7 +371,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv4/multicast":
@@ -384,7 +384,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		case "ipv6/multicast":
@@ -397,7 +397,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data))})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: fam, BytesSent: int64(len(data)), BGPMessage: data})
 				totalSent++
 			}
 		}

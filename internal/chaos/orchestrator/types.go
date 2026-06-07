@@ -59,6 +59,7 @@ type OrchestratorConfig struct {
 	RouteCfg            RouteConfig
 	ZePID               int
 	EventLog            string
+	MRTFile             string
 	MetricsAddr         string
 	WebAddr             string
 	McpAddr             string

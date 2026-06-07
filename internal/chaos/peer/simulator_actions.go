@@ -152,7 +152,7 @@ func executeRoute(action route.Action, conn net.Conn, routes []netip.Prefix,
 				emit(Event{Type: EventError, Err: fmt.Errorf("sending churn re-announce: %w", writeErr)})
 				return
 			}
-			emit(Event{Type: EventRouteSent, Prefix: prefix, BytesSent: int64(len(data))})
+			emit(Event{Type: EventRouteSent, Prefix: prefix, BytesSent: int64(len(data)), BGPMessage: data})
 		}
 
 	case route.ActionPartialWithdraw:

@@ -58,3 +58,27 @@ func TestEventTypeStringCompleteness(t *testing.T) {
 			"EventType(%d) should have a name, not unknown", i)
 	}
 }
+
+// TestEventBGPMessageBackwardCompat verifies that the zero-value BGPMessage
+// field does not affect existing event processing.
+//
+// VALIDATES: AC-8 — existing consumers work with zero-value BGPMessage.
+// PREVENTS: Adding BGPMessage field breaking existing code that copies events.
+func TestEventBGPMessageBackwardCompat(t *testing.T) {
+	ev := Event{
+		Type:      EventRouteSent,
+		PeerIndex: 3,
+	}
+	// Zero-value BGPMessage must be nil
+	assert.Nil(t, ev.BGPMessage)
+
+	// Event with BGPMessage set does not interfere with other fields
+	evWithMsg := Event{
+		Type:       EventRouteSent,
+		PeerIndex:  5,
+		BGPMessage: []byte{0xFF, 0xFF},
+	}
+	assert.Equal(t, 5, evWithMsg.PeerIndex)
+	assert.Equal(t, EventRouteSent, evWithMsg.Type)
+	assert.Equal(t, []byte{0xFF, 0xFF}, evWithMsg.BGPMessage)
+}
