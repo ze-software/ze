@@ -522,6 +522,9 @@ func RunRIBPlugin(conn net.Conn) int {
 	registerBuiltinCommands()
 
 	r := NewRIBManager(p)
+	activeManager.Store(r)
+	defer activeManager.Store(nil)
+
 	// Wire the process-wide Loc-RIB so BGP best-path changes mirror into
 	// the cross-protocol store. locrib.Default() returns nil in forked
 	// plugin subprocesses; SetLocRIB is nil-safe (mirroring is disabled).

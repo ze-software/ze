@@ -19,9 +19,10 @@ import (
 const configRoot = "mrt"
 
 var (
-	loggerPtr   atomic.Pointer[slog.Logger]
-	eventBusPtr atomic.Pointer[ze.EventBus]
-	activeComp  atomic.Pointer[Component]
+	loggerPtr    atomic.Pointer[slog.Logger]
+	eventBusPtr  atomic.Pointer[ze.EventBus]
+	activeComp   atomic.Pointer[Component]
+	ribDumpCBPtr atomic.Pointer[registry.RIBDumpCallback]
 )
 
 // MessageBridge implements registry.MessageCallback by forwarding to the
@@ -60,6 +61,13 @@ func (peerBridge) OnPeerClosed(peer any, _ string) {
 		return
 	}
 	comp.onPeerClosed(peer)
+}
+
+// SetRIBDumpCallback stores the RIB dump provider for TABLE_DUMP_V2 snapshots.
+func SetRIBDumpCallback(cb registry.RIBDumpCallback) {
+	if cb != nil {
+		ribDumpCBPtr.Store(&cb)
+	}
 }
 
 func setLogger(l *slog.Logger) {
@@ -123,6 +131,9 @@ func runEngine(conn net.Conn) int {
 			return nil
 		}
 		comp := New(*cfg, log)
+		if cb := ribDumpCBPtr.Load(); cb != nil {
+			comp.ribDumper = *cb
+		}
 		comp.Start(getEventBus())
 		activeComp.Store(comp)
 		log.Info("mrt configured")

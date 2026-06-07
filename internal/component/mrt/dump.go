@@ -3,10 +3,12 @@
 package mrt
 
 import (
+	"net"
 	"sync"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
 )
 
@@ -84,10 +86,135 @@ func (c *Component) dumpRIB() {
 	if c.routes == nil {
 		return
 	}
+	if c.ribDumper == nil {
+		c.logger.Debug("mrt: RIB dump skipped, no RIB callback")
+		return
+	}
 	if err := c.routes.Rotate(); err != nil {
 		c.logger.Warn("mrt: rotate rib file", "error", err)
+		return
 	}
-	c.logger.Debug("mrt: periodic RIB dump (placeholder)")
+	c.writeTableDumpV2()
+}
+
+func (c *Component) writeTableDumpV2() {
+	now := time.Now()
+	ts := uint32(now.Unix())
+	addPath := c.config.AddPath
+	hdrSize := c.headerSize()
+
+	// Single DumpRIB call: OnPeer collects peers, the PEER_INDEX_TABLE is
+	// written on the first OnRoute call (all peers have been enumerated by
+	// then), and subsequent OnRoute calls write RIB entries.
+	// RFC 6396 Section 4.3.1: PEER_INDEX_TABLE MUST precede RIB entries.
+	pb := getBuf()
+	defer bufPool.Put(pb)
+
+	var peers []mrtfmt.PeerEntry
+	var seq uint32
+	pitWritten := false
+
+	visitor := registry.RIBDumpVisitor{
+		OnPeer: func(peerAddr string, peerASN uint32, bgpID [4]byte, isIPv6 bool) uint16 {
+			idx := uint16(len(peers))
+			pe := mrtfmt.PeerEntry{
+				Type:  mrtfmt.PeerAS4,
+				BGPID: bgpID,
+				ASN:   peerASN,
+			}
+			if isIPv6 {
+				pe.Type |= mrtfmt.PeerIPv6
+				pe.IP = make([]byte, 16)
+			} else {
+				pe.IP = make([]byte, 4)
+			}
+			parseIPIntoPeer(peerAddr, &pe)
+			peers = append(peers, pe)
+			return idx
+		},
+		OnRoute: func(peerIndex, afi, _ uint16, prefixLen uint8, prefix, attrs []byte) {
+			if !pitWritten {
+				pitWritten = true
+				c.writePeerIndexTable(hdrSize, now, peers)
+			}
+
+			seq++
+			entry := mrtfmt.RIBEntry{
+				PeerIndex:  peerIndex,
+				OrigTime:   ts,
+				Attributes: attrs,
+			}
+
+			subtype := ribSubtype(afi, addPath)
+
+			needed := hdrSize + 4 + 1 + len(prefix) + 2 + 8 + 2 + len(attrs) + 4
+			buf := pb.b
+			if needed > len(buf) {
+				buf = make([]byte, needed)
+			}
+
+			msgLen := mrtfmt.WriteRIBHeader(buf, hdrSize, seq, prefixLen, prefix)
+			msgLen += mrtfmt.WriteRIBEntries(buf, hdrSize+msgLen, []mrtfmt.RIBEntry{entry}, addPath)
+			writeHeader(buf, c.config.ExtendedTimestamp, now, mrtfmt.TypeTableDumpV2, subtype, msgLen)
+
+			if err := c.routes.Write(buf[:hdrSize+msgLen]); err != nil {
+				c.logger.Warn("mrt: write rib entry", "error", err)
+			}
+		},
+	}
+	c.ribDumper.DumpRIB(visitor)
+
+	if seq == 0 && len(peers) > 0 {
+		c.writePeerIndexTable(hdrSize, now, peers)
+	}
+
+	c.logger.Info("mrt: RIB dump complete", "peers", len(peers), "sequences", seq)
+}
+
+func (c *Component) writePeerIndexTable(hdrSize int, now time.Time, peers []mrtfmt.PeerEntry) {
+	pitSize := 4 + 2 + 2 // collectorBGPID + viewNameLen + peerCount
+	for i := range peers {
+		pitSize += 5 // type(1) + bgpid(4)
+		pitSize += len(peers[i].IP)
+		if peers[i].IsAS4() {
+			pitSize += 4
+		} else {
+			pitSize += 2
+		}
+	}
+	pitBuf := make([]byte, hdrSize+pitSize)
+	pitLen := mrtfmt.WritePeerIndexTable(pitBuf, hdrSize, [4]byte{}, "", peers)
+	writeHeader(pitBuf, c.config.ExtendedTimestamp, now, mrtfmt.TypeTableDumpV2, mrtfmt.TDV2PeerIndexTable, pitLen)
+	if err := c.routes.Write(pitBuf[:hdrSize+pitLen]); err != nil {
+		c.logger.Warn("mrt: write peer index table", "error", err)
+	}
+}
+
+func ribSubtype(afi uint16, addPath bool) uint16 {
+	switch {
+	case afi == mrtfmt.AFIIPv4 && !addPath:
+		return mrtfmt.TDV2RIBIPv4Unicast
+	case afi == mrtfmt.AFIIPv4 && addPath:
+		return mrtfmt.TDV2RIBIPv4UnicastAP
+	case afi == mrtfmt.AFIIPv6 && !addPath:
+		return mrtfmt.TDV2RIBIPv6Unicast
+	case afi == mrtfmt.AFIIPv6 && addPath:
+		return mrtfmt.TDV2RIBIPv6UnicastAP
+	default:
+		return mrtfmt.TDV2RIBGeneric
+	}
+}
+
+func parseIPIntoPeer(addr string, pe *mrtfmt.PeerEntry) {
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return
+	}
+	if v4 := ip.To4(); v4 != nil {
+		copy(pe.IP, v4)
+	} else {
+		copy(pe.IP, ip.To16())
+	}
 }
 
 func (c *Component) headerSize() int {

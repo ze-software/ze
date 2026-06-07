@@ -25,6 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	ribplugin "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib"
 	zecli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	showCmd "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -438,6 +439,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 
 	coordinator.SetExtra("mrt.messageCallback", mrtcomp.MessageBridge)
 	coordinator.SetExtra("mrt.peerCallback", mrtcomp.PeerBridge)
+	mrtcomp.SetRIBDumpCallback(ribplugin.RIBDumpBridge)
 
 	pm := pluginmgr.NewManager()
 

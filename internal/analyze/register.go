@@ -22,7 +22,7 @@ func init() {
 	Register("filter", runFilter, subdispatch.SubMeta{Desc: "Filter MRT records by peer, prefix, type, or timestamp to a new file"})
 	Register("inject", runInject, subdispatch.SubMeta{Desc: "Inject MRT RIB entries into a running Ze instance"})
 	Register("replay", runReplay, subdispatch.SubMeta{Desc: "Replay MRT over a BGP session to a remote peer"})
-	Register("convert", runConvert, subdispatch.SubMeta{Desc: "Convert MRT to other formats (pcap, bmp)"})
+	Register("convert", runConvert, subdispatch.SubMeta{Desc: "Convert MRT to other formats (pcap, json)"})
 
 	registry.MustRegisterRootHandler("analyze", func(_ *registry.RuntimeContext, args []string) int {
 		if len(args) == 1 && (args[0] == "--version" || args[0] == "-V") {

@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -20,9 +21,10 @@ type Component struct {
 	config Config
 	logger *slog.Logger
 
-	updates *mrtfmt.Writer // BGP4MP update stream
-	allMsgs *mrtfmt.Writer // BGP4MP all messages + state changes
-	routes  *mrtfmt.Writer // TABLE_DUMP_V2 periodic RIB snapshots
+	updates   *mrtfmt.Writer // BGP4MP update stream
+	allMsgs   *mrtfmt.Writer // BGP4MP all messages + state changes
+	routes    *mrtfmt.Writer // TABLE_DUMP_V2 periodic RIB snapshots
+	ribDumper registry.RIBDumpCallback
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
