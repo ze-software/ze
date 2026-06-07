@@ -195,6 +195,23 @@ func (b *Buffer) HexUpper(data []byte) *Buffer {
 	return b
 }
 
+func (b *Buffer) Repeat(s string, n int) *Buffer {
+	b.mustBeWritable()
+	for range n {
+		b.b = append(b.b, s...)
+	}
+	return b
+}
+
+func (b *Buffer) PadRight(s string, width int) *Buffer {
+	b.mustBeWritable()
+	b.b = append(b.b, s...)
+	for range width - len(s) {
+		b.b = append(b.b, ' ')
+	}
+	return b
+}
+
 func (b *Buffer) Float2(v float64) *Buffer {
 	b.mustBeWritable()
 	b.b = strconv.AppendFloat(b.b, v, 'f', 2, 64)

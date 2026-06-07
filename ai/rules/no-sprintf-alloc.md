@@ -78,6 +78,8 @@ Before writing any `fmt.Sprintf` (or `Fprintf`, `Errorf`):
 | `">" + textbuf.Uint(v)` in a loop | `textbuf.Buffer` outside loop: `b.Byte('>').Uint(v)` |
 | `parts[i] = prefix + strconv.Itoa(n)` in a loop | Single Buffer: `b.Str(prefix).Uint(uint64(n))` |
 | `strings.Join(parts, " ")` after building parts from values | Build directly into a Buffer with `.Byte(' ')` separators |
+| `b.WriteString(strings.Repeat("\t", indent))` | `b.Repeat("\t", indent)` (zero alloc) |
+| `fmt.Fprintf(b, "%-*s...", width, s, ...)` | `b.PadRight(s, width).Str(...)` |
 
 ## Typed Comparison Rule
 
@@ -161,6 +163,8 @@ Methods (all return `*Buffer` for chaining):
 | `Float2(v)` | Append float with 2 decimal places |
 | `Bool(v)` | Append "true" or "false" |
 | `HexUpper(data)` | Append uppercase hex |
+| `Repeat(s, n)` | Append `s` N times (indentation, padding) |
+| `PadRight(s, width)` | Append `s` then spaces to fill `width` |
 | `Write(p)` | Append raw bytes (implements `io.Writer`) |
 | `WriteString(s)` | Append string (implements `io.StringWriter`). Returns `(int, error)` |
 | `WriteByte(c)` | Append byte (implements `io.ByteWriter`). Returns `error` |

@@ -344,6 +344,42 @@ func TestWriteRune(t *testing.T) {
 	assert.Equal(t, "Aé\U0001F600", b.String())
 }
 
+func TestRepeat(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "\t\t\t", b.Reset().Repeat("\t", 3).String())
+	assert.Equal(t, "aaa", b.Reset().Repeat("a", 3).String())
+	assert.Equal(t, "ababab", b.Reset().Repeat("ab", 3).String())
+	assert.Equal(t, "", b.Reset().Repeat("x", 0).String())
+	assert.Equal(t, "", b.Reset().Repeat("x", -1).String())
+	assert.Equal(t, "pre\t\t", b.Reset().Str("pre").Repeat("\t", 2).String())
+}
+
+func TestRepeatLarge(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	got := b.Reset().Repeat("ab", 100).String()
+	assert.Len(t, got, 200)
+	assert.Equal(t, strings.Repeat("ab", 100), got)
+}
+
+func TestPadRight(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "hi   ", b.Reset().PadRight("hi", 5).String())
+	assert.Equal(t, "exact", b.Reset().PadRight("exact", 5).String())
+	assert.Equal(t, "toolong", b.Reset().PadRight("toolong", 3).String())
+	assert.Equal(t, "", b.Reset().PadRight("", 0).String())
+	assert.Equal(t, "   ", b.Reset().PadRight("", 3).String())
+}
+
+func TestPadRightInChain(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	got := b.Reset().PadRight("alice", 14).Str("01-15").Byte(' ').Str("09:30").String()
+	assert.Equal(t, "alice         01-15 09:30", got)
+}
+
 func TestWriteAfterStringHeap(t *testing.T) {
 	t.Parallel()
 	var b Buffer
