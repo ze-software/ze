@@ -61,11 +61,6 @@ func (c *Component) Start(bus ze.EventBus) {
 		c.routes = mrtfmt.NewWriter(c.config.RoutesPath)
 	}
 
-	if bus != nil {
-		unsub := bus.Subscribe("bgp", "state", c.handleStateChange)
-		c.unsubs = append(c.unsubs, unsub)
-	}
-
 	if c.config.HasRoutes() {
 		c.wg.Add(1)
 		go c.ribDumpLoop()
@@ -112,6 +107,58 @@ func (c *Component) OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageT
 		if err := c.allMsgs.Write(record); err != nil {
 			c.logger.Warn("mrt: write all", "error", err)
 		}
+	}
+}
+
+// onBGPMessageAny is the any-typed bridge from the coordinator callback.
+func (c *Component) onBGPMessageAny(peer any, msgType uint8, sent bool, rawBytes []byte) {
+	pi, ok := peer.(*plugin.PeerInfo)
+	if !ok || pi == nil {
+		return
+	}
+	c.OnBGPMessage(pi, message.MessageType(msgType), sent, rawBytes)
+}
+
+// onPeerEstablished records a BGP4MP_STATE_CHANGE_AS4 (Idle -> Established).
+func (c *Component) onPeerEstablished(peer any) {
+	pi, ok := peer.(*plugin.PeerInfo)
+	if !ok || pi == nil {
+		return
+	}
+	c.writeStateChange(pi, mrtfmt.FSMIdle, mrtfmt.FSMEstablished)
+}
+
+// onPeerClosed records a BGP4MP_STATE_CHANGE_AS4 (Established -> Idle).
+func (c *Component) onPeerClosed(peer any) {
+	pi, ok := peer.(*plugin.PeerInfo)
+	if !ok || pi == nil {
+		return
+	}
+	c.writeStateChange(pi, mrtfmt.FSMEstablished, mrtfmt.FSMIdle)
+}
+
+func (c *Component) writeStateChange(peer *plugin.PeerInfo, oldState, newState uint16) {
+	if c.allMsgs == nil {
+		return
+	}
+
+	pb := getBuf()
+	defer bufPool.Put(pb)
+
+	typ := mrtfmt.TypeBGP4MP
+	if c.config.ExtendedTimestamp {
+		typ = mrtfmt.TypeBGP4MPET
+	}
+
+	var ipBuf [32]byte
+	hdr := peerInfoToHeader(peer, ipBuf[:])
+	off := c.headerSize()
+	now := time.Now()
+	msgLen := mrtfmt.WriteBGP4MPStateChange(pb.b, off, hdr, true, oldState, newState)
+	writeHeader(pb.b, c.config.ExtendedTimestamp, now, typ, mrtfmt.BGP4MPStateChangeAS4, msgLen)
+
+	if err := c.allMsgs.Write(pb.b[:off+msgLen]); err != nil {
+		c.logger.Warn("mrt: write state-change", "error", err)
 	}
 }
 

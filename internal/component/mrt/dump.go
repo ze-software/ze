@@ -80,40 +80,6 @@ func localSubtype(subtype uint16) uint16 {
 	return subtype
 }
 
-func (c *Component) handleStateChange(payload any) {
-	if c.allMsgs == nil {
-		return
-	}
-
-	sp := extractStatePayload(payload)
-	if sp == nil {
-		return
-	}
-
-	typ := mrtfmt.TypeBGP4MP
-	if c.config.ExtendedTimestamp {
-		typ = mrtfmt.TypeBGP4MPET
-	}
-	subtype := mrtfmt.BGP4MPStateChangeAS4
-
-	hdr := &mrtfmt.BGP4MPHeader{
-		PeerAS: sp.PeerAS, LocalAS: sp.LocalAS,
-		AFI: sp.AFI, PeerIP: sp.PeerIP, LocalIP: sp.LocalIP,
-	}
-
-	pb := getBuf()
-	defer bufPool.Put(pb)
-
-	off := c.headerSize()
-	now := time.Now()
-	msgLen := mrtfmt.WriteBGP4MPStateChange(pb.b, off, hdr, true, sp.OldState, sp.NewState)
-	writeHeader(pb.b, c.config.ExtendedTimestamp, now, typ, subtype, msgLen)
-
-	if err := c.allMsgs.Write(pb.b[:off+msgLen]); err != nil {
-		c.logger.Warn("mrt: write state-change", "error", err)
-	}
-}
-
 func (c *Component) dumpRIB() {
 	if c.routes == nil {
 		return
@@ -141,29 +107,4 @@ func (c *Component) bgp4mpTypeSubtype() (uint16, uint16) {
 		subtype = mrtfmt.BGP4MPMessageAS4AP
 	}
 	return typ, subtype
-}
-
-type statePayload struct {
-	PeerAS   uint32
-	LocalAS  uint32
-	PeerIP   []byte
-	LocalIP  []byte
-	AFI      uint16
-	OldState uint16
-	NewState uint16
-}
-
-// extractStatePayload parses BGP state change info from an EventBus payload.
-// The EventBus delivers state events as JSON strings.
-func extractStatePayload(payload any) *statePayload { //nolint:unparam // stub until PeerLifecycleObserver integration
-	s, ok := payload.(string)
-	if !ok || s == "" {
-		return nil
-	}
-	// EventBus state payloads are JSON like {"peer":"10.0.0.1"}.
-	// Full peer info (AS, IP, state) requires reactor PeerLifecycleObserver.
-	// For now, return nil; state changes via OnBGPMessage cover NOTIFICATION.
-	// Full FSM state recording needs PeerLifecycleObserver integration.
-	_ = s
-	return nil
 }

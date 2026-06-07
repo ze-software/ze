@@ -83,5 +83,12 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 		r.AddPeerLifecycleCallback(cb)
 	}
 
+	if mcb, ok := coord.GetExtra("mrt.messageCallback").(registry.MessageCallback); ok && mcb != nil {
+		r.AddMessageCallback(mcb)
+	}
+	if pcb, ok := coord.GetExtra("mrt.peerCallback").(registry.PeerLifecycleCallback); ok && pcb != nil {
+		r.AddPeerLifecycleCallback(pcb)
+	}
+
 	return r, nil
 }

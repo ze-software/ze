@@ -41,6 +41,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/managed"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
+	mrtcomp "codeberg.org/thomas-mangin/ze/internal/component/mrt"
 	zepki "codeberg.org/thomas-mangin/ze/internal/component/pki"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
@@ -434,6 +435,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if PeerLifecycleCallback != nil {
 		coordinator.SetExtra("health.peerCallback", PeerLifecycleCallback)
 	}
+
+	coordinator.SetExtra("mrt.messageCallback", mrtcomp.MessageBridge)
+	coordinator.SetExtra("mrt.peerCallback", mrtcomp.PeerBridge)
 
 	pm := pluginmgr.NewManager()
 

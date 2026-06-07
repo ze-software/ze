@@ -24,6 +24,44 @@ var (
 	activeComp  atomic.Pointer[Component]
 )
 
+// MessageBridge implements registry.MessageCallback by forwarding to the
+// active MRT Component. Registered as coordinator extra "mrt.messageCallback"
+// so the BGP reactor factory can wire it during createReactorFromCoordinator.
+// When no MRT config is active, OnBGPMessage returns immediately (nil check).
+var MessageBridge messageBridge
+
+type messageBridge struct{}
+
+func (messageBridge) OnBGPMessage(peer any, msgType uint8, sent bool, rawBytes []byte) {
+	comp := activeComp.Load()
+	if comp == nil {
+		return
+	}
+	comp.onBGPMessageAny(peer, msgType, sent, rawBytes)
+}
+
+// PeerBridge implements registry.PeerLifecycleCallback by forwarding to the
+// active MRT Component for FSM state change recording.
+var PeerBridge peerBridge
+
+type peerBridge struct{}
+
+func (peerBridge) OnPeerEstablished(peer any) {
+	comp := activeComp.Load()
+	if comp == nil {
+		return
+	}
+	comp.onPeerEstablished(peer)
+}
+
+func (peerBridge) OnPeerClosed(peer any, _ string) {
+	comp := activeComp.Load()
+	if comp == nil {
+		return
+	}
+	comp.onPeerClosed(peer)
+}
+
 func setLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
