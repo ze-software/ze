@@ -66,6 +66,7 @@ type receiverConfig struct {
 	Enabled     string                    `json:"enabled"`
 	Servers     map[string]listenerConfig `json:"server"`
 	MaxSessions string                    `json:"max-sessions"`
+	RouteAction string                    `json:"route-action"`
 }
 
 type listenerConfig struct {
@@ -295,6 +296,10 @@ func (bp *BMPPlugin) startReceiver(cfg *receiverConfig) {
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 
+	if cfg.RouteAction == "redistribute" {
+		logger().Warn("bmp: route-action redistribute is not yet implemented, using monitor")
+	}
+	logger().Info("bmp: receiver route-action: monitor (BMP RIB for visibility)")
 	maxSess := parseUint16(cfg.MaxSessions, 100)
 	for _, srv := range cfg.Servers {
 		addr := net.JoinHostPort(srv.IP, srv.Port)

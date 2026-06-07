@@ -38,6 +38,7 @@ environment {
 | `ip` | 0.0.0.0 | Listen IP address |
 | `port` | 11019 | Listen TCP port (IANA assigned for BMP) |
 | `max-sessions` | 100 | Maximum concurrent BMP sessions (1-1000) |
+| `route-action` | monitor | `monitor` (BMP RIB for visibility) or `redistribute` (future: also enter best-path) |
 
 Multiple listeners are supported (same pattern as SSH/web):
 
@@ -137,10 +138,13 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 
 ## Looking Glass Integration
 
-When the BMP receiver is enabled, monitored routes are stored in the RIB
-under a separate "bmp" protocol namespace. These routes are visible through
-dedicated looking glass endpoints and CLI commands but never enter best-path
-selection or the FIB.
+When the BMP receiver is enabled, monitored routes are stored in the BMP RIB
+(a separate protocol namespace). These routes are visible through `show bmp rib`
+and looking glass endpoints but never enter BGP best-path selection or the FIB.
+
+The `route-action` leaf controls future behavior:
+- `monitor` (default): store in BMP RIB for visibility only
+- `redistribute`: store in BMP RIB AND redistribute into BGP best-path (not yet implemented)
 
 ### CLI
 

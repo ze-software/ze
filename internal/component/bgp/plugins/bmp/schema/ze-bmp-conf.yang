@@ -55,6 +55,19 @@ module ze-bmp-conf {
                 default 100;
                 description "Maximum concurrent BMP sessions";
             }
+
+            leaf route-action {
+                type enumeration {
+                    enum monitor {
+                        description "Store in BMP RIB for visibility (show bmp rib), isolated from BGP best-path and FIB";
+                    }
+                    enum redistribute {
+                        description "Store in BMP RIB and redistribute into BGP best-path selection";
+                    }
+                }
+                default monitor;
+                description "Action for received BMP Route Monitoring messages";
+            }
         }
     }
 
