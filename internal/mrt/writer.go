@@ -1,0 +1,219 @@
+// Design: docs/architecture/mrt.md — file writer with rotation
+
+package mrt
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
+
+const defaultBufSize = 1 << 20 // 1 MiB
+
+// Writer writes MRT records to files with strftime-based filename rotation.
+type Writer struct {
+	pattern  string
+	interval time.Duration
+	bufSize  int
+
+	mu       sync.Mutex
+	file     *os.File
+	buf      *bufio.Writer
+	curPath  string
+	openedAt time.Time
+}
+
+// WriterOption configures a Writer.
+type WriterOption func(*Writer)
+
+// WithInterval sets the file rotation interval. Zero disables rotation.
+func WithInterval(d time.Duration) WriterOption {
+	return func(w *Writer) { w.interval = d }
+}
+
+// WithBufSize sets the write buffer size in bytes.
+func WithBufSize(n int) WriterOption {
+	return func(w *Writer) {
+		if n > 0 {
+			w.bufSize = n
+		}
+	}
+}
+
+// NewWriter creates a Writer that expands strftime codes in pattern for
+// each file it opens. Records are buffered before flushing to disk.
+func NewWriter(pattern string, opts ...WriterOption) *Writer {
+	w := &Writer{
+		pattern: pattern,
+		bufSize: defaultBufSize,
+	}
+	for _, o := range opts {
+		o(w)
+	}
+	return w
+}
+
+// Write writes a complete MRT record, rotating the file first if needed.
+func (w *Writer) Write(record []byte) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.needsRotation() {
+		if err := w.rotateLocked(); err != nil {
+			return err
+		}
+	}
+	if err := w.ensureOpenLocked(); err != nil {
+		return err
+	}
+	_, err := w.buf.Write(record)
+	return err
+}
+
+// Flush flushes buffered data to the underlying file.
+func (w *Writer) Flush() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.flushLocked()
+}
+
+// Close flushes and closes the current file.
+func (w *Writer) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.closeLocked()
+}
+
+// Rotate forces a file rotation: flush, close, reopen with a new name.
+func (w *Writer) Rotate() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.rotateLocked()
+}
+
+func (w *Writer) flushLocked() error {
+	if w.buf == nil {
+		return nil
+	}
+	return w.buf.Flush()
+}
+
+func (w *Writer) closeLocked() error {
+	err := w.flushLocked()
+	if w.file != nil {
+		if cerr := w.file.Close(); err == nil {
+			err = cerr
+		}
+		w.file = nil
+		w.buf = nil
+		w.curPath = ""
+	}
+	return err
+}
+
+func (w *Writer) rotateLocked() error {
+	if err := w.closeLocked(); err != nil {
+		return err
+	}
+	return w.ensureOpenLocked()
+}
+
+func (w *Writer) needsRotation() bool {
+	if w.interval <= 0 || w.file == nil {
+		return false
+	}
+	return time.Since(w.openedAt) >= w.interval
+}
+
+func (w *Writer) ensureOpenLocked() error {
+	if w.file != nil {
+		return nil
+	}
+	path := expandPattern(w.pattern, time.Now())
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return fmt.Errorf("mrt writer mkdir %s: %w", dir, err)
+	}
+	f, err := os.OpenFile(filepath.Clean(path), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return fmt.Errorf("mrt writer open %s: %w", path, err)
+	}
+	w.file = f
+	w.buf = bufio.NewWriterSize(f, w.bufSize)
+	w.curPath = path
+	w.openedAt = time.Now()
+	return nil
+}
+
+// expandPattern replaces strftime-style codes in pattern.
+//
+// Supported codes:
+//
+//	%Y  4-digit year
+//	%m  2-digit month (01-12)
+//	%d  2-digit day (01-31)
+//	%H  2-digit hour (00-23)
+//	%M  2-digit minute (00-59)
+//	%S  2-digit second (00-59)
+//	%s  unix timestamp
+//	%N  literal %N (reserved for caller table-name substitution)
+//	%%  literal %
+func expandPattern(pattern string, t time.Time) string {
+	var b strings.Builder
+	b.Grow(len(pattern) + 16)
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] != '%' || i+1 >= len(pattern) {
+			b.WriteByte(pattern[i])
+			continue
+		}
+		i++
+		switch pattern[i] {
+		case 'Y':
+			writePadded(&b, t.Year(), 4)
+		case 'm':
+			writePadded(&b, int(t.Month()), 2)
+		case 'd':
+			writePadded(&b, t.Day(), 2)
+		case 'H':
+			writePadded(&b, t.Hour(), 2)
+		case 'M':
+			writePadded(&b, t.Minute(), 2)
+		case 'S':
+			writePadded(&b, t.Second(), 2)
+		case 's':
+			tb := textbuf.Get()
+			b.WriteString(tb.Int(t.Unix()).String())
+			tb.Release()
+		case 'N':
+			b.WriteString("%N")
+		case '%':
+			b.WriteByte('%')
+		default:
+			b.WriteByte('%')
+			b.WriteByte(pattern[i])
+		}
+	}
+	return b.String()
+}
+
+func writePadded(b *strings.Builder, v, width int) {
+	tb := textbuf.Get()
+	s := tb.Int(int64(v)).String()
+	for i := len(s); i < width; i++ {
+		b.WriteByte('0')
+	}
+	b.WriteString(s)
+	tb.Release()
+}
+
+// ExpandPatternTableName replaces %N in an already-expanded path with the
+// given table name.
+func ExpandPatternTableName(path, tableName string) string {
+	return strings.ReplaceAll(path, "%N", tableName)
+}

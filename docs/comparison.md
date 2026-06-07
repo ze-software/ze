@@ -143,7 +143,7 @@ roles enforcement. Filters compose in ordered chains:
 | Prometheus metrics | Yes | Yes | No | Yes | No | Yes | Yes | No | No | No | No |
 | Structured logging (JSON) | Yes | Yes | No | Yes | No | No | No | No | No | No | No |
 | BMP (RFC 7854) | Yes | Yes | Yes | Yes | Partial | Yes | Yes | No | No | Yes | Yes |
-| MRT dump (RFC 6396) | No | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
+| MRT dump (RFC 6396) | Partial | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
 | Flow export (sFlow/NetFlow/IPFIX) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Streaming route events | Yes | Yes | No | Yes | No | No | Yes | Yes | No | No | No |
 | JSON event protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |

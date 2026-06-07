@@ -1,0 +1,451 @@
+
+
+
+
+
+
+Internet Engineering Task Force (IETF)                      T. Manderson
+Request for Comments: 6397                                         ICANN
+Category: Standards Track                                   October 2011
+ISSN: 2070-1721
+
+
+   Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP)
+     Routing Information Export Format with Geo-Location Extensions
+
+Abstract
+
+   This document updates the Multi-threaded Routing Toolkit (MRT) export
+   format for Border Gateway Protocol (BGP) routing information by
+   extending it to include optional terrestrial coordinates of a BGP
+   collector and its BGP peers.
+
+Status of This Memo
+
+   This is an Internet Standards Track document.
+
+   This document is a product of the Internet Engineering Task Force
+   (IETF).  It represents the consensus of the IETF community.  It has
+   received public review and has been approved for publication by the
+   Internet Engineering Steering Group (IESG).  Further information on
+   Internet Standards is available in Section 2 of RFC 5741.
+
+   Information about the current status of this document, any errata,
+   and how to provide feedback on it may be obtained at
+   http://www.rfc-editor.org/info/rfc6397.
+
+Copyright Notice
+
+   Copyright (c) 2011 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+
+
+
+
+
+
+Manderson                    Standards Track                    [Page 1]
+
+RFC 6397             Geo-Location Extensions in MRT         October 2011
+
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . . . 2
+   2.  Requirements Notation . . . . . . . . . . . . . . . . . . . . . 2
+   3.  Definitions . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+   4.  Geo-Location-Aware MRT Routing Information Subtype  . . . . . . 3
+     4.1.  GEO_PEER_TABLE  . . . . . . . . . . . . . . . . . . . . . . 3
+     4.2.  GEO_PEER_TABLE and Peer Entry Values  . . . . . . . . . . . 5
+   5.  BGP Collector Construction  . . . . . . . . . . . . . . . . . . 5
+   6.  Privacy Considerations  . . . . . . . . . . . . . . . . . . . . 6
+   7.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . 6
+   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . . . 6
+   9.  Security Considerations . . . . . . . . . . . . . . . . . . . . 7
+   10. References  . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+     10.1. Normative References  . . . . . . . . . . . . . . . . . . . 7
+     10.2. Informative References  . . . . . . . . . . . . . . . . . . 8
+
+1.  Introduction
+
+   Researchers and engineers often wish to analyze network behavior by
+   studying routing protocol transactions and routing information base
+   snapshots in relation to geographical topologies.  Usually, the
+   Border Gateway Protocol [RFC4271] is the subject of study, and the
+   analysis can be significantly aided by the availability and extension
+   of the "Multi-Threaded Routing Toolkit (MRT) Routing Information
+   Export Format" [RFC6396].  The MRT format was originally defined in
+   the MRT Programmer's Guide [MRT-GUIDE].
+
+   The addition of geo-location coordinates (longitude and latitude)
+   pertaining to the geographical location of both the BGP collector and
+   its BGP peers to BGP export data enables a researcher or enquiring
+   individual to gain a terrestrial insight to the routes seen by a BGP
+   speaker.  Such data may ultimately aid researchers in understanding
+   any disparity between the geographical location of networks and the
+   topological location of networks in addition to the relationships
+   between geographical position and routing anomalies.  Such insight
+   could provide future input into network design and network security.
+
+   This memo documents an optional extension to the MRT format [RFC6396]
+   and introduces an additional definition of an MRT Subtype field that
+   includes the terrestrial coordinates of a BGP collector and its BGP
+   peers.
+
+2.  Requirements Notation
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+
+
+Manderson                    Standards Track                    [Page 2]
+
+RFC 6397             Geo-Location Extensions in MRT         October 2011
+
+
+3.  Definitions
+
+   Coordinates: The geographic latitude and longitude specifying a
+   location on the earth.
+
+   BGP Speaker: A network device that exchanges network routing
+   information using BGP.
+
+   Geo-location: Assigning a set of coordinates to a specific artifact,
+   in this case a BGP speaker.
+
+   BGP Collector: A BGP speaker (usually passive) that stores and
+   archives BGP routing data from active BGP peers for analysis.
+
+   BGP Peer: Either an internal or external BGP peer [RFC4271].
+
+   Not A Number (NAN): Numeric data type representing an undefined or
+   unrepresentable value, as defined in the IEEE Standard for Floating-
+   Point Arithmetic [IEEE754].
+
+4.  Geo-Location-Aware MRT Routing Information Subtype
+
+   An additional subtype (GEO_PEER_TABLE) is defined for the
+   TABLE_DUMP_V2 format, extending TABLE_DUMP_V2 Type.
+
+4.1.  GEO_PEER_TABLE
+
+   The GEO_PEER_TABLE Subtype updates the TABLE_DUMP_V2 Types to include
+   geo-location information in the form of the World Geodetic System
+   1984 (WGS84) [WGS-84] formatted coordinates.
+
+   The document adds the 7th subtype number and name below.  The first 6
+   subtypes are defined by the MRT format [RFC6396].
+
+   Subtype Number       Subtype Name
+   ----------------------------------
+       7               GEO_PEER_TABLE
+
+   The GEO_PEER_TABLE MRT record provides the BGP ID of the collector,
+   its latitude and longitude in WGS84 [WGS-84] format, and a list of
+   indexed peers and their respective latitudes and longitudes in WGS84
+   [WGS-84] format.
+
+   The format and function of the Collector BGP ID and Peer Count are as
+   defined by the TABLE_DUMP_V2, PEER_INDEX_TABLE format [RFC6396].
+
+
+
+
+
+
+Manderson                    Standards Track                    [Page 3]
+
+RFC 6397             Geo-Location Extensions in MRT         October 2011
+
+
+   The Collector Latitude and Collector Longitude are the geographical
+   coordinates of the collector in WGS84 [WGS-84] datum decimal degrees
+   format stored as a single precision float in the 32 bits allocated to
+   the Collector Latitude and Collector Longitude.  The latitude and
+   longitude MAY be a Not A Number (NAN) [IEEE754] for situations where
+   the geo-location of the collector is considered private.  The
+   Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84
+   [WGS-84] datum coordinates and NAN values.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                      Collector BGP ID                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                      Collector Latitude                       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                      Collector Longitude                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |          Peer Count           |  Peer Entries (variable)
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                       Format of the GEO_PEER_TABLE
+
+   The format of the Peer Entries is shown below.  The Peer Type and the
+   Peer BGP ID are as defined in the TABLE_DUMP_V2 MRT, PEER_INDEX_TABLE
+   format [RFC6396].  The order of the Peer Entries in the
+   GEO_PEER_TABLE MUST match the order and number as existing in the
+   PEER_INDEX_TABLE.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |   Peer Type   |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Peer BGP ID                           |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Peer Latitude                         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                         Peer Longitude                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                          Format of Peer Entries
+
+   The Peer Latitude and Peer Longitude are the geographical coordinates
+   of the peer in WGS84 [WGS-84] datum decimal degrees format stored as
+   a single precision float in the 32 bits allocated to the Peer
+   Latitude and Peer Longitude.  The latitude and longitude MAY be a Not
+   A Number (NAN) [IEEE754] for situations where the geo-location of the
+
+
+
+Manderson                    Standards Track                    [Page 4]
+
+RFC 6397             Geo-Location Extensions in MRT         October 2011
+
+
+   peer is considered private.  The Peer Latitude and Peer Longitude
+   MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values
+   for a single peer.
+
+4.2.  GEO_PEER_TABLE and Peer Entry Values
+
+   Collector BGP ID: Defined in the MRT format [RFC6396].
+
+   Collector Latitude: Geographic latitude of the BGP collector in WGS84
+   [WGS-84] datum decimal degrees format stored as a single precision
+   float.
+
+   Collector Longitude: Geographic longitude of the BGP collector in
+   WGS84 [WGS-84] datum decimal degrees format stored as a single
+   precision float.
+
+   Peer Count: Defined in the MRT format [RFC6396].
+
+   Peer Entries: Defined in the MRT format [RFC6396].
+
+   Peer Type: Defined in the MRT format [RFC6396].
+
+   Peer BGP ID: Defined in the MRT format [RFC6396].
+
+   Peer Latitude: Geographic latitude of the BGP peer in WGS84 [WGS-84]
+   datum decimal degrees format stored as a single precision float.
+
+   Peer Longitude: Geographic longitude of the BGP peer in WGS84
+   [WGS-84] datum decimal degrees format stored as a single precision
+   float.
+
+5.  BGP Collector Construction
+
+   This section aids the reader in understanding the function of a BGP
+   collector.
+
+   The BGP collector is a hardware- or software-based device that speaks
+   the Border Gateway Protocol.  Its intended function is to store (and
+   archive) the BGP routing data it receives from other BGP speakers
+   with which it has peering relationships, providing data for later
+   analysis.  The general nature of a BGP collector is that it is a
+   passive device in that it listens to route updates and does not
+   announce or propagate any information it knows or receives.  It
+   should be noted that this is not always the case; network operators
+   sometimes enable the collection of BGP routing data on active BGP
+   speakers to obtain a situational view of the routing system as they
+   see it at a particular point in time.
+
+
+
+
+Manderson                    Standards Track                    [Page 5]
+
+RFC 6397             Geo-Location Extensions in MRT         October 2011
+
+
+   As a fully fledged BGP speaker, the BGP collector can fit into any
+   BGP topology including Internal BGP (iBGP), External BGP (eBGP), and
+   so on.  The implementation of a BGP collector in a network topology
+   is therefore limited by that network's use of BGP.
+
+6.  Privacy Considerations
+
+   The GEOPRIV [RFC6280] architecture requires that privacy rules
+   attached to a location object be transmitted alongside the location
+   information in the object.  If a BGP collector adds location
+   coordinates to an MRT record based on GEOPRIV location objects, then
+   it would have to include privacy rules as well.  Since the MRT geo-
+   location format does not support the provision of privacy rules, each
+   location entry in an MRT object is assigned the following default
+   privacy rules [RFC4119]:
+
+   -- retransmission-allowed: True
+   -- retention-expires: 100 years from timestamp of the MRT object
+   -- ruleset-reference: Empty
+   -- note-well: Empty
+
+   Location information derived from a location object with more
+   restrictive privacy rules MUST NOT be included in an MRT geo-location
+   record unless there are non-technical measures in place that enforce
+   and communicate the constraints on the use of the location
+   information in the MRT geo-location format (e.g., contractual
+   agreements between peers).
+
+7.  Acknowledgements
+
+   Thanks to Andrew Clark, Ernest Foo, Dave Meyer, Larry Blunk, Richard
+   Barnes, and Jeffrey Haas for reviewing this document.
+
+   This document describes a small portion of the research towards the
+   author's Ph.D.
+
+8.  IANA Considerations
+
+   Per this section, the Internet Assigned Numbers Authority (IANA) has
+   registered the additional Subtype code value as:
+
+       7    GEO_PEER_TABLE
+
+   in the MRT format [RFC6396] and Subtype code values related to the
+   TABLE_DUMP_V2 Type in the MRT namespace.
+
+
+
+
+
+
+Manderson                    Standards Track                    [Page 6]
+
+RFC 6397             Geo-Location Extensions in MRT         October 2011
+
+
+9.  Security Considerations
+
+   This extension to the MRT format [RFC6396] defines fields that are of
+   a descriptive nature and provides information that is useful in the
+   analysis of routing systems.  As such, the author believes that they
+   do not constitute an additional network-based security risk.  It is
+   recommended that the operators of the BGP collector and BGP peers
+   consider their own privacy and security concerns before supplying
+   geographical coordinates to BGP data collection systems.  Special
+   attention should be given to the physical security of an organization
+   before supplying geographical coordinates, especially if the
+   resulting BGP data with geo-location extensions is made public.
+
+   Entities that operate BGP collectors, and users of data provided by
+   BGP collectors, should be aware that the geo-location data supplied
+   by a peer can only be taken at face value.  It is possible that a BGP
+   peer may supply coordinates that are purposefully misleading or
+   inaccurate.  It is therefore up to the BGP collector whether or not
+   to include this information or use its own methods to either trust or
+   validate the data provided.  It is not recommended that a BGP
+   collector use geographical coordinates not supplied by a BGP peer.
+
+10.  References
+
+10.1.  Normative References
+
+   [RFC2119]    Bradner, S., "Key words for use in RFCs to Indicate
+                Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC4119]    Peterson, J., "A Presence-based GEOPRIV Location Object
+                Format", RFC 4119, December 2005.
+
+   [RFC4271]    Rekhter, Y., Li, T., and S. Hares, "A Border Gateway
+                Protocol 4 (BGP-4)", RFC 4271, January 2006.
+
+   [RFC6280]    Barnes, R., Lepinski, M., Cooper, A., Morris, J.,
+                Tschofenig, H., and H. Schulzrinne, "An Architecture for
+                Location and Location Privacy in Internet Applications",
+                BCP 160, RFC 6280, July 2011.
+
+   [RFC6396]    Blunk, L., Karir, M., and C. Labovitz, "Multi-Threaded
+                Routing Toolkit (MRT) Routing Information Export
+                Format", RFC 6396, October 2011.
+
+
+
+
+
+
+
+
+Manderson                    Standards Track                    [Page 7]
+
+RFC 6397             Geo-Location Extensions in MRT         October 2011
+
+
+10.2.  Informative References
+
+   [IEEE754]    IEEE 754, "IEEE Standard for Floating-Point Arithmetic",
+                August 2008, <http://ieeexplore.ieee.org/servlet/
+                opac?punumber=4610933>.
+
+   [MRT-GUIDE]  Labovitz, C., "MRT Programmer's Guide", November 1999,
+                <http://www.merit.edu/networkresearch/
+                mrtprogrammer.pdf>.
+
+   [WGS-84]     Geodesy and Geophysics Department, DoD., "World Geodetic
+                System 1984", January 2000, <http://earth-info.nga.mil/
+                GandG/publications/tr8350.2/wgs84fin.pdf>.
+
+Author's Address
+
+   Terry Manderson
+   ICANN
+
+   EMail: terry.manderson@icann.org
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Manderson                    Standards Track                    [Page 8]
+

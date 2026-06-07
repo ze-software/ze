@@ -1,0 +1,32 @@
+// Design: docs/architecture/mrt.md — daemon component configuration
+
+package mrt
+
+import "time"
+
+// Config holds MRT dump configuration for the daemon component.
+type Config struct {
+	UpdatesPath     string        // strftime pattern for UPDATE-only stream
+	UpdatesInterval time.Duration // file rotation interval for updates
+
+	AllPath     string        // strftime pattern for all-messages stream
+	AllInterval time.Duration // file rotation interval for all messages
+
+	RoutesPath     string        // strftime pattern for periodic RIB snapshots
+	RoutesInterval time.Duration // dump interval for TABLE_DUMP_V2
+
+	ExtendedTimestamp bool // use BGP4MP_ET (type 17) instead of BGP4MP (type 16)
+	AddPath           bool // force add-path subtypes even when not negotiated
+}
+
+// HasUpdates reports whether the update stream is configured.
+func (c *Config) HasUpdates() bool { return c.UpdatesPath != "" }
+
+// HasAll reports whether the all-messages stream is configured.
+func (c *Config) HasAll() bool { return c.AllPath != "" }
+
+// HasRoutes reports whether periodic RIB dumps are configured.
+func (c *Config) HasRoutes() bool { return c.RoutesPath != "" && c.RoutesInterval > 0 }
+
+// IsEmpty reports whether no dump streams are configured.
+func (c *Config) IsEmpty() bool { return !c.HasUpdates() && !c.HasAll() && !c.HasRoutes() }
