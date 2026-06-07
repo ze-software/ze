@@ -193,6 +193,14 @@ type PeerLifecycleObserver interface {
 	OnPeerClosed(peer *Peer, reason string)
 }
 
+// MessageObserver receives raw BGP messages as they pass through the reactor.
+// Called synchronously on the session read/write goroutine.
+// Implementations MUST NOT block; buffer internally if I/O is needed.
+// Direction: false = received, true = sent.
+type MessageObserver interface {
+	OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageType, sent bool, rawBytes []byte)
+}
+
 // Reactor is the main BGP orchestrator.
 //
 // It manages:
@@ -264,6 +272,7 @@ type Reactor struct {
 
 	// Peer lifecycle observers (called on state transitions)
 	peerObservers []PeerLifecycleObserver
+	msgObservers  []MessageObserver
 	observersMu   sync.RWMutex
 
 	capture    *BGPCaptureRing

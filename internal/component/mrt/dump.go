@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	mrtfmt "codeberg.org/thomas-mangin/ze/internal/mrt"
 )
 
@@ -25,46 +26,58 @@ func getBuf() *poolBuf {
 	return pb
 }
 
-func (c *Component) writeRecord(buf []byte, off, msgLen int, typ, subtype uint16, now time.Time, w *mrtfmt.Writer, label string) {
+func writeHeader(buf []byte, extTimestamp bool, now time.Time, typ, subtype uint16, msgLen int) {
 	ts := uint32(now.Unix())
-	if c.config.ExtendedTimestamp {
+	if extTimestamp {
 		usec := uint32(now.Nanosecond() / 1000)
 		mrtfmt.WriteExtendedHeader(buf, 0, ts, usec, typ, subtype, uint32(msgLen+mrtfmt.ExtTimestampLen))
 	} else {
 		mrtfmt.WriteCommonHeader(buf, 0, ts, typ, subtype, uint32(msgLen))
 	}
-	if err := w.Write(buf[:off+msgLen]); err != nil {
-		c.logger.Warn("mrt: write "+label, "error", err)
-	}
 }
 
-func (c *Component) handleUpdate(payload any) {
-	if c.updates == nil && c.allMsgs == nil {
-		return
+// peerInfoToHeader writes peer/local IP into ipBuf (caller-owned, avoids heap escape)
+// and returns a BGP4MPHeader whose IP slices point into ipBuf.
+// ipBuf must be at least 32 bytes (2 x 16 for IPv6).
+func peerInfoToHeader(peer *plugin.PeerInfo, ipBuf []byte) *mrtfmt.BGP4MPHeader {
+	hdr := &mrtfmt.BGP4MPHeader{
+		PeerAS:  peer.PeerAS,
+		LocalAS: peer.LocalAS,
 	}
-
-	bp := extractBGPPayload(payload)
-	if bp == nil {
-		return
+	addr := peer.Address
+	localAddr := peer.LocalAddress
+	if addr.Is6() {
+		hdr.AFI = mrtfmt.AFIIPv6
+		p := addr.As16()
+		copy(ipBuf[0:16], p[:])
+		l := localAddr.As16()
+		copy(ipBuf[16:32], l[:])
+		hdr.PeerIP = ipBuf[0:16]
+		hdr.LocalIP = ipBuf[16:32]
+	} else {
+		hdr.AFI = mrtfmt.AFIIPv4
+		p := addr.As4()
+		copy(ipBuf[0:4], p[:])
+		l := localAddr.As4()
+		copy(ipBuf[4:8], l[:])
+		hdr.PeerIP = ipBuf[0:4]
+		hdr.LocalIP = ipBuf[4:8]
 	}
+	return hdr
+}
 
-	typ, subtype := c.bgp4mpTypeSubtype()
-	as4 := mrtfmt.IsAS4Subtype(subtype)
-	hdr := bp.header()
-
-	pb := getBuf()
-	defer bufPool.Put(pb)
-
-	off := c.headerSize()
-	now := time.Now()
-	msgLen := mrtfmt.WriteBGP4MPMessage(pb.b, off, hdr, as4, bp.BGPMsg)
-
-	if c.updates != nil {
-		c.writeRecord(pb.b, off, msgLen, typ, subtype, now, c.updates, "update")
+func localSubtype(subtype uint16) uint16 {
+	switch subtype {
+	case mrtfmt.BGP4MPMessageAS4:
+		return mrtfmt.BGP4MPMessageAS4Local
+	case mrtfmt.BGP4MPMessageAS4AP:
+		return mrtfmt.BGP4MPMessageAS4LocalAP
+	case mrtfmt.BGP4MPMessage:
+		return mrtfmt.BGP4MPMessageLocal
+	case mrtfmt.BGP4MPMessageAP:
+		return mrtfmt.BGP4MPMessageLocalAP
 	}
-	if c.allMsgs != nil {
-		c.writeRecord(pb.b, off, msgLen, typ, subtype, now, c.allMsgs, "all")
-	}
+	return subtype
 }
 
 func (c *Component) handleStateChange(payload any) {
@@ -82,7 +95,11 @@ func (c *Component) handleStateChange(payload any) {
 		typ = mrtfmt.TypeBGP4MPET
 	}
 	subtype := mrtfmt.BGP4MPStateChangeAS4
-	hdr := sp.header()
+
+	hdr := &mrtfmt.BGP4MPHeader{
+		PeerAS: sp.PeerAS, LocalAS: sp.LocalAS,
+		AFI: sp.AFI, PeerIP: sp.PeerIP, LocalIP: sp.LocalIP,
+	}
 
 	pb := getBuf()
 	defer bufPool.Put(pb)
@@ -90,32 +107,11 @@ func (c *Component) handleStateChange(payload any) {
 	off := c.headerSize()
 	now := time.Now()
 	msgLen := mrtfmt.WriteBGP4MPStateChange(pb.b, off, hdr, true, sp.OldState, sp.NewState)
+	writeHeader(pb.b, c.config.ExtendedTimestamp, now, typ, subtype, msgLen)
 
-	c.writeRecord(pb.b, off, msgLen, typ, subtype, now, c.allMsgs, "state-change")
-}
-
-func (c *Component) handleMessage(payload any) {
-	if c.allMsgs == nil {
-		return
+	if err := c.allMsgs.Write(pb.b[:off+msgLen]); err != nil {
+		c.logger.Warn("mrt: write state-change", "error", err)
 	}
-
-	bp := extractBGPPayload(payload)
-	if bp == nil {
-		return
-	}
-
-	typ, subtype := c.bgp4mpTypeSubtype()
-	as4 := mrtfmt.IsAS4Subtype(subtype)
-	hdr := bp.header()
-
-	pb := getBuf()
-	defer bufPool.Put(pb)
-
-	off := c.headerSize()
-	now := time.Now()
-	msgLen := mrtfmt.WriteBGP4MPMessage(pb.b, off, hdr, as4, bp.BGPMsg)
-
-	c.writeRecord(pb.b, off, msgLen, typ, subtype, now, c.allMsgs, "message")
 }
 
 func (c *Component) dumpRIB() {
@@ -147,22 +143,6 @@ func (c *Component) bgp4mpTypeSubtype() (uint16, uint16) {
 	return typ, subtype
 }
 
-type bgpPayload struct {
-	BGPMsg  []byte
-	PeerAS  uint32
-	LocalAS uint32
-	PeerIP  []byte
-	LocalIP []byte
-	AFI     uint16
-}
-
-func (b *bgpPayload) header() *mrtfmt.BGP4MPHeader {
-	return &mrtfmt.BGP4MPHeader{
-		PeerAS: b.PeerAS, LocalAS: b.LocalAS,
-		AFI: b.AFI, PeerIP: b.PeerIP, LocalIP: b.LocalIP,
-	}
-}
-
 type statePayload struct {
 	PeerAS   uint32
 	LocalAS  uint32
@@ -173,24 +153,17 @@ type statePayload struct {
 	NewState uint16
 }
 
-func (s *statePayload) header() *mrtfmt.BGP4MPHeader {
-	return &mrtfmt.BGP4MPHeader{
-		PeerAS: s.PeerAS, LocalAS: s.LocalAS,
-		AFI: s.AFI, PeerIP: s.PeerIP, LocalIP: s.LocalIP,
+// extractStatePayload parses BGP state change info from an EventBus payload.
+// The EventBus delivers state events as JSON strings.
+func extractStatePayload(payload any) *statePayload { //nolint:unparam // stub until PeerLifecycleObserver integration
+	s, ok := payload.(string)
+	if !ok || s == "" {
+		return nil
 	}
-}
-
-// extractBGPPayload extracts BGP wire bytes and peer info from a bus payload.
-// The BGP EventBus delivers payloads as JSON strings with peer info but not
-// raw wire bytes. Full wire access requires the EventDispatcher (plugin path).
-// Phase 2 will tap into the reactor's EventDispatcher for raw BGP messages.
-func extractBGPPayload(payload any) *bgpPayload {
-	_ = payload
-	return nil
-}
-
-// extractStatePayload extracts FSM state change info from a bus payload.
-func extractStatePayload(payload any) *statePayload {
-	_ = payload
+	// EventBus state payloads are JSON like {"peer":"10.0.0.1"}.
+	// Full peer info (AS, IP, state) requires reactor PeerLifecycleObserver.
+	// For now, return nil; state changes via OnBGPMessage cover NOTIFICATION.
+	// Full FSM state recording needs PeerLifecycleObserver integration.
+	_ = s
 	return nil
 }

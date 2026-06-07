@@ -70,6 +70,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mpls/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/mrt/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ping/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pki/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
@@ -240,6 +241,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ldp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mpls"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/mrt"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pki"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/cmd"
@@ -250,4 +252,3 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/cmd"
 )
-

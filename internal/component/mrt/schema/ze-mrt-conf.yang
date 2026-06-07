@@ -1,0 +1,93 @@
+module ze-mrt-conf {
+    namespace "urn:ze:mrt:conf";
+    prefix mrt;
+
+    import ze-extensions { prefix ze; }
+
+    description "MRT routing information export configuration (RFC 6396)";
+
+    revision 2026-06-07 {
+        description "Initial revision";
+    }
+
+    grouping dump-stream-settings {
+        description "Common settings for an MRT dump stream";
+
+        leaf file {
+            type string {
+                length "1..255";
+            }
+            description
+                "Output file path with strftime patterns for rotation.
+                 Supported codes: %Y (year), %m (month), %d (day),
+                 %H (hour), %M (minute), %S (second), %s (unix timestamp),
+                 %N (table name).";
+        }
+
+        leaf interval {
+            type uint32 {
+                range "0..86400";
+            }
+            default 0;
+            description
+                "File rotation interval in seconds. Zero disables rotation.";
+        }
+    }
+
+    container mrt {
+        description "MRT dump configuration";
+
+        leaf extended-timestamp {
+            type boolean;
+            default false;
+            description
+                "Use BGP4MP_ET (type 17) with microsecond resolution
+                 instead of BGP4MP (type 16).";
+        }
+
+        leaf add-path {
+            type boolean;
+            default false;
+            description
+                "Force add-path subtypes even when not negotiated
+                 with the peer.";
+        }
+
+        container updates {
+            description "BGP UPDATE message stream (BGP4MP records)";
+            uses dump-stream-settings;
+        }
+
+        container all {
+            description
+                "All BGP messages plus state changes (BGP4MP records).
+                 Includes OPEN, UPDATE, NOTIFICATION, KEEPALIVE,
+                 ROUTE_REFRESH, and FSM state transitions.";
+            uses dump-stream-settings;
+        }
+
+        container routes {
+            description
+                "Periodic RIB snapshots (TABLE_DUMP_V2 records).
+                 Each dump writes a PEER_INDEX_TABLE followed by
+                 RIB entries for all address families.";
+
+            leaf file {
+                type string {
+                    length "1..255";
+                }
+                description
+                    "Output file path with strftime patterns.";
+            }
+
+            leaf interval {
+                type uint32 {
+                    range "60..86400";
+                }
+                default 3600;
+                description
+                    "RIB dump interval in seconds. Minimum 60.";
+            }
+        }
+    }
+}

@@ -1,21 +1,197 @@
 package mrt
 
 import (
+	"encoding/json"
 	"fmt"
+	"log/slog"
+	"net"
 	"os"
+	"sync/atomic"
+	"time"
 
+	mrtschema "codeberg.org/thomas-mangin/ze/internal/component/mrt/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
+const configRoot = "mrt"
+
+var (
+	loggerPtr   atomic.Pointer[slog.Logger]
+	eventBusPtr atomic.Pointer[ze.EventBus]
+	activeComp  atomic.Pointer[Component]
+)
+
+func setLogger(l *slog.Logger) {
+	if l != nil {
+		loggerPtr.Store(l)
+	}
+}
+
+func setEventBus(eb ze.EventBus) {
+	if eb != nil {
+		eventBusPtr.Store(&eb)
+	}
+}
+
+func getEventBus() ze.EventBus {
+	if p := eventBusPtr.Load(); p != nil {
+		return *p
+	}
+	return nil
+}
+
 func init() {
+	loggerPtr.Store(slogutil.DiscardLogger())
+
 	reg := registry.Registration{
 		Name:        "mrt",
 		Description: "MRT routing information export (RFC 6396)",
 		Features:    "yang",
-		ConfigRoots: []string{"mrt"},
+		YANG:        mrtschema.ZeMRTConfYANG,
+		ConfigRoots: []string{configRoot},
+		RunEngine:   runEngine,
+		ConfigureEngineLogger: func(loggerName string) {
+			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
+				setEventBus(e)
+			}
+		},
 	}
+	reg.CLIHandler = func(_ []string) int { return 1 }
 	if err := registry.Register(reg); err != nil {
 		fmt.Fprintf(os.Stderr, "mrt: registration failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func runEngine(conn net.Conn) int {
+	log := loggerPtr.Load()
+	log.Debug("mrt plugin starting")
+
+	p := sdk.NewWithConn("mrt", conn)
+	defer func() { _ = p.Close() }()
+
+	configure := func(cfg *Config) error { //nolint:unparam // matches sdk callback signature pattern
+		if prev := activeComp.Swap(nil); prev != nil {
+			prev.Stop()
+		}
+		if cfg == nil || cfg.IsEmpty() {
+			log.Debug("mrt: no configuration, plugin idle")
+			return nil
+		}
+		comp := New(*cfg, log)
+		comp.Start(getEventBus())
+		activeComp.Store(comp)
+		log.Info("mrt configured")
+		return nil
+	}
+
+	parseSections := func(sections []sdk.ConfigSection) (*Config, error) {
+		for _, s := range sections {
+			if s.Root != configRoot {
+				continue
+			}
+			cfg, err := ParseConfig(json.RawMessage(s.Data))
+			if err != nil {
+				return nil, fmt.Errorf("mrt config: %w", err)
+			}
+			return cfg, nil
+		}
+		return &Config{}, nil
+	}
+
+	var pendingCfg *Config
+
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		cfg, err := parseSections(sections)
+		if err != nil {
+			return err
+		}
+		return configure(cfg)
+	})
+
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		cfg, err := parseSections(sections)
+		if err != nil {
+			return fmt.Errorf("mrt config verify: %w", err)
+		}
+		pendingCfg = cfg
+		return nil
+	})
+
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		cfg := pendingCfg
+		pendingCfg = nil
+		return configure(cfg)
+	})
+
+	p.OnConfigRollback(func(_ string) error {
+		return nil
+	})
+
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+	if err := p.Run(ctx, sdk.Registration{
+		WantsConfig:  []string{configRoot},
+		VerifyBudget: 2,
+		ApplyBudget:  10,
+	}); err != nil {
+		log.Error("mrt plugin failed", "error", err)
+		return 1
+	}
+
+	if comp := activeComp.Swap(nil); comp != nil {
+		comp.Stop()
+	}
+	log.Info("mrt plugin stopped")
+	return 0
+}
+
+// ParseConfig parses MRT config from JSON section data.
+func ParseConfig(data json.RawMessage) (*Config, error) {
+	var raw struct {
+		ExtendedTimestamp *bool `json:"extended-timestamp"`
+		AddPath           *bool `json:"add-path"`
+		Updates           *struct {
+			File     string `json:"file"`
+			Interval int    `json:"interval"`
+		} `json:"updates"`
+		All *struct {
+			File     string `json:"file"`
+			Interval int    `json:"interval"`
+		} `json:"all"`
+		Routes *struct {
+			File     string `json:"file"`
+			Interval int    `json:"interval"`
+		} `json:"routes"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+
+	cfg := &Config{}
+	if raw.ExtendedTimestamp != nil {
+		cfg.ExtendedTimestamp = *raw.ExtendedTimestamp
+	}
+	if raw.AddPath != nil {
+		cfg.AddPath = *raw.AddPath
+	}
+	if raw.Updates != nil {
+		cfg.UpdatesPath = raw.Updates.File
+		cfg.UpdatesInterval = time.Duration(raw.Updates.Interval) * time.Second
+	}
+	if raw.All != nil {
+		cfg.AllPath = raw.All.File
+		cfg.AllInterval = time.Duration(raw.All.Interval) * time.Second
+	}
+	if raw.Routes != nil {
+		cfg.RoutesPath = raw.Routes.File
+		cfg.RoutesInterval = time.Duration(raw.Routes.Interval) * time.Second
+	}
+	return cfg, nil
 }

@@ -56,6 +56,29 @@ func (r *Reactor) AddPeerObserver(obs PeerLifecycleObserver) {
 	r.peerObservers = append(r.peerObservers, obs)
 }
 
+// AddMessageObserver registers an observer for raw BGP messages.
+// Observers are called synchronously on the session goroutine.
+// MUST NOT block; buffer internally if I/O is needed.
+func (r *Reactor) AddMessageObserver(obs MessageObserver) {
+	r.observersMu.Lock()
+	defer r.observersMu.Unlock()
+	r.msgObservers = append(r.msgObservers, obs)
+}
+
+// messageCallbackAdapter wraps a registry.MessageCallback as a MessageObserver.
+type messageCallbackAdapter struct {
+	cb registry.MessageCallback
+}
+
+func (a *messageCallbackAdapter) OnBGPMessage(peer *plugin.PeerInfo, msgType message.MessageType, sent bool, rawBytes []byte) {
+	a.cb.OnBGPMessage(peer, uint8(msgType), sent, rawBytes)
+}
+
+// AddMessageCallback registers an external callback via the any-typed interface.
+func (r *Reactor) AddMessageCallback(cb registry.MessageCallback) {
+	r.AddMessageObserver(&messageCallbackAdapter{cb: cb})
+}
+
 // callbackAdapter wraps a registry.PeerLifecycleCallback as a PeerLifecycleObserver.
 type callbackAdapter struct {
 	cb registry.PeerLifecycleCallback
@@ -269,7 +292,16 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		rc.Append(dir, rawBytes)
 	}
 
+	r.observersMu.RLock()
+	msgObs := r.msgObservers
+	r.observersMu.RUnlock()
+
 	r.mu.RUnlock()
+
+	isSent := direction == rpc.DirectionSent
+	for _, obs := range msgObs {
+		obs.OnBGPMessage(&peerInfo, msgType, isSent, rawBytes)
+	}
 
 	if receiver == nil {
 		return false

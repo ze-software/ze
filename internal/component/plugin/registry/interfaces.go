@@ -43,6 +43,13 @@ type PeerLifecycleCallback interface {
 	OnPeerClosed(peer any, reason string)
 }
 
+// MessageCallback receives raw BGP messages without importing bgp/reactor.
+// peer is *plugin.PeerInfo, msgType is message.MessageType.
+// sent: false = received, true = sent.
+type MessageCallback interface {
+	OnBGPMessage(peer any, msgType uint8, sent bool, rawBytes []byte)
+}
+
 // BGPReactorHandle extends ProtocolReactorHandle with BGP-specific methods.
 // Provides reactor access without importing bgp/reactor (cycle avoidance).
 type BGPReactorHandle interface {
@@ -52,6 +59,7 @@ type BGPReactorHandle interface {
 	ReactorLifecycleAdapter() any // Returns ReactorLifecycle (any to avoid importing plugin types)
 	StartPeers() error
 	AddPeerLifecycleCallback(cb PeerLifecycleCallback)
+	AddMessageCallback(cb MessageCallback)
 	// Transaction protocol: verify config and return peer change count for budget estimation.
 	PeerDiffCount(bgpTree map[string]any) (int, error)
 	// Transaction protocol: apply config with journal wrapping for rollback support.
