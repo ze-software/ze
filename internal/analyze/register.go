@@ -23,6 +23,8 @@ func init() {
 	Register("inject", runInject, subdispatch.SubMeta{Desc: "Inject MRT RIB entries into a running Ze instance"})
 	Register("replay", runReplay, subdispatch.SubMeta{Desc: "Replay MRT over a BGP session to a remote peer"})
 	Register("convert", runConvert, subdispatch.SubMeta{Desc: "Convert MRT to other formats (pcap, json)"})
+	Register("show", runShow, subdispatch.SubMeta{Desc: "Human-readable MRT record dump (like bgpdump)"})
+	Register("routes", runRoutes, subdispatch.SubMeta{Desc: "Extract prefix table as JSON (prefix, next-hop, AS path, communities)"})
 
 	registry.MustRegisterRootHandler("analyze", func(_ *registry.RuntimeContext, args []string) int {
 		if len(args) == 1 && (args[0] == "--version" || args[0] == "-V") {

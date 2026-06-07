@@ -72,10 +72,12 @@ Extends existing MRT parser with:
 New subcommands:
 - `statistics` -- per-type/subtype counts, AFI breakdown, peer summary
 - `filter` -- select by prefix, peer, ASN, AS-path, timestamp, type
-- `inject` -- replay into live RIB via gRPC/API
-- `replay` -- replay over BGP session to remote peer
-- `convert pcap` -- MRT to pcap
-- `convert bmp` -- MRT to BMP
+- `inject` -- open BGP session to remote peer, send TABLE_DUMP_V2/BGP4MP UPDATEs
+- `replay` -- replay BGP4MP messages over BGP session preserving timing
+- `convert pcap` -- MRT BGP4MP to pcap (IPv4 only, IPv6 skipped)
+- `convert json` -- MRT record headers as JSON
+- `show` -- human-readable record dump (like bgpdump)
+- `routes` -- extract prefix table as JSON (prefix, next-hop, AS path, communities)
 
 ## RFCs
 
