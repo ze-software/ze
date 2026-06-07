@@ -1,4 +1,6 @@
-// Design: (none -- new tool, predates documentation)
+// Design: docs/architecture/system-architecture.md -- ze-perf run subcommand
+
+//go:build ze_perf
 package main
 
 import (
@@ -14,7 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/perf"
 )
 
-func cmdRun(args []string) int {
+func cmdPerfRun(args []string) int {
 	fs := flag.NewFlagSet("ze-perf run", flag.ContinueOnError)
 
 	// DUT flags.
@@ -171,10 +173,10 @@ Flags:
 
 	// Output results.
 	if *jsonOutput {
-		return writeJSONResult(&result, *output)
+		return writePerfJSONResult(&result, *output)
 	}
 
-	printHumanResult(&result)
+	printPerfHumanResult(&result)
 
 	if result.RoutesLost > 0 {
 		return 1
@@ -183,8 +185,8 @@ Flags:
 	return 0
 }
 
-// writeJSONResult marshals the result to JSON and writes to stdout or a file.
-func writeJSONResult(result *perf.Result, outputPath string) int {
+// writePerfJSONResult marshals the result to JSON and writes to stdout or a file.
+func writePerfJSONResult(result *perf.Result, outputPath string) int {
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: marshaling result: %v\n", err)
@@ -212,8 +214,8 @@ func writeJSONResult(result *perf.Result, outputPath string) int {
 	return 0
 }
 
-// printHumanResult prints a human-readable summary to stdout.
-func printHumanResult(r *perf.Result) {
+// printPerfHumanResult prints a human-readable summary to stdout.
+func printPerfHumanResult(r *perf.Result) {
 	fmt.Printf("DUT: %s", r.DUTName)
 
 	if r.DUTVersion != "" {

@@ -1,6 +1,8 @@
+//go:build ze_analyze
+
 // Design: (none -- research/analysis tool)
 //
-// Shared MRT parsing helpers for ze-analyse subcommands.
+// Shared MRT parsing helpers for ze-analyze subcommands.
 // Provides constants, file opening, record iteration, and wire format helpers.
 package main
 

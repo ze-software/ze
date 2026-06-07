@@ -1,3 +1,5 @@
+//go:build ze_analyze
+
 // Design: (none -- research/analysis tool)
 //
 // Analyzes MRT dumps for BGP attribute repetition patterns to guide caching
@@ -126,7 +128,7 @@ func newAttrPeerStats() *attrPeerStats {
 
 func runAttributes(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, `ze-analyse attributes -- BGP attribute repetition analysis
+		fmt.Fprintf(os.Stderr, `ze-analyze attributes -- BGP attribute repetition analysis
 
 Analyzes MRT files to measure how often BGP path attributes repeat across routes.
 High repetition means caching pays off; low repetition means each route is unique.
@@ -135,11 +137,11 @@ Processes both TABLE_DUMP_V2 (RIB snapshots) and BGP4MP (live updates).
 JSON output to stdout; human-readable summary to stderr.
 
 Usage:
-  ze-analyse attributes <file.gz> [file2.gz ...]
+  ze-analyze attributes <file.gz> [file2.gz ...]
 
 Examples:
-  ze-analyse attributes test/internet/latest-bview.gz 2>/dev/null | jq .
-  ze-analyse attributes test/internet/latest-bview.gz >/dev/null
+  ze-analyze attributes test/internet/latest-bview.gz 2>/dev/null | jq .
+  ze-analyze attributes test/internet/latest-bview.gz >/dev/null
 `)
 		return 1
 	}

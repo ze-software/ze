@@ -1,3 +1,5 @@
+//go:build ze_analyze
+
 // Design: (none -- research/analysis tool)
 //
 // Analyzes AS_PATH suffix sharing across MRT dumps to determine whether

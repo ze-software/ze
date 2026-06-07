@@ -1,13 +1,59 @@
-// Design: docs/architecture/testing/ci-format.md — ze-test subcommand registration
+// Design: docs/architecture/testing/ci-format.md -- ze-test subcommand registration
 
 //go:build ze_test
 
 package main
 
-import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+import (
+	"fmt"
+	"os"
+	"sort"
 
-func zeTestRegisterAll() {
-	r := zeTestRegister
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
+)
+
+type zeTestSubcommand struct {
+	desc    string
+	handler func([]string) int
+}
+
+var testSubcommands = map[string]zeTestSubcommand{}
+
+func init() {
+	zeTestPopulateAll()
+	binarySetup = zeTestSetup
+}
+
+func zeTestSetup(args []string) ([]string, int) {
+	registry.MustRegisterRootHandler("test", zeTestRootHandler, registry.Meta{
+		Description: "Functional test runners, mock servers, and tools",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+	})
+	return args, 0
+}
+
+func zeTestRootHandler(_ *registry.RuntimeContext, args []string) int {
+	if len(args) == 0 || isHelpArg(args[0]) {
+		zeTestUsage()
+		return 0
+	}
+	if args[0] == "--version" || args[0] == "-V" {
+		fmt.Println(zeversion.Short())
+		return 0
+	}
+	sub, ok := testSubcommands[args[0]]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "unknown test command: %s\n", args[0])
+		zeTestUsage()
+		return 1
+	}
+	return sub.handler(args[1:])
+}
+
+func zeTestPopulateAll() {
+	r := zeTestAdd
 
 	// CI test runners
 	r("bgp", "Run BGP functional tests (encoding, plugin, decoding, parsing)", zeTestBgpCmd)
@@ -42,12 +88,27 @@ func zeTestRegisterAll() {
 	r("text-plugin", "Run minimal text-mode plugin (for .ci tests)", zeTestTextPluginCmd)
 }
 
-func zeTestRegister(name, desc string, fn func([]string) int) {
-	registry.MustRegisterRootHandler(name, func(_ *registry.RuntimeContext, args []string) int {
-		return fn(args)
-	}, registry.Meta{
-		Description: desc,
-		Mode:        "offline",
-		Section:     registry.SectionTest,
-	})
+func zeTestAdd(name, desc string, fn func([]string) int) {
+	testSubcommands[name] = zeTestSubcommand{desc: desc, handler: fn}
+}
+
+func zeTestUsage() {
+	names := make([]string, 0, len(testSubcommands))
+	for name := range testSubcommands {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	width := 0
+	for _, name := range names {
+		if len(name) > width {
+			width = len(name)
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "Usage: ze-test <command> [options]\n\nCommands:\n")
+	for _, name := range names {
+		fmt.Fprintf(os.Stderr, "  %-*s  %s\n", width, name, testSubcommands[name].desc)
+	}
+	fmt.Fprintf(os.Stderr, "\nRun 'ze-test <command> --help' for command-specific help.\n")
 }

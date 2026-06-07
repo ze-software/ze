@@ -152,7 +152,7 @@ Best-path decisions flow through the bus:
 | `ze` | Network OS: BGP, CLI, config, hub, interface, ExaBGP migration, plugin, schema, signal, completion |
 | `ze-chaos` | Chaos testing orchestrator: fault injection, scheduling |
 | `ze-perf` | Performance benchmarking: UPDATE throughput tracking |
-| `ze-analyse` | MRT/RIB analysis: attributes, communities, density, dump |
+| `ze-analyze` | MRT/RIB analysis: attributes, communities, density, dump |
 | `ze-test` | Functional test runner: BGP, editor, peer, MCP, web, RPKI, managed |
 <!-- source: cmd/ze/main.go -- ze binary entry point -->
 
@@ -164,7 +164,7 @@ Best-path decisions flow through the bus:
 | BGP engine | `internal/component/bgp/` (reactor, FSM, wire, message, capability) |
 | Plugin implementations | `internal/plugins/` and `internal/component/bgp/plugins/` |
 | Plugin infrastructure | `internal/component/plugin/` (registry, process, hub, SDK) |
-| Programs | `cmd/ze/` (build tags: `ze_test`, `ze_chaos`), `cmd/ze-perf/`, `cmd/ze-analyse/` |
+| Programs | `cmd/ze/` (build tags: `ze_test`, `ze_chaos`, `ze_perf`, `ze_analyze`) |
 | Public SDKs | `pkg/plugin/sdk/`, `pkg/plugin/rpc/`, `pkg/zefs/` |
 | Tests | `test/` (.ci files), `*_test.go` |
 <!-- source: cmd/ -- program binaries -->

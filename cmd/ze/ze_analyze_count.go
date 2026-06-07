@@ -1,3 +1,5 @@
+//go:build ze_analyze
+
 // Design: (none -- research/analysis tool)
 //
 // Counts BGP attributes per route to produce a distribution table.
@@ -13,18 +15,18 @@ import (
 
 func runCountAttrs(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, `ze-analyse count-attrs -- attribute count distribution per route
+		fmt.Fprintf(os.Stderr, `ze-analyze count-attrs -- attribute count distribution per route
 
 Processes TABLE_DUMP_V2 RIB entries and counts how many path attributes each
 route carries. The distribution reveals the typical attribute set size,
 which affects per-route memory and cache key width.
 
 Usage:
-  ze-analyse count-attrs <rib.gz> [rib2.gz ...]
+  ze-analyze count-attrs <rib.gz> [rib2.gz ...]
 
 Examples:
-  ze-analyse count-attrs test/internet/latest-bview.gz
-  ze-analyse count-attrs test/internet/rib.*.gz
+  ze-analyze count-attrs test/internet/latest-bview.gz
+  ze-analyze count-attrs test/internet/rib.*.gz
 `)
 		return 1
 	}

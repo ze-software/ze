@@ -1,6 +1,6 @@
 // Design: docs/guide/mcp/overview.md -- AI help reference generator
 
-//go:build !ze_test && !ze_chaos
+//go:build !ze_test && !ze_chaos && !ze_perf && !ze_analyze
 
 package main
 

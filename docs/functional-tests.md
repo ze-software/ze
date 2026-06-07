@@ -91,7 +91,7 @@ a live PPP session. The lab requires Docker and the host kernel (or Docker VM
 kernel) to have PPPoL2TP support; it refuses to run if `/dev/ppp`, `ip l2tp`,
 or the `l2tp_ppp`/`pppol2tp` module is missing. Run individual scenarios with
 `python3 test/l2tp-interop/run.py <scenario-name>`.
-<!-- source: cmd/ze/ze_test_main.go -- subcommand registry -->
+<!-- source: cmd/ze/ze_test_register.go -- subcommand registry -->
 <!-- source: cmd/ze/ze_test_bgp.go -- chaos-web suite -->
 <!-- source: Makefile -- ze-linux-test -->
 <!-- source: scripts/evidence/effective-verify.sh -- clean Docker ze-verify evidence -->
@@ -1181,7 +1181,7 @@ The test passes if:
 
 ### Entry Point: `cmd/ze/ze_test_*.go`
 
-<!-- source: cmd/ze/ze_test_main.go -- test runner entry point -->
+<!-- source: cmd/ze/ze_test_register.go -- test runner entry point -->
 <!-- source: cmd/ze/ze_test_bgp.go -- bgp test subcommand -->
 <!-- source: cmd/ze/ze_test_syslog.go -- syslog server subcommand -->
 <!-- source: cmd/ze/ze_test_rpki.go -- RPKI mock RTR subcommand -->

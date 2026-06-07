@@ -1,6 +1,6 @@
 // Design: (none -- pprof build-tag gate for TinyGo compatibility)
 
-//go:build !tinygo && !ze_test && !ze_chaos
+//go:build !tinygo && !ze_test && !ze_chaos && !ze_perf && !ze_analyze
 
 package main
 

@@ -1,6 +1,6 @@
 // Design: docs/architecture/cli/plugin-modes.md — ze_appliance build tag validation
 //
-//go:build ze_appliance && !ze_setup && !ze_test && !ze_chaos
+//go:build ze_appliance && !ze_setup && !ze_test && !ze_chaos && !ze_perf && !ze_analyze
 
 package main
 

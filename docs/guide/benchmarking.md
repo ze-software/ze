@@ -4,7 +4,7 @@ Ze includes `ze-perf`, a standalone tool for measuring BGP route propagation
 latency through a device under test (DUT). It works with any BGP implementation,
 not just Ze.
 
-<!-- source: cmd/ze-perf/main.go -- ze-perf CLI entry point -->
+<!-- source: cmd/ze/ze_perf_register.go -- ze-perf CLI entry point -->
 
 ## Architecture
 
@@ -57,7 +57,7 @@ Three encoding modes measure different code paths through the DUT:
 | IPv4 force-MP | `--family ipv4/unicast --force-mp` | IPv4 encoded via MP_REACH_NLRI attribute (exercises multiprotocol path) |
 | IPv6 MP | `--family ipv6/unicast` | IPv6 unicast via MP_REACH_NLRI (standard for non-IPv4 families) |
 
-<!-- source: cmd/ze-perf/run.go -- family and force-mp validation -->
+<!-- source: cmd/ze/ze_perf_run.go -- family and force-mp validation -->
 
 ### Multi-Iteration
 
@@ -139,7 +139,7 @@ ze-perf report result-ze.json result-gobgp.json result-rustbgpd.json
 ze-perf report --html result-ze.json result-gobgp.json > comparison.html
 ```
 
-<!-- source: cmd/ze-perf/report.go -- report subcommand -->
+<!-- source: cmd/ze/ze_perf_report.go -- report subcommand -->
 <!-- source: internal/perf/report/markdown.go -- Markdown report generation -->
 <!-- source: internal/perf/report/html.go -- HTML report generation -->
 
@@ -167,7 +167,7 @@ ze-perf track history.ndjson
 ze-perf track --html history.ndjson > trend.html
 ```
 
-<!-- source: cmd/ze-perf/track.go -- track subcommand -->
+<!-- source: cmd/ze/ze_perf_track.go -- track subcommand -->
 <!-- source: internal/perf/report/trend.go -- trend report generation -->
 
 ### Regression Detection

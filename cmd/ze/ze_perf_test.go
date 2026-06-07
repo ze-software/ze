@@ -1,3 +1,5 @@
+//go:build ze_perf
+
 package main
 
 import (
@@ -7,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
 // VALIDATES: AC-15 "ze-perf run -h prints usage with flag descriptions and examples."
@@ -14,20 +18,21 @@ import (
 func TestRunHelp(t *testing.T) {
 	t.Parallel()
 
-	// Top-level help returns 0.
-	code := run([]string{"-h"})
+	rctx := &registry.RuntimeContext{}
+
+	code := zePerfRootHandler(rctx, []string{"-h"})
 	if code != 0 {
-		t.Errorf("run(-h) exit code = %d, want 0", code)
+		t.Errorf("zePerfRootHandler(-h) exit code = %d, want 0", code)
 	}
 
-	code = run([]string{"--help"})
+	code = zePerfRootHandler(rctx, []string{"--help"})
 	if code != 0 {
-		t.Errorf("run(--help) exit code = %d, want 0", code)
+		t.Errorf("zePerfRootHandler(--help) exit code = %d, want 0", code)
 	}
 
-	code = run([]string{"help"})
+	code = zePerfRootHandler(rctx, []string{"help"})
 	if code != 0 {
-		t.Errorf("run(help) exit code = %d, want 0", code)
+		t.Errorf("zePerfRootHandler(help) exit code = %d, want 0", code)
 	}
 }
 
@@ -90,7 +95,7 @@ func TestTrackCheckRegression(t *testing.T) {
 	var code int
 
 	stderr := captureStderr(t, func() {
-		code = cmdTrack([]string{"--check", path})
+		code = cmdPerfTrack([]string{"--check", path})
 	})
 
 	if code != 1 {
@@ -124,7 +129,7 @@ func TestTrackCheckNoRegression(t *testing.T) {
 	var code int
 
 	stderr := captureStderr(t, func() {
-		code = cmdTrack([]string{"--check", path})
+		code = cmdPerfTrack([]string{"--check", path})
 	})
 
 	if code != 0 {

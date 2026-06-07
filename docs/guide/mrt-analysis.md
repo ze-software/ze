@@ -1,33 +1,33 @@
 # MRT Analysis
 
-Ze includes `ze-analyse`, a standalone tool for analysing real-world BGP data
+Ze includes `ze-analyze`, a standalone tool for analysing real-world BGP data
 from public route collectors (RIPE RIS, RouteViews). It processes MRT dump files
 to extract statistics that inform ze's internal buffer sizing, caching strategies,
 and congestion handling.
 
-<!-- source: cmd/ze-analyse/main.go -- ze-analyse CLI entry point -->
+<!-- source: cmd/ze/ze_analyze_register.go -- ze-analyze CLI entry point -->
 
 ## Building
 
 ```
-make analyse
+make analyze
 ```
 
-This produces `bin/ze-analyse`.
+This produces `bin/ze-analyze`.
 
 ## Quick Start
 
 Download BGP data from public collectors and run an analysis:
 
 ```
-bin/ze-analyse download                                    # fetch latest data
-bin/ze-analyse density test/internet/ripe-updates.*.gz     # UPDATE density + burst patterns
-bin/ze-analyse attributes test/internet/latest-bview.gz    # attribute repetition analysis
+bin/ze-analyze download                                    # fetch latest data
+bin/ze-analyze density test/internet/ripe-updates.*.gz     # UPDATE density + burst patterns
+bin/ze-analyze attributes test/internet/latest-bview.gz    # attribute repetition analysis
 ```
 
 ## Data Sources
 
-`ze-analyse download` fetches MRT files from two public BGP collectors:
+`ze-analyze download` fetches MRT files from two public BGP collectors:
 
 | Source | Type | Interval | Size |
 |--------|------|----------|------|
@@ -36,16 +36,16 @@ bin/ze-analyse attributes test/internet/latest-bview.gz    # attribute repetitio
 | RouteViews route-views2 | BGP4MP updates | 15 min | ~2 MB per file |
 | RouteViews route-views2 | TABLE_DUMP_V2 RIB | 2-hour intervals | ~100 MB |
 
-<!-- source: cmd/ze-analyse/download.go -- download URLs and conversion -->
+<!-- source: cmd/ze/ze_analyze_download.go -- download URLs and conversion -->
 
 Files are saved to `test/internet/` (gitignored). RouteViews bz2 files are
 converted to gzip on download for Go stdlib compatibility.
 
 ```
-bin/ze-analyse download                     # today's data at 00:00 UTC
-bin/ze-analyse download 20260324            # specific date
-bin/ze-analyse download 20260324 1200       # specific date and time
-bin/ze-analyse download -o /tmp/mrt         # custom output directory
+bin/ze-analyze download                     # today's data at 00:00 UTC
+bin/ze-analyze download 20260324            # specific date
+bin/ze-analyze download 20260324 1200       # specific date and time
+bin/ze-analyze download -o /tmp/mrt         # custom output directory
 ```
 
 ## Commands
@@ -56,10 +56,10 @@ Measures how many NLRIs each UPDATE carries and how many UPDATEs arrive per
 second. Separates traffic into setup (table dumps, convergence) and maintenance
 (steady-state churn) using per-source-peer burst detection.
 
-<!-- source: cmd/ze-analyse/density.go -- NLRI counting and burst detection -->
+<!-- source: cmd/ze/ze_analyze_density.go -- NLRI counting and burst detection -->
 
 ```
-bin/ze-analyse density test/internet/ripe-updates.*.gz
+bin/ze-analyze density test/internet/ripe-updates.*.gz
 ```
 
 **Output sections:**
@@ -78,11 +78,11 @@ Analyses attribute repetition across routes to guide caching decisions. Measures
 per-attribute cache hit rates, bundle deduplication effectiveness, and temporal
 locality (consecutive identical bundles).
 
-<!-- source: cmd/ze-analyse/attributes.go -- bundle hashing and community extraction -->
+<!-- source: cmd/ze/ze_analyze_attributes.go -- bundle hashing and community extraction -->
 
 ```
-bin/ze-analyse attributes test/internet/latest-bview.gz 2>/dev/null | jq .   # JSON
-bin/ze-analyse attributes test/internet/latest-bview.gz >/dev/null           # summary
+bin/ze-analyze attributes test/internet/latest-bview.gz 2>/dev/null | jq .   # JSON
+bin/ze-analyze attributes test/internet/latest-bview.gz >/dev/null           # summary
 ```
 
 **Output:** JSON to stdout, human summary to stderr.
@@ -96,12 +96,12 @@ Identifies per-ASN community defaults: communities that appear in nearly every
 route from a given ASN. These defaults can be assumed present in a cache,
 encoding only exceptions (absent defaults) to save wire bytes.
 
-<!-- source: cmd/ze-analyse/communities.go -- per-ASN frequency analysis -->
+<!-- source: cmd/ze/ze_analyze_communities.go -- per-ASN frequency analysis -->
 
 ```
-bin/ze-analyse communities test/internet/latest-bview.gz
-bin/ze-analyse communities --threshold 0.90 --format json test/internet/latest-bview.gz
-bin/ze-analyse communities --post-policy test/internet/latest-bview.gz
+bin/ze-analyze communities test/internet/latest-bview.gz
+bin/ze-analyze communities --threshold 0.90 --format json test/internet/latest-bview.gz
+bin/ze-analyze communities --post-policy test/internet/latest-bview.gz
 ```
 
 **Options:**
@@ -116,7 +116,7 @@ Counts how many path attributes each route carries. Produces a distribution
 table showing the typical attribute set size.
 
 ```
-bin/ze-analyse count-attrs test/internet/latest-bview.gz
+bin/ze-analyze count-attrs test/internet/latest-bview.gz
 ```
 
 ### mrt-dump
@@ -125,8 +125,8 @@ Dumps MRT records as BGP UPDATE hex, one per line. Useful for piping into
 `ze bgp decode` or other tools.
 
 ```
-bin/ze-analyse mrt-dump test/internet/ripe-updates.*.gz | head -5
-bin/ze-analyse mrt-dump test/internet/latest-bview.gz | bin/ze bgp decode -
+bin/ze-analyze mrt-dump test/internet/ripe-updates.*.gz | head -5
+bin/ze-analyze mrt-dump test/internet/latest-bview.gz | bin/ze bgp decode -
 ```
 
 ## MRT File Formats

@@ -29,7 +29,7 @@ where the system currently forks into three separate engines.**
 ## The three execution engines
 
 `ze-test` subcommands register themselves in a dispatch table.
-<!-- source: cmd/ze/ze_test_main.go -- subcommands registry, register() -->
+<!-- source: cmd/ze/ze_test_register.go -- subcommands registry, zeTestAdd() -->
 Each subcommand routes to one of three engines that independently re-implement
 the same goroutine-pool + semaphore + live-display orchestration.
 

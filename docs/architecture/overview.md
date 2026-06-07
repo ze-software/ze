@@ -90,7 +90,7 @@ Key characteristics:
 | Area | Location | Purpose |
 |------|----------|---------|
 | Main binary | `cmd/ze/` | CLI verbs, daemon startup, install/service/support tooling |
-| Other binaries | `cmd/ze-perf/`, `cmd/ze-analyse/` | Benchmarks, MRT/RIB analysis. ze-test and ze-chaos are build-tag variants of cmd/ze (`ze_test`, `ze_chaos`). |
+| Other binaries | Build tags: `ze_perf`, `ze_analyze` | Benchmarks, MRT/RIB analysis. ze-test, ze-chaos, ze-perf, and ze-analyze are build-tag variants of cmd/ze. |
 | Components | `internal/component/` | Engine, BGP, config, CLI, command dispatcher, API, web, gNMI, MCP, interface, firewall, traffic, IPsec/IKE, L2TP, PPPoE, LDP, RSVP-TE, telemetry, storage, and related services |
 | BGP subsystem | `internal/component/bgp/` | FSM, reactor, wire parsing, attributes, capabilities, NLRI, BGP plugins, and command handlers |
 | Generic plugins | `internal/plugins/` | FIB, static routes, sysrib, sysctl, BFD, connected/kernel redistribution, policy routing, DHCP/TFTP/image services, VPP/firewall/traffic backends, L2TP helpers |

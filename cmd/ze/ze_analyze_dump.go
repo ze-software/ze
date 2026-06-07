@@ -1,3 +1,5 @@
+//go:build ze_analyze
+
 // Design: (none -- research/analysis tool)
 //
 // Dumps MRT records as BGP UPDATE hex, one per line.
@@ -12,7 +14,7 @@ import (
 
 func runMRTDump(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, `ze-analyse mrt-dump -- dump MRT records as BGP UPDATE hex
+		fmt.Fprintf(os.Stderr, `ze-analyze mrt-dump -- dump MRT records as BGP UPDATE hex
 
 Reads MRT files (RIB dumps or BGP4MP updates) and outputs each route as a
 BGP UPDATE message body in hex encoding, one per line. This is useful for
@@ -22,11 +24,11 @@ For RIB dumps: each RIB entry is wrapped in an UPDATE (withdrawn=0 + attrs + NLR
 For BGP4MP: the UPDATE body is extracted directly.
 
 Usage:
-  ze-analyse mrt-dump <file.gz> [file2.gz ...]
+  ze-analyze mrt-dump <file.gz> [file2.gz ...]
 
 Examples:
-  ze-analyse mrt-dump test/internet/latest-bview.gz | head -10
-  ze-analyse mrt-dump test/internet/ripe-updates.*.gz | ze bgp decode -
+  ze-analyze mrt-dump test/internet/latest-bview.gz | head -10
+  ze-analyze mrt-dump test/internet/ripe-updates.*.gz | ze bgp decode -
 `)
 		return 1
 	}

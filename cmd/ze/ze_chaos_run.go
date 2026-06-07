@@ -1,10 +1,13 @@
-// Design: docs/architecture/chaos-web-dashboard.md — chaos test orchestrator
+// Design: docs/architecture/chaos-web-dashboard.md -- chaos test orchestrator
+// Related: ze_chaos_orchestrator_run.go, ze_chaos_orchestrator.go
 
 //go:build ze_chaos
 
 package main
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+
 	"context"
 	"crypto/rand"
 	"encoding/binary"
@@ -38,6 +41,21 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 )
+
+func init() {
+	binarySetup = zeChaosSetup
+}
+
+func zeChaosSetup(args []string) ([]string, int) {
+	registry.MustRegisterRootHandler("chaos", func(_ *registry.RuntimeContext, a []string) int {
+		return zeChaosRun(a)
+	}, registry.Meta{
+		Description: "Chaos monkey for BGP testing",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+	})
+	return args, 0
+}
 
 // Env var registrations for ze-chaos port flags.
 var (

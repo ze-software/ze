@@ -73,7 +73,7 @@ ze-plugin-imports-check:
 ze-yang-glue-check:
 	@go run scripts/codegen/yang_glue.go --check
 
-build: generate bin/ze bin/ze-appliance bin/ze-setup bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-analyse docs/comparison.html
+build: generate bin/ze bin/ze-appliance bin/ze-setup bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-perf bin/ze-analyze docs/comparison.html
 	@echo "All binaries built"
 
 docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
@@ -103,9 +103,13 @@ test:
 	@mkdir -p bin
 	$(GO) build -tags ze_test -o bin/ze-test ./cmd/ze
 
-analyse:
+analyze:
 	@mkdir -p bin
-	$(GO) build -o bin/ze-analyse ./cmd/ze-analyse
+	$(GO) build -tags ze_analyze -o bin/ze-analyze ./cmd/ze
+
+perf:
+	@mkdir -p bin
+	$(GO) build -tags ze_perf -o bin/ze-perf ./cmd/ze
 
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
@@ -136,10 +140,15 @@ bin/ze-chaos: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@mkdir -p bin
 	$(GO) build -tags ze_chaos -o bin/ze-chaos ./cmd/ze
 
-bin/ze-analyse: $(shell find cmd/ze-analyse -name '*.go' 2>/dev/null)
-	@echo "Building ze-analyse..."
+bin/ze-analyze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-analyze..."
 	@mkdir -p bin
-	$(GO) build -o bin/ze-analyse ./cmd/ze-analyse
+	$(GO) build -tags ze_analyze -o bin/ze-analyze ./cmd/ze
+
+bin/ze-perf: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-perf..."
+	@mkdir -p bin
+	$(GO) build -tags ze_perf -o bin/ze-perf ./cmd/ze
 
 # ─── Docker ────────────────────────────────────────────────────────────────
 
@@ -347,7 +356,7 @@ help:
 	@echo "    make ze-verify-changed    Scoped verify: changed packages + wiring/docs, then full functional"
 	@echo ""
 	@echo "  Build:"
-	@echo "    make build                All binaries (ze, ze-stripped, ze-test, ze-chaos, ze-analyse)"
+	@echo "    make build                All binaries (ze, ze-stripped, ze-test, ze-chaos, ze-perf, ze-analyze)"
 	@echo "    make ze                   Just bin/ze"
 	@echo "    make ze-stripped          Just bin/ze-stripped"
 	@echo ""

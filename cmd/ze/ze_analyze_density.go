@@ -1,3 +1,5 @@
+//go:build ze_analyze
+
 // Design: (none -- research/analysis tool)
 //
 // Analyzes MRT BGP4MP dumps to measure UPDATE message density:
@@ -70,7 +72,7 @@ func newDensityStats() *densityStats {
 
 func runDensity(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, `ze-analyse density -- measure UPDATE message density and burst patterns
+		fmt.Fprintf(os.Stderr, `ze-analyze density -- measure UPDATE message density and burst patterns
 
 Processes BGP4MP records from MRT files to produce two distributions:
   1. NLRIs per UPDATE: how many prefixes does each UPDATE carry?
@@ -80,11 +82,11 @@ This tells you whether the forward pool channel should count updates or prefixes
 and what P50/P95/P99 burst rates look like on real Internet traffic.
 
 Usage:
-  ze-analyse density <updates.gz> [updates2.gz ...]
+  ze-analyze density <updates.gz> [updates2.gz ...]
 
 Examples:
-  ze-analyse density test/internet/ripe-updates.*.gz
-  ze-analyse density test/internet/rv-updates.*.gz
+  ze-analyze density test/internet/ripe-updates.*.gz
+  ze-analyze density test/internet/rv-updates.*.gz
 `)
 		return 1
 	}

@@ -1,4 +1,4 @@
-//go:build !ze_test && !ze_chaos
+//go:build !ze_test && !ze_chaos && !ze_perf && !ze_analyze
 
 package main
 
@@ -60,16 +60,17 @@ func TestRootDispatchUsesRegisteredOwnerHandler(t *testing.T) {
 // web/MCP flags) and hands that exact context to the owner handler. No
 // dependency is read or opened during context construction.
 func TestRootDispatchPassesRuntimeContext(t *testing.T) {
-	rctx := newRuntimeContext(
-		[]string{"p1", "p2"},
-		"/tmp/override.conf",
-		"8443",
-		true,
-		"127.0.0.1:9000",
-		"tok",
-		42,
-		0.25,
-	)
+	zeFlags = zeGlobalFlags{
+		plugins:      []string{"p1", "p2"},
+		fileOverride: "/tmp/override.conf",
+		webPort:      "8443",
+		insecureWeb:  true,
+		mcpAddr:      "127.0.0.1:9000",
+		mcpToken:     "tok",
+		chaosSeed:    42,
+		chaosRate:    0.25,
+	}
+	rctx := newZeRuntimeContext()
 
 	if rctx.ResolveStorage == nil {
 		t.Error("ResolveStorage not wired")

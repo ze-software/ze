@@ -1,4 +1,6 @@
-// Design: (none -- new tool, predates documentation)
+// Design: docs/architecture/system-architecture.md -- ze-perf report subcommand
+
+//go:build ze_perf
 package main
 
 import (
@@ -11,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/perf/report"
 )
 
-func cmdReport(args []string) int {
+func cmdPerfReport(args []string) int {
 	fs := flag.NewFlagSet("ze-perf report", flag.ContinueOnError)
 
 	_ = fs.Bool("md", true, "Markdown comparison table (default)")

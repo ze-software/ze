@@ -1335,7 +1335,7 @@ ze resolve irr prefix AS-CLOUDFLARE                    # Lookup announced prefix
 
 BGP propagation latency benchmark tool. Separate binary from `ze`.
 
-<!-- source: cmd/ze-perf/main.go -- ze-perf CLI entry point -->
+<!-- source: cmd/ze/ze_perf_register.go -- ze-perf CLI entry point -->
 
 ```
 ze-perf <command> [flags]
@@ -1353,7 +1353,7 @@ Run a BGP propagation benchmark against a device under test (DUT). Establishes
 sender and receiver sessions with the DUT, injects routes from the sender, and
 measures how quickly they propagate through to the receiver.
 
-<!-- source: cmd/ze-perf/run.go -- run subcommand -->
+<!-- source: cmd/ze/ze_perf_run.go -- run subcommand -->
 
 ```
 ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000
@@ -1417,7 +1417,7 @@ Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark
 
 Generate a comparison report from one or more result JSON files.
 
-<!-- source: cmd/ze-perf/report.go -- report subcommand -->
+<!-- source: cmd/ze/ze_perf_report.go -- report subcommand -->
 
 ```
 ze-perf report result-ze.json result-gobgp.json
@@ -1436,7 +1436,7 @@ side-by-side comparison table.
 
 Track performance history and detect regressions from an NDJSON file.
 
-<!-- source: cmd/ze-perf/track.go -- track subcommand -->
+<!-- source: cmd/ze/ze_perf_track.go -- track subcommand -->
 
 ```
 ze-perf track history.ndjson

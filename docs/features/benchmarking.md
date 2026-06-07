@@ -5,7 +5,7 @@ measures route forwarding performance through a device under test (DUT) by
 establishing sender and receiver BGP sessions, injecting routes, and timing
 their propagation.
 
-<!-- source: cmd/ze-perf/main.go -- ze-perf CLI entry point -->
+<!-- source: cmd/ze/ze_perf_register.go -- ze-perf CLI entry point -->
 
 | Feature | Description |
 |---------|-------------|

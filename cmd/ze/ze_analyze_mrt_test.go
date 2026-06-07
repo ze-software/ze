@@ -1,3 +1,5 @@
+//go:build ze_analyze
+
 package main
 
 import (
