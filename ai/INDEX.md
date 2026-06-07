@@ -47,7 +47,7 @@
 | `make ze-doc-index` | `mk/inventory.mk` | Regenerate `ai/CODE-TO-DOCS.md`, the source-to-document reverse index. |
 | `make ze-ai-sync` | `scripts/dev/skill_sync.sh` | Sync canonical `ai/skills/*.md` to `.claude/skills/`, `.codex/skills/`, and `.agents/skills/`; also regenerates `CLAUDE.md` and `AGENTS.md` from `ai/INSTRUCTIONS.md`. |
 | `make ze-spec-status` / `make ze-spec-status-json` | `mk/inventory.mk` | Spec progress overview for active planning and handoff. |
-| `make ze-mutation-test` | `mk/test-mutation.mk` | Mutation testing via gomu on all non-excluded packages (advisory, not gating). Install: `go install github.com/sivchari/gomu/cmd/gomu@latest`. |
+| `make ze-mutation-test` | `mk/test-mutation.mk` | Mutation testing via gomu on all non-excluded packages (advisory, not gating). Vendored, no install needed. |
 | `make ze-mutation-changed` | `mk/test-mutation.mk` | Incremental mutation testing on changed files only. |
 | `make ze-mutation-report` | `mk/test-mutation.mk` | Mutation testing with HTML report output to `tmp/mutation-report.html`. |
 

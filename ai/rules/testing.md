@@ -375,7 +375,7 @@ logical, bitwise, branch, return value, error handling operators) and checks
 whether the test suite detects each mutation. Advisory only, never gates
 `ze-verify`.
 
-Install: `go install github.com/sivchari/gomu/cmd/gomu@latest`
+gomu is vendored in `tools.go` and invoked via `go run`. No install needed.
 
 | Target | Purpose |
 |--------|---------|
