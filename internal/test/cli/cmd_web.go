@@ -1,10 +1,10 @@
 // Design: docs/architecture/testing/ci-format.md -- web browser test CLI
 
-//go:build ze_test
 
-package main
+package cli
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"flag"
 	"fmt"
@@ -24,15 +24,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
-func zeTestWebCmd(args []string) int {
-	if err := zeTestWebMain(args); err != nil {
+func init() {
+	Register("web", cmdWeb, subdispatch.SubMeta{Desc: "Run web browser functional tests (.wb files)"})
+}
+
+func cmdWeb(args []string) int {
+	if err := cmdWebMain(args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
 	}
 	return 0
 }
 
-func zeTestWebMain(args []string) error {
+func cmdWebMain(args []string) error {
 	fs := flag.NewFlagSet("web", flag.ExitOnError)
 	all := fs.Bool("a", false, "run all tests")
 	fs.BoolVar(all, "all", false, "run all tests")
@@ -76,7 +80,7 @@ Examples:
 		return err
 	}
 
-	baseDir, err := findBaseDir()
+	baseDir, err := FindBaseDir()
 	if err != nil {
 		return fmt.Errorf("find base dir: %w", err)
 	}

@@ -1,10 +1,10 @@
 // Design: docs/architecture/testing/ci-format.md — predecessor encoding test runner
 
-//go:build ze_test
 
-package main
+package cli
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"bufio"
 	"bytes"
 	"context"
@@ -24,6 +24,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
+
+func init() {
+	Register("exabgp", cmdExabgp, subdispatch.SubMeta{Desc: "Run predecessor encoding tests"})
+}
 
 const exabgpSuiteEncoding = "encoding"
 
@@ -66,7 +70,7 @@ type exabgpSuite struct {
 	byNick  map[string]*exabgpTestEntry
 }
 
-func zeTestExabgpCmd(args []string) int {
+func cmdExabgp(args []string) int {
 	if err := zeTestExabgpMain(args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -96,7 +100,7 @@ func zeTestExabgpMain(args []string) error {
 		return err
 	}
 
-	baseDir, err := findBaseDir()
+	baseDir, err := FindBaseDir()
 	if err != nil {
 		return fmt.Errorf("find base dir: %w", err)
 	}
@@ -156,7 +160,7 @@ func zeTestExabgpMain(args []string) error {
 
 	success := runExaBGPSelected(ctx, suite, cli)
 	if !success {
-		return errTestsFailed
+		return ErrTestsFailed
 	}
 	return nil
 }

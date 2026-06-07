@@ -146,7 +146,7 @@ bin/ze-test peer --mode sink --port 1179 --asn 65001
 # Terminal 2: start ze with config pointing to localhost:1179
 bin/ze example-local.conf
 ```
-<!-- source: cmd/ze/ze_test_peer.go -- ze-test peer command -->
+<!-- source: internal/test/cli/cmd_peer.go -- ze-test peer command -->
 
 Where `example-local.conf` uses `remote { ip 127.0.0.1; }` and `port 1179`.
 

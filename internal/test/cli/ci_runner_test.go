@@ -1,6 +1,5 @@
-//go:build ze_test
 
-package main
+package cli
 
 import (
 	"bytes"
@@ -20,7 +19,7 @@ func TestCISubcommandPrintsHeaderAndTopLevelRerunHints(t *testing.T) {
 
 	var display bytes.Buffer
 	r.Display().SetOutput(&display)
-	zeTestConfigureCIRunnerOutput(r, "ui")
+	ConfigureCIRunnerOutput(r, "ui")
 	if !strings.Contains(display.String(), "ui") {
 		t.Fatalf("missing suite header:\n%s", display.String())
 	}

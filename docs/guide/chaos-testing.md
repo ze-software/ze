@@ -131,7 +131,7 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
   --entrypoint sh bird-interop:latest \
   -c 'bird -p -c /etc/bird.conf'
 ```
-<!-- source: cmd/ze/ze_chaos_run.go -- --application, --binary flags; internal/chaos/scenario/config_frr.go, config_bird.go -->
+<!-- source: internal/chaos/orchestrator/cli.go -- --application, --binary flags; internal/chaos/scenario/config_frr.go, config_bird.go -->
 
 ### Event Logging and Replay
 
@@ -196,4 +196,4 @@ Seed `0` disables chaos entirely (zero overhead). Seed `-1` uses the current tim
 - **CI pipeline:** Catch race conditions and edge cases
 - **Debugging:** Reproduce intermittent failures with a fixed seed
 - **Benchmarking:** Measure convergence time under fault conditions
-<!-- source: cmd/ze/ze_chaos_run.go -- ze-chaos tool; test/ -- chaos functional tests -->
+<!-- source: internal/chaos/orchestrator/cli.go -- ze-chaos tool; test/ -- chaos functional tests -->

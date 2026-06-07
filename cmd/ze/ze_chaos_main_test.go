@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/chaos/orchestrator"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +28,7 @@ func TestConfigOnly(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdout = w
 
-	code := zeChaosRun([]string{"--config-only", "--seed", "42", "--peers", "3", "--quiet"})
+	code := orchestrator.CLIRun([]string{"--config-only", "--seed", "42", "--peers", "3", "--quiet"})
 
 	os.Stdout = old
 	require.NoError(t, w.Close())
@@ -48,7 +50,7 @@ func TestConfigOnlyFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.conf")
 
-	code := zeChaosRun([]string{"--config-only", "--seed", "42", "--peers", "3", "--config-out", path, "--quiet"})
+	code := orchestrator.CLIRun([]string{"--config-only", "--seed", "42", "--peers", "3", "--config-out", path, "--quiet"})
 
 	assert.Equal(t, 0, code)
 
@@ -67,8 +69,8 @@ func TestConfigOnlyDeterministic(t *testing.T) {
 	path1 := filepath.Join(dir, "a.conf")
 	path2 := filepath.Join(dir, "b.conf")
 
-	code1 := zeChaosRun([]string{"--config-only", "--seed", "12345", "--peers", "4", "--config-out", path1, "--quiet"})
-	code2 := zeChaosRun([]string{"--config-only", "--seed", "12345", "--peers", "4", "--config-out", path2, "--quiet"})
+	code1 := orchestrator.CLIRun([]string{"--config-only", "--seed", "12345", "--peers", "4", "--config-out", path1, "--quiet"})
+	code2 := orchestrator.CLIRun([]string{"--config-only", "--seed", "12345", "--peers", "4", "--config-out", path2, "--quiet"})
 
 	assert.Equal(t, 0, code1)
 	assert.Equal(t, 0, code2)
@@ -104,7 +106,7 @@ func TestConfigOnlyNoNetwork(t *testing.T) {
 
 	tcpAddr, ok := ln.Addr().(*net.TCPAddr)
 	require.True(t, ok)
-	code := zeChaosRun([]string{
+	code := orchestrator.CLIRun([]string{
 		"--config-only", "--seed", "42", "--peers", "2",
 		"--port", itoa(tcpAddr.Port),
 		"--quiet",
@@ -124,7 +126,7 @@ func TestConfigOnlyNoNetwork(t *testing.T) {
 // VALIDATES: flag validation logic.
 // PREVENTS: ambiguous mode selection.
 func TestConfigOnlyPipeExclusive(t *testing.T) {
-	code := zeChaosRun([]string{"--config-only", "--pipe", "--seed", "42", "--peers", "2"})
+	code := orchestrator.CLIRun([]string{"--config-only", "--pipe", "--seed", "42", "--peers", "2"})
 	assert.Equal(t, 1, code)
 }
 
@@ -133,7 +135,7 @@ func TestConfigOnlyPipeExclusive(t *testing.T) {
 // VALIDATES: flag validation logic.
 // PREVENTS: ambiguous mode selection.
 func TestConfigOnlyInProcessExclusive(t *testing.T) {
-	code := zeChaosRun([]string{"--config-only", "--in-process", "--seed", "42", "--peers", "2"})
+	code := orchestrator.CLIRun([]string{"--config-only", "--in-process", "--seed", "42", "--peers", "2"})
 	assert.Equal(t, 1, code)
 }
 
@@ -151,7 +153,7 @@ func TestRunInvalidPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := zeChaosRun(tt.args)
+			code := orchestrator.CLIRun(tt.args)
 			assert.Equal(t, 1, code)
 		})
 	}
@@ -171,7 +173,7 @@ func TestRunValidPeerBoundaries(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := zeChaosRun([]string{"--config-only", "--seed", "1", "--peers", tt.peers, "--quiet"})
+			code := orchestrator.CLIRun([]string{"--config-only", "--seed", "1", "--peers", tt.peers, "--quiet"})
 			assert.Equal(t, 0, code)
 		})
 	}
@@ -191,7 +193,7 @@ func TestRunInvalidChaosRate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := zeChaosRun([]string{"--config-only", "--seed", "1", "--peers", "2", "--chaos-rate", tt.rate, "--quiet"})
+			code := orchestrator.CLIRun([]string{"--config-only", "--seed", "1", "--peers", "2", "--chaos-rate", tt.rate, "--quiet"})
 			assert.Equal(t, 1, code)
 		})
 	}
@@ -211,7 +213,7 @@ func TestRunInvalidRouteRate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code := zeChaosRun([]string{"--config-only", "--seed", "1", "--peers", "2", "--route-rate", tt.rate, "--quiet"})
+			code := orchestrator.CLIRun([]string{"--config-only", "--seed", "1", "--peers", "2", "--route-rate", tt.rate, "--quiet"})
 			assert.Equal(t, 1, code)
 		})
 	}
@@ -222,7 +224,7 @@ func TestRunInvalidRouteRate(t *testing.T) {
 // VALIDATES: boundary: port must be 0 (auto) or 1024-65535.
 // PREVENTS: binding to privileged ports.
 func TestRunInvalidPort(t *testing.T) {
-	code := zeChaosRun([]string{"--config-only", "--seed", "1", "--peers", "2", "--port", "80", "--quiet"})
+	code := orchestrator.CLIRun([]string{"--config-only", "--seed", "1", "--peers", "2", "--port", "80", "--quiet"})
 	assert.Equal(t, 1, code)
 }
 

@@ -1,10 +1,10 @@
 // Design: docs/architecture/testing/ci-format.md -- L2TP scale test tooling
 
-//go:build ze_test
 
-package main
+package cli
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -23,7 +23,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-func zeTestL2tpScaleCmd(args []string) int {
+func init() {
+	Register("l2tp-scale", cmdL2tpScale, subdispatch.SubMeta{Desc: "L2TP scale test: LAC simulator + mock RADIUS"})
+}
+
+func cmdL2tpScale(args []string) int {
 	fs := flag.NewFlagSet("l2tp-scale", flag.ExitOnError)
 
 	var (

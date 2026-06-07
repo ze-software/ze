@@ -1,10 +1,10 @@
 // Design: docs/architecture/testing/ci-format.md — test runner CLI
 
-//go:build ze_test
 
-package main
+package cli
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"errors"
 	"flag"
@@ -21,6 +21,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
+func init() {
+	Register("bgp", cmdBgp, subdispatch.SubMeta{Desc: "Run BGP functional tests (encoding, plugin, decoding, parsing)"})
+}
+
 var errPeerCheckFailed = errors.New("peer check failed")
 
 const (
@@ -29,9 +33,9 @@ const (
 	cmdChaosIntg = "chaos"
 )
 
-func zeTestBgpCmd(args []string) int {
+func cmdBgp(args []string) int {
 	if err := zeTestBgpMain(args); err != nil {
-		if !errors.Is(err, errTestsFailed) {
+		if !errors.Is(err, ErrTestsFailed) {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
 		return 1
@@ -55,7 +59,7 @@ func zeTestBgpMain(args []string) error {
 		cancel()
 	}()
 
-	baseDir, err := findBaseDir()
+	baseDir, err := FindBaseDir()
 	if err != nil {
 		return fmt.Errorf("find base dir: %w", err)
 	}
@@ -180,7 +184,7 @@ func zeTestRunSimpleTests(ctx context.Context, cli *zeTestRunCLIFlags, baseDir s
 		runner.PrintHeader(cli.command)
 	}
 
-	zePath, err := zeTestBuildZe(ctx, baseDir)
+	zePath, err := buildZe(ctx, baseDir)
 	if err != nil {
 		return err
 	}
@@ -188,7 +192,7 @@ func zeTestRunSimpleTests(ctx context.Context, cli *zeTestRunCLIFlags, baseDir s
 	success := tests.Run(ctx, zePath, cli.verbose, cli.quiet)
 
 	if !success {
-		return errTestsFailed
+		return ErrTestsFailed
 	}
 
 	return nil
@@ -313,7 +317,7 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	}
 
 	if !success {
-		return errTestsFailed
+		return ErrTestsFailed
 	}
 
 	return nil
@@ -403,7 +407,7 @@ func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 		return fmt.Errorf("test %s has no config file", cli.client)
 	}
 
-	zePath, err := zeTestBuildZe(ctx, baseDir)
+	zePath, err := buildZe(ctx, baseDir)
 	if err != nil {
 		return err
 	}
@@ -441,7 +445,7 @@ func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 	return clientCmd.Run()
 }
 
-func zeTestBuildZe(ctx context.Context, baseDir string) (string, error) {
+func buildZe(ctx context.Context, baseDir string) (string, error) {
 	zePath := filepath.Join(baseDir, "bin", "ze")
 	if v := os.Getenv("ZE_BIN"); v != "" {
 		if !filepath.IsAbs(v) {

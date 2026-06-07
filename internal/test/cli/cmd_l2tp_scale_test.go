@@ -1,6 +1,5 @@
-//go:build ze_test
 
-package main
+package cli
 
 import (
 	"net"

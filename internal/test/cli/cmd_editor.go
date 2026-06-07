@@ -1,10 +1,10 @@
 // Design: docs/architecture/testing/ci-format.md — test runner CLI
 
-//go:build ze_test
 
-package main
+package cli
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"flag"
 	"fmt"
@@ -18,15 +18,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
-func zeTestEditorCmd(args []string) int {
-	if err := zeTestEditorMain(args); err != nil {
+func init() {
+	Register("editor", cmdEditor, subdispatch.SubMeta{Desc: "Run editor functional tests (.et files)"})
+}
+
+func cmdEditor(args []string) int {
+	if err := cmdEditorMain(args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err) //nolint:errcheck // terminal output
 		return 1
 	}
 	return 0
 }
 
-func zeTestEditorMain(args []string) error {
+func cmdEditorMain(args []string) error {
 	fs := flag.NewFlagSet("editor", flag.ExitOnError)
 	all := fs.Bool("a", false, "run all tests")
 	fs.BoolVar(all, "all", false, "run all tests")
@@ -70,7 +74,7 @@ Examples:
 		return err
 	}
 
-	baseDir, err := findBaseDir()
+	baseDir, err := FindBaseDir()
 	if err != nil {
 		return fmt.Errorf("find base dir: %w", err)
 	}
@@ -197,7 +201,7 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 	}
 
 	if !success {
-		return errTestsFailed
+		return ErrTestsFailed
 	}
 
 	return nil

@@ -1,8 +1,6 @@
-// Design: docs/architecture/testing/ci-format.md — shared .ci test runner logic
+// Design: docs/architecture/testing/ci-format.md -- shared .ci test runner logic
 
-//go:build ze_test
-
-package main
+package cli
 
 import (
 	"context"
@@ -17,7 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
-type zeTestCIRunnerConfig struct {
+type CIRunnerConfig struct {
 	Name            string
 	TestSubdir      string
 	Description     string
@@ -25,8 +23,16 @@ type zeTestCIRunnerConfig struct {
 	DefaultParallel int
 }
 
-func zeTestRunCISubcommand(cfg zeTestCIRunnerConfig, args []string) error {
-	fs := flag.NewFlagSet(cfg.Name, flag.ExitOnError)
+func RunCISubcommand(cfg CIRunnerConfig, args []string) int {
+	if err := runCISubcommandInner(cfg, args); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
+	fs := flag.NewFlagSet(cfg.Name, flag.ContinueOnError)
 	all := fs.Bool("a", false, "run all tests")
 	fs.BoolVar(all, "all", false, "run all tests")
 	listOnly := fs.Bool("l", false, "list available tests")
@@ -43,15 +49,7 @@ func zeTestRunCISubcommand(cfg zeTestCIRunnerConfig, args []string) error {
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: ze-test %s [options] [test-ids...]\n\n%s\n\nOptions:\n", cfg.Name, cfg.Detail) //nolint:errcheck // terminal output
 		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Examples:
-  ze-test %s -a              # Run all %s tests
-  ze-test %s -l              # List available tests with N/TOTAL and id
-  ze-test %s 0 1 2           # Run specific tests by id
-  ze-test %s --start 42      # Resume at id 42 and run through the end
-  ze-test %s --pattern bgp   # Run tests whose id, name, or path contains bgp
-  ze-test %s -a -v           # Verbose output
-`, cfg.Name, cfg.Description, cfg.Name, cfg.Name, cfg.Name, cfg.Name, cfg.Name) //nolint:errcheck // terminal output
+		fmt.Fprintf(os.Stderr, "\nExamples:\n  ze-test %s -a              # Run all %s tests\n  ze-test %s -l              # List available tests with N/TOTAL and id\n  ze-test %s 0 1 2           # Run specific tests by id\n  ze-test %s --start 42      # Resume at id 42 and run through the end\n  ze-test %s --pattern bgp   # Run tests whose id, name, or path contains bgp\n  ze-test %s -a -v           # Verbose output\n", cfg.Name, cfg.Description, cfg.Name, cfg.Name, cfg.Name, cfg.Name, cfg.Name) //nolint:errcheck // terminal output
 	}
 
 	if len(args) > 0 && isHelpArg(args[0]) {
@@ -63,7 +61,7 @@ Examples:
 		return err
 	}
 
-	baseDir, err := findBaseDir()
+	baseDir, err := FindBaseDir()
 	if err != nil {
 		return fmt.Errorf("find base dir: %w", err)
 	}
@@ -106,6 +104,7 @@ Examples:
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
 	go func() {
 		<-sigCh
 		cancel()
@@ -121,7 +120,7 @@ Examples:
 		return err
 	}
 
-	zeTestConfigureCIRunnerOutput(r, cfg.Name)
+	ConfigureCIRunnerOutput(r, cfg.Name)
 
 	opts := &runner.RunOptions{
 		Timeout:  15 * time.Second,
@@ -133,13 +132,13 @@ Examples:
 	success := r.Run(ctx, opts)
 
 	if !success {
-		return errTestsFailed
+		return ErrTestsFailed
 	}
 
 	return nil
 }
 
-func zeTestConfigureCIRunnerOutput(r *runner.Runner, suite string) {
+func ConfigureCIRunnerOutput(r *runner.Runner, suite string) {
 	r.Display().SetLabel(suite)
 	r.Report().SetLabel(suite)
 	r.Display().Header()

@@ -1,10 +1,10 @@
 // Design: docs/architecture/testing/ci-format.md -- ze-test vpp subcommand
 
-//go:build ze_test
 
-package main
+package cli
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"errors"
 	"flag"
@@ -18,9 +18,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
-func zeTestVppCmd(args []string) int {
+func init() {
+	Register("vpp", cmdVpp, subdispatch.SubMeta{Desc: "Run VPP stub-backed functional tests (test/vpp/*.ci)"})
+}
+
+func cmdVpp(args []string) int {
 	if err := zeTestVppMain(args); err != nil {
-		if !errors.Is(err, errTestsFailed) {
+		if !errors.Is(err, ErrTestsFailed) {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
 		return 1
@@ -44,7 +48,7 @@ func zeTestVppMain(args []string) error {
 		cancel()
 	}()
 
-	baseDir, err := findBaseDir()
+	baseDir, err := FindBaseDir()
 	if err != nil {
 		return fmt.Errorf("find base dir: %w", err)
 	}
@@ -116,7 +120,7 @@ func zeTestVppMain(args []string) error {
 	success := r.Run(ctx, opts)
 
 	if !success {
-		return errTestsFailed
+		return ErrTestsFailed
 	}
 	return nil
 }

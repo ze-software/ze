@@ -1,10 +1,10 @@
 // Design: docs/architecture/testing/ci-format.md — syslog test server
 
-//go:build ze_test
 
-package main
+package cli
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"flag"
 	"fmt"
@@ -16,7 +16,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
 )
 
-func zeTestSyslogCmd(args []string) int {
+func init() {
+	Register("syslog", cmdSyslog, subdispatch.SubMeta{Desc: "Run syslog server for testing"})
+}
+
+func cmdSyslog(args []string) int {
 	fs := flag.NewFlagSet("syslog", flag.ExitOnError)
 	port := fs.Int("port", 0, "port to listen on (0 = dynamic)")
 	pattern := fs.String("pattern", "", "regex pattern to match (exits on match)")

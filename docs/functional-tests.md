@@ -91,8 +91,8 @@ a live PPP session. The lab requires Docker and the host kernel (or Docker VM
 kernel) to have PPPoL2TP support; it refuses to run if `/dev/ppp`, `ip l2tp`,
 or the `l2tp_ppp`/`pppol2tp` module is missing. Run individual scenarios with
 `python3 test/l2tp-interop/run.py <scenario-name>`.
-<!-- source: cmd/ze/ze_test_register.go -- subcommand registry -->
-<!-- source: cmd/ze/ze_test_bgp.go -- chaos-web suite -->
+<!-- source: internal/test/cli/register.go -- subcommand registry -->
+<!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
 <!-- source: Makefile -- ze-linux-test -->
 <!-- source: scripts/evidence/effective-verify.sh -- clean Docker ze-verify evidence -->
 <!-- source: scripts/evidence/effective-l2tp-ppp.py -- full L2TP PPP/NCP peer evidence -->
@@ -121,9 +121,9 @@ ze-test editor --start 42
 # Stress test selected tests
 ze-test bgp encode --count 10 0 1
 ```
-<!-- source: cmd/ze/ze_test_bgp.go -- parseRunCLI, printRunUsage -->
-<!-- source: cmd/ze/ze_test_ci_runner.go -- runCISubcommand common options -->
-<!-- source: cmd/ze/ze_test_editor.go -- editorMain common options -->
+<!-- source: internal/test/cli/cmd_bgp.go -- parseRunCLI, printRunUsage -->
+<!-- source: internal/test/cli/ci_runner.go -- runCISubcommand common options -->
+<!-- source: internal/test/cli/cmd_editor.go -- editorMain common options -->
 
 ---
 ## Functional Suite Inventory
@@ -135,7 +135,7 @@ one completion line per test with elapsed time, `N/TOTAL`, result, id, and name,
 plus periodic progress while tests are still running.
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- Status, TestFinished -->
-<!-- source: cmd/ze/ze_test_web.go -- webMain sequential output -->
+<!-- source: internal/test/cli/cmd_web.go -- webMain sequential output -->
 
 | Suite | Command | Files | How it works |
 |-------|---------|-------|--------------|
@@ -160,12 +160,12 @@ plus periodic progress while tests are still running.
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
-<!-- source: cmd/ze/ze_test_bgp.go -- BGP suite routing -->
-<!-- source: cmd/ze/ze_test_ci_runner.go -- shared .ci suites -->
-<!-- source: cmd/ze/ze_test_editor.go -- .et suite runner -->
-<!-- source: cmd/ze/ze_test_web.go -- .wb suite runner -->
-<!-- source: cmd/ze/ze_test_vpp.go -- VPP stub-backed suite runner -->
-<!-- source: cmd/ze/ze_test_exabgp.go -- ExaBGP compatibility runner -->
+<!-- source: internal/test/cli/cmd_bgp.go -- BGP suite routing -->
+<!-- source: internal/test/cli/ci_runner.go -- shared .ci suites -->
+<!-- source: internal/test/cli/cmd_editor.go -- .et suite runner -->
+<!-- source: internal/test/cli/cmd_web.go -- .wb suite runner -->
+<!-- source: internal/test/cli/cmd_vpp.go -- VPP stub-backed suite runner -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- ExaBGP compatibility runner -->
 
 ---
 
@@ -460,7 +460,7 @@ bin/ze-test vpp -l
 bin/ze-test vpp 001-boot
 bin/ze-test vpp -a
 ```
-<!-- source: cmd/ze/ze_test_vpp.go -- vppCmd wires EncodingTests to test/vpp/ -->
+<!-- source: internal/test/cli/cmd_vpp.go -- vppCmd wires EncodingTests to test/vpp/ -->
 
 ### 6. Backend Apply-Path Unit Tests (Go `_test.go`)
 
@@ -515,7 +515,7 @@ installer initrd shell helpers. The QEMU evidence entries run Python drivers
 that self-skip when external prerequisites are missing, printing either
 `INSTALL-QEMU: SKIP` or `INSTALL-ISO-QEMU: SKIP` while exiting successfully.
 Real failures exit non-zero.
-<!-- source: cmd/ze/ze_test_install.go -- installCmd -->
+<!-- source: internal/test/cli/register.go -- installCmd -->
 <!-- source: test/install/qemu-full.ci -- PXE installer evidence entry -->
 <!-- source: test/install/qemu-iso.ci -- ISO installer evidence entry -->
 
@@ -566,11 +566,11 @@ Common run options:
 | `--port N` | Base port for BGP/VPP `.ci` runners or web server port |
 | `-c`, `--count N` | BGP `.ci` stress mode, run each selected test N times |
 | `--server ID`, `--client ID` | BGP `.ci` manual split-debug modes |
-<!-- source: cmd/ze/ze_test_bgp.go -- parseRunCLI, printRunUsage -->
-<!-- source: cmd/ze/ze_test_ci_runner.go -- runCISubcommand -->
-<!-- source: cmd/ze/ze_test_vpp.go -- parseVPPCLI, printVPPUsage -->
-<!-- source: cmd/ze/ze_test_editor.go -- editorMain -->
-<!-- source: cmd/ze/ze_test_web.go -- webMain -->
+<!-- source: internal/test/cli/cmd_bgp.go -- parseRunCLI, printRunUsage -->
+<!-- source: internal/test/cli/ci_runner.go -- runCISubcommand -->
+<!-- source: internal/test/cli/cmd_vpp.go -- parseVPPCLI, printVPPUsage -->
+<!-- source: internal/test/cli/cmd_editor.go -- editorMain -->
+<!-- source: internal/test/cli/cmd_web.go -- webMain -->
 
 ---
 
@@ -907,8 +907,8 @@ as `ui`, `managed`, `l2tp`, `firewall`, `policy`, `web`, and `install`:
 ```
 ═══════════════════════ encode ════════════════════════════════════════════════
 ```
-<!-- source: cmd/ze/ze_test_bgp.go -- BGP suite headers -->
-<!-- source: cmd/ze/ze_test_ci_runner.go -- top-level .ci suite headers -->
+<!-- source: internal/test/cli/cmd_bgp.go -- BGP suite headers -->
+<!-- source: internal/test/cli/ci_runner.go -- top-level .ci suite headers -->
 
 ### Summary
 
@@ -1179,12 +1179,12 @@ The test passes if:
 | `security.go` | Path validation (traversal, escape) |
 | `cleanup.go` | Signal handling for temp cleanup |
 
-### Entry Point: `cmd/ze/ze_test_*.go`
+### Entry Point: `internal/test/cli/*.go`
 
-<!-- source: cmd/ze/ze_test_register.go -- test runner entry point -->
-<!-- source: cmd/ze/ze_test_bgp.go -- bgp test subcommand -->
-<!-- source: cmd/ze/ze_test_syslog.go -- syslog server subcommand -->
-<!-- source: cmd/ze/ze_test_rpki.go -- RPKI mock RTR subcommand -->
+<!-- source: internal/test/cli/register.go -- test runner entry point -->
+<!-- source: internal/test/cli/cmd_bgp.go -- bgp test subcommand -->
+<!-- source: internal/test/cli/cmd_syslog.go -- syslog server subcommand -->
+<!-- source: internal/test/mock/rpki/rpki.go -- RPKI mock RTR subcommand -->
 
 Subcommand-based CLI with `bgp` for BGP test execution, `syslog` for syslog server, and `rpki` for deterministic RPKI mock RTR server.
 
@@ -1211,7 +1211,7 @@ Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 
 ExaBGP compatibility tests (`make ze-exabgp-test` or `bin/ze-test exabgp --all`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The Go runner reads this line from the server process output and passes the discovered port to the ExaBGP wrapper client. This eliminates port collisions when running concurrent test instances. Use `--server ID --port N` and `--client ID --port N` for split-terminal debugging.
 <!-- source: test/exabgp-compat/bin/bgp -- dynamic port binding and PORT line output -->
-<!-- source: cmd/ze/ze_test_exabgp.go -- waitExaBGPPort and split debug modes -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- waitExaBGPPort and split debug modes -->
 
 ### ExaBGP Verify Output
 
@@ -1223,7 +1223,7 @@ ze-exabgp-test` runs:
 ```bash
 uv run --with paramiko bin/ze-test exabgp --all --timeout 180s
 ```
-<!-- source: cmd/ze/ze_test_exabgp.go -- standard selection and progress output -->
+<!-- source: internal/test/cli/cmd_exabgp.go -- standard selection and progress output -->
 <!-- source: Makefile -- ze-exabgp-test -->
 
 ---
@@ -1265,7 +1265,7 @@ Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure
 Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run all editor tests with `make ze-editor-test` or `bin/ze-test editor --all`; select one with `bin/ze-test editor ID_OR_NAME`.
 
 <!-- source: internal/component/cli/testing/parser.go -- .et file parser -->
-<!-- source: cmd/ze/ze_test_editor.go -- editorMain selection flags -->
+<!-- source: internal/test/cli/cmd_editor.go -- editorMain selection flags -->
 
 ### Key Directives
 
@@ -1575,7 +1575,7 @@ appliance route inject/withdraw logs.
 | Max sessions | `test/parse/l2tp-max-sessions.ci` | `max-sessions` value accepted |
 | Auth policy | `test/parse/l2tp-auth-policy.ci` | `auth-method` and `allow-no-auth` values accepted |
 
-<!-- source: cmd/ze/ze_test_l2tp.go -- l2tpCmd runner dispatch -->
+<!-- source: internal/test/cli/register.go -- l2tpCmd runner dispatch -->
 <!-- source: internal/test/runner/record_parse.go -- .ci discovery and directive parsing -->
 
 ### L2TP scale tests
@@ -1604,7 +1604,7 @@ ze-test l2tp-scale --help                        # simulator CLI help
 | Pool exhaustion | `test/l2tp-scale/pool-exhaustion/` | Sessions beyond pool size rejected |
 | Slow RADIUS | `test/l2tp-scale/slow-radius/` | Sessions established under 500ms RADIUS delay |
 
-<!-- source: cmd/ze/ze_test_l2tp_scale.go -- LAC simulator + mock RADIUS -->
+<!-- source: internal/test/cli/cmd_l2tp_scale.go -- LAC simulator + mock RADIUS -->
 
 ---
 

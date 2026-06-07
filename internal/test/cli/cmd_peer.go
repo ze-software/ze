@@ -1,10 +1,10 @@
 // Design: docs/architecture/testing/ci-format.md — test runner CLI
 
-//go:build ze_test
 
-package main
+package cli
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"errors"
 	"flag"
@@ -19,6 +19,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 )
 
+func init() {
+	Register("peer", cmdPeer, subdispatch.SubMeta{Desc: "BGP test peer (sink/echo/check modes)"})
+}
+
 var errModeInjectRequiresInjectPrefixInject = errors.New("--mode inject requires --inject-prefix, --inject-count (>0), --inject-nexthop, --inject-asn (>0)")
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -29,7 +33,7 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
-func zeTestPeerCmd(args []string) int {
+func cmdPeer(args []string) int {
 	config, ok := zeTestParsePeerFlags(args)
 	if config == nil {
 		if ok {

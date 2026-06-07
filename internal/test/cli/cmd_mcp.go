@@ -1,10 +1,10 @@
 // Design: docs/architecture/testing/ci-format.md -- MCP test client
 
-//go:build ze_test
 
-package main
+package cli
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"bufio"
 	"bytes"
 	"context"
@@ -20,12 +20,16 @@ import (
 	"time"
 )
 
+func init() {
+	Register("mcp", cmdMcp, subdispatch.SubMeta{Desc: "MCP client (send commands to daemon via MCP endpoint)"})
+}
+
 var (
 	errCommandErrorNoDetail            = errors.New("command error (no detail)")
 	errElicitationCreateFrameMissingId = errors.New("elicitation/create frame missing id")
 )
 
-func zeTestMcpCmd(args []string) int {
+func cmdMcp(args []string) int {
 	fs := flag.NewFlagSet("ze-test mcp", flag.ContinueOnError)
 	port := fs.String("port", "", "MCP server port (required)")
 	token := fs.String("token", "", "Bearer token for MCP authentication")

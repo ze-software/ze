@@ -360,4 +360,4 @@ The test measures session establishment rate, RADIUS auth/accounting
 handling, IP pool allocation correctness, and teardown completeness without
 requiring root, kernel modules, or Docker.
 
-<!-- source: cmd/ze/ze_test_l2tp_scale.go -- LAC simulator + mock RADIUS -->
+<!-- source: internal/test/cli/cmd_l2tp_scale.go -- LAC simulator + mock RADIUS -->

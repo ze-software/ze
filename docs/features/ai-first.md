@@ -2,7 +2,7 @@
 
 <!-- source: internal/component/mcp/handler.go -- MCP HTTP handler -->
 <!-- source: cmd/ze/help_ai.go -- ze help --ai machine-readable reference -->
-<!-- source: cmd/ze/ze_test_mcp.go -- MCP test client -->
+<!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
 <!-- source: ai/rules/discovery-updates.md -- Current Discovery Surfaces -->
 <!-- source: mk/inventory.mk -- ze-inventory and documentation targets -->
 
