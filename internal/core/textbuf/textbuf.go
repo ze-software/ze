@@ -206,21 +206,80 @@ func (b *Buffer) Repeat(s string, n int) *Buffer {
 func (b *Buffer) PadRight(s string, width int) *Buffer {
 	b.mustBeWritable()
 	b.b = append(b.b, s...)
-	for range width - len(s) {
+	for range width - utf8.RuneCountInString(s) {
 		b.b = append(b.b, ' ')
 	}
 	return b
 }
 
-func (b *Buffer) Float2(v float64) *Buffer {
+func (b *Buffer) Float(v float64, prec int) *Buffer {
 	b.mustBeWritable()
-	b.b = strconv.AppendFloat(b.b, v, 'f', 2, 64)
+	b.b = strconv.AppendFloat(b.b, v, 'f', prec, 64)
 	return b
+}
+
+func (b *Buffer) Float2(v float64) *Buffer {
+	return b.Float(v, 2)
 }
 
 func (b *Buffer) Bool(v bool) *Buffer {
 	b.mustBeWritable()
 	b.b = strconv.AppendBool(b.b, v)
+	return b
+}
+
+func (b *Buffer) Prefix(p netip.Prefix) *Buffer {
+	b.mustBeWritable()
+	b.b = p.AppendTo(b.b)
+	return b
+}
+
+func (b *Buffer) Quoted(s string) *Buffer {
+	b.mustBeWritable()
+	b.b = strconv.AppendQuote(b.b, s)
+	return b
+}
+
+func (b *Buffer) Err(err error) *Buffer {
+	b.mustBeWritable()
+	if err != nil {
+		b.b = append(b.b, err.Error()...)
+	}
+	return b
+}
+
+func (b *Buffer) MAC(mac []byte) *Buffer {
+	b.mustBeWritable()
+	if len(mac) < 6 {
+		return b
+	}
+	const digits = "0123456789abcdef"
+	for i := range 6 {
+		if i > 0 {
+			b.b = append(b.b, ':')
+		}
+		b.b = append(b.b, digits[mac[i]>>4], digits[mac[i]&0x0f])
+	}
+	return b
+}
+
+func (b *Buffer) Join(items []string, sep string) *Buffer {
+	b.mustBeWritable()
+	for i, s := range items {
+		if i > 0 {
+			b.b = append(b.b, sep...)
+		}
+		b.b = append(b.b, s...)
+	}
+	return b
+}
+
+func (b *Buffer) PadLeft(s string, width int) *Buffer {
+	b.mustBeWritable()
+	for range width - utf8.RuneCountInString(s) {
+		b.b = append(b.b, ' ')
+	}
+	b.b = append(b.b, s...)
 	return b
 }
 
@@ -345,6 +404,24 @@ func AppendHex(dst, data []byte) []byte {
 	return hex.AppendEncode(dst, data)
 }
 
+func AppendPrefix(dst []byte, p netip.Prefix) []byte {
+	return p.AppendTo(dst)
+}
+
+func AppendMAC(dst, mac []byte) []byte {
+	if len(mac) < 6 {
+		return dst
+	}
+	const digits = "0123456789abcdef"
+	for i := range 6 {
+		if i > 0 {
+			dst = append(dst, ':')
+		}
+		dst = append(dst, digits[mac[i]>>4], digits[mac[i]&0x0f])
+	}
+	return dst
+}
+
 func IntStr(v int64, suffix string) string {
 	var b Buffer
 	return b.Reset().Int(v).Str(suffix).String()
@@ -373,4 +450,50 @@ func StrIntStr(prefix string, v int64, suffix string) string {
 func StrUintStr(prefix string, v uint64, suffix string) string {
 	var b Buffer
 	return b.Reset().Str(prefix).Uint(v).Str(suffix).String()
+}
+
+func Prefix(p netip.Prefix) string {
+	var buf [43]byte
+	return string(p.AppendTo(buf[:0]))
+}
+
+func MAC(mac []byte) string {
+	if len(mac) < 6 {
+		return ""
+	}
+	const digits = "0123456789abcdef"
+	var buf [17]byte
+	for i := range 6 {
+		if i > 0 {
+			buf[i*3-1] = ':'
+		}
+		buf[i*3] = digits[mac[i]>>4]
+		buf[i*3+1] = digits[mac[i]&0x0f]
+	}
+	return string(buf[:])
+}
+
+func HostPort(host string, port uint16) string {
+	var b Buffer
+	return b.Reset().Str(host).Byte(':').Uint(uint64(port)).String()
+}
+
+func Join(items []string, sep string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	if len(items) == 1 {
+		return items[0]
+	}
+	n := (len(items) - 1) * len(sep)
+	for _, s := range items {
+		n += len(s)
+	}
+	var b Buffer
+	b.Reset(n)
+	b.Str(items[0])
+	for _, s := range items[1:] {
+		b.Str(sep).Str(s)
+	}
+	return b.String()
 }

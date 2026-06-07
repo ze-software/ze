@@ -1,6 +1,7 @@
 package textbuf
 
 import (
+	"errors"
 	"math"
 	"net/netip"
 	"strings"
@@ -389,4 +390,340 @@ func TestWriteAfterStringHeap(t *testing.T) {
 	s2 := b.Str("after").String()
 	assert.Equal(t, "after", s2)
 	assert.Equal(t, long, s1)
+}
+
+func TestHexUpper(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "", HexUpper(nil))
+	assert.Equal(t, "", HexUpper([]byte{}))
+	assert.Equal(t, "DEADBEEF", HexUpper([]byte{0xde, 0xad, 0xbe, 0xef}))
+	assert.Equal(t, "00FF", HexUpper([]byte{0x00, 0xff}))
+	assert.Equal(t, "0123456789ABCDEF", HexUpper([]byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}))
+}
+
+func TestHexUpperLarge(t *testing.T) {
+	t.Parallel()
+	data := make([]byte, 65)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	got := HexUpper(data)
+	assert.Len(t, got, 130)
+	assert.True(t, strings.HasPrefix(got, "000102"))
+	assert.True(t, strings.HasSuffix(got, "40"))
+}
+
+func TestHexBoundary(t *testing.T) {
+	t.Parallel()
+	data := make([]byte, 32)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	got := Hex(data)
+	assert.Len(t, got, 64)
+	assert.True(t, strings.HasPrefix(got, "000102"))
+	assert.True(t, strings.HasSuffix(got, "1f"))
+
+	data33 := make([]byte, 33)
+	for i := range data33 {
+		data33[i] = byte(i)
+	}
+	got33 := Hex(data33)
+	assert.Len(t, got33, 66)
+}
+
+func TestHexUpperBoundary(t *testing.T) {
+	t.Parallel()
+	data := make([]byte, 64)
+	for i := range data {
+		data[i] = byte(i)
+	}
+	got := HexUpper(data)
+	assert.Len(t, got, 128)
+	assert.True(t, strings.HasPrefix(got, "000102"))
+
+	data65 := make([]byte, 65)
+	for i := range data65 {
+		data65[i] = byte(i)
+	}
+	got65 := HexUpper(data65)
+	assert.Len(t, got65, 130)
+}
+
+func TestBufferHexUpper(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	got := b.Reset().HexUpper([]byte{0xca, 0xfe, 0xba, 0xbe}).String()
+	assert.Equal(t, "CAFEBABE", got)
+}
+
+func TestResetWithSize(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+
+	b.Reset(256)
+	assert.GreaterOrEqual(t, cap(b.b), 256)
+	b.Str(strings.Repeat("x", 200))
+	assert.Equal(t, 200, b.Len())
+
+	b.Reset(64)
+	assert.Equal(t, 0, b.Len())
+	got := b.Str("hello").String()
+	assert.Equal(t, "hello", got)
+
+	b.Reset(300)
+	assert.GreaterOrEqual(t, cap(b.b), 300)
+	b.Reset(200)
+	assert.GreaterOrEqual(t, cap(b.b), 200)
+	got = b.Str("ok").String()
+	assert.Equal(t, "ok", got)
+}
+
+func TestResetSizeBelowInline(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset(64)
+	got := b.Str("short").String()
+	assert.Equal(t, "short", got)
+}
+
+func TestGrowBoundary(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset()
+	b.Str("hello")
+	remaining := cap(b.b) - len(b.b)
+	b.Grow(remaining)
+	assert.Equal(t, 5, b.Len())
+	got := b.Str(" world").String()
+	assert.Equal(t, "hello world", got)
+
+	b.Reset()
+	b.Str("x")
+	b.Grow(200)
+	assert.GreaterOrEqual(t, cap(b.b), 201)
+	got = b.Str(strings.Repeat("y", 200)).String()
+	assert.Equal(t, "x"+strings.Repeat("y", 200), got)
+}
+
+func TestGrowZeroOrNegative(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset().Str("hello")
+	b.Grow(0)
+	b.Grow(-1)
+	assert.Equal(t, "hello", b.String())
+}
+
+func TestWriteRuneBoundary(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset()
+	n, err := b.WriteRune(0x7f)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, "\x7f", b.String())
+
+	b.Reset()
+	n, err = b.WriteRune(0x80)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, n)
+	assert.Equal(t, string(rune(0x80)), b.String())
+}
+
+func TestColored(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset()
+	b.Colored(ColorBoldRed).Str("warn").Colored(ColorReset)
+	assert.Equal(t, "warn", b.String())
+
+	b.Reset()
+	b.SetColor(true)
+	b.Colored(ColorBoldRed).Str("warn").Colored(ColorReset)
+	assert.Equal(t, "\033[1;31mwarn\033[0m", b.String())
+
+	b.Reset()
+	b.SetColor(false)
+	b.Colored(ColorBrightGreen).Str("ok")
+	assert.Equal(t, "ok", b.String())
+}
+
+func TestGetPoolInlineAfterString(t *testing.T) {
+	t.Parallel()
+	b := Get()
+	b.Str(strings.Repeat("x", 200))
+	_ = b.String()
+	assert.Equal(t, len(b.arr), cap(b.b))
+	b.Release()
+}
+
+func TestGetPoolResetsColor(t *testing.T) {
+	t.Parallel()
+	b := Get()
+	b.SetColor(true)
+	b.Colored(ColorBoldRed).Str("red")
+	_ = b.String()
+	b.Release()
+
+	b2 := Get()
+	b2.Colored(ColorBoldRed).Str("plain")
+	assert.Equal(t, "plain", b2.String())
+	b2.Release()
+}
+
+func TestHexAllocBoundary(t *testing.T) {
+	data32 := make([]byte, 32)
+	allocs := testing.AllocsPerRun(10, func() {
+		_ = Hex(data32)
+	})
+	assert.LessOrEqual(t, allocs, 1.0)
+
+	data33 := make([]byte, 33)
+	allocs = testing.AllocsPerRun(10, func() {
+		_ = Hex(data33)
+	})
+	assert.LessOrEqual(t, allocs, 2.0)
+}
+
+func TestHexUpperAllocBoundary(t *testing.T) {
+	data64 := make([]byte, 64)
+	allocs := testing.AllocsPerRun(10, func() {
+		_ = HexUpper(data64)
+	})
+	assert.LessOrEqual(t, allocs, 1.0)
+
+	data65 := make([]byte, 65)
+	allocs = testing.AllocsPerRun(10, func() {
+		_ = HexUpper(data65)
+	})
+	assert.LessOrEqual(t, allocs, 2.0)
+}
+
+func TestGrowExactCapacity(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	b.Reset()
+	b.Str("hi")
+	remaining := cap(b.b) - len(b.b)
+	b.Grow(remaining)
+	got := b.Str(strings.Repeat("x", remaining)).String()
+	assert.Len(t, got, 2+remaining)
+
+	b.Reset()
+	b.Str("hi")
+	b.Grow(remaining + 1)
+	assert.GreaterOrEqual(t, cap(b.b), 2+remaining+1)
+}
+
+func TestPrefix(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "10.0.0.0/24", Prefix(netip.MustParsePrefix("10.0.0.0/24")))
+	assert.Equal(t, "2001:db8::/32", Prefix(netip.MustParsePrefix("2001:db8::/32")))
+	assert.Equal(t, "0.0.0.0/0", Prefix(netip.MustParsePrefix("0.0.0.0/0")))
+}
+
+func TestMAC(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "de:ad:be:ef:ca:fe", MAC([]byte{0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe}))
+	assert.Equal(t, "00:00:00:00:00:00", MAC([]byte{0, 0, 0, 0, 0, 0}))
+	assert.Equal(t, "", MAC([]byte{0xde, 0xad}))
+	assert.Equal(t, "", MAC(nil))
+}
+
+func TestHostPort(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "127.0.0.1:8080", HostPort("127.0.0.1", 8080))
+	assert.Equal(t, "localhost:22", HostPort("localhost", 22))
+	assert.Equal(t, "10.0.0.1:179", HostPort("10.0.0.1", 179))
+	assert.Equal(t, "0.0.0.0:0", HostPort("0.0.0.0", 0))
+	assert.Equal(t, "host:65535", HostPort("host", 65535))
+}
+
+func TestJoin(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "", Join(nil, ", "))
+	assert.Equal(t, "", Join([]string{}, ", "))
+	assert.Equal(t, "one", Join([]string{"one"}, ", "))
+	assert.Equal(t, "a, b, c", Join([]string{"a", "b", "c"}, ", "))
+	assert.Equal(t, "x:y:z", Join([]string{"x", "y", "z"}, ":"))
+	assert.Equal(t, "ab", Join([]string{"a", "b"}, ""))
+}
+
+func TestBufferPrefix(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	got := b.Reset().Str("pfx=").Prefix(netip.MustParsePrefix("192.168.1.0/24")).String()
+	assert.Equal(t, "pfx=192.168.1.0/24", got)
+}
+
+func TestBufferQuoted(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, `"hello"`, b.Reset().Quoted("hello").String())
+	assert.Equal(t, `"has \"quotes\""`, b.Reset().Quoted(`has "quotes"`).String())
+	assert.Equal(t, `"tab\there"`, b.Reset().Quoted("tab\there").String())
+}
+
+func TestBufferErr(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "open: file not found", b.Reset().Str("open: ").Err(errors.New("file not found")).String())
+	assert.Equal(t, "ok", b.Reset().Str("ok").Err(nil).String())
+}
+
+func TestBufferMAC(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	got := b.Reset().Str("src=").MAC([]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}).String()
+	assert.Equal(t, "src=aa:bb:cc:dd:ee:ff", got)
+	assert.Equal(t, "empty", b.Reset().Str("empty").MAC([]byte{1, 2}).String())
+}
+
+func TestBufferJoin(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "a, b, c", b.Reset().Join([]string{"a", "b", "c"}, ", ").String())
+	assert.Equal(t, "pre:x|y", b.Reset().Str("pre:").Join([]string{"x", "y"}, "|").String())
+	assert.Equal(t, "", b.Reset().Join(nil, ",").String())
+}
+
+func TestBufferFloat(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "99.5", b.Reset().Float(99.5, 1).String())
+	assert.Equal(t, "3.14", b.Reset().Float(3.14159, 2).String())
+	assert.Equal(t, "100.0", b.Reset().Float(100.0, 1).String())
+}
+
+func TestBufferPadLeft(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "   42", b.Reset().PadLeft("42", 5).String())
+	assert.Equal(t, "exact", b.Reset().PadLeft("exact", 5).String())
+	assert.Equal(t, "toolong", b.Reset().PadLeft("toolong", 3).String())
+	assert.Equal(t, "   ", b.Reset().PadLeft("", 3).String())
+	assert.Equal(t, "  éà", b.Reset().PadLeft("éà", 4).String())
+}
+
+func TestPadRightRunes(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "éà   ", b.Reset().PadRight("éà", 5).String())
+	assert.Equal(t, "abc  ", b.Reset().PadRight("abc", 5).String())
+}
+
+func TestAppendPrefix(t *testing.T) {
+	t.Parallel()
+	dst := []byte("route=")
+	dst = AppendPrefix(dst, netip.MustParsePrefix("10.0.0.0/8"))
+	assert.Equal(t, "route=10.0.0.0/8", string(dst))
+}
+
+func TestAppendMAC(t *testing.T) {
+	t.Parallel()
+	dst := []byte("mac=")
+	dst = AppendMAC(dst, []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab})
+	assert.Equal(t, "mac=01:23:45:67:89:ab", string(dst))
+	assert.Equal(t, "short", string(AppendMAC([]byte("short"), []byte{1, 2})))
 }
