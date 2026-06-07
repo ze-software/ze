@@ -37,10 +37,11 @@ Last updated: 2026-06-07
 | BGP4MP (16) | Encode | Yes | Yes | No | Yes | Yes | Yes |
 | BGP4MP_ET (17) | Encode | Yes | No | Yes | No | No | No |
 
-Ze has encoders for all types. The ze-chaos tool uses BGP4MP encoders to produce
-MRT recordings from chaos test sessions (`--mrt-file` flag). The daemon component
-is not yet wired to the BGP event pipeline; daemon-side dump production requires
-Phase 2 EventDispatcher integration.
+Ze has encoders for all types. The daemon component produces live BGP4MP records
+from the reactor via MessageObserver (raw wire bytes, async non-blocking writes).
+Periodic TABLE_DUMP_V2 RIB snapshots use a cross-plugin bridge to iterate the
+RIB under short per-family locks. The ze-chaos tool also uses BGP4MP encoders
+to produce MRT recordings from chaos test sessions (`--mrt-file` flag).
 
 ### Read (parse MRT files)
 
@@ -208,11 +209,11 @@ timestamps and all sub-type variants.
 
 | Action | Ze | GoBGP | freeRtr | bgpkit-parser |
 |--------|-----|-------|---------|---------------|
-| Inject into local RIB | Planned | Yes (gRPC AddPathStream) | Yes (mrt2self) | No |
-| Replay over BGP session | Planned | No | Yes (mrt2bgp) | No |
-| Convert to BMP | Planned | No | Yes (mrt2bmp) | No |
-| Convert to pcap | Planned | No | Yes (mrt2pcap) | No |
-| Convert to text | No | No | Yes (mrt2full, mrt2sum) | No |
+| Inject into local RIB | Yes | Yes (gRPC AddPathStream) | Yes (mrt2self) | No |
+| Replay over BGP session | Yes | No | Yes (mrt2bgp) | No |
+| Convert to BMP | No | No | Yes (mrt2bmp) | No |
+| Convert to pcap | Yes | No | Yes (mrt2pcap) | No |
+| Convert to text | Yes (`show`) | No | Yes (mrt2full, mrt2sum) | No |
 | Convert text to MRT | No | No | Yes (txt2mrt) | No |
 | Statistics/summary | Yes (`ze-analyse statistics`) | No | Yes (mrt2stat) | No |
 | Policy-based filtering | Yes (`ze-analyse filter`) | No | Yes (mrtfilter) | No |
@@ -222,9 +223,10 @@ timestamps and all sub-type variants.
 | Compressed input | Yes (gz, bz2) | Yes (gz, bz2) | No | Yes (gz, bz2, zstd, lz4, xz) |
 | HTTP/HTTPS URL input | No | No | No | Yes |
 
-freeRtr has the richest MRT tooling. Ze has statistics and filtering with
-compressed input today; inject, replay, and convert are registered as stubs.
-bgpkit-parser covers read/filter/write as a library.
+freeRtr has the richest MRT tooling. Ze has statistics, filtering, inject,
+replay, show (human-readable dump), routes (prefix table extraction), and
+convert (pcap, json) with compressed input. bgpkit-parser covers
+read/filter/write as a library.
 
 ## Additional MRT-Adjacent Features
 
@@ -253,7 +255,7 @@ bgpkit-parser covers read/filter/write as a library.
 | Richest tooling | freeRtr | Eight MRT tools (mrt2pcap, mrt2bmp, mrt2bgp, mrt2self, mrt2stat, mrt2sum, mrt2flt, mrtfilter, txt2mrt) plus BMP-to-MRT and MRT-to-BGP servers |
 | Most complete parser | Ze, bgpkit-parser | Every RFC 6396/6397/8050 type/sub-type decoded, including GEO_PEER_TABLE, all add-path variants, TABLE_DUMP v1, BGP4MP_ET |
 | Most complete encoder | Ze | Only implementation with tested buffer-first encoders for every MRT record type (TABLE_DUMP v1, TABLE_DUMP_V2 all subtypes, BGP4MP all subtypes, add-path, ET) |
-| Direction filtering | OpenBGPD | Only implementation with in/out dump separation |
+| Direction filtering | OpenBGPD, Ze | In/out dump separation |
 | Route filtering on dump | BIRD 3 | Only implementation applying arbitrary route filters during MRT export |
 
 ## Ze Status
@@ -262,9 +264,9 @@ Ze's MRT support spans three packages:
 
 | Package | Status | Capabilities |
 |---------|--------|-------------|
-| `internal/mrt/` | Complete | Encode + decode all RFC 6396/6397/8050 types. File writer with strftime rotation. File reader with gz/bz2 decompression. 16 round-trip tests. |
-| `internal/analyze/` | Partial | `statistics` (full: type/subtype/AFI/peer counts, timestamp range, BGP message types). `filter` (full: peer-ip, peer-asn, prefix, type, timestamp range, writes filtered MRT). `inject`, `replay`, `convert` registered as stubs. |
-| `internal/component/mrt/` | Scaffold | Component lifecycle, config, event handlers exist. Not wired to BGP EventDispatcher (raw wire bytes) or RIB iteration (TABLE_DUMP_V2 snapshots). |
+| `internal/mrt/` | Complete | Encode + decode all RFC 6396/6397/8050 types. BGP message deep decode (attributes, AS path, prefixes, communities). File writer with strftime rotation. File reader with gz/bz2 decompression. 16 round-trip tests + 18 BGP parse tests. |
+| `internal/analyze/` | Complete | `statistics` (type/subtype/AFI/peer counts, timestamp range, BGP message types). `filter` (peer-ip, peer-asn, prefix, type, timestamp range, writes filtered MRT). `inject` (opens BGP session, sends TABLE_DUMP_V2/BGP4MP UPDATEs). `replay` (BGP4MP replay preserving timing, configurable speed). `convert pcap` (BGP4MP to pcap, IPv4). `convert json` (record headers as JSON). `show` (human-readable dump). `routes` (prefix table extraction as JSON). |
+| `internal/component/mrt/` | Complete | YANG config (`ze-mrt-conf.yang`). Reactor MessageObserver for raw wire bytes. Async non-blocking writes (4096-record channel). Periodic TABLE_DUMP_V2 via cross-plugin RIB bridge (snapshot-under-lock). Per-peer and direction filtering. On-demand CLI dump (`request mrt dump-rib`). Extended timestamps. Add-path aware. State change recording. |
 
 ## RFCs Covered
 

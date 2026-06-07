@@ -129,19 +129,118 @@ bin/ze-analyze mrt-dump test/internet/ripe-updates.*.gz | head -5
 bin/ze-analyze mrt-dump test/internet/latest-bview.gz | bin/ze bgp decode -
 ```
 
+### show
+
+Human-readable MRT dump (like bgpdump). Displays record headers, peer info, and
+decoded BGP message contents including attributes, AS paths, and prefixes.
+
+<!-- source: internal/analyze/show.go -- human-readable MRT dump -->
+
+```
+bin/ze-analyze show test/internet/ripe-updates.*.gz | head -50
+bin/ze-analyze show test/internet/latest-bview.gz
+```
+
+### routes
+
+Extracts a prefix table from TABLE_DUMP_V2 files as JSON. Each entry includes
+prefix, next-hop, AS path, origin, local-pref, MED, and communities.
+
+<!-- source: internal/analyze/routes.go -- prefix table extraction -->
+
+```
+bin/ze-analyze routes test/internet/latest-bview.gz | jq '.[] | select(.prefix == "1.0.0.0/24")'
+```
+
+### inject
+
+Opens a BGP session to a remote peer and sends routes from an MRT file.
+Supports both TABLE_DUMP_V2 (RIB entries) and BGP4MP (UPDATE messages).
+
+<!-- source: internal/analyze/inject.go -- BGP session injection -->
+
+```
+bin/ze-analyze inject --target 10.0.0.1:179 --local-as 65000 --peer-as 65001 test/internet/latest-bview.gz
+```
+
+### replay
+
+Replays BGP4MP messages over a BGP session preserving original inter-message
+timing. Configurable speed multiplier.
+
+<!-- source: internal/analyze/replay.go -- timed BGP4MP replay -->
+
+```
+bin/ze-analyze replay --target 10.0.0.1:179 --local-as 65000 --peer-as 65001 --speed 10 test/internet/ripe-updates.*.gz
+```
+
+### convert
+
+Converts MRT records to other formats.
+
+<!-- source: internal/analyze/convert.go -- format conversion -->
+
+```
+bin/ze-analyze convert pcap -o output.pcap test/internet/ripe-updates.*.gz   # BGP4MP to pcap (IPv4 only)
+bin/ze-analyze convert json test/internet/ripe-updates.*.gz | jq .           # record headers as JSON
+```
+
+### statistics
+
+Per-type/subtype counts, AFI breakdown, peer summary, timestamp range, and
+BGP message type distribution.
+
+<!-- source: internal/analyze/statistics.go -- MRT statistics -->
+
+```
+bin/ze-analyze statistics test/internet/ripe-updates.*.gz
+```
+
+### filter
+
+Select records by peer IP, peer ASN, prefix, MRT type, or timestamp range.
+Writes matching records verbatim (no re-encoding) to a new MRT file.
+
+<!-- source: internal/analyze/filter.go -- MRT record filtering -->
+
+```
+bin/ze-analyze filter --peer-asn 13335 -o cloudflare.mrt test/internet/latest-bview.gz
+bin/ze-analyze filter --prefix 1.0.0.0/24 --after 2026-06-01 test/internet/ripe-updates.*.gz
+```
+
 ## MRT File Formats
 
 The tool handles two MRT record types (RFC 6396):
 
 | Type | Records | Used By |
 |------|---------|---------|
-| TABLE_DUMP_V2 | RIB snapshots (one entry per route per peer) | attributes, communities, count-attrs, mrt-dump |
-| BGP4MP | Live UPDATE messages with timestamps | density, attributes, communities, mrt-dump |
+| TABLE_DUMP_V2 | RIB snapshots (one entry per route per peer) | attributes, communities, count-attrs, mrt-dump, show, routes, inject, filter |
+| BGP4MP | Live UPDATE messages with timestamps | density, attributes, communities, mrt-dump, show, inject, replay, convert, filter |
 
 Both `.gz` and `.bz2` compressed files are supported.
 
+## Daemon MRT Recording
+
+Ze produces MRT dumps from live BGP sessions via the `mrt` component. Configure
+under `mrt {}` in the YANG config:
+
+<!-- source: internal/component/mrt/schema/ze-mrt-conf.yang -- YANG config schema -->
+<!-- source: internal/component/mrt/component.go -- daemon MRT component -->
+
+Three independent streams (following FRR's model):
+1. **Updates** -- BGP4MP records for UPDATE messages only
+2. **All** -- BGP4MP records for all BGP messages + state changes
+3. **Routes** -- periodic TABLE_DUMP_V2 RIB snapshots
+
+Features: per-peer filtering, direction filtering (received/sent), extended
+timestamps (BGP4MP_ET), add-path aware, on-demand CLI dump via
+`request mrt dump-rib`, strftime filename rotation, async non-blocking writes.
+
 ## Related
 
+- [MRT Architecture](../architecture/mrt.md) -- package structure and design
+- [MRT Implementation Comparison](../research/mrt-implementation-comparison.md) -- feature
+  comparison across BGP implementations
 - [Update Density Analysis](../architecture/update-density-analysis.md) -- empirical
   findings that inform forward pool channel sizing
 - [Forward Congestion Pool](../architecture/forward-congestion-pool.md) -- the design
