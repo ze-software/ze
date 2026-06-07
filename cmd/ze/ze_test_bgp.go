@@ -310,9 +310,6 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 		r.Display().StressSummary(result, cli.count)
 	} else {
 		success = r.Run(ctx, opts)
-		r.Display().Summary()
-		r.Display().TimingDetail(cli.command, r.Timings())
-		r.Display().DebugHints()
 	}
 
 	if !success {

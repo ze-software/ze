@@ -135,12 +135,15 @@ func TestLikelyCauseEmptyClient(t *testing.T) {
 	assert.Contains(t, output, "LIKELY CAUSE:", "must have LIKELY CAUSE section")
 }
 
-// TestRunnerPrintFailureReportsGatesVerifyGroups verifies that verify-only
-// failure-group metadata is hidden from ordinary ze-test output.
+// TestReportGatesVerifyGroups verifies that verify-only failure-group
+// metadata is separate from the always-shown failure details.
 //
-// VALIDATES: Native `VERIFY FAILURE GROUP:` blocks appear only in verify mode.
+// VALIDATES: PrintFailureGroups emits VERIFY FAILURE GROUP blocks;
+//
+//	PrintAllFailures emits TEST FAILURE blocks.
+//
 // PREVENTS: Machine-oriented verify metadata leaking into normal CLI failures.
-func TestRunnerPrintFailureReportsGatesVerifyGroups(t *testing.T) {
+func TestReportGatesVerifyGroups(t *testing.T) {
 	tests := NewEncodingTests(t.TempDir())
 	rec := tests.Add("ui-failure")
 	rec.Active = true
@@ -148,33 +151,25 @@ func TestRunnerPrintFailureReportsGatesVerifyGroups(t *testing.T) {
 	rec.Error = errors.New("broken")
 	rec.CIFile = "test/ui/ui-failure.ci"
 
-	r := &Runner{
-		tests:  tests,
-		report: NewReport(NewColorsWithOverride(false)),
-	}
-	r.report.SetLabel("ui")
+	report := NewReport(NewColorsWithOverride(false))
+	report.SetLabel("ui")
 
 	var buf bytes.Buffer
-	r.report.SetOutput(&buf)
+	report.SetOutput(&buf)
 
-	t.Setenv("ZE_VERIFY_MODE", "")
-	r.printFailureReports(false, &RunOptions{})
+	report.PrintAllFailures(tests.Tests)
 	normal := buf.String()
 	if strings.Contains(normal, "VERIFY FAILURE GROUP:") {
-		t.Fatalf("unexpected verify failure group in normal output:\n%s", normal)
+		t.Fatalf("unexpected verify failure group in PrintAllFailures output:\n%s", normal)
 	}
 	if !strings.Contains(normal, "TEST FAILURE:") {
-		t.Fatalf("missing failure report in normal output:\n%s", normal)
+		t.Fatalf("missing failure report in PrintAllFailures output:\n%s", normal)
 	}
 
 	buf.Reset()
-	t.Setenv("ZE_VERIFY_MODE", "1")
-	r.printFailureReports(false, &RunOptions{})
+	report.PrintFailureGroups(tests.Tests)
 	verify := buf.String()
 	if !strings.Contains(verify, "VERIFY FAILURE GROUP:") {
-		t.Fatalf("missing verify failure group in verify mode:\n%s", verify)
-	}
-	if !strings.Contains(verify, "TEST FAILURE:") {
-		t.Fatalf("missing failure report in verify mode:\n%s", verify)
+		t.Fatalf("missing verify failure group in PrintFailureGroups output:\n%s", verify)
 	}
 }

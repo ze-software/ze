@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -217,7 +216,9 @@ func (r *Runner) verifyPrebuilt() error {
 	return nil
 }
 
-// Run executes selected tests.
+// Run executes selected tests by delegating to ParallelRunner[*Record].
+// Runner keeps .ci-specific concerns (Build, process orchestration via runTest,
+// PrintAllFailures). Scheduling is the single ParallelRunner engine.
 func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	r.display.SetQuiet(opts.Quiet)
 	r.display.SetTimeout(opts.Timeout)
@@ -228,119 +229,46 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 		return true
 	}
 
-	// Set parallel for batch display
 	parallel := opts.Parallel
 	if parallel <= 0 {
 		parallel = len(selected)
 	}
-	r.display.SetParallel(parallel, len(selected))
 
-	r.display.Start()
+	pr := NewParallelRunner[*Record](r.colors)
+	pr.SetDisplay(r.display)
+	pr.SetConcurrency(parallel)
+	pr.SetStatusInterval(500 * time.Millisecond)
+	pr.SetQuiet(opts.Quiet)
+	pr.SetLabel(r.display.label)
+	pr.SetNoHeader(true)
 
-	type result struct {
-		record  *Record
-		success bool
+	if !opts.SkipTimings {
+		pr.SetBaseDir(r.baseDir)
 	}
-
-	results := make(chan result, len(selected))
-	done := make(chan struct{})
-	var wg sync.WaitGroup
-
-	// Semaphore for concurrency limit
-	sem := make(chan struct{}, parallel)
+	if opts.SkipTimings {
+		pr.SetNoSummary(true)
+	}
 
 	for _, rec := range selected {
-		wg.Add(1)
-		go func(rec *Record) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			success := r.runTest(ctx, rec, opts)
-			results <- result{record: rec, success: success}
-		}(rec)
+		pr.AddRecord(rec, rec, func(runCtx context.Context, rec *Record) (bool, error) {
+			success := r.runTest(runCtx, rec, opts)
+			if !success {
+				return false, rec.Error
+			}
+			return true, nil
+		})
 	}
 
-	// Collect results
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+	pr.SetOnReport(func(tests *Tests) {
+		r.report.PrintAllFailures(tests)
+	})
 
-	// Periodic status update
-	go func() {
-		ticker := time.NewTicker(500 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				r.display.Status()
-			}
-		}
-	}()
-
-	allSuccess := true
-	for res := range results {
-		if res.success {
-			if res.record.State != StateSkip {
-				res.record.State = StateSuccess
-			}
-		} else {
-			if res.record.State != StateTimeout {
-				res.record.State = StateFail
-			}
-			allSuccess = false
-		}
-		r.display.TestFinished(res.record.Nick, res.record.State, res.record.Duration)
-		r.display.Status()
-	}
-
-	close(done)
-	r.display.Newline()
-
-	r.printFailureReports(allSuccess, opts)
-
-	// Record and display per-test timings (skip during stress iterations)
-	if !opts.SkipTimings {
-		r.recordTimings()
-	}
-
-	return allSuccess
+	return pr.Run(ctx)
 }
 
-func (r *Runner) printFailureReports(allSuccess bool, opts *RunOptions) {
-	if allSuccess || opts.Quiet {
-		return
-	}
-	if verifyModeEnabled() {
-		r.report.PrintFailureGroups(r.tests.Tests)
-	}
-	r.report.PrintAllFailures(r.tests.Tests)
-}
-
-// Timings returns the runner's timing baseline (for display by caller).
+// Timings returns the runner's timing baseline (for timeout suggestions).
 func (r *Runner) Timings() Timings {
 	return r.timings
-}
-
-// recordTimings updates the rolling baseline and saves to disk.
-// Skips timed-out tests — their duration is the timeout value, not actual runtime.
-// Recording timeouts would inflate the baseline and relax future auto-timeouts.
-func (r *Runner) recordTimings() {
-	suite := r.display.label
-	if suite == "" {
-		return
-	}
-	for _, rec := range r.tests.Selected() {
-		if rec.Duration > 0 && rec.State != StateTimeout {
-			r.timings.Record(suite, rec.Name, rec.Duration)
-		}
-	}
-	if err := r.timings.Save(r.baseDir); err != nil {
-		logger().Warn("save timings failed", "error", err)
-	}
 }
 
 // RunWithCount runs each test count times for stress testing.

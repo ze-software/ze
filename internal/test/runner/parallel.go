@@ -30,15 +30,19 @@ type ParallelTest[T any] struct {
 
 // ParallelRunner executes tests in parallel with progress display.
 type ParallelRunner[T any] struct {
-	tests    []*ParallelTest[T]
-	display  *Display
-	colors   *Colors
-	quiet    bool
-	verbose  bool
-	label    string         // test suite label for header
-	noHeader bool           // if true, don't print header in Run (caller manages it)
-	onFail   func(T, error) // Called for each failed test (for verbose output)
-	baseDir  string         // project root for timing baseline persistence
+	tests          []*ParallelTest[T]
+	display        *Display
+	colors         *Colors
+	quiet          bool
+	verbose        bool
+	label          string         // test suite label for header
+	noHeader       bool           // if true, don't print header in Run (caller manages it)
+	noSummary      bool           // if true, skip Summary/TimingDetail/DebugHints in Run
+	onFail         func(T, error) // Called for each failed test (for verbose output)
+	onReport       func(*Tests)   // Called after run when there are failures (for PrintAllFailures)
+	baseDir        string         // project root for timing baseline persistence
+	concurrency    int            // max concurrent tests; 0 means DefaultParallelConcurrent
+	statusInterval time.Duration  // status ticker interval; 0 means StatusUpdateInterval
 }
 
 // NewParallelRunner creates a parallel test runner.
@@ -78,6 +82,48 @@ func (r *ParallelRunner[T]) SetBaseDir(dir string) {
 // The callback receives the original test object and the error.
 func (r *ParallelRunner[T]) SetOnFail(fn func(T, error)) {
 	r.onFail = fn
+}
+
+// SetConcurrency sets the maximum number of concurrent tests.
+// Zero means DefaultParallelConcurrent.
+func (r *ParallelRunner[T]) SetConcurrency(n int) {
+	r.concurrency = n
+}
+
+// SetStatusInterval sets the status ticker interval.
+// Zero means StatusUpdateInterval.
+func (r *ParallelRunner[T]) SetStatusInterval(d time.Duration) {
+	r.statusInterval = d
+}
+
+// SetDisplay injects an existing Display instead of lazy-creating one.
+// Use when the caller already owns a Display (e.g., .ci Runner).
+func (r *ParallelRunner[T]) SetDisplay(d *Display) {
+	r.display = d
+}
+
+// SetOnReport sets a callback invoked after run when there are failures.
+// Use for .ci's PrintAllFailures.
+func (r *ParallelRunner[T]) SetOnReport(fn func(*Tests)) {
+	r.onReport = fn
+}
+
+// SetNoSummary suppresses Summary/TimingDetail/DebugHints in Run.
+// Use for stress-mode iterations where the caller controls post-run output.
+func (r *ParallelRunner[T]) SetNoSummary(v bool) {
+	r.noSummary = v
+}
+
+// AddRecord adds a test with a pre-existing Record. The Record must already
+// be registered in the Display's Tests. Use when the caller owns the Records
+// (e.g., .ci Runner delegates scheduling but keeps its own Record set).
+func (r *ParallelRunner[T]) AddRecord(rec *Record, test T, runFn func(ctx context.Context, t T) (bool, error)) {
+	r.tests = append(r.tests, &ParallelTest[T]{
+		Name:   rec.Name,
+		Record: rec,
+		Test:   test,
+		Run:    runFn,
+	})
 }
 
 // AddTest adds a test to the runner.
@@ -125,7 +171,11 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 			r.display.Header()
 		}
 	}
-	r.display.SetParallel(DefaultParallelConcurrent, len(r.tests))
+	conc := r.concurrency
+	if conc <= 0 {
+		conc = DefaultParallelConcurrent
+	}
+	r.display.SetParallel(conc, len(r.tests))
 	r.display.Start()
 
 	// Channels
@@ -139,7 +189,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 
 	// Run tests in parallel with semaphore
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, DefaultParallelConcurrent)
+	sem := make(chan struct{}, conc)
 
 	for _, test := range r.tests {
 		wg.Add(1)
@@ -163,11 +213,19 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 			passed, err := t.Run(ctx, t.Test)
 			t.Record.Duration = time.Since(t.Record.StartTime)
 
-			if passed {
-				t.Record.State = StateSuccess
-			} else {
-				t.Record.State = StateFail
-				t.Record.Error = err
+			// Respect terminal states set by the Run function (e.g.,
+			// StateTimeout from .ci's runTest). Only set Success/Fail
+			// when the state is still Running.
+			switch t.Record.State {
+			case StateSuccess, StateFail, StateTimeout, StateSkip:
+				// already terminal
+			default:
+				if passed {
+					t.Record.State = StateSuccess
+				} else {
+					t.Record.State = StateFail
+					t.Record.Error = err
+				}
 			}
 
 			results <- result{test: t, passed: passed, err: err}
@@ -181,8 +239,12 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 	}()
 
 	// Periodic status update with context cancellation support
+	interval := r.statusInterval
+	if interval <= 0 {
+		interval = StatusUpdateInterval
+	}
 	go func() {
-		ticker := time.NewTicker(StatusUpdateInterval)
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			select {
@@ -212,10 +274,13 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 
 	close(done)
 	r.display.Newline()
-	r.display.Summary()
+
+	if !r.noSummary {
+		r.display.Summary()
+	}
 
 	// Record and display timing baseline.
-	// Skip timed-out tests — their duration is the kill time, not actual runtime.
+	// Skip timed-out tests -- their duration is the kill time, not actual runtime.
 	if r.baseDir != "" && r.label != "" {
 		timings := LoadTimings(r.baseDir)
 		for _, t := range r.tests {
@@ -223,19 +288,28 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 				timings.Record(r.label, t.Name, t.Record.Duration)
 			}
 		}
-		r.display.TimingDetail(r.label, timings)
+		if !r.noSummary {
+			r.display.TimingDetail(r.label, timings)
+		}
 		if err := timings.Save(r.baseDir); err != nil {
 			logger().Warn("save timings failed", "error", err)
 		}
 	}
-	if verifyModeEnabled() && len(failures) > 0 {
-		report := NewReport(r.colors)
-		report.SetOutput(r.display.output)
-		report.SetLabel(r.label)
-		report.PrintFailureGroups(r.display.tests)
+	if !r.quiet && len(failures) > 0 {
+		if verifyModeEnabled() {
+			report := NewReport(r.colors)
+			report.SetOutput(r.display.output)
+			report.SetLabel(r.label)
+			report.PrintFailureGroups(r.display.tests)
+		}
+		if r.onReport != nil {
+			r.onReport(r.display.tests)
+		}
 	}
 
-	r.display.DebugHints()
+	if !r.noSummary {
+		r.display.DebugHints()
+	}
 
 	// Verify mode must include concise failure detail in saved logs without
 	// making normal interactive runs verbose.
@@ -245,6 +319,6 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 		}
 	}
 
-	_, failed, _, _ := r.display.tests.Summary()
-	return failed == 0
+	_, failed, timedOut, _ := r.display.tests.Summary()
+	return failed == 0 && timedOut == 0
 }

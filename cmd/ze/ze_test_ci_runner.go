@@ -131,9 +131,6 @@ Examples:
 	}
 
 	success := r.Run(ctx, opts)
-	r.Display().Summary()
-	r.Display().TimingDetail(cfg.Name, r.Timings())
-	r.Display().DebugHints()
 
 	if !success {
 		return errTestsFailed

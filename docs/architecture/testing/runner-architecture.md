@@ -67,14 +67,23 @@ All three engines render through the same components:
 - **Timing baseline** — rolling per-test durations persisted under the suite label. <!-- source: internal/test/runner/timing.go -- Timings, Record, Save -->
 - **Failure routing** — under `ZE_VERIFY_MODE=1`, failed suites emit a compact `VERIFY FAILURE INDEX` with one `VERIFY FAILURE GROUP: {json}` token per group. <!-- source: internal/test/runner/failure_group.go -- GroupFunctionalFailures, PrintFailureGroups --> <!-- source: internal/test/runner/parallel.go -- verifyModeEnabled, ZE_VERIFY_MODE -->
 
-### Behavioural deltas between the engines
+### Engine unification
 
-The two parallel engines are near-identical but not byte-identical, which matters
-for any consolidation:
+`Runner.Run` delegates scheduling to `ParallelRunner[*Record]`. The `.ci`-specific
+concerns (Build, process orchestration, `PrintAllFailures`) stay in `Runner`;
+scheduling, timing, failure-group output, and summary display are the single
+`ParallelRunner` engine. <!-- source: internal/test/runner/runner.go -- Run -->
 
-- **Status-update cadence:** `ParallelRunner` ticks every `StatusUpdateInterval` (200ms); `Runner.Run` ticks every 500ms. <!-- source: internal/test/runner/parallel.go -- StatusUpdateInterval --> <!-- source: internal/test/runner/runner.go -- Run status ticker -->
-- **Failure detail:** `Runner.printFailureReports` prints verify-mode groups *and* `PrintAllFailures`; `ParallelRunner` prints groups only. <!-- source: internal/test/runner/runner.go -- printFailureReports --> <!-- source: internal/test/runner/parallel.go -- Run failure reporting -->
-- **Stress mode:** only `Runner` has `RunWithCount`, which resets record state between iterations. <!-- source: internal/test/runner/runner.go -- RunWithCount -->
+- **Status-update cadence:** configurable via `SetStatusInterval`. `.ci` sets 500ms;
+  other consumers default to `StatusUpdateInterval` (200ms).
+  <!-- source: internal/test/runner/parallel.go -- SetStatusInterval, StatusUpdateInterval -->
+- **Failure detail:** `ParallelRunner` prints verify-mode groups; `.ci` adds
+  `PrintAllFailures` via the `onReport` hook.
+  <!-- source: internal/test/runner/parallel.go -- Run failure reporting -->
+  <!-- source: internal/test/runner/runner.go -- Run onReport -->
+- **Stress mode:** `Runner.RunWithCount` resets record state between iterations and
+  suppresses per-iteration summary via `SetNoSummary`.
+  <!-- source: internal/test/runner/runner.go -- RunWithCount -->
 
 ## Web test format (`.wb`)
 

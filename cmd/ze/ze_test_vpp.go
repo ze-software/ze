@@ -114,9 +114,6 @@ func zeTestVppMain(args []string) error {
 	}
 
 	success := r.Run(ctx, opts)
-	r.Display().Summary()
-	r.Display().TimingDetail("vpp", r.Timings())
-	r.Display().DebugHints()
 
 	if !success {
 		return errTestsFailed
