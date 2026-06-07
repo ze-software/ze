@@ -142,101 +142,55 @@ func runInject(args []string) int {
 		return 1
 	}
 
-	_ = writeBGPKeepalive(conn)
+	_ = bgpWrite(conn, 4, nil)
 	os.Stderr.WriteString("inject: sent " + textbuf.Uint(sent) + " UPDATEs\n") //nolint:errcheck // status
 	return 0
 }
 
 func bgpOpenExchange(conn net.Conn, localAS uint32, holdTime uint16, routerID net.IP) error {
-	if err := writeBGPOpen(conn, localAS, holdTime, routerID); err != nil {
+	openBody := bgpBuildOpen(localAS, holdTime, routerID)
+	if err := bgpWrite(conn, 1, openBody); err != nil {
 		return err
 	}
 
 	if err := conn.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
 		return err
 	}
-	buf := make([]byte, 4096)
-	n, err := conn.Read(buf)
+	msgType, _, err := bgpReadMsg(conn)
 	if err != nil {
 		return err
 	}
-	if n < 19 || buf[18] != 1 {
-		return net.UnknownNetworkError("unexpected BGP response")
+	if msgType != 1 {
+		return errBGPProtocol
+	}
+
+	if err := bgpWrite(conn, 4, nil); err != nil {
+		return err
+	}
+
+	// Read peer's KEEPALIVE confirming session establishment
+	kaType, _, err := bgpReadMsg(conn)
+	if err != nil {
+		return err
+	}
+	if kaType != 4 {
+		return errBGPProtocol
 	}
 	if err := conn.SetReadDeadline(time.Time{}); err != nil {
 		return err
 	}
-	return writeBGPKeepalive(conn)
-}
-
-func writeBGPOpen(conn net.Conn, localAS uint32, holdTime uint16, routerID net.IP) error {
-	id := routerID.To4()
-	if id == nil {
-		id = []byte{0, 0, 0, 1}
-	}
-	as2 := uint16(localAS) //nolint:gosec // AS_TRANS fallback below
-	if localAS > 65535 {
-		as2 = 23456 // AS_TRANS per RFC 6793
-	}
-
-	var optParams []byte
-	if localAS > 65535 {
-		cap4byte := []byte{65, 4, byte(localAS >> 24), byte(localAS >> 16), byte(localAS >> 8), byte(localAS)}
-		optParams = append(optParams, 2, byte(len(cap4byte)))
-		optParams = append(optParams, cap4byte...)
-	}
-
-	openLen := 29 + len(optParams)
-	msg := make([]byte, openLen)
-	for i := range 16 {
-		msg[i] = 0xff
-	}
-	binary.BigEndian.PutUint16(msg[16:], uint16(openLen)) //nolint:gosec // bounded by optParams
-	msg[18] = 1                                           // OPEN
-	msg[19] = 4                                           // BGP version
-	binary.BigEndian.PutUint16(msg[20:], as2)
-	binary.BigEndian.PutUint16(msg[22:], holdTime)
-	copy(msg[24:28], id)
-	msg[28] = byte(len(optParams))
-	copy(msg[29:], optParams)
-
-	_, err := conn.Write(msg)
-	return err
-}
-
-func writeBGPKeepalive(conn net.Conn) error {
-	msg := make([]byte, 19)
-	for i := range 16 {
-		msg[i] = 0xff
-	}
-	binary.BigEndian.PutUint16(msg[16:], 19)
-	msg[18] = 4 // KEEPALIVE
-	_, err := conn.Write(msg)
-	return err
+	return nil
 }
 
 func buildUpdateFromRIB(prefixLen uint8, prefix []byte, entry *mrt.RIBEntry) []byte {
-	nlriBytes := 1 + len(prefix)
-	attrLen := len(entry.Attributes)
-	totalLen := 19 + 2 + 2 + attrLen + nlriBytes
+	body := buildUpdateBody(prefixLen, prefix, entry)
+	totalLen := 19 + len(body)
 	msg := make([]byte, totalLen)
-
 	for i := range 16 {
 		msg[i] = 0xff
 	}
 	binary.BigEndian.PutUint16(msg[16:], uint16(totalLen)) //nolint:gosec // bounded by MRT record size
-	msg[18] = 2                                            // UPDATE
-
-	off := 19
-	binary.BigEndian.PutUint16(msg[off:], 0) // withdrawn routes length
-	off += 2
-	binary.BigEndian.PutUint16(msg[off:], uint16(attrLen)) //nolint:gosec // bounded by MRT record size
-	off += 2
-	copy(msg[off:], entry.Attributes)
-	off += attrLen
-	msg[off] = prefixLen
-	off++
-	copy(msg[off:], prefix)
-
+	msg[18] = 2
+	copy(msg[19:], body)
 	return msg
 }

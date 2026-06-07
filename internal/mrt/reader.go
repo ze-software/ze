@@ -9,8 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 // Handler receives decoded MRT records. Set callbacks for the record types
@@ -51,6 +53,9 @@ func ReadFrom(r io.Reader, handler *Handler) error {
 }
 
 func openReader(filename string) (io.ReadCloser, error) {
+	if strings.HasPrefix(filename, "http://") || strings.HasPrefix(filename, "https://") {
+		return openHTTPReader(filename)
+	}
 	cleaned := filename        // caller-controlled path; no user input
 	f, err := os.Open(cleaned) //nolint:gosec // path is from CLI args, not user input
 	if err != nil {
@@ -68,10 +73,54 @@ func openReader(filename string) (io.ReadCloser, error) {
 		}
 		return &gzipCloser{gz: gr, file: f}, nil
 	case strings.HasSuffix(lower, ".bz2"):
-		return &readerCloser{r: bzip2.NewReader(f), file: f}, nil
+		return &readerCloser{r: bzip2.NewReader(f), cls: f}, nil
 	default:
 		return f, nil
 	}
+}
+
+func openHTTPReader(url string) (io.ReadCloser, error) {
+	transport := &http.Transport{
+		ResponseHeaderTimeout: 60 * time.Second,
+	}
+	client := &http.Client{Transport: transport}
+	resp, err := client.Get(url) //nolint:gosec,noctx // CLI tool, URL from user args
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("mrt: HTTP %d for %s", resp.StatusCode, url)
+	}
+	lower := strings.ToLower(url)
+	switch {
+	case strings.HasSuffix(lower, ".gz"):
+		gr, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			_ = resp.Body.Close()
+			return nil, err
+		}
+		return &gzipHTTPCloser{gz: gr, body: resp.Body}, nil
+	case strings.HasSuffix(lower, ".bz2"):
+		return &readerCloser{r: bzip2.NewReader(resp.Body), cls: resp.Body}, nil
+	default:
+		return resp.Body, nil
+	}
+}
+
+type gzipHTTPCloser struct {
+	gz   *gzip.Reader
+	body io.ReadCloser
+}
+
+func (g *gzipHTTPCloser) Read(p []byte) (int, error) { return g.gz.Read(p) }
+func (g *gzipHTTPCloser) Close() error {
+	gzErr := g.gz.Close()
+	bErr := g.body.Close()
+	if gzErr != nil {
+		return gzErr
+	}
+	return bErr
 }
 
 type gzipCloser struct {
@@ -90,12 +139,12 @@ func (g *gzipCloser) Close() error {
 }
 
 type readerCloser struct {
-	r    io.Reader
-	file *os.File
+	r   io.Reader
+	cls io.Closer
 }
 
 func (b *readerCloser) Read(p []byte) (int, error) { return b.r.Read(p) }
-func (b *readerCloser) Close() error               { return b.file.Close() }
+func (b *readerCloser) Close() error               { return b.cls.Close() }
 
 func readRecords(r io.Reader, handler *Handler) error {
 	var hdrBuf [CommonHeaderLen]byte

@@ -5,6 +5,7 @@ package analyze
 import (
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -12,14 +13,16 @@ import (
 )
 
 type filterOpts struct {
-	peerIP     net.IP
-	peerASN    uint32
-	prefix     string
-	typeName   string
-	after      uint32
-	before     uint32
-	inputFile  string
-	outputFile string
+	peerIP      net.IP
+	peerASN     uint32
+	prefix      string
+	typeName    string
+	after       uint32
+	before      uint32
+	asPathRe    *regexp.Regexp
+	communityRe *regexp.Regexp
+	inputFile   string
+	outputFile  string
 }
 
 const filterUsage = `ze-analyze filter -- filter MRT records to a new file
@@ -37,6 +40,8 @@ Options:
   --type <name>         Filter by MRT type (bgp4mp, table-dump-v2, table-dump)
   --after <timestamp>   Only records after this unix timestamp
   --before <timestamp>  Only records before this unix timestamp
+  --as-path <regex>     Filter by AS-path regex (space-separated ASNs)
+  --community <regex>   Filter by community regex (matched per community string)
 `
 
 func parseFilterOpts(args []string) (*filterOpts, bool) {
@@ -96,6 +101,28 @@ func parseFilterOpts(args []string) (*filterOpts, bool) {
 				return nil, false
 			}
 			opts.before = uint32(v) //nolint:gosec // validated range
+		case "--as-path":
+			i++
+			if i >= len(args) {
+				return nil, false
+			}
+			re, err := regexp.Compile(args[i])
+			if err != nil {
+				os.Stderr.WriteString("filter: bad --as-path regex: " + err.Error() + "\n") //nolint:errcheck // error output
+				return nil, false
+			}
+			opts.asPathRe = re
+		case "--community":
+			i++
+			if i >= len(args) {
+				return nil, false
+			}
+			re, err := regexp.Compile(args[i])
+			if err != nil {
+				os.Stderr.WriteString("filter: bad --community regex: " + err.Error() + "\n") //nolint:errcheck // error output
+				return nil, false
+			}
+			opts.communityRe = re
 		default:
 			positional = append(positional, args[i])
 		}
@@ -138,14 +165,12 @@ func runFilter(args []string) int {
 	w := mrt.NewWriter(opts.outputFile)
 	defer w.Close() //nolint:errcheck // best-effort
 
-	needsPeerFilter := opts.peerIP != nil || opts.peerASN != 0 || opts.prefix != ""
+	needsDeepFilter := opts.peerIP != nil || opts.peerASN != 0 || opts.prefix != "" ||
+		opts.asPathRe != nil || opts.communityRe != nil
 
 	var matched, total uint64
 	headerBuf := make([]byte, mrt.CommonHeaderLen)
 
-	// For peer/prefix filtering we need to decode then write the raw bytes.
-	// OnHeader stashes the raw data; type-specific callbacks check peer fields
-	// and call writeRawRecord to emit the stashed bytes verbatim.
 	var pendingHeader mrt.Header
 	var pendingData []byte
 
@@ -166,11 +191,10 @@ func runFilter(args []string) int {
 				return nil
 			}
 
-			if !needsPeerFilter {
+			if !needsDeepFilter {
 				return writeRawRecord(h, data)
 			}
 
-			// Stash for type-specific callback to evaluate peer/prefix filters.
 			pendingHeader = h
 			pendingData = data
 			return nil
@@ -187,10 +211,15 @@ func runFilter(args []string) int {
 				pendingData = nil
 				return nil
 			}
-			// --prefix cannot match BGP4MP records (requires UPDATE parsing).
 			if opts.prefix != "" {
 				pendingData = nil
 				return nil
+			}
+			if opts.asPathRe != nil || opts.communityRe != nil {
+				if !matchMessageContent(m, mrt.IsAS4Subtype(h.Subtype), opts) {
+					pendingData = nil
+					return nil
+				}
 			}
 			err := writeRawRecord(pendingHeader, pendingData)
 			pendingData = nil
@@ -203,6 +232,12 @@ func runFilter(args []string) int {
 			if opts.prefix != "" {
 				afi := mrt.RIBSubtypeAFI(h.Subtype)
 				if !prefixMatches(opts.prefix, r.PrefixLength, r.Prefix, afi) {
+					pendingData = nil
+					return nil
+				}
+			}
+			if opts.asPathRe != nil || opts.communityRe != nil {
+				if !matchRIBContent(r, opts) {
 					pendingData = nil
 					return nil
 				}
@@ -222,6 +257,12 @@ func runFilter(args []string) int {
 			if opts.peerASN != 0 && uint32(t.PeerAS) != opts.peerASN {
 				pendingData = nil
 				return nil
+			}
+			if opts.asPathRe != nil || opts.communityRe != nil {
+				if !matchAttrsContent(t.Attributes, true, opts) {
+					pendingData = nil
+					return nil
+				}
 			}
 			err := writeRawRecord(pendingHeader, pendingData)
 			pendingData = nil

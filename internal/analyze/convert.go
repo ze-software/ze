@@ -7,44 +7,27 @@ import (
 	"os"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/mrt"
 )
 
-const convertUsage = `ze-analyze convert -- convert MRT to other formats
+var convertDispatcher = newConvertDispatcher()
 
-Reads MRT records and converts them to alternative formats for analysis
-with external tools.
-
-Usage:
-  ze-analyze convert pcap <input.mrt> <output.pcap>   Convert BGP4MP to pcap
-  ze-analyze convert json <input.mrt>                  Dump record summaries as JSON
-
-Pcap output wraps each BGP4MP message in a minimal TCP/IPv4 frame
-suitable for Wireshark's BGP dissector. TABLE_DUMP records are skipped.
-`
+func newConvertDispatcher() *subdispatch.Dispatcher {
+	d := subdispatch.New("convert", "Convert MRT to other formats")
+	d.Register("pcap", runConvertPcap, subdispatch.SubMeta{Desc: "Convert BGP4MP to pcap (IPv4, Wireshark-compatible)"})
+	d.Register("json", runConvertJSON, subdispatch.SubMeta{Desc: "Dump MRT record headers as JSON"})
+	return d
+}
 
 func runConvert(args []string) int {
-	if len(args) < 2 {
-		os.Stderr.WriteString(convertUsage) //nolint:errcheck // usage output
-		return 1
-	}
-
-	switch args[0] {
-	case "pcap":
-		return runConvertPcap(args[1:])
-	case "json":
-		return runConvertJSON(args[1:])
-	default:
-		os.Stderr.WriteString("convert: unknown format: " + args[0] + "\n") //nolint:errcheck // error output
-		os.Stderr.WriteString(convertUsage)                                 //nolint:errcheck // usage output
-		return 1
-	}
+	return convertDispatcher.Dispatch(args)
 }
 
 func runConvertPcap(args []string) int {
 	if len(args) != 2 {
-		os.Stderr.WriteString(convertUsage) //nolint:errcheck // usage output
+		os.Stderr.WriteString("usage: ze-analyze convert pcap <input.mrt> <output.pcap>\n") //nolint:errcheck // usage
 		return 1
 	}
 
@@ -96,7 +79,7 @@ func runConvertPcap(args []string) int {
 
 func runConvertJSON(args []string) int {
 	if len(args) != 1 {
-		os.Stderr.WriteString(convertUsage) //nolint:errcheck // usage output
+		os.Stderr.WriteString("usage: ze-analyze convert json <input.mrt>\n") //nolint:errcheck // usage
 		return 1
 	}
 

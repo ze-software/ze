@@ -181,9 +181,54 @@ Converts MRT records to other formats.
 <!-- source: internal/analyze/convert.go -- format conversion -->
 
 ```
-bin/ze-analyze convert pcap -o output.pcap test/internet/ripe-updates.*.gz   # BGP4MP to pcap (IPv4 only)
+bin/ze-analyze convert pcap test/internet/ripe-updates.*.gz output.pcap      # BGP4MP to pcap (IPv4 only)
 bin/ze-analyze convert json test/internet/ripe-updates.*.gz | jq .           # record headers as JSON
 ```
+
+### export
+
+Send MRT data to network targets.
+
+<!-- source: internal/analyze/export_bmp.go -- MRT to BMP export -->
+
+```
+bin/ze-analyze export bmp --target 10.0.0.1:4321 test/internet/ripe-updates.*.gz
+bin/ze-analyze export bmp --target collector:4321 --peer-ip 10.0.0.1 test/internet/ripe-updates.*.gz
+```
+
+Connects to a BMP collector and sends each BGP4MP message as a BMP Route
+Monitoring message. Optional `--peer-ip` filters to a single peer.
+
+### record
+
+Record incoming protocol streams to MRT files.
+
+<!-- source: internal/analyze/record_bmp.go -- BMP to MRT recording -->
+
+```
+bin/ze-analyze record bmp --listen :4321 output.mrt
+```
+
+Listens for incoming BMP (RFC 7854) connections. Received Route Monitoring
+messages are written as BGP4MP_MESSAGE_AS4 MRT records. Peer Up/Down
+notifications are written as BGP4MP_STATE_CHANGE_AS4. Multiple concurrent
+BMP connections are supported (writes are serialized).
+
+### serve
+
+Passive BGP server that sends MRT file contents to any peer that connects.
+Useful for IXP traffic replay testing: blast an entire routing table at a
+router and observe its behavior.
+
+<!-- source: internal/analyze/serve.go -- MRT-to-BGP server -->
+
+```
+bin/ze-analyze serve --local-as 65000 --listen :1179 test/internet/latest-bview.gz
+bin/ze-analyze serve --local-as 65000 --per-peer test/internet/ripe-updates.*.gz
+```
+
+With `--per-peer`, only records matching the connecting peer's ASN are sent.
+Multiple MRT files can be specified; all are sent sequentially.
 
 ### statistics
 
@@ -198,15 +243,22 @@ bin/ze-analyze statistics test/internet/ripe-updates.*.gz
 
 ### filter
 
-Select records by peer IP, peer ASN, prefix, MRT type, or timestamp range.
-Writes matching records verbatim (no re-encoding) to a new MRT file.
+Select records by peer IP, peer ASN, prefix, AS-path regex, community regex,
+MRT type, or timestamp range. Writes matching records verbatim (no re-encoding)
+to a new MRT file. Multiple filters are AND-composed.
 
 <!-- source: internal/analyze/filter.go -- MRT record filtering -->
 
 ```
 bin/ze-analyze filter --peer-asn 13335 -o cloudflare.mrt test/internet/latest-bview.gz
 bin/ze-analyze filter --prefix 1.0.0.0/24 --after 2026-06-01 test/internet/ripe-updates.*.gz
+bin/ze-analyze filter --as-path "174 .* 13335" -o transit.mrt test/internet/latest-bview.gz
+bin/ze-analyze filter --community "13335:" -o tagged.mrt test/internet/latest-bview.gz
 ```
+
+AS-path regex matches against space-separated ASNs (e.g. `"174 1916 52888"`).
+AS_SET segments are rendered as `{asn,asn}`. Community regex matches per-community
+strings: standard `high:low`, large `global:local1:local2`, extended `high:low`.
 
 ## MRT File Formats
 
@@ -217,7 +269,13 @@ The tool handles two MRT record types (RFC 6396):
 | TABLE_DUMP_V2 | RIB snapshots (one entry per route per peer) | attributes, communities, count-attrs, mrt-dump, show, routes, inject, filter |
 | BGP4MP | Live UPDATE messages with timestamps | density, attributes, communities, mrt-dump, show, inject, replay, convert, filter |
 
-Both `.gz` and `.bz2` compressed files are supported.
+Both `.gz` and `.bz2` compressed files are supported. HTTP and HTTPS URLs are
+accepted anywhere a file path is expected; compression is auto-detected from
+the URL suffix.
+
+```
+bin/ze-analyze statistics https://data.ris.ripe.net/rrc00/2026.06/updates.20260607.0000.gz
+```
 
 ## Daemon MRT Recording
 

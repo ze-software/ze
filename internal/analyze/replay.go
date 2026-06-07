@@ -143,7 +143,7 @@ func runReplay(args []string) int {
 		return 1
 	}
 
-	_ = writeBGPKeepalive(conn)
+	_ = bgpWrite(conn, 4, nil)
 	os.Stderr.WriteString("replay: sent " + textbuf.Uint(sent) + " UPDATEs\n") //nolint:errcheck // status
 	return 0
 }
