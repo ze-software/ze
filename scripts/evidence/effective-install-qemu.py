@@ -208,7 +208,7 @@ def build_image(root: Path, work: Path) -> Path:
     # (GOOS=linux) and would fail with "exec format error", so never rely on it.
     ze = str(work / "ze-host")
     b = run(
-        ["go", "build", "-o", ze, "./cmd/ze"],
+        ["go", "build", "-tags", "ze_core,ze_distro", "-o", ze, "./cmd/ze"],
         cwd=str(root),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

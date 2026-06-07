@@ -37,7 +37,11 @@ def require_cmd(name: str) -> None:
 
 
 def ensure_image() -> None:
-    inspect = run(["docker", "image", "inspect", IMAGE], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    inspect = run(
+        ["docker", "image", "inspect", IMAGE],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     if inspect.returncode == 0:
         return
     print(f"pulling {IMAGE}...", file=sys.stderr)
@@ -58,7 +62,11 @@ def ensure_linux_ze(root: Path) -> Path:
     env["CGO_ENABLED"] = "0"
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
 
-    build = run(["go", "build", "-o", str(ze), "./cmd/ze"], cwd=root, env=env)
+    build = run(
+        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        cwd=root,
+        env=env,
+    )
     if build.returncode != 0:
         raise SystemExit("go build ./cmd/ze failed")
     return ze
@@ -90,7 +98,9 @@ def drain(prefix: str, stream) -> list[str]:
     return lines
 
 
-def wait_for_line(proc: subprocess.Popen[str], prefix: str, needle: str, timeout_s: float) -> tuple[bool, list[str]]:
+def wait_for_line(
+    proc: subprocess.Popen[str], prefix: str, needle: str, timeout_s: float
+) -> tuple[bool, list[str]]:
     assert proc.stderr is not None
     lines: list[str] = []
     deadline = time.time() + timeout_s
@@ -155,16 +165,30 @@ def main() -> int:
     )
 
     container = f"ze-l2tp-evidence-{os.getpid()}"
-    started = run([
-        "docker", "run", "--rm", "--detach", "--privileged",
-        "--platform", PLATFORM,
-        "--name", container,
-        "-v", f"{root}:/src",
-        "-v", f"{work}:/run/l2tp",
-        "-w", "/src",
-        IMAGE,
-        "sleep", "infinity",
-    ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    started = run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--detach",
+            "--privileged",
+            "--platform",
+            PLATFORM,
+            "--name",
+            container,
+            "-v",
+            f"{root}:/src",
+            "-v",
+            f"{work}:/run/l2tp",
+            "-w",
+            "/src",
+            IMAGE,
+            "sleep",
+            "infinity",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
     if started.returncode != 0:
         sys.stderr.write(started.stderr or "")
         raise SystemExit("failed to start L2TP evidence container")
@@ -172,7 +196,11 @@ def main() -> int:
     ze_proc: subprocess.Popen[str] | None = None
     xl2tpd: subprocess.Popen[str] | None = None
     try:
-        install = run(["docker", "exec", container, "apk", "add", "--no-cache", "xl2tpd", "ppp"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        install = run(
+            ["docker", "exec", container, "apk", "add", "--no-cache", "xl2tpd", "ppp"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         if install.returncode != 0:
             sys.stderr.write((install.stdout or "") + (install.stderr or ""))
             raise SystemExit("apk add xl2tpd ppp failed")
@@ -196,12 +224,20 @@ environment {
 """
         ze_proc = subprocess.Popen(
             [
-                "docker", "exec", "--interactive",
-                "--env", "ZE_LOG_L2TP=debug",
-                "--env", "ze.l2tp.skip-kernel-probe=true",
-                "--env", "ZE_STORAGE_BLOB=false",
-                "--env", "ZE_CONFIG_DIR=/run/l2tp/ze",
-                container, f"/src/{ze.relative_to(root)}", "-",
+                "docker",
+                "exec",
+                "--interactive",
+                "--env",
+                "ZE_LOG_L2TP=debug",
+                "--env",
+                "ze.l2tp.skip-kernel-probe=true",
+                "--env",
+                "ZE_STORAGE_BLOB=false",
+                "--env",
+                "ZE_CONFIG_DIR=/run/l2tp/ze",
+                container,
+                f"/src/{ze.relative_to(root)}",
+                "-",
             ],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -219,12 +255,19 @@ environment {
 
         xl2tpd = subprocess.Popen(
             [
-                "docker", "exec", container,
-                "xl2tpd", "-D",
-                "-c", "/run/l2tp/xl2tpd.conf",
-                "-s", "/run/l2tp/l2tp-secrets",
-                "-p", "/run/l2tp/xl2tpd.pid",
-                "-C", "/run/l2tp/l2tp-control",
+                "docker",
+                "exec",
+                container,
+                "xl2tpd",
+                "-D",
+                "-c",
+                "/run/l2tp/xl2tpd.conf",
+                "-s",
+                "/run/l2tp/l2tp-secrets",
+                "-p",
+                "/run/l2tp/xl2tpd.pid",
+                "-C",
+                "/run/l2tp/l2tp-control",
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -252,7 +295,11 @@ environment {
     finally:
         terminate(xl2tpd)
         terminate(ze_proc)
-        run(["docker", "rm", "-f", container], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        run(
+            ["docker", "rm", "-f", container],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
 
 if __name__ == "__main__":

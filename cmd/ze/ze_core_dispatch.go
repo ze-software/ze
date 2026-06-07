@@ -1,9 +1,9 @@
 // Design: docs/architecture/system-architecture.md -- ze core dispatch and commands
 //
 // Ze personality: YANG verbs, config file dispatch, global flags, root commands.
-// Excluded from ze-test, ze-chaos, ze-perf, ze-analyze builds.
+// Included only in ze_core builds (ze, ze-appliance, ze-setup).
 
-//go:build !ze_test && !ze_chaos && !ze_perf && !ze_analyze
+//go:build ze_core
 
 package main
 

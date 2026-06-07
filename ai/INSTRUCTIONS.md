@@ -89,7 +89,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | BGP engine | `internal/plugins/bgp/` (reactor, FSM, wire, message, capability) |
 | Plugin impls | `internal/plugins/bgp-rib/`, `bgp-rs/`, `bgp-gr/`, `bgp-nlri-*/` |
 | Plugin infra | `internal/plugin/` (registry, process, hub, SDK) |
-| Programs | `cmd/ze/` (build tags: `ze_test`, `ze_chaos`), `cmd/ze-perf/`, `cmd/ze-analyse/` |
+| Programs | `cmd/ze/` (build tags: `ze_core`, `ze_test`, `ze_chaos`, `ze_perf`, `ze_analyze`) |
 | Tests | `test/` (.ci), `*_test.go` |
 
 ## Before You...

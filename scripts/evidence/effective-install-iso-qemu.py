@@ -84,7 +84,7 @@ def sha256_file(path: Path) -> str:
 def build_host_ze(root: Path, work: Path) -> Path:
     ze = work / "ze-host"
     built = run(
-        ["go", "build", "-o", str(ze), "./cmd/ze"],
+        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
         cwd=str(root),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

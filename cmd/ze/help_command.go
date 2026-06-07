@@ -4,7 +4,7 @@
 // It walks the full command tree (YANG verbs + offline local commands)
 // and emits a flat, greppable catalog with descriptions.
 
-//go:build !ze_test && !ze_chaos && !ze_perf && !ze_analyze
+//go:build ze_core
 
 // JSON output is consumable by external tooling (e.g., wiki generators).
 

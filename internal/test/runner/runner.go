@@ -32,7 +32,7 @@ func TestBuildTags() string {
 	tags := strings.FieldsFunc(os.Getenv("ZE_TAGS"), func(r rune) bool {
 		return r == ',' || r == ' ' || r == '\t' || r == '\n'
 	})
-	tags = append(tags, TestPluginBuildTag, "ze_distro")
+	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro")
 	return strings.Join(tags, ",")
 }
 

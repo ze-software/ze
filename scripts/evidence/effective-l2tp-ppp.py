@@ -248,7 +248,11 @@ def ensure_ze(root: Path) -> Path:
 
     env = os.environ.copy()
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
-    build = run(["go", "build", "-o", str(ze), "./cmd/ze"], cwd=root, env=env)
+    build = run(
+        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        cwd=root,
+        env=env,
+    )
     if build.returncode != 0:
         raise SystemExit("go build ./cmd/ze failed")
     return ze

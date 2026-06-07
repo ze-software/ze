@@ -36,7 +36,7 @@ ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
 # CPU limit: leave 3 cores free (minimum 1). Used as GOMAXPROCS for tests so
 # parallel stages do not starve the system.
 GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); [ $$p -lt 1 ] && p=1; echo $$p)
-GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test
+GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags ze_core
 ZE_EXABGP_TIMEOUT ?= 180
 ZE_LINUX_GO_IMAGE ?= golang:1.26-alpine
 ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
@@ -81,19 +81,19 @@ docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
 
 ze:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_distro $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_core ze_distro $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 ze-appliance:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_appliance $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
+	$(GO) build -tags 'ze_core ze_appliance $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
 
 ze-setup-bin:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
+	$(GO) build -tags 'ze_core ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
 
 ze-stripped:
 	@mkdir -p bin
-	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
+	$(GO) build -tags 'ze_core $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
 
 chaos:
 	@mkdir -p bin
@@ -114,22 +114,22 @@ perf:
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_distro $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_core ze_distro $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 bin/ze-appliance: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-appliance..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_appliance $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
+	$(GO) build -tags 'ze_core ze_appliance $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
 
 bin/ze-setup: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-setup..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
+	$(GO) build -tags 'ze_core ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
 
 bin/ze-stripped: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-stripped..."
 	@mkdir -p bin
-	$(GO) build $(ZE_TAGFLAG) -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
+	$(GO) build -tags 'ze_core $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
 bin/ze-test: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p bin

@@ -68,7 +68,7 @@ func setupTestBinaries(t *testing.T) {
 
 		testZePath = filepath.Join(testTmpDir, "ze")
 		//nolint:gosec // Test code, paths from temp dir.
-		buildCmd := exec.CommandContext(ctx, "go", "build", "-o", testZePath, "./cmd/ze")
+		buildCmd := exec.CommandContext(ctx, "go", "build", "-tags", "ze_core,ze_distro", "-o", testZePath, "./cmd/ze")
 		buildCmd.Dir = projectRoot
 		buildOutput, err := buildCmd.CombinedOutput()
 		if err != nil {

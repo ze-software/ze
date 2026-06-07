@@ -69,10 +69,16 @@ def ensure_linux_binaries(root: Path) -> tuple[Path, Path]:
     env["CGO_ENABLED"] = "0"
     env.setdefault("GOCACHE", str(root / "tmp" / "go-cache"))
 
-    for out, pkg in ((ze, "./cmd/ze"), (ze_test, "./cmd/ze-test")):
-        build = run(["go", "build", "-o", str(out), pkg], cwd=root, env=env)
-        if build.returncode != 0:
-            raise SystemExit(f"go build {pkg} failed")
+    build = run(
+        ["go", "build", "-tags", "ze_core,ze_distro", "-o", str(ze), "./cmd/ze"],
+        cwd=root,
+        env=env,
+    )
+    if build.returncode != 0:
+        raise SystemExit("go build ./cmd/ze failed")
+    build = run(["go", "build", "-o", str(ze_test), "./cmd/ze-test"], cwd=root, env=env)
+    if build.returncode != 0:
+        raise SystemExit("go build ./cmd/ze-test failed")
     return ze, ze_test
 
 

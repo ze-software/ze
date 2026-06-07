@@ -45,7 +45,7 @@ def build_images(frr_image, no_build=False, need_frr=True):
     ze_bin = os.path.join(PROJECT_ROOT, "bin", "ze-linux")
     print("Cross-compiling ze for linux...")
     subprocess.run(
-        ["go", "build", "-o", ze_bin, "./cmd/ze"],
+        ["go", "build", "-tags", "ze_core,ze_distro", "-o", ze_bin, "./cmd/ze"],
         check=True,
         timeout=300,
         cwd=PROJECT_ROOT,

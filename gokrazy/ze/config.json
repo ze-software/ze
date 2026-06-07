@@ -22,7 +22,7 @@
             "CommandLineFlags": [
                 "start"
             ],
-            "GoBuildTags": [],
+            "GoBuildTags": ["ze_core"],
             "Environment": [
                 "ze.config.dir=/perm/ze",
                 "ze.bgp.api.socketpath=/tmp/ze.socket",

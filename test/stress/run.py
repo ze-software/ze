@@ -82,7 +82,7 @@ def build_ze():
 
     print("Building Ze...")
     subprocess.run(
-        ["go", "build", "-o", ze_binary, "./cmd/ze"],
+        ["go", "build", "-tags", "ze_core,ze_distro", "-o", ze_binary, "./cmd/ze"],
         cwd=PROJECT_ROOT,
         check=True,
         timeout=120,
