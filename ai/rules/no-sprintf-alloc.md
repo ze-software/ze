@@ -68,7 +68,7 @@ untyped string literals: `const x = "foo" + "bar"` (the compiler folds these).
 
 | `+` pattern | Replacement |
 |-------------|-------------|
-| `a + "/" + b` | `var b textbuf.Buffer; b.Str(a).Byte('/').Str(b).String()` |
+| `a + "/" + b` | `var tb textbuf.Buffer; tb.Str(a).Byte('/').Str(b).String()` |
 | `"prefix:" + s` | `var b textbuf.Buffer; b.Str("prefix:").Str(s).String()` |
 | `s + strconv.Itoa(n)` | `var b textbuf.Buffer; b.Str(s).Int(int64(n)).String()` |
 | `addr.String() + "/" + strconv.Itoa(n)` | `var b textbuf.Buffer; b.Addr(addr).Byte('/').Int(int64(n)).String()` |
