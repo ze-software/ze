@@ -135,6 +135,85 @@ the blank imports are hand-listed in `cmd/ze/main.go`.
 **Pattern guidance:** `ai/patterns/cli-command.md` -- "Command
 Registration (BLOCKING)" section.
 
+### Subcommand Dispatch (`subdispatch.Dispatcher`)
+
+Root commands that have their own subcommands (install, uninstall, analyze, perf)
+use `internal/core/subdispatch.Dispatcher` for map-based dispatch and derived usage.
+
+**Location:** `internal/core/subdispatch/subdispatch.go`
+
+**Pattern:** the feature package creates a `Dispatcher`, exports `Register`/`Dispatch`,
+and populates subcommands. The root handler delegates to `Dispatch()`.
+
+```go
+// internal/<feature>/dispatch.go
+package feature
+
+import "codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
+
+var dispatcher = subdispatch.New("<feature>", "<one-line summary>")
+
+func Register(name string, handler func([]string) int, meta subdispatch.SubMeta) {
+    dispatcher.Register(name, handler, meta)
+}
+
+func Dispatch(args []string) int { return dispatcher.Dispatch(args) }
+```
+
+```go
+// internal/<feature>/register.go
+package feature
+
+import "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+
+func init() {
+    populateSubcommands()
+    registry.MustRegisterRootHandler("<feature>", func(_ *registry.RuntimeContext, args []string) int {
+        return Dispatch(args)
+    }, registry.Meta{
+        Description: "<summary>",
+        Mode:        "offline",
+        Section:     registry.SectionTest,
+        SubsFunc:    func() string { return dispatcher.Subcommands() },
+    })
+}
+```
+
+**Existing examples:** `cmd/ze/install/`, `cmd/ze/uninstall/`
+
+**Usage text** is derived by `Dispatcher.usage()` from registered subcommands using
+`internal/core/helpfmt`. No static help strings.
+
+### Binary Personality Registration
+
+Binary personalities (ze-test, ze-chaos, ze-perf, ze-analyze) are separate binaries
+built from `cmd/ze/` with build tags. Each personality's domain code lives in
+`internal/`, self-registers via `init()`, and the cmd/ze file is a build-tagged
+blank import.
+
+**Pattern:**
+```go
+// cmd/ze/ze_<personality>_register.go
+//go:build ze_<personality>
+
+package main
+
+import _ "codeberg.org/thomas-mangin/ze/internal/<feature>"
+```
+
+The blank import triggers the feature package's `init()`, which registers the root
+handler with the CLI command registry. `dispatchMain()` in `dispatch.go` uses
+`defaultDispatch()` which looks up the root handler in the registry.
+
+**Do not:**
+- Put domain logic in `cmd/ze/` files (no switch/case dispatch, no handlers, no types)
+- Set `binarySetup` when the feature self-registers via init() (unnecessary)
+- Use build tags on `internal/` packages (tags gate binary composition via blank imports, not library availability)
+
+**Existing gap:** ze-test uses a local map in `cmd/ze/ze_test_register.go` instead
+of `subdispatch.Dispatcher`. Mock server domain code is in `cmd/ze/ze_test_*.go`
+instead of `internal/test/mock/`. `spec-cmd-reorg` addresses this.
+
 ### Doctor Check Registry
 
 Offline readiness checks for `ze doctor`. The runner owns execution phases so

@@ -145,7 +145,7 @@ ze-chaos --replay run.ndjson
 # Shrink to minimal reproduction
 ze-chaos --shrink run.ndjson
 ```
-<!-- source: cmd/ze/ze_chaos_subcommand.go -- event logging, replay, shrink modes -->
+<!-- source: internal/chaos/orchestrator/subcommand.go -- event logging, replay, shrink modes -->
 
 ### Property Validation
 

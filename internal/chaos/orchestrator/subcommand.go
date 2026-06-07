@@ -1,0 +1,217 @@
+// Design: docs/architecture/chaos-web-dashboard.md -- replay, shrink, diff actions and network utilities
+
+package orchestrator
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"strings"
+	"syscall"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/chaos/replay"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/shrink"
+)
+
+// RunReplay opens an event log file and replays it through the validation model.
+func RunReplay(path string) int {
+	f, err := os.Open(path) // #nosec G304 - path is from CLI flag, not user-controlled web input
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: opening replay file: %v\n", err)
+		return 2
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: closing replay file: %v\n", err)
+		}
+	}()
+	return replay.Run(f, os.Stderr)
+}
+
+// RunShrink reads a failing event log and minimizes it to the smallest
+// subsequence that still triggers the same property violation.
+func RunShrink(path string, deadline time.Duration, verbose bool) int {
+	f, err := os.Open(path) // #nosec G304 - path is from CLI flag
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: opening shrink file: %v\n", err)
+		return 2
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: closing shrink file: %v\n", err)
+		}
+	}()
+
+	meta, events, parseErr := shrink.ParseLog(f)
+	if parseErr != nil {
+		fmt.Fprintf(os.Stderr, "error: parsing event log: %v\n", parseErr)
+		return 2
+	}
+
+	cfg := shrink.Config{
+		PeerCount: meta.Peers,
+		Deadline:  deadline,
+	}
+	if verbose {
+		cfg.Verbose = os.Stderr
+	}
+
+	result, shrinkErr := shrink.Run(events, cfg)
+	if shrinkErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", shrinkErr)
+		return 1
+	}
+
+	fmt.Fprintf(os.Stderr, "shrink: %d → %d events (%d iterations), property: %s\n",
+		result.Original, len(result.Events), result.Iterations, result.Property)
+	fmt.Fprintf(os.Stderr, "\nMinimal reproduction (%d steps):\n", len(result.Events))
+	for i := range result.Events {
+		line := fmt.Sprintf("  %d. [peer %d] %s", i+1, result.Events[i].PeerIndex, result.Events[i].Type)
+		if result.Events[i].Prefix.IsValid() {
+			line += " " + result.Events[i].Prefix.String()
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
+
+	return 0
+}
+
+// RunDiff opens two event log files and reports the first divergence.
+func RunDiff(path1, path2 string) int {
+	f1, err := os.Open(path1) // #nosec G304 - path is from CLI flag, not user-controlled web input
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: opening diff file 1: %v\n", err)
+		return 2
+	}
+	defer func() {
+		if err := f1.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: closing diff file 1: %v\n", err)
+		}
+	}()
+
+	f2, err := os.Open(path2) // #nosec G304 - path is from CLI flag, not user-controlled web input
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: opening diff file 2: %v\n", err)
+		return 2
+	}
+	defer func() {
+		if err := f2.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: closing diff file 2: %v\n", err)
+		}
+	}()
+
+	return replay.Diff(f1, f2, os.Stderr)
+}
+
+// DashboardURL converts a listen address to a clickable URL.
+func DashboardURL(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "http://" + addr
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "localhost"
+	}
+	return "http://" + net.JoinHostPort(host, port)
+}
+
+// CheckPortFree verifies that nothing is listening on addr.
+func CheckPortFree(addr string) error {
+	dialer := net.Dialer{Timeout: 500 * time.Millisecond}
+	conn, err := dialer.DialContext(context.Background(), "tcp", addr)
+	if err == nil {
+		if closeErr := conn.Close(); closeErr != nil {
+			return fmt.Errorf("port %s in use (close: %w)", addr, closeErr)
+		}
+		return fmt.Errorf("port %s is already in use — stop the existing process first", addr)
+	}
+
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		if errors.Is(opErr.Err, syscall.ECONNREFUSED) {
+			return nil
+		}
+		if opErr.Timeout() {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("checking port %s: %w", addr, err)
+}
+
+// AllocatePort binds a TCP listener on addr:0 and returns the kernel-assigned port.
+func AllocatePort(ctx context.Context, addr string) (int, error) {
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", net.JoinHostPort(addr, "0"))
+	if err != nil {
+		return 0, fmt.Errorf("allocating port: %w", err)
+	}
+	tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		if closeErr := ln.Close(); closeErr != nil {
+			return 0, fmt.Errorf("allocated listener has non-TCP address (close: %w)", closeErr)
+		}
+		return 0, fmt.Errorf("allocated listener has non-TCP address")
+	}
+	if err := ln.Close(); err != nil {
+		return 0, fmt.Errorf("closing allocated listener: %w", err)
+	}
+	return tcpAddr.Port, nil
+}
+
+// WaitForZe waits for Ze to start listening on addr.
+func WaitForZe(ctx context.Context, addr string, pipeline bool) error {
+	maxAttempts := 1
+	if pipeline {
+		maxAttempts = 15
+	}
+
+	var lastErr error
+	for attempt := range maxAttempts {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		dialer := net.Dialer{Timeout: time.Second}
+		conn, err := dialer.DialContext(ctx, "tcp", addr)
+		if err == nil {
+			if closeErr := conn.Close(); closeErr != nil {
+				return fmt.Errorf("probe close: %w", closeErr)
+			}
+			time.Sleep(200 * time.Millisecond)
+			return nil
+		}
+		lastErr = err
+
+		if attempt < maxAttempts-1 {
+			select {
+			case <-time.After(time.Duration(attempt+1) * 200 * time.Millisecond):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	return fmt.Errorf("ze did not start within timeout on %s: %w", addr, lastErr)
+}
+
+// PeerFamilyTargets computes per-peer per-family expected route counts from profiles.
+func PeerFamilyTargets(profiles []scenario.PeerProfile) map[int]map[string]int {
+	targets := make(map[int]map[string]int, len(profiles))
+	for i := range profiles {
+		fm := make(map[string]int, len(profiles[i].Families))
+		for _, fam := range profiles[i].Families {
+			if strings.Contains(fam, "unicast") {
+				fm[fam] = profiles[i].RouteCount
+			} else {
+				fm[fam] = profiles[i].RouteCount / 4
+			}
+		}
+		targets[profiles[i].Index] = fm
+	}
+	return targets
+}

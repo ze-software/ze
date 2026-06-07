@@ -14,7 +14,7 @@ from a route's path attributes. Hashing operates on raw wire bytes as they appea
 in the MRT dump, not parsed or reconstructed data.
 
 Four bundle variants are computed per route simultaneously
-(`attrAnalyzeRoute` in `cmd/ze/ze_analyze_attributes.go`):
+(`attrAnalyzeRoute` in `internal/analyze/attributes.go`):
 
 | Bundle | Includes | Excludes |
 |---|---|---|
@@ -140,5 +140,5 @@ more memory for AS_PATH storage than the trie approach.
 
 - `docs/research/mrt-attribute-caching.md` -- earlier caching analysis
 - `docs/research/performance-analysis.md` -- broader performance findings
-- `cmd/ze/ze_analyze_attributes.go` -- bundle dedup implementation
-- `cmd/ze/ze_analyze_aspath.go` -- suffix sharing trie implementation
+- `internal/analyze/attributes.go` -- bundle dedup implementation
+- `internal/analyze/aspath.go` -- suffix sharing trie implementation

@@ -365,6 +365,31 @@ The owner package needs its `init()` linked into the binary: until the Phase 7
 generated command-provider aggregator lands, add a blank import to
 `cmd/ze/main.go` (`_ "codeberg.org/thomas-mangin/ze/internal/component/<owner>/cli"`).
 
+### Commands with subcommands: `subdispatch.Dispatcher`
+
+When a root command has its own subcommands (install, uninstall, analyze, perf),
+use `internal/core/subdispatch.Dispatcher` instead of a hand-rolled switch/case.
+The dispatcher provides map-based lookup, derived usage text via `helpfmt`, and
+typo suggestions.
+
+See `ai/patterns/registration.md` "Subcommand Dispatch" section for the full template.
+
+Existing examples: `cmd/ze/install/dispatch.go`, `cmd/ze/uninstall/dispatch.go`.
+
+### Binary personalities (ze-test, ze-perf, etc.)
+
+Binary personalities are build-tagged variants of `cmd/ze/`. Their domain code
+belongs in `internal/`, not in `cmd/ze/`. The cmd/ze file is a build-tagged
+blank import only:
+
+```go
+//go:build ze_analyze
+package main
+import _ "codeberg.org/thomas-mangin/ze/internal/analyze"
+```
+
+See `ai/patterns/registration.md` "Binary Personality Registration" section.
+
 ### Registry API (`internal/component/command/registry`)
 
 | Call | Use |

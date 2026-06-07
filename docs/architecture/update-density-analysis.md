@@ -4,7 +4,7 @@ Empirical analysis of real-world BGP UPDATE traffic from public route collectors
 measuring NLRI density per message and per-peer burst patterns. These numbers
 directly inform per-peer channel sizing in the forward pool.
 
-<!-- source: cmd/ze/ze_analyze_density.go — density analysis tool -->
+<!-- source: internal/analyze/density.go — density analysis tool -->
 
 ## Data Source
 
@@ -37,7 +37,7 @@ counts **updates**, not prefixes. There is no large multiplier: 1 UPDATE creates
 roughly 1-3 items in the forward pool. The channel size in items (16, 32, 64)
 maps nearly directly to UPDATEs absorbed.
 
-<!-- source: cmd/ze/ze_analyze_density.go — countUpdateNLRIs -->
+<!-- source: internal/analyze/density.go — countUpdateNLRIs -->
 
 ## Setup vs Maintenance: Two Traffic Modes
 
@@ -61,7 +61,7 @@ Of the 55 source peers in this sample:
 - 39 had setup bursts (sending full tables or convergence events)
 - 16 were maintenance-only (steady-state churn)
 
-<!-- source: cmd/ze/ze_analyze_density.go — detectPeerRuns, printBurstAnalysis -->
+<!-- source: internal/analyze/density.go — detectPeerRuns, printBurstAnalysis -->
 
 ## Maintenance Traffic Distribution
 

@@ -5,7 +5,7 @@ from public route collectors (RIPE RIS, RouteViews). It processes MRT dump files
 to extract statistics that inform ze's internal buffer sizing, caching strategies,
 and congestion handling.
 
-<!-- source: cmd/ze/ze_analyze_register.go -- ze-analyze CLI entry point -->
+<!-- source: internal/analyze/register.go -- ze-analyze CLI entry point -->
 
 ## Building
 
@@ -36,7 +36,7 @@ bin/ze-analyze attributes test/internet/latest-bview.gz    # attribute repetitio
 | RouteViews route-views2 | BGP4MP updates | 15 min | ~2 MB per file |
 | RouteViews route-views2 | TABLE_DUMP_V2 RIB | 2-hour intervals | ~100 MB |
 
-<!-- source: cmd/ze/ze_analyze_download.go -- download URLs and conversion -->
+<!-- source: internal/analyze/download.go -- download URLs and conversion -->
 
 Files are saved to `test/internet/` (gitignored). RouteViews bz2 files are
 converted to gzip on download for Go stdlib compatibility.
@@ -56,7 +56,7 @@ Measures how many NLRIs each UPDATE carries and how many UPDATEs arrive per
 second. Separates traffic into setup (table dumps, convergence) and maintenance
 (steady-state churn) using per-source-peer burst detection.
 
-<!-- source: cmd/ze/ze_analyze_density.go -- NLRI counting and burst detection -->
+<!-- source: internal/analyze/density.go -- NLRI counting and burst detection -->
 
 ```
 bin/ze-analyze density test/internet/ripe-updates.*.gz
@@ -78,7 +78,7 @@ Analyses attribute repetition across routes to guide caching decisions. Measures
 per-attribute cache hit rates, bundle deduplication effectiveness, and temporal
 locality (consecutive identical bundles).
 
-<!-- source: cmd/ze/ze_analyze_attributes.go -- bundle hashing and community extraction -->
+<!-- source: internal/analyze/attributes.go -- bundle hashing and community extraction -->
 
 ```
 bin/ze-analyze attributes test/internet/latest-bview.gz 2>/dev/null | jq .   # JSON
@@ -96,7 +96,7 @@ Identifies per-ASN community defaults: communities that appear in nearly every
 route from a given ASN. These defaults can be assumed present in a cache,
 encoding only exceptions (absent defaults) to save wire bytes.
 
-<!-- source: cmd/ze/ze_analyze_communities.go -- per-ASN frequency analysis -->
+<!-- source: internal/analyze/communities.go -- per-ASN frequency analysis -->
 
 ```
 bin/ze-analyze communities test/internet/latest-bview.gz

@@ -1,5 +1,4 @@
-// Design: docs/architecture/chaos-web-dashboard.md -- chaos test orchestrator
-// Related: ze_chaos_orchestrator_run.go, ze_chaos_orchestrator.go
+// Design: docs/architecture/chaos-web-dashboard.md -- chaos test orchestrator CLI wiring
 
 //go:build ze_chaos
 
@@ -30,6 +29,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/inprocess"
 	chaosmcp "codeberg.org/thomas-mangin/ze/internal/chaos/mcp"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/orchestrator"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
@@ -350,12 +350,12 @@ Control:
 
 	// Shrink mode: minimize a failing event log.
 	if *shrinkFile != "" {
-		return runShrink(*shrinkFile, *convergenceDeadline, *verbose)
+		return orchestrator.RunShrink(*shrinkFile, *convergenceDeadline, *verbose)
 	}
 
 	// Replay mode: feed recorded event log through validation model.
 	if *replayFile != "" {
-		return runReplay(*replayFile)
+		return orchestrator.RunReplay(*replayFile)
 	}
 
 	// Validate --diff2 requires --diff.
@@ -370,7 +370,7 @@ Control:
 			fmt.Fprintf(os.Stderr, "error: --diff requires --diff2\n")
 			return 1
 		}
-		return runDiff(*diffFile1, *diffFile2)
+		return orchestrator.RunDiff(*diffFile1, *diffFile2)
 	}
 
 	// Validate peer count.
@@ -422,7 +422,7 @@ Control:
 	}
 
 	// Check for listener port conflicts among single-port flags.
-	if err := validateChaosListenerConflicts(*sshPort, *webUIPort, *lgPort, *zeMCPPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr, *mcpAddr); err != nil {
+	if err := orchestrator.ValidateChaosListenerConflicts(*sshPort, *webUIPort, *lgPort, *zeMCPPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr, *mcpAddr); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -430,7 +430,7 @@ Control:
 	// Check for single-port listeners falling inside allocated port ranges.
 	// When port=0 (auto-allocate), bgp range [0, peers*2] won't conflict with
 	// any real service (all > 1024), but listenBase range is still checked.
-	if err := validateRangeConflicts(*port, *listenBase, *peers, *sshPort, *webUIPort, *lgPort, *zeMCPPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr, *mcpAddr); err != nil {
+	if err := orchestrator.ValidateRangeConflicts(*port, *listenBase, *peers, *sshPort, *webUIPort, *lgPort, *zeMCPPort, *webAddr, *pprofAddr, *metricsAddr, *debugAddr, *mcpAddr); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -487,7 +487,7 @@ Control:
 
 	// Port auto-allocation: --port 0 asks the kernel for a free port.
 	if *port == 0 {
-		allocated, allocErr := allocatePort(context.Background(), *localAddr)
+		allocated, allocErr := orchestrator.AllocatePort(context.Background(), *localAddr)
 		if allocErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", allocErr)
 			return 1
@@ -578,7 +578,7 @@ Control:
 	// Catches conflicts early instead of producing confusing BGP errors later.
 	zeAddr := fmt.Sprintf("%s:%d", *localAddr, *port)
 	if !*inProcess {
-		if err := checkPortFree(zeAddr); err != nil {
+		if err := orchestrator.CheckPortFree(zeAddr); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
@@ -611,13 +611,13 @@ Control:
 				PeerCount:          len(profiles),
 				Seed:               *seed,
 				InitialSpeedFactor: 1,
-				PeerFamilyTargets:  peerFamilyTargets(profiles),
+				PeerFamilyTargets:  orchestrator.PeerFamilyTargets(profiles),
 			})
 			if webErr != nil {
 				fmt.Fprintf(os.Stderr, "error: starting web dashboard: %v\n", webErr)
 				return 1
 			}
-			fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", dashboardURL(*webAddr))
+			fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", orchestrator.DashboardURL(*webAddr))
 			defer func() { _ = wd.Close() }()
 		}
 
@@ -696,7 +696,7 @@ Control:
 		// When web dashboard is active, keep serving until Ctrl-C
 		// so the user can explore the final state.
 		if wd != nil {
-			fmt.Fprintf(os.Stderr, "ze-chaos | simulation done — dashboard at %s (Ctrl-C to exit)\n", dashboardURL(*webAddr))
+			fmt.Fprintf(os.Stderr, "ze-chaos | simulation done — dashboard at %s (Ctrl-C to exit)\n", orchestrator.DashboardURL(*webAddr))
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 			<-sigCh
@@ -705,13 +705,13 @@ Control:
 	}
 
 	// Fork mode (default): start the daemon as a child process.
-	var child *zeChild
+	var child *orchestrator.ZeChild
 	if !*pipe && *configOut == "" {
 		var forkErr error
 		if target == scenario.TargetZe {
-			child, forkErr = forkZe(context.Background(), daemonConfig, *daemonBinary)
+			child, forkErr = orchestrator.ForkZe(context.Background(), daemonConfig, *daemonBinary)
 		} else {
-			child, forkErr = forkDaemon(context.Background(), daemonConfig, *daemonBinary, target, *port, *localAddr)
+			child, forkErr = orchestrator.ForkDaemon(context.Background(), daemonConfig, *daemonBinary, target, *port, *localAddr)
 		}
 		if forkErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", forkErr)
@@ -750,13 +750,13 @@ Control:
 	var zeCrashed atomic.Bool
 	if child != nil {
 		go func() {
-			<-child.done
+			<-child.Done()
 			if parentCtx.Err() != nil {
 				return
 			}
 			zeCrashed.Store(true)
 			if !*quiet {
-				fmt.Fprintf(os.Stderr, "ze-chaos | ze crashed: %v\n", child.waitErr)
+				fmt.Fprintf(os.Stderr, "ze-chaos | ze crashed: %v\n", child.WaitErr())
 			}
 			parentCancel()
 		}()
@@ -766,13 +766,13 @@ Control:
 	// while Ze is still initializing. The HTTP server starts once
 	// setupReporting runs inside runOrchestrator.
 	if *webAddr != "" {
-		fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", dashboardURL(*webAddr))
+		fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", orchestrator.DashboardURL(*webAddr))
 	}
 
 	// Wait for Ze to start listening. In pipeline mode, Ze is reading
 	// piped config and needs time to initialize — retry with backoff.
 	pipeline := *configOut == ""
-	if err := waitForZe(parentCtx, zeAddr, pipeline); err != nil {
+	if err := orchestrator.WaitForZe(parentCtx, zeAddr, pipeline); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -780,14 +780,14 @@ Control:
 	// Restart channel: web dashboard sends new seeds here.
 	restartCh := make(chan uint64, 1)
 
-	chaosCfg := ChaosConfig{
+	chaosCfg := orchestrator.ChaosConfig{
 		Rate:           *chaosRate,
 		Interval:       *chaosInterval,
 		Warmup:         *warmup,
 		EnabledActions: parseChaosActions(*chaosActions),
 	}
 
-	routeCfg := RouteConfig{
+	routeCfg := orchestrator.RouteConfig{
 		Rate:       *routeRate,
 		Interval:   *routeInterval,
 		Warmup:     *warmup,
@@ -808,29 +808,29 @@ Control:
 		}
 
 		start := time.Now()
-		orchCfg := orchestratorConfig{
-			profiles:            profiles,
-			target:              target,
-			seed:                *seed,
-			localAddr:           *localAddr,
-			zePort:              *port,
-			verbose:             *verbose,
-			quiet:               *quiet,
-			start:               start,
-			chaosCfg:            chaosCfg,
-			routeCfg:            routeCfg,
-			zePID:               *zePID,
-			eventLog:            *eventLog,
-			metricsAddr:         *metricsAddr,
-			webAddr:             *webAddr,
-			mcpAddr:             *mcpAddr,
-			properties:          *properties,
-			convergenceDeadline: *convergenceDeadline,
-			restartCh:           restartCh,
-			onStop:              runCancel,
+		orchCfg := orchestrator.OrchestratorConfig{
+			Profiles:            profiles,
+			Target:              target,
+			Seed:                *seed,
+			LocalAddr:           *localAddr,
+			ZePort:              *port,
+			Verbose:             *verbose,
+			Quiet:               *quiet,
+			Start:               start,
+			ChaosCfg:            chaosCfg,
+			RouteCfg:            routeCfg,
+			ZePID:               *zePID,
+			EventLog:            *eventLog,
+			MetricsAddr:         *metricsAddr,
+			WebAddr:             *webAddr,
+			McpAddr:             *mcpAddr,
+			Properties:          *properties,
+			ConvergenceDeadline: *convergenceDeadline,
+			RestartCh:           restartCh,
+			OnStop:              runCancel,
 		}
 
-		exitCode := runOrchestrator(runCtx, &orchCfg)
+		exitCode := orchestrator.RunOrchestrator(runCtx, &orchCfg)
 		runCancel()
 
 		// Check for pending restart.
