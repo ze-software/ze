@@ -58,6 +58,7 @@ include mk/test-release.mk
 include mk/perf.mk
 include mk/inventory.mk
 include mk/gokrazy.mk
+include mk/test-mutation.mk
 
 # ─── Build ──────────────────────────────────────────────────────────────────
 

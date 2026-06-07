@@ -57,6 +57,9 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-editor-test` | Editor `.et` tests (headless TUI) |
 | `make ze-chaos-test` | Chaos unit + functional + integration + web |
 | `make ze-race-reactor` | Stress race-test reactor (`-race -count=20`) -- REQUIRED when touching reactor concurrency code |
+| `make ze-mutation-test` | Mutation testing via gomu on all non-excluded packages (advisory, slow) |
+| `make ze-mutation-changed` | Incremental mutation testing on changed files only (advisory, fast) |
+| `make ze-mutation-report` | Mutation testing with HTML report to `tmp/mutation-report.html` |
 
 ### Linux-Only Tests (QEMU)
 
@@ -363,6 +366,29 @@ Full protocol usage: `API()` class with `declare_family()`, `declare_done()`,
 `wait_for_config()`, `capability_done()`, `wait_for_registry()`, `ready()`.
 
 Source: `test/scripts/ze_api.py` (docstring has examples).
+
+## Mutation Testing
+
+Mutation testing uses [gomu](https://github.com/sivchari/gomu) to verify that
+tests actually catch code changes. It modifies the AST (arithmetic, conditional,
+logical, bitwise, branch, return value, error handling operators) and checks
+whether the test suite detects each mutation. Advisory only, never gates
+`ze-verify`.
+
+Install: `go install github.com/sivchari/gomu/cmd/gomu@latest`
+
+| Target | Purpose |
+|--------|---------|
+| `make ze-mutation-test` | Full run on all non-excluded packages (slow) |
+| `make ze-mutation-changed` | Incremental, changed files only (fast) |
+| `make ze-mutation-report` | Full run with HTML report to `tmp/mutation-report.html` |
+
+Tuning via environment: `GOMU_WORKERS` (default: `GO_TEST_PROCS`),
+`GOMU_TIMEOUT` (default: 120s per test), `GOMU_THRESHOLD` (default: 0%).
+
+gomu has no `--tags` support. Files with custom build tags (`ze_test`,
+`ze_chaos`, `ze_perf`, `ze_analyze`) and `cmd/ze/` are excluded via
+`.gomuignore`. Reports go to `tmp/` (gitignored).
 
 ## Pre-Commit
 

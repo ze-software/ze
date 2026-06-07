@@ -262,6 +262,17 @@ github.com/rivo/uniseg
 # github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
+# github.com/sivchari/gomu v0.2.1
+## explicit; go 1.24
+github.com/sivchari/gomu/cmd/gomu
+github.com/sivchari/gomu/internal/analysis
+github.com/sivchari/gomu/internal/ci
+github.com/sivchari/gomu/internal/execution
+github.com/sivchari/gomu/internal/history
+github.com/sivchari/gomu/internal/ignore
+github.com/sivchari/gomu/internal/mutation
+github.com/sivchari/gomu/internal/report
+github.com/sivchari/gomu/pkg/gomu
 # github.com/spf13/cobra v1.10.1
 ## explicit; go 1.15
 github.com/spf13/cobra

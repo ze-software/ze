@@ -8,6 +8,7 @@
 package main
 
 import (
+	_ "github.com/sivchari/gomu/cmd/gomu"
 	_ "golang.org/x/tools/cmd/goimports"
 	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
 	_ "google.golang.org/protobuf/cmd/protoc-gen-go"

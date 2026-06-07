@@ -1,0 +1,22 @@
+# gomu exclusion patterns
+# gomu has no --tags support; exclude files with custom build tags
+# and platform-specific files that fail cross-compilation.
+
+# Build-tagged program selectors (cmd/ze/ uses mutually exclusive tags)
+cmd/ze/
+
+# Generated code
+*_generated.go
+*_gen.go
+zz_generated_*.go
+
+# Vendor and module cache
+vendor/
+gokrazy/modcache/
+
+# Test infrastructure (mutation testing tests is circular)
+test/
+tmp/
+
+# Appliance / setup (build-tagged, platform-specific)
+internal/appliance/
