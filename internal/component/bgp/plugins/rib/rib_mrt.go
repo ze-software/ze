@@ -11,7 +11,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 var activeManager atomic.Pointer[RIBManager]
@@ -61,6 +60,11 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 		peerIndices[s.addr] = idx
 	}
 
+	type routeSnap struct {
+		nlri  []byte
+		entry storage.RouteEntry
+	}
+
 	attrBuf := make([]byte, 0, 4096)
 	for i := range snaps {
 		s := &snaps[i]
@@ -69,21 +73,31 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 			continue
 		}
 
-		s.rib.IterateSorted(func(fam family.Family, nlriBytes []byte, entry storage.RouteEntry) bool {
-			attrBuf = reconstructWireAttrs(entry, attrBuf[:0])
-			if len(attrBuf) == 0 {
+		for _, fam := range s.rib.Families() {
+			// Snapshot route entries under short per-family lock, then process outside.
+			var routes []routeSnap
+			s.rib.IterateFamily(fam, func(nlriBytes []byte, entry storage.RouteEntry) bool {
+				cp := make([]byte, len(nlriBytes))
+				copy(cp, nlriBytes)
+				routes = append(routes, routeSnap{nlri: cp, entry: entry})
 				return true
-			}
+			})
+
 			afi := uint16(fam.AFI)
 			safi := uint16(fam.SAFI)
-			switch {
-			case (fam.AFI == 1 || fam.AFI == 2) && fam.SAFI == 1 && len(nlriBytes) > 0:
-				visitor.OnRoute(peerIdx, afi, safi, nlriBytes[0], nlriBytes[1:], attrBuf)
-			default:
-				visitor.OnRoute(peerIdx, afi, safi, 0, nlriBytes, attrBuf)
+			for _, rt := range routes {
+				attrBuf = reconstructWireAttrs(rt.entry, attrBuf[:0])
+				if len(attrBuf) == 0 {
+					continue
+				}
+				switch {
+				case (fam.AFI == 1 || fam.AFI == 2) && fam.SAFI == 1 && len(rt.nlri) > 0:
+					visitor.OnRoute(peerIdx, afi, safi, rt.nlri[0], rt.nlri[1:], attrBuf)
+				default:
+					visitor.OnRoute(peerIdx, afi, safi, 0, rt.nlri, attrBuf)
+				}
 			}
-			return true
-		})
+		}
 	}
 }
 
