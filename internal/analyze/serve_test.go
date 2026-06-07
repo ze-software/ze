@@ -16,7 +16,7 @@ func TestBuildUpdateBody(t *testing.T) {
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
 
 	entry := &mrt.RIBEntry{Attributes: attrs}
-	body := buildUpdateBody(24, prefix, entry)
+	body := buildUpdateBody(24, prefix, entry, true)
 	require.True(t, len(body) > 4)
 
 	// Withdrawn length = 0

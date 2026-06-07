@@ -125,9 +125,10 @@ func runInject(args []string) int {
 			sent++
 			return nil
 		},
-		OnRIB: func(_ mrt.Header, r *mrt.RIBRecord) error {
+		OnRIB: func(h mrt.Header, r *mrt.RIBRecord) error {
+			trailing := ribSubtypeHasTrailingNLRI(h.Subtype)
 			for i := range r.Entries {
-				update := buildUpdateFromRIB(r.PrefixLength, r.Prefix, &r.Entries[i])
+				update := buildUpdateFromRIB(r.PrefixLength, r.Prefix, &r.Entries[i], trailing)
 				if _, err := conn.Write(update); err != nil {
 					return err
 				}
@@ -182,8 +183,8 @@ func bgpOpenExchange(conn net.Conn, localAS uint32, holdTime uint16, routerID ne
 	return nil
 }
 
-func buildUpdateFromRIB(prefixLen uint8, prefix []byte, entry *mrt.RIBEntry) []byte {
-	body := buildUpdateBody(prefixLen, prefix, entry)
+func buildUpdateFromRIB(prefixLen uint8, prefix []byte, entry *mrt.RIBEntry, trailingNLRI bool) []byte {
+	body := buildUpdateBody(prefixLen, prefix, entry, trailingNLRI)
 	totalLen := 19 + len(body)
 	msg := make([]byte, totalLen)
 	for i := range 16 {

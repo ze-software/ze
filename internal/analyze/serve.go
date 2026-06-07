@@ -239,13 +239,14 @@ func serveFile(conn net.Conn, filename string, peerAS uint32, perPeer bool) (uin
 			count++
 			return nil
 		},
-		OnRIB: func(_ mrt.Header, r *mrt.RIBRecord) error {
+		OnRIB: func(h mrt.Header, r *mrt.RIBRecord) error {
+			trailingNLRI := ribSubtypeHasTrailingNLRI(h.Subtype)
 			for i := range r.Entries {
 				entry := &r.Entries[i]
 				if perPeer && !servePeerMatch(entry.PeerIndex, peerASNByIndex, peerAS) {
 					continue
 				}
-				updateBody := buildUpdateBody(r.PrefixLength, r.Prefix, entry)
+				updateBody := buildUpdateBody(r.PrefixLength, r.Prefix, entry, trailingNLRI)
 				if err := bgpWrite(conn, 2, updateBody); err != nil {
 					return err
 				}
@@ -277,15 +278,18 @@ func servePeerMatch(peerIndex uint16, peerASNs []uint32, targetAS uint32) bool {
 	return peerASNs[peerIndex] == targetAS
 }
 
-func buildUpdateBody(prefixLen uint8, prefix []byte, entry *mrt.RIBEntry) []byte {
+// ribSubtypeHasTrailingNLRI returns true for IPv4 unicast subtypes where
+// NLRI goes in the trailing field. All other subtypes (IPv6, multicast,
+// generic, add-path IPv6) use MP_REACH_NLRI inside attributes.
+func ribSubtypeHasTrailingNLRI(subtype uint16) bool {
+	return subtype == mrt.TDV2RIBIPv4Unicast || subtype == mrt.TDV2RIBIPv4UnicastAP
+}
+
+func buildUpdateBody(prefixLen uint8, prefix []byte, entry *mrt.RIBEntry, trailingNLRI bool) []byte {
 	attrLen := len(entry.Attributes)
 
-	// If attributes contain MP_REACH_NLRI (type 14), the NLRI is inside
-	// the attribute. Trailing NLRI field must be empty (IPv6, VPN, etc).
-	hasMP := mrt.FindAttribute(mrt.ParseAttributes(entry.Attributes), 14) != nil
-
 	nlriBytes := 0
-	if !hasMP {
+	if trailingNLRI {
 		nlriBytes = 1 + len(prefix)
 	}
 
@@ -297,7 +301,7 @@ func buildUpdateBody(prefixLen uint8, prefix []byte, entry *mrt.RIBEntry) []byte
 	off += 2
 	copy(body[off:], entry.Attributes)
 	off += attrLen
-	if !hasMP {
+	if trailingNLRI {
 		body[off] = prefixLen
 		off++
 		copy(body[off:], prefix)

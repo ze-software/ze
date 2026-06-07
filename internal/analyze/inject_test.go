@@ -17,7 +17,7 @@ func TestBuildUpdateFromRIB(t *testing.T) {
 		Attributes: []byte{0x40, 0x01, 0x01, 0x00},
 	}
 
-	msg := buildUpdateFromRIB(24, []byte{10, 0, 0}, entry)
+	msg := buildUpdateFromRIB(24, []byte{10, 0, 0}, entry, true)
 
 	require.True(t, len(msg) >= 19)
 
@@ -42,7 +42,7 @@ func TestBuildUpdateFromRIB(t *testing.T) {
 
 func TestBuildUpdateFromRIB_EmptyAttrs(t *testing.T) {
 	entry := &mrt.RIBEntry{Attributes: nil}
-	msg := buildUpdateFromRIB(0, nil, entry)
+	msg := buildUpdateFromRIB(0, nil, entry, true)
 
 	require.True(t, len(msg) >= 19)
 	assert.Equal(t, byte(2), msg[18])
