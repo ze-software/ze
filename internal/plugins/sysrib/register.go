@@ -13,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
-	sysribschema "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/schema"
+	sysribyang "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -29,7 +29,7 @@ func init() {
 		Name:                    configRootRIB,
 		Description:             "System RIB: selects best route across protocols by admin distance",
 		Features:                "yang",
-		YANG:                    sysribschema.ZeRibConfYANG,
+		YANG:                    sysribyang.ZeRibConfYANG,
 		ConfigRoots:             []string{configRootRIB},
 		InProcessConfigVerifier: verifySysRIBConfig,
 		RunEngine:               runSysRIBPlugin,

@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/yang"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 )
 

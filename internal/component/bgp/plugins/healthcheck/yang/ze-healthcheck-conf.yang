@@ -1,0 +1,160 @@
+module ze-healthcheck-conf {
+    namespace "urn:ze:healthcheck-conf";
+    prefix hc;
+
+    import ze-bgp-conf { prefix bgp; }
+
+    description "BGP healthcheck plugin configuration for Ze";
+
+    revision 2026-04-03 {
+        description "Initial revision";
+    }
+
+    grouping probe-config {
+        list probe {
+            key "name";
+            unique "group";
+            description "Healthcheck probe definition";
+
+            leaf name {
+                type string;
+                description "Probe identifier";
+            }
+
+            leaf command {
+                type string;
+                mandatory true;
+                description "Shell command to execute for health check (exit 0 = success)";
+            }
+
+            leaf group {
+                type string;
+                mandatory true;
+                description "Watchdog group name (exclusive: one probe per group)";
+            }
+
+            leaf interval {
+                type uint32 {
+                    range "0..86400";
+                }
+                default 5;
+                description "Seconds between checks (0 = single check then dormant)";
+            }
+
+            leaf fast-interval {
+                type uint32 {
+                    range "1..3600";
+                }
+                default 1;
+                description "Seconds between checks during RISING/FALLING states";
+            }
+
+            leaf timeout {
+                type uint32 {
+                    range "1..3600";
+                }
+                default 5;
+                description "Command timeout in seconds";
+            }
+
+            leaf rise {
+                type uint32 {
+                    range "1..1000";
+                }
+                default 3;
+                description "Consecutive successes before UP";
+            }
+
+            leaf fall {
+                type uint32 {
+                    range "1..1000";
+                }
+                default 3;
+                description "Consecutive failures before DOWN";
+            }
+
+            leaf withdraw-on-down {
+                type boolean;
+                default false;
+                description "When true, withdraw route on DOWN/DISABLED. When false (default), re-announce with down-metric/disabled-metric.";
+            }
+
+            leaf disable {
+                type boolean;
+                default false;
+                description "Admin disable: probe enters DISABLED state immediately";
+            }
+
+            leaf debounce {
+                type boolean;
+                default false;
+                description "When true, only dispatch watchdog commands on state changes";
+            }
+
+            leaf up-metric {
+                type uint32;
+                default 100;
+                description "MED value when UP";
+            }
+
+            leaf down-metric {
+                type uint32;
+                default 1000;
+                description "MED value when DOWN (used when withdraw-on-down is false)";
+            }
+
+            leaf disabled-metric {
+                type uint32;
+                default 500;
+                description "MED value when DISABLED (used when withdraw-on-down is false)";
+            }
+
+            container ip-setup {
+                description "VIP management on local interface (internal plugin mode only)";
+
+                leaf interface {
+                    type string;
+                    description "Target interface for VIPs (e.g., lo, dummy0)";
+                }
+
+                leaf dynamic {
+                    type boolean;
+                    default false;
+                    description "When true, remove IPs on DOWN/DISABLED, restore on UP";
+                }
+
+                leaf-list ip {
+                    type string;
+                    description "VIP addresses in CIDR notation (e.g., 10.0.0.1/32)";
+                }
+            }
+
+            leaf-list on-up {
+                type string;
+                description "Shell commands to execute on transition to UP (30s timeout)";
+            }
+
+            leaf-list on-down {
+                type string;
+                description "Shell commands to execute on transition to DOWN (30s timeout)";
+            }
+
+            leaf-list on-disabled {
+                type string;
+                description "Shell commands to execute on transition to DISABLED (30s timeout)";
+            }
+
+            leaf-list on-change {
+                type string;
+                description "Shell commands to execute on any state transition (30s timeout, runs after state-specific hooks)";
+            }
+        }
+    }
+
+    augment "/bgp:bgp" {
+        container healthcheck {
+            description "Healthcheck probes for service-aware BGP route management";
+            uses probe-config;
+        }
+    }
+}

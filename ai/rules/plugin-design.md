@@ -73,7 +73,7 @@ hand-written artifact is the `.yang` file itself.
 | Artifact | Location |
 |----------|----------|
 | Implementation library | `component/<name>/` or `core/<name>/` |
-| Config YANG (data model) | `component/<name>/schema/` |
+| Config YANG (data model) | `component/<name>/yang/` |
 | Command YANG (CLI tree) | `plugins/<name>/yang/` |
 | RPC handlers | `plugins/<name>/cmd/` |
 | Offline CLI registration | `plugins/<name>/register.go` |
@@ -136,7 +136,7 @@ Plugins MUST NOT import sibling plugin packages -- use text commands via Dispatc
 - NLRI decoding: `registry.NLRIDecoder(family)` -> `func(hex) (json, error)`
 - NLRI encoding: `registry.NLRIEncoder(family)` -> `func(args) (hex, error)`
 - Plugin `register.go` and `internal/component/plugin/all/all.go` blank imports: allowed
-- Schema imports (`<plugin>/schema/`): allowed (data, not logic)
+- Schema imports (`<plugin>/yang/`): allowed (data, not logic)
 - Test imports: tolerated
 
 ## Plugin Boundary Naming (BLOCKING)
@@ -301,7 +301,7 @@ locations is incomplete by definition.
 | Plugin registration | `internal/component/bgp/plugins/*/register.go`, `internal/component/plugin/all/all.go` | `Name: "bgp-gr"` |
 | Subsystem logger | `internal/core/slogutil/`, `slogutil.Logger("...")` calls | `slogutil.Logger("bgp.gr")` |
 | Env var registration | `env.MustRegister("ze.log.bgp.gr", ...)` | `ze.log.<name>` |
-| YANG config keys | `internal/component/*/schema/*.yang`, `grouping`/`container` names | `container gr { ... }` |
+| YANG config keys | `internal/component/*/yang/*.yang`, `grouping`/`container` names | `container gr { ... }` |
 | Config consumer | `internal/component/bgp/config/`, anything that does string-keyed lookups in the parsed tree | `tree["bgp"]["gr"]` |
 | Dispatch keys | `dispatchCommand("bgp gr ...")`, command prefix matching | `"bgp gr"` |
 | Test fixtures | `test/**/*.ci`, `test/**/*.conf`, env vars in tests | `option=env:var=ze.log.bgp.gr` |

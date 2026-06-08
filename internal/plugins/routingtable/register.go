@@ -11,7 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	rtschema "codeberg.org/thomas-mangin/ze/internal/plugins/routingtable/schema"
+	rtyang "codeberg.org/thomas-mangin/ze/internal/plugins/routingtable/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -22,7 +22,7 @@ func init() {
 		Name:                    pluginName,
 		Description:             "Named routing table registry: maps names to kernel table IDs",
 		Features:                "yang",
-		YANG:                    rtschema.ZeRoutingTableConfYANG,
+		YANG:                    rtyang.ZeRoutingTableConfYANG,
 		ConfigRoots:             []string{pluginName},
 		InProcessConfigVerifier: verifyRoutingTableConfig,
 		RunEngine:               runRoutingTablePlugin,

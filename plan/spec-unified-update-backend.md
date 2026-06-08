@@ -82,9 +82,9 @@ by a new abstraction layer.
   -> Constraint: reads password from /perm/gokr-pw.txt, /etc/gokr-pw.txt, /gokr-pw.txt
 - [ ] `cmd/ze/doctor/doctor.go:1932-1947` - self-update writable check
   -> Constraint: checks `auto-apply` config, warns if binary parent not writable
-- [ ] `internal/component/config/system/schema/ze-system-conf.yang:325-383` - update-check YANG
+- [ ] `internal/component/config/system/yang/ze-system-conf.yang:325-383` - update-check YANG
   -> Constraint: description says "Firmware version check and self-update"
-- [ ] `internal/component/cmd/update/schema/ze-cli-update-cmd.yang` - firmware CLI YANG
+- [ ] `internal/component/cmd/update/yang/ze-cli-update-cmd.yang` - firmware CLI YANG
   -> Constraint: descriptions say "Firmware self-update operations"
 
 **Behavior to preserve:**
@@ -211,8 +211,8 @@ N/A: no wire protocol changes.
 - `internal/component/cmd/update/firmware.go` - dispatch through backend instead of ActiveSelfUpdaterInstance()
 - `cmd/ze/hub/main_system.go` - backend selection logic (platform + config -> backend)
 - `cmd/ze/doctor/doctor.go` - platform-aware self-update doctor checks
-- `internal/component/config/system/schema/ze-system-conf.yang` - update descriptions
-- `internal/component/cmd/update/schema/ze-cli-update-cmd.yang` - update descriptions
+- `internal/component/config/system/yang/ze-system-conf.yang` - update descriptions
+- `internal/component/cmd/update/yang/ze-cli-update-cmd.yang` - update descriptions
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -330,7 +330,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Old globals removed | `grep -c 'activeChecker\b' internal/component/config/system/update.go` returns 0 |
 | Gokrazy firmware returns unsupported | `grep 'managed by gokrazy' internal/component/config/system/backend_gokrazy.go` |
 | Doctor check platform-aware | `grep 'PlatformGokrazy' cmd/ze/doctor/doctor.go` |
-| YANG descriptions updated | `grep -c 'self-update' internal/component/config/system/schema/ze-system-conf.yang` reduced |
+| YANG descriptions updated | `grep -c 'self-update' internal/component/config/system/yang/ze-system-conf.yang` reduced |
 | Functional test exists | `ls test/plugin/show-system-update-backend.ci` |
 
 ### Security Review Checklist (/implement stage 11)

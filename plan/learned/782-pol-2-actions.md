@@ -30,7 +30,7 @@ Ze's policy chain had the right structure (piped filters, text delta, wire-level
 ## Files
 
 - `internal/component/bgp/plugins/filter_modify/{config,modify,filter_modify}.go` -- inc/dec, community ops, dynamic delta
-- `internal/component/bgp/plugins/filter_modify/schema/ze-filter-modify.yang` -- increment/decrement/community YANG
+- `internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang` -- increment/decrement/community YANG
 - `internal/component/bgp/plugins/filter_aspath_length/` -- new plugin (8 files)
 - `internal/component/bgp/reactor/filter_chain.go` -- 6 community directive names, policySingleToken
 - `internal/component/bgp/reactor/filter_delta.go` -- communityDirectives map, per-value Remove split

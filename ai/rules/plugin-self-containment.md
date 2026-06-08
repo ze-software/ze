@@ -29,7 +29,7 @@ broken/empty command, the surface is in the wrong package. Move it to the owner.
 | Anti-pattern | Why it fails the removal test |
 |--------------|-------------------------------|
 | Plugin command spelling in generic dispatch (`internal/component/plugin/server`) | Deleting the plugin leaves dead BGP/iface knowledge in shared code |
-| A plugin's subtree in a central verb schema (e.g. `show bgp ...` in `internal/component/cmd/show/schema/ze-cli-show-cmd.yang`) | Deleting the plugin leaves a `show bgp` branch with no handler |
+| A plugin's subtree in a central verb schema (e.g. `show bgp ...` in `internal/component/cmd/show/yang/ze-cli-show-cmd.yang`) | Deleting the plugin leaves a `show bgp` branch with no handler |
 | Plugin handlers registered from a central verb package (`cmd/show`, `cmd/delete`, ...) | Deleting the plugin leaves the central package referencing gone symbols |
 | Help / usage / inventory strings that hardcode a plugin's commands in a generic package | Deleting the plugin leaves help advertising commands that no longer exist |
 | The CLI helper (`cmd/ze/internal/cmdutil`) special-casing a plugin's selectors | Selector handling is generic; per-plugin knowledge belongs to the owner |
@@ -71,7 +71,7 @@ reads one plugin's or component's state belongs to that owner, regardless of the
 | Surface | Owner location |
 |---------|----------------|
 | RPC handler + `pluginserver.RegisterRPCs` | owner package (e.g. `internal/component/<owner>/cmd/` or the plugin's own package) |
-| YANG command schema (full path from root, e.g. `show bgp peer ...`) | `<owner>/schema/ze-<x>-cmd.yang`, NEVER `<owner>/cmd/schema/` |
+| YANG command schema (full path from root, e.g. `show bgp peer ...`) | `<owner>/yang/ze-<x>-cmd.yang`, NEVER `<owner>/cmd/yang/` |
 | Offline/root command + handler | owner package via the offline command registry |
 | Help / usage / completion | derived from the owner's registry + schema (see `ai/rules/derive-not-hardcode.md`) |
 | Doctor check + its unit test | owner package (Proximity Principle) |
@@ -88,19 +88,19 @@ plugin's commands.
    the registration links with NO generator or manual-island change. The handler
    imports only `plugin` + `pluginserver` (+ the owner's own API), so it does not
    create an import cycle.
-2. **Schema (container merge, NOT `augment`):** add `<owner>/schema/ze-<x>-cmd.yang`,
+2. **Schema (container merge, NOT `augment`):** add `<owner>/yang/ze-<x>-cmd.yang`,
    a standalone module that re-declares the path from the root:
    `container show { container <x> { ... ze:command "ze-show:<x>"; } }`. The YANG
    loader unions same-named top-level containers across all registered modules, so
    the owner module needs no `import`/`augment` of the central schema and has no
    base-module coupling. Give it a unique `namespace`/`prefix` and
    `import ze-extensions`. Add the embed var + `yang.RegisterModule` call. A NEW
-   `<owner>/schema/` package whose `register.go` imports `config/yang` is
+   `<owner>/yang/` package whose `register.go` imports `config/yang` is
    auto-discovered, so run `go run scripts/codegen/plugin_imports.go` to refresh
    `internal/component/plugin/all/all.go`.
-3. **Schema location:** the command YANG lives in `<owner>/schema/` (top level,
-   sibling of `cli`/`cmd`), NEVER nested under `<owner>/cmd/schema`.
-4. **Both halves of the invariant:** the owner `schema/` gets a presence test
+3. **Schema location:** the command YANG lives in `<owner>/yang/` (top level,
+   sibling of `cli`/`cmd`), NEVER nested under `<owner>/cmd/yang`.
+4. **Both halves of the invariant:** the owner `yang/` gets a presence test
    asserting its command tokens ARE declared; the central verb schema test bans
    the moved tokens (below).
 
@@ -110,7 +110,7 @@ A verb whose subcommands belong to several owners (e.g. `monitor bgp`,
 `monitor vpn ipsec`, `monitor ping`) must NOT declare its root container inside
 any one plugin. If it does, deleting that plugin deletes the whole verb. The
 root lives in a central, plugin-free package `internal/component/cmd/<verb>`
-(a `doc.go` that blank-imports its `schema/` subpackage, mirroring `cmd/delete`);
+(a `doc.go` that blank-imports its `yang/` subpackage, mirroring `cmd/delete`);
 each owner container-merges only its own subtree onto that root. Precedent:
 `internal/component/cmd/monitor` holds the `container monitor` root, while
 `monitor bgp` stays in the BGP plugin and the other subcommands carve out to
@@ -136,8 +136,8 @@ attach to that anchor two ways, and the second one has a hard dependency on it:
 
 The anchor still owns NO command. The central guard test bans each carved token so
 a command cannot drift back into the central schema (for `clear`:
-`internal/component/cmd/clear/schema/self_containment_test.go`,
-`TestClearSchemaHasNoMigratedOwnerCommands`; each owner `schema/` holds the matching
+`internal/component/cmd/clear/yang/self_containment_test.go`,
+`TestClearSchemaHasNoMigratedOwnerCommands`; each owner `yang/` holds the matching
 presence test, e.g. `TestResolveCmdSchemaOwnsClearDNSCache`).
 
 ### Dedicated feature modules
@@ -161,20 +161,20 @@ plugin survives in any generic or central package. See
 that enforces it.
 
 The first instance is `TestShowSchemaHasNoBGPPluginCommands`
-(`internal/component/cmd/show/schema/self_containment_test.go`): it asserts the
+(`internal/component/cmd/show/yang/self_containment_test.go`): it asserts the
 central `show` verb schema declares no part of the `show bgp ...` subtree
 (`ze-rib-api:`, `ze-bgp:peer-`, `ze-show:bgp-decode`, `ze-show:bgp-encode`),
 because `show bgp rib ...` / `show bgp peer ...` are owned by
-`internal/component/bgp/plugins/cmd/{rib,peer}/schema` and the offline
+`internal/component/bgp/plugins/cmd/{rib,peer}/yang` and the offline
 `show bgp decode` / `show bgp encode` diagnostics are owned by
-`internal/component/bgp/cli/schema`. The owner half is asserted by
-`internal/component/bgp/cli/schema`'s `TestBGPToolsSchemaOwnsDecodeEncode` (the surface moved,
+`internal/component/bgp/cli/yang`. The owner half is asserted by
+`internal/component/bgp/cli/yang`'s `TestBGPToolsSchemaOwnsDecodeEncode` (the surface moved,
 it did not vanish).
 
 Non-BGP owners share one general central guard,
 `TestShowSchemaHasNoMigratedOwnerCommands` (same file), whose banned-token map
 grows by one entry per carved owner (flow-export, rsvp-te, ldp, policy-routes,
-static, vpn-ipsec, vpp, the iface kernel reads, ...); each owner's `schema/`
+static, vpn-ipsec, vpp, the iface kernel reads, ...); each owner's `yang/`
 package holds the matching presence test (e.g. `TestRSVPTECmdSchemaOwnsShowRSVPTE`).
 When you carve a new command, add both halves: the banned token here and the
 presence assertion in the owner. Extend the same pattern to the other central

@@ -1,7 +1,7 @@
 package filter_aspath
 
 import (
-	faschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath/schema"
+	fayang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
@@ -11,7 +11,7 @@ func init() {
 		Description:  "Named AS-path regex filter (ordered entries, first match wins, accept/reject)",
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp"},
-		YANG:         faschema.ZeFilterAsPathYANG,
+		YANG:         fayang.ZeFilterAsPathYANG,
 		FilterTypes:  []string{"as-path-list"},
 		RunEngine:    RunFilterAsPath,
 		CLIHandler:   func(_ []string) int { return 0 },

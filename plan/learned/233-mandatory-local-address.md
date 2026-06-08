@@ -18,5 +18,5 @@ Make `local-address` a required field for all BGP peers so TCP source IP selecti
 
 ## Files
 - `internal/component/bgp/reactor/config.go` — mandatory check in `parsePeerFromTree()`
-- `internal/component/bgp/schema/ze-bgp-conf.yang` — `mandatory true;` on local-address leaf
+- `internal/component/bgp/yang/ze-bgp-conf.yang` — `mandatory true;` on local-address leaf
 - `test/parse/missing-local-address.ci` — functional rejection test

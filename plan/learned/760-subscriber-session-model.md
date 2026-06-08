@@ -41,9 +41,9 @@ Ze had three independent session models (PPPoE, L2TP, PPP) with no shared subscr
 - `internal/component/l2tp/subscriber_bridge.go`
 - `internal/component/pppoe/drain.go`
 - `internal/component/cmd/subscriber/subscriber.go`
-- `internal/component/cmd/subscriber/schema/ze-subscriber-cmd.yang`
-- `internal/component/cmd/subscriber/schema/embed.go`
-- `internal/component/cmd/subscriber/schema/register.go`
+- `internal/component/cmd/subscriber/yang/ze-subscriber-cmd.yang`
+- `internal/component/cmd/subscriber/yang/embed.go`
+- `internal/component/cmd/subscriber/yang/register.go`
 
 ### Modified
 - `internal/component/l2tp/handler_registry.go` (delegate auth/pool to subscriber)

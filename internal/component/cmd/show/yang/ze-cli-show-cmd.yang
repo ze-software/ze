@@ -1,0 +1,355 @@
+module ze-cli-show-cmd {
+    namespace "urn:ze:cli:show:cmd";
+    prefix clishowcmd;
+    import ze-extensions { prefix ze; }
+    description "Show command tree for read-only inspection of system and protocol state";
+    revision 2026-03-26 { description "Initial revision"; }
+    revision 2026-06-03 { description "Relocated show dns lookup/cache (-> resolve) and show bgp-health (-> bgp peer command owner) out of this central schema (plugin self-containment)."; }
+    revision 2026-06-06 { description "Relocated host, ntp, conntrack, update, kernel-log, capture, tcp-check, doctor, crashes, config, data, env, schema, yang, policy-chain, policy-test commands to their owning components/plugins (plugin self-containment)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container version {
+            config false;
+            ze:command "ze-show:version";
+            description "Show the running Ze version and build date.
+You can verify which release is deployed on this box.";
+        }
+
+        container uptime {
+            config false;
+            ze:command "ze-show:uptime";
+            description "Show how long the daemon has been running.
+Returns the start time and elapsed uptime. Handy after a maintenance
+window to confirm the process restarted.";
+        }
+
+        container system {
+            config false;
+            description "Daemon process and runtime diagnostics";
+
+            container memory {
+                config false;
+                ze:command "ze-show:system-memory";
+                description "Show how much memory the daemon is using.
+Returns allocated bytes, heap in-use, total allocations, GC cycles,
+and last GC pause duration. Compare over time to spot leaks.";
+            }
+
+            container cpu {
+                config false;
+                ze:command "ze-show:system-cpu";
+                description "Show CPU utilization context for the daemon.
+Returns goroutine count, logical CPU count, and GOMAXPROCS setting.
+Useful when the box feels sluggish and you want to see if Ze is
+hogging threads.";
+            }
+
+            container date {
+                config false;
+                ze:command "ze-show:system-date";
+                description "Show the daemon's current wall-clock time and timezone.
+Useful for correlating log timestamps when the box is in a
+different timezone than you are.";
+            }
+
+            container platform {
+                config false;
+                ze:command "ze-show:system-platform";
+                description "Show what kind of platform the daemon is running on.
+Reports whether this is gokrazy, systemd, container, plain-linux, or
+darwin, along with platform-specific capabilities.";
+            }
+
+            container subsystem {
+                config false;
+                description "Subsystem lifecycle and state";
+
+                container list {
+                    config false;
+                    ze:command "ze-show:system-subsystem-list";
+                    description "List every registered subsystem and whether it is running.
+Shows you which components (bgp, dns, web, l2tp, etc.) are active,
+stopped, or failed.";
+                }
+            }
+
+            // NOTE: `show system ntp` is owned by the NTP plugin.
+            // See internal/plugins/ntp/yang/ze-ntp-cmd.yang.
+
+            // NOTE: `show system conntrack` is owned by the firewall component.
+            // See internal/component/firewall/schema/ze-firewall-cmd.yang.
+
+            // NOTE: `show system update` is owned by the update-cmd plugin.
+            // See internal/plugins/update-cmd/yang/ze-update-show-cmd.yang.
+
+            container sockets {
+                config false;
+                ze:command "ze-show:system-sockets";
+                description "Show open TCP and UDP sockets on this box.
+Filters: [tcp|udp] [state <STATE>] [port <N>], all optional and
+combinable. States use kernel names (ESTABLISHED, LISTEN, TIME_WAIT).
+Linux only. Good for confirming listeners or spotting stuck connections.";
+                leaf protocol {
+                    type enumeration {
+                        enum tcp;
+                        enum udp;
+                    }
+                    description "Filter by protocol";
+                }
+                leaf state {
+                    type string;
+                    description "Filter by socket state";
+                }
+                leaf port {
+                    type uint32;
+                    description "Filter by port number";
+                }
+            }
+
+            // NOTE: `show system kernel-log` is owned by the host-cmd plugin.
+            // See internal/plugins/host-cmd/yang/ze-host-cmd.yang.
+
+            container goroutines {
+                config false;
+                ze:command "ze-show:system-goroutines";
+                description "Dump goroutine stacks for debugging hangs or deadlocks.
+Modes: summary (groups by state), blocked (only lock/channel waiters),
+full (all stacks). Default: summary. Share the output with support
+when the daemon stops responding.";
+                leaf mode {
+                    type enumeration {
+                        enum summary;
+                        enum blocked;
+                        enum full;
+                    }
+                    description "Display mode";
+                }
+            }
+
+            container file-descriptors {
+                config false;
+                ze:command "ze-show:system-file-descriptors";
+                description "Show how many file descriptors the daemon has open.
+Summary mode: totals by type (socket, pipe, file). Detail mode: every
+fd with its path and type. Linux only (reads /proc/self/fd). Check
+this when you suspect fd exhaustion.";
+                leaf mode {
+                    type enumeration {
+                        enum summary;
+                        enum detail;
+                    }
+                    description "Display mode";
+                }
+            }
+
+            container profile {
+                config false;
+                ze:command "ze-show:system-profile";
+                description "Capture a runtime profile for performance analysis.
+Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs
+(instant snapshots). Output is pprof format you can open with
+'go tool pprof'. Send the file to support for deep analysis.";
+                leaf type {
+                    type enumeration {
+                        enum cpu;
+                        enum heap;
+                        enum goroutine;
+                        enum allocs;
+                    }
+                    description "Profile type";
+                }
+                leaf duration {
+                    type string {
+                        pattern '\d+[smh]?';
+                    }
+                    description "Profile duration";
+                }
+            }
+
+            container memory-map {
+                config false;
+                ze:command "ze-show:system-memory-map";
+                description "Show the process memory footprint from the kernel's view.
+Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status.
+Complements 'show system memory' (Go runtime) with the OS-level picture.";
+            }
+        }
+
+        // NOTE: `show host` subtree is owned by the host-cmd plugin.
+        // See internal/plugins/host-cmd/yang/ze-host-cmd.yang.
+
+        // NOTE: the `show gnmi` command is owned by the gNMI component
+        // so that removing gNMI removes it (no dangling command node).
+        // `show gnmi` lives in internal/component/gnmi/schema/ze-gnmi-cmd.yang
+        // next to its handler. The central show schema declares no
+        // `container gnmi`. See ai/rules/plugin-self-containment.md.
+
+        container warnings {
+            config false;
+            ze:command "ze-show:warnings";
+            description "Show active warnings across all subsystems.
+Displays any conditions that need your attention (degraded peers,
+resource limits approaching, etc.). Use 'source <name>' to filter
+to a single subsystem.";
+        }
+
+        // NOTE: the `show aaa` subtree is owned by the AAA component
+        // so that removing AAA removes it (no dangling command node).
+        // `show aaa accounting` lives in
+        // internal/component/aaa/schema/ze-aaa-cmd.yang next to its
+        // handler. The central show schema declares no `container aaa`.
+        // See ai/rules/plugin-self-containment.md.
+
+        container audit {
+            config false;
+            ze:command "ze-show:audit";
+            description "Show who did what and when on this box.
+Returns audit log entries with timestamps, actors, and actions.
+Filters (all optional, combinable): action <type>, actor <name>,
+surface <name> (cli, web, api), since/until <RFC3339>, count <N>.
+Actions include config-commit, login, peer-teardown, and more.";
+            leaf action {
+                type string;
+                description "Filter by action type";
+            }
+            leaf actor {
+                type string;
+                description "Filter by actor name";
+            }
+            leaf surface {
+                type string;
+                description "Filter by surface name";
+            }
+            leaf since {
+                type string;
+                description "Start time (RFC3339)";
+            }
+            leaf until {
+                type string;
+                description "End time (RFC3339)";
+            }
+            leaf count {
+                type uint32;
+                description "Maximum number of entries";
+            }
+        }
+
+        container errors {
+            config false;
+            ze:command "ze-show:errors";
+            description "Show recent errors across all subsystems, newest first.
+This is the first place to look when something goes wrong. Filter
+with source <name> to narrow to one subsystem, count <N> to limit
+output.";
+        }
+
+        // NOTE: `show tcp-check` is owned by the diag plugin.
+        // See internal/plugins/diag/yang/ze-diag-cmd.yang.
+
+        container health {
+            config false;
+            ze:command "ze-show:health";
+            description "Is this box healthy? One command to find out.
+Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.)
+plus an overall status. Each component reports healthy, degraded, or
+unhealthy with a reason. Start here when troubleshooting.";
+        }
+
+        // NOTE: `show doctor` is owned by the doctor plugin.
+        // See internal/component/doctor/schema/ze-doctor-cmd.yang.
+
+        container metrics-query {
+            config false;
+            ze:command "ze-show:metrics-query";
+            description "Query a specific Prometheus metric by name.
+Usage: show metrics-query <name> [label=value ...]. Returns matching
+time series from the internal registry. Multiple label filters are
+ANDed. More targeted than the full metrics dump.";
+        }
+
+        // NOTE: `show capture` subtree is owned by the diag plugin.
+        // See internal/plugins/diag/yang/ze-diag-cmd.yang.
+
+        container event {
+            config false;
+            description "Internal event history and namespace discovery";
+
+            container recent {
+                config false;
+                ze:command "ze-show:event-recent";
+                description "Show recent events, newest first.
+Each event includes timestamp, namespace, and type. Filter with
+namespace <name> to focus on one area, count <N> to limit output.
+Useful for reconstructing what happened before an incident.";
+            }
+
+            container namespaces {
+                config false;
+                ze:command "ze-show:event-namespaces";
+                description "List all event namespaces and how many events each has logged.
+Tells you which subsystems are generating events and how active
+they are.";
+            }
+        }
+
+        // NOTE: the entire `show bgp ...` subtree is owned by the BGP command
+        // packages so that removing the BGP surface removes it (no dangling
+        // command node). `show bgp peer ...` and `show bgp rib ...` live in
+        // internal/component/bgp/plugins/cmd/{peer,rib}/schema; the offline
+        // `show bgp decode` / `show bgp encode` diagnostics live in
+        // cmd/ze/bgp/schema next to their handlers. The central show schema
+        // declares no `container bgp`. See ai/rules/plugin-self-containment.md.
+
+        // NOTE: `show env` subtree is owned by the env plugin.
+        // See internal/plugins/env/yang/ze-env-cmd.yang.
+
+        // NOTE: `show schema` subtree is owned by the config-schema plugin.
+        // See internal/plugins/config-schema/yang/ze-schema-cli-cmd.yang.
+
+        // NOTE: `show yang` subtree is owned by the config-yang plugin.
+        // See internal/plugins/config-yang/yang/ze-yang-cli-cmd.yang.
+
+        // NOTE: `show data` subtree is owned by the config-storage plugin.
+        // See internal/plugins/config-storage/yang/ze-storage-cli-cmd.yang.
+
+        // NOTE: `show config` subtree is owned by the config-cli plugin.
+        // See internal/plugins/config-cli/yang/ze-config-cli-cmd.yang.
+
+        container policy {
+            config false;
+            description "Inspect and test route policy filters";
+
+            container list {
+                config false;
+                ze:command "ze-show:policy-list";
+                description "List all available filter types and named instances.
+Shows each filter type and its implementing plugin. Check here
+when building a new policy chain to see what filters you can use.";
+            }
+
+            // NOTE: `show policy chain` and `show policy test` are owned
+            // by the BGP plugin.
+            // See internal/component/bgp/plugins/cmd/policy/schema/ze-policy-cmd.yang.
+        }
+
+        // NOTE: `show crashes` is owned by the crashes plugin.
+        // See internal/plugins/crashes/yang/ze-crashes-cmd.yang.
+
+        // NOTE: the `show mpls ...` subtree is owned by the MPLS component
+        // so that removing MPLS removes it (no dangling command node).
+        // `show mpls forwarding` lives in
+        // internal/component/mpls/schema/ze-mpls-cmd.yang next to its
+        // handler. See ai/rules/plugin-self-containment.md.
+
+        // NOTE: the `show storage ...` subtree is owned by the storage
+        // component so that removing storage removes it (no dangling
+        // command node). `show storage smart` lives in
+        // internal/component/storage/schema/ze-storage-cmd.yang next to
+        // its handler. The central show schema declares no `container
+        // storage`. See ai/rules/plugin-self-containment.md.
+
+    }
+}

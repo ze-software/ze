@@ -19,7 +19,7 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -144,9 +144,9 @@ func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	return caps
 }
 
-// GetLLNHYANG returns the embedded YANG schema for the llnh plugin.
+// GetLLNHYANG returns the embedded YANG for the llnh plugin.
 func GetLLNHYANG() string {
-	return schema.ZeLinkLocalNexthopYANG
+	return yang.ZeLinkLocalNexthopYANG
 }
 
 // LLNHDecodableCapabilities returns the capability codes this plugin can decode.

@@ -1,0 +1,124 @@
+module ze-rsvp-te-conf {
+    namespace "urn:ze:rsvp-te:conf";
+    prefix rsvpteconf;
+    import ze-extensions { prefix ze; }
+    description "RSVP-TE protocol configuration (RFC 3209)";
+    revision 2026-05-28 { description "Initial revision"; }
+
+    container rsvp-te {
+        description "RSVP-TE traffic engineering configuration";
+
+        leaf router-id {
+            type string;
+            description "Router identifier (IPv4 address format)";
+        }
+
+        leaf refresh-period {
+            type uint16 {
+                range "1..65535";
+            }
+            default 30;
+            units seconds;
+            description "PATH/RESV refresh interval (RFC 2205 soft-state)";
+        }
+
+        leaf refresh-multiplier {
+            type uint8 {
+                range "1..255";
+            }
+            default 3;
+            description "Number of missed refreshes before state cleanup";
+        }
+
+        list interface {
+            key "name";
+            description "Per-interface RSVP-TE configuration";
+
+            leaf name {
+                type string;
+                description "Interface name";
+            }
+
+            leaf max-bandwidth {
+                type string;
+                description "Maximum link bandwidth (bps)";
+            }
+
+            leaf max-reservable-bandwidth {
+                type string;
+                description "Maximum reservable bandwidth (bps)";
+            }
+
+            leaf address {
+                type string;
+                description "Local link prefix (IPv4 CIDR, e.g. 10.0.0.4/30). When more than one interface is configured, admission control maps an LSP to this interface when the neighbor address falls within the prefix.";
+            }
+        }
+
+        list tunnel {
+            key "name";
+            description "RSVP-TE LSP tunnel definition";
+
+            leaf name {
+                type string;
+                description "Tunnel name";
+            }
+
+            leaf destination {
+                type string;
+                description "Tunnel endpoint (IPv4 address)";
+            }
+
+            leaf tunnel-id {
+                type uint16;
+                description "Tunnel identifier";
+            }
+
+            leaf bandwidth {
+                type string;
+                description "Requested bandwidth (bps)";
+            }
+
+            leaf setup-priority {
+                type uint8 {
+                    range "0..7";
+                }
+                default 7;
+                description "Setup priority (0 = highest)";
+            }
+
+            leaf hold-priority {
+                type uint8 {
+                    range "0..7";
+                }
+                default 7;
+                description "Hold priority (0 = highest)";
+            }
+
+            list explicit-route {
+                key "index";
+                ordered-by user;
+                description "Explicit route hops";
+
+                leaf index {
+                    type uint16;
+                    description "Hop index";
+                }
+
+                leaf address {
+                    type string;
+                    description "Hop address (IPv4 prefix)";
+                }
+
+                leaf type {
+                    type enumeration {
+                        enum strict;
+                        enum loose;
+                    }
+                    default strict;
+                    description "Hop type (strict or loose)";
+                }
+            }
+        }
+    }
+}

@@ -11,7 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	policyrouteschema "codeberg.org/thomas-mangin/ze/internal/plugins/policyroute/schema"
+	policyrouteyang "codeberg.org/thomas-mangin/ze/internal/plugins/policyroute/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -22,7 +22,7 @@ func init() {
 		Name:                    "policy-routes",
 		Description:             "Policy-based routing: nftables packet marking and ip rule table selection",
 		Features:                "yang",
-		YANG:                    policyrouteschema.ZePolicyrouteConfYANG,
+		YANG:                    policyrouteyang.ZePolicyrouteConfYANG,
 		ConfigRoots:             []string{configRoot},
 		Dependencies:            []string{"firewall"},
 		InProcessConfigVerifier: verifyPolicyConfig,

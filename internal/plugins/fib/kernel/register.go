@@ -14,7 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	fibevents "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/events"
-	fibschema "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/schema"
+	fibyang "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -51,7 +51,7 @@ func init() {
 		Name:                    "fib-kernel",
 		Description:             "FIB kernel: programs OS routes from system RIB via netlink/route socket",
 		Features:                "yang",
-		YANG:                    fibschema.ZeFibConfYANG,
+		YANG:                    fibyang.ZeFibConfYANG,
 		ConfigRoots:             []string{"fib/kernel"},
 		Dependencies:            []string{"rib", "sysctl"},
 		InProcessConfigVerifier: verifyFIBConfig,

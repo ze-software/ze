@@ -1,0 +1,438 @@
+module ze-system-conf {
+    namespace "urn:ze:system:conf";
+    prefix sys;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description "System identity, DNS, and config archive settings";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    // System block - global identity and archive settings
+    container system {
+        description "System-wide settings including identity and config archival";
+
+        leaf host {
+            type string;
+            description "System hostname, supports $ENV_VAR expansion";
+        }
+
+        leaf domain {
+            type string;
+            description "System domain, supports $ENV_VAR expansion";
+        }
+
+        leaf-list name-server {
+            type zt:ip-address;
+            description "Static DNS name servers, written to resolv.conf and used by ze internal resolver";
+        }
+
+        container dns {
+            description "DNS resolver tuning and resolv.conf settings";
+
+            leaf resolv-conf-path {
+                type string;
+                default "/tmp/resolv.conf";
+                description "Path where DNS servers are written as resolv.conf. Default /tmp/resolv.conf suits gokrazy (read-only rootfs). Set to /etc/resolv.conf on standard Linux. Empty string disables resolv.conf writing.";
+            }
+
+            leaf timeout {
+                type uint16 {
+                    range "1..60";
+                }
+                default 5;
+                description "Query timeout in seconds";
+            }
+
+            leaf cache-size {
+                type uint32 {
+                    range "0..1000000";
+                }
+                default 10000;
+                description "Maximum cached entries (0 disables caching)";
+            }
+
+            leaf cache-ttl {
+                type uint32 {
+                    range "0..604800";
+                }
+                default 86400;
+                description "Maximum cache TTL in seconds (0 uses response TTL only)";
+            }
+        }
+
+        // PeeringDB integration settings
+        container peeringdb {
+            description "PeeringDB API configuration for prefix data lookups";
+            leaf url {
+                type string;
+                default "https://www.peeringdb.com";
+                description "PeeringDB-compatible API base URL";
+            }
+            leaf margin {
+                type uint8 {
+                    range "0..100";
+                }
+                default 10;
+                description "Percentage margin above PeeringDB count for prefix maximum (0-100)";
+            }
+        }
+
+        // Hardware tuning (Linux only, requires root/CAP_SYS_ADMIN)
+        container tuning {
+            description "Runtime hardware tuning applied at startup and on config commit";
+
+            container cpu {
+                description "CPU frequency scaling tuning";
+                leaf governor {
+                    type enumeration {
+                        enum performance { description "Maximum frequency"; }
+                        enum powersave { description "Minimum frequency"; }
+                        enum ondemand { description "Dynamic frequency scaling"; }
+                        enum conservative { description "Gradual frequency scaling"; }
+                        enum schedutil { description "Scheduler-driven frequency scaling"; }
+                    }
+                    description "CPU scaling governor applied to all cores";
+                }
+            }
+
+            list irq-affinity {
+                key "interface";
+                description "Pin NIC IRQs to specific CPUs";
+
+                leaf interface {
+                    type string {
+                        length "1..15";
+                    }
+                    description "Network interface name (max 15 chars, kernel IFNAMSIZ-1)";
+                }
+                leaf cpus {
+                    type string {
+                        length "1..256";
+                    }
+                    description "CPU list (e.g. 0,2,4-7)";
+                }
+            }
+
+            list ethtool {
+                key "interface";
+                description "Per-interface ethtool settings";
+
+                leaf interface {
+                    type string {
+                        length "1..15";
+                    }
+                    description "Network interface name (max 15 chars, kernel IFNAMSIZ-1)";
+                }
+                container ring {
+                    description "Ring buffer sizes";
+                    leaf rx {
+                        type uint16 {
+                            range "1..65535";
+                        }
+                        description "Receive ring buffer size";
+                    }
+                    leaf tx {
+                        type uint16 {
+                            range "1..65535";
+                        }
+                        description "Transmit ring buffer size";
+                    }
+                }
+            }
+        }
+
+        // Serial console devices for out-of-band management
+        container console {
+            description "Serial console configuration for headless CPE devices";
+
+            list device {
+                key "name";
+                description "Serial device to configure as console";
+
+                leaf name {
+                    type string {
+                        length "1..32";
+                    }
+                    description "Serial device name (e.g., ttyS0, ttyUSB0). Bare name, not a path.";
+                }
+
+                leaf speed {
+                    type enumeration {
+                        enum 9600 { description "9600 baud"; }
+                        enum 19200 { description "19200 baud"; }
+                        enum 38400 { description "38400 baud"; }
+                        enum 57600 { description "57600 baud"; }
+                        enum 115200 { description "115200 baud"; }
+                    }
+                    default "115200";
+                    description "Baud rate (default 115200)";
+                }
+            }
+        }
+
+        // Connection tracking management
+        container conntrack {
+            description "Connection tracking (conntrack) module loading, table tuning, and timeout configuration";
+
+            leaf-list module {
+                type enumeration {
+                    enum ftp { description "FTP helper (nf_conntrack_ftp)"; }
+                    enum h323 { description "H.323 helper (nf_conntrack_h323)"; }
+                    enum sip { description "SIP helper (nf_conntrack_sip). May break VoIP NAT traversal."; }
+                    enum pptp { description "PPTP helper (nf_conntrack_pptp)"; }
+                    enum tftp { description "TFTP helper (nf_conntrack_tftp)"; }
+                    enum sane { description "SANE helper (nf_conntrack_sane)"; }
+                    enum irc { description "IRC helper (nf_conntrack_irc)"; }
+                    enum amanda { description "Amanda helper (nf_conntrack_amanda)"; }
+                    enum nfs { description "NFS helper (nf_conntrack_nfs)"; }
+                    enum netbios-ns { description "NetBIOS-NS helper (nf_conntrack_netbios_ns)"; }
+                    enum snmp { description "SNMP helper (nf_conntrack_snmp)"; }
+                    enum sqlnet { description "SQLnet/TNS helper (nf_conntrack_sqlnet)"; }
+                }
+                description "Conntrack helper modules to load. Load-only: removing a module stops loading on next boot but does not unload at runtime.";
+            }
+
+            leaf table-size {
+                type uint32 {
+                    range "1..2097152";
+                }
+                description "Maximum conntrack table entries (nf_conntrack_max)";
+            }
+
+            leaf hash-size {
+                type uint32 {
+                    range "1..2097152";
+                }
+                description "Conntrack hash table buckets (nf_conntrack_buckets)";
+            }
+
+            leaf expect-max {
+                type uint16 {
+                    range "1..65535";
+                }
+                description "Maximum expected connections (nf_conntrack_expect_max)";
+            }
+
+            leaf accounting {
+                type empty;
+                description "Enable per-connection byte/packet counters (nf_conntrack_acct)";
+            }
+
+            leaf timestamp {
+                type empty;
+                description "Enable per-connection timestamps (nf_conntrack_timestamp)";
+            }
+
+            leaf checksum {
+                type empty;
+                description "Enable conntrack checksum verification (nf_conntrack_checksum)";
+            }
+
+            leaf log-invalid {
+                type enumeration {
+                    enum all { description "Log all invalid packets"; }
+                    enum tcp { description "Log invalid TCP packets"; }
+                    enum udp { description "Log invalid UDP packets"; }
+                    enum icmp { description "Log invalid ICMP packets"; }
+                    enum icmpv6 { description "Log invalid ICMPv6 packets"; }
+                }
+                description "Log invalid packets for the specified protocol (nf_conntrack_log_invalid)";
+            }
+
+            container timeout {
+                description "Connection tracking timeouts per protocol";
+
+                leaf generic {
+                    type uint32 {
+                        range "1..604800";
+                    }
+                    description "Generic timeout in seconds (nf_conntrack_generic_timeout)";
+                }
+
+                container tcp {
+                    description "TCP connection tracking timeouts";
+                    leaf established { type uint32 { range "1..604800"; } description "Established timeout (seconds)"; }
+                    leaf syn-sent { type uint32 { range "1..604800"; } description "SYN-sent timeout (seconds)"; }
+                    leaf syn-recv { type uint32 { range "1..604800"; } description "SYN-received timeout (seconds)"; }
+                    leaf fin-wait { type uint32 { range "1..604800"; } description "FIN-wait timeout (seconds)"; }
+                    leaf close-wait { type uint32 { range "1..604800"; } description "Close-wait timeout (seconds)"; }
+                    leaf last-ack { type uint32 { range "1..604800"; } description "Last-ACK timeout (seconds)"; }
+                    leaf time-wait { type uint32 { range "1..604800"; } description "Time-wait timeout (seconds)"; }
+                    leaf close { type uint32 { range "1..604800"; } description "Close timeout (seconds)"; }
+                    leaf unacknowledged { type uint32 { range "1..604800"; } description "Unacknowledged timeout (seconds)"; }
+                    leaf max-retrans { type uint32 { range "1..604800"; } description "Max retransmission timeout (seconds)"; }
+                }
+
+                container udp {
+                    description "UDP connection tracking timeouts";
+                    leaf timeout { type uint32 { range "1..604800"; } description "Default timeout (seconds)"; }
+                    leaf stream { type uint32 { range "1..604800"; } description "Stream timeout (seconds)"; }
+                }
+
+                container icmp {
+                    description "ICMP connection tracking timeouts";
+                    leaf timeout { type uint32 { range "1..604800"; } description "Timeout (seconds)"; }
+                }
+
+                container icmpv6 {
+                    description "ICMPv6 connection tracking timeouts";
+                    leaf timeout { type uint32 { range "1..604800"; } description "Timeout (seconds)"; }
+                }
+
+                container gre {
+                    description "GRE connection tracking timeouts";
+                    leaf timeout { type uint32 { range "1..604800"; } description "Default timeout (seconds)"; }
+                    leaf stream { type uint32 { range "1..604800"; } description "Stream timeout (seconds)"; }
+                }
+
+                container sctp {
+                    description "SCTP connection tracking timeouts";
+                    leaf closed { type uint32 { range "1..604800"; } description "Closed timeout (seconds)"; }
+                    leaf cookie-wait { type uint32 { range "1..604800"; } description "Cookie-wait timeout (seconds)"; }
+                    leaf cookie-echoed { type uint32 { range "1..604800"; } description "Cookie-echoed timeout (seconds)"; }
+                    leaf established { type uint32 { range "1..604800"; } description "Established timeout (seconds)"; }
+                    leaf shutdown-sent { type uint32 { range "1..604800"; } description "Shutdown-sent timeout (seconds)"; }
+                    leaf shutdown-recd { type uint32 { range "1..604800"; } description "Shutdown-received timeout (seconds)"; }
+                    leaf shutdown-ack-sent { type uint32 { range "1..604800"; } description "Shutdown-ACK-sent timeout (seconds)"; }
+                    leaf heartbeat-sent { type uint32 { range "1..604800"; } description "Heartbeat-sent timeout (seconds)"; }
+                }
+
+                container dccp {
+                    description "DCCP connection tracking timeouts";
+                    leaf request { type uint32 { range "1..604800"; } description "Request timeout (seconds)"; }
+                    leaf respond { type uint32 { range "1..604800"; } description "Respond timeout (seconds)"; }
+                    leaf partopen { type uint32 { range "1..604800"; } description "Partopen timeout (seconds)"; }
+                    leaf open { type uint32 { range "1..604800"; } description "Open timeout (seconds)"; }
+                    leaf closereq { type uint32 { range "1..604800"; } description "Close-request timeout (seconds)"; }
+                    leaf closing { type uint32 { range "1..604800"; } description "Closing timeout (seconds)"; }
+                    leaf timewait { type uint32 { range "1..604800"; } description "Time-wait timeout (seconds)"; }
+                }
+            }
+
+            container tcp {
+                description "TCP connection tracking behavior flags";
+                leaf be-liberal { type boolean; description "Accept out-of-window packets for established connections"; }
+                leaf loose { type boolean; description "Allow tracking connections started before conntrack loaded"; }
+                leaf max-retrans { type uint8 { range "1..255"; } description "Maximum retransmissions before marking connection invalid"; }
+                leaf ignore-invalid-rst { type boolean; description "Ignore RST packets with invalid sequence numbers"; }
+            }
+        }
+
+        // System update check and platform update backend
+        container update-check {
+            description "System version check and platform update orchestration. On gokrazy, image updates are managed by gokrazy.";
+
+            leaf url {
+                type string;
+                description "HTTPS URL serving a JSON object with a 'version' field, e.g. {\"version\":\"26.05.17\"}. Ze compares this value lexicographically against its own release version.";
+            }
+
+            leaf interval {
+                type uint32 {
+                    range "60..604800";
+                }
+                default 86400;
+                description "Check interval in seconds (default 86400 = daily, minimum 60)";
+            }
+
+            leaf auto-apply {
+                type boolean;
+                default false;
+                description "When true, automatically download, verify, and stage Ze binary updates on platforms managed by Ze. When false, only check and report.";
+            }
+
+            leaf spread {
+                type uint32 {
+                    range "0..86400";
+                }
+                default 3600;
+                description "Maximum random delay in seconds before downloading after a new version is detected. 0 disables spread.";
+            }
+
+            container maintenance-window {
+                description "Time window when binary replacement may occur. Download and verification proceed at any time.";
+
+                leaf start {
+                    type string;
+                    description "Start time HH:MM in local time.";
+                }
+
+                leaf end {
+                    type string;
+                    description "End time HH:MM in local time.";
+                }
+            }
+
+            container restart {
+                description "What to do after an update is staged. If omitted: manual. If present with immediate: restart after brief drain. If present with time: restart at that daily time.";
+
+                leaf immediate {
+                    type empty;
+                    description "Restart automatically after staging (5s drain delay). Mutually exclusive with time.";
+                }
+
+                leaf time {
+                    type string;
+                    description "Daily restart time, HH:MM in local time. Mutually exclusive with immediate.";
+                }
+            }
+        }
+
+        leaf commit-revisions {
+            type uint16 {
+                range "0..1000";
+            }
+            default 0;
+            description "Maximum number of config archive files to keep per
+                         file:// archive location. After each archive write,
+                         files beyond this count are pruned (oldest first).
+                         0 disables pruning (keep all). Only applies to
+                         file:// scheme archives; HTTP archives are not pruned.";
+        }
+
+        // Named archive blocks
+        list archive {
+            key "name";
+            description "Named config archive destinations";
+
+            leaf name {
+                type string;
+                description "Archive block name (used as key)";
+            }
+
+            leaf location {
+                type string;
+                description "Archive destination URL (file://, http://, https://)";
+            }
+
+            leaf filename {
+                type string;
+                description "Filename format with token substitution";
+            }
+
+            leaf timeout {
+                type string;
+                description "HTTP upload timeout (Go duration format, e.g., 30s)";
+            }
+
+            leaf trigger {
+                type enumeration {
+                    enum commit { description "Archive on every config commit"; }
+                    enum manual { description "Archive only on explicit request"; }
+                    enum daily { description "Archive once per day"; }
+                    enum hourly { description "Archive once per hour"; }
+                }
+                description "When to archive";
+            }
+
+            leaf on-change {
+                type boolean;
+                description "Time-based only: skip if config unchanged since last archive";
+            }
+        }
+    }
+}

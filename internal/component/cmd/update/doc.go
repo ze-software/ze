@@ -7,5 +7,5 @@
 package update
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update/schema" // init() registers YANG module
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update/yang" // init() registers YANG module
 )

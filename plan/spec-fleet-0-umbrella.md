@@ -260,7 +260,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `internal/component/managed/client.go` -- add inventory and health reporting to client loop (fleet-4)
 - `cmd/ze/hub/main.go` -- wire fleet registry, audit, template, rollout at startup
 - `internal/component/web/page_system.go` -- fleet dashboard web page
-- `internal/component/plugin/schema/ze-plugin-conf.yang` -- fleet YANG container
+- `internal/component/plugin/yang/ze-plugin-conf.yang` -- fleet YANG container
 
 ## Files to Create
 - `internal/component/plugin/server/registry.go` -- DeviceRegistry: persistent device state

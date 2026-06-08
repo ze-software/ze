@@ -7,6 +7,6 @@
 package l2tpauthradius
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/clear/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/yang"
 )

@@ -31,7 +31,7 @@ bgp {
 | `role / strict` | bool | false | Reject peers that don't advertise the Role capability |
 
 Role can be set at the group level and overridden per peer.
-<!-- source: internal/component/bgp/plugins/role/schema/ -- ze-role YANG schema -->
+<!-- source: internal/component/bgp/plugins/role/yang/ -- ze-role YANG schema -->
 
 ## Role Values
 

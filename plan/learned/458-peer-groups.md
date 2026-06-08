@@ -29,7 +29,7 @@ Replace ExaBGP-style template/inherit config model with Junos-style peer-groups,
 
 ## Files
 
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- group list, standalone peer with name
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- group list, standalone peer with name
 - `internal/component/bgp/config/resolve.go` -- ResolveBGPTree rewritten for groups
 - `internal/component/bgp/config/peers.go` -- route extraction from group+peer layers
 - `internal/component/bgp/configjson/traverse.go` -- new: shared ForEachPeer for plugins

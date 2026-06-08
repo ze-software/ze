@@ -64,7 +64,7 @@ bgp {
 | `rpki / aspa / policy / unknown-action` | enum | accept | Action for ASPA Unknown routes: accept, reject, log-only |
 
 Multiple cache servers are supported for redundancy. VRP tables from all servers are merged (union).
-<!-- source: internal/component/bgp/plugins/rpki/schema/ -- ze-rpki YANG schema -->
+<!-- source: internal/component/bgp/plugins/rpki/yang/ -- ze-rpki YANG schema -->
 
 ### Plugin Bindings
 

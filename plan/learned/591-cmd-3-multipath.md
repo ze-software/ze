@@ -27,7 +27,7 @@ Ze supported only single best-path selection per RFC 4271. Network operators dep
 
 ## Files
 
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- multipath container
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- multipath container
 - `internal/component/bgp/plugins/rib/bestpath.go` -- SelectMultipath, multipathEqual
 - `internal/component/bgp/plugins/rib/rib_multipath_config.go` -- extractMultipathConfig
 - `internal/component/bgp/plugins/rib/rib.go` -- OnConfigure wiring, atomic fields

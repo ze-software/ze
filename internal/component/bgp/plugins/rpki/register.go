@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	rpkischema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki/schema"
+	rpkiyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -17,7 +17,7 @@ func init() {
 		Description:  "RPKI origin validation via RTR protocol",
 		RFCs:         []string{"6811", "8210"},
 		Features:     "yang",
-		YANG:         rpkischema.ZeRPKIYANG,
+		YANG:         rpkiyang.ZeRPKIYANG,
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp", "bgp-adj-rib-in"},
 		RunEngine:    RunRPKIPlugin,
@@ -32,7 +32,7 @@ func init() {
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = func() string { return rpkischema.ZeRPKIYANG }
+		cfg.GetYANG = func() string { return rpkiyang.ZeRPKIYANG }
 		cfg.ConfigLogger = func(level string) {
 			setLogger(slogutil.PluginLogger(reg.Name, level))
 		}

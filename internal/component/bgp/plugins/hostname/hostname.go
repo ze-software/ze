@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -174,9 +174,9 @@ func extractHostnameCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	return caps
 }
 
-// GetYANG returns the embedded YANG schema for the hostname plugin.
+// GetYANG returns the embedded YANG for the hostname plugin.
 func GetYANG() string {
-	return schema.ZeHostnameYANG
+	return yang.ZeHostnameYANG
 }
 
 // DecodableCapabilities returns the capability codes this plugin can decode.

@@ -34,8 +34,8 @@ Functional tests using Python plugin scripts had fragile `time.sleep()` calls be
 - `internal/component/plugin/types.go` -- `FlushForwardPool`, `FlushForwardPoolPeer` on `ReactorPeerController`
 - `internal/component/bgp/reactor/reactor_api.go` -- `reactorAPIAdapter` wiring
 - `internal/component/bgp/plugins/cmd/peer/peer.go` -- `handleBgpPeerFlush` handler
-- `internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang` -- `flush` container
-- `internal/component/bgp/schema/ze-bgp-api.yang` -- `peer-flush` RPC
+- `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` -- `flush` container
+- `internal/component/bgp/yang/ze-bgp-api.yang` -- `peer-flush` RPC
 - `test/scripts/ze_api.py` -- `wait_for_ack()` sends flush RPC + post-flush delay
 - `internal/exabgp/migration/migrate_family.go` -- add default prefix maximum (10000) to migrated families
 - `internal/exabgp/migration/migrate_serialize.go` -- serialize family prefix blocks in migration output

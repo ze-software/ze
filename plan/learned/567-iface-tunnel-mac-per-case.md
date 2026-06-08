@@ -39,7 +39,7 @@ ip6gretap), tightening the schema to match hardware reality.
 
 ## Files
 
-- `internal/component/iface/schema/ze-iface-conf.yang` -- grouping + case changes
+- `internal/component/iface/yang/ze-iface-conf.yang` -- grouping + case changes
 - `internal/component/iface/config.go` -- parseTunnelEntry mac-address handling
 - `internal/component/iface/config_test.go` -- TestParseTunnelGretapMAC, TestParseTunnelGreNoMAC
 - `docs/features/interfaces.md` -- L2 tunnel MAC note

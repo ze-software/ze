@@ -76,7 +76,7 @@ All found and fixed during `/ze-review` passes before commit.
 
 | Area | Files | Lines |
 |------|-------|-------|
-| YANG schema | `iface/schema/ze-iface-conf.yang` | +74 |
+| YANG schema | `iface/yang/ze-iface-conf.yang` | +74 |
 | Config parsing | `iface/config.go` | +91 |
 | Client lifecycle | `iface/pppoe_client.go` | ~320 |
 | Apply wiring | `iface/register.go` | +22 |

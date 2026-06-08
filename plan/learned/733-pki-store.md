@@ -35,15 +35,15 @@ Ze had no PKI infrastructure. IPsec VPN (spec-ipsec-0) needs X.509 certificate a
 - `internal/component/pki/store.go` -- Load, GetCA, GetCertificate, CertCN, CAPool, IntermediatePool, ExportPEM, CleanupPEM
 - `internal/component/pki/show.go` -- handleShowPKICertificates, handleShowPKICertificate
 - `internal/component/pki/register.go` -- blank-import of schema package
-- `internal/component/pki/schema/ze-pki-conf.yang` -- pki {} YANG module
-- `internal/component/pki/schema/ze-pki-api.yang` -- show pki RPCs
-- `internal/component/pki/schema/embed.go` -- go:embed for YANG files
-- `internal/component/pki/schema/register.go` -- yang.RegisterModule init()
+- `internal/component/pki/yang/ze-pki-conf.yang` -- pki {} YANG module
+- `internal/component/pki/yang/ze-pki-api.yang` -- show pki RPCs
+- `internal/component/pki/yang/embed.go` -- go:embed for YANG files
+- `internal/component/pki/yang/register.go` -- yang.RegisterModule init()
 - `internal/component/pki/health.go` -- health check (30d warn, 7d critical, expired=down) and report bus expiry warnings
 - `internal/component/pki/health_test.go` -- 7 health/report tests
 - `internal/component/pki/config_test.go` -- 10 config parser tests
 - `internal/component/pki/store_test.go` -- 20 store + show tests
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- show pki dispatch entries
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- show pki dispatch entries
 - `cmd/ze/hub/main.go` -- blank-import of pki package
 - `docs/features.md` -- PKI feature entry
 - `docs/guide/command-reference.md` -- show pki commands

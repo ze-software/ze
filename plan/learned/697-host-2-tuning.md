@@ -33,6 +33,6 @@ Ze could detect hardware state (CPU governor, NIC ring sizes, IRQ affinity) but 
 - `internal/component/host/tuning_other.go` -- ErrUnsupported stub
 - `internal/component/host/tuning_test.go` -- platform-aware tests
 - `internal/component/host/ethtool_linux.go` -- added openEthtoolSocket, closeEthtoolSocket, getEthtoolRingParam, setEthtoolRingParam, ETHTOOL_SRINGPARAM
-- `internal/component/config/system/schema/ze-system-conf.yang` -- tuning container with cpu/governor, irq-affinity list, ethtool list
+- `internal/component/config/system/yang/ze-system-conf.yang` -- tuning container with cpu/governor, irq-affinity list, ethtool list
 - `internal/component/config/system/system.go` -- TuningSystemConfig types, extractTuning, wired into ExtractSystemConfig
 - `docs/guide/configuration.md` -- hardware tuning section added

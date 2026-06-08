@@ -1,0 +1,31 @@
+module ze-l2tp-auth-local-conf {
+    namespace "urn:ze:l2tp:auth:local:conf";
+    prefix l2tp-auth-local;
+    import ze-extensions { prefix ze; }
+
+    description
+        "Static local user list for L2TP PPP authentication.
+         When no users are configured, all sessions are accepted
+         (permissive default for testing/development).";
+
+    container l2tp {
+        container auth {
+            container local {
+                list user {
+                    key "name";
+                    leaf name {
+                        type string;
+                        description "PPP username.";
+                    }
+                    leaf password {
+                        type string;
+                        ze:sensitive;
+                        description
+                            "Shared secret for PAP cleartext and
+                             CHAP-MD5/MS-CHAPv2 challenge-response.";
+                    }
+                }
+            }
+        }
+    }
+}

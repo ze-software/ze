@@ -28,6 +28,6 @@ BGP peer prefix update was buried at `ze bgp peer * prefix update` -- a verb hid
 
 - `internal/component/cmd/update/` -- new package (update.go, doc.go, update_test.go, schema/)
 - `internal/component/bgp/plugins/cmd/peer/prefix_update.go` -- handler (unchanged, init() removed)
-- `internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang` -- prefix/update block removed
+- `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` -- prefix/update block removed
 - `test/plugin/api-peer-prefix-update.ci` -- dispatch path updated
 - `docs/guide/command-reference.md`, `docs/features.md`, `docs/guide/configuration.md` -- updated

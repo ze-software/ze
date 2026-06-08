@@ -43,4 +43,4 @@ Ze had all the building blocks for an IXP route server (RS plugin, passive mode,
 - `internal/component/bgp/config/resolve.go` -- dynamic group detection, DynamicGroupTemplate
 - `internal/component/bgp/config/peers.go` -- DynamicGroupsFromTree, buildDynamicGroupSettings
 - `internal/component/bgp/config/variables.go` -- variable substitution engine
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- dynamic enum, range, max-peers, rs-client
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- dynamic enum, range, max-peers, rs-client

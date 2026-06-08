@@ -11,7 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 
 	// Register the iface YANG so the editor schema knows "interface ethernet".
-	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/yang"
 )
 
 // TestWriteThroughInterfaceAddressRoundTrip pins the fix for the corrupt change-file

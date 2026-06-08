@@ -35,8 +35,8 @@ for knowing where to look and what each module controls.
 
 <!-- source: internal/component/config/yang/modules/ze-types.yang -- typedef, grouping definitions -->
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension declarations -->
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- config tree structure -->
-<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- RPC definitions -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- config tree structure -->
+<!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- RPC definitions -->
 
 ### Type Library: `ze-types.yang`
 
@@ -81,17 +81,17 @@ Config schemas import `ze-types` for leaf types and `ze-extensions` for behavior
 
 | Schema | Owns | Location |
 |--------|------|----------|
-| `ze-bgp-conf` | BGP configuration (peers, families, capabilities) | `component/bgp/schema/` |
-| `ze-hub-conf` | Hub/environment settings | `component/hub/schema/` |
-| `ze-system-conf` | System-level configuration | `component/config/system/schema/` |
-| `ze-plugin-conf` | Plugin configuration | `component/plugin/schema/` |
-| `ze-ssh-conf` | SSH transport configuration | `component/ssh/schema/` |
-| `ze-authz-conf` | Authorization configuration | `component/authz/schema/` |
-| `ze-telemetry-conf` | Telemetry configuration | `component/telemetry/schema/` |
-| Plugin schemas | Per-plugin config (GR, RPKI, role, hostname, etc.) | `component/bgp/plugins/<name>/schema/` |
+| `ze-bgp-conf` | BGP configuration (peers, families, capabilities) | `component/bgp/yang/` |
+| `ze-hub-conf` | Hub/environment settings | `component/hub/yang/` |
+| `ze-system-conf` | System-level configuration | `component/config/system/yang/` |
+| `ze-plugin-conf` | Plugin configuration | `component/plugin/yang/` |
+| `ze-ssh-conf` | SSH transport configuration | `component/ssh/yang/` |
+| `ze-authz-conf` | Authorization configuration | `component/authz/yang/` |
+| `ze-telemetry-conf` | Telemetry configuration | `component/telemetry/yang/` |
+| Plugin schemas | Per-plugin config (GR, RPKI, role, hostname, etc.) | `component/bgp/plugins/<name>/yang/` |
 
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- BGP config tree -->
-<!-- source: internal/component/hub/schema/ze-hub-conf.yang -- Hub/environment config -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config tree -->
+<!-- source: internal/component/hub/yang/ze-hub-conf.yang -- Hub/environment config -->
 
 ### API Schemas: `ze-bgp-api.yang` and `ze-*-cmd.yang`
 
@@ -101,9 +101,9 @@ define RPC signatures. The `-cmd.yang` modules define the CLI navigation hierarc
 
 | Schema | Purpose | Location |
 |--------|---------|----------|
-| `ze-bgp-api` | BGP peer/route/cache RPCs | `component/bgp/schema/` |
-| `ze-bgp-cmd-peer-api` | Peer management commands | `component/bgp/plugins/cmd/peer/schema/` |
-| `ze-rib-api` | RIB query RPCs | `component/bgp/plugins/rib/schema/` |
+| `ze-bgp-api` | BGP peer/route/cache RPCs | `component/bgp/yang/` |
+| `ze-bgp-cmd-peer-api` | Peer management commands | `component/bgp/plugins/cmd/peer/yang/` |
+| `ze-rib-api` | RIB query RPCs | `component/bgp/plugins/rib/yang/` |
 | `ze-*-cmd` | CLI command tree nodes | Various `schema/` directories |
 
 ---
@@ -141,7 +141,7 @@ After both phases, `Resolve()` resolves all cross-module imports via goyang.
 Each component with a YANG schema follows this pattern:
 
 ```
-component/<name>/schema/
+component/<name>/yang/
     ze-<name>.yang          # Schema file (embedded via //go:embed)
     register.go             # init() calls yang.RegisterModule()
 ```
@@ -304,22 +304,22 @@ internal/component/config/yang/modules/
 ### Domain Schemas (registered via init())
 
 ```
-internal/component/bgp/schema/
+internal/component/bgp/yang/
     ze-bgp-conf.yang        # BGP configuration tree
     ze-bgp-api.yang         # BGP RPCs
 
-internal/component/hub/schema/
+internal/component/hub/yang/
     ze-hub-conf.yang        # Hub/environment config
 
-internal/component/config/system/schema/
+internal/component/config/system/yang/
     ze-system-conf.yang     # System config
 
-internal/component/bgp/plugins/<name>/schema/
+internal/component/bgp/plugins/<name>/yang/
     ze-<name>.yang          # Plugin-specific config
     ze-<name>-api.yang      # Plugin RPCs (if any)
     ze-<name>-cmd.yang      # CLI command tree (if any)
 
-internal/component/cmd/<name>/schema/
+internal/component/cmd/<name>/yang/
     ze-cli-<name>-api.yang  # CLI command RPCs
     ze-cli-<name>-cmd.yang  # CLI command tree
 ```

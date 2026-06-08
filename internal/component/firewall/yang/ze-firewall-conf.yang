@@ -1,0 +1,711 @@
+module ze-firewall-conf {
+    namespace "urn:ze:firewall:conf";
+    prefix fw;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description "Firewall configuration for Ze.
+                 Tables use nftables structural concepts (table, chain, hook,
+                 priority, policy, set, flowtable) with readable keyword names.
+                 Table names in config are bare; ze_ prefix added by component.";
+
+    revision 2026-04-13 {
+        description "Initial revision";
+    }
+
+    typedef table-family {
+        type enumeration {
+            enum inet { description "Dual-stack IPv4+IPv6"; }
+            enum ip { description "IPv4 only"; }
+            enum ip6 { description "IPv6 only"; }
+            enum arp { description "ARP"; }
+            enum bridge { description "Bridge"; }
+            enum netdev { description "Netdev"; }
+        }
+        description "nftables address family";
+    }
+
+    typedef chain-type {
+        type enumeration {
+            enum filter { description "Packet filtering"; }
+            enum nat { description "Network address translation"; }
+            enum route { description "Routing decision override"; }
+        }
+        description "nftables chain type";
+    }
+
+    typedef chain-hook {
+        type enumeration {
+            enum input { description "Input hook"; }
+            enum output { description "Output hook"; }
+            enum forward { description "Forward hook"; }
+            enum prerouting { description "Prerouting hook"; }
+            enum postrouting { description "Postrouting hook"; }
+            enum ingress { description "Ingress hook (netdev/inet)"; }
+            enum egress { description "Egress hook (netdev)"; }
+        }
+        description "Netfilter hook point";
+    }
+
+    typedef chain-policy {
+        type enumeration {
+            enum accept { description "Accept by default"; }
+            enum drop { description "Drop by default"; }
+        }
+        description "Default policy for base chains";
+    }
+
+    typedef set-type {
+        type enumeration {
+            enum ipv4 { description "IPv4 addresses"; }
+            enum ipv6 { description "IPv6 addresses"; }
+            enum ether { description "Ethernet addresses"; }
+            enum inet-service { description "TCP/UDP ports"; }
+            enum mark { description "Packet marks"; }
+            enum ifname { description "Interface names"; }
+        }
+        description "Named set element data type";
+    }
+
+    typedef protocol-name {
+        type enumeration {
+            enum tcp;
+            enum udp;
+            enum icmp;
+            enum icmpv6;
+            enum sctp;
+            enum gre;
+            enum esp;
+            enum ah;
+            enum ospf;
+            enum vrrp;
+        }
+        description "L4 protocol name";
+    }
+
+    typedef connection-state {
+        type string {
+            pattern '(new|established|related|invalid)'
+                  + '(,(new|established|related|invalid))*';
+        }
+        description "Comma-separated connection tracking states";
+    }
+
+    typedef reject-type {
+        type enumeration {
+            enum icmp;
+            enum icmpv6;
+            enum tcp-reset;
+        }
+        description "Reject response type";
+    }
+
+    typedef rate-unit {
+        type enumeration {
+            enum second;
+            enum minute;
+            enum hour;
+            enum day;
+        }
+        description "Rate limit time unit";
+    }
+
+    typedef dscp-value {
+        type string {
+            pattern '[a-z0-9]+';
+        }
+        description "DSCP value: numeric (0-63) or symbolic (ef, af41, cs6, etc.)";
+    }
+
+    typedef ip-prefix {
+        type string;
+        description "IPv4 or IPv6 prefix in CIDR notation, or @set-name reference";
+    }
+
+    typedef port-spec {
+        type string {
+            pattern '[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*|@[a-zA-Z0-9][a-zA-Z0-9_-]*';
+        }
+        description "Port number, range (80-90), comma-separated list (80,443,8080-8090), or named-set reference (@set-name)";
+    }
+
+    typedef mark-value {
+        type string {
+            pattern '0x[0-9a-fA-F]+(/0x[0-9a-fA-F]+)?|[0-9]+(/[0-9]+)?';
+        }
+        description "Mark value with optional mask (0x10/0xff or 16/255)";
+    }
+
+    typedef rate-spec {
+        type string {
+            pattern '[0-9]+(bytes|kbytes|mbytes|gbytes)?/(second|minute|hour|day)';
+        }
+        description "Rate limit specification: packet-per-unit (10/second)
+                     or byte-per-unit (1mbytes/second, 500kbytes/minute). Byte
+                     prefixes scale: kbytes=1024, mbytes=1024^2, gbytes=1024^3.";
+    }
+
+    typedef nat-spec {
+        type string;
+        description "NAT target: address with optional port (1.2.3.4:80 or 1.2.3.4:1024-2048)";
+    }
+
+    grouping from-block {
+        description "Match criteria (from block in a term)";
+
+        leaf source-address {
+            type ip-prefix;
+            description "Source IP prefix or @set-name";
+        }
+        leaf destination-address {
+            type ip-prefix;
+            description "Destination IP prefix or @set-name";
+        }
+        leaf source-port {
+            type port-spec;
+            description "Source port, range, or list";
+        }
+        leaf destination-port {
+            type port-spec;
+            description "Destination port, range, or list";
+        }
+        leaf protocol {
+            type protocol-name;
+            description "L4 protocol";
+        }
+        leaf input-interface {
+            type string;
+            description "Input interface name. A trailing asterisk
+                         (e.g. 'l2tp*') matches any interface whose
+                         name begins with the given prefix.";
+        }
+        leaf output-interface {
+            type string;
+            description "Output interface name. A trailing asterisk
+                         (e.g. 'veth*') matches any interface whose
+                         name begins with the given prefix.";
+        }
+        leaf connection-state {
+            type connection-state;
+            ze:backend "nft";
+            description "Connection tracking state(s). Conntrack-driven;
+                         requires a backend that integrates with the kernel
+                         nf_conntrack module.";
+        }
+        leaf connection-mark {
+            type mark-value;
+            ze:backend "nft";
+            description "Connection mark value/mask. Conntrack-driven; see
+                         connection-state for backend notes.";
+        }
+        leaf mark {
+            type mark-value;
+            description "Packet mark value/mask";
+        }
+        leaf dscp {
+            type dscp-value;
+            description "DSCP value";
+        }
+        leaf icmp-type {
+            type string;
+            description "ICMPv4 type. Accepts symbolic names from
+                         nftables (echo-request, echo-reply,
+                         destination-unreachable, time-exceeded, ...)
+                         or a numeric byte value 0..255.";
+        }
+        leaf icmpv6-type {
+            type string;
+            description "ICMPv6 type. Accepts symbolic names from
+                         nftables (echo-request, nd-neighbor-solicit,
+                         packet-too-big, ...) or a numeric byte value
+                         0..255.";
+        }
+    }
+
+    grouping then-block {
+        description "Action and modifier expressions (then block in a term)";
+
+        container accept {
+            presence "Accept the packet";
+            description "Accept the packet";
+        }
+        container drop {
+            presence "Drop the packet";
+            description "Drop the packet";
+        }
+        container reject {
+            presence "Reject the packet";
+            leaf with {
+                type reject-type;
+                description "Reject response type";
+            }
+            leaf code {
+                type uint8;
+                description "ICMP code";
+            }
+        }
+        container return {
+            presence "Return to caller chain";
+            description "Return to caller chain";
+        }
+        container exclude {
+            presence "Skip NAT for matching traffic";
+            description "In a NAT chain term, skip NAT for matching
+                         traffic. Lowers to the same `return` verdict
+                         the operator could have written directly;
+                         the keyword exists for VyOS-config parity.";
+        }
+        leaf jump {
+            type string;
+            description "Jump to target chain";
+        }
+        leaf goto {
+            type string;
+            description "Goto target chain (no return)";
+        }
+        container snat {
+            presence "Source NAT";
+            leaf to {
+                type nat-spec;
+                mandatory true;
+                description "NAT target address:port";
+            }
+        }
+        container dnat {
+            presence "Destination NAT";
+            leaf to {
+                type nat-spec;
+                mandatory true;
+                description "NAT target address:port";
+            }
+        }
+        container masquerade {
+            presence "Masquerade outgoing traffic";
+            description "Masquerade (source NAT with outgoing interface address).
+                         Optionally restrict source port range with port-range,
+                         or set randomization/persistence flags. Port mapping
+                         and flags are mutually exclusive.";
+            leaf port-range {
+                type string;
+                description "Source port or port range (e.g. 1024-65535)";
+            }
+            container random {
+                presence "Randomize source port mapping";
+                description "Randomize source port selection.
+                             With 'full', use full randomization.";
+                leaf full {
+                    type empty;
+                    description "Use full randomization";
+                }
+            }
+            leaf persistent {
+                type empty;
+                description "Use consistent source port mapping per connection";
+            }
+        }
+        container redirect {
+            presence "Redirect to local port";
+            leaf to {
+                type zt:port;
+                mandatory true;
+                description "Local port number";
+            }
+        }
+        container notrack {
+            presence "Disable connection tracking";
+            ze:backend "nft";
+            description "Disable connection tracking. Conntrack-specific.";
+        }
+        container flow-offload {
+            presence "Hardware flow offload";
+            ze:backend "nft";
+            description "Hardware / software flow offload via an nftables
+                         flowtable. The VPP dataplane is itself the fast
+                         path and does not expose a flowtable surface.";
+            leaf flowtable {
+                type string;
+                mandatory true;
+                description "Flowtable name (prefixed with @)";
+            }
+        }
+        container mark-set {
+            presence "Set packet mark";
+            ze:backend "nft";
+            description "Write the kernel skb mark. Different backends
+                         carry per-packet metadata differently; the VPP
+                         classifier's equivalent uses opaque keys via
+                         ClassifyAddDelSession.";
+            leaf value {
+                type mark-value;
+                mandatory true;
+                description "Mark value with optional mask";
+            }
+        }
+        container connection-mark-set {
+            presence "Set connection mark";
+            ze:backend "nft";
+            description "Conntrack-driven; see mark-set for backend notes.";
+            leaf value {
+                type mark-value;
+                mandatory true;
+                description "Mark value with optional mask";
+            }
+        }
+        leaf dscp-set {
+            type dscp-value;
+            description "Set DSCP field value";
+        }
+        leaf tcp-mss-set {
+            type uint16 {
+                range "1..65535";
+            }
+            description "Clamp TCP Maximum Segment Size option to the given value";
+        }
+        container counter {
+            presence "Enable per-rule counter";
+            description "Anonymous per-rule counter. A non-empty `name`
+                         leaf is reserved for a future named-counter
+                         feature and is rejected at verify today.";
+            leaf name {
+                type string;
+                description "Counter name (reserved; non-empty values reject at verify)";
+            }
+        }
+        container log {
+            presence "Log the packet";
+            leaf prefix {
+                type string {
+                    length "0..127";
+                }
+                description "Log prefix string";
+            }
+            leaf level {
+                type uint32;
+                description "Log level (syslog severity)";
+            }
+        }
+        container limit-rate {
+            presence "Rate limit";
+            leaf rate {
+                type rate-spec;
+                mandatory true;
+                description "Rate limit (e.g., 10/second)";
+            }
+            leaf burst {
+                type uint32;
+                description "Burst size";
+            }
+        }
+    }
+
+    container firewall {
+        description "Ze-managed nftables firewall tables.
+                     Table names are bare in config; ze_ prefix added by component.";
+
+        leaf backend {
+            type string;
+            default "nft";
+            description "Firewall backend implementation. Default is nft
+                         (nftables via libnftnl). Future backends can declare
+                         themselves via firewall.RegisterBackend. The
+                         ze:backend YANG extension on feature nodes declares
+                         per-feature backend support so the commit-time gate
+                         rejects configs that try to use unsupported
+                         primitives.";
+        }
+
+        container global-options {
+            description "Network security defaults mapped to kernel sysctls.
+                         Provides VyOS-compatible keyword toggles for common
+                         settings. At apply time each keyword translates to a
+                         sysctl key/value pair emitted to the sysctl plugin.
+                         Explicit sysctl settings always override these.";
+
+            leaf all-ping {
+                type enumeration {
+                    enum enable {
+                        description "Allow ICMP echo replies (icmp_echo_ignore_all=0)";
+                    }
+                    enum disable {
+                        description "Ignore all ICMP echo requests (icmp_echo_ignore_all=1)";
+                    }
+                }
+                description "Control ICMP echo (ping) responses.
+                             Inverted sysctl: enable sets icmp_echo_ignore_all to 0.";
+            }
+
+            leaf broadcast-ping {
+                type enumeration {
+                    enum enable {
+                        description "Allow broadcast ICMP echo (icmp_echo_ignore_broadcasts=0)";
+                    }
+                    enum disable {
+                        description "Ignore broadcast ICMP echo (icmp_echo_ignore_broadcasts=1)";
+                    }
+                }
+                description "Control broadcast ICMP echo responses.
+                             Inverted sysctl: enable sets icmp_echo_ignore_broadcasts to 0.";
+            }
+
+            leaf syn-cookies {
+                type enumeration {
+                    enum enable {
+                        description "Enable TCP SYN cookies (tcp_syncookies=1)";
+                    }
+                    enum disable {
+                        description "Disable TCP SYN cookies (tcp_syncookies=0)";
+                    }
+                }
+                description "TCP SYN cookie protection against SYN flood attacks.";
+            }
+
+            leaf receive-redirects {
+                type enumeration {
+                    enum enable {
+                        description "Accept ICMP redirects (accept_redirects=1)";
+                    }
+                    enum disable {
+                        description "Reject ICMP redirects (accept_redirects=0)";
+                    }
+                }
+                description "Control acceptance of IPv4 ICMP redirect messages.";
+            }
+
+            leaf send-redirects {
+                type enumeration {
+                    enum enable {
+                        description "Send ICMP redirects (send_redirects=1)";
+                    }
+                    enum disable {
+                        description "Do not send ICMP redirects (send_redirects=0)";
+                    }
+                }
+                description "Control sending of IPv4 ICMP redirect messages.";
+            }
+
+            leaf source-validation {
+                type enumeration {
+                    enum disable {
+                        description "No source address validation (rp_filter=0)";
+                    }
+                    enum strict {
+                        description "Strict reverse path filtering (rp_filter=1)";
+                    }
+                    enum loose {
+                        description "Loose reverse path filtering (rp_filter=2)";
+                    }
+                }
+                description "Reverse path filtering mode for source address validation.";
+            }
+
+            leaf log-martians {
+                type enumeration {
+                    enum enable {
+                        description "Log martian packets (log_martians=1)";
+                    }
+                    enum disable {
+                        description "Do not log martian packets (log_martians=0)";
+                    }
+                }
+                description "Log packets with impossible source addresses.";
+            }
+
+            leaf ipv6-receive-redirects {
+                type enumeration {
+                    enum enable {
+                        description "Accept IPv6 ICMP redirects (accept_redirects=1)";
+                    }
+                    enum disable {
+                        description "Reject IPv6 ICMP redirects (accept_redirects=0)";
+                    }
+                }
+                description "Control acceptance of IPv6 ICMP redirect messages.";
+            }
+
+            leaf ipv6-src-route {
+                type enumeration {
+                    enum enable {
+                        description "Accept IPv6 source-routed packets (accept_source_route=1)";
+                    }
+                    enum disable {
+                        description "Reject IPv6 source-routed packets (accept_source_route=0)";
+                    }
+                }
+                description "Control acceptance of IPv6 packets with source routing headers.";
+            }
+        }
+
+        list table {
+            key "name";
+            description "Named firewall table";
+
+            leaf name {
+                type string {
+                    length "1..255";
+                    pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                }
+                description "Table name (becomes ze_<name> in kernel)";
+            }
+
+            leaf family {
+                type table-family;
+                mandatory true;
+                description "Address family";
+            }
+
+            list chain {
+                key "name";
+                description "Named chain within table";
+
+                leaf name {
+                    type string {
+                        length "1..255";
+                        pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                    }
+                    description "Chain name";
+                }
+
+                leaf type {
+                    type chain-type;
+                    description "Chain type (base chains only)";
+                }
+
+                leaf hook {
+                    type chain-hook;
+                    description "Netfilter hook point (base chains only)";
+                }
+
+                leaf priority {
+                    type int32;
+                    description "Chain priority (base chains only)";
+                }
+
+                leaf policy {
+                    type chain-policy;
+                    description "Default policy (base chains only)";
+                }
+
+                list term {
+                    key "name";
+                    ordered-by user;
+                    description "Named rule (from/then structure)";
+
+                    leaf name {
+                        type string {
+                            length "1..255";
+                            pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                        }
+                        description "Term name (used in counters and logging)";
+                    }
+
+                    container from {
+                        uses from-block;
+                        description "Match criteria";
+                    }
+
+                    container then {
+                        uses then-block;
+                        description "Actions and modifiers";
+                    }
+                }
+            }
+
+            list set {
+                key "name";
+                description "Named set";
+
+                leaf name {
+                    type string {
+                        length "1..255";
+                        pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                    }
+                    description "Set name";
+                }
+
+                leaf type {
+                    type set-type;
+                    mandatory true;
+                    description "Element data type";
+                }
+
+                container flags-interval {
+                    presence "Enable interval ranges";
+                    description "Enable interval ranges";
+                }
+
+                container flags-timeout {
+                    presence "Enable per-element timeouts";
+                    description "Enable per-element timeouts";
+                }
+
+                container flags-constant {
+                    presence "Immutable after creation";
+                    description "Immutable after creation";
+                }
+
+                container flags-dynamic {
+                    presence "Dynamically populated";
+                    description "Dynamically populated";
+                }
+
+                list element {
+                    key "value";
+                    ordered-by user;
+                    description "Static set elements. The value form is
+                                 interpreted per set type: ipv4 / ipv6
+                                 accepts addresses or prefixes (when
+                                 flags-interval is set); inet-service
+                                 accepts port numbers; mark accepts a
+                                 numeric or 0x-prefixed value; ether
+                                 accepts aa:bb:cc:dd:ee:ff; ifname
+                                 accepts an interface name.";
+
+                    leaf value {
+                        type string;
+                        description "Element value (see list description for format).";
+                    }
+
+                    leaf timeout {
+                        type uint32;
+                        description "Per-element timeout in seconds. 0 means no timeout.
+                                     Requires flags-timeout on the enclosing set.";
+                    }
+                }
+            }
+
+            list flowtable {
+                key "name";
+                ze:backend "nft";
+                description "Hardware offload flowtable. nftables-specific;
+                             the VPP dataplane is itself the fast path and
+                             does not expose a flowtable surface.";
+
+                leaf name {
+                    type string {
+                        length "1..255";
+                        pattern '[a-zA-Z0-9][a-zA-Z0-9_-]*';
+                    }
+                    description "Flowtable name";
+                }
+
+                leaf hook {
+                    type chain-hook;
+                    mandatory true;
+                    description "Hook point (typically ingress)";
+                }
+
+                leaf priority {
+                    type int32;
+                    mandatory true;
+                    description "Priority (typically negative)";
+                }
+
+                leaf-list device {
+                    type string;
+                    description "Devices for offload";
+                }
+            }
+        }
+    }
+}

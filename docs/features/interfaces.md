@@ -3,7 +3,7 @@
 Ze manages Linux network interfaces via pure netlink (no iproute2 shell-outs).
 JunOS-style two-layer model: physical interfaces with named logical units.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang — interface container -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang — interface container -->
 <!-- source: internal/component/iface/register.go — registration -->
 
 ## Capability Table
@@ -194,13 +194,13 @@ optional and, when set, must be unique within each list. Omit it to keep the
 hardware-assigned MAC, or set it to override the address and pin the named config entry to
 a specific physical device.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unique on ethernet/veth/bridge lists -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique on ethernet/veth/bridge lists -->
 
 Each discovered interface also records an `os-name` hidden leaf that preserves the original
 OS interface name. This field is auto-populated during discovery and remains available for
 debugging and internal binding after the user renames the config entry.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- os-name hidden leaf in interface-common grouping -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- os-name hidden leaf in interface-common grouping -->
 
 A MAC address validator (`ze:validate "mac-address"`) provides format checking (colon-separated
 hex octets) and live OS autocomplete. The `CompleteFn` calls `DiscoverInterfaces` on each
@@ -306,7 +306,7 @@ kernel does not assign one).
 ERSPAN, GRE keepalives, VRF underlay/overlay leaves, and `ignore-df` on gretap are
 out of scope for v1; see `plan/deferrals.md`.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
 <!-- source: internal/component/iface/tunnel.go -- TunnelKind enum, TunnelSpec struct -->
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- CreateTunnel switch and per-kind builders -->
 
@@ -374,7 +374,7 @@ interface {
 }
 ```
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- list wireguard, ze:sensitive on private-key and peer preshared-key, ze:listener on the list entry -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- list wireguard, ze:sensitive on private-key and peer preshared-key, ze:listener on the list entry -->
 <!-- source: internal/component/iface/wireguard.go -- WireguardSpec / WireguardPeerSpec types -->
 <!-- source: internal/component/iface/config.go -- parseWireguardEntry, applyWireguards, wireguardSpecEqual -->
 
@@ -485,7 +485,7 @@ The mechanism is driven by the `ze:ensure-exists` YANG extension on the
 type containers (`dummy`, `bridge`). The dispatch system builds an ensure
 chain at registration time and wraps the leaf handler automatically.
 
-<!-- source: internal/component/iface/schema/ze-iface-cmd.yang — ze:ensure-exists on dummy, bridge -->
+<!-- source: internal/component/iface/yang/ze-iface-cmd.yang — ze:ensure-exists on dummy, bridge -->
 <!-- source: internal/component/plugin/server/ensure.go — wrapWithEnsureChain, buildEnsureChain -->
 <!-- source: internal/component/iface/cmd/manage.go — idempotent handleCreateDummy, handleCreateBridge -->
 

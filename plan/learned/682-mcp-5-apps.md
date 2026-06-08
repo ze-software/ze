@@ -77,7 +77,7 @@ modernization umbrella (spec-mcp-0-umbrella).
 | `internal/component/mcp/tools_test.go` | 3 tests for `_meta.ui` enrichment |
 | `internal/component/config/yang/command.go` | `UIResourceInfo`, `PathToUIResource`, `getUIResourceExtensions` |
 | `internal/component/config/yang/modules/ze-extensions.yang` | `ze:ui-resource`, `ze:ui-permissions`, `ze:ui-csp` extensions |
-| `internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang` | Tagged `peer` container with UI extensions |
+| `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` | Tagged `peer` container with UI extensions |
 | `cmd/ze/hub/main.go` | `uiResourceByPath` in `serverCommandLister`, `lookupUIResource` call |
 | `cmd/ze/hub/mcp.go` | `lookupUIResource` function |
 | `docs/architecture/mcp/overview.md` | Resources Capability section, files table, capability table, roadmap |

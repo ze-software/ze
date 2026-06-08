@@ -14,7 +14,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	imgschema "codeberg.org/thomas-mangin/ze/internal/plugins/imageserver/schema"
+	imgyang "codeberg.org/thomas-mangin/ze/internal/plugins/imageserver/yang"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -29,7 +29,7 @@ func init() {
 		Name:                    "imageserver",
 		Description:             "Image server: HTTP provisioning for disk images and boot files",
 		Features:                "yang",
-		YANG:                    imgschema.ZeImageServerConfYANG,
+		YANG:                    imgyang.ZeImageServerConfYANG,
 		ConfigRoots:             []string{configRootService},
 		InProcessConfigVerifier: verifyImageConfig,
 		RunEngine:               runImageServerPlugin,

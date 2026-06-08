@@ -2,7 +2,7 @@
 
 Ze archives configuration files to local or remote destinations. Archives can be triggered manually from the CLI, automatically on every editor commit, or on a schedule.
 <!-- source: internal/component/config/archive/archive.go -- archive core logic -->
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system and archive YANG schema -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system and archive YANG schema -->
 
 ## Configuration
 
@@ -27,7 +27,7 @@ system {
     }
 }
 ```
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- archive list definition -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- archive list definition -->
 
 ### Fields
 

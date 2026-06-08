@@ -112,15 +112,15 @@ RPC definitions live in YANG API modules, separate from config modules:
 
 | Module | File | Contains |
 |--------|------|----------|
-| ze-bgp-api | `internal/component/bgp/schema/ze-bgp-api.yang` | BGP RPCs + notifications |
-| ze-system-api | `internal/core/ipc/schema/ze-system-api.yang` | System RPCs |
-| ze-rib-api | `internal/component/bgp/plugins/rib/schema/ze-rib-api.yang` | RIB RPCs + notifications |
-| ze-plugin-api | `internal/core/ipc/schema/ze-plugin-api.yang` | Plugin lifecycle RPCs |
+| ze-bgp-api | `internal/component/bgp/yang/ze-bgp-api.yang` | BGP RPCs + notifications |
+| ze-system-api | `internal/core/ipc/yang/ze-system-api.yang` | System RPCs |
+| ze-rib-api | `internal/component/bgp/plugins/rib/yang/ze-rib-api.yang` | RIB RPCs + notifications |
+| ze-plugin-api | `internal/core/ipc/yang/ze-plugin-api.yang` | Plugin lifecycle RPCs |
 
 Shared IPC types (typedefs, groupings) live in `ze-types` (`internal/component/config/yang/modules/ze-types.yang`).
-<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- BGP RPCs -->
-<!-- source: internal/core/ipc/schema/ze-system-api.yang -- system RPCs -->
-<!-- source: internal/core/ipc/schema/ze-plugin-engine.yang -- plugin-engine RPCs -->
+<!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- BGP RPCs -->
+<!-- source: internal/core/ipc/yang/ze-system-api.yang -- system RPCs -->
+<!-- source: internal/core/ipc/yang/ze-plugin-engine.yang -- plugin-engine RPCs -->
 
 ## JSON Conventions
 

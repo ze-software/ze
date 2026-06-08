@@ -18,8 +18,8 @@ import (
 	"sync"
 
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
+	bgpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -54,7 +54,7 @@ func init() {
 		Name:               "bgp",
 		Description:        "BGP routing daemon",
 		Features:           "yang",
-		YANG:               bgpschema.ZeBGPConfYANG,
+		YANG:               bgpyang.ZeBGPConfYANG,
 		ConfigRoots:        []string{"bgp"},
 		FatalOnConfigError: true,
 		RunEngine:          runBGPEngine,

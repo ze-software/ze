@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	roleschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/schema"
+	roleyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -26,7 +26,7 @@ func init() {
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
 		Dependencies:    []string{"bgp"},
-		YANG:            roleschema.ZeRoleYANG,
+		YANG:            roleyang.ZeRoleYANG,
 		CapabilityCodes: []uint8{roleCapCode},
 		RunEngine:       RunRolePlugin,
 		IngressFilter:   OTCIngressFilter,

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	softverschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"
+	softveryang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -20,7 +20,7 @@ func init() {
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
 		Dependencies:    []string{"bgp"},
-		YANG:            softverschema.ZeSoftverYANG,
+		YANG:            softveryang.ZeSoftverYANG,
 		CapabilityCodes: []uint8{75},
 		RunEngine:       RunSoftverPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {

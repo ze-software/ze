@@ -31,6 +31,6 @@ Ze lacked basic operational commands that every network OS provides: show uptime
 - `internal/component/resolve/cmd/resolve.go` -- handlePing, handleTraceroute
 - `internal/component/bgp/plugins/rib/bestpath.go` -- BestStep, SelectBestExplain, comparePairWithReason
 - `internal/component/bgp/plugins/rib/rib_pipeline_best.go` -- bestReasonTerminal, candidatesByKey stash
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- uptime, interface YANG nodes
-- `internal/component/resolve/cmd/schema/ze-resolve-cmd.yang` -- ping, traceroute YANG nodes
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- uptime, interface YANG nodes
+- `internal/component/resolve/cmd/yang/ze-resolve-cmd.yang` -- ping, traceroute YANG nodes
 - `test/plugin/bestpath-reason.ci`, `test/plugin/resolve-ping.ci`

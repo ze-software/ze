@@ -11,5 +11,5 @@
 package monitor
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/monitor/schema" // init() registers YANG module
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/monitor/yang" // init() registers YANG module
 )

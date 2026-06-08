@@ -1,0 +1,12 @@
+module ze-rpki-decorator {
+  namespace "urn:ze:rpki:decorator";
+  prefix rpkidec;
+
+  description
+    "RPKI decorator plugin: correlates UPDATE and RPKI events,
+     emits merged update-rpki events for downstream consumers.";
+
+  revision 2026-03-21 {
+    description "Initial revision";
+  }
+}

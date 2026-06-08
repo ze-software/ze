@@ -1,0 +1,29 @@
+module ze-fakeredist-api {
+  namespace "urn:ze:test:fakeredist:api";
+  prefix "fakeredist-api";
+
+  organization "Ze Project";
+  description "Test-only synthetic redistribute producer RPCs.
+               fakeredist exposes these so .ci scenarios can drive the
+               bgp-redistribute-egress consumer without waiting for a real
+               protocol producer (L2TP, connected, ...) to land.";
+  revision 2026-04-19 {
+    description "Initial revision -- emit / emit-burst / help.";
+  }
+
+  rpc fakeredist-emit {
+    description "Emit one synthetic route-change batch.
+                 Args: <add|remove> <family> <prefix> [<nexthop>].";
+  }
+
+  rpc fakeredist-emit-burst {
+    description "Emit N synthetic batches with the host portion of the
+                 base prefix auto-incremented.
+                 Args: <N> <add|remove> <family> <base-prefix>.
+                 N is bounded to one million per call.";
+  }
+
+  rpc fakeredist-help {
+    description "Print the fakeredist command surface.";
+  }
+}

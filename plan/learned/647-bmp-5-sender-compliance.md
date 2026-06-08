@@ -76,7 +76,7 @@ and broken ribout dedup (removed in #574). This spec closed three of four gaps
 - `internal/component/bgp/plugins/bmp/sender.go` -- writeRouteMirroring
 - `internal/component/bgp/plugins/bmp/msg.go` -- BuildSyntheticOpen removed
 - `internal/component/bgp/plugins/bmp/event_test.go` -- 8 new tests
-- `internal/component/bgp/plugins/bmp/schema/ze-bmp-conf.yang` -- route-mirroring leaf
+- `internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang` -- route-mirroring leaf
 - `rfc/short/rfc7854.md` -- Route Mirroring Per-Peer Header correction
 - `rfc/short/rfc8671.md` -- new RFC summary (Adj-RIB-Out)
 - `rfc/short/rfc9069.md` -- new RFC summary (Loc-RIB)

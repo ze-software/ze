@@ -15,7 +15,7 @@ Service is live. Session keying includes local address for multi-hop uniqueness.
 | Session FSM + timers | `internal/plugins/bfd/session/` |
 | UDP and loopback transports | `internal/plugins/bfd/transport/` |
 | Express-loop runtime | `internal/plugins/bfd/engine/` |
-| YANG schema | `internal/plugins/bfd/schema/ze-bfd-conf.yang` |
+| YANG schema | `internal/plugins/bfd/yang/ze-bfd-conf.yang` |
 | Reference RFCs | `rfc/short/rfc5880.md`, `rfc5881.md`, `rfc5882.md`, `rfc5883.md` |
 | Deep-dive research | `docs/research/bfd-implementation-guide.md` |
 
@@ -219,8 +219,8 @@ three `show bfd` commands and five `ze_bfd_*` Prometheus metrics.
 | Prometheus wiring | `internal/plugins/bfd/metrics.go` | `bindMetricsRegistry`, `metricsHook`, `refreshSessionsGauge` |
 | Service surface | `internal/plugins/bfd/api/service.go` | `Snapshot`, `SessionDetail`, `Profiles` |
 | CLI handlers | `internal/component/bfd/cmd/bfd.go` | `handleShowSessions`, `handleShowSession`, `handleShowProfile` |
-| YANG API | `internal/plugins/bfd/schema/ze-bfd-api.yang` | `show-sessions`, `show-session`, `show-profile` RPCs |
-| YANG cmd tree | `internal/component/cmd/bfd/schema/ze-bfd-cmd.yang` | augments `clishowcmd:show` with `bfd { sessions, session, profile }` |
+| YANG API | `internal/plugins/bfd/yang/ze-bfd-api.yang` | `show-sessions`, `show-session`, `show-profile` RPCs |
+| YANG cmd tree | `internal/component/cmd/bfd/yang/ze-bfd-cmd.yang` | augments `clishowcmd:show` with `bfd { sessions, session, profile }` |
 
 ### Next sessions: pick from these specs
 

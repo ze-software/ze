@@ -27,7 +27,7 @@ The firewall model already had `Masquerade{Port, PortEnd, Flags}` fields but not
 - `internal/component/firewall/model.go` -- added `MasqFlagRandom`, `MasqFlagFullyRandom`, `MasqFlagPersistent` constants
 - `internal/component/firewall/config.go` -- added `parseMasquerade`, `parseMasqPorts`
 - `internal/component/firewall/config_test.go` -- 5 new test functions
-- `internal/component/firewall/schema/ze-firewall-conf.yang` -- added leaves to masquerade container
+- `internal/component/firewall/yang/ze-firewall-conf.yang` -- added leaves to masquerade container
 - `internal/plugins/firewall/nft/lower_linux.go` -- rewrote `lowerMasquerade` with port and flag paths
 - `internal/plugins/firewall/nft/lower_linux_test.go` -- 3 new test functions
 - `internal/plugins/firewall/vpp/verify.go` -- added port/flag rejection in masquerade case

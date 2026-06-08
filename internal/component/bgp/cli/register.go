@@ -9,7 +9,7 @@ package cli
 import (
 
 	// init() registers the show bgp decode/encode YANG module (ze-bgp-tools-cmd).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )

@@ -29,6 +29,6 @@ Further split the three Phase 1 command plugins (bgp-cmd-peer, bgp-cmd-ops, bgp-
 
 ## Files
 
-- Created: `bgp-cmd-cache/` (9 files), `bgp-cmd-commit/` (9 files), `bgp-cmd-raw/` (9 files), `bgp-cmd-subscribe/` (5 files), `bgp-cmd-meta/` (7 files), `bgp-route-refresh/handler/` (8 files), `bgp-route-refresh/schema/ze-route-refresh-api.yang`
+- Created: `bgp-cmd-cache/` (9 files), `bgp-cmd-commit/` (9 files), `bgp-cmd-raw/` (9 files), `bgp-cmd-subscribe/` (5 files), `bgp-cmd-meta/` (7 files), `bgp-route-refresh/handler/` (8 files), `bgp-route-refresh/yang/ze-route-refresh-api.yang`
 - Deleted: `bgp-cmd-ops/` (16 files), `bgp-cmd-peer/subscribe.go`, `bgp-cmd-peer/require.go`
-- Modified: `bgp-cmd-peer/` (summary.go, peer_test.go, peer_ops_test.go, summary_test.go, doc.go, session.go, YANG), `reactor.go`, `cli/main.go`, `bgp-route-refresh/schema/` (embed.go, register.go), `plugin/server/subscribe.go`
+- Modified: `bgp-cmd-peer/` (summary.go, peer_test.go, peer_ops_test.go, summary_test.go, doc.go, session.go, YANG), `reactor.go`, `cli/main.go`, `bgp-route-refresh/yang/` (embed.go, register.go), `plugin/server/subscribe.go`

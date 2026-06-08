@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -158,9 +158,9 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 	return 0
 }
 
-// GetYANG returns the embedded YANG schema for the route-refresh plugin.
+// GetYANG returns the embedded YANG for the route-refresh plugin.
 func GetYANG() string {
-	return schema.ZeRouteRefreshYANG
+	return yang.ZeRouteRefreshYANG
 }
 
 // RunCLIDecode decodes hex capability data directly from CLI arguments.

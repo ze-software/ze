@@ -27,5 +27,5 @@ Ze needed a BGP healthcheck plugin to monitor service availability and control r
 ## Files
 
 - `internal/component/bgp/plugins/healthcheck/` -- entire plugin package (11 source files)
-- `internal/component/bgp/plugins/healthcheck/schema/ze-healthcheck-conf.yang` -- YANG schema
+- `internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang` -- YANG schema
 - `internal/component/plugin/all/all.go` -- blank import

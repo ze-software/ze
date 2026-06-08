@@ -9,7 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	connectedschema "codeberg.org/thomas-mangin/ze/internal/plugins/connected/schema"
+	connectedyang "codeberg.org/thomas-mangin/ze/internal/plugins/connected/yang"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -18,7 +18,7 @@ func init() {
 		Name:        pluginName,
 		Description: "Connected routes: redistribute directly connected interface prefixes",
 		Features:    "yang",
-		YANG:        connectedschema.ZeConnectedConfYANG,
+		YANG:        connectedyang.ZeConnectedConfYANG,
 		ConfigRoots: []string{pluginName},
 		RunEngine:   runConnectedPlugin,
 		ConfigureEngineLogger: func(loggerName string) {

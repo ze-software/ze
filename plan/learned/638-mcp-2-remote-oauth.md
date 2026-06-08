@@ -148,7 +148,7 @@ reach is required. Phase 2 delivers:
 
 **Modified:**
 
-- `internal/component/mcp/schema/ze-mcp-conf.yang` -- `bind-remote`,
+- `internal/component/mcp/yang/ze-mcp-conf.yang` -- `bind-remote`,
   `auth-mode`, `oauth` container, `tls` container, `identity[]` list
 - `internal/component/mcp/streamable.go` -- StreamableConfig gains
   AuthMode / BearerList / OAuth fields, auth dispatcher, RFC 9728

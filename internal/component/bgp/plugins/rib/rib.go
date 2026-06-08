@@ -32,8 +32,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/yang"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -1085,7 +1085,7 @@ func getLocalASN(event *Event) uint32 {
 	return 0
 }
 
-// GetYANG returns the embedded YANG schema for the RIB plugin.
+// GetYANG returns the embedded YANG for the RIB plugin.
 func GetYANG() string {
-	return schema.ZeRibYANG
+	return yang.ZeRibYANG
 }

@@ -38,7 +38,7 @@ Implement RFC 9234 OTC (Only to Customer) attribute processing: ingress stamping
 - `internal/component/bgp/plugins/role/config.go` -- import/export config parsing, extractRemoteIP, resolveExport
 - `internal/component/bgp/plugins/role/role.go` -- filter state management, name-to-IP mapping
 - `internal/component/bgp/plugins/role/register.go` -- OTC attribute + filter registration
-- `internal/component/bgp/plugins/role/schema/ze-role.yang` -- import/export YANG schema
+- `internal/component/bgp/plugins/role/yang/ze-role.yang` -- import/export YANG schema
 - `internal/component/bgp/reactor/reactor_notify.go` -- ingress filter call site + safeIngressFilter
 - `internal/component/bgp/reactor/reactor_api_forward.go` -- egress filter call site + safeEgressFilter
 - `internal/component/plugin/registry/registry.go` -- PeerFilterInfo, filter types

@@ -13,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 
 	// Blank import triggers init() registration of BGP YANG modules.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
 )
 
 // TestSchemaInfo_HandlerMap verifies handler map construction from SchemaInfo slice.

@@ -58,8 +58,8 @@ pre-existing OS env var).
 | `chaos` | `rate` | `ze.bgp.chaos.rate` | "0.1" | Fault probability (0.0-1.0) |
 | `reactor` | `speed`, `cache-ttl`, `cache-max`, `update-groups` | `ze.bgp.reactor.*` | per-leaf | Reactor tuning |
 | `exabgp/api` | `ack` | `exabgp.api.ack` | true | ExaBGP bridge ack emission |
-<!-- source: internal/component/hub/schema/ze-hub-conf.yang -- environment container -->
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- environment augment -->
+<!-- source: internal/component/hub/yang/ze-hub-conf.yang -- environment container -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- environment augment -->
 
 ## Retired Keys
 

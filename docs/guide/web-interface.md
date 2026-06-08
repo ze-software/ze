@@ -56,7 +56,7 @@ environment {
     }
 }
 ```
-<!-- source: internal/component/web/schema/ze-web-conf.yang -- web container, server list -->
+<!-- source: internal/component/web/yang/ze-web-conf.yang -- web container, server list -->
 
 ## Authentication
 

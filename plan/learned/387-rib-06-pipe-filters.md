@@ -39,4 +39,4 @@ Replace separate `rib show in`/`rib show out`/`rib show best` commands with a un
 - `internal/component/command/pipe.go` — FoldServerPipeline for CLI pipe rewriting (handles rib show + rib best)
 - `cmd/ze/cli/main.go` — tab completion for pipeline keywords (uses `command.CompletePipe()` for general, `ribShowPipeSuggestions` for rib show/best)
 - `test/plugin/rib-pipe-filter.ci` — functional test with content assertions
-- `internal/component/bgp/plugins/rib/schema/ze-rib-api.yang` — unified show RPC + best/best-status RPCs
+- `internal/component/bgp/plugins/rib/yang/ze-rib-api.yang` — unified show RPC + best/best-status RPCs

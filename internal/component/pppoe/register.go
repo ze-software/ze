@@ -2,4 +2,4 @@
 
 package pppoe
 
-import _ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/schema"
+import _ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/yang"

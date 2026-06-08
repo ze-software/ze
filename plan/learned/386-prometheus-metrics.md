@@ -35,5 +35,5 @@ Add Prometheus metrics export to ze: core metrics interfaces, map-based Promethe
 - `internal/component/bgp/reactor/reactor_metrics.go` — reactor-level Prometheus metrics struct and update loop
 - `internal/component/bgp/reactor/peer_stats.go` — per-peer atomic counters with Prometheus integration
 - `internal/component/bgp/reactor/reactor_peers.go` — AddPeer/RemovePeer with label cleanup
-- `internal/component/telemetry/schema/` — YANG module `ze-telemetry-conf`
+- `internal/component/telemetry/yang/` — YANG module `ze-telemetry-conf`
 - `test/parse/telemetry-prometheus-*.ci` — functional tests for config parsing

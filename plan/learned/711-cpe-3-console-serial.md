@@ -57,5 +57,5 @@ The `/ze-review` pass caught four issues that all got fixed:
 | `internal/component/config/system/console_test.go` | 14 unit tests |
 | `internal/component/config/system/console_integration_linux_test.go` | 7 QEMU integration tests |
 | `internal/component/config/system/system.go` | ConsoleDevices field + extractConsole call |
-| `internal/component/config/system/schema/ze-system-conf.yang` | Console container |
+| `internal/component/config/system/yang/ze-system-conf.yang` | Console container |
 | `cmd/ze/hub/main.go` | applyConsole + applyConsoleFromMap wiring |

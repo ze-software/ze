@@ -30,7 +30,7 @@ Ze's BGP peer configuration lacked four session-level knobs that every productio
 
 ## Files
 
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- as-override, local-options, community/send, default-originate leaves
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- as-override, local-options, community/send, default-originate leaves
 - `internal/component/bgp/reactor/peersettings.go` -- ASOverride, LocalASNoPrepend, LocalASReplaceAS, SendCommunity, DefaultOriginate, DefaultOriginateFilter
 - `internal/component/bgp/reactor/config.go` -- parsePeerFromTree, parseFamiliesFromTree extraction
 - `internal/component/bgp/reactor/reactor_api_forward.go` -- applySendCommunityFilter, applyASOverride, local-AS dual-prepend logic

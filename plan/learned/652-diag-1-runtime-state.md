@@ -52,8 +52,8 @@ tools via YANG RPC registration.
 - `internal/component/l2tp/subsystem_snapshot.go` -- facade methods
 - `internal/component/l2tp/service_locator.go` -- Service interface extension
 - `internal/component/cmd/l2tp/l2tp.go` -- 4 new handlers
-- `internal/component/l2tp/schema/ze-l2tp-api.yang` -- 4 new RPCs
-- `internal/component/cmd/l2tp/schema/ze-l2tp-cmd.yang` -- show tree augments
+- `internal/component/l2tp/yang/ze-l2tp-api.yang` -- 4 new RPCs
+- `internal/component/cmd/l2tp/yang/ze-l2tp-cmd.yang` -- show tree augments
 - `internal/component/plugin/server/system.go` -- real subsystem-list
 - `internal/component/cmd/show/show.go` -- warning/error filters, traffic show
 - `internal/component/cmd/metrics/metrics.go` -- pool stats handler

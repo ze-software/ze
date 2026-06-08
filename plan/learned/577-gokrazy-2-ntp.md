@@ -41,7 +41,7 @@ disk for recovery on devices without battery-backed clocks.
 
 - YANG registration requires TWO things: (1) `YANG` field on Registration for runtime,
   AND (2) `yang.RegisterModule` in a schema/register.go `init()` for the config validator.
-  The DNS resolver was the reference pattern (`internal/component/resolve/dns/schema/register.go`).
+  The DNS resolver was the reference pattern (`internal/component/resolve/dns/yang/register.go`).
 - The `config.YANGSchema()` function used by `ze config validate` loads registered YANG
   via `LoadRegistered()`. If the schema package isn't imported (blank import via all.go
   or transitively), the YANG won't be visible to the validator.
@@ -57,9 +57,9 @@ disk for recovery on devices without battery-backed clocks.
 - `internal/plugins/ntp/clock_other.go` -- stub for non-Linux
 - `internal/plugins/ntp/persist.go` -- saveTime, loadTime (RFC3339 to file)
 - `internal/plugins/ntp/register.go` -- plugin registration, OnConfigure, lifecycle
-- `internal/plugins/ntp/schema/ze-ntp-conf.yang` -- YANG schema
-- `internal/plugins/ntp/schema/embed.go` -- go:embed
-- `internal/plugins/ntp/schema/register.go` -- yang.RegisterModule init()
+- `internal/plugins/ntp/yang/ze-ntp-conf.yang` -- YANG schema
+- `internal/plugins/ntp/yang/embed.go` -- go:embed
+- `internal/plugins/ntp/yang/register.go` -- yang.RegisterModule init()
 - `internal/plugins/ntp/ntp_test.go` -- 14 unit tests
 - `test/parse/ntp-config.ci` -- functional parse test
 - `test/parse/ntp-disabled.ci` -- functional parse test

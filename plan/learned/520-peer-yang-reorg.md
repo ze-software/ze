@@ -30,11 +30,11 @@ The peer configuration in `ze-bgp-conf.yang` had a flat structure with ~20 leave
 
 ## Files
 
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- restructured peer-fields grouping
-- `internal/component/bgp/plugins/gr/schema/ze-graceful-restart.yang` -- updated augment paths
-- `internal/component/bgp/plugins/hostname/schema/ze-hostname.yang` -- updated augment paths
-- `internal/component/bgp/plugins/softver/schema/ze-softver.yang` -- updated augment paths
-- `internal/component/bgp/plugins/llnh/schema/ze-link-local-nexthop.yang` -- updated augment paths
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- restructured peer-fields grouping
+- `internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang` -- updated augment paths
+- `internal/component/bgp/plugins/hostname/yang/ze-hostname.yang` -- updated augment paths
+- `internal/component/bgp/plugins/softver/yang/ze-softver.yang` -- updated augment paths
+- `internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang` -- updated augment paths
 - `internal/component/bgp/config/resolve.go` -- updated merge targets
 - `internal/component/bgp/reactor/config.go` -- parsePeerFromTree with new container paths
 - `internal/exabgp/migration/migrate.go` -- updated field target paths

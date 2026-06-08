@@ -1,0 +1,52 @@
+module ze-fib-vpp-conf {
+    namespace "urn:ze:fib:vpp:conf";
+    prefix fibvpp;
+
+    import ze-fib-conf { prefix fib; }
+
+    description
+        "FIB VPP backend configuration for Ze.
+         Augments the fib container with VPP FIB programming
+         via GoVPP binary API (IPRouteAddDel).";
+
+    revision 2026-04-14 {
+        description "Initial revision.";
+    }
+
+    augment "/fib:fib" {
+        container vpp {
+            description "VPP FIB programming via GoVPP binary API.";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description
+                    "Enable VPP FIB programming. Routes from system RIB
+                     are programmed directly into VPP's FIB.";
+            }
+
+            leaf table-id {
+                type uint32;
+                default 0;
+                description
+                    "VRF table ID for route programming.
+                     0 is the default VRF.";
+            }
+
+            leaf batch-size {
+                type uint16;
+                default 256;
+                description
+                    "Maximum number of routes per batch dispatch.";
+            }
+
+            leaf batch-interval-ms {
+                type uint16;
+                default 10;
+                description
+                    "Maximum time in milliseconds before dispatching
+                     a partial batch.";
+            }
+        }
+    }
+}

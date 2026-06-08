@@ -8,5 +8,5 @@
 package subscribe
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe/schema" // init() registers YANG module
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe/yang" // init() registers YANG module
 )

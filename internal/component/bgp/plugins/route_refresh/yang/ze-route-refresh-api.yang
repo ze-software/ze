@@ -1,0 +1,23 @@
+module ze-route-refresh-api {
+    namespace "urn:ze:route-refresh:api";
+    prefix "rr-api";
+
+    organization "Ze Project";
+    description "Route refresh command RPCs (RFC 2918, RFC 7313).";
+    revision 2026-03-08 {
+        description "Initial revision.";
+    }
+
+    rpc peer-refresh {
+        description "Send ROUTE-REFRESH to peer for specified family.";
+    }
+    rpc peer-borr {
+        description "Send Beginning of Route Refresh marker (RFC 7313).";
+    }
+    rpc peer-eorr {
+        description "Send End of Route Refresh marker (RFC 7313).";
+    }
+    rpc peer-clear-soft {
+        description "Soft-clear peer by sending ROUTE-REFRESH for all negotiated families.";
+    }
+}

@@ -222,7 +222,7 @@ wired into the FSM callback.
 - `internal/plugins/bfd/bfd.go` -- new `pluginService` type
   implementing `api.Service`; `api.SetService` publication in
   `OnStarted`; `api.SetService(nil)` in deferred shutdown.
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- new
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- new
   `bfd` container inside `peer connection` with presence
   semantics, enabled/mode/profile/min-ttl/interface leaves.
 - `internal/component/bgp/reactor/peersettings.go` -- new

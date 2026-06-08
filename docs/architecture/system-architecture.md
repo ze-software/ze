@@ -565,13 +565,13 @@ declare done
 | Module | Location | Defines |
 |--------|----------|---------|
 | `ze-types` | `yang/ze-types.yang` | Common types (asn, ip-address, etc.) |
-| `ze-bgp-conf` | `internal/component/bgp/schema/ze-bgp-conf.yang` | `container bgp` with peers, families |
-| `ze-plugin-conf` | `internal/component/plugin/schema/` | `container plugin` for process declarations |
-<!-- source: internal/component/bgp/schema/ -- BGP YANG schemas -->
-<!-- source: internal/component/plugin/schema/ -- plugin YANG schemas -->
-| `ze-rib` | `internal/component/bgp/plugins/rib/schema/ze-rib.yang` | Augments `ze-bgp-conf` with `container rib` |
-| `ze-graceful-restart` | `internal/component/bgp/plugins/gr/schema/ze-graceful-restart.yang` | Augments `ze-bgp-conf` for graceful-restart |
-| `ze-hostname` | `internal/component/bgp/plugins/hostname/schema/ze-hostname.yang` | Augments `ze-bgp-conf` for FQDN capability |
+| `ze-bgp-conf` | `internal/component/bgp/yang/ze-bgp-conf.yang` | `container bgp` with peers, families |
+| `ze-plugin-conf` | `internal/component/plugin/yang/` | `container plugin` for process declarations |
+<!-- source: internal/component/bgp/yang/ -- BGP YANG schemas -->
+<!-- source: internal/component/plugin/yang/ -- plugin YANG schemas -->
+| `ze-rib` | `internal/component/bgp/plugins/rib/yang/ze-rib.yang` | Augments `ze-bgp-conf` with `container rib` |
+| `ze-graceful-restart` | `internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang` | Augments `ze-bgp-conf` for graceful-restart |
+| `ze-hostname` | `internal/component/bgp/plugins/hostname/yang/ze-hostname.yang` | Augments `ze-bgp-conf` for FQDN capability |
 
 **Note:** Plugin YANG schemas augment `ze-bgp-conf` to extend the configuration tree. Each plugin owns its YANG in a `schema/` subdirectory.
 

@@ -1,0 +1,14 @@
+module ze-bgp-cmd-raw-api {
+  namespace "urn:ze:bgp:cmd:raw:api";
+  prefix "bgp-raw-api";
+
+  organization "Ze Project";
+  description "BGP raw message injection RPC.";
+  revision 2026-03-08 {
+    description "Initial revision.";
+  }
+
+  rpc peer-raw {
+    description "Send raw bytes to peer without validation (testing/debugging).";
+  }
+}

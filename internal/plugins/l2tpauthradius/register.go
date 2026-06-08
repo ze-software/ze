@@ -20,7 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	schema "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -42,7 +42,7 @@ func init() {
 		Name:                    Name,
 		Description:             "RADIUS authentication and accounting for L2TP PPP sessions",
 		Features:                "yang",
-		YANG:                    schema.ZeL2TPAuthRadiusConfYANG,
+		YANG:                    yang.ZeL2TPAuthRadiusConfYANG,
 		ConfigRoots:             []string{"l2tp"},
 		InProcessConfigVerifier: verifyRadiusAuthConfig,
 		RunEngine:               runPlugin,

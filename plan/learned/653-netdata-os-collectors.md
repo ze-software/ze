@@ -127,7 +127,7 @@ exactly (context, units, chart/dimension/family labels, sanitization rules).
 ## Files Touched
 
 - `internal/component/telemetry/collector/` -- 30+ collectors + framework
-- `internal/component/telemetry/schema/ze-telemetry-conf.yang` -- `prefix`,
+- `internal/component/telemetry/yang/ze-telemetry-conf.yang` -- `prefix`,
   `interval`, per-collector list
 - `internal/core/metrics/server.go` -- `Prefix`, `Interval`, `Collectors`
   fields in `TelemetryConfig`, parsing from YAML tree

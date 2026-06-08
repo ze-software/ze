@@ -32,7 +32,7 @@ BGP peers could be created via web UI or config file without essential fields (r
 - `internal/component/config/yang/modules/ze-extensions.yang` -- extension definitions
 - `internal/component/config/schema.go` -- `ListNode.Required`, `ListNode.Suggest`
 - `internal/component/config/yang_schema.go` -- extension parsing in `yangToList`
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- `ze:required`/`ze:suggest` on peer lists
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- `ze:required`/`ze:suggest` on peer lists
 - `internal/component/bgp/config/resolve.go` -- `CheckRequiredFields`, `hasNestedValue`
 - `internal/component/bgp/config/peers.go` -- wiring into `PeersFromConfigTree`
 - `cmd/ze/config/cmd_validate.go` -- wiring into `ze config validate`

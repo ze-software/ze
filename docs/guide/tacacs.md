@@ -49,7 +49,7 @@ system {
 | `tacacs.accounting` | boolean | false | Enable START/STOP accounting records |
 | `tacacs-profile <N>.profile` | leaf-list | required | Maps priv-lvl `N` (0-15) to one or more local authz profiles |
 
-<!-- source: internal/component/tacacs/schema/ze-tacacs-conf.yang -- system.authentication.tacacs -->
+<!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
 
 ## Authentication flow
 

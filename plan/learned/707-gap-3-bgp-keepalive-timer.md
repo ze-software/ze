@@ -62,7 +62,7 @@ All found and fixed during `/ze-review` passes before commit.
 
 | Area | Files | Lines |
 |------|-------|-------|
-| YANG schema | `bgp/schema/ze-bgp-conf.yang` | +6 |
+| YANG schema | `bgp/yang/ze-bgp-conf.yang` | +6 |
 | FSM timer | `bgp/fsm/timer.go` | +21 |
 | FSM timer tests | `bgp/fsm/timer_test.go` | +123 |
 | PeerSettings | `bgp/reactor/peersettings.go` | +4 |

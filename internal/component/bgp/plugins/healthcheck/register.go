@@ -3,7 +3,7 @@ package healthcheck
 import (
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/healthcheck/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/healthcheck/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -20,7 +20,7 @@ func pluginSetup() {
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp", "bgp-watchdog"},
 		Features:     "yang",
-		YANG:         schema.ZeHealthcheckConfYANG,
+		YANG:         yang.ZeHealthcheckConfYANG,
 		RunEngine:    RunHealthcheckPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))

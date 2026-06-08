@@ -28,7 +28,7 @@ Remove all custom `ze:syntax` YANG extensions from ze configuration and replace 
 
 ## Files
 
-- `internal/component/bgp/schema/ze-bgp-conf.yang` — dead nodes removed, freeform→list, ~35 annotations removed, dead import cleaned
+- `internal/component/bgp/yang/ze-bgp-conf.yang` — dead nodes removed, freeform→list, ~35 annotations removed, dead import cleaned
 - `internal/component/config/schema.go` — `Presence bool` added to `ContainerNode`
 - `internal/component/config/yang_schema.go` — leaf-list default, presence detection, flex→presence mapping
 - `internal/component/config/parser.go` — presence container parsing, enum leaf-list

@@ -2,7 +2,7 @@
 
 ## Context
 
-Two separator conventions coexisted in the codebase: dot (`.`) for handler/schema/validator paths
+Two separator conventions coexisted in the codebase: dot (`.`) for handler/yang/validator paths
 (`bgp.peer.timer`), and slash (`/`) for YANG extensions (`ze:required`) and web/CLI context paths.
 This inconsistency meant consumers had to know which convention applied where. The goal was to
 unify on `/` everywhere, aligning with the YANG extension convention already established.

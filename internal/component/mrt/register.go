@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	mrtschema "codeberg.org/thomas-mangin/ze/internal/component/mrt/schema"
+	mrtyang "codeberg.org/thomas-mangin/ze/internal/component/mrt/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -96,7 +96,7 @@ func init() {
 		Name:        "mrt",
 		Description: "MRT routing information export (RFC 6396)",
 		Features:    "yang",
-		YANG:        mrtschema.ZeMRTConfYANG,
+		YANG:        mrtyang.ZeMRTConfYANG,
 		ConfigRoots: []string{configRoot},
 		RunEngine:   runEngine,
 		ConfigureEngineLogger: func(loggerName string) {

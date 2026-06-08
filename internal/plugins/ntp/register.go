@@ -13,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	ntpevents "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/events"
-	ntpschema "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/schema"
+	ntpyang "codeberg.org/thomas-mangin/ze/internal/plugins/ntp/yang"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -48,7 +48,7 @@ func init() {
 		Name:                    "ntp",
 		Description:             "NTP client: system clock synchronization",
 		Features:                "yang",
-		YANG:                    ntpschema.ZeNTPConfYANG,
+		YANG:                    ntpyang.ZeNTPConfYANG,
 		ConfigRoots:             []string{configRootEnvironment},
 		InProcessConfigVerifier: verifyNTPConfig,
 		RunEngine:               runNTPPlugin,

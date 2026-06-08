@@ -1,0 +1,148 @@
+module ze-flowexport-conf {
+    namespace "urn:ze:flowexport:conf";
+    prefix flowexport;
+
+    import ze-types { prefix zt; }
+
+    container flow-export {
+        description "Flow export (sFlow, NetFlow v9, IPFIX) configuration";
+
+        list collector {
+            key "name";
+            description "A flow export collector endpoint";
+
+            leaf name {
+                type string;
+                description "Collector name";
+            }
+
+            leaf address {
+                type zt:ip-address;
+                mandatory true;
+                description "Collector IP address";
+            }
+
+            leaf port {
+                type uint16 {
+                    range "1..65535";
+                }
+                default 6343;
+                description "Collector UDP port";
+            }
+
+            leaf protocol {
+                type enumeration {
+                    enum sflow {
+                        description "sFlow v5";
+                    }
+                    enum netflow9 {
+                        description "NetFlow v9 (RFC 3954)";
+                    }
+                    enum ipfix {
+                        description "IPFIX (RFC 7011)";
+                    }
+                }
+                mandatory true;
+                description "Export protocol";
+            }
+
+            leaf polling-interval {
+                type uint16 {
+                    range "1..3600";
+                }
+                default 20;
+                description "Counter polling interval in seconds";
+            }
+
+            leaf template-refresh {
+                type uint32 {
+                    range "1..86400";
+                }
+                default 600;
+                description "Template refresh interval in seconds (NetFlow v9, IPFIX)";
+            }
+
+            leaf sub-agent-id {
+                type uint32;
+                default 0;
+                description "sFlow sub-agent identifier";
+            }
+
+            leaf observation-domain {
+                type uint32;
+                default 0;
+                description "IPFIX/NetFlow v9 observation domain ID";
+            }
+
+            leaf agent-address {
+                type zt:ip-address;
+                description "sFlow agent address (device's own stable IP, e.g. loopback)";
+            }
+        }
+
+        container sampling {
+            description "Packet sampling (tc sample + psample) exported as sFlow flow samples";
+
+            list interface {
+                key "name";
+                description "Per-interface packet sampling configuration";
+
+                leaf name {
+                    type string;
+                    description "Interface to sample";
+                }
+
+                leaf rate {
+                    type uint32 {
+                        range "1..1000000";
+                    }
+                    description "Sampling rate (1-in-N packets)";
+                }
+
+                leaf trunc-size {
+                    type uint16 {
+                        range "64..1500";
+                    }
+                    default 128;
+                    description "Bytes of each sampled packet header to capture";
+                }
+
+                leaf group {
+                    type uint32 {
+                        range "1..2147483647";
+                    }
+                    default 1;
+                    description "psample group ID";
+                }
+            }
+        }
+
+        container conntrack {
+            description "Per-flow record export from conntrack (NetFlow v9, IPFIX)";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Export per-flow records from the conntrack table";
+            }
+
+            leaf active-timeout {
+                type uint16 {
+                    range "1..3600";
+                }
+                default 60;
+                description "Seconds between conntrack table dumps";
+            }
+        }
+
+        container enrichment {
+            description "Flow record enrichment from the BGP RIB";
+
+            leaf bgp {
+                type boolean;
+                default false;
+                description "Enrich flow records with BGP next-hop (and AS where available)";
+            }
+        }
+    }
+}

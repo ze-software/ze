@@ -1,0 +1,17 @@
+module ze-cli-clear-cmd {
+    namespace "urn:ze:cli:clear:cmd";
+    prefix cliclearcmd;
+    import ze-extensions { prefix ze; }
+    description "Generic clear verb root. Every clear command is owned by its component and merges its own subtree onto this root.";
+    revision 2026-04-18 { description "Initial revision"; }
+    revision 2026-06-03 { description "Relocated clear interface counters (-> iface), clear dns cache (-> resolve), and clear vpn ipsec sa (-> ike) out of this central schema into their owning components (plugin self-containment). This module is now a bare verb-root anchor."; }
+
+    container clear {
+        config false;
+        description "Reset counters, caches, and operational state without changing
+configuration. This is the generic clear verb root; every clear command is
+owned by its component and merges its own subtree here: clear interface
+counters (iface), clear dns cache (resolve), clear vpn ipsec sa (ike),
+clear l2tp (l2tp), clear bgp rib (bgp). See ai/rules/plugin-self-containment.md.";
+    }
+}

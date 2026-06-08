@@ -90,4 +90,4 @@ The `show` forms proxy to the plugin commands through the dispatcher.
 <!-- source: internal/component/rsvpte/engine.go -- signaling engine -->
 <!-- source: internal/component/rsvpte/admission.go -- bandwidth admission -->
 <!-- source: internal/component/rsvpte/reroute.go -- make-before-break -->
-<!-- source: internal/component/rsvpte/schema/ze-rsvp-te-conf.yang -- config schema -->
+<!-- source: internal/component/rsvpte/yang/ze-rsvp-te-conf.yang -- config schema -->

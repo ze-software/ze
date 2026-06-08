@@ -14,7 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	schema "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthlocal/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthlocal/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -27,7 +27,7 @@ func init() {
 		Name:                    Name,
 		Description:             "Static local user list for L2TP PPP authentication",
 		Features:                "yang",
-		YANG:                    schema.ZeL2TPAuthLocalConfYANG,
+		YANG:                    yang.ZeL2TPAuthLocalConfYANG,
 		ConfigRoots:             []string{"l2tp"},
 		InProcessConfigVerifier: verifyLocalAuthConfig,
 		RunEngine:               runPlugin,

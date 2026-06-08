@@ -42,16 +42,16 @@ Ze had no configurable route filter framework. Filters existed only as in-proces
 - `internal/component/config/schema.go` -- Hidden bool on LeafNode, ContainerNode, ListNode
 - `internal/component/config/serialize.go`, `serialize_annotated.go`, `serialize_blame.go` -- ze:hidden enforcement
 - `internal/component/config/yang_schema.go` -- hasHiddenExtension, set during YANG parsing
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- policy container, filter replaces redistribution
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- policy container, filter replaces redistribution
 - `internal/component/bgp/config/filter_registry.go` -- BuildFilterRegistry, ValidateFilterNames
 - `internal/component/bgp/config/redistribution.go` -- extractFilterChain (was extractRedistributionFilters)
 - `internal/component/bgp/config/peers.go` -- applyLoopDetectionConfig, prependDefaultFilters
 - `internal/component/bgp/reactor/filter/loop.go` -- allow-own-as count, cluster-id override
-- `internal/component/bgp/reactor/filter/schema/ze-loop-detection.yang` -- loop-detection filter type
+- `internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang` -- loop-detection filter type
 - `internal/component/bgp/reactor/filter_chain.go` -- inactive: prefix skipping
 - `internal/component/bgp/reactor/peersettings.go` -- LoopAllowOwnAS, LoopClusterID
 - `internal/component/plugin/registry/registry_bgp_filter.go` -- AllowOwnAS, ClusterID in PeerFilterInfo
-- `internal/component/config/redistribute/schema/ze-redistribute-conf.yang` -- core redistribute module
+- `internal/component/config/redistribute/yang/ze-redistribute-conf.yang` -- core redistribute module
 - `internal/component/config/redistribute/registry.go` -- central source registry
 - `internal/component/config/redistribute/route.go` -- RedistRoute, ImportRule, loop prevention
 - `internal/component/config/redistribute/evaluator.go` -- thread-safe evaluator with global singleton

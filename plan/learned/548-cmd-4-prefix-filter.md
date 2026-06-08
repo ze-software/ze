@@ -61,9 +61,9 @@ The initial ship (2026-04-11) passed `make ze-verify` but a post-commit `/ze-rev
 
 ## Files
 
-- `internal/component/bgp/plugins/filter_prefix/schema/ze-filter-prefix.yang` -- YANG augment of `bgp:bgp/bgp:policy` with `prefix-list` (key=name) containing ordered `entry` (key=prefix, ordered-by user) with `ge`/`le`/`action`
-- `internal/component/bgp/plugins/filter_prefix/schema/embed.go` -- `//go:embed` for the YANG file
-- `internal/component/bgp/plugins/filter_prefix/schema/register.go` -- `yang.RegisterModule` at init time
+- `internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang` -- YANG augment of `bgp:bgp/bgp:policy` with `prefix-list` (key=name) containing ordered `entry` (key=prefix, ordered-by user) with `ge`/`le`/`action`
+- `internal/component/bgp/plugins/filter_prefix/yang/embed.go` -- `//go:embed` for the YANG file
+- `internal/component/bgp/plugins/filter_prefix/yang/register.go` -- `yang.RegisterModule` at init time
 - `internal/component/bgp/plugins/filter_prefix/filter_prefix.go` -- Plugin entry point, `RunFilterPrefix(net.Conn) int`, OnConfigure + OnFilterUpdate dispatch, atomic config store; Info-level decision logs
 - `internal/component/bgp/plugins/filter_prefix/match.go` -- `evaluatePrefix` (per-route first-match-wins) + `evaluateUpdate` (strict mode walker) + `extractNLRIField` (text parser)
 - `internal/component/bgp/plugins/filter_prefix/config.go` -- `parsePrefixLists`, `parseOneEntry` with per-family ge/le validation, multi-entry map-form rejection

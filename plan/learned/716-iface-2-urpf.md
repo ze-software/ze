@@ -61,7 +61,7 @@ backward-compatible parsing of the legacy syntax.
 
 - `internal/component/iface/config.go` -- rpfMode type, parser changes
 - `internal/component/iface/config_sysctl.go` -- apply path, IPv6 warning
-- `internal/component/iface/schema/ze-iface-conf.yang` -- rpf-check enum
+- `internal/component/iface/yang/ze-iface-conf.yang` -- rpf-check enum
 - `internal/component/iface/config_test.go` -- 6 unit tests
 - `test/parse/iface-rpf-check.ci` -- functional parse test
 - `docs/guide/configuration.md` -- rpf-check section

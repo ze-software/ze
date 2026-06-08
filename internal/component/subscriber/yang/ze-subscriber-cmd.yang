@@ -1,0 +1,42 @@
+module ze-subscriber-cmd {
+    namespace "urn:ze:subscriber:cmd";
+    prefix subcmd;
+
+    import ze-extensions    { prefix ze; }
+    import ze-cli-show-cmd  { prefix clishowcmd; }
+
+    description
+        "Subscriber session overview and per-session detail.";
+
+    revision 2026-05-22 {
+        description "Initial revision (spec-subscriber-session-model).";
+    }
+
+    augment "/clishowcmd:show" {
+        container subscriber {
+            config false;
+            ze:command "ze-subscriber-api:summary";
+            description "Show a summary of all subscriber sessions.
+Counts by access type (PPPoE, L2TP, IPoE) with totals. Quick way
+to see how many subscribers are online.";
+
+            container id {
+                config false;
+                description "Select one subscriber session by ID.";
+
+                container detail {
+                    config false;
+                    ze:command "ze-subscriber-api:detail";
+                    description "Show everything about one subscriber session.
+Pass the session ID. Returns access type, assigned addresses,
+authentication state, uptime, and traffic counters.";
+                    leaf id {
+                        type string;
+                        mandatory true;
+                        description "Subscriber session ID";
+                    }
+                }
+            }
+        }
+    }
+}

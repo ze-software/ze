@@ -1,7 +1,7 @@
 package filter_prefix
 
 import (
-	fpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_prefix/schema"
+	fpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_prefix/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
@@ -11,7 +11,7 @@ func init() {
 		Description:  "Named prefix-list filter (CIDR + ge/le + accept/reject)",
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp"},
-		YANG:         fpschema.ZeFilterPrefixYANG,
+		YANG:         fpyang.ZeFilterPrefixYANG,
 		FilterTypes:  []string{"prefix-list"},
 		RunEngine:    RunFilterPrefix,
 		CLIHandler:   func(_ []string) int { return 0 },

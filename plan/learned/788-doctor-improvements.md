@@ -40,4 +40,4 @@ After spec-doctor-coverage filled the first set of missing doctor checks, this s
 - `internal/component/cmd/show/doctor.go` -- show doctor RPC handler
 - `internal/component/cmd/show/doctor_test.go` -- show doctor tests
 - `internal/component/cmd/show/show.go` -- ze-show:doctor RPC registration
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- show doctor YANG entry
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- show doctor YANG entry

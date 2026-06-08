@@ -14,7 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/routingtable"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
-	staticschema "codeberg.org/thomas-mangin/ze/internal/plugins/static/schema"
+	staticyang "codeberg.org/thomas-mangin/ze/internal/plugins/static/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -26,7 +26,7 @@ func init() {
 		Name:                    pluginName,
 		Description:             "Static routes: config-driven kernel/VPP route programming with ECMP",
 		Features:                "yang",
-		YANG:                    staticschema.ZeStaticConfYANG,
+		YANG:                    staticyang.ZeStaticConfYANG,
 		ConfigRoots:             []string{pluginName},
 		Dependencies:            []string{"routing-table"},
 		InProcessConfigVerifier: verifyStaticConfig,

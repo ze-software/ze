@@ -1,7 +1,7 @@
 # Flow Export
 
 <!-- source: internal/component/flowexport/exporter.go -- Exporter, Status, per-collector senders -->
-<!-- source: internal/component/flowexport/schema/ze-flowexport-conf.yang -- YANG config -->
+<!-- source: internal/component/flowexport/yang/ze-flowexport-conf.yang -- YANG config -->
 <!-- source: internal/component/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
 <!-- source: internal/component/flowexport/metrics.go -- ze_flowexport_* Prometheus metrics -->
 

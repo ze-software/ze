@@ -133,7 +133,7 @@ The work splits into five child specs:
   -> Constraint: Add and Remove constants defined but only used by filter_community handler code (communityAttrModHandler, largeCommunityAttrModHandler, extCommunityAttrModHandler) via Set action today. The Add/Remove action paths in handlers need implementation for community add/remove in policy chain.
 
 ### Config and YANG
-- [ ] `internal/component/bgp/schema/ze-bgp-conf.yang` - bgp/policy container (augmented by filter plugins), bgp/filter container (import/export leaf-lists), per-peer filter containers
+- [ ] `internal/component/bgp/yang/ze-bgp-conf.yang` - bgp/policy container (augmented by filter plugins), bgp/filter container (import/export leaf-lists), per-peer filter containers
   -> Constraint: policy container description: "Named filter definitions for the route policy framework. Each filter type is a list added by its plugin via augment."
 - [ ] `internal/component/bgp/config/filter_registry.go` - BuildFilterRegistry from all ze:filter-marked lists in policy container, ValidateFilterNames for plain names at parse time
   -> Constraint: colon names (plugin:filter) validated at runtime since plugins register after config parse
@@ -620,7 +620,7 @@ UPDATEs. Interop validation needed for pol-2.
 
 Umbrella scope. Detailed file lists in each child spec.
 
-- `internal/component/bgp/schema/ze-bgp-conf.yang` - add bgp/sets container
+- `internal/component/bgp/yang/ze-bgp-conf.yang` - add bgp/sets container
 - `internal/component/bgp/config/filter_registry.go` - extend for set validation
 - `internal/component/bgp/config/redistribution.go` - extend canonicalize for new filter types
 - `internal/component/bgp/plugins/filter_modify/` - extend with inc/dec and community ops
@@ -662,7 +662,7 @@ Umbrella scope. Detailed file lists in each child spec.
 Detailed in child specs. Summary:
 
 - `internal/component/bgp/sets/` - new set registry package (pol-1)
-- `internal/component/bgp/sets/schema/ze-bgp-sets.yang` - YANG for bgp/sets (pol-1)
+- `internal/component/bgp/sets/yang/ze-bgp-sets.yang` - YANG for bgp/sets (pol-1)
 - `internal/component/bgp/plugins/filter_remove_private_as/` - new plugin (pol-2)
 - `internal/component/bgp/plugins/filter_aspath_length/` - new plugin (pol-2)
 - `test/plugin/policy-*.ci` - functional tests per child spec

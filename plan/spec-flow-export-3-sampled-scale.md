@@ -255,7 +255,7 @@ Note: this is collector-interop (the peer is a flow collector, not a routing dae
 - `internal/component/flowexport/sampling_worker.go` - dispatch the psample stream to sampled NF9/IPFIX collectors, not only sFlow.
 - `internal/component/flowexport/exporter.go` - sampled-flow-record dispatch alongside `ExportFlowSample` / `ExportFlows`.
 - `internal/component/flowexport/config.go` - per-collector `flow-source` (sampled/conntrack) parse + validation (sampled requires a sampling interface).
-- `internal/component/flowexport/schema/ze-flowexport-conf.yang` - `flow-source` leaf (enumeration sampled/conntrack) on the collector.
+- `internal/component/flowexport/yang/ze-flowexport-conf.yang` - `flow-source` leaf (enumeration sampled/conntrack) on the collector.
 - `internal/component/flowexport/netflow9/flow_template.go`, `flow_data.go`, `flow_adapter.go`, `register.go` - sampled template variant (field 34) + data + factory.
 - `internal/component/flowexport/ipfix/flow_template.go`, `flow_data.go`, `flow_adapter.go`, `ie.go`, `register.go` - sampled template variant (IE 34) + data + factory.
 - `internal/component/flowexport/metrics.go` - sampled-record metric/label.
@@ -264,7 +264,7 @@ Note: this is collector-interop (the peer is a flow collector, not a routing dae
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | [x] | `internal/component/flowexport/schema/ze-flowexport-conf.yang` (add `flow-source` leaf) |
+| YANG schema (new config) | [x] | `internal/component/flowexport/yang/ze-flowexport-conf.yang` (add `flow-source` leaf) |
 | YANG validation constraints | [x] | `flow-source` as `enumeration { sampled; conntrack; }` (native YANG enum); rate already constrained (spec 2) |
 | YANG custom validators | [x] | Cross-field rule (sampled requires a sampling interface) enforced in `config.go Validate()` (not expressible as a single-leaf YANG constraint) |
 | CLI commands/flags | [x] | `internal/component/cmd/show/flow_export.go` -- add flow-source to status; no new command verb |

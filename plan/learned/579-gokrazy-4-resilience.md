@@ -52,7 +52,7 @@ the clock is trustworthy), and configurable resolv.conf path (gokrazy uses
 - `internal/component/plugin/events.go` -- NamespaceSystem, EventClockSynced
 - `internal/plugins/ntp/ntp.go` -- syncWorker eventBus, synced flag, emit
 - `internal/plugins/ntp/register.go` -- pass EventBus to syncWorker
-- `internal/component/iface/schema/ze-iface-conf.yang` -- resolv-conf-path leaf
+- `internal/component/iface/yang/ze-iface-conf.yang` -- resolv-conf-path leaf
 - `internal/component/iface/config.go` -- ResolvConfPath field, parsing, validation
 - `internal/component/iface/register.go` -- factory signature, threading
 - `internal/plugins/ifacedhcp/ifacedhcp.go` -- ResolvConfPath in DHCPConfig

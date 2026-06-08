@@ -11,7 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	tftpschema "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver/schema"
+	tftpyang "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver/yang"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -26,7 +26,7 @@ func init() {
 		Name:                    "tftpserver",
 		Description:             "TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation)",
 		Features:                "yang",
-		YANG:                    tftpschema.ZeTFTPServerConfYANG,
+		YANG:                    tftpyang.ZeTFTPServerConfYANG,
 		ConfigRoots:             []string{configRootService},
 		InProcessConfigVerifier: verifyTFTPConfig,
 		RunEngine:               runTFTPServerPlugin,

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	schema "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius/yang"
 )
 
 // TestParseConfigProductionTreeShape verifies the parser accepts the exact
@@ -32,7 +32,7 @@ func TestParseConfigProductionTreeShape(t *testing.T) {
     }
 }`
 	tree, err := config.ParseTreeWithYANG(cfg, map[string]string{
-		"l2tp-auth-radius": schema.ZeL2TPAuthRadiusConfYANG,
+		"l2tp-auth-radius": yang.ZeL2TPAuthRadiusConfYANG,
 	})
 	if err != nil {
 		t.Fatalf("parse tree: %v", err)

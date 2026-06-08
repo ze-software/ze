@@ -60,7 +60,7 @@ The comparison matrix showed "No" for BMP. Both GoBGP (sender) and bio-routing
 ## Files
 
 - `internal/component/bgp/plugins/bmp/` -- 15 Go files (header, tlv, msg, bmp, sender, state, + tests)
-- `internal/component/bgp/plugins/bmp/schema/` -- YANG, embed, register
+- `internal/component/bgp/plugins/bmp/yang/` -- YANG, embed, register
 - `rfc/short/rfc7854.md` -- RFC summary
 - `docs/guide/bmp.md` -- user guide
 - `docs/guide/plugins.md`, `docs/guide/command-reference.md` -- updated

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/flowexport/enrich"
-	flowexportschema "codeberg.org/thomas-mangin/ze/internal/component/flowexport/schema"
+	flowexportyang "codeberg.org/thomas-mangin/ze/internal/component/flowexport/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -57,7 +57,7 @@ func init() {
 		Name:        "flow-export",
 		Description: "sFlow, NetFlow v9, and IPFIX counter export",
 		Features:    "yang",
-		YANG:        flowexportschema.ZeFlowExportConfYANG,
+		YANG:        flowexportyang.ZeFlowExportConfYANG,
 		ConfigRoots: []string{configRootFlowExport},
 		// Counter export is driven by the interface rate tracker's per-second
 		// snapshot callback (RegisterCollectNotify -> notifyFromRateTracker).

@@ -154,7 +154,7 @@ func init() {
 ### 4.2 YANG module registration
 
 ```go
-// internal/component/l2tp/schema/register.go
+// internal/component/l2tp/yang/register.go
 
 //go:embed ze-l2tp-conf.yang
 var ZeL2TPConfYANG string

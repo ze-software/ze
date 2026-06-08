@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	llnhschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/schema"
+	llnhyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -18,7 +18,7 @@ func init() {
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
 		Dependencies:    []string{"bgp"},
-		YANG:            llnhschema.ZeLinkLocalNexthopYANG,
+		YANG:            llnhyang.ZeLinkLocalNexthopYANG,
 		CapabilityCodes: []uint8{77},
 		RunEngine:       RunLLNHPlugin,
 		ConfigureEngineLogger: func(loggerName string) {

@@ -18,7 +18,7 @@ Add authz library (types, evaluation, matching) and Dispatcher authorization int
 
 - **Single authorization chokepoint:** `Dispatcher.Dispatch()` checks auth after command resolution, before execution — covers builtins AND subsystem/plugin paths.
 - **Nil-safe authorizer:** `d.authorizer == nil` means no auth configured, allows all. Zero-config compatible.
-- **YANG schema registration via init():** `authz/schema/register.go` blank-imported from `plugin/all/all.go`, loaded in `yang_schema.go`.
+- **YANG schema registration via init():** `authz/yang/register.go` blank-imported from `plugin/all/all.go`, loaded in `yang_schema.go`.
 - **Thread safety:** `sync.RWMutex` on Store for concurrent SSH sessions. Entries are read-only after config load.
 
 ## Gotchas
@@ -32,13 +32,13 @@ Add authz library (types, evaluation, matching) and Dispatcher authorization int
 
 - `internal/component/authz/authz.go` — core types and logic (Action, Entry, Section, Profile, Store)
 - `internal/component/authz/authz_test.go` — 44+ tests covering all paths
-- `internal/component/authz/schema/ze-authz-conf.yang` — YANG schema
-- `internal/component/authz/schema/embed.go` — YANG embed
-- `internal/component/authz/schema/register.go` — YANG init registration
+- `internal/component/authz/yang/ze-authz-conf.yang` — YANG schema
+- `internal/component/authz/yang/embed.go` — YANG embed
+- `internal/component/authz/yang/register.go` — YANG init registration
 - `internal/component/plugin/server/command.go` — Authorizer interface, Dispatch auth checks
 - `internal/component/plugin/server/command_test.go` — authorization dispatcher tests
 - `internal/component/config/yang_schema.go` — YANG module loading
 - `internal/component/plugin/all/all.go` — blank import for authz schema
-- `internal/component/ssh/schema/ze-ssh-conf.yang` — profile leaf-list on user
+- `internal/component/ssh/yang/ze-ssh-conf.yang` — profile leaf-list on user
 - `test/parse/authz-config-valid.ci` — functional test: YANG accepts authz config
 - `test/parse/authz-config-with-user-profile.ci` — functional test: user profile assignment

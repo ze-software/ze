@@ -8,7 +8,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	bfdschema "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/schema"
+	bfdyang "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/yang"
 )
 
 func init() {
@@ -18,7 +18,7 @@ func init() {
 		Features:                "yang",
 		RFCs:                    []string{"5880", "5881", "5882", "5883"},
 		ConfigRoots:             []string{"bfd"},
-		YANG:                    bfdschema.ZeBFDConfYANG,
+		YANG:                    bfdyang.ZeBFDConfYANG,
 		InProcessConfigVerifier: verifyBFDConfig,
 		RunEngine:               RunBFDPlugin,
 		ConfigureEngineLogger: func(loggerName string) {

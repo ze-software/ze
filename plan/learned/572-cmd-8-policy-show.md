@@ -26,7 +26,7 @@ Ze's vendor parity audit identified policy introspection as a gap. Operators nee
 ## Files
 
 - `internal/component/cmd/show/show_policy.go` -- handlers for list and chain
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- YANG additions
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- YANG additions
 - `internal/component/plugin/types_bgp.go` -- ImportFilters/ExportFilters on PeerInfo
 - `internal/component/bgp/reactor/reactor_api.go` -- populate filter fields in Peers()
 - `test/plugin/policy-show-list.ci` -- YANG wiring validation

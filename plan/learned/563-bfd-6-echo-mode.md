@@ -123,7 +123,7 @@ any of this commit's files.
 - `internal/plugins/bfd/config.go` -- `echoConfig`,
   `parseEchoConfig`, `pluginConfig.validate`,
   `toSessionRequest` plumbing.
-- `internal/plugins/bfd/schema/ze-bfd-conf.yang` -- `echo {
+- `internal/plugins/bfd/yang/ze-bfd-conf.yang` -- `echo {
   desired-min-echo-tx-us }` presence container inside `list
   profile`.
 - `internal/plugins/bfd/metrics.go` -- `echoTxPackets` /

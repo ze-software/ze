@@ -48,9 +48,9 @@ The IPsec subsystem (ipsec-7/8/9) built an IKE engine with SA table, child SAs, 
 - `internal/component/cmd/clear/ipsec_test.go`
 - `internal/component/web/page_vpn_ipsec.go` -- /show/vpn/ipsec/ table page
 - `internal/component/web/workbench_pages.go` -- vpn dispatch
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- show vpn ipsec entries
-- `internal/component/cmd/clear/schema/ze-cli-clear-cmd.yang` -- clear vpn ipsec entry
-- `internal/component/bgp/plugins/cmd/monitor/schema/ze-monitor-cmd.yang` -- monitor vpn ipsec entry
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- show vpn ipsec entries
+- `internal/component/cmd/clear/yang/ze-cli-clear-cmd.yang` -- clear vpn ipsec entry
+- `internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang` -- monitor vpn ipsec entry
 - `cmd/ze/main_test.go` -- added "ike" to expected plugins
 - `internal/component/plugin/all/all_test.go` -- added "ike" to expected plugins
 - `docs/features.md` -- IPsec CLI and Diagnostics row

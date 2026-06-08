@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
+	gryang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -34,7 +34,7 @@ func init() {
 		SupportsCapa:    true,
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
-		YANG:            grschema.ZeGracefulRestartYANG,
+		YANG:            gryang.ZeGracefulRestartYANG,
 		CapabilityCodes: []uint8{64, 71},
 		Dependencies:    []string{"bgp", "bgp-rib"},
 		EgressFilter:    LLGREgressFilter,

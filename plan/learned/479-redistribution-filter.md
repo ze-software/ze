@@ -39,9 +39,9 @@ Ze had no policy filter infrastructure for external plugins. In-process filters 
 - `internal/component/plugin/server/server.go` -- CallFilterUpdate
 - `pkg/plugin/sdk/sdk_callbacks.go` -- OnFilterUpdate
 - `pkg/plugin/sdk/sdk_dispatch.go` -- handleFilterUpdate
-- `internal/core/ipc/schema/ze-plugin-engine.yang` -- filters list in declare-registration
-- `internal/core/ipc/schema/ze-plugin-callback.yang` -- filter-update RPC
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- redistribution container
+- `internal/core/ipc/yang/ze-plugin-engine.yang` -- filters list in declare-registration
+- `internal/core/ipc/yang/ze-plugin-callback.yang` -- filter-update RPC
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- redistribution container
 - `internal/component/bgp/reactor/reactor_notify.go` -- ingress policy chain wiring
 - `internal/component/bgp/reactor/reactor_api_forward.go` -- egress policy chain wiring
 - `docs/guide/redistribution.md` -- user guide

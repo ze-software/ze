@@ -1,0 +1,245 @@
+module ze-bfd-conf {
+    namespace "urn:ze:bfd:conf";
+    prefix bfd;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Bidirectional Forwarding Detection (BFD) configuration for Ze.
+
+         Implements RFC 5880 (base), RFC 5881 (single-hop), and
+         RFC 5883 (multi-hop). Profiles hold reusable timer and feature
+         bundles. Sessions explicitly pinned in configuration exist even
+         without a protocol client; protocol-driven sessions (from BGP,
+         OSPF, static routes) are created at runtime via the plugin
+         Service interface and do not appear here.";
+
+    revision 2026-04-11 {
+        description "Initial BFD config skeleton.";
+    }
+
+    container bfd {
+        description "BFD control configuration for Ze.";
+
+        leaf enabled {
+            type boolean;
+            default true;
+            description "Master switch for the BFD plugin.";
+        }
+
+        leaf persist-dir {
+            type string;
+            description
+                "Absolute path to the directory where the plugin
+                 persists TX sequence numbers for Meticulous Keyed
+                 authentication. RFC 5880 Section 6.7.3 requires the
+                 sequence to survive process restarts; without this
+                 leaf set, Meticulous sessions still work at runtime
+                 but a fresh process loses its sequence floor until
+                 the peer's replay window slides forward.";
+        }
+
+        leaf bind-v6 {
+            type boolean;
+            default false;
+            description
+                "When true, the BFD plugin also binds an IPv6 socket
+                 (::0) alongside the IPv4 socket for every (vrf, mode)
+                 loop. The paired sockets share the same RX channel
+                 via a transport.Dual wrapper and send routes by
+                 destination address family. Stage 2b
+                 (spec-bfd-2b-ipv6-transport) ships this leaf; pinned
+                 IPv6 sessions require it to be set explicitly so
+                 operators who do not need v6 do not open a second
+                 socket per loop.";
+        }
+
+        list profile {
+            key "name";
+            description
+                "Reusable timer and feature profile. Sessions reference
+                 a profile by name and inherit every field below.";
+
+            leaf name {
+                type string;
+                description "Profile name used as the reference key.";
+            }
+
+            leaf detect-multiplier {
+                type uint8 {
+                    range "1..255";
+                }
+                default 3;
+                description
+                    "Number of consecutive missed Control packets that
+                     trigger a Down transition. RFC 5880 Section 6.8.4.";
+            }
+
+            leaf desired-min-tx-us {
+                type uint32;
+                default 300000;
+                description
+                    "Local target transmit rate in microseconds. The
+                     slow-start floor of 1 000 000 us applies while the
+                     session is not Up, per RFC 5880 Section 6.8.3.";
+            }
+
+            leaf required-min-rx-us {
+                type uint32;
+                default 300000;
+                description
+                    "Minimum inter-packet gap the local end can handle,
+                     in microseconds.";
+            }
+
+            leaf passive {
+                type boolean;
+                default false;
+                description
+                    "Active (default) transmits from session creation.
+                     Passive transmits nothing until a Control packet
+                     arrives from the peer. RFC 5883 Section 4.3.";
+            }
+
+            container echo {
+                presence "enables BFD Echo mode on sessions using this profile";
+                description
+                    "RFC 5880 Section 6.4 / RFC 5881 Section 5 Echo
+                     mode. Single-hop only -- RFC 5883 Section 4
+                     explicitly prohibits multi-hop echo, and the
+                     parser rejects echo on a multi-hop session. When
+                     active, the engine sends echo packets on UDP
+                     port 3785 at the peer's advertised
+                     RequiredMinEchoRxInterval and slows its async
+                     Control TX to the peer's RequiredMinRxInterval.";
+
+                leaf desired-min-echo-tx-us {
+                    type uint32;
+                    default 50000;
+                    description
+                        "Local target echo transmit rate in
+                         microseconds. The effective echo rate is
+                         max(local desired, peer RequiredMinEchoRx).";
+                }
+            }
+
+            container auth {
+                presence "enables authentication on sessions using this profile";
+                description
+                    "RFC 5880 Section 6.7 authentication parameters.
+                     Sessions inheriting this profile sign every
+                     outgoing Control packet with the configured type
+                     and verify incoming packets using the same key.
+                     Simple Password (type 1) is rejected at parse
+                     time -- it provides no cryptographic protection
+                     and RFC 5880 warns against using it.";
+
+                leaf type {
+                    type enumeration {
+                        enum keyed-md5 {
+                            description "RFC 5880 Section 6.7.3 Keyed MD5.";
+                        }
+                        enum meticulous-keyed-md5 {
+                            description "RFC 5880 Section 6.7.3 Meticulous Keyed MD5 (strict sequence increase).";
+                        }
+                        enum keyed-sha1 {
+                            description "RFC 5880 Section 6.7.4 Keyed SHA1.";
+                        }
+                        enum meticulous-keyed-sha1 {
+                            description "RFC 5880 Section 6.7.4 Meticulous Keyed SHA1 (strict sequence increase).";
+                        }
+                    }
+                    mandatory true;
+                    description
+                        "Authentication type. Simple Password is
+                         intentionally absent from the enum.";
+                }
+
+                leaf key-id {
+                    type uint8;
+                    mandatory true;
+                    description "Auth Key ID (RFC 5880 Section 6.7.1).";
+                }
+
+                leaf secret {
+                    type string;
+                    mandatory true;
+                    ze:sensitive;
+                    description
+                        "Shared secret for the keyed digest. Redacted
+                         from `ze config show` output. MD5 variants
+                         use the first 16 bytes of the secret, SHA1
+                         variants the first 20.";
+                }
+            }
+        }
+
+        list single-hop-session {
+            key "peer vrf interface";
+            description
+                "Per-link BFD session (RFC 5881). Port 3784, TTL=255.
+                 Protocol clients should NOT use this list; they call
+                 the plugin Service interface at runtime.";
+
+            leaf peer {
+                type string;
+                description "Peer IPv4 or IPv6 address.";
+            }
+            leaf local {
+                type string;
+                description "Local source address (optional).";
+            }
+            leaf interface {
+                type string;
+                description "Egress interface name.";
+            }
+            leaf vrf {
+                type string;
+                default "default";
+            }
+            leaf profile {
+                type string;
+                description "Named profile to inherit timer parameters from.";
+            }
+            leaf shutdown {
+                type boolean;
+                default false;
+                description
+                    "When true, the session stays in AdminDown state.
+                     RFC 5880 Section 6.8.16.";
+            }
+        }
+
+        list multi-hop-session {
+            key "peer local vrf";
+            description
+                "Multi-hop BFD session (RFC 5883). Port 4784, no GTSM.";
+
+            leaf peer {
+                type string;
+            }
+            leaf local {
+                type string;
+                description "Local source address. Required for multi-hop.";
+            }
+            leaf vrf {
+                type string;
+                default "default";
+            }
+            leaf min-ttl {
+                type uint8;
+                default 254;
+                description
+                    "Minimum acceptable TTL on receive. Weak replacement
+                     for GTSM on multi-hop paths.";
+            }
+            leaf profile {
+                type string;
+            }
+            leaf shutdown {
+                type boolean;
+                default false;
+            }
+        }
+    }
+}

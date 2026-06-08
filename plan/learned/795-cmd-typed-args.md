@@ -69,9 +69,9 @@ containers already existed but contained no argument metadata.
 - `internal/component/plugin/server/command.go` -- ArgDefs on Command/RegisterOptions, validateCommandArgs
 - `internal/component/plugin/server/command_test.go` -- dispatcher validation tests
 - `internal/component/plugin/server/server.go` -- PathToArgDefs wiring
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- leaves on 20 show commands
-- `internal/component/cmd/set/schema/ze-cli-set-cmd.yang` -- union leaf on set system file-descriptors
-- `internal/component/cmd/log/schema/ze-cli-log-cmd.yang` -- leaves on log set and log recent
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- leaves on 20 show commands
+- `internal/component/cmd/set/yang/ze-cli-set-cmd.yang` -- union leaf on set system file-descriptors
+- `internal/component/cmd/log/yang/ze-cli-log-cmd.yang` -- leaves on log set and log recent
 - `cmd/ze/cli/main.go` -- mergeArgDefs from YANG tree
 - `cmd/ze/cli/main_test.go` -- updated log level test to check ArgDefs
 - `docs/architecture/api/commands.md` -- documented ArgDefs architecture

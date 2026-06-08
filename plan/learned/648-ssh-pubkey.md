@@ -26,7 +26,7 @@ Ze only supported password-based SSH authentication (bcrypt). YANG-configured us
 
 ## Files
 
-- `internal/component/ssh/schema/ze-ssh-conf.yang` - YANG `list public-keys`
+- `internal/component/ssh/yang/ze-ssh-conf.yang` - YANG `list public-keys`
 - `internal/component/aaa/types.go` - `SSHPublicKey` struct
 - `internal/component/ssh/pubkey.go` - key matching logic
 - `internal/component/ssh/ssh.go` - wish handler wiring

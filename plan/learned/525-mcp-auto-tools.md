@@ -38,7 +38,7 @@ The MCP server exposed 6 handcrafted tools while the CLI had 60+ commands. An AI
 | `internal/component/mcp/handler.go` | Handler(dispatch, commands, token), allTools, callTool, bearer auth, no handcrafted tools |
 | `internal/component/mcp/tools_test.go` | 25 tests |
 | `cmd/ze/hub/mcp.go` | commandLister with YANG param extraction (sync.Once), startMCPServer |
-| `internal/component/mcp/schema/ze-mcp-conf.yang` | Token leaf with ze:sensitive |
+| `internal/component/mcp/yang/ze-mcp-conf.yang` | Token leaf with ze:sensitive |
 | `internal/component/resolve/cmd/` | 9 resolve RPC handlers + YANG schema |
 | `internal/component/iface/cmd/manage.go` | 7 interface management RPC handlers |
-| `internal/component/iface/schema/ze-iface-api.yang` | Interface management typed parameters |
+| `internal/component/iface/yang/ze-iface-api.yang` | Interface management typed parameters |

@@ -219,7 +219,7 @@ storage {
 - `cmd/ze/doctor/doctor.go` - add checkSmartEnabled()
 
 ## Files to Create
-- `internal/component/storage/schema/ze-storage-conf.yang` - YANG module
+- `internal/component/storage/yang/ze-storage-conf.yang` - YANG module
 - `internal/component/storage/smart_linux.go` - moved from host, add write ioctls
 - `internal/component/storage/smart_other.go` - non-Linux stubs
 - `internal/component/storage/manager.go` - Manager, Start/Stop/Reconfigure, poll loop
@@ -368,7 +368,7 @@ NVMe: admin command Get Log Page 0x06 (Device Self-test) byte 4 bits 7:4.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| YANG-modeled SMART config | Done | `storage/schema/ze-storage-conf.yang` | Full schema with range constraints |
+| YANG-modeled SMART config | Done | `storage/yang/ze-storage-conf.yang` | Full schema with range constraints |
 | Auto-enable SMART on devices | Done | `manager.go:enableOnce` | Called on first detection per device |
 | Periodic health polling | Done | `manager.go:run/poll` | Ticker + stopCh pattern |
 | Three-tier temperature alerting | Done | `manager.go:checkTemperature` | RaiseWarning (informational, rate-of-change), RaiseError (critical) |
@@ -414,7 +414,7 @@ NVMe: admin command Get Log Page 0x06 (Device Self-test) byte 4 bits 7:4.
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `storage/schema/ze-storage-conf.yang` | Created | Full YANG schema with ranges |
+| `storage/yang/ze-storage-conf.yang` | Created | Full YANG schema with ranges |
 | `storage/smart_linux.go` (planned) | Changed | Placed in `core/smart/smart_linux.go` instead |
 | `storage/smart_other.go` (planned) | Changed | Placed in `core/smart/smart_other.go` instead |
 | `storage/manager.go` | Created | Manager, poll loop, alerting, scheduling |
@@ -423,7 +423,7 @@ NVMe: admin command Get Log Page 0x06 (Device Self-test) byte 4 bits 7:4.
 | `storage/config.go` | Created | Config structs + DefaultConfig |
 | `storage/discover_linux.go` | Created | sysfs block device discovery |
 | `storage/discover_other.go` | Created | Non-Linux stub |
-| `storage/schema/embed.go` | Created | YANG embed |
+| `storage/yang/embed.go` | Created | YANG embed |
 | `show/storage.go` | Created | Show RPC handler |
 | `test/parse/smart-config.ci` | Created | Config validation test |
 | `test/plugin/smart-show.ci` | Created | Show RPC functional test |

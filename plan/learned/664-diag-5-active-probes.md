@@ -48,4 +48,4 @@ perspective without leaving the CLI.
 - `internal/component/cmd/show/{ping.go,ping_test.go}`
 - `internal/component/cmd/show/route_lookup.go`
 - `internal/component/iface/{route_lookup_linux.go,route_lookup_other.go}`
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` (ping + route-lookup containers)
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` (ping + route-lookup containers)

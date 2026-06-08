@@ -33,6 +33,6 @@ After fw-8 closed, a gap audit identified nine remaining issues in the Linux fir
 
 ## Files
 
-Code: `internal/component/firewall/{model,config,validate,cmd/show}.go`; `internal/component/firewall/schema/ze-firewall-conf.yang`; `internal/plugins/firewall/nft/{lower,backend,readback}_linux.go`; `cmd/ze-test/{firewall,main}.go`.
+Code: `internal/component/firewall/{model,config,validate,cmd/show}.go`; `internal/component/firewall/yang/ze-firewall-conf.yang`; `internal/plugins/firewall/nft/{lower,backend,readback}_linux.go`; `cmd/ze-test/{firewall,main}.go`.
 
 Tests: `internal/component/firewall/{config,validate,cmd/show,model}_test.go`; `internal/plugins/firewall/nft/lower_linux_test.go`; `test/firewall/{001..011}.ci`; `test/parse/firewall-{dscp-ipv6-rejected,setdscp-inet-accepts,priority-out-of-range}.ci`.

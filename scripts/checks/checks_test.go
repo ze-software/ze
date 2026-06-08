@@ -63,8 +63,8 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 		"internal/component/cmd/archive":    "internal/component/config/archive/cmd",
 		// cache/commit handlers live in bgp/plugins/cmd/{cache,commit}; their
 		// YANG schema was the last central remnant and now lives beside them.
-		"internal/component/cmd/cache":  "internal/component/bgp/plugins/cmd/cache/schema",
-		"internal/component/cmd/commit": "internal/component/bgp/plugins/cmd/commit/schema",
+		"internal/component/cmd/cache":  "internal/component/bgp/plugins/cmd/cache/yang",
+		"internal/component/cmd/commit": "internal/component/bgp/plugins/cmd/commit/yang",
 	}
 	for central, owner := range moved {
 		if _, err := os.Stat(filepath.Join(root, central)); err == nil {
@@ -79,9 +79,9 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	// verb-root anchor that declares no owner command (each owner merges its own
 	// `clear <noun> ...` subtree). See ai/rules/plugin-self-containment.md.
 	for _, ownerHandler := range []string{
-		"internal/component/resolve/cmd/dns.go", // ze-clear:dns-cache (schema: resolve/schema)
-		"internal/component/ike/cmd/ipsec.go",   // ze-clear:vpn-ipsec-sa (schema: ike/schema)
-		"internal/component/iface/cmd/clear.go", // ze-clear:interface-counters (schema: iface/schema)
+		"internal/component/resolve/cmd/dns.go", // ze-clear:dns-cache (schema: resolve/yang)
+		"internal/component/ike/cmd/ipsec.go",   // ze-clear:vpn-ipsec-sa (schema: ike/yang)
+		"internal/component/iface/cmd/clear.go", // ze-clear:interface-counters (schema: iface/yang)
 	} {
 		if _, err := os.Stat(filepath.Join(root, ownerHandler)); err != nil {
 			t.Errorf("extracted clear handler %s is missing: %v", ownerHandler, err)
@@ -93,7 +93,7 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	// the RIB command cluster and must not return to the central metrics package.
 	poolStatsHandler := "internal/component/bgp/plugins/cmd/rib/pool_stats.go"
 	centralMetrics := "internal/component/cmd/metrics/metrics.go"
-	centralMetricsSchema := "internal/component/cmd/metrics/schema/ze-cli-metrics-cmd.yang"
+	centralMetricsSchema := "internal/component/cmd/metrics/yang/ze-cli-metrics-cmd.yang"
 	if _, err := os.Stat(filepath.Join(root, poolStatsHandler)); err != nil {
 		t.Errorf("pool-stats handler must live in the RIB command owner: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 		t.Fatalf("read central metrics schema: %v", err)
 	}
 	if strings.Contains(string(metricsSchema), "ze-bgp:pool-stats") {
-		t.Error("central metrics schema still declares ze-bgp:pool-stats; it is owned by bgp/plugins/cmd/rib/schema")
+		t.Error("central metrics schema still declares ze-bgp:pool-stats; it is owned by bgp/plugins/cmd/rib/yang")
 	}
 
 	// The ping feature (show ping, monitor ping, resolve ping) is owned by
@@ -223,8 +223,8 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	// The `monitor vpn ipsec` command is owned by the ike component: its
 	// handler reads ike/engine events. The YANG node must live in ike/schema,
 	// not in the central monitor schema.
-	ikeMonitorSchema := "internal/component/ike/schema/ze-ipsec-cmd.yang"
-	centralMonitorSchema := "internal/component/cmd/monitor/schema/ze-cli-monitor-cmd.yang"
+	ikeMonitorSchema := "internal/component/ike/yang/ze-ipsec-cmd.yang"
+	centralMonitorSchema := "internal/component/cmd/monitor/yang/ze-cli-monitor-cmd.yang"
 	ikeSchemaBody, err := os.ReadFile(filepath.Join(root, ikeMonitorSchema))
 	if err != nil {
 		t.Fatalf("read ike schema: %v", err)
@@ -245,7 +245,7 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	// bgp/plugins/cmd/peer and the YANG nodes live in that owner's schema, not
 	// the central show/delete schemas. Removing the delete command leaves the
 	// central delete schema a bare verb-root anchor.
-	peerOwnerSchema := "internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang"
+	peerOwnerSchema := "internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang"
 	peerSchemaBody, err := os.ReadFile(filepath.Join(root, peerOwnerSchema))
 	if err != nil {
 		t.Fatalf("read peer owner schema: %v", err)
@@ -261,7 +261,7 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	if strings.Contains(string(showBody), "func handleShowBGPHealth") {
 		t.Error("central show.go still defines handleShowBGPHealth; show bgp-health is owned by bgp/plugins/cmd/peer")
 	}
-	deleteSchema := "internal/component/cmd/delete/schema/ze-cli-delete-cmd.yang"
+	deleteSchema := "internal/component/cmd/delete/yang/ze-cli-delete-cmd.yang"
 	deleteBody, err := os.ReadFile(filepath.Join(root, deleteSchema))
 	if err != nil {
 		t.Fatalf("read delete schema: %v", err)
@@ -324,7 +324,7 @@ func TestGenericCentralCommandsStayCentral(t *testing.T) {
 	// Generic show subcommands that read process/kernel/cross-cutting state.
 	// Listed by schema file so the test survives handler refactoring within
 	// the central show package.
-	showSchema := filepath.Join(root, "internal", "component", "cmd", "show", "schema", "ze-cli-show-cmd.yang")
+	showSchema := filepath.Join(root, "internal", "component", "cmd", "show", "yang", "ze-cli-show-cmd.yang")
 	schemaBody, err := os.ReadFile(showSchema)
 	if err != nil {
 		t.Fatalf("read show schema: %v", err)
@@ -347,7 +347,7 @@ func TestGenericCentralCommandsStayCentral(t *testing.T) {
 
 	// The central monitor schema is a bare verb-root anchor; all monitor
 	// subcommands are owned by their respective components (BGP, iface, command).
-	monSchema := filepath.Join(root, "internal", "component", "cmd", "monitor", "schema", "ze-cli-monitor-cmd.yang")
+	monSchema := filepath.Join(root, "internal", "component", "cmd", "monitor", "yang", "ze-cli-monitor-cmd.yang")
 	if _, err := os.Stat(monSchema); err != nil {
 		t.Fatalf("central monitor verb-root schema %s must exist: %v", monSchema, err)
 	}

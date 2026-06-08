@@ -41,7 +41,7 @@ source-validation, etc.) to sysctl writes at config apply time.
 
 ## Files
 
-- `internal/component/firewall/schema/ze-firewall-conf.yang` (global-options container)
+- `internal/component/firewall/yang/ze-firewall-conf.yang` (global-options container)
 - `internal/component/firewall/config.go` (ExtractGlobalOptions, globalOptionDefs)
 - `internal/component/firewall/engine.go` (emitGlobalOptionsSysctlDefaults)
 - `internal/component/firewall/config_test.go` (8 unit tests)

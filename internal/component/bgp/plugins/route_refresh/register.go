@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"os"
 
-	rrschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema"
+	rryang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -23,7 +23,7 @@ func init() {
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
 		Dependencies:    []string{"bgp"},
-		YANG:            rrschema.ZeRouteRefreshYANG,
+		YANG:            rryang.ZeRouteRefreshYANG,
 		CapabilityCodes: []uint8{2, 70},
 		SendTypes:       []string{"enhanced-refresh"},
 		RunEngine:       RunRouteRefreshPlugin,

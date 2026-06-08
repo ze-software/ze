@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema" // Register BGP YANG for scoped show tests.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang" // Register BGP YANG for scoped show tests.
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"   // Required by ze-bgp-conf.yang.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema" // Register interface YANG for scoped show tests.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"   // Required by ze-bgp-conf.yang.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/yang" // Register interface YANG for scoped show tests.
 )
 
 // testShowModel creates a Model with a valid BGP config for show command tests.

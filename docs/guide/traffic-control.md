@@ -31,7 +31,7 @@ traffic-control {
 }
 ```
 
-<!-- source: internal/component/traffic/schema/ze-traffic-control-conf.yang -- YANG schema -->
+<!-- source: internal/component/traffic/yang/ze-traffic-control-conf.yang -- YANG schema -->
 
 ## VPP Backend: Compatibility Matrix
 

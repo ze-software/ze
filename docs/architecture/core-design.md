@@ -710,7 +710,7 @@ A filter may declare `overrides` to remove a default filter from the chain for
 peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as`).
 
 <!-- source: plan/learned/479-redistribution-filter.md -- redistribution filter design -->
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- filter containers -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter containers -->
 <!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
 
 ---
@@ -804,7 +804,7 @@ directly. NXDOMAIN returns empty results (not an error) and is not cached.
 
 <!-- source: internal/component/resolve/dns/resolver.go -- Resolver type, NewResolver, Resolve -->
 <!-- source: internal/component/resolve/dns/cache.go -- O(1) LRU cache with TTL and eviction -->
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system DNS config -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->
 
 ---
 
@@ -1108,7 +1108,7 @@ than its own poll loop, so it reuses the same 1s interface sampler. For BGP
 next-hop enrichment (`enrichment { bgp true }`) the component consumes the RIB
 best-change event so flow records can carry the destination prefix's next-hop.
 <!-- source: internal/component/flowexport/exporter.go -- Exporter, rate-snapshot callback consumer -->
-<!-- source: internal/component/flowexport/schema/ze-flowexport-conf.yang -- flow-export config surface -->
+<!-- source: internal/component/flowexport/yang/ze-flowexport-conf.yang -- flow-export config surface -->
 
 ### Sysctl
 

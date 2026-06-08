@@ -27,7 +27,7 @@ Move RouteRefresh (code 2, RFC 2918) and GracefulRestart (code 64, RFC 4724) cap
 
 - `internal/component/bgp/plugins/route_refresh/routerefresh.go` — `RunDecodeMode`, `RunCLIDecode`, `RunRouteRefreshPlugin`
 - `internal/component/bgp/plugins/route_refresh/register.go` — init() registration with codes 2, 70
-- `internal/component/bgp/plugins/route_refresh/schema/ze-routerefresh.yang` — YANG schema
+- `internal/component/bgp/plugins/route_refresh/yang/ze-routerefresh.yang` — YANG schema
 - `internal/component/bgp/plugins/gr/gr.go` — added `RunDecodeMode`, `writeOut`
 - `internal/component/bgp/plugins/gr/register.go` — added `CapabilityCodes: []uint8{64}`, `InProcessDecoder`, `RunDecode`
 - `cmd/ze/bgp/decode_open.go` — removed RR and GR inline cases

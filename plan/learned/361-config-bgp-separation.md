@@ -27,5 +27,5 @@ Move BGP-specific config code from generic `internal/component/config/` to `inte
 
 - `internal/component/bgp/config/` — 25+ files (bgp.go, peers.go, bgp_routes.go, routeattr*.go, plugins.go, validators*.go, loader_routes.go, loader_prefix.go, and tests)
 - `internal/component/config/loader.go` — updated imports to reference bgp/config
-- `internal/component/bgp/schema/ze-bgp-conf.yang` — dead fields removed
+- `internal/component/bgp/yang/ze-bgp-conf.yang` — dead fields removed
 - `internal/component/config/environment.go` — dead struct fields removed

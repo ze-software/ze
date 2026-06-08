@@ -90,9 +90,9 @@ integration, and `execution.taskSupport` in tool descriptors.
 | `docs/architecture/mcp/overview.md` | Task section, capability table, roadmap |
 | `docs/architecture/api/commands.md` | `tasks/*` methods, `notifications/tasks/status` |
 | `cmd/ze-test/mcp.go` | `--tasks` flag, task directives (task-call/get/result/cancel/list/wait), `$LAST` substitution |
-| `internal/component/bgp/plugins/cmd/monitor/schema/ze-monitor-cmd.yang` | `ze:task-support required` on monitor bgp/event |
-| `internal/component/bgp/plugins/cmd/rib/schema/ze-rib-cmd.yang` | `ze:task-support required` on routes, `forbidden` on clear/inject/withdraw |
-| `internal/component/cmd/subscribe/schema/ze-cli-subscribe-cmd.yang` | `ze:task-support required` on subscribe |
+| `internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang` | `ze:task-support required` on monitor bgp/event |
+| `internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang` | `ze:task-support required` on routes, `forbidden` on clear/inject/withdraw |
+| `internal/component/cmd/subscribe/yang/ze-cli-subscribe-cmd.yang` | `ze:task-support required` on subscribe |
 | `docs/guide/mcp/tasks.md` | New: user guide for MCP tasks |
 | `docs/guide/mcp/overview.md` | Task directives in test client table |
 | `docs/features.md` | MCP row updated with tasks |

@@ -28,12 +28,12 @@ Ze needed YANG schema definitions and config parsers for its new firewall (nftab
 
 ## Files
 
-- `internal/component/firewall/schema/ze-firewall-conf.yang` -- Full YANG module
-- `internal/component/firewall/schema/{embed,register}.go` -- Registration
+- `internal/component/firewall/yang/ze-firewall-conf.yang` -- Full YANG module
+- `internal/component/firewall/yang/{embed,register}.go` -- Registration
 - `internal/component/firewall/config.go` -- Parser (27 keywords, ~580 lines)
 - `internal/component/firewall/config_test.go` -- 20 tests
-- `internal/component/traffic/schema/ze-traffic-control-conf.yang` -- Full YANG module
-- `internal/component/traffic/schema/{embed,register}.go` -- Registration
+- `internal/component/traffic/yang/ze-traffic-control-conf.yang` -- Full YANG module
+- `internal/component/traffic/yang/{embed,register}.go` -- Registration
 - `internal/component/traffic/config.go` -- Parser (~185 lines)
 - `internal/component/traffic/config_test.go` -- 5 tests
 - `internal/component/plugin/all/all.go` -- Updated by make generate

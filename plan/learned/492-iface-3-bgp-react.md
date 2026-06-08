@@ -29,4 +29,4 @@ BGP assumed configured IPs always existed. There was no dynamic listener managem
 - `internal/component/bgp/reactor/reactor_iface.go` -- interface event handler, addr matching, drain logic
 - `internal/component/bgp/reactor/reactor.go` -- `OnBusEvent` registration, listener start/stop
 - `internal/component/bgp/reactor/listener.go` -- dynamic listener management
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- `local-address` accepts interface unit refs
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- `local-address` accepts interface unit refs

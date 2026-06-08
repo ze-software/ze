@@ -55,7 +55,7 @@ Ze had no central place for subsystems to report user-facing operational issues.
 
 ### Query handlers
 - `internal/component/cmd/show/show.go` -- registers `ze-show:warnings` and `ze-show:errors`; removed `ze-show:bgp-warnings`
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- top-level `warnings` and `errors` containers
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- top-level `warnings` and `errors` containers
 - `internal/component/cmd/show/show_test.go` -- handler unit tests covering empty/populated snapshots
 
 ### Banner migration

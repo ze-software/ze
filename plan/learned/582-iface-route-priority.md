@@ -42,7 +42,7 @@ with deprioritization relative to that base (configured + 1024).
 
 ## Files
 
-- `internal/component/iface/schema/ze-iface-conf.yang` -- route-priority leaf
+- `internal/component/iface/yang/ze-iface-conf.yang` -- route-priority leaf
 - `internal/component/iface/config.go` -- RoutePriority field + parsing
 - `internal/component/iface/config_test.go` -- 5 unit tests (2 parse, 3 link failover)
 - `internal/component/iface/register.go` -- dhcpParams, dhcpEntry, factory, failover

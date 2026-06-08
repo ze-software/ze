@@ -16,12 +16,12 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema" // Register BGP YANG for editor tests.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang" // Register BGP YANG for editor tests.
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"   // Required by ze-bgp-conf.yang.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/schema" // Register interface YANG for scoped terminal tests.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"   // Required by ze-bgp-conf.yang.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/yang" // Register interface YANG for scoped terminal tests.
 )
 
 // VALIDATES: AC-3 (edit command updates breadcrumb + content), AC-15 (POST /cli dispatches command).

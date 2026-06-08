@@ -5,7 +5,7 @@ Route filters let plugins act as route filters on import (ingress) and export
 references in a `filter {}` config block. Named filter types are defined under
 `bgp { policy { } }`.
 
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- filter container -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter container -->
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ bgp {
 }
 ```
 
-<!-- source: internal/component/bgp/reactor/filter/schema/ze-loop-detection.yang -- loop-detection type -->
+<!-- source: internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang -- loop-detection type -->
 
 ## Filter Types
 

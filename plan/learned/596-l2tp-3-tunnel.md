@@ -59,6 +59,6 @@ config-driven component of ze.
 - `internal/component/l2tp/` (39 .go files, 6 phases total)
 - Key phase 3 files: `subsystem.go`, `reactor.go`, `tunnel.go`,
   `tunnel_fsm.go`, `timer.go`, `listener.go`, `config.go`, `register.go`
-- Schema: `internal/component/l2tp/schema/ze-l2tp-conf.yang`
+- Schema: `internal/component/l2tp/yang/ze-l2tp-conf.yang`
 - Runner: `cmd/ze-test/l2tp.go`
 - Tests: `test/l2tp/*.ci` (3), `test/parse/l2tp-*.ci` (3)

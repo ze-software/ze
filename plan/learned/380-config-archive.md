@@ -36,5 +36,5 @@ Add VyOS-inspired remote config archival — fan-out upload to file:// and http(
 - `cmd/ze/config/cmd_edit.go` — archive notifier wiring
 - `internal/component/config/editor/editor.go` — ArchiveNotifier field + methods
 - `internal/component/config/editor/model_commands.go` — archive in cmdCommit
-- `internal/component/hub/schema/ze-hub-conf.yang` — archive container
+- `internal/component/hub/yang/ze-hub-conf.yang` — archive container
 - `test/parse/cli-config-archive.ci`, `cli-config-archive-no-location.ci` — functional tests

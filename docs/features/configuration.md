@@ -22,7 +22,7 @@ Peers are keyed by name (`peer <name> { }`) with IP and AS in nested containers:
 
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree config resolution -->
 <!-- source: internal/component/bgp/config/peers.go -- peer config parsing -->
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- BGP config YANG schema -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema -->
 
 ### Required Field Validation
 

@@ -7,5 +7,5 @@
 package delete
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/delete/schema" // init() registers YANG module
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/delete/yang" // init() registers YANG module
 )

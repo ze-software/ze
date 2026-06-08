@@ -5,7 +5,7 @@ import (
 	"os"
 
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
-	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
+	ribyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -25,7 +25,7 @@ func init() {
 		RFCs:        []string{"4271"},
 		Features:    "yang",
 		ConfigRoots: []string{"bgp"},
-		YANG:        ribschema.ZeRibYANG,
+		YANG:        ribyang.ZeRibYANG,
 		RunEngine:   RunRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))

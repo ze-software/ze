@@ -29,7 +29,7 @@ Ze needed a web interface for config viewing and editing, accessible via HTTPS. 
 ## Files
 
 - `internal/component/web/server.go`, `auth.go`, `handler.go`, `render.go`
-- `internal/component/web/schema/ze-web-conf.yang`, `register.go`, `embed.go`
+- `internal/component/web/yang/ze-web-conf.yang`, `register.go`, `embed.go`
 - `internal/component/web/templates/layout.html`, `login.html`
 - `internal/component/web/assets/htmx.min.js`, `sse.js`, `style.css`
 - `cmd/ze/web/main.go`, `cmd/ze/main.go` (dispatch)

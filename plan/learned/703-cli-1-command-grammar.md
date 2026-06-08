@@ -31,7 +31,7 @@ Ze had two CLI dispatch mechanisms: the YANG show tree (`pluginserver.RegisterRP
 - `internal/component/cmd/show/show_policy_routes.go` -- ForwardToPlugin proxy
 - `internal/component/cmd/show/show_bmp.go` -- 4 ForwardToPlugin proxies
 - `internal/component/cmd/show/show_rr.go` -- 2 ForwardToPlugin proxies
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- 10 YANG containers
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- 10 YANG containers
 - `internal/plugins/static/register.go` -- command rename
 - `internal/plugins/policyroute/register.go` -- command rename
 - `internal/component/bgp/plugins/bmp/bmp.go` -- 4 command renames

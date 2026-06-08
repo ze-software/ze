@@ -16,7 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
 	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
-	sysctlschema "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/schema"
+	sysctlyang "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -60,7 +60,7 @@ func init() {
 		Name:                    "sysctl",
 		Description:             "Kernel tunable management: three-layer precedence, restore on stop",
 		Features:                "yang",
-		YANG:                    sysctlschema.ZeSysctlConfYANG,
+		YANG:                    sysctlyang.ZeSysctlConfYANG,
 		ConfigRoots:             []string{configRoot},
 		InProcessConfigVerifier: verifySysctlConfig,
 		RunEngine:               runSysctlPlugin,

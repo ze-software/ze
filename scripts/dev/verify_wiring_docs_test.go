@@ -16,7 +16,7 @@ const verifyWiringDocsTimeout = 60 * time.Second
 // VALIDATES: Changing a command declaration schedules command reference validation.
 // PREVENTS: YANG command tree drift staying advisory until commit-time hooks.
 func TestVerifyWiringDocsRoutesCommandChanges(t *testing.T) {
-	out := runVerifyWiringDocsDryRun(t, "internal/component/cmd/show/schema/ze-cli-show-cmd.yang")
+	out := runVerifyWiringDocsDryRun(t, "internal/component/cmd/show/yang/ze-cli-show-cmd.yang")
 	mustContain(t, out, "ze-validate-commands")
 }
 

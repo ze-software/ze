@@ -131,7 +131,7 @@ requirements, works on the gokrazy appliance and on dev Linux.
 - `internal/component/cmd/show/show.go` — RPC registrations (8 new).
 - `internal/component/cmd/show/system.go` — `hardware` enrichment on
   cpu + memory handlers.
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` — new
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` — new
   `container host` with 8 sub-containers.
 - `cmd/ze/host/` — new: host.go (RunShow + JSON/text renderers),
   register.go (cmdregistry root + local), host_test.go.

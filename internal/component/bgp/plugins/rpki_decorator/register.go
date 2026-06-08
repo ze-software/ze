@@ -3,7 +3,7 @@ package rpki_decorator
 import (
 	"log/slog"
 
-	decschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki_decorator/schema"
+	decyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki_decorator/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -14,7 +14,7 @@ func init() {
 		Name:         "bgp-rpki-decorator",
 		Description:  "Correlates UPDATE + RPKI events into merged update-rpki events",
 		Features:     "yang",
-		YANG:         decschema.ZeRPKIDecoratorYANG,
+		YANG:         decyang.ZeRPKIDecoratorYANG,
 		Dependencies: []string{"bgp", "bgp-rpki"},
 		EventTypes:   []string{eventTypeUpdateRPKI},
 		RunEngine:    RunDecorator,
@@ -24,7 +24,7 @@ func init() {
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = func() string { return decschema.ZeRPKIDecoratorYANG }
+		cfg.GetYANG = func() string { return decyang.ZeRPKIDecoratorYANG }
 		cfg.ConfigLogger = func(level string) {
 			setLogger(slogutil.PluginLogger(reg.Name, level))
 		}

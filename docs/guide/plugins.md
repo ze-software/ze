@@ -545,7 +545,7 @@ plugin {
     }
 }
 ```
-<!-- source: internal/component/hub/schema/ -- hub config YANG schema; pkg/plugin/sdk/ -- TLS auth -->
+<!-- source: internal/component/hub/yang/ -- hub config YANG schema; pkg/plugin/sdk/ -- TLS auth -->
 
 ## Writing External Plugins
 

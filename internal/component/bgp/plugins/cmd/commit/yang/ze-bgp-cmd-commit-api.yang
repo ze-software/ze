@@ -1,0 +1,14 @@
+module ze-bgp-cmd-commit-api {
+    namespace "urn:ze:bgp:cmd:commit:api";
+    prefix "bgp-commit-api";
+
+    organization "Ze Project";
+    description "BGP named commit workflow RPCs.";
+    revision 2026-03-08 {
+        description "Initial revision.";
+    }
+
+    rpc commit {
+        description "Named commit operations (list, start, end, eor, rollback, show, withdraw).";
+    }
+}

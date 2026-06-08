@@ -35,8 +35,8 @@ Ze had no per-interface rate computation. Operators could see cumulative counter
 - `internal/component/iface/register.go` -- added ConfigureMetrics, rate tracker lifecycle
 - `internal/component/cmd/show/show.go` -- added rate dispatch in handleShowInterface
 - `internal/component/cmd/show/interface_rate.go` -- show + monitor handlers (new)
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- rate container
-- `internal/component/bgp/plugins/cmd/monitor/schema/ze-monitor-cmd.yang` -- interface rate container
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- rate container
+- `internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang` -- interface rate container
 - `internal/component/web/page_interfaces.go` -- rate columns in table, rate data in detail
 - `docs/features.md` -- interface rate tracking mention
 - `docs/guide/command-reference.md` -- show/monitor interface rate docs

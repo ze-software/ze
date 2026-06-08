@@ -28,7 +28,7 @@ ASPA path verification was implemented (spec-bgp-2-aspa) but operated in informa
 - `internal/component/bgp/plugins/rpki/rpki.go` -- policy dispatch, re-validation reject
 - `internal/component/bgp/plugins/rpki/rpki_test.go` -- policy decision tests (new file)
 - `internal/component/bgp/plugins/rpki/rpki_config_test.go` -- config parsing tests
-- `internal/component/bgp/plugins/rpki/schema/ze-rpki.yang` -- new YANG leaves
+- `internal/component/bgp/plugins/rpki/yang/ze-rpki.yang` -- new YANG leaves
 - `test/plugin/rpki-aspa-policy-reject.ci` -- functional test (new)
 - `test/plugin/rpki-aspa-policy-logonly.ci` -- functional test (new)
 - `test/plugin/rpki-aspa-policy-unknown-reject.ci` -- functional test (new)

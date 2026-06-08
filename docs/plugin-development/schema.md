@@ -38,7 +38,7 @@ p.Run(ctx, sdk.Registration{
 ### Embedding YANG Files
 
 Internal plugins use `//go:embed` to embed YANG files at compile time:
-<!-- source: internal/component/bgp/plugins/rib/schema/embed.go -- ZeRibYANG (go:embed) -->
+<!-- source: internal/component/bgp/plugins/rib/yang/embed.go -- ZeRibYANG (go:embed) -->
 <!-- source: internal/component/bgp/plugins/rib/register.go -- YANG field set to ribschema.ZeRibYANG -->
 
 ```go

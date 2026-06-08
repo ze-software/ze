@@ -54,7 +54,7 @@ Errors:
 ```
 
 **Root cause (confirmed):** `no-default-route` is `leaf no-default-route { type
-empty; }` (`internal/component/iface/schema/ze-iface-conf.yang:1042`) — a valueless
+empty; }` (`internal/component/iface/yang/ze-iface-conf.yang:1042`) — a valueless
 flag. `Parser.parseLeaf` (`internal/component/config/parser.go:179`) is schema-aware
 (it receives `node *LeafNode`) but unconditionally requires a `TokenWord`/`TokenString`
 value (line 183-188), never checking the leaf's YANG type. So a bare `type empty`

@@ -14,12 +14,12 @@
 // resolution) live in internal/core/probe so this module does not depend on a
 // central verb package or on the ping module. The YANG command schema
 // container-merges onto the show, monitor, and resolve verb roots; see
-// ../schema/ze-traceroute-cmd.yang.
+// ../yang/ze-traceroute-cmd.yang.
 package cmd
 
 import (
 	// Blank import registers this module's YANG command schema (show
 	// traceroute, show probe-round, monitor traceroute, resolve traceroute) via
 	// container merge onto the central verbs.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/traceroute/yang"
 )

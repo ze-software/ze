@@ -32,5 +32,5 @@ Add community and AS-path regex filters to `rib show in` and `rib show best` com
 - `internal/component/bgp/plugins/rib/rib_show_filter.go` — filter parsing and matching (extracted)
 - `internal/component/bgp/plugins/rib/rib_commands.go` — inboundShowJSON, bestPathShowJSON apply filters
 - `internal/component/bgp/plugins/rib/rib_commands_test.go` — 9 new filter tests
-- `internal/component/bgp/plugins/rib/schema/ze-rib-api.yang` — community/regexp input leaves
+- `internal/component/bgp/plugins/rib/yang/ze-rib-api.yang` — community/regexp input leaves
 - `test/plugin/rib-show-filter.ci` — dispatch-command wiring test

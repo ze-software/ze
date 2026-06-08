@@ -43,7 +43,7 @@ bgp {
 | `graceful-restart / restart-time` | uint16 | 120 | Seconds to hold stale routes during restart (0-4095) |
 | `graceful-restart / mode` | enum | -- | `require`: reject peers without GR capability |
 | `graceful-restart / disable` | presence | -- | Disable GR for this peer |
-<!-- source: internal/component/bgp/plugins/gr/schema/ -- ze-graceful-restart YANG schema -->
+<!-- source: internal/component/bgp/plugins/gr/yang/ -- ze-graceful-restart YANG schema -->
 
 ## How It Works
 

@@ -47,7 +47,7 @@ All leaves go under `bgp { healthcheck { probe <name> { ... } } }`.
 | `up-metric` | uint32 | 100 | MED value when UP. |
 | `down-metric` | uint32 | 1000 | MED value when DOWN (when withdraw-on-down is false). |
 | `disabled-metric` | uint32 | 500 | MED value when DISABLED (when withdraw-on-down is false). |
-<!-- source: internal/component/bgp/plugins/healthcheck/schema/ze-healthcheck-conf.yang -- YANG leaves -->
+<!-- source: internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang -- YANG leaves -->
 
 ### IP Management (internal mode only)
 

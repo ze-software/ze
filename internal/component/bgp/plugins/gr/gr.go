@@ -31,7 +31,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/yang"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -823,9 +823,9 @@ func formatGRText(r *grResult) string {
 	return sb.String()
 }
 
-// GetYANG returns the embedded YANG schema for the GR plugin.
+// GetYANG returns the embedded YANG for the GR plugin.
 func GetYANG() string {
-	return schema.ZeGracefulRestartYANG
+	return yang.ZeGracefulRestartYANG
 }
 
 // writeOut writes a string to the output writer, discarding errors.

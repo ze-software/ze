@@ -249,7 +249,7 @@ Handler implementation lives in `internal/component/bgp/plugins/cmd/<noun>/`.
 handler `init()` + `RegisterRPCs` and a container-merge schema module in the
 package that owns the behaviour (the one whose code the handler calls), per
 `ai/rules/plugin-self-containment.md` ("Finding the Owner", "How to carve a
-command into its owner"). The owner schema lives in `<owner>/schema/ze-<x>-cmd.yang`
+command into its owner"). The owner schema lives in `<owner>/yang/ze-<x>-cmd.yang`
 (top level, sibling of `cli`/`cmd`), re-declaring `container <verb> { container <x> {...} }`
 so the loader merges it onto the verb tree with no central edit. Determine the
 owner from the handler's dependencies, not from the `ze-<ns>:` WireMethod prefix
@@ -456,7 +456,7 @@ automatically.
 | Map dispatch | `internal/component/config/cli/main.go` | Many subcommands, storage-aware |
 | Map dispatch (simple) | `internal/component/config/storage/cli/main.go` | Stateless subcommands (`ze data`) |
 | **Root handler registration** | `internal/component/bgp/cli/register.go` | Canonical owner `register.go` (RegisterRootHandler + `show` shortcuts) |
-| **Root + owner schema** | `internal/component/bgp/cli/register.go` + `internal/component/bgp/cli/schema/` | Owner-owned YANG tools schema, blank-imported by the owner |
+| **Root + owner schema** | `internal/component/bgp/cli/register.go` + `internal/component/bgp/cli/yang/` | Owner-owned YANG tools schema, blank-imported by the owner |
 | **Storage-bound** | `internal/component/config/cli/register.go` | `StorageAs` (root) + `RuntimeStorage` (local shortcuts) |
 | **No-owner / process-global** | `cmd/ze/diag/register.go` | Stays in `cmd/ze`; `RegisterRoot` metadata + `MustRegisterLocal` (ping, generate) |
 | Online RPC | `internal/component/cmd/show/show.go` | Read-only verb |

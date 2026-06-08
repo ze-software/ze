@@ -1049,7 +1049,7 @@ ze schema protocol               # Show protocol version
 ```
 
 All subcommands accept `--json`.
-<!-- source: internal/component/config/schema/cli/main.go -- Run -->
+<!-- source: internal/component/config/yang/cli/main.go -- Run -->
 
 ### ze yang
 
@@ -1505,7 +1505,7 @@ Many commands take a `peer <selector>` argument:
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
 | `request peer <sel> flush` | write | Block until all queued updates for peer are on the wire |
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -->
 
 ### Policy Test (Dry-Run)
 
@@ -1567,7 +1567,7 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-<!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/schema/ze-cli-update-cmd.yang -->
+<!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/yang/ze-cli-update-cmd.yang -->
 
 ### Route Injection
 
@@ -1720,7 +1720,7 @@ The `clear l2tp session teardown` command accepts optional keyword arguments:
 - `reason <text...>`: free-text audit reason, recorded in the per-session event ring
 - `cause <code>`: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
 
-<!-- source: internal/component/l2tp/schema/ze-l2tp-cmd.yang -->
+<!-- source: internal/component/l2tp/yang/ze-l2tp-cmd.yang -->
 <!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs -->
 
 ### PPPoE Commands
@@ -1733,7 +1733,7 @@ The `clear l2tp session teardown` command accepts optional keyword arguments:
 | `show pppoe statistics` | run | Per-interface session counts and limits |
 | `show pppoe interfaces` | run | Configured PPPoE access interfaces |
 
-<!-- source: internal/component/pppoe/schema/ze-pppoe-cmd.yang -->
+<!-- source: internal/component/pppoe/yang/ze-pppoe-cmd.yang -->
 <!-- source: internal/component/pppoe/cmd/pppoe.go -- RPC handlers -->
 
 ### L2TPv2 Web UI

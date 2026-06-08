@@ -9,5 +9,5 @@
 package rib
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/schema" // init() registers YANG module
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/yang" // init() registers YANG module
 )

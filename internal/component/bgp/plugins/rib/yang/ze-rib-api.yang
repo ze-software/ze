@@ -1,0 +1,185 @@
+module ze-rib-api {
+    namespace "urn:ze:rib:api";
+    prefix ribapi;
+
+    import ze-types { prefix zt; }
+
+    description
+        "RIB API operations for Ze.
+         RPCs for querying and clearing RIB state.
+         Notifications for RIB changes.";
+
+    revision 2026-02-01 {
+        description "Initial revision";
+    }
+
+    // Introspection
+
+    rpc help {
+        description "Show RIB subcommands";
+        output {
+            leaf-list subcommands { type string; description "Available subcommands"; }
+        }
+    }
+
+    rpc command-list {
+        description "List RIB commands";
+        output {
+            list command {
+                leaf name { type string; description "Command name"; }
+                leaf description { type string; description "Command description"; }
+            }
+        }
+    }
+
+    rpc command-help {
+        description "Show RIB command details";
+        input {
+            leaf name { type string; mandatory true; description "Command name"; }
+        }
+        output {
+            leaf help { type string; description "Detailed help text"; }
+        }
+    }
+
+    rpc command-complete {
+        description "Complete RIB command/args";
+        input {
+            leaf partial { type string; mandatory true; description "Partial command string"; }
+        }
+        output {
+            leaf-list completions { type string; description "Completion candidates"; }
+        }
+    }
+
+    rpc event-list {
+        description "List RIB event types";
+        output {
+            list event {
+                leaf name { type string; description "Event type name"; }
+                leaf description { type string; description "Event description"; }
+            }
+        }
+    }
+
+    // RIB operations
+
+    rpc status {
+        description "RIB summary: peer count, route counts, GR state.";
+        output {
+            leaf running { type boolean; description "RIB plugin is running"; }
+            leaf peers { type uint32; description "Number of peers tracked"; }
+            leaf routes-in { type uint32; description "Total Adj-RIB-In routes"; }
+            leaf routes-out { type uint32; description "Total Adj-RIB-Out routes"; }
+            leaf stale-routes { type uint32; description "Stale routes (GR)"; }
+        }
+    }
+
+    rpc show {
+        description "Show routes with pipeline filters.
+                     Syntax: show bgp rib [scope] [filters...] [terminal]
+                     Scope: sent | received | sent-received (default)
+                     Filters: path <pattern>, prefix <pattern>, community <value>,
+                              family <afi/safi>, match <text>
+                     Terminals: count (metadata only), json (serialized output),
+                                prefix-summary (per-family prefix-length distribution),
+                                graph (AS-path topology as box-drawing text)";
+        input {
+            leaf peer { type zt:ip-address; description "Filter by peer"; }
+            leaf-list args { type string; description "Pipeline args: scope, filters, terminal"; }
+        }
+        output {
+            leaf route-count { type uint32; description "Number of routes (count terminal)"; }
+        }
+    }
+
+    rpc best {
+        description "Show best-path per prefix (RFC 4271 §9.1.2).
+                     Syntax: show bgp rib best [filters...] [terminal]
+                     Filters: path <pattern>, prefix <pattern>, community <value>,
+                              family <afi/safi>, match <text>
+                     Terminals: count (metadata only), json (serialized output),
+                                prefix-summary (per-family prefix-length distribution),
+                                graph (AS-path topology as box-drawing text)";
+        input {
+            leaf peer { type zt:ip-address; description "Filter by peer"; }
+            leaf-list args { type string; description "Pipeline args: filters, terminal"; }
+        }
+        output {
+            leaf route-count { type uint32; description "Number of best paths"; }
+        }
+    }
+
+    rpc best-status {
+        description "Show best-path computation status";
+        output {
+            leaf peers-with-rib { type uint32; description "Peers with RIB entries"; }
+            leaf total-routes { type uint32; description "Total route count across peers"; }
+        }
+    }
+
+    rpc clear-in {
+        description "Clear Adj-RIB-In entries";
+        input {
+            leaf peer { type zt:ip-address; description "Filter by peer"; }
+            leaf family { type zt:address-family; description "Filter by address family"; }
+        }
+    }
+
+    rpc clear-out {
+        description "Clear Adj-RIB-Out entries";
+        input {
+            leaf peer { type zt:ip-address; description "Filter by peer"; }
+            leaf family { type zt:address-family; description "Filter by address family"; }
+        }
+    }
+
+    rpc inject {
+        description "Insert route into Adj-RIB-In as if received from a peer.
+                     The peer address is a label; no live BGP session required.
+                     Syntax: request bgp rib inject <peer> <family> <prefix> [origin <val>]
+                             [nhop|nexthop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]";
+        input {
+            leaf peer { type zt:ip-address; mandatory true; description "Peer address label"; }
+            leaf family { type zt:address-family; mandatory true; description "Address family (e.g. ipv4/unicast)"; }
+            leaf prefix { type string; mandatory true; description "CIDR prefix (e.g. 10.0.0.0/24)"; }
+            leaf origin { type string; description "Origin: igp, egp, incomplete (default: igp)"; }
+            leaf nhop { type zt:ip-address; description "Next-hop IP address"; }
+            leaf nexthop { type zt:ip-address; description "Alias for nhop next-hop IP address"; }
+            leaf aspath { type string; description "AS path as comma-separated ASNs (e.g. 64500,64501)"; }
+            leaf localpref { type uint32; description "LOCAL_PREF value"; }
+            leaf med { type uint32; description "MULTI_EXIT_DISC value"; }
+        }
+        output {
+            leaf injected { type string; description "Prefix that was injected"; }
+            leaf peer { type zt:ip-address; description "Peer the route was injected for"; }
+            leaf family { type zt:address-family; description "Address family"; }
+        }
+    }
+
+    rpc withdraw {
+        description "Remove route from Adj-RIB-In.
+                     Syntax: request bgp rib withdraw <peer> <family> <prefix>";
+        input {
+            leaf peer { type zt:ip-address; mandatory true; description "Peer address label"; }
+            leaf family { type zt:address-family; mandatory true; description "Address family"; }
+            leaf prefix { type string; mandatory true; description "CIDR prefix to withdraw"; }
+        }
+        output {
+            leaf withdrawn { type string; description "Prefix that was withdrawn"; }
+            leaf peer { type zt:ip-address; description "Peer the route was withdrawn from"; }
+            leaf family { type zt:address-family; description "Address family"; }
+            leaf existed { type boolean; description "Whether the route existed before withdrawal"; }
+        }
+    }
+
+    // Notifications
+
+    notification rib-change {
+        description "RIB content changed";
+        leaf peer { type zt:ip-address; description "Affected peer"; }
+        leaf family { type zt:address-family; description "Address family"; }
+        leaf added { type uint32; description "Routes added"; }
+        leaf removed { type uint32; description "Routes removed"; }
+    }
+}

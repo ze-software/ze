@@ -1,7 +1,7 @@
 package filter_community_match
 
 import (
-	cmschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community_match/schema"
+	cmyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community_match/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
@@ -11,7 +11,7 @@ func init() {
 		Description:  "Named community match filter (ordered entries, first match wins, accept/reject)",
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp"},
-		YANG:         cmschema.ZeFilterCommunityMatchYANG,
+		YANG:         cmyang.ZeFilterCommunityMatchYANG,
 		FilterTypes:  []string{"community-match"},
 		RunEngine:    RunFilterCommunityMatch,
 		CLIHandler:   func(_ []string) int { return 0 },

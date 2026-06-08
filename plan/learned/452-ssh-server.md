@@ -39,8 +39,8 @@ Add an SSH server component to Ze that serves a read-only session over SSH using
 - `internal/component/ssh/ssh.go` -- Server struct, Start/Stop, Wish setup
 - `internal/component/ssh/auth.go` -- CheckPassword, AuthenticateUser (bcrypt)
 - `internal/component/ssh/session.go` -- SessionModel (per-SSH-session tea.Model)
-- `internal/component/ssh/schema/ze-ssh-conf.yang` -- YANG schema
-- `internal/component/ssh/schema/embed.go` -- embedded YANG
-- `internal/component/ssh/schema/register.go` -- init() registration
+- `internal/component/ssh/yang/ze-ssh-conf.yang` -- YANG schema
+- `internal/component/ssh/yang/embed.go` -- embedded YANG
+- `internal/component/ssh/yang/register.go` -- init() registration
 - `internal/component/config/yang_schema.go` -- added ze-ssh-conf loading
 - `internal/component/plugin/all/all.go` -- added blank import for ssh/schema

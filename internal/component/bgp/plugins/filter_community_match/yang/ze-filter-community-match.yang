@@ -1,0 +1,83 @@
+module ze-filter-community-match {
+    namespace "urn:ze:filter-community-match";
+    prefix cm;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+
+    description "Community match filter type for the BGP policy framework.
+                 Named community-lists with ordered match entries (first match wins)
+                 and accept/reject actions. Checks for presence of a community value
+                 in the route's standard, large, or extended community attributes.
+                 Referenced from peer filter chains as community-match:NAME.
+                 Separate from the tag/strip community plugin (bgp-filter-community)
+                 because intent differs: filtering vs modification.";
+
+    revision 2026-04-12 {
+        description "Initial revision";
+    }
+
+    augment "/bgp:bgp/bgp:policy" {
+        list community-match {
+            ze:filter;
+            key "name";
+            description "Named community match filter instance.
+                         Each list contains an ordered set of match entries.
+                         Entries are evaluated in order; first match wins.
+                         No match = implicit deny (reject).";
+
+            leaf name {
+                type string;
+                description "Filter instance name (referenced in peer filter chains
+                             as community-match:NAME).";
+            }
+
+            list entry {
+                key "community";
+                ordered-by user;
+                description "Ordered match entry. First match wins.
+                             Checks whether the specified community value is present
+                             in the route's community attributes.";
+
+                leaf community {
+                    type string;
+                    description "Community value to match.
+                                 Standard: ASN:VAL (e.g. 65001:100) or well-known name
+                                   (no-export, no-advertise, no-export-subconfed, nopeer, blackhole).
+                                 Large: GA:LD1:LD2 (e.g. 65001:100:200).
+                                 Extended: hex string (e.g. 000200010000000a) or
+                                   target:ASN:NN / origin:ASN:NN.";
+                }
+
+                leaf type {
+                    type enumeration {
+                        enum standard {
+                            description "Match in standard community attribute (type 8)";
+                        }
+                        enum large {
+                            description "Match in large community attribute (type 32)";
+                        }
+                        enum extended {
+                            description "Match in extended community attribute (type 16)";
+                        }
+                    }
+                    default standard;
+                    description "Which community attribute type to check.";
+                }
+
+                leaf action {
+                    type enumeration {
+                        enum accept {
+                            description "Accept routes containing this community";
+                        }
+                        enum reject {
+                            description "Reject routes containing this community";
+                        }
+                    }
+                    default accept;
+                    description "Action applied when this community is found in the route.";
+                }
+            }
+        }
+    }
+}

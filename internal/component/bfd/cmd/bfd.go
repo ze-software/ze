@@ -10,8 +10,8 @@
 //
 // Two package-level schemas register via init():
 //
-//   - internal/plugins/bfd/schema (ze-bfd-api.yang) -- RPC definitions
-//   - internal/component/bfd/schema (ze-bfd-cmd.yang) -- CLI tree
+//   - internal/plugins/bfd/yang (ze-bfd-api.yang) -- RPC definitions
+//   - internal/component/bfd/yang (ze-bfd-cmd.yang) -- CLI tree
 //
 // Both are imported here so a blank import of this package wires the
 // CLI surface completely without touching the core dispatcher.
@@ -26,8 +26,8 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/schema" // register ze-bfd-cmd.yang
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/schema"   // register ze-bfd-api.yang
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/yang" // register ze-bfd-cmd.yang
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/yang"   // register ze-bfd-api.yang
 )
 
 // errBFDServiceUnavailable is returned when a show command runs while

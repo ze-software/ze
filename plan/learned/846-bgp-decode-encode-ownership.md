@@ -16,7 +16,7 @@ package). Relocated them to a BGP-owned schema package.
   local dispatch. So all three -- schema node, local registration, handler --
   now live in one removable package.
 - Removed the whole `container bgp { decode; encode }` from
-  `internal/component/cmd/show/schema/ze-cli-show-cmd.yang`. The central show
+  `internal/component/cmd/show/yang/ze-cli-show-cmd.yang`. The central show
   schema now declares no `container bgp` at all.
 
 ## Why this is safe (behavior-preserving)
@@ -79,8 +79,8 @@ Same self-containment question, out of scope here.
 
 ## Files
 
-- `cmd/ze/bgp/schema/{ze-bgp-tools-cmd.yang,embed.go,register.go,schema_test.go}`,
+- `cmd/ze/bgp/yang/{ze-bgp-tools-cmd.yang,embed.go,register.go,schema_test.go}`,
   `cmd/ze/bgp/register.go`
-- `internal/component/cmd/show/schema/{ze-cli-show-cmd.yang,self_containment_test.go}`
+- `internal/component/cmd/show/yang/{ze-cli-show-cmd.yang,self_containment_test.go}`
 - `test/parse/cli-show-bgp-tools-help.ci`
 - `ai/rules/plugin-self-containment.md`, `docs/contributing/documentation-testing.md`

@@ -41,9 +41,9 @@ Operators need prefix maximum values for every BGP peer but determining correct 
 - `internal/component/bgp/reactor/peersettings.go` -- PrefixUpdated field
 - `internal/component/bgp/reactor/config.go` -- parse updated leaf
 - `internal/component/config/system/system.go` -- PeeringDB URL/margin extraction
-- `internal/component/config/system/schema/ze-system-conf.yang` -- peeringdb container
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- updated hidden leaf
-- `internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang` -- prefix update RPC
+- `internal/component/config/system/yang/ze-system-conf.yang` -- peeringdb container
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- updated hidden leaf
+- `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` -- prefix update RPC
 - `internal/component/plugin/types.go` -- PeerInfo.PrefixUpdated field
 - `test/plugin/api-peer-prefix-update.ci` -- update command functional test
 - `test/plugin/prefix-stale-warning.ci` -- staleness warning functional test

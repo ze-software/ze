@@ -37,8 +37,8 @@ CLI auto-completion showed all YANG-defined options regardless of which backend 
 - `internal/component/cli/testing/expect.go` -- added `excludes` assertion for completion tests
 - `internal/component/cli/model.go` -- added `refreshCompleter`; `SetCommandCompleter` propagates backends on attach
 - `internal/component/cli/model_commands.go` -- replaced `SetTree` calls with `refreshCompleter`
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- `ze:backend` on vpp/firewall/conntrack nodes, stale description fixes
-- `internal/component/iface/schema/ze-iface-cmd.yang` -- `ze:backend "netlink"` on create-dummy/veth/bridge
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- `ze:backend` on vpp/firewall/conntrack nodes, stale description fixes
+- `internal/component/iface/yang/ze-iface-cmd.yang` -- `ze:backend "netlink"` on create-dummy/veth/bridge
 - `test/editor/completion/backend-filter.et` -- functional test for backend completion filtering
 - `docs/features.md` -- added backend-aware completion row
 - `docs/architecture/config/yang-config-design.md` -- added `ze:backend` to extensions table

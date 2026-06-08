@@ -282,7 +282,7 @@ bin/ze-analyze statistics https://data.ris.ripe.net/rrc00/2026.06/updates.202606
 Ze produces MRT dumps from live BGP sessions via the `mrt` component. Configure
 under `mrt {}` in the YANG config:
 
-<!-- source: internal/component/mrt/schema/ze-mrt-conf.yang -- YANG config schema -->
+<!-- source: internal/component/mrt/yang/ze-mrt-conf.yang -- YANG config schema -->
 <!-- source: internal/component/mrt/component.go -- daemon MRT component -->
 
 Three independent streams (following FRR's model):

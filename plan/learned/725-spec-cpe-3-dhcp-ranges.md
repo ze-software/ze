@@ -24,7 +24,7 @@ The DHCP server plugin used a single start/stop pair per subnet (`container rang
 
 ## Files
 
-- `internal/plugins/dhcpserver/schema/ze-dhcp-server-conf.yang` -- `container range` to `list range`
+- `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` -- `container range` to `list range`
 - `internal/plugins/dhcpserver/config.go` -- `addressRange` type, `parseRanges`, format detection, overlap validation
 - `internal/plugins/dhcpserver/pool.go` -- `poolSegment` type, composite pool with per-segment bitmaps
 - `internal/plugins/dhcpserver/handler.go` -- pass `Ranges` slice to `newPool`

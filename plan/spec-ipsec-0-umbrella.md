@@ -402,7 +402,7 @@ These are the top-level outcomes. Each child spec has its own detailed ACs.
 - `internal/component/iface/config.go` -- add parseXFRMEntry, applyXFRMs
 - `internal/component/iface/discover.go` -- add zeTypeXFRM classification
 - `internal/component/iface/register.go` -- register XFRM parsing
-- `internal/component/iface/schema/ze-iface-conf.yang` -- add xfrm interface list
+- `internal/component/iface/yang/ze-iface-conf.yang` -- add xfrm interface list
 - `internal/plugins/ifacenetlink/backend_linux.go` -- implement CreateXFRM, GetXFRMInfo
 - `internal/plugins/ifacenetlink/backend_other.go` -- stub CreateXFRM, GetXFRMInfo
 - `docs/features/interfaces.md` -- update capability table (XFRM: have)

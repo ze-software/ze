@@ -31,6 +31,6 @@ Ze's static route plugin only installed routes in the main kernel table. VyOS us
 - `internal/plugins/routingtable/` (new): routing-table registry plugin with YANG, config, Resolve API
 - `internal/plugins/static/config.go` (rewritten): map-keyed tree traversal, table resolution, `next.hop`/`next.interface` parsing
 - `internal/plugins/static/inject.go` (modified): `routeKey` composite map key, redistribution skip for non-zero table
-- `internal/plugins/static/schema/ze-static-conf.yang` (modified): `list table` wrapping, `container next { list hop, list interface }`
+- `internal/plugins/static/yang/ze-static-conf.yang` (modified): `list table` wrapping, `container next { list hop, list interface }`
 - `internal/component/config/yang_schema.go` (modified): choice/case flattening in `yangToList`
 - `internal/core/redistevents/events.go` (modified): `Table uint32` field on `RouteChangeEntry`

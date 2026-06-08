@@ -2,7 +2,7 @@
 
 ## Objective
 
-Move config/schema/validate commands from `ze bgp` to the `ze` root level; create separate packages per command.
+Move config/yang/validate commands from `ze bgp` to the `ze` root level; create separate packages per command.
 
 ## Decisions
 

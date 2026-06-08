@@ -44,7 +44,7 @@ The `bgp monitor` command streamed live BGP events over SSH exec sessions. It wa
 - `internal/component/cli/model_monitor.go` -- registry-based detection
 - `internal/component/bgp/config/loader.go` -- streaming executor + monitor factory wiring
 - `internal/component/cmd/meta/help.go` -- handleEventMonitor RPC, dynamic bgpEventTypes
-- `internal/component/cmd/meta/schema/ze-cli-meta-cmd.yang` -- event monitor container
+- `internal/component/cmd/meta/yang/ze-cli-meta-cmd.yang` -- event monitor container
 - `cmd/ze/cli/main.go` -- registry-based isMonitorCommand
 - `docs/architecture/api/commands.md` -- updated monitor documentation
 - `test/plugin/event-monitor-{basic,include,exclude,peer}.ci` -- NEW: 4 functional tests

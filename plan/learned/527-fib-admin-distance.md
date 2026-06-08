@@ -29,6 +29,6 @@ The goal: make admin distance configurable and applied at the system RIB level, 
 
 - `internal/plugins/sysrib/sysrib.go` -- parseAdminDistanceConfig, effectivePriority, processEvent override
 - `internal/plugins/sysrib/register.go` -- ConfigRoots: ["sysrib"], OnConfigure
-- `internal/plugins/sysrib/schema/ze-sysrib-conf.yang` -- admin-distance container
-- `internal/plugins/fibkernel/schema/ze-fib-conf.yang` -- admin-distance removed
+- `internal/plugins/sysrib/yang/ze-sysrib-conf.yang` -- admin-distance container
+- `internal/plugins/fibkernel/yang/ze-fib-conf.yang` -- admin-distance removed
 - `internal/component/bgp/plugins/rib/rib_bestchange.go` -- ProtocolType field, protocolType() helper

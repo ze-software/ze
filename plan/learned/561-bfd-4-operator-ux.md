@@ -174,19 +174,19 @@ can alert on the same data.
   counter, gauge tests.
 - `internal/plugins/bfd/register.go` -- `ConfigureMetrics` callback
   added to `registry.Registration`.
-- `internal/plugins/bfd/schema/ze-bfd-api.yang` (new) -- `show-sessions`,
+- `internal/plugins/bfd/yang/ze-bfd-api.yang` (new) -- `show-sessions`,
   `show-session`, `show-profile` RPC definitions.
-- `internal/plugins/bfd/schema/embed.go` -- embeds the new yang module.
-- `internal/plugins/bfd/schema/register.go` -- registers the new module.
+- `internal/plugins/bfd/yang/embed.go` -- embeds the new yang module.
+- `internal/plugins/bfd/yang/register.go` -- registers the new module.
 - `internal/component/cmd/bfd/bfd.go` (new) -- RPC handlers that call
   `api.GetService()` directly; `init` registers three RPCs with
   `pluginserver.RegisterRPCs`.
 - `internal/component/cmd/bfd/bfd_test.go` (new) -- handler tests with
   a stub Service.
-- `internal/component/cmd/bfd/schema/ze-bfd-cmd.yang` (new) -- augments
+- `internal/component/cmd/bfd/yang/ze-bfd-cmd.yang` (new) -- augments
   `clishowcmd:show` with `bfd { sessions, session, profile }`.
-- `internal/component/cmd/bfd/schema/embed.go` (new) -- embed stub.
-- `internal/component/cmd/bfd/schema/register.go` (new) -- module
+- `internal/component/cmd/bfd/yang/embed.go` (new) -- embed stub.
+- `internal/component/cmd/bfd/yang/register.go` (new) -- module
   registration.
 - `internal/component/bgp/reactor/peer_bfd_test.go` -- fake
   BFDService gained the new methods.

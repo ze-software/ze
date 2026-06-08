@@ -11,7 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	schema "codeberg.org/thomas-mangin/ze/internal/plugins/l2tpshaper/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/l2tpshaper/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -22,7 +22,7 @@ func init() {
 		Name:                    Name,
 		Description:             "Traffic shaping for L2TP subscriber sessions",
 		Features:                "yang",
-		YANG:                    schema.ZeL2TPShaperConfYANG,
+		YANG:                    yang.ZeL2TPShaperConfYANG,
 		ConfigRoots:             []string{"l2tp"},
 		InProcessConfigVerifier: verifyShaperConfig,
 		RunEngine:               runPlugin,

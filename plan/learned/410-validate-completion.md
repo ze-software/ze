@@ -31,5 +31,5 @@ Wire the existing `ze:validate` extension's `CompleteFn` into the CLI completer 
 - `internal/component/cli/completer_test.go` -- 6 new tests (AC-1 through AC-7)
 - `internal/component/config/validators.go` -- added `ReceiveEventValidator()`, `SendMessageValidator()`
 - `internal/component/config/validators_register.go` -- registered 2 new validators
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- added `ze:validate` to receive/send leaf-lists
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- added `ze:validate` to receive/send leaf-lists
 - `internal/component/config/validator_yang_test.go` -- added 2 validators to exhaustive registration test

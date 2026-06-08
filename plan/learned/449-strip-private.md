@@ -30,7 +30,7 @@ Implement JunOS-style `strip-private` for config display: YANG-driven `ze:sensit
 - `internal/component/config/secret/secret.go` — $9$ encode/decode
 - `internal/component/config/secret/secret_test.go` — unit + fuzz
 - `internal/component/config/yang/modules/ze-extensions.yang` — `ze:sensitive` extension
-- `internal/component/bgp/schema/ze-bgp-conf.yang` — `md5-password` annotated
+- `internal/component/bgp/yang/ze-bgp-conf.yang` — `md5-password` annotated
 - `internal/component/config/schema.go` — `Sensitive`, `DisplayMode`, `SensitiveKeys()`
 - `internal/component/config/yang_schema.go` — `hasSensitiveExtension()`
 - `internal/component/config/parser.go` — $9$ decode on sensitive leaves

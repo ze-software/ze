@@ -8,4 +8,5 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-policyroute-cmd.yang", ZePolicyrouteCmdYANG)
+	configyang.RegisterModule("ze-policyroute-conf.yang", ZePolicyrouteConfYANG)
 }

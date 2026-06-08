@@ -1,0 +1,26 @@
+module ze-iface-monitor-cmd {
+    namespace "urn:ze:iface:monitor:cmd";
+    prefix ifacemonitorcmd;
+    import ze-extensions { prefix ze; }
+    description "monitor system netlink command tree. Owned by the iface component because the handler streams kernel netlink events (routes, links, addresses) through the iface backend. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-06 { description "Relocated monitor system netlink out of the central monitor schema (plugin self-containment)."; }
+
+    container monitor {
+        config false;
+        description "Continuous monitoring commands (Ctrl-C to stop)";
+
+        container system {
+            config false;
+            description "System-level event streams";
+
+            container netlink {
+                config false;
+                ze:command "ze-monitor:system-netlink";
+                ze:task-support required;
+                description "Watch kernel networking changes in real time.
+Streams netlink events: route adds/deletes, link state changes,
+address assignments. Filter with route, link, address, or all.";
+            }
+        }
+    }
+}

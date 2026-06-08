@@ -8,13 +8,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
+	gryang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/yang"
 )
 
 // serializeSchemaWithGR returns schema with GR plugin YANG for serialize tests.
 func serializeSchemaWithGR() (*Schema, error) {
 	return YANGSchemaWithPlugins(map[string]string{
-		"ze-graceful-restart.yang": grschema.ZeGracefulRestartYANG,
+		"ze-graceful-restart.yang": gryang.ZeGracefulRestartYANG,
 	})
 }
 

@@ -95,8 +95,8 @@ All found across 5 `/ze-review` passes + 1 deep 9-agent review, fixed before com
 
 | Area | Files | Lines |
 |------|-------|-------|
-| YANG schema | `dhcpserver/schema/ze-dhcp-server-conf.yang` | 108 |
-| Schema registration | `dhcpserver/schema/embed.go`, `register.go` | 16 |
+| YANG schema | `dhcpserver/yang/ze-dhcp-server-conf.yang` | 108 |
+| Schema registration | `dhcpserver/yang/embed.go`, `register.go` | 16 |
 | Config parsing | `dhcpserver/config.go` | 272 |
 | Address pool | `dhcpserver/pool.go` | 200 |
 | Lease tracking | `dhcpserver/lease.go` | 117 |

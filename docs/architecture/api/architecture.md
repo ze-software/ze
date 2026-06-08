@@ -12,7 +12,7 @@
 | Backpressure (1000/100) | ✅ Done | `internal/component/plugin/process/process.go` |
 | Respawn limits (5/60s) | ✅ Done | `internal/component/plugin/process/process.go` |
 | Command dispatch | ✅ Done | `internal/component/plugin/server/command.go`, `internal/component/plugin/server/dispatch.go` |
-| YANG API schema | ✅ Done | `internal/component/bgp/schema/`, `internal/core/ipc/schema/`, `internal/component/bgp/plugins/rib/schema/` |
+| YANG API schema | ✅ Done | `internal/component/bgp/yang/`, `internal/core/ipc/yang/`, `internal/component/bgp/plugins/rib/yang/` |
 | Plugin commands | ✅ Done | `internal/component/plugin/registration.go`, `internal/component/plugin/server/server.go` |
 | Route injection | ✅ Done | `internal/component/bgp/plugins/rib/` |
 | BGP cache commands | ✅ Done | `internal/component/plugin/server/subsystem.go` |
@@ -292,14 +292,14 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 
 | Module | Location | Contains |
 |--------|----------|----------|
-| `ze-bgp-api` | `internal/component/bgp/schema/` | BGP daemon, peer, monitor, and decode RPCs |
-| `ze-bgp-cmd-log-api` | `internal/component/cmd/log/schema/` | Log command RPCs |
-| `ze-bgp-cmd-metrics-api` | `internal/component/cmd/metrics/schema/` | Metrics command RPCs |
-| `ze-system-api` | `internal/core/ipc/schema/` | System RPCs |
-| `ze-plugin-api` | `internal/core/ipc/schema/` | Plugin lifecycle RPCs |
-| `ze-rib-api` | `internal/component/bgp/plugins/rib/schema/` | RIB RPCs and notifications |
-| `ze-plugin-engine` | `internal/core/ipc/schema/` | Engine RPCs served to plugins |
-| `ze-plugin-callback` | `internal/core/ipc/schema/` | Callback RPCs served by plugins |
+| `ze-bgp-api` | `internal/component/bgp/yang/` | BGP daemon, peer, monitor, and decode RPCs |
+| `ze-bgp-cmd-log-api` | `internal/component/cmd/log/yang/` | Log command RPCs |
+| `ze-bgp-cmd-metrics-api` | `internal/component/cmd/metrics/yang/` | Metrics command RPCs |
+| `ze-system-api` | `internal/core/ipc/yang/` | System RPCs |
+| `ze-plugin-api` | `internal/core/ipc/yang/` | Plugin lifecycle RPCs |
+| `ze-rib-api` | `internal/component/bgp/plugins/rib/yang/` | RIB RPCs and notifications |
+| `ze-plugin-engine` | `internal/core/ipc/yang/` | Engine RPCs served to plugins |
+| `ze-plugin-callback` | `internal/core/ipc/yang/` | Callback RPCs served by plugins |
 
 Wire methods use `module:rpc-name` format with `-api` suffix stripped (e.g., `ze-bgp-api` defines `ze-bgp:peer-list`). This is done by `WireModule()` in `internal/component/config/yang/rpc.go`.
 <!-- source: internal/component/config/yang/rpc.go -- WireModule -->
@@ -408,7 +408,7 @@ internal/component/plugin/ipc/
 ├── tls.go            # TLS transport, auth, PluginAcceptor (external)
 └── rpc.go            # PluginConn (typed stage methods, MuxConn shadowing)
 
-internal/core/ipc/schema/
+internal/core/ipc/yang/
 ├── ze-plugin-engine.yang    # RPCs engine serves (startup, routes, dispatch, subscriptions, decode/encode)
 └── ze-plugin-callback.yang  # RPCs plugin serves (configure, deliver-event, bye, etc.)
 ```

@@ -8,8 +8,8 @@
 //
 // Two package-level schemas register via init():
 //
-//   - internal/component/l2tp/schema (ze-l2tp-api.yang) -- RPC definitions
-//   - internal/component/cmd/l2tp/schema (ze-l2tp-cmd.yang) -- CLI tree
+//   - internal/component/l2tp/yang (ze-l2tp-api.yang) -- RPC definitions
+//   - internal/component/cmd/l2tp/yang (ze-l2tp-cmd.yang) -- CLI tree
 //
 // Both are imported here so a blank import of this package wires the
 // full CLI surface without touching the core dispatcher.
@@ -27,7 +27,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema" // register ze-l2tp-api.yang
+	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/yang" // register ze-l2tp-api.yang
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

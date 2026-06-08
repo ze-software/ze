@@ -22,7 +22,7 @@ Unknown keys are rejected with a suggestion for the closest valid key.
 | Inline blocks | `name { key value; key value; }` | `remote { ip 10.0.0.1; as 65001; }` |
 
 Indentation is not significant.
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- BGP config YANG schema -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema -->
 
 ## Minimal Example
 
@@ -80,7 +80,7 @@ Peers are keyed by name: `peer <name> { }` where the name must start with a lett
 | `md5-password` | TCP MD5 authentication (RFC 2385) | No |
 | `ttl-security` | Minimum TTL for incoming packets (RFC 5082) | No |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree -->
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- peer settings -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings -->
 
 ## Capabilities
 
@@ -95,7 +95,7 @@ Configured under `capability { }` at any inheritance level.
 | ADD-PATH | `add-path send/receive` | RFC 7911 |
 | Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | RFC 8950, per-family NH mapping |
 | BGP Role | `role provider` | RFC 9234: provider, customer, rs, rs-client, peer |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- capability definitions -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- capability definitions -->
 
 ## Address Families
 
@@ -199,7 +199,7 @@ system {
     }
 }
 ```
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system config -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system config -->
 
 ### Firmware Update Check
 

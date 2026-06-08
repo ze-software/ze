@@ -3,7 +3,7 @@
 // plugin_imports generates internal/plugin/all/all.go from register.go discovery.
 //
 // It scans plugin directories for register.go files that import plugin/registry,
-// and internal/**/schema/register.go for YANG schema packages, then generates
+// and internal/**/yang/register.go for YANG schema packages, then generates
 // the blank-import file that triggers init() registration.
 //
 // Usage: go run scripts/codegen/plugin_imports.go

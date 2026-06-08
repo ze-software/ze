@@ -1,0 +1,40 @@
+module ze-l2tp-shaper-conf {
+    namespace "urn:ze:l2tp:shaper:conf";
+    prefix l2tp-shaper;
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description
+        "Traffic shaping for L2TP subscriber sessions.
+         Applies TC (traffic control) rules on pppN interfaces
+         when sessions come up. Supports TBF and HTB qdiscs.";
+
+    container l2tp {
+        container shaper {
+            leaf qdisc-type {
+                type enumeration {
+                    enum tbf {
+                        description "Token Bucket Filter (single rate limiter).";
+                    }
+                    enum htb {
+                        description "Hierarchical Token Bucket (classful).";
+                    }
+                }
+                default tbf;
+                description "Queueing discipline type for subscriber interfaces.";
+            }
+            leaf default-rate {
+                type zt:rate;
+                mandatory true;
+                description
+                    "Default download rate applied to new sessions.
+                     Format: number followed by suffix (e.g. 10mbit, 100kbit).";
+            }
+            leaf upload-rate {
+                type zt:rate;
+                description
+                    "Default upload rate. When omitted, defaults to default-rate.";
+            }
+        }
+    }
+}

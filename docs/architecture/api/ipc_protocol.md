@@ -287,7 +287,7 @@ Plugin lifecycle operations:
 | `plugin session ready` | Signal plugin init complete |
 | `plugin session ping` | Health check (returns PID) |
 | `plugin session bye` | Disconnect |
-<!-- source: internal/core/ipc/schema/ze-plugin-api.yang -- plugin lifecycle RPCs -->
+<!-- source: internal/core/ipc/yang/ze-plugin-api.yang -- plugin lifecycle RPCs -->
 
 ### BGP Namespace
 
@@ -308,7 +308,7 @@ Plugin lifecycle operations:
 | `bgp plugin encoding json\|text` | Set event encoding format |
 | `bgp plugin format hex\|base64\|parsed\|full` | Set wire bytes format (JSON only) |
 | `bgp plugin ack sync\|async` | Set ACK timing |
-<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack -->
+<!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack -->
 
 Format relationship:
 - `encoding text` → always parsed (human readable)
@@ -338,7 +338,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `bgp peer <sel> ready` | Signal peer replay complete |
 | `bgp peer <sel> tcp reset` | Force TCP RST |
 | `bgp peer <sel> tcp ttl <num>` | Set TTL (multi-hop) |
-<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- peer RPCs -->
+<!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
 
 **Watchdog:**
 
@@ -381,7 +381,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `request shutdown` | Gracefully shutdown |
 | `show status` | Show process status |
 | `request reload` | Reload the configuration |
-<!-- source: internal/core/ipc/schema/ze-system-api.yang -- system RPCs -->
+<!-- source: internal/core/ipc/yang/ze-system-api.yang -- system RPCs -->
 <!-- source: internal/component/plugin/server/handler.go -- APIVersion -->
 
 ### RIB Namespace
@@ -465,7 +465,7 @@ request subscribe rib event route                               # RIB route even
 | `route` | Route change (add/remove) |
 
 RIB events include `peer` field indicating which peer caused the event.
-<!-- source: internal/component/bgp/plugins/rib/schema/ze-rib-api.yang -- RIB event types -->
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib-api.yang -- RIB event types -->
 
 ### Event Examples
 
@@ -617,8 +617,8 @@ request subscribe rib event route
 ```
 
 **Barrier semantics:** All plugins must complete each stage before any proceed to next.
-<!-- source: internal/core/ipc/schema/ze-plugin-engine.yang -- startup RPCs -->
-<!-- source: internal/core/ipc/schema/ze-plugin-callback.yang -- callback RPCs -->
+<!-- source: internal/core/ipc/yang/ze-plugin-engine.yang -- startup RPCs -->
+<!-- source: internal/core/ipc/yang/ze-plugin-callback.yang -- callback RPCs -->
 
 **Timeout:** 5s per stage (configurable via `timeout` in plugin config).
 

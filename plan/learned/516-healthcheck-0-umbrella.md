@@ -30,7 +30,7 @@ Ze needed a healthcheck plugin with feature parity to ExaBGP's healthcheck.py. T
 ## Files
 
 - `internal/component/bgp/plugins/healthcheck/` -- entire plugin (11 source files + tests)
-- `internal/component/bgp/plugins/healthcheck/schema/ze-healthcheck-conf.yang` -- YANG schema
+- `internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang` -- YANG schema
 - `internal/component/bgp/plugins/watchdog/server.go` -- MED override extension
 - `internal/component/bgp/plugins/watchdog/pool.go` -- Route field on PoolEntry
 - `plan/learned/512-healthcheck-1-watchdog-med.md` -- Phase 1 summary

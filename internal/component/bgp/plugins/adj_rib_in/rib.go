@@ -24,7 +24,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	adjschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/schema"
+	adjyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/yang"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
@@ -842,5 +842,5 @@ func prefixToWireHex(fam family.Family, prefix string, pathID uint32) string {
 
 // getYANG returns the embedded YANG schema.
 func getYANG() string {
-	return adjschema.ZeAdjRibInYANG
+	return adjyang.ZeAdjRibInAPIYANG
 }

@@ -174,7 +174,7 @@ errors accepts `count <N>` limit. Return a non-nil empty slice when empty.
 <!-- source: internal/plugins/policyroute/cmd_show.go -- ForwardToPlugin proxy -->
 <!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy -->
 <!-- source: internal/component/bgp/plugins/rr/cmd_show.go -- ForwardToPlugin proxy -->
-<!-- source: internal/component/cmd/show/schema/ze-cli-show-cmd.yang -- top-level warnings / errors containers -->
+<!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- top-level warnings / errors containers -->
 
 ### Issue JSON shape
 
@@ -255,7 +255,7 @@ plugin session ready     # Signal plugin init complete
 plugin session ping      # Health check
 plugin session bye       # Disconnect
 ```
-<!-- source: internal/core/ipc/schema/ze-plugin-api.yang -- session RPCs -->
+<!-- source: internal/core/ipc/yang/ze-plugin-api.yang -- session RPCs -->
 
 ### BGP Plugin Configuration
 
@@ -269,7 +269,7 @@ bgp plugin format full       # Both parsed AND wire bytes
 bgp plugin ack sync          # Wait for wire transmission
 bgp plugin ack async         # Return immediately (default)
 ```
-<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack RPCs -->
+<!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack RPCs -->
 
 ### Event Subscription Commands
 
@@ -382,7 +382,7 @@ system command help "<name>" # Show command details
 system command complete "<partial>"  # Complete command names
 system command complete "<cmd>" args [<completed>...] "<partial>"  # Arg completion
 ```
-<!-- source: internal/core/ipc/schema/ze-system-api.yang -- system RPCs -->
+<!-- source: internal/core/ipc/yang/ze-system-api.yang -- system RPCs -->
 
 ### Process Lifecycle Commands
 
@@ -405,7 +405,7 @@ peer <ip> teardown <code> [<reason>]  # Disconnect peer
 delete bgp peer <name>             # Remove dynamic peer
 peer <sel> flush         # Wait for forward pool to drain (barrier)
 ```
-<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- peer RPCs -->
+<!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
 
 ### Cache Commands (Ze)
 
@@ -457,7 +457,7 @@ bgp log set <subsystem> <level>   # Change subsystem log level at runtime
 ```
 
 Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slog.LevelVar` atomic swap. Only loggers created via `slogutil.Logger()` or `slogutil.LazyLogger()` (non-disabled) are shown and modifiable.
-<!-- source: internal/core/slogutil/schema/ze-log-cmd.yang -- log command YANG -->
+<!-- source: internal/core/slogutil/yang/ze-log-cmd.yang -- log command YANG -->
 
 ### Metrics Commands (Ze)
 
@@ -473,7 +473,7 @@ Requires telemetry to be enabled in config (`telemetry { prometheus { ... } }`).
 Communities, LargeCommunities, ExtCommunities, ClusterList, OriginatorID, AtomicAggregate,
 Aggregator, OtherAttrs) with live/dead slots, bytes, intern count, dedup hit rate.
 
-<!-- source: internal/component/cmd/metrics/schema/ -- ze-bgp-cmd-metrics-api.yang -->
+<!-- source: internal/component/cmd/metrics/yang/ -- ze-bgp-cmd-metrics-api.yang -->
 
 ### Peer Selectors
 
@@ -600,7 +600,7 @@ Generic pipes such as `match`, `json`, `ndjson`, `table`, `text`, `yaml`, `resol
 
 Inject attributes: `origin <igp|egp|incomplete>`, `nhop|nexthop <ip>`, `aspath <asn,asn,...>`, `localpref <n>`, `med <n>`. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast). IPv4-mapped IPv6 next-hops accepted.
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
-<!-- source: internal/component/bgp/plugins/rib/schema/ze-rib-api.yang -- RIB RPCs -->
+<!-- source: internal/component/bgp/plugins/rib/yang/ze-rib-api.yang -- RIB RPCs -->
 
 #### Inter-Plugin RIB Commands (GR/LLGR)
 

@@ -2,7 +2,7 @@
 
 <!-- source: internal/component/resolve/dns/resolver.go -- miekg/dns resolver with cache -->
 <!-- source: internal/component/resolve/dns/cache.go -- O(1) LRU cache with TTL -->
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system DNS config -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->
 
 Built-in DNS resolver component providing cached DNS queries to all Ze components.
 Uses `github.com/miekg/dns` (the library CoreDNS is built on).

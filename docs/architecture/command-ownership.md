@@ -147,7 +147,7 @@ owner:
 
 Two tests enforce the invariant per verb:
 
-**Central guard** (e.g. `cmd/show/schema/self_containment_test.go`):
+**Central guard** (e.g. `cmd/show/yang/self_containment_test.go`):
 a banned-token map listing every owner-migrated command. If any banned token
 appears in the central YANG, the test fails.
 
@@ -188,7 +188,7 @@ generates the import list.
 | Artifact | Location | Hand-written? |
 |----------|----------|---------------|
 | Implementation library | `component/<name>/` or `core/<name>/` | Yes |
-| Config YANG (data model) | `component/<name>/schema/` | Yes |
+| Config YANG (data model) | `component/<name>/yang/` | Yes |
 | Command YANG (CLI tree) | `plugins/<name>/yang/` | Yes (`.yang` only) |
 | YANG embed + register | `plugins/<name>/yang/` | Generated |
 | RPC handlers | `plugins/<name>/cmd/` | Yes |

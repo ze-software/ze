@@ -51,6 +51,6 @@ future IKEv2 engine (ipsec-9) can consume them.
 - `internal/component/ipsec/validate.go` -- ValidateRemoteAccess, validatePoolPrefix
 - `internal/component/ipsec/config_test.go` -- EAP/pool parsing tests, validation tests, Changed() test
 - `internal/component/ipsec/types_test.go` -- extended AuthMode round-trip test
-- `internal/component/ipsec/schema/ze-ipsec-conf.yang` -- remote-access container, eap auth modes
+- `internal/component/ipsec/yang/ze-ipsec-conf.yang` -- remote-access container, eap auth modes
 - `test/parse/ipsec-remote-access.ci` -- functional test for remote-access config
 - `test/parse/ipsec-eap-auth.ci` -- functional test for EAP-TLS config

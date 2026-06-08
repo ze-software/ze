@@ -49,9 +49,9 @@ against the PKI store and interface list.
 - `internal/component/ipsec/config.go` -- tree-walker parser
 - `internal/component/ipsec/validate.go` -- cross-reference validation
 - `internal/component/ipsec/register.go` -- blank import for schema registration
-- `internal/component/ipsec/schema/ze-ipsec-conf.yang` -- YANG module
-- `internal/component/ipsec/schema/embed.go` -- go:embed
-- `internal/component/ipsec/schema/register.go` -- init() yang.RegisterModule
+- `internal/component/ipsec/yang/ze-ipsec-conf.yang` -- YANG module
+- `internal/component/ipsec/yang/embed.go` -- go:embed
+- `internal/component/ipsec/yang/register.go` -- init() yang.RegisterModule
 - `internal/component/ipsec/types_test.go` -- enum round-trip tests
 - `internal/component/ipsec/config_test.go` -- parser and validation tests
 - `cmd/ze/hub/main.go` -- blank import of ipsec package

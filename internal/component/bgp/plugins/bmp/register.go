@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	bmpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bmp/schema"
+	bmpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bmp/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -16,7 +16,7 @@ func init() {
 		Description: "BMP receiver and sender (RFC 7854, 8671)",
 		RFCs:        []string{"7854", "8671"},
 		Features:    "yang",
-		YANG:        bmpschema.ZeBMPConfYANG,
+		YANG:        bmpyang.ZeBMPConfYANG,
 		ConfigRoots: []string{"bgp", "environment"},
 		RunEngine:   RunBMPPlugin,
 		ConfigureEngineLogger: func(loggerName string) {

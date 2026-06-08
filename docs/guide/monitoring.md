@@ -210,7 +210,7 @@ netdata {
 }
 ```
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics, metricsUpdateLoop -->
-<!-- source: internal/component/telemetry/schema/ze-telemetry-conf.yang -->
+<!-- source: internal/component/telemetry/yang/ze-telemetry-conf.yang -->
 
 ### OS Metrics (Netdata-compatible)
 

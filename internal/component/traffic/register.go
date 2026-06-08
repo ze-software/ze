@@ -18,7 +18,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	trafficschema "codeberg.org/thomas-mangin/ze/internal/component/traffic/schema"
+	trafficyang "codeberg.org/thomas-mangin/ze/internal/component/traffic/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -140,7 +140,7 @@ func init() {
 		Name:                    "traffic",
 		Description:             "Traffic control (tc) qdisc, class, and filter management",
 		Features:                "yang",
-		YANG:                    trafficschema.ZeTrafficControlConfYANG,
+		YANG:                    trafficyang.ZeTrafficControlConfYANG,
 		ConfigRoots:             []string{configRootTraffic},
 		OptionalDependencies:    []string{"vpp"},
 		InProcessConfigVerifier: verifyTrafficConfig,

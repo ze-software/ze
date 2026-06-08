@@ -83,4 +83,4 @@ built the integration layer that connects them to the `flowexport.Exporter`.
 - `internal/component/flowexport/config.go` -- Sampling/Conntrack/Enrichment parse + validate
 - `internal/component/flowexport/register.go` -- ConfigureEventBus, startFlowSubsystems, wireEncoders flow encoders
 - `internal/component/flowexport/{sflow,netflow9,ipfix}/flow_adapter.go` + `register.go` -- flow encoder adapters + factory registration
-- `internal/component/flowexport/schema/ze-flowexport-conf.yang` -- sampling/conntrack/enrichment containers
+- `internal/component/flowexport/yang/ze-flowexport-conf.yang` -- sampling/conntrack/enrichment containers

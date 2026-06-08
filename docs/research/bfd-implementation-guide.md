@@ -620,7 +620,7 @@ internal/component/bfd/
 │   ├── register.go         # Client-facing EnsureSession / ReleaseSession
 │   ├── events.go           # State-change event definitions
 │   └── profile.go          # Named profiles
-├── schema/
+├── yang/
 │   ├── ze-bfd-conf.yang
 │   ├── embed.go
 │   └── register.go

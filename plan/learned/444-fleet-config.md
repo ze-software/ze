@@ -34,7 +34,7 @@ Ze had no centralized configuration management. Each instance had its own config
 - `internal/component/managed/client.go`, `handler.go`, `reconnect.go`, `heartbeat.go`, `doc.go` -- managed client
 - `internal/component/plugin/server/managed.go` -- hub-side config handlers
 - `internal/component/plugin/types.go` -- `HubServerConfig`, `HubClientConfig`, `HubConfig`
-- `internal/component/plugin/schema/ze-plugin-conf.yang` -- named server/client blocks
+- `internal/component/plugin/yang/ze-plugin-conf.yang` -- named server/client blocks
 - `internal/component/plugin/ipc/tls.go` -- `AuthenticateWithLookup`, `SetSecretLookup`
 - `internal/component/plugin/manager/manager.go` -- per-client secret wiring
 - `internal/component/bgp/config/plugins.go` -- `ExtractHubConfig` rewrite

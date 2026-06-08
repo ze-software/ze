@@ -32,7 +32,7 @@ Gokrazy appliances lack tcpdump and other packet capture tools. Network-level de
 - `internal/component/cmd/show/capture_interface_other.go` -- platform stub
 - `internal/component/cmd/show/capture_interface_test.go` -- portable unit tests
 - `internal/component/cmd/show/capture_interface_linux_test.go` -- BPF filter tests
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- YANG tree update
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- YANG tree update
 - `test/plugin/show-capture-interface.ci` -- functional test
 - `docs/features.md` -- feature table update
 - `docs/guide/command-reference.md` -- command reference

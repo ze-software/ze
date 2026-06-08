@@ -33,6 +33,6 @@ Ze needed a TFTP server plugin for PXE provisioning. When `ze install remote` bo
 - `internal/plugins/tftpserver/config_test.go` -- 5 config tests
 - `internal/plugins/tftpserver/socket_linux.go` -- SO_BINDTODEVICE binding
 - `internal/plugins/tftpserver/socket_other.go` -- non-Linux fallback
-- `internal/plugins/tftpserver/schema/` -- YANG schema, embed, register
+- `internal/plugins/tftpserver/yang/` -- YANG schema, embed, register
 - `test/install/tftp-server-config.ci` -- functional test
 - `docs/guide/plugins.md` -- tftpserver entry in Infrastructure table

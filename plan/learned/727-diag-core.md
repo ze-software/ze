@@ -72,7 +72,7 @@ Ze on gokrazy appliances has no external Linux tools (ss, dmesg, lsof, dig, nc, 
 - `internal/plugins/bfd/bfd.go` -- pluginService implements BFDRawCaptureProvider, wires SetBFDRawCaptureProvider at OnStarted
 - `internal/plugins/bfd/engine/engine.go` -- rawCapture atomic pointer on Loop struct
 - `internal/plugins/bfd/engine/loop.go` -- captureRx/captureTx hooks in handleInbound/sendLocked
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- 9 new containers + dns parent
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- 9 new containers + dns parent
 - `internal/component/cmd/show/show.go` -- added `capBFD` constant
 - `internal/component/cmd/show/capture_raw.go` -- BFD capture ring support
 - `internal/component/resolve/dns/cache.go` -- hit/miss/eviction counters + Stats()

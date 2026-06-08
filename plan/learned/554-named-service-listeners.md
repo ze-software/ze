@@ -159,7 +159,7 @@ two `server <name> { ... }` blocks and have both bound.
 
 ## Files
 
-- `internal/component/api/schema/ze-api-conf.yang` -- YANG container -> list
+- `internal/component/api/yang/ze-api-conf.yang` -- YANG container -> list
 - `internal/component/config/loader_extract.go` -- slice-returning extractors
 - `internal/component/config/loader_extract_test.go` -- 14 extractor tests (created)
 - `internal/component/config/listener.go` -- api-server entries in knownListenerServices

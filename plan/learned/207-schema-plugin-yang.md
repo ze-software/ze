@@ -7,7 +7,7 @@ Implement `ze schema show` and `ze schema list` using real YANG content, includi
 ## Decisions
 
 - External plugin YANG retrieved via `exec.CommandContext` with a 10-second timeout — plugins are already trusted (they run as subprocesses anyway); timeout prevents hang if a plugin is broken.
-- Functional tests placed in `test/parse/` (existing location) rather than a new `test/schema/` directory — avoids creating infrastructure for a single command.
+- Functional tests placed in `test/parse/` (existing location) rather than a new `test/yang/` directory — avoids creating infrastructure for a single command.
 
 ## Patterns
 

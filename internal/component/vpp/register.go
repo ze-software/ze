@@ -12,7 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
-	vppschema "codeberg.org/thomas-mangin/ze/internal/component/vpp/schema"
+	vppyang "codeberg.org/thomas-mangin/ze/internal/component/vpp/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -35,7 +35,7 @@ func init() {
 		Name:                    "vpp",
 		Description:             "VPP data plane lifecycle management",
 		Features:                "yang",
-		YANG:                    vppschema.ZeVppConfYANG,
+		YANG:                    vppyang.ZeVPPConfYANG,
 		ConfigRoots:             []string{"vpp"},
 		InProcessConfigVerifier: verifyVPPConfig,
 		RunEngine:               runVPPEngine,

@@ -28,7 +28,7 @@ Ze's BGP peer configuration lacked route-reflector-client, cluster-id, and next-
 
 ## Files
 
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- YANG leaves
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- YANG leaves
 - `internal/component/bgp/reactor/peersettings.go` -- PeerSettings fields
 - `internal/component/bgp/reactor/config.go` -- parsePeerFromTree extraction
 - `internal/component/bgp/reactor/reactor_api_forward.go` -- RR forwarding rules, applyNextHopMod

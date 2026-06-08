@@ -35,5 +35,5 @@ BGP peers can send an unbounded number of prefixes, exhausting memory and maskin
 - `internal/component/bgp/reactor/config.go` -- config parsing, mandatory validation
 - `internal/component/bgp/reactor/peersettings.go` -- PrefixMaximum/Warning/Teardown/IdleTimeout fields
 - `internal/component/bgp/reactor/peer.go` -- auto-reconnect with exponential backoff
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- prefix container in family list
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- prefix container in family list
 - `internal/component/config/parser_list.go` -- block entries in inline list blocks

@@ -104,7 +104,7 @@ could type a clear password and have the daemon hash it on commit.
 - New: `docs/guide/authentication.md`
 - Modified: `internal/component/config/yang/modules/ze-extensions.yang` (new `extension bcrypt`)
 - Modified: `internal/component/config/{schema,yang_schema,parser,parser_test}.go`
-- Modified: `internal/component/ssh/schema/ze-ssh-conf.yang` (`password` ze:bcrypt + new `plaintext-password`)
+- Modified: `internal/component/ssh/yang/ze-ssh-conf.yang` (`password` ze:bcrypt + new `plaintext-password`)
 - Modified: `internal/component/cli/{editor_commit,editor_commands,validator}.go`
 - Modified: `cmd/ze/internal/ssh/client/{client,client_test}.go`
 - Modified: `cmd/ze/{cli,bgp/cmd_plugin,signal,config/cmd_set,config/cmd_edit,iface/migrate}/*.go` (--user/-u flag)

@@ -16,7 +16,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/pppoe"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/schema" // register ze-pppoe-api.yang
+	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/yang" // register ze-pppoe-api.yang
 )
 
 var (

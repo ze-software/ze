@@ -9,7 +9,7 @@ external config commits (web/CLI) did not notify gNMI Subscribe STREAM subscribe
 
 ## Decisions
 
-- Chose separate YANG module `ze-gnmi-conf` under `internal/component/gnmi/schema/` over
+- Chose separate YANG module `ze-gnmi-conf` under `internal/component/gnmi/yang/` over
   augmenting the hub or api-server schema, because gNMI is its own component with
   independent lifecycle, following the web/mcp/lg pattern.
 - Chose `show gnmi` over `show service gnmi` because no `show service` container exists
@@ -44,13 +44,13 @@ external config commits (web/CLI) did not notify gNMI Subscribe STREAM subscribe
 
 ## Files
 
-- `internal/component/gnmi/schema/` -- YANG module, embed, register, tests
+- `internal/component/gnmi/yang/` -- YANG module, embed, register, tests
 - `internal/component/gnmi/metrics.go` -- gnmiMetrics struct and init
 - `internal/component/gnmi/server.go` -- ServerStatus, Status(), SetMetricsRegistry, RegisterGlobal, LookupServer, recordError
 - `internal/component/gnmi/subscribe.go` -- NotifyConfigReload, subscribe gauge instrumentation
 - `internal/component/gnmi/capabilities.go`, `get.go`, `set.go` -- request/error counter instrumentation
 - `internal/component/cmd/show/gnmi.go` -- show gnmi handler
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- show gnmi YANG entry
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- show gnmi YANG entry
 - `internal/component/config/environment.go` -- ze.gnmi.tls.cert/key env vars
 - `cmd/ze/hub/main.go` -- TLS file loading, gnmiNotifier commit hook wiring, RegisterGlobal
 - `docs/guide/gnmi.md`, `docs/features.md`, `docs/comparison.md`, `docs/architecture/api/architecture.md`

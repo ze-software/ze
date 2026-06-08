@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
+	gryang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/yang"
 	// Blank import triggers init() registration of all plugin YANG modules.
 	// Needed by TestArraySyntax et al. for the "plugin" top-level keyword.
 )
@@ -14,7 +14,7 @@ import (
 func extendedSchemaWithGR(t *testing.T) *Schema {
 	t.Helper()
 	schema, err := YANGSchemaWithPlugins(map[string]string{
-		"ze-graceful-restart.yang": grschema.ZeGracefulRestartYANG,
+		"ze-graceful-restart.yang": gryang.ZeGracefulRestartYANG,
 	})
 	if err != nil {
 		t.Fatal(err)

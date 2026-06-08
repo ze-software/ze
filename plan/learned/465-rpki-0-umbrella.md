@@ -30,7 +30,7 @@ Design and implement RPKI origin validation as an optional plugin (`bgp-rpki`) t
 ## Files
 
 - `internal/component/bgp/plugins/rpki/` -- plugin directory (rpki.go, roa_cache.go, validate.go, rtr_session.go, rtr_pdu.go, emit.go, rpki_config.go, register.go)
-- `internal/component/bgp/plugins/rpki/schema/ze-rpki.yang` -- YANG schema
+- `internal/component/bgp/plugins/rpki/yang/ze-rpki.yang` -- YANG schema
 - `internal/component/bgp/plugins/adj_rib_in/rib_validation.go` -- validation gate in adj-rib-in
 - `internal/component/bgp/plugins/adj_rib_in/rib_commands.go` -- accept/reject/enable-validation commands
 - `cmd/ze-rtr-mock/main.go` -- mock RTR server for testing

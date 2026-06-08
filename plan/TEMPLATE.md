@@ -134,7 +134,7 @@
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs/config) | [ ] | `internal/yang/modules/*.yang` or `internal/component/<name>/schema/` |
+| YANG schema (new RPCs/config) | [ ] | `internal/yang/modules/*.yang` or `internal/component/<name>/yang/` |
 | YANG validation constraints | [ ] | Every leaf MUST have maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | [ ] | If native YANG constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for tab-completion. Register in `validators_register.go` |
 | CLI commands/flags | [ ] | `cmd/ze/*/main.go` or subcommand files |

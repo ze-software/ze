@@ -27,6 +27,7 @@ var (
 	errRenameTargetMustBeTheLast           = errors.New("rename target must be the last element in the path")
 	errSaveNotAllowedWithActiveSession     = errors.New("Save() not allowed with active session; use CommitSession()")
 	errNoSessionSet                        = errors.New("no session set")
+	errLoadNotSupportedInSessionMode       = errors.New("load not supported in session mode")
 )
 
 // SaveEditState saves the current working content to the .edit file.

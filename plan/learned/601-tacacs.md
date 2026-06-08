@@ -95,7 +95,7 @@ without disturbing recovery paths.
 - `internal/component/aaa/{aaa,types}.go` -- interfaces + chain
 - `internal/component/aaa/all/all.go` -- backend blank-imports
 - `internal/component/tacacs/{client,packet,authen,author,acct,authenticator,authorizer,accounting,config,register}.go`
-- `internal/component/tacacs/schema/{embed,register,ze-tacacs-conf.yang}`
+- `internal/component/tacacs/yang/{embed,register,ze-tacacs-conf.yang}`
 - `internal/component/config/schema.go` -- recursive merge fix
 - `cmd/ze/hub/{aaa_lifecycle,infra_setup,main}.go` -- bundle lifecycle, RemoteAddr wiring
 - `internal/component/plugin/server/command.go` -- accountant hook in Dispatcher

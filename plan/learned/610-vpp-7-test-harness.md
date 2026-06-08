@@ -114,7 +114,7 @@ place to prove its wiring.
 
 ## Files
 
-- `internal/component/vpp/schema/ze-vpp-conf.yang` -- new `leaf external`
+- `internal/component/vpp/yang/ze-vpp-conf.yang` -- new `leaf external`
 - `internal/component/vpp/config.go` -- `VPPSettings.External` + parse
 - `internal/component/vpp/vpp.go` -- `Run`/`runOnce` external branch
 - `internal/component/vpp/{config,vpp}_test.go` -- 5 new tests

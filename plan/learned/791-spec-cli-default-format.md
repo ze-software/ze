@@ -25,7 +25,7 @@ CLI output format was hardcoded to `pipeTable` in `ProcessPipesDefaultTable` and
 
 ## Files
 
-- `internal/component/hub/schema/ze-hub-conf.yang` -- YANG cli/format/default leaf
+- `internal/component/hub/yang/ze-hub-conf.yang` -- YANG cli/format/default leaf
 - `internal/component/config/constants.go` -- "cli" in extractSections
 - `internal/component/config/apply_env.go` -- cli.format plumbing entry
 - `internal/component/config/apply_env_test.go` -- TestApplyEnvConfigCLIFormat

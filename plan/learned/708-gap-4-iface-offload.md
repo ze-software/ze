@@ -62,7 +62,7 @@ covering ethernet, dummy, veth, and bridge.
 
 ## Files changed
 
-- `internal/component/iface/schema/ze-iface-conf.yang` -- offload container in interface-l2
+- `internal/component/iface/yang/ze-iface-conf.yang` -- offload container in interface-l2
 - `internal/component/iface/config.go` -- offloadConfig struct, parseOffloadConfig, applyConfig wiring
 - `internal/component/iface/offload_linux.go` -- ethtool ioctls, sysfs writes (new)
 - `internal/component/iface/offload_other.go` -- non-Linux stub (new)

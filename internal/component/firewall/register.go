@@ -8,7 +8,7 @@ import (
 	"os"
 	"sync"
 
-	firewallschema "codeberg.org/thomas-mangin/ze/internal/component/firewall/schema"
+	firewallyang "codeberg.org/thomas-mangin/ze/internal/component/firewall/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -36,7 +36,7 @@ func init() { //nolint:gochecknoinits // plugin registration
 		Name:                    "firewall",
 		Description:             "Packet filter and NAT rules (nftables on Linux)",
 		Features:                "yang",
-		YANG:                    firewallschema.ZeFirewallConfYANG,
+		YANG:                    firewallyang.ZeFirewallConfYANG,
 		ConfigRoots:             []string{configRootFirewall},
 		InProcessConfigVerifier: VerifyConfig,
 		RunEngine:               runEngine,

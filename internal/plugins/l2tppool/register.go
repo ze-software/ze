@@ -19,7 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	schema "codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -69,7 +69,7 @@ func init() {
 		Name:                    Name,
 		Description:             "IPv4 address and IPv6 prefix pool for L2TP PPP sessions",
 		Features:                "yang",
-		YANG:                    schema.ZeL2TPPoolConfYANG,
+		YANG:                    yang.ZeL2TPPoolConfYANG,
 		ConfigRoots:             []string{"l2tp"},
 		InProcessConfigVerifier: verifyPoolConfig,
 		RunEngine:               runPlugin,

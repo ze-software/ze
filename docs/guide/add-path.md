@@ -1,7 +1,7 @@
 # ADD-PATH
 
 ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. This is useful for route servers that need to forward all available paths, not just the best one.
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- add-path capability config -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability config -->
 
 ## Configuration
 
@@ -61,7 +61,7 @@ bgp {
 | `enable` (default) | Negotiate ADD-PATH if peer supports it |
 | `require` | Reject peer if it does not support ADD-PATH |
 | `disable` | Do not negotiate ADD-PATH for this family |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- add-path direction/mode config -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path direction/mode config -->
 
 Example with mode:
 

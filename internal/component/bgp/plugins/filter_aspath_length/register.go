@@ -1,7 +1,7 @@
 package filter_aspath_length
 
 import (
-	falschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath_length/schema"
+	falyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath_length/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
@@ -11,7 +11,7 @@ func init() {
 		Description:  "Named AS-path length filter (accept/reject based on hop count)",
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp"},
-		YANG:         falschema.ZeFilterAsPathLengthYANG,
+		YANG:         falyang.ZeFilterAsPathLengthYANG,
 		FilterTypes:  []string{"as-path-length"},
 		RunEngine:    RunFilterAsPathLength,
 		CLIHandler:   func(_ []string) int { return 0 },

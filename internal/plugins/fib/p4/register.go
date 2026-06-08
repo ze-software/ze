@@ -9,7 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	fibp4schema "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4/schema"
+	fibp4yang "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -21,7 +21,7 @@ func init() {
 		Features:     "yang",
 		ConfigRoots:  []string{"fib/p4"},
 		Dependencies: []string{"rib"},
-		YANG:         fibp4schema.ZeFibP4ConfYANG,
+		YANG:         fibp4yang.ZeFibP4ConfYANG,
 		RunEngine:    runFIBP4Plugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

@@ -829,7 +829,7 @@ internal/component/ospf/
 │   ├── show_interface.go
 │   ├── show_route.go
 │   └── show_spf.go
-├── schema/
+├── yang/
 │   ├── ze-ospf-conf.yang
 │   ├── embed.go
 │   └── register.go

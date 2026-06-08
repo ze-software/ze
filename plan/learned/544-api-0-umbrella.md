@@ -29,7 +29,7 @@ Ze had SSH CLI, HTMX web UI, and MCP as interfaces, but no programmatic REST or 
 ## Files
 
 - `internal/component/api/` -- engine, types, config sessions, schema generation (6 source + 3 test files)
-- `internal/component/api/schema/` -- YANG config, embed, register
+- `internal/component/api/yang/` -- YANG config, embed, register
 - `internal/component/api/rest/` -- REST HTTP transport
 - `internal/component/api/grpc/` -- gRPC transport
 - `api/proto/` -- proto3 definitions and generated Go code

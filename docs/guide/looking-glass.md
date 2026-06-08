@@ -20,7 +20,7 @@ environment {
 }
 ```
 
-<!-- source: internal/component/lg/schema/ze-lg-conf.yang -- YANG schema -->
+<!-- source: internal/component/lg/yang/ze-lg-conf.yang -- YANG schema -->
 
 | Setting | Default | Description |
 |---------|---------|-------------|

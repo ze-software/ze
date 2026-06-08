@@ -1,0 +1,43 @@
+module ze-resolve-api {
+    namespace "urn:ze:resolve:api";
+    prefix resolveapi;
+    description "Resolution service RPC definitions with typed parameters";
+    revision 2026-04-04 { description "Initial revision"; }
+
+    rpc dns-a {
+        description "Resolve DNS A records (IPv4 addresses)";
+        input { leaf name { type string; mandatory true; description "Hostname to resolve"; } }
+    }
+    rpc dns-aaaa {
+        description "Resolve DNS AAAA records (IPv6 addresses)";
+        input { leaf name { type string; mandatory true; description "Hostname to resolve"; } }
+    }
+    rpc dns-txt {
+        description "Resolve DNS TXT records";
+        input { leaf name { type string; mandatory true; description "Hostname to resolve"; } }
+    }
+    rpc dns-ptr {
+        description "Reverse DNS lookup (PTR records)";
+        input { leaf address { type string; mandatory true; description "IP address for reverse lookup"; } }
+    }
+    rpc cymru-asn-name {
+        description "Look up organization name for an ASN via Team Cymru DNS";
+        input { leaf asn { type uint32; mandatory true; description "Autonomous System Number"; } }
+    }
+    rpc peeringdb-max-prefix {
+        description "Look up maximum prefix counts for an ASN from PeeringDB";
+        input { leaf asn { type uint32; mandatory true; description "Autonomous System Number"; } }
+    }
+    rpc peeringdb-as-set {
+        description "Look up AS-SET names for an ASN from PeeringDB";
+        input { leaf asn { type uint32; mandatory true; description "Autonomous System Number"; } }
+    }
+    rpc irr-expand {
+        description "Recursively expand AS-SET to member ASNs";
+        input { leaf as-set { type string; mandatory true; description "AS-SET name (e.g. AS-CLOUDFLARE)"; } }
+    }
+    rpc irr-prefix {
+        description "Look up prefixes for an AS-SET from IRR";
+        input { leaf as-set { type string; mandatory true; description "AS-SET name (e.g. AS-CLOUDFLARE)"; } }
+    }
+}

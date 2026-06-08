@@ -26,15 +26,15 @@ import (
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 
-	// BGP cmd plugin schema packages (not in all.go -- triggered via reactor.go at runtime).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema"
+	// BGP cmd plugin YANG packages (not in all.go -- triggered via reactor.go at runtime).
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/yang"
 
 	// BGP cmd handler packages (register RPCs via init()).
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"

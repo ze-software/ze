@@ -1,0 +1,20 @@
+module ze-config-archive-cmd {
+    namespace "urn:ze:config:archive:cmd";
+    prefix cfgarchivecmd;
+    import ze-extensions { prefix ze; }
+    description "Save configuration snapshots to the config store";
+    revision 2026-05-17 { description "Initial revision"; }
+
+    container config {
+        config false;
+        description "Configuration snapshot and archiving";
+
+        container archive {
+            config false;
+            ze:command "ze-config-archive:trigger";
+            description "Save a snapshot of the current running configuration.
+Captures the config into the store for later rollback or comparison.
+Optional name labels the snapshot; defaults to a timestamp.";
+        }
+    }
+}

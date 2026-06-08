@@ -53,7 +53,7 @@ list entry for the required descendant path. BGP is excluded (handled by
 - `internal/component/config/yang/validator.go` -- `ValidateTreeAllModules`
 - `internal/component/config/cli/cmd_validate.go` -- vpn/pki/l2tp in `yangSectionsToValidate`, switched to `ValidateTreeAllModules`, generic required check
 - `internal/component/cli/validator.go` -- removed BGP-absent early return, generic required check
-- `internal/component/ipsec/schema/ze-ipsec-conf.yang` -- 10x `ze:required;` -> `mandatory true`
-- `internal/component/pki/schema/ze-pki-conf.yang` -- 2x `ze:required;` -> `mandatory true`
-- `internal/plugins/l2tpauthradius/schema/ze-l2tp-auth-radius-conf.yang` -- 1x `ze:required;` -> `mandatory true`
+- `internal/component/ipsec/yang/ze-ipsec-conf.yang` -- 10x `ze:required;` -> `mandatory true`
+- `internal/component/pki/yang/ze-pki-conf.yang` -- 2x `ze:required;` -> `mandatory true`
+- `internal/plugins/l2tpauthradius/yang/ze-l2tp-auth-radius-conf.yang` -- 1x `ze:required;` -> `mandatory true`
 - `docs/features/configuration.md`, `docs/architecture/config/syntax.md` -- reconciled ze:required description

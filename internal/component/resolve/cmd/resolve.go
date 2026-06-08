@@ -14,7 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 
 	// Blank import triggers YANG schema registration.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/yang"
 )
 
 // resolvers holds the shared resolver instances. Set once at hub startup

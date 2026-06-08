@@ -76,7 +76,7 @@ Plane (LCP) plugin mirrors every VPP interface as a TAP device in a
 `dataplane` network namespace, so ze's BGP reactor can `bind()` and
 `connect()` exactly as it does today. VPP is invisible to the BGP code
 path.
-<!-- source: internal/component/vpp/schema/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
+<!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
 
 ## What ze does for you
 
@@ -185,7 +185,7 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.lcp.sync` | boolean | `true` | Mirror VPP state changes (link, MTU, IP) into the Linux TAPs. |
 | `vpp.lcp.auto-subint` | boolean | `true` | Auto-create Linux TAPs for dot1q and QinQ sub-interfaces. |
 | `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear. Must not contain path separators. |
-<!-- source: internal/component/vpp/schema/ze-vpp-conf.yang -- every leaf above -->
+<!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above -->
 <!-- source: internal/component/vpp/config.go -- defaults and validation -->
 
 ### Enabling FIB programming
@@ -208,7 +208,7 @@ fib {
 | `fib.vpp.table-id` | uint32 | `0` | VRF table ID. `0` is the default VRF. |
 | `fib.vpp.batch-size` | uint16 | `256` | Max routes per GoVPP batch. |
 | `fib.vpp.batch-interval-ms` | uint16 | `10` | Max milliseconds to wait before dispatching a partial batch. |
-<!-- source: internal/plugins/fib/vpp/schema/ze-fib-vpp-conf.yang -- augments /fib:fib -->
+<!-- source: internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang -- augments /fib:fib -->
 
 `fib-vpp` depends on the `vpp` subsystem and on the RIB plugin. If VPP
 is disabled or the GoVPP channel fails to open, the plugin falls back to

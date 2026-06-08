@@ -63,6 +63,6 @@ BGP command names, violating component isolation.
 - `internal/component/bgp/plugins/cmd/rib/rib.go` -- RIB command registration with pipe filters
 - `internal/component/bgp/plugins/cmd/peer/peer.go` -- show peer list/detail/teardown/pause/resume handlers
 - `internal/component/bgp/plugins/cmd/peer/summary.go` -- show summary, show peer capabilities/statistics
-- `internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang` -- peer command YANG tree
-- `internal/component/bgp/plugins/cmd/rib/schema/ze-rib-cmd.yang` -- RIB command YANG tree
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- show command aliases
+- `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` -- peer command YANG tree
+- `internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang` -- RIB command YANG tree
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- show command aliases

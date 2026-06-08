@@ -1,6 +1,6 @@
 # MCP Remote Access
 
-<!-- source: internal/component/mcp/schema/ze-mcp-conf.yang -- bind-remote, auth-mode, oauth, tls -->
+<!-- source: internal/component/mcp/yang/ze-mcp-conf.yang -- bind-remote, auth-mode, oauth, tls -->
 <!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate -->
 
 Ze's MCP server defaults to loopback binding (`127.0.0.1`). Two patterns make

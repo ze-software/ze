@@ -21,7 +21,7 @@ The web UI displays YANG leaf values as plain text with no contextual informatio
 
 ## Gotchas
 
-- The `ze-extensions.yang` file already existed at `internal/component/config/yang/modules/` -- the spec originally suggested creating it at `internal/component/web/schema/`. Always check for existing files before creating new ones.
+- The `ze-extensions.yang` file already existed at `internal/component/config/yang/modules/` -- the spec originally suggested creating it at `internal/component/web/yang/`. Always check for existing files before creating new ones.
 - Functional test config needs `local.ip` on peers -- `ze config validate` enforces this even for minimal test configs.
 - The `fieldFor` template function (closure in `NewRenderer`) operates on `any`, not `FieldMeta`, so decoration must be resolved before template rendering, not inside the template function.
 - `nilerr` linter catches functions that have `if err != nil { return ..., nil }` -- needs `//nolint:nilerr` with a comment explaining the intentional swallowing.
@@ -32,7 +32,7 @@ The web UI displays YANG leaf values as plain text with no contextual informatio
 - `internal/component/config/schema.go` -- added `Decorate` field to `LeafNode`
 - `internal/component/config/yang_schema.go` -- added `getDecorateExtension()`, wired into `yangToLeaf()`
 - `internal/component/config/yang_schema_test.go` -- `TestYANGSchemaDecorateExtension`
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- added `ze:decorate "asn-name"` to ASN leaves
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- added `ze:decorate "asn-name"` to ASN leaves
 - `internal/component/web/decorator.go` -- `Decorator` interface, `DecoratorRegistry`, `DecoratorFunc`
 - `internal/component/web/decorator_asn.go` -- ASN name decorator (Team Cymru DNS TXT)
 - `internal/component/web/decorator_test.go` -- registry tests

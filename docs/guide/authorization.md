@@ -431,7 +431,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 
 | Symbol | Location |
 |--------|----------|
-| YANG schema | `internal/component/authz/schema/ze-authz-conf.yang` |
+| YANG schema | `internal/component/authz/yang/ze-authz-conf.yang` |
 | Profile evaluation | `internal/component/authz/authz.go` |
 | Store (thread-safe registry) | `internal/component/authz/authz.go` |
 | StoreAuthorizer adapter | `internal/component/authz/register.go` |

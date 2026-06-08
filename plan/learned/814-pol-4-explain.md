@@ -45,5 +45,5 @@ Real observations from the deep review that sit outside the pol-4 dry-run change
 | `internal/component/bgp/reactor/policy_dryrun.go` | Reactor: TracePolicyFilterChain, PolicyDryRun method, helpers |
 | `internal/component/bgp/reactor/policy_dryrun_test.go` | Unit tests: trace chain, filter override, changed attrs |
 | `internal/component/plugin/types_bgp.go` | Types: PolicyDryRunner, PolicyDryRunResult, PolicyTraceEntry |
-| `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` | YANG: `show policy test` command tree |
+| `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` | YANG: `show policy test` command tree |
 | `test/plugin/policy-test-*.ci` | Functional tests |

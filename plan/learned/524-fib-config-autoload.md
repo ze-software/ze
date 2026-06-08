@@ -51,6 +51,6 @@ The same problem exists for all components: BGP, interface, DNS. Nothing should 
 - `internal/component/bgp/config/loader_create.go` -- populate `ConfiguredPaths`
 - `internal/plugins/fibkernel/register.go` -- `ConfigRoots: ["fib.kernel"]`, `Dependencies: ["sysrib"]`
 - `internal/plugins/fibp4/register.go` -- `ConfigRoots: ["fib.p4"]`, `Dependencies: ["sysrib"]`
-- `internal/plugins/fibkernel/schema/ze-fib-conf.yang` -- restructured: `fib { admin-distance { } kernel { } }`
-- `internal/plugins/fibp4/schema/ze-fib-p4-conf.yang` -- augments `fib` with `p4 { }`
-- `internal/plugins/sysrib/schema/ze-sysrib-conf.yang` -- emptied (internal, no user-facing containers)
+- `internal/plugins/fibkernel/yang/ze-fib-conf.yang` -- restructured: `fib { admin-distance { } kernel { } }`
+- `internal/plugins/fibp4/yang/ze-fib-p4-conf.yang` -- augments `fib` with `p4 { }`
+- `internal/plugins/sysrib/yang/ze-sysrib-conf.yang` -- emptied (internal, no user-facing containers)

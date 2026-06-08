@@ -62,6 +62,22 @@ The editor operates in one of two modes depending on the storage backend.
 
 **Session mode** (zefs blob store): each editing session gets an identity (`user@origin%timestamp`) and a per-user change file that records every edit with metadata (who, when, previous value). `commit` applies only the current session's tracked changes to the committed config, enabling concurrent multi-user editing with conflict detection, blame, and crash recovery. See the [concurrent editing](../research/comparison/freertr/23-concurrent-editing.md) reference for the full protocol.
 
+Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:
+
+<!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errInsertNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
+
+| Blocked command | Reason |
+|-----------------|--------|
+| `load` | Replaces tree without generating per-leaf change entries |
+| `copy` | Creates structure without write-through |
+| `insert` | Creates structure without write-through |
+| `deactivate` | Requires metadata write-through |
+| `activate` | Requires metadata write-through |
+| `commit confirmed` | Needs session-aware rollback |
+| `commit force` | Needs session-aware rollback |
+
+Use file mode (`ze config edit -f`) for these operations.
+
 | Feature | File mode | Session mode (zefs) |
 |---------|-----------|-------------------|
 | Commit | Writes full tree | Applies tracked changes |

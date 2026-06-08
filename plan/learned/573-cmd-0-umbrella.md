@@ -41,5 +41,5 @@ Gap analysis comparing Ze's CLI commands against Junos, Arista EOS, Cisco IOS-XR
 - `internal/component/bgp/plugins/filter_community_match/` -- community match filter
 - `internal/component/bgp/plugins/filter_modify/` -- route attribute modifier
 - `internal/component/cmd/show/show_policy.go` -- policy introspection commands
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- YANG for show policy
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- YANG for show policy
 - `internal/component/plugin/types_bgp.go` -- ImportFilters/ExportFilters on PeerInfo

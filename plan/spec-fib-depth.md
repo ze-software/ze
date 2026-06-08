@@ -253,7 +253,7 @@ Ze must reach parity on the attributes that matter for production routing.
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs) | [x] | `internal/plugins/sysrib/schema/` (NH resolution config) |
+| YANG schema (new RPCs) | [x] | `internal/plugins/sysrib/yang/` (NH resolution config) |
 | CLI commands/flags | [x] | `show system-rib nexthop-table`, `show system-rib ecmp-groups` |
 | CLI grammar (action before identifier) | [x] | action-first: `show nexthop table`, `show ecmp groups` |
 | Editor autocomplete | [x] | YANG-driven |

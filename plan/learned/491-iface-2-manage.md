@@ -28,5 +28,5 @@ Ze could monitor OS interfaces (phase 1) but had no capability to create, delete
 
 - `internal/component/iface/iface_linux.go` -- interface + unit create/delete/addr management
 - `internal/component/iface/sysctl_linux.go` -- per-unit sysctl writes with testable root
-- `internal/component/iface/schema/ze-iface-conf.yang` -- YANG config schema
+- `internal/component/iface/yang/ze-iface-conf.yang` -- YANG config schema
 - `cmd/ze/iface/` -- CLI: main.go, show.go, create.go, unit.go, addr.go

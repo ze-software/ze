@@ -1,0 +1,66 @@
+module ze-pppoe-cmd {
+    namespace "urn:ze:pppoe:cmd";
+    prefix pppoecmd;
+
+    import ze-extensions    { prefix ze; }
+    import ze-cli-show-cmd  { prefix clishowcmd; }
+
+    description
+        "PPPoE access concentrator sessions and statistics.";
+
+    revision 2026-05-08 {
+        description "Initial revision (spec-bng-5-pppoe).";
+    }
+
+    augment "/clishowcmd:show" {
+        container pppoe {
+            config false;
+            ze:command "ze-pppoe-api:summary";
+            description "PPPoE session and protocol state.
+Without a subcommand, shows a summary of active sessions.";
+
+            container sessions {
+                config false;
+                ze:command "ze-pppoe-api:sessions";
+                description "List all active PPPoE sessions.
+One line per session: session ID, MAC, subscriber login, uptime,
+and assigned addresses.";
+            }
+
+            container session {
+                config false;
+                description "Show full detail for one PPPoE session.";
+
+                container id {
+                    config false;
+                    ze:command "ze-pppoe-api:session";
+                    description "Show full detail for one PPPoE session.
+Pass the session ID. Returns discovery tags, LCP/NCP state,
+assigned addresses, and traffic counters.";
+                    leaf id {
+                        type string;
+                        mandatory true;
+                        description "PPPoE session ID";
+                    }
+                }
+            }
+
+            container statistics {
+                config false;
+                ze:command "ze-pppoe-api:statistics";
+                description "Show PPPoE protocol message counters.
+Returns PADI, PADO, PADR, PADS, PADT counts, active sessions, and
+errors. A rising PADI count with flat PADS means sessions are not
+completing.";
+            }
+
+            container interfaces {
+                config false;
+                ze:command "ze-pppoe-api:interfaces";
+                description "Show which interfaces are accepting PPPoE sessions.
+Lists each PPPoE-enabled interface with its service name, session
+limit, and how many sessions are currently active.";
+            }
+        }
+    }
+}

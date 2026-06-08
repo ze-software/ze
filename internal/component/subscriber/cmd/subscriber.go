@@ -12,7 +12,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/subscriber/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/subscriber/yang"
 )
 
 var errRegistryUnavailable = errors.New("subscriber: registry not available")

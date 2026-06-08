@@ -16,7 +16,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
-	ifaceschema "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
+	ifaceyang "codeberg.org/thomas-mangin/ze/internal/component/iface/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -131,7 +131,7 @@ func init() {
 		Name:                    "interface",
 		Description:             "OS network interface monitoring and management",
 		Features:                "yang",
-		YANG:                    ifaceschema.ZeIfaceConfYANG,
+		YANG:                    ifaceyang.ZeIfaceConfYANG,
 		ConfigRoots:             []string{"interface"},
 		Dependencies:            []string{"sysctl"},
 		InProcessConfigVerifier: verifyIfaceConfig,

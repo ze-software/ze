@@ -174,7 +174,7 @@ structural changes, not one-session work.
   handleShowFirewallRuleset, handleShowFirewallGroup.
 - `internal/component/cmd/show/{ip,firewall}_test.go` (new) -- wiring
   + behaviour tests.
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- added
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- added
   `ip` and `firewall` containers with ze:command leaves.
 - `cmd/ze/main_test.go`,
   `internal/component/plugin/all/all_test.go` -- added
@@ -188,7 +188,7 @@ structural changes, not one-session work.
 - `cmd/ze/main.go` -- added `"clear"` to `yangVerbs`.
 - `internal/component/cmd/clear/{doc,clear}.go` (new) -- verb
   package; placeholder body, YANG lives in the schema subdir.
-- `internal/component/cmd/clear/schema/{embed,register}.go`,
+- `internal/component/cmd/clear/yang/{embed,register}.go`,
   `ze-cli-clear-{api,cmd}.yang` (new) -- YANG schema + `init()`
   registration (crucially blank-imported by `plugin/all/all.go` so
   the yang loader actually sees it; missed the first time).

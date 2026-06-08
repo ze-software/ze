@@ -190,7 +190,7 @@ cryptographic integrity" gap in the BFD plugin.
   `authTypeFromEnum`, `authConfig` with Secret, persist-dir.
 - `internal/plugins/bfd/api/events.go` -- `AuthSettings`,
   `SessionRequest.Auth`, `SessionRequest.PersistDir`.
-- `internal/plugins/bfd/schema/ze-bfd-conf.yang` -- top-level
+- `internal/plugins/bfd/yang/ze-bfd-conf.yang` -- top-level
   `persist-dir` leaf, profile `auth { type key-id secret }`
   container with the four keyed enum variants.
 - `internal/plugins/bfd/metrics.go` -- `authFailures` CounterVec,

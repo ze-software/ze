@@ -167,7 +167,7 @@ forwarding path Down, the reactor tears the BGP session with RFC 9384
 Cease NOTIFICATION (subcode 10, "BFD Down") without waiting for the
 hold timer.
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, runBFDSubscriber -->
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang — peer connection bfd container -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — peer connection bfd container -->
 
 ```
 bgp {

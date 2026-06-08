@@ -16,7 +16,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -196,7 +196,7 @@ func RunRolePlugin(conn net.Conn) int {
 	return 0
 }
 
-// GetYANG returns the embedded YANG schema for the Role plugin.
+// GetYANG returns the embedded YANG for the Role plugin.
 func GetYANG() string {
-	return schema.ZeRoleYANG
+	return yang.ZeRoleYANG
 }

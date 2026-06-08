@@ -63,7 +63,7 @@ mode but not modifiable or present in config.
 - `internal/component/iface/config_apply.go` -- +indexXFRMSpecs, +xfrmSpecEqual, XFRM in desiredState/applyConfig
 - `internal/component/iface/discover.go` -- +zeTypeXFRM, infoToZeType mapping, SupportedTypes
 - `internal/component/iface/register.go` -- XFRM in DHCP reconciliation and RA suppression
-- `internal/component/iface/schema/ze-iface-conf.yang` -- list xfrm
+- `internal/component/iface/yang/ze-iface-conf.yang` -- list xfrm
 - `internal/plugins/iface/netlink/xfrm_linux.go` -- CreateXFRM, GetXFRMInfo netlink impl
 - `internal/plugins/iface/netlink/backend_other.go` -- stubs
 - `internal/plugins/iface/vpp/ifacevpp.go` -- stubs

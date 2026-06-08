@@ -1,0 +1,72 @@
+module ze-plugin-api {
+    namespace "urn:ze:plugin:api";
+    prefix plug;
+
+    description
+        "Plugin lifecycle API operations for Ze.
+         RPCs for plugin session management and health checking.";
+
+    revision 2026-02-01 {
+        description "Initial revision";
+    }
+
+    // Introspection
+
+    rpc help {
+        description "List plugin subcommands";
+        output {
+            leaf-list subcommands { type string; description "Available subcommands"; }
+        }
+    }
+
+    rpc command-list {
+        description "List plugin commands";
+        output {
+            list command {
+                leaf name { type string; description "Command name"; }
+                leaf description { type string; description "Command description"; }
+            }
+        }
+    }
+
+    rpc command-help {
+        description "Show command details";
+        input {
+            leaf name { type string; mandatory true; description "Command name"; }
+        }
+        output {
+            leaf help { type string; description "Detailed help text"; }
+        }
+    }
+
+    rpc command-complete {
+        description "Complete command/args";
+        input {
+            leaf partial { type string; mandatory true; description "Partial command string"; }
+        }
+        output {
+            leaf-list completions { type string; description "Completion candidates"; }
+        }
+    }
+
+    // Session lifecycle
+
+    rpc session-ready {
+        description "Signal plugin init complete";
+    }
+
+    rpc session-peer-ready {
+        description "Signal peer-specific plugin init complete";
+    }
+
+    rpc session-ping {
+        description "Health check (returns PID)";
+        output {
+            leaf pong { type boolean; description "Always true when alive"; }
+        }
+    }
+
+    rpc session-bye {
+        description "Disconnect";
+    }
+}

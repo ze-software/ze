@@ -49,6 +49,6 @@ spec-2 integration layer built in the same session.
 - `internal/component/flowexport/exporter.go` -- template-timestamp and datagram-count fixes
 - `internal/component/flowexport/sflow/encoder.go` -- removed duplicate MaxDatagramSize
 - `internal/component/flowexport/ipfix/{ie,template,data}.go` -- octetTotalCount/packetTotalCount
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- flow-export show container
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- flow-export show container
 - `internal/component/plugin/all/all.go` -- regenerated flowexport blank imports
 - `go.mod` -- genetlink/netlink promoted to direct

@@ -1,3 +1,3 @@
 package ipsec
 
-import _ "codeberg.org/thomas-mangin/ze/internal/component/ipsec/schema"
+import _ "codeberg.org/thomas-mangin/ze/internal/component/ipsec/yang"

@@ -150,7 +150,7 @@ Inventory data enters from code and tests:
 | CLI argv -> dispatch | YANG verb path, static switch, registry fallback | `cmd/ze/main.go`, `cmd/ze/*/register.go` |
 | YANG command -> RPC handler | `ze:command` method names mapped to `RegisterRPCs` | `internal/component/plugin/server/rpc_register.go`, command schemas |
 | Aggregate import -> plugin registry | generated blank imports run `init()` registration | `internal/component/plugin/all/all.go`, `all_test.go` |
-| Config schema -> runtime config | YANG modules loaded by schema registrations | `internal/**/schema/register.go`, config tests |
+| Config schema -> runtime config | YANG modules loaded by schema registrations | `internal/**/yang/register.go`, config tests |
 | HTTP route -> handler | direct route registration in hub/server code | web/API/LG/MCP route files |
 | Test target -> test directory | Make target invokes `bin/ze-test` or scripts | `mk/test-functional.mk`, `mk/test-release.mk` |
 
@@ -213,7 +213,7 @@ Inventory data enters from code and tests:
 | BGP NLRI | `internal/component/bgp/plugins/nlri/*` | EVPN, FlowSpec, labeled, LS, MUP, MVPN, RTC, VPLS, VPN | encode/decode, ExaBGP, interop | BGP protocol | Needs family-by-family interop coverage |
 | Component-backed plugins | `internal/component/{iface,traffic,vpp,firewall,ike}` | interface, traffic, vpp, firewall, ike | system tests, QEMU/deployment | system-linux | Generated aggregate and dependency ordering need audit |
 | Generic plugins | `internal/plugins/` | bfd, connected, dhcpserver, fib, firewall backends, iface backends, imageserver, kernel, L2TP helpers, ntp, policy-routes, routing-table, static, sysctl, sysrib, tftpserver, traffic backends | plugin/unit/functional/QEMU | plugins/RIB, system-linux | Backend and platform coverage varies |
-| Config schemas | `internal/**/schema/*.yang` | bgp, interface, firewall, traffic-control, vpp, system, environment, plugin, telemetry, pki, vpn, pppoe, l2tp, redistribute, services | parse/config tests, functional tests | config/CLI, system-linux | Env/listener/schema validation audit needed |
+| Config schemas | `internal/**/yang/*.yang` | bgp, interface, firewall, traffic-control, vpp, system, environment, plugin, telemetry, pki, vpn, pppoe, l2tp, redistribute, services | parse/config tests, functional tests | config/CLI, system-linux | Env/listener/schema validation audit needed |
 
 ### Network and UI Surfaces
 

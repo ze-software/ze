@@ -1,0 +1,909 @@
+module ze-bgp-conf {
+    namespace "urn:ze:bgp:conf";
+    prefix bgp;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+    import ze-hub-conf { prefix hub; }
+
+    description "BGP configuration for ZeBGP";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    // BGP block - main BGP configuration
+    container bgp {
+        description "BGP configuration";
+
+        // Global BGP related tools (workbench V2). Spec D7/D12.
+        // Command paths target the registered command tree: `show bgp-health`
+        // is one container under show; `show warnings` and `show errors` are
+        // cross-subsystem report bus snapshots.
+        ze:related 'id=bgp-health; label="BGP Health"; command="show bgp-health"; placement=global; presentation=modal; class=inspect';
+        ze:related 'id=bgp-warnings; label="BGP Warnings"; command="show warnings"; placement=global; presentation=modal; class=diagnose';
+        ze:related 'id=bgp-errors; label="BGP Errors"; command="show errors"; placement=global; presentation=modal; class=diagnose';
+
+        leaf router-id {
+            type zt:ipv4-address;
+            mandatory true;
+            description "BGP Router ID (required)";
+        }
+
+        container multipath {
+            description "BGP multipath / ECMP configuration";
+
+            leaf maximum-paths {
+                type uint16 {
+                    range "1..256";
+                }
+                default 1;
+                description "Maximum number of equal-cost paths to install per prefix.
+                             1 means single best path (default, RFC 4271 Section 9.1.2).
+                             Values > 1 enable ECMP with N-way load balancing.";
+            }
+
+            leaf relax-as-path {
+                type boolean;
+                default false;
+                description "Allow paths with different AS-paths to be considered equal-cost.
+                             When false, multipath requires identical AS-path length and content.
+                             When true, only AS-path length must match (not content).
+                             Equivalent to 'bgp bestpath as-path multipath-relax' on other vendors.";
+            }
+        }
+
+        container admin-distance {
+            description "Classical admin distance stamped on BGP best-paths when
+                         they are mirrored into the shared Loc-RIB. Lower distance
+                         wins against other protocols for the same prefix.
+                         Defaults follow the Cisco/Juniper convention; RFC 4271
+                         does not mandate values.";
+
+            leaf ebgp {
+                type uint8 {
+                    range "1..255";
+                }
+                default 20;
+                description "Admin distance for routes learned from external BGP peers.";
+            }
+
+            leaf ibgp {
+                type uint8 {
+                    range "1..255";
+                }
+                default 200;
+                description "Admin distance for routes learned from internal BGP peers.";
+            }
+        }
+
+        container session {
+            description "Global BGP session defaults";
+            container asn {
+                description "AS number configuration";
+                leaf local {
+                    type zt:asn;
+                    mandatory true;
+                    ze:decorate "asn-name";
+                    description "Local Autonomous System Number (required)";
+                }
+            }
+        }
+
+        // Named filter policy definitions. Filter type plugins augment this
+        // container with their own lists marked ze:filter. Each list entry
+        // is a named filter instance referenced in peer filter { import/export }
+        // chains by its unique name.
+        container policy {
+            description
+                "Named filter definitions for the route policy framework.
+                 Each filter type is a list added by its plugin via augment.
+                 Filter instances are referenced by name in peer filter chains.";
+        }
+
+        // Global filter chains (apply to all peers as base chain)
+        container filter {
+            description
+                "Global route filter chains for import and export.
+                 Group and peer levels append to this base chain.
+                 Names reference filter instances defined in bgp/policy.";
+            leaf-list import {
+                type string;
+                description "Global import filter chain";
+            }
+            leaf-list export {
+                type string;
+                description "Global export filter chain";
+            }
+        }
+
+        // Global update blocks - default routes applied to all peers.
+        // Group and peer levels accumulate additional routes.
+        uses update-block;
+
+        // Peer groups - Junos-style: peers nested inside named groups
+        list group {
+            key "name";
+            description "Peer group - defines shared defaults for member peers";
+
+            leaf name {
+                type string;
+                description "Group name (indicative, for readability)";
+            }
+
+            uses peer-fields;
+
+            list peer {
+                key "name";
+                unique "connection/remote/ip";
+                ze:required "connection/remote/ip";
+                ze:required "session/asn/local";
+                ze:required "session/asn/remote";
+                ze:suggest "connection/local/ip";
+                description "BGP peer in this group";
+
+                // Same workbench tools as standalone bgp/peer, but the
+                // selector walks to the parent group's remote IP when the
+                // peer omits its own (Spec D7).
+                ze:related 'id=peer-detail; label="Peer Detail"; command="peer ${path-inherit:connection/remote/ip|key} detail"; placement=row; presentation=drawer; class=inspect';
+                ze:related 'id=peer-capabilities; label="Capabilities"; command="peer ${path-inherit:connection/remote/ip|key} capabilities"; placement=row; presentation=modal; class=inspect';
+                ze:related 'id=peer-statistics; label="Statistics"; command="peer ${path-inherit:connection/remote/ip|key} statistics"; placement=row; presentation=modal; class=inspect';
+                ze:related 'id=peer-flush; label="Flush"; command="request peer ${path-inherit:connection/remote/ip|key} flush"; placement=row; presentation=modal; class=refresh';
+                ze:related 'id=peer-teardown; label="Teardown"; command="request peer ${path-inherit:connection/remote/ip|key} teardown"; placement=row; presentation=modal; confirm="Tear down BGP session?"; class=danger';
+
+                leaf name {
+                    type string {
+                        pattern '[a-zA-Z0-9_][a-zA-Z0-9_.\-]*';
+                    }
+                    description "Peer name (alphanumeric/underscore start, then alphanumeric/underscore/hyphen/dot)";
+                }
+
+                uses peer-fields;
+            }
+        }
+
+        // Standalone peers (not in a group)
+        list peer {
+            key "name";
+            unique "connection/remote/ip";
+            ze:required "connection/remote/ip";
+            ze:required "session/asn/local";
+            ze:required "session/asn/remote";
+            ze:suggest "connection/local/ip";
+            description "BGP peer configuration (standalone, no group)";
+
+            // Per-row workbench tools (spec Day-One BGP Related Tools).
+            // The dispatcher extracts the `peer <selector>` pair and dispatches
+            // the remainder against the registered command tree, so commands
+            // are written in the form `peer <selector> <verb>` to match
+            // `peer/detail`, `peer/capabilities`, etc. from ze-peer-cmd.yang.
+            // Selector resolves the peer's remote IP, falling back to the
+            // peer's list key when the IP is unset.
+            ze:related 'id=peer-detail; label="Peer Detail"; command="peer ${path:connection/remote/ip|key} detail"; placement=row; presentation=drawer; class=inspect';
+            ze:related 'id=peer-capabilities; label="Capabilities"; command="peer ${path:connection/remote/ip|key} capabilities"; placement=row; presentation=modal; class=inspect';
+            ze:related 'id=peer-statistics; label="Statistics"; command="peer ${path:connection/remote/ip|key} statistics"; placement=row; presentation=modal; class=inspect';
+            ze:related 'id=peer-flush; label="Flush"; command="request peer ${path:connection/remote/ip|key} flush"; placement=row; presentation=modal; class=refresh';
+            ze:related 'id=peer-teardown; label="Teardown"; command="request peer ${path:connection/remote/ip|key} teardown"; placement=row; presentation=modal; confirm="Tear down BGP session?"; class=danger';
+
+            leaf name {
+                type string {
+                    pattern '[a-zA-Z_][a-zA-Z0-9_.\-]*';
+                }
+                description "Peer name (must start with a letter, not a digit)";
+            }
+
+            uses peer-fields;
+        }
+    }
+
+    // Update block grouping - reused at bgp, group, and peer levels.
+    grouping update-block {
+        // Native update syntax - Ze-native route announcements
+        // update { attribute { origin igp; next-hop 10.0.0.1; } nlri { ipv4/unicast 1.0.0.0/24; } }
+        list update {
+            description "Native Ze route announcements";
+
+            leaf name {
+                type string {
+                    pattern '[a-zA-Z0-9_][a-zA-Z0-9_.\-]*';
+                }
+                ze:display-key;
+                description "Optional label for this update block (display only)";
+            }
+
+            container attribute {
+                description "Path attributes for routes in this block";
+                leaf origin {
+                    type enumeration {
+                        enum igp { description "Interior Gateway Protocol"; }
+                        enum egp { description "Exterior Gateway Protocol"; }
+                        enum incomplete { description "Incomplete origin"; }
+                    }
+                    description "ORIGIN attribute (RFC 4271 Section 4.3)";
+                }
+                leaf next-hop {
+                    type union {
+                        type zt:ip-address;
+                        type enumeration {
+                            enum self;
+                        }
+                    }
+                    description "Next hop address or 'self'";
+                }
+                leaf med { type uint32; description "Multi-Exit Discriminator"; }
+                leaf local-preference { type uint32; description "Local preference"; }
+                leaf-list as-path { type string; description "AS path"; }
+                leaf-list community { type string; description "Communities"; }
+                leaf-list large-community { type string; description "Large communities"; }
+                leaf-list extended-community { type string; description "Extended communities"; }
+                leaf label { type string; description "MPLS label"; }
+                leaf-list labels { type string; description "Multi-label stack (RFC 8277)"; }
+                leaf path-information { type string; description "ADD-PATH path-id"; }
+                leaf rd { type zt:route-distinguisher; description "Route Distinguisher (RFC 4364)"; }
+                leaf aggregator { type string; description "Aggregator AS:IP"; }
+                leaf atomic-aggregate { type boolean; description "Atomic aggregate flag"; }
+                leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
+                leaf-list cluster-list { type zt:ipv4-address; description "Cluster list"; }
+                leaf-list attribute { type string; description "Generic hex attributes"; }
+                container bgp-prefix-sid { presence "Prefix-SID enabled"; description "Prefix-SID (label index)"; }
+                container bgp-prefix-sid-srv6 { presence "SRv6 Prefix-SID enabled"; description "SRv6 Prefix-SID"; }
+                leaf split { type string; description "Prefix splitting"; }
+            }
+
+            list nlri {
+                key "name";
+                leaf name { type zt:address-family; description "Address family (e.g., ipv4/unicast)"; }
+                leaf content { type string; description "Operation, qualifiers, and payload"; }
+            }
+
+            container watchdog {
+                description "Watchdog-controlled route - held until 'bgp watchdog announce <name>'";
+                leaf name { type string; description "Watchdog group name"; }
+                leaf withdraw { type boolean; description "Start in withdrawn state (default true)"; }
+            }
+        }
+    }
+
+    // Shared fields for both groups and peers (no IP addresses).
+    grouping peer-fields {
+        description "Common peer/group configuration fields";
+
+        // Connection container - transport-level settings
+        container connection {
+            description "Transport-level connection settings";
+
+            container local {
+                description "Local connection settings";
+                leaf ip {
+                    type union {
+                        type zt:ip-address;
+                        type enumeration {
+                            enum auto;
+                        }
+                    }
+                    description "Local address for connection (use IP address or 'auto')";
+                }
+                leaf port {
+                    type zt:port;
+                    description "Local bind port";
+                }
+                leaf accept {
+                    type boolean;
+                    default true;
+                    description "Accept inbound TCP connections at this local endpoint (RFC 4271 Section 8.1.1)";
+                }
+            }
+
+            container remote {
+                description "Remote connection settings";
+                leaf ip {
+                    type union {
+                        type zt:ip-address;
+                        type enumeration {
+                            enum dynamic {
+                                description "Accept BGP sessions from any IP in the group's range.
+                                             Valid at group level only; rejected at peer level.";
+                            }
+                        }
+                    }
+                    description "Peer IP address or 'dynamic' for dynamic peer groups";
+                }
+                leaf port {
+                    type zt:port;
+                    description "Remote connection port";
+                }
+                leaf connect {
+                    type boolean;
+                    default true;
+                    description "Initiate outbound TCP connections to this remote endpoint (RFC 4271 Section 8.1.1)";
+                }
+                leaf-list range {
+                    type zt:ip-prefix;
+                    description "IP prefix ranges for dynamic peer groups.
+                                 Only meaningful when ip is 'dynamic'.
+                                 Connections from IPs within these ranges create dynamic peers.";
+                }
+                leaf max-peers {
+                    type uint32 {
+                        range "1..100000";
+                    }
+                    default 1000;
+                    description "Maximum number of dynamic peers for this group";
+                }
+            }
+
+            container md5 {
+                description "TCP MD5 authentication (RFC 2385)";
+                leaf password {
+                    type string;
+                    ze:sensitive;
+                    description "MD5 authentication password";
+                }
+                leaf ip {
+                    type zt:ip-address;
+                    description "MD5 authentication IP";
+                }
+            }
+
+            container ttl {
+                description "TTL settings for BGP sessions";
+                leaf max {
+                    type uint8;
+                    description "TTL security / GTSM (RFC 5082)";
+                }
+                leaf set {
+                    type uint8;
+                    description "Outgoing TTL value";
+                }
+                leaf min {
+                    type uint8;
+                    description "Minimum incoming TTL";
+                }
+            }
+
+            leaf link-local {
+                type boolean;
+                description "Auto-discover IPv6 link-local address for TCP connection";
+            }
+
+            container bfd {
+                presence "Enable BFD liveness detection for this peer";
+                description
+                    "Bidirectional Forwarding Detection (RFC 5880) options
+                     for this peer. When the container is present, the BGP
+                     reactor calls the BFD plugin's Service interface on
+                     session establishment and tears the BGP session down
+                     when BFD reports Down. The BFD plugin must be loaded
+                     (a top-level bfd { ... } block); if it is not, the
+                     BGP peer starts without BFD and logs a warning.";
+
+                leaf enabled {
+                    type boolean;
+                    default true;
+                    description
+                        "Master switch for this peer's BFD session. Set
+                         false to keep the config in place but suspend
+                         the BFD client (useful for maintenance).";
+                }
+
+                leaf mode {
+                    type enumeration {
+                        enum single-hop {
+                            description "RFC 5881 single-hop BFD on UDP 3784 with GTSM.";
+                        }
+                        enum multi-hop {
+                            description "RFC 5883 multi-hop BFD on UDP 4784 with min-TTL.";
+                        }
+                    }
+                    default single-hop;
+                    description
+                        "Hop mode. Single-hop is the common case for an
+                         eBGP peer on a direct link; multi-hop is for
+                         iBGP over an IGP or any peering that crosses
+                         more than one IP hop.";
+                }
+
+                leaf profile {
+                    type string;
+                    description
+                        "Name of a profile defined under the top-level
+                         bfd { profile ... } block. The referenced
+                         profile supplies detect-multiplier,
+                         desired-min-tx-us, and required-min-rx-us.
+                         Empty means use the BFD plugin defaults.";
+                }
+
+                leaf min-ttl {
+                    type uint8;
+                    description
+                        "Multi-hop minimum acceptable TTL (RFC 5883 §5).
+                         Ignored for single-hop. Zero means use the
+                         plugin default (254).";
+                }
+
+                leaf interface {
+                    type string;
+                    description
+                        "Single-hop egress interface. Optional: when
+                         omitted, the BFD plugin derives the interface
+                         from the peer's local address. Ignored for
+                         multi-hop.";
+                }
+            }
+        }
+
+        // Session container - BGP session settings
+        container session {
+            description "BGP session settings";
+
+            container asn {
+                description "AS number configuration";
+                leaf local {
+                    type zt:asn;
+                    ze:decorate "asn-name";
+                    description "Local AS (overrides global)";
+                }
+                leaf remote {
+                    type zt:asn;
+                    ze:decorate "asn-name";
+                    description "Peer Autonomous System Number";
+                }
+                leaf-list local-options {
+                    type enumeration {
+                        enum no-prepend {
+                            description "Do not prepend real ASN before local-as in AS_PATH";
+                        }
+                        enum replace-as {
+                            description "Replace real ASN entirely with local-as in AS_PATH";
+                        }
+                    }
+                    description "Modifiers for local-as behavior.
+                                 no-prepend: real ASN not prepended before local-as.
+                                 replace-as: local-as replaces real ASN entirely.
+                                 Both together: full replacement with no prepend.";
+                }
+            }
+
+            leaf as-override {
+                type boolean;
+                default false;
+                description "Replace peer's ASN with local ASN in outbound AS_PATH.
+                             Used in VPN/multi-site where the same customer ASN appears at multiple sites.";
+            }
+
+            leaf accept-srv6-prefix-sid {
+                type boolean;
+                default false;
+                description "Accept BGP Prefix-SID attribute (code 40) with SRv6 TLVs from this EBGP peer.
+                             RFC 8669 Section 4: PrefixSID from EBGP outside the SR domain MUST be
+                             discarded unless configured to accept. Has no effect on IBGP (always accepted).";
+            }
+
+            container community {
+                description "Community attribute control for this session";
+                leaf-list send {
+                    type enumeration {
+                        enum standard {
+                            description "Send standard communities (type 8, RFC 1997)";
+                        }
+                        enum large {
+                            description "Send large communities (type 32, RFC 8092)";
+                        }
+                        enum extended {
+                            description "Send extended communities (type 16, RFC 4360)";
+                        }
+                        enum all {
+                            description "Send all community types (default)";
+                        }
+                        enum none {
+                            description "Suppress all community attributes";
+                        }
+                    }
+                    description "Community types to include in outbound UPDATEs.
+                                 Default is all (send every community type).
+                                 Specify individual types for granular control.
+                                 none suppresses all community attributes.";
+                }
+            }
+
+            leaf router-id {
+                type zt:ipv4-address;
+                description "Override router ID for this peer";
+            }
+
+            leaf rs-client {
+                type boolean;
+                default false;
+                description "Mark this peer as an RS-client for transparent AS-path forwarding.
+                             RFC 7947 Section 2.2.2: the route server MUST NOT modify AS_PATH
+                             or any other transitive attribute. When true, the reactor skips
+                             AS-path prepending for this peer on the forwarding path.";
+            }
+
+            leaf route-reflector-client {
+                type boolean;
+                default false;
+                description "Mark this peer as a route reflector client (RFC 4456).
+                             Routes from clients are forwarded to all clients and non-clients.
+                             Routes from non-clients are forwarded to clients only.";
+            }
+
+            leaf cluster-id {
+                type zt:ipv4-address;
+                description "Override cluster ID for route reflection (RFC 4456 Section 7).
+                             Defaults to router-id when not set.
+                             Prepended to CLUSTER_LIST on reflected routes.";
+            }
+
+            leaf next-hop {
+                type union {
+                    type zt:ip-address;
+                    type enumeration {
+                        enum self {
+                            description "Rewrite next-hop to local address (common for iBGP)";
+                        }
+                        enum unchanged {
+                            description "Never rewrite next-hop (route-server, third-party NH)";
+                        }
+                        enum auto {
+                            description "RFC 4271 default: rewrite for eBGP, preserve for iBGP";
+                        }
+                    }
+                }
+                default "auto";
+                description "Next-hop rewriting policy for forwarded UPDATEs (RFC 4271 Section 5.1.3).
+                             auto: rewrite for eBGP peers, preserve for iBGP peers.
+                             self: always rewrite to local address.
+                             unchanged: never rewrite (preserves original next-hop).
+                             IP address: set next-hop to explicit address.";
+            }
+
+            leaf link-local {
+                type zt:ipv6-address;
+                description "IPv6 link-local address for next-hop (RFC 2545 Section 3)";
+            }
+
+            // Address families
+            list family {
+                key "name";
+                description "Address families to negotiate";
+                leaf name {
+                    type zt:address-family;
+                    ze:validate "registered-address-family";
+                    description "AFI/SAFI (e.g. ipv4/unicast)";
+                }
+                leaf mode {
+                    type enumeration {
+                        enum enable { description "Enable this address family"; }
+                        enum disable { description "Disable this address family"; }
+                        enum require { description "Require this address family"; }
+                        enum ignore { description "Ignore this address family"; }
+                    }
+                    description "Address family negotiation mode";
+                }
+
+                // Per-family prefix limits (RFC 4486)
+                container prefix {
+                    description "Prefix limit configuration for this address family";
+                    leaf maximum {
+                        type uint32 {
+                            range "1..max";
+                        }
+                        description "Hard maximum number of prefixes accepted";
+                    }
+                    leaf warning {
+                        type uint32;
+                        description "Warning threshold. Defaults to 90% of maximum when not set.";
+                    }
+                    leaf teardown {
+                        type boolean;
+                        default true;
+                        description "Tear down session when prefix maximum exceeded (false = warn only)";
+                    }
+                    leaf idle-timeout {
+                        type uint16;
+                        default 0;
+                        description "Seconds before auto-reconnect after prefix teardown (0 = no reconnect)";
+                    }
+                    leaf updated {
+                        type string;
+                        ze:hidden true;
+                        description "ISO date (YYYY-MM-DD) when prefix maximum was last updated from PeeringDB. Hidden leaf.";
+                    }
+                }
+
+                leaf default-originate {
+                    type boolean;
+                    default false;
+                    description "Originate the default route (0.0.0.0/0 for IPv4, ::/0 for IPv6)
+                                 to this peer for this address family.";
+                }
+
+                leaf default-originate-filter {
+                    type string;
+                    description "Named filter that must accept for the default route to be originated.
+                                 If the filter rejects, the default route is not sent.
+                                 Empty or absent means always originate (unconditional).";
+                }
+            }
+
+            // Capabilities
+            container capability {
+                description "BGP capability negotiation";
+
+                leaf asn4 {
+                    type boolean;
+                    default true;
+                    description "4-byte ASN support";
+                }
+
+                container route-refresh {
+                    presence "Route Refresh capability enabled";
+                    description "Route Refresh capability";
+                }
+
+                // NOTE: graceful-restart moved to GR plugin (ze-graceful-restart.yang)
+
+                container add-path {
+                    presence "ADD-PATH capability enabled";
+                    description "ADD-PATH capability";
+                    leaf send {
+                        type boolean;
+                        default false;
+                        description "Send ADD-PATH";
+                    }
+                    leaf receive {
+                        type boolean;
+                        default false;
+                        description "Receive ADD-PATH";
+                    }
+                }
+
+                container extended-message {
+                    presence "Extended Message capability enabled";
+                    description "Extended Message capability";
+                }
+
+                list nexthop {
+                    key "family";
+                    description "Extended Next Hop capability (RFC 8950)";
+                    leaf family { type zt:address-family; description "NLRI family (e.g. ipv4/unicast)"; }
+                    leaf nhafi { type zt:afi; description "Next-hop AFI (e.g. ipv6)"; }
+                    leaf mode {
+                        type enumeration {
+                            enum enable { description "Enable extended next hop"; }
+                            enum disable { description "Disable extended next hop"; }
+                            enum require { description "Require extended next hop"; }
+                            enum refuse { description "Refuse extended next hop"; }
+                        }
+                        description "Extended next hop negotiation mode";
+                    }
+                }
+            }
+
+            // Per-family add-path configuration
+            list add-path {
+                key "family";
+                description "Per-family ADD-PATH configuration (RFC 7911)";
+                leaf family { type zt:address-family; description "Address family (e.g. ipv4/unicast)"; }
+                leaf direction {
+                    type enumeration {
+                        enum send { description "Send ADD-PATH"; }
+                        enum receive { description "Receive ADD-PATH"; }
+                        enum send/receive { description "Both send and receive ADD-PATH"; }
+                    }
+                    description "ADD-PATH direction";
+                }
+                leaf mode {
+                    type enumeration {
+                        enum enable { description "Enable ADD-PATH for this family"; }
+                        enum disable { description "Disable ADD-PATH for this family"; }
+                        enum require { description "Require ADD-PATH for this family"; }
+                        enum refuse { description "Refuse ADD-PATH for this family"; }
+                    }
+                    description "ADD-PATH negotiation mode";
+                }
+            }
+        }
+
+        // Behaviour container - operational knobs
+        container behavior {
+            description "Operational behavior settings";
+
+            leaf group-updates {
+                type boolean;
+                default true;
+                description "Group UPDATE messages";
+            }
+
+            leaf manual-eor {
+                type boolean;
+                description "Manual End-of-RIB";
+            }
+
+            leaf auto-flush {
+                type boolean;
+                description "Auto-flush routes";
+            }
+
+            leaf rs-fast-path {
+                type boolean;
+                default false;
+                description "Reactor-native RS forwarding";
+            }
+        }
+
+        // Basic peer identification
+        leaf description {
+            type string;
+            description "Peer description";
+        }
+
+        container timer {
+            description "BGP timer configuration";
+
+            leaf receive-hold-time {
+                type uint16 {
+                    range "0 | 3..65535";
+                }
+                default 90;
+                description "Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.";
+            }
+
+            leaf send-hold-time {
+                type uint16 {
+                    range "0 | 480..65535";
+                }
+                default 0;
+                description "Send hold time in seconds (RFC 9687). 0 = auto: max(480, 2x receive-hold-time).";
+            }
+
+            leaf keepalive {
+                type uint16;
+                default 0;
+                description "Keepalive interval in seconds (RFC 4271 Section 10). 0 = auto: hold-time/3.";
+            }
+
+            leaf connect-retry {
+                type uint16;
+                default 120;
+                description "Connect retry interval in seconds (RFC 4271 Section 8)";
+            }
+        }
+
+        uses update-block;
+
+        // Process bindings
+        list process {
+            key "name";
+            description "Process binding";
+
+            leaf name {
+                type string;
+                description "Process name";
+            }
+
+            leaf run {
+                type string;
+                description "Command to execute";
+            }
+
+            // Old syntax fields
+            leaf-list processes {
+                type string;
+                description "Process list";
+            }
+
+            leaf-list processes-match {
+                type string;
+                description "Process match patterns";
+            }
+
+            container neighbor-changes {
+                presence "Neighbor change notifications enabled";
+                description "Neighbor change notifications";
+            }
+
+            // New syntax fields
+            container content {
+                description "Content configuration";
+                leaf encoding { type string; description "Event encoding format"; }
+                leaf format { type string; description "Event output format"; }
+                leaf attribute { type string; description "Attribute filter expression"; }
+            }
+
+            leaf-list receive {
+                type string;
+                ze:validate "receive-event-type";
+                description "Event types to receive. Base types: update, open,
+                    notification, keepalive, refresh, state, sent, negotiated.
+                    Plugins may register additional types (e.g., update-rpki).
+                    List types explicitly; 'all' is not accepted.
+                    Validated at runtime against registered event types.";
+            }
+
+            leaf-list send {
+                type string;
+                ze:validate "send-message-type";
+                description "Message types to send. Valid: update, refresh,
+                    enhanced-refresh (BORR/EORR markers, RFC 7313).
+                    Validated at runtime against known send types.";
+            }
+        }
+
+        // Filter chains
+        container filter {
+            description
+                "Route filter chains for import and export.
+                 Names reference filter instances defined in bgp/policy.";
+            leaf-list import {
+                type string;
+                description "Import filter chain (filter instance names)";
+            }
+            leaf-list export {
+                type string;
+                description "Export filter chain (filter instance names)";
+            }
+        }
+
+        // RIB configuration
+        container rib {
+            description "RIB configuration";
+            container adj {
+                description "Adjacency RIB settings";
+                leaf in {
+                    type boolean;
+                    description "Maintain Adj-RIB-In";
+                }
+                leaf out {
+                    type boolean;
+                    description "Maintain Adj-RIB-Out";
+                }
+            }
+            container out {
+                description "Outbound RIB settings";
+                leaf group-updates {
+                    type boolean;
+                    default true;
+                    description "Group updates";
+                }
+                leaf auto-commit-delay {
+                    type uint32;
+                    default 0;
+                    description "Auto-commit delay in milliseconds";
+                }
+                leaf max-batch-size {
+                    type int32;
+                    default 0;
+                    description "Max batch size";
+                }
+            }
+        }
+
+    }
+
+    // BGP-owned environment settings — augment hub's environment container
+    augment "/hub:environment" {
+        container bgp {
+            description "BGP protocol settings";
+            leaf openwait {
+                type int32 { range "1..3600"; }
+                default "120";
+                description "Seconds to wait for peer OPEN after TCP connect";
+            }
+            leaf announce-delay {
+                type string;
+                default "0s";
+                description "Delay between reactor Ready and first UPDATE (duration, 0s-1h)";
+            }
+        }
+
+        container reactor {
+            description "Reactor settings";
+            leaf speed { type string; default "1.0"; description "Reactor loop time multiplier (0.1-10.0)"; }
+            leaf cache-ttl { type uint32; default 60; description "Update cache TTL in seconds (0=immediate)"; }
+            leaf cache-max { type uint32; default 1000000; description "Update cache max entries (0=unlimited)"; }
+            leaf update-groups { type boolean; default true; description "Cross-peer UPDATE grouping (build once, send to all peers with same encoding context)"; }
+        }
+    }
+}

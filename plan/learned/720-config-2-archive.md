@@ -44,7 +44,7 @@ Ze had a flat config archive model: `archive { location X; }` with a single list
 - `internal/component/config/archive/scheduler.go` -- time-based trigger scheduler
 - `internal/component/config/archive/scheduler_test.go` -- scheduler tests
 - `internal/component/cmd/archive/archive.go` -- RPC handler for config archive trigger
-- `internal/component/cmd/archive/schema/ze-config-archive-api.yang` -- RPC definition
-- `internal/component/cmd/archive/schema/ze-config-archive-cmd.yang` -- CLI command tree
-- `internal/component/cmd/archive/schema/embed.go` -- YANG embedding
-- `internal/component/cmd/archive/schema/register.go` -- YANG module registration
+- `internal/component/cmd/archive/yang/ze-config-archive-api.yang` -- RPC definition
+- `internal/component/cmd/archive/yang/ze-config-archive-cmd.yang` -- CLI command tree
+- `internal/component/cmd/archive/yang/embed.go` -- YANG embedding
+- `internal/component/cmd/archive/yang/register.go` -- YANG module registration

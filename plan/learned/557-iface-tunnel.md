@@ -120,7 +120,7 @@ shape, not the former's runtime-only validation.
 
 ## Files
 
-- `internal/component/iface/schema/ze-iface-conf.yang` -- groupings + list tunnel
+- `internal/component/iface/yang/ze-iface-conf.yang` -- groupings + list tunnel
 - `internal/component/iface/tunnel.go` -- TunnelKind enum + TunnelSpec
 - `internal/component/iface/backend.go` -- +CreateTunnel method
 - `internal/component/iface/config.go` -- +tunnelEntry, parseTunnelEntry, applyTunnels

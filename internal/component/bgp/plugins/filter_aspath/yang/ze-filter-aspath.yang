@@ -1,0 +1,67 @@
+module ze-filter-aspath {
+    namespace "urn:ze:filter-aspath";
+    prefix fa;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+
+    description "AS-path regex filter type for the BGP policy framework.
+                 Named as-path-lists with ordered regex entries (first match wins)
+                 and accept/reject actions. The AS-path is converted to a
+                 space-separated decimal string (e.g. '65001 65002 65003') and
+                 each entry's regex is matched against it using Go RE2 semantics
+                 (linear time, no backtracking -- inherently ReDoS-safe).
+                 Referenced from peer filter chains as bgp-filter-aspath:NAME.";
+
+    revision 2026-04-12 {
+        description "Initial revision";
+    }
+
+    augment "/bgp:bgp/bgp:policy" {
+        list as-path-list {
+            ze:filter;
+            key "name";
+            description "Named AS-path regex filter instance.
+                         Each list contains an ordered set of regex entries.
+                         Entries are evaluated in order; first match wins.
+                         No match = implicit deny (reject).";
+
+            leaf name {
+                type string;
+                description "Filter instance name (referenced in peer filter chains
+                             as bgp-filter-aspath:NAME or as-path-list:NAME).";
+            }
+
+            list entry {
+                key "regex";
+                ordered-by user;
+                description "Ordered regex entry. First match wins against the
+                             space-separated AS-path string.";
+
+                leaf regex {
+                    type string;
+                    description "Regular expression matched against the space-separated
+                                 decimal AS-path string representation.
+                                 Examples: '^65001$' (exact single-AS match),
+                                 '^65001 ' (paths starting with AS 65001),
+                                 '^$' (empty AS-path, locally originated).
+                                 Uses Go RE2 syntax (linear time guarantee).
+                                 Maximum length: 512 characters.";
+                }
+
+                leaf action {
+                    type enumeration {
+                        enum accept {
+                            description "Accept routes with matching AS-path";
+                        }
+                        enum reject {
+                            description "Reject routes with matching AS-path";
+                        }
+                    }
+                    default accept;
+                    description "Action applied when this entry's regex matches.";
+                }
+            }
+        }
+    }
+}

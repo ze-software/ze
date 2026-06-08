@@ -33,7 +33,7 @@ Four CLI handler families (show interface, clear interface, cache, commit) accep
 - `internal/component/iface/cmd/clear.go` (handleClearInterfaceCounters refactor)
 - `internal/component/bgp/plugins/cmd/cache/cache.go` (handleBgpCache refactor)
 - `internal/component/bgp/plugins/cmd/commit/commit.go` (handleCommit refactor)
-- `internal/component/cmd/{show,clear,cache,commit}/schema/*.yang` (description updates)
+- `internal/component/cmd/{show,clear,cache,commit}/yang/*.yang` (description updates)
 - `internal/component/iface/cmd/clear_test.go`, `cache_test.go`, `commit_test.go` (new tests)
 - `docs/guide/command-reference.md` (grammar documentation)
 - `test/plugin/cli-grammar-action-first.ci` (functional test)

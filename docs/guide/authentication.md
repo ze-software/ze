@@ -60,7 +60,7 @@ After `commit` (or `ze config set --no-reload`), the persisted file contains
 only the bcrypt hash; the `plaintext-password` leaf is removed and never
 written to disk. This matches Junos's `plain-text-password` behaviour.
 
-<!-- source: internal/component/ssh/schema/ze-ssh-conf.yang -- system.authentication.user -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 
 ### Step 3: reload
@@ -226,7 +226,7 @@ a `slog.Warn` so the truncation surfaces in daemon logs.
 
 | Symbol | Location |
 |--------|----------|
-| YANG schema | `internal/component/ssh/schema/ze-ssh-conf.yang` |
+| YANG schema | `internal/component/ssh/yang/ze-ssh-conf.yang` |
 | Public key matching | `internal/component/ssh/pubkey.go` |
 | Commit-time hashing helper | `internal/component/config/password_hash.go` |
 | Validator | `internal/component/cli/validator.go` |

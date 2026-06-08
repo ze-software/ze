@@ -1,0 +1,35 @@
+# Test: Load command blocked in session mode
+# VALIDATES: load returns error when session is active
+# PREVENTS: load bypassing write-through, silently losing changes on commit
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Try load file - should be blocked
+input=type:text=load file absolute replace test.conf
+input=enter
+expect=error:contains=load not supported in session mode
+
+# Try load terminal - should also be blocked
+input=type:text=load terminal absolute replace
+input=enter
+expect=error:contains=load not supported in session mode

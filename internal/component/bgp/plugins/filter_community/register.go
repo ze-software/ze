@@ -2,7 +2,7 @@ package filter_community
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	fcschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community/schema"
+	fcyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
@@ -17,7 +17,7 @@ func init() {
 		Description:    "Community tag/strip filter (standard, large, extended)",
 		ConfigRoots:    []string{"bgp"},
 		Dependencies:   []string{"bgp"},
-		YANG:           fcschema.ZeFilterCommunityYANG,
+		YANG:           fcyang.ZeFilterCommunityYANG,
 		RunEngine:      RunFilterCommunity,
 		CLIHandler:     func(_ []string) int { return 0 },
 		IngressFilter:  ingressFilter,

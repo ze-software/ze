@@ -28,7 +28,7 @@ Ze's DNS configuration was split across two disconnected locations: `environment
 
 ## Files
 
-- `internal/component/config/system/schema/ze-system-conf.yang` - `name-server` leaf-list + `dns {}` container
+- `internal/component/config/system/yang/ze-system-conf.yang` - `name-server` leaf-list + `dns {}` container
 - `internal/component/config/system/system.go` - `ExtractSystemConfig` with DNS fields
 - `internal/component/config/system/resolv_linux.go` - atomic resolv.conf writer
 - `cmd/ze/hub/main.go` - hub wiring for resolver config

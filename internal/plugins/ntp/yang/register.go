@@ -8,4 +8,5 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-ntp-cmd.yang", ZeNTPCmdYANG)
+	configyang.RegisterModule("ze-ntp-conf.yang", ZeNTPConfYANG)
 }

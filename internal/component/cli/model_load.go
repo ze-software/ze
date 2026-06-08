@@ -330,6 +330,10 @@ func parseLoadArgs(args []string) (source, location, action, path string, err er
 // cmdLoadNew handles the redesigned load command syntax.
 // Syntax: load <source> <location> <action> [file].
 func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
+	if m.editor.HasSession() {
+		return commandResult{}, errLoadNotSupportedInSessionMode
+	}
+
 	source, location, action, path, err := parseLoadArgs(args)
 	if err != nil {
 		return commandResult{}, err

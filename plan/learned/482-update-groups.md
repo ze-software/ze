@@ -37,7 +37,7 @@ The user also required ExaBGP compatibility: migrated configs must preserve per-
 - `internal/component/bgp/reactor/reactor_api_batch.go` -- group-aware build
 - `internal/component/bgp/reactor/reactor_api_forward.go` -- cache-aware forward
 - `internal/component/bgp/reactor/peer.go` -- updateGroupKey field
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- YANG leaf
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- YANG leaf
 - `internal/component/config/environment.go` -- env var registration
 - `internal/exabgp/migration/migrate.go` -- injection
 - `test/parse/update-groups-disabled.ci` -- parse test

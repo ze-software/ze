@@ -169,7 +169,7 @@ storage, and adds a YANG `fleet {}` config container for operator-managed device
 ## Files to Modify
 - `internal/component/plugin/server/managed.go` -- extend ManagedConfigService with DeviceRegistry
 - `cmd/ze/hub/main.go` -- wire DeviceRegistry at startup, pass to ManagedConfigService
-- `internal/component/plugin/schema/ze-plugin-conf.yang` -- add fleet container (or new YANG module)
+- `internal/component/plugin/yang/ze-plugin-conf.yang` -- add fleet container (or new YANG module)
 
 ## Files to Create
 - `internal/component/plugin/server/registry.go` -- DeviceRegistry type and persistence

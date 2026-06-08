@@ -145,7 +145,7 @@ deployments that stay IPv4-only keep the old single-socket path.
   v4 helper; `applyPinned` publishes cfg early; loopFor logs
   `ipv6` field.
 - `internal/plugins/bfd/config.go` -- `bindV6` field and parse.
-- `internal/plugins/bfd/schema/ze-bfd-conf.yang` -- top-level
+- `internal/plugins/bfd/yang/ze-bfd-conf.yang` -- top-level
   `bind-v6` leaf.
 - `test/plugin/bfd-ipv6-dual-bind.ci` (new) -- v6 pinned session
   lifecycle test.

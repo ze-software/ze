@@ -27,8 +27,8 @@ Ze's `show pki certificate <name>` returned structured JSON detail but had no wa
 
 - `internal/component/pki/show.go` -- sub-command routing, PEM/bundle/fingerprint logic
 - `internal/component/pki/store_test.go` -- 16 new tests covering all sub-commands and error paths
-- `internal/component/pki/schema/ze-pki-api.yang` -- updated RPC description
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- updated command description
+- `internal/component/pki/yang/ze-pki-api.yang` -- updated RPC description
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- updated command description
 - `test/plugin/show-pki-certificate-export.ci` -- functional test (5 assertions)
 - `docs/guide/command-reference.md` -- new sub-commands documented
 - `docs/architecture/api/commands.md` -- wire method and response formats

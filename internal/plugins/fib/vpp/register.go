@@ -13,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	fibvppschema "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/schema"
+	fibvppyang "codeberg.org/thomas-mangin/ze/internal/plugins/fib/vpp/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -25,7 +25,7 @@ func init() {
 		Features:     "yang",
 		ConfigRoots:  []string{"fib/vpp"},
 		Dependencies: []string{"rib", "vpp"},
-		YANG:         fibvppschema.ZeFibVppConfYANG,
+		YANG:         fibvppyang.ZeFibVPPConfYANG,
 		RunEngine:    runFibVPPPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setFibVPPLogger(slogutil.Logger(loggerName))

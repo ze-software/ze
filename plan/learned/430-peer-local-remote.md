@@ -28,7 +28,7 @@ BGP peer configuration used flat keys (`peer-as`, `local-as`, `local-address`) a
 
 ## Files
 
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- YANG restructuring
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -- YANG restructuring
 - `internal/component/bgp/reactor/config.go` -- parsePeerFromTree, PeersFromTree
 - `internal/component/bgp/reactor/config_test.go` -- unit tests for nested structure
 - `internal/component/bgp/reactor/reactor_api.go` -- API path parser

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/api/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/api/yang"
 )
 
 // VALIDATES: ze-api-conf YANG module loads into environment.api-server.

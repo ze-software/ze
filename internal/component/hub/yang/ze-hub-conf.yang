@@ -1,0 +1,111 @@
+module ze-hub-conf {
+    namespace "urn:ze:hub:conf";
+    prefix hub;
+
+    import ze-extensions { prefix ze; }
+
+    description "Hub/core configuration for ZeBGP";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    // Environment block - ZeBGP-specific settings
+    container environment {
+        description "ZeBGP environment settings";
+
+        container daemon {
+            description "Daemon settings";
+            leaf pid { type string; description "PID file path"; }
+            leaf user { type string; default "zeuser"; description "System user for privilege drop"; }
+        }
+
+        container log {
+            description "Logging settings";
+
+            // Base log level for all subsystems (ze.log)
+            leaf level {
+                type string;
+                default "INFO";
+                description "Base log level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL (case-insensitive)";
+            }
+
+            // Log output backend
+            leaf backend {
+                type enumeration {
+                    enum stderr { description "Standard error output"; }
+                    enum stdout { description "Standard output"; }
+                    enum syslog { description "Syslog daemon"; }
+                }
+                description "Log output backend (default: stderr)";
+            }
+
+            // Syslog destination address
+            leaf destination {
+                type string;
+                default "stdout";
+                description "Log destination: stdout, stderr, syslog, or filename";
+            }
+
+            // Plugin stderr relay level
+            leaf relay {
+                type string;
+                description "Plugin stderr relay level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL (case-insensitive)";
+            }
+
+            // Subsystem-specific log levels (any key allowed)
+            // Syntax: <subsystem-path> <level>;
+            // Example: bgp.routes debug;
+            // Maps to: ze.log.bgp.routes=debug
+            ze:allow-unknown-fields;
+        }
+
+        // pprof HTTP server address (top-level leaf under environment).
+        // Consumed by startPprofServer via env var `ze.pprof`.
+        leaf pprof { type string; description "pprof HTTP server address (e.g. :6060). Empty disables pprof."; }
+
+        container chaos {
+            description "Chaos fault injection settings";
+            leaf seed { type int64; description "PRNG seed (0 = disabled)"; }
+            leaf rate { type string; default "0.1"; description "Fault probability per operation (0.0-1.0)"; }
+        }
+
+        container cli {
+            description "CLI session settings";
+            container format {
+                description "Default output format settings";
+                leaf default {
+                    type enumeration {
+                        enum text { description "Space-aligned columns without box-drawing"; }
+                        enum table { description "Nushell-style table with box-drawing characters"; }
+                        enum json { description "JSON output (pretty-printed)"; }
+                        enum yaml { description "YAML output"; }
+                        enum ndjson { description "Newline-delimited JSON (one object per line)"; }
+                    }
+                    default "text";
+                    description "Default output format when no pipe operator is specified";
+                }
+            }
+            leaf transcript {
+                type enumeration {
+                    enum enabled { description "Record CLI session commands and output to local transcript file"; }
+                    enum disabled { description "No transcript recording"; }
+                }
+                default "disabled";
+                description "CLI session transcript recording to $XDG_DATA_HOME/ze/transcripts/";
+            }
+        }
+
+        container exabgp {
+            description "ExaBGP compatibility settings for the migration bridge";
+            container api {
+                description "ExaBGP bridge API settings";
+                leaf ack {
+                    type boolean;
+                    default true;
+                    description "Emit done/error ack lines on plugin stdin after each dispatched command";
+                }
+            }
+        }
+    }
+}

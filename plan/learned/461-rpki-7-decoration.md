@@ -38,7 +38,7 @@ Enable plugins to receive BGP UPDATE events enriched with RPKI validation state,
 - `internal/component/plugin/events.go` -- EventRPKI constant added to ValidBgpEvents
 - `internal/component/plugin/server/dispatch.go` -- emit-event RPC handler
 - `internal/component/plugin/server/subscribe.go` -- whitespace validation for subscriptions
-- `internal/core/ipc/schema/ze-plugin-engine.yang` -- emit-event YANG schema
+- `internal/core/ipc/yang/ze-plugin-engine.yang` -- emit-event YANG schema
 - `test/plugin/rpki-event-valid.ci` -- functional: valid prefix emits validation event
 - `test/plugin/rpki-event-multi.ci` -- functional: three prefixes with independent states
 - `test/plugin/rpki-event-unavailable.ci` -- functional: no RTR server produces unavailable

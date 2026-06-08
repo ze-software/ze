@@ -494,7 +494,7 @@ bgp plugin format full          # Both parsed AND wire bytes
 bgp plugin ack sync             # Wait for wire transmission
 bgp plugin ack async            # Return immediately (default)
 ```
-<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack -->
+<!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack -->
 
 ## Grammar
 

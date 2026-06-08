@@ -23,7 +23,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
-	rsvpteschema "codeberg.org/thomas-mangin/ze/internal/component/rsvpte/schema"
+	rsvpteyang "codeberg.org/thomas-mangin/ze/internal/component/rsvpte/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -243,7 +243,7 @@ func registerRSVPTE() {
 		Name:         "rsvp-te",
 		Description:  "RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)",
 		Features:     "yang",
-		YANG:         rsvpteschema.ZeRSVPTEConfYANG,
+		YANG:         rsvpteyang.ZeRSVPTEConfYANG,
 		ConfigRoots:  []string{"rsvp-te"},
 		Dependencies: []string{"fib-kernel", "sysctl"},
 		RunEngine:    runRSVPTEEngine,

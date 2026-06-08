@@ -8,5 +8,5 @@
 package log
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log/schema" // init() registers YANG module
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log/yang" // init() registers YANG module
 )

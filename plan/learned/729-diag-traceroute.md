@@ -31,7 +31,7 @@ Gokrazy appliances have no `traceroute` binary. Ze already had a `ze traceroute`
 - `internal/component/cmd/show/show.go` (modified: RPC registration, argTimeout constant)
 - `internal/component/cmd/show/ping.go` (modified: use argTimeout, add Related comments)
 - `internal/component/cmd/show/tcp_check.go` (modified: use argTimeout)
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` (modified: traceroute container)
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` (modified: traceroute container)
 - `cmd/ze/diag/diag.go` (modified: removed tracerouteSpec and RunTraceroute)
 - `cmd/ze/diag/register.go` (modified: removed traceroute registration)
 - `cmd/ze/diag/diag_test.go` (modified: removed RunTraceroute test)

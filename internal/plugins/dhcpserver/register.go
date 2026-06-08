@@ -12,7 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	dhcpschema "codeberg.org/thomas-mangin/ze/internal/plugins/dhcpserver/schema"
+	dhcpyang "codeberg.org/thomas-mangin/ze/internal/plugins/dhcpserver/yang"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -27,7 +27,7 @@ func init() {
 		Name:                    "dhcpserver",
 		Description:             "DHCP server: address assignment for LAN clients (RFC 2131)",
 		Features:                "yang",
-		YANG:                    dhcpschema.ZeDHCPServerConfYANG,
+		YANG:                    dhcpyang.ZeDHCPServerConfYANG,
 		ConfigRoots:             []string{configRootService},
 		InProcessConfigVerifier: verifyDHCPConfig,
 		RunEngine:               runDHCPServerPlugin,

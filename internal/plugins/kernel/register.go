@@ -13,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	kernelschema "codeberg.org/thomas-mangin/ze/internal/plugins/kernel/schema"
+	kernelyang "codeberg.org/thomas-mangin/ze/internal/plugins/kernel/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -37,7 +37,7 @@ func init() {
 		Name:        pluginName,
 		Description: "Kernel routes: redistribute externally-installed kernel routes into BGP",
 		Features:    "yang",
-		YANG:        kernelschema.ZeKernelConfYANG,
+		YANG:        kernelyang.ZeKernelConfYANG,
 		ConfigRoots: []string{pluginName},
 		RunEngine:   runKernelPlugin,
 		ConfigureEngineLogger: func(loggerName string) {

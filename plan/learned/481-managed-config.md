@@ -36,7 +36,7 @@ Ze instances in a fleet need centralized configuration. Without it, each instanc
 - `internal/component/plugin/ipc/tls.go` -- `AuthenticateWithLookup()`
 - `internal/component/plugin/types.go` -- `HubServerConfig`, `HubClientConfig`
 - `internal/component/bgp/config/plugins.go` -- named server/client block extraction
-- `internal/component/plugin/schema/ze-plugin-conf.yang` -- `list server`, `list client`
+- `internal/component/plugin/yang/ze-plugin-conf.yang` -- `list server`, `list client`
 - `cmd/ze/main.go` -- `isManaged()`, `cmdStartManaged()`, CLI flags
 - `test/managed/*.ci` -- 12 functional tests
 - `docs/architecture/fleet-config.md`, `docs/guide/fleet-config.md` -- documentation

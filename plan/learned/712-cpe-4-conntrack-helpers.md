@@ -73,7 +73,7 @@ archive.go. Changing a struct's size can cascade through unrelated callers.
 | `internal/component/config/system/conntrack_other.go` | Non-Linux stub |
 | `internal/component/config/system/conntrack_test.go` | 17 unit tests |
 | `internal/component/config/system/system.go` | ConntrackConfig field + extractConntrack call |
-| `internal/component/config/system/schema/ze-system-conf.yang` | Conntrack container with enums and ranges |
+| `internal/component/config/system/yang/ze-system-conf.yang` | Conntrack container with enums and ranges |
 | `internal/core/sysctl/managed.go` | Managed key registry for dual-setting prevention |
 | `internal/plugins/sysctl/register.go` | CheckManaged in both setting and profile verifiers |
 | `internal/plugins/sysctl/sysctl_test.go` | Dual-setting prevention test |

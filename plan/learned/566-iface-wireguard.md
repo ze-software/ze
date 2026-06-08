@@ -173,7 +173,7 @@ transitive `mdlayher/genetlink` + `mdlayher/netlink` dependencies.
 
 ## Files
 
-- `internal/component/iface/schema/ze-iface-conf.yang` -- split
+- `internal/component/iface/yang/ze-iface-conf.yang` -- split
   groupings, new `list wireguard` with nested `list peer`, `ze:sensitive`
   on private-key and peer preshared-key, `ze:listener` on the list entry
 - `internal/component/iface/wireguard.go` -- WireguardKey alias,

@@ -158,7 +158,7 @@ sees templates. Template rendering happens inside HandleConfigFetch on the hub s
 ## Files to Modify
 - `internal/component/plugin/server/managed.go` -- template-aware ConfigReader
 - `internal/component/plugin/server/registry.go` -- group membership queries
-- `internal/component/plugin/schema/ze-plugin-conf.yang` -- template and group YANG containers
+- `internal/component/plugin/yang/ze-plugin-conf.yang` -- template and group YANG containers
 
 ## Files to Create
 - `internal/component/plugin/server/template.go` -- template storage, rendering, change notification

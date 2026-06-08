@@ -42,8 +42,8 @@ disrupted log ordering and timer-based protocols.
 - `internal/plugins/ntp/register.go` -- RPC registration, show handlers, NTP sync provider
 - `internal/plugins/ntp/clock_linux.go` -- slewClock via Adjtimex
 - `internal/plugins/ntp/clock_other.go` -- slewClock stub
-- `internal/plugins/ntp/schema/ze-ntp-conf.yang` -- slew-threshold leaf
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -- ntp containers under system
+- `internal/plugins/ntp/yang/ze-ntp-conf.yang` -- slew-threshold leaf
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- ntp containers under system
 - `internal/component/cmd/show/system.go` -- handleShowSystemDate NTP enrichment
 - `internal/component/plugin/registry/registry.go` -- NTP sync provider registration
 - `test/plugin/show-system-ntp.ci` -- functional test

@@ -70,4 +70,4 @@ DNS resolver configuration comes from YANG (`ze-system-conf.yang`):
 `system/name-server` (leaf-list of IP addresses) and `system/dns` with
 leaves: `resolv-conf-path`, `timeout`, `cache-size`, `cache-ttl`.
 
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system DNS config -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->

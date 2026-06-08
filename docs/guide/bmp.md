@@ -1,7 +1,7 @@
 # BMP (BGP Monitoring Protocol)
 
 <!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin -->
-<!-- source: internal/component/bgp/plugins/bmp/schema/ze-bmp-conf.yang -- YANG config -->
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- YANG config -->
 
 Ze implements RFC 7854 BMP in both directions: as a **receiver** (accepting
 feeds from routers) and as a **sender** (streaming state to collectors).
@@ -29,7 +29,7 @@ environment {
 }
 ```
 
-<!-- source: internal/component/bgp/plugins/bmp/schema/ze-bmp-conf.yang -- environment container -->
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- environment container -->
 
 | Field | Default | Description |
 |-------|---------|-------------|
@@ -81,7 +81,7 @@ bgp {
 }
 ```
 
-<!-- source: internal/component/bgp/plugins/bmp/schema/ze-bmp-conf.yang -- sender container -->
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- sender container -->
 
 | Field | Default | Description |
 |-------|---------|-------------|

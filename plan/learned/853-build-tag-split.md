@@ -33,7 +33,7 @@ Ze used a single negative build tag (`ze_stripped`) to produce two binary varian
 - Created: `cmd/ze/setup_features_distro.go` (ze_distro), `cmd/ze/setup_features_setup.go` (ze_setup), `cmd/ze/setup_features_appliance.go` (ze_appliance)
 - Created: `cmd/ze/build_tag_distro_test.go`, `cmd/ze/build_tag_appliance_test.go`, `cmd/ze/build_tag_setup_test.go`, `cmd/ze/build_tag_full_test.go`
 - Deleted: `cmd/ze/setup_features_full.go`, `cmd/ze/setup_features_stripped.go`, `cmd/ze/appliance_import.go`
-- Deleted: `internal/component/cmd/update/doc_stripped.go`, `internal/component/cmd/update/schema/register_stripped.go`
+- Deleted: `internal/component/cmd/update/doc_stripped.go`, `internal/component/cmd/update/yang/register_stripped.go`
 - Renamed: `backend_ze_stripped.go` -> `backend_ze_minimal.go`, `backend_ze_stripped_test.go` -> `backend_ze_minimal_test.go`, `firmware_stripped_test.go` -> `firmware_minimal_test.go`, `register_stripped_test.go` -> `register_minimal_test.go`
 - Modified: `cmd/ze/setup_features_stripped_test.go` (removed build tag)
 - Modified: `internal/component/config/system/backend_ze.go`, `selfupdate.go`, `selfupdate_test.go`, `backend_test.go` (changed `!ze_stripped` to `ze_distro`)

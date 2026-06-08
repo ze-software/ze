@@ -29,7 +29,7 @@ Ze needed PXE boot support in its DHCP server plugin to enable bare-metal provis
 - `internal/plugins/dhcpserver/handler.go` -- PXE option constants, isPXEClient, parsePXEArch, appendPXEOptions, parseOptionBytes
 - `internal/plugins/dhcpserver/config.go` -- pxeConfig struct, parsePXEConfig
 - `internal/plugins/dhcpserver/register.go` -- PXE config threading through startServer
-- `internal/plugins/dhcpserver/schema/ze-dhcp-server-conf.yang` -- pxe container
+- `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` -- pxe container
 - `internal/plugins/dhcpserver/handler_test.go` -- 12 PXE tests
 - `internal/plugins/dhcpserver/config_test.go` -- 3 PXE config tests
 - `test/install/dhcp-pxe-config.ci` -- functional test

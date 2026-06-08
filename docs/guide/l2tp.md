@@ -13,7 +13,7 @@ metrics, the web UI, reload semantics, and how subscriber routes flow
 out to BGP.
 
 <!-- source: internal/component/l2tp/subsystem.go -->
-<!-- source: internal/component/l2tp/schema/ze-l2tp-conf.yang -->
+<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -->
 
 ## Configuration
 
@@ -86,7 +86,7 @@ Destructive commands live under the `clear` verb (not a top-level `l2tp`
 noun) to match ze's CLI grammar. The `clear` prefix is denied in the
 built-in read-only authz profile.
 
-<!-- source: internal/component/l2tp/schema/ze-l2tp-cmd.yang -->
+<!-- source: internal/component/l2tp/yang/ze-l2tp-cmd.yang -->
 
 ### Offline dispatcher
 

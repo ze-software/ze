@@ -28,7 +28,7 @@ Rules: `rules/config-design.md`. Architecture: `docs/architecture/config/yang-co
 
 ## Step 1: YANG Leaf Definition
 
-File: `internal/component/<name>/schema/ze-<name>-conf.yang` (or existing module).
+File: `internal/component/<name>/yang/ze-<name>-conf.yang` (or existing module).
 
 ```yang
 leaf my-option {
@@ -218,8 +218,8 @@ Core types/extensions must be embedded. Plugin schemas are registered at import 
 
 | What | File |
 |------|------|
-| YANG config module | `internal/component/bgp/schema/ze-bgp-conf.yang` |
-| Hub config module | `internal/component/hub/schema/ze-hub-conf.yang` |
+| YANG config module | `internal/component/bgp/yang/ze-bgp-conf.yang` |
+| Hub config module | `internal/component/hub/yang/ze-hub-conf.yang` |
 | Env var registration | `internal/component/config/environment.go` |
 | Schema loading | `internal/component/config/yang_schema.go` |
 | Custom validators | `internal/component/config/validators.go` |

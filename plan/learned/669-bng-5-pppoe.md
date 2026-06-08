@@ -34,7 +34,7 @@ Total: 29 new files, 41 unit tests, 3 functional test scripts (Linux-only).
 ## Patterns worth reusing
 
 - **Snapshot + LookupSnapshot pair.** When a table's `Lookup()` returns a live pointer but fields are mutated after insertion, provide a `LookupSnapshot()` that copies under the lock. CLI handlers use snapshots; hot-path code uses raw pointers.
-- **YANG triple (conf + api + cmd).** Config schema, API RPCs, and CLI tree are three separate YANG modules. The conf and api modules are embedded in the component's `schema/` package; the cmd module is in `cmd/<name>/schema/`. Blank imports in the CLI handler wire everything.
+- **YANG triple (conf + api + cmd).** Config schema, API RPCs, and CLI tree are three separate YANG modules. The conf and api modules are embedded in the component's `schema/` package; the cmd module is in `cmd/<name>/yang/`. Blank imports in the CLI handler wire everything.
 - **Transport-agnostic PPP integration.** New transports (PPPoE, future IPoE) feed `ppp.StartSession` with transport-specific fields. The PPP Driver is oblivious to the transport. Shared kernel setup lives in `ppp/devppp_linux.go`.
 
 ## Remaining integration work

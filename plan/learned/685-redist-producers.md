@@ -32,7 +32,7 @@ Ze had redistribution infrastructure (event bus, filter chain, bgp-redistribute 
 
 - `internal/plugins/connected/{connected,register,eventbus,logger}.go` -- new connected plugin
 - `internal/plugins/connected/events/events.go` -- redistevents producer registration
-- `internal/plugins/connected/schema/{ze-connected-conf.yang,embed,register}.go` -- YANG config
+- `internal/plugins/connected/yang/{ze-connected-conf.yang,embed,register}.go` -- YANG config
 - `internal/plugins/connected/connected_test.go` -- 9 unit tests
 - `internal/component/radius/dict.go` -- AttrFramedRoute (22), AttrFramedIPv6Route (99)
 - `internal/plugins/l2tpauthradius/extract.go` -- extractFramedRoutes, parseFramedRoute

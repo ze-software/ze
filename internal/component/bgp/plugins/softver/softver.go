@@ -17,7 +17,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -159,9 +159,9 @@ func extractSoftverCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	return caps
 }
 
-// GetYANG returns the embedded YANG schema for the softver plugin.
+// GetYANG returns the embedded YANG for the softver plugin.
 func GetYANG() string {
-	return schema.ZeSoftverYANG
+	return yang.ZeSoftverYANG
 }
 
 // RunDecodeMode runs the plugin in decode mode for ze bgp decode.

@@ -182,7 +182,7 @@ func TestPeerCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdPluginBase+"cmd/peer/schema/ze-peer-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/peer/yang/ze-peer-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -228,7 +228,7 @@ func TestRibCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdPluginBase+"cmd/rib/schema/ze-rib-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/rib/yang/ze-rib-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -270,7 +270,7 @@ func TestRefreshCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdPluginBase+"route_refresh/schema/ze-refresh-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"route_refresh/yang/ze-refresh-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -320,8 +320,8 @@ func TestSimpleCmdModules(t *testing.T) {
 		container  string
 		wireMethod string
 	}{
-		{"commit", cmdPluginBase + "cmd/commit/schema/ze-cli-commit-cmd.yang", "ze-cli-commit-cmd", "request/commit", "ze-bgp:commit"},
-		{"subscribe", cmdBase + "subscribe/schema/ze-cli-subscribe-cmd.yang", "ze-cli-subscribe-cmd", "request/subscribe", "ze-bgp:subscribe"},
+		{"commit", cmdPluginBase + "cmd/commit/yang/ze-cli-commit-cmd.yang", "ze-cli-commit-cmd", "request/commit", "ze-bgp:commit"},
+		{"subscribe", cmdBase + "subscribe/yang/ze-cli-subscribe-cmd.yang", "ze-cli-subscribe-cmd", "request/subscribe", "ze-bgp:subscribe"},
 	}
 
 	for _, tt := range tests {
@@ -354,7 +354,7 @@ func TestCommitNoEditShortcut(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdPluginBase+"cmd/commit/schema/ze-cli-commit-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/commit/yang/ze-cli-commit-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -371,7 +371,7 @@ func TestLogCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"log/schema/ze-cli-log-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"log/yang/ze-cli-log-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -400,7 +400,7 @@ func TestMetricsCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"metrics/schema/ze-cli-metrics-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"metrics/yang/ze-cli-metrics-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -423,7 +423,7 @@ func TestRawCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdPluginBase+"cmd/raw/schema/ze-raw-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/raw/yang/ze-raw-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -440,7 +440,7 @@ func TestUpdateCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdPluginBase+"cmd/update/schema/ze-update-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/update/yang/ze-update-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -457,7 +457,7 @@ func TestCliUpdateCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"update/schema/ze-cli-update-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"update/yang/ze-cli-update-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -482,7 +482,7 @@ func TestCliSetCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"set/schema/ze-cli-set-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"set/yang/ze-cli-set-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -505,7 +505,7 @@ func TestCliSetCmdModule(t *testing.T) {
 func TestPeerCmdModuleOwnsDeleteBgpPeer(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
-	loadCmdModule(t, loader, "../../../component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang")
+	loadCmdModule(t, loader, "../../../component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang")
 	require.NoError(t, loader.Resolve())
 
 	entry := loader.GetEntry("ze-peer-cmd")
@@ -522,7 +522,7 @@ func TestPeerCmdModuleOwnsDeleteBgpPeer(t *testing.T) {
 func TestCliDeleteCmdModule(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
-	loadCmdModule(t, loader, cmdBase+"delete/schema/ze-cli-delete-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"delete/yang/ze-cli-delete-cmd.yang")
 	require.NoError(t, loader.Resolve())
 
 	entry := loader.GetEntry("ze-cli-delete-cmd")
@@ -544,11 +544,11 @@ func TestBuildCommandTree(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load 3 modules that all contribute to the "peer" container
-	loadCmdModule(t, loader, cmdPluginBase+"cmd/peer/schema/ze-peer-cmd.yang")
-	loadCmdModule(t, loader, cmdPluginBase+"cmd/raw/schema/ze-raw-cmd.yang")
-	loadCmdModule(t, loader, cmdPluginBase+"route_refresh/schema/ze-refresh-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/peer/yang/ze-peer-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/raw/yang/ze-raw-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"route_refresh/yang/ze-refresh-cmd.yang")
 	// Load a non-overlapping module
-	loadCmdModule(t, loader, cmdPluginBase+"cmd/cache/schema/ze-cli-cache-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/cache/yang/ze-cli-cache-cmd.yang")
 
 	err = loader.Resolve()
 	require.NoError(t, err)
@@ -613,7 +613,7 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdPluginBase+"cmd/rib/schema/ze-rib-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/rib/yang/ze-rib-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -665,7 +665,7 @@ func TestSystemCmdModuleLoads(t *testing.T) {
 
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, "../../../core/ipc/schema/ze-system-cmd.yang")
+	loadCmdModule(t, loader, "../../../core/ipc/yang/ze-system-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -710,7 +710,7 @@ func TestPluginCmdModuleLoads(t *testing.T) {
 
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, "../../../core/ipc/schema/ze-plugin-cmd.yang")
+	loadCmdModule(t, loader, "../../../core/ipc/yang/ze-plugin-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
@@ -1089,13 +1089,13 @@ func TestArgDefsPopulated(t *testing.T) {
 	// lookup/cache nodes are owned by the resolve component, so those command
 	// modules live next to their owners rather than in the central show schema.
 	cmdFiles := []string{
-		cmdBase + "show/schema/ze-cli-show-cmd.yang",
-		cmdBase + "set/schema/ze-cli-set-cmd.yang",
-		cmdBase + "log/schema/ze-cli-log-cmd.yang",
-		"../../../component/iface/schema/ze-iface-show-cmd.yang",
-		"../../../component/ping/schema/ze-ping-cmd.yang",
-		"../../../component/traceroute/schema/ze-traceroute-cmd.yang",
-		"../../../component/resolve/schema/ze-resolve-cmd.yang",
+		cmdBase + "show/yang/ze-cli-show-cmd.yang",
+		cmdBase + "set/yang/ze-cli-set-cmd.yang",
+		cmdBase + "log/yang/ze-cli-log-cmd.yang",
+		"../../../component/iface/yang/ze-iface-show-cmd.yang",
+		"../../../component/ping/yang/ze-ping-cmd.yang",
+		"../../../component/traceroute/yang/ze-traceroute-cmd.yang",
+		"../../../component/resolve/yang/ze-resolve-cmd.yang",
 	}
 	for _, path := range cmdFiles {
 		loadCmdModule(t, loader, path)
@@ -1166,7 +1166,7 @@ func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, "../../../component/iface/schema/ze-iface-cmd.yang")
+	loadCmdModule(t, loader, "../../../component/iface/yang/ze-iface-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 

@@ -404,9 +404,9 @@ Files: 8 | Docs: `docs/architecture/api/text-coverage.md`, `docs/architecture/ap
 - `internal/component/bgp/plugins/bmp/cmd_show.go` -> `docs/architecture/api/commands.md`, `docs/guide/command-reference.md`
 - `internal/component/bgp/plugins/bmp/register.go` -> `docs/guide/plugins.md`
 
-## `internal/component/bgp/plugins/bmp/schema/`
+## `internal/component/bgp/plugins/bmp/yang/`
 
-- `internal/component/bgp/plugins/bmp/schema/ze-bmp-conf.yang` -> `docs/guide/bmp.md`
+- `internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang` -> `docs/guide/bmp.md`
 
 ## `internal/component/bgp/plugins/cmd/cache/`
 
@@ -427,9 +427,9 @@ Files: 8 | Docs: `docs/architecture/api/text-coverage.md`, `docs/architecture/ap
 - `internal/component/bgp/plugins/cmd/peer/prefix_update.go` -> `docs/features/configuration.md`
 - `internal/component/bgp/plugins/cmd/peer/summary.go` -> `docs/guide/command-reference.md`
 
-## `internal/component/bgp/plugins/cmd/peer/schema/`
+## `internal/component/bgp/plugins/cmd/peer/yang/`
 
-- `internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang` -> `docs/guide/command-reference.md`
+- `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` -> `docs/guide/command-reference.md`
 
 ## `internal/component/bgp/plugins/cmd/raw/`
 
@@ -462,9 +462,9 @@ Files: 4 | Docs: `docs/comparison.md`, `docs/features.md`, `docs/guide/configura
 | `filter_aspath.go` | `docs/features.md`, `docs/guide/plugins.md` |
 | `match.go` | `docs/guide/plugins.md` |
 
-## `internal/component/bgp/plugins/filter_aspath/schema/`
+## `internal/component/bgp/plugins/filter_aspath/yang/`
 
-- `internal/component/bgp/plugins/filter_aspath/schema/ze-filter-aspath.yang` -> `docs/guide/configuration.md`
+- `internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang` -> `docs/guide/configuration.md`
 
 ## `internal/component/bgp/plugins/filter_aspath_length/`
 
@@ -487,9 +487,9 @@ Files: 4 | Docs: `docs/comparison.md`, `docs/features.md`, `docs/guide/configura
 | `filter_community_match.go` | `docs/features.md`, `docs/guide/plugins.md` |
 | `match.go` | `docs/guide/plugins.md` |
 
-## `internal/component/bgp/plugins/filter_community_match/schema/`
+## `internal/component/bgp/plugins/filter_community_match/yang/`
 
-- `internal/component/bgp/plugins/filter_community_match/schema/ze-filter-community-match.yang` -> `docs/guide/configuration.md`
+- `internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang` -> `docs/guide/configuration.md`
 
 ## `internal/component/bgp/plugins/filter_modify/`
 
@@ -502,9 +502,9 @@ Files: 4 | Docs: `docs/comparison.md`, `docs/features.md`, `docs/guide/configura
 | `filter_modify.go` | `docs/features.md`, `docs/guide/plugins.md` |
 | `modify.go` | `docs/guide/plugins.md` |
 
-## `internal/component/bgp/plugins/filter_modify/schema/`
+## `internal/component/bgp/plugins/filter_modify/yang/`
 
-- `internal/component/bgp/plugins/filter_modify/schema/ze-filter-modify.yang` -> `docs/guide/configuration.md`
+- `internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang` -> `docs/guide/configuration.md`
 
 ## `internal/component/bgp/plugins/filter_prefix/`
 
@@ -517,9 +517,9 @@ Files: 4 | Docs: `docs/comparison.md`, `docs/features.md`, `docs/guide/configura
 | `filter_prefix.go` | `docs/features.md`, `docs/guide/configuration.md`, `docs/guide/plugins.md` |
 | `match.go` | `docs/guide/plugins.md` |
 
-## `internal/component/bgp/plugins/filter_prefix/schema/`
+## `internal/component/bgp/plugins/filter_prefix/yang/`
 
-- `internal/component/bgp/plugins/filter_prefix/schema/ze-filter-prefix.yang` -> `docs/guide/configuration.md`
+- `internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang` -> `docs/guide/configuration.md`
 
 ## `internal/component/bgp/plugins/filter_remove_private_as/`
 
@@ -532,9 +532,9 @@ Files: 4 | Docs: `docs/comparison.md`, `docs/features.md`, `docs/guide/configura
 - `internal/component/bgp/plugins/gr/gr.go` -> `docs/plugin-development/metrics.md`
 - `internal/component/bgp/plugins/gr/register.go` -> `docs/DESIGN.md`, `docs/features/plugins.md`, `docs/guide/graceful-restart.md`, `docs/guide/plugins.md`
 
-## `internal/component/bgp/plugins/gr/schema/`
+## `internal/component/bgp/plugins/gr/yang/`
 
-- `internal/component/bgp/plugins/gr/schema/` -> `docs/guide/graceful-restart.md`
+- `internal/component/bgp/plugins/gr/yang/` -> `docs/guide/graceful-restart.md`
 
 ## `internal/component/bgp/plugins/healthcheck/`
 
@@ -547,9 +547,9 @@ Files: 4 | Docs: `docs/features/plugins.md`, `docs/guide/command-reference.md`, 
 | `ip.go` | `docs/guide/healthcheck.md` |
 | `register.go` | `docs/features/plugins.md` |
 
-## `internal/component/bgp/plugins/healthcheck/schema/`
+## `internal/component/bgp/plugins/healthcheck/yang/`
 
-- `internal/component/bgp/plugins/healthcheck/schema/ze-healthcheck-conf.yang` -> `docs/guide/configuration.md`, `docs/guide/healthcheck.md`
+- `internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang` -> `docs/guide/configuration.md`, `docs/guide/healthcheck.md`
 
 ## `internal/component/bgp/plugins/hostname/`
 
@@ -657,10 +657,10 @@ Files: 5 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/ap
 - `internal/component/bgp/plugins/rib/pool/attributes.go` -> `docs/architecture/pool-architecture.md`
 - `internal/component/bgp/plugins/rib/pool/srv6sid.go` -> `docs/features/srv6.md`
 
-## `internal/component/bgp/plugins/rib/schema/`
+## `internal/component/bgp/plugins/rib/yang/`
 
-- `internal/component/bgp/plugins/rib/schema/embed.go` -> `docs/plugin-development/schema.md`
-- `internal/component/bgp/plugins/rib/schema/ze-rib-api.yang` -> `docs/architecture/api/commands.md`, `docs/architecture/api/ipc_protocol.md`
+- `internal/component/bgp/plugins/rib/yang/embed.go` -> `docs/plugin-development/schema.md`
+- `internal/component/bgp/plugins/rib/yang/ze-rib-api.yang` -> `docs/architecture/api/commands.md`, `docs/architecture/api/ipc_protocol.md`
 
 ## `internal/component/bgp/plugins/rib/storage/`
 
@@ -674,9 +674,9 @@ Files: 5 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/ap
 - `internal/component/bgp/plugins/role/otc.go` -> `docs/architecture/meta/role.md`
 - `internal/component/bgp/plugins/role/register.go` -> `docs/DESIGN.md`, `docs/features/plugins.md`, `docs/guide/bgp-role.md`, `docs/guide/plugins.md`
 
-## `internal/component/bgp/plugins/role/schema/`
+## `internal/component/bgp/plugins/role/yang/`
 
-- `internal/component/bgp/plugins/role/schema/` -> `docs/guide/bgp-role.md`
+- `internal/component/bgp/plugins/role/yang/` -> `docs/guide/bgp-role.md`
 
 ## `internal/component/bgp/plugins/route_refresh/`
 
@@ -688,9 +688,9 @@ Files: 5 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/ap
 - `internal/component/bgp/plugins/rpki/register.go` -> `docs/DESIGN.md`, `docs/comparison.md`, `docs/features/plugins.md`, `docs/guide/plugins.md`, `docs/guide/rpki.md`
 - `internal/component/bgp/plugins/rpki/rpki_live_test.go` -> `docs/functional-tests.md`
 
-## `internal/component/bgp/plugins/rpki/schema/`
+## `internal/component/bgp/plugins/rpki/yang/`
 
-- `internal/component/bgp/plugins/rpki/schema/` -> `docs/guide/rpki.md`
+- `internal/component/bgp/plugins/rpki/yang/` -> `docs/guide/rpki.md`
 
 ## `internal/component/bgp/plugins/rpki_decorator/`
 
@@ -777,19 +777,19 @@ Files: 45 | Docs: `docs/DESIGN.md`, `docs/architecture.md`, `docs/architecture/a
 - `internal/component/bgp/reactor/filter/loop.go` -> `docs/architecture/forward-congestion-pool.md`, `docs/guide/redistribution.md`
 - `internal/component/bgp/reactor/filter/register.go` -> `docs/DESIGN.md`, `docs/features/plugins.md`
 
-## `internal/component/bgp/reactor/filter/schema/`
+## `internal/component/bgp/reactor/filter/yang/`
 
-- `internal/component/bgp/reactor/filter/schema/ze-loop-detection.yang` -> `docs/guide/redistribution.md`
+- `internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang` -> `docs/guide/redistribution.md`
 
 ## `internal/component/bgp/rib/`
 
 - `internal/component/bgp/rib/route.go` -> `docs/architecture/buffer-architecture.md`, `docs/architecture/route-types.md`, `docs/architecture/update-building.md`
 
-## `internal/component/bgp/schema/`
+## `internal/component/bgp/yang/`
 
-- `internal/component/bgp/schema/` -> `docs/architecture/system-architecture.md`
-- `internal/component/bgp/schema/ze-bgp-api.yang` -> `docs/architecture/api/commands.md`, `docs/architecture/api/ipc_protocol.md`, `docs/architecture/api/update-syntax.md`, `docs/architecture/api/wire-format.md`, `docs/architecture/config/yang-config-design.md`
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -> `docs/architecture/config/environment-block.md`, `docs/architecture/config/syntax.md`, `docs/architecture/config/yang-config-design.md`, `docs/architecture/core-design.md`, `docs/config-reference.md`, `docs/features/configuration.md`, `docs/guide/add-path.md`, `docs/guide/bfd.md`, `docs/guide/configuration.md`, `docs/guide/redistribution.md`, `docs/guide/status.md`
+- `internal/component/bgp/yang/` -> `docs/architecture/system-architecture.md`
+- `internal/component/bgp/yang/ze-bgp-api.yang` -> `docs/architecture/api/commands.md`, `docs/architecture/api/ipc_protocol.md`, `docs/architecture/api/update-syntax.md`, `docs/architecture/api/wire-format.md`, `docs/architecture/config/yang-config-design.md`
+- `internal/component/bgp/yang/ze-bgp-conf.yang` -> `docs/architecture/config/environment-block.md`, `docs/architecture/config/syntax.md`, `docs/architecture/config/yang-config-design.md`, `docs/architecture/core-design.md`, `docs/config-reference.md`, `docs/features/configuration.md`, `docs/guide/add-path.md`, `docs/guide/bfd.md`, `docs/guide/configuration.md`, `docs/guide/redistribution.md`, `docs/guide/status.md`
 
 ## `internal/component/bgp/server/`
 
@@ -864,9 +864,9 @@ Files: 4 | Docs: `docs/architecture/testing/ci-format.md`, `docs/architecture/te
 
 - `internal/component/cmd/log/` -> `docs/guide/command-reference.md`, `docs/guide/logging.md`
 
-## `internal/component/cmd/log/schema/`
+## `internal/component/cmd/log/yang/`
 
-- `internal/component/cmd/log/schema/` -> `docs/architecture/api/commands.md`
+- `internal/component/cmd/log/yang/` -> `docs/architecture/api/commands.md`
 
 ## `internal/component/cmd/meta/`
 
@@ -876,9 +876,9 @@ Files: 4 | Docs: `docs/architecture/testing/ci-format.md`, `docs/architecture/te
 
 - `internal/component/cmd/metrics/` -> `docs/guide/command-reference.md`
 
-## `internal/component/cmd/metrics/schema/`
+## `internal/component/cmd/metrics/yang/`
 
-- `internal/component/cmd/metrics/schema/` -> `docs/architecture/api/commands.md`
+- `internal/component/cmd/metrics/yang/` -> `docs/architecture/api/commands.md`
 
 ## `internal/component/cmd/set/`
 
@@ -912,9 +912,9 @@ Files: 21 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/core-d
 | `tcp_check.go` | `docs/guide/command-reference.md` |
 | `update.go` | `docs/guide/command-reference.md` |
 
-## `internal/component/cmd/show/schema/`
+## `internal/component/cmd/show/yang/`
 
-- `internal/component/cmd/show/schema/ze-cli-show-cmd.yang` -> `docs/architecture/api/commands.md`
+- `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -> `docs/architecture/api/commands.md`
 
 ## `internal/component/cmd/subscribe/`
 
@@ -926,10 +926,10 @@ Files: 21 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/core-d
 - `internal/component/cmd/update/firmware.go` -> `docs/features.md`, `docs/guide/command-reference.md`
 - `internal/component/cmd/update/update.go` -> `docs/guide/command-reference.md`
 
-## `internal/component/cmd/update/schema/`
+## `internal/component/cmd/update/yang/`
 
-- `internal/component/cmd/update/schema/register.go` -> `docs/features.md`
-- `internal/component/cmd/update/schema/ze-cli-update-cmd.yang` -> `docs/guide/command-reference.md`
+- `internal/component/cmd/update/yang/register.go` -> `docs/features.md`
+- `internal/component/cmd/update/yang/ze-cli-update-cmd.yang` -> `docs/guide/command-reference.md`
 
 ## `internal/component/command/`
 
@@ -999,9 +999,9 @@ Files: 11 | Docs: `docs/DESIGN.md`, `docs/architecture/config/deprecated-options
 - `internal/component/config/redistribute/consumer.go` -> `docs/guide/configuration.md`
 - `internal/component/config/redistribute/evaluator.go` -> `docs/guide/configuration.md`
 
-## `internal/component/config/schema/cli/`
+## `internal/component/config/yang/cli/`
 
-- `internal/component/config/schema/cli/main.go` -> `docs/guide/command-reference.md`
+- `internal/component/config/yang/cli/main.go` -> `docs/guide/command-reference.md`
 
 ## `internal/component/config/secret/`
 
@@ -1030,9 +1030,9 @@ Files: 8 | Docs: `docs/architecture/core-design.md`, `docs/features.md`, `docs/g
 | `system.go` | `docs/guide/config-archive.md` |
 | `update.go` | `docs/architecture/core-design.md` |
 
-## `internal/component/config/system/schema/`
+## `internal/component/config/system/yang/`
 
-- `internal/component/config/system/schema/ze-system-conf.yang` -> `docs/architecture/core-design.md`, `docs/architecture/resolve.md`, `docs/config-reference.md`, `docs/features/dns-resolver.md`, `docs/guide/config-archive.md`, `docs/guide/configuration.md`
+- `internal/component/config/system/yang/ze-system-conf.yang` -> `docs/architecture/core-design.md`, `docs/architecture/resolve.md`, `docs/config-reference.md`, `docs/features/dns-resolver.md`, `docs/guide/config-archive.md`, `docs/guide/configuration.md`
 
 ## `internal/component/config/transaction/`
 
@@ -1095,17 +1095,17 @@ Files: 4 | Docs: `docs/DESIGN.md`, `docs/architecture/core-design.md`, `docs/fea
 | `metrics.go` | `docs/features.md`, `docs/guide/flow-export.md` |
 | `register.go` | `docs/DESIGN.md` |
 
-## `internal/component/flowexport/schema/`
+## `internal/component/flowexport/yang/`
 
-- `internal/component/flowexport/schema/ze-flowexport-conf.yang` -> `docs/architecture/core-design.md`, `docs/features.md`, `docs/guide/configuration.md`, `docs/guide/flow-export.md`
+- `internal/component/flowexport/yang/ze-flowexport-conf.yang` -> `docs/architecture/core-design.md`, `docs/features.md`, `docs/guide/configuration.md`, `docs/guide/flow-export.md`
 
 ## `internal/component/gnmi/`
 
 - `internal/component/gnmi/server.go` -> `docs/features.md`
 
-## `internal/component/gnmi/schema/`
+## `internal/component/gnmi/yang/`
 
-- `internal/component/gnmi/schema/ze-gnmi-conf.yang` -> `docs/features.md`
+- `internal/component/gnmi/yang/ze-gnmi-conf.yang` -> `docs/features.md`
 
 ## `internal/component/host/`
 
@@ -1118,10 +1118,10 @@ Files: 4 | Docs: `docs/DESIGN.md`, `docs/architecture/core-design.md`, `docs/fea
 - `internal/component/hub/` -> `docs/architecture/fleet-config.md`, `docs/architecture/system-architecture.md`, `docs/guide/fleet-config.md`
 - `internal/component/hub/hub.go` -> `docs/architecture.md`
 
-## `internal/component/hub/schema/`
+## `internal/component/hub/yang/`
 
-- `internal/component/hub/schema/` -> `docs/guide/plugins.md`
-- `internal/component/hub/schema/ze-hub-conf.yang` -> `docs/architecture/config/environment-block.md`, `docs/architecture/config/yang-config-design.md`, `docs/guide/logging.md`
+- `internal/component/hub/yang/` -> `docs/guide/plugins.md`
+- `internal/component/hub/yang/ze-hub-conf.yang` -> `docs/architecture/config/environment-block.md`, `docs/architecture/config/yang-config-design.md`, `docs/guide/logging.md`
 
 ## `internal/component/iface/`
 
@@ -1158,9 +1158,9 @@ Files: 16 | Docs: `docs/architecture/config/transaction-protocol.md`, `docs/arch
 - `internal/component/iface/cmd/interface_rate.go` -> `docs/guide/command-reference.md`
 - `internal/component/iface/cmd/show_ip.go` -> `docs/guide/command-reference.md`
 
-## `internal/component/iface/schema/`
+## `internal/component/iface/yang/`
 
-- `internal/component/iface/schema/ze-iface-conf.yang` -> `docs/features/interfaces.md`, `docs/guide/configuration.md`
+- `internal/component/iface/yang/ze-iface-conf.yang` -> `docs/features/interfaces.md`, `docs/guide/configuration.md`
 
 ## `internal/component/ike/cmd/`
 
@@ -1202,9 +1202,9 @@ Files: 4 | Docs: `docs/DESIGN.md`, `docs/architecture/decisions/001-pull-model-m
 - `internal/component/ipsec/types.go` -> `docs/features.md`
 - `internal/component/ipsec/validate.go` -> `docs/features.md`, `docs/guide/configuration.md`
 
-## `internal/component/ipsec/schema/`
+## `internal/component/ipsec/yang/`
 
-- `internal/component/ipsec/schema/ze-ipsec-conf.yang` -> `docs/guide/configuration.md`
+- `internal/component/ipsec/yang/ze-ipsec-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/component/l2tp/`
 
@@ -1240,10 +1240,10 @@ Files: 18 | Docs: `docs/architecture/wire/l2tp.md`, `docs/comparison.md`, `docs/
 
 - `internal/component/l2tp/cmd/l2tp.go` -> `docs/guide/command-reference.md`, `docs/guide/l2tp.md`
 
-## `internal/component/l2tp/schema/`
+## `internal/component/l2tp/yang/`
 
-- `internal/component/l2tp/schema/ze-l2tp-cmd.yang` -> `docs/guide/command-reference.md`, `docs/guide/l2tp.md`
-- `internal/component/l2tp/schema/ze-l2tp-conf.yang` -> `docs/guide/configuration.md`, `docs/guide/l2tp.md`
+- `internal/component/l2tp/yang/ze-l2tp-cmd.yang` -> `docs/guide/command-reference.md`, `docs/guide/l2tp.md`
+- `internal/component/l2tp/yang/ze-l2tp-conf.yang` -> `docs/guide/configuration.md`, `docs/guide/l2tp.md`
 
 ## `internal/component/ldp/`
 
@@ -1262,9 +1262,9 @@ Files: 6 | Docs: `docs/architecture/web-interface.md`, `docs/features/looking-gl
 | `layout.go` | `docs/architecture/web-interface.md`, `docs/features/looking-glass.md` |
 | `server.go` | `docs/architecture/web-interface.md`, `docs/features/looking-glass.md`, `docs/guide/configuration.md`, `docs/guide/looking-glass.md` |
 
-## `internal/component/lg/schema/`
+## `internal/component/lg/yang/`
 
-- `internal/component/lg/schema/ze-lg-conf.yang` -> `docs/guide/looking-glass.md`
+- `internal/component/lg/yang/ze-lg-conf.yang` -> `docs/guide/looking-glass.md`
 
 ## `internal/component/managed/`
 
@@ -1289,9 +1289,9 @@ Files: 12 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/mcp/ov
 | `tasks.go` | `docs/architecture/api/commands.md`, `docs/architecture/mcp/overview.md`, `docs/features.md`, `docs/guide/mcp/tasks.md` |
 | `tools.go` | `docs/architecture/mcp/overview.md`, `docs/guide/mcp/overview.md` |
 
-## `internal/component/mcp/schema/`
+## `internal/component/mcp/yang/`
 
-- `internal/component/mcp/schema/ze-mcp-conf.yang` -> `docs/guide/mcp/remote-access.md`
+- `internal/component/mcp/yang/ze-mcp-conf.yang` -> `docs/guide/mcp/remote-access.md`
 
 ## `internal/component/mcp/ui/`
 
@@ -1312,9 +1312,9 @@ Files: 4 | Docs: `docs/config-reference.md`, `docs/features.md`, `docs/guide/com
 | `show.go` | `docs/guide/command-reference.md` |
 | `store.go` | `docs/features.md` |
 
-## `internal/component/pki/schema/`
+## `internal/component/pki/yang/`
 
-- `internal/component/pki/schema/ze-pki-conf.yang` -> `docs/guide/configuration.md`
+- `internal/component/pki/yang/ze-pki-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/component/plugin/`
 
@@ -1367,10 +1367,10 @@ Files: 4 | Docs: `docs/architecture/api/architecture.md`, `docs/architecture/api
 - `internal/component/plugin/registry/registry.go` -> `docs/architecture.md`, `docs/architecture/api/architecture.md`, `docs/architecture/api/commands.md`, `docs/architecture/config/syntax.md`, `docs/architecture/core-design.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/guide/configuration.md`, `docs/guide/operations.md`, `docs/guide/plugins.md`, `docs/plugin-development/metrics.md`, `docs/plugin-overview.md`
 - `internal/component/plugin/registry/registry_bgp_filter.go` -> `docs/architecture/core-design.md`
 
-## `internal/component/plugin/schema/`
+## `internal/component/plugin/yang/`
 
-- `internal/component/plugin/schema/` -> `docs/architecture/system-architecture.md`
-- `internal/component/plugin/schema/ze-plugin-conf.yang` -> `docs/guide/configuration.md`
+- `internal/component/plugin/yang/` -> `docs/architecture/system-architecture.md`
+- `internal/component/plugin/yang/ze-plugin-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/component/plugin/server/`
 
@@ -1417,10 +1417,10 @@ Files: 4 | Docs: `docs/features.md`, `docs/guide/configuration.md`, `docs/guide/
 
 - `internal/component/pppoe/cmd/pppoe.go` -> `docs/guide/command-reference.md`
 
-## `internal/component/pppoe/schema/`
+## `internal/component/pppoe/yang/`
 
-- `internal/component/pppoe/schema/ze-pppoe-cmd.yang` -> `docs/guide/command-reference.md`
-- `internal/component/pppoe/schema/ze-pppoe-conf.yang` -> `docs/guide/configuration.md`
+- `internal/component/pppoe/yang/ze-pppoe-cmd.yang` -> `docs/guide/command-reference.md`
+- `internal/component/pppoe/yang/ze-pppoe-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/component/resolve/`
 
@@ -1464,9 +1464,9 @@ Files: 5 | Docs: `docs/DESIGN.md`, `docs/features.md`, `docs/guide/rsvp-te.md`
 | `register.go` | `docs/DESIGN.md` |
 | `reroute.go` | `docs/guide/rsvp-te.md` |
 
-## `internal/component/rsvpte/schema/`
+## `internal/component/rsvpte/yang/`
 
-- `internal/component/rsvpte/schema/ze-rsvp-te-conf.yang` -> `docs/guide/configuration.md`, `docs/guide/rsvp-te.md`
+- `internal/component/rsvpte/yang/ze-rsvp-te-conf.yang` -> `docs/guide/configuration.md`, `docs/guide/rsvp-te.md`
 
 ## `internal/component/ssh/`
 
@@ -1479,18 +1479,18 @@ Files: 4 | Docs: `docs/architecture/api/architecture.md`, `docs/features/cli-com
 | `session.go` | `docs/features/cli-commands.md` |
 | `ssh.go` | `docs/architecture/api/architecture.md`, `docs/guide/authentication.md` |
 
-## `internal/component/ssh/schema/`
+## `internal/component/ssh/yang/`
 
-- `internal/component/ssh/schema/ze-ssh-conf.yang` -> `docs/guide/authentication.md`, `docs/guide/configuration.md`
+- `internal/component/ssh/yang/ze-ssh-conf.yang` -> `docs/guide/authentication.md`, `docs/guide/configuration.md`
 
 ## `internal/component/storage/`
 
 - `internal/component/storage/` -> `docs/features.md`
 - `internal/component/storage/manager.go` -> `docs/guide/command-reference.md`, `docs/guide/configuration.md`
 
-## `internal/component/storage/schema/`
+## `internal/component/storage/yang/`
 
-- `internal/component/storage/schema/ze-storage-conf.yang` -> `docs/guide/configuration.md`
+- `internal/component/storage/yang/ze-storage-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/component/subscriber/`
 
@@ -1510,18 +1510,18 @@ Files: 7 | Docs: `docs/architecture/core-design.md`, `docs/features.md`, `docs/g
 | `packet.go` | `docs/features.md` |
 | `register.go` | `docs/architecture/core-design.md`, `docs/features.md` |
 
-## `internal/component/tacacs/schema/`
+## `internal/component/tacacs/yang/`
 
-- `internal/component/tacacs/schema/ze-tacacs-conf.yang` -> `docs/guide/configuration.md`, `docs/guide/tacacs.md`
+- `internal/component/tacacs/yang/ze-tacacs-conf.yang` -> `docs/guide/configuration.md`, `docs/guide/tacacs.md`
 
 ## `internal/component/telemetry/collector/`
 
 - `internal/component/telemetry/collector/` -> `docs/features.md`, `docs/guide/monitoring.md`
 - `internal/component/telemetry/collector/collector.go` -> `docs/architecture/decisions/001-pull-model-metrics.md`
 
-## `internal/component/telemetry/schema/`
+## `internal/component/telemetry/yang/`
 
-- `internal/component/telemetry/schema/ze-telemetry-conf.yang` -> `docs/guide/monitoring.md`
+- `internal/component/telemetry/yang/ze-telemetry-conf.yang` -> `docs/guide/monitoring.md`
 
 ## `internal/component/traceroute/cmd/`
 
@@ -1533,9 +1533,9 @@ Files: 7 | Docs: `docs/architecture/core-design.md`, `docs/features.md`, `docs/g
 - `internal/component/traffic/model.go` -> `docs/architecture/core-design.md`
 - `internal/component/traffic/register.go` -> `docs/architecture/core-design.md`, `docs/features.md`, `docs/guide/traffic-control.md`
 
-## `internal/component/traffic/schema/`
+## `internal/component/traffic/yang/`
 
-- `internal/component/traffic/schema/ze-traffic-control-conf.yang` -> `docs/guide/traffic-control.md`
+- `internal/component/traffic/yang/ze-traffic-control-conf.yang` -> `docs/guide/traffic-control.md`
 
 ## `internal/component/vpp/`
 
@@ -1549,9 +1549,9 @@ Files: 5 | Docs: `docs/features.md`, `docs/guide/traffic-control.md`, `docs/guid
 | `telemetry.go` | `docs/features.md`, `docs/guide/vpp.md` |
 | `vpp.go` | `docs/features.md`, `docs/guide/vpp.md` |
 
-## `internal/component/vpp/schema/`
+## `internal/component/vpp/yang/`
 
-- `internal/component/vpp/schema/ze-vpp-conf.yang` -> `docs/guide/vpp.md`
+- `internal/component/vpp/yang/ze-vpp-conf.yang` -> `docs/guide/vpp.md`
 
 ## `internal/component/web/`
 
@@ -1579,9 +1579,9 @@ Files: 14 | Docs: `docs/architecture/web-components.md`, `docs/architecture/web-
 - `internal/component/web/assets/cli.js` -> `docs/guide/web-interface.md`
 - `internal/component/web/assets/l2tp-chart.js` -> `docs/guide/l2tp.md`
 
-## `internal/component/web/schema/`
+## `internal/component/web/yang/`
 
-- `internal/component/web/schema/ze-web-conf.yang` -> `docs/guide/web-interface.md`
+- `internal/component/web/yang/ze-web-conf.yang` -> `docs/guide/web-interface.md`
 
 ## `internal/component/web/templates/component/`
 
@@ -1623,7 +1623,7 @@ Files: 14 | Docs: `docs/architecture/web-components.md`, `docs/architecture/web-
 - `internal/core/ipc/dispatch.go` -> `docs/architecture/api/architecture.md`
 - `internal/core/ipc/message.go` -> `docs/architecture/api/ipc_protocol.md`, `docs/architecture/api/json-format.md`, `docs/architecture/api/wire-format.md`
 
-## `internal/core/ipc/schema/`
+## `internal/core/ipc/yang/`
 
 Files: 4 | Docs: `docs/architecture/api/commands.md`, `docs/architecture/api/ipc_protocol.md`, `docs/architecture/api/wire-format.md`
 
@@ -1815,9 +1815,9 @@ Files: 5 | Docs: `docs/architecture/bfd.md`, `docs/guide/bfd.md`
 - `internal/plugins/dhcpserver/config.go` -> `docs/guide/configuration.md`
 - `internal/plugins/dhcpserver/register.go` -> `docs/DESIGN.md`, `docs/guide/plugins.md`
 
-## `internal/plugins/dhcpserver/schema/`
+## `internal/plugins/dhcpserver/yang/`
 
-- `internal/plugins/dhcpserver/schema/ze-dhcp-server-conf.yang` -> `docs/guide/configuration.md`
+- `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/plugins/fib/kernel/`
 
@@ -1852,9 +1852,9 @@ Files: 5 | Docs: `docs/architecture/core-design.md`, `docs/features.md`, `docs/f
 | `register.go` | `docs/architecture/core-design.md`, `docs/guide/vpp.md` |
 | `srv6.go` | `docs/features/srv6.md` |
 
-## `internal/plugins/fib/vpp/schema/`
+## `internal/plugins/fib/vpp/yang/`
 
-- `internal/plugins/fib/vpp/schema/ze-fib-vpp-conf.yang` -> `docs/guide/vpp.md`
+- `internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang` -> `docs/guide/vpp.md`
 
 ## `internal/plugins/firewall/nft/`
 
@@ -1956,9 +1956,9 @@ Files: 5 | Docs: `docs/comparison.md`, `docs/guide/l2tp.md`, `docs/guide/plugins
 - `internal/plugins/l2tppool/` -> `docs/guide/l2tp.md`
 - `internal/plugins/l2tppool/register.go` -> `docs/guide/configuration.md`, `docs/guide/plugins.md`
 
-## `internal/plugins/l2tppool/schema/`
+## `internal/plugins/l2tppool/yang/`
 
-- `internal/plugins/l2tppool/schema/ze-l2tp-pool-conf.yang` -> `docs/guide/configuration.md`
+- `internal/plugins/l2tppool/yang/ze-l2tp-pool-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/plugins/l2tpshaper/`
 
@@ -1970,9 +1970,9 @@ Files: 5 | Docs: `docs/comparison.md`, `docs/guide/l2tp.md`, `docs/guide/plugins
 
 - `internal/plugins/ntp/ntp.go` -> `docs/guide/configuration.md`
 
-## `internal/plugins/ntp/schema/`
+## `internal/plugins/ntp/yang/`
 
-- `internal/plugins/ntp/schema/ze-ntp-conf.yang` -> `docs/guide/configuration.md`
+- `internal/plugins/ntp/yang/ze-ntp-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/plugins/policyroute/`
 
@@ -1985,9 +1985,9 @@ Files: 4 | Docs: `docs/architecture/api/commands.md`, `docs/features.md`, `docs/
 | `rules_linux.go` | `docs/features.md` |
 | `translate.go` | `docs/features.md` |
 
-## `internal/plugins/policyroute/schema/`
+## `internal/plugins/policyroute/yang/`
 
-- `internal/plugins/policyroute/schema/ze-policyroute-conf.yang` -> `docs/guide/configuration.md`
+- `internal/plugins/policyroute/yang/ze-policyroute-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/plugins/routingtable/`
 
@@ -2004,9 +2004,9 @@ Files: 4 | Docs: `docs/architecture/api/commands.md`, `docs/features.md`, `docs/
 | `inject.go` | `docs/features.md` |
 | `register.go` | `docs/features.md`, `docs/guide/configuration.md` |
 
-## `internal/plugins/static/schema/`
+## `internal/plugins/static/yang/`
 
-- `internal/plugins/static/schema/ze-static-conf.yang` -> `docs/guide/configuration.md`
+- `internal/plugins/static/yang/ze-static-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/plugins/sysctl/`
 
@@ -2014,9 +2014,9 @@ Files: 4 | Docs: `docs/architecture/api/commands.md`, `docs/features.md`, `docs/
 - `internal/plugins/sysctl/register.go` -> `docs/architecture/core-design.md`, `docs/guide/command-reference.md`, `docs/guide/plugins.md`
 - `internal/plugins/sysctl/sysctl.go` -> `docs/architecture/core-design.md`, `docs/features.md`, `docs/guide/configuration.md`
 
-## `internal/plugins/sysctl/schema/`
+## `internal/plugins/sysctl/yang/`
 
-- `internal/plugins/sysctl/schema/ze-sysctl-conf.yang` -> `docs/guide/configuration.md`
+- `internal/plugins/sysctl/yang/ze-sysctl-conf.yang` -> `docs/guide/configuration.md`
 
 ## `internal/plugins/sysrib/`
 

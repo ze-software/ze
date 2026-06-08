@@ -25,7 +25,7 @@ import (
 
 	"golang.org/x/net/ipv4"
 
-	ldpschema "codeberg.org/thomas-mangin/ze/internal/component/ldp/schema"
+	ldpyang "codeberg.org/thomas-mangin/ze/internal/component/ldp/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -150,7 +150,7 @@ func registerLDP() {
 		Name:         "ldp",
 		Description:  "Label Distribution Protocol (RFC 5036): MPLS label distribution",
 		Features:     "yang",
-		YANG:         ldpschema.ZeLDPConfYANG,
+		YANG:         ldpyang.ZeLDPConfYANG,
 		ConfigRoots:  []string{"ldp"},
 		Dependencies: []string{"fib-kernel", "sysctl"},
 		RunEngine:    runLDPEngine,

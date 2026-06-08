@@ -1,0 +1,100 @@
+module ze-ipsec-cmd {
+    namespace "urn:ze:ipsec:cmd";
+    prefix ipseccmd;
+    import ze-extensions { prefix ze; }
+    description "show/monitor/clear vpn ipsec command tree. Owned by the ike component so that removing the IPsec surface removes these command nodes together with the handlers. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-03 { description "Relocated show + monitor + clear vpn ipsec out of central schemas (plugin self-containment)."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container vpn {
+            config false;
+            description "VPN tunnel state (IPsec)";
+
+            container ipsec {
+                config false;
+                description "IPsec SAs, tunnels, and peer connections";
+
+                container sa {
+                    config false;
+                    ze:command "ze-show:vpn-ipsec-sa";
+                    description "Show all IKE and Child Security Associations.
+Lists every SA with peer, negotiated algorithms, byte counts, rekey
+timers, and uptime. Includes SPIs, NAT detection, and child SA
+traffic selectors. Your main IPsec status command.";
+                }
+
+                container status {
+                    config false;
+                    ze:command "ze-show:vpn-ipsec-status";
+                    description "Quick IPsec health check.
+Reports whether the IKE engine is running, how many peers are
+configured, and how many IKE SAs are Established.";
+                }
+
+                container peer {
+                    config false;
+                    description "IPsec peer detail";
+
+                    container name {
+                        config false;
+                        ze:command "ze-show:vpn-ipsec-peer";
+                        description "Show full detail for one IPsec peer.
+Returns IKE SA state, all child SAs with traffic selectors, and
+byte counts. Usage: show vpn ipsec peer name <name>.";
+                        leaf name {
+                            type string;
+                            mandatory true;
+                            description "Configured IPsec peer name";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    container clear {
+        config false;
+        description "Reset counters, caches, and operational state. Config is never modified.";
+
+        container vpn {
+            config false;
+            description "VPN tunnel clearing operations";
+
+            container ipsec {
+                config false;
+                description "IPsec SA teardown";
+
+                container sa {
+                    config false;
+                    ze:command "ze-clear:vpn-ipsec-sa";
+                    description "Tear down IKE Security Associations.
+Without arguments, terminates all SAs. Use 'peer <name>' to clear
+just one peer. The tunnel will renegotiate automatically if the
+config is still active.";
+                }
+            }
+        }
+    }
+
+    container monitor {
+        config false;
+        description "Continuous monitoring commands (Ctrl-C to stop)";
+
+        container vpn {
+            config false;
+            description "VPN event streams";
+
+            container ipsec {
+                config false;
+                ze:command "ze-monitor:vpn-ipsec";
+                ze:task-support required;
+                description "Watch IPsec SA events as they happen.
+Streams sa-up, sa-down, child-up, child-down, and child-rekey
+events. Useful for debugging tunnel flaps or rekey issues.";
+            }
+        }
+    }
+}

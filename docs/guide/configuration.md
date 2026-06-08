@@ -15,7 +15,7 @@ Ze uses a JUNOS-like hierarchical configuration format.
 | Inline blocks | `name { key value; key value; }` | `remote { ip 10.0.0.1; as 65001; }` |
 
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
 ## File Format
 
@@ -99,7 +99,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `outgoing-ttl` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
 | `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding) | No (default: disable) |
-<!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/schema/ze-bgp-conf.yang -- peer settings, container timer -->
+<!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
 
 ## Capabilities
 
@@ -114,7 +114,7 @@ Configured under `capability { }` at any inheritance level.
 | ADD-PATH | `add-path send/receive` | See [ADD-PATH guide](add-path.md) |
 | Extended Next Hop | `nexthop { ipv4/unicast ipv6; }` | Per-family NH mapping |
 | BGP Role | `role provider` | provider, customer, rs, rs-client, peer |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- capability definitions -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- capability definitions -->
 
 ## Address Families
 
@@ -185,8 +185,8 @@ system {
 | `margin` | `10` | Percentage added above PeeringDB prefix count (0-100). |
 
 Use `resolve peeringdb max-prefix <asn>` to look up prefix limits, then apply them via the config editor.
-<!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement; internal/component/bgp/schema/ze-bgp-conf.yang -- prefix config -->
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- peeringdb config -->
+<!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement; internal/component/bgp/yang/ze-bgp-conf.yang -- prefix config -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- peeringdb config -->
 
 ## Hardware Tuning
 
@@ -219,7 +219,7 @@ system {
 | `tuning/ethtool/ring/tx` | Transmit ring buffer size (1-65535) |
 
 Tuning is idempotent: only changed parameters are written. Write failures are reported but do not block the config commit. On non-Linux platforms the tuning block is accepted but no operations are applied.
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- tuning config -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- tuning config -->
 <!-- source: internal/component/host/tuning.go -- ApplyTuning engine -->
 
 ## Process Bindings
@@ -373,7 +373,7 @@ disambiguation or advanced use:
 | `<filter-type>:<filter>` | `prefix-list:CUSTOMERS` |
 | `<plugin>:<filter>` | `bgp-filter-prefix:CUSTOMERS` |
 
-<!-- source: internal/component/bgp/plugins/filter_prefix/schema/ze-filter-prefix.yang -- prefix-list YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang -- prefix-list YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/config.go -- parsePrefixLists -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, per-prefix partition modify path -->
 
@@ -402,7 +402,7 @@ bgp {
 }
 ```
 
-<!-- source: internal/component/bgp/plugins/filter_aspath/schema/ze-filter-aspath.yang -- as-path-list YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang -- as-path-list YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/config.go -- parseAsPathLists -->
 
 ### Community Match Filter
@@ -429,7 +429,7 @@ bgp {
 }
 ```
 
-<!-- source: internal/component/bgp/plugins/filter_community_match/schema/ze-filter-community-match.yang -- community-match YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang -- community-match YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/config.go -- parseCommunityLists -->
 
 ### Route Attribute Modifier
@@ -470,7 +470,7 @@ bgp {
 | `next-hop` | IP address | IPv4 | Set NEXT_HOP |
 | `as-path-prepend` | uint8 | 1-32 | Prepend local AS N times |
 
-<!-- source: internal/component/bgp/plugins/filter_modify/schema/ze-filter-modify.yang -- modify YANG container -->
+<!-- source: internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang -- modify YANG container -->
 <!-- source: internal/component/bgp/plugins/filter_modify/config.go -- parseModifyDefs -->
 
 ## Static Routes
@@ -495,7 +495,7 @@ peer transit-a {
 }
 ```
 
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- static route config, update/attribute/nlri blocks -->
 
 ## MPLS
 
@@ -545,8 +545,8 @@ Inspect LSP, interface, and tunnel state with the component's
 `show rsvp-te session`, `show rsvp-te interface`, and `show rsvp-te tunnel`
 commands. See [RSVP-TE](rsvp-te.md) for details and current status.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unit/mpls/enable -->
-<!-- source: internal/component/rsvpte/schema/ze-rsvp-te-conf.yang -- rsvp-te -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unit/mpls/enable -->
+<!-- source: internal/component/rsvpte/yang/ze-rsvp-te-conf.yang -- rsvp-te -->
 
 ## PKI Certificate Store
 
@@ -576,7 +576,7 @@ and are never shown in CLI output.
 Chain validation runs at config load: device certificates must chain to a loaded
 CA. Expired certificates are rejected with a descriptive error.
 
-<!-- source: internal/component/pki/schema/ze-pki-conf.yang -- PKI YANG schema -->
+<!-- source: internal/component/pki/yang/ze-pki-conf.yang -- PKI YANG schema -->
 <!-- source: internal/component/pki/config.go -- PKI config parser -->
 
 ## IPsec VPN Configuration
@@ -648,7 +648,7 @@ Cross-reference validation runs at config load: peer IKE/ESP group references mu
 defined groups, X.509 `ca-certificate` and `certificate` names must exist in the PKI store,
 and `local-id` must match the certificate's subject CN.
 
-<!-- source: internal/component/ipsec/schema/ze-ipsec-conf.yang -- IPsec YANG schema -->
+<!-- source: internal/component/ipsec/yang/ze-ipsec-conf.yang -- IPsec YANG schema -->
 <!-- source: internal/component/ipsec/config.go -- IPsec config parser -->
 <!-- source: internal/component/ipsec/validate.go -- cross-reference validation -->
 
@@ -658,7 +658,7 @@ Ze manages network interfaces with a descriptive-name model. Each interface type
 YANG list keyed by a user-chosen name. The MAC address serves as the binding between the
 config entry and the physical (or virtual) hardware.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- interface container, list definitions -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- interface container, list definitions -->
 
 ### Interface Types
 
@@ -670,7 +670,7 @@ config entry and the physical (or virtual) hardware.
 | `dummy` | Virtual dummy interface | No |
 | `loopback` | Loopback (container, no key) | No |
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- ethernet, veth, bridge, dummy, loopback definitions -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet, veth, bridge, dummy, loopback definitions -->
 
 ### MAC Address Binding
 
@@ -679,7 +679,7 @@ omit it to keep the hardware-assigned MAC, or set it to override the address. Wh
 must be unique within each type. Names are descriptive labels chosen by the operator;
 when a MAC is set it ties the named config entry to a specific hardware address.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- unique "mac/address" -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique "mac/address" -->
 
 ### Discovery During Init
 
@@ -731,7 +731,7 @@ boolean leaves for hardware offload and software packet steering features. Each 
 uses three-state semantics: `true` enables, `false` disables, absent preserves the OS
 default (no kernel call is made).
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- offload container in interface-l2 grouping -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- offload container in interface-l2 grouping -->
 
 | Feature | Mechanism | Description |
 |---------|-----------|-------------|
@@ -795,7 +795,7 @@ first-apply at startup, so the daemon cannot boot into an unworkable state.
 
 <!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, walkBackendNode -->
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- ze:backend annotations on bridge/tunnel/wireguard/veth/mirror -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ze:backend annotations on bridge/tunnel/wireguard/veth/mirror -->
 
 ### Route Priority
 
@@ -812,7 +812,7 @@ NDP neighbor events indicate a router (NTF_ROUTER flag). Multiple routers on the
 same link are each installed with the same metric. On clean shutdown or config
 removal, `accept_ra_defrtr` is restored to 1.
 
-<!-- source: internal/component/iface/schema/ze-iface-conf.yang -- route-priority leaf -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- route-priority leaf -->
 <!-- source: internal/component/iface/register.go -- handleLinkDown, handleLinkUp, handleLinkDownIPv6, handleLinkUpIPv6 -->
 <!-- source: internal/component/iface/register.go -- suppressAcceptRaDefrtr, handleRouterDiscovered -->
 
@@ -933,7 +933,7 @@ Temperature alerts are emitted to the report bus: `temp-high` (above information
 `temp-rising` (rate of change exceeds difference), `temp-critical` (above critical),
 `smart-failing` (SMART health status failed). Live status via `show storage smart`.
 
-<!-- source: internal/component/storage/schema/ze-storage-conf.yang -->
+<!-- source: internal/component/storage/yang/ze-storage-conf.yang -->
 <!-- source: internal/component/storage/manager.go -- Manager -->
 
 ## Authentication Users
@@ -965,7 +965,7 @@ system {
 Both leaves are mutually exchangeable inputs; only `password` survives a
 commit. For end-to-end usage (login, hashing, multi-user setup) see
 [authentication.md](authentication.md).
-<!-- source: internal/component/ssh/schema/ze-ssh-conf.yang -- system.authentication.user -->
+<!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 
 ### Authorization and web/API effects
@@ -1023,7 +1023,7 @@ system {
 | `tacacs.accounting` | boolean | false | START/STOP records on every CLI command |
 | `tacacs-profile <N>.profile` | leaf-list | required | Map priv-lvl 0-15 to local authz profile name(s) |
 
-<!-- source: internal/component/tacacs/schema/ze-tacacs-conf.yang -- system.authentication.tacacs -->
+<!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
 <!-- source: internal/component/tacacs/config.go -- ExtractConfig -->
 
 ## Sysctl Configuration
@@ -1050,7 +1050,7 @@ and override both transient values (`set sysctl` from CLI) and plugin defaults
 (e.g., fib-kernel declaring forwarding=1). See the
 [command reference](command-reference.md#sysctl-kernel-tunables) for CLI usage.
 <!-- source: internal/plugins/sysctl/sysctl.go -- parseSysctlConfig, applyConfig -->
-<!-- source: internal/plugins/sysctl/schema/ze-sysctl-conf.yang -- sysctl container -->
+<!-- source: internal/plugins/sysctl/yang/ze-sysctl-conf.yang -- sysctl container -->
 
 ### Sysctl Profiles
 
@@ -1145,7 +1145,7 @@ system {
 
 **Monitoring:** Use `show system conntrack` to view current entry count, configured max, loaded modules, per-protocol timeouts, and TCP behavior flags.
 <!-- source: internal/component/config/system/conntrack.go -- ConntrackConfig, sysctl key mapping -->
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- conntrack container -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- conntrack container -->
 
 ## Flow Export
 
@@ -1194,7 +1194,7 @@ metrics use the `ze_flowexport_*` prefix.
 **Note:** these protocols are unencrypted UDP. Run flow export over a dedicated
 management VLAN. Per-flow records are IPv4-only; sampling requires Linux with
 `CAP_NET_ADMIN` and the kernel `psample` module.
-<!-- source: internal/component/flowexport/schema/ze-flowexport-conf.yang -- flow-export container -->
+<!-- source: internal/component/flowexport/yang/ze-flowexport-conf.yang -- flow-export container -->
 <!-- source: internal/component/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
 
 ## Environment Block
@@ -1350,7 +1350,7 @@ static name server exists and the configured resolv.conf path is missing or
 empty, DNS queries fail with `no DNS server configured` until DHCP or config
 provides a server.
 
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- system DNS config -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->
 <!-- source: internal/component/resolve/dns/resolver.go -- NewResolver, Resolve -->
 <!-- source: cmd/ze/hub/main.go -- newResolvers wiring -->
 
@@ -1428,7 +1428,7 @@ When `auto-apply` is true, the server manifest must include a `sha256` field. Ze
 
 See the [Self-Update Guide](self-update.md) for server setup and fleet deployment details.
 
-<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- update-check config -->
+<!-- source: internal/component/config/system/yang/ze-system-conf.yang -- update-check config -->
 <!-- source: internal/component/config/system/selfupdate.go -- SelfUpdater -->
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateChecker lifecycle -->
 
@@ -1461,7 +1461,7 @@ NTP responses are validated and timestamps outside years 2020-2100 are
 rejected. `max-step` is checked before `settimeofday`; responses whose clock
 offset exceeds the cap are rejected and logged.
 
-<!-- source: internal/plugins/ntp/schema/ze-ntp-conf.yang -- NTP config schema -->
+<!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->
 <!-- source: internal/plugins/ntp/ntp.go -- parseNTPConfig, doSync -->
 
 ### DHCP Server
@@ -1558,7 +1558,7 @@ Non-PXE clients receive standard DHCP responses regardless of PXE configuration.
 When a PXE client has no option 93 (architecture), the server defaults to the
 BIOS bootfile.
 
-<!-- source: internal/plugins/dhcpserver/schema/ze-dhcp-server-conf.yang -- DHCP server config schema -->
+<!-- source: internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang -- DHCP server config schema -->
 <!-- source: internal/plugins/dhcpserver/config.go -- parseConfig, parseRanges, parsePXEConfig -->
 
 ### Reactor Settings
@@ -1592,7 +1592,7 @@ When disabled (or when all peers have unique encoding contexts), behavior is ide
 |----------|------|-------------|
 | `ze.bgp.reactor.update-groups` | bool | Cross-peer UPDATE grouping (default: true) |
 
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- reactor container, leaf update-groups -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- reactor container, leaf update-groups -->
 <!-- source: internal/component/config/environment.go -- ze.bgp.reactor.update-groups registration -->
 <!-- source: internal/component/bgp/reactor/update_group.go -- NewUpdateGroupIndexFromEnv -->
 <!-- source: internal/exabgp/migration/migrate.go -- injectUpdateGroupsDisabled -->
@@ -1623,7 +1623,7 @@ environment {
     }
 }
 ```
-<!-- source: internal/component/l2tp/schema/ze-l2tp-conf.yang -- L2TP YANG schema -->
+<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- L2TP YANG schema -->
 
 Protocol settings (root `l2tp {}`):
 
@@ -1675,7 +1675,7 @@ pppoe {
     }
 }
 ```
-<!-- source: internal/component/pppoe/schema/ze-pppoe-conf.yang -- PPPoE YANG schema -->
+<!-- source: internal/component/pppoe/yang/ze-pppoe-conf.yang -- PPPoE YANG schema -->
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
@@ -1733,7 +1733,7 @@ Named pools use the same settings nested under `named-pool <name> { }`.
 The gateway must not overlap the pool range.
 
 <!-- source: internal/plugins/l2tppool/register.go -- parseIPv4Pool, parseNamedPools -->
-<!-- source: internal/plugins/l2tppool/schema/ze-l2tp-pool-conf.yang -- YANG schema -->
+<!-- source: internal/plugins/l2tppool/yang/ze-l2tp-pool-conf.yang -- YANG schema -->
 
 ## Hub Configuration
 
@@ -1767,7 +1767,7 @@ plugin {
 Every ze instance has at least one `server` block (for local plugins and SSH).
 Secrets must be at least 32 characters. See [Fleet Configuration](fleet-config.md) for details.
 
-<!-- source: internal/component/plugin/schema/ze-plugin-conf.yang -- hub YANG schema -->
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -- hub YANG schema -->
 <!-- source: internal/component/bgp/config/plugins.go -- ExtractHubConfig -->
 
 ## Validation
@@ -1802,7 +1802,7 @@ bgp {
 ```
 
 Each probe runs a shell command periodically. When the service is UP, routes in the watchdog group are announced with `up-metric` as MED. When DOWN, routes are either withdrawn (`withdraw-on-down true`) or re-announced with `down-metric` as MED (default). See [Healthcheck Guide](healthcheck.md) for full configuration reference.
-<!-- source: internal/component/bgp/plugins/healthcheck/schema/ze-healthcheck-conf.yang -- YANG schema -->
+<!-- source: internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang -- YANG schema -->
 
 ## Static Routes
 
@@ -1835,7 +1835,7 @@ removes a next-hop from the ECMP group on session DOWN and re-adds on UP.
 See [Static Routes Guide](static-routes.md) for named tables,
 interface-only next-hops, mixed ECMP, BFD failover, blackhole/reject,
 IPv6, and redistribute examples.
-<!-- source: internal/plugins/static/schema/ze-static-conf.yang -- YANG schema -->
+<!-- source: internal/plugins/static/yang/ze-static-conf.yang -- YANG schema -->
 <!-- source: internal/plugins/static/register.go -- plugin registration -->
 
 ## Policy Routing
@@ -1845,7 +1845,7 @@ next-hops based on L3/L4 match criteria. Configured under `policy { route <name>
 
 See [Policy Routing Guide](policy-routing.md) for configuration syntax,
 match criteria, actions, reserved ranges, and CLI usage.
-<!-- source: internal/plugins/policyroute/schema/ze-policyroute-conf.yang -- YANG schema -->
+<!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang -- YANG schema -->
 <!-- source: internal/plugins/policyroute/register.go -- plugin registration -->
 
 ## ExaBGP Migration

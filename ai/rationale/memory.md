@@ -7,9 +7,9 @@ Why: `.claude/rules/memory.md`
 - `embed.go` uses `//go:embed` to export YANG content as a string variable
 - Import alias convention when multiple `schema` packages: `grschema`, `hostnameschema`, `bgpschema`
 - Core modules: `internal/component/config/yang/modules/` (ze-types, ze-extensions, ze-hub-conf)
-- Plugin infra schema: `internal/component/plugin/schema/` (ze-plugin-conf)
-- BGP component schema: `internal/component/bgp/schema/` (ze-bgp-conf, ze-bgp-api)
-- Plugin modules: `internal/plugins/<name>/schema/` (ze-graceful-restart, etc.)
+- Plugin infra schema: `internal/component/plugin/yang/` (ze-plugin-conf)
+- BGP component schema: `internal/component/bgp/yang/` (ze-bgp-conf, ze-bgp-api)
+- Plugin modules: `internal/plugins/<name>/yang/` (ze-graceful-restart, etc.)
 
 ## Key Mappings
 - `MapPrefixToModule()` in `validator.go`: "bgp" -> "ze-bgp-conf", "plugin" -> "ze-plugin-conf"

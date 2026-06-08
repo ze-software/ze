@@ -1,0 +1,57 @@
+module ze-image-server-conf {
+    namespace "urn:ze:image-server:conf";
+    prefix imgsrv;
+
+    description "Image server configuration for Ze provisioning";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container service {
+        description "Service settings";
+
+        container image-server {
+            description "HTTP image server for PXE provisioning";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable image server";
+            }
+
+            leaf-list listen-interface {
+                type string;
+                description "Interfaces to serve on";
+            }
+
+            leaf listen-port {
+                type uint16 {
+                    range "1..65535";
+                }
+                default 80;
+                description "HTTP listen port";
+            }
+
+            leaf image-directory {
+                type string;
+                description "Directory containing gokrazy disk images";
+            }
+
+            leaf boot-directory {
+                type string;
+                description "Directory containing installer kernel, initrd, iPXE config";
+            }
+
+            leaf ssh-username {
+                type string;
+                description "Admin username for installed target (written to served zefs)";
+            }
+
+            leaf ssh-password-hash {
+                type string;
+                description "Bcrypt hash of admin password (written to served zefs)";
+            }
+        }
+    }
+}

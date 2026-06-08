@@ -23,7 +23,7 @@
 ## Overview
 
 Ze configuration uses a JUNOS-like hierarchical syntax with sections, keywords, and values terminated by semicolons or braces. The parser is YANG-driven: each config node's type (leaf, leaf-list, container, list) determines how it is parsed. No custom `ze:syntax` annotations are used in ze-native config.
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- module ze-bgp-conf structure -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- module ze-bgp-conf structure -->
 
 ---
 
@@ -174,7 +174,7 @@ bgp {
     }
 }
 ```
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container bgp, list peer -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container bgp, list peer -->
 
 ---
 
@@ -213,7 +213,7 @@ plugin {
 | run | string | Command to execute |
 | encoder | string | `json` or `text` |
 | timeout | duration | Per-stage timeout (e.g., `5s`, `1m`, `500ms`). Default: 5s. 0 = use default. Negative rejected. |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list process, leaf run, leaf encoding -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- list process, leaf run, leaf encoding -->
 
 **Timeout semantics:** During startup, all plugins synchronize at each stage. The timeout controls how long this plugin waits for all plugins to complete each stage. With multiple plugins, use the same timeout for all, or set the longest timeout on all plugins to avoid fast plugins timing out while waiting for slow ones.
 
@@ -239,7 +239,7 @@ bgp {
 | `group` | list (key: name) | Named collection of peers with shared defaults |
 | `peer` inside group | list (key: name) | Peer with optional overrides of group defaults |
 | `peer` at bgp level | list (key: name) | Standalone peer (no group inheritance) |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list group, list peer -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- list group, list peer -->
 
 #### 3-Level Inheritance
 
@@ -292,7 +292,7 @@ bgp {
     }
 }
 ```
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- peer-fields grouping -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields grouping -->
 
 #### Peer Name Rules
 
@@ -365,7 +365,7 @@ bgp {
     }
 }
 ```
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container bgp structure -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container bgp structure -->
 
 **Migration:** `ze config migrate` converts old syntax:
 - `neighbor` to `bgp { group <name> { peer } }`
@@ -377,7 +377,7 @@ bgp {
 ## Peer Keywords
 
 Peer configuration is organized into nested containers by concern.
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- peer-fields grouping -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields grouping -->
 
 ### connection (transport-level)
 
@@ -417,7 +417,7 @@ Peer configuration is organized into nested containers by concern.
 | `rib { adj { in; out; } out { ... } }` | container | RIB configuration (adj-rib-in/out, outbound batching) |
 | `process <name> { ... }` | list | Plugin process bindings |
 | `update { ... }` | container | Route announcements |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- grouping peer-fields, containers connection, session, behavior -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- grouping peer-fields, containers connection, session, behavior -->
 
 ### Capability Section
 
@@ -429,7 +429,7 @@ All capabilities support a four-mode vocabulary:
 | `disable` | No | None | `false` |
 | `require` | Yes | Reject peer if capability missing | |
 | `refuse` | No | Reject peer if capability present | |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container capability, enum enable/disable/require/refuse -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container capability, enum enable/disable/require/refuse -->
 
 **Simple capabilities** -- mode is the value:
 
@@ -486,7 +486,7 @@ add-path {
 The last token is interpreted as a mode if it matches `require`|`refuse`|`enable`|`disable`. Otherwise the existing direction parsing applies unchanged.
 
 **Defaults:** ASN4 defaults to `enable`. All other capabilities are absent (opt-in) -- they only participate in negotiation when explicitly configured.
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- leaf asn4 default true -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf asn4 default true -->
 
 **Backwards compatibility:** `true` is accepted as `enable`, `false` as `disable`. Bare capability names (e.g., `route-refresh;`) mean `enable`.
 
@@ -510,7 +510,7 @@ family {
 ```
 
 Block syntax is also supported: `ipv4 { unicast; multicast require; }`.
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list family -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- list family -->
 
 ### ADD-PATH Section
 
@@ -527,7 +527,7 @@ add-path {
 ```
 
 Each line is parsed as: `<family> [<direction>] [<mode>]` where family is the list key, direction is `send`, `receive`, or `send/receive` (default: `send/receive`), and mode defaults to `enable`.
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list add-path, leaf direction, leaf mode -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- list add-path, leaf direction, leaf mode -->
 
 ### Process Section
 
@@ -556,7 +556,7 @@ process <plugin-name> {
 | `state` | Peer up/down events |
 | `sent` | Sent UPDATE confirmations |
 | `negotiated` | Capability negotiation results |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- leaf-list receive, ze:validate receive-event-type -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf-list receive, ze:validate receive-event-type -->
 
 Plugins may register additional event types (e.g., `rpki`, `update-rpki`) that can also appear in receive lists. These are validated at runtime against the plugin registry.
 
@@ -569,7 +569,7 @@ Plugins may register additional event types (e.g., `rpki`, `update-rpki`) that c
 | `update` | Can inject routes |
 | `refresh` | Can request route refresh |
 | `enhanced-refresh` | Can send BORR/EORR markers (RFC 7313, always paired) |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- leaf-list send, ze:validate send-message-type -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf-list send, ze:validate send-message-type -->
 
 **`all` is not accepted.** List send types explicitly.
 
@@ -605,7 +605,7 @@ references for runtime dispatch. Runtime calls use the `filter-update` callback
 on the selected plugin.
 
 <!-- source: plan/learned/479-redistribution-filter.md -- redistribution YANG config design -->
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- policy and filter containers -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- policy and filter containers -->
 <!-- source: internal/component/bgp/config/redistribution.go -- redistribution config parsing -->
 <!-- source: internal/component/bgp/config/filter_registry.go -- local policy filter validation -->
 <!-- source: internal/component/plugin/registry/registry.go -- FilterTypes registry -->
@@ -646,7 +646,7 @@ update {
     }
 }
 ```
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container attribute, leaf origin, leaf next-hop, leaf-list community -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container attribute, leaf origin, leaf next-hop, leaf-list community -->
 
 ### NLRI Grammar
 
@@ -661,7 +661,7 @@ update {
 - `<op>` -- **mandatory** operation: `add` (announce), `del` (withdraw), `eor` (end-of-rib, no payload)
 - `<bracket-list>` -- `[ prefix1 prefix2 ... ]` -- for prefix-based families, one route per entry
 - `<structured-payload>` -- for complex families (FlowSpec, VPLS, EVPN), one route per line
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list nlri, leaf content -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- list nlri, leaf content -->
 
 ### Payload dispatch
 
@@ -819,7 +819,7 @@ Standalone watchdog commands (via API):
 request watchdog announce <name>   # send all routes in pool to peers
 request watchdog withdraw <name>   # withdraw all routes in pool from peers
 ```
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container watchdog, leaf name, leaf withdraw -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container watchdog, leaf name, leaf withdraw -->
 
 ---
 

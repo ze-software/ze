@@ -9,5 +9,5 @@
 package peer
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer/schema" // init() registers YANG module
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer/yang" // init() registers YANG module
 )
