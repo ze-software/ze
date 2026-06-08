@@ -41,7 +41,12 @@ boot time.
 
 The build runs inside a QEMU Alpine VM. When the host architecture matches the
 target, QEMU uses HVF (macOS) or KVM (Linux) for near-native speed. Cross-arch
-builds use TCG (full emulation, slower).
+builds use TCG with multi-threaded emulation (each vCPU gets its own host
+thread so `make -jN` parallelises under emulation).
+
+Compilation results are cached via ccache in `tmp/qemu/ccache/`. The first
+build populates the cache; subsequent builds with the same kernel version skip
+unchanged translation units. Clear the cache with `rm -rf tmp/qemu/ccache/`.
 
 Prerequisites: `qemu` (`brew install qemu` on macOS), `python3`, `curl`.
 

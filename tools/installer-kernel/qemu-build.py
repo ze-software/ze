@@ -121,6 +121,21 @@ def _vm_cpus() -> str:
     return str(max(2, n))
 
 
+def _available_accels(qemu: str) -> list[str]:
+    result = subprocess.run(
+        [qemu, "-accel", "help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    accels = []
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if stripped and stripped != "Accelerators supported in QEMU binary:":
+            accels.append(stripped)
+    return accels
+
+
 def _build_qemu_args(
     iso: Path,
     workspace: Path,
@@ -150,16 +165,12 @@ def _build_qemu_args(
             ]
         )
 
-    args.extend(
-        [
-            "-accel",
-            "hvf",
-            "-accel",
-            "kvm",
-            "-accel",
-            "tcg,thread=multi,tb-size=2048",
-        ]
-    )
+    available = _available_accels(qemu)
+    for accel in ("hvf", "kvm"):
+        if accel in available:
+            args.extend(["-accel", accel])
+    if "tcg" in available:
+        args.extend(["-accel", "tcg,thread=multi,tb-size=512"])
 
     args.extend(
         [
@@ -368,15 +379,13 @@ def _run_build(
                 "mkdir -p /ccache",
                 "mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 "
                 "ccache /ccache",
-                "export CCACHE_DIR=/ccache",
-                "export CCACHE_MAXSIZE=5G",
-                "export PATH=/usr/lib/ccache/bin:$PATH",
                 "mkdir -p /build",
             ]
         )
 
         build_env = (
-            f"CCACHE_DIR=/ccache PATH=/usr/lib/ccache/bin:$PATH "
+            f"CCACHE_DIR=/ccache CCACHE_MAXSIZE=5G "
+            f"PATH=/usr/lib/ccache/bin:$PATH "
             f"LINUX_VERSION={version} ARCH={target_arch} "
             f"PROFILE={profile} "
             f"SRC_DIR=/workspace/tools/installer-kernel "
