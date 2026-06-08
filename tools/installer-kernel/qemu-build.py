@@ -68,9 +68,9 @@ def ccache_dir() -> Path:
     return d
 
 
-def build_dir() -> Path:
+def build_dir(target_arch: str, profile: str) -> Path:
     root = repo_root()
-    d = root / "tmp" / "qemu" / "build"
+    d = root / "tmp" / "qemu" / "build" / f"{_alpine_arch(target_arch)}-{profile}"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -320,7 +320,7 @@ def _run_build(
 ) -> int:
     ssh_port = find_free_port()
     cc_dir = ccache_dir()
-    bd_dir = build_dir()
+    bd_dir = build_dir(target_arch, profile)
     memory = _vm_memory()
     args = _build_qemu_args(
         iso, workspace, target_arch, ssh_port, memory, cc_dir, bd_dir

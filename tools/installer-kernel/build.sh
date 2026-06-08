@@ -51,6 +51,7 @@ series="v$(echo "$LINUX_VERSION" | cut -d. -f1).x"
 tarball="linux-${LINUX_VERSION}.tar.xz"
 
 cd /build
+rm -rf ./*
 echo ">>> downloading linux ${LINUX_VERSION}"
 wget -q "https://cdn.kernel.org/pub/linux/kernel/${series}/${tarball}"
 tar xf "$tarball"
