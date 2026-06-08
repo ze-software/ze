@@ -112,9 +112,10 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 		t.Error("central metrics schema still declares ze-bgp:pool-stats; it is owned by bgp/plugins/cmd/rib/schema")
 	}
 
-	// The ping feature (show ping, monitor ping, resolve ping, and the offline
-	// `ze ping` root) is owned by the dedicated ping module. None of its handlers
-	// may remain in the central show, BGP monitor, resolve, or diag packages.
+	// The ping feature (show ping, monitor ping, resolve ping) is owned by
+	// the dedicated ping module. show/monitor ping run as local handlers.
+	// None of its handlers may remain in the central show, BGP monitor,
+	// resolve, or diag packages.
 	pingOwner := "internal/component/ping/cmd"
 	if _, err := os.Stat(filepath.Join(root, pingOwner)); err != nil {
 		t.Errorf("ping feature module %s is missing: %v", pingOwner, err)
@@ -153,7 +154,7 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	// The traceroute feature (show traceroute, show probe-round, monitor
 	// traceroute, resolve traceroute) is owned by the dedicated traceroute
 	// module. None of its handlers may remain in the central show, BGP monitor,
-	// or resolve packages. There is no offline `ze traceroute` root.
+	// or resolve packages. show/monitor traceroute run as local handlers.
 	tracerouteOwner := "internal/component/traceroute/cmd"
 	if _, err := os.Stat(filepath.Join(root, tracerouteOwner)); err != nil {
 		t.Errorf("traceroute feature module %s is missing: %v", tracerouteOwner, err)

@@ -86,7 +86,7 @@ can watch path changes and latency shifts over time.";
             config false;
             ze:command "ze-resolve:traceroute";
             description "Traceroute from the router with optional source binding.
-Usage: resolve traceroute <target> [source <ip>].";
+Usage: resolve traceroute <target> [source <ip>] [max-hops N] [timeout D] [probes N].";
         }
     }
 }

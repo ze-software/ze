@@ -65,3 +65,21 @@ func TestPingParseArgsIPv6(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, dest.Is6())
 }
+
+// PREVENTS: garbage targets with shell metacharacters reaching DNS resolution.
+func TestPingParseArgsShellMeta(t *testing.T) {
+	bad := []string{
+		"a;rm -rf /",
+		"$(echo x)",
+		"`id`",
+		"host|cat",
+		"host with space",
+	}
+	for _, target := range bad {
+		t.Run(target, func(t *testing.T) {
+			_, _, _, err := parsePingArgs([]string{target})
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid destination")
+		})
+	}
+}

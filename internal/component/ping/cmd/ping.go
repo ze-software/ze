@@ -82,6 +82,9 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 			i++
 		default:
 			if !dest.IsValid() {
+				if err := validateResolveTarget(args[i]); err != nil {
+					return dest, 0, 0, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)
+				}
 				addr, err := probe.ResolveTarget(args[i])
 				if err != nil {
 					return dest, 0, 0, fmt.Errorf("ping: invalid destination %q: %w", args[i], err)

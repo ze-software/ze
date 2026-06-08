@@ -2,84 +2,9 @@ package cmd
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"testing"
 )
-
-// silenceStderr redirects os.Stderr to /dev/null for the duration of
-// the test. Restores on cleanup.
-func silenceStderr(t *testing.T) {
-	t.Helper()
-	old := os.Stderr
-	devnull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-	if err != nil {
-		t.Fatalf("open devnull: %v", err)
-	}
-	os.Stderr = devnull
-	t.Cleanup(func() {
-		os.Stderr = old
-		if err := devnull.Close(); err != nil {
-			t.Logf("close devnull: %v", err)
-		}
-	})
-}
-
-// TestRunPing_ValidationErrors covers every validation path that
-// returns 1 before sending ICMP.
-func TestRunPing_ValidationErrors(t *testing.T) {
-	cases := []struct {
-		name string
-		args []string
-	}{
-		{"no target", []string{}},
-		{"two targets", []string{"1.1.1.1", "2.2.2.2"}},
-		{"unknown flag", []string{"--evil", "1.1.1.1"}},
-		{"count negative", []string{"--count", "-1", "1.1.1.1"}},
-		{"count zero", []string{"--count", "0", "1.1.1.1"}},
-		{"count too large", []string{"--count", "100001", "1.1.1.1"}},
-		{"count non-int", []string{"--count", "abc", "1.1.1.1"}},
-		{"source not ip", []string{"--source", "not-ip", "1.1.1.1"}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			silenceStderr(t)
-			if rc := RunPing(tc.args); rc != 1 {
-				t.Errorf("RunPing(%v) = %d, want 1", tc.args, rc)
-			}
-		})
-	}
-}
-
-// TestRunPing_Help asserts that -h exits 0 (flag.ErrHelp handled).
-func TestRunPing_Help(t *testing.T) {
-	silenceStderr(t)
-	if rc := RunPing([]string{"-h"}); rc != 0 {
-		t.Errorf("RunPing(-h) = %d, want 0", rc)
-	}
-}
-
-// TestRunPing_ShellMetaTarget rejects targets with shell metacharacters
-// before they reach DNS resolution.
-//
-// PREVENTS: garbage targets triggering slow DNS lookups.
-func TestRunPing_ShellMetaTarget(t *testing.T) {
-	bad := []string{
-		"a;rm -rf /",
-		"$(echo x)",
-		"`id`",
-		"host|cat",
-		"host with space",
-	}
-	for _, target := range bad {
-		t.Run(target, func(t *testing.T) {
-			silenceStderr(t)
-			if rc := RunPing([]string{target}); rc != 1 {
-				t.Errorf("RunPing(%q) = %d, want 1", target, rc)
-			}
-		})
-	}
-}
 
 // TestPrintPingResults verifies the human-readable output format for
 // both success and all-timeout cases.

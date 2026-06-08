@@ -1,111 +1,14 @@
-// Design: docs/guide/command-catalogue.md -- offline ping diagnostic
+// Design: docs/guide/command-catalogue.md -- ping output formatting
 // Related: ping.go -- doPing internal ICMP engine shared across all ping paths
 
 package cmd
 
 import (
-	"errors"
-	"flag"
 	"io"
-	"net/netip"
-	"os"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/probe"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
-
-const (
-	maxOSPingCount = 100000
-)
-
-// RunPing implements `ze ping <target>`: a bounded batch of ICMP echo
-// requests using Ze's internal ICMP engine (no external ping binary).
-func RunPing(args []string) int {
-	const name = "ping"
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	fs.Usage = func() {
-		var tb textbuf.Buffer
-		tb.Str("Usage: ze ").Str(name).Str(" <target> [--count N] [--source IP]\n\n")
-		tb.Str("Send ICMP echo-request to <target> using the internal ICMP engine.\n\n")
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
-		fs.PrintDefaults()
-	}
-	var (
-		count  int
-		source string
-	)
-	fs.IntVar(&count, "count", defaultPingCount, "number of echo requests (1..100000)")
-	fs.IntVar(&count, "c", defaultPingCount, "short form of --count")
-	fs.StringVar(&source, "source", "", "source IP address to bind")
-	fs.StringVar(&source, "s", "", "short form of --source")
-	if err := fs.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return 0
-		}
-		return 1
-	}
-	rest := fs.Args()
-	if len(rest) == 0 {
-		var tb textbuf.Buffer
-		tb.Str(name).Str(": target is required\n")
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
-		fs.Usage()
-		return 1
-	}
-	if len(rest) > 1 {
-		var tb textbuf.Buffer
-		tb.Str(name).Str(": multiple targets not allowed\n")
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
-		return 1
-	}
-	target := rest[0]
-	if count < 1 || count > maxOSPingCount {
-		var tb textbuf.Buffer
-		tb.Str(name).Str(": --count must be in 1..").Int(int64(maxOSPingCount)).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
-		return 1
-	}
-
-	if err := validateResolveTarget(target); err != nil {
-		var tb textbuf.Buffer
-		tb.Str(name).Str(": ").Err(err).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
-		return 1
-	}
-
-	dest, err := probe.ResolveTarget(target)
-	if err != nil {
-		var tb textbuf.Buffer
-		tb.Str(name).Str(": ").Err(err).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
-		return 1
-	}
-
-	var opts pingOpts
-	if source != "" {
-		addr, parseErr := netip.ParseAddr(source)
-		if parseErr != nil {
-			var tb textbuf.Buffer
-			tb.Str(name).Str(": invalid source IP ").Str(strconv.Quote(source)).Byte('\n')
-			os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
-			return 1
-		}
-		opts.source = addr
-	}
-
-	results, pingErr := doPing(dest, count, defaultPingTimeout, opts)
-	if pingErr != nil {
-		var tb textbuf.Buffer
-		tb.Str(name).Str(": ").Err(pingErr).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
-		return 1
-	}
-
-	printPingResults(os.Stdout, results)
-	return 0
-}
 
 func printPingResults(w io.Writer, results map[string]any) {
 	var tb textbuf.Buffer

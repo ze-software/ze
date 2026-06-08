@@ -11,9 +11,6 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
-// These cover the OS-tool `resolve traceroute` (ze-resolve:traceroute) argument
-// validation, moved here with the handler from internal/component/resolve/cmd.
-
 func TestHandleResolveTraceroute_InvalidTarget(t *testing.T) {
 	resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, []string{"foo;bar"})
 	require.NoError(t, err)
@@ -42,7 +39,85 @@ func TestHandleResolveTraceroute_SourceMissingValue(t *testing.T) {
 	assert.Contains(t, resp.Error, "requires a value")
 }
 
-// --- validateResolveTarget (moved here with the resolve traceroute handler) ---
+func TestHandleResolveTraceroute_MaxHopsBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{"valid", []string{"127.0.0.1", "max-hops", "10"}, false},
+		{"zero", []string{"127.0.0.1", "max-hops", "0"}, true},
+		{"over", []string{"127.0.0.1", "max-hops", "65"}, true},
+		{"max-valid", []string{"127.0.0.1", "max-hops", "64"}, false},
+		{"missing-value", []string{"127.0.0.1", "max-hops"}, true},
+		{"not-a-number", []string{"127.0.0.1", "max-hops", "abc"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, tt.args)
+			require.NoError(t, err)
+			if tt.wantErr {
+				assert.Equal(t, plugin.StatusError, resp.Status)
+			} else if resp.Status == plugin.StatusError && strings.Contains(resp.Error, "CAP_NET_RAW") {
+				t.Skipf("requires CAP_NET_RAW: %s", resp.Error)
+			}
+		})
+	}
+}
+
+func TestHandleResolveTraceroute_TimeoutBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{"valid", []string{"127.0.0.1", "timeout", "2s"}, false},
+		{"under", []string{"127.0.0.1", "timeout", "500ms"}, true},
+		{"over", []string{"127.0.0.1", "timeout", "31s"}, true},
+		{"max-valid", []string{"127.0.0.1", "timeout", "30s"}, false},
+		{"missing-value", []string{"127.0.0.1", "timeout"}, true},
+		{"not-a-duration", []string{"127.0.0.1", "timeout", "abc"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, tt.args)
+			require.NoError(t, err)
+			if tt.wantErr {
+				assert.Equal(t, plugin.StatusError, resp.Status)
+			} else if resp.Status == plugin.StatusError && strings.Contains(resp.Error, "CAP_NET_RAW") {
+				t.Skipf("requires CAP_NET_RAW: %s", resp.Error)
+			}
+		})
+	}
+}
+
+func TestHandleResolveTraceroute_ProbesBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{"valid", []string{"127.0.0.1", "probes", "1"}, false},
+		{"zero", []string{"127.0.0.1", "probes", "0"}, true},
+		{"over", []string{"127.0.0.1", "probes", "11"}, true},
+		{"max-valid", []string{"127.0.0.1", "probes", "10"}, false},
+		{"missing-value", []string{"127.0.0.1", "probes"}, true},
+		{"not-a-number", []string{"127.0.0.1", "probes", "abc"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleResolveTraceroute(&pluginserver.CommandContext{}, tt.args)
+			require.NoError(t, err)
+			if tt.wantErr {
+				assert.Equal(t, plugin.StatusError, resp.Status)
+			} else if resp.Status == plugin.StatusError && strings.Contains(resp.Error, "CAP_NET_RAW") {
+				t.Skipf("requires CAP_NET_RAW: %s", resp.Error)
+			}
+		})
+	}
+}
+
+// --- validateResolveTarget ---
 
 func TestValidateResolveTarget_Valid(t *testing.T) {
 	tests := []struct {
@@ -83,7 +158,7 @@ func TestValidateResolveTarget_Invalid(t *testing.T) {
 	}
 }
 
-// --- validateSourceIP (moved here with the resolve traceroute handler) ---
+// --- validateSourceIP ---
 
 func TestValidateSourceIP_Valid(t *testing.T) {
 	assert.NoError(t, validateSourceIP("192.168.1.1"))

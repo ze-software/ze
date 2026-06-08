@@ -48,7 +48,7 @@ func handleTraceroute(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	hops, trErr := doTraceroute(target, maxHops, timeout, probes)
+	hops, trErr := doTraceroute(target, maxHops, timeout, probes, tracerouteOpts{})
 	if trErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: trErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
@@ -97,6 +97,9 @@ func parseTracerouteArgs(args []string) (netip.Addr, int, time.Duration, int, er
 			i++
 		default:
 			if !target.IsValid() {
+				if err := validateResolveTarget(args[i]); err != nil {
+					return target, 0, 0, 0, fmt.Errorf("traceroute: invalid target %q: %w", args[i], err)
+				}
 				addr, err := probe.ResolveTarget(args[i])
 				if err != nil {
 					return target, 0, 0, 0, fmt.Errorf("traceroute: invalid target %q: %w", args[i], err)
@@ -171,7 +174,15 @@ func embeddedICMPOffset(rb []byte, n int, isV6 bool) int {
 	return 8 + ihl
 }
 
-func doTraceroute(dest netip.Addr, maxHops int, timeout time.Duration, probes int) ([]map[string]any, error) {
+type tracerouteOpts struct {
+	source netip.Addr
+}
+
+func doTraceroute(dest netip.Addr, maxHops int, timeout time.Duration, probes int, opts tracerouteOpts) ([]map[string]any, error) {
+	return doTracerouteCtx(context.Background(), dest, maxHops, timeout, probes, opts)
+}
+
+func doTracerouteCtx(ctx context.Context, dest netip.Addr, maxHops int, timeout time.Duration, probes int, opts tracerouteOpts) ([]map[string]any, error) {
 	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
@@ -188,8 +199,13 @@ func doTraceroute(dest netip.Addr, maxHops int, timeout time.Duration, probes in
 		portUnreach = icmpv6PortUnreach
 	}
 
+	bindAddr := ""
+	if opts.source.IsValid() {
+		bindAddr = opts.source.String()
+	}
+
 	var lc net.ListenConfig
-	rawConn, err := lc.ListenPacket(context.Background(), network, "")
+	rawConn, err := lc.ListenPacket(ctx, network, bindAddr)
 	if err != nil {
 		return nil, fmt.Errorf("traceroute: %w (requires CAP_NET_RAW)", err)
 	}

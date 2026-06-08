@@ -3,7 +3,7 @@
 // register.go wires the ping module into ze's two registries from init():
 //   - the plugin server RPC registry, for the daemon-side show/monitor/resolve
 //     ping handlers, and
-//   - the command registry, for the offline `ze ping` root command.
+//   - the local command registry, for offline `show ping` and `monitor ping`.
 //
 // The module is reached by the daemon through scripts/codegen/plugin_imports.go
 // rpcDirs (internal/component/ping/cmd) and by the `ze` binary through plugin/all.
@@ -11,8 +11,15 @@
 package cmd
 
 import (
+	"context"
+	"os"
+	"os/signal"
+	"strconv"
+	"time"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -22,15 +29,73 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-resolve:ping", Handler: handleResolvePing},
 	)
 
-	// Owner-backed offline root: `ze ping <target>` shells out to the OS ping
-	// tool. RunPing has the LocalHandler shape (no RuntimeContext needed), so it
-	// is wrapped to satisfy the RootHandler signature.
-	registry.MustRegisterRootHandler("ping", func(_ *registry.RuntimeContext, args []string) int {
-		return RunPing(args)
-	}, registry.Meta{
-		Description: "Ping a target from this box (offline, internal ICMP). Use --count N and --source IP to control the test.",
+	registry.MustRegisterLocalMeta("show ping", showPingLocal, registry.Meta{
+		Description: "Ping a target using the internal ICMP engine (works without the daemon)",
 		Mode:        "offline",
-		Section:     registry.SectionSystem,
-		Subs:        "--count N, --source IP",
 	})
+
+	registry.MustRegisterLocalMeta("monitor ping", monitorPingLocal, registry.Meta{
+		Description: "Continuous ping with live statistics (works without the daemon)",
+		Mode:        "offline",
+	})
+}
+
+func showPingLocal(args []string) int {
+	dest, count, timeout, err := parsePingArgs(args)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("show ping: ").Err(err).Byte('\n')
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		return 1
+	}
+	results, pingErr := doPing(dest, count, timeout, pingOpts{})
+	if pingErr != nil {
+		var tb textbuf.Buffer
+		tb.Str("show ping: ").Err(pingErr).Byte('\n')
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		return 1
+	}
+	printPingResults(os.Stdout, results)
+	return 0
+}
+
+func monitorPingLocal(args []string) int {
+	dest, _, timeout, err := parsePingArgs(args)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("monitor ping: ").Err(err).Byte('\n')
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		return 1
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	ch, cancel, sessionErr := NewPingSession(ctx, dest.String(), time.Second, timeout)
+	if sessionErr != nil {
+		var tb textbuf.Buffer
+		tb.Str("monitor ping: ").Err(sessionErr).Byte('\n')
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		return 1
+	}
+	defer cancel()
+
+	var tb textbuf.Buffer
+	tb.Str("PING ").Str(dest.String()).Str(" (Ctrl-C to stop)\n")
+	os.Stdout.WriteString(tb.String()) //nolint:errcheck // stdout
+
+	for result := range ch {
+		tb.Reset(0)
+		seq, _ := result["seq"].(int)
+		status, _ := result["status"].(string)
+		tb.Str("  seq=").Int(int64(seq))
+		if status == "ok" {
+			rtt, _ := result["rtt-ms"].(float64)
+			tb.Str("  rtt=").Str(strconv.FormatFloat(rtt, 'f', 3, 64)).Str("ms\n")
+		} else {
+			tb.Str("  ").Str(status).Byte('\n')
+		}
+		os.Stdout.WriteString(tb.String()) //nolint:errcheck // stdout
+	}
+	return 0
 }

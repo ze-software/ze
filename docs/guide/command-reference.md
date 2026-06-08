@@ -928,15 +928,12 @@ exactly what is reachable on the running daemon.
 
 ### ping / traceroute
 
-```
-ze ping <target> [--count N] [--source IP]
-```
+`show ping` and `show traceroute` use Ze's internal ICMP engine and work without
+the daemon running (registered as local handlers). `monitor ping` and `monitor
+traceroute` also work offline, streaming results until Ctrl-C.
 
-`ze ping` sends ICMP echo requests using Ze's internal ICMP engine (no external
-binary needed). Owned by the dedicated ping feature module. Traceroute has no
-offline wrapper: run `show traceroute <target>` on the daemon.
-
-<!-- source: internal/component/ping/cmd/offline.go -- RunPing -->
+<!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
+<!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
 
 ### show crashes / ze crashes show
 

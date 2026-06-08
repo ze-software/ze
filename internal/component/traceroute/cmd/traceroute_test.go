@@ -96,6 +96,24 @@ func TestTracerouteArgsWithProbes(t *testing.T) {
 	assert.Equal(t, 1, probes)
 }
 
+// PREVENTS: garbage targets with shell metacharacters reaching DNS resolution.
+func TestTracerouteParseArgsShellMeta(t *testing.T) {
+	bad := []string{
+		"a;rm -rf /",
+		"$(echo x)",
+		"`id`",
+		"host|cat",
+		"host with space",
+	}
+	for _, target := range bad {
+		t.Run(target, func(t *testing.T) {
+			_, _, _, _, err := parseTracerouteArgs([]string{target})
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid target")
+		})
+	}
+}
+
 func TestTracerouteIPv6(t *testing.T) {
 	target, _, _, _, err := parseTracerouteArgs([]string{"::1"})
 	require.NoError(t, err)
