@@ -388,7 +388,7 @@ func isoKernelCachePath(arch, profile string) string {
 }
 
 func defaultISOKernelPath() string {
-	for _, profile := range []string{ProfileQEMU, ProfileHardware} {
+	for _, profile := range []string{ProfileQEMU, ProfileHardware, ProfileHardwareKMS} {
 		if p := isoKernelCachePath(runtime.GOARCH, profile); p != "" {
 			return p
 		}

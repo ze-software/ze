@@ -81,8 +81,9 @@ const (
 	archARM64       = "arm64"
 	defaultUsername = "admin"
 
-	ProfileQEMU     = "qemu"
-	ProfileHardware = "hardware"
+	ProfileQEMU        = "qemu"
+	ProfileHardware    = "hardware"
+	ProfileHardwareKMS = "hardware-kms"
 )
 
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
@@ -161,8 +162,8 @@ func (c *ApplianceConfig) Validate() error {
 	if c.Image.Arch != archAMD64 && c.Image.Arch != archARM64 {
 		return fmt.Errorf("image.arch %q: must be amd64 or arm64", c.Image.Arch)
 	}
-	if c.Image.KernelProfile != "" && c.Image.KernelProfile != ProfileQEMU && c.Image.KernelProfile != ProfileHardware {
-		return fmt.Errorf("image.kernel-profile %q: must be qemu or hardware", c.Image.KernelProfile)
+	if c.Image.KernelProfile != "" && c.Image.KernelProfile != ProfileQEMU && c.Image.KernelProfile != ProfileHardware && c.Image.KernelProfile != ProfileHardwareKMS {
+		return fmt.Errorf("image.kernel-profile %q: must be qemu, hardware, or hardware-kms", c.Image.KernelProfile)
 	}
 	if c.QEMU.SSHPort != 0 {
 		if c.QEMU.SSHPort < 1024 || c.QEMU.SSHPort > 65535 {

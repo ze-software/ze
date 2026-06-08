@@ -1,15 +1,17 @@
 # Build the ze installer kernel in a container.
 #
-#   make                              # qemu profile, arm64 (default)
-#   make PROFILE=hardware             # real hardware (EFI, NIC drivers, NVMe)
-#   make PROFILE=hardware ARCH=amd64  # hardware profile, x86_64
-#   make ARCH=amd64                   # qemu profile, x86_64
-#   make LINUX_VERSION=6.12.9         # pin a different kernel
+#   make                                  # qemu profile, arm64 (default)
+#   make PROFILE=hardware                 # real hardware, headless (EFI, NIC drivers, NVMe)
+#   make PROFILE=hardware-kms             # real hardware + Intel i915 KMS monitor output
+#   make PROFILE=hardware ARCH=amd64      # hardware profile, x86_64
+#   make ARCH=amd64                       # qemu profile, x86_64
+#   make LINUX_VERSION=6.12.9             # pin a different kernel
 #   make clean
 #
 # PROFILE selects which driver set to merge on top of kernel.config:
-#   qemu     - virtio only (small, fast build)
-#   hardware - virtio + EFI + real NIC/disk drivers (for bare metal / PXE)
+#   qemu         - virtio only (small, fast build)
+#   hardware     - virtio + EFI + real NIC/disk drivers (for bare metal / PXE)
+#   hardware-kms - hardware + Intel i915 KMS (for monitor output on Alder Lake-N+)
 #
 # Produces build/Image (the installer kernel) and build/config (resolved
 # .config). The caller chooses the architecture via ARCH before invoking
@@ -29,9 +31,14 @@ PROFILE_CONFIG := $(PROFILE).config
 
 all: $(OUT)/Image
 
-$(OUT)/Image: Dockerfile build.sh kernel.config $(PROFILE_CONFIG)
+PROFILE_DEPS = $(PROFILE_CONFIG)
+ifeq ($(PROFILE),hardware-kms)
+PROFILE_DEPS = hardware.config hardware-kms.config
+endif
+
+$(OUT)/Image: Dockerfile build.sh kernel.config $(PROFILE_DEPS)
 	@if [ ! -f "$(PROFILE_CONFIG)" ]; then \
-		echo "error: unknown PROFILE=$(PROFILE) (expected qemu or hardware)" >&2; \
+		echo "error: unknown PROFILE=$(PROFILE) (expected qemu, hardware, or hardware-kms)" >&2; \
 		exit 1; \
 	fi
 	docker build -t $(IMG) .

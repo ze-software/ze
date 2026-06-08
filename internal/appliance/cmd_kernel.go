@@ -43,7 +43,7 @@ func init() {
 func runKernel(args []string) int {
 	fs := flag.NewFlagSet("appliance kernel", flag.ContinueOnError)
 	archFlag := fs.String("arch", "", "Target architecture: amd64 or arm64 (default: from appliance config or host)")
-	profileFlag := fs.String("profile", "", "Kernel profile: qemu or hardware (default: from appliance config or qemu)")
+	profileFlag := fs.String("profile", "", "Kernel profile: qemu, hardware, or hardware-kms (default: from appliance config or qemu)")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
 
 	fs.Usage = func() {
@@ -54,7 +54,7 @@ func runKernel(args []string) int {
 			Sections: []helpfmt.HelpSection{
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--arch <arch>", Desc: "Target architecture: amd64 or arm64 (default: from appliance config or host)"},
-					{Name: "--profile <profile>", Desc: "Kernel profile: qemu or hardware (default: from appliance config or qemu)"},
+					{Name: "--profile <profile>", Desc: "Kernel profile: qemu, hardware, or hardware-kms (default: from appliance config or qemu)"},
 					{Name: "--version <ver>", Desc: func() string {
 						var tb textbuf.Buffer
 						return tb.Str("Linux kernel version (default: ").Str(defaultKernelVersion).Byte(')').String()
@@ -103,8 +103,8 @@ func runKernel(args []string) int {
 		cliErrorf("arch %q must be amd64 or arm64", arch)
 		return exitError
 	}
-	if profile != ProfileQEMU && profile != ProfileHardware {
-		cliErrorf("profile %q must be qemu or hardware", profile)
+	if profile != ProfileQEMU && profile != ProfileHardware && profile != ProfileHardwareKMS {
+		cliErrorf("profile %q must be qemu, hardware, or hardware-kms", profile)
 		return exitError
 	}
 

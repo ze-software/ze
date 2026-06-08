@@ -178,13 +178,17 @@ func TestConfigValidation(t *testing.T) {
 			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = ProfileHardware },
 		},
 		{
+			name:   "kernel profile hardware-kms valid",
+			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = ProfileHardwareKMS },
+		},
+		{
 			name:   "kernel profile empty valid",
 			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = "" },
 		},
 		{
 			name:    "kernel profile invalid",
 			modify:  func(c *ApplianceConfig) { c.Image.KernelProfile = "bare-metal" },
-			wantErr: "must be qemu or hardware",
+			wantErr: "must be qemu, hardware, or hardware-kms",
 		},
 		{
 			name:    "qemu port below 1024",

@@ -69,7 +69,7 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 
 func checkKernelArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	for _, arch := range []string{archAMD64, archARM64} {
-		for _, profile := range []string{ProfileQEMU, ProfileHardware} {
+		for _, profile := range []string{ProfileQEMU, ProfileHardware, ProfileHardwareKMS} {
 			if p := isoKernelCachePath(arch, profile); p != "" {
 				return nil
 			}
