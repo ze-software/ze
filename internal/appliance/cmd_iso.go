@@ -380,8 +380,7 @@ func resolveISOArtifact(path, label, hint string) (string, error) {
 }
 
 func isoKernelCachePath(arch, profile string) string {
-	var tb textbuf.Buffer
-	cached := kernelCachePath(defaultKernelVersion, tb.Str(arch).Byte('-').Str(profile).String())
+	cached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(arch, profile))
 	if _, err := os.Stat(cached); err == nil {
 		return cached
 	}

@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -53,8 +55,23 @@ func ResolveCacheDir() string {
 	return filepath.Join(home, ".cache", cacheSubdir)
 }
 
-func kernelCachePath(version, arch string) string {
-	return filepath.Join(ResolveCacheDir(), kernelCacheDir, version+"-"+arch, kernelFileName)
+func kernelCachePath(version, variant string) string {
+	var tb textbuf.Buffer
+	return filepath.Join(ResolveCacheDir(), kernelCacheDir, tb.Str(version).Byte('-').Str(variant).String(), kernelFileName)
+}
+
+func kernelCacheVariant(arch, profile string) string {
+	var tb textbuf.Buffer
+	h := sha256.New()
+	profileCfg := tb.Str(profile).Str(".config").String()
+	for _, name := range []string{"kernel.config", profileCfg} {
+		data, err := os.ReadFile(filepath.Join(kernelToolsDir, name)) //nolint:gosec // constant base dir + validated profile
+		if err != nil {
+			return tb.Reset().Str(arch).Byte('-').Str(profile).String()
+		}
+		h.Write(data)
+	}
+	return tb.Reset().Str(arch).Byte('-').Str(profile).Byte('-').Str(hex.EncodeToString(h.Sum(nil))[:8]).String()
 }
 
 func initrdCachePath(version string) string {

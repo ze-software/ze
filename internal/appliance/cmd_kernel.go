@@ -119,7 +119,7 @@ func runKernel(args []string) int {
 }
 
 func resolveKernel(version, arch, profile string) (string, error) {
-	cached := kernelCachePath(version, arch+"-"+profile)
+	cached := kernelCachePath(version, kernelCacheVariant(arch, profile))
 	toolsDst := filepath.Join(kernelToolsDir, "build", kernelFileName)
 
 	if _, err := os.Stat(cached); err == nil {

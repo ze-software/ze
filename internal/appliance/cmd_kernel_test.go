@@ -383,6 +383,74 @@ func TestKernelReadsProfileFromAppliance(t *testing.T) {
 	}
 }
 
+func TestKernelConfigHashInvalidatesCache(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+
+	toolsDir := filepath.Join(dir, kernelToolsDir)
+	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(toolsDir, "kernel.config"), []byte("CONFIG_A=y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(toolsDir, "qemu.config"), []byte("CONFIG_B=y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	variant1 := kernelCacheVariant(archAMD64, ProfileQEMU)
+	cached1 := kernelCachePath("7.0.11", variant1)
+	if err := os.MkdirAll(filepath.Dir(cached1), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cached1, []byte("kernel-v1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	if err != nil {
+		t.Fatalf("resolveKernel before config change: %v", err)
+	}
+	if got != cached1 {
+		t.Fatalf("expected cache hit at %q, got %q", cached1, got)
+	}
+
+	if err := os.WriteFile(filepath.Join(toolsDir, "kernel.config"), []byte("CONFIG_A=y\nCONFIG_IGC=y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	variant2 := kernelCacheVariant(archAMD64, ProfileQEMU)
+	if variant1 == variant2 {
+		t.Fatal("config change did not change cache variant")
+	}
+
+	setTestDockerCheck(t, func() error { return nil })
+	setTestDockerBuild(t, func(version, arch, profile, destPath string) error {
+		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(destPath, []byte("kernel-v2"), 0o644)
+	})
+
+	got2, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	if err != nil {
+		t.Fatalf("resolveKernel after config change: %v", err)
+	}
+	if got2 == cached1 {
+		t.Error("config change did not invalidate kernel cache")
+	}
+
+	data, err := os.ReadFile(got2)
+	if err != nil {
+		t.Fatalf("read rebuilt kernel: %v", err)
+	}
+	if string(data) != "kernel-v2" {
+		t.Errorf("rebuilt kernel content = %q, want kernel-v2", data)
+	}
+}
+
 func TestKernelEnvURL(t *testing.T) {
 	t.Chdir(t.TempDir())
 	cacheDir := t.TempDir()

@@ -60,7 +60,9 @@ if [ "$PROFILE" = "qemu" ]; then
 fi
 
 if [ "$PROFILE" = "hardware" ]; then
-    for opt in CONFIG_EFI CONFIG_EFI_STUB CONFIG_FB_EFI CONFIG_FRAMEBUFFER_CONSOLE; do
+    for opt in CONFIG_EFI CONFIG_EFI_STUB CONFIG_FB_EFI CONFIG_FRAMEBUFFER_CONSOLE \
+               CONFIG_E1000E CONFIG_IGB CONFIG_IGC CONFIG_R8169 \
+               CONFIG_SATA_AHCI CONFIG_BLK_DEV_NVME; do
         if ! grep -q "^${opt}=y" .config; then
             echo "FATAL: ${opt} did not resolve to =y (required for hardware profile)" >&2
             grep "${opt}" .config >&2 || true
