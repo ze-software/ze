@@ -52,6 +52,7 @@ var noOwnerAllowlist = map[string]string{
 	"doctor":       "Process readiness aggregator; owner-specific checks register with the doctor registry.",
 	"explain":      "Diagnostic-code lookup tied to the process binary.",
 	"host":         "Offline hardware inventory for the box.",
+	"--plugins":    "Process-global flag that dumps the linked plugin inventory.",
 }
 
 type finding struct {
@@ -135,7 +136,8 @@ func checkOwnersAreCmdZeFree() []finding {
 }
 
 // checkRootHandlersAreInternal verifies RegisterRootHandler is only called from
-// internal/ packages, never from cmd/ze.
+// internal/ packages, never from cmd/ze -- except for commands in the no-owner
+// allowlist, which legitimately register handlers centrally.
 func checkRootHandlersAreInternal() []finding {
 	var out []finding
 	_ = filepath.Walk("cmd/ze", func(path string, info os.FileInfo, err error) error {
@@ -145,15 +147,25 @@ func checkRootHandlersAreInternal() []finding {
 		if hasVariantBuildTag(path) {
 			return nil
 		}
-		for _, name := range registerCalls(path) {
-			if name == "RegisterRootHandler" || name == "MustRegisterRootHandler" {
-				out = append(out, finding{
-					Kind: "root-handler-in-cmd-ze",
-					File: path,
-					Msg:  "owner-backed RegisterRootHandler must live in the owner's internal package, not cmd/ze",
-				})
+		forEachRegistryCall(path, func(method string, call *ast.CallExpr) {
+			if method != "RegisterRootHandler" && method != "MustRegisterRootHandler" {
+				return
 			}
-		}
+			if len(call.Args) > 0 {
+				if lit, ok := call.Args[0].(*ast.BasicLit); ok && lit.Kind == token.STRING {
+					if name, err := strconv.Unquote(lit.Value); err == nil {
+						if _, allowed := noOwnerAllowlist[name]; allowed {
+							return
+						}
+					}
+				}
+			}
+			out = append(out, finding{
+				Kind: "root-handler-in-cmd-ze",
+				File: path,
+				Msg:  "owner-backed RegisterRootHandler must live in the owner's internal package, not cmd/ze",
+			})
+		})
 		return nil
 	})
 	return out
@@ -247,16 +259,6 @@ func fileImports(path string) []string {
 		}
 	}
 	return imps
-}
-
-// registerCalls returns the registry selector method names called in a file
-// (e.g. RegisterRoot, RegisterRootHandler, MustRegisterLocal).
-func registerCalls(path string) []string {
-	var names []string
-	forEachRegistryCall(path, func(method string, _ *ast.CallExpr) {
-		names = append(names, method)
-	})
-	return names
 }
 
 // registerRootNames returns the string literal first arg of every

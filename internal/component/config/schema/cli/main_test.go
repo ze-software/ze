@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 

@@ -27,8 +27,12 @@ option=timeout:value=10s
 # Config has validation error (receive-hold-time 1 is invalid per RFC 4271)
 expect=errors:count=1
 
-# Try to commit — issues shown in viewport, not as error
+# Commit is blocked by validation errors
 input=type:text=commit
 input=enter
-expect=viewport:contains=receive-hold-time
 expect=status:contains=blocked
+
+# Pipe filter shows validation details in viewport
+input=type:text=show | errors
+input=enter
+expect=viewport:contains=receive-hold-time

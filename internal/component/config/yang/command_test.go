@@ -287,7 +287,7 @@ func TestRefreshCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-bgp:peer-clear-soft", GetCommandExtension(peer.Dir["clear"].Dir["soft"]))
 }
 
-// TestMetaCmdModule verifies ze-cli-meta-cmd.yang (introspection from cmd/meta plugin).
+// TestMetaCmdModule verifies ze-command-meta-cmd.yang (introspection from command component).
 //
 // VALIDATES: Meta command YANG module loads with help, command, event, plugin groups.
 // PREVENTS: Introspection commands missing from the command tree.
@@ -295,11 +295,11 @@ func TestMetaCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"meta/schema/ze-cli-meta-cmd.yang")
+	loadCmdModule(t, loader, "../../../plugins/meta/yang/ze-command-meta-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-cli-meta-cmd")
+	entry := loader.GetEntry("ze-command-meta-cmd")
 	require.NotNil(t, entry)
 
 	assert.Equal(t, "ze-bgp:help", GetCommandExtension(entry.Dir["help"]))

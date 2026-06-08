@@ -130,7 +130,6 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 	for _, c := range []struct{ file, symbol string }{
 		{"internal/component/bgp/plugins/cmd/monitor/monitor.go", "handleMonitorPing"},
 		{"internal/component/resolve/cmd/resolve.go", "func handlePing"},
-		{"cmd/ze/diag/diag.go", "func RunPing"},
 	} {
 		body, err := os.ReadFile(filepath.Join(root, c.file))
 		if err != nil {
@@ -139,6 +138,15 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 		}
 		if strings.Contains(string(body), c.symbol) {
 			t.Errorf("%s still defines %q; the ping feature is owned by %s", c.file, c.symbol, pingOwner)
+		}
+	}
+	diagPath := filepath.Join(root, "cmd/ze/diag/diag.go")
+	if _, err := os.Stat(diagPath); err == nil {
+		body, readErr := os.ReadFile(diagPath)
+		if readErr != nil {
+			t.Errorf("read %s: %v", diagPath, readErr)
+		} else if strings.Contains(string(body), "func RunPing") {
+			t.Errorf("cmd/ze/diag/diag.go still defines \"func RunPing\"; the ping feature is owned by %s", pingOwner)
 		}
 	}
 
@@ -305,7 +313,6 @@ func TestGenericCentralCommandsStayCentral(t *testing.T) {
 		"ze-show:warnings",
 		"ze-show:errors",
 		"ze-show:health",
-		"ze-show:doctor",
 	}
 	for _, h := range genericShowHandlers {
 		if !strings.Contains(string(showBody), h) {
@@ -327,9 +334,6 @@ func TestGenericCentralCommandsStayCentral(t *testing.T) {
 		`"ze-show:warnings"`,
 		`"ze-show:errors"`,
 		`"ze-show:health"`,
-		`"ze-show:doctor"`,
-		`"ze-show:tcp-check"`,
-		`"ze-show:capture"`,
 		`"ze-show:system-memory"`,
 		`"ze-show:system-cpu"`,
 		`"ze-show:system-date"`,
@@ -340,19 +344,10 @@ func TestGenericCentralCommandsStayCentral(t *testing.T) {
 		}
 	}
 
-	// Generic monitor subcommands (event viewer, kernel netlink stream).
+	// The central monitor schema is a bare verb-root anchor; all monitor
+	// subcommands are owned by their respective components (BGP, iface, command).
 	monSchema := filepath.Join(root, "internal", "component", "cmd", "monitor", "schema", "ze-cli-monitor-cmd.yang")
-	monBody, err := os.ReadFile(monSchema)
-	if err != nil {
-		t.Fatalf("read monitor schema: %v", err)
-	}
-	genericMonitorCommands := []string{
-		`"ze-event:monitor"`,
-		`"ze-monitor:system-netlink"`,
-	}
-	for _, cmd := range genericMonitorCommands {
-		if !strings.Contains(string(monBody), cmd) {
-			t.Errorf("generic central YANG command %s missing from monitor schema; it has no removable owner and must stay central", cmd)
-		}
+	if _, err := os.Stat(monSchema); err != nil {
+		t.Fatalf("central monitor verb-root schema %s must exist: %v", monSchema, err)
 	}
 }

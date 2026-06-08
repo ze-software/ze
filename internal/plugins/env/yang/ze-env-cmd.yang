@@ -15,14 +15,12 @@ module ze-env-cmd {
 
             container list {
                 config false;
-                ze:command "ze-show:env-list";
                 description "List all Ze environment variables with their current values.
 Shows which env vars are set and their defaults.";
             }
 
             container get {
                 config false;
-                ze:command "ze-show:env-get";
                 description "Show one environment variable in detail.
 Returns the variable name, current value, default, and what it
 controls. Usage: show env get <name>.";
@@ -30,7 +28,6 @@ controls. Usage: show env get <name>.";
 
             container registered {
                 config false;
-                ze:command "ze-show:env-registered";
                 description "List every registered environment variable with metadata.
 Includes type, default, description, and whether it is currently set.";
             }

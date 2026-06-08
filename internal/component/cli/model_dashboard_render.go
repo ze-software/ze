@@ -150,7 +150,8 @@ func renderTableHeader(cols []dashboardColumnDef, sortCol dashboardSortColumn, s
 				tb.Str(" v")
 			}
 		}
-		parts = append(parts, tb.Reset().PadRight(tb.String(), c.width).String())
+		header := tb.String()
+		parts = append(parts, tb.Reset().PadRight(header, c.width).String())
 	}
 	return dashHeaderStyle.Render(textbuf.Join(parts, "  "))
 }

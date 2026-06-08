@@ -27,13 +27,14 @@ const binNameZePeer = "ze-peer"
 const TestPluginBuildTag = "zetest"
 
 // TestBuildTags returns ZE_TAGS plus the tags for functional test builds.
-// ze_distro is always included because the test binary IS ze (the distro
-// build). zetest adds test-only plugins on top.
+// ze_core + ze_distro provide the full ze command surface. ze_setup adds
+// the provision plugin (install remote) and appliance tooling. zetest adds
+// test-only plugins on top.
 func TestBuildTags() string {
 	tags := strings.FieldsFunc(os.Getenv("ZE_TAGS"), func(r rune) bool {
 		return r == ',' || r == ' ' || r == '\t' || r == '\n'
 	})
-	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro")
+	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup")
 	return textbuf.Join(tags, ",")
 }
 

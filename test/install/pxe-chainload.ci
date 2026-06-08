@@ -26,7 +26,7 @@ service {
 }
 EOF_CONF
 
-stdin=config_without_url:terminator=EOF_CONF
+stdin=config_without_url:terminator=EOF_CONF2
 service {
     dhcp-server {
         enabled true
@@ -48,7 +48,7 @@ service {
         }
     }
 }
-EOF_CONF
+EOF_CONF2
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config_with_url
 expect=exit:code=0
