@@ -30,7 +30,8 @@ from pathlib import Path
 ALPINE_VERSION = "3.21"
 ALPINE_MINOR = "3"
 
-VM_MEMORY = "8192"
+VM_MEMORY_MIN = 4096
+VM_MEMORY_FRACTION = 4
 BOOT_TIMEOUT = 120
 BUILD_TIMEOUT = 3600
 DEFAULT_LINUX_VERSION = "7.0.11"
@@ -121,6 +122,15 @@ def _vm_cpus() -> str:
     return str(max(2, n))
 
 
+def _vm_memory() -> str:
+    try:
+        total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+        quarter = total // VM_MEMORY_FRACTION // (1024 * 1024)
+        return str(max(VM_MEMORY_MIN, quarter))
+    except (ValueError, OSError):
+        return str(VM_MEMORY_MIN)
+
+
 def _available_accels(qemu: str) -> list[str]:
     result = subprocess.run(
         [qemu, "-accel", "help"],
@@ -128,10 +138,11 @@ def _available_accels(qemu: str) -> list[str]:
         text=True,
         check=False,
     )
+    known = {"hvf", "kvm", "tcg", "whpx", "xen"}
     accels = []
     for line in result.stdout.splitlines():
         stripped = line.strip()
-        if stripped and stripped != "Accelerators supported in QEMU binary:":
+        if stripped in known:
             accels.append(stripped)
     return accels
 
@@ -141,6 +152,7 @@ def _build_qemu_args(
     workspace: Path,
     target_arch: str,
     ssh_port: int,
+    memory: str,
     ccache_path: Path | None = None,
 ) -> list[str]:
     qemu = qemu_binary(target_arch)
@@ -177,7 +189,7 @@ def _build_qemu_args(
             "-smp",
             _vm_cpus(),
             "-m",
-            VM_MEMORY,
+            memory,
             "-cdrom",
             str(iso),
             "-boot",
@@ -292,10 +304,12 @@ def _run_build(
 ) -> int:
     ssh_port = find_free_port()
     cc_dir = ccache_dir()
-    args = _build_qemu_args(iso, workspace, target_arch, ssh_port, cc_dir)
+    memory = _vm_memory()
+    args = _build_qemu_args(iso, workspace, target_arch, ssh_port, memory, cc_dir)
 
     print(
-        f">>> booting Alpine VM ({_alpine_arch(target_arch)}, ssh port {ssh_port})...",
+        f">>> booting Alpine VM ({_alpine_arch(target_arch)}, "
+        f"{memory}MB RAM, ssh port {ssh_port})...",
         file=sys.stderr,
     )
     proc = subprocess.Popen(

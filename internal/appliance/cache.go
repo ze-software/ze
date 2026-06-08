@@ -26,7 +26,6 @@ const (
 	checksumSuffix   = ".sha256"
 	downloadTimeout  = 10 * time.Minute
 	cacheDirPerm     = 0o755
-	cacheFilePerm    = 0o644
 	checksumHexLen   = 64
 	minArtifactBytes = 1
 )
