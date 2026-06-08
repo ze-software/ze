@@ -19,6 +19,10 @@ const (
 	ChangeFileRenameToken = "rename"
 	// ChangeFileToToken separates the old and new keys in a rename line.
 	ChangeFileToToken = "to"
+	// ChangeFileDeleteEntryToken identifies a list-entry delete structural op line.
+	ChangeFileDeleteEntryToken = "delete-entry"
+	// ChangeFileDeleteContainerToken identifies a container delete structural op line.
+	ChangeFileDeleteContainerToken = "delete-container"
 )
 
 // StructuralOpType identifies the kind of structural op stored in a change file.
@@ -27,6 +31,10 @@ type StructuralOpType string
 const (
 	// StructuralOpRename renames a single keyed list entry.
 	StructuralOpRename StructuralOpType = ChangeFileRenameToken
+	// StructuralOpDeleteEntry removes a keyed list entry.
+	StructuralOpDeleteEntry StructuralOpType = ChangeFileDeleteEntryToken
+	// StructuralOpDeleteContainer removes a container.
+	StructuralOpDeleteContainer StructuralOpType = ChangeFileDeleteContainerToken
 )
 
 // PendingChangeKind identifies the operator-visible type of a pending change.
@@ -70,22 +78,37 @@ func (op StructuralOp) SessionKey() string {
 
 // SourcePath returns the full YANG path to the original list entry.
 func (op StructuralOp) SourcePath() string {
+	if op.Type == StructuralOpDeleteContainer {
+		return joinChangePath(op.ParentPath, op.ListName)
+	}
 	return joinChangePath(op.ParentPath, op.ListName, op.OldKey)
 }
 
 // DestinationPath returns the full YANG path to the renamed list entry.
 func (op StructuralOp) DestinationPath() string {
+	if op.Type == StructuralOpDeleteEntry || op.Type == StructuralOpDeleteContainer {
+		return op.SourcePath()
+	}
 	return joinChangePath(op.ParentPath, op.ListName, op.NewKey)
 }
 
 // PendingChange converts the structural op into the unified pending-change form.
 func (op StructuralOp) PendingChange() PendingChange {
-	return PendingChange{
-		SessionID: op.SessionKey(),
-		Kind:      PendingChangeRename,
-		Path:      op.DestinationPath(),
-		OldPath:   op.SourcePath(),
-		NewPath:   op.DestinationPath(),
+	switch op.Type {
+	case StructuralOpDeleteEntry, StructuralOpDeleteContainer:
+		return PendingChange{
+			SessionID: op.SessionKey(),
+			Kind:      PendingChangeDelete,
+			Path:      op.SourcePath(),
+		}
+	default:
+		return PendingChange{
+			SessionID: op.SessionKey(),
+			Kind:      PendingChangeRename,
+			Path:      op.DestinationPath(),
+			OldPath:   op.SourcePath(),
+			NewPath:   op.DestinationPath(),
+		}
 	}
 }
 
@@ -168,8 +191,7 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 		}
 
 		entry, cmdLine := extractMeta(trimmed)
-		if strings.HasPrefix(cmdLine, ChangeFileRenameToken+" ") {
-			op, err := parseRenameLine(lineNum, entry, cmdLine)
+		if op, err, matched := parseStructuralOp(lineNum, entry, cmdLine); matched {
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -188,11 +210,11 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 }
 
 // SerializeChangeFile renders tree, meta, and structural ops into a per-user
-// change file. Rename lines are emitted before the set/delete body.
+// change file. Structural op lines are emitted before the set/delete body.
 func SerializeChangeFile(tree *Tree, meta *MetaTree, ops []StructuralOp, schema *Schema) string {
 	var b textbuf.Buffer
 	for i := range ops {
-		b.Str(formatRenameLine(ops[i]))
+		b.Str(formatStructuralLine(ops[i]))
 		b.Byte('\n')
 	}
 	body := SerializeSetWithMeta(tree, meta, schema)
@@ -213,6 +235,9 @@ func CoalesceRenameOps(ops []StructuralOp) []StructuralOp {
 		merged := false
 		for j := range result {
 			prev := &result[j]
+			if prev.Type != StructuralOpRename || ops[i].Type != StructuralOpRename {
+				continue
+			}
 			if prev.SessionKey() != ops[i].SessionKey() || prev.ParentPath != ops[i].ParentPath || prev.ListName != ops[i].ListName {
 				continue
 			}
@@ -230,7 +255,7 @@ func CoalesceRenameOps(ops []StructuralOp) []StructuralOp {
 
 	filtered := result[:0]
 	for i := range result {
-		if result[i].OldKey == result[i].NewKey {
+		if result[i].Type == StructuralOpRename && result[i].OldKey == result[i].NewKey {
 			continue
 		}
 		filtered = append(filtered, result[i])
@@ -300,6 +325,112 @@ func formatRenameLine(op StructuralOp) string {
 	b.Str(ChangeFileToToken)
 	b.Byte(' ')
 	b.Str(op.NewKey)
+	return b.String()
+}
+
+// parseStructuralOp dispatches structural op parsing by the first token.
+// Returns (op, nil, true) on success, (_, err, true) on parse error,
+// or (_, nil, false) if the line is not a structural op.
+func parseStructuralOp(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp, error, bool) {
+	token, _, found := strings.Cut(cmdLine, " ")
+	if !found {
+		return StructuralOp{}, nil, false
+	}
+	switch token {
+	case ChangeFileRenameToken:
+		op, err := parseRenameLine(lineNum, entry, cmdLine)
+		return op, err, true
+	case ChangeFileDeleteEntryToken:
+		op, err := parseDeleteEntryLine(lineNum, entry, cmdLine)
+		return op, err, true
+	case ChangeFileDeleteContainerToken:
+		op, err := parseDeleteContainerLine(lineNum, entry, cmdLine)
+		return op, err, true
+	}
+	return StructuralOp{}, nil, false
+}
+
+// formatStructuralLine serializes a structural op into its change-file line.
+func formatStructuralLine(op StructuralOp) string {
+	switch op.Type {
+	case StructuralOpDeleteEntry:
+		return formatDeleteEntryLine(op)
+	case StructuralOpDeleteContainer:
+		return formatDeleteContainerLine(op)
+	default:
+		return formatRenameLine(op)
+	}
+}
+
+// parseDeleteEntryLine parses a delete-entry structural op line.
+func parseDeleteEntryLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp, error) {
+	tokens := strings.Fields(cmdLine)
+	if len(tokens) < 3 {
+		return StructuralOp{}, fmt.Errorf("line %d: delete-entry requires <list-name> <key>", lineNum)
+	}
+	if entry.User == "" {
+		return StructuralOp{}, fmt.Errorf("line %d: delete-entry requires #user metadata", lineNum)
+	}
+	key := tokens[len(tokens)-1]
+	listName := tokens[len(tokens)-2]
+	parentPath := textbuf.Join(tokens[1:len(tokens)-2], " ")
+	return StructuralOp{
+		Type:       StructuralOpDeleteEntry,
+		User:       entry.User,
+		Source:     entry.Source,
+		Time:       entry.Time,
+		ParentPath: parentPath,
+		ListName:   listName,
+		OldKey:     key,
+	}, nil
+}
+
+// parseDeleteContainerLine parses a delete-container structural op line.
+func parseDeleteContainerLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp, error) {
+	tokens := strings.Fields(cmdLine)
+	if len(tokens) < 2 {
+		return StructuralOp{}, fmt.Errorf("line %d: delete-container requires <container-name>", lineNum)
+	}
+	if entry.User == "" {
+		return StructuralOp{}, fmt.Errorf("line %d: delete-container requires #user metadata", lineNum)
+	}
+	containerName := tokens[len(tokens)-1]
+	parentPath := textbuf.Join(tokens[1:len(tokens)-1], " ")
+	return StructuralOp{
+		Type:       StructuralOpDeleteContainer,
+		User:       entry.User,
+		Source:     entry.Source,
+		Time:       entry.Time,
+		ParentPath: parentPath,
+		ListName:   containerName,
+	}, nil
+}
+
+func formatDeleteEntryLine(op StructuralOp) string {
+	var b textbuf.Buffer
+	writeMetaPrefix(&b, MetaEntry{User: op.User, Source: op.Source, Time: op.Time})
+	b.Str(ChangeFileDeleteEntryToken)
+	b.Byte(' ')
+	if op.ParentPath != "" {
+		b.Str(op.ParentPath)
+		b.Byte(' ')
+	}
+	b.Str(op.ListName)
+	b.Byte(' ')
+	b.Str(op.OldKey)
+	return b.String()
+}
+
+func formatDeleteContainerLine(op StructuralOp) string {
+	var b textbuf.Buffer
+	writeMetaPrefix(&b, MetaEntry{User: op.User, Source: op.Source, Time: op.Time})
+	b.Str(ChangeFileDeleteContainerToken)
+	b.Byte(' ')
+	if op.ParentPath != "" {
+		b.Str(op.ParentPath)
+		b.Byte(' ')
+	}
+	b.Str(op.ListName)
 	return b.String()
 }
 

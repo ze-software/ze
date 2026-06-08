@@ -241,6 +241,26 @@ func (mt *MetaTree) GetOrCreateListEntry(key string) *MetaTree {
 	return child
 }
 
+// DeleteMetaListEntry removes a list-entry subtree from a named list container.
+func (mt *MetaTree) DeleteMetaListEntry(listName, key string) {
+	mt.mu.RLock()
+	listContainer := mt.containers[listName]
+	mt.mu.RUnlock()
+	if listContainer == nil {
+		return
+	}
+	listContainer.mu.Lock()
+	delete(listContainer.lists, key)
+	listContainer.mu.Unlock()
+}
+
+// DeleteMetaContainer removes a container subtree by name.
+func (mt *MetaTree) DeleteMetaContainer(name string) {
+	mt.mu.Lock()
+	delete(mt.containers, name)
+	mt.mu.Unlock()
+}
+
 // RenameListEntry renames a list-entry subtree under the named list container.
 // Returns an error if the target key already exists.
 func (mt *MetaTree) RenameListEntry(listName, oldKey, newKey string) error {

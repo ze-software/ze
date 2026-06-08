@@ -569,7 +569,10 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 		}
 	}
 
-	// Create session for concurrent editing.
+	// Create session for concurrent editing (zefs only).
+	// Plain file editing uses the legacy non-session commit path
+	// which writes the full tree directly, so deletes and structural
+	// changes work without per-leaf change tracking.
 	username := os.Getenv("USER")
 	if username == "" {
 		username = "unknown"
@@ -579,11 +582,13 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath, user string, d
 		return 1
 	}
 	session := cli.NewEditSession(username, "local")
-	ed.SetSession(session)
+	if storage.IsBlobStorage(store) {
+		ed.SetSession(session)
+	}
 
-	// Auto-load draft if it exists.
+	// Auto-load draft if it exists (session mode only).
 	draftPath := cli.DraftPath(configPath)
-	if store.Exists(draftPath) {
+	if ed.HasSession() && store.Exists(draftPath) {
 		// Load draft first so ActiveSessions can see draft sessions.
 		if !ed.LoadDraft() {
 			fmt.Fprintf(os.Stderr, "warning: draft file exists but could not be loaded\n") //nolint:errcheck // terminal output

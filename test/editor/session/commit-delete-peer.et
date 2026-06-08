@@ -1,0 +1,53 @@
+# Test: Session commit applies list entry deletion to config file
+# VALIDATES: DeleteListEntry write-through in session mode
+# PREVENTS: delete peer followed by commit silently dropping changes
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+  peer peer1 {
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  	}
+    timer { receive-hold-time 90; }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Verify peer is present initially
+expect=dirty:false
+
+# Delete the peer
+input=type:text=delete bgp peer peer1
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Commit the deletion
+input=type:text=commit
+input=enter
+expect=dirty:false
+expect=error:none
+
+# Verify peer removed from config file
+expect=file:path=test.conf:not-contains=peer1
+expect=file:path=test.conf:not-contains=1.1.1.1
+
+# Verify draft file cleaned up
+expect=file:path=test.conf.draft:absent

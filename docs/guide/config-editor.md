@@ -53,6 +53,24 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `ze config completion <file>` | Query YANG completion engine (debugging) |
 <!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
 
+## Editing Modes
+
+The editor operates in one of two modes depending on the storage backend.
+<!-- source: internal/component/config/cli/cmd_edit.go -- runEditor, storage.IsBlobStorage -->
+
+**File mode** (`ze config edit -f` or when no zefs database exists): the editor works directly on a config file. `commit` writes the full configuration tree to disk. All operations (set, delete, load) modify the in-memory tree and the commit serializes the result. This is the simplest path: no change tracking, no conflict detection, no draft files.
+
+**Session mode** (zefs blob store): each editing session gets an identity (`user@origin%timestamp`) and a per-user change file that records every edit with metadata (who, when, previous value). `commit` applies only the current session's tracked changes to the committed config, enabling concurrent multi-user editing with conflict detection, blame, and crash recovery. See the [concurrent editing](../research/comparison/freertr/23-concurrent-editing.md) reference for the full protocol.
+
+| Feature | File mode | Session mode (zefs) |
+|---------|-----------|-------------------|
+| Commit | Writes full tree | Applies tracked changes |
+| Multi-user | No | Yes (per-user change files) |
+| Conflict detection | No | Live and stale |
+| Blame / authorship | No | Yes |
+| Crash recovery | `.edit` file | Change files + draft |
+| Draft / discard path | No | Yes |
+
 ## YANG Completion
 
 Tab completion is driven by registered YANG schemas. The editor suggests:

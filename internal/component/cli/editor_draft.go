@@ -437,19 +437,39 @@ func filterStructuralOps(ops []config.StructuralOp, sessionID string) []config.S
 
 func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.StructuralOp, allowAlreadyApplied bool) error {
 	for i := range ops {
-		if ops[i].Type != config.StructuralOpRename {
-			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
-		}
 		parentPath := strings.Fields(ops[i].ParentPath)
-		target := walkPath(tree, schema, parentPath)
-		if target == nil {
-			return fmt.Errorf("path not found: %s", ops[i].ParentPath)
-		}
-		if err := target.RenameListEntry(ops[i].ListName, ops[i].OldKey, ops[i].NewKey); err != nil {
-			if allowAlreadyApplied && renameAlreadyApplied(target, ops[i].ListName, ops[i].OldKey, ops[i].NewKey) {
-				continue
+		switch ops[i].Type {
+		case config.StructuralOpRename:
+			target := walkPath(tree, schema, parentPath)
+			if target == nil {
+				return fmt.Errorf("path not found: %s", ops[i].ParentPath)
 			}
-			return err
+			if err := target.RenameListEntry(ops[i].ListName, ops[i].OldKey, ops[i].NewKey); err != nil {
+				if allowAlreadyApplied && renameAlreadyApplied(target, ops[i].ListName, ops[i].OldKey, ops[i].NewKey) {
+					continue
+				}
+				return err
+			}
+		case config.StructuralOpDeleteEntry:
+			target := walkPath(tree, schema, parentPath)
+			if target == nil {
+				if allowAlreadyApplied {
+					continue
+				}
+				return fmt.Errorf("path not found: %s", ops[i].ParentPath)
+			}
+			target.RemoveListEntry(ops[i].ListName, ops[i].OldKey)
+		case config.StructuralOpDeleteContainer:
+			target := walkPath(tree, schema, parentPath)
+			if target == nil {
+				if allowAlreadyApplied {
+					continue
+				}
+				return fmt.Errorf("path not found: %s", ops[i].ParentPath)
+			}
+			target.DeleteContainer(ops[i].ListName)
+		default:
+			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
 		}
 	}
 	return nil
@@ -460,19 +480,33 @@ func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops 
 		return nil
 	}
 	for i := range ops {
-		if ops[i].Type != config.StructuralOpRename {
-			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
-		}
 		parentPath := strings.Fields(ops[i].ParentPath)
-		target := walkMetaReadOnly(meta, schema, parentPath)
-		if target == nil {
-			continue
-		}
-		if err := target.RenameListEntry(ops[i].ListName, ops[i].OldKey, ops[i].NewKey); err != nil {
-			if allowAlreadyApplied && renameMetaAlreadyApplied(target, ops[i].ListName, ops[i].OldKey, ops[i].NewKey) {
+		switch ops[i].Type {
+		case config.StructuralOpRename:
+			target := walkMetaReadOnly(meta, schema, parentPath)
+			if target == nil {
 				continue
 			}
-			return err
+			if err := target.RenameListEntry(ops[i].ListName, ops[i].OldKey, ops[i].NewKey); err != nil {
+				if allowAlreadyApplied && renameMetaAlreadyApplied(target, ops[i].ListName, ops[i].OldKey, ops[i].NewKey) {
+					continue
+				}
+				return err
+			}
+		case config.StructuralOpDeleteEntry:
+			target := walkMetaReadOnly(meta, schema, parentPath)
+			if target == nil {
+				continue
+			}
+			target.DeleteMetaListEntry(ops[i].ListName, ops[i].OldKey)
+		case config.StructuralOpDeleteContainer:
+			target := walkMetaReadOnly(meta, schema, parentPath)
+			if target == nil {
+				continue
+			}
+			target.DeleteMetaContainer(ops[i].ListName)
+		default:
+			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
 		}
 	}
 	return nil

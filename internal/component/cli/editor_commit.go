@@ -91,6 +91,9 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	// Check for stale conflicts (committed changed since editing).
 	var conflicts []Conflict
 	for i := range myOps {
+		if myOps[i].Type != config.StructuralOpRename {
+			continue
+		}
 		if conflict := renameStaleConflict(committedTree, e.schema, myOps[i]); conflict != nil {
 			conflicts = append(conflicts, *conflict)
 		}
@@ -264,6 +267,9 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 
 	var conflicts []Conflict
 	for i := range myOps {
+		if myOps[i].Type != config.StructuralOpRename {
+			continue
+		}
 		if conflict := renameStaleConflict(committedTree, e.schema, myOps[i]); conflict != nil {
 			conflicts = append(conflicts, *conflict)
 		}
@@ -407,7 +413,7 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 		}
 		filteredOps := changeOps[:0]
 		for i := range changeOps {
-			if changeOps[i].SessionKey() != e.session.ID || !renameMatchesPath(changeOps[i], pathPrefix) {
+			if changeOps[i].SessionKey() != e.session.ID || !structuralOpMatchesPath(changeOps[i], pathPrefix) {
 				filteredOps = append(filteredOps, changeOps[i])
 			}
 		}
@@ -526,7 +532,7 @@ func renameStaleConflict(committedTree *config.Tree, schema *config.Schema, op c
 	return nil
 }
 
-func renameMatchesPath(op config.StructuralOp, pathPrefix string) bool {
+func structuralOpMatchesPath(op config.StructuralOp, pathPrefix string) bool {
 	return pathOverlaps(op.SourcePath(), pathPrefix) || pathOverlaps(op.DestinationPath(), pathPrefix)
 }
 
