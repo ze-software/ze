@@ -121,21 +121,21 @@ func launchQEMU(cfg *ApplianceConfig, imgPath string) int {
 }
 
 func buildQEMUCommand(cfg *ApplianceConfig, imgPath string) (string, []string) {
+	var tb textbuf.Buffer
 	var hostfwds []string
 	if cfg.QEMU.WebPort != 0 {
-		hostfwds = append(hostfwds, fmt.Sprintf("hostfwd=tcp::%d-:8080", cfg.QEMU.WebPort))
+		hostfwds = append(hostfwds, tb.Reset().Str("hostfwd=tcp::").Int(int64(cfg.QEMU.WebPort)).Str("-:").Str(cfg.Web.Port).String())
 	}
 	if cfg.QEMU.SSHPort != 0 {
-		hostfwds = append(hostfwds, fmt.Sprintf("hostfwd=tcp::%d-:22", cfg.QEMU.SSHPort))
+		hostfwds = append(hostfwds, tb.Reset().Str("hostfwd=tcp::").Int(int64(cfg.QEMU.SSHPort)).Str("-:").Str(cfg.SSH.Port).String())
 	}
 	if cfg.QEMU.GokrazyPort != 0 {
-		hostfwds = append(hostfwds, fmt.Sprintf("hostfwd=tcp::%d-:443", cfg.QEMU.GokrazyPort))
+		hostfwds = append(hostfwds, tb.Reset().Str("hostfwd=tcp::").Int(int64(cfg.QEMU.GokrazyPort)).Str("-:443").String())
 	}
 
-	var tb textbuf.Buffer
 	fwdStr := ""
 	if len(hostfwds) > 0 {
-		fwdStr = tb.Byte(',').Join(hostfwds, ",").String()
+		fwdStr = tb.Reset().Byte(',').Join(hostfwds, ",").String()
 	}
 
 	switch cfg.Image.Arch {

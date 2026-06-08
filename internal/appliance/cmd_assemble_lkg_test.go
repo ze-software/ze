@@ -56,7 +56,8 @@ func TestLastKnownGoodHashMatchesSeedConfig(t *testing.T) {
 		t.Fatalf("last-known-good not written: %v", err)
 	}
 
-	want := ConfigHash(seedContent)
+	cfg, _ := LoadConfig(ConfigPath(dir, "lkg-hash"))
+	want := ConfigHash(appendListenerOverrides(seedContent, cfg))
 	got := string(data)
 	if got != want {
 		t.Errorf("last-known-good hash = %q, want %q", got, want)
@@ -84,7 +85,8 @@ func TestBuildWritesLastKnownGood(t *testing.T) {
 		t.Fatalf("last-known-good missing after build: %v", err)
 	}
 
-	want := ConfigHash("set environment log level debug\n")
+	cfg, _ := LoadConfig(ConfigPath(dir, "build-lkg"))
+	want := ConfigHash(appendListenerOverrides("set environment log level debug\n", cfg))
 	if string(data) != want {
 		t.Errorf("hash = %q, want %q", string(data), want)
 	}

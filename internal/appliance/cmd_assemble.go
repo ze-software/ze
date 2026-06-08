@@ -181,20 +181,45 @@ func resolveSeedConfig(baseDir, name string, cfg *ApplianceConfig) (string, erro
 		overlay = string(data)
 	}
 
+	var seed string
 	if base == "" && overlay == "" {
 		defaultPath := filepath.Join("gokrazy", "ze", "ze.conf")
 		if data, err := os.ReadFile(defaultPath); err == nil { //nolint:gosec // source tree default
-			return string(data), nil
+			seed = string(data)
 		}
+	} else if overlay != "" && base != "" {
+		var tb textbuf.Buffer
+		seed = tb.Str(base).Byte('\n').Str(overlay).String()
+	} else if base != "" {
+		seed = base
+	} else {
+		seed = overlay
+	}
+
+	if seed == "" {
 		return "", nil
 	}
 
-	if overlay != "" && base != "" {
-		var tb textbuf.Buffer
-		return tb.Str(base).Byte('\n').Str(overlay).String(), nil
+	return appendListenerOverrides(seed, cfg), nil
+}
+
+func appendListenerOverrides(seed string, cfg *ApplianceConfig) string {
+	var tb textbuf.Buffer
+	tb.Str(seed)
+	if cfg.SSH.Host != "" {
+		tb.Byte('\n').Str("set environment ssh server default ip ").Str(cfg.SSH.Host)
 	}
-	if base != "" {
-		return base, nil
+	if cfg.SSH.Port != "" {
+		tb.Byte('\n').Str("set environment ssh server default port ").Str(cfg.SSH.Port)
 	}
-	return overlay, nil
+	if cfg.Web.Enabled {
+		if cfg.Web.Host != "" {
+			tb.Byte('\n').Str("set environment web server default ip ").Str(cfg.Web.Host)
+		}
+		if cfg.Web.Port != "" {
+			tb.Byte('\n').Str("set environment web server default port ").Str(cfg.Web.Port)
+		}
+	}
+	tb.Byte('\n')
+	return tb.String()
 }

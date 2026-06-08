@@ -229,6 +229,75 @@ func TestAssembleKeepRetainsZeFS(t *testing.T) {
 	}
 }
 
+func TestAssembleSeedConfigIncludesSSHPort(t *testing.T) {
+	dir := assembleTestAppliance(t, "sshport", nil)
+	appDir := filepath.Join(dir, "sshport")
+
+	os.WriteFile(filepath.Join(appDir, "ze.conf"), []byte("set environment ssh enabled true\n"), 0o644) //nolint:errcheck,gosec // test
+
+	cfg, _ := LoadConfig(ConfigPath(dir, "sshport"))
+	cfg.SSH.Host = "0.0.0.0"
+	cfg.SSH.Port = "8822"
+	SaveConfig(ConfigPath(dir, "sshport"), cfg) //nolint:errcheck // test
+
+	code := runAssemble([]string{"--keep", "sshport"})
+	if code != exitOK {
+		t.Fatalf("assemble returned %d", code)
+	}
+
+	dbPath := DatabasePath(dir, "sshport")
+	store, err := zefs.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer store.Close() //nolint:errcheck // test
+
+	seedKey := zefs.KeyFileTemplate.Key("ze.conf")
+	data, err := store.ReadFile(seedKey)
+	if err != nil {
+		t.Fatalf("read seed config: %v", err)
+	}
+	content := string(data)
+	if !contains(content, "ssh server default port 8822") {
+		t.Errorf("seed config should contain SSH port override, got:\n%s", content)
+	}
+}
+
+func TestAssembleSeedConfigIncludesWebPort(t *testing.T) {
+	dir := assembleTestAppliance(t, "webport", nil)
+	appDir := filepath.Join(dir, "webport")
+
+	os.WriteFile(filepath.Join(appDir, "ze.conf"), []byte("set environment web enabled true\n"), 0o644) //nolint:errcheck,gosec // test
+
+	cfg, _ := LoadConfig(ConfigPath(dir, "webport"))
+	cfg.Web.Enabled = true
+	cfg.Web.Host = "0.0.0.0"
+	cfg.Web.Port = "9443"
+	SaveConfig(ConfigPath(dir, "webport"), cfg) //nolint:errcheck // test
+
+	code := runAssemble([]string{"--keep", "webport"})
+	if code != exitOK {
+		t.Fatalf("assemble returned %d", code)
+	}
+
+	dbPath := DatabasePath(dir, "webport")
+	store, err := zefs.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer store.Close() //nolint:errcheck // test
+
+	seedKey := zefs.KeyFileTemplate.Key("ze.conf")
+	data, err := store.ReadFile(seedKey)
+	if err != nil {
+		t.Fatalf("read seed config: %v", err)
+	}
+	content := string(data)
+	if !contains(content, "web server default port 9443") {
+		t.Errorf("seed config should contain web port override, got:\n%s", content)
+	}
+}
+
 func TestAssembleIncludesAuthorizedKeys(t *testing.T) {
 	dir := assembleTestAppliance(t, "authkeys", nil)
 
