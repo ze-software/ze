@@ -444,9 +444,7 @@ def c_encoding_alloc(ctx):
         "/bgp/nlri/inet",
         "/bgp/nlri/rd",
     ]
-    if not any(re.search(re.escape(p).replace("/", "/"), fp) for p in []) and not any(
-        _glob_match(fp, "*" + p + "*") for p in enc
-    ):
+    if not any(_glob_match(fp, "*" + p + "*") for p in enc):
         return None
     content = ctx["content"]
     errs = False
