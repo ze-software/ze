@@ -3,16 +3,23 @@
 #
 # Downloads pinned Linux source, merges kernel.config + profile config onto
 # defconfig, verifies the must-be-builtin options actually resolved to =y,
-# builds the kernel Image, and copies it (plus the resolved .config) to /out.
+# builds the kernel Image, and copies it (plus the resolved .config) to OUT_DIR.
 #
-# Inputs (env): LINUX_VERSION, ARCH (arm64|amd64|x86_64), PROFILE (qemu|hardware|hardware-kms), JOBS.
-# Mounts: /src (this dir, ro) for config fragments; /out for the artifacts.
+# Inputs (env):
+#   LINUX_VERSION  - kernel version to build (default: 7.0.11)
+#   ARCH           - target arch: arm64|amd64|x86_64 (default: arm64)
+#   PROFILE        - config profile: qemu|hardware|hardware-kms (default: qemu)
+#   JOBS           - parallel make jobs (default: nproc)
+#   SRC_DIR        - directory containing config fragments (default: /src)
+#   OUT_DIR        - directory for build output (default: /out)
 set -eu
 
 LINUX_VERSION="${LINUX_VERSION:-7.0.11}"
 ARCH="${ARCH:-arm64}"
 PROFILE="${PROFILE:-qemu}"
 JOBS="${JOBS:-$(nproc)}"
+SRC_DIR="${SRC_DIR:-/src}"
+OUT_DIR="${OUT_DIR:-/out}"
 
 case "$ARCH" in
     arm64)      KERNEL_ARCH="arm64";  IMAGE_PATH="arch/arm64/boot/Image";  MAKE_TARGET="Image" ;;
@@ -22,10 +29,10 @@ esac
 
 case "$PROFILE" in
     qemu|hardware)
-        profile_configs="/src/${PROFILE}.config"
+        profile_configs="${SRC_DIR}/${PROFILE}.config"
         ;;
     hardware-kms)
-        profile_configs="/src/hardware.config /src/hardware-kms.config"
+        profile_configs="${SRC_DIR}/hardware.config ${SRC_DIR}/hardware-kms.config"
         ;;
     *)
         echo "unsupported PROFILE=$PROFILE (expected qemu, hardware, or hardware-kms)" >&2
@@ -52,7 +59,7 @@ cd "linux-${LINUX_VERSION}"
 echo ">>> configuring (defconfig + kernel.config + ${PROFILE} profile) for ${ARCH}"
 make ARCH="$KERNEL_ARCH" defconfig
 # shellcheck disable=SC2086 # intentional word-splitting on profile_configs
-./scripts/kconfig/merge_config.sh -m .config /src/kernel.config $profile_configs
+./scripts/kconfig/merge_config.sh -m .config "${SRC_DIR}/kernel.config" $profile_configs
 make ARCH="$KERNEL_ARCH" olddefconfig
 
 echo ">>> verifying required built-in options"
@@ -77,7 +84,8 @@ fi
 if [ "$PROFILE" = "hardware" ] || [ "$PROFILE" = "hardware-kms" ]; then
     for opt in CONFIG_EFI CONFIG_EFI_STUB CONFIG_FB_EFI CONFIG_FRAMEBUFFER_CONSOLE \
                CONFIG_E1000E CONFIG_IGB CONFIG_IGC CONFIG_R8169 \
-               CONFIG_SATA_AHCI CONFIG_BLK_DEV_NVME; do
+               CONFIG_SATA_AHCI CONFIG_BLK_DEV_NVME \
+               CONFIG_BLK_DEV_LOOP CONFIG_VFAT_FS CONFIG_EXFAT_FS; do
         if ! grep -q "^${opt}=y" .config; then
             echo "FATAL: ${opt} did not resolve to =y (required for ${PROFILE} profile)" >&2
             grep "${opt}" .config >&2 || true
@@ -99,7 +107,7 @@ fi
 echo ">>> building ${MAKE_TARGET} with -j${JOBS} (profile=${PROFILE})"
 make ARCH="$KERNEL_ARCH" -j"$JOBS" "$MAKE_TARGET"
 
-mkdir -p /out
-cp "$IMAGE_PATH" /out/Image
-cp .config /out/config
-echo ">>> done: /out/Image ($(du -h /out/Image | cut -f1), profile=${PROFILE})"
+mkdir -p "${OUT_DIR}"
+cp "$IMAGE_PATH" "${OUT_DIR}/Image"
+cp .config "${OUT_DIR}/config"
+echo ">>> done: ${OUT_DIR}/Image ($(du -h "${OUT_DIR}/Image" | cut -f1), profile=${PROFILE})"
