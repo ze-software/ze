@@ -7,7 +7,7 @@
 (with HTML skillz from Claude)
 
 * **Network engineers who use or used ExaBGP:** thank you for your trust
-* **Network engineers who didn't:** it's okay, I now have a better solution for you
+* **Network engineers who didn't:** it's okay, I am working on a better solution for you
 
 ### TL;DR
 
@@ -144,7 +144,7 @@ AI code: industrial process. Staff need induction and ISO processes, or you get 
 ### What worked
 
 - Test-driven development, test generation, refactoring across files
-- **2,641 co-authored commits**
+- **2,645 co-authored commits**
 - 98 RFC summaries so the AI can implement from condensed protocol specs
 - Letting it write tools, then reviewing the tool and the result
 
@@ -183,7 +183,7 @@ Those problems do not go away, so you build systems to catch them.
 - Skills: How-To instructions for repeatable work
 - Hooks: heavy-handed control. The code does not land. No negotiation. No override
 - Review: never trust the work done
-- 869 learned summaries: institutional memory across sessions
+- 881 learned summaries: institutional memory across sessions
 
 The system is as much a deliverable as the code itself.
 
@@ -212,6 +212,11 @@ From Anthropic `/insights`
 > * You operate in a highly structured, spec-driven workflow ...
 > * You have zero tolerance for fabrication, verbosity, or workflow drift.
 > * Your interaction style is terse and corrective rather than prescriptive upfront.
+
+Should be an autocomplete:
+
+> anything left todo or deferred?
+
 
 ---
 
@@ -255,7 +260,7 @@ From Anthropic `/insights`
 
 ### Self-contained plugins
 
-- **39 plugins** today, each self-contained with its own YANG schemas
+- **47 plugins** today, each self-contained with its own YANG schemas
 - Plugins register via Go `init()`: anyone can add or remove modules
 
 ```
@@ -280,7 +285,7 @@ Ze Engine Core (event bus for components and plugins)
 ### Plugin-owned schema
 
 - The global model is assembled from the plugins compiled into the binary
-- **2,434 config nodes** across 203 YANG schemas today, but this is not one monolith
+- **2,469 config nodes** across 224 YANG schemas today, but this is not one monolith
 - Remove a plugin and its config, CLI, web UI, API, MCP tools, validation, and docs disappear with it
 
 ### Same model, many interfaces
@@ -414,7 +419,7 @@ Ze Engine Core (event bus for components and plugins)
 
 ### Coverage
 
-- **1,050 functional tests** (.ci): real config, real daemon, real wire output
+- **1,053 functional tests** (.ci): real config, real daemon, real wire output
 - 42 interop scenarios against 7 implementations in Docker: FRR, BIRD, GoBGP, OpenBGPd, RustyBGP, rustbgpd, FreeRTR
 - Fuzz testing on all wire parsers
 
@@ -518,18 +523,17 @@ bgp {
 
 ### Current status
 
-- Built for production: real daemon, real config transactions, real wire protocols, a full verification gate
-- Lab and interop tested, including ExaBGP compatibility, BGP route-server support, RPKI, BMP, VPP, IPsec, and L2TP
-- No production deployment I can point at today
 - Exa Networks plans to run it, but LINX lands a few weeks before that cutover
+- Lab and interop tested, including ExaBGP compatibility, BGP route-server support, RPKI, BMP, VPP, IPsec, and L2TP
+- No production deployment, TESTING is next!
 - Early adopters should treat it as controlled trial, it is not finished (UI in particular)
 
 ### Since the NetMcr unveiling, April 9th
 
 - IPsec, L2TP, firewall, VPP, REST/gRPC, gNMI, BMP, policy framework, and config transactions are all native
-- The development system compounds: patterns, specs, reviews, and 869 learned summaries make the next feature easier
-- Only **857k lines** of Go code
-- Only **43M** of vendored code
+- The development system compounds: patterns, specs, reviews, and 881 learned summaries make the next feature easier
+- Only **871k lines** of Go code
+- Only **44M** of vendored code
 
 ### Release position
 
