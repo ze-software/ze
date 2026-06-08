@@ -60,27 +60,44 @@ func kernelCachePath(version, variant string) string {
 	return filepath.Join(ResolveCacheDir(), kernelCacheDir, tb.Str(version).Byte('-').Str(variant).String(), kernelFileName)
 }
 
+func cacheFileHash(dir string, names []string) (string, bool) {
+	h := sha256.New()
+	for _, name := range names {
+		data, err := os.ReadFile(filepath.Join(dir, name)) //nolint:gosec // constant base dir + validated names
+		if err != nil {
+			return "", false
+		}
+		h.Write(data)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:8], true
+}
+
 func kernelCacheVariant(arch, profile string) string {
 	var tb textbuf.Buffer
-	h := sha256.New()
 	var inputs []string
 	if profile == ProfileHardwareKMS {
 		inputs = []string{"kernel.config", "hardware.config", "hardware-kms.config", "build.sh"}
 	} else {
 		inputs = []string{"kernel.config", tb.Str(profile).Str(".config").String(), "build.sh"}
 	}
-	for _, name := range inputs {
-		data, err := os.ReadFile(filepath.Join(kernelToolsDir, name)) //nolint:gosec // constant base dir + validated profile
-		if err != nil {
-			return tb.Reset().Str(arch).Byte('-').Str(profile).String()
-		}
-		h.Write(data)
+	hash, ok := cacheFileHash(kernelToolsDir, inputs)
+	if !ok {
+		return tb.Reset().Str(arch).Byte('-').Str(profile).String()
 	}
-	return tb.Reset().Str(arch).Byte('-').Str(profile).Byte('-').Str(hex.EncodeToString(h.Sum(nil))[:8]).String()
+	return tb.Reset().Str(arch).Byte('-').Str(profile).Byte('-').Str(hash).String()
+}
+
+func initrdCacheVariant(version string) string {
+	hash, ok := cacheFileHash(initrdToolsDir, []string{"init", "Makefile"})
+	if !ok {
+		return version
+	}
+	var tb textbuf.Buffer
+	return tb.Str(version).Byte('-').Str(hash).String()
 }
 
 func initrdCachePath(version string) string {
-	return filepath.Join(ResolveCacheDir(), initrdCacheDir, version, initrdFileName)
+	return filepath.Join(ResolveCacheDir(), initrdCacheDir, initrdCacheVariant(version), initrdFileName)
 }
 
 func downloadAndVerify(artifactURL, checksumURL, destPath string) error {
