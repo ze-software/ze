@@ -66,7 +66,7 @@ func StreamEventMonitor(ctx context.Context, s *Server, w io.Writer, _ string, a
 
 	// Write header line describing active filters.
 	header := formatEventMonitorHeader(opts)
-	if _, err := fmt.Fprintln(w, header); err != nil {
+	if _, err := fmt.Fprintln(w, header); err != nil { //nolint:errcheck // output
 		return err
 	}
 
@@ -78,7 +78,7 @@ func StreamEventMonitor(ctx context.Context, s *Server, w io.Writer, _ string, a
 			if !ok {
 				return nil
 			}
-			if _, err := fmt.Fprintln(w, event); err != nil {
+			if _, err := fmt.Fprintln(w, event); err != nil { //nolint:errcheck // output
 				return err
 			}
 		}

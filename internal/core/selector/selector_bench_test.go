@@ -13,7 +13,7 @@ func buildMultiIPSelector(n int) string {
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		fmt.Fprintf(&b, "10.%d.%d.%d", i>>16, (i>>8)&0xFF, i&0xFF)
+		fmt.Fprintf(&b, "10.%d.%d.%d", i>>16, (i>>8)&0xFF, i&0xFF) //nolint:errcheck // buffer output
 	}
 	return b.String()
 }

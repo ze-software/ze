@@ -1,4 +1,3 @@
-
 // Design: (none -- research/analysis tool)
 //
 // Dumps MRT records as BGP UPDATE hex, one per line.

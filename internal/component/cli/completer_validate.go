@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

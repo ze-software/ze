@@ -314,21 +314,22 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 	// (e.g., session/asn/local is typically set at bgp level, inherited by all peers).
 	if peerList := v.peerListNode(); peerList != nil {
 		for _, reqPath := range peerList.Required {
-			if !hasResolvedValue(resolved, reqPath) && !hasResolvedValue(bgpTree, reqPath) {
-				fieldStr := textbuf.Join(reqPath, "/")
-				var tb textbuf.Buffer
-				if groupName != "" {
-					tb.Str("set bgp group ").Str(groupName).Str(" peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
-				} else {
-					tb.Str("set bgp peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
-				}
-				setHint := tb.String()
-				*warns = append(*warns, ConfigValidationError{
-					Line:     findDeepestParentLine(lines, peerAddr, reqPath, peerTree),
-					Message:  tb.Reset().Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(fieldStr).Str("\" (").Str(setHint).Byte(')').String(),
-					Severity: severityWarning,
-				})
+			if hasResolvedValue(resolved, reqPath) || hasResolvedValue(bgpTree, reqPath) {
+				continue
 			}
+			fieldStr := textbuf.Join(reqPath, "/")
+			var tb textbuf.Buffer
+			if groupName != "" {
+				tb.Str("set bgp group ").Str(groupName).Str(" peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
+			} else {
+				tb.Str("set bgp peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
+			}
+			setHint := tb.String()
+			*warns = append(*warns, ConfigValidationError{
+				Line:     findDeepestParentLine(lines, peerAddr, reqPath, peerTree),
+				Message:  tb.Reset().Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(fieldStr).Str("\" (").Str(setHint).Byte(')').String(),
+				Severity: severityWarning,
+			})
 		}
 	}
 }

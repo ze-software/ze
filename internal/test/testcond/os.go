@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"slices"
 	"testing"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

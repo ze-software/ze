@@ -554,10 +554,7 @@ func overlayLine(bg, fg string, x int) string {
 	leftWidth := ansi.PrintableRuneWidth(left)
 
 	// Pad if truncation was short
-	pad := x - leftWidth
-	if pad < 0 {
-		pad = 0
-	}
+	pad := max(x-leftWidth, 0)
 
 	// Get right portion: skip x + fgWidth visible chars
 	right := skipWidth(bg, x+fgWidth)

@@ -1,4 +1,3 @@
-
 // Design: (none -- research/analysis tool)
 //
 // Counts BGP attributes per route to produce a distribution table.

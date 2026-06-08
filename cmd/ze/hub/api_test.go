@@ -63,10 +63,10 @@ func TestAPIStreamSourceRunsStreamingHandler(t *testing.T) {
 		seen.server = srv
 		seen.username = username
 		seen.args = append([]string(nil), args...)
-		if _, writeErr := fmt.Fprintln(w, "first"); writeErr != nil {
+		if _, writeErr := fmt.Fprintln(w, "first"); writeErr != nil { //nolint:errcheck // output
 			return writeErr
 		}
-		_, writeErr := fmt.Fprintln(w, "second")
+		_, writeErr := fmt.Fprintln(w, "second") //nolint:errcheck // output
 		return writeErr
 	})
 
@@ -152,7 +152,7 @@ func TestAPIStreamSourceCancelStopsHandler(t *testing.T) {
 	handlerDone := make(chan struct{})
 	pluginserver.RegisterStreamingHandler(command, func(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, _ []string) error {
 		defer close(handlerDone)
-		if _, writeErr := fmt.Fprintln(w, "started"); writeErr != nil {
+		if _, writeErr := fmt.Fprintln(w, "started"); writeErr != nil { //nolint:errcheck // output
 			return writeErr
 		}
 		<-ctx.Done()
@@ -217,7 +217,7 @@ func TestAPIStreamLineWriterFlushesOnClose(t *testing.T) {
 	const command = "test api stream source notail"
 	t.Cleanup(func() { pluginserver.UnregisterStreamingHandler(command) })
 	pluginserver.RegisterStreamingHandler(command, func(_ context.Context, _ *pluginserver.Server, w io.Writer, _ string, _ []string) error {
-		if _, writeErr := fmt.Fprintln(w, "line one"); writeErr != nil {
+		if _, writeErr := fmt.Fprintln(w, "line one"); writeErr != nil { //nolint:errcheck // output
 			return writeErr
 		}
 		_, writeErr := w.Write([]byte("no newline"))

@@ -13,7 +13,6 @@ import (
 	"errors"
 	"slices"
 
-
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"

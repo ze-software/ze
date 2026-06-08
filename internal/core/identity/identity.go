@@ -13,6 +13,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
+const identityUnknown = "unknown"
+
 // Storage is the subset of config/storage.Storage needed by this package.
 // Defined here to avoid importing the full storage package from core.
 type Storage interface {
@@ -54,7 +56,7 @@ func Resolve(store Storage) string {
 		persist(store, id)
 		return id
 	}
-	return "unknown"
+	return identityUnknown
 }
 
 var readFile = os.ReadFile

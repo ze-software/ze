@@ -87,13 +87,13 @@ func formatNotificationHuman(result map[string]any) string {
 	sb.WriteString("NOTIFICATION\n")
 	if code, ok := notif["error-code"].(int); ok {
 		name, _ := notif["error-name"].(string)
-		fmt.Fprintf(&sb, "  Error Code:    %d (%s)\n", code, name)
+		fmt.Fprintf(&sb, "  Error Code:    %d (%s)\n", code, name) //nolint:errcheck // buffer output
 	}
 	if subcode, ok := notif["error-subcode"].(int); ok {
-		fmt.Fprintf(&sb, "  Error Subcode: %d\n", subcode)
+		fmt.Fprintf(&sb, "  Error Subcode: %d\n", subcode) //nolint:errcheck // buffer output
 	}
 	if data, ok := notif["data"].(string); ok {
-		fmt.Fprintf(&sb, "  Data:          %s\n", data)
+		fmt.Fprintf(&sb, "  Data:          %s\n", data) //nolint:errcheck // buffer output
 	}
 	return sb.String()
 }

@@ -1,10 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md — test runner CLI
 
-
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"errors"
 	"flag"
@@ -20,10 +18,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
-
-func init() {
-	Register("bgp", cmdBgp, subdispatch.SubMeta{Desc: "Run BGP functional tests (encoding, plugin, decoding, parsing)"})
-}
 
 var errPeerCheckFailed = errors.New("peer check failed")
 
@@ -160,9 +154,9 @@ func zeTestRunSimpleTests(ctx context.Context, cli *zeTestRunCLIFlags, baseDir s
 
 	if cli.shortList {
 		for _, nick := range tests.GetNicks() {
-			fmt.Fprintf(os.Stdout, "%s ", nick)
+			fmt.Fprintf(os.Stdout, "%s ", nick) //nolint:errcheck // terminal output
 		}
-		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
 		return nil
 	}
 
@@ -232,9 +226,9 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 
 	if cli.shortList {
 		for _, r := range tests.Registered() {
-			fmt.Fprintf(os.Stdout, "%s ", r.Nick)
+			fmt.Fprintf(os.Stdout, "%s ", r.Nick) //nolint:errcheck // terminal output
 		}
-		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
 		return nil
 	}
 
@@ -362,12 +356,12 @@ func zeTestRunServerOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 		config.IPv6 = true
 	}
 
-	fmt.Fprintf(os.Stdout, "Server mode for test: %s (%s)\n", rec.Nick, rec.Name)
-	fmt.Fprintf(os.Stdout, "Config: %s\n", rec.ConfigFile)
-	fmt.Fprintf(os.Stdout, "Port: %d\n", port)
-	fmt.Fprintf(os.Stdout, "Waiting for client connection...\n")
-	fmt.Fprintf(os.Stdout, "\nRun client in another terminal:\n")
-	fmt.Fprintf(os.Stdout, "   ze-test bgp %s --client %s --port %d\n\n", cli.command, cli.server, port)
+	fmt.Fprintf(os.Stdout, "Server mode for test: %s (%s)\n", rec.Nick, rec.Name)                        //nolint:errcheck // terminal output
+	fmt.Fprintf(os.Stdout, "Config: %s\n", rec.ConfigFile)                                               //nolint:errcheck // terminal output
+	fmt.Fprintf(os.Stdout, "Port: %d\n", port)                                                           //nolint:errcheck // terminal output
+	fmt.Fprintf(os.Stdout, "Waiting for client connection...\n")                                         //nolint:errcheck // terminal output
+	fmt.Fprintf(os.Stdout, "\nRun client in another terminal:\n")                                        //nolint:errcheck // terminal output
+	fmt.Fprintf(os.Stdout, "   ze-test bgp %s --client %s --port %d\n\n", cli.command, cli.server, port) //nolint:errcheck // terminal output
 
 	p, err := peer.New(config)
 	if err != nil {
@@ -375,7 +369,7 @@ func zeTestRunServerOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 	}
 	result := p.Run(ctx)
 
-	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
 
 	if result.Error != nil {
 		return result.Error
@@ -384,7 +378,7 @@ func zeTestRunServerOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 		return errPeerCheckFailed
 	}
 
-	fmt.Fprintln(os.Stdout, "successful")
+	fmt.Fprintln(os.Stdout, "successful") //nolint:errcheck // terminal output
 	return nil
 }
 
@@ -416,12 +410,12 @@ func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 	if rec.Port != 0 {
 		port = rec.Port
 	}
-	fmt.Fprintf(os.Stdout, "Client mode for test: %s (%s)\n", rec.Nick, rec.Name)
-	fmt.Fprintf(os.Stdout, "Config: %s\n", configPath)
-	fmt.Fprintf(os.Stdout, "Port: %d\n", port)
-	fmt.Fprintf(os.Stdout, "Starting ze bgp client...\n")
-	fmt.Fprintf(os.Stdout, "\nServer should be running. If not:\n")
-	fmt.Fprintf(os.Stdout, "   ze-test bgp %s --server %s --port %d\n\n", cli.command, cli.client, port)
+	fmt.Fprintf(os.Stdout, "Client mode for test: %s (%s)\n", rec.Nick, rec.Name)                        //nolint:errcheck // terminal output
+	fmt.Fprintf(os.Stdout, "Config: %s\n", configPath)                                                   //nolint:errcheck // terminal output
+	fmt.Fprintf(os.Stdout, "Port: %d\n", port)                                                           //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "Starting ze bgp client...\n")                                                //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "\nServer should be running. If not:\n")                                      //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "   ze-test bgp %s --server %s --port %d\n\n", cli.command, cli.client, port) //nolint:errcheck // output
 
 	zeDir := filepath.Dir(zePath)
 	existingPath := os.Getenv("PATH")

@@ -39,13 +39,13 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 			if !safeEmitName(di.Name) {
 				continue
 			}
-			fmt.Fprintf(&b, "    %s %s {\n", di.Type, di.Name)
+			fmt.Fprintf(&b, "    %s %s {\n", di.Type, di.Name) //nolint:errcheck // buffer output
 			if di.MAC != "" && safeEmitName(di.MAC) {
 				b.WriteString("        mac {\n            address ")
 				b.WriteString(di.MAC)
 				b.WriteString(";\n        }\n")
 			}
-			fmt.Fprintf(&b, "        os-name %s;\n", di.Name)
+			fmt.Fprintf(&b, "        os-name %s;\n", di.Name) //nolint:errcheck // buffer output
 			b.WriteString("    }\n")
 		case zeTypeWireguard:
 			if !safeEmitName(di.Name) {
@@ -61,7 +61,7 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 	}
 
 	if hasLoopback {
-		fmt.Fprintf(&b, "    %s {\n", zeTypeLoopback)
+		fmt.Fprintf(&b, "    %s {\n", zeTypeLoopback) //nolint:errcheck // buffer output
 		b.WriteString("    }\n")
 	}
 
@@ -153,7 +153,7 @@ func EmitSetConfig(discovered []DiscoveredInterface) string {
 				b.WriteString(di.MAC)
 				b.WriteString("\n")
 			}
-			fmt.Fprintf(&b, "set interface %s %s os-name %s\n", di.Type, di.Name, di.Name)
+			fmt.Fprintf(&b, "set interface %s %s os-name %s\n", di.Type, di.Name, di.Name) //nolint:errcheck // buffer output
 		case zeTypeWireguard:
 			if !safeEmitName(di.Name) {
 				continue

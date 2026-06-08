@@ -1,10 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md -- ze-test vpp subcommand
 
-
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"errors"
 	"flag"
@@ -17,10 +15,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
-
-func init() {
-	Register("vpp", cmdVpp, subdispatch.SubMeta{Desc: "Run VPP stub-backed functional tests (test/vpp/*.ci)"})
-}
 
 func cmdVpp(args []string) int {
 	if err := zeTestVppMain(args); err != nil {

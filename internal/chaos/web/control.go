@@ -140,7 +140,7 @@ func (d *Dashboard) handleControlTrigger(w http.ResponseWriter, r *http.Request)
 			idx, parseErr := strconv.Atoi(s)
 			if parseErr != nil {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				_, _ = fmt.Fprintf(w, `<div id="trigger-result" class="event-type event-type-disconnected">invalid peer: %s</div>`, escapeHTML(s))
+				_, _ = fmt.Fprintf(w, `<div id="trigger-result" class="event-type event-type-disconnected">invalid peer: %s</div>`, escapeHTML(s)) //nolint:errcheck // output
 				return
 			}
 			peers = append(peers, idx)
@@ -174,7 +174,7 @@ func (d *Dashboard) handleControlTrigger(w http.ResponseWriter, r *http.Request)
 		targetDesc = fmt.Sprintf("peer(s) %v", peers)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintf(w, `<div id="trigger-result" class="trigger-result"><span class="event-type event-type-chaos">triggered</span> %s on %s</div>`,
+	_, _ = fmt.Fprintf(w, `<div id="trigger-result" class="trigger-result"><span class="event-type event-type-chaos">triggered</span> %s on %s</div>`, //nolint:errcheck // output
 		escapeHTML(actionType), targetDesc)
 }
 
@@ -420,12 +420,12 @@ func writePropertyBadges(w io.Writer, badges []PropertyBadge) {
 			cssClass = "badge-fail"
 			label = "FAIL"
 		}
-		_, _ = fmt.Fprintf(w, `<div class="property-badge %s" onclick="this.querySelector('.violations').classList.toggle('hidden')">
+		_, _ = fmt.Fprintf(w, `<div class="property-badge %s" onclick="this.querySelector('.violations').classList.toggle('hidden')"> //nolint:errcheck // output
   <span>%s: %s</span>`, cssClass, escapeHTML(b.Name), label)
 		if !b.Pass && len(b.Violations) > 0 {
 			_, _ = fmt.Fprint(w, `<div class="violations hidden">`)
 			for _, v := range b.Violations {
-				_, _ = fmt.Fprintf(w, `<div class="violation-row">%s</div>`, escapeHTML(v))
+				_, _ = fmt.Fprintf(w, `<div class="violation-row">%s</div>`, escapeHTML(v)) //nolint:errcheck // output
 			}
 			_, _ = fmt.Fprint(w, `</div>`)
 		}

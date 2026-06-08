@@ -255,14 +255,14 @@ func (m *EditorManager) Diff(username string) (string, error) {
 	for _, change := range changes {
 		switch change.Kind {
 		case contract.PendingChangeRename:
-			fmt.Fprintf(&b, "~ rename %s to %s\n", change.OldPath, change.NewPath)
+			fmt.Fprintf(&b, "~ rename %s to %s\n", change.OldPath, change.NewPath) //nolint:errcheck // buffer output
 		case contract.PendingChangeDelete:
-			fmt.Fprintf(&b, "- %s %s\n", change.Path, change.Previous)
+			fmt.Fprintf(&b, "- %s %s\n", change.Path, change.Previous) //nolint:errcheck // buffer output
 		default:
 			if change.Previous != "" {
-				fmt.Fprintf(&b, "- %s %s\n+ %s %s\n", change.Path, change.Previous, change.Path, change.Value)
+				fmt.Fprintf(&b, "- %s %s\n+ %s %s\n", change.Path, change.Previous, change.Path, change.Value) //nolint:errcheck // buffer output
 			} else {
-				fmt.Fprintf(&b, "+ %s %s\n", change.Path, change.Value)
+				fmt.Fprintf(&b, "+ %s %s\n", change.Path, change.Value) //nolint:errcheck // buffer output
 			}
 		}
 	}

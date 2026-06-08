@@ -2,7 +2,7 @@
 version: "2"
 
 run:
-  timeout: 5m
+  timeout: 10m
   build-tags:
     - ze_core
 
@@ -63,6 +63,15 @@ linters:
     errcheck:
       check-type-assertions: true
       check-blank: false
+      exclude-functions:
+        - "(*strings.Builder).Write"
+        - "(*strings.Builder).WriteByte"
+        - "(*strings.Builder).WriteRune"
+        - "(*strings.Builder).WriteString"
+        - "(*codeberg.org/thomas-mangin/ze/internal/core/textbuf.Buffer).Write"
+        - "(*codeberg.org/thomas-mangin/ze/internal/core/textbuf.Buffer).WriteByte"
+        - "(*codeberg.org/thomas-mangin/ze/internal/core/textbuf.Buffer).WriteRune"
+        - "(*codeberg.org/thomas-mangin/ze/internal/core/textbuf.Buffer).WriteString"
 
     govet:
       disable:

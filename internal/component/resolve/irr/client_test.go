@@ -451,7 +451,7 @@ func TestResolveASSetDepthLimit(t *testing.T) {
 		}
 
 		next := fmt.Sprintf("AS-DEEP-%d", num+1)
-		if _, err := fmt.Fprintf(conn, "A1\n%s\nC\n", next); err != nil {
+		if _, err := fmt.Fprintf(conn, "A1\n%s\nC\n", next); err != nil { //nolint:errcheck // output
 			return
 		}
 	}

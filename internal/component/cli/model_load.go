@@ -520,9 +520,7 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 			} else if !contentInserted {
 				var tb textbuf.Buffer
 				targetWithSpace := tb.Str(targetPattern).Byte(' ').String()
-				if strings.HasPrefix(trimmed, targetWithSpace) {
-					// Inline container: "bgp router-id 1.2.3.4" -> expand to block form with merged content
-					inlineContent := strings.TrimPrefix(trimmed, targetWithSpace)
+				if inlineContent, ok := strings.CutPrefix(trimmed, targetWithSpace); ok {
 					leadingIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
 					childIndent := tb.Reset().Str(leadingIndent).Byte('\t').String()
 					result.Str(leadingIndent).Str(targetPattern).Str(" {\n")

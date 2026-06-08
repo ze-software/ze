@@ -194,7 +194,7 @@ func writeSSEEvent(w http.ResponseWriter, ev sseEvent) error {
 		if strings.ContainsAny(ev.eventType, "\n\r") {
 			return errInvalidSseEventTypeContainsNewline
 		}
-		_, err = fmt.Fprintf(w, "event: %s\n", ev.eventType)
+		_, err = fmt.Fprintf(w, "event: %s\n", ev.eventType) //nolint:errcheck // output
 	}
 
 	if err == nil {
@@ -206,11 +206,11 @@ func writeSSEEvent(w http.ResponseWriter, ev sseEvent) error {
 				break
 			}
 
-			_, err = fmt.Fprintf(w, "data: %s\n", line)
+			_, err = fmt.Fprintf(w, "data: %s\n", line) //nolint:errcheck // output
 		}
 
 		if err == nil {
-			_, err = fmt.Fprintf(w, "\n") // Blank line terminates the event.
+			_, err = fmt.Fprintf(w, "\n") // Blank line terminates the event. //nolint:errcheck // output
 		}
 	}
 

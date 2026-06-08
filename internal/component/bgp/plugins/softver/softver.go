@@ -250,14 +250,14 @@ func decodeSoftwareVersion(data []byte) string {
 func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "error: invalid hex: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: invalid hex: %v\n", err) //nolint:errcheck // output
 		return 1
 	}
 
 	version := decodeSoftwareVersion(data)
 
 	if textOutput {
-		_, _ = fmt.Fprintf(stdout, "%-20s %s\n", "software-version", version)
+		_, _ = fmt.Fprintf(stdout, "%-20s %s\n", "software-version", version) //nolint:errcheck // output
 	} else {
 		result := map[string]any{
 			"code":  75,
@@ -265,7 +265,7 @@ func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int
 			"value": version,
 		}
 		jsonBytes, _ := json.Marshal(result)
-		_, _ = fmt.Fprintln(stdout, string(jsonBytes))
+		_, _ = fmt.Fprintln(stdout, string(jsonBytes)) //nolint:errcheck // output
 	}
 	return 0
 }

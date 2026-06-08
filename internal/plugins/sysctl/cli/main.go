@@ -63,11 +63,11 @@ func cmdList(_ []string) int {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(w, "KEY\tTYPE\tDESCRIPTION"); err != nil {
+	if _, err := fmt.Fprintln(w, "KEY\tTYPE\tDESCRIPTION"); err != nil { //nolint:errcheck // output
 		return 1
 	}
 	for _, k := range all {
-		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\n", k.Name, typeName(k.Type), k.Description); err != nil {
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\n", k.Name, typeName(k.Type), k.Description); err != nil { //nolint:errcheck // output
 			return 1
 		}
 	}
@@ -130,7 +130,7 @@ func cmdListProfiles(_ []string) int {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(w, "PROFILE\tKEYS\tBUILTIN\tDESCRIPTION"); err != nil {
+	if _, err := fmt.Fprintln(w, "PROFILE\tKEYS\tBUILTIN\tDESCRIPTION"); err != nil { //nolint:errcheck // output
 		return 1
 	}
 	for _, p := range profiles {
@@ -138,7 +138,7 @@ func cmdListProfiles(_ []string) int {
 		if p.Builtin {
 			builtin = "yes"
 		}
-		if _, err := fmt.Fprintf(w, "%s\t%d\t%s\t%s\n", p.Name, len(p.Settings), builtin, p.Description); err != nil {
+		if _, err := fmt.Fprintf(w, "%s\t%d\t%s\t%s\n", p.Name, len(p.Settings), builtin, p.Description); err != nil { //nolint:errcheck // output
 			return 1
 		}
 	}

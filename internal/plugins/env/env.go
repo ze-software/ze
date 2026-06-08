@@ -131,7 +131,7 @@ func showAll(verbose bool) int {
 }
 
 func printRow(w *tabwriter.Writer, cols ...string) {
-	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil {
+	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil { //nolint:errcheck // output
 		return
 	}
 }

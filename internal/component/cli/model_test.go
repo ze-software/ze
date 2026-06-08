@@ -1185,7 +1185,7 @@ func TestShiftArrowLineScroll(t *testing.T) {
 	var content strings.Builder
 	content.WriteString("bgp {\n  router-id 1.2.3.4\n")
 	for i := range 50 {
-		fmt.Fprintf(&content, "  # line %d\n", i)
+		fmt.Fprintf(&content, "  # line %d\n", i) //nolint:errcheck // buffer output
 	}
 	content.WriteString("}\n")
 	err := os.WriteFile(configPath, []byte(content.String()), 0o600)
@@ -1232,7 +1232,7 @@ func TestCtrlArrowPageScroll(t *testing.T) {
 	var content strings.Builder
 	content.WriteString("bgp {\n  router-id 1.2.3.4\n")
 	for i := range 50 {
-		fmt.Fprintf(&content, "  # line %d\n", i)
+		fmt.Fprintf(&content, "  # line %d\n", i) //nolint:errcheck // buffer output
 	}
 	content.WriteString("}\n")
 	err := os.WriteFile(configPath, []byte(content.String()), 0o600)

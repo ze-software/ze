@@ -317,7 +317,7 @@ func zeDispatch(args []string) int {
 	}
 
 	switch arg {
-	case "-h", "--help":
+	case "-h", "--help": //nolint:goconst // consistent pattern across cmd files
 		arg = "help"
 	}
 

@@ -52,7 +52,7 @@ func (m ackMode) writeAck(pluginW io.Writer) {
 	if !m.enabled {
 		return
 	}
-	if _, err := fmt.Fprintln(pluginW, "done"); err != nil {
+	if _, err := fmt.Fprintln(pluginW, "done"); err != nil { //nolint:errcheck // output
 		slog.Debug("bridge ack: write done failed", "error", err)
 	}
 }
@@ -65,7 +65,7 @@ func (m ackMode) writeError(pluginW io.Writer, msg string) {
 		return
 	}
 	clean := sanitizeErrorMessage(msg)
-	if _, err := fmt.Fprintf(pluginW, "error %s\n", clean); err != nil {
+	if _, err := fmt.Fprintf(pluginW, "error %s\n", clean); err != nil { //nolint:errcheck // output
 		slog.Debug("bridge ack: write error failed", "error", err)
 	}
 }

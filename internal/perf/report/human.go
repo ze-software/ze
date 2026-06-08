@@ -12,58 +12,58 @@ import (
 
 // PrintHuman writes a human-readable benchmark summary to w.
 func PrintHuman(w io.Writer, r *perf.Result) {
-	fmt.Fprintf(w, "DUT: %s", r.DUTName)
+	fmt.Fprintf(w, "DUT: %s", r.DUTName) //nolint:errcheck // report output
 
 	if r.DUTVersion != "" {
-		fmt.Fprintf(w, " %s", r.DUTVersion)
+		fmt.Fprintf(w, " %s", r.DUTVersion) //nolint:errcheck // report output
 	}
 
-	fmt.Fprintf(w, " @ %s:%d (AS %d)\n", r.DUTAddr, r.DUTPort, r.DUTASN)
-	fmt.Fprintf(w, "Routes: %d %s (seed %d)\n", r.Routes, r.Family, r.Seed)
-	fmt.Fprintf(w, "Iterations: %d measured, %d warmup, %d kept\n", r.Repeat, r.WarmupRuns, r.RepeatKept)
+	fmt.Fprintf(w, " @ %s:%d (AS %d)\n", r.DUTAddr, r.DUTPort, r.DUTASN)                                  //nolint:errcheck // report output
+	fmt.Fprintf(w, "Routes: %d %s (seed %d)\n", r.Routes, r.Family, r.Seed)                               //nolint:errcheck // report output
+	fmt.Fprintf(w, "Iterations: %d measured, %d warmup, %d kept\n", r.Repeat, r.WarmupRuns, r.RepeatKept) //nolint:errcheck // report output
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Sessions:")
-	fmt.Fprintf(w, "  sender   -> established in %dms\n", r.SessionSetupMs.Sender)
-	fmt.Fprintf(w, "  receiver -> established in %dms\n", r.SessionSetupMs.Receiver)
+	fmt.Fprintln(w)                                                                  //nolint:errcheck // report output
+	fmt.Fprintln(w, "Sessions:")                                                     //nolint:errcheck // report output
+	fmt.Fprintf(w, "  sender   -> established in %dms\n", r.SessionSetupMs.Sender)   //nolint:errcheck // report output
+	fmt.Fprintf(w, "  receiver -> established in %dms\n", r.SessionSetupMs.Receiver) //nolint:errcheck // report output
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Propagation:")
-	fmt.Fprintf(w, "  first route:   %dms\n", r.FirstRouteMs)
+	fmt.Fprintln(w)                                           //nolint:errcheck // report output
+	fmt.Fprintln(w, "Propagation:")                           //nolint:errcheck // report output
+	fmt.Fprintf(w, "  first route:   %dms\n", r.FirstRouteMs) //nolint:errcheck // report output
 
 	if r.ConvergenceStddevMs > 0 {
-		fmt.Fprintf(w, "  convergence:   %dms +/- %dms\n", r.ConvergenceMs, r.ConvergenceStddevMs)
+		fmt.Fprintf(w, "  convergence:   %dms +/- %dms\n", r.ConvergenceMs, r.ConvergenceStddevMs) //nolint:errcheck // report output
 	} else {
-		fmt.Fprintf(w, "  convergence:   %dms\n", r.ConvergenceMs)
+		fmt.Fprintf(w, "  convergence:   %dms\n", r.ConvergenceMs) //nolint:errcheck // report output
 	}
 
 	if r.ThroughputAvgStddev > 0 {
-		fmt.Fprintf(w, "  throughput:    %d routes/sec +/- %d\n", r.ThroughputAvg, r.ThroughputAvgStddev)
+		fmt.Fprintf(w, "  throughput:    %d routes/sec +/- %d\n", r.ThroughputAvg, r.ThroughputAvgStddev) //nolint:errcheck // report output
 	} else {
-		fmt.Fprintf(w, "  throughput:    %d routes/sec\n", r.ThroughputAvg)
+		fmt.Fprintf(w, "  throughput:    %d routes/sec\n", r.ThroughputAvg) //nolint:errcheck // report output
 	}
 
-	fmt.Fprintf(w, "  routes:        %d/%d (%d lost)\n", r.RoutesReceived, r.RoutesSent, r.RoutesLost)
+	fmt.Fprintf(w, "  routes:        %d/%d (%d lost)\n", r.RoutesReceived, r.RoutesSent, r.RoutesLost) //nolint:errcheck // report output
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Latency distribution:")
-	fmt.Fprintf(w, "  p50:   %dms\n", r.LatencyP50Ms)
-	fmt.Fprintf(w, "  p90:   %dms\n", r.LatencyP90Ms)
+	fmt.Fprintln(w)                                   //nolint:errcheck // report output
+	fmt.Fprintln(w, "Latency distribution:")          //nolint:errcheck // report output
+	fmt.Fprintf(w, "  p50:   %dms\n", r.LatencyP50Ms) //nolint:errcheck // report output
+	fmt.Fprintf(w, "  p90:   %dms\n", r.LatencyP90Ms) //nolint:errcheck // report output
 
 	if r.LatencyP99StddevMs > 0 {
-		fmt.Fprintf(w, "  p99:   %dms +/- %dms\n", r.LatencyP99Ms, r.LatencyP99StddevMs)
+		fmt.Fprintf(w, "  p99:   %dms +/- %dms\n", r.LatencyP99Ms, r.LatencyP99StddevMs) //nolint:errcheck // report output
 	} else {
-		fmt.Fprintf(w, "  p99:   %dms\n", r.LatencyP99Ms)
+		fmt.Fprintf(w, "  p99:   %dms\n", r.LatencyP99Ms) //nolint:errcheck // report output
 	}
 
-	fmt.Fprintf(w, "  max:   %dms\n", r.LatencyMaxMs)
+	fmt.Fprintf(w, "  max:   %dms\n", r.LatencyMaxMs) //nolint:errcheck // report output
 
 	if r.WithdrawalMs > 0 {
-		fmt.Fprintf(w, "\nWithdrawal:\n")
+		fmt.Fprintf(w, "\nWithdrawal:\n") //nolint:errcheck // report output
 		if r.WithdrawalStddevMs > 0 {
-			fmt.Fprintf(w, "  time:  %dms +/- %dms\n", r.WithdrawalMs, r.WithdrawalStddevMs)
+			fmt.Fprintf(w, "  time:  %dms +/- %dms\n", r.WithdrawalMs, r.WithdrawalStddevMs) //nolint:errcheck // report output
 		} else {
-			fmt.Fprintf(w, "  time:  %dms\n", r.WithdrawalMs)
+			fmt.Fprintf(w, "  time:  %dms\n", r.WithdrawalMs) //nolint:errcheck // report output
 		}
 	}
 }

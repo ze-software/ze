@@ -346,14 +346,14 @@ func (r *Report) PrintAllFailures(tests *Tests) {
 
 // writef writes formatted text to the report output, handling the error.
 func (r *Report) writef(format string, args ...any) {
-	if _, err := fmt.Fprintf(r.output, format, args...); err != nil {
+	if _, err := fmt.Fprintf(r.output, format, args...); err != nil { //nolint:errcheck // output
 		return // report output is best-effort
 	}
 }
 
 // writeln writes a line to the report output, handling the error.
 func (r *Report) writeln(s string) {
-	if _, err := fmt.Fprintln(r.output, s); err != nil {
+	if _, err := fmt.Fprintln(r.output, s); err != nil { //nolint:errcheck // output
 		return // report output is best-effort
 	}
 }

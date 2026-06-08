@@ -107,7 +107,7 @@ func RunBenchmark(ctx context.Context, cfg BenchmarkConfig, progress io.Writer) 
 			label += " (warmup)"
 		}
 
-		_, _ = fmt.Fprintf(progress, "%s\n", label)
+		_, _ = fmt.Fprintf(progress, "%s\n", label) //nolint:errcheck // output
 
 		iter, err := runIteration(ctx, cfg, prefixes)
 		if err != nil {
@@ -215,7 +215,8 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	var sendStart time.Time
 	var err error
 
-	if cfg.PassiveListen {
+	switch { //nolint:gocritic // ifElseChain: intentional, each branch has distinct connection setup logic
+	case cfg.PassiveListen:
 		receiverCh := make(chan connResult, 1)
 		senderCh := make(chan connResult, 1)
 
@@ -245,12 +246,12 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 			return IterationResult{}, fmt.Errorf("connecting receiver: %w", receiverRes.err)
 		}
 		receiverConn = receiverRes.conn
-	} else if cfg.SenderFirst {
+	case cfg.SenderFirst:
 		senderConn, err = connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, false)
 		if err != nil {
 			return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
 		}
-	} else {
+	default:
 		receiverConn, err = connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, false)
 		if err != nil {
 			return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)

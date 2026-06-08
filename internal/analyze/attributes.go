@@ -488,7 +488,7 @@ func attrPrintSummary(w io.Writer, st *attrAnalysis) {
 		bytes   uint64
 		hitRate float64
 	}
-	var rows []row
+	rows := make([]row, 0, len(st.Attributes))
 	for code, a := range st.Attributes {
 		u := uint64(len(a.Values))
 		hr := 0.0
@@ -550,7 +550,7 @@ func attrPrintSummary(w io.Writer, st *attrAnalysis) {
 		updates uint64
 		hitRate float64
 	}
-	var peers []pa
+	peers := make([]pa, 0, len(st.Peers))
 	for idx, p := range st.Peers {
 		a := pa{idx: idx, updates: p.Updates}
 		ub := uint64(len(p.Bundles))

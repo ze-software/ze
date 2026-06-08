@@ -25,7 +25,7 @@ func WriteResolvConf(path string, servers []string) error {
 		if strings.ContainsAny(s, "\n\r") {
 			continue
 		}
-		fmt.Fprintf(&b, "nameserver %s\n", s)
+		fmt.Fprintf(&b, "nameserver %s\n", s) //nolint:errcheck // buffer output
 	}
 
 	tmp := path + ".tmp"

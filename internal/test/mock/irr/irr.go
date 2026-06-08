@@ -1,6 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md -- deterministic IRR whois mock server
 
-
 package irr
 
 import (

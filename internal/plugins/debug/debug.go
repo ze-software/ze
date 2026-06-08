@@ -12,8 +12,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 const (
@@ -138,7 +138,7 @@ func cmdShow(_ []string) int {
 }
 
 func printRow(w *tabwriter.Writer, cols ...string) {
-	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil {
+	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil { //nolint:errcheck // output
 		return
 	}
 }

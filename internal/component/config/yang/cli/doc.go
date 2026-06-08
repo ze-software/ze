@@ -35,11 +35,11 @@ func FormatDocList(w io.Writer) error {
 		return err
 	}
 	if len(docs) == 0 {
-		_, err := fmt.Fprintln(w, "No commands registered.")
+		_, err := fmt.Fprintln(w, "No commands registered.") //nolint:errcheck // output
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "%-40s %-6s %s\n", "Command", "Mode", "Description"); err != nil {
+	if _, err := fmt.Fprintf(w, "%-40s %-6s %s\n", "Command", "Mode", "Description"); err != nil { //nolint:errcheck // output
 		return err
 	}
 	for _, d := range docs {
@@ -47,7 +47,7 @@ func FormatDocList(w io.Writer) error {
 		if d.ReadOnly {
 			mode = "ro"
 		}
-		if _, err := fmt.Fprintf(w, "%-40s %-6s %s\n", d.CLICommand, mode, d.Help); err != nil {
+		if _, err := fmt.Fprintf(w, "%-40s %-6s %s\n", d.CLICommand, mode, d.Help); err != nil { //nolint:errcheck // output
 			return err
 		}
 	}
@@ -60,15 +60,15 @@ func writeDocEntry(w io.Writer, d RPCDoc) error {
 		mode = "read-only"
 	}
 
-	if _, err := fmt.Fprintf(w, "%s\n  %s (%s)\n", d.CLICommand, d.Help, mode); err != nil {
+	if _, err := fmt.Fprintf(w, "%s\n  %s (%s)\n", d.CLICommand, d.Help, mode); err != nil { //nolint:errcheck // output
 		return err
 	}
-	if _, err := fmt.Fprintf(w, "\n  Wire method: %s\n", d.WireMethod); err != nil {
+	if _, err := fmt.Fprintf(w, "\n  Wire method: %s\n", d.WireMethod); err != nil { //nolint:errcheck // output
 		return err
 	}
 
 	if len(d.Input) > 0 {
-		if _, err := fmt.Fprintf(w, "\n  Parameters (input):\n"); err != nil {
+		if _, err := fmt.Fprintf(w, "\n  Parameters (input):\n"); err != nil { //nolint:errcheck // output
 			return err
 		}
 		if err := writeLeafTable(w, d.Input); err != nil {
@@ -77,7 +77,7 @@ func writeDocEntry(w io.Writer, d RPCDoc) error {
 	}
 
 	if len(d.Output) > 0 {
-		if _, err := fmt.Fprintf(w, "\n  Parameters (output):\n"); err != nil {
+		if _, err := fmt.Fprintf(w, "\n  Parameters (output):\n"); err != nil { //nolint:errcheck // output
 			return err
 		}
 		if err := writeLeafTable(w, d.Output); err != nil {
@@ -99,7 +99,7 @@ func writeLeafTable(w io.Writer, leaves []yang.LeafMeta) error {
 		if len(desc) > 50 {
 			desc = desc[:47] + "..."
 		}
-		if _, err := fmt.Fprintf(w, "    %-20s %-14s%s  %s\n", leaf.Name, leaf.Type, mandatory, desc); err != nil {
+		if _, err := fmt.Fprintf(w, "    %-20s %-14s%s  %s\n", leaf.Name, leaf.Type, mandatory, desc); err != nil { //nolint:errcheck // output
 			return err
 		}
 	}

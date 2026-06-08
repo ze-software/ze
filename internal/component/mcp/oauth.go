@@ -21,6 +21,7 @@ import (
 	"errors"
 	"net/http"
 	"time"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

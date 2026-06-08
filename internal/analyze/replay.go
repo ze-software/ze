@@ -49,7 +49,7 @@ func parseReplayOpts(args []string) (*replayOpts, bool) {
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--local-as":
+		case "--local-as": //nolint:goconst // CLI flag name
 			i++
 			if i >= len(args) {
 				return nil, false
@@ -59,7 +59,7 @@ func parseReplayOpts(args []string) (*replayOpts, bool) {
 				return nil, false
 			}
 			opts.localAS = uint32(v) //nolint:gosec // validated range
-		case "--router-id":
+		case "--router-id": //nolint:goconst // CLI flag name
 			i++
 			if i >= len(args) {
 				return nil, false

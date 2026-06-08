@@ -1,10 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md -- MCP test client
 
-
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"bufio"
 	"bytes"
 	"context"
@@ -18,12 +16,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
-
-func init() {
-	Register("mcp", cmdMcp, subdispatch.SubMeta{Desc: "MCP client (send commands to daemon via MCP endpoint)"})
-}
 
 var (
 	errCommandErrorNoDetail            = errors.New("command error (no detail)")

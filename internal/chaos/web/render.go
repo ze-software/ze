@@ -38,7 +38,7 @@ func (h *htmlWriter) write(s string) {
 
 func (h *htmlWriter) writef(format string, args ...any) {
 	if h.err == nil {
-		_, h.err = fmt.Fprintf(h.w, format, args...)
+		_, h.err = fmt.Fprintf(h.w, format, args...) //nolint:errcheck // output
 	}
 }
 

@@ -199,7 +199,7 @@ func GetVPNYANG() string {
 // Errors go to errOut (typically stderr), results go to output (typically stdout).
 func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
 	writeErr := func(format string, args ...any) {
-		if _, err := fmt.Fprintf(errOut, format, args...); err != nil {
+		if _, err := fmt.Fprintf(errOut, format, args...); err != nil { //nolint:errcheck // output
 			return
 		}
 	}
@@ -252,7 +252,7 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 // RunVPNDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
 func RunVPNDecode(input io.Reader, output io.Writer) int {
 	writeUnknown := func() {
-		_, err := fmt.Fprintln(output, "decoded unknown")
+		_, err := fmt.Fprintln(output, "decoded unknown") //nolint:errcheck // output
 		if err != nil {
 			vpnLogger.Debug("write error", "err", err)
 		}
@@ -327,7 +327,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		for _, r := range results {
 			texts = append(texts, formatVPNTextSingle(r))
 		}
-		_, err := fmt.Fprintln(output, "decoded text "+textbuf.Join(texts, "; "))
+		_, err := fmt.Fprintln(output, "decoded text "+textbuf.Join(texts, "; ")) //nolint:errcheck // output
 		if err != nil {
 			vpnLogger.Debug("write error", "err", err)
 		}
@@ -345,7 +345,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		writeUnknown()
 		return
 	}
-	_, err = fmt.Fprintln(output, "decoded json "+string(jsonBytes))
+	_, err = fmt.Fprintln(output, "decoded json "+string(jsonBytes)) //nolint:errcheck // output
 	if err != nil {
 		vpnLogger.Debug("write error", "err", err)
 	}

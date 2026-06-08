@@ -32,12 +32,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/engine"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/transport"
 	diagCmd "codeberg.org/thomas-mangin/ze/internal/plugins/diag/cmd"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // pluginLogger is the package-level logger. Set via UseLogger from

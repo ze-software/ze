@@ -39,7 +39,7 @@ func (s L2TPSessionState) String() string {
 	case L2TPSessionWaitCSAnswer:
 		return "wait-cs-answer"
 	case L2TPSessionEstablished:
-		return "established"
+		return bucketStateEstablishedStr
 	}
 	return stateUnknown
 }

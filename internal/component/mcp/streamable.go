@@ -644,7 +644,7 @@ func (s *Streamable) handleGET(w http.ResponseWriter, r *http.Request) {
 			if !open {
 				return
 			}
-			if _, err := fmt.Fprintf(w, "data: %s\n\n", frame); err != nil {
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", frame); err != nil { //nolint:errcheck // output
 				return
 			}
 			flusher.Flush()

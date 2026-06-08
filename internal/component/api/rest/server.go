@@ -872,7 +872,7 @@ func (s *RESTServer) handleStream(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			if _, fErr := fmt.Fprintf(w, "data: %s\n\n", event); fErr != nil {
+			if _, fErr := fmt.Fprintf(w, "data: %s\n\n", event); fErr != nil { //nolint:errcheck // output
 				return
 			}
 			flusher.Flush()

@@ -63,7 +63,7 @@ func TestMessageCapture(t *testing.T) {
 	t.Cleanup(func() { _ = conn.Close() })
 
 	for i := 1; i <= 3; i++ {
-		_, err = fmt.Fprintf(conn, "<14>message %d", i)
+		_, err = fmt.Fprintf(conn, "<14>message %d", i) //nolint:errcheck // output
 		require.NoError(t, err)
 	}
 

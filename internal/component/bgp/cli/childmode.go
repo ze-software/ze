@@ -74,7 +74,7 @@ func writeDeclare(w io.Writer) error {
 	}
 
 	for _, decl := range declarations {
-		if _, err := fmt.Fprintln(w, decl); err != nil {
+		if _, err := fmt.Fprintln(w, decl); err != nil { //nolint:errcheck // output
 			return err
 		}
 	}
@@ -84,13 +84,13 @@ func writeDeclare(w io.Writer) error {
 
 // writeCapability writes Stage 3 capability declaration.
 func writeCapability(w io.Writer) error {
-	_, err := fmt.Fprintln(w, "capability done")
+	_, err := fmt.Fprintln(w, "capability done") //nolint:errcheck // output
 	return err
 }
 
 // writeReady writes Stage 5 ready signal.
 func writeReady(w io.Writer) error {
-	_, err := fmt.Fprintln(w, "ready")
+	_, err := fmt.Fprintln(w, "ready") //nolint:errcheck // output
 	return err
 }
 

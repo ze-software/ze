@@ -76,7 +76,7 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 
 		// Name entry
 		if info.Name != "" {
-			if _, err := fmt.Fprintf(w, "%s\tpeer name (%s AS %s)\n", info.Name, ip, asnStr); err != nil {
+			if _, err := fmt.Fprintf(w, "%s\tpeer name (%s AS %s)\n", info.Name, ip, asnStr); err != nil { //nolint:errcheck // output
 				return 1
 			}
 		}
@@ -89,7 +89,7 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 		} else {
 			desc = tb.Str("peer ip (AS ").Str(asnStr).Byte(')').String()
 		}
-		if _, err := fmt.Fprintf(w, "%s\t%s\n", ip, desc); err != nil {
+		if _, err := fmt.Fprintf(w, "%s\t%s\n", ip, desc); err != nil { //nolint:errcheck // output
 			return 1
 		}
 
@@ -102,7 +102,7 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 			} else {
 				asnDesc = tb.Reset().Str("peer asn (").Str(ip).Byte(')').String()
 			}
-			if _, err := fmt.Fprintf(w, "as%s\t%s\n", asnStr, asnDesc); err != nil {
+			if _, err := fmt.Fprintf(w, "as%s\t%s\n", asnStr, asnDesc); err != nil { //nolint:errcheck // output
 				return 1
 			}
 		}

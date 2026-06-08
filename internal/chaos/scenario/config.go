@@ -40,87 +40,87 @@ func GenerateConfig(params ConfigParams) string {
 	// so emitting an external plugin block would create a duplicate that
 	// tries to fork a subprocess and fails.
 	if !params.NoPlugin {
-		fmt.Fprintf(&b, "plugin {\n")
-		fmt.Fprintf(&b, "    external bgp-rs {\n")
+		fmt.Fprintf(&b, "plugin {\n")              //nolint:errcheck // config output
+		fmt.Fprintf(&b, "    external bgp-rs {\n") //nolint:errcheck // config output
 		if params.PprofAddr != "" {
-			fmt.Fprintf(&b, "        run \"ze.bgp-rs\";\n")
+			fmt.Fprintf(&b, "        run \"ze.bgp-rs\";\n") //nolint:errcheck // config output
 		} else {
-			fmt.Fprintf(&b, "        run \"%s plugin bgp-rs\";\n", zeBin)
+			fmt.Fprintf(&b, "        run \"%s plugin bgp-rs\";\n", zeBin) //nolint:errcheck // config output
 		}
-		fmt.Fprintf(&b, "    }\n")
-		fmt.Fprintf(&b, "    external bgp-rib {\n")
+		fmt.Fprintf(&b, "    }\n")                  //nolint:errcheck // config output
+		fmt.Fprintf(&b, "    external bgp-rib {\n") //nolint:errcheck // config output
 		if params.PprofAddr != "" {
-			fmt.Fprintf(&b, "        run \"ze.bgp-rib\";\n")
+			fmt.Fprintf(&b, "        run \"ze.bgp-rib\";\n") //nolint:errcheck // config output
 		} else {
-			fmt.Fprintf(&b, "        run \"%s plugin bgp-rib\";\n", zeBin)
+			fmt.Fprintf(&b, "        run \"%s plugin bgp-rib\";\n", zeBin) //nolint:errcheck // config output
 		}
-		fmt.Fprintf(&b, "    }\n")
-		fmt.Fprintf(&b, "}\n\n")
+		fmt.Fprintf(&b, "    }\n") //nolint:errcheck // config output
+		fmt.Fprintf(&b, "}\n\n")   //nolint:errcheck // config output
 	}
 
 	// Environment block — debug settings, SSH, web UI, looking glass.
 	hasEnv := params.PprofAddr != "" || params.SSHPort > 0 || params.WebUIPort > 0 || params.LGPort > 0 || params.MCPPort > 0
 	if hasEnv {
-		fmt.Fprintf(&b, "environment {\n")
+		fmt.Fprintf(&b, "environment {\n") //nolint:errcheck // buffer output
 		if params.PprofAddr != "" {
-			fmt.Fprintf(&b, "    debug {\n")
-			fmt.Fprintf(&b, "        pprof %s;\n", params.PprofAddr)
-			fmt.Fprintf(&b, "    }\n")
+			fmt.Fprintf(&b, "    debug {\n")                         //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        pprof %s;\n", params.PprofAddr) //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "    }\n")                               //nolint:errcheck // buffer output
 		}
 		if params.SSHPort > 0 {
-			fmt.Fprintf(&b, "    ssh {\n")
-			fmt.Fprintf(&b, "        enabled true;\n")
-			fmt.Fprintf(&b, "        server main {\n")
-			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")
-			fmt.Fprintf(&b, "            port %d;\n", params.SSHPort)
-			fmt.Fprintf(&b, "        }\n")
-			fmt.Fprintf(&b, "    }\n")
+			fmt.Fprintf(&b, "    ssh {\n")                            //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        enabled true;\n")                //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        server main {\n")                //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")            //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "            port %d;\n", params.SSHPort) //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        }\n")                            //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "    }\n")                                //nolint:errcheck // buffer output
 		}
 		if params.WebUIPort > 0 {
-			fmt.Fprintf(&b, "    web {\n")
-			fmt.Fprintf(&b, "        enabled true;\n")
-			fmt.Fprintf(&b, "        server main {\n")
-			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")
-			fmt.Fprintf(&b, "            port %d;\n", params.WebUIPort)
-			fmt.Fprintf(&b, "        }\n")
-			fmt.Fprintf(&b, "        insecure true;\n")
-			fmt.Fprintf(&b, "    }\n")
+			fmt.Fprintf(&b, "    web {\n")                              //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        enabled true;\n")                  //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        server main {\n")                  //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")              //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "            port %d;\n", params.WebUIPort) //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        }\n")                              //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        insecure true;\n")                 //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "    }\n")                                  //nolint:errcheck // buffer output
 		}
 		if params.LGPort > 0 {
-			fmt.Fprintf(&b, "    looking-glass {\n")
-			fmt.Fprintf(&b, "        enabled true;\n")
-			fmt.Fprintf(&b, "        server main {\n")
-			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")
-			fmt.Fprintf(&b, "            port %d;\n", params.LGPort)
-			fmt.Fprintf(&b, "        }\n")
-			fmt.Fprintf(&b, "    }\n")
+			fmt.Fprintf(&b, "    looking-glass {\n")                 //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        enabled true;\n")               //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        server main {\n")               //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "            ip 127.0.0.1;\n")           //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "            port %d;\n", params.LGPort) //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        }\n")                           //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "    }\n")                               //nolint:errcheck // buffer output
 		}
 		if params.MCPPort > 0 {
-			fmt.Fprintf(&b, "    mcp {\n")
-			fmt.Fprintf(&b, "        port %d;\n", params.MCPPort)
-			fmt.Fprintf(&b, "    }\n")
+			fmt.Fprintf(&b, "    mcp {\n")                        //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "        port %d;\n", params.MCPPort) //nolint:errcheck // buffer output
+			fmt.Fprintf(&b, "    }\n")                            //nolint:errcheck // buffer output
 		}
-		fmt.Fprintf(&b, "}\n\n")
+		fmt.Fprintf(&b, "}\n\n") //nolint:errcheck // buffer output
 	}
 
 	// SSH authentication — test user with bcrypt-hashed "test" password.
 	if params.SSHPort > 0 {
-		fmt.Fprintf(&b, "system {\n")
-		fmt.Fprintf(&b, "    authentication {\n")
-		fmt.Fprintf(&b, "        user test {\n")
+		fmt.Fprintf(&b, "system {\n")             //nolint:errcheck // buffer output
+		fmt.Fprintf(&b, "    authentication {\n") //nolint:errcheck // buffer output
+		fmt.Fprintf(&b, "        user test {\n")  //nolint:errcheck // buffer output
 		// bcrypt hash of "test" at cost 10.
-		fmt.Fprintf(&b, "            password \"$2a$10$4A3D3GHd7l3FZXyL/YgH4.bWB2G1oHD1IXgyUDClqIThEcPEJY8Sq\";\n")
-		fmt.Fprintf(&b, "        }\n")
-		fmt.Fprintf(&b, "    }\n")
-		fmt.Fprintf(&b, "}\n\n")
+		fmt.Fprintf(&b, "            password \"$2a$10$4A3D3GHd7l3FZXyL/YgH4.bWB2G1oHD1IXgyUDClqIThEcPEJY8Sq\";\n") //nolint:errcheck // buffer output
+		fmt.Fprintf(&b, "        }\n")                                                                              //nolint:errcheck // buffer output
+		fmt.Fprintf(&b, "    }\n")                                                                                  //nolint:errcheck // buffer output
+		fmt.Fprintf(&b, "}\n\n")                                                                                    //nolint:errcheck // buffer output
 	}
 
 	// bgp block with all peer definitions.
-	fmt.Fprintf(&b, "bgp {\n")
+	fmt.Fprintf(&b, "bgp {\n") //nolint:errcheck // buffer output
 	for i := range params.Profiles {
 		writeFullPeerBlock(&b, params, params.Profiles[i])
 	}
-	fmt.Fprintf(&b, "}\n")
+	fmt.Fprintf(&b, "}\n") //nolint:errcheck // buffer output
 
 	return b.String()
 }
@@ -155,7 +155,7 @@ func PeerSummary(params ConfigParams) string {
 			portInfo = fmt.Sprintf("  port=%-5d", p.ZePort)
 		}
 
-		fmt.Fprintf(&b, "  peer %d  %s  local-as=%-5d remote-as=%-5d  %s  hold=%-3d%s  families=[%s]  routes=%d%s\n",
+		fmt.Fprintf(&b, "  peer %d  %s  local-as=%-5d remote-as=%-5d  %s  hold=%-3d%s  families=[%s]  routes=%d%s\n", //nolint:errcheck // buffer output
 			p.Index, peerAddr, params.LocalAS, p.ASN, peerType, p.HoldTime, portInfo,
 			textbuf.Join(families, ", "), p.RouteCount, mode)
 	}
@@ -169,32 +169,32 @@ func writeFullPeerBlock(b *textbuf.Buffer, params ConfigParams, p PeerProfile) {
 	if p.Address.IsValid() {
 		peerAddr = p.Address.String()
 	}
-	fmt.Fprintf(b, "    peer chaos-peer-%d {\n", p.Index)
-	fmt.Fprintf(b, "        description \"chaos-peer-%d\";\n", p.Index)
+	fmt.Fprintf(b, "    peer chaos-peer-%d {\n", p.Index)               //nolint:errcheck // output
+	fmt.Fprintf(b, "        description \"chaos-peer-%d\";\n", p.Index) //nolint:errcheck // output
 
 	// Connection container — transport-level settings.
 	// All chaos peers are passive from Ze's perspective: Ze never dials out.
 	// This avoids needing loopback aliases for the fake peer addresses.
-	fmt.Fprintf(b, "        connection {\n")
-	fmt.Fprintf(b, "            remote {\n")
-	fmt.Fprintf(b, "                ip %s;\n", peerAddr)
-	fmt.Fprintf(b, "                connect false;\n")
-	fmt.Fprintf(b, "            }\n")
-	fmt.Fprintf(b, "            local {\n")
-	fmt.Fprintf(b, "                ip %s;\n", params.LocalAddr)
+	fmt.Fprintf(b, "        connection {\n")                     //nolint:errcheck // output
+	fmt.Fprintf(b, "            remote {\n")                     //nolint:errcheck // output
+	fmt.Fprintf(b, "                ip %s;\n", peerAddr)         //nolint:errcheck // output
+	fmt.Fprintf(b, "                connect false;\n")           //nolint:errcheck // output
+	fmt.Fprintf(b, "            }\n")                            //nolint:errcheck // output
+	fmt.Fprintf(b, "            local {\n")                      //nolint:errcheck // output
+	fmt.Fprintf(b, "                ip %s;\n", params.LocalAddr) //nolint:errcheck // output
 	if p.ZePort > 0 {
-		fmt.Fprintf(b, "                port %d;\n", p.ZePort)
+		fmt.Fprintf(b, "                port %d;\n", p.ZePort) //nolint:errcheck // output
 	}
-	fmt.Fprintf(b, "            }\n")
-	fmt.Fprintf(b, "        }\n")
+	fmt.Fprintf(b, "            }\n") //nolint:errcheck // output
+	fmt.Fprintf(b, "        }\n")     //nolint:errcheck // output
 
 	// Session container — BGP session settings.
-	fmt.Fprintf(b, "        session {\n")
-	fmt.Fprintf(b, "            asn {\n")
-	fmt.Fprintf(b, "                remote %d;\n", p.ASN)
-	fmt.Fprintf(b, "                local %d;\n", params.LocalAS)
-	fmt.Fprintf(b, "            }\n")
-	fmt.Fprintf(b, "            router-id %s;\n", params.RouterID)
+	fmt.Fprintf(b, "        session {\n")                          //nolint:errcheck // output
+	fmt.Fprintf(b, "            asn {\n")                          //nolint:errcheck // output
+	fmt.Fprintf(b, "                remote %d;\n", p.ASN)          //nolint:errcheck // output
+	fmt.Fprintf(b, "                local %d;\n", params.LocalAS)  //nolint:errcheck // output
+	fmt.Fprintf(b, "            }\n")                              //nolint:errcheck // output
+	fmt.Fprintf(b, "            router-id %s;\n", params.RouterID) //nolint:errcheck // output
 
 	// Family block — per-peer families from profile.
 	families := p.Families
@@ -203,14 +203,14 @@ func writeFullPeerBlock(b *textbuf.Buffer, params ConfigParams, p PeerProfile) {
 	}
 	// Prefix maximum: 10% headroom over route count, minimum 10000.
 	maxPrefix := max(p.RouteCount+p.RouteCount/10, 10000)
-	fmt.Fprintf(b, "            family {\n")
+	fmt.Fprintf(b, "            family {\n") //nolint:errcheck // output
 	for _, f := range families {
-		fmt.Fprintf(b, "                %s { prefix { maximum %d; } }\n", f, maxPrefix)
+		fmt.Fprintf(b, "                %s { prefix { maximum %d; } }\n", f, maxPrefix) //nolint:errcheck // output
 	}
-	fmt.Fprintf(b, "            }\n")
-	fmt.Fprintf(b, "        }\n")
+	fmt.Fprintf(b, "            }\n") //nolint:errcheck // output
+	fmt.Fprintf(b, "        }\n")     //nolint:errcheck // output
 
-	fmt.Fprintf(b, "        timer { receive-hold-time %d; }\n", p.HoldTime)
+	fmt.Fprintf(b, "        timer { receive-hold-time %d; }\n", p.HoldTime) //nolint:errcheck // output
 
-	fmt.Fprintf(b, "    }\n")
+	fmt.Fprintf(b, "    }\n") //nolint:errcheck // output
 }

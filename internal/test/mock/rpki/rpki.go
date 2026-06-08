@@ -1,6 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md -- deterministic RPKI mock server
 
-
 package rpki
 
 import (

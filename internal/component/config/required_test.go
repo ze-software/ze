@@ -11,7 +11,6 @@ func TestCheckRequiredGenericPerAnchor(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("comp", Container(
 		Field("mylist", listWithRequired(
-			TypeString,
 			[][]string{{"sub", "leaf"}},
 			Field("sub", Container(
 				Field("leaf", Leaf(TypeString)),
@@ -103,7 +102,6 @@ func TestCheckRequiredAnchorAbsentSkips(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("comp", Container(
 		Field("mylist", listWithRequired(
-			TypeString,
 			[][]string{{"sub", "leaf"}},
 			Field("sub", Container(
 				Field("leaf", Leaf(TypeString)),
@@ -157,7 +155,6 @@ func TestCheckRequiredBGPShape(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("bgp", Container(
 		Field("peer", listWithRequired(
-			TypeString,
 			[][]string{
 				{"connection", "remote", "ip"},
 				{"session", "asn", "local"},
@@ -244,7 +241,6 @@ func TestCheckRequiredSkipsEmptyPath(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("test", Container(
 		Field("mylist", listWithRequired(
-			TypeString,
 			[][]string{{""}},
 			Field("leaf", Leaf(TypeString)),
 		)),
@@ -277,7 +273,6 @@ func TestCheckRequiredNestedList(t *testing.T) {
 	schema.Define("ipsec", Container(
 		Field("esp-group", List(TypeString,
 			Field("proposal", listWithRequired(
-				TypeString,
 				[][]string{{"encryption"}},
 				Field("encryption", Leaf(TypeString)),
 				Field("hash", Leaf(TypeString)),
@@ -314,8 +309,8 @@ func TestCheckRequiredNestedList(t *testing.T) {
 }
 
 // listWithRequired creates a ListNode with Required fields pre-set.
-func listWithRequired(keyType ValueType, required [][]string, fields ...FieldDef) *ListNode {
-	l := List(keyType, fields...)
+func listWithRequired(required [][]string, fields ...FieldDef) *ListNode {
+	l := List(TypeString, fields...)
 	l.Required = required
 	return l
 }

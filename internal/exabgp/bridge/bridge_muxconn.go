@@ -178,7 +178,7 @@ type syncWriter struct {
 func (sw *syncWriter) Fprintln(s string) {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
-	if _, err := fmt.Fprintln(sw.w, s); err != nil {
+	if _, err := fmt.Fprintln(sw.w, s); err != nil { //nolint:errcheck // output
 		slog.Warn("syncWriter: write failed", "error", err)
 	}
 }

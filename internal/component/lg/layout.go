@@ -47,7 +47,7 @@ func formatNodeLabel(n GraphNode) string {
 func renderGraphSVG(g *Graph, layout *Layout) string {
 	var sb textbuf.Buffer
 
-	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`,
+	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`, //nolint:errcheck // report output
 		layout.Width, layout.Height, layout.Width, layout.Height)
 	sb.WriteString("\n")
 
@@ -76,11 +76,11 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 		x2 := toPos.X
 		y2 := toPos.Y + toPos.Height/2
 
-		fmt.Fprintf(&sb, `<g class="edge"><line x1="%d" y1="%d" x2="%d" y2="%d"/>`, x1, y1, x2, y2)
+		fmt.Fprintf(&sb, `<g class="edge"><line x1="%d" y1="%d" x2="%d" y2="%d"/>`, x1, y1, x2, y2) //nolint:errcheck // report output
 
 		// Arrow head at destination.
 		arrowSize := 8
-		fmt.Fprintf(&sb, `<polygon points="%d,%d %d,%d %d,%d"/>`,
+		fmt.Fprintf(&sb, `<polygon points="%d,%d %d,%d %d,%d"/>`, //nolint:errcheck // report output
 			x2, y2,
 			x2-arrowSize, y2-arrowSize/2,
 			x2-arrowSize, y2+arrowSize/2)
@@ -103,12 +103,12 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 		}
 
 		sb.WriteString(`<g class="node">`)
-		fmt.Fprintf(&sb, `<rect x="%d" y="%d" width="%d" height="%d"/>`,
+		fmt.Fprintf(&sb, `<rect x="%d" y="%d" width="%d" height="%d"/>`, //nolint:errcheck // report output
 			pos.X, pos.Y, pos.Width, pos.Height)
-		fmt.Fprintf(&sb, `<text x="%d" y="%d" class="asn">%s</text>`,
+		fmt.Fprintf(&sb, `<text x="%d" y="%d" class="asn">%s</text>`, //nolint:errcheck // report output
 			pos.X+nodePadding, pos.Y+nodeHeight/2+fontSize/3,
 			template.HTMLEscapeString(label))
-		fmt.Fprintf(&sb, `<title>%s</title>`,
+		fmt.Fprintf(&sb, `<title>%s</title>`, //nolint:errcheck // buffer output
 			template.HTMLEscapeString(fmt.Sprintf("AS%d%s", n.ASN, tooltipName(n.Name))))
 		sb.WriteString("</g>\n")
 	}

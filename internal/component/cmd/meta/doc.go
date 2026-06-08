@@ -12,9 +12,3 @@ package meta
 import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta/schema" // init() registers YANG module
 )
-
-// Command source constants (mirrored from plugin package for use in handler output).
-const (
-	sourceBuiltin = "builtin"
-	argVerbose    = "verbose"
-)

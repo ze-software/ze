@@ -329,7 +329,7 @@ func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int
 	// Decode hex
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "error: invalid hex: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "error: invalid hex: %v\n", err) //nolint:errcheck // output
 		return 1
 	}
 
@@ -338,7 +338,7 @@ func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int
 
 	// Output based on format
 	if textOutput {
-		_, _ = fmt.Fprintln(stdout, formatFQDNText(hostname, domain))
+		_, _ = fmt.Fprintln(stdout, formatFQDNText(hostname, domain)) //nolint:errcheck // output
 	} else {
 		result := map[string]any{
 			"name":     "fqdn",
@@ -347,10 +347,10 @@ func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int
 		}
 		jsonBytes, err := json.Marshal(result)
 		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "error: JSON encoding: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error: JSON encoding: %v\n", err) //nolint:errcheck // output
 			return 1
 		}
-		_, _ = fmt.Fprintln(stdout, string(jsonBytes))
+		_, _ = fmt.Fprintln(stdout, string(jsonBytes)) //nolint:errcheck // output
 	}
 	return 0
 }

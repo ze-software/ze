@@ -1,4 +1,3 @@
-
 // Design: (none -- research/analysis tool)
 //
 // Analyzes MRT BGP4MP dumps to measure UPDATE message density:
@@ -356,7 +355,7 @@ func printBurstAnalysis(st *densityStats) {
 	fmt.Println("and maintenance (steady-state churn, individual route changes). The per-peer")
 	fmt.Println("channel handles maintenance; the overflow pool handles setup bursts.")
 	fmt.Println()
-	fmt.Println("Each source peer is analysed independently. A 'run' is consecutive seconds")
+	fmt.Println("Each source peer is analyzed independently. A 'run' is consecutive seconds")
 	fmt.Println("of updates from that peer. Runs with >100 updates = setup. Fewer = maintenance.")
 	fmt.Println()
 

@@ -111,7 +111,7 @@ func formatNextHopNodeLabel(n NextHopNode) string {
 func renderNextHopGraphSVG(g *NextHopGraph, layout *NextHopLayout) string {
 	var sb textbuf.Buffer
 
-	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`,
+	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`, //nolint:errcheck // buffer output
 		layout.Width, layout.Height, layout.Width, layout.Height)
 	sb.WriteString("\n")
 
@@ -140,10 +140,10 @@ func renderNextHopGraphSVG(g *NextHopGraph, layout *NextHopLayout) string {
 		x2 := toPos.X
 		y2 := toPos.Y + toPos.Height/2
 
-		fmt.Fprintf(&sb, `<g class="edge"><line x1="%d" y1="%d" x2="%d" y2="%d"/>`, x1, y1, x2, y2)
+		fmt.Fprintf(&sb, `<g class="edge"><line x1="%d" y1="%d" x2="%d" y2="%d"/>`, x1, y1, x2, y2) //nolint:errcheck // buffer output
 
 		arrowSize := 8
-		fmt.Fprintf(&sb, `<polygon points="%d,%d %d,%d %d,%d"/>`,
+		fmt.Fprintf(&sb, `<polygon points="%d,%d %d,%d %d,%d"/>`, //nolint:errcheck // buffer output
 			x2, y2,
 			x2-arrowSize, y2-arrowSize/2,
 			x2-arrowSize, y2+arrowSize/2)
@@ -169,13 +169,13 @@ func renderNextHopGraphSVG(g *NextHopGraph, layout *NextHopLayout) string {
 			label = tb.Str(label[:maxChars-1]).Str("\u2026").String()
 		}
 
-		fmt.Fprintf(&sb, `<g class="%s">`, class)
-		fmt.Fprintf(&sb, `<rect x="%d" y="%d" width="%d" height="%d"/>`,
+		fmt.Fprintf(&sb, `<g class="%s">`, class)                        //nolint:errcheck // buffer output
+		fmt.Fprintf(&sb, `<rect x="%d" y="%d" width="%d" height="%d"/>`, //nolint:errcheck // buffer output
 			pos.X, pos.Y, pos.Width, pos.Height)
-		fmt.Fprintf(&sb, `<text x="%d" y="%d" class="label">%s</text>`,
+		fmt.Fprintf(&sb, `<text x="%d" y="%d" class="label">%s</text>`, //nolint:errcheck // buffer output
 			pos.X+nodePadding, pos.Y+nodeHeight/2+fontSize/3,
 			template.HTMLEscapeString(label))
-		fmt.Fprintf(&sb, `<title>%s%s</title>`,
+		fmt.Fprintf(&sb, `<title>%s%s</title>`, //nolint:errcheck // buffer output
 			template.HTMLEscapeString(n.Address),
 			template.HTMLEscapeString(nextHopTooltipName(n.Name)))
 		sb.WriteString("</g>\n")

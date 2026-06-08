@@ -4361,9 +4361,9 @@ func TestCmdCommitSessionConflictFormatting(t *testing.T) {
 	for _, c := range commitResult.Conflicts {
 		switch c.Type { //nolint:exhaustive // only two conflict types exist
 		case ConflictLive:
-			fmt.Fprintf(&b, "  LIVE %s: you=%s, %s=%s\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
+			fmt.Fprintf(&b, "  LIVE %s: you=%s, %s=%s\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue) //nolint:errcheck // buffer output
 		case ConflictStale:
-			fmt.Fprintf(&b, "  STALE %s: you=%s, committed=%s (was %s)\n", c.Path, c.MyValue, c.OtherValue, c.PreviousValue)
+			fmt.Fprintf(&b, "  STALE %s: you=%s, committed=%s (was %s)\n", c.Path, c.MyValue, c.OtherValue, c.PreviousValue) //nolint:errcheck // buffer output
 		}
 	}
 	output := b.String()

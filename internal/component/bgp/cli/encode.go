@@ -101,19 +101,19 @@ func cmdEncode(args []string) int {
 	if fs.NArg() < 1 {
 		// Check if stdin is a terminal (would block forever waiting for input)
 		if encodeStdinIsTTY() {
-			_, _ = fmt.Fprintf(encodeStderr, "error: missing route command\n")
+			_, _ = fmt.Fprintf(encodeStderr, "error: missing route command\n") //nolint:errcheck // output
 			fs.Usage()
 			return 1
 		}
 		// Read from stdin (piped input)
 		input, err := io.ReadAll(encodeStdin)
 		if err != nil {
-			_, _ = fmt.Fprintf(encodeStderr, "error reading stdin: %v\n", err)
+			_, _ = fmt.Fprintf(encodeStderr, "error reading stdin: %v\n", err) //nolint:errcheck // output
 			return 1
 		}
 		routeCmd = strings.TrimSpace(string(input))
 		if routeCmd == "" {
-			_, _ = fmt.Fprintf(encodeStderr, "error: missing route command\n")
+			_, _ = fmt.Fprintf(encodeStderr, "error: missing route command\n") //nolint:errcheck // output
 			fs.Usage()
 			return 1
 		}
@@ -125,7 +125,7 @@ func cmdEncode(args []string) int {
 	// Parse family
 	afi, safi, err := parseEncodingFamily(*fam)
 	if err != nil {
-		_, _ = fmt.Fprintf(encodeStderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(encodeStderr, "error: %v\n", err) //nolint:errcheck // output
 		return 1
 	}
 
@@ -156,7 +156,7 @@ func cmdEncode(args []string) int {
 	}
 
 	if err != nil {
-		_, _ = fmt.Fprintf(encodeStderr, "error: %v\n", err)
+		_, _ = fmt.Fprintf(encodeStderr, "error: %v\n", err) //nolint:errcheck // output
 		return 1
 	}
 
@@ -179,7 +179,7 @@ func cmdEncode(args []string) int {
 	}
 
 	// Output as uppercase hex
-	_, _ = fmt.Fprintln(encodeStdout, strings.ToUpper(hex.EncodeToString(output)))
+	_, _ = fmt.Fprintln(encodeStdout, strings.ToUpper(hex.EncodeToString(output))) //nolint:errcheck // output
 	return 0
 }
 

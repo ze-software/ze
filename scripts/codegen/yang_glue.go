@@ -42,7 +42,7 @@ func main() {
 	}
 
 	if len(dirs) == 0 {
-		fmt.Fprintln(os.Stdout, "yang_glue: no yang/ directories with .yang files found")
+		fmt.Fprintln(os.Stdout, "yang_glue: no yang/ directories with .yang files found") //nolint:errcheck // output
 		return
 	}
 
@@ -86,11 +86,11 @@ func main() {
 			}
 			fatal(fmt.Errorf("%d generated files are stale; run make generate", len(stale)))
 		}
-		fmt.Fprintln(os.Stdout, "yang_glue:", len(dirs), "yang/ directories are current")
+		fmt.Fprintln(os.Stdout, "yang_glue:", len(dirs), "yang/ directories are current") //nolint:errcheck // output
 		return
 	}
 
-	fmt.Fprintln(os.Stdout, "yang_glue: generated glue for", len(dirs), "yang/ directories")
+	fmt.Fprintln(os.Stdout, "yang_glue: generated glue for", len(dirs), "yang/ directories") //nolint:errcheck // output
 }
 
 func fatal(err error) {

@@ -241,7 +241,7 @@ func cmdShow(args, plugins []string) int {
 		fmt.Printf("# Module: %s (no YANG content available)\n", moduleName)
 		fmt.Printf("# Namespace: %s\n", s.Namespace)
 		fmt.Printf("# Plugin: %s\n", s.Plugin)
-		fmt.Fprintf(os.Stdout, "# Handlers: %s\n", textbuf.Join(s.Handlers, ", "))
+		fmt.Fprintf(os.Stdout, "# Handlers: %s\n", textbuf.Join(s.Handlers, ", ")) //nolint:errcheck // terminal output
 		return 0
 	}
 

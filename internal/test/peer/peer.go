@@ -288,7 +288,7 @@ func (p *Peer) Run(ctx context.Context) Result {
 func (p *Peer) printf(format string, args ...any) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if _, err := fmt.Fprintf(p.output, format, args...); err != nil {
+	if _, err := fmt.Fprintf(p.output, format, args...); err != nil { //nolint:errcheck // output
 		return // best-effort test output
 	}
 }

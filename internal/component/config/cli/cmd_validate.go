@@ -593,26 +593,26 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 	}
 
 	if result.Valid {
-		fmt.Fprintf(os.Stdout, "configuration valid: %s\n", result.Path)
+		fmt.Fprintf(os.Stdout, "configuration valid: %s\n", result.Path) //nolint:errcheck // output
 
 		if verbose && result.Config != nil {
-			fmt.Fprintln(os.Stdout)
-			fmt.Fprintln(os.Stdout, "Configuration summary:")
+			fmt.Fprintln(os.Stdout)                           //nolint:errcheck // output
+			fmt.Fprintln(os.Stdout, "Configuration summary:") //nolint:errcheck // output
 			if result.Config.RouterID != "" {
-				fmt.Fprintf(os.Stdout, "  router-id: %s\n", result.Config.RouterID)
+				fmt.Fprintf(os.Stdout, "  router-id: %s\n", result.Config.RouterID) //nolint:errcheck // output
 			}
 			if result.Config.LocalAS != 0 {
-				fmt.Fprintf(os.Stdout, "  local-as:  %d\n", result.Config.LocalAS)
+				fmt.Fprintf(os.Stdout, "  local-as:  %d\n", result.Config.LocalAS) //nolint:errcheck // output
 			}
 			if result.Config.Listen != "" {
-				fmt.Fprintf(os.Stdout, "  listen:    %s\n", result.Config.Listen)
+				fmt.Fprintf(os.Stdout, "  listen:    %s\n", result.Config.Listen) //nolint:errcheck // output
 			}
-			fmt.Fprintf(os.Stdout, "  peers: %d\n", result.Config.Peers)
-			fmt.Fprintf(os.Stdout, "  plugins: %d\n", result.Config.Plugins)
+			fmt.Fprintf(os.Stdout, "  peers: %d\n", result.Config.Peers)     //nolint:errcheck // output
+			fmt.Fprintf(os.Stdout, "  plugins: %d\n", result.Config.Plugins) //nolint:errcheck // output
 
 			if len(result.Config.PeerDetails) > 0 {
-				fmt.Fprintln(os.Stdout)
-				fmt.Fprintln(os.Stdout, "Peers:")
+				fmt.Fprintln(os.Stdout)           //nolint:errcheck // output
+				fmt.Fprintln(os.Stdout, "Peers:") //nolint:errcheck // output
 				for _, n := range result.Config.PeerDetails {
 					var flags []string
 					if !n.Connect {
@@ -622,9 +622,9 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 						flags = append(flags, "accept disabled")
 					}
 					if len(flags) == 0 {
-						fmt.Fprintf(os.Stdout, "  - %s AS%d\n", n.Address, n.PeerAS)
+						fmt.Fprintf(os.Stdout, "  - %s AS%d\n", n.Address, n.PeerAS) //nolint:errcheck // output
 					} else {
-						fmt.Fprintf(os.Stdout, "  - %s AS%d (%s)\n", n.Address, n.PeerAS, textbuf.Join(flags, ", "))
+						fmt.Fprintf(os.Stdout, "  - %s AS%d (%s)\n", n.Address, n.PeerAS, textbuf.Join(flags, ", ")) //nolint:errcheck // output
 					}
 				}
 			}
@@ -632,25 +632,25 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 
 		warnings := diagsBySeverity(result.Diagnostics, diagnostic.SeverityWarning)
 		if len(warnings) > 0 {
-			fmt.Fprintln(os.Stdout)
-			fmt.Fprintln(os.Stdout, "Warnings:")
+			fmt.Fprintln(os.Stdout)              //nolint:errcheck // output
+			fmt.Fprintln(os.Stdout, "Warnings:") //nolint:errcheck // output
 			for i := range warnings {
-				fmt.Fprintf(os.Stdout, "  warning: %s\n", warnings[i].Message)
+				fmt.Fprintf(os.Stdout, "  warning: %s\n", warnings[i].Message) //nolint:errcheck // output
 			}
 		}
 
 		return 0
 	}
 
-	fmt.Fprintf(os.Stdout, "configuration invalid: %s\n", result.Path)
-	fmt.Fprintln(os.Stdout)
-	fmt.Fprintln(os.Stdout, "Errors:")
+	fmt.Fprintf(os.Stdout, "configuration invalid: %s\n", result.Path) //nolint:errcheck // output
+	fmt.Fprintln(os.Stdout)                                            //nolint:errcheck // output
+	fmt.Fprintln(os.Stdout, "Errors:")                                 //nolint:errcheck // output
 	errs := diagsBySeverity(result.Diagnostics, diagnostic.SeverityError)
 	for i := range errs {
 		if errs[i].Line > 0 {
-			fmt.Fprintf(os.Stdout, "  line %d: %s\n", errs[i].Line, errs[i].Message)
+			fmt.Fprintf(os.Stdout, "  line %d: %s\n", errs[i].Line, errs[i].Message) //nolint:errcheck // output
 		} else {
-			fmt.Fprintf(os.Stdout, "  %s\n", errs[i].Message)
+			fmt.Fprintf(os.Stdout, "  %s\n", errs[i].Message) //nolint:errcheck // output
 		}
 	}
 	return 1

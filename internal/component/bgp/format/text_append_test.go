@@ -48,7 +48,7 @@ func legacyEscapeJSON(s string) string {
 			continue
 		}
 		if r < 0x20 {
-			fmt.Fprintf(&sb, `\u%04x`, r)
+			fmt.Fprintf(&sb, `\u%04x`, r) //nolint:errcheck // buffer output
 			continue
 		}
 		sb.WriteRune(r)

@@ -287,7 +287,8 @@ func TestPoolTransfersHeapSliceOnString(t *testing.T) {
 }
 
 func TestPoolPreservesCapacityWithoutString(t *testing.T) {
-	t.Parallel()
+	// No t.Parallel: test assumes Get returns the buffer just Released,
+	// which is only true when no other goroutine calls Get concurrently.
 	b := Get()
 	b.Grow(300)
 	b.Release()

@@ -31,7 +31,7 @@ func (r *Runner) writeExpectFile(rec *Record) (string, error) {
 
 	// Write options
 	for _, opt := range rec.Options {
-		if _, err := fmt.Fprintln(f, opt); err != nil {
+		if _, err := fmt.Fprintln(f, opt); err != nil { //nolint:errcheck // output
 			_ = f.Close()
 			_ = os.Remove(f.Name())
 			return "", err
@@ -40,7 +40,7 @@ func (r *Runner) writeExpectFile(rec *Record) (string, error) {
 
 	// Write expects
 	for _, exp := range rec.Expects {
-		if _, err := fmt.Fprintln(f, exp); err != nil {
+		if _, err := fmt.Fprintln(f, exp); err != nil { //nolint:errcheck // output
 			_ = f.Close()
 			_ = os.Remove(f.Name())
 			return "", err

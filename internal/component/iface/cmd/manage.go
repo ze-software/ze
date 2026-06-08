@@ -13,28 +13,33 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-func handleCreateDummy(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func handleCreateTyped(ctx *pluginserver.CommandContext, ifType string, create func(string) error) (*plugin.Response, error) {
 	name := ctx.Selector("name")
 	if name == "" {
-		return errResp("usage: create interface dummy <name>")
+		var tb textbuf.Buffer
+		return errResp(tb.Str("usage: create interface ").Str(ifType).Str(" <name>").String())
 	}
 	var tb textbuf.Buffer
 	if info, _ := iface.GetInterface(name); info != nil {
-		if info.Type != "dummy" {
-			return errResp(tb.Str("interface ").Str(name).Str(" exists with type ").Str(info.Type).Str(", not dummy").String())
+		if info.Type != ifType {
+			return errResp(tb.Str("interface ").Str(name).Str(" exists with type ").Str(info.Type).Str(", not ").Str(ifType).String())
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data:   plugin.Map{"message": tb.Reset().Str("interface ").Str(name).Str(" already exists").String(), "created": false},
 		}, nil
 	}
-	if err := iface.CreateDummy(name); err != nil {
+	if err := create(name); err != nil {
 		return errResp(err.Error())
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Reset().Str("created dummy interface ").Str(name).String(), "created": true},
+		Data:   plugin.Map{"message": tb.Reset().Str("created ").Str(ifType).Str(" interface ").Str(name).String(), "created": true},
 	}, nil
+}
+
+func handleCreateDummy(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return handleCreateTyped(ctx, "dummy", iface.CreateDummy)
 }
 
 func handleCreateVeth(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -54,27 +59,7 @@ func handleCreateVeth(ctx *pluginserver.CommandContext, args []string) (*plugin.
 }
 
 func handleCreateBridge(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	name := ctx.Selector("name")
-	if name == "" {
-		return errResp("usage: create interface bridge <name>")
-	}
-	var tb textbuf.Buffer
-	if info, _ := iface.GetInterface(name); info != nil {
-		if info.Type != "bridge" {
-			return errResp(tb.Str("interface ").Str(name).Str(" exists with type ").Str(info.Type).Str(", not bridge").String())
-		}
-		return &plugin.Response{
-			Status: plugin.StatusDone,
-			Data:   plugin.Map{"message": tb.Reset().Str("interface ").Str(name).Str(" already exists").String(), "created": false},
-		}, nil
-	}
-	if err := iface.CreateBridge(name); err != nil {
-		return errResp(err.Error())
-	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Reset().Str("created bridge interface ").Str(name).String(), "created": true},
-	}, nil
+	return handleCreateTyped(ctx, "bridge", iface.CreateBridge)
 }
 
 func handleDelete(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

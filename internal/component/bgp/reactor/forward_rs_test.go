@@ -699,9 +699,9 @@ func BenchmarkReactorForwardRS(b *testing.B) {
 
 	// No-op pool handler: items are consumed but no TCP write happens.
 	testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
-		for _, item := range items {
-			if item.done != nil {
-				item.done()
+		for i := range items {
+			if items[i].done != nil {
+				items[i].done()
 			}
 		}
 	}, fwdPoolConfig{chanSize: 1024, idleTimeout: time.Second})

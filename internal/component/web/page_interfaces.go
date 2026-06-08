@@ -185,7 +185,7 @@ func buildDetailConfigHTML(info *iface.InterfaceInfo) template.HTML {
 	if len(info.Addresses) > 0 {
 		b.Str(`<h4>Addresses</h4><ul>`)
 		for _, addr := range info.Addresses {
-			fmt.Fprintf(&b, `<li>%s/%d (%s)</li>`,
+			fmt.Fprintf(&b, `<li>%s/%d (%s)</li>`, //nolint:errcheck // report output
 				template.HTMLEscapeString(addr.Address),
 				addr.PrefixLength,
 				template.HTMLEscapeString(addr.Family))
@@ -218,7 +218,7 @@ func buildDetailStatusHTML(info *iface.InterfaceInfo) template.HTML {
 func buildDetailCountersHTML(info *iface.InterfaceInfo) template.HTML {
 	var b textbuf.Buffer
 	b.Str(`<div class="wb-detail-section"`)
-	fmt.Fprintf(&b, ` hx-get="/show/iface/counters/%s" hx-trigger="every 3s" hx-swap="innerHTML"`,
+	fmt.Fprintf(&b, ` hx-get="/show/iface/counters/%s" hx-trigger="every 3s" hx-swap="innerHTML"`, //nolint:errcheck // report output
 		template.HTMLEscapeString(info.Name))
 	b.Str(`>`)
 	b.Str(formatCountersTable(info.Stats, info.Name))

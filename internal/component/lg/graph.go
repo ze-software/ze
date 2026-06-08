@@ -91,10 +91,10 @@ func renderGraphText(g *Graph) string {
 			tb.Byte(' ').Str(n.Name)
 		}
 		label := tb.String()
-		fmt.Fprintf(&sb, "node %s layer=%d\n", label, n.Layer)
+		fmt.Fprintf(&sb, "node %s layer=%d\n", label, n.Layer) //nolint:errcheck // report output
 	}
 	for _, e := range g.Edges {
-		fmt.Fprintf(&sb, "edge AS%d -> AS%d\n", e.FromASN, e.ToASN)
+		fmt.Fprintf(&sb, "edge AS%d -> AS%d\n", e.FromASN, e.ToASN) //nolint:errcheck // report output
 	}
 	return sb.String()
 }

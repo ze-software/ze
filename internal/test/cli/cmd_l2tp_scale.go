@@ -1,10 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md -- L2TP scale test tooling
 
-
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -22,10 +20,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
-
-func init() {
-	Register("l2tp-scale", cmdL2tpScale, subdispatch.SubMeta{Desc: "L2TP scale test: LAC simulator + mock RADIUS"})
-}
 
 func cmdL2tpScale(args []string) int {
 	fs := flag.NewFlagSet("l2tp-scale", flag.ExitOnError)
@@ -130,21 +124,21 @@ Options:
 }
 
 func zeTestPrintScaleResult(r scaleResult) {
-	fmt.Fprintf(os.Stdout, "\n=== L2TP Scale Test Results ===\n")
-	fmt.Fprintf(os.Stdout, "Tunnels:     %d/%d\n", r.TunnelsUp, r.TunnelsRequested)
-	fmt.Fprintf(os.Stdout, "Sessions:    %d/%d\n", r.SessionsUp, r.SessionsRequested)
-	fmt.Fprintf(os.Stdout, "Setup time:  %s\n", r.SetupTime)
-	fmt.Fprintf(os.Stdout, "Teardown:    %s\n", r.TeardownTime)
-	fmt.Fprintf(os.Stdout, "Rate:        %.1f sessions/s\n", r.SessionsPerSec)
-	fmt.Fprintf(os.Stdout, "RADIUS auth: %d  acct-start: %d  acct-stop: %d  interim: %d\n",
+	fmt.Fprintf(os.Stdout, "\n=== L2TP Scale Test Results ===\n")                           //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "Tunnels:     %d/%d\n", r.TunnelsUp, r.TunnelsRequested)         //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "Sessions:    %d/%d\n", r.SessionsUp, r.SessionsRequested)       //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "Setup time:  %s\n", r.SetupTime)                                //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "Teardown:    %s\n", r.TeardownTime)                             //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "Rate:        %.1f sessions/s\n", r.SessionsPerSec)              //nolint:errcheck // output
+	fmt.Fprintf(os.Stdout, "RADIUS auth: %d  acct-start: %d  acct-stop: %d  interim: %d\n", //nolint:errcheck // output
 		r.RADIUSAuth, r.RADIUSAcctStart, r.RADIUSAcctStop, r.RADIUSAcctInterim)
 	if len(r.Errors) > 0 {
-		fmt.Fprintf(os.Stdout, "Errors (%d):\n", len(r.Errors))
+		fmt.Fprintf(os.Stdout, "Errors (%d):\n", len(r.Errors)) //nolint:errcheck // output
 		for _, e := range r.Errors {
-			fmt.Fprintf(os.Stdout, "  - %s\n", e)
+			fmt.Fprintf(os.Stdout, "  - %s\n", e) //nolint:errcheck // output
 		}
 	}
-	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
 }
 
 type scaleResult struct {

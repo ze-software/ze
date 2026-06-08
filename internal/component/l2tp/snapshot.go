@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"slices"
 	"time"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

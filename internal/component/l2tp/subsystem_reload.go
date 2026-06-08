@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 var (

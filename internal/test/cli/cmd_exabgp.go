@@ -20,15 +20,10 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
-
-func init() {
-	Register("exabgp", cmdExabgp, subdispatch.SubMeta{Desc: "Run predecessor encoding tests"})
-}
 
 const exabgpSuiteEncoding = "encoding"
 
@@ -547,18 +542,18 @@ func collectExaBGPDetail(server, client *exaProcess, port int) exabgpRunDetail {
 }
 
 func printExaBGPFailure(test *exabgpTestEntry, detail exabgpRunDetail) {
-	_, _ = fmt.Fprintln(os.Stdout)
-	_, _ = fmt.Fprintln(os.Stdout, "TEST FAILURE:", test.record.Nick, test.record.Name)
+	_, _ = fmt.Fprintln(os.Stdout)                                                      //nolint:errcheck // output
+	_, _ = fmt.Fprintln(os.Stdout, "TEST FAILURE:", test.record.Nick, test.record.Name) //nolint:errcheck // output
 	if test.record.Error != nil {
-		_, _ = fmt.Fprintln(os.Stdout, "  error:", test.record.Error)
+		_, _ = fmt.Fprintln(os.Stdout, "  error:", test.record.Error) //nolint:errcheck // output
 	}
 	printExaBGPOutput(test, detail)
-	_, _ = fmt.Fprintln(os.Stdout, "  rerun: ze-test exabgp", test.record.Nick)
+	_, _ = fmt.Fprintln(os.Stdout, "  rerun: ze-test exabgp", test.record.Nick) //nolint:errcheck // output
 }
 
 func printExaBGPOutput(_ *exabgpTestEntry, detail exabgpRunDetail) {
 	if detail.port > 0 {
-		_, _ = fmt.Fprintln(os.Stdout, "  port:", detail.port)
+		_, _ = fmt.Fprintln(os.Stdout, "  port:", detail.port) //nolint:errcheck // output
 	}
 	printNamedOutput("server stdout", detail.serverStdout)
 	printNamedOutput("server stderr", detail.serverStderr)
@@ -571,9 +566,9 @@ func printNamedOutput(name, output string) {
 	if trimmed == "" {
 		return
 	}
-	_, _ = fmt.Fprintln(os.Stdout, "  "+name+":")
+	_, _ = fmt.Fprintln(os.Stdout, "  "+name+":") //nolint:errcheck // output
 	for line := range strings.SplitSeq(trimmed, "\n") {
-		_, _ = fmt.Fprintln(os.Stdout, "    "+line)
+		_, _ = fmt.Fprintln(os.Stdout, "    "+line) //nolint:errcheck // output
 	}
 }
 

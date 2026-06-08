@@ -43,7 +43,7 @@ func (e *fakeEditor) Diff() string {
 	}
 	var b strings.Builder
 	for k, v := range e.values {
-		fmt.Fprintf(&b, "+%s = %s\n", k, v)
+		fmt.Fprintf(&b, "+%s = %s\n", k, v) //nolint:errcheck // buffer output
 	}
 	return b.String()
 }

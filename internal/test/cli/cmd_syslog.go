@@ -1,10 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md — syslog test server
 
-
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"flag"
 	"fmt"
@@ -15,10 +13,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
 )
-
-func init() {
-	Register("syslog", cmdSyslog, subdispatch.SubMeta{Desc: "Run syslog server for testing"})
-}
 
 func cmdSyslog(args []string) int {
 	fs := flag.NewFlagSet("syslog", flag.ExitOnError)
@@ -46,43 +40,43 @@ func cmdSyslog(args []string) int {
 	}
 	defer func() { _ = srv.Close() }()
 
-	fmt.Fprintf(os.Stdout, "listening on UDP port %d\n", srv.Port())
+	fmt.Fprintf(os.Stdout, "listening on UDP port %d\n", srv.Port()) //nolint:errcheck // output
 
 	if *pattern != "" {
-		fmt.Fprintf(os.Stdout, "waiting for pattern: %s\n", *pattern)
+		fmt.Fprintf(os.Stdout, "waiting for pattern: %s\n", *pattern) //nolint:errcheck // output
 		deadline := time.Now().Add(*timeout)
 		for time.Now().Before(deadline) {
 			select {
 			case <-ctx.Done():
-				fmt.Fprintln(os.Stdout, "interrupted")
+				fmt.Fprintln(os.Stdout, "interrupted") //nolint:errcheck // terminal output
 				return 1
 			default:
 			}
 
 			if srv.Match(*pattern) {
-				fmt.Fprintln(os.Stdout, "pattern matched")
+				fmt.Fprintln(os.Stdout, "pattern matched") //nolint:errcheck // terminal output
 				for _, msg := range srv.Messages() {
-					fmt.Fprintln(os.Stdout, msg)
+					fmt.Fprintln(os.Stdout, msg) //nolint:errcheck // report output
 				}
 				return 0
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
-		fmt.Fprintln(os.Stdout, "timeout: pattern not matched")
+		fmt.Fprintln(os.Stdout, "timeout: pattern not matched") //nolint:errcheck // report output
 		for _, msg := range srv.Messages() {
-			fmt.Fprintln(os.Stdout, msg)
+			fmt.Fprintln(os.Stdout, msg) //nolint:errcheck // report output
 		}
 		return 1
 	}
 
-	fmt.Fprintln(os.Stdout, "press Ctrl+C to stop")
+	fmt.Fprintln(os.Stdout, "press Ctrl+C to stop") //nolint:errcheck // report output
 	lastCount := 0
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Fprintln(os.Stdout, "\nreceived messages:")
+			fmt.Fprintln(os.Stdout, "\nreceived messages:") //nolint:errcheck // report output
 			for _, msg := range srv.Messages() {
-				fmt.Fprintln(os.Stdout, msg)
+				fmt.Fprintln(os.Stdout, msg) //nolint:errcheck // report output
 			}
 			return 0
 		default:
@@ -91,7 +85,7 @@ func cmdSyslog(args []string) int {
 		msgs := srv.Messages()
 		if len(msgs) > lastCount {
 			for i := lastCount; i < len(msgs); i++ {
-				fmt.Fprintf(os.Stdout, "[%d] %s\n", i+1, msgs[i])
+				fmt.Fprintf(os.Stdout, "[%d] %s\n", i+1, msgs[i]) //nolint:errcheck // output
 			}
 			lastCount = len(msgs)
 		}

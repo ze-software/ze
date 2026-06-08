@@ -246,7 +246,7 @@ func (c *IRR) query(ctx context.Context, command string) (string, error) {
 		_ = conn.SetDeadline(time.Now().Add(c.timeout))
 	}
 
-	if _, err := fmt.Fprintf(conn, "%s\n", command); err != nil {
+	if _, err := fmt.Fprintf(conn, "%s\n", command); err != nil { //nolint:errcheck // output
 		return "", fmt.Errorf("irr: send query: %w", err)
 	}
 

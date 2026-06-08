@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"unicode"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -62,11 +63,11 @@ func RunInstall(args []string) int   { return defaultRuntime().cmdInstall(args) 
 func RunUninstall(args []string) int { return defaultRuntime().cmdUninstall(args) }
 
 func writef(w io.Writer, format string, args ...any) {
-	_, _ = fmt.Fprintf(w, format, args...)
+	_, _ = fmt.Fprintf(w, format, args...) //nolint:errcheck // output
 }
 
 func writeln(w io.Writer, args ...any) {
-	_, _ = fmt.Fprintln(w, args...)
+	_, _ = fmt.Fprintln(w, args...) //nolint:errcheck // output
 }
 
 func (rt *serviceRuntime) requireSystemd() bool {

@@ -45,7 +45,7 @@ func fakeHandler(w http.ResponseWriter, r *http.Request) {
 		irrASSet = "AS-FOO AS-BAR"
 	}
 
-	if _, wErr := fmt.Fprintf(w, `{"data":[{"asn":%d,"info_prefixes4":%d,"info_prefixes6":%d,"irr_as_set":"%s"}]}`,
+	if _, wErr := fmt.Fprintf(w, `{"data":[{"asn":%d,"info_prefixes4":%d,"info_prefixes6":%d,"irr_as_set":"%s"}]}`, //nolint:errcheck // output
 		asnNum, asnNum, asnNum/5, irrASSet); wErr != nil {
 		return
 	}

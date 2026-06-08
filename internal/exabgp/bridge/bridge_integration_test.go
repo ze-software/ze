@@ -270,7 +270,7 @@ func (h *bridgeTestHarness) CompleteStartup() []string {
 	}
 
 	// Stage 2: Send config done
-	_, err := fmt.Fprintln(h.stdin, "config done")
+	_, err := fmt.Fprintln(h.stdin, "config done") //nolint:errcheck // output
 	require.NoError(h.t, err)
 
 	// Stage 3: Read capability done
@@ -285,7 +285,7 @@ func (h *bridgeTestHarness) CompleteStartup() []string {
 	}
 
 	// Stage 4: Send registry done
-	_, err = fmt.Fprintln(h.stdin, "registry done")
+	_, err = fmt.Fprintln(h.stdin, "registry done") //nolint:errcheck // output
 	require.NoError(h.t, err)
 
 	// Stage 5: Read ready
@@ -302,7 +302,7 @@ func (h *bridgeTestHarness) SendJSON(event map[string]any) {
 	eventJSON, err := json.Marshal(event)
 	require.NoError(h.t, err)
 	h.t.Logf("-> %s", string(eventJSON))
-	_, err = fmt.Fprintln(h.stdin, string(eventJSON))
+	_, err = fmt.Fprintln(h.stdin, string(eventJSON)) //nolint:errcheck // output
 	require.NoError(h.t, err)
 }
 
@@ -383,7 +383,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 
 	// === Stage 2: Send config done ===
 	t.Log("Stage 2: Sending config...")
-	_, err = fmt.Fprintln(stdin, "config done")
+	_, err = fmt.Fprintln(stdin, "config done") //nolint:errcheck // output
 	require.NoError(t, err)
 
 	// === Stage 3: Read capability done ===
@@ -401,7 +401,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 
 	// === Stage 4: Send registry done ===
 	t.Log("Stage 4: Sending registry...")
-	_, err = fmt.Fprintln(stdin, "registry done")
+	_, err = fmt.Fprintln(stdin, "registry done") //nolint:errcheck // output
 	require.NoError(t, err)
 
 	// === Stage 5: Read ready ===
@@ -427,7 +427,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf("  -> %s", string(eventJSON))
-	_, err = fmt.Fprintln(stdin, string(eventJSON))
+	_, err = fmt.Fprintln(stdin, string(eventJSON)) //nolint:errcheck // output
 	require.NoError(t, err)
 
 	line, ok = reader.ReadLine(3 * time.Second)
@@ -457,7 +457,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf("  -> %s", string(eventJSON))
-	_, err = fmt.Fprintln(stdin, string(eventJSON))
+	_, err = fmt.Fprintln(stdin, string(eventJSON)) //nolint:errcheck // output
 	require.NoError(t, err)
 
 	line, ok = reader.ReadLine(3 * time.Second)
@@ -528,7 +528,7 @@ func TestBridgeIntegration_StartupProtocol(t *testing.T) {
 	assert.Contains(t, declarations, "declare family ipv6 unicast")
 
 	// Stage 2: Send config done
-	_, err = fmt.Fprintln(stdin, "config done")
+	_, err = fmt.Fprintln(stdin, "config done") //nolint:errcheck // output
 	require.NoError(t, err)
 
 	// Stage 3: Read capability declarations
@@ -552,7 +552,7 @@ func TestBridgeIntegration_StartupProtocol(t *testing.T) {
 	assert.True(t, hasRouteRefresh, "expected route-refresh capability, got: %v", capabilities)
 
 	// Stage 4: Send registry done
-	_, err = fmt.Fprintln(stdin, "registry done")
+	_, err = fmt.Fprintln(stdin, "registry done") //nolint:errcheck // output
 	require.NoError(t, err)
 
 	// Stage 5: Read ready
@@ -608,7 +608,7 @@ func TestBridgeIntegration_PluginExit(t *testing.T) {
 			break
 		}
 	}
-	_, _ = fmt.Fprintln(stdin, "config done")
+	_, _ = fmt.Fprintln(stdin, "config done") //nolint:errcheck // output
 
 	for {
 		line, ok := reader.ReadLine(2 * time.Second)
@@ -617,7 +617,7 @@ func TestBridgeIntegration_PluginExit(t *testing.T) {
 			break
 		}
 	}
-	_, _ = fmt.Fprintln(stdin, "registry done")
+	_, _ = fmt.Fprintln(stdin, "registry done") //nolint:errcheck // output
 
 	line, ok := reader.ReadLine(2 * time.Second)
 	require.True(t, ok, "timeout waiting for ready")
@@ -625,7 +625,7 @@ func TestBridgeIntegration_PluginExit(t *testing.T) {
 
 	// Send event - plugin exits in noop mode
 	event := `{"meta":{"version":"1.0.0"},"message":{"type":"update"},"peer":{"remote":{"address":"10.0.0.1"}},"ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/8"]}]}`
-	_, _ = fmt.Fprintln(stdin, event)
+	_, _ = fmt.Fprintln(stdin, event) //nolint:errcheck // output
 
 	// Wait for stdout to drain (plugin exited), then close stdin.
 	// When the plugin exits, its stdout closes and lineReader's channel drains.

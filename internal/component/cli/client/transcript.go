@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — CLI transcript file creation
-// Related: ../../../internal/component/cli/transcript.go — TranscriptWriter
+// Related: ../transcript.go — TranscriptWriter
 
 package client
 

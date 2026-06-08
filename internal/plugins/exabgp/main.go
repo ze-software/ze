@@ -15,9 +15,9 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/bridge"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/migration"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (

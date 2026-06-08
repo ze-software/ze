@@ -47,7 +47,7 @@ func init() {
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errW io.Writer, _ *flag.FlagSet) int {
 			if capCode > 255 {
-				if _, err := fmt.Fprintf(errW, "error: capability code out of range: %d\n", capCode); err != nil {
+				if _, err := fmt.Fprintf(errW, "error: capability code out of range: %d\n", capCode); err != nil { //nolint:errcheck // output
 					logger().Debug("write failed", "err", err)
 				}
 				return 1

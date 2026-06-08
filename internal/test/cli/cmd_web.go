@@ -1,10 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md -- web browser test CLI
 
-
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"flag"
 	"fmt"
@@ -23,10 +21,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
-
-func init() {
-	Register("web", cmdWeb, subdispatch.SubMeta{Desc: "Run web browser functional tests (.wb files)"})
-}
 
 func cmdWeb(args []string) int {
 	if err := cmdWebMain(args); err != nil {

@@ -275,7 +275,7 @@ func fakePeeringDBHandler(w http.ResponseWriter, r *http.Request) {
 		irrASSet = "AS-TEST"
 	}
 
-	if _, wErr := fmt.Fprintf(w,
+	if _, wErr := fmt.Fprintf(w, //nolint:errcheck // output
 		`{"data":[{"asn":%d,"info_prefixes4":%d,"info_prefixes6":%d,"irr_as_set":"%s"}]}`,
 		asn, ipv4, ipv6, irrASSet); wErr != nil {
 		return

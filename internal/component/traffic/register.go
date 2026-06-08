@@ -20,8 +20,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	trafficschema "codeberg.org/thomas-mangin/ze/internal/component/traffic/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 var (

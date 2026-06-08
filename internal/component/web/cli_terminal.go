@@ -353,43 +353,13 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		var tb textbuf.Buffer
 		return nil, tb.Str("rolled back to ").Str(backups[n-1].Path).String()
 	case verbRename:
-		if len(cmd.Args) < 4 || cmd.Args[len(cmd.Args)-2] != "to" {
-			return nil, "usage: rename <list> <old-name> to <new-name>"
-		}
-		newKey := cmd.Args[len(cmd.Args)-1]
-		oldTokens := cmd.Args[:len(cmd.Args)-2]
-		fullPath := append(append([]string{}, contextPath...), oldTokens...)
-		if len(fullPath) < 2 {
-			return nil, "rename requires at least a list name and entry key"
-		}
-		oldKey := fullPath[len(fullPath)-1]
-		listName := fullPath[len(fullPath)-2]
-		parentPath := fullPath[:len(fullPath)-2]
-		if err := mgr.RenameListEntry(username, parentPath, listName, oldKey, newKey); err != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
-		}
-		var tb textbuf.Buffer
-		return nil, tb.Str("renamed ").Str(listName).Byte(' ').Str(oldKey).Str(" to ").Str(newKey).String()
+		return execListEntryOp(cmd.Args, contextPath, "rename", "<old-name>", func(parent []string, list, src, dst string) error {
+			return mgr.RenameListEntry(username, parent, list, src, dst)
+		})
 	case verbCopy:
-		if len(cmd.Args) < 4 || cmd.Args[len(cmd.Args)-2] != "to" {
-			return nil, "usage: copy <list> <source> to <destination>"
-		}
-		dstKey := cmd.Args[len(cmd.Args)-1]
-		srcTokens := cmd.Args[:len(cmd.Args)-2]
-		fullPath := append(append([]string{}, contextPath...), srcTokens...)
-		if len(fullPath) < 2 {
-			return nil, "copy requires at least a list name and entry key"
-		}
-		srcKey := fullPath[len(fullPath)-1]
-		listName := fullPath[len(fullPath)-2]
-		parentPath := fullPath[:len(fullPath)-2]
-		if err := mgr.CopyListEntry(username, parentPath, listName, srcKey, dstKey); err != nil {
-			var tb textbuf.Buffer
-			return nil, tb.Str("error: ").Err(err).String()
-		}
-		var tb textbuf.Buffer
-		return nil, tb.Str("copied ").Str(listName).Byte(' ').Str(srcKey).Str(" to ").Str(dstKey).String()
+		return execListEntryOp(cmd.Args, contextPath, "copy", "<source>", func(parent []string, list, src, dst string) error {
+			return mgr.CopyListEntry(username, parent, list, src, dst)
+		})
 	case verbInsert:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: insert <path>"
@@ -996,4 +966,27 @@ func buildConfigEditURL(path []string) string {
 
 	var tb textbuf.Buffer
 	return tb.Str(configEditPath).Join(path, "/").Byte('/').String()
+}
+
+func execListEntryOp(args, contextPath []string, verb, srcLabel string, op func(parent []string, list, src, dst string) error) ([]string, string) {
+	if len(args) < 4 || args[len(args)-2] != "to" {
+		var tb textbuf.Buffer
+		return nil, tb.Str("usage: ").Str(verb).Str(" <list> ").Str(srcLabel).Str(" to <destination>").String()
+	}
+	dstKey := args[len(args)-1]
+	srcTokens := args[:len(args)-2]
+	fullPath := append(append([]string{}, contextPath...), srcTokens...)
+	if len(fullPath) < 2 {
+		var tb textbuf.Buffer
+		return nil, tb.Str(verb).Str(" requires at least a list name and entry key").String()
+	}
+	srcKey := fullPath[len(fullPath)-1]
+	listName := fullPath[len(fullPath)-2]
+	parentPath := fullPath[:len(fullPath)-2]
+	if err := op(parentPath, listName, srcKey, dstKey); err != nil {
+		var tb textbuf.Buffer
+		return nil, tb.Str("error: ").Err(err).String()
+	}
+	var tb textbuf.Buffer
+	return nil, tb.Str(verb).Str("d ").Str(listName).Byte(' ').Str(srcKey).Str(" to ").Str(dstKey).String()
 }

@@ -26,11 +26,11 @@ func Trend(results []perf.Result, w io.Writer, format string) error {
 }
 
 func trendMarkdown(results []perf.Result, w io.Writer) error {
-	if _, err := fmt.Fprintln(w, "| Date | Version | Convergence | +/- | Throughput | +/- | p99 | +/- | Delta |"); err != nil {
+	if _, err := fmt.Fprintln(w, "| Date | Version | Convergence | +/- | Throughput | +/- | p99 | +/- | Delta |"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing header: %w", err)
 	}
 
-	if _, err := fmt.Fprintln(w, "|------|---------|-------------|-----|------------|-----|-----|-----|-------|"); err != nil {
+	if _, err := fmt.Fprintln(w, "|------|---------|-------------|-----|------------|-----|-----|-----|-------|"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing separator: %w", err)
 	}
 
@@ -53,7 +53,7 @@ func trendMarkdown(results []perf.Result, w io.Writer) error {
 			fmtMs(results[i].LatencyP99StddevMs),
 			delta,
 		)
-		if _, err := fmt.Fprintln(w, line); err != nil {
+		if _, err := fmt.Fprintln(w, line); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing row: %w", err)
 		}
 	}
@@ -66,15 +66,15 @@ func trendHTML(results []perf.Result, w io.Writer) error {
 		return fmt.Errorf("writing header: %w", err)
 	}
 
-	if _, err := fmt.Fprintln(w, "<h2>Performance Trend</h2>"); err != nil {
+	if _, err := fmt.Fprintln(w, "<h2>Performance Trend</h2>"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing title: %w", err)
 	}
 
-	if _, err := fmt.Fprintln(w, "<table>"); err != nil {
+	if _, err := fmt.Fprintln(w, "<table>"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing table open: %w", err)
 	}
 
-	if _, err := fmt.Fprintln(w, "<tr><th>Date</th><th>Version</th><th>Convergence</th><th>+/-</th><th>Throughput</th><th>+/-</th><th>p99</th><th>+/-</th><th>Delta</th></tr>"); err != nil {
+	if _, err := fmt.Fprintln(w, "<tr><th>Date</th><th>Version</th><th>Convergence</th><th>+/-</th><th>Throughput</th><th>+/-</th><th>p99</th><th>+/-</th><th>Delta</th></tr>"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing table header: %w", err)
 	}
 
@@ -94,7 +94,7 @@ func trendHTML(results []perf.Result, w io.Writer) error {
 			deltaClass = " class=\"worst\""
 		}
 
-		if _, err := fmt.Fprintf(w, "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td%s>%s</td></tr>\n",
+		if _, err := fmt.Fprintf(w, "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td%s>%s</td></tr>\n", //nolint:errcheck // output
 			date,
 			results[i].DUTVersion,
 			fmtMs(results[i].ConvergenceMs),
@@ -110,7 +110,7 @@ func trendHTML(results []perf.Result, w io.Writer) error {
 		}
 	}
 
-	if _, err := fmt.Fprintln(w, "</table>"); err != nil {
+	if _, err := fmt.Fprintln(w, "</table>"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing table close: %w", err)
 	}
 

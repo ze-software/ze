@@ -45,7 +45,7 @@ func Diff(r1, r2 io.Reader, w io.Writer) int {
 
 		if !has1 && !has2 {
 			// Both exhausted — identical.
-			if _, err := fmt.Fprintf(w, "logs identical (%d events)\n", lineNum); err != nil {
+			if _, err := fmt.Fprintf(w, "logs identical (%d events)\n", lineNum); err != nil { //nolint:errcheck // output
 				return 2
 			}
 			return 0
@@ -53,7 +53,7 @@ func Diff(r1, r2 io.Reader, w io.Writer) int {
 
 		if has1 != has2 {
 			// One log is shorter.
-			if _, err := fmt.Fprintf(w, "divergence: length mismatch after %d events (log1 has %s)\n",
+			if _, err := fmt.Fprintf(w, "divergence: length mismatch after %d events (log1 has %s)\n", //nolint:errcheck // output
 				lineNum, lengthDesc(has1)); err != nil {
 				return 2
 			}
@@ -118,5 +118,5 @@ func (rw *reportWriter) printf(format string, args ...any) {
 	if rw.err != nil {
 		return
 	}
-	_, rw.err = fmt.Fprintf(rw.w, format, args...)
+	_, rw.err = fmt.Fprintf(rw.w, format, args...) //nolint:errcheck // output
 }

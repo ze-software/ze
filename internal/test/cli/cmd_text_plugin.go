@@ -1,10 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md — test plugin runner
 
-
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"fmt"
 	"os"
@@ -13,10 +11,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
-
-func init() {
-	Register("text-plugin", cmdTextPlugin, subdispatch.SubMeta{Desc: "Run minimal text-mode plugin (for .ci tests)"})
-}
 
 func cmdTextPlugin(_ []string) int {
 	p, err := sdk.NewFromEnv("text-test")

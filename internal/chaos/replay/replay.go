@@ -60,7 +60,7 @@ var eventTypeFromString = map[string]peer.EventType{
 // writeErr writes an error message to w, ignoring write failures
 // since we are already on an error path returning exit code 2.
 func writeErr(w io.Writer, format string, args ...any) {
-	if _, err := fmt.Fprintf(w, format, args...); err != nil {
+	if _, err := fmt.Fprintf(w, format, args...); err != nil { //nolint:errcheck // output
 		// Best-effort error reporting; nothing more to do.
 		return
 	}

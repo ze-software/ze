@@ -135,7 +135,7 @@ func (b *SSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case ev := <-client.ch:
 			var err error
 			if ev.Event != "" {
-				_, err = fmt.Fprintf(w, "event: %s\n", ev.Event)
+				_, err = fmt.Fprintf(w, "event: %s\n", ev.Event) //nolint:errcheck // output
 			}
 			if err == nil {
 				// SSE requires each line of multi-line data to be
@@ -145,10 +145,10 @@ func (b *SSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					if err != nil {
 						break
 					}
-					_, err = fmt.Fprintf(w, "data: %s\n", line)
+					_, err = fmt.Fprintf(w, "data: %s\n", line) //nolint:errcheck // output
 				}
 				if err == nil {
-					_, err = fmt.Fprintf(w, "\n") // Blank line terminates the event.
+					_, err = fmt.Fprintf(w, "\n") // Blank line terminates the event. //nolint:errcheck // output
 				}
 			}
 			if err != nil {

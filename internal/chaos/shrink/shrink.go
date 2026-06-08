@@ -48,7 +48,7 @@ type Result struct {
 // Write errors on progress output are not actionable, so they are ignored.
 func verbosef(cfg Config, format string, args ...any) {
 	if cfg.Verbose != nil {
-		if _, err := fmt.Fprintf(cfg.Verbose, format, args...); err != nil {
+		if _, err := fmt.Fprintf(cfg.Verbose, format, args...); err != nil { //nolint:errcheck // output
 			return // best-effort progress output
 		}
 	}

@@ -53,7 +53,7 @@ func RunLabeledPlugin(conn net.Conn) int {
 // RunCLIDecode decodes labeled unicast NLRI from hex for CLI usage (ze plugin bgp-labeled --nlri).
 func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
 	writeErr := func(format string, args ...any) {
-		_, e := fmt.Fprintf(errOut, format, args...)
+		_, e := fmt.Fprintf(errOut, format, args...) //nolint:errcheck // output
 		_ = e
 	}
 
@@ -71,13 +71,13 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 
 	if textOutput {
 		text := formatLabeledText(string(raw))
-		if _, e := fmt.Fprintln(output, text); e != nil {
+		if _, e := fmt.Fprintln(output, text); e != nil { //nolint:errcheck // output
 			return 1
 		}
 		return 0
 	}
 
-	if _, e := fmt.Fprintln(output, string(raw)); e != nil {
+	if _, e := fmt.Fprintln(output, string(raw)); e != nil { //nolint:errcheck // output
 		return 1
 	}
 	return 0
@@ -98,9 +98,9 @@ func formatLabeledText(jsonStr string) string {
 	sb.WriteString(result.Prefix)
 	for i, l := range result.Labels {
 		if i == 0 {
-			fmt.Fprintf(&sb, " label=%d", l)
+			fmt.Fprintf(&sb, " label=%d", l) //nolint:errcheck // buffer output
 		} else {
-			fmt.Fprintf(&sb, ",%d", l)
+			fmt.Fprintf(&sb, ",%d", l) //nolint:errcheck // buffer output
 		}
 	}
 	return sb.String()
@@ -111,7 +111,7 @@ func formatLabeledText(jsonStr string) string {
 // "decoded json <json>" or "decoded unknown" responses to output.
 func RunDecode(input io.Reader, output io.Writer) int {
 	write := func(s string) {
-		if _, err := fmt.Fprintln(output, s); err != nil {
+		if _, err := fmt.Fprintln(output, s); err != nil { //nolint:errcheck // output
 			logger.Debug("write error", "err", err)
 		}
 	}

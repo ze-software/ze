@@ -225,7 +225,7 @@ func generateLargeUpdateEvent(nlriCount int) string {
 		if i > 0 {
 			buf.WriteByte(',')
 		}
-		fmt.Fprintf(&buf, `"10.%d.%d.0/24"`, i/256, i%256)
+		fmt.Fprintf(&buf, `"10.%d.%d.0/24"`, i/256, i%256) //nolint:errcheck // buffer output
 	}
 	buf.WriteString(`]}]}}}`)
 	return buf.String()

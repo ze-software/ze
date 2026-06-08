@@ -96,7 +96,7 @@ func (rw *reportWriter) printf(format string, args ...any) {
 	if rw.err != nil {
 		return
 	}
-	_, rw.err = fmt.Fprintf(rw.w, format, args...)
+	_, rw.err = fmt.Fprintf(rw.w, format, args...) //nolint:errcheck // output
 }
 
 // Write prints the summary to w and returns the exit code (0=pass, 1=fail).

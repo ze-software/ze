@@ -107,7 +107,7 @@ func formatLLGRText(r *llgrResult) string {
 	var sb strings.Builder
 	sb.WriteString("long-lived-graceful-restart")
 	for _, f := range r.Families {
-		fmt.Fprintf(&sb, " afi=%d/safi=%d llst=%d", f.AFI, f.SAFI, f.LLST)
+		fmt.Fprintf(&sb, " afi=%d/safi=%d llst=%d", f.AFI, f.SAFI, f.LLST) //nolint:errcheck // buffer output
 		if f.ForwardState {
 			sb.WriteString("(F)")
 		}

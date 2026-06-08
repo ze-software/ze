@@ -64,7 +64,7 @@ func RunWgKeypair(args []string) int {
 		fmt.Fprintf(os.Stderr, "generate wireguard keypair: wg pubkey failed: %v\n", err)
 		return 1
 	}
-	if _, err := fmt.Fprintf(os.Stdout, "private: %s\npublic:  %s\n", privStr, strings.TrimSpace(string(pub))); err != nil {
+	if _, err := fmt.Fprintf(os.Stdout, "private: %s\npublic:  %s\n", privStr, strings.TrimSpace(string(pub))); err != nil { //nolint:errcheck // output
 		return 1
 	}
 	return 0

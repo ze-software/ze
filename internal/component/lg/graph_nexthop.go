@@ -151,17 +151,17 @@ func renderNextHopGraphText(g *NextHopGraph) string {
 	var sb textbuf.Buffer
 	sb.WriteString("mode nexthop\n")
 	for _, n := range g.Nodes {
-		fmt.Fprintf(&sb, "node %s layer=%d", n.Address, n.Layer)
+		fmt.Fprintf(&sb, "node %s layer=%d", n.Address, n.Layer) //nolint:errcheck // report output
 		if n.Egress {
 			sb.WriteString(" egress")
 		}
 		if n.Name != "" {
-			fmt.Fprintf(&sb, " name=%s", n.Name)
+			fmt.Fprintf(&sb, " name=%s", n.Name) //nolint:errcheck // report output
 		}
 		sb.WriteByte('\n')
 	}
 	for _, e := range g.Edges {
-		fmt.Fprintf(&sb, "edge %s -> %s\n", e.From, e.To)
+		fmt.Fprintf(&sb, "edge %s -> %s\n", e.From, e.To) //nolint:errcheck // report output
 	}
 	return sb.String()
 }

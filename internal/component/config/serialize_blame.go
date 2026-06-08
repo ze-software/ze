@@ -35,7 +35,7 @@ func writeMetaEntryGutter(b *textbuf.Buffer, e MetaEntry) {
 	date := e.Time.Format("01-02")
 	timeStr := e.Time.Format("15:04")
 	marker := computeBlameMarker(e)
-	fmt.Fprintf(b, "%-*s%s %s  %c ", blameUserWidth, user, date, timeStr, marker)
+	fmt.Fprintf(b, "%-*s%s %s  %c ", blameUserWidth, user, date, timeStr, marker) //nolint:errcheck // output
 }
 
 // writeEmptyGutter writes an empty gutter (all spaces).

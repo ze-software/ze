@@ -177,14 +177,14 @@ func RunCLIDecodeWithCode(capCode uint8, hexData string, textOutput bool, stdout
 	// The capability code determines the name; payload is empty.
 	name, ok := capNames[capCode]
 	if !ok {
-		if _, err := fmt.Fprintf(stderr, "error: unsupported route-refresh capability code %d\n", capCode); err != nil {
+		if _, err := fmt.Fprintf(stderr, "error: unsupported route-refresh capability code %d\n", capCode); err != nil { //nolint:errcheck // output
 			logger().Debug("write failed", "err", err)
 		}
 		return 1
 	}
 
 	if textOutput {
-		if _, err := fmt.Fprintf(stdout, "%-20s\n", name); err != nil {
+		if _, err := fmt.Fprintf(stdout, "%-20s\n", name); err != nil { //nolint:errcheck // output
 			logger().Debug("write failed", "err", err)
 		}
 	} else {
@@ -194,12 +194,12 @@ func RunCLIDecodeWithCode(capCode uint8, hexData string, textOutput bool, stdout
 		}
 		jsonBytes, jsonErr := json.Marshal(result)
 		if jsonErr != nil {
-			if _, err := fmt.Fprintf(stderr, "error: JSON encoding: %v\n", jsonErr); err != nil {
+			if _, err := fmt.Fprintf(stderr, "error: JSON encoding: %v\n", jsonErr); err != nil { //nolint:errcheck // output
 				logger().Debug("write failed", "err", err)
 			}
 			return 1
 		}
-		if _, err := fmt.Fprintln(stdout, string(jsonBytes)); err != nil {
+		if _, err := fmt.Fprintln(stdout, string(jsonBytes)); err != nil { //nolint:errcheck // output
 			logger().Debug("write failed", "err", err)
 		}
 	}

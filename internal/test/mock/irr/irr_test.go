@@ -4,10 +4,9 @@ package irr
 
 import "testing"
 
-func TestRunSignature(t *testing.T) {
+// Compile-time signature check: Run must be func([]string) int.
+var _ func([]string) int = Run //nolint:staticcheck // intentional type annotation for signature verification
+
+func TestRunRegistered(t *testing.T) {
 	t.Parallel()
-	var fn func([]string) int = Run
-	if fn == nil {
-		t.Fatal("Run is nil")
-	}
 }

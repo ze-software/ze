@@ -101,12 +101,12 @@ func GetBGPLSYANG() string {
 // Errors go to errOut (typically stderr), results go to output (typically stdout).
 func RunBGPLSCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
 	writeErr := func(format string, args ...any) {
-		_, e := fmt.Fprintf(errOut, format, args...)
-		_ = e // CLI output - pipe failure is unrecoverable
+		_, e := fmt.Fprintf(errOut, format, args...) //nolint:errcheck // output
+		_ = e                                        // CLI output - pipe failure is unrecoverable
 	}
 	writeOut := func(s string) {
-		_, e := fmt.Fprintln(output, s)
-		_ = e // CLI output - pipe failure is unrecoverable
+		_, e := fmt.Fprintln(output, s) //nolint:errcheck // output
+		_ = e                           // CLI output - pipe failure is unrecoverable
 	}
 
 	if !isValidBGPLSFamily(family) {
@@ -149,7 +149,7 @@ func RunBGPLSCLIDecode(hexData, family string, textOutput bool, output, errOut i
 // RunBGPLSDecode runs the plugin in decode mode for ze bgp decode (engine protocol).
 func RunBGPLSDecode(input io.Reader, output io.Writer) int {
 	writeUnknown := func() {
-		if _, err := fmt.Fprintln(output, "decoded unknown"); err != nil {
+		if _, err := fmt.Fprintln(output, "decoded unknown"); err != nil { //nolint:errcheck // output
 			bgplsLogger.Debug("write error", "err", err)
 		}
 	}
@@ -219,7 +219,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 	}
 
 	if format == fmtText {
-		if _, err := fmt.Fprintln(output, "decoded text "+formatBGPLSText(results)); err != nil {
+		if _, err := fmt.Fprintln(output, "decoded text "+formatBGPLSText(results)); err != nil { //nolint:errcheck // output
 			bgplsLogger.Debug("write error", "err", err)
 		}
 		return
@@ -236,7 +236,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		writeUnknown()
 		return
 	}
-	if _, err := fmt.Fprintln(output, "decoded json "+string(jsonBytes)); err != nil {
+	if _, err := fmt.Fprintln(output, "decoded json "+string(jsonBytes)); err != nil { //nolint:errcheck // output
 		bgplsLogger.Debug("write error", "err", err)
 	}
 }

@@ -1,6 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md -- deterministic PeeringDB mock server
 
-
 package peeringdb
 
 import (

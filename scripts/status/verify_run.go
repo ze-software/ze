@@ -766,11 +766,11 @@ func quoteCommand(args []string) []string {
 }
 
 func writef(w io.Writer, format string, args ...any) {
-	_, _ = fmt.Fprintf(w, format, args...)
+	_, _ = fmt.Fprintf(w, format, args...) //nolint:errcheck // output
 }
 
 func writeln(w io.Writer, args ...any) {
-	_, _ = fmt.Fprintln(w, args...)
+	_, _ = fmt.Fprintln(w, args...) //nolint:errcheck // output
 }
 
 func writeVerifyStatus(root string, exitCode int, now time.Time) error {

@@ -243,7 +243,7 @@ func (w *Watchdog) emit(at time.Time, anomaly string, peerIdx int, msg string) {
 		Message:   msg,
 		Time:      at,
 	})
-	if _, err := fmt.Fprintln(w.out, msg); err != nil {
+	if _, err := fmt.Fprintln(w.out, msg); err != nil { //nolint:errcheck // output
 		return
 	}
 }

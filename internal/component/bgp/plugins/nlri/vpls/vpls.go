@@ -77,11 +77,11 @@ func DecodeNLRIHex(family, hexStr string) (any, error) {
 // This is for direct CLI invocation: ze plugin bgp-vpls --nlri.
 func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
 	writeErr := func(format string, args ...any) {
-		_, e := fmt.Fprintf(errOut, format, args...)
+		_, e := fmt.Fprintf(errOut, format, args...) //nolint:errcheck // output
 		_ = e
 	}
 	writeOut := func(s string) {
-		_, e := fmt.Fprintln(output, s)
+		_, e := fmt.Fprintln(output, s) //nolint:errcheck // output
 		_ = e
 	}
 
@@ -121,7 +121,7 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 // Reads lines like "decode nlri <family> <hex>", writes "decoded json <json>".
 func RunDecode(input io.Reader, output io.Writer) int {
 	write := func(s string) {
-		if _, err := fmt.Fprintln(output, s); err != nil {
+		if _, err := fmt.Fprintln(output, s); err != nil { //nolint:errcheck // output
 			logger.Debug("write error", "err", err)
 		}
 	}

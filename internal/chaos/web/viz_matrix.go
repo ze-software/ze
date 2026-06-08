@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

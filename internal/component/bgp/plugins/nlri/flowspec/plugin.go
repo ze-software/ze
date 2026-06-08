@@ -123,34 +123,34 @@ func GetFlowSpecYANG() string {
 func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		_, _ = fmt.Fprintf(errOut, "error: invalid hex: %v\n", err)
+		_, _ = fmt.Fprintf(errOut, "error: invalid hex: %v\n", err) //nolint:errcheck // output
 		return 1
 	}
 
 	if !isValidFlowSpecFamily(family) {
-		_, _ = fmt.Fprintf(errOut, "error: invalid family: %s\n", family)
+		_, _ = fmt.Fprintf(errOut, "error: invalid family: %s\n", family) //nolint:errcheck // output
 		return 1
 	}
 
 	result := decodeFlowSpecNLRI(family, data)
 	if result == nil {
-		_, _ = fmt.Fprintln(errOut, "error: no valid FlowSpec decoded")
+		_, _ = fmt.Fprintln(errOut, "error: no valid FlowSpec decoded") //nolint:errcheck // output
 		return 1
 	}
 
 	if textOutput {
 		text := formatFlowSpecText(result)
-		_, _ = fmt.Fprintln(output, text)
+		_, _ = fmt.Fprintln(output, text) //nolint:errcheck // output
 		return 0
 	}
 
 	// JSON output (default)
 	jsonBytes, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
-		_, _ = fmt.Fprintf(errOut, "error: JSON encoding failed: %v\n", err)
+		_, _ = fmt.Fprintf(errOut, "error: JSON encoding failed: %v\n", err) //nolint:errcheck // output
 		return 1
 	}
-	_, _ = fmt.Fprintln(output, string(jsonBytes))
+	_, _ = fmt.Fprintln(output, string(jsonBytes)) //nolint:errcheck // output
 	return 0
 }
 

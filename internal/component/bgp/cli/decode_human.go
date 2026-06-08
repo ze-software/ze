@@ -33,19 +33,19 @@ func formatOpenHuman(result map[string]any) string {
 
 	// ASN
 	if asn, ok := openSection["asn"]; ok {
-		fmt.Fprintf(&sb, "  ASN:         %v\n", formatNumber(asn))
+		fmt.Fprintf(&sb, "  ASN:         %v\n", formatNumber(asn)) //nolint:errcheck // buffer output
 	}
 
 	// Hold Time (Ze format nests under "timer")
 	if timer, ok := openSection["timer"].(map[string]any); ok {
 		if ht, ok := timer["hold-time"]; ok {
-			fmt.Fprintf(&sb, "  Hold Time:   %v seconds\n", formatNumber(ht))
+			fmt.Fprintf(&sb, "  Hold Time:   %v seconds\n", formatNumber(ht)) //nolint:errcheck // buffer output
 		}
 	}
 
 	// Router ID (Ze format uses "router-id")
 	if rid, ok := openSection["router-id"]; ok {
-		fmt.Fprintf(&sb, "  Router ID:   %v\n", rid)
+		fmt.Fprintf(&sb, "  Router ID:   %v\n", rid) //nolint:errcheck // buffer output
 	}
 
 	// Capabilities (Ze format uses array)
@@ -78,7 +78,7 @@ func formatCapabilityHuman(sb *textbuf.Buffer, cap map[string]any) {
 		}
 	}
 
-	fmt.Fprintf(sb, "    %-20s ", name)
+	fmt.Fprintf(sb, "    %-20s ", name) //nolint:errcheck // output
 
 	// Ze format uses "value" for capability data
 	if value, ok := cap["value"]; ok {
@@ -137,7 +137,7 @@ func formatUpdateHuman(result map[string]any) string {
 	// Announced routes
 	if announce, ok := update["announce"].(map[string]any); ok && len(announce) > 0 {
 		for fam, data := range announce {
-			fmt.Fprintf(&sb, "  Announced (%s):\n", fam)
+			fmt.Fprintf(&sb, "  Announced (%s):\n", fam) //nolint:errcheck // buffer output
 			formatNLRIListHuman(&sb, data)
 		}
 	}
@@ -145,7 +145,7 @@ func formatUpdateHuman(result map[string]any) string {
 	// Withdrawn routes
 	if withdraw, ok := update["withdraw"].(map[string]any); ok && len(withdraw) > 0 {
 		for fam, data := range withdraw {
-			fmt.Fprintf(&sb, "  Withdrawn (%s):\n", fam)
+			fmt.Fprintf(&sb, "  Withdrawn (%s):\n", fam) //nolint:errcheck // buffer output
 			formatWithdrawnHuman(&sb, data)
 		}
 	}
@@ -253,12 +253,12 @@ func formatNLRIListHuman(sb *textbuf.Buffer, data any) {
 	// data is map[nexthop][]nlri
 	if nhMap, ok := data.(map[string]any); ok {
 		for nh, nlris := range nhMap {
-			fmt.Fprintf(sb, "    next-hop: %s\n", nh)
+			fmt.Fprintf(sb, "    next-hop: %s\n", nh) //nolint:errcheck // output
 			if nlriList, ok := nlris.([]any); ok {
 				for _, n := range nlriList {
 					if nMap, ok := n.(map[string]any); ok {
 						if prefix, ok := nMap["nlri"].(string); ok {
-							fmt.Fprintf(sb, "      %s\n", prefix)
+							fmt.Fprintf(sb, "      %s\n", prefix) //nolint:errcheck // output
 						}
 					}
 				}
@@ -272,11 +272,11 @@ func formatWithdrawnHuman(sb *textbuf.Buffer, data any) {
 	switch v := data.(type) {
 	case []string:
 		for _, prefix := range v {
-			fmt.Fprintf(sb, "    %s\n", prefix)
+			fmt.Fprintf(sb, "    %s\n", prefix) //nolint:errcheck // output
 		}
 	case []any:
 		for _, item := range v {
-			fmt.Fprintf(sb, "    %v\n", item)
+			fmt.Fprintf(sb, "    %v\n", item) //nolint:errcheck // output
 		}
 	}
 }
@@ -296,7 +296,7 @@ func formatNLRIHuman(result map[string]any, family string) string {
 		nlriType = "EVPN NLRI"
 	}
 
-	fmt.Fprintf(&sb, "%s (%s):\n", nlriType, family)
+	fmt.Fprintf(&sb, "%s (%s):\n", nlriType, family) //nolint:errcheck // buffer output
 
 	// Format based on content
 	for key, value := range result {
@@ -310,21 +310,21 @@ func formatNLRIHuman(result map[string]any, family string) string {
 func formatNLRIFieldHuman(sb *textbuf.Buffer, key string, value any, indent string) {
 	switch v := value.(type) {
 	case map[string]any:
-		fmt.Fprintf(sb, "%s%s:\n", indent, key)
+		fmt.Fprintf(sb, "%s%s:\n", indent, key) //nolint:errcheck // output
 		for k, val := range v {
 			formatNLRIFieldHuman(sb, k, val, indent+"  ")
 		}
 	case []any:
-		fmt.Fprintf(sb, "%s%-20s ", indent, key)
+		fmt.Fprintf(sb, "%s%-20s ", indent, key) //nolint:errcheck // output
 		for i, item := range v {
 			if i > 0 {
 				sb.Str(", ")
 			}
-			fmt.Fprintf(sb, "%v", item)
+			fmt.Fprintf(sb, "%v", item) //nolint:errcheck // output
 		}
 		sb.Str("\n")
 	default:
-		fmt.Fprintf(sb, "%s%-20s %v\n", indent, key, value)
+		fmt.Fprintf(sb, "%s%-20s %v\n", indent, key, value) //nolint:errcheck // output
 	}
 }
 

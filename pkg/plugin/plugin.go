@@ -201,7 +201,7 @@ func (p *Plugin) Run() error {
 	}
 
 	// Stage 3: Capability
-	_, _ = fmt.Fprintln(p.output, "capability done")
+	_, _ = fmt.Fprintln(p.output, "capability done") //nolint:errcheck // output
 
 	// Stage 4: Registry (wait for registry done)
 	if err := p.waitForRegistryDone(); err != nil {
@@ -209,7 +209,7 @@ func (p *Plugin) Run() error {
 	}
 
 	// Stage 5: Ready
-	_, _ = fmt.Fprintln(p.output, "ready")
+	_, _ = fmt.Fprintln(p.output, "ready") //nolint:errcheck // output
 
 	// Main command loop
 	return p.runCommandLoop()
@@ -217,25 +217,25 @@ func (p *Plugin) Run() error {
 
 // sendDeclarations sends all declaration messages.
 func (p *Plugin) sendDeclarations() {
-	_, _ = fmt.Fprintln(p.output, "declare encoding text")
+	_, _ = fmt.Fprintln(p.output, "declare encoding text") //nolint:errcheck // output
 
 	// Declare schema.
 	if p.schema != "" {
 		escaped := strings.ReplaceAll(p.schema, "\n", "\\n")
-		_, _ = fmt.Fprintf(p.output, "declare schema %s\n", escaped)
+		_, _ = fmt.Fprintf(p.output, "declare schema %s\n", escaped) //nolint:errcheck // output
 	}
 
 	// Declare handlers.
 	for _, h := range p.handlers {
-		_, _ = fmt.Fprintf(p.output, "declare handler %s\n", h)
+		_, _ = fmt.Fprintf(p.output, "declare handler %s\n", h) //nolint:errcheck // output
 	}
 
 	// Declare commands.
 	for name := range p.commandHandlers {
-		_, _ = fmt.Fprintf(p.output, "declare cmd %s\n", name)
+		_, _ = fmt.Fprintf(p.output, "declare cmd %s\n", name) //nolint:errcheck // output
 	}
 
-	_, _ = fmt.Fprintln(p.output, "declare done")
+	_, _ = fmt.Fprintln(p.output, "declare done") //nolint:errcheck // output
 }
 
 // runConfigPhase handles the config phase, processing commands.
@@ -288,7 +288,7 @@ func (p *Plugin) runCommandLoop() error {
 		}
 
 		response := p.handleCommand(serial, command)
-		_, _ = fmt.Fprintln(p.output, response)
+		_, _ = fmt.Fprintln(p.output, response) //nolint:errcheck // output
 	}
 	return p.input.Err()
 }
@@ -372,14 +372,14 @@ func (p *Plugin) handleNamespaceCommand(line string) error {
 func (p *Plugin) outputDiff() {
 	changes := p.computeDiff()
 	if len(changes) == 0 {
-		_, _ = fmt.Fprintln(p.output, "[]")
+		_, _ = fmt.Fprintln(p.output, "[]") //nolint:errcheck // output
 		return
 	}
 	// Sort for deterministic output.
 	sortChanges(changes)
 	// Output as JSON array.
 	data, _ := json.Marshal(changes)
-	_, _ = fmt.Fprintln(p.output, string(data))
+	_, _ = fmt.Fprintln(p.output, string(data)) //nolint:errcheck // output
 }
 
 // handleConfigCommand parses and applies a config command to candidate.

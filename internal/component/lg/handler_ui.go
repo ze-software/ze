@@ -297,7 +297,7 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 	gz := gzip.NewWriter(w)
 	defer func() { _ = gz.Close() }()
 
-	if _, err := fmt.Fprintln(gz, "prefix,next-hop,as-path,origin,local-pref,med"); err != nil {
+	if _, err := fmt.Fprintln(gz, "prefix,next-hop,as-path,origin,local-pref,med"); err != nil { //nolint:errcheck // output
 		return
 	}
 
@@ -306,7 +306,7 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 		if !ok {
 			continue
 		}
-		if _, err := fmt.Fprintf(gz, "%s,%s,%s,%s,%s,%s\n",
+		if _, err := fmt.Fprintf(gz, "%s,%s,%s,%s,%s,%s\n", //nolint:errcheck // output
 			getStr(rm, "prefix"),
 			getStr(rm, "next-hop"),
 			csvQuote(formatASPathPlain(rm)),
@@ -510,7 +510,7 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 			sseData = strings.TrimRight(sseData, "\n")
 			sseData = strings.ReplaceAll(sseData, "\n", "\ndata: ")
 
-			if _, err := fmt.Fprintf(w, "event: peer-update\ndata: %s\n\n", sseData); err != nil {
+			if _, err := fmt.Fprintf(w, "event: peer-update\ndata: %s\n\n", sseData); err != nil { //nolint:errcheck // output
 				return
 			}
 			flusher.Flush()

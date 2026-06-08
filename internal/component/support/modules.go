@@ -6,6 +6,7 @@ import (
 	"maps"
 	"sort"
 	"time"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

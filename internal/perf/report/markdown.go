@@ -112,7 +112,7 @@ func Markdown(results []perf.Result, w io.Writer) error {
 
 	for i, key := range keys {
 		if i > 0 {
-			if _, err := fmt.Fprintln(w); err != nil {
+			if _, err := fmt.Fprintln(w); err != nil { //nolint:errcheck // output
 				return fmt.Errorf("writing separator: %w", err)
 			}
 		}
@@ -122,22 +122,22 @@ func Markdown(results []perf.Result, w io.Writer) error {
 			header += " [force-mp]"
 		}
 
-		if _, err := fmt.Fprintln(w, header); err != nil {
+		if _, err := fmt.Fprintln(w, header); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing header: %w", err)
 		}
 
-		if _, err := fmt.Fprintln(w); err != nil {
+		if _, err := fmt.Fprintln(w); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing newline: %w", err)
 		}
 
 		grouped := groups[key]
 		sortByConvergence(grouped)
 
-		if _, err := fmt.Fprintln(w, "| DUT | Version | Convergence | +/- | Throughput | +/- | p99 | +/- | Withdrawal | +/- |"); err != nil {
+		if _, err := fmt.Fprintln(w, "| DUT | Version | Convergence | +/- | Throughput | +/- | p99 | +/- | Withdrawal | +/- |"); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table header: %w", err)
 		}
 
-		if _, err := fmt.Fprintln(w, "|-----|---------|-------------|-----|------------|-----|-----|-----|------------|-----|"); err != nil {
+		if _, err := fmt.Fprintln(w, "|-----|---------|-------------|-----|------------|-----|-----|-----|------------|-----|"); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table separator: %w", err)
 		}
 
@@ -149,7 +149,7 @@ func Markdown(results []perf.Result, w io.Writer) error {
 				Str(" | ").Str(fmtNum(r.ThroughputAvg)).Str(" | ").Str(fmtNum(r.ThroughputAvgStddev)).
 				Str(" | ").Str(fmtMs(r.LatencyP99Ms)).Str(" | ").Str(fmtMs(r.LatencyP99StddevMs)).
 				Str(" | ").Str(fmtMs(r.WithdrawalMs)).Str(" | ").Str(fmtMs(r.WithdrawalStddevMs)).Str(" |").String()
-			if _, err := fmt.Fprintln(w, line); err != nil {
+			if _, err := fmt.Fprintln(w, line); err != nil { //nolint:errcheck // output
 				return fmt.Errorf("writing table row: %w", err)
 			}
 		}

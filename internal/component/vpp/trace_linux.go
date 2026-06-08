@@ -39,7 +39,7 @@ func execCLI(command string) (string, error) {
 		return "", fmt.Errorf("vpp cli: set deadline: %w", err)
 	}
 
-	if _, err := fmt.Fprintf(conn, "%s\n", command); err != nil {
+	if _, err := fmt.Fprintf(conn, "%s\n", command); err != nil { //nolint:errcheck // output
 		return "", fmt.Errorf("vpp cli: write: %w", err)
 	}
 

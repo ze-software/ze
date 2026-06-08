@@ -150,20 +150,20 @@ func showXFRMDetail(name string) {
 	if err != nil {
 		return
 	}
-	if _, err = fmt.Fprintf(os.Stdout, "XFRM if-id: %d\n", xi.IfID); err != nil {
+	if _, err = fmt.Fprintf(os.Stdout, "XFRM if-id: %d\n", xi.IfID); err != nil { //nolint:errcheck // output
 		return
 	}
 	if xi.ParentDev != "" {
-		if _, err = fmt.Fprintf(os.Stdout, "XFRM dev:   %s\n", xi.ParentDev); err != nil {
+		if _, err = fmt.Fprintf(os.Stdout, "XFRM dev:   %s\n", xi.ParentDev); err != nil { //nolint:errcheck // output
 			return
 		}
 	}
 	if len(xi.Policies) > 0 {
-		if _, err = fmt.Fprintln(os.Stdout, "XFRM Policies:"); err != nil {
+		if _, err = fmt.Fprintln(os.Stdout, "XFRM Policies:"); err != nil { //nolint:errcheck // output
 			return
 		}
 		for _, p := range xi.Policies {
-			if _, err = fmt.Fprintf(os.Stdout, "  %s %s -> %s proto=%s mode=%s\n", p.Dir, p.Src, p.Dst, p.Proto, p.Mode); err != nil {
+			if _, err = fmt.Fprintf(os.Stdout, "  %s %s -> %s proto=%s mode=%s\n", p.Dir, p.Src, p.Dst, p.Proto, p.Mode); err != nil { //nolint:errcheck // output
 				return
 			}
 		}
@@ -193,7 +193,7 @@ func encodeJSON(v any) int {
 }
 
 func printRow(w *tabwriter.Writer, cols ...string) {
-	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil {
+	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil { //nolint:errcheck // output
 		return
 	}
 }

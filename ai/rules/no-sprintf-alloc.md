@@ -523,6 +523,32 @@ Use `String()` when the result is:
 - Inserted as a map key (must own the memory)
 - Extracted mid-chain and the buffer is reused afterward
 
+### Slice() from stack-allocated Buffer (the escape trap)
+
+During bulk `+` → textbuf conversions, it is tempting to use `Slice()` everywhere
+for zero-copy. But `var b Buffer` uses `noescape` to stay on the stack, so
+`Slice()` returns a string pointing into stack memory. If that string escapes
+the function (returned, stored in a struct, sent to a goroutine), it dangles.
+
+```go
+// BAD: Slice points into stack buffer; dangling after return
+var b textbuf.Buffer
+return b.Reset().Str("peer:").Uint32(asn).Slice()
+
+// GOOD: String copies data out; safe to return
+var b textbuf.Buffer
+return b.Reset().Str("peer:").Uint32(asn).String()
+
+// ALSO GOOD: heap Buffer, Slice is safe (GC traces interior pointer)
+b := textbuf.New()
+return b.Str("peer:").Uint32(asn).Slice()
+```
+
+**Mechanical rule for bulk conversions:** when the result leaves the current
+scope (return, struct field, map insert, channel send), use `String()` with
+`var b Buffer`, or `Slice()` with `New()`. Slice-from-stack is only safe when
+consumed before the buffer goes out of scope (function arg, map lookup, comparison).
+
 ### Unnecessary scratch buffer when output buffer exists
 
 ```go

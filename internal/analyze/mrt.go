@@ -1,4 +1,3 @@
-
 // Design: (none -- research/analysis tool)
 //
 // Shared MRT parsing helpers for ze-analyze subcommands.
@@ -496,7 +495,7 @@ func formatBytes(b uint64) string {
 // wf writes formatted output to a writer, discarding errors.
 // Used for human-readable summary output where write failures are not actionable.
 func wf(w io.Writer, format string, args ...any) {
-	if _, err := fmt.Fprintf(w, format, args...); err != nil {
+	if _, err := fmt.Fprintf(w, format, args...); err != nil { //nolint:errcheck // output
 		return
 	}
 }

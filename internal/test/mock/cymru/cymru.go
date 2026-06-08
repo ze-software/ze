@@ -1,6 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — deterministic Cymru DNS mock server
 
-
 package cymru
 
 import (

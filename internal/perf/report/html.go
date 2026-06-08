@@ -52,7 +52,7 @@ func HTML(results []perf.Result, w io.Writer) error {
 			header += " [force-mp]"
 		}
 
-		if _, err := fmt.Fprintf(w, "<h2>%s</h2>\n", html.EscapeString(header)); err != nil {
+		if _, err := fmt.Fprintf(w, "<h2>%s</h2>\n", html.EscapeString(header)); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing group header: %w", err)
 		}
 
@@ -76,11 +76,11 @@ func HTML(results []perf.Result, w io.Writer) error {
 }
 
 func writeHTMLTable(w io.Writer, results []perf.Result) error {
-	if _, err := fmt.Fprintln(w, "<table>"); err != nil {
+	if _, err := fmt.Fprintln(w, "<table>"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing table open: %w", err)
 	}
 
-	if _, err := fmt.Fprintln(w, "<tr><th>DUT</th><th>Version</th><th>Convergence</th><th>+/-</th><th>Throughput</th><th>+/-</th><th>p99</th><th>+/-</th><th>Withdrawal</th><th>+/-</th></tr>"); err != nil {
+	if _, err := fmt.Fprintln(w, "<tr><th>DUT</th><th>Version</th><th>Convergence</th><th>+/-</th><th>Throughput</th><th>+/-</th><th>p99</th><th>+/-</th><th>Withdrawal</th><th>+/-</th></tr>"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing table header: %w", err)
 	}
 
@@ -101,12 +101,12 @@ func writeHTMLTable(w io.Writer, results []perf.Result) error {
 			Str("</td><td>").Str(fmtMs(r.LatencyP99StddevMs)).
 			Str("</td><td>").Str(fmtMs(r.WithdrawalMs)).
 			Str("</td><td>").Str(fmtMs(r.WithdrawalStddevMs)).Str("</td></tr>").String()
-		if _, err := fmt.Fprintln(w, row); err != nil {
+		if _, err := fmt.Fprintln(w, row); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table row: %w", err)
 		}
 	}
 
-	if _, err := fmt.Fprintln(w, "</table>"); err != nil {
+	if _, err := fmt.Fprintln(w, "</table>"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing table close: %w", err)
 	}
 
@@ -129,7 +129,7 @@ func writeSVGChart(w io.Writer, results []perf.Result) error {
 	svgHeight := len(results)*(barHeight+barGap) + padding*2
 	svgWidth := labelWidth + maxWidth + padding*2
 
-	if _, err := fmt.Fprintf(w, "<svg width=\"%d\" height=\"%d\" xmlns=\"http://www.w3.org/2000/svg\">\n",
+	if _, err := fmt.Fprintf(w, "<svg width=\"%d\" height=\"%d\" xmlns=\"http://www.w3.org/2000/svg\">\n", //nolint:errcheck // output
 		svgWidth, svgHeight); err != nil {
 		return fmt.Errorf("writing SVG open: %w", err)
 	}
@@ -164,26 +164,26 @@ func writeSVGChart(w io.Writer, results []perf.Result) error {
 			color = "#f44336"
 		}
 
-		if _, err := fmt.Fprintf(w,
+		if _, err := fmt.Fprintf(w, //nolint:errcheck // output
 			"  <text x=\"%d\" y=\"%d\" font-size=\"14\" font-family=\"sans-serif\" dominant-baseline=\"middle\">%s</text>\n",
 			padding, y+barHeight/2, html.EscapeString(results[i].DUTName)); err != nil {
 			return fmt.Errorf("writing SVG label: %w", err)
 		}
 
-		if _, err := fmt.Fprintf(w,
+		if _, err := fmt.Fprintf(w, //nolint:errcheck // output
 			"  <rect x=\"%d\" y=\"%d\" width=\"%.0f\" height=\"%d\" fill=\"%s\" rx=\"3\"/>\n",
 			labelWidth+padding, y, barW, barHeight, color); err != nil {
 			return fmt.Errorf("writing SVG bar: %w", err)
 		}
 
-		if _, err := fmt.Fprintf(w,
+		if _, err := fmt.Fprintf(w, //nolint:errcheck // output
 			"  <text x=\"%.0f\" y=\"%d\" font-size=\"12\" font-family=\"sans-serif\" dominant-baseline=\"middle\" fill=\"#333\"> %s</text>\n",
 			float64(labelWidth+padding)+barW+5, y+barHeight/2, fmtMs(results[i].ConvergenceMs)); err != nil {
 			return fmt.Errorf("writing SVG value: %w", err)
 		}
 	}
 
-	if _, err := fmt.Fprintln(w, "</svg>"); err != nil {
+	if _, err := fmt.Fprintln(w, "</svg>"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing SVG close: %w", err)
 	}
 

@@ -10,9 +10,9 @@ import (
 	"os/signal"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/perf"
 	"codeberg.org/thomas-mangin/ze/internal/perf/report"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func cmdRun(args []string) int {
@@ -172,7 +172,6 @@ func cmdRun(args []string) int {
 
 	return 0
 }
-
 
 func writeJSONResult(result *perf.Result, outputPath string) int {
 	if outputPath != "" {

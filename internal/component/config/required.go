@@ -123,7 +123,7 @@ func HasNonBGPRequired(schema *Schema) bool {
 		return false
 	}
 	for _, name := range schema.root.order {
-		if name == "bgp" {
+		if name == string(ConfigTypeBGP) {
 			continue
 		}
 		if hasRequiredInSubtree(schema.root.children[name]) {

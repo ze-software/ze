@@ -1,14 +1,24 @@
-// Design: docs/architecture/testing/ci-format.md -- ze-test action-first dispatch
+// Design: docs/architecture/testing/ci-format.md -- ze-test root handler helpers
 
 package cli
 
-import "codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
+import (
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
-var dispatcher = subdispatch.New("test", "Functional test runners, mock servers, and tools")
-
-func Register(name string, handler func([]string) int, meta subdispatch.SubMeta) {
-	dispatcher.Register(name, handler, meta)
+func registerRoot(name string, handler func([]string) int, desc string) {
+	registry.MustRegisterRootHandler(name, func(_ *registry.RuntimeContext, args []string) int {
+		return handler(args)
+	}, registry.Meta{
+		Description: desc,
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+	})
 }
 
-func Dispatch(args []string) int { return dispatcher.Dispatch(args) }
-func Subcommands() string        { return dispatcher.Subcommands() }
+func registerCIRoot(name, testSubdir, description, detail string, parallel int) {
+	cfg := CIRunnerConfig{Name: name, TestSubdir: testSubdir, Description: description, Detail: detail, DefaultParallel: parallel}
+	var tb textbuf.Buffer
+	registerRoot(name, func(args []string) int { return RunCISubcommand(cfg, args) }, tb.Str("Run ").Str(description).Str(" functional tests").String())
+}

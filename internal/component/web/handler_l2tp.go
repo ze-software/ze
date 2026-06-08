@@ -281,7 +281,7 @@ func HandleL2TPSamplesSSE() http.HandlerFunc {
 				if err != nil {
 					continue
 				}
-				if _, err := fmt.Fprintf(w, "event: bucket\ndata: %s\n\n", jsonBytes); err != nil {
+				if _, err := fmt.Fprintf(w, "event: bucket\ndata: %s\n\n", jsonBytes); err != nil { //nolint:errcheck // output
 					return
 				}
 				flusher.Flush()

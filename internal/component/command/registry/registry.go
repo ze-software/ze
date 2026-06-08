@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

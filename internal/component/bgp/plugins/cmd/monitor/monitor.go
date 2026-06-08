@@ -99,7 +99,7 @@ func StreamMonitor(ctx context.Context, mm *pluginserver.MonitorManager, w io.Wr
 
 	// Write header line.
 	header := formatHeader(opts)
-	if _, err := fmt.Fprintln(w, header); err != nil {
+	if _, err := fmt.Fprintln(w, header); err != nil { //nolint:errcheck // output
 		return err
 	}
 
@@ -113,11 +113,11 @@ func StreamMonitor(ctx context.Context, mm *pluginserver.MonitorManager, w io.Wr
 			// Check for dropped events and prepend warning.
 			if d := mc.Dropped.Swap(0); d > 0 {
 				warning := textbuf.StrIntStr("--- WARNING: dropped ", int64(d), " events (slow reader)")
-				if _, err := fmt.Fprintln(w, warning); err != nil {
+				if _, err := fmt.Fprintln(w, warning); err != nil { //nolint:errcheck // output
 					return err
 				}
 			}
-			if _, err := fmt.Fprintln(w, event); err != nil {
+			if _, err := fmt.Fprintln(w, event); err != nil { //nolint:errcheck // output
 				return err
 			}
 		case <-clientCtx.Done():

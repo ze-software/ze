@@ -14,10 +14,10 @@ import (
 // FormatQoS formats an InterfaceQoS for human-readable CLI output.
 func FormatQoS(qos traffic.InterfaceQoS) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "interface %s {\n", qos.Interface)
-	fmt.Fprintf(&b, "  qdisc %s", qos.Qdisc.Type)
+	fmt.Fprintf(&b, "interface %s {\n", qos.Interface) //nolint:errcheck // buffer output
+	fmt.Fprintf(&b, "  qdisc %s", qos.Qdisc.Type)      //nolint:errcheck // buffer output
 	if qos.Qdisc.DefaultClass != "" {
-		fmt.Fprintf(&b, " default %s", qos.Qdisc.DefaultClass)
+		fmt.Fprintf(&b, " default %s", qos.Qdisc.DefaultClass) //nolint:errcheck // buffer output
 	}
 	b.WriteString(" {\n")
 	for _, c := range qos.Qdisc.Classes {
@@ -46,16 +46,16 @@ func FormatQoSMap(m map[string]traffic.InterfaceQoS) string {
 }
 
 func formatClass(b *strings.Builder, c *traffic.TrafficClass) {
-	fmt.Fprintf(b, "    class %s {\n", c.Name)
+	fmt.Fprintf(b, "    class %s {\n", c.Name) //nolint:errcheck // output
 	if c.Rate > 0 {
-		fmt.Fprintf(b, "      rate %s;\n", formatRate(c.Rate))
+		fmt.Fprintf(b, "      rate %s;\n", formatRate(c.Rate)) //nolint:errcheck // output
 	}
 	if c.Ceil > 0 {
-		fmt.Fprintf(b, "      ceil %s;\n", formatRate(c.Ceil))
+		fmt.Fprintf(b, "      ceil %s;\n", formatRate(c.Ceil)) //nolint:errcheck // output
 	}
-	fmt.Fprintf(b, "      priority %d;\n", c.Priority)
+	fmt.Fprintf(b, "      priority %d;\n", c.Priority) //nolint:errcheck // output
 	for _, f := range c.Filters {
-		fmt.Fprintf(b, "      match %s 0x%x;\n", f.Type, f.Value)
+		fmt.Fprintf(b, "      match %s 0x%x;\n", f.Type, f.Value) //nolint:errcheck // output
 	}
 	b.WriteString("    }\n")
 }

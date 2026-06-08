@@ -16,7 +16,7 @@ import (
 // FormatCollisionsText writes collision groups as human-readable text.
 func FormatCollisionsText(w io.Writer, groups []CollisionGroup) error {
 	if len(groups) == 0 {
-		_, err := fmt.Fprintln(w, "No prefix collisions found.")
+		_, err := fmt.Fprintln(w, "No prefix collisions found.") //nolint:errcheck // output
 		return err
 	}
 
@@ -26,25 +26,25 @@ func FormatCollisionsText(w io.Writer, groups []CollisionGroup) error {
 		if path == "" {
 			path = "(root)"
 		}
-		if _, err := fmt.Fprintf(w, "%s > (%d siblings share prefix %q, need %d-%d chars)\n",
+		if _, err := fmt.Fprintf(w, "%s > (%d siblings share prefix %q, need %d-%d chars)\n", //nolint:errcheck // output
 			path, len(g.Siblings), g.Prefix, g.MinChars, g.MaxChars); err != nil {
 			return err
 		}
 
 		for _, s := range g.Siblings {
 			disambig := disambigPrefix(s.Name, g.Siblings)
-			if _, err := fmt.Fprintf(w, "  %-4s %-20s [%-7s] %-14s %s\n",
+			if _, err := fmt.Fprintf(w, "  %-4s %-20s [%-7s] %-14s %s\n", //nolint:errcheck // output
 				disambig, s.Name, s.Source, s.Type, s.Description); err != nil {
 				return err
 			}
 		}
-		if _, err := fmt.Fprintln(w); err != nil {
+		if _, err := fmt.Fprintln(w); err != nil { //nolint:errcheck // output
 			return err
 		}
 		totalAffected += len(g.Siblings)
 	}
 
-	_, err := fmt.Fprintf(w, "Summary: %d collision groups, %d affected nodes\n", len(groups), totalAffected)
+	_, err := fmt.Fprintf(w, "Summary: %d collision groups, %d affected nodes\n", len(groups), totalAffected) //nolint:errcheck // output
 	return err
 }
 
@@ -169,7 +169,7 @@ func formatTreeNodeText(w io.Writer, node *AnalysisNode, depth int, filter strin
 		}
 	}
 
-	if _, err := fmt.Fprintf(w, "%s%-28s [%-7s] %-14s %s\n",
+	if _, err := fmt.Fprintf(w, "%s%-28s [%-7s] %-14s %s\n", //nolint:errcheck // output
 		indent, node.Name, node.Source, typStr, desc); err != nil {
 		return err
 	}

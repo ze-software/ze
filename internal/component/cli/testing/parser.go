@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

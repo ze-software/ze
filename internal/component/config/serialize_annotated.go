@@ -98,7 +98,7 @@ func truncateRunes(s string, maxRunes int) string {
 func writeAnnotatedGutter(b *textbuf.Buffer, e MetaEntry, columns ShowColumns) {
 	if columns.Author {
 		user := truncateRunes(sanitizePrintable(e.User), annotatedAuthorWidth)
-		fmt.Fprintf(b, "%-*s  ", annotatedAuthorWidth, user)
+		fmt.Fprintf(b, "%-*s  ", annotatedAuthorWidth, user) //nolint:errcheck // output
 	}
 	if columns.Date {
 		if !e.Time.IsZero() {
@@ -110,11 +110,11 @@ func writeAnnotatedGutter(b *textbuf.Buffer, e MetaEntry, columns ShowColumns) {
 	}
 	if columns.Source {
 		src := truncateRunes(sanitizePrintable(e.Source), annotatedSourceWidth)
-		fmt.Fprintf(b, "%-*s  ", annotatedSourceWidth, src)
+		fmt.Fprintf(b, "%-*s  ", annotatedSourceWidth, src) //nolint:errcheck // output
 	}
 	if columns.Changes {
 		marker := computeBlameMarker(e)
-		fmt.Fprintf(b, "%c  ", marker)
+		fmt.Fprintf(b, "%c  ", marker) //nolint:errcheck // output
 	}
 }
 
@@ -644,19 +644,19 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 		}
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(normalizeBool(v)))
+			fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(normalizeBool(v))) //nolint:errcheck // output
 		}
 
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			fmt.Fprintf(b, "set %s %s\n", path, v)
+			fmt.Fprintf(b, "set %s %s\n", path, v) //nolint:errcheck // output
 		}
 
 	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			fmt.Fprintf(b, "set %s [ %s ]\n", path, v)
+			fmt.Fprintf(b, "set %s [ %s ]\n", path, v) //nolint:errcheck // output
 		}
 
 	case *ValueOrArrayNode:
@@ -664,7 +664,7 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 		if items := tree.multiValues[name]; len(items) > 0 {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			if len(items) == 1 {
-				fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(items[0]))
+				fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(items[0])) //nolint:errcheck // output
 			} else {
 				b.Str("set ")
 				b.Str(path)
@@ -687,9 +687,9 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 			if v, ok := tree.values[name]; ok {
 				writeAnnotatedLeafGutter(b, meta, name, columns)
 				if v == configTrue {
-					fmt.Fprintf(b, "set %s\n", path)
+					fmt.Fprintf(b, "set %s\n", path) //nolint:errcheck // output
 				} else {
-					fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(v))
+					fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(v)) //nolint:errcheck // output
 				}
 			}
 		}
@@ -721,9 +721,9 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 				v := child.values[k]
 				writeAnnotatedLeafGutter(b, childMeta, k, columns)
 				if v == configTrue {
-					fmt.Fprintf(b, "set %s %s\n", path, k)
+					fmt.Fprintf(b, "set %s %s\n", path, k) //nolint:errcheck // output
 				} else {
-					fmt.Fprintf(b, "set %s %s [ %s ]\n", path, k, v)
+					fmt.Fprintf(b, "set %s %s [ %s ]\n", path, k, v) //nolint:errcheck // output
 				}
 			}
 			if childMeta != nil {
@@ -775,14 +775,14 @@ func serializeAnnotatedSetFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 	if v, ok := tree.values[name]; ok {
 		writeAnnotatedLeafGutter(b, meta, name, columns)
 		if v == configTrue {
-			fmt.Fprintf(b, "set %s\n", path)
+			fmt.Fprintf(b, "set %s\n", path) //nolint:errcheck // output
 		} else {
-			fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(v))
+			fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(v)) //nolint:errcheck // output
 		}
 	} else if mv := tree.multiValues[name]; len(mv) > 0 {
 		for _, v := range mv {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			fmt.Fprintf(b, "set %s %s\n", path, v)
+			fmt.Fprintf(b, "set %s %s\n", path, v) //nolint:errcheck // output
 		}
 	}
 
@@ -837,7 +837,7 @@ func serializeAnnotatedSetInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTr
 				continue
 			}
 			writeAnnotatedLeafGutter(b, entryMeta, childName, columns)
-			fmt.Fprintf(b, "set %s %s %s\n", entryPath, childName, quoteIfNeeded(v))
+			fmt.Fprintf(b, "set %s %s %s\n", entryPath, childName, quoteIfNeeded(v)) //nolint:errcheck // output
 		}
 		if entryMeta != nil {
 			entryMeta.mu.RUnlock()

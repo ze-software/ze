@@ -27,8 +27,8 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // Registration describes a plugin's full metadata and handlers.
@@ -693,7 +693,7 @@ func WriteUsage(w io.Writer) error {
 		if len(r.RFCs) > 0 {
 			desc += " (RFC " + textbuf.Join(r.RFCs, ", ") + ")"
 		}
-		if _, err := fmt.Fprintf(w, "  %s%s%s\n", r.Name, padding, desc); err != nil {
+		if _, err := fmt.Fprintf(w, "  %s%s%s\n", r.Name, padding, desc); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing usage: %w", err)
 		}
 	}

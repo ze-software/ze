@@ -460,7 +460,7 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 		if isLevel {
 			_, valid := parseLevel(value)
 			if !valid && !strings.EqualFold(value, levelDisabled) {
-				_, _ = fmt.Fprintf(warnWriter, "warning: invalid log level %q for %s (must be disabled/debug/info/warn/err)\n", value, key)
+				_, _ = fmt.Fprintf(warnWriter, "warning: invalid log level %q for %s (must be disabled/debug/info/warn/err)\n", value, key) //nolint:errcheck // output
 				continue
 			}
 		}

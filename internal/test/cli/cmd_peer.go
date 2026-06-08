@@ -1,10 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md — test runner CLI
 
-
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"context"
 	"errors"
 	"flag"
@@ -18,10 +16,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 )
-
-func init() {
-	Register("peer", cmdPeer, subdispatch.SubMeta{Desc: "BGP test peer (sink/echo/check modes)"})
-}
 
 var errModeInjectRequiresInjectPrefixInject = errors.New("--mode inject requires --inject-prefix, --inject-count (>0), --inject-nexthop, --inject-asn (>0)")
 
@@ -44,16 +38,16 @@ func cmdPeer(args []string) int {
 
 	switch config.Mode {
 	case peer.ModeSink:
-		fmt.Fprintf(os.Stdout, "\nsink mode - send us whatever, we can take it! :p\n\n")
+		fmt.Fprintf(os.Stdout, "\nsink mode - send us whatever, we can take it! :p\n\n") //nolint:errcheck // output
 	case peer.ModeEcho:
-		fmt.Fprintf(os.Stdout, "\necho mode - send us whatever, we can parrot it! :p\n\n")
+		fmt.Fprintf(os.Stdout, "\necho mode - send us whatever, we can parrot it! :p\n\n") //nolint:errcheck // output
 	case peer.ModeCheck:
 		if len(config.Expect) == 0 {
 			fmt.Fprintln(os.Stderr, "no test data available to test against")
 			return 1
 		}
 	case peer.ModeInject:
-		fmt.Fprintf(os.Stdout, "\ninject mode - %d prefixes from %s via %s (AS %d)\n\n",
+		fmt.Fprintf(os.Stdout, "\ninject mode - %d prefixes from %s via %s (AS %d)\n\n", //nolint:errcheck // output
 			config.Inject.Count, config.Inject.Prefix, config.Inject.NextHop, config.Inject.ASN)
 	}
 
@@ -75,7 +69,7 @@ func cmdPeer(args []string) int {
 	result := p.Run(ctx)
 	cancel()
 
-	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
 
 	if result.Error != nil {
 		fmt.Fprintf(os.Stderr, "failed: %v\n", result.Error)
@@ -87,7 +81,7 @@ func cmdPeer(args []string) int {
 		return 1
 	}
 
-	fmt.Fprintln(os.Stdout, "successful")
+	fmt.Fprintln(os.Stdout, "successful") //nolint:errcheck // terminal output
 	return 0
 }
 
@@ -187,9 +181,9 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 	}
 
 	if view {
-		fmt.Fprintln(os.Stdout, "\nrules:")
+		fmt.Fprintln(os.Stdout, "\nrules:") //nolint:errcheck // terminal output
 		for i, rule := range config.Expect {
-			fmt.Fprintf(os.Stdout, "       %02d  %s\n", i+1, rule)
+			fmt.Fprintf(os.Stdout, "       %02d  %s\n", i+1, rule) //nolint:errcheck // output
 		}
 		return nil, true
 	}

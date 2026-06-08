@@ -103,7 +103,7 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 			slog.Warn("sdk: marshal ExaBGP JSON failed", "error", err)
 			return nil
 		}
-		if _, err := fmt.Fprintln(stdinPipe, string(out)); err != nil {
+		if _, err := fmt.Fprintln(stdinPipe, string(out)); err != nil { //nolint:errcheck // output
 			slog.Warn("sdk: write to plugin failed", "error", err)
 		}
 		return nil

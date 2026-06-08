@@ -126,7 +126,7 @@ type sseReplySink struct {
 func (s *sseReplySink) WriteFrame(frame []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, err := fmt.Fprintf(s.w, "data: %s\n\n", frame); err != nil {
+	if _, err := fmt.Fprintf(s.w, "data: %s\n\n", frame); err != nil { //nolint:errcheck // output
 		return err
 	}
 	s.flusher.Flush()

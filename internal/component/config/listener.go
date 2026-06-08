@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

@@ -481,7 +481,7 @@ func buildHostHardwareHTML(sections []HardwareSection) template.HTML {
 
 	for _, sec := range sections {
 		b.Str(`<div class="wb-hardware-section">`)
-		fmt.Fprintf(&b, `<h3>%s</h3>`, template.HTMLEscapeString(sec.Title))
+		fmt.Fprintf(&b, `<h3>%s</h3>`, template.HTMLEscapeString(sec.Title)) //nolint:errcheck // report output
 		b.Str(`<table class="wb-detail-kv">`)
 		for _, item := range sec.Items {
 			writeHardwareKV(&b, item)

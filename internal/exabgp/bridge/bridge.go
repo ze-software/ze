@@ -101,17 +101,17 @@ func (sp *StartupProtocol) SendDeclarations() {
 	for _, fam := range families {
 		// Convert "ipv4/unicast" → "ipv4 unicast"
 		zebgpFamily := strings.ReplaceAll(fam, "/", " ")
-		_, _ = fmt.Fprintf(sp.output, "declare family %s\n", zebgpFamily)
+		_, _ = fmt.Fprintf(sp.output, "declare family %s\n", zebgpFamily) //nolint:errcheck // output
 	}
 
 	// Declare encoding
-	_, _ = fmt.Fprintln(sp.output, "declare encoding text")
+	_, _ = fmt.Fprintln(sp.output, "declare encoding text") //nolint:errcheck // output
 
 	// Declare receive types - ExaBGP plugins expect negotiated messages
-	_, _ = fmt.Fprintln(sp.output, "declare receive negotiated")
+	_, _ = fmt.Fprintln(sp.output, "declare receive negotiated") //nolint:errcheck // output
 
 	// Done
-	_, _ = fmt.Fprintln(sp.output, "declare done")
+	_, _ = fmt.Fprintln(sp.output, "declare done") //nolint:errcheck // output
 }
 
 // SendCapabilityDone sends Stage 3 capability lines and done marker.
@@ -127,18 +127,18 @@ func (sp *StartupProtocol) SendCapabilityDone() {
 	// Route-refresh capability (RFC 2918, code 2).
 	// RFC 2918: "The Capability Length of the Route Refresh Capability is zero."
 	if sp.RouteRefresh {
-		_, _ = fmt.Fprintln(sp.output, "capability hex 2")
+		_, _ = fmt.Fprintln(sp.output, "capability hex 2") //nolint:errcheck // output
 	}
 
 	// ADD-PATH capability (RFC 7911, code 69)
 	if sp.AddPathMode != "" {
 		payload := sp.encodeAddPath()
 		if payload != "" {
-			_, _ = fmt.Fprintf(sp.output, "capability hex 69 %s\n", payload)
+			_, _ = fmt.Fprintf(sp.output, "capability hex 69 %s\n", payload) //nolint:errcheck // output
 		}
 	}
 
-	_, _ = fmt.Fprintln(sp.output, "capability done")
+	_, _ = fmt.Fprintln(sp.output, "capability done") //nolint:errcheck // output
 }
 
 // encodeAddPath encodes ADD-PATH capability payload for configured families.
@@ -305,7 +305,7 @@ func (sp *StartupProtocol) SendReady() {
 	if sp.output == nil {
 		return
 	}
-	_, _ = fmt.Fprintln(sp.output, "ready")
+	_, _ = fmt.Fprintln(sp.output, "ready") //nolint:errcheck // output
 }
 
 // WaitForConfigDone waits for Stage 2 "config done" marker.
@@ -592,7 +592,7 @@ func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
 		return
 	}
 
-	if _, err := fmt.Fprintln(pluginW, string(out)); err != nil {
+	if _, err := fmt.Fprintln(pluginW, string(out)); err != nil { //nolint:errcheck // output
 		slog.Warn("zebgp->plugin: write to plugin failed", "error", err)
 	}
 }

@@ -79,14 +79,14 @@ func main() {
 		_ = enc.Encode(findings)
 	} else {
 		for _, f := range findings {
-			fmt.Fprintf(os.Stdout, "  [%s] %s: %s\n", f.Kind, f.File, f.Msg)
+			fmt.Fprintf(os.Stdout, "  [%s] %s: %s\n", f.Kind, f.File, f.Msg) //nolint:errcheck // output
 		}
 	}
 	if len(findings) > 0 {
-		fmt.Fprintf(os.Stdout, "\ncommand-ownership: FAILED, %d problem(s)\n", len(findings))
+		fmt.Fprintf(os.Stdout, "\ncommand-ownership: FAILED, %d problem(s)\n", len(findings)) //nolint:errcheck // output
 		os.Exit(1)
 	}
-	fmt.Fprintln(os.Stdout, "command-ownership: OK (owners cmd/ze-free, root handlers internal, no-owner roots allowlisted)")
+	fmt.Fprintln(os.Stdout, "command-ownership: OK (owners cmd/ze-free, root handlers internal, no-owner roots allowlisted)") //nolint:errcheck // output
 }
 
 // ownerCommandDirs returns every internal command-owner package directory

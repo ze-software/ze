@@ -46,42 +46,42 @@ median convergence time) are automatically discarded.
 	}
 
 	// Environment section from the first result's metadata.
-	if _, err := fmt.Fprintf(w, "## Environment\n\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "## Environment\n\n"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing env header: %w", err)
 	}
 
-	if _, err := fmt.Fprintf(w, "| Field | Value |\n|-------|-------|\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "| Field | Value |\n|-------|-------|\n"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing env table header: %w", err)
 	}
 
-	if _, err := fmt.Fprintf(w, "| Platform | %s/%s |\n", runtime.GOOS, runtime.GOARCH); err != nil {
+	if _, err := fmt.Fprintf(w, "| Platform | %s/%s |\n", runtime.GOOS, runtime.GOARCH); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing platform: %w", err)
 	}
 
-	if _, err := fmt.Fprintf(w, "| Virtualization | Docker (Colima VM) |\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "| Virtualization | Docker (Colima VM) |\n"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing virtualization: %w", err)
 	}
 
-	if _, err := fmt.Fprintf(w, "| Date | %s |\n", time.Now().Format("2006-01-02")); err != nil {
+	if _, err := fmt.Fprintf(w, "| Date | %s |\n", time.Now().Format("2006-01-02")); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing date: %w", err)
 	}
 
 	if len(results) > 0 {
 		r := results[0]
-		if _, err := fmt.Fprintf(w, "| Routes | %s |\n", fmtNum(r.Routes)); err != nil {
+		if _, err := fmt.Fprintf(w, "| Routes | %s |\n", fmtNum(r.Routes)); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing routes: %w", err)
 		}
 
-		if _, err := fmt.Fprintf(w, "| Seed | %d |\n", r.Seed); err != nil {
+		if _, err := fmt.Fprintf(w, "| Seed | %d |\n", r.Seed); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing seed: %w", err)
 		}
 
-		if _, err := fmt.Fprintf(w, "| Iterations | %d measured, %d warmup |\n", r.Repeat, r.WarmupRuns); err != nil {
+		if _, err := fmt.Fprintf(w, "| Iterations | %d measured, %d warmup |\n", r.Repeat, r.WarmupRuns); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing iterations: %w", err)
 		}
 	}
 
-	if _, err := fmt.Fprintf(w, "\n**These results were collected on a development laptop using Docker "+
+	if _, err := fmt.Fprintf(w, "\n**These results were collected on a development laptop using Docker "+ //nolint:errcheck // output
 		"containers via Colima. A dedicated server with bare-metal networking would produce "+
 		"different (likely faster and more consistent) numbers.**\n\n"); err != nil {
 		return fmt.Errorf("writing caveat: %w", err)
@@ -93,7 +93,7 @@ median convergence time) are automatically discarded.
 	}
 
 	// Results tables.
-	if _, err := fmt.Fprintf(w, "## Results\n\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "## Results\n\n"); err != nil { //nolint:errcheck // output
 		return fmt.Errorf("writing results header: %w", err)
 	}
 
@@ -106,22 +106,22 @@ median convergence time) are automatically discarded.
 			header += " (force-MP)"
 		}
 
-		if _, err := fmt.Fprintln(w, header); err != nil {
+		if _, err := fmt.Fprintln(w, header); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing group header: %w", err)
 		}
 
-		if _, err := fmt.Fprintln(w); err != nil {
+		if _, err := fmt.Fprintln(w); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing newline: %w", err)
 		}
 
 		grouped := groups[key]
 		sortByConvergence(grouped)
 
-		if _, err := fmt.Fprintln(w, "| DUT | Convergence | +/- | Throughput (r/s) | +/- | p50 | p99 | +/- | Max | Lost | Withdrawal | +/- |"); err != nil {
+		if _, err := fmt.Fprintln(w, "| DUT | Convergence | +/- | Throughput (r/s) | +/- | p50 | p99 | +/- | Max | Lost | Withdrawal | +/- |"); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table header: %w", err)
 		}
 
-		if _, err := fmt.Fprintln(w, "|-----|-------------|-----|------------------|-----|-----|-----|-----|-----|------|------------|-----|"); err != nil {
+		if _, err := fmt.Fprintln(w, "|-----|-------------|-----|------------------|-----|-----|-----|-----|-----|------|------------|-----|"); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing table sep: %w", err)
 		}
 
@@ -140,12 +140,12 @@ median convergence time) are automatically discarded.
 				Str(" | ").Int(int64(r.RoutesLost)).
 				Str(" | ").Str(fmtMs(r.WithdrawalMs)).
 				Str(" | ").Str(fmtMs(r.WithdrawalStddevMs)).Str(" |").String()
-			if _, err := fmt.Fprintln(w, line); err != nil {
+			if _, err := fmt.Fprintln(w, line); err != nil { //nolint:errcheck // output
 				return fmt.Errorf("writing row: %w", err)
 			}
 		}
 
-		if _, err := fmt.Fprintln(w); err != nil {
+		if _, err := fmt.Fprintln(w); err != nil { //nolint:errcheck // output
 			return fmt.Errorf("writing trailing newline: %w", err)
 		}
 	}
@@ -257,11 +257,11 @@ func writeDUTSetup(results []perf.Result, w io.Writer) error {
 		return nil
 	}
 
-	if _, err := fmt.Fprintf(w, "## DUT Setup\n\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "## DUT Setup\n\n"); err != nil { //nolint:errcheck // output
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "All DUTs run in Docker containers on the same host. Each DUT is\n"+
+	if _, err := fmt.Fprintf(w, "All DUTs run in Docker containers on the same host. Each DUT is\n"+ //nolint:errcheck // output
 		"configured with two passive BGP peers (sender AS 65001, receiver AS 65002)\n"+
 		"and AS 65000 as the local AS. The benchmark tool (ze-perf) establishes both\n"+
 		"sessions, injects routes via the sender, and measures when they arrive at\n"+
@@ -275,12 +275,12 @@ func writeDUTSetup(results []perf.Result, w io.Writer) error {
 			note = fmt.Sprintf("**%s** -- no setup notes available.", name)
 		}
 
-		if _, err := fmt.Fprintf(w, "- %s\n", note); err != nil {
+		if _, err := fmt.Fprintf(w, "- %s\n", note); err != nil { //nolint:errcheck // output
 			return err
 		}
 	}
 
-	if _, err := fmt.Fprintf(w, "\nConfig files: `test/perf/configs/`\n\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "\nConfig files: `test/perf/configs/`\n\n"); err != nil { //nolint:errcheck // output
 		return err
 	}
 

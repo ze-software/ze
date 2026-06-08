@@ -547,8 +547,8 @@ func (s *LGServer) query(cmd string) string {
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	msgBytes, _ := json.Marshal(message) //nolint:errcheck // marshal of string cannot fail
-	if _, err := fmt.Fprintf(w, `{"error":%s}`, msgBytes); err != nil {
+	msgBytes, _ := json.Marshal(message)                                //nolint:errcheck // marshal of string cannot fail
+	if _, err := fmt.Fprintf(w, `{"error":%s}`, msgBytes); err != nil { //nolint:errcheck // output
 		lgLogger.Debug("write error response failed", "error", err)
 	}
 }
