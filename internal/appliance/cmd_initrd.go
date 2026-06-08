@@ -68,11 +68,14 @@ func runInitrd(args []string) int {
 func resolveInitrd() (string, error) {
 	version := defaultInitrdVersion
 	cached := initrdCachePath(version)
+	toolsDst := filepath.Join(initrdToolsDir, "build", initrdFileName)
+
 	if _, err := os.Stat(cached); err == nil {
+		if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
+			fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
+		}
 		return cached, nil
 	}
-
-	toolsDst := filepath.Join(initrdToolsDir, "build", initrdFileName)
 
 	if baseURL := env.Get(initrdURLKey); baseURL != "" {
 		var tb textbuf.Buffer

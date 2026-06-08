@@ -1,6 +1,7 @@
 package appliance
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -23,6 +24,7 @@ func TestRunDispatchesInitrd(t *testing.T) {
 }
 
 func TestInitrdResolvesCache(t *testing.T) {
+	t.Chdir(t.TempDir())
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -40,6 +42,36 @@ func TestInitrdResolvesCache(t *testing.T) {
 	}
 	if got != cached {
 		t.Errorf("resolveInitrd = %q, want %q", got, cached)
+	}
+}
+
+// VALIDATES: cache-hit branch copies initrd to tools/installer-initrd/build/ for downstream ISO.
+// PREVENTS: appliance iso failing with "installer initrd not found" after a cache-hit resolve.
+func TestInitrdCacheHitCopiesToToolsPath(t *testing.T) {
+	t.Chdir(t.TempDir())
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+
+	content := []byte("cached-initrd")
+	cached := initrdCachePath(defaultInitrdVersion)
+	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cached, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := resolveInitrd(); err != nil {
+		t.Fatalf("resolveInitrd: %v", err)
+	}
+
+	toolsPath := filepath.Join(initrdToolsDir, "build", initrdFileName)
+	got, err := os.ReadFile(toolsPath)
+	if err != nil {
+		t.Fatalf("tools path %s not written on cache hit: %v", toolsPath, err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("tools path content = %q, want %q", got, content)
 	}
 }
 
