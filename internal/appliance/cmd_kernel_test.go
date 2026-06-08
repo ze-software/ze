@@ -77,7 +77,7 @@ func TestKernelResolvesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel(version, arch, ProfileQEMU)
+	got, err := resolveKernel(version, arch, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := resolveKernel(version, archAMD64, ProfileHardware); err != nil {
+	if _, err := resolveKernel(version, archAMD64, ProfileHardware, ""); err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
 
@@ -129,7 +129,7 @@ func TestKernelDownloadsAndCaches(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL)
 	env.ResetCache()
 
-	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestKernelDownloadChecksumMismatch(t *testing.T) {
 
 	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
 
-	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
 	if err == nil {
 		t.Fatal("expected error from checksum mismatch + no QEMU fallback")
 	}
@@ -178,7 +178,7 @@ func TestKernelFallsBackToQEMU(t *testing.T) {
 		return os.WriteFile(destPath, []byte("qemu-built-kernel"), 0o644)
 	})
 
-	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -191,19 +191,20 @@ func TestKernelFallsBackToQEMU(t *testing.T) {
 	}
 }
 
-func TestKernelFailsWithoutQEMU(t *testing.T) {
+func TestKernelFailsWithoutBuilders(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
+	setTestDockerCheck(t, func() error { return errors.New("docker not found") })
 	setTestQEMUCheck(t, func() error { return errors.New("qemu not found") })
 
-	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
 	if err == nil {
-		t.Fatal("expected error when both download and QEMU fail")
+		t.Fatal("expected error when both download and builders fail")
 	}
-	if !strings.Contains(err.Error(), "QEMU") {
-		t.Errorf("error should mention QEMU, got: %v", err)
+	if !strings.Contains(err.Error(), "no builder available") {
+		t.Errorf("error should mention no builder available, got: %v", err)
 	}
 }
 
@@ -254,7 +255,7 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 		return os.WriteFile(destPath, []byte("built-kernel"), 0o644)
 	})
 
-	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -412,7 +413,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel before config change: %v", err)
 	}
@@ -437,7 +438,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		return os.WriteFile(destPath, []byte("kernel-v2"), 0o644)
 	})
 
-	got2, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	got2, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel after config change: %v", err)
 	}
@@ -512,11 +513,157 @@ func TestKernelEnvURL(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL+"/custom-base")
 	env.ResetCache()
 
-	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
+	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
 	if !strings.Contains(requestedURL, "/custom-base/") {
 		t.Errorf("expected custom base URL in request, got %q", requestedURL)
+	}
+}
+
+func setTestDockerCheck(t *testing.T, fn func() error) {
+	t.Helper()
+	old := kernelDockerCheckFn
+	kernelDockerCheckFn = fn
+	t.Cleanup(func() { kernelDockerCheckFn = old })
+}
+
+func setTestDockerBuild(t *testing.T, fn func(string, string, string, string) error) {
+	t.Helper()
+	old := kernelDockerBuildFn
+	kernelDockerBuildFn = fn
+	t.Cleanup(func() { kernelDockerBuildFn = old })
+}
+
+func TestSelectBuilderExplicitDocker(t *testing.T) {
+	setTestDockerCheck(t, func() error { return nil })
+	setTestDockerBuild(t, func(_, _, _, _ string) error { return nil })
+
+	fn, name, err := selectBuilder(builderDocker)
+	if err != nil {
+		t.Fatalf("selectBuilder(docker): %v", err)
+	}
+	if name != builderDocker {
+		t.Errorf("name = %q, want %q", name, builderDocker)
+	}
+	if fn == nil {
+		t.Fatal("build function is nil")
+	}
+}
+
+func TestSelectBuilderExplicitDockerUnavailable(t *testing.T) {
+	setTestDockerCheck(t, func() error { return errors.New("docker not found") })
+
+	_, _, err := selectBuilder(builderDocker)
+	if err == nil {
+		t.Fatal("expected error when docker requested but unavailable")
+	}
+	if !strings.Contains(err.Error(), "docker builder requested but not available") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestSelectBuilderExplicitQEMU(t *testing.T) {
+	setTestQEMUCheck(t, func() error { return nil })
+	setTestQEMUBuild(t, func(_, _, _, _ string) error { return nil })
+
+	fn, name, err := selectBuilder(builderQEMU)
+	if err != nil {
+		t.Fatalf("selectBuilder(qemu): %v", err)
+	}
+	if name != builderQEMU {
+		t.Errorf("name = %q, want %q", name, builderQEMU)
+	}
+	if fn == nil {
+		t.Fatal("build function is nil")
+	}
+}
+
+func TestSelectBuilderExplicitQEMUUnavailable(t *testing.T) {
+	setTestQEMUCheck(t, func() error { return errors.New("qemu not found") })
+
+	_, _, err := selectBuilder(builderQEMU)
+	if err == nil {
+		t.Fatal("expected error when qemu requested but unavailable")
+	}
+	if !strings.Contains(err.Error(), "qemu builder requested but not available") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestSelectBuilderAutoDocker(t *testing.T) {
+	setTestDockerCheck(t, func() error { return nil })
+	setTestDockerBuild(t, func(_, _, _, _ string) error { return nil })
+	setTestQEMUCheck(t, func() error { return nil })
+
+	_, name, err := selectBuilder("")
+	if err != nil {
+		t.Fatalf("selectBuilder auto: %v", err)
+	}
+	if name != builderDocker {
+		t.Errorf("auto-select should prefer docker, got %q", name)
+	}
+}
+
+func TestSelectBuilderAutoFallsBackToQEMU(t *testing.T) {
+	setTestDockerCheck(t, func() error { return errors.New("no docker") })
+	setTestQEMUCheck(t, func() error { return nil })
+	setTestQEMUBuild(t, func(_, _, _, _ string) error { return nil })
+
+	_, name, err := selectBuilder("")
+	if err != nil {
+		t.Fatalf("selectBuilder auto fallback: %v", err)
+	}
+	if name != builderQEMU {
+		t.Errorf("auto-select should fall back to qemu, got %q", name)
+	}
+}
+
+func TestSelectBuilderAutoNoneAvailable(t *testing.T) {
+	setTestDockerCheck(t, func() error { return errors.New("no docker") })
+	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
+
+	_, _, err := selectBuilder("")
+	if err == nil {
+		t.Fatal("expected error when no builder available")
+	}
+	if !strings.Contains(err.Error(), "no builder available") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestKernelBuilderFlag(t *testing.T) {
+	code := runKernel([]string{"--builder", "invalid"})
+	if code != exitError {
+		t.Errorf("runKernel(--builder invalid) = %d, want %d", code, exitError)
+	}
+}
+
+func TestKernelFallsBackToDocker(t *testing.T) {
+	t.Chdir(t.TempDir())
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+
+	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
+	setTestDockerCheck(t, func() error { return nil })
+	setTestDockerBuild(t, func(version, arch, profile, destPath string) error {
+		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(destPath, []byte("docker-built-kernel"), 0o644)
+	})
+	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
+
+	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	if err != nil {
+		t.Fatalf("resolveKernel: %v", err)
+	}
+	data, err := os.ReadFile(got)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if string(data) != "docker-built-kernel" {
+		t.Errorf("content = %q, want docker-built-kernel", data)
 	}
 }
