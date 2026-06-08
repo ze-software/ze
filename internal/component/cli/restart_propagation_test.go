@@ -57,7 +57,6 @@ func TestRestartFuncSurvivesWithCmdProcessing(t *testing.T) {
 
 	newM, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m, _ = newM.(Model) //nolint:errcheck // type assertion always succeeds
-	m.DisableBlink()
 	m.SetRestartFunc(func() {})
 
 	// Process each character AND its returned command (simulates headless model).

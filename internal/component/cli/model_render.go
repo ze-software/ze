@@ -268,10 +268,11 @@ func shortDiagnostic(msg string) string {
 	return msg
 }
 
-// altView creates a tea.View with AltScreen enabled.
-func altView(s string) tea.View {
+// altView creates a tea.View with AltScreen enabled and optional hardware cursor.
+func altView(s string, cursor *tea.Cursor) tea.View {
 	v := tea.NewView(s)
 	v.AltScreen = true
+	v.Cursor = cursor
 	return v
 }
 
@@ -367,8 +368,9 @@ func (m Model) View() tea.View {
 	// Message area (2 lines) + prompt — always at the bottom
 	msg1, msg2 := m.messageLines()
 	lines = append(lines, msg1, msg2, m.buildPrompt()+m.renderInputWithGhost())
+	promptLine := len(lines) - 1
 
-	// Truncate if too many lines
+	// Truncate if too many lines (login warnings can push total past viewHeight)
 	if len(lines) > viewHeight {
 		lines = lines[:viewHeight]
 	}
@@ -377,15 +379,28 @@ func (m Model) View() tea.View {
 
 	// Overlay dropdown if showing
 	if m.showDropdown && len(m.completions) > 0 {
-		return altView(m.overlayDropdown(baseView))
+		return altView(m.overlayDropdown(baseView), nil)
 	}
 
 	// Help overlay
 	if m.showHelp {
-		return altView(m.renderHelpOverlay(baseView))
+		return altView(m.renderHelpOverlay(baseView), nil)
 	}
 
-	return altView(baseView)
+	// Hardware cursor on the prompt line so the terminal handles blink
+	// natively without re-rendering (which breaks SSH text selection).
+	// Hide cursor if the prompt was truncated (login warnings on small terminal).
+	var cursor *tea.Cursor
+	if c := m.textInput.Cursor(); c != nil && promptLine < len(lines) {
+		promptWidth := ansi.PrintableRuneWidth(m.buildPrompt())
+		cur := tea.NewCursor(c.X+promptWidth, promptLine)
+		cur.Blink = c.Blink
+		cur.Shape = c.Shape
+		cur.Color = c.Color
+		cursor = cur
+	}
+
+	return altView(baseView, cursor)
 }
 
 // messageLines returns the two lines for the message area above the prompt.

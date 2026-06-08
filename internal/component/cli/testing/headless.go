@@ -45,10 +45,6 @@ func NewHeadlessModel(configPath string) (*HeadlessModel, error) {
 		editor: ed,
 	}
 
-	// Disable cursor blink: eliminates ~530ms timer goroutines per keystroke
-	// that serve no purpose in headless mode.
-	hm.model.DisableBlink()
-
 	// Trigger initial completion population
 	hm.model.UpdateCompletions()
 
@@ -80,7 +76,6 @@ func NewHeadlessModelWithSession(configPath, user, origin string) (*HeadlessMode
 		editor: ed,
 	}
 
-	hm.model.DisableBlink()
 	hm.model.UpdateCompletions()
 
 	return hm, nil
@@ -99,8 +94,6 @@ func NewHeadlessCommandModel() *HeadlessModel {
 	hm := &HeadlessModel{
 		model: model,
 	}
-
-	hm.model.DisableBlink()
 
 	return hm
 }
@@ -155,7 +148,7 @@ func (hm *HeadlessModel) processCmd(cmd tea.Cmd) {
 // Timer goroutines only block in time.After, never accessing model/editor state,
 // so draining them later via SettleWait is race-free. State-mutating commands
 // (file I/O) complete within the slow-path deadline under normal conditions.
-// Cursor blink is eliminated via DisableBlink().
+// Virtual cursor is off by default (hardware cursor, no blink timers).
 func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 	if cmd == nil || depth > 5 {
 		return // Depth limit to prevent infinite recursion

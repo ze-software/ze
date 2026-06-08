@@ -232,29 +232,19 @@ const (
 	colChanges = "changes"
 )
 
-// Show column names used in model.go constants block above.
-
-// Show format names for the | format pipe.
+// Show format and source names for pipes and version display.
 const (
 	fmtTree   = "tree"
 	fmtConfig = "config"
-
 	FmtTree   = fmtTree
 	FmtConfig = fmtConfig
-)
 
-// Show source names for selecting which version to display.
-const (
 	srcSaved     = "saved"
 	srcConfirmed = "confirmed"
-
 	SrcSaved     = srcSaved
 	SrcConfirmed = srcConfirmed
 	CmpRollback  = cmdRollback
-)
 
-// Load command keywords.
-const (
 	loadLocationAbsolute = "absolute"
 	loadLocationRelative = "relative"
 	loadActionReplace    = "replace"
@@ -332,6 +322,7 @@ func NewModel(ed *Editor) (Model, error) {
 	ti.CharLimit = 512
 	ti.SetWidth(120)
 	ti.ShowSuggestions = true
+	ti.SetVirtualCursor(false)
 
 	vp := viewport.New(viewport.WithWidth(120), viewport.WithHeight(20))
 	vp.Style = lipgloss.NewStyle().
@@ -387,6 +378,7 @@ func NewCommandModel() Model {
 	ti.CharLimit = 512
 	ti.SetWidth(120)
 	ti.ShowSuggestions = true
+	ti.SetVirtualCursor(false)
 
 	vp := viewport.New(viewport.WithWidth(120), viewport.WithHeight(20))
 	vp.Style = lipgloss.NewStyle().
@@ -439,9 +431,9 @@ const draftPollInterval = 2 * time.Second
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
 	if m.hasEditor() && m.editor.HasSession() {
-		return tea.Batch(textinput.Blink, tea.Tick(draftPollInterval, func(time.Time) tea.Msg { return draftPollMsg{} }))
+		return tea.Tick(draftPollInterval, func(time.Time) tea.Msg { return draftPollMsg{} })
 	}
-	return textinput.Blink
+	return nil
 }
 
 // Update implements tea.Model.
@@ -965,13 +957,6 @@ func (m *Model) SetHistory(h *History) {
 // that cannot access the unexported textInput field directly.
 func (m *Model) SetInput(value string) {
 	m.textInput.SetValue(value)
-}
-
-// DisableBlink disables cursor blink for headless test models.
-// Sets the textinput to use a real cursor (no-op in headless mode) which
-// skips all virtual cursor processing including 530ms blink timers.
-func (m *Model) DisableBlink() {
-	m.textInput.SetVirtualCursor(false)
 }
 
 // UpdateCompletions refreshes the completion list based on current input.
