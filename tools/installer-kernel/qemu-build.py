@@ -68,6 +68,13 @@ def ccache_dir() -> Path:
     return d
 
 
+def build_dir() -> Path:
+    root = repo_root()
+    d = root / "tmp" / "qemu" / "build"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def find_free_port() -> int:
     with socket.socket() as s:
         s.bind(("", 0))
@@ -154,6 +161,7 @@ def _build_qemu_args(
     ssh_port: int,
     memory: str,
     ccache_path: Path | None = None,
+    build_path: Path | None = None,
 ) -> list[str]:
     qemu = qemu_binary(target_arch)
     args = [qemu]
@@ -212,6 +220,14 @@ def _build_qemu_args(
                 "-virtfs",
                 f"local,path={ccache_path},mount_tag=ccache,"
                 f"security_model=none,id=cc0,readonly=off",
+            ]
+        )
+    if build_path is not None:
+        args.extend(
+            [
+                "-virtfs",
+                f"local,path={build_path},mount_tag=builddir,"
+                f"security_model=none,id=bd0,readonly=off",
             ]
         )
     return args
@@ -304,8 +320,11 @@ def _run_build(
 ) -> int:
     ssh_port = find_free_port()
     cc_dir = ccache_dir()
+    bd_dir = build_dir()
     memory = _vm_memory()
-    args = _build_qemu_args(iso, workspace, target_arch, ssh_port, memory, cc_dir)
+    args = _build_qemu_args(
+        iso, workspace, target_arch, ssh_port, memory, cc_dir, bd_dir
+    )
 
     print(
         f">>> booting Alpine VM ({_alpine_arch(target_arch)}, "
@@ -394,6 +413,8 @@ def _run_build(
                 "mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 "
                 "ccache /ccache",
                 "mkdir -p /build",
+                "mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 "
+                "builddir /build",
             ]
         )
 
