@@ -1,6 +1,6 @@
 // Design: docs/architecture/cli/plugin-modes.md — ze_setup build tag validation
 //
-//go:build ze_core && ze_setup && !ze_distro && !ze_appliance
+//go:build ze_setup && !ze_core && !ze_distro && !ze_appliance
 
 package main
 

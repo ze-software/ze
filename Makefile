@@ -90,7 +90,7 @@ ze-appliance:
 
 ze-setup-bin:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
+	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
 
 ze-stripped:
 	@mkdir -p bin
@@ -125,7 +125,7 @@ bin/ze-appliance: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 bin/ze-setup: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-setup..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
+	$(GO) build -tags 'ze_setup $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-setup ./cmd/ze
 
 bin/ze-stripped: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-stripped..."

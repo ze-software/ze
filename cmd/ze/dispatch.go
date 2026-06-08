@@ -1,8 +1,8 @@
 // Design: docs/architecture/system-architecture.md -- unified binary dispatch infrastructure
 //
-// Shared dispatch infrastructure for all ze binaries. Each binary personality
-// (ze, ze-test, ze-chaos, ze-perf, ze-analyze) registers itself via init() in
-// build-tagged files; the dispatch loop adapts to what's registered.
+// Shared dispatch infrastructure for all ze binaries. Build tags control which
+// commands register; the dispatch loop adapts to what's registered. The binary
+// name is used only for usage/help text, never for dispatch.
 
 package main
 
@@ -100,16 +100,6 @@ func defaultDispatch(args []string) int {
 	return handler(rctx, args[1:])
 }
 
-// multiCallPrefix extracts the personality prefix from the binary name.
-// "ze-test" returns "test", "ze-chaos" returns "chaos", "ze" returns "".
-func multiCallPrefix() string {
-	base := binaryName()
-	if len(base) > 3 && base[:3] == "ze-" {
-		return base[3:]
-	}
-	return ""
-}
-
 func binaryName() string {
 	base := filepath.Base(os.Args[0])
 	base = strings.TrimSuffix(base, ".exe")
@@ -122,7 +112,7 @@ func dispatchMain(args []string) int {
 	crashlog.Init()
 	zeversion.Stamp(version, buildDate)
 
-	// Handle universal flags before multi-call prefix.
+	// Handle universal flags before personality setup.
 	if len(args) > 0 {
 		switch args[0] {
 		case "--version", "-V":
@@ -132,11 +122,6 @@ func dispatchMain(args []string) int {
 			fmt.Println(zeversion.Extended())
 			return 0
 		}
-	}
-
-	// Multi-call: ze-test foo -> ze test foo.
-	if prefix := multiCallPrefix(); prefix != "" {
-		args = append([]string{prefix}, args...)
 	}
 
 	// Run personality-specific setup (ze: global flag parsing, plugin init).
