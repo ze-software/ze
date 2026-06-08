@@ -1,147 +1,167 @@
 # Hook-to-Rule Mapping
 
-Quick reference: which hooks enforce which rules, and when they trigger.
+Quick reference: which checks enforce which rules, and when they trigger.
 Consult this BEFORE writing code to proactively comply, rather than
 fixing after rejection. For hook false positives and workarounds, see
 `plan/learned/HOOK-FRICTION.md`.
 
-When adding or changing a hook, make target gate, or generated check, also
-satisfy `ai/rules/discovery-updates.md` so future agents can find when to run
-it and which rule it enforces.
+## Architecture: checks live in three Python dispatchers
 
+The per-check shell hooks were consolidated into one Python dispatcher per
+trigger, so a tool call pays one process instead of dozens. The checks below are
+functions inside these files, not separate scripts:
 
-## PreToolUse Hooks (block before the tool runs)
+| Dispatcher | Runs on | Contains |
+|---|---|---|
+| `.claude/hooks/pretool-bash.py` | PreToolUse `Bash` | every Bash check below |
+| `.claude/hooks/pretool-writeedit.py` | PreToolUse `Write\|Edit\|MultiEdit\|NotebookEdit` | every Write/Edit check below |
+| `.claude/hooks/posttool-writeedit.py` | PostToolUse `Write\|Edit` | the cheap advisory PostToolUse checks |
 
-### Universal (all tools)
+Still standalone (expensive, mutating, complex, or single-purpose):
+`block-until-lsp.sh`, `auto_linter.sh`, `auto_py_format.sh`, `validate-spec.sh`,
+`mark-lsp-invoked.sh`, and the session-lifecycle hooks.
 
-| Hook | Enforces | Triggers on | What it does |
+**Changing a check:** edit the function in the relevant dispatcher (not a `.sh`),
+then run `python3 scripts/dev/hook-parity-check.py` to confirm no behaviour
+changed. If you intentionally changed behaviour, re-bless the golden table with
+`python3 scripts/dev/hook-parity-check.py --bless` and paste the result back.
+Also satisfy `ai/rules/discovery-updates.md` so future agents can find it.
+
+**Reads are free:** `Read`, `Grep`, `Glob`, `LSP`, `WebFetch`, `WebSearch` and
+other read-only tools trigger NO hooks. Only mutating/executing tools
+(`Bash`, `Write`, `Edit`, `MultiEdit`, `NotebookEdit`, `Task`, `Agent`) and
+`ToolSearch` (which loads LSP) are gated.
+
+## PreToolUse Checks (block before the tool runs)
+
+### LSP gate (`block-until-lsp.sh`, standalone)
+
+Enforces `session-start.md`. Triggers on `Bash|Write|Edit|MultiEdit|NotebookEdit|ToolSearch|Task|Agent`.
+Blocks those tools until `ToolSearch query="select:LSP"` has run this session. BLOCKING.
+
+### Bash (`pretool-bash.py`)
+
+| Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
-| `block-until-lsp.sh` | `session-start.md` | `.*` (all tools) | Blocks every tool call until `ToolSearch query="select:LSP"` has been run. BLOCKING. |
+| destructive-git | `CLAUDE.md` prohibitions | Bash | Blocks git commit/push/reset/restore/clean/merge. Allows `git restore --staged`. BLOCKING. |
+| worktree-copy | `CLAUDE.md` prohibitions | Bash | Blocks cp/mv/rsync from `.claude/worktrees/` to main repo. BLOCKING. |
+| root-build | (build hygiene) | Bash | Blocks `go build` without `-o bin/`. Allows `go build ./...` (check-only). BLOCKING. |
+| pipe-tail | `bash-output.md` | Bash | Blocks `\| tail` and piping `make ze-*` output. BLOCKING. |
+| system-tmp | `testing.md` | Bash | Blocks access to `/tmp`; must use project `tmp/`. BLOCKING. |
+| test-deletion | `no-test-deletion.md` | Bash | Blocks `rm`/`git checkout` of test files. BLOCKING. |
+| spec-audit | `implementation-audit.md` | Bash (git commit) | Verifies spec obligations before commit. BLOCKING. |
+| deferral-in-diff | `deferral-tracking.md` | Bash (git commit) | Blocks commit when staged diff has deferral language without `plan/deferrals.md` update. BLOCKING. |
+| deferral-unassigned | `deferral-tracking.md` | Bash (git commit) | Blocks commit when open deferrals have no destination. BLOCKING. |
+| wiring-at-commit | `integration-completeness.md` | Bash (git commit) | Warns about plugin code staged without `.ci` tests. Advisory. |
+| doc-drift | `documentation.md` | Bash (git commit) | Warns about docs drifting from live registry. Advisory. |
 
-### Bash
+`golangci-lint run` also runs standalone on `Bash(git commit:*)`.
 
-| Hook | Enforces | Triggers on | What it does |
+### Write/Edit (`pretool-writeedit.py`)
+
+| Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
-| `block-destructive-git.sh` | `CLAUDE.md` prohibitions | Bash | Blocks git commit/push/reset/restore/clean/merge. Allows `git restore --staged`. BLOCKING. |
-| `block-worktree-copy.sh` | `CLAUDE.md` prohibitions | Bash | Blocks cp/mv/rsync from `.claude/worktrees/` to main repo. BLOCKING. |
-| `block-root-build.sh` | (build hygiene) | Bash | Blocks `go build` without `-o bin/`. Allows `go build ./...` (check-only). BLOCKING. |
-| `block-pipe-tail.sh` | `bash-output.md` | Bash | Blocks `\| tail` and piping `make ze-*` output. BLOCKING. |
-| `block-system-tmp.sh` | `testing.md` | Bash, Write\|Edit | Blocks access to `/tmp`; must use project `tmp/`. BLOCKING. |
-| `pre-commit-spec-audit.sh` | `implementation-audit.md` | Bash (git commit) | Verifies spec obligations before commit: file existence, AC evidence, audit tables. BLOCKING. |
-| `check-deferral-in-diff.sh` | `deferral-tracking.md` | Bash (git commit) | Blocks commit when staged diff contains deferral language without `plan/deferrals.md` update. BLOCKING. |
-| `check-deferral-unassigned.sh` | `deferral-tracking.md` | Bash (git commit) | Blocks commit when open deferrals have no destination spec. BLOCKING. |
+| design-without-lsp | `session-start.md` | design/spec `.md` | Blocks edits to `plan/design-*.md` / `plan/spec-*.md` unless LSP invoked in last 30 min. BLOCKING. |
+| pre-write-go | `before-writing-code.md` | `internal/**/*.go` | Blocks without proper session state. BLOCKING. |
+| source-edit-spec-not-in-progress | `planning.md` | source/test/learned | Blocks edits when selected spec is not `in-progress`. BLOCKING. |
+| encoding-alloc | `buffer-first.md` | wire-encode `.go` | Blocks `make()`/`append()`/`Bytes()`/`Pack()` in wire-facing code. BLOCKING. |
+| format-alloc | `buffer-first.md` | BGP format `.go` | **No-op** (see note below). |
+| sprintf-new | `no-sprintf-alloc.md` | `.go` | Blocks new `fmt.Sprintf`/`Fprintf`/`Printf`. Allows `fmt.Errorf`. BLOCKING. |
+| legacy-log | `go-standards.md` | `.go` | Blocks `log.Printf` / legacy `log` package. BLOCKING. |
+| panic-error | `go-standards.md` | `.go` | Blocks `panic()` except `unreachable`/`not implemented`/`TODO`/`BUG`/`impossible`. BLOCKING. |
+| ignored-errors | `go-standards.md` | `.go` | Blocks `_, _ =` error-swallowing. BLOCKING. |
+| silent-ignore | `config-design.md` | `.go` | Blocks empty `default:` cases. BLOCKING. |
+| temp-debug | `go-standards.md` | `.go` | Blocks `fmt.Print*`/`println` in production Go. BLOCKING. |
+| os-exit | `cli-patterns.md` | `.go` | Blocks `os.Exit()` outside `main.go`/`register.go`/`scripts/`. BLOCKING. |
+| layering | `no-layering.md` | `.go` | Blocks backwards-compat/layering patterns. BLOCKING. |
+| exabgp-in-engine | `compatibility.md` | `.go` | Blocks ExaBGP awareness outside `exabgp/`. BLOCKING. |
+| version-config | `config-design.md` | config files | Blocks version fields in config. BLOCKING. |
+| nolint-abuse | `quality.md` | `.go` | Blocks `//nolint:` without justification. BLOCKING. |
+| lint-exclusions | `quality.md` | `.golangci.*` | Blocks adding lint exclusions. BLOCKING. |
+| and-functions | `design-principles.md` | `.go` | Warns about `func *And*()` names. Advisory. |
+| init-register | `design-principles.md` | `.go` | Blocks `init()` outside `register.go`. BLOCKING. |
+| yagni-violations | `design-principles.md` | `.go` | Blocks speculative-feature comments. BLOCKING. |
+| fake-bufhandle | (pool correctness) | `.go` | Blocks `BufHandle{Buf: make(...)}` outside `testPoolBuf`. BLOCKING. |
+| observer-sys-exit | `testing.md` | `.ci` | Warns about `sys.exit(1)` in observers without `runtime_fail`. Advisory. |
+| hardcoded-commands | `derive-not-hardcode.md` | `.go` | Blocks hardcoded command-list literals. BLOCKING. |
+| json-kebab | `json-format.md` | `.go` | Blocks non-kebab-case JSON tags. BLOCKING. |
+| goroutine-lifecycle | `goroutine-lifecycle.md` | hot-path `.go` | Blocks `go func()` in reactor/event/dispatch/hub/wire/message. BLOCKING. |
+| require-design-ref | `design-doc-references.md` | `.go` | Blocks Go files without `// Design:` comment. BLOCKING. |
+| require-related-refs | `related-refs.md` | `.go` | Blocks missing/stale `// Related:`/`// Detail:`/`// Overview:` refs. BLOCKING. |
+| test-deletion (Edit) | `no-test-deletion.md` | test files | Blocks removing test funcs/cases/assertions. BLOCKING. |
+| system-tmp (path) | `testing.md` | any | Blocks writing to `/tmp`. BLOCKING. |
+| generated-files | `canonical-sources.md` | `CLAUDE.md`/`AGENTS.md` | Blocks editing generated files. BLOCKING. |
+| claude-plans | `.claude/rules/planning.md` | Write | Blocks `.claude/plans/` and `~/.claude/plan/`. BLOCKING. |
+| check-existing-patterns | `before-writing-code.md` | new `internal/**/*.go` | Blocks duplicate exported type/func in same package. BLOCKING. |
+| check-existing-tests | `before-writing-code.md` | new test files | Warns about similar existing tests. Advisory. |
+| enforce-naming | `documentation.md` | new files | Warns on wrong file naming. Advisory. |
+| throwaway-tests | `testing.md` | Write | Blocks test files in `/tmp` and throwaway locations. BLOCKING. |
+| utils-package | `design-principles.md` | Write `.go` | Blocks `utils/`/`helpers/`/`common/`/`misc/` packages. BLOCKING. |
+| require-test-first | `tdd.md` | new `.go` | Warns when creating impl without a test file. Advisory. |
+| require-docs-read | `planning.md` | new spec | Warns when writing a spec without session-state evidence. Advisory. |
 
-### Write and/or Edit (.go files)
+> **format-alloc is a no-op.** The original `block-format-alloc.sh` used bash-4
+> `declare -A`, but the `#!/bin/bash` shebang is macOS bash 3.2, so it errored
+> and exited 0 — it never enforced anything. The port preserves that (the real
+> check sits disabled in `pretool-writeedit.py`, ready to enable).
 
-| Hook | Enforces | Triggers on | What it does |
-|---|---|---|---|
-| `block-design-without-lsp.sh` | `session-start.md` | Write\|Edit\|MultiEdit\|NotebookEdit | Blocks edits to `plan/design-*.md` or `plan/spec-*.md` unless LSP was invoked in the last 30 min. BLOCKING. |
-| `pre-write-go.sh` | `before-writing-code.md` | Write\|Edit | Blocks writes to `internal/**/*.go` without proper session state. BLOCKING. |
-| `block-source-edit-spec-not-in-progress.sh` | `planning.md` | Write\|Edit\|MultiEdit | Blocks source/test/learned edits when selected spec is not `in-progress`. BLOCKING. |
-| `block-encoding-alloc.sh` | `buffer-first.md`, `design-principles.md` | Write\|Edit | Blocks `make()`/`append()`/`Bytes()`/`Pack()` in wire-facing code. BLOCKING. |
-| `block-format-alloc.sh` | `buffer-first.md` | Write\|Edit | Blocks `fmt.Sprintf`/`strings.Builder`/`strings.Join` in BGP text/JSON format files. BLOCKING. |
-| `block-sprintf-new.sh` | `no-sprintf-alloc.md` | Write\|Edit | Blocks new `fmt.Sprintf`/`Fprintf`/`Printf` in Go production code. Allows `fmt.Errorf`. BLOCKING. |
-| `block-legacy-log.sh` | `go-standards.md` | Write\|Edit | Blocks `log.Printf` and legacy log package usage. BLOCKING. |
-| `block-panic-error.sh` | `go-standards.md` | Write\|Edit | Blocks `panic()` except approved prefixes: `BUG:`, `unreachable:`, `not implemented`, `TODO:`, `impossible:`. BLOCKING. |
-| `block-ignored-errors.sh` | `go-standards.md` | Write\|Edit | Blocks `_, _ =` error-swallowing pattern. BLOCKING. |
-| `block-silent-ignore.sh` | `config-design.md`, `go-standards.md` | Write\|Edit | Blocks bare `default:` on its own line. Put body on same line or use if/else. BLOCKING. |
-| `block-temp-debug.sh` | `go-standards.md` | Write\|Edit | Blocks `fmt.Print*` in production Go files. Use `slog` for permanent debug logging. BLOCKING. |
-| `block-os-exit.sh` | `cli-patterns.md` | Write\|Edit | Blocks `os.Exit()` outside `main.go` and `register.go`. BLOCKING. |
-| `block-layering.sh` | `no-layering.md` | Write\|Edit | Blocks layering/compatibility patterns. BLOCKING. |
-| `block-exabgp-in-engine.sh` | `compatibility.md` | Write\|Edit | Blocks ExaBGP format awareness outside `exabgp/` package. BLOCKING. |
-| `block-version-config.sh` | `config-design.md` | Write\|Edit | Blocks version fields in config-related files. BLOCKING. |
-| `block-nolint-abuse.sh` | `quality.md` | Write\|Edit | Blocks `//nolint:` without justification comment. BLOCKING. |
-| `block-lint-exclusions.sh` | `quality.md` | Write\|Edit | Blocks adding exclusions to `.golangci.yml`. BLOCKING. |
-| `block-and-functions.sh` | `design-principles.md` | Write\|Edit | Warns about `func *And*()` names violating single responsibility. Advisory. |
-| `block-init-register.sh` | `design-principles.md` | Write\|Edit | Blocks `init()` outside `register.go`/`register_*.go` files. BLOCKING. |
-| `block-yagni-violations.sh` | `design-principles.md` | Write\|Edit | Blocks speculative features (TODO, placeholder, future, stub patterns). BLOCKING. |
-| `block-fake-bufhandle.sh` | (pool correctness) | Write\|Edit\|MultiEdit | Blocks `BufHandle{Buf: make(...)}` outside `testPoolBuf`. Prevents pool corruption. BLOCKING. |
-| `block-observer-sys-exit.sh` | `testing.md` | Write\|Edit\|MultiEdit | Warns about `sys.exit(1)` in `.ci` Python observers without `runtime_fail`. Advisory. |
-| `check-json-kebab.sh` | `json-format.md` | Write\|Edit | Blocks non-kebab-case JSON field tags. BLOCKING. |
-| `check-goroutine-lifecycle.sh` | `goroutine-lifecycle.md` | Write\|Edit | Blocks `go func()` in hot-path files (reactor, event, dispatch, hub, wire, message). BLOCKING. |
-| `require-test-first.sh` | `tdd.md` | Write\|Edit | Warns when editing Go impl files without a corresponding test file. Advisory. |
-| `require-design-ref.sh` | `design-doc-references.md` | Write\|Edit | Blocks Go files without `// Design:` comment. Exempts test/register/embed/doc/gen files. BLOCKING. |
-| `require-related-refs.sh` | `related-refs.md` | Write\|Edit | Blocks Go files with missing or stale `// Related:` / `// Detail:` / `// Overview:` cross-references. BLOCKING. |
-| `block-test-deletion.sh` | `no-test-deletion.md` | Write\|Edit, Bash | Blocks removing test functions or deleting test files. BLOCKING. |
+## PostToolUse Checks (run after the tool completes)
 
-### Write only (new files)
+| Check | File | Enforces | Triggers on | What it does |
+|---|---|---|---|---|
+| mark-lsp-invoked | `mark-lsp-invoked.sh` | `session-start.md` | LSP | Writes freshness marker for the design-without-lsp gate. |
+| auto-lint | `auto_linter.sh` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
+| auto-py-format | `auto_py_format.sh` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
+| validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. BLOCKING. |
+| file-size | `posttool-writeedit.py` | `file-modularity.md` | `.go` | Warns >600 lines, strong >1000. Advisory. |
+| warn-deferral | `posttool-writeedit.py` | `deferral-tracking.md` | `.md` | Warns on deferral language in doc edits. Advisory. |
+| require-rfc-reference | `posttool-writeedit.py` | `design-doc-references.md` | `.go` | Suggests `// RFC:` header. Advisory. |
+| require-test-docs | `posttool-writeedit.py` | `tdd.md` | `_test.go` | Warns about missing `VALIDATES:`/`PREVENTS:`. Advisory. |
+| require-fuzz-tests | `posttool-writeedit.py` | `tdd.md` | wire `.go` | Warns about `Parse*` without `Fuzz*` tests. Advisory. |
+| vague-names | `posttool-writeedit.py` | `design-principles.md` | `.go` | Warns about `Data`/`Info`/`Result`/... names. Advisory. |
+| boundary-tests | `posttool-writeedit.py` | `tdd.md` | `.go` | Warns about numeric validation without boundary tests. Advisory. |
 
-| Hook | Enforces | Triggers on | What it does |
-|---|---|---|---|
-| `block-claude-plans.sh` | `.claude/rules/planning.md` | Write | Blocks writes to `.claude/plans/` or `~/.claude/plan/`. Use `plan/spec-*.md`. BLOCKING. |
-| `check-existing-patterns.sh` | `before-writing-code.md` | Write | Blocks new `.go` under `internal/` when first exported type/func already exists elsewhere. BLOCKING. |
-| `check-existing-tests.sh` | `before-writing-code.md` | Write | Warns when creating a test file similar to an existing one. Advisory. |
-| `enforce-naming.sh` | `documentation.md` | Write | Blocks wrong file naming conventions for new files. Advisory. |
-| `block-throwaway-tests.sh` | `testing.md` | Write | Blocks test files in `/tmp` or similar throwaway locations. BLOCKING. |
-| `block-utils-package.sh` | `design-principles.md` | Write | Blocks creating files in `utils/`, `helpers/`, `common/`, `misc/` packages. BLOCKING. |
-| `require-docs-read.sh` | `planning.md` | Write | Warns when writing a spec without evidence of reading architecture docs. Advisory. |
-
-## PostToolUse Hooks (run after the tool completes)
-
-### LSP
-
-| Hook | Enforces | Triggers on | What it does |
-|---|---|---|---|
-| `mark-lsp-invoked.sh` | `session-start.md` | LSP | Writes freshness marker for `block-design-without-lsp.sh`. |
-
-### Bash
-
-| Hook | Enforces | Triggers on | What it does |
-|---|---|---|---|
-| Post-verify agent review | `quality.md` | Bash (`make ze-verify*`) | Spawns Sonnet agent to review all uncommitted Go changes for bugs. |
-| `ze-verify-wiring-docs` | `wiring-completeness.md`, `impact-analysis.md`, `documentation.md` | Make (`ze-verify`, `ze-verify-changed`, or direct target) | Blocks changed command declarations, source-anchored docs, plugin inventory drift, and unwired exported symbols. BLOCKING. |
-| `check-wiring-at-commit.sh` | `integration-completeness.md` | Bash (git commit) | Warns about plugin code committed without `.ci` tests. Advisory fallback. |
-| `check-doc-drift.sh` | `documentation.md` | Bash (git commit) | Warns about doc counts/lists and narrow stale claims drifting from live source. Advisory fallback. |
-
-### Write/Edit
-
-| Hook | Enforces | Triggers on | What it does |
-|---|---|---|---|
-| `auto_linter.sh` | `go-standards.md` | Write\|Edit | Runs `goimports -w` on Go files. BLOCKING on lint failure. |
-| `auto_py_format.sh` | (code style) | Write\|Edit | Runs `ruff format` + `ruff check` on Python files. Non-blocking. |
-| `validate-spec.sh` | `planning.md` | Write\|Edit | Validates `plan/spec-*.md` against required sections/format. BLOCKING. |
-| `warn-deferral-in-edit.sh` | `deferral-tracking.md` | Write\|Edit | Warns when deferral language appears in spec/doc edits. Advisory. |
-| `require-rfc-reference.sh` | `design-doc-references.md` | Write\|Edit | Suggests `// RFC:` header when BGP code references RFCs. Advisory. |
-| `require-test-docs.sh` | `tdd.md` | Write\|Edit | Warns about test files missing `VALIDATES:`/`PREVENTS:` comments. Advisory. |
-| `require-fuzz-tests.sh` | `tdd.md` | Write\|Edit | Warns about wire format parsing code without fuzz tests. Advisory. |
-| `block-vague-names.sh` | `design-principles.md` | Write\|Edit | Warns about vague variable names (`data`, `info`, `result`, etc.). Advisory. |
-| `require-boundary-tests.sh` | `tdd.md` | Write\|Edit | Warns about numeric validation without boundary tests. Advisory. |
-| `check-file-size.sh` | `file-modularity.md` | Write\|Edit | Warns at >600 lines, strong warning at >1000 lines. Advisory. |
+`make ze-verify` separately runs `ze-verify-wiring-docs` (wiring/doc-drift gate);
+that is a Make target, not a Claude hook.
 
 ## Session Lifecycle Hooks
 
 | Hook | Event | What it does |
 |---|---|---|
-| `session-start.sh` | SessionStart | Prints status summary (uncommitted files, active sessions, spec assignments). Creates session marker. |
-| `compaction-reminder.sh` | UserPromptSubmit | Detects context compaction. Writes marker, reminds to read `post-compaction.md`. |
-| `block-premature-stop.sh` | Stop | Blocks stop when last message contains ownership-dodging phrases ("would you like me to", "let me know"). BLOCKING. |
-| `session-end-summary.sh` | Stop | Writes session state snapshot to per-spec state file. Cleans up session marker. |
-| `session-end-deferrals.sh` | Stop | Prints open deferral count as reminder. Advisory. |
-| `pre-compact-save.sh` | PreCompact | Saves session state snapshot before context compaction. |
-| `subagent-context.sh` | SubagentStart | Injects compact project context (constraints, patterns, branch, spec) into spawned agents. |
+| `session-start.sh` | SessionStart | Prints status summary. Creates session marker. |
+| `compaction-reminder.sh` | UserPromptSubmit | Detects compaction; reminds to read `post-compaction.md`. |
+| `block-premature-stop.sh` | Stop | Blocks stop on ownership-dodging phrases. BLOCKING. |
+| `session-end-summary.sh` | Stop | Writes session state snapshot. Cleans up marker. |
+| `session-end-deferrals.sh` | Stop | Prints open deferral count. Advisory. |
+| `pre-compact-save.sh` | PreCompact | Saves session state before compaction. |
+| `subagent-context.sh` | SubagentStart | Injects project context into spawned agents. |
 
 ## Pre-Flight Checklist by File Type
 
-Before writing to a file, check which hooks will run:
+(All checks below now run inside the dispatchers; behaviour is unchanged.)
 
 ### Any `.go` file under `internal/`
 
-Will trigger: `pre-write-go`, `auto_linter`, `block-encoding-alloc` (wire paths), `block-format-alloc` (format files), `block-sprintf-new`, `block-legacy-log`, `block-panic-error`, `block-ignored-errors`, `block-silent-ignore`, `block-temp-debug`, `block-os-exit`, `block-init-register`, `block-yagni-violations`, `check-json-kebab`, `require-design-ref`, `require-related-refs`, `check-file-size`.
-
-Additionally for hot-path files (reactor, event, dispatch, hub, wire, message): `check-goroutine-lifecycle`, `block-fake-bufhandle`.
+pre-write-go, auto-lint, encoding-alloc (wire paths), sprintf-new, legacy-log,
+panic-error, ignored-errors, silent-ignore, temp-debug, os-exit, init-register,
+yagni-violations, json-kebab, require-design-ref, require-related-refs, file-size.
+Hot-path files (reactor/event/dispatch/hub/wire/message) also: goroutine-lifecycle, fake-bufhandle.
 
 ### Test files (`_test.go`, `.ci`)
 
-Will trigger: `block-test-deletion` (if removing tests), `check-existing-tests` (if new), `require-test-docs`, `require-boundary-tests`, `block-observer-sys-exit` (`.ci` with Python).
+test-deletion (if removing tests), check-existing-tests (if new), require-test-docs,
+boundary-tests, observer-sys-exit (`.ci` with Python).
 
 ### Spec files (`plan/spec-*.md`)
 
-Will trigger: `validate-spec`, `block-design-without-lsp` (requires recent LSP invocation), `require-docs-read` (if new), `block-source-edit-spec-not-in-progress` (if spec not `in-progress`).
+validate-spec, design-without-lsp (needs recent LSP), require-docs-read (if new),
+source-edit-spec-not-in-progress (if spec not `in-progress`).
 
 ### Python files (`.py`)
 
-Will trigger: `auto_py_format` (ruff format + check).
+auto-py-format (ruff format + check).
 
 ### Commits (Bash `git commit`)
 
-Will trigger: `block-destructive-git` (blocks), `pre-commit-spec-audit`, `check-deferral-in-diff`, `check-deferral-unassigned`, `check-wiring-at-commit`, `check-doc-drift`.
+destructive-git (blocks), spec-audit, deferral-in-diff, deferral-unassigned,
+wiring-at-commit, doc-drift.

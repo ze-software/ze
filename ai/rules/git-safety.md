@@ -47,7 +47,7 @@ scripts/dev/commit_helper.py create \
   --replace \
   --subject "hook: allow tee pipe, per-session log paths" \
   --body "Explanation of why the change was made." \
-  --file .claude/hooks/block-pipe-tail.sh \
+  --file .claude/hooks/pretool-bash.py \
   --file ai/rules/bash-output.md \
   --lesson-not-needed "hook fix, no novel pattern"
 

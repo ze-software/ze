@@ -1,0 +1,1287 @@
+#!/usr/bin/env -S python3 -S
+"""Single consolidated PreToolUse check for Write/Edit/MultiEdit/NotebookEdit.
+
+Replaces 40 separate shell hooks that each spawned bash + several jq calls on
+every file edit. Parses the payload once and runs every check in-process.
+
+Each check gates on the SAME tool set and file-path predicates as its original
+shell hook, so behaviour is identical; only the process count changes (40 -> 1).
+Exit-code parity against all 40 originals is enforced by
+scripts/dev/hook-parity-check.py.
+
+Exit codes: 0 allow, 1 non-blocking warning, 2 block. Most severe wins when
+several checks fire. Fails OPEN (exit 0) on an unexpected internal error.
+"""
+
+import base64
+import os
+import re
+import subprocess
+import sys
+import time
+
+RED = "\033[31m"
+YELLOW = "\033[33m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
+PROJECT_DIR = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..")
+)
+
+
+# --------------------------------------------------------------------------- #
+# Shared helpers
+# --------------------------------------------------------------------------- #
+
+
+def std_content(ti):
+    """CONTENT = .tool_input.content // .tool_input.new_string (jq // = null-only)."""
+    c = ti.get("content")
+    if c is None:
+        c = ti.get("new_string")
+    return c or ""
+
+
+def grep_lines(text, pattern, ignorecase=False, invert=False):
+    flags = re.IGNORECASE if ignorecase else 0
+    out = []
+    for i, line in enumerate(text.split("\n"), 1):
+        m = bool(re.search(pattern, line, flags))
+        if m != invert:
+            out.append((i, line))
+    return out
+
+
+def grep_any(text, pattern, ignorecase=False):
+    flags = re.IGNORECASE if ignorecase else 0
+    return re.search(pattern, text, flags | re.MULTILINE) is not None
+
+
+def filter_out(pairs, pattern, ignorecase=False):
+    flags = re.IGNORECASE if ignorecase else 0
+    return [(n, l) for (n, l) in pairs if not re.search(pattern, l, flags)]
+
+
+def isfile(path):
+    return os.path.isfile(path)
+
+
+# --- session id + state file (ported from lib/session-id.sh, lib/state-file.sh) ---
+
+
+def _ps(field, pid):
+    try:
+        return subprocess.run(
+            ["ps", "-o", field, "-p", str(pid)], capture_output=True, text=True
+        ).stdout.strip()
+    except Exception:
+        return ""
+
+
+def _walk_for_claude():
+    pid = os.getpid()
+    while pid > 1:
+        try:
+            cmdline = f"/proc/{pid}/cmdline"
+            if os.path.isfile(cmdline):
+                with open(cmdline, "rb") as fh:
+                    argv0 = fh.read().split(b"\0")[0].decode("utf-8", "replace")
+                ppid = ""
+                try:
+                    with open(f"/proc/{pid}/status") as fh:
+                        for ln in fh:
+                            if ln.startswith("PPid:"):
+                                ppid = ln.split()[1]
+                                break
+                except Exception:
+                    ppid = ""
+            else:
+                argv0 = _ps("comm=", pid)
+                ppid = _ps("ppid=", pid).strip()
+            base = argv0.rsplit("/", 1)[-1]
+            if base == "claude" or argv0 == "claude":
+                return str(pid)
+            if not ppid:
+                break
+            pid = int(ppid)
+        except Exception:
+            break
+    return str(os.getppid())
+
+
+def session_id():
+    tok = os.environ.get("CLAUDE_CODE_SESSION_ACCESS_TOKEN")
+    if not tok:
+        return _walk_for_claude()
+    try:
+        payload = tok.split(".")[1].replace("_", "/").replace("-", "+")
+        mod = len(payload) % 4
+        if mod == 2:
+            payload += "=="
+        elif mod == 3:
+            payload += "="
+        decoded = base64.b64decode(payload).decode("utf-8", "replace")
+        m = re.search(r'"session_id":\s*"([^"]*)"', decoded)
+        if m and m.group(1):
+            return m.group(1)
+    except Exception:
+        pass
+    return str(os.getppid())
+
+
+def state_file(sid):
+    marker = os.path.join(PROJECT_DIR, "tmp/session", f".session-{sid}")
+    spec = ""
+    if os.path.isfile(marker):
+        try:
+            with open(marker) as fh:
+                spec = fh.readline().strip()
+        except Exception:
+            spec = ""
+    if spec and spec != "unassigned":
+        stem = re.sub(r"\.md$", "", re.sub(r"^spec-", "", spec))
+        return os.path.join(
+            PROJECT_DIR, "tmp/session", f"session-state-{stem}-{sid}.md"
+        )
+    return os.path.join(PROJECT_DIR, "tmp/session", f"session-state-{sid}.md")
+
+
+# --------------------------------------------------------------------------- #
+# Content-pattern checks (Go production code)
+# --------------------------------------------------------------------------- #
+
+
+def _go_we(ctx):
+    return ctx["tool"] in ("Write", "Edit") and ctx["fp"].endswith(".go")
+
+
+def c_and_functions(ctx):
+    if not _go_we(ctx) or re.search(r"_test\.go$", ctx["fp"]):
+        return None
+    hits = grep_lines(
+        ctx["content"], r"^func[ \t]+(\([^)]+\)[ \t]+)?[A-Z][a-zA-Z]*And[A-Z]"
+    )
+    if hits:
+        return (
+            1,
+            f"{RED}{BOLD}❌ BLOCKED: Single responsibility violation{RESET} (function with 'And' in name)",
+        )
+    return None
+
+
+def c_os_exit(ctx):
+    fp = ctx["fp"]
+    if (
+        not _go_we(ctx)
+        or re.search(r"_test\.go$", fp)
+        or re.search(r"/main\.go$", fp)
+        or re.search(r"/register\.go$", fp)
+        or "/scripts/" in fp
+    ):
+        return None
+    hits = filter_out(
+        grep_lines(ctx["content"], r"os\.Exit\("), r"//.*os\.Exit", ignorecase=True
+    )
+    if hits:
+        return (2, f"{RED}{BOLD}❌ BLOCKED: os.Exit() in handler{RESET}")
+    return None
+
+
+def c_panic(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp) or "/scripts/" in fp:
+        return None
+    hits = grep_lines(ctx["content"], r"(^|[^A-Za-z0-9_])panic[ \t]*\(")
+    hits = filter_out(
+        hits,
+        r'panic[ \t]*\([ \t]*"(unreachable|not implemented|unimplemented|TODO|BUG|impossible)',
+    )
+    if hits:
+        return (2, f"{RED}❌ Return error, don't panic(){RESET}")
+    return None
+
+
+def c_raw_ansi(ctx):
+    fp = ctx["fp"]
+    if (
+        not _go_we(ctx)
+        or re.search(r"_test\.go$", fp)
+        or re.search(r"textbuf\.go$", fp)
+        or re.search(r"helpfmt\.go$", fp)
+    ):
+        return None
+    if not ctx["content"]:
+        return None
+    hits = filter_out(
+        grep_lines(
+            ctx["content"],
+            r"\\033\[|\\x1b\[|\\e\[|\\u001b\[|\\U0000001b\[",
+            ignorecase=True,
+        ),
+        r"//.*\\033",
+    )
+    if hits:
+        return (2, f"{RED}{BOLD}✘ BLOCKED: raw ANSI escape code in {fp}{RESET}")
+    return None
+
+
+def c_legacy_log(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp) or "/scripts/" in fp:
+        return None
+    content = ctx["content"]
+    a = grep_any(
+        content,
+        r'^[ \t]*(import[ \t]+)?(_[ \t]+|[a-zA-Z][a-zA-Z0-9_]*[ \t]+)?"log"[ \t]*$',
+    )
+    b = grep_any(
+        content,
+        r"(^|[^A-Za-z0-9_])log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)([^A-Za-z0-9_]|$)",
+    )
+    if a or b:
+        return (2, f"{RED}❌ Use slog, not log package{RESET}")
+    return None
+
+
+def c_sprintf_new(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
+        return None
+    h1 = filter_out(
+        filter_out(
+            grep_lines(ctx["content"], r"fmt\.(Sprintf|Fprintf|Printf)\("),
+            r"fmt\.Fprintf\(os\.(Stdout|Stderr)",
+        ),
+        r"//.*fmt\.(Sprintf|Fprintf|Printf)",
+    )
+    h2 = filter_out(
+        grep_lines(ctx["content"], r"strconv\.Format(Uint|Int)\("),
+        r"//.*strconv\.Format",
+    )
+    if h1 or h2:
+        return (2, f"{RED}{BOLD}✘ BLOCKED: banned format primitive in {fp}{RESET}")
+    return None
+
+
+def c_string_concat(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
+        return None
+    hits = grep_lines(ctx["content"], r'("[^"]*"\s*\+\s*[^"=]|[^"=]\s*\+\s*"[^"]*")')
+    hits = filter_out(hits, r"^\s*//")
+    hits = filter_out(hits, r"(^[0-9]+:)?\s*const\s")
+    hits = filter_out(hits, r'"[^"]*"\s*\+\s*"[^"]*"')
+    hits = filter_out(hits, r'//.*"[^"]*"\s*\+')
+    hits = filter_out(hits, r"filepath\.(Join|Dir|Base)")
+    hits = filter_out(hits, r"path\.(Join|Dir|Base)")
+    if hits:
+        return (2, f"{RED}{BOLD}BLOCKED: string + concatenation in {fp}{RESET}")
+    return None
+
+
+def c_temp_debug(ctx):
+    fp = ctx["fp"]
+    if (
+        not _go_we(ctx)
+        or re.search(r"_test\.go$", fp)
+        or "cmd/" in fp
+        or "/scripts/" in fp
+        or re.search(r"/register\.go$", fp)
+    ):
+        return None
+    content = ctx["content"]
+    if (
+        grep_lines(content, r"^[ \t]*println[ \t]*\(")
+        or grep_lines(content, r"fmt\.Fprint.*os\.Stderr")
+        or grep_lines(
+            content,
+            r'fmt\.Print.*"(DEBUG|debug|TRACE|trace|>>>|<<<|---|\*\*\*|XXX|FIXME)',
+            ignorecase=True,
+        )
+        or filter_out(
+            grep_lines(content, r'fmt\.Println[ \t]*\([ \t]*"[^"]{1,50}"[ \t]*\)'),
+            r"error|fail|warn|usage|help|version",
+            ignorecase=True,
+        )
+    ):
+        return (2, f"{RED}{BOLD}❌ BLOCKED: Temporary debug statement{RESET}")
+    return None
+
+
+def c_nolint(ctx):
+    if not _go_we(ctx):
+        return None
+    bad = False
+    for _, line in grep_lines(ctx["content"], r"//[ \t]*nolint"):
+        if not re.search(r"//[ \t]*nolint:[a-zA-Z,]+[ \t]+//", line):
+            bad = True
+    if bad:
+        return (2, f"{RED}{BOLD}❌ BLOCKED: nolint without justification{RESET}")
+    return None
+
+
+def c_json_kebab(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp):
+        return None
+    if grep_lines(ctx["content"], r'`.*json:"[a-z]+[A-Z]') or grep_lines(
+        ctx["content"], r'`.*json:"[a-z]+_[a-z]'
+    ):
+        return (2, f"{RED}{BOLD}❌ BLOCKED: Non-kebab-case JSON tags{RESET}")
+    return None
+
+
+def c_yagni(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp):
+        return None
+    pats = [
+        "in case we need",
+        "might be useful",
+        "for future use",
+        "someday",
+        "just in case",
+        "maybe later",
+        "could be extended",
+        "placeholder for",
+        "reserved for future",
+        "not yet implemented.*TODO",
+    ]
+    for p in pats:
+        if grep_lines(ctx["content"], p, ignorecase=True):
+            return (2, f"{RED}{BOLD}❌ BLOCKED: YAGNI violation{RESET}")
+    return None
+
+
+def c_ignored_errors(ctx):
+    if not _go_we(ctx):
+        return None
+    content = ctx["content"]
+    if grep_lines(
+        content,
+        r"^[ \t]*_[ \t]*=[ \t]*[A-Za-z0-9_]+\.(Close|Write|Read|Flush|Sync|Remove|Mkdir|Chmod)[ \t]*\(",
+    ) or grep_lines(content, r"^[ \t]*_[ \t]*,[ \t]*_[ \t]*="):
+        return (2, f"{RED}❌ Handle errors: if err != nil {{ }}{RESET}")
+    return None
+
+
+def c_layering(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp):
+        return None
+    pats = [
+        r"backwards.?compatib",
+        r"backward.?compatib",
+        r"legacy.?(code|format|shim|layer|path|support)",
+        r"fallback.?to.?(old|legacy|previous|pre[-_])",
+        r"hybrid.?(approach|system|layer)",
+        r"gradual.?migration",
+        r"temporary.?shim",
+        r"compat.?layer",
+        r"deprecated.?but.?kept",
+    ]
+    for p in pats:
+        if grep_lines(ctx["content"], p, ignorecase=True):
+            return (2, f"{RED}{BOLD}❌ BLOCKED: Layering/compatibility pattern{RESET}")
+    return None
+
+
+def c_exabgp(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or "/exabgp/" in fp or "cmd/ze/exabgp" in fp:
+        return None
+    content = ctx["content"]
+    errs = False
+    for p in [
+        r"exabgp.*format",
+        r"ExaBGP.*JSON",
+        r"exabgp.*json",
+        r'"neighbor".*"announce"',
+        r"exabgp.*compat",
+        r"ExaBGPCompat",
+    ]:
+        if grep_any(content, p, ignorecase=True):
+            errs = True
+            break
+    if grep_any(content, r'".*internal/exabgp"') and not re.search(r"cmd/ze/", fp):
+        errs = True
+    if errs:
+        return (2, f"{RED}{BOLD}❌ BLOCKED: ExaBGP in engine{RESET}")
+    return None
+
+
+def c_goroutine(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp):
+        return None
+    hot = bool(
+        re.search(r"reactor", fp)
+        or re.search(r"/event", fp)
+        or re.search(r"/dispatch", fp)
+        or re.search(r"/hub/", fp)
+        or re.search(r"/wire/", fp)
+        or re.search(r"/message/", fp)
+    )
+    if not hot:
+        return None
+    if grep_lines(ctx["content"], r"^[ \t]*go func\("):
+        return (2, f"{RED}{BOLD}❌ BLOCKED: Per-event goroutine in hot path{RESET}")
+    return None
+
+
+def c_encoding_alloc(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp):
+        return None
+    enc = [
+        "/message/update_build",
+        "/message/update_split",
+        "/message/pack",
+        "/reactor_wire",
+        "/reactor/forward_build",
+        "/bgp/nlri/base",
+        "/bgp/nlri/inet",
+        "/bgp/nlri/rd",
+    ]
+    if not any(re.search(re.escape(p).replace("/", "/"), fp) for p in []) and not any(
+        _glob_match(fp, "*" + p + "*") for p in enc
+    ):
+        return None
+    content = ctx["content"]
+    errs = False
+    if filter_out(
+        filter_out(
+            grep_lines(content, r"append[ \t]*\("),
+            r"(args|strings|labels|families|errors|ERRORS|names|fields|parts)",
+            ignorecase=True,
+        ),
+        r"//.*append",
+        ignorecase=True,
+    ):
+        errs = True
+    make_allow = r"return make|Pool|New.*func|nlriBytes[ \t]*:=[ \t]*make|owned[ \t]*:=[ \t]*make|//[ \t]*pool-fallback"
+    if filter_out(
+        grep_lines(content, r"make[ \t]*\([ \t]*\[[ \t]*\][ \t]*byte"),
+        make_allow,
+        ignorecase=True,
+    ):
+        errs = True
+    if filter_out(
+        grep_lines(content, r"\.[ \t]*Bytes[ \t]*\([ \t]*\)"),
+        r"(rd\.Bytes|spec\.|json\.|\.String\(\)\.Bytes)",
+        ignorecase=True,
+    ):
+        errs = True
+    if grep_lines(content, r"\.[ \t]*Pack[ \t]*\([ \t]*\)"):
+        errs = True
+    if grep_lines(
+        content, r"func[ \t]+build[A-Za-z0-9_]+\(.*\)[ \t]*\([ \t]*\[[ \t]*\][ \t]*byte"
+    ):
+        errs = True
+    len_hits = filter_out(
+        grep_lines(content, r"\.Len\(\)"),
+        r"(CheckedWriteTo|WriteAttrToWithLen|// .*Len)",
+        ignorecase=True,
+    )
+    if len_hits:
+        wa = [
+            l
+            for _, l in grep_lines(content, r"WriteAttrTo\(")
+            if not re.search(r"WriteAttrToWithLen|WriteAttrToWithContext", l)
+        ]
+        if wa:
+            errs = True
+    if errs:
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: per-call allocation in encoding hot path{RESET}",
+        )
+    return None
+
+
+def c_format_alloc(ctx):
+    # PARITY NOTE: block-format-alloc.sh is a no-op in production. Its banned-
+    # pattern table uses `declare -A` (bash 4+), but the `#!/bin/bash` shebang
+    # resolves to macOS /bin/bash 3.2, which fails the associative-array
+    # assignment ("invalid arithmetic operator") and falls through to exit 0.
+    # So the format-file append-idiom guard has never actually fired. This
+    # port preserves that behaviour exactly (no-op) to keep the migration
+    # behaviour-preserving; the real check is below, disabled, ready to enable
+    # if the latent bug is intentionally fixed.
+    return None
+    # --- intended behaviour (currently dead); enable by removing the return above ---
+    fp = ctx["fp"]  # noqa: unreachable
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
+        return None
+    fmt_files = [
+        "/bgp/reactor/filter_format.go",
+        "/bgp/attribute/text.go",
+        "/bgp/format/text.go",
+        "/bgp/format/text_json.go",
+        "/bgp/format/text_update.go",
+        "/bgp/format/text_human.go",
+        "/bgp/format/summary.go",
+        "/bgp/format/codec.go",
+        "/bgp/format/decode.go",
+    ]
+    if not any(fp.endswith(f) for f in fmt_files):
+        return None
+    banned = [
+        r"fmt\.Sprintf\(",
+        r"fmt\.Fprintf\(",
+        r"strings\.Join\(",
+        r"strings\.Builder",
+        r"strings\.NewReplacer",
+        r"strings\.ReplaceAll\(",
+        r"strconv\.FormatUint\(",
+        r"strconv\.FormatInt\(",
+    ]
+    for p in banned:
+        if grep_lines(ctx["content"], p):
+            return (2, f"{RED}{BOLD}BLOCKED: banned format primitive in {fp}{RESET}")
+    return None
+
+
+def c_silent_ignore(ctx):
+    fp = ctx["fp"]
+    if (
+        not _go_we(ctx)
+        or re.search(r"_test\.go$", fp)
+        or "cmd/" in fp
+        or "internal/test/" in fp
+        or "/scripts/" in fp
+    ):
+        return None
+    content = ctx["content"]
+    errs = False
+    for p in [
+        r"continue[ \t]*//[ \t]*ignore",
+        r"return[ \t]*nil[ \t]*//[ \t]*ignore",
+        r"//[ \t]*silently[ \t]*ignore",
+        r"//[ \t]*skip[ \t]*unknown",
+    ]:
+        m = grep_lines(content, p, ignorecase=True)
+        if m and not any(
+            re.search(r"(forbidden|wrong|bad|dont|do not)", l, re.IGNORECASE)
+            for _, l in m
+        ):
+            errs = True
+    # empty default: case
+    lines = content.split("\n")
+    in_def = False
+    for ln in lines:
+        if re.match(r"^[ \t]*default:[ \t]*$", ln):
+            in_def = True
+            continue
+        if in_def:
+            if re.match(r"^[ \t]*$", ln) or re.match(r"^[ \t]*//", ln):
+                continue
+            if re.match(r"^[ \t]*}[ \t]*$", ln):
+                errs = True
+            in_def = False
+    if "/config/" in fp and grep_any(content, r"default:[ \t]*(//|break[ \t]*$)"):
+        errs = True
+    if errs:
+        return (2, f"{RED}{BOLD}❌ BLOCKED: Silent ignore pattern{RESET}")
+    return None
+
+
+def c_hardcoded_commands(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
+        return None
+    rx = r'"(show|set|del|update|validate|monitor|clear|help|config|bgp|cli|schema|plugin|doctor|version|signal|completion|status|init)"'
+    in_blk = False
+    words = 0
+    hit = False
+    for line in ctx["content"].split("\n"):
+        if re.match(r"^[ \t]*//", line):
+            continue
+        if not in_blk and re.search(r"\[\]string\{", line):
+            in_blk = True
+            words = 0
+        if in_blk:
+            words += len(re.findall(rx, line))
+            if "}" in line:
+                if words >= 4:
+                    hit = True
+                in_blk = False
+    if hit:
+        return (
+            2,
+            f"{RED}{BOLD}✘ BLOCKED: possible hardcoded command list in {fp}{RESET}",
+        )
+    return None
+
+
+def c_init_register(ctx):
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp):
+        return None
+    base = os.path.basename(fp)
+    if base == "register.go" or _glob_match(base, "register_*.go"):
+        return None
+    content = ctx["content"]
+    if grep_any(content, r"RegisterRPCs\("):
+        return None
+    if not grep_any(content, r"^func init\(\)"):
+        return None
+    # init body: sed -n '/^func init()/,/^func /p' | head -30
+    body = []
+    started = False
+    for line in content.split("\n"):
+        if not started:
+            if re.search(r"^func init\(\)", line):
+                started = True
+                body.append(line)
+        else:
+            body.append(line)
+            if re.search(r"^func ", line):
+                break
+    body = body[:30]
+    btext = "\n".join(body)
+    for p in [
+        r"Register",
+        r"Add.*Handler",
+        r"Subscribe",
+        r"Hook",
+        r"global.*=",
+        r"default.*=",
+    ]:
+        if grep_any(btext, p, ignorecase=True):
+            return (2, f"{RED}{BOLD}❌ BLOCKED: Implicit behavior in init(){RESET}")
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# Other file-type / filename / filesystem checks
+# --------------------------------------------------------------------------- #
+
+
+def c_lint_exclusions(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] not in ("Write", "Edit"):
+        return None
+    if (
+        not re.search(r"\.golangci", fp)
+        and "golangci.yml" not in fp
+        and "golangci.yaml" not in fp
+    ):
+        return None
+    content = ctx["content"]
+    errs = False
+    if grep_any(
+        content, r"exclude-rules:|exclude:|issues-exclude:|skip-files:|skip-dirs:"
+    ):
+        if grep_any(content, r"^[ \t]*-[ \t]*(path|text|linters|source):"):
+            errs = True
+    # `grep -qE 'disable:...' | grep -vE '#.*disable'` -> pipeline of grep -q always succeeds(rc0) since
+    # grep -q produces no stdout; the second grep -v on empty input -> rc1 -> overall false. Faithful: never fires.
+    if errs:
+        return (2, f"{RED}{BOLD}❌ BLOCKED: Adding linter exclusions{RESET}")
+    return None
+
+
+def c_version_config(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] not in ("Write", "Edit"):
+        return None
+    if (
+        "/config/" not in fp
+        and not fp.endswith(".conf")
+        and not re.search(r"config.*\.go$", fp)
+    ):
+        return None
+    for p in [
+        r"version[ \t]*[=:][ \t]*[0-9]",
+        r"Version[ \t]*[=:][ \t]*[0-9]",
+        r'"version"[ \t]*:',
+        r"version[ \t]+[0-9]+[ \t]*;",
+        r"config.?version",
+        r"schema.?version",
+    ]:
+        if grep_any(ctx["content"], p, ignorecase=True):
+            return (2, f"{RED}{BOLD}❌ BLOCKED: Version in config{RESET}")
+    return None
+
+
+def c_fake_bufhandle(ctx):
+    fp = ctx["fp"]
+    if not fp.endswith(".go"):
+        return None
+    tool = ctx["tool"]
+    if tool == "Write":
+        content = ctx["ti"].get("content") or ""
+    elif tool in ("Edit", "MultiEdit"):
+        content = ctx["ti"].get("new_string") or ""
+    else:
+        return None
+    bad = grep_lines(content, r"BufHandle\{[^}]*Buf:[ \t]*make")
+    if not bad:
+        return None
+    bad = [
+        (n, l)
+        for (n, l) in bad
+        if not re.match(r"^[ \t]*[0-9]*:[ \t]*//", f"{n}:{l}")
+        and "noPoolBufID" not in l
+    ]
+    # the comment filter operates on "N:line"; emulate grep -v '^\s*[0-9]*:\s*//'
+    bad2 = []
+    for n, l in grep_lines(content, r"BufHandle\{[^}]*Buf:[ \t]*make"):
+        s = f"{n}:{l}"
+        if re.match(r"^[ \t]*[0-9]*:[ \t]*//", s):
+            continue
+        if "noPoolBufID" in l:
+            continue
+        bad2.append((n, l))
+    if bad2:
+        return (2, f"{RED}{BOLD}BLOCKED: fake BufHandle construction in {fp}{RESET}")
+    return None
+
+
+def c_observer_sys_exit(ctx):
+    fp = ctx["fp"]
+    if not fp.endswith(".ci"):
+        return None
+    tool = ctx["tool"]
+    if tool == "Write":
+        content = ctx["ti"].get("content") or ""
+    elif tool in ("Edit", "MultiEdit"):
+        content = ctx["ti"].get("new_string") or ""
+    else:
+        return None
+    if not grep_any(content, r"sys\.exit\(1\)"):
+        return None
+    if grep_any(content, r"runtime_fail"):
+        return None
+    if grep_any(content, r"^(expect|reject)=stderr"):
+        return None
+    return (1, f"{YELLOW}{BOLD}WARN: observer-exit antipattern in {fp}{RESET}")
+
+
+def c_generated_files(ctx):
+    if ctx["tool"] not in ("Write", "Edit"):
+        return None
+    base = os.path.basename(ctx["fp"])
+    if base in ("CLAUDE.md", "AGENTS.md"):
+        return (2, f"BLOCKED: {base} is generated from ai/INSTRUCTIONS.md")
+    return None
+
+
+def c_utils_package(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] != "Write" or not fp.endswith(".go"):
+        return None
+    errs = False
+    if "/utils/" in fp or "/helpers/" in fp or "/common/" in fp or "/misc/" in fp:
+        errs = True
+    if grep_any(ctx["content"], r"^package[ \t]+(utils|helpers|common|misc)[ \t]*$"):
+        errs = True
+    if errs:
+        return (2, f"{RED}{BOLD}❌ BLOCKED: Forbidden package pattern{RESET}")
+    return None
+
+
+def c_throwaway_tests(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] != "Write":
+        return None
+    errs = False
+    if re.search(r"^/tmp/", fp) or re.search(r"^/var/tmp/", fp):
+        if re.search(r"\.(go|py|sh)$", fp):
+            errs = True
+    if re.search(r"test_.*\.(go|py|sh)$", fp) or re.search(
+        r"_test_.*\.(go|py|sh)$", fp
+    ):
+        if (
+            not re.search(r"^.*/internal/", fp)
+            and not re.search(r"^.*/test/", fp)
+            and not re.search(r"^.*/cmd/", fp)
+        ):
+            errs = True
+    if re.search(r"/main\.go$", fp) and not re.search(r"^.*/cmd/", fp):
+        errs = True
+    if errs:
+        return (2, f"{RED}{BOLD}❌ BLOCKED: Throwaway test file{RESET}")
+    return None
+
+
+def c_claude_plans(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] != "Write":
+        return None
+    if re.search(r"\.claude/plans/", fp):
+        return (2, "❌ BLOCKED: Do not use .claude/plans/")
+    if re.search(r"^/Users/[^/]+/\.claude/plan/", fp):
+        return (2, "❌ BLOCKED: Do not write plans to ~/.claude/plan/")
+    if re.search(r"\.claude/plan/", fp):
+        if not re.search(r"^ze-plan-", os.path.basename(fp)):
+            return (2, "❌ BLOCKED: Plan file must be named 'ze-plan-<name>'")
+    return None
+
+
+def c_enforce_naming(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] != "Write" or isfile(fp):
+        return None
+    base = os.path.basename(fp)
+    errs = False
+    if fp.endswith(".md"):
+        if re.match(
+            r"^(README|INDEX|CLAUDE|LICENSE|CONTRIBUTING|CHANGELOG)\.md$", base
+        ):
+            return None
+        if re.search(r"[A-Z]", base) or "_" in base:
+            errs = True
+    if fp.endswith(".go"):
+        if "-" in base:
+            errs = True
+        if re.search(r"[A-Z]", base) and not re.match(r"^[a-z_]+_[A-Z]", base):
+            errs = True
+    if fp.endswith(".sh"):
+        if re.search(r"[A-Z]", base) or "_" in base:
+            errs = True
+    if errs:
+        return (1, f"{RED}{BOLD}❌ BLOCKED: Naming convention violation{RESET}")
+    return None
+
+
+def c_design_without_lsp(ctx):
+    if ctx["tool"] not in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
+        return None
+    rel = ctx["fp"]
+    if rel.startswith(PROJECT_DIR + "/"):
+        rel = rel[len(PROJECT_DIR) + 1 :]
+    if not (_glob_match(rel, "plan/design-*.md") or _glob_match(rel, "plan/spec-*.md")):
+        return None
+    sid = session_id()
+    marker = os.path.join(PROJECT_DIR, "tmp/session", f".lsp-invoked-{sid}")
+    if not os.path.isfile(marker):
+        return (2, f"❌ Blocked: LSP has not been invoked in this session.")
+    fresh = int(os.environ.get("LSP_FRESHNESS_SECONDS", "1800"))
+    try:
+        age = time.time() - os.stat(marker).st_mtime
+        if age > fresh:
+            return (2, f"❌ Blocked: LSP invocation is stale.")
+    except Exception:
+        pass
+    return None
+
+
+def c_source_edit_spec(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] not in ("Write", "Edit", "MultiEdit"):
+        return None
+    if not fp:
+        return None
+    if not (
+        _glob_match(fp, "*/internal/*.go")
+        or _glob_match(fp, "*/pkg/*.go")
+        or _glob_match(fp, "*/cmd/*.go")
+        or _glob_match(fp, "*/test/*")
+        or _glob_match(fp, "*/plan/learned/*")
+    ):
+        return None
+    sid = session_id()
+    marker = os.path.join(PROJECT_DIR, "tmp/session", f".session-{sid}")
+    if not os.path.isfile(marker):
+        return None
+    try:
+        with open(marker) as fh:
+            selected = fh.readline().strip()
+    except Exception:
+        return None
+    if not selected or selected == "unassigned":
+        return None
+    spec_path = os.path.join(PROJECT_DIR, "plan", selected)
+    if not os.path.isfile(spec_path):
+        return None
+    status = ""
+    try:
+        with open(spec_path) as fh:
+            for line in fh:
+                if re.match(r"^\| *Status *\|", line):
+                    parts = line.split("|")
+                    if len(parts) > 2:
+                        status = parts[2].strip()
+                    break
+    except Exception:
+        return None
+    if status in ("skeleton", "design", "ready"):
+        return (
+            2,
+            f"{RED}{BOLD}BLOCKED:{RESET} spec {selected} is `{status}` (flip to in-progress first)",
+        )
+    return None
+
+
+def c_pre_write_go(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] not in ("Write", "Edit"):
+        return None
+    if not re.search(r"^.*/internal/.*\.go$", fp):
+        return None
+    sid = session_id()
+    sstate = state_file(sid)
+    selected = ""
+    marker = os.path.join(PROJECT_DIR, ".claude", f".session-{sid}")
+    if os.path.isfile(marker):
+        try:
+            with open(marker) as fh:
+                selected = fh.readline().strip()
+        except Exception:
+            selected = ""
+        if selected == "unassigned":
+            selected = ""
+    errs = False
+    if not os.path.isfile(sstate):
+        errs = True
+    if selected:
+        spec_path = os.path.join(PROJECT_DIR, "plan", selected)
+        if os.path.isfile(spec_path):
+            if not os.path.isfile(sstate) or not _file_contains(sstate, selected):
+                errs = True
+    if errs:
+        return (2, f"{RED}No session state ({sstate}) - see post-compaction.md{RESET}")
+    return None
+
+
+def c_require_docs_read(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] != "Write":
+        return None
+    if not re.search(r"plan/spec-.*\.md$", fp):
+        return None
+    sid = session_id()
+    sstate = state_file(sid)
+    if not os.path.isfile(sstate):
+        return (1, f"{RED}{BOLD}BLOCKED: Docs not verified{RESET}")
+    return None
+
+
+def c_require_design_ref(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] not in ("Write", "Edit") or not fp.endswith(".go"):
+        return None
+    base = os.path.basename(fp)
+    if (
+        re.search(r"_test\.go$", base)
+        or re.search(r"_gen\.go$", base)
+        or base in ("register.go", "embed.go", "doc.go")
+    ):
+        return None
+    if ctx["tool"] == "Write":
+        content = ctx["ti"].get("content") or ""
+        if "// Design:" in content:
+            return None
+        if grep_any(content[:500], r"Code generated|DO NOT EDIT"):
+            return None
+    else:  # Edit
+        if isfile(fp) and _file_contains(fp, "// Design:"):
+            return None
+        if "// Design:" in (ctx["ti"].get("new_string") or ""):
+            return None
+        if isfile(fp):
+            try:
+                with open(fp) as fh:
+                    if re.search(r"Code generated|DO NOT EDIT", fh.read(500)):
+                        return None
+            except Exception:
+                pass
+    return (2, f"{RED}{BOLD}✘ BLOCKED: Missing // Design: comment{RESET}")
+
+
+def c_require_related_refs(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] not in ("Write", "Edit") or not fp.endswith(".go"):
+        return None
+    base = os.path.basename(fp)
+    if (
+        re.search(r"_test\.go$", base)
+        or re.search(r"_gen\.go$", base)
+        or base in ("register.go", "embed.go", "doc.go")
+    ):
+        return None
+    directory = os.path.dirname(fp)
+    if ctx["tool"] == "Write":
+        content = ctx["ti"].get("content") or ""
+    else:
+        content = ""
+        try:
+            with open(fp) as fh:
+                content = fh.read()
+        except OSError:
+            content = ""
+        old = ctx["ti"].get("old_string", "")
+        new = ctx["ti"].get("new_string", "")
+        if ctx["ti"].get("replace_all", False):
+            content = content.replace(old, new)
+        else:
+            content = content.replace(old, new, 1)
+    xref = r"// (Detail|Overview|Related):"
+    # Check 1: siblings referencing this file need a back-ref
+    siblings_ref_me = False
+    try:
+        for f in os.listdir(directory):
+            if not f.endswith(".go") or f.endswith("_test.go") or f.endswith("_gen.go"):
+                continue
+            try:
+                with open(os.path.join(directory, f)) as fh:
+                    if re.search(
+                        r"// (Detail|Overview|Related): " + re.escape(base) + " ",
+                        fh.read(),
+                    ):
+                        siblings_ref_me = True
+                        break
+            except Exception:
+                continue
+    except Exception:
+        pass
+    if siblings_ref_me and not re.search(xref, content):
+        return (2, f"{RED}{BOLD}✘ BLOCKED: Missing cross-reference comment{RESET}")
+    # Check 2: stale refs
+    for m in re.finditer(r"// (?:Detail|Overview|Related): ([^ ]*\.go)", content):
+        ref = m.group(1)
+        if not os.path.isfile(os.path.join(directory, ref)):
+            return (2, f"{RED}{BOLD}✘ BLOCKED: Stale cross-references{RESET}")
+    return None
+
+
+def c_require_test_first(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] not in ("Write", "Edit") or not fp.endswith(".go"):
+        return None
+    if (
+        re.search(r"_test\.go$", fp)
+        or re.search(r"_gen\.go$", fp)
+        or re.search(r"\.pb\.go$", fp)
+        or "/cmd/" in fp
+    ):
+        return None
+    test_file = fp[:-3] + "_test.go"
+    if ctx["tool"] == "Write" and not isfile(fp):
+        if not isfile(test_file):
+            return (1, f"{RED}{BOLD}❌ BLOCKED: TDD - Write test first{RESET}")
+    return None
+
+
+def c_check_existing_patterns(ctx):
+    fp = ctx["fp"]
+    if ctx["tool"] != "Write":
+        return None
+    if (
+        not re.search(r"^.*/internal/.*\.go$", fp)
+        or isfile(fp)
+        or re.search(r"_test\.go$", fp)
+    ):
+        return None
+    pkg_dir = os.path.dirname(fp)
+    if not os.path.isdir(pkg_dir):
+        return None
+    content = ctx["ti"].get("content") or ""
+    types = re.findall(r"type[ \t]+([A-Z][a-zA-Z0-9]*)[ \t]+struct", content)[:5]
+    funcs = [
+        m
+        for m in re.findall(r"^func[ \t]+([A-Z][a-zA-Z0-9]*)\(", content, re.MULTILINE)
+    ][:5]
+    go_files = [
+        os.path.join(pkg_dir, f)
+        for f in (os.listdir(pkg_dir) if os.path.isdir(pkg_dir) else [])
+        if f.endswith(".go") and not f.endswith("_test.go")
+    ]
+
+    def defined(pattern):
+        for gf in go_files:
+            try:
+                with open(gf) as fh:
+                    head = "".join([next(fh) for _ in range(3)]) if False else ""
+            except Exception:
+                pass
+            try:
+                with open(gf) as fh:
+                    txt = fh.read()
+                if re.search(r"//go:build", "\n".join(txt.split("\n")[:3])):
+                    continue
+                if re.search(pattern, txt):
+                    return True
+            except Exception:
+                continue
+        return False
+
+    for t in types:
+        if defined(r"type[ \t]+" + re.escape(t) + r"[ \t]+struct"):
+            return (
+                2,
+                f"{RED}❌ Duplicate: Type '{t}' ALREADY EXISTS in this package:{RESET}",
+            )
+    for fn in funcs:
+        if defined(r"^func[ \t]+" + re.escape(fn) + r"[ \t]*\("):
+            return (
+                2,
+                f"{RED}❌ Duplicate: Function '{fn}' ALREADY EXISTS in this package:{RESET}",
+            )
+    return None
+
+
+def c_check_existing_tests(ctx):
+    # Warning-only hook: prints to stderr but always exit 0. No effect on exit code.
+    return None
+
+
+def c_system_tmp_we(ctx):
+    fp = ctx["fp"]
+    if fp.startswith("/tmp/") or fp == "/tmp":
+        return (2, "❌ Blocked: writing to /tmp is forbidden")
+    return None
+
+
+def c_test_deletion_edit(ctx):
+    if ctx["tool"] != "Edit":
+        return None
+    fp = ctx["fp"]
+    old = ctx["ti"].get("old_string", "")
+    new = ctx["ti"].get("new_string", "")
+    is_test = bool(
+        re.search(r"_test\.go$", fp) or (fp.endswith(".ci") and "/test/" in fp)
+    )
+    if not is_test:
+        return None
+    errs = []
+    if new.strip() == "" and old:
+        errs.append("empty test file")
+    if grep_any(old, r"^func (Test|Fuzz|Benchmark)") and not grep_any(
+        new, r"^func (Test|Fuzz|Benchmark)"
+    ):
+        errs.append("delete test function")
+    if old.count("t.Run(") > new.count("t.Run("):
+        errs.append("remove t.Run cases")
+    old_tbl = len(re.findall(r"\{[ \t]*(name|Name)[ \t]*:", old))
+    new_tbl = len(re.findall(r"\{[ \t]*(name|Name)[ \t]*:", new))
+    if old_tbl > new_tbl:
+        errs.append("remove table cases")
+    old_as = len(re.findall(r"(t\.(Error|Fatal|Fail)|assert\.|require\.)", old))
+    new_as = len(re.findall(r"(t\.(Error|Fatal|Fail)|assert\.|require\.)", new))
+    if old_as > 0 and new_as == 0 and new:
+        errs.append("remove all assertions")
+    if fp.endswith(".ci"):
+        old_l = len([l for l in old.split("\n") if not re.match(r"^[ \t]*(#|$)", l)])
+        new_l = len([l for l in new.split("\n") if not re.match(r"^[ \t]*(#|$)", l)])
+        if old_l > new_l:
+            errs.append("remove .ci lines")
+    if errs:
+        return (2, f"{YELLOW}{BOLD}❓ Test deletion - user approval required{RESET}")
+    return None
+
+
+# --------------------------------------------------------------------------- #
+
+
+def _glob_match(text, pattern):
+    """fnmatch-style match used by bash `case`/`[[ == glob ]]`."""
+    import fnmatch
+
+    return fnmatch.fnmatch(text, pattern)
+
+
+def _file_contains(path, needle):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return needle in fh.read()
+    except Exception:
+        return False
+
+
+CHECKS = (
+    c_generated_files,
+    c_design_without_lsp,
+    c_claude_plans,
+    c_source_edit_spec,
+    c_pre_write_go,
+    c_check_existing_patterns,
+    c_legacy_log,
+    c_panic,
+    c_ignored_errors,
+    c_nolint,
+    c_os_exit,
+    c_layering,
+    c_silent_ignore,
+    c_yagni,
+    c_and_functions,
+    c_init_register,
+    c_utils_package,
+    c_temp_debug,
+    c_encoding_alloc,
+    c_format_alloc,
+    c_sprintf_new,
+    c_string_concat,
+    c_raw_ansi,
+    c_hardcoded_commands,
+    c_require_design_ref,
+    c_require_related_refs,
+    c_test_deletion_edit,
+    c_json_kebab,
+    c_goroutine,
+    c_version_config,
+    c_lint_exclusions,
+    c_exabgp,
+    c_observer_sys_exit,
+    c_fake_bufhandle,
+    c_require_docs_read,
+    c_require_test_first,
+    c_throwaway_tests,
+    c_enforce_naming,
+    c_check_existing_tests,
+    c_system_tmp_we,
+)
+
+
+def main():
+    try:
+        import json
+
+        payload = json.load(sys.stdin)
+    except Exception:
+        return 0
+    tool = payload.get("tool_name")
+    if tool not in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
+        return 0
+    ti = payload.get("tool_input") or {}
+    ctx = {
+        "tool": tool,
+        "ti": ti,
+        "fp": ti.get("file_path") or "",
+        "content": std_content(ti),
+    }
+
+    worst = 0
+    messages = []
+    for check in CHECKS:
+        try:
+            r = check(ctx)
+        except Exception:
+            import traceback
+
+            sys.stderr.write(
+                f"[pretool-writeedit] {check.__name__} errored (failing open):\n"
+            )
+            traceback.print_exc()
+            continue
+        if r is None:
+            continue
+        code, msg = r
+        messages.append(msg)
+        worst = max(worst, code)
+    if messages:
+        sys.stderr.write("\n".join(messages) + "\n")
+    return worst
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+        sys.exit(0)

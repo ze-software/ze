@@ -94,21 +94,10 @@ if command -v golangci-lint &> /dev/null; then
         done
         exit 2
     fi
-
-    # Second pass: full package lint (no --new-from-rev), filtered to edited file.
-    # Catches pre-existing issues in files we touch. Non-blocking (exit 1).
-    FULL_OUTPUT=$(golangci-lint run --timeout=30s "./${PACKAGE_DIR}/..." 2>&1) || true
-    if [[ -n "$FULL_OUTPUT" && ! "$FULL_OUTPUT" =~ "no issues" && ! "$FULL_OUTPUT" =~ "^0 issues" ]]; then
-        FILE_ISSUES=$(echo "$FULL_OUTPUT" | grep "^${REL_PATH}:" || true)
-        if [[ -n "$FILE_ISSUES" ]]; then
-            FILE_ISSUE_COUNT=$(echo "$FILE_ISSUES" | wc -l | tr -d ' ')
-            echo -e "${CYAN}ℹ lint: ${FILE_ISSUE_COUNT} pre-existing issue(s) in ${REL_PATH}${RESET}" >&2
-            echo "$FILE_ISSUES" | head -3 | while read -r line; do
-                echo -e "  ${DIM}${line}${RESET}" >&2
-            done
-            exit 1
-        fi
-    fi
+    # Optimisation: only the --new-from-rev pass above runs. The former second
+    # pass re-linted the whole package for PRE-EXISTING issues unrelated to this
+    # edit -- doubling lint time on every save to flag code we did not touch.
+    # Dropped so the linter only reports issues this change introduces.
 fi
 
 exit 0
