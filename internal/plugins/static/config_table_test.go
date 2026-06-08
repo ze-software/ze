@@ -19,7 +19,7 @@ func defaultOnlyRegistry() *routingtable.Registry {
 }
 
 func TestExtractRouteInTable(t *testing.T) {
-	input := `{"static":{"table":{"lns":{"route":{"0.0.0.0/0":{"next-hop":{"10.0.0.1":{}}}}}}}}`
+	input := `{"static":{"table":{"lns":{"route":{"0.0.0.0/0":{"next":{"hop":{"10.0.0.1":{}}}}}}}}}` //nolint:lll // JSON test fixture
 	routes, err := parseStaticConfig(input, testRegistry())
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +36,7 @@ func TestExtractRouteInTable(t *testing.T) {
 }
 
 func TestExtractRouteInDefaultTable(t *testing.T) {
-	input := `{"static":{"table":{"default":{"route":{"10.0.0.0/8":{"next-hop":{"192.168.1.1":{}}}}}}}}`
+	input := `{"static":{"table":{"default":{"route":{"10.0.0.0/8":{"next":{"hop":{"192.168.1.1":{}}}}}}}}}` //nolint:lll // JSON test fixture
 	routes, err := parseStaticConfig(input, defaultOnlyRegistry())
 	if err != nil {
 		t.Fatal(err)
@@ -50,7 +50,7 @@ func TestExtractRouteInDefaultTable(t *testing.T) {
 }
 
 func TestExtractInterfaceOnlyRoute(t *testing.T) {
-	input := `{"static":{"table":{"default":{"route":{"0.0.0.0/0":{"interface-next-hop":{"pppoe0":{}}}}}}}}`
+	input := `{"static":{"table":{"default":{"route":{"0.0.0.0/0":{"next":{"interface":{"pppoe0":{}}}}}}}}}` //nolint:lll // JSON test fixture
 	routes, err := parseStaticConfig(input, defaultOnlyRegistry())
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +78,7 @@ func TestExtractInterfaceOnlyRoute(t *testing.T) {
 }
 
 func TestExtractTableAndInterface(t *testing.T) {
-	input := `{"static":{"table":{"lns":{"route":{"0.0.0.0/0":{"interface-next-hop":{"tun100":{}}}}}}}}`
+	input := `{"static":{"table":{"lns":{"route":{"0.0.0.0/0":{"next":{"interface":{"tun100":{}}}}}}}}}` //nolint:lll // JSON test fixture
 	routes, err := parseStaticConfig(input, testRegistry())
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestExtractTableAndInterface(t *testing.T) {
 }
 
 func TestExtractMixedECMP(t *testing.T) {
-	input := `{"static":{"table":{"default":{"route":{"0.0.0.0/0":{"next-hop":{"10.0.0.1":{"weight":3}},"interface-next-hop":{"pppoe0":{"weight":1}}}}}}}}`
+	input := `{"static":{"table":{"default":{"route":{"0.0.0.0/0":{"next":{"hop":{"10.0.0.1":{"weight":3}},"interface":{"pppoe0":{"weight":1}}}}}}}}}` //nolint:lll // JSON test fixture
 	routes, err := parseStaticConfig(input, defaultOnlyRegistry())
 	if err != nil {
 		t.Fatal(err)
@@ -125,7 +125,7 @@ func TestExtractMixedECMP(t *testing.T) {
 }
 
 func TestExtractSamePrefixDifferentTables(t *testing.T) {
-	input := `{"static":{"table":{"default":{"route":{"0.0.0.0/0":{"next-hop":{"10.0.0.1":{}}}}},"lns":{"route":{"0.0.0.0/0":{"interface-next-hop":{"tun100":{}}}}}}}}`
+	input := `{"static":{"table":{"default":{"route":{"0.0.0.0/0":{"next":{"hop":{"10.0.0.1":{}}}}}},"lns":{"route":{"0.0.0.0/0":{"next":{"interface":{"tun100":{}}}}}}}}}` //nolint:lll // JSON test fixture
 	routes, err := parseStaticConfig(input, testRegistry())
 	if err != nil {
 		t.Fatal(err)
@@ -151,7 +151,7 @@ func TestRejectNextHopNoAddressNoInterface(t *testing.T) {
 }
 
 func TestRejectBFDOnInterfaceOnly(t *testing.T) {
-	input := `{"static":{"table":{"default":{"route":{"10.0.0.0/8":{"interface-next-hop":{"eth0":{"bfd-profile":"fast"}}}}}}}}`
+	input := `{"static":{"table":{"default":{"route":{"10.0.0.0/8":{"next":{"interface":{"eth0":{"bfd-profile":"fast"}}}}}}}}}` //nolint:lll // JSON test fixture
 	_, err := parseStaticConfig(input, defaultOnlyRegistry())
 	if err == nil {
 		t.Fatal("expected error for BFD profile on interface-only next-hop")
@@ -159,7 +159,7 @@ func TestRejectBFDOnInterfaceOnly(t *testing.T) {
 }
 
 func TestRejectUnknownTableName(t *testing.T) {
-	input := `{"static":{"table":{"nonexistent":{"route":{"10.0.0.0/8":{"next-hop":{"10.0.0.1":{}}}}}}}}`
+	input := `{"static":{"table":{"nonexistent":{"route":{"10.0.0.0/8":{"next":{"hop":{"10.0.0.1":{}}}}}}}}}` //nolint:lll // JSON test fixture
 	_, err := parseStaticConfig(input, defaultOnlyRegistry())
 	if err == nil {
 		t.Fatal("expected error for unknown table name")
@@ -167,7 +167,7 @@ func TestRejectUnknownTableName(t *testing.T) {
 }
 
 func TestExistingGatewayRouteUnchanged(t *testing.T) {
-	input := `{"static":{"table":{"default":{"route":{"10.0.0.0/8":{"next-hop":{"192.168.1.1":{}}}}}}}}`
+	input := `{"static":{"table":{"default":{"route":{"10.0.0.0/8":{"next":{"hop":{"192.168.1.1":{}}}}}}}}}` //nolint:lll // JSON test fixture
 	routes, err := parseStaticConfig(input, defaultOnlyRegistry())
 	if err != nil {
 		t.Fatal(err)
@@ -191,7 +191,7 @@ func TestExistingGatewayRouteUnchanged(t *testing.T) {
 }
 
 func TestInterfaceOnlyWithWeight(t *testing.T) {
-	input := `{"static":{"table":{"default":{"route":{"0.0.0.0/0":{"interface-next-hop":{"pppoe0":{"weight":5}}}}}}}}`
+	input := `{"static":{"table":{"default":{"route":{"0.0.0.0/0":{"next":{"interface":{"pppoe0":{"weight":5}}}}}}}}}` //nolint:lll // JSON test fixture
 	routes, err := parseStaticConfig(input, defaultOnlyRegistry())
 	if err != nil {
 		t.Fatal(err)

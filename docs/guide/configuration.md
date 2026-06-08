@@ -1814,8 +1814,10 @@ grouped under named tables for policy-based routing support.
 static {
     table default {
         route 0.0.0.0/0 {
-            next-hop 10.0.0.1 { weight 3; }
-            next-hop 10.0.0.2 { weight 1; }
+            next {
+                hop 10.0.0.1 { weight 3; }
+                hop 10.0.0.2 { weight 1; }
+            }
         }
         route 192.0.2.0/24 {
             blackhole { }

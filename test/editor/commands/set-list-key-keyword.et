@@ -1,0 +1,29 @@
+# Test: Set command creates list entry via key leaf
+# VALIDATES: "set ... next hop address 10.0.0.1" creates a keyed list entry
+# PREVENTS: setting a list key leaf being rejected instead of creating entry
+
+tmpfs=test.conf:terminator=EOF_CONF
+static {
+  table default {
+    route 0.0.0.0/0 {
+      next { }
+    }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Create hop entry via key leaf keyword "address"
+input=type:text=set static table default route 0.0.0.0/0 next hop address 10.104.1.254
+input=enter
+expect=status:contains=created hop 10.104.1.254
+expect=dirty:true
+expect=error:none
+
+# Verify the entry exists by setting a child leaf
+input=type:text=set static table default route 0.0.0.0/0 next hop 10.104.1.254 weight 2
+input=enter
+expect=status:contains=set
+expect=error:none

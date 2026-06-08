@@ -10,7 +10,7 @@ Ze's static route plugin only installed routes in the main kernel table. VyOS us
 - Used a package-level `atomic.Pointer[Registry]` rather than injection via plugin SDK, because `init()` self-registration prevents constructor injection and `bfdapi.GetService()` established the pattern.
 - Used `map[routeKey]*routeState` (flat composite key) instead of the spec's nested `map[uint32]map[Prefix]*routeState`. Same semantics, fewer map operations, simpler code.
 - Reused `nextHop` struct with zero `Address` for interface-only rather than a separate `InterfaceNextHop` type. The kernel model is unified (`Gw` and `LinkIndex` are independent fields), so a separate Go type would split what the kernel treats as one thing.
-- YANG `list interface-next-hop` placed as sibling inside `forward` case (not a separate choice case), so mixed ECMP (gateway + interface-only) is valid at the schema level.
+- YANG `container next` inside `forward` case holds `list hop` (gateway) and `list interface` (interface-only) as siblings, so mixed ECMP is valid at the schema level. Setting the key leaf (`address`) creates the list entry.
 
 ## Consequences
 
@@ -29,8 +29,8 @@ Ze's static route plugin only installed routes in the main kernel table. VyOS us
 ## Files
 
 - `internal/plugins/routingtable/` (new): routing-table registry plugin with YANG, config, Resolve API
-- `internal/plugins/static/config.go` (rewritten): map-keyed tree traversal, table resolution, interface-next-hop parsing
+- `internal/plugins/static/config.go` (rewritten): map-keyed tree traversal, table resolution, `next.hop`/`next.interface` parsing
 - `internal/plugins/static/inject.go` (modified): `routeKey` composite map key, redistribution skip for non-zero table
-- `internal/plugins/static/schema/ze-static-conf.yang` (modified): `list table` wrapping, `list interface-next-hop`
+- `internal/plugins/static/schema/ze-static-conf.yang` (modified): `list table` wrapping, `container next { list hop, list interface }`
 - `internal/component/config/yang_schema.go` (modified): choice/case flattening in `yangToList`
 - `internal/core/redistevents/events.go` (modified): `Table uint32` field on `RouteChangeEntry`

@@ -259,10 +259,10 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 		if tokensAdded > 0 && c.isListNeedingKey(currentPath) {
 			listPath := make([]string, len(currentPath))
 			copy(listPath, currentPath)
-			keyEntry := c.getListKeyEntry(listPath)
+			keyEntry := c.GetListKeyEntry(listPath)
 			if !validateLeafValue(keyEntry, token) {
 				listName := currentPath[len(currentPath)-1]
-				hint := c.typeHint(keyEntry.Type)
+				hint := c.TypeHint(keyEntry.Type)
 				return []Completion{{
 					Text: token,
 					Description: func() string {
@@ -585,7 +585,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		// User typed a value that doesn't match any existing key —
 		// validate against YANG key type before offering as completion.
 		listPath := append(append([]string{}, contextPath...), listName)
-		keyEntry := c.getListKeyEntry(listPath)
+		keyEntry := c.GetListKeyEntry(listPath)
 		var tb textbuf.Buffer
 		if validateLeafValue(keyEntry, prefix) {
 			completions = append(completions, Completion{
@@ -594,7 +594,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 				Type:        "list-key",
 			})
 		} else {
-			hint := c.typeHint(keyEntry.Type)
+			hint := c.TypeHint(keyEntry.Type)
 			completions = append(completions, Completion{
 				Text:        prefix,
 				Description: tb.Reset().Str("invalid ").Str(listName).Str(" key (expected ").Str(hint).Byte(')').String(),
@@ -825,7 +825,7 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 	}
 
 	// Type hint based on YANG type — hint-only, not applicable by Tab
-	hint := c.typeHint(entry.Type)
+	hint := c.TypeHint(entry.Type)
 	var tb textbuf.Buffer
 	return []Completion{{Text: tb.Byte('<').Str(hint).Byte('>').String(), Description: tb.Reset().Str(hint).Str(" value").String(), Type: "hint"}}
 }
@@ -878,8 +878,8 @@ func (c *Completer) validateCompletions(entry *gyang.Entry, prefix string) []Com
 	return completions
 }
 
-// typeHint returns a hint string for a YANG type.
-func (c *Completer) typeHint(t *gyang.YangType) string {
+// TypeHint returns a hint string for a YANG type.
+func (c *Completer) TypeHint(t *gyang.YangType) string {
 	if t == nil {
 		return "value"
 	}
@@ -1143,7 +1143,7 @@ func (c *Completer) ValidateValueAtPath(path []string, value string) error {
 		}
 	}
 	if !validateLeafValue(entry, value) {
-		hint := c.typeHint(entry.Type)
+		hint := c.TypeHint(entry.Type)
 		return fmt.Errorf("invalid value %q for %s (expected %s)", value, path[len(path)-1], hint)
 	}
 	return nil

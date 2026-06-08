@@ -108,16 +108,15 @@ func parseRoute(prefixStr string, entry map[string]any) (staticRoute, error) {
 		return r, nil
 	}
 
-	nhMap, _ := entry["next-hop"].(map[string]any)
-	ifNHMap, _ := entry["interface-next-hop"].(map[string]any)
-
-	if len(nhMap) == 0 && len(ifNHMap) == 0 {
-		return r, fmt.Errorf("route %s: must have next-hop, interface-next-hop, blackhole, or reject", prefixStr)
+	nextMap, _ := entry["next"].(map[string]any)
+	if len(nextMap) == 0 {
+		return r, fmt.Errorf("route %s: must have next, blackhole, or reject", prefixStr)
 	}
 
 	r.Action = actionForward
 
-	for addr, nhValue := range nhMap {
+	hopMap, _ := nextMap["hop"].(map[string]any)
+	for addr, nhValue := range hopMap {
 		nhTree, ok := nhValue.(map[string]any)
 		if !ok {
 			nhTree = map[string]any{}
@@ -129,7 +128,8 @@ func parseRoute(prefixStr string, entry map[string]any) (staticRoute, error) {
 		r.NextHops = append(r.NextHops, nh)
 	}
 
-	for ifName, ifValue := range ifNHMap {
+	ifMap, _ := nextMap["interface"].(map[string]any)
+	for ifName, ifValue := range ifMap {
 		ifTree, ok := ifValue.(map[string]any)
 		if !ok {
 			ifTree = map[string]any{}
@@ -183,12 +183,12 @@ func parseInterfaceNextHop(ifName string, entry map[string]any) (nextHop, error)
 	var nh nextHop
 
 	if ifName == "" {
-		return nh, errors.New("interface-next-hop missing interface name")
+		return nh, errors.New("next interface missing name")
 	}
 	nh.Interface = ifName
 
 	if bfd, _ := entry["bfd-profile"].(string); bfd != "" {
-		return nh, fmt.Errorf("interface-next-hop %q: BFD profile not allowed (BFD requires a peer address)", nh.Interface)
+		return nh, fmt.Errorf("next interface %q: BFD profile not allowed (BFD requires a peer address)", nh.Interface)
 	}
 
 	w, err := mapUint32(entry, "weight")

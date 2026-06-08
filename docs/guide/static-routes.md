@@ -14,7 +14,7 @@ routing table:
 static {
     table default {
         route 0.0.0.0/0 {
-            next-hop 10.0.0.1 { }
+            next { hop 10.0.0.1 { } }
         }
     }
 }
@@ -35,7 +35,7 @@ routing-table {
 static {
     table lns {
         route 0.0.0.0/0 {
-            interface-next-hop tun100 { }
+            next { interface tun100 { } }
         }
     }
 }
@@ -55,7 +55,7 @@ the interface itself:
 static {
     table default {
         route 0.0.0.0/0 {
-            interface-next-hop pppoe0 { }
+            next { interface pppoe0 { } }
         }
     }
 }
@@ -68,8 +68,10 @@ peer address). Weight is supported for ECMP:
 static {
     table default {
         route 0.0.0.0/0 {
-            interface-next-hop pppoe0 { weight 3; }
-            interface-next-hop pppoe1 { weight 1; }
+            next {
+                interface pppoe0 { weight 3; }
+                interface pppoe1 { weight 1; }
+            }
         }
     }
 }
@@ -83,8 +85,10 @@ Gateway and interface-only next-hops can coexist in the same route:
 static {
     table default {
         route 0.0.0.0/0 {
-            next-hop 10.0.0.1 { weight 3; }
-            interface-next-hop pppoe0 { weight 1; }
+            next {
+                hop 10.0.0.1 { weight 3; }
+                interface pppoe0 { weight 1; }
+            }
         }
     }
 }
@@ -98,9 +102,11 @@ All next-hops are installed simultaneously as a multipath route:
 static {
     table default {
         route 10.0.0.0/8 {
-            next-hop 192.168.1.1 { }
-            next-hop 192.168.1.2 { }
-            next-hop 192.168.1.3 { }
+            next {
+                hop 192.168.1.1 { }
+                hop 192.168.1.2 { }
+                hop 192.168.1.3 { }
+            }
         }
     }
 }
@@ -115,11 +121,13 @@ more traffic. Default is 1 (equal distribution).
 static {
     table default {
         route 0.0.0.0/0 {
-            next-hop 10.0.0.1 {
-                weight 3
-            }
-            next-hop 10.0.0.2 {
-                weight 1
+            next {
+                hop 10.0.0.1 {
+                    weight 3
+                }
+                hop 10.0.0.2 {
+                    weight 1
+                }
             }
         }
     }
@@ -147,13 +155,15 @@ bfd {
 static {
     table default {
         route 0.0.0.0/0 {
-            next-hop 10.0.0.1 {
-                weight 3
-                bfd-profile wan-fast
-            }
-            next-hop 10.0.0.2 {
-                weight 1
-                bfd-profile wan-fast
+            next {
+                hop 10.0.0.1 {
+                    weight 3
+                    bfd-profile wan-fast
+                }
+                hop 10.0.0.2 {
+                    weight 1
+                    bfd-profile wan-fast
+                }
             }
         }
     }
@@ -189,11 +199,13 @@ outgoing interface:
 static {
     table default {
         route 2001:db8::/32 {
-            next-hop 2001:db8::1 { }
+            next { hop 2001:db8::1 { } }
         }
         route 2001:db8:1::/48 {
-            next-hop fe80::1 {
-                interface eth0
+            next {
+                hop fe80::1 {
+                    interface eth0
+                }
             }
         }
     }
@@ -209,7 +221,7 @@ static {
             description "internal networks"
             metric 100
             tag 42
-            next-hop 10.0.0.1 { }
+            next { hop 10.0.0.1 { } }
         }
     }
 }

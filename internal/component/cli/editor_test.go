@@ -799,6 +799,45 @@ func TestEditorTreeSetNewKey(t *testing.T) {
 	assert.Equal(t, "test-peer", desc)
 }
 
+// TestEditorEnsureListEntry verifies creating a list entry by key.
+//
+// VALIDATES: EnsureListEntry creates a keyed list entry.
+// PREVENTS: key leaf keyword creating an anonymous entry or setting a flat leaf.
+func TestEditorEnsureListEntry(t *testing.T) {
+	content := `static {
+	table default {
+		route 0.0.0.0/0 {
+			next { }
+		}
+	}
+}
+`
+	configPath := writeTestConfig(t, content)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.EnsureListEntry(
+		[]string{"static", "table", "default", "route", "0.0.0.0/0", "next"},
+		"hop", "10.104.1.254",
+	)
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty(), "editor should be dirty after EnsureListEntry")
+
+	next := ed.WalkPath([]string{"static", "table", "default", "route", "0.0.0.0/0", "next"})
+	require.NotNil(t, next)
+	entries := next.GetList("hop")
+	require.NotNil(t, entries, "hop list should exist")
+	require.Contains(t, entries, "10.104.1.254", "entry should be keyed by IP")
+
+	// Idempotent: second call should not error
+	err = ed.EnsureListEntry(
+		[]string{"static", "table", "default", "route", "0.0.0.0/0", "next"},
+		"hop", "10.104.1.254",
+	)
+	require.NoError(t, err)
+}
+
 // TestEditorTreeDelete verifies DeleteValue removes a leaf from the tree.
 //
 // VALIDATES: DeleteValue removes a key-value pair from the tree.

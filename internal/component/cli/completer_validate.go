@@ -73,7 +73,6 @@ func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
 			_, isChild := entry.Dir[nextToken]
 			isKeyLeaf := entry.Key == nextToken
 			if isChild && !isKeyLeaf {
-				// Next token is a non-key schema child — key is missing
 				return nil, fmt.Errorf("%s is a list — requires a key (e.g., %s <key> %s ...)", part, part, nextToken)
 			}
 			// Next token is the key value — skip it
@@ -84,9 +83,9 @@ func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
 	return entry, nil
 }
 
-// getListKeyEntry returns the YANG entry for a list's key leaf.
+// GetListKeyEntry returns the YANG entry for a list's key leaf.
 // For example, peer list with key "address" returns the address leaf entry.
-func (c *Completer) getListKeyEntry(listPath []string) *gyang.Entry {
+func (c *Completer) GetListKeyEntry(listPath []string) *gyang.Entry {
 	listEntry := c.getEntry(listPath)
 	if listEntry == nil || !listEntry.IsList() || listEntry.Key == "" {
 		return nil

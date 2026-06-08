@@ -195,6 +195,9 @@ func (e *Editor) DeleteValue(path []string, key string) error {
 
 // DeleteContainer removes a container at the given path in the tree.
 func (e *Editor) DeleteContainer(path []string, name string) error {
+	if e.session != nil {
+		return e.writeThroughDeleteContainer(path, name)
+	}
 	var target *config.Tree
 	if len(path) == 0 {
 		target = e.tree
@@ -275,8 +278,112 @@ func (e *Editor) walkSchema(path []string) schemaGetter {
 	return current
 }
 
+// IsListKeyLeafPath checks if the last two path elements are a list name
+// and its key leaf keyword. Uses the config schema which flattens choice/case.
+func (e *Editor) IsListKeyLeafPath(path []string) bool {
+	if e.schema == nil || len(path) < 2 {
+		return false
+	}
+	keyLeafName := path[len(path)-1]
+	listName := path[len(path)-2]
+
+	// Walk the schema to the parent of the list, skipping list keys.
+	var current schemaGetter = e.schema
+	for i := 0; i < len(path)-2; i++ {
+		name := path[i]
+		node := current.Get(name)
+		if node == nil {
+			return false
+		}
+		switch n := node.(type) {
+		case *config.ContainerNode:
+			current = n
+		case *config.ListNode:
+			current = n
+			if i+1 < len(path)-2 && n.Get(path[i+1]) == nil {
+				i++
+			}
+		case *config.FlexNode:
+			current = n
+		default:
+			return false
+		}
+	}
+
+	node := current.Get(listName)
+	listNode, ok := node.(*config.ListNode)
+	if !ok {
+		return false
+	}
+	return listNode.KeyName == keyLeafName
+}
+
+// EnsureListEntry creates a list entry if it does not already exist.
+// Validates the key value against the list's YANG key type.
+func (e *Editor) EnsureListEntry(parentPath []string, listName, key string) error {
+	if e.schema != nil {
+		listNode := e.resolveListNode(parentPath, listName)
+		if listNode != nil {
+			if err := config.ValidateListKey(listNode, key); err != nil {
+				return fmt.Errorf("invalid %s key %q: %w", listName, key, err)
+			}
+		}
+	}
+	fullPath := make([]string, 0, len(parentPath)+2)
+	fullPath = append(fullPath, parentPath...)
+	fullPath = append(fullPath, listName, key)
+	if e.session != nil {
+		return e.writeThroughCreate(fullPath)
+	}
+	target, err := e.walkOrCreate(parentPath)
+	if err != nil {
+		return err
+	}
+	entries := target.GetList(listName)
+	if entries != nil && entries[key] != nil {
+		return nil
+	}
+	target.AddListEntry(listName, key, config.NewTree())
+	e.dirty.Store(true)
+	return nil
+}
+
+// resolveListNode walks the config schema to find the ListNode for the given
+// parent path and list name, skipping list keys along the way.
+func (e *Editor) resolveListNode(parentPath []string, listName string) *config.ListNode {
+	var current schemaGetter = e.schema
+	for i := 0; i < len(parentPath); i++ {
+		node := current.Get(parentPath[i])
+		if node == nil {
+			return nil
+		}
+		switch n := node.(type) {
+		case *config.ContainerNode:
+			current = n
+		case *config.ListNode:
+			current = n
+			if i+1 < len(parentPath) && n.Get(parentPath[i+1]) == nil {
+				i++
+			}
+		case *config.FlexNode:
+			current = n
+		default:
+			return nil
+		}
+	}
+	node := current.Get(listName)
+	listNode, ok := node.(*config.ListNode)
+	if !ok {
+		return nil
+	}
+	return listNode
+}
+
 // DeleteListEntry removes a list entry at the given path in the tree.
 func (e *Editor) DeleteListEntry(path []string, listName, key string) error {
+	if e.session != nil {
+		return e.writeThroughDeleteListEntry(path, listName, key)
+	}
 	var target *config.Tree
 	if len(path) == 0 {
 		target = e.tree
@@ -288,6 +395,115 @@ func (e *Editor) DeleteListEntry(path []string, listName, key string) error {
 	}
 	target.RemoveListEntry(listName, key)
 	e.dirty.Store(true)
+	return nil
+}
+
+// writeThroughDeleteListEntry records a list-entry deletion as a structural op
+// in the per-user change file and removes the entry from the in-memory tree.
+func (e *Editor) writeThroughDeleteListEntry(parentPath []string, listName, key string) error {
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return fmt.Errorf("write-through lock: %w", err)
+	}
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
+	guard.SetModifier(e.session.ID)
+
+	changePath := ChangePath(e.originalPath, e.session.User)
+	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+
+	op := config.StructuralOp{
+		Type:       config.StructuralOpDeleteEntry,
+		User:       e.session.User,
+		Source:     e.session.Origin,
+		Time:       e.session.StartTime,
+		ParentPath: textbuf.Join(parentPath, " "),
+		ListName:   listName,
+		OldKey:     key,
+	}
+	changeOps = append(changeOps, op)
+
+	var changeTarget *config.Tree
+	if len(parentPath) == 0 {
+		changeTarget = changeTree
+	} else {
+		changeTarget = walkPath(changeTree, e.schema, parentPath)
+	}
+	if changeTarget != nil {
+		changeTarget.RemoveListEntry(listName, key)
+	}
+
+	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
+	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
+		return fmt.Errorf("write-through write: %w", err)
+	}
+
+	var target *config.Tree
+	if len(parentPath) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(parentPath)
+	}
+	if target == nil {
+		return errPathNotFound
+	}
+	target.RemoveListEntry(listName, key)
+
+	e.dirty.Store(true)
+	e.draftSaved = false
+	return nil
+}
+
+// writeThroughDeleteContainer records a container deletion as a structural op
+// in the per-user change file and removes the container from the in-memory tree.
+func (e *Editor) writeThroughDeleteContainer(parentPath []string, containerName string) error {
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return fmt.Errorf("write-through lock: %w", err)
+	}
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
+	guard.SetModifier(e.session.ID)
+
+	changePath := ChangePath(e.originalPath, e.session.User)
+	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
+
+	op := config.StructuralOp{
+		Type:       config.StructuralOpDeleteContainer,
+		User:       e.session.User,
+		Source:     e.session.Origin,
+		Time:       e.session.StartTime,
+		ParentPath: textbuf.Join(parentPath, " "),
+		ListName:   containerName,
+	}
+	changeOps = append(changeOps, op)
+
+	var changeTarget *config.Tree
+	if len(parentPath) == 0 {
+		changeTarget = changeTree
+	} else {
+		changeTarget = walkPath(changeTree, e.schema, parentPath)
+	}
+	if changeTarget != nil {
+		changeTarget.DeleteContainer(containerName)
+	}
+
+	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
+	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
+		return fmt.Errorf("write-through write: %w", err)
+	}
+
+	var target *config.Tree
+	if len(parentPath) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(parentPath)
+	}
+	if target == nil {
+		return errPathNotFound
+	}
+	target.DeleteContainer(containerName)
+
+	e.dirty.Store(true)
+	e.draftSaved = false
 	return nil
 }
 

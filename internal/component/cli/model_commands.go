@@ -371,28 +371,40 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	key := path[len(path)-1]
 	containerPath := path[:len(path)-1]
 
-	// Validate the full token path (with list keys) against schema.
-	// This catches missing list keys and unknown path elements.
-	if _, err := m.completer.validateTokenPath(path); err != nil {
-		return commandResult{}, err
-	}
-
-	// Validate value against YANG type before applying
-	if err := m.completer.ValidateValueAtPath(path, value); err != nil {
-		return commandResult{}, err
-	}
-
-	// Mutate the tree directly
-	if err := m.editor.SetValue(containerPath, key, value); err != nil {
-		return commandResult{}, fmt.Errorf("set failed: %w", err)
+	// When the path ends at a list's key leaf keyword (e.g., "next-hop address"),
+	// the value is the key for a new list entry. Check BEFORE validateTokenPath
+	// because the keyword at end-of-path would be rejected as "missing key value".
+	isListKey := m.editor.IsListKeyLeafPath(path)
+	if isListKey {
+		listName := containerPath[len(containerPath)-1]
+		listParent := containerPath[:len(containerPath)-1]
+		if err := m.editor.EnsureListEntry(listParent, listName, value); err != nil {
+			return commandResult{}, fmt.Errorf("set failed: %w", err)
+		}
+	} else {
+		// Validate the full token path (with list keys) against schema.
+		if _, err := m.completer.validateTokenPath(path); err != nil {
+			return commandResult{}, err
+		}
+		// Validate value against YANG type before applying
+		if err := m.completer.ValidateValueAtPath(path, value); err != nil {
+			return commandResult{}, err
+		}
+		if err := m.editor.SetValue(containerPath, key, value); err != nil {
+			return commandResult{}, fmt.Errorf("set failed: %w", err)
+		}
 	}
 
 	// Update completer with mutated tree
 	m.refreshCompleter()
 
-	displayPath := append(append([]string{}, containerPath...), key)
 	var tb textbuf.Buffer
-	tb.Str("set ").Join(displayPath, " ").Str(" = ").Str(value)
+	if isListKey {
+		tb.Str("created ").Str(containerPath[len(containerPath)-1]).Byte(' ').Str(value)
+	} else {
+		displayPath := append(append([]string{}, containerPath...), key)
+		tb.Str("set ").Join(displayPath, " ").Str(" = ").Str(value)
+	}
 
 	// Detect conflicts with other users' change files after each edit.
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {

@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/static"
 )
 
 func TestCompleterCommands(t *testing.T) {
@@ -174,6 +175,69 @@ func TestCompleterSetListKeys(t *testing.T) {
 	// Should NOT show schema children (those are for inside a peer)
 	assert.NotContains(t, texts, "remote", "should not show remote (that's inside peer)")
 	assert.NotContains(t, texts, "name", "should not show name (list key hidden inside peer)")
+}
+
+// TestCompleterKeyLeafAsValue verifies key leaf names are accepted as key values.
+//
+// VALIDATES: "peer name" treats "name" as the key value.
+// PREVENTS: key leaf name being rejected as missing key.
+func TestCompleterKeyLeafAsValue(t *testing.T) {
+	c := NewCompleter()
+
+	// "peer name " should show list children ("name" is the key value)
+	peerComps := c.Complete("set bgp peer name ", nil)
+	require.NotEmpty(t, peerComps, "should show children inside peer 'name'")
+
+	// "route prefix " should show list children ("prefix" is the key value)
+	routeComps := c.Complete("set static table default route prefix ", nil)
+	require.NotEmpty(t, routeComps, "should show children inside route 'prefix'")
+	texts := completionTexts(routeComps)
+	assert.Contains(t, texts, "description", "prefix is the key value, should show children")
+}
+
+// TestValidateTokenPathKeyLeaf verifies key leaf names pass validation as key values.
+//
+// VALIDATES: peer "name" accepted as key value in validateTokenPath.
+// PREVENTS: regression where key leaf names were rejected.
+func TestValidateTokenPathKeyLeaf(t *testing.T) {
+	c := NewCompleter()
+
+	_, err := c.validateTokenPath([]string{"bgp", "peer", "name", "description"})
+	require.NoError(t, err, "peer 'name' should be accepted as key value")
+
+	_, err = c.validateTokenPath([]string{"static", "table", "default", "route", "prefix", "description"})
+	require.NoError(t, err, "route 'prefix' should be accepted as key value")
+
+	_, err = c.validateTokenPath([]string{"static", "table", "default", "route", "10.0.0.0/8", "description"})
+	require.NoError(t, err, "route <value> leaf should work")
+}
+
+// TestEditorIsListKeyLeafPath verifies IsListKeyLeafPath detects key leaf paths.
+func TestEditorIsListKeyLeafPath(t *testing.T) {
+	content := `static {
+	table default {
+		route 0.0.0.0/0 {
+			next { }
+		}
+	}
+}
+bgp {
+	router-id 1.2.3.4
+}
+`
+	configPath := writeTestConfig(t, content)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	// hop address: "address" is hop's key leaf
+	assert.True(t, ed.IsListKeyLeafPath([]string{"static", "table", "default", "route", "0.0.0.0/0", "next", "hop", "address"}))
+
+	// peer name: "name" is peer's key leaf
+	assert.True(t, ed.IsListKeyLeafPath([]string{"bgp", "peer", "name"}))
+
+	// peer description: NOT a key leaf
+	assert.False(t, ed.IsListKeyLeafPath([]string{"bgp", "peer", "description"}))
 }
 
 // TestCompleterListKeysInContext verifies that list key completions work

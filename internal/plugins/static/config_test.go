@@ -14,7 +14,7 @@ func wrap(routeKey, routeJSON string) string {
 }
 
 func TestParseStaticConfig(t *testing.T) {
-	input := wrap("10.0.0.0/8", `{"next-hop":{"192.168.1.1":{}}}`)
+	input := wrap("10.0.0.0/8", `{"next":{"hop":{"192.168.1.1":{}}}}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)
@@ -41,7 +41,7 @@ func TestParseStaticConfig(t *testing.T) {
 }
 
 func TestParseStaticConfigMultiNextHop(t *testing.T) {
-	input := wrap("0.0.0.0/0", `{"next-hop":{"10.0.0.1":{"weight":3},"10.0.0.2":{"weight":1}}}`)
+	input := wrap("0.0.0.0/0", `{"next":{"hop":{"10.0.0.1":{"weight":3},"10.0.0.2":{"weight":1}}}}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestParseStaticConfigMultiNextHop(t *testing.T) {
 }
 
 func TestParseStaticConfigWeight(t *testing.T) {
-	input := wrap("10.0.0.0/8", `{"next-hop":{"10.0.0.1":{"weight":100}}}`)
+	input := wrap("10.0.0.0/8", `{"next":{"hop":{"10.0.0.1":{"weight":100}}}}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestParseStaticConfigReject(t *testing.T) {
 }
 
 func TestParseStaticConfigIPv6(t *testing.T) {
-	input := wrap("2001:db8::/32", `{"next-hop":{"2001:db8::1":{}}}`)
+	input := wrap("2001:db8::/32", `{"next":{"hop":{"2001:db8::1":{}}}}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +109,7 @@ func TestParseStaticConfigIPv6(t *testing.T) {
 }
 
 func TestParseStaticConfigTag(t *testing.T) {
-	input := wrap("172.16.0.0/12", `{"next-hop":{"10.0.0.1":{}},"tag":100}`)
+	input := wrap("172.16.0.0/12", `{"next":{"hop":{"10.0.0.1":{}}},"tag":100}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +120,7 @@ func TestParseStaticConfigTag(t *testing.T) {
 }
 
 func TestParseStaticConfigDescription(t *testing.T) {
-	input := wrap("10.0.0.0/8", `{"next-hop":{"10.0.0.1":{}},"description":"test route"}`)
+	input := wrap("10.0.0.0/8", `{"next":{"hop":{"10.0.0.1":{}}},"description":"test route"}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +142,7 @@ func TestParseStaticConfigEmpty(t *testing.T) {
 }
 
 func TestParseStaticConfigInvalidPrefix(t *testing.T) {
-	input := wrap("not-a-prefix", `{"next-hop":{"10.0.0.1":{}}}`)
+	input := wrap("not-a-prefix", `{"next":{"hop":{"10.0.0.1":{}}}}`)
 	_, err := parseStaticConfig(input, defReg())
 	if err == nil {
 		t.Fatal("expected error for invalid prefix")
@@ -150,7 +150,7 @@ func TestParseStaticConfigInvalidPrefix(t *testing.T) {
 }
 
 func TestParseStaticConfigBFDProfile(t *testing.T) {
-	input := wrap("10.0.0.0/8", `{"next-hop":{"10.0.0.1":{"bfd-profile":"wan-fast"}}}`)
+	input := wrap("10.0.0.0/8", `{"next":{"hop":{"10.0.0.1":{"bfd-profile":"wan-fast"}}}}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)
@@ -161,7 +161,7 @@ func TestParseStaticConfigBFDProfile(t *testing.T) {
 }
 
 func TestParseStaticConfigInterface(t *testing.T) {
-	input := wrap("10.0.0.0/8", `{"next-hop":{"fe80::1":{"interface":"eth0"}}}`)
+	input := wrap("10.0.0.0/8", `{"next":{"hop":{"fe80::1":{"interface":"eth0"}}}}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)
@@ -172,7 +172,7 @@ func TestParseStaticConfigInterface(t *testing.T) {
 }
 
 func TestParseStaticConfigMetric(t *testing.T) {
-	input := wrap("10.0.0.0/8", `{"next-hop":{"10.0.0.1":{}},"metric":200}`)
+	input := wrap("10.0.0.0/8", `{"next":{"hop":{"10.0.0.1":{}}},"metric":200}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)
@@ -198,7 +198,7 @@ func TestParseStaticConfigMalformedJSON(t *testing.T) {
 }
 
 func TestParseStaticConfigPrefixCanonicalized(t *testing.T) {
-	input := wrap("10.1.2.3/8", `{"next-hop":{"10.0.0.1":{}}}`)
+	input := wrap("10.1.2.3/8", `{"next":{"hop":{"10.0.0.1":{}}}}`)
 	routes, err := parseStaticConfig(input, defReg())
 	if err != nil {
 		t.Fatal(err)

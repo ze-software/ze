@@ -1,0 +1,35 @@
+# Test: Static route config with next container parsing
+# Validates: container next { list hop, list interface } accepted
+stdin=config:terminator=EOF_CONF
+static {
+    table default {
+        route 0.0.0.0/0 {
+            next {
+                hop 10.0.0.1 { weight 3; }
+                hop 10.0.0.2 { weight 1; }
+            }
+        }
+        route 10.0.0.0/8 {
+            next {
+                interface pppoe0 { }
+            }
+        }
+        route 172.16.0.0/12 {
+            next {
+                hop 192.168.1.1 { weight 2; }
+                interface eth1 { weight 1; }
+            }
+        }
+        route 192.0.2.0/24 {
+            blackhole { }
+        }
+        route 198.51.100.0/24 {
+            reject { }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
