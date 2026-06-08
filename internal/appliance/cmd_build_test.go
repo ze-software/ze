@@ -83,8 +83,11 @@ func TestGokrazyConfigBuildsStrippedZeBinary(t *testing.T) {
 	if !ok {
 		t.Fatal("GoBuildTags missing for ze package")
 	}
-	if len(tags) != 0 {
-		t.Fatalf("GoBuildTags = %v, want empty (no tags = minimal build)", tags)
+	if len(tags) != 1 {
+		t.Fatalf("GoBuildTags = %v, want [ze_core]", tags)
+	}
+	if tag, ok := tags[0].(string); !ok || tag != "ze_core" {
+		t.Fatalf("GoBuildTags[0] = %v, want ze_core", tags[0])
 	}
 }
 
