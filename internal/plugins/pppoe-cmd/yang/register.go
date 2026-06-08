@@ -7,5 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-bfd-cmd.yang", ZeBFDCmdYANG)
+	configyang.RegisterModule("ze-pppoe-cmd.yang", ZePPPoECmdYANG)
 }

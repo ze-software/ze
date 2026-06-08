@@ -26,8 +26,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/yang" // register ze-bfd-cmd.yang
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/yang"   // register ze-bfd-api.yang
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/yang" // register ze-bfd-cmd.yang + ze-bfd-api.yang
 )
 
 // errBFDServiceUnavailable is returned when a show command runs while

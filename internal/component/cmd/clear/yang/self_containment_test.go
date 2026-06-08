@@ -8,7 +8,7 @@ import (
 func TestClearOwnerRemovalLeavesNoResidue(t *testing.T) {
 	banned := map[string]string{
 		`"ze-clear:vpn-ipsec-sa"`:       "IPsec clear -> internal/component/ike/yang",
-		`"ze-clear:dns-cache"`:          "DNS cache clear -> internal/component/resolve/yang",
+		`"ze-clear:dns-cache"`:          "DNS cache clear -> internal/plugins/resolve-cmd/yang",
 		`"ze-clear:interface-counters"`: "interface counters clear -> internal/component/iface/yang",
 		`"ze-l2tp-api:`:                 "L2TP clear -> internal/component/cmd/l2tp (already owned)",
 	}

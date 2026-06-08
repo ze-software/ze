@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-gnmi-cmd.yang", ZeGNMICmdYANG)
 	configyang.RegisterModule("ze-gnmi-conf.yang", ZeGNMIConfYANG)
 }

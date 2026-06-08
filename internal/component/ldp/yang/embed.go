@@ -4,8 +4,5 @@ package yang
 
 import _ "embed"
 
-//go:embed ze-ldp-cmd.yang
-var ZeLDPCmdYANG string
-
 //go:embed ze-ldp-conf.yang
 var ZeLDPConfYANG string

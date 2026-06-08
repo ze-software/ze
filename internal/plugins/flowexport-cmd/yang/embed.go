@@ -4,5 +4,5 @@ package yang
 
 import _ "embed"
 
-//go:embed ze-bfd-cmd.yang
-var ZeBFDCmdYANG string
+//go:embed ze-flowexport-cmd.yang
+var ZeFlowExportCmdYANG string

@@ -8,5 +8,4 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-config-archive-api.yang", ZeConfigArchiveAPIYANG)
-	configyang.RegisterModule("ze-config-archive-cmd.yang", ZeConfigArchiveCmdYANG)
 }

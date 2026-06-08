@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-flowexport-cmd.yang", ZeFlowExportCmdYANG)
 	configyang.RegisterModule("ze-flowexport-conf.yang", ZeFlowExportConfYANG)
 }

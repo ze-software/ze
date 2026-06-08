@@ -8,6 +8,5 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-pki-api.yang", ZePKIAPIYANG)
-	configyang.RegisterModule("ze-pki-cmd.yang", ZePKICmdYANG)
 	configyang.RegisterModule("ze-pki-conf.yang", ZePKIConfYANG)
 }

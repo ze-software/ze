@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-storage-cmd.yang", ZeStorageCmdYANG)
 	configyang.RegisterModule("ze-storage-conf.yang", ZeStorageConfYANG)
 }

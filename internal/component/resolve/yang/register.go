@@ -8,5 +8,4 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-resolve-api.yang", ZeResolveAPIYANG)
-	configyang.RegisterModule("ze-resolve-cmd.yang", ZeResolveCmdYANG)
 }

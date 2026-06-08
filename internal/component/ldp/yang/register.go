@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-ldp-cmd.yang", ZeLDPCmdYANG)
 	configyang.RegisterModule("ze-ldp-conf.yang", ZeLDPConfYANG)
 }

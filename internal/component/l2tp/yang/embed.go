@@ -7,8 +7,5 @@ import _ "embed"
 //go:embed ze-l2tp-api.yang
 var ZeL2TPAPIYANG string
 
-//go:embed ze-l2tp-cmd.yang
-var ZeL2TPCmdYANG string
-
 //go:embed ze-l2tp-conf.yang
 var ZeL2TPConfYANG string

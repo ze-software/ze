@@ -4,8 +4,5 @@ package yang
 
 import _ "embed"
 
-//go:embed ze-traffic-cmd.yang
-var ZeTrafficCmdYANG string
-
 //go:embed ze-traffic-control-conf.yang
 var ZeTrafficControlConfYANG string

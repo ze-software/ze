@@ -8,5 +8,6 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-bfd-api.yang", ZeBFDAPIYANG)
+	configyang.RegisterModule("ze-bfd-cmd.yang", ZeBFDCmdYANG)
 	configyang.RegisterModule("ze-bfd-conf.yang", ZeBFDConfYANG)
 }

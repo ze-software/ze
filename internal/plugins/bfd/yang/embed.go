@@ -7,5 +7,8 @@ import _ "embed"
 //go:embed ze-bfd-api.yang
 var ZeBFDAPIYANG string
 
+//go:embed ze-bfd-cmd.yang
+var ZeBFDCmdYANG string
+
 //go:embed ze-bfd-conf.yang
 var ZeBFDConfYANG string

@@ -8,6 +8,5 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-pppoe-api.yang", ZePPPoEAPIYANG)
-	configyang.RegisterModule("ze-pppoe-cmd.yang", ZePPPoECmdYANG)
 	configyang.RegisterModule("ze-pppoe-conf.yang", ZePPPoEConfYANG)
 }

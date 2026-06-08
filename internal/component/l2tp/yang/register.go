@@ -8,6 +8,5 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-l2tp-api.yang", ZeL2TPAPIYANG)
-	configyang.RegisterModule("ze-l2tp-cmd.yang", ZeL2TPCmdYANG)
 	configyang.RegisterModule("ze-l2tp-conf.yang", ZeL2TPConfYANG)
 }
