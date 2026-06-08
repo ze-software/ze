@@ -15,11 +15,11 @@ functions inside these files, not separate scripts:
 |---|---|---|
 | `.claude/hooks/pretool-bash.py` | PreToolUse `Bash` | every Bash check below |
 | `.claude/hooks/pretool-writeedit.py` | PreToolUse `Write\|Edit\|MultiEdit\|NotebookEdit` | every Write/Edit check below |
-| `.claude/hooks/posttool-writeedit.py` | PostToolUse `Write\|Edit` | the cheap advisory PostToolUse checks |
+| `.claude/hooks/posttool-writeedit.py` | PostToolUse `Write\|Edit` | the formatters (gofmt/goimports/golangci, ruff) + cheap advisory checks |
 
-Still standalone (expensive, mutating, complex, or single-purpose):
-`block-until-lsp.sh`, `auto_linter.sh`, `auto_py_format.sh`, `validate-spec.sh`,
-`mark-lsp-invoked.sh`, and the session-lifecycle hooks.
+Still standalone (single-purpose or deliberately not folded):
+`block-until-lsp.sh`, `validate-spec.sh` (see note below), `mark-lsp-invoked.sh`,
+and the session-lifecycle hooks.
 
 **Changing a check:** edit the function in the relevant dispatcher (not a `.sh`),
 then run `python3 scripts/dev/hook-parity-check.py` to confirm no behaviour
@@ -110,9 +110,9 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | Check | File | Enforces | Triggers on | What it does |
 |---|---|---|---|---|
 | mark-lsp-invoked | `mark-lsp-invoked.sh` | `session-start.md` | LSP | Writes freshness marker for the design-without-lsp gate. |
-| auto-lint | `auto_linter.sh` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
-| auto-py-format | `auto_py_format.sh` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
-| validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. BLOCKING. |
+| auto-lint | `posttool-writeedit.py` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
+| auto-py-format | `posttool-writeedit.py` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
+| validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. **Currently broken** (see note). |
 | file-size | `posttool-writeedit.py` | `file-modularity.md` | `.go` | Warns >600 lines, strong >1000. Advisory. |
 | warn-deferral | `posttool-writeedit.py` | `deferral-tracking.md` | `.md` | Warns on deferral language in doc edits. Advisory. |
 | require-rfc-reference | `posttool-writeedit.py` | `design-doc-references.md` | `.go` | Suggests `// RFC:` header. Advisory. |
@@ -120,6 +120,14 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | require-fuzz-tests | `posttool-writeedit.py` | `tdd.md` | wire `.go` | Warns about `Parse*` without `Fuzz*` tests. Advisory. |
 | vague-names | `posttool-writeedit.py` | `design-principles.md` | `.go` | Warns about `Data`/`Info`/`Result`/... names. Advisory. |
 | boundary-tests | `posttool-writeedit.py` | `tdd.md` | `.go` | Warns about numeric validation without boundary tests. Advisory. |
+
+> **validate-spec.sh is broken** and kept standalone for that reason. It greps the
+> Wiring Test table for the Unicode arrow `→`, but real specs use ASCII `->`, so
+> an unguarded `grep -v` pipeline returns 1 and `set -e` aborts the script at
+> exit 1 (non-blocking) before validation finishes. It therefore does NOT block
+> most real specs today. It was NOT folded into the dispatcher because doing so
+> would either replicate the crash or silently turn it into a blocking gate. Fix
+> the `→`/`->` mismatch (and the `set -e` fragility) before relying on it.
 
 `make ze-verify` separately runs `ze-verify-wiring-docs` (wiring/doc-drift gate);
 that is a Make target, not a Claude hook.
