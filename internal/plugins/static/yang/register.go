@@ -8,4 +8,5 @@ import (
 
 func init() {
 	configyang.RegisterModule("ze-static-cmd.yang", ZeStaticCmdYANG)
+	configyang.RegisterModule("ze-static-conf.yang", ZeStaticConfYANG)
 }

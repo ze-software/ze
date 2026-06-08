@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
+	bgpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -467,7 +467,7 @@ func buildSchemaRegistry(extPlugins []string) (*pluginserver.SchemaRegistry, err
 	loaded := make(map[string]bool)
 
 	// Register ze-bgp schema first (base module) - it provides config, doesn't want it
-	if err := registerYANG(registry, bgpschema.ZeBGPConfYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp/peer"}, nil, loaded); err != nil {
+	if err := registerYANG(registry, bgpyang.ZeBGPConfYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp/peer"}, nil, loaded); err != nil {
 		return nil, fmt.Errorf("register ze-bgp: %w", err)
 	}
 
@@ -600,7 +600,7 @@ func getInternalYANG(moduleName, pluginName string) (yangContent string, handler
 	// Core BGP module
 	if moduleName == bgpConfModule {
 		var tb textbuf.Buffer
-		return bgpschema.ZeBGPConfYANG, []string{"bgp", "bgp/peer"}, tb.Str(internalPluginPrefix).Str("bgp").String()
+		return bgpyang.ZeBGPConfYANG, []string{"bgp", "bgp/peer"}, tb.Str(internalPluginPrefix).Str("bgp").String()
 	}
 
 	// Internal plugins

@@ -39,21 +39,31 @@ boot time.
 
 ## Build
 
-The build runs inside a QEMU Alpine VM. When the host architecture matches the
-target, QEMU uses HVF (macOS) or KVM (Linux) for near-native speed. Cross-arch
-builds use TCG with multi-threaded emulation (each vCPU gets its own host
-thread so `make -jN` parallelises under emulation).
+Two build backends are available:
 
-Compilation results are cached via ccache in `tmp/qemu/ccache/`. The first
-build populates the cache; subsequent builds with the same kernel version skip
-unchanged translation units. Clear the cache with `rm -rf tmp/qemu/ccache/`.
+| Backend | Variable | Prerequisites | Best for |
+|---------|----------|---------------|----------|
+| `qemu` (default) | `BUILDER=qemu` | qemu, python3, curl | Same-arch builds (near-native via HVF/KVM) |
+| `docker` | `BUILDER=docker` | docker | Cross-arch builds (Rosetta 2 is much faster than TCG) |
 
-Prerequisites: `qemu` (`brew install qemu` on macOS), `python3`, `curl`.
+When the host architecture matches the target, QEMU uses HVF (macOS) or KVM
+(Linux) for near-native speed. Cross-arch builds under QEMU use TCG (full
+software emulation), which is slow. Docker Desktop on macOS uses Rosetta 2 for
+cross-arch emulation, which is significantly faster.
+
+The `ze appliance kernel` command auto-selects Docker if available, falling
+back to QEMU. Override with `--builder docker` or `--builder qemu`.
+
+Compilation results are cached via ccache in `tmp/qemu/ccache/` (QEMU backend).
+The first build populates the cache; subsequent builds with the same kernel
+version skip unchanged translation units.
 
 ```sh
-make                                  # qemu profile, arm64 (default)
+make                                  # qemu builder, qemu profile, arm64
+make BUILDER=docker                   # docker builder (faster cross-arch)
 make PROFILE=hardware                 # real hardware, headless, arm64
 make PROFILE=hardware-kms ARCH=amd64  # real hardware + i915 KMS, x86_64
+make BUILDER=docker PROFILE=hardware-kms ARCH=amd64  # docker + hardware-kms
 make PROFILE=hardware ARCH=amd64      # real hardware, headless, x86_64
 make ARCH=amd64                       # qemu profile, x86_64
 make LINUX_VERSION=6.12.9             # pin a different kernel

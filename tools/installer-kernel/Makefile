@@ -1,12 +1,17 @@
-# Build the ze installer kernel in a QEMU Alpine VM.
+# Build the ze installer kernel.
 #
-#   make                                  # qemu profile, arm64 (default)
+#   make                                  # qemu builder, qemu profile, arm64 (default)
+#   make BUILDER=docker                   # docker builder (faster cross-arch via Rosetta 2)
 #   make PROFILE=hardware                 # real hardware, headless (EFI, NIC drivers, NVMe)
 #   make PROFILE=hardware-kms             # real hardware + Intel i915 KMS monitor output
 #   make PROFILE=hardware ARCH=amd64      # hardware profile, x86_64
 #   make ARCH=amd64                       # qemu profile, x86_64
 #   make LINUX_VERSION=6.12.9             # pin a different kernel
 #   make clean
+#
+# BUILDER selects the build environment:
+#   qemu   (default) - Alpine VM via QEMU; requires: qemu, python3, curl
+#   docker           - Debian container via Docker; requires: docker
 #
 # PROFILE selects which driver set to merge on top of kernel.config:
 #   qemu         - virtio only (small, fast build)
@@ -17,13 +22,13 @@
 # .config). The caller chooses the architecture via ARCH before invoking
 # `ze install appliance iso`, or passes an explicit `--kernel` path when
 # keeping multiple kernels side by side.
-#
-# Requires: qemu (brew install qemu), python3, curl.
 
 ARCH ?= arm64
 LINUX_VERSION ?= 7.0.11
 PROFILE ?= qemu
+BUILDER ?= qemu
 JOBS ?=
+IMG := ze-installer-kernel-builder
 OUT := build
 
 PROFILE_CONFIG := $(PROFILE).config
@@ -37,6 +42,27 @@ ifeq ($(PROFILE),hardware-kms)
 PROFILE_DEPS = hardware.config hardware-kms.config
 endif
 
+ifeq ($(BUILDER),docker)
+
+$(OUT)/Image: Dockerfile build.sh kernel.config $(PROFILE_DEPS)
+	@if [ ! -f "$(PROFILE_CONFIG)" ]; then \
+		echo "error: unknown PROFILE=$(PROFILE) (expected qemu, hardware, or hardware-kms)" >&2; \
+		exit 1; \
+	fi
+	docker build -t $(IMG) .
+	mkdir -p $(OUT)
+	docker run --rm \
+		-e LINUX_VERSION=$(LINUX_VERSION) \
+		-e ARCH=$(ARCH) \
+		-e PROFILE=$(PROFILE) \
+		$(if $(JOBS),-e JOBS=$(JOBS),) \
+		-v "$(CURDIR):/src:ro" \
+		-v "$(CURDIR)/$(OUT):/out" \
+		$(IMG) sh /src/build.sh
+	@echo "Built: $(OUT)/Image (profile=$(PROFILE), arch=$(ARCH), builder=docker)"
+
+else
+
 $(OUT)/Image: qemu-build.py build.sh kernel.config $(PROFILE_DEPS)
 	@if [ ! -f "$(PROFILE_CONFIG)" ]; then \
 		echo "error: unknown PROFILE=$(PROFILE) (expected qemu, hardware, or hardware-kms)" >&2; \
@@ -48,7 +74,9 @@ $(OUT)/Image: qemu-build.py build.sh kernel.config $(PROFILE_DEPS)
 		--profile $(PROFILE) \
 		--version $(LINUX_VERSION) \
 		$(if $(JOBS),--jobs $(JOBS),)
-	@echo "Built: $(OUT)/Image (profile=$(PROFILE), arch=$(ARCH))"
+	@echo "Built: $(OUT)/Image (profile=$(PROFILE), arch=$(ARCH), builder=qemu)"
+
+endif
 
 clean:
 	rm -rf $(OUT)

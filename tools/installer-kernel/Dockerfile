@@ -1,8 +1,8 @@
 # Build environment for the ze installer kernel.
 #
-# Native build: run on a host whose docker arch matches ZE_INSTALL_ARCH
-# (arm64 on Apple Silicon / colima). The build script downloads pinned kernel
-# source, merges kernel.config onto defconfig, and emits the kernel Image.
+# The build script downloads pinned kernel source, merges config fragments,
+# and emits the kernel Image. Docker is faster than QEMU for cross-arch
+# builds on macOS (Rosetta 2 vs TCG emulation).
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         flex \
         libelf-dev \
         libssl-dev \
+        linux-headers-generic \
         wget \
         ca-certificates \
         xz-utils \

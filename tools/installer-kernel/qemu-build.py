@@ -31,9 +31,10 @@ ALPINE_VERSION = "3.21"
 ALPINE_MINOR = "3"
 
 VM_MEMORY_MIN = 4096
+VM_MEMORY_MAX = 8192
 VM_MEMORY_FRACTION = 4
 BOOT_TIMEOUT = 120
-BUILD_TIMEOUT = 3600
+BUILD_TIMEOUT = 7200
 DEFAULT_LINUX_VERSION = "7.0.11"
 
 BUILD_PACKAGES = (
@@ -133,7 +134,7 @@ def _vm_memory() -> str:
     try:
         total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
         quarter = total // VM_MEMORY_FRACTION // (1024 * 1024)
-        return str(max(VM_MEMORY_MIN, quarter))
+        return str(min(VM_MEMORY_MAX, max(VM_MEMORY_MIN, quarter)))
     except (ValueError, OSError):
         return str(VM_MEMORY_MIN)
 
@@ -373,17 +374,17 @@ def _run_build(
         )
 
         ready = False
-        for attempt in range(1, 4):
+        for attempt in range(1, 6):
             _send(proc, bootstrap)
             print(
                 f"  bootstrapping VM, attempt {attempt}...",
                 file=sys.stderr,
             )
-            if not _expect(proc, "SSHD_READY", 90):
+            if not _expect(proc, "SSHD_READY", 180):
                 continue
             print("  waiting for SSH...", file=sys.stderr)
             try:
-                _wait_for_ssh(ssh_port, timeout=30)
+                _wait_for_ssh(ssh_port, timeout=60)
                 ready = True
                 break
             except RuntimeError:
@@ -431,6 +432,28 @@ def _run_build(
         build_cmd = f"{build_env} sh /workspace/tools/installer-kernel/build.sh"
 
         full_cmd = f"sh -c {_shell_quote(setup + ' && ' + build_cmd)}"
+
+        series = f"v{version.split('.')[0]}.x"
+        tarball = f"linux-{version}.tar.xz"
+        tarball_path = bd_dir / tarball
+        if not tarball_path.is_file():
+            url = f"https://cdn.kernel.org/pub/linux/kernel/{series}/{tarball}"
+            print(
+                f"  downloading {tarball} on host...",
+                file=sys.stderr,
+            )
+            dl = subprocess.run(
+                ["curl", "-fSL", "--progress-bar", "-o", str(tarball_path), url],
+                check=False,
+            )
+            if dl.returncode != 0:
+                tarball_path.unlink(missing_ok=True)
+                raise RuntimeError(f"kernel tarball download failed: {url}")
+        else:
+            print(
+                f"  {tarball} cached on host",
+                file=sys.stderr,
+            )
 
         print(
             f"  building kernel "

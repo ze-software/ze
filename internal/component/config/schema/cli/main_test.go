@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
+	bgpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
@@ -311,7 +311,7 @@ func TestRegisterYANGDeduplication(t *testing.T) {
 	loaded := make(map[string]bool)
 
 	// Register ze-bgp first time
-	err := registerYANG(registry, bgpschema.ZeBGPConfYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
+	err := registerYANG(registry, bgpyang.ZeBGPConfYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
 	if err != nil {
 		t.Fatalf("first registerYANG failed: %v", err)
 	}
@@ -322,7 +322,7 @@ func TestRegisterYANGDeduplication(t *testing.T) {
 	}
 
 	// Register ze-bgp-conf second time - should return nil (skip), not error
-	err = registerYANG(registry, bgpschema.ZeBGPConfYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
+	err = registerYANG(registry, bgpyang.ZeBGPConfYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
 	if err != nil {
 		t.Errorf("second registerYANG should return nil (skip), got error: %v", err)
 	}

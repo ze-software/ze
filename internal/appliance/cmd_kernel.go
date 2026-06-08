@@ -21,7 +21,10 @@ const (
 	defaultKernelVersion = "7.0.11"
 	kernelURLKey         = "ze.appliance.kernel.url"
 	kernelToolsDir       = "tools/installer-kernel"
-	kernelBuildTimeout   = 60 * time.Minute
+	kernelBuildTimeout   = 120 * time.Minute
+	kernelDockerImage    = "ze-installer-kernel-builder"
+	builderDocker        = "docker"
+	builderQEMU          = "qemu"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -31,8 +34,10 @@ var _ = env.MustRegister(env.EnvEntry{
 })
 
 var (
-	kernelQEMUCheckFn = defaultQEMUCheck
-	kernelQEMUBuildFn = defaultQEMUBuild // func(version, arch, profile, destPath string) error
+	kernelQEMUCheckFn   = defaultQEMUCheck
+	kernelQEMUBuildFn   = defaultQEMUBuild
+	kernelDockerCheckFn = defaultDockerCheck
+	kernelDockerBuildFn = defaultDockerBuild
 )
 
 func init() {
@@ -43,6 +48,7 @@ func runKernel(args []string) int {
 	fs := flag.NewFlagSet("appliance kernel", flag.ContinueOnError)
 	archFlag := fs.String("arch", "", "Target architecture: amd64 or arm64 (default: from appliance config or host)")
 	profileFlag := fs.String("profile", "", "Kernel profile: qemu, hardware, or hardware-kms (default: from appliance config or qemu)")
+	builderFlag := fs.String("builder", "", "Build backend: docker or qemu (default: docker if available, else qemu)")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
 
 	fs.Usage = func() {
@@ -54,6 +60,7 @@ func runKernel(args []string) int {
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--arch <arch>", Desc: "Target architecture: amd64 or arm64 (default: from appliance config or host)"},
 					{Name: "--profile <profile>", Desc: "Kernel profile: qemu, hardware, or hardware-kms (default: from appliance config or qemu)"},
+					{Name: "--builder <backend>", Desc: "Build backend: docker or qemu (default: docker if available, else qemu)"},
 					{Name: "--version <ver>", Desc: func() string {
 						var tb textbuf.Buffer
 						return tb.Str("Linux kernel version (default: ").Str(defaultKernelVersion).Byte(')').String()
@@ -63,7 +70,7 @@ func runKernel(args []string) int {
 			Examples: []string{
 				"ze appliance kernel prod",
 				"ze appliance kernel --profile hardware prod",
-				"ze appliance kernel --arch amd64",
+				"ze appliance kernel --builder docker --arch amd64",
 				"ze appliance kernel --version 6.12.9 prod",
 			},
 		}
@@ -76,6 +83,7 @@ func runKernel(args []string) int {
 
 	arch := *archFlag
 	profile := *profileFlag
+	builder := *builderFlag
 	if fs.NArg() > 0 {
 		name := fs.Arg(0)
 		dir := getBaseDir()
@@ -106,8 +114,12 @@ func runKernel(args []string) int {
 		cliErrorf("profile %q must be qemu, hardware, or hardware-kms", profile)
 		return exitError
 	}
+	if builder != "" && builder != builderDocker && builder != builderQEMU {
+		cliErrorf("builder %q must be docker or qemu", builder)
+		return exitError
+	}
 
-	path, err := resolveKernel(*versionFlag, arch, profile)
+	path, err := resolveKernel(*versionFlag, arch, profile, builder)
 	if err != nil {
 		cliErrorf("%v", err)
 		return exitError
@@ -117,7 +129,7 @@ func runKernel(args []string) int {
 	return exitOK
 }
 
-func resolveKernel(version, arch, profile string) (string, error) {
+func resolveKernel(version, arch, profile, builder string) (string, error) {
 	cached := kernelCachePath(version, kernelCacheVariant(arch, profile))
 	toolsDst := filepath.Join(kernelToolsDir, "build", kernelFileName)
 
@@ -142,12 +154,14 @@ func resolveKernel(version, arch, profile string) (string, error) {
 		}
 	}
 
-	if err := kernelQEMUCheckFn(); err != nil {
-		return "", fmt.Errorf("installer kernel not cached; install QEMU to build locally or set %s for remote download", kernelURLKey)
+	buildFn, buildName, err := selectBuilder(builder)
+	if err != nil {
+		return "", err
 	}
+	fmt.Fprintf(os.Stdout, "building kernel with %s...\n", buildName) //nolint:errcheck // CLI output
 
-	if err := kernelQEMUBuildFn(version, arch, profile, cached); err != nil {
-		return "", fmt.Errorf("qemu kernel build: %w", err)
+	if err := buildFn(version, arch, profile, cached); err != nil {
+		return "", fmt.Errorf("%s kernel build: %w", buildName, err)
 	}
 
 	if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
@@ -155,6 +169,84 @@ func resolveKernel(version, arch, profile string) (string, error) {
 	}
 
 	return cached, nil
+}
+
+func selectBuilder(builder string) (func(string, string, string, string) error, string, error) {
+	switch builder {
+	case builderDocker:
+		if err := kernelDockerCheckFn(); err != nil {
+			return nil, "", fmt.Errorf("docker builder requested but not available: %w", err)
+		}
+		return kernelDockerBuildFn, builderDocker, nil
+	case builderQEMU:
+		if err := kernelQEMUCheckFn(); err != nil {
+			return nil, "", fmt.Errorf("qemu builder requested but not available: %w", err)
+		}
+		return kernelQEMUBuildFn, builderQEMU, nil
+	default:
+		if kernelDockerCheckFn() == nil {
+			return kernelDockerBuildFn, builderDocker, nil
+		}
+		if kernelQEMUCheckFn() == nil {
+			return kernelQEMUBuildFn, builderQEMU, nil
+		}
+		return nil, "", fmt.Errorf("no builder available; install docker or qemu (brew install qemu)")
+	}
+}
+
+func defaultDockerCheck() error {
+	if _, err := exec.LookPath(builderDocker); err != nil {
+		return fmt.Errorf("docker not found")
+	}
+	return nil
+}
+
+func defaultDockerBuild(version, arch, profile, destPath string) error {
+	toolsDir, err := filepath.Abs(kernelToolsDir)
+	if err != nil {
+		return fmt.Errorf("resolve tools directory: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
+		return fmt.Errorf("create cache directory: %w", err)
+	}
+
+	outDir := filepath.Join(toolsDir, "build")
+	if err := os.MkdirAll(outDir, cacheDirPerm); err != nil {
+		return fmt.Errorf("create output directory: %w", err)
+	}
+
+	buildCtx, buildCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
+	defer buildCancel()
+
+	buildCmd := exec.CommandContext(buildCtx, builderDocker, "build", "-t", kernelDockerImage, toolsDir) //nolint:gosec // controlled args
+	buildCmd.Stdout = os.Stdout
+	buildCmd.Stderr = os.Stdout
+	if err := buildCmd.Run(); err != nil {
+		return fmt.Errorf("docker build: %w", err)
+	}
+
+	var tb textbuf.Buffer
+	runCmd := exec.CommandContext(buildCtx, builderDocker, "run", "--rm", //nolint:gosec // controlled args
+		"-e", tb.Str("LINUX_VERSION=").Str(version).String(),
+		"-e", tb.Reset().Str("ARCH=").Str(arch).String(),
+		"-e", tb.Reset().Str("PROFILE=").Str(profile).String(),
+		"-v", tb.Reset().Str(toolsDir).Str(":/src:ro").String(),
+		"-v", tb.Reset().Str(outDir).Str(":/out").String(),
+		kernelDockerImage, "sh", "/src/build.sh",
+	)
+	runCmd.Stdout = os.Stdout
+	runCmd.Stderr = os.Stdout
+	if err := runCmd.Run(); err != nil {
+		return fmt.Errorf("docker run: %w", err)
+	}
+
+	builtKernel := filepath.Join(outDir, kernelFileName)
+	if _, err := os.Stat(builtKernel); err != nil {
+		return fmt.Errorf("kernel not produced at %s", builtKernel)
+	}
+
+	return copyToToolsPath(builtKernel, destPath)
 }
 
 func defaultQEMUCheck() error {
@@ -202,5 +294,5 @@ func defaultQEMUBuild(version, arch, profile, destPath string) error {
 }
 
 func cliErrorf(format string, args ...any) {
-	fmt.Fprintf(os.Stdout, "error: "+format+"\n", args...) //nolint:errcheck // CLI output
+	fmt.Fprintf(os.Stdout, "error: %s\n", fmt.Sprintf(format, args...)) //nolint:errcheck // CLI output
 }
