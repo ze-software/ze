@@ -10,6 +10,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
+func TestZeSetupStdinDispatchWired(t *testing.T) {
+	if binaryDispatch == nil {
+		t.Fatal("binaryDispatch not set in ze_setup build; forked 'ze-setup -' will fail")
+	}
+}
+
 func TestZeSetupBinaryCommands(t *testing.T) {
 	roots := registry.ListRoot()
 	seen := make(map[string]bool, len(roots))
