@@ -20,12 +20,18 @@ func isBinDir(name string) bool {
 // The resolution follows GNU prefix conventions:
 //
 //   - /usr/bin/ze, /bin/ze, /sbin/ze, /usr/sbin/ze → /etc/ze
+//   - /user/ze (gokrazy) → /perm/ze
 //   - /opt/app/bin/ze → /opt/app/etc/ze
 //   - ./bin/ze → etc/ze (relative)
 //   - unknown layout → "" (caller must provide explicit config path)
 func ConfigDirFromBinary(binaryPath string) string {
 	dir := filepath.Dir(binaryPath)
 	base := filepath.Base(dir)
+
+	// Gokrazy places binaries in /user/; persistent storage is /perm/.
+	if base == "user" && filepath.Dir(dir) == "/" {
+		return "/perm/ze"
+	}
 
 	if !isBinDir(base) {
 		return ""

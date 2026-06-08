@@ -47,6 +47,12 @@ func TestConfigDir_ArbitraryPrefix(t *testing.T) {
 	assert.Equal(t, "/srv/ze/etc/ze", paths.ConfigDirFromBinary("/srv/ze/sbin/ze"))
 }
 
+// VALIDATES: binary in gokrazy /user dir resolves to /perm/ze.
+// PREVENTS: "cannot determine database location" on gokrazy appliances.
+func TestConfigDir_Gokrazy(t *testing.T) {
+	assert.Equal(t, "/perm/ze", paths.ConfigDirFromBinary("/user/ze"))
+}
+
 // VALIDATES: binary in unknown directory returns empty string.
 // PREVENTS: guessing a config dir for unrecognized layouts.
 func TestConfigDir_UnknownLocation(t *testing.T) {
