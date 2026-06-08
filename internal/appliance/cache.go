@@ -63,13 +63,13 @@ func kernelCachePath(version, variant string) string {
 func kernelCacheVariant(arch, profile string) string {
 	var tb textbuf.Buffer
 	h := sha256.New()
-	var configs []string
+	var inputs []string
 	if profile == ProfileHardwareKMS {
-		configs = []string{"kernel.config", "hardware.config", "hardware-kms.config"}
+		inputs = []string{"kernel.config", "hardware.config", "hardware-kms.config", "build.sh"}
 	} else {
-		configs = []string{"kernel.config", tb.Str(profile).Str(".config").String()}
+		inputs = []string{"kernel.config", tb.Str(profile).Str(".config").String(), "build.sh"}
 	}
-	for _, name := range configs {
+	for _, name := range inputs {
 		data, err := os.ReadFile(filepath.Join(kernelToolsDir, name)) //nolint:gosec // constant base dir + validated profile
 		if err != nil {
 			return tb.Reset().Str(arch).Byte('-').Str(profile).String()

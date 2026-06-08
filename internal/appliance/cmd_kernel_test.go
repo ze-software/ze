@@ -399,6 +399,9 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(toolsDir, "qemu.config"), []byte("CONFIG_B=y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(toolsDir, "build.sh"), []byte("#!/bin/sh\nmake\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	variant1 := kernelCacheVariant(archAMD64, ProfileQEMU)
 	cached1 := kernelCachePath("7.0.11", variant1)
@@ -448,6 +451,37 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 	}
 	if string(data) != "kernel-v2" {
 		t.Errorf("rebuilt kernel content = %q, want kernel-v2", data)
+	}
+}
+
+func TestKernelBuildScriptInvalidatesCache(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	toolsDir := filepath.Join(dir, kernelToolsDir)
+	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(toolsDir, "kernel.config"), []byte("CONFIG_A=y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(toolsDir, "qemu.config"), []byte("CONFIG_B=y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(toolsDir, "build.sh"), []byte("#!/bin/sh\nmake\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	variant1 := kernelCacheVariant(archAMD64, ProfileQEMU)
+
+	if err := os.WriteFile(filepath.Join(toolsDir, "build.sh"), []byte("#!/bin/sh\nmake -j$(nproc)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	variant2 := kernelCacheVariant(archAMD64, ProfileQEMU)
+	if variant1 == variant2 {
+		t.Fatal("build.sh change did not change cache variant")
 	}
 }
 
