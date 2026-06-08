@@ -298,7 +298,15 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 
 	kernelPath := opts.kernelPath
 	if kernelPath == "" {
-		kernelPath = defaultISOKernelPath()
+		profile := cfg.Image.KernelProfile
+		if profile == "" {
+			profile = ProfileQEMU
+		}
+		if p := isoKernelCachePath(cfg.Image.Arch, profile); p != "" {
+			kernelPath = p
+		} else {
+			kernelPath = filepath.Join("tools", "installer-kernel", "build", "Image")
+		}
 	}
 	kernel, err := resolveISOArtifact(kernelPath, "installer kernel", "build the installer kernel under tools/installer-kernel or pass --kernel")
 	if err != nil {
@@ -371,10 +379,20 @@ func resolveISOArtifact(path, label, hint string) (string, error) {
 	return abs, nil
 }
 
-func defaultISOKernelPath() string {
-	cached := kernelCachePath(defaultKernelVersion, runtime.GOARCH)
+func isoKernelCachePath(arch, profile string) string {
+	var tb textbuf.Buffer
+	cached := kernelCachePath(defaultKernelVersion, tb.Str(arch).Byte('-').Str(profile).String())
 	if _, err := os.Stat(cached); err == nil {
 		return cached
+	}
+	return ""
+}
+
+func defaultISOKernelPath() string {
+	for _, profile := range []string{ProfileQEMU, ProfileHardware} {
+		if p := isoKernelCachePath(runtime.GOARCH, profile); p != "" {
+			return p
+		}
 	}
 	return filepath.Join("tools", "installer-kernel", "build", "Image")
 }

@@ -5,6 +5,7 @@ package appliance
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
@@ -67,14 +68,16 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 }
 
 func checkKernelArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	for _, path := range []string{
-		kernelCachePath(defaultKernelVersion, archAMD64),
-		kernelCachePath(defaultKernelVersion, archARM64),
-		defaultISOKernelPath(),
-	} {
-		if _, err := os.Stat(path); err == nil {
-			return nil
+	for _, arch := range []string{archAMD64, archARM64} {
+		for _, profile := range []string{ProfileQEMU, ProfileHardware} {
+			if p := isoKernelCachePath(arch, profile); p != "" {
+				return nil
+			}
 		}
+	}
+	fallback := filepath.Join(kernelToolsDir, "build", kernelFileName)
+	if _, err := os.Stat(fallback); err == nil {
+		return nil
 	}
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-appliance-kernel",

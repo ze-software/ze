@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func TestApplianceDoctorChecksRegistered(t *testing.T) {
@@ -33,7 +34,8 @@ func TestDoctorKernelPresent(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	cached := kernelCachePath(defaultKernelVersion, archAMD64)
+	var tb textbuf.Buffer
+	cached := kernelCachePath(defaultKernelVersion, tb.Str(archAMD64).Byte('-').Str(ProfileQEMU).String())
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
