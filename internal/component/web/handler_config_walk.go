@@ -7,9 +7,9 @@ package web
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errEmptySchemaPath = errors.New("empty schema path")
@@ -262,7 +262,7 @@ func walkTree(tree *config.Tree, schema *config.Schema, path []string) *config.T
 func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string) (*ConfigViewData, error) {
 	data := &ConfigViewData{
 		Path:        path,
-		CurrentPath: strings.Join(path, "/"),
+		CurrentPath: textbuf.Join(path, "/"),
 		Breadcrumbs: buildBreadcrumbs(path),
 	}
 
@@ -274,7 +274,7 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 			data.Children = append(data.Children, ChildEntry{
 				Name: name,
 				Kind: nodeKindString(node.Kind()),
-				URL:  "/show/" + name + "/",
+				URL:  func() string { var tb textbuf.Buffer; return tb.Str("/show/").Str(name).Byte('/').String() }(),
 			})
 		}
 		return data, nil
@@ -285,11 +285,12 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 		return nil, err
 	}
 	if schemaNode == nil {
-		return nil, fmt.Errorf("schema node not found at path: %s", strings.Join(path, "/"))
+		return nil, fmt.Errorf("schema node not found at path: %s", textbuf.Join(path, "/"))
 	}
 
 	data.NodeKind = schemaNode.Kind()
-	prefix := "/show/" + strings.Join(path, "/")
+	var tb textbuf.Buffer
+	prefix := tb.Str("/show/").Join(path, "/").String()
 
 	switch n := schemaNode.(type) {
 	case *config.ContainerNode:
@@ -300,13 +301,13 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 		// When the path ends at the list itself (no key selected),
 		// show the list of keys with the base path for navigation.
 		data.Keys = collectListKeys(tree, schema, path)
-		data.BasePath = "/show/" + strings.Join(path, "/") + "/"
+		data.BasePath = tb.Reset().Str("/show/").Join(path, "/").Byte('/').String()
 
 		// When we have a list node and the path included a key (walkTree
 		// descended into an entry), also populate leaf fields.
 		subtree := walkTree(tree, schema, path)
 		if subtree != nil {
-			data.DetailPath = strings.Join(path, "/")
+			data.DetailPath = textbuf.Join(path, "/")
 			populateContainerView(data, n, subtree, prefix)
 		}
 
@@ -346,6 +347,7 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 // schema node. Leaves go into LeafFields (with values from the config tree),
 // non-leaves go into Children as navigation links.
 func populateContainerView(data *ConfigViewData, provider childLister, subtree *config.Tree, prefix string) {
+	var tb textbuf.Buffer
 	for _, name := range provider.Children() {
 		child := provider.Get(name)
 
@@ -362,7 +364,7 @@ func populateContainerView(data *ConfigViewData, provider childLister, subtree *
 		data.Children = append(data.Children, ChildEntry{
 			Name: name,
 			Kind: nodeKindString(child.Kind()),
-			URL:  prefix + "/" + name + "/",
+			URL:  tb.Reset().Str(prefix).Byte('/').Str(name).Byte('/').String(),
 		})
 	}
 }
@@ -402,7 +404,7 @@ func validateUniqueOnSet(tree *config.Tree, schema *config.Schema, path []string
 			// Reconstruct the unique field path from the remaining path segments + leaf.
 			// e.g., path=["bgp","peer","thomas","remote"], leaf="ip" → fieldPath="remote/ip"
 			suffix := path[i+2:]
-			fieldPath := strings.Join(append(suffix, leaf), "/")
+			fieldPath := textbuf.Join(append(suffix, leaf), "/")
 			// Check if this field is actually a unique field.
 			for _, uf := range uniqueFields {
 				if uf == fieldPath {

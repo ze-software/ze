@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
-	"strings"
 	"time"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Snapshot captures the reactor's read-only operational state at one
@@ -286,5 +286,5 @@ func FormatFraming(v uint32) string {
 	if len(parts) == 0 {
 		return fmt.Sprintf("0x%08x", v)
 	}
-	return strings.Join(parts, "+")
+	return textbuf.Join(parts, "+")
 }

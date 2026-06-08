@@ -15,9 +15,9 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 //go:embed templates
@@ -160,9 +160,9 @@ func NewRenderer() (*Renderer, error) {
 	fragFuncs := template.FuncMap{
 		"joinpath": func(path []string, upTo int) string {
 			if upTo >= len(path) {
-				return strings.Join(path, "/")
+				return textbuf.Join(path, "/")
 			}
-			return strings.Join(path[:upTo+1], "/")
+			return textbuf.Join(path[:upTo+1], "/")
 		},
 		"splitopts": func(opts string) []string {
 			if opts == "" {
@@ -183,7 +183,8 @@ func NewRenderer() (*Renderer, error) {
 			if err := fragments.ExecuteTemplate(&buf, "field_wrapper_start", f); err != nil {
 				return ""
 			}
-			inputName := "input_" + typeName
+			var tb textbuf.Buffer
+			inputName := tb.Str("input_").Str(typeName).String()
 			if err := fragments.ExecuteTemplate(&buf, inputName, f); err != nil {
 				// Fall back to text input for unknown types.
 				_ = fragments.ExecuteTemplate(&buf, "input_text", f)

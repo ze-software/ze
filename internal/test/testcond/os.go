@@ -6,8 +6,8 @@ package testcond
 import (
 	"runtime"
 	"slices"
-	"strings"
 	"testing"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RequireOS skips the test unless the current OS matches one of the given names.
@@ -17,5 +17,5 @@ func RequireOS(t *testing.T, oses ...string) {
 	if slices.Contains(oses, runtime.GOOS) {
 		return
 	}
-	t.Skipf("test requires %s (running on %s)", strings.Join(oses, " or "), runtime.GOOS)
+	t.Skipf("test requires %s (running on %s)", textbuf.Join(oses, " or "), runtime.GOOS)
 }

@@ -22,6 +22,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errNoPluginCommandSpecified = errors.New("no plugin command specified")
@@ -184,11 +185,11 @@ func cmdList(args, plugins []string) int {
 				for i, imp := range s.Imports {
 					formattedImports[i] = formatModuleAsNamespace(imp)
 				}
-				imports = strings.Join(formattedImports, ", ")
+				imports = textbuf.Join(formattedImports, ", ")
 			}
 			wantsConfig := "-"
 			if len(s.WantsConfig) > 0 {
-				wantsConfig = strings.Join(s.WantsConfig, ", ")
+				wantsConfig = textbuf.Join(s.WantsConfig, ", ")
 			}
 			fmt.Printf("%-24s %-20s %-16s %s\n", name, s.Namespace, wantsConfig, imports)
 		}
@@ -240,7 +241,7 @@ func cmdShow(args, plugins []string) int {
 		fmt.Printf("# Module: %s (no YANG content available)\n", moduleName)
 		fmt.Printf("# Namespace: %s\n", s.Namespace)
 		fmt.Printf("# Plugin: %s\n", s.Plugin)
-		fmt.Printf("# Handlers: %s\n", strings.Join(s.Handlers, ", "))
+		fmt.Fprintf(os.Stdout, "# Handlers: %s\n", textbuf.Join(s.Handlers, ", "))
 		return 0
 	}
 
@@ -339,7 +340,8 @@ func printSchemaTable(header, kind string, entries []schemaEntry) {
 	for _, e := range entries {
 		desc := e.desc
 		if len(desc) > 50 {
-			desc = desc[:47] + "..."
+			var tb textbuf.Buffer
+			desc = tb.Str(desc[:47]).Str("...").String()
 		}
 		fmt.Printf("%-36s %-16s %s\n", e.wire, e.module, desc)
 	}
@@ -570,7 +572,8 @@ func tryAutoLoadInternal(registry *pluginserver.SchemaRegistry, moduleName strin
 	// Module names don't always match plugin names (e.g., ze-fib-conf is
 	// registered by the fibkernel plugin, not a plugin named "fib-conf").
 	if yangContent == "" {
-		yangFileName := moduleName + ".yang"
+		var tb textbuf.Buffer
+		yangFileName := tb.Str(moduleName).Str(".yang").String()
 		for _, m := range yang.Modules() {
 			if m.Name == yangFileName {
 				yangContent = m.Content
@@ -596,13 +599,15 @@ func tryAutoLoadInternal(registry *pluginserver.SchemaRegistry, moduleName strin
 func getInternalYANG(moduleName, pluginName string) (yangContent string, handlers []string, pluginID string) {
 	// Core BGP module
 	if moduleName == bgpConfModule {
-		return bgpschema.ZeBGPConfYANG, []string{"bgp", "bgp/peer"}, internalPluginPrefix + "bgp"
+		var tb textbuf.Buffer
+		return bgpschema.ZeBGPConfYANG, []string{"bgp", "bgp/peer"}, tb.Str(internalPluginPrefix).Str("bgp").String()
 	}
 
 	// Internal plugins
 	yangContent = plugin.GetInternalPluginYANG(pluginName)
 	if yangContent != "" {
-		return yangContent, nil, "ze." + pluginName
+		var tb2 textbuf.Buffer
+		return yangContent, nil, tb2.Str("ze.").Str(pluginName).String()
 	}
 
 	return "", nil, ""
@@ -676,7 +681,8 @@ func getPluginYANG(pluginSpec string) (string, string, error) {
 			return "", "", fmt.Errorf("internal plugin %q has no YANG", name)
 		}
 
-		return yangContent, "ze." + name, nil
+		var tb3 textbuf.Buffer
+		return yangContent, tb3.Str("ze.").Str(name).String(), nil
 	}
 
 	// External plugin - execute with --yang flag

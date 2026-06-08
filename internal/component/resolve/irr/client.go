@@ -202,7 +202,7 @@ func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, err
 // lookupFamilyPrefixes queries a single address family (4 or 6) for the given AS-SET.
 func (c *IRR) lookupFamilyPrefixes(ctx context.Context, asSet string, family int) ([]netip.Prefix, error) {
 	var bQuery textbuf.Buffer
-	response, err := c.query(ctx, bQuery.Reset().Str("!a").Int(int64(family)).Str(asSet).Slice())
+	response, err := c.query(ctx, bQuery.Reset().Str("!a").Int(int64(family)).Str(asSet).String())
 	if err != nil {
 		return nil, fmt.Errorf("irr: lookup prefixes %s (IPv%d): %w", asSet, family, err)
 	}

@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/perf"
 	"codeberg.org/thomas-mangin/ze/internal/perf/report"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func cmdRun(args []string) int {
@@ -119,7 +119,7 @@ func cmdRun(args []string) int {
 		parts = append(parts, "force-mp")
 	}
 
-	fmt.Fprintf(os.Stderr, "ze-perf run | %s\n", strings.Join(parts, " | "))
+	fmt.Fprintf(os.Stderr, "ze-perf run | %s\n", textbuf.Join(parts, " | "))
 
 	// Build benchmark config.
 	cfg := perf.BenchmarkConfig{

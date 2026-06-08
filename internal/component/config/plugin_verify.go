@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -129,10 +130,10 @@ func JoinPluginConfigVerifyErrors(errs []error) error {
 	if len(errs) == 1 {
 		return errs[0]
 	}
-	var b strings.Builder
-	b.WriteString("plugin config verify failed:")
+	var b textbuf.Buffer
+	b.Str("plugin config verify failed:")
 	for _, err := range errs {
-		fmt.Fprintf(&b, "\n  %v", err)
+		b.Str("\n  ").Err(err)
 	}
 	return errors.New(b.String())
 }

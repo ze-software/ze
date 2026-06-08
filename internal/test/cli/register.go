@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
 	"codeberg.org/thomas-mangin/ze/internal/test/mock/cymru"
 	"codeberg.org/thomas-mangin/ze/internal/test/mock/irr"
@@ -18,7 +19,8 @@ import (
 
 func registerCIRunner(name, testSubdir, description, detail string, parallel int) {
 	cfg := CIRunnerConfig{Name: name, TestSubdir: testSubdir, Description: description, Detail: detail, DefaultParallel: parallel}
-	Register(name, func(args []string) int { return RunCISubcommand(cfg, args) }, subdispatch.SubMeta{Desc: "Run " + description + " functional tests"})
+	var tb textbuf.Buffer
+	Register(name, func(args []string) int { return RunCISubcommand(cfg, args) }, subdispatch.SubMeta{Desc: tb.Str("Run ").Str(description).Str(" functional tests").String()})
 }
 
 func init() {

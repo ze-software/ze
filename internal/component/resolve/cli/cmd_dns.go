@@ -5,10 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	resolveDNS "codeberg.org/thomas-mangin/ze/internal/component/resolve/dns"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var dnsOperations = []string{"a", "aaaa", "txt", "ptr"}
@@ -58,7 +58,7 @@ func cmdDNS(args []string) int {
 		records, err = resolver.ResolvePTR(name)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown dns operation: %s\n", op)
-		fmt.Fprintf(os.Stderr, "valid operations: %s\n", strings.Join(dnsOperations, ", "))
+		fmt.Fprintf(os.Stderr, "valid operations: %s\n", textbuf.Join(dnsOperations, ", "))
 		return exitError
 	}
 

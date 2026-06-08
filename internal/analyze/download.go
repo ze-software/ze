@@ -1,4 +1,3 @@
-
 // Design: (none -- research/analysis tool)
 //
 // Download MRT RIB dumps and BGP4MP updates from RIPE RIS and RouteViews.
@@ -16,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func runDownload(args []string) int {
@@ -75,7 +76,8 @@ Examples:
 		return 1
 	}
 
-	month := date[:4] + "." + date[4:6]
+	var tb textbuf.Buffer
+	month := tb.Str(date[:4]).Byte('.').Str(date[4:6]).String()
 
 	if err := os.MkdirAll(*outDir, 0o750); err != nil {
 		fmt.Fprintf(os.Stderr, "error: creating output dir: %v\n", err)

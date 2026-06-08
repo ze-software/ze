@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/procfs"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type mdstatCollector struct {
@@ -38,7 +39,8 @@ func (c *mdstatCollector) Collect() error {
 	}
 
 	for _, md := range stats {
-		chart := "md." + md.Name
+		var tb textbuf.Buffer
+		chart := tb.Str("md.").Str(md.Name).String()
 		family := md.Name
 
 		c.disks.With(chart, "inuse", family).Set(float64(md.DisksActive))

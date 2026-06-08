@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -157,7 +159,7 @@ func applyJSONTransform(input string, transform func(any) any) string {
 		return string(out)
 	}
 
-	var sb strings.Builder
+	var sb textbuf.Buffer
 	for line := range strings.SplitSeq(trimmed, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -165,19 +167,17 @@ func applyJSONTransform(input string, transform func(any) any) string {
 		}
 		var obj any
 		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			sb.WriteString(line)
-			sb.WriteByte('\n')
+			sb.Str(line).Byte('\n')
 			continue
 		}
 		obj = transform(obj)
 		out, err := json.Marshal(obj)
 		if err != nil {
-			sb.WriteString(line)
-			sb.WriteByte('\n')
+			sb.Str(line).Byte('\n')
 			continue
 		}
 		sb.Write(out)
-		sb.WriteByte('\n')
+		sb.Byte('\n')
 	}
 	return sb.String()
 }

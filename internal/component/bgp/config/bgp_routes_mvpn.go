@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errMvpnNlriRequiresRouteTypeAnd = errors.New("mvpn nlri requires route type and fields")
@@ -84,13 +85,13 @@ func parseMVPNNLRILine(line string, attr *config.Tree) (MVPNRouteConfig, error) 
 		mr.MED = uint32(n)
 	}
 	if items := attr.GetSlice("extended-community"); len(items) > 0 {
-		mr.ExtendedCommunity = strings.Join(items, " ")
+		mr.ExtendedCommunity = textbuf.Join(items, " ")
 	}
 	if v, ok := attr.Get("originator-id"); ok {
 		mr.OriginatorID = v
 	}
 	if items := attr.GetSlice("cluster-list"); len(items) > 0 {
-		mr.ClusterList = strings.Join(items, " ")
+		mr.ClusterList = textbuf.Join(items, " ")
 	}
 
 	return mr, nil
@@ -164,13 +165,13 @@ func parseMVPNRoute(routeType string, route *config.Tree, isIPv6 bool) MVPNRoute
 		}
 	}
 	if items := route.GetSlice("extended-community"); len(items) > 0 {
-		r.ExtendedCommunity = strings.Join(items, " ")
+		r.ExtendedCommunity = textbuf.Join(items, " ")
 	}
 	if v, ok := route.Get("originator-id"); ok {
 		r.OriginatorID = v
 	}
 	if items := route.GetSlice("cluster-list"); len(items) > 0 {
-		r.ClusterList = strings.Join(items, " ")
+		r.ClusterList = textbuf.Join(items, " ")
 	}
 
 	return r

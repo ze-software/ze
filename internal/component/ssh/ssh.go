@@ -152,10 +152,10 @@ func truncateProfiles(profiles []string) string {
 		return "[]"
 	}
 	if n <= maxLoggedProfiles {
-		return "[" + strings.Join(profiles, " ") + "]"
+		return "[" + textbuf.Join(profiles, " ") + "]"
 	}
 	var b textbuf.Buffer
-	return b.Reset().Str("[").Str(strings.Join(profiles[:maxLoggedProfiles], " ")).Str(" +").Int(int64(n - maxLoggedProfiles)).Str(" more]").String()
+	return b.Reset().Str("[").Str(textbuf.Join(profiles[:maxLoggedProfiles], " ")).Str(" +").Int(int64(n - maxLoggedProfiles)).Str(" more]").String()
 }
 
 // NewServer creates a new SSH server with the given configuration.
@@ -662,7 +662,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			input := strings.Join(cmd, " ")
+			input := textbuf.Join(cmd, " ")
 			// Truncate the logged form: commands like `show policy test ... update <HEX>`
 			// carry a large hex payload that would bloat the operational log and dump
 			// route data into it. The full command still flows to the executor.

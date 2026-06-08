@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"syscall"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -65,11 +67,12 @@ func runSingleHook(probeName, command, sName string) {
 		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 	// Minimal environment for hooks (#16): only PATH, HOME, USER, STATE.
+	var tb textbuf.Buffer
 	cmd.Env = []string{
-		"PATH=" + os.Getenv("PATH"),
-		"HOME=" + os.Getenv("HOME"),
-		"USER=" + os.Getenv("USER"),
-		"STATE=" + sName,
+		tb.Str("PATH=").Str(os.Getenv("PATH")).String(),
+		tb.Reset().Str("HOME=").Str(os.Getenv("HOME")).String(),
+		tb.Reset().Str("USER=").Str(os.Getenv("USER")).String(),
+		tb.Reset().Str("STATE=").Str(sName).String(),
 	}
 
 	if err := cmd.Run(); err != nil {

@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
 
@@ -42,7 +44,8 @@ func (c *netIfaceCollector) Collect() error {
 
 	for _, iface := range ifaces {
 		base := filepath.Join("/sys/class/net", iface) //nolint:gocritic // sysfs path construction
-		chart := "net." + iface
+		var tb textbuf.Buffer
+		chart := tb.Str("net.").Str(iface).String()
 		family := iface
 
 		if v := readSysInt(filepath.Join(base, "speed")); v > 0 {

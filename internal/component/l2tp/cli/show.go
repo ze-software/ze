@@ -5,9 +5,9 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // cmdShow forwards `ze l2tp show [subcmd] [args...]` to the daemon as
@@ -17,7 +17,7 @@ import (
 // `ze cli -c "..."` when an operator wants formatting.
 func cmdShow(args []string) int {
 	parts := append([]string{"show", "l2tp"}, args...)
-	return forwardToDaemon(strings.Join(parts, " "))
+	return forwardToDaemon(textbuf.Join(parts, " "))
 }
 
 // cmdTunnelTeardown forwards `ze l2tp tunnel teardown <id>` or
@@ -30,7 +30,7 @@ func cmdTunnelTeardown(args []string) int {
 		return 1
 	}
 	parts := append([]string{"l2tp", "tunnel"}, args...)
-	return forwardToDaemon(strings.Join(parts, " "))
+	return forwardToDaemon(textbuf.Join(parts, " "))
 }
 
 // cmdSessionTeardown is the session-scoped counterpart of
@@ -41,7 +41,7 @@ func cmdSessionTeardown(args []string) int {
 		return 1
 	}
 	parts := append([]string{"l2tp", "session"}, args...)
-	return forwardToDaemon(strings.Join(parts, " "))
+	return forwardToDaemon(textbuf.Join(parts, " "))
 }
 
 // forwardToDaemon is the shared dispatch that loads SSH credentials,

@@ -14,6 +14,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // cmdMigrate handles: ze interface migrate --from <iface>.<unit> --to <iface>.<unit> --address <cidr> [--create <type>] [--timeout <duration>]
@@ -85,11 +86,12 @@ func cmdMigrate(args []string) int {
 	// Build the command to dispatch via SSH to the running daemon.
 	cmd := fmt.Sprintf("interface migrate --from %s.%d --to %s.%d --address %s",
 		fromIface, fromUnit, toIface, toUnit, address)
+	var tb textbuf.Buffer
 	if createTyp != "" {
-		cmd += " --create " + createTyp
+		cmd = tb.Str(cmd).Str(" --create ").Str(createTyp).String()
 	}
 	if timeout != 30*time.Second {
-		cmd += " --timeout " + timeout.String()
+		cmd = tb.Reset().Str(cmd).Str(" --timeout ").Str(timeout.String()).String()
 	}
 
 	creds, err := sshclient.LoadCredentialsWithFlags(user)

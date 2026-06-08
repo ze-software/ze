@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -79,7 +80,7 @@ func parseVPLSNLRILine(line string, attr *config.Tree) (VPLSRouteConfig, error) 
 		vr.Origin = v
 	}
 	if items := attr.GetSlice("as-path"); len(items) > 0 {
-		vr.ASPath = strings.Join(items, " ")
+		vr.ASPath = textbuf.Join(items, " ")
 	}
 	if v, ok := attr.Get("local-preference"); ok {
 		n, _ := strconv.ParseUint(v, 10, 32)
@@ -90,16 +91,16 @@ func parseVPLSNLRILine(line string, attr *config.Tree) (VPLSRouteConfig, error) 
 		vr.MED = uint32(n)
 	}
 	if items := attr.GetSlice("community"); len(items) > 0 {
-		vr.Community = strings.Join(items, " ")
+		vr.Community = textbuf.Join(items, " ")
 	}
 	if items := attr.GetSlice("extended-community"); len(items) > 0 {
-		vr.ExtendedCommunity = strings.Join(items, " ")
+		vr.ExtendedCommunity = textbuf.Join(items, " ")
 	}
 	if v, ok := attr.Get("originator-id"); ok {
 		vr.OriginatorID = v
 	}
 	if items := attr.GetSlice("cluster-list"); len(items) > 0 {
-		vr.ClusterList = strings.Join(items, " ")
+		vr.ClusterList = textbuf.Join(items, " ")
 	}
 
 	return vr, nil
@@ -253,19 +254,19 @@ func parseVPLSRoute(name string, route *config.Tree) VPLSRouteConfig {
 		}
 	}
 	if items := route.GetSlice("as-path"); len(items) > 0 {
-		r.ASPath = strings.Join(items, " ")
+		r.ASPath = textbuf.Join(items, " ")
 	}
 	if items := route.GetSlice("community"); len(items) > 0 {
-		r.Community = strings.Join(items, " ")
+		r.Community = textbuf.Join(items, " ")
 	}
 	if items := route.GetSlice("extended-community"); len(items) > 0 {
-		r.ExtendedCommunity = strings.Join(items, " ")
+		r.ExtendedCommunity = textbuf.Join(items, " ")
 	}
 	if v, ok := route.Get("originator-id"); ok {
 		r.OriginatorID = v
 	}
 	if items := route.GetSlice("cluster-list"); len(items) > 0 {
-		r.ClusterList = strings.Join(items, " ")
+		r.ClusterList = textbuf.Join(items, " ")
 	}
 
 	return r

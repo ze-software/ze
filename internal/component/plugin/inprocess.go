@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // CanonicalSubsystemName converts a plugin registry name (hyphen-separated,
@@ -56,8 +57,9 @@ func GetInternalPluginYANG(name string) string {
 func GetAllInternalPluginYANG() map[string]string {
 	schemas := registry.YANGSchemas()
 	result := make(map[string]string, len(schemas))
+	var tb textbuf.Buffer
 	for name, yang := range schemas {
-		moduleName := "ze-" + name + ".yang"
+		moduleName := tb.Reset().Str("ze-").Str(name).Str(".yang").String()
 		result[moduleName] = yang
 	}
 	return result
@@ -77,7 +79,8 @@ func CollectPluginYANG(plugins []string) map[string]string {
 
 		yang := GetInternalPluginYANG(name)
 		if yang != "" {
-			moduleName := "ze-" + name + ".yang"
+			var tb textbuf.Buffer
+			moduleName := tb.Str("ze-").Str(name).Str(".yang").String()
 			result[moduleName] = yang
 		}
 	}

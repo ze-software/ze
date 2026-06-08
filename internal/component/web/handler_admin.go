@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // CommandResultData holds the data for rendering a command result card.
@@ -74,7 +74,7 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 
 		// JSON response: return the command tree structure.
 		if parsed.Format == formatJSON {
-			pathKey := strings.Join(path, "/")
+			pathKey := textbuf.Join(path, "/")
 			kids := children[pathKey]
 
 			data := map[string]any{
@@ -105,8 +105,9 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 
 		// Full HTML: render inside layout.
 		content := renderer.RenderFragment("full_content", fragData)
+		var tb textbuf.Buffer
 		layoutData := LayoutData{
-			Title:       "Admin: /" + strings.Join(path, "/"),
+			Title:       tb.Str("Admin: /").Join(path, "/").String(),
 			Content:     content,
 			HasSession:  true,
 			Breadcrumbs: fragData.Breadcrumbs,
@@ -141,7 +142,7 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 		}
 
 		path := parsed.Path
-		commandStr := strings.Join(path, " ")
+		commandStr := textbuf.Join(path, " ")
 
 		if dispatch == nil {
 			http.Error(w, "admin commands not available in standalone mode", http.StatusServiceUnavailable)
@@ -194,7 +195,7 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 // using finder-style columns for navigation and a command form in the detail
 // panel for leaf commands.
 func buildAdminFragmentData(path []string, children map[string][]string) *FragmentData {
-	currentPath := strings.Join(path, "/")
+	currentPath := textbuf.Join(path, "/")
 	data := &FragmentData{
 		Path:            path,
 		CurrentPath:     currentPath,
@@ -209,12 +210,13 @@ func buildAdminFragmentData(path []string, children map[string][]string) *Fragme
 	}
 
 	// Leaf command: show form in detail panel.
-	pathKey := strings.Join(path, "/")
+	pathKey := textbuf.Join(path, "/")
 	kids := children[pathKey]
 	if len(path) > 0 && len(kids) == 0 {
+		var tb textbuf.Buffer
 		data.CommandForm = &CommandFormData{
-			CommandName: strings.Join(path, " "),
-			ActionURL:   "/admin/" + strings.Join(path, "/"),
+			CommandName: textbuf.Join(path, " "),
+			ActionURL:   tb.Str("/admin/").Join(path, "/").String(),
 		}
 	}
 
@@ -228,7 +230,7 @@ func buildAdminFinderColumns(path []string, children map[string][]string) []Find
 
 	for depth := 0; depth <= len(path); depth++ {
 		prefix := path[:depth]
-		pathKey := strings.Join(prefix, "/")
+		pathKey := textbuf.Join(prefix, "/")
 		kids := children[pathKey]
 		if len(kids) == 0 && depth < len(path) {
 			break
@@ -240,15 +242,16 @@ func buildAdminFinderColumns(path []string, children map[string][]string) []Find
 		}
 
 		col := FinderColumn{}
+		var tb textbuf.Buffer
 		for _, name := range kids {
 			childPath := append(append([]string{}, prefix...), name)
-			childKey := strings.Join(childPath, "/")
-			url := "/admin/" + strings.Join(childPath, "/") + "/"
+			childKey := textbuf.Join(childPath, "/")
+			url := tb.Reset().Str("/admin/").Join(childPath, "/").Byte('/').String()
 
 			col.UnnamedItems = append(col.UnnamedItems, ColumnItem{
 				Name:        name,
 				URL:         url,
-				HxPath:      "admin/" + childKey,
+				HxPath:      tb.Reset().Str("admin/").Str(childKey).String(),
 				Selected:    name == selectedName,
 				HasChildren: len(children[childKey]) > 0,
 			})
@@ -273,8 +276,9 @@ func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 	crumbs := make([]BreadcrumbSegment, 0, 1+len(path))
 	crumbs = append(crumbs, BreadcrumbSegment{Name: "admin", URL: "/admin/", Active: len(path) == 0})
 
+	var tb textbuf.Buffer
 	for i, seg := range path {
-		url := "/admin/" + strings.Join(path[:i+1], "/") + "/"
+		url := tb.Reset().Str("/admin/").Join(path[:i+1], "/").Byte('/').String()
 		crumbs = append(crumbs, BreadcrumbSegment{
 			Name:   seg,
 			URL:    url,
@@ -331,10 +335,11 @@ func walkAdminTree(node *command.Node, prefix string, result map[string][]string
 	sort.Strings(names)
 	result[prefix] = names
 
+	var tb textbuf.Buffer
 	for _, name := range names {
 		childPrefix := name
 		if prefix != "" {
-			childPrefix = prefix + "/" + name
+			childPrefix = tb.Reset().Str(prefix).Byte('/').Str(name).String()
 		}
 		walkAdminTree(node.Children[name], childPrefix, result)
 	}

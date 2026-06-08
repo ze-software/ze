@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errReactorNotAvailable = errors.New("reactor not available")
@@ -562,7 +563,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		if !d.isAuthorized(ctx, input, matchedCmd.ReadOnly) {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  "authorization denied for " + input,
+				Error:  func() string { var tb textbuf.Buffer; return tb.Str("authorization denied for ").Str(input).String() }(),
 			}, ErrUnauthorized
 		}
 
@@ -596,7 +597,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	if !d.isAuthorized(ctx, input, false) {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "authorization denied for " + input,
+			Error:  func() string { var tb textbuf.Buffer; return tb.Str("authorization denied for ").Str(input).String() }(),
 		}, ErrUnauthorized
 	}
 	if d.subsystems != nil {
@@ -718,7 +719,7 @@ func positionalError(arg string, defs []command.ArgDef) error {
 	for i := range defs {
 		names = append(names, defs[i].Name)
 	}
-	return fmt.Errorf("unexpected argument %q, valid keywords: %s", arg, strings.Join(names, ", "))
+	return fmt.Errorf("unexpected argument %q, valid keywords: %s", arg, textbuf.Join(names, ", "))
 }
 
 func (d *Dispatcher) recordCommandAudit(ctx *CommandContext, input string, resp *plugin.Response, err error) {
@@ -802,7 +803,7 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 		for i, c := range all {
 			names[i] = c.Name
 		}
-		logger().Debug("dispatchPlugin: no match", "input", lowerInput, "registry_count", len(all), "registered", strings.Join(names, ", "))
+		logger().Debug("dispatchPlugin: no match", "input", lowerInput, "registry_count", len(all), "registered", textbuf.Join(names, ", "))
 		return nil, ErrUnknownCommand
 	}
 
@@ -843,7 +844,8 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 
 	rpcOut, err := conn.SendExecuteCommand(rpcCtx, "", cmd.Name, args, peerSelector)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "failed to send request: " + err.Error()}, nil
+		var tb textbuf.Buffer
+		return &plugin.Response{Status: plugin.StatusError, Error: tb.Str("failed to send request: ").Err(err).String()}, nil
 	}
 	if rpcOut != nil {
 		if rpcOut.Status == plugin.StatusError {
@@ -871,7 +873,7 @@ func tokenize(input string) ([]string, error) {
 	}
 
 	var tokens []string
-	var current strings.Builder
+	var current textbuf.Buffer
 	inQuote := false
 
 	for _, r := range input {

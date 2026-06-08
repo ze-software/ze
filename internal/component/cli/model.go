@@ -19,6 +19,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Styles for the editor UI.
@@ -351,7 +352,8 @@ func NewModel(ed *Editor) (Model, error) {
 
 	welcome := "welcome to ze!"
 	if ed.session != nil && ed.session.User != "" {
-		welcome = "welcome to ze, " + ed.session.User + "!"
+		var tb textbuf.Buffer
+		welcome = tb.Str("welcome to ze, ").Str(ed.session.User).Byte('!').String()
 	}
 
 	return Model{
@@ -427,7 +429,8 @@ func (m *Model) writeCommandEcho() {
 			m.outputBuf.WriteString("\n\n")
 		}
 	}
-	m.outputBuf.WriteString("ze> " + m.lastCommand + "\n")
+	var tb textbuf.Buffer
+	m.outputBuf.WriteString(tb.Str("ze> ").Str(m.lastCommand).Byte('\n').String())
 }
 
 // draftPollInterval is how often the model checks for draft changes by other sessions.
@@ -614,7 +617,8 @@ func (m *Model) applyCompletion(comp Completion) {
 	if comp.Type == "search" {
 		words := strings.Fields(comp.Text)
 		if len(words) > 1 {
-			m.textInput.SetValue(strings.Join(words[:len(words)-1], " ") + " ")
+			var tb textbuf.Buffer
+			m.textInput.SetValue(tb.Join(words[:len(words)-1], " ").Byte(' ').String())
 		}
 		m.textInput.CursorEnd()
 		return
@@ -623,16 +627,15 @@ func (m *Model) applyCompletion(comp Completion) {
 	input := m.textInput.Value()
 	words := tokenizeCommand(input)
 
+	var tb textbuf.Buffer
 	if len(words) > 0 && !strings.HasSuffix(input, " ") {
-		// Replace last partial word
 		words[len(words)-1] = comp.Text
-		m.textInput.SetValue(joinTokensWithQuotes(words) + " ")
+		m.textInput.SetValue(tb.Str(joinTokensWithQuotes(words)).Byte(' ').String())
 	} else {
-		// Append completion (quote if needed)
 		if strings.ContainsAny(comp.Text, " \t\"") {
-			m.textInput.SetValue(input + "\"" + comp.Text + "\" ")
+			m.textInput.SetValue(tb.Str(input).Byte('"').Str(comp.Text).Str("\" ").String())
 		} else {
-			m.textInput.SetValue(input + comp.Text + " ")
+			m.textInput.SetValue(tb.Reset().Str(input).Str(comp.Text).Byte(' ').String())
 		}
 	}
 	m.textInput.CursorEnd()

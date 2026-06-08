@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/ci"
 )
 
@@ -118,11 +119,13 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return conn, seq, content, nil
 		}
 		if prefixVal := kv["prefix"]; prefixVal != "" {
-			content = "prefix:" + strings.ToUpper(strings.ReplaceAll(prefixVal, ":", ""))
+			var tb textbuf.Buffer
+			content = tb.Str("prefix:").Str(strings.ToUpper(strings.ReplaceAll(prefixVal, ":", ""))).String()
 			return conn, seq, content, nil
 		}
 		if containsVal := kv["contains"]; containsVal != "" {
-			content = "contains:" + strings.ToUpper(strings.ReplaceAll(containsVal, ":", ""))
+			var tb textbuf.Buffer
+			content = tb.Str("contains:").Str(strings.ToUpper(strings.ReplaceAll(containsVal, ":", ""))).String()
 			return conn, seq, content, nil
 		}
 		return 0, 0, "", fmt.Errorf("expect=bgp missing hex, prefix, or contains: %q", rule)
@@ -154,7 +157,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 		if text == "" {
 			return 0, 0, "", fmt.Errorf("action:notification missing text: %q", rule)
 		}
-		content = "notification:" + text
+		var tb textbuf.Buffer
+		content = tb.Str("notification:").Str(text).String()
 		return conn, seq, content, nil
 	}
 
@@ -184,7 +188,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 		if hex == "" {
 			return 0, 0, "", fmt.Errorf("action:send missing hex: %q", rule)
 		}
-		content = "send:" + strings.ToUpper(strings.ReplaceAll(hex, ":", ""))
+		var tb textbuf.Buffer
+		content = tb.Str("send:").Str(strings.ToUpper(strings.ReplaceAll(hex, ":", ""))).String()
 		return conn, seq, content, nil
 	}
 
@@ -218,7 +223,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 		if dest == "" {
 			return 0, 0, "", fmt.Errorf("action:rewrite missing dest: %q", rule)
 		}
-		content = "rewrite:" + source + ":" + dest
+		var tb textbuf.Buffer
+		content = tb.Str("rewrite:").Str(source).Byte(':').Str(dest).String()
 		return conn, seq, content, nil
 	}
 

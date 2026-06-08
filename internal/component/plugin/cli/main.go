@@ -6,11 +6,11 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Run executes the plugin subcommand with the given arguments.
@@ -50,7 +50,7 @@ func usage() {
 	for _, reg := range regs {
 		desc := reg.Description
 		if len(reg.RFCs) > 0 {
-			desc += " (RFC " + strings.Join(reg.RFCs, ", ") + ")"
+			desc += " (RFC " + textbuf.Join(reg.RFCs, ", ") + ")"
 		}
 		pluginEntries = append(pluginEntries, helpfmt.HelpEntry{Name: reg.Name, Desc: desc})
 	}

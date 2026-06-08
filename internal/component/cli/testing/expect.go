@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -440,7 +441,7 @@ func checkPrompt(exp Expectation, state State) error {
 			if len(path) == 0 {
 				prompt = "ze#"
 			} else {
-				prompt = "ze[" + strings.Join(path, " ") + "]#"
+				prompt = "ze[" + textbuf.Join(path, " ") + "]#"
 			}
 		}
 

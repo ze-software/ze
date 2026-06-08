@@ -8,7 +8,8 @@ package lg
 import (
 	"fmt"
 	"sort"
-	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // NextHopGraph represents an internal forwarding topology as routers and forwarding links.
@@ -147,7 +148,7 @@ func extractString(route map[string]any, key string) string {
 
 // renderNextHopGraphText returns a deterministic text representation for testing.
 func renderNextHopGraphText(g *NextHopGraph) string {
-	var sb strings.Builder
+	var sb textbuf.Buffer
 	sb.WriteString("mode nexthop\n")
 	for _, n := range g.Nodes {
 		fmt.Fprintf(&sb, "node %s layer=%d", n.Address, n.Layer)

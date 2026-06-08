@@ -6,6 +6,8 @@ package transaction
 import (
 	"fmt"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // OperationEdge is one dependency edge in the operation graph.
@@ -58,7 +60,8 @@ func BuildOperationGraph(ops []ConfigOperation, rules []ConstraintRule) (*Operat
 				if !operationsRelated(before, after, rule.Relation) {
 					continue
 				}
-				key := before.ID + "\x00" + after.ID
+				var tb textbuf.Buffer
+				key := tb.Str(before.ID).Byte(0).Str(after.ID).String()
 				if _, exists := seenEdge[key]; exists {
 					continue
 				}
@@ -133,19 +136,20 @@ func addrMatchesUse(left, right *ConfigOperation) bool {
 }
 
 func resourceKey(op *ConfigOperation) string {
+	var tb textbuf.Buffer
 	switch op.Target.Kind {
 	case ResourceInterface:
-		return string(ResourceInterface) + ":" + opIfaceName(op)
+		return tb.Str(string(ResourceInterface)).Byte(':').Str(opIfaceName(op)).String()
 	case ResourceAddress:
-		return string(ResourceAddress) + ":" + opAddrIface(op) + ":" + opAddr(op)
+		return tb.Str(string(ResourceAddress)).Byte(':').Str(opAddrIface(op)).Byte(':').Str(opAddr(op)).String()
 	case ResourcePeer:
-		return string(ResourcePeer) + ":" + firstNonEmpty(op.Target.Peer, op.Params.Peer)
+		return tb.Str(string(ResourcePeer)).Byte(':').Str(firstNonEmpty(op.Target.Peer, op.Params.Peer)).String()
 	case ResourceListener:
-		return string(ResourceListener) + ":" + normalizeAddress(firstNonEmpty(op.Target.Address, op.Params.Address)) + ":" + fmt.Sprint(firstNonZeroUint16(op.Target.Port, op.Params.Port))
+		return tb.Str(string(ResourceListener)).Byte(':').Str(normalizeAddress(firstNonEmpty(op.Target.Address, op.Params.Address))).Byte(':').Str(fmt.Sprint(firstNonZeroUint16(op.Target.Port, op.Params.Port))).String()
 	case ResourceStaticRoute:
-		return string(ResourceStaticRoute) + ":" + firstNonEmpty(op.Target.Prefix, op.Params.Prefix) + ":" + normalizeAddress(firstNonEmpty(op.Target.NextHop, op.Params.NextHop))
+		return tb.Str(string(ResourceStaticRoute)).Byte(':').Str(firstNonEmpty(op.Target.Prefix, op.Params.Prefix)).Byte(':').Str(normalizeAddress(firstNonEmpty(op.Target.NextHop, op.Params.NextHop))).String()
 	default:
-		return string(op.Target.Kind) + ":" + firstNonEmpty(op.Target.Name, op.Params.Name, op.Target.Address, op.Params.Address)
+		return tb.Str(string(op.Target.Kind)).Byte(':').Str(firstNonEmpty(op.Target.Name, op.Params.Name, op.Target.Address, op.Params.Address)).String()
 	}
 }
 

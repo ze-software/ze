@@ -10,7 +10,6 @@ package config
 
 import (
 	"fmt"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -379,21 +378,13 @@ func (p *Parser) parsePresenceParenthesized(tree *Tree, name string) error {
 	if err != nil {
 		return err
 	}
-	var value strings.Builder
-	for i, v := range parenVals {
-		if i > 0 {
-			value.WriteString(" ")
-		}
-		value.WriteString(v)
-	}
-
 	// Optional semicolon after parenthesized content
 	tok := p.tok.Peek()
 	if tok.Type == TokenSemicolon {
 		p.tok.Next()
 	}
 
-	tree.Set(name, value.String())
+	tree.Set(name, textbuf.Join(parenVals, " "))
 	return nil
 }
 

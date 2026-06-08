@@ -1,5 +1,4 @@
 // Design: docs/architecture/core-design.md — tech-support archive generator
-// Overview: register.go — command registration
 
 package support
 
@@ -24,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/resolve"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
@@ -195,14 +195,15 @@ func collect(modules map[string]ModuleCollector, opts *CollectOptions, reason, o
 	now := time.Now().UTC()
 	ts := now.Format("20060102-150405")
 
-	archiveName := "ze-support-" + hostname + "-" + ts + ".tar.gz"
+	var tb textbuf.Buffer
+	archiveName := tb.Str("ze-support-").Str(hostname).Byte('-').Str(ts).Str(".tar.gz").String()
 	if outputDir == "" {
 		outputDir = "."
 	}
 	archivePath := filepath.Join(outputDir, archiveName)
 
 	if info, err := os.Stat(outputDir); err != nil || !info.IsDir() {
-		return nil, errors.New("output directory does not exist: " + outputDir)
+		return nil, errors.New(tb.Reset().Str("output directory does not exist: ").Str(outputDir).String())
 	}
 
 	manifest := &SupportManifest{
@@ -244,7 +245,7 @@ func collect(modules map[string]ModuleCollector, opts *CollectOptions, reason, o
 			manifest.Modules[name] = ModuleResult{
 				Collected:  false,
 				DurationMs: duration,
-				Error:      "json marshal: " + marshalErr.Error(),
+				Error:      tb.Reset().Str("json marshal: ").Err(marshalErr).String(),
 			}
 			continue
 		}
@@ -258,7 +259,7 @@ func collect(modules map[string]ModuleCollector, opts *CollectOptions, reason, o
 
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
-		return nil, errors.New("marshal manifest: " + err.Error())
+		return nil, errors.New(tb.Reset().Str("marshal manifest: ").Err(err).String())
 	}
 
 	if err := writeArchive(archivePath, manifestData, collected); err != nil {
@@ -279,9 +280,10 @@ func runCollector(fn ModuleCollector, opts *CollectOptions) (result any, err err
 }
 
 func writeArchive(path string, manifestData []byte, modules []moduleData) (retErr error) {
+	var tb textbuf.Buffer
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o600) //nolint:gosec // path is constructed from hostname+timestamp, not user input
 	if err != nil {
-		return errors.New("create archive: " + err.Error())
+		return errors.New(tb.Str("create archive: ").Err(err).String())
 	}
 	defer func() {
 		if retErr != nil {
@@ -298,24 +300,25 @@ func writeArchive(path string, manifestData []byte, modules []moduleData) (retEr
 	}
 
 	for _, m := range modules {
-		if err := writeTarEntry(tw, m.name+".json", m.data); err != nil {
+		if err := writeTarEntry(tw, tb.Reset().Str(m.name).Str(".json").String(), m.data); err != nil {
 			return err
 		}
 	}
 
 	if err := tw.Close(); err != nil {
-		return errors.New("close tar: " + err.Error())
+		return errors.New(tb.Reset().Str("close tar: ").Err(err).String())
 	}
 	if err := gw.Close(); err != nil {
-		return errors.New("close gzip: " + err.Error())
+		return errors.New(tb.Reset().Str("close gzip: ").Err(err).String())
 	}
 	if err := f.Close(); err != nil {
-		return errors.New("close file: " + err.Error())
+		return errors.New(tb.Reset().Str("close file: ").Err(err).String())
 	}
 	return nil
 }
 
 func writeTarEntry(tw *tar.Writer, name string, data []byte) error {
+	var tb textbuf.Buffer
 	hdr := &tar.Header{
 		Name:    name,
 		Size:    int64(len(data)),
@@ -323,10 +326,10 @@ func writeTarEntry(tw *tar.Writer, name string, data []byte) error {
 		ModTime: time.Now().UTC(),
 	}
 	if err := tw.WriteHeader(hdr); err != nil {
-		return errors.New("tar header " + name + ": " + err.Error())
+		return errors.New(tb.Str("tar header ").Str(name).Str(": ").Err(err).String())
 	}
 	if _, err := tw.Write(data); err != nil {
-		return errors.New("tar write " + name + ": " + err.Error())
+		return errors.New(tb.Reset().Str("tar write ").Str(name).Str(": ").Err(err).String())
 	}
 	return nil
 }
@@ -386,9 +389,10 @@ func collectPlatform(opts *CollectOptions) (any, error) {
 
 // collectConfig loads and optionally sanitizes the configuration.
 func collectConfig(opts *CollectOptions) (any, error) {
+	var tb textbuf.Buffer
 	store, err := resolve.Storage()
 	if err != nil {
-		return map[string]any{"available": false, "reason": "storage: " + err.Error()}, nil
+		return map[string]any{"available": false, "reason": tb.Str("storage: ").Err(err).String()}, nil
 	}
 	defer func() { _ = store.Close() }()
 
@@ -398,14 +402,14 @@ func collectConfig(opts *CollectOptions) (any, error) {
 	if opts.ConfigPath != "" {
 		configData, err = os.ReadFile(opts.ConfigPath) //nolint:gosec // user-supplied config path
 		if err != nil {
-			return map[string]any{"available": false, "reason": "config file: " + err.Error()}, nil
+			return map[string]any{"available": false, "reason": tb.Reset().Str("config file: ").Err(err).String()}, nil
 		}
 		configName = opts.ConfigPath
 	} else {
 		configName = resolve.DefaultConfig(store)
 		configData, err = store.ReadFile(configName)
 		if err != nil {
-			return map[string]any{"available": false, "reason": "no config found: " + err.Error()}, nil
+			return map[string]any{"available": false, "reason": tb.Reset().Str("no config found: ").Err(err).String()}, nil
 		}
 	}
 
@@ -625,6 +629,7 @@ func usage() {
 		"  --sensitive      Include passwords and secrets (default: redacted)\n" +
 		"  --output DIR     Output directory (default: current directory)\n" +
 		"  --json           Output manifest JSON to stdout\n" +
-		"  --list-modules   List available modules and exit\n" +
-		"\nModules: " + ModuleList() + "\n")
+		"  --list-modules   List available modules and exit\n")
+	var tb2 textbuf.Buffer
+	os.Stderr.WriteString(tb2.Str("\nModules: ").Str(ModuleList()).Byte('\n').String()) //nolint:errcheck // CLI help
 }

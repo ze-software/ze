@@ -24,6 +24,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/smart"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -99,12 +100,13 @@ func checkVPPSocket(sockPath string) []diagnostic.Diagnostic {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	var d net.Dialer
+	var tb textbuf.Buffer
 	conn, err := d.DialContext(ctx, "unix", sockPath)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-vpp-unreachable",
 			Severity: diagnostic.SeverityError,
-			Message:  "VPP API socket unreachable: " + sockPath + ": " + err.Error(),
+			Message:  tb.Str("VPP API socket unreachable: ").Str(sockPath).Str(": ").Err(err).String(),
 			Path:     sockPath,
 		}}
 	}
@@ -112,7 +114,7 @@ func checkVPPSocket(sockPath string) []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-vpp-unreachable",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "VPP API socket close: " + sockPath + ": " + closeErr.Error(),
+			Message:  tb.Reset().Str("VPP API socket close: ").Str(sockPath).Str(": ").Err(closeErr).String(),
 			Path:     sockPath,
 		}}
 	}
@@ -154,12 +156,13 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 
 	loaded := loadedKernelModules()
 	var diags []diagnostic.Diagnostic
+	var tb textbuf.Buffer
 	for _, mod := range required {
 		if !loaded[mod] {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-module-missing",
 				Severity: diagnostic.SeverityError,
-				Message:  "kernel module not loaded: " + mod,
+				Message:  tb.Reset().Str("kernel module not loaded: ").Str(mod).String(),
 			})
 		}
 	}
@@ -211,21 +214,22 @@ func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 
 	var diags []diagnostic.Diagnostic
+	var tb textbuf.Buffer
 	for name := range ethList {
 		if strings.Contains(name, "..") || strings.ContainsAny(name, "/\x00") {
 			continue
 		}
-		statePath := "/sys/class/net/" + name
+		statePath := tb.Reset().Str("/sys/class/net/").Str(name).String()
 		info, err := os.Stat(statePath)
 		if err != nil || !info.IsDir() {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-iface-missing",
 				Severity: diagnostic.SeverityError,
-				Message:  "ethernet interface not found: " + name,
+				Message:  tb.Reset().Str("ethernet interface not found: ").Str(name).String(),
 			})
 			continue
 		}
-		operstate, err := os.ReadFile(statePath + "/operstate") //nolint:gosec // path traversal guarded above
+		operstate, err := os.ReadFile(tb.Reset().Str(statePath).Str("/operstate").String()) //nolint:gosec // path traversal guarded above
 		if err != nil {
 			continue
 		}
@@ -234,7 +238,7 @@ func checkInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-iface-down",
 				Severity: diagnostic.SeverityWarning,
-				Message:  "ethernet interface " + name + " operstate: " + state,
+				Message:  tb.Reset().Str("ethernet interface ").Str(name).Str(" operstate: ").Str(state).String(),
 			})
 		}
 	}
@@ -259,11 +263,12 @@ func checkVPPVersion(tree *config.Tree) []diagnostic.Diagnostic {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "vppctl", "show", "version").Output() //nolint:gosec // fixed command
+	var tb textbuf.Buffer
 	if err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-vpp-version",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "cannot determine VPP version: " + err.Error(),
+			Message:  tb.Str("cannot determine VPP version: ").Err(err).String(),
 		}}
 	}
 
@@ -272,7 +277,7 @@ func checkVPPVersion(tree *config.Tree) []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-vpp-version",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "unexpected VPP version output: " + version,
+			Message:  tb.Reset().Str("unexpected VPP version output: ").Str(version).String(),
 		}}
 	}
 	return nil
@@ -300,10 +305,11 @@ func checkKernelNexthop() []diagnostic.Diagnostic {
 	path := procPath("net", "nexthop")
 	_, err := statPath(path)
 	if err != nil {
+		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-kernel-nexthop",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "kernel nexthop objects unavailable (" + path + " not found); ECMP uses legacy multipath",
+			Message:  tb.Str("kernel nexthop objects unavailable (").Str(path).Str(" not found); ECMP uses legacy multipath").String(),
 		}}
 	}
 	return nil
@@ -341,10 +347,11 @@ func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
 	if !loaded["mpls_iptunnel"] {
 		missing = append(missing, "mpls_iptunnel")
 	}
+	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-mpls-unavailable",
 		Severity: diagnostic.SeverityWarning,
-		Message:  "MPLS kernel modules not loaded: " + strings.Join(missing, ", "),
+		Message:  tb.Str("MPLS kernel modules not loaded: ").Join(missing, ", ").String(),
 	}}
 }
 
@@ -377,10 +384,11 @@ func checkTelemetryProcfs(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 	path := procPath("stat")
 	if _, err := readFilePath(path); err != nil {
+		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-telemetry-procfs",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "telemetry: cannot read " + path + ": " + err.Error(),
+			Message:  tb.Str("telemetry: cannot read ").Str(path).Str(": ").Err(err).String(),
 			Path:     path,
 		}}
 	}
@@ -393,10 +401,11 @@ func checkSysctlProcfs(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 	path := procPath("sys")
 	if err := accessPath(path, unix.W_OK); err != nil {
+		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-sysctl-procfs",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "sysctl: " + path + " is not writable: " + err.Error(),
+			Message:  tb.Str("sysctl: ").Str(path).Str(" is not writable: ").Err(err).String(),
 			Path:     path,
 		}}
 	}
@@ -407,12 +416,13 @@ func checkConntrackProcfs(tree *config.Tree) []diagnostic.Diagnostic {
 	if getContainerPath(tree, "system", "conntrack") == nil {
 		return nil
 	}
+	var tb textbuf.Buffer
 	dir := procPath("sys", "net", "netfilter")
 	if _, err := statPath(dir); err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-conntrack-procfs",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "conntrack: " + dir + " unavailable: " + err.Error(),
+			Message:  tb.Str("conntrack: ").Str(dir).Str(" unavailable: ").Err(err).String(),
 			Path:     dir,
 		}}
 	}
@@ -421,7 +431,7 @@ func checkConntrackProcfs(tree *config.Tree) []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-conntrack-procfs",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "conntrack: " + key + " is not writable: " + err.Error(),
+			Message:  tb.Reset().Str("conntrack: ").Str(key).Str(" is not writable: ").Err(err).String(),
 			Path:     key,
 		}}
 	}
@@ -442,10 +452,11 @@ func checkPolicyRouteNetlink(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 	h, err := newRouteNetlinkHandle()
 	if err != nil {
+		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-policyroute-netlink",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "policy route: route netlink unavailable: " + err.Error(),
+			Message:  tb.Str("policy route: route netlink unavailable: ").Err(err).String(),
 		}}
 	}
 	if h != nil {
@@ -523,12 +534,13 @@ func checkMachineID(platform *host.PlatformInfo, store storage.Storage) []diagno
 		}
 	}
 
+	var tb textbuf.Buffer
 	return []diagnostic.Diagnostic{{
 		Code:     "doctor-machine-id-missing",
 		Severity: diagnostic.SeverityWarning,
-		Message:  "machine-id is missing or empty on " + platform.Type.String(),
+		Message:  tb.Str("machine-id is missing or empty on ").Str(platform.Type.String()).String(),
 		Path:     path,
-		Expected: "non-empty " + path + " or zefs meta/instance/machine-id",
+		Expected: tb.Reset().Str("non-empty ").Str(path).Str(" or zefs meta/instance/machine-id").String(),
 		Actual:   "missing or empty",
 	}}
 }
@@ -569,13 +581,14 @@ func checkVPPDPDK(tree *config.Tree) []diagnostic.Diagnostic {
 
 	var diags []diagnostic.Diagnostic
 
+	var tb textbuf.Buffer
 	loaded := loadedKernelModules()
 	for _, mod := range dpdkVFIOModules {
 		if !loaded[mod] {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-vpp-dpdk",
 				Severity: diagnostic.SeverityError,
-				Message:  "VPP DPDK: VFIO kernel module not loaded: " + mod,
+				Message:  tb.Reset().Str("VPP DPDK: VFIO kernel module not loaded: ").Str(mod).String(),
 			})
 		}
 	}
@@ -587,7 +600,7 @@ func checkVPPDPDK(tree *config.Tree) []diagnostic.Diagnostic {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-vpp-dpdk",
 				Severity: diagnostic.SeverityError,
-				Message:  "VPP DPDK: PCI device not found: " + pci,
+				Message:  tb.Reset().Str("VPP DPDK: PCI device not found: ").Str(pci).String(),
 				Path:     sysfsPath,
 			})
 		}

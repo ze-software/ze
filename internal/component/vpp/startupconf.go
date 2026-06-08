@@ -155,7 +155,8 @@ func (b *confBuilder) line(s string) {
 }
 
 func (b *confBuilder) section(name string, body func()) {
-	b.write(name + " {\n")
+	var tb textbuf.Buffer
+	b.write(tb.Str(name).Str(" {\n").String())
 	b.indent++
 	body()
 	b.indent--
@@ -163,7 +164,8 @@ func (b *confBuilder) section(name string, body func()) {
 }
 
 func (b *confBuilder) nested(name string, body func()) {
-	b.line(name + " {")
+	var tb textbuf.Buffer
+	b.line(tb.Str(name).Str(" {").String())
 	b.indent++
 	body()
 	b.indent--
@@ -171,7 +173,8 @@ func (b *confBuilder) nested(name string, body func()) {
 }
 
 func (b *confBuilder) kv(key, value string) {
-	b.line(key + " " + value)
+	var tb textbuf.Buffer
+	b.line(tb.Str(key).Byte(' ').Str(value).String())
 }
 
 func (b *confBuilder) flag(name string) {
@@ -189,11 +192,12 @@ func (b *confBuilder) devEntry(iface DPDKInterface) {
 	if iface.TxQueues != nil {
 		parts = append(parts, textbuf.StrInt("num-tx-queues ", int64(*iface.TxQueues)))
 	}
+	var tb textbuf.Buffer
 	if len(parts) == 0 {
-		b.line("dev " + iface.PCIAddress)
+		b.line(tb.Str("dev ").Str(iface.PCIAddress).String())
 		return
 	}
-	b.nested("dev "+iface.PCIAddress, func() {
+	b.nested(tb.Reset().Str("dev ").Str(iface.PCIAddress).String(), func() {
 		for _, p := range parts {
 			b.line(p)
 		}

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -323,7 +324,7 @@ func (tc *TestCase) parseInput(rest string) error {
 	// For "type" action, the text may contain colons, so handle specially
 	if inp.Action == "type" && len(segments) >= 2 {
 		// Rejoin everything after type: as the text value might contain colons
-		textPart := strings.Join(segments[1:], ":")
+		textPart := textbuf.Join(segments[1:], ":")
 		kv := strings.SplitN(textPart, "=", 2)
 		if len(kv) == 2 && kv[0] == "text" {
 			inp.Values["text"] = kv[1]
@@ -373,7 +374,7 @@ func (tc *TestCase) parseExpect(rest string) error {
 				}
 			}
 		} else {
-			restPart := strings.Join(segments[1:], ":")
+			restPart := textbuf.Join(segments[1:], ":")
 			kv := strings.SplitN(restPart, "=", 2)
 			if len(kv) == 2 {
 				exp.Values[kv[0]] = kv[1]

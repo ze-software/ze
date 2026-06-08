@@ -9,12 +9,12 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Config holds configuration for the web dashboard.
@@ -608,36 +608,36 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 // renderStats returns a minimal stats HTML fragment for SSE.
 // Must preserve sse-swap and hx-swap attributes so future SSE events continue to work.
 func (d *Dashboard) renderStats() string {
-	var donutBuf strings.Builder
+	var b textbuf.Buffer
 	counts := d.state.StatusCounts()
-	writeDonut(&donutBuf, counts, d.state.PeerCount)
-	writeDonutLegend(&donutBuf, counts)
-	writeDonutEnd(&donutBuf)
+	writeDonut(&b, counts, d.state.PeerCount)
+	writeDonutLegend(&b, counts)
+	writeDonutEnd(&b)
 
-	return `<div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">` +
-		donutBuf.String() +
-		`<div class="stat-grid">` +
-		`<span></span><span class="stat-grid-header">Out</span><span class="stat-grid-header">In</span>` +
-		`<span class="stat-label">Msgs</span><span class="stat-value">` + itoa(d.state.TotalAnnounced) + `</span><span class="stat-value">` + itoa(d.state.TotalReceived) + `</span>` +
-		`<span class="stat-label">Bytes</span><span class="stat-value">` + FormatBytes(d.state.TotalBytesSent) + `</span><span class="stat-value">` + FormatBytes(d.state.TotalBytesRecv) + `</span>` +
-		`<span class="stat-label">Rate</span><span class="stat-value">` + FormatBitRate(d.state.AggregateThroughput(true)) + `</span><span class="stat-value">` + FormatBitRate(d.state.AggregateThroughput(false)) + `</span>` +
-		`<span class="stat-label">Wdraw</span><span class="stat-value">` + itoa(d.state.TotalWithdrawn) + `</span><span class="stat-value">` + itoa(d.state.TotalWdrawSent) + `</span>` +
-		`</div>` +
-		`<span class="stat"><span class="stat-label">Churn </span><span class="stat-value">` + itoa(d.state.TotalRouteActions) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(d.state.TotalChaos) + `</span></span> ` +
-		`<span class="stat"><span class="stat-value ` + ChaosRateColorClass(d.state.ChaosRate()) + `">` + fmt.Sprintf("%.1f/s", d.state.ChaosRate()) + `</span></span> ` +
-		`<span class="stat"><span class="stat-label">Reconn </span><span class="stat-value">` + itoa(d.state.TotalReconnects) + `</span></span>` +
-		droppedStat(d.state.TotalDropped) +
-		syncStat(d.state.EORCount, d.state.PeerCount, d.state.SyncDuration) +
-		speedStat(d.state.Control.SpeedAvailable, d.state.Control.SpeedFactor) +
-		`</div>`
+	b.Str(`<div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
+	b.Str(`<div class="stat-grid">`)
+	b.Str(`<span></span><span class="stat-grid-header">Out</span><span class="stat-grid-header">In</span>`)
+	b.Str(`<span class="stat-label">Msgs</span><span class="stat-value">`).Str(itoa(d.state.TotalAnnounced)).Str(`</span><span class="stat-value">`).Str(itoa(d.state.TotalReceived)).Str(`</span>`)
+	b.Str(`<span class="stat-label">Bytes</span><span class="stat-value">`).Str(FormatBytes(d.state.TotalBytesSent)).Str(`</span><span class="stat-value">`).Str(FormatBytes(d.state.TotalBytesRecv)).Str(`</span>`)
+	b.Str(`<span class="stat-label">Rate</span><span class="stat-value">`).Str(FormatBitRate(d.state.AggregateThroughput(true))).Str(`</span><span class="stat-value">`).Str(FormatBitRate(d.state.AggregateThroughput(false))).Str(`</span>`)
+	b.Str(`<span class="stat-label">Wdraw</span><span class="stat-value">`).Str(itoa(d.state.TotalWithdrawn)).Str(`</span><span class="stat-value">`).Str(itoa(d.state.TotalWdrawSent)).Str(`</span>`)
+	b.Str(`</div>`)
+	b.Str(`<span class="stat"><span class="stat-label">Churn </span><span class="stat-value">`).Str(itoa(d.state.TotalRouteActions)).Str(`</span></span>`)
+	b.Str(`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">`).Str(itoa(d.state.TotalChaos)).Str(`</span></span> `)
+	b.Str(`<span class="stat"><span class="stat-value `).Str(ChaosRateColorClass(d.state.ChaosRate())).Str(`">`).Float(d.state.ChaosRate(), 1).Str(`/s</span></span> `)
+	b.Str(`<span class="stat"><span class="stat-label">Reconn </span><span class="stat-value">`).Str(itoa(d.state.TotalReconnects)).Str(`</span></span>`)
+	b.Str(droppedStat(d.state.TotalDropped))
+	b.Str(syncStat(d.state.EORCount, d.state.PeerCount, d.state.SyncDuration))
+	b.Str(speedStat(d.state.Control.SpeedAvailable, d.state.Control.SpeedFactor))
+	b.Str(`</div>`)
+	return b.String()
 }
 
 // renderConvergence returns the convergence histogram HTML fragment for SSE.
 // writeConvergenceHistogram already includes sse-swap="convergence" on its outer div,
 // so no extra wrapper is needed — SSE outerHTML swap replaces the div in place.
 func (d *Dashboard) renderConvergence() string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	writeConvergenceHistogram(&b, d.state.Convergence, d.state.ConvergenceDeadline)
 	return b.String()
 }
@@ -645,10 +645,10 @@ func (d *Dashboard) renderConvergence() string {
 // renderRecentEvents returns the recent events HTML fragment for SSE.
 // Must preserve sse-swap and hx-swap attributes so future SSE events continue to work.
 func (d *Dashboard) renderRecentEvents() string {
-	var b strings.Builder
-	b.WriteString(`<div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
+	var b textbuf.Buffer
+	b.Str(`<div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
 	writeRecentEvents(&b, d.state)
-	b.WriteString(`</div>`)
+	b.Str(`</div>`)
 	return b.String()
 }
 
@@ -663,18 +663,21 @@ func (d *Dashboard) renderPeerRow(idx int) string {
 	if pinned {
 		pinClass = cssPinPinned
 	}
-	return "<tr id=\"peer-" + itoa(idx) + "\" hx-swap-oob=\"outerHTML\">" +
-		"<td><span class=\"" + pinClass + "\" hx-post=\"/peers/" + itoa(idx) + "/pin\" hx-swap=\"none\"></span></td>" +
-		"<td>" + itoa(idx) + "</td>" +
-		"<td><span class=\"dot " + ps.Status.CSSClass() + "\"></span> " + ps.Status.String() + "</td>" +
-		"<td>" + itoa(ps.RoutesSent) + "</td>" +
-		"<td>" + itoa(ps.RoutesRecv) + "</td>" +
-		"<td>" + FormatBytes(ps.BytesSent) + "</td>" +
-		"<td>" + FormatBytes(ps.BytesRecv) + "</td>" +
-		"<td>" + FormatBitRate(ps.throughputOut) + "</td>" +
-		"<td>" + FormatBitRate(ps.throughputIn) + "</td>" +
-		"<td>" + itoa(ps.ChaosCount) + "</td>" +
-		"</tr>"
+	var b textbuf.Buffer
+	idxStr := itoa(idx)
+	b.Str(`<tr id="peer-`).Str(idxStr).Str(`" hx-swap-oob="outerHTML">`)
+	b.Str(`<td><span class="`).Str(pinClass).Str(`" hx-post="/peers/`).Str(idxStr).Str(`/pin" hx-swap="none"></span></td>`)
+	b.Str(`<td>`).Str(idxStr).Str(`</td>`)
+	b.Str(`<td><span class="dot `).Str(ps.Status.CSSClass()).Str(`"></span> `).Str(ps.Status.String()).Str(`</td>`)
+	b.Str(`<td>`).Str(itoa(ps.RoutesSent)).Str(`</td>`)
+	b.Str(`<td>`).Str(itoa(ps.RoutesRecv)).Str(`</td>`)
+	b.Str(`<td>`).Str(FormatBytes(ps.BytesSent)).Str(`</td>`)
+	b.Str(`<td>`).Str(FormatBytes(ps.BytesRecv)).Str(`</td>`)
+	b.Str(`<td>`).Str(FormatBitRate(ps.throughputOut)).Str(`</td>`)
+	b.Str(`<td>`).Str(FormatBitRate(ps.throughputIn)).Str(`</td>`)
+	b.Str(`<td>`).Str(itoa(ps.ChaosCount)).Str(`</td>`)
+	b.Str(`</tr>`)
+	return b.String()
 }
 
 // renderPeerRowInsert returns a table row HTML fragment for inserting a new peer
@@ -690,18 +693,21 @@ func (d *Dashboard) renderPeerRowInsert(idx int) string {
 	if pinned {
 		pinClass = cssPinPinned
 	}
-	return "<tr id=\"peer-" + itoa(idx) + "\" hx-swap-oob=\"beforeend:#peer-tbody\" hx-get=\"/peer/" + itoa(idx) + "\" hx-target=\"#peer-detail\" hx-swap=\"outerHTML\">" +
-		"<td><span class=\"" + pinClass + "\" hx-post=\"/peers/" + itoa(idx) + "/pin\" hx-swap=\"none\" hx-trigger=\"click\" onclick=\"event.stopPropagation()\"></span></td>" +
-		"<td>" + itoa(idx) + "</td>" +
-		"<td><span class=\"dot " + ps.Status.CSSClass() + "\"></span> " + ps.Status.String() + "</td>" +
-		"<td>" + itoa(ps.RoutesSent) + "</td>" +
-		"<td>" + itoa(ps.RoutesRecv) + "</td>" +
-		"<td>" + FormatBytes(ps.BytesSent) + "</td>" +
-		"<td>" + FormatBytes(ps.BytesRecv) + "</td>" +
-		"<td>" + FormatBitRate(ps.throughputOut) + "</td>" +
-		"<td>" + FormatBitRate(ps.throughputIn) + "</td>" +
-		"<td>" + itoa(ps.ChaosCount) + "</td>" +
-		"</tr>"
+	var b textbuf.Buffer
+	idxStr := itoa(idx)
+	b.Str(`<tr id="peer-`).Str(idxStr).Str(`" hx-swap-oob="beforeend:#peer-tbody" hx-get="/peer/`).Str(idxStr).Str(`" hx-target="#peer-detail" hx-swap="outerHTML">`)
+	b.Str(`<td><span class="`).Str(pinClass).Str(`" hx-post="/peers/`).Str(idxStr).Str(`/pin" hx-swap="none" hx-trigger="click" onclick="event.stopPropagation()"></span></td>`)
+	b.Str(`<td>`).Str(idxStr).Str(`</td>`)
+	b.Str(`<td><span class="dot `).Str(ps.Status.CSSClass()).Str(`"></span> `).Str(ps.Status.String()).Str(`</td>`)
+	b.Str(`<td>`).Str(itoa(ps.RoutesSent)).Str(`</td>`)
+	b.Str(`<td>`).Str(itoa(ps.RoutesRecv)).Str(`</td>`)
+	b.Str(`<td>`).Str(FormatBytes(ps.BytesSent)).Str(`</td>`)
+	b.Str(`<td>`).Str(FormatBytes(ps.BytesRecv)).Str(`</td>`)
+	b.Str(`<td>`).Str(FormatBitRate(ps.throughputOut)).Str(`</td>`)
+	b.Str(`<td>`).Str(FormatBitRate(ps.throughputIn)).Str(`</td>`)
+	b.Str(`<td>`).Str(itoa(ps.ChaosCount)).Str(`</td>`)
+	b.Str(`</tr>`)
+	return b.String()
 }
 
 // renderPeerCell returns a grid cell HTML fragment for a single peer.
@@ -715,16 +721,20 @@ func (d *Dashboard) renderPeerCell(idx int) string {
 	if ps.ChaosActive {
 		pulseClass = " pulse"
 	}
-	return `<div id="peer-cell-` + itoa(idx) + `" class="peer-cell ` + ps.Status.CSSClass() + pulseClass +
-		`" title="Peer ` + itoa(idx) + `: ` + ps.Status.String() +
-		` | Sent: ` + itoa(ps.RoutesSent) + ` Recv: ` + itoa(ps.RoutesRecv) +
-		` | Last: ` + eventTypeLabel(ps.LastEvent) +
-		`" hx-get="/peer/` + itoa(idx) + `" hx-target="#peer-detail" hx-swap="outerHTML"></div>`
+	var b textbuf.Buffer
+	idxStr := itoa(idx)
+	b.Str(`<div id="peer-cell-`).Str(idxStr).Str(`" class="peer-cell `).Str(ps.Status.CSSClass()).Str(pulseClass)
+	b.Str(`" title="Peer `).Str(idxStr).Str(`: `).Str(ps.Status.String())
+	b.Str(` | Sent: `).Str(itoa(ps.RoutesSent)).Str(` Recv: `).Str(itoa(ps.RoutesRecv))
+	b.Str(` | Last: `).Str(eventTypeLabel(ps.LastEvent))
+	b.Str(`" hx-get="/peer/`).Str(idxStr).Str(`" hx-target="#peer-detail" hx-swap="outerHTML"></div>`)
+	return b.String()
 }
 
 // renderPeerRemoval returns an empty element to remove a peer row via hx-swap-oob.
 func renderPeerRemoval(idx int) string {
-	return "<tr id=\"peer-" + itoa(idx) + "\" hx-swap-oob=\"delete\"></tr>"
+	var b textbuf.Buffer
+	return b.Str(`<tr id="peer-`).Str(itoa(idx)).Str(`" hx-swap-oob="delete"></tr>`).String()
 }
 
 // itoa is a simple int-to-string helper to avoid importing strconv for HTML rendering.

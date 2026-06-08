@@ -342,7 +342,8 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// accumulate; any match skips.
 		for skipOS := range strings.SplitSeq(value, ",") {
 			if strings.TrimSpace(skipOS) == runtime.GOOS {
-				r.SkipReason = "skip-os=" + value + " (current GOOS=" + runtime.GOOS + ")"
+				var tb textbuf.Buffer
+				r.SkipReason = tb.Str("skip-os=").Str(value).Str(" (current GOOS=").Str(runtime.GOOS).Byte(')').String()
 				return nil
 			}
 		}
@@ -354,13 +355,14 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		}
 		expected := kv["value"]
 		actual := os.Getenv(varName)
+		var tb textbuf.Buffer
 		if expected == "" {
 			if actual != "" {
-				r.SkipReason = "skip-env=" + varName + " (set to " + actual + ")"
+				r.SkipReason = tb.Str("skip-env=").Str(varName).Str(" (set to ").Str(actual).Byte(')').String()
 				return nil
 			}
 		} else if actual == expected {
-			r.SkipReason = "skip-env=" + varName + "=" + expected
+			r.SkipReason = tb.Reset().Str("skip-env=").Str(varName).Byte('=').Str(expected).String()
 			return nil
 		}
 
@@ -378,7 +380,8 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			}
 		}
 		if !found {
-			r.SkipReason = "require-tag=" + value + " (not in build tags: " + active + ")"
+			var tb textbuf.Buffer
+			r.SkipReason = tb.Str("require-tag=").Str(value).Str(" (not in build tags: ").Str(active).Byte(')').String()
 			return nil
 		}
 

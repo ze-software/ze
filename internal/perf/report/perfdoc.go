@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 	"runtime"
-	"strconv"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/perf"
 )
 
@@ -127,18 +127,19 @@ median convergence time) are automatically discarded.
 
 		for j := range grouped {
 			r := &grouped[j]
-			line := "| " + r.DUTName +
-				" | " + fmtMs(r.ConvergenceMs) +
-				" | " + fmtMs(r.ConvergenceStddevMs) +
-				" | " + fmtNum(r.ThroughputAvg) +
-				" | " + fmtNum(r.ThroughputAvgStddev) +
-				" | " + fmtMs(r.LatencyP50Ms) +
-				" | " + fmtMs(r.LatencyP99Ms) +
-				" | " + fmtMs(r.LatencyP99StddevMs) +
-				" | " + fmtMs(r.LatencyMaxMs) +
-				" | " + strconv.Itoa(r.RoutesLost) +
-				" | " + fmtMs(r.WithdrawalMs) +
-				" | " + fmtMs(r.WithdrawalStddevMs) + " |"
+			var tb textbuf.Buffer
+			line := tb.Str("| ").Str(r.DUTName).
+				Str(" | ").Str(fmtMs(r.ConvergenceMs)).
+				Str(" | ").Str(fmtMs(r.ConvergenceStddevMs)).
+				Str(" | ").Str(fmtNum(r.ThroughputAvg)).
+				Str(" | ").Str(fmtNum(r.ThroughputAvgStddev)).
+				Str(" | ").Str(fmtMs(r.LatencyP50Ms)).
+				Str(" | ").Str(fmtMs(r.LatencyP99Ms)).
+				Str(" | ").Str(fmtMs(r.LatencyP99StddevMs)).
+				Str(" | ").Str(fmtMs(r.LatencyMaxMs)).
+				Str(" | ").Int(int64(r.RoutesLost)).
+				Str(" | ").Str(fmtMs(r.WithdrawalMs)).
+				Str(" | ").Str(fmtMs(r.WithdrawalStddevMs)).Str(" |").String()
 			if _, err := fmt.Fprintln(w, line); err != nil {
 				return fmt.Errorf("writing row: %w", err)
 			}

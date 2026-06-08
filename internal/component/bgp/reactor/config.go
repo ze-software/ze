@@ -21,6 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ErrIncompleteConfig indicates a peer is missing required fields (remote IP, ASN, etc.)
@@ -878,7 +879,7 @@ func mapStringJoined(m map[string]any, key string) (string, bool) {
 		return s, true
 	}
 	if ss, ok := v.([]string); ok && len(ss) > 0 {
-		return strings.Join(ss, " "), true
+		return textbuf.Join(ss, " "), true
 	}
 	return "", false
 }

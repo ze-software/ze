@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
@@ -52,7 +51,7 @@ func Run(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: unknown diagnostic code: %s\n", code)
 		all := diagnostic.AllCodes()
 		if len(all) > 0 {
-			fmt.Fprintf(os.Stderr, "valid codes: %s\n", strings.Join(all, ", "))
+			fmt.Fprintf(os.Stderr, "valid codes: %s\n", textbuf.Join(all, ", "))
 		}
 		return 1
 	}
@@ -94,7 +93,7 @@ func outputText(meta *diagnostic.CodeMeta) int {
 		}
 	}
 	if len(meta.RelatedCodes) > 0 {
-		b.Byte('\n').Str("Related: ").Str(strings.Join(meta.RelatedCodes, ", ")).Byte('\n')
+		b.Byte('\n').Str("Related: ").Str(textbuf.Join(meta.RelatedCodes, ", ")).Byte('\n')
 	}
 
 	if _, err := os.Stdout.WriteString(b.String()); err != nil {

@@ -64,9 +64,10 @@ func translateFlowSpec(fs *flowspec.FlowSpec, act flowAction, nlriKey string) ([
 	if len(portAnyRanges) > 0 {
 		srcMatches := append(append([]firewall.Match{}, matches...), firewall.MatchSourcePort{Ranges: portAnyRanges})
 		dstMatches := append(append([]firewall.Match{}, matches...), firewall.MatchDestinationPort{Ranges: portAnyRanges})
+		var tb textbuf.Buffer
 		return []firewall.Term{
-			{Name: termName(nlriKey + "|sp"), Matches: srcMatches, Actions: actions},
-			{Name: termName(nlriKey + "|dp"), Matches: dstMatches, Actions: actions},
+			{Name: termName(tb.Str(nlriKey).Str("|sp").String()), Matches: srcMatches, Actions: actions},
+			{Name: termName(tb.Reset().Str(nlriKey).Str("|dp").String()), Matches: dstMatches, Actions: actions},
 		}, nil
 	}
 
@@ -251,7 +252,8 @@ func destPrefixFromJSON(fam family.Family, data json.RawMessage) netip.Prefix {
 
 func termName(nlriKey string) string {
 	h := sha256.Sum256([]byte(nlriKey))
-	return "fs-" + hex.EncodeToString(h[:8])
+	var tb textbuf.Buffer
+	return tb.Str("fs-").Str(hex.EncodeToString(h[:8])).String()
 }
 
 func protoName(proto uint8) string {

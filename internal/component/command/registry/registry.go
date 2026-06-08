@@ -29,8 +29,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errRegisterLocalEmptyPath = errors.New("registry.RegisterLocal: empty path")
@@ -310,7 +310,7 @@ func LookupLocal(words []string) (LocalHandler, []string) {
 	mu.RLock()
 	defer mu.RUnlock()
 	for i := len(words); i > 0; i-- {
-		path := strings.Join(words[:i], " ")
+		path := textbuf.Join(words[:i], " ")
 		if handler, ok := localHandlers[path]; ok {
 			return handler, append([]string(nil), words[i:]...)
 		}

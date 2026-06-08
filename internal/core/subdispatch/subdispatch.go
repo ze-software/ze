@@ -5,10 +5,10 @@ package subdispatch
 import (
 	"os"
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func writeStderr(s string) {
@@ -53,9 +53,10 @@ func (d *Dispatcher) Dispatch(args []string) int {
 
 	h, ok := d.handlers[args[0]]
 	if !ok {
-		writeStderr("unknown " + d.Command + " target: " + args[0] + "\n")
+		var tb textbuf.Buffer
+		writeStderr(tb.Str("unknown ").Str(d.Command).Str(" target: ").Str(args[0]).Byte('\n').String())
 		if s := suggest.Command(args[0], d.targetNames()); s != "" {
-			writeStderr("hint: did you mean '" + s + "'?\n")
+			writeStderr(tb.Reset().Str("hint: did you mean '").Str(s).Str("'?\n").String())
 		}
 		d.usage()
 		return 1
@@ -64,7 +65,7 @@ func (d *Dispatcher) Dispatch(args []string) int {
 }
 
 func (d *Dispatcher) Subcommands() string {
-	return strings.Join(d.targetNames(), ", ")
+	return textbuf.Join(d.targetNames(), ", ")
 }
 
 func (d *Dispatcher) targetNames() []string {
@@ -83,10 +84,11 @@ func (d *Dispatcher) usage() {
 		entries = append(entries, helpfmt.HelpEntry{Name: n, Desc: d.metas[n].Desc})
 	}
 
+	var tb textbuf.Buffer
 	p := helpfmt.Page{
-		Command: "ze " + d.Command,
+		Command: tb.Str("ze ").Str(d.Command).String(),
 		Summary: d.Summary,
-		Usage:   []string{"ze " + d.Command + " <target> [options]"},
+		Usage:   []string{tb.Reset().Str("ze ").Str(d.Command).Str(" <target> [options]").String()},
 		Sections: []helpfmt.HelpSection{
 			{Title: "Targets", Entries: entries},
 		},

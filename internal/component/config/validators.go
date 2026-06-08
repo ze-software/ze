@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errPort0IsNotValidIn = errors.New("port 0 is not valid in port spec")
@@ -105,7 +106,7 @@ func allSendTypeNames() string {
 		}
 	}
 	sort.Strings(names)
-	return strings.Join(names, ", ")
+	return textbuf.Join(names, ", ")
 }
 
 // AddressFamilyValidator returns a validator that checks if a value is a registered address family.
@@ -380,7 +381,7 @@ func InternalPluginNameValidator() yang.CustomValidator {
 			}
 			if !registry.Has(str) {
 				return fmt.Errorf("%q is not a registered internal plugin (available: %s)",
-					str, strings.Join(sortedInternalPluginNames(), ", "))
+					str, textbuf.Join(sortedInternalPluginNames(), ", "))
 			}
 			return nil
 		},

@@ -8,7 +8,6 @@ package flowspec
 
 import (
 	"encoding/binary"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -184,7 +183,7 @@ func tcpFlagsToString(flags uint8) string {
 	if len(names) == 0 {
 		return "0"
 	}
-	return strings.Join(names, "&")
+	return textbuf.Join(names, "&")
 }
 
 // fragmentFlagsToString converts fragment flags to named flags.
@@ -206,7 +205,7 @@ func fragmentFlagsToString(flags FlowFragmentFlag) string {
 	if len(names) == 0 {
 		return "0"
 	}
-	return strings.Join(names, "&")
+	return textbuf.Join(names, "&")
 }
 
 // Len returns the wire-format length in bytes.

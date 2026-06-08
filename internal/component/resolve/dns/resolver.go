@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"strings"
 	"time"
 
 	mdns "github.com/miekg/dns"
@@ -252,7 +251,7 @@ func extractRecords(resp *mdns.Msg) ([]string, uint32, error) {
 		case *mdns.AAAA:
 			records = append(records, v.AAAA.String())
 		case *mdns.TXT:
-			records = append(records, strings.Join(v.Txt, ""))
+			records = append(records, textbuf.Join(v.Txt, ""))
 		case *mdns.PTR:
 			records = append(records, v.Ptr)
 		case *mdns.CNAME:

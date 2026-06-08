@@ -117,10 +117,11 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, storeDiags...)
 	defer func() {
 		if err := store.Close(); err != nil {
+			var tb textbuf.Buffer
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-storage-unavailable",
 				Severity: diagnostic.SeverityWarning,
-				Message:  "close storage: " + err.Error(),
+				Message:  tb.Str("close storage: ").Err(err).String(),
 			})
 		}
 	}()
@@ -209,10 +210,11 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 func resolveStorageWithDiag() (storage.Storage, []diagnostic.Diagnostic) {
 	s, err := resolve.Storage()
 	if err != nil {
+		var tb textbuf.Buffer
 		return s, []diagnostic.Diagnostic{{
 			Code:     "doctor-storage-unavailable",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "blob storage: " + err.Error(),
+			Message:  tb.Str("blob storage: ").Err(err).String(),
 		}}
 	}
 	return s, nil
@@ -240,12 +242,13 @@ func loadConfigData(store storage.Storage, configPath string) ([]byte, string, e
 }
 
 func checkPlatform() (*host.PlatformInfo, []diagnostic.Diagnostic) {
+	var tb textbuf.Buffer
 	p, err := detectDoctorPlatform()
 	if err != nil {
 		return nil, []diagnostic.Diagnostic{{
 			Code:     "doctor-platform-detect",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "platform detection failed: " + err.Error(),
+			Message:  tb.Str("platform detection failed: ").Err(err).String(),
 		}}
 	}
 	if p == nil {
@@ -303,7 +306,8 @@ func forcedPlatformInfo(name string) (*host.PlatformInfo, error) {
 	case "darwin":
 		return &host.PlatformInfo{Type: host.PlatformDarwin}, nil
 	default:
-		return nil, errors.New("unknown forced platform: " + name)
+		var tb textbuf.Buffer
+		return nil, errors.New(tb.Str("unknown forced platform: ").Str(name).String())
 	}
 }
 
@@ -317,12 +321,13 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 		return nil
 	}
 
+	var tb textbuf.Buffer
 	report, err := zefs.Check(storePath)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-store-integrity",
 			Severity: diagnostic.SeverityError,
-			Message:  "store integrity check failed: " + err.Error(),
+			Message:  tb.Str("store integrity check failed: ").Err(err).String(),
 		}}
 	}
 
@@ -330,7 +335,7 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-store-integrity",
 			Severity: diagnostic.SeverityError,
-			Message:  "store corrupt: " + report.ContainerError,
+			Message:  tb.Reset().Str("store corrupt: ").Str(report.ContainerError).String(),
 		}}
 	}
 
@@ -338,7 +343,7 @@ func checkStoreIntegrity() []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-store-integrity",
 			Severity: diagnostic.SeverityError,
-			Message:  "store has " + strconv.Itoa(report.CorruptEntries) + " corrupt entries",
+			Message:  tb.Reset().Str("store has ").Int(int64(report.CorruptEntries)).Str(" corrupt entries").String(),
 		}}
 	}
 
@@ -366,10 +371,11 @@ func checkSystemdServiceInstall(platform *host.PlatformInfo) []diagnostic.Diagno
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
+		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-service-unit",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "systemd service unit cannot be read: " + unitPath + ": " + err.Error(),
+			Message:  tb.Str("systemd service unit cannot be read: ").Str(unitPath).Str(": ").Err(err).String(),
 			Path:     unitPath,
 		}}
 	}
@@ -435,11 +441,12 @@ func firstSystemdCommand(value string) string {
 }
 
 func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic {
+	var tb textbuf.Buffer
 	if executable == "" {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-service-executable",
 			Severity: diagnostic.SeverityError,
-			Message:  "systemd service unit has no ExecStart command: " + unitPath,
+			Message:  tb.Str("systemd service unit has no ExecStart command: ").Str(unitPath).String(),
 			Path:     unitPath,
 		}}
 	}
@@ -447,7 +454,7 @@ func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-service-executable",
 			Severity: diagnostic.SeverityError,
-			Message:  "systemd service ExecStart is not an absolute path: " + executable,
+			Message:  tb.Reset().Str("systemd service ExecStart is not an absolute path: ").Str(executable).String(),
 			Path:     unitPath,
 			Expected: "absolute executable path",
 			Actual:   executable,
@@ -458,7 +465,7 @@ func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-service-executable",
 			Severity: diagnostic.SeverityError,
-			Message:  "systemd service executable not found: " + executable + ": " + err.Error(),
+			Message:  tb.Reset().Str("systemd service executable not found: ").Str(executable).Str(": ").Err(err).String(),
 			Path:     executable,
 		}}
 	}
@@ -466,7 +473,7 @@ func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-service-executable",
 			Severity: diagnostic.SeverityError,
-			Message:  "systemd service executable is not executable: " + executable,
+			Message:  tb.Reset().Str("systemd service executable is not executable: ").Str(executable).String(),
 			Path:     executable,
 			Expected: "executable file",
 			Actual:   info.Mode().String(),
@@ -477,10 +484,11 @@ func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic
 
 func checkServiceUser(unitPath, name string) []diagnostic.Diagnostic {
 	if _, err := lookupServiceUser(name); err != nil {
+		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-service-user",
 			Severity: diagnostic.SeverityError,
-			Message:  "systemd service user not found: " + name,
+			Message:  tb.Str("systemd service user not found: ").Str(name).String(),
 			Path:     unitPath,
 			Expected: "existing user",
 			Actual:   name,
@@ -491,10 +499,11 @@ func checkServiceUser(unitPath, name string) []diagnostic.Diagnostic {
 
 func checkServiceGroup(unitPath, name string) []diagnostic.Diagnostic {
 	if _, err := lookupServiceGroup(name); err != nil {
+		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-service-group",
 			Severity: diagnostic.SeverityError,
-			Message:  "systemd service group not found: " + name,
+			Message:  tb.Str("systemd service group not found: ").Str(name).String(),
 			Path:     unitPath,
 			Expected: "existing group",
 			Actual:   name,
@@ -582,46 +591,48 @@ func checkPKICerts(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 
 	var diags []diagnostic.Diagnostic
+	var tb textbuf.Buffer
 	for _, ca := range pki.GetListOrdered("ca") {
-		path := "pki/ca/" + ca.Key + "/certificate"
+		path := tb.Reset().Str("pki/ca/").Str(ca.Key).Str("/certificate").String()
 		certData, ok := ca.Value.Get("certificate")
 		if !ok || certData == "" {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-pki-cert",
 				Severity: diagnostic.SeverityError,
-				Message:  "PKI CA " + ca.Key + ": certificate missing",
+				Message:  tb.Reset().Str("PKI CA ").Str(ca.Key).Str(": certificate missing").String(),
 				Path:     path,
 			})
 			continue
 		}
-		diags = append(diags, checkBase64DERCert("PKI CA "+ca.Key, path, certData)...)
+		diags = append(diags, checkBase64DERCert(tb.Reset().Str("PKI CA ").Str(ca.Key).String(), path, certData)...)
 	}
 
 	for _, cert := range pki.GetListOrdered("certificate") {
-		path := "pki/certificate/" + cert.Key + "/certificate"
+		path := tb.Reset().Str("pki/certificate/").Str(cert.Key).Str("/certificate").String()
 		certData, ok := cert.Value.Get("certificate")
 		if !ok || certData == "" {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-pki-cert",
 				Severity: diagnostic.SeverityError,
-				Message:  "PKI certificate " + cert.Key + ": certificate missing",
+				Message:  tb.Reset().Str("PKI certificate ").Str(cert.Key).Str(": certificate missing").String(),
 				Path:     path,
 			})
 			continue
 		}
-		diags = append(diags, checkBase64DERCert("PKI certificate "+cert.Key, path, certData)...)
+		diags = append(diags, checkBase64DERCert(tb.Reset().Str("PKI certificate ").Str(cert.Key).String(), path, certData)...)
 	}
 
 	return diags
 }
 
 func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
+	var tb textbuf.Buffer
 	der, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-pki-cert",
 			Severity: diagnostic.SeverityError,
-			Message:  service + ": certificate is not base64 DER: " + err.Error(),
+			Message:  tb.Str(service).Str(": certificate is not base64 DER: ").Err(err).String(),
 			Path:     path,
 		}}
 	}
@@ -631,7 +642,7 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-pki-cert",
 			Severity: diagnostic.SeverityError,
-			Message:  service + ": cannot parse certificate: " + err.Error(),
+			Message:  tb.Reset().Str(service).Str(": cannot parse certificate: ").Err(err).String(),
 			Path:     path,
 		}}
 	}
@@ -642,7 +653,7 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-pki-cert",
 			Severity: diagnostic.SeverityError,
-			Message:  service + ": certificate expired on " + notAfter,
+			Message:  tb.Reset().Str(service).Str(": certificate expired on ").Str(notAfter).String(),
 			Path:     path,
 			Expected: "not-after > now",
 			Actual:   notAfter,
@@ -653,7 +664,7 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-pki-cert",
 			Severity: diagnostic.SeverityError,
-			Message:  service + ": certificate not yet valid (starts " + notBefore + ")",
+			Message:  tb.Reset().Str(service).Str(": certificate not yet valid (starts ").Str(notBefore).Byte(')').String(),
 			Path:     path,
 			Expected: "not-before < now",
 			Actual:   notBefore,
@@ -665,7 +676,7 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-pki-cert",
 			Severity: diagnostic.SeverityWarning,
-			Message:  service + ": certificate expires in " + strconv.Itoa(daysLeft) + " days (" + notAfter + ")",
+			Message:  tb.Reset().Str(service).Str(": certificate expires in ").Int(int64(daysLeft)).Str(" days (").Str(notAfter).Byte(')').String(),
 			Path:     path,
 		}}
 	}
@@ -678,6 +689,7 @@ func checkCertPair(service, certPath, keyPath, configDir string) []diagnostic.Di
 	}
 
 	var diags []diagnostic.Diagnostic
+	var tb textbuf.Buffer
 
 	if certPath != "" {
 		resolved := resolvePath(certPath, configDir)
@@ -686,7 +698,7 @@ func checkCertPair(service, certPath, keyPath, configDir string) []diagnostic.Di
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-tls-missing",
 				Severity: diagnostic.SeverityError,
-				Message:  service + ": certificate not found: " + resolved,
+				Message:  tb.Reset().Str(service).Str(": certificate not found: ").Str(resolved).String(),
 				Path:     resolved,
 			})
 		} else {
@@ -700,7 +712,7 @@ func checkCertPair(service, certPath, keyPath, configDir string) []diagnostic.Di
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-tls-missing",
 				Severity: diagnostic.SeverityError,
-				Message:  service + ": key not found: " + resolved,
+				Message:  tb.Reset().Str(service).Str(": key not found: ").Str(resolved).String(),
 				Path:     resolved,
 			})
 		}
@@ -710,12 +722,13 @@ func checkCertPair(service, certPath, keyPath, configDir string) []diagnostic.Di
 }
 
 func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnostic {
+	var tb textbuf.Buffer
 	block, _ := pem.Decode(pemData)
 	if block == nil {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-tls-invalid",
 			Severity: diagnostic.SeverityWarning,
-			Message:  service + ": " + path + ": not valid PEM",
+			Message:  tb.Str(service).Str(": ").Str(path).Str(": not valid PEM").String(),
 			Path:     path,
 		}}
 	}
@@ -724,7 +737,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-tls-invalid",
 			Severity: diagnostic.SeverityWarning,
-			Message:  service + ": " + path + ": cannot parse certificate: " + err.Error(),
+			Message:  tb.Reset().Str(service).Str(": ").Str(path).Str(": cannot parse certificate: ").Err(err).String(),
 			Path:     path,
 		}}
 	}
@@ -734,7 +747,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-tls-expired",
 			Severity: diagnostic.SeverityError,
-			Message:  service + ": certificate expired on " + ts,
+			Message:  tb.Reset().Str(service).Str(": certificate expired on ").Str(ts).String(),
 			Path:     path,
 			Expected: "not-after > now",
 			Actual:   ts,
@@ -745,7 +758,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-tls-expired",
 			Severity: diagnostic.SeverityError,
-			Message:  service + ": certificate not yet valid (starts " + notBefore + ")",
+			Message:  tb.Reset().Str(service).Str(": certificate not yet valid (starts ").Str(notBefore).Byte(')').String(),
 			Path:     path,
 			Expected: "not-before < now",
 			Actual:   notBefore,
@@ -757,7 +770,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-tls-expired",
 			Severity: diagnostic.SeverityWarning,
-			Message:  service + ": certificate expires in " + strconv.Itoa(daysLeft) + " days (" + ts + ")",
+			Message:  tb.Reset().Str(service).Str(": certificate expires in ").Int(int64(daysLeft)).Str(" days (").Str(ts).Byte(')').String(),
 			Path:     path,
 		}}
 	}
@@ -791,11 +804,12 @@ func checkSSHHostKey(tree *config.Tree, configDir string) []diagnostic.Diagnosti
 	if keyPath == "" {
 		keyPath = filepath.Join(configDir, "ssh_host_ed25519_key")
 	}
+	var tb textbuf.Buffer
 	if _, err := os.Stat(keyPath); err != nil {
 		diags = append(diags, diagnostic.Diagnostic{
 			Code:     "doctor-ssh-hostkey-missing",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "SSH host key not found: " + keyPath + " (will be auto-generated on first start)",
+			Message:  tb.Str("SSH host key not found: ").Str(keyPath).Str(" (will be auto-generated on first start)").String(),
 			Path:     keyPath,
 		})
 	}
@@ -806,7 +820,7 @@ func checkSSHHostKey(tree *config.Tree, configDir string) []diagnostic.Diagnosti
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-ssh-hostkey-missing",
 				Severity: diagnostic.SeverityError,
-				Message:  "SSH host certificate not found: " + resolved,
+				Message:  tb.Reset().Str("SSH host certificate not found: ").Str(resolved).String(),
 				Path:     resolved,
 			})
 		}
@@ -947,6 +961,7 @@ func extractTelemetryListeners(tree *config.Tree) []serviceListener {
 }
 
 func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
+	var tb textbuf.Buffer
 	var diags []diagnostic.Diagnostic
 
 	listeners := collectSchemaListeners(tree)
@@ -962,7 +977,7 @@ func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     l.code,
 				Severity: l.severity,
-				Message:  l.service + ": cannot bind " + l.network + " " + listenerAddress(l) + ": " + err.Error(),
+				Message:  tb.Reset().Str(l.service).Str(": cannot bind ").Str(l.network).Byte(' ').Str(listenerAddress(l)).Str(": ").Err(err).String(),
 			})
 		}
 	}
@@ -1008,6 +1023,7 @@ func listenerAddress(l serviceListener) string {
 }
 
 func dedupeListeners(listeners []serviceListener) []serviceListener {
+	var tb textbuf.Buffer
 	seen := make(map[string]bool, len(listeners))
 	result := make([]serviceListener, 0, len(listeners))
 	for _, l := range listeners {
@@ -1017,7 +1033,7 @@ func dedupeListeners(listeners []serviceListener) []serviceListener {
 		if l.severity == "" {
 			l.severity = diagnostic.SeverityWarning
 		}
-		key := l.service + "\x00" + l.network + "\x00" + l.host + "\x00" + l.port + "\x00" + l.code
+		key := tb.Reset().Str(l.service).Byte(0).Str(l.network).Byte(0).Str(l.host).Byte(0).Str(l.port).Byte(0).Str(l.code).String()
 		if seen[key] {
 			continue
 		}
@@ -1120,12 +1136,13 @@ func checkDHCPInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 
 	var diags []diagnostic.Diagnostic
+	var tb textbuf.Buffer
 	for _, name := range dhcp.GetSlice("listen-interface") {
 		if strings.ContainsAny(name, "/\x00") || strings.Contains(name, "..") {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-dhcp-iface",
 				Severity: diagnostic.SeverityError,
-				Message:  "DHCP server listen interface has invalid name: " + name,
+				Message:  tb.Reset().Str("DHCP server listen interface has invalid name: ").Str(name).String(),
 				Path:     "service/dhcp-server/listen-interface",
 			})
 			continue
@@ -1134,7 +1151,7 @@ func checkDHCPInterfaces(tree *config.Tree) []diagnostic.Diagnostic {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-dhcp-iface",
 				Severity: diagnostic.SeverityError,
-				Message:  "DHCP server listen interface not found: " + name,
+				Message:  tb.Reset().Str("DHCP server listen interface not found: ").Str(name).String(),
 				Path:     "service/dhcp-server/listen-interface",
 			})
 		}
@@ -1346,15 +1363,16 @@ func checkConfigReferences(tree *config.Tree) []diagnostic.Diagnostic {
 		diags = append(diags, checkFilterRefs(filter, defined, "bgp/filter")...)
 	}
 
+	var tb textbuf.Buffer
 	groups := bgpBlock.GetListOrdered("group")
 	for _, g := range groups {
-		groupPath := "bgp/group/" + g.Key + "/filter"
+		groupPath := tb.Reset().Str("bgp/group/").Str(g.Key).Str("/filter").String()
 		if filter := g.Value.GetContainer("filter"); filter != nil {
 			diags = append(diags, checkFilterRefs(filter, defined, groupPath)...)
 		}
 		peers := g.Value.GetListOrdered("peer")
 		for _, p := range peers {
-			peerPath := "bgp/group/" + g.Key + "/peer/" + p.Key + "/filter"
+			peerPath := tb.Reset().Str("bgp/group/").Str(g.Key).Str("/peer/").Str(p.Key).Str("/filter").String()
 			if filter := p.Value.GetContainer("filter"); filter != nil {
 				diags = append(diags, checkFilterRefs(filter, defined, peerPath)...)
 			}
@@ -1363,7 +1381,7 @@ func checkConfigReferences(tree *config.Tree) []diagnostic.Diagnostic {
 
 	peers := bgpBlock.GetListOrdered("peer")
 	for _, p := range peers {
-		peerPath := "bgp/peer/" + p.Key + "/filter"
+		peerPath := tb.Reset().Str("bgp/peer/").Str(p.Key).Str("/filter").String()
 		if filter := p.Value.GetContainer("filter"); filter != nil {
 			diags = append(diags, checkFilterRefs(filter, defined, peerPath)...)
 		}
@@ -1404,6 +1422,7 @@ func filterInstanceName(ref string) string {
 
 func checkFilterRefs(filter *config.Tree, defined map[string]bool, path string) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
+	var tb textbuf.Buffer
 	for _, dir := range []string{"import", "export"} {
 		refs := filter.GetSlice(dir)
 		for _, ref := range refs {
@@ -1412,7 +1431,7 @@ func checkFilterRefs(filter *config.Tree, defined map[string]bool, path string) 
 				diags = append(diags, diagnostic.Diagnostic{
 					Code:     "doctor-config-reference",
 					Severity: diagnostic.SeverityError,
-					Message:  path + "/" + dir + ": references undefined filter '" + ref + "'",
+					Message:  tb.Reset().Str(path).Byte('/').Str(dir).Str(": references undefined filter '").Str(ref).Byte('\'').String(),
 				})
 			}
 		}
@@ -1438,7 +1457,7 @@ func checkDiskSpace() []diagnostic.Diagnostic {
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-disk-space",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "config partition has " + pctStr + " free space",
+			Message:  textbuf.StrUintStr("config partition has ", pctFree, "% free space"),
 			Path:     configDir,
 			Expected: ">= 5%",
 			Actual:   pctStr,
@@ -1563,12 +1582,13 @@ func checkBGPMD5(tree *config.Tree) []diagnostic.Diagnostic {
 		return false
 	}
 
+	var tb textbuf.Buffer
 	for _, p := range bgp.GetListOrdered("peer") {
 		if hasMD5(nil, p.Value) {
 			return []diagnostic.Diagnostic{{
 				Code:     "doctor-bgp-md5",
 				Severity: diagnostic.SeverityWarning,
-				Message:  "BGP peer " + p.Key + " requires TCP MD5 but platform does not support it",
+				Message:  tb.Reset().Str("BGP peer ").Str(p.Key).Str(" requires TCP MD5 but platform does not support it").String(),
 			}}
 		}
 	}
@@ -1577,7 +1597,7 @@ func checkBGPMD5(tree *config.Tree) []diagnostic.Diagnostic {
 			return []diagnostic.Diagnostic{{
 				Code:     "doctor-bgp-md5",
 				Severity: diagnostic.SeverityWarning,
-				Message:  "BGP group " + g.Key + " requires TCP MD5 but platform does not support it",
+				Message:  tb.Reset().Str("BGP group ").Str(g.Key).Str(" requires TCP MD5 but platform does not support it").String(),
 			}}
 		}
 		for _, p := range g.Value.GetListOrdered("peer") {
@@ -1585,7 +1605,7 @@ func checkBGPMD5(tree *config.Tree) []diagnostic.Diagnostic {
 				return []diagnostic.Diagnostic{{
 					Code:     "doctor-bgp-md5",
 					Severity: diagnostic.SeverityWarning,
-					Message:  "BGP peer " + g.Key + "/" + p.Key + " requires TCP MD5 but platform does not support it",
+					Message:  tb.Reset().Str("BGP peer ").Str(g.Key).Byte('/').Str(p.Key).Str(" requires TCP MD5 but platform does not support it").String(),
 				}}
 			}
 		}
@@ -1655,7 +1675,8 @@ func clockNoSyncMessage(platform *host.PlatformInfo) string {
 		return "gokrazy platform has no configured clock synchronization; enable environment/ntp because Ze owns appliance services"
 	}
 	if platform != nil {
-		return "Ze NTP is disabled on " + platform.Type.String() + "; verify external clock synchronization or enable environment/ntp"
+		var tb textbuf.Buffer
+		return tb.Str("Ze NTP is disabled on ").Str(platform.Type.String()).Str("; verify external clock synchronization or enable environment/ntp").String()
 	}
 	return "Ze NTP is disabled; verify external clock synchronization or enable environment/ntp"
 }
@@ -1798,10 +1819,11 @@ func checkUpdateCheckURL(tree *config.Tree, platform *host.PlatformInfo) []diagn
 	}
 
 	if err := httpHead(url, 5*time.Second); err != nil {
+		var tb textbuf.Buffer
 		return []diagnostic.Diagnostic{{
 			Code:     "doctor-update-check-unreachable",
 			Severity: diagnostic.SeverityWarning,
-			Message:  "update-check URL unreachable: " + err.Error(),
+			Message:  tb.Str("update-check URL unreachable: ").Err(err).String(),
 			Path:     url,
 		}}
 	}
@@ -1844,10 +1866,11 @@ func checkArchiveDestinations(tree *config.Tree) []diagnostic.Diagnostic {
 			continue
 		}
 		if err := httpHead(loc, 5*time.Second); err != nil {
+			var tb textbuf.Buffer
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     "doctor-archive-unreachable",
 				Severity: diagnostic.SeverityWarning,
-				Message:  "archive " + a.Key + ": location unreachable: " + err.Error(),
+				Message:  tb.Str("archive ").Str(a.Key).Str(": location unreachable: ").Err(err).String(),
 				Path:     loc,
 			})
 		}
@@ -1856,6 +1879,7 @@ func checkArchiveDestinations(tree *config.Tree) []diagnostic.Diagnostic {
 }
 
 func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) []diagnostic.Diagnostic {
+	var tb textbuf.Buffer
 	var diags []diagnostic.Diagnostic
 
 	if ntp := getContainerPath(tree, "environment", "ntp"); configEnabled(ntp, false) {
@@ -1867,7 +1891,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 				diags = append(diags, diagnostic.Diagnostic{
 					Code:     "doctor-write-destination",
 					Severity: diagnostic.SeverityWarning,
-					Message:  "NTP persist-path parent not writable: " + dir,
+					Message:  tb.Reset().Str("NTP persist-path parent not writable: ").Str(dir).String(),
 					Path:     persistPath,
 				})
 			}
@@ -1880,7 +1904,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 				diags = append(diags, diagnostic.Diagnostic{
 					Code:     "doctor-write-destination",
 					Severity: diagnostic.SeverityWarning,
-					Message:  "BFD persist-dir not writable: " + persistDir,
+					Message:  tb.Reset().Str("BFD persist-dir not writable: ").Str(persistDir).String(),
 					Path:     persistDir,
 				})
 			}
@@ -1894,7 +1918,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 				diags = append(diags, diagnostic.Diagnostic{
 					Code:     "doctor-write-destination",
 					Severity: diagnostic.SeverityWarning,
-					Message:  "DNS resolv-conf-path parent not writable: " + dir,
+					Message:  tb.Reset().Str("DNS resolv-conf-path parent not writable: ").Str(dir).String(),
 					Path:     rcPath,
 				})
 			}
@@ -1918,7 +1942,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 				diags = append(diags, diagnostic.Diagnostic{
 					Code:     "doctor-write-destination",
 					Severity: diagnostic.SeverityWarning,
-					Message:  "archive " + a.Key + ": file location not writable: " + path,
+					Message:  tb.Reset().Str("archive ").Str(a.Key).Str(": file location not writable: ").Str(path).String(),
 					Path:     path,
 				})
 			}
@@ -1937,7 +1961,7 @@ func checkWritableDestinations(tree *config.Tree, platform *host.PlatformInfo) [
 					diags = append(diags, diagnostic.Diagnostic{
 						Code:     "doctor-write-destination",
 						Severity: diagnostic.SeverityWarning,
-						Message:  "self-update auto-apply: binary parent not writable: " + dir,
+						Message:  tb.Reset().Str("self-update auto-apply: binary parent not writable: ").Str(dir).String(),
 						Path:     exe,
 					})
 				}

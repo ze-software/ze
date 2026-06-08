@@ -165,11 +165,11 @@ func (w *Writer) ensureOpenLocked() error {
 //	%N  literal %N (reserved for caller table-name substitution)
 //	%%  literal %
 func expandPattern(pattern string, t time.Time) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.Grow(len(pattern) + 16)
 	for i := 0; i < len(pattern); i++ {
 		if pattern[i] != '%' || i+1 >= len(pattern) {
-			b.WriteByte(pattern[i])
+			b.Byte(pattern[i])
 			continue
 		}
 		i++
@@ -187,29 +187,25 @@ func expandPattern(pattern string, t time.Time) string {
 		case 'S':
 			writePadded(&b, t.Second(), 2)
 		case 's':
-			tb := textbuf.Get()
-			b.WriteString(tb.Int(t.Unix()).String())
-			tb.Release()
+			b.Int(t.Unix())
 		case 'N':
-			b.WriteString("%N")
+			b.Str("%N")
 		case '%':
-			b.WriteByte('%')
+			b.Byte('%')
 		default:
-			b.WriteByte('%')
-			b.WriteByte(pattern[i])
+			b.Byte('%')
+			b.Byte(pattern[i])
 		}
 	}
 	return b.String()
 }
 
-func writePadded(b *strings.Builder, v, width int) {
-	tb := textbuf.Get()
-	s := tb.Int(int64(v)).String()
+func writePadded(b *textbuf.Buffer, v, width int) {
+	s := textbuf.Int(int64(v))
 	for i := len(s); i < width; i++ {
-		b.WriteByte('0')
+		b.Byte('0')
 	}
-	b.WriteString(s)
-	tb.Release()
+	b.Str(s)
 }
 
 // ExpandPatternTableName replaces %N in an already-expanded path with the

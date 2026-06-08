@@ -60,7 +60,8 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query("show bgp rib prefix " + prefix)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib prefix ").Str(prefix).String())
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 

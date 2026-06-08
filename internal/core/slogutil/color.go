@@ -14,6 +14,8 @@ import (
 
 	"golang.org/x/term"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
@@ -97,7 +99,7 @@ func colorizeLine(line string, level slog.Level) string {
 		line = line[:len(line)-1]
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.Grow(len(line) + 80)
 
 	pos := 0
@@ -105,23 +107,20 @@ func colorizeLine(line string, level slog.Level) string {
 
 	for pos < len(line) {
 		if !first {
-			b.WriteByte(' ')
+			b.Byte(' ')
 		}
 		first = false
 
 		rest := line[pos:]
 		eqIdx := strings.IndexByte(rest, '=')
 		if eqIdx == -1 {
-			b.WriteString(rest)
+			b.Str(rest)
 			break
 		}
 
 		key := rest[:eqIdx]
 
-		b.WriteString(ansiDim)
-		b.WriteString(key)
-		b.WriteByte('=')
-		b.WriteString(ansiReset)
+		b.Str(ansiDim).Str(key).Byte('=').Str(ansiReset)
 
 		valueStart := eqIdx + 1
 		var valueEnd int
@@ -145,11 +144,9 @@ func colorizeLine(line string, level slog.Level) string {
 		value := rest[valueStart:valueEnd]
 
 		if key == "level" {
-			b.WriteString(levelColor(level))
-			b.WriteString(value)
-			b.WriteString(ansiReset)
+			b.Str(levelColor(level)).Str(value).Str(ansiReset)
 		} else {
-			b.WriteString(value)
+			b.Str(value)
 		}
 
 		pos += valueEnd
@@ -159,7 +156,7 @@ func colorizeLine(line string, level slog.Level) string {
 	}
 
 	if hasNewline {
-		b.WriteByte('\n')
+		b.Byte('\n')
 	}
 
 	return b.String()

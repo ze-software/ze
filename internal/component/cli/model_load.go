@@ -84,10 +84,10 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 		}
 		if len(commitResult.Conflicts) > 0 {
 			m.editor.DeleteLive()
-			var b strings.Builder
-			b.WriteString("Commit blocked by conflicts:\n")
+			var b textbuf.Buffer
+			b.Str("Commit blocked by conflicts:\n")
 			for _, c := range commitResult.Conflicts {
-				fmt.Fprintf(&b, "  %s: %s\n", c.Path, c.MyValue)
+				b.Str("  ").Str(c.Path).Str(": ").Str(c.MyValue).Byte('\n')
 			}
 			return commandResult{output: b.String()}, nil
 		}
@@ -112,7 +112,10 @@ func (m *Model) cmdCommitConfirmed(seconds int, force bool) (commandResult, erro
 	}
 
 	return commandResult{
-		statusMessage:         "Committed" + reloadWarning + ". Confirm within " + textbuf.IntStr(int64(seconds), "s or auto-revert. Use 'confirm' or 'confirm abort'."),
+		statusMessage: func() string {
+			var tb textbuf.Buffer
+			return tb.Str("Committed").Str(reloadWarning).Str(". Confirm within ").Int(int64(seconds)).Str("s or auto-revert. Use 'confirm' or 'confirm abort'.").String()
+		}(),
 		refreshConfig:         true,
 		revalidate:            true,
 		setConfirmTimer:       true,
@@ -231,8 +234,9 @@ func (m *Model) cmdLoad(args []string) (commandResult, error) {
 	m.editor.SetWorkingContent(string(data))
 	m.editor.MarkDirty()
 
+	var tb textbuf.Buffer
 	return commandResult{
-		statusMessage: "Configuration loaded from " + args[0],
+		statusMessage: tb.Str("Configuration loaded from ").Str(args[0]).String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -260,8 +264,9 @@ func (m *Model) cmdLoadMerge(args []string) (commandResult, error) {
 	m.editor.SetWorkingContent(merged)
 	m.editor.MarkDirty()
 
+	var tb textbuf.Buffer
 	return commandResult{
-		statusMessage: "Configuration merged from " + args[0],
+		statusMessage: tb.Str("Configuration merged from ").Str(args[0]).String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -355,11 +360,12 @@ func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
 
 // applyLoadAbsolute applies loaded content at root level.
 func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, error) {
+	var tb textbuf.Buffer
 	if action == loadActionReplace {
 		m.editor.SetWorkingContent(content)
 		m.editor.MarkDirty()
 		return commandResult{
-			statusMessage: "Configuration loaded from " + path,
+			statusMessage: tb.Str("Configuration loaded from ").Str(path).String(),
 			configView:    m.configViewAtPath(m.contextPath),
 			revalidate:    true,
 		}, nil
@@ -371,7 +377,7 @@ func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, 
 	m.editor.SetWorkingContent(merged)
 	m.editor.MarkDirty()
 	return commandResult{
-		statusMessage: "Configuration merged from " + path,
+		statusMessage: tb.Reset().Str("Configuration merged from ").Str(path).String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -402,8 +408,9 @@ func (m *Model) applyLoadRelative(action, content, path string) (commandResult, 
 		verb = "merged"
 	}
 
+	var tb textbuf.Buffer
 	return commandResult{
-		statusMessage: "Configuration " + verb + " from " + path + " at " + strings.Join(m.contextPath, " "),
+		statusMessage: tb.Str("Configuration ").Str(verb).Str(" from ").Str(path).Str(" at ").Join(m.contextPath, " ").String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -415,15 +422,15 @@ func replaceAtContext(fullConfig string, contextPath []string, newContent string
 		return fullConfig // nothing to replace
 	}
 
-	var result strings.Builder
+	var result textbuf.Buffer
 
 	// Build the pattern to match (e.g., "peer 1.1.1.1" or just "bgp")
 	var targetPattern string
 	if len(contextPath) == 1 {
 		targetPattern = contextPath[0]
 	} else {
-		// len >= 2: combine last two elements (e.g., "peer" + "1.1.1.1")
-		targetPattern = contextPath[len(contextPath)-2] + " " + contextPath[len(contextPath)-1]
+		var tb textbuf.Buffer
+		targetPattern = tb.Str(contextPath[len(contextPath)-2]).Byte(' ').Str(contextPath[len(contextPath)-1]).String()
 	}
 
 	inTarget := false
@@ -443,31 +450,26 @@ func replaceAtContext(fullConfig string, contextPath []string, newContent string
 
 				if blockPart == targetPattern {
 					// Found target - write opening line and new content
-					result.WriteString(line)
-					result.WriteString("\n")
+					result.Str(line).Byte('\n')
 					inTarget = true
 					targetDepth = currentDepth + openBraces
 
 					// Write indented new content
 					indent := strings.Repeat("  ", targetDepth)
 					for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
-						result.WriteString(indent)
-						result.WriteString(newLine)
-						result.WriteString("\n")
+						result.Str(indent).Str(newLine).Byte('\n')
 					}
 					currentDepth += openBraces - closeBraces
 					continue
 				}
 			}
-			result.WriteString(line)
-			result.WriteString("\n")
+			result.Str(line).Byte('\n')
 		} else {
 			// Inside target - skip old content until closing brace
 			newDepth := currentDepth + openBraces - closeBraces
 			if newDepth < targetDepth {
 				// Found closing brace - write it
-				result.WriteString(line)
-				result.WriteString("\n")
+				result.Str(line).Byte('\n')
 				inTarget = false
 			}
 			// Skip old content lines
@@ -485,15 +487,15 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 		return fullConfig // nothing to merge into
 	}
 
-	var result strings.Builder
+	var result textbuf.Buffer
 
 	// Build the pattern to match (e.g., "peer 1.1.1.1" or just "bgp")
 	var targetPattern string
 	if len(contextPath) == 1 {
 		targetPattern = contextPath[0]
 	} else {
-		// len >= 2: combine last two elements (e.g., "peer" + "1.1.1.1")
-		targetPattern = contextPath[len(contextPath)-2] + " " + contextPath[len(contextPath)-1]
+		var tb textbuf.Buffer
+		targetPattern = tb.Str(contextPath[len(contextPath)-2]).Byte(' ').Str(contextPath[len(contextPath)-1]).String()
 	}
 
 	inTarget := false
@@ -515,45 +517,38 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 					inTarget = true
 					targetDepth = currentDepth + openBraces
 				}
-			} else if !contentInserted && strings.HasPrefix(trimmed, targetPattern+" ") {
-				// Inline container: "bgp router-id 1.2.3.4" -> expand to block form with merged content
-				inlineContent := strings.TrimPrefix(trimmed, targetPattern+" ")
-				leadingIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-				childIndent := leadingIndent + "\t"
-				result.WriteString(leadingIndent)
-				result.WriteString(targetPattern)
-				result.WriteString(" {\n")
-				result.WriteString(childIndent)
-				result.WriteString(inlineContent)
-				result.WriteString("\n")
-				for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
-					result.WriteString(childIndent)
-					result.WriteString(newLine)
-					result.WriteString("\n")
+			} else if !contentInserted {
+				var tb textbuf.Buffer
+				targetWithSpace := tb.Str(targetPattern).Byte(' ').String()
+				if strings.HasPrefix(trimmed, targetWithSpace) {
+					// Inline container: "bgp router-id 1.2.3.4" -> expand to block form with merged content
+					inlineContent := strings.TrimPrefix(trimmed, targetWithSpace)
+					leadingIndent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					childIndent := tb.Reset().Str(leadingIndent).Byte('\t').String()
+					result.Str(leadingIndent).Str(targetPattern).Str(" {\n")
+					result.Str(childIndent).Str(inlineContent).Byte('\n')
+					for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
+						result.Str(childIndent).Str(newLine).Byte('\n')
+					}
+					result.Str(leadingIndent).Str("}\n")
+					contentInserted = true
+					currentDepth += openBraces - closeBraces
+					continue
 				}
-				result.WriteString(leadingIndent)
-				result.WriteString("}\n")
-				contentInserted = true
-				currentDepth += openBraces - closeBraces
-				continue
 			}
-			result.WriteString(line)
-			result.WriteString("\n")
+			result.Str(line).Byte('\n')
 		} else {
 			newDepth := currentDepth + openBraces - closeBraces
 			if newDepth < targetDepth && !contentInserted {
 				// Insert merged content before closing brace
 				indent := strings.Repeat("  ", targetDepth)
 				for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
-					result.WriteString(indent)
-					result.WriteString(newLine)
-					result.WriteString("\n")
+					result.Str(indent).Str(newLine).Byte('\n')
 				}
 				contentInserted = true
 				inTarget = false
 			}
-			result.WriteString(line)
-			result.WriteString("\n")
+			result.Str(line).Byte('\n')
 		}
 
 		currentDepth += openBraces - closeBraces
@@ -669,14 +664,14 @@ func (m *Model) applyTextFilters(result commandResult, err error, filters []Pipe
 func ApplyPipeFilter(content string, filter PipeFilter) (string, error) {
 	switch filter.Type {
 	case cmdMatch:
-		var result strings.Builder
+		var result textbuf.Buffer
 		first := true
 		for line := range strings.SplitSeq(content, "\n") {
 			if strings.Contains(line, filter.Arg) {
 				if !first {
-					result.WriteByte('\n')
+					result.Byte('\n')
 				}
-				result.WriteString(line)
+				result.Str(line)
 				first = false
 			}
 		}
@@ -689,16 +684,16 @@ func ApplyPipeFilter(content string, filter PipeFilter) (string, error) {
 				n = parsed
 			}
 		}
-		var result strings.Builder
+		var result textbuf.Buffer
 		written := 0
 		for line := range strings.SplitSeq(content, "\n") {
 			if written >= n {
 				break
 			}
 			if written > 0 {
-				result.WriteByte('\n')
+				result.Byte('\n')
 			}
-			result.WriteString(line)
+			result.Str(line)
 			written++
 		}
 		return result.String(), nil
@@ -718,28 +713,24 @@ func ApplyPipeFilter(content string, filter PipeFilter) (string, error) {
 		}
 		take := min(n, count)
 		start := count - take
-		var result strings.Builder
+		var result textbuf.Buffer
 		for i := range take {
 			if i > 0 {
-				result.WriteByte('\n')
+				result.Byte('\n')
 			}
-			result.WriteString(ring[(start+i)%n])
+			result.Str(ring[(start+i)%n])
 		}
 		return result.String(), nil
 
 	case cmdCompare:
-		// Compare filter marks each line with + or - based on content
-		// This is a simplified version - it just prefixes lines to indicate changes
-		// A proper implementation would need the original content to compute a real diff
-		var result strings.Builder
+		var result textbuf.Buffer
 		first := true
 		for line := range strings.SplitSeq(content, "\n") {
 			if strings.TrimSpace(line) != "" {
 				if !first {
-					result.WriteByte('\n')
+					result.Byte('\n')
 				}
-				result.WriteString("+ ")
-				result.WriteString(line)
+				result.Str("+ ").Str(line)
 				first = false
 			}
 		}
@@ -837,7 +828,7 @@ func mergeConfigs(current, merge string) string {
 		result = append(result, currentLines[i])
 	}
 
-	return strings.Join(result, "\n")
+	return textbuf.Join(result, "\n")
 }
 
 // extractConfigKey extracts the key from a config line.
@@ -866,7 +857,8 @@ func extractConfigKey(line string) string {
 			"peer": true, "template": true, "plugin": true, "process": true, "group": true,
 		}
 		if blockKeywords[first] {
-			return first + " " + parts[1]
+			var tb textbuf.Buffer
+			return tb.Str(first).Byte(' ').Str(parts[1]).String()
 		}
 	}
 
@@ -921,7 +913,8 @@ func ParsePipeFilters(tokens []string) []PipeFilter {
 			i++
 			// "compare rollback N" needs two args: combine "rollback" + "N".
 			if filter.Type == cmdCompare && filter.Arg == cmdRollback && i < len(tokens) && tokens[i] != "|" {
-				filter.Arg = filter.Arg + " " + tokens[i]
+				var tb textbuf.Buffer
+				filter.Arg = tb.Str(filter.Arg).Byte(' ').Str(tokens[i]).String()
 				i++
 			}
 		}

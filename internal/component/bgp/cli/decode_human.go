@@ -19,8 +19,8 @@ import (
 // formatOpenHuman formats OPEN message data as human-readable text.
 // Works with Ze format: {"open": {...}}.
 func formatOpenHuman(result map[string]any) string {
-	var sb strings.Builder
-	sb.WriteString("BGP OPEN Message\n")
+	var sb textbuf.Buffer
+	sb.Str("BGP OPEN Message\n")
 
 	// Ze format: openSection is directly in result["open"]
 	openSection, ok := result["open"].(map[string]any)
@@ -29,7 +29,7 @@ func formatOpenHuman(result map[string]any) string {
 	}
 
 	// Version (Ze format doesn't include version in decode, use 4)
-	sb.WriteString("  Version:     4\n")
+	sb.Str("  Version:     4\n")
 
 	// ASN
 	if asn, ok := openSection["asn"]; ok {
@@ -50,12 +50,12 @@ func formatOpenHuman(result map[string]any) string {
 
 	// Capabilities (Ze format uses array)
 	if caps, ok := openSection["capabilities"].([]map[string]any); ok && len(caps) > 0 {
-		sb.WriteString("  Capabilities:\n")
+		sb.Str("  Capabilities:\n")
 		for _, capMap := range caps {
 			formatCapabilityHuman(&sb, capMap)
 		}
 	} else if caps, ok := openSection["capabilities"].([]any); ok && len(caps) > 0 {
-		sb.WriteString("  Capabilities:\n")
+		sb.Str("  Capabilities:\n")
 		for _, cap := range caps {
 			if capMap, ok := cap.(map[string]any); ok {
 				formatCapabilityHuman(&sb, capMap)
@@ -68,7 +68,7 @@ func formatOpenHuman(result map[string]any) string {
 
 // formatCapabilityHuman formats a single capability for human output.
 // Works with Ze format: {"code": N, "name": "...", "value": "..."}.
-func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
+func formatCapabilityHuman(sb *textbuf.Buffer, cap map[string]any) {
 	name, _ := cap["name"].(string)
 	if name == "" || name == "unknown" {
 		if code, ok := cap["code"]; ok {
@@ -84,15 +84,15 @@ func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 	if value, ok := cap["value"]; ok {
 		switch v := value.(type) {
 		case string:
-			sb.WriteString(v)
+			sb.Str(v)
 		case []string:
-			sb.WriteString(strings.Join(v, ", "))
+			sb.Join(v, ", ")
 		case []any:
 			fams := make([]string, 0, len(v))
 			for _, f := range v {
 				fams = append(fams, fmt.Sprintf("%v", f))
 			}
-			sb.WriteString(strings.Join(fams, ", "))
+			sb.Join(fams, ", ")
 		}
 	} else {
 		// Plugin-decoded capabilities may use custom keys (e.g., "version" for software-version).
@@ -102,7 +102,7 @@ func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 				continue
 			}
 			if s, ok := v.(string); ok {
-				sb.WriteString(s)
+				sb.Str(s)
 				break
 			}
 		}
@@ -110,17 +110,17 @@ func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 
 	// Unknown capabilities (name starts with "code=") show raw hex data
 	if raw, ok := cap["raw"].(string); ok && raw != "" {
-		sb.WriteString(raw)
+		sb.Str(raw)
 	}
 
-	sb.WriteString("\n")
+	sb.Str("\n")
 }
 
 // formatUpdateHuman formats UPDATE message data as human-readable text.
 // Works with Ze format: {"update": {...}}.
 func formatUpdateHuman(result map[string]any) string {
-	var sb strings.Builder
-	sb.WriteString("BGP UPDATE Message\n")
+	var sb textbuf.Buffer
+	sb.Str("BGP UPDATE Message\n")
 
 	// Ze format: update is directly in result["update"]
 	update, ok := result["update"].(map[string]any)
@@ -130,7 +130,7 @@ func formatUpdateHuman(result map[string]any) string {
 
 	// Attributes (Ze format uses "attr")
 	if attrs, ok := update["attr"].(map[string]any); ok && len(attrs) > 0 {
-		sb.WriteString("  Attributes:\n")
+		sb.Str("  Attributes:\n")
 		formatAttributesHuman(&sb, attrs)
 	}
 
@@ -154,7 +154,7 @@ func formatUpdateHuman(result map[string]any) string {
 }
 
 // formatAttributesHuman formats path attributes for human output.
-func formatAttributesHuman(sb *strings.Builder, attrs map[string]any) {
+func formatAttributesHuman(sb *textbuf.Buffer, attrs map[string]any) {
 	if origin, ok := unwrapAttr(attrs["origin"]).(string); ok {
 		writeAttrLine(sb, "origin", origin)
 	}
@@ -166,7 +166,7 @@ func formatAttributesHuman(sb *strings.Builder, attrs map[string]any) {
 			if i > 0 {
 				sb.WriteByte(' ')
 			}
-			sb.WriteString(textbuf.Uint32(asn))
+			sb.Str(textbuf.Uint32(asn))
 		}
 		sb.WriteByte('\n')
 	case []any:
@@ -175,7 +175,7 @@ func formatAttributesHuman(sb *strings.Builder, attrs map[string]any) {
 			if i > 0 {
 				sb.WriteByte(' ')
 			}
-			sb.WriteString(formatNumber(v))
+			sb.Str(formatNumber(v))
 		}
 		sb.WriteByte('\n')
 	}
@@ -198,7 +198,7 @@ func formatAttributesHuman(sb *strings.Builder, attrs map[string]any) {
 			if i > 0 {
 				sb.WriteByte(' ')
 			}
-			sb.WriteString(formatNumber(c))
+			sb.Str(formatNumber(c))
 		}
 		sb.WriteByte('\n')
 	}
@@ -211,7 +211,7 @@ func formatAttributesHuman(sb *strings.Builder, attrs map[string]any) {
 			}
 			if ecMap, ok := ec.(map[string]any); ok {
 				if s, ok := ecMap["string"].(string); ok {
-					sb.WriteString(s)
+					sb.Str(s)
 				}
 			}
 		}
@@ -232,16 +232,16 @@ func unwrapAttr(v any) any {
 const attrLabelWidth = 20
 
 // writeAttrLine writes a padded "    name                 value\n" line.
-func writeAttrLine(sb *strings.Builder, name, value string) {
+func writeAttrLine(sb *textbuf.Buffer, name, value string) {
 	writeAttrLabel(sb, name)
-	sb.WriteString(value)
+	sb.Str(value)
 	sb.WriteByte('\n')
 }
 
 // writeAttrLabel writes "    name" left-padded to attrLabelWidth, followed by a space.
-func writeAttrLabel(sb *strings.Builder, name string) {
-	sb.WriteString("    ")
-	sb.WriteString(name)
+func writeAttrLabel(sb *textbuf.Buffer, name string) {
+	sb.Str("    ")
+	sb.Str(name)
 	for i := len(name); i < attrLabelWidth; i++ {
 		sb.WriteByte(' ')
 	}
@@ -249,7 +249,7 @@ func writeAttrLabel(sb *strings.Builder, name string) {
 }
 
 // formatNLRIListHuman formats NLRI list for human output (announced routes).
-func formatNLRIListHuman(sb *strings.Builder, data any) {
+func formatNLRIListHuman(sb *textbuf.Buffer, data any) {
 	// data is map[nexthop][]nlri
 	if nhMap, ok := data.(map[string]any); ok {
 		for nh, nlris := range nhMap {
@@ -268,7 +268,7 @@ func formatNLRIListHuman(sb *strings.Builder, data any) {
 }
 
 // formatWithdrawnHuman formats withdrawn routes for human output.
-func formatWithdrawnHuman(sb *strings.Builder, data any) {
+func formatWithdrawnHuman(sb *textbuf.Buffer, data any) {
 	switch v := data.(type) {
 	case []string:
 		for _, prefix := range v {
@@ -283,7 +283,7 @@ func formatWithdrawnHuman(sb *strings.Builder, data any) {
 
 // formatNLRIHuman formats NLRI data as human-readable text.
 func formatNLRIHuman(result map[string]any, family string) string {
-	var sb strings.Builder
+	var sb textbuf.Buffer
 
 	// Determine NLRI type from family or content
 	nlriType := "NLRI"
@@ -307,7 +307,7 @@ func formatNLRIHuman(result map[string]any, family string) string {
 }
 
 // formatNLRIFieldHuman formats a single NLRI field for human output.
-func formatNLRIFieldHuman(sb *strings.Builder, key string, value any, indent string) {
+func formatNLRIFieldHuman(sb *textbuf.Buffer, key string, value any, indent string) {
 	switch v := value.(type) {
 	case map[string]any:
 		fmt.Fprintf(sb, "%s%s:\n", indent, key)
@@ -318,11 +318,11 @@ func formatNLRIFieldHuman(sb *strings.Builder, key string, value any, indent str
 		fmt.Fprintf(sb, "%s%-20s ", indent, key)
 		for i, item := range v {
 			if i > 0 {
-				sb.WriteString(", ")
+				sb.Str(", ")
 			}
 			fmt.Fprintf(sb, "%v", item)
 		}
-		sb.WriteString("\n")
+		sb.Str("\n")
 	default:
 		fmt.Fprintf(sb, "%s%-20s %v\n", indent, key, value)
 	}

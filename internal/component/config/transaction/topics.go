@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	txevents "codeberg.org/thomas-mangin/ze/internal/component/config/transaction/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errPluginNameMustNotBeEmpty = errors.New("plugin name must not be empty")
@@ -103,7 +104,8 @@ func ValidatePluginName(name string) error {
 // Caller MUST call ValidatePluginName(name) first; passing a reserved name
 // produces a string that collides with a broadcast or ack event type.
 func EventVerifyFor(name string) string {
-	return EventVerify + "-" + name
+	var tb textbuf.Buffer
+	return tb.Str(EventVerify).Byte('-').Str(name).String()
 }
 
 // EventApplyFor returns the per-plugin apply event type for the named plugin.
@@ -111,32 +113,38 @@ func EventVerifyFor(name string) string {
 // Caller MUST call ValidatePluginName(name) first; passing a reserved name
 // produces a string that collides with a broadcast or ack event type.
 func EventApplyFor(name string) string {
-	return EventApply + "-" + name
+	var tb textbuf.Buffer
+	return tb.Str(EventApply).Byte('-').Str(name).String()
 }
 
 // EventOperationDecomposeFor returns the per-plugin operation decomposition event type.
 func EventOperationDecomposeFor(name string) string {
-	return EventOperationDecompose + "-" + name
+	var tb textbuf.Buffer
+	return tb.Str(EventOperationDecompose).Byte('-').Str(name).String()
 }
 
 // EventOperationVerifyFor returns the per-plugin operation verification event type.
 func EventOperationVerifyFor(name string) string {
-	return EventOperationVerify + "-" + name
+	var tb textbuf.Buffer
+	return tb.Str(EventOperationVerify).Byte('-').Str(name).String()
 }
 
 // EventOperationApplyFor returns the per-plugin operation apply event type.
 func EventOperationApplyFor(name string) string {
-	return EventOperationApply + "-" + name
+	var tb textbuf.Buffer
+	return tb.Str(EventOperationApply).Byte('-').Str(name).String()
 }
 
 // EventOperationRollbackFor returns the per-plugin operation rollback event type.
 func EventOperationRollbackFor(name string) string {
-	return EventOperationRollback + "-" + name
+	var tb textbuf.Buffer
+	return tb.Str(EventOperationRollback).Byte('-').Str(name).String()
 }
 
 // EventOperationCommitFor returns the per-plugin operation commit event type.
 func EventOperationCommitFor(name string) string {
-	return EventOperationCommit + "-" + name
+	var tb textbuf.Buffer
+	return tb.Str(EventOperationCommit).Byte('-').Str(name).String()
 }
 
 // Failure codes for transaction ack events.

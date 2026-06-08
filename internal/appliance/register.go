@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func subcommands() string {
@@ -21,7 +21,7 @@ func subcommands() string {
 		sorted = append(sorted, k)
 	}
 	sort.Strings(sorted)
-	return strings.Join(sorted, ", ")
+	return textbuf.Join(sorted, ", ")
 }
 
 func init() {

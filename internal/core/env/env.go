@@ -24,6 +24,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // cache maps normalized keys (lowercase underscores) to values.
@@ -116,7 +118,8 @@ func mustBeRegistered(key string) {
 	if !IsRegistered(key) {
 		// Unregistered env var is a programming error.
 		// Use os.Stderr + os.Exit since this package cannot import slogutil (circular).
-		os.Stderr.WriteString("FATAL: env.Get called with unregistered key: " + key + "\n") //nolint:errcheck // pre-exit
+		var tb textbuf.Buffer
+		os.Stderr.WriteString(tb.Str("FATAL: env.Get called with unregistered key: ").Str(key).Byte('\n').String()) //nolint:errcheck // pre-exit
 		os.Exit(2)
 	}
 }
@@ -192,7 +195,8 @@ func GetBool(key string, defaultVal bool) bool {
 		return false
 	}
 	// Unrecognized value: warn and fall back to default.
-	os.Stderr.WriteString("WARNING: env var " + key + " has unrecognized boolean value " + s + ", using default\n") //nolint:errcheck // pre-exit diagnostic
+	var tb textbuf.Buffer
+	os.Stderr.WriteString(tb.Str("WARNING: env var ").Str(key).Str(" has unrecognized boolean value ").Str(s).Str(", using default\n").String()) //nolint:errcheck // pre-exit diagnostic
 	return defaultVal
 }
 

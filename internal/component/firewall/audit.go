@@ -6,9 +6,9 @@ package firewall
 
 import (
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const reportSourceFirewall = "firewall"
@@ -54,7 +54,7 @@ func AuditTables() int {
 	}
 	if len(staleNames) > 0 {
 		report.RaiseWarning(reportSourceFirewall, reportCodeFirewallStaleTable, "audit",
-			strconv.Itoa(len(staleNames))+" stale ze_* tables: "+strings.Join(staleNames, ", "),
+			strconv.Itoa(len(staleNames))+" stale ze_* tables: "+textbuf.Join(staleNames, ", "),
 			map[string]any{"tables": staleNames, "count": len(staleNames)})
 		findings += len(staleNames)
 	} else {
@@ -79,7 +79,7 @@ func AuditTables() int {
 	}
 	if len(driftNames) > 0 {
 		report.RaiseWarning(reportSourceFirewall, reportCodeFirewallDrift, "audit",
-			strconv.Itoa(len(driftNames))+" ze_* tables differ from config: "+strings.Join(driftNames, ", "),
+			strconv.Itoa(len(driftNames))+" ze_* tables differ from config: "+textbuf.Join(driftNames, ", "),
 			map[string]any{"tables": driftNames, "count": len(driftNames)})
 		findings += len(driftNames)
 	} else {

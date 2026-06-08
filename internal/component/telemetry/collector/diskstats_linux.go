@@ -10,7 +10,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
@@ -99,7 +102,8 @@ func (c *diskStatsCollector) Collect() error {
 		if !ok {
 			continue
 		}
-		chart := "disk." + name
+		var tb textbuf.Buffer
+		chart := tb.Str("disk.").Str(name).String()
 		family := name
 
 		drSect := safeDelta(ce.readSect, pe.readSect)

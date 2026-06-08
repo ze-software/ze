@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/replay"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/shrink"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RunReplay opens an event log file and replays it through the validation model.
@@ -72,7 +73,8 @@ func RunShrink(path string, deadline time.Duration, verbose bool) int {
 	for i := range result.Events {
 		line := fmt.Sprintf("  %d. [peer %d] %s", i+1, result.Events[i].PeerIndex, result.Events[i].Type)
 		if result.Events[i].Prefix.IsValid() {
-			line += " " + result.Events[i].Prefix.String()
+			var tb textbuf.Buffer
+			line = tb.Str(line).Byte(' ').Prefix(result.Events[i].Prefix).String()
 		}
 		fmt.Fprintln(os.Stderr, line)
 	}
@@ -109,14 +111,15 @@ func RunDiff(path1, path2 string) int {
 
 // DashboardURL converts a listen address to a clickable URL.
 func DashboardURL(addr string) string {
+	var tb textbuf.Buffer
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return "http://" + addr
+		return tb.Str("http://").Str(addr).String()
 	}
 	if host == "" || host == "0.0.0.0" || host == "::" {
 		host = "localhost"
 	}
-	return "http://" + net.JoinHostPort(host, port)
+	return tb.Str("http://").HostPort(host, port).String()
 }
 
 // CheckPortFree verifies that nothing is listening on addr.

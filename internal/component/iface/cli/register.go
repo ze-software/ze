@@ -9,9 +9,9 @@ package cli
 
 import (
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // subcommands returns the sorted, comma-separated list of user-facing
@@ -21,7 +21,7 @@ func subcommands() string {
 	sorted := make([]string, len(ifaceCommands))
 	copy(sorted, ifaceCommands)
 	sort.Strings(sorted)
-	return strings.Join(sorted, ", ")
+	return textbuf.Join(sorted, ", ")
 }
 
 func init() {

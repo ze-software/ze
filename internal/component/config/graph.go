@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // GraphNodeKind identifies what a graph node represents.
@@ -102,15 +103,16 @@ func addBGPEdges(g *Graph, tree *Tree) {
 
 	pluginContainer := tree.GetContainer("plugin")
 
+	var tb textbuf.Buffer
 	for _, groupEntry := range bgp.GetListOrdered("group") {
 		groupName := groupEntry.Key
-		groupID := "group/" + groupName
+		groupID := tb.Reset().Str("group/").Str(groupName).String()
 		g.addNode(groupID, NodeGroup, groupName)
 		g.addEdge("section/bgp", groupID, EdgeContains)
 
 		for _, peerEntry := range groupEntry.Value.GetListOrdered("peer") {
 			peerName := peerEntry.Key
-			peerID := "peer/" + peerName
+			peerID := tb.Reset().Str("peer/").Str(peerName).String()
 			g.addNode(peerID, NodePeer, peerName)
 			g.addEdge(peerID, groupID, EdgeInherits)
 
@@ -120,7 +122,7 @@ func addBGPEdges(g *Graph, tree *Tree) {
 
 	for _, peerEntry := range bgp.GetListOrdered("peer") {
 		peerName := peerEntry.Key
-		peerID := "peer/" + peerName
+		peerID := tb.Reset().Str("peer/").Str(peerName).String()
 		g.addNode(peerID, NodePeer, peerName)
 		g.addEdge("section/bgp", peerID, EdgeContains)
 
@@ -130,6 +132,7 @@ func addBGPEdges(g *Graph, tree *Tree) {
 
 // addProcessBindings adds edges from a peer to the plugins it references via process bindings.
 func addProcessBindings(g *Graph, peerTree *Tree, peerID string, pluginContainer *Tree) {
+	var tb textbuf.Buffer
 	processList := peerTree.GetList("process")
 	for name, processTree := range processList {
 		if name == KeyDefault {
@@ -140,13 +143,13 @@ func addProcessBindings(g *Graph, peerTree *Tree, peerID string, pluginContainer
 		use, hasUse := processTree.Get("use")
 
 		if hasRun && run != "" {
-			pluginID := "plugin/" + name
+			pluginID := tb.Reset().Str("plugin/").Str(name).String()
 			g.addNode(pluginID, NodePlugin, name)
 			g.addEdge(peerID, pluginID, EdgeProcessBinds)
 			continue
 		}
 		if hasUse && use != "" {
-			pluginID := "plugin/" + name
+			pluginID := tb.Reset().Str("plugin/").Str(name).String()
 			g.addNode(pluginID, NodePlugin, name)
 			g.addEdge(peerID, pluginID, EdgeProcessBinds)
 			continue
@@ -155,7 +158,7 @@ func addProcessBindings(g *Graph, peerTree *Tree, peerID string, pluginContainer
 		if pluginContainer != nil {
 			if internals := pluginContainer.GetList("internal"); internals != nil {
 				if _, ok := internals[name]; ok {
-					pluginID := "plugin/" + name
+					pluginID := tb.Reset().Str("plugin/").Str(name).String()
 					g.addNode(pluginID, NodePlugin, name)
 					g.addEdge(peerID, pluginID, EdgeProcessBinds)
 					continue
@@ -163,7 +166,7 @@ func addProcessBindings(g *Graph, peerTree *Tree, peerID string, pluginContainer
 			}
 			if externals := pluginContainer.GetList("external"); externals != nil {
 				if _, ok := externals[name]; ok {
-					pluginID := "plugin/" + name
+					pluginID := tb.Reset().Str("plugin/").Str(name).String()
 					g.addNode(pluginID, NodePlugin, name)
 					g.addEdge(peerID, pluginID, EdgeProcessBinds)
 				}
@@ -179,10 +182,11 @@ func addAuthzEdges(g *Graph, tree *Tree) {
 		return
 	}
 
+	var tb textbuf.Buffer
 	authzContainer := sys.GetContainer("authorization")
 	if authzContainer != nil {
 		for name := range authzContainer.GetList("profile") {
-			profileID := "profile/" + name
+			profileID := tb.Reset().Str("profile/").Str(name).String()
 			g.addNode(profileID, NodeProfile, name)
 			g.addEdge("section/system", profileID, EdgeContains)
 		}
@@ -194,27 +198,28 @@ func addAuthzEdges(g *Graph, tree *Tree) {
 	}
 
 	for username, userTree := range authContainer.GetList("user") {
-		userID := "user/" + username
+		userID := tb.Reset().Str("user/").Str(username).String()
 		g.addNode(userID, NodeUser, username)
 		g.addEdge("section/system", userID, EdgeContains)
 
 		for _, profileName := range userTree.GetSlice("profile") {
-			g.addEdge(userID, "profile/"+profileName, EdgeReferences)
+			g.addEdge(userID, tb.Reset().Str("profile/").Str(profileName).String(), EdgeReferences)
 		}
 	}
 }
 
 // addListenerNodes adds listener endpoint nodes and service ownership edges.
 func addListenerNodes(g *Graph, tree *Tree, schema *Schema) {
+	var tb textbuf.Buffer
 	endpoints := CollectListeners(tree, schema)
 	for i := range endpoints {
 		ep := &endpoints[i]
-		listenerID := "listener/" + ep.Service
+		listenerID := tb.Reset().Str("listener/").Str(ep.Service).String()
 		g.addNode(listenerID, NodeListener, ep.Service)
 
 		sectionName := listenerSectionName(ep.Service)
 		if sectionName != "" {
-			g.addEdge("section/"+sectionName, listenerID, EdgeListensOn)
+			g.addEdge(tb.Reset().Str("section/").Str(sectionName).String(), listenerID, EdgeListensOn)
 		}
 	}
 }
@@ -258,11 +263,12 @@ const (
 
 // addPluginRegistryEdges adds edges from registered plugins to their declared config roots.
 func addPluginRegistryEdges(g *Graph) {
+	var tb textbuf.Buffer
 	for pluginName, roots := range registry.ConfigRootsMap() {
-		pluginID := "plugin/" + pluginName
+		pluginID := tb.Reset().Str("plugin/").Str(pluginName).String()
 		g.addNode(pluginID, NodePlugin, pluginName)
 		for _, root := range roots {
-			g.addEdge(pluginID, "section/"+root, EdgeConfigRoot)
+			g.addEdge(pluginID, tb.Reset().Str("section/").Str(root).String(), EdgeConfigRoot)
 		}
 	}
 
@@ -270,8 +276,9 @@ func addPluginRegistryEdges(g *Graph) {
 		if len(reg.Dependencies) == 0 {
 			continue
 		}
+		src := tb.Reset().Str("plugin/").Str(reg.Name).String()
 		for _, dep := range reg.Dependencies {
-			g.addEdge("plugin/"+reg.Name, "plugin/"+dep, EdgeDependsOn)
+			g.addEdge(src, tb.Reset().Str("plugin/").Str(dep).String(), EdgeDependsOn)
 		}
 	}
 }
@@ -292,14 +299,15 @@ func addAddressNodes(g *Graph, tree *Tree) {
 		return
 	}
 
+	var tb textbuf.Buffer
 	for _, kind := range ifaceListKinds {
 		for _, entry := range iface.GetListOrdered(kind) {
 			ifName := entry.Key
 			unitList := entry.Value.GetListOrdered("unit")
 			for _, unitEntry := range unitList {
 				for _, cidr := range collectUnitAddresses(unitEntry.Value) {
-					addrID := "address/" + ifName + "/" + cidr
-					g.addNode(addrID, NodeAddress, ifName+"/"+cidr)
+					addrID := tb.Reset().Str("address/").Str(ifName).Byte('/').Str(cidr).String()
+					g.addNode(addrID, NodeAddress, tb.Reset().Str(ifName).Byte('/').Str(cidr).String())
 					g.addEdge("section/interface", addrID, EdgeContains)
 				}
 			}
@@ -311,8 +319,8 @@ func addAddressNodes(g *Graph, tree *Tree) {
 	if lo != nil {
 		for _, unitEntry := range lo.GetListOrdered("unit") {
 			for _, cidr := range collectUnitAddresses(unitEntry.Value) {
-				addrID := "address/lo/" + cidr
-				g.addNode(addrID, NodeAddress, "lo/"+cidr)
+				addrID := tb.Reset().Str("address/lo/").Str(cidr).String()
+				g.addNode(addrID, NodeAddress, tb.Reset().Str("lo/").Str(cidr).String())
 				g.addEdge("section/interface", addrID, EdgeContains)
 			}
 		}

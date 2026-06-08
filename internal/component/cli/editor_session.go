@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errEmptyUser = errors.New("empty user")
@@ -30,17 +32,19 @@ type EditSession struct {
 func NewEditSession(user, origin string) *EditSession {
 	safe := sanitizeUser(user)
 	now := time.Now()
+	var tb textbuf.Buffer
 	return &EditSession{
 		User:      safe,
 		Origin:    origin,
-		ID:        safe + "@" + origin + "%" + now.UTC().Format(time.RFC3339),
+		ID:        tb.Str(safe).Byte('@').Str(origin).Byte('%').Str(now.UTC().Format(time.RFC3339)).String(),
 		StartTime: now,
 	}
 }
 
 // UserAtOrigin returns "user@origin" for metadata prefixes.
 func (s *EditSession) UserAtOrigin() string {
-	return s.User + "@" + s.Origin
+	var tb textbuf.Buffer
+	return tb.Str(s.User).Byte('@').Str(s.Origin).String()
 }
 
 // OrphanedSessions filters a list of session IDs to those belonging to the same
@@ -48,7 +52,8 @@ func (s *EditSession) UserAtOrigin() string {
 // previous session). Uses "user@origin%" prefix matching -- the % delimiter
 // ensures "thomas@local" does not match "thomasmore@local".
 func (s *EditSession) OrphanedSessions(allSessions []string) []string {
-	prefix := s.UserAtOrigin() + "%"
+	var tb textbuf.Buffer
+	prefix := tb.Str(s.UserAtOrigin()).Byte('%').String()
 	var orphans []string
 	for _, sid := range allSessions {
 		if strings.HasPrefix(sid, prefix) && sid != s.ID {
@@ -60,18 +65,21 @@ func (s *EditSession) OrphanedSessions(allSessions []string) []string {
 
 // DraftPath returns the draft file path for a given config path (appends ".draft").
 func DraftPath(configPath string) string {
-	return configPath + ".draft"
+	var tb textbuf.Buffer
+	return tb.Str(configPath).Str(".draft").String()
 }
 
 // LockPath returns the lock file path for a given config path (appends ".lock").
 func LockPath(configPath string) string {
-	return configPath + ".lock"
+	var tb textbuf.Buffer
+	return tb.Str(configPath).Str(".lock").String()
 }
 
 // ChangePath returns the per-user change file path for a given config path and user.
 // Uses filepath.Base on the user to strip directory traversal.
 func ChangePath(configPath, user string) string {
-	return configPath + ".change." + sanitizeUser(user)
+	var tb textbuf.Buffer
+	return tb.Str(configPath).Str(".change.").Str(sanitizeUser(user)).String()
 }
 
 // sanitizeUser resolves a username to a safe filename component.
@@ -110,7 +118,8 @@ func ValidateUser(user string) error {
 // ChangePrefix returns the filename prefix for scanning all change files.
 // Used with store.List(dir) to filter change files from other files.
 func ChangePrefix(configPath string) string {
-	return filepath.Base(configPath) + ".change."
+	var tb textbuf.Buffer
+	return tb.Str(filepath.Base(configPath)).Str(".change.").String()
 }
 
 // ChangeUser extracts the username from a change file path.

@@ -11,11 +11,11 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -350,5 +350,5 @@ func formatListenAddrs(addrs []netip.AddrPort) string {
 	for _, a := range addrs {
 		parts = append(parts, a.String())
 	}
-	return strings.Join(parts, ",")
+	return textbuf.Join(parts, ",")
 }

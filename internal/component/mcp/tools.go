@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // TaskSupportLevel declares whether a tool supports task-augmented calls.
@@ -112,7 +114,8 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 		one := tokens[0]
 		byOne[one] = append(byOne[one], e)
 		if len(tokens) >= 2 {
-			two := tokens[0] + " " + tokens[1]
+			var tb textbuf.Buffer
+			two := tb.Str(tokens[0]).Byte(' ').Str(tokens[1]).String()
 			byTwo[two] = append(byTwo[two], e)
 		}
 	}
@@ -227,7 +230,8 @@ func sortActions(actions []action) {
 // "show bgp rib" -> "ze_show_bgp_rib", "show config" -> "ze_show_config".
 func toolName(prefix string) string {
 	r := strings.NewReplacer(" ", "_", "-", "_")
-	return "ze_" + r.Replace(prefix)
+	var tb textbuf.Buffer
+	return tb.Str("ze_").Str(r.Replace(prefix)).String()
 }
 
 // generateTools builds MCP tool definitions from command groups.
@@ -252,8 +256,8 @@ func generateTools(groups []toolGroup, skipNames map[string]bool) []map[string]a
 func buildToolDef(g toolGroup) map[string]any {
 	name := toolName(g.prefix)
 
-	var desc strings.Builder
-	fmt.Fprintf(&desc, "Commands under '%s'.", g.prefix)
+	var desc textbuf.Buffer
+	desc.Str("Commands under '").Str(g.prefix).Str("'.")
 
 	properties := map[string]any{}
 	var required []string
@@ -272,7 +276,8 @@ func buildToolDef(g toolGroup) map[string]any {
 		for i, a := range namedActions {
 			actionEnums[i] = a.name
 			if a.help != "" {
-				actionDescs = append(actionDescs, a.name+": "+a.help)
+				var tb textbuf.Buffer
+				actionDescs = append(actionDescs, tb.Str(a.name).Str(": ").Str(a.help).String())
 			}
 		}
 
@@ -281,7 +286,7 @@ func buildToolDef(g toolGroup) map[string]any {
 			"enum": actionEnums,
 		}
 		if len(actionDescs) > 0 {
-			actionProp["description"] = strings.Join(actionDescs, ". ")
+			actionProp["description"] = textbuf.Join(actionDescs, ". ")
 		} else {
 			actionProp["description"] = "Action to perform"
 		}
@@ -291,16 +296,16 @@ func buildToolDef(g toolGroup) map[string]any {
 		desc.Reset()
 		if len(namedActions) == 1 {
 			if namedActions[0].help != "" {
-				desc.WriteString(namedActions[0].help)
+				desc.Str(namedActions[0].help)
 			} else {
-				fmt.Fprintf(&desc, "Run '%s %s'.", g.prefix, namedActions[0].name)
+				desc.Str("Run '").Str(g.prefix).Byte(' ').Str(namedActions[0].name).Str("'.")
 			}
 		} else {
-			fmt.Fprintf(&desc, "Actions: %s.", strings.Join(actionEnums, ", "))
+			desc.Str("Actions: ").Join(actionEnums, ", ").Byte('.')
 		}
 	} else if len(g.actions) == 1 && g.actions[0].help != "" {
 		desc.Reset()
-		desc.WriteString(g.actions[0].help)
+		desc.Str(g.actions[0].help)
 	}
 
 	// Add typed parameters from YANG RPC metadata.
@@ -456,7 +461,8 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 	// Unmarshal into a generic map to capture typed params alongside standard ones.
 	var all map[string]any
 	if err := json.Unmarshal(args, &all); err != nil {
-		return ErrResult("invalid arguments: " + err.Error())
+		var tb textbuf.Buffer
+		return ErrResult(tb.Str("invalid arguments: ").Err(err).String())
 	}
 
 	action, _ := all["action"].(string)
@@ -478,19 +484,17 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 		return ErrResult("arguments must not contain newlines or tabs")
 	}
 
-	var cmd strings.Builder
+	var cmd textbuf.Buffer
 
 	if peer != "" {
-		fmt.Fprintf(&cmd, "peer %s ", peer)
+		cmd.Str("peer ").Str(peer).Byte(' ')
 	}
 
-	cmd.WriteString(prefix)
+	cmd.Str(prefix)
 	if action != "" {
-		cmd.WriteString(" ")
-		cmd.WriteString(action)
+		cmd.Byte(' ').Str(action)
 	}
 
-	// Append typed YANG params as "key value" pairs.
 	for key, val := range all {
 		if reservedParams[key] || val == nil {
 			continue
@@ -500,17 +504,14 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 			continue
 		}
 		if strings.ContainsAny(sval, "\n\r\t") {
-			return ErrResult(fmt.Sprintf("parameter %q must not contain newlines or tabs", key))
+			var tb textbuf.Buffer
+			return ErrResult(tb.Str("parameter ").Quoted(key).Str(" must not contain newlines or tabs").String())
 		}
-		cmd.WriteString(" ")
-		cmd.WriteString(key)
-		cmd.WriteString(" ")
-		cmd.WriteString(sval)
+		cmd.Byte(' ').Str(key).Byte(' ').Str(sval)
 	}
 
 	if arguments != "" {
-		cmd.WriteString(" ")
-		cmd.WriteString(arguments)
+		cmd.Byte(' ').Str(arguments)
 	}
 
 	return s.run(cmd.String())

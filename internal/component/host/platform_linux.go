@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/gokrazyutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // DetectPlatform identifies the runtime platform and probes capabilities.
@@ -21,13 +22,14 @@ func (d *Detector) DetectPlatform() (*PlatformInfo, error) {
 
 	root := d.root()
 
+	var tb textbuf.Buffer
 	info.ReadOnlyRoot = isReadOnlyRoot(root)
-	info.PermAvailable = isDir(root + "/perm")
-	info.SystemdAvailable = isDir(root + "/run/systemd/system")
-	info.GokrazyUpdateSocket = isSocket(root + gokrazyutil.DefaultSocketPath)
+	info.PermAvailable = isDir(tb.Str(root).Str("/perm").String())
+	info.SystemdAvailable = isDir(tb.Reset().Str(root).Str("/run/systemd/system").String())
+	info.GokrazyUpdateSocket = isSocket(tb.Reset().Str(root).Str(gokrazyutil.DefaultSocketPath).String())
 	info.GokrazyUIAvailable = info.GokrazyUpdateSocket
 	info.RebootAllowed = os.Getuid() == 0
-	info.PersistentStorageWritable = isWritableDir(root + "/perm")
+	info.PersistentStorageWritable = isWritableDir(tb.Reset().Str(root).Str("/perm").String())
 	probeFDLimits(info)
 
 	info.Type = classifyPlatform(info, root)
@@ -63,7 +65,8 @@ func isGokrazy(info *PlatformInfo, root string) bool {
 		return true
 	}
 	// /user/gokrazy directory exists on gokrazy images.
-	if isDir(root + "/user/gokrazy") {
+	var tb textbuf.Buffer
+	if isDir(tb.Str(root).Str("/user/gokrazy").String()) {
 		return true
 	}
 	return false
@@ -75,16 +78,17 @@ func isGokrazy(info *PlatformInfo, root string) bool {
 // pure cgroups v2 writes only "0::/" to /proc/1/cgroup with no
 // runtime hint strings.
 func isContainer(root string) bool {
-	if fileExists(root + "/.dockerenv") {
+	var tb textbuf.Buffer
+	if fileExists(tb.Str(root).Str("/.dockerenv").String()) {
 		return true
 	}
-	if fileExists(root + "/run/.containerenv") {
+	if fileExists(tb.Reset().Str(root).Str("/run/.containerenv").String()) {
 		return true
 	}
-	if hasCgroupContainerHint(root + "/proc/1/cgroup") {
+	if hasCgroupContainerHint(tb.Reset().Str(root).Str("/proc/1/cgroup").String()) {
 		return true
 	}
-	if hasMountinfoContainerHint(root + "/proc/1/mountinfo") {
+	if hasMountinfoContainerHint(tb.Reset().Str(root).Str("/proc/1/mountinfo").String()) {
 		return true
 	}
 	return false

@@ -18,13 +18,14 @@ func handleCreateDummy(ctx *pluginserver.CommandContext, args []string) (*plugin
 	if name == "" {
 		return errResp("usage: create interface dummy <name>")
 	}
+	var tb textbuf.Buffer
 	if info, _ := iface.GetInterface(name); info != nil {
 		if info.Type != "dummy" {
-			return errResp("interface " + name + " exists with type " + info.Type + ", not dummy")
+			return errResp(tb.Str("interface ").Str(name).Str(" exists with type ").Str(info.Type).Str(", not dummy").String())
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"message": "interface " + name + " already exists", "created": false},
+			Data:   plugin.Map{"message": tb.Reset().Str("interface ").Str(name).Str(" already exists").String(), "created": false},
 		}, nil
 	}
 	if err := iface.CreateDummy(name); err != nil {
@@ -32,7 +33,7 @@ func handleCreateDummy(ctx *pluginserver.CommandContext, args []string) (*plugin
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "created dummy interface " + name, "created": true},
+		Data:   plugin.Map{"message": tb.Reset().Str("created dummy interface ").Str(name).String(), "created": true},
 	}, nil
 }
 
@@ -45,9 +46,10 @@ func handleCreateVeth(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	if err := iface.CreateVeth(name, peer); err != nil {
 		return errResp(err.Error())
 	}
+	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "created veth pair " + name + " <-> " + peer},
+		Data:   plugin.Map{"message": tb.Str("created veth pair ").Str(name).Str(" <-> ").Str(peer).String()},
 	}, nil
 }
 
@@ -56,13 +58,14 @@ func handleCreateBridge(ctx *pluginserver.CommandContext, args []string) (*plugi
 	if name == "" {
 		return errResp("usage: create interface bridge <name>")
 	}
+	var tb textbuf.Buffer
 	if info, _ := iface.GetInterface(name); info != nil {
 		if info.Type != "bridge" {
-			return errResp("interface " + name + " exists with type " + info.Type + ", not bridge")
+			return errResp(tb.Str("interface ").Str(name).Str(" exists with type ").Str(info.Type).Str(", not bridge").String())
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"message": "interface " + name + " already exists", "created": false},
+			Data:   plugin.Map{"message": tb.Reset().Str("interface ").Str(name).Str(" already exists").String(), "created": false},
 		}, nil
 	}
 	if err := iface.CreateBridge(name); err != nil {
@@ -70,7 +73,7 @@ func handleCreateBridge(ctx *pluginserver.CommandContext, args []string) (*plugi
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "created bridge interface " + name, "created": true},
+		Data:   plugin.Map{"message": tb.Reset().Str("created bridge interface ").Str(name).String(), "created": true},
 	}, nil
 }
 
@@ -82,9 +85,10 @@ func handleDelete(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 	if err := iface.DeleteInterface(name); err != nil {
 		return errResp(err.Error())
 	}
+	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "deleted interface " + name},
+		Data:   plugin.Map{"message": tb.Str("deleted interface ").Str(name).String()},
 	}, nil
 }
 
@@ -97,9 +101,10 @@ func handleAddrAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	if err := iface.AddAddress(name, prefix); err != nil {
 		return errResp(err.Error())
 	}
+	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "added " + prefix + " to " + name},
+		Data:   plugin.Map{"message": tb.Str("added ").Str(prefix).Str(" to ").Str(name).String()},
 	}, nil
 }
 
@@ -112,9 +117,10 @@ func handleAddrDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	if err := iface.RemoveAddress(name, prefix); err != nil {
 		return errResp(err.Error())
 	}
+	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "removed " + prefix + " from " + name},
+		Data:   plugin.Map{"message": tb.Str("removed ").Str(prefix).Str(" from ").Str(name).String()},
 	}, nil
 }
 
@@ -126,7 +132,8 @@ func handleUnitAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	vidStr := args[0]
 	vid, parseErr := strconv.Atoi(vidStr)
 	if parseErr != nil || vid < 1 || vid > 4094 {
-		return errResp("invalid VLAN ID " + vidStr + " (must be 1-4094)")
+		var tb textbuf.Buffer
+		return errResp(tb.Str("invalid VLAN ID ").Str(vidStr).Str(" (must be 1-4094)").String())
 	}
 	if err := iface.CreateVLAN(name, vid); err != nil {
 		return errResp(err.Error())
@@ -146,9 +153,10 @@ func handleUnitDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	if err := iface.DeleteInterface(name); err != nil {
 		return errResp(err.Error())
 	}
+	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "deleted unit " + name},
+		Data:   plugin.Map{"message": tb.Str("deleted unit ").Str(name).String()},
 	}, nil
 }
 
@@ -161,9 +169,10 @@ func handleInterfaceUp(ctx *pluginserver.CommandContext, args []string) (*plugin
 	if err := iface.SetAdminUp(name); err != nil {
 		return errResp(err.Error())
 	}
+	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "interface " + name + " up"},
+		Data:   plugin.Map{"message": tb.Str("interface ").Str(name).Str(" up").String()},
 	}, nil
 }
 
@@ -176,9 +185,10 @@ func handleInterfaceDown(ctx *pluginserver.CommandContext, args []string) (*plug
 	if err := iface.SetAdminDown(name); err != nil {
 		return errResp(err.Error())
 	}
+	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "interface " + name + " down"},
+		Data:   plugin.Map{"message": tb.Str("interface ").Str(name).Str(" down").String()},
 	}, nil
 }
 
@@ -247,14 +257,15 @@ func handleInterfaceMAC(ctx *pluginserver.CommandContext, args []string) (*plugi
 		return errResp("usage: request interface <name> mac <address>")
 	}
 	addr := args[0]
+	var tb textbuf.Buffer
 	if !IsValidMACAddress(addr) {
-		return errResp("invalid MAC address " + addr + " (expected xx:xx:xx:xx:xx:xx)")
+		return errResp(tb.Str("invalid MAC address ").Str(addr).Str(" (expected xx:xx:xx:xx:xx:xx)").String())
 	}
 	if err := iface.SetMACAddress(name, addr); err != nil {
 		return errResp(err.Error())
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": "interface " + name + " mac " + addr},
+		Data:   plugin.Map{"message": tb.Reset().Str("interface ").Str(name).Str(" mac ").Str(addr).String()},
 	}, nil
 }

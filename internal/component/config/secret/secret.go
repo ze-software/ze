@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Prefix is the marker for $9$-encoded values.
@@ -60,7 +61,7 @@ func newDict() dict {
 		alphaNum: make(map[rune]int),
 		extra:    make(map[rune]int),
 	}
-	all := strings.Join(family, "")
+	all := textbuf.Join(family, "")
 	for i, r := range []rune(all) {
 		d.numAlpha[i] = r
 		d.alphaNum[r] = i

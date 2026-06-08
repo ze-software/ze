@@ -9,6 +9,8 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errIdentityNameIsRequired = errors.New("identity.name is required")
@@ -201,7 +203,8 @@ func SaveConfig(path string, cfg *ApplianceConfig) error {
 		return fmt.Errorf("marshal config: %w", err)
 	}
 	data = append(data, '\n')
-	tmpPath := path + ".tmp"
+	var tb textbuf.Buffer
+	tmpPath := tb.Str(path).Str(".tmp").String()
 	if err := os.WriteFile(tmpPath, data, 0o644); err != nil { //nolint:gosec // config file, not secrets
 		return fmt.Errorf("write %s: %w", tmpPath, err)
 	}

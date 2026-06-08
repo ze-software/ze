@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"hash/fnv"
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
@@ -316,8 +315,8 @@ const maxNLRIBytesPerCommand = 4000
 
 // formatCursorCommands builds one or more cursor commands for a replay group.
 func formatCursorCommands(g *replayGroup, prev *Route) []string {
-	var b strings.Builder
-	b.WriteString("update cursor ")
+	var b textbuf.Buffer
+	b.Str("update cursor ")
 
 	if prev == nil {
 		appendAllAttrs(&b, g.Route)
@@ -325,12 +324,13 @@ func formatCursorCommands(g *replayGroup, prev *Route) []string {
 		appendAttrDelta(&b, prev, g.Route)
 	}
 
-	familyStr := g.Family.String()
-	nlriSuffix := "nlri " + familyStr
+	var tb textbuf.Buffer
+	tb.Str("nlri ").Str(g.Family.String())
 	if g.PathID != 0 {
-		nlriSuffix += " path-information " + textbuf.Uint32(g.PathID)
+		tb.Str(" path-information ").Uint32(g.PathID)
 	}
-	nlriSuffix += " add"
+	tb.Str(" add")
+	nlriSuffix := tb.String()
 
 	header := b.String()
 
@@ -340,18 +340,20 @@ func formatCursorCommands(g *replayGroup, prev *Route) []string {
 	}
 
 	if totalSize <= maxNLRIBytesPerCommand || len(g.Prefixes) == 1 {
-		b.WriteString(nlriSuffix)
+		// header was extracted via b.String(), which detaches the heap-backed
+		// buffer and leaves b empty; rebuild from header rather than appending
+		// to b (textbuf.String() is not a non-destructive snapshot like
+		// strings.Builder.String()).
+		b.Reset().Str(header).Str(nlriSuffix)
 		for _, p := range g.Prefixes {
-			b.WriteByte(' ')
-			b.WriteString(p)
+			b.Byte(' ').Str(p)
 		}
 		return []string{b.String()}
 	}
 
 	var commands []string
-	cmdBuf := strings.Builder{}
-	cmdBuf.WriteString(header)
-	cmdBuf.WriteString(nlriSuffix)
+	var cmdBuf textbuf.Buffer
+	cmdBuf.Str(header).Str(nlriSuffix)
 	currentSize := len(header) + len(nlriSuffix)
 	count := 0
 
@@ -359,14 +361,11 @@ func formatCursorCommands(g *replayGroup, prev *Route) []string {
 		entryLen := 1 + len(p)
 		if count > 0 && currentSize+entryLen > maxNLRIBytesPerCommand {
 			commands = append(commands, cmdBuf.String())
-			cmdBuf.Reset()
-			cmdBuf.WriteString("update cursor ")
-			cmdBuf.WriteString(nlriSuffix)
+			cmdBuf.Reset().Str("update cursor ").Str(nlriSuffix)
 			currentSize = len("update cursor ") + len(nlriSuffix)
 			count = 0
 		}
-		cmdBuf.WriteByte(' ')
-		cmdBuf.WriteString(p)
+		cmdBuf.Byte(' ').Str(p)
 		currentSize += entryLen
 		count++
 	}
@@ -377,160 +376,160 @@ func formatCursorCommands(g *replayGroup, prev *Route) []string {
 	return commands
 }
 
-func appendAllAttrs(b *strings.Builder, route *Route) {
+func appendAllAttrs(b *textbuf.Buffer, route *Route) {
 	if route.Origin != nil {
-		b.WriteString("origin ")
-		b.WriteString(route.Origin.LowerString())
-		b.WriteByte(' ')
+		b.Str("origin ")
+		b.Str(route.Origin.LowerString())
+		b.Byte(' ')
 	}
 	if len(route.ASPath) > 0 {
-		b.WriteString("as-path [")
+		b.Str("as-path [")
 		for i, asn := range route.ASPath {
 			if i > 0 {
-				b.WriteByte(' ')
+				b.Byte(' ')
 			}
-			b.WriteString(textbuf.Uint32(asn))
+			b.Str(textbuf.Uint32(asn))
 		}
-		b.WriteString("] ")
+		b.Str("] ")
 	}
 	if route.MED != nil {
-		b.WriteString("med ")
-		b.WriteString(textbuf.Uint32(*route.MED))
-		b.WriteByte(' ')
+		b.Str("med ")
+		b.Str(textbuf.Uint32(*route.MED))
+		b.Byte(' ')
 	}
 	if route.LocalPreference != nil {
-		b.WriteString("local-preference ")
-		b.WriteString(textbuf.Uint32(*route.LocalPreference))
-		b.WriteByte(' ')
+		b.Str("local-preference ")
+		b.Str(textbuf.Uint32(*route.LocalPreference))
+		b.Byte(' ')
 	}
 	if len(route.Communities) > 0 {
-		b.WriteString("community [")
+		b.Str("community [")
 		for i, c := range route.Communities {
 			if i > 0 {
-				b.WriteByte(' ')
+				b.Byte(' ')
 			}
-			b.WriteString(c.String())
+			b.Str(c.String())
 		}
-		b.WriteString("] ")
+		b.Str("] ")
 	}
 	if len(route.LargeCommunities) > 0 {
-		b.WriteString("large-community [")
+		b.Str("large-community [")
 		for i, lc := range route.LargeCommunities {
 			if i > 0 {
-				b.WriteByte(' ')
+				b.Byte(' ')
 			}
-			b.WriteString(lc.String())
+			b.Str(lc.String())
 		}
-		b.WriteString("] ")
+		b.Str("] ")
 	}
 	if len(route.ExtendedCommunities) > 0 {
-		b.WriteString("extended-community [")
+		b.Str("extended-community [")
 		for i, ec := range route.ExtendedCommunities {
 			if i > 0 {
-				b.WriteByte(' ')
+				b.Byte(' ')
 			}
-			b.WriteString(hex.EncodeToString(ec[:]))
+			b.Str(hex.EncodeToString(ec[:]))
 		}
-		b.WriteString("] ")
+		b.Str("] ")
 	}
 	if route.NextHop != "" {
-		b.WriteString("next-hop ")
-		b.WriteString(route.NextHop)
-		b.WriteByte(' ')
+		b.Str("next-hop ")
+		b.Str(route.NextHop)
+		b.Byte(' ')
 	}
 }
 
-func appendAttrDelta(b *strings.Builder, prev, curr *Route) {
+func appendAttrDelta(b *textbuf.Buffer, prev, curr *Route) {
 	if !originEqual(prev.Origin, curr.Origin) {
 		if curr.Origin != nil {
-			b.WriteString("origin ")
-			b.WriteString(curr.Origin.LowerString())
-			b.WriteByte(' ')
+			b.Str("origin ")
+			b.Str(curr.Origin.LowerString())
+			b.Byte(' ')
 		} else {
-			b.WriteString("del origin ")
+			b.Str("del origin ")
 		}
 	}
 	if !asPathEqual(prev.ASPath, curr.ASPath) {
 		if len(curr.ASPath) > 0 {
-			b.WriteString("as-path [")
+			b.Str("as-path [")
 			for i, asn := range curr.ASPath {
 				if i > 0 {
-					b.WriteByte(' ')
+					b.Byte(' ')
 				}
-				b.WriteString(textbuf.Uint32(asn))
+				b.Str(textbuf.Uint32(asn))
 			}
-			b.WriteString("] ")
+			b.Str("] ")
 		} else {
-			b.WriteString("del as-path ")
+			b.Str("del as-path ")
 		}
 	}
 	if !uint32PtrEqual(prev.MED, curr.MED) {
 		if curr.MED != nil {
-			b.WriteString("med ")
-			b.WriteString(textbuf.Uint32(*curr.MED))
-			b.WriteByte(' ')
+			b.Str("med ")
+			b.Str(textbuf.Uint32(*curr.MED))
+			b.Byte(' ')
 		} else {
-			b.WriteString("del med ")
+			b.Str("del med ")
 		}
 	}
 	if !uint32PtrEqual(prev.LocalPreference, curr.LocalPreference) {
 		if curr.LocalPreference != nil {
-			b.WriteString("local-preference ")
-			b.WriteString(textbuf.Uint32(*curr.LocalPreference))
-			b.WriteByte(' ')
+			b.Str("local-preference ")
+			b.Str(textbuf.Uint32(*curr.LocalPreference))
+			b.Byte(' ')
 		} else {
-			b.WriteString("del local-preference ")
+			b.Str("del local-preference ")
 		}
 	}
 	if !communitiesEqual(prev.Communities, curr.Communities) {
 		if len(curr.Communities) > 0 {
-			b.WriteString("community [")
+			b.Str("community [")
 			for i, c := range curr.Communities {
 				if i > 0 {
-					b.WriteByte(' ')
+					b.Byte(' ')
 				}
-				b.WriteString(c.String())
+				b.Str(c.String())
 			}
-			b.WriteString("] ")
+			b.Str("] ")
 		} else {
-			b.WriteString("del community ")
+			b.Str("del community ")
 		}
 	}
 	if !largeCommunitiesEqual(prev.LargeCommunities, curr.LargeCommunities) {
 		if len(curr.LargeCommunities) > 0 {
-			b.WriteString("large-community [")
+			b.Str("large-community [")
 			for i, lc := range curr.LargeCommunities {
 				if i > 0 {
-					b.WriteByte(' ')
+					b.Byte(' ')
 				}
-				b.WriteString(lc.String())
+				b.Str(lc.String())
 			}
-			b.WriteString("] ")
+			b.Str("] ")
 		} else {
-			b.WriteString("del large-community ")
+			b.Str("del large-community ")
 		}
 	}
 	if !extCommunitiesEqual(prev.ExtendedCommunities, curr.ExtendedCommunities) {
 		if len(curr.ExtendedCommunities) > 0 {
-			b.WriteString("extended-community [")
+			b.Str("extended-community [")
 			for i, ec := range curr.ExtendedCommunities {
 				if i > 0 {
-					b.WriteByte(' ')
+					b.Byte(' ')
 				}
-				b.WriteString(hex.EncodeToString(ec[:]))
+				b.Str(hex.EncodeToString(ec[:]))
 			}
-			b.WriteString("] ")
+			b.Str("] ")
 		} else {
-			b.WriteString("del extended-community ")
+			b.Str("del extended-community ")
 		}
 	}
 	if prev.NextHop != curr.NextHop {
 		if curr.NextHop != "" {
-			b.WriteString("next-hop ")
-			b.WriteString(curr.NextHop)
-			b.WriteByte(' ')
+			b.Str("next-hop ")
+			b.Str(curr.NextHop)
+			b.Byte(' ')
 		} else {
-			b.WriteString("del next-hop ")
+			b.Str("del next-hop ")
 		}
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -206,7 +207,7 @@ func readStringList(v any) []string {
 }
 
 func joinValues(values []string) string {
-	return strings.Join(values, " ")
+	return textbuf.Join(values, " ")
 }
 
 // validateNoConflict checks that set and increment/decrement don't target the same attribute.

@@ -16,6 +16,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errMissingNlriBlockInUpdate = errors.New("missing nlri block in update")
@@ -146,7 +147,8 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 		content, _ := nlriEntry.Value.Get("content")
 		line := famName
 		if content != "" {
-			line = famName + " " + content
+			var tb textbuf.Buffer
+			line = tb.Str(famName).Byte(' ').Str(content).String()
 		}
 		parts := strings.Fields(line)
 		if len(parts) == 0 {
@@ -295,16 +297,16 @@ func applyAttributesFromTree(tree *config.Tree, sr *StaticRouteConfig) error {
 		sr.MED = uint32(n)
 	}
 	if items := tree.GetSlice("community"); len(items) > 0 {
-		sr.Community = strings.Join(items, " ")
+		sr.Community = textbuf.Join(items, " ")
 	}
 	if items := tree.GetSlice("extended-community"); len(items) > 0 {
-		sr.ExtendedCommunity = strings.Join(items, " ")
+		sr.ExtendedCommunity = textbuf.Join(items, " ")
 	}
 	if items := tree.GetSlice("large-community"); len(items) > 0 {
-		sr.LargeCommunity = strings.Join(items, " ")
+		sr.LargeCommunity = textbuf.Join(items, " ")
 	}
 	if items := tree.GetSlice("as-path"); len(items) > 0 {
-		sr.ASPath = strings.Join(items, " ")
+		sr.ASPath = textbuf.Join(items, " ")
 	}
 	if v, ok := tree.Get("origin"); ok {
 		sr.Origin = v
@@ -328,13 +330,13 @@ func applyAttributesFromTree(tree *config.Tree, sr *StaticRouteConfig) error {
 		sr.AtomicAggregate = true
 	}
 	if items := tree.GetSlice("attribute"); len(items) > 0 {
-		sr.Attribute = strings.Join(items, " ")
+		sr.Attribute = textbuf.Join(items, " ")
 	}
 	if v, ok := tree.Get("originator-id"); ok {
 		sr.OriginatorID = v
 	}
 	if items := tree.GetSlice("cluster-list"); len(items) > 0 {
-		sr.ClusterList = strings.Join(items, " ")
+		sr.ClusterList = textbuf.Join(items, " ")
 	}
 	if v, ok := tree.Get("aigp"); ok {
 		sr.AIGP = v

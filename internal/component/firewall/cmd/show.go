@@ -4,7 +4,6 @@
 package cmd
 
 import (
-	"fmt"
 	"log/slog"
 	"net/netip"
 	"strconv"
@@ -19,10 +18,12 @@ import (
 // set AddressEnd renders `lo-hi`. Port suffix is appended only when
 // Port is non-zero, and a non-zero PortEnd yields a range.
 func formatNATTarget(addr, addrEnd netip.Addr, port, portEnd uint16) string {
-	addrStr := addr.String()
+	var tb textbuf.Buffer
+	tb.Addr(addr)
 	if addrEnd.IsValid() {
-		addrStr = addrStr + "-" + addrEnd.String()
+		tb.Byte('-').Addr(addrEnd)
 	}
+	addrStr := tb.String()
 	if port == 0 {
 		return addrStr
 	}
@@ -44,18 +45,18 @@ func FormatTables(tables []firewall.Table) string {
 		return "No firewall tables configured."
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 	for i, t := range tables {
 		if i > 0 {
-			b.WriteByte('\n')
+			b.Byte('\n')
 		}
 		formatTable(&b, &t)
 	}
 	return b.String()
 }
 
-func formatTable(b *strings.Builder, t *firewall.Table) {
-	fmt.Fprintf(b, "table %s %s {\n", t.Family, StripPrefix(t.Name))
+func formatTable(b *textbuf.Buffer, t *firewall.Table) {
+	b.Str("table ").Str(t.Family.String()).Byte(' ').Str(StripPrefix(t.Name)).Str(" {\n")
 	for i := range t.Chains {
 		formatChain(b, &t.Chains[i])
 	}
@@ -68,72 +69,73 @@ func formatTable(b *strings.Builder, t *firewall.Table) {
 	b.WriteString("}\n")
 }
 
-func formatChain(b *strings.Builder, c *firewall.Chain) {
-	fmt.Fprintf(b, "  chain %s {\n", c.Name)
+func formatChain(b *textbuf.Buffer, c *firewall.Chain) {
+	b.Str("  chain ").Str(c.Name).Str(" {\n")
 	if c.IsBase {
-		fmt.Fprintf(b, "    type %s hook %s priority %d; policy %s;\n",
-			c.Type, c.Hook, c.Priority, c.Policy)
+		b.Str("    type ").Str(c.Type.String()).Str(" hook ").Str(c.Hook.String()).Str(" priority ").Int(int64(c.Priority)).Str("; policy ").Str(c.Policy.String()).Str(";\n")
 	}
 	for i := range c.Terms {
 		formatTerm(b, &c.Terms[i])
 	}
-	b.WriteString("  }\n")
+	b.Str("  }\n")
 }
 
-func formatTerm(b *strings.Builder, t *firewall.Term) {
-	fmt.Fprintf(b, "    term %s {\n", t.Name)
+func formatTerm(b *textbuf.Buffer, t *firewall.Term) {
+	b.Str("    term ").Str(t.Name).Str(" {\n")
 	if len(t.Matches) > 0 {
-		b.WriteString("      from {\n")
+		b.Str("      from {\n")
 		for _, m := range t.Matches {
-			fmt.Fprintf(b, "        %s;\n", formatMatch(m))
+			b.Str("        ").Str(formatMatch(m)).Str(";\n")
 		}
-		b.WriteString("      }\n")
+		b.Str("      }\n")
 	}
 	if len(t.Actions) > 0 {
-		b.WriteString("      then {\n")
+		b.Str("      then {\n")
 		for _, a := range t.Actions {
-			fmt.Fprintf(b, "        %s;\n", formatAction(a))
+			b.Str("        ").Str(formatAction(a)).Str(";\n")
 		}
-		b.WriteString("      }\n")
+		b.Str("      }\n")
 	}
 	b.WriteString("    }\n")
 }
 
 func formatMatch(m firewall.Match) string {
+	var tb textbuf.Buffer
 	switch v := m.(type) {
 	case firewall.MatchSourceAddress:
-		return "source address " + v.Prefix.String()
+		return tb.Str("source address ").Prefix(v.Prefix).String()
 	case firewall.MatchDestinationAddress:
-		return "destination address " + v.Prefix.String()
+		return tb.Str("destination address ").Prefix(v.Prefix).String()
 	case firewall.MatchSourcePort:
 		return formatPort("source port", v.Ranges)
 	case firewall.MatchDestinationPort:
 		return formatPort("destination port", v.Ranges)
 	case firewall.MatchProtocol:
-		return "protocol " + v.Protocol
+		return tb.Str("protocol ").Str(v.Protocol).String()
 	case firewall.MatchInputInterface:
-		return "input interface " + formatIface(v.Name, v.Wildcard)
+		return tb.Str("input interface ").Str(formatIface(v.Name, v.Wildcard)).String()
 	case firewall.MatchOutputInterface:
-		return "output interface " + formatIface(v.Name, v.Wildcard)
+		return tb.Str("output interface ").Str(formatIface(v.Name, v.Wildcard)).String()
 	case firewall.MatchICMPType:
 		return textbuf.StrInt("icmp type ", int64(v.Type))
 	case firewall.MatchICMPv6Type:
 		return textbuf.StrInt("icmpv6 type ", int64(v.Type))
 	case firewall.MatchConnState:
-		return "connection state " + formatConnState(v.States)
+		return tb.Str("connection state ").Str(formatConnState(v.States)).String()
 	case firewall.MatchMark:
-		return "mark 0x" + hexUint32(v.Value) + "/0x" + hexUint32(v.Mask)
+		return tb.Str("mark 0x").Str(hexUint32(v.Value)).Str("/0x").Str(hexUint32(v.Mask)).String()
 	case firewall.MatchDSCP:
 		return textbuf.StrInt("dscp ", int64(v.Value))
 	case firewall.MatchInSet:
 		return formatInSet(v)
 	case firewall.MatchTCPFlags:
-		return "tcp flags " + formatTCPFlags(v.Flags)
+		return tb.Str("tcp flags ").Str(formatTCPFlags(v.Flags)).String()
 	}
-	return "<" + matchTypeName(m) + ">"
+	return tb.Byte('<').Str(matchTypeName(m)).Byte('>').String()
 }
 
 func formatAction(a firewall.Action) string {
+	var tb textbuf.Buffer
 	switch v := a.(type) {
 	case firewall.Accept:
 		return "accept"
@@ -141,31 +143,31 @@ func formatAction(a firewall.Action) string {
 		return "drop"
 	case firewall.Reject:
 		if v.Type != "" {
-			return "reject with " + v.Type
+			return tb.Str("reject with ").Str(v.Type).String()
 		}
 		return "reject"
 	case firewall.Jump:
-		return "jump " + v.Target
+		return tb.Str("jump ").Str(v.Target).String()
 	case firewall.Goto:
-		return "goto " + v.Target
+		return tb.Str("goto ").Str(v.Target).String()
 	case firewall.Return:
 		return "return"
 	case firewall.Counter:
 		if v.Name != "" {
-			return "counter " + v.Name
+			return tb.Str("counter ").Str(v.Name).String()
 		}
 		return "counter"
 	case firewall.Log:
 		if v.Prefix != "" {
-			return fmt.Sprintf("%s prefix %q", logKeyword, v.Prefix)
+			return tb.Str(logKeyword).Str(" prefix ").Quoted(v.Prefix).String()
 		}
 		return logKeyword
 	case firewall.Limit:
 		return formatLimit(v)
 	case firewall.SetMark:
-		return fmt.Sprintf("mark set 0x%x", v.Value)
+		return tb.Str("mark set 0x").Str(hexUint32(v.Value)).String()
 	case firewall.SetConnMark:
-		return fmt.Sprintf("connection-mark set 0x%x", v.Value)
+		return tb.Reset().Str("connection-mark set 0x").Str(hexUint32(v.Value)).String()
 	case firewall.SetDSCP:
 		return textbuf.StrInt("dscp set ", int64(v.Value))
 	case firewall.SetTCPMSS:
@@ -180,13 +182,13 @@ func formatAction(a firewall.Action) string {
 	case firewall.Notrack:
 		return "notrack"
 	case firewall.FlowOffload:
-		return "flow offload @" + v.FlowtableName
+		return tb.Str("flow offload @").Str(v.FlowtableName).String()
 	case firewall.SNAT:
-		return "snat to " + formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd)
+		return tb.Str("snat to ").Str(formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd)).String()
 	case firewall.DNAT:
-		return "dnat to " + formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd)
+		return tb.Str("dnat to ").Str(formatNATTarget(v.Address, v.AddressEnd, v.Port, v.PortEnd)).String()
 	}
-	return fmt.Sprintf("<%T>", a)
+	return "<unknown action>"
 }
 
 func formatMasquerade(m firewall.Masquerade) string {
@@ -258,17 +260,18 @@ func byteRateSuffix(rate uint64) (uint64, string) {
 // drops the field information. Unknown fields fall through to the set
 // name only so the formatter never panics on a future field addition.
 func formatInSet(m firewall.MatchInSet) string {
+	var tb textbuf.Buffer
 	switch m.MatchField {
 	case firewall.SetFieldSourceAddr:
-		return "source address @" + m.SetName
+		return tb.Str("source address @").Str(m.SetName).String()
 	case firewall.SetFieldDestAddr:
-		return "destination address @" + m.SetName
+		return tb.Str("destination address @").Str(m.SetName).String()
 	case firewall.SetFieldSourcePort:
-		return "source port @" + m.SetName
+		return tb.Str("source port @").Str(m.SetName).String()
 	case firewall.SetFieldDestPort:
-		return "destination port @" + m.SetName
+		return tb.Str("destination port @").Str(m.SetName).String()
 	}
-	return "@" + m.SetName
+	return tb.Byte('@').Str(m.SetName).String()
 }
 
 func formatTCPFlags(flags firewall.TCPFlags) string {
@@ -288,29 +291,28 @@ func formatTCPFlags(flags firewall.TCPFlags) string {
 			names = append(names, pair.name)
 		}
 	}
-	return strings.Join(names, ",")
+	return textbuf.Join(names, ",")
 }
 
-// formatIface renders an interface name with a trailing `*` when the
-// match is a wildcard, matching the syntax the operator typed.
 func formatIface(name string, wildcard bool) string {
 	if wildcard {
-		return name + "*"
+		var tb textbuf.Buffer
+		return tb.Str(name).Byte('*').String()
 	}
 	return name
 }
 
 func formatPort(keyword string, ranges []firewall.PortRange) string {
+	var tb textbuf.Buffer
 	parts := make([]string, 0, len(ranges))
 	for _, r := range ranges {
 		if r.Lo == r.Hi {
-			parts = append(parts, strconv.Itoa(int(r.Lo)))
+			parts = append(parts, textbuf.Int(int64(r.Lo)))
 		} else {
-			var bRange textbuf.Buffer
-			parts = append(parts, bRange.Reset().Int(int64(r.Lo)).Byte('-').Int(int64(r.Hi)).String())
+			parts = append(parts, tb.Reset().Int(int64(r.Lo)).Byte('-').Int(int64(r.Hi)).String())
 		}
 	}
-	return keyword + " " + strings.Join(parts, ",")
+	return tb.Reset().Str(keyword).Byte(' ').Join(parts, ",").String()
 }
 
 func formatConnState(s firewall.ConnState) string {
@@ -327,29 +329,29 @@ func formatConnState(s firewall.ConnState) string {
 	if s&firewall.ConnStateInvalid != 0 {
 		parts = append(parts, "invalid")
 	}
-	return strings.Join(parts, ",")
+	return textbuf.Join(parts, ",")
 }
 
-func formatSet(b *strings.Builder, s *firewall.Set) {
-	fmt.Fprintf(b, "  set %s {\n", s.Name)
-	fmt.Fprintf(b, "    type %d;\n", s.Type)
+func formatSet(b *textbuf.Buffer, s *firewall.Set) {
+	b.Str("  set ").Str(s.Name).Str(" {\n")
+	b.Str("    type ").Int(int64(s.Type)).Str(";\n")
 	for _, e := range s.Elements {
 		if e.Timeout == 0 {
-			fmt.Fprintf(b, "    element %s;\n", e.Value)
+			b.Str("    element ").Str(e.Value).Str(";\n")
 			continue
 		}
-		fmt.Fprintf(b, "    element %s { timeout %d; }\n", e.Value, e.Timeout)
+		b.Str("    element ").Str(e.Value).Str(" { timeout ").Int(int64(e.Timeout)).Str("; }\n")
 	}
-	b.WriteString("  }\n")
+	b.Str("  }\n")
 }
 
-func formatFlowtable(b *strings.Builder, ft *firewall.Flowtable) {
-	fmt.Fprintf(b, "  flowtable %s {\n", ft.Name)
-	fmt.Fprintf(b, "    hook %s priority %d;\n", ft.Hook, ft.Priority)
+func formatFlowtable(b *textbuf.Buffer, ft *firewall.Flowtable) {
+	b.Str("  flowtable ").Str(ft.Name).Str(" {\n")
+	b.Str("    hook ").Str(ft.Hook.String()).Str(" priority ").Int(int64(ft.Priority)).Str(";\n")
 	if len(ft.Devices) > 0 {
-		fmt.Fprintf(b, "    devices = { %s };\n", strings.Join(ft.Devices, ", "))
+		b.Str("    devices = { ").Join(ft.Devices, ", ").Str(" };\n")
 	}
-	b.WriteString("  }\n")
+	b.Str("  }\n")
 }
 
 // FormatCounters formats chain counter values for CLI output.
@@ -357,11 +359,11 @@ func FormatCounters(counters []firewall.ChainCounters) string {
 	if len(counters) == 0 {
 		return "No counters."
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	for _, cc := range counters {
-		fmt.Fprintf(&b, "chain %s:\n", cc.Chain)
+		b.Str("chain ").Str(cc.Chain).Str(":\n")
 		for _, tc := range cc.Terms {
-			fmt.Fprintf(&b, "  %-30s packets %d  bytes %d\n", tc.Name, tc.Packets, tc.Bytes)
+			b.Str("  ").PadRight(tc.Name, 30).Str(" packets ").Int(int64(tc.Packets)).Str("  bytes ").Int(int64(tc.Bytes)).Byte('\n')
 		}
 	}
 	return b.String()

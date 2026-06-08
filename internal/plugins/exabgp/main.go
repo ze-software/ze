@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/bridge"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/migration"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -76,7 +77,7 @@ func usage() {
 // familyList is a custom flag type for repeatable --family flags.
 type familyList []string
 
-func (f *familyList) String() string { return strings.Join(*f, ",") }
+func (f *familyList) String() string { return textbuf.Join(*f, ",") }
 func (f *familyList) Set(v string) error {
 	*f = append(*f, v)
 	return nil

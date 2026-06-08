@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -381,7 +382,7 @@ func readQuotedValue(s string, i int) (string, int, error) {
 	}
 	i++ // consume opening "
 
-	var b strings.Builder
+	var b textbuf.Buffer
 	for i < len(s) {
 		c := s[i]
 		switch c {
@@ -394,9 +395,9 @@ func readQuotedValue(s string, i int) (string, int, error) {
 			next := s[i+1]
 			switch next {
 			case '"':
-				b.WriteByte('"')
+				b.Byte('"')
 			case '\\':
-				b.WriteByte('\\')
+				b.Byte('\\')
 			case ',':
 				// Preserve `\,` verbatim. splitRequires interprets the
 				// sequence as a literal comma in list-valued fields. Other
@@ -404,14 +405,14 @@ func readQuotedValue(s string, i int) (string, int, error) {
 				// general-escape table only blesses `\"` and `\\`, so
 				// callers that care should reject the literal backslash
 				// during semantic validation if needed.
-				b.WriteByte('\\')
-				b.WriteByte(',')
+				b.Byte('\\')
+				b.Byte(',')
 			default:
 				return "", i, fmt.Errorf("ze:related: unknown escape sequence \\%c", next)
 			}
 			i += 2
 		default:
-			b.WriteByte(c)
+			b.Byte(c)
 			i++
 		}
 	}
@@ -427,11 +428,11 @@ func splitRequires(s string) []string {
 	}
 	var (
 		parts []string
-		buf   strings.Builder
+		buf   textbuf.Buffer
 	)
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\\' && i+1 < len(s) && s[i+1] == ',' {
-			buf.WriteByte(',')
+			buf.Byte(',')
 			i++
 			continue
 		}
@@ -442,7 +443,7 @@ func splitRequires(s string) []string {
 			buf.Reset()
 			continue
 		}
-		buf.WriteByte(s[i])
+		buf.Byte(s[i])
 	}
 	if v := strings.TrimSpace(buf.String()); v != "" {
 		parts = append(parts, v)
@@ -542,7 +543,7 @@ func ValidateRelatedAgainstCommandTree(tools []*RelatedTool, tree *command.Node)
 		}
 		if !commandTreeHasPath(tree, prefix) {
 			errs = append(errs, fmt.Errorf("ze:related %q: command %q has no static prefix %q in the command tree",
-				tool.ID, tool.Command, strings.Join(prefix, " ")))
+				tool.ID, tool.Command, textbuf.Join(prefix, " ")))
 		}
 	}
 	return errs

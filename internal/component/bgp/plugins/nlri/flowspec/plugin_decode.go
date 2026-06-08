@@ -246,22 +246,25 @@ func formatWithOperator(value string, op FlowOperator) string {
 	// Mask out non-comparison bits
 	compOp := op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask)
 
+	var prefix string
 	switch compOp { //nolint:exhaustive // Masked bits cannot match
 	case FlowOpEqual:
-		return "=" + value
+		prefix = "="
 	case FlowOpGreater:
-		return ">" + value
+		prefix = ">"
 	case FlowOpLess:
-		return "<" + value
+		prefix = "<"
 	case FlowOpGreater | FlowOpEqual:
-		return ">=" + value
+		prefix = ">="
 	case FlowOpLess | FlowOpEqual:
-		return "<=" + value
+		prefix = "<="
 	case FlowOpNotEq:
-		return "!=" + value
+		prefix = "!="
 	default: // unrecognized operator — treat as equality
-		return "=" + value
+		prefix = "="
 	}
+	var tb textbuf.Buffer
+	return tb.Str(prefix).Str(value).String()
 }
 
 // tcpFlagValueToNames maps TCP flag bit values to names.
@@ -382,7 +385,7 @@ func formatFlowSpecText(result map[string]any) string {
 	if len(parts) == 0 {
 		return "(empty)"
 	}
-	return strings.Join(parts, " ")
+	return textbuf.Join(parts, " ")
 }
 
 // formatComponentValue formats a single FlowSpec component value for text output.
@@ -394,7 +397,7 @@ func formatComponentValue(_ string, val any) string {
 		// FlowSpec uses nested arrays for OR/AND grouping
 		return formatNestedValues(v)
 	case []string:
-		return strings.Join(v, ",")
+		return textbuf.Join(v, ",")
 	case float64:
 		return strconv.FormatFloat(v, 'f', 0, 64)
 	case int:
@@ -406,9 +409,9 @@ func formatComponentValue(_ string, val any) string {
 	case [][]string:
 		var parts []string
 		for _, group := range v {
-			parts = append(parts, strings.Join(group, " "))
+			parts = append(parts, textbuf.Join(group, " "))
 		}
-		return strings.Join(parts, " ")
+		return textbuf.Join(parts, " ")
 	default:
 		return fmt.Sprint(val)
 	}
@@ -426,12 +429,12 @@ func formatNestedValues(vals []any) string {
 			for _, item := range inner {
 				andParts = append(andParts, formatComponentValue("", item))
 			}
-			parts = append(parts, strings.Join(andParts, "&"))
+			parts = append(parts, textbuf.Join(andParts, "&"))
 		case string:
 			parts = append(parts, inner)
 		}
 	}
-	return strings.Join(parts, "|")
+	return textbuf.Join(parts, "|")
 }
 
 // contains checks if a string slice contains a value.
@@ -557,7 +560,8 @@ func normalizeJSONValue(key, val string) string {
 			// "10.0.0.0/24/0" -> "10.0.0.0/24"
 			parts := strings.Split(val, "/")
 			if len(parts) == 3 {
-				return parts[0] + "/" + parts[1]
+				var tb textbuf.Buffer
+				return tb.Str(parts[0]).Byte('/').Str(parts[1]).String()
 			}
 		}
 	}

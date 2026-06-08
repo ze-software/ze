@@ -9,7 +9,8 @@ import (
 	"fmt"
 	"html/template"
 	"sort"
-	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // NextHopLayout holds computed positions for next-hop graph nodes.
@@ -100,14 +101,15 @@ func computeNextHopLayout(g *NextHopGraph) *NextHopLayout {
 // formatNextHopNodeLabel returns the display label for a next-hop graph node.
 func formatNextHopNodeLabel(n NextHopNode) string {
 	if n.Name != "" {
-		return n.Name + " " + n.Address
+		var tb textbuf.Buffer
+		return tb.Str(n.Name).Byte(' ').Str(n.Address).String()
 	}
 	return n.Address
 }
 
 // renderNextHopGraphSVG renders the next-hop graph as an SVG string.
 func renderNextHopGraphSVG(g *NextHopGraph, layout *NextHopLayout) string {
-	var sb strings.Builder
+	var sb textbuf.Buffer
 
 	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`,
 		layout.Width, layout.Height, layout.Width, layout.Height)
@@ -163,7 +165,8 @@ func renderNextHopGraphSVG(g *NextHopGraph, layout *NextHopLayout) string {
 		label := formatNextHopNodeLabel(n)
 		maxChars := (pos.Width - nodePadding*2) / charWidthApprox
 		if maxChars > 0 && len(label) > maxChars {
-			label = label[:maxChars-1] + "\u2026"
+			var tb textbuf.Buffer
+			label = tb.Str(label[:maxChars-1]).Str("\u2026").String()
 		}
 
 		fmt.Fprintf(&sb, `<g class="%s">`, class)
@@ -187,5 +190,6 @@ func nextHopTooltipName(name string) string {
 	if name == "" {
 		return ""
 	}
-	return " - " + name
+	var tb textbuf.Buffer
+	return tb.Str(" - ").Str(name).String()
 }

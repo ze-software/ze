@@ -10,6 +10,8 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 )
 
@@ -59,7 +61,8 @@ func collectPaths(node *command.Node, prefix string, result map[string][]string)
 	for name, child := range node.Children {
 		path := name
 		if prefix != "" {
-			path = prefix + " " + name
+			var tb textbuf.Buffer
+			path = tb.Str(prefix).Byte(' ').Str(name).String()
 		}
 		if child.WireMethod != "" {
 			result[child.WireMethod] = append(result[child.WireMethod], path)
@@ -89,7 +92,8 @@ func collectDescriptions(node *command.Node, prefix string, result map[string]st
 	for name, child := range node.Children {
 		path := name
 		if prefix != "" {
-			path = prefix + " " + name
+			var tb textbuf.Buffer
+			path = tb.Str(prefix).Byte(' ').Str(name).String()
 		}
 		if child.Description != "" {
 			result[path] = child.Description
@@ -117,7 +121,8 @@ func collectTaskSupport(node *command.Node, prefix string, result map[string]str
 	for name, child := range node.Children {
 		path := name
 		if prefix != "" {
-			path = prefix + " " + name
+			var tb textbuf.Buffer
+			path = tb.Str(prefix).Byte(' ').Str(name).String()
 		}
 		if child.TaskSupport != "" {
 			result[path] = child.TaskSupport
@@ -145,7 +150,8 @@ func collectArgDefs(node *command.Node, prefix string, result map[string][]comma
 	for name, child := range node.Children {
 		path := name
 		if prefix != "" {
-			path = prefix + " " + name
+			var tb textbuf.Buffer
+			path = tb.Str(prefix).Byte(' ').Str(name).String()
 		}
 		if len(child.ArgDefs) > 0 {
 			result[path] = child.ArgDefs
@@ -347,14 +353,15 @@ func applyRange(def *command.ArgDef, r gyang.YangRange) {
 
 // compileYANGPattern compiles an XSD-style pattern into a Go regexp, anchoring it.
 func compileYANGPattern(pattern string) (*regexp.Regexp, error) {
-	anchored := pattern
-	if !strings.HasPrefix(anchored, "^") {
-		anchored = "^" + anchored
+	var tb textbuf.Buffer
+	if !strings.HasPrefix(pattern, "^") {
+		tb.Byte('^')
 	}
-	if !strings.HasSuffix(anchored, "$") {
-		anchored += "$"
+	tb.Str(pattern)
+	if !strings.HasSuffix(pattern, "$") {
+		tb.Byte('$')
 	}
-	return regexp.Compile(anchored)
+	return regexp.Compile(tb.String())
 }
 
 // GetCommandExtension reads the ze:command extension from a YANG entry.
@@ -447,7 +454,8 @@ func collectUIResource(entry *gyang.Entry, prefix string, result map[string]UIRe
 		}
 		path := name
 		if prefix != "" {
-			path = prefix + " " + name
+			var tb textbuf.Buffer
+			path = tb.Str(prefix).Byte(' ').Str(name).String()
 		}
 		if info := getUIResourceExtensions(child); info.Path != "" {
 			result[path] = info

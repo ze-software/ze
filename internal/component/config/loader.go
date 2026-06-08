@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errPluginAutoNotYetImplemented = errors.New("plugin 'auto' not yet implemented")
@@ -342,7 +343,7 @@ func MergeCliPlugins(plugins []plugin.PluginConfig, cliPlugins []string) ([]plug
 		if resolved.Type == plugin.PluginTypeInternal {
 			pc.Internal = true
 		} else {
-			pc.Run = strings.Join(resolved.Command, " ")
+			pc.Run = textbuf.Join(resolved.Command, " ")
 		}
 		newPlugins = append(newPlugins, pc)
 	}

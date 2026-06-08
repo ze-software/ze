@@ -11,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Registration errors.
@@ -148,7 +150,8 @@ func RegisterFamily(afi AFI, safi SAFI, afiName, safiName string) (Family, error
 	}
 
 	f := Family{AFI: afi, SAFI: safi}
-	canonical := afiName + "/" + safiName
+	var tb textbuf.Buffer
+	canonical := tb.Str(afiName).Byte('/').Str(safiName).String()
 	if _, ok := cur.familyByName[canonical]; ok {
 		return f, nil
 	}
@@ -233,7 +236,8 @@ func buildPack(regs []familyRegistration) ([]byte, [familyAFISlots][256]uint8) {
 		if slot < 0 {
 			continue
 		}
-		s := r.afiName + "/" + r.safiName
+		var tb textbuf.Buffer
+		s := tb.Str(r.afiName).Byte('/').Str(r.safiName).String()
 		pos := uint16(len(strBuf))
 		strBuf = append(strBuf, s...)
 		spans = append(spans, span{pos: pos, size: uint16(len(s))})

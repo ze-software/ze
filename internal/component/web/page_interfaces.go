@@ -72,7 +72,7 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 			var bAddr textbuf.Buffer
 			addrs = append(addrs, bAddr.Reset().Str(a.Address).Byte('/').Int(int64(a.PrefixLength)).String())
 		}
-		addrStr := strings.Join(addrs, ", ")
+		addrStr := textbuf.Join(addrs, ", ")
 		if addrStr == "" {
 			addrStr = "-"
 		}
@@ -92,26 +92,26 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 			}
 		}
 
+		var tb textbuf.Buffer
+		detailURL := tb.Str("/show/iface/detail/").Str(info.Name).String()
 		rows = append(rows, WorkbenchTableRow{
 			Key:       info.Name,
-			URL:       "/show/iface/detail/" + info.Name,
+			URL:       detailURL,
 			Flags:     flags,
 			FlagClass: flagClass,
 			Cells:     []string{info.Name, info.Type, info.State, strconv.Itoa(info.MTU), mac, addrStr, rxBps, txBps, rxPps, txPps},
 			Actions: []WorkbenchRowAction{
-				{Label: "Detail", URL: "/show/iface/detail/" + info.Name},
+				{Label: "Detail", URL: detailURL},
 			},
 		})
 	}
 
+	var tb textbuf.Buffer
 	emptyMsg := "No interfaces found."
-	if filterType != "" {
-		emptyMsg = "No " + filterType + " interfaces found."
-	}
-
 	title := "All Interfaces"
 	if filterType != "" {
-		title = capitalizeFirst(filterType) + " Interfaces"
+		emptyMsg = tb.Str("No ").Str(filterType).Str(" interfaces found.").String()
+		title = tb.Reset().Str(capitalizeFirst(filterType)).Str(" Interfaces").String()
 	}
 
 	return WorkbenchTableData{
@@ -156,8 +156,9 @@ func BuildInterfaceDetailData(info *iface.InterfaceInfo) WorkbenchDetailData {
 		{Key: "counters", Label: "Traffic Counters", Content: countersHTML},
 	}
 
+	var tb2 textbuf.Buffer
 	tools := []WorkbenchDetailTool{
-		{Label: "Clear Counters", HxPost: "/admin/iface/clear-counters/" + info.Name, Class: "danger", Confirm: "Clear counters for " + info.Name + "?"},
+		{Label: "Clear Counters", HxPost: tb2.Str("/admin/iface/clear-counters/").Str(info.Name).String(), Class: "danger", Confirm: tb2.Reset().Str("Clear counters for ").Str(info.Name).Byte('?').String()},
 	}
 
 	return WorkbenchDetailData{
@@ -169,9 +170,9 @@ func BuildInterfaceDetailData(info *iface.InterfaceInfo) WorkbenchDetailData {
 }
 
 func buildDetailConfigHTML(info *iface.InterfaceInfo) template.HTML {
-	var b strings.Builder
-	b.WriteString(`<div class="wb-detail-section">`)
-	b.WriteString(`<table class="wb-detail-kv">`)
+	var b textbuf.Buffer
+	b.Str(`<div class="wb-detail-section">`)
+	b.Str(`<table class="wb-detail-kv">`)
 	writeKV(&b, "Name", info.Name)
 	writeKV(&b, "Type", info.Type)
 	writeKV(&b, "MTU", strconv.Itoa(info.MTU))
@@ -179,27 +180,27 @@ func buildDetailConfigHTML(info *iface.InterfaceInfo) template.HTML {
 		writeKV(&b, "MAC", info.MAC)
 	}
 	writeKV(&b, "Admin State", info.State)
-	b.WriteString(`</table>`)
+	b.Str(`</table>`)
 
 	if len(info.Addresses) > 0 {
-		b.WriteString(`<h4>Addresses</h4><ul>`)
+		b.Str(`<h4>Addresses</h4><ul>`)
 		for _, addr := range info.Addresses {
 			fmt.Fprintf(&b, `<li>%s/%d (%s)</li>`,
 				template.HTMLEscapeString(addr.Address),
 				addr.PrefixLength,
 				template.HTMLEscapeString(addr.Family))
 		}
-		b.WriteString(`</ul>`)
+		b.Str(`</ul>`)
 	}
 
-	b.WriteString(`</div>`)
+	b.Str(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 
 func buildDetailStatusHTML(info *iface.InterfaceInfo) template.HTML {
-	var b strings.Builder
-	b.WriteString(`<div class="wb-detail-section">`)
-	b.WriteString(`<table class="wb-detail-kv">`)
+	var b textbuf.Buffer
+	b.Str(`<div class="wb-detail-section">`)
+	b.Str(`<table class="wb-detail-kv">`)
 	writeKV(&b, "Link State", info.State)
 	writeKV(&b, "Index", strconv.Itoa(info.Index))
 	writeKV(&b, "MTU (actual)", strconv.Itoa(info.MTU))
@@ -209,25 +210,25 @@ func buildDetailStatusHTML(info *iface.InterfaceInfo) template.HTML {
 	if info.VlanID > 0 {
 		writeKV(&b, "VLAN ID", strconv.Itoa(info.VlanID))
 	}
-	b.WriteString(`</table>`)
-	b.WriteString(`</div>`)
+	b.Str(`</table>`)
+	b.Str(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 
 func buildDetailCountersHTML(info *iface.InterfaceInfo) template.HTML {
-	var b strings.Builder
-	b.WriteString(`<div class="wb-detail-section"`)
+	var b textbuf.Buffer
+	b.Str(`<div class="wb-detail-section"`)
 	fmt.Fprintf(&b, ` hx-get="/show/iface/counters/%s" hx-trigger="every 3s" hx-swap="innerHTML"`,
 		template.HTMLEscapeString(info.Name))
-	b.WriteString(`>`)
-	b.WriteString(formatCountersTable(info.Stats, info.Name))
-	b.WriteString(`</div>`)
+	b.Str(`>`)
+	b.Str(formatCountersTable(info.Stats, info.Name))
+	b.Str(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 
 func formatCountersTable(stats *iface.InterfaceStats, name string) string {
-	var b strings.Builder
-	b.WriteString(`<table class="wb-detail-kv">`)
+	var b textbuf.Buffer
+	b.Str(`<table class="wb-detail-kv">`)
 	if stats != nil {
 		writeKV(&b, "RX Bytes", strconv.Itoa(int(stats.RxBytes)))
 		writeKV(&b, "RX Packets", strconv.Itoa(int(stats.RxPackets)))
@@ -246,7 +247,7 @@ func formatCountersTable(stats *iface.InterfaceStats, name string) string {
 		writeKV(&b, "RX pps", formatRate(r.RxPps))
 		writeKV(&b, "TX pps", formatRate(r.TxPps))
 	}
-	b.WriteString(`</table>`)
+	b.Str(`</table>`)
 	return b.String()
 }
 
@@ -269,12 +270,12 @@ func formatRate(v float64) string {
 	return strconv.FormatFloat(v, 'f', 0, 64)
 }
 
-func writeKV(b *strings.Builder, key, value string) {
-	b.WriteString(`<tr><td class="wb-detail-kv-key">`)
-	b.WriteString(template.HTMLEscapeString(key))
-	b.WriteString(`</td><td class="wb-detail-kv-val">`)
-	b.WriteString(template.HTMLEscapeString(value))
-	b.WriteString(`</td></tr>`)
+func writeKV(b *textbuf.Buffer, key, value string) {
+	b.Str(`<tr><td class="wb-detail-kv-key">`)
+	b.Str(template.HTMLEscapeString(key))
+	b.Str(`</td><td class="wb-detail-kv-val">`)
+	b.Str(template.HTMLEscapeString(value))
+	b.Str(`</td></tr>`)
 }
 
 // HandleInterfacesPage renders the interface list table within the workbench.

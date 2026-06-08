@@ -25,7 +25,8 @@ func PortDefault(key string, fallback int, desc string) (int, string) {
 	}
 
 	if fallback == 0 && envVal == "" {
-		return val, desc + " (disabled, env: " + key + ")"
+		var b0 textbuf.Buffer
+		return val, b0.Str(desc).Str(" (disabled, env: ").Str(key).Byte(')').String()
 	}
 	if envVal != "" && envVal != strconv.Itoa(fallback) {
 		var b1 textbuf.Buffer
@@ -49,10 +50,13 @@ func AddrPortDefault(key, fallback, desc string) (string, string) {
 	}
 
 	if fallback == "" && envVal == "" {
-		return val, desc + " (disabled, env: " + key + ")"
+		var b0 textbuf.Buffer
+		return val, b0.Str(desc).Str(" (disabled, env: ").Str(key).Byte(')').String()
 	}
 	if envVal != "" && envVal != fallback {
-		return val, desc + " (default: " + fallback + ", configured: " + envVal + " via " + key + ")"
+		var b1 textbuf.Buffer
+		return val, b1.Str(desc).Str(" (default: ").Str(fallback).Str(", configured: ").Str(envVal).Str(" via ").Str(key).Byte(')').String()
 	}
-	return val, desc + " (default: " + fallback + ", env: " + key + ")"
+	var b2 textbuf.Buffer
+	return val, b2.Str(desc).Str(" (default: ").Str(fallback).Str(", env: ").Str(key).Byte(')').String()
 }

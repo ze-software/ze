@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errEmptyMethodName = errors.New("empty method name")
@@ -48,5 +50,6 @@ func ParseMethod(method string) (module, rpc string, err error) {
 
 // FormatMethod constructs a "module:rpc-name" method string from components.
 func FormatMethod(module, rpc string) string {
-	return module + ":" + rpc
+	var tb textbuf.Buffer
+	return tb.Str(module).Byte(':').Str(rpc).String()
 }

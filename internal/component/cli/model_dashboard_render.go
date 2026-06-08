@@ -6,9 +6,7 @@
 package cli
 
 import (
-	"fmt"
 	"strconv"
-	"strings"
 
 	"charm.land/lipgloss/v2"
 
@@ -48,14 +46,12 @@ var dashboardColumns = []dashboardColumnDef{
 
 // renderDashboardHeader renders the 2-line header bar.
 func renderDashboardHeader(snap *dashboardSnapshot, pollError string, width int) string {
+	var tb textbuf.Buffer
 	if snap == nil {
-		return dashHeaderStyle.Render("BGP Dashboard") + "\n" +
-			dashErrorStyle.Render("waiting for data...")
+		return tb.Str(dashHeaderStyle.Render("BGP Dashboard")).Byte('\n').Str(dashErrorStyle.Render("waiting for data...")).String()
 	}
 
-	line1 := fmt.Sprintf("AS %d  rid %s  up %s  peers %d/%d",
-		snap.LocalAS, snap.RouterID, snap.Uptime,
-		snap.PeersEstablished, snap.PeersConfigured)
+	line1 := tb.Str("AS ").Uint32(snap.LocalAS).Str("  rid ").Str(snap.RouterID).Str("  up ").Str(snap.Uptime).Str("  peers ").Int(int64(snap.PeersEstablished)).Byte('/').Int(int64(snap.PeersConfigured)).String()
 	if width > 0 && len(line1) > width {
 		line1 = line1[:width]
 	}
@@ -67,20 +63,21 @@ func renderDashboardHeader(snap *dashboardSnapshot, pollError string, width int)
 		line2 = dashConnStyle.Render("connected")
 	}
 
-	return dashHeaderStyle.Render(line1) + "\n" + line2
+	return tb.Reset().Str(dashHeaderStyle.Render(line1)).Byte('\n').Str(line2).String()
 }
 
 // renderDashboardFooter renders the 1-line footer with key hints and last update info.
 func renderDashboardFooter(lastUpdate string, width int) string {
 	left := "q Quit  s Sort  j/k Navigate  Enter Detail  Esc Back"
+	var tb textbuf.Buffer
 	right := ""
 	if lastUpdate != "" {
-		right = "Last update: " + lastUpdate
+		right = tb.Str("Last update: ").Str(lastUpdate).String()
 	}
 
 	gap := max(1, width-len(left)-len(right))
 
-	return dashFooterStyle.Render(left + strings.Repeat(" ", gap) + right)
+	return dashFooterStyle.Render(tb.Reset().Str(left).Repeat(" ", gap).Str(right).String())
 }
 
 // visibleColumns returns the columns that fit within the terminal width.
@@ -116,12 +113,12 @@ func renderDashboardPeerTable(peers []dashboardPeer, ds *dashboardState, sortCol
 	cols := visibleColumns(width)
 	if len(peers) == 0 {
 		header := renderTableHeader(cols, sortCol, sortAsc)
-		return header + "\n" + dashFooterStyle.Render("  no peers configured")
+		var tb textbuf.Buffer
+		return tb.Str(header).Byte('\n').Str(dashFooterStyle.Render("  no peers configured")).String()
 	}
 
-	var sb strings.Builder
-	sb.WriteString(renderTableHeader(cols, sortCol, sortAsc))
-	sb.WriteString("\n")
+	var sb textbuf.Buffer
+	sb.Str(renderTableHeader(cols, sortCol, sortAsc)).Byte('\n')
 
 	for i, p := range peers {
 		if maxRows > 0 && i >= maxRows {
@@ -131,9 +128,9 @@ func renderDashboardPeerTable(peers []dashboardPeer, ds *dashboardState, sortCol
 		if i == ds.resolveSelectedIndex(peers) {
 			row = dashSelectedStyle.Render(row)
 		}
-		sb.WriteString(row)
+		sb.Str(row)
 		if i < len(peers)-1 && (maxRows <= 0 || i < maxRows-1) {
-			sb.WriteString("\n")
+			sb.Byte('\n')
 		}
 	}
 
@@ -142,30 +139,31 @@ func renderDashboardPeerTable(peers []dashboardPeer, ds *dashboardState, sortCol
 
 // renderTableHeader renders the column headers with sort indicator.
 func renderTableHeader(cols []dashboardColumnDef, sortCol dashboardSortColumn, sortAsc bool) string {
+	var tb textbuf.Buffer
 	parts := make([]string, 0, len(cols))
 	for _, c := range cols {
-		name := c.col.String()
+		tb.Reset().Str(c.col.String())
 		if c.col == sortCol {
 			if sortAsc {
-				name += " ^"
+				tb.Str(" ^")
 			} else {
-				name += " v"
+				tb.Str(" v")
 			}
 		}
-		parts = append(parts, fmt.Sprintf("%-*s", c.width, name))
+		parts = append(parts, tb.Reset().PadRight(tb.String(), c.width).String())
 	}
-	return dashHeaderStyle.Render(strings.Join(parts, "  "))
+	return dashHeaderStyle.Render(textbuf.Join(parts, "  "))
 }
 
 // renderPeerRow renders a single peer row.
 func renderPeerRow(p dashboardPeer, cols []dashboardColumnDef, ds *dashboardState) string {
+	var tb textbuf.Buffer
 	parts := make([]string, 0, len(cols))
 	for _, c := range cols {
 		val := peerColumnValue(p, c.col, ds)
-		padded := fmt.Sprintf("%-*s", c.width, val)
-		parts = append(parts, padded)
+		parts = append(parts, tb.Reset().PadRight(val, c.width).String())
 	}
-	return strings.Join(parts, "  ")
+	return textbuf.Join(parts, "  ")
 }
 
 // peerColumnValue returns the display value for a peer in the given column.
@@ -223,9 +221,10 @@ func renderDashboardDetail(ds *dashboardState) string {
 
 	rate := ds.peerRate(peer.Address)
 
-	var sb strings.Builder
-	sb.WriteString(dashHeaderStyle.Render("  Peer Detail: " + peer.Address))
-	sb.WriteString("\n\n")
+	var sb textbuf.Buffer
+	var tb textbuf.Buffer
+	sb.Str(dashHeaderStyle.Render(tb.Str("  Peer Detail: ").Str(peer.Address).String()))
+	sb.Str("\n\n")
 
 	rows := []struct{ label, value string }{
 		{"Remote ASN", strconv.Itoa(int(peer.RemoteAS))},
@@ -260,10 +259,10 @@ func renderDashboardDetail(ds *dashboardState) string {
 			}
 		}
 		if conn, ok := d["connect"].(bool); ok {
-			rows = append(rows, struct{ label, value string }{"Connect", fmt.Sprintf("%v", conn)})
+			rows = append(rows, struct{ label, value string }{"Connect", strconv.FormatBool(conn)})
 		}
 		if acc, ok := d["accept"].(bool); ok {
-			rows = append(rows, struct{ label, value string }{"Accept", fmt.Sprintf("%v", acc)})
+			rows = append(rows, struct{ label, value string }{"Accept", strconv.FormatBool(acc)})
 		}
 		if lip, ok := d["local-ip"].(string); ok {
 			rows = append(rows, struct{ label, value string }{"Local IP", lip})
@@ -277,11 +276,11 @@ func renderDashboardDetail(ds *dashboardState) string {
 	}
 
 	for _, r := range rows {
-		fmt.Fprintf(&sb, "  %-16s %s\n", r.label, r.value)
+		sb.Str("  ").PadRight(r.label, 16).Byte(' ').Str(r.value).Byte('\n')
 	}
 
-	sb.WriteString("\n")
-	sb.WriteString(dashFooterStyle.Render("  Esc Back  ? Help"))
+	sb.Byte('\n')
+	sb.Str(dashFooterStyle.Render("  Esc Back  ? Help"))
 
 	return sb.String()
 }
@@ -305,9 +304,9 @@ func formatCounter(n uint32) string {
 
 // renderDashboardHelp renders the help overlay.
 func renderDashboardHelp() string {
-	var sb strings.Builder
-	sb.WriteString(dashHeaderStyle.Render("  Dashboard Help"))
-	sb.WriteString("\n\n")
+	var sb textbuf.Buffer
+	sb.Str(dashHeaderStyle.Render("  Dashboard Help"))
+	sb.Str("\n\n")
 
 	keys := []struct{ key, action string }{
 		{"j / Down", "Select next peer"},
@@ -321,10 +320,10 @@ func renderDashboardHelp() string {
 	}
 
 	for _, k := range keys {
-		fmt.Fprintf(&sb, "  %-14s %s\n", k.key, k.action)
+		sb.Str("  ").PadRight(k.key, 14).Byte(' ').Str(k.action).Byte('\n')
 	}
 
-	sb.WriteString("\n")
-	sb.WriteString(dashFooterStyle.Render("  Press any key to dismiss"))
+	sb.Byte('\n')
+	sb.Str(dashFooterStyle.Render("  Press any key to dismiss"))
 	return sb.String()
 }

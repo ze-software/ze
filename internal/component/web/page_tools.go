@@ -86,7 +86,8 @@ func handlePingSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageData 
 	}
 
 	if _, err := netip.ParseAddr(dest); err != nil {
-		return ToolPageData{Error: "Invalid IP address: " + dest}
+		var tb textbuf.Buffer
+		return ToolPageData{Error: tb.Str("Invalid IP address: ").Str(dest).String()}
 	}
 
 	countStr := strings.TrimSpace(r.PostFormValue("count"))
@@ -144,12 +145,13 @@ func handleBGPDecodeSubmit(r *http.Request, dispatch CommandDispatcher) ToolPage
 	}
 
 	// Collapse whitespace for the command.
-	compact := strings.Join(strings.Fields(hex), "")
+	compact := textbuf.Join(strings.Fields(hex), "")
 	if len(compact) > 65535*2 {
 		return ToolPageData{Error: "Hex input exceeds maximum length (65535 bytes)."}
 	}
 
-	cmd := "show bgp/decode " + compact
+	var tb textbuf.Buffer
+	cmd := tb.Str("show bgp/decode ").Str(compact).String()
 
 	return dispatchToolCommand(r, dispatch, cmd)
 }
@@ -188,10 +190,12 @@ func handleMetricsSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 	}
 
 	label := strings.TrimSpace(r.PostFormValue("label"))
-	cmd := "show metrics-query " + name
+	var tb textbuf.Buffer
+	tb.Str("show metrics-query ").Str(name)
 	if label != "" {
-		cmd += " " + label
+		tb.Byte(' ').Str(label)
 	}
+	cmd := tb.String()
 
 	return dispatchToolCommand(r, dispatch, cmd)
 }
@@ -233,7 +237,8 @@ func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 	peer := strings.TrimSpace(r.PostFormValue("peer"))
 	if peer != "" {
 		if _, err := netip.ParseAddr(peer); err != nil {
-			return ToolPageData{Error: "Invalid peer IP address: " + peer}
+			var tb textbuf.Buffer
+			return ToolPageData{Error: tb.Str("Invalid peer IP address: ").Str(peer).String()}
 		}
 		parts = append(parts, "peer "+peer)
 	}
@@ -250,7 +255,7 @@ func handleCaptureSubmit(r *http.Request, dispatch CommandDispatcher) ToolPageDa
 	var bCount textbuf.Buffer
 	parts = append(parts, bCount.Reset().Str("count ").Int(int64(captureCount)).String())
 
-	cmd := strings.Join(parts, " ")
+	cmd := textbuf.Join(parts, " ")
 
 	return dispatchToolCommand(r, dispatch, cmd)
 }

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -194,7 +195,7 @@ func parsePolicyAction(m map[string]any) (PolicyAction, error) {
 	}
 
 	if len(terminals) > 1 {
-		return PolicyAction{}, fmt.Errorf("conflicting actions: %s (only one terminal action allowed per rule)", strings.Join(terminals, ", "))
+		return PolicyAction{}, fmt.Errorf("conflicting actions: %s (only one terminal action allowed per rule)", textbuf.Join(terminals, ", "))
 	}
 
 	if v, ok := m["table"].(string); ok {

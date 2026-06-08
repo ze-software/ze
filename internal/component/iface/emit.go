@@ -26,7 +26,7 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 		return ""
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.WriteString("interface {\n")
 
 	hasLoopback := false
@@ -77,52 +77,51 @@ func EmitConfig(discovered []DiscoveredInterface) string {
 // passed through secret.Encode so the output gets the $9$-encoded form,
 // matching the sensitive-leaf pattern used for BGP MD5 passwords and
 // other secrets in ze.
-func emitWireguardBlock(b *strings.Builder, di *DiscoveredInterface) {
-	fmt.Fprintf(b, "    wireguard %s {\n", di.Name)
-	fmt.Fprintf(b, "        os-name %s;\n", di.Name)
+func emitWireguardBlock(b *textbuf.Buffer, di *DiscoveredInterface) {
+	b.Str("    wireguard ").Str(di.Name).Str(" {\n")
+	b.Str("        os-name ").Str(di.Name).Str(";\n")
 	spec := di.Wireguard
 	if spec == nil {
-		b.WriteString("    }\n")
+		b.Str("    }\n")
 		return
 	}
 	if spec.ListenPortSet && spec.ListenPort != 0 {
-		fmt.Fprintf(b, "        listen-port %d;\n", spec.ListenPort)
+		b.Str("        listen-port ").Int(int64(spec.ListenPort)).Str(";\n")
 	}
 	if spec.FirewallMark != 0 {
-		fmt.Fprintf(b, "        fwmark %d;\n", spec.FirewallMark)
+		b.Str("        fwmark ").Uint(uint64(spec.FirewallMark)).Str(";\n")
 	}
 	if encoded, err := secret.Encode(spec.PrivateKey.String()); err == nil {
-		fmt.Fprintf(b, "        private-key \"%s\";\n", encoded)
+		b.Str("        private-key \"").Str(encoded).Str("\";\n")
 	}
 	for idx := range spec.Peers {
 		p := &spec.Peers[idx]
-		peerName := textbuf.StrInt("peer", int64(idx))
-		fmt.Fprintf(b, "        peer %s {\n", peerName)
-		fmt.Fprintf(b, "            public-key \"%s\";\n", p.PublicKey.String())
+		b.Str("        peer peer").Int(int64(idx)).Str(" {\n")
+		b.Str("            public-key \"").Str(p.PublicKey.String()).Str("\";\n")
 		if p.HasPresharedKey {
 			if encoded, err := secret.Encode(p.PresharedKey.String()); err == nil {
-				fmt.Fprintf(b, "            preshared-key \"%s\";\n", encoded)
+				b.Str("            preshared-key \"").Str(encoded).Str("\";\n")
 			}
 		}
 		if p.EndpointIP != "" && p.EndpointPort != 0 {
-			b.WriteString("            endpoint {\n")
-			fmt.Fprintf(b, "                ip %s;\n", p.EndpointIP)
-			fmt.Fprintf(b, "                port %d;\n", p.EndpointPort)
-			b.WriteString("            }\n")
+			b.Str("            endpoint {\n")
+			b.Str("                ip ").Str(p.EndpointIP).Str(";\n")
+			b.Str("                port ").Int(int64(p.EndpointPort)).Str(";\n")
+			b.Str("            }\n")
 		}
 		if len(p.AllowedIPs) > 0 {
-			b.WriteString("            allowed-ips [")
+			b.Str("            allowed-ips [")
 			for _, cidr := range p.AllowedIPs {
-				fmt.Fprintf(b, " %s", cidr)
+				b.Byte(' ').Str(cidr)
 			}
-			b.WriteString(" ];\n")
+			b.Str(" ];\n")
 		}
 		if p.PersistentKeepalive != 0 {
-			fmt.Fprintf(b, "            persistent-keepalive %d;\n", p.PersistentKeepalive)
+			b.Str("            persistent-keepalive ").Int(int64(p.PersistentKeepalive)).Str(";\n")
 		}
-		b.WriteString("        }\n")
+		b.Str("        }\n")
 	}
-	b.WriteString("    }\n")
+	b.Str("    }\n")
 }
 
 // EmitSetConfig produces set-command format for discovered interfaces.
@@ -132,7 +131,7 @@ func EmitSetConfig(discovered []DiscoveredInterface) string {
 		return ""
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 	for i := range discovered {
 		di := &discovered[i]
 		switch di.Type {
@@ -171,48 +170,48 @@ func EmitSetConfig(discovered []DiscoveredInterface) string {
 }
 
 // emitWireguardSet writes set-command lines for a discovered wireguard device.
-func emitWireguardSet(b *strings.Builder, di *DiscoveredInterface) {
-	prefix := "set interface wireguard " + di.Name
-	fmt.Fprintf(b, "%s os-name %s\n", prefix, di.Name)
+func emitWireguardSet(b *textbuf.Buffer, di *DiscoveredInterface) {
+	var tb textbuf.Buffer
+	prefix := tb.Str("set interface wireguard ").Str(di.Name).String()
+	b.Str(prefix).Str(" os-name ").Str(di.Name).Byte('\n')
 	spec := di.Wireguard
 	if spec == nil {
 		return
 	}
 	if spec.ListenPortSet && spec.ListenPort != 0 {
-		fmt.Fprintf(b, "%s listen-port %d\n", prefix, spec.ListenPort)
+		b.Str(prefix).Str(" listen-port ").Int(int64(spec.ListenPort)).Byte('\n')
 	}
 	if spec.FirewallMark != 0 {
-		fmt.Fprintf(b, "%s fwmark %d\n", prefix, spec.FirewallMark)
+		b.Str(prefix).Str(" fwmark ").Uint(uint64(spec.FirewallMark)).Byte('\n')
 	}
 	if encoded, err := secret.Encode(spec.PrivateKey.String()); err == nil {
-		fmt.Fprintf(b, "%s private-key \"%s\"\n", prefix, encoded)
+		b.Str(prefix).Str(" private-key \"").Str(encoded).Str("\"\n")
 	}
 	for idx := range spec.Peers {
 		p := &spec.Peers[idx]
-		var bPrefix textbuf.Buffer
-		peerPrefix := bPrefix.Reset().Str(prefix).Str(" peer peer").Int(int64(idx)).String()
-		fmt.Fprintf(b, "%s public-key \"%s\"\n", peerPrefix, p.PublicKey.String())
+		peerPrefix := tb.Reset().Str(prefix).Str(" peer peer").Int(int64(idx)).String()
+		b.Str(peerPrefix).Str(" public-key \"").Str(p.PublicKey.String()).Str("\"\n")
 		if p.HasPresharedKey {
 			if encoded, err := secret.Encode(p.PresharedKey.String()); err == nil {
-				fmt.Fprintf(b, "%s preshared-key \"%s\"\n", peerPrefix, encoded)
+				b.Str(peerPrefix).Str(" preshared-key \"").Str(encoded).Str("\"\n")
 			}
 		}
 		if p.EndpointIP != "" && p.EndpointPort != 0 {
-			fmt.Fprintf(b, "%s endpoint ip %s\n", peerPrefix, p.EndpointIP)
-			fmt.Fprintf(b, "%s endpoint port %d\n", peerPrefix, p.EndpointPort)
+			b.Str(peerPrefix).Str(" endpoint ip ").Str(p.EndpointIP).Byte('\n')
+			b.Str(peerPrefix).Str(" endpoint port ").Int(int64(p.EndpointPort)).Byte('\n')
 		}
 		if len(p.AllowedIPs) > 0 {
 			for _, cidr := range p.AllowedIPs {
-				fmt.Fprintf(b, "%s allowed-ips %s\n", peerPrefix, cidr)
+				b.Str(peerPrefix).Str(" allowed-ips ").Str(cidr).Byte('\n')
 			}
 		}
 		if p.PersistentKeepalive != 0 {
-			fmt.Fprintf(b, "%s persistent-keepalive %d\n", peerPrefix, p.PersistentKeepalive)
+			b.Str(peerPrefix).Str(" persistent-keepalive ").Int(int64(p.PersistentKeepalive)).Byte('\n')
 		}
 	}
 }
 
-func emitXFRMBlock(b *strings.Builder, di *DiscoveredInterface) {
+func emitXFRMBlock(b *textbuf.Buffer, di *DiscoveredInterface) {
 	b.WriteString("    xfrm ")
 	b.WriteString(di.Name)
 	b.WriteString(" {\n")
@@ -250,8 +249,9 @@ func emitXFRMBlock(b *strings.Builder, di *DiscoveredInterface) {
 	b.WriteString("    }\n")
 }
 
-func emitXFRMSet(b *strings.Builder, di *DiscoveredInterface) {
-	prefix := "set interface xfrm " + di.Name
+func emitXFRMSet(b *textbuf.Buffer, di *DiscoveredInterface) {
+	var tb textbuf.Buffer
+	prefix := tb.Str("set interface xfrm ").Str(di.Name).String()
 	b.WriteString(prefix)
 	b.WriteString(" os-name ")
 	b.WriteString(di.Name)
@@ -289,7 +289,7 @@ func emitXFRMSet(b *strings.Builder, di *DiscoveredInterface) {
 // reachability). An SSH block is appended so the operator can connect.
 // Returns empty string if no ethernet interfaces are found.
 func EmitBootstrapConfig(discovered []DiscoveredInterface) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	hasEthernet := false
 
 	for i := range discovered {

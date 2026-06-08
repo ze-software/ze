@@ -6,10 +6,9 @@ package bgp
 
 import (
 	"encoding/hex"
-	"fmt"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // FormatAnnounceCommand builds an announce command with full attributes.
@@ -26,16 +25,15 @@ func FormatAnnounceCommand(route *Route) string {
 // formatAnnounceText builds an "update text" command with per-field attributes.
 // Used when raw attributes are not available (e.g., plugin-originated routes).
 func formatAnnounceText(route *Route) string {
-	var sb strings.Builder
+	var sb textbuf.Buffer
 
 	// Base command (peer selector is handled by updateRoute).
-	sb.WriteString("update text")
+	sb.Str("update text")
 
 	// Origin.
 	if route.Origin != nil {
 		if s := route.Origin.LowerString(); s != "" {
-			sb.WriteString(" origin ")
-			sb.WriteString(s)
+			sb.Str(" origin ").Str(s)
 		}
 	}
 
@@ -43,69 +41,63 @@ func formatAnnounceText(route *Route) string {
 	if len(route.ASPath) > 0 {
 		p := &attribute.ASPath{Segments: []attribute.ASPathSegment{{Type: attribute.ASSequence, ASNs: route.ASPath}}}
 		var scratch [128]byte
-		// AppendText emits "as-path <value>" for non-empty paths; insert the
-		// leading space separator via the scratch buffer itself to avoid a
-		// double-space seam with the " as-path " token this writer prepends.
-		sb.WriteByte(' ')
+		sb.Byte(' ')
 		sb.Write(p.AppendText(scratch[:0]))
 	}
 
 	// MED.
 	if route.MED != nil {
-		fmt.Fprintf(&sb, " med %d", *route.MED)
+		sb.Str(" med ").Uint32(*route.MED)
 	}
 
 	// Local-Preference.
 	if route.LocalPreference != nil {
-		fmt.Fprintf(&sb, " local-preference %d", *route.LocalPreference)
+		sb.Str(" local-preference ").Uint32(*route.LocalPreference)
 	}
 
 	// Communities (use [] for list).
 	if len(route.Communities) > 0 {
-		sb.WriteString(" community [")
+		sb.Str(" community [")
 		for i, c := range route.Communities {
 			if i > 0 {
-				sb.WriteByte(' ')
+				sb.Byte(' ')
 			}
-			sb.WriteString(c.String())
+			sb.Str(c.String())
 		}
-		sb.WriteString("]")
+		sb.Byte(']')
 	}
 
 	// Large Communities (use [] for list).
 	if len(route.LargeCommunities) > 0 {
-		sb.WriteString(" large-community [")
+		sb.Str(" large-community [")
 		for i, lc := range route.LargeCommunities {
 			if i > 0 {
-				sb.WriteByte(' ')
+				sb.Byte(' ')
 			}
-			sb.WriteString(lc.String())
+			sb.Str(lc.String())
 		}
-		sb.WriteString("]")
+		sb.Byte(']')
 	}
 
 	// Extended Communities (use [] for list).
 	if len(route.ExtendedCommunities) > 0 {
-		sb.WriteString(" extended-community [")
+		sb.Str(" extended-community [")
 		for i, ec := range route.ExtendedCommunities {
 			if i > 0 {
-				sb.WriteByte(' ')
+				sb.Byte(' ')
 			}
-			sb.WriteString(hex.EncodeToString(ec[:]))
+			sb.Str(hex.EncodeToString(ec[:]))
 		}
-		sb.WriteString("]")
+		sb.Byte(']')
 	}
 
 	// Next-hop (required).
-	sb.WriteString(" nhop ")
-	sb.WriteString(route.NextHop)
+	sb.Str(" nhop ").Str(route.NextHop)
 
 	// NLRI with family and optional modifiers (RFC 7911, RFC 4364).
-	sb.WriteString(" nlri ")
-	sb.WriteString(route.Family.String())
+	sb.Str(" nlri ").Str(route.Family.String())
 	writeNLRIModifiers(&sb, route)
-	sb.WriteString(" add ")
-	sb.WriteString(route.Prefix)
+	sb.Str(" add ").Str(route.Prefix)
 
 	return sb.String()
 }
@@ -113,26 +105,23 @@ func formatAnnounceText(route *Route) string {
 // FormatWithdrawCommand builds an "update text" withdrawal command.
 // Withdrawals only need family, prefix, and NLRI modifiers (no attributes).
 func FormatWithdrawCommand(route *Route) string {
-	var sb strings.Builder
-	sb.WriteString("update text nlri ")
-	sb.WriteString(route.Family.String())
+	var sb textbuf.Buffer
+	sb.Str("update text nlri ").Str(route.Family.String())
 	writeNLRIModifiers(&sb, route)
-	sb.WriteString(" del ")
-	sb.WriteString(route.Prefix)
+	sb.Str(" del ").Str(route.Prefix)
 
 	return sb.String()
 }
 
 // writeNLRIModifiers writes per-NLRI-section modifiers: rd, label stack, path-information.
-func writeNLRIModifiers(sb *strings.Builder, route *Route) {
+func writeNLRIModifiers(sb *textbuf.Buffer, route *Route) {
 	if route.RD != "" {
-		sb.WriteString(" rd ")
-		sb.WriteString(route.RD)
+		sb.Str(" rd ").Str(route.RD)
 	}
 	for _, label := range route.Labels {
-		fmt.Fprintf(sb, " label %d", label)
+		sb.Str(" label ").Uint32(label)
 	}
 	if route.PathID != 0 {
-		fmt.Fprintf(sb, " path-information %d", route.PathID)
+		sb.Str(" path-information ").Uint32(route.PathID)
 	}
 }

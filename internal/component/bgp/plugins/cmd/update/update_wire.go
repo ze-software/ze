@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Wire mode errors.
@@ -181,7 +182,7 @@ func parseWireAttrSection(args []string, decode decodeFunc) (*attribute.Attribut
 	}
 
 	// Join and decode
-	data := strings.Join(dataTokens, "")
+	data := textbuf.Join(dataTokens, "")
 	bytes, err := decode(data)
 	if err != nil {
 		return nil, 0, fmt.Errorf("invalid attr data: %w", err)

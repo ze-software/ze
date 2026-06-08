@@ -24,6 +24,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errZePluginHubTokenMustBe = errors.New("ze.plugin.hub.token must be set")
@@ -220,7 +221,7 @@ func availableFeatures(cfg PluginConfig) string {
 		}
 		return "none"
 	}
-	return strings.Join(parts, ", ")
+	return textbuf.Join(parts, ", ")
 }
 
 // connFromEnv returns a connection for RPC communication with the engine.

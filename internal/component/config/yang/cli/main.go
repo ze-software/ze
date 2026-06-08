@@ -10,10 +10,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Run executes the ze yang subcommand. Returns exit code.
@@ -212,7 +212,7 @@ func cmdDoc(args []string) int {
 		return 1
 	}
 
-	cliCommand := strings.Join(fs.Args(), " ")
+	cliCommand := textbuf.Join(fs.Args(), " ")
 	if err := FormatDocCommand(os.Stdout, cliCommand); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1

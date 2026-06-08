@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type diskSpaceCollector struct {
@@ -54,7 +55,8 @@ func (c *diskSpaceCollector) Collect() error {
 		reservedBytes := freeBytes - availBytes
 
 		const gib = 1024 * 1024 * 1024
-		chart := "disk_space." + sanitizeMountpoint(mp.mountpoint)
+		var tb textbuf.Buffer
+		chart := tb.Str("disk_space.").Str(sanitizeMountpoint(mp.mountpoint)).String()
 		family := mp.mountpoint
 
 		c.gauge.With(chart, "avail", family).Set(float64(availBytes) / gib)

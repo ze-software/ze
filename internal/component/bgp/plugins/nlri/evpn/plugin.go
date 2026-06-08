@@ -397,7 +397,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		for _, r := range results {
 			texts = append(texts, formatEVPNTextSingle(r))
 		}
-		if _, err := fmt.Fprintln(output, "decoded text "+strings.Join(texts, "; ")); err != nil {
+		if _, err := fmt.Fprintln(output, "decoded text "+textbuf.Join(texts, "; ")); err != nil {
 			evpnLogger.Debug("write error", "err", err)
 		}
 		return

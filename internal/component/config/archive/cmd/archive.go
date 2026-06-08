@@ -4,13 +4,13 @@ package cmd
 
 import (
 	"os"
-	"strings"
 
 	iconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -47,11 +47,12 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 		}, nil
 	}
 
+	var tb textbuf.Buffer
 	data, err := os.ReadFile(configPath) //nolint:gosec // Config path from daemon startup
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "read config: " + err.Error(),
+			Error:  tb.Str("read config: ").Err(err).String(),
 		}, err
 	}
 
@@ -59,7 +60,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if schErr != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "load schema: " + schErr.Error(),
+			Error:  tb.Reset().Str("load schema: ").Err(schErr).String(),
 		}, schErr
 	}
 
@@ -68,7 +69,7 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if parseErr != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "parse config: " + parseErr.Error(),
+			Error:  tb.Reset().Str("parse config: ").Err(parseErr).String(),
 		}, parseErr
 	}
 
@@ -96,14 +97,14 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 		}
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "archive block " + archiveName + " not found (available: " + strings.Join(names, ", ") + ")",
+			Error:  tb.Reset().Str("archive block ").Str(archiveName).Str(" not found (available: ").Join(names, ", ").Byte(')').String(),
 		}, nil
 	}
 
 	if err := archive.ValidateLocation(ac.Location); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "invalid location for " + archiveName + ": " + err.Error(),
+			Error:  tb.Reset().Str("invalid location for ").Str(archiveName).Str(": ").Err(err).String(),
 		}, err
 	}
 
@@ -120,14 +121,14 @@ func handleArchiveTrigger(ctx *pluginserver.CommandContext, args []string) (*plu
 	if len(errs) > 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "archive " + archiveName + " failed: " + errs[0].Error(),
+			Error:  tb.Reset().Str("archive ").Str(archiveName).Str(" failed: ").Err(errs[0]).String(),
 		}, nil
 	}
 
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"message": "archived " + archiveName + " to " + ac.Location,
+			"message": tb.Reset().Str("archived ").Str(archiveName).Str(" to ").Str(ac.Location).String(),
 		},
 	}, nil
 }

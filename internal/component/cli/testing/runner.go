@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -82,7 +83,8 @@ func runTestCase(tc *TestCase) *TestResult {
 
 		// Guard against path traversal (e.g., "../../../etc/cron.d/malicious").
 		if !strings.HasPrefix(filepath.Clean(filePath), filepath.Clean(tmpDir)+string(os.PathSeparator)) {
-			result.Error = "path traversal in tmpfs: " + tf.Path
+			var tb textbuf.Buffer
+			result.Error = tb.Str("path traversal in tmpfs: ").Str(tf.Path).String()
 			return result
 		}
 
@@ -254,7 +256,8 @@ func runTestCase(tc *TestCase) *TestResult {
 					Passed: sessionErr == nil, Detail: trace.ErrString(sessionErr),
 				})
 				if sessionErr != nil {
-					result.Error = "step " + strconv.Itoa(stepNum) + " (session " + sa.Name + "): " + sessionErr.Error()
+					var tb textbuf.Buffer
+					result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (session ").Str(sa.Name).Str("): ").Err(sessionErr).String()
 					return result
 				}
 				newHM.SetTmpDir(tmpDir)
@@ -267,7 +270,8 @@ func runTestCase(tc *TestCase) *TestResult {
 						Step: stepNum, Kind: "session", Assert: sa.Name,
 						Passed: false, Detail: "unknown session",
 					})
-					result.Error = "step " + strconv.Itoa(stepNum) + ": unknown session " + sa.Name
+					var tb textbuf.Buffer
+					result.Error = tb.Str("step ").Int(int64(stepNum)).Str(": unknown session ").Str(sa.Name).String()
 					return result
 				}
 				result.Steps = append(result.Steps, trace.StepResult{
@@ -286,7 +290,8 @@ func runTestCase(tc *TestCase) *TestResult {
 				Passed: restartErr == nil, Detail: trace.ErrString(restartErr),
 			})
 			if restartErr != nil {
-				result.Error = "step " + strconv.Itoa(stepNum) + " (restart): " + restartErr.Error()
+				var tb textbuf.Buffer
+				result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (restart): ").Err(restartErr).String()
 				return result
 			}
 			newHM.SetTmpDir(tmpDir)
@@ -302,7 +307,8 @@ func runTestCase(tc *TestCase) *TestResult {
 					Step: stepNum, Kind: "input", Assert: inp.Action,
 					Passed: false, Detail: err.Error(),
 				})
-				result.Error = "step " + strconv.Itoa(stepNum) + " (input): " + err.Error()
+				var tb textbuf.Buffer
+				result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (input): ").Err(err).String()
 				return result
 			}
 			var sendErr error
@@ -316,7 +322,8 @@ func runTestCase(tc *TestCase) *TestResult {
 				Passed: sendErr == nil, Detail: trace.ErrString(sendErr),
 			})
 			if sendErr != nil {
-				result.Error = "step " + strconv.Itoa(stepNum) + " (input): sending: " + sendErr.Error()
+				var tb textbuf.Buffer
+				result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (input): sending: ").Err(sendErr).String()
 				return result
 			}
 
@@ -344,7 +351,8 @@ func runTestCase(tc *TestCase) *TestResult {
 				Passed: lastErr == nil, Detail: trace.ErrString(lastErr),
 			})
 			if lastErr != nil {
-				result.Error = "step " + strconv.Itoa(stepNum) + " (expect " + exp.Type + "): " + lastErr.Error()
+				var tb textbuf.Buffer
+				result.Error = tb.Str("step ").Int(int64(stepNum)).Str(" (expect ").Str(exp.Type).Str("): ").Err(lastErr).String()
 				return result
 			}
 

@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -359,7 +361,7 @@ func parseTypeLine(line string) (msgType, family string) {
 
 	msgType = strings.ToLower(parts[0])
 	if len(parts) >= 2 {
-		family = strings.Join(parts[1:], " ")
+		family = textbuf.Join(parts[1:], " ")
 	}
 	return msgType, family
 }

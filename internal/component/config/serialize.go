@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // maxInlineDepth controls the maximum container inlining depth in serialized output.
@@ -43,37 +45,37 @@ func canInlineContainer(tree *Tree) bool {
 
 // serializeContainerInline writes a container with a single leaf child inline:
 // "containerName childName value\n" without braces.
-func serializeContainerInline(b *strings.Builder, child *Tree, name string, node *ContainerNode, indent int) {
+func serializeContainerInline(b *textbuf.Buffer, child *Tree, name string, node *ContainerNode, indent int) {
 	child.mu.RLock()
 	defer child.mu.RUnlock()
 
 	prefix := strings.Repeat("\t", indent)
-	b.WriteString(prefix)
+	b.Str(prefix)
 	if child.inactive {
-		b.WriteString("inactive: ")
+		b.Str("inactive: ")
 	}
-	b.WriteString(name)
+	b.Str(name)
 
 	// Find the single child in schema order and write it inline.
 	for _, childName := range node.Children() {
 		childNode := node.Get(childName)
 		if writeInlineLeaf(b, child, childName, childNode) {
-			b.WriteString("\n")
+			b.Str("\n")
 			return
 		}
 	}
 
 	// Fallback: extra values not in schema.
 	for k, v := range child.values {
-		b.WriteString(" ")
-		b.WriteString(k)
-		b.WriteString(" ")
-		b.WriteString(quoteIfNeeded(v))
-		b.WriteString("\n")
+		b.Str(" ")
+		b.Str(k)
+		b.Str(" ")
+		b.Str(quoteIfNeeded(v))
+		b.Str("\n")
 		return
 	}
 
-	b.WriteString("\n")
+	b.Str("\n")
 }
 
 // writeInlineLeaf writes a leaf value inline (without prefix or newline).
@@ -82,52 +84,52 @@ func serializeContainerInline(b *strings.Builder, child *Tree, name string, node
 // Caller MUST hold tree.mu.RLock() -- this helper reads tree.values and
 // tree.multiValues directly rather than going through Get/GetSlice (which
 // would attempt to re-acquire the lock).
-func writeInlineLeaf(b *strings.Builder, tree *Tree, name string, node Node) bool {
+func writeInlineLeaf(b *textbuf.Buffer, tree *Tree, name string, node Node) bool {
 	switch n := node.(type) {
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
-			b.WriteString(" ")
-			b.WriteString(name)
+			b.Str(" ")
+			b.Str(name)
 			// "type empty" leaves inline as a bare flag with no value.
 			if n.Type != TypeEmpty {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(normalizeBool(v)))
+				b.Str(" ")
+				b.Str(quoteIfNeeded(normalizeBool(v)))
 			}
 			return true
 		}
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
-			b.WriteString(" ")
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(v)
+			b.Str(" ")
+			b.Str(name)
+			b.Str(" ")
+			b.Str(v)
 			return true
 		}
 	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
-			b.WriteString(" ")
-			b.WriteString(name)
-			b.WriteString(" [ ")
-			b.WriteString(v)
-			b.WriteString(" ]")
+			b.Str(" ")
+			b.Str(name)
+			b.Str(" [ ")
+			b.Str(v)
+			b.Str(" ]")
 			return true
 		}
 	case *ValueOrArrayNode:
 		if items := tree.multiValues[name]; len(items) > 0 {
-			b.WriteString(" ")
-			b.WriteString(name)
+			b.Str(" ")
+			b.Str(name)
 			if len(items) == 1 {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(items[0]))
+				b.Str(" ")
+				b.Str(quoteIfNeeded(items[0]))
 			} else {
-				b.WriteString(" [ ")
+				b.Str(" [ ")
 				for i, item := range items {
 					if i > 0 {
-						b.WriteString(" ")
+						b.Str(" ")
 					}
-					b.WriteString(quoteIfNeeded(item))
+					b.Str(quoteIfNeeded(item))
 				}
-				b.WriteString(" ]")
+				b.Str(" ]")
 			}
 			return true
 		}
@@ -162,7 +164,7 @@ func normalizeBool(v string) string {
 
 // Serialize converts a Tree back to config text format.
 func Serialize(tree *Tree, schema *Schema) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	serializeTree(&b, tree, schema.root, 0)
 	return b.String()
 }
@@ -180,14 +182,14 @@ func SerializeSubtree(tree *Tree, node Node) string {
 	if !ok {
 		return ""
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	serializeWithChildren(&b, tree, cp, 0)
 	return b.String()
 }
 
 // serializeExtraValues writes tree values that are not in the schema's children list.
 // This handles unknown/extra keys that appear in the config but aren't defined in schema.
-func serializeExtraValues(b *strings.Builder, tree *Tree, children []string, indent int) {
+func serializeExtraValues(b *textbuf.Buffer, tree *Tree, children []string, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	schemaNames := make(map[string]bool, len(children))
@@ -203,14 +205,14 @@ func serializeExtraValues(b *strings.Builder, tree *Tree, children []string, ind
 	}
 	sort.Strings(valueKeys)
 	for _, k := range valueKeys {
-		b.WriteString(prefix)
+		b.Str(prefix)
 		if tree.inactiveValues[k] {
-			b.WriteString("inactive: ")
+			b.Str("inactive: ")
 		}
-		b.WriteString(k)
-		b.WriteString(" ")
-		b.WriteString(quoteIfNeeded(tree.values[k]))
-		b.WriteString("\n")
+		b.Str(k)
+		b.Str(" ")
+		b.Str(quoteIfNeeded(tree.values[k]))
+		b.Str("\n")
 	}
 }
 
@@ -220,7 +222,7 @@ func serializeExtraValues(b *strings.Builder, tree *Tree, children []string, ind
 // Holds tree.mu.RLock for the duration so callees can read tree.values /
 // tree.containers / tree.lists directly. Recursion into child trees acquires
 // the child's own lock independently.
-func serializeWithChildren(b *strings.Builder, tree *Tree, node childProvider, indent int) {
+func serializeWithChildren(b *textbuf.Buffer, tree *Tree, node childProvider, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
@@ -235,7 +237,7 @@ func serializeWithChildren(b *strings.Builder, tree *Tree, node childProvider, i
 // schema-ordered walk. Recursion crosses to child trees via serializeNode,
 // which re-enters serializeTree / serializeListEntry / etc. on a different
 // tree that locks its own mutex.
-func serializeTree(b *strings.Builder, tree *Tree, node *ContainerNode, indent int) {
+func serializeTree(b *textbuf.Buffer, tree *Tree, node *ContainerNode, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
@@ -246,7 +248,7 @@ func serializeTree(b *strings.Builder, tree *Tree, node *ContainerNode, indent i
 	serializeExtraValues(b, tree, node.Children(), indent)
 }
 
-func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, indent int) {
+func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	switch n := node.(type) {
@@ -255,66 +257,66 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			break
 		}
 		if v, ok := tree.values[name]; ok {
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
+			b.Str(name)
 			// "type empty" leaves are bare presence flags ("no-default-route");
 			// the tokenizer's ASI supplies the terminating ';' at the newline.
 			if n.Type != TypeEmpty {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(normalizeBool(v)))
+				b.Str(" ")
+				b.Str(quoteIfNeeded(normalizeBool(v)))
 			}
-			b.WriteString("\n")
+			b.Str("\n")
 		}
 
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(v) // Already space-separated
-			b.WriteString("\n")
+			b.Str(name)
+			b.Str(" ")
+			b.Str(v) // Already space-separated
+			b.Str("\n")
 		}
 
 	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
-			b.WriteString(" [ ")
-			b.WriteString(v) // Space-separated items
-			b.WriteString(" ]\n")
+			b.Str(name)
+			b.Str(" [ ")
+			b.Str(v) // Space-separated items
+			b.Str(" ]\n")
 		}
 
 	case *ValueOrArrayNode:
 		// Direct access: caller holds tree.mu.RLock, calling GetSlice
 		// would recursively RLock the same mutex (unsafe per Go docs).
 		if items := tree.multiValues[name]; len(items) > 0 {
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
+			b.Str(name)
 			if len(items) == 1 {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(items[0]))
-				b.WriteString("\n")
+				b.Str(" ")
+				b.Str(quoteIfNeeded(items[0]))
+				b.Str("\n")
 			} else {
-				b.WriteString(" [ ")
+				b.Str(" [ ")
 				for i, item := range items {
 					if i > 0 {
-						b.WriteString(" ")
+						b.Str(" ")
 					}
-					b.WriteString(quoteIfNeeded(item))
+					b.Str(quoteIfNeeded(item))
 				}
-				b.WriteString(" ]\n")
+				b.Str(" ]\n")
 			}
 		}
 
@@ -328,15 +330,15 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			if canInlineContainer(child) {
 				serializeContainerInline(b, child, name, n, indent)
 			} else {
-				b.WriteString(prefix)
+				b.Str(prefix)
 				if child.IsInactive() {
-					b.WriteString("inactive: ")
+					b.Str("inactive: ")
 				}
-				b.WriteString(name)
-				b.WriteString(" {\n")
+				b.Str(name)
+				b.Str(" {\n")
 				serializeTree(b, child, n, indent+1)
-				b.WriteString(prefix)
-				b.WriteString("}\n")
+				b.Str(prefix)
+				b.Str("}\n")
 			}
 		}
 
@@ -358,62 +360,62 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 
 				for _, key := range keys {
 					entry := entries[key]
-					b.WriteString(prefix)
+					b.Str(prefix)
 					if entry.IsInactive() {
-						b.WriteString("inactive: ")
+						b.Str("inactive: ")
 					}
-					b.WriteString(name)
+					b.Str(name)
 					// Skip outputting KeyDefault - it's the implicit default
 					if key != KeyDefault {
-						b.WriteString(" ")
-						b.WriteString(quoteIfNeeded(key))
+						b.Str(" ")
+						b.Str(quoteIfNeeded(key))
 					}
-					b.WriteString(" {\n")
+					b.Str(" {\n")
 					serializeListEntry(b, entry, n, indent+1)
-					b.WriteString(prefix)
-					b.WriteString("}\n")
+					b.Str(prefix)
+					b.Str("}\n")
 				}
 			}
 		}
 
 	case *FreeformNode:
 		if child := tree.containers[name]; child != nil {
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" {\n")
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" {\n")
 			serializeFreeform(b, child, indent+1)
-			b.WriteString(prefix)
-			b.WriteString("}\n")
+			b.Str(prefix)
+			b.Str("}\n")
 		}
 
 	case *FlexNode:
 		// Check if it's a simple value, multiValue, container, or list
 		if v, ok := tree.values[name]; ok {
-			b.WriteString(prefix)
-			b.WriteString(name)
+			b.Str(prefix)
+			b.Str(name)
 			if v != configTrue {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(v))
+				b.Str(" ")
+				b.Str(quoteIfNeeded(v))
 			}
-			b.WriteString("\n")
+			b.Str("\n")
 		} else if mv := tree.multiValues[name]; len(mv) > 0 {
 			// Inline values (e.g., vpls rd X endpoint Y ...;)
 			for _, v := range mv {
-				b.WriteString(prefix)
-				b.WriteString(name)
-				b.WriteString(" ")
-				b.WriteString(v)
-				b.WriteString("\n")
+				b.Str(prefix)
+				b.Str(name)
+				b.Str(" ")
+				b.Str(v)
+				b.Str("\n")
 			}
 		}
 		// Also serialize container form
 		if child := tree.containers[name]; child != nil {
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" {\n")
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" {\n")
 			serializeFlexContainer(b, child, n, indent+1)
-			b.WriteString(prefix)
-			b.WriteString("}\n")
+			b.Str(prefix)
+			b.Str("}\n")
 		}
 		// Also serialize list entries (e.g., vpls site5 { ... })
 		if entries := tree.lists[name]; entries != nil {
@@ -424,14 +426,14 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			sort.Strings(keys)
 			for _, key := range keys {
 				entry := entries[key]
-				b.WriteString(prefix)
-				b.WriteString(name)
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(key))
-				b.WriteString(" {\n")
+				b.Str(prefix)
+				b.Str(name)
+				b.Str(" ")
+				b.Str(quoteIfNeeded(key))
+				b.Str(" {\n")
 				serializeFlexContainer(b, entry, n, indent+1)
-				b.WriteString(prefix)
-				b.WriteString("}\n")
+				b.Str(prefix)
+				b.Str("}\n")
 			}
 		}
 
@@ -457,39 +459,39 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				hasValues := useInline && len(entry.values) > 0
 
 				if hasValues {
-					b.WriteString(prefix)
-					b.WriteString(name)
-					b.WriteString(" ")
-					b.WriteString(quoteIfNeeded(displayKey))
+					b.Str(prefix)
+					b.Str(name)
+					b.Str(" ")
+					b.Str(quoteIfNeeded(displayKey))
 					for _, attrName := range n.Children() {
 						if v, ok := entry.values[attrName]; ok {
-							b.WriteString(" ")
-							b.WriteString(attrName)
-							b.WriteString(" ")
-							b.WriteString(quoteIfNeeded(v))
+							b.Str(" ")
+							b.Str(attrName)
+							b.Str(" ")
+							b.Str(quoteIfNeeded(v))
 						}
 					}
 					// Also add any values not in schema order
 					for k, v := range entry.values {
 						if !n.Has(k) {
-							b.WriteString(" ")
-							b.WriteString(k)
-							b.WriteString(" ")
-							b.WriteString(quoteIfNeeded(v))
+							b.Str(" ")
+							b.Str(k)
+							b.Str(" ")
+							b.Str(quoteIfNeeded(v))
 						}
 					}
 					entry.mu.RUnlock()
-					b.WriteString("\n")
+					b.Str("\n")
 				} else {
 					entry.mu.RUnlock()
-					b.WriteString(prefix)
-					b.WriteString(name)
-					b.WriteString(" ")
-					b.WriteString(quoteIfNeeded(displayKey))
-					b.WriteString(" {\n")
+					b.Str(prefix)
+					b.Str(name)
+					b.Str(" ")
+					b.Str(quoteIfNeeded(displayKey))
+					b.Str(" {\n")
 					serializeInlineListEntry(b, entry, n, indent+1)
-					b.WriteString(prefix)
-					b.WriteString("}\n")
+					b.Str(prefix)
+					b.Str("}\n")
 				}
 			}
 		}
@@ -509,13 +511,13 @@ func allChildrenAreLeaves(n *ListNode) bool {
 
 // serializeListMultiBlock serializes list entries as a grouped block with positional inline entries.
 // Output: name { key1; key2 val1; key3 val1 val2; }.
-func serializeListMultiBlock(b *strings.Builder, name string, entries map[string]*Tree, node *ListNode, order []string, indent int) {
+func serializeListMultiBlock(b *textbuf.Buffer, name string, entries map[string]*Tree, node *ListNode, order []string, indent int) {
 	prefix := strings.Repeat("\t", indent)
 	innerPrefix := strings.Repeat("\t", indent+1)
 
-	b.WriteString(prefix)
-	b.WriteString(name)
-	b.WriteString(" {\n")
+	b.Str(prefix)
+	b.Str(name)
+	b.Str(" {\n")
 
 	// Use insertion order if available, otherwise sort
 	keys := order
@@ -533,24 +535,24 @@ func serializeListMultiBlock(b *strings.Builder, name string, entries map[string
 			continue
 		}
 		displayKey := StripListKeySuffix(key)
-		b.WriteString(innerPrefix)
-		b.WriteString(quoteIfNeeded(displayKey))
+		b.Str(innerPrefix)
+		b.Str(quoteIfNeeded(displayKey))
 
 		// Positional children in definition order
 		for _, childName := range node.Children() {
 			if v, ok := entry.Get(childName); ok {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(v))
+				b.Str(" ")
+				b.Str(quoteIfNeeded(v))
 			}
 		}
-		b.WriteString("\n")
+		b.Str("\n")
 	}
 
-	b.WriteString(prefix)
-	b.WriteString("}\n")
+	b.Str(prefix)
+	b.Str("}\n")
 }
 
-func serializeListEntry(b *strings.Builder, tree *Tree, node *ListNode, indent int) {
+func serializeListEntry(b *textbuf.Buffer, tree *Tree, node *ListNode, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
@@ -561,7 +563,7 @@ func serializeListEntry(b *strings.Builder, tree *Tree, node *ListNode, indent i
 	serializeExtraValues(b, tree, node.Children(), indent)
 }
 
-func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
+func serializeFreeform(b *textbuf.Buffer, tree *Tree, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	prefix := strings.Repeat("\t", indent)
@@ -575,63 +577,63 @@ func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
 
 	for _, k := range keys {
 		v := tree.values[k]
-		b.WriteString(prefix)
-		b.WriteString(k)
+		b.Str(prefix)
+		b.Str(k)
 		if v != configTrue {
 			if strings.HasPrefix(v, "[ ") && strings.HasSuffix(v, " ]") {
 				// Already bracketed — output as-is
-				b.WriteString(" ")
-				b.WriteString(v)
+				b.Str(" ")
+				b.Str(v)
 			} else {
 				// Wrap in brackets to preserve roundtrip
-				b.WriteString(" [ ")
-				b.WriteString(v)
-				b.WriteString(" ]")
+				b.Str(" [ ")
+				b.Str(v)
+				b.Str(" ]")
 			}
 		}
-		b.WriteString("\n")
+		b.Str("\n")
 	}
 }
 
 // serializePresenceContainer serializes a presence container in flag, value, or block form.
 // Mirrors FlexNode serialization: checks values, multiValues, containers, and lists.
-func serializePresenceContainer(b *strings.Builder, tree *Tree, name string, node *ContainerNode, indent int) {
+func serializePresenceContainer(b *textbuf.Buffer, tree *Tree, name string, node *ContainerNode, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	// Check for simple value or flag
 	if v, ok := tree.values[name]; ok {
-		b.WriteString(prefix)
-		b.WriteString(name)
+		b.Str(prefix)
+		b.Str(name)
 		if v != configTrue {
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(v))
+			b.Str(" ")
+			b.Str(quoteIfNeeded(v))
 		}
-		b.WriteString("\n")
+		b.Str("\n")
 	} else if mv := tree.multiValues[name]; len(mv) > 0 {
 		for _, v := range mv {
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(v)
-			b.WriteString("\n")
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" ")
+			b.Str(v)
+			b.Str("\n")
 		}
 	}
 
 	// Block form (container children)
 	if child := tree.containers[name]; child != nil {
-		b.WriteString(prefix)
+		b.Str(prefix)
 		if child.IsInactive() {
-			b.WriteString("inactive: ")
+			b.Str("inactive: ")
 		}
-		b.WriteString(name)
-		b.WriteString(" {\n")
+		b.Str(name)
+		b.Str(" {\n")
 		serializeTree(b, child, node, indent+1)
-		b.WriteString(prefix)
-		b.WriteString("}\n")
+		b.Str(prefix)
+		b.Str("}\n")
 	}
 }
 
-func serializeFlexContainer(b *strings.Builder, tree *Tree, node *FlexNode, indent int) {
+func serializeFlexContainer(b *textbuf.Buffer, tree *Tree, node *FlexNode, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
@@ -642,7 +644,7 @@ func serializeFlexContainer(b *strings.Builder, tree *Tree, node *FlexNode, inde
 	serializeExtraValues(b, tree, node.Children(), indent)
 }
 
-func serializeInlineListEntry(b *strings.Builder, tree *Tree, node *InlineListNode, indent int) {
+func serializeInlineListEntry(b *textbuf.Buffer, tree *Tree, node *InlineListNode, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	for _, name := range node.Children() {
@@ -672,22 +674,22 @@ func quoteIfNeeded(s string) string {
 	}
 
 	// Escape quotes and backslashes
-	var b strings.Builder
-	b.WriteByte('"')
+	var b textbuf.Buffer
+	b.Byte('"')
 	for _, c := range s {
 		switch c {
 		case '"':
-			b.WriteString(`\"`)
+			b.Str(`\"`)
 		case '\\':
-			b.WriteString(`\\`)
+			b.Str(`\\`)
 		case '\n':
-			b.WriteString(`\n`)
+			b.Str(`\n`)
 		case '\t':
-			b.WriteString(`\t`)
+			b.Str(`\t`)
 		default:
 			b.WriteRune(c)
 		}
 	}
-	b.WriteByte('"')
+	b.Byte('"')
 	return b.String()
 }

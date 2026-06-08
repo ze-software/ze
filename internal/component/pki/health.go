@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -66,9 +67,10 @@ func checkHealth() (health.Status, string) {
 	var earliestLabel string
 	var earliestExpiry time.Time
 
+	var tb textbuf.Buffer
 	for name, ca := range s.caCerts {
 		if now.After(ca.Certificate.NotAfter) {
-			return health.StatusDown, "ca " + name + " expired"
+			return health.StatusDown, tb.Str("ca ").Str(name).Str(" expired").String()
 		}
 		if ca.Certificate.NotAfter.Before(threshold) {
 			if earliestExpiry.IsZero() || ca.Certificate.NotAfter.Before(earliestExpiry) {
@@ -81,7 +83,7 @@ func checkHealth() (health.Status, string) {
 
 	for name, entry := range s.certificates {
 		if now.After(entry.Certificate.NotAfter) {
-			return health.StatusDown, "certificate " + name + " expired"
+			return health.StatusDown, tb.Reset().Str("certificate ").Str(name).Str(" expired").String()
 		}
 		if entry.Certificate.NotAfter.Before(threshold) {
 			if earliestExpiry.IsZero() || entry.Certificate.NotAfter.Before(earliestExpiry) {
@@ -95,7 +97,7 @@ func checkHealth() (health.Status, string) {
 	if earliestExpiry.IsZero() {
 		return health.StatusHealthy, ""
 	}
-	return health.StatusDegraded, earliestLabel + " " + earliestName + " expires in " + strconv.Itoa(daysUntil(now, earliestExpiry)) + " days"
+	return health.StatusDegraded, tb.Reset().Str(earliestLabel).Byte(' ').Str(earliestName).Str(" expires in ").Int(int64(daysUntil(now, earliestExpiry))).Str(" days").String()
 }
 
 // RaiseExpiryWarnings checks all loaded certificates and raises report bus
@@ -116,12 +118,13 @@ func RaiseExpiryWarnings() {
 }
 
 func raiseOrClearExpiry(now, warn time.Time, kind, name string, notAfter time.Time) {
-	subject := kind + "/" + name
+	var tb textbuf.Buffer
+	subject := tb.Str(kind).Byte('/').Str(name).String()
 	var label string
 	if kind == "ca" {
-		label = "CA certificate " + name
+		label = tb.Reset().Str("CA certificate ").Str(name).String()
 	} else {
-		label = "Certificate " + name
+		label = tb.Reset().Str("Certificate ").Str(name).String()
 	}
 
 	if now.After(notAfter) {

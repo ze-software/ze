@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/suggest"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const defaultBlobName = "database.zefs"
@@ -316,7 +317,7 @@ func showRegisteredKey(key string) int {
 
 // printKeyRow writes a tab-separated row to w.
 func printKeyRow(w *tabwriter.Writer, cols ...string) {
-	if _, err := fmt.Fprintln(w, strings.Join(cols, "\t")); err != nil {
+	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil {
 		return
 	}
 }

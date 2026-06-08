@@ -3,9 +3,7 @@
 package runner
 
 import (
-	"fmt"
-	"strings"
-
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/decode"
 )
 
@@ -23,20 +21,20 @@ var (
 
 // ColoredString returns a colored human-readable representation.
 func ColoredString(m *decode.DecodedMessage, c *Colors) string {
-	var sb strings.Builder
+	var sb textbuf.Buffer
 
-	fmt.Fprintf(&sb, "  %s%s%s (len=%d)\n", c.Cyan("type:"), "      ", m.Type, m.Length)
+	sb.Str("  ").Str(c.Cyan("type:")).Str("      ").Str(m.Type).Str(" (len=").Int(int64(m.Length)).Str(")\n")
 
 	for _, attr := range m.Attributes {
-		fmt.Fprintf(&sb, "    %s: %s\n", c.Gray(attr.Name), attr.Value)
+		sb.Str("    ").Str(c.Gray(attr.Name)).Str(": ").Str(attr.Value).Byte(10)
 	}
 
 	if len(m.NLRI) > 0 {
-		fmt.Fprintf(&sb, "  %s%s%s\n", c.Gray("nlri:"), "      ", strings.Join(m.NLRI, ", "))
+		sb.Str("  ").Str(c.Gray("nlri:")).Str("      ").Join(m.NLRI, ", ").Byte(10)
 	}
 
 	if len(m.Withdrawn) > 0 {
-		fmt.Fprintf(&sb, "  %s%s%s\n", c.Gray("withdrawn:"), " ", strings.Join(m.Withdrawn, ", "))
+		sb.Str("  ").Str(c.Gray("withdrawn:")).Byte(' ').Join(m.Withdrawn, ", ").Byte(10)
 	}
 
 	return sb.String()
@@ -47,7 +45,7 @@ func ColoredDiff(expected, received string, c *Colors) string {
 	expMsg, expErr := decode.DecodeMessage(expected)
 	rcvMsg, rcvErr := decode.DecodeMessage(received)
 
-	var sb strings.Builder
+	var sb textbuf.Buffer
 
 	if expErr != nil || rcvErr != nil {
 		// Use plain diff when colored decode fails
@@ -74,31 +72,32 @@ func ColoredDiff(expected, received string, c *Colors) string {
 		allKeys[k] = true
 	}
 
+	var tb textbuf.Buffer
 	for key := range allKeys {
 		expVal, hasExp := expAttrs[key]
 		rcvVal, hasRcv := rcvAttrs[key]
 
 		switch {
 		case !hasExp:
-			fmt.Fprintf(&sb, "  %s: %s (unexpected)\n", key, c.Red("+"+rcvVal))
+			sb.Str("  ").Str(key).Str(": ").Str(c.Red(tb.Reset().Byte('+').Str(rcvVal).String())).Str(" (unexpected)\n")
 		case !hasRcv:
-			fmt.Fprintf(&sb, "  %s: %s (missing)\n", key, c.Green("-"+expVal))
+			sb.Str("  ").Str(key).Str(": ").Str(c.Green(tb.Reset().Byte('-').Str(expVal).String())).Str(" (missing)\n")
 		case expVal != rcvVal:
-			fmt.Fprintf(&sb, "  %s: %s %s\n", key, c.Green("-"+expVal), c.Red("+"+rcvVal))
+			sb.Str("  ").Str(key).Str(": ").Str(c.Green(tb.Reset().Byte('-').Str(expVal).String())).Byte(' ').Str(c.Red(tb.Reset().Byte('+').Str(rcvVal).String())).Byte(10)
 		}
 	}
 
 	// NLRI differences
-	expNLRI := strings.Join(expMsg.NLRI, ",")
-	rcvNLRI := strings.Join(rcvMsg.NLRI, ",")
+	expNLRI := textbuf.Join(expMsg.NLRI, ",")
+	rcvNLRI := textbuf.Join(rcvMsg.NLRI, ",")
 	if expNLRI != rcvNLRI {
-		fmt.Fprintf(&sb, "  NLRI: %s %s\n", c.Green("-"+expNLRI), c.Red("+"+rcvNLRI))
+		sb.Str("  NLRI: ").Str(c.Green(tb.Reset().Byte('-').Str(expNLRI).String())).Byte(' ').Str(c.Red(tb.Reset().Byte('+').Str(rcvNLRI).String())).Byte(10)
 	}
 
 	// Find byte-level differences
 	byteDiff := decode.FindByteDiff(expected, received)
 	if byteDiff != "" {
-		fmt.Fprintf(&sb, "  %s %s\n", c.Gray("raw diff:"), byteDiff)
+		sb.Str("  ").Str(c.Gray("raw diff:")).Byte(' ').Str(byteDiff).Byte(10)
 	}
 
 	return sb.String()

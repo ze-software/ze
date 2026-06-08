@@ -24,7 +24,6 @@ import (
 	"net"
 	"net/netip"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -38,6 +37,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/transport"
 	diagCmd "codeberg.org/thomas-mangin/ze/internal/plugins/diag/cmd"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // pluginLogger is the package-level logger. Set via UseLogger from
@@ -282,7 +282,7 @@ func resolveLoopDevices(wanted map[api.Key]sessionConfig) map[loopKey]string {
 					"vrf", lk.vrf,
 					"mode", lk.mode.String(),
 					"device", st.vrfBind,
-					"dropped-interfaces", strings.Join(dedupSorted(st.overriddenByVRF), ","))
+					"dropped-interfaces", textbuf.Join(dedupSorted(st.overriddenByVRF), ","))
 			}
 			continue
 		}
@@ -292,7 +292,7 @@ func resolveLoopDevices(wanted map[api.Key]sessionConfig) map[loopKey]string {
 			if len(st.ifaces) > 1 || (len(st.ifaces) >= 1 && st.sawEmptyIface) {
 				logger().Warn("bfd single-hop loop interface mismatch, skipping SO_BINDTODEVICE",
 					"vrf", lk.vrf,
-					"interfaces", strings.Join(sortedKeys(st.ifaces), ","),
+					"interfaces", textbuf.Join(sortedKeys(st.ifaces), ","),
 					"sessions-without-interface", st.sawEmptyIface)
 			}
 			out[lk] = ""

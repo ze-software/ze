@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errInvalidSseEventTypeContainsNewline = errors.New("invalid SSE event type: contains newline")
@@ -248,8 +250,9 @@ func BroadcastConfigChange(broker *EventBroker, username, reason string) {
 		return
 	}
 
+	var tb textbuf.Buffer
 	data := notificationBannerData{
-		Reason:     "Config changed by " + username + ": " + reason,
+		Reason:     tb.Str("Config changed by ").Str(username).Str(": ").Str(reason).String(),
 		RefreshURL: "/show/",
 	}
 

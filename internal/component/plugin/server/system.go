@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -58,7 +59,7 @@ func handleSystemDispatch(ctx *CommandContext, args []string) (*plugin.Response,
 		}, errDispatcherNotAvailable
 	}
 
-	command := strings.Join(args, " ")
+	command := textbuf.Join(args, " ")
 	return d.Dispatch(ctx, command)
 }
 
@@ -68,17 +69,18 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 
 	// Use dispatcher if available
 	if ctx.Dispatcher() != nil {
+		var tb textbuf.Buffer
 		for _, cmd := range ctx.Dispatcher().Commands() {
-			commands = append(commands, cmd.Name+" - "+cmd.Help)
+			commands = append(commands, tb.Reset().Str(cmd.Name).Str(" - ").Str(cmd.Help).String())
 		}
 		// Add plugin commands
 		for _, cmd := range ctx.Dispatcher().Registry().All() {
-			line := cmd.Name
+			tb.Reset().Str(cmd.Name)
 			if cmd.Args != "" {
-				line += " " + cmd.Args
+				tb.Byte(' ').Str(cmd.Args)
 			}
-			line += " - " + cmd.Description
-			commands = append(commands, line)
+			tb.Str(" - ").Str(cmd.Description)
+			commands = append(commands, tb.String())
 		}
 	}
 
@@ -218,7 +220,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 		if err := ctx.Server.ReloadFull(ctx.Context()); err != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  "reload failed: " + err.Error(),
+				Error:  func() string { var tb textbuf.Buffer; return tb.Str("reload failed: ").Err(err).String() }(),
 			}, err
 		}
 		return &plugin.Response{
@@ -235,7 +237,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 		if err := ctx.Server.ReloadFromDisk(ctx.Server.Context()); err != nil {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  "reload failed: " + err.Error(),
+				Error:  func() string { var tb textbuf.Buffer; return tb.Str("reload failed: ").Err(err).String() }(),
 			}, err
 		}
 		return &plugin.Response{
@@ -250,7 +252,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*plugin.Response, erro
 	if err := ctx.Reactor().Reload(); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "reload failed: " + err.Error(),
+			Error:  func() string { var tb textbuf.Buffer; return tb.Str("reload failed: ").Err(err).String() }(),
 		}, err
 	}
 	return &plugin.Response{
@@ -375,7 +377,7 @@ func LookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 
 	return &plugin.Response{
 		Status: plugin.StatusError,
-		Error:  "unknown " + kind + ": " + name,
+		Error:  func() string { var tb textbuf.Buffer; return tb.Str("unknown ").Str(kind).Str(": ").Str(name).String() }(),
 	}, fmt.Errorf("unknown %s: %s", kind, name)
 }
 

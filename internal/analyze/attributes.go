@@ -1,4 +1,3 @@
-
 // Design: (none -- research/analysis tool)
 //
 // Analyzes MRT dumps for BGP attribute repetition patterns to guide caching
@@ -18,6 +17,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // attrNames maps BGP attribute type codes to human-readable names.
@@ -476,7 +477,7 @@ func attrPrintSummary(w io.Writer, st *attrAnalysis) {
 	wf(w, "\nThis analysis shows how often BGP path attributes repeat across routes.\n")
 	wf(w, "High cache hit rates mean deduplication is effective; temporal locality\n")
 	wf(w, "shows whether a single-entry cache (last-seen) is enough.\n\n")
-	wf(w, "Files: %s\n", strings.Join(st.Files, ", "))
+	wf(w, "Files: %s\n", textbuf.Join(st.Files, ", "))
 	wf(w, "Total UPDATEs: %s\n\n", formatNumber(st.TotalUpdates))
 
 	type row struct {

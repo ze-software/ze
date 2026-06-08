@@ -16,10 +16,10 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // subcommands returns the sorted, comma-separated list of user-facing
@@ -34,7 +34,7 @@ func subcommands() string {
 		cmds = append(cmds, k)
 	}
 	sort.Strings(cmds)
-	return strings.Join(cmds, ", ")
+	return textbuf.Join(cmds, ", ")
 }
 
 // storageShortcut builds a local handler for a storage-backed `show config

@@ -4,7 +4,6 @@ package report
 
 import (
 	"io"
-	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
@@ -82,7 +81,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		d.rw.printf("\rpeer %d | disconnected (%d/%d)\n", ev.PeerIndex, d.established, d.cfg.PeerCount)
 	case peer.EventEORSent:
 		if len(ev.Families) > 0 {
-			d.rw.printf("\rpeer %d | eor-sent | %d routes [%s]\n", ev.PeerIndex, ev.Count, strings.Join(ev.Families, ", "))
+			d.rw.printf("\rpeer %d | eor-sent | %d routes [%s]\n", ev.PeerIndex, ev.Count, textbuf.Join(ev.Families, ", "))
 		} else {
 			d.rw.printf("\rpeer %d | eor-sent | %d routes\n", ev.PeerIndex, ev.Count)
 		}

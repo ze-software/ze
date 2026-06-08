@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func zeUsage() {
@@ -103,16 +103,16 @@ func printPlugins(jsonOutput bool) {
 		"----", "-----------", "---", "----------", "------")
 
 	for _, info := range plugins {
-		rfcs := strings.Join(info.RFCs, ", ")
+		rfcs := textbuf.Join(info.RFCs, ", ")
 		caps := ""
 		if len(info.Capabilities) > 0 {
 			capStrs := make([]string, len(info.Capabilities))
 			for i, c := range info.Capabilities {
 				capStrs[i] = strconv.Itoa(c)
 			}
-			caps = strings.Join(capStrs, ", ")
+			caps = textbuf.Join(capStrs, ", ")
 		}
-		families := strings.Join(info.Families, ", ")
+		families := textbuf.Join(info.Families, ", ")
 
 		fmt.Fprintf(os.Stdout, "%-12s  %-35s  %-20s  %-15s  %s\n", //nolint:errcheck // CLI output
 			info.Name, info.Description, rfcs, caps, families)

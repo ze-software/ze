@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -93,7 +94,7 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 		return nil, errors.New("usage: command help \"<name>\"")
 	}
 
-	name := strings.Join(args, " ")
+	name := textbuf.Join(args, " ")
 
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {

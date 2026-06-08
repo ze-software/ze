@@ -13,7 +13,6 @@ import (
 	"errors"
 	"slices"
 
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
@@ -329,7 +328,7 @@ func (f *FlowSpec) String() string {
 	for i, c := range f.components {
 		parts[i] = c.String()
 	}
-	return "flow " + strings.Join(parts, " ")
+	return "flow " + textbuf.Join(parts, " ")
 }
 
 // ComponentString returns just the components without the "flow" prefix.
@@ -342,7 +341,7 @@ func (f *FlowSpec) ComponentString() string {
 	for i, c := range f.components {
 		parts[i] = c.String()
 	}
-	return strings.Join(parts, " ")
+	return textbuf.Join(parts, " ")
 }
 
 // ParseFlowSpec parses a FlowSpec from wire format per RFC 8955 Section 4.

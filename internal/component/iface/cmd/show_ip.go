@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // defaultIPRouteLimit caps the number of entries returned by
@@ -69,13 +70,14 @@ func parseNeighborFamily(s string) (int, bool) {
 // backend name so the operator knows what is unsupported.
 func handleShowArp(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	const usage = "usage: show ip arp [--family ipv4|ipv6|any]"
+	var tb textbuf.Buffer
 	family := iface.NeighborFamilyAny
 	familySet := false
 	for i := 0; i < len(args); i++ {
 		if args[i] != "--family" {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  "unknown argument " + strconv.Quote(args[i]) + "; " + usage,
+				Error:  tb.Str("unknown argument ").Str(strconv.Quote(args[i])).Str("; ").Str(usage).String(),
 			}, nil
 		}
 		if i+1 >= len(args) {
@@ -94,7 +96,7 @@ func handleShowArp(_ *pluginserver.CommandContext, args []string) (*plugin.Respo
 		if !ok {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  "unknown family " + strconv.Quote(args[i+1]) + "; valid: ipv4, ipv6, any",
+				Error:  tb.Reset().Str("unknown family ").Str(strconv.Quote(args[i+1])).Str("; valid: ipv4, ipv6, any").String(),
 			}, nil
 		}
 		family = f
@@ -139,6 +141,7 @@ func handleShowIPRoute(_ *pluginserver.CommandContext, args []string) (*plugin.R
 // differ. `defaultLimit` lets callers pick a cap appropriate for their
 // audience (interactive operator vs. programmatic scrape).
 func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Response, error) {
+	var tb textbuf.Buffer
 	filter := ""
 	limit := defaultLimit
 	for i := 0; i < len(args); i++ {
@@ -149,7 +152,7 @@ func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Re
 			}
 			n, parseErr := strconv.Atoi(args[i+1])
 			if parseErr != nil || n <= 0 {
-				msg := "invalid --limit " + strconv.Quote(args[i+1]) + ": must be a positive integer"
+				msg := tb.Str("invalid --limit ").Str(strconv.Quote(args[i+1])).Str(": must be a positive integer").String()
 				return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil //nolint:nilerr // operational error via Response
 			}
 			limit = n
@@ -157,18 +160,18 @@ func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Re
 		case strings.HasPrefix(args[i], "--"):
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  "unknown flag " + strconv.Quote(args[i]) + "; " + usage,
+				Error:  tb.Reset().Str("unknown flag ").Str(strconv.Quote(args[i])).Str("; ").Str(usage).String(),
 			}, nil
 		default:
 			if filter != "" {
 				return &plugin.Response{
 					Status: plugin.StatusError,
-					Error:  "too many positional arguments; " + usage,
+					Error:  tb.Reset().Str("too many positional arguments; ").Str(usage).String(),
 				}, nil
 			}
 			if args[i] != "default" {
 				if _, err := netip.ParsePrefix(args[i]); err != nil {
-					msg := "invalid prefix " + strconv.Quote(args[i]) + ": " + err.Error()
+					msg := tb.Reset().Str("invalid prefix ").Str(strconv.Quote(args[i])).Str(": ").Err(err).String()
 					return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil //nolint:nilerr // operational error via Response
 				}
 			}

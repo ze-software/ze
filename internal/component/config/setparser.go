@@ -106,7 +106,7 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 // tokenizeLine splits a line into tokens, respecting quotes.
 func (p *SetParser) tokenizeLine(line string) []string {
 	var tokens []string
-	var current strings.Builder
+	var current textbuf.Buffer
 	inQuote := false
 	quoteChar := byte(0)
 
@@ -119,7 +119,7 @@ func (p *SetParser) tokenizeLine(line string) []string {
 				tokens = append(tokens, current.String())
 				current.Reset()
 			} else {
-				current.WriteByte(ch)
+				current.Byte(ch)
 			}
 			continue
 		}
@@ -138,7 +138,7 @@ func (p *SetParser) tokenizeLine(line string) []string {
 			continue
 		}
 
-		current.WriteByte(ch)
+		current.Byte(ch)
 	}
 
 	if current.Len() > 0 {
@@ -221,7 +221,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) < 1 {
 			return fmt.Errorf("line %d: multi-leaf %s expects at least one value", lineNum, name)
 		}
-		value := strings.Join(tokens, " ")
+		value := textbuf.Join(tokens, " ")
 		if err := validateValuePatterns(multi.Type, multi.Patterns, value); err != nil {
 			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
@@ -248,7 +248,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		}
 		for _, item := range bracketItems(tokens) {
 			if valueOrArray.ValidValues != nil && !containsString(valueOrArray.ValidValues, item) {
-				return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, strings.Join(valueOrArray.ValidValues, ", "))
+				return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, textbuf.Join(valueOrArray.ValidValues, ", "))
 			}
 			if err := validateValuePatterns(valueOrArray.Type, valueOrArray.Patterns, item); err != nil {
 				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
@@ -649,7 +649,7 @@ func parseBracketValue(tokens []string) string {
 	if tokens[0] == "[" && tokens[len(tokens)-1] == "]" {
 		tokens = tokens[1 : len(tokens)-1]
 	}
-	return strings.Join(tokens, " ")
+	return textbuf.Join(tokens, " ")
 }
 
 func normalizeSetValue(typ ValueType, value string) string {
@@ -680,7 +680,7 @@ func setFreeformValue(tree *Tree, name string, tokens []string, lineNum int) err
 	key := tokens[0]
 	value := configTrue
 	if len(tokens) > 1 {
-		value = strings.Join(tokens[1:], " ")
+		value = textbuf.Join(tokens[1:], " ")
 	}
 	child.Set(key, value)
 	return nil
@@ -702,7 +702,7 @@ func (p *SetParser) setFlexValue(tree *Tree, flex *FlexNode, name string, tokens
 	}
 
 	// Otherwise treat as a simple value.
-	tree.Set(name, strings.Join(tokens, " "))
+	tree.Set(name, textbuf.Join(tokens, " "))
 	return nil
 }
 

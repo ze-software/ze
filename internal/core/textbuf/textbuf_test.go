@@ -727,3 +727,29 @@ func TestAppendMAC(t *testing.T) {
 	assert.Equal(t, "mac=01:23:45:67:89:ab", string(dst))
 	assert.Equal(t, "short", string(AppendMAC([]byte("short"), []byte{1, 2})))
 }
+
+// TestNoescapeStackResidence verifies that var b Buffer stays on the stack
+// when used locally. This is the noescape trick (same as strings.Builder via
+// abi.NoEscape). If this test fails after a Go compiler update, DO NOT fix
+// the test. The noescape function no longer hides the self-referential slice
+// from escape analysis. Compare against:
+//   - $(go env GOROOT)/src/strings/builder.go  (copyCheck)
+//   - $(go env GOROOT)/src/internal/abi/escape.go  (NoEscape)
+//
+// Then update our noescape + inlineSlice to match whatever technique the
+// stdlib switched to.
+func TestNoescapeStackResidence(t *testing.T) {
+	allocs := testing.AllocsPerRun(100, func() {
+		var b Buffer
+		b.Reset().Str("peer:").Uint(65536).Byte(':').Uint(1)
+		_ = b.Bytes()
+	})
+	assert.Equal(t, 0.0, allocs, "var b Buffer + Reset + Bytes must be zero-alloc; noescape may be broken -- see test comment")
+
+	allocs = testing.AllocsPerRun(100, func() {
+		b := Get()
+		_ = b.Reset().Str("peer:").Uint(65536).Byte(':').Uint(1).Slice()
+		b.Release()
+	})
+	assert.Equal(t, 0.0, allocs, "Get + Slice + Release must be zero-alloc")
+}

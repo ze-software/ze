@@ -48,10 +48,11 @@ func BuildL2TPSessionsTableData() WorkbenchTableData {
 		for j := range t.Sessions {
 			s := &t.Sessions[j]
 			sidStr := strconv.Itoa(int(s.LocalSID))
-			var bKey textbuf.Buffer
+			var tb textbuf.Buffer
+			sessionURL := tb.Str("/l2tp/").Str(sidStr).String()
 			rows = append(rows, WorkbenchTableRow{
-				Key: bKey.Reset().Int(int64(t.LocalTID)).Byte('/').Str(sidStr).String(),
-				URL: "/l2tp/" + sidStr,
+				Key: tb.Reset().Int(int64(t.LocalTID)).Byte('/').Str(sidStr).String(),
+				URL: sessionURL,
 				Cells: []string{
 					strconv.Itoa(int(t.LocalTID)),
 					sidStr,
@@ -61,12 +62,12 @@ func BuildL2TPSessionsTableData() WorkbenchTableData {
 					s.PppInterface,
 				},
 				Actions: []WorkbenchRowAction{
-					{Label: "Detail", URL: "/l2tp/" + sidStr},
+					{Label: "Detail", URL: sessionURL},
 					{
 						Label:   "Disconnect",
-						HxPost:  "/l2tp/" + sidStr + "/disconnect",
+						HxPost:  tb.Reset().Str(sessionURL).Str("/disconnect").String(),
 						Class:   "danger",
-						Confirm: "Disconnect session " + sidStr + " (user " + s.Username + ")?",
+						Confirm: tb.Reset().Str("Disconnect session ").Str(sidStr).Str(" (user ").Str(s.Username).Str(")?").String(),
 					},
 				},
 			})

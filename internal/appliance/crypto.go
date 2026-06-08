@@ -15,6 +15,7 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -137,7 +138,8 @@ func WriteSecret(path string, plaintext, passphrase []byte) error {
 		data = plaintext
 	}
 
-	tmpPath := path + ".tmp"
+	var tb textbuf.Buffer
+	tmpPath := tb.Str(path).Str(".tmp").String()
 	if err := os.WriteFile(tmpPath, data, 0o600); err != nil {
 		return fmt.Errorf("write %s: %w", tmpPath, err)
 	}

@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
 )
 
@@ -747,5 +748,6 @@ func truncate(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "..."
+	var tb textbuf.Buffer
+	return tb.Str(s[:maxLen]).Str("...").String()
 }

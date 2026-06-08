@@ -38,6 +38,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Env var registrations for logging.
@@ -152,7 +153,8 @@ func getLogEnv(subsystem string) string {
 		if i == 0 {
 			key = "ze.log"
 		} else {
-			key = "ze.log." + strings.Join(parts[:i], ".")
+			var tb textbuf.Buffer
+			key = tb.Str("ze.log.").Join(parts[:i], ".").String()
 		}
 
 		if v := env.Get(key); v != "" {
@@ -166,7 +168,8 @@ func getLogEnv(subsystem string) string {
 // getSpecialEnv returns a special (non-hierarchical) env var value.
 // Used for backend, destination, relay which don't use hierarchical lookup.
 func getSpecialEnv(key string) string {
-	return env.Get("ze.log." + key)
+	var tb textbuf.Buffer
+	return env.Get(tb.Str("ze.log.").Str(key).String())
 }
 
 // Logger returns a logger for an engine subsystem.
@@ -430,6 +433,7 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 	for key, value := range logConfig {
 		var envKey string
 		isLevel := false
+		var tb textbuf.Buffer
 
 		switch key {
 		case "level":
@@ -441,16 +445,14 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 				writeWarn(warnWriter, "warning: %v\n", err)
 				continue
 			}
-			envKey = "ze.log." + key
+			envKey = tb.Reset().Str("ze.log.").Str(key).String()
 		case "destination":
-			// No validation for destination (address string)
-			envKey = "ze.log." + key
+			envKey = tb.Reset().Str("ze.log.").Str(key).String()
 		case "relay":
-			envKey = "ze.log." + key
+			envKey = tb.Reset().Str("ze.log.").Str(key).String()
 			isLevel = true
 		default:
-			// Subsystem path like "bgp.routes", "config", etc.
-			envKey = "ze.log." + key
+			envKey = tb.Reset().Str("ze.log.").Str(key).String()
 			isLevel = true
 		}
 
@@ -495,7 +497,7 @@ func ListLevels() map[string]string {
 func SetLevel(subsystem, level string) error {
 	lvl, enabled := parseLevel(level)
 	if !enabled {
-		return fmt.Errorf("invalid level %q (valid: %s)", level, strings.Join(validLevelNames, ", "))
+		return fmt.Errorf("invalid level %q (valid: %s)", level, textbuf.Join(validLevelNames, ", "))
 	}
 
 	val, ok := levelRegistry.Load(subsystem)

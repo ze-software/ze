@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const emptyMarker = "(empty)\n"
@@ -87,7 +89,8 @@ func (s tableStyle) renderValue(v any) string {
 		}
 		return s.renderPrimitiveList(val)
 	}
-	return fmt.Sprint(FormatNumber(v)) + "\n"
+	var tb textbuf.Buffer
+	return tb.Str(fmt.Sprint(FormatNumber(v))).Byte('\n').String()
 }
 
 // homogeneousMapOfMapsKeys returns the shared child keys if every value in m is a map
@@ -161,7 +164,7 @@ func (s tableStyle) renderMapOfMaps(m map[string]any, childKeys []string) string
 	}
 
 	// Render.
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.WriteString(s.drawBorder(widths, '┌', '┬', '┐'))
 
 	// Header row.
@@ -200,7 +203,7 @@ func (s tableStyle) renderRecord(m map[string]any) string {
 	}
 
 	widths := []int{keyWidth, valWidth}
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.WriteString(s.drawBorder(widths, '┌', '┬', '┐'))
 	for i := range keys {
 		s.writeRow(&b, []tableCell{keyCells[i], valCells[i]}, widths)
@@ -267,7 +270,7 @@ func (s tableStyle) renderList(arr []any) string {
 	}
 
 	// Render.
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.WriteString(s.drawBorder(widths, '┌', '┬', '┐'))
 
 	// Header row.
@@ -298,7 +301,7 @@ func (s tableStyle) renderPrimitiveList(arr []any) string {
 	}
 
 	widths := []int{width}
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.WriteString(s.drawBorder(widths, '┌', '┬', '┐'))
 	for _, c := range cells {
 		s.writeRow(&b, []tableCell{c}, widths)
@@ -328,7 +331,8 @@ func (s tableStyle) cellFromValue(v any) tableCell {
 		for i, item := range val {
 			parts[i] = fmt.Sprint(FormatNumber(item))
 		}
-		return cellFromString("[" + strings.Join(parts, ", ") + "]")
+		var tb textbuf.Buffer
+		return cellFromString(tb.Byte('[').Join(parts, ", ").Byte(']').String())
 	case bool:
 		return cellFromString(fmt.Sprint(val))
 	case nil:
@@ -363,24 +367,22 @@ func (s tableStyle) drawBorder(widths []int, left, mid, right rune) string {
 	if s.plain {
 		return ""
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.WriteRune(left)
 	for i, w := range widths {
-		for range w + 2 { // +2 for padding spaces
-			b.WriteRune('─')
-		}
+		b.Repeat("─", w+2)
 		if i < len(widths)-1 {
 			b.WriteRune(mid)
 		}
 	}
 	b.WriteRune(right)
-	b.WriteRune('\n')
+	b.Byte('\n')
 	return b.String()
 }
 
 // writeRow writes a potentially multi-line row to the builder.
 // In box mode: │-delimited cells with padding. In plain mode: space-aligned columns.
-func (s tableStyle) writeRow(b *strings.Builder, cells []tableCell, widths []int) {
+func (s tableStyle) writeRow(b *textbuf.Buffer, cells []tableCell, widths []int) {
 	// Find max height across all cells.
 	height := 1
 	for _, c := range cells {

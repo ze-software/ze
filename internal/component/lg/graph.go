@@ -7,7 +7,6 @@ package lg
 
 import (
 	"fmt"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/graph"
@@ -83,13 +82,15 @@ func extractASPath(route map[string]any) []uint32 {
 
 // renderGraphText returns a deterministic text representation for testing.
 func renderGraphText(g *Graph) string {
-	var sb strings.Builder
-	sb.WriteString("mode aspath\n")
+	var sb textbuf.Buffer
+	sb.Str("mode aspath\n")
+	var tb textbuf.Buffer
 	for _, n := range g.Nodes {
-		label := textbuf.StrInt("AS", int64(n.ASN))
+		tb.Reset().Str("AS").Int(int64(n.ASN))
 		if n.Name != "" {
-			label += " " + n.Name
+			tb.Byte(' ').Str(n.Name)
 		}
+		label := tb.String()
 		fmt.Fprintf(&sb, "node %s layer=%d\n", label, n.Layer)
 	}
 	for _, e := range g.Edges {

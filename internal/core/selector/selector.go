@@ -301,18 +301,20 @@ func (sel *Selector) String() string {
 		for i, ip := range sel.ips {
 			strs[i] = ip.String()
 		}
-		base = strings.Join(strs, ",")
+		base = textbuf.Join(strs, ",")
 	case KindName:
 		base = sel.name
 	case KindASN:
-		base = "as" + textbuf.Uint32(sel.asn)
+		var tb textbuf.Buffer
+		base = tb.Str("as").Uint32(sel.asn).String()
 	case KindGlob:
 		base = sel.name
 	default:
 		return "<invalid>"
 	}
 	if sel.exclude {
-		return "!" + base
+		var tb textbuf.Buffer
+		return tb.Byte('!').Str(base).String()
 	}
 	return base
 }

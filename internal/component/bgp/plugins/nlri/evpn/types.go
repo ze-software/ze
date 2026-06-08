@@ -334,21 +334,15 @@ func (e *EVPNType1) Len() int {
 }
 
 func (e *EVPNType1) String() string {
-	var sb strings.Builder
-	sb.WriteString("ethernet-ad rd ")
-	sb.WriteString(e.rd.String())
-	sb.WriteString(" esi ")
-	sb.WriteString(e.esi.String())
-	sb.WriteString(" etag ")
-	fmt.Fprintf(&sb, "%d", e.ethernetTag)
+	var b textbuf.Buffer
+	b.Str("ethernet-ad rd ").Str(e.rd.String()).Str(" esi ").Str(e.esi.String()).Str(" etag ").Uint32(e.ethernetTag)
 	if len(e.labels) > 0 {
-		sb.WriteString(" label ")
-		fmt.Fprintf(&sb, "%d", e.labels[0])
+		b.Str(" label ").Uint32(e.labels[0])
 		for _, l := range e.labels[1:] {
-			fmt.Fprintf(&sb, ",%d", l)
+			b.Byte(',').Uint32(l)
 		}
 	}
-	return sb.String()
+	return b.String()
 }
 
 // EVPNType2 represents a MAC/IP Advertisement route (RFC 7432 Section 7.2).
@@ -507,26 +501,21 @@ func (e *EVPNType2) Len() int {
 }
 
 func (e *EVPNType2) String() string {
-	var sb strings.Builder
-	sb.WriteString("mac-ip rd ")
-	sb.WriteString(e.rd.String())
-	sb.WriteString(" mac ")
-	fmt.Fprintf(&sb, "%02x:%02x:%02x:%02x:%02x:%02x",
-		e.mac[0], e.mac[1], e.mac[2], e.mac[3], e.mac[4], e.mac[5])
+	var b textbuf.Buffer
+	b.Str("mac-ip rd ").Str(e.rd.String()).Str(" mac ").MAC(e.mac[:])
 	if e.ip.IsValid() {
-		sb.WriteString(" ip ")
-		sb.WriteString(e.ip.String())
+		b.Str(" ip ").Addr(e.ip)
 	}
 	if e.ethernetTag != 0 {
-		fmt.Fprintf(&sb, " etag %d", e.ethernetTag)
+		b.Str(" etag ").Uint32(e.ethernetTag)
 	}
 	if len(e.labels) > 0 {
-		fmt.Fprintf(&sb, " label %d", e.labels[0])
+		b.Str(" label ").Uint32(e.labels[0])
 		for _, l := range e.labels[1:] {
-			fmt.Fprintf(&sb, ",%d", l)
+			b.Byte(',').Uint32(l)
 		}
 	}
-	return sb.String()
+	return b.String()
 }
 
 // EVPNType3 represents an Inclusive Multicast Ethernet Tag route (RFC 7432 Section 7.3).
@@ -625,15 +614,12 @@ func (e *EVPNType3) Len() int {
 }
 
 func (e *EVPNType3) String() string {
-	var sb strings.Builder
-	sb.WriteString("multicast rd ")
-	sb.WriteString(e.rd.String())
-	sb.WriteString(" ip ")
-	sb.WriteString(e.originatorIP.String())
+	var b textbuf.Buffer
+	b.Str("multicast rd ").Str(e.rd.String()).Str(" ip ").Addr(e.originatorIP)
 	if e.ethernetTag != 0 {
-		fmt.Fprintf(&sb, " etag %d", e.ethernetTag)
+		b.Str(" etag ").Uint32(e.ethernetTag)
 	}
-	return sb.String()
+	return b.String()
 }
 
 // EVPNType4 represents an Ethernet Segment route (RFC 7432 Section 7.4).
@@ -749,14 +735,8 @@ func (e *EVPNType4) Len() int {
 }
 
 func (e *EVPNType4) String() string {
-	var sb strings.Builder
-	sb.WriteString("ethernet-segment rd ")
-	sb.WriteString(e.rd.String())
-	sb.WriteString(" esi ")
-	sb.WriteString(e.esi.String())
-	sb.WriteString(" ip ")
-	sb.WriteString(e.originatorIP.String())
-	return sb.String()
+	var b textbuf.Buffer
+	return b.Str("ethernet-segment rd ").Str(e.rd.String()).Str(" esi ").Str(e.esi.String()).Str(" ip ").Addr(e.originatorIP).String()
 }
 
 // EVPNType5 represents an IP Prefix route (RFC 9136 Section 3).
@@ -906,29 +886,24 @@ func (e *EVPNType5) Len() int {
 }
 
 func (e *EVPNType5) String() string {
-	var sb strings.Builder
-	sb.WriteString("ip-prefix rd ")
-	sb.WriteString(e.rd.String())
-	sb.WriteString(" prefix ")
-	sb.WriteString(e.prefix.String())
+	var b textbuf.Buffer
+	b.Str("ip-prefix rd ").Str(e.rd.String()).Str(" prefix ").Prefix(e.prefix)
 	if !e.esi.IsZero() {
-		sb.WriteString(" esi ")
-		sb.WriteString(e.esi.String())
+		b.Str(" esi ").Str(e.esi.String())
 	}
 	if e.ethernetTag != 0 {
-		fmt.Fprintf(&sb, " etag %d", e.ethernetTag)
+		b.Str(" etag ").Uint32(e.ethernetTag)
 	}
 	if e.gateway.IsValid() && !e.gateway.IsUnspecified() {
-		sb.WriteString(" gateway ")
-		sb.WriteString(e.gateway.String())
+		b.Str(" gateway ").Addr(e.gateway)
 	}
 	if len(e.labels) > 0 {
-		fmt.Fprintf(&sb, " label %d", e.labels[0])
+		b.Str(" label ").Uint32(e.labels[0])
 		for _, l := range e.labels[1:] {
-			fmt.Fprintf(&sb, ",%d", l)
+			b.Byte(',').Uint32(l)
 		}
 	}
-	return sb.String()
+	return b.String()
 }
 
 // EVPNGeneric holds unparsed EVPN routes.

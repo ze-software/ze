@@ -69,7 +69,7 @@ func buildDelta(setBlock map[string]any) string {
 		parts = append(parts, textbuf.StrInt("as-path-prepend ", int64(v)))
 	}
 
-	return strings.Join(parts, " ")
+	return textbuf.Join(parts, " ")
 }
 
 // buildDynamicDelta computes the full delta text at runtime, combining the

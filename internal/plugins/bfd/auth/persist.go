@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // DefaultFlushInterval is the cadence at which the persister writes
@@ -188,7 +190,8 @@ func sanitizeSessionKey(key string) string {
 // primary write/sync/close failure with any tempfile cleanup error
 // so both surface without %w collisions.
 func writeSeqFile(path string, value uint32) error {
-	tmp := path + ".tmp"
+	var tb textbuf.Buffer
+	tmp := tb.Str(path).Str(".tmp").String()
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) //nolint:gosec // path is built from an absolute, caller-validated dir plus a sanitized session key
 	if err != nil {
 		return err

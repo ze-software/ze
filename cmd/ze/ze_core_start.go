@@ -25,6 +25,7 @@ import (
 	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	internalresolve "codeberg.org/thomas-mangin/ze/internal/core/resolve"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -107,7 +108,8 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 					fmt.Fprintf(os.Stderr, "error: --mcp port must be 1-65535, got %q\n", args[i])
 					return 1
 				}
-				mcpAddr = "127.0.0.1:" + args[i]
+				var tb textbuf.Buffer
+				mcpAddr = tb.Str("127.0.0.1:").Str(args[i]).String()
 			} else {
 				fmt.Fprintf(os.Stderr, "error: --mcp requires a port\n")
 				return 1
@@ -126,9 +128,10 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	webEnabled := webPort != ""
 	webListenAddr := ""
 	if webEnabled {
-		webListenAddr = "0.0.0.0:" + webPort
+		var tb textbuf.Buffer
+		webListenAddr = tb.Str("0.0.0.0:").Str(webPort).String()
 		if insecureWeb {
-			webListenAddr = "127.0.0.1:" + webPort
+			webListenAddr = tb.Reset().Str("127.0.0.1:").Str(webPort).String()
 		}
 	}
 	if insecureWeb && !webEnabled {

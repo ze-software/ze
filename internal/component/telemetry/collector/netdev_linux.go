@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/procfs"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type netDevCollector struct {
@@ -71,7 +72,8 @@ func (c *netDevCollector) Collect() error {
 		if !ok {
 			continue
 		}
-		chart := "net." + iface
+		var tb textbuf.Buffer
+		chart := tb.Str("net.").Str(iface).String()
 		family := iface
 
 		rxDelta := safeDelta(cur.RxBytes, prev.RxBytes)
@@ -114,7 +116,8 @@ func (c *netDevCollector) Collect() error {
 		if _, ok := curIfaces[iface]; ok {
 			continue
 		}
-		chart := "net." + iface
+		var tb textbuf.Buffer
+		chart := tb.Str("net.").Str(iface).String()
 		family := iface
 		for _, dim := range []string{"received", "sent"} {
 			c.bandwidth.Delete(chart, dim, family)

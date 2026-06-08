@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -61,12 +62,12 @@ func (h *Hub) RouteCommand(ctx context.Context, block *ConfigBlock) error {
 
 	// Format command: <namespace> <path> <action> {json}.
 	// If path is empty (handler is just namespace), omit it.
-	var cmd string
-	if path == "" {
-		cmd = namespace + " " + block.Action + " " + block.Data
-	} else {
-		cmd = namespace + " " + path + " " + block.Action + " " + block.Data
+	var tb textbuf.Buffer
+	tb.Str(namespace)
+	if path != "" {
+		tb.Byte(' ').Str(path)
 	}
+	cmd := tb.Byte(' ').Str(block.Action).Byte(' ').Str(block.Data).String()
 
 	// Send command to plugin.
 	resp, err := handler.Handle(ctx, cmd)
@@ -146,7 +147,8 @@ func (h *Hub) routeTransaction(ctx context.Context, namespace, action string) er
 		return fmt.Errorf("plugin not found for namespace %s: %s", namespace, schema.Plugin)
 	}
 
-	cmd := namespace + " " + action
+	var tb2 textbuf.Buffer
+	cmd := tb2.Str(namespace).Byte(' ').Str(action).String()
 
 	resp, err := handler.Handle(ctx, cmd)
 	if err != nil {

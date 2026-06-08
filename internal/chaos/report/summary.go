@@ -6,7 +6,6 @@ package report
 import (
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -163,7 +162,7 @@ func (s *Summary) Write(w io.Writer) int {
 				parts = append(parts, be.Reset().Int(int64(len(pf.Extra))).Str(" extra").String())
 			}
 			rw.printf("    peer %d: %s (expected %d, have %d)\n",
-				pf.PeerIndex, strings.Join(parts, ", "), pf.ExpectedCount, pf.ActualCount)
+				pf.PeerIndex, textbuf.Join(parts, ", "), pf.ExpectedCount, pf.ActualCount)
 			writePrefixList(rw, "missing", pf.Missing)
 			writePrefixList(rw, "extra", pf.Extra)
 		}

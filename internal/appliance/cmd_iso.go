@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/thirdparty/fat"
 )
 
@@ -541,7 +542,8 @@ func allocateISOBuilderOutput(finalPath string) (string, error) {
 }
 
 func readRequiredImageChecksum(imgPath string) (string, error) {
-	checksumPath := imgPath + ".sha256"
+	var tb textbuf.Buffer
+	checksumPath := tb.Str(imgPath).Str(".sha256").String()
 	data, err := os.ReadFile(checksumPath) //nolint:gosec // appliance sidecar
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -594,14 +596,15 @@ func stageISO(input isoBuildInput, img *os.File, staging string) error {
 	if err := copyFile(input.initrdPath, filepath.Join(staging, "boot", "initrd.img.gz")); err != nil {
 		return err
 	}
-	compressedName := input.imageName + ".gz"
+	var tb2 textbuf.Buffer
+	compressedName := tb2.Str(input.imageName).Str(".gz").String()
 	imageDest := filepath.Join(staging, "ze-install", "images", compressedName)
 	compressedSHA, err := compressOpenFileGzip(img, imageDest)
 	if err != nil {
 		return err
 	}
-	checksumLine := compressedSHA + "  " + compressedName + "\n"
-	if err := os.WriteFile(imageDest+".sha256", []byte(checksumLine), 0o644); err != nil { //nolint:gosec // checksum metadata
+	checksumLine := tb2.Reset().Str(compressedSHA).Str("  ").Str(compressedName).Byte('\n').String()
+	if err := os.WriteFile(tb2.Reset().Str(imageDest).Str(".sha256").String(), []byte(checksumLine), 0o644); err != nil { //nolint:gosec // checksum metadata
 		return fmt.Errorf("write staged checksum: %w", err)
 	}
 	manifest := isoManifest{
@@ -693,26 +696,20 @@ func writeGrubConfig(path string, input isoBuildInput) error {
 	if err != nil {
 		return err
 	}
-	var b strings.Builder
-	b.WriteString("set timeout=5\n")
-	b.WriteString("set default=0\n")
-	b.WriteString("search --no-floppy --file /ze-install/media-id --set=root\n")
-	b.WriteString("menuentry 'Install Ze appliance ")
-	b.WriteString(input.appliance)
-	b.WriteString("' {\n")
-	b.WriteString("    linux /boot/kernel ")
-	b.WriteString(consoleArgs)
-	b.WriteString(" ze.source=iso ze.image=")
-	b.WriteString(input.imageName)
-	b.WriteString(" ze.media-id=")
-	b.WriteString(input.mediaID)
+	var b textbuf.Buffer
+	b.Str("set timeout=5\n")
+	b.Str("set default=0\n")
+	b.Str("search --no-floppy --file /ze-install/media-id --set=root\n")
+	b.Str("menuentry 'Install Ze appliance ").Str(input.appliance).Str("' {\n")
+	b.Str("    linux /boot/kernel ").Str(consoleArgs)
+	b.Str(" ze.source=iso ze.image=").Str(input.imageName)
+	b.Str(" ze.media-id=").Str(input.mediaID)
 	if input.target != "" {
-		b.WriteString(" ze.target=")
-		b.WriteString(input.target)
+		b.Str(" ze.target=").Str(input.target)
 	}
-	b.WriteString("\n")
-	b.WriteString("    initrd /boot/initrd.img.gz\n")
-	b.WriteString("}\n")
+	b.Byte('\n')
+	b.Str("    initrd /boot/initrd.img.gz\n")
+	b.Str("}\n")
 	return os.WriteFile(path, []byte(b.String()), 0o644) //nolint:gosec // boot config
 }
 
@@ -813,7 +810,8 @@ func createEFIBootImage(imagePath, efiBootFile, efiBinaryPath string) error {
 	if err != nil {
 		return fmt.Errorf("verify EFI boot image: %w", err)
 	}
-	if _, _, err := rd.Extents("/" + filepath.ToSlash(filepath.Join("EFI", "BOOT", efiBootFile))); err != nil {
+	var tbEfi textbuf.Buffer
+	if _, _, err := rd.Extents(tbEfi.Byte('/').Str(filepath.ToSlash(filepath.Join("EFI", "BOOT", efiBootFile))).String()); err != nil {
 		return fmt.Errorf("verify EFI boot file in image: %w", err)
 	}
 	return nil

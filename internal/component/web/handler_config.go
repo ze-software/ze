@@ -177,7 +177,7 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		// __default__ means "delete this leaf, revert to YANG default".
 		if value == "__default__" {
 			if err := mgr.DeleteValue(username, path, leaf); err != nil {
-				errPath := strings.Join(append(path, leaf), "/")
+				errPath := textbuf.Join(append(path, leaf), "/")
 				if renderer != nil {
 					WriteOOBError(w, renderer, errPath, err.Error(), http.StatusBadRequest)
 				} else {
@@ -200,7 +200,7 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			// Validate YANG type for the leaf.
 			if leafNode := findLeafNode(schema, path, leaf); leafNode != nil {
 				if valErr := config.ValidateValue(leafNode.Type, value); valErr != nil {
-					errPath := strings.Join(append(path, leaf), "/")
+					errPath := textbuf.Join(append(path, leaf), "/")
 					if renderer != nil {
 						WriteOOBError(w, renderer, errPath, valErr.Error(), http.StatusBadRequest)
 					} else {
@@ -212,7 +212,7 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 
 			// Check unique constraints for inline table edits.
 			if uniqueErr := validateUniqueOnSet(mgr.Tree(username), schema, path, leaf, value); uniqueErr != "" {
-				errPath := strings.Join(append(path, leaf), "/")
+				errPath := textbuf.Join(append(path, leaf), "/")
 				if renderer != nil {
 					WriteOOBError(w, renderer, errPath, uniqueErr, http.StatusConflict)
 				} else {
@@ -222,7 +222,7 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			}
 
 			if err := mgr.SetValue(username, path, leaf, value); err != nil {
-				errPath := strings.Join(append(path, leaf), "/")
+				errPath := textbuf.Join(append(path, leaf), "/")
 				if renderer != nil {
 					WriteOOBError(w, renderer, errPath, err.Error(), http.StatusBadRequest)
 				} else {
@@ -244,7 +244,7 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 				}
 				leafNode := findLeafNode(schema, path, leaf)
 				if leafNode != nil {
-					field := buildFieldMetaFromLeaf(leaf, leafNode, effectiveValue, strings.Join(path, "/"))
+					field := buildFieldMetaFromLeaf(leaf, leafNode, effectiveValue, textbuf.Join(path, "/"))
 					fieldHTML := renderer.RenderField(field)
 					if _, writeErr := w.Write([]byte(fieldHTML)); writeErr != nil {
 						return
@@ -344,8 +344,9 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		if ln, ok := listNode.(*config.ListNode); ok && len(ln.Required) > 0 {
 			parentTree := resolveParentDefaults(tree, listPath)
 			for _, reqPath := range ln.Required {
-				fieldStr := strings.Join(reqPath, "/")
-				formVal := strings.TrimSpace(r.FormValue("field:" + fieldStr))
+				fieldStr := textbuf.Join(reqPath, "/")
+				var tb textbuf.Buffer
+				formVal := strings.TrimSpace(r.FormValue(tb.Str("field:").Str(fieldStr).String()))
 				inherited := resolveInheritedValue(parentTree, fieldStr)
 				if formVal == "" && inherited == "" {
 					returnAddError(w, r, renderer, schema, mgr, username, listPath,
@@ -410,7 +411,8 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			// Keyless lists: redirect to the new entry so the page reloads with it.
 			if ln, ok := listNode.(*config.ListNode); ok && ln.KeyName == "" {
-				target := "/show/" + strings.Join(path, "/") + "/"
+				var tb textbuf.Buffer
+				target := tb.Str("/show/").Join(path, "/").Byte('/').String()
 				w.Header().Set("HX-Redirect", target)
 				w.WriteHeader(http.StatusOK)
 				return
@@ -630,7 +632,10 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 			DisplayKey string
 			Fields     []formField
 		}{
-			AddURL:     "/config/add/" + strings.Join(listPath, "/") + "/",
+			AddURL: func() string {
+				var tb textbuf.Buffer
+				return tb.Str("/config/add/").Join(listPath, "/").Byte('/').String()
+			}(),
 			ListName:   listName,
 			KeyName:    listNode.KeyName,
 			Keyless:    keyless,
@@ -910,11 +915,11 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 	}
 
 	if len(result.Conflicts) > 0 {
-		var msg strings.Builder
-		msg.WriteString("Commit conflicts:\n")
+		var msg textbuf.Buffer
+		msg.Str("Commit conflicts:\n")
 
 		for _, c := range result.Conflicts {
-			fmt.Fprintf(&msg, "  %s: want %q, other (%s) has %q\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
+			msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
 		}
 
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
@@ -1062,10 +1067,12 @@ func parentFromCurrentURL(r *http.Request) string {
 func redirectBackOneLevel(w http.ResponseWriter, r *http.Request, currentPath []string) {
 	parentPath := configEditPath
 	if len(currentPath) > 0 {
-		parentPath = configEditPath + strings.Join(currentPath[:len(currentPath)-1], "/")
+		var tb textbuf.Buffer
+		tb.Str(configEditPath).Join(currentPath[:len(currentPath)-1], "/")
 		if len(currentPath) > 1 {
-			parentPath += "/"
+			tb.Byte('/')
 		}
+		parentPath = tb.String()
 	}
 
 	htmxRedirect(w, r, parentPath)
@@ -1142,11 +1149,11 @@ func HandleConfigView(renderer *Renderer, schema *config.Schema, tree *config.Tr
 
 		// Full HTML: render config content inside layout.
 		layoutData := LayoutData{
-			Title:       "Ze: /" + strings.Join(path, "/"),
+			Title:       func() string { var tb textbuf.Buffer; return tb.Str("Ze: /").Join(path, "/").String() }(),
 			Content:     contentHTML,
 			Breadcrumbs: viewData.Breadcrumbs,
 			HasSession:  true,
-			CLIPrompt:   "/" + strings.Join(path, "/") + ">",
+			CLIPrompt:   func() string { var tb textbuf.Buffer; return tb.Byte('/').Join(path, "/").Byte('>').String() }(),
 			ActiveUI:    uiModeTokenFinder,
 		}
 

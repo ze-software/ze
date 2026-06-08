@@ -10,9 +10,9 @@ package cli
 
 import (
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // schemaCommands lists the user-facing subcommand names, kept in sync with the
@@ -26,7 +26,7 @@ func subcommands() string {
 	sorted := make([]string, len(schemaCommands))
 	copy(sorted, schemaCommands)
 	sort.Strings(sorted)
-	return strings.Join(sorted, ", ")
+	return textbuf.Join(sorted, ", ")
 }
 
 func init() {

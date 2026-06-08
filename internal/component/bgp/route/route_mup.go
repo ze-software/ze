@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -142,7 +143,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 			}
 			// Collect bracketed value - must set spec.ExtCommunity for MUP
 			tokens, consumed := attribute.ParseBracketedList(args[i+1:])
-			spec.ExtCommunity = "[" + strings.Join(tokens, " ") + "]"
+			spec.ExtCommunity = "[" + textbuf.Join(tokens, " ") + "]"
 			i += consumed
 			continue
 

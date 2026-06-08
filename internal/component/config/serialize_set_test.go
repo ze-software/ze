@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // TestSerializeSetSimpleLeaf verifies serialization of a simple leaf value.
@@ -876,7 +878,7 @@ func TestBlameGutterWidth(t *testing.T) {
 				Time:   time.Date(2026, 3, 12, 14, 30, 0, 0, time.UTC),
 			}
 
-			var b strings.Builder
+			var b textbuf.Buffer
 			writeMetaEntryGutter(&b, entry)
 			got := b.String()
 			assert.Equal(t, blameGutterWidth, len(got),
@@ -891,7 +893,7 @@ func TestBlameGutterWidth(t *testing.T) {
 // VALIDATES: Empty gutter produces blameGutterWidth (29) spaces for alignment.
 // PREVENTS: Jagged alignment between lines with and without blame metadata.
 func TestBlameEmptyGutterWidth(t *testing.T) {
-	var b strings.Builder
+	var b textbuf.Buffer
 	writeEmptyGutter(&b)
 	got := b.String()
 	assert.Equal(t, blameGutterWidth, len(got),

@@ -157,7 +157,8 @@ func ForkDaemon(ctx context.Context, config, binary string, target scenario.Targ
 			"-P", "0",
 		}
 	case scenario.TargetBIRD:
-		ctlPath := tmpPath + ".ctl"
+		var tb textbuf.Buffer
+		ctlPath := tb.Str(tmpPath).Str(".ctl").String()
 		args = []string{
 			"-f",
 			"-c", tmpPath,

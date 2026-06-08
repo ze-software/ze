@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -126,7 +127,8 @@ func (b *bridge) handleUpdate(jsonStr, peer string) {
 		}
 
 		for _, op := range ops {
-			nlriKey := famStr + "|" + string(op.NLRI)
+			var tb textbuf.Buffer
+			nlriKey := tb.Str(famStr).Byte('|').Str(string(op.NLRI)).String()
 			switch op.Action {
 			case "add":
 				changed = b.handleFlowSpecAdd(peer, fam, nlriKey, op.NLRI, act) || changed

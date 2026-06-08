@@ -19,6 +19,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/cmd"                           // init() registers BFD show RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor"           // init() registers monitor streaming RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
@@ -541,7 +543,8 @@ func verbContextPath(cliPath, verb string) (string, bool) {
 		}
 		return "", false
 	}
-	prefix := verb + " "
+	var tb textbuf.Buffer
+	prefix := tb.Str(verb).Byte(' ').String()
 	rest, ok := strings.CutPrefix(cliPath, prefix)
 	if !ok || rest == "" {
 		return "", false
@@ -560,8 +563,8 @@ func recordContextDescriptions(dst map[string]string, cliPath, effective string)
 		return
 	}
 	for i := 1; i <= len(effParts); i++ {
-		effPrefix := strings.Join(effParts[:i], " ")
-		origPrefix := strings.Join(origParts[:offset+i], " ")
+		effPrefix := textbuf.Join(effParts[:i], " ")
+		origPrefix := textbuf.Join(origParts[:offset+i], " ")
 		if dst[effPrefix] != "" {
 			continue
 		}
@@ -830,7 +833,7 @@ func fetchPeerSelectorsFromDispatch(dispatch CommandFunc) []cmd.Suggestion {
 		if info.Name != "" {
 			suggestions = append(suggestions, cmd.Suggestion{
 				Text:        info.Name,
-				Description: "peer (" + ip + ")",
+				Description: func() string { var tb textbuf.Buffer; return tb.Str("peer (").Str(ip).Byte(')').String() }(),
 				Type:        "selector",
 			})
 		}
@@ -887,7 +890,7 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 		if info.Name != "" {
 			suggestions = append(suggestions, cmd.Suggestion{
 				Text:        info.Name,
-				Description: "peer (" + ip + ")",
+				Description: func() string { var tb textbuf.Buffer; return tb.Str("peer (").Str(ip).Byte(')').String() }(),
 				Type:        "selector",
 			})
 		}

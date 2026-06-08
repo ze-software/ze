@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
@@ -164,7 +163,7 @@ func skillNames() string {
 	for i, s := range inventory {
 		names[i] = s.Name
 	}
-	return strings.Join(names, ", ")
+	return textbuf.Join(names, ", ")
 }
 
 func usage() {

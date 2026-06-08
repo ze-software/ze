@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errCommandNameCannotBeEmpty = errors.New("command name cannot be empty")
@@ -71,7 +72,7 @@ func validVerbList() string {
 		verbs = append(verbs, v)
 	}
 	sort.Strings(verbs)
-	return strings.Join(verbs, ", ")
+	return textbuf.Join(verbs, ", ")
 }
 
 // validateCommandName checks that a command name is well-formed for dispatch.
@@ -206,6 +207,7 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 	results := make([]RegisterResult, len(defs))
 	now := time.Now()
 
+	var tb textbuf.Buffer
 	for i, def := range defs {
 		key := strings.ToLower(def.Name)
 		results[i].Name = def.Name
@@ -220,14 +222,14 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 		// Check builtin conflict
 		if r.builtins[key] {
 			results[i].OK = false
-			results[i].Error = "conflicts with builtin: " + def.Name
+			results[i].Error = tb.Reset().Str("conflicts with builtin: ").Str(def.Name).String()
 			continue
 		}
 
 		// Check existing registration
 		if existing, ok := r.commands[key]; ok {
 			results[i].OK = false
-			results[i].Error = "already registered by process: " + existing.Process.Config().Name
+			results[i].Error = tb.Reset().Str("already registered by process: ").Str(existing.Process.Config().Name).String()
 			continue
 		}
 

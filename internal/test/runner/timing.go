@@ -10,8 +10,9 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const timingsFile = "tmp/test-timings.json"
@@ -164,10 +165,11 @@ func FormatTimingLine(suite string, records []*Record, timings Timings, colors *
 		}
 		dur := formatDuration(rec.Duration)
 		slow, _ := timings.IsSlow(suite, rec.Name, rec.Duration)
+		var tb textbuf.Buffer
 		if slow {
-			parts = append(parts, rec.Nick+":"+colors.Yellow(dur+"!"))
+			parts = append(parts, tb.Reset().Str(rec.Nick).Byte(':').Str(colors.Yellow(tb.Reset().Str(dur).Byte('!').String())).String())
 		} else {
-			parts = append(parts, rec.Nick+":"+dur)
+			parts = append(parts, tb.Reset().Str(rec.Nick).Byte(':').Str(dur).String())
 		}
 	}
 
@@ -175,31 +177,31 @@ func FormatTimingLine(suite string, records []*Record, timings Timings, colors *
 		return ""
 	}
 	const prefix = "timing: " // 8 chars — joinWrap continuation indent matches this
-	return colors.Gray("timing:") + " " + joinWrap(parts, summaryWidth-len(prefix))
+	var tb2 textbuf.Buffer
+	return tb2.Str(colors.Gray("timing:")).Byte(' ').Str(joinWrap(parts, summaryWidth-len(prefix))).String()
 }
 
 // FormatSlowTests returns detail lines for slow tests.
 // Format: "slow: K addpath 2.1s (avg 1.0s)".
 func FormatSlowTests(suite string, records []*Record, timings Timings, colors *Colors) string {
 	var lines []string
+	var tb textbuf.Buffer
 	for _, rec := range records {
 		if rec.State != StateSuccess && rec.State != StateFail && rec.State != StateTimeout {
 			continue
 		}
 		slow, expected := timings.IsSlow(suite, rec.Name, rec.Duration)
 		if slow {
-			lines = append(lines, "  "+colors.Yellow(rec.Nick)+" "+rec.Name+" "+colors.Yellow(formatDuration(rec.Duration))+" (avg "+formatDuration(expected)+")")
+			lines = append(lines, tb.Reset().Str("  ").Str(colors.Yellow(rec.Nick)).Byte(' ').Str(rec.Name).Byte(' ').Str(colors.Yellow(formatDuration(rec.Duration))).Str(" (avg ").Str(formatDuration(expected)).Byte(')').String())
 		}
 	}
 	if len(lines) == 0 {
 		return ""
 	}
-	var b strings.Builder
-	b.WriteString(colors.Yellow("slow:"))
-	b.WriteByte('\n')
+	var b textbuf.Buffer
+	b.Str(colors.Yellow("slow:")).Byte(10)
 	for _, l := range lines {
-		b.WriteString(l)
-		b.WriteByte('\n')
+		b.Str(l).Byte(10)
 	}
 	return b.String()
 }
@@ -210,7 +212,7 @@ func joinWrap(parts []string, maxWidth int) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	lineLen := 0
 	for i, p := range parts {
 		vlen := visibleLen(p)
@@ -219,13 +221,13 @@ func joinWrap(parts []string, maxWidth int) string {
 			addition++ // space
 		}
 		if lineLen+addition > maxWidth && lineLen > 0 {
-			b.WriteString("\n        ") // indent continuation
+			b.Byte(10).Str("        ") // indent continuation
 			lineLen = 8
 		} else if i > 0 {
-			b.WriteByte(' ')
+			b.Byte(' ')
 			lineLen++
 		}
-		b.WriteString(p)
+		b.Str(p)
 		lineLen += vlen
 	}
 	return b.String()

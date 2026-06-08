@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var logger = slogutil.LazyLogger("test.runner")
@@ -33,7 +34,7 @@ func TestBuildTags() string {
 		return r == ',' || r == ' ' || r == '\t' || r == '\n'
 	})
 	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro")
-	return strings.Join(tags, ",")
+	return textbuf.Join(tags, ",")
 }
 
 // RunOptions configures test execution.
@@ -155,7 +156,8 @@ func (r *Runner) Build(ctx context.Context) error {
 
 	// Build ze (with version ldflags matching Makefile convention)
 	now := time.Now()
-	ldflags := "-X main.version=" + now.Format("06.01.02") + " -X main.buildDate=" + now.UTC().Format("2006-01-02T15:04:05Z")
+	var tb textbuf.Buffer
+	ldflags := tb.Str("-X main.version=").Str(now.Format("06.01.02")).Str(" -X main.buildDate=").Str(now.UTC().Format("2006-01-02T15:04:05Z")).String()
 	cmd := exec.CommandContext(ctx, "go", "build", "-tags", TestBuildTags(), "-ldflags", ldflags, "-o", r.zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")

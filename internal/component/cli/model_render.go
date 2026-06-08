@@ -46,7 +46,7 @@ func sanitizeForDisplay(s string) string {
 		return s
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.Grow(len(s))
 	runes := []rune(s)
 	for i := 0; i < len(runes); i++ {
@@ -226,23 +226,26 @@ func highlightValidationIssues(content string, errors, warnings []ConfigValidati
 		}
 
 		if origLineNum > 0 {
+			var tb textbuf.Buffer
 			if msg, ok := errorMsgs[origLineNum]; ok {
 				styled := errorLineStyle.Render(line)
 				if showHints {
-					styled += dimStyle.Render("  ← " + msg)
+					lines[i] = tb.Str(styled).Str(dimStyle.Render(tb.Reset().Str("  ← ").Str(msg).String())).String()
+				} else {
+					lines[i] = styled
 				}
-				lines[i] = styled
 			} else if msg, ok := warningMsgs[origLineNum]; ok {
 				styled := warningLineStyle.Render(line)
 				if showHints {
-					styled += dimStyle.Render("  ← " + msg)
+					lines[i] = tb.Str(styled).Str(dimStyle.Render(tb.Reset().Str("  ← ").Str(msg).String())).String()
+				} else {
+					lines[i] = styled
 				}
-				lines[i] = styled
 			}
 		}
 	}
 
-	return strings.Join(lines, "\n")
+	return textbuf.Join(lines, "\n")
 }
 
 // shortDiagnostic extracts a concise message for inline display.
@@ -257,7 +260,8 @@ func shortDiagnostic(msg string) string {
 	if strings.HasPrefix(msg, "missing required field") {
 		if start := strings.IndexByte(msg, '"'); start >= 0 {
 			if end := strings.IndexByte(msg[start+1:], '"'); end >= 0 {
-				return "missing: " + msg[start+1:start+1+end]
+				var tb textbuf.Buffer
+				return tb.Str("missing: ").Str(msg[start+1 : start+1+end]).String()
 			}
 		}
 	}
@@ -369,7 +373,7 @@ func (m Model) View() tea.View {
 		lines = lines[:viewHeight]
 	}
 
-	baseView := strings.Join(lines, "\n")
+	baseView := textbuf.Join(lines, "\n")
 
 	// Overlay dropdown if showing
 	if m.showDropdown && len(m.completions) > 0 {
@@ -401,7 +405,8 @@ func (m Model) messageLines() (string, string) {
 // feedbackLine returns the top message line: command results and status.
 func (m Model) feedbackLine() string {
 	if m.err != nil {
-		return errorStyle.Render("Error: " + m.err.Error())
+		var tb textbuf.Buffer
+		return errorStyle.Render(tb.Str("Error: ").Err(m.err).String())
 	}
 	if m.statusMessage != "" {
 		if strings.HasPrefix(m.statusMessage, "welcome") {
@@ -415,7 +420,8 @@ func (m Model) feedbackLine() string {
 			strings.HasPrefix(m.statusMessage, "Pending changes"):
 			style = warnStyle
 		}
-		return style.Render("► " + m.statusMessage)
+		var tb textbuf.Buffer
+		return style.Render(tb.Str("► ").Str(m.statusMessage).String())
 	}
 	return m.idleInfoLine()
 }
@@ -441,15 +447,16 @@ func (m Model) warningLine() string {
 
 // idleInfoLine returns the default info line shown when there's no error or status.
 func (m Model) idleInfoLine() string {
-	var info string
+	var tb textbuf.Buffer
 	if m.editor != nil {
-		info = "Ze Editor [" + m.mode.String() + "]"
+		tb.Str("Ze Editor [").Str(m.mode.String()).Byte(']')
 		if m.editor.Dirty() {
-			info += " [modified]"
+			tb.Str(" [modified]")
 		}
 	} else {
-		info = "Ze CLI [" + m.mode.String() + "]"
+		tb.Str("Ze CLI [").Str(m.mode.String()).Byte(']')
 	}
+	info := tb.String()
 
 	// Validation indicator
 	if len(m.validationErrors) > 0 {
@@ -524,7 +531,7 @@ func placeOverlay(x, y int, fg, bg string) string {
 		result = append(result, overlayLine(bgLine, fgLine, x))
 	}
 
-	return strings.Join(result, "\n")
+	return textbuf.Join(result, "\n")
 }
 
 // overlayLine places fg on top of bg at position x, handling ANSI codes.
@@ -535,9 +542,10 @@ func overlayLine(bg, fg string, x int) string {
 	// ANSI reset to prevent style bleed
 	const reset = "\x1b[0m"
 
+	var tb textbuf.Buffer
 	// If bg is shorter than x, just pad and add fg
 	if bgWidth <= x {
-		return bg + reset + strings.Repeat(" ", x-bgWidth) + fg
+		return tb.Str(bg).Str(reset).Repeat(" ", x-bgWidth).Str(fg).String()
 	}
 
 	// Need to slice bg around fg insertion point
@@ -546,9 +554,9 @@ func overlayLine(bg, fg string, x int) string {
 	leftWidth := ansi.PrintableRuneWidth(left)
 
 	// Pad if truncation was short
-	padding := ""
-	if leftWidth < x {
-		padding = strings.Repeat(" ", x-leftWidth)
+	pad := x - leftWidth
+	if pad < 0 {
+		pad = 0
 	}
 
 	// Get right portion: skip x + fgWidth visible chars
@@ -558,15 +566,15 @@ func overlayLine(bg, fg string, x int) string {
 	// so we can restore the background's active styling after the overlay.
 	bgRestore := collectAnsiState(bg, x+fgWidth)
 
-	return left + reset + padding + fg + reset + bgRestore + right
+	return tb.Str(left).Str(reset).Repeat(" ", pad).Str(fg).Str(reset).Str(bgRestore).Str(right).String()
 }
 
 // collectAnsiState walks s up to width visible characters and returns
 // all ANSI escape sequences encountered, concatenated. Replaying these
 // sequences restores the terminal styling that was active at that point.
 func collectAnsiState(s string, width int) string {
-	var seqs strings.Builder
-	var seq strings.Builder
+	var seqs textbuf.Buffer
+	var seq textbuf.Buffer
 	w := 0
 	inEsc := false
 
@@ -585,7 +593,7 @@ func collectAnsiState(s string, width int) string {
 			seq.WriteRune(r)
 			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
 				inEsc = false
-				seqs.WriteString(seq.String())
+				seqs.Str(seq.String())
 			}
 			continue
 		}
@@ -602,7 +610,7 @@ func truncateAtWidth(s string, width int) string {
 		return ""
 	}
 
-	var result strings.Builder
+	var result textbuf.Buffer
 	w := 0
 	inEsc := false
 
@@ -722,39 +730,45 @@ func (m Model) renderDropdownBox(availableHeight int) string {
 			cmd = string(cmdRunes[:cmdWidth])
 		}
 
-		desc := strings.Join(strings.Fields(comp.Description), " ")
+		desc := textbuf.Join(strings.Fields(comp.Description), " ")
 		if descRunes := []rune(desc); len(descRunes) > descWidth {
-			desc = string(descRunes[:descWidth-3]) + "..."
+			var tb textbuf.Buffer
+			desc = tb.Str(string(descRunes[:descWidth-3])).Str("...").String()
 		}
 
 		// Format: prefix(2) + cmd(cmdWidth) + padding to cmdWidth+3 + desc
-		line := prefix + cmd
-		for len(line) < cmdWidth+3 {
-			line += " "
+		var lb textbuf.Buffer
+		lb.Str(prefix).Str(cmd)
+		for lb.Len() < cmdWidth+3 {
+			lb.Byte(' ')
 		}
-		line += desc
-		for len(line) < innerWidth {
-			line += " "
+		lb.Str(desc)
+		for lb.Len() < innerWidth {
+			lb.Byte(' ')
 		}
+		line := lb.String()
 		if len(line) > innerWidth {
 			line = line[:innerWidth]
 		}
 
-		lines = append(lines, "│ "+line+" │")
+		var lb2 textbuf.Buffer
+		lines = append(lines, lb2.Str("│ ").Str(line).Str(" │").String())
 	}
 
 	if len(m.completions) > maxShow {
-		more := textbuf.StrIntStr("  ... ", int64(len(m.completions)-maxShow), " more")
-		for len(more) < innerWidth {
-			more += " "
+		var mb textbuf.Buffer
+		mb.Str("  ... ").Int(int64(len(m.completions) - maxShow)).Str(" more")
+		for mb.Len() < innerWidth {
+			mb.Byte(' ')
 		}
-		lines = append(lines, "│ "+more+" │")
+		var lb3 textbuf.Buffer
+		lines = append(lines, lb3.Str("│ ").Str(mb.String()).Str(" │").String())
 	}
 
 	// Bottom border
 	lines = append(lines, "╰"+strings.Repeat("─", innerWidth+2)+"╯")
 
-	return strings.Join(lines, "\n")
+	return textbuf.Join(lines, "\n")
 }
 
 // renderHelpOverlay renders help as a floating overlay.
@@ -850,17 +864,15 @@ Press Esc to close this help.`
 	overlayLines := strings.Split(overlay, "\n")
 
 	// Simple overlay: just show it after a few lines of base
-	var result strings.Builder
+	var result textbuf.Buffer
 	for i, line := range lines {
 		if i < 3 {
-			result.WriteString(line)
-			result.WriteString("\n")
+			result.Str(line).Byte('\n')
 		}
 	}
-	result.WriteString("\n")
+	result.Byte('\n')
 	for _, line := range overlayLines {
-		result.WriteString(line)
-		result.WriteString("\n")
+		result.Str(line).Byte('\n')
 	}
 
 	return result.String()
@@ -876,10 +888,9 @@ func (m Model) buildPrompt() string {
 		return promptStyle.Render("ze# ")
 	}
 
-	contextStr := strings.Join(m.contextPath, " ")
-	return promptStyle.Render("ze") +
-		contextStyle.Render("["+contextStr+"]") +
-		promptStyle.Render("# ")
+	contextStr := textbuf.Join(m.contextPath, " ")
+	var tb textbuf.Buffer
+	return tb.Str(promptStyle.Render("ze")).Str(contextStyle.Render(tb.Reset().Byte('[').Str(contextStr).Byte(']').String())).Str(promptStyle.Render("# ")).String()
 }
 
 // renderInputWithGhost renders the text input.

@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -19,6 +18,7 @@ import (
 
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -167,10 +167,9 @@ func runInit(args []string) int {
 	}
 
 	if len(cfg.Credentials.SSHAuthorizedKeys) > 0 {
-		var sb strings.Builder
+		var sb textbuf.Buffer
 		for _, k := range cfg.Credentials.SSHAuthorizedKeys {
-			sb.WriteString(k)
-			sb.WriteByte('\n')
+			sb.Str(k).Byte('\n')
 		}
 		authKeysPath := secretFilePath(dir, name, "authorized_keys")
 		if err := os.WriteFile(authKeysPath, []byte(sb.String()), 0o600); err != nil {
@@ -198,7 +197,8 @@ func runInit(args []string) int {
 }
 
 func secretFilePath(baseDir, name, file string) string {
-	return SecretsDir(baseDir, name) + "/" + file
+	var tb textbuf.Buffer
+	return tb.Str(SecretsDir(baseDir, name)).Byte('/').Str(file).String()
 }
 
 func promptConfig(cfg *ApplianceConfig, r io.Reader, w io.Writer) error {
@@ -268,8 +268,9 @@ func readPassphraseForInit(pw io.Writer) []byte {
 }
 
 func writeTLSSecrets(baseDir, name string, cfg *ApplianceConfig, certFile, keyFile string, passphrase []byte) error {
-	certPath := TLSDir(baseDir, name) + "/cert.pem"
-	keyPath := TLSDir(baseDir, name) + "/key.pem"
+	var tb textbuf.Buffer
+	certPath := tb.Str(TLSDir(baseDir, name)).Str("/cert.pem").String()
+	keyPath := tb.Reset().Str(TLSDir(baseDir, name)).Str("/key.pem").String()
 
 	if certFile != "" && keyFile != "" {
 		certData, err := os.ReadFile(certFile) //nolint:gosec // user-provided path
@@ -465,10 +466,9 @@ func initOneFromBatch(dir string, entry batchEntry, password string, passphrase 
 	}
 
 	if len(cfg.Credentials.SSHAuthorizedKeys) > 0 {
-		var sb strings.Builder
+		var sb textbuf.Buffer
 		for _, k := range cfg.Credentials.SSHAuthorizedKeys {
-			sb.WriteString(k)
-			sb.WriteByte('\n')
+			sb.Str(k).Byte('\n')
 		}
 		authKeysPath := secretFilePath(dir, name, "authorized_keys")
 		if err := os.WriteFile(authKeysPath, []byte(sb.String()), 0o600); err != nil {

@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	hostinv "codeberg.org/thomas-mangin/ze/internal/component/host"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // All section names and their detector bodies live in the host
@@ -272,7 +273,7 @@ func renderKernelText(v *hostinv.KernelInfo) int {
 		fmt.Printf("Microcode:    %s\n", v.MicrocodeRevision)
 	}
 	if len(v.ArchFlags) > 0 {
-		fmt.Printf("Arch flags:   %s\n", strings.Join(v.ArchFlags, " "))
+		fmt.Printf("Arch flags:   %s\n", textbuf.Join(v.ArchFlags, " "))
 	}
 	if v.Cmdline != "" {
 		fmt.Printf("Cmdline:      %s\n", v.Cmdline)

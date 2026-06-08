@@ -6,10 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var irrOperations = []string{"as-set", "prefix"}
@@ -73,7 +73,7 @@ func cmdIRR(ctx context.Context, args []string) int {
 
 	default:
 		fmt.Fprintf(os.Stderr, "unknown irr operation: %s\n", op)
-		fmt.Fprintf(os.Stderr, "valid operations: %s\n", strings.Join(irrOperations, ", "))
+		fmt.Fprintf(os.Stderr, "valid operations: %s\n", textbuf.Join(irrOperations, ", "))
 		return exitError
 	}
 

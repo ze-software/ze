@@ -231,14 +231,14 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 					}
 					// Release old entry if replacing.
 					if old, exists := ps.ribOut[peerAddr][fam][prefix]; exists && old.MsgID != msgID {
-						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").Slice())
+						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").String())
 					}
 					ps.ribOut[peerAddr][fam][prefix] = &StoredRoute{
 						MsgID:  msgID,
 						Family: fam,
 						Prefix: prefix,
 					}
-					ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(msgID).Str(" retain").Slice())
+					ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(msgID).Str(" retain").String())
 
 				case "del":
 					familyRoutes := ps.ribOut[peerAddr][fam]
@@ -246,7 +246,7 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 						continue
 					}
 					if old, exists := familyRoutes[prefix]; exists {
-						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").Slice())
+						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").String())
 						delete(familyRoutes, prefix)
 					}
 					// Clean up empty maps
@@ -363,17 +363,17 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 						ps.ribOut[peerAddr][fam] = make(map[string]*StoredRoute)
 					}
 					if old, exists := ps.ribOut[peerAddr][fam][prefix]; exists && old.MsgID != msgID {
-						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").Slice())
+						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").String())
 					}
 					ps.ribOut[peerAddr][fam][prefix] = &StoredRoute{MsgID: msgID, Family: fam, Prefix: prefix}
-					ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(msgID).Str(" retain").Slice())
+					ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(msgID).Str(" retain").String())
 				} else if op.Action == "del" {
 					familyRoutes := ps.ribOut[peerAddr][fam]
 					if familyRoutes == nil {
 						continue
 					}
 					if old, exists := familyRoutes[prefix]; exists {
-						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").Slice())
+						ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(old.MsgID).Str(" release").String())
 						delete(familyRoutes, prefix)
 					}
 					if len(familyRoutes) == 0 {
@@ -646,7 +646,7 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 		}
 		ps.mu.RUnlock()
 
-		ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(entry.msgID).Str(" forward ").Str(peerAddr).Slice())
+		ps.updateRoute(peerAddr, ps.buf.Reset().Str("cache ").Uint(entry.msgID).Str(" forward ").Str(peerAddr).String())
 	}
 
 	ps.sendEOR(peerAddr, families)
@@ -666,7 +666,7 @@ func (ps *PersistServer) peerFamilies(peerAddr string) map[family.Family]bool {
 // sendEOR sends End-of-RIB markers for each negotiated family.
 func (ps *PersistServer) sendEOR(peerAddr string, families map[family.Family]bool) {
 	for fam := range families {
-		ps.updateRoute(peerAddr, ps.buf.Reset().Str("update text nlri ").Str(fam.String()).Str(" eor").Slice())
+		ps.updateRoute(peerAddr, ps.buf.Reset().Str("update text nlri ").Str(fam.String()).Str(" eor").String())
 	}
 }
 
@@ -844,7 +844,7 @@ func buildPersistNLRIEntries(tokens []string) []any {
 		if !strings.Contains(tok, ",") {
 			continue
 		}
-		typePrefix := strings.Join(tokens[:i], " ")
+		typePrefix := textbuf.Join(tokens[:i], " ")
 		var nlris []any
 		for part := range strings.SplitSeq(tok, ",") {
 			part = strings.TrimSpace(part)
@@ -865,18 +865,18 @@ func buildPersistNLRIEntries(tokens []string) []any {
 		var current []string
 		for _, tok := range tokens {
 			if tok == tokens[0] && len(current) > 0 {
-				nlris = append(nlris, strings.Join(current, " "))
+				nlris = append(nlris, textbuf.Join(current, " "))
 				current = nil
 			}
 			current = append(current, tok)
 		}
 		if len(current) > 0 {
-			nlris = append(nlris, strings.Join(current, " "))
+			nlris = append(nlris, textbuf.Join(current, " "))
 		}
 		return nlris
 	}
 
-	return []any{strings.Join(tokens, " ")}
+	return []any{textbuf.Join(tokens, " ")}
 }
 
 // parsePersistState extracts state from a text state event.

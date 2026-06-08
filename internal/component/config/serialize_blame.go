@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -28,7 +30,7 @@ func computeBlameMarker(e MetaEntry) rune {
 
 // writeMetaEntryGutter writes the full blame gutter for a MetaEntry.
 // Username is truncated to blameUserWidth to keep the gutter fixed-width.
-func writeMetaEntryGutter(b *strings.Builder, e MetaEntry) {
+func writeMetaEntryGutter(b *textbuf.Buffer, e MetaEntry) {
 	user := truncateRunes(sanitizePrintable(e.User), blameUserWidth)
 	date := e.Time.Format("01-02")
 	timeStr := e.Time.Format("15:04")
@@ -37,12 +39,12 @@ func writeMetaEntryGutter(b *strings.Builder, e MetaEntry) {
 }
 
 // writeEmptyGutter writes an empty gutter (all spaces).
-func writeEmptyGutter(b *strings.Builder) {
-	b.WriteString(strings.Repeat(" ", blameGutterWidth))
+func writeEmptyGutter(b *textbuf.Buffer) {
+	b.Str(strings.Repeat(" ", blameGutterWidth))
 }
 
 // writeBlameGutter writes the blame gutter for a leaf with metadata, or empty padding.
-func writeBlameGutter(b *strings.Builder, meta *MetaTree, name string) {
+func writeBlameGutter(b *textbuf.Buffer, meta *MetaTree, name string) {
 	if meta != nil {
 		if entries := meta.entries[name]; len(entries) > 0 {
 			e := entries[len(entries)-1]
@@ -58,7 +60,7 @@ func writeBlameGutter(b *strings.Builder, meta *MetaTree, name string) {
 // writeOpenBraceGutter writes the gutter for an opening brace line.
 // Inherits the full gutter (user/date/time/marker) from the first child
 // in the subtree that has metadata, per spec.
-func writeOpenBraceGutter(b *strings.Builder, meta *MetaTree) {
+func writeOpenBraceGutter(b *textbuf.Buffer, meta *MetaTree) {
 	if e, ok := firstSubtreeEntry(meta); ok {
 		writeMetaEntryGutter(b, e)
 		return
@@ -68,7 +70,7 @@ func writeOpenBraceGutter(b *strings.Builder, meta *MetaTree) {
 
 // writeCloseBraceGutter writes the gutter for a closing brace line.
 // Inherits the full gutter from the last child in the subtree that has metadata.
-func writeCloseBraceGutter(b *strings.Builder, meta *MetaTree) {
+func writeCloseBraceGutter(b *textbuf.Buffer, meta *MetaTree) {
 	if e, ok := lastSubtreeEntry(meta); ok {
 		writeMetaEntryGutter(b, e)
 		return
@@ -173,7 +175,7 @@ func reverseSortedMapKeys(m map[string]*MetaTree) []string {
 // SerializeBlame produces a hierarchical tree view with a fixed-width blame gutter
 // showing authorship and change markers for each leaf.
 func SerializeBlame(tree *Tree, meta *MetaTree, schema *Schema) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	serializeBlameTree(&b, tree, meta, schema.root, 0)
 	return b.String()
 }
@@ -183,7 +185,7 @@ func SerializeBlame(tree *Tree, meta *MetaTree, schema *Schema) string {
 // Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the walk
 // so callees can read tree / meta internals directly. Recursion into sub-
 // trees / sub-metas acquires their own locks independently.
-func serializeBlameTree(b *strings.Builder, tree *Tree, meta *MetaTree, parent childProvider, indent int) {
+func serializeBlameTree(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent childProvider, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	if meta != nil {
@@ -200,7 +202,7 @@ func serializeBlameTree(b *strings.Builder, tree *Tree, meta *MetaTree, parent c
 // serializeBlameTreeNode dispatches blame serialization by node type in hierarchical format.
 //
 //nolint:cyclop // exhaustive switch over all node types is intentional
-func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node Node, indent int) {
+func serializeBlameTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node Node, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	switch n := node.(type) {
@@ -210,65 +212,65 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		}
 		if v, ok := tree.values[name]; ok {
 			writeBlameGutter(b, meta, name)
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(normalizeBool(v)))
-			b.WriteString("\n")
+			b.Str(name)
+			b.Str(" ")
+			b.Str(quoteIfNeeded(normalizeBool(v)))
+			b.Str("\n")
 		}
 
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
 			writeBlameGutter(b, meta, name)
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(v)
-			b.WriteString("\n")
+			b.Str(name)
+			b.Str(" ")
+			b.Str(v)
+			b.Str("\n")
 		}
 
 	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
 			writeBlameGutter(b, meta, name)
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
-			b.WriteString(" [ ")
-			b.WriteString(v)
-			b.WriteString(" ]\n")
+			b.Str(name)
+			b.Str(" [ ")
+			b.Str(v)
+			b.Str(" ]\n")
 		}
 
 	case *ValueOrArrayNode:
 		// Direct access: caller holds tree.mu.RLock via serializeBlameTree.
 		if items := tree.multiValues[name]; len(items) > 0 {
 			writeBlameGutter(b, meta, name)
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
+			b.Str(name)
 			if len(items) == 1 {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(items[0]))
+				b.Str(" ")
+				b.Str(quoteIfNeeded(items[0]))
 			} else {
-				b.WriteString(" [ ")
+				b.Str(" [ ")
 				for i, item := range items {
 					if i > 0 {
-						b.WriteString(" ")
+						b.Str(" ")
 					}
-					b.WriteString(quoteIfNeeded(item))
+					b.Str(quoteIfNeeded(item))
 				}
-				b.WriteString(" ]")
+				b.Str(" ]")
 			}
-			b.WriteString("\n")
+			b.Str("\n")
 		}
 
 	case *ContainerNode:
@@ -295,39 +297,39 @@ func serializeBlameTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name
 }
 
 // serializeBlameContainer handles container nodes in hierarchical blame view.
-func serializeBlameContainer(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *ContainerNode, indent int) {
+func serializeBlameContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *ContainerNode, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	if node.Presence {
 		if v, ok := tree.values[name]; ok {
 			writeBlameGutter(b, meta, name)
-			b.WriteString(prefix)
-			b.WriteString(name)
+			b.Str(prefix)
+			b.Str(name)
 			if v != configTrue {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(v))
+				b.Str(" ")
+				b.Str(quoteIfNeeded(v))
 			}
-			b.WriteString("\n")
+			b.Str("\n")
 		}
 	}
 	if child := tree.containers[name]; child != nil {
 		childMeta := metaContainerChild(meta, name)
 		writeOpenBraceGutter(b, childMeta)
-		b.WriteString(prefix)
+		b.Str(prefix)
 		if child.IsInactive() {
-			b.WriteString("inactive: ")
+			b.Str("inactive: ")
 		}
-		b.WriteString(name)
-		b.WriteString(" {\n")
+		b.Str(name)
+		b.Str(" {\n")
 		serializeBlameTree(b, child, childMeta, node, indent+1)
 		writeCloseBraceGutter(b, childMeta)
-		b.WriteString(prefix)
-		b.WriteString("}\n")
+		b.Str(prefix)
+		b.Str("}\n")
 	}
 }
 
 // serializeBlameList handles list nodes in hierarchical blame view.
-func serializeBlameList(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *ListNode, indent int) {
+func serializeBlameList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *ListNode, indent int) {
 	entries := tree.lists[name]
 	if entries == nil {
 		return
@@ -351,25 +353,25 @@ func serializeBlameList(b *strings.Builder, tree *Tree, meta *MetaTree, name str
 		displayKey := StripListKeySuffix(key)
 		entryMeta := metaListEntry(meta, name, key)
 		writeOpenBraceGutter(b, entryMeta)
-		b.WriteString(prefix)
+		b.Str(prefix)
 		if entry.IsInactive() {
-			b.WriteString("inactive: ")
+			b.Str("inactive: ")
 		}
-		b.WriteString(name)
+		b.Str(name)
 		if key != KeyDefault {
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(displayKey))
+			b.Str(" ")
+			b.Str(quoteIfNeeded(displayKey))
 		}
-		b.WriteString(" {\n")
+		b.Str(" {\n")
 		serializeBlameTree(b, entry, entryMeta, node, indent+1)
 		writeCloseBraceGutter(b, entryMeta)
-		b.WriteString(prefix)
-		b.WriteString("}\n")
+		b.Str(prefix)
+		b.Str("}\n")
 	}
 }
 
 // serializeBlameFreeform handles freeform nodes in hierarchical blame view.
-func serializeBlameFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, name string, indent int) {
+func serializeBlameFreeform(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, indent int) {
 	child := tree.containers[name]
 	if child == nil {
 		return
@@ -382,9 +384,9 @@ func serializeBlameFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, name
 	// firstSubtreeEntry in writeOpenBraceGutter self-locks childMeta.
 	// Do not hold childMeta.mu here.
 	writeOpenBraceGutter(b, childMeta)
-	b.WriteString(prefix)
-	b.WriteString(name)
-	b.WriteString(" {\n")
+	b.Str(prefix)
+	b.Str(name)
+	b.Str(" {\n")
 
 	// Lock child + childMeta for the loop body's direct reads.
 	child.mu.RLock()
@@ -401,19 +403,19 @@ func serializeBlameFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, name
 	for _, k := range keys {
 		v := child.values[k]
 		writeBlameGutter(b, childMeta, k)
-		b.WriteString(innerPrefix)
-		b.WriteString(k)
+		b.Str(innerPrefix)
+		b.Str(k)
 		if v != configTrue {
 			if strings.HasPrefix(v, "[ ") && strings.HasSuffix(v, " ]") {
-				b.WriteString(" ")
-				b.WriteString(v)
+				b.Str(" ")
+				b.Str(v)
 			} else {
-				b.WriteString(" [ ")
-				b.WriteString(v)
-				b.WriteString(" ]")
+				b.Str(" [ ")
+				b.Str(v)
+				b.Str(" ]")
 			}
 		}
-		b.WriteString("\n")
+		b.Str("\n")
 	}
 
 	if childMeta != nil {
@@ -422,44 +424,44 @@ func serializeBlameFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, name
 	child.mu.RUnlock()
 
 	writeCloseBraceGutter(b, childMeta)
-	b.WriteString(prefix)
-	b.WriteString("}\n")
+	b.Str(prefix)
+	b.Str("}\n")
 }
 
 // serializeBlameFlex handles flex nodes in hierarchical blame view.
-func serializeBlameFlex(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *FlexNode, indent int) {
+func serializeBlameFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *FlexNode, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	if v, ok := tree.values[name]; ok {
 		writeBlameGutter(b, meta, name)
-		b.WriteString(prefix)
-		b.WriteString(name)
+		b.Str(prefix)
+		b.Str(name)
 		if v != configTrue {
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(v))
+			b.Str(" ")
+			b.Str(quoteIfNeeded(v))
 		}
-		b.WriteString("\n")
+		b.Str("\n")
 	} else if mv := tree.multiValues[name]; len(mv) > 0 {
 		for _, v := range mv {
 			writeBlameGutter(b, meta, name)
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(v)
-			b.WriteString("\n")
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" ")
+			b.Str(v)
+			b.Str("\n")
 		}
 	}
 
 	if child := tree.containers[name]; child != nil {
 		flexChildMeta := metaContainerChild(meta, name)
 		writeOpenBraceGutter(b, flexChildMeta)
-		b.WriteString(prefix)
-		b.WriteString(name)
-		b.WriteString(" {\n")
+		b.Str(prefix)
+		b.Str(name)
+		b.Str(" {\n")
 		serializeBlameTree(b, child, flexChildMeta, node, indent+1)
 		writeCloseBraceGutter(b, flexChildMeta)
-		b.WriteString(prefix)
-		b.WriteString("}\n")
+		b.Str(prefix)
+		b.Str("}\n")
 	}
 
 	if entries := tree.lists[name]; entries != nil {
@@ -472,21 +474,21 @@ func serializeBlameFlex(b *strings.Builder, tree *Tree, meta *MetaTree, name str
 			entry := entries[key]
 			entryMeta := metaListEntry(meta, name, key)
 			writeOpenBraceGutter(b, entryMeta)
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(key))
-			b.WriteString(" {\n")
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" ")
+			b.Str(quoteIfNeeded(key))
+			b.Str(" {\n")
 			serializeBlameTree(b, entry, entryMeta, node, indent+1)
 			writeCloseBraceGutter(b, entryMeta)
-			b.WriteString(prefix)
-			b.WriteString("}\n")
+			b.Str(prefix)
+			b.Str("}\n")
 		}
 	}
 }
 
 // serializeBlameInlineList handles inline list entries in hierarchical blame view.
-func serializeBlameInlineList(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *InlineListNode, indent int) {
+func serializeBlameInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *InlineListNode, indent int) {
 	entries := tree.lists[name]
 	if entries == nil {
 		return
@@ -513,27 +515,27 @@ func serializeBlameInlineList(b *strings.Builder, tree *Tree, meta *MetaTree, na
 
 		writeOpenBraceGutter(b, entryMeta)
 		if hasValues {
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(displayKey))
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" ")
+			b.Str(quoteIfNeeded(displayKey))
 			entry.mu.RLock()
 			for _, attrName := range node.Children() {
 				if v, ok := entry.values[attrName]; ok {
-					b.WriteString(" ")
-					b.WriteString(attrName)
-					b.WriteString(" ")
-					b.WriteString(quoteIfNeeded(v))
+					b.Str(" ")
+					b.Str(attrName)
+					b.Str(" ")
+					b.Str(quoteIfNeeded(v))
 				}
 			}
 			entry.mu.RUnlock()
-			b.WriteString("\n")
+			b.Str("\n")
 		} else {
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(displayKey))
-			b.WriteString(" {\n")
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" ")
+			b.Str(quoteIfNeeded(displayKey))
+			b.Str(" {\n")
 			innerPrefix := strings.Repeat("\t", indent+1)
 			entry.mu.RLock()
 			if entryMeta != nil {
@@ -545,25 +547,25 @@ func serializeBlameInlineList(b *strings.Builder, tree *Tree, meta *MetaTree, na
 					continue
 				}
 				writeBlameGutter(b, entryMeta, childName)
-				b.WriteString(innerPrefix)
-				b.WriteString(childName)
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(v))
-				b.WriteString("\n")
+				b.Str(innerPrefix)
+				b.Str(childName)
+				b.Str(" ")
+				b.Str(quoteIfNeeded(v))
+				b.Str("\n")
 			}
 			if entryMeta != nil {
 				entryMeta.mu.RUnlock()
 			}
 			entry.mu.RUnlock()
 			writeCloseBraceGutter(b, entryMeta)
-			b.WriteString(prefix)
-			b.WriteString("}\n")
+			b.Str(prefix)
+			b.Str("}\n")
 		}
 	}
 }
 
 // serializeBlameExtraValues writes extra tree values with blame gutters.
-func serializeBlameExtraValues(b *strings.Builder, tree *Tree, meta *MetaTree, children []string, indent int) {
+func serializeBlameExtraValues(b *textbuf.Buffer, tree *Tree, meta *MetaTree, children []string, indent int) {
 	schemaNames := make(map[string]bool, len(children))
 	for _, name := range children {
 		schemaNames[name] = true
@@ -583,13 +585,13 @@ func serializeBlameExtraValues(b *strings.Builder, tree *Tree, meta *MetaTree, c
 	prefix := strings.Repeat("\t", indent)
 	for _, k := range extraKeys {
 		writeBlameGutter(b, meta, k)
-		b.WriteString(prefix)
+		b.Str(prefix)
 		if tree.inactiveValues[k] {
-			b.WriteString("inactive: ")
+			b.Str("inactive: ")
 		}
-		b.WriteString(k)
-		b.WriteString(" ")
-		b.WriteString(quoteIfNeeded(tree.values[k]))
-		b.WriteString("\n")
+		b.Str(k)
+		b.Str(" ")
+		b.Str(quoteIfNeeded(tree.values[k]))
+		b.Str("\n")
 	}
 }

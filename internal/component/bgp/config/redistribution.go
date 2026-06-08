@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // extractFilterChain extracts import and export filter lists from a config tree.
@@ -65,7 +66,8 @@ func canonicalizeOne(ref string, reg *FilterRegistry, typesMap map[string]string
 
 	wrap := func(s string) string {
 		if inactive {
-			return "inactive:" + s
+			var tb textbuf.Buffer
+			return tb.Str("inactive:").Str(s).String()
 		}
 		return s
 	}
@@ -74,7 +76,8 @@ func canonicalizeOne(ref string, reg *FilterRegistry, typesMap map[string]string
 	if before, after, found := strings.Cut(clean, ":"); found {
 		// If the prefix is a known filter type, rewrite to the plugin form.
 		if plugin, ok := typesMap[before]; ok {
-			return wrap(plugin + ":" + after)
+			var tb textbuf.Buffer
+			return wrap(tb.Str(plugin).Byte(':').Str(after).String())
 		}
 		// Otherwise assume it is already a plugin process name (e.g.,
 		// `bgp-filter-prefix:CUSTOMERS`) and pass through.
@@ -86,7 +89,8 @@ func canonicalizeOne(ref string, reg *FilterRegistry, typesMap map[string]string
 	if reg != nil {
 		if entry, ok := reg.Lookup(clean); ok {
 			if plugin, ok := typesMap[entry.Type]; ok {
-				return wrap(plugin + ":" + clean)
+				var tb textbuf.Buffer
+				return wrap(tb.Str(plugin).Byte(':').Str(clean).String())
 			}
 		}
 	}

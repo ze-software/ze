@@ -316,7 +316,7 @@ func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
 		}
 		if utf8.RuneCountInString(reason) > maxReasonLen {
 			var bLen textbuf.Buffer
-			http.Error(w, bLen.Reset().Str("reason too long (max ").Int(int64(maxReasonLen)).Str(" chars)").Slice(), http.StatusBadRequest)
+			http.Error(w, bLen.Reset().Str("reason too long (max ").Int(int64(maxReasonLen)).Str(" chars)").String(), http.StatusBadRequest)
 			return
 		}
 		causeStr := r.FormValue("cause")
@@ -334,7 +334,7 @@ func (h *L2TPHandlers) HandleL2TPDisconnect() http.HandlerFunc {
 				return
 			}
 			var bCause textbuf.Buffer
-			cmd += bCause.Reset().Str(" cause ").Int(int64(causeVal)).Slice()
+			cmd += bCause.Reset().Str(" cause ").Int(int64(causeVal)).String()
 		}
 
 		if h.Dispatch == nil {

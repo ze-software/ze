@@ -257,11 +257,12 @@ func jsonFieldDiff(expected, actual map[string]any, prefix string) string {
 		expVal, inExp := expected[k]
 		actVal, inAct := actual[k]
 
+		var tb textbuf.Buffer
 		switch {
 		case !inExp && inAct:
-			diffs = append(diffs, "  added:   "+path+" = "+formatJSONValue(actVal))
+			diffs = append(diffs, tb.Reset().Str("  added:   ").Str(path).Str(" = ").Str(formatJSONValue(actVal)).String())
 		case inExp && !inAct:
-			diffs = append(diffs, "  removed: "+path+" = "+formatJSONValue(expVal))
+			diffs = append(diffs, tb.Reset().Str("  removed: ").Str(path).Str(" = ").Str(formatJSONValue(expVal)).String())
 		case !reflect.DeepEqual(expVal, actVal):
 			// Both present but different — recurse into nested structures
 			expMap, expIsMap := expVal.(map[string]any)
@@ -278,25 +279,26 @@ func jsonFieldDiff(expected, actual map[string]any, prefix string) string {
 					diffs = append(diffs, nested)
 				}
 			default:
-				diffs = append(diffs, "  changed: "+path+" = "+formatJSONValue(actVal)+" (expected "+formatJSONValue(expVal)+")")
+				diffs = append(diffs, tb.Reset().Str("  changed: ").Str(path).Str(" = ").Str(formatJSONValue(actVal)).Str(" (expected ").Str(formatJSONValue(expVal)).Byte(')').String())
 			}
 		}
 	}
 
-	return strings.Join(diffs, "\n")
+	return textbuf.Join(diffs, "\n")
 }
 
 // jsonSliceDiff produces element-level diff between two slices.
 func jsonSliceDiff(expected, actual []any, path string) string {
 	var diffs []string
 	maxLen := max(len(expected), len(actual))
+	var tb textbuf.Buffer
 	for i := range maxLen {
-		elemPath := path + textbuf.StrIntStr("[", int64(i), "]")
+		elemPath := tb.Reset().Str(path).Byte('[').Int(int64(i)).Byte(']').String()
 		switch {
 		case i >= len(expected):
-			diffs = append(diffs, "  added:   "+elemPath+" = "+formatJSONValue(actual[i]))
+			diffs = append(diffs, tb.Reset().Str("  added:   ").Str(elemPath).Str(" = ").Str(formatJSONValue(actual[i])).String())
 		case i >= len(actual):
-			diffs = append(diffs, "  removed: "+elemPath+" = "+formatJSONValue(expected[i]))
+			diffs = append(diffs, tb.Reset().Str("  removed: ").Str(elemPath).Str(" = ").Str(formatJSONValue(expected[i])).String())
 		case !reflect.DeepEqual(expected[i], actual[i]):
 			expMap, expIsMap := expected[i].(map[string]any)
 			actMap, actIsMap := actual[i].(map[string]any)
@@ -312,11 +314,11 @@ func jsonSliceDiff(expected, actual []any, path string) string {
 					diffs = append(diffs, nested)
 				}
 			default:
-				diffs = append(diffs, "  changed: "+elemPath+" = "+formatJSONValue(actual[i])+" (expected "+formatJSONValue(expected[i])+")")
+				diffs = append(diffs, tb.Reset().Str("  changed: ").Str(elemPath).Str(" = ").Str(formatJSONValue(actual[i])).Str(" (expected ").Str(formatJSONValue(expected[i])).Byte(')').String())
 			}
 		}
 	}
-	return strings.Join(diffs, "\n")
+	return textbuf.Join(diffs, "\n")
 }
 
 // formatJSONValue formats a value for display in diff output.

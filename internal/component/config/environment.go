@@ -252,13 +252,14 @@ func ParseBoolStrict(value string) (bool, error) {
 func DefaultSocketPath() string {
 	const socketName = "ze.socket"
 
+	var tb textbuf.Buffer
 	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
-		return dir + "/" + socketName
+		return tb.Str(dir).Byte('/').Str(socketName).String()
 	}
 	if os.Getuid() == 0 {
-		return "/var/run/" + socketName
+		return tb.Str("/var/run/").Str(socketName).String()
 	}
-	return "/tmp/" + socketName
+	return tb.Str("/tmp/").Str(socketName).String()
 }
 
 // ResolveConfigPath searches for a config file using XDG conventions.

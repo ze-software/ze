@@ -11,6 +11,15 @@ import (
 	"unsafe"
 )
 
+func byteIndex(s string, c byte) int {
+	for i := range len(s) {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
+
 func Uint(v uint64) string {
 	var buf [20]byte
 	return string(strconv.AppendUint(buf[:0], v, 10))
@@ -57,21 +66,31 @@ func HexUpper(data []byte) string {
 	return string(dst)
 }
 
-// Buffer is a zero-alloc string builder with a 128-byte inline backing array.
+// Buffer is a string builder with a 128-byte inline backing array.
 //
-// Stack use: var b textbuf.Buffer; b.Reset().Str("x").Uint(1).String().
-// Pooled use: b := textbuf.Get(); defer b.Release(); b.Str("x").String().
+// Stack residence: Reset() uses noescape (same technique as strings.Builder
+// via abi.NoEscape) to break the self-referential b.b = b.arr[:0] from
+// escape analysis. var b Buffer stays on the stack for local use.
 //
-// String does not freeze the buffer: writes after String are safe because
-// inline data is copied and heap data is detached. Slice freezes the buffer;
-// writes after Slice panic until Reset.
+// Choosing an init:
 //
-// String: inline (<=128B) copies, heap (>128B) is zero-copy and transfers
-// the heap slice to the returned string. The buffer reverts to its inline
-// array, so the string is safe to hold indefinitely.
+//	Local use (0 alloc):  var b Buffer; b.Reset().Str("x").Bytes()
+//	Return a string:      b := New(); return b.Str("x").Slice()
+//	Hot loop (amortized): b := Get(); defer b.Release()
+//	                      for ... { use(b.Reset().Str("x").Slice()) }
 //
-// Slice: always zero-copy regardless of size. The returned string shares
-// the buffer's memory and is only valid until the next Reset or Release.
+// String: inline (<=128B) copies, heap (>128B) zero-copy with detach.
+// Does not freeze; writes after String are safe.
+//
+// Slice: always zero-copy. Freezes the buffer; writes panic until Reset.
+// Valid only until the next Reset or Release. Do not use with Get()
+// unless the string is consumed before Release (pool exhaustion).
+//
+// Bytes: returns raw []byte sharing buffer memory. For w.Write() or
+// string(b.Bytes()) in map/switch (compiler elides alloc).
+//
+// Go compiler review gate: noescape mirrors strings.Builder. On every
+// Go update, compare against $(go env GOROOT)/src/strings/builder.go.
 //
 // Implements io.Writer, io.StringWriter, and io.ByteWriter.
 type Buffer struct {
@@ -88,11 +107,23 @@ func (b *Buffer) SetColor(enabled bool) *Buffer {
 	return b
 }
 
+// New returns a heap-allocated Buffer. Use Slice() to extract the result
+// zero-copy; the GC keeps the Buffer alive via the interior pointer in
+// the returned string. Prefer Get() in loops where the allocation can be
+// amortized.
+func New() *Buffer {
+	b := new(Buffer)
+	b.b = b.inlineSlice()
+	return b
+}
+
 var bufPool = sync.Pool{
 	New: func() any { return new(Buffer) },
 }
 
 // Get returns a Buffer from the pool. Call Release when done.
+// Use String() to extract (copies), then Release. Slice() before Release
+// is only safe when the string is consumed before Release.
 func Get() *Buffer {
 	b, _ := bufPool.Get().(*Buffer) //nolint:forcetypeassert // pool only holds *Buffer
 	b.done = false
@@ -101,7 +132,7 @@ func Get() *Buffer {
 	if cap(b.b) > len(b.arr) {
 		b.b = b.b[:0]
 	} else {
-		b.b = b.arr[:0]
+		b.b = b.inlineSlice()
 	}
 	return b
 }
@@ -115,6 +146,25 @@ func (b *Buffer) Release() {
 	b.pooled = false
 	b.done = true
 	bufPool.Put(b)
+}
+
+// noescape hides a pointer from escape analysis. Same technique as
+// strings.Builder (via abi.NoEscape): the uintptr round-trip prevents
+// the compiler from seeing that the returned pointer equals the input.
+// This lets Reset() set b.b = b.arr[:0] without the self-referential
+// slice forcing the Buffer to the heap.
+//
+//go:nosplit
+//go:nocheckptr
+func noescape(p unsafe.Pointer) unsafe.Pointer {
+	x := uintptr(p)
+	return unsafe.Pointer(x ^ 0) //nolint:gosec,govet,staticcheck // escape analysis break, compiles to no-op
+}
+
+// inlineSlice returns b.arr[:0:128] without creating a self-referential
+// slice visible to escape analysis.
+func (b *Buffer) inlineSlice() []byte {
+	return unsafe.Slice((*byte)(noescape(unsafe.Pointer(&b.arr[0]))), len(b.arr))[:0] //nolint:gosec // see noescape
 }
 
 func (b *Buffer) mustBeWritable() {
@@ -132,7 +182,7 @@ func (b *Buffer) Reset(size ...int) *Buffer {
 			b.b = b.b[:0]
 		}
 	} else {
-		b.b = b.arr[:0]
+		b.b = b.inlineSlice()
 	}
 	return b
 }
@@ -234,6 +284,24 @@ func (b *Buffer) Prefix(p netip.Prefix) *Buffer {
 	return b
 }
 
+// HostPort appends "host:port" (string port, e.g. from net.SplitHostPort).
+// IPv6 hosts (containing ':') are bracketed: "[::1]:80".
+func (b *Buffer) HostPort(host, port string) *Buffer {
+	if byteIndex(host, ':') >= 0 {
+		return b.Byte('[').Str(host).Byte(']').Byte(':').Str(port)
+	}
+	return b.Str(host).Byte(':').Str(port)
+}
+
+// HostPortN appends "host:port" (numeric port).
+// IPv6 hosts (containing ':') are bracketed: "[::1]:80".
+func (b *Buffer) HostPortN(host string, port uint16) *Buffer {
+	if byteIndex(host, ':') >= 0 {
+		return b.Byte('[').Str(host).Byte(']').Byte(':').Uint(uint64(port))
+	}
+	return b.Str(host).Byte(':').Uint(uint64(port))
+}
+
 func (b *Buffer) Quoted(s string) *Buffer {
 	b.mustBeWritable()
 	b.b = strconv.AppendQuote(b.b, s)
@@ -314,6 +382,16 @@ func (b *Buffer) WriteRune(r rune) (int, error) {
 
 func (b *Buffer) Len() int { return len(b.b) }
 
+// Bytes returns the buffer contents as a byte slice. The slice shares the
+// buffer's memory and is valid until the next Reset, Release, or write that
+// triggers a grow. Does not freeze the buffer.
+//
+// Use for io.Writer output (w.Write(b.Bytes())) or to enable Go's
+// compiler optimization for string([]byte) in map lookups and switch
+// statements (the compiler elides the allocation when the conversion
+// does not escape).
+func (b *Buffer) Bytes() []byte { return b.b }
+
 // String returns the buffer contents. Inline data (<=128B) is copied; heap
 // data (>128B) is returned zero-copy with the heap slice detached. Unlike
 // Slice, String does NOT freeze the buffer: subsequent writes are safe
@@ -326,7 +404,7 @@ func (b *Buffer) String() string {
 		return string(b.b)
 	}
 	s := unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // heap-backed: zero-copy, string owns the slice
-	b.b = b.arr[:0]
+	b.b = b.inlineSlice()
 	return s
 }
 
@@ -334,6 +412,10 @@ func (b *Buffer) String() string {
 // The returned string shares the buffer's memory and is invalid after Reset
 // or Release. Unlike String, Slice freezes the buffer: writes after Slice
 // would corrupt the returned view, so they panic.
+//
+// Prefer Slice over String when the string is consumed immediately (passed
+// to WriteString, Printf, or similar I/O) or when it is the last extraction
+// from the buffer before the buffer goes out of scope.
 func (b *Buffer) Slice() string {
 	b.done = true
 	return unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // zero-copy always; caller must not hold past Reset()
@@ -473,9 +555,10 @@ func MAC(mac []byte) string {
 	return string(buf[:])
 }
 
+// HostPort returns "host:port" without net.JoinHostPort or fmt.Sprintf.
 func HostPort(host string, port uint16) string {
 	var b Buffer
-	return b.Reset().Str(host).Byte(':').Uint(uint64(port)).String()
+	return b.HostPortN(host, port).Slice()
 }
 
 func Join(items []string, sep string) string {

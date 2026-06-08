@@ -127,7 +127,7 @@ func parseFilterAttrs(text string) map[string]string {
 			for i < len(fields) && !isPolicyAttrName(fields[i]) {
 				i++
 			}
-			attrs["nlri"] = strings.Join(fields[start:i], " ")
+			attrs["nlri"] = textbuf.Join(fields[start:i], " ")
 			continue
 		}
 
@@ -150,7 +150,7 @@ func parseFilterAttrs(text string) map[string]string {
 			values = append(values, fields[i])
 			i++
 		}
-		attrs[name] = strings.Join(values, " ")
+		attrs[name] = textbuf.Join(values, " ")
 	}
 
 	return attrs

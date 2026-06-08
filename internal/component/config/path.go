@@ -2,7 +2,11 @@
 
 package config
 
-import "strings"
+import (
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 // PathSep is the separator used in YANG/config paths (e.g., "bgp/peer/timer").
 // Environment variable paths (ze.bgp.X.Y) use dots as env var convention and
@@ -11,7 +15,7 @@ const PathSep = "/"
 
 // JoinPath joins path segments with the config path separator.
 func JoinPath(parts ...string) string {
-	return strings.Join(parts, PathSep)
+	return textbuf.Join(parts, PathSep)
 }
 
 // AppendPath appends a segment to a path prefix.

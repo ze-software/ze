@@ -29,20 +29,18 @@ func ValidateContent(input, path string) error {
 	if result.Valid {
 		return nil
 	}
-	var b strings.Builder
-	b.WriteString("config validation failed:")
+	var b textbuf.Buffer
+	b.Str("config validation failed:")
 	for i := range result.Diagnostics {
 		d := &result.Diagnostics[i]
 		if d.Severity != diagnostic.SeverityError {
 			continue
 		}
-		b.WriteString("\n  ")
+		b.Str("\n  ")
 		if d.Line > 0 {
-			b.WriteString("line ")
-			b.WriteString(strconv.Itoa(d.Line))
-			b.WriteString(": ")
+			b.Str("line ").Int(int64(d.Line)).Str(": ")
 		}
-		b.WriteString(d.Message)
+		b.Str(d.Message)
 	}
 	return errors.New(b.String())
 }
@@ -225,7 +223,8 @@ func validateEnvironment(jsonOutput, quiet bool) int {
 }
 
 func validatePending(configPath string, quiet bool) int {
-	draftPath := configPath + ".draft"
+	var tb textbuf.Buffer
+	draftPath := tb.Str(configPath).Str(".draft").String()
 	data, err := os.ReadFile(draftPath) //nolint:gosec // Config path from CLI args
 	if err != nil {
 		if !quiet {
@@ -278,14 +277,15 @@ func runValidation(input, path string) *validationResult {
 			for _, ve := range yangValidator.ValidateTreeAllModules(section, container.ToMap()) {
 				sensitive := isSensitiveLeaf(ve.Path, sensitiveKeys)
 
+				var tb textbuf.Buffer
 				msg := ve.Message
 				if sensitive {
-					msg = ve.Type.String() + " validation failed (sensitive value redacted)"
+					msg = tb.Str(ve.Type.String()).Str(" validation failed (sensitive value redacted)").String()
 				}
 				if ve.Path != "" {
-					msg = ve.Path + ": " + msg
+					msg = tb.Reset().Str(ve.Path).Str(": ").Str(msg).String()
 				}
-				fullMsg := section + ": " + msg
+				fullMsg := tb.Reset().Str(section).Str(": ").Str(msg).String()
 
 				d := diagnostic.Diagnostic{
 					Code:    yangErrorCode(ve.Type),
@@ -293,7 +293,7 @@ func runValidation(input, path string) *validationResult {
 					Line:    ve.LineNumber,
 				}
 				if ve.Path != "" {
-					d.Path = section + "." + ve.Path
+					d.Path = tb.Reset().Str(section).Byte('.').Str(ve.Path).String()
 				}
 				if ve.Expected != "" {
 					d.Expected = ve.Expected
@@ -488,7 +488,8 @@ func isSensitiveLeaf(path string, sensitiveKeys map[string]bool) bool {
 
 func listenerConflictRelated(c *config.ListenerConflict) []diagnostic.Related {
 	format := func(ep config.ListenerEndpoint) string {
-		return config.ProtocolLabel(ep.Protocol) + " " + ep.IP.String() + ":" + textbuf.Uint16(ep.Port)
+		var tb textbuf.Buffer
+		return tb.Str(config.ProtocolLabel(ep.Protocol)).Byte(' ').Str(ep.IP.String()).Byte(':').Uint16(ep.Port).String()
 	}
 	return []diagnostic.Related{
 		{Path: c.A.Service, Message: format(c.A)},
@@ -623,7 +624,7 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 					if len(flags) == 0 {
 						fmt.Fprintf(os.Stdout, "  - %s AS%d\n", n.Address, n.PeerAS)
 					} else {
-						fmt.Fprintf(os.Stdout, "  - %s AS%d (%s)\n", n.Address, n.PeerAS, strings.Join(flags, ", "))
+						fmt.Fprintf(os.Stdout, "  - %s AS%d (%s)\n", n.Address, n.PeerAS, textbuf.Join(flags, ", "))
 					}
 				}
 			}

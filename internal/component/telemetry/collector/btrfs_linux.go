@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type btrfsCollector struct {
@@ -72,7 +73,8 @@ func (c *btrfsCollector) Collect() error {
 			total := readSysUint64(filepath.Join(dir, "bytes_used"))
 			limit := readSysUint64(filepath.Join(dir, "disk_total"))
 			if limit > 0 {
-				chart := "btrfs_" + typ.name + "." + family
+				var tb textbuf.Buffer
+				chart := tb.Str("btrfs_").Str(typ.name).Byte('.').Str(family).String()
 				typ.gauge.With(chart, "used", family).Set(float64(total) / mibDivisor)
 				typ.gauge.With(chart, "free", family).Set(float64(limit-total) / mibDivisor)
 			}

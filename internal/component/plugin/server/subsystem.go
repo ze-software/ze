@@ -16,6 +16,7 @@ import (
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -89,19 +90,21 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 	// Build command:
 	// - If Binary contains spaces (full command), use as-is
 	// - Otherwise, add --mode=<name>
-	cmd := h.config.Binary
-	if !strings.Contains(cmd, " ") {
-		cmd = cmd + " --mode=" + h.config.Name
+	var tb textbuf.Buffer
+	tb.Str(h.config.Binary)
+	if !strings.Contains(h.config.Binary, " ") {
+		tb.Str(" --mode=").Str(h.config.Name)
 	}
 
 	// Append config path if provided
 	if h.config.ConfigPath != "" {
-		cmd = cmd + " --config " + h.config.ConfigPath
+		tb.Str(" --config ").Str(h.config.ConfigPath)
 	}
+	cmd := tb.String()
 
 	// Create process config
 	procConfig := plugin.PluginConfig{
-		Name: "subsystem-" + h.config.Name,
+		Name: tb.Reset().Str("subsystem-").Str(h.config.Name).String(),
 		Run:  cmd,
 	}
 

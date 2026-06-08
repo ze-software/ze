@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errEmptyAddressFamily = errors.New("empty address family")
@@ -100,7 +101,8 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 	}
 
 	// Send decode request
-	if _, err := stdin.Write([]byte(request + "\n")); err != nil {
+	var tb textbuf.Buffer
+	if _, err := stdin.Write([]byte(tb.Str(request).Byte('\n').String())); err != nil {
 		slog.Debug("plugin write failed", "plugin", pluginName, "err", err)
 	}
 	if err := stdin.Close(); err != nil {
@@ -214,7 +216,8 @@ func invokePluginPath(path string, userArgs []string, request string) any {
 		return nil
 	}
 
-	if _, err := stdin.Write([]byte(request + "\n")); err != nil {
+	var tb2 textbuf.Buffer
+	if _, err := stdin.Write([]byte(tb2.Str(request).Byte('\n').String())); err != nil {
 		slog.Debug("plugin path write failed", "path", path, "err", err)
 	}
 	if err := stdin.Close(); err != nil {
@@ -290,7 +293,8 @@ func invokePluginSubprocess(pluginName, request string) any {
 		return nil
 	}
 
-	if _, err := stdin.Write([]byte(request + "\n")); err != nil {
+	var tb3 textbuf.Buffer
+	if _, err := stdin.Write([]byte(tb3.Str(request).Byte('\n').String())); err != nil {
 		slog.Debug("plugin write failed", "plugin", pluginName, "err", err)
 	}
 	if err := stdin.Close(); err != nil {
@@ -333,7 +337,8 @@ func invokePluginInProcess(pluginName, request string) any {
 		return nil
 	}
 
-	input := bytes.NewBufferString(request + "\n")
+	var tb4 textbuf.Buffer
+	input := bytes.NewBufferString(tb4.Str(request).Byte('\n').String())
 	output := &bytes.Buffer{}
 
 	decoder(input, output)
@@ -374,7 +379,8 @@ func invokePluginInternal(pluginName, request string) any {
 	}()
 
 	// Send request and close input.
-	if _, err := inW.Write([]byte(request + "\n")); err != nil {
+	var tb5 textbuf.Buffer
+	if _, err := inW.Write([]byte(tb5.Str(request).Byte('\n').String())); err != nil {
 		slog.Debug("internal plugin write failed", "plugin", pluginName, "err", err)
 		if err := inW.Close(); err != nil {
 			slog.Debug("internal plugin inW close failed", "plugin", pluginName, "err", err)

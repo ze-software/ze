@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Protocol names for listener endpoints. Endpoints on different protocols
@@ -106,7 +106,7 @@ func buildListenerService(ln *ListNode, fullPath []string, parentNode Node) list
 	if listName != "server" {
 		nameParts = append(nameParts, listName)
 	}
-	name := strings.Join(nameParts, "-")
+	name := textbuf.Join(nameParts, "-")
 	if name == "" {
 		name = listName
 	}

@@ -5,7 +5,7 @@
 
 package bgpconfig
 
-import "strings"
+import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 // parseInlineKeyValues parses an inline "key value key value ..." string into a map.
 // Handles arrays like "[ a b c ]" and parenthesized content like "( ... )".
@@ -38,7 +38,8 @@ func parseKeyValuesFromTokens(tokens []string, start int) map[string]string {
 			if i < len(tokens) {
 				i++ // skip ]
 			}
-			result[key] = "[" + strings.Join(arr, " ") + "]"
+			var tb textbuf.Buffer
+			result[key] = tb.Byte('[').Join(arr, " ").Byte(']').String()
 			continue
 		}
 
@@ -64,7 +65,8 @@ func parseKeyValuesFromTokens(tokens []string, start int) map[string]string {
 			if i < len(tokens) {
 				i++ // skip )
 			}
-			result[key] = "(" + strings.Join(paren, " ") + ")"
+			var tb textbuf.Buffer
+			result[key] = tb.Byte('(').Join(paren, " ").Byte(')').String()
 			continue
 		}
 
@@ -79,7 +81,7 @@ func parseKeyValuesFromTokens(tokens []string, start int) map[string]string {
 // tokenizeInline splits an inline string into tokens, preserving brackets and parens.
 func tokenizeInline(s string) []string {
 	var tokens []string
-	var current strings.Builder
+	var current textbuf.Buffer
 
 	for i := range len(s) {
 		c := s[i]
@@ -99,14 +101,13 @@ func tokenizeInline(s string) []string {
 			continue
 		}
 		if c == '\\' {
-			// Skip backslash continuations - artifacts from multiline parsing
 			if current.Len() > 0 {
 				tokens = append(tokens, current.String())
 				current.Reset()
 			}
 			continue
 		}
-		current.WriteByte(c)
+		current.Byte(c)
 	}
 	if current.Len() > 0 {
 		tokens = append(tokens, current.String())

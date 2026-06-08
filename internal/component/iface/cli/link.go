@@ -12,6 +12,7 @@ import (
 	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
 	ifacecmd "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errInterfaceNameMustNotBeEmpty = errors.New("interface name must not be empty")
@@ -198,12 +199,13 @@ func cmdMAC(args []string) int {
 }
 
 func upDownUsage(verb string) {
+	var tb textbuf.Buffer
 	p := helpfmt.Page{
-		Command: "ze interface " + verb,
-		Summary: "Bring an interface administratively " + verb,
-		Usage:   []string{"ze interface " + verb + " <name>"},
+		Command: tb.Str("ze interface ").Str(verb).String(),
+		Summary: tb.Reset().Str("Bring an interface administratively ").Str(verb).String(),
+		Usage:   []string{tb.Reset().Str("ze interface ").Str(verb).Str(" <name>").String()},
 		Examples: []string{
-			"ze interface " + verb + " eth0",
+			tb.Reset().Str("ze interface ").Str(verb).Str(" eth0").String(),
 		},
 	}
 	p.Write()

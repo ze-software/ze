@@ -147,7 +147,8 @@ func parsePingMonitorArgs(input string) (target string, interval, timeout time.D
 			if target == "" {
 				target = args[i]
 			} else {
-				return "", 0, 0, "unexpected argument: " + args[i] + " (use | for pipe operators)"
+				var tb textbuf.Buffer
+				return "", 0, 0, tb.Str("unexpected argument: ").Str(args[i]).Str(" (use | for pipe operators)").String()
 			}
 		}
 	}
@@ -177,7 +178,8 @@ func (m *Model) startPingMonitor(input string) tea.Cmd {
 
 	target, interval, timeout, argErr := parsePingMonitorArgs(input)
 	if argErr != "" {
-		m.statusMessage = "monitor ping: " + argErr
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("monitor ping: ").Str(argErr).String()
 		return nil
 	}
 	if target == "" {
@@ -187,7 +189,8 @@ func (m *Model) startPingMonitor(input string) tea.Cmd {
 
 	ch, cancel, err := m.pingFactory(context.Background(), target, interval, timeout)
 	if err != nil {
-		m.statusMessage = "monitor ping: " + err.Error()
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("monitor ping: ").Err(err).String()
 		return nil
 	}
 
@@ -212,12 +215,14 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 
 	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input)
 	if pipeErr != "" {
-		m.statusMessage = "pipe error: " + pipeErr
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("pipe error: ").Str(pipeErr).String()
 		return nil
 	}
 	target, interval, timeout, argErr := parsePingMonitorArgs(cmdStr)
 	if argErr != "" {
-		m.statusMessage = "monitor ping: " + argErr
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("monitor ping: ").Str(argErr).String()
 		return nil
 	}
 	if target == "" {
@@ -227,7 +232,8 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 
 	ch, cancel, err := m.pingFactory(context.Background(), target, interval, timeout)
 	if err != nil {
-		m.statusMessage = "monitor ping: " + err.Error()
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("monitor ping: ").Err(err).String()
 		return nil
 	}
 
@@ -532,7 +538,8 @@ func (m Model) renderPingMonitor() string {
 		sb.Byte('\n')
 	} else {
 		loss := s.loss()
-		lossText := strconv.FormatFloat(loss, 'f', 1, 64) + "%"
+		var tbL textbuf.Buffer
+		lossText := tbL.Str(strconv.FormatFloat(loss, 'f', 1, 64)).Byte('%').String()
 		var lossStyle lipgloss.Style
 		switch {
 		case loss == 0:
@@ -659,5 +666,6 @@ func (m Model) renderPingMonitorPiped() string {
 }
 
 func fmtMs(v float64) string {
-	return strconv.FormatFloat(v, 'f', 3, 64) + "ms"
+	var tb textbuf.Buffer
+	return tb.Str(strconv.FormatFloat(v, 'f', 3, 64)).Str("ms").String()
 }

@@ -165,20 +165,95 @@ Use the `AppendTo(buf []byte) []byte` pattern from `attribute/text_append.go` in
 | Web page rendering (cold path) | Acceptable if not in a per-route loop |
 | Test assertions and sub-test naming | Not production code |
 | `fmt.Errorf("context: %w", err)` with non-constant context | Error wrapping is the intended use |
+| `fmt.Sprintf("%T", value)` | Reflect-based type name; no textbuf equivalent exists |
+| `fmt.Sprintf("%v", data)` where `data` is `any`/`interface{}` | Arbitrary-type formatting; no textbuf path |
+| `http.Error(w, fmt.Sprintf(...))` | One-shot error response, not in a loop |
+
+## Patterns That Must NOT Be Converted
+
+| Pattern | Why |
+|---------|-----|
+| `net.JoinHostPort(host, port)` where port is already a string and no numeric conversion is needed | Acceptable when the port comes from `net.SplitHostPort` or config as a string; prefer `textbuf.HostPort` for new code |
+| `strings.Builder` as a long-lived `io.Writer` field | Struct fields like `pasteBuffer *strings.Builder` that accumulate writes over time are not string-building helpers. `textbuf.Buffer` freezes on `Slice()` and its pool semantics differ |
+| `strconv.Itoa(n)` passed to sysctl/procfs map values | Writing to kernel interfaces that require `string`; the allocation is once per config reload, not per-packet |
 
 ## textbuf.Buffer (canonical string builder)
 
 **Use `textbuf.Buffer` for all string building.** Package: `internal/core/textbuf`.
 
-`Buffer` is a stack-allocated chainable builder. 128-byte backing array stays
-on the stack; only the final `String()` allocates.
+`Buffer` is a chainable builder with a 128-byte inline backing array.
+`Reset()` uses `noescape` (same technique as `strings.Builder` via
+`abi.NoEscape`) to break the self-referential slice from escape analysis.
+`var b Buffer` stays on the stack for local use; the inline array avoids
+any heap allocation for content <= 128B.
+
+**Go compiler review gate:** The `noescape` trick mirrors `strings.Builder`
+in `$(go env GOROOT)/src/strings/builder.go`. On every Go compiler update,
+compare our `noescape` + `inlineSlice` against the stdlib `copyCheck` +
+`abi.NoEscape`. If the stdlib changes technique, update ours to match.
+Verify with `go build -gcflags='-m=2'` that `var b Buffer` does not show
+`moved to heap`.
+
+### Allocation tiers
+
+**Tier 0: Zero allocations.** Buffer on the stack, string consumed locally.
 
 ```go
-import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-
+// Local use: 0 alloc (buffer on stack, inline array, no string created)
 var b textbuf.Buffer
+w.Write(b.Reset().Addr(addr).Byte(':').Uint16(port).Bytes())
+
+// Map lookup: 0 alloc (compiler elides string([]byte) for map/switch)
+var b textbuf.Buffer
+val := m[string(b.Reset().Str(key).Bytes())]
+
+// Pool loop: 0 alloc (amortized, string consumed before next Reset)
+b := textbuf.Get()
+defer b.Release()
+for _, peer := range peers {
+    key := b.Reset().Addr(peer.Addr).Byte(':').Uint16(peer.Port).Slice()
+    val := lookupMap[key]
+}
+
+// AppendTo: 0 alloc (caller-owned buffer, no pool needed)
+func (p *Peer) AppendTo(dst []byte) []byte {
+    dst = textbuf.AppendAddr(dst, p.Addr)
+    dst = append(dst, ':')
+    dst = textbuf.AppendUint(dst, uint64(p.Port))
+    return dst
+}
+```
+
+**Tier 1: One allocation (must return or store a string).**
+
+```go
+// var + String(): 1 alloc (string copy, buffer stays on stack)
+var b textbuf.Buffer
+return b.Reset().Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
+
+// New() + Slice(): 1 alloc (Buffer struct ~160B, zero-copy extract)
+b := textbuf.New()
+return b.Str("0:").Uint16(asn).Byte(':').Uint32(assigned).Slice()
+
+// Pool + String(): 1 alloc (string copy, buffer returns to pool)
+b := textbuf.Get()
+defer b.Release()
 return b.Str("0:").Uint16(asn).Byte(':').Uint32(assigned).String()
 ```
+
+Pool + Slice without Release exhausts the pool or dangles. Do not use.
+
+### Choosing an init
+
+| Pattern | Init | Extract | Allocs |
+|---------|------|---------|--------|
+| Local use, write to io.Writer | `var b Buffer` | `Bytes()` | 0 |
+| Local use, map lookup / comparison | `var b Buffer` | `string(b.Bytes())` | 0 |
+| Hot loop, string consumed immediately | `Get()` + `defer Release()` | `Slice()` or `Bytes()` | 0 |
+| Caller-owned buffer | `AppendTo` functions | none | 0 |
+| Return a string (single use) | `var b Buffer` | `String()` | 1 |
+| Return a string (zero-copy) | `New()` | `Slice()` | 1 |
+| Return a string, reuse buffer | `Get()` + `defer Release()` | `String()` | 1 |
 
 Methods (all return `*Buffer` for chaining):
 
@@ -206,6 +281,7 @@ Methods (all return `*Buffer` for chaining):
 | `Grow(n)` | Pre-grow capacity to avoid mid-chain reallocation |
 | `String()` | Return built string (single alloc for inline, zero-copy for heap). Does NOT freeze: writes continue safely |
 | `Slice()` | Return string **zero-copy at any size**. Freezes buffer: writes panic until `Reset()` |
+| `Bytes()` | Return raw `[]byte` (shares buffer memory). For `w.Write()` or `string()` in map/switch (compiler elides alloc) |
 | `Reset()` | Clear the buffer for reuse. Resets to inline array. Chainable |
 | `Write(p)` | Append raw bytes (implements `io.Writer`) |
 | `WriteString(s)` | Append string (implements `io.StringWriter`). Returns `(int, error)` |
@@ -222,9 +298,11 @@ function, used as a map lookup, parsed, or appended into another buffer).
 
 | Result lifetime | Use | Allocations |
 |----------------|-----|-------------|
-| Stored in a struct field or returned | `String()` | 1 (inline copy) or 0 (heap transfer) |
+| Returned from function (single use) | `Slice()` | 0 (Buffer on heap; GC traces interior pointer) |
+| Stored in a struct field | `String()` | 1 (inline copy) or 0 (heap transfer) |
 | Consumed before `Reset()`/`Release()` | `Slice()` | 0 |
 | Passed to `netip.ParsePrefix()` etc. | `Slice()` | 0 (parser copies internally if needed) |
+| Buffer reused after extraction | `String()` | 1 or 0 (does not freeze buffer) |
 
 ```go
 // Slice: zero-copy, consumed immediately by ParsePrefix
@@ -401,3 +479,61 @@ Before submitting code that builds strings:
 6. Am I storing a string that will be parsed back for comparison? Store the typed value.
 7. Am I building a string that gets immediately discarded? Split the function.
 8. Could this error be a package-level sentinel?
+9. Do I have multiple `var tb textbuf.Buffer` in one function? Use ONE buffer with `Reset()`.
+10. Is my `.String()` result consumed immediately (function arg, comparison)? Use `.Slice()`.
+
+## Conversion Anti-Patterns (BLOCKING)
+
+These errors recur during mechanical `+` → textbuf conversion. Check explicitly.
+
+### Multiple buffers in one function
+
+```go
+// BAD: tb2, tb3, tb4 waste stack space
+var tb2 textbuf.Buffer
+msg2 := tb2.Str("Deleted ").Join(path, " ").String()
+var tb3 textbuf.Buffer
+msg3 := tb3.Str("Renamed ").Str(name).String()
+
+// GOOD: one buffer, Reset between uses
+var tb textbuf.Buffer
+msg2 := tb.Str("Deleted ").Join(path, " ").String()
+msg3 := tb.Reset().Str("Renamed ").Str(name).String()
+```
+
+### String() where Slice() suffices
+
+```go
+// BAD: String() copies when the value is consumed immediately
+emitLine(b, tb.Reset().Str(prefix).Str(name).String())
+
+// GOOD: Slice() is zero-copy; valid until next Reset()
+emitLine(b, tb.Reset().Str(prefix).Str(name).Slice())
+```
+
+Use `Slice()` when the result is:
+- Returned from a function (Buffer is heap-allocated; GC keeps it alive)
+- Passed directly to a function call (consumed immediately)
+- Used as a map key lookup (not insertion)
+- Compared with `==` or passed to `strings.HasPrefix`
+- The last extraction before the buffer goes out of scope
+
+Use `String()` when the result is:
+- Stored in a struct field or variable that outlives the next `Reset()`
+- Inserted as a map key (must own the memory)
+- Extracted mid-chain and the buffer is reused afterward
+
+### Unnecessary scratch buffer when output buffer exists
+
+```go
+// BAD: scratch tb just to write into b
+func render(b *textbuf.Buffer, name string) {
+    var tb textbuf.Buffer
+    b.Str(tb.Str("prefix:").Str(name).String())
+}
+
+// GOOD: write directly to the output buffer
+func render(b *textbuf.Buffer, name string) {
+    b.Str("prefix:").Str(name)
+}
+```

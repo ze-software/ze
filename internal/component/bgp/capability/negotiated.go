@@ -32,18 +32,17 @@ type Mismatch struct {
 
 // String returns a human-readable description of the mismatch.
 func (m Mismatch) String() string {
+	var tb textbuf.Buffer
 	if m.Family != nil {
-		var fb textbuf.Buffer
-		familyStr := fb.Reset().Str("AFI=").Int(int64(m.Family.AFI)).Str("/SAFI=").Int(int64(m.Family.SAFI)).String()
 		if m.LocalSupported && !m.PeerSupported {
-			return "local supports " + familyStr + ", peer does not"
+			return tb.Str("local supports AFI=").Int(int64(m.Family.AFI)).Str("/SAFI=").Int(int64(m.Family.SAFI)).Str(", peer does not").String()
 		}
-		return "peer supports " + familyStr + ", local does not"
+		return tb.Str("peer supports AFI=").Int(int64(m.Family.AFI)).Str("/SAFI=").Int(int64(m.Family.SAFI)).Str(", local does not").String()
 	}
 	if m.LocalSupported && !m.PeerSupported {
-		return "local supports " + m.Code.String() + ", peer does not"
+		return tb.Str("local supports ").Str(m.Code.String()).Str(", peer does not").String()
 	}
-	return "peer supports " + m.Code.String() + ", local does not"
+	return tb.Str("peer supports ").Str(m.Code.String()).Str(", local does not").String()
 }
 
 // Negotiated holds the result of capability negotiation between two BGP peers.

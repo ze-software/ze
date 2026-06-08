@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -50,5 +51,6 @@ func DefaultConfig(store storage.Storage) string {
 	if name == "" || !validInstanceName.MatchString(name) {
 		return "ze.conf"
 	}
-	return name + ".conf"
+	var tb textbuf.Buffer
+	return tb.Str(name).Str(".conf").String()
 }

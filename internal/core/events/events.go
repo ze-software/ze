@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -93,7 +95,7 @@ func ValidEventNames(namespace string) string {
 		names = append(names, k)
 	}
 	sort.Strings(names)
-	return strings.Join(names, ", ")
+	return textbuf.Join(names, ", ")
 }
 
 // ValidNamespaceNames returns a sorted, comma-separated list of valid namespaces.
@@ -106,7 +108,7 @@ func ValidNamespaceNames() string {
 		names = append(names, k)
 	}
 	sort.Strings(names)
-	return strings.Join(names, ", ")
+	return textbuf.Join(names, ", ")
 }
 
 // IsValidEventAnyNamespace returns true if the event type is valid in any namespace.
@@ -154,7 +156,7 @@ func AllValidEventNames() string {
 		names = append(names, k)
 	}
 	sort.Strings(names)
-	return strings.Join(names, ", ")
+	return textbuf.Join(names, ", ")
 }
 
 // RegisterNamespace adds a new namespace with the given initial event types.
@@ -238,7 +240,7 @@ func validNamespaceNamesLocked() string {
 		names = append(names, k)
 	}
 	sort.Strings(names)
-	return strings.Join(names, ", ")
+	return textbuf.Join(names, ", ")
 }
 
 // sendTypesMu protects ValidSendTypes from concurrent read/write.
@@ -291,5 +293,5 @@ func ValidSendTypeNames() string {
 		names = append(names, k)
 	}
 	sort.Strings(names)
-	return strings.Join(names, ", ")
+	return textbuf.Join(names, ", ")
 }

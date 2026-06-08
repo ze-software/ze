@@ -2,7 +2,7 @@
 
 package runner
 
-import "strings"
+import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 // ColoredCharDiff returns a colored character-level diff between expected and actual.
 // Algorithm inspired by github.com/sergi/go-diff (MIT license).
@@ -226,20 +226,23 @@ func formatDiffs(diffs []diff) string {
 		greenBg = "\033[42m"
 	)
 
-	var expected, actual strings.Builder
+	var exp, act textbuf.Buffer
 
 	for _, d := range diffs {
 		switch d.Op {
 		case diffEqual:
-			expected.WriteString(dim + d.Text + reset)
-			actual.WriteString(dim + d.Text + reset)
+			exp.Str(dim).Str(d.Text).Str(reset)
+			act.Str(dim).Str(d.Text).Str(reset)
 		case diffDelete:
-			expected.WriteString(white + redBg + d.Text + reset)
+			exp.Str(white).Str(redBg).Str(d.Text).Str(reset)
 		case diffInsert:
-			actual.WriteString(white + greenBg + d.Text + reset)
+			act.Str(white).Str(greenBg).Str(d.Text).Str(reset)
 		}
 	}
 
-	return red + "- " + reset + expected.String() + "\n" +
-		green + "+ " + reset + actual.String()
+	var tb textbuf.Buffer
+	tb.Str(red).Str("- ").Str(reset).Str(exp.String())
+	tb.Byte(10)
+	tb.Str(green).Str("+ ").Str(reset).Str(act.String())
+	return tb.String()
 }

@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ErrUpdateHandlerNotImplemented is returned when the requested update
@@ -193,7 +195,8 @@ func (t *Target) Reboot(ctx context.Context, opts ...RebootOption) error {
 		opt(config)
 	}
 
-	u := t.baseURL + "reboot"
+	var tb textbuf.Buffer
+	tb.Str(t.baseURL).Str("reboot")
 	params := make([]string, 0)
 	if !config.kexec {
 		params = append(params, "kexec=off")
@@ -203,8 +206,9 @@ func (t *Target) Reboot(ctx context.Context, opts ...RebootOption) error {
 	}
 
 	if len(params) > 0 {
-		u += "?" + strings.Join(params, "&")
+		tb.Byte('?').Join(params, "&")
 	}
+	u := tb.String()
 
 	req, err := http.NewRequestWithContext(ctx, "POST", u, http.NoBody)
 	if err != nil {

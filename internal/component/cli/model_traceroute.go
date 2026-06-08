@@ -190,7 +190,8 @@ func parseTracerouteMonitorArgs(input string) (target string, maxHops int, errMs
 			if target == "" {
 				target = args[i]
 			} else {
-				return "", maxHops, "unexpected argument: " + args[i] + " (use | for pipe operators)"
+				var tb textbuf.Buffer
+				return "", maxHops, tb.Str("unexpected argument: ").Str(args[i]).Str(" (use | for pipe operators)").String()
 			}
 		}
 	}
@@ -251,7 +252,8 @@ func (m *Model) startTraceroute(input string) tea.Cmd {
 
 	target, maxHops, argErr := parseTracerouteMonitorArgs(input)
 	if argErr != "" {
-		m.statusMessage = "monitor traceroute: " + argErr
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("monitor traceroute: ").Str(argErr).String()
 		return nil
 	}
 	if target == "" {
@@ -276,12 +278,14 @@ func (m *Model) startTraceroutePiped(input string) tea.Cmd {
 
 	cmdStr, formatFn, pipeFlags, pipeErr := command.ProcessPipesDetectLog(input)
 	if pipeErr != "" {
-		m.statusMessage = "pipe error: " + pipeErr
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("pipe error: ").Str(pipeErr).String()
 		return nil
 	}
 	target, maxHops, argErr := parseTracerouteMonitorArgs(cmdStr)
 	if argErr != "" {
-		m.statusMessage = "monitor traceroute: " + argErr
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("monitor traceroute: ").Str(argErr).String()
 		return nil
 	}
 	if target == "" {
@@ -335,7 +339,8 @@ func (m *Model) startTraceroutePipedRound() tea.Cmd {
 
 	ch, cancel, err := ps.poller(context.Background(), ps.target, ps.maxHops)
 	if err != nil {
-		m.statusMessage = "traceroute error: " + err.Error()
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("traceroute error: ").Err(err).String()
 		return nil
 	}
 
@@ -596,18 +601,19 @@ func enrichAddr(addr string, resolve, origin bool) string {
 	if addr == "*" || addr == "" {
 		return addr
 	}
+	var tb textbuf.Buffer
 	if origin {
 		o := command.LookupOrigin(addr)
 		if o.ASN > 0 && o.Name != "" {
-			return addr + " " + o.Name
+			return tb.Str(addr).Byte(' ').Str(o.Name).String()
 		}
 		if o.ASN > 0 {
-			return addr + " AS" + textbuf.Int(int64(o.ASN))
+			return tb.Str(addr).Str(" AS").Int(int64(o.ASN)).String()
 		}
 	}
 	if resolve {
 		if name := command.ReverseLookup(addr); name != "" {
-			return addr + " " + name
+			return tb.Str(addr).Byte(' ').Str(name).String()
 		}
 	}
 	return addr
@@ -732,7 +738,8 @@ func renderPathLine(sb *textbuf.Buffer, hopNum string, p *traceroutePathStats, a
 	}
 
 	loss := p.loss()
-	lossText := formatFloat1(loss) + "%"
+	var tbL textbuf.Buffer
+	lossText := tbL.Str(formatFloat1(loss)).Byte('%').String()
 	var lossStyle lipgloss.Style
 	switch {
 	case loss == 0:
@@ -751,7 +758,7 @@ func renderPathLine(sb *textbuf.Buffer, hopNum string, p *traceroutePathStats, a
 
 	var lossBuf textbuf.Buffer
 	tbPadLeft(&lossBuf, lossText, 6)
-	sb.Str(lossStyle.Render(lossBuf.Slice()))
+	sb.Str(lossStyle.Render(lossBuf.String()))
 
 	sb.Byte(' ')
 	tbPadLeft(sb, textbuf.Int(int64(p.sent)), 4)
@@ -782,7 +789,8 @@ func renderPathLinePlain(sb *textbuf.Buffer, hopNum string, p *traceroutePathSta
 		addr = "???"
 	}
 
-	lossText := formatFloat1(p.loss()) + "%"
+	var tbL2 textbuf.Buffer
+	lossText := tbL2.Str(formatFloat1(p.loss())).Byte('%').String()
 
 	sb.Byte(' ')
 	tbPadLeft(sb, hopNum, 3)
@@ -832,7 +840,7 @@ func (m Model) renderTraceroute() string {
 	if ts.pollError != "" {
 		hb.Str("  ").Str(ts.pollError)
 	}
-	sb.Str(trHeaderStyle.Render(hb.Slice()))
+	sb.Str(trHeaderStyle.Render(hb.String()))
 	sb.Byte('\n')
 
 	addrWidth := min(39, max(15, width-65))
@@ -880,7 +888,8 @@ func (m Model) renderTraceroute() string {
 
 	if len(ts.hops) == 0 {
 		if ts.pollError != "" {
-			sb.Str(trLossBad.Render("  error: " + ts.pollError))
+			var tbE textbuf.Buffer
+			sb.Str(trLossBad.Render(tbE.Str("  error: ").Str(ts.pollError).String()))
 		} else {
 			sb.Str(trDimStyle.Render("  waiting for data..."))
 		}
@@ -892,14 +901,15 @@ func (m Model) renderTraceroute() string {
 	lastUpdate := ""
 	if !ts.lastPollTime.IsZero() {
 		ago := time.Since(ts.lastPollTime).Truncate(time.Second)
-		lastUpdate = "Last probe: " + ago.String() + " ago"
+		var tbA textbuf.Buffer
+		lastUpdate = tbA.Str("Last probe: ").Str(ago.String()).Str(" ago").String()
 	}
 	gap := max(1, width-len(footer)-len(lastUpdate))
 	var footBuf textbuf.Buffer
 	footBuf.Str(footer)
 	tbSpaces(&footBuf, gap)
 	footBuf.Str(lastUpdate)
-	sb.Str(trFooterStyle.Render(footBuf.Slice()))
+	sb.Str(trFooterStyle.Render(footBuf.String()))
 
 	return sb.String()
 }
@@ -922,7 +932,7 @@ func (m Model) renderTraceroutePlain() string {
 
 	var hb textbuf.Buffer
 	hb.Str("Traceroute to ").Str(ts.target).Str("  rounds ").Int(int64(ts.rounds))
-	sb.Str(hb.Slice())
+	sb.Str(hb.String())
 	sb.Byte('\n')
 
 	addrWidth := min(39, max(15, width-65))
@@ -946,7 +956,7 @@ func (m Model) renderTraceroutePlain() string {
 	tbPadLeft(&hdrBuf, "Wrst", 6)
 	hdrBuf.Byte(' ')
 	tbPadLeft(&hdrBuf, "StDev", 6)
-	sb.Str(hdrBuf.Slice())
+	sb.Str(hdrBuf.String())
 	sb.Byte('\n')
 
 	for i := range ts.hops {
@@ -984,7 +994,7 @@ func (m Model) renderTraceroutePiped() string {
 
 	var hb textbuf.Buffer
 	hb.Str("Traceroute to ").Str(ps.target).Str("  rounds ").Int(int64(ps.rounds))
-	sb.Str(trHeaderStyle.Render(hb.Slice()))
+	sb.Str(trHeaderStyle.Render(hb.String()))
 	sb.Byte('\n')
 	sb.Byte('\n')
 
@@ -1001,7 +1011,7 @@ func (m Model) renderTraceroutePiped() string {
 	var footBuf textbuf.Buffer
 	footBuf.Str(footer)
 	tbSpaces(&footBuf, gap)
-	sb.Str(trFooterStyle.Render(footBuf.Slice()))
+	sb.Str(trFooterStyle.Render(footBuf.String()))
 
 	return sb.String()
 }

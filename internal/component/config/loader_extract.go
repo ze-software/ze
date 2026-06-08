@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -50,7 +51,10 @@ type ServerEndpoint struct {
 }
 
 // Listen returns host:port.
-func (e ServerEndpoint) Listen() string { return e.Host + ":" + e.Port }
+func (e ServerEndpoint) Listen() string {
+	var tb textbuf.Buffer
+	return tb.Str(e.Host).Byte(':').Str(e.Port).String()
+}
 
 // extractServerList reads the `server` list under a service container and
 // returns every entry as a ServerEndpoint. When the list is empty, a single
@@ -530,7 +534,10 @@ type APIListenConfig struct {
 }
 
 // Listen returns host:port.
-func (c APIListenConfig) Listen() string { return c.Host + ":" + c.Port }
+func (c APIListenConfig) Listen() string {
+	var tb textbuf.Buffer
+	return tb.Str(c.Host).Byte(':').Str(c.Port).String()
+}
 
 // APIConfig holds parsed environment.api settings.
 // REST and GRPC each carry a slice of listen endpoints (one entry per

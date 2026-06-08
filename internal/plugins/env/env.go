@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func Run(args []string) int {
@@ -38,7 +39,8 @@ func Run(args []string) int {
 		return showOne(args[1])
 	}
 
-	writeErr("error: unknown env command: " + args[0])
+	var tb textbuf.Buffer
+	writeErr(tb.Str("error: unknown env command: ").Str(args[0]).String())
 	usage()
 	return 1
 }
@@ -60,7 +62,8 @@ func cmdList(args []string) int {
 		return 1
 	}
 	if fs.NArg() > 0 {
-		writeErr("error: unexpected argument \"" + fs.Arg(0) + "\"")
+		var tb textbuf.Buffer
+		writeErr(tb.Str("error: unexpected argument \"").Str(fs.Arg(0)).Byte('"').String())
 		return 1
 	}
 	return showAll(*verbose)
@@ -92,7 +95,8 @@ func showAll(verbose bool) int {
 	}
 
 	if err := w.Flush(); err != nil {
-		writeErr("error: " + err.Error())
+		var tb textbuf.Buffer
+		writeErr(tb.Str("error: ").Err(err).String())
 		return 1
 	}
 
@@ -108,14 +112,17 @@ func showAll(verbose bool) int {
 			if desc == "" {
 				desc = "-"
 			}
-			printRow(sw, "  ze.log."+sub.Name, desc)
+			var tb textbuf.Buffer
+			printRow(sw, tb.Str("  ze.log.").Str(sub.Name).String(), desc)
 		}
 		if err := sw.Flush(); err != nil {
-			writeErr("error: " + err.Error())
+			var tb textbuf.Buffer
+			writeErr(tb.Str("error: ").Err(err).String())
 			return 1
 		}
 		if err := out.Flush(); err != nil {
-			writeErr("error: " + err.Error())
+			var tb textbuf.Buffer
+			writeErr(tb.Str("error: ").Err(err).String())
 			return 1
 		}
 	}
@@ -124,13 +131,14 @@ func showAll(verbose bool) int {
 }
 
 func printRow(w *tabwriter.Writer, cols ...string) {
-	if _, err := fmt.Fprintln(w, strings.Join(cols, "\t")); err != nil {
+	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil {
 		return
 	}
 }
 
 func writeLine(w *bufio.Writer, s string) {
-	if _, err := w.WriteString(s + "\n"); err != nil {
+	var tb textbuf.Buffer
+	if _, err := w.WriteString(tb.Str(s).Byte('\n').String()); err != nil {
 		return
 	}
 }
@@ -159,11 +167,12 @@ func showOne(key string) int {
 
 		current := currentValue(e.Key)
 		out := bufio.NewWriter(os.Stdout)
-		writeLine(out, "Key:         "+e.Key)
-		writeLine(out, "Type:        "+e.Type)
-		writeLine(out, "Default:     "+valueOrDash(e.Default))
-		writeLine(out, "Current:     "+valueOrDash(current))
-		writeLine(out, "Description: "+e.Description)
+		var tb textbuf.Buffer
+		writeLine(out, tb.Str("Key:         ").Str(e.Key).String())
+		writeLine(out, tb.Reset().Str("Type:        ").Str(e.Type).String())
+		writeLine(out, tb.Reset().Str("Default:     ").Str(valueOrDash(e.Default)).String())
+		writeLine(out, tb.Reset().Str("Current:     ").Str(valueOrDash(current)).String())
+		writeLine(out, tb.Reset().Str("Description: ").Str(e.Description).String())
 		if e.Private {
 			writeLine(out, "Private:     yes")
 		}
@@ -174,16 +183,17 @@ func showOne(key string) int {
 		under := strings.ReplaceAll(e.Key, ".", "_")
 		writeLine(out, "")
 		writeLine(out, "Accepted forms:")
-		writeLine(out, "  "+e.Key)
-		writeLine(out, "  "+under)
-		writeLine(out, "  "+strings.ToUpper(under))
+		writeLine(out, tb.Reset().Str("  ").Str(e.Key).String())
+		writeLine(out, tb.Reset().Str("  ").Str(under).String())
+		writeLine(out, tb.Reset().Str("  ").Str(strings.ToUpper(under)).String())
 		if err := out.Flush(); err != nil {
 			return 1
 		}
 		return 0
 	}
 
-	writeErr("error: unknown env var \"" + key + "\"")
+	var tb textbuf.Buffer
+	writeErr(tb.Str("error: unknown env var \"").Str(key).Byte('"').String())
 	return 1
 }
 
@@ -195,7 +205,8 @@ func valueOrDash(v string) string {
 }
 
 func writeErr(s string) {
-	if _, err := os.Stderr.WriteString(s + "\n"); err != nil {
+	var tb textbuf.Buffer
+	if _, err := os.Stderr.WriteString(tb.Str(s).Byte('\n').String()); err != nil {
 		return
 	}
 }

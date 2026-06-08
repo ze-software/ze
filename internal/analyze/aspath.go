@@ -1,4 +1,3 @@
-
 // Design: (none -- research/analysis tool)
 //
 // Analyzes AS_PATH suffix sharing across MRT dumps to determine whether
@@ -18,6 +17,8 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type aspathAnalysis struct {
@@ -331,7 +332,7 @@ func aspathPrintSummary(w io.Writer, st *aspathAnalysis) {
 	wf(w, "\nThis analysis builds a reversed trie over all AS_PATHs to measure\n")
 	wf(w, "how much suffix sharing exists. High compression means a trie-based\n")
 	wf(w, "storage would save significant memory vs storing full paths.\n\n")
-	wf(w, "Files: %s\n", strings.Join(st.Files, ", "))
+	wf(w, "Files: %s\n", textbuf.Join(st.Files, ", "))
 	wf(w, "Total AS_PATHs:  %s\n", formatNumber(st.TotalPaths))
 	wf(w, "Unique AS_PATHs: %s (%5.2f%% whole-path dedup)\n", formatNumber(st.UniquePaths), pathDedup)
 

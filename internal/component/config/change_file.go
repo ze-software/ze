@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -102,13 +104,14 @@ func (pc PendingChange) ConflictPaths() []string {
 
 // Summary returns a concise human-readable form of the pending change.
 func (pc PendingChange) Summary() string {
+	var tb textbuf.Buffer
 	switch pc.Kind {
 	case PendingChangeDelete:
-		return "delete " + pc.Path
+		return tb.Str("delete ").Str(pc.Path).String()
 	case PendingChangeRename:
-		return "rename " + pc.OldPath + " to " + pc.NewPath
+		return tb.Str("rename ").Str(pc.OldPath).Str(" to ").Str(pc.NewPath).String()
 	default:
-		return "set " + pc.Path + " " + pc.Value
+		return tb.Str("set ").Str(pc.Path).Byte(' ').Str(pc.Value).String()
 	}
 }
 
@@ -177,7 +180,7 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 		configLines = append(configLines, line)
 	}
 
-	tree, meta, err := parser.ParseWithMeta(strings.Join(configLines, "\n"))
+	tree, meta, err := parser.ParseWithMeta(textbuf.Join(configLines, "\n"))
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -187,14 +190,14 @@ func ParseChangeFile(content string, parser *SetParser) (*Tree, *MetaTree, []Str
 // SerializeChangeFile renders tree, meta, and structural ops into a per-user
 // change file. Rename lines are emitted before the set/delete body.
 func SerializeChangeFile(tree *Tree, meta *MetaTree, ops []StructuralOp, schema *Schema) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	for i := range ops {
-		b.WriteString(formatRenameLine(ops[i]))
-		b.WriteByte('\n')
+		b.Str(formatRenameLine(ops[i]))
+		b.Byte('\n')
 	}
 	body := SerializeSetWithMeta(tree, meta, schema)
 	if body != "" {
-		b.WriteString(body)
+		b.Str(body)
 	}
 	return b.String()
 }
@@ -264,7 +267,7 @@ func parseRenameLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp
 	oldKey := tokens[toIdx-1]
 	listName := tokens[toIdx-2]
 	newKey := tokens[toIdx+1]
-	parentPath := strings.Join(tokens[1:toIdx-2], " ")
+	parentPath := textbuf.Join(tokens[1:toIdx-2], " ")
 	if newKey == "" {
 		return StructuralOp{}, fmt.Errorf("line %d: rename requires a new key", lineNum)
 	}
@@ -282,21 +285,21 @@ func parseRenameLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp
 }
 
 func formatRenameLine(op StructuralOp) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	writeMetaPrefix(&b, MetaEntry{User: op.User, Source: op.Source, Time: op.Time})
-	b.WriteString(ChangeFileRenameToken)
-	b.WriteByte(' ')
+	b.Str(ChangeFileRenameToken)
+	b.Byte(' ')
 	if op.ParentPath != "" {
-		b.WriteString(op.ParentPath)
-		b.WriteByte(' ')
+		b.Str(op.ParentPath)
+		b.Byte(' ')
 	}
-	b.WriteString(op.ListName)
-	b.WriteByte(' ')
-	b.WriteString(op.OldKey)
-	b.WriteByte(' ')
-	b.WriteString(ChangeFileToToken)
-	b.WriteByte(' ')
-	b.WriteString(op.NewKey)
+	b.Str(op.ListName)
+	b.Byte(' ')
+	b.Str(op.OldKey)
+	b.Byte(' ')
+	b.Str(ChangeFileToToken)
+	b.Byte(' ')
+	b.Str(op.NewKey)
 	return b.String()
 }
 
@@ -310,5 +313,5 @@ func joinChangePath(parentPath string, elems ...string) string {
 			parts = append(parts, elem)
 		}
 	}
-	return strings.Join(parts, " ")
+	return textbuf.Join(parts, " ")
 }

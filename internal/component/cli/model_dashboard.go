@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // dashboardPollInterval is how often the dashboard refreshes data.
@@ -289,7 +290,8 @@ func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
 	m.dashboard.pollError = ""
 	snap, err := parseDashboardSnapshot(msg.data)
 	if err != nil {
-		m.dashboard.pollError = "parse error: " + err.Error()
+		var tb textbuf.Buffer
+		m.dashboard.pollError = tb.Str("parse error: ").Err(err).String()
 		return m, dashboardScheduleTick()
 	}
 
@@ -404,7 +406,8 @@ func (m *Model) fetchPeerDetail(addr string) {
 	if m.commandExecutor == nil || m.dashboard == nil {
 		return
 	}
-	data, err := m.commandExecutor("peer " + addr + " detail")
+	var tb textbuf.Buffer
+	data, err := m.commandExecutor(tb.Str("peer ").Str(addr).Str(" detail").String())
 	if err != nil {
 		return
 	}
@@ -430,7 +433,7 @@ func (m Model) renderDashboard() string {
 		return ""
 	}
 
-	var sb strings.Builder
+	var sb textbuf.Buffer
 	width := m.width
 	if width <= 0 {
 		width = 80
@@ -442,30 +445,30 @@ func (m Model) renderDashboard() string {
 	}
 
 	// Header (2 lines).
-	sb.WriteString(renderDashboardHeader(ds.snapshot, ds.pollError, width))
-	sb.WriteString("\n")
+	sb.Str(renderDashboardHeader(ds.snapshot, ds.pollError, width)).Byte('\n')
 
 	// Peer table or detail view.
 	if ds.detailAddr != "" {
-		sb.WriteString(renderDashboardDetail(ds))
+		sb.Str(renderDashboardDetail(ds))
 	} else {
 		var peers []dashboardPeer
 		if ds.snapshot != nil {
 			peers = sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc)
 		}
 		tableHeight := max(1, m.height-4) // header(2) + footer(1) + separator(1)
-		sb.WriteString(renderDashboardPeerTable(peers, ds, ds.sortColumn, ds.sortAsc, width, tableHeight))
+		sb.Str(renderDashboardPeerTable(peers, ds, ds.sortColumn, ds.sortAsc, width, tableHeight))
 	}
 
-	sb.WriteString("\n")
+	sb.Byte('\n')
 
 	// Footer (1 line).
 	lastUpdate := ""
 	if !ds.lastPollTime.IsZero() {
 		ago := time.Since(ds.lastPollTime).Truncate(time.Second)
-		lastUpdate = ago.String() + " ago"
+		var tb3 textbuf.Buffer
+		lastUpdate = tb3.Str(ago.String()).Str(" ago").String()
 	}
-	sb.WriteString(renderDashboardFooter(lastUpdate, width))
+	sb.Str(renderDashboardFooter(lastUpdate, width))
 
 	return sb.String()
 }

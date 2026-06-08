@@ -9,6 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -53,7 +54,8 @@ func init() {
 
 // runPlugin is the engine-mode entry point.
 func runPlugin(conn net.Conn) int {
-	logger().Debug(Name + " plugin starting (RPC)")
+	var tb textbuf.Buffer
+	logger().Debug(tb.Str(Name).Str(" plugin starting (RPC)").String())
 
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()

@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // withdrawalInfo stores the minimum information needed to send a withdrawal
@@ -101,13 +102,14 @@ func (rr *RouteReflector) walkUnicastNLRIs(sourcePeer, famName string, iter *nlr
 		if key == "" {
 			continue
 		}
-		routeKey := famName + "|" + key
+		var tb textbuf.Buffer
+		routeKey := tb.Str(famName).Byte('|').Str(key).String()
 		switch action {
 		case actionAdd:
 			if rr.withdrawals[sourcePeer] == nil {
 				rr.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
 			}
-			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: "prefix " + key}
+			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: tb.Reset().Str("prefix ").Str(key).String()}
 		case actionDel:
 			if rr.withdrawals[sourcePeer] != nil {
 				delete(rr.withdrawals[sourcePeer], routeKey)
@@ -148,9 +150,10 @@ func (rr *RouteReflector) walkNLRIsAllocating(sourcePeer string, fam family.Fami
 		if rr.withdrawals[sourcePeer] == nil {
 			rr.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
 		}
+		var tb textbuf.Buffer
 		for _, n := range nlris {
 			s := n.String()
-			routeKey := familyStr + "|" + nlriKey(s)
+			routeKey := tb.Reset().Str(familyStr).Byte('|').Str(nlriKey(s)).String()
 			rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: familyStr, Prefix: s}
 		}
 	case actionDel:
@@ -192,9 +195,10 @@ func (rr *RouteReflector) updateWithdrawalMapText(sourcePeer string, ops map[fam
 				if rr.withdrawals[sourcePeer] == nil {
 					rr.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
 				}
+				var tb textbuf.Buffer
 				for _, s := range op.nlris {
 					if s != "" {
-						routeKey := famName + "|" + nlriKey(s)
+						routeKey := tb.Reset().Str(famName).Byte('|').Str(nlriKey(s)).String()
 						rr.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: famName, Prefix: s}
 					}
 				}
@@ -314,13 +318,14 @@ func buildNLRIEntries(tokens []string) []string {
 		if !strings.Contains(tok, ",") {
 			continue
 		}
-		typePrefix := strings.Join(tokens[:i], " ")
+		typePrefix := textbuf.Join(tokens[:i], " ")
 		var nlris []string
+		var tb textbuf.Buffer
 		for part := range strings.SplitSeq(tok, ",") {
 			part = strings.TrimSpace(part)
 			if part != "" {
 				if typePrefix != "" {
-					nlris = append(nlris, typePrefix+" "+part)
+					nlris = append(nlris, tb.Reset().Str(typePrefix).Byte(' ').Str(part).String())
 				} else {
 					nlris = append(nlris, part)
 				}
@@ -335,17 +340,17 @@ func buildNLRIEntries(tokens []string) []string {
 		var current []string
 		for _, tok := range tokens {
 			if tok == tokens[0] && len(current) > 0 {
-				nlris = append(nlris, strings.Join(current, " "))
+				nlris = append(nlris, textbuf.Join(current, " "))
 				current = nil
 			}
 			current = append(current, tok)
 		}
 		if len(current) > 0 {
-			nlris = append(nlris, strings.Join(current, " "))
+			nlris = append(nlris, textbuf.Join(current, " "))
 		}
 		return nlris
 	}
 
 	// Single complex NLRI: join all tokens.
-	return []string{strings.Join(tokens, " ")}
+	return []string{textbuf.Join(tokens, " ")}
 }

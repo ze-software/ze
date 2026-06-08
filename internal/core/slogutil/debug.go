@@ -5,6 +5,8 @@ package slogutil
 
 import (
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // DebugSource describes why a subsystem's debug flag has its current value.
@@ -71,7 +73,7 @@ func resolveOne(name string, globalOn bool, explicitKeys map[string]bool) (bool,
 
 	parts := strings.Split(name, ".")
 	for i := len(parts) - 1; i > 0; i-- {
-		parent := strings.Join(parts[:i], ".")
+		parent := textbuf.Join(parts[:i], ".")
 		if on, ok := explicitKeys[parent]; ok {
 			return on, DebugSourceExplicit
 		}

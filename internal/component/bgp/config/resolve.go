@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/naming"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -329,7 +330,7 @@ func CheckRequiredFields(schema *config.Schema, bgpTree map[string]any) error {
 			if !hasNestedValue(peer, reqPath) {
 				configLogger().Warn("incomplete peer definition",
 					"peer", peerName,
-					"missing", strings.Join(reqPath, "/"))
+					"missing", textbuf.Join(reqPath, "/"))
 			}
 		}
 	}

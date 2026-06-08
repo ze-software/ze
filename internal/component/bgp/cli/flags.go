@@ -2,13 +2,13 @@
 
 package cli
 
-import "strings"
+import "codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 // pluginFlags collects multiple --plugin flag values.
 type pluginFlags []string
 
 func (p *pluginFlags) String() string {
-	return strings.Join(*p, ",")
+	return textbuf.Join(*p, ",")
 }
 
 func (p *pluginFlags) Set(value string) error {

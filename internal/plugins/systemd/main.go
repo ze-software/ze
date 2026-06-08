@@ -13,8 +13,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"unicode"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -139,7 +139,7 @@ func (r realServiceOps) run(name string, args ...string) error {
 	cmd.Stdout = r.stdout
 	cmd.Stderr = r.stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
+		return fmt.Errorf("%s %s: %w", name, textbuf.Join(args, " "), err)
 	}
 	return nil
 }

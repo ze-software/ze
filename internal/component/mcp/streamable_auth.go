@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	"golang.org/x/net/idna"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // buildAuthForMode dispatches across modes. AuthOAuth triggers the one-off
@@ -205,13 +207,14 @@ func normaliseURL(raw string) (string, error) {
 	// IPv6 literals in URL authority MUST be bracketed per RFC 3986 §3.2.2.
 	// url.Hostname() strips the brackets; add them back whenever the host
 	// carries a colon (only possible for an IPv6 literal).
+	var tb textbuf.Buffer
 	if strings.Contains(host, ":") {
-		host = "[" + host + "]"
+		host = tb.Byte('[').Str(host).Byte(']').String()
 	}
 	if port == "" {
-		return scheme + "://" + host + p, nil
+		return tb.Reset().Str(scheme).Str("://").Str(host).Str(p).String(), nil
 	}
-	return scheme + "://" + host + ":" + port + p, nil
+	return tb.Reset().Str(scheme).Str("://").Str(host).Byte(':').Str(port).Str(p).String(), nil
 }
 
 // canonicalAuthServerURL is the strict variant used for authorization-server
@@ -337,13 +340,14 @@ func canonicalOrigin(raw string) (string, error) {
 	}
 	// IPv6 literals MUST be bracketed per RFC 3986 Section 3.2.2; u.Hostname()
 	// strips the brackets so we put them back when the host contains a colon.
+	var tb textbuf.Buffer
 	if strings.Contains(host, ":") {
-		host = "[" + host + "]"
+		host = tb.Byte('[').Str(host).Byte(']').String()
 	}
 	if port == "" {
-		return scheme + "://" + host, nil
+		return tb.Reset().Str(scheme).Str("://").Str(host).String(), nil
 	}
-	return scheme + "://" + host + ":" + port, nil
+	return tb.Reset().Str(scheme).Str("://").Str(host).Byte(':').Str(port).String(), nil
 }
 
 // isLoopbackOrigin returns true for origin values that resolve to loopback.

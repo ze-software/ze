@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/gokrazy/tools/gok"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errNoPartitionsFoundInGpt = errors.New("no partitions found in GPT")
@@ -149,7 +151,8 @@ func buildOne(name string) int {
 		return code
 	}
 
-	checksumPath := imgPath + ".sha256"
+	var tbChk textbuf.Buffer
+	checksumPath := tbChk.Str(imgPath).Str(".sha256").String()
 	imgHash, hashErr := WriteImageChecksum(imgPath, checksumPath)
 	if hashErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: checksum: %v\n", hashErr)
@@ -282,7 +285,8 @@ func injectZeFS(imgPath, dbPath string) int {
 		return exitError
 	}
 
-	permImg := imgPath + ".perm.tmp"
+	var tbPerm textbuf.Buffer
+	permImg := tbPerm.Str(imgPath).Str(".perm.tmp").String()
 	defer os.Remove(permImg) //nolint:errcheck // temp file cleanup
 
 	fmt.Fprintf(os.Stderr, "injecting credentials into /perm...\n")

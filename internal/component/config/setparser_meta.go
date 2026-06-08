@@ -149,13 +149,13 @@ func extractMeta(line string) (MetaEntry, string) {
 			// Quoted form supports backslash escapes: \" for quote, \\ for backslash.
 			if len(remaining) > 2 && remaining[1] == '"' {
 				// Quoted: find unescaped closing quote.
-				var prev strings.Builder
+				var prev textbuf.Buffer
 				i := 2
 				for i < len(remaining) {
 					if remaining[i] == '\\' && i+1 < len(remaining) {
 						next := remaining[i+1]
 						if next == '"' || next == '\\' {
-							prev.WriteByte(next)
+							prev.Byte(next)
 							i += 2
 							continue
 						}
@@ -163,7 +163,7 @@ func extractMeta(line string) (MetaEntry, string) {
 					if remaining[i] == '"' {
 						break
 					}
-					prev.WriteByte(remaining[i])
+					prev.Byte(remaining[i])
 					i++
 				}
 				entry.Previous = capMetaField(prev.String())
@@ -275,7 +275,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if len(tokens) < 1 {
 			return fmt.Errorf("line %d: multi-leaf %s expects at least one value", lineNum, name)
 		}
-		value := strings.Join(tokens, " ")
+		value := textbuf.Join(tokens, " ")
 		if err := validateValuePatterns(multi.Type, multi.Patterns, value); err != nil {
 			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
@@ -302,7 +302,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		}
 		for _, item := range bracketItems(tokens) {
 			if valueOrArray.ValidValues != nil && !containsString(valueOrArray.ValidValues, item) {
-				return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, strings.Join(valueOrArray.ValidValues, ", "))
+				return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, textbuf.Join(valueOrArray.ValidValues, ", "))
 			}
 			if err := validateValuePatterns(valueOrArray.Type, valueOrArray.Patterns, item); err != nil {
 				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
@@ -382,7 +382,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		// Otherwise treat as value/flag leaf.
 		value := configTrue
 		if len(tokens) > 0 {
-			value = strings.Join(tokens, " ")
+			value = textbuf.Join(tokens, " ")
 		}
 		setLeafMeta(value)
 		return nil

@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Column widths for annotated gutter segments.
@@ -45,7 +47,7 @@ func SerializeAnnotatedTree(tree *Tree, meta *MetaTree, schema *Schema, columns 
 	if !columns.AnyEnabled() {
 		return Serialize(tree, schema)
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	serializeAnnotatedTree(&b, tree, meta, schema.root, columns, 0)
 	return b.String()
 }
@@ -59,7 +61,7 @@ func SerializeAnnotatedSet(tree *Tree, meta *MetaTree, schema *Schema, columns S
 	if !columns.AnyEnabled() {
 		return SerializeSet(tree, schema)
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	serializeAnnotatedSetNode(&b, tree, meta, schema.root, columns, "")
 	return b.String()
 }
@@ -67,7 +69,7 @@ func SerializeAnnotatedSet(tree *Tree, meta *MetaTree, schema *Schema, columns S
 // sanitizePrintable removes non-printable characters (below 0x20 or 0x7F-0x9F)
 // from a string to prevent terminal escape sequence injection.
 func sanitizePrintable(s string) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	for _, r := range s {
 		if r >= 0x20 && r != 0x7F && (r < 0x80 || r > 0x9F) {
 			b.WriteRune(r)
@@ -93,18 +95,18 @@ func truncateRunes(s string, maxRunes int) string {
 }
 
 // writeAnnotatedGutter writes the enabled gutter columns for a MetaEntry.
-func writeAnnotatedGutter(b *strings.Builder, e MetaEntry, columns ShowColumns) {
+func writeAnnotatedGutter(b *textbuf.Buffer, e MetaEntry, columns ShowColumns) {
 	if columns.Author {
 		user := truncateRunes(sanitizePrintable(e.User), annotatedAuthorWidth)
 		fmt.Fprintf(b, "%-*s  ", annotatedAuthorWidth, user)
 	}
 	if columns.Date {
 		if !e.Time.IsZero() {
-			b.WriteString(e.Time.Format("01-02 15:04"))
+			b.Str(e.Time.Format("01-02 15:04"))
 		} else {
-			b.WriteString(strings.Repeat(" ", annotatedDateWidth))
+			b.Str(strings.Repeat(" ", annotatedDateWidth))
 		}
-		b.WriteString("  ")
+		b.Str("  ")
 	}
 	if columns.Source {
 		src := truncateRunes(sanitizePrintable(e.Source), annotatedSourceWidth)
@@ -117,23 +119,23 @@ func writeAnnotatedGutter(b *strings.Builder, e MetaEntry, columns ShowColumns) 
 }
 
 // writeEmptyAnnotatedGutter writes blank padding matching the enabled columns.
-func writeEmptyAnnotatedGutter(b *strings.Builder, columns ShowColumns) {
+func writeEmptyAnnotatedGutter(b *textbuf.Buffer, columns ShowColumns) {
 	if columns.Author {
-		b.WriteString(strings.Repeat(" ", annotatedAuthorWidth+annotatedColumnSpacing))
+		b.Str(strings.Repeat(" ", annotatedAuthorWidth+annotatedColumnSpacing))
 	}
 	if columns.Date {
-		b.WriteString(strings.Repeat(" ", annotatedDateWidth+annotatedColumnSpacing))
+		b.Str(strings.Repeat(" ", annotatedDateWidth+annotatedColumnSpacing))
 	}
 	if columns.Source {
-		b.WriteString(strings.Repeat(" ", annotatedSourceWidth+annotatedColumnSpacing))
+		b.Str(strings.Repeat(" ", annotatedSourceWidth+annotatedColumnSpacing))
 	}
 	if columns.Changes {
-		b.WriteString(strings.Repeat(" ", annotatedChangesWidth+annotatedColumnSpacing))
+		b.Str(strings.Repeat(" ", annotatedChangesWidth+annotatedColumnSpacing))
 	}
 }
 
 // writeAnnotatedLeafGutter writes the gutter for a leaf with metadata, or empty padding.
-func writeAnnotatedLeafGutter(b *strings.Builder, meta *MetaTree, name string, columns ShowColumns) {
+func writeAnnotatedLeafGutter(b *textbuf.Buffer, meta *MetaTree, name string, columns ShowColumns) {
 	if meta != nil {
 		if entries := meta.entries[name]; len(entries) > 0 {
 			e := entries[len(entries)-1]
@@ -148,7 +150,7 @@ func writeAnnotatedLeafGutter(b *strings.Builder, meta *MetaTree, name string, c
 
 // writeAnnotatedOpenBraceGutter writes the gutter for an opening brace.
 // Inherits metadata from the first child in the subtree.
-func writeAnnotatedOpenBraceGutter(b *strings.Builder, meta *MetaTree, columns ShowColumns) {
+func writeAnnotatedOpenBraceGutter(b *textbuf.Buffer, meta *MetaTree, columns ShowColumns) {
 	if e, ok := firstSubtreeEntry(meta); ok {
 		writeAnnotatedGutter(b, e, columns)
 		return
@@ -158,7 +160,7 @@ func writeAnnotatedOpenBraceGutter(b *strings.Builder, meta *MetaTree, columns S
 
 // writeAnnotatedCloseBraceGutter writes the gutter for a closing brace.
 // Inherits metadata from the last child in the subtree.
-func writeAnnotatedCloseBraceGutter(b *strings.Builder, meta *MetaTree, columns ShowColumns) {
+func writeAnnotatedCloseBraceGutter(b *textbuf.Buffer, meta *MetaTree, columns ShowColumns) {
 	if e, ok := lastSubtreeEntry(meta); ok {
 		writeAnnotatedGutter(b, e, columns)
 		return
@@ -169,7 +171,7 @@ func writeAnnotatedCloseBraceGutter(b *strings.Builder, meta *MetaTree, columns 
 // SerializeAnnotatedSubtree produces annotated hierarchical output for a subtree
 // at a specific schema node (used when showing config at a sub-path).
 func SerializeAnnotatedSubtree(tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	serializeAnnotatedTree(&b, tree, meta, parent, columns, 0)
 	return b.String()
 }
@@ -177,7 +179,7 @@ func SerializeAnnotatedSubtree(tree *Tree, meta *MetaTree, parent childProvider,
 // SerializeAnnotatedSubtreeSet produces annotated set commands for a subtree
 // at a specific schema node (used when showing config at a sub-path in set format).
 func SerializeAnnotatedSubtreeSet(tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	serializeAnnotatedSetNode(&b, tree, meta, parent, columns, "")
 	return b.String()
 }
@@ -189,7 +191,7 @@ func SerializeAnnotatedSubtreeSet(tree *Tree, meta *MetaTree, parent childProvid
 // Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the walk
 // so callees can read tree / meta internals directly. Recursion into sub-
 // trees and sub-metas acquires their own locks independently.
-func serializeAnnotatedTree(b *strings.Builder, tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns, indent int) {
+func serializeAnnotatedTree(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns, indent int) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	if meta != nil {
@@ -206,7 +208,7 @@ func serializeAnnotatedTree(b *strings.Builder, tree *Tree, meta *MetaTree, pare
 // serializeAnnotatedTreeNode dispatches annotated serialization by node type.
 //
 //nolint:cyclop // exhaustive switch over all node types is intentional
-func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node Node, columns ShowColumns, indent int) {
+func serializeAnnotatedTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node Node, columns ShowColumns, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	switch n := node.(type) {
@@ -216,65 +218,65 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 		}
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(normalizeBool(v)))
-			b.WriteString("\n")
+			b.Str(name)
+			b.Str(" ")
+			b.Str(quoteIfNeeded(normalizeBool(v)))
+			b.Str("\n")
 		}
 
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(v)
-			b.WriteString("\n")
+			b.Str(name)
+			b.Str(" ")
+			b.Str(v)
+			b.Str("\n")
 		}
 
 	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
-			b.WriteString(" [ ")
-			b.WriteString(v)
-			b.WriteString(" ]\n")
+			b.Str(name)
+			b.Str(" [ ")
+			b.Str(v)
+			b.Str(" ]\n")
 		}
 
 	case *ValueOrArrayNode:
 		// Direct access: caller holds tree.mu.RLock via serializeAnnotatedTree.
 		if items := tree.multiValues[name]; len(items) > 0 {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if tree.inactiveValues[name] {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
+			b.Str(name)
 			if len(items) == 1 {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(items[0]))
+				b.Str(" ")
+				b.Str(quoteIfNeeded(items[0]))
 			} else {
-				b.WriteString(" [ ")
+				b.Str(" [ ")
 				for i, item := range items {
 					if i > 0 {
-						b.WriteString(" ")
+						b.Str(" ")
 					}
-					b.WriteString(quoteIfNeeded(item))
+					b.Str(quoteIfNeeded(item))
 				}
-				b.WriteString(" ]")
+				b.Str(" ]")
 			}
-			b.WriteString("\n")
+			b.Str("\n")
 		}
 
 	case *ContainerNode:
@@ -301,19 +303,19 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 }
 
 // serializeAnnotatedContainer handles container nodes in annotated tree view.
-func serializeAnnotatedContainer(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *ContainerNode, columns ShowColumns, indent int) {
+func serializeAnnotatedContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *ContainerNode, columns ShowColumns, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	if node.Presence {
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			b.WriteString(prefix)
-			b.WriteString(name)
+			b.Str(prefix)
+			b.Str(name)
 			if v != configTrue {
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(v))
+				b.Str(" ")
+				b.Str(quoteIfNeeded(v))
 			}
-			b.WriteString("\n")
+			b.Str("\n")
 		}
 	}
 	if child := tree.containers[name]; child != nil {
@@ -324,22 +326,22 @@ func serializeAnnotatedContainer(b *strings.Builder, tree *Tree, meta *MetaTree,
 			serializeContainerInline(b, child, name, node, indent)
 		} else {
 			writeAnnotatedOpenBraceGutter(b, childMeta, columns)
-			b.WriteString(prefix)
+			b.Str(prefix)
 			if child.IsInactive() {
-				b.WriteString("inactive: ")
+				b.Str("inactive: ")
 			}
-			b.WriteString(name)
-			b.WriteString(" {\n")
+			b.Str(name)
+			b.Str(" {\n")
 			serializeAnnotatedTree(b, child, childMeta, node, columns, indent+1)
 			writeAnnotatedCloseBraceGutter(b, childMeta, columns)
-			b.WriteString(prefix)
-			b.WriteString("}\n")
+			b.Str(prefix)
+			b.Str("}\n")
 		}
 	}
 }
 
 // serializeAnnotatedList handles list nodes in annotated tree view.
-func serializeAnnotatedList(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *ListNode, columns ShowColumns, indent int) {
+func serializeAnnotatedList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *ListNode, columns ShowColumns, indent int) {
 	entries := tree.lists[name]
 	if entries == nil {
 		return
@@ -363,25 +365,25 @@ func serializeAnnotatedList(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		displayKey := StripListKeySuffix(key)
 		entryMeta := metaListEntry(meta, name, key)
 		writeAnnotatedOpenBraceGutter(b, entryMeta, columns)
-		b.WriteString(prefix)
+		b.Str(prefix)
 		if entry.IsInactive() {
-			b.WriteString("inactive: ")
+			b.Str("inactive: ")
 		}
-		b.WriteString(name)
+		b.Str(name)
 		if key != KeyDefault {
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(displayKey))
+			b.Str(" ")
+			b.Str(quoteIfNeeded(displayKey))
 		}
-		b.WriteString(" {\n")
+		b.Str(" {\n")
 		serializeAnnotatedTree(b, entry, entryMeta, node, columns, indent+1)
 		writeAnnotatedCloseBraceGutter(b, entryMeta, columns)
-		b.WriteString(prefix)
-		b.WriteString("}\n")
+		b.Str(prefix)
+		b.Str("}\n")
 	}
 }
 
 // serializeAnnotatedFreeform handles freeform nodes in annotated tree view.
-func serializeAnnotatedFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, name string, columns ShowColumns, indent int) {
+func serializeAnnotatedFreeform(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, columns ShowColumns, indent int) {
 	child := tree.containers[name]
 	if child == nil {
 		return
@@ -394,9 +396,9 @@ func serializeAnnotatedFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, 
 	// firstSubtreeEntry (used by writeAnnotatedOpenBraceGutter) self-locks
 	// childMeta briefly -- must NOT hold childMeta.mu here.
 	writeAnnotatedOpenBraceGutter(b, childMeta, columns)
-	b.WriteString(prefix)
-	b.WriteString(name)
-	b.WriteString(" {\n")
+	b.Str(prefix)
+	b.Str(name)
+	b.Str(" {\n")
 
 	// Lock child + childMeta for the loop body's direct map reads and the
 	// writeAnnotatedLeafGutter calls (which read childMeta.entries).
@@ -414,19 +416,19 @@ func serializeAnnotatedFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, 
 	for _, k := range keys {
 		v := child.values[k]
 		writeAnnotatedLeafGutter(b, childMeta, k, columns)
-		b.WriteString(innerPrefix)
-		b.WriteString(k)
+		b.Str(innerPrefix)
+		b.Str(k)
 		if v != configTrue {
 			if strings.HasPrefix(v, "[ ") && strings.HasSuffix(v, " ]") {
-				b.WriteString(" ")
-				b.WriteString(v)
+				b.Str(" ")
+				b.Str(v)
 			} else {
-				b.WriteString(" [ ")
-				b.WriteString(v)
-				b.WriteString(" ]")
+				b.Str(" [ ")
+				b.Str(v)
+				b.Str(" ]")
 			}
 		}
-		b.WriteString("\n")
+		b.Str("\n")
 	}
 
 	if childMeta != nil {
@@ -437,44 +439,44 @@ func serializeAnnotatedFreeform(b *strings.Builder, tree *Tree, meta *MetaTree, 
 	// lastSubtreeEntry (used by writeAnnotatedCloseBraceGutter) self-locks
 	// childMeta briefly -- must NOT hold childMeta.mu here.
 	writeAnnotatedCloseBraceGutter(b, childMeta, columns)
-	b.WriteString(prefix)
-	b.WriteString("}\n")
+	b.Str(prefix)
+	b.Str("}\n")
 }
 
 // serializeAnnotatedFlex handles flex nodes in annotated tree view.
-func serializeAnnotatedFlex(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *FlexNode, columns ShowColumns, indent int) {
+func serializeAnnotatedFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *FlexNode, columns ShowColumns, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	if v, ok := tree.values[name]; ok {
 		writeAnnotatedLeafGutter(b, meta, name, columns)
-		b.WriteString(prefix)
-		b.WriteString(name)
+		b.Str(prefix)
+		b.Str(name)
 		if v != configTrue {
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(v))
+			b.Str(" ")
+			b.Str(quoteIfNeeded(v))
 		}
-		b.WriteString("\n")
+		b.Str("\n")
 	} else if mv := tree.multiValues[name]; len(mv) > 0 {
 		for _, v := range mv {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(v)
-			b.WriteString("\n")
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" ")
+			b.Str(v)
+			b.Str("\n")
 		}
 	}
 
 	if child := tree.containers[name]; child != nil {
 		flexChildMeta := metaContainerChild(meta, name)
 		writeAnnotatedOpenBraceGutter(b, flexChildMeta, columns)
-		b.WriteString(prefix)
-		b.WriteString(name)
-		b.WriteString(" {\n")
+		b.Str(prefix)
+		b.Str(name)
+		b.Str(" {\n")
 		serializeAnnotatedTree(b, child, flexChildMeta, node, columns, indent+1)
 		writeAnnotatedCloseBraceGutter(b, flexChildMeta, columns)
-		b.WriteString(prefix)
-		b.WriteString("}\n")
+		b.Str(prefix)
+		b.Str("}\n")
 	}
 
 	if entries := tree.lists[name]; entries != nil {
@@ -487,21 +489,21 @@ func serializeAnnotatedFlex(b *strings.Builder, tree *Tree, meta *MetaTree, name
 			entry := entries[key]
 			entryMeta := metaListEntry(meta, name, key)
 			writeAnnotatedOpenBraceGutter(b, entryMeta, columns)
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(key))
-			b.WriteString(" {\n")
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" ")
+			b.Str(quoteIfNeeded(key))
+			b.Str(" {\n")
 			serializeAnnotatedTree(b, entry, entryMeta, node, columns, indent+1)
 			writeAnnotatedCloseBraceGutter(b, entryMeta, columns)
-			b.WriteString(prefix)
-			b.WriteString("}\n")
+			b.Str(prefix)
+			b.Str("}\n")
 		}
 	}
 }
 
 // serializeAnnotatedInlineList handles inline list entries in annotated tree view.
-func serializeAnnotatedInlineList(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *InlineListNode, columns ShowColumns, indent int) {
+func serializeAnnotatedInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *InlineListNode, columns ShowColumns, indent int) {
 	entries := tree.lists[name]
 	if entries == nil {
 		return
@@ -529,27 +531,27 @@ func serializeAnnotatedInlineList(b *strings.Builder, tree *Tree, meta *MetaTree
 
 		writeAnnotatedOpenBraceGutter(b, entryMeta, columns)
 		if hasValues {
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(displayKey))
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" ")
+			b.Str(quoteIfNeeded(displayKey))
 			entry.mu.RLock()
 			for _, attrName := range node.Children() {
 				if v, ok := entry.values[attrName]; ok {
-					b.WriteString(" ")
-					b.WriteString(attrName)
-					b.WriteString(" ")
-					b.WriteString(quoteIfNeeded(v))
+					b.Str(" ")
+					b.Str(attrName)
+					b.Str(" ")
+					b.Str(quoteIfNeeded(v))
 				}
 			}
 			entry.mu.RUnlock()
-			b.WriteString("\n")
+			b.Str("\n")
 		} else {
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(displayKey))
-			b.WriteString(" {\n")
+			b.Str(prefix)
+			b.Str(name)
+			b.Str(" ")
+			b.Str(quoteIfNeeded(displayKey))
+			b.Str(" {\n")
 			innerPrefix := strings.Repeat("\t", indent+1)
 			entry.mu.RLock()
 			if entryMeta != nil {
@@ -561,25 +563,25 @@ func serializeAnnotatedInlineList(b *strings.Builder, tree *Tree, meta *MetaTree
 					continue
 				}
 				writeAnnotatedLeafGutter(b, entryMeta, childName, columns)
-				b.WriteString(innerPrefix)
-				b.WriteString(childName)
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(v))
-				b.WriteString("\n")
+				b.Str(innerPrefix)
+				b.Str(childName)
+				b.Str(" ")
+				b.Str(quoteIfNeeded(v))
+				b.Str("\n")
 			}
 			if entryMeta != nil {
 				entryMeta.mu.RUnlock()
 			}
 			entry.mu.RUnlock()
 			writeAnnotatedCloseBraceGutter(b, entryMeta, columns)
-			b.WriteString(prefix)
-			b.WriteString("}\n")
+			b.Str(prefix)
+			b.Str("}\n")
 		}
 	}
 }
 
 // serializeAnnotatedExtraValues writes extra tree values with annotated gutters.
-func serializeAnnotatedExtraValues(b *strings.Builder, tree *Tree, meta *MetaTree, children []string, columns ShowColumns, indent int) {
+func serializeAnnotatedExtraValues(b *textbuf.Buffer, tree *Tree, meta *MetaTree, children []string, columns ShowColumns, indent int) {
 	schemaNames := make(map[string]bool, len(children))
 	for _, name := range children {
 		schemaNames[name] = true
@@ -599,14 +601,14 @@ func serializeAnnotatedExtraValues(b *strings.Builder, tree *Tree, meta *MetaTre
 	prefix := strings.Repeat("\t", indent)
 	for _, k := range extraKeys {
 		writeAnnotatedLeafGutter(b, meta, k, columns)
-		b.WriteString(prefix)
+		b.Str(prefix)
 		if tree.inactiveValues[k] {
-			b.WriteString("inactive: ")
+			b.Str("inactive: ")
 		}
-		b.WriteString(k)
-		b.WriteString(" ")
-		b.WriteString(quoteIfNeeded(tree.values[k]))
-		b.WriteString("\n")
+		b.Str(k)
+		b.Str(" ")
+		b.Str(quoteIfNeeded(tree.values[k]))
+		b.Str("\n")
 	}
 }
 
@@ -616,7 +618,7 @@ func serializeAnnotatedExtraValues(b *strings.Builder, tree *Tree, meta *MetaTre
 //
 // Holds tree.mu.RLock (and meta.mu.RLock when meta is non-nil) for the walk.
 // Recursion into sub-trees / sub-metas acquires their own locks.
-func serializeAnnotatedSetNode(b *strings.Builder, tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns, prefix string) {
+func serializeAnnotatedSetNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, parent childProvider, columns ShowColumns, prefix string) {
 	tree.mu.RLock()
 	defer tree.mu.RUnlock()
 	if meta != nil {
@@ -632,7 +634,7 @@ func serializeAnnotatedSetNode(b *strings.Builder, tree *Tree, meta *MetaTree, p
 // serializeAnnotatedSetChild dispatches annotated set serialization by node type.
 //
 //nolint:cyclop // exhaustive switch over all node types is intentional
-func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node Node, columns ShowColumns, prefix string) {
+func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node Node, columns ShowColumns, prefix string) {
 	path := prefix + name
 
 	switch n := node.(type) {
@@ -664,16 +666,16 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 			if len(items) == 1 {
 				fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(items[0]))
 			} else {
-				b.WriteString("set ")
-				b.WriteString(path)
-				b.WriteString(" [ ")
+				b.Str("set ")
+				b.Str(path)
+				b.Str(" [ ")
 				for i, item := range items {
 					if i > 0 {
-						b.WriteString(" ")
+						b.Str(" ")
 					}
-					b.WriteString(quoteIfNeeded(item))
+					b.Str(quoteIfNeeded(item))
 				}
-				b.WriteString(" ]\n")
+				b.Str(" ]\n")
 			}
 		}
 
@@ -739,7 +741,8 @@ func serializeAnnotatedSetChild(b *strings.Builder, tree *Tree, meta *MetaTree, 
 }
 
 // serializeAnnotatedSetList handles list nodes in annotated set format.
-func serializeAnnotatedSetList(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *ListNode, columns ShowColumns, path string) {
+func serializeAnnotatedSetList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *ListNode, columns ShowColumns, path string) {
+	var tb textbuf.Buffer
 	entries := tree.lists[name]
 	if entries == nil {
 		return
@@ -760,14 +763,15 @@ func serializeAnnotatedSetList(b *strings.Builder, tree *Tree, meta *MetaTree, n
 			continue
 		}
 		displayKey := StripListKeySuffix(key)
-		entryPath := path + " " + quoteIfNeeded(displayKey)
+		entryPath := tb.Reset().Str(path).Byte(' ').Str(quoteIfNeeded(displayKey)).String()
 		entryMeta := metaListEntry(meta, name, key)
 		serializeAnnotatedSetNode(b, entry, entryMeta, node, columns, entryPath+" ")
 	}
 }
 
 // serializeAnnotatedSetFlex handles flex nodes in annotated set format.
-func serializeAnnotatedSetFlex(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *FlexNode, columns ShowColumns, path string) {
+func serializeAnnotatedSetFlex(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *FlexNode, columns ShowColumns, path string) {
+	var tb textbuf.Buffer
 	if v, ok := tree.values[name]; ok {
 		writeAnnotatedLeafGutter(b, meta, name, columns)
 		if v == configTrue {
@@ -795,7 +799,7 @@ func serializeAnnotatedSetFlex(b *strings.Builder, tree *Tree, meta *MetaTree, n
 		sort.Strings(keys)
 		for _, key := range keys {
 			entry := entries[key]
-			entryPath := path + " " + quoteIfNeeded(key)
+			entryPath := tb.Reset().Str(path).Byte(' ').Str(quoteIfNeeded(key)).String()
 			entryMeta := metaListEntry(meta, name, key)
 			serializeAnnotatedSetNode(b, entry, entryMeta, node, columns, entryPath+" ")
 		}
@@ -803,7 +807,8 @@ func serializeAnnotatedSetFlex(b *strings.Builder, tree *Tree, meta *MetaTree, n
 }
 
 // serializeAnnotatedSetInlineList handles inline list entries in annotated set format.
-func serializeAnnotatedSetInlineList(b *strings.Builder, tree *Tree, meta *MetaTree, name string, node *InlineListNode, columns ShowColumns, path string) {
+func serializeAnnotatedSetInlineList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name string, node *InlineListNode, columns ShowColumns, path string) {
+	var tb textbuf.Buffer
 	entries := tree.lists[name]
 	if entries == nil {
 		return
@@ -818,7 +823,7 @@ func serializeAnnotatedSetInlineList(b *strings.Builder, tree *Tree, meta *MetaT
 	for _, key := range keys {
 		entry := entries[key]
 		displayKey := StripListKeySuffix(key)
-		entryPath := path + " " + quoteIfNeeded(displayKey)
+		entryPath := tb.Reset().Str(path).Byte(' ').Str(quoteIfNeeded(displayKey)).String()
 		entryMeta := metaListEntry(meta, name, key)
 
 		// entry and entryMeta are separate nodes; lock before direct access.

@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -207,7 +208,7 @@ func (r *RelatedResolver) resolvePlaceholder(body string, contextPath []string, 
 		return key, true, nil
 
 	case "current-path":
-		return strings.Join(contextPath, "/"), true, nil
+		return textbuf.Join(contextPath, "/"), true, nil
 
 	case "leaf":
 		// Field-level only; return the last segment when contextPath looks

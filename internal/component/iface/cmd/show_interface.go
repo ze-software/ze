@@ -160,7 +160,7 @@ func showInterfaceByType(wanted string) (*plugin.Response, error) {
 		if len(valid) == 0 {
 			msg += "; no interfaces have a classified type"
 		} else {
-			msg += "; valid types: " + strings.Join(valid, ", ")
+			msg += "; valid types: " + textbuf.Join(valid, ", ")
 		}
 		return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 	}

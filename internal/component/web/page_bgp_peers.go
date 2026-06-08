@@ -8,9 +8,9 @@ package web
 import (
 	"html/template"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // peerEntry holds extracted fields for one BGP peer from the config tree.
@@ -96,7 +96,7 @@ func extractPeerEntry(name string, peerTree *config.Tree, group string) peerEntr
 		for _, f := range families {
 			names = append(names, f.Key)
 		}
-		pe.Families = strings.Join(names, ", ")
+		pe.Families = textbuf.Join(names, ", ")
 	}
 
 	// Disabled state: check if the peer is explicitly disabled.
@@ -105,10 +105,11 @@ func extractPeerEntry(name string, peerTree *config.Tree, group string) peerEntr
 	pe.Disabled = false
 
 	// Build edit URL
+	var tb textbuf.Buffer
 	if group != "" {
-		pe.EditURL = "/show/bgp/group/" + group + "/peer/" + name + "/"
+		pe.EditURL = tb.Str("/show/bgp/group/").Str(group).Str("/peer/").Str(name).Byte('/').String()
 	} else {
-		pe.EditURL = "/show/bgp/peer/" + name + "/"
+		pe.EditURL = tb.Str("/show/bgp/peer/").Str(name).Byte('/').String()
 	}
 
 	return pe
@@ -178,9 +179,10 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string) WorkbenchTabl
 		// The tool_id and context_path are sent; the server resolves the
 		// actual command from the YANG ze:related annotations.
 		if pe.RemoteIP != "" {
-			contextPath := "bgp/peer/" + pe.Name
+			var tb textbuf.Buffer
+			contextPath := tb.Str("bgp/peer/").Str(pe.Name).String()
 			if pe.Group != "" {
-				contextPath = "bgp/group/" + pe.Group + "/peer/" + pe.Name
+				contextPath = tb.Reset().Str("bgp/group/").Str(pe.Group).Str("/peer/").Str(pe.Name).String()
 			}
 			actions = append(actions,
 				WorkbenchRowAction{
@@ -192,7 +194,7 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string) WorkbenchTabl
 					Label:   "Teardown",
 					HxPost:  "/tools/related/run",
 					Class:   "danger",
-					Confirm: "Tear down BGP session with " + pe.Name + " (" + pe.RemoteIP + ")?",
+					Confirm: tb.Reset().Str("Tear down BGP session with ").Str(pe.Name).Str(" (").Str(pe.RemoteIP).Str(")?").String(),
 				},
 			)
 			_ = contextPath // context_path sent via hidden form fields in the template
@@ -210,7 +212,8 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string) WorkbenchTabl
 
 	emptyMsg := "No BGP peers configured."
 	if filterGroup != "" {
-		emptyMsg = "No peers in group " + strconv.Quote(filterGroup) + "."
+		var tb textbuf.Buffer
+		emptyMsg = tb.Str("No peers in group ").Str(strconv.Quote(filterGroup)).Byte('.').String()
 	}
 
 	return WorkbenchTableData{
@@ -245,7 +248,8 @@ func BuildBGPPeerDetailData(pe peerEntry) WorkbenchDetailData {
 
 	closeURL := "/show/bgp/peer/"
 	if pe.Group != "" {
-		closeURL = "/show/bgp/group/" + pe.Group + "/peer/"
+		var tb textbuf.Buffer
+		closeURL = tb.Str("/show/bgp/group/").Str(pe.Group).Str("/peer/").String()
 	}
 
 	return WorkbenchDetailData{
@@ -256,25 +260,24 @@ func BuildBGPPeerDetailData(pe peerEntry) WorkbenchDetailData {
 }
 
 func buildPeerConfigHTML(pe peerEntry) template.HTML {
-	var b strings.Builder
-	b.WriteString(`<div class="wb-detail-section">`)
-	b.WriteString(`<table class="wb-detail-kv">`)
+	var b textbuf.Buffer
+	b.Str(`<div class="wb-detail-section">`)
+	b.Str(`<table class="wb-detail-kv">`)
 	writeKV(&b, "Name", pe.Name)
 	writeKV(&b, "Remote IP", valueOrDash(pe.RemoteIP))
 	writeKV(&b, "Remote AS", valueOrDash(pe.RemoteAS))
 	writeKV(&b, "Local AS", valueOrDash(pe.LocalAS))
 	writeKV(&b, "Group", valueOrDash(pe.Group))
 	writeKV(&b, "Families", valueOrDash(pe.Families))
-	b.WriteString(`</table>`)
-	b.WriteString(`</div>`)
+	b.Str(`</table>`)
+	b.Str(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 
 func buildPeerStatusHTML(pe peerEntry) template.HTML {
-	var b strings.Builder
-	b.WriteString(`<div class="wb-detail-section">`)
-	b.WriteString(`<table class="wb-detail-kv">`)
-	// Operational state placeholder: future spec will populate from reactor.
+	var b textbuf.Buffer
+	b.Str(`<div class="wb-detail-section">`)
+	b.Str(`<table class="wb-detail-kv">`)
 	state := peerStateConfigured
 	if pe.Disabled {
 		state = peerStateDisabled
@@ -285,32 +288,33 @@ func buildPeerStatusHTML(pe peerEntry) template.HTML {
 	writeKV(&b, "Messages In", "--")
 	writeKV(&b, "Messages Out", "--")
 	writeKV(&b, "Last Error", "--")
-	b.WriteString(`</table>`)
-	b.WriteString(`<p class="wb-detail-hint">Operational data requires a running BGP engine.</p>`)
-	b.WriteString(`</div>`)
+	b.Str(`</table>`)
+	b.Str(`<p class="wb-detail-hint">Operational data requires a running BGP engine.</p>`)
+	b.Str(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 
 func buildPeerActionsHTML(pe peerEntry) template.HTML {
-	var b strings.Builder
-	b.WriteString(`<div class="wb-detail-section">`)
-	b.WriteString(`<div class="wb-detail-actions">`)
+	var b textbuf.Buffer
+	b.Str(`<div class="wb-detail-section">`)
+	b.Str(`<div class="wb-detail-actions">`)
 	if pe.RemoteIP != "" {
-		contextPath := "bgp/peer/" + pe.Name
+		var tb textbuf.Buffer
+		contextPath := tb.Str("bgp/peer/").Str(pe.Name).String()
 		if pe.Group != "" {
-			contextPath = "bgp/group/" + pe.Group + "/peer/" + pe.Name
+			contextPath = tb.Reset().Str("bgp/group/").Str(pe.Group).Str("/peer/").Str(pe.Name).String()
 		}
-		b.WriteString(`<button class="wb-detail-tool" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-flush","context_path":"`)
-		b.WriteString(template.HTMLEscapeString(contextPath))
-		b.WriteString(`"}' type="button">Flush</button>`)
-		b.WriteString(`<button class="wb-detail-tool wb-detail-tool--danger" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-teardown","context_path":"`)
-		b.WriteString(template.HTMLEscapeString(contextPath))
-		b.WriteString(`"}' hx-confirm="Tear down BGP session with `)
-		b.WriteString(template.HTMLEscapeString(pe.Name))
-		b.WriteString(`?" type="button">Teardown</button>`)
+		b.Str(`<button class="wb-detail-tool" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-flush","context_path":"`)
+		b.Str(template.HTMLEscapeString(contextPath))
+		b.Str(`"}' type="button">Flush</button>`)
+		b.Str(`<button class="wb-detail-tool wb-detail-tool--danger" hx-post="/tools/related/run" hx-vals='{"tool_id":"peer-teardown","context_path":"`)
+		b.Str(template.HTMLEscapeString(contextPath))
+		b.Str(`"}' hx-confirm="Tear down BGP session with `)
+		b.Str(template.HTMLEscapeString(pe.Name))
+		b.Str(`?" type="button">Teardown</button>`)
 	}
-	b.WriteString(`</div>`)
-	b.WriteString(`</div>`)
+	b.Str(`</div>`)
+	b.Str(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 

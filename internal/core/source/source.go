@@ -4,7 +4,11 @@
 // Source type is encoded in the ID value for self-describing compact storage.
 package source
 
-import "net/netip"
+import (
+	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 // SourceID is a self-describing identifier for a message source.
 // The ID range encodes the source type:
@@ -86,22 +90,8 @@ func (id SourceID) String() string {
 	default:
 		return "unknown"
 	}
-	return id.Type().String() + ":" + uitoa(n)
-}
-
-// uitoa converts uint32 to string without fmt import.
-func uitoa(v uint32) string {
-	if v == 0 {
-		return "0"
-	}
-	var buf [10]byte // max uint32 is 10 digits
-	i := len(buf)
-	for v > 0 {
-		i--
-		buf[i] = byte('0' + v%10)
-		v /= 10
-	}
-	return string(buf[i:])
+	var tb textbuf.Buffer
+	return tb.Str(id.Type().String()).Byte(':').Uint32(n).String()
 }
 
 // ParseSourceID converts "type:n" string to SourceID.
@@ -217,9 +207,11 @@ func (s Source) String() string {
 	case SourceUnknown:
 		return unknown
 	case SourcePeer:
-		return "peer:" + s.PeerIP.String()
+		var tb textbuf.Buffer
+		return tb.Str("peer:").Addr(s.PeerIP).String()
 	case SourceAPI:
-		return "api:" + s.Name
+		var tb textbuf.Buffer
+		return tb.Str("api:").Str(s.Name).String()
 	case SourceConfig:
 		return "config:1"
 	default:

@@ -5,11 +5,11 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -35,7 +35,8 @@ func (e *Editor) SaveEditState() error {
 		return nil // Nothing to save
 	}
 
-	editPath := e.originalPath + ".edit"
+	var tb textbuf.Buffer
+	editPath := tb.Str(e.originalPath).Str(".edit").String()
 	if err := e.store.WriteFile(editPath, []byte(e.workingContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write edit file: %w", err)
 	}
@@ -44,7 +45,8 @@ func (e *Editor) SaveEditState() error {
 
 // deleteEditFile removes the .edit file if it exists.
 func (e *Editor) deleteEditFile() {
-	editPath := e.originalPath + ".edit"
+	var tb textbuf.Buffer
+	editPath := tb.Str(e.originalPath).Str(".edit").String()
 	_ = e.store.Remove(editPath) // Ignore error if doesn't exist
 }
 
@@ -242,7 +244,7 @@ func (e *Editor) DeleteByPath(fullPath []string) error {
 
 	if err := e.DeleteValue(parentPath, target); err != nil {
 		if errC := e.DeleteContainer(parentPath, target); errC != nil {
-			return fmt.Errorf("not found: %s", strings.Join(fullPath, " "))
+			return fmt.Errorf("not found: %s", textbuf.Join(fullPath, " "))
 		}
 	}
 	return nil
@@ -432,7 +434,7 @@ func (e *Editor) DeactivateLeaf(parentPath []string, leafName string) error {
 		target = e.WalkPath(parentPath)
 	}
 	if target == nil {
-		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(parentPath, " "))
+		return fmt.Errorf("%w: %s", ErrPathNotFound, textbuf.Join(parentPath, " "))
 	}
 	if target.IsLeafInactive(leafName) {
 		return fmt.Errorf("%w: %q", ErrLeafAlreadyInactive, leafName)
@@ -453,7 +455,7 @@ func (e *Editor) ActivateLeaf(parentPath []string, leafName string) error {
 		target = e.WalkPath(parentPath)
 	}
 	if target == nil {
-		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(parentPath, " "))
+		return fmt.Errorf("%w: %s", ErrPathNotFound, textbuf.Join(parentPath, " "))
 	}
 	if !target.IsLeafInactive(leafName) {
 		return fmt.Errorf("%w: %q", ErrLeafNotInactive, leafName)
@@ -477,10 +479,10 @@ func (e *Editor) DeactivatePath(path []string) error {
 	}
 	target := e.WalkPath(path)
 	if target == nil {
-		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(path, " "))
+		return fmt.Errorf("%w: %s", ErrPathNotFound, textbuf.Join(path, " "))
 	}
 	if target.IsInactive() {
-		return fmt.Errorf("%w: %s", ErrPathAlreadyInactive, strings.Join(path, " "))
+		return fmt.Errorf("%w: %s", ErrPathAlreadyInactive, textbuf.Join(path, " "))
 	}
 	target.SetInactive(true)
 	e.dirty.Store(true)
@@ -498,10 +500,10 @@ func (e *Editor) ActivatePath(path []string) error {
 	}
 	target := e.WalkPath(path)
 	if target == nil {
-		return fmt.Errorf("%w: %s", ErrPathNotFound, strings.Join(path, " "))
+		return fmt.Errorf("%w: %s", ErrPathNotFound, textbuf.Join(path, " "))
 	}
 	if !target.IsInactive() {
-		return fmt.Errorf("%w: %s", ErrPathNotInactive, strings.Join(path, " "))
+		return fmt.Errorf("%w: %s", ErrPathNotInactive, textbuf.Join(path, " "))
 	}
 	target.SetInactive(false)
 	e.dirty.Store(true)

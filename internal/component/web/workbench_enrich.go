@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // enrichWorkbenchTable populates the workbench-only fields on data.ListTable:
@@ -56,7 +57,7 @@ func enrichWorkbenchTable(data *FragmentData, schema *config.Schema, tree *confi
 	for i := range data.ListTable.Rows {
 		rowPath := append([]string{}, path...)
 		rowPath = append(rowPath, data.ListTable.Rows[i].KeyValue)
-		rowPathJoined := strings.Join(rowPath, "/")
+		rowPathJoined := textbuf.Join(rowPath, "/")
 
 		data.ListTable.Rows[i].RowTools = buildRowTools(rowTools, rowPathJoined)
 		data.ListTable.Rows[i].HasPendingChanges = anyPathUnder(pendingPaths, rowPathJoined)
@@ -76,7 +77,7 @@ func buildWorkbenchListTable(tree *config.Tree, schema *config.Schema, path []st
 		cols = nil
 	}
 	keys := collectListKeys(tree, schema, path)
-	baseURL := "/show/" + strings.Join(path, "/") + "/"
+	baseURL := "/show/" + textbuf.Join(path, "/") + "/"
 	return buildListTable(tree, schema, path, listNode, keys, cols, baseURL)
 }
 
@@ -176,7 +177,7 @@ func buildTableTools(tools []*config.RelatedTool, listPath []string) []RelatedTo
 	if len(tools) == 0 {
 		return nil
 	}
-	cp := strings.Join(listPath, "/")
+	cp := textbuf.Join(listPath, "/")
 	out := make([]RelatedToolButton, 0, len(tools))
 	for _, t := range tools {
 		out = append(out, RelatedToolButton{

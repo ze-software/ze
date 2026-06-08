@@ -5,7 +5,7 @@
 package config
 
 import (
-	"strings"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // parseFreeform parses a freeform block: `name { word word; word word; }`
@@ -49,14 +49,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 			}
 			if tok.Type == TokenLBrace {
 				// Warn about nested block being skipped
-				var key strings.Builder
-				for i, w := range words {
-					if i > 0 {
-						key.WriteString(" ")
-					}
-					key.WriteString(w)
-				}
-				p.warn(startLine, "freeform '%s' contains nested block '%s' - data may be lost", name, key.String())
+				p.warn(startLine, "freeform '%s' contains nested block '%s' - data may be lost", name, textbuf.Join(words, " "))
 				// Skip nested block
 				if err := p.skipBlock(); err != nil {
 					return err
@@ -70,7 +63,8 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 					return err
 				}
 				// Preserve bracket syntax for freeform: "[ val1 val2 ]"
-				bracketedVal := "[ " + strings.Join(arrayVals, " ") + " ]"
+				var tb textbuf.Buffer
+				bracketedVal := tb.Str("[ ").Join(arrayVals, " ").Str(" ]").String()
 				words = append(words, bracketedVal)
 				hadArray = true
 				continue
@@ -89,25 +83,10 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 		if len(words) > 0 {
 			if hadArray && len(words) > 1 {
 				// Array present: "processes [ watcher ];" -> key="processes", value="watcher"
-				key := words[0]
-				var value strings.Builder
-				for i, w := range words[1:] {
-					if i > 0 {
-						value.WriteString(" ")
-					}
-					value.WriteString(w)
-				}
-				child.Set(key, value.String())
+				child.Set(words[0], textbuf.Join(words[1:], " "))
 			} else {
 				// No array: "ipv4/unicast;" -> key="ipv4/unicast", value="true"
-				var key strings.Builder
-				for i, w := range words {
-					if i > 0 {
-						key.WriteString(" ")
-					}
-					key.WriteString(w)
-				}
-				child.Set(key.String(), configTrue)
+				child.Set(textbuf.Join(words, " "), configTrue)
 			}
 		}
 	}
@@ -167,21 +146,13 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 		if err != nil {
 			return err
 		}
-		var value strings.Builder
-		for i, v := range parenVals {
-			if i > 0 {
-				value.WriteString(" ")
-			}
-			value.WriteString(v)
-		}
-
 		// Optional semicolon after parenthesized content
 		tok = p.tok.Peek()
 		if tok.Type == TokenSemicolon {
 			p.tok.Next()
 		}
 
-		tree.Set(name, value.String())
+		tree.Set(name, textbuf.Join(parenVals, " "))
 		return nil
 
 	case TokenLBracket:
@@ -190,7 +161,8 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 		if err != nil {
 			return err
 		}
-		value := "[" + strings.Join(arrayVals, " ") + "]"
+		var tb textbuf.Buffer
+		value := tb.Byte('[').Join(arrayVals, " ").Byte(']').String()
 
 		// Expect semicolon
 		tok = p.tok.Peek()
@@ -221,14 +193,16 @@ func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok Tok
 			if err != nil {
 				return err
 			}
-			values = append(values, "["+strings.Join(arrayVals, " ")+"]")
+			var tb textbuf.Buffer
+			values = append(values, tb.Byte('[').Join(arrayVals, " ").Byte(']').String())
 		case TokenLParen:
 			// Parenthesized: collect ( ... )
 			parenVals, err := p.collectParenthesized()
 			if err != nil {
 				return err
 			}
-			values = append(values, "("+strings.Join(parenVals, " ")+")")
+			var tb2 textbuf.Buffer
+			values = append(values, tb2.Byte('(').Join(parenVals, " ").Byte(')').String())
 		default:
 			values = append(values, tok.Value)
 			p.tok.Next()
@@ -288,7 +262,7 @@ func (p *Parser) parseFlexValue(tree *Tree, name string, node *FlexNode, tok Tok
 	p.tok.Next()
 
 	// Use AppendValue to support multiple inline entries (e.g., multiple mup routes)
-	tree.AppendValue(name, strings.Join(values, " "))
+	tree.AppendValue(name, textbuf.Join(values, " "))
 	return nil
 }
 

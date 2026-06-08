@@ -5,9 +5,9 @@ package migration
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ErrEmptyProcesses is returned when process block has no processes or processes-match.
@@ -337,7 +337,7 @@ func buildFlagList(entries ...flagEntry) string {
 	if len(flags) == 0 {
 		return ""
 	}
-	return "[ " + strings.Join(flags, " ") + " ]"
+	return "[ " + textbuf.Join(flags, " ") + " ]"
 }
 
 // extractProcessNames returns process names from the leaf-list processes field.

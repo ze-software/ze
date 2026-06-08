@@ -7,12 +7,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func cmdSetWithStorage(store storage.Storage, args []string) int {
@@ -104,7 +104,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 		return exitError
 	}
 
-	displayPath := strings.Join(path, " ")
+	displayPath := textbuf.Join(path, " ")
 
 	if *dryRun {
 		fmt.Fprintf(os.Stderr, "dry-run: would set %s = %s\n", displayPath, value)

@@ -21,6 +21,7 @@ import (
 	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -74,7 +75,7 @@ func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) err
 		for _, e := range errs {
 			msgs = append(msgs, e.Error())
 		}
-		return fmt.Errorf("firewall commit rejected:\n  %s", strings.Join(msgs, "\n  "))
+		return fmt.Errorf("firewall commit rejected:\n  %s", textbuf.Join(msgs, "\n  "))
 	}
 	return nil
 }

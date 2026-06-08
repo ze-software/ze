@@ -6,6 +6,7 @@ import (
 	"html"
 	"io"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/perf"
 )
 
@@ -89,16 +90,17 @@ func writeHTMLTable(w io.Writer, results []perf.Result) error {
 		r := &results[i]
 		convClass := cellClass(r.ConvergenceMs, bestConv, worstConv)
 
-		row := "<tr><td>" + html.EscapeString(r.DUTName) +
-			"</td><td>" + html.EscapeString(r.DUTVersion) +
-			"</td><td class=\"" + convClass + "\">" + fmtMs(r.ConvergenceMs) +
-			"</td><td>" + fmtMs(r.ConvergenceStddevMs) +
-			"</td><td>" + fmtNum(r.ThroughputAvg) +
-			"</td><td>" + fmtNum(r.ThroughputAvgStddev) +
-			"</td><td>" + fmtMs(r.LatencyP99Ms) +
-			"</td><td>" + fmtMs(r.LatencyP99StddevMs) +
-			"</td><td>" + fmtMs(r.WithdrawalMs) +
-			"</td><td>" + fmtMs(r.WithdrawalStddevMs) + "</td></tr>"
+		var tb textbuf.Buffer
+		row := tb.Str("<tr><td>").Str(html.EscapeString(r.DUTName)).
+			Str("</td><td>").Str(html.EscapeString(r.DUTVersion)).
+			Str("</td><td class=\"").Str(convClass).Str("\">").Str(fmtMs(r.ConvergenceMs)).
+			Str("</td><td>").Str(fmtMs(r.ConvergenceStddevMs)).
+			Str("</td><td>").Str(fmtNum(r.ThroughputAvg)).
+			Str("</td><td>").Str(fmtNum(r.ThroughputAvgStddev)).
+			Str("</td><td>").Str(fmtMs(r.LatencyP99Ms)).
+			Str("</td><td>").Str(fmtMs(r.LatencyP99StddevMs)).
+			Str("</td><td>").Str(fmtMs(r.WithdrawalMs)).
+			Str("</td><td>").Str(fmtMs(r.WithdrawalStddevMs)).Str("</td></tr>").String()
 		if _, err := fmt.Fprintln(w, row); err != nil {
 			return fmt.Errorf("writing table row: %w", err)
 		}

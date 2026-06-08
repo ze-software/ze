@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Severity constants for validation issues.
@@ -236,11 +237,12 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 		for i := range yangErrs {
 			field := yangLeafName(yangErrs[i].Path)
 			setPath := strings.ReplaceAll(yangErrs[i].Path, ".", " ")
+			var tb textbuf.Buffer
 			var msg string
 			if yangErrs[i].Type == yang.ErrTypeMissing {
-				msg = "missing required field \"" + field + "\" (set " + setPath + " <value>)"
+				msg = tb.Str("missing required field \"").Str(field).Str("\" (set ").Str(setPath).Str(" <value>)").String()
 			} else {
-				msg = field + ": " + yangErrs[i].Message
+				msg = tb.Reset().Str(field).Str(": ").Str(yangErrs[i].Message).String()
 			}
 			severity := severityError
 			if yangErrs[i].Type == yang.ErrTypeMissing {
@@ -265,8 +267,9 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 		treeData := tree.ToMap()
 		delete(treeData, "bgp")
 		for _, rv := range config.CheckRequired(v.schema, treeData) {
+			var tb textbuf.Buffer
 			warns = append(warns, ConfigValidationError{
-				Message:  rv.AnchorPath + " " + rv.EntryKey + ": missing required field \"" + rv.FieldPath + "\" (" + rv.SetHint + ")",
+				Message:  tb.Str(rv.AnchorPath).Byte(' ').Str(rv.EntryKey).Str(": missing required field \"").Str(rv.FieldPath).Str("\" (").Str(rv.SetHint).Byte(')').String(),
 				Severity: severityWarning,
 			})
 		}
@@ -312,16 +315,17 @@ func (v *ConfigValidator) validatePeer(peerAddr, groupName string, peerTree, gro
 	if peerList := v.peerListNode(); peerList != nil {
 		for _, reqPath := range peerList.Required {
 			if !hasResolvedValue(resolved, reqPath) && !hasResolvedValue(bgpTree, reqPath) {
-				fieldStr := strings.Join(reqPath, "/")
-				var setHint string
+				fieldStr := textbuf.Join(reqPath, "/")
+				var tb textbuf.Buffer
 				if groupName != "" {
-					setHint = "set bgp group " + groupName + " peer " + peerAddr + " " + strings.Join(reqPath, " ") + " <value>"
+					tb.Str("set bgp group ").Str(groupName).Str(" peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
 				} else {
-					setHint = "set bgp peer " + peerAddr + " " + strings.Join(reqPath, " ") + " <value>"
+					tb.Str("set bgp peer ").Str(peerAddr).Byte(' ').Join(reqPath, " ").Str(" <value>")
 				}
+				setHint := tb.String()
 				*warns = append(*warns, ConfigValidationError{
 					Line:     findDeepestParentLine(lines, peerAddr, reqPath, peerTree),
-					Message:  "peer " + peerAddr + ": missing required field \"" + fieldStr + "\" (" + setHint + ")",
+					Message:  tb.Reset().Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(fieldStr).Str("\" (").Str(setHint).Byte(')').String(),
 					Severity: severityWarning,
 				})
 			}
@@ -454,18 +458,19 @@ func yangLeafName(path string) string {
 
 // formatPeerError formats a YANG validation error for a peer with clear, non-redundant messaging.
 func formatPeerError(peerAddr, field string, yerr yang.ValidationError) string {
+	var tb textbuf.Buffer
 	if yerr.Type == yang.ErrTypeMissing {
 		setPath := strings.ReplaceAll(yerr.Path, ".", " ")
-		setPath = strings.Replace(setPath, "bgp peer", "bgp peer "+peerAddr, 1)
-		return "peer " + peerAddr + ": missing required field \"" + field + "\" (set " + setPath + " <value>)"
+		setPath = strings.Replace(setPath, "bgp peer", tb.Str("bgp peer ").Str(peerAddr).String(), 1)
+		return tb.Reset().Str("peer ").Str(peerAddr).Str(": missing required field \"").Str(field).Str("\" (set ").Str(setPath).Str(" <value>)").String()
 	}
 	if yerr.Type == yang.ErrTypeEnum {
 		if yerr.Expected != "" {
-			return "peer " + peerAddr + ": \"" + field + "\" must be one of: " + yerr.Expected + " (got \"" + yerr.Got + "\")"
+			return tb.Str("peer ").Str(peerAddr).Str(": \"").Str(field).Str("\" must be one of: ").Str(yerr.Expected).Str(" (got \"").Str(yerr.Got).Str("\")").String()
 		}
-		return "peer " + peerAddr + ": \"" + field + "\" has invalid value \"" + yerr.Got + "\""
+		return tb.Str("peer ").Str(peerAddr).Str(": \"").Str(field).Str("\" has invalid value \"").Str(yerr.Got).Byte('"').String()
 	}
-	return "peer " + peerAddr + ": \"" + field + "\" - " + yerr.Message
+	return tb.Str("peer ").Str(peerAddr).Str(": \"").Str(field).Str("\" - ").Str(yerr.Message).String()
 }
 
 // findErrorLine returns the source line for a YANG error.
@@ -482,7 +487,8 @@ func findErrorLine(lines []string, peerAddr, field string, errType yang.ErrorTyp
 
 // findPeerLine returns the 1-based line number of "peer <addr>" in the config.
 func findPeerLine(lines []string, addr string) int {
-	needle := "peer " + addr
+	var tb textbuf.Buffer
+	needle := tb.Str("peer ").Str(addr).String()
 	for i, line := range lines {
 		if strings.Contains(line, needle) {
 			return i + 1
@@ -526,7 +532,8 @@ func findDeepestParentLine(lines []string, peerAddr string, reqPath []string, pe
 
 // findFieldInPeer returns the 1-based line number of a field inside a peer block.
 func findFieldInPeer(lines []string, addr, field string) int {
-	needle := "peer " + addr
+	var tb textbuf.Buffer
+	needle := tb.Str("peer ").Str(addr).String()
 	inPeer := false
 	depth := 0
 	for i, line := range lines {
@@ -594,9 +601,10 @@ func (v *ConfigValidator) checkDuplicateRemoteIPs(bgp *config.Tree, lines []stri
 			return
 		}
 		if firstPeer, exists := seen[ip]; exists {
+			var tb textbuf.Buffer
 			*errs = append(*errs, ConfigValidationError{
 				Line:     findPeerLine(lines, peerName),
-				Message:  "duplicate remote IP " + ip + " in peer " + peerName + " (already used by peer " + firstPeer + ")",
+				Message:  tb.Str("duplicate remote IP ").Str(ip).Str(" in peer ").Str(peerName).Str(" (already used by peer ").Str(firstPeer).Byte(')').String(),
 				Severity: severityError,
 			})
 			return

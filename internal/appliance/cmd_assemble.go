@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -112,7 +113,7 @@ func assembleZeFS(baseDir, name string, cfg *ApplianceConfig, passphrase []byte,
 		{zefs.KeySSHPassword.Key(cfg.SSH.Host, cfg.SSH.Port), string(passwordHash)},
 		{zefs.KeyLocalAdminUsername.Pattern, cfg.Credentials.Username},
 		{zefs.KeyLocalAdminPassword.Pattern, string(passwordHash)},
-		{zefs.KeySSHDefault.Pattern, cfg.SSH.Host + "/" + cfg.SSH.Port},
+		{zefs.KeySSHDefault.Pattern, func() string { var tb textbuf.Buffer; return tb.Str(cfg.SSH.Host).Byte('/').Str(cfg.SSH.Port).String() }()},
 		{zefs.KeyInstanceName.Pattern, cfg.Identity.Name},
 		{zefs.KeyInstanceManaged.Pattern, managedValue},
 		{zefs.KeyWebCert.Pattern, string(certPEM)},
@@ -189,7 +190,8 @@ func resolveSeedConfig(baseDir, name string, cfg *ApplianceConfig) (string, erro
 	}
 
 	if overlay != "" && base != "" {
-		return base + "\n" + overlay, nil
+		var tb textbuf.Buffer
+		return tb.Str(base).Byte('\n').Str(overlay).String(), nil
 	}
 	if base != "" {
 		return base, nil

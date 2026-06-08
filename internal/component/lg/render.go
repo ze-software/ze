@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -38,7 +37,7 @@ var lgFuncMap = template.FuncMap{
 		for _, a := range arr {
 			parts = append(parts, fmt.Sprintf("%v", a))
 		}
-		return strings.Join(parts, " ")
+		return textbuf.Join(parts, " ")
 	},
 	"formatCommunities": func(v any) string {
 		arr, ok := v.([]any)
@@ -49,7 +48,7 @@ var lgFuncMap = template.FuncMap{
 		for _, a := range arr {
 			parts = append(parts, fmt.Sprintf("%v", a))
 		}
-		return strings.Join(parts, ", ")
+		return textbuf.Join(parts, ", ")
 	},
 	"isBest": func(v any) bool {
 		route, ok := v.(map[string]any)
@@ -142,14 +141,14 @@ func formatNumCommas(v any) string {
 	s := strconv.Itoa(int(n))
 	length := len(s)
 
-	var result strings.Builder
+	var result textbuf.Buffer
 	if negative {
-		result.WriteByte('-')
+		result.Byte('-')
 	}
 
 	for i, c := range s {
 		if i > 0 && (length-i)%3 == 0 {
-			result.WriteByte(',')
+			result.Byte(',')
 		}
 		result.WriteRune(c)
 	}

@@ -8,6 +8,7 @@ import (
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // aclTagMaxLen is VPP's string[64] limit on ACL tags. The backend uses
@@ -380,17 +381,20 @@ func verifyConnState(prefix string, m firewall.MatchConnState) error {
 // tags are descriptive strings stored alongside the ACL; the verifier
 // rejects names whose tag exceeds the 64-byte limit.
 func aclTag(tableName, chainName string) string {
-	return "ze/" + tableName + "/" + chainName
+	var tb textbuf.Buffer
+	return tb.Str("ze/").Str(tableName).Byte('/').Str(chainName).String()
 }
 
 // natTag builds the VPP NAT static mapping tag from table, chain, and
 // term names. Same 64-byte limit as ACL tags.
 func natTag(tableName, chainName, termName string) string {
-	return "ze/" + tableName + "/" + chainName + "/" + termName
+	var tb textbuf.Buffer
+	return tb.Str("ze/").Str(tableName).Byte('/').Str(chainName).Byte('/').Str(termName).String()
 }
 
 // classifyPolicerName builds the VPP policer name for classify-backed
 // actions (Limit). Same 64-byte limit as ACL/NAT tags.
 func classifyPolicerName(tableName, chainName, termName string) string {
-	return "ze/fw/" + tableName + "/" + chainName + "/" + termName
+	var tb textbuf.Buffer
+	return tb.Str("ze/fw/").Str(tableName).Byte('/').Str(chainName).Byte('/').Str(termName).String()
 }

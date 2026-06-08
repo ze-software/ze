@@ -117,7 +117,8 @@ func (s *pppSession) run(start *StartSession) {
 
 	mag, err := generateMagic()
 	if err != nil {
-		s.fail("magic-rand: " + err.Error())
+		var tb textbuf.Buffer
+		s.fail(tb.Str("magic-rand: ").Err(err).String())
 		return
 	}
 	s.magic = mag
@@ -288,7 +289,8 @@ func (s *pppSession) run(start *StartSession) {
 		case err := <-readDone:
 			reason := "chan fd closed"
 			if err != nil && !errors.Is(err, io.EOF) {
-				reason = "chan fd read error: " + err.Error()
+				var tb textbuf.Buffer
+				reason = tb.Str("chan fd read error: ").Err(err).String()
 			}
 			s.sendEvent(EventSessionDown{
 				TunnelID: s.tunnelID, SessionID: s.sessionID,
@@ -297,7 +299,8 @@ func (s *pppSession) run(start *StartSession) {
 			return
 
 		case <-negoTimerC:
-			s.fail("LCP negotiation timeout after " + defaultNegoTimeout.String())
+			var tb textbuf.Buffer
+			s.fail(tb.Str("LCP negotiation timeout after ").Str(defaultNegoTimeout.String()).String())
 			return
 
 		case <-restartTickerC:
@@ -456,22 +459,23 @@ func (s *pppSession) afterLCPOpen() bool {
 	// PPPIOCCONNECT must happen after NCP because it changes frame
 	// routing from channel fd to unit fd (accel-ppp uses the same
 	// deferred-connect pattern). MRU/MTU/AdminUp follow.
+	var tb textbuf.Buffer
 	if err := s.ops.connect(s.chanFD, s.unitNum); err != nil {
-		s.fail("PPPIOCCONNECT: " + err.Error())
+		s.fail(tb.Str("PPPIOCCONNECT: ").Err(err).String())
 		return false
 	}
 	if err := s.ops.setMRU(s.unitFD, mru); err != nil {
-		s.fail("PPPIOCSMRU: " + err.Error())
+		s.fail(tb.Reset().Str("PPPIOCSMRU: ").Err(err).String())
 		return false
 	}
 	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
 	mtu := max(int(mru)-pppEncapOverhead, minIPMTU)
 	if err := s.backend.SetMTU(ifname, mtu); err != nil {
-		s.fail("iface SetMTU: " + err.Error())
+		s.fail(tb.Reset().Str("iface SetMTU: ").Err(err).String())
 		return false
 	}
 	if err := s.backend.SetAdminUp(ifname); err != nil {
-		s.fail("iface SetAdminUp: " + err.Error())
+		s.fail(tb.Reset().Str("iface SetAdminUp: ").Err(err).String())
 		return false
 	}
 
@@ -520,7 +524,8 @@ func (s *pppSession) runAuthPhase() bool {
 	case AuthMethodNone:
 		if s.authRequired {
 			reason := "no negotiated authentication method"
-			s.fail("auth: " + reason)
+			var tb textbuf.Buffer
+			s.fail(tb.Str("auth: ").Str(reason).String())
 			s.sendAuthEvent(EventAuthFailure{
 				TunnelID:  s.tunnelID,
 				SessionID: s.sessionID,
@@ -561,7 +566,8 @@ func (s *pppSession) runNoAuthPhase() bool {
 		return false
 	}
 	if !decision.accept {
-		s.fail("auth rejected: " + decision.message)
+		var tb textbuf.Buffer
+		s.fail(tb.Str("auth rejected: ").Str(decision.message).String())
 		s.sendAuthEvent(EventAuthFailure{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
@@ -821,10 +827,11 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 	s.mu.Unlock()
 
 	if tr.NewState == LCPStateClosed || tr.NewState == LCPStateStopped {
+		var tb textbuf.Buffer
 		s.sendEvent(EventSessionDown{
 			TunnelID:  s.tunnelID,
 			SessionID: s.sessionID,
-			Reason:    "LCP terminated: state=" + tr.NewState.String(),
+			Reason:    tb.Str("LCP terminated: state=").Str(tr.NewState.String()).String(),
 		})
 		return true
 	}
@@ -1003,7 +1010,8 @@ func (s *pppSession) sendEchoRequest(id uint8) bool {
 func (s *pppSession) writeFrame(frame []byte) bool {
 	_, err := s.chanFile.Write(frame)
 	if err != nil {
-		s.fail("chan fd write: " + err.Error())
+		var tb textbuf.Buffer
+		s.fail(tb.Str("chan fd write: ").Err(err).String())
 		return false
 	}
 	return true

@@ -6,7 +6,6 @@ package monitor
 
 import (
 	"encoding/json"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -31,18 +30,22 @@ func FormatMonitorLine(raw string) string {
 	case "state":
 		return formatState(peer, asn, ev)
 	case "keepalive":
-		return dir + " KALIVE " + peer + " " + asn
+		var tb textbuf.Buffer
+		return tb.Str(dir).Str(" KALIVE ").Str(peer).Byte(' ').Str(asn).String()
 	case "eor":
 		fam := ev.BGP.EOR.Family
-		return "---- EOR    " + peer + " " + asn + " " + fam
+		var tb textbuf.Buffer
+		return tb.Str("---- EOR    ").Str(peer).Byte(' ').Str(asn).Byte(' ').Str(fam).String()
 	case "open":
 		return formatOpen(dir, peer, asn, ev)
 	case "notification":
 		return formatNotification(dir, peer, asn, ev)
 	case "refresh":
-		return dir + " RFRSH  " + peer + " " + asn
+		var tb textbuf.Buffer
+		return tb.Str(dir).Str(" RFRSH  ").Str(peer).Byte(' ').Str(asn).String()
 	case "negotiated":
-		return "---- NEGOT  " + peer + " " + asn
+		var tb textbuf.Buffer
+		return tb.Str("---- NEGOT  ").Str(peer).Byte(' ').Str(asn).String()
 	}
 
 	return raw
@@ -79,28 +82,31 @@ func formatUpdate(dir, peer, asn string, ev monitorEvent) string {
 				nlris = nlris[:maxDisplayPrefixes]
 			}
 
+			var tb textbuf.Buffer
 			for _, n := range nlris {
-				parts = append(parts, prefix+n)
+				parts = append(parts, tb.Reset().Str(prefix).Str(n).String())
 			}
 			if truncated > 0 {
 				parts = append(parts, textbuf.StrIntStr("(+", int64(truncated), " more)"))
 			}
 
 			if entry.NextHop != "" {
-				parts = append(parts, "nhop="+entry.NextHop)
+				parts = append(parts, tb.Reset().Str("nhop=").Str(entry.NextHop).String())
 			}
 		}
 	}
 
-	return dir + " UPDATE " + peer + " " + asn + " " + strings.Join(parts, " ")
+	var tb textbuf.Buffer
+	return tb.Str(dir).Str(" UPDATE ").Str(peer).Byte(' ').Str(asn).Byte(' ').Join(parts, " ").String()
 }
 
 func formatState(peer, asn string, ev monitorEvent) string {
-	state := ev.BGP.State
+	var tb textbuf.Buffer
+	tb.Str("---- STATE  ").Str(peer).Byte(' ').Str(asn).Byte(' ').Str(ev.BGP.State)
 	if ev.BGP.Reason != "" {
-		state += " (" + ev.BGP.Reason + ")"
+		tb.Str(" (").Str(ev.BGP.Reason).Byte(')')
 	}
-	return "---- STATE  " + peer + " " + asn + " " + state
+	return tb.String()
 }
 
 func formatOpen(dir, peer, asn string, ev monitorEvent) string {

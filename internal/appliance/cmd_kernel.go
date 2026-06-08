@@ -14,6 +14,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -54,7 +55,10 @@ func runKernel(args []string) int {
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--arch <arch>", Desc: "Target architecture: amd64 or arm64 (default: from appliance config or host)"},
 					{Name: "--profile <profile>", Desc: "Kernel profile: qemu or hardware (default: from appliance config or qemu)"},
-					{Name: "--version <ver>", Desc: "Linux kernel version (default: " + defaultKernelVersion + ")"},
+					{Name: "--version <ver>", Desc: func() string {
+						var tb textbuf.Buffer
+						return tb.Str("Linux kernel version (default: ").Str(defaultKernelVersion).Byte(')').String()
+					}()},
 				}},
 			},
 			Examples: []string{
@@ -123,8 +127,9 @@ func resolveKernel(version, arch, profile string) (string, error) {
 	toolsDst := filepath.Join(kernelToolsDir, "build", kernelFileName)
 
 	if baseURL := env.Get(kernelURLKey); baseURL != "" {
-		artifactURL := baseURL + "/" + version + "-" + arch + "-" + profile + "/" + kernelFileName
-		checksumURL := artifactURL + checksumSuffix
+		var tb textbuf.Buffer
+		artifactURL := tb.Str(baseURL).Byte('/').Str(version).Byte('-').Str(arch).Byte('-').Str(profile).Byte('/').Str(kernelFileName).String()
+		checksumURL := tb.Reset().Str(artifactURL).Str(checksumSuffix).String()
 		if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
 			if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
 				fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning

@@ -230,7 +230,7 @@ func validateEventTypeAnyNamespace(eventType string) error {
 		valid = append(valid, k)
 	}
 	sort.Strings(valid)
-	return fmt.Errorf("invalid event type %q (valid: %s)", eventType, strings.Join(valid, ", "))
+	return fmt.Errorf("invalid event type %q (valid: %s)", eventType, textbuf.Join(valid, ", "))
 }
 
 // allEventTypes returns all valid event types across all namespaces,
@@ -300,23 +300,24 @@ func BuildEventMonitorSubscriptions(opts *EventMonitorOpts) []*Subscription {
 
 // formatEventMonitorHeader returns a human-readable header line for the monitor session.
 func formatEventMonitorHeader(opts *EventMonitorOpts) string {
+	var tb textbuf.Buffer
 	var parts []string
 
 	if len(opts.IncludeTypes) > 0 {
-		parts = append(parts, "include="+strings.Join(opts.IncludeTypes, ","))
+		parts = append(parts, tb.Str("include=").Join(opts.IncludeTypes, ",").String())
 	}
 	if len(opts.ExcludeTypes) > 0 {
-		parts = append(parts, "exclude="+strings.Join(opts.ExcludeTypes, ","))
+		parts = append(parts, tb.Reset().Str("exclude=").Join(opts.ExcludeTypes, ",").String())
 	}
 	if opts.Peer != "" {
-		parts = append(parts, "peer="+opts.Peer)
+		parts = append(parts, tb.Reset().Str("peer=").Str(opts.Peer).String())
 	}
 	if opts.Direction != "" {
-		parts = append(parts, "direction="+opts.Direction)
+		parts = append(parts, tb.Reset().Str("direction=").Str(opts.Direction).String())
 	}
 
 	if len(parts) == 0 {
 		return "monitoring: all events, all peers"
 	}
-	return "monitoring: " + strings.Join(parts, ", ")
+	return tb.Reset().Str("monitoring: ").Join(parts, ", ").String()
 }

@@ -37,6 +37,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -113,7 +114,8 @@ func consumerProtocolIDs() map[redistevents.ProtocolID]bool {
 func run(ctx context.Context) {
 	bus := getEventBus()
 	if bus == nil {
-		logger().Warn(Name + ": no event bus configured")
+		var tb textbuf.Buffer
+		logger().Warn(tb.Str(Name).Str(": no event bus configured").String())
 		return
 	}
 
@@ -131,7 +133,8 @@ func run(ctx context.Context) {
 
 	logger().Debug(Name+": running", "producers", len(unsubs))
 	<-ctx.Done()
-	logger().Debug(Name + ": stopped")
+	var tb2 textbuf.Buffer
+	logger().Debug(tb2.Str(Name).Str(": stopped").String())
 }
 
 func subscribe(ctx context.Context, bus ze.EventBus, skipIDs map[redistevents.ProtocolID]bool) []func() {
@@ -158,12 +161,13 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 	if m := getMetrics(); m != nil {
 		m.eventsReceived.Inc()
 	}
+	var tb textbuf.Buffer
 	if b == nil {
-		logger().Warn(Name + ": nil batch")
+		logger().Warn(tb.Str(Name).Str(": nil batch").String())
 		return
 	}
 	if b.Protocol == redistevents.ProtocolUnspecified {
-		logger().Warn(Name + ": batch with unspecified protocol")
+		logger().Warn(tb.Reset().Str(Name).Str(": batch with unspecified protocol").String())
 		return
 	}
 	if skipIDs[b.Protocol] {

@@ -10,6 +10,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -82,7 +83,7 @@ func buildNLRIEntries(tokens []string) []any {
 			continue
 		}
 		// Prefix = all tokens before the comma token (e.g., "prefix").
-		typePrefix := strings.Join(tokens[:i], " ")
+		typePrefix := textbuf.Join(tokens[:i], " ")
 		var nlris []any
 		for part := range strings.SplitSeq(tok, ",") {
 			part = strings.TrimSpace(part)
@@ -103,19 +104,19 @@ func buildNLRIEntries(tokens []string) []any {
 		var current []string
 		for _, tok := range tokens {
 			if tok == tokens[0] && len(current) > 0 {
-				nlris = append(nlris, strings.Join(current, " "))
+				nlris = append(nlris, textbuf.Join(current, " "))
 				current = nil
 			}
 			current = append(current, tok)
 		}
 		if len(current) > 0 {
-			nlris = append(nlris, strings.Join(current, " "))
+			nlris = append(nlris, textbuf.Join(current, " "))
 		}
 		return nlris
 	}
 
 	// Single complex NLRI: join all tokens.
-	return []any{strings.Join(tokens, " ")}
+	return []any{textbuf.Join(tokens, " ")}
 }
 
 // quickParseTextEvent extracts event type, message ID, peer address, and raw text

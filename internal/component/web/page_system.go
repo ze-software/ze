@@ -11,7 +11,6 @@ import (
 	"html/template"
 	"runtime"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
@@ -194,17 +193,19 @@ func BuildUsersTableData(users []userEntry) WorkbenchTableData {
 	}
 
 	rows := make([]WorkbenchTableRow, 0, len(users))
+	var tb textbuf.Buffer
 	for _, u := range users {
-		profileStr := strings.Join(u.Profiles, ", ")
+		profileStr := textbuf.Join(u.Profiles, ", ")
 		if profileStr == "" {
 			profileStr = "-"
 		}
+		userURL := tb.Reset().Str("/show/system/authentication/user/").Str(u.Name).Byte('/').String()
 		rows = append(rows, WorkbenchTableRow{
 			Key:   u.Name,
-			URL:   "/show/system/authentication/user/" + u.Name + "/",
+			URL:   userURL,
 			Cells: []string{u.Name, profileStr, strconv.Itoa(u.KeyCount)},
 			Actions: []WorkbenchRowAction{
-				{Label: "Edit", URL: "/show/system/authentication/user/" + u.Name + "/"},
+				{Label: "Edit", URL: userURL},
 			},
 		})
 	}
@@ -262,10 +263,10 @@ func BuildResourcesData() ResourcesData {
 
 // buildResourcesHTML renders the resources property list as HTML.
 func buildResourcesHTML(data ResourcesData) template.HTML {
-	var b strings.Builder
-	b.WriteString(`<div class="wb-resources" hx-get="/show/system/resources/" hx-trigger="every 5s" hx-swap="innerHTML">`)
-	b.WriteString(`<h2 class="wb-form-title">System Resources</h2>`)
-	b.WriteString(`<table class="wb-detail-kv">`)
+	var b textbuf.Buffer
+	b.Str(`<div class="wb-resources" hx-get="/show/system/resources/" hx-trigger="every 5s" hx-swap="innerHTML">`)
+	b.Str(`<h2 class="wb-form-title">System Resources</h2>`)
+	b.Str(`<table class="wb-detail-kv">`)
 	writeKV(&b, "Version", data.Version)
 	writeKV(&b, "Uptime", data.Uptime)
 	writeKV(&b, "CPU Cores", strconv.Itoa(data.CPUCount))
@@ -275,8 +276,8 @@ func buildResourcesHTML(data ResourcesData) template.HTML {
 	writeKV(&b, "Memory System", data.MemSys)
 	writeKV(&b, "GC Runs", strconv.Itoa(int(data.GCRuns)))
 	writeKV(&b, "Current Time", data.CurrentTime)
-	b.WriteString(`</table>`)
-	b.WriteString(`</div>`)
+	b.Str(`</table>`)
+	b.Str(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 
@@ -340,7 +341,8 @@ func BuildHostHardwareData() []HardwareSection {
 			}
 			role := ""
 			if c.Role != host.CoreRoleUniform && c.Role != host.CoreRoleUnknown {
-				role = ", " + c.Role.String()
+				var bRole textbuf.Buffer
+				role = bRole.Str(", ").Str(c.Role.String()).String()
 			}
 			var bKey textbuf.Buffer
 			var bVal textbuf.Buffer
@@ -367,9 +369,10 @@ func BuildHostHardwareData() []HardwareSection {
 				carrier = "up"
 				cssClass = "up"
 			}
+			var bVal textbuf.Buffer
 			items = append(items, HardwareItem{
 				Key:      nic.Name,
-				Value:    nic.Driver + ", " + nic.MAC + ", " + speed + ", " + carrier,
+				Value:    bVal.Str(nic.Driver).Str(", ").Str(nic.MAC).Str(", ").Str(speed).Str(", ").Str(carrier).String(),
 				CSSClass: cssClass,
 			})
 		}
@@ -389,15 +392,15 @@ func BuildHostHardwareData() []HardwareSection {
 	if inv.Storage != nil && len(inv.Storage.Devices) > 0 {
 		var items []HardwareItem
 		for _, dev := range inv.Storage.Devices {
-			detail := formatBytes(dev.SizeBytes) + ", " + dev.Model
+			var bDet textbuf.Buffer
+			bDet.Str(formatBytes(dev.SizeBytes)).Str(", ").Str(dev.Model)
 			if dev.Smart != nil && !dev.Smart.Unavailable {
-				var bSmart textbuf.Buffer
-				detail += bSmart.Reset().Str(", SMART: ").Str(smartHealthLabel(dev.Smart.Healthy)).Byte(' ').Int(int64(dev.Smart.TempCelsius)).Str("°C ").Int(int64(dev.Smart.PowerOnHours)).Str("h").String()
+				bDet.Str(", SMART: ").Str(smartHealthLabel(dev.Smart.Healthy)).Byte(' ').Int(int64(dev.Smart.TempCelsius)).Str("°C ").Int(int64(dev.Smart.PowerOnHours)).Str("h")
 				if dev.Smart.ErrorCount > 0 {
-					var bErr textbuf.Buffer
-					detail += bErr.Reset().Str(" (").Int(int64(dev.Smart.ErrorCount)).Str(" errors)").String()
+					bDet.Str(" (").Int(int64(dev.Smart.ErrorCount)).Str(" errors)")
 				}
 			}
+			detail := bDet.String()
 			items = append(items, HardwareItem{
 				Key:   dev.Name,
 				Value: detail,
@@ -472,40 +475,40 @@ func BuildHostHardwareData() []HardwareSection {
 
 // buildHostHardwareHTML renders the hardware inventory as HTML.
 func buildHostHardwareHTML(sections []HardwareSection) template.HTML {
-	var b strings.Builder
-	b.WriteString(`<div class="wb-hardware" hx-get="/show/system/hardware/" hx-trigger="every 10s" hx-swap="innerHTML">`)
-	b.WriteString(`<h2 class="wb-form-title">Host Hardware</h2>`)
+	var b textbuf.Buffer
+	b.Str(`<div class="wb-hardware" hx-get="/show/system/hardware/" hx-trigger="every 10s" hx-swap="innerHTML">`)
+	b.Str(`<h2 class="wb-form-title">Host Hardware</h2>`)
 
 	for _, sec := range sections {
-		b.WriteString(`<div class="wb-hardware-section">`)
+		b.Str(`<div class="wb-hardware-section">`)
 		fmt.Fprintf(&b, `<h3>%s</h3>`, template.HTMLEscapeString(sec.Title))
-		b.WriteString(`<table class="wb-detail-kv">`)
+		b.Str(`<table class="wb-detail-kv">`)
 		for _, item := range sec.Items {
 			writeHardwareKV(&b, item)
 		}
-		b.WriteString(`</table>`)
-		b.WriteString(`</div>`)
+		b.Str(`</table>`)
+		b.Str(`</div>`)
 	}
 
 	if len(sections) == 0 {
-		b.WriteString(`<p>No hardware information available.</p>`)
+		b.Str(`<p>No hardware information available.</p>`)
 	}
 
-	b.WriteString(`</div>`)
+	b.Str(`</div>`)
 	return template.HTML(b.String()) //nolint:gosec // trusted builder output
 }
 
 // writeHardwareKV writes a key-value table row with optional CSS class for
 // visual indicators (NIC carrier status, thermal alarms).
-func writeHardwareKV(b *strings.Builder, item HardwareItem) {
+func writeHardwareKV(b *textbuf.Buffer, item HardwareItem) {
 	if item.CSSClass != "" {
-		fmt.Fprintf(b, `<tr class="wb-hardware-%s">`, template.HTMLEscapeString(item.CSSClass))
+		b.Str(`<tr class="wb-hardware-`).Str(template.HTMLEscapeString(item.CSSClass)).Str(`">`)
 	} else {
-		b.WriteString(`<tr>`)
+		b.Str(`<tr>`)
 	}
-	fmt.Fprintf(b, `<td class="wb-detail-kv-key">%s</td>`, template.HTMLEscapeString(item.Key))
-	fmt.Fprintf(b, `<td class="wb-detail-kv-val">%s</td>`, template.HTMLEscapeString(item.Value))
-	b.WriteString(`</tr>`)
+	b.Str(`<td class="wb-detail-kv-key">`).Str(template.HTMLEscapeString(item.Key)).Str(`</td>`)
+	b.Str(`<td class="wb-detail-kv-val">`).Str(template.HTMLEscapeString(item.Value)).Str(`</td>`)
+	b.Str(`</tr>`)
 }
 
 // HandleHostHardwarePage renders the Host Hardware inventory.
@@ -552,17 +555,19 @@ func BuildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableD
 	}
 
 	rows := make([]WorkbenchTableRow, 0, len(profiles))
+	var tb textbuf.Buffer
 	for _, p := range profiles {
+		profileURL := tb.Reset().Str("/show/sysctl/profile/").Str(p.Name).Byte('/').String()
 		rows = append(rows, WorkbenchTableRow{
 			Key: p.Name,
-			URL: "/show/sysctl/profile/" + p.Name + "/",
+			URL: profileURL,
 			Cells: []string{
 				p.Name,
 				strconv.Itoa(p.SettingCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View", URL: "/show/sysctl/profile/" + p.Name + "/"},
-				{Label: "Edit", URL: "/show/sysctl/profile/" + p.Name + "/"},
+				{Label: "View", URL: profileURL},
+				{Label: "Edit", URL: profileURL},
 			},
 		})
 	}

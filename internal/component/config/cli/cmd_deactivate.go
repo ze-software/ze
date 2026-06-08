@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config deactivate command
 // Detail: cmd_set.go — same one-shot pattern (flags, editor, save, notify)
-// Detail: ../../../internal/component/cli/model_commands.go — TUI cmdDeactivate dispatch we mirror
+// Detail: ../../cli/model_commands.go — TUI cmdDeactivate dispatch we mirror
 
 package cli
 
@@ -9,13 +9,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errPathIsEmpty = errors.New("path is empty")
@@ -69,10 +69,11 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 		if activate {
 			summary = "Clear the inactive flag on a configuration node"
 		}
+		var tb textbuf.Buffer
 		p := helpfmt.Page{
-			Command: "ze config " + verb,
+			Command: tb.Str("ze config ").Str(verb).String(),
 			Summary: summary,
-			Usage:   []string{"ze config " + verb + " [options] <config-file> <path...>"},
+			Usage:   []string{tb.Reset().Str("ze config ").Str(verb).Str(" [options] <config-file> <path...>").String()},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Description", Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "Targets a leaf, container, list entry, or leaf-list value."},
@@ -84,9 +85,9 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 				}},
 			},
 			Examples: []string{
-				"ze config " + verb + " router.conf bgp router-id",
-				"ze config " + verb + " router.conf bgp peer peer1",
-				"ze config " + verb + " router.conf bgp filter import no-self-as",
+				tb.Reset().Str("ze config ").Str(verb).Str(" router.conf bgp router-id").String(),
+				tb.Reset().Str("ze config ").Str(verb).Str(" router.conf bgp peer peer1").String(),
+				tb.Reset().Str("ze config ").Str(verb).Str(" router.conf bgp filter import no-self-as").String(),
 			},
 		}
 		p.Write()
@@ -118,7 +119,7 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 	}
 	defer ed.Close() //nolint:errcheck // best-effort cleanup
 
-	displayPath := strings.Join(path, " ")
+	displayPath := textbuf.Join(path, " ")
 	if err := dispatchDeactivate(ed, path, activate); err != nil {
 		if alreadyInRequestedState(err) {
 			alreadyState := "deactivated"
@@ -192,7 +193,7 @@ func dispatchDeactivate(ed *cli.Editor, path []string, activate bool) error {
 
 	schemaNode := ed.LookupSchemaNode(path)
 	if schemaNode == nil {
-		return fmt.Errorf("no such path: %s", strings.Join(path, " "))
+		return fmt.Errorf("no such path: %s", textbuf.Join(path, " "))
 	}
 
 	switch schemaNode.(type) {
@@ -210,13 +211,13 @@ func dispatchDeactivate(ed *cli.Editor, path []string, activate bool) error {
 		// children (e.g. nlri, nexthop, add-path) don't support
 		// deactivation -- reject those explicitly per AC-12.
 		if listNode, ok := schemaNode.(*config.ListNode); ok && !listNode.HasStructuralChildren() {
-			return fmt.Errorf("path %q is a positional list entry; deactivate the parent container instead", strings.Join(path, " "))
+			return fmt.Errorf("path %q is a positional list entry; deactivate the parent container instead", textbuf.Join(path, " "))
 		}
 		if activate {
 			return ed.ActivatePath(path)
 		}
 		return ed.DeactivatePath(path)
 	default:
-		return fmt.Errorf("path %q resolves to a node type that does not support deactivation", strings.Join(path, " "))
+		return fmt.Errorf("path %q resolves to a node type that does not support deactivation", textbuf.Join(path, " "))
 	}
 }

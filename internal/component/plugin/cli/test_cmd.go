@@ -7,19 +7,19 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // pluginFlags collects multiple --plugin flag values.
 type pluginFlags []string
 
 func (p *pluginFlags) String() string {
-	return strings.Join(*p, ",")
+	return textbuf.Join(*p, ",")
 }
 
 func (p *pluginFlags) Set(value string) error {
@@ -30,7 +30,7 @@ func (p *pluginFlags) Set(value string) error {
 // rootFlags supports repeatable --root flag.
 type rootFlags []string
 
-func (r *rootFlags) String() string { return strings.Join(*r, ",") }
+func (r *rootFlags) String() string { return textbuf.Join(*r, ",") }
 func (r *rootFlags) Set(v string) error {
 	*r = append(*r, v)
 	return nil

@@ -18,6 +18,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const maxPcapBufSize = 64 << 20
@@ -28,13 +29,15 @@ func HandleCaptureInterface(_ *pluginserver.CommandContext, args []string) (*plu
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 
+	var tb textbuf.Buffer
+
 	ifc, lookupErr := net.InterfaceByName(ca.iface)
 	if lookupErr != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "interface not found: " + ca.iface}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: tb.Str("interface not found: ").Str(ca.iface).String()}, nil
 	}
 
 	if _, loaded := activeCaptures.LoadOrStore(ca.iface, true); loaded {
-		return &plugin.Response{Status: plugin.StatusError, Error: "capture already active on " + ca.iface}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: tb.Reset().Str("capture already active on ").Str(ca.iface).String()}, nil
 	}
 	defer activeCaptures.Delete(ca.iface)
 
@@ -42,19 +45,19 @@ func HandleCaptureInterface(_ *pluginserver.CommandContext, args []string) (*plu
 	if ca.filter != "" {
 		rawInsns, err = compileBPF(ca.filter)
 		if err != nil {
-			return &plugin.Response{Status: plugin.StatusError, Error: "filter compilation failed: " + err.Error()}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: tb.Reset().Str("filter compilation failed: ").Err(err).String()}, nil
 		}
 	}
 
 	conn, err := packet.Listen(ifc, packet.Raw, 0, nil)
 	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "capture: " + err.Error() + " (requires CAP_NET_RAW)"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: tb.Reset().Str("capture: ").Err(err).Str(" (requires CAP_NET_RAW)").String()}, nil
 	}
 	defer func() { _ = conn.Close() }()
 
 	if len(rawInsns) > 0 {
 		if setErr := conn.SetBPF(rawInsns); setErr != nil {
-			return &plugin.Response{Status: plugin.StatusError, Error: "BPF attach failed: " + setErr.Error()}, nil
+			return &plugin.Response{Status: plugin.StatusError, Error: tb.Reset().Str("BPF attach failed: ").Err(setErr).String()}, nil
 		}
 	}
 

@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/smart"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ErrUnsupported is returned by detectors on platforms that cannot
@@ -455,7 +455,7 @@ func SectionNames() []string {
 // by help text, error messages, and Meta.Subs strings — one function
 // means one canonical string shape across the codebase.
 func SectionList() string {
-	return strings.Join(SectionNames(), ", ")
+	return textbuf.Join(SectionNames(), ", ")
 }
 
 // maxNameInError bounds the length of the `name` echoed in an

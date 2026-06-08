@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -88,7 +89,7 @@ func parseCLICommand(input string) cliCommand {
 // tokenizeCommand splits input on whitespace, respecting double-quoted strings.
 func tokenizeCommand(input string) []string {
 	var tokens []string
-	var current strings.Builder
+	var current textbuf.Buffer
 	inQuote := false
 
 	for _, r := range input {
@@ -123,7 +124,8 @@ func formatCLIPrompt(path []string) string {
 		return "ze# "
 	}
 
-	return "ze[" + strings.Join(path, " ") + "]# "
+	var tb textbuf.Buffer
+	return tb.Str("ze[").Join(path, " ").Str("]# ").String()
 }
 
 // HandleCLIPage renders the CLI terminal page content for the workbench.
@@ -132,21 +134,21 @@ func formatCLIPrompt(path []string) string {
 func HandleCLIPage(renderer *Renderer) template.HTML {
 	prompt := formatCLIPrompt(nil)
 
-	var buf strings.Builder
-	fmt.Fprintf(&buf, `<div class="cli-page">`)
-	fmt.Fprintf(&buf, `<div class="cli-output" id="cli-output"></div>`)
-	fmt.Fprintf(&buf, `<div class="cli-messages" id="cli-messages">`)
-	fmt.Fprintf(&buf, `<div class="cli-feedback" id="cli-feedback"></div>`)
-	fmt.Fprintf(&buf, `<div class="cli-hint" id="cli-hint">Tab/?: complete, Enter: execute</div>`)
-	fmt.Fprintf(&buf, `</div>`)
-	fmt.Fprintf(&buf, `<div class="cli-input-line">`)
-	fmt.Fprintf(&buf, `<span class="terminal-prompt" id="terminal-prompt">%s</span>`, template.HTMLEscapeString(prompt))
-	fmt.Fprintf(&buf, `<input type="text" class="terminal-input" id="terminal-input" `)
-	fmt.Fprintf(&buf, `autocomplete="off" spellcheck="false" name="command">`)
-	fmt.Fprintf(&buf, `<div class="terminal-completions is-hidden" id="terminal-completions"></div>`)
-	fmt.Fprintf(&buf, `</div>`)
-	fmt.Fprintf(&buf, `<span id="cli-context-path" class="is-hidden"></span>`)
-	fmt.Fprintf(&buf, `</div>`)
+	var buf textbuf.Buffer
+	buf.Str(`<div class="cli-page">`)
+	buf.Str(`<div class="cli-output" id="cli-output"></div>`)
+	buf.Str(`<div class="cli-messages" id="cli-messages">`)
+	buf.Str(`<div class="cli-feedback" id="cli-feedback"></div>`)
+	buf.Str(`<div class="cli-hint" id="cli-hint">Tab/?: complete, Enter: execute</div>`)
+	buf.Str(`</div>`)
+	buf.Str(`<div class="cli-input-line">`)
+	buf.Str(`<span class="terminal-prompt" id="terminal-prompt">`).Str(template.HTMLEscapeString(prompt)).Str(`</span>`)
+	buf.Str(`<input type="text" class="terminal-input" id="terminal-input" `)
+	buf.Str(`autocomplete="off" spellcheck="false" name="command">`)
+	buf.Str(`<div class="terminal-completions is-hidden" id="terminal-completions"></div>`)
+	buf.Str(`</div>`)
+	buf.Str(`<span id="cli-context-path" class="is-hidden"></span>`)
+	buf.Str(`</div>`)
 
 	return template.HTML(buf.String()) //nolint:gosec // trusted template output
 }
@@ -388,10 +390,10 @@ func handleCLIWho(w http.ResponseWriter, mgr *EditorManager) {
 		return
 	}
 
-	var buf strings.Builder
-	buf.WriteString("Active web sessions:\n")
+	var buf textbuf.Buffer
+	buf.Str("Active web sessions:\n")
 	for _, s := range sessions {
-		fmt.Fprintf(&buf, "  %s\n", s)
+		buf.Str("  ").Str(s).Byte('\n')
 	}
 	writeCLINotification(w, buf.String(), "info")
 }
@@ -408,11 +410,11 @@ func handleCLIShow(w http.ResponseWriter, contextPath, args []string, renderer *
 	crumbs := buildBreadcrumbs(showPath)
 	prompt := formatCLIPrompt(showPath)
 
-	var buf strings.Builder
+	var buf textbuf.Buffer
 	buildBreadcrumbOOB(&buf, crumbs)
-	fmt.Fprintf(&buf, `<main class="content-area" id="content-area">`)
-	fmt.Fprintf(&buf, `<pre class="config-output">%s</pre>`, template.HTMLEscapeString(content))
-	fmt.Fprintf(&buf, `</main>`)
+	buf.Str(`<main class="content-area" id="content-area">`)
+	buf.Str(`<pre class="config-output">`).Str(template.HTMLEscapeString(content)).Str(`</pre>`)
+	buf.Str(`</main>`)
 	buildPromptOOB(&buf, prompt)
 	buildPathBarOOB(&buf, showPath, renderer)
 	buildContextOOB(&buf, showPath)
@@ -458,11 +460,11 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, mgr *EditorManager,
 	}
 
 	if len(result.Conflicts) > 0 {
-		var msg strings.Builder
-		msg.WriteString("Commit conflicts:\n")
+		var msg textbuf.Buffer
+		msg.Str("Commit conflicts:\n")
 
 		for _, c := range result.Conflicts {
-			fmt.Fprintf(&msg, "  %s: want %q, other (%s) has %q\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
+			msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
 		}
 
 		writeCLINotification(w, msg.String(), "error")

@@ -8,6 +8,8 @@ package bridge
 import (
 	"regexp"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ExabgpToZebgpCommand converts an ExaBGP text command to ZeBGP format.
@@ -52,14 +54,16 @@ func ExabgpToZebgpCommand(line string) string {
 	}
 
 	// Unknown command - pass through with peer prefix change
-	return "peer " + peerIP + " " + rest
+	var tb textbuf.Buffer
+	return tb.Str("peer ").Str(peerIP).Byte(' ').Str(rest).String()
 }
 
 func convertAnnounce(peerIP, routeStr string) string {
 	routeStr = strings.TrimSpace(routeStr)
 	parts := strings.Fields(routeStr)
 	if len(parts) == 0 {
-		return "peer " + peerIP + " update text nlri ipv4/unicast add"
+		var tb textbuf.Buffer
+		return tb.Str("peer ").Str(peerIP).Str(" update text nlri ipv4/unicast add").String()
 	}
 
 	prefix := parts[0]
@@ -98,7 +102,7 @@ func convertAnnounce(peerIP, routeStr string) string {
 						aspParts = append(aspParts, attrs[i])
 						i++
 					}
-					asp = strings.Join(aspParts, " ")
+					asp = textbuf.Join(aspParts, " ")
 				}
 				asp = strings.Trim(asp, "[]")
 				asp = strings.TrimSpace(asp)
@@ -148,14 +152,15 @@ func convertAnnounce(peerIP, routeStr string) string {
 	}
 	cmdParts = append(cmdParts, "nlri "+fam+" add "+prefix)
 
-	return strings.Join(cmdParts, " ")
+	return textbuf.Join(cmdParts, " ")
 }
 
 func convertWithdraw(peerIP, routeStr string) string {
 	routeStr = strings.TrimSpace(routeStr)
 	parts := strings.Fields(routeStr)
+	var tb textbuf.Buffer
 	if len(parts) == 0 {
-		return "peer " + peerIP + " update text nlri ipv4/unicast del"
+		return tb.Str("peer ").Str(peerIP).Str(" update text nlri ipv4/unicast del").String()
 	}
 
 	prefix := parts[0]
@@ -163,7 +168,7 @@ func convertWithdraw(peerIP, routeStr string) string {
 	if strings.Contains(prefix, ":") {
 		fam = "ipv6/unicast"
 	}
-	return "peer " + peerIP + " update text nlri " + fam + " del " + prefix
+	return tb.Str("peer ").Str(peerIP).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String()
 }
 
 func convertAnnounceFamily(peerIP, rest string) string {
@@ -174,34 +179,37 @@ func convertAnnounceFamily(peerIP, rest string) string {
 		afi := strings.ToLower(match[1])
 		safi := strings.ToLower(match[2])
 		routeStr := match[3]
-		fam := afi + "/" + safi
+		var tb textbuf.Buffer
+		fam := tb.Str(afi).Byte('/').Str(safi).String()
 		return convertAnnounceWithFamily(peerIP, fam, routeStr)
 	}
 
-	// Fall back to basic conversion
-	return "peer " + peerIP + " announce " + rest
+	var tb textbuf.Buffer
+	return tb.Str("peer ").Str(peerIP).Str(" announce ").Str(rest).String()
 }
 
 func convertWithdrawFamily(peerIP, rest string) string {
 	rest = strings.TrimSpace(rest)
 	familyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flowspec)\s+(.+)$`)
 	match := familyRE.FindStringSubmatch(rest)
+	var tb textbuf.Buffer
 	if match != nil {
 		afi := strings.ToLower(match[1])
 		safi := strings.ToLower(match[2])
 		prefix := strings.Fields(match[3])[0]
-		fam := afi + "/" + safi
-		return "peer " + peerIP + " update text nlri " + fam + " del " + prefix
+		fam := tb.Str(afi).Byte('/').Str(safi).String()
+		return tb.Reset().Str("peer ").Str(peerIP).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String()
 	}
 
-	return "peer " + peerIP + " withdraw " + rest
+	return tb.Str("peer ").Str(peerIP).Str(" withdraw ").Str(rest).String()
 }
 
 func convertAnnounceWithFamily(peerIP, family, routeStr string) string {
 	routeStr = strings.TrimSpace(routeStr)
 	parts := strings.Fields(routeStr)
 	if len(parts) == 0 {
-		return "peer " + peerIP + " update text nlri " + family + " add"
+		var tb textbuf.Buffer
+		return tb.Str("peer ").Str(peerIP).Str(" update text nlri ").Str(family).Str(" add").String()
 	}
 
 	prefix := parts[0]
@@ -248,5 +256,5 @@ func convertAnnounceWithFamily(peerIP, family, routeStr string) string {
 	}
 
 	cmdParts = append(cmdParts, "nlri "+family+" add "+prefix)
-	return strings.Join(cmdParts, " ")
+	return textbuf.Join(cmdParts, " ")
 }

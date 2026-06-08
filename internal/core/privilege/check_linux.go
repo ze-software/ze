@@ -10,6 +10,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Linux capability bit positions.
@@ -40,13 +42,15 @@ func CheckPrivileges() []string {
 
 	eff, err := effectiveCaps()
 	if err != nil {
-		return []string{"running without root; cannot read capabilities: " + err.Error()}
+		var tb textbuf.Buffer
+		return []string{tb.Str("running without root; cannot read capabilities: ").Err(err).String()}
 	}
 
 	var missing []string
 	for _, c := range requiredCaps {
 		if eff&(1<<c.bit) == 0 {
-			missing = append(missing, "  "+c.name+" ("+c.desc+")")
+			var tb textbuf.Buffer
+			missing = append(missing, tb.Str("  ").Str(c.name).Str(" (").Str(c.desc).Byte(')').String())
 		}
 	}
 

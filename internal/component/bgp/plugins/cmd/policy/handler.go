@@ -10,6 +10,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type policyFilterRef struct {
@@ -44,10 +45,11 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 	allPeers := ctx.Reactor().Peers()
 	matched := filterPeersByPolicySelector(allPeers, selector)
 
+	var tb textbuf.Buffer
 	if len(matched) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "peer not found: " + selector,
+			Error:  tb.Str("peer not found: ").Str(selector).String(),
 		}, nil
 	}
 
@@ -57,7 +59,7 @@ func handleShowPolicyChain(ctx *pluginserver.CommandContext, args []string) (*pl
 		if direction != policyDirImport && direction != policyDirExport {
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  "invalid direction " + strconv.Quote(direction) + " (expected import or export)",
+				Error:  tb.Reset().Str("invalid direction ").Str(strconv.Quote(direction)).Str(" (expected import or export)").String(),
 			}, nil
 		}
 	}
@@ -158,7 +160,8 @@ func parsePolicyTestArgs(args []string) (direction, filter, hexPayload string, a
 			}
 			i++
 		default:
-			return "", "", "", false, policyTestError("unexpected token " + strconv.Quote(args[i]) + " (expected import, export, filter, update, or source-asn4)")
+			var tb textbuf.Buffer
+			return "", "", "", false, policyTestError(tb.Str("unexpected token ").Str(strconv.Quote(args[i])).Str(" (expected import, export, filter, update, or source-asn4)").String())
 		}
 	}
 
@@ -233,17 +236,18 @@ func handleShowPolicyTest(ctx *pluginserver.CommandContext, args []string) (*plu
 	allPeers := ctx.Reactor().Peers()
 	matched := filterPeersByPolicySelector(allPeers, peerSelector)
 
+	var tb2 textbuf.Buffer
 	if len(matched) == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "peer not found: " + peerSelector,
+			Error:  tb2.Str("peer not found: ").Str(peerSelector).String(),
 		}, nil
 	}
 
 	if len(matched) > 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "selector matches multiple peers, narrow to one: " + peerSelector,
+			Error:  tb2.Reset().Str("selector matches multiple peers, narrow to one: ").Str(peerSelector).String(),
 		}, nil
 	}
 
@@ -319,7 +323,8 @@ func toFilterRefs(canonicals []string) []policyFilterRef {
 			name = after
 		}
 		if c != inactive {
-			name = "inactive:" + name
+			var tb3 textbuf.Buffer
+			name = tb3.Str("inactive:").Str(name).String()
 		}
 		refs[i] = policyFilterRef{Name: name, Canonical: c}
 	}

@@ -1,10 +1,8 @@
 // Design: docs/architecture/testing/ci-format.md — predecessor encoding test runner
 
-
 package cli
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
 	"bufio"
 	"bytes"
 	"context"
@@ -21,6 +19,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/subdispatch"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
@@ -126,14 +127,16 @@ func zeTestExabgpMain(args []string) error {
 	if cli.server != "" {
 		test, ok := suite.byNick[cli.server]
 		if !ok {
-			return errors.New("no such ExaBGP test: " + cli.server)
+			var tb textbuf.Buffer
+			return errors.New(tb.Str("no such ExaBGP test: ").Str(cli.server).String())
 		}
 		return runExaBGPServerForeground(test, cli.port, cli.saveDir)
 	}
 	if cli.client != "" {
 		test, ok := suite.byNick[cli.client]
 		if !ok {
-			return errors.New("no such ExaBGP test: " + cli.client)
+			var tb textbuf.Buffer
+			return errors.New(tb.Str("no such ExaBGP test: ").Str(cli.client).String())
 		}
 		if cli.port <= 0 {
 			return errors.New("--client requires --port")
@@ -298,7 +301,8 @@ func parseExaBGPCI(root string, rec *runner.Record, ciFile string) (*exabgpTestE
 		if after, ok := strings.CutPrefix(line, "option=tcp_connections:"); ok {
 			count, err := strconv.Atoi(after)
 			if err != nil || count <= 0 {
-				return nil, errors.New("invalid tcp_connections in " + ciFile)
+				var tb textbuf.Buffer
+				return nil, errors.New(tb.Str("invalid tcp_connections in ").Str(ciFile).String())
 			}
 			test.tcpConnections = count
 		}
@@ -307,7 +311,8 @@ func parseExaBGPCI(root string, rec *runner.Record, ciFile string) (*exabgpTestE
 		return nil, err
 	}
 	if len(test.configs) == 0 {
-		return nil, errors.New("predecessor encoding test has no option=file: " + ciFile)
+		var tb textbuf.Buffer
+		return nil, errors.New(tb.Str("predecessor encoding test has no option=file: ").Str(ciFile).String())
 	}
 	return test, nil
 }

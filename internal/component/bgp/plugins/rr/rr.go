@@ -192,7 +192,7 @@ func (rr *RouteReflector) forwardUpdate(msgID uint64) {
 	if rr.stopping.Load() {
 		return
 	}
-	rr.updateRoute("*", rr.buf.Reset().Str("cache ").Uint(msgID).Str(" forward *").Slice())
+	rr.updateRoute("*", rr.buf.Reset().Str("cache ").Uint(msgID).Str(" forward *").String())
 }
 
 // updateRoute sends a route update command to matching peers via the engine.
@@ -307,7 +307,7 @@ func (rr *RouteReflector) handleStateDown(peerAddr string) {
 		for fam, prefixes := range byFamily {
 			for i := 0; i < len(prefixes); i += withdrawalBatchSize {
 				end := min(i+withdrawalBatchSize, len(prefixes))
-				rr.updateRouteSel(excludeSel, nlriDelCmd(fam, strings.Join(prefixes[i:end], ",")))
+				rr.updateRouteSel(excludeSel, nlriDelCmd(fam, textbuf.Join(prefixes[i:end], ",")))
 			}
 		}
 	}()

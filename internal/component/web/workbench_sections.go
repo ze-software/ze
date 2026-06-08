@@ -9,7 +9,11 @@
 
 package web
 
-import "strings"
+import (
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 // Section-key and path-segment constants used in selection logic.
 const (
@@ -290,8 +294,8 @@ func selectChild(section *WorkbenchSection, currentPath []string) {
 // selectBestChild marks the best-matching child as selected.
 func selectBestChild(section *WorkbenchSection, currentPath []string) {
 	// Build a path for matching: /segment1/segment2/...
-	showPath := "/show/" + strings.Join(currentPath, "/")
-	adminPath := "/admin/" + strings.Join(currentPath, "/")
+	showPath := "/show/" + textbuf.Join(currentPath, "/")
+	adminPath := "/admin/" + textbuf.Join(currentPath, "/")
 
 	bestIdx := -1
 	bestLen := 0

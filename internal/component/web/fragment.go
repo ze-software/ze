@@ -226,13 +226,17 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 		if len(path) > 0 {
 			schemaNode, walkErr := walkSchema(schema, path)
 			if walkErr != nil || schemaNode == nil {
-				target := "/show/?error=" + url.QueryEscape("invalid path: "+strings.Join(path, "/"))
+				var tb textbuf.Buffer
+				escaped := url.QueryEscape(tb.Str("invalid path: ").Join(path, "/").String())
+				target := tb.Reset().Str("/show/?error=").Str(escaped).String()
 				http.Redirect(w, r, target, http.StatusFound)
 				return
 			}
 			if isListEntryPath(schema, path) && walkTree(viewTree, schema, path) == nil {
 				entryKey := path[len(path)-1]
-				target := "/show/?error=" + url.QueryEscape("entry "+strconv.Quote(entryKey)+" does not exist")
+				var tb2 textbuf.Buffer
+				escaped2 := url.QueryEscape(tb2.Str("entry ").Str(strconv.Quote(entryKey)).Str(" does not exist").String())
+				target := tb2.Reset().Str("/show/?error=").Str(escaped2).String()
 				http.Redirect(w, r, target, http.StatusFound)
 				return
 			}
@@ -259,8 +263,9 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 		content := renderer.RenderFragment("full_content", data)
 		pathBar := renderer.RenderFragment("path_bar_inner", data)
 
+		var tb textbuf.Buffer
 		layoutData := LayoutData{
-			Title:          "Ze: /" + data.CurrentPath,
+			Title:          tb.Str("Ze: /").Str(data.CurrentPath).String(),
 			Content:        content,
 			HasSession:     true,
 			CLIPrompt:      data.CLIPrompt,
@@ -313,11 +318,11 @@ func splitPath(s string) []string {
 
 // buildFragmentData walks the schema/tree and assembles data for all fragments.
 func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) *FragmentData {
-	currentPath := strings.Join(path, "/")
+	currentPath := textbuf.Join(path, "/")
 	// CLI can't be "at" a list node (e.g., /bgp/peer/) -- only before it
 	// or inside an entry. Adjust CLI fields to match.
 	cliPath := adjustListContext(schema, path)
-	cliContextPath := strings.Join(cliPath, "/")
+	cliContextPath := textbuf.Join(cliPath, "/")
 	data := &FragmentData{
 		Path:            path,
 		CurrentPath:     currentPath,
@@ -339,11 +344,12 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 	// Parent URL for back navigation in sidebar.
 	if len(path) > 0 {
 		parentPath := path[:len(path)-1]
-		data.ParentHxPath = strings.Join(parentPath, "/")
+		data.ParentHxPath = textbuf.Join(parentPath, "/")
 		if len(parentPath) == 0 {
 			data.ParentURL = "/show/"
 		} else {
-			data.ParentURL = "/show/" + strings.Join(parentPath, "/") + "/"
+			var tb textbuf.Buffer
+			data.ParentURL = tb.Str("/show/").Join(parentPath, "/").Byte('/').String()
 		}
 	}
 
@@ -357,7 +363,8 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 		return data
 	}
 
-	prefix := "/show/" + strings.Join(path, "/")
+	var tbPrefix textbuf.Buffer
+	prefix := tbPrefix.Str("/show/").Join(path, "/").String()
 
 	switch n := schemaNode.(type) {
 	case *config.ContainerNode:
@@ -380,7 +387,8 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 			uniqueFields := collectUniqueFields(n)
 			if len(uniqueFields) > 0 {
 				keys := collectListKeys(tree, schema, path)
-				baseURL := "/show/" + strings.Join(path, "/") + "/"
+				var tb textbuf.Buffer
+				baseURL := tb.Str("/show/").Join(path, "/").Byte('/').String()
 				data.ListTable = buildListTable(tree, schema, path, n, keys, uniqueFields, baseURL)
 			}
 		}
@@ -390,7 +398,7 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 		populateFragmentFields(data, n, subtree, prefix)
 
 	case *config.LeafNode:
-		parentPath := strings.Join(path[:len(path)-1], "/")
+		parentPath := textbuf.Join(path[:len(path)-1], "/")
 		data.Fields = []FieldMeta{buildFieldMeta(path[len(path)-1], n, "", false, parentPath)}
 
 	case *config.FreeformNode, *config.InlineListNode,
@@ -416,7 +424,8 @@ func populateFragmentFields(data *FragmentData, provider childLister, subtree *c
 			continue
 		}
 
-		childURL := prefix + "/" + name + "/"
+		var tb textbuf.Buffer
+		childURL := tb.Str(prefix).Byte('/').Str(name).Byte('/').String()
 		data.Children = append(data.Children, ChildEntry{
 			Name:   name,
 			Kind:   nodeKindString(child.Kind()),
@@ -463,7 +472,7 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 
 	if len(leaf.Enums) > 0 {
 		meta.Type = "enum"
-		meta.Options = strings.Join(leaf.Enums, ",")
+		meta.Options = textbuf.Join(leaf.Enums, ",")
 	}
 
 	return meta
@@ -533,9 +542,9 @@ func buildSidebarHierarchy(schema *config.Schema, tree *config.Tree, path []stri
 	for _, name := range provider.Children() {
 		child := provider.Get(name)
 		childPath := append(append([]string{}, path...), name)
-		url := "/show/" + strings.Join(childPath, "/") + "/"
-
-		hxPath := strings.Join(childPath, "/")
+		var tb textbuf.Buffer
+		hxPath := tb.Join(childPath, "/").String()
+		url := tb.Reset().Str("/show/").Str(hxPath).Byte('/').String()
 		section := SidebarSection{
 			Name:        name,
 			Description: nodeDescription(child),
@@ -549,10 +558,10 @@ func buildSidebarHierarchy(schema *config.Schema, tree *config.Tree, path []stri
 
 			keys := collectListKeys(tree, schema, childPath)
 			for _, k := range keys {
-				entryPath := hxPath + "/" + k
+				entryPath := tb.Reset().Str(hxPath).Byte('/').Str(k).String()
 				section.Entries = append(section.Entries, SidebarEntry{
 					Key:    k,
-					URL:    url + k + "/",
+					URL:    tb.Reset().Str(url).Str(k).Byte('/').String(),
 					HxPath: entryPath,
 				})
 			}
@@ -653,8 +662,9 @@ func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, se
 		}
 
 		childPath := append(append([]string{}, prefix...), name)
-		url := "/show/" + strings.Join(childPath, "/") + "/"
-		hxPath := strings.Join(childPath, "/")
+		var tb textbuf.Buffer
+		hxPath := tb.Join(childPath, "/").String()
+		url := tb.Reset().Str("/show/").Str(hxPath).Byte('/').String()
 
 		item := ColumnItem{
 			Name:     name,
@@ -688,12 +698,13 @@ func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, se
 func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, listNode *config.ListNode, selectedName string) *FinderColumn {
 	col := &FinderColumn{}
 	keys := collectListKeys(tree, schema, prefix)
-	url := "/show/" + strings.Join(prefix, "/") + "/"
+	var tb textbuf.Buffer
+	url := tb.Str("/show/").Join(prefix, "/").Byte('/').String()
 
 	// Show entries in the column.
 	keyless := listNode.KeyName == ""
 	for _, k := range keys {
-		entryPath := strings.Join(prefix, "/") + "/" + k
+		entryPath := tb.Reset().Join(prefix, "/").Byte('/').Str(k).String()
 		displayName := k
 		hasName := false
 		if keyless {
@@ -704,12 +715,12 @@ func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, 
 				displayName = summary
 				hasName = true
 			} else {
-				displayName = "#" + k
+				displayName = tb.Reset().Byte('#').Str(k).String()
 			}
 		}
 		item := ColumnItem{
 			Name:        displayName,
-			URL:         url + k + "/",
+			URL:         tb.Reset().Str(url).Str(k).Byte('/').String(),
 			HxPath:      entryPath,
 			Selected:    k == selectedName,
 			HasChildren: true,
@@ -751,7 +762,7 @@ func collectUniqueFields(listNode *config.ListNode) []string {
 func collectRequiredFields(listNode *config.ListNode) []string {
 	fields := make([]string, 0, len(listNode.Required))
 	for _, path := range listNode.Required {
-		fields = append(fields, strings.Join(path, "/"))
+		fields = append(fields, textbuf.Join(path, "/"))
 	}
 	return fields
 }
@@ -760,7 +771,7 @@ func collectRequiredFields(listNode *config.ListNode) []string {
 func collectSuggestFields(listNode *config.ListNode) []string {
 	fields := make([]string, 0, len(listNode.Suggest))
 	for _, path := range listNode.Suggest {
-		fields = append(fields, strings.Join(path, "/"))
+		fields = append(fields, textbuf.Join(path, "/"))
 	}
 	return fields
 }
@@ -768,11 +779,13 @@ func collectSuggestFields(listNode *config.ListNode) []string {
 // buildListTable builds a ListTableView for a list with unique constraints.
 func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, listNode *config.ListNode, keys, uniqueFields []string, baseURL string) *ListTableView {
 	listName := prefix[len(prefix)-1]
+	var tb textbuf.Buffer
+	joinedPrefix := tb.Join(prefix, "/").String()
 	table := &ListTableView{
 		Name:    listName,
-		AddURL:  "/config/add/" + strings.Join(prefix, "/") + "/",
-		FormURL: "/config/add-form/" + strings.Join(prefix, "/") + "/",
-		SetURL:  "/config/set/" + strings.Join(prefix, "/") + "/",
+		AddURL:  tb.Reset().Str("/config/add/").Str(joinedPrefix).Byte('/').String(),
+		FormURL: tb.Reset().Str("/config/add-form/").Str(joinedPrefix).Byte('/').String(),
+		SetURL:  tb.Reset().Str("/config/set/").Str(joinedPrefix).Byte('/').String(),
 	}
 
 	// Key column first, then unique field columns.
@@ -785,8 +798,8 @@ func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, l
 	for _, key := range keys {
 		row := ListTableRow{
 			KeyValue: key,
-			URL:      baseURL + key + "/",
-			HxPath:   strings.Join(prefix, "/") + "/" + key,
+			URL:      tb.Reset().Str(baseURL).Str(key).Byte('/').String(),
+			HxPath:   tb.Reset().Str(joinedPrefix).Byte('/').Str(key).String(),
 		}
 
 		// Resolve each unique field's value from the entry's subtree.
@@ -795,10 +808,11 @@ func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, l
 		for _, field := range uniqueFields {
 			// Split "remote/ip" into parent path "remote" and leaf "ip".
 			leaf, parentSuffix := splitFieldPath(field)
-			cellPath := strings.Join(entryPath, "/")
+			tb.Reset().Join(entryPath, "/")
 			if parentSuffix != "" {
-				cellPath += "/" + parentSuffix
+				tb.Byte('/').Str(parentSuffix)
 			}
+			cellPath := tb.String()
 			row.Cells = append(row.Cells, ListTableCell{
 				Value:       resolveNestedValue(entryTree, field),
 				Leaf:        leaf,
@@ -923,7 +937,7 @@ func keylessEntrySummary(tree *config.Tree, schema *config.ListNode) string {
 				for _, e := range entries {
 					keys = append(keys, e.Key)
 				}
-				return strings.Join(keys, ", ")
+				return textbuf.Join(keys, ", ")
 			}
 		}
 	}

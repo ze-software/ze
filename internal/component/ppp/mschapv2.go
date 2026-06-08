@@ -343,7 +343,8 @@ func drawMSCHAPv2Challenge(dst []byte) error {
 func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	var value [mschapv2ChallengeValueLen]byte
 	if err := drawMSCHAPv2Challenge(value[:]); err != nil {
-		s.fail("chap-v2: crypto/rand: " + err.Error())
+		var tb textbuf.Buffer
+		s.fail(tb.Str("chap-v2: crypto/rand: ").Err(err).String())
 		return false
 	}
 	s.chapIdentifier++
@@ -442,7 +443,8 @@ func (s *pppSession) runMSCHAPv2AuthPhase() bool {
 	// Mirror runCHAPAuthPhase reject path: emit EventSessionDown on
 	// the lifecycle channel via s.fail before EventAuthFailure on the
 	// auth channel, so the transport can tear the session down.
-	s.fail("chap-v2: auth rejected: " + decision.message)
+	var tb textbuf.Buffer
+	s.fail(tb.Str("chap-v2: auth rejected: ").Str(decision.message).String())
 	s.sendAuthEvent(EventAuthFailure{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,

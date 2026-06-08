@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func TestFormatTablesEmpty(t *testing.T) {
@@ -144,7 +145,7 @@ func TestFormatSetElementsTimeout(t *testing.T) {
 			{Value: "10.0.0.2"},
 		},
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	formatSet(&b, set)
 	out := b.String()
 	if !strings.Contains(out, "element 10.0.0.1 { timeout 3600; }") {

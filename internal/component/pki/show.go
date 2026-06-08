@@ -14,6 +14,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -127,15 +128,16 @@ func lookupCert(name string) (string, *CACertEntry, *CertificateEntry, *plugin.R
 	}
 	sort.Strings(names)
 
+	var tb textbuf.Buffer
 	if len(names) > 0 {
 		return "", nil, nil, &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "pki: certificate " + name + " not found (available: " + strings.Join(names, ", ") + ")",
+			Error:  tb.Str("pki: certificate ").Str(name).Str(" not found (available: ").Join(names, ", ").Byte(')').String(),
 		}
 	}
 	return "", nil, nil, &plugin.Response{
 		Status: plugin.StatusError,
-		Error:  "pki: certificate " + name + " not found",
+		Error:  tb.Str("pki: certificate ").Str(name).Str(" not found").String(),
 	}
 }
 
@@ -184,9 +186,10 @@ func certBundlePEM(entry *CertificateEntry) (*plugin.Response, error) {
 		}, nil
 	}
 	if entry.PrivateKey == nil {
+		var tb textbuf.Buffer
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "pki: certificate " + entry.Name + " has no private key",
+			Error:  tb.Str("pki: certificate ").Str(entry.Name).Str(" has no private key").String(),
 		}, nil
 	}
 
@@ -227,9 +230,10 @@ func certFingerprint(name string, ca *CACertEntry, entry *CertificateEntry, algo
 		sum := sha512.Sum512(raw)
 		fp = hex.EncodeToString(sum[:])
 	default:
+		var tb textbuf.Buffer
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "pki: unsupported hash algorithm " + algo + " (use sha256, sha384, sha512)",
+			Error:  tb.Str("pki: unsupported hash algorithm ").Str(algo).Str(" (use sha256, sha384, sha512)").String(),
 		}, nil
 	}
 
@@ -246,19 +250,20 @@ func certFingerprint(name string, ca *CACertEntry, entry *CertificateEntry, algo
 func marshalPrivateKeyPEM(key any) ([]byte, *plugin.Response) {
 	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
+		var tb textbuf.Buffer
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "pki: marshal private key: " + err.Error(),
+			Error:  tb.Str("pki: marshal private key: ").Err(err).String(),
 		}
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}), nil
 }
 
 func formatFingerprint(hexStr string) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	for i, c := range hexStr {
 		if i > 0 && i%2 == 0 {
-			b.WriteByte(':')
+			b.Byte(':')
 		}
 		b.WriteRune(c)
 	}

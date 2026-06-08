@@ -9,6 +9,7 @@ import (
 	"time"
 
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -56,8 +57,9 @@ func runReplaceCert(args []string) int {
 		defer ZeroBytes(passphrase)
 	}
 
-	certPath := TLSDir(dir, name) + "/cert.pem"
-	keyPath := TLSDir(dir, name) + "/key.pem"
+	var tb textbuf.Buffer
+	certPath := tb.Str(TLSDir(dir, name)).Str("/cert.pem").String()
+	keyPath := tb.Reset().Str(TLSDir(dir, name)).Str("/key.pem").String()
 
 	if *certFile != "" && *keyFile != "" {
 		certData, readErr := os.ReadFile(*certFile) //nolint:gosec // user-provided path

@@ -92,7 +92,8 @@ func runStatistics(args []string) int {
 				return nil
 			},
 			OnRIBGeneric: func(_ mrt.Header, r *mrt.RIBGenericRecord) error {
-				key := "afi-" + textbuf.Uint16(r.AFI) + "-safi-" + textbuf.Uint(uint64(r.SAFI))
+				var tb textbuf.Buffer
+				key := tb.Str("afi-").Uint16(r.AFI).Str("-safi-").Uint(uint64(r.SAFI)).String()
 				st.AFICounts[key] += uint64(len(r.Entries))
 				st.RIBEntries += uint64(len(r.Entries))
 				return nil
@@ -189,7 +190,8 @@ func typeName(t uint16) string {
 	case mrt.TypeOSPFv3:
 		return "ospfv3"
 	}
-	return "type-" + textbuf.Uint16(t)
+	var tb textbuf.Buffer
+	return tb.Str("type-").Uint16(t).String()
 }
 
 func bgpMsgTypeName(t uint8) string {
@@ -205,5 +207,6 @@ func bgpMsgTypeName(t uint8) string {
 	case 5:
 		return "route-refresh"
 	}
-	return "type-" + textbuf.Uint(uint64(t))
+	var tb textbuf.Buffer
+	return tb.Str("type-").Uint(uint64(t)).String()
 }

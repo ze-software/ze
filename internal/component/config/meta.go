@@ -11,6 +11,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // MetaEntry records who changed a config leaf and when.
@@ -32,14 +34,15 @@ type MetaEntry struct {
 // Concatenates user + source + session-start-time to produce a stable key
 // that is unique per editing session but shared across all edits within it.
 func (e MetaEntry) SessionKey() string {
-	key := e.User
+	var tb textbuf.Buffer
+	tb.Str(e.User)
 	if e.Source != "" {
-		key += "@" + e.Source
+		tb.Byte('@').Str(e.Source)
 	}
 	if !e.Time.IsZero() {
-		key += "%" + e.Time.UTC().Format(time.RFC3339)
+		tb.Byte('%').Str(e.Time.UTC().Format(time.RFC3339))
 	}
-	return key
+	return tb.String()
 }
 
 // SessionEntry pairs a YANG path with its metadata entry,
@@ -303,12 +306,13 @@ func (mt *MetaTree) collectSession(sessionID, prefix string, result *[]SessionEn
 	mt.mu.RLock()
 	defer mt.mu.RUnlock()
 
+	var tb textbuf.Buffer
 	for name, entries := range mt.entries {
 		for _, entry := range entries {
 			if entry.SessionKey() == sessionID {
 				path := name
 				if prefix != "" {
-					path = prefix + " " + name
+					path = tb.Reset().Str(prefix).Byte(' ').Str(name).String()
 				}
 				*result = append(*result, SessionEntry{Path: path, Entry: entry})
 			}
@@ -318,7 +322,7 @@ func (mt *MetaTree) collectSession(sessionID, prefix string, result *[]SessionEn
 	for name, child := range mt.containers {
 		childPrefix := name
 		if prefix != "" {
-			childPrefix = prefix + " " + name
+			childPrefix = tb.Reset().Str(prefix).Byte(' ').Str(name).String()
 		}
 		child.collectSession(sessionID, childPrefix, result)
 	}
@@ -326,7 +330,7 @@ func (mt *MetaTree) collectSession(sessionID, prefix string, result *[]SessionEn
 	for key, child := range mt.lists {
 		childPrefix := key
 		if prefix != "" {
-			childPrefix = prefix + " " + key
+			childPrefix = tb.Reset().Str(prefix).Byte(' ').Str(key).String()
 		}
 		child.collectSession(sessionID, childPrefix, result)
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // AnnotatedView returns config content annotated with the enabled metadata columns.
@@ -281,7 +282,8 @@ func revertUserChanges(tree *config.Tree, meta *config.MetaTree, username string
 // SavedDraftContent returns the content of the saved draft file on disk.
 // Returns empty string if no draft exists.
 func (e *Editor) SavedDraftContent() string {
-	draftPath := e.originalPath + ".draft"
+	var tb textbuf.Buffer
+	draftPath := tb.Str(e.originalPath).Str(".draft").String()
 	data, err := e.store.ReadFile(draftPath)
 	if err != nil {
 		return ""

@@ -9,6 +9,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // capMode represents the negotiation mode for a non-family capability.
@@ -302,7 +303,7 @@ func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 				addPathMode = parseCapMode(parts[len(parts)-1])
 				parts = parts[:len(parts)-1]
 			}
-			dir := strings.Join(parts, "/")
+			dir := textbuf.Join(parts, "/")
 			switch dir {
 			case "send/receive", "receive/send":
 				globalSend = true

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errLoadmoduleNotImplementedOnThisPlatform = errors.New("loadModule not implemented on this platform")
@@ -82,7 +83,7 @@ func (d *DPDKBinder) UnbindAll() error {
 		delete(d.addedNewIDs, vendorDevice)
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("dpdk unbind errors: %s", strings.Join(errs, "; "))
+		return fmt.Errorf("dpdk unbind errors: %s", textbuf.Join(errs, "; "))
 	}
 	return nil
 }

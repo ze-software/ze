@@ -25,6 +25,7 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -141,7 +142,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 				State:         ToolOverlayConfirm,
 				Title:         tool.Label,
 				ToolID:        toolID,
-				ContextPath:   strings.Join(contextPath, "/"),
+				ContextPath:   textbuf.Join(contextPath, "/"),
 				ConfirmPrompt: tool.Confirm,
 			}
 			renderToolOverlay(w, renderer, data, http.StatusOK)
@@ -187,7 +188,7 @@ func HandleRelatedToolRun(renderer *Renderer, schema *config.Schema, tree *confi
 			Title:       tool.Label,
 			Command:     res.Command,
 			ToolID:      toolID,
-			ContextPath: strings.Join(contextPath, "/"),
+			ContextPath: textbuf.Join(contextPath, "/"),
 			Truncated:   truncated,
 		}
 		assignOverlayBody(&data, cleaned)
@@ -203,7 +204,7 @@ func lookupRelatedTool(schema *config.Schema, contextPath []string, toolID strin
 		return nil, fmt.Errorf("invalid context path: %w", err)
 	}
 	if node == nil {
-		return nil, fmt.Errorf("no schema node at %q", strings.Join(contextPath, "/"))
+		return nil, fmt.Errorf("no schema node at %q", textbuf.Join(contextPath, "/"))
 	}
 	var pool []*config.RelatedTool
 	switch n := node.(type) {
@@ -219,7 +220,7 @@ func lookupRelatedTool(schema *config.Schema, contextPath []string, toolID strin
 			return t, nil
 		}
 	}
-	return nil, fmt.Errorf("unknown tool id %q at %s", toolID, strings.Join(contextPath, "/"))
+	return nil, fmt.Errorf("unknown tool id %q at %s", toolID, textbuf.Join(contextPath, "/"))
 }
 
 // errorOverlay builds a populated ToolOverlayData for the error state.
@@ -233,7 +234,7 @@ func errorOverlay(toolID string, contextPath []string, tool *config.RelatedTool,
 		State:        ToolOverlayError,
 		Title:        title,
 		ToolID:       toolID,
-		ContextPath:  strings.Join(contextPath, "/"),
+		ContextPath:  textbuf.Join(contextPath, "/"),
 		ErrorMessage: msg,
 	}
 }
@@ -304,7 +305,7 @@ func overlayID(toolID string, contextPath []string) string {
 	for _, seg := range contextPath {
 		parts = append(parts, asciiSafeID(seg))
 	}
-	return strings.Join(parts, "-")
+	return textbuf.Join(parts, "-")
 }
 
 // asciiSafeID returns s with each non-ASCII-alphanumeric, non-`-`, non-`_`
@@ -321,7 +322,7 @@ func overlayID(toolID string, contextPath []string) string {
 // distinct overlay ids in practice; if a future input domain loosens
 // the character set, revisit this contract.
 func asciiSafeID(s string) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.Grow(len(s))
 	for _, r := range s {
 		switch {
@@ -331,7 +332,7 @@ func asciiSafeID(s string) string {
 			r == '-' || r == '_':
 			b.WriteRune(r)
 		default:
-			b.WriteRune('-')
+			b.Byte('-')
 		}
 	}
 	return b.String()
@@ -403,17 +404,17 @@ func stripC0Controls(s string) string {
 	if !needsC0Strip(s) {
 		return s
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.Grow(len(s))
 	for i := range len(s) {
 		c := s[i]
 		switch {
 		case c == '\t' || c == '\n' || c == '\r' || c == 0x1b:
-			b.WriteByte(c)
+			b.Byte(c)
 		case c < 0x20 || c == 0x7f:
 			// drop
 		default:
-			b.WriteByte(c)
+			b.Byte(c)
 		}
 	}
 	return b.String()

@@ -4,9 +4,8 @@
 package completion
 
 import (
-	"strings"
-
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // shells lists the user-facing shell names for completion generation.
@@ -17,7 +16,7 @@ var shells = []string{"bash", "zsh", "fish", "nushell"}
 // subcommands returns the shell list as a comma-separated string,
 // derived from shells (the single source of truth).
 func subcommands() string {
-	return strings.Join(shells, ", ")
+	return textbuf.Join(shells, ", ")
 }
 
 func init() {

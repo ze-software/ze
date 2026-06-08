@@ -25,6 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/identity"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
@@ -168,7 +169,8 @@ func (su *SelfUpdater) restartPolicy() string {
 		return "immediate"
 	}
 	if su.cfg.RestartTime != "" {
-		return "time " + su.cfg.RestartTime
+		var tb textbuf.Buffer
+		return tb.Str("time ").Str(su.cfg.RestartTime).String()
 	}
 	return "manual"
 }
@@ -265,7 +267,8 @@ func (su *SelfUpdater) check(ctx context.Context) {
 
 	if manifest.MinimumVersion != "" && isNewer(manifest.MinimumVersion, running) {
 		su.mu.Lock()
-		su.downloadStatus = "error: upgrade requires intermediate version " + manifest.MinimumVersion
+		var tb textbuf.Buffer
+		su.downloadStatus = tb.Str("error: upgrade requires intermediate version ").Str(manifest.MinimumVersion).String()
 		su.mu.Unlock()
 		su.recordEvent(running, manifest.Ver, "blocked-minimum-version")
 		report.RaiseWarning(selfUpdateSource, selfUpdateCode, selfUpdateSubject,
@@ -328,7 +331,8 @@ func (su *SelfUpdater) download(ctx context.Context, manifest extendedManifest, 
 	if err != nil {
 		logger.Warn("download URL error", "error", err)
 		su.mu.Lock()
-		su.downloadStatus = "error: " + err.Error()
+		var tb textbuf.Buffer
+		su.downloadStatus = tb.Str("error: ").Err(err).String()
 		su.mu.Unlock()
 		su.recordEvent(running, manifest.Ver, "failed-download")
 		return
@@ -338,7 +342,8 @@ func (su *SelfUpdater) download(ctx context.Context, manifest extendedManifest, 
 		if err := su.checkDiskSpace(manifest.Size); err != nil {
 			logger.Warn("disk space check failed", "error", err)
 			su.mu.Lock()
-			su.downloadStatus = "error: " + err.Error()
+			var tb textbuf.Buffer
+			su.downloadStatus = tb.Str("error: ").Err(err).String()
 			su.mu.Unlock()
 			su.recordEvent(running, manifest.Ver, "failed-download")
 			return
@@ -648,7 +653,8 @@ func (su *SelfUpdater) ManualRestart() error {
 
 // Rollback restores the .prev binary and restarts.
 func (su *SelfUpdater) Rollback() error {
-	prevPath := su.targetPath + ".prev"
+	var tb textbuf.Buffer
+	prevPath := tb.Str(su.targetPath).Str(".prev").String()
 	if !fileExists(prevPath) {
 		return errors.New("no previous version available")
 	}
@@ -708,7 +714,8 @@ func (su *SelfUpdater) resolveDownloadURL(manifest extendedManifest) (string, er
 	if idx < 0 {
 		return "", errors.New("cannot derive download URL from config URL")
 	}
-	return su.url[:idx+1] + runtime.GOOS + "/" + runtime.GOARCH, nil
+	var tb textbuf.Buffer
+	return tb.Str(su.url[:idx+1]).Str(runtime.GOOS).Byte('/').Str(runtime.GOARCH).String(), nil
 }
 
 // --- binary download ---
@@ -768,7 +775,8 @@ func (su *SelfUpdater) stageBinary(tempPath string) error {
 	target := su.targetPath
 
 	// Pre-flight: verify writable filesystem
-	testPath := target + ".writetest"
+	var tb textbuf.Buffer
+	testPath := tb.Str(target).Str(".writetest").String()
 	f, err := os.Create(testPath) //nolint:gosec // G304: path derived from os.Executable, not user input
 	if err != nil {
 		return fmt.Errorf("self-update not supported on read-only filesystem: %w", err)
@@ -789,7 +797,7 @@ func (su *SelfUpdater) stageBinary(tempPath string) error {
 	}
 
 	// Hard-link current binary to .prev for rollback
-	prevPath := target + ".prev"
+	prevPath := tb.Reset().Str(target).Str(".prev").String()
 	os.Remove(prevPath) //nolint:errcheck // old .prev may not exist
 	if err := os.Link(target, prevPath); err != nil {
 		return fmt.Errorf("backup link: %w", err)
@@ -887,7 +895,8 @@ func (su *SelfUpdater) resolveIdentity() {
 func (su *SelfUpdater) cleanStaleTempFiles() {
 	dir := filepath.Dir(su.targetPath)
 	base := filepath.Base(su.targetPath)
-	pattern := base + ".update."
+	var tb textbuf.Buffer
+	pattern := tb.Str(base).Str(".update.").String()
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -976,7 +985,8 @@ func (su *SelfUpdater) saveHistory() {
 	}
 
 	hp := su.historyPath()
-	tmpPath := hp + ".tmp"
+	var tb textbuf.Buffer
+	tmpPath := tb.Str(hp).Str(".tmp").String()
 	if writeErr := os.WriteFile(tmpPath, data, 0o600); writeErr != nil {
 		return
 	}

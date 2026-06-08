@@ -9,8 +9,9 @@ package ppp
 
 import (
 	"encoding/binary"
-	"strconv"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // adjustAuthOnNakOrReject inspects a received LCP Configure-Nak or
@@ -221,10 +222,11 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 	case <-s.sessStop:
 		return authResponseMsg{}, false
 	case <-timer.C:
-		reason := "auth timeout after " + timeout.String()
+		var tb textbuf.Buffer
 		if label != "" {
-			reason = label + ": " + reason
+			tb.Str(label).Str(": ")
 		}
+		reason := tb.Str("auth timeout after ").Str(timeout.String()).String()
 		s.fail(reason)
 		s.sendAuthEvent(EventAuthFailure{
 			TunnelID:  s.tunnelID,
@@ -278,13 +280,15 @@ func waitCHAPLike[T any](
 		select {
 		case f, ok := <-s.framesIn:
 			if !ok {
-				s.fail(label + ": frames channel closed")
+				var tb textbuf.Buffer
+				s.fail(tb.Str(label).Str(": frames channel closed").String())
 				return zero, false
 			}
 			proto, payload, _, perr := ParseFrame(f)
 			if perr != nil {
 				putFrameBuf(f)
-				s.fail(label + ": malformed frame: " + perr.Error())
+				var tb textbuf.Buffer
+				s.fail(tb.Str(label).Str(": malformed frame: ").Err(perr).String())
 				return zero, false
 			}
 			if proto != ProtoCHAP {
@@ -307,7 +311,8 @@ func waitCHAPLike[T any](
 			resp, gotID, perr := parse(payload)
 			putFrameBuf(f)
 			if perr != nil {
-				s.fail(label + ": malformed response: " + perr.Error())
+				var tb textbuf.Buffer
+				s.fail(tb.Str(label).Str(": malformed response: ").Err(perr).String())
 				return zero, false
 			}
 			if gotID != wantID {
@@ -321,8 +326,8 @@ func waitCHAPLike[T any](
 		case <-s.sessStop:
 			return zero, false
 		case <-timer.C:
-			reason := label + ": timeout awaiting Response for identifier " +
-				strconv.FormatUint(uint64(wantID), 16)
+			var tb textbuf.Buffer
+			reason := tb.Str(label).Str(": timeout awaiting Response for identifier ").Uint(uint64(wantID)).String()
 			s.fail(reason)
 			s.sendAuthEvent(EventAuthFailure{
 				TunnelID:  s.tunnelID,

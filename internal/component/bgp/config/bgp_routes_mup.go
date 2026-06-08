@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errMupNlriRequiresRouteTypeAnd = errors.New("mup nlri requires route type and fields")
@@ -88,7 +89,7 @@ func parseMUPNLRILine(line string, attr *config.Tree) (MUPRouteConfig, error) {
 		mr.NextHop = v
 	}
 	if items := attr.GetSlice("extended-community"); len(items) > 0 {
-		mr.ExtendedCommunity = strings.Join(items, " ")
+		mr.ExtendedCommunity = textbuf.Join(items, " ")
 	}
 	if v, ok := attr.GetFlex("bgp-prefix-sid-srv6"); ok {
 		mr.PrefixSID = v
@@ -244,7 +245,7 @@ func parseMUPRoute(routeType string, route *config.Tree, isIPv6 bool) MUPRouteCo
 		r.NextHop = v
 	}
 	if items := route.GetSlice("extended-community"); len(items) > 0 {
-		r.ExtendedCommunity = strings.Join(items, " ")
+		r.ExtendedCommunity = textbuf.Join(items, " ")
 	}
 	if v, ok := route.Get("bgp-prefix-sid-srv6"); ok {
 		r.PrefixSID = v

@@ -83,7 +83,7 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 		kind, known := knownPipeOps[fields[0]]
 		if !known {
 			// Unknown operator — preserved for error reporting in ApplyPipes.
-			ops = append(ops, pipeOp{kind: pipeUnknown, arg: strings.Join(fields, " ")})
+			ops = append(ops, pipeOp{kind: pipeUnknown, arg: textbuf.Join(fields, " ")})
 			continue
 		}
 
@@ -91,7 +91,7 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 		switch kind { //nolint:exhaustive // only some operators take arguments
 		case pipeMatch:
 			if len(fields) > 1 {
-				op.arg = strings.Join(fields[1:], " ")
+				op.arg = textbuf.Join(fields[1:], " ")
 			}
 		case pipeJSON:
 			op.arg = jsonPretty
@@ -177,7 +177,8 @@ func FoldFilters(command string, ops []pipeOp) (string, []pipeOp, map[string]any
 	allServerArgs = append(allServerArgs, leadingArgs...)
 	allServerArgs = append(allServerArgs, serverArgs...)
 	if len(allServerArgs) > 0 {
-		command = trimmed + " " + strings.Join(allServerArgs, " ")
+		var tb textbuf.Buffer
+		command = tb.Str(trimmed).Byte(' ').Join(allServerArgs, " ").String()
 	}
 
 	return command, clientOps, meta
@@ -222,7 +223,7 @@ func collectPipeMeta(ops []pipeOp) map[string]any {
 			if len(fields) == 1 {
 				meta[fields[0]] = true
 			} else if len(fields) >= 2 {
-				meta[fields[0]] = strings.Join(fields[1:], " ")
+				meta[fields[0]] = textbuf.Join(fields[1:], " ")
 			}
 		}
 	}
@@ -231,14 +232,15 @@ func collectPipeMeta(ops []pipeOp) map[string]any {
 
 func validateFilter(filter PipeFilter, arg string) string {
 	arg = strings.TrimSpace(arg)
+	var tb textbuf.Buffer
 	if filter.TakesArg {
 		if arg == "" {
-			return "pipe filter " + filter.Name + " requires an argument"
+			return tb.Str("pipe filter ").Str(filter.Name).Str(" requires an argument").String()
 		}
 		return ""
 	}
 	if arg != "" {
-		return "pipe filter " + filter.Name + " does not accept an argument"
+		return tb.Str("pipe filter ").Str(filter.Name).Str(" does not accept an argument").String()
 	}
 	return ""
 }
@@ -248,11 +250,12 @@ func unknownFilterError(command, raw string, set pipeFilterSet) string {
 	if fields := strings.Fields(raw); len(fields) > 0 {
 		name = fields[0]
 	}
+	var tb textbuf.Buffer
 	valid := set.filterNames()
 	if valid == "" {
-		return "unknown pipe filter for " + command + ": " + name
+		return tb.Str("unknown pipe filter for ").Str(command).Str(": ").Str(name).String()
 	}
-	return "unknown pipe filter for " + command + ": " + name + " (valid: " + valid + ")"
+	return tb.Str("unknown pipe filter for ").Str(command).Str(": ").Str(name).Str(" (valid: ").Str(valid).Byte(')').String()
 }
 
 func lookupFilter(set pipeFilterSet, raw string) (PipeFilter, string, bool) {
@@ -264,7 +267,7 @@ func lookupFilter(set pipeFilterSet, raw string) (PipeFilter, string, bool) {
 	if !ok {
 		return PipeFilter{}, "", false
 	}
-	return filter, strings.Join(fields[1:], " "), true
+	return filter, textbuf.Join(fields[1:], " "), true
 }
 
 func appendFilter(args []string, filter PipeFilter, value string) []string {
@@ -328,7 +331,8 @@ func ApplyPipes(output string, ops []pipeOp, meta map[string]any) (string, strin
 		case pipeLog:
 			// Display-mode modifier, not a data transform. Handled by caller.
 		case pipeUnknown:
-			return "", "unknown pipe operator: " + op.arg
+			var tb textbuf.Buffer
+			return "", tb.Str("unknown pipe operator: ").Str(op.arg).String()
 		case pipeInvalid:
 			return "", op.arg
 		}
@@ -359,7 +363,8 @@ func ValidatePipes(ops []pipeOp) string {
 			return op.arg
 		}
 		if op.kind == pipeUnknown {
-			return "unknown pipe operator: " + op.arg
+			var tb textbuf.Buffer
+			return tb.Str("unknown pipe operator: ").Str(op.arg).String()
 		}
 		if op.kind == pipeJSON || op.kind == pipeNDJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
 			formatCount++
@@ -373,11 +378,13 @@ func ValidatePipes(ops []pipeOp) string {
 				name = "last"
 			}
 			if op.arg == "" {
-				return name + " requires a numeric argument"
+				var tb textbuf.Buffer
+				return tb.Str(name).Str(" requires a numeric argument").String()
 			}
 			n, err := strconv.Atoi(op.arg)
 			if err != nil || n <= 0 {
-				return name + " requires a positive number"
+				var tb textbuf.Buffer
+				return tb.Str(name).Str(" requires a positive number").String()
 			}
 		}
 	}
@@ -400,11 +407,10 @@ func HasLogOp(ops []pipeOp) bool {
 // applyMatch filters lines containing pattern (case-insensitive).
 func applyMatch(input, pattern string) string {
 	lower := strings.ToLower(pattern)
-	var b strings.Builder
+	var b textbuf.Buffer
 	for line := range strings.SplitSeq(input, "\n") {
 		if strings.Contains(strings.ToLower(line), lower) {
-			b.WriteString(line)
-			b.WriteByte('\n')
+			b.Str(line).Byte('\n')
 		}
 	}
 	return b.String()
@@ -544,14 +550,13 @@ func sliceN(arr []any, n int, fromEnd bool) []any {
 }
 
 func applyFirstLines(input string, n int) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	i := 0
 	for line := range strings.SplitSeq(input, "\n") {
 		if i >= n {
 			break
 		}
-		b.WriteString(line)
-		b.WriteByte('\n')
+		b.Str(line).Byte('\n')
 		i++
 	}
 	return b.String()
@@ -565,10 +570,9 @@ func applyLastLines(input string, n int) string {
 	if n >= len(lines) {
 		return input
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	for _, line := range lines[len(lines)-n:] {
-		b.WriteString(line)
-		b.WriteByte('\n')
+		b.Str(line).Byte('\n')
 	}
 	return b.String()
 }
@@ -614,7 +618,9 @@ func ApplyNDJSON(input string) string {
 		if err != nil {
 			return input
 		}
-		return string(out) + "\n"
+		var tb textbuf.Buffer
+		tb.Str(string(out)).Byte('\n')
+		return tb.String()
 	}
 	return marshalNDJSON(arr, json.Marshal)
 }
@@ -655,13 +661,18 @@ func applyYAML(input string) string {
 	return RenderYAML(data)
 }
 
+func pipeError(msg string) string {
+	var tb textbuf.Buffer
+	return tb.Str("pipe error: ").Str(msg).String()
+}
+
 // ProcessPipes splits user input into a command and a formatting function.
 // The returned function applies pipe operators (table, json, yaml, match, count)
 // to raw JSON output. If no pipes are present, the formatter returns raw JSON unchanged.
 func ProcessPipes(input string) (command string, format func(string) string) {
 	command, format, errMsg := ProcessPipesChecked(input)
 	if errMsg != "" {
-		return command, func(string) string { return "pipe error: " + errMsg }
+		return command, func(string) string { return pipeError(errMsg) }
 	}
 	return command, format
 }
@@ -681,7 +692,7 @@ func ProcessPipesChecked(input string) (command string, format func(string) stri
 	return command, func(rawJSON string) string {
 		result, errMsg := ApplyPipes(rawJSON, ops, meta)
 		if errMsg != "" {
-			return "pipe error: " + errMsg
+			return pipeError(errMsg)
 		}
 		return result
 	}, ""
@@ -734,7 +745,7 @@ func ProcessPipesDetectLog(input string) (cmd string, format func(string) string
 	return cmd, func(rawJSON string) string {
 		result, pipeErr := ApplyPipes(rawJSON, ops, meta)
 		if pipeErr != "" {
-			return "pipe error: " + pipeErr
+			return pipeError(pipeErr)
 		}
 		return result
 	}, flags, ""
@@ -768,7 +779,7 @@ func configuredDefault() pipeKind {
 func ProcessPipesDefaultFormat(input string) (command string, format func(string) string) {
 	command, format, errMsg := ProcessPipesDefaultFormatChecked(input)
 	if errMsg != "" {
-		return command, func(string) string { return "pipe error: " + errMsg }
+		return command, func(string) string { return pipeError(errMsg) }
 	}
 	return command, format
 }
@@ -788,7 +799,7 @@ func ProcessPipesDefaultFormatChecked(input string) (command string, format func
 	return command, func(rawJSON string) string {
 		result, errMsg := ApplyPipes(rawJSON, ops, meta)
 		if errMsg != "" {
-			return "pipe error: " + errMsg
+			return pipeError(errMsg)
 		}
 		return result
 	}, ""
@@ -810,7 +821,7 @@ func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (comma
 		return command, func(rawJSON string) string {
 			result, errMsg := ApplyPipes(rawJSON, ops, meta)
 			if errMsg != "" {
-				return "pipe error: " + errMsg
+				return pipeError(errMsg)
 			}
 			return defaultFn(result)
 		}
@@ -819,7 +830,7 @@ func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (comma
 	return command, func(rawJSON string) string {
 		result, errMsg := ApplyPipes(rawJSON, ops, meta)
 		if errMsg != "" {
-			return "pipe error: " + errMsg
+			return pipeError(errMsg)
 		}
 		return result
 	}

@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // handleKeyMsg dispatches keyboard input to the appropriate handler.
@@ -226,14 +227,16 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		// Show description of selected item in dropdown
 		if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
 			comp := m.completions[m.selected]
-			m.completionHint = comp.Text + ": " + comp.Description
+			var tb textbuf.Buffer
+			m.completionHint = tb.Str(comp.Text).Str(": ").Str(comp.Description).String()
 			m.completionHintDim = false
 			return m, nil
 		}
 		// Show description of single ghost-text match
 		if len(m.completions) == 1 && m.ghostText != "" {
 			comp := m.completions[0]
-			m.completionHint = comp.Text + ": " + comp.Description
+			var tb textbuf.Buffer
+			m.completionHint = tb.Str(comp.Text).Str(": ").Str(comp.Description).String()
 			m.completionHintDim = false
 			return m, nil
 		}
@@ -284,7 +287,8 @@ func (m Model) handleTab() (tea.Model, tea.Cmd) {
 			}
 		} else {
 			// Single match: apply full completion with trailing space
-			m.textInput.SetValue(m.textInput.Value() + m.ghostText + " ")
+			var tb textbuf.Buffer
+			m.textInput.SetValue(tb.Str(m.textInput.Value()).Str(m.ghostText).Byte(' ').String())
 			m.textInput.CursorEnd()
 			m.updateCompletions()
 		}
@@ -671,20 +675,22 @@ func appendCLIFormatCompletions(completions []Completion, input string) []Comple
 			Text: cmd, Description: "Set default output format", Type: "command",
 		})
 	}
-	if input == cmd || input == cmd+" " {
+	var tb textbuf.Buffer
+	cmdSpace := tb.Str(cmd).Byte(' ').String()
+	if input == cmd || input == cmdSpace {
 		for name := range validCLIFormats {
 			completions = append(completions, Completion{
-				Text: cmd + " " + name, Description: name + " format", Type: "value",
+				Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: "value",
 			})
 		}
 		return completions
 	}
-	if strings.HasPrefix(input, cmd+" ") {
-		partial := input[len(cmd)+1:]
+	if strings.HasPrefix(input, cmdSpace) {
+		partial := input[len(cmdSpace):]
 		for name := range validCLIFormats {
 			if strings.HasPrefix(name, partial) {
 				completions = append(completions, Completion{
-					Text: cmd + " " + name, Description: name + " format", Type: "value",
+					Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: "value",
 				})
 			}
 		}
@@ -708,16 +714,19 @@ func handleSetCLIFormat(input string, m *Model) bool {
 		if current == "" {
 			current = "text"
 		}
-		m.statusMessage = "cli format: " + current
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("cli format: ").Str(current).String()
 		return true
 	}
 
 	if !validCLIFormats[rest] {
-		m.statusMessage = "invalid format: " + rest + " (valid: text, table, json, yaml, ndjson)"
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("invalid format: ").Str(rest).Str(" (valid: text, table, json, yaml, ndjson)").String()
 		return true
 	}
 
 	_ = env.Set("ze.cli.format", rest)
-	m.statusMessage = "cli format set to " + rest
+	var tb textbuf.Buffer
+	m.statusMessage = tb.Str("cli format set to ").Str(rest).String()
 	return true
 }

@@ -11,6 +11,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // errListenerClosed is returned by Accept when the listener has been closed.
@@ -95,7 +97,8 @@ func (d *MockDialer) Register(network, address string, conn net.Conn) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	key := network + ":" + address
+	var tb textbuf.Buffer
+	key := tb.Str(network).Byte(':').Str(address).String()
 	d.conns[key] = append(d.conns[key], conn)
 }
 
@@ -109,7 +112,8 @@ func (d *MockDialer) DialContext(ctx context.Context, network, address string) (
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	key := network + ":" + address
+	var tb textbuf.Buffer
+	key := tb.Str(network).Byte(':').Str(address).String()
 	conns := d.conns[key]
 	if len(conns) == 0 {
 		return nil, errNoConnection
@@ -140,7 +144,8 @@ func (f *MockListenerFactory) Listen(_ context.Context, network, address string)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	key := network + ":" + address
+	var tb textbuf.Buffer
+	key := tb.Str(network).Byte(':').Str(address).String()
 	if ml, ok := f.listeners[key]; ok {
 		return ml, nil
 	}
@@ -160,7 +165,8 @@ func (f *MockListenerFactory) GetListener(network, address string) *MockListener
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	key := network + ":" + address
+	var tb textbuf.Buffer
+	key := tb.Str(network).Byte(':').Str(address).String()
 	return f.listeners[key]
 }
 

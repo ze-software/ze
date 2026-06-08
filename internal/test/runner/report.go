@@ -184,7 +184,8 @@ func (r *Report) printMismatchReport(rec *Record) {
 		r.writeln(c.LineSeparator())
 		out := rec.PeerOutput
 		if len(out) > 3000 {
-			out = out[:3000] + "..."
+			var tb textbuf.Buffer
+			out = tb.Str(out[:3000]).Str("...").String()
 		}
 		r.writeln(out)
 		r.writeln("")
@@ -425,7 +426,8 @@ func formatHex(h string) string {
 	// Full hex is available in the DEBUG section's decode commands.
 	h = strings.ReplaceAll(h, ":", "")
 	if len(h) > 80 {
-		return h[:80] + "..."
+		var tb textbuf.Buffer
+		return tb.Str(h[:80]).Str("...").String()
 	}
 	return h
 }
@@ -435,15 +437,17 @@ func truncateOutput(s string, maxLines int) string {
 	if len(lines) <= maxLines {
 		return s
 	}
-	return strings.Join(lines[:maxLines], "\n") + "\n... (truncated)"
+	var tb textbuf.Buffer
+	return tb.Join(lines[:maxLines], "\n").Str("\n... (truncated)").String()
 }
 
 func indentLines(s, indent string) string {
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {
 		if line != "" {
-			lines[i] = indent + line
+			var tb textbuf.Buffer
+			lines[i] = tb.Str(indent).Str(line).String()
 		}
 	}
-	return strings.Join(lines, "\n")
+	return textbuf.Join(lines, "\n")
 }

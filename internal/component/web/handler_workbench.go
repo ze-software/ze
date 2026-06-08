@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // workbenchConfig holds optional dependencies for the workbench handler.
@@ -93,7 +94,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 
 			wb := WorkbenchData{
 				LayoutData: LayoutData{
-					Title:          "Ze: /" + strings.Join(path, "/"),
+					Title:          func() string { var tb textbuf.Buffer; return tb.Str("Ze: /").Join(path, "/").String() }(),
 					Content:        pageContent,
 					HasSession:     true,
 					CLIPrompt:      data.CLIPrompt,
@@ -116,15 +117,16 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		}
 
 		if len(path) > 0 {
+			var tb textbuf.Buffer
 			schemaNode, walkErr := walkSchema(schema, path)
 			if walkErr != nil || schemaNode == nil {
-				target := "/show/?error=" + url.QueryEscape("invalid path: "+strings.Join(path, "/"))
+				target := tb.Str("/show/?error=").Str(url.QueryEscape(tb.Reset().Str("invalid path: ").Join(path, "/").String())).String()
 				http.Redirect(w, r, target, http.StatusFound)
 				return
 			}
 			if isListEntryPath(schema, path) && walkTree(viewTree, schema, path) == nil {
 				entryKey := path[len(path)-1]
-				target := "/show/?error=" + url.QueryEscape("entry "+strconv.Quote(entryKey)+" does not exist")
+				target := tb.Reset().Str("/show/?error=").Str(url.QueryEscape(tb.Reset().Str("entry ").Str(strconv.Quote(entryKey)).Str(" does not exist").String())).String()
 				http.Redirect(w, r, target, http.StatusFound)
 				return
 			}
@@ -167,9 +169,10 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 		}
 		pathBar := renderer.RenderFragment("path_bar_inner", data)
 
+		var tb2 textbuf.Buffer
 		wb := WorkbenchData{
 			LayoutData: LayoutData{
-				Title:          "Ze: /" + data.CurrentPath,
+				Title:          tb2.Str("Ze: /").Str(data.CurrentPath).String(),
 				Content:        content,
 				HasSession:     true,
 				CLIPrompt:      data.CLIPrompt,

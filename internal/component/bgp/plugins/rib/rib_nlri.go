@@ -224,7 +224,8 @@ func formatFamily(fam family.Family) string {
 		safi = tb.Reset().Str("safi-").Uint16(uint16(fam.SAFI)).String()
 	}
 
-	return afi + "/" + safi
+	var tb2 textbuf.Buffer
+	return tb2.Str(afi).Byte('/').Str(safi).String()
 }
 
 // formatNextHop formats NEXT_HOP attribute bytes as an IP address string.

@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	configyang "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -772,7 +773,7 @@ func ValidateLeafValue(node *LeafNode, value string) error {
 		return err
 	}
 	if len(node.Enums) > 0 && !stringIn(node.Enums, value) {
-		expected := strings.Join(node.Enums, ", ")
+		expected := textbuf.Join(node.Enums, ", ")
 		if value == "simple-password" {
 			return fmt.Errorf(
 				"simple-password rejected (RFC 5880 Section 6.7.2 warns against use): invalid enum: %q (expected one of: %s)",
@@ -883,7 +884,7 @@ func formatNumericRanges(ranges []NumericRange) string {
 		}
 		parts = append(parts, r.Min+".."+r.Max)
 	}
-	return strings.Join(parts, ", ")
+	return textbuf.Join(parts, ", ")
 }
 
 // parseDuration parses a duration string like "100ms", "5s", "0.5s".

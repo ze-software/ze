@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // peers outputs tab-separated "selector\tdescription" pairs for peer completion.
@@ -82,10 +83,11 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 
 		// IP entry
 		var desc string
+		var tb textbuf.Buffer
 		if info.Name != "" {
-			desc = "peer ip (" + info.Name + " AS " + asnStr + ")"
+			desc = tb.Str("peer ip (").Str(info.Name).Str(" AS ").Str(asnStr).Byte(')').String()
 		} else {
-			desc = "peer ip (AS " + asnStr + ")"
+			desc = tb.Str("peer ip (AS ").Str(asnStr).Byte(')').String()
 		}
 		if _, err := fmt.Fprintf(w, "%s\t%s\n", ip, desc); err != nil {
 			return 1
@@ -96,9 +98,9 @@ func formatPeerCompletions(w io.Writer, jsonData string) int {
 			seenASN[info.RemoteAS] = true
 			var asnDesc string
 			if info.Name != "" {
-				asnDesc = "peer asn (" + info.Name + " " + ip + ")"
+				asnDesc = tb.Reset().Str("peer asn (").Str(info.Name).Byte(' ').Str(ip).Byte(')').String()
 			} else {
-				asnDesc = "peer asn (" + ip + ")"
+				asnDesc = tb.Reset().Str("peer asn (").Str(ip).Byte(')').String()
 			}
 			if _, err := fmt.Fprintf(w, "as%s\t%s\n", asnStr, asnDesc); err != nil {
 				return 1

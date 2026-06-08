@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // maxSearchResults caps the number of routes returned by search queries.
@@ -121,21 +123,22 @@ func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build pipeline command with all provided filters.
-	cmd := "show bgp rib"
+	var tb textbuf.Buffer
+	tb.Str("show bgp rib")
 	if prefix != "" {
-		cmd += " prefix " + prefix
+		tb.Str(" prefix ").Str(prefix)
 	}
 	if aspath != "" {
-		cmd += " path " + aspath
+		tb.Str(" path ").Str(aspath)
 	}
 	if community != "" {
-		cmd += " community " + community
+		tb.Str(" community ").Str(community)
 	}
 	if fam != "" {
-		cmd += " family " + fam
+		tb.Str(" family ").Str(fam)
 	}
 
-	result := s.query(cmd)
+	result := s.query(tb.String())
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 
@@ -217,7 +220,8 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get prefix-length summary (fast, constant memory).
-	result := s.query("show bgp rib prefix-summary peer " + address)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib prefix-summary peer ").Str(address).String())
 	zeData := parseJSON(result)
 
 	totalCount := 0
@@ -231,7 +235,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]any{
-		"Title":         "Routes from " + address,
+		"Title":         tb.Reset().Str("Routes from ").Str(address).String(),
 		"ActiveTab":     "peers",
 		"Address":       address,
 		"Peer":          peerInfo,
@@ -242,7 +246,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 
 	// For small route tables, also fetch individual routes.
 	if totalCount > 0 && totalCount <= maxDisplayRoutes {
-		routeResult := s.query("show bgp rib peer " + address)
+		routeResult := s.query(tb.Reset().Str("show bgp rib peer ").Str(address).String())
 		routeData := parseJSON(routeResult)
 		if routeData != nil {
 			if _, isErr := routeData["error"].(string); !isErr {
@@ -271,7 +275,8 @@ func (s *LGServer) handleUIPeerDownload(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.query("show bgp rib peer " + address)
+	var tb2 textbuf.Buffer
+	result := s.query(tb2.Str("show bgp rib peer ").Str(address).String())
 	zeData := parseJSON(result)
 
 	if zeData == nil {
@@ -365,13 +370,14 @@ func formatASPathPlain(route map[string]any) string {
 	for i, a := range v {
 		parts[i] = fmt.Sprint(a)
 	}
-	return strings.Join(parts, " ")
+	return textbuf.Join(parts, " ")
 }
 
 // csvQuote wraps a value in double quotes if it contains commas or spaces.
 func csvQuote(s string) string {
 	if strings.ContainsAny(s, ", \"") {
-		return "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
+		var tb textbuf.Buffer
+		return tb.Byte('"').Str(strings.ReplaceAll(s, "\"", "\"\"")).Byte('"').String()
 	}
 	return s
 }
@@ -407,7 +413,8 @@ func (s *LGServer) handleUIRouteDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query("show bgp rib prefix " + prefix)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib prefix ").Str(prefix).String())
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 

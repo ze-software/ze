@@ -23,6 +23,7 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RunConfig holds parameters for an in-process chaos run.
@@ -185,7 +186,8 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// Find the MockListener for our local address.
 	// The reactor creates a passive-peer listener at the default BGP port (179)
 	// via peerListenPort(), so the MockListenerFactory key is "tcp:127.0.0.1:179".
-	listenAddr := cfg.LocalAddr + ":179"
+	var tb textbuf.Buffer
+	listenAddr := tb.Str(cfg.LocalAddr).Str(":179").String()
 	ml := listenerFactory.GetListener("tcp", listenAddr)
 	if ml == nil {
 		reactorCancel()

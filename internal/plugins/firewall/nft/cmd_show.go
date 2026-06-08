@@ -4,7 +4,6 @@ package firewallnft
 
 import (
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/firewall"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -68,7 +67,7 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 		if len(names) == 0 {
 			buf.Str("; no firewall tables have been applied")
 		} else {
-			buf.Str("; valid: ").Str(strings.Join(names, ", "))
+			buf.Str("; valid: ").Str(textbuf.Join(names, ", "))
 		}
 		return &plugin.Response{Status: plugin.StatusError, Error: buf.String()}, nil
 	}
@@ -178,7 +177,7 @@ func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*pl
 		if len(names) == 0 {
 			buf.Str("; no firewall groups have been applied")
 		} else {
-			buf.Str("; valid: ").Str(strings.Join(names, ", "))
+			buf.Str("; valid: ").Str(textbuf.Join(names, ", "))
 		}
 		return &plugin.Response{Status: plugin.StatusError, Error: buf.String()}, nil
 	}

@@ -62,11 +62,11 @@ type ValidationError struct {
 }
 
 func (e *ValidationError) Error() string {
+	var b textbuf.Buffer
 	if e.LineNumber > 0 {
-		var b textbuf.Buffer
-		return b.Reset().Str("line ").Int(int64(e.LineNumber)).Str(": ").Str(e.Type.String()).Str(" error at ").Str(e.Path).Str(": ").Str(e.Message).String()
+		return b.Str("line ").Int(int64(e.LineNumber)).Str(": ").Str(e.Type.String()).Str(" error at ").Str(e.Path).Str(": ").Str(e.Message).String()
 	}
-	return e.Type.String() + " error at " + e.Path + ": " + e.Message
+	return b.Str(e.Type.String()).Str(" error at ").Str(e.Path).Str(": ").Str(e.Message).String()
 }
 
 // Validator validates configuration data against YANG schemas.
@@ -458,7 +458,7 @@ func (v *Validator) validateEnumeration(path string, yangType *yang.YangType, va
 
 	var expected string
 	if yangType.Enum != nil {
-		expected = strings.Join(yangType.Enum.Names(), ", ")
+		expected = textbuf.Join(yangType.Enum.Names(), ", ")
 	}
 
 	return &ValidationError{
@@ -508,13 +508,14 @@ func (v *Validator) validateUnion(path string, yangType *yang.YangType, value an
 // validateContainerEntry validates a container entry with data.
 func (v *Validator) validateContainerEntry(path string, entry *yang.Entry, data map[string]any) error {
 	// Check mandatory children
+	var tb textbuf.Buffer
 	for name, child := range entry.Dir {
 		if child.Mandatory == yang.TSTrue {
 			if _, ok := data[name]; !ok {
 				return &ValidationError{
-					Path:    path + "/" + name,
+					Path:    tb.Reset().Str(path).Byte('/').Str(name).String(),
 					Type:    ErrTypeMissing,
-					Message: fmt.Sprintf("mandatory field %q is missing", name),
+					Message: tb.Reset().Str("mandatory field ").Quoted(name).Str(" is missing").String(),
 				}
 			}
 		}
@@ -522,7 +523,7 @@ func (v *Validator) validateContainerEntry(path string, entry *yang.Entry, data 
 
 	// Validate provided values
 	for key, value := range data {
-		childPath := path + "/" + key
+		childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
 		if child, ok := entry.Dir[key]; ok {
 			if err := v.validateEntry(childPath, child, value); err != nil {
 				return err
@@ -573,14 +574,15 @@ func (v *Validator) ValidateTreeAllModules(section string, data map[string]any) 
 
 // walkTree recursively validates a container/list against its YANG entry.
 func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any, errs *[]ValidationError) {
+	var tb textbuf.Buffer
 	// Check mandatory children at this level.
 	for name, child := range entry.Dir {
 		if child.Mandatory == yang.TSTrue {
 			if _, ok := data[name]; !ok {
 				*errs = append(*errs, ValidationError{
-					Path:    path + "/" + name,
+					Path:    tb.Reset().Str(path).Byte('/').Str(name).String(),
 					Type:    ErrTypeMissing,
-					Message: fmt.Sprintf("mandatory field %q is missing", name),
+					Message: tb.Reset().Str("mandatory field ").Quoted(name).Str(" is missing").String(),
 				})
 			}
 		}
@@ -592,7 +594,7 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 		if !ok {
 			continue // unknown field — handled elsewhere by config reader
 		}
-		childPath := path + "/" + key
+		childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
 
 		// Map values are containers or list entries — recurse.
 		subMap, isMap := value.(map[string]any)
@@ -604,7 +606,7 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 					if !entryOK {
 						continue
 					}
-					entryPath := childPath + "[" + listKey + "]"
+					entryPath := tb.Reset().Str(childPath).Byte('[').Str(listKey).Byte(']').String()
 					v.walkTree(entryPath, child, entryMap, errs)
 				}
 				// Check list cardinality against YANG max-elements.

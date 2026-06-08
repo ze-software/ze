@@ -15,6 +15,7 @@ import (
 
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // words outputs tab-separated "word\tdescription" pairs for shell completion.
@@ -45,9 +46,10 @@ func writeWords(w io.Writer, args []string) int {
 
 	// Build input string from path args. Trailing space signals "list all
 	// children" (no prefix filter) -- the shell handles its own filtering.
-	input := strings.Join(path, " ")
+	var tb textbuf.Buffer
+	input := tb.Join(path, " ").String()
 	if len(path) > 0 {
-		input += " "
+		input = tb.Reset().Str(input).Byte(' ').String()
 	}
 
 	suggestions := tc.Complete(input)

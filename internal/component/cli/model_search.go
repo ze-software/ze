@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // searchMaxResults caps the number of config search completions to avoid UI sluggishness.
@@ -47,7 +48,7 @@ func (m *Model) searchConfig(query string) []Completion {
 			line = maskSensitiveLine(words, sensitiveKeys)
 			results = append(results, Completion{
 				Text:        line,
-				Description: strings.Join(words[1:], " "),
+				Description: textbuf.Join(words[1:], " "),
 				Type:        "search",
 			})
 			if len(results) >= searchMaxResults {
@@ -66,7 +67,7 @@ func maskSensitiveLine(words []string, sensitiveKeys map[string]bool) string {
 	if len(words) >= 3 && sensitiveKeys[words[len(words)-2]] {
 		words[len(words)-1] = config.SecretDataPlaceholder
 	}
-	return strings.Join(words, " ")
+	return textbuf.Join(words, " ")
 }
 
 // matchesPrefixTokens returns true if the line contains words matching each token as a prefix,

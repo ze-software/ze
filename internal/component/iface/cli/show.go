@@ -8,11 +8,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"text/tabwriter"
 
 	ifacepkg "codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // cmdShow lists interfaces or shows details for a specific one.
@@ -179,7 +179,7 @@ func formatAddrs(addrs []ifacepkg.AddrInfo) string {
 	for i, a := range addrs {
 		parts[i] = fmt.Sprintf("%s/%d", a.Address, a.PrefixLength)
 	}
-	return strings.Join(parts, ", ")
+	return textbuf.Join(parts, ", ")
 }
 
 func encodeJSON(v any) int {
@@ -193,7 +193,7 @@ func encodeJSON(v any) int {
 }
 
 func printRow(w *tabwriter.Writer, cols ...string) {
-	if _, err := fmt.Fprintln(w, strings.Join(cols, "\t")); err != nil {
+	if _, err := fmt.Fprintln(w, textbuf.Join(cols, "\t")); err != nil {
 		return
 	}
 }

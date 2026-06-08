@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errUsageOption = errors.New("usage: option <author|date|source|changes|all|none|errors> [enable|disable|hints|hide]")
@@ -71,15 +73,16 @@ func (m *Model) cmdOptionColumnToggle(args []string) (commandResult, error) {
 		} else {
 			enabled = m.editor.ShowColumnEnabled(args[0])
 		}
-		state := cmdDisable + "d"
+		state := cmdDisable
 		if enabled {
-			state = cmdEnable + "d"
+			state = cmdEnable
 		}
 		result, err := m.cmdShowDisplay(fmtTree, "")
 		if err != nil {
 			return result, err
 		}
-		result.statusMessage = args[0] + ": " + state
+		var tb textbuf.Buffer
+		result.statusMessage = tb.Str(args[0]).Str(": ").Str(state).Byte('d').String()
 		return result, nil
 	}
 
@@ -103,7 +106,8 @@ func (m *Model) cmdOptionColumnToggle(args []string) (commandResult, error) {
 	if err != nil {
 		return result, err
 	}
-	result.statusMessage = args[0] + " column " + args[1] + "d"
+	var tb2 textbuf.Buffer
+	result.statusMessage = tb2.Str(args[0]).Str(" column ").Str(args[1]).Byte('d').String()
 	return result, nil
 }
 
@@ -132,7 +136,8 @@ func (m *Model) cmdOptionErrors(args []string) (commandResult, error) {
 		if m.showHints {
 			state = "enabled"
 		}
-		return commandResult{statusMessage: "error hints: " + state}, nil
+		var tb3 textbuf.Buffer
+		return commandResult{statusMessage: tb3.Str("error hints: ").Str(state).String()}, nil
 	}
 
 	switch args[0] {

@@ -14,6 +14,8 @@ package family
 import (
 	"fmt"
 	"strconv"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // AFI represents Address Family Identifier.
@@ -155,7 +157,8 @@ func (f Family) String() string {
 	if s := lookupFamilyString(f); s != "" {
 		return s
 	}
-	return f.AFI.String() + "/" + f.SAFI.String()
+	var tb textbuf.Buffer
+	return tb.Str(f.AFI.String()).Byte('/').Str(f.SAFI.String()).String()
 }
 
 // AppendTo appends the family name to buf and returns the extended slice.

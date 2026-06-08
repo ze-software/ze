@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ethtool legacy per-feature ioctl command codes.
@@ -341,5 +342,5 @@ func allCPUMask() (string, error) {
 		var scratch [10]byte
 		parts[nwords-1-i] = string(strconv.AppendUint(scratch[:0], uint64(mask), 16))
 	}
-	return strings.Join(parts, ","), nil
+	return textbuf.Join(parts, ","), nil
 }

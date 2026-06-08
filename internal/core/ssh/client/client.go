@@ -1,5 +1,5 @@
 // Design: docs/architecture/system-architecture.md — SSH client helper for CLI tools
-// Related: ../../../../../pkg/zefs/store.go — BlobStore reads credentials (meta/ssh/*)
+// Related: ../../../../pkg/zefs/store.go — BlobStore reads credentials (meta/ssh/*)
 
 // Package client provides SSH client connectivity for ze CLI tools.
 // CLI tools connect to the daemon via SSH instead of Unix sockets.
@@ -20,6 +20,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -63,7 +64,8 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 		Timeout:         dialTimeout,
 	}
 
-	addr := creds.Host + ":" + creds.Port
+	var tb textbuf.Buffer
+	addr := tb.Str(creds.Host).Byte(':').Str(creds.Port).String()
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		return "", fmt.Errorf("connect to %s: %w", addr, err)
@@ -105,7 +107,8 @@ func StreamCommand(creds Credentials, command string, callback func(line string)
 		Timeout:         dialTimeout,
 	}
 
-	addr := creds.Host + ":" + creds.Port
+	var tb textbuf.Buffer
+	addr := tb.Str(creds.Host).Byte(':').Str(creds.Port).String()
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		return fmt.Errorf("connect to %s: %w", addr, err)
@@ -181,7 +184,8 @@ func OpenProtocolSession(creds Credentials, command string) (*ProtocolSession, e
 		Timeout:         dialTimeout,
 	}
 
-	addr := creds.Host + ":" + creds.Port
+	var tb textbuf.Buffer
+	addr := tb.Str(creds.Host).Byte(':').Str(creds.Port).String()
 	client, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		return nil, fmt.Errorf("connect to %s: %w", addr, err)

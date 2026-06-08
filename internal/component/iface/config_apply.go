@@ -948,7 +948,7 @@ func recreateManagedVLAN(parent string, units []unitEntry, name string, b Backen
 			continue
 		}
 		var bCheck textbuf.Buffer
-		if bCheck.Reset().Str(parent).Byte('.').Int(int64(u.VLANID)).Slice() != name {
+		if bCheck.Reset().Str(parent).Byte('.').Int(int64(u.VLANID)).String() != name {
 			continue
 		}
 		return b.CreateVLAN(parent, u.VLANID)

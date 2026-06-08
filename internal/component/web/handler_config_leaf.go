@@ -5,9 +5,9 @@
 package web
 
 import (
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // buildBreadcrumbs creates breadcrumb navigation entries. Each path segment
@@ -16,7 +16,7 @@ func buildBreadcrumbs(path []string) []BreadcrumbSegment {
 	crumbs := make([]BreadcrumbSegment, 0, len(path))
 
 	for i, seg := range path {
-		url := "/show/" + strings.Join(path[:i+1], "/") + "/"
+		url := "/show/" + textbuf.Join(path[:i+1], "/") + "/"
 		crumbs = append(crumbs, BreadcrumbSegment{
 			Name:   seg,
 			URL:    url,

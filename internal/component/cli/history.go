@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -48,7 +49,8 @@ type History struct {
 func NewHistory(rw historyRW, username string) *History {
 	prefix := historyKeyPrefix
 	if username != "" {
-		prefix = historyKeyPrefix + username + "/"
+		var tb textbuf.Buffer
+		prefix = tb.Str(historyKeyPrefix).Str(username).Byte('/').String()
 	}
 	h := &History{
 		rw:     rw,
@@ -232,6 +234,6 @@ func (h *History) Save(mode string) {
 		h.entries = entries
 	}
 
-	data := []byte(strings.Join(entries, "\n"))
+	data := []byte(textbuf.Join(entries, "\n"))
 	_ = h.rw.WriteFile(h.prefix+mode, data, 0) //nolint:errcheck // best-effort persist
 }

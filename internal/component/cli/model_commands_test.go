@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // TestModelErrorsCommand verifies errors command output.
@@ -1321,7 +1322,7 @@ func TestSocketReloadNotifierNoDaemon(t *testing.T) {
 // VALIDATES: New entries use '+' marker and "(new)" annotation.
 // PREVENTS: Wrong marker or missing annotation for new entries.
 func TestFormatChangeEntryNew(t *testing.T) {
-	var b strings.Builder
+	var b textbuf.Buffer
 	formatChangeEntry(&b, config.PendingChange{
 		Kind:  config.PendingChangeSet,
 		Path:  "bgp router-id",
@@ -1337,7 +1338,7 @@ func TestFormatChangeEntryNew(t *testing.T) {
 // VALIDATES: Modified entries use '*' marker and "(was: ...)" annotation.
 // PREVENTS: Wrong marker or missing previous value for modified entries.
 func TestFormatChangeEntryModified(t *testing.T) {
-	var b strings.Builder
+	var b textbuf.Buffer
 	formatChangeEntry(&b, config.PendingChange{
 		Kind:     config.PendingChangeSet,
 		Path:     "bgp remote as",
@@ -1354,7 +1355,7 @@ func TestFormatChangeEntryModified(t *testing.T) {
 // VALIDATES: Delete entries use '-' marker, "delete" command, and "(was: ...)" annotation.
 // PREVENTS: Delete rendered as set with empty value.
 func TestFormatChangeEntryDelete(t *testing.T) {
-	var b strings.Builder
+	var b textbuf.Buffer
 	formatChangeEntry(&b, config.PendingChange{
 		Kind:     config.PendingChangeDelete,
 		Path:     "bgp timer receive-hold-time",

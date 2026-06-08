@@ -632,7 +632,7 @@ func formatBGPLSText(results []map[string]any) string {
 	for _, r := range results {
 		texts = append(texts, formatBGPLSTextSingle(r))
 	}
-	return strings.Join(texts, "; ")
+	return textbuf.Join(texts, "; ")
 }
 
 // formatBGPLSTextSingle formats a single BGP-LS NLRI as human-readable text.
@@ -654,5 +654,5 @@ func formatBGPLSTextSingle(result map[string]any) string {
 	if len(parts) == 0 {
 		return "(empty)"
 	}
-	return strings.Join(parts, " ")
+	return textbuf.Join(parts, " ")
 }

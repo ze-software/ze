@@ -7,9 +7,9 @@ package cli
 
 import (
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // yangCommands lists the user-facing subcommand names, kept in sync with the
@@ -22,7 +22,7 @@ func subcommands() string {
 	sorted := make([]string, len(yangCommands))
 	copy(sorted, yangCommands)
 	sort.Strings(sorted)
-	return strings.Join(sorted, ", ")
+	return textbuf.Join(sorted, ", ")
 }
 
 func init() {

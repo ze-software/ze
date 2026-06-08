@@ -4,7 +4,11 @@
 
 package cli
 
-import "strings"
+import (
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 // diffMarker represents the change status of a line in a diff gutter.
 type diffMarker byte
@@ -73,27 +77,24 @@ func annotateContentWithGutter(original, modified string) (string, map[int]int) 
 		return modified, nil
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 	lineMapping := make(map[int]int)
 	displayLine := 0
 	workingLine := 0
 
 	for _, dl := range diffs {
 		if displayLine > 0 {
-			b.WriteByte('\n')
+			b.Byte('\n')
 		}
 		displayLine++
 
-		b.WriteByte(byte(dl.Marker))
-		b.WriteByte(' ')
-		b.WriteString(dl.Text)
+		b.Byte(byte(dl.Marker)).Byte(' ').Str(dl.Text)
 
 		switch dl.Marker {
 		case diffUnchanged, diffAdded, diffModified:
 			workingLine++
 			lineMapping[displayLine] = workingLine
 		case diffRemoved:
-			// No corresponding working line — absent from mapping
 		}
 	}
 

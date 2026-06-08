@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errNoSchemaLoaded = errors.New("no schema loaded")
@@ -51,11 +52,11 @@ func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
 	for i := 1; i < len(tokens); i++ {
 		part := tokens[i]
 		if entry.Dir == nil {
-			return nil, fmt.Errorf("unknown path: %s", strings.Join(tokens[:i+1], " "))
+			return nil, fmt.Errorf("unknown path: %s", textbuf.Join(tokens[:i+1], " "))
 		}
 		child, ok := entry.Dir[part]
 		if !ok {
-			return nil, fmt.Errorf("unknown path: %s", strings.Join(tokens[:i+1], " "))
+			return nil, fmt.Errorf("unknown path: %s", textbuf.Join(tokens[:i+1], " "))
 		}
 		entry = child
 

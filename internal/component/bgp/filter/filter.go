@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // filterLogger is the filter subsystem logger (lazy initialization).
@@ -123,7 +124,7 @@ func validAttributeNames() string {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	return strings.Join(names, ", ")
+	return textbuf.Join(names, ", ")
 }
 
 // FilterMode defines how attributes are selected.

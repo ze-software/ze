@@ -251,7 +251,7 @@ func (m *Model) cmdEdit(args []string) (commandResult, error) {
 	if m.editor.WalkPath(fullPath) == nil {
 		fullPath = m.editor.AutoSelectListEntry(fullPath)
 		if m.editor.WalkPath(fullPath) == nil {
-			return commandResult{}, fmt.Errorf("block not found: %s", strings.Join(args, " "))
+			return commandResult{}, fmt.Errorf("block not found: %s", textbuf.Join(args, " "))
 		}
 	}
 
@@ -285,15 +285,12 @@ func (m *Model) cmdHistory() (commandResult, error) {
 		return commandResult{output: "No backups found"}, nil
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 	if m.editor.HasDraft() {
-		fmt.Fprintf(&b, "draft  (editing in progress)\n")
+		b.Str("draft  (editing in progress)\n")
 	}
 	for i, backup := range backups {
-		fmt.Fprintf(&b, "%d. %s  %s\n",
-			i+1,
-			backup.Timestamp.Format("2006-01-02 15:04:05"),
-			backup.Path)
+		b.Int(int64(i + 1)).Str(". ").Str(backup.Timestamp.Format("2006-01-02 15:04:05")).Str("  ").Str(backup.Path).Byte('\n')
 	}
 	return commandResult{output: b.String()}, nil
 }
@@ -308,13 +305,13 @@ func formatValidationErrors(errs []ConfigValidationError) string {
 		}
 		return e.Message
 	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "%d validation error(s):", len(errs))
+	var b textbuf.Buffer
+	b.Int(int64(len(errs))).Str(" validation error(s):")
 	for _, e := range errs {
 		if e.Line > 0 {
-			fmt.Fprintf(&b, "\n  line %d: %s", e.Line, e.Message)
+			b.Str("\n  line ").Int(int64(e.Line)).Str(": ").Str(e.Message)
 		} else {
-			fmt.Fprintf(&b, "\n  %s", e.Message)
+			b.Str("\n  ").Str(e.Message)
 		}
 	}
 	return b.String()
@@ -343,10 +340,11 @@ func (m *Model) cmdRollback(args []string) (commandResult, error) {
 		return commandResult{}, err
 	}
 	m.searchCache = "" // tree changed, invalidate cached set-view
-	m.recordConfigDiscard("rollback " + backups[n-1].Path)
+	var tb textbuf.Buffer
+	m.recordConfigDiscard(tb.Str("rollback ").Str(backups[n-1].Path).String())
 
 	return commandResult{
-		statusMessage: "Rolled back to " + backups[n-1].Path,
+		statusMessage: tb.Reset().Str("Rolled back to ").Str(backups[n-1].Path).String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -393,12 +391,14 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	m.refreshCompleter()
 
 	displayPath := append(append([]string{}, containerPath...), key)
-	msg := "set " + strings.Join(displayPath, " ") + " = " + value
+	var tb textbuf.Buffer
+	tb.Str("set ").Join(displayPath, " ").Str(" = ").Str(value)
 
 	// Detect conflicts with other users' change files after each edit.
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
+		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
+	msg := tb.String()
 
 	return commandResult{
 		statusMessage: msg,
@@ -412,7 +412,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 // Example: `set peer "my peer" description "test"` → ["set", "peer", "my peer", "description", "test"].
 func tokenizeCommand(input string) []string {
 	var tokens []string
-	var current strings.Builder
+	var current textbuf.Buffer
 	inQuote := false
 
 	for i := range len(input) {
@@ -434,7 +434,7 @@ func tokenizeCommand(input string) []string {
 			continue
 		}
 
-		current.WriteByte(c)
+		current.Byte(c)
 	}
 
 	if current.Len() > 0 {
@@ -445,7 +445,7 @@ func tokenizeCommand(input string) []string {
 }
 
 // handleQuoteChar processes a quote character during tokenization.
-func handleQuoteChar(current *strings.Builder, tokens []string, inQuote bool) ([]string, bool) {
+func handleQuoteChar(current *textbuf.Buffer, tokens []string, inQuote bool) ([]string, bool) {
 	if inQuote {
 		// End of quoted string - add token without quotes
 		tokens = append(tokens, current.String())
@@ -463,15 +463,18 @@ func handleQuoteChar(current *strings.Builder, tokens []string, inQuote bool) ([
 // joinTokensWithQuotes joins tokens into a command string, quoting tokens that need it.
 // Tokens containing spaces, tabs, or empty strings are quoted.
 func joinTokensWithQuotes(tokens []string) string {
-	var parts []string
-	for _, t := range tokens {
+	var b textbuf.Buffer
+	for i, t := range tokens {
+		if i > 0 {
+			b.Byte(' ')
+		}
 		if t == "" || strings.ContainsAny(t, " \t") {
-			parts = append(parts, "\""+t+"\"")
+			b.Byte('"').Str(t).Byte('"')
 		} else {
-			parts = append(parts, t)
+			b.Str(t)
 		}
 	}
-	return strings.Join(parts, " ")
+	return b.String()
 }
 
 func (m *Model) cmdDelete(args []string) (commandResult, error) {
@@ -492,12 +495,14 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	// Update completer with mutated tree
 	m.refreshCompleter()
 
-	msg := "Deleted " + strings.Join(fullPath, " ")
+	var tb textbuf.Buffer
+	tb.Str("Deleted ").Join(fullPath, " ")
 
 	// Detect conflicts with other users' change files after each edit.
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
+		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
+	msg := tb.String()
 
 	return commandResult{
 		statusMessage: msg,
@@ -555,10 +560,12 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 				return commandResult{}, fmt.Errorf("%s failed: %w", verb, llErr)
 			}
 			m.refreshCompleter()
-			msg := pastTense + " " + value + " in " + leafListName
+			var tb textbuf.Buffer
+			tb.Str(pastTense).Byte(' ').Str(value).Str(" in ").Str(leafListName)
 			if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-				msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
+				tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 			}
+			msg := tb.String()
 			return commandResult{
 				statusMessage: msg,
 				configView:    m.configViewAtPath(m.contextPath),
@@ -592,8 +599,9 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 		// Idempotent: already-in-state becomes a status message.
 		if errors.Is(opErr, ErrLeafAlreadyInactive) || errors.Is(opErr, ErrPathAlreadyInactive) ||
 			errors.Is(opErr, ErrLeafNotInactive) || errors.Is(opErr, ErrPathNotInactive) {
+			var tb textbuf.Buffer
 			return commandResult{
-				statusMessage: strings.Join(fullPath, " ") + " already " + alreadyState,
+				statusMessage: tb.Join(fullPath, " ").Str(" already ").Str(alreadyState).String(),
 				configView:    m.configViewAtPath(m.contextPath),
 			}, nil
 		}
@@ -601,10 +609,12 @@ func (m *Model) runActivation(args []string, activate bool) (commandResult, erro
 	}
 
 	m.refreshCompleter()
-	msg := pastTense + " " + strings.Join(fullPath, " ")
+	var tb2 textbuf.Buffer
+	tb2.Str(pastTense).Byte(' ').Join(fullPath, " ")
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
+		tb2.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
+	msg := tb2.String()
 	return commandResult{
 		statusMessage: msg,
 		configView:    m.configViewAtPath(m.contextPath),
@@ -681,14 +691,16 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 	m.refreshCompleter()
 	m.searchCache = ""
 
-	msg := "Inserted " + value + " into " + leafListName + " " + position
+	var tb textbuf.Buffer
+	tb.Str("Inserted ").Str(value).Str(" into ").Str(leafListName).Byte(' ').Str(position)
 	if ref != "" {
-		msg += " " + ref
+		tb.Byte(' ').Str(ref)
 	}
 
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
+		tb.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
+	msg := tb.String()
 
 	return commandResult{
 		statusMessage: msg,
@@ -815,7 +827,8 @@ func (m *Model) commitSaveAndReload() (commandResult, error) {
 		}
 	}
 
-	return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg, refreshConfig: true, revalidate: true}, nil
+	var tb textbuf.Buffer
+	return commandResult{statusMessage: tb.Str("Configuration committed (daemon not running)").Str(archiveMsg).String(), refreshConfig: true, revalidate: true}, nil
 }
 
 func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
@@ -830,8 +843,9 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 		if clearErr := storage.ClearCandidate(m.editor.store, m.editor.originalPath); clearErr != nil {
 			m.reloadErrors = append(m.reloadErrors, clearErr.Error())
 		}
+		var tb textbuf.Buffer
 		return commandResult{
-			statusMessage: "commit failed: " + err.Error(),
+			statusMessage: tb.Str("commit failed: ").Err(err).String(),
 			configView:    m.configViewAtPath(m.contextPath),
 			revalidate:    true,
 		}, nil
@@ -845,7 +859,8 @@ func (m *Model) commitCandidateAndReload(detail string) (commandResult, error) {
 			archiveMsg = textbuf.StrIntStr(" (archive: ", int64(len(errs)), " error(s))")
 		}
 	}
-	return commandResult{statusMessage: "Configuration committed and reloaded" + archiveMsg, refreshConfig: true, revalidate: true}, nil
+	var tb2 textbuf.Buffer
+	return commandResult{statusMessage: tb2.Str("Configuration committed and reloaded").Str(archiveMsg).String(), refreshConfig: true, revalidate: true}, nil
 }
 
 // cmdCommitSession commits only the current session's changes with conflict detection.
@@ -882,17 +897,17 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 	}
 
 	if len(commitResult.Conflicts) > 0 {
-		var b strings.Builder
-		b.WriteString("Commit blocked by conflicts:\n")
+		var b textbuf.Buffer
+		b.Str("Commit blocked by conflicts:\n")
 		for _, c := range commitResult.Conflicts {
 			switch c.Type { //nolint:exhaustive // only two conflict types exist
 			case ConflictLive:
-				fmt.Fprintf(&b, "  LIVE %s: you=%s, %s=%s\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
+				b.Str("  LIVE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", ").Str(c.OtherUser).Byte('=').Str(c.OtherValue).Byte('\n')
 			case ConflictStale:
-				fmt.Fprintf(&b, "  STALE %s: you=%s, committed=%s (was %s)\n", c.Path, c.MyValue, c.OtherValue, c.PreviousValue)
+				b.Str("  STALE ").Str(c.Path).Str(": you=").Str(c.MyValue).Str(", committed=").Str(c.OtherValue).Str(" (was ").Str(c.PreviousValue).Str(")\n")
 			}
 		}
-		b.WriteString("Re-set conflicting values to resolve.")
+		b.Str("Re-set conflicting values to resolve.")
 		return commandResult{
 			output:        b.String(),
 			statusMessage: textbuf.StrIntStr("commit blocked: ", int64(len(commitResult.Conflicts)), " conflict(s)"),
@@ -907,8 +922,9 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 			if clearErr := storage.ClearCandidate(m.editor.store, m.editor.originalPath); clearErr != nil {
 				m.reloadErrors = append(m.reloadErrors, clearErr.Error())
 			}
+			var tb3 textbuf.Buffer
 			return commandResult{
-				statusMessage: "commit failed: " + err.Error(),
+				statusMessage: tb3.Str("commit failed: ").Err(err).String(),
 				configView:    m.configViewAtPath(m.contextPath),
 				revalidate:    true,
 			}, nil
@@ -919,12 +935,13 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 	m.searchCache = "" // tree changed, invalidate cached set-view
 	m.recordConfigCommit(detail)
 
-	msg := textbuf.StrIntStr("Session committed: ", int64(commitResult.Applied), " change(s) applied")
+	var tb4 textbuf.Buffer
+	tb4.Str("Session committed: ").Int(int64(commitResult.Applied)).Str(" change(s) applied")
 	if commitResult.MigrationWarning != "" {
-		msg += " (warning: " + commitResult.MigrationWarning + ")"
+		tb4.Str(" (warning: ").Str(commitResult.MigrationWarning).Byte(')')
 	}
 	if transactional && commitResult.Applied > 0 {
-		msg += " and reloaded"
+		tb4.Str(" and reloaded")
 	}
 
 	// Archive config to remote locations (best-effort, non-fatal).
@@ -934,11 +951,11 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 			archiveContent = content
 		}
 		if errs := m.editor.NotifyArchive([]byte(archiveContent)); len(errs) > 0 {
-			msg += textbuf.StrIntStr(" (archive: ", int64(len(errs)), " error(s))")
+			tb4.Str(" (archive: ").Int(int64(len(errs))).Str(" error(s))")
 		}
 	}
 
-	return commandResult{statusMessage: msg, refreshConfig: true, revalidate: true}, nil
+	return commandResult{statusMessage: tb4.String(), refreshConfig: true, revalidate: true}, nil
 }
 
 // cmdDiscardSession discards session changes, requiring path or cmdAll.
@@ -961,7 +978,8 @@ func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
 
 	msg := "Session changes discarded"
 	if len(path) > 0 {
-		msg = "Discarded: " + strings.Join(path, " ")
+		var tb textbuf.Buffer
+		msg = tb.Str("Discarded: ").Join(path, " ").String()
 	}
 
 	return commandResult{
@@ -992,12 +1010,14 @@ func (m *Model) cmdShowChanges(args []string) (commandResult, error) {
 		}, nil
 	}
 
-	msg := textbuf.IntStr(int64(len(changes)), " pending")
+	var tb5 textbuf.Buffer
+	tb5.Int(int64(len(changes))).Str(" pending")
 	if len(changes) == 1 {
-		msg += " change"
+		tb5.Str(" change")
 	} else {
-		msg += " changes"
+		tb5.Str(" changes")
 	}
+	msg := tb5.String()
 
 	// Show tree with diff gutter, even if changes column is disabled.
 	view := m.configViewAtPath(m.contextPath)
@@ -1009,20 +1029,21 @@ func (m *Model) cmdShowChanges(args []string) (commandResult, error) {
 }
 
 // formatChangeEntry writes a single change entry with appropriate marker and command.
-func formatChangeEntry(b *strings.Builder, change config.PendingChange) {
+func formatChangeEntry(b *textbuf.Buffer, change config.PendingChange) {
 	switch change.Kind {
 	case config.PendingChangeDelete:
-		fmt.Fprintf(b, "  - delete %s  (was: %s)\n", change.Path, change.Previous)
+		b.Str("  - delete ").Str(change.Path).Str("  (was: ").Str(change.Previous).Str(")\n")
 	case config.PendingChangeRename:
-		fmt.Fprintf(b, "  ~ rename %s to %s\n", change.OldPath, change.NewPath)
+		b.Str("  ~ rename ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
 	default:
-		marker := '+'
+		marker := byte('+')
 		annotation := "(new)"
 		if change.Previous != "" {
 			marker = '*'
-			annotation = "(was: " + change.Previous + ")"
+			var tb textbuf.Buffer
+			annotation = tb.Str("(was: ").Str(change.Previous).Byte(')').String()
 		}
-		fmt.Fprintf(b, "  %c set %s %s  %s\n", marker, change.Path, change.Value, annotation)
+		b.Str("  ").Byte(marker).Str(" set ").Str(change.Path).Byte(' ').Str(change.Value).Str("  ").Str(annotation).Byte('\n')
 	}
 }
 
@@ -1040,13 +1061,15 @@ func (m *Model) cmdShowChangesAll() (commandResult, error) {
 	for _, sid := range sessions {
 		total += len(m.editor.PendingChanges(sid))
 	}
-	msg := textbuf.IntStr(int64(total), " pending")
+	var tb6 textbuf.Buffer
+	tb6.Int(int64(total)).Str(" pending")
 	if total == 1 {
-		msg += " change"
+		tb6.Str(" change")
 	} else {
-		msg += " changes"
+		tb6.Str(" changes")
 	}
-	msg += textbuf.StrIntStr(" across ", int64(len(sessions)), " sessions")
+	tb6.Str(" across ").Int(int64(len(sessions))).Str(" sessions")
+	msg := tb6.String()
 	return commandResult{
 		statusMessage: msg,
 		configView:    m.configViewAtPath(m.contextPath),
@@ -1060,20 +1083,21 @@ func (m *Model) cmdWho() (commandResult, error) {
 		return commandResult{output: "No active sessions."}, nil
 	}
 
-	var b strings.Builder
-	b.WriteString("Active editing sessions:\n")
+	var b textbuf.Buffer
+	b.Str("Active editing sessions:\n")
 	myID := m.editor.SessionID()
 	for _, sid := range sessions {
-		marker := "  "
 		if sid == myID {
-			marker = "* "
+			b.Str("* ")
+		} else {
+			b.Str("  ")
 		}
 		changes := m.editor.PendingChanges(sid)
 		changeWord := "changes"
 		if len(changes) == 1 {
 			changeWord = "change"
 		}
-		fmt.Fprintf(&b, "%s%s - %d pending %s\n", marker, sid, len(changes), changeWord)
+		b.Str(sid).Str(" - ").Int(int64(len(changes))).Str(" pending ").Str(changeWord).Byte('\n')
 	}
 	return commandResult{output: b.String()}, nil
 }
@@ -1094,8 +1118,9 @@ func (m *Model) cmdDisconnectSession(args []string) (commandResult, error) {
 		return commandResult{}, err
 	}
 
+	var tb7 textbuf.Buffer
 	return commandResult{
-		statusMessage: "Disconnected session: " + targetSession,
+		statusMessage: tb7.Str("Disconnected session: ").Str(targetSession).String(),
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -1135,19 +1160,19 @@ func (m *Model) cmdErrors(_ []string) (commandResult, error) { //nolint:unparam 
 	if len(parts) == 0 {
 		return commandResult{output: "No issues"}, nil
 	}
-	return commandResult{output: strings.Join(parts, "\n")}, nil
+	return commandResult{output: textbuf.Join(parts, "\n")}, nil
 }
 
 // formatIssueList formats validation issues for viewport display.
 // Used by both cmdErrors and cmdCommit failure output.
 func formatIssueList(issues []ConfigValidationError) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "%d issue(s):\n", len(issues))
+	var b textbuf.Buffer
+	b.Int(int64(len(issues))).Str(" issue(s):\n")
 	for _, e := range issues {
 		if e.Line > 0 {
-			fmt.Fprintf(&b, "  line %d: %s\n", e.Line, e.Message)
+			b.Str("  line ").Int(int64(e.Line)).Str(": ").Str(e.Message).Byte('\n')
 		} else {
-			fmt.Fprintf(&b, "  %s\n", e.Message)
+			b.Str("  ").Str(e.Message).Byte('\n')
 		}
 	}
 	return b.String()
@@ -1200,12 +1225,14 @@ func (m *Model) cmdRename(args []string) (commandResult, error) {
 	m.refreshCompleter()
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
-	msg := "Renamed " + listName + " " + oldKey + " to " + newKey
+	var tb8 textbuf.Buffer
+	tb8.Str("Renamed ").Str(listName).Byte(' ').Str(oldKey).Str(" to ").Str(newKey)
 
 	// Detect conflicts with other users' change files after each edit.
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
+		tb8.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
+	msg := tb8.String()
 
 	return commandResult{
 		statusMessage: msg,
@@ -1260,11 +1287,13 @@ func (m *Model) cmdCopy(args []string) (commandResult, error) {
 	m.refreshCompleter()
 	m.searchCache = "" // tree changed, invalidate cached set-view
 
-	msg := "Copied " + listName + " " + srcKey + " to " + dstKey
+	var tb9 textbuf.Buffer
+	tb9.Str("Copied ").Str(listName).Byte(' ').Str(srcKey).Str(" to ").Str(dstKey)
 
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
-		msg += " (conflict with " + conflicts[0].OtherUser + " on " + conflicts[0].Path + ")"
+		tb9.Str(" (conflict with ").Str(conflicts[0].OtherUser).Str(" on ").Str(conflicts[0].Path).Byte(')')
 	}
+	msg := tb9.String()
 
 	return commandResult{
 		statusMessage: msg,

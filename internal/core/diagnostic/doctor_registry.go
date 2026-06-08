@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // DoctorCheckPhase determines when a doctor check runs relative to config loading.
@@ -68,7 +69,8 @@ func RegisterDoctorCheck(check DoctorCheck) error {
 		return err
 	}
 	if _, exists := doctorCheckRegistry.names[check.Name]; exists {
-		return errors.New("diagnostic: duplicate doctor check " + check.Name)
+		var tb textbuf.Buffer
+		return errors.New(tb.Str("diagnostic: duplicate doctor check ").Str(check.Name).String())
 	}
 	doctorCheckRegistry.names[check.Name] = struct{}{}
 	doctorCheckRegistry.entries = append(doctorCheckRegistry.entries, cloneDoctorCheckReg(check))
@@ -127,17 +129,18 @@ func ResetDoctorChecksForTest() {
 
 func validateDoctorCheckReg(check DoctorCheck) error {
 	const p = "diagnostic doctor check: "
+	var tb textbuf.Buffer
 	if check.Name == "" || !isLowerKebabDiag(check.Name) {
-		return errors.New(p + "invalid name " + check.Name)
+		return errors.New(tb.Str(p).Str("invalid name ").Str(check.Name).String())
 	}
 	if !check.Phase.Valid() {
-		return errors.New(p + "unknown phase " + string(check.Phase))
+		return errors.New(tb.Reset().Str(p).Str("unknown phase ").Str(string(check.Phase)).String())
 	}
 	if check.Component == "" || !isLowerKebabDiag(check.Component) {
-		return errors.New(p + "invalid component " + check.Component)
+		return errors.New(tb.Reset().Str(p).Str("invalid component ").Str(check.Component).String())
 	}
 	if check.Check == nil {
-		return errors.New(p + "missing check function for " + check.Name)
+		return errors.New(tb.Reset().Str(p).Str("missing check function for ").Str(check.Name).String())
 	}
 	if err := validateDoctorCheckKebabListReg("dependency", check.Dependencies); err != nil {
 		return err
@@ -150,16 +153,17 @@ func validateDoctorCheckReg(check DoctorCheck) error {
 
 func validateDoctorCheckKebabListReg(field string, values []string) error {
 	const p = "diagnostic doctor check: "
+	var tb textbuf.Buffer
 	if len(values) == 0 {
-		return errors.New(p + "missing " + field)
+		return errors.New(tb.Str(p).Str("missing ").Str(field).String())
 	}
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		if !isLowerKebabDiag(value) {
-			return errors.New(p + "invalid " + field + " " + value)
+			return errors.New(tb.Reset().Str(p).Str("invalid ").Str(field).Byte(' ').Str(value).String())
 		}
 		if _, exists := seen[value]; exists {
-			return errors.New(p + "duplicate " + field + " " + value)
+			return errors.New(tb.Reset().Str(p).Str("duplicate ").Str(field).Byte(' ').Str(value).String())
 		}
 		seen[value] = struct{}{}
 	}
@@ -168,16 +172,17 @@ func validateDoctorCheckKebabListReg(field string, values []string) error {
 
 func validateDoctorCheckPlatformsReg(platforms []string) error {
 	const p = "diagnostic doctor check: "
+	var tb textbuf.Buffer
 	if len(platforms) == 0 {
-		return errors.New(p + "missing platform")
+		return errors.New(tb.Str(p).Str("missing platform").String())
 	}
 	seen := make(map[string]struct{}, len(platforms))
 	for _, platform := range platforms {
 		if !validDoctorCheckPlatformReg(platform) {
-			return errors.New(p + "invalid platform " + platform)
+			return errors.New(tb.Reset().Str(p).Str("invalid platform ").Str(platform).String())
 		}
 		if _, exists := seen[platform]; exists {
-			return errors.New(p + "duplicate platform " + platform)
+			return errors.New(tb.Reset().Str(p).Str("duplicate platform ").Str(platform).String())
 		}
 		seen[platform] = struct{}{}
 	}
@@ -201,16 +206,17 @@ func validDoctorCheckPlatformReg(platform string) bool {
 
 func validateDoctorCheckCodesReg(codes []string) error {
 	const p = "diagnostic doctor check: "
+	var tb textbuf.Buffer
 	if len(codes) == 0 {
-		return errors.New(p + "missing diagnostic code")
+		return errors.New(tb.Str(p).Str("missing diagnostic code").String())
 	}
 	seen := make(map[string]struct{}, len(codes))
 	for _, code := range codes {
 		if !strings.HasPrefix(code, "doctor-") {
-			return errors.New(p + "invalid diagnostic code " + code)
+			return errors.New(tb.Reset().Str(p).Str("invalid diagnostic code ").Str(code).String())
 		}
 		if _, exists := seen[code]; exists {
-			return errors.New(p + "duplicate diagnostic code " + code)
+			return errors.New(tb.Reset().Str(p).Str("duplicate diagnostic code ").Str(code).String())
 		}
 		seen[code] = struct{}{}
 	}

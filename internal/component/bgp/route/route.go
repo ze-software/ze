@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -278,7 +279,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 		}
 		// Collect tokens until boundary or end
 		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
-		if err := b.ParseASPath(strings.Join(tokens, " ")); err != nil {
+		if err := b.ParseASPath(textbuf.Join(tokens, " ")); err != nil {
 			return 0, err
 		}
 		return consumed, nil
@@ -289,7 +290,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 		}
 		// Collect tokens until boundary or end
 		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
-		if err := b.ParseCommunity(strings.Join(tokens, " ")); err != nil {
+		if err := b.ParseCommunity(textbuf.Join(tokens, " ")); err != nil {
 			return 0, err
 		}
 		return consumed, nil
@@ -299,7 +300,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 			return 0, errMissingLargeCommunityValue
 		}
 		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
-		if err := b.ParseLargeCommunity(strings.Join(tokens, " ")); err != nil {
+		if err := b.ParseLargeCommunity(textbuf.Join(tokens, " ")); err != nil {
 			return 0, err
 		}
 		return consumed, nil
@@ -309,7 +310,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 			return 0, errMissingExtendedCommunityValue
 		}
 		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
-		if err := b.ParseExtCommunity(strings.Join(tokens, " ")); err != nil {
+		if err := b.ParseExtCommunity(textbuf.Join(tokens, " ")); err != nil {
 			return 0, err
 		}
 		return consumed, nil
@@ -453,7 +454,7 @@ func parseParenthesizedValue(args []string) (string, int, error) {
 		}
 		if arg == ")" {
 			// Found closing paren
-			return strings.Join(parts, " "), consumed, nil
+			return textbuf.Join(parts, " "), consumed, nil
 		}
 		parts = append(parts, arg)
 	}

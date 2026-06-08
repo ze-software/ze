@@ -14,6 +14,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // PAP packet codes from RFC 1334 Section 2.1. Unlike CHAP there are
@@ -180,7 +182,8 @@ func (s *pppSession) runPAPAuthPhase() bool {
 		proto, payload, _, perr := ParseFrame(frame)
 		if perr != nil {
 			putFrameBuf(frame)
-			s.fail("pap: malformed frame: " + perr.Error())
+			var tb textbuf.Buffer
+			s.fail(tb.Str("pap: malformed frame: ").Err(perr).String())
 			return false
 		}
 		if proto != ProtoPAP {
@@ -190,7 +193,8 @@ func (s *pppSession) runPAPAuthPhase() bool {
 		parsed, perr := ParsePAPRequest(payload)
 		putFrameBuf(frame)
 		if perr != nil {
-			s.fail("pap: malformed request: " + perr.Error())
+			var tb textbuf.Buffer
+			s.fail(tb.Str("pap: malformed request: ").Err(perr).String())
 			return false
 		}
 		req = parsed
@@ -230,7 +234,8 @@ func (s *pppSession) runPAPAuthPhase() bool {
 		})
 		return true
 	}
-	s.fail("pap: auth rejected: " + resp.message)
+	var tb textbuf.Buffer
+	s.fail(tb.Str("pap: auth rejected: ").Str(resp.message).String())
 	s.sendAuthEvent(EventAuthFailure{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,

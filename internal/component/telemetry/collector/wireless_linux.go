@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/procfs"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type wirelessCollector struct {
@@ -40,7 +41,8 @@ func (c *wirelessCollector) Collect() error {
 	}
 
 	for _, w := range stats {
-		chart := "net_wireless." + w.Name
+		var tb textbuf.Buffer
+		chart := tb.Str("net_wireless.").Str(w.Name).String()
 		family := w.Name
 
 		c.signal.With(chart, "level", family).Set(float64(w.QualityLevel))

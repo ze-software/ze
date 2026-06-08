@@ -5,8 +5,8 @@ package support
 import (
 	"maps"
 	"sort"
-	"strings"
 	"time"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ModuleCollector gathers data for a single support module.
@@ -62,7 +62,7 @@ func ModuleNames() []string {
 
 // ModuleList returns the sorted module names joined with ", ".
 func ModuleList() string {
-	return strings.Join(ModuleNames(), ", ")
+	return textbuf.Join(ModuleNames(), ", ")
 }
 
 // filterModules returns the subset of moduleRegistry matching the

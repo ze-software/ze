@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errNoDaemonConnectionOperationalModeRequires = errors.New("no daemon connection (operational mode requires a running daemon)")
@@ -57,7 +58,8 @@ func (m Model) Mode() EditorMode {
 // SwitchMode switches the editor to the given mode, saving and restoring screen state.
 func (m *Model) SwitchMode(target EditorMode) {
 	if m.mode == target {
-		m.statusMessage = "already in " + target.String() + " mode"
+		var tb textbuf.Buffer
+		m.statusMessage = tb.Str("already in ").Str(target.String()).Str(" mode").String()
 		return
 	}
 
@@ -152,7 +154,8 @@ func (m Model) executeOperationalCommand(input string) tea.Cmd {
 		}
 		cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input)
 		if pipeErr != "" {
-			return commandResultMsg{err: errors.New("pipe error: " + pipeErr)}
+			var tb2 textbuf.Buffer
+			return commandResultMsg{err: errors.New(tb2.Str("pipe error: ").Str(pipeErr).String())}
 		}
 		output, err := executor(cmdStr)
 		if err != nil {

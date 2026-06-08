@@ -93,6 +93,7 @@ func ValidateBackendFeatures(
 // each entry is independently checked; an override inside entry A cannot
 // mask a missing override inside entry B.
 func walkBackendNode(node Node, data any, path, active string, errs *[]error) (spoke, accepts bool) {
+	var tb textbuf.Buffer
 	if data == nil {
 		return false, false
 	}
@@ -112,7 +113,7 @@ func walkBackendNode(node Node, data any, path, active string, errs *[]error) (s
 				if childNode == nil {
 					continue
 				}
-				childPath := path + "/" + key
+				childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
 				cs, ca := walkBackendNode(childNode, m[key], childPath, active, errs)
 				descSpoke = descSpoke || cs
 				descAccepts = descAccepts || ca
@@ -129,7 +130,7 @@ func walkBackendNode(node Node, data any, path, active string, errs *[]error) (s
 				if childNode == nil {
 					continue
 				}
-				childPath := path + "/" + key
+				childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
 				cs, ca := walkBackendNode(childNode, m[key], childPath, active, errs)
 				descSpoke = descSpoke || cs
 				descAccepts = descAccepts || ca
@@ -172,10 +173,11 @@ func walkBackendListMap(
 	path, active string,
 	errs *[]error,
 ) (descSpoke, descAccepts, emittedAtList bool) {
+	var tb textbuf.Buffer
 	switch v := data.(type) {
 	case map[string]any:
 		for _, key := range sortedKeysAny(v) {
-			entryPath := path + "/" + key
+			entryPath := tb.Reset().Str(path).Byte('/').Str(key).String()
 			entrySpoke, entryAccepts := walkBackendListEntry(list, v[key], entryPath, active, errs)
 			if entrySpoke {
 				descSpoke = true
@@ -219,12 +221,13 @@ func walkBackendInlineList(
 	path, active string,
 	errs *[]error,
 ) (descSpoke, descAccepts, emittedAtList bool) {
+	var tb textbuf.Buffer
 	m, ok := data.(map[string]any)
 	if !ok {
 		return false, false, false
 	}
 	for _, key := range sortedKeysAny(m) {
-		entryPath := path + "/" + key
+		entryPath := tb.Reset().Str(path).Byte('/').Str(key).String()
 		entry, ok := m[key].(map[string]any)
 		if !ok {
 			continue
@@ -248,6 +251,7 @@ func walkBackendInlineList(
 // ListNode's child map, treated as an implicit ContainerNode for walking
 // purposes. Returns (spoke, accepts) -- see walkBackendNode godoc.
 func walkBackendListEntry(list *ListNode, entry any, path, active string, errs *[]error) (spoke, accepts bool) {
+	var tb textbuf.Buffer
 	m, ok := entry.(map[string]any)
 	if !ok {
 		return false, false
@@ -257,7 +261,7 @@ func walkBackendListEntry(list *ListNode, entry any, path, active string, errs *
 		if childNode == nil {
 			continue
 		}
-		childPath := path + "/" + key
+		childPath := tb.Reset().Str(path).Byte('/').Str(key).String()
 		cs, ca := walkBackendNode(childNode, m[key], childPath, active, errs)
 		if cs {
 			spoke = true
@@ -349,7 +353,7 @@ func backendAnnotation(node Node) ([]string, bool) {
 func formatBackendError(path, active string, supporting []string) error {
 	return fmt.Errorf(
 		"%s: feature not supported by backend %q (supported: %s)",
-		path, active, strings.Join(supporting, " "),
+		path, active, textbuf.Join(supporting, " "),
 	)
 }
 

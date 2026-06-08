@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // testOutput holds captured output for saving.
@@ -120,7 +122,8 @@ func (r *Runner) saveTestOutput(rec *Record, out *testOutput, saveDir string) er
 	}
 
 	// Create test directory (nick-name for easy identification)
-	dirName := rec.Nick + "-" + sanitizeFilename(rec.Name)
+	var tb textbuf.Buffer
+	dirName := tb.Str(rec.Nick).Byte('-').Str(sanitizeFilename(rec.Name)).String()
 	testDir := filepath.Join(saveDir, dirName)
 	if err := os.MkdirAll(testDir, 0o700); err != nil {
 		return fmt.Errorf("create save dir: %w", err)
@@ -142,20 +145,18 @@ func (r *Runner) saveTestOutput(rec *Record, out *testOutput, saveDir string) er
 	}
 
 	// Write expected.txt (from .ci file)
-	var expected strings.Builder
+	var expected textbuf.Buffer
 	for _, exp := range rec.Expects {
-		expected.WriteString(exp)
-		expected.WriteString("\n")
+		expected.Str(exp).Byte(10)
 	}
 	if err := os.WriteFile(filepath.Join(testDir, "expected.txt"), []byte(expected.String()), 0o600); err != nil {
 		return fmt.Errorf("write expected.txt: %w", err)
 	}
 
 	// Write received.txt (from peer output)
-	var received strings.Builder
+	var received textbuf.Buffer
 	for _, raw := range rec.ReceivedRaw {
-		received.WriteString(raw)
-		received.WriteString("\n")
+		received.Str(raw).Byte(10)
 	}
 	if err := os.WriteFile(filepath.Join(testDir, "received.txt"), []byte(received.String()), 0o600); err != nil {
 		return fmt.Errorf("write received.txt: %w", err)

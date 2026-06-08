@@ -327,7 +327,7 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		for _, r := range results {
 			texts = append(texts, formatVPNTextSingle(r))
 		}
-		_, err := fmt.Fprintln(output, "decoded text "+strings.Join(texts, "; "))
+		_, err := fmt.Fprintln(output, "decoded text "+textbuf.Join(texts, "; "))
 		if err != nil {
 			vpnLogger.Debug("write error", "err", err)
 		}

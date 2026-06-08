@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -39,7 +41,8 @@ func GroupFunctionalFailures(suite string, records []*Record) []FailureGroup {
 	for _, rec := range records {
 		kind := recordFailureKind(rec)
 		target := failureGroupTarget(suite, rec)
-		key := suite + ":" + kind + ":" + target.Key
+		var tb textbuf.Buffer
+		key := tb.Str(suite).Byte(':').Str(kind).Byte(':').Str(target.Key).String()
 		group, ok := byKey[key]
 		if !ok {
 			group = &FailureGroup{
@@ -166,7 +169,7 @@ func FormatRerunCommand(suite string, args []string) string {
 		command = append(command, suite)
 		command = append(command, args...)
 	}
-	return strings.Join(quoteCommand(command), " ")
+	return textbuf.Join(quoteCommand(command), " ")
 }
 
 func FormatRecordRerunCommand(suite string, rec *Record) string {
@@ -214,7 +217,8 @@ func quoteCommand(args []string) []string {
 			quoted[i] = arg
 			continue
 		}
-		quoted[i] = "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
+		var tb textbuf.Buffer
+		quoted[i] = tb.Byte('\'').Str(strings.ReplaceAll(arg, "'", "'\\''")).Byte('\'').String()
 	}
 	return quoted
 }
@@ -234,7 +238,7 @@ func (r *Report) PrintFailureGroups(tests *Tests) {
 		}
 		r.writef("  group: %s\n", group.GroupID)
 		r.writef("  kind: %s\n", group.Kind)
-		r.writef("  related: %s\n", strings.Join(group.Related, ", "))
+		r.writef("  related: %s\n", textbuf.Join(group.Related, ", "))
 		r.writef("  rerun: %s\n", group.Rerun)
 	}
 	r.writeln("")

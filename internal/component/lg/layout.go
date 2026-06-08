@@ -8,8 +8,8 @@ package lg
 import (
 	"fmt"
 	"html/template"
-	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/graph"
 )
 
@@ -45,7 +45,7 @@ func formatNodeLabel(n GraphNode) string {
 
 // renderGraphSVG renders the graph as an SVG string.
 func renderGraphSVG(g *Graph, layout *Layout) string {
-	var sb strings.Builder
+	var sb textbuf.Buffer
 
 	fmt.Fprintf(&sb, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">`,
 		layout.Width, layout.Height, layout.Width, layout.Height)
@@ -98,7 +98,8 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 		// Truncate label if too long for node width.
 		maxChars := (pos.Width - nodePadding*2) / charWidthApprox
 		if maxChars > 0 && len(label) > maxChars {
-			label = label[:maxChars-1] + "\u2026"
+			var tb textbuf.Buffer
+			label = tb.Str(label[:maxChars-1]).Str("\u2026").String()
 		}
 
 		sb.WriteString(`<g class="node">`)
@@ -121,5 +122,6 @@ func tooltipName(name string) string {
 	if name == "" {
 		return ""
 	}
-	return " - " + name
+	var tb textbuf.Buffer
+	return tb.Str(" - ").Str(name).String()
 }

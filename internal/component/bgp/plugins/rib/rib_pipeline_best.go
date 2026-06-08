@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -31,7 +32,8 @@ type bestSource struct {
 // candidates-by-prefix map. Must match the key format used by newBestSource
 // when populating that map.
 func bestRouteKey(familyS, prefixS string) string {
-	return familyS + "|" + prefixS
+	var tb textbuf.Buffer
+	return tb.Str(familyS).Byte('|').Str(prefixS).String()
 }
 
 // newBestSource builds the per-prefix best-path item list. When
@@ -60,7 +62,8 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 			peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
 				fStr := formatFamily(fam)
 				pStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
-				key := fStr + "|" + string(nlriBytes)
+				var tb textbuf.Buffer
+				key := tb.Str(fStr).Byte('|').Str(string(nlriBytes)).String()
 				if _, ok := seen[key]; !ok {
 					seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
 				}
@@ -261,11 +264,13 @@ func parseBestPipelineArgs(args []string) (string, []pipelineStage, string) {
 
 		if filterKeywords[keyword] {
 			if sawTerminal {
-				return "", nil, "filter after terminal: " + keyword
+				var tb textbuf.Buffer
+				return "", nil, tb.Str("filter after terminal: ").Str(keyword).String()
 			}
 			i++
 			if i >= len(args) {
-				return "", nil, keyword + " requires a value"
+				var tb2 textbuf.Buffer
+				return "", nil, tb2.Str(keyword).Str(" requires a value").String()
 			}
 			if keyword == filterPath {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
@@ -287,7 +292,8 @@ func parseBestPipelineArgs(args []string) (string, []pipelineStage, string) {
 			continue
 		}
 
-		return "", nil, "unknown keyword: " + keyword
+		var tb3 textbuf.Buffer
+		return "", nil, tb3.Str("unknown keyword: ").Str(keyword).String()
 	}
 	return selector, stages, ""
 }

@@ -99,7 +99,8 @@ func (s *pppSession) runNCPPhase() bool {
 			})
 			return false
 		case <-timer.C:
-			s.fail("ncp: timeout after " + timeout.String())
+			var tb textbuf.Buffer
+			s.fail(tb.Str("ncp: timeout after ").Str(timeout.String()).String())
 			return false
 		case frame, ok := <-s.framesIn:
 			if !ok {
@@ -145,7 +146,8 @@ func (s *pppSession) requestIPCPAddresses() bool {
 		return false
 	}
 	if !msg.accept {
-		s.fail("ipcp: handler rejected: " + msg.reason)
+		var tb textbuf.Buffer
+		s.fail(tb.Str("ipcp: handler rejected: ").Str(msg.reason).String())
 		return false
 	}
 	if !msg.local.Is4() || !msg.peer.Is4() {
@@ -165,7 +167,8 @@ func (s *pppSession) requestIPCPAddresses() bool {
 func (s *pppSession) requestIPv6CPInterfaceID() bool {
 	id, err := generateIPv6CPInterfaceID()
 	if err != nil {
-		s.fail("ipv6cp: interface-id generation: " + err.Error())
+		var tb textbuf.Buffer
+		s.fail(tb.Str("ipv6cp: interface-id generation: ").Err(err).String())
 		return false
 	}
 	s.localInterfaceID = id
@@ -179,7 +182,8 @@ func (s *pppSession) requestIPv6CPInterfaceID() bool {
 		return false
 	}
 	if !msg.accept {
-		s.fail("ipv6cp: handler rejected: " + msg.reason)
+		var tb textbuf.Buffer
+		s.fail(tb.Str("ipv6cp: handler rejected: ").Str(msg.reason).String())
 		return false
 	}
 	if msg.hasPeerInterface {
@@ -220,7 +224,8 @@ func (s *pppSession) awaitIPDecision(req EventIPRequest, family AddressFamily) (
 		case <-s.sessStop:
 			return ipResponseMsg{}, false
 		case <-timer.C:
-			s.fail(family.String() + ": ip-response timeout after " + timeout.String())
+			var tb textbuf.Buffer
+			s.fail(tb.Str(family.String()).Str(": ip-response timeout after ").Str(timeout.String()).String())
 			return ipResponseMsg{}, false
 		}
 	}
@@ -325,7 +330,8 @@ func (s *pppSession) handleNCPPacket(
 	}
 	if pkt.Code == LCPConfigureReject {
 		if absorbReject(pkt) {
-			s.fail(family.String() + ": peer Configure-Reject of mandatory option")
+			var tb textbuf.Buffer
+			s.fail(tb.Str(family.String()).Str(": peer Configure-Reject of mandatory option").String())
 			return true
 		}
 	}
@@ -355,7 +361,8 @@ func (s *pppSession) handleNCPPacket(
 	}
 
 	if tr.NewState == LCPStateClosed || tr.NewState == LCPStateStopped {
-		s.fail(family.String() + ": state=" + tr.NewState.String())
+		var tb textbuf.Buffer
+		s.fail(tb.Str(family.String()).Str(": state=").Str(tr.NewState.String()).String())
 		return true
 	}
 	return false
@@ -667,10 +674,11 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
 	switch family {
 	case AddressFamilyIPv4:
-		localCIDR := s.localIPv4.String() + "/32"
-		peerCIDR := s.peerIPv4.String() + "/32"
+		var tb textbuf.Buffer
+		localCIDR := tb.Addr(s.localIPv4).Str("/32").String()
+		peerCIDR := tb.Reset().Addr(s.peerIPv4).Str("/32").String()
 		if err := s.backend.AddAddressP2P(ifname, localCIDR, peerCIDR); err != nil {
-			s.fail("iface AddAddressP2P: " + err.Error())
+			s.fail(tb.Reset().Str("iface AddAddressP2P: ").Err(err).String())
 			return false
 		}
 		s.sendEvent(EventSessionIPAssigned{
@@ -706,8 +714,9 @@ func (s *pppSession) teardownNCPResources() {
 		return
 	}
 	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
-	peerCIDR := s.peerIPv4.String() + "/32"
-	localCIDR := s.localIPv4.String() + "/32"
+	var tb textbuf.Buffer
+	peerCIDR := tb.Addr(s.peerIPv4).Str("/32").String()
+	localCIDR := tb.Reset().Addr(s.localIPv4).Str("/32").String()
 	if err := s.backend.RemoveRoute(ifname, peerCIDR, "", 0); err != nil {
 		s.logger.Debug("ppp: RemoveRoute on teardown", "error", err.Error())
 	}

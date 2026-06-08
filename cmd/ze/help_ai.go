@@ -23,6 +23,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // printAIHelp outputs a machine-friendly reference generated from code.
@@ -193,13 +194,15 @@ func cliSubcommands() []cliCmd {
 			child := yangTree.Children[name]
 			desc := child.Description
 			if desc == "" {
-				desc = name + " commands"
+				var tb textbuf.Buffer
+				desc = tb.Str(name).Str(" commands").String()
 			}
 			mode := "daemon"
 			if command.IsReadOnlyVerb(name) {
 				mode = "read-only"
 			}
-			cmds = append(cmds, cliCmd{name, mode, desc, "ze " + name + " help"})
+			var tb textbuf.Buffer
+			cmds = append(cmds, cliCmd{name, mode, desc, tb.Str("ze ").Str(name).Str(" help").String()})
 			seen[name] = true
 		}
 	}
@@ -390,7 +393,7 @@ func printFamilies() {
 
 	for _, fam := range sorted {
 		plugins := families[fam]
-		fmt.Printf("  %-24s (%s)\n", fam, strings.Join(plugins, ", "))
+		fmt.Printf("  %-24s (%s)\n", fam, textbuf.Join(plugins, ", "))
 	}
 	fmt.Println()
 }
@@ -407,10 +410,10 @@ func printAIPlugins() {
 	for _, reg := range regs {
 		fmt.Printf("  %-24s %s\n", reg.Name, reg.Description)
 		if len(reg.RFCs) > 0 {
-			fmt.Printf("    RFCs: %s\n", strings.Join(reg.RFCs, ", "))
+			fmt.Printf("    RFCs: %s\n", textbuf.Join(reg.RFCs, ", "))
 		}
 		if len(reg.Families) > 0 {
-			fmt.Printf("    Families: %s\n", strings.Join(reg.Families, ", "))
+			fmt.Printf("    Families: %s\n", textbuf.Join(reg.Families, ", "))
 		}
 	}
 	fmt.Println()
@@ -558,7 +561,8 @@ func printServices() {
 		for _, leaf := range svc.leaves {
 			def := ""
 			if leaf.defVal != "" {
-				def = " (default: " + leaf.defVal + ")"
+				var tb textbuf.Buffer
+				def = tb.Str(" (default: ").Str(leaf.defVal).Byte(')').String()
 			}
 			desc := leaf.description
 			if desc == "" {
@@ -569,7 +573,7 @@ func printServices() {
 
 		// Env vars.
 		if len(svc.envVars) > 0 {
-			fmt.Printf("    Env vars:  %s\n", strings.Join(svc.envVars, ", "))
+			fmt.Printf("    Env vars:  %s\n", textbuf.Join(svc.envVars, ", "))
 		}
 
 		fmt.Println()

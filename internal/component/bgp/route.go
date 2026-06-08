@@ -68,7 +68,8 @@ type Route struct {
 // RFC 7911: When ADD-PATH is negotiated, path-id is part of the key.
 func RouteKey(family, prefix string, pathID uint32) string {
 	if pathID == 0 {
-		return family + ":" + prefix
+		var tb textbuf.Buffer
+		return tb.Str(family).Byte(':').Str(prefix).String()
 	}
 	b := textbuf.Get()
 	defer b.Release()

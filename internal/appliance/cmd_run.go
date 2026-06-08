@@ -10,8 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
-	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errPortAlreadyInUse = errors.New("port already in use")
@@ -132,9 +132,10 @@ func buildQEMUCommand(cfg *ApplianceConfig, imgPath string) (string, []string) {
 		hostfwds = append(hostfwds, fmt.Sprintf("hostfwd=tcp::%d-:443", cfg.QEMU.GokrazyPort))
 	}
 
+	var tb textbuf.Buffer
 	fwdStr := ""
 	if len(hostfwds) > 0 {
-		fwdStr = "," + strings.Join(hostfwds, ",")
+		fwdStr = tb.Byte(',').Join(hostfwds, ",").String()
 	}
 
 	switch cfg.Image.Arch {
@@ -148,29 +149,29 @@ func buildQEMUCommand(cfg *ApplianceConfig, imgPath string) (string, []string) {
 			cpuModel = "max"
 		}
 		return "qemu-system-aarch64", []string{
-			"-machine", "virt,highmem=off,accel=" + qemuAccel,
+			"-machine", tb.Reset().Str("virt,highmem=off,accel=").Str(qemuAccel).String(),
 			"-cpu", cpuModel,
 			"-smp", "2", "-m", "512",
 			"-bios", bios,
-			"-drive", "file=" + imgPath + ",format=raw",
+			"-drive", tb.Reset().Str("file=").Str(imgPath).Str(",format=raw").String(),
 			"-nographic", "-serial", "mon:stdio",
-			"-netdev", "user,id=net0" + fwdStr,
+			"-netdev", tb.Reset().Str("user,id=net0").Str(fwdStr).String(),
 			"-device", "e1000,netdev=net0",
 		}
 	default:
 		return "qemu-system-x86_64", []string{
-			"-machine", "accel=" + qemuAccel,
+			"-machine", tb.Reset().Str("accel=").Str(qemuAccel).String(),
 			"-smp", "2", "-m", "512",
-			"-drive", "file=" + imgPath + ",format=raw",
+			"-drive", tb.Reset().Str("file=").Str(imgPath).Str(",format=raw").String(),
 			"-nographic", "-serial", "mon:stdio",
-			"-nic", "user,model=e1000" + fwdStr,
+			"-nic", tb.Reset().Str("user,model=e1000").Str(fwdStr).String(),
 		}
 	}
 }
 
 func checkPortAvailable(port int) error {
 	var lc net.ListenConfig
-	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:"+strconv.Itoa(port))
+	ln, err := lc.Listen(context.Background(), "tcp", textbuf.HostPort("127.0.0.1", uint16(port)))
 	if err != nil {
 		return errPortAlreadyInUse
 	}

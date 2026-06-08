@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 )
 
@@ -130,13 +131,14 @@ func (pt *ParsingTests) Discover(dir string) error {
 
 		sort.Strings(files)
 
+		var tb textbuf.Buffer
 		for _, confFile := range files {
 			name := filepath.Base(confFile)
 			nick := GenerateNick(name)
 
 			test := &ParsingTest{
 				BaseTest: BaseTest{
-					Name: "valid/" + name,
+					Name: tb.Reset().Str("valid/").Str(name).String(),
 					Nick: nick,
 				},
 				File: confFile,
@@ -158,7 +160,8 @@ func (pt *ParsingTests) Discover(dir string) error {
 
 		for _, confFile := range invalidFiles {
 			name := filepath.Base(confFile)
-			expectFile := confFile[:len(confFile)-5] + ".expect" // .conf -> .expect
+			var tbE textbuf.Buffer
+			expectFile := tbE.Str(confFile[:len(confFile)-5]).Str(".expect").String() // .conf -> .expect
 
 			// Read expected error from .expect file
 			expectBytes, err := os.ReadFile(expectFile) //nolint:gosec // Test runner, path from glob
@@ -174,7 +177,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 
 			test := &ParsingTest{
 				BaseTest: BaseTest{
-					Name: "invalid/" + name,
+					Name: tbE.Reset().Str("invalid/").Str(name).String(),
 					Nick: nick,
 				},
 				File:         confFile,
@@ -334,7 +337,8 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 		if after, ok := strings.CutPrefix(trimmed, "option=skip-os:value="); ok {
 			for skipOS := range strings.SplitSeq(after, ",") {
 				if strings.TrimSpace(skipOS) == runtime.GOOS {
-					test.SkipReason = "skip-os=" + after + " (current GOOS=" + runtime.GOOS + ")"
+					var tbS textbuf.Buffer
+					test.SkipReason = tbS.Str("skip-os=").Str(after).Str(" (current GOOS=").Str(runtime.GOOS).Byte(')').String()
 					break
 				}
 			}

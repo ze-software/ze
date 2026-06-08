@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/topics"
 )
 
@@ -96,7 +97,8 @@ var envTopicToSubsystem = topics.TopicToSubsystem
 // All log-related output (subsystem levels, level, destination) is merged into
 // a single `environment { log { ... } }` block.
 func MapEnvToZe(entries []ExaEnvEntry) string {
-	var b strings.Builder
+	var b textbuf.Buffer
+	var tb textbuf.Buffer
 
 	// Collect subsystem levels (debug wins over disabled for duplicates).
 	subsystems := make(map[string]string)
@@ -105,7 +107,7 @@ func MapEnvToZe(entries []ExaEnvEntry) string {
 	var configLines []string
 
 	for _, e := range entries {
-		fullKey := e.Section + "." + e.Key
+		fullKey := tb.Reset().Str(e.Section).Byte('.').Str(e.Key).String()
 
 		// Topic booleans have dynamic keys, check first.
 		if e.Section == sectionLog && isEnvLogTopic(e.Key) {
@@ -124,40 +126,40 @@ func MapEnvToZe(entries []ExaEnvEntry) string {
 		}
 
 		// Collect log.level and log.destination for merged block.
-		logPrefix := sectionLog + "."
-		if fullKey == logPrefix+"level" {
+		logLevelKey := tb.Reset().Str(sectionLog).Str(".level").String()
+		logDestKey := tb.Reset().Str(sectionLog).Str(".destination").String()
+		if fullKey == logLevelKey {
 			logLevel = strings.ToLower(e.Value)
 			continue
 		}
-		if fullKey == logPrefix+"destination" {
+		if fullKey == logDestKey {
 			logDestination = e.Value
 			continue
 		}
 
 		if !mapEnvKnownKey(fullKey, e.Value, &b, &configLines) {
-			fmt.Fprintf(&b, "# %s = %s -- unknown ExaBGP setting\n", fullKey, e.Value)
+			b.Str("# ").Str(fullKey).Str(" = ").Str(e.Value).Str(" -- unknown ExaBGP setting\n")
 		}
 	}
 
 	// Emit a single merged log block with subsystem levels, level, and destination.
 	hasLogContent := len(subsystems) > 0 || logLevel != "" || logDestination != ""
 	if hasLogContent {
-		b.WriteString("environment {\n    " + sectionLog + " {\n")
+		b.Str("environment {\n    ").Str(sectionLog).Str(" {\n")
 		if logLevel != "" {
-			fmt.Fprintf(&b, "        level %s;\n", logLevel)
+			b.Str("        level ").Str(logLevel).Str(";\n")
 		}
 		if logDestination != "" {
-			fmt.Fprintf(&b, "        destination %s;\n", logDestination)
+			b.Str("        destination ").Str(logDestination).Str(";\n")
 		}
 		for _, sub := range sortedMapKeys(subsystems) {
-			fmt.Fprintf(&b, "        %s %s;\n", sub, subsystems[sub])
+			b.Str("        ").Str(sub).Byte(' ').Str(subsystems[sub]).Str(";\n")
 		}
-		b.WriteString("    }\n}\n")
+		b.Str("    }\n}\n")
 	}
 
 	for _, line := range configLines {
-		b.WriteString(line)
-		b.WriteString("\n")
+		b.Str(line).Byte('\n')
 	}
 
 	return b.String()
@@ -169,8 +171,9 @@ func MapEnvToZe(entries []ExaEnvEntry) string {
 // Post spec-env-cleanup: surviving ExaBGP keys emit a Ze YANG block; dropped
 // keys emit `# <key> = <value> -- no longer supported` so the operator can
 // audit the file.
-func mapEnvKnownKey(fullKey, value string, b *strings.Builder, configLines *[]string) bool {
-	logPrefix := sectionLog + "."
+func mapEnvKnownKey(fullKey, value string, b *textbuf.Buffer, configLines *[]string) bool {
+	var tb textbuf.Buffer
+	logPrefix := tb.Str(sectionLog).Byte('.').String()
 
 	// Surviving keys -- emit YANG under `environment { ... }`.
 	switch fullKey {
@@ -208,10 +211,10 @@ func mapEnvKnownKey(fullKey, value string, b *strings.Builder, configLines *[]st
 		"daemon.drop": true, "daemon.daemonize": true, "daemon.umask": true,
 		"cache.attributes": true, "cache.nexthops": true,
 		"api.chunk": true, "api.encoder": true, "api.compact": true, "api.respawn": true, "api.terminate": true, "api.cli": true,
-		logPrefix + "enable": true, logPrefix + "all": true, logPrefix + "short": true,
+		tb.Reset().Str(logPrefix).Str("enable").String(): true, tb.Reset().Str(logPrefix).Str("all").String(): true, tb.Reset().Str(logPrefix).Str("short").String(): true,
 	}
 	if dropped[fullKey] {
-		fmt.Fprintf(b, "# %s = %s -- no longer supported\n", fullKey, value)
+		b.Str("# ").Str(fullKey).Str(" = ").Str(value).Str(" -- no longer supported\n")
 		return true
 	}
 

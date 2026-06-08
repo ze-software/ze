@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const boolTrue = "true"
@@ -371,7 +371,7 @@ func (c *ConntrackConfig) ValidateModules() error {
 		if !ValidConntrackModule(m) {
 			names := AllConntrackModules()
 			sort.Strings(names)
-			return fmt.Errorf("conntrack: unknown module %q (valid: %s)", m, strings.Join(names, ", "))
+			return fmt.Errorf("conntrack: unknown module %q (valid: %s)", m, textbuf.Join(names, ", "))
 		}
 	}
 	return nil

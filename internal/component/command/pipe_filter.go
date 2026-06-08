@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // PipeFilter declares a pipe segment accepted by a specific command.
@@ -97,7 +99,7 @@ func (set pipeFilterSet) filterNames() string {
 		}
 	}
 	sort.Strings(names)
-	return strings.Join(names, ", ")
+	return textbuf.Join(names, ", ")
 }
 
 func filterSuggestions(command string) []Suggestion {
@@ -115,7 +117,7 @@ func filterSuggestions(command string) []Suggestion {
 }
 
 func normalizeCommand(command string) string {
-	return strings.ToLower(strings.Join(strings.Fields(command), " "))
+	return strings.ToLower(textbuf.Join(strings.Fields(command), " "))
 }
 
 func commandMatchesPrefix(command, prefix string) bool {

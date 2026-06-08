@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	schema "codeberg.org/thomas-mangin/ze/internal/plugins/l2tppool/schema"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -258,16 +259,17 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 	// Framed-Pool selects a named pool (affects gateway/DNS for both
 	// pool-allocated and RADIUS-assigned IP paths).
 	if meta != nil && meta.FramedPool != "" {
+		var tb textbuf.Buffer
 		if named == nil {
 			return ppp.IPResponseArgs{Accept: false, Family: req.Family,
-				Reason: "named pool " + meta.FramedPool + " not configured"}
+				Reason: tb.Str("named pool ").Str(meta.FramedPool).Str(" not configured").String()}
 		}
 		namedPool, ok := named[meta.FramedPool]
 		if !ok {
 			logger().Warn("l2tp-pool: named pool not found",
 				"tunnel", req.TunnelID, "session", req.SessionID, "pool", meta.FramedPool)
 			return ppp.IPResponseArgs{Accept: false, Family: req.Family,
-				Reason: "named pool " + meta.FramedPool + " not found"}
+				Reason: tb.Reset().Str("named pool ").Str(meta.FramedPool).Str(" not found").String()}
 		}
 		pool = namedPool
 		poolName = meta.FramedPool
@@ -319,7 +321,8 @@ func (p *poolPlugin) handle(req ppp.EventIPRequest) ppp.IPResponseArgs {
 }
 
 func runPlugin(conn net.Conn) int {
-	logger().Debug(Name + " plugin starting (RPC)")
+	var tb textbuf.Buffer
+	logger().Debug(tb.Str(Name).Str(" plugin starting (RPC)").String())
 
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()

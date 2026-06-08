@@ -165,10 +165,11 @@ func styleEntry(color bool, name string) string {
 	if !color {
 		return name
 	}
+	var b textbuf.Buffer
 	if strings.HasPrefix(name, "-") {
-		return styleFlag + name + colorReset
+		return b.Str(styleFlag).Str(name).Str(colorReset).String()
 	}
-	return styleSubcommand + name + colorReset
+	return b.Str(styleSubcommand).Str(name).Str(colorReset).String()
 }
 
 // highlightArgs colors angle-bracket and square-bracket placeholders in a usage line.
@@ -176,7 +177,7 @@ func highlightArgs(color bool, line string) string {
 	if !color {
 		return line
 	}
-	var b strings.Builder
+	var b textbuf.Buffer
 	b.Grow(len(line) + 40)
 	i := 0
 	for i < len(line) {
@@ -184,25 +185,21 @@ func highlightArgs(color bool, line string) string {
 		case '<':
 			end := strings.IndexByte(line[i:], '>')
 			if end == -1 {
-				b.WriteString(line[i:])
+				b.Str(line[i:])
 				return b.String()
 			}
-			b.WriteString(styleArg)
-			b.WriteString(line[i : i+end+1])
-			b.WriteString(colorReset)
+			b.Str(styleArg).Str(line[i : i+end+1]).Str(colorReset)
 			i += end + 1
 		case '[':
 			end := strings.IndexByte(line[i:], ']')
 			if end == -1 {
-				b.WriteString(line[i:])
+				b.Str(line[i:])
 				return b.String()
 			}
-			b.WriteString(styleArg)
-			b.WriteString(line[i : i+end+1])
-			b.WriteString(colorReset)
+			b.Str(styleArg).Str(line[i : i+end+1]).Str(colorReset)
 			i += end + 1
 		default:
-			b.WriteByte(line[i])
+			b.Byte(line[i])
 			i++
 		}
 	}

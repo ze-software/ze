@@ -89,11 +89,10 @@ func (g *grid) get(x, y int) rune {
 }
 
 func (g *grid) String() string {
-	var sb strings.Builder
+	var sb textbuf.Buffer
 	for _, row := range g.cells {
 		line := strings.TrimRight(string(row), " ")
-		sb.WriteString(line)
-		sb.WriteByte('\n')
+		sb.Str(line).Byte('\n')
 	}
 	return sb.String()
 }
@@ -111,7 +110,8 @@ func drawBox(g *grid, pos Position, label string) {
 	innerW := max(w-2, 0) // minus left and right border
 	if len(label) > innerW {
 		if innerW > 1 {
-			label = label[:innerW-1] + "\u2026"
+			var tb textbuf.Buffer
+			label = tb.Str(label[:innerW-1]).Str("\u2026").String()
 		} else {
 			label = label[:innerW]
 		}

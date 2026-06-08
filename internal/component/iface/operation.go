@@ -13,6 +13,7 @@ import (
 	"time"
 
 	tx "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -172,7 +173,7 @@ func ifaceAddressOperation(opType tx.ConfigOperationType, ifaceName, cidr string
 		verb = "remove"
 	}
 	return tx.ConfigOperation{
-		ID:    "interface-" + verb + "-address-" + sanitizeOperationID(ifaceName) + "-" + sanitizeOperationID(cidr),
+		ID:    textbuf.Join([]string{"interface", verb, "address", sanitizeOperationID(ifaceName), sanitizeOperationID(cidr)}, "-"),
 		Root:  configRootInterface,
 		Owner: "interface",
 		Type:  opType,
@@ -191,7 +192,7 @@ func ifaceInterfaceOperation(opType tx.ConfigOperationType, ifaceName, ifaceType
 		verb = "remove"
 	}
 	return tx.ConfigOperation{
-		ID:    "interface-" + verb + "-" + sanitizeOperationID(ifaceName),
+		ID:    textbuf.Join([]string{"interface", verb, sanitizeOperationID(ifaceName)}, "-"),
 		Root:  configRootInterface,
 		Owner: "interface",
 		Type:  opType,

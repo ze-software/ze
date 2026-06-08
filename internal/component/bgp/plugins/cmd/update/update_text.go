@@ -41,6 +41,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -797,7 +798,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 	if announced == 0 && withdrawn == 0 {
 		msg := "no routes to announce or withdraw"
 		if len(warnings) > 0 {
-			msg = strings.Join(warnings, "; ")
+			msg = textbuf.Join(warnings, "; ")
 		}
 		return &plugin.Response{
 			Status: "warning",

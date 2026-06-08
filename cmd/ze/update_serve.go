@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
@@ -55,8 +56,9 @@ func runUpdateServe(args []string) int {
 	}
 
 	binaryDir := filepath.Dir(execPath)
-	selfArch := runtime.GOOS + "/" + runtime.GOARCH
-	archPath := "/" + selfArch
+	var tb textbuf.Buffer
+	selfArch := tb.Str(runtime.GOOS).Byte('/').Str(runtime.GOARCH).String()
+	archPath := tb.Reset().Byte('/').Str(selfArch).String()
 
 	// Compute SHA-256 and size at startup
 	binaryHash, err := computeBinaryHash(execPath)

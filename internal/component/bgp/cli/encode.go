@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // encodeStdout, encodeStderr, and encodeStdin allow tests to capture I/O.
@@ -118,7 +119,7 @@ func cmdEncode(args []string) int {
 		}
 	} else {
 		// Join remaining args as the route command
-		routeCmd = strings.Join(fs.Args(), " ")
+		routeCmd = textbuf.Join(fs.Args(), " ")
 	}
 
 	// Parse family

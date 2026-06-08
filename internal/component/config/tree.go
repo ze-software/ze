@@ -612,7 +612,7 @@ func (t *Tree) syncMultiValueToValueLocked(name string) {
 		delete(t.values, name)
 		return
 	}
-	t.setLocked(name, strings.Join(items, " "))
+	t.setLocked(name, textbuf.Join(items, " "))
 }
 
 // InsertMultiValue inserts a value into a multi-value list at the specified position.
@@ -672,7 +672,8 @@ func (t *Tree) DeactivateMultiValue(name, value string) error {
 	}
 	for i, item := range items {
 		if item == value {
-			items[i] = "inactive:" + value
+			var tb textbuf.Buffer
+			items[i] = tb.Str("inactive:").Str(value).String()
 			t.syncMultiValueToValueLocked(name)
 			return nil
 		}
@@ -686,7 +687,8 @@ func (t *Tree) ActivateMultiValue(name, value string) error {
 	defer t.mu.Unlock()
 
 	items := t.multiValues[name]
-	target := "inactive:" + value
+	var tb textbuf.Buffer
+	target := tb.Str("inactive:").Str(value).String()
 	for i, item := range items {
 		if item == target {
 			items[i] = value

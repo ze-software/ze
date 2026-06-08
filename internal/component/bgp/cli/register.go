@@ -7,11 +7,11 @@
 package cli
 
 import (
-	"strings"
 
 	// init() registers the show bgp decode/encode YANG module (ze-bgp-tools-cmd).
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // bgpCommands lists the bare user-facing subcommand names, kept in sync with
@@ -37,7 +37,7 @@ func subcommands() string {
 			display[i] = cmd
 		}
 	}
-	return strings.Join(display, ", ")
+	return textbuf.Join(display, ", ")
 }
 
 func init() {

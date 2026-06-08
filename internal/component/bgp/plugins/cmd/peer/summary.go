@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -186,7 +187,7 @@ func rejectFamily(wanted string, seen map[string]struct{}) (*plugin.Response, er
 	if len(known) == 0 {
 		msg += "; no peer has completed negotiation"
 	} else {
-		msg += "; currently negotiated: " + strings.Join(known, ", ")
+		msg += "; currently negotiated: " + textbuf.Join(known, ", ")
 	}
 	return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 }

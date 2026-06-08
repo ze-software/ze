@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // handleVizRouteMatrixCell serves the detail popup for a single matrix cell.
@@ -619,7 +620,7 @@ func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
 
 		famStr := ""
 		if len(ps.Families) > 0 {
-			famStr = strings.Join(ps.Families, ", ")
+			famStr = textbuf.Join(ps.Families, ", ")
 		}
 
 		h.writef(`<tr hx-get="/peer/%d" hx-target="#peer-detail" hx-swap="outerHTML">`, idx)

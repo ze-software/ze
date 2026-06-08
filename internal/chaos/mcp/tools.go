@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
@@ -28,7 +27,7 @@ var sortedControlActions = func() string {
 		keys = append(keys, k)
 	}
 	slices.Sort(keys)
-	return strings.Join(keys, ", ")
+	return textbuf.Join(keys, ", ")
 }()
 
 // ControlDispatcher sends control commands to the chaos scheduler.
@@ -144,7 +143,8 @@ func (p *Provider) toolStatus(_ json.RawMessage) map[string]any {
 
 	data, err := json.Marshal(result)
 	if err != nil {
-		return zemcp.ErrResult("encoding status: " + err.Error())
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(tb.Str("encoding status: ").Err(err).String())
 	}
 	return zemcp.TextResult(string(data))
 }
@@ -190,7 +190,8 @@ func (p *Provider) toolProblems(_ json.RawMessage) map[string]any {
 
 	data, err := json.Marshal(problems)
 	if err != nil {
-		return zemcp.ErrResult("encoding problems: " + err.Error())
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(tb.Str("encoding problems: ").Err(err).String())
 	}
 	return zemcp.TextResult(string(data))
 }
@@ -201,7 +202,8 @@ func (p *Provider) toolPeers(args json.RawMessage) map[string]any {
 	}
 	if args != nil {
 		if err := json.Unmarshal(args, &input); err != nil {
-			return zemcp.ErrResult("invalid arguments: " + err.Error())
+			var tb textbuf.Buffer
+			return zemcp.ErrResult(tb.Str("invalid arguments: ").Err(err).String())
 		}
 	}
 
@@ -212,13 +214,14 @@ func (p *Provider) toolPeers(args json.RawMessage) map[string]any {
 		idx := *input.Peer
 		ps, ok := p.State.Peers[idx]
 		if !ok {
-			var b textbuf.Buffer
-			return zemcp.ErrResult(b.Reset().Str("peer must be a valid index: ").Int(int64(idx)).String())
+			var tb textbuf.Buffer
+			return zemcp.ErrResult(tb.Str("peer must be a valid index: ").Int(int64(idx)).String())
 		}
 		result := peerDetail(ps, true)
 		data, err := json.Marshal(result)
 		if err != nil {
-			return zemcp.ErrResult("encoding peer: " + err.Error())
+			var tb textbuf.Buffer
+			return zemcp.ErrResult(tb.Str("encoding peer: ").Err(err).String())
 		}
 		return zemcp.TextResult(string(data))
 	}
@@ -234,7 +237,8 @@ func (p *Provider) toolPeers(args json.RawMessage) map[string]any {
 
 	data, err := json.Marshal(peers)
 	if err != nil {
-		return zemcp.ErrResult("encoding peers: " + err.Error())
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(tb.Str("encoding peers: ").Err(err).String())
 	}
 	return zemcp.TextResult(string(data))
 }
@@ -296,7 +300,8 @@ func (p *Provider) toolScenario(_ json.RawMessage) map[string]any {
 
 	data, err := json.Marshal(result)
 	if err != nil {
-		return zemcp.ErrResult("encoding scenario: " + err.Error())
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(tb.Str("encoding scenario: ").Err(err).String())
 	}
 	return zemcp.TextResult(string(data))
 }
@@ -313,11 +318,13 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 		Value       *float64 `json:"value"`
 	}
 	if err := json.Unmarshal(args, &input); err != nil {
-		return zemcp.ErrResult("invalid arguments: " + err.Error())
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(tb.Str("invalid arguments: ").Err(err).String())
 	}
 
 	if !validControlActions[input.Action] {
-		return zemcp.ErrResult("action must be one of: " + sortedControlActions + "; got " + strconv.Quote(input.Action))
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(tb.Str("action must be one of: ").Str(sortedControlActions).Str("; got ").Str(strconv.Quote(input.Action)).String())
 	}
 
 	cmd := web.ControlCommand{Type: input.Action}
@@ -342,10 +349,12 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 	}
 
 	if err := p.Control(cmd); err != nil {
-		return zemcp.ErrResult("control: " + err.Error())
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(tb.Str("control: ").Err(err).String())
 	}
 
-	return zemcp.TextResult("ok: " + input.Action)
+	var tb textbuf.Buffer
+	return zemcp.TextResult(tb.Str("ok: ").Str(input.Action).String())
 }
 
 func (p *Provider) toolExecute(args json.RawMessage) map[string]any {
@@ -357,7 +366,8 @@ func (p *Provider) toolExecute(args json.RawMessage) map[string]any {
 		Command string `json:"command"`
 	}
 	if err := json.Unmarshal(args, &input); err != nil {
-		return zemcp.ErrResult("invalid arguments: " + err.Error())
+		var tb textbuf.Buffer
+		return zemcp.ErrResult(tb.Str("invalid arguments: ").Err(err).String())
 	}
 	if input.Command == "" {
 		return zemcp.ErrResult("missing required argument: command")

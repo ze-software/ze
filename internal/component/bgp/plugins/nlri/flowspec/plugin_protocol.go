@@ -163,19 +163,20 @@ func handleEncodeNLRIFromJSON(parts []string, output io.Writer, writeError func(
 		return
 	}
 
+	var tb textbuf.Buffer
 	famName := strings.ToLower(parts[2])
 	if !isValidFlowSpecFamily(famName) {
-		writeError("invalid family: " + famName)
+		writeError(tb.Str("invalid family: ").Str(famName).String())
 		return
 	}
 
 	// JSON is the remaining part (may have been split by Fields if it had spaces)
-	jsonStr := strings.Join(parts[3:], " ")
+	jsonStr := textbuf.Join(parts[3:], " ")
 
 	// Parse JSON
 	var jsonMap map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &jsonMap); err != nil {
-		writeError("invalid JSON: " + err.Error())
+		writeError(tb.Reset().Str("invalid JSON: ").Err(err).String())
 		return
 	}
 
@@ -189,7 +190,7 @@ func handleEncodeNLRIFromJSON(parts []string, output io.Writer, writeError func(
 	// Parse family
 	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		writeError("unknown family: " + famName)
+		writeError(tb.Reset().Str("unknown family: ").Str(famName).String())
 		return
 	}
 
@@ -201,7 +202,7 @@ func handleEncodeNLRIFromJSON(parts []string, output io.Writer, writeError func(
 	}
 
 	var b textbuf.Buffer
-	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').Slice())
+	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').String())
 }
 
 // handleEncodeNLRI handles: encode nlri <family> <components...>
@@ -212,16 +213,17 @@ func handleEncodeNLRI(parts []string, output io.Writer, writeError func(string))
 		return
 	}
 
+	var tb textbuf.Buffer
 	famName := strings.ToLower(parts[2])
 	if !isValidFlowSpecFamily(famName) {
-		writeError("invalid family: " + famName)
+		writeError(tb.Str("invalid family: ").Str(famName).String())
 		return
 	}
 
 	// Parse family using family.LookupFamily
 	fam, ok := family.LookupFamily(famName)
 	if !ok {
-		writeError("unknown family: " + famName)
+		writeError(tb.Reset().Str("unknown family: ").Str(famName).String())
 		return
 	}
 
@@ -234,5 +236,5 @@ func handleEncodeNLRI(parts []string, output io.Writer, writeError func(string))
 	}
 
 	var b textbuf.Buffer
-	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').Slice())
+	protocolWrite(output, b.Str("encoded hex ").HexUpper(wireBytes).Byte('\n').String())
 }

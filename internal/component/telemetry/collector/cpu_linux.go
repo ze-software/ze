@@ -5,8 +5,9 @@
 package collector
 
 import (
-	"strconv"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
 	"github.com/prometheus/procfs"
 
@@ -56,7 +57,8 @@ func (c *cpuCollector) Collect() error {
 		if !ok {
 			continue
 		}
-		chart := "cpu.cpu" + strconv.FormatInt(cpuNum, 10)
+		var tb textbuf.Buffer
+		chart := tb.Str("cpu.cpu").Int(cpuNum).String()
 		setCPUPct(c.cpuGauge, chart, "utilization", cur, prev)
 	}
 

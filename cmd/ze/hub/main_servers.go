@@ -35,6 +35,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -570,7 +571,8 @@ func resolveConfigPath(store storage.Storage) string {
 	if err == nil && len(data) > 0 {
 		name := strings.TrimSpace(string(data))
 		if name != "" {
-			return name + ".conf"
+			var tb textbuf.Buffer
+			return tb.Str(name).Str(".conf").String()
 		}
 	}
 	return "ze.conf"

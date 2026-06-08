@@ -16,6 +16,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -140,16 +141,17 @@ func resolveConfigDir(binaryPath, override string) (string, error) {
 }
 
 func (rt *serviceRuntime) verifyConfigReady(configDir string) error {
+	var tb textbuf.Buffer
 	if _, err := rt.ops.stat(configDir); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return errors.New("ze init has not been run: config directory not found: " + configDir)
+			return errors.New(tb.Str("ze init has not been run: config directory not found: ").Str(configDir).String())
 		}
 		return fmt.Errorf("checking config directory %s: %w", configDir, err)
 	}
 	dbPath := filepath.Join(configDir, "database.zefs")
 	if _, err := rt.ops.stat(dbPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return errors.New("ze init has not been run: " + dbPath + " not found")
+			return errors.New(tb.Reset().Str("ze init has not been run: ").Str(dbPath).Str(" not found").String())
 		}
 		return fmt.Errorf("checking %s: %w", dbPath, err)
 	}
@@ -264,7 +266,8 @@ func (r realServiceOps) activeConfigs(configDir string) ([][]byte, error) {
 		if entry.IsDir() {
 			continue
 		}
-		data, err := store.ReadFile(zefs.KeyFileActive.Dir() + "/" + entry.Name())
+		var tb textbuf.Buffer
+		data, err := store.ReadFile(tb.Str(zefs.KeyFileActive.Dir()).Byte('/').Str(entry.Name()).String())
 		if err != nil {
 			return nil, err
 		}
@@ -276,7 +279,8 @@ func (r realServiceOps) activeConfigs(configDir string) ([][]byte, error) {
 func groupSuffix(out []byte) string {
 	parts := strings.Split(strings.TrimSpace(string(out)), ":")
 	if len(parts) > 2 && parts[2] != "" {
-		return " (gid " + parts[2] + ")"
+		var tb textbuf.Buffer
+		return tb.Str(" (gid ").Str(parts[2]).Byte(')').String()
 	}
 	return ""
 }
@@ -284,7 +288,8 @@ func groupSuffix(out []byte) string {
 func userSuffix(out []byte) string {
 	parts := strings.Split(strings.TrimSpace(string(out)), ":")
 	if len(parts) > 3 && parts[2] != "" && parts[3] != "" {
-		return " (uid " + parts[2] + ", gid " + parts[3] + ")"
+		var tb textbuf.Buffer
+		return tb.Str(" (uid ").Str(parts[2]).Str(", gid ").Str(parts[3]).Byte(')').String()
 	}
 	return ""
 }

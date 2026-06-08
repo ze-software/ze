@@ -104,44 +104,51 @@ func runShow(args []string) int {
 	}
 
 	if err := mrt.ReadFile(inputFile, handler); err != nil {
-		os.Stderr.WriteString("show: " + err.Error() + "\n") //nolint:errcheck // error output
+		var tb textbuf.Buffer
+		os.Stderr.WriteString(tb.Str("show: ").Err(err).Byte('\n').String()) //nolint:errcheck // error output
 		return 1
 	}
 	return 0
 }
 
 func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.ParsedMessage) {
-	prefix := ts.UTC().Format("15:04:05") + " " + peer + " AS" + textbuf.Uint32(peerAS) + " "
+	var tb textbuf.Buffer
+	tb.Str(ts.UTC().Format("15:04:05")).Byte(' ').Str(peer).Str(" AS").Uint32(peerAS).Byte(' ')
+	prefix := tb.String()
 	switch parsed.Type {
 	case 1:
 		o := parsed.Open
-		os.Stdout.WriteString(prefix + "OPEN v" + textbuf.Uint8(o.Version) + " AS" + textbuf.Uint32(o.ASN) + " hold=" + textbuf.Uint16(o.HoldTime) + "\n") //nolint:errcheck // output
+		tb.Reset().Str(prefix).Str("OPEN v").Uint8(o.Version).Str(" AS").Uint32(o.ASN).Str(" hold=").Uint16(o.HoldTime).Byte('\n')
+		os.Stdout.WriteString(tb.String()) //nolint:errcheck // output
 	case 2:
 		u := parsed.Update
-		var line string
+		var lb textbuf.Buffer
 		if len(u.WithdrawnPrefixes) > 0 {
-			line += "W=" + textbuf.Uint(uint64(len(u.WithdrawnPrefixes)))
+			lb.Str("W=").Uint(uint64(len(u.WithdrawnPrefixes)))
 		}
 		if len(u.AnnouncedPrefixes) > 0 {
-			if line != "" {
-				line += " "
+			if lb.Len() > 0 {
+				lb.Byte(' ')
 			}
-			line += "A=" + textbuf.Uint(uint64(len(u.AnnouncedPrefixes)))
+			lb.Str("A=").Uint(uint64(len(u.AnnouncedPrefixes)))
 		}
 		aspathStr := formatASPathFromAttrs(u.Attributes)
 		if aspathStr != "" {
-			line += " path=" + aspathStr
+			lb.Str(" path=").Str(aspathStr)
 		}
 		nh := mrt.ExtractNextHop(u.Attributes)
 		if nh.IsValid() {
-			line += " nh=" + nh.String()
+			lb.Str(" nh=").Addr(nh)
 		}
-		os.Stdout.WriteString(prefix + "UPDATE " + line + "\n") //nolint:errcheck // output
+		tb.Reset().Str(prefix).Str("UPDATE ").Str(lb.String()).Byte('\n')
+		os.Stdout.WriteString(tb.String()) //nolint:errcheck // output
 	case 3:
 		n := parsed.Notification
-		os.Stdout.WriteString(prefix + "NOTIFICATION code=" + textbuf.Uint8(n.Code) + "/" + textbuf.Uint8(n.Subcode) + "\n") //nolint:errcheck // output
+		tb.Reset().Str(prefix).Str("NOTIFICATION code=").Uint8(n.Code).Byte('/').Uint8(n.Subcode).Byte('\n')
+		os.Stdout.WriteString(tb.String()) //nolint:errcheck // output
 	case 4:
-		os.Stdout.WriteString(prefix + "KEEPALIVE\n") //nolint:errcheck // output
+		tb.Reset().Str(prefix).Str("KEEPALIVE\n")
+		os.Stdout.WriteString(tb.String()) //nolint:errcheck // output
 	}
 }
 
@@ -187,25 +194,27 @@ func appendUint32Str(buf []byte, n uint32) []byte {
 }
 
 func formatPrefix(subtype uint16, prefixLen uint8, prefix []byte) string {
+	var tb textbuf.Buffer
 	afi := mrt.RIBSubtypeAFI(subtype)
 	switch afi {
 	case mrt.AFIIPv4:
 		var ip [4]byte
 		copy(ip[:], prefix)
 		addr := net.IP(ip[:]).String()
-		return addr + "/" + textbuf.Uint8(prefixLen)
+		return tb.Str(addr).Byte('/').Uint8(prefixLen).String()
 	case mrt.AFIIPv6:
 		var ip [16]byte
 		copy(ip[:], prefix)
 		addr := net.IP(ip[:]).String()
-		return addr + "/" + textbuf.Uint8(prefixLen)
+		return tb.Str(addr).Byte('/').Uint8(prefixLen).String()
 	}
-	return textbuf.Uint8(prefixLen) + "/" + textbuf.Uint(uint64(len(prefix))) + "bytes"
+	return tb.Uint8(prefixLen).Byte('/').Uint(uint64(len(prefix))).Str("bytes").String()
 }
 
 func peerLabel(pit *mrt.PeerIndexTable, idx uint16) string {
 	if pit == nil || int(idx) >= len(pit.Peers) {
-		return "[" + textbuf.Uint16(idx) + "]"
+		var tb textbuf.Buffer
+		return tb.Byte('[').Uint16(idx).Byte(']').String()
 	}
 	p := &pit.Peers[idx]
 	return net.IP(p.IP).String()

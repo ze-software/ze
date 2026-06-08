@@ -17,6 +17,7 @@ import (
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // writePIDFile creates the PID file named by ze.pid.file with the current PID.
@@ -41,7 +42,8 @@ func writePIDFile() (string, error) {
 		return "", fmt.Errorf("create pid file %q: %w", path, err)
 	}
 	pid := os.Getpid()
-	if _, werr := f.WriteString(strconv.Itoa(pid) + "\n"); werr != nil {
+	var tb textbuf.Buffer
+	if _, werr := f.WriteString(tb.Int(int64(pid)).Byte('\n').String()); werr != nil {
 		if closeErr := f.Close(); closeErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: close pid file %q after write failure: %v\n", path, closeErr)
 		}

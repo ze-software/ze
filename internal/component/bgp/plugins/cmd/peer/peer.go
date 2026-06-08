@@ -10,13 +10,13 @@ import (
 	"fmt"
 	"net/netip"
 	"strconv"
-	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	peersel "codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -373,9 +373,10 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 			}
 		}
 		if !found {
+			var tb textbuf.Buffer
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  "unknown peer: " + peer,
+				Error:  tb.Str("unknown peer: ").Str(peer).String(),
 			}, fmt.Errorf("unknown peer %s", peer)
 		}
 	}
@@ -383,15 +384,17 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	// Parse subcode
 	code, err := parseUint(args[0])
 	if err != nil {
+		var tb textbuf.Buffer
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "invalid subcode: " + args[0],
+			Error:  tb.Str("invalid subcode: ").Str(args[0]).String(),
 		}, fmt.Errorf("invalid subcode %s: %w", args[0], err)
 	}
 	if code > 255 {
+		var tb textbuf.Buffer
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "invalid subcode: " + args[0] + " (must be 0-255)",
+			Error:  tb.Str("invalid subcode: ").Str(args[0]).Str(" (must be 0-255)").String(),
 		}, fmt.Errorf("subcode out of range: %d", code)
 	}
 	subcode := uint8(code)
@@ -399,7 +402,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	// RFC 8203: optional shutdown communication message (remaining args joined).
 	var shutdownMsg string
 	if len(args) > 1 {
-		shutdownMsg = strings.Join(args[1:], " ")
+		shutdownMsg = textbuf.Join(args[1:], " ")
 	}
 
 	if err := ctx.Reactor().TeardownPeer(addr, subcode, shutdownMsg); err != nil {
@@ -457,7 +460,7 @@ func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "invalid peer address: " + peer,
+			Error:  func() string { var tb textbuf.Buffer; return tb.Str("invalid peer address: ").Str(peer).String() }(),
 		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
@@ -505,7 +508,10 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  action + " requires specific peer: peer <ip> " + action,
+			Error: func() string {
+				var tb textbuf.Buffer
+				return tb.Str(action).Str(" requires specific peer: peer <ip> ").Str(action).String()
+			}(),
 		}, errNoPeerSpecified
 	}
 
@@ -513,7 +519,7 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "invalid peer address: " + peer,
+			Error:  func() string { var tb textbuf.Buffer; return tb.Str("invalid peer address: ").Str(peer).String() }(),
 		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
@@ -639,7 +645,8 @@ func handlePeerHistory(ctx *pluginserver.CommandContext, args []string) (*plugin
 	addr := peers[0].Address.String()
 	transitions := hp.PeerFSMHistory(addr)
 	if transitions == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "no history for peer " + addr}, nil
+		var tb textbuf.Buffer
+		return &plugin.Response{Status: plugin.StatusError, Error: tb.Str("no history for peer ").Str(addr).String()}, nil
 	}
 	out := make([]map[string]any, 0, len(transitions))
 	for i := range transitions {

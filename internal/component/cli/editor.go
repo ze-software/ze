@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ReloadNotifier is called after a successful save to notify the running daemon.
@@ -92,7 +93,8 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 	_ = meta // metadata used later by SetSession
 
 	// Check for existing edit file
-	editPath := configPath + ".edit"
+	var tb textbuf.Buffer
+	editPath := tb.Str(configPath).Str(".edit").String()
 	hasPending := store.Exists(editPath)
 
 	// Parse succeeded if tree has content (not the empty fallback)
@@ -150,7 +152,8 @@ func (e *Editor) HasPendingEdit() bool {
 // unavailable so this returns zero time even when the edit exists; callers
 // handle zero time gracefully in the prompt.
 func (e *Editor) PendingEditTime() time.Time {
-	editPath := e.originalPath + ".edit"
+	var tb textbuf.Buffer
+	editPath := tb.Str(e.originalPath).Str(".edit").String()
 	if !e.store.Exists(editPath) {
 		return time.Time{}
 	}
@@ -165,7 +168,8 @@ func (e *Editor) PendingEditTime() time.Time {
 // PendingEditDiff returns the diff between original and pending edit content.
 // Returns empty string if no edit file exists.
 func (e *Editor) PendingEditDiff() string {
-	editPath := e.originalPath + ".edit"
+	var tb textbuf.Buffer
+	editPath := tb.Str(e.originalPath).Str(".edit").String()
 	data, err := e.store.ReadFile(editPath)
 	if err != nil {
 		return ""
@@ -233,7 +237,8 @@ func (e *Editor) PromptPendingEdit() PendingEditAction {
 
 // LoadPendingEdit loads the content from the .edit file.
 func (e *Editor) LoadPendingEdit() error {
-	editPath := e.originalPath + ".edit"
+	var tb textbuf.Buffer
+	editPath := tb.Str(e.originalPath).Str(".edit").String()
 	data, err := e.store.ReadFile(editPath)
 	if err != nil {
 		return fmt.Errorf("cannot read edit file: %w", err)
@@ -745,7 +750,8 @@ func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
 
 	addEntries := func(entries []config.SessionEntry) {
 		for _, entry := range entries {
-			key := entry.Entry.SessionKey() + "|" + entry.Path
+			var tb textbuf.Buffer
+			key := tb.Str(entry.Entry.SessionKey()).Byte('|').Str(entry.Path).String()
 			if seen[key] {
 				continue
 			}
@@ -887,11 +893,12 @@ func (e *Editor) readChangeFileContent(path string) (*config.MetaTree, []config.
 }
 
 func pendingChangeKey(change config.PendingChange) string {
+	var tb textbuf.Buffer
 	switch change.Kind {
 	case config.PendingChangeRename:
-		return change.SessionID + "|rename|" + change.OldPath + "|" + change.NewPath
+		return tb.Str(change.SessionID).Str("|rename|").Str(change.OldPath).Byte('|').Str(change.NewPath).String()
 	default:
-		return change.SessionID + "|" + string(change.Kind) + "|" + change.Path
+		return tb.Str(change.SessionID).Byte('|').Str(string(change.Kind)).Byte('|').Str(change.Path).String()
 	}
 }
 
@@ -932,23 +939,19 @@ func computeDiff(original, modified string) string {
 		}
 	}
 
-	var diff strings.Builder
+	var diff textbuf.Buffer
 
 	// Removed lines
 	for _, line := range originalLines {
 		if strings.TrimSpace(line) != "" && !modifiedSet[line] {
-			diff.WriteString("- ")
-			diff.WriteString(line)
-			diff.WriteString("\n")
+			diff.Str("- ").Str(line).Byte('\n')
 		}
 	}
 
 	// Added lines
 	for _, line := range modifiedLines {
 		if strings.TrimSpace(line) != "" && !originalSet[line] {
-			diff.WriteString("+ ")
-			diff.WriteString(line)
-			diff.WriteString("\n")
+			diff.Str("+ ").Str(line).Byte('\n')
 		}
 	}
 

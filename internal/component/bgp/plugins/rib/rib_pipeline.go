@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -379,7 +380,8 @@ func validatePathPattern(pattern string) string {
 			continue
 		}
 		if _, err := strconv.ParseUint(s, 10, 32); err != nil {
-			return "invalid ASN in path pattern: " + s
+			var tb textbuf.Buffer
+			return tb.Str("invalid ASN in path pattern: ").Str(s).String()
 		}
 	}
 	return ""
@@ -1167,10 +1169,12 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 		keyword := args[i]
 		if _, ok := scopeKeywords[keyword]; ok {
 			if sawTerminal {
-				return "", "", nil, "filter after terminal: " + keyword
+				var tb textbuf.Buffer
+				return "", "", nil, tb.Str("filter after terminal: ").Str(keyword).String()
 			}
 			if scopeName != "" {
-				return "", "", nil, "multiple route direction filters: " + scopeName + " and " + keyword
+				var tb textbuf.Buffer
+				return "", "", nil, tb.Str("multiple route direction filters: ").Str(scopeName).Str(" and ").Str(keyword).String()
 			}
 			scope = scopeKeywords[keyword]
 			scopeName = keyword
@@ -1195,11 +1199,13 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 
 		if filterKeywords[keyword] {
 			if sawTerminal {
-				return "", "", nil, "filter after terminal: " + keyword
+				var tb textbuf.Buffer
+				return "", "", nil, tb.Str("filter after terminal: ").Str(keyword).String()
 			}
 			i++
 			if i >= len(args) {
-				return "", "", nil, keyword + " requires a value"
+				var tb textbuf.Buffer
+				return "", "", nil, tb.Str(keyword).Str(" requires a value").String()
 			}
 			if keyword == filterPath {
 				if errMsg := validatePathPattern(args[i]); errMsg != "" {
@@ -1212,7 +1218,8 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 			// and <= 0 rather than silently clamping (and never preallocate N).
 			if keyword == "first" || keyword == "last" {
 				if n, err := strconv.Atoi(args[i]); err != nil || n <= 0 {
-					return "", "", nil, keyword + " requires a positive number"
+					var tb textbuf.Buffer
+					return "", "", nil, tb.Str(keyword).Str(" requires a positive number").String()
 				}
 			}
 			stages = append(stages, pipelineStage{kind: keyword, arg: args[i]})
@@ -1230,7 +1237,8 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 			continue
 		}
 
-		return "", "", nil, "unknown keyword: " + keyword
+		var tb textbuf.Buffer
+		return "", "", nil, tb.Str("unknown keyword: ").Str(keyword).String()
 	}
 
 	return scope, selector, stages, ""

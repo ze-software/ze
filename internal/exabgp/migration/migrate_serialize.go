@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // SerializeTree serializes a config tree to ZeBGP config format.
@@ -18,12 +19,12 @@ func SerializeTree(tree *config.Tree) string {
 		return ""
 	}
 
-	var buf strings.Builder
+	var buf textbuf.Buffer
 	serializeTreeIndent(tree, &buf, "", true)
 	return buf.String()
 }
 
-func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string, isRoot bool) {
+func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, isRoot bool) {
 	// Write simple values (sorted for deterministic output).
 	keys := tree.Values()
 	sort.Strings(keys)
@@ -92,7 +93,8 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 			buf.WriteString("group ")
 			buf.WriteString(groupEntry.Key)
 			buf.WriteString(" {\n")
-			groupIndent := indent + "\t"
+			var tb textbuf.Buffer
+			groupIndent := tb.Str(indent).Byte('\t').String()
 			// Write group-level values first.
 			serializeGroupValues(groupEntry.Value, buf, groupIndent)
 			// Write nested peer blocks.
@@ -361,7 +363,7 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 
 // serializeGroupValues writes the group-level fields (everything except nested peer list).
 // This avoids recursing into serializeTreeIndent which would also write peer blocks.
-func serializeGroupValues(tree *config.Tree, buf *strings.Builder, indent string) {
+func serializeGroupValues(tree *config.Tree, buf *textbuf.Buffer, indent string) {
 	// Write simple values (sorted for deterministic output).
 	keys := tree.Values()
 	sort.Strings(keys)

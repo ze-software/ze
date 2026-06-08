@@ -285,9 +285,9 @@ func RunRouteServer(conn net.Conn) int {
 	// arrives last, the peer's families are wrong and selectForwardTargets
 	// excludes it from forwarding.
 	p.SetStartupSubscriptions([]string{
-		eventUpdate + " direction received",
+		eventUpdate + " direction received", //nolint:goconst // const folded at compile time
 		eventState,
-		eventOpen + " direction received",
+		eventOpen + " direction received", //nolint:goconst // const folded at compile time
 		eventRefresh,
 	}, nil, "")
 
@@ -401,7 +401,8 @@ func (rs *RouteServer) updateRouteSel(sel *selector.Selector, command string) {
 func (rs *RouteServer) peerAction(peerSelector, action string) {
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
-	cmd := "request peer " + peerSelector + " " + action
+	var tb textbuf.Buffer
+	cmd := tb.Str("request peer ").Str(peerSelector).Byte(' ').Str(action).String()
 	_, _, err := rs.plugin.DispatchCommand(ctx, cmd)
 	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rs.stopping.Load() {
@@ -652,7 +653,8 @@ func formatCapInfo(cap capability.Capability) []CapabilityInfo {
 	code := int(cap.Code())
 	switch c := cap.(type) {
 	case *capability.Multiprotocol:
-		return []CapabilityInfo{{Code: code, Name: "multiprotocol", Value: c.AFI.String() + "/" + c.SAFI.String()}}
+		var tb textbuf.Buffer
+		return []CapabilityInfo{{Code: code, Name: "multiprotocol", Value: tb.Str(c.AFI.String()).Byte('/').Str(c.SAFI.String()).String()}}
 	case *capability.ASN4:
 		return []CapabilityInfo{{Code: code, Name: "asn4", Value: strconv.Itoa(int(c.ASN))}}
 	case *capability.ExtendedMessage:
@@ -670,7 +672,8 @@ func formatCapInfo(cap capability.Capability) []CapabilityInfo {
 				mode = "send-receive"
 			}
 			if mode != "" {
-				results = append(results, CapabilityInfo{Code: code, Name: "addpath", Value: f.AFI.String() + "/" + f.SAFI.String() + " " + mode})
+				var tb textbuf.Buffer
+				results = append(results, CapabilityInfo{Code: code, Name: "addpath", Value: tb.Str(f.AFI.String()).Byte('/').Str(f.SAFI.String()).Byte(' ').Str(mode).String()})
 			}
 		}
 		return results

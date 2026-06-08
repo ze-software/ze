@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -139,7 +140,8 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, conn *plugipc.Plugi
 	// Route injection commands are always peer-scoped subcommands
 	// (e.g., "update text ...", "announce route ..."). Prepend unconditionally.
 	// Peer lifecycle actions (teardown, pause, etc.) use dispatch-command instead.
-	dispatchCmd := "peer " + cmdCtx.Peer + " " + input.Command
+	var tb textbuf.Buffer
+	dispatchCmd := tb.Str("peer ").Str(cmdCtx.Peer).Byte(' ').Str(input.Command).String()
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err != nil {
@@ -181,7 +183,7 @@ func (s *Server) handleDispatchCommandRPC(proc *process.Process, conn *plugipc.P
 		Server:         s,
 		Process:        proc,
 		RequestContext: s.Context(),
-		Username:       "plugin:" + proc.Name(),
+		Username:       func() string { var tb textbuf.Buffer; return tb.Str("plugin:").Str(proc.Name()).String() }(),
 	}
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, input.Command)
@@ -249,7 +251,8 @@ func responseToDispatchOutput(resp *plugin.Response) *rpc.DispatchCommandOutput 
 		encoded, err := json.Marshal(resp.Data)
 		if err != nil {
 			output.Status = plugin.StatusError
-			output.Error = "marshal response data: " + err.Error()
+			var tb textbuf.Buffer
+			output.Error = tb.Str("marshal response data: ").Err(err).String()
 		} else {
 			output.Data = encoded
 		}
@@ -354,7 +357,8 @@ func (s *Server) handleEmitEventRPC(proc *process.Process, conn *plugipc.PluginC
 func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*rpc.EmitEventOutput, error) {
 	var input rpc.EmitEventInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return nil, &rpc.RPCCallError{Message: "invalid emit-event params: " + err.Error()}
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid emit-event params: ").Err(err).String()}
 	}
 	delivered, err := s.deliverEvent(emitter, input.Namespace, input.EventType, input.Direction, input.PeerAddress, input.Event)
 	if err != nil {
@@ -383,7 +387,8 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 
 	// Validate event type exists in the namespace (uses canonical registry).
 	if !events.IsValidEvent(namespace, eventType) {
-		return 0, &rpc.RPCCallError{Message: "unknown event: " + namespace + "/" + eventType}
+		var tb textbuf.Buffer
+		return 0, &rpc.RPCCallError{Message: tb.Str("unknown event: ").Str(namespace).Byte('/').Str(eventType).String()}
 	}
 
 	if s.eventRing != nil {
@@ -435,7 +440,8 @@ func (s *Server) deliverEvent(emitter *process.Process, namespace, eventType, di
 	// json.RawMessage) skip re-marshal.
 	eventJSON, err := payloadToJSON(namespace, eventType, payload)
 	if err != nil {
-		return 0, &rpc.RPCCallError{Message: "marshal event payload: " + err.Error()}
+		var tb textbuf.Buffer
+		return 0, &rpc.RPCCallError{Message: tb.Str("marshal event payload: ").Err(err).String()}
 	}
 
 	delivered := 0
@@ -568,7 +574,8 @@ func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, p
 	}
 
 	// Unknown methods get an explicit error per ze's fail-on-unknown rule
-	return nil, &rpc.RPCCallError{Message: "unknown method: " + method}
+	var tb textbuf.Buffer
+	return nil, &rpc.RPCCallError{Message: tb.Str("unknown method: ").Str(method).String()}
 }
 
 // handleUpdateRouteDirect handles update-route without socket I/O.
@@ -576,7 +583,8 @@ func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, p
 func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.UpdateRouteInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return nil, &rpc.RPCCallError{Message: "invalid update-route params: " + err.Error()}
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid update-route params: ").Err(err).String()}
 	}
 
 	cmdCtx := &CommandContext{
@@ -590,7 +598,8 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 		cmdCtx.Peer = "*"
 	}
 
-	dispatchCmd := "peer " + cmdCtx.Peer + " " + input.Command
+	var tb textbuf.Buffer
+	dispatchCmd := tb.Str("peer ").Str(cmdCtx.Peer).Byte(' ').Str(input.Command).String()
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err != nil {
@@ -617,7 +626,8 @@ func (s *Server) handleUpdateRouteSelDirect(proc *process.Process, sel *selector
 		Meta:           meta,
 	}
 
-	dispatchCmd := "peer " + peer + " " + command
+	var tb textbuf.Buffer
+	dispatchCmd := tb.Str("peer ").Str(peer).Byte(' ').Str(command).String()
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err != nil {
@@ -650,7 +660,8 @@ func extractUpdateRouteOutput(resp *plugin.Response) *rpc.UpdateRouteOutput {
 func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.DispatchCommandInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return nil, &rpc.RPCCallError{Message: "invalid dispatch-command params: " + err.Error()}
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command params: ").Err(err).String()}
 	}
 	out, err := s.dispatchCommand(proc, input.Command)
 	if err != nil {
@@ -664,7 +675,8 @@ func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.
 func (s *Server) handleDispatchCommandArgsDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.DispatchCommandArgsInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return nil, &rpc.RPCCallError{Message: "invalid dispatch-command-args params: " + err.Error()}
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command-args params: ").Err(err).String()}
 	}
 	out, err := s.dispatchCommandArgs(proc, input.Command, input.Args, input.Peer)
 	if err != nil {
@@ -685,14 +697,17 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 		Process:        proc,
 		RequestContext: s.Context(),
 		Peer:           peer,
-		Username:       "plugin:" + proc.Name(),
+		Username:       func() string { var tb textbuf.Buffer; return tb.Str("plugin:").Str(proc.Name()).String() }(),
 	}
 
 	if s.dispatcher != nil && !s.dispatcher.isAuthorizedCommandArgs(cmdCtx, command, args, peer, false) {
 		authInput := aaa.CanonicalCommand(command, args, peer)
 		return &rpc.DispatchCommandOutput{
 			Status: plugin.StatusError,
-			Error:  "authorization denied for " + authInput,
+			Error: func() string {
+				var tb textbuf.Buffer
+				return tb.Str("authorization denied for ").Str(authInput).String()
+			}(),
 		}, ErrUnauthorized
 	}
 
@@ -721,7 +736,7 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.Di
 		Server:         s,
 		Process:        proc,
 		RequestContext: s.Context(),
-		Username:       "plugin:" + proc.Name(),
+		Username:       func() string { var tb textbuf.Buffer; return tb.Str("plugin:").Str(proc.Name()).String() }(),
 	}
 
 	resp, dispatchErr := s.dispatcher.Dispatch(cmdCtx, command)
@@ -745,7 +760,8 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.Di
 func (s *Server) handleSubscribeEventsDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.SubscribeEventsInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return nil, &rpc.RPCCallError{Message: "invalid subscribe params: " + err.Error()}
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid subscribe params: ").Err(err).String()}
 	}
 
 	if s.subscriptions == nil {
@@ -793,7 +809,8 @@ func directResultResponse(data any) (json.RawMessage, error) {
 	}
 	result, err := json.Marshal(data)
 	if err != nil {
-		return nil, &rpc.RPCCallError{Message: "marshal result: " + err.Error()}
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("marshal result: ").Err(err).String()}
 	}
 	return result, nil
 }
@@ -872,7 +889,8 @@ func (s *Server) handleForwardCachedRPC(proc *process.Process, conn *plugipc.Plu
 func (s *Server) handleForwardCachedDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.ForwardCachedInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return nil, &rpc.RPCCallError{Message: "invalid forward-cached params: " + err.Error()}
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid forward-cached params: ").Err(err).String()}
 	}
 	if err := s.forwardCached(proc, input.IDs, input.Destinations); err != nil {
 		return nil, &rpc.RPCCallError{Message: err.Error()}
@@ -906,7 +924,8 @@ func (s *Server) handleReleaseCachedRPC(proc *process.Process, conn *plugipc.Plu
 func (s *Server) handleReleaseCachedDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.ReleaseCachedInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return nil, &rpc.RPCCallError{Message: "invalid release-cached params: " + err.Error()}
+		var tb textbuf.Buffer
+		return nil, &rpc.RPCCallError{Message: tb.Str("invalid release-cached params: ").Err(err).String()}
 	}
 	if err := s.releaseCached(proc, input.IDs); err != nil {
 		return nil, &rpc.RPCCallError{Message: err.Error()}

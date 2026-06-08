@@ -110,9 +110,10 @@ func handleCommit(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 		return handleCommitList(ctx)
 	case actionStart, actionEnd, actionEOR, actionRollback, actionShow:
 		if len(args) < 2 {
+			var tb textbuf.Buffer
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  "usage: commit " + args[0] + " <name>",
+				Error:  tb.Str("usage: commit ").Str(args[0]).Str(" <name>").String(),
 			}, fmt.Errorf("missing name for commit %s", args[0])
 		}
 		return dispatchCommitAction(ctx, args[0], args[1], args[2:], false)
@@ -134,9 +135,10 @@ func handleCommit(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 		}, fmt.Errorf("missing action for commit %q", args[0])
 	}
 	if !commitActionKeywords[args[1]] {
+		var tb textbuf.Buffer
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "unknown commit action: " + args[1],
+			Error:  tb.Str("unknown commit action: ").Str(args[1]).String(),
 		}, fmt.Errorf("unknown commit action: %s", args[1])
 	}
 	return dispatchCommitAction(ctx, args[1], args[0], args[2:], true)
@@ -148,9 +150,10 @@ func dispatchCommitAction(ctx *pluginserver.CommandContext, action, name string,
 		if !deprecated || resp == nil || resp.Status != plugin.StatusDone {
 			return resp, err
 		}
-		newForm := "commit " + action + " " + name
+		var tb textbuf.Buffer
+		newForm := tb.Str("commit ").Str(action).Byte(' ').Str(name).String()
 		if data, ok := resp.Data.(plugin.Map); ok {
-			data["deprecated"] = "use: " + newForm
+			data["deprecated"] = tb.Reset().Str("use: ").Str(newForm).String()
 		}
 		return resp, err
 	}
@@ -175,9 +178,10 @@ func dispatchCommitAction(ctx *pluginserver.CommandContext, action, name string,
 		}
 		return withDeprecation(handleNamedCommitWithdraw(ctx, name, extraArgs))
 	default:
+		var tb textbuf.Buffer
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "unknown commit action: " + action,
+			Error:  tb.Str("unknown commit action: ").Str(action).String(),
 		}, fmt.Errorf("unknown commit action: %s", action)
 	}
 }
@@ -382,9 +386,10 @@ func handleNamedCommitWithdraw(ctx *pluginserver.CommandContext, name string, ar
 	// Parse prefix
 	prefix, err := netip.ParsePrefix(args[1])
 	if err != nil {
+		var tb textbuf.Buffer
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "invalid prefix: " + args[1],
+			Error:  tb.Str("invalid prefix: ").Str(args[1]).String(),
 		}, err
 	}
 

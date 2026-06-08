@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // FormatCollisionsText writes collision groups as human-readable text.
@@ -20,7 +22,7 @@ func FormatCollisionsText(w io.Writer, groups []CollisionGroup) error {
 
 	totalAffected := 0
 	for _, g := range groups {
-		path := strings.Join(g.Path, " > ")
+		path := textbuf.Join(g.Path, " > ")
 		if path == "" {
 			path = "(root)"
 		}
@@ -116,12 +118,14 @@ func formatConstraints(node *AnalysisNode) string {
 		parts = append(parts, "[mandatory]")
 	}
 	if node.Default != "" {
-		parts = append(parts, "[default: "+node.Default+"]")
+		var tb textbuf.Buffer
+		parts = append(parts, tb.Str("[default: ").Str(node.Default).Byte(']').String())
 	}
 	if node.Range != "" {
-		parts = append(parts, "["+node.Range+"]")
+		var tb textbuf.Buffer
+		parts = append(parts, tb.Byte('[').Str(node.Range).Byte(']').String())
 	}
-	return strings.Join(parts, " ")
+	return textbuf.Join(parts, " ")
 }
 
 // FormatTreeText writes the unified tree as indented text.
@@ -150,14 +154,16 @@ func formatTreeNodeText(w io.Writer, node *AnalysisNode, depth int, filter strin
 
 	desc := node.Description
 	if len(desc) > 60 {
-		desc = desc[:57] + "..."
+		var tb textbuf.Buffer
+		desc = tb.Str(desc[:57]).Str("...").String()
 	}
 
 	// Append constraint annotations.
 	constraints := formatConstraints(node)
 	if constraints != "" {
 		if desc != "" {
-			desc = desc + " " + constraints
+			var tb textbuf.Buffer
+			desc = tb.Str(desc).Byte(' ').Str(constraints).String()
 		} else {
 			desc = constraints
 		}

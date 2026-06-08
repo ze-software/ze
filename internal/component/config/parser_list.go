@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // parseList parses a YANG list in three forms:
@@ -183,7 +185,8 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 			if err != nil {
 				return err
 			}
-			part := "[ " + strings.Join(arrayVals, " ") + " ]"
+			var tb textbuf.Buffer
+			part := tb.Str("[ ").Join(arrayVals, " ").Str(" ]").String()
 			if childIdx <= lastIdx && lastIdx >= 0 {
 				lastParts = append(lastParts, part)
 				if childIdx < lastIdx {
@@ -213,7 +216,7 @@ func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, k
 
 	// Store collected values in the last child
 	if lastIdx >= 0 && len(lastParts) > 0 {
-		value := strings.Join(lastParts, " ")
+		value := textbuf.Join(lastParts, " ")
 		if err := validateInlineListChildValue(node, children[lastIdx], value); err != nil {
 			return p.errorf(Token{Line: p.tok.line}, "invalid value for %s.%s: %v", name, children[lastIdx], err)
 		}
@@ -281,15 +284,7 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, node *MultiLeafNode) er
 		}
 	}
 
-	var value strings.Builder
-	for i, w := range words {
-		if i > 0 {
-			value.WriteString(" ")
-		}
-		value.WriteString(w)
-	}
-
-	joined := value.String()
+	joined := textbuf.Join(words, " ")
 	if err := validateValuePatterns(node.Type, node.Patterns, joined); err != nil {
 		return p.errorf(Token{Line: p.tok.line}, "invalid value for %s: %v", name, err)
 	}
@@ -334,16 +329,7 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeaf
 		}
 	}
 
-	// Store as space-separated string
-	var value strings.Builder
-	for i, item := range items {
-		if i > 0 {
-			value.WriteString(" ")
-		}
-		value.WriteString(item)
-	}
-
-	tree.Set(name, value.String())
+	tree.Set(name, textbuf.Join(items, " "))
 	return nil
 }
 
@@ -400,7 +386,7 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 	if node.ValidValues != nil {
 		for _, item := range items {
 			if !containsString(node.ValidValues, item) {
-				return p.errorf(tok, "invalid value for %s: %q (valid: %s)", name, item, strings.Join(node.ValidValues, ", "))
+				return p.errorf(tok, "invalid value for %s: %q (valid: %s)", name, item, textbuf.Join(node.ValidValues, ", "))
 			}
 		}
 	}
@@ -412,14 +398,7 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 
 	// Store as slice for GetSlice() and as string for Get()
 	tree.SetSlice(name, items)
-	var value strings.Builder
-	for i, item := range items {
-		if i > 0 {
-			value.WriteString(" ")
-		}
-		value.WriteString(item)
-	}
-	tree.Set(name, value.String())
+	tree.Set(name, textbuf.Join(items, " "))
 	return nil
 }
 
@@ -439,7 +418,7 @@ func validateInlineListChildValue(list *ListNode, childName, value string) error
 	case *ValueOrArrayNode:
 		for _, item := range inlineValueItems(value) {
 			if n.ValidValues != nil && !containsString(n.ValidValues, item) {
-				return fmt.Errorf("invalid enum: %q (expected one of: %s)", item, strings.Join(n.ValidValues, ", "))
+				return fmt.Errorf("invalid enum: %q (expected one of: %s)", item, textbuf.Join(n.ValidValues, ", "))
 			}
 			if err := validateValuePatterns(n.Type, n.Patterns, item); err != nil {
 				return err

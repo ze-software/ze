@@ -18,6 +18,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -642,7 +643,7 @@ func (c *mcpClient) taskList() (string, error) {
 			}
 		}
 	}
-	return strings.Join(ids, " "), nil
+	return textbuf.Join(ids, " "), nil
 }
 
 var taskTerminalStates = map[string]bool{

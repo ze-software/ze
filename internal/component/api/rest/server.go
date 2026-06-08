@@ -25,6 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errSessionIdRequired = errors.New("session ID required")
@@ -443,7 +444,8 @@ func (s *RESTServer) withAuth(next http.HandlerFunc) http.HandlerFunc {
 			readOnly = false
 		} else if s.token != "" {
 			auth := r.Header.Get("Authorization")
-			expected := "Bearer " + s.token
+			var tb textbuf.Buffer
+			expected := tb.Str("Bearer ").Str(s.token).String()
 			gotHash := sha256.Sum256([]byte(auth))
 			wantHash := sha256.Sum256([]byte(expected))
 			if subtle.ConstantTimeCompare(gotHash[:], wantHash[:]) != 1 {
@@ -552,7 +554,8 @@ func (s *RESTServer) handlePeerByName(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "peer " + name + " detail"})
+	var tb textbuf.Buffer
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: tb.Str("peer ").Str(name).Str(" detail").String()})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -571,7 +574,8 @@ func (s *RESTServer) handlePeerAction(action string) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "request peer " + name + " " + action})
+		var tb textbuf.Buffer
+		result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: tb.Str("request peer ").Str(name).Byte(' ').Str(action).String()})
 		if errors.Is(execErr, api.ErrUnauthorized) {
 			writeError(w, http.StatusForbidden, result.Error)
 			return
@@ -591,7 +595,8 @@ func (s *RESTServer) handlePeerRefresh(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "request peer " + name + " refresh"})
+	var tb textbuf.Buffer
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: tb.Str("request peer ").Str(name).Str(" refresh").String()})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return
@@ -611,13 +616,15 @@ func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		command = "show bgp rib best family " + family
+		var tb textbuf.Buffer
+		command = tb.Str("show bgp rib best family ").Str(family).String()
 	} else {
 		if err := validatePathSegment("family", path); err != nil {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		command = "show bgp rib family " + path
+		var tb textbuf.Buffer
+		command = tb.Str("show bgp rib family ").Str(path).String()
 	}
 	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: command})
 	if errors.Is(execErr, api.ErrUnauthorized) {

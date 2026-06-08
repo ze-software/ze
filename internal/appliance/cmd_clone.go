@@ -5,6 +5,8 @@ package appliance
 import (
 	"fmt"
 	"os"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func init() {
@@ -45,9 +47,10 @@ func runClone(args []string) int {
 		return exitError
 	}
 
-	srcZeConf := AppliancePath(dir, src) + "/ze.conf"
+	var tb textbuf.Buffer
+	srcZeConf := tb.Str(AppliancePath(dir, src)).Str("/ze.conf").String()
 	if data, readErr := os.ReadFile(srcZeConf); readErr == nil { //nolint:gosec // appliance file
-		dstZeConf := AppliancePath(dir, dst) + "/ze.conf"
+		dstZeConf := tb.Reset().Str(AppliancePath(dir, dst)).Str("/ze.conf").String()
 		if writeErr := os.WriteFile(dstZeConf, data, 0o644); writeErr != nil { //nolint:gosec // config file
 			fmt.Fprintf(os.Stderr, "error: copy ze.conf: %v\n", writeErr)
 			return exitError

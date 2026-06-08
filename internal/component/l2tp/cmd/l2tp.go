@@ -28,6 +28,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/schema" // register ze-l2tp-api.yang
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -685,7 +686,7 @@ func parseKeywordArgs(args []string) (actor, reason string, cause uint32) {
 			collecting = ""
 		}
 	}
-	reason = strings.Join(reasonParts, " ")
+	reason = textbuf.Join(reasonParts, " ")
 	return actor, reason, cause
 }
 

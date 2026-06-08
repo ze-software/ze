@@ -5,7 +5,8 @@ package scenario
 import (
 	"fmt"
 	"net/netip"
-	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // ConfigParams holds inputs for generating a Ze configuration file.
@@ -27,7 +28,7 @@ type ConfigParams struct {
 // GenerateConfig produces a Ze configuration string from the given parameters.
 // The output is a valid Ze config file that can be passed to `ze bgp server`.
 func GenerateConfig(params ConfigParams) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 
 	zeBin := params.ZeBinary
 	if zeBin == "" {
@@ -126,7 +127,7 @@ func GenerateConfig(params ConfigParams) string {
 
 // PeerSummary returns a compact one-line-per-peer summary for stderr display.
 func PeerSummary(params ConfigParams) string {
-	var b strings.Builder
+	var b textbuf.Buffer
 	for i := range params.Profiles {
 		p := &params.Profiles[i]
 		peerAddr := params.LocalAddr
@@ -156,14 +157,14 @@ func PeerSummary(params ConfigParams) string {
 
 		fmt.Fprintf(&b, "  peer %d  %s  local-as=%-5d remote-as=%-5d  %s  hold=%-3d%s  families=[%s]  routes=%d%s\n",
 			p.Index, peerAddr, params.LocalAS, p.ASN, peerType, p.HoldTime, portInfo,
-			strings.Join(families, ", "), p.RouteCount, mode)
+			textbuf.Join(families, ", "), p.RouteCount, mode)
 	}
 	return b.String()
 }
 
 // writeFullPeerBlock writes a single peer block inside the bgp container.
 // This produces valid Ze config syntax.
-func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) {
+func writeFullPeerBlock(b *textbuf.Buffer, params ConfigParams, p PeerProfile) {
 	peerAddr := params.LocalAddr
 	if p.Address.IsValid() {
 		peerAddr = p.Address.String()

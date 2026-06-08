@@ -362,15 +362,17 @@ func decodeASPath(data []byte) string {
 
 		switch segType {
 		case 1: // AS_SET
-			parts = append(parts, "{"+strings.Join(asns, " ")+"}")
+			var tb textbuf.Buffer
+			parts = append(parts, tb.Byte('{').Join(asns, " ").Byte('}').String())
 		case 2: // AS_SEQUENCE
-			parts = append(parts, strings.Join(asns, " "))
+			parts = append(parts, textbuf.Join(asns, " "))
 		default:
-			parts = append(parts, strings.Join(asns, " "))
+			parts = append(parts, textbuf.Join(asns, " "))
 		}
 	}
 
-	return "[" + strings.Join(parts, " ") + "]"
+	var tb textbuf.Buffer
+	return tb.Byte('[').Join(parts, " ").Byte(']').String()
 }
 
 func decodeCommunities(data []byte) string {
@@ -381,36 +383,37 @@ func decodeCommunities(data []byte) string {
 		var b textbuf.Buffer
 		comms = append(comms, b.Reset().Uint16(high).Byte(':').Uint16(low).String())
 	}
-	return strings.Join(comms, " ")
+	return textbuf.Join(comms, " ")
 }
 
 func decodeExtCommunities(data []byte) string {
 	var comms []string
+	var tb textbuf.Buffer
 	for i := 0; i+8 <= len(data); i += 8 {
-		comms = append(comms, "0x"+hex.EncodeToString(data[i:i+8]))
+		comms = append(comms, tb.Reset().Str("0x").Hex(data[i:i+8]).String())
 	}
-	return strings.Join(comms, " ")
+	return textbuf.Join(comms, " ")
 }
 
 // String returns a human-readable representation.
 func (m *DecodedMessage) String() string {
-	var sb strings.Builder
+	var b textbuf.Buffer
 
-	fmt.Fprintf(&sb, "%s (len=%d)\n", m.Type, m.Length)
+	b.Str(m.Type).Str(" (len=").Int(int64(m.Length)).Str(")\n")
 
 	for _, attr := range m.Attributes {
-		fmt.Fprintf(&sb, "  %s: %s\n", attr.Name, attr.Value)
+		b.Str("  ").Str(attr.Name).Str(": ").Str(attr.Value).Byte('\n')
 	}
 
 	if len(m.NLRI) > 0 {
-		fmt.Fprintf(&sb, "  NLRI: %s\n", strings.Join(m.NLRI, ", "))
+		b.Str("  NLRI: ").Join(m.NLRI, ", ").Byte('\n')
 	}
 
 	if len(m.Withdrawn) > 0 {
-		fmt.Fprintf(&sb, "  WITHDRAWN: %s\n", strings.Join(m.Withdrawn, ", "))
+		b.Str("  WITHDRAWN: ").Join(m.Withdrawn, ", ").Byte('\n')
 	}
 
-	return sb.String()
+	return b.String()
 }
 
 // Diff compares two messages and returns a human-readable diff.
@@ -418,30 +421,28 @@ func Diff(expected, received string) string {
 	expMsg, expErr := DecodeMessage(expected)
 	rcvMsg, rcvErr := DecodeMessage(received)
 
-	var sb strings.Builder
-	sb.WriteString("\n--- Expected vs Received ---\n")
+	var sb textbuf.Buffer
+	sb.Str("\n--- Expected vs Received ---\n")
 
 	if expErr != nil {
-		fmt.Fprintf(&sb, "Expected (decode error): %v\n", expErr)
-		fmt.Fprintf(&sb, "  Raw: %s\n", expected)
+		sb.Str("Expected (decode error): ").Err(expErr).Byte('\n')
+		sb.Str("  Raw: ").Str(expected).Byte('\n')
 	} else {
-		fmt.Fprintf(&sb, "Expected: %s", expMsg.String())
+		sb.Str("Expected: ").Str(expMsg.String())
 	}
 
-	sb.WriteString("\n")
+	sb.Byte('\n')
 
 	if rcvErr != nil {
-		fmt.Fprintf(&sb, "Received (decode error): %v\n", rcvErr)
-		fmt.Fprintf(&sb, "  Raw: %s\n", received)
+		sb.Str("Received (decode error): ").Err(rcvErr).Byte('\n')
+		sb.Str("  Raw: ").Str(received).Byte('\n')
 	} else {
-		fmt.Fprintf(&sb, "Received: %s", rcvMsg.String())
+		sb.Str("Received: ").Str(rcvMsg.String())
 	}
 
-	// Show attribute differences if both decoded successfully
 	if expErr == nil && rcvErr == nil {
-		sb.WriteString("\nDifferences:\n")
+		sb.Str("\nDifferences:\n")
 
-		// Build maps for comparison
 		expAttrs := make(map[string]string)
 		rcvAttrs := make(map[string]string)
 
@@ -452,7 +453,6 @@ func Diff(expected, received string) string {
 			rcvAttrs[a.Name] = a.Value
 		}
 
-		// Find differences
 		allKeys := make(map[string]bool)
 		for k := range expAttrs {
 			allKeys[k] = true
@@ -468,27 +468,26 @@ func Diff(expected, received string) string {
 
 			switch {
 			case !hasExp:
-				fmt.Fprintf(&sb, "  + %s: %s (unexpected)\n", key, rcvVal)
+				sb.Str("  ").Byte('+').Byte(' ').Str(key).Str(": ").Str(rcvVal).Str(" (unexpected)\n")
 				hasDiff = true
 			case !hasRcv:
-				fmt.Fprintf(&sb, "  - %s: %s (missing)\n", key, expVal)
+				sb.Str("  - ").Str(key).Str(": ").Str(expVal).Str(" (missing)\n")
 				hasDiff = true
 			case expVal != rcvVal:
-				fmt.Fprintf(&sb, "  ~ %s: expected=%s, got=%s\n", key, expVal, rcvVal)
+				sb.Str("  ~ ").Str(key).Str(": expected=").Str(expVal).Str(", got=").Str(rcvVal).Byte('\n')
 				hasDiff = true
 			}
 		}
 
-		// NLRI differences
-		expNLRI := strings.Join(expMsg.NLRI, ",")
-		rcvNLRI := strings.Join(rcvMsg.NLRI, ",")
+		expNLRI := textbuf.Join(expMsg.NLRI, ",")
+		rcvNLRI := textbuf.Join(rcvMsg.NLRI, ",")
 		if expNLRI != rcvNLRI {
-			fmt.Fprintf(&sb, "  ~ NLRI: expected=%s, got=%s\n", expNLRI, rcvNLRI)
+			sb.Str("  ~ NLRI: expected=").Str(expNLRI).Str(", got=").Str(rcvNLRI).Byte('\n')
 			hasDiff = true
 		}
 
 		if !hasDiff {
-			sb.WriteString("  (no attribute differences detected - check raw bytes)\n")
+			sb.Str("  (no attribute differences detected - check raw bytes)\n")
 		}
 	}
 

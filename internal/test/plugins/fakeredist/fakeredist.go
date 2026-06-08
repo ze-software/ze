@@ -232,7 +232,7 @@ func runEmitBurst(args []string) (json.RawMessage, error) {
 	emitted := 0
 	for range n {
 		var bPfx textbuf.Buffer
-		entry, err := netip.ParsePrefix(bPfx.Reset().Str(addr.String()).Byte('/').Int(int64(bits)).Slice())
+		entry, err := netip.ParsePrefix(bPfx.Reset().Str(addr.String()).Byte('/').Int(int64(bits)).String())
 		if err != nil {
 			return nil, fmt.Errorf("internal: build entry prefix: %w", err)
 		}

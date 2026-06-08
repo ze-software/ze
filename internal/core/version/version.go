@@ -10,11 +10,11 @@
 package version
 
 import (
-	"fmt"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -82,7 +82,8 @@ func Short() string {
 	mu.RLock()
 	v, d := release, buildDate
 	mu.RUnlock()
-	return "ze " + v + " (built " + d + ")"
+	var tb textbuf.Buffer
+	return tb.Str("ze ").Str(v).Str(" (built ").Str(d).Byte(')').String()
 }
 
 // Extended returns multi-line version details including VCS and build metadata.
@@ -92,28 +93,28 @@ func Extended() string {
 	mu.RUnlock()
 	i := readInfo()
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "ze %s (built %s)\n", v, d)
+	var b textbuf.Buffer
+	b.Str("ze ").Str(v).Str(" (built ").Str(d).Str(")\n")
 	if i.commit != "" {
-		commitLine := i.commit
+		b.Str("  commit:   ").Str(i.commit)
 		if i.modified {
-			commitLine += " (modified)"
+			b.Str(" (modified)")
 		}
-		fmt.Fprintf(&b, "  commit:   %s\n", commitLine)
+		b.Byte('\n')
 	}
 	if i.vcsTime != "" {
-		fmt.Fprintf(&b, "  vcs-time: %s\n", i.vcsTime)
+		b.Str("  vcs-time: ").Str(i.vcsTime).Byte('\n')
 	}
-	fmt.Fprintf(&b, "  go:       %s\n", i.goVer)
-	fmt.Fprintf(&b, "  os/arch:  %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	b.Str("  go:       ").Str(i.goVer).Byte('\n')
+	b.Str("  os/arch:  ").Str(runtime.GOOS).Byte('/').Str(runtime.GOARCH)
 	if i.cgo != "" {
 		cgoLabel := "disabled"
 		if i.cgo == "1" {
 			cgoLabel = "enabled"
 		}
-		fmt.Fprintf(&b, "  cgo:      %s\n", cgoLabel)
+		b.Byte('\n').Str("  cgo:      ").Str(cgoLabel)
 	}
-	return strings.TrimRight(b.String(), "\n")
+	return b.String()
 }
 
 // CompareReleases compares two Ze releases (YY.MM.DD format).
@@ -164,13 +165,15 @@ func HTTPHeader() string {
 	mu.RUnlock()
 	i := readInfo()
 
-	parts := []string{i.goVer, runtime.GOOS + "/" + runtime.GOARCH}
+	var tb textbuf.Buffer
+	tb.Str("ze/").Str(v).Str(" (")
 	if i.commit != "" {
-		commit := i.commit
+		tb.Str(i.commit)
 		if i.modified {
-			commit += "+"
+			tb.Byte('+')
 		}
-		parts = append([]string{commit}, parts...)
+		tb.Str("; ")
 	}
-	return "ze/" + v + " (" + strings.Join(parts, "; ") + ")"
+	tb.Str(i.goVer).Str("; ").Str(runtime.GOOS).Byte('/').Str(runtime.GOARCH).Byte(')')
+	return tb.String()
 }

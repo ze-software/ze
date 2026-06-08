@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -85,11 +86,12 @@ func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string, e
 		return handleBgpCacheBatch(ctx, idStr, action, extraArgs)
 	}
 
+	var tb textbuf.Buffer
 	cacheID, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "invalid cache id: " + idStr,
+			Error:  tb.Str("invalid cache id: ").Str(idStr).String(),
 		}, fmt.Errorf("invalid cache id: %w", err)
 	}
 
@@ -105,7 +107,7 @@ func dispatchCacheByID(ctx *pluginserver.CommandContext, action, idStr string, e
 	default:
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "unknown cache action: " + action,
+			Error:  tb.Reset().Str("unknown cache action: ").Str(action).String(),
 		}, fmt.Errorf("unknown action: %s", action)
 	}
 }

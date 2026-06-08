@@ -15,6 +15,7 @@ import (
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // LocalHandler is a function that handles a command locally (in-process),
@@ -83,7 +84,7 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	}
 
 	if !IsValidCommand(treeWords, tree) {
-		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", strings.Join(cmdWords, " "))
+		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", textbuf.Join(cmdWords, " "))
 		if suggestion := SuggestFromTree(cmdWords[0], tree); suggestion != "" {
 			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
 		}
@@ -93,7 +94,7 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 
 	// Group command (has children but no handler) — show subcommands.
 	if node := FindNode(treeWords, tree); node != nil && node.Description == "" && len(node.Children) > 0 {
-		fmt.Fprintf(os.Stderr, "%s subcommands:\n", strings.Join(treeWords, " "))
+		fmt.Fprintf(os.Stderr, "%s subcommands:\n", textbuf.Join(treeWords, " "))
 		PrintChildren(node)
 		return 0
 	}
@@ -101,10 +102,12 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	// Build the run command: tree words + selector as trailing arg.
 	// The CLI resolves the structural command path, then passes the extracted
 	// selector as a regular handler argument.
-	runCmd := strings.Join(treeWords, " ")
+	var tb textbuf.Buffer
+	tb.Join(treeWords, " ")
 	if selector != "" {
-		runCmd += " " + selector
+		tb.Byte(' ').Str(selector)
 	}
+	runCmd := tb.String()
 
 	var cliArgs []string
 	if format != "" {
@@ -327,7 +330,8 @@ func DescribeCommand(cmd *cli.Command) string {
 		subs = append(subs, k)
 	}
 	sort.Strings(subs)
-	return "subcommands: " + strings.Join(subs, ", ")
+	var tb textbuf.Buffer
+	return tb.Str("subcommands: ").Join(subs, ", ").String()
 }
 
 // PrintCommandList writes the formatted command list to stderr.

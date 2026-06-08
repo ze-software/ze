@@ -64,7 +64,7 @@ func execCLI(command string) (string, error) {
 // TraceStart sends "trace add <inputNode> <count>" to VPP.
 func TraceStart(inputNode string, count int) (string, error) {
 	var b textbuf.Buffer
-	cmd := b.Reset().Str("trace add ").Str(inputNode).Byte(' ').Int(int64(count)).Slice()
+	cmd := b.Reset().Str("trace add ").Str(inputNode).Byte(' ').Int(int64(count)).String()
 	return execCLI(cmd)
 }
 

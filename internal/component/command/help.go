@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -152,5 +151,6 @@ func describeChildren(node *Node) string {
 		return b.Reset().Str("subcommands: ").Str(names[0]).Str(", ").Str(names[1]).Str(", ").Str(names[2]).Str(", ... (").Int(int64(len(names))).Str(" total)").String()
 	}
 
-	return "subcommands: " + strings.Join(names, ", ")
+	var tb textbuf.Buffer
+	return tb.Str("subcommands: ").Join(names, ", ").String()
 }

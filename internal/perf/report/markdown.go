@@ -6,8 +6,8 @@ import (
 	"io"
 	"sort"
 	"strconv"
-	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/perf"
 )
 
@@ -143,11 +143,12 @@ func Markdown(results []perf.Result, w io.Writer) error {
 
 		for j := range grouped {
 			r := &grouped[j]
-			line := "| " + r.DUTName + " | " + r.DUTVersion +
-				" | " + fmtMs(r.ConvergenceMs) + " | " + fmtMs(r.ConvergenceStddevMs) +
-				" | " + fmtNum(r.ThroughputAvg) + " | " + fmtNum(r.ThroughputAvgStddev) +
-				" | " + fmtMs(r.LatencyP99Ms) + " | " + fmtMs(r.LatencyP99StddevMs) +
-				" | " + fmtMs(r.WithdrawalMs) + " | " + fmtMs(r.WithdrawalStddevMs) + " |"
+			var tb textbuf.Buffer
+			line := tb.Str("| ").Str(r.DUTName).Str(" | ").Str(r.DUTVersion).
+				Str(" | ").Str(fmtMs(r.ConvergenceMs)).Str(" | ").Str(fmtMs(r.ConvergenceStddevMs)).
+				Str(" | ").Str(fmtNum(r.ThroughputAvg)).Str(" | ").Str(fmtNum(r.ThroughputAvgStddev)).
+				Str(" | ").Str(fmtMs(r.LatencyP99Ms)).Str(" | ").Str(fmtMs(r.LatencyP99StddevMs)).
+				Str(" | ").Str(fmtMs(r.WithdrawalMs)).Str(" | ").Str(fmtMs(r.WithdrawalStddevMs)).Str(" |").String()
 			if _, err := fmt.Fprintln(w, line); err != nil {
 				return fmt.Errorf("writing table row: %w", err)
 			}
@@ -160,7 +161,8 @@ func Markdown(results []perf.Result, w io.Writer) error {
 // fmtNum formats an integer with comma grouping (e.g., 54112 -> "54,112").
 func fmtNum(n int) string {
 	if n < 0 {
-		return "-" + fmtNum(-n)
+		var tb textbuf.Buffer
+		return tb.Byte('-').Str(fmtNum(-n)).String()
 	}
 
 	s := strconv.Itoa(n)
@@ -168,25 +170,25 @@ func fmtNum(n int) string {
 		return s
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 
 	remainder := len(s) % 3
 	if remainder > 0 {
-		b.WriteString(s[:remainder])
+		b.Str(s[:remainder])
 	}
 
 	for i := remainder; i < len(s); i += 3 {
 		if b.Len() > 0 {
-			b.WriteByte(',')
+			b.Byte(',')
 		}
 
-		b.WriteString(s[i : i+3])
+		b.Str(s[i : i+3])
 	}
 
 	return b.String()
 }
 
-// fmtMs formats a millisecond value with comma grouping and "ms" suffix.
 func fmtMs(n int) string {
-	return fmtNum(n) + "ms"
+	var tb textbuf.Buffer
+	return tb.Str(fmtNum(n)).Str("ms").String()
 }

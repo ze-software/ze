@@ -516,9 +516,10 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []LoginWarning {
 		switch issue.Code {
 		case "prefix-stale":
 			label := peerLabelFromSubject(issue.Subject, peerNames)
+			var tb textbuf.Buffer
 			warnings = append(warnings, LoginWarning{
-				Message: label + " has stale prefix data (updated " + detailString(issue.Detail, "updated") + ")",
-				Command: "set bgp peer " + issue.Subject + " prefix",
+				Message: tb.Str(label).Str(" has stale prefix data (updated ").Str(detailString(issue.Detail, "updated")).Byte(')').String(),
+				Command: tb.Reset().Str("set bgp peer ").Str(issue.Subject).Str(" prefix").String(),
 			})
 		case "prefix-threshold":
 			peerAddr, fam, ok := splitThresholdSubject(issue.Subject)
@@ -528,8 +529,9 @@ func collectPrefixWarnings(rl plugin.ReactorIntrospector) []LoginWarning {
 				continue
 			}
 			label := peerLabelFromSubject(peerAddr, peerNames)
+			var tb textbuf.Buffer
 			warnings = append(warnings, LoginWarning{
-				Message: label + " " + fam + " prefix count exceeds warning threshold",
+				Message: tb.Str(label).Byte(' ').Str(fam).Str(" prefix count exceeds warning threshold").String(),
 			})
 		}
 	}
@@ -570,7 +572,8 @@ func peerLabelFromSubject(addr string, lookup map[string]plugin.PeerInfo) string
 	if p, ok := lookup[addr]; ok {
 		return peerLabel(&p)
 	}
-	return "peer " + addr
+	var tb textbuf.Buffer
+	return tb.Str("peer ").Str(addr).String()
 }
 
 // splitThresholdSubject parses the composite subject "<addr>/<afi>/<safi>"

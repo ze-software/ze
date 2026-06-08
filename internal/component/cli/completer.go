@@ -144,9 +144,10 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 					if !c.backendAllowed(child) {
 						continue
 					}
+					var tb textbuf.Buffer
 					cmdCompletions = append(cmdCompletions, Completion{
-						Text:        cmdSet + " " + name,
-						Description: "Set " + name,
+						Text:        tb.Str(cmdSet).Byte(' ').Str(name).String(),
+						Description: tb.Reset().Str("Set ").Str(name).String(),
 						Type:        "keyword",
 					})
 				}
@@ -263,9 +264,12 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 				listName := currentPath[len(currentPath)-1]
 				hint := c.typeHint(keyEntry.Type)
 				return []Completion{{
-					Text:        token,
-					Description: "invalid " + listName + " key (expected " + hint + ")",
-					Type:        "error",
+					Text: token,
+					Description: func() string {
+						var tb textbuf.Buffer
+						return tb.Str("invalid ").Str(listName).Str(" key (expected ").Str(hint).Byte(')').String()
+					}(),
+					Type: "error",
 				}}
 			}
 		}
@@ -571,9 +575,10 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 
 	if prefix == "" && entryCount == 0 {
 		// No entries and nothing typed — show placeholder hint (display-only, not applicable)
+		var tb textbuf.Buffer
 		completions = append(completions, Completion{
 			Text:        "<value>",
-			Description: "New " + listName + " key",
+			Description: tb.Str("New ").Str(listName).Str(" key").String(),
 			Type:        "hint",
 		})
 	} else if prefix != "" && len(completions) == 0 {
@@ -581,17 +586,18 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		// validate against YANG key type before offering as completion.
 		listPath := append(append([]string{}, contextPath...), listName)
 		keyEntry := c.getListKeyEntry(listPath)
+		var tb textbuf.Buffer
 		if validateLeafValue(keyEntry, prefix) {
 			completions = append(completions, Completion{
 				Text:        prefix,
-				Description: "New " + listName + " key",
+				Description: tb.Str("New ").Str(listName).Str(" key").String(),
 				Type:        "list-key",
 			})
 		} else {
 			hint := c.typeHint(keyEntry.Type)
 			completions = append(completions, Completion{
 				Text:        prefix,
-				Description: "invalid " + listName + " key (expected " + hint + ")",
+				Description: tb.Reset().Str("invalid ").Str(listName).Str(" key (expected ").Str(hint).Byte(')').String(),
 				Type:        "warning",
 			})
 		}
@@ -820,7 +826,8 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 
 	// Type hint based on YANG type — hint-only, not applicable by Tab
 	hint := c.typeHint(entry.Type)
-	return []Completion{{Text: "<" + hint + ">", Description: hint + " value", Type: "hint"}}
+	var tb textbuf.Buffer
+	return []Completion{{Text: tb.Byte('<').Str(hint).Byte('>').String(), Description: tb.Reset().Str(hint).Str(" value").String(), Type: "hint"}}
 }
 
 // validateCompletions returns completions from ze:validate CompleteFn if available.
@@ -900,7 +907,7 @@ func (c *Completer) typeHint(t *gyang.YangType) string {
 			}
 		}
 		if len(names) > 0 {
-			return strings.Join(names, " or ")
+			return textbuf.Join(names, " or ")
 		}
 	}
 	// For typedef and other types: use the YANG type name if available
@@ -916,10 +923,11 @@ func (c *Completer) entryDescription(entry *gyang.Entry) string {
 		return ""
 	}
 	// YANG descriptions can be multi-line; collapse to single line for dropdown display.
-	desc := strings.Join(strings.Fields(entry.Description), " ")
+	desc := textbuf.Join(strings.Fields(entry.Description), " ")
 	if entry.Mandatory == gyang.TSTrue && !strings.Contains(desc, "(required)") {
 		if desc != "" {
-			desc += " (required)"
+			var tb textbuf.Buffer
+			desc = tb.Str(desc).Str(" (required)").String()
 		} else {
 			desc = "required"
 		}
@@ -1116,7 +1124,7 @@ func (c *Completer) ValidateValueAtPath(path []string, value string) error {
 	}
 	entry := c.getEntry(path)
 	if entry == nil {
-		return fmt.Errorf("unknown path: %s", strings.Join(path, " "))
+		return fmt.Errorf("unknown path: %s", textbuf.Join(path, " "))
 	}
 	if entry.Kind != gyang.LeafEntry {
 		return fmt.Errorf("%s is not a leaf -- did you forget a value?", path[len(path)-1])
@@ -1124,7 +1132,7 @@ func (c *Completer) ValidateValueAtPath(path []string, value string) error {
 	// Reject config false paths — read-only state cannot be set.
 	// Check the leaf itself and all ancestors (config false is inherited per RFC 7950 §7.21.1).
 	if c.isConfigFalse(path) {
-		return fmt.Errorf("path %s is read-only (config false)", strings.Join(path, " "))
+		return fmt.Errorf("path %s is read-only (config false)", textbuf.Join(path, " "))
 	}
 	// Reject setting a list key leaf — the key is already the list identifier
 	// (e.g., "address" in "peer 1.1.1.1" is the key, not a settable field)

@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errNewKeyMustDifferFromCurrent = errors.New("new key must differ from current key")
@@ -241,7 +242,7 @@ func (e *Editor) writeThroughRename(parentPath []string, listName, oldKey, newKe
 		User:       e.session.User,
 		Source:     e.session.Origin,
 		Time:       e.session.StartTime,
-		ParentPath: strings.Join(parentPath, " "),
+		ParentPath: textbuf.Join(parentPath, " "),
 		ListName:   listName,
 		OldKey:     oldKey,
 		NewKey:     newKey,
@@ -821,11 +822,12 @@ func (e *Editor) CheckDraftChanged() (changed bool, notification string) {
 	e.tree = tree
 	e.meta = draftMeta
 
-	msg := "Draft updated by another session"
+	var tb textbuf.Buffer
+	tb.Str("Draft updated by another session")
 	if meta.ModifiedBy != "" {
-		msg += " (" + meta.ModifiedBy + ")"
+		tb.Str(" (").Str(meta.ModifiedBy).Byte(')')
 	}
-	return true, msg
+	return true, tb.String()
 }
 
 // parseConfigWithFormat reads config content using format auto-detection.

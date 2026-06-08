@@ -20,8 +20,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // oauthAuthenticator implements the authenticator interface for AuthMode=OAuth.
@@ -124,7 +124,7 @@ func (a oauthAuthenticator) challengeError(code, desc string) *authError {
 
 // joinScopes joins scopes with single spaces (RFC 6749 scope serialization).
 func joinScopes(scopes []string) string {
-	return strings.Join(scopes, " ")
+	return textbuf.Join(scopes, " ")
 }
 
 // buildOAuthAuthenticator constructs an oauthAuthenticator from a config +

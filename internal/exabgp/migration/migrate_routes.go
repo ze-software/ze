@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // flexAttrKeywords lists path attribute keywords that go in the attribute block
@@ -52,7 +53,8 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 			}
 
 			// Convert fam name
-			fam := afi + "/" + safi
+			var tb textbuf.Buffer
+			fam := tb.Str(afi).Byte('/').Str(safi).String()
 
 			// Process each route entry
 			for _, routeEntry := range routeList {
@@ -203,7 +205,8 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 						// IPv6: raw attribute (type 25=IPv6 ExtComm, flags 0xC0)
 						// Format: sub-type 0x000c + IPv6 (16 bytes) + local-admin 0x0000
 						ipHex := hex.EncodeToString(ip.To16())
-						rawAttr = "[0x19 0xc0 0x000c" + ipHex + "0000]"
+						var tb textbuf.Buffer
+						rawAttr = tb.Str("[0x19 0xc0 0x000c").Str(ipHex).Str("0000]").String()
 					}
 				case "attribute":
 					rawAttr = value
@@ -226,13 +229,13 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 
 		// Build NLRI content: [rd <rd>] add <criteria...>
 		// FlowSpec-VPN parser expects rd before operation keyword.
-		var nlriContent strings.Builder
+		var nlriContent textbuf.Buffer
 		if rd != "" {
-			nlriContent.WriteString("rd " + rd + " ")
+			nlriContent.Str("rd ").Str(rd).Byte(' ')
 		}
-		nlriContent.WriteString("add")
+		nlriContent.Str("add")
 		for _, c := range nlriCriteria {
-			nlriContent.WriteString(" " + c)
+			nlriContent.Byte(' ').Str(c)
 		}
 
 		// Build update block.
@@ -243,10 +246,12 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 			attrBlock.Set("next-hop", nextHop)
 		}
 		if len(extComms) > 0 {
-			attrBlock.Set("extended-community", "["+strings.Join(extComms, " ")+"]")
+			var tb textbuf.Buffer
+			attrBlock.Set("extended-community", tb.Byte('[').Join(extComms, " ").Byte(']').String())
 		}
 		if community != "" {
-			attrBlock.Set("community", "["+community+"]")
+			var tb textbuf.Buffer
+			attrBlock.Set("community", tb.Byte('[').Str(community).Byte(']').String())
 		}
 		if rawAttr != "" {
 			attrBlock.Set("attribute", rawAttr)
@@ -296,7 +301,8 @@ func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
 	for _, field := range arrayFields {
 		if v, ok := vpls.Get(field); ok {
 			if strings.Contains(v, " ") && !strings.HasPrefix(v, "[") {
-				v = "[" + v + "]"
+				var tb textbuf.Buffer
+				v = tb.Byte('[').Str(v).Byte(']').String()
 			}
 			attrBlock.Set(field, v)
 		}
@@ -321,7 +327,7 @@ func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
 	}
 
 	nlriEntry := config.NewTree()
-	nlriEntry.Set("content", strings.Join(nlriParts, " "))
+	nlriEntry.Set("content", textbuf.Join(nlriParts, " "))
 	update.AddListEntry("nlri", "l2vpn/vpls", nlriEntry)
 
 	dst.AddListEntry("update", "", update)
@@ -381,14 +387,16 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 
 	// Build NLRI value with inline rd/label (config loader parses these from NLRI line).
 	// Format: add [rd VALUE] [label VALUE] prefix
-	nlriValue := prefix
-	if hasLabel {
-		nlriValue = "label " + labelVal + " " + nlriValue
-	}
+	var tb textbuf.Buffer
+	tb.Str("add ")
 	if hasRD {
-		nlriValue = "rd " + rdVal + " " + nlriValue
+		tb.Str("rd ").Str(rdVal).Byte(' ')
 	}
-	nlriValue = "add " + nlriValue
+	if hasLabel {
+		tb.Str("label ").Str(labelVal).Byte(' ')
+	}
+	tb.Str(prefix)
+	nlriValue := tb.String()
 
 	nlriEntry := config.NewTree()
 	nlriEntry.Set("content", nlriValue)
@@ -447,17 +455,18 @@ func parseFlowMatchEntry(key, val string) (string, string) {
 // flowCriterionWithValues formats a FlowSpec criterion for the NLRI line.
 // Adds -ipv4/-ipv6 suffix to source/destination, normalizes operators.
 func flowCriterionWithValues(criterion, value string, isIPv6 bool) string {
+	var tb textbuf.Buffer
 	switch criterion {
 	case "source":
 		if isIPv6 {
-			return "source-ipv6 " + value
+			return tb.Str("source-ipv6 ").Str(value).String()
 		}
-		return "source-ipv4 " + value
+		return tb.Str("source-ipv4 ").Str(value).String()
 	case "destination":
 		if isIPv6 {
-			return "destination-ipv6 " + value
+			return tb.Str("destination-ipv6 ").Str(value).String()
 		}
-		return "destination-ipv4 " + value
+		return tb.Str("destination-ipv4 ").Str(value).String()
 	default: // pass through other criteria unchanged
 		if value == "" {
 			return criterion
@@ -466,10 +475,10 @@ func flowCriterionWithValues(criterion, value string, isIPv6 bool) string {
 		if strings.HasPrefix(value, "[ ") && strings.HasSuffix(value, " ]") {
 			inner := strings.Fields(value[2 : len(value)-2])
 			if len(inner) == 1 {
-				return criterion + " " + inner[0]
+				return tb.Str(criterion).Byte(' ').Str(inner[0]).String()
 			}
 		}
-		return criterion + " " + value
+		return tb.Reset().Str(criterion).Byte(' ').Str(value).String()
 	}
 }
 
@@ -481,7 +490,8 @@ func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
 	// Translate ExaBGP SAFI to Ze canonical SAFI for the family name in the
 	// emitted nlri block. The flex value tokens themselves stay as-is; only
 	// the family key needs to match what Ze's family registry registered.
-	fam := afi + "/" + canonicalSAFI(safi)
+	var tb textbuf.Buffer
+	fam := tb.Str(afi).Byte('/').Str(canonicalSAFI(safi)).String()
 
 	for _, value := range values {
 		attrs, nlriParts := splitFlexAttrs(value)
@@ -524,9 +534,10 @@ func flexNLRIContent(safi string, nlriParts []string) string {
 		}
 		parts = append(parts, "add")
 		parts = append(parts, rest...)
-		return strings.Join(parts, " ")
+		return textbuf.Join(parts, " ")
 	}
-	return "add " + strings.Join(nlriParts, " ")
+	var tb textbuf.Buffer
+	return tb.Str("add ").Join(nlriParts, " ").String()
 }
 
 // splitFlexAttrs separates a flex value string into path attributes and NLRI fields.
@@ -601,7 +612,7 @@ func tokenizeFlexValue(s string) []string {
 				}
 				i++
 			}
-			tokens = append(tokens, strings.Join(parts, " "))
+			tokens = append(tokens, textbuf.Join(parts, " "))
 		case strings.HasPrefix(f, "("):
 			// Collect until paren depth returns to 0
 			var parts []string
@@ -615,7 +626,7 @@ func tokenizeFlexValue(s string) []string {
 					break
 				}
 			}
-			tokens = append(tokens, strings.Join(parts, " "))
+			tokens = append(tokens, textbuf.Join(parts, " "))
 		default: // plain token — no grouping
 			tokens = append(tokens, f)
 			i++

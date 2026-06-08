@@ -7,6 +7,8 @@ package config
 import (
 	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // RequiredViolation reports a missing ze:required field on a list entry.
@@ -78,14 +80,15 @@ func checkListRequired(listNode *ListNode, data map[string]any, anchorPath strin
 				continue
 			}
 			if !hasNestedMapValue(entryData, reqPath) {
-				fieldStr := strings.Join(reqPath, "/")
-				setPath := anchorPath + " " + entryKey + " " + strings.Join(reqPath, " ")
+				fieldStr := textbuf.Join(reqPath, "/")
+				var tb textbuf.Buffer
+				setPath := tb.Str(anchorPath).Byte(' ').Str(entryKey).Byte(' ').Join(reqPath, " ").String()
 				setPath = strings.ReplaceAll(setPath, "/", " ")
 				*violations = append(*violations, RequiredViolation{
 					AnchorPath: anchorPath,
 					EntryKey:   entryKey,
 					FieldPath:  fieldStr,
-					SetHint:    "set " + setPath + " <value>",
+					SetHint:    tb.Reset().Str("set ").Str(setPath).Str(" <value>").String(),
 				})
 			}
 		}
@@ -155,7 +158,8 @@ func appendRequiredPath(prefix, name string) string {
 	if prefix == "" {
 		return name
 	}
-	return prefix + "/" + name
+	var tb textbuf.Buffer
+	return tb.Str(prefix).Byte('/').Str(name).String()
 }
 
 func sortedAnyMapKeys(m map[string]any) []string {

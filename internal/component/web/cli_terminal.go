@@ -115,7 +115,7 @@ func HandleCLITerminalWithAuthorizerAndAudit(mgr *EditorManager, schema *config.
 
 		// After navigation, show config at the new path.
 		if newPath != nil {
-			resp.Path = strings.Join(newPath, "/")
+			resp.Path = textbuf.Join(newPath, "/")
 			resp.Prompt = formatCLIPrompt(newPath)
 			if cmd.Verb == verbEdit || cmd.Verb == verbUp || cmd.Verb == verbTop {
 				resp.Output = serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, newPath)
@@ -182,14 +182,15 @@ func terminalAuditSucceeded(action, output string) bool {
 
 // terminalFeedback returns the message-area feedback line for a command.
 func terminalFeedback(cmd cliCommand, output string) string {
+	var tb textbuf.Buffer
 	switch cmd.Verb {
 	case verbSet:
 		if len(cmd.Args) >= 2 { //nolint:mnd // set <key> <value>
-			return "set " + cmd.Args[0] + " = " + strings.Join(cmd.Args[1:], " ")
+			return tb.Str("set ").Str(cmd.Args[0]).Str(" = ").Join(cmd.Args[1:], " ").String()
 		}
 	case verbDelete:
 		if len(cmd.Args) >= 1 {
-			return "deleted " + cmd.Args[0]
+			return tb.Str("deleted ").Str(cmd.Args[0]).String()
 		}
 	case verbCommit:
 		if strings.HasPrefix(output, "error") || strings.HasPrefix(output, "commit conflicts") {
@@ -199,7 +200,7 @@ func terminalFeedback(cmd cliCommand, output string) string {
 	case verbDiscard:
 		return terminalOutputChangesDiscarded
 	case verbEdit:
-		return "edit " + strings.Join(cmd.Args, " ")
+		return tb.Str("edit ").Join(cmd.Args, " ").String()
 	case verbUp:
 		return "up"
 	case verbTop:
@@ -215,7 +216,8 @@ func terminalFeedback(cmd cliCommand, output string) string {
 // using the same cli.ApplyPipeFilter as the SSH CLI.
 func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username string, contextPath []string, cmd cliCommand) (newPath []string, output string) {
 	if !knownCLIVerbs[cmd.Verb] && cmd.Verb != "" {
-		return nil, "unknown command: " + cmd.Verb
+		var tb textbuf.Buffer
+		return nil, tb.Str("unknown command: ").Str(cmd.Verb).String()
 	}
 
 	// Check for pipe in args: split into command args and pipe filters.
@@ -225,7 +227,8 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		filters := cli.ParsePipeFilters(allTokens[pipeIdx+1:])
 		opts, classErr := cli.ClassifyShowPipes(filters)
 		if classErr != nil {
-			return nil, "pipe error: " + classErr.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("pipe error: ").Err(classErr).String()
 		}
 
 		newPath, output = executeTerminalNav(schema, viewTree, mgr, username, contextPath, baseCmd)
@@ -248,7 +251,8 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		for _, f := range opts.TextFilters {
 			filtered, err := cli.ApplyPipeFilter(output, f)
 			if err != nil {
-				return newPath, "pipe error: " + err.Error()
+				var tb textbuf.Buffer
+				return newPath, tb.Str("pipe error: ").Err(err).String()
 			}
 			output = filtered
 		}
@@ -260,7 +264,8 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		target := append(append([]string{}, contextPath...), cmd.Args...)
 		if len(target) > 0 {
 			if _, err := walkSchema(schema, target); err != nil {
-				return nil, "invalid path: " + err.Error()
+				var tb textbuf.Buffer
+				return nil, tb.Str("invalid path: ").Err(err).String()
 			}
 		}
 		return target, ""
@@ -282,7 +287,8 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		return nil, executeTerminalCommit(mgr, username)
 	case verbDiscard:
 		if err := mgr.Discard(username); err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
 		return nil, terminalOutputChangesDiscarded
 	case verbWho:
@@ -290,34 +296,36 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		if len(sessions) == 0 {
 			return nil, "no active sessions"
 		}
-		var buf strings.Builder
-		buf.WriteString("active sessions:\n")
+		var buf textbuf.Buffer
+		buf.Str("active sessions:\n")
 		for _, s := range sessions {
-			fmt.Fprintf(&buf, "  %s\n", s)
+			buf.Str("  ").Str(s).Byte('\n')
 		}
 		return nil, buf.String()
 	case verbCompare:
 		target := cli.SrcConfirmed
 		if len(cmd.Args) > 0 {
-			target = strings.Join(cmd.Args, " ")
+			target = textbuf.Join(cmd.Args, " ")
 		}
 		return nil, compareTargetAtPath(viewTree, mgr, username, schema, contextPath, target, cli.FmtTree)
 	case verbSave:
 		if err := mgr.SaveDraft(username); err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
 		return nil, "changes saved to draft"
 	case verbHistory:
 		backups, err := mgr.ListBackups(username)
 		if err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
 		if len(backups) == 0 {
 			return nil, "no backups found"
 		}
-		var buf strings.Builder
+		var buf textbuf.Buffer
 		for i, b := range backups {
-			fmt.Fprintf(&buf, "%d. %s  %s\n", i+1, b.Timestamp, b.Path)
+			buf.Int(int64(i + 1)).Str(". ").Str(b.Timestamp).Str("  ").Str(b.Path).Byte('\n')
 		}
 		return nil, buf.String()
 	case verbRollback:
@@ -326,20 +334,24 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		}
 		n, err := strconv.Atoi(cmd.Args[0])
 		if err != nil {
-			return nil, "invalid backup number: " + cmd.Args[0]
+			var tb textbuf.Buffer
+			return nil, tb.Str("invalid backup number: ").Str(cmd.Args[0]).String()
 		}
 		backups, bErr := mgr.ListBackups(username)
 		if bErr != nil {
-			return nil, "error: " + bErr.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(bErr).String()
 		}
 		if n < 1 || n > len(backups) {
-			var bMsg textbuf.Buffer
-			return nil, bMsg.Reset().Str("backup ").Int(int64(n)).Str(" not found (have ").Int(int64(len(backups))).Str(" backups)").String()
+			var tb textbuf.Buffer
+			return nil, tb.Str("backup ").Int(int64(n)).Str(" not found (have ").Int(int64(len(backups))).Str(" backups)").String()
 		}
 		if err := mgr.Rollback(username, backups[n-1].Path); err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
-		return nil, "rolled back to " + backups[n-1].Path
+		var tb textbuf.Buffer
+		return nil, tb.Str("rolled back to ").Str(backups[n-1].Path).String()
 	case verbRename:
 		if len(cmd.Args) < 4 || cmd.Args[len(cmd.Args)-2] != "to" {
 			return nil, "usage: rename <list> <old-name> to <new-name>"
@@ -354,9 +366,11 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		listName := fullPath[len(fullPath)-2]
 		parentPath := fullPath[:len(fullPath)-2]
 		if err := mgr.RenameListEntry(username, parentPath, listName, oldKey, newKey); err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
-		return nil, "renamed " + listName + " " + oldKey + " to " + newKey
+		var tb textbuf.Buffer
+		return nil, tb.Str("renamed ").Str(listName).Byte(' ').Str(oldKey).Str(" to ").Str(newKey).String()
 	case verbCopy:
 		if len(cmd.Args) < 4 || cmd.Args[len(cmd.Args)-2] != "to" {
 			return nil, "usage: copy <list> <source> to <destination>"
@@ -371,36 +385,44 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 		listName := fullPath[len(fullPath)-2]
 		parentPath := fullPath[:len(fullPath)-2]
 		if err := mgr.CopyListEntry(username, parentPath, listName, srcKey, dstKey); err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
-		return nil, "copied " + listName + " " + srcKey + " to " + dstKey
+		var tb textbuf.Buffer
+		return nil, tb.Str("copied ").Str(listName).Byte(' ').Str(srcKey).Str(" to ").Str(dstKey).String()
 	case verbInsert:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: insert <path>"
 		}
 		insertPath := append(append([]string{}, contextPath...), cmd.Args...)
 		if err := mgr.CreateEntry(username, insertPath); err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
-		return nil, "inserted entry at " + strings.Join(cmd.Args, " ")
+		var tb textbuf.Buffer
+		return nil, tb.Str("inserted entry at ").Join(cmd.Args, " ").String()
 	case verbDeactivate:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: deactivate <path>"
 		}
 		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
 		if err := mgr.DeactivatePath(username, fullPath); err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
-		return nil, "deactivated " + strings.Join(cmd.Args, " ")
+		var tb textbuf.Buffer
+		return nil, tb.Str("deactivated ").Join(cmd.Args, " ").String()
 	case verbActivate:
 		if len(cmd.Args) < 1 {
 			return nil, "usage: activate <path>"
 		}
 		fullPath := append(append([]string{}, contextPath...), cmd.Args...)
 		if err := mgr.ActivatePath(username, fullPath); err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
-		return nil, "activated " + strings.Join(cmd.Args, " ")
+		var tb textbuf.Buffer
+		return nil, tb.Str("activated ").Join(cmd.Args, " ").String()
 	case verbErrors:
 		return nil, mgr.Compare(username)
 	case verbDisconnect:
@@ -408,9 +430,11 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 			return nil, "usage: disconnect <session-id>"
 		}
 		if err := mgr.DisconnectSession(username, cmd.Args[0]); err != nil {
-			return nil, "error: " + err.Error()
+			var tb textbuf.Buffer
+			return nil, tb.Str("error: ").Err(err).String()
 		}
-		return nil, "disconnected session " + cmd.Args[0]
+		var tb textbuf.Buffer
+		return nil, tb.Str("disconnected session ").Str(cmd.Args[0]).String()
 	case verbHelp:
 		return nil, `commands:
   edit <path>          Enter a subsection context
@@ -446,7 +470,8 @@ func executeTerminalNav(schema *config.Schema, viewTree *config.Tree, mgr *Edito
 func compareTargetAtPath(committed *config.Tree, mgr *EditorManager, username string, schema *config.Schema, path []string, target, format string) string {
 	baseline, err := compareBaselineTree(committed, mgr, username, schema, target)
 	if err != nil {
-		return "compare " + compareTargetLabel(target) + ": " + err.Error()
+		var tb textbuf.Buffer
+		return tb.Str("compare ").Str(compareTargetLabel(target)).Str(": ").Err(err).String()
 	}
 	return compareTreesAtPath(baseline, displayTree(committed, mgr, username), schema, path, format)
 }
@@ -547,19 +572,15 @@ func textDiff(original, modified string) string {
 	modLines := nonEmptyLines(modified)
 	lcs := lcsLines(origLines, modLines)
 
-	var buf strings.Builder
+	var buf textbuf.Buffer
 	oi, mi, li := 0, 0, 0
 	for li < len(lcs) {
 		for oi < len(origLines) && origLines[oi] != lcs[li] {
-			buf.WriteString("- ")
-			buf.WriteString(origLines[oi])
-			buf.WriteByte('\n')
+			buf.Str("- ").Str(origLines[oi]).Byte('\n')
 			oi++
 		}
 		for mi < len(modLines) && modLines[mi] != lcs[li] {
-			buf.WriteString("+ ")
-			buf.WriteString(modLines[mi])
-			buf.WriteByte('\n')
+			buf.Str("+ ").Str(modLines[mi]).Byte('\n')
 			mi++
 		}
 		oi++
@@ -567,15 +588,11 @@ func textDiff(original, modified string) string {
 		li++
 	}
 	for oi < len(origLines) {
-		buf.WriteString("- ")
-		buf.WriteString(origLines[oi])
-		buf.WriteByte('\n')
+		buf.Str("- ").Str(origLines[oi]).Byte('\n')
 		oi++
 	}
 	for mi < len(modLines) {
-		buf.WriteString("+ ")
-		buf.WriteString(modLines[mi])
-		buf.WriteByte('\n')
+		buf.Str("+ ").Str(modLines[mi]).Byte('\n')
 		mi++
 	}
 	if buf.Len() == 0 {
@@ -675,15 +692,16 @@ func executeTerminalSet(mgr *EditorManager, username string, contextPath, args [
 		return "error: usage: set <leaf> <value>"
 	}
 
+	var tb textbuf.Buffer
 	if err := ValidatePathSegments([]string{args[0]}); err != nil {
-		return "error: invalid leaf name: " + args[0]
+		return tb.Str("error: invalid leaf name: ").Str(args[0]).String()
 	}
 
-	if err := mgr.SetValue(username, contextPath, args[0], strings.Join(args[1:], " ")); err != nil {
-		return "error: " + err.Error()
+	if err := mgr.SetValue(username, contextPath, args[0], textbuf.Join(args[1:], " ")); err != nil {
+		return tb.Reset().Str("error: ").Err(err).String()
 	}
 
-	return "set " + args[0] + " = " + strings.Join(args[1:], " ")
+	return tb.Reset().Str("set ").Str(args[0]).Str(" = ").Join(args[1:], " ").String()
 }
 
 // executeTerminalDelete handles the delete command in terminal mode.
@@ -692,30 +710,32 @@ func executeTerminalDelete(mgr *EditorManager, username string, contextPath, arg
 		return "error: usage: delete <leaf>"
 	}
 
+	var tb textbuf.Buffer
 	if err := ValidatePathSegments([]string{args[0]}); err != nil {
-		return "error: invalid leaf name: " + args[0]
+		return tb.Str("error: invalid leaf name: ").Str(args[0]).String()
 	}
 
 	if err := mgr.DeleteValue(username, contextPath, args[0]); err != nil {
-		return "error: " + err.Error()
+		return tb.Reset().Str("error: ").Err(err).String()
 	}
 
-	return "deleted " + args[0]
+	return tb.Reset().Str("deleted ").Str(args[0]).String()
 }
 
 // executeTerminalCommit handles the commit command in terminal mode.
 func executeTerminalCommit(mgr *EditorManager, username string) string {
 	result, err := mgr.Commit(username)
 	if err != nil {
-		return "error: " + err.Error()
+		var tb textbuf.Buffer
+		return tb.Str("error: ").Err(err).String()
 	}
 
 	if len(result.Conflicts) > 0 {
-		var msg strings.Builder
-		msg.WriteString("commit conflicts:\n")
+		var msg textbuf.Buffer
+		msg.Str("commit conflicts:\n")
 
 		for _, c := range result.Conflicts {
-			fmt.Fprintf(&msg, "  %s: want %q, other (%s) has %q\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
+			msg.Str("  ").Str(c.Path).Str(": want ").Quoted(c.MyValue).Str(", other (").Str(c.OtherUser).Str(") has ").Quoted(c.OtherValue).Byte('\n')
 		}
 
 		return msg.String()
@@ -781,18 +801,18 @@ func HandleCLIModeToggle(mgr *EditorManager, schema *config.Schema, renderer *Re
 func writeTerminalContent(w http.ResponseWriter, contextPath []string) {
 	prompt := formatCLIPrompt(contextPath)
 
-	var buf strings.Builder
-	fmt.Fprintf(&buf, `<div class="terminal-container" id="content-area">`)
-	fmt.Fprintf(&buf, `<div class="terminal-scrollback" id="terminal-scrollback"></div>`)
-	fmt.Fprintf(&buf, `<div class="terminal-input-line">`)
-	fmt.Fprintf(&buf, `<span class="terminal-prompt">%s</span>`, template.HTMLEscapeString(prompt))
-	fmt.Fprintf(&buf, `<input type="text" class="terminal-input" id="terminal-input" `)
-	fmt.Fprintf(&buf, `autocomplete="off" spellcheck="false" `)
-	fmt.Fprintf(&buf, `hx-post="/cli/terminal" hx-trigger="keydown[key=='Enter']" `)
-	fmt.Fprintf(&buf, `hx-target="#terminal-scrollback" hx-swap="beforeend" `)
-	fmt.Fprintf(&buf, `hx-include="this" name="command">`)
-	fmt.Fprintf(&buf, `</div>`)
-	fmt.Fprintf(&buf, `</div>`)
+	var buf textbuf.Buffer
+	buf.Str(`<div class="terminal-container" id="content-area">`)
+	buf.Str(`<div class="terminal-scrollback" id="terminal-scrollback"></div>`)
+	buf.Str(`<div class="terminal-input-line">`)
+	buf.Str(`<span class="terminal-prompt">`).Str(template.HTMLEscapeString(prompt)).Str(`</span>`)
+	buf.Str(`<input type="text" class="terminal-input" id="terminal-input" `)
+	buf.Str(`autocomplete="off" spellcheck="false" `)
+	buf.Str(`hx-post="/cli/terminal" hx-trigger="keydown[key=='Enter']" `)
+	buf.Str(`hx-target="#terminal-scrollback" hx-swap="beforeend" `)
+	buf.Str(`hx-include="this" name="command">`)
+	buf.Str(`</div>`)
+	buf.Str(`</div>`)
 
 	writeHTML(w, buf.String())
 }
@@ -804,12 +824,12 @@ func writeCLIResponse(w http.ResponseWriter, renderer *Renderer, path []string, 
 	crumbs := buildBreadcrumbs(path)
 	prompt := formatCLIPrompt(path)
 
-	var buf strings.Builder
+	var buf textbuf.Buffer
 
 	// Main content area (must match layout.html element for outerHTML swap).
-	fmt.Fprintf(&buf, `<main class="content-area" id="content-area">`)
+	buf.Str(`<main class="content-area" id="content-area">`)
 	buildViewDataHTML(&buf, viewData)
-	fmt.Fprintf(&buf, `</main>`)
+	buf.Str(`</main>`)
 
 	// OOB breadcrumb update.
 	buildBreadcrumbOOB(&buf, crumbs)
@@ -825,7 +845,7 @@ func writeCLIResponse(w http.ResponseWriter, renderer *Renderer, path []string, 
 
 // writeCLINotification writes only a notification OOB swap (for error responses).
 func writeCLINotification(w http.ResponseWriter, message, notifType string) {
-	var buf strings.Builder
+	var buf textbuf.Buffer
 	buildNotificationOOB(&buf, message, notifType)
 	writeHTML(w, buf.String())
 }
@@ -849,11 +869,12 @@ type PathBarSegment struct {
 // buildPathBarSegments returns the pre-computed segments for the CLI path bar.
 func buildPathBarSegments(path []string) []PathBarSegment {
 	segments := make([]PathBarSegment, len(path))
+	var tb textbuf.Buffer
 	for i, seg := range path {
-		joined := strings.Join(path[:i+1], "/")
+		joined := tb.Reset().Join(path[:i+1], "/").String()
 		segments[i] = PathBarSegment{
 			Name:   seg,
-			URL:    "/show/" + joined + "/",
+			URL:    tb.Reset().Str("/show/").Str(joined).Byte('/').String(),
 			HxPath: joined,
 		}
 	}
@@ -863,119 +884,108 @@ func buildPathBarSegments(path []string) []PathBarSegment {
 
 // buildPathBarOOB appends a CLI path bar OOB swap using the path_bar_inner
 // template rendered via the Renderer. Falls back to empty if renderer is nil.
-func buildPathBarOOB(buf *strings.Builder, path []string, renderer *Renderer) {
-	fmt.Fprintf(buf, `<div class="cli-path-bar" id="cli-path-bar" hx-swap-oob="innerHTML">`)
+func buildPathBarOOB(buf *textbuf.Buffer, path []string, renderer *Renderer) {
+	buf.Str(`<div class="cli-path-bar" id="cli-path-bar" hx-swap-oob="innerHTML">`)
 	if renderer != nil {
 		data := struct {
 			CLIPathSegments []PathBarSegment
 		}{CLIPathSegments: buildPathBarSegments(path)}
-		buf.WriteString(string(renderer.RenderFragment("path_bar_inner", data)))
+		buf.Str(string(renderer.RenderFragment("path_bar_inner", data)))
 	}
-	fmt.Fprintf(buf, `</div>`)
+	buf.Str(`</div>`)
 }
 
 // buildContextOOB appends a hidden context path OOB swap element to buf.
-func buildContextOOB(buf *strings.Builder, path []string) {
-	fmt.Fprintf(buf, `<span id="cli-context-path" class="is-hidden" hx-swap-oob="true">%s</span>`,
-		template.HTMLEscapeString(strings.Join(path, "/")))
+func buildContextOOB(buf *textbuf.Buffer, path []string) {
+	buf.Str(`<span id="cli-context-path" class="is-hidden" hx-swap-oob="true">`).Str(template.HTMLEscapeString(textbuf.Join(path, "/"))).Str(`</span>`)
 }
 
 // buildBreadcrumbOOB appends a breadcrumb OOB swap element to buf.
-func buildBreadcrumbOOB(buf *strings.Builder, crumbs []BreadcrumbSegment) {
-	fmt.Fprintf(buf, `<nav class="breadcrumb-bar" id="breadcrumb-bar" hx-swap-oob="innerHTML">`)
+func buildBreadcrumbOOB(buf *textbuf.Buffer, crumbs []BreadcrumbSegment) {
+	buf.Str(`<nav class="breadcrumb-bar" id="breadcrumb-bar" hx-swap-oob="innerHTML">`)
 	buildBreadcrumbHTML(buf, crumbs)
-	fmt.Fprintf(buf, `</nav>`)
+	buf.Str(`</nav>`)
 }
 
 // buildPromptOOB appends a CLI prompt OOB swap element to buf.
-func buildPromptOOB(buf *strings.Builder, prompt string) {
-	fmt.Fprintf(buf, `<span class="cli-prompt" id="cli-prompt" hx-swap-oob="innerHTML">%s</span>`,
-		template.HTMLEscapeString(prompt))
+func buildPromptOOB(buf *textbuf.Buffer, prompt string) {
+	buf.Str(`<span class="cli-prompt" id="cli-prompt" hx-swap-oob="innerHTML">`).Str(template.HTMLEscapeString(prompt)).Str(`</span>`)
 }
 
 // buildNotificationOOB appends a notification OOB swap element to buf.
-func buildNotificationOOB(buf *strings.Builder, message, notifType string) {
+func buildNotificationOOB(buf *textbuf.Buffer, message, notifType string) {
 	cssClass := "notification-info"
 	if notifType == "error" {
 		cssClass = "notification-error"
 	}
 
-	fmt.Fprintf(buf, `<aside class="notification-bar %s" id="notification-bar" hx-swap-oob="true">%s</aside>`,
-		cssClass, template.HTMLEscapeString(message))
+	buf.Str(`<aside class="notification-bar `).Str(cssClass).Str(`" id="notification-bar" hx-swap-oob="true">`).Str(template.HTMLEscapeString(message)).Str(`</aside>`)
 }
 
 // buildViewDataHTML writes a simple HTML representation of ConfigViewData to buf.
-func buildViewDataHTML(buf *strings.Builder, data *ConfigViewData) {
+func buildViewDataHTML(buf *textbuf.Buffer, data *ConfigViewData) {
 	if data == nil {
 		return
 	}
 
 	if len(data.Children) > 0 {
-		fmt.Fprintf(buf, `<ul class="config-children">`)
+		buf.Str(`<ul class="config-children">`)
 
 		for _, child := range data.Children {
-			fmt.Fprintf(buf, `<li><a href="%s" class="config-link config-link-%s">%s</a></li>`,
-				template.HTMLEscapeString(child.URL),
-				template.HTMLEscapeString(child.Kind),
-				template.HTMLEscapeString(child.Name))
+			buf.Str(`<li><a href="`).Str(template.HTMLEscapeString(child.URL)).Str(`" class="config-link config-link-`).Str(template.HTMLEscapeString(child.Kind)).Str(`">`).Str(template.HTMLEscapeString(child.Name)).Str(`</a></li>`)
 		}
 
-		fmt.Fprintf(buf, `</ul>`)
+		buf.Str(`</ul>`)
 	}
 
 	if len(data.Keys) > 0 {
-		prefix := "/show/"
+		var tb textbuf.Buffer
+		tb.Str("/show/")
 		if len(data.Path) > 0 {
-			prefix += strings.Join(data.Path, "/") + "/"
+			tb.Join(data.Path, "/").Byte('/')
 		}
+		prefix := tb.String()
 
-		fmt.Fprintf(buf, `<ul class="config-keys">`)
+		buf.Str(`<ul class="config-keys">`)
 
 		for _, key := range data.Keys {
-			fmt.Fprintf(buf, `<li><a href="%s%s/">%s</a></li>`,
-				template.HTMLEscapeString(prefix),
-				template.HTMLEscapeString(key),
-				template.HTMLEscapeString(key))
+			buf.Str(`<li><a href="`).Str(template.HTMLEscapeString(prefix)).Str(template.HTMLEscapeString(key)).Str(`/">`).Str(template.HTMLEscapeString(key)).Str(`</a></li>`)
 		}
 
-		fmt.Fprintf(buf, `</ul>`)
+		buf.Str(`</ul>`)
 	}
 
 	if len(data.LeafFields) > 0 {
-		fmt.Fprintf(buf, `<table class="config-leaves"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>`)
+		buf.Str(`<table class="config-leaves"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>`)
 
+		var tb textbuf.Buffer
 		for i := range data.LeafFields {
 			f := &data.LeafFields[i]
 			val := f.Value
 			if val == "" && f.Default != "" {
-				val = f.Default + " (default)"
+				val = tb.Reset().Str(f.Default).Str(" (default)").String()
 			}
 
-			fmt.Fprintf(buf, `<tr><td>%s</td><td>%s</td></tr>`,
-				template.HTMLEscapeString(f.Name),
-				template.HTMLEscapeString(val))
+			buf.Str(`<tr><td>`).Str(template.HTMLEscapeString(f.Name)).Str(`</td><td>`).Str(template.HTMLEscapeString(val)).Str(`</td></tr>`)
 		}
 
-		fmt.Fprintf(buf, `</tbody></table>`)
+		buf.Str(`</tbody></table>`)
 	}
 }
 
 // buildBreadcrumbHTML writes breadcrumb navigation HTML to buf.
-func buildBreadcrumbHTML(buf *strings.Builder, crumbs []BreadcrumbSegment) {
-	fmt.Fprintf(buf, `<ol class="breadcrumb-list">`)
+func buildBreadcrumbHTML(buf *textbuf.Buffer, crumbs []BreadcrumbSegment) {
+	buf.Str(`<ol class="breadcrumb-list">`)
 
 	for _, seg := range crumbs {
 		if seg.Active {
-			fmt.Fprintf(buf, `<li class="breadcrumb-item breadcrumb-active"><span>%s</span></li>`,
-				template.HTMLEscapeString(seg.Name))
+			buf.Str(`<li class="breadcrumb-item breadcrumb-active"><span>`).Str(template.HTMLEscapeString(seg.Name)).Str(`</span></li>`)
 		} else {
-			fmt.Fprintf(buf, `<li class="breadcrumb-item"><a href="%s">%s</a></li>`,
-				template.HTMLEscapeString(seg.URL),
-				template.HTMLEscapeString(seg.Name))
+			buf.Str(`<li class="breadcrumb-item"><a href="`).Str(template.HTMLEscapeString(seg.URL)).Str(`">`).Str(template.HTMLEscapeString(seg.Name)).Str(`</a></li>`)
 		}
 	}
 
-	fmt.Fprintf(buf, `</ol>`)
+	buf.Str(`</ol>`)
 }
 
 // buildConfigEditURL constructs the /config/edit/ URL for a context path.
@@ -984,5 +994,6 @@ func buildConfigEditURL(path []string) string {
 		return configEditPath
 	}
 
-	return configEditPath + strings.Join(path, "/") + "/"
+	var tb textbuf.Buffer
+	return tb.Str(configEditPath).Join(path, "/").Byte('/').String()
 }

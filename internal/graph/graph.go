@@ -4,7 +4,11 @@
 
 package graph
 
-import "sort"
+import (
+	"sort"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 // Graph represents an AS path topology as nodes (ASes) and edges (peering links).
 type Graph struct {
@@ -107,23 +111,9 @@ func BuildGraphFromPaths(paths [][]uint32) *Graph {
 
 // FormatNodeLabel returns the display label for a graph node.
 func FormatNodeLabel(n Node) string {
+	var tb textbuf.Buffer
 	if n.Name != "" {
-		return "AS" + uitoa(n.ASN) + " " + n.Name
+		return tb.Str("AS").Uint32(n.ASN).Byte(' ').Str(n.Name).String()
 	}
-	return "AS" + uitoa(n.ASN)
-}
-
-// uitoa converts a uint32 to its decimal string representation.
-func uitoa(v uint32) string {
-	if v == 0 {
-		return "0"
-	}
-	var buf [10]byte
-	i := len(buf)
-	for v > 0 {
-		i--
-		buf[i] = byte('0' + v%10)
-		v /= 10
-	}
-	return string(buf[i:])
+	return tb.Str("AS").Uint32(n.ASN).String()
 }

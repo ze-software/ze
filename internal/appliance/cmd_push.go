@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/appliance/updater"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errNoImagesFoundRunzeAppliance = errors.New("no images found; run `ze appliance build <name>` first")
@@ -130,7 +131,8 @@ func pushOne(name, imageFile string, opts pushOpts) int {
 	}
 
 	hostPort := net.JoinHostPort(cfg.Device.Address, strconv.Itoa(port))
-	baseURL := "https://" + hostPort + "/"
+	var tb textbuf.Buffer
+	baseURL := tb.Str("https://").Str(hostPort).Byte('/').String()
 
 	// Open the image once and use the same handle for checksum verification and
 	// streaming, so the verified bytes are exactly the bytes pushed (no
@@ -207,7 +209,8 @@ func listAddressedAppliances() ([]string, int) {
 // re-opening by path would leave a window for the file to be replaced between
 // verification and streaming.
 func verifyImageChecksum(f *os.File, imgPath string) error {
-	checksumPath := imgPath + ".sha256"
+	var tbChk textbuf.Buffer
+	checksumPath := tbChk.Str(imgPath).Str(".sha256").String()
 	checksumData, err := os.ReadFile(checksumPath) //nolint:gosec // appliance file
 	if err != nil {
 		// No .sha256 sidecar: checksum verification is optional, so skip it.

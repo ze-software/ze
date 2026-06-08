@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const defaultPeeringDBURL = "https://www.peeringdb.com"
@@ -77,7 +77,7 @@ func cmdPeeringDB(ctx context.Context, args []string) int {
 
 	default:
 		fmt.Fprintf(os.Stderr, "unknown peeringdb operation: %s\n", op)
-		fmt.Fprintf(os.Stderr, "valid operations: %s\n", strings.Join(peeringDBOperations, ", "))
+		fmt.Fprintf(os.Stderr, "valid operations: %s\n", textbuf.Join(peeringDBOperations, ", "))
 		return exitError
 	}
 

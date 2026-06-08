@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // handleAPIStatus returns router status in birdwatcher format (GET /api/looking-glass/status).
@@ -75,7 +77,8 @@ func (s *LGServer) handleAPIRoutesProtocol(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result := s.query("show bgp rib peer " + name)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib peer ").Str(name).String())
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -105,7 +108,8 @@ func (s *LGServer) handleAPIRoutesPeer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query("show bgp rib peer " + peer)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib peer ").Str(peer).String())
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -135,7 +139,8 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.query("show bgp rib best " + fam)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib best ").Str(fam).String())
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -174,7 +179,8 @@ func (s *LGServer) handleAPIBMPRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query("show bgp rib-protocol bmp " + name)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib-protocol bmp ").Str(name).String())
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -209,7 +215,8 @@ func transformBMPProtocols(ze map[string]any) map[string]any {
 
 		state := peerState(isUp)
 
-		name := router + ":" + bgpID
+		var tb textbuf.Buffer
+		name := tb.Str(router).Byte(':').Str(bgpID).String()
 		protocols[name] = map[string]any{
 			"bird_protocol":   name,
 			"state":           state,
@@ -254,7 +261,8 @@ func (s *LGServer) handleAPIRoutesExport(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	result := s.query("show bgp rib sent peer " + name)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib sent peer ").Str(name).String())
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -293,7 +301,8 @@ func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result := s.query("show bgp rib count peer " + name)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib count peer ").Str(name).String())
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -318,7 +327,8 @@ func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	result := s.query("show bgp rib prefix " + prefix)
+	var tb textbuf.Buffer
+	result := s.query(tb.Str("show bgp rib prefix ").Str(prefix).String())
 
 	zeData := parseJSON(result)
 	if zeData == nil {

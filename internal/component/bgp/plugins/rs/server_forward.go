@@ -8,9 +8,9 @@ import (
 	"context"
 	"net/netip"
 	"sort"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // batchForwardUpdateSkipped forwards a cached UPDATE to only the peers that
@@ -59,7 +59,7 @@ func (rs *RouteServer) batchForwardUpdateSkipped(key workerKey, sourcePeer strin
 	}
 
 	sort.Strings(targets)
-	sel := strings.Join(targets, ",")
+	sel := textbuf.Join(targets, ",")
 
 	if batch.selector != "" && batch.selector != sel {
 		rs.flushBatch(batch)
@@ -150,7 +150,7 @@ func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 		return
 	}
 
-	sel := strings.Join(targets, ",")
+	sel := textbuf.Join(targets, ",")
 
 	// Selector changed — flush old batch, start fresh.
 	if batch.selector != "" && batch.selector != sel {

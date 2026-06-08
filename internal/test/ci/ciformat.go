@@ -3,7 +3,11 @@
 // Package ciformat provides shared utilities for parsing .ci test files.
 package ci
 
-import "strings"
+import (
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 // ParseKVPairs parses key=value pairs from colon-separated parts.
 // Special handling for known keys that may contain colons in values (json, text, hex).
@@ -11,7 +15,7 @@ func ParseKVPairs(parts []string) map[string]string {
 	kv := make(map[string]string)
 
 	// Rejoin parts to handle values containing colons
-	joined := strings.Join(parts, ":")
+	joined := textbuf.Join(parts, ":")
 
 	// Known keys that may have complex values containing colons
 	complexKeys := []string{"json=", "text=", "hex=", "pattern="}

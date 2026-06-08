@@ -15,6 +15,8 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // CHAP packet codes from RFC 1994 Section 4. The authenticator drives
@@ -245,7 +247,8 @@ func drawCHAPChallenge(dst []byte) error {
 func (s *pppSession) runCHAPAuthPhase() bool {
 	var value [chapChallengeValueLen]byte
 	if err := drawCHAPChallenge(value[:]); err != nil {
-		s.fail("chap: crypto/rand: " + err.Error())
+		var tb textbuf.Buffer
+		s.fail(tb.Str("chap: crypto/rand: ").Err(err).String())
 		return false
 	}
 	s.chapIdentifier++
@@ -308,7 +311,8 @@ func (s *pppSession) runCHAPAuthPhase() bool {
 	// Mirror runPAPAuthPhase reject path: emit EventSessionDown on the
 	// lifecycle channel via s.fail before EventAuthFailure on the auth
 	// channel, so the transport can tear the session down.
-	s.fail("chap: auth rejected: " + decision.message)
+	var tb textbuf.Buffer
+	s.fail(tb.Str("chap: auth rejected: ").Str(decision.message).String())
 	s.sendAuthEvent(EventAuthFailure{
 		TunnelID:  s.tunnelID,
 		SessionID: s.sessionID,

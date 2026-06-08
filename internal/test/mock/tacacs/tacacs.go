@@ -1,6 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md -- mock TACACS+ server for AAA testing
 
-
 package tacacs
 
 import (
@@ -16,6 +15,7 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/tacacs"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 type tacacsMockUser struct {
@@ -26,7 +26,7 @@ type tacacsMockUser struct {
 
 type tacacsUserList []tacacsMockUser
 
-func (u *tacacsUserList) String() string { return strconv.Itoa(len(*u)) + " users" }
+func (u *tacacsUserList) String() string { return textbuf.IntStr(int64(len(*u)), " users") }
 
 func (u *tacacsUserList) Set(s string) error {
 	parts := strings.Split(s, ":")
@@ -51,7 +51,7 @@ var connCounter atomic.Uint64
 
 type stringSliceFlag []string
 
-func (s *stringSliceFlag) String() string { return strings.Join(*s, ",") }
+func (s *stringSliceFlag) String() string { return textbuf.Join(*s, ",") }
 
 func (s *stringSliceFlag) Set(v string) error { *s = append(*s, v); return nil }
 
@@ -280,7 +280,8 @@ func parseAuthorCmd(body []byte) string {
 	if len(cmdArgs) == 0 {
 		return cmd
 	}
-	return cmd + " " + strings.Join(cmdArgs, " ")
+	var tb textbuf.Buffer
+	return tb.Str(cmd).Byte(' ').Join(cmdArgs, " ").String()
 }
 
 func tacacsMockReplyAcct(conn net.Conn, hdr tacacs.PacketHeader, body, key []byte, replyFlags uint8, logPackets bool) {

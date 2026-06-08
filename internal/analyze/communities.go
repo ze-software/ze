@@ -1,4 +1,3 @@
-
 // Design: (none -- research/analysis tool)
 //
 // Analyzes MRT dumps to generate per-ASN community defaults. Identifies which
@@ -16,7 +15,8 @@ import (
 	"os"
 	"slices"
 	"sort"
-	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // commAnalysis holds all community analysis state.
@@ -198,7 +198,8 @@ func commPrintYAML(st *commAnalysis, threshold float64, minRoutes int, postPolic
 	fmt.Println("# assumed as 'defaults' in a cache. Only exceptions (routes missing a")
 	fmt.Println("# default community) need explicit encoding, saving wire bytes.")
 	fmt.Println("#")
-	fmt.Printf("# Source: %s\n", strings.Join(st.Files, ", "))
+	var tb textbuf.Buffer
+	fmt.Fprintf(os.Stdout, "# Source: %s\n", tb.Join(st.Files, ", ").String()) //nolint:errcheck // CLI output
 	fmt.Printf("# Total routes analyzed: %d\n", st.TotalRoutes)
 	fmt.Printf("# Threshold for defaults: %.0f%%\n", threshold*100)
 	fmt.Printf("# Minimum routes per ASN: %d\n", minRoutes)

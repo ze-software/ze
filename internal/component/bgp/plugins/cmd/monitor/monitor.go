@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"sync/atomic"
 
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
@@ -137,7 +136,7 @@ func formatHeader(opts *monitorOpts) string {
 		parts = append(parts, "peer="+opts.peer)
 	}
 	if len(opts.eventTypes) > 0 {
-		parts = append(parts, "event="+strings.Join(opts.eventTypes, ","))
+		parts = append(parts, "event="+textbuf.Join(opts.eventTypes, ","))
 	}
 	if opts.direction != "" {
 		parts = append(parts, "direction="+opts.direction)
@@ -146,7 +145,7 @@ func formatHeader(opts *monitorOpts) string {
 	if len(parts) == 0 {
 		return "monitoring: all events, all peers"
 	}
-	return "monitoring: " + strings.Join(parts, " ")
+	return "monitoring: " + textbuf.Join(parts, " ")
 }
 
 // buildSubscriptions creates Subscription objects from parsed monitor options.

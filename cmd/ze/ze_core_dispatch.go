@@ -1,7 +1,7 @@
 // Design: docs/architecture/system-architecture.md -- ze core dispatch and commands
 //
 // Ze personality: YANG verbs, config file dispatch, global flags, root commands.
-// Included only in ze_core builds (ze, ze-appliance, ze-setup).
+// Included only in ze_core builds (ze, ze-appliance).
 
 //go:build ze_core
 
@@ -27,6 +27,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
@@ -214,7 +215,8 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 				fmt.Fprintf(os.Stderr, "error: --mcp port must be 1-65535, got %q\n", args[1])
 				return nil, 1
 			}
-			zeFlags.mcpAddr = "127.0.0.1:" + args[1]
+			var tb textbuf.Buffer
+			zeFlags.mcpAddr = tb.Str("127.0.0.1:").Str(args[1]).String()
 			args = args[2:]
 		case "--mcp-token":
 			if len(args) < 2 {
@@ -288,10 +290,11 @@ func zeDispatch(args []string) int {
 			yangTree := cli.YANGCommandTree()
 			yangNode := command.FindNode(yangTree, helpPath)
 
-			pathStr := strings.Join(helpPath, " ")
+			pathStr := textbuf.Join(helpPath, " ")
 			fmt.Fprintf(os.Stderr, "Usage: ze %s <command> [options]\n\n", pathStr)
 			if yangNode != nil && yangNode.Description != "" {
-				label := strings.ToUpper(helpPath[len(helpPath)-1][:1]) + helpPath[len(helpPath)-1][1:]
+				var lb textbuf.Buffer
+				label := lb.Str(strings.ToUpper(helpPath[len(helpPath)-1][:1])).Str(helpPath[len(helpPath)-1][1:]).String()
 				fmt.Fprintf(os.Stderr, "%s (%s).\n\n", label, yangNode.Description)
 			}
 			fmt.Fprintf(os.Stderr, "Available commands:\n")
@@ -306,7 +309,7 @@ func zeDispatch(args []string) int {
 		readOnly := command.IsReadOnlyVerb(arg)
 		code := cmdutil.RunCommand(args, readOnly, arg)
 		if code == -1 {
-			fmt.Fprintf(os.Stderr, "unknown %s command: %s\n", arg, strings.Join(args[1:], " "))
+			fmt.Fprintf(os.Stderr, "unknown %s command: %s\n", arg, textbuf.Join(args[1:], " "))
 			fmt.Fprintf(os.Stderr, "hint: run 'ze %s help' for available commands\n", arg)
 			return 1
 		}
@@ -326,9 +329,10 @@ func zeDispatch(args []string) int {
 	webEnabled := zeFlags.webPort != ""
 	webListenAddr := ""
 	if webEnabled {
-		webListenAddr = "0.0.0.0:" + zeFlags.webPort
+		var wb textbuf.Buffer
+		webListenAddr = wb.Str("0.0.0.0:").Str(zeFlags.webPort).String()
 		if zeFlags.insecureWeb {
-			webListenAddr = "127.0.0.1:" + zeFlags.webPort
+			webListenAddr = wb.Reset().Str("127.0.0.1:").Str(zeFlags.webPort).String()
 		}
 	}
 	if zeFlags.insecureWeb && !webEnabled {

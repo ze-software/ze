@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errFlowspecNlriRequiresMatchCriteria = errors.New("flowspec nlri requires match criteria")
@@ -59,17 +60,17 @@ func parseFlowSpecNLRILine(line string, attr *config.Tree) (FlowSpecRouteConfig,
 
 	// Get community from attributes
 	if items := attr.GetSlice("community"); len(items) > 0 {
-		fr.Community = strings.Join(items, " ")
+		fr.Community = textbuf.Join(items, " ")
 	}
 
 	// Get extended-community from attributes (actions per RFC 8955 Section 7)
 	if items := attr.GetSlice("extended-community"); len(items) > 0 {
-		fr.ExtendedCommunity = strings.Join(items, " ")
+		fr.ExtendedCommunity = textbuf.Join(items, " ")
 	}
 
 	// Get raw attribute (e.g., for IPv6 Extended Community attr 25)
 	if items := attr.GetSlice("attribute"); len(items) > 0 {
-		fr.Attribute = strings.Join(items, " ")
+		fr.Attribute = textbuf.Join(items, " ")
 	}
 
 	// Parse NLRI match criteria from remaining parts
@@ -207,10 +208,12 @@ func parseFlowSpecRoute(name string, route *config.Tree) FlowSpecRouteConfig {
 
 	// Combine explicit extended-community with action-based ones
 	if len(extComms) > 0 {
+		joined := textbuf.Join(extComms, " ")
 		if r.ExtendedCommunity != "" {
-			r.ExtendedCommunity += " " + strings.Join(extComms, " ")
+			var tb textbuf.Buffer
+			r.ExtendedCommunity = tb.Str(r.ExtendedCommunity).Byte(' ').Str(joined).String()
 		} else {
-			r.ExtendedCommunity = strings.Join(extComms, " ")
+			r.ExtendedCommunity = joined
 		}
 	}
 

@@ -7,9 +7,9 @@ package web
 import (
 	"html/template"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // groupEntry holds extracted fields for one BGP peer group.
@@ -61,7 +61,7 @@ func extractGroupEntry(name string, groupTree *config.Tree) groupEntry {
 		for _, f := range families {
 			names = append(names, f.Key)
 		}
-		ge.Families = strings.Join(names, ", ")
+		ge.Families = textbuf.Join(names, ", ")
 	}
 
 	return ge
@@ -77,10 +77,12 @@ func BuildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 	}
 
 	rows := make([]WorkbenchTableRow, 0, len(groups))
+	var tb textbuf.Buffer
 	for _, ge := range groups {
+		groupURL := tb.Reset().Str("/show/bgp/group/").Str(ge.Name).Byte('/').String()
 		rows = append(rows, WorkbenchTableRow{
 			Key: ge.Name,
-			URL: "/show/bgp/group/" + ge.Name + "/",
+			URL: groupURL,
 			Cells: []string{
 				ge.Name,
 				strconv.Itoa(ge.PeerCount),
@@ -88,8 +90,8 @@ func BuildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 				valueOrDash(ge.Families),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Peers", URL: "/show/bgp/peer/?group=" + ge.Name},
-				{Label: "Edit", URL: "/show/bgp/group/" + ge.Name + "/"},
+				{Label: "View Peers", URL: tb.Reset().Str("/show/bgp/peer/?group=").Str(ge.Name).String()},
+				{Label: "Edit", URL: groupURL},
 			},
 		})
 	}

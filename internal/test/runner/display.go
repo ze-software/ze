@@ -80,10 +80,11 @@ func (d *Display) SetParallel(parallel, total int) {
 // Aligns label position with PASS/FAIL in summary lines.
 func headerLine(colors *Colors, label string) string {
 	prefix := "═══ "
-	l := label + " "
+	var tb textbuf.Buffer
+	l := tb.Str(label).Byte(' ').String()
 	// Use rune count, not byte length — ═ is 3 UTF-8 bytes but 1 visual column.
 	padRight := max(0, summaryWidth-utf8.RuneCountInString(prefix)-len(l))
-	return colors.Cyan(prefix) + l + colors.Cyan(strings.Repeat("═", padRight))
+	return tb.Reset().Str(colors.Cyan(prefix)).Str(l).Str(colors.Cyan(strings.Repeat("═", padRight))).String()
 }
 
 // Header prints a section header for the test suite.
@@ -192,52 +193,52 @@ func (d *Display) Status() {
 	// Running count with test names when <= 5
 	if running > 0 {
 		var bRunning textbuf.Buffer
-		runningStr := bRunning.Reset().Str(d.colors.Cyan("running")).Byte(' ').Int(int64(running)).String()
+		bRunning.Str(d.colors.Cyan("running")).Byte(' ').Int(int64(running))
 		if running <= 5 && len(runningTests) > 0 {
-			runningStr += " [" + strings.Join(runningTests, ", ") + "]"
+			bRunning.Str(" [").Join(runningTests, ", ").Byte(']')
 		}
-		parts = append(parts, runningStr)
+		parts = append(parts, bRunning.String())
 	}
 
 	// Failed tests with nick:name
 	if failed > 0 {
 		var bFailed textbuf.Buffer
-		failedStr := bFailed.Reset().Str(d.colors.Red("failed")).Byte(' ').Int(int64(failed)).String()
+		bFailed.Str(d.colors.Red("failed")).Byte(' ').Int(int64(failed))
 		if len(failedTests) > 0 {
 			shown := failedTests
 			if len(shown) > 3 {
 				shown = shown[:3]
 			}
-			failedStr += " [" + strings.Join(shown, ", ") + "]"
+			bFailed.Str(" [").Join(shown, ", ").Byte(']')
 		}
-		parts = append(parts, failedStr)
+		parts = append(parts, bFailed.String())
 	}
 
 	// Timed out tests with nick:name
 	if timedOut > 0 {
 		var bTimeout textbuf.Buffer
-		timedOutStr := bTimeout.Reset().Str(d.colors.Yellow("timed out")).Byte(' ').Int(int64(timedOut)).String()
+		bTimeout.Str(d.colors.Yellow("timed out")).Byte(' ').Int(int64(timedOut))
 		if len(timedOutTests) > 0 {
 			shown := timedOutTests
 			if len(shown) > 3 {
 				shown = shown[:3]
 			}
-			timedOutStr += " [" + strings.Join(shown, ", ") + "]"
+			bTimeout.Str(" [").Join(shown, ", ").Byte(']')
 		}
-		parts = append(parts, timedOutStr)
+		parts = append(parts, bTimeout.String())
 	}
 
 	// Pending count (show names when <= 5 remaining)
 	if pending > 0 {
 		var bPending textbuf.Buffer
-		pendingStr := bPending.Reset().Str(d.colors.Gray("pending")).Byte(' ').Int(int64(pending)).String()
+		bPending.Str(d.colors.Gray("pending")).Byte(' ').Int(int64(pending))
 		if pending <= 5 {
-			pendingStr += " [" + strings.Join(pendingTests, ", ") + "]"
+			bPending.Str(" [").Join(pendingTests, ", ").Byte(']')
 		}
-		parts = append(parts, pendingStr)
+		parts = append(parts, bPending.String())
 	}
 
-	status := strings.Join(parts, " ")
+	status := textbuf.Join(parts, " ")
 
 	// Clear line and print status
 	if d.colors.Enabled() {
@@ -371,29 +372,29 @@ func (d *Display) Summary() {
 		rate = float64(passed) / float64(total) * 100
 	}
 
-	var b strings.Builder
+	var b textbuf.Buffer
 
 	if allPassed {
-		b.WriteString(d.colors.Green("pass"))
+		b.Str(d.colors.Green("pass"))
 	} else {
-		b.WriteString(d.colors.Red("fail"))
+		b.Str(d.colors.Red("fail"))
 	}
 
-	fmt.Fprintf(&b, "  %d/%d  %.1f%%  %s", passed, total, rate, formatDuration(elapsed))
+	b.Str("  ").Int(int64(passed)).Byte('/').Int(int64(total)).Str("  ").Float(rate, 1).Str("%  ").Str(formatDuration(elapsed))
 
 	if failed > 0 {
 		nicks := d.tests.FailedNicks()
-		fmt.Fprintf(&b, "  %s %d [%s]", d.colors.Red("failed"), failed, strings.Join(nicks, ", "))
+		b.Str("  ").Str(d.colors.Red("failed")).Byte(' ').Int(int64(failed)).Str(" [").Join(nicks, ", ").Byte(']')
 	}
 
 	if timedOut > 0 {
 		nicks := d.tests.TimedOutNicks()
-		fmt.Fprintf(&b, "  %s %d [%s]", d.colors.Yellow("timeout"), timedOut, strings.Join(nicks, ", "))
+		b.Str("  ").Str(d.colors.Yellow("timeout")).Byte(' ').Int(int64(timedOut)).Str(" [").Join(nicks, ", ").Byte(']')
 	}
 
 	if skipped > 0 {
 		nicks := d.tests.SkippedNicks()
-		fmt.Fprintf(&b, "  %s %d [%s]", d.colors.Gray("skip"), skipped, strings.Join(nicks, ", "))
+		b.Str("  ").Str(d.colors.Gray("skip")).Byte(' ').Int(int64(skipped)).Str(" [").Join(nicks, ", ").Byte(']')
 	}
 
 	d.println(b.String())
@@ -434,13 +435,15 @@ func (d *Display) BuildStatus(building bool, err error) {
 
 	switch {
 	case building:
-		d.print(d.colors.Cyan("building...") + " ")
+		var tb textbuf.Buffer
+		d.print(tb.Str(d.colors.Cyan("building...")).Byte(' ').String())
 	case err != nil:
 		d.Printf("%s %v\n", d.colors.Red("build failed:"), err)
 	default:
 		if d.colors.Enabled() {
 			// TTY: status updates will overwrite this line
-			d.print(d.colors.Green("ready") + " ")
+			var tb2 textbuf.Buffer
+			d.print(tb2.Str(d.colors.Green("ready")).Byte(' ').String())
 		} else {
 			// Non-TTY: end line since no status updates follow
 			d.println(d.colors.Green("ready"))

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // cmdShow displays configuration content.
@@ -116,7 +117,8 @@ func (m *Model) cmdShowFiltered(filter string, textFilters []PipeFilter) (comman
 	}
 
 	if content == "" {
-		return commandResult{output: "(no " + filter + " configuration)"}, nil
+		var tb textbuf.Buffer
+		return commandResult{output: tb.Str("(no ").Str(filter).Str(" configuration)").String()}, nil
 	}
 
 	if len(textFilters) == 0 {

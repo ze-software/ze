@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -74,8 +75,9 @@ func resolveInitrd() (string, error) {
 	toolsDst := filepath.Join(initrdToolsDir, "build", initrdFileName)
 
 	if baseURL := env.Get(initrdURLKey); baseURL != "" {
-		artifactURL := baseURL + "/" + version + "/" + initrdFileName
-		checksumURL := artifactURL + checksumSuffix
+		var tb textbuf.Buffer
+		artifactURL := tb.Str(baseURL).Byte('/').Str(version).Byte('/').Str(initrdFileName).String()
+		checksumURL := tb.Reset().Str(artifactURL).Str(checksumSuffix).String()
 		if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
 			if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
 				fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning

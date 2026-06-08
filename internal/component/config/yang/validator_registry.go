@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // CustomValidator provides both validation and completion for a ze:validate function.
@@ -131,7 +132,7 @@ func CheckAllValidatorsRegistered(loader *Loader, reg *ValidatorRegistry) error 
 	}
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		return fmt.Errorf("missing validator registrations: %s", strings.Join(missing, ", "))
+		return fmt.Errorf("missing validator registrations: %s", textbuf.Join(missing, ", "))
 	}
 	return nil
 }

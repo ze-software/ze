@@ -1,6 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md -- mock RTR cache server for RPKI testing
 
-
 package rtr
 
 import (
@@ -15,6 +14,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -38,7 +38,7 @@ type vrpFlag struct {
 
 type vrpList []vrpFlag
 
-func (v *vrpList) String() string { return strconv.Itoa(len(*v)) + " VRPs" }
+func (v *vrpList) String() string { return textbuf.IntStr(int64(len(*v)), " VRPs") }
 
 func (v *vrpList) Set(s string) error {
 	parts := strings.SplitN(s, ",", 3)
@@ -76,7 +76,7 @@ type aspaFlag struct {
 
 type aspaList []aspaFlag
 
-func (a *aspaList) String() string { return strconv.Itoa(len(*a)) + " ASPAs" }
+func (a *aspaList) String() string { return textbuf.IntStr(int64(len(*a)), " ASPAs") }
 
 func (a *aspaList) Set(s string) error {
 	parts := strings.SplitN(s, ":", 2)

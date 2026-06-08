@@ -20,6 +20,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // Env var registrations for BGP config overrides are centralized in config/environment.go.
@@ -629,7 +630,7 @@ func ValidatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 			names = append(names, "process "+b.PluginName)
 		}
 		return fmt.Errorf("peer %s: %s requires process with send [ update ]\n  configured: %s - none have send [ update ]",
-			ps.Address, capName, strings.Join(names, ", "))
+			ps.Address, capName, textbuf.Join(names, ", "))
 	}
 	return nil
 }

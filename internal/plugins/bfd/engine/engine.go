@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/auth"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
@@ -408,7 +409,8 @@ func buildAuthPair(req api.SessionRequest, key api.Key) (*session.AuthPair, erro
 	}
 	pair := &session.AuthPair{Signer: signer, Verifier: verifier}
 	if req.Auth.Meticulous && req.PersistDir != "" {
-		keyStr := key.Peer.String() + "-" + key.VRF + "-" + key.Mode.String()
+		var tb textbuf.Buffer
+		keyStr := tb.Addr(key.Peer).Byte('-').Str(key.VRF).Byte('-').Str(key.Mode.String()).String()
 		p, perr := auth.NewSeqPersister(req.PersistDir, keyStr)
 		if perr != nil {
 			return nil, perr
