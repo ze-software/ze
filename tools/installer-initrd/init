@@ -27,6 +27,8 @@ HASH_FILE="/tmp/ze-image.sha256"
 WGET_ERR="/tmp/ze-wget.err"
 WGET_RC_FILE="/tmp/ze-wget.rc"
 ISO_MOUNT="/mnt/iso"
+VENTOY_DATA_MOUNT="/mnt/ventoy"
+VENTOY_USB_DISK=""
 
 # -- helpers --
 
@@ -242,8 +244,13 @@ is_skipped_disk_name() {
 }
 
 is_source_disk_name() {
-    [ -n "$ISO_SOURCE_DISK" ] || return 1
-    [ "$1" = "$ISO_SOURCE_DISK" ]
+    if [ -n "$ISO_SOURCE_DISK" ] && [ "$1" = "$ISO_SOURCE_DISK" ]; then
+        return 0
+    fi
+    if [ -n "$VENTOY_USB_DISK" ] && [ "$1" = "$VENTOY_USB_DISK" ]; then
+        return 0
+    fi
+    return 1
 }
 
 find_target_disk() {
@@ -454,6 +461,72 @@ find_iso_media() {
     return 1
 }
 
+# Search FAT/exFAT partitions for ISO files containing our installer media.
+# Handles Ventoy and similar multi-boot USB tools where the ISO is a file on
+# a FAT partition rather than written directly to the device. On success,
+# sets ISO_SOURCE_DEV, ISO_SOURCE_DISK, VENTOY_USB_DISK and leaves the ISO
+# mounted at ISO_MOUNT.
+try_loop_mount_iso() {
+    for i in 0 1 2 3 4 5 6 7; do
+        [ -b "/dev/loop$i" ] || mknod "/dev/loop$i" b 7 "$i" 2>/dev/null || true
+    done
+    mkdir -p "$VENTOY_DATA_MOUNT"
+
+    for dev in /sys/block/*; do
+        [ -d "$dev" ] || continue
+        name="$(basename "$dev")"
+        is_skipped_disk_name "$name" && continue
+
+        for node in /dev/"$name"[0-9]* /dev/"$name"p[0-9]*; do
+            [ -b "$node" ] || continue
+
+            part_mounted=0
+            for fstype in vfat exfat; do
+                if mount -t "$fstype" -o ro "$node" "$VENTOY_DATA_MOUNT" 2>/dev/null; then
+                    part_mounted=1
+                    break
+                fi
+            done
+            [ "$part_mounted" = "1" ] || continue
+
+            for iso in "$VENTOY_DATA_MOUNT"/*.iso "$VENTOY_DATA_MOUNT"/*/*.iso; do
+                [ -f "$iso" ] || continue
+
+                loop_dev=""
+                for i in 0 1 2 3 4 5 6 7; do
+                    if losetup "/dev/loop$i" "$iso" 2>/dev/null; then
+                        loop_dev="/dev/loop$i"
+                        break
+                    fi
+                done
+                [ -n "$loop_dev" ] || continue
+
+                if mount -t iso9660 -o ro "$loop_dev" "$ISO_MOUNT" 2>/dev/null; then
+                    media_id_path="$ISO_MOUNT/ze-install/media-id"
+                    if [ -f "$ISO_MOUNT/ze-install/manifest.json" ] && \
+                       [ -f "$ISO_MOUNT/ze-install/images/$ZE_IMAGE" ] && \
+                       [ -f "$media_id_path" ]; then
+                        candidate_media_id="$(cat "$media_id_path" 2>/dev/null)"
+                        if [ "$candidate_media_id" = "$ZE_MEDIA_ID" ]; then
+                            ISO_SOURCE_DEV="$loop_dev"
+                            ISO_SOURCE_DISK="$(disk_name_from_path "$loop_dev")"
+                            VENTOY_USB_DISK="$name"
+                            log "Found installer ISO on $node via $loop_dev"
+                            return 0
+                        fi
+                    fi
+                    umount "$ISO_MOUNT" 2>/dev/null || true
+                fi
+                losetup -d "$loop_dev" 2>/dev/null || true
+            done
+
+            umount "$VENTOY_DATA_MOUNT" 2>/dev/null || true
+        done
+    done
+
+    return 1
+}
+
 local_image_to_disk() {
     image="$1"
     checksum="$2"
@@ -539,7 +612,10 @@ main() {
         log "Server: $ZE_SERVER:$ZE_PORT"
     else
         if ! find_iso_media; then
-            fatal "No ze installer ISO media containing $ZE_IMAGE found"
+            log "Direct ISO media not found, scanning FAT/exFAT partitions..."
+            if ! try_loop_mount_iso; then
+                fatal "No ze installer ISO media containing $ZE_IMAGE found"
+            fi
         fi
         log "ISO media: $ISO_SOURCE_DEV"
     fi

@@ -304,6 +304,13 @@ The generated ISO includes the installer kernel, initrd, the selected image,
 its checksum, and metadata. It contains the full provisioned appliance image, so
 handle it like the `.img` artifact.
 
+**USB write method:** the ISO can be written with `dd`, Etcher, or Rufus in DD
+mode. Ventoy is also supported when the installer kernel includes loop device
+and FAT/exFAT filesystem support (the `hardware` kernel profile has this). The
+initrd detects the ISO file on the Ventoy data partition, loop-mounts it, and
+proceeds with the installation. When using the `qemu` kernel profile, Ventoy
+is not supported.
+
 ISO installs power off after the disk write so the removable installer media can
 be removed before the next boot. They do not auto-reboot while the ISO is still
 present.
@@ -577,7 +584,8 @@ write unit tests without requiring QEMU or real hardware.
 
 The initrd is a single static busybox plus symlinks. The Makefile symlinks
 every applet the init script uses (`sh cat mount umount mkdir sleep wget dd
-sync reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee` ...), and `/init`
+sync reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee losetup
+mknod` ...), and `/init`
 also runs `busybox --install -s /bin` at boot as defence in depth. A missing
 applet would otherwise surface only at install time as a `not found` error and
 a kernel panic, so the init avoids non-essential externals (for example it

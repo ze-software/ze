@@ -44,6 +44,8 @@ assert_invalid_target_path() {
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
+VENTOY_USB_DISK=""
+
 validate_decimal_mock() {
     case "$1" in
         ""|*[!0-9]*) return 1 ;;
@@ -102,8 +104,13 @@ is_skipped_disk_name_mock() {
 }
 
 is_source_disk_name_mock() {
-    [ -n "$ISO_SOURCE_DISK" ] || return 1
-    [ "$1" = "$ISO_SOURCE_DISK" ]
+    if [ -n "$ISO_SOURCE_DISK" ] && [ "$1" = "$ISO_SOURCE_DISK" ]; then
+        return 0
+    fi
+    if [ -n "$VENTOY_USB_DISK" ] && [ "$1" = "$VENTOY_USB_DISK" ]; then
+        return 0
+    fi
+    return 1
 }
 
 # Redirect /sys/block and /dev checks to our mock tree.
@@ -279,6 +286,17 @@ for path in /dev/mmcblk0boot0 /dev/mmcblk0boot1 /dev/mmcblk0rpmb; do
     assert_eq "explicit-emmc-pseudo-target-error-$path" "ze.target '$path' is not a supported whole-disk /dev path" "$TARGET_DISK_ERROR"
 done
 
+
+# Test 19: Ventoy USB disk is excluded from target candidates (loop device
+# is the ISO source, physical USB disk is tracked via VENTOY_USB_DISK).
+mkdir -p "$TMPDIR/test19/block/sda" "$TMPDIR/test19/block/nvme0n1"
+echo "0" > "$TMPDIR/test19/block/sda/removable"
+echo "0" > "$TMPDIR/test19/block/nvme0n1/removable"
+VENTOY_USB_DISK="sda"
+find_target_disk_mock "$TMPDIR/test19" iso loop0
+assert_eq "ventoy-usb-excluded" "/dev/nvme0n1" "$TARGET_DISK"
+assert_eq "ventoy-usb-excluded-no-error" "" "$TARGET_DISK_ERROR"
+VENTOY_USB_DISK=""
 
 assert_eq "multi-digit-sd-source-disk" "sda" "$(disk_name_from_path_mock /dev/sda10)"
 echo "---"

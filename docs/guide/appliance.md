@@ -507,6 +507,13 @@ The ISO contains the full provisioned appliance image, including the embedded
 ZeFS database. Handle the ISO with the same care as the `.img` file.
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- stageISO -->
 
+**USB write method:** the ISO can be written with `dd`, Etcher, or Rufus in DD
+mode. Ventoy is also supported when the installer kernel includes loop device
+and FAT/exFAT filesystem support (the `hardware` kernel profile has this). The
+initrd detects the ISO file on the Ventoy data partition, loop-mounts it, and
+proceeds with the installation. When using the `qemu` kernel profile, Ventoy
+is not supported.
+
 ### Remote operations (push, config-push)
 
 Push a built image to a running gokrazy device via its HTTPS update endpoint:
