@@ -147,3 +147,4 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | Know which hooks will check your code | `ai/rules/hook-mapping.md` -- pre-flight checklist by file type |
 | Understand how Ze differs from standard Go | `ai/rules/ze-divergences.md` -- buffer-first, registration, YANG, etc. |
 | Answer a factual question about file content | `ai/rules/no-fabrication.md` -- report only what the source explicitly states, never infer |
+| Modify the installer initrd | `ai/rules/initrd-no-external-tools.md` -- use procfs/sysfs, not external commands; isolate unavoidable ioctl deps in helpers |

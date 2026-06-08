@@ -59,4 +59,6 @@ test:
 	@sh test/test-disk-detect.sh
 	@sh test/test-iso-media.sh
 	@sh test/test-download.sh
+	@sh test/test-ventoy-detect.sh
+	@sh test/test-ensure-network.sh
 	@echo "All tests passed."

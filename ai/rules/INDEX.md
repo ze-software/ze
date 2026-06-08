@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 69 rules
+Total: 72 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -40,11 +40,13 @@ Total: 69 rules
 | Functional Test Gate | Every user-facing behavior MUST have a functional test that exercises it through a user entry point. Unit tests (`_test.go`) prove internal logic. Functional tests (`.ci`, `.et`) prove the feature... | `ai/rules/functional-test-gate.md` |
 | Git Safety | Read before any git operation or writing a commit script; covers the AI-tool git bans, the user-run commit-script path, and verify-status handling. | `ai/rules/git-safety.md` |
 | Go Standards | Read before writing Go in Ze; covers env access, context handling, aliased imports, error wrapping, and other Ze-specific Go conventions. | `ai/rules/go-standards.md` |
+| Go Compiler Upgrade Checklist | Every Go compiler version bump (go.mod `go` directive change or toolchain update). | `ai/rules/go-upgrade-checklist.md` |
 | Goroutine Lifecycle | All goroutines MUST be long-lived workers. Never per-event goroutines in hot paths. | `ai/rules/goroutine-lifecycle.md` |
 | Session Handoff | Start with a short rationale section, then output exact edits. The rationale exists so the user can catch a misaligned handoff BEFORE the next session blindly applies the edits. If the rationale and... | `ai/rules/handoff.md` |
-| Hook-to-Rule Mapping | Quick reference: which hooks enforce which rules, and when they trigger. Consult this BEFORE writing code to proactively comply, rather than fixing after rejection. For hook false positives and... | `ai/rules/hook-mapping.md` |
+| Hook-to-Rule Mapping | Quick reference: which checks enforce which rules, and when they trigger. Consult this BEFORE writing code to proactively comply, rather than fixing after rejection. For hook false positives and... | `ai/rules/hook-mapping.md` |
 | Impact Analysis | Before modifying a file, check what else needs to change. Changes to certain file types have predictable ripple effects. | `ai/rules/impact-analysis.md` |
 | Implementation Audit | Before marking any spec done, complete line-by-line audit comparing spec to implementation. | `ai/rules/implementation-audit.md` |
+| Initrd: Prefer Procfs/Sysfs Over External Commands | Read before modifying `tools/installer-initrd/init`. | `ai/rules/initrd-no-external-tools.md` |
 | Feature Integration Completeness | Every new feature MUST be proven to work integrated, not just in isolation. | `ai/rules/integration-completeness.md` |
 | Interop Testing and Goal Validation | Protocol features MUST have interop tests. All features MUST have goal validation proving the feature achieves its intended purpose, not just that the code runs without error. | `ai/rules/interop-and-goal-validation.md` |
 | JSON Format | All JSON output MUST follow these conventions. | `ai/rules/json-format.md` |
@@ -68,6 +70,7 @@ Total: 69 rules
 | Ze Project Knowledge | One-line lesson + rule pointer. Full root-cause in the linked learned summary. | `ai/rules/project-knowledge.md` |
 | QEMU Integration Testing | Linux-only code (`//go:build linux`) MUST ship with integration tests that run in the QEMU Alpine VM. "Needs real hardware" is never a valid reason to skip tests. Virtual substitutes exist for every... | `ai/rules/qemu-testing.md` |
 | Quality Standards | All checks must pass before claiming "done." | `ai/rules/quality.md` |
+| Registration-Based Dispatch | Switch-based dispatch: - Hides available commands from help/completion systems - Requires editing the dispatcher when adding a command (violates open/closed) - Cannot provide "did you mean?"... | `ai/rules/registration-dispatch.md` |
 | File Cross-References | Cross-reference comments let Claude load only needed files without scanning the whole package. Complements `// Design:` (architecture docs) by pointing to sibling source files. | `ai/rules/related-refs.md` |
 | RFC Compliance | Ze MUST be a fully RFC 4271 compliant BGP speaker. | `ai/rules/rfc-compliance.md` |
 | RFC Summaries Before Design | When a spec lists RFC summaries in its Required Reading section, read ALL of them before making any design recommendations or protocol claims. | `ai/rules/rfc-reading.md` |

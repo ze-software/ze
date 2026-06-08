@@ -542,11 +542,19 @@ The bootloader sets these parameters:
 | `ze.image` | No | `ze.img` | Name of the disk image to install |
 | `ze.target` | No | | Explicit whole-disk target such as `/dev/vda` |
 | `ze.media-id` | ISO only | | Builder-generated 32-hex token that identifies the booted installer ISO |
-| `ip=dhcp` | HTTP only | | Kernel-level network configuration |
+| `ip=dhcp` | HTTP only | | Kernel-level network configuration (with userspace fallback) |
 
 `ze.port` exists for install servers that cannot bind the privileged port 80
 (for example an unprivileged HTTP server, or a QEMU test harness that serves on
 an ephemeral port). ISO mode does not use `ze.server`, `ze.port`, or `ip=dhcp`.
+
+On some hardware (e.g. Intel I226-V) the kernel `ip=dhcp` autoconfiguration
+races against NIC carrier detection and times out before the link comes up. The
+initrd detects this by checking `/proc/net/route` for a default route. When none
+exists, it brings up all non-loopback interfaces, waits up to 10 seconds for
+carrier, and runs `udhcpc` on each interface until one obtains a lease. If no
+lease is acquired, the installer drops to a debug shell.
+<!-- source: tools/installer-initrd/init -- ensure_network, has_default_route -->
 Existing `ze install remote` deployments need no `ze.source` change because the
 default source is `http`.
 <!-- source: tools/installer-initrd/init -- parse_cmdline, validate_source -->

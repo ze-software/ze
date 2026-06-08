@@ -18,6 +18,8 @@ set -e
 
 RETRY_MAX=3
 RETRY_DELAY=5
+ISO_SCAN_MAX=10
+ISO_SCAN_DELAY=1
 
 # Scratch files for transfer failure detection and checksum verification.
 # A POSIX pipeline reports only the exit status of its LAST command, so a
@@ -404,7 +406,7 @@ download_to_disk() {
                 log "wget: $(cat "$WGET_ERR")"
             fi
             if [ "$attempt" -eq 1 ]; then
-                log "DIAG net: $(ip -o -4 addr 2>&1 | tr '\n' ';')"
+                log "DIAG net: route=$(cat /proc/net/route 2>&1 | tr '\n' ';')"
                 diag_n="$(wget -O - "$url" 2>/tmp/ze-diag.err | wc -c)"
                 diag_rc=$?
                 log "DIAG direct: bytes=${diag_n} piperc=${diag_rc} err=[$(cat /tmp/ze-diag.err 2>/dev/null)]"
@@ -562,6 +564,74 @@ local_image_to_disk() {
             ;;
     esac
 }
+
+# -- network fallback --
+# Kernel ip=dhcp runs at driver-probe time, before NIC link is up on some
+# hardware (e.g. Intel I226-V: driver binds at ~4 s, carrier at ~8 s).
+# When that race loses, no interface has an address. This function brings
+# up all NICs, waits for carrier, and runs udhcpc as a fallback.
+
+has_default_route() {
+    [ -f /proc/net/route ] || return 1
+    while read -r iface dest _; do
+        case "$iface" in Iface) continue ;; esac
+        if [ "$dest" = "00000000" ]; then
+            return 0
+        fi
+    done < /proc/net/route
+    return 1
+}
+
+# link_up requires an ioctl; no sysfs-only alternative exists.
+link_up() {
+    ip link set "$1" up 2>/dev/null
+}
+
+ensure_network() {
+    if has_default_route; then
+        return 0
+    fi
+
+    log "No IPv4 address from kernel ip=dhcp, trying userspace DHCP..."
+
+    for iface in /sys/class/net/*; do
+        ifname=$(basename "$iface")
+        case "$ifname" in lo) continue ;; esac
+        link_up "$ifname"
+    done
+
+    carrier_found=0
+    waited=0
+    while [ "$waited" -lt 10 ]; do
+        for carrier in /sys/class/net/*/carrier; do
+            case "$carrier" in */lo/carrier) continue ;; esac
+            if [ "$(cat "$carrier" 2>/dev/null)" = "1" ]; then
+                carrier_found=1
+                break 2
+            fi
+        done
+        sleep 1
+        waited=$((waited + 1))
+    done
+
+    if [ "$carrier_found" = "0" ]; then
+        log "WARNING: no NIC carrier detected after ${waited}s"
+        return 1
+    fi
+
+    for iface in /sys/class/net/*; do
+        ifname=$(basename "$iface")
+        case "$ifname" in lo) continue ;; esac
+        if udhcpc -i "$ifname" -t 5 -n -q 2>/dev/null; then
+            log "Got DHCP lease on $ifname"
+            return 0
+        fi
+    done
+
+    log "WARNING: userspace DHCP failed on all interfaces"
+    return 1
+}
+
 # -- main --
 
 main() {
@@ -610,12 +680,33 @@ main() {
         fi
         ZE_BASE="http://${ZE_SERVER}:${ZE_PORT}"
         log "Server: $ZE_SERVER:$ZE_PORT"
+
+        if ! ensure_network; then
+            fatal "No network connectivity; cannot proceed with HTTP install"
+        fi
     else
-        if ! find_iso_media; then
-            log "Direct ISO media not found, scanning FAT/exFAT partitions..."
-            if ! try_loop_mount_iso; then
-                fatal "No ze installer ISO media containing $ZE_IMAGE found"
+        iso_found=0
+        iso_attempt=0
+        while [ "$iso_attempt" -lt "$ISO_SCAN_MAX" ]; do
+            iso_attempt=$((iso_attempt + 1))
+            if find_iso_media; then
+                iso_found=1
+                break
             fi
+            if [ "$iso_attempt" -eq 1 ]; then
+                log "Direct ISO media not found, scanning FAT/exFAT partitions..."
+            fi
+            if try_loop_mount_iso; then
+                iso_found=1
+                break
+            fi
+            if [ "$iso_attempt" -lt "$ISO_SCAN_MAX" ]; then
+                log "Waiting for ISO media (attempt $iso_attempt/$ISO_SCAN_MAX)..."
+                sleep "$ISO_SCAN_DELAY"
+            fi
+        done
+        if [ "$iso_found" = "0" ]; then
+            fatal "No ze installer ISO media containing $ZE_IMAGE found after $ISO_SCAN_MAX attempts"
         fi
         log "ISO media: $ISO_SOURCE_DEV"
     fi
