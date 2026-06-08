@@ -443,6 +443,7 @@ find_iso_media() {
     for dev in /sys/block/*; do
         [ -d "$dev" ] || continue
         name="$(basename "$dev")"
+        is_skipped_disk_name "$name" && continue
         for node in "/dev/$name" /dev/"$name"[0-9]* /dev/"$name"p[0-9]*; do
             [ -b "$node" ] || continue
             if mount -t iso9660 -o ro "$node" "$ISO_MOUNT" 2>/dev/null; then
