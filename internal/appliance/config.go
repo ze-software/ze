@@ -3,6 +3,7 @@
 package appliance
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -191,7 +192,9 @@ func LoadConfig(path string) (*ApplianceConfig, error) {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
 	var cfg ApplianceConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", path, err)
 	}
 	return &cfg, nil

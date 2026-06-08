@@ -63,6 +63,7 @@ func TestRunDispatchesKernel(t *testing.T) {
 }
 
 func TestKernelResolvesCache(t *testing.T) {
+	t.Chdir(t.TempDir())
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -82,6 +83,35 @@ func TestKernelResolvesCache(t *testing.T) {
 	}
 	if got != cached {
 		t.Errorf("resolveKernel = %q, want cached path %q", got, cached)
+	}
+}
+
+func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
+	t.Chdir(t.TempDir())
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+
+	version := "7.0.11"
+	content := []byte("cached-hardware-kernel")
+	cached := kernelCachePath(version, archAMD64+"-"+ProfileHardware)
+	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cached, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := resolveKernel(version, archAMD64, ProfileHardware); err != nil {
+		t.Fatalf("resolveKernel: %v", err)
+	}
+
+	toolsPath := filepath.Join(kernelToolsDir, "build", kernelFileName)
+	got, err := os.ReadFile(toolsPath)
+	if err != nil {
+		t.Fatalf("tools path %s not written on cache hit: %v", toolsPath, err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("tools path content = %q, want %q", got, content)
 	}
 }
 

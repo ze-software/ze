@@ -120,11 +120,14 @@ func runKernel(args []string) int {
 
 func resolveKernel(version, arch, profile string) (string, error) {
 	cached := kernelCachePath(version, arch+"-"+profile)
+	toolsDst := filepath.Join(kernelToolsDir, "build", kernelFileName)
+
 	if _, err := os.Stat(cached); err == nil {
+		if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
+			fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
+		}
 		return cached, nil
 	}
-
-	toolsDst := filepath.Join(kernelToolsDir, "build", kernelFileName)
 
 	if baseURL := env.Get(kernelURLKey); baseURL != "" {
 		var tb textbuf.Buffer

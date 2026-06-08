@@ -268,6 +268,22 @@ func TestLoadConfigInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestLoadConfigRejectsUnknownFields(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "appliance.json")
+	data := []byte(`{"identity":{"name":"test","hostname":"test"},"kernel-profile":"hardware"}`)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadConfig(path)
+	if err == nil {
+		t.Fatal("expected error for unknown top-level field kernel-profile")
+	}
+	if !strings.Contains(err.Error(), "kernel-profile") {
+		t.Errorf("error should mention the unknown field, got: %v", err)
+	}
+}
+
 func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
 }
