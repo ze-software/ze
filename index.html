@@ -27,49 +27,49 @@
         <style>
             :root {
                 color-scheme: light;
-                --purple: #312783;
-                --cyan: #009fe3;
-                --teal: #2ed9b9;
-                --bg: #f7fcff;
-                --bg-soft: #edf8fc;
-                --panel: rgba(255, 255, 255, 0.86);
-                --panel-strong: rgba(255, 255, 255, 0.96);
-                --line: rgba(49, 39, 131, 0.16);
-                --line-strong: rgba(139, 107, 181, 0.46);
-                --text: #142837;
-                --muted: #536d80;
-                --dim: #7d92a1;
-                --blue: #5b9ec9;
-                --green: #6ab870;
-                --amber: #e0a840;
-                --coral: #e08878;
-                --lavender: #9b80c8;
-                --sky: #68acd0;
-                --lime: #78b858;
-                --pink: #d888a8;
-                --gold: #d0a850;
-                --shadow: rgba(49, 39, 131, 0.13);
+                --purple: #7b5ea7;
+                --cyan: #5ec2e6;
+                --teal: #6edcd0;
+                --bg: #f6f8fd;
+                --bg-soft: #eef2fa;
+                --panel: rgba(255, 255, 255, 0.82);
+                --panel-strong: rgba(255, 255, 255, 0.94);
+                --line: rgba(180, 140, 200, 0.22);
+                --line-strong: rgba(180, 140, 200, 0.40);
+                --text: #3a2e48;
+                --muted: #6e5a7e;
+                --dim: #9888a8;
+                --blue: #7cb8e0;
+                --green: #8dd4a0;
+                --amber: #f0cc70;
+                --coral: #f0a8a0;
+                --lavender: #b8a0e0;
+                --sky: #90d0f0;
+                --lime: #a8e088;
+                --pink: #f0a0c8;
+                --gold: #f0d080;
+                --shadow: rgba(160, 120, 200, 0.14);
                 --max: 1180px;
-                --term-bg: #0f1923;
-                --term-text: #c8dce8;
-                --term-prompt: #2ed9b9;
-                --term-cmd: #7ec8e8;
-                --term-comment: #536d80;
-                --grid-color: rgba(49, 39, 131, 0.045);
-                --header-bg: rgba(255, 255, 255, 0.84);
-                --header-border: rgba(49, 39, 131, 0.12);
-                --card-hover-border: rgba(139, 107, 181, 0.36);
-                --card-hover-shadow: rgba(139, 107, 181, 0.08);
-                --bird-card-bg-1: rgba(255, 255, 255, 0.92);
-                --bird-card-bg-2: rgba(255, 255, 255, 0.58);
-                --bird-label-bg: rgba(255, 255, 255, 0.82);
-                --proof-bg: rgba(255, 255, 255, 0.72);
-                --status-table-bg: rgba(255, 255, 255, 0.34);
-                --link-bg: rgba(255, 255, 255, 0.7);
-                --audience-bg: rgba(255, 255, 255, 0.72);
-                --btn-bg: rgba(255, 255, 255, 0.66);
-                --body-bg-1: #ffffff;
-                --body-bg-2: #eaf6ff;
+                --term-bg: #2e2440;
+                --term-text: #e8d8f0;
+                --term-prompt: #8de8c8;
+                --term-cmd: #a8d8f8;
+                --term-comment: #8878a0;
+                --grid-color: rgba(180, 140, 220, 0.06);
+                --header-bg: rgba(246, 248, 255, 0.88);
+                --header-border: rgba(140, 150, 200, 0.15);
+                --card-hover-border: rgba(200, 160, 240, 0.40);
+                --card-hover-shadow: rgba(200, 160, 240, 0.12);
+                --bird-card-bg-1: rgba(246, 248, 255, 0.92);
+                --bird-card-bg-2: rgba(240, 244, 255, 0.58);
+                --bird-label-bg: rgba(246, 248, 255, 0.85);
+                --proof-bg: rgba(244, 246, 255, 0.78);
+                --status-table-bg: rgba(244, 246, 255, 0.40);
+                --link-bg: rgba(246, 248, 255, 0.75);
+                --audience-bg: rgba(244, 246, 255, 0.78);
+                --btn-bg: rgba(244, 246, 255, 0.72);
+                --body-bg-1: #f8faff;
+                --body-bg-2: #e4e8f4;
             }
 
             * {
@@ -93,7 +93,7 @@
                     "Segoe UI",
                     sans-serif;
                 color: var(--text);
-                background: #e8eef4;
+                background: #f2f5fa;
             }
 
             body::before {
@@ -179,7 +179,7 @@
 
             .nav-links a:hover {
                 color: var(--text);
-                background: rgba(139, 107, 181, 0.1);
+                background: rgba(200, 160, 240, 0.14);
             }
 
             main {
@@ -205,8 +205,8 @@
                 padding: 0.42rem 0.75rem;
                 border: 1px solid transparent;
                 border-radius: 999px;
-                color: #3a6828;
-                background: #c8e8c0;
+                color: #4a8848;
+                background: #d8f4c8;
                 font-size: 0.78rem;
                 font-weight: 800;
                 letter-spacing: 0.11em;
@@ -218,7 +218,7 @@
                 height: 0.55rem;
                 border-radius: 999px;
                 background: var(--lime);
-                box-shadow: 0 0 0.8rem rgba(106, 174, 64, 0.6);
+                box-shadow: 0 0 0.8rem rgba(140, 210, 100, 0.6);
                 content: "";
                 animation: pulse 2.4s ease-in-out infinite;
             }
@@ -226,10 +226,10 @@
             @keyframes pulse {
                 0%,
                 100% {
-                    box-shadow: 0 0 0.6rem rgba(106, 174, 64, 0.4);
+                    box-shadow: 0 0 0.6rem rgba(140, 210, 100, 0.4);
                 }
                 50% {
-                    box-shadow: 0 0 1.2rem rgba(106, 174, 64, 0.8);
+                    box-shadow: 0 0 1.2rem rgba(140, 210, 100, 0.8);
                 }
             }
 
@@ -249,7 +249,7 @@
             h1 {
                 max-width: 18ch;
                 margin-bottom: 1.35rem;
-                color: #2c5aa0;
+                color: #7b5ea7;
                 font-size: clamp(3.2rem, 7vw, 6.4rem);
                 font-weight: 700;
                 line-height: 1;
@@ -258,7 +258,7 @@
 
             h2 {
                 margin-bottom: 1rem;
-                color: #2c5aa0;
+                color: #7b5ea7;
                 font-size: clamp(2rem, 4vw, 3.35rem);
                 line-height: 0.98;
                 letter-spacing: -0.045em;
@@ -266,7 +266,7 @@
 
             h3 {
                 margin-bottom: 0.65rem;
-                color: #1e3048;
+                color: #4a3860;
                 font-size: 1.08rem;
                 letter-spacing: -0.02em;
             }
@@ -326,7 +326,7 @@
                 border: 1px solid var(--line);
                 border-radius: 0.95rem;
                 color: var(--text);
-                background: #ffffff;
+                background: #f8faff;
                 font-weight: 750;
                 text-decoration: none;
                 transition:
@@ -338,20 +338,20 @@
 
             .button.primary {
                 border-color: transparent;
-                background: #c8e2f0;
-                color: #2a6a90;
+                background: #e0d0f8;
+                color: #6a4898;
                 box-shadow: none;
             }
 
             .button:hover {
-                border-color: rgba(139, 107, 181, 0.4);
-                background: rgba(139, 107, 181, 0.08);
+                border-color: rgba(200, 160, 240, 0.5);
+                background: rgba(200, 160, 240, 0.12);
                 transform: translateY(-2px);
                 box-shadow: 0 0.5rem 1.6rem var(--card-hover-shadow);
             }
 
             .button.primary:hover {
-                box-shadow: 0 1.2rem 3rem rgba(80, 168, 216, 0.18);
+                box-shadow: 0 1.2rem 3rem rgba(160, 120, 220, 0.20);
             }
 
             .bird-card {
@@ -421,7 +421,7 @@
                 border: 1px solid transparent;
                 border-left: 4px solid var(--coral);
                 border-radius: 1.2rem;
-                background: #ffffff;
+                background: #f8faff;
                 transition:
                     border-color 200ms ease,
                     transform 200ms ease,
@@ -562,7 +562,7 @@
             }
 
             .status-row:hover {
-                background: rgba(139, 107, 181, 0.05);
+                background: rgba(200, 160, 240, 0.08);
             }
 
             .status-row strong {
@@ -589,8 +589,8 @@
                 padding: 0.35rem 0.62rem;
                 border: 1px solid transparent;
                 border-radius: 999px;
-                color: #604888;
-                background: #dcd0f0;
+                color: #7858a8;
+                background: #e8d8f8;
                 font-size: 0.72rem;
                 font-weight: 800;
                 letter-spacing: 0.09em;
@@ -608,7 +608,7 @@
                 padding: 1.25rem;
                 border: 1px solid transparent;
                 border-radius: 1.35rem;
-                background: #ffffff;
+                background: #f8faff;
                 transition:
                     border-color 200ms ease,
                     transform 200ms ease,
@@ -666,24 +666,24 @@
             }
 
             .card-label.blue {
-                color: #2a6a90;
+                color: #5088b8;
                 border-color: transparent;
-                background: #c8e2f0;
+                background: #d0eafc;
             }
             .card-label.coral {
-                color: #904838;
+                color: #c07060;
                 border-color: transparent;
-                background: #f0d0c8;
+                background: #fce0d8;
             }
             .card-label.green {
-                color: #3a6828;
+                color: #4a8848;
                 border-color: transparent;
-                background: #c8e8c0;
+                background: #d8f4c8;
             }
             .card-label.purple {
-                color: #604888;
+                color: #7858a8;
                 border-color: transparent;
-                background: #dcd0f0;
+                background: #e8d8f8;
             }
 
             .card h3 a {
@@ -816,7 +816,7 @@
                 border: 1px solid var(--line);
                 border-radius: 1rem;
                 color: var(--text);
-                background: #ffffff;
+                background: #f8faff;
                 text-decoration: none;
                 transition:
                     border-color 200ms ease,
@@ -864,7 +864,7 @@
                 padding: 1.25rem;
                 border: 1px solid transparent;
                 border-radius: 1.35rem;
-                background: #ffffff;
+                background: #f8faff;
                 transition:
                     border-color 200ms ease,
                     transform 200ms ease,
@@ -1199,8 +1199,7 @@
                     <h2 id="core-title">Built for demanding operators.</h2>
                     <p>
                         Ze owns its BGP engine, configuration model, plugin
-                        system, and operator surfaces. They are designed as one
-                        system.
+                        system, and operator surfaces, all designed together.
                     </p>
                 </div>
                 <div class="cards reveal">
@@ -1547,9 +1546,9 @@
                     <h2 id="try-title">Discover what makes Ze unique.</h2>
                     <p>
                         The best users today are people building labs,
-                        route-server experiments, BGP tooling, network
-                        appliances, migration paths from ExaBGP, or want to know
-                        what makes Ze better.
+                        route-server experiments, BGP tooling, or network
+                        appliances, and anyone curious about what comes after
+                        ExaBGP.
                     </p>
                 </div>
                 <div class="terminal-panel reveal">
@@ -1618,10 +1617,9 @@
                 <div class="section-head reveal">
                     <h2 id="audience-title">Who should look now?</h2>
                     <p>
-                        Ze is early enough that strong feedback can still change
-                        the shape of the system. That is useful if you care
-                        about how open routing software should feel in 2026 and
-                        after.
+                        Ze is early enough that strong feedback can still
+                        shape the system. If you care about open routing
+                        software, now is the time to look.
                     </p>
                 </div>
                 <div class="audience reveal">
@@ -1654,7 +1652,7 @@
                 <div class="section-head reveal">
                     <h2 id="talks-title">Talks and presentations.</h2>
                     <p>
-                        Ze presented at networking community events.
+                        Sharing Ze with the community.
                     </p>
                 </div>
                 <div class="audience reveal">
