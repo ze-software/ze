@@ -37,7 +37,7 @@ DEFAULT_LINUX_VERSION = "7.0.11"
 
 BUILD_PACKAGES = (
     "build-base bc bison flex elfutils-dev openssl-dev "
-    "perl wget xz diffutils findutils cpio"
+    "linux-headers perl wget xz diffutils findutils cpio"
 )
 
 
@@ -56,6 +56,13 @@ def repo_root() -> Path:
 def cache_dir() -> Path:
     root = repo_root()
     d = root / "tmp" / "qemu" / "iso"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def ccache_dir() -> Path:
+    root = repo_root()
+    d = root / "tmp" / "qemu" / "ccache"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -115,7 +122,11 @@ def _vm_cpus() -> str:
 
 
 def _build_qemu_args(
-    iso: Path, workspace: Path, target_arch: str, ssh_port: int
+    iso: Path,
+    workspace: Path,
+    target_arch: str,
+    ssh_port: int,
+    ccache_path: Path | None = None,
 ) -> list[str]:
     qemu = qemu_binary(target_arch)
     args = [qemu]
@@ -131,15 +142,24 @@ def _build_qemu_args(
         args.extend(
             [
                 "-machine",
-                "virt,highmem=on,accel=hvf:kvm:tcg",
+                "virt,highmem=on",
                 "-cpu",
                 "max",
                 "-bios",
                 str(fw),
             ]
         )
-    else:
-        args.extend(["-machine", "accel=hvf:kvm:tcg"])
+
+    args.extend(
+        [
+            "-accel",
+            "hvf",
+            "-accel",
+            "kvm",
+            "-accel",
+            "tcg,thread=multi,tb-size=2048",
+        ]
+    )
 
     args.extend(
         [
@@ -163,6 +183,14 @@ def _build_qemu_args(
             f"security_model=none,id=ws0,readonly=off",
         ]
     )
+    if ccache_path is not None:
+        args.extend(
+            [
+                "-virtfs",
+                f"local,path={ccache_path},mount_tag=ccache,"
+                f"security_model=none,id=cc0,readonly=off",
+            ]
+        )
     return args
 
 
@@ -252,7 +280,8 @@ def _run_build(
     jobs: str,
 ) -> int:
     ssh_port = find_free_port()
-    args = _build_qemu_args(iso, workspace, target_arch, ssh_port)
+    cc_dir = ccache_dir()
+    args = _build_qemu_args(iso, workspace, target_arch, ssh_port, cc_dir)
 
     print(
         f">>> booting Alpine VM ({_alpine_arch(target_arch)}, ssh port {ssh_port})...",
@@ -332,15 +361,22 @@ def _run_build(
                 f"https://dl-cdn.alpinelinux.org/alpine/"
                 f"v{ALPINE_VERSION}/community\\n' > /etc/apk/repositories",
                 "apk update",
-                f"apk add --no-cache {BUILD_PACKAGES}",
+                f"apk add --no-cache {BUILD_PACKAGES} ccache",
                 "mkdir -p /workspace",
                 "mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 "
                 "workspace /workspace",
+                "mkdir -p /ccache",
+                "mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 "
+                "ccache /ccache",
+                "export CCACHE_DIR=/ccache",
+                "export CCACHE_MAXSIZE=5G",
+                "export PATH=/usr/lib/ccache/bin:$PATH",
                 "mkdir -p /build",
             ]
         )
 
         build_env = (
+            f"CCACHE_DIR=/ccache PATH=/usr/lib/ccache/bin:$PATH "
             f"LINUX_VERSION={version} ARCH={target_arch} "
             f"PROFILE={profile} "
             f"SRC_DIR=/workspace/tools/installer-kernel "
