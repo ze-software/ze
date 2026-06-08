@@ -1,171 +1,147 @@
 // Design: docs/guide/command-catalogue.md -- offline ping diagnostic
-// Related: ping.go -- daemon ICMP ping; this is the offline OS-ping root
-//
-// offline.go is the offline home for `ze ping <target>`: it wraps the OS ping
-// tool with validated argv (no shell). The daemon is not required -- the `ze`
-// binary shells out directly. Per ai/rules/cli-patterns.md the command uses its
-// own flag.NewFlagSet with a custom Usage printer.
+// Related: ping.go -- doPing internal ICMP engine shared across all ping paths
 
 package cmd
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"fmt"
-	"net"
+	"io"
+	"net/netip"
 	"os"
-	"os/exec"
-	"regexp"
 	"strconv"
-	"strings"
-)
 
-// hostnameRE matches RFC 1123 hostnames, IP literals, and interface
-// names. Accepts: letters, digits, dot, underscore, colon (IPv6),
-// hyphen. No shell meta-characters.
-var hostnameRE = regexp.MustCompile(`^[A-Za-z0-9._:-]+$`)
+	"codeberg.org/thomas-mangin/ze/internal/core/probe"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+)
 
 const (
-	maxOSPingCount      = 100000 // per-invocation echo-request ceiling
-	maxTargetLen        = 253    // RFC 1035 hostname ceiling
-	maxInterfaceNameLen = 15     // Linux IFNAMSIZ minus NUL
+	maxOSPingCount = 100000
 )
 
-// validateTarget accepts a hostname or IP literal. Caller must have
-// already stripped flags.
-func validateTarget(t string) error {
-	if t == "" {
-		return errors.New("target is required")
-	}
-	if len(t) > maxTargetLen {
-		return fmt.Errorf("target too long (%d > %d chars)", len(t), maxTargetLen)
-	}
-	if !hostnameRE.MatchString(t) {
-		return fmt.Errorf("invalid target %q: only letters, digits, dot, underscore, colon, hyphen allowed", t)
-	}
-	// If it looks like a numeric IP, verify it parses.
-	if strings.ContainsAny(t, ":") || (strings.Count(t, ".") == 3 && strings.IndexFunc(t, func(r rune) bool {
-		return (r < '0' || r > '9') && r != '.'
-	}) == -1) {
-		if net.ParseIP(t) == nil {
-			return fmt.Errorf("invalid IP literal %q", t)
-		}
-	}
-	return nil
-}
-
-// validateInterfaceName rejects interface names outside IFNAMSIZ or
-// containing shell meta-characters. Empty string is allowed and means
-// do not pass --interface to the tool.
-func validateInterfaceName(name string) error {
-	if name == "" {
-		return nil
-	}
-	if len(name) > maxInterfaceNameLen {
-		return fmt.Errorf("interface name too long (%d > %d chars)", len(name), maxInterfaceNameLen)
-	}
-	if !hostnameRE.MatchString(name) {
-		return fmt.Errorf("invalid interface name %q", name)
-	}
-	return nil
-}
-
-// RunPing invokes the OS `ping` utility against target with optional
-// count/interface flags (usage: `ze ping <target> [--count N]
-// [--interface IF]`). Returns the exit code from `ping`.
+// RunPing implements `ze ping <target>`: a bounded batch of ICMP echo
+// requests using Ze's internal ICMP engine (no external ping binary).
 func RunPing(args []string) int {
 	const name = "ping"
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	fs.Usage = func() {
-		usageTail := "Send ICMP echo-request to <target>. Arguments are validated before\nexec; no shell is involved."
-		if _, err := fmt.Fprintf(os.Stderr, "Usage: ze %s <target> [--count N] [--interface IF]\n\n%s\n\n", name, usageTail); err != nil {
-			return // writing to stderr; nothing to recover
-		}
+		var tb textbuf.Buffer
+		tb.Str("Usage: ze ").Str(name).Str(" <target> [--count N] [--source IP]\n\n")
+		tb.Str("Send ICMP echo-request to <target> using the internal ICMP engine.\n\n")
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
 		fs.PrintDefaults()
 	}
 	var (
-		count int
-		iface string
+		count  int
+		source string
 	)
-	fs.IntVar(&count, "count", 0, "number of echo requests (1..100000; 0 = tool default)")
-	fs.IntVar(&count, "c", 0, "short form of --count")
-	fs.StringVar(&iface, "interface", "", "source interface")
-	fs.StringVar(&iface, "i", "", "short form of --interface")
+	fs.IntVar(&count, "count", defaultPingCount, "number of echo requests (1..100000)")
+	fs.IntVar(&count, "c", defaultPingCount, "short form of --count")
+	fs.StringVar(&source, "source", "", "source IP address to bind")
+	fs.StringVar(&source, "s", "", "short form of --source")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 1
 	}
-	target, rc := extractTarget(fs, name)
-	if rc != 0 {
-		return rc
-	}
-	if count < 0 || count > maxOSPingCount {
-		fmt.Fprintf(os.Stderr, "%s: --count must be in 0..%d (0 = tool default)\n", name, maxOSPingCount)
-		return 1
-	}
-	if err := validateInterfaceName(iface); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", name, err)
-		return 1
-	}
-	argv := []string{}
-	if count > 0 {
-		argv = append(argv, "-c", strconv.Itoa(count))
-	}
-	if iface != "" {
-		argv = append(argv, "-I", iface)
-	}
-	argv = append(argv, target)
-	return runExec(name, argv)
-}
-
-// extractTarget pulls the single target positional argument from fs
-// and validates it. On error, it prints to stderr and returns a
-// non-zero exit code so the caller can bail immediately.
-func extractTarget(fs *flag.FlagSet, name string) (string, int) {
 	rest := fs.Args()
 	if len(rest) == 0 {
-		fmt.Fprintf(os.Stderr, "%s: target is required\n", name)
+		var tb textbuf.Buffer
+		tb.Str(name).Str(": target is required\n")
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
 		fs.Usage()
-		return "", 1
+		return 1
 	}
 	if len(rest) > 1 {
-		fmt.Fprintf(os.Stderr, "%s: multiple targets not allowed\n", name)
-		return "", 1
+		var tb textbuf.Buffer
+		tb.Str(name).Str(": multiple targets not allowed\n")
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		return 1
 	}
 	target := rest[0]
-	if err := validateTarget(target); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", name, err)
-		return "", 1
+	if count < 1 || count > maxOSPingCount {
+		var tb textbuf.Buffer
+		tb.Str(name).Str(": --count must be in 1..").Int(int64(maxOSPingCount)).Byte('\n')
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		return 1
 	}
-	return target, 0
+
+	if err := validateResolveTarget(target); err != nil {
+		var tb textbuf.Buffer
+		tb.Str(name).Str(": ").Err(err).Byte('\n')
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		return 1
+	}
+
+	dest, err := probe.ResolveTarget(target)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str(name).Str(": ").Err(err).Byte('\n')
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		return 1
+	}
+
+	var opts pingOpts
+	if source != "" {
+		addr, parseErr := netip.ParseAddr(source)
+		if parseErr != nil {
+			var tb textbuf.Buffer
+			tb.Str(name).Str(": invalid source IP ").Str(strconv.Quote(source)).Byte('\n')
+			os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+			return 1
+		}
+		opts.source = addr
+	}
+
+	results, pingErr := doPing(dest, count, defaultPingTimeout, opts)
+	if pingErr != nil {
+		var tb textbuf.Buffer
+		tb.Str(name).Str(": ").Err(pingErr).Byte('\n')
+		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		return 1
+	}
+
+	printPingResults(os.Stdout, results)
+	return 0
 }
 
-// runExec invokes tool with args, streaming stdout/stderr through.
-// The tool path is looked up via exec.LookPath; missing binary returns 1.
-//
-// exec.LookPath honors PATH, so ze trusts its environment's PATH to
-// resolve `ping` to the expected binary. Running ze under a hardened PATH
-// (or with explicit tool paths in a future config option) is the caller's
-// responsibility.
-func runExec(tool string, args []string) int {
-	path, err := exec.LookPath(tool)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: not installed: %v\n", tool, err)
-		return 1
-	}
-	cmd := exec.CommandContext(context.Background(), path, args...) //nolint:gosec // args are validated above
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return exitErr.ExitCode()
+func printPingResults(w io.Writer, results map[string]any) {
+	var tb textbuf.Buffer
+	tb.Reset(256)
+
+	dest, _ := results["destination"].(string)
+	sent, _ := results["sent"].(int)
+	received, _ := results["received"].(int)
+	loss, _ := results["loss-percent"].(float64)
+
+	tb.Str("PING ").Str(dest).Str(": ").Int(int64(sent)).Str(" packets sent, ")
+	tb.Int(int64(received)).Str(" received, ")
+	tb.Str(strconv.FormatFloat(loss, 'f', 1, 64)).Str("% loss\n")
+
+	if replies, ok := results["replies"].([]map[string]any); ok {
+		for _, r := range replies {
+			seq, _ := r["seq"].(int)
+			status, _ := r["status"].(string)
+			tb.Str("  seq=").Int(int64(seq))
+			if status == "ok" {
+				rtt, _ := r["rtt-ms"].(float64)
+				tb.Str("  rtt=").Str(strconv.FormatFloat(rtt, 'f', 3, 64)).Str("ms\n")
+			} else {
+				tb.Str("  ").Str(status).Byte('\n')
+			}
 		}
-		return 1
 	}
-	return 0
+
+	if minRTT, ok := results["min-rtt-ms"].(float64); ok {
+		avgRTT, _ := results["avg-rtt-ms"].(float64)
+		maxRTT, _ := results["max-rtt-ms"].(float64)
+		tb.Str("rtt min/avg/max = ")
+		tb.Str(strconv.FormatFloat(minRTT, 'f', 3, 64)).Byte('/')
+		tb.Str(strconv.FormatFloat(avgRTT, 'f', 3, 64)).Byte('/')
+		tb.Str(strconv.FormatFloat(maxRTT, 'f', 3, 64)).Str(" ms\n")
+	}
+
+	io.WriteString(w, tb.String()) //nolint:errcheck // stdout
 }

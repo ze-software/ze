@@ -28,9 +28,9 @@ func init() {
 	registry.MustRegisterRootHandler("ping", func(_ *registry.RuntimeContext, args []string) int {
 		return RunPing(args)
 	}, registry.Meta{
-		Description: "Ping a target from this box (offline, uses OS ping). Use --count N and --interface IF to control the test.",
+		Description: "Ping a target from this box (offline, internal ICMP). Use --count N and --source IP to control the test.",
 		Mode:        "offline",
 		Section:     registry.SectionSystem,
-		Subs:        "--count N, --interface IF",
+		Subs:        "--count N, --source IP",
 	})
 }

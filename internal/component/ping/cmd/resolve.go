@@ -1,31 +1,24 @@
 // Design: docs/architecture/resolve.md -- resolve ping command handler
-// Related: offline.go -- offline OS ping; this is the resolve-verb OS ping variant
-//
-// resolve.go implements `resolve ping` (ze-resolve:ping): run the OS ping tool
-// from the router with an optional source binding, returning the captured
-// output to the daemon caller. It is the daemon-RPC sibling of the offline
-// `ze ping` root in offline.go; both shell out to the OS ping tool with
-// validated argv (no shell).
+// Related: ping.go -- doPing internal ICMP engine shared with show ping
 
 package cmd
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"net"
-	"os/exec"
+	"net/netip"
 	"strconv"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/probe"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errResolveTargetEmpty = errors.New("target must not be empty")
 
-// handleResolvePing runs `ping` against a target with optional source binding,
-// count, and packet size, returning the tool's combined output.
+// handleResolvePing is the RPC handler for `resolve ping` (ze-resolve:ping):
+// ICMP echo requests with optional source binding, count, and payload size.
 func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	target, errResp := requireResolveArg(args, "target")
 	if errResp != nil {
@@ -35,7 +28,16 @@ func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin
 		return errResolveResponse(err.Error()), nil
 	}
 
-	cmdArgs := []string{"-c", "4", "-W", "2"}
+	dest, err := probe.ResolveTarget(target)
+	if err != nil {
+		var tb textbuf.Buffer
+		tb.Str("ping: invalid destination ").Str(strconv.Quote(target)).Str(": ").Err(err)
+		return errResolveResponse(tb.String()), nil
+	}
+
+	count := 4
+	timeout := defaultPingTimeout
+	var opts pingOpts
 
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
@@ -47,7 +49,7 @@ func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin
 			if err := validateSourceIP(args[i]); err != nil {
 				return errResolveResponse(err.Error()), nil
 			}
-			cmdArgs = append(cmdArgs, "-I", args[i])
+			opts.source, _ = netip.ParseAddr(args[i])
 		case argCount:
 			if i+1 >= len(args) {
 				return errResolveResponse("ping: \"count\" requires a value"), nil
@@ -56,51 +58,40 @@ func handleResolvePing(ctx *pluginserver.CommandContext, args []string) (*plugin
 			if err := validateUint(args[i], "count", 1, 100); err != nil {
 				return errResolveResponse(err.Error()), nil
 			}
-			cmdArgs = append(cmdArgs, "-c", args[i])
+			n, _ := strconv.Atoi(args[i])
+			count = n
 		case "size":
 			if i+1 >= len(args) {
 				return errResolveResponse("ping: \"size\" requires a value"), nil
 			}
 			i++
-			if err := validateUint(args[i], "size", 0, 65535); err != nil {
+			if err := validateUint(args[i], "size", 1, 65507); err != nil {
 				return errResolveResponse(err.Error()), nil
 			}
-			cmdArgs = append(cmdArgs, "-s", args[i])
+			n, _ := strconv.ParseUint(args[i], 10, 64)
+			opts.size = int(n)
 		default:
-			return errResolveResponse("ping: unknown option " + strconv.Quote(args[i])), nil
+			var tb textbuf.Buffer
+			tb.Str("ping: unknown option ").Str(strconv.Quote(args[i]))
+			return errResolveResponse(tb.String()), nil
 		}
 	}
-	cmdArgs = append(cmdArgs, target)
 
-	reqCtx, cancel := context.WithTimeout(ctx.Context(), 15*time.Second)
-	defer cancel()
-
-	out, err := captureOSCommand(reqCtx, "ping", cmdArgs...)
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusDone,
-			Data: plugin.Map{
-				"target": target,
-				"output": string(out),
-				"error":  err.Error(),
-			},
-		}, nil
+	results, pingErr := doPingCtx(ctx.Context(), dest, count, timeout, opts)
+	if pingErr != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: pingErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"target": target,
-			"output": string(out),
-		},
-	}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map(results)}, nil
 }
 
 // requireResolveArg returns args[0] or a usage error response.
 func requireResolveArg(args []string, name string) (string, *plugin.Response) {
 	if len(args) == 0 {
+		var tb textbuf.Buffer
+		tb.Str("usage: resolve ... <").Str(name).Byte('>')
 		return "", &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "usage: resolve ... <" + name + ">",
+			Error:  tb.String(),
 		}
 	}
 	return args[0], nil
@@ -111,8 +102,7 @@ func errResolveResponse(msg string) *plugin.Response {
 }
 
 // validateResolveTarget accepts an IP literal or a hostname of letters, digits,
-// dot, and hyphen up to the RFC 1035 length ceiling. It rejects shell
-// meta-characters by allowing only that character set.
+// dot, and hyphen up to the RFC 1035 length ceiling.
 func validateResolveTarget(s string) error {
 	if s == "" {
 		return errResolveTargetEmpty
@@ -121,11 +111,15 @@ func validateResolveTarget(s string) error {
 		return nil
 	}
 	if len(s) > 253 {
-		return fmt.Errorf("target %q: exceeds 253-character hostname limit", s)
+		var tb textbuf.Buffer
+		tb.Str("target ").Str(strconv.Quote(s)).Str(": exceeds 253-character hostname limit")
+		return errors.New(tb.String())
 	}
 	for _, c := range s {
 		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '-' && c != '.' {
-			return fmt.Errorf("target %q: invalid character %q", s, string(c))
+			var tb textbuf.Buffer
+			tb.Str("target ").Str(strconv.Quote(s)).Str(": invalid character ").Str(strconv.QuoteRune(c))
+			return errors.New(tb.String())
 		}
 	}
 	return nil
@@ -133,7 +127,9 @@ func validateResolveTarget(s string) error {
 
 func validateSourceIP(s string) error {
 	if net.ParseIP(s) == nil {
-		return fmt.Errorf("source %q: not a valid IP address", s)
+		var tb textbuf.Buffer
+		tb.Str("source ").Str(strconv.Quote(s)).Str(": not a valid IP address")
+		return errors.New(tb.String())
 	}
 	return nil
 }
@@ -141,14 +137,14 @@ func validateSourceIP(s string) error {
 func validateUint(s, name string, lo, hi uint64) error {
 	n, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		return fmt.Errorf("%s %q: not a valid number", name, s)
+		var tb textbuf.Buffer
+		tb.Str(name).Str(" ").Str(strconv.Quote(s)).Str(": not a valid number")
+		return errors.New(tb.String())
 	}
 	if n < lo || n > hi {
-		return fmt.Errorf("%s %d: out of range %d..%d", name, n, lo, hi)
+		var tb textbuf.Buffer
+		tb.Str(name).Str(" ").Int(int64(n)).Str(": out of range ").Int(int64(lo)).Str("..").Int(int64(hi))
+		return errors.New(tb.String())
 	}
 	return nil
-}
-
-func captureOSCommand(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput() //nolint:gosec // fixed-allowlist name, no shell
 }

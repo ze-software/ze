@@ -6,8 +6,8 @@
 //
 //   - show ping       (ze-show:ping)     batch ICMP echo from the router  -- ping.go
 //   - monitor ping    (ze-monitor:ping)  continuous streaming ping        -- monitor.go / stream.go
-//   - resolve ping    (ze-resolve:ping)  OS ping tool with source binding -- resolve.go
-//   - ze ping <host>  (offline root)     one-shot OS ping subprocess      -- offline.go
+//   - resolve ping    (ze-resolve:ping)  ICMP ping with source binding   -- resolve.go
+//   - ze ping <host>  (offline root)     one-shot ICMP ping              -- offline.go
 //
 // The shared low-level ICMP primitives (echo-packet building, target
 // resolution) live in internal/core/probe so this module does not depend on a

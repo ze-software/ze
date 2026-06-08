@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bytes"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -23,86 +25,8 @@ func silenceStderr(t *testing.T) {
 	})
 }
 
-// TestValidateTarget_Valid covers accepted target shapes.
-//
-// VALIDATES: AC-10/AC-11 of spec-op-1-easy-wins.md -- ping/traceroute
-// target validation accepts hostnames + IP literals.
-func TestValidateTarget_Valid(t *testing.T) {
-	good := []string{
-		"example.com",
-		"host-1.internal",
-		"host_with_underscore",
-		"127.0.0.1",
-		"::1",
-		"fe80::1",
-		"2001:db8::1",
-		"10.0.0.1",
-	}
-	for _, in := range good {
-		if err := validateTarget(in); err != nil {
-			t.Errorf("validateTarget(%q) rejected: %v", in, err)
-		}
-	}
-}
-
-// TestValidateTarget_Rejects shell metachars, empty, too long.
-//
-// VALIDATES: AC-10 -- no shell-meta passes through argv.
-func TestValidateTarget_Rejects(t *testing.T) {
-	bad := []string{
-		"",
-		"a;rm -rf /",
-		"$(echo x)",
-		"`id`",
-		"host|cat /etc/passwd",
-		"host with space",
-		"host\n",
-		"host&",
-	}
-	for _, in := range bad {
-		if err := validateTarget(in); err == nil {
-			t.Errorf("validateTarget(%q) should have rejected", in)
-		}
-	}
-}
-
-// TestValidateTarget_TooLong rejects targets beyond the RFC 1035 ceiling.
-func TestValidateTarget_TooLong(t *testing.T) {
-	long := make([]byte, maxTargetLen+1)
-	for i := range long {
-		long[i] = 'a'
-	}
-	if err := validateTarget(string(long)); err == nil {
-		t.Error("expected rejection of over-length target")
-	}
-}
-
-// TestValidateInterfaceName covers accepted + rejected interface names.
-func TestValidateInterfaceName(t *testing.T) {
-	if err := validateInterfaceName(""); err != nil {
-		t.Errorf("empty should be allowed (means no --interface): %v", err)
-	}
-	if err := validateInterfaceName("eth0"); err != nil {
-		t.Errorf("eth0 should be allowed: %v", err)
-	}
-	long := make([]byte, maxInterfaceNameLen+1)
-	for i := range long {
-		long[i] = 'a'
-	}
-	if err := validateInterfaceName(string(long)); err == nil {
-		t.Error("expected rejection of over-length interface name")
-	}
-	if err := validateInterfaceName("eth0;reboot"); err == nil {
-		t.Error("expected rejection of shell-meta interface name")
-	}
-}
-
 // TestRunPing_ValidationErrors covers every validation path that
-// returns 1 before exec. Each case asserts exit 1 without invoking
-// /bin/ping.
-//
-// VALIDATES: AC-10 of spec-op-1-easy-wins.md -- argv sanitisation and
-// boundary checks on --count (lower bound, upper bound, non-integer).
+// returns 1 before sending ICMP.
 func TestRunPing_ValidationErrors(t *testing.T) {
 	cases := []struct {
 		name string
@@ -110,13 +34,12 @@ func TestRunPing_ValidationErrors(t *testing.T) {
 	}{
 		{"no target", []string{}},
 		{"two targets", []string{"1.1.1.1", "2.2.2.2"}},
-		{"shell meta target", []string{"a;rm -rf /"}},
 		{"unknown flag", []string{"--evil", "1.1.1.1"}},
 		{"count negative", []string{"--count", "-1", "1.1.1.1"}},
+		{"count zero", []string{"--count", "0", "1.1.1.1"}},
 		{"count too large", []string{"--count", "100001", "1.1.1.1"}},
 		{"count non-int", []string{"--count", "abc", "1.1.1.1"}},
-		{"iface too long", []string{"--interface", "ethernet-very-long", "1.1.1.1"}},
-		{"iface shell meta", []string{"--interface", "eth0;x", "1.1.1.1"}},
+		{"source not ip", []string{"--source", "not-ip", "1.1.1.1"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -134,4 +57,88 @@ func TestRunPing_Help(t *testing.T) {
 	if rc := RunPing([]string{"-h"}); rc != 0 {
 		t.Errorf("RunPing(-h) = %d, want 0", rc)
 	}
+}
+
+// TestRunPing_ShellMetaTarget rejects targets with shell metacharacters
+// before they reach DNS resolution.
+//
+// PREVENTS: garbage targets triggering slow DNS lookups.
+func TestRunPing_ShellMetaTarget(t *testing.T) {
+	bad := []string{
+		"a;rm -rf /",
+		"$(echo x)",
+		"`id`",
+		"host|cat",
+		"host with space",
+	}
+	for _, target := range bad {
+		t.Run(target, func(t *testing.T) {
+			silenceStderr(t)
+			if rc := RunPing([]string{target}); rc != 1 {
+				t.Errorf("RunPing(%q) = %d, want 1", target, rc)
+			}
+		})
+	}
+}
+
+// TestPrintPingResults verifies the human-readable output format for
+// both success and all-timeout cases.
+//
+// PREVENTS: type-assertion panics and format regressions in printPingResults.
+func TestPrintPingResults(t *testing.T) {
+	t.Run("with replies", func(t *testing.T) {
+		results := map[string]any{
+			"destination":  "10.0.0.1",
+			"sent":         3,
+			"received":     2,
+			"loss-percent": 33.3,
+			"min-rtt-ms":   1.5,
+			"avg-rtt-ms":   2.0,
+			"max-rtt-ms":   2.5,
+			"replies": []map[string]any{
+				{"seq": 0, "status": "ok", "rtt-ms": 1.5},
+				{"seq": 1, "status": "timeout"},
+				{"seq": 2, "status": "ok", "rtt-ms": 2.5},
+			},
+		}
+		var buf bytes.Buffer
+		printPingResults(&buf, results)
+		out := buf.String()
+
+		if !strings.Contains(out, "PING 10.0.0.1") {
+			t.Errorf("missing destination header in output: %s", out)
+		}
+		if !strings.Contains(out, "33.3%") {
+			t.Errorf("missing loss percentage in output: %s", out)
+		}
+		if !strings.Contains(out, "seq=1  timeout") {
+			t.Errorf("missing timeout reply in output: %s", out)
+		}
+		if !strings.Contains(out, "rtt min/avg/max") {
+			t.Errorf("missing RTT summary in output: %s", out)
+		}
+	})
+
+	t.Run("all timeout", func(t *testing.T) {
+		results := map[string]any{
+			"destination":  "10.0.0.99",
+			"sent":         2,
+			"received":     0,
+			"loss-percent": 100.0,
+			"replies": []map[string]any{
+				{"seq": 0, "status": "timeout"},
+				{"seq": 1, "status": "timeout"},
+			},
+		}
+		var buf bytes.Buffer
+		printPingResults(&buf, results)
+		out := buf.String()
+
+		if !strings.Contains(out, "100.0%") {
+			t.Errorf("missing 100%% loss in output: %s", out)
+		}
+		if strings.Contains(out, "rtt min/avg/max") {
+			t.Errorf("RTT summary should be absent when no replies received: %s", out)
+		}
+	})
 }

@@ -46,7 +46,7 @@ func handleShowPing(_ *pluginserver.CommandContext, args []string) (*plugin.Resp
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
-	results, pingErr := doPing(dest, count, timeout)
+	results, pingErr := doPing(dest, count, timeout, pingOpts{})
 	if pingErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: pingErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
@@ -96,7 +96,16 @@ func parsePingArgs(args []string) (netip.Addr, int, time.Duration, error) {
 	return dest, count, timeout, nil
 }
 
-func doPing(dest netip.Addr, count int, timeout time.Duration) (map[string]any, error) {
+type pingOpts struct {
+	source netip.Addr
+	size   int
+}
+
+func doPing(dest netip.Addr, count int, timeout time.Duration, opts pingOpts) (map[string]any, error) {
+	return doPingCtx(context.Background(), dest, count, timeout, opts)
+}
+
+func doPingCtx(ctx context.Context, dest netip.Addr, count int, timeout time.Duration, opts pingOpts) (map[string]any, error) {
 	network := probe.NetworkICMPv4
 	icmpEcho := byte(8)
 	icmpEchoReply := byte(0)
@@ -106,21 +115,34 @@ func doPing(dest netip.Addr, count int, timeout time.Duration) (map[string]any, 
 		icmpEchoReply = 129
 	}
 
+	bindAddr := ""
+	if opts.source.IsValid() {
+		bindAddr = opts.source.String()
+	}
+
 	var lc net.ListenConfig
-	conn, err := lc.ListenPacket(context.Background(), network, "")
+	conn, err := lc.ListenPacket(ctx, network, bindAddr)
 	if err != nil {
 		return nil, fmt.Errorf("ping: %w (requires CAP_NET_RAW)", err)
 	}
 	defer func() { _ = conn.Close() }()
 
+	payload := []byte("ze-ping")
+	if opts.size > 0 {
+		payload = make([]byte, opts.size)
+		copy(payload, "ze-ping")
+	}
+
+	rbSize := max(1500, opts.size+8)
+
 	pid := uint16(os.Getpid() & 0xffff)
 	var sent, received int
 	var minRTT, maxRTT, totalRTT time.Duration
 	replies := make([]map[string]any, 0, count)
-	rb := make([]byte, 1500)
+	rb := make([]byte, rbSize)
 
 	for seq := range count {
-		pkt := probe.BuildICMPEcho(icmpEcho, pid, uint16(seq), []byte("ze-ping"))
+		pkt := probe.BuildICMPEcho(icmpEcho, pid, uint16(seq), payload)
 
 		start := time.Now()
 		if deadlineErr := conn.SetDeadline(start.Add(timeout)); deadlineErr != nil {

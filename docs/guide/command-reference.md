@@ -929,12 +929,12 @@ exactly what is reachable on the running daemon.
 ### ping / traceroute
 
 ```
-ze ping <target> [--count N] [--interface IF]
+ze ping <target> [--count N] [--source IP]
 ```
 
-`ze ping` is a thin offline wrapper over the OS `ping` binary, owned by the
-dedicated ping feature module. Traceroute has no offline wrapper: run
-`show traceroute <target>` on the daemon (a pure Go ICMP implementation).
+`ze ping` sends ICMP echo requests using Ze's internal ICMP engine (no external
+binary needed). Owned by the dedicated ping feature module. Traceroute has no
+offline wrapper: run `show traceroute <target>` on the daemon.
 
 <!-- source: internal/component/ping/cmd/offline.go -- RunPing -->
 
