@@ -1,4 +1,4 @@
-# Build the ze installer kernel in a container.
+# Build the ze installer kernel in a QEMU Alpine VM.
 #
 #   make                                  # qemu profile, arm64 (default)
 #   make PROFILE=hardware                 # real hardware, headless (EFI, NIC drivers, NVMe)
@@ -17,12 +17,13 @@
 # .config). The caller chooses the architecture via ARCH before invoking
 # `ze install appliance iso`, or passes an explicit `--kernel` path when
 # keeping multiple kernels side by side.
+#
+# Requires: qemu (brew install qemu), python3, curl.
 
 ARCH ?= arm64
 LINUX_VERSION ?= 7.0.11
 PROFILE ?= qemu
 JOBS ?=
-IMG := ze-installer-kernel-builder
 OUT := build
 
 PROFILE_CONFIG := $(PROFILE).config
@@ -36,21 +37,17 @@ ifeq ($(PROFILE),hardware-kms)
 PROFILE_DEPS = hardware.config hardware-kms.config
 endif
 
-$(OUT)/Image: Dockerfile build.sh kernel.config $(PROFILE_DEPS)
+$(OUT)/Image: qemu-build.py build.sh kernel.config $(PROFILE_DEPS)
 	@if [ ! -f "$(PROFILE_CONFIG)" ]; then \
 		echo "error: unknown PROFILE=$(PROFILE) (expected qemu, hardware, or hardware-kms)" >&2; \
 		exit 1; \
 	fi
-	docker build -t $(IMG) .
 	mkdir -p $(OUT)
-	docker run --rm \
-		-e LINUX_VERSION=$(LINUX_VERSION) \
-		-e ARCH=$(ARCH) \
-		-e PROFILE=$(PROFILE) \
-		$(if $(JOBS),-e JOBS=$(JOBS),) \
-		-v "$(CURDIR):/src:ro" \
-		-v "$(CURDIR)/$(OUT):/out" \
-		$(IMG) sh /src/build.sh
+	python3 qemu-build.py \
+		--arch $(ARCH) \
+		--profile $(PROFILE) \
+		--version $(LINUX_VERSION) \
+		$(if $(JOBS),--jobs $(JOBS),)
 	@echo "Built: $(OUT)/Image (profile=$(PROFILE), arch=$(ARCH))"
 
 clean:

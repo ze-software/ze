@@ -1,0 +1,425 @@
+#!/usr/bin/env python3
+"""Build the ze installer kernel inside a QEMU Alpine VM.
+
+Replaces the Docker-based build. Downloads Alpine virt ISO, boots QEMU
+with virtio-9p file sharing, installs build dependencies, and runs
+build.sh inside the VM. The built kernel lands in build/ on the host
+via the 9p mount.
+
+Usage:
+    python3 qemu-build.py                                # arm64, qemu profile
+    python3 qemu-build.py --arch amd64                   # x86_64, qemu profile
+    python3 qemu-build.py --profile hardware             # arm64, hardware profile
+    LINUX_VERSION=6.12.9 python3 qemu-build.py           # pin kernel version
+
+Prerequisites: qemu (brew install qemu), python3, curl.
+"""
+
+from __future__ import annotations
+
+import os
+import select
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ALPINE_VERSION = "3.21"
+ALPINE_MINOR = "3"
+
+VM_MEMORY = "8192"
+BOOT_TIMEOUT = 120
+BUILD_TIMEOUT = 3600
+DEFAULT_LINUX_VERSION = "7.0.11"
+
+BUILD_PACKAGES = (
+    "build-base bc bison flex elfutils-dev openssl-dev "
+    "perl wget xz diffutils findutils cpio"
+)
+
+
+def script_dir() -> Path:
+    return Path(__file__).resolve().parent
+
+
+def repo_root() -> Path:
+    here = script_dir()
+    for parent in [here, *here.parents]:
+        if (parent / "go.mod").is_file():
+            return parent
+    raise SystemExit("cannot locate repository root (no go.mod found)")
+
+
+def cache_dir() -> Path:
+    root = repo_root()
+    d = root / "tmp" / "qemu" / "iso"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def find_free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
+
+
+def qemu_binary(target_arch: str) -> str:
+    if target_arch in ("arm64", "aarch64"):
+        return "qemu-system-aarch64"
+    return "qemu-system-x86_64"
+
+
+def _alpine_arch(target_arch: str) -> str:
+    if target_arch in ("arm64", "aarch64"):
+        return "aarch64"
+    return "x86_64"
+
+
+def ensure_iso(target_arch: str) -> Path:
+    arch = _alpine_arch(target_arch)
+    name = f"alpine-virt-{ALPINE_VERSION}.{ALPINE_MINOR}-{arch}.iso"
+    iso = cache_dir() / name
+    if iso.is_file():
+        return iso
+    url = (
+        f"https://dl-cdn.alpinelinux.org/alpine/v{ALPINE_VERSION}/releases"
+        f"/{arch}/{name}"
+    )
+    print(f">>> downloading Alpine virt ISO ({arch})...", file=sys.stderr)
+    result = subprocess.run(
+        ["curl", "-fSL", "--progress-bar", "-o", str(iso), url],
+        check=False,
+    )
+    if result.returncode != 0:
+        iso.unlink(missing_ok=True)
+        raise SystemExit(f"download failed: {url}")
+    return iso
+
+
+def _find_aarch64_firmware() -> Path | None:
+    candidates = [
+        Path("/opt/homebrew/share/qemu/edk2-aarch64-code.fd"),
+        Path("/usr/share/qemu/edk2-aarch64-code.fd"),
+        Path("/usr/share/AAVMF/AAVMF_CODE.fd"),
+        Path("/usr/share/edk2/aarch64/QEMU_EFI-pflash.raw"),
+    ]
+    return next((p for p in candidates if p.is_file()), None)
+
+
+def _vm_cpus() -> str:
+    n = os.cpu_count() or 4
+    return str(max(2, n))
+
+
+def _build_qemu_args(
+    iso: Path, workspace: Path, target_arch: str, ssh_port: int
+) -> list[str]:
+    qemu = qemu_binary(target_arch)
+    args = [qemu]
+
+    if _alpine_arch(target_arch) == "aarch64":
+        fw = _find_aarch64_firmware()
+        if fw is None:
+            raise SystemExit(
+                "aarch64 UEFI firmware not found; "
+                "install QEMU with firmware (brew install qemu) "
+                "or qemu-efi-aarch64 on Debian/Ubuntu"
+            )
+        args.extend(
+            [
+                "-machine",
+                "virt,highmem=on,accel=hvf:kvm:tcg",
+                "-cpu",
+                "max",
+                "-bios",
+                str(fw),
+            ]
+        )
+    else:
+        args.extend(["-machine", "accel=hvf:kvm:tcg"])
+
+    args.extend(
+        [
+            "-smp",
+            _vm_cpus(),
+            "-m",
+            VM_MEMORY,
+            "-cdrom",
+            str(iso),
+            "-boot",
+            "d",
+            "-nographic",
+            "-serial",
+            "mon:stdio",
+            "-netdev",
+            f"user,id=net0,hostfwd=tcp::{ssh_port}-:22",
+            "-device",
+            "virtio-net-pci,netdev=net0",
+            "-virtfs",
+            f"local,path={workspace},mount_tag=workspace,"
+            f"security_model=none,id=ws0,readonly=off",
+        ]
+    )
+    return args
+
+
+def _expect(proc: subprocess.Popen[str], pattern: str, timeout: float) -> bool:
+    deadline = time.time() + timeout
+    buf = ""
+    fd = proc.stdout.fileno()
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            return False
+        ready, _, _ = select.select([fd], [], [], 1.0)
+        if ready:
+            chunk = os.read(fd, 4096)
+            if not chunk:
+                return False
+            buf += chunk.decode("utf-8", errors="replace")
+            if pattern in buf:
+                return True
+            if len(buf) > 20000:
+                buf = buf[-10000:]
+    return False
+
+
+def _send(proc: subprocess.Popen[str], cmd: str) -> None:
+    proc.stdin.write(cmd + "\n")
+    proc.stdin.flush()
+
+
+def _ssh_opts(port: int) -> list[str]:
+    return [
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "UserKnownHostsFile=/dev/null",
+        "-o",
+        "PreferredAuthentications=none",
+        "-o",
+        "LogLevel=ERROR",
+        "-p",
+        str(port),
+    ]
+
+
+def _wait_for_ssh(port: int, timeout: float) -> None:
+    deadline = time.time() + timeout
+    opts = _ssh_opts(port)
+    while time.time() < deadline:
+        result = subprocess.run(
+            ["ssh", *opts, "-o", "ConnectTimeout=2", "root@localhost", "true"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if result.returncode == 0:
+            return
+        time.sleep(2)
+    raise RuntimeError(f"SSH not reachable on port {port} after {timeout}s")
+
+
+def _ssh_run(cmd: str, port: int, timeout: int) -> int:
+    result = subprocess.run(
+        [
+            "ssh",
+            *_ssh_opts(port),
+            "-o",
+            "ServerAliveInterval=30",
+            "root@localhost",
+            cmd,
+        ],
+        check=False,
+        timeout=timeout,
+    )
+    return result.returncode
+
+
+def _shell_quote(s: str) -> str:
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def _run_build(
+    iso: Path,
+    workspace: Path,
+    target_arch: str,
+    profile: str,
+    version: str,
+    jobs: str,
+) -> int:
+    ssh_port = find_free_port()
+    args = _build_qemu_args(iso, workspace, target_arch, ssh_port)
+
+    print(
+        f">>> booting Alpine VM ({_alpine_arch(target_arch)}, ssh port {ssh_port})...",
+        file=sys.stderr,
+    )
+    proc = subprocess.Popen(
+        args,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+
+    def cleanup(signum=None, _frame=None):
+        proc.kill()
+        proc.wait()
+        if signum:
+            raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, cleanup)
+    signal.signal(signal.SIGINT, cleanup)
+
+    try:
+        if not _expect(proc, "login:", BOOT_TIMEOUT):
+            raise RuntimeError("timeout waiting for VM login prompt")
+
+        time.sleep(1)
+        _send(proc, "root")
+        time.sleep(3)
+
+        bootstrap = (
+            "setup-interfaces -a 2>/dev/null; "
+            "ifup eth0 2>/dev/null; ifup lo 2>/dev/null; "
+            "echo nameserver 8.8.8.8 > /etc/resolv.conf; "
+            "apk add --no-cache openssh; "
+            "echo PermitRootLogin yes >> /etc/ssh/sshd_config; "
+            "echo PermitEmptyPasswords yes >> /etc/ssh/sshd_config; "
+            "passwd -d root; "
+            "ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key "
+            "-N '' 2>/dev/null; "
+            "ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key "
+            "-N '' 2>/dev/null; "
+            "/usr/sbin/sshd; "
+            "echo SSHD_READY"
+        )
+
+        ready = False
+        for attempt in range(1, 4):
+            _send(proc, bootstrap)
+            print(
+                f"  bootstrapping VM, attempt {attempt}...",
+                file=sys.stderr,
+            )
+            if not _expect(proc, "SSHD_READY", 90):
+                continue
+            print("  waiting for SSH...", file=sys.stderr)
+            try:
+                _wait_for_ssh(ssh_port, timeout=30)
+                ready = True
+                break
+            except RuntimeError:
+                print("  SSH not up; retrying...", file=sys.stderr)
+                time.sleep(2)
+        if not ready:
+            raise RuntimeError("VM bootstrap failed: SSH not reachable")
+
+        print(
+            "  VM ready, installing build dependencies...",
+            file=sys.stderr,
+        )
+
+        setup = " && ".join(
+            [
+                "set -e",
+                f"printf 'https://dl-cdn.alpinelinux.org/alpine/"
+                f"v{ALPINE_VERSION}/main\\n"
+                f"https://dl-cdn.alpinelinux.org/alpine/"
+                f"v{ALPINE_VERSION}/community\\n' > /etc/apk/repositories",
+                "apk update",
+                f"apk add --no-cache {BUILD_PACKAGES}",
+                "mkdir -p /workspace",
+                "mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 "
+                "workspace /workspace",
+                "mkdir -p /build",
+            ]
+        )
+
+        build_env = (
+            f"LINUX_VERSION={version} ARCH={target_arch} "
+            f"PROFILE={profile} "
+            f"SRC_DIR=/workspace/tools/installer-kernel "
+            f"OUT_DIR=/workspace/tools/installer-kernel/build"
+        )
+        if jobs:
+            build_env += f" JOBS={jobs}"
+        build_cmd = f"{build_env} sh /workspace/tools/installer-kernel/build.sh"
+
+        full_cmd = f"sh -c {_shell_quote(setup + ' && ' + build_cmd)}"
+
+        print(
+            f"  building kernel "
+            f"(version={version}, arch={target_arch}, profile={profile})...",
+            file=sys.stderr,
+        )
+        rc = _ssh_run(full_cmd, ssh_port, BUILD_TIMEOUT)
+
+        if rc == 0:
+            print(">>> kernel build complete", file=sys.stderr)
+        else:
+            print(
+                f">>> kernel build FAILED (exit code {rc})",
+                file=sys.stderr,
+            )
+        return rc
+
+    except RuntimeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Build the ze installer kernel in a QEMU Alpine VM.",
+    )
+    parser.add_argument(
+        "--arch",
+        default=os.environ.get("ARCH", "arm64"),
+        help="Target architecture: arm64 or amd64 (default: arm64)",
+    )
+    parser.add_argument(
+        "--profile",
+        default=os.environ.get("PROFILE", "qemu"),
+        help="Kernel profile: qemu, hardware, or hardware-kms",
+    )
+    parser.add_argument(
+        "--version",
+        default=os.environ.get("LINUX_VERSION", DEFAULT_LINUX_VERSION),
+        help=f"Linux kernel version (default: {DEFAULT_LINUX_VERSION})",
+    )
+    parser.add_argument(
+        "--jobs",
+        default=os.environ.get("JOBS", ""),
+        help="Parallel make jobs (default: nproc inside VM)",
+    )
+    args = parser.parse_args()
+
+    qemu = qemu_binary(args.arch)
+    if shutil.which(qemu) is None:
+        raise SystemExit(f"missing: {qemu} (install: brew install qemu)")
+
+    root = repo_root()
+    iso = ensure_iso(args.arch)
+
+    return _run_build(
+        iso,
+        root,
+        args.arch,
+        args.profile,
+        args.version,
+        args.jobs,
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

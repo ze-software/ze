@@ -20,7 +20,6 @@ import (
 const (
 	defaultKernelVersion = "7.0.11"
 	kernelURLKey         = "ze.appliance.kernel.url"
-	kernelDockerImage    = "ze-installer-kernel-builder"
 	kernelToolsDir       = "tools/installer-kernel"
 	kernelBuildTimeout   = 60 * time.Minute
 )
@@ -32,8 +31,8 @@ var _ = env.MustRegister(env.EnvEntry{
 })
 
 var (
-	kernelDockerCheckFn = defaultDockerCheck
-	kernelDockerBuildFn = defaultDockerBuild // func(version, arch, profile, destPath string) error
+	kernelQEMUCheckFn = defaultQEMUCheck
+	kernelQEMUBuildFn = defaultQEMUBuild // func(version, arch, profile, destPath string) error
 )
 
 func init() {
@@ -143,12 +142,12 @@ func resolveKernel(version, arch, profile string) (string, error) {
 		}
 	}
 
-	if err := kernelDockerCheckFn(); err != nil {
-		return "", fmt.Errorf("installer kernel not cached; install Docker to build locally or set %s for remote download", kernelURLKey)
+	if err := kernelQEMUCheckFn(); err != nil {
+		return "", fmt.Errorf("installer kernel not cached; install QEMU to build locally or set %s for remote download", kernelURLKey)
 	}
 
-	if err := kernelDockerBuildFn(version, arch, profile, cached); err != nil {
-		return "", fmt.Errorf("docker kernel build: %w", err)
+	if err := kernelQEMUBuildFn(version, arch, profile, cached); err != nil {
+		return "", fmt.Errorf("qemu kernel build: %w", err)
 	}
 
 	if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
@@ -158,60 +157,43 @@ func resolveKernel(version, arch, profile string) (string, error) {
 	return cached, nil
 }
 
-func defaultDockerCheck() error {
-	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "docker", "info") //nolint:gosec // fixed command
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Run()
+func defaultQEMUCheck() error {
+	if _, err := exec.LookPath("python3"); err != nil {
+		return fmt.Errorf("python3 not found; required for QEMU kernel build")
+	}
+	for _, bin := range []string{"qemu-system-aarch64", "qemu-system-x86_64"} {
+		if _, err := exec.LookPath(bin); err == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("QEMU not found; install with: brew install qemu")
 }
 
-func defaultDockerBuild(version, arch, profile, destPath string) error {
-	srcDir, err := filepath.Abs(kernelToolsDir)
+func defaultQEMUBuild(version, arch, profile, destPath string) error {
+	scriptPath, err := filepath.Abs(filepath.Join(kernelToolsDir, "qemu-build.py"))
 	if err != nil {
-		return fmt.Errorf("resolve kernel tools dir: %w", err)
+		return fmt.Errorf("resolve build script path: %w", err)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
 		return fmt.Errorf("create cache directory: %w", err)
 	}
 
-	outDir, err := os.MkdirTemp("", "ze-kernel-build-*")
-	if err != nil {
-		return fmt.Errorf("create temp output dir: %w", err)
-	}
-	defer os.RemoveAll(outDir) //nolint:errcheck // cleanup
-
 	buildCtx, buildCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
 	defer buildCancel()
 
-	buildCmd := exec.CommandContext(buildCtx, "docker", "build", "-t", kernelDockerImage, ".") //nolint:gosec // controlled args
-	buildCmd.Dir = srcDir
-	buildCmd.Stdout = os.Stdout
-	buildCmd.Stderr = os.Stdout
-	if err := buildCmd.Run(); err != nil {
-		return fmt.Errorf("docker build: %w", err)
-	}
-
-	runCtx, runCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
-	defer runCancel()
-
-	runCmd := exec.CommandContext(runCtx, "docker", "run", "--rm", //nolint:gosec // controlled args
-		"-e", "LINUX_VERSION="+version,
-		"-e", "ARCH="+arch,
-		"-e", "PROFILE="+profile,
-		"-v", srcDir+":/src:ro",
-		"-v", outDir+":/out",
-		kernelDockerImage, "sh", "/src/build.sh",
+	cmd := exec.CommandContext(buildCtx, "python3", scriptPath, //nolint:gosec // controlled args
+		"--arch", arch,
+		"--profile", profile,
+		"--version", version,
 	)
-	runCmd.Stdout = os.Stdout
-	runCmd.Stderr = os.Stdout
-	if err := runCmd.Run(); err != nil {
-		return fmt.Errorf("docker run: %w", err)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("qemu-build.py: %w", err)
 	}
 
-	builtKernel := filepath.Join(outDir, kernelFileName)
+	builtKernel := filepath.Join(filepath.Dir(scriptPath), "build", kernelFileName)
 	if _, err := os.Stat(builtKernel); err != nil {
 		return fmt.Errorf("kernel not produced at %s", builtKernel)
 	}

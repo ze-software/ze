@@ -39,6 +39,12 @@ boot time.
 
 ## Build
 
+The build runs inside a QEMU Alpine VM. When the host architecture matches the
+target, QEMU uses HVF (macOS) or KVM (Linux) for near-native speed. Cross-arch
+builds use TCG (full emulation, slower).
+
+Prerequisites: `qemu` (`brew install qemu` on macOS), `python3`, `curl`.
+
 ```sh
 make                                  # qemu profile, arm64 (default)
 make PROFILE=hardware                 # real hardware, headless, arm64
@@ -51,6 +57,13 @@ make LINUX_VERSION=6.12.9             # pin a different kernel
 Output: `build/Image` (the kernel) and `build/config` (the resolved config).
 If you want to keep both architectures side by side, copy or rename the kernel
 after each build and pass it back to `ze appliance iso --kernel ...`.
+
+The build script (`build.sh`) can also be used directly inside any Linux
+environment (VM, container, bare metal) by setting `SRC_DIR` and `OUT_DIR`:
+
+```sh
+SRC_DIR=/path/to/tools/installer-kernel OUT_DIR=/path/to/output sh build.sh
+```
 
 ## Use with the QEMU install test
 

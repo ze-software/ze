@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build the ze installer kernel inside the build container.
+# Build the ze installer kernel inside a QEMU VM or any Linux environment.
 #
 # Downloads pinned Linux source, merges kernel.config + profile config onto
 # defconfig, verifies the must-be-builtin options actually resolved to =y,

@@ -41,18 +41,18 @@ func setTestHTTP(t *testing.T, fn func(string) (*http.Response, error)) {
 	t.Cleanup(func() { httpGetFn = old })
 }
 
-func setTestDockerCheck(t *testing.T, fn func() error) {
+func setTestQEMUCheck(t *testing.T, fn func() error) {
 	t.Helper()
-	old := kernelDockerCheckFn
-	kernelDockerCheckFn = fn
-	t.Cleanup(func() { kernelDockerCheckFn = old })
+	old := kernelQEMUCheckFn
+	kernelQEMUCheckFn = fn
+	t.Cleanup(func() { kernelQEMUCheckFn = old })
 }
 
-func setTestDockerBuild(t *testing.T, fn func(string, string, string, string) error) {
+func setTestQEMUBuild(t *testing.T, fn func(string, string, string, string) error) {
 	t.Helper()
-	old := kernelDockerBuildFn
-	kernelDockerBuildFn = fn
-	t.Cleanup(func() { kernelDockerBuildFn = old })
+	old := kernelQEMUBuildFn
+	kernelQEMUBuildFn = fn
+	t.Cleanup(func() { kernelQEMUBuildFn = old })
 }
 
 func TestRunDispatchesKernel(t *testing.T) {
@@ -156,26 +156,26 @@ func TestKernelDownloadChecksumMismatch(t *testing.T) {
 	setTestHTTP(t, srv.Client().Get)
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL)
 
-	setTestDockerCheck(t, func() error { return errors.New("no docker") })
+	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
 
 	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
 	if err == nil {
-		t.Fatal("expected error from checksum mismatch + no docker fallback")
+		t.Fatal("expected error from checksum mismatch + no QEMU fallback")
 	}
 }
 
-func TestKernelFallsBackToDocker(t *testing.T) {
+func TestKernelFallsBackToQEMU(t *testing.T) {
 	t.Chdir(t.TempDir())
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
-	setTestDockerCheck(t, func() error { return nil })
-	setTestDockerBuild(t, func(version, arch, profile, destPath string) error {
+	setTestQEMUCheck(t, func() error { return nil })
+	setTestQEMUBuild(t, func(version, arch, profile, destPath string) error {
 		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 			return err
 		}
-		return os.WriteFile(destPath, []byte("docker-built-kernel"), 0o644)
+		return os.WriteFile(destPath, []byte("qemu-built-kernel"), 0o644)
 	})
 
 	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
@@ -186,24 +186,24 @@ func TestKernelFallsBackToDocker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	if string(data) != "docker-built-kernel" {
-		t.Errorf("content = %q, want docker-built-kernel", data)
+	if string(data) != "qemu-built-kernel" {
+		t.Errorf("content = %q, want qemu-built-kernel", data)
 	}
 }
 
-func TestKernelFailsWithoutDocker(t *testing.T) {
+func TestKernelFailsWithoutQEMU(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
-	setTestDockerCheck(t, func() error { return errors.New("docker not found") })
+	setTestQEMUCheck(t, func() error { return errors.New("qemu not found") })
 
 	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU)
 	if err == nil {
-		t.Fatal("expected error when both download and docker fail")
+		t.Fatal("expected error when both download and QEMU fail")
 	}
-	if !strings.Contains(err.Error(), "Docker") {
-		t.Errorf("error should mention Docker, got: %v", err)
+	if !strings.Contains(err.Error(), "QEMU") {
+		t.Errorf("error should mention QEMU, got: %v", err)
 	}
 }
 
@@ -246,8 +246,8 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("no network") })
-	setTestDockerCheck(t, func() error { return nil })
-	setTestDockerBuild(t, func(version, arch, profile, destPath string) error {
+	setTestQEMUCheck(t, func() error { return nil })
+	setTestQEMUBuild(t, func(version, arch, profile, destPath string) error {
 		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 			return err
 		}
@@ -426,8 +426,8 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal("config change did not change cache variant")
 	}
 
-	setTestDockerCheck(t, func() error { return nil })
-	setTestDockerBuild(t, func(version, arch, profile, destPath string) error {
+	setTestQEMUCheck(t, func() error { return nil })
+	setTestQEMUBuild(t, func(version, arch, profile, destPath string) error {
 		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 			return err
 		}

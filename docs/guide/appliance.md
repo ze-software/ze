@@ -306,7 +306,7 @@ bin/ze-setup appliance build prod
 
 # 4. Prepare ISO prerequisites (download or build automatically)
 bin/ze-setup appliance iso --check               # see what is ready
-bin/ze-setup appliance kernel prod                # download or Docker-build the installer kernel
+bin/ze-setup appliance kernel prod                # download or QEMU-build the installer kernel
 bin/ze-setup appliance initrd                    # download or build the installer initrd
 
 # 5. Build the bootable installer ISO
@@ -324,7 +324,7 @@ bin/ze-setup install remote \
 ```
 
 The `kernel` and `initrd` commands try three sources in order: XDG cache hit,
-download from the release server, and local build (Docker for the kernel, make
+download from the release server, and local build (QEMU VM for the kernel, make
 for the initrd). Once cached, subsequent runs are instant. See
 "ISO prerequisites" below for details.
 
@@ -442,7 +442,7 @@ artifacts automatically:
     bin/ze-setup appliance iso lab                   # build ISO
 
 Both commands try three tiers in order: XDG cache hit, download from a release
-server, and local build (Docker for the kernel, make for the initrd). Downloaded
+server, and local build (QEMU VM for the kernel, make for the initrd). Downloaded
 artifacts are cached under `$XDG_CACHE_HOME/ze/` (default `~/.cache/ze/`) and
 also copied to `tools/installer-kernel/build/` and `tools/installer-initrd/build/`
 so `ze appliance iso` finds them without extra flags.

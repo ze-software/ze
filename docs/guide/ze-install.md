@@ -266,7 +266,7 @@ ze appliance iso prod
 Use `ze appliance iso --check` to verify all prerequisites (kernel, initrd,
 grub, xorriso) are available before building. The `kernel` and `initrd` commands
 download pre-built artifacts from the release server when available, falling
-back to a local Docker build (kernel) or make build (initrd). Cached artifacts
+back to a local QEMU VM build (kernel) or make build (initrd). Cached artifacts
 are stored under `$XDG_CACHE_HOME/ze/` (default `~/.cache/ze/`).
 
 For arm64 targets or a specific kernel version:
