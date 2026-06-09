@@ -57,8 +57,12 @@ else
     echo ">>> downloading linux ${LINUX_VERSION}"
     wget -4 -q "https://cdn.kernel.org/pub/linux/kernel/${series}/${tarball}"
 fi
-rm -rf "linux-${LINUX_VERSION}"
-tar xf "$tarball"
+if [ -d "linux-${LINUX_VERSION}" ] && [ -f "linux-${LINUX_VERSION}/scripts/Kbuild.include" ]; then
+    echo ">>> reusing existing source tree linux-${LINUX_VERSION}"
+else
+    rm -rf "linux-${LINUX_VERSION}"
+    tar xf "$tarball"
+fi
 cd "linux-${LINUX_VERSION}"
 
 echo ">>> configuring (defconfig + kernel.config + ${PROFILE} profile) for ${ARCH}"
