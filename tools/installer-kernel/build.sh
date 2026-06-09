@@ -57,13 +57,16 @@ else
     echo ">>> downloading linux ${LINUX_VERSION}"
     wget -4 -q "https://cdn.kernel.org/pub/linux/kernel/${series}/${tarball}"
 fi
-if [ -d "linux-${LINUX_VERSION}" ] && [ -f "linux-${LINUX_VERSION}/scripts/Kbuild.include" ]; then
-    echo ">>> reusing existing source tree linux-${LINUX_VERSION}"
+
+BUILD_TREE="/tmp/linux-${LINUX_VERSION}"
+if [ -d "${BUILD_TREE}" ] && [ -f "${BUILD_TREE}/scripts/Kbuild.include" ]; then
+    echo ">>> reusing existing source tree ${BUILD_TREE}"
 else
-    rm -rf "linux-${LINUX_VERSION}"
-    tar xf "$tarball"
+    rm -rf "${BUILD_TREE}"
+    echo ">>> extracting to ${BUILD_TREE}"
+    tar xf "$tarball" -C /tmp
 fi
-cd "linux-${LINUX_VERSION}"
+cd "${BUILD_TREE}"
 
 echo ">>> configuring (defconfig + kernel.config + ${PROFILE} profile) for ${ARCH}"
 make ARCH="$KERNEL_ARCH" defconfig
