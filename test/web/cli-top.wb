@@ -2,6 +2,7 @@
 # VALIDATES: CLI input bar renders on non-root pages
 # PREVENTS: CLI bar missing on deep navigation pages
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/

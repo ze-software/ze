@@ -10,18 +10,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
-// TestUIMode_DefaultsToFinder verifies that with no ze.web.ui env var set,
-// the hub defaults to the established Finder UI. Workbench remains opt-in
-// until the Phase 4 promotion criteria pass.
+// TestUIMode_DefaultsToWorkbench verifies that with no ze.web.ui env var set,
+// the hub defaults to the Workbench UI. Finder remains available only as an
+// explicit rollback mode.
 //
-// VALIDATES: Default UI is Finder during the workbench experiment.
-// PREVENTS: Default silently flipping to workbench before promotion.
-func TestUIMode_DefaultsToFinder(t *testing.T) {
+// VALIDATES: Default UI is Workbench.
+// PREVENTS: Falling back to the old Finder shell on the main page.
+func TestUIMode_DefaultsToWorkbench(t *testing.T) {
 	t.Setenv("ze.web.ui", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
-	assert.Equal(t, UIModeFinder, GetUIMode())
+	assert.Equal(t, UIModeWorkbench, GetUIMode())
 }
 
 // TestUIMode_OptInWorkbench verifies that ze.web.ui=workbench selects V2.
@@ -51,24 +51,24 @@ func TestUIMode_RollbackFinder(t *testing.T) {
 }
 
 // TestParseUIMode_KnownTokens verifies the parser recognizes both labels in
-// any case and falls back to Finder for unknown values.
+// any case and falls back to Workbench for unknown values.
 //
 // VALIDATES: Robustness against operator typos and case variation.
-// PREVENTS: An operator typo silently enabling the experimental UI.
+// PREVENTS: An operator typo silently switching to the wrong UI.
 func TestParseUIMode_KnownTokens(t *testing.T) {
 	tests := []struct {
 		input string
 		want  UIMode
 	}{
-		{"", UIModeFinder},
+		{"", UIModeWorkbench},
 		{"finder", UIModeFinder},
 		{"Finder", UIModeFinder},
 		{"FINDER", UIModeFinder},
 		{"workbench", UIModeWorkbench},
 		{"Workbench", UIModeWorkbench},
 		{"WORKBENCH", UIModeWorkbench},
-		{"unknown-mode", UIModeFinder},
-		{"v2", UIModeFinder},
+		{"unknown-mode", UIModeWorkbench},
+		{"v2", UIModeWorkbench},
 	}
 
 	for _, tc := range tests {

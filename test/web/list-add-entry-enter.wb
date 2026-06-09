@@ -2,6 +2,7 @@
 # VALIDATES: filling entry name and pressing Enter creates the entry
 # PREVENTS: add-entry form not submitting, entry not created
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/group/

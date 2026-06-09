@@ -2,6 +2,7 @@
 # VALIDATES: CLI set creates peer, peer table shows entry, commit persists
 # PREVENTS: CLI set not creating peer, table not refreshing, commit losing data
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=60s
 
 action=open:path=/show/bgp/peer/

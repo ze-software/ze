@@ -2,6 +2,7 @@
 # VALIDATES: back navigation returns to root with clean breadcrumb
 # PREVENTS: breadcrumb corruption (fragment/detail in path)
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/

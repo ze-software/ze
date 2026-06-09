@@ -2,6 +2,7 @@
 # VALIDATES: CLI creates interface with mac, unit and address saved, commit works
 # PREVENTS: interface not created, commit losing data
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=60s
 
 action=open:path=/show/

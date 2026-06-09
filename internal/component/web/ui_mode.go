@@ -40,13 +40,13 @@ func (m UIMode) String() string {
 }
 
 // ParseUIMode converts a token to a UIMode. Unknown or empty values
-// fall back to Finder, the stable UI during the workbench experiment.
+// fall back to Workbench. Finder remains available as an explicit rollback.
 func ParseUIMode(s string) UIMode {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case uiModeTokenWorkbench:
-		return UIModeWorkbench
-	default:
+	case uiModeTokenFinder:
 		return UIModeFinder
+	default:
+		return UIModeWorkbench
 	}
 }
 

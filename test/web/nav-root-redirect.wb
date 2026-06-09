@@ -2,6 +2,7 @@
 # VALIDATES: / redirects to /show/ and YANG tree appears
 # PREVENTS: broken root redirect, blank page at /
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/

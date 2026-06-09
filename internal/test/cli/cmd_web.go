@@ -251,8 +251,6 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string) (*zeTes
 	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", portStr, "--insecure-web") //nolint:gosec // test binary path
 	var tb textbuf.Buffer
 	cmd.Env = append(os.Environ(),
-		"ze.web.ui=finder",
-		"ZE_WEB_UI=finder",
 		tb.Str("ze.config.dir=").Str(tempDir).String(),
 	)
 

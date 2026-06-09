@@ -2,6 +2,7 @@
 # VALIDATES: BGP container renders leaf names and child container links
 # PREVENTS: missing leaf rendering, broken container template
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/

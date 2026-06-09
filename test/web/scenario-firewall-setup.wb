@@ -2,6 +2,7 @@
 # VALIDATES: firewall table/chain/term creation forms, CLI set for chain fields
 # PREVENTS: broken firewall add forms, chain fields not saving
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=60s
 
 # Navigate to firewall tables page

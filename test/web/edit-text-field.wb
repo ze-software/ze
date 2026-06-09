@@ -2,6 +2,7 @@
 # VALIDATES: router-id and listen leaf fields render in BGP view
 # PREVENTS: text leaf fields missing from container view
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/

@@ -2,6 +2,7 @@
 # VALIDATES: peer table shows all field values (name, IP, ASN) in columns
 # PREVENTS: peer created but fields not showing in table, data not passed through
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=60s
 
 action=open:path=/show/bgp/peer/

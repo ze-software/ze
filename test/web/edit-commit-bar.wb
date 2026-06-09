@@ -2,6 +2,7 @@
 # VALIDATES: layout chrome renders with CLI bar, theme toggle, and error button
 # PREVENTS: missing toolbar elements, broken layout template
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/

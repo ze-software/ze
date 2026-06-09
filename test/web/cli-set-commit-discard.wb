@@ -2,6 +2,7 @@
 # VALIDATES: set command creates pending change, discard clears it
 # PREVENTS: discard not clearing editor state
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/

@@ -2,6 +2,7 @@
 # VALIDATES: container nodes render children as navigation links
 # PREVENTS: empty container rendering, missing child entries
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/

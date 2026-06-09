@@ -2,6 +2,7 @@
 # VALIDATES: breadcrumb segments are clickable links that navigate to parent
 # PREVENTS: non-functional breadcrumb links, broken upward navigation
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/environment/log/

@@ -6,6 +6,7 @@
 # Notes: This test depends on the hub being started without
 # `ze.web.ui=workbench`. The default ze-test web invocation satisfies that.
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/

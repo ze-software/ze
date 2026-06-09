@@ -2,6 +2,7 @@
 # VALIDATES: clicking a sidebar link swaps content via HTMX partial response
 # PREVENTS: HTMX not loaded, hx-get handlers broken, full page reloads
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/

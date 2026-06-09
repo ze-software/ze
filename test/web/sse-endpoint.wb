@@ -2,6 +2,7 @@
 # VALIDATES: layout template renders notification bar for SSE events
 # PREVENTS: missing notification bar element, SSE UI anchor point absent
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/

@@ -146,21 +146,21 @@ No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
 |--------|---------|
 | CLI flag | `ze start --web <port>` |
 | Config | `environment { web { enabled true; server main { ip 0.0.0.0; port 3443; } } }` |
-| Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true`, `ze.web.ui=workbench` (V2 experiment) |
+| Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true`, `ze.web.ui=finder` (rollback to legacy Finder) |
 
 Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BGP config) starts the web server standalone for initial setup.
 
-## V2 Workbench (experiment)
+## Workbench UI (default)
 
-`spec-web-2-operator-workbench.md` introduces a RouterOS-style operator workbench as a V2 experiment behind `ze.web.ui=workbench`. The default stays at `finder` until `bin/ze-test web -p workbench-bgp-change-verify` passes every Promotion Criteria threshold; flipping the default is a one-line change in `internal/component/config/environment.go`.
+The RouterOS-style operator workbench is the default UI. Set `ze.web.ui=finder` to roll back to the legacy Finder shell.
 
 | Region | Source |
 |--------|--------|
-| Top bar (identity, breadcrumb) | `templates/component/workbench_topbar.html` |
+| Top bar (identity, breadcrumb, actions) | `templates/component/workbench_topbar.html` |
 | Left nav (Dashboard / Routing / Logs / ...) | `templates/component/workbench_nav.html` driven by `workbench_sections.go` |
 | Workspace (table + detail) | reuses the existing `detail` fragment so list tables and fields render unchanged inside the new chrome |
 | Tool overlay container `#tool-overlays` | `templates/component/tool_overlay.html`; HTMX `hx-swap="beforeend"` appends each instance as a sibling so multiple overlays can pin |
-| Commit bar / CLI bar / diff modal / error panel | reused unchanged from Finder |
+| Commit bar / diff modal / error panel | reused unchanged from Finder; CLI bar removed (available as `/cli` tab) |
 
 ### Related-tool execution
 

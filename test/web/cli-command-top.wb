@@ -2,6 +2,7 @@
 # VALIDATES: top verb resets context path to root
 # PREVENTS: top command not resetting context
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/local/

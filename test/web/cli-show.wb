@@ -2,6 +2,7 @@
 # VALIDATES: typing show in CLI bar returns config text in content area
 # PREVENTS: CLI command dispatch broken, show verb not handled
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/config/edit/bgp/

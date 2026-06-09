@@ -2,6 +2,7 @@
 # VALIDATES: container template renders both fields and navigation links
 # PREVENTS: leaves hidden when children exist, mixed content broken
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/

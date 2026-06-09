@@ -63,7 +63,7 @@ Hidden overlays (shown on demand):
 templates/
   page/                          -- document shells
     layout.html                  -- Finder grid layout, includes all component templates
-    workbench.html               -- V2 workbench shell (ze.web.ui=workbench), grid: top bar / nav / workspace / commit bar / cli bar
+    workbench.html               -- workbench shell (default), grid: top bar / nav / workspace / commit bar
     login.html                   -- login form
 
   component/                     -- page sections (one file = one visual region)

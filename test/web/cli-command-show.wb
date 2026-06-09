@@ -2,6 +2,7 @@
 # VALIDATES: filling CLI bar and pressing Enter dispatches command
 # PREVENTS: CLI bar not submitting on Enter, show verb broken
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/

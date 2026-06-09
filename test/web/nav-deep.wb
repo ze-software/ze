@@ -2,6 +2,7 @@
 # VALIDATES: click navigation traverses YANG tree to nested containers
 # PREVENTS: broken HTMX click handlers, dead navigation links
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/

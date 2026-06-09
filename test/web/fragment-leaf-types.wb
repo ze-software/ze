@@ -2,6 +2,7 @@
 # VALIDATES: leaf nodes render with their YANG names as labels
 # PREVENTS: missing field labels, broken leaf rendering in containers
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/

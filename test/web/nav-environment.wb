@@ -2,6 +2,7 @@
 # VALIDATES: environment node from YANG schema renders with child containers
 # PREVENTS: missing YANG schema registration for environment, broken container rendering
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/environment/

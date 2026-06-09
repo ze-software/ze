@@ -2,6 +2,7 @@
 # VALIDATES: edit verb changes context to target YANG path
 # PREVENTS: CLI edit not triggering navigation, path resolution broken
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/

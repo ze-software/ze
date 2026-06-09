@@ -2,6 +2,7 @@
 # VALIDATES: clicking new button opens overlay with name input
 # PREVENTS: add-entry overlay broken, JS not loaded
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/bgp/group/

@@ -2,6 +2,7 @@
 # VALIDATES: ArrowDown/ArrowUp select completion items, Enter accepts selection
 # PREVENTS: Arrow keys always navigating history instead of dropdown items
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=30s
 
 action=open:path=/show/

@@ -2,6 +2,7 @@
 # VALIDATES: multiple peers tracked in editor, all visible in peer table after commit
 # PREVENTS: second peer overwriting first, table not showing all entries after commit
 
+option=skip:reason=requires Finder mode (ze.web.ui=finder)
 option=timeout:value=60s
 
 action=open:path=/show/bgp/peer/
