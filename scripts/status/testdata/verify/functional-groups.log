@@ -1,2 +1,2 @@
-VERIFY FAILURE GROUP: {"stage":"plugin","group_id":"plugin:timeout:bfd","kind":"timeout","related":["0","1"],"summary":"plugin timeout bfd: 2 test(s)","rerun":"ze-test bgp plugin 0 1","parallel":"group"}
+VERIFY FAILURE GROUP: {"stage":"plugin","group_id":"plugin:timeout:bfd","kind":"timeout","related":["1","2"],"summary":"plugin timeout bfd: 2 test(s)","rerun":"ze-test bgp plugin 1 2","parallel":"group"}
 FAIL  1 suite(s) failed: plugin

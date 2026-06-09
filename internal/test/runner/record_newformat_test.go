@@ -35,7 +35,7 @@ expect=bgp:conn=6:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001705`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	// Should have 3 messages, including a connection number above the old four-connection limit.
@@ -79,7 +79,7 @@ expect=json:conn=1:seq=1:json={"type":"keepalive"}`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	// Should have 1 message with both hex and json
@@ -115,7 +115,7 @@ expect=file:glob=rollback/ze-bgp-*.conf:contains=router-id 1.2.3.4`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 	require.Len(t, rec.FileChecks, 4)
 	assert.Equal(t, "meta/config/active", rec.FileChecks[0].Path)
@@ -151,7 +151,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	// Should have 2 env vars in KEY=VALUE format
@@ -179,7 +179,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	assert.Equal(t, filepath.Join(tmpDir, "myconfig.conf"), rec.ConfigFile)
@@ -209,7 +209,7 @@ expect=bgp:conn=2:seq=2:hex=DDDD`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	// Should have 4 messages with proper conn/seq indexing
@@ -246,7 +246,7 @@ expect=bgp:conn=1:seq=1:hex=BBBB`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	// Both should be stored - implementation decides how to handle unordered
@@ -276,7 +276,7 @@ action=notification:conn=1:seq=2:text=session ending`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	// Notification should be in Expects for testpeer to process.
@@ -306,7 +306,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	msg := rec.GetMessage(101)
@@ -337,7 +337,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	assert.Equal(t, []string{"fatal", "panic"}, rec.RejectSyslog)
@@ -786,7 +786,7 @@ func TestParseCIOptionSkipOS(t *testing.T) {
 			_, err := et.parseAndAdd(ciFile)
 			require.NoError(t, err)
 
-			rec := et.GetByNick("0")
+			rec := et.GetByNick("1")
 			require.NotNil(t, rec)
 
 			if tt.wantSkip {

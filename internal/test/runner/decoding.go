@@ -368,14 +368,14 @@ func parseTypeLine(line string) (msgType, family string) {
 
 // List prints available tests (overrides TestSet.List to show Type).
 func (dt *DecodingTests) List() {
-	fmt.Fprintln(os.Stdout, "\nAvailable decoding tests:") //nolint:errcheck // user output
-	fmt.Fprintln(os.Stdout)                                //nolint:errcheck // user output
+	writeTestListHeader("Available decoding tests")
 	registered := dt.Registered()
 	total := len(registered)
 	for i, t := range registered {
-		fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s (%s)\n", i+1, total, t.Nick, t.Name, t.Type) //nolint:errcheck // user output
+		var suffix textbuf.Buffer
+		writeTestListLine(i+1, total, t.Nick, t.Name, suffix.Str(" (").Str(t.Type).Byte(')').String())
 	}
-	fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
+	writeTestListFooter()
 }
 
 // DecodingRunner executes decoding tests.

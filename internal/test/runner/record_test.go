@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -9,6 +10,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+	}()
+
+	fn()
+	require.NoError(t, w.Close())
+	out, err := io.ReadAll(r)
+	require.NoError(t, err)
+	require.NoError(t, r.Close())
+	return string(out)
+}
 
 // TestParseCILoggingOptions verifies parsing of logging-related .ci options.
 //
@@ -129,7 +149,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			require.NoError(t, err)
 
 			// Get the parsed record
-			rec := et.GetByNick("0")
+			rec := et.GetByNick("1")
 			require.NotNil(t, rec, "record should exist")
 
 			// Verify logging options
@@ -144,15 +164,32 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 // TestGenerateNick_NumericOnly verifies generated test ids are decimal strings
 // with no letter-based short-code phase.
 //
-// VALIDATES: GenerateNick returns 0,1,2... as decimal strings for every test.
+// VALIDATES: GenerateNick returns 1,2,3... as decimal strings for every test.
 // PREVENTS: Mixed letter/number ids like A, B, C reappearing in ze-test output.
 func TestGenerateNick_NumericOnly(t *testing.T) {
 	ResetNickCounter()
 
 	for i := range 70 {
 		got := GenerateNick("ignored")
-		assert.Equal(t, strconv.Itoa(i), got)
+		assert.Equal(t, strconv.Itoa(i+1), got)
 	}
+}
+
+// TestTestsListPrintsOneBasedSelectorsWithProgress verifies --list shows the
+// same one-based number for progress and the runnable selector.
+//
+// VALIDATES: List output contains one-based progress, ids, and names.
+// PREVENTS: Reintroducing mixed one-based progress and zero-based test ids.
+func TestTestsListPrintsOneBasedSelectorsWithProgress(t *testing.T) {
+	ResetNickCounter()
+	tests := NewTests()
+	tests.Add("alpha")
+	tests.Add("beta")
+
+	out := captureStdout(t, tests.List)
+	assert.Contains(t, out, "\n  1/2  1  alpha\n")
+	assert.Contains(t, out, "\n  2/2  2  beta\n")
+	assert.NotContains(t, out, "1/2  0")
 }
 
 // TestParseCILoggingOptionsNotAffectOthers verifies logging options don't affect other parsing.
@@ -180,7 +217,7 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
 	// Verify existing options still work
@@ -200,14 +237,14 @@ func TestTestsSelectStartActivatesSuffix(t *testing.T) {
 	tests.Add("beta")
 	tests.Add("gamma")
 
-	selected, err := tests.Select(Selection{Start: "1"})
+	selected, err := tests.Select(Selection{Start: "2"})
 	require.NoError(t, err)
 	require.Equal(t, 2, selected)
 
 	got := tests.Selected()
 	require.Len(t, got, 2)
-	assert.Equal(t, "1", got[0].Nick)
-	assert.Equal(t, "2", got[1].Nick)
+	assert.Equal(t, "2", got[0].Nick)
+	assert.Equal(t, "3", got[1].Nick)
 }
 
 func TestTestsSelectPatternThenStart(t *testing.T) {
@@ -218,7 +255,7 @@ func TestTestsSelectPatternThenStart(t *testing.T) {
 	tests.Add("alpha-two")
 	tests.Add("beta-two")
 
-	selected, err := tests.Select(Selection{Pattern: "alpha", Start: "2"})
+	selected, err := tests.Select(Selection{Pattern: "alpha", Start: "3"})
 	require.NoError(t, err)
 	require.Equal(t, 1, selected)
 

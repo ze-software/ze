@@ -261,8 +261,8 @@ func TestFormatTimingLine(t *testing.T) {
 
 	// Records with only non-terminal states: should return ""
 	records := []*Record{
-		{Nick: "0", Name: "test1", State: StateNone, Duration: 100 * time.Millisecond},
-		{Nick: "1", Name: "test2", State: StateSkip, Duration: 200 * time.Millisecond},
+		{Nick: "1", Name: "test1", State: StateNone, Duration: 100 * time.Millisecond},
+		{Nick: "2", Name: "test2", State: StateSkip, Duration: 200 * time.Millisecond},
 	}
 	if got := FormatTimingLine("encode", records, timings, colors); got != "" {
 		t.Errorf("non-terminal: got %q, want empty", got)
@@ -270,18 +270,18 @@ func TestFormatTimingLine(t *testing.T) {
 
 	// Records with terminal states
 	records = []*Record{
-		{Nick: "0", Name: "test1", State: StateSuccess, Duration: 1200 * time.Millisecond},
-		{Nick: "1", Name: "test2", State: StateFail, Duration: 800 * time.Millisecond},
-		{Nick: "2", Name: "test3", State: StateTimeout, Duration: 5 * time.Second},
+		{Nick: "1", Name: "test1", State: StateSuccess, Duration: 1200 * time.Millisecond},
+		{Nick: "2", Name: "test2", State: StateFail, Duration: 800 * time.Millisecond},
+		{Nick: "3", Name: "test3", State: StateTimeout, Duration: 5 * time.Second},
 	}
 	got := FormatTimingLine("encode", records, timings, colors)
 	if got == "" {
 		t.Error("expected non-empty timing line")
 	}
-	if !strings.Contains(got, "0:1.2s") {
+	if !strings.Contains(got, "1:1.2s") {
 		t.Errorf("missing test1 timing in %q", got)
 	}
-	if !strings.Contains(got, "1:800ms") {
+	if !strings.Contains(got, "2:800ms") {
 		t.Errorf("missing test2 timing in %q", got)
 	}
 }
@@ -292,7 +292,7 @@ func TestFormatSlowTests(t *testing.T) {
 
 	// No baseline: no slow tests
 	records := []*Record{
-		{Nick: "0", Name: "test1", State: StateSuccess, Duration: 5 * time.Second},
+		{Nick: "1", Name: "test1", State: StateSuccess, Duration: 5 * time.Second},
 	}
 	if got := FormatSlowTests("encode", records, timings, colors); got != "" {
 		t.Errorf("no baseline: got %q, want empty", got)
@@ -304,8 +304,8 @@ func TestFormatSlowTests(t *testing.T) {
 	timings.Record("encode", "test1", 500*time.Millisecond)
 
 	records = []*Record{
-		{Nick: "0", Name: "test1", State: StateSuccess, Duration: 1500 * time.Millisecond},
-		{Nick: "1", Name: "test2", State: StateSuccess, Duration: 200 * time.Millisecond},
+		{Nick: "1", Name: "test1", State: StateSuccess, Duration: 1500 * time.Millisecond},
+		{Nick: "2", Name: "test2", State: StateSuccess, Duration: 200 * time.Millisecond},
 	}
 	got := FormatSlowTests("encode", records, timings, colors)
 	if !strings.Contains(got, "slow:") {

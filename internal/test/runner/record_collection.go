@@ -5,7 +5,6 @@
 package runner
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 )
@@ -213,11 +212,11 @@ func (ts *Tests) List() {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 
+	writeTestListHeader("Available tests")
 	total := len(ts.ordered)
-	fmt.Print("\nAvailable tests:\n\n") //nolint:forbidigo // CLI output
 	for i, nick := range ts.ordered {
 		r := ts.byNick[nick]
-		fmt.Printf("  %d/%d  %s  %s\n", i+1, total, r.Nick, r.Name)
+		writeTestListLine(i+1, total, r.Nick, r.Name, "")
 	}
-	fmt.Print("\n") //nolint:forbidigo // CLI output
+	writeTestListFooter()
 }

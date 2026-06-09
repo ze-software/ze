@@ -102,7 +102,7 @@ func TestVerifyRunProducesStageAndGroupSummaries(t *testing.T) {
 		"Rerun: go test ./internal/example/alpha -run '^TestAlpha$'",
 		"Group: package:codeberg.org/thomas-mangin/ze/internal/example/beta",
 		"Stage: plugin",
-		"Rerun: ze-test bgp plugin 0 1",
+		"Rerun: ze-test bgp plugin 1 2",
 		"Group: subcheck:ze-doc-test",
 		"Rerun: make ze-doc-test",
 	} {
@@ -189,7 +189,7 @@ func TestVerifyRunFunctionalFixtureWithRelatedPluginFailures(t *testing.T) {
 	if len(groups) != 1 {
 		t.Fatalf("expected one functional group, got %+v", groups)
 	}
-	if groups[0].GroupID != "plugin:timeout:bfd" || strings.Join(groups[0].Related, ",") != "0,1" {
+	if groups[0].GroupID != "plugin:timeout:bfd" || strings.Join(groups[0].Related, ",") != "1,2" {
 		t.Fatalf("unexpected functional group: %+v", groups[0])
 	}
 }

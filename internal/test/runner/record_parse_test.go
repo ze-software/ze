@@ -35,7 +35,7 @@ EOF_PEER
 	_, err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	rec := et.GetByNick("0")
+	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 	assert.Equal(t, []string{"ze.log.bgp.server=debug"}, rec.EnvVars)
 }

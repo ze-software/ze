@@ -11,7 +11,7 @@ import (
 //
 // PREVENTS: Lost data when adding multiple iterations.
 func TestIterationStats_Add(t *testing.T) {
-	stats := &IterationStats{Nick: "0"}
+	stats := &IterationStats{Nick: "1"}
 
 	stats.Add(StateSuccess, 100*time.Millisecond)
 	stats.Add(StateSuccess, 200*time.Millisecond)
@@ -34,7 +34,7 @@ func TestIterationStats_Add(t *testing.T) {
 //
 // PREVENTS: Timeouts being miscounted as failures.
 func TestIterationStats_Timeout(t *testing.T) {
-	stats := &IterationStats{Nick: "0"}
+	stats := &IterationStats{Nick: "1"}
 
 	stats.Add(StateTimeout, 30*time.Second)
 	stats.Add(StateFail, 100*time.Millisecond)
@@ -53,7 +53,7 @@ func TestIterationStats_Timeout(t *testing.T) {
 //
 // PREVENTS: Wrong timing statistics in stress test reports.
 func TestIterationStats_MinMaxAvg(t *testing.T) {
-	stats := &IterationStats{Nick: "0"}
+	stats := &IterationStats{Nick: "1"}
 
 	stats.Add(StateSuccess, 100*time.Millisecond)
 	stats.Add(StateSuccess, 300*time.Millisecond)
@@ -76,7 +76,7 @@ func TestIterationStats_MinMaxAvg(t *testing.T) {
 //
 // PREVENTS: Wrong pass rate in stress test summary.
 func TestIterationStats_PassRate(t *testing.T) {
-	stats := &IterationStats{Nick: "0"}
+	stats := &IterationStats{Nick: "1"}
 
 	stats.Add(StateSuccess, 100*time.Millisecond)
 	stats.Add(StateSuccess, 100*time.Millisecond)
@@ -96,7 +96,7 @@ func TestIterationStats_PassRate(t *testing.T) {
 //
 // PREVENTS: Division by zero or nil pointer panics.
 func TestIterationStats_Empty(t *testing.T) {
-	stats := &IterationStats{Nick: "0"}
+	stats := &IterationStats{Nick: "1"}
 
 	if stats.Min() != 0 {
 		t.Errorf("Min() = %v, want 0", stats.Min())
@@ -118,7 +118,7 @@ func TestIterationStats_Empty(t *testing.T) {
 //
 // PREVENTS: Wrong total in statistics display.
 func TestIterationStats_Total(t *testing.T) {
-	stats := &IterationStats{Nick: "0"}
+	stats := &IterationStats{Nick: "1"}
 
 	stats.Add(StateSuccess, 100*time.Millisecond)
 	stats.Add(StateFail, 100*time.Millisecond)
@@ -146,11 +146,11 @@ func TestNewStressStats(t *testing.T) {
 		t.Errorf("len(stats) = %d, want 2", len(stats))
 	}
 
-	// Nicks are "0" and "1" (generated)
-	if _, ok := stats["0"]; !ok {
-		t.Error("missing stats for nick '0'")
-	}
+	// Nicks are "1" and "2" (generated)
 	if _, ok := stats["1"]; !ok {
 		t.Error("missing stats for nick '1'")
+	}
+	if _, ok := stats["2"]; !ok {
+		t.Error("missing stats for nick '2'")
 	}
 }

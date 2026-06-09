@@ -227,14 +227,13 @@ var (
 	nickMu    sync.Mutex
 )
 
-// GenerateNick generates a unique numeric id for a test.
+// GenerateNick generates a unique one-based numeric id for a test.
 func GenerateNick(_ string) string {
 	nickMu.Lock()
 	defer nickMu.Unlock()
 
-	idx := nickIndex
 	nickIndex++
-	return strconv.Itoa(idx)
+	return strconv.Itoa(nickIndex)
 }
 
 // ResetNickCounter resets the nick counter (for testing).

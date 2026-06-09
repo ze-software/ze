@@ -78,8 +78,8 @@ Each `test/` subdirectory has its own runner and format:
 | `test/policy/` | Policy routing | `ze-test policy` |
 | `test/exabgp-compat/` | ExaBGP compatibility | `ze-test exabgp` |
 
-Run a single test by index or exact name, list the available ids, or resume from
-the last printed id after an interrupted run:
+Run a single test by one-based id or exact name, list the available ids, or
+resume from the last printed id after an interrupted run:
 
 ```sh
 bin/ze-test bgp plugin 42          # test id 42

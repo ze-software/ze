@@ -200,12 +200,12 @@ func parseExaBGPCLI(args []string) (exabgpCLI, error) {
 }
 
 func printExaBGPUsage() {
-	fmt.Fprint(os.Stderr, `Usage: ze-test exabgp [encoding] [options] [test-ids...]
+	_, _ = os.Stderr.WriteString(`Usage: ze-test exabgp [encoding] [options] [test-ids...]
 
 Run predecessor encoding tests using Ze's standard test selection and progress output.
 
 Modes:
-  -l, --list          List available tests with N/TOTAL and id
+  -l, --list          List available tests with N/TOTAL and one-based id
   --short-list        List numeric test ids only (space separated)
   -a, --all           Run all tests
   --start ID          Start at test id/name and run through the end
@@ -225,9 +225,9 @@ Examples:
   ze-test exabgp --list
   ze-test exabgp --all
   ze-test exabgp --start 20
-  ze-test exabgp 0 1 2
-  ze-test exabgp --server 0 --port 17900
-  ze-test exabgp --client 0 --port 17900
+  ze-test exabgp 1 2 3
+  ze-test exabgp --server 1 --port 17900
+  ze-test exabgp --client 1 --port 17900
 `)
 }
 

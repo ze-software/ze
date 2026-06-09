@@ -3,8 +3,9 @@
 package runner
 
 import (
-	"fmt"
 	"os"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // BaseTest provides common fields for all test types.
@@ -107,11 +108,27 @@ func (ts *TestSet[T]) GetByNick(nick string) (T, bool) {
 
 // List prints available tests.
 func (ts *TestSet[T]) List() {
-	fmt.Fprintln(os.Stdout, "\nAvailable tests:") //nolint:errcheck // user output
-	fmt.Fprintln(os.Stdout)                       //nolint:errcheck // user output
+	writeTestListHeader("Available tests")
 	total := len(ts.tests)
 	for i, t := range ts.tests {
-		fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s\n", i+1, total, t.GetNick(), t.GetName()) //nolint:errcheck // user output
+		writeTestListLine(i+1, total, t.GetNick(), t.GetName(), "")
 	}
-	fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
+	writeTestListFooter()
+}
+func writeTestListHeader(title string) {
+	var b textbuf.Buffer
+	_, _ = os.Stdout.Write(b.Reset().Byte('\n').Str(title).Str(":\n\n").Bytes())
+}
+
+func writeTestListLine(ordinal, total int, nick, name, suffix string) {
+	var b textbuf.Buffer
+	b.Str("  ").Int(int64(ordinal)).Byte('/').Int(int64(total)).Str("  ").Str(nick).Str("  ").Str(name)
+	if suffix != "" {
+		b.Str(suffix)
+	}
+	_, _ = os.Stdout.Write(b.Byte('\n').Bytes())
+}
+
+func writeTestListFooter() {
+	_, _ = os.Stdout.WriteString("\n")
 }

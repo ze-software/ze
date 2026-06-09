@@ -40,9 +40,9 @@ Examples:
   ze-test web --all          Run all tests in test/web/
   ze-test web -p nav         Run tests matching "nav"
   ze-test web --start 4      Resume at id 4 and run through the end
-  ze-test web 0 1            Run specific tests by id
+  ze-test web 1 2            Run specific tests by id
   ze-test web -v             Verbose output
-  ze-test web -l             List tests with N/TOTAL and id
+  ze-test web -l             List available tests with N/TOTAL and one-based id
 `
 
 func cmdWeb(args []string) int {

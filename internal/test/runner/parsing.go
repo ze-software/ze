@@ -371,21 +371,20 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 
 // List prints available tests with type-specific formatting.
 func (pt *ParsingTests) List() {
-	fmt.Fprintln(os.Stdout, "\nAvailable parsing tests:") //nolint:errcheck // user output
-	fmt.Fprintln(os.Stdout)                               //nolint:errcheck // user output
+	writeTestListHeader("Available parsing tests")
 	registered := pt.Registered()
 	total := len(registered)
 	for i, t := range registered {
 		switch {
 		case t.IsRegexMatch:
-			fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s (expect failure, regex)\n", i+1, total, t.Nick, t.Name) //nolint:errcheck // user output
+			writeTestListLine(i+1, total, t.Nick, t.Name, " (expect failure, regex)")
 		case len(t.ExpectErrors) > 0:
-			fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s (expect failure)\n", i+1, total, t.Nick, t.Name) //nolint:errcheck // user output
+			writeTestListLine(i+1, total, t.Nick, t.Name, " (expect failure)")
 		default:
-			fmt.Fprintf(os.Stdout, "  %d/%d  %s  %s\n", i+1, total, t.Nick, t.Name) //nolint:errcheck // user output
+			writeTestListLine(i+1, total, t.Nick, t.Name, "")
 		}
 	}
-	fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
+	writeTestListFooter()
 }
 
 // ParsingRunner executes parsing tests.

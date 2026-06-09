@@ -10,7 +10,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 | `ze-peer --decode` | Decode BGP messages | `ze-peer --decode --sink` |
 | `ze.log.*` | Per-subsystem logging | `ze.log.bgp.routes=debug ze bgp server config.conf` |
 | Functional test diff | Test failure analysis | Automatic on message mismatch |
-| `--server N` / `--client N` | Interactive test debugging | `ze-test bgp encode --server 0` |
+| `--server N` / `--client N` | Interactive test debugging | `ze-test bgp encode --server 1` |
 
 ---
 
@@ -268,7 +268,7 @@ ze.log.bgp.reactor.peer=debug ze.log.bgp.reactor.session=debug ze bgp server con
 
 ```bash
 # Run single test
-ze-test bgp encode 0
+ze-test bgp encode 1
 
 # Output now includes decoded diff automatically
 # Look at "Differences:" section to see what's wrong
@@ -280,10 +280,10 @@ Run server and client separately to see live output:
 
 ```bash
 # Terminal 1: Start test server (ze-peer)
-ze-test bgp encode --server 0
+ze-test bgp encode --server 1
 
 # Terminal 2: Start test client (zebgp)
-ze-test bgp encode --client 0
+ze-test bgp encode --client 1
 ```
 
 **Behavior:**
@@ -295,8 +295,8 @@ Press Ctrl+C in the client terminal once the server has finished validating: the
 
 **Use `--port` to avoid conflicts:**
 ```bash
-ze-test bgp encode --server 0 --port 11790
-ze-test bgp encode --client 0 --port 11790
+ze-test bgp encode --server 1 --port 11790
+ze-test bgp encode --client 1 --port 11790
 ```
 
 ---

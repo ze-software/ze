@@ -546,7 +546,7 @@ func zeTestParseRunCLI(args []string) *zeTestRunCLIFlags {
 }
 
 func zeTestPrintRunUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze-test bgp <type> [options] [tests...]
+	_, _ = os.Stderr.WriteString(`Usage: ze-test bgp <type> [options] [tests...]
 
 Types:
   encode    Run encode tests (static routes)
@@ -558,7 +558,7 @@ Types:
   chaos-web Run chaos web dashboard tests (HTTP endpoint checks)
 
 Modes:
-  -l, --list          List available tests with N/TOTAL and id
+  -l, --list          List available tests with N/TOTAL and one-based id
   --short-list        List numeric test ids only (space separated)
   -a, --all           Run all tests
   --start ID          Start at test id/name and run through the end
@@ -579,11 +579,11 @@ Debugging:
 Examples:
   ze-test bgp encode -l
   ze-test bgp encode -a
-  ze-test bgp encode 0 1 2
+  ze-test bgp encode 1 2 3
   ze-test bgp encode --start 42
   ze-test bgp plugin -a -q
   ze-test bgp decode -a
   ze-test bgp parse -a
-  ze-test bgp encode -c 10 0 1    # stress test: run tests 0,1 ten times
+  ze-test bgp encode -c 10 1 2    # stress test: run tests 1,2 ten times
 `)
 }

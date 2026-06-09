@@ -34,8 +34,8 @@ The verify debugging protocol identifies a functional failure with:
 | Field | Source | Purpose |
 |-------|--------|---------|
 | Suite label | `ze-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `ze-functional-test` |
-| Test id | Decimal id printed by `--list` and per-test result lines | Exact single-test rerun scope |
-| Run number | `N/TOTAL` printed by `--list` and result lines | Human progress marker for long suites |
+| Test id | One-based decimal id printed by `--list` and per-test result lines | Exact single-test rerun scope |
+| Run number | `N/TOTAL` printed by `--list` and per-test result lines | Human progress marker for long suites |
 | CI file path | Parsed `.ci` source path | Full test definition and embedded fixtures |
 | Failure kind | Runner failure type, timeout state, or mismatch class | Conservative grouping key |
 | Expected / received evidence | `TEST FAILURE` block detail | Full debugging evidence in the stage log |

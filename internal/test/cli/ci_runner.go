@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
+
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
@@ -47,9 +49,16 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 	fs.IntVar(parallel, "parallel", cfg.DefaultParallel, "max concurrent tests (0 = all)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze-test %s [options] [test-ids...]\n\n%s\n\nOptions:\n", cfg.Name, cfg.Detail) //nolint:errcheck // terminal output
+		var b textbuf.Buffer
+		b.Str("Usage: ze-test ").Str(cfg.Name).Str(" [options] [test-ids...]\n\n").Str(cfg.Detail).Str("\n\nOptions:\n")
+		_, _ = os.Stderr.Write(b.Bytes())
 		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nExamples:\n  ze-test %s -a              # Run all %s tests\n  ze-test %s -l              # List available tests with N/TOTAL and id\n  ze-test %s 0 1 2           # Run specific tests by id\n  ze-test %s --start 42      # Resume at id 42 and run through the end\n  ze-test %s --pattern bgp   # Run tests whose id, name, or path contains bgp\n  ze-test %s -a -v           # Verbose output\n", cfg.Name, cfg.Description, cfg.Name, cfg.Name, cfg.Name, cfg.Name, cfg.Name) //nolint:errcheck // terminal output
+		b.Reset().Str("\nExamples:\n  ze-test ").Str(cfg.Name).Str(" -a              # Run all ").Str(cfg.Description).
+			Str(" tests\n  ze-test ").Str(cfg.Name).Str(" -l              # List available tests with N/TOTAL and one-based id\n  ze-test ").
+			Str(cfg.Name).Str(" 1 2 3           # Run specific tests by id\n  ze-test ").Str(cfg.Name).
+			Str(" --start 42      # Resume at id 42 and run through the end\n  ze-test ").Str(cfg.Name).
+			Str(" --pattern bgp   # Run tests whose id, name, or path contains bgp\n  ze-test ").Str(cfg.Name).Str(" -a -v           # Verbose output\n")
+		_, _ = os.Stderr.Write(b.Bytes())
 	}
 
 	if len(args) > 0 && isHelpArg(args[0]) {

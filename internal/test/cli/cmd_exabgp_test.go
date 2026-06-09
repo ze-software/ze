@@ -21,16 +21,16 @@ func TestDiscoverExaBGPSuiteAssignsNumericIDsInDisplayOrder(t *testing.T) {
 	if len(registered) != 2 {
 		t.Fatalf("registered tests = %d, want 2", len(registered))
 	}
-	if registered[0].Nick != "0" || registered[0].Name != "alpha" {
-		t.Fatalf("first test = %s %s, want 0 alpha", registered[0].Nick, registered[0].Name)
+	if registered[0].Nick != "1" || registered[0].Name != "alpha" {
+		t.Fatalf("first test = %s %s, want 1 alpha", registered[0].Nick, registered[0].Name)
 	}
-	if registered[1].Nick != "1" || registered[1].Name != "zeta" {
-		t.Fatalf("second test = %s %s, want 1 zeta", registered[1].Nick, registered[1].Name)
+	if registered[1].Nick != "2" || registered[1].Name != "zeta" {
+		t.Fatalf("second test = %s %s, want 2 zeta", registered[1].Nick, registered[1].Name)
 	}
 
-	alpha := suite.byNick["0"]
+	alpha := suite.byNick["1"]
 	if alpha == nil {
-		t.Fatal("missing metadata for nick 0")
+		t.Fatal("missing metadata for nick 1")
 	}
 	if alpha.tcpConnections != 3 {
 		t.Fatalf("tcpConnections = %d, want 3", alpha.tcpConnections)

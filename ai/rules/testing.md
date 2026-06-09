@@ -186,7 +186,7 @@ After 3 samples, the baseline is used for two things:
 ## Test Tools
 
 - `ze-peer`: BGP test peer (`--sink`, `--echo`, `--port`, `--asn`)
-- `ze-test`: Test runner. Common suite syntax is `--list`, `--all`, `--start N`, `--pattern TEXT`, or positional `N...`; `--list` prints `N/TOTAL id name`, and runs print one completion line per test plus periodic progress.
+- `ze-test`: Test runner. Common suite syntax is `--list`, `--all`, `--start N`, `--pattern TEXT`, or positional `N...`; `--list` prints `N/TOTAL id name` with one-based ids, and runs print one completion line per test plus periodic progress.
 
 When adding a test runner, test format, make target, or verification gate, update
 `ai/rules/discovery-updates.md` paths in the same change: `ai/INDEX.md` for the

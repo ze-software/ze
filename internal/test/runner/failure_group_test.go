@@ -7,38 +7,38 @@ import (
 
 func TestFunctionalFailureGroupsUseSuiteTypeAndSubsystemPrefix(t *testing.T) {
 	records := []*Record{
-		{Name: "bfd-session-timeout", Nick: "0", State: StateTimeout},
-		{Name: "bfd-peer-timeout", Nick: "1", State: StateTimeout},
-		{Name: "fib-observer-mismatch", Nick: "2", State: StateFail, FailureType: FailTypeMismatch},
+		{Name: "bfd-session-timeout", Nick: "1", State: StateTimeout},
+		{Name: "bfd-peer-timeout", Nick: "2", State: StateTimeout},
+		{Name: "fib-observer-mismatch", Nick: "3", State: StateFail, FailureType: FailTypeMismatch},
 	}
 	groups := GroupFunctionalFailures("plugin", records)
 	if len(groups) != 2 {
 		t.Fatalf("expected bfd timeout and fib mismatch groups, got %+v", groups)
 	}
-	if groups[0].GroupID != "plugin:timeout:bfd" || strings.Join(groups[0].Related, ",") != "0,1" {
+	if groups[0].GroupID != "plugin:timeout:bfd" || strings.Join(groups[0].Related, ",") != "1,2" {
 		t.Fatalf("unexpected first group: %+v", groups[0])
 	}
-	if groups[0].Rerun != "ze-test bgp plugin 0 1" {
+	if groups[0].Rerun != "ze-test bgp plugin 1 2" {
 		t.Fatalf("unexpected BGP rerun: %s", groups[0].Rerun)
 	}
-	if groups[1].GroupID != "plugin:mismatch:fib" || groups[1].Rerun != "ze-test bgp plugin 2" {
+	if groups[1].GroupID != "plugin:mismatch:fib" || groups[1].Rerun != "ze-test bgp plugin 3" {
 		t.Fatalf("unexpected second group: %+v", groups[1])
 	}
 }
 
 func TestTopLevelCIFailureGroupsDoNotMergeByFirstToken(t *testing.T) {
 	records := []*Record{
-		{Name: "cli-schema-protocol", Nick: "0", State: StateFail, FailureType: FailTypeMismatch},
-		{Name: "cli-show-bgp-encode", Nick: "1", State: StateFail, FailureType: FailTypeMismatch},
+		{Name: "cli-schema-protocol", Nick: "1", State: StateFail, FailureType: FailTypeMismatch},
+		{Name: "cli-show-bgp-encode", Nick: "2", State: StateFail, FailureType: FailTypeMismatch},
 	}
 	groups := GroupFunctionalFailures("ui", records)
 	if len(groups) != 2 {
 		t.Fatalf("expected separate groups for unrelated cli failures, got %+v", groups)
 	}
-	if groups[0].GroupID != "ui:mismatch:cli-schema-protocol" || groups[0].Rerun != "ze-test ui 0" {
+	if groups[0].GroupID != "ui:mismatch:cli-schema-protocol" || groups[0].Rerun != "ze-test ui 1" {
 		t.Fatalf("unexpected first ui group: %+v", groups[0])
 	}
-	if groups[1].GroupID != "ui:mismatch:cli-show-bgp-encode" || groups[1].Rerun != "ze-test ui 1" {
+	if groups[1].GroupID != "ui:mismatch:cli-show-bgp-encode" || groups[1].Rerun != "ze-test ui 2" {
 		t.Fatalf("unexpected second ui group: %+v", groups[1])
 	}
 }

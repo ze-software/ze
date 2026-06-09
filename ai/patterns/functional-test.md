@@ -48,8 +48,8 @@ Full format: `docs/architecture/testing/ci-format.md`. Rules: `rules/testing.md`
 
 All `ze-test` suites use the same selection contract after the suite name:
 `--list`, `--all`, `--start N`, `--pattern TEXT`, or positional `N...`.
-`--list` prints `N/TOTAL id name`; runs print one completion line per test plus
-periodic progress.
+`--list` prints `N/TOTAL id name` with one-based ids; runs print one completion
+line per test plus periodic progress.
 
 | Directory | Runner command | Make target |
 |-----------|---------------|-------------|

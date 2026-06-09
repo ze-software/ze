@@ -102,7 +102,7 @@ or the `l2tp_ppp`/`pppol2tp` module is missing. Run individual scenarios with
 ## Quick Start
 
 ```bash
-# List available tests with run number, total, id, and name
+# List available tests with run number, total, one-based id, and name
 ze-test bgp encode --list
 ze-test ui --list
 
@@ -119,7 +119,7 @@ ze-test bgp plugin --start 42
 ze-test editor --start 42
 
 # Stress test selected tests
-ze-test bgp encode --count 10 0 1
+ze-test bgp encode --count 10 1 2
 ```
 <!-- source: internal/test/cli/cmd_bgp.go -- parseRunCLI, printRunUsage -->
 <!-- source: internal/test/cli/ci_runner.go -- runCISubcommand common options -->
@@ -130,9 +130,10 @@ ze-test bgp encode --count 10 0 1
 
 Every `ze-test` functional suite uses the same selection contract after the suite
 name: `--list`, `--all`, `--start ID`, `--pattern TEXT`, or positional
-`ID_OR_NAME...`. `--list` prints each test as `N/TOTAL ID NAME`. Each run prints
-one completion line per test with elapsed time, `N/TOTAL`, result, id, and name,
-plus periodic progress while tests are still running.
+`ID_OR_NAME...`. `--list` prints each test as `N/TOTAL ID NAME`; `ID` is
+one-based, so the full-suite progress number and runnable id match. Each run
+prints one completion line per test with elapsed time, `N/TOTAL`, result, id,
+and name, plus periodic progress while tests are still running.
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- Status, TestFinished -->
 <!-- source: internal/test/cli/cmd_web.go -- webMain parallel via ParallelRunner -->
@@ -521,16 +522,36 @@ Real failures exit non-zero.
 
 | File | What it verifies |
 |------|------------------|
+| `appliance-kernel-auto-docker.ci` | `ze appliance kernel` without `--builder` prefers Docker over an available QEMU backend and writes the installer artifact into both `tools/installer-kernel/build/` and the XDG cache |
+| `appliance-kernel-auto-qemu.ci` | `ze appliance kernel` without `--builder` falls back to QEMU when Docker is unavailable and still writes the installer artifact into both `tools/installer-kernel/build/` and the XDG cache |
+| `appliance-kernel-docker.ci` | `ze appliance kernel --builder docker` reaches the shared builder, writes `tools/installer-kernel/build/{Image,config}`, and stores the same artifact under the XDG installer-kernel cache |
+| `appliance-kernel-qemu.ci` | `ze appliance kernel --builder qemu` reaches `tools/kernel-builder/qemu-build.py`, passes explicit builder/src/out dirs, writes `tools/installer-kernel/build/{Image,config}`, and stores the same artifact under the XDG installer-kernel cache |
 | `appliance-push-image-escape.ci` | `ze appliance push` rejects `--image` candidates that escape the appliance directory before network or TLS work |
 | `appliance-iso-default-paths.ci` | `ze appliance iso` succeeds with default kernel/initrd artifact paths and stages those files into the installer tree |
 | `appliance-iso-arm64.ci` | `ze appliance iso` emits arm64 UEFI staging assets and arm64 kernel console settings when `image.arch=arm64` |
 | `initrd-flow.ci` | Shell tests for cmdline parsing, disk selection, ISO media discovery, and checksum-protected image writes |
+| `kernel-compose.ci` | Runtime `gokrazy/kernel/{kernel.config,runtime.config}` fragments keep required built-in options and exclude removed Kconfig symbols before any real build runs |
+| `kernel-qemu-arch-alias.ci` | `tools/kernel-builder/qemu-build.py` accepts `aarch64` as an alias for `arm64` and continues to later path validation |
+| `kernel-builder-packages.ci` | Shared runtime builder package lists include host tools needed for `CONFIG_KERNEL_ZSTD=y` images and `modules_install` output (`zstd`, `kmod`) in both Docker and QEMU backends |
+| `kernel-runtime-deps.ci` | `gokrazy/kernel/Makefile` treats builder scripts, Dockerfile, and tracked patches as rebuild inputs for runtime kernel artifacts |
+| `kernel-wiring.ci` | Installer and runtime Makefiles delegate Docker/QEMU builds to `tools/kernel-builder/` with the expected mounts, env vars, and repo-relative path flags |
 | `qemu-full.ci` | PXE installer path writes the image, injects ZeFS, boots the written disk, and authenticates |
 | `qemu-iso.ci` | Appliance ISO path writes the embedded image unchanged, skips PXE ZeFS injection, powers off safely, boots the written disk, and authenticates |
+| `ze-kernel-overlay.ci` | Default `make ze-kernel` uses the docker runtime builder, overlays `vmlinuz`, modules, DTBs, and overlays into the gokrazy kernel modcache, and `make ze-kernel-clean` restores the pinned copy |
 
 Run the install suite with `bin/ze-test install --all`. For exhaustive QEMU
 entry points, use `make ze-install-qemu-test` for PXE and
 `make ze-install-iso-qemu-test` for appliance ISO media.
+<!-- source: test/install/appliance-kernel-auto-docker.ci -- ze appliance kernel default docker path -->
+<!-- source: test/install/appliance-kernel-auto-qemu.ci -- ze appliance kernel qemu fallback path -->
+<!-- source: test/install/appliance-kernel-docker.ci -- ze appliance kernel explicit docker path -->
+<!-- source: test/install/appliance-kernel-qemu.ci -- ze appliance kernel explicit qemu path -->
+<!-- source: test/install/kernel-builder-packages.ci -- shared builder package prerequisites -->
+<!-- source: test/install/kernel-compose.ci -- runtime fragment contract -->
+<!-- source: test/install/kernel-qemu-arch-alias.ci -- qemu arch alias validation -->
+<!-- source: test/install/kernel-runtime-deps.ci -- runtime makefile dependency coverage -->
+<!-- source: test/install/kernel-wiring.ci -- shared builder delegation -->
+<!-- source: test/install/ze-kernel-overlay.ci -- ze-kernel default docker overlay and restore -->
 <!-- source: mk/test-integration.mk -- ze-install-qemu-test, ze-install-iso-qemu-test -->
 
 ---
@@ -548,7 +569,7 @@ Common selection options:
 
 | Option | Meaning |
 |--------|---------|
-| `--list`, `-l` | List available tests as `N/TOTAL ID NAME` |
+| `--list`, `-l` | List available tests as `N/TOTAL ID NAME` with one-based ids |
 | `--all`, `-a` | Run all tests in the suite |
 | `--start ID` | Run the test matching `ID` or exact name, then every later test in suite order |
 | `--pattern TEXT` | Run tests whose id, name, or path contains `TEXT` |
@@ -576,10 +597,10 @@ Common run options:
 
 ## Test IDs
 
-Each test has a decimal id printed by `--list`. The one-based `N/TOTAL` prefix
-is the progress position in the current suite order, while the id is the stable
-selector to pass positionally or to `--start`. A line like
-`43/120  42  bgp-open` means "test id 42 is the 43rd test in a 120-test suite."
+Each test has a one-based decimal id printed by `--list`. The id is the stable
+selector to pass positionally or to `--start`; in a full-suite list or run it
+matches the `N` in `N/TOTAL`. A line like `42/120  42  bgp-open` means "test id
+42 is the 42nd test in a 120-test suite."
 <!-- source: internal/test/runner/record.go -- GenerateNick -->
 <!-- source: internal/test/runner/record_collection.go -- Tests.List -->
 
@@ -588,8 +609,8 @@ selector to pass positionally or to `--start`. A line like
 # Run test id 4
 ze-test bgp encode 4
 
-# Run tests 0, 41, and 42
-ze-test bgp encode 0 41 42
+# Run tests 1, 41, and 42
+ze-test bgp encode 1 41 42
 
 # Resume at id 42
 ze-test bgp encode --start 42
@@ -1529,13 +1550,19 @@ L2TP, and PPPoL2TP support.
 
 For appliance evidence, run `make ze-kernel` first, then
 `make ze-deployment-gokrazy-l2tp-ppp-test` on a Linux host or target runner
-with QEMU and the same PPPoL2TP LAC-side kernel support. The target builds a
-temporary gokrazy image with an L2TP first-boot template and proof-only runtime
-environment (`ze.l2tp.ncp.enable-ipv6cp=false`, because the static pool is
-IPv4-only), boots it under QEMU with UDP 1701 forwarded into the appliance,
-drives a real `xl2tpd`/`pppd` LAC from a Linux namespace, verifies PPP/IPCP and
+with QEMU and the same PPPoL2TP LAC-side kernel support. `make ze-kernel`
+defaults to `KERNEL_BUILDER=docker`; set `KERNEL_BUILDER=qemu` when you need to
+force the shared QEMU backend. In both cases it uses the shared kernel builder
+and tracked runtime fragments before copying vmlinuz/modules/DTBs into the
+gokrazy module cache. The target builds a temporary gokrazy image with an L2TP
+first-boot template and proof-only runtime environment
+(`ze.l2tp.ncp.enable-ipv6cp=false`, because the static pool is IPv4-only),
+boots it under QEMU with UDP 1701 forwarded into the appliance, drives a real
+`xl2tpd`/`pppd` LAC from a Linux namespace, verifies PPP/IPCP and
 LAC `pppN` address state, pings the Ze LNS address through PPP, and observes
 appliance route inject/withdraw logs.
+<!-- source: mk/gokrazy.mk -- ze-kernel -->
+<!-- source: gokrazy/kernel/Makefile -- all -->
 
 ### Tunnel lifecycle
 

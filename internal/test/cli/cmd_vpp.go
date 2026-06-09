@@ -168,12 +168,12 @@ func zeTestParseVPPCLI(args []string) (*vppCLIFlags, bool) {
 }
 
 func zeTestPrintVPPUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze-test vpp [options] [tests...]
+	_, _ = os.Stderr.WriteString(`Usage: ze-test vpp [options] [tests...]
 
 Run VPP stub-backed functional tests from test/vpp/.
 
 Modes:
-  -l, --list          List available tests with N/TOTAL and id
+  -l, --list          List available tests with N/TOTAL and one-based id
   -a, --all           Run all tests
   --start ID          Start at test id/name and run through the end
   --pattern TEXT      Run tests whose id, name, or path contains TEXT
@@ -187,7 +187,7 @@ Options:
 Examples:
   ze-test vpp -l
   ze-test vpp -a
-  ze-test vpp 0 1         # by numeric id
+  ze-test vpp 1 2         # by numeric id
   ze-test vpp --start 4
 `)
 }
