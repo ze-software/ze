@@ -35,8 +35,8 @@ plus `xorriso`.
 `ze appliance iso` checks those tools before it stages an ISO.
 <!-- source: cmd/ze/install/appliance/cmd_iso.go -- resolveISOBuilder -->
 
-The gokrazy build tool (`gok`) is vendored in the repo at `gokrazy/tools/vendor/` and built automatically by Make. No separate install needed.
-<!-- source: gokrazy/tools/tools.go -- vendored gok tool -->
+The gokrazy build tool (`gok`) is vendored in the repo at `vendor/github.com/gokrazy/` and built automatically by Make. No separate install needed.
+<!-- source: cmd/ze-gok/main.go -- vendored gok tool -->
 
 ## First-time setup
 
@@ -254,10 +254,6 @@ The `/perm` partition (ext4) survives image updates. Ze stores its database (`da
 ```
 gokrazy/
   .gitignore              # excludes *.img
-  tools/
-    tools.go              # blank import pinning gok version
-    go.mod, go.sum        # gok dependency pins
-    vendor/               # vendored gok source (~16MB, committed)
   ze/
     config.json           # gokrazy instance config (what to build, how to start)
     builddir/
@@ -274,9 +270,11 @@ gokrazy/
         cmd/randomd/      # entropy seeder
       github.com/gokrazy/serial-busybox/
         go.mod, go.sum    # emergency serial shell
+cmd/ze-gok/
+  main.go                 # gok wrapper (built by make bin/gok)
 ```
 
-The `tools/vendor/` directory contains the gok build tool source (committed to git). The `builddir/` files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after `make ze-gokrazy-deps`.
+The gok build tool source is vendored in the main `vendor/github.com/gokrazy/` directory. The `builddir/` files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after `make ze-gokrazy-deps`.
 
 ## ze-setup binary
 

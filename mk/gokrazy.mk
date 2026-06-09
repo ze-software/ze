@@ -3,7 +3,7 @@
 # Builds a bootable VM image with Ze baked in. The default architecture is
 # amd64 for N100-class mini PCs and common hypervisors; set GOKRAZY_ARCH=arm64
 # for a native Apple Silicon QEMU image.
-# Everything is vendored: gok tool source in gokrazy/tools/vendor/,
+# Everything is vendored: gok tool deps in vendor/github.com/gokrazy/,
 # dependency pins in gokrazy/ze/builddir/*/go.mod.
 # After cloning, run `make ze-gokrazy-deps` once to populate the Go module cache
 # for the gokrazy system packages (kernel, init). After that, builds work offline.
@@ -49,7 +49,7 @@ GOKRAZY_QEMU_AARCH64_CPU ?= max
 bin/gok:
 	@echo "Building ze-gok from vendored source..."
 	@mkdir -p bin
-	go build -C $(GOKRAZY_DIR)/tools -mod=vendor -o ../../bin/gok ./cmd/ze-gok
+	go build -mod=vendor -o bin/gok ./cmd/ze-gok
 
 GOMODCACHE_LOCAL := $(CURDIR)/$(GOKRAZY_DIR)/modcache
 

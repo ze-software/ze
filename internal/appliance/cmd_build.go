@@ -185,7 +185,7 @@ func gokSizeArg(n int64) string {
 }
 
 // runGokInProcess runs the gokrazy builder (gok) embedded in-process rather
-// than shelling out to a separate ze-gok binary. gok still spawns its own
+// than shelling out to the ze-gok binary. gok still spawns its own
 // `go build`/`go list` subprocesses for the target packages, and those resolve
 // modules from the repo-local gokrazy/modcache, so GOMODCACHE is pointed there
 // (gok hardcodes -mod=mod, so it always reads the module cache). Must run from
@@ -216,9 +216,8 @@ func runGokInProcess(args []string) error {
 func runGokBuild(cfg *ApplianceConfig, imgPath string) int {
 	fmt.Fprintf(os.Stderr, "building gokrazy image...\n")
 
-	// ze-gok runs with its working directory set to gokrazy/tools (so `go run`
-	// resolves the vendored builder module), so relative paths passed to it are
-	// resolved against gokrazy/tools, not the repo root. Pass absolute paths.
+	// gok resolves modules from the repo-local gokrazy/modcache, so relative
+	// paths would resolve against the wrong root. Pass absolute paths.
 	parentDir, err := filepath.Abs("gokrazy")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: resolve gokrazy parent dir: %v\n", err)
