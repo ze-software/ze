@@ -709,15 +709,67 @@ func TestEmitSetConfigXFRM(t *testing.T) {
 			Addresses: []string{"10.0.0.1/30"},
 		},
 	}}
-	out := EmitSetConfig(dis)
+	out := emitSetConfig(dis, false)
 	for _, want := range []string{
 		"set interface xfrm xfrm0 if-id 42",
 		"set interface xfrm xfrm0 dev eth0",
 		"set interface xfrm xfrm0 unit default ipv4 address 10.0.0.1/30",
 	} {
 		if !strings.Contains(out, want) {
-			t.Errorf("EmitSetConfig missing %q in:\n%s", want, out)
+			t.Errorf("emitSetConfig missing %q in:\n%s", want, out)
 		}
+	}
+}
+
+func TestEmitSetConfigWithDHCPFirstEthernet(t *testing.T) {
+	dis := []DiscoveredInterface{
+		{Name: "br0", Type: zeTypeBridge, MAC: "11:22:33:44:55:66"},
+		{Name: "eth0", Type: zeTypeEthernet, MAC: "aa:bb:cc:dd:ee:ff"},
+		{Name: "eth1", Type: zeTypeEthernet, MAC: "bb:cc:dd:ee:ff:00"},
+	}
+	out := EmitSetConfigWithDHCP(dis)
+
+	want := "set interface ethernet eth0 unit default ipv4 dhcp enabled true"
+	if !strings.Contains(out, want) {
+		t.Errorf("missing DHCP line for first ethernet:\n%s", out)
+	}
+
+	if strings.Contains(out, "eth1 unit default ipv4 dhcp") {
+		t.Errorf("DHCP should only be on first ethernet, not eth1:\n%s", out)
+	}
+
+	if strings.Contains(out, "br0 unit default ipv4 dhcp") {
+		t.Errorf("DHCP should not be on bridge:\n%s", out)
+	}
+}
+
+func TestEmitSetConfigWithDHCPEmpty(t *testing.T) {
+	out := EmitSetConfigWithDHCP(nil)
+	if out != "" {
+		t.Errorf("expected empty for nil input, got: %q", out)
+	}
+}
+
+func TestEmitSetConfigWithDHCPNoEthernet(t *testing.T) {
+	dis := []DiscoveredInterface{
+		{Name: "br0", Type: zeTypeBridge},
+		{Name: "dummy0", Type: zeTypeDummy},
+	}
+	out := EmitSetConfigWithDHCP(dis)
+
+	if strings.Contains(out, "dhcp") {
+		t.Errorf("no ethernet means no DHCP line:\n%s", out)
+	}
+}
+
+func TestEmitSetConfigWithoutDHCPFlag(t *testing.T) {
+	dis := []DiscoveredInterface{
+		{Name: "eth0", Type: zeTypeEthernet, MAC: "aa:bb:cc:dd:ee:ff"},
+	}
+	out := emitSetConfig(dis, false)
+
+	if strings.Contains(out, "dhcp") {
+		t.Errorf("emitSetConfig (without DHCP) should not emit DHCP:\n%s", out)
 	}
 }
 
@@ -733,11 +785,11 @@ func TestEmitSetConfigEthernetMAC(t *testing.T) {
 		Type: zeTypeEthernet,
 		MAC:  "aa:bb:cc:dd:ee:ff",
 	}}
-	out := EmitSetConfig(dis)
+	out := emitSetConfig(dis, false)
 	if want := "set interface ethernet eth0 mac address aa:bb:cc:dd:ee:ff"; !strings.Contains(out, want) {
-		t.Errorf("EmitSetConfig missing %q in:\n%s", want, out)
+		t.Errorf("emitSetConfig missing %q in:\n%s", want, out)
 	}
 	if strings.Contains(out, "mac-address") {
-		t.Errorf("EmitSetConfig must not emit the old mac-address leaf:\n%s", out)
+		t.Errorf("emitSetConfig must not emit the old mac-address leaf:\n%s", out)
 	}
 }

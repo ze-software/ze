@@ -1,0 +1,12 @@
+# Valid config: DHCPv4 via set-command format
+# AC: set interface ethernet eth0 unit default ipv4 dhcp enabled true
+# accepted by config validate. Covers the first-boot bootstrap path
+# where EmitSetConfigWithDHCP produces this exact line.
+# PLATFORM: ze:os "linux" prunes ipv4 on darwin.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+set interface ethernet eth0 unit default ipv4 dhcp enabled true
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0

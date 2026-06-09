@@ -124,36 +124,39 @@ func emitWireguardBlock(b *textbuf.Buffer, di *DiscoveredInterface) {
 	b.Str("    }\n")
 }
 
-// EmitSetConfig produces set-command format for discovered interfaces.
-// Used by the bootstrap path where the template is already in set format.
-func EmitSetConfig(discovered []DiscoveredInterface) string {
+// EmitSetConfigWithDHCP produces set-command format with DHCPv4 enabled
+// on the first discovered ethernet interface. Used by the first-boot
+// bootstrap path so the active config has an explicit DHCP unit that
+// does not depend on runtime re-discovery via dhcp-auto.
+func EmitSetConfigWithDHCP(discovered []DiscoveredInterface) string {
+	return emitSetConfig(discovered, true)
+}
+
+func emitSetConfig(discovered []DiscoveredInterface, dhcpFirstEthernet bool) string {
 	if len(discovered) == 0 {
 		return ""
 	}
 
 	var b textbuf.Buffer
+	dhcpEmitted := false
 	for i := range discovered {
 		di := &discovered[i]
 		switch di.Type {
 		case zeTypeLoopback:
-			// Loopback is a regular container, not a presence container.
 			// A bare "set interface loopback" with no child is invalid.
-			// Skip it; the OS loopback is always present.
 			continue
 		case zeTypeEthernet, zeTypeBridge, zeTypeVeth, zeTypeDummy:
 			if !safeEmitName(di.Name) {
 				continue
 			}
 			if di.MAC != "" && safeEmitName(di.MAC) {
-				b.WriteString("set interface ")
-				b.WriteString(di.Type)
-				b.WriteString(" ")
-				b.WriteString(di.Name)
-				b.WriteString(" mac address ")
-				b.WriteString(di.MAC)
-				b.WriteString("\n")
+				b.Str("set interface ").Str(di.Type).Byte(' ').Str(di.Name).Str(" mac address ").Str(di.MAC).Byte('\n')
 			}
-			fmt.Fprintf(&b, "set interface %s %s os-name %s\n", di.Type, di.Name, di.Name) //nolint:errcheck // buffer output
+			b.Str("set interface ").Str(di.Type).Byte(' ').Str(di.Name).Str(" os-name ").Str(di.Name).Byte('\n')
+			if dhcpFirstEthernet && !dhcpEmitted && di.Type == zeTypeEthernet {
+				b.Str("set interface ethernet ").Str(di.Name).Str(" unit default ipv4 dhcp enabled true\n")
+				dhcpEmitted = true
+			}
 		case zeTypeWireguard:
 			if !safeEmitName(di.Name) {
 				continue
