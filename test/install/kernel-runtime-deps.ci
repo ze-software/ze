@@ -1,0 +1,100 @@
+# Test: gokrazy/kernel/Makefile notices shared builder and patch changes.
+
+option=timeout:value=20s
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+
+work=$PWD
+repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+cd "$repo"
+state="$work/mtimes.json"
+
+cleanup() {
+	set +e
+	python3 - <<'PY' "$state"
+from pathlib import Path
+import json, os, sys
+state = json.loads(Path(sys.argv[1]).read_text())
+for path, ns in state["mtimes"].items():
+    p = Path(path)
+    if p.exists():
+        os.utime(p, ns=(ns, ns))
+out = Path(state["output"])
+if state["output_existed"]:
+    os.utime(out, ns=(state["output_mtime_ns"], state["output_mtime_ns"]))
+else:
+    out.unlink(missing_ok=True)
+    try:
+        out.parent.rmdir()
+    except OSError:
+        pass
+PY
+}
+trap cleanup EXIT
+
+python3 - <<'PY' "$state"
+from pathlib import Path
+import json, os, sys
+paths = [
+    Path('tools/kernel-builder/Dockerfile'),
+    Path('tools/kernel-builder/build.sh'),
+    Path('tools/kernel-builder/qemu-build.py'),
+    Path('gokrazy/kernel/kernel.config'),
+    Path('gokrazy/kernel/runtime.config'),
+    Path('gokrazy/kernel/patches/series'),
+    Path('gokrazy/kernel/patches/0001-nct6683.patch'),
+]
+out = Path('gokrazy/kernel/build/vmlinuz')
+out.parent.mkdir(parents=True, exist_ok=True)
+existed = out.exists()
+mtime = out.stat().st_mtime_ns if existed else 0
+if not existed:
+    out.write_text('mtime-test\n')
+state = {
+    'output': str(out),
+    'output_existed': existed,
+    'output_mtime_ns': mtime,
+    'mtimes': {str(p): p.stat().st_mtime_ns for p in paths},
+}
+Path(sys.argv[1]).write_text(json.dumps(state))
+PY
+
+expect_status() {
+	want=$1
+	shift
+	if "$@"; then
+		rc=0
+	else
+		rc=$?
+	fi
+	if [ "$rc" -ne "$want" ]; then
+		echo "wanted exit $want, got $rc: $*" >&2
+		exit 1
+	fi
+}
+
+touch -t 202601010000 tools/kernel-builder/Dockerfile tools/kernel-builder/build.sh tools/kernel-builder/qemu-build.py \
+	gokrazy/kernel/kernel.config gokrazy/kernel/runtime.config gokrazy/kernel/patches/series gokrazy/kernel/patches/0001-nct6683.patch
+touch -t 202601010100 gokrazy/kernel/build/vmlinuz
+expect_status 0 make -q -C gokrazy/kernel BUILDER=docker
+expect_status 0 make -q -C gokrazy/kernel BUILDER=qemu
+
+touch -t 202601010200 tools/kernel-builder/Dockerfile
+expect_status 1 make -q -C gokrazy/kernel BUILDER=docker
+
+touch -t 202601010000 tools/kernel-builder/Dockerfile
+touch -t 202601010200 tools/kernel-builder/qemu-build.py
+expect_status 1 make -q -C gokrazy/kernel BUILDER=qemu
+
+touch -t 202601010000 tools/kernel-builder/qemu-build.py
+touch -t 202601010200 gokrazy/kernel/patches/0001-nct6683.patch
+expect_status 1 make -q -C gokrazy/kernel BUILDER=docker
+
+echo OK
+EOF_SH
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=0
+expect=stdout:contains=OK

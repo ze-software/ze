@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 8/8 |
 | Updated | 2026-06-09 |
 
 ## Post-Compaction Recovery
@@ -438,81 +438,168 @@ Each phase ends with a **Self-Critical Review**.
 
 ### What Was Implemented
 
+- Extracted the shared kernel builder into `tools/kernel-builder/` with one `build.sh`, one `qemu-build.py`, and one `Dockerfile`
+- Replaced runtime `gokr-rebuild-kernel` usage with `gokrazy/kernel/Makefile` plus `mk/gokrazy.mk` overlay/restore wiring
+- Split runtime config into tracked `gokrazy/kernel/kernel.config` + `runtime.config` fragments and tracked the `nct6683` patch series under `gokrazy/kernel/patches/`
+- Repointed installer kernel builds and `ze appliance kernel` to the shared builder while preserving cache/download/build fallback and explicit Docker/QEMU selection
+- Added installer/runtime kernel functional tests for explicit builders, auto builder selection, fragment composition, rebuild dependencies, package prerequisites, and default `make ze-kernel`
+
 ### Bugs Found/Fixed
+
+- Shared builder was initially missing `zstd` and `kmod` coverage for runtime `CONFIG_KERNEL_ZSTD=y` plus `modules_install`; fixed in the Dockerfile and QEMU package list and pinned with `kernel-builder-packages.ci`
+- Default builder behavior was only covered for forced builder flags; fixed by adding `appliance-kernel-auto-docker.ci`, `appliance-kernel-auto-qemu.ci`, and making `ze-kernel-overlay.ci` exercise the default path
 
 ### Documentation Updates
 
+- Updated `docs/guide/appliance.md` for runtime `make ze-kernel` Docker/QEMU usage and installer builder fallback behavior
+- Updated `docs/guide/ze-install.md` for explicit installer Docker/QEMU build commands and shared-builder notes
+
 ### Deviations from Plan
+
+- `docs/functional-tests.md` ended up unchanged on disk because the relevant kernel test inventory text already matched the final state before commit preparation
+- `ai/CODE-TO-DOCS.md` was left out of this commit because its remaining drift fixes are not required to explain or use the kernel builder changes
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Converge runtime and installer kernels on one build system | Done | `tools/kernel-builder/`, `mk/gokrazy.mk`, `tools/installer-kernel/Makefile` | Shared builder extracted and both entry points delegate to it |
+| Move both kernels to Linux 7.0.11 | Done | `mk/gokrazy.mk`, `gokrazy/kernel/Makefile`, `tools/kernel-builder/build.sh` | Runtime and installer now default to 7.0.11 |
+| Replace `gokr-rebuild-kernel` and `gokrazy-kernel-build.sh` | Done | `mk/gokrazy.mk`, deleted `scripts/dev/gokrazy-kernel-build.sh` | Runtime Makefile now owns the build |
+| Keep runtime and installer differing only by fragments and outputs | Done | `gokrazy/kernel/*.config`, `tools/installer-kernel/*.config`, `tools/kernel-builder/build.sh` | Shared builder mode switches on fragments plus `MODULES`/patches |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `test/install/ze-kernel-overlay.ci`, `mk/gokrazy.mk`, `gokrazy/kernel/Makefile` | Default `make ze-kernel` now uses the shared runtime builder |
+| AC-2 | Done | `internal/appliance/cmd_kernel_test.go`, `test/install/appliance-kernel-auto-docker.ci`, `test/install/appliance-kernel-auto-qemu.ci` | Cache/download/build builder selection preserved |
+| AC-3 | Done | `test/install/appliance-kernel-qemu.ci`, `tools/installer-kernel/hardware.config` | Hardware installer profile still builds through the shared path |
+| AC-4 | Done | `test/install/kernel-compose.ci`, `gokrazy/kernel/kernel.config`, `gokrazy/kernel/runtime.config` | Runtime fragments are tracked and checked directly |
+| AC-5 | Done | `tools/kernel-builder/build.sh`, `tools/installer-kernel/Makefile` | Installer keeps `Image` output and no modules copy path |
+| AC-6 | Done | `tools/kernel-builder/build.sh`, `test/install/ze-kernel-overlay.ci` | Runtime produces `vmlinuz`, modules, DTBs, and overlays |
+| AC-7 | Done | `test/install/kernel-compose.ci` | Removed dead nftables and USB config symbols from tracked fragments |
+| AC-8 | Done | `gokrazy/kernel/kernel.config`, `tools/installer-kernel/hardware.config`, `test/install/kernel-compose.ci` | `simpledrm` + `sysfb` replace `FB_SIMPLE` |
+| AC-9 | Done | `mk/gokrazy.mk`, deleted `scripts/dev/gokrazy-kernel-build.sh` | Runtime no longer shells out through the old wrapper |
+| AC-10 | Done | `internal/appliance/cmd_kernel.go`, `test/install/appliance-kernel-auto-docker.ci`, `test/install/appliance-kernel-auto-qemu.ci` | Three-tier installer resolution preserved |
+| AC-11 | Done | `internal/appliance/cmd_kernel_test.go` | Kernel unit tests updated for new paths and builder args |
+| AC-12 | Done | `gokrazy/kernel/patches/0001-nct6683.patch`, `gokrazy/kernel/patches/series` | Patch is tracked in the runtime tree |
+| AC-13 | Done | `internal/appliance/cache.go`, `internal/appliance/cmd_kernel_test.go` | Cache invalidation now hashes installer fragments plus shared `build.sh` |
+| AC-14 | Done | `tools/installer-kernel/Makefile`, `test/install/kernel-wiring.ci` | Standalone installer Makefile delegates to `../kernel-builder/` |
+| AC-15 | Done | `tools/kernel-builder/qemu-build.py`, `test/install/kernel-wiring.ci`, `test/install/kernel-qemu-arch-alias.ci` | Shared builder works for Docker and QEMU with explicit path flags |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestDockerBuildMountsSharedBuilder` | Done | `internal/appliance/cmd_kernel_test.go` | Verifies installer Docker argv/mount construction |
+| `TestQEMUBuildPassesBuilderDir` | Done | `internal/appliance/cmd_kernel_test.go` | Verifies installer QEMU argv/path construction |
+| `appliance-kernel-docker.ci` | Done | `test/install/appliance-kernel-docker.ci` | Explicit installer Docker path |
+| `appliance-kernel-qemu.ci` | Done | `test/install/appliance-kernel-qemu.ci` | Explicit installer QEMU path |
+| `appliance-kernel-auto-docker.ci` | Done | `test/install/appliance-kernel-auto-docker.ci` | Installer default builder prefers Docker |
+| `appliance-kernel-auto-qemu.ci` | Done | `test/install/appliance-kernel-auto-qemu.ci` | Installer default builder falls back to QEMU |
+| `kernel-builder-packages.ci` | Done | `test/install/kernel-builder-packages.ci` | Builder package prerequisites for runtime compression/module install |
+| `kernel-compose.ci` | Done | `test/install/kernel-compose.ci` | Runtime fragment contract |
+| `kernel-qemu-arch-alias.ci` | Done | `test/install/kernel-qemu-arch-alias.ci` | `aarch64` normalizes to `arm64` |
+| `kernel-runtime-deps.ci` | Done | `test/install/kernel-runtime-deps.ci` | Runtime Makefile rebuild dependencies |
+| `kernel-wiring.ci` | Done | `test/install/kernel-wiring.ci` | Shared builder delegation for runtime and installer |
+| `ze-kernel-overlay.ci` | Done | `test/install/ze-kernel-overlay.ci` | Default `make ze-kernel` overlays and restore flow |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `tools/kernel-builder/{build.sh,qemu-build.py,Dockerfile}` | Done | Created |
+| `gokrazy/kernel/{Makefile,kernel.config,runtime.config}` | Done | Created |
+| `gokrazy/kernel/patches/{series,0001-nct6683.patch}` | Done | Created |
+| `mk/gokrazy.mk` | Done | Updated runtime entry point |
+| `internal/appliance/{cache.go,cmd_kernel.go,cmd_kernel_test.go,doctor_checks.go}` | Done | Updated installer builder path, cache hashing, tests, doctor |
+| `tools/installer-kernel/{Makefile,README.md,hardware.config}` | Done | Updated |
+| `tools/installer-kernel/{Dockerfile,build.sh,qemu-build.py}` | Done | Removed after extraction |
+| `gokrazy/kernel/{l2tp.config.addendum.txt,qemu-evidence.config.addendum.txt}` | Done | Removed after fragment split |
+| `docs/guide/{appliance.md,ze-install.md}` | Done | Updated |
+| `test/install/*kernel*.ci` | Done | Added kernel functional coverage |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 31
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** Runtime builder path, installer builder path, tracked runtime fragments, kernel docs, kernel tests
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Both kernels on 7.0.11 | functional test | make ze-kernel produces 7.0.11 vmlinuz |
-| Single build system | grep | tools/kernel-builder/build.sh is the only builder; no gokr-rebuild-kernel refs |
-| Fragment composition | functional test | test-kernel-fragment-compose verifies expected options |
-| No feature regression | diff | runtime fragments cover all current options minus dead ones |
-| QEMU backend works | manual | make -C gokrazy/kernel BUILDER=qemu succeeds |
-| Installer standalone | manual | make -C tools/installer-kernel works |
+| Both kernels on 7.0.11 | source + tests | `mk/gokrazy.mk`, `gokrazy/kernel/Makefile`, and `tools/kernel-builder/build.sh` all pin 7.0.11; kernel install tests cover both runtime and installer entry points |
+| Single build system | file inventory | Shared builder lives only under `tools/kernel-builder/`; old runtime wrapper and installer-local builder copies are removed |
+| Fragment composition | functional test | `test/install/kernel-compose.ci` verifies tracked runtime fragments and removed symbols |
+| No feature regression | functional test | `test/install/ze-kernel-overlay.ci` validates runtime artifact overlay/restore; installer path tests validate cache + output writes |
+| QEMU backend works | functional test | `test/install/appliance-kernel-qemu.ci`, `test/install/appliance-kernel-auto-qemu.ci`, `test/install/kernel-qemu-arch-alias.ci` |
+| Installer standalone | functional test | `test/install/kernel-wiring.ci`, `test/install/appliance-kernel-docker.ci`, `test/install/appliance-kernel-qemu.ci` |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | Shared runtime builder missing `zstd`/`kmod` host tools | `tools/kernel-builder/Dockerfile`, `tools/kernel-builder/qemu-build.py` | Added required packages and pinned with `kernel-builder-packages.ci` |
 
 ### Fixes applied
+
+- Added `zstd` to the Docker builder image
+- Added `kmod` and `zstd` to the QEMU backend package list
+- Added functional coverage for default builder selection and package prerequisites
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | Web `/config/form/` browser flow still needs daemon-level coverage | delegated web work outside this kernel commit | Not part of the kernel/gokrazy commit scope |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+Kernel/gokrazy scope is clean for this commit; the remaining NOTE is delegated web work outside the staged file set.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `tools/kernel-builder/build.sh` | Yes | present in working tree |
+| `tools/kernel-builder/qemu-build.py` | Yes | present in working tree |
+| `tools/kernel-builder/Dockerfile` | Yes | present in working tree |
+| `gokrazy/kernel/Makefile` | Yes | present in working tree |
+| `gokrazy/kernel/kernel.config` | Yes | present in working tree |
+| `gokrazy/kernel/runtime.config` | Yes | present in working tree |
+| `gokrazy/kernel/patches/series` | Yes | present in working tree |
+| `gokrazy/kernel/patches/0001-nct6683.patch` | Yes | present in working tree |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Runtime goes through shared builder | `test/install/ze-kernel-overlay.ci` plus `mk/gokrazy.mk` -> `gokrazy/kernel/Makefile` |
+| AC-2 | Installer cache/download/build fallback preserved | `internal/appliance/cmd_kernel.go` and `appliance-kernel-auto-{docker,qemu}.ci` |
+| AC-4 | Runtime fragments tracked and composed | `test/install/kernel-compose.ci` |
+| AC-6 | Runtime modules/DTBs emitted | `tools/kernel-builder/build.sh`, `test/install/ze-kernel-overlay.ci` |
+| AC-10 | Explicit/implicit builder selection preserved | `internal/appliance/cmd_kernel.go`, `appliance-kernel-{docker,qemu}.ci`, `appliance-kernel-auto-{docker,qemu}.ci` |
+| AC-14 | Installer Makefile still works standalone | `test/install/kernel-wiring.ci` |
+| AC-15 | Docker and QEMU both use shared builder | `test/install/kernel-wiring.ci`, `test/install/kernel-qemu-arch-alias.ci` |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `ze appliance kernel` default Docker path | `test/install/appliance-kernel-auto-docker.ci` | Yes |
+| `ze appliance kernel` default QEMU fallback | `test/install/appliance-kernel-auto-qemu.ci` | Yes |
+| `ze appliance kernel --builder docker` | `test/install/appliance-kernel-docker.ci` | Yes |
+| `ze appliance kernel --builder qemu` | `test/install/appliance-kernel-qemu.ci` | Yes |
+| `make ze-kernel` | `test/install/ze-kernel-overlay.ci` | Yes |
+| Runtime/installer Makefiles | `test/install/kernel-wiring.ci` | Yes |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| Runtime `make ze-kernel` Docker/QEMU usage | `docs/guide/appliance.md`, source anchors to `mk/gokrazy.mk` and `gokrazy/kernel/Makefile` | Yes |
+| Installer `ze appliance kernel` builder usage | `docs/guide/appliance.md`, `docs/guide/ze-install.md`, source anchors to `internal/appliance/cmd_kernel.go` and `tools/kernel-builder/qemu-build.py` | Yes |
+| Installer standalone Makefile usage | `docs/guide/ze-install.md`, `tools/installer-kernel/README.md`, anchor to `tools/installer-kernel/Makefile` | Yes |
 
 ## Checklist
 

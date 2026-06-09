@@ -34,12 +34,12 @@ VM_MEMORY_MIN = 9216
 VM_MEMORY_MAX = 12288
 VM_MEMORY_FRACTION = 4
 BOOT_TIMEOUT = 120
-BUILD_TIMEOUT = 7200
+BUILD_TIMEOUT = 14400
 DEFAULT_LINUX_VERSION = "7.0.11"
 
 BUILD_PACKAGES = (
     "build-base bc bison flex elfutils-dev openssl-dev "
-    "linux-headers perl wget xz diffutils findutils cpio"
+    "linux-headers perl wget xz diffutils findutils cpio patch kmod zstd"
 )
 
 
@@ -69,11 +69,61 @@ def ccache_dir() -> Path:
     return d
 
 
+
+def validate_version(value: str) -> str:
+    if (
+        value == ""
+        or value.startswith(".")
+        or value.endswith(".")
+        or any(ch not in "0123456789." for ch in value)
+    ):
+        raise SystemExit(f"--version must contain digits and dots only: {value}")
+    return value
+
+
+def validate_arch(value: str) -> str:
+    if value in ("arm64", "aarch64"):
+        return "arm64"
+    if value in ("amd64", "x86_64"):
+        return "amd64"
+    raise SystemExit(f"--arch must be arm64 or amd64: {value}")
+
+
+def validate_profile(value: str) -> str:
+    if value not in ("qemu", "hardware", "hardware-kms", "runtime"):
+        raise SystemExit(
+            "--profile must be qemu, hardware, hardware-kms, or runtime: "
+            f"{value}"
+        )
+    return value
+
+
+def validate_jobs(value: str) -> str:
+    if value and any(ch not in "0123456789" for ch in value):
+        raise SystemExit(f"--jobs must be numeric: {value}")
+    return value
+
 def build_dir(target_arch: str, profile: str) -> Path:
     root = repo_root()
     d = root / "tmp" / "qemu" / "build" / f"{_alpine_arch(target_arch)}-{profile}"
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def repo_relative(value: str, flag: str) -> str:
+    path = Path(value)
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/._-")
+    if (
+        value == ""
+        or path.is_absolute()
+        or ".." in path.parts
+        or any(ch not in allowed for ch in value)
+    ):
+        raise SystemExit(
+            f"{flag} must be a repo-relative path with only [A-Za-z0-9/._-]: "
+            f"{value}"
+        )
+    return path.as_posix()
 
 
 def find_free_port() -> int:
@@ -318,6 +368,11 @@ def _run_build(
     profile: str,
     version: str,
     jobs: str,
+    src_dir: str,
+    out_dir: str,
+    builder_dir: str,
+    modules: str,
+    patches_dir: str,
 ) -> int:
     ssh_port = find_free_port()
     cc_dir = ccache_dir()
@@ -419,17 +474,22 @@ def _run_build(
             ]
         )
 
+        src_vm = f"/workspace/{src_dir}"
+        out_vm = f"/workspace/{out_dir}"
+        builder_vm = f"/workspace/{builder_dir}"
         build_env = (
             f"CCACHE_DIR=/ccache CCACHE_MAXSIZE=5G "
             f"PATH=/usr/lib/ccache/bin:$PATH "
             f"LINUX_VERSION={version} ARCH={target_arch} "
-            f"PROFILE={profile} "
-            f"SRC_DIR=/workspace/tools/installer-kernel "
-            f"OUT_DIR=/workspace/tools/installer-kernel/build"
+            f"PROFILE={profile} MODULES={modules} "
+            f"SRC_DIR={src_vm} "
+            f"OUT_DIR={out_vm}"
         )
+        if patches_dir:
+            build_env += f" PATCHES_DIR=/workspace/{patches_dir}"
         if jobs:
             build_env += f" JOBS={jobs}"
-        build_cmd = f"{build_env} sh /workspace/tools/installer-kernel/build.sh"
+        build_cmd = f"{build_env} sh {builder_vm}/build.sh"
 
         full_cmd = f"sh -c {_shell_quote(setup + ' && ' + build_cmd)}"
 
@@ -483,7 +543,7 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Build the ze installer kernel in a QEMU Alpine VM.",
+        description="Build a Ze kernel in a QEMU Alpine VM.",
     )
     parser.add_argument(
         "--arch",
@@ -493,7 +553,7 @@ def main() -> int:
     parser.add_argument(
         "--profile",
         default=os.environ.get("PROFILE", "qemu"),
-        help="Kernel profile: qemu, hardware, or hardware-kms",
+        help="Kernel profile: qemu, hardware, hardware-kms, or runtime",
     )
     parser.add_argument(
         "--version",
@@ -505,22 +565,62 @@ def main() -> int:
         default=os.environ.get("JOBS", ""),
         help="Parallel make jobs (default: nproc inside VM)",
     )
+    parser.add_argument(
+        "--src-dir",
+        default=os.environ.get("SRC_DIR", "tools/installer-kernel"),
+        help="Repo-relative directory containing kernel.config and profile config",
+    )
+    parser.add_argument(
+        "--out-dir",
+        default=os.environ.get("OUT_DIR", "tools/installer-kernel/build"),
+        help="Repo-relative output directory",
+    )
+    parser.add_argument(
+        "--builder-dir",
+        default=os.environ.get("BUILDER_DIR", "tools/kernel-builder"),
+        help="Repo-relative directory containing build.sh",
+    )
+    parser.add_argument(
+        "--modules",
+        choices=("yes", "no"),
+        default=os.environ.get("MODULES", "no"),
+        help="Install runtime modules and vmlinuz artifacts",
+    )
+    parser.add_argument(
+        "--patches-dir",
+        default=os.environ.get("PATCHES_DIR", ""),
+        help="Repo-relative patch series directory",
+    )
     args = parser.parse_args()
 
-    qemu = qemu_binary(args.arch)
-    if shutil.which(qemu) is None:
-        raise SystemExit(f"missing: {qemu} (install: brew install qemu)")
 
     root = repo_root()
-    iso = ensure_iso(args.arch)
-
+    arch = validate_arch(args.arch)
+    profile = validate_profile(args.profile)
+    version = validate_version(args.version)
+    jobs = validate_jobs(args.jobs)
+    src_dir = repo_relative(args.src_dir, "--src-dir")
+    out_dir = repo_relative(args.out_dir, "--out-dir")
+    builder_dir = repo_relative(args.builder_dir, "--builder-dir")
+    patches_dir = ""
+    if args.patches_dir:
+        patches_dir = repo_relative(args.patches_dir, "--patches-dir")
+    qemu = qemu_binary(arch)
+    if shutil.which(qemu) is None:
+        raise SystemExit(f"missing: {qemu} (install: brew install qemu)")
+    iso = ensure_iso(arch)
     return _run_build(
         iso,
         root,
-        args.arch,
-        args.profile,
-        args.version,
-        args.jobs,
+        arch,
+        profile,
+        version,
+        jobs,
+        src_dir,
+        out_dir,
+        builder_dir,
+        args.modules,
+        patches_dir,
     )
 
 

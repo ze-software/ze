@@ -1,0 +1,91 @@
+# Test: ze appliance kernel without --builder falls back to QEMU when Docker is
+# unavailable but QEMU prerequisites are present.
+
+option=timeout:value=20s
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+
+work=$PWD
+ze_bin=$(command -v ze)
+repo=$(CDPATH= cd -- "$(dirname -- "$ze_bin")/.." && pwd)
+cd "$repo"
+
+orig_image=
+orig_config=
+cleanup() {
+	set +e
+	if [ -n "$orig_image" ]; then
+		cp "$orig_image" tools/installer-kernel/build/Image
+	else
+		rm -f tools/installer-kernel/build/Image
+	fi
+	if [ -n "$orig_config" ]; then
+		cp "$orig_config" tools/installer-kernel/build/config
+	else
+		rm -f tools/installer-kernel/build/config
+	fi
+}
+trap cleanup EXIT
+
+mkdir -p "$work/fakebin" "$work/cache" tools/installer-kernel/build
+if [ -f tools/installer-kernel/build/Image ]; then
+	orig_image="$work/original-image"
+	cp tools/installer-kernel/build/Image "$orig_image"
+fi
+if [ -f tools/installer-kernel/build/config ]; then
+	orig_config="$work/original-config"
+	cp tools/installer-kernel/build/config "$orig_config"
+fi
+rm -f tools/installer-kernel/build/Image tools/installer-kernel/build/config
+
+cat > "$work/fakebin/python3" <<'EOF_PY'
+#!/bin/sh
+set -eu
+PATH=/bin:/usr/bin
+printf '%s\n' "$*" >> "$ZE_PYTHON_LOG"
+out=
+prev=
+for arg in "$@"; do
+	if [ "$prev" = '--out-dir' ]; then
+		out=$arg
+	fi
+	prev=$arg
+done
+[ -n "$out" ]
+mkdir -p "$out"
+printf 'qemu-installer-kernel\n' > "$out/Image"
+printf 'CONFIG_QEMU=y\n' > "$out/config"
+EOF_PY
+chmod +x "$work/fakebin/python3"
+
+cat > "$work/fakebin/qemu-system-aarch64" <<'EOF_QEMU'
+#!/bin/sh
+exit 0
+EOF_QEMU
+chmod +x "$work/fakebin/qemu-system-aarch64"
+
+PATH="$work/fakebin" \
+XDG_CACHE_HOME="$work/cache" \
+ZE_PYTHON_LOG="$work/python.log" \
+"$ze_bin" appliance kernel --arch arm64 --profile hardware >"$work/stdout" 2>"$work/stderr"
+
+grep -q 'building kernel with qemu' "$work/stdout"
+grep -q 'kernel ready:' "$work/stdout"
+[ "$(cat tools/installer-kernel/build/Image)" = 'qemu-installer-kernel' ]
+[ "$(cat tools/installer-kernel/build/config)" = 'CONFIG_QEMU=y' ]
+cache_image=$(find "$work/cache" -path '*/installer-kernel/*/Image' -print | head -n 1)
+[ -n "$cache_image" ]
+[ "$(cat "$cache_image")" = 'qemu-installer-kernel' ]
+grep -q -- 'tools/kernel-builder/qemu-build.py' "$work/python.log"
+grep -q -- '--builder-dir tools/kernel-builder' "$work/python.log"
+grep -q -- '--src-dir tools/installer-kernel' "$work/python.log"
+grep -q -- '--out-dir tools/installer-kernel/build' "$work/python.log"
+
+echo OK
+EOF_SH
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=0
+expect=stdout:contains=OK

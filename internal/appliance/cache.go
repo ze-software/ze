@@ -73,17 +73,18 @@ func cacheFileHash(dir string, names []string) (string, bool) {
 
 func kernelCacheVariant(arch, profile string) string {
 	var tb textbuf.Buffer
-	var inputs []string
+	var configInputs []string
 	if profile == ProfileHardwareKMS {
-		inputs = []string{"kernel.config", "hardware.config", "hardware-kms.config", "build.sh"}
+		configInputs = []string{"kernel.config", "hardware.config", "hardware-kms.config"}
 	} else {
-		inputs = []string{"kernel.config", tb.Str(profile).Str(".config").String(), "build.sh"}
+		configInputs = []string{"kernel.config", tb.Str(profile).Str(".config").String()}
 	}
-	hash, ok := cacheFileHash(kernelToolsDir, inputs)
-	if !ok {
+	configHash, configOK := cacheFileHash(kernelInstallerConfigDir, configInputs)
+	builderHash, builderOK := cacheFileHash(kernelBuilderDir, []string{"build.sh"})
+	if !configOK || !builderOK {
 		return tb.Reset().Str(arch).Byte('-').Str(profile).String()
 	}
-	return tb.Reset().Str(arch).Byte('-').Str(profile).Byte('-').Str(hash).String()
+	return tb.Reset().Str(arch).Byte('-').Str(profile).Byte('-').Str(configHash).Byte('-').Str(builderHash).String()
 }
 
 func initrdCacheVariant(version string) string {
@@ -95,6 +96,7 @@ func initrdCacheVariant(version string) string {
 	return tb.Str(version).Byte('-').Str(hash).String()
 }
 
+//nolint:unparam // version names the cache namespace and mirrors kernelCachePath.
 func initrdCachePath(version string) string {
 	return filepath.Join(ResolveCacheDir(), initrdCacheDir, initrdCacheVariant(version), initrdFileName)
 }

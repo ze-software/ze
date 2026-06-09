@@ -152,72 +152,44 @@ ze-gokrazy-run:
 # ---------------------------------------------------------------------------
 # Custom kernel build (overrides the rtr7/kernel pin used by ze-gokrazy)
 # ---------------------------------------------------------------------------
-KVER                 ?= 6.19.11
-KVER_MAJOR           := $(firstword $(subst ., ,$(KVER)))
-KERNEL_DIR           := tmp/kernel
-KERNEL_UPSTREAM_URL  := https://cdn.kernel.org/pub/linux/kernel/v$(KVER_MAJOR).x/linux-$(KVER).tar.xz
-KERNEL_MODULE        := github.com/rtr7/kernel
-KERNEL_BUILDDIR_MOD  := gokrazy/ze/builddir/$(KERNEL_MODULE)
-KERNEL_L2TP_CONFIG   := gokrazy/kernel/l2tp.config.addendum.txt
-KERNEL_ARCH          ?= $(GOKRAZY_ARCH)
-KERNEL_CONTAINER     ?= docker
-KERNEL_FLAVOR        ?= vanilla
-KERNEL_REBUILD_VER   ?= latest
-KERNEL_MODULE_VERSION := $(shell cd $(KERNEL_BUILDDIR_MOD) 2>/dev/null && $(GO) list -m -f '{{.Version}}' $(KERNEL_MODULE) 2>/dev/null)
-KERNEL_MODCACHE_DIR  := $(GOKRAZY_DIR)/modcache/$(KERNEL_MODULE)@$(KERNEL_MODULE_VERSION)
-KERNEL_PINNED_BACKUP := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
+KVER                  ?= 7.0.11
+KERNEL_MODULE         := github.com/rtr7/kernel
+KERNEL_ARCH           ?= $(GOKRAZY_ARCH)
+KERNEL_BUILDER        ?= docker
+KERNEL_MODULE_VERSION := $(shell cd gokrazy/ze/builddir/$(KERNEL_MODULE) 2>/dev/null && $(GO) list -m -f '{{.Version}}' $(KERNEL_MODULE) 2>/dev/null)
+KERNEL_MODCACHE_DIR   := $(GOKRAZY_DIR)/modcache/$(KERNEL_MODULE)@$(KERNEL_MODULE_VERSION)
+KERNEL_PINNED_BACKUP  := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
+KERNEL_BUILD_DIR      := gokrazy/kernel/build
 
 ze-kernel:
-	@command -v $(KERNEL_CONTAINER) >/dev/null || { echo "error: $(KERNEL_CONTAINER) not found (install Docker Desktop)"; exit 1; }
-	@command -v git >/dev/null    || { echo "error: git not found"; exit 1; }
 	@case "$(KERNEL_ARCH)" in amd64|arm64) : ;; *) echo "error: unsupported KERNEL_ARCH=$(KERNEL_ARCH) (expected amd64 or arm64)"; exit 1 ;; esac
-	@if [ ! -d $(KERNEL_DIR)/.git ]; then \
-		echo "--- Cloning rtr7/kernel (shallow) ---"; \
-		mkdir -p tmp; \
-		git clone --depth=1 https://github.com/rtr7/kernel $(KERNEL_DIR); \
-	else \
-		echo "--- Reusing $(KERNEL_DIR)/ ---"; \
-	fi
-	@echo "--- Setting upstream to linux-$(KVER) ---"
-	@echo "$(KERNEL_UPSTREAM_URL)" > $(KERNEL_DIR)/_build/upstream-url.txt
-	@test -f $(KERNEL_L2TP_CONFIG) || { echo "error: $(KERNEL_L2TP_CONFIG) not found"; exit 1; }
-	@touch $(KERNEL_DIR)/_build/config.addendum.txt
-	@echo "--- Enabling Ze L2TP/PPP kernel config ---"
-	@if ! grep -q "Ze L2TP/PPP deployment support" $(KERNEL_DIR)/_build/config.addendum.txt; then \
-		printf '\n# Ze L2TP/PPP deployment support\n' >> $(KERNEL_DIR)/_build/config.addendum.txt; \
-		cat $(KERNEL_L2TP_CONFIG) >> $(KERNEL_DIR)/_build/config.addendum.txt; \
-	fi
-	@echo "--- Building kernel ($(KVER), $(KERNEL_ARCH), ~5 min via $(KERNEL_CONTAINER)) ---"
-	@KERNEL_DIR=$(CURDIR)/$(KERNEL_DIR) \
-		KERNEL_UPSTREAM_URL=$(KERNEL_UPSTREAM_URL) \
-		KERNEL_ARCH=$(KERNEL_ARCH) \
-		KERNEL_CONTAINER=$(KERNEL_CONTAINER) \
-		KERNEL_FLAVOR=$(KERNEL_FLAVOR) \
-		KERNEL_REBUILD_VER=$(KERNEL_REBUILD_VER) \
-		bash scripts/dev/gokrazy-kernel-build.sh
+	@echo "--- Building runtime kernel ($(KVER), $(KERNEL_ARCH), builder=$(KERNEL_BUILDER)) ---"
+	@$(MAKE) -C gokrazy/kernel BUILDER=$(KERNEL_BUILDER) ARCH=$(KERNEL_ARCH) KVER=$(KVER)
 	@echo "--- Installing custom kernel into gokrazy module cache ---"
 	@test -n "$(KERNEL_MODULE_VERSION)" || { echo "error: could not resolve pinned $(KERNEL_MODULE) version"; exit 1; }
 	@test -d "$(KERNEL_MODCACHE_DIR)" || { echo "error: $(KERNEL_MODCACHE_DIR) not found (run: make ze-gokrazy-deps)"; exit 1; }
+	@test -f "$(KERNEL_BUILD_DIR)/vmlinuz" || { echo "error: $(KERNEL_BUILD_DIR)/vmlinuz not found"; exit 1; }
+	@test -d "$(KERNEL_BUILD_DIR)/lib/modules" || { echo "error: $(KERNEL_BUILD_DIR)/lib/modules not found"; exit 1; }
 	@if [ ! -d "$(KERNEL_PINNED_BACKUP)" ]; then \
 		echo "--- Backing up pinned kernel module cache ---"; \
 		cp -R "$(KERNEL_MODCACHE_DIR)" "$(KERNEL_PINNED_BACKUP)"; \
 	fi
-	@cp "$(KERNEL_DIR)/vmlinuz" "$(KERNEL_MODCACHE_DIR)/vmlinuz"
+	@cp "$(KERNEL_BUILD_DIR)/vmlinuz" "$(KERNEL_MODCACHE_DIR)/vmlinuz"
 	@mkdir -p "$(KERNEL_MODCACHE_DIR)/lib"
 	@rm -rf "$(KERNEL_MODCACHE_DIR)/lib/modules"
-	@cp -R "$(KERNEL_DIR)/lib/modules" "$(KERNEL_MODCACHE_DIR)/lib/"
+	@cp -R "$(KERNEL_BUILD_DIR)/lib/modules" "$(KERNEL_MODCACHE_DIR)/lib/"
 	@rm -f "$(KERNEL_MODCACHE_DIR)"/*.dtb
-	@cp "$(KERNEL_DIR)"/*.dtb "$(KERNEL_MODCACHE_DIR)"/ 2>/dev/null || true
-	@if [ -d "$(KERNEL_DIR)/overlays" ]; then \
+	@cp "$(KERNEL_BUILD_DIR)"/*.dtb "$(KERNEL_MODCACHE_DIR)"/ 2>/dev/null || true
+	@if [ -d "$(KERNEL_BUILD_DIR)/overlays" ]; then \
 		rm -rf "$(KERNEL_MODCACHE_DIR)/overlays"; \
-		cp -R "$(KERNEL_DIR)/overlays" "$(KERNEL_MODCACHE_DIR)/"; \
+		cp -R "$(KERNEL_BUILD_DIR)/overlays" "$(KERNEL_MODCACHE_DIR)/"; \
 	fi
 	@echo ""
-	@module_version=""; for d in $(KERNEL_DIR)/lib/modules/*; do [ -d "$$d" ] || continue; module_version="$${d##*/}"; break; done; echo "Custom kernel: $$module_version"
-	@ls -lh $(KERNEL_DIR)/vmlinuz 2>/dev/null || true
+	@module_version=""; for d in $(KERNEL_BUILD_DIR)/lib/modules/*; do [ -d "$$d" ] || continue; module_version="$${d##*/}"; break; done; echo "Custom kernel: $$module_version"
 	@echo "Next: make ze-gokrazy USER=... PASS=..."
 
 ze-kernel-clean:
+	@$(MAKE) -C gokrazy/kernel clean
 	@if [ -d "$(KERNEL_PINNED_BACKUP)" ]; then \
 		echo "--- Restoring pinned kernel module cache ---"; \
 		rm -rf "$(KERNEL_MODCACHE_DIR)"; \
@@ -226,5 +198,5 @@ ze-kernel-clean:
 	else \
 		echo "warning: no pinned kernel backup found; run make ze-gokrazy-deps to refresh the module cache if needed"; \
 	fi
-	@rm -rf $(KERNEL_DIR)
+	@rm -rf tmp/kernel
 	@echo "ze-gokrazy will now use the pinned rtr7/kernel."

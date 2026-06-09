@@ -105,7 +105,7 @@ func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
 		t.Fatalf("resolveKernel: %v", err)
 	}
 
-	toolsPath := filepath.Join(kernelToolsDir, "build", kernelFileName)
+	toolsPath := filepath.Join(kernelInstallerOutputDir, kernelFileName)
 	got, err := os.ReadFile(toolsPath)
 	if err != nil {
 		t.Fatalf("tools path %s not written on cache hit: %v", toolsPath, err)
@@ -170,6 +170,7 @@ func TestKernelFallsBackToQEMU(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
+	setTestDockerCheck(t, func() error { return errors.New("no docker") })
 	setTestQEMUCheck(t, func() error { return nil })
 	setTestQEMUBuild(t, func(version, arch, profile, destPath string) error {
 		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
@@ -247,6 +248,7 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("no network") })
+	setTestDockerCheck(t, func() error { return errors.New("no docker") })
 	setTestQEMUCheck(t, func() error { return nil })
 	setTestQEMUBuild(t, func(version, arch, profile, destPath string) error {
 		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
@@ -390,17 +392,21 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	toolsDir := filepath.Join(dir, kernelToolsDir)
-	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
+	configDir := filepath.Join(dir, kernelInstallerConfigDir)
+	builderDir := filepath.Join(dir, kernelBuilderDir)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "kernel.config"), []byte("CONFIG_A=y\n"), 0o644); err != nil {
+	if err := os.MkdirAll(builderDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "qemu.config"), []byte("CONFIG_B=y\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_A=y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "build.sh"), []byte("#!/bin/sh\nmake\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "qemu.config"), []byte("CONFIG_B=y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(builderDir, "build.sh"), []byte("#!/bin/sh\nmake\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -421,7 +427,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatalf("expected cache hit at %q, got %q", cached1, got)
 	}
 
-	if err := os.WriteFile(filepath.Join(toolsDir, "kernel.config"), []byte("CONFIG_A=y\nCONFIG_IGC=y\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_A=y\nCONFIG_IGC=y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -430,6 +436,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal("config change did not change cache variant")
 	}
 
+	setTestDockerCheck(t, func() error { return errors.New("no docker") })
 	setTestQEMUCheck(t, func() error { return nil })
 	setTestQEMUBuild(t, func(version, arch, profile, destPath string) error {
 		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
@@ -460,23 +467,27 @@ func TestKernelBuildScriptInvalidatesCache(t *testing.T) {
 	t.Chdir(dir)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 
-	toolsDir := filepath.Join(dir, kernelToolsDir)
-	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
+	configDir := filepath.Join(dir, kernelInstallerConfigDir)
+	builderDir := filepath.Join(dir, kernelBuilderDir)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "kernel.config"), []byte("CONFIG_A=y\n"), 0o644); err != nil {
+	if err := os.MkdirAll(builderDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "qemu.config"), []byte("CONFIG_B=y\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_A=y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(toolsDir, "build.sh"), []byte("#!/bin/sh\nmake\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "qemu.config"), []byte("CONFIG_B=y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(builderDir, "build.sh"), []byte("#!/bin/sh\nmake\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	variant1 := kernelCacheVariant(archAMD64, ProfileQEMU)
 
-	if err := os.WriteFile(filepath.Join(toolsDir, "build.sh"), []byte("#!/bin/sh\nmake -j$(nproc)\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(builderDir, "build.sh"), []byte("#!/bin/sh\nmake -j$(nproc)\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -666,4 +677,168 @@ func TestKernelFallsBackToDocker(t *testing.T) {
 	if string(data) != "docker-built-kernel" {
 		t.Errorf("content = %q, want docker-built-kernel", data)
 	}
+}
+
+func TestDockerBuildMountsSharedBuilder(t *testing.T) {
+	// VALIDATES: AC-15 expects Docker build/run to use the shared builder with
+	// target platform and separate builder/config/output mounts.
+	// PREVENTS: silently continuing to run tools/installer-kernel/build.sh.
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	builderDir := filepath.Join(dir, kernelBuilderDir)
+	configDir := filepath.Join(dir, kernelInstallerConfigDir)
+	outputDir := filepath.Join(dir, kernelInstallerOutputDir)
+	fakeBin := filepath.Join(dir, "fakebin")
+	if err := os.MkdirAll(builderDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{
+		"Dockerfile":    "FROM scratch\n",
+		"build.sh":      "#!/bin/sh\n",
+		"kernel.config": "CONFIG_A=y\n",
+		"qemu.config":   "CONFIG_B=y\n",
+	} {
+		base := builderDir
+		if strings.HasSuffix(name, ".config") {
+			base = configDir
+		}
+		if err := os.WriteFile(filepath.Join(base, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	logPath := filepath.Join(dir, "docker.log")
+	dockerPath := filepath.Join(fakeBin, "docker")
+	dockerScript := `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$ZE_DOCKER_LOG"
+if [ "$1" = run ]; then
+	prev=
+	for arg in "$@"; do
+		if [ "$prev" = "-v" ]; then
+			case "$arg" in
+				*:/out)
+					out=${arg%:/out}
+					mkdir -p "$out"
+					printf kernel > "$out/Image"
+					;;
+			esac
+		fi
+		prev=$arg
+	done
+fi
+`
+	if err := os.WriteFile(dockerPath, []byte(dockerScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("ZE_DOCKER_LOG", logPath)
+
+	destPath := filepath.Join(dir, "cache", kernelFileName)
+	if err := defaultDockerBuild("7.0.11", archAMD64, ProfileQEMU, destPath); err != nil {
+		t.Fatalf("defaultDockerBuild: %v", err)
+	}
+	if _, err := os.Stat(destPath); err != nil {
+		t.Fatalf("cache image not written: %v", err)
+	}
+
+	logData, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read docker log: %v", err)
+	}
+	log := string(logData)
+	for _, want := range []string{
+		"build --platform linux/amd64 -t " + kernelDockerImage + " " + builderDir,
+		"run --rm --platform linux/amd64",
+		builderDir + ":/builder:ro",
+		configDir + ":/src:ro",
+		outputDir + ":/out",
+		"sh /builder/build.sh",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("docker log missing %q\nlog:\n%s", want, log)
+		}
+	}
+}
+
+func TestQEMUBuildPassesBuilderDir(t *testing.T) {
+	// VALIDATES: AC-15 expects installer QEMU builds to call shared qemu-build.py
+	// with explicit builder, source, and output dirs, but no runtime modules flags.
+	// PREVENTS: qemu-build.py hardcoding tools/installer-kernel paths.
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	builderDir := filepath.Join(dir, kernelBuilderDir)
+	outputDir := filepath.Join(dir, kernelInstallerOutputDir)
+	fakeBin := filepath.Join(dir, "fakebin")
+	if err := os.MkdirAll(builderDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(builderDir, "qemu-build.py"), []byte("#!/usr/bin/env python3\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	logPath := filepath.Join(dir, "python.log")
+	pythonPath := filepath.Join(fakeBin, "python3")
+	pythonScript := `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$ZE_PYTHON_LOG"
+out=
+prev=
+for arg in "$@"; do
+	if [ "$prev" = "--out-dir" ]; then
+		out=$arg
+	fi
+	prev=$arg
+done
+if [ -n "$out" ]; then
+	mkdir -p "$out"
+	printf kernel > "$out/Image"
+fi
+`
+	if err := os.WriteFile(pythonPath, []byte(pythonScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("ZE_PYTHON_LOG", logPath)
+
+	destPath := filepath.Join(dir, "cache", kernelFileName)
+	if err := defaultQEMUBuild("7.0.11", archARM64, ProfileHardware, destPath); err != nil {
+		t.Fatalf("defaultQEMUBuild: %v", err)
+	}
+	if _, err := os.Stat(destPath); err != nil {
+		t.Fatalf("cache image not written: %v", err)
+	}
+
+	logData, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read python log: %v", err)
+	}
+	log := string(logData)
+	for _, want := range []string{
+		filepath.Join(builderDir, "qemu-build.py"),
+		"--builder-dir " + kernelBuilderDir,
+		"--src-dir " + kernelInstallerConfigDir,
+		"--out-dir " + kernelInstallerOutputDir,
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("python log missing %q\nlog:\n%s", want, log)
+		}
+	}
+	for _, forbidden := range []string{"--modules", "--patches-dir"} {
+		if strings.Contains(log, forbidden) {
+			t.Fatalf("python log unexpectedly contains %q\nlog:\n%s", forbidden, log)
+		}
+	}
+	_ = outputDir
 }

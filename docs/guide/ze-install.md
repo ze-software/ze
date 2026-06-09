@@ -254,7 +254,7 @@ commit; the committed config replaces the bootstrap config on the next restart.
 For appliances built with `ze appliance build`, ISO media is an offline
 install transport for the gokrazy image. The image is gzip-compressed inside the
 ISO; the installer initrd decompresses it during installation. Create it with:
-<!-- source: cmd/ze/install/appliance/cmd_iso.go -- runIso -->
+<!-- source: internal/appliance/cmd_iso.go -- runIso -->
 
 ```bash
 ze appliance build prod
@@ -316,7 +316,7 @@ be removed before the next boot. They do not auto-reboot while the ISO is still
 present.
 <!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
 
-<!-- source: cmd/ze/install/appliance/cmd_iso.go -- stageISO -->
+<!-- source: internal/appliance/cmd_iso.go -- stageISO -->
 
 ## Remote Provisioning (PXE)
 
@@ -628,20 +628,31 @@ autoconfiguration, SCSI, ext4, initramfs, devtmpfs and serial console.
 
 ```bash
 ze appliance kernel prod                       # reads arch + profile from appliance.json
-ze appliance kernel --profile hardware --arch amd64   # explicit flags
+ze appliance kernel --profile hardware --arch amd64
+ze appliance kernel --builder qemu --arch arm64 prod
 
 # Or build directly with Make:
 make -C tools/installer-kernel                              # qemu profile, arm64 (default)
-make -C tools/installer-kernel PROFILE=hardware ARCH=amd64  # hardware profile, x86_64
+make -C tools/installer-kernel BUILDER=docker ARCH=amd64   # docker backend, x86_64
+make -C tools/installer-kernel PROFILE=hardware ARCH=amd64 # hardware profile, x86_64
 ```
 
 Set `image.kernel-profile` to `"hardware"` in `appliance.json` so
-`ze appliance kernel <name>` picks it up automatically.
+`ze appliance kernel <name>` picks it up automatically. The CLI selects Docker
+first, then the shared QEMU backend, unless `--builder` forces one path.
 
-`build.sh` verifies the required options resolved to `=y` before building and
-fails loudly if any did not. Output is `build/Image` (the kernel) and
-`build/config` (the resolved config). See `tools/installer-kernel/README.md`
-for the full rationale and driver lists.
+`tools/kernel-builder/build.sh` verifies the required options resolved to `=y`
+before building and fails loudly if any did not. The installer Makefile keeps
+its config fragments in `tools/installer-kernel/` and delegates Docker/QEMU
+execution to `tools/kernel-builder/`. The QEMU path is
+`tools/kernel-builder/qemu-build.py`, which validates repo-relative builder,
+source, and output paths before booting the VM. Output is `build/Image` (the
+kernel) and `build/config` (the resolved config). See
+`tools/installer-kernel/README.md` for the full rationale and driver lists.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel, selectBuilder -->
+<!-- source: tools/kernel-builder/build.sh -- require_yes -->
+<!-- source: tools/kernel-builder/qemu-build.py -- repo_relative, main -->
+<!-- source: tools/installer-kernel/Makefile -- all -->
 
 ## End-to-End QEMU Verification
 

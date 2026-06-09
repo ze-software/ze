@@ -1,0 +1,88 @@
+# Test: ze appliance kernel reaches the shared docker builder and writes both the
+# installer output path and the XDG cache artifact.
+
+option=timeout:value=20s
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+
+work=$PWD
+repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+cd "$repo"
+
+orig_image=
+orig_config=
+cleanup() {
+	set +e
+	if [ -n "$orig_image" ]; then
+		cp "$orig_image" tools/installer-kernel/build/Image
+	else
+		rm -f tools/installer-kernel/build/Image
+	fi
+	if [ -n "$orig_config" ]; then
+		cp "$orig_config" tools/installer-kernel/build/config
+	else
+		rm -f tools/installer-kernel/build/config
+	fi
+}
+trap cleanup EXIT
+
+mkdir -p "$work/fakebin" "$work/cache" tools/installer-kernel/build
+if [ -f tools/installer-kernel/build/Image ]; then
+	orig_image="$work/original-image"
+	cp tools/installer-kernel/build/Image "$orig_image"
+fi
+if [ -f tools/installer-kernel/build/config ]; then
+	orig_config="$work/original-config"
+	cp tools/installer-kernel/build/config "$orig_config"
+fi
+rm -f tools/installer-kernel/build/Image tools/installer-kernel/build/config
+
+cat > "$work/fakebin/docker" <<'EOF_DOCKER'
+#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$ZE_DOCKER_LOG"
+if [ "$1" = run ]; then
+	prev=
+	for arg in "$@"; do
+		if [ "$prev" = -v ]; then
+			case "$arg" in
+				*:/out)
+					out=${arg%:/out}
+					mkdir -p "$out"
+					printf 'docker-installer-kernel\n' > "$out/Image"
+					printf 'CONFIG_FAKE=y\n' > "$out/config"
+					;;
+			esac
+		fi
+		prev=$arg
+	done
+fi
+EOF_DOCKER
+chmod +x "$work/fakebin/docker"
+
+PATH="$work/fakebin:$PATH" \
+XDG_CACHE_HOME="$work/cache" \
+ZE_DOCKER_LOG="$work/docker.log" \
+ze appliance kernel --arch amd64 --profile qemu --builder docker >"$work/stdout" 2>"$work/stderr"
+
+grep -q 'building kernel with docker' "$work/stdout"
+grep -q 'kernel ready:' "$work/stdout"
+[ "$(cat tools/installer-kernel/build/Image)" = 'docker-installer-kernel' ]
+[ "$(cat tools/installer-kernel/build/config)" = 'CONFIG_FAKE=y' ]
+cache_image=$(find "$work/cache" -path '*/installer-kernel/*/Image' -print | head -n 1)
+[ -n "$cache_image" ]
+[ "$(cat "$cache_image")" = 'docker-installer-kernel' ]
+grep -q -- '--platform linux/amd64' "$work/docker.log"
+grep -q -- '/builder:ro' "$work/docker.log"
+grep -q -- '/src:ro' "$work/docker.log"
+grep -q -- '/out' "$work/docker.log"
+grep -q -- 'sh /builder/build.sh' "$work/docker.log"
+
+echo OK
+EOF_SH
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=0
+expect=stdout:contains=OK

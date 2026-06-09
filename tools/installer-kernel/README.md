@@ -73,12 +73,14 @@ Output: `build/Image` (the kernel) and `build/config` (the resolved config).
 If you want to keep both architectures side by side, copy or rename the kernel
 after each build and pass it back to `ze appliance iso --kernel ...`.
 
-The build script (`build.sh`) can also be used directly inside any Linux
+The build script lives in `../kernel-builder/build.sh` and is shared with the
+runtime gokrazy kernel build. It can also be used directly inside any Linux
 environment (VM, container, bare metal) by setting `SRC_DIR` and `OUT_DIR`:
 
 ```sh
-SRC_DIR=/path/to/tools/installer-kernel OUT_DIR=/path/to/output sh build.sh
+SRC_DIR=/path/to/tools/installer-kernel OUT_DIR=/path/to/output sh ../kernel-builder/build.sh
 ```
+<!-- source: tools/kernel-builder/build.sh -- profile dispatch -->
 
 ## Use with the QEMU install test
 

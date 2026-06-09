@@ -75,7 +75,7 @@ func checkKernelArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 			}
 		}
 	}
-	fallback := filepath.Join(kernelToolsDir, "build", kernelFileName)
+	fallback := filepath.Join(kernelInstallerOutputDir, kernelFileName)
 	if _, err := os.Stat(fallback); err == nil {
 		return nil
 	}

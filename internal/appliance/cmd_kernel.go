@@ -18,13 +18,15 @@ import (
 )
 
 const (
-	defaultKernelVersion = "7.0.11"
-	kernelURLKey         = "ze.appliance.kernel.url"
-	kernelToolsDir       = "tools/installer-kernel"
-	kernelBuildTimeout   = 120 * time.Minute
-	kernelDockerImage    = "ze-installer-kernel-builder"
-	builderDocker        = "docker"
-	builderQEMU          = "qemu"
+	defaultKernelVersion     = "7.0.11"
+	kernelURLKey             = "ze.appliance.kernel.url"
+	kernelBuilderDir         = "tools/kernel-builder"
+	kernelInstallerConfigDir = "tools/installer-kernel"
+	kernelInstallerOutputDir = "tools/installer-kernel/build"
+	kernelBuildTimeout       = 120 * time.Minute
+	kernelDockerImage        = "ze-installer-kernel-builder"
+	builderDocker            = "docker"
+	builderQEMU              = "qemu"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -131,7 +133,7 @@ func runKernel(args []string) int {
 
 func resolveKernel(version, arch, profile, builder string) (string, error) {
 	cached := kernelCachePath(version, kernelCacheVariant(arch, profile))
-	toolsDst := filepath.Join(kernelToolsDir, "build", kernelFileName)
+	toolsDst := filepath.Join(kernelInstallerOutputDir, kernelFileName)
 
 	if _, err := os.Stat(cached); err == nil {
 		if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
@@ -202,16 +204,26 @@ func defaultDockerCheck() error {
 }
 
 func defaultDockerBuild(version, arch, profile, destPath string) error {
-	toolsDir, err := filepath.Abs(kernelToolsDir)
+	builderDir, err := filepath.Abs(kernelBuilderDir)
 	if err != nil {
-		return fmt.Errorf("resolve tools directory: %w", err)
+		return fmt.Errorf("resolve builder directory: %w", err)
+	}
+	configDir, err := filepath.Abs(kernelInstallerConfigDir)
+	if err != nil {
+		return fmt.Errorf("resolve installer config directory: %w", err)
+	}
+	outDir, err := filepath.Abs(kernelInstallerOutputDir)
+	if err != nil {
+		return fmt.Errorf("resolve installer output directory: %w", err)
+	}
+	platform, err := dockerPlatform(arch)
+	if err != nil {
+		return err
 	}
 
 	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
 		return fmt.Errorf("create cache directory: %w", err)
 	}
-
-	outDir := filepath.Join(toolsDir, "build")
 	if err := os.MkdirAll(outDir, cacheDirPerm); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
@@ -219,7 +231,7 @@ func defaultDockerBuild(version, arch, profile, destPath string) error {
 	buildCtx, buildCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
 	defer buildCancel()
 
-	buildCmd := exec.CommandContext(buildCtx, builderDocker, "build", "-t", kernelDockerImage, toolsDir) //nolint:gosec // controlled args
+	buildCmd := exec.CommandContext(buildCtx, builderDocker, "build", "--platform", platform, "-t", kernelDockerImage, builderDir) //nolint:gosec // controlled args
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stdout
 	if err := buildCmd.Run(); err != nil {
@@ -227,13 +239,16 @@ func defaultDockerBuild(version, arch, profile, destPath string) error {
 	}
 
 	var tb textbuf.Buffer
-	runCmd := exec.CommandContext(buildCtx, builderDocker, "run", "--rm", //nolint:gosec // controlled args
+	runCmd := exec.CommandContext(buildCtx, builderDocker, "run", "--rm", "--platform", platform, //nolint:gosec // controlled args
 		"-e", tb.Str("LINUX_VERSION=").Str(version).String(),
 		"-e", tb.Reset().Str("ARCH=").Str(arch).String(),
 		"-e", tb.Reset().Str("PROFILE=").Str(profile).String(),
-		"-v", tb.Reset().Str(toolsDir).Str(":/src:ro").String(),
+		"-e", "SRC_DIR=/src",
+		"-e", "OUT_DIR=/out",
+		"-v", tb.Reset().Str(builderDir).Str(":/builder:ro").String(),
+		"-v", tb.Reset().Str(configDir).Str(":/src:ro").String(),
 		"-v", tb.Reset().Str(outDir).Str(":/out").String(),
-		kernelDockerImage, "sh", "/src/build.sh",
+		kernelDockerImage, "sh", "/builder/build.sh",
 	)
 	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stdout
@@ -249,6 +264,17 @@ func defaultDockerBuild(version, arch, profile, destPath string) error {
 	return copyToToolsPath(builtKernel, destPath)
 }
 
+func dockerPlatform(arch string) (string, error) {
+	switch arch {
+	case archAMD64:
+		return "linux/amd64", nil
+	case archARM64:
+		return "linux/arm64", nil
+	default:
+		return "", fmt.Errorf("arch %q must be amd64 or arm64", arch)
+	}
+}
+
 func defaultQEMUCheck() error {
 	if _, err := exec.LookPath("python3"); err != nil {
 		return fmt.Errorf("python3 not found; required for QEMU kernel build")
@@ -262,13 +288,16 @@ func defaultQEMUCheck() error {
 }
 
 func defaultQEMUBuild(version, arch, profile, destPath string) error {
-	scriptPath, err := filepath.Abs(filepath.Join(kernelToolsDir, "qemu-build.py"))
+	scriptPath, err := filepath.Abs(filepath.Join(kernelBuilderDir, "qemu-build.py"))
 	if err != nil {
 		return fmt.Errorf("resolve build script path: %w", err)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
 		return fmt.Errorf("create cache directory: %w", err)
+	}
+	if err := os.MkdirAll(kernelInstallerOutputDir, cacheDirPerm); err != nil {
+		return fmt.Errorf("create output directory: %w", err)
 	}
 
 	buildCtx, buildCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
@@ -278,6 +307,9 @@ func defaultQEMUBuild(version, arch, profile, destPath string) error {
 		"--arch", arch,
 		"--profile", profile,
 		"--version", version,
+		"--builder-dir", kernelBuilderDir,
+		"--src-dir", kernelInstallerConfigDir,
+		"--out-dir", kernelInstallerOutputDir,
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stdout
@@ -285,7 +317,7 @@ func defaultQEMUBuild(version, arch, profile, destPath string) error {
 		return fmt.Errorf("qemu-build.py: %w", err)
 	}
 
-	builtKernel := filepath.Join(filepath.Dir(scriptPath), "build", kernelFileName)
+	builtKernel := filepath.Join(kernelInstallerOutputDir, kernelFileName)
 	if _, err := os.Stat(builtKernel); err != nil {
 		return fmt.Errorf("kernel not produced at %s", builtKernel)
 	}

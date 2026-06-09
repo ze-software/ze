@@ -33,7 +33,7 @@ brew install qemu         # VM runtime (testing only)
 For appliance ISO creation, install `grub-mkstandalone` (or `grub2-mkstandalone`)
 plus `xorriso`.
 `ze appliance iso` checks those tools before it stages an ISO.
-<!-- source: cmd/ze/install/appliance/cmd_iso.go -- resolveISOBuilder -->
+<!-- source: internal/appliance/cmd_iso.go -- resolveISOBuilder -->
 
 The gokrazy build tool (`gok`) is vendored in the repo at `vendor/github.com/gokrazy/` and built automatically by Make. No separate install needed.
 <!-- source: cmd/ze-gok/main.go -- vendored gok tool -->
@@ -59,7 +59,10 @@ Build the repo-local kernel before building an appliance intended to terminate
 L2TP subscribers:
 
 ```bash
-make ze-kernel
+make ze-kernel                                   # default runtime build: docker, amd64
+make ze-kernel KERNEL_BUILDER=qemu               # force the shared QEMU backend
+make ze-kernel KERNEL_ARCH=arm64                 # runtime arm64 kernel
+make ze-kernel KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
 make ze-gokrazy USER=admin PASS=secret
 ```
 
@@ -67,15 +70,23 @@ On Apple Silicon, use a native arm64 VM image to avoid x86_64 emulation while
 still building the kernel with the same L2TP/PPP options:
 
 ```bash
-make ze-kernel GOKRAZY_ARCH=arm64
+make ze-kernel KERNEL_ARCH=arm64                 # default builder is docker
+make ze-kernel KERNEL_ARCH=arm64 KERNEL_BUILDER=qemu
 make ze-gokrazy GOKRAZY_ARCH=arm64 USER=admin PASS=secret
 make ze-gokrazy-run GOKRAZY_ARCH=arm64 GOKRAZY_QEMU_ACCEL=hvf
 ```
 
-`make ze-kernel` appends `gokrazy/kernel/l2tp.config.addendum.txt` to the
-rtr7 kernel addendum, builds the kernel with gokrazy's rebuild tooling, and
-overlays the gitignored module-cache copy used by `make ze-gokrazy`. The first
-overlay backs up the pinned cache. Use `make ze-kernel-clean` to restore it.
+`make ze-kernel` delegates to `gokrazy/kernel/Makefile`, which defaults to the
+Docker backend (`KERNEL_BUILDER=docker`) and can be forced to the shared QEMU
+backend with `KERNEL_BUILDER=qemu`. The runtime build uses
+`tools/kernel-builder/build.sh` with the tracked
+`gokrazy/kernel/kernel.config` + `runtime.config` fragments, emits `vmlinuz`,
+`lib/modules/`, and DTBs, then overlays those artifacts into the gitignored
+module-cache copy used by `make ze-gokrazy`. The first overlay backs up the
+pinned cache. Use
+`make ze-kernel-clean` to restore it.
+<!-- source: mk/gokrazy.mk -- ze-kernel -->
+<!-- source: gokrazy/kernel/Makefile -- all -->
 
 On a Linux runner with QEMU, `xl2tpd`, `pppd`, `/dev/ppp`, and PPPoL2TP kernel
 support, the deployment proof target builds an L2TP-enabled appliance image and
@@ -90,8 +101,8 @@ appliance config is left unchanged. It disables IPv6CP in that proof image
 because the current static L2TP pool is IPv4-only. Set
 `ZE_GOKRAZY_SKIP_BUILD=1` to run against an existing `tmp/gokrazy/ze.img` that
 was already built with the L2TP proof template and proof runtime environment.
-<!-- source: gokrazy/kernel/l2tp.config.addendum.txt -- Ze L2TP/PPP kernel config -->
-<!-- source: Makefile -- ze-kernel target -->
+<!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
+<!-- source: mk/gokrazy.mk -- ze-kernel -->
 <!-- source: scripts/evidence/effective-gokrazy-l2tp-ppp.py -- appliance L2TP proof -->
 
 ## Build an image
@@ -304,7 +315,7 @@ bin/ze-setup appliance build prod
 
 # 4. Prepare ISO prerequisites (download or build automatically)
 bin/ze-setup appliance iso --check               # see what is ready
-bin/ze-setup appliance kernel prod                # download or QEMU-build the installer kernel
+bin/ze-setup appliance kernel prod                # download or build the installer kernel
 bin/ze-setup appliance initrd                    # download or build the installer initrd
 
 # 5. Build the bootable installer ISO
@@ -322,9 +333,9 @@ bin/ze-setup install remote \
 ```
 
 The `kernel` and `initrd` commands try three sources in order: XDG cache hit,
-download from the release server, and local build (QEMU VM for the kernel, make
-for the initrd). Once cached, subsequent runs are instant. See
-"ISO prerequisites" below for details.
+download from the release server, and local build (Docker first, then the shared
+QEMU backend for the kernel; make for the initrd). Once cached, subsequent runs
+are instant. See "ISO prerequisites" below for details.
 
 ## ze appliance (structured workflow)
 
@@ -434,16 +445,24 @@ missing. The `kernel` and `initrd` commands handle downloading or building these
 artifacts automatically:
 
     bin/ze-setup appliance iso --check               # report readiness
-    bin/ze-setup appliance kernel prod                # download or build kernel (reads profile from config)
+    bin/ze-setup appliance kernel prod                # reads arch/profile from appliance config
     bin/ze-setup appliance kernel --profile hardware prod   # explicit hardware profile
+    bin/ze-setup appliance kernel --builder qemu --arch arm64 prod
     bin/ze-setup appliance initrd                    # download or build initrd
     bin/ze-setup appliance iso lab                   # build ISO
 
-Both commands try three tiers in order: XDG cache hit, download from a release
-server, and local build (QEMU VM for the kernel, make for the initrd). Downloaded
+`ze appliance kernel` tries three tiers in order: XDG cache hit, download from a
+release server, and local build. The local build defaults to Docker when
+available and falls back to the shared QEMU backend (`tools/kernel-builder/qemu-build.py`);
+use `--builder docker` or `--builder qemu` to force one path. Downloaded
 artifacts are cached under `$XDG_CACHE_HOME/ze/` (default `~/.cache/ze/`) and
 also copied to `tools/installer-kernel/build/` and `tools/installer-initrd/build/`
 so `ze appliance iso` finds them without extra flags.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel, selectBuilder -->
+<!-- source: tools/kernel-builder/qemu-build.py -- main -->
+
+`ze appliance initrd` uses the same cache/download/build pattern for the initrd
+artifact.
 
 The download URL defaults to the project release server. Override with the
 `ze.appliance.kernel.url` and `ze.appliance.initrd.url` environment variables.
@@ -462,13 +481,15 @@ the ISO elsewhere. The output path must not overwrite the selected `.img`, and
 the image filename must stay within `[A-Za-z0-9._-]` so the initrd can pass it
 on the kernel command line. By default the installer kernel path is
 `tools/installer-kernel/build/Image` or a cached download under
-`$XDG_CACHE_HOME/ze/`; build the matching architecture before you
-run `ze appliance iso`, or pass `--kernel` to keep multiple kernels
-side by side.
-<!-- source: cmd/ze/install/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
+`$XDG_CACHE_HOME/ze/`; `ze appliance kernel` and `make -C
+tools/installer-kernel` both delegate to `tools/kernel-builder/`, so build the
+matching architecture before you run `ze appliance iso`, or pass `--kernel` to
+keep multiple kernels side by side.
+<!-- source: internal/appliance/cmd_iso.go -- runIso, resolveISOInput, readRequiredImageChecksum -->
+<!-- source: tools/installer-kernel/Makefile -- all -->
 
     bin/ze-setup appliance build lab
-    bin/ze-setup appliance kernel --profile hardware lab    # build hardware kernel
+    bin/ze-setup appliance kernel --builder docker --profile hardware lab
     bin/ze-setup appliance iso lab
     bin/ze-setup appliance iso --image ze-20260601-120000.img lab
     bin/ze-setup appliance iso --output /path/to/lab.iso lab
@@ -481,9 +502,9 @@ the image during installation. The ISO does not rebuild the appliance, regenerat
 credentials, fetch a separate ZeFS database, or mutate `/perm` after writing the
 disk image. The installed disk receives the selected image bytes, including the
 `/perm/ze/database.zefs` that `build` already injected.
-<!-- source: cmd/ze/install/appliance/cmd_iso.go -- stageISO -->
+<!-- source: internal/appliance/cmd_iso.go -- stageISO -->
 <!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
-<!-- source: cmd/ze/install/appliance/cmd_build.go -- injectZeFS -->
+<!-- source: internal/appliance/cmd_build.go -- injectZeFS -->
 
 The ISO boot path accepts an optional explicit target disk. If no target is set,
 the installer writes only when exactly one non-removable candidate disk remains
@@ -503,7 +524,7 @@ firmware boots from the written disk.
 
 The ISO contains the full provisioned appliance image, including the embedded
 ZeFS database. Handle the ISO with the same care as the `.img` file.
-<!-- source: cmd/ze/install/appliance/cmd_iso.go -- stageISO -->
+<!-- source: internal/appliance/cmd_iso.go -- stageISO -->
 
 **USB write method:** the ISO can be written with `dd`, Etcher, or Rufus in DD
 mode. Ventoy is also supported when the installer kernel includes loop device
@@ -526,7 +547,7 @@ Push uses the update token (from `secrets/update.token`) for HTTP basic auth, an
 When `--image` is set, the file name must resolve to a regular file inside the
 appliance directory. Path traversal and symlinks escaping that directory are
 rejected before any network or TLS work starts.
-<!-- source: cmd/ze/install/appliance/cmd_push.go -- resolveImagePath -->
+<!-- source: internal/appliance/cmd_push.go -- resolveImagePath -->
 
 Preview the effective configuration (base + overlay merged) without building:
 

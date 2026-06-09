@@ -228,6 +228,7 @@ Build system, Docker, CI, toolchain upgrades.
 - [754](plan/learned/754-makefile-split.md) -- Makefile split into mk/ includes: tiered help, component test groups, contributor testing docs
 - [853](plan/learned/853-build-tag-split.md) -- Positive build tags (ze_distro, ze_appliance, ze_setup) replace negative ze_stripped; no-tag default is minimal; Go _linux.go suffix gotcha
 - [854](plan/learned/854-install-8-appliance-iso.md) -- Appliance ISO installer: transport envelope around raw image, ze.source=iso initrd mode, gzip compression, media-id exclusion, UEFI GRUB boot, hard checksum enforcement, power-off not reboot
+- [870](plan/learned/870-kernel-build-convergence.md) -- shared kernel builder: runtime and installer converge on `tools/kernel-builder/` with Linux 7.0.11, runtime fragment tracking, Docker-first builder selection, and modcache overlay/restore flow
 
 ## Gotchas
 

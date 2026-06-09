@@ -1,0 +1,84 @@
+# Runtime kernel fragment composition: tracked fragments must carry the required
+# gokrazy, L2TP/PPP, virtio, and module options without removed Kconfig symbols.
+
+option=timeout:value=20s
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+
+repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+cd "$repo"
+
+base=gokrazy/kernel/kernel.config
+runtime=gokrazy/kernel/runtime.config
+[ -f "$base" ] || { echo "missing $base" >&2; exit 1; }
+[ -f "$runtime" ] || { echo "missing $runtime" >&2; exit 1; }
+
+combined=$(mktemp)
+trap 'rm -f "$combined"' EXIT
+cat "$base" "$runtime" > "$combined"
+
+require_enabled() {
+	opt=$1
+	if ! grep -q "^${opt}=y" "$combined"; then
+		echo "missing required ${opt}=y" >&2
+		exit 1
+	fi
+}
+
+require_absent() {
+	opt=$1
+	if grep -q "^${opt}[= ]" "$combined" tools/installer-kernel/*.config; then
+		echo "dead option still present: ${opt}" >&2
+		exit 1
+	fi
+}
+
+for opt in \
+	CONFIG_MODULES \
+	CONFIG_PPP \
+	CONFIG_PPPOL2TP \
+	CONFIG_L2TP \
+	CONFIG_L2TP_V3 \
+	CONFIG_L2TP_NETLINK \
+	CONFIG_DEVTMPFS_MOUNT \
+	CONFIG_BLK_DEV_INITRD \
+	CONFIG_VIRTIO_NET \
+	CONFIG_DRM_SIMPLEDRM \
+	CONFIG_X86_SYSFB \
+	CONFIG_I40E \
+	CONFIG_ICE \
+	CONFIG_BNXT \
+	CONFIG_MLX5_CORE \
+	CONFIG_IGB \
+	CONFIG_IGC \
+	CONFIG_NF_TABLES \
+	CONFIG_WIREGUARD \
+	CONFIG_BRIDGE \
+	CONFIG_TUN \
+	CONFIG_MACVLAN \
+	CONFIG_IPV6 \
+	CONFIG_SQUASHFS \
+	CONFIG_FUSE_FS; do
+	require_enabled "$opt"
+done
+
+for opt in \
+	CONFIG_NF_NAT_IPV4 \
+	CONFIG_NF_NAT_MASQUERADE_IPV4 \
+	CONFIG_NFT_MASQ_IPV4 \
+	CONFIG_NFT_CHAIN_NAT_IPV4 \
+	CONFIG_NFT_CHAIN_ROUTE_IPV4 \
+	CONFIG_NFT_CHAIN_ROUTE_IPV6 \
+	CONFIG_USB_DEVICEFS \
+	CONFIG_FB_SIMPLE; do
+	require_absent "$opt"
+done
+
+printf 'OK\n'
+EOF_SH
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=0
+expect=stdout:contains=OK
