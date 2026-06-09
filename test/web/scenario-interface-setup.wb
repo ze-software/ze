@@ -1,28 +1,30 @@
-# Test: create ethernet interface and unit via CLI, commit, verify persists
-# VALIDATES: CLI creates interface with mac, unit and address saved, commit works
-# PREVENTS: interface not created, commit losing data
+# Test: Workbench creates and edits interface configuration
+# VALIDATES: users can add an interface from the Interfaces page and see a pending change
+# PREVENTS: interface management being possible only through the old bottom CLI
 
 option=timeout:value=60s
 
-action=open:path=/show/
-action=wait:ms=1000
+action=open:path=/show/iface/
+expect=element:id=workbench-shell
+expect=element:text=Interfaces
+expect=element:text=Add Interface
 
-# Create interface via CLI with full path
-action=fill:id=cli-input:value=set interface ethernet iface-test mac address 00:aa:bb:cc:dd:01
-action=press:key=Enter
-action=wait:ms=1000
+action=click:id=btn-add-entry
+action=wait:ms=500
+expect=element:text=Add Interface
+expect=element:id=field-interface-name
 
-# Add unit and address
-action=fill:id=cli-input:value=set interface ethernet iface-test unit 0 ipv4 address 192.0.2.2/30
-action=press:key=Enter
+action=fill:id=field-interface-name:value=web-eth0
+action=fill:id=field-mac-address:value=00:aa:bb:cc:dd:01
+action=click:text=Save
 action=wait:ms=1000
+expect=element:text=web-eth0
+expect=element:text=Review & Commit
 
-# Commit
-action=fill:id=cli-input:value=commit
-action=press:key=Enter
-action=wait:ms=2000
-
-# Verify interface survived commit by navigating to interface list
-action=open:path=/show/interface/ethernet/
+action=click:text=web-eth0
+action=wait:ms=500
+expect=element:id=field-mtu
+action=fill:id=field-mtu:value=1500
+action=click:text=Save
 action=wait:ms=1000
-expect=element:text=iface-test
+expect=element:text=Review & Commit

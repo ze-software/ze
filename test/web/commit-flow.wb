@@ -1,10 +1,24 @@
-# Test: config commit page loads without crashing
-# VALIDATES: GET /config/commit renders a valid page
-# PREVENTS: commit handler crash, broken commit template
+# Test: Workbench settings edit exposes review and discard controls
+# VALIDATES: a settings form save creates a pending change visible through commit UI
+# PREVENTS: forms posting to fake admin URLs with no way to commit or discard
 
-option=timeout:value=30s
+option=timeout:value=45s
 
-action=open:path=/config/commit
-action=wait:ms=2000
-expect=element:not-text=panic
-expect=element:text=CLI
+action=open:path=/show/system/identity/
+expect=element:id=workbench-shell
+expect=element:text=System Identity
+expect=element:id=field-hostname
+
+action=fill:id=field-hostname:value=web-host-1
+action=click:text=Save
+action=wait:ms=1000
+expect=element:text=Review & Commit
+
+action=click:id=commit-review-btn
+action=wait:ms=1000
+expect=element:text=Pending Changes
+expect=element:text=web-host-1
+
+action=click:id=commit-discard-btn
+action=wait:ms=1000
+expect=element:not-text=web-host-1

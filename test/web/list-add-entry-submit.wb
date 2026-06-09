@@ -1,17 +1,21 @@
-# Test: add-entry overlay creates new list entry on Enter
-# VALIDATES: filling entry name and pressing Enter creates the entry
-# PREVENTS: add-entry form not submitting, entry not created
+# Test: Workbench Add action creates a BGP group pending config row
+# VALIDATES: table Add buttons open real config-entry forms and save through config mutation
+# PREVENTS: /show/.../add links routing to dead pages
 
-option=timeout:value=30s
+option=timeout:value=45s
 
 action=open:path=/show/bgp/group/
-expect=element:id=btn-add-entry
+expect=element:id=workbench-shell
+expect=element:text=BGP Groups
+expect=element:text=Add Group
 
 action=click:id=btn-add-entry
 action=wait:ms=500
-expect=element:text=New Group
+expect=element:text=Add Group
+expect=element:id=field-name
 
-action=fill:text=name:value=test-group
-action=press:key=Enter
-action=wait:ms=2000
-expect=element:text=test-group
+action=fill:id=field-name:value=web-group
+action=click:text=Save
+action=wait:ms=1000
+expect=element:text=web-group
+expect=element:text=Review & Commit

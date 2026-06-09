@@ -1,8 +1,18 @@
-# Test: CLI mode toggle switches to terminal UI
-# VALIDATES: clicking CLI toggle renders terminal mode container
-# PREVENTS: mode toggle button missing, terminal template not rendering
+# Test: CLI terminal is a separate top-level tab
+# VALIDATES: /cli renders the SSH-style terminal and executes commands
+# PREVENTS: terminal input being stranded at the bottom of normal pages
 
 option=timeout:value=30s
 
-action=open:path=/config/edit/bgp/
-expect=element:text=CLI
+action=open:path=/cli
+expect=element:id=content-area
+expect=element:id=terminal-input
+expect=element:not-id=cli-bar
+expect=element:not-id=cli-input
+
+action=fill:id=terminal-input:value=help
+action=press:id=terminal-input:key=Enter
+action=wait:ms=1000
+expect=element:text=commands:
+expect=element:text=set <path> <value>
+expect=element:not-text=Switch to Integrated Mode

@@ -1,0 +1,10 @@
+# Test: config commit page loads without crashing
+# VALIDATES: GET /config/commit renders a valid page
+# PREVENTS: commit handler crash, broken commit template
+
+option=timeout:value=30s
+
+action=open:path=/config/commit
+action=wait:ms=2000
+expect=element:not-text=panic
+expect=element:text=CLI

@@ -1,21 +1,18 @@
-# Test: hub started with ze.web.ui=workbench renders the V2 shell
-# VALIDATES: AC-1 (workbench shell renders top bar, left nav, workspace,
-#            commit bar, CLI bar), Spec Layout Regions table.
-# PREVENTS: A regression where the workbench template parses but a region
-#           drops out at runtime.
-#
-# Spec: plan/spec-web-2-operator-workbench.md (Phase 1).
-# Run with: ZE_WEB_UI=workbench bin/ze-test web -p workbench-shell
-# Without the env var, this test fails because the default UI is Finder;
-# the runner skips by default and the operator removes the option=skip
-# directive (or extends the runner with env-var support) for the
-# workbench-mode acceptance run.
+# Test: default Web UI renders Workbench shell without bottom CLI
+# VALIDATES: /show/ opens the operator workbench with top navigation and workspace
+# PREVENTS: Finder fallback or CLI footer leaking onto normal pages
 
-option=skip:reason=requires ZE_WEB_UI=workbench
 option=timeout:value=30s
 
 action=open:path=/show/
+expect=element:id=workbench-shell
+expect=element:id=workbench-topbar
+expect=element:id=workbench-nav
+expect=element:id=workbench-workspace
 expect=element:text=Dashboard
+expect=element:text=Interfaces
 expect=element:text=Routing
-expect=element:text=Logs
+expect=element:text=CLI
+expect=element:not-id=cli-bar
+expect=element:not-id=cli-input
 expect=element:not-text=panic
