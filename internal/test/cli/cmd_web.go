@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -11,7 +12,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -22,9 +22,35 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
+const (
+	webConcurrency = 4
+	webPortBase    = 10200 // above .ci runner range (1790-based) to avoid collisions
+)
+
+const webUsageHeader = `Usage: ze-test web [options] [test-ids...]
+
+Run web browser functional tests (.wb files) in parallel.
+Requires: agent-browser CLI, ze binary in bin/.
+
+Options:
+`
+
+const webUsageExamples = `
+Examples:
+  ze-test web --all          Run all tests in test/web/
+  ze-test web -p nav         Run tests matching "nav"
+  ze-test web --start 4      Resume at id 4 and run through the end
+  ze-test web 0 1            Run specific tests by id
+  ze-test web -v             Verbose output
+  ze-test web -l             List tests with N/TOTAL and id
+`
+
 func cmdWeb(args []string) int {
 	if err := cmdWebMain(args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if !errors.Is(err, ErrTestsFailed) {
+			os.Stderr.WriteString(err.Error()) //nolint:errcheck // terminal output
+			os.Stderr.WriteString("\n")        //nolint:errcheck // terminal output
+		}
 		return 1
 	}
 	return 0
@@ -43,26 +69,11 @@ func cmdWebMain(args []string) error {
 	listOnly := fs.Bool("l", false, "list tests without running")
 	fs.BoolVar(listOnly, "list", false, "list tests without running")
 	start := fs.String("start", "", "start at test id/name and run through the end")
-	port := fs.String("port", "", "port for test web server (default: random free port)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze-test web [options] [test-ids...]
-
-Run web browser functional tests (.wb files).
-Requires: agent-browser CLI, ze binary in bin/.
-
-Options:
-`)
+		os.Stderr.WriteString(webUsageHeader) //nolint:errcheck // terminal output
 		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Examples:
-  ze-test web --all          Run all tests in test/web/
-  ze-test web -p nav         Run tests matching "nav"
-  ze-test web --start 4      Resume at id 4 and run through the end
-  ze-test web 0 1            Run specific tests by id
-  ze-test web -v             Verbose output
-  ze-test web -l             List tests with N/TOTAL and id
-`)
+		os.Stderr.WriteString(webUsageExamples) //nolint:errcheck // terminal output
 	}
 
 	if len(args) > 0 && isHelpArg(args[0]) {
@@ -136,23 +147,6 @@ Examples:
 		return nil
 	}
 
-	if *port == "" {
-		lc := net.ListenConfig{}
-		ln, listenErr := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
-		if listenErr != nil {
-			return fmt.Errorf("find free port: %w", listenErr)
-		}
-		tcpAddr, ok := ln.Addr().(*net.TCPAddr)
-		if !ok {
-			ln.Close() //nolint:errcheck // best-effort cleanup
-			return fmt.Errorf("unexpected listener address type: %T", ln.Addr())
-		}
-		*port = strconv.Itoa(tcpAddr.Port)
-		if closeErr := ln.Close(); closeErr != nil {
-			return fmt.Errorf("close temp listener: %w", closeErr)
-		}
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -161,115 +155,86 @@ Examples:
 	defer signal.Stop(sigCh)
 	go func() {
 		<-sigCh
-		zeTestCloseBrowser()
 		cancel()
 	}()
 
-	listenAddr := "127.0.0.1:" + *port
-	baseURL := "https://" + listenAddr
 	zeBin := filepath.Join(baseDir, "bin", "ze")
-
-	srv, err := zeTestStartWebServer(zeBin, listenAddr)
-	if err != nil {
-		return fmt.Errorf("start web server: %w", err)
-	}
-	defer srv.stop()
-
-	zeTestCloseBrowser()
-	defer zeTestCloseBrowser()
+	defer zeTestCloseAllBrowserSessions()
 
 	colors := runner.NewColors()
-	passed, failed, skipped := 0, 0, 0
-	selectedTests := tests.Selected()
-	total := len(selectedTests)
+	pr := runner.NewParallelRunner[*zeTestWebTest](colors)
+	pr.SetLabel("web")
+	pr.SetConcurrency(webConcurrency)
+	pr.SetQuiet(*quiet)
+	pr.SetVerbose(*verbose)
+	pr.SetBaseDir(baseDir)
 
-	if !*quiet {
-		runner.PrintHeader("web")
-		fmt.Fprintf(os.Stdout, "progress 0/%d\n", total) //nolint:errcheck // terminal output
+	for _, t := range tests.Selected() {
+		pr.AddTestWithNick(t.Name, t.Nick, t, func(runCtx context.Context, test *zeTestWebTest) (bool, error) {
+			return zeTestRunWebTest(runCtx, test, zeBin)
+		})
 	}
 
-	for i, t := range selectedTests {
-		if ctx.Err() != nil {
-			break
+	pr.SetOnFail(func(t *zeTestWebTest, _ error) {
+		fmt.Fprintf(os.Stdout, "  %s\n", t.GetError()) //nolint:errcheck // terminal output
+		if len(t.Steps) > 0 {
+			trace.PrintTrace(os.Stdout, t.Name, t.Steps, colors.Enabled())
 		}
-		startTime := time.Now()
-		done := make(chan struct{})
-		if !*quiet {
-			go func(index int, test *zeTestWebTest) {
-				ticker := time.NewTicker(5 * time.Second)
-				defer ticker.Stop()
-				for {
-					select {
-					case <-done:
-						return
-					case <-ticker.C:
-						fmt.Fprintf(os.Stdout, "%-7s  %d/%d  RUN   %s  %s\n", zeTestFormatElapsed(time.Since(startTime)), index+1, total, test.Nick, test.Name) //nolint:errcheck // terminal output
-					}
-				}
-			}(i, t)
-		}
-		result := webtesting.RunWBFile(t.Path, baseURL)
-		close(done)
-		elapsed := time.Since(startTime)
-		tag := colors.Green("PASS")
-		switch {
-		case result.Skipped:
-			skipped++
-			tag = colors.Gray("SKIP")
-		case result.Passed:
-			passed++
-		default:
-			failed++
-			tag = colors.Red("FAIL")
-		}
-		if !*quiet {
-			fmt.Fprintf(os.Stdout, "%-7s  %d/%d  %s  %s  %s\n", zeTestFormatElapsed(elapsed), i+1, total, tag, t.Nick, t.Name) //nolint:errcheck // terminal output
-			if result.Skipped && result.SkipReason != "" {
-				fmt.Fprintf(os.Stdout, "  skip reason: %s\n", result.SkipReason) //nolint:errcheck // terminal output
-			}
-			if !result.Passed && !result.Skipped {
-				fmt.Fprintf(os.Stdout, "  %s\n", result.Error) //nolint:errcheck // terminal output
-				if len(result.Steps) > 0 {
-					trace.PrintTrace(os.Stdout, t.Name, result.Steps, colors.Enabled())
-				}
-			}
-			if *verbose && result.Passed && len(result.Steps) > 0 {
-				trace.PrintTrace(os.Stdout, t.Name, result.Steps, colors.Enabled())
+	})
+
+	success := pr.Run(ctx)
+
+	if *verbose {
+		for _, t := range tests.Selected() {
+			if t.GetError() == nil && len(t.Steps) > 0 {
+				trace.PrintTrace(os.Stdout, t.Name, t.Steps, colors.Enabled())
 			}
 		}
 	}
 
-	if !*quiet {
-		if skipped > 0 {
-			fmt.Fprintf(os.Stdout, "\n%d passed, %d failed, %d skipped\n", passed, failed, skipped) //nolint:errcheck // terminal output
-		} else {
-			fmt.Fprintf(os.Stdout, "\n%d passed, %d failed\n", passed, failed) //nolint:errcheck // terminal output
-		}
-	}
-
-	if failed > 0 {
-		return fmt.Errorf("%d test(s) failed", failed)
+	if !success {
+		return ErrTestsFailed
 	}
 	return nil
 }
 
-func zeTestFormatElapsed(d time.Duration) string {
-	if d < time.Second {
-		return textbuf.IntStr(d.Milliseconds(), "ms")
+func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, zeBin string) (bool, error) {
+	reservation, _, err := runner.ReservePorts(webPortBase, 1)
+	if err != nil {
+		test.SetError(fmt.Errorf("reserve port: %w", err))
+		return false, test.GetError()
 	}
-	var b textbuf.Buffer
-	b.Float2(d.Seconds()).Str("s")
-	return b.String()
-}
+	defer reservation.Release()
 
-func zeTestCloseBrowser() {
-	cmd := exec.CommandContext(context.Background(), "agent-browser", "--ignore-https-errors", "close", "--all") //nolint:gosec // fixed binary name
-	_ = cmd.Run()
+	port := reservation.Start
+	var tb textbuf.Buffer
+	listenAddr := tb.Str("127.0.0.1:").Int(int64(port)).String()
+
+	srv, err := zeTestStartWebServer(ctx, zeBin, listenAddr)
+	if err != nil {
+		test.SetError(fmt.Errorf("start web server: %w", err))
+		return false, test.GetError()
+	}
+	defer srv.stop()
+
+	baseURL := tb.Reset().Str("https://").Str(listenAddr).String()
+	result := webtesting.RunWBFileWithSession(test.Path, baseURL, test.Nick)
+	test.Steps = result.Steps
+
+	if result.Skipped {
+		return true, nil
+	}
+	if !result.Passed {
+		test.SetError(fmt.Errorf("%s", result.Error))
+		return false, test.GetError()
+	}
+	return true, nil
 }
 
 type zeTestWebTest struct {
 	runner.BaseTest
-	Path string
+	Path  string
+	Steps []trace.StepResult
 }
 
 type zeTestWebServer struct {
@@ -277,34 +242,66 @@ type zeTestWebServer struct {
 	tempDir string
 }
 
-func zeTestStartWebServer(zeBin, listenAddr string) (*zeTestWebServer, error) {
-	ctx := context.Background()
-	_, port, _ := net.SplitHostPort(listenAddr)
+func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string) (*zeTestWebServer, error) {
+	_, portStr, _ := net.SplitHostPort(listenAddr)
 	tempDir, tempErr := os.MkdirTemp("", "ze-web-test-*")
 	if tempErr != nil {
 		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
 	}
-	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", port, "--insecure-web") //nolint:gosec // test binary path
-	cmd.Env = append(os.Environ(), "ze.web.ui=finder", "ZE_WEB_UI=finder", "ze.config.dir="+tempDir)
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
+	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", portStr, "--insecure-web") //nolint:gosec // test binary path
+	var tb textbuf.Buffer
+	cmd.Env = append(os.Environ(),
+		"ze.web.ui=finder",
+		"ZE_WEB_UI=finder",
+		tb.Str("ze.config.dir=").Str(tempDir).String(),
+	)
 
 	if err := cmd.Start(); err != nil {
-		_ = os.RemoveAll(tempDir)
+		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on start failure
 		return nil, err
 	}
 
-	time.Sleep(3 * time.Second)
+	if err := zeTestProbePort(ctx, listenAddr, 30*time.Second); err != nil {
+		zeTestKillCmd(cmd)
+		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on probe failure
+		return nil, fmt.Errorf("daemon not ready: %w", err)
+	}
 
 	return &zeTestWebServer{cmd: cmd, tempDir: tempDir}, nil
 }
 
+func zeTestProbePort(ctx context.Context, addr string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	dialer := net.Dialer{Timeout: 200 * time.Millisecond}
+	for time.Now().Before(deadline) {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		conn, err := dialer.DialContext(ctx, "tcp", addr)
+		if err == nil {
+			conn.Close() //nolint:errcheck // probe connection, no data exchanged
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return fmt.Errorf("port %s not reachable after %s", addr, timeout)
+}
+
+func zeTestKillCmd(cmd *exec.Cmd) {
+	if cmd != nil && cmd.Process != nil {
+		cmd.Process.Kill() //nolint:errcheck // best-effort process cleanup
+		cmd.Wait()         //nolint:errcheck // reap zombie
+	}
+}
+
 func (s *zeTestWebServer) stop() {
-	if s.cmd != nil && s.cmd.Process != nil {
-		_ = s.cmd.Process.Kill()
-		_ = s.cmd.Wait()
-	}
+	zeTestKillCmd(s.cmd)
 	if s.tempDir != "" {
-		_ = os.RemoveAll(s.tempDir)
+		os.RemoveAll(s.tempDir) //nolint:errcheck // best-effort temp dir cleanup
 	}
+}
+
+func zeTestCloseAllBrowserSessions() {
+	cmd := exec.CommandContext(context.Background(), "agent-browser", "--ignore-https-errors", "close", "--all") //nolint:gosec // fixed binary name
+	cmd.Run()                                                                                                    //nolint:errcheck // best-effort cleanup
 }

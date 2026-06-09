@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
 
@@ -32,6 +33,7 @@ type WBTestResult struct {
 // Browser wraps agent-browser CLI commands.
 type Browser struct {
 	baseURL       string
+	session       string
 	daemonStarted bool
 }
 
@@ -40,15 +42,21 @@ func NewBrowser(baseURL string) *Browser {
 	return &Browser{baseURL: baseURL}
 }
 
+// NewBrowserWithSession creates a browser bound to an isolated agent-browser session.
+func NewBrowserWithSession(baseURL, session string) *Browser {
+	return &Browser{baseURL: baseURL, session: session}
+}
+
 // Open navigates to baseURL + path.
 func (b *Browser) Open(path string) error {
-	url := b.baseURL + path
+	var tb textbuf.Buffer
+	url := tb.Str(b.baseURL).Str(path).String()
 	if b.daemonStarted {
-		if err := runAgent("open", url); err != nil {
+		if err := b.runAgent("open", url); err != nil {
 			return fmt.Errorf("open %s: %w", url, err)
 		}
 	} else {
-		if err := runAgentWithHTTPSIgnore("open", url); err != nil {
+		if err := b.runAgentWithHTTPSIgnore("open", url); err != nil {
 			return fmt.Errorf("open %s: %w", url, err)
 		}
 		b.daemonStarted = true
@@ -67,17 +75,15 @@ func (b *Browser) Open(path string) error {
 // Falls back to networkidle when the init script could not be written.
 func (b *Browser) WaitLoad() error {
 	if ensureInitScript() == "" {
-		return runAgent("wait", "--load", "networkidle")
+		return b.runAgent("wait", "--load", "networkidle")
 	}
 	deadline := time.Now().Add(waitLoadDeadline)
 	for {
-		out, err := runAgentOutput("eval", inflightIdleExpr)
+		out, err := b.runAgentOutput("eval", inflightIdleExpr)
 		if err == nil && strings.TrimSpace(out) == "true" {
 			return nil
 		}
 		if !time.Now().Before(deadline) {
-			// Proceed anyway: the explicit action=wait sleeps and the
-			// subsequent expectation provide the real assertion.
 			return nil
 		}
 		time.Sleep(waitLoadPoll)
@@ -85,16 +91,14 @@ func (b *Browser) WaitLoad() error {
 }
 
 const (
-	// waitLoadDeadline bounds WaitLoad so a request that never settles can
-	// never hang the runner or wedge the daemon.
 	waitLoadDeadline = 5 * time.Second
-	// waitLoadPoll is the gap between eval polls of the in-flight predicate.
-	waitLoadPoll = 40 * time.Millisecond
+	waitLoadPoll     = 40 * time.Millisecond
 )
 
 // WaitMs waits for a duration in milliseconds.
 func (b *Browser) WaitMs(ms string) error {
-	d, err := time.ParseDuration(ms + "ms")
+	var tb textbuf.Buffer
+	d, err := time.ParseDuration(tb.Str(ms).Str("ms").Slice())
 	if err != nil {
 		return fmt.Errorf("parse wait duration %q: %w", ms, err)
 	}
@@ -104,17 +108,17 @@ func (b *Browser) WaitMs(ms string) error {
 
 // Snapshot returns the interactive accessibility snapshot.
 func (b *Browser) Snapshot() (string, error) {
-	return runAgentOutput("snapshot", "-i")
+	return b.runAgentOutput("snapshot", "-i")
 }
 
 // FullSnapshot returns the full accessibility snapshot, including static text.
 func (b *Browser) FullSnapshot() (string, error) {
-	return runAgentOutput("snapshot")
+	return b.runAgentOutput("snapshot")
 }
 
 // Press sends a key press (e.g., "Enter", "Tab", "Escape").
 func (b *Browser) Press(key string) error {
-	if err := runAgent("press", key); err != nil {
+	if err := b.runAgent("press", key); err != nil {
 		return fmt.Errorf("press %s: %w", key, err)
 	}
 	return b.WaitLoad()
@@ -132,11 +136,11 @@ func (b *Browser) PressOn(text, key string) error {
 		return fmt.Errorf("no element with text containing %q for press", text)
 	}
 
-	if err := runAgent("focus", ref); err != nil {
+	if err := b.runAgent("focus", ref); err != nil {
 		return fmt.Errorf("focus %s (text=%q): %w", ref, text, err)
 	}
 
-	if err := runAgent("press", key); err != nil {
+	if err := b.runAgent("press", key); err != nil {
 		return fmt.Errorf("press %s on %s (text=%q): %w", key, ref, text, err)
 	}
 	return b.WaitLoad()
@@ -144,10 +148,12 @@ func (b *Browser) PressOn(text, key string) error {
 
 // PressOnID focuses an element by HTML id and presses a key.
 func (b *Browser) PressOnID(id, key string) error {
-	if err := runAgent("focus", "#"+id); err != nil {
+	var tb textbuf.Buffer
+	sel := tb.Byte('#').Str(id).String()
+	if err := b.runAgent("focus", sel); err != nil {
 		return fmt.Errorf("focus #%s: %w", id, err)
 	}
-	if err := runAgent("press", key); err != nil {
+	if err := b.runAgent("press", key); err != nil {
 		return fmt.Errorf("press %s on #%s: %w", key, id, err)
 	}
 	return b.WaitLoad()
@@ -165,7 +171,7 @@ func (b *Browser) Click(text string) error {
 		return fmt.Errorf("no element with text containing %q in snapshot:\n%s", text, snap)
 	}
 
-	if err := runAgent("click", ref); err != nil {
+	if err := b.runAgent("click", ref); err != nil {
 		return fmt.Errorf("click %s (text=%q): %w", ref, text, err)
 	}
 	return b.WaitLoad()
@@ -173,7 +179,9 @@ func (b *Browser) Click(text string) error {
 
 // ClickID clicks an element by its HTML id attribute using a CSS selector.
 func (b *Browser) ClickID(id string) error {
-	if err := runAgent("click", "#"+id); err != nil {
+	var tb textbuf.Buffer
+	sel := tb.Byte('#').Str(id).String()
+	if err := b.runAgent("click", sel); err != nil {
 		return fmt.Errorf("click #%s: %w", id, err)
 	}
 	return b.WaitLoad()
@@ -191,12 +199,14 @@ func (b *Browser) Fill(text, value string) error {
 		return fmt.Errorf("no input with text containing %q in snapshot:\n%s", text, snap)
 	}
 
-	return runAgent("fill", ref, value)
+	return b.runAgent("fill", ref, value)
 }
 
 // FillID fills an input by its HTML id attribute using a CSS selector.
 func (b *Browser) FillID(id, value string) error {
-	return runAgent("fill", "#"+id, value)
+	var tb textbuf.Buffer
+	sel := tb.Byte('#').Str(id).String()
+	return b.runAgent("fill", sel, value)
 }
 
 // Hover finds an element by text and hovers.
@@ -211,32 +221,39 @@ func (b *Browser) Hover(text string) error {
 		return fmt.Errorf("no element with text containing %q", text)
 	}
 
-	return runAgent("hover", ref)
+	return b.runAgent("hover", ref)
 }
 
 // HoverID hovers an element by its HTML id attribute using a CSS selector.
 func (b *Browser) HoverID(id string) error {
-	return runAgent("hover", "#"+id)
+	var tb textbuf.Buffer
+	sel := tb.Byte('#').Str(id).String()
+	return b.runAgent("hover", sel)
 }
 
 // Screenshot saves a screenshot to the given path.
 func (b *Browser) Screenshot(path string) error {
-	return runAgent("screenshot", path)
+	return b.runAgent("screenshot", path)
 }
 
 // GetText returns the full page text.
 func (b *Browser) GetText() (string, error) {
-	return runAgentOutput("get", "text", "body")
+	return b.runAgentOutput("get", "text", "body")
 }
 
 // GetHTML returns the full page HTML.
 func (b *Browser) GetHTML() (string, error) {
-	return runAgentOutput("get", "html", "body")
+	return b.runAgentOutput("get", "html", "body")
 }
 
-// Close closes the browser.
+// Close closes the browser session. When the browser is bound to a session,
+// only that session is closed. Without a session, all sessions are closed.
 func (b *Browser) Close() {
-	_ = runAgentWithHTTPSIgnore("close", "--all")
+	if b.session != "" {
+		_ = b.runAgentWithHTTPSIgnore("close")
+	} else {
+		_ = b.runAgentWithHTTPSIgnore("close", "--all")
+	}
 	b.daemonStarted = false
 }
 
@@ -251,7 +268,8 @@ func findRefByText(snapshot, text string) string {
 				if end < 0 {
 					end = len(after)
 				}
-				return "@" + strings.TrimSpace(after[:end])
+				var tb textbuf.Buffer
+				return tb.Byte('@').Str(strings.TrimSpace(after[:end])).String()
 			}
 		}
 	}
@@ -263,19 +281,15 @@ const agentBrowserBin = "agent-browser"
 // agentTimeout is the default timeout for agent-browser commands.
 var agentTimeout = 30 * time.Second
 
-// runAgent executes agent-browser with the given arguments.
-func runAgent(args ...string) error {
-	return runAgentWithEnv(nil, args...)
+func (b *Browser) runAgent(args ...string) error {
+	return b.runAgentCore(nil, args...)
 }
 
-// runAgentWithHTTPSIgnore executes agent-browser with the HTTPS-ignore global
-// flag. Use it only for session cleanup/startup; agent-browser warns if the
-// flag is repeated once the daemon is already running.
-func runAgentWithHTTPSIgnore(args ...string) error {
-	return runAgentWithEnv([]string{"--ignore-https-errors"}, args...)
+func (b *Browser) runAgentWithHTTPSIgnore(args ...string) error {
+	return b.runAgentCore([]string{"--ignore-https-errors"}, args...)
 }
 
-func runAgentWithEnv(globalArgs []string, args ...string) error {
+func (b *Browser) runAgentCore(globalArgs []string, args ...string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), agentTimeout)
 	defer cancel()
 
@@ -283,18 +297,17 @@ func runAgentWithEnv(globalArgs []string, args ...string) error {
 		args = append(append([]string{}, globalArgs...), args...)
 	}
 	cmd := exec.CommandContext(ctx, agentBrowserBin, args...) //nolint:gosec // args are test-controlled, not user input
-	cmd.Env = agentEnv()
+	cmd.Env = b.agentEnv()
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-// runAgentOutput executes agent-browser and returns stdout.
-func runAgentOutput(args ...string) (string, error) {
+func (b *Browser) runAgentOutput(args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), agentTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, agentBrowserBin, args...) //nolint:gosec // args are test-controlled, not user input
-	cmd.Env = agentEnv()
+	cmd.Env = b.agentEnv()
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
@@ -361,9 +374,9 @@ func ensureInitScript() string {
 	return initScriptPath
 }
 
-func agentEnv() []string {
+func (b *Browser) agentEnv() []string {
 	env := os.Environ()
-	hasIdle, hasInit := false, false
+	hasIdle, hasInit, hasSession := false, false, false
 	for _, e := range env {
 		if strings.HasPrefix(e, "AGENT_BROWSER_IDLE_TIMEOUT_MS=") {
 			hasIdle = true
@@ -371,43 +384,60 @@ func agentEnv() []string {
 		if strings.HasPrefix(e, "AGENT_BROWSER_INIT_SCRIPTS=") {
 			hasInit = true
 		}
+		if strings.HasPrefix(e, "AGENT_BROWSER_SESSION=") {
+			hasSession = true
+		}
 	}
+	var tb textbuf.Buffer
 	if !hasIdle {
 		env = append(env, "AGENT_BROWSER_IDLE_TIMEOUT_MS=60000")
 	}
 	if !hasInit {
 		if p := ensureInitScript(); p != "" {
-			env = append(env, "AGENT_BROWSER_INIT_SCRIPTS="+p)
+			env = append(env, tb.Str("AGENT_BROWSER_INIT_SCRIPTS=").Str(p).String())
 		}
+	}
+	if b.session != "" && !hasSession {
+		env = append(env, tb.Reset().Str("AGENT_BROWSER_SESSION=").Str(b.session).String())
 	}
 	return env
 }
 
-// RunWBFile parses and executes a .wb test file.
-func RunWBFile(path, baseURL string) *WBTestResult {
+// RunWBFileWithSession parses and executes a .wb test file within
+// an isolated agent-browser session.
+func RunWBFileWithSession(path, baseURL, session string) *WBTestResult {
 	content, err := os.ReadFile(path) //nolint:gosec // test file path from controlled test discovery
 	if err != nil {
-		return &WBTestResult{Error: fmt.Sprintf("read %s: %v", path, err)}
+		var tb textbuf.Buffer
+		return &WBTestResult{Error: tb.Str("read ").Str(path).Str(": ").Err(err).String()}
 	}
 
 	tc, err := ParseWBFile(string(content))
 	if err != nil {
-		return &WBTestResult{Error: fmt.Sprintf("parse %s: %v", path, err)}
+		var tb textbuf.Buffer
+		return &WBTestResult{Error: tb.Str("parse ").Str(path).Str(": ").Err(err).String()}
 	}
 
 	if tc.SkipReason != "" {
 		return &WBTestResult{Passed: true, Skipped: true, SkipReason: tc.SkipReason}
 	}
 
-	return runWBTestCase(tc, baseURL)
+	return runWBTestCase(tc, baseURL, session)
 }
 
-func runWBTestCase(tc *WBTestCase, baseURL string) *WBTestResult {
-	// Each test gets a fresh browser session.
-	_ = runAgentWithHTTPSIgnore("close", "--all")
+func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
+	var browser *Browser
+	if session != "" {
+		browser = NewBrowserWithSession(baseURL, session)
+	} else {
+		browser = NewBrowser(baseURL)
+	}
+	browser.Close()
 
-	browser := NewBrowser(baseURL)
-	var steps []trace.StepResult
+	var (
+		steps []trace.StepResult
+		tb    textbuf.Buffer
+	)
 
 	for i, step := range tc.Steps {
 		switch step.Type {
@@ -421,7 +451,7 @@ func runWBTestCase(tc *WBTestCase, baseURL string) *WBTestResult {
 			})
 			if err != nil {
 				return &WBTestResult{
-					Error: "line " + strconv.Itoa(a.Line) + ": action " + a.Kind + ": " + err.Error(),
+					Error: tb.Reset().Str("line ").Str(strconv.Itoa(a.Line)).Str(": action ").Str(a.Kind).Str(": ").Str(err.Error()).String(),
 					Steps: steps,
 				}
 			}
@@ -435,7 +465,7 @@ func runWBTestCase(tc *WBTestCase, baseURL string) *WBTestResult {
 			})
 			if err != nil {
 				return &WBTestResult{
-					Error: "line " + strconv.Itoa(e.Line) + ": expect " + e.Kind + ": " + err.Error(),
+					Error: tb.Reset().Str("line ").Str(strconv.Itoa(e.Line)).Str(": expect ").Str(e.Kind).Str(": ").Str(err.Error()).String(),
 					Steps: steps,
 				}
 			}

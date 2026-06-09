@@ -3,6 +3,7 @@ package webtesting
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -47,17 +48,88 @@ func TestBrowserCloseResetsDaemonStart(t *testing.T) {
 	})
 }
 
+func TestBrowserSessionScopedEnv(t *testing.T) {
+	logPath := installFakeAgentBrowser(t)
+	browser := NewBrowserWithSession("https://127.0.0.1:5678", "test-web-01")
+
+	if err := browser.Open("/page"); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+
+	cmds := readAgentLog(t, logPath)
+	if len(cmds) == 0 {
+		t.Fatal("no commands logged")
+	}
+
+	envPath := filepath.Join(filepath.Dir(logPath), "agent-browser-env.log")
+	envData, err := os.ReadFile(envPath)
+	if err != nil {
+		t.Fatalf("read env log: %v", err)
+	}
+	envLines := strings.Split(strings.TrimSuffix(string(envData), "\n"), "\n")
+	if !slices.Contains(envLines, "AGENT_BROWSER_SESSION=test-web-01") {
+		t.Errorf("AGENT_BROWSER_SESSION not set in env; got:\n%s", string(envData))
+	}
+}
+
+func TestBrowserCloseOwnSession(t *testing.T) {
+	logPath := installFakeAgentBrowser(t)
+	browser := NewBrowserWithSession("https://127.0.0.1:5678", "sess-a")
+
+	if err := browser.Open("/page"); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	browser.Close()
+
+	cmds := readAgentLog(t, logPath)
+	lastClose := ""
+	for _, c := range cmds {
+		if strings.Contains(c, "close") {
+			lastClose = c
+		}
+	}
+	if lastClose == "" {
+		t.Fatal("no close command logged")
+	}
+	if strings.Contains(lastClose, "--all") {
+		t.Errorf("session-scoped browser used close --all; want close without --all: %q", lastClose)
+	}
+}
+
+func TestBrowserNoSessionClosesAll(t *testing.T) {
+	logPath := installFakeAgentBrowser(t)
+	browser := NewBrowser("https://127.0.0.1:5678")
+
+	if err := browser.Open("/page"); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	browser.Close()
+
+	cmds := readAgentLog(t, logPath)
+	lastClose := ""
+	for _, c := range cmds {
+		if strings.Contains(c, "close") {
+			lastClose = c
+		}
+	}
+	if lastClose == "" {
+		t.Fatal("no close command logged")
+	}
+	if !strings.Contains(lastClose, "--all") {
+		t.Errorf("sessionless browser should use close --all; got: %q", lastClose)
+	}
+}
+
 func installFakeAgentBrowser(t *testing.T) string {
 	t.Helper()
 
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "agent-browser.log")
+	envLogPath := filepath.Join(dir, "agent-browser-env.log")
 	scriptPath := filepath.Join(dir, "agent-browser")
-	// Log every invocation, and answer `eval` with "true" so WaitLoad's
-	// in-flight poll settles on the first call instead of spinning to its
-	// wall-clock deadline (which would emit ~125 eval lines and take ~5s).
 	script := "#!/bin/sh\n" +
 		"printf '%s\\n' \"$*\" >> \"$AGENT_BROWSER_TEST_LOG\"\n" +
+		"env | grep ^AGENT_BROWSER_ | sort >> \"" + envLogPath + "\"\n" +
 		"case \"$1\" in eval) echo true ;; esac\n"
 	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("write fake agent-browser: %v", err)
@@ -66,6 +138,19 @@ func installFakeAgentBrowser(t *testing.T) string {
 	t.Setenv("AGENT_BROWSER_TEST_LOG", logPath)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	return logPath
+}
+
+func readAgentLog(t *testing.T, logPath string) []string {
+	t.Helper()
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read command log: %v", err)
+	}
+	text := strings.TrimSuffix(string(data), "\n")
+	if text == "" {
+		return nil
+	}
+	return strings.Split(text, "\n")
 }
 
 func assertAgentCommands(t *testing.T, logPath string, want []string) {

@@ -37,30 +37,26 @@ the same goroutine-pool + semaphore + live-display orchestration.
 |--------|--------|------------|-------------|------------------------------------------|
 | `Runner.Run` | `internal/test/runner/runner.go` | own goroutine pool + semaphore | `RunOptions.Parallel` (0 → all selected) | yes |
 | `ParallelRunner[T]` | `internal/test/runner/parallel.go` | own goroutine pool + semaphore (generic over test type `T`) | fixed `DefaultParallelConcurrent = 20` | yes |
-| web loop | `internal/test/cli/cmd_web.go` | sequential `for` loop | 1 (sequential) | no (bespoke pass/fail counting) |
-
 <!-- source: internal/test/runner/runner.go -- Runner.Run, the .ci scheduling + process-orchestration engine -->
 <!-- source: internal/test/runner/parallel.go -- ParallelRunner[T] generic scheduler, DefaultParallelConcurrent -->
-<!-- source: internal/test/cli/cmd_web.go -- bespoke sequential web test loop -->
 
 ### Which suites use which engine
 
 | Engine | Suites | Per-test execution |
 |--------|--------|--------------------|
 | `Runner.Run` | encode, plugin, reload, chaos (via `runEncodingOrAPI`); and the `.ci` suites ui, managed, policy, firewall, l2tp, l2tp-wire, install, static, traffic, flow-export, vpp (via `runCISubcommand`) | `Runner.runTest` — spawns `ze`/`ze-peer`, applies expectations |
-| `ParallelRunner[T]` | bgp decode, bgp parse, editor (`.et`) | per-suite `Run` func: `DecodingTest`, `ParsingTest`, `EditorTest` |
-| web loop | web (`.wb`) | `RunWBFile` — drives a headless browser |
+| `ParallelRunner[T]` | bgp decode, bgp parse, editor (`.et`), web (`.wb`) | per-suite `Run` func: `DecodingTest`, `ParsingTest`, `EditorTest`, `zeTestWebTest` |
 
 <!-- source: internal/test/cli/cmd_bgp.go -- runEncodingOrAPI selects Runner for encode/plugin/reload/chaos -->
 <!-- source: internal/test/cli/ci_runner.go -- runCISubcommand wires the non-bgp .ci suites to Runner -->
 <!-- source: internal/test/runner/decoding.go -- DecodingTest scheduled via NewParallelRunner -->
 <!-- source: internal/test/runner/parsing.go -- ParsingTest scheduled via NewParallelRunner -->
 <!-- source: internal/test/cli/cmd_editor.go -- EditorTest scheduled via NewParallelRunner -->
-<!-- source: internal/test/cli/cmd_web.go -- RunWBFile invoked in a sequential loop -->
+<!-- source: internal/test/cli/cmd_web.go -- zeTestWebTest scheduled via NewParallelRunner, per-test daemon + session -->
 
 ### Shared reporting
 
-All three engines render through the same components:
+Both engines render through the same components:
 
 - **Live status and per-test result lines** — `Display` (header, in-place status, `TestFinished`, `Summary`). <!-- source: internal/test/runner/display.go -- Display, TestFinished, Summary -->
 - **Color/glyph formatting** — `Colors`, TTY-aware via `slogutil.UseColor`. <!-- source: internal/test/runner/color.go -- Colors, NewColors -->
@@ -150,18 +146,12 @@ operation; if it is not on `PATH`, the suite skips.
 <!-- source: internal/test/cli/cmd_web.go -- exec.LookPath("agent-browser") skip when absent -->
 <!-- source: internal/component/web/testing/runner.go -- Browser methods invoke agent-browser via runAgent -->
 
-Today the web suite runs against **one shared `ze` web server** (a single
-`baseURL`) and **one global browser session** (`agent-browser close --all`
-between tests), which is why it executes sequentially: `.wb` scenarios that mutate
-and `commit` config would otherwise corrupt each other on a shared daemon, and a
-single browser shares cookies/refs across tests.
-<!-- source: internal/test/cli/cmd_web.go -- startTestWebServer, single shared listenAddr/baseURL -->
-<!-- source: internal/component/web/testing/runner.go -- closeBrowser / runAgentWithHTTPSIgnore("close","--all") -->
-
-`agent-browser` itself supports isolated concurrent sessions via `--session <name>`
-(or the `AGENT_BROWSER_SESSION` env var) — each is a separate browser with its own
-cookies, tabs, and refs. The current integration does not use this; it relies on
-the default session and global close. <!-- source: .claude/rules/agent-browser.md -- agent-browser CLI usage -->
+The web suite runs each `.wb` test in parallel (capped at 4) with full per-test
+isolation: each test gets its own `ze` daemon (own port via `ReservePorts` + own
+tmpdir config store) and its own `agent-browser` session (via `AGENT_BROWSER_SESSION`
+env var), so `.wb` scenarios that mutate and `commit` config cannot corrupt each other.
+<!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest, per-test ReservePorts + MkdirTemp + session -->
+<!-- source: internal/component/web/testing/runner.go -- NewBrowserWithSession, agentEnv sets AGENT_BROWSER_SESSION -->
 
 ## `.ci` and `.et` formats
 

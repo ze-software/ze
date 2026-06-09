@@ -135,7 +135,7 @@ one completion line per test with elapsed time, `N/TOTAL`, result, id, and name,
 plus periodic progress while tests are still running.
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- Status, TestFinished -->
-<!-- source: internal/test/cli/cmd_web.go -- webMain sequential output -->
+<!-- source: internal/test/cli/cmd_web.go -- webMain parallel via ParallelRunner -->
 
 | Suite | Command | Files | How it works |
 |-------|---------|-------|--------------|
@@ -150,7 +150,7 @@ plus periodic progress while tests are still running.
 | L2TP | `ze-test l2tp` | `test/l2tp/*.ci` | Runs L2TP control-plane scenarios over loopback UDP with fake test plugins where needed. |
 | Firewall | `ze-test firewall` | `test/firewall/*.ci` | Exercises firewall configuration and daemon behavior through `.ci` process tests. |
 | Policy | `ze-test policy` | `test/policy/*.ci` | Exercises policy-routing configuration and daemon behavior through `.ci` process tests. |
-| Web | `ze-test web` | `test/web/*.wb` | Starts a Ze web server, runs browser scripts sequentially against one shared server, and reports each `.wb` file. |
+| Web | `ze-test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with per-test Ze daemon and isolated `agent-browser --session`. |
 | Install | `ze-test install` | `test/install/*.ci` | Exercises offline install command and installer helper behavior. |
 | Static | `ze-test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
 | Traffic | `ze-test traffic` | `test/traffic/*.ci` | Exercises traffic-control configuration and daemon behavior. |
@@ -563,14 +563,14 @@ Common run options:
 | `-v`, `--verbose` | Show verbose failure output |
 | `-q`, `--quiet` | Minimal output |
 | `-s`, `--save DIR` | Save logs for BGP/VPP `.ci` runners |
-| `--port N` | Base port for BGP/VPP `.ci` runners or web server port |
+| `--port N` | Base port for BGP/VPP `.ci` runners |
 | `-c`, `--count N` | BGP `.ci` stress mode, run each selected test N times |
 | `--server ID`, `--client ID` | BGP `.ci` manual split-debug modes |
 <!-- source: internal/test/cli/cmd_bgp.go -- parseRunCLI, printRunUsage -->
 <!-- source: internal/test/cli/ci_runner.go -- runCISubcommand -->
 <!-- source: internal/test/cli/cmd_vpp.go -- parseVPPCLI, printVPPUsage -->
 <!-- source: internal/test/cli/cmd_editor.go -- editorMain -->
-<!-- source: internal/test/cli/cmd_web.go -- webMain -->
+<!-- source: internal/test/cli/cmd_web.go -- cmdWebMain -->
 
 ---
 
