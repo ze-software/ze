@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -125,16 +127,18 @@ func HelpEntries(root *Node, path []string) []HelpEntry {
 	return entries
 }
 
-// writeHelpLine writes a single indented line to w.
+// writeHelpLine writes indented description lines to w.
 // Help output goes to stderr; write errors are not actionable.
 func writeHelpLine(w io.Writer, text string) {
-	fmt.Fprintf(w, "  %s\n", text) //nolint:errcheck // help output to stderr
+	for line := range strings.SplitSeq(text, "\n") {
+		fmt.Fprintf(w, "  %s\n", strings.TrimRight(line, " ")) //nolint:errcheck // help output to stderr
+	}
 }
 
 // writeHelpEntry writes a formatted name + description line to w.
 // Help output goes to stderr; write errors are not actionable.
 func writeHelpEntry(w io.Writer, name, desc string) {
-	fmt.Fprintf(w, "  %-16s %s\n", name, desc) //nolint:errcheck // help output to stderr
+	fmt.Fprintf(w, "  %-16s %s\n", name, helpfmt.Summary(desc)) //nolint:errcheck // help output to stderr
 }
 
 // describeChildren returns a summary of a node's children for grouping nodes

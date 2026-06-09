@@ -181,7 +181,7 @@ func TestSeeAlso(t *testing.T) {
 	assert.Contains(t, out, "ze config validate")
 }
 
-func TestOneLine(t *testing.T) {
+func TestSummary(t *testing.T) {
 	tests := []struct {
 		in   string
 		want string
@@ -189,13 +189,17 @@ func TestOneLine(t *testing.T) {
 		{"simple", "simple"},
 		{"First sentence. Second sentence.", "First sentence."},
 		{"Multi\nline\ntext", "Multi"},
+		{"First line.\nSecond sentence. Third sentence.", "First line."},
+		{"Wrapped first sentence\ncontinues here. Details follow.", "Wrapped first sentence continues here."},
+		{"List cached BGP UPDATE message IDs with their\nretain and consumer state.", "List cached BGP UPDATE message IDs with their retain and consumer state."},
 		{"With trailing spaces   \nmore", "With trailing spaces"},
+		{"subcommands: alpha, bravo, charlie, ... (5 total)", "subcommands: alpha, bravo, charlie, ... (5 total)"},
 		{"No period no newline", "No period no newline"},
 		{"", ""},
 	}
 	for _, tc := range tests {
-		got := oneLine(tc.in)
-		assert.Equal(t, tc.want, got, "oneLine(%q)", tc.in)
+		got := Summary(tc.in)
+		assert.Equal(t, tc.want, got, "Summary(%q)", tc.in)
 	}
 }
 

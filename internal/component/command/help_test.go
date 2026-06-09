@@ -190,6 +190,58 @@ func TestHelpIncludesDescriptions(t *testing.T) {
 	}
 }
 
+// VALIDATES: List help shows compact one-line summaries for multi-line descriptions.
+// PREVENTS: top-level help dumping unindented YANG paragraphs.
+func TestHelpEntryUsesSummaryLine(t *testing.T) {
+	tree := &Node{
+		Children: map[string]*Node{
+			"audit": {
+				Name:        "audit",
+				Description: "Show who did what and when on this box.\nReturns audit log entries with timestamps, actors, and actions.",
+			},
+		},
+	}
+	var buf bytes.Buffer
+	WriteHelp(&buf, tree, nil)
+	output := buf.String()
+
+	if !strings.Contains(output, "audit") {
+		t.Fatalf("help missing audit entry: %q", output)
+	}
+	if !strings.Contains(output, "Show who did what and when on this box.") {
+		t.Fatalf("help missing summary line: %q", output)
+	}
+	if strings.Contains(output, "Returns audit log entries") {
+		t.Fatalf("help should not dump detailed continuation text: %q", output)
+	}
+}
+
+// VALIDATES: Leaf help keeps full multi-line descriptions visibly indented.
+// PREVENTS: continuation lines starting at column 1 in help output.
+func TestHelpLeafMultilineDescriptionIndented(t *testing.T) {
+	tree := &Node{
+		Children: map[string]*Node{
+			"crashes": {
+				Name:        "crashes",
+				Description: "View saved crash reports from panics.\nUse latest to see the newest crash.",
+			},
+		},
+	}
+	var buf bytes.Buffer
+	WriteHelp(&buf, tree, []string{"crashes"})
+	output := buf.String()
+
+	if !strings.Contains(output, "  View saved crash reports from panics.\n") {
+		t.Fatalf("help missing first indented line: %q", output)
+	}
+	if !strings.Contains(output, "  Use latest to see the newest crash.\n") {
+		t.Fatalf("help missing indented continuation line: %q", output)
+	}
+	if strings.Contains(output, "\nUse latest") {
+		t.Fatalf("help continuation line was not indented: %q", output)
+	}
+}
+
 // VALIDATES: Core verbs present in tree.
 // PREVENTS: missing verb classification.
 func TestUnifiedTreeVerbs(t *testing.T) {
