@@ -32,6 +32,11 @@ MOCK_UDHCPC_CALLS=""
 MOCK_LINK_UP_CALLS=""
 MOCK_SYSNET_DIR=""
 MOCK_SLEEP_TOTAL=0
+MOCK_WGET_RC=0
+MOCK_WGET_CALLS=""
+MOCK_IP_CALLS=""
+ZE_SERVER="10.0.0.1"
+ZE_PORT="80"
 
 has_default_route() {
     return "$MOCK_HAS_ROUTE"
@@ -39,6 +44,15 @@ has_default_route() {
 
 link_up() {
     MOCK_LINK_UP_CALLS="${MOCK_LINK_UP_CALLS}${MOCK_LINK_UP_CALLS:+ }$1"
+}
+
+wget() {
+    MOCK_WGET_CALLS="${MOCK_WGET_CALLS}${MOCK_WGET_CALLS:+ }wget"
+    return "$MOCK_WGET_RC"
+}
+
+ip() {
+    MOCK_IP_CALLS="${MOCK_IP_CALLS}${MOCK_IP_CALLS:+ }ip-$1-$2-$4"
 }
 
 udhcpc() {
@@ -88,6 +102,9 @@ reset_mocks() {
     MOCK_UDHCPC_CALLS=""
     MOCK_LINK_UP_CALLS=""
     MOCK_SLEEP_TOTAL=0
+    MOCK_WGET_RC=0
+    MOCK_WGET_CALLS=""
+    MOCK_IP_CALLS=""
 }
 
 log() { :; }
@@ -125,11 +142,18 @@ ensure_network_testable() {
         ifname=$(basename "$iface")
         case "$ifname" in lo) continue ;; esac
         if udhcpc -i "$ifname" -t 5 -n -q 2>/dev/null; then
-            log "Got DHCP lease on $ifname"
-            return 0
+            probe_err="/tmp/ze-ensure-probe.err"
+            if wget -T 3 --spider -q "http://${ZE_SERVER}:${ZE_PORT}/" 2>"$probe_err" ||
+               { [ -s "$probe_err" ] && ! grep -q "can't connect" "$probe_err" 2>/dev/null; }; then
+                log "Got working network on $ifname"
+                return 0
+            fi
+            log "$ifname: lease ok but cannot reach $ZE_SERVER:$ZE_PORT, trying next"
+            ip addr flush dev "$ifname" 2>/dev/null
+            ip route del default 2>/dev/null
         fi
     done
-    log "WARNING: userspace DHCP failed on all interfaces"
+    log "WARNING: no interface could reach $ZE_SERVER:$ZE_PORT"
     return 1
 }
 
@@ -297,6 +321,112 @@ printf 'eth0\t0000A8C0\t00000000\t0001\t0\t0\t0\t00FFFFFF\t0\t0\t0\n' >> "$MOCK_
 has_default_route_from_file
 rc=$?
 assert_eq "route-parse: no default route" "1" "$rc"
+
+# Test 10 (Bug 15): multi-NIC, first lease cannot reach ze.server, second can
+rm -rf "$MOCK_SYSNET_DIR"
+setup_sysnet
+mkdir -p "$MOCK_SYSNET_DIR/eth0" "$MOCK_SYSNET_DIR/eth1"
+echo "1" > "$MOCK_SYSNET_DIR/eth0/carrier"
+echo "1" > "$MOCK_SYSNET_DIR/eth1/carrier"
+reset_mocks
+MOCK_HAS_ROUTE=1
+MOCK_WGET_IFACE_OK="eth1"
+udhcpc() {
+    iface=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -i) iface="$2"; shift ;;
+        esac
+        shift
+    done
+    MOCK_UDHCPC_CALLS="${MOCK_UDHCPC_CALLS}${MOCK_UDHCPC_CALLS:+ }$iface"
+    return 0
+}
+wget() {
+    MOCK_WGET_CALLS="${MOCK_WGET_CALLS}${MOCK_WGET_CALLS:+ }wget"
+    if [ "$MOCK_WGET_IFACE_OK" = "done" ]; then
+        return 0
+    fi
+    # After ip flush of a bad iface, the next udhcpc+wget pair is for the next iface.
+    # Track which iface wget is probing via MOCK_UDHCPC_CALLS (last entry).
+    last_iface="${MOCK_UDHCPC_CALLS##* }"
+    if [ "$last_iface" = "$MOCK_WGET_IFACE_OK" ]; then
+        MOCK_WGET_IFACE_OK="done"
+        return 0
+    fi
+    return 1
+}
+ensure_network_testable
+rc=$?
+assert_eq "bug15-skip-bad: returns 0" "0" "$rc"
+assert_eq "bug15-skip-bad: tried both NICs" "eth0 eth1" "$MOCK_UDHCPC_CALLS"
+# eth0 should have been flushed
+case "$MOCK_IP_CALLS" in
+    *addr-flush-eth0*) assert_eq "bug15-skip-bad: flushed eth0" "yes" "yes" ;;
+    *) assert_eq "bug15-skip-bad: flushed eth0" "yes" "no" ;;
+esac
+
+# Test 11 (Bug 15): first NIC can reach server, stops immediately
+rm -rf "$MOCK_SYSNET_DIR"
+setup_sysnet
+mkdir -p "$MOCK_SYSNET_DIR/eth0" "$MOCK_SYSNET_DIR/eth1"
+echo "1" > "$MOCK_SYSNET_DIR/eth0/carrier"
+echo "1" > "$MOCK_SYSNET_DIR/eth1/carrier"
+reset_mocks
+MOCK_HAS_ROUTE=1
+MOCK_UDHCPC_RC=0
+MOCK_WGET_RC=0
+udhcpc() {
+    iface=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -i) iface="$2"; shift ;;
+        esac
+        shift
+    done
+    MOCK_UDHCPC_CALLS="${MOCK_UDHCPC_CALLS}${MOCK_UDHCPC_CALLS:+ }$iface"
+    return "$MOCK_UDHCPC_RC"
+}
+wget() {
+    MOCK_WGET_CALLS="${MOCK_WGET_CALLS}${MOCK_WGET_CALLS:+ }wget"
+    return "$MOCK_WGET_RC"
+}
+ensure_network_testable
+rc=$?
+assert_eq "bug15-first-ok: returns 0" "0" "$rc"
+assert_eq "bug15-first-ok: only tried eth0" "eth0" "$MOCK_UDHCPC_CALLS"
+assert_eq "bug15-first-ok: no flush" "" "$MOCK_IP_CALLS"
+
+# Test 12 (Bug 15): all NICs get leases but none can reach server
+rm -rf "$MOCK_SYSNET_DIR"
+setup_sysnet
+mkdir -p "$MOCK_SYSNET_DIR/eth0" "$MOCK_SYSNET_DIR/eth1"
+echo "1" > "$MOCK_SYSNET_DIR/eth0/carrier"
+echo "1" > "$MOCK_SYSNET_DIR/eth1/carrier"
+reset_mocks
+MOCK_HAS_ROUTE=1
+MOCK_UDHCPC_RC=0
+MOCK_WGET_RC=1
+udhcpc() {
+    iface=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -i) iface="$2"; shift ;;
+        esac
+        shift
+    done
+    MOCK_UDHCPC_CALLS="${MOCK_UDHCPC_CALLS}${MOCK_UDHCPC_CALLS:+ }$iface"
+    return "$MOCK_UDHCPC_RC"
+}
+wget() {
+    MOCK_WGET_CALLS="${MOCK_WGET_CALLS}${MOCK_WGET_CALLS:+ }wget"
+    return "$MOCK_WGET_RC"
+}
+ensure_network_testable
+rc=$?
+assert_eq "bug15-all-unreachable: returns 1" "1" "$rc"
+assert_eq "bug15-all-unreachable: tried both" "eth0 eth1" "$MOCK_UDHCPC_CALLS"
+assert_eq "bug15-all-unreachable: flushed both" "ip-addr-flush-eth0 ip-route-del- ip-addr-flush-eth1 ip-route-del-" "$MOCK_IP_CALLS"
 
 # Cleanup
 rm -rf "$MOCK_SYSNET_DIR"

@@ -553,8 +553,10 @@ On some hardware (e.g. Intel I226-V) the kernel `ip=dhcp` autoconfiguration
 races against NIC carrier detection and times out before the link comes up. The
 initrd detects this by checking `/proc/net/route` for a default route. When none
 exists, it brings up all non-loopback interfaces, waits up to 10 seconds for
-carrier, and runs `udhcpc` on each interface until one obtains a lease. If no
-lease is acquired, the installer drops to a debug shell. Even after the network
+carrier, and runs `udhcpc` on each interface, verifying the server is reachable
+before accepting the lease. Interfaces that obtain a lease but cannot route to
+`ze.server:ze.port` are flushed and skipped. If no interface produces a working
+route, the installer drops to a debug shell. Even after the network
 is configured, the install server may not be reachable yet (switch STP port
 transitions can block traffic for 30-50 seconds after a reboot). The initrd
 probes the server with a 2-second timeout, retrying up to 30 times. Each probe

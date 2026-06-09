@@ -639,12 +639,19 @@ ensure_network() {
         ifname=$(basename "$iface")
         case "$ifname" in lo) continue ;; esac
         if udhcpc -i "$ifname" -t 5 -n -q 2>/dev/null; then
-            log "Got DHCP lease on $ifname"
-            return 0
+            probe_err="/tmp/ze-ensure-probe.err"
+            if wget -T 3 --spider -q "http://${ZE_SERVER}:${ZE_PORT}/" 2>"$probe_err" ||
+               { [ -s "$probe_err" ] && ! grep -q "can't connect" "$probe_err" 2>/dev/null; }; then
+                log "Got working network on $ifname"
+                return 0
+            fi
+            log "$ifname: lease ok but cannot reach $ZE_SERVER:$ZE_PORT, trying next"
+            ip addr flush dev "$ifname" 2>/dev/null
+            ip route del default 2>/dev/null
         fi
     done
 
-    log "WARNING: userspace DHCP failed on all interfaces"
+    log "WARNING: no interface could reach $ZE_SERVER:$ZE_PORT"
     return 1
 }
 
