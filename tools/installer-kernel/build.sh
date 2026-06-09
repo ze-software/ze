@@ -58,13 +58,23 @@ else
     wget -4 -q "https://cdn.kernel.org/pub/linux/kernel/${series}/${tarball}"
 fi
 
-BUILD_TREE="/tmp/linux-${LINUX_VERSION}"
+BUILD_DIR="/tmp/kbuild"
+if [ -d /proc ] && ! mountpoint -q "${BUILD_DIR}" 2>/dev/null; then
+    mkdir -p "${BUILD_DIR}"
+    mount -t tmpfs -o size=5G tmpfs "${BUILD_DIR}"
+fi
+
+BUILD_TREE="${BUILD_DIR}/linux-${LINUX_VERSION}"
+CACHE_TAR="linux-${LINUX_VERSION}.built.tar"
 if [ -d "${BUILD_TREE}" ] && [ -f "${BUILD_TREE}/scripts/Kbuild.include" ]; then
     echo ">>> reusing existing source tree ${BUILD_TREE}"
+elif [ -f "${CACHE_TAR}" ]; then
+    echo ">>> restoring cached build tree from ${CACHE_TAR}"
+    tar xf "${CACHE_TAR}" -C "${BUILD_DIR}"
 else
     rm -rf "${BUILD_TREE}"
     echo ">>> extracting to ${BUILD_TREE}"
-    tar xf "$tarball" -C /tmp
+    tar xf "$tarball" -C "${BUILD_DIR}"
 fi
 cd "${BUILD_TREE}"
 
@@ -122,4 +132,8 @@ make ARCH="$KERNEL_ARCH" -j"$JOBS" "$MAKE_TARGET"
 mkdir -p "${OUT_DIR}"
 cp "$IMAGE_PATH" "${OUT_DIR}/Image"
 cp .config "${OUT_DIR}/config"
+
+echo ">>> caching build tree to /build/${CACHE_TAR}"
+tar cf "/build/${CACHE_TAR}" -C /tmp "linux-${LINUX_VERSION}"
+
 echo ">>> done: ${OUT_DIR}/Image ($(du -h "${OUT_DIR}/Image" | cut -f1), profile=${PROFILE})"
