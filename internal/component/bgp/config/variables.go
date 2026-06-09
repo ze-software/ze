@@ -16,8 +16,8 @@ func ResolveVariables(s string, localAS, remoteAS uint32, remoteIP string) strin
 	if !strings.Contains(s, "$") {
 		return s
 	}
-	s = strings.ReplaceAll(s, "$remote_as", textbuf.Uint32(remoteAS))
-	s = strings.ReplaceAll(s, "$local_as", textbuf.Uint32(localAS))
+	s = strings.ReplaceAll(s, "$remote_as", textbuf.StringUint32(remoteAS))
+	s = strings.ReplaceAll(s, "$local_as", textbuf.StringUint32(localAS))
 	s = strings.ReplaceAll(s, "$remote_ip", remoteIP)
 	return s
 }

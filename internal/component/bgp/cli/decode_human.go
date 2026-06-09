@@ -166,7 +166,7 @@ func formatAttributesHuman(sb *textbuf.Buffer, attrs map[string]any) {
 			if i > 0 {
 				sb.WriteByte(' ')
 			}
-			sb.Str(textbuf.Uint32(asn))
+			sb.Str(textbuf.StringUint32(asn))
 		}
 		sb.WriteByte('\n')
 	case []any:

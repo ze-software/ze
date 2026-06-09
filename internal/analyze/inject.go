@@ -144,7 +144,7 @@ func runInject(args []string) int {
 	}
 
 	_ = bgpWrite(conn, 4, nil)
-	os.Stderr.WriteString("inject: sent " + textbuf.Uint(sent) + " UPDATEs\n") //nolint:errcheck // status
+	os.Stderr.WriteString("inject: sent " + textbuf.StringUint(sent) + " UPDATEs\n") //nolint:errcheck // status
 	return 0
 }
 

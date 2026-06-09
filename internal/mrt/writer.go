@@ -201,7 +201,7 @@ func expandPattern(pattern string, t time.Time) string {
 }
 
 func writePadded(b *textbuf.Buffer, v, width int) {
-	s := textbuf.Int(int64(v))
+	s := textbuf.StringInt(int64(v))
 	for i := len(s); i < width; i++ {
 		b.Byte('0')
 	}

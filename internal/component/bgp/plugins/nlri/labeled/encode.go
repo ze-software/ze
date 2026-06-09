@@ -163,7 +163,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 	n := NewLabeledUnicast(fam, prefix, labels, pathID)
 	nlriBytes := n.Bytes()
 
-	return textbuf.HexUpper(nlriBytes), nil
+	return textbuf.StringHexUpper(nlriBytes), nil
 }
 
 // EncodeRoute encodes a labeled unicast (nlri-mpls) route command into UPDATE body bytes and NLRI bytes.

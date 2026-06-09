@@ -83,7 +83,7 @@ func (a *allocator) allocateTable(nh netip.Addr) (uint32, bool, error) {
 }
 
 func markKey(policyName string, table uint32) string {
-	return policyName + ":" + textbuf.Uint32(table)
+	return policyName + ":" + textbuf.StringUint32(table)
 }
 
 func markKeyNextHop(policyName string, nh netip.Addr) string {

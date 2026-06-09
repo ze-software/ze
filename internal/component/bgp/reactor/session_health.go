@@ -92,7 +92,7 @@ func (sh *sessionHealth) startStuckTimerLocked() {
 			reportSourceBGP,
 			reportCodeSessionStuck,
 			addr,
-			"peer has not reached Established for "+textbuf.Int(int64(timeout/time.Minute))+" minutes",
+			"peer has not reached Established for "+textbuf.StringInt(int64(timeout/time.Minute))+" minutes",
 			nil,
 		)
 		sh.mu.Unlock()
@@ -139,7 +139,7 @@ func (sh *sessionHealth) startEORTimer(restartSeconds uint16, familyCount int) {
 			reportSourceBGP,
 			reportCodeEORTimeout,
 			addr,
-			"End-of-RIB incomplete: "+textbuf.Int(int64(remaining))+" of "+textbuf.Int(int64(sh.eorExpected))+" families pending after "+textbuf.Int(int64(restartSeconds))+"s",
+			"End-of-RIB incomplete: "+textbuf.StringInt(int64(remaining))+" of "+textbuf.StringInt(int64(sh.eorExpected))+" families pending after "+textbuf.StringInt(int64(restartSeconds))+"s",
 			map[string]any{"restart_time": restartSeconds, "pending": remaining, "expected": sh.eorExpected},
 		)
 		sh.mu.Unlock()
@@ -196,7 +196,7 @@ func (sh *sessionHealth) recordFlapLocked() {
 					reportSourceBGP,
 					reportCodeSessionFlap,
 					sh.peerAddr,
-					"session flapping: "+textbuf.Int(int64(flapThreshold))+" transitions in "+textbuf.Int(int64(now.Sub(oldest)/time.Second))+" seconds",
+					"session flapping: "+textbuf.StringInt(int64(flapThreshold))+" transitions in "+textbuf.StringInt(int64(now.Sub(oldest)/time.Second))+" seconds",
 					map[string]any{"transitions": flapThreshold},
 				)
 			}

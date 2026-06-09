@@ -238,7 +238,7 @@ func (p *Peer) IncrNotificationSent(code, subcode uint8) {
 		p.reactor.rmetrics.notifSent.With(
 			p.peerAddrLabel(),
 			notificationCodeLabel(code),
-			textbuf.Uint8(subcode),
+			textbuf.StringUint8(subcode),
 		).Inc()
 		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "notification").Inc()
 	}
@@ -257,7 +257,7 @@ func (p *Peer) IncrNotificationReceived(code, subcode uint8) {
 		p.reactor.rmetrics.notifRecv.With(
 			p.peerAddrLabel(),
 			notificationCodeLabel(code),
-			textbuf.Uint8(subcode),
+			textbuf.StringUint8(subcode),
 		).Inc()
 		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "notification").Inc()
 	}

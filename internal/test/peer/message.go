@@ -64,7 +64,7 @@ func (m *Message) IsEOR() bool {
 
 // Stream returns the hex-encoded message.
 func (m *Message) Stream() string {
-	return textbuf.HexUpper(append(m.Header, m.Body...))
+	return textbuf.StringHexUpper(append(m.Header, m.Body...))
 }
 
 // ReadMessage reads a BGP message from a connection.

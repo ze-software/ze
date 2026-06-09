@@ -359,8 +359,8 @@ func resolveFilterVars(filters []string, localAS, remoteAS uint32, remoteIP stri
 	if !hasVar {
 		return filters
 	}
-	las := textbuf.Uint32(localAS)
-	ras := textbuf.Uint32(remoteAS)
+	las := textbuf.StringUint32(localAS)
+	ras := textbuf.StringUint32(remoteAS)
 	resolved := make([]string, len(filters))
 	for i, f := range filters {
 		if !strings.ContainsRune(f, '$') {

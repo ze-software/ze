@@ -227,7 +227,7 @@ func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 		// AC-15: If filter declared raw=true, include hex-encoded raw UPDATE body.
 		var rawHex string
 		if wantsRaw && len(rawPayload) > 0 {
-			rawHex = textbuf.HexUpper(rawPayload)
+			rawHex = textbuf.StringHexUpper(rawPayload)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), policyFilterTimeout)

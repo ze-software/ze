@@ -505,7 +505,7 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 		if i > 0 {
 			time.Sleep(replayConvergenceDelay)
 		}
-		_, deltaData, deltaErr := rr.dispatchCommand(ctx, "request adj-rib-in replay", peerAddr, textbuf.Uint(lastIndex))
+		_, deltaData, deltaErr := rr.dispatchCommand(ctx, "request adj-rib-in replay", peerAddr, textbuf.StringUint(lastIndex))
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
 			break

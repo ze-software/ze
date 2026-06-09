@@ -232,12 +232,12 @@ func formatFamily(fam family.Family) string {
 func formatNextHop(data []byte) string {
 	switch len(data) {
 	case 4:
-		return textbuf.Addr(netip.AddrFrom4([4]byte{data[0], data[1], data[2], data[3]}))
+		return textbuf.StringAddr(netip.AddrFrom4([4]byte{data[0], data[1], data[2], data[3]}))
 	case 16:
 		var b16 [16]byte
 		copy(b16[:], data)
-		return textbuf.Addr(netip.AddrFrom16(b16))
+		return textbuf.StringAddr(netip.AddrFrom16(b16))
 	default:
-		return textbuf.Hex(data)
+		return textbuf.StringHex(data)
 	}
 }

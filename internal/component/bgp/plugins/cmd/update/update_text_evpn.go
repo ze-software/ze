@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // EVPN route type keywords.
@@ -258,7 +259,7 @@ func parseEVPNSection(args []string, fam family.Family, _ nlriAccum) (nlriParseR
 		encodeArgs = append(encodeArgs, "type5", "rd", rd.String(),
 			"esi", formatESIString(esi),
 			"ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10),
-			"prefix", prefix.String())
+			"prefix", textbuf.StringPrefix(prefix))
 		if gateway.IsValid() {
 			encodeArgs = append(encodeArgs, "gateway", gateway.String())
 		}
@@ -325,7 +326,7 @@ func parseESI(s string) ([10]byte, error) {
 
 // formatMACString formats a MAC address as colon-separated hex (e.g., "00:11:22:33:44:55").
 func formatMACString(mac [6]byte) string {
-	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
+	return textbuf.StringMAC(mac[:])
 }
 
 // formatESIString formats an ESI as colon-separated hex (e.g., "00:11:22:33:44:55:66:77:88:99").

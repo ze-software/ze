@@ -251,8 +251,8 @@ func (d *Display) Status() {
 		}
 		var b textbuf.Buffer
 		b.Str(padRight(formatDuration(now.Sub(d.startTime)), 7))
-		b.Str(padLeft(textbuf.Int(int64(completed)), 4)).Byte('/').Str(padRight(textbuf.Int(int64(total)), 4))
-		b.Str("  ").Str(padLeft(textbuf.Int(int64(running)), 2)).Byte('/').Str(padRight(textbuf.Int(int64(maxParallel)), 2))
+		b.Str(padLeft(textbuf.StringInt(int64(completed)), 4)).Byte('/').Str(padRight(textbuf.StringInt(int64(total)), 4))
+		b.Str("  ").Str(padLeft(textbuf.StringInt(int64(running)), 2)).Byte('/').Str(padRight(textbuf.StringInt(int64(maxParallel)), 2))
 		b.Str(" running  ")
 		for i, nick := range runningTests {
 			if i > 0 {

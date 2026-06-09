@@ -162,7 +162,7 @@ Named types implement `AppendTo([]byte) []byte` for composable formatting:
 ```go
 func (t *MyType) AppendTo(buf []byte) []byte {
     buf = append(buf, "prefix "...)
-    buf = textbuf.AppendUint(buf, uint64(t.Field))
+    buf = textbuf.Uint(buf, uint64(t.Field))
     return buf
 }
 ```
@@ -211,7 +211,7 @@ func format(addr netip.Addr, port uint16) string {
 func appendFormat(buf []byte, addr netip.Addr, port uint16) []byte {
     buf = addr.AppendTo(buf)
     buf = append(buf, ':')
-    buf = textbuf.AppendUint(buf, uint64(port))
+    buf = textbuf.Uint(buf, uint64(port))
     return buf
 }
 
@@ -315,7 +315,7 @@ Is this on a per-UPDATE / per-route / per-NLRI path?
 |---|---|---|
 | `make([]byte, n)` in a per-UPDATE function | Allocates on every UPDATE | Get from pool or write into caller's buffer |
 | `func Encode() []byte` returning allocated bytes | Caller must copy into its buffer | Change to `WriteTo(buf, off) int` |
-| `fmt.Sprintf` in reactor/wire/attribute code | 2+ allocations per call | `textbuf.Buffer` or `textbuf.Uint32()` |
+| `fmt.Sprintf` in reactor/wire/attribute code | 2+ allocations per call | `textbuf.Buffer` or `textbuf.StringUint32()` |
 | `addr.String()` in a loop | Allocates per iteration | `addr.AppendTo(buf[:0])` into stack buffer |
 | Holding WireUpdate past readBuf return | WireUpdate references readBuf memory | Copy needed data before returning readBuf to pool |
 | Building `[]string` + `strings.Join` in a loop | N+1 allocations | Single `textbuf.Buffer` outside the loop |

@@ -20,26 +20,26 @@ func byteIndex(s string, c byte) int {
 	return -1
 }
 
-func Uint(v uint64) string {
+func StringUint(v uint64) string {
 	var buf [20]byte
 	return string(strconv.AppendUint(buf[:0], v, 10))
 }
 
-func Uint8(v uint8) string   { return Uint(uint64(v)) }
-func Uint16(v uint16) string { return Uint(uint64(v)) }
-func Uint32(v uint32) string { return Uint(uint64(v)) }
+func StringUint8(v uint8) string   { return StringUint(uint64(v)) }
+func StringUint16(v uint16) string { return StringUint(uint64(v)) }
+func StringUint32(v uint32) string { return StringUint(uint64(v)) }
 
-func Int(v int64) string {
+func StringInt(v int64) string {
 	var buf [20]byte
 	return string(strconv.AppendInt(buf[:0], v, 10))
 }
 
-func Addr(addr netip.Addr) string {
+func StringAddr(addr netip.Addr) string {
 	var buf [39]byte
 	return string(addr.AppendTo(buf[:0]))
 }
 
-func Hex(data []byte) string {
+func StringHex(data []byte) string {
 	var buf [64]byte
 	dst := buf[:0]
 	if hex.EncodedLen(len(data)) > len(buf) {
@@ -50,7 +50,7 @@ func Hex(data []byte) string {
 
 const upperHexDigits = "0123456789ABCDEF"
 
-func HexUpper(data []byte) string {
+func StringHexUpper(data []byte) string {
 	var buf [128]byte
 	n := len(data) * 2
 	var dst []byte
@@ -470,27 +470,34 @@ func (b *Buffer) Colored(c Color) *Buffer {
 	return b
 }
 
-func AppendUint(dst []byte, v uint64) []byte {
+func Uint(dst []byte, v uint64) []byte {
 	return strconv.AppendUint(dst, v, 10)
 }
 
-func AppendInt(dst []byte, v int64) []byte {
+func Int(dst []byte, v int64) []byte {
 	return strconv.AppendInt(dst, v, 10)
 }
 
-func AppendAddr(dst []byte, addr netip.Addr) []byte {
+func Addr(dst []byte, addr netip.Addr) []byte {
 	return addr.AppendTo(dst)
 }
 
-func AppendHex(dst, data []byte) []byte {
+func Hex(dst, data []byte) []byte {
 	return hex.AppendEncode(dst, data)
 }
 
-func AppendPrefix(dst []byte, p netip.Prefix) []byte {
+func HexUpper(dst, data []byte) []byte {
+	for _, v := range data {
+		dst = append(dst, upperHexDigits[v>>4], upperHexDigits[v&0x0f])
+	}
+	return dst
+}
+
+func Prefix(dst []byte, p netip.Prefix) []byte {
 	return p.AppendTo(dst)
 }
 
-func AppendMAC(dst, mac []byte) []byte {
+func MAC(dst, mac []byte) []byte {
 	if len(mac) < 6 {
 		return dst
 	}
@@ -534,12 +541,12 @@ func StrUintStr(prefix string, v uint64, suffix string) string {
 	return b.Reset().Str(prefix).Uint(v).Str(suffix).String()
 }
 
-func Prefix(p netip.Prefix) string {
+func StringPrefix(p netip.Prefix) string {
 	var buf [43]byte
 	return string(p.AppendTo(buf[:0]))
 }
 
-func MAC(mac []byte) string {
+func StringMAC(mac []byte) string {
 	if len(mac) < 6 {
 		return ""
 	}

@@ -136,7 +136,7 @@ func (t *LsISISAreaID) WriteTo(buf []byte, off int) int {
 
 func (t *LsISISAreaID) ToJSON() map[string]any {
 	return map[string]any{
-		"area-id": "0x" + strings.ToUpper(textbuf.Hex(t.AreaID)),
+		"area-id": "0x" + strings.ToUpper(textbuf.StringHex(t.AreaID)),
 	}
 }
 

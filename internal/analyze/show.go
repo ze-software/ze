@@ -50,9 +50,9 @@ func runShow(args []string) int {
 	handler := &mrt.Handler{
 		OnPeerIndex: func(_ mrt.Header, pit *mrt.PeerIndexTable) error {
 			peerIndex = pit
-			os.Stdout.WriteString("PEER_INDEX_TABLE: " + textbuf.Uint(uint64(len(pit.Peers))) + " peers\n") //nolint:errcheck // output
+			os.Stdout.WriteString("PEER_INDEX_TABLE: " + textbuf.StringUint(uint64(len(pit.Peers))) + " peers\n") //nolint:errcheck // output
 			for i, p := range pit.Peers {
-				os.Stdout.WriteString("  [" + textbuf.Uint(uint64(i)) + "] " + net.IP(p.IP).String() + " AS" + textbuf.Uint32(p.ASN) + "\n") //nolint:errcheck // output
+				os.Stdout.WriteString("  [" + textbuf.StringUint(uint64(i)) + "] " + net.IP(p.IP).String() + " AS" + textbuf.StringUint32(p.ASN) + "\n") //nolint:errcheck // output
 			}
 			return nil
 		},
@@ -62,7 +62,7 @@ func runShow(args []string) int {
 			}
 			count++
 			pfx := formatPrefix(h.Subtype, r.PrefixLength, r.Prefix)
-			os.Stdout.WriteString("RIB " + pfx + " (" + textbuf.Uint(uint64(len(r.Entries))) + " entries)\n") //nolint:errcheck // output
+			os.Stdout.WriteString("RIB " + pfx + " (" + textbuf.StringUint(uint64(len(r.Entries))) + " entries)\n") //nolint:errcheck // output
 			for _, e := range r.Entries {
 				peerName := peerLabel(peerIndex, e.PeerIndex)
 				attrs := mrt.ParseAttributes(e.Attributes)
@@ -235,5 +235,5 @@ func fsmName(state uint16) string {
 	case 6:
 		return "Established"
 	}
-	return textbuf.Uint16(state)
+	return textbuf.StringUint16(state)
 }

@@ -307,7 +307,7 @@ func formatPort(keyword string, ranges []firewall.PortRange) string {
 	parts := make([]string, 0, len(ranges))
 	for _, r := range ranges {
 		if r.Lo == r.Hi {
-			parts = append(parts, textbuf.Int(int64(r.Lo)))
+			parts = append(parts, textbuf.StringInt(int64(r.Lo)))
 		} else {
 			parts = append(parts, tb.Reset().Int(int64(r.Lo)).Byte('-').Int(int64(r.Hi)).String())
 		}

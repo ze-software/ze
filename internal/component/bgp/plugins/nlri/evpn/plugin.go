@@ -116,7 +116,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 
 	buf := make([]byte, evpnNLRI.Len())
 	evpnNLRI.WriteTo(buf, 0)
-	return textbuf.HexUpper(buf), nil
+	return textbuf.StringHexUpper(buf), nil
 }
 
 // evpnEncodeParams holds parsed EVPN encode parameters.
@@ -433,7 +433,7 @@ func decodeEVPNNLRI(data []byte) []map[string]any {
 			results = append(results, map[string]any{
 				"code":   int(routeType),
 				"parsed": false,
-				"raw":    textbuf.HexUpper(remaining),
+				"raw":    textbuf.StringHexUpper(remaining),
 			})
 			break
 		}
@@ -447,7 +447,7 @@ func decodeEVPNNLRI(data []byte) []map[string]any {
 			results = append(results, map[string]any{
 				"code":   int(routeType),
 				"parsed": false,
-				"raw":    textbuf.HexUpper(routeData),
+				"raw":    textbuf.StringHexUpper(routeData),
 			})
 		} else {
 			results = append(results, evpnToJSON(evpn, routeData))
@@ -468,14 +468,14 @@ func evpnToJSON(e EVPN, rawData []byte) map[string]any {
 	if _, ok := e.(*EVPNGeneric); ok {
 		result["code"] = int(e.RouteType())
 		result["parsed"] = false
-		result["raw"] = textbuf.HexUpper(rawData)
+		result["raw"] = textbuf.StringHexUpper(rawData)
 		return result
 	}
 
 	// Match expected format: code, parsed, raw, name, rd, etc.
 	result["code"] = int(e.RouteType())
 	result["parsed"] = true
-	result["raw"] = textbuf.HexUpper(rawData)
+	result["raw"] = textbuf.StringHexUpper(rawData)
 	result["name"] = evpnRouteName(e.RouteType())
 	result["rd"] = e.RD().String()
 

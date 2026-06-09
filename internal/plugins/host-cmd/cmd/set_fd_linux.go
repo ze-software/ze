@@ -42,7 +42,7 @@ func handleSetSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.R
 			return &plugin.Response{Status: plugin.StatusError, Error: "invalid limit: " + args[0]}, nil
 		}
 		if requested > current.Max {
-			msg := "requested " + args[0] + " exceeds hard limit " + textbuf.Uint(current.Max)
+			msg := "requested " + args[0] + " exceeds hard limit " + textbuf.StringUint(current.Max)
 			return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil
 		}
 	}

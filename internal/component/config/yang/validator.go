@@ -365,7 +365,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 				Type:     ErrTypeRange,
 				Message:  textbuf.StrUintStr("value ", num, " is outside range"),
 				Expected: yangType.Range.String(),
-				Got:      textbuf.Uint(num),
+				Got:      textbuf.StringUint(num),
 			}
 		}
 	}
@@ -430,7 +430,7 @@ func (v *Validator) validateSigned(path string, yangType *yang.YangType, value a
 				Type:     ErrTypeRange,
 				Message:  textbuf.StrIntStr("value ", num, " is outside range"),
 				Expected: yangType.Range.String(),
-				Got:      textbuf.Int(num),
+				Got:      textbuf.StringInt(num),
 			}
 		}
 	}
@@ -697,7 +697,7 @@ func checkCardinality(path string, entry *yang.Entry, count uint64, errs *[]Vali
 			Type:     ErrTypeCardinality,
 			Message:  bMsg.Reset().Str("too few entries: ").Uint(count).Str(" (minimum ").Uint(entry.ListAttr.MinElements).Byte(')').String(),
 			Expected: textbuf.StrUint(">=", entry.ListAttr.MinElements),
-			Got:      textbuf.Uint(count),
+			Got:      textbuf.StringUint(count),
 		})
 	}
 	if entry.ListAttr.MaxElements > 0 && count > entry.ListAttr.MaxElements {
@@ -707,7 +707,7 @@ func checkCardinality(path string, entry *yang.Entry, count uint64, errs *[]Vali
 			Type:     ErrTypeCardinality,
 			Message:  bMsg.Reset().Str("too many entries: ").Uint(count).Str(" (maximum ").Uint(entry.ListAttr.MaxElements).Byte(')').String(),
 			Expected: textbuf.StrUint("<=", entry.ListAttr.MaxElements),
-			Got:      textbuf.Uint(count),
+			Got:      textbuf.StringUint(count),
 		})
 	}
 }

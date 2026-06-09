@@ -121,7 +121,7 @@ func (s *LGServer) handleNextHopGraph(w http.ResponseWriter, routes []any, forma
 // decorateGraphNodes resolves ASN names for all graph nodes via the decorator.
 func (s *LGServer) decorateGraphNodes(g *Graph) {
 	for i := range g.Nodes {
-		g.Nodes[i].Name = s.resolveASN(textbuf.Int(int64(g.Nodes[i].ASN)))
+		g.Nodes[i].Name = s.resolveASN(textbuf.StringInt(int64(g.Nodes[i].ASN)))
 	}
 }
 

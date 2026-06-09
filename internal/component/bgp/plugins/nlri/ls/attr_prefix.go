@@ -105,7 +105,7 @@ func (t *LsOpaquePrefixAttr) WriteTo(buf []byte, off int) int {
 }
 
 func (t *LsOpaquePrefixAttr) ToJSON() map[string]any {
-	return map[string]any{"opaque-prefix-attr": "0x" + strings.ToUpper(textbuf.Hex(t.Data))}
+	return map[string]any{"opaque-prefix-attr": "0x" + strings.ToUpper(textbuf.StringHex(t.Data))}
 }
 
 func decodeOpaquePrefixAttr(data []byte) (LsAttrTLV, error) {
@@ -307,7 +307,7 @@ func (t *LsSourceRouterID) ToJSON() map[string]any {
 		addr := netip.AddrFrom16([16]byte(t.ID[:16]))
 		return map[string]any{"source-router-id": addr.String()}
 	}
-	return map[string]any{"source-router-id": "0x" + strings.ToUpper(textbuf.Hex(t.ID))}
+	return map[string]any{"source-router-id": "0x" + strings.ToUpper(textbuf.StringHex(t.ID))}
 }
 
 func decodeSourceRouterID(data []byte) (LsAttrTLV, error) {

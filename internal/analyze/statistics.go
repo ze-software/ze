@@ -67,7 +67,7 @@ func runStatistics(args []string) int {
 				}
 				tn := typeName(h.Type)
 				st.TypeCounts[tn]++
-				st.SubtypeCounts[tn+"/"+textbuf.Uint16(h.Subtype)]++
+				st.SubtypeCounts[tn+"/"+textbuf.StringUint16(h.Subtype)]++
 				if mrt.IsAddPathRIBSubtype(h.Subtype) || mrt.IsAddPathBGP4MPSubtype(h.Subtype) {
 					st.AddPathCount++
 				}

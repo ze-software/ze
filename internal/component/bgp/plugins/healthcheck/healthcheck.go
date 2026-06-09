@@ -280,18 +280,18 @@ func (m *probeManager) runProbe(ctx context.Context, rp *runningProbe) {
 func (m *probeManager) dispatchStateAction(ctx context.Context, cfg ProbeConfig, state State) {
 	switch state {
 	case StateUp:
-		m.dispatchCommand(ctx, cfg.Name, "request watchdog announce", []string{cfg.Group, "med", textbuf.Int(int64(cfg.UpMetric))})
+		m.dispatchCommand(ctx, cfg.Name, "request watchdog announce", []string{cfg.Group, "med", textbuf.StringInt(int64(cfg.UpMetric))})
 	case StateDown:
 		if cfg.WithdrawOnDown {
 			m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw", []string{cfg.Group})
 		} else {
-			m.dispatchCommand(ctx, cfg.Name, "request watchdog announce", []string{cfg.Group, "med", textbuf.Int(int64(cfg.DownMetric))})
+			m.dispatchCommand(ctx, cfg.Name, "request watchdog announce", []string{cfg.Group, "med", textbuf.StringInt(int64(cfg.DownMetric))})
 		}
 	case StateDisabled:
 		if cfg.WithdrawOnDown {
 			m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw", []string{cfg.Group})
 		} else {
-			m.dispatchCommand(ctx, cfg.Name, "request watchdog announce", []string{cfg.Group, "med", textbuf.Int(int64(cfg.DisabledMetric))})
+			m.dispatchCommand(ctx, cfg.Name, "request watchdog announce", []string{cfg.Group, "med", textbuf.StringInt(int64(cfg.DisabledMetric))})
 		}
 	case StateExit:
 		m.dispatchCommand(ctx, cfg.Name, "request watchdog withdraw", []string{cfg.Group})

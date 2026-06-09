@@ -552,10 +552,10 @@ func (m Model) renderPingMonitor() string {
 
 		sb.Str("  ")
 		sb.Str(pingLabelStyle.Render("Sent "))
-		sb.Str(pingValueStyle.Render(textbuf.Int(int64(s.sent))))
+		sb.Str(pingValueStyle.Render(textbuf.StringInt(int64(s.sent))))
 		sb.Str("   ")
 		sb.Str(pingLabelStyle.Render("Recv "))
-		sb.Str(pingValueStyle.Render(textbuf.Int(int64(s.recv))))
+		sb.Str(pingValueStyle.Render(textbuf.StringInt(int64(s.recv))))
 		sb.Str("   ")
 		sb.Str(pingLabelStyle.Render("Loss "))
 		sb.Str(lossStyle.Render(lossText))

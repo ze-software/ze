@@ -239,7 +239,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 		if i > 0 {
 			time.Sleep(replayConvergenceDelay)
 		}
-		deltaArgs := []string{peerAddr, textbuf.Uint(lastIndex)}
+		deltaArgs := []string{peerAddr, textbuf.StringUint(lastIndex)}
 		_, deltaData, deltaErr := rs.dispatchCommand(ctx, replayCommand, deltaArgs...)
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)

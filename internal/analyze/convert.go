@@ -70,9 +70,9 @@ func runConvertPcap(args []string) int {
 		return 1
 	}
 
-	os.Stderr.WriteString("convert pcap: wrote " + textbuf.Uint(count) + " packets\n") //nolint:errcheck // status
+	os.Stderr.WriteString("convert pcap: wrote " + textbuf.StringUint(count) + " packets\n") //nolint:errcheck // status
 	if skippedV6 > 0 {
-		os.Stderr.WriteString("convert pcap: skipped " + textbuf.Uint(skippedV6) + " IPv6 records (LINKTYPE_IPV4)\n") //nolint:errcheck // status
+		os.Stderr.WriteString("convert pcap: skipped " + textbuf.StringUint(skippedV6) + " IPv6 records (LINKTYPE_IPV4)\n") //nolint:errcheck // status
 	}
 	return 0
 }
@@ -92,14 +92,14 @@ func runConvertJSON(args []string) int {
 				os.Stdout.WriteString(",\n") //nolint:errcheck // JSON output
 			}
 			first = false
-			os.Stdout.WriteString(`{"timestamp":` + textbuf.Uint32(h.Timestamp)) //nolint:errcheck // JSON output
+			os.Stdout.WriteString(`{"timestamp":` + textbuf.StringUint32(h.Timestamp)) //nolint:errcheck // JSON output
 			if usec > 0 {
-				os.Stdout.WriteString(`,"microsecond":` + textbuf.Uint32(usec)) //nolint:errcheck // JSON output
+				os.Stdout.WriteString(`,"microsecond":` + textbuf.StringUint32(usec)) //nolint:errcheck // JSON output
 			}
-			os.Stdout.WriteString(`,"type":` + textbuf.Uint16(h.Type))       //nolint:errcheck // JSON output
-			os.Stdout.WriteString(`,"subtype":` + textbuf.Uint16(h.Subtype)) //nolint:errcheck // JSON output
-			os.Stdout.WriteString(`,"length":` + textbuf.Uint32(h.Length))   //nolint:errcheck // JSON output
-			os.Stdout.WriteString("}")                                       //nolint:errcheck // JSON output
+			os.Stdout.WriteString(`,"type":` + textbuf.StringUint16(h.Type))       //nolint:errcheck // JSON output
+			os.Stdout.WriteString(`,"subtype":` + textbuf.StringUint16(h.Subtype)) //nolint:errcheck // JSON output
+			os.Stdout.WriteString(`,"length":` + textbuf.StringUint32(h.Length))   //nolint:errcheck // JSON output
+			os.Stdout.WriteString("}")                                             //nolint:errcheck // JSON output
 			return nil
 		},
 	}

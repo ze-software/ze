@@ -307,7 +307,7 @@ func (s *Subsystem) eventConsumer() {
 				sess.MAC = snap.MAC
 				sess.AccessInterface = snap.IfName
 				sess.ServiceName = snap.ServiceName
-				sess.PppInterface = "ppp" + textbuf.Uint(uint64(snap.UnitNum))
+				sess.PppInterface = "ppp" + textbuf.StringUint(uint64(snap.UnitNum))
 			}
 			authKey := pendingAuthKey{ifindex: ifindex, sessionID: e.SessionID}
 			if val, ok := s.pendingAuth.LoadAndDelete(authKey); ok {

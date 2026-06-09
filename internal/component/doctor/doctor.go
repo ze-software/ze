@@ -860,7 +860,7 @@ func collectSchemaListeners(tree *config.Tree) []serviceListener {
 			service:  ep.Service,
 			network:  ep.Protocol,
 			host:     ep.IP.String(),
-			port:     textbuf.Uint16(ep.Port),
+			port:     textbuf.StringUint16(ep.Port),
 			code:     "doctor-listen-unavailable",
 			severity: diagnostic.SeverityWarning,
 		}

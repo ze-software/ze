@@ -476,7 +476,7 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 
 	// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP metric to the BGP next-hop"
 	if a.IGPCost != b.IGPCost {
-		reason := "igp-cost " + textbuf.Uint32(a.IGPCost) + " vs " + textbuf.Uint32(b.IGPCost)
+		reason := "igp-cost " + textbuf.StringUint32(a.IGPCost) + " vs " + textbuf.StringUint32(b.IGPCost)
 		if a.IGPCost < b.IGPCost {
 			return -1, BestStepIGPCost, reason
 		}

@@ -383,12 +383,12 @@ func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
 type keyBuilder struct{ strings.Builder }
 
 func (b *keyBuilder) Sep()          { b.WriteByte('|') }
-func (b *keyBuilder) Uint(v uint64) { var buf [20]byte; b.Write(textbuf.AppendUint(buf[:0], v)) }
+func (b *keyBuilder) Uint(v uint64) { var buf [20]byte; b.Write(textbuf.Uint(buf[:0], v)) }
 func (b *keyBuilder) Addr(addr netip.Addr) {
 	var buf [39]byte
-	b.Write(textbuf.AppendAddr(buf[:0], addr))
+	b.Write(textbuf.Addr(buf[:0], addr))
 }
-func (b *keyBuilder) Hex(data []byte) { var buf [64]byte; b.Write(textbuf.AppendHex(buf[:0], data)) }
+func (b *keyBuilder) Hex(data []byte) { var buf [64]byte; b.Write(textbuf.Hex(buf[:0], data)) }
 
 func (b *keyBuilder) Bool(v bool) {
 	if v {

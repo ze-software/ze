@@ -227,7 +227,7 @@ func emitXFRMBlock(b *textbuf.Buffer, di *DiscoveredInterface) {
 		return
 	}
 	b.WriteString("        if-id ")
-	b.WriteString(textbuf.Uint32(info.IfID))
+	b.WriteString(textbuf.StringUint32(info.IfID))
 	b.WriteString(";\n")
 	if info.ParentDev != "" {
 		b.WriteString("        dev ")
@@ -265,7 +265,7 @@ func emitXFRMSet(b *textbuf.Buffer, di *DiscoveredInterface) {
 	}
 	b.WriteString(prefix)
 	b.WriteString(" if-id ")
-	b.WriteString(textbuf.Uint32(info.IfID))
+	b.WriteString(textbuf.StringUint32(info.IfID))
 	b.WriteByte('\n')
 	if info.ParentDev != "" {
 		b.WriteString(prefix)

@@ -85,7 +85,7 @@ func (b *netlinkBackend) GetXFRMInfo(name string) (iface.XFRMInfo, error) {
 			pi.Dst = p.Dst.String()
 		}
 		if p.Proto != 0 {
-			pi.Proto = textbuf.Int(int64(p.Proto))
+			pi.Proto = textbuf.StringInt(int64(p.Proto))
 		}
 		for _, tmpl := range p.Tmpls {
 			pi.Mode = xfrmModeString(tmpl.Mode)
@@ -106,7 +106,7 @@ func xfrmDirString(dir netlink.Dir) string {
 	case netlink.XFRM_DIR_FWD:
 		return "fwd"
 	default:
-		return textbuf.Int(int64(dir))
+		return textbuf.StringInt(int64(dir))
 	}
 }
 
@@ -117,6 +117,6 @@ func xfrmModeString(mode netlink.Mode) string {
 	case netlink.XFRM_MODE_TUNNEL:
 		return "tunnel"
 	default:
-		return textbuf.Int(int64(mode))
+		return textbuf.StringInt(int64(mode))
 	}
 }

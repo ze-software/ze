@@ -142,9 +142,9 @@ func typedValueToString(tv *gpb.TypedValue) (string, error) {
 	case *gpb.TypedValue_StringVal:
 		return v.StringVal, nil
 	case *gpb.TypedValue_IntVal:
-		return string(textbuf.AppendInt(nil, v.IntVal)), nil
+		return textbuf.StringInt(v.IntVal), nil
 	case *gpb.TypedValue_UintVal:
-		return textbuf.Uint(v.UintVal), nil
+		return textbuf.StringUint(v.UintVal), nil
 	case *gpb.TypedValue_BoolVal:
 		if v.BoolVal {
 			return "true", nil

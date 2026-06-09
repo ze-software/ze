@@ -174,7 +174,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 	v := NewVPN(fam, rd, labels, prefix, pathID)
 	nlriBytes := v.Bytes()
 
-	return textbuf.HexUpper(nlriBytes), nil
+	return textbuf.StringHexUpper(nlriBytes), nil
 }
 
 // Protocol constants.
@@ -375,7 +375,7 @@ func decodeVPNNLRI(family string, data []byte) []map[string]any {
 			// Add as unparsed
 			results = append(results, map[string]any{
 				"parsed": false,
-				"raw":    textbuf.HexUpper(remaining),
+				"raw":    textbuf.StringHexUpper(remaining),
 			})
 			break
 		}

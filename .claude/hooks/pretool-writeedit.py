@@ -30,17 +30,18 @@ PROJECT_DIR = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.abspath(
 )
 
 # textbuf type serializer reference (internal/core/textbuf)
-# UPDATE when spec-textbuf-api-rename lands: Append* -> bare, bare -> String*
+# UPDATE when textbuf serializer API changes.
 _TEXTBUF_REF = (
     "  textbuf type serializers (internal/core/textbuf):\n"
-    "  Standalone:  Uint(u64) Uint8 Uint16 Uint32 Int(i64) Addr(netip.Addr)\n"
-    "               Prefix(netip.Prefix) Hex([]byte) HexUpper([]byte) MAC([]byte)\n"
+    "  String:      StringUint(u64) StringUint8 StringUint16 StringUint32\n"
+    "               StringInt(i64) StringAddr(netip.Addr) StringPrefix(netip.Prefix)\n"
+    "               StringHex([]byte) StringHexUpper([]byte) StringMAC([]byte)\n"
     "               HostPort(host,port) Join([]string,sep)\n"
     "               StrInt StrUint IntStr UintStr StrIntStr StrUintStr\n"
     "  Chain (.):   Str Byte Uint Uint8 Uint16 Uint32 Int Addr Prefix\n"
     "               Hex HexUpper MAC Float(v,prec) Float2 Bool Quoted Err\n"
     "               Join PadRight PadLeft Repeat HostPort HostPortN Colored\n"
-    "  Append:      AppendUint AppendInt AppendAddr AppendPrefix AppendHex AppendMAC\n"
+    "  Append:      Uint Int Addr Prefix Hex HexUpper MAC\n"
     "  Extract:     .String() (1 alloc)  .Slice() (0-copy, freezes)  .Bytes() (raw)\n"
     "  Reuse:       var tb textbuf.Buffer; ... tb.Reset() between uses"
 )
@@ -332,10 +333,10 @@ def c_sprintf_new(ctx):
             "\n  Replacements (ai/rules/no-sprintf-alloc.md):\n"
             '    fmt.Sprintf("%s: %v", x, err)    -> var tb textbuf.Buffer; tb.Str(x).Str(": ").Err(err).String()\n'
             "    fmt.Sprintf(\"%s:%d\", s, n)        -> var tb textbuf.Buffer; tb.Str(s).Byte(':').Int(int64(n)).String()\n"
-            '    fmt.Sprintf("%d", n)              -> textbuf.Int(int64(n))  or  textbuf.Uint(uint64(n))\n'
+            '    fmt.Sprintf("%d", n)              -> textbuf.StringInt(int64(n))  or  textbuf.StringUint(uint64(n))\n'
             '    fmt.Sprintf("%q", s)              -> var tb textbuf.Buffer; tb.Quoted(s).String()\n'
-            "    strconv.FormatUint(v, 10)         -> textbuf.Uint(v)\n"
-            "    strconv.FormatInt(v, 10)          -> textbuf.Int(v)\n"
+            "    strconv.FormatUint(v, 10)         -> textbuf.StringUint(v)\n"
+            "    strconv.FormatInt(v, 10)          -> textbuf.StringInt(v)\n"
             "  ALLOWED (do NOT change):\n"
             '    fmt.Errorf("context: %w", err)    -- error wrapping is the intended use\n'
             "    fmt.Fprintf(os.Stdout, ...)        -- CLI output\n"

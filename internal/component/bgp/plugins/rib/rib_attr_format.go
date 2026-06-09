@@ -98,7 +98,7 @@ func enrichRouteMapFromRoute(routeMap map[string]any, rt *Route) {
 	if len(rt.ExtendedCommunities) > 0 {
 		strs := make([]string, len(rt.ExtendedCommunities))
 		for i, ec := range rt.ExtendedCommunities {
-			strs[i] = textbuf.Hex(ec[:])
+			strs[i] = textbuf.StringHex(ec[:])
 		}
 		routeMap["extended-community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
 	}

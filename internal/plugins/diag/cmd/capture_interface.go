@@ -259,7 +259,7 @@ func formatTransport(tsStr string, proto byte, srcIP, dstIP string, transport, r
 		return b.String()
 
 	default:
-		protoName := "PROTO:" + textbuf.Int(int64(proto))
+		protoName := "PROTO:" + textbuf.StringInt(int64(proto))
 		switch proto {
 		case 1:
 			protoName = "ICMP"

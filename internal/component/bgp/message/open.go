@@ -224,7 +224,7 @@ func UnpackOpen(data []byte) (*Open, error) {
 // representing an IP address assigned to the BGP speaker.
 func (o *Open) RouterID() string {
 	id := o.BGPIdentifier
-	return textbuf.Addr(netip.AddrFrom4([4]byte{byte(id >> 24), byte(id >> 16), byte(id >> 8), byte(id)}))
+	return textbuf.StringAddr(netip.AddrFrom4([4]byte{byte(id >> 24), byte(id >> 16), byte(id >> 8), byte(id)}))
 }
 
 // ValidateHoldTime checks the Hold Time value per RFC 4271.

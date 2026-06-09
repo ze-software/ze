@@ -65,7 +65,7 @@ func parseHexIPv4(encoded string) string {
 		return encoded
 	}
 	addr := netip.AddrFrom4([4]byte{byte(b), byte(b >> 8), byte(b >> 16), byte(b >> 24)})
-	return textbuf.Addr(addr)
+	return textbuf.StringAddr(addr)
 }
 
 func parseHexIPv6(encoded string) string {
@@ -85,7 +85,7 @@ func parseHexIPv6(encoded string) string {
 		addr16[i*4+3] = raw[i*4+0]
 	}
 	addr := netip.AddrFrom16(addr16)
-	return textbuf.Addr(addr)
+	return textbuf.StringAddr(addr)
 }
 
 func ParseHexPort(encoded string) int {

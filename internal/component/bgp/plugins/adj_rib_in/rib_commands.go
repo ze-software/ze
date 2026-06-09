@@ -238,7 +238,7 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 		routes.Range(func(key compactRouteKey, seq uint64, rt *RawRoute) bool {
 			keyStr := key.Fam.String() + ":" + key.Prefix.String()
 			if key.PathID > 0 {
-				keyStr += ":" + textbuf.Uint32(key.PathID)
+				keyStr += ":" + textbuf.StringUint32(key.PathID)
 			}
 			routeMap := map[string]any{
 				"family":           rt.Family.String(),

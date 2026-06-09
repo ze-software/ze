@@ -10,63 +10,63 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestUint(t *testing.T) {
+func TestStringUint(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "0", Uint(0))
-	assert.Equal(t, "1", Uint(1))
-	assert.Equal(t, "255", Uint(255))
-	assert.Equal(t, "18446744073709551615", Uint(math.MaxUint64))
+	assert.Equal(t, "0", StringUint(0))
+	assert.Equal(t, "1", StringUint(1))
+	assert.Equal(t, "255", StringUint(255))
+	assert.Equal(t, "18446744073709551615", StringUint(math.MaxUint64))
 }
 
-func TestUint8(t *testing.T) {
+func TestStringUint8(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "0", Uint8(0))
-	assert.Equal(t, "255", Uint8(math.MaxUint8))
+	assert.Equal(t, "0", StringUint8(0))
+	assert.Equal(t, "255", StringUint8(math.MaxUint8))
 }
 
-func TestUint16(t *testing.T) {
+func TestStringUint16(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "0", Uint16(0))
-	assert.Equal(t, "65535", Uint16(math.MaxUint16))
+	assert.Equal(t, "0", StringUint16(0))
+	assert.Equal(t, "65535", StringUint16(math.MaxUint16))
 }
 
-func TestUint32(t *testing.T) {
+func TestStringUint32(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "0", Uint32(0))
-	assert.Equal(t, "4294967295", Uint32(math.MaxUint32))
+	assert.Equal(t, "0", StringUint32(0))
+	assert.Equal(t, "4294967295", StringUint32(math.MaxUint32))
 }
 
-func TestInt(t *testing.T) {
+func TestStringInt(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "0", Int(0))
-	assert.Equal(t, "-1", Int(-1))
-	assert.Equal(t, "9223372036854775807", Int(math.MaxInt64))
-	assert.Equal(t, "-9223372036854775808", Int(math.MinInt64))
+	assert.Equal(t, "0", StringInt(0))
+	assert.Equal(t, "-1", StringInt(-1))
+	assert.Equal(t, "9223372036854775807", StringInt(math.MaxInt64))
+	assert.Equal(t, "-9223372036854775808", StringInt(math.MinInt64))
 }
 
-func TestAddr(t *testing.T) {
+func TestStringAddr(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "10.0.0.1", Addr(netip.MustParseAddr("10.0.0.1")))
-	assert.Equal(t, "2001:db8::1", Addr(netip.MustParseAddr("2001:db8::1")))
-	assert.Equal(t, "0.0.0.0", Addr(netip.AddrFrom4([4]byte{})))
-	assert.Equal(t, "::", Addr(netip.AddrFrom16([16]byte{})))
+	assert.Equal(t, "10.0.0.1", StringAddr(netip.MustParseAddr("10.0.0.1")))
+	assert.Equal(t, "2001:db8::1", StringAddr(netip.MustParseAddr("2001:db8::1")))
+	assert.Equal(t, "0.0.0.0", StringAddr(netip.AddrFrom4([4]byte{})))
+	assert.Equal(t, "::", StringAddr(netip.AddrFrom16([16]byte{})))
 }
 
-func TestHex(t *testing.T) {
+func TestStringHex(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "", Hex(nil))
-	assert.Equal(t, "", Hex([]byte{}))
-	assert.Equal(t, "deadbeef", Hex([]byte{0xde, 0xad, 0xbe, 0xef}))
-	assert.Equal(t, "00ff", Hex([]byte{0x00, 0xff}))
+	assert.Equal(t, "", StringHex(nil))
+	assert.Equal(t, "", StringHex([]byte{}))
+	assert.Equal(t, "deadbeef", StringHex([]byte{0xde, 0xad, 0xbe, 0xef}))
+	assert.Equal(t, "00ff", StringHex([]byte{0x00, 0xff}))
 }
 
-func TestHexLargeData(t *testing.T) {
+func TestStringHexLargeData(t *testing.T) {
 	t.Parallel()
 	data := make([]byte, 64)
 	for i := range data {
 		data[i] = byte(i)
 	}
-	got := Hex(data)
+	got := StringHex(data)
 	assert.Len(t, got, 128)
 	assert.True(t, strings.HasPrefix(got, "000102"))
 	assert.True(t, strings.HasSuffix(got, "3f"))
@@ -109,40 +109,40 @@ func TestBufferEmpty(t *testing.T) {
 	assert.Equal(t, "", b.String())
 }
 
-func TestAppendUint(t *testing.T) {
+func TestUint(t *testing.T) {
 	t.Parallel()
 	dst := []byte("prefix:")
-	dst = AppendUint(dst, 42)
+	dst = Uint(dst, 42)
 	assert.Equal(t, "prefix:42", string(dst))
 }
 
-func TestAppendInt(t *testing.T) {
+func TestInt(t *testing.T) {
 	t.Parallel()
 	dst := []byte("val=")
-	dst = AppendInt(dst, -7)
+	dst = Int(dst, -7)
 	assert.Equal(t, "val=-7", string(dst))
 }
 
-func TestAppendAddr(t *testing.T) {
+func TestAddr(t *testing.T) {
 	t.Parallel()
 	dst := []byte("nh=")
-	dst = AppendAddr(dst, netip.MustParseAddr("192.168.1.1"))
+	dst = Addr(dst, netip.MustParseAddr("192.168.1.1"))
 	assert.Equal(t, "nh=192.168.1.1", string(dst))
 }
 
-func TestAppendHex(t *testing.T) {
+func TestHex(t *testing.T) {
 	t.Parallel()
 	dst := []byte("0x")
-	dst = AppendHex(dst, []byte{0xca, 0xfe})
+	dst = Hex(dst, []byte{0xca, 0xfe})
 	assert.Equal(t, "0xcafe", string(dst))
 }
 
-func TestAppendToEmptyDst(t *testing.T) {
+func TestBareAppendEmptyDst(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "99", string(AppendUint(nil, 99)))
-	assert.Equal(t, "-1", string(AppendInt(nil, -1)))
-	assert.Equal(t, "10.0.0.1", string(AppendAddr(nil, netip.MustParseAddr("10.0.0.1"))))
-	assert.Equal(t, "ff", string(AppendHex(nil, []byte{0xff})))
+	assert.Equal(t, "99", string(Uint(nil, 99)))
+	assert.Equal(t, "-1", string(Int(nil, -1)))
+	assert.Equal(t, "10.0.0.1", string(Addr(nil, netip.MustParseAddr("10.0.0.1"))))
+	assert.Equal(t, "ff", string(Hex(nil, []byte{0xff})))
 }
 
 func TestBufferWriteAfterString(t *testing.T) {
@@ -393,34 +393,34 @@ func TestWriteAfterStringHeap(t *testing.T) {
 	assert.Equal(t, long, s1)
 }
 
-func TestHexUpper(t *testing.T) {
+func TestStringHexUpper(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "", HexUpper(nil))
-	assert.Equal(t, "", HexUpper([]byte{}))
-	assert.Equal(t, "DEADBEEF", HexUpper([]byte{0xde, 0xad, 0xbe, 0xef}))
-	assert.Equal(t, "00FF", HexUpper([]byte{0x00, 0xff}))
-	assert.Equal(t, "0123456789ABCDEF", HexUpper([]byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}))
+	assert.Equal(t, "", StringHexUpper(nil))
+	assert.Equal(t, "", StringHexUpper([]byte{}))
+	assert.Equal(t, "DEADBEEF", StringHexUpper([]byte{0xde, 0xad, 0xbe, 0xef}))
+	assert.Equal(t, "00FF", StringHexUpper([]byte{0x00, 0xff}))
+	assert.Equal(t, "0123456789ABCDEF", StringHexUpper([]byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}))
 }
 
-func TestHexUpperLarge(t *testing.T) {
+func TestStringHexUpperLarge(t *testing.T) {
 	t.Parallel()
 	data := make([]byte, 65)
 	for i := range data {
 		data[i] = byte(i)
 	}
-	got := HexUpper(data)
+	got := StringHexUpper(data)
 	assert.Len(t, got, 130)
 	assert.True(t, strings.HasPrefix(got, "000102"))
 	assert.True(t, strings.HasSuffix(got, "40"))
 }
 
-func TestHexBoundary(t *testing.T) {
+func TestStringHexBoundary(t *testing.T) {
 	t.Parallel()
 	data := make([]byte, 32)
 	for i := range data {
 		data[i] = byte(i)
 	}
-	got := Hex(data)
+	got := StringHex(data)
 	assert.Len(t, got, 64)
 	assert.True(t, strings.HasPrefix(got, "000102"))
 	assert.True(t, strings.HasSuffix(got, "1f"))
@@ -429,17 +429,17 @@ func TestHexBoundary(t *testing.T) {
 	for i := range data33 {
 		data33[i] = byte(i)
 	}
-	got33 := Hex(data33)
+	got33 := StringHex(data33)
 	assert.Len(t, got33, 66)
 }
 
-func TestHexUpperBoundary(t *testing.T) {
+func TestStringHexUpperBoundary(t *testing.T) {
 	t.Parallel()
 	data := make([]byte, 64)
 	for i := range data {
 		data[i] = byte(i)
 	}
-	got := HexUpper(data)
+	got := StringHexUpper(data)
 	assert.Len(t, got, 128)
 	assert.True(t, strings.HasPrefix(got, "000102"))
 
@@ -447,7 +447,7 @@ func TestHexUpperBoundary(t *testing.T) {
 	for i := range data65 {
 		data65[i] = byte(i)
 	}
-	got65 := HexUpper(data65)
+	got65 := StringHexUpper(data65)
 	assert.Len(t, got65, 130)
 }
 
@@ -573,30 +573,30 @@ func TestGetPoolResetsColor(t *testing.T) {
 	b2.Release()
 }
 
-func TestHexAllocBoundary(t *testing.T) {
+func TestStringHexAllocBoundary(t *testing.T) {
 	data32 := make([]byte, 32)
 	allocs := testing.AllocsPerRun(10, func() {
-		_ = Hex(data32)
+		_ = StringHex(data32)
 	})
 	assert.LessOrEqual(t, allocs, 1.0)
 
 	data33 := make([]byte, 33)
 	allocs = testing.AllocsPerRun(10, func() {
-		_ = Hex(data33)
+		_ = StringHex(data33)
 	})
 	assert.LessOrEqual(t, allocs, 2.0)
 }
 
-func TestHexUpperAllocBoundary(t *testing.T) {
+func TestStringHexUpperAllocBoundary(t *testing.T) {
 	data64 := make([]byte, 64)
 	allocs := testing.AllocsPerRun(10, func() {
-		_ = HexUpper(data64)
+		_ = StringHexUpper(data64)
 	})
 	assert.LessOrEqual(t, allocs, 1.0)
 
 	data65 := make([]byte, 65)
 	allocs = testing.AllocsPerRun(10, func() {
-		_ = HexUpper(data65)
+		_ = StringHexUpper(data65)
 	})
 	assert.LessOrEqual(t, allocs, 2.0)
 }
@@ -617,19 +617,19 @@ func TestGrowExactCapacity(t *testing.T) {
 	assert.GreaterOrEqual(t, cap(b.b), 2+remaining+1)
 }
 
-func TestPrefix(t *testing.T) {
+func TestStringPrefix(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "10.0.0.0/24", Prefix(netip.MustParsePrefix("10.0.0.0/24")))
-	assert.Equal(t, "2001:db8::/32", Prefix(netip.MustParsePrefix("2001:db8::/32")))
-	assert.Equal(t, "0.0.0.0/0", Prefix(netip.MustParsePrefix("0.0.0.0/0")))
+	assert.Equal(t, "10.0.0.0/24", StringPrefix(netip.MustParsePrefix("10.0.0.0/24")))
+	assert.Equal(t, "2001:db8::/32", StringPrefix(netip.MustParsePrefix("2001:db8::/32")))
+	assert.Equal(t, "0.0.0.0/0", StringPrefix(netip.MustParsePrefix("0.0.0.0/0")))
 }
 
-func TestMAC(t *testing.T) {
+func TestStringMAC(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "de:ad:be:ef:ca:fe", MAC([]byte{0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe}))
-	assert.Equal(t, "00:00:00:00:00:00", MAC([]byte{0, 0, 0, 0, 0, 0}))
-	assert.Equal(t, "", MAC([]byte{0xde, 0xad}))
-	assert.Equal(t, "", MAC(nil))
+	assert.Equal(t, "de:ad:be:ef:ca:fe", StringMAC([]byte{0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe}))
+	assert.Equal(t, "00:00:00:00:00:00", StringMAC([]byte{0, 0, 0, 0, 0, 0}))
+	assert.Equal(t, "", StringMAC([]byte{0xde, 0xad}))
+	assert.Equal(t, "", StringMAC(nil))
 }
 
 func TestHostPort(t *testing.T) {
@@ -714,19 +714,19 @@ func TestPadRightRunes(t *testing.T) {
 	assert.Equal(t, "abc  ", b.Reset().PadRight("abc", 5).String())
 }
 
-func TestAppendPrefix(t *testing.T) {
+func TestPrefix(t *testing.T) {
 	t.Parallel()
 	dst := []byte("route=")
-	dst = AppendPrefix(dst, netip.MustParsePrefix("10.0.0.0/8"))
+	dst = Prefix(dst, netip.MustParsePrefix("10.0.0.0/8"))
 	assert.Equal(t, "route=10.0.0.0/8", string(dst))
 }
 
-func TestAppendMAC(t *testing.T) {
+func TestMAC(t *testing.T) {
 	t.Parallel()
 	dst := []byte("mac=")
-	dst = AppendMAC(dst, []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab})
+	dst = MAC(dst, []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab})
 	assert.Equal(t, "mac=01:23:45:67:89:ab", string(dst))
-	assert.Equal(t, "short", string(AppendMAC([]byte("short"), []byte{1, 2})))
+	assert.Equal(t, "short", string(MAC([]byte("short"), []byte{1, 2})))
 }
 
 // TestNoescapeStackResidence verifies that var b Buffer stays on the stack
@@ -753,4 +753,32 @@ func TestNoescapeStackResidence(t *testing.T) {
 		b.Release()
 	})
 	assert.Equal(t, 0.0, allocs, "Get + Slice + Release must be zero-alloc")
+}
+
+func TestHexUpper(t *testing.T) {
+	t.Parallel()
+	dst := []byte("0x")
+	dst = HexUpper(dst, []byte{0xca, 0xfe})
+	assert.Equal(t, "0xCAFE", string(dst))
+}
+
+func TestBareAppendNoAllocWithCapacity(t *testing.T) {
+	data := []byte{0xca, 0xfe}
+	addr := netip.MustParseAddr("192.0.2.1")
+	prefix := netip.MustParsePrefix("192.0.2.0/24")
+	mac := []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab}
+
+	allocs := testing.AllocsPerRun(10, func() {
+		var backing [128]byte
+		buf := backing[:0]
+		buf = Uint(buf, 42)
+		buf = Int(buf, -7)
+		buf = Addr(buf, addr)
+		buf = Prefix(buf, prefix)
+		buf = Hex(buf, data)
+		buf = HexUpper(buf, data)
+		buf = MAC(buf, mac)
+		_ = buf
+	})
+	assert.Equal(t, 0.0, allocs)
 }

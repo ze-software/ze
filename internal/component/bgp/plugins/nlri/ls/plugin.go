@@ -255,7 +255,7 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 	if len(data) < 4 {
 		results = append(results, map[string]any{
 			"parsed": false,
-			"raw":    strings.ToUpper(textbuf.Hex(data)),
+			"raw":    strings.ToUpper(textbuf.StringHex(data)),
 		})
 		return results
 	}
@@ -268,7 +268,7 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 			// Add remaining as unparsed
 			results = append(results, map[string]any{
 				"parsed": false,
-				"raw":    strings.ToUpper(textbuf.Hex(remaining)),
+				"raw":    strings.ToUpper(textbuf.StringHex(remaining)),
 			})
 			break
 		}
@@ -473,12 +473,12 @@ func parseBGPLSLinkTLVs(data []byte) (localDescs, remoteDescs []any, info linkDe
 		case 259: // IPv4 Interface Address
 			if len(value) == 4 {
 				info.ifAddrs = append(info.ifAddrs,
-					textbuf.Addr(netip.AddrFrom4([4]byte(value[:4]))))
+					textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))))
 			}
 		case 260: // IPv4 Neighbor Address
 			if len(value) == 4 {
 				info.neighAddrs = append(info.neighAddrs,
-					textbuf.Addr(netip.AddrFrom4([4]byte(value[:4]))))
+					textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))))
 			}
 		case 261: // IPv6 Interface Address
 			if len(value) == 16 {
@@ -528,13 +528,13 @@ func parseNodeDescriptorSubTLVs(data []byte) []any {
 		case 513: // BGP-LS Identifier
 			if len(value) >= 4 {
 				descs = append(descs, map[string]any{
-					"bgp-ls-identifier": textbuf.Uint32(binary.BigEndian.Uint32(value)),
+					"bgp-ls-identifier": textbuf.StringUint32(binary.BigEndian.Uint32(value)),
 				})
 			}
 		case 514: // OSPF Area-ID
 			if len(value) >= 4 {
 				descs = append(descs, map[string]any{
-					"ospf-area-id": textbuf.Addr(netip.AddrFrom4([4]byte(value[:4]))),
+					"ospf-area-id": textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))),
 				})
 			}
 		case 515: // IGP Router-ID
@@ -544,14 +544,14 @@ func parseNodeDescriptorSubTLVs(data []byte) []any {
 			case 8:
 				// OSPF pseudonode: Router-ID + DR interface
 				descs = append(descs, map[string]any{
-					"router-id":            textbuf.Addr(netip.AddrFrom4([4]byte(value[:4]))),
-					"designated-router-id": textbuf.Addr(netip.AddrFrom4([4]byte(value[4:8]))),
+					"router-id":            textbuf.StringAddr(netip.AddrFrom4([4]byte(value[:4]))),
+					"designated-router-id": textbuf.StringAddr(netip.AddrFrom4([4]byte(value[4:8]))),
 				})
 			case 7:
 				// IS-IS pseudonode: System-ID + PSN
 				descs = append(descs, map[string]any{
 					"router-id": routerID,
-					"psn":       textbuf.Uint8(value[6]),
+					"psn":       textbuf.StringUint8(value[6]),
 				})
 			// RFC 7752: 4-byte (OSPF) and 6-byte (IS-IS) are standard lengths.
 			case 4, 6:
@@ -575,17 +575,17 @@ func parseNodeDescriptorSubTLVs(data []byte) []any {
 func formatRouterID(id []byte) string {
 	switch len(id) {
 	case 4:
-		return textbuf.Addr(netip.AddrFrom4([4]byte(id[:4])))
+		return textbuf.StringAddr(netip.AddrFrom4([4]byte(id[:4])))
 	case 6:
-		return textbuf.Hex(id)
+		return textbuf.StringHex(id)
 	case 7:
-		return textbuf.Hex(id)
+		return textbuf.StringHex(id)
 	case 8:
 		var b textbuf.Buffer
 		return b.Reset().Addr(netip.AddrFrom4([4]byte(id[:4]))).Byte(',').Addr(netip.AddrFrom4([4]byte(id[4:8]))).String()
 	}
 	// Unknown length: return hex (forward-compatibility).
-	return strings.ToUpper(textbuf.Hex(id))
+	return strings.ToUpper(textbuf.StringHex(id))
 }
 
 // formatIPReachability formats the IP Reachability Information TLV.
@@ -620,7 +620,7 @@ func formatIPReachability(data []byte, nlriType BGPLSNLRIType) string {
 // formatIPv6Compressed formats a 16-byte IPv6 address with zero compression.
 func formatIPv6Compressed(addr []byte) string {
 	if len(addr) != 16 {
-		return strings.ToUpper(textbuf.Hex(addr))
+		return strings.ToUpper(textbuf.StringHex(addr))
 	}
 	ip := netip.AddrFrom16([16]byte(addr))
 	return ip.String()

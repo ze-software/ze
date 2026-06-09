@@ -21,30 +21,30 @@ Before writing any `fmt.Sprintf` (or `Fprintf`, `Errorf`):
    → errors.New (for Errorf), literal string (for Sprintf)
 
 2. Is the only verb %d?
-   → textbuf.Uint(uint64(n)) or textbuf.Int(int64(n))
+   → textbuf.StringUint(uint64(n)) or textbuf.StringInt(int64(n))
 
 3. Is it a string with separators or mixed types?
    → textbuf.Buffer chain: b.Str(a).Byte(':').Str(b).String()
 
 4. Is it formatting an IP address?
-   → textbuf.Addr(a) or textbuf.Prefix(p)
+   → textbuf.StringAddr(a) or textbuf.StringPrefix(p)
 
 5. Is it formatting a MAC address?
-   → textbuf.MAC(mac)
+   → textbuf.StringMAC(mac)
 
 6. Is it host:port?
    → textbuf.HostPort(host, port)
 
 7. Is it hex formatting (%x, %02x, %X)?
-   → textbuf.Hex(data) or textbuf.HexUpper(data)
-   → textbuf.AppendHex(buf, data) for hot paths
+   → textbuf.StringHex(data) or textbuf.StringHexUpper(data)
+   → textbuf.Hex(buf, data) for hot paths
 
 8. Is it joining strings with a separator?
    → textbuf.Join(items, sep) or b.Join(items, sep)
 
 9. Is it on a hot path (per-UPDATE, per-route, per-NLRI)?
    → AppendTo(buf []byte) []byte pattern (see text_append.go)
-   → textbuf.AppendUint, textbuf.AppendAddr, textbuf.AppendPrefix
+   → textbuf.Uint, textbuf.Int, textbuf.Addr, textbuf.Prefix, textbuf.Hex, textbuf.HexUpper, textbuf.MAC
    → Never fmt.Sprintf. No exceptions.
    → Never .String() + concatenation. Use stack buffer.
 
@@ -72,21 +72,21 @@ untyped string literals: `const x = "foo" + "bar"` (the compiler folds these).
 | `"prefix:" + s` | `var b textbuf.Buffer; b.Str("prefix:").Str(s).String()` |
 | `s + strconv.Itoa(n)` | `var b textbuf.Buffer; b.Str(s).Int(int64(n)).String()` |
 | `addr.String() + "/" + strconv.Itoa(n)` | `var b textbuf.Buffer; b.Addr(addr).Byte('/').Int(int64(n)).String()` |
-| `">" + textbuf.Uint(v)` | `var b textbuf.Buffer; b.Byte('>').Uint(v).String()` |
+| `">" + textbuf.StringUint(v)` | `var b textbuf.Buffer; b.Byte('>').Uint(v).String()` |
 | `strings.Join(items, sep)` | `textbuf.Join(items, sep)` |
 
 ### fmt patterns
 
 | Pattern | Replacement |
 |---------|-------------|
-| `fmt.Sprintf("%d", n)` | `textbuf.Int(int64(n))` (standalone) or `b.Int(int64(n))` (in chain) |
+| `fmt.Sprintf("%d", n)` | `textbuf.StringInt(int64(n))` (standalone) or `b.Int(int64(n))` (in chain) |
 | `fmt.Sprintf("%s", s)` | `s` |
 | `fmt.Sprintf("%s:%d", s, n)` | `var b textbuf.Buffer; b.Str(s).Byte(':').Int(int64(n)).String()` |
 | `fmt.Sprintf("%d:%d", a, b)` | `var b textbuf.Buffer; b.Int(int64(a)).Byte(':').Int(int64(b)).String()` |
-| `fmt.Sprintf("%d.%d.%d.%d", a,b,c,d)` | `netip.AddrFrom4` + `textbuf.Addr` |
-| `fmt.Sprintf("%02x:%02x:...", mac...)` | `textbuf.MAC(mac)` |
-| `fmt.Sprintf("%x", data)` | `textbuf.Hex(data)` or `textbuf.AppendHex(buf, data)` |
-| `fmt.Sprintf("%X", data)` | `textbuf.HexUpper(data)` |
+| `fmt.Sprintf("%d.%d.%d.%d", a,b,c,d)` | `netip.AddrFrom4` + `textbuf.StringAddr(addr)` |
+| `fmt.Sprintf("%02x:%02x:...", mac...)` | `textbuf.StringMAC(mac)` |
+| `fmt.Sprintf("%x", data)` | `textbuf.StringHex(data)` or `textbuf.Hex(buf, data)` |
+| `fmt.Sprintf("%X", data)` | `textbuf.StringHexUpper(data)` or `textbuf.HexUpper(buf, data)` |
 | `fmt.Sprintf("%q", s)` | `var b textbuf.Buffer; b.Quoted(s).String()` |
 | `fmt.Sprintf("%.1f", v)` | `var b textbuf.Buffer; b.Float(v, 1).String()` |
 | `fmt.Sprintf("ctx: %v", err)` | `var b textbuf.Buffer; b.Str("ctx: ").Err(err).String()` |
@@ -95,7 +95,7 @@ untyped string literals: `const x = "foo" + "bar"` (the compiler folds these).
 | `fmt.Sprintf("127.0.0.1:%d", port)` | `textbuf.HostPort("127.0.0.1", port)` |
 | `fmt.Errorf("constant string")` | `var ErrFoo = errors.New("constant string")` at package level |
 | `fmt.Fprintf(w, "%s", s)` | `io.WriteString(w, s)` |
-| `fmt.Fprintf(w, "%d", n)` | `io.WriteString(w, textbuf.Int(int64(n)))` |
+| `fmt.Fprintf(w, "%d", n)` | `io.WriteString(w, textbuf.StringInt(int64(n)))` |
 | Sprintf in a function that discards the result | Split into no-alloc + with-string variants |
 
 ### strings patterns
@@ -217,9 +217,9 @@ for _, peer := range peers {
 
 // AppendTo: 0 alloc (caller-owned buffer, no pool needed)
 func (p *Peer) AppendTo(dst []byte) []byte {
-    dst = textbuf.AppendAddr(dst, p.Addr)
+    dst = textbuf.Addr(dst, p.Addr)
     dst = append(dst, ':')
-    dst = textbuf.AppendUint(dst, uint64(p.Port))
+    dst = textbuf.Uint(dst, uint64(p.Port))
     return dst
 }
 ```
@@ -340,12 +340,12 @@ Standalone functions for single-value returns:
 
 | Function | Returns |
 |----------|---------|
-| `textbuf.Uint(v)`, `Uint8(v)`, `Uint16(v)`, `Uint32(v)` | Decimal string |
-| `textbuf.Int(v)` | Signed decimal string |
-| `textbuf.Addr(a)` | IP address string |
-| `textbuf.Prefix(p)` | CIDR prefix string |
-| `textbuf.Hex(data)`, `HexUpper(data)` | Hex-encoded string |
-| `textbuf.MAC(mac)` | MAC address string (e.g. "de:ad:be:ef:ca:fe") |
+| `textbuf.StringUint(v)`, `textbuf.StringUint8(v)`, `textbuf.StringUint16(v)`, `textbuf.StringUint32(v)` | Decimal string |
+| `textbuf.StringInt(v)` | Signed decimal string |
+| `textbuf.StringAddr(a)` | IP address string |
+| `textbuf.StringPrefix(p)` | CIDR prefix string |
+| `textbuf.StringHex(data)`, `textbuf.StringHexUpper(data)` | Hex-encoded string |
+| `textbuf.StringMAC(mac)` | MAC address string (e.g. "de:ad:be:ef:ca:fe") |
 | `textbuf.HostPort(host, port)` | "host:port" string |
 | `textbuf.Join(items, sep)` | Joined string (replaces `strings.Join`) |
 | `textbuf.StrInt(prefix, v)` | "prefix" + decimal |
@@ -359,20 +359,21 @@ Append-into-buffer functions (for wire encoding / hot paths):
 
 | Function | Appends |
 |----------|---------|
-| `textbuf.AppendUint(dst, v)` | Decimal bytes |
-| `textbuf.AppendInt(dst, v)` | Signed decimal bytes |
-| `textbuf.AppendAddr(dst, a)` | IP address bytes |
-| `textbuf.AppendPrefix(dst, p)` | CIDR prefix bytes |
-| `textbuf.AppendHex(dst, data)` | Hex-encoded bytes |
-| `textbuf.AppendMAC(dst, mac)` | MAC address bytes |
+| `textbuf.Uint(dst, v)` | Decimal bytes |
+| `textbuf.Int(dst, v)` | Signed decimal bytes |
+| `textbuf.Addr(dst, a)` | IP address bytes |
+| `textbuf.Prefix(dst, p)` | CIDR prefix bytes |
+| `textbuf.Hex(dst, data)` | Hex-encoded bytes |
+| `textbuf.HexUpper(dst, data)` | Uppercase hex-encoded bytes |
+| `textbuf.MAC(dst, mac)` | MAC address bytes |
 
 | Pattern | Use |
 |---------|-----|
 | Multi-part string, stored | `var b textbuf.Buffer; return b.Str(...).Uint32(...).String()` |
 | Multi-part string, consumed immediately | `var b textbuf.Buffer; parse(b.Str(...).Uint32(...).Slice())` |
 | Reuse in a loop | `var b textbuf.Buffer; for ... { use(b.Reset().Str(...).Slice()) }` |
-| Single value | `return textbuf.Uint32(v)` or `return textbuf.Addr(a)` |
-| Append into `[]byte` | `textbuf.AppendUint(dst, v)`, `textbuf.AppendAddr(dst, a)` |
+| Single value | `return textbuf.StringUint32(v)` or `return textbuf.StringAddr(a)` |
+| Append into `[]byte` | `textbuf.Uint(dst, v)`, `textbuf.Addr(dst, a)` |
 
 ### Banned
 
@@ -394,8 +395,8 @@ For fingerprint/grouping key builders with repeated `|` separators, embed
 ```go
 type keyBuilder struct{ strings.Builder }
 func (b *keyBuilder) Sep()                 { b.WriteByte('|') }
-func (b *keyBuilder) Uint(v uint64)        { var buf [20]byte; b.Write(textbuf.AppendUint(buf[:0], v)) }
-func (b *keyBuilder) Addr(addr netip.Addr) { var buf [39]byte; b.Write(textbuf.AppendAddr(buf[:0], addr)) }
+func (b *keyBuilder) Uint(v uint64)        { var buf [20]byte; b.Write(textbuf.Uint(buf[:0], v)) }
+func (b *keyBuilder) Addr(addr netip.Addr) { var buf [39]byte; b.Write(textbuf.Addr(buf[:0], addr)) }
 ```
 
 ## Types Own Their Serialization
@@ -413,16 +414,16 @@ methods as a stepping stone, but track the typed refactor as follow-up.
 ```go
 func (t *MyType) AppendTo(buf []byte) []byte {
     buf = append(buf, "prefix "...)
-    buf = textbuf.AppendUint(buf, uint64(t.Field))
+    buf = textbuf.Uint(buf, uint64(t.Field))
     buf = append(buf, ':')
-    buf = textbuf.AppendAddr(buf, t.Addr)
+    buf = textbuf.Addr(buf, t.Addr)
     return buf
 }
 
 func (t *MyType) String() string {
     var b textbuf.Buffer
     // Call AppendTo on Buffer's internal slice... or just chain:
-    return textbuf.Addr(t.Addr)
+    return textbuf.StringAddr(t.Addr)
 }
 ```
 
@@ -438,7 +439,7 @@ at compile time, zero runtime cost).
 
 ```go
 // BAD: 2 allocations (Uint result + concat)
-return "peer:" + textbuf.Uint32(asn)
+return "peer:" + textbuf.StringUint32(asn)
 
 // GOOD: 1 allocation (String())
 var b textbuf.Buffer
@@ -452,7 +453,7 @@ In loops the cost compounds. Each iteration allocates, and collecting into
 // BAD: N*2 + 1 allocations
 parts := make([]string, len(items))
 for i, m := range items {
-    parts[i] = ">" + textbuf.Uint(m.Value)
+    parts[i] = ">" + textbuf.StringUint(m.Value)
 }
 return strings.Join(parts, " ")
 
@@ -464,7 +465,7 @@ for _, m := range items {
 return b.String()
 ```
 
-The standalone `textbuf.Uint32(v)` functions are for **single-value returns**
+The standalone `textbuf.StringUint32(v)` functions are for **single-value returns**
 (the entire result is one formatted value). For anything multi-part, use a Buffer.
 
 ## Self-Check

@@ -315,7 +315,7 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			// Keyless list: auto-generate a sequential key.
 			if listNode, ok := findListNode(schema, path); ok && listNode.KeyName == "" {
 				existing := collectListKeys(mgr.Tree(username), schema, path)
-				path = append(path, textbuf.Int(int64(len(existing)+1)))
+				path = append(path, textbuf.StringInt(int64(len(existing)+1)))
 			}
 		}
 

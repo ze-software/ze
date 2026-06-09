@@ -133,7 +133,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		return "", err
 	}
 
-	return textbuf.HexUpper(buf[:n]), nil
+	return textbuf.StringHexUpper(buf[:n]), nil
 }
 
 // EncodeRoute encodes a MUP route command into UPDATE body bytes and NLRI bytes.

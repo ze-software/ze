@@ -58,7 +58,7 @@ func DecodeMessageBytes(data []byte) (*DecodedMessage, error) {
 	msg := &DecodedMessage{
 		Length:   int(binary.BigEndian.Uint16(data[16:18])),
 		TypeCode: data[18],
-		Raw:      textbuf.HexUpper(data),
+		Raw:      textbuf.StringHexUpper(data),
 	}
 
 	switch msg.TypeCode {
@@ -147,7 +147,7 @@ func decodeNotification(msg *DecodedMessage, body []byte) {
 
 	msg.Attributes = append(msg.Attributes,
 		DecodedAttribute{Name: "error-code", Value: textbuf.StrIntStr("", int64(errCode), " ("+notificationErrorName(errCode)+")")},
-		DecodedAttribute{Name: "error-subcode", Value: textbuf.Int(int64(errSubcode))},
+		DecodedAttribute{Name: "error-subcode", Value: textbuf.StringInt(int64(errSubcode))},
 	)
 
 	if len(body) > 2 {

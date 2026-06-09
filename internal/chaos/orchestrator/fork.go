@@ -152,7 +152,7 @@ func ForkDaemon(ctx context.Context, config, binary string, target scenario.Targ
 	case scenario.TargetFRR:
 		args = []string{
 			"-f", tmpPath,
-			"-p", textbuf.Int(int64(port)),
+			"-p", textbuf.StringInt(int64(port)),
 			"-l", localAddr,
 			"-P", "0",
 		}

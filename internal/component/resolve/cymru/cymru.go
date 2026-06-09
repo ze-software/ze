@@ -52,14 +52,14 @@ func New(resolveTXT TXTResolver, c *cache.Cache[string]) *CymruResolver {
 // LookupASNName returns the organization name for the given ASN.
 // Returns ("", nil) on any failure -- graceful degradation, never error.
 func (r *CymruResolver) LookupASNName(ctx context.Context, asn uint32) (string, error) {
-	key := "asn:" + textbuf.Uint32(asn)
+	key := "asn:" + textbuf.StringUint32(asn)
 
 	// Check cache first.
 	if name, ok := r.cache.Get(key); ok {
 		return name, nil
 	}
 
-	query := "AS" + textbuf.Uint32(asn) + ".asn.cymru.com."
+	query := "AS" + textbuf.StringUint32(asn) + ".asn.cymru.com."
 
 	records, err := r.resolveTXT(ctx, query)
 	if err != nil {

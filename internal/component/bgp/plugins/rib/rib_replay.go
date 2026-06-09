@@ -388,18 +388,18 @@ func appendAllAttrs(b *textbuf.Buffer, route *Route) {
 			if i > 0 {
 				b.Byte(' ')
 			}
-			b.Str(textbuf.Uint32(asn))
+			b.Str(textbuf.StringUint32(asn))
 		}
 		b.Str("] ")
 	}
 	if route.MED != nil {
 		b.Str("med ")
-		b.Str(textbuf.Uint32(*route.MED))
+		b.Str(textbuf.StringUint32(*route.MED))
 		b.Byte(' ')
 	}
 	if route.LocalPreference != nil {
 		b.Str("local-preference ")
-		b.Str(textbuf.Uint32(*route.LocalPreference))
+		b.Str(textbuf.StringUint32(*route.LocalPreference))
 		b.Byte(' ')
 	}
 	if len(route.Communities) > 0 {
@@ -456,7 +456,7 @@ func appendAttrDelta(b *textbuf.Buffer, prev, curr *Route) {
 				if i > 0 {
 					b.Byte(' ')
 				}
-				b.Str(textbuf.Uint32(asn))
+				b.Str(textbuf.StringUint32(asn))
 			}
 			b.Str("] ")
 		} else {
@@ -466,7 +466,7 @@ func appendAttrDelta(b *textbuf.Buffer, prev, curr *Route) {
 	if !uint32PtrEqual(prev.MED, curr.MED) {
 		if curr.MED != nil {
 			b.Str("med ")
-			b.Str(textbuf.Uint32(*curr.MED))
+			b.Str(textbuf.StringUint32(*curr.MED))
 			b.Byte(' ')
 		} else {
 			b.Str("del med ")
@@ -475,7 +475,7 @@ func appendAttrDelta(b *textbuf.Buffer, prev, curr *Route) {
 	if !uint32PtrEqual(prev.LocalPreference, curr.LocalPreference) {
 		if curr.LocalPreference != nil {
 			b.Str("local-preference ")
-			b.Str(textbuf.Uint32(*curr.LocalPreference))
+			b.Str(textbuf.StringUint32(*curr.LocalPreference))
 			b.Byte(' ')
 		} else {
 			b.Str("del local-preference ")

@@ -575,7 +575,7 @@ func formatTracerouteLogMap(hops []tracerouteHop, resolve, origin bool) string {
 		}
 	}
 
-	numW := len(textbuf.Int(int64(len(hops))))
+	numW := len(textbuf.StringInt(int64(len(hops))))
 	colW := numW + 1 + maxAddrLen + 2
 
 	var sb textbuf.Buffer
@@ -586,7 +586,7 @@ func formatTracerouteLogMap(hops []tracerouteHop, resolve, origin bool) string {
 			sb.Byte('\n')
 			col = 0
 		}
-		num := textbuf.Int(int64(i + 1))
+		num := textbuf.StringInt(int64(i + 1))
 		tbPadLeft(&sb, num, numW)
 		sb.Byte(':')
 		tbPadLeft(&sb, addr, maxAddrLen)
@@ -625,7 +625,7 @@ func formatTracerouteLogHeader(hops []tracerouteHop) string {
 	sb.Reset(128)
 	tbPadRight(&sb, "Rnd", 5)
 	for i := range hops {
-		tbPadRight(&sb, textbuf.Int(int64(i+1)), tracerouteLogColWidth)
+		tbPadRight(&sb, textbuf.StringInt(int64(i+1)), tracerouteLogColWidth)
 	}
 	return sb.String()
 }
@@ -635,7 +635,7 @@ func formatTracerouteLogHeader(hops []tracerouteHop) string {
 func formatTracerouteLogLine(hops []tracerouteHop, round int) string {
 	var sb textbuf.Buffer
 	sb.Reset(128)
-	tbPadRight(&sb, textbuf.Int(int64(round)), 5)
+	tbPadRight(&sb, textbuf.StringInt(int64(round)), 5)
 	for i := range hops {
 		h := &hops[i]
 		if len(h.paths) == 0 {
@@ -761,7 +761,7 @@ func renderPathLine(sb *textbuf.Buffer, hopNum string, p *traceroutePathStats, a
 	sb.Str(lossStyle.Render(lossBuf.String()))
 
 	sb.Byte(' ')
-	tbPadLeft(sb, textbuf.Int(int64(p.sent)), 4)
+	tbPadLeft(sb, textbuf.StringInt(int64(p.sent)), 4)
 
 	if p.recv > 0 {
 		sb.Byte(' ')
@@ -799,7 +799,7 @@ func renderPathLinePlain(sb *textbuf.Buffer, hopNum string, p *traceroutePathSta
 	sb.Byte(' ')
 	tbPadLeft(sb, lossText, 6)
 	sb.Byte(' ')
-	tbPadLeft(sb, textbuf.Int(int64(p.sent)), 4)
+	tbPadLeft(sb, textbuf.StringInt(int64(p.sent)), 4)
 
 	if p.recv > 0 {
 		sb.Byte(' ')
@@ -873,7 +873,7 @@ func (m Model) renderTraceroute() string {
 
 	for i := range ts.hops {
 		h := &ts.hops[i]
-		hopNum := textbuf.Int(int64(i + 1))
+		hopNum := textbuf.StringInt(int64(i + 1))
 		for j := range h.paths {
 			label := hopNum
 			if j > 0 {
@@ -961,7 +961,7 @@ func (m Model) renderTraceroutePlain() string {
 
 	for i := range ts.hops {
 		h := &ts.hops[i]
-		hopNum := textbuf.Int(int64(i + 1))
+		hopNum := textbuf.StringInt(int64(i + 1))
 		for j := range h.paths {
 			label := hopNum
 			if j > 0 {

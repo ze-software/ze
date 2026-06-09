@@ -71,7 +71,7 @@ func (t MVPNRouteType) String() string {
 	case MVPNSourceTreeJoin:
 		return "source-tree-join"
 	default:
-		return "type(" + textbuf.Uint8(uint8(t)) + ")"
+		return "type(" + textbuf.StringUint8(uint8(t)) + ")"
 	}
 }
 

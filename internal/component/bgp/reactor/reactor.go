@@ -928,7 +928,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		var ridBuf textbuf.Buffer
 		routerID := ridBuf.Reset().Uint(uint64(r.config.RouterID >> 24 & 0xFF)).Byte('.').Uint(uint64(r.config.RouterID >> 16 & 0xFF)).Byte('.').Uint(uint64(r.config.RouterID >> 8 & 0xFF)).Byte('.').Uint(uint64(r.config.RouterID & 0xFF)).String()
 		r.rmetrics = initReactorMetrics(r.metricsRegistry, version,
-			routerID, textbuf.Uint(uint64(r.config.LocalAS)))
+			routerID, textbuf.StringUint(uint64(r.config.LocalAS)))
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
 		go r.metricsUpdateLoop()
 	}

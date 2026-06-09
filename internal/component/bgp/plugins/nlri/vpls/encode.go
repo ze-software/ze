@@ -101,7 +101,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 	}
 
 	v := NewVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
-	return textbuf.HexUpper(v.Bytes()), nil
+	return textbuf.StringHexUpper(v.Bytes()), nil
 }
 
 // EncodeRoute encodes a VPLS route command into UPDATE body bytes and NLRI bytes.

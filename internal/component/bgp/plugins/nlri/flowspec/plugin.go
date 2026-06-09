@@ -107,7 +107,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		return "", err
 	}
 
-	return textbuf.HexUpper(wireBytes), nil
+	return textbuf.StringHexUpper(wireBytes), nil
 }
 
 // GetFlowSpecYANG returns the embedded YANG schema for the flowspec plugin.

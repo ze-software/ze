@@ -238,7 +238,7 @@ func formatNumericValue(m FlowMatch, compType FlowComponentType) string {
 	}
 
 	// Format with operator prefix
-	return formatWithOperator(textbuf.Uint(m.Value), m.Op)
+	return formatWithOperator(textbuf.StringUint(m.Value), m.Op)
 }
 
 // formatWithOperator adds operator prefix to a value string.
@@ -403,9 +403,9 @@ func formatComponentValue(_ string, val any) string {
 	case int:
 		return strconv.Itoa(v)
 	case uint64:
-		return textbuf.Uint(v)
+		return textbuf.StringUint(v)
 	case uint32:
-		return textbuf.Uint32(v)
+		return textbuf.StringUint32(v)
 	case [][]string:
 		var parts []string
 		for _, group := range v {

@@ -68,7 +68,7 @@ func (t MUPRouteType) String() string {
 	case MUPT2ST:
 		return "t2st"
 	default:
-		return "type(" + textbuf.Uint8(uint8(t)) + ")"
+		return "type(" + textbuf.StringUint8(uint8(t)) + ")"
 	}
 }
 
