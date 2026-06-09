@@ -38,18 +38,37 @@ func newMux(cfg imageConfig, zefsPath, serverAddr string) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	if cfg.ImageDirectory != "" {
-		mux.HandleFunc("/install/image/", h.serveImage)
+		mux.HandleFunc("/install/image/", logRequest(h.serveImage))
 	}
 	if cfg.BootDirectory != "" {
 		if serverAddr != "" {
-			mux.HandleFunc("/install/boot/boot.ipxe", h.serveBootIPXE)
+			mux.HandleFunc("/install/boot/boot.ipxe", logRequest(h.serveBootIPXE))
 		}
-		mux.HandleFunc("/install/boot/", h.serveBoot)
+		mux.HandleFunc("/install/boot/", logRequest(h.serveBoot))
 	}
 	if zefsPath != "" {
-		mux.HandleFunc("/install/database.zefs", h.serveZefs)
+		mux.HandleFunc("/install/database.zefs", logRequest(h.serveZefs))
 	}
 	return mux
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func logRequest(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next(rec, r)
+		log := loggerPtr.Load()
+		log.Info("imageserver: request", "method", r.Method, "path", r.URL.Path, "remote", r.RemoteAddr, "status", rec.status)
+	}
 }
 
 func buildZefsDB(dir, username, passwordHash string) (string, error) {

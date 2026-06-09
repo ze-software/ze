@@ -553,8 +553,14 @@ races against NIC carrier detection and times out before the link comes up. The
 initrd detects this by checking `/proc/net/route` for a default route. When none
 exists, it brings up all non-loopback interfaces, waits up to 10 seconds for
 carrier, and runs `udhcpc` on each interface until one obtains a lease. If no
-lease is acquired, the installer drops to a debug shell.
-<!-- source: tools/installer-initrd/init -- ensure_network, has_default_route -->
+lease is acquired, the installer drops to a debug shell. Even after the network
+is configured, the install server may not be reachable yet (switch STP port
+transitions can block traffic for 30-50 seconds after a reboot). The initrd
+probes the server with a 2-second timeout, retrying up to 30 times. Each probe
+distinguishes "TCP unreachable" from "HTTP error response" so a server that
+returns 404 is still considered reachable. Interface state and routing tables are
+logged every 10 attempts for diagnostics.
+<!-- source: tools/installer-initrd/init -- ensure_network, has_default_route, wait_for_server, log_network_state -->
 Existing `ze install remote` deployments need no `ze.source` change because the
 default source is `http`.
 <!-- source: tools/installer-initrd/init -- parse_cmdline, validate_source -->

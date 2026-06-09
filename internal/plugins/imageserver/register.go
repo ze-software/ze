@@ -139,6 +139,9 @@ func runImageServerPlugin(conn net.Conn) int {
 			MaxHeaderBytes:    1 << 16,
 		}
 
+		logAvailableFiles(log, "image-directory", cfg.ImageDirectory)
+		logAvailableFiles(log, "boot-directory", cfg.BootDirectory)
+
 		go func() {
 			log.Info("imageserver: started",
 				"addr", addr,
@@ -210,5 +213,26 @@ type closer interface {
 func closeLogged(c closer, log *slog.Logger, what string) {
 	if err := c.Close(); err != nil {
 		log.Debug("imageserver: close failed", "what", what, "error", err)
+	}
+}
+
+func logAvailableFiles(log *slog.Logger, label, dir string) {
+	if dir == "" {
+		return
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		log.Warn("imageserver: cannot list directory", "label", label, "dir", dir, "error", err)
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		info, infoErr := e.Info()
+		if infoErr != nil {
+			continue
+		}
+		log.Info("imageserver: serving file", "label", label, "name", e.Name(), "size", info.Size())
 	}
 }

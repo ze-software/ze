@@ -18,6 +18,7 @@ set -e
 
 RETRY_MAX=3
 RETRY_DELAY=5
+WGET_TIMEOUT=10
 ISO_SCAN_MAX=10
 ISO_SCAN_DELAY=1
 
@@ -333,16 +334,24 @@ download() {
     url="$1"
     dest="$2"
     attempt=1
+    dl_retry_delay="$RETRY_DELAY"
 
     while [ "$attempt" -le "$RETRY_MAX" ]; do
         log "Downloading $url (attempt $attempt/$RETRY_MAX)"
-        if wget -q -O "$dest" "$url" 2>/dev/null; then
+        dl_err="/tmp/ze-dl.err"
+        if wget -T "$WGET_TIMEOUT" -q -O "$dest" "$url" 2>"$dl_err"; then
             return 0
+        fi
+        dl_rc=$?
+        if [ -s "$dl_err" ]; then
+            log "  wget failed (rc=$dl_rc): $(cat "$dl_err")"
+        else
+            log "  wget failed (rc=$dl_rc)"
         fi
         attempt=$((attempt + 1))
         if [ "$attempt" -le "$RETRY_MAX" ]; then
-            sleep "$RETRY_DELAY"
-            RETRY_DELAY=$((RETRY_DELAY * 2))
+            sleep "$dl_retry_delay"
+            dl_retry_delay=$((dl_retry_delay * 2))
         fi
     done
 
@@ -384,7 +393,7 @@ download_to_disk() {
         # The pipeline lives in an `if` so `set -e` never aborts on a dd
         # failure here: failures must flow into the retry loop below, not kill
         # the script. (Do not rely on the caller's context to suppress -e.)
-        if { wget -q -O - "$url" 2>"$WGET_ERR"; echo $? > "$WGET_RC_FILE"; } \
+        if { wget -T "$WGET_TIMEOUT" -q -O - "$url" 2>"$WGET_ERR"; echo $? > "$WGET_RC_FILE"; } \
             | tee "$fifo" \
             | dd of="$disk" bs=4M 2>/dev/null; then
             dd_rc=0
@@ -407,7 +416,7 @@ download_to_disk() {
             fi
             if [ "$attempt" -eq 1 ]; then
                 log "DIAG net: route=$(cat /proc/net/route 2>&1 | tr '\n' ';')"
-                diag_n="$(wget -O - "$url" 2>/tmp/ze-diag.err | wc -c)"
+                diag_n="$(wget -T "$WGET_TIMEOUT" -O - "$url" 2>/tmp/ze-diag.err | wc -c)"
                 diag_rc=$?
                 log "DIAG direct: bytes=${diag_n} piperc=${diag_rc} err=[$(cat /tmp/ze-diag.err 2>/dev/null)]"
             fi
@@ -633,6 +642,57 @@ ensure_network() {
     return 1
 }
 
+log_network_state() {
+    for iface in /sys/class/net/*; do
+        ifname=$(basename "$iface")
+        case "$ifname" in lo) continue ;; esac
+        carrier="$(cat "$iface/carrier" 2>/dev/null || echo "?")"
+        operstate="$(cat "$iface/operstate" 2>/dev/null || echo "?")"
+        log "  $ifname: carrier=$carrier operstate=$operstate"
+    done
+    if [ -f /proc/net/route ]; then
+        while read -r iface dest gw _ _ _ _ mask _; do
+            case "$iface" in Iface) continue ;; esac
+            log "  route: $iface dest=$dest gw=$gw mask=$mask"
+        done < /proc/net/route
+    fi
+}
+
+wait_for_server() {
+    server="$1"
+    port="$2"
+    max_attempts=30
+    attempt=0
+
+    log "Checking connectivity to $server:$port..."
+    while [ "$attempt" -lt "$max_attempts" ]; do
+        probe_err="/tmp/ze-probe.err"
+        if wget -T 2 --spider -q "http://${server}:${port}/" 2>"$probe_err"; then
+            log "Server reachable (attempt $((attempt + 1))/$max_attempts)"
+            return 0
+        fi
+        # --spider returns non-zero for HTTP errors too; a 404 still proves
+        # the TCP connection succeeded. Only "can't connect" means unreachable.
+        if [ -s "$probe_err" ] && ! grep -q "can't connect" "$probe_err" 2>/dev/null; then
+            log "Server reachable (attempt $((attempt + 1))/$max_attempts, got HTTP response)"
+            return 0
+        fi
+        if [ "$attempt" = "0" ] || [ "$((attempt % 10))" = "0" ]; then
+            log "Waiting for server (attempt $((attempt + 1))/$max_attempts)..."
+            if [ -s "$probe_err" ]; then
+                log "  probe: $(cat "$probe_err")"
+            fi
+            log_network_state
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+
+    log "Server not reachable after $max_attempts attempts"
+    log_network_state
+    return 1
+}
+
 # -- main --
 
 main() {
@@ -683,7 +743,13 @@ main() {
         log "Server: $ZE_SERVER:$ZE_PORT"
 
         if ! ensure_network; then
+            log "Network state at failure:"
+            log_network_state
             fatal "No network connectivity; cannot proceed with HTTP install"
+        fi
+
+        if ! wait_for_server "$ZE_SERVER" "$ZE_PORT"; then
+            fatal "Server $ZE_SERVER:$ZE_PORT not reachable after waiting"
         fi
     else
         iso_found=0

@@ -40,7 +40,7 @@ $(INITRD): check-busybox init
 	cp "$(BUSYBOX)" $(ROOTFS)/bin/busybox
 	chmod 755 $(ROOTFS)/bin/busybox
 	for cmd in sh cat echo mount umount mkdir sleep wget dd sync \
-		reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee wc tr ip gunzip \
+		reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee wc tr ip gunzip grep \
 		losetup mknod; do \
 		ln -sf busybox $(ROOTFS)/bin/$$cmd; \
 	done
@@ -61,4 +61,6 @@ test:
 	@sh test/test-download.sh
 	@sh test/test-ventoy-detect.sh
 	@sh test/test-ensure-network.sh
+	@echo "---"
+	@sh test/test-connectivity.sh
 	@echo "All tests passed."
