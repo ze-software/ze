@@ -29,6 +29,22 @@ PROJECT_DIR = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..")
 )
 
+# textbuf type serializer reference (internal/core/textbuf)
+# UPDATE when spec-textbuf-api-rename lands: Append* -> bare, bare -> String*
+_TEXTBUF_REF = (
+    "  textbuf type serializers (internal/core/textbuf):\n"
+    "  Standalone:  Uint(u64) Uint8 Uint16 Uint32 Int(i64) Addr(netip.Addr)\n"
+    "               Prefix(netip.Prefix) Hex([]byte) HexUpper([]byte) MAC([]byte)\n"
+    "               HostPort(host,port) Join([]string,sep)\n"
+    "               StrInt StrUint IntStr UintStr StrIntStr StrUintStr\n"
+    "  Chain (.):   Str Byte Uint Uint8 Uint16 Uint32 Int Addr Prefix\n"
+    "               Hex HexUpper MAC Float(v,prec) Float2 Bool Quoted Err\n"
+    "               Join PadRight PadLeft Repeat HostPort HostPortN Colored\n"
+    "  Append:      AppendUint AppendInt AppendAddr AppendPrefix AppendHex AppendMAC\n"
+    "  Extract:     .String() (1 alloc)  .Slice() (0-copy, freezes)  .Bytes() (raw)\n"
+    "  Reuse:       var tb textbuf.Buffer; ... tb.Reset() between uses"
+)
+
 
 # --------------------------------------------------------------------------- #
 # Shared helpers
@@ -163,9 +179,20 @@ def c_and_functions(ctx):
         ctx["content"], r"^func[ \t]+(\([^)]+\)[ \t]+)?[A-Z][a-zA-Z]*And[A-Z]"
     )
     if hits:
+        names = []
+        for n, l in hits[:4]:
+            m = re.search(
+                r"func[ \t]+(?:\([^)]+\)[ \t]+)?([A-Z][a-zA-Z]*And[A-Z][a-zA-Z]*)", l
+            )
+            names.append(f"  L{n}: {m.group(1) if m else l.strip()}")
+        detail = "\n".join(names)
+        fix = (
+            "\n  Split into two functions, one per responsibility.\n"
+            "  e.g. ParseAndValidate -> Parse + Validate (called sequentially by caller)"
+        )
         return (
             1,
-            f"{RED}{BOLD}❌ BLOCKED: Single responsibility violation{RESET} (function with 'And' in name)",
+            f"{RED}{BOLD}❌ BLOCKED: Single responsibility violation{RESET} (function with 'And' in name)\n{detail}{fix}",
         )
     return None
 
@@ -184,7 +211,17 @@ def c_os_exit(ctx):
         grep_lines(ctx["content"], r"os\.Exit\("), r"//.*os\.Exit", ignorecase=True
     )
     if hits:
-        return (2, f"{RED}{BOLD}❌ BLOCKED: os.Exit() in handler{RESET}")
+        lines = [f"  L{n}: {l.strip()}" for n, l in hits[:4]]
+        detail = "\n".join(lines)
+        fix = (
+            "\n  Return an error instead. os.Exit() is only allowed in:\n"
+            "    main.go, register.go, scripts/, _test.go\n"
+            '  Pattern: return fmt.Errorf("context: %w", err)  -- let main() handle exit'
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: os.Exit() in handler{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -198,7 +235,18 @@ def c_panic(ctx):
         r'panic[ \t]*\([ \t]*"(unreachable|not implemented|unimplemented|TODO|BUG|impossible)',
     )
     if hits:
-        return (2, f"{RED}❌ Return error, don't panic(){RESET}")
+        lines = [f"  L{n}: {l.strip()}" for n, l in hits[:4]]
+        detail = "\n".join(lines)
+        fix = (
+            "\n  Return an error instead of panicking.\n"
+            "  Allowed panic strings (auto-excluded from this check):\n"
+            '    panic("unreachable"), panic("not implemented"),\n'
+            '    panic("TODO"), panic("BUG"), panic("impossible")'
+        )
+        return (
+            2,
+            f"{RED}❌ Return error, don't panic(){RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -222,7 +270,16 @@ def c_raw_ansi(ctx):
         r"//.*\\033",
     )
     if hits:
-        return (2, f"{RED}{BOLD}✘ BLOCKED: raw ANSI escape code in {fp}{RESET}")
+        lines = [f"  L{n}: {l.strip()}" for n, l in hits[:4]]
+        detail = "\n".join(lines)
+        fix = (
+            "\n  Use internal/core/textbuf helpfmt constants instead of raw escapes.\n"
+            "  Raw ANSI is only allowed in: textbuf.go, helpfmt.go, _test.go"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}✘ BLOCKED: raw ANSI escape code in {fp}{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -240,7 +297,14 @@ def c_legacy_log(ctx):
         r"(^|[^A-Za-z0-9_])log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)([^A-Za-z0-9_]|$)",
     )
     if a or b:
-        return (2, f"{RED}❌ Use slog, not log package{RESET}")
+        fix = (
+            '\n  Replace "log" import with "log/slog" and use structured logging:\n'
+            '    log.Printf("msg: %v", err)   -> slog.Error("msg", "error", err)\n'
+            '    log.Println("starting")       -> slog.Info("starting")\n'
+            "    log.Fatalf(...)               -> return fmt.Errorf(...)  (let main handle exit)\n"
+            "  Allowed in: _test.go, scripts/"
+        )
+        return (2, f"{RED}❌ Use slog, not log package{RESET}{fix}")
     return None
 
 
@@ -260,7 +324,28 @@ def c_sprintf_new(ctx):
         r"//.*strconv\.Format",
     )
     if h1 or h2:
-        return (2, f"{RED}{BOLD}✘ BLOCKED: banned format primitive in {fp}{RESET}")
+        lines = []
+        for n, l in (h1 + h2)[:6]:
+            lines.append(f"  L{n}: {l.strip()}")
+        detail = "\n".join(lines)
+        fix = (
+            "\n  Replacements (ai/rules/no-sprintf-alloc.md):\n"
+            '    fmt.Sprintf("%s: %v", x, err)    -> var tb textbuf.Buffer; tb.Str(x).Str(": ").Err(err).String()\n'
+            "    fmt.Sprintf(\"%s:%d\", s, n)        -> var tb textbuf.Buffer; tb.Str(s).Byte(':').Int(int64(n)).String()\n"
+            '    fmt.Sprintf("%d", n)              -> textbuf.Int(int64(n))  or  textbuf.Uint(uint64(n))\n'
+            '    fmt.Sprintf("%q", s)              -> var tb textbuf.Buffer; tb.Quoted(s).String()\n'
+            "    strconv.FormatUint(v, 10)         -> textbuf.Uint(v)\n"
+            "    strconv.FormatInt(v, 10)          -> textbuf.Int(v)\n"
+            "  ALLOWED (do NOT change):\n"
+            '    fmt.Errorf("context: %w", err)    -- error wrapping is the intended use\n'
+            "    fmt.Fprintf(os.Stdout, ...)        -- CLI output\n"
+            '    fmt.Sprintf("%v", anyVal)          -- arbitrary-type; no textbuf path\n'
+            '    fmt.Sprintf("%T", val)             -- reflect-based type name\n'
+        ) + _TEXTBUF_REF
+        return (
+            2,
+            f"{RED}{BOLD}✘ BLOCKED: banned format primitive in {fp}{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -276,7 +361,24 @@ def c_string_concat(ctx):
     hits = filter_out(hits, r"filepath\.(Join|Dir|Base)")
     hits = filter_out(hits, r"path\.(Join|Dir|Base)")
     if hits:
-        return (2, f"{RED}{BOLD}BLOCKED: string + concatenation in {fp}{RESET}")
+        lines = []
+        for n, l in hits[:6]:
+            lines.append(f"  L{n}: {l.strip()}")
+        detail = "\n".join(lines)
+        fix = (
+            "\n  Replacements (ai/rules/no-sprintf-alloc.md):\n"
+            "    a + \"/\" + b              -> var tb textbuf.Buffer; tb.Str(a).Byte('/').Str(b).String()\n"
+            "    \"#\" + id                 -> var tb textbuf.Buffer; tb.Byte('#').Str(id).String()\n"
+            '    "prefix:" + s            -> var tb textbuf.Buffer; tb.Str("prefix:").Str(s).String()\n'
+            "    s + strconv.Itoa(n)      -> var tb textbuf.Buffer; tb.Str(s).Int(int64(n)).String()\n"
+            '    "KEY=" + val             -> var tb textbuf.Buffer; tb.Str("KEY=").Str(val).String()\n'
+            "  Use ONE buffer per function, .Reset() between uses.\n"
+            "  Single-char prefix: use .Byte('#') not .Str(\"#\")\n"
+        ) + _TEXTBUF_REF
+        return (
+            2,
+            f"{RED}{BOLD}BLOCKED: string + concatenation in {fp}{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -305,19 +407,55 @@ def c_temp_debug(ctx):
             ignorecase=True,
         )
     ):
-        return (2, f"{RED}{BOLD}❌ BLOCKED: Temporary debug statement{RESET}")
+        found = []
+        for n, l in grep_lines(content, r"^[ \t]*println[ \t]*\(")[:2]:
+            found.append(f"  L{n}: println(...)  -> use slog or remove")
+        for n, l in grep_lines(content, r"fmt\.Fprint.*os\.Stderr")[:2]:
+            found.append(
+                f"  L{n}: fmt.Fprint(os.Stderr, ...) -> use slog.Error or remove"
+            )
+        for n, l in grep_lines(
+            content,
+            r'fmt\.Print.*"(DEBUG|debug|TRACE|trace|>>>|<<<|---|\*\*\*|XXX|FIXME)',
+            ignorecase=True,
+        )[:2]:
+            found.append(f"  L{n}: debug print -> remove")
+        for n, l in filter_out(
+            grep_lines(content, r'fmt\.Println[ \t]*\([ \t]*"[^"]{1,50}"[ \t]*\)'),
+            r"error|fail|warn|usage|help|version",
+            ignorecase=True,
+        )[:2]:
+            found.append(f'  L{n}: fmt.Println("...") -> use slog or remove')
+        detail = "\n".join(found[:4]) if found else ""
+        fix = (
+            "\n  Remove debug statements. Use slog for permanent logging.\n"
+            "  Allowed in: _test.go, cmd/, scripts/, register.go"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: Temporary debug statement{RESET}\n{detail}{fix}",
+        )
     return None
 
 
 def c_nolint(ctx):
     if not _go_we(ctx):
         return None
-    bad = False
-    for _, line in grep_lines(ctx["content"], r"//[ \t]*nolint"):
+    bad_lines = []
+    for n, line in grep_lines(ctx["content"], r"//[ \t]*nolint"):
         if not re.search(r"//[ \t]*nolint:[a-zA-Z,]+[ \t]+//", line):
-            bad = True
-    if bad:
-        return (2, f"{RED}{BOLD}❌ BLOCKED: nolint without justification{RESET}")
+            bad_lines.append((n, line))
+    if bad_lines:
+        lines = [f"  L{n}: {l.strip()}" for n, l in bad_lines[:4]]
+        detail = "\n".join(lines)
+        fix = (
+            "\n  Required format: //nolint:lintername // justification reason\n"
+            "  Example: //nolint:gosec // args are test-controlled, not user input"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: nolint without justification{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -325,10 +463,22 @@ def c_json_kebab(ctx):
     fp = ctx["fp"]
     if not _go_we(ctx) or re.search(r"_test\.go$", fp):
         return None
-    if grep_lines(ctx["content"], r'`.*json:"[a-z]+[A-Z]') or grep_lines(
-        ctx["content"], r'`.*json:"[a-z]+_[a-z]'
-    ):
-        return (2, f"{RED}{BOLD}❌ BLOCKED: Non-kebab-case JSON tags{RESET}")
+    camel = grep_lines(ctx["content"], r'`.*json:"[a-z]+[A-Z]')
+    snake = grep_lines(ctx["content"], r'`.*json:"[a-z]+_[a-z]')
+    if camel or snake:
+        hits = (camel + snake)[:4]
+        lines = [f"  L{n}: {l.strip()}" for n, l in hits]
+        detail = "\n".join(lines)
+        fix = (
+            "\n  JSON tags must use kebab-case to match YANG/config naming:\n"
+            '    camelCase "peerAddr"  -> "peer-addr"\n'
+            '    snake_case "peer_addr" -> "peer-addr"\n'
+            "  See ai/rules/json-format.md"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: Non-kebab-case JSON tags{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -349,8 +499,18 @@ def c_yagni(ctx):
         "not yet implemented.*TODO",
     ]
     for p in pats:
-        if grep_lines(ctx["content"], p, ignorecase=True):
-            return (2, f"{RED}{BOLD}❌ BLOCKED: YAGNI violation{RESET}")
+        hits = grep_lines(ctx["content"], p, ignorecase=True)
+        if hits:
+            lines = [f"  L{n}: {l.strip()}" for n, l in hits[:3]]
+            detail = "\n".join(lines)
+            fix = (
+                "\n  Remove speculative code/comments. Build only what is needed now.\n"
+                "  If future work is planned, track it in a spec, not in source comments."
+            )
+            return (
+                2,
+                f"{RED}{BOLD}❌ BLOCKED: YAGNI violation{RESET}\n{detail}{fix}",
+            )
     return None
 
 
@@ -358,11 +518,23 @@ def c_ignored_errors(ctx):
     if not _go_we(ctx):
         return None
     content = ctx["content"]
-    if grep_lines(
+    h1 = grep_lines(
         content,
         r"^[ \t]*_[ \t]*=[ \t]*[A-Za-z0-9_]+\.(Close|Write|Read|Flush|Sync|Remove|Mkdir|Chmod)[ \t]*\(",
-    ) or grep_lines(content, r"^[ \t]*_[ \t]*,[ \t]*_[ \t]*="):
-        return (2, f"{RED}❌ Handle errors: if err != nil {{ }}{RESET}")
+    )
+    h2 = grep_lines(content, r"^[ \t]*_[ \t]*,[ \t]*_[ \t]*=")
+    if h1 or h2:
+        lines = [f"  L{n}: {l.strip()}" for n, l in (h1 + h2)[:4]]
+        detail = "\n".join(lines)
+        fix = (
+            "\n  Handle the error explicitly:\n"
+            "    _ = f.Close()           -> if err := f.Close(); err != nil { ... }\n"
+            "    _, _ = io.Copy(w, r)    -> n, err := io.Copy(w, r)"
+        )
+        return (
+            2,
+            f"{RED}❌ Handle errors: if err != nil {{ }}{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -382,8 +554,19 @@ def c_layering(ctx):
         r"deprecated.?but.?kept",
     ]
     for p in pats:
-        if grep_lines(ctx["content"], p, ignorecase=True):
-            return (2, f"{RED}{BOLD}❌ BLOCKED: Layering/compatibility pattern{RESET}")
+        hits = grep_lines(ctx["content"], p, ignorecase=True)
+        if hits:
+            lines = [f"  L{n}: {l.strip()}" for n, l in hits[:3]]
+            detail = "\n".join(lines)
+            fix = (
+                "\n  Ze does not maintain compatibility layers. Replace old code directly.\n"
+                "  No shims, no gradual migrations, no deprecated-but-kept paths.\n"
+                "  If breaking a format, update all consumers in the same change."
+            )
+            return (
+                2,
+                f"{RED}{BOLD}❌ BLOCKED: Layering/compatibility pattern{RESET}\n{detail}{fix}",
+            )
     return None
 
 
@@ -407,7 +590,16 @@ def c_exabgp(ctx):
     if grep_any(content, r'".*internal/exabgp"') and not re.search(r"cmd/ze/", fp):
         errs = True
     if errs:
-        return (2, f"{RED}{BOLD}❌ BLOCKED: ExaBGP in engine{RESET}")
+        fix = (
+            "\n  ExaBGP references are only allowed in:\n"
+            "    internal/exabgp/   (migration/compat package)\n"
+            "    cmd/ze/exabgp/     (CLI subcommand)\n"
+            "  The engine must not reference ExaBGP formats or naming."
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: ExaBGP in engine{RESET}{fix}",
+        )
     return None
 
 
@@ -425,8 +617,19 @@ def c_goroutine(ctx):
     )
     if not hot:
         return None
-    if grep_lines(ctx["content"], r"^[ \t]*go func\("):
-        return (2, f"{RED}{BOLD}❌ BLOCKED: Per-event goroutine in hot path{RESET}")
+    hits = grep_lines(ctx["content"], r"^[ \t]*go func\(")
+    if hits:
+        lines = [f"  L{n}: {l.strip()}" for n, l in hits[:4]]
+        detail = "\n".join(lines)
+        fix = (
+            "\n  No per-event goroutines in hot paths (reactor, event, dispatch, hub, wire, message).\n"
+            "  Use long-lived worker goroutines started at component init.\n"
+            "  See ai/rules/goroutine-lifecycle.md"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: Per-event goroutine in hot path{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -447,8 +650,9 @@ def c_encoding_alloc(ctx):
     if not any(_glob_match(fp, "*" + p + "*") for p in enc):
         return None
     content = ctx["content"]
-    errs = False
-    if filter_out(
+    reasons = []
+    make_allow = r"return make|Pool|New.*func|nlriBytes[ \t]*:=[ \t]*make|owned[ \t]*:=[ \t]*make|//[ \t]*pool-fallback"
+    a_hits = filter_out(
         filter_out(
             grep_lines(content, r"append[ \t]*\("),
             r"(args|strings|labels|families|errors|ERRORS|names|fields|parts)",
@@ -456,27 +660,35 @@ def c_encoding_alloc(ctx):
         ),
         r"//.*append",
         ignorecase=True,
-    ):
-        errs = True
-    make_allow = r"return make|Pool|New.*func|nlriBytes[ \t]*:=[ \t]*make|owned[ \t]*:=[ \t]*make|//[ \t]*pool-fallback"
-    if filter_out(
+    )
+    for n, l in a_hits[:2]:
+        reasons.append(
+            f"  L{n}: append() -> use caller-owned buffer with WriteTo(buf, off)"
+        )
+    m_hits = filter_out(
         grep_lines(content, r"make[ \t]*\([ \t]*\[[ \t]*\][ \t]*byte"),
         make_allow,
         ignorecase=True,
-    ):
-        errs = True
-    if filter_out(
+    )
+    for n, l in m_hits[:2]:
+        reasons.append(f"  L{n}: make([]byte) -> use pool.Get() or caller-owned buffer")
+    b_hits = filter_out(
         grep_lines(content, r"\.[ \t]*Bytes[ \t]*\([ \t]*\)"),
         r"(rd\.Bytes|spec\.|json\.|\.String\(\)\.Bytes)",
         ignorecase=True,
-    ):
-        errs = True
-    if grep_lines(content, r"\.[ \t]*Pack[ \t]*\([ \t]*\)"):
-        errs = True
-    if grep_lines(
+    )
+    for n, l in b_hits[:2]:
+        reasons.append(f"  L{n}: .Bytes() -> use WriteTo(buf, off) pattern")
+    p_hits = grep_lines(content, r"\.[ \t]*Pack[ \t]*\([ \t]*\)")
+    for n, l in p_hits[:2]:
+        reasons.append(f"  L{n}: .Pack() -> use WriteTo(buf, off) pattern")
+    bf_hits = grep_lines(
         content, r"func[ \t]+build[A-Za-z0-9_]+\(.*\)[ \t]*\([ \t]*\[[ \t]*\][ \t]*byte"
-    ):
-        errs = True
+    )
+    for n, l in bf_hits[:2]:
+        reasons.append(
+            f"  L{n}: build*() returning []byte -> use WriteTo(buf, off) pattern"
+        )
     len_hits = filter_out(
         grep_lines(content, r"\.Len\(\)"),
         r"(CheckedWriteTo|WriteAttrToWithLen|// .*Len)",
@@ -489,11 +701,21 @@ def c_encoding_alloc(ctx):
             if not re.search(r"WriteAttrToWithLen|WriteAttrToWithContext", l)
         ]
         if wa:
-            errs = True
-    if errs:
+            for n, l in len_hits[:2]:
+                reasons.append(
+                    f"  L{n}: .Len() with WriteAttrTo -> use WriteAttrToWithLen"
+                )
+    if reasons:
+        detail = "\n".join(reasons[:6])
+        fix = (
+            "\n  Encoding hot paths must be zero-alloc. Use:\n"
+            "    WriteTo(buf []byte, off int) int   -- write into caller-owned buffer\n"
+            "    pool.Get() / pool.Release()         -- for buffers that must be allocated\n"
+            "  See ai/rules/buffer-first.md, ai/rules/memory-architecture.md"
+        )
         return (
             2,
-            f"{RED}{BOLD}❌ BLOCKED: per-call allocation in encoding hot path{RESET}",
+            f"{RED}{BOLD}❌ BLOCKED: per-call allocation in encoding hot path{RESET}\n{detail}{fix}",
         )
     return None
 
@@ -581,7 +803,26 @@ def c_silent_ignore(ctx):
     if "/config/" in fp and grep_any(content, r"default:[ \t]*(//|break[ \t]*$)"):
         errs = True
     if errs:
-        return (2, f"{RED}{BOLD}❌ BLOCKED: Silent ignore pattern{RESET}")
+        found = []
+        for p in [
+            r"continue[ \t]*//[ \t]*ignore",
+            r"return[ \t]*nil[ \t]*//[ \t]*ignore",
+            r"//[ \t]*silently[ \t]*ignore",
+            r"//[ \t]*skip[ \t]*unknown",
+        ]:
+            for n, l in grep_lines(content, p, ignorecase=True)[:2]:
+                found.append(f"  L{n}: {l.strip()}")
+        detail = "\n".join(found[:4]) if found else "  (empty default: case detected)"
+        fix = (
+            "\n  Never silently drop data. Handle every case explicitly:\n"
+            '    return fmt.Errorf("unknown kind %q", kind)\n'
+            '    default: slog.Warn("unhandled", "kind", kind)\n'
+            "  Allowed in: _test.go, cmd/, internal/test/, scripts/"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: Silent ignore pattern{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -606,9 +847,14 @@ def c_hardcoded_commands(ctx):
                     hit = True
                 in_blk = False
     if hit:
+        fix = (
+            "\n  Derive command lists from the registry, never hardcode.\n"
+            "  Use the registration pattern: iterate registered commands at runtime.\n"
+            "  See ai/rules/derive-not-hardcode.md"
+        )
         return (
             2,
-            f"{RED}{BOLD}✘ BLOCKED: possible hardcoded command list in {fp}{RESET}",
+            f"{RED}{BOLD}✘ BLOCKED: possible hardcoded command list in {fp}{RESET}{fix}",
         )
     return None
 
@@ -648,7 +894,16 @@ def c_init_register(ctx):
         r"default.*=",
     ]:
         if grep_any(btext, p, ignorecase=True):
-            return (2, f"{RED}{BOLD}❌ BLOCKED: Implicit behavior in init(){RESET}")
+            fix = (
+                "\n  Registration belongs in register.go (or register_*.go), not init().\n"
+                "  Move Register/Subscribe/AddHandler/Hook calls to register.go.\n"
+                "  Global assignments belong in var blocks, not init().\n"
+                "  See ai/patterns/registration.md"
+            )
+            return (
+                2,
+                f"{RED}{BOLD}❌ BLOCKED: Implicit behavior in init(){RESET}{fix}",
+            )
     return None
 
 
@@ -677,7 +932,14 @@ def c_lint_exclusions(ctx):
     # `grep -qE 'disable:...' | grep -vE '#.*disable'` -> pipeline of grep -q always succeeds(rc0) since
     # grep -q produces no stdout; the second grep -v on empty input -> rc1 -> overall false. Faithful: never fires.
     if errs:
-        return (2, f"{RED}{BOLD}❌ BLOCKED: Adding linter exclusions{RESET}")
+        fix = (
+            "\n  Fix the code to satisfy the linter, do not add exclusions.\n"
+            "  If the lint is genuinely wrong, use //nolint:name // reason on the line."
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: Adding linter exclusions{RESET}{fix}",
+        )
     return None
 
 
@@ -700,7 +962,15 @@ def c_version_config(ctx):
         r"schema.?version",
     ]:
         if grep_any(ctx["content"], p, ignorecase=True):
-            return (2, f"{RED}{BOLD}❌ BLOCKED: Version in config{RESET}")
+            fix = (
+                "\n  Ze config is YANG-modeled and unversioned.\n"
+                "  Schema evolution uses YANG augment/deprecate, not version numbers.\n"
+                "  See ai/rules/config-design.md"
+            )
+            return (
+                2,
+                f"{RED}{BOLD}❌ BLOCKED: Version in config{RESET}{fix}",
+            )
     return None
 
 
@@ -734,7 +1004,17 @@ def c_fake_bufhandle(ctx):
             continue
         bad2.append((n, l))
     if bad2:
-        return (2, f"{RED}{BOLD}BLOCKED: fake BufHandle construction in {fp}{RESET}")
+        lines = [f"  L{n}: {l.strip()}" for n, l in bad2[:4]]
+        detail = "\n".join(lines)
+        fix = (
+            "\n  Use pool.Get() to obtain BufHandles, never construct with make().\n"
+            "  Only noPoolBufID-tagged constructions are allowed (pool bootstrap).\n"
+            "  See ai/rules/memory-architecture.md"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}BLOCKED: fake BufHandle construction in {fp}{RESET}\n{detail}{fix}",
+        )
     return None
 
 
@@ -755,7 +1035,14 @@ def c_observer_sys_exit(ctx):
         return None
     if grep_any(content, r"^(expect|reject)=stderr"):
         return None
-    return (1, f"{YELLOW}{BOLD}WARN: observer-exit antipattern in {fp}{RESET}")
+    fix = (
+        "\n  Use runtime_fail instead of sys.exit(1), or add expect=stderr/reject=stderr.\n"
+        "  sys.exit(1) without these makes the observer exit non-deterministically."
+    )
+    return (
+        1,
+        f"{YELLOW}{BOLD}WARN: observer-exit antipattern in {fp}{RESET}{fix}",
+    )
 
 
 def c_generated_files(ctx):
@@ -763,7 +1050,12 @@ def c_generated_files(ctx):
         return None
     base = os.path.basename(ctx["fp"])
     if base in ("CLAUDE.md", "AGENTS.md"):
-        return (2, f"BLOCKED: {base} is generated from ai/INSTRUCTIONS.md")
+        fix = (
+            f"\n  {base} is auto-generated. Edit the canonical source instead:\n"
+            "    ai/INSTRUCTIONS.md  (then run the sync script)\n"
+            "  See ai/rules/canonical-sources.md"
+        )
+        return (2, f"BLOCKED: {base} is generated{fix}")
     return None
 
 
@@ -777,7 +1069,16 @@ def c_utils_package(ctx):
     if grep_any(ctx["content"], r"^package[ \t]+(utils|helpers|common|misc)[ \t]*$"):
         errs = True
     if errs:
-        return (2, f"{RED}{BOLD}❌ BLOCKED: Forbidden package pattern{RESET}")
+        fix = (
+            "\n  No utils/helpers/common/misc packages. Place code where it belongs:\n"
+            "    Domain logic    -> internal/component/<name>/ or internal/plugins/<name>/\n"
+            "    Shared infra    -> internal/core/<name>/\n"
+            "    Test helpers    -> internal/test/<name>/"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: Forbidden package pattern{RESET}{fix}",
+        )
     return None
 
 
@@ -801,7 +1102,17 @@ def c_throwaway_tests(ctx):
     if re.search(r"/main\.go$", fp) and not re.search(r"^.*/cmd/", fp):
         errs = True
     if errs:
-        return (2, f"{RED}{BOLD}❌ BLOCKED: Throwaway test file{RESET}")
+        fix = (
+            f"\n  File: {fp}\n"
+            "  Tests belong in the source tree, not /tmp:\n"
+            "    Go tests     -> internal/<pkg>/<name>_test.go  (next to source)\n"
+            "    Functional   -> test/<suite>/<name>.ci\n"
+            "    main.go      -> cmd/<binary>/main.go only"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: Throwaway test file{RESET}{fix}",
+        )
     return None
 
 
@@ -810,12 +1121,24 @@ def c_claude_plans(ctx):
     if ctx["tool"] != "Write":
         return None
     if re.search(r"\.claude/plans/", fp):
-        return (2, "❌ BLOCKED: Do not use .claude/plans/")
+        return (
+            2,
+            "❌ BLOCKED: Do not use .claude/plans/\n"
+            "  Write plans to .claude/plan/ze-plan-<name> instead.",
+        )
     if re.search(r"^/Users/[^/]+/\.claude/plan/", fp):
-        return (2, "❌ BLOCKED: Do not write plans to ~/.claude/plan/")
+        return (
+            2,
+            "❌ BLOCKED: Do not write plans to ~/.claude/plan/\n"
+            "  Write to project .claude/plan/ze-plan-<name> instead.",
+        )
     if re.search(r"\.claude/plan/", fp):
         if not re.search(r"^ze-plan-", os.path.basename(fp)):
-            return (2, "❌ BLOCKED: Plan file must be named 'ze-plan-<name>'")
+            return (
+                2,
+                f"❌ BLOCKED: Plan file must be named 'ze-plan-<name>'\n"
+                f"  Got: {os.path.basename(fp)}",
+            )
     return None
 
 
@@ -825,6 +1148,7 @@ def c_enforce_naming(ctx):
         return None
     base = os.path.basename(fp)
     errs = False
+    kind = ""
     if fp.endswith(".md"):
         if re.match(
             r"^(README|INDEX|CLAUDE|LICENSE|CONTRIBUTING|CHANGELOG)\.md$", base
@@ -832,16 +1156,23 @@ def c_enforce_naming(ctx):
             return None
         if re.search(r"[A-Z]", base) or "_" in base:
             errs = True
+            kind = "  .md files: lowercase kebab-case (e.g. my-feature.md)\n  Exceptions: README, INDEX, CLAUDE, LICENSE, CONTRIBUTING, CHANGELOG"
     if fp.endswith(".go"):
         if "-" in base:
             errs = True
+            kind = "  .go files: no hyphens, use underscores (e.g. my_feature.go)"
         if re.search(r"[A-Z]", base) and not re.match(r"^[a-z_]+_[A-Z]", base):
             errs = True
+            kind = "  .go files: lowercase (e.g. my_feature.go, not MyFeature.go)"
     if fp.endswith(".sh"):
         if re.search(r"[A-Z]", base) or "_" in base:
             errs = True
+            kind = "  .sh files: lowercase kebab-case (e.g. my-script.sh)"
     if errs:
-        return (1, f"{RED}{BOLD}❌ BLOCKED: Naming convention violation{RESET}")
+        return (
+            1,
+            f"{RED}{BOLD}❌ BLOCKED: Naming convention violation{RESET}\n  File: {base}\n{kind}",
+        )
     return None
 
 
@@ -856,12 +1187,21 @@ def c_design_without_lsp(ctx):
     sid = session_id()
     marker = os.path.join(PROJECT_DIR, "tmp/session", f".lsp-invoked-{sid}")
     if not os.path.isfile(marker):
-        return (2, f"❌ Blocked: LSP has not been invoked in this session.")
+        return (
+            2,
+            "❌ Blocked: LSP has not been invoked in this session.\n"
+            '  Run: ToolSearch query="select:LSP"\n'
+            "  This must be done before editing any spec/design file.",
+        )
     fresh = int(os.environ.get("LSP_FRESHNESS_SECONDS", "1800"))
     try:
         age = time.time() - os.stat(marker).st_mtime
         if age > fresh:
-            return (2, f"❌ Blocked: LSP invocation is stale.")
+            return (
+                2,
+                "❌ Blocked: LSP invocation is stale.\n"
+                '  Run: ToolSearch query="select:LSP"  (refreshes the marker)',
+            )
     except Exception:
         pass
     return None
@@ -954,7 +1294,13 @@ def c_require_docs_read(ctx):
     sid = session_id()
     sstate = state_file(sid)
     if not os.path.isfile(sstate):
-        return (1, f"{RED}{BOLD}BLOCKED: Docs not verified{RESET}")
+        return (
+            1,
+            f"{RED}{BOLD}BLOCKED: Docs not verified{RESET}\n"
+            f"  Session state file missing: {sstate}\n"
+            "  Read the relevant docs/architecture files first to create session state.\n"
+            "  See .claude/rules/post-compaction.md",
+        )
     return None
 
 
@@ -987,7 +1333,16 @@ def c_require_design_ref(ctx):
                         return None
             except Exception:
                 pass
-    return (2, f"{RED}{BOLD}✘ BLOCKED: Missing // Design: comment{RESET}")
+    fix = (
+        "\n  Every non-test .go file needs a // Design: comment in the file header.\n"
+        "  Format: // Design: <path-to-design-doc> -- <brief description>\n"
+        "  Example: // Design: docs/architecture/bgp/reactor.md -- FSM state machine\n"
+        "  Exempt: _test.go, _gen.go, register.go, embed.go, doc.go, generated files"
+    )
+    return (
+        2,
+        f"{RED}{BOLD}✘ BLOCKED: Missing // Design: comment{RESET}{fix}",
+    )
 
 
 def c_require_related_refs(ctx):
@@ -1019,7 +1374,7 @@ def c_require_related_refs(ctx):
             content = content.replace(old, new, 1)
     xref = r"// (Detail|Overview|Related):"
     # Check 1: siblings referencing this file need a back-ref
-    siblings_ref_me = False
+    ref_from = ""
     try:
         for f in os.listdir(directory):
             if not f.endswith(".go") or f.endswith("_test.go") or f.endswith("_gen.go"):
@@ -1030,19 +1385,32 @@ def c_require_related_refs(ctx):
                         r"// (Detail|Overview|Related): " + re.escape(base) + " ",
                         fh.read(),
                     ):
-                        siblings_ref_me = True
+                        ref_from = f
                         break
             except Exception:
                 continue
     except Exception:
         pass
-    if siblings_ref_me and not re.search(xref, content):
-        return (2, f"{RED}{BOLD}✘ BLOCKED: Missing cross-reference comment{RESET}")
+    if ref_from and not re.search(xref, content):
+        fix = (
+            f"\n  {ref_from} references {base} with // Related: or // Detail:\n"
+            f"  Add a back-reference to {base}:\n"
+            f"    // Related: {ref_from} -- <brief description>"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}✘ BLOCKED: Missing cross-reference comment{RESET}{fix}",
+        )
     # Check 2: stale refs
     for m in re.finditer(r"// (?:Detail|Overview|Related): ([^ ]*\.go)", content):
         ref = m.group(1)
         if not os.path.isfile(os.path.join(directory, ref)):
-            return (2, f"{RED}{BOLD}✘ BLOCKED: Stale cross-references{RESET}")
+            return (
+                2,
+                f"{RED}{BOLD}✘ BLOCKED: Stale cross-reference{RESET}\n"
+                f"  References {ref} but file does not exist in {os.path.basename(directory)}/\n"
+                "  Update or remove the // Related: / // Detail: comment.",
+            )
     return None
 
 
@@ -1060,7 +1428,13 @@ def c_require_test_first(ctx):
     test_file = fp[:-3] + "_test.go"
     if ctx["tool"] == "Write" and not isfile(fp):
         if not isfile(test_file):
-            return (1, f"{RED}{BOLD}❌ BLOCKED: TDD - Write test first{RESET}")
+            return (
+                1,
+                f"{RED}{BOLD}❌ BLOCKED: TDD - Write test first{RESET}\n"
+                f"  Write the test file before the implementation:\n"
+                f"    {test_file}\n"
+                "  See ai/rules/tdd.md",
+            )
     return None
 
 
@@ -1130,7 +1504,12 @@ def c_check_existing_tests(ctx):
 def c_system_tmp_we(ctx):
     fp = ctx["fp"]
     if fp.startswith("/tmp/") or fp == "/tmp":
-        return (2, "❌ Blocked: writing to /tmp is forbidden")
+        return (
+            2,
+            "❌ Blocked: writing to /tmp is forbidden\n"
+            "  Write project files under the project directory.\n"
+            "  Tests: internal/<pkg>/<name>_test.go or test/<suite>/<name>.ci",
+        )
     return None
 
 
@@ -1147,28 +1526,36 @@ def c_test_deletion_edit(ctx):
         return None
     errs = []
     if new.strip() == "" and old:
-        errs.append("empty test file")
+        errs.append("replacing test content with empty string")
     if grep_any(old, r"^func (Test|Fuzz|Benchmark)") and not grep_any(
         new, r"^func (Test|Fuzz|Benchmark)"
     ):
-        errs.append("delete test function")
+        errs.append("deleting Test/Fuzz/Benchmark function")
     if old.count("t.Run(") > new.count("t.Run("):
-        errs.append("remove t.Run cases")
+        errs.append(
+            f"removing t.Run cases ({old.count('t.Run(')} -> {new.count('t.Run(')})"
+        )
     old_tbl = len(re.findall(r"\{[ \t]*(name|Name)[ \t]*:", old))
     new_tbl = len(re.findall(r"\{[ \t]*(name|Name)[ \t]*:", new))
     if old_tbl > new_tbl:
-        errs.append("remove table cases")
+        errs.append(f"removing table-driven cases ({old_tbl} -> {new_tbl})")
     old_as = len(re.findall(r"(t\.(Error|Fatal|Fail)|assert\.|require\.)", old))
     new_as = len(re.findall(r"(t\.(Error|Fatal|Fail)|assert\.|require\.)", new))
     if old_as > 0 and new_as == 0 and new:
-        errs.append("remove all assertions")
+        errs.append(f"removing all assertions ({old_as} -> 0)")
     if fp.endswith(".ci"):
         old_l = len([l for l in old.split("\n") if not re.match(r"^[ \t]*(#|$)", l)])
         new_l = len([l for l in new.split("\n") if not re.match(r"^[ \t]*(#|$)", l)])
         if old_l > new_l:
-            errs.append("remove .ci lines")
+            errs.append(f"removing .ci test lines ({old_l} -> {new_l})")
     if errs:
-        return (2, f"{YELLOW}{BOLD}❓ Test deletion - user approval required{RESET}")
+        detail = "\n".join(f"  - {e}" for e in errs)
+        return (
+            2,
+            f"{YELLOW}{BOLD}❓ Test deletion - user approval required{RESET}\n"
+            f"  Detected in {os.path.basename(fp)}:\n{detail}\n"
+            "  If intentional, the user must approve this edit.",
+        )
     return None
 
 
