@@ -61,7 +61,9 @@ fi
 BUILD_DIR="/tmp/kbuild"
 if [ -d /proc ] && ! mountpoint -q "${BUILD_DIR}" 2>/dev/null; then
     mkdir -p "${BUILD_DIR}"
-    mount -t tmpfs -o size=5G tmpfs "${BUILD_DIR}"
+    if ! mount -t tmpfs -o size=5G tmpfs "${BUILD_DIR}" 2>/dev/null; then
+        echo ">>> tmpfs unavailable (insufficient privileges), using regular directory"
+    fi
 fi
 
 BUILD_TREE="${BUILD_DIR}/linux-${LINUX_VERSION}"
@@ -134,6 +136,6 @@ cp "$IMAGE_PATH" "${OUT_DIR}/Image"
 cp .config "${OUT_DIR}/config"
 
 echo ">>> caching build tree to /build/${CACHE_TAR}"
-tar cf "/build/${CACHE_TAR}" -C /tmp "linux-${LINUX_VERSION}"
+tar cf "/build/${CACHE_TAR}" -C "${BUILD_DIR}" "linux-${LINUX_VERSION}"
 
 echo ">>> done: ${OUT_DIR}/Image ($(du -h "${OUT_DIR}/Image" | cut -f1), profile=${PROFILE})"
