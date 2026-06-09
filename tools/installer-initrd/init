@@ -12,6 +12,8 @@
 #   ze.image=<name>      (optional) image name, defaults to "ze.img"
 #   ze.port=<port>       (optional for http) install HTTP port, defaults to 80
 #   ze.target=<disk>     (optional) explicit target disk, for example /dev/vda
+#   ze.wait=<N>          (optional) max server probe attempts, defaults to 30
+#                        (set to 0 to skip; sites with portfast need 0)
 #   ze.media-id=<hex32>  (required for iso) identifies the booted installer media
 
 set -e
@@ -53,6 +55,7 @@ parse_cmdline() {
     ZE_IMAGE="ze.img"
     ZE_PORT="80"
     ZE_TARGET=""
+    ZE_WAIT="30"
     ZE_MEDIA_ID=""
 
     if [ ! -f /proc/cmdline ]; then
@@ -75,6 +78,9 @@ parse_cmdline() {
                 ;;
             ze.target=*)
                 ZE_TARGET="${param#ze.target=}"
+                ;;
+            ze.wait=*)
+                ZE_WAIT="${param#ze.wait=}"
                 ;;
             ze.media-id=*)
                 ZE_MEDIA_ID="${param#ze.media-id=}"
@@ -661,7 +667,7 @@ log_network_state() {
 wait_for_server() {
     server="$1"
     port="$2"
-    max_attempts=30
+    max_attempts="$3"
     attempt=0
 
     log "Checking connectivity to $server:$port..."
@@ -748,8 +754,13 @@ main() {
             fatal "No network connectivity; cannot proceed with HTTP install"
         fi
 
-        if ! wait_for_server "$ZE_SERVER" "$ZE_PORT"; then
-            fatal "Server $ZE_SERVER:$ZE_PORT not reachable after waiting"
+        if ! validate_decimal "$ZE_WAIT"; then
+            fatal "ze.wait '$ZE_WAIT' is not a valid number"
+        fi
+        if [ "$ZE_WAIT" -gt 0 ]; then
+            if ! wait_for_server "$ZE_SERVER" "$ZE_PORT" "$ZE_WAIT"; then
+                fatal "Server $ZE_SERVER:$ZE_PORT not reachable after $ZE_WAIT attempts (ze.wait=$ZE_WAIT)"
+            fi
         fi
     else
         iso_found=0

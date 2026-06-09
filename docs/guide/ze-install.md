@@ -541,6 +541,7 @@ The bootloader sets these parameters:
 | `ze.port` | No | `80` | TCP port of the install HTTP server (1-65535) |
 | `ze.image` | No | `ze.img` | Name of the disk image to install |
 | `ze.target` | No | | Explicit whole-disk target such as `/dev/vda` |
+| `ze.wait` | No | `30` | Max server probe attempts before giving up (0 = skip probe) |
 | `ze.media-id` | ISO only | | Builder-generated 32-hex token that identifies the booted installer ISO |
 | `ip=dhcp` | HTTP only | | Kernel-level network configuration (with userspace fallback) |
 

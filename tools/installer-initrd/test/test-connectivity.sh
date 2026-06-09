@@ -214,7 +214,7 @@ grep() {
 MOCK_WGET_RC=0
 MOCK_WGET_CALLS=0
 LOG_OUTPUT=""
-wait_for_server "198.19.255.1" "80"
+wait_for_server "198.19.255.1" "80" 30
 rc=$?
 assert_eq "reachable-first: returns 0" "0" "$rc"
 assert_eq "reachable-first: one wget call" "1" "$MOCK_WGET_CALLS"
@@ -234,7 +234,7 @@ wget() {
     return "$MOCK_WGET_RC"
 }
 
-wait_for_server "198.19.255.1" "80"
+wait_for_server "198.19.255.1" "80" 30
 rc=$?
 assert_eq "http-error-reachable: returns 0" "0" "$rc"
 assert_contains "http-error-reachable: log mentions HTTP" "$LOG_OUTPUT" "got HTTP response"
@@ -251,7 +251,7 @@ wget() {
     return "$MOCK_WGET_RC"
 }
 
-wait_for_server "198.19.255.1" "80"
+wait_for_server "198.19.255.1" "80" 30
 rc=$?
 assert_eq "unreachable: returns 1" "1" "$rc"
 assert_eq "unreachable: tried all attempts" "30" "$MOCK_WGET_CALLS"
@@ -271,7 +271,7 @@ wget() {
     return 1
 }
 
-wait_for_server "198.19.255.1" "80"
+wait_for_server "198.19.255.1" "80" 30
 rc=$?
 assert_eq "delayed-connect: returns 0" "0" "$rc"
 assert_eq "delayed-connect: connected on attempt 5" "5" "$MOCK_WGET_CALLS"
@@ -286,11 +286,34 @@ wget() {
     return 1
 }
 
-wait_for_server "198.19.255.1" "80"
+wait_for_server "198.19.255.1" "80" 30
 assert_contains "diag-logged: shows waiting" "$LOG_OUTPUT" "Waiting for server"
 assert_contains "diag-logged: shows probe error" "$LOG_OUTPUT" "can't connect"
 
-# Test 12: grep is in the Makefile explicit symlink list (regression: fail-open
+# Test 12: custom max_attempts=5 limits retries
+MOCK_WGET_CALLS=0
+LOG_OUTPUT=""
+
+wget() {
+    MOCK_WGET_CALLS=$((MOCK_WGET_CALLS + 1))
+    echo "wget: can't connect to remote host (198.19.255.1): Connection refused" > /tmp/ze-probe.err
+    return 1
+}
+
+wait_for_server "198.19.255.1" "80" 5
+rc=$?
+assert_eq "custom-limit: returns 1" "1" "$rc"
+assert_eq "custom-limit: tried 5 attempts" "5" "$MOCK_WGET_CALLS"
+
+# Test 13: max_attempts=0 skips probe entirely
+MOCK_WGET_CALLS=0
+LOG_OUTPUT=""
+wait_for_server "198.19.255.1" "80" 0
+rc=$?
+assert_eq "skip-probe: returns 1" "1" "$rc"
+assert_eq "skip-probe: no wget calls" "0" "$MOCK_WGET_CALLS"
+
+# Test 14: grep is in the Makefile explicit symlink list (regression: fail-open
 # if grep is missing because busybox --install fails silently)
 MAKEFILE="$SCRIPT_DIR/../Makefile"
 makefile_cmds="$(sed -n '/for cmd in/,/; do/p' "$MAKEFILE" | tr '\\\n' ' ')"

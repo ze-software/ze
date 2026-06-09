@@ -40,7 +40,7 @@ eval "$(extract_parse)"
 
 # Test 1: ze.server, ze.image, ze.port all present
 mkdir -p "$TMPDIR/proc"
-echo "console=ttyS0 ze.server=10.0.0.1 ze.image=custom.img ze.port=8080 ze.source=iso ze.target=/dev/vda ze.media-id=0123456789abcdef0123456789abcdef ip=dhcp" > "$TMPDIR/proc/cmdline"
+echo "console=ttyS0 ze.server=10.0.0.1 ze.image=custom.img ze.port=8080 ze.source=iso ze.target=/dev/vda ze.wait=0 ze.media-id=0123456789abcdef0123456789abcdef ip=dhcp" > "$TMPDIR/proc/cmdline"
 # Override parse_cmdline to use our mock. Mirrors the real parse_cmdline (it
 # reads /proc/cmdline directly, which cannot be faked when sourced).
 parse_cmdline_mock() {
@@ -49,6 +49,7 @@ parse_cmdline_mock() {
     ZE_IMAGE="ze.img"
     ZE_PORT="80"
     ZE_TARGET=""
+    ZE_WAIT="30"
     ZE_MEDIA_ID=""
     for param in $(cat "$TMPDIR/proc/cmdline"); do
         case "$param" in
@@ -57,6 +58,7 @@ parse_cmdline_mock() {
             ze.image=*) ZE_IMAGE="${param#ze.image=}" ;;
             ze.port=*) ZE_PORT="${param#ze.port=}" ;;
             ze.target=*) ZE_TARGET="${param#ze.target=}" ;;
+            ze.wait=*) ZE_WAIT="${param#ze.wait=}" ;;
             ze.media-id=*) ZE_MEDIA_ID="${param#ze.media-id=}" ;;
         esac
     done
@@ -68,6 +70,7 @@ assert_eq "image-present" "custom.img" "$ZE_IMAGE"
 assert_eq "port-present" "8080" "$ZE_PORT"
 assert_eq "source-present" "iso" "$ZE_SOURCE"
 assert_eq "target-present" "/dev/vda" "$ZE_TARGET"
+assert_eq "wait-present" "0" "$ZE_WAIT"
 assert_eq "media-id-present" "0123456789abcdef0123456789abcdef" "$ZE_MEDIA_ID"
 
 # Test 2: ze.image and ze.port missing, defaults apply
@@ -78,6 +81,7 @@ assert_eq "image-default" "ze.img" "$ZE_IMAGE"
 assert_eq "port-default" "80" "$ZE_PORT"
 assert_eq "source-default" "http" "$ZE_SOURCE"
 assert_eq "target-default" "" "$ZE_TARGET"
+assert_eq "wait-default" "30" "$ZE_WAIT"
 assert_eq "media-id-default" "" "$ZE_MEDIA_ID"
 
 # Test 3: neither present
@@ -88,6 +92,7 @@ assert_eq "no-image-default" "ze.img" "$ZE_IMAGE"
 assert_eq "no-port-default" "80" "$ZE_PORT"
 assert_eq "no-source-default" "http" "$ZE_SOURCE"
 assert_eq "no-target-default" "" "$ZE_TARGET"
+assert_eq "no-wait-default" "30" "$ZE_WAIT"
 assert_eq "no-media-id-default" "" "$ZE_MEDIA_ID"
 
 # Test 4: validate_ipv4 with valid addresses
