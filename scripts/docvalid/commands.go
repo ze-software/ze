@@ -266,6 +266,8 @@ func localCommandRegistryFiles() []string {
 		switch filepath.Base(filepath.Dir(path)) {
 		case "cli", "client":
 			files = append(files, path)
+		case "crashes", "debug", "diag", "env", "explain", "host", "skills", "support":
+			files = append(files, path)
 		}
 		return nil
 	})
