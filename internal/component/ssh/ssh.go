@@ -278,6 +278,13 @@ func (s *Server) SetSessionModelFactory(f contract.SessionModelFactory) {
 	s.sessionModelFactory = f
 }
 
+// HasSessionModelFactory reports whether a session model factory has been set.
+func (s *Server) HasSessionModelFactory() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.sessionModelFactory != nil
+}
+
 // SetShutdownFunc sets the callback for "stop" exec commands.
 // Called by the daemon to wire graceful shutdown via SSH.
 func (s *Server) SetShutdownFunc(f ShutdownFunc) {
