@@ -8,7 +8,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       }
@@ -20,7 +20,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/compaction-reminder.sh",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       }
@@ -32,7 +32,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-until-lsp.sh",
-            "timeout": 5000,
+            "timeout": 5,
             "blocking": true
           }
         ]
@@ -43,7 +43,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-bash.py",
-            "timeout": 30000,
+            "timeout": 30,
             "blocking": true
           }
         ]
@@ -54,17 +54,8 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-writeedit.py",
-            "timeout": 30000,
+            "timeout": 30,
             "blocking": true
-          }
-        ]
-      },
-      {
-        "matcher": "Bash(git commit:*)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "golangci-lint run --timeout 5m"
           }
         ]
       }
@@ -76,7 +67,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-compact-save.sh",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       }
@@ -88,7 +79,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-premature-stop.sh",
-            "timeout": 5000,
+            "timeout": 5,
             "blocking": true
           }
         ]
@@ -99,7 +90,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end-summary.sh",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       },
@@ -109,7 +100,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end-deferrals.sh",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       }
@@ -121,7 +112,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/subagent-context.sh",
-            "timeout": 3000
+            "timeout": 3
           }
         ]
       }
@@ -133,7 +124,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/mark-lsp-invoked.sh",
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       },
@@ -154,7 +145,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/posttool-writeedit.py",
-            "timeout": 90000,
+            "timeout": 90,
             "blocking": true
           }
         ]

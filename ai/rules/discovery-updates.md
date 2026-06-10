@@ -36,7 +36,7 @@ Update every row that applies:
 | New runtime dependency | `ai/rules/doctor-checks.md`, diagnostic code registration, and a `ze doctor` unit plus functional test |
 | New registration or generated inventory | `ai/rules/derive-not-hardcode.md`, `ai/patterns/registration.md`, and registry-backed inventory checks |
 | Structural decision or recurring trap | `plan/learned/NNN-*.md`; add `ai/LEARNED-INDEX.md` when the lesson is structural, not task-only |
-| New task category or search keyword | `ai/NAVIGATION.md` and `ai/INDEX.md` keyword map |
+| New task category or search keyword | `ai/INDEX.md` (task navigation + keyword map) |
 
 Do not create an isolated rule or doc page that no existing navigation path links
 to. A rule that agents cannot discover is not a rule.
@@ -47,7 +47,7 @@ Before implementation is complete, answer these in the spec, review notes, or
 handoff:
 
 1. **Where would an agent look first?** Add or update the `ai/INDEX.md` keyword
-   row, `ai/NAVIGATION.md` task row, or both.
+   row, `ai/INDEX.md` task row, or both.
 2. **What rule prevents regression?** Update the narrowest existing rule. Create a
    new `ai/rules/*.md` only when no existing rule owns the behavior.
 3. **What source of truth prevents drift?** Use a registry, generated inventory,

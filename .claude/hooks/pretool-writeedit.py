@@ -1578,6 +1578,28 @@ def _file_contains(path, needle):
         return False
 
 
+def c_switch_dispatch(ctx):
+    """ai/rules/registration-dispatch.md: no switch-based subcommand dispatch."""
+    fp = ctx["fp"]
+    if not _go_we(ctx) or re.search(r"_test\.go$", fp) or not ctx["content"]:
+        return None
+    hits = filter_out(
+        grep_lines(ctx["content"], r"switch\s+args\[0\]"),
+        r"//.*nolint",
+    )
+    if hits:
+        detail = "\n".join(f"  L{n}: {l.strip()}" for n, l in hits[:6])
+        fix = (
+            "\n  Use subdispatch.New() + Register() instead of switch on args.\n"
+            "  Rule: ai/rules/registration-dispatch.md"
+        )
+        return (
+            2,
+            f"{RED}{BOLD}❌ BLOCKED: switch-based command dispatch in {fp}{RESET}\n{detail}{fix}",
+        )
+    return None
+
+
 CHECKS = (
     c_generated_files,
     c_design_without_lsp,
@@ -1603,6 +1625,7 @@ CHECKS = (
     c_string_concat,
     c_raw_ansi,
     c_hardcoded_commands,
+    c_switch_dispatch,
     c_require_design_ref,
     c_require_related_refs,
     c_test_deletion_edit,

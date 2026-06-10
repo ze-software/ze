@@ -38,7 +38,7 @@ See also: `/ze-commit` (commit without verification), `/ze-commit-check` (commit
    | # | Type | Location | Detail | Status |
    |---|------|----------|--------|--------|
    | 1 | missing docs | docs/features.md | new feature X not listed | MISSING |
-   | 2 | stale ref | .claude/rules/foo.md:12 | `internal/old/deleted.go` | STALE |
+   | 2 | stale ref | .claude/rules/foo.md:12 | `internal/old/deleted.go` | STALE | <!-- doc-links: ignore (example output) -->
    | 3 | wiring | internal/component/host/info.go | GetHostInfo has no non-test caller | UNWIRED |
 
    N issues found. [or "Clean -- no issues."]
@@ -52,7 +52,7 @@ Scan `.claude/rules/*.md`, `.claude/skills/*/SKILL.md`, and `ai/rationale/*.md` 
 backtick-quoted file paths (containing `/`, ending in `.go`, `.md`, `.yang`, `.sh`).
 For each: does the file exist? If not: **STALE REF**.
 
-Skip URLs, rule references like `rules/foo.md`, and relative `.claude/` paths.
+Skip URLs, rule references like `rules/foo.md`, and relative `.claude/` paths. <!-- doc-links: ignore (example pattern) -->
 
 ### 4b. Skill cross-references
 

@@ -2,10 +2,17 @@
 
 | Field | Value |
 |-------|-------|
-| Status | done |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-05-26 |
+| Updated | 2026-06-10 |
+
+> Closure audit 2026-06-10: `Status: done` violated the closure rule (a done
+> spec must be deleted via the two-commit flow). Reverted to in-progress
+> because two gaps block honest closure: AC-8's claimed functional test
+> `test/plugin/smart-show.ci` does not exist (no functional test exercises
+> `ze-show:storage-smart`), and the Review Gate section was never filled.
+> Implementation itself appears complete per the audit tables below.
 
 ## Post-Compaction Recovery
 

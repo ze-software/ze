@@ -78,7 +78,6 @@ ai/rules/ze-divergences.md
 
 ```
 ai/INDEX.md
-ai/NAVIGATION.md
 ai/LEARNED-INDEX.md
 docs/architecture/core-design.md
 plan/learned/DESIGN-HISTORY.md

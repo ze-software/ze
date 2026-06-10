@@ -7,7 +7,7 @@ AGENT.md had UPPERCASE doc paths and TOP 5 rules while CLAUDE.md had moved to lo
 
 ## Placement Decision Tree
 1. Claude workflow rules? -> `.claude/rules/`
-2. Claude commands/hooks? -> `.claude/commands/`, `.claude/hooks/`
+2. Agent skills/hooks? -> `ai/skills/` (synced to `.claude/skills/`), `.claude/hooks/`
 3. Architecture/design docs? -> `docs/architecture/`
 4. RFC summaries? -> `rfc/short/`
 5. Wire format reference? -> `docs/architecture/wire/`
@@ -28,9 +28,8 @@ docs/
   exabgp/                  # ExaBGP comparison
 
 .claude/
-  rules/                   # Auto-loaded rules (action directives)
-  rationale/               # On-demand rationale (why/examples)
-  commands/                # Slash commands
+  rules/                   # Auto-loaded Claude-specific rules
+  skills/                  # Generated from ai/skills/ (make ze-ai-sync)
   hooks/                   # Session hooks
 
 plan/

@@ -146,10 +146,17 @@ if [ -n "$FOUND_STATE" ]; then
     fi
 fi
 
+# Generated agent files drift check. CLAUDE.md / AGENTS.md / skills mirrors
+# are gitignored, so git never shows drift; compare content instead.
+if ! scripts/dev/skill_sync.sh --check >/dev/null 2>&1; then
+    echo "Warning: generated agent files are stale (CLAUDE.md / AGENTS.md / skills mirrors)"
+    echo "   -> run: make ze-regen"
+fi
+
 # Blocking reminders
 echo "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\" MUST be your FIRST tool call."
 echo "Warning:   Do NOT skip because the task looks shell-only, docs-only, or trivial."
-echo "Warning:   See rules/session-start.md 'LSP Load (step 1) -- no-exceptions clause'."
+echo "Warning:   See .claude/rules/session-start.md 'LSP Load (step 1) -- no-exceptions clause'."
 echo "Warning: RULE: Read spec + source files BEFORE writing any code"
 echo "Rules: ai/rules/INDEX.md is a one-line overview of every rule -- scan it, read the listed file in full before acting on a topic it covers"
 

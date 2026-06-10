@@ -49,7 +49,7 @@
 **Behavior to change:** (only if user explicitly requested)
 - [list changes user asked for, or "None - preserve all existing behavior"]
 
-## Data Flow (MANDATORY - see `rules/data-flow-tracing.md`)
+## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
 ### Entry Point
 - [Where data enters: wire bytes, API command, config, plugin message]
@@ -134,7 +134,7 @@
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs/config) | [ ] | `internal/yang/modules/*.yang` or `internal/component/<name>/yang/` |
+| YANG schema (new RPCs/config) | [ ] | `internal/component/<name>/yang/` or the owning plugin's `yang/` |
 | YANG validation constraints | [ ] | Every leaf MUST have maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | [ ] | If native YANG constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for tab-completion. Register in `validators_register.go` |
 | CLI commands/flags | [ ] | `cmd/ze/*/main.go` or subcommand files |
@@ -143,7 +143,7 @@
 | Functional test for new RPC/API | [ ] | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | [ ] | If command produces output: route through `ApplyPipes`/`ProcessPipes`, support all pipe operators per `ai/rules/pipe-completeness.md` |
 | Env var registration | [ ] | If YANG config leaves added under `environment/`: matching `ze.<name>.<leaf>` env var via `env.MustRegister()` |
-| Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: `cmd/ze/doctor/`, `internal/core/diagnostic/codes.go`, unit test, functional test |
+| Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: owning package doctor check, `internal/core/diagnostic/codes.go`, unit test, functional test (see `ai/rules/doctor-checks.md`) |
 | Prometheus counters/metrics | [ ] | If feature has observable state: define counters, register in telemetry, list metric names and labels in this spec |
 
 ### Documentation Update Checklist (BLOCKING)
@@ -167,7 +167,7 @@
 | 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
 | 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` or subsystem doc |
 | 13 | Route metadata keys added/changed? | [ ] | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
-| 14 | Prometheus counters added/changed? | [ ] | `docs/architecture/telemetry/` or subsystem telemetry doc |
+| 14 | Prometheus counters added/changed? | [ ] | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
 | 15 | Registered plugin, event type, send type, command, capability, or runtime inventory changed? | [ ] | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md`, relevant guide |
 | 16 | Any changed source file is referenced by existing doc source anchors? | [ ] | Grep `docs/` for `source: <changed-file>` and update each stale claim |
 | 17 | Existing docs show config/CLI/API examples for this area? | [ ] | Verify examples against YANG/parser/handler and update stale syntax |
@@ -200,7 +200,7 @@
 | 11. Deliverables review | Deliverables Checklist below |
 | 12. Security review | Security Review Checklist below |
 | 13. Re-verify | Re-run stage 6 |
-| 14. Present summary | Executive Summary Report per `rules/planning.md` |
+| 14. Present summary | Executive Summary Report per `ai/rules/planning.md` |
 
 ### Implementation Phases
 
@@ -433,7 +433,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented
-- [ ] Critical Review passes (all 6 checks in `rules/quality.md` — no failures)
+- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md` — no failures)
 
 ### Quality Gates (SHOULD pass — defer with user approval)
 - [ ] RFC constraint comments added
@@ -457,7 +457,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Goal Validation table filled with concrete evidence
 
 ### Completion (BLOCKING — before ANY commit)
-- [ ] Critical Review passes — all 6 checks in `rules/quality.md` documented pass in spec. A single failure = work is not complete.
+- [ ] Critical Review passes — all 6 checks in `ai/rules/quality.md` documented pass in spec. A single failure = work is not complete.
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)

@@ -61,7 +61,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
-| design-without-lsp | `session-start.md` | design/spec `.md` | Blocks edits to `plan/design-*.md` / `plan/spec-*.md` unless LSP invoked in last 30 min. BLOCKING. |
+| design-without-lsp | `session-start.md` | design/spec `.md` | Blocks edits to `plan/design-*.md` / `plan/spec-*.md` unless LSP invoked in last 30 min. BLOCKING. | <!-- doc-links: ignore (hook trigger patterns, files may not exist) -->
 | pre-write-go | `before-writing-code.md` | `internal/**/*.go` | Blocks without proper session state. BLOCKING. |
 | source-edit-spec-not-in-progress | `planning.md` | source/test/learned | Blocks edits when selected spec is not `in-progress`. BLOCKING. |
 | encoding-alloc | `buffer-first.md` | wire-encode `.go` | Blocks `make()`/`append()`/`Bytes()`/`Pack()` in wire-facing code. BLOCKING. |
@@ -84,6 +84,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | fake-bufhandle | (pool correctness) | `.go` | Blocks `BufHandle{Buf: make(...)}` outside `testPoolBuf`. BLOCKING. |
 | observer-sys-exit | `testing.md` | `.ci` | Warns about `sys.exit(1)` in observers without `runtime_fail`. Advisory. |
 | hardcoded-commands | `derive-not-hardcode.md` | `.go` | Blocks hardcoded command-list literals. BLOCKING. |
+| switch-dispatch | `registration-dispatch.md` | `.go` | Blocks `switch args[0]` subcommand dispatch; use `subdispatch.New()` + `Register()`. BLOCKING. |
 | json-kebab | `json-format.md` | `.go` | Blocks non-kebab-case JSON tags. BLOCKING. |
 | goroutine-lifecycle | `goroutine-lifecycle.md` | hot-path `.go` | Blocks `go func()` in reactor/event/dispatch/hub/wire/message. BLOCKING. |
 | require-design-ref | `design-doc-references.md` | `.go` | Blocks Go files without `// Design:` comment. BLOCKING. |
@@ -91,7 +92,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | test-deletion (Edit) | `no-test-deletion.md` | test files | Blocks removing test funcs/cases/assertions. BLOCKING. |
 | system-tmp (path) | `testing.md` | any | Blocks writing to `/tmp`. BLOCKING. |
 | generated-files | `canonical-sources.md` | `CLAUDE.md`/`AGENTS.md` | Blocks editing generated files. BLOCKING. |
-| claude-plans | `.claude/rules/planning.md` | Write | Blocks `.claude/plans/` and `~/.claude/plan/`. BLOCKING. |
+| claude-plans | `.claude/rules/planning.md` | Write | Blocks `.claude/plans/` and `~/.claude/plan/`. BLOCKING. | <!-- doc-links: ignore (banned location, deliberately nonexistent) -->
 | check-existing-patterns | `before-writing-code.md` | new `internal/**/*.go` | Blocks duplicate exported type/func in same package. BLOCKING. |
 | check-existing-tests | `before-writing-code.md` | new test files | Warns about similar existing tests. Advisory. |
 | enforce-naming | `documentation.md` | new files | Warns on wrong file naming. Advisory. |

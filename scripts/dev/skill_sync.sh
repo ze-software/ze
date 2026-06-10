@@ -9,11 +9,16 @@
 #     .codex/skills/<name>/SKILL.md   -- YAML frontmatter added
 #     .agents/skills/<name>/SKILL.md  -- .claude/ paths replaced with .agents/
 #
-# AGENTS.md:
-#   Generated from CLAUDE.md with title adjusted for Codex.
+# CLAUDE.md / AGENTS.md:
+#   Generated from ai/INSTRUCTIONS.md ({{TOOL}} substituted).
 #
-# Usage: make ze-ai-sync
-#        scripts/dev/skill_sync.sh [--dry-run]
+# All targets are gitignored, so `git diff` can NEVER show drift for them.
+# Use --check (content comparison against a fresh generation in a temp dir)
+# to detect drift; the session-start hook runs it and warns.
+#
+# Usage: make ze-ai-sync          (sync)
+#        make ze-ai-check         (check only, no writes)
+#        scripts/dev/skill_sync.sh [--dry-run|--check]
 
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -22,54 +27,94 @@ CANON_DIR="ai/skills"
 CLAUDE_DIR=".claude/skills"
 CODEX_DIR=".codex/skills"
 AGENTS_DIR=".agents/skills"
+INSTRUCTIONS="ai/INSTRUCTIONS.md"
 
-dry_run=false
-if [ "${1:-}" = "--dry-run" ]; then
-    dry_run=true
+mode="sync"
+case "${1:-}" in
+    --dry-run) mode="dry" ;;
+    --check)   mode="check" ;;
+esac
+
+# generate_into <root>: write every generated output under <root>,
+# preserving repo-relative paths.
+generate_into() {
+    local root="$1"
+    local src name first_line description
+    for src in "$CANON_DIR"/*.md; do
+        [ -f "$src" ] || continue
+        name=$(basename "$src" .md)
+
+        # Extract first heading as description (strip # prefix)
+        first_line=$(head -1 "$src")
+        description="${first_line#\# }"
+
+        # Claude: verbatim copy
+        mkdir -p "$root/$CLAUDE_DIR/$name"
+        cp "$src" "$root/$CLAUDE_DIR/$name/SKILL.md"
+
+        # Codex: add YAML frontmatter
+        mkdir -p "$root/$CODEX_DIR/$name"
+        {
+            echo "---"
+            echo "name: $name"
+            echo "description: $description"
+            echo "---"
+            echo ""
+            cat "$src"
+        } > "$root/$CODEX_DIR/$name/SKILL.md"
+
+        # Agents (Codex CLI): replace .claude/ references with .agents/
+        mkdir -p "$root/$AGENTS_DIR/$name"
+        sed 's/\.claude\//\.agents\//g' "$src" > "$root/$AGENTS_DIR/$name/SKILL.md"
+    done
+
+    # Generate tool-specific instruction files from ai/INSTRUCTIONS.md
+    if [ -f "$INSTRUCTIONS" ]; then
+        sed 's/{{TOOL}}/Claude/' "$INSTRUCTIONS" > "$root/CLAUDE.md"
+        sed 's/{{TOOL}}/Codex/'  "$INSTRUCTIONS" > "$root/AGENTS.md"
+    fi
+}
+
+if [ "$mode" = "dry" ]; then
+    for src in "$CANON_DIR"/*.md; do
+        [ -f "$src" ] || continue
+        echo "would sync: $(basename "$src" .md)"
+    done
+    exit 0
+fi
+
+if [ "$mode" = "check" ]; then
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "$tmpdir"' EXIT
+    generate_into "$tmpdir"
+
+    stale=0
+    # diff -rq also reports orphans ("Only in <dir>"): a mirror entry whose
+    # canonical source was removed, or a missing mirror for a new skill.
+    for dir in "$CLAUDE_DIR" "$CODEX_DIR" "$AGENTS_DIR"; do
+        if ! diff -rq "$tmpdir/$dir" "$dir"; then
+            stale=1
+        fi
+    done
+    for f in CLAUDE.md AGENTS.md; do
+        if ! diff -q "$tmpdir/$f" "$f" >/dev/null 2>&1; then
+            echo "stale: $f"
+            stale=1
+        fi
+    done
+
+    if [ "$stale" -ne 0 ]; then
+        echo "generated agent files are stale -- run: make ze-regen" >&2
+        exit 1
+    fi
+    echo "generated agent files in sync"
+    exit 0
 fi
 
 synced=0
-
 for src in "$CANON_DIR"/*.md; do
     [ -f "$src" ] || continue
-    name=$(basename "$src" .md)
-
-    # Extract first heading as description (strip # prefix)
-    first_line=$(head -1 "$src")
-    description="${first_line#\# }"
-
-    if $dry_run; then
-        echo "would sync: $name"
-        continue
-    fi
-
-    # Claude: verbatim copy
-    mkdir -p "$CLAUDE_DIR/$name"
-    cp "$src" "$CLAUDE_DIR/$name/SKILL.md"
-
-    # Codex: add YAML frontmatter
-    mkdir -p "$CODEX_DIR/$name"
-    {
-        echo "---"
-        echo "name: $name"
-        echo "description: $description"
-        echo "---"
-        echo ""
-        cat "$src"
-    } > "$CODEX_DIR/$name/SKILL.md"
-
-    # Agents (Codex CLI): replace .claude/ references with .agents/
-    mkdir -p "$AGENTS_DIR/$name"
-    sed 's/\.claude\//\.agents\//g' "$src" > "$AGENTS_DIR/$name/SKILL.md"
-
     synced=$((synced + 1))
 done
-
-# Generate tool-specific instruction files from ai/INSTRUCTIONS.md
-INSTRUCTIONS="ai/INSTRUCTIONS.md"
-if [ -f "$INSTRUCTIONS" ]; then
-    sed 's/{{TOOL}}/Claude/' "$INSTRUCTIONS" > CLAUDE.md
-    sed 's/{{TOOL}}/Codex/'  "$INSTRUCTIONS" > AGENTS.md
-fi
-
+generate_into "."
 echo "synced $synced skill(s) + CLAUDE.md + AGENTS.md"

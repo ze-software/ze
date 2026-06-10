@@ -4,30 +4,149 @@
 
 | Task | Read first | Then |
 |------|-----------|------|
-| Understand the modular core | `patterns/registration.md` | `docs/architecture/core-design.md` |
-| Add a CLI command | `patterns/cli-command.md` | `rules/cli-patterns.md` |
-| Add a web page/endpoint | `patterns/web-endpoint.md` | `docs/architecture/web-interface.md` |
-| Create a plugin | `patterns/plugin.md` | `rules/plugin-design.md` |
-| Keep a plugin self-contained (removal test) | `rules/plugin-self-containment.md` | Remove the plugin and ALL its features vanish; other plugins and core keep working |
-| Add a config option | `patterns/config-option.md` | `rules/config-design.md` |
-| Add a .ci functional test | `patterns/functional-test.md` | `docs/architecture/testing/ci-format.md` |
-| Test linux-only code (QEMU) | `rules/qemu-testing.md` | `rules/testing.md` (Linux-Only Tests section) |
-| Fix a failing test, gate, demo, or user-visible problem | `rules/no-workarounds-for-missing-behavior.md` | Implement the missing behavior at the source, never route around it |
-| Modify wire encoding | `rules/buffer-first.md` | `docs/architecture/buffer-architecture.md` |
-| Add route processing | `rules/architecture-summary.md` | `docs/architecture/core-design.md` |
-| Add NLRI family support | `patterns/plugin.md` (NLRI codec section) | `docs/architecture/wire/nlri.md` |
-| Add an attribute | `rules/buffer-first.md` | `docs/architecture/wire/attributes.md` |
-| Add a capability | `patterns/plugin.md` (capabilities section) | `docs/architecture/wire/capabilities.md` |
-| Implement an RFC | `rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
-| Write a spec | `rules/planning.md` | `plan/TEMPLATE.md` |
-| Add a feature, tool, self-check, verification gate, or test infrastructure | `rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
-| Add or change an agent behavior rule | `rules/canonical-sources.md` | Put shared Ze rules in `ai/rules/` and startup pointers in `ai/INSTRUCTIONS.md` |
+| Understand the modular core | `ai/patterns/registration.md` | `docs/architecture/core-design.md` |
+| Keep a plugin self-contained (removal test) | `ai/rules/plugin-self-containment.md` | Remove the plugin and ALL its features vanish; other plugins and core keep working |
+| Test linux-only code (QEMU) | `ai/rules/qemu-testing.md` | `ai/rules/testing.md` (Linux-Only Tests section) |
+| Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` | Implement the missing behavior at the source, never route around it |
+| Modify wire encoding | `ai/rules/buffer-first.md` | `docs/architecture/buffer-architecture.md` |
+| Add route processing | `ai/rules/architecture-summary.md` | `docs/architecture/core-design.md` |
+| Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
+| Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` |
+| Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
+| Add or change an agent behavior rule | `ai/rules/canonical-sources.md` | Put shared Ze rules in `ai/rules/` and startup pointers in `ai/INSTRUCTIONS.md` |
 | Reorganize YANG tree | `scripts/dev/yang_move.py --help` | Preview diff, then `--apply` |
-| Find context for an unfamiliar area | `ai/NAVIGATION.md` | Task-to-context decision tree |
 | See which rule covers a topic | `ai/rules/INDEX.md` | One-line overview of every rule; open the listed file before acting |
 | Understand Ze vs standard Go | `ai/rules/ze-divergences.md` | Buffer-first, registration, YANG, etc. |
 | Know which hooks will check my code | `ai/rules/hook-mapping.md` | Pre-flight compliance checklist |
 | Edit the website or presentations | `docs/contributing/gh-pages.md` then `../gh-pages/AI.md` | Worktree layout, tooling, adding a talk |
+
+## By Task Type
+
+### Adding a Feature
+
+| Feature kind | Read first | Then read | Cross-cutting |
+|---|---|---|---|
+| CLI command | `ai/patterns/cli-command.md` | `ai/rules/cli-grammar.md`, `ai/rules/pipe-completeness.md` | `ai/rules/derive-not-hardcode.md` if it lists things |
+| Web page/endpoint | `ai/patterns/web-endpoint.md` | `docs/architecture/web-interface.md`, `docs/architecture/web-components.md` | SSE: `docs/architecture/web-components.md` SSE section |
+| Plugin | `ai/patterns/plugin.md` | `ai/rules/plugin-design.md`, `ai/rules/goroutine-lifecycle.md` | `ai/rules/naming.md` for registered names |
+| Config option | `ai/patterns/config-option.md` | `ai/rules/config-design.md` (listener pattern if network endpoint) | `ai/rules/go-standards.md` env var section |
+| NLRI family | `ai/patterns/plugin.md` (NLRI codec section) | `docs/architecture/wire/nlri.md`, `ai/rules/buffer-first.md` | `ai/rules/plugin-design.md` family registration |
+| Capability | `ai/patterns/plugin.md` (capabilities section) | `docs/architecture/wire/capabilities.md` | |
+| Attribute | `ai/rules/buffer-first.md` | `docs/architecture/wire/attributes.md` | `docs/architecture/encoding-context.md` |
+| Functional test | `ai/patterns/functional-test.md` | `docs/architecture/testing/ci-format.md` | `ai/rules/testing.md` for format selection (.ci vs .et vs Go) |
+| Editor test | `ai/rules/testing.md` (Editor Tests section) | `test/editor/` existing examples | |
+| Telemetry/metrics | `plan/learned/653-netdata-os-collectors.md` | `plan/learned/736-iface-rate.md` | Registration in loader_create.go |
+| Diagnostic command | `plan/learned/727-diag-core.md` | `plan/learned/755-ze-doctor.md` | `ai/rules/doctor-checks.md` |
+| Agent-facing command/tool | `ai/rules/agent-tooling.md` | `docs/features/ai-first.md`, `docs/guide/mcp/overview.md` | `ai/rules/discovery-updates.md` for indexes and verification |
+| Verification/self-check gate | `ai/rules/discovery-updates.md` | `ai/rules/hook-mapping.md`, `docs/contributing/documentation-testing.md` | `mk/inventory.mk` for doc/inventory targets |
+| EventBus event | `ai/rules/plugin-design.md` (EventBus Typed Payloads) | `pkg/ze/eventbus.go` | Use `events.Register[T]`, not raw `bus.Subscribe` |
+| DirectBridge handler | `ai/rules/plugin-design.md` (DirectBridge section) | `pkg/plugin/rpc/bridge.go`, `plan/learned/294-inprocess-direct-transport.md` | |
+| New component | `docs/architecture/core-design.md` section 1 | `ai/rules/design-principles.md`, `ai/rules/architecture-summary.md` | Proximity principle in `ai/rules/plugin-design.md` |
+| New subsystem | `docs/architecture/hub-architecture.md` | `docs/architecture/subsystem-wiring.md` | |
+| Test runner or format | `ai/rules/testing.md` | `ai/patterns/functional-test.md`, `docs/architecture/testing/ci-format.md` | `ai/rules/discovery-updates.md` |
+
+
+### Preparing a Commit
+
+| Task | Read first | Then use |
+|---|---|---|
+| Generate a user-run commit script | `ai/rules/git-safety.md` | Fast path: use `scripts/dev/commit_helper.py create`; if verification is considered, run `scripts/dev/verify-status.sh check` first and never rerun verify when FRESH |
+
+### Modifying Existing Code
+
+| Area | Read first | Key concerns |
+|---|---|---|
+| Reactor / session | `docs/architecture/core-design.md` sections 1-5 | `ai/rules/goroutine-lifecycle.md`, `make ze-race-reactor` required |
+| Wire encoding/decoding | `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md` | No `make()`, no `append()`, `WriteTo(buf, off) int`, caller-owned buffers |
+| RIB / route storage | `docs/architecture/route-types.md`, `docs/architecture/rib-transition.md` | Pool dedup, lazy iterators |
+| Route selection | `docs/architecture/route-selection.md` | `ai/LEARNED-INDEX.md` (RIB/Routing section) |
+| Config pipeline | `docs/architecture/config/yang-config-design.md` | File -> Tree -> ResolveBGPTree -> map[string]any |
+| Plugin SDK | `ai/rules/plugin-design.md` (SDK Is Generic) | No plugin-specific code in SDK |
+| Hub / engine | `docs/architecture/hub-architecture.md` | Protocol-agnostic, Coordinator pattern |
+| Forward pool | `docs/architecture/forward-congestion-pool.md` | Two-tier model, per-peer workers |
+| YANG schemas | `ai/rules/config-design.md` | Augment vs grouping, listener pattern |
+| Registration code | `ai/patterns/registration.md` | `init()` + registry + blank import pattern |
+
+### Fixing a Bug
+
+```
+1. Read ai/rules/before-writing-code.md (sibling call-site audit)
+2. Read ai/rules/anti-rationalization.md (no rationalizing test failures)
+3. Grep ALL implementations of the function/protocol step (ai/rules/integration-completeness.md)
+4. Check plan/learned/RECURRING-PATTERNS.md for known traps in this area
+5. After fixing: ai/rules/testing.md iteration workflow
+```
+
+### Writing Documentation
+
+```
+1. Read ai/rules/documentation.md (categories, source anchors)
+2. Read ai/rules/discovery-updates.md if the doc adds or changes a feature, tool, check, gate, or test path
+3. Read the actual source before any factual claim
+4. Add <!-- source: path -- symbol --> anchors
+5. Run make ze-doc-test after editing docs/
+```
+
+### Working with IPsec / IKE
+
+Read in order: `plan/learned/734` (data model), `plan/learned/739` (crypto),
+`plan/learned/740` (engine), `plan/learned/742` (child SA), `plan/learned/744` (EAP/NAT-T).
+
+### Working with CPE / Subscriber
+
+Read: `plan/learned/760` (subscriber session model), `plan/learned/725` (DHCP ranges),
+`plan/learned/746` (firewall global options).
+
+### Writing Tests (Which Type?)
+
+| What to test | Test format | Directory | Runner |
+|---|---|---|---|
+| Config parses correctly | `.ci` | `test/parse/` | `ze-test bgp parse` |
+| BGP wire encoding | `.ci` | `test/encode/` | `ze-test bgp encode` |
+| BGP wire decoding | `.ci` | `test/decode/` | `ze-test bgp decode` |
+| Plugin behavior / API | `.ci` | `test/plugin/` | `ze-test bgp plugin` |
+| Config reload via SIGHUP | `.ci` | `test/reload/` | `ze-test bgp reload` |
+| CLI show/monitor output | `.ci` | `test/ui/` | `ze-test ui` |
+| Web HTTP endpoints | `.wb` | `test/web/` | `ze-test web` |
+| Editor TUI interactions | `.et` | `test/editor/` | `ze-test editor` |
+| Pure logic (no daemon) | `_test.go` | `internal/<pkg>/` | `go test` |
+| Linux-only kernel code | `_test.go` | `internal/<pkg>/` | `make ze-qemu-integration-test` |
+
+Key docs: `ai/patterns/functional-test.md` (directories + runner commands),
+`docs/functional-tests.md` (verify artifacts and rerun workflow),
+`docs/architecture/testing/ci-format.md` (full format reference),
+`ai/rules/testing.md` (observer API, iteration workflow).
+
+## When You Don't Know Which Area
+
+Use keyword search in `ai/INDEX.md`. If the keyword isn't there:
+
+```
+grep -rn "keyword" docs/architecture/ --include="*.md" -l
+grep -rn "keyword" plan/learned/ --include="*.md" -l
+grep -rn "keyword" ai/rules/ --include="*.md" -l
+```
+
+## Cross-Cutting Rules (Apply Regardless of Area)
+
+These rules are frequently missed because they don't map to a single
+artifact type. Check them whenever your work touches the described concern.
+
+| Concern | Rule | When it applies |
+|---|---|---|
+| Listing/enumerating things | `ai/rules/derive-not-hardcode.md` | Help text, usage strings, error messages, any output that enumerates items |
+| Goroutine lifecycle | `ai/rules/goroutine-lifecycle.md` | Any `go func()`, any `OnStarted` callback, any worker pattern |
+| File size | `ai/rules/file-modularity.md` | Modified file exceeds 600 lines |
+| Pipe operators | `ai/rules/pipe-completeness.md` | Any command producing output |
+| Registered names | `ai/rules/plugin-design.md` "Renaming" section | Changing any plugin/subsystem/dispatch/log name |
+| Sibling call sites | `ai/rules/before-writing-code.md` "Sibling Call-Site Audit" | Adding a guard/fallback/retry to ANY call site |
+| Buffer allocation / memory | `ai/rules/memory-architecture.md`, `ai/rules/buffer-first.md`, `ai/rules/no-sprintf-alloc.md` | Any allocation, pool use, string building, or wire encoding |
+| Map keys / dispatch keys | `ai/rules/enum-over-string.md` | Any new `map[string]` or string-based dispatch on a hot path |
+| JSON keys | `ai/rules/json-format.md` | Any new JSON output |
+| Env vars | `ai/rules/go-standards.md` env section | Any env var access |
+| Error handling | `ai/rules/go-standards.md` forbidden section | Any `_` on error return |
+| Error / failure message content | `ai/rules/error-messages.md` | Any error, log line, or failure output: name the subject + offending value + corrective action; greppable phrase; fail closed |
+| Discoverability | `ai/rules/discovery-updates.md` | Any feature, tool, self-check, verification gate, test infrastructure, or agent workflow |
 
 ## Dev Tools
 
@@ -57,12 +176,12 @@ Mechanical recipes for creating common artifacts. Read before coding.
 
 | Pattern | File | What it covers |
 |---------|------|---------------|
-| **Registration** | `patterns/registration.md` | **All registries, startup flow, modular core architecture** |
-| CLI Command | `patterns/cli-command.md` | Offline/online dispatch, grammar, YANG tree, exit codes |
-| Web Endpoint | `patterns/web-endpoint.md` | Handler sequence, templates, HTMX OOB, route registration |
-| Plugin | `patterns/plugin.md` | register.go, logger, SDK protocol, filters, codecs |
-| Config Option | `patterns/config-option.md` | YANG leaf, env var, validator, naming across layers |
-| Functional Test | `patterns/functional-test.md` | .ci format, test directories, templates, expectations |
+| **Registration** | `ai/patterns/registration.md` | **All registries, startup flow, modular core architecture** |
+| CLI Command | `ai/patterns/cli-command.md` | Offline/online dispatch, grammar, YANG tree, exit codes |
+| Web Endpoint | `ai/patterns/web-endpoint.md` | Handler sequence, templates, HTMX OOB, route registration |
+| Plugin | `ai/patterns/plugin.md` | register.go, logger, SDK protocol, filters, codecs |
+| Config Option | `ai/patterns/config-option.md` | YANG leaf, env var, validator, naming across layers |
+| Functional Test | `ai/patterns/functional-test.md` | .ci format, test directories, templates, expectations |
 
 ## Learned Summaries (Curated)
 
@@ -148,32 +267,32 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 
 | Keywords | Docs |
 |----------|------|
-| buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `rules/buffer-first.md` |
-| encode, Pack, WriteTo, alloc | `rules/buffer-first.md`, `buffer-architecture.md` |
+| buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `ai/rules/buffer-first.md` |
+| encode, Pack, WriteTo, alloc | `ai/rules/buffer-first.md`, `buffer-architecture.md` |
 | UPDATE, message, build, route | `core-design.md`, `update-building.md`, `encoding-context.md` |
 | attribute, AS_PATH, NEXT_HOP, MED | `core-design.md`, `wire/attributes.md`, `update-building.md` |
 | community, ext community, large community | `wire/attributes.md` |
 | NLRI, prefix, MP_REACH, MP_UNREACH | `core-design.md`, `wire/nlri.md` |
 | multiprotocol, AFI, SAFI | `wire/nlri.md`, `wire/capabilities.md` |
 | capability, OPEN, negotiate | `wire/capabilities.md` |
-| pool, memory, dedup, zero-copy, lifecycle | `rules/memory-architecture.md`, `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
-| textbuf, string building, AppendTo, alloc-free | `rules/no-sprintf-alloc.md`, `rules/memory-architecture.md`, `internal/core/textbuf/` |
-| error message, actionable error, corrective action, remediation, fail closed | `rules/error-messages.md`, `rules/exact-or-reject.md`, `rules/derive-not-hardcode.md` |
-| sync.Pool, buffer pool, ring buffer, peerPool | `rules/memory-architecture.md`, `forward-congestion-pool.md` |
+| pool, memory, dedup, zero-copy, lifecycle | `ai/rules/memory-architecture.md`, `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
+| textbuf, string building, AppendTo, alloc-free | `ai/rules/no-sprintf-alloc.md`, `ai/rules/memory-architecture.md`, `internal/core/textbuf/` |
+| error message, actionable error, corrective action, remediation, fail closed | `ai/rules/error-messages.md`, `ai/rules/exact-or-reject.md`, `ai/rules/derive-not-hardcode.md` |
+| sync.Pool, buffer pool, ring buffer, peerPool | `ai/rules/memory-architecture.md`, `forward-congestion-pool.md` |
 | forward, reflect, wire cache | `core-design.md`, `encoding-context.md`, `update-building.md` |
 | route, rib, storage | `core-design.md`, `route-types.md`, `rib-transition.md`, `plugin/rib-storage-design.md` |
 | route selection, best path | `route-selection.md` |
 | FSM, state, session, peer | `behavior/fsm.md` |
 | signal, SIGHUP, SIGUSR | `behavior/signals.md` |
-| API, command, announce, withdraw | `api/architecture.md`, `api/capability-contract.md`, `api/commands.md` |
-| text format, IPC, formatter, parser | `api/text-format.md`, `api/text-parser.md`, `api/text-coverage.md` |
-| IPC, wire format, muxconn | `api/ipc_protocol.md`, `api/wire-format.md`, `api/process-protocol.md` |
-| JSON, event format | `api/json-format.md` |
+| API, command, announce, withdraw | `docs/architecture/api/architecture.md`, `docs/architecture/api/capability-contract.md`, `docs/architecture/api/commands.md` |
+| text format, IPC, formatter, parser | `docs/architecture/api/text-format.md`, `docs/architecture/api/text-parser.md`, `docs/architecture/api/text-coverage.md` |
+| IPC, wire format, muxconn | `docs/architecture/api/ipc_protocol.md`, `docs/architecture/api/wire-format.md`, `docs/architecture/api/process-protocol.md` |
+| JSON, event format | `docs/architecture/api/json-format.md` |
 | config, load | `config/syntax.md`, `config/tokenizer.md` |
 | environment, env vars | `config/environment.md`, `config/environment-block.md` |
 | web, dashboard, UI | `web-interface.md`, `web-components.md`, `chaos-web-dashboard.md` |
 | subsystem, wiring, plugin manager | `subsystem-wiring.md`, `plugin-manager-wiring.md` |
-| bridge, direct call, request/response, sync handler | `core-design.md` (section 9), `rules/plugin-design.md` (DirectBridge), `plan/learned/294-inprocess-direct-transport.md` |
+| bridge, direct call, request/response, sync handler | `core-design.md` (section 9), `ai/rules/plugin-design.md` (DirectBridge), `plan/learned/294-inprocess-direct-transport.md` |
 | forward pool, congestion | `forward-congestion-pool.md`, `congestion-industry.md` |
 | hub, API commands | `hub-architecture.md`, `hub-api-commands.md` |
 | cache, update cache | `update-cache.md`, `update-density-analysis.md` |
@@ -205,19 +324,19 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | EAP, NAT-T, MOBIKE | `plan/learned/744` (EAP/NAT-T), `plan/learned/737` (EAP extension) |
 | XFRM, xfrm interface, VTI | `plan/learned/735` (XFRM interfaces) |
 | subscriber, session, PPPoE, L2TP | `plan/learned/760-subscriber-session-model.md`, `internal/component/pppoe/` |
-| editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `rules/testing.md` (Editor Tests section) |
-| diagnostic, doctor, health, readiness | `plan/learned/755-ze-doctor.md`, `rules/doctor-checks.md`, `plan/learned/727-diag-core.md` |
-| EventBus, event, pub/sub, subscribe, emit | `pkg/ze/eventbus.go`, `rules/plugin-design.md` (EventBus Typed Payloads), `internal/component/plugin/events.go` |
-| DirectBridge, bridge, direct call, typed handler | `pkg/plugin/rpc/bridge.go`, `rules/plugin-design.md` (DirectBridge), `plan/learned/294-inprocess-direct-transport.md` |
+| editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `ai/rules/testing.md` (Editor Tests section) |
+| diagnostic, doctor, health, readiness | `plan/learned/755-ze-doctor.md`, `ai/rules/doctor-checks.md`, `plan/learned/727-diag-core.md` |
+| EventBus, event, pub/sub, subscribe, emit | `pkg/ze/eventbus.go`, `ai/rules/plugin-design.md` (EventBus Typed Payloads), `internal/core/events/typed.go` |
+| DirectBridge, bridge, direct call, typed handler | `pkg/plugin/rpc/bridge.go`, `ai/rules/plugin-design.md` (DirectBridge), `plan/learned/294-inprocess-direct-transport.md` |
 | BFD, bidirectional forwarding | `docs/architecture/bfd.md` |
 | resolve, origin, pipe, pipe operator | `docs/architecture/resolve.md`, `ai/rules/pipe-completeness.md` |
 | MCP, model context protocol | `docs/architecture/mcp/`, `internal/component/mcp/` |
-| self-update, manifest, auto-update | `plan/learned/748-self-update.md` |
+| self-update, manifest, auto-update | `plan/learned/748-cpe-6-self-update.md` |
 | ASPA, path verification, RTR | `plan/learned/721-bgp-2-aspa.md`, `plan/learned/722-spec-bgp-4-aspa-policy.md` |
 | BMP, monitoring protocol | `plan/learned/574-bgp-4-bmp.md`, `plan/learned/647-bmp-5-sender-compliance.md` |
 | docker, container, scratch | `plan/learned/753-docker-go126.md`, `docs/guide/docker.md` |
 | chaos, fault injection, scheduler | `plan/learned/723-chaos-actions-v2.md`, `docs/architecture/chaos-web-dashboard.md` |
-| commit, commit script, commit message, lesson learned, verified commit, verify freshness | `scripts/dev/commit_helper.py`, `scripts/dev/verify-status.sh`, `ai/rules/git-safety.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
+| commit, commit script, commit message, lesson learned, verified commit, verify freshness, owner override, commit no test | `scripts/dev/commit_helper.py`, `scripts/dev/verify-status.sh`, `ai/rules/git-safety.md`, `ai/skills/ze-commit.md`, `ai/skills/ze-commit-check.md` |
 | self-improvement, discoverability, discovery, new tool, self-check, verification gate | `ai/rules/discovery-updates.md`, `ai/rules/hook-mapping.md`, `docs/contributing/documentation-testing.md` |
 | inventory, command-list, doc drift, source anchor, doc index | `ai/rules/discovery-updates.md`, `ai/rules/documentation.md`, `docs/contributing/documentation-testing.md`, `mk/inventory.mk` |
 | clear, clear command, clear dns, clear interface, clear ipsec | `internal/component/resolve/cmd/` (dns), `internal/component/iface/cmd/` (interface), `internal/component/ike/cmd/` (ipsec), `internal/component/cmd/clear/` (verb root) |
@@ -227,7 +346,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | pipe first, pipe last, pipe metadata | `ai/rules/pipe-completeness.md`, `plan/learned/822-pipe-first-last.md` |
 | RIB dump, bounded dump, replay batching, update cursor | `plan/learned/823-rib-show-bounded-dump.md`, `plan/learned/824-rib-feed-replay-batch.md` |
 | plugin internal keyword, in-process plugin config | `plan/learned/821-plugin-internal-keyword.md`, `ai/patterns/plugin.md` |
-| appliance auth, local admin, bootstrap auth, RBAC | `plan/learned/831-appliance-auth-hardening.md`, `internal/component/auth/`, `internal/component/aaa/` |
+| appliance auth, local admin, bootstrap auth, RBAC | `plan/learned/831-appliance-auth-hardening.md`, `internal/component/authz/`, `internal/component/aaa/` |
 | appliance, appliance iso, appliance build, appliance init | `internal/appliance/`, `docs/guide/appliance.md`, `docs/guide/ze-install.md`, `scripts/evidence/effective-install-iso-qemu.py`, `mk/test-integration.mk` |
 | code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `make ze-doc-index`) |
 | mutation testing, gomu, mutation score, mutant | `mk/test-mutation.mk`, `ai/rules/testing.md` (Mutation Testing section) |

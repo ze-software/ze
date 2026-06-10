@@ -25,26 +25,26 @@ Changes to certain file types have predictable ripple effects.
 | New family | `family.MustRegister()`, NLRI decoder/encoder registration |
 | New capability | Capability codec registration |
 | New event type | `Registration.EventTypes` field |
-| Renamed name | See `rules/plugin-design.md` "Renaming a Registered Name" for full grep |
+| Renamed name | See `ai/rules/plugin-design.md` "Renaming a Registered Name" for full grep |
 
 ### Go Source (`*.go` under `internal/`)
 
 | What changed | Also check |
 |---|---|
-| New exported symbol | Wiring: who calls it? (`rules/wiring-completeness.md`) |
+| New exported symbol | Wiring: who calls it? (`ai/rules/wiring-completeness.md`) |
 | Modified function signature | All callers (LSP findReferences or grep) |
-| New goroutine | `rules/goroutine-lifecycle.md`, cleanup on shutdown |
-| New `make([]byte, N)` on wire path | Pool-backed alternative (`rules/buffer-first.md`) |
-| New `fmt.Sprintf` | Append-based alternative (`rules/no-sprintf-alloc.md`) |
-| Guard/fallback added | Sibling call-site audit (`rules/before-writing-code.md`) |
+| New goroutine | `ai/rules/goroutine-lifecycle.md`, cleanup on shutdown |
+| New `make([]byte, N)` on wire path | Pool-backed alternative (`ai/rules/buffer-first.md`) |
+| New `fmt.Sprintf` | Append-based alternative (`ai/rules/no-sprintf-alloc.md`) |
+| Guard/fallback added | Sibling call-site audit (`ai/rules/before-writing-code.md`) |
 | Error return ignored | Hook `block-ignored-errors.sh` will reject |
 
 ### Functional Test (`*.ci`)
 
 | What changed | Also check |
 |---|---|
-| New test file | Correct directory (`rules/testing.md` test directories table) |
-| Python observer | No `sys.exit(1)`, use `runtime_fail` (`rules/testing.md` observer section) |
+| New test file | Correct directory (`ai/rules/testing.md` test directories table) |
+| Python observer | No `sys.exit(1)`, use `runtime_fail` (`ai/rules/testing.md` observer section) |
 | Config in `tmpfs=` | Parse test validates syntax |
 
 ### Go Source → Documentation

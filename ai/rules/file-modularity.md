@@ -6,6 +6,14 @@ Rationale: `ai/rationale/file-modularity.md`
 
 Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility.
 
+The line thresholds exist for **context economy**: any task touching a file
+should be able to load that file's whole concern without dragging unrelated
+code into context. The corollary (per Thomas): a split is only worth doing
+when the separation is RIGHT — a forced mechanical split that scatters one
+concern across files is worse than one large cohesive file. The post-edit
+size warning is deliberately non-blocking for this reason; treat it as a
+prompt to check cohesion, not an order to cut.
+
 | Lines | Action |
 |-------|--------|
 | < 600 | Fine if single concern |
@@ -24,8 +32,8 @@ Before creating a file: "one concern?" Before adding to one: "belongs to this fi
 - Shared test helpers stay in base `_test.go`
 - `goimports` handles import cleanup
 - Name after concern: `reactor_announce.go`, `session_handlers.go`
-- New files: copy `// Design:` from original, review topic annotation (`rules/design-doc-references.md`)
-- All resulting files: `// Related:` to siblings (`rules/related-refs.md`)
+- New files: copy `// Design:` from original, review topic annotation (`ai/rules/design-doc-references.md`)
+- All resulting files: `// Related:` to siblings (`ai/rules/related-refs.md`)
 
 ## Exempt: Test Files
 

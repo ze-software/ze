@@ -33,7 +33,7 @@ those brings a second concern in addition to performance:
   definition and looks up its local IDs from the registry.
 - Ownership is explicit: the registry stores value-typed metadata
   (IDs, name copies, bits), not pointers into producer-allocated state.
-  See `rules/memory.md`.
+  See `.claude/rules/memory.md`.
 
 Within a component, pointers and strings can flow freely -- performance
 arguments still apply to hot paths, but the contract concern does not.
@@ -45,7 +45,7 @@ scattered across learned summaries:
 
 1. Event payloads crossing component seams must be value-typed
    (`memory_feedback_no_cross_boundary_pointers`).
-2. Wire-facing paths must not allocate (`rules/buffer-first.md`).
+2. Wire-facing paths must not allocate (`ai/rules/buffer-first.md`).
 3. Registered names used for dispatch must be constants, not literals
    (`memory.md` "Constants for Command/Status Names").
 

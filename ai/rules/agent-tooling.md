@@ -53,8 +53,8 @@ forbids rerunning `make ze-verify` or `make ze-verify-changed`.
 
 Version-matched skill content is embedded in the binary.
 
-1. New skills go in `cmd/ze/skills/data/<name>.md` with frontmatter.
-2. The skill inventory in `cmd/ze/skills/main.go` must list every embedded file.
+1. New skills go in `internal/plugins/skills/data/<name>.md` with frontmatter.
+2. The skill inventory in `internal/plugins/skills/main.go` must list every embedded file.
 3. `ze skills list` must show all bundled skills without a static list elsewhere.
 
 ## Validation at Boundaries
@@ -77,5 +77,5 @@ When adding agent-facing features:
 2. Update `docs/guide/mcp/overview.md` if MCP users need to discover the feature.
 3. Update embedded skill files if the feature changes the agent workflow.
 4. Satisfy `ai/rules/discovery-updates.md`: add the keyword/task path in
-   `ai/INDEX.md` or `ai/NAVIGATION.md`, and document the verification target
+   `ai/INDEX.md`, and document the verification target
    that proves the feature is discoverable.

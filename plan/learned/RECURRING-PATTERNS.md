@@ -29,11 +29,16 @@ pattern below).
 uses the imported identifier fails to compile with
 `undefined: <identifier>`. Re-adding the import produces the same result.
 
-**Cause.** `auto_linter.sh` runs `goimports -w` on every successful
-`Edit` and `Write`. `goimports` deletes any `import` whose identifier is
-not referenced in the current file content. Two-Edit sequences
-(Edit 1 adds import, Edit 2 adds usage) leave the file in a state where
-the import is unused between the two Edits.
+**Cause.** The then-hook `auto_linter.sh` ran `goimports -w` on every
+successful `Edit` and `Write`. `goimports` deletes any `import` whose
+identifier is not referenced in the current file content. Two-Edit
+sequences (Edit 1 adds import, Edit 2 adds usage) leave the file in a
+state where the import is unused between the two Edits.
+
+**Status.** Resolved 2026-04-19: the successor (`auto-lint` in
+`.claude/hooks/posttool-writeedit.py`) runs `goimports -format-only`,
+which neither adds nor removes imports. Same-edit import + usage
+remains the convention (`ai/rules/go-standards.md`).
 
 **Evidence.** Observed at least 25 times: 288, 410, 437, 440, 449, 450,
 462, 477 (twice), 482, 503, 507, 526, 544, 546, 548, 551, 553, 562, 578,
@@ -160,7 +165,7 @@ post-switch `else` (or explicit `if`) that returns an error naming the
 unknown value and the valid set.
 
 **Recover if you hit it.** Add the explicit rejection path. Reinforces
-`rules/exact-or-reject.md`.
+`ai/rules/exact-or-reject.md`.
 
 ---
 
@@ -454,7 +459,7 @@ simulated clock; fixed by using `clock.Now().Sub(estAt)`),
 **Avoid it by.** In any package that accepts a `clock.Clock`
 parameter or constructs a `clock.Clock` field, every call that returns
 a monotonic or wall-clock time MUST go through the clock instance.
-Grep-audit test in `internal/sim/` enforces this for reactor/FSM code.
+Grep-audit test in `internal/test/sim/` enforces this for reactor/FSM code.
 
 **Recover if you hit it.** Replace `time.Now()` with `c.Now()` (where
 `c` is the injected clock); replace `time.NewTimer(d)` with
@@ -578,8 +583,8 @@ specs audited on 2026-04-14 were found to have stale "What Remains"
 sections.
 
 **Avoid it by.** Never trust a spec's "What Remains" section without
-grepping the codebase. See also `rules/memory.md`
-`feedback_verify_specs_against_code` and the `rules/quality.md`
+grepping the codebase. See also `.claude/rules/memory.md`
+`feedback_verify_specs_against_code` and the `ai/rules/quality.md`
 "Learned Summary Verification" section.
 
 **Recover if you hit it.** Audit the spec against the code. Update or

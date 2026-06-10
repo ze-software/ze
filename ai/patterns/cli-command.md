@@ -1,7 +1,7 @@
 # Pattern: CLI Command
 
 Structural template for adding CLI commands to Ze.
-Rules: `rules/cli-patterns.md`. Architecture: `docs/architecture/cli/plugin-modes.md`.
+Rules: `ai/rules/cli-patterns.md`. Architecture: `docs/architecture/cli/plugin-modes.md`.
 
 **BLOCKING:** `ai/rules/cli-grammar.md` -- action keyword before identifier, IDs as strings.
 Every command grammar must place the action keyword before any user-supplied identifier.
@@ -12,10 +12,10 @@ Read the grammar rule before designing any new command.
 | Rule | When it applies |
 |------|----------------|
 | `ai/rules/pipe-completeness.md` | Every command producing output MUST support all pipe operators |
-| `rules/derive-not-hardcode.md` | If the command lists or enumerates things (help, show, status) |
-| `rules/goroutine-lifecycle.md` | If the command launches background work (monitor, streaming) |
-| `rules/json-format.md` | If the command emits JSON |
-| Full navigation: `ai/NAVIGATION.md` | |
+| `ai/rules/derive-not-hardcode.md` | If the command lists or enumerates things (help, show, status) |
+| `ai/rules/goroutine-lifecycle.md` | If the command launches background work (monitor, streaming) |
+| `ai/rules/json-format.md` | If the command emits JSON |
+| Full navigation: `ai/INDEX.md` | |
 
 ## Two Types of Commands
 
@@ -458,7 +458,7 @@ automatically.
 | **Root handler registration** | `internal/component/bgp/cli/register.go` | Canonical owner `register.go` (RegisterRootHandler + `show` shortcuts) |
 | **Root + owner schema** | `internal/component/bgp/cli/register.go` + `internal/component/bgp/cli/yang/` | Owner-owned YANG tools schema, blank-imported by the owner |
 | **Storage-bound** | `internal/component/config/cli/register.go` | `StorageAs` (root) + `RuntimeStorage` (local shortcuts) |
-| **No-owner / process-global** | `cmd/ze/diag/register.go` | Stays in `cmd/ze`; `RegisterRoot` metadata + `MustRegisterLocal` (ping, generate) |
+| **No-owner / process-global** | `internal/plugins/skills/register.go` | `RegisterRoot` metadata + `MustRegisterLocalMeta` for commands with no component owner |
 | Online RPC | `internal/component/cmd/show/show.go` | Read-only verb |
 | Online RPC | `internal/component/cmd/set/set.go` | Write verb |
 

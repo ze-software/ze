@@ -59,11 +59,6 @@ Buffer-first, zero-copy, attribute pools, UPDATE building, NLRI parsing.
 Registration, SDK, event flow, lifecycle, hook integration.
 
 - [253](plan/learned/253-nlri-plugin-extraction.md) -- NLRI codec extraction to plugins
-- [256](plan/learned/256-plugin-lifecycle-mgmt.md) -- Plugin lifecycle management patterns
-- [300](plan/learned/300-plugin-service-pattern.md) -- Plugin service pattern (SDK callbacks)
-- [301](plan/learned/301-plugin-sdk-interface.md) -- SDK public interface design
-- [303](plan/learned/303-plugin-api-dispatch.md) -- Plugin API dispatch via text commands
-- [325](plan/learned/325-plugin-rib-families.md) -- Plugin RIB family registration
 - [757](plan/learned/757-typed-route-result.md) -- Typed RouteResult replaces map[string]any in update-route, eliminating int/float64 transport divergence
 - [781](plan/learned/781-remove-private-as.md) -- Remove-private-as: plugin intent + reactor wire rewrite; Set+Prepend composition
 - [806](plan/learned/806-install-1-dhcp-pxe.md) -- DHCP PXE extension: additive options in existing buildReply, server-wide pxeConfig, 1500-byte reply buffer, siaddr+option 66 dual-set for PXE ROM compat
@@ -91,7 +86,6 @@ YANG schema, migration, config reload, editor, environment variables.
 - [065](plan/learned/065-spec-remove-version-numbers.md) -- No version numbers in config (YANG-transformable)
 - [166](plan/learned/166-yang-only-schema.md) -- YANG as sole schema source of truth
 - [175](plan/learned/175-config-editor-validation.md) -- Config editor validation pipeline
-- [184](plan/learned/184-exabgp-to-yang-migration.md) -- ExaBGP syntax to YANG migration
 - [226](plan/learned/226-config-reload-6-remove-bgpconfig.md) -- BGPConfig removal, map[string]any
 - [232](plan/learned/232-editor-tree-canonical.md) -- Editor tree canonical representation
 - [716](plan/learned/716-iface-2-urpf.md) -- rpf-check enum over raw sysctl integer; three-state nil/disable/value pattern; sysctl profile ordering issue
@@ -122,9 +116,10 @@ Command structure, text format, IPC, RPC dispatch.
 - [755](plan/learned/755-ze-doctor.md) -- Offline system readiness checks: diagnostic code taxonomy, error/warning severity, platform-split checks, shared resolve package
 - [788](plan/learned/788-doctor-improvements.md) -- Doctor schema-driven listener inventory, RegisterListenerDefault pattern, show doctor provider, dependency inventory guardrail
 - [837](plan/learned/837-doctor-check-registry.md) -- Doctor check registry: explicit phase/order/component metadata, plugin binary check first migration, registry code metadata consistency through diagnostic.Lookup
-- [838](plan/learned/838-doctor-check-ownership.md) -- Doctor check ownership: runtime dependency check registration, check function, and unit test live in the owning plugin/component/backend/command package; `cmd/ze/doctor` owns only runner coverage and checks with no narrower owner
+- [838](plan/learned/838-doctor-check-ownership.md) -- Doctor check ownership: runtime dependency check registration, check function, and unit test live in the owning plugin/component/backend/command package; `internal/component/doctor` owns only runner coverage and checks with no narrower owner
 - [863](plan/learned/863-plugin-doctor-checks.md) -- Plugin doctor check registration: external plugins declare doctor checks in Stage 1, invoked via callback at runtime; two parallel paths (Go registry for offline, plugin callback for runtime)
 - [868](plan/learned/868-test-web-parallel.md) -- Parallel web tests: per-test ze daemon + agent-browser session isolation; web suite migrated from bespoke loop to ParallelRunner (two test engines, not three)
+- [872](plan/learned/872-structural-review-fixes.md) -- Structural review fix pass: generators/checkers over hand-maintained text (arch map, link checker, drift check); netip.Addr peer keys; ownership moves; verify-gate soundness (mode/skips, reverse deps, fail-not-skip); six parallel subagents on disjoint files
 - [791](plan/learned/791-spec-cli-default-format.md) -- Configurable default CLI output format: env.Get in command package, session override via env.Set, intercept placement before isConfigCommand
 - [795](plan/learned/795-cmd-typed-args.md) -- YANG-typed command arguments: ArgDefs on Node from YANG leaves, two-phase dispatcher validation, completer auto-generates enum suggestions, mergeYANGEntry second pass for leaf children
 - [792](plan/learned/792-platform-detection.md) -- Runtime platform detection: gokrazy/systemd/container/plain-linux/darwin classification, cgroups v1+v2, FD limits, set system file-descriptors
@@ -158,9 +153,6 @@ Route storage, selection, forwarding, communities, path selection.
 - [010](plan/learned/010-rib-config-design.md) -- RIB config design, storage model
 - [173](plan/learned/173-plugin-rib-pool-storage.md) -- RIB pool storage design
 - [275](plan/learned/275-spec-forward-pool.md) -- Forward pool, per-peer worker goroutines
-- [316](plan/learned/316-outbound-rib-initialization.md) -- Outbound RIB initialization sequence
-- [395](plan/learned/395-local-rib-architecture.md) -- Local RIB architecture, index design
-- [402](plan/learned/402-bgp-route-selection.md) -- Best-path selection algorithm
 - [717](plan/learned/717-rib-2-multicast.md) -- Multicast RPF via generic LPM on sharded Loc-RIB; query-all-shards pattern; wiring gap caught by review
 - [772](plan/learned/772-nh-cascade-wiring.md) -- NH cascade wiring: async OnChange to avoid shard deadlock, LPM race fix, ECMP-aware cascade
 - [774](plan/learned/774-fib-depth-2-ecmp.md) -- ECMP is two mechanisms: bgp-rib multipath (within BGP) vs sysrib ecmpCollect (cross-protocol); locrib path means sysrib only sees one "bgp" entry
@@ -176,10 +168,9 @@ Route storage, selection, forwarding, communities, path selection.
 Graceful restart, route refresh, capability negotiation, session management.
 
 - [007](plan/learned/007-family-negotiation.md) -- Four family modes (enable/disable/require/ignore)
-- [033](plan/learned/033-spec-eor-handling.md) -- End-of-RIB handling (RFC 4724)
+- [033](plan/learned/033-spec-eor-tracking.md) -- End-of-RIB handling (RFC 4724)
 - [254](plan/learned/254-rfc7606-enforcement.md) -- RFC 7606 treat-as-withdraw enforcement
-- [369](plan/learned/369-bgp-graceful-restart-design.md) -- Graceful restart state machine design
-- [375](plan/learned/375-ebgp-route-refresh-design.md) -- Route refresh design (RFC 2918/7313)
+- [128](plan/learned/128-graceful-restart-plugin.md) -- Graceful restart plugin design
 - [574](plan/learned/574-bgp-4-bmp.md) -- BMP receiver + sender (RFC 7854), config-as-strings, synthetic OPENs
 - [647](plan/learned/647-bmp-5-sender-compliance.md) -- BMP sender compliance: real OPENs, Route Mirroring, ribout dedup
 
@@ -277,3 +268,4 @@ Reusable lessons extracted from gotchas sections across summaries.
 - (801) YANG sub-containers do not work for positional-argument CLI commands: dispatcher prefix-match breaks when a `<name>` arg sits between the command and sub-keyword; route sub-commands inside the handler via arg inspection instead of separate wire methods
 - (833) Commit script generation should be mechanical: use `scripts/dev/commit_helper.py` so session IDs, message files, ignored-path checks, executable scripts, and learned-summary decisions are enforced before the user runs the script
 - (835) When the user asks for a commit, do not re-audit implementation or rerun gates. Use `scripts/dev/commit_helper.py` immediately, and if `scripts/dev/verify-status.sh check` is FRESH, never rerun `make ze-verify` or `make ze-verify-changed`
+- (871) Thomas Owner Override lets the repository owner explicitly request commit-script preparation without a fresh verify run. It was added for OpenAI rigidity, not Anthropic. Agents still use `commit_helper.py`, never disable hooks, and report skipped verification plainly

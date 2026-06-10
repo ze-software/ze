@@ -112,7 +112,7 @@ vanish while every other plugin and the core keep working.
 
 Doctor checks follow the same proximity rule. A runtime dependency check,
 its registration, and its unit test belong in the plugin, component, backend,
-or command package that owns the dependency. `cmd/ze/doctor` keeps the runner,
+or command package that owns the dependency. `internal/component/doctor` keeps the runner,
 the user-entry functional tests, and checks for dependencies with no narrower
 owner.
 
@@ -420,8 +420,9 @@ var _ ze.EventBus = (*<stubName>)(nil)
 Without this line, an interface change (e.g. `Emit` gaining `any`) compiles
 the stub against an outdated signature and only fails when the test
 actually constructs the stub. The current 8 stub files
-(`pkg/ze/ze_test.go`, `internal/plugins/{sysrib,ntp,ifacedhcp}/*_test.go`,
-`internal/plugins/ifacenetlink/monitor_linux_test.go`,
+(`pkg/ze/ze_test.go`, `internal/plugins/{sysrib,ntp}/*_test.go`,
+`internal/plugins/iface/dhcp/*_test.go`,
+`internal/plugins/iface/netlink/monitor_linux_test.go`,
 `internal/component/iface/{migrate_linux,integration_helpers_linux,config}_test.go`,
 `internal/component/plugin/{server,manager}/*_test.go`,
 `internal/component/bgp/plugins/rib/rib_bestchange_test.go`) all carry

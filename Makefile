@@ -267,25 +267,40 @@ ze-sync-vendor-web:
 ze-check-vendor-web:
 	@go run scripts/vendor/check_web.go
 
-ze-ai-instructions:
+ze-arch-map:
+	@python3 scripts/dev/arch_map.py
+
+ze-ai-instructions: ze-arch-map
 	@sed 's/{{TOOL}}/Claude/' ai/INSTRUCTIONS.md > CLAUDE.md
 	@sed 's/{{TOOL}}/Codex/' ai/INSTRUCTIONS.md > AGENTS.md
 
 ze-ai-sync:
 	@scripts/dev/skill_sync.sh
 
+# CLAUDE.md / AGENTS.md / skills mirrors are gitignored: git diff can NEVER
+# show drift for them. ze-ai-check compares content against a fresh
+# generation instead. The session-start hook runs it and warns when stale.
+ze-ai-check:
+	@scripts/dev/skill_sync.sh --check
+
 ze-regen: generate ze-ai-instructions ze-ai-sync ze-doc-index ze-rules-index
 	@echo "All generated files updated"
 
 ze-regen-check: ze-regen
-	@if ! git diff --quiet -- CLAUDE.md AGENTS.md .claude/skills/ .codex/skills/ .agents/skills/ ai/CODE-TO-DOCS.md ai/rules/INDEX.md internal/component/plugin/all/all.go 2>/dev/null; then \
+	@if ! git diff --quiet -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md internal/component/plugin/all/all.go 2>/dev/null; then \
 		echo "ERROR: Generated files are stale. Run 'make ze-regen' and commit the result." >&2; \
-		git diff --stat -- CLAUDE.md AGENTS.md .claude/skills/ .codex/skills/ .agents/skills/ ai/CODE-TO-DOCS.md ai/rules/INDEX.md internal/component/plugin/all/all.go; \
+		git diff --stat -- ai/CODE-TO-DOCS.md ai/rules/INDEX.md internal/component/plugin/all/all.go; \
 		exit 1; \
 	fi
 	@python3 scripts/dev/code_to_docs.py --check
 	@python3 scripts/dev/rules_index.py --check
+	@python3 scripts/dev/arch_map.py --check
+	@scripts/dev/skill_sync.sh --check
+	@python3 scripts/dev/check_doc_links.py --md-only
 	@echo "All generated files are up to date"
+
+ze-doc-links:
+	@python3 scripts/dev/check_doc_links.py
 
 clean:
 	@echo "Cleaning..."
@@ -353,7 +368,7 @@ help:
 	@echo "    make ze-test-bgp          Unit tests for one component group (-race)"
 	@echo "                              Also: ze-test-core, ze-test-plugins, ze-test-config, ze-test-cli, ze-test-rest"
 	@echo "    make ze-encode-test       Single functional suite (encode, plugin, decode, parse, reload, ...)"
-	@echo "    make ze-verify            Pre-commit gate: lint + wiring/docs + unit + functional + exabgp (~2 min)"
+	@echo "    make ze-verify            Pre-commit gate: lint + wiring/docs + unit + functional + exabgp (4-10 min)"
 	@echo "    make ze-verify-changed    Scoped verify: changed packages + wiring/docs, then full functional"
 	@echo ""
 	@echo "  Build:"
@@ -533,6 +548,7 @@ help-dev:
 	@echo "    ze-plugin-imports-check   Verify generated plugin blank imports are current"
 	@echo "    ze-ai-instructions       Generate CLAUDE.md and AGENTS.md"
 	@echo "    ze-ai-sync               Sync canonical skills to tool directories"
+	@echo "    ze-ai-check              Check generated agent files match canonical sources"
 	@echo "    ze-doc-index             Regenerate ai/CODE-TO-DOCS.md"
 	@echo "    ze-rules-index           Regenerate ai/rules/INDEX.md"
 	@echo "    ze-sync-vendor-web       Sync vendored web assets"

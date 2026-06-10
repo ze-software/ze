@@ -55,11 +55,47 @@
 
 Ze is a **Network OS** in Go with its own BGP implementation and interface configuration. "Ze" = "The" with a French accent (predecessor: ExaBGP).
 
-**Small core + registration pattern.** Components and plugins register at startup via `init()` in `register.go`. Core discovers them through registries -- never imports directly. Registration is the unifying pattern: families, capabilities, CLI commands, config validators, web routes all register the same way.
+**Small core + registration pattern.** Components and plugins register at startup via `init()` in `register.go`. Core discovers them through registries -- never imports directly. Registration is the unifying pattern: families, capabilities, CLI commands, config validators, web routes all register the same way. The composition root `internal/component/plugin/all/all.go` is generated (`make generate`).
 
-**Components** (`internal/component/`) are independent unless they explicitly depend on each other: bgp, cli, config, dns, iface, lg, managed, mcp, ssh, telemetry, web, bus, hub, authz, engine.
+**Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
-**Plugins** (`internal/plugins/`) handle domain policy (RIB, route reflection, graceful restart, NLRI families). Communication: JSON events down, text commands up.
+<!-- BEGIN GENERATED: arch-components (scripts/dev/arch_map.py; make ze-regen) -->
+49 directories under `internal/component/`:
+
+aaa, api, audit, authz, bfd, bgp, cli, cmd, command, config, diag, doctor,
+engine, firewall, flowexport, gnmi, gokrazy, host, hub, iface, ike, ipsec,
+l2tp, ldp, lg, managed, mcp, mpls, mrt, ping, pki, plugin, ppp, pppoe,
+pppoeclient, radius, resolve, rsvpte, ssh, storage, subscriber, support,
+tacacs, telemetry, traceroute, traffic, update, vpp, web
+<!-- END GENERATED: arch-components -->
+
+**System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
+
+<!-- BEGIN GENERATED: arch-system-plugins (scripts/dev/arch_map.py; make ze-regen) -->
+63 directories under `internal/plugins/`:
+
+aaa-cmd, bfd, completion, config-archive-cmd, config-cli, config-schema,
+config-storage, config-yang, connect, connected, crashes, debug, dhcpserver,
+diag, env, exabgp, explain, fib, firewall, flowexport-cmd, flowspec-firewall,
+gnmi-cmd, host, host-cmd, iface, ifacenetlink, imageserver, init, kernel,
+l2tp-cmd, l2tpauthlocal, l2tpauthradius, l2tppool, l2tpshaper, ldp-cmd, local,
+log, meta, mpls-cmd, ntp, passwd, ping-cmd, pki-cmd, policyroute, pppoe-cmd,
+provision, resolve-cmd, routingtable, rsvpte-cmd, signal, skills, static,
+storage-cmd, subscriber-cmd, support, sysctl, sysrib, systemd, tftpserver,
+traceroute-cmd, traffic, traffic-cmd, update-cmd
+<!-- END GENERATED: arch-system-plugins -->
+
+**BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
+
+<!-- BEGIN GENERATED: arch-bgp-plugins (scripts/dev/arch_map.py; make ze-regen) -->
+28 directories under `internal/component/bgp/plugins/`:
+
+adj_rib_in, aigp, bmp, cmd, filter_aspath, filter_aspath_length,
+filter_community, filter_community_match, filter_modify, filter_prefix,
+filter_remove_private_as, gr, healthcheck, hostname, llnh, nlri, persist,
+redistribute_egress, redistribute_ingress, rib, role, route_refresh, rpki,
+rpki_decorator, rr, rs, softver, watchdog
+<!-- END GENERATED: arch-bgp-plugins -->
 
 **CLI** -- SSH-accessible network OS CLI: YANG-modeled config editor with modes, completion, diff, commit, history, dashboard, monitoring.
 
@@ -69,7 +105,7 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 
 **Config** -- YANG-modeled. File -> Tree -> `ResolveBGPTree()` -> `map[string]any` -> `reactor.PeersFromTree()`.
 
-**Key wire abstractions:** `WireUpdate` (lazy-parsed, zero-copy), `PackContext` (negotiated capabilities), `ContextID` (same = forward unchanged), pool dedup (per-attribute, refcounted), buffer-first (`WriteTo(buf, off) int`).
+**Key wire abstractions:** `WireUpdate` (lazy-parsed, zero-copy), `EncodingContext` (negotiated capabilities), `ContextID` (same = forward unchanged), pool dedup (per-attribute, refcounted), buffer-first (`WriteTo(buf, off) int`).
 
 ## Programs
 
@@ -80,71 +116,49 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 | `ze-perf` | Performance benchmarking: UPDATE throughput tracking |
 | `ze-analyse` | MRT/RIB analysis: attributes, communities, density, dump |
 | `ze-test` | Functional test runner: bgp, editor, peer, mcp, web, rpki, managed |
+| `ze-gok` | gokrazy appliance image build wrapper (`cmd/ze-gok/`) |
 
 ## Source Layout
 
 | Area | Location |
 |------|----------|
-| Components | `internal/component/` (bgp, cli, config, dns, iface, web, lg, ssh, ...) |
-| BGP engine | `internal/plugins/bgp/` (reactor, FSM, wire, message, capability) |
-| Plugin impls | `internal/plugins/bgp-rib/`, `bgp-rs/`, `bgp-gr/`, `bgp-nlri-*/` |
-| Plugin infra | `internal/plugin/` (registry, process, hub, SDK) |
-| Programs | `cmd/ze/` (build tags: `ze_core`, `ze_test`, `ze_chaos`, `ze_perf`, `ze_analyze`) |
+| Components | `internal/component/` (one directory per component; generated list above) |
+| BGP engine | `internal/component/bgp/` (reactor, fsm, wire, wireu, message, attribute, capability) |
+| BGP plugins | `internal/component/bgp/plugins/` (rib, rs, gr, nlri, filters, rpki, bmp, ...) |
+| System plugins | `internal/plugins/` (generated list above) |
+| Plugin host infra | `internal/component/plugin/` (registry, server, manager, generated `all/`) |
+| Plugin SDK (external API) | `pkg/plugin/`, `pkg/ze/` |
+| Core leaf packages | `internal/core/` (events, family, env, diagnostic, metrics, clock, textbuf, ...) |
+| Appliance | `internal/appliance/` (gokrazy image, installer, updater) |
+| Programs | `cmd/ze/` (build tags: `ze_core`, `ze_test`, `ze_chaos`, `ze_perf`, `ze_analyze`, `ze_setup`, `ze_distro`, `ze_appliance`) |
 | Tests | `test/` (.ci), `*_test.go` |
 
 ## Before You...
 
+This table keeps only the highest-stakes actions. **For everything else the
+dispatch is `ai/rules/INDEX.md`** (one line per rule -- scan it, read the
+listed file in full before acting on a topic it covers) **and `ai/INDEX.md`**
+(task navigation, keyword -> doc, dev tools). Absence from this table NEVER
+means "no rule applies".
+
 | Action | Read first |
 |--------|-----------|
-| Edit CLAUDE.md, AGENTS.md, or any synced file | `ai/rules/canonical-sources.md` -- never edit generated files, edit canonical source + sync |
-| Add or change an agent behavior rule | `ai/rules/canonical-sources.md` -- shared Ze rules go in `ai/rules/`, not tool-specific home directories |
-| Start a session | `rules/session-start.md` |
+| Start a session | `.claude/rules/session-start.md` |
+| Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/canonical-sources.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
-| Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/` |
-| Add or modify JSON output or struct tags | `ai/rules/json-format.md` -- kebab-case keys matching YANG/config names, never camelCase |
-| Format strings or errors | `ai/rules/no-sprintf-alloc.md` -- no fmt.Sprintf on hot paths, use append-based alternatives |
-| Write an error message, log line, or failure output | `ai/rules/error-messages.md` -- name the subject + offending value + corrective action; one stable greppable phrase; fail closed, never skip |
-| Write a backend or config translator | `ai/rules/exact-or-reject.md` -- no silent approximation, lossy translation rejects at verify |
-| Touch wire encoding | `ai/rules/buffer-first.md` |
-| Allocate memory, use pools, or build strings | `ai/rules/memory-architecture.md` -- data lifecycle, caller-owned buffers, pool strategy |
-| Add a map or dispatch table on a hot path | `ai/rules/enum-over-string.md` -- numeric keys, not strings; parse string at boundary |
-| Touch registration | `ai/patterns/registration.md` |
-| Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugin-self-containment.md` -- remove the plugin and ALL its features vanish; other plugins and core keep working; no plugin spelling in generic/central packages |
-| Add CLI/web/plugin/config | `ai/patterns/{cli-command,web-endpoint,plugin,config-option}.md` |
-| Add or change a CLI command grammar | `ai/rules/cli-grammar.md` -- closed keywords before free-form values, typed selectors, IDs as strings |
-| Write help text, usage strings, error messages, or docs that enumerate things | `ai/rules/derive-not-hardcode.md` -- derive from the registry/map, never re-hardcode; return structured data, not pre-formatted strings |
+| Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/`, `ai/rules/hook-mapping.md` (which checks will fire) |
+| Touch wire encoding, allocate memory, or build strings | `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md`, `ai/rules/no-sprintf-alloc.md` -- load-bearing divergence from standard Go |
+| Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugin-self-containment.md` -- remove the plugin and ALL its features vanish; no plugin spelling in generic/central packages |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/interop-and-goal-validation.md` |
-| Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` -- implement missing behavior at the source, never route around it |
+| Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` -- implement missing behavior at the source; never weaken the test |
 | Write linux-only code | `ai/rules/qemu-testing.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
-| Implement an RFC | `ai/rules/rfc-compliance.md`, `ai/rules/rfc-reading.md`, `rfc/short/` |
 | Write a spec | `ai/rules/planning.md`, `plan/TEMPLATE.md` |
-| Add a runtime dependency (file, socket, module, port) | `ai/rules/doctor-checks.md` -- add a `ze doctor` check so agents verify readiness |
-| Claim work is done | `ai/rules/no-partial-completion.md` -- every AC implemented, tested (unit + functional), wired |
+| Claim work is done | `ai/rules/no-partial-completion.md`, `ai/rules/wiring-completeness.md` -- every AC implemented, tested, wired; every exported symbol has a non-test caller |
 | Finish Go edits | `ai/rules/lint-gate.md` -- run `make ze-lint-changed` before claiming done |
-| Verify wiring and completeness | `ai/rules/wiring-completeness.md` -- every exported symbol has a non-test caller, grep all consumers |
-| Add a CLI command that produces output | `ai/rules/pipe-completeness.md` -- every command must support all pipe operators |
-| Report friction or confusion | `ai/rules/friction-reporting.md` -- report immediately, propose .claude fix |
-| Complete work autonomously | `ai/rules/no-asking.md` -- finish the task, then report; don't ask permission to start |
 | Commit | `ai/rules/git-safety.md` -- fast commit-script path; check verify status before any `ze-verify` rerun |
 | Run any test/build/lint command | `ai/rules/bash-output.md` -- no pipes, read log after |
-| Write a shell for-loop or Bash tool call | `ai/rules/no-fork-loops.md` -- no per-file forks; single invocation or xargs |
-| Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first, always |
-| Look up anything | `ai/INDEX.md` (keyword->doc, keyword->RFC) |
-| See which rule covers a topic | `ai/rules/INDEX.md` -- one-line overview of every rule; open the listed file in full before acting |
-| Understand architecture | `docs/architecture/core-design.md` |
-| Check past decisions | `ai/LEARNED-INDEX.md` -> `plan/learned/` |
-| Understand why the code is shaped this way | `plan/learned/DESIGN-HISTORY.md` |
-| Check if you are about to hit a known trap | `plan/learned/RECURRING-PATTERNS.md` |
-| Understand why a hook rejected your code | `plan/learned/HOOK-FRICTION.md` |
-| Touch EventBus or bus communication | `ai/rules/plugin-design.md` (EventBus + DirectBridge sections) -- typed handles, no raw bus.Subscribe |
-| Modify YANG schemas | `ai/rules/config-design.md` -- augment vs grouping, listener pattern for endpoints |
-| Add telemetry or metrics | `plan/learned/653-netdata-os-collectors.md`, `plan/learned/736-iface-rate.md` |
-| Rename a registered name | `ai/rules/plugin-design.md` "Renaming a Registered Name" -- grep every consumer |
-| Launch a goroutine | `ai/rules/goroutine-lifecycle.md` -- long-lived workers, no per-event goroutines |
-| Modify a file and need to know what else breaks | `ai/rules/impact-analysis.md` -- ripple effects by file type |
-| Find context for an unfamiliar area | `ai/NAVIGATION.md` -- task-to-context decision tree |
-| Know which hooks will check your code | `ai/rules/hook-mapping.md` -- pre-flight checklist by file type |
-| Understand how Ze differs from standard Go | `ai/rules/ze-divergences.md` -- buffer-first, registration, YANG, etc. |
-| Answer a factual question about file content | `ai/rules/no-fabrication.md` -- report only what the source explicitly states, never infer |
-| Modify the installer initrd | `ai/rules/initrd-no-external-tools.md` -- use procfs/sysfs, not external commands; isolate unavoidable ioctl deps in helpers |
+| Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first for user-visible or uncommitted work; this is the standing exception to "don't ask" |
+| Complete work autonomously | `ai/rules/no-asking.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |
+| Understand architecture or how Ze diverges from standard Go | `docs/architecture/core-design.md`, `ai/rules/ze-divergences.md` |
+| Check past decisions or known traps | `ai/LEARNED-INDEX.md` -> `plan/learned/`, `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md` |

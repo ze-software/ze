@@ -19,33 +19,33 @@ request/response and adding DirectBridge to the anti-pattern table.
 
 | What | Where | Prevents |
 |------|-------|----------|
-| Design principles | `rules/design-principles.md` | "Good enough" backends, translation layers, implicit behavior, premature abstraction |
-| Plugin architecture | `rules/plugin-design.md` | Wrong package, import violations, wrong comm mechanism |
-| Registration pattern | `patterns/registration.md` | Missing init + registry + blank import pattern |
+| Design principles | `ai/rules/design-principles.md` | "Good enough" backends, translation layers, implicit behavior, premature abstraction |
+| Plugin architecture | `ai/rules/plugin-design.md` | Wrong package, import violations, wrong comm mechanism |
+| Registration pattern | `ai/patterns/registration.md` | Missing init + registry + blank import pattern |
 | Existing core packages | `ls internal/core/` | Missing patterns like `internal/core/family/` |
 
 ## Tier 2: When Designing a Specific Artifact
 
 | Artifact | Read | Prevents |
 |----------|------|----------|
-| New plugin | `patterns/plugin.md` | Wrong structure, missing YANG, wrong callback |
-| Cross-plugin comm (broadcast) | `pkg/ze/eventbus.go` + `internal/component/plugin/events.go` + one consumer (e.g. fibkernel) | EventBus is for async pub/sub notifications, not request/response |
+| New plugin | `ai/patterns/plugin.md` | Wrong structure, missing YANG, wrong callback |
+| Cross-plugin comm (broadcast) | `pkg/ze/eventbus.go` + `internal/core/events/typed.go` + one consumer (e.g. fibkernel) | EventBus is for async pub/sub notifications, not request/response |
 | Cross-plugin comm (request/response) | `pkg/plugin/rpc/bridge.go` (DirectBridge) + `plan/learned/294-inprocess-direct-transport.md` | DirectBridge for sync typed calls from core to internal plugins. Do not reinvent this. |
 | Shared registry | `internal/core/family/` (read the code) | Registry inside a plugin instead of core |
-| Config option | `patterns/config-option.md` + `rules/config-design.md` | Missing env var, wrong YANG shape |
-| CLI command | `patterns/cli-command.md` | Wrong dispatch structure |
+| Config option | `ai/patterns/config-option.md` + `ai/rules/config-design.md` | Missing env var, wrong YANG shape |
+| CLI command | `ai/patterns/cli-command.md` | Wrong dispatch structure |
 | Platform-specific | Existing splits (`fibkernel/backend_linux.go`, `ifacenetlink/sysctl_linux.go`) | Wrong build tag, wrong abstraction level |
-| Naming | `rules/naming.md` + grep analogous names | Inventing ze-names when kernel/standard names exist |
+| Naming | `ai/rules/naming.md` + grep analogous names | Inventing ze-names when kernel/standard names exist |
 
 ## Tier 3: When the Design Touches These Areas
 
 | Area | Read | Prevents |
 |------|------|----------|
 | Plugin startup timing | `internal/component/plugin/server/startup.go` (`TopologicalTiers`, `runPluginPhase`) | Hand-waving instead of tier ordering |
-| Wire encoding | `rules/buffer-first.md` | Allocations in encoding |
-| Env vars | `rules/go-standards.md` + `internal/core/env/` | `os.Getenv`, missing `MustRegister` |
-| JSON format | `rules/json-format.md` | Wrong key casing |
-| Testing | `rules/testing.md` + `patterns/functional-test.md` | Missing .ci tests, wrong structure |
+| Wire encoding | `ai/rules/buffer-first.md` | Allocations in encoding |
+| Env vars | `ai/rules/go-standards.md` + `internal/core/env/` | `os.Getenv`, missing `MustRegister` |
+| JSON format | `ai/rules/json-format.md` | Wrong key casing |
+| Testing | `ai/rules/testing.md` + `ai/patterns/functional-test.md` | Missing .ci tests, wrong structure |
 | Daemon lifecycle | `OnStarted`/`OnAllPluginsReady` in a similar plugin | Wrong callback, missing cleanup |
 
 ## BGP Domain Facts (Do Not Assume From Training Data)
@@ -76,8 +76,8 @@ request/response and adding DirectBridge to the anti-pattern table.
 
 1. Did I read how ze already handles similar? (grep, not assume)
 2. Did I check `internal/core/` for an existing shared pattern?
-3. Did I read the relevant `patterns/` file?
-4. Does my proposal contradict `rules/design-principles.md`?
+3. Did I read the relevant `ai/patterns/` file?
+4. Does my proposal contradict `ai/rules/design-principles.md`?
 5. Am I inventing a name when standard/kernel/existing exists?
 6. Am I proposing a new communication mechanism? Read `pkg/plugin/rpc/bridge.go` first. DirectBridge likely already does it.
 7. Am I comparing systems or claiming capabilities? Read the implementation for each system being compared. Spawn parallel agents if multiple codepaths need verification. Never answer from docs alone.

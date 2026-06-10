@@ -44,6 +44,20 @@ EDIT 2: [file:lines]
 THEN: [test command with timeout]
 ```
 
+## Handover Documents (`handover/`)
+
+When a handoff must survive beyond the chat (multi-session work, work picked
+up days later), write it to `handover/NN-<slug>.md` using the same template.
+
+- `NN` = highest existing number in `handover/` plus one. Check with
+  `ls handover/` first; never reuse a number (collisions like two `13-*.md`
+  defeat ordering).
+- One handover per file. Do not put handover documents in `plan/` (that
+  directory is specs + learned summaries only).
+- The receiving session follows `.claude/rules/session-start.md`
+  "Receiving a Handoff": enumerate every outstanding item before planning.
+- Delete the handover file in the commit that completes its last item.
+
 ## Rules
 
 - Rationale bullets map to edits. An edit with no rationale bullet is suspect.

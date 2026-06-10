@@ -298,10 +298,11 @@ reference in the current file content. A two-Edit sequence "add
 import, then add usage" lost the import between Edit 1 and Edit 2,
 producing an `undefined` compile error.
 
-**Fix.** `.claude/hooks/auto_linter.sh` now invokes
+**Fix.** The formatter (then `auto_linter.sh`, today the `auto-lint`
+check in `.claude/hooks/posttool-writeedit.py`) invokes
 `goimports -format-only -w`. `-format-only` groups imports but
 neither adds nor removes them. Unused imports are still caught —
-by `golangci-lint`, which the same hook runs next, so the failure
+by `golangci-lint`, which the same check runs next, so the failure
 is now an explicit lint error instead of silent mutation.
 
 ### `block-silent-ignore.sh` — retired 2026-04-19

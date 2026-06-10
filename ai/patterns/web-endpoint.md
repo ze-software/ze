@@ -7,11 +7,11 @@ Architecture: `docs/architecture/web-interface.md`, `docs/architecture/web-compo
 
 | Rule | When it applies |
 |------|----------------|
-| `rules/json-format.md` | Any API endpoint returning JSON |
-| `rules/goroutine-lifecycle.md` | SSE streaming, background workers |
-| `rules/derive-not-hardcode.md` | Pages that list or enumerate items |
-| `rules/config-design.md` (Listeners) | If adding a new web listener endpoint |
-| Full navigation: `ai/NAVIGATION.md` | |
+| `ai/rules/json-format.md` | Any API endpoint returning JSON |
+| `ai/rules/goroutine-lifecycle.md` | SSE streaming, background workers |
+| `ai/rules/derive-not-hardcode.md` | Pages that list or enumerate items |
+| `ai/rules/config-design.md` (Listeners) | If adding a new web listener endpoint |
+| Full navigation: `ai/INDEX.md` | |
 
 ## Three Web Interfaces
 
@@ -220,7 +220,7 @@ All routes go through the auth dispatcher which calls `ParseURL()` to route by p
 |---------|------|-------|
 | Config handler | `internal/component/web/handler_config.go` | Full YANG-driven, mutations, OOB |
 | Admin handler | `internal/component/web/handler_admin.go` | Simpler: command forms + results |
-| Show handler | `internal/component/web/handler_show.go` | Read-only view |
+| Read-only handler | `internal/component/web/handler_l2tp.go` | Read-only operational view |
 | Renderer | `internal/component/web/render.go` | Template loading + fieldFor() |
 | Fragment data | `internal/component/web/fragment.go` | FragmentData, FieldMeta structs |
 | Looking Glass | `internal/component/lg/handler_ui.go` | Public, no auth, read-only |

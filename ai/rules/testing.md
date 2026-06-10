@@ -110,7 +110,8 @@ problem to fix before merging, not a deferral to log.
 4. **Functional tests** (13 suites via `ze-test`)
 5. **ExaBGP compatibility**
 
-Common case (one group changed): ~2 min total instead of 6+.
+Recorded full passes (`tmp/.ze-verify-duration.txt`) run 4-10 minutes;
+a one-group change sits at the low end. Budget 10 minutes, not 2.
 
 ## Iteration Workflow (BLOCKING)
 
@@ -148,7 +149,7 @@ component group -> whole suite or `ze-verify`.
 | Component group | `make ze-test-bgp` (or core, plugins, config, cli, rest) | 10s-1:30 |
 | All unit tests | `make ze-unit-test` | ~5 min |
 | All editor tests | `make ze-editor-test` | ~30s |
-| Pre-commit gate | `make ze-verify` | ~2 min (common case) |
+| Pre-commit gate | `make ze-verify` | 4-10 min (see `tmp/.ze-verify-duration.txt`) |
 
 **Escalation ladder:** direct test -> file/feature test -> single package -> component group -> whole suite or `ze-verify`. If any rung fails, fix from that evidence and rerun the failed rung or a narrower failing test, not a wider suite.
 
@@ -190,7 +191,7 @@ After 3 samples, the baseline is used for two things:
 
 When adding a test runner, test format, make target, or verification gate, update
 `ai/rules/discovery-updates.md` paths in the same change: `ai/INDEX.md` for the
-tool, `ai/NAVIGATION.md` if it changes task selection, this file for required
+tool, `ai/INDEX.md` (task navigation) if it changes task selection, this file for required
 usage, and `docs/architecture/testing/` or `docs/contributing/` for detailed
 operator documentation.
 
@@ -235,6 +236,7 @@ Run: `make ze-editor-test` or `bin/ze-test editor --all`; select by id/name with
 | `option=width:value=N` | Editor width (default 80) | `option=width:value=120` |
 | `option=height:value=N` | Editor height (default 24) | `option=height:value=30` |
 | `option=reload:mode=success\|fail` | Mock reload notifier | `option=reload:mode=success` |
+| `option=monitor:ping=fake` | Deterministic ping monitor + fake PTR/origin resolvers (offline pipe-enrichment tests; see `internal/component/cli/testing/fake_monitor.go`) | `option=monitor:ping=fake` |
 | `option=session:user=X:origin=Y` | Session identity | `option=session:user=alice:origin=ssh` |
 | `session=<name>` | Switch to named session | `session=bob` |
 | `input=type:text=<string>` | Type text | `input=type:text=show` |
@@ -343,9 +345,16 @@ production code path, not the observer.
 | `runtime_fail(...)` from observer when assertion fails | Observer must compute something the engine cannot log directly |
 | Rely on `expect=exit:code=0` alone with a Python observer | Forbidden -- silent false positive |
 
-Detection hook: `block-observer-sys-exit.sh` (warns on Write/Edit of `.ci`
-files containing `tmpfs=*.run` Python with `sys.exit(1)` and no
-`runtime_fail`). Known violations are tracked in `plan/known-failures.md`
+Detection hook: `c_observer_sys_exit` in `.claude/hooks/pretool-writeedit.py`
+(warns on Write/Edit of `.ci` files containing `tmpfs=*.run` Python with
+`sys.exit(1)` and no `runtime_fail`).
+
+**Sleep ratchet (BLOCKING):** the total `time.sleep(` count across
+`test/**/*.ci` may only go down. The committed baseline lives in
+`test/.ci-sleep-baseline`; `make ze-verify-wiring-docs` fails when the count
+exceeds it. Use `ze_api` `wait_for_event` / `wait_for_shutdown` instead of
+sleeps (sleeps hide real races). When your change removes sleeps, lower the
+baseline in the same change. Known violations are tracked in `plan/known-failures.md`
 and must be migrated.
 
 ## Python Observer API (`test/scripts/ze_api.py`)
@@ -392,7 +401,7 @@ gomu has no `--tags` support. Files with custom build tags (`ze_test`,
 
 ## Pre-Commit
 
-See `rules/git-safety.md` for the full pre-commit workflow.
+See `ai/rules/git-safety.md` for the full pre-commit workflow.
 
 `make ze-verify` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
 During development: `go test`, component groups (`make ze-test-bgp`), `make ze-unit-test` are fine for fast iteration.

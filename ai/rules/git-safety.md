@@ -24,6 +24,7 @@ If scope is ambiguous, ask one narrow question; otherwise proceed.
 2. Use `scripts/dev/commit_helper.py create` to write `tmp/commit-msg-<SESSION>-<tag>.txt` and `tmp/commit-<SESSION>.sh`. Pass `--file` once per explicit file, `--remove` for tracked deletions, `--replace` for the first logical commit, and `--append` for later commits in the same user-run script.
 3. The helper writes executable scripts, uses `git commit -F <message-file>`, rejects ignored/generated paths, and refuses to overwrite an existing script unless `--replace` or `--append` is explicit.
 4. Lesson learned check: when a commit changes agent workflow, rules, tooling, verification, or discovery surfaces, include `plan/learned/NNN-<name>.md` and `plan/learned/.counter` in `--file`. If no reusable lesson is useful, pass `--lesson-not-needed "<reason>"`. For known-required lessons, pass `--lesson-required`.
+   Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>` -- it picks max(existing file prefixes, .counter)+1, creates the file immediately, and bumps `.counter`, so concurrent sessions cannot allocate the same number. Never hand-read `.counter` to pick a number.
 5. If the helper cannot express the commit shape, hand-write the same `tmp/commit-<SESSION>.sh` pattern and `chmod +x` it. Do not use heredocs. Always use `git commit -F <file>`.
 6. Never end an output line with `.`, `,`, `:`, or `)` directly after a path/URL/command -- users copy-paste; trailing punctuation breaks it. Put path on its own line or follow with a space.
 7. Report included files, message file, script path, and verification evidence or skip reason. Do not add a late completeness or remaining-work review unless the user explicitly asked for one.
@@ -137,7 +138,13 @@ No = skip and note in commit summary. Unsure = run.
 `make ze-verify` (timeout 240s). Not `go test`, not any subset.
 Before any verify target, check freshness. A FRESH status covers the
 byte-identical tree and forbids rerunning `make ze-verify` or
-`make ze-verify-changed`. `ze-verify` uses a two-pass strategy: cached
+`make ze-verify-changed`. The check output is qualified by mode:
+`FRESH(ze-verify)` covers everything; `FRESH(ze-verify-changed)` is a
+weaker pass (no full lint, no vet evidence, no cached full unit pass) --
+for commit preparation treat both as FRESH, but when the work explicitly
+needs the full gate (release evidence, repo-wide changes), a full
+`make ze-verify` on a FRESH(ze-verify-changed) tree is permitted. A pass
+recorded with skipped suites (`ZE_SKIP_SUITES`) reports STALE. `ze-verify` uses a two-pass strategy: cached
 full pass (no `-race`) + `-race` only on component groups with changed
 `.go` files. `ze-verify-changed` scopes to packages with uncommitted
 `.go` changes PLUS packages committed since the last green verify
@@ -153,6 +160,39 @@ under `tmp/verify/`, `tmp/ze-verify-failures.log`,
 [ ] 1. `make ze-verify` (240s) only when status is STALE and the table above says YES. On failure read `tmp/ze-verify-failures.log` FIRST, choose a stage-local group, then open that group's `tmp/verify/<nn>-<stage>.log`.
 [ ] 2. Failure from current work: fix + re-run. Pre-existing: fix after primary task in separate commit; if >10 min, log to `plan/known-failures.md`.
 ```
+
+### Thomas Owner Override: Commit Without Verify
+
+Thomas owns the repository and may explicitly override the `ze-verify`
+requirement for commit-script preparation. This override exists because an
+OpenAI session blocked Thomas by treating the agent rule as if it also bound
+the repository owner. It was added for OpenAI behavior, not for Anthropic.
+
+The override is valid only when Thomas explicitly directs both parts:
+
+1. prepare a commit script, and
+2. skip tests, skip verify, or commit without running tests.
+
+Examples that activate it: `owner override: commit without verify`, `commit no
+test`, `commit without running tests`, or an equivalent direct instruction from
+Thomas in the active conversation. Do not infer the override from urgency alone.
+
+When the override is active:
+
+- Do not run `make ze-verify`, `make ze-verify-changed`, lint, or tests as a
+  late commit gate.
+- Do inspect only enough state to stage exactly the requested files and avoid
+  ignored, generated, unrelated, or user-owned paths.
+- Do use `scripts/dev/commit_helper.py create` with the normal user-run script
+  path. The override changes verification requirements only.
+- Do not run `git add`, `git commit`, `git rm`, `git stash`, or prohibited git
+  commands from an AI tool.
+- Do not add `--no-verify`, `--no-gpg-sign`, disabled hooks, or any bypass to
+  the generated script.
+- Report `Verification skipped by Thomas owner override` in the final response
+  and, when useful, in the commit body.
+- Do not claim tests, lint, `ze-verify`, integrations, or behavior were
+  verified if they were skipped.
 
 ### Concurrent Verify Runs (BLOCKING)
 
@@ -187,7 +227,8 @@ loops. Wait for completion.
 [ ] 4. Executive Summary Report (rules/planning.md). What was done, what is left.
 ```
 
-Never commit with lint issues. Never commit without test evidence when code changed.
+Unless Thomas Owner Override is active, never commit with lint issues and never
+commit without test evidence when code changed.
 
 ## Forbidden Without Permission
 

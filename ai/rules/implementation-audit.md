@@ -44,7 +44,7 @@ Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 
 ## AC Evidence Verification (BLOCKING)
 
-For each AC-N, quote the expected behavior from the AC table, then name the test and its assertion. The assertion must verify the BEHAVIOR, not just the mechanism. See `rules/tdd.md` "AC-Linked Tests" for the full behavior-vs-mechanism table and mechanical check.
+For each AC-N, quote the expected behavior from the AC table, then name the test and its assertion. The assertion must verify the BEHAVIOR, not just the mechanism. See `ai/rules/tdd.md` "AC-Linked Tests" for the full behavior-vs-mechanism table and mechanical check.
 
 
 ## Pre-Commit Verification (BLOCKING)

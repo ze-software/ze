@@ -12,7 +12,7 @@ session-internal signal does not grant authority to delete user content.
 
 Git has established norms around this (don't `reset --hard` someone
 else's working tree without asking, don't amend published commits, etc.)
-and `rules/git-safety.md` codifies them for ze. The filesystem layer
+and `ai/rules/git-safety.md` codifies them for ze. The filesystem layer
 lacked an equivalent rule because historically the assistant's file edits
 were more scoped. The trafficvpp review loop changed that: the assistant
 now routinely writes several files across multiple passes, and user
@@ -69,11 +69,11 @@ disposable?"
 
 ## Interaction with other rules
 
-- `rules/git-safety.md`: covers git's destructive commands. Don't do
+- `ai/rules/git-safety.md`: covers git's destructive commands. Don't do
   those either. This rule fills the filesystem gap.
-- `rules/planning.md`: design-discussion phase explicitly forbids
+- `ai/rules/planning.md`: design-discussion phase explicitly forbids
   editing without approval. Same spirit extended to destruction.
-- `rules/anti-rationalization.md`: the three excuses above are the
+- `ai/rules/anti-rationalization.md`: the three excuses above are the
   same family as "it probably works, ship it" — post-hoc
   justifications for skipping a discipline that exists to protect the
   user.

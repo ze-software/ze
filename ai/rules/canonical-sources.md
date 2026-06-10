@@ -33,6 +33,14 @@ other rule files' headings and summary lines. Never edit it by hand; run
 Before editing any file listed in the "Generates" column above, STOP.
 Find its canonical source in the left column and edit that instead.
 
+## Drift Detection
+
+All "Generates" targets above are gitignored, so `git diff` can NEVER show
+drift for them. `make ze-ai-check` (also part of `make ze-regen-check`)
+compares content against a fresh generation; the session-start hook runs it
+and warns `generated agent files are stale` when a resync is needed.
+Fix with `make ze-regen`.
+
 ## Banned Actions
 
 | Action | Fix |

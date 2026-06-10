@@ -45,8 +45,12 @@ verify that `| resolve` and `| origin` are still applied in that path.
 
 | Command | Mode | Missing pipes | Where |
 |---------|------|---------------|-------|
-| `monitor traceroute` | `\| log` | `resolve`, `origin` | `model_traceroute.go` log rendering |
-| `monitor ping` | `\| log` | `resolve`, `origin` | `model_ping.go` log rendering |
+| _(none currently)_ | | | |
 
-These bypass `ApplyPipes` and render directly from hop/ping stats.
-The log map legend should apply resolve/origin to IP addresses before display.
+Both `monitor traceroute | log` and `monitor ping | log` bypass `ApplyPipes`
+and render directly from hop/ping stats; they now apply `resolve`/`origin`
+to their legend addresses via the shared `enrichAddr` helper
+(`internal/component/cli/model_enrich.go`). Functional coverage:
+`test/ui/monitor-ping-pipe-resolve-log.ci` drives the headless TUI with
+`option=monitor:ping=fake` (deterministic ping factory + PTR/origin fakes in
+`internal/component/cli/testing/fake_monitor.go`).

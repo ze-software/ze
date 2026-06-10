@@ -11,7 +11,7 @@ Multiple lines means multiple Claude sessions are working concurrently -- do not
 ## Plan File Location
 
 Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`.
-Hook `block-claude-plans.sh` enforces this.
+The `claude-plans` check in `.claude/hooks/pretool-writeedit.py` enforces this.
 
 ## /ze-review Gate (Completion Checklist)
 

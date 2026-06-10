@@ -1,8 +1,8 @@
 # Buffer-First Encoding -- Mechanical Reference
 
 **BLOCKING:** All wire encoding MUST write into pooled, bounded buffers.
-Principle: `rules/design-principles.md` -- Encapsulation onion + Buffer-first encoding.
-Conceptual model: `rules/memory-architecture.md` -- data lifecycle, caller-owned buffers, pool strategy.
+Principle: `ai/rules/design-principles.md` -- Encapsulation onion + Buffer-first encoding.
+Conceptual model: `ai/rules/memory-architecture.md` -- data lifecycle, caller-owned buffers, pool strategy.
 Rationale: `ai/rationale/buffer-first.md`
 
 | Pool | Size | Purpose |
@@ -50,14 +50,16 @@ Pool `New` func, session buffer creation, cached encoding, result copies to call
 4. `make([]byte)`? → Get from pool
 5. Type has `WriteTo`? → Use it
 
-Enforced by `block-encoding-alloc.sh` (exit 2). Audit: `/ze-find-alloc`. Fix: `/ze-fix-alloc file:line`.
+Enforced by the `encoding-alloc` check in `.claude/hooks/pretool-writeedit.py`
+(BLOCKING). Audit: `/ze-find-alloc`. Fix: `/ze-fix-alloc file:line`.
 
 ## Text/JSON Format Generation
 
-A sibling hook `block-format-alloc.sh` (exit 2) guards the BGP text/JSON
-format-generation files migrated by fmt-0 and fmt-2-json-append: every file
+The same rule covers the BGP text/JSON format-generation files migrated by
+fmt-0 and fmt-2-json-append (the `format-alloc` hook check is currently a
+no-op, see `ai/rules/hook-mapping.md`; the rule still applies): every file
 that emits OPEN / NOTIFICATION / ROUTE-REFRESH / NEGOTIATED text or JSON is
-allowlisted, and `fmt.Sprintf`, `fmt.Fprintf`, `strings.Builder`,
+covered, and `fmt.Sprintf`, `fmt.Fprintf`, `strings.Builder`,
 `strings.Join`, `strings.NewReplacer`, `strings.ReplaceAll`,
 `strconv.FormatUint`, `strconv.FormatInt` are rejected at Write/Edit time.
 Allowed helpers: `strconv.AppendUint`, `netip.Addr.AppendTo`,

@@ -53,7 +53,7 @@ Architecture documentation is in `docs/architecture/`:
 ### Planning
 1. Write spec to `plan/spec-<task>.md`
 2. Follow template in `.claude/rules/planning.md`
-3. Hook blocks writes to `.claude/plans/` (wrong location)
+3. Hook blocks writes to `.claude/plans/` (wrong location) <!-- doc-links: ignore (banned location, deliberately nonexistent) -->
 
 ### Post-Compaction
 1. Hook detects compaction, reminds to re-read spec

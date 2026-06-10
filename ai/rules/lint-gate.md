@@ -4,10 +4,12 @@
 
 ## The Problem
 
-The per-edit hook (`auto_linter.sh`) uses `--new-from-rev=HEAD`, which only catches
-issues on lines changed since the last commit. Cross-file effects slip through:
-unused functions after refactoring, import issues from renaming, type mismatches
-across package boundaries. `make ze-verify` catches these but takes 15+ minutes.
+The per-edit hook (`auto-lint` in `.claude/hooks/posttool-writeedit.py`) uses
+`--new-from-rev=HEAD`, which only catches issues on lines changed since the last
+commit. Cross-file effects slip through: unused functions after refactoring,
+import issues from renaming, type mismatches across package boundaries.
+`make ze-verify` catches these but takes minutes (see `ai/rules/testing.md`
+for current timings).
 
 ## The Rule
 

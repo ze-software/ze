@@ -40,10 +40,6 @@ The primary registry. A plugin registration carries everything the core needs.
 | `Features` | Space-separated flags: `"nlri yang capa"` |
 | `EventTypes` | Events this plugin produces `[]string{"update-rpki"}` |
 | `SendTypes` | Send operations this plugin enables |
-| `IngressFilter` | Route ingress filter function |
-| `EgressFilter` | Route egress filter function |
-| `FilterStage` | Coarse ordering (Protocol=0, Policy=100, Annotation=200) |
-| `FilterPriority` | Fine ordering within stage |
 | `InProcessNLRIDecoder` | NLRI hex -> JSON |
 | `InProcessNLRIEncoder` | NLRI args -> hex |
 | `InProcessDecoder` | Full message decode (for `ze bgp decode`) |
@@ -53,7 +49,8 @@ The primary registry. A plugin registration carries everything the core needs.
 **Location:** `internal/component/plugin/registry/registry.go`
 **Registration:** `registry.Register(Registration{...})` in plugin `init()`
 **Query:** `registry.Lookup(name)`, `registry.All()`, `registry.FamilyMap()`,
-`registry.CapabilityMap()`, `registry.IngressFilters()`, `registry.EgressFilters()`
+`registry.CapabilityMap()` (route filter chains live in
+`internal/component/bgp/filterapi`, not here)
 **Validation:** rejects empty name, duplicates, invalid family format, circular deps
 **Count:** ~40 plugins
 
@@ -221,9 +218,9 @@ missing-config and parse-failure behavior stay explicit. The component,
 backend, command, or plugin that owns the runtime dependency owns the check
 registration, check function, and unit test.
 
-**Current implementation:** `cmd/ze/doctor/registry.go`
+**Current implementation:** `internal/core/diagnostic/doctor_registry.go`
 **Registration:** owner package `register.go` or `doctor_check.go`, using the doctor check registry. If the current registry location is not importable from the owner, move or expose a leaf registry API before adding the check.
-**Runner boundary:** `cmd/ze/doctor` queries registered checks by phase and keeps only runner/output tests plus checks with no narrower owner.
+**Runner boundary:** `internal/component/doctor` queries registered checks by phase and keeps only runner/output tests plus checks with no narrower owner.
 **Metadata:** name, phase, order, component, dependencies, platforms, diagnostic codes, check function
 **Validation:** rejects duplicate check names, unknown phases, missing metadata, invalid lower-kebab identifiers, and duplicate codes within one check
 **Code metadata:** registered `doctor-*` codes must resolve through `diagnostic.Lookup`
@@ -241,14 +238,17 @@ Maps BGP attribute codes to human-readable names.
 
 Plugins that modify attributes during egress (forward path).
 
-**Location:** `internal/component/plugin/registry/registry.go`
-**Registration:** `registry.RegisterAttrModHandler(code, handler)` in plugin init()
-**Query:** `AttrModHandlerFor(code)`, `AttrModHandlers()`
+**Location:** `internal/component/bgp/filterapi/filterapi.go` (BGP-owned seam package)
+**Registration:** `filterapi.RegisterAttrModHandler(code, handler)` in plugin init()
+**Query:** `filterapi.AttrModHandlerFor(code)`, `filterapi.AttrModHandlers()`
 **Registered:** role (OTC code 35), filter-community (codes 8, 16, 32)
 
-### Filter Chain (via Plugin Registry)
+### Filter Chain (via filterapi)
 
-Route filters ordered by stage + priority. Part of plugin Registration, not separate.
+Route filters ordered by stage + priority. Registered with
+`filterapi.Register(filterapi.Filter{...})` in the plugin's init(),
+separate from the generic `registry.Registration` (the generic registry
+carries no protocol filter knowledge).
 
 | Stage | Value | Purpose | Example |
 |-------|-------|---------|---------|
@@ -256,7 +256,7 @@ Route filters ordered by stage + priority. Part of plugin Registration, not sepa
 | Policy | 100 | Operator-configured | Community filtering |
 | Annotation | 200 | Protocol stamps | OTC stamping (RFC 9234) |
 
-**Query:** `registry.IngressFilters()`, `registry.EgressFilters()` return ordered slices
+**Query:** `filterapi.IngressFilters()`, `filterapi.EgressFilters()` return ordered slices
 
 ### Metrics (no central registry)
 
@@ -294,7 +294,7 @@ Plugins define keys by convention (prefix with plugin name).
    - Env vars call env.MustRegister()
    - RPC handlers call pluginserver.RegisterRPCs()
    - Attr names call attribute.RegisterName()
-   - Attr mod handlers call registry.RegisterAttrModHandler()
+   - Attr mod handlers call filterapi.RegisterAttrModHandler()
 4. main() continues:
    - yang.LoadEmbedded() + yang.LoadRegistered()
    - CheckAllValidatorsRegistered()
@@ -309,21 +309,21 @@ All registration is complete before any concurrent access. Registries are read-o
 ## Adding Something New
 
 ### New plugin
-See `patterns/plugin.md`. Touch: plugin registry, YANG module registry (if schema),
+See `ai/patterns/plugin.md`. Touch: plugin registry, YANG module registry (if schema),
 attribute name registry (if new attr), attr mod handler (if modifying attrs).
 Run `make generate`.
 
 ### New config option
-See `patterns/config-option.md`. Touch: YANG module (leaf definition),
+See `ai/patterns/config-option.md`. Touch: YANG module (leaf definition),
 env var registry (if under environment/), validator registry (if custom validation).
 
 ### New CLI command (online)
-See `patterns/cli-command.md`. Touch: RPC command registry, YANG module (command tree),
+See `ai/patterns/cli-command.md`. Touch: RPC command registry, YANG module (command tree),
 optionally CLI local command registry (if also offline).
 
 ### New env var
 Touch: env var registry (`env.MustRegister()`), YANG module (leaf under environment/).
-See `rules/config-design.md`: every YANG environment leaf = matching env var.
+See `ai/rules/config-design.md`: every YANG environment leaf = matching env var.
 
 ### New YANG module
 Create `schema/register.go` + `schema/embed.go` with `//go:embed`. Run `make generate`.
@@ -333,8 +333,9 @@ Touch: attribute name registry, optionally attr mod handler registry.
 In plugin `register.go`: `attribute.RegisterName(code, "NAME")`.
 
 ### New filter
-Part of plugin registration. Set `IngressFilter`/`EgressFilter` + `FilterStage` + `FilterPriority`.
-See `patterns/plugin.md`.
+Register with `filterapi.Register(filterapi.Filter{Name, Stage, Priority, Ingress, Egress})`
+(`internal/component/bgp/filterapi`) in the plugin's init(), alongside `registry.Register()`.
+See `ai/patterns/plugin.md`.
 
 ### New event/send type
 Part of plugin registration. Set `EventTypes`/`SendTypes` fields.
@@ -349,6 +350,6 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 | No duplicate plugin names | `registry.Register()` returns error |
 | No circular plugin deps | Dependency resolver rejects cycles |
 | No missing plugin deps | Resolver checks all declared deps exist |
-| Plugins never import siblings | `rules/plugin-design.md` import rules + code review |
+| Plugins never import siblings | `ai/rules/plugin-design.md` import rules + code review |
 | All blank imports auto-generated | `make generate` + `scripts/codegen/plugin_imports.go` |
 | YANG is source of truth for CLI tree | WireMethod -> YANG path mapping in dispatcher |

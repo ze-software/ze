@@ -24,7 +24,7 @@ COMMIT_MESSAGE_WIDTH = 72
 LESSON_WORTHY_PREFIXES = (
     "ai/rules/",
     "ai/skills/",
-    "cmd/ze/skills/",
+    "internal/plugins/skills/",
     "scripts/dev/",
     "scripts/docvalid/",
     "scripts/inventory/",
@@ -37,7 +37,6 @@ LESSON_WORTHY_PREFIXES = (
 LESSON_WORTHY_FILES = {
     "Makefile",
     "ai/INDEX.md",
-    "ai/NAVIGATION.md",
     "ai/LEARNED-INDEX.md",
     "ai/INSTRUCTIONS.md",
 }
@@ -245,9 +244,7 @@ def message_text(subject: str, body: list[str]) -> str:
     if "\n" in cleaned_subject:
         raise UsageError("--subject must be a single line")
     if len(cleaned_subject) > COMMIT_MESSAGE_WIDTH:
-        raise UsageError(
-            f"--subject must be at most {COMMIT_MESSAGE_WIDTH} characters"
-        )
+        raise UsageError(f"--subject must be at most {COMMIT_MESSAGE_WIDTH} characters")
     parts = [cleaned_subject]
     cleaned_body = wrap_commit_body(body)
     if cleaned_body:
@@ -308,12 +305,14 @@ def lesson_comment(
 def quote_paths(paths: tuple[str, ...]) -> str:
     return " ".join(shlex.quote(path) for path in paths)
 
+
 def render_git_add(paths: tuple[str, ...]) -> str:
     lines = ["git add -- \\"]
     for index, path in enumerate(paths):
         suffix = " \\" if index + 1 < len(paths) else ""
         lines.append("  " + shlex.quote(path) + suffix)
     return "\n".join(lines)
+
 
 def render_block(block: CommitBlock) -> str:
     lines = [
@@ -415,6 +414,42 @@ def print_session(args: argparse.Namespace) -> int:
     return 0
 
 
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+
+def learned_next(args: argparse.Namespace) -> int:
+    """Allocate the next learned-summary number collision-free.
+
+    Concurrent sessions used to read .counter hours apart and both write the
+    same number (13 duplicate prefixes exist). Allocation here is
+    max(existing file prefixes, .counter) + 1 and the file is created
+    immediately, so any later session sees it and allocates past it.
+    """
+    repo = repo_root(args.repo)
+    slug = args.slug
+    if not SLUG_RE.match(slug):
+        raise UsageError(f"slug {slug!r} must be lower-kebab-case")
+    learned_dir = repo / "plan" / "learned"
+    counter_path = learned_dir / ".counter"
+    highest = 0
+    for entry in learned_dir.glob("[0-9]*-*.md"):
+        prefix = entry.name.split("-", 1)[0]
+        if prefix.isdigit():
+            highest = max(highest, int(prefix))
+    try:
+        counter = int(counter_path.read_text().strip())
+    except (OSError, ValueError):
+        counter = 0
+    number = max(highest + 1, counter)
+    path = learned_dir / f"{number:03d}-{slug}.md"
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    with os.fdopen(fd, "w") as fh:
+        fh.write(f"# {slug}\n\n<!-- write the learned summary here -->\n")
+    counter_path.write_text(f"{number + 1}\n")
+    print(path.relative_to(repo).as_posix())
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate Ze commit message files and user-run commit scripts."
@@ -432,6 +467,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--session", help="set the reusable session id, mainly for tests"
     )
     session.set_defaults(func=print_session)
+
+    learned_cmd = sub.add_parser(
+        "learned-next",
+        help="allocate the next plan/learned number, create the file, bump .counter",
+    )
+    learned_cmd.add_argument(
+        "slug", help="lower-kebab-case summary name (no NNN- prefix)"
+    )
+    learned_cmd.set_defaults(func=learned_next)
 
     create_cmd = sub.add_parser(
         "create",

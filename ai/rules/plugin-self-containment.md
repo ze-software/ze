@@ -30,7 +30,7 @@ broken/empty command, the surface is in the wrong package. Move it to the owner.
 |--------------|-------------------------------|
 | Plugin command spelling in generic dispatch (`internal/component/plugin/server`) | Deleting the plugin leaves dead BGP/iface knowledge in shared code |
 | A plugin's subtree in a central verb schema (e.g. `show bgp ...` in `internal/component/cmd/show/yang/ze-cli-show-cmd.yang`) | Deleting the plugin leaves a `show bgp` branch with no handler |
-| Plugin handlers registered from a central verb package (`cmd/show`, `cmd/delete`, ...) | Deleting the plugin leaves the central package referencing gone symbols |
+| Plugin handlers registered from a central verb package (`internal/component/cmd/show`, `internal/component/cmd/delete`, ...) | Deleting the plugin leaves the central package referencing gone symbols |
 | Help / usage / inventory strings that hardcode a plugin's commands in a generic package | Deleting the plugin leaves help advertising commands that no longer exist |
 | The CLI helper (`cmd/ze/internal/cmdutil`) special-casing a plugin's selectors | Selector handling is generic; per-plugin knowledge belongs to the owner |
 
@@ -76,7 +76,7 @@ reads one plugin's or component's state belongs to that owner, regardless of the
 | Help / usage / completion | derived from the owner's registry + schema (see `ai/rules/derive-not-hardcode.md`) |
 | Doctor check + its unit test | owner package (Proximity Principle) |
 
-Central verb packages (`internal/component/cmd/show`, `cmd/delete`, ...) keep ONLY
+Central verb packages (`internal/component/cmd/show`, `internal/component/cmd/delete`, ...) keep ONLY
 generic cross-system commands (`show warnings`, `show health`), never a specific
 plugin's commands.
 
@@ -110,7 +110,7 @@ A verb whose subcommands belong to several owners (e.g. `monitor bgp`,
 `monitor vpn ipsec`, `monitor ping`) must NOT declare its root container inside
 any one plugin. If it does, deleting that plugin deletes the whole verb. The
 root lives in a central, plugin-free package `internal/component/cmd/<verb>`
-(a `doc.go` that blank-imports its `yang/` subpackage, mirroring `cmd/delete`);
+(a `doc.go` that blank-imports its `yang/` subpackage, mirroring `internal/component/cmd/delete`);
 each owner container-merges only its own subtree onto that root. Precedent:
 `internal/component/cmd/monitor` holds the `container monitor` root, while
 `monitor bgp` stays in the BGP plugin and the other subcommands carve out to
@@ -178,7 +178,7 @@ static, vpn-ipsec, vpp, the iface kernel reads, ...); each owner's `yang/`
 package holds the matching presence test (e.g. `TestRSVPTECmdSchemaOwnsShowRSVPTE`).
 When you carve a new command, add both halves: the banned token here and the
 presence assertion in the owner. Extend the same pattern to the other central
-verb schemas (`cmd/delete`, `cmd/set`, ...) as they are made compliant.
+verb schemas (`internal/component/cmd/delete`, `internal/component/cmd/set`, ...) as they are made compliant.
 
 ## Related
 

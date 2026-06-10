@@ -56,7 +56,7 @@ present options and wait. Never edit files until explicitly approved.
 
 ## Spec Rules
 
-- **Style:** Tables and prose, never code (`rules/spec-no-code.md`)
+- **Style:** Tables and prose, never code (`ai/rules/spec-no-code.md`)
 - **Editing:** Append-only. Strikethrough + reason for superseded content.
 - **Deletion allowed:** Writing summary to learned, user requests, typo fixes only.
 - **Research capture (MUST DO):** All findings from RESEARCH phase go in spec exhaustively — file surveys, function lists, split decisions, reasons for NOT splitting. Spec is single source of truth. Implementation sessions execute from spec alone.
@@ -215,6 +215,12 @@ This preserves the final spec state in git history. `git log -p -- plan/<spec>` 
 the full design record. The deletion in commit B is a clean removal of a file whose
 final state is already committed.
 
+**Design references survive closure.** Before commit B, grep
+`// Design: plan/<spec>` across the tree and rewrite every hit to the learned
+summary (`plan/learned/NNN-<name>.md`) inside commit A. Deleting a spec that
+source files still reference breaks design traceability;
+`scripts/dev/check_doc_links.py --design-only` reports the breakage.
+
 **Never `git rm -f` a spec without committing it first.** The `-f` flag silently
 discards uncommitted edits. If the spec was modified during implementation (it
 almost always is), those modifications must be committed before deletion.
@@ -236,7 +242,7 @@ If it exists, the spec is stale, not the code. Update the spec to match reality.
 
 ## Deferred Work (BLOCKING)
 
-See `rules/deferral-tracking.md` for the full deferral process and log format.
+See `ai/rules/deferral-tracking.md` for the full deferral process and log format.
 
 **No deferral without a destination.** Work deferred from a spec MUST land in a concrete, existing spec with an explicit task item for this work.
 
@@ -281,7 +287,7 @@ Before marking a spec done, for every deferral: verify the receiving spec exists
 
 ## Documentation Update Checklist (BLOCKING)
 
-See `rules/documentation.md` for the canonical 12-row checklist.
+See `ai/rules/documentation.md` for the canonical 12-row checklist.
 Every row must be answered Yes/No. Every Yes must name the file and what to add.
 
 ## Writing Learned Summaries

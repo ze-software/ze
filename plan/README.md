@@ -1,111 +1,34 @@
-# ZeBGP Implementation Plans
+# plan/ -- Backlog and Active Development
 
-**All active work is tracked here.**
+This directory is both the backlog and the active work tracker. Specs at
+`skeleton` or `design` status are captured intent (they may sit here for a
+long time by design); `ready` and `in-progress` specs are current work.
 
----
+## Contents
 
-## Architecture
+| File | Purpose |
+|------|---------|
+| `spec-<name>.md` | One spec per work item, status in its header table |
+| `TEMPLATE.md` | Spec format: status taxonomy, checklists, Review Gate |
+| `learned/` | Learned summaries of completed specs (`NNN-<name>.md`) plus the meta-indexes `RECURRING-PATTERNS.md`, `DESIGN-HISTORY.md`, `HOOK-FRICTION.md` |
+| `deferrals.md`, `known-failures.md` | Cross-spec tracking |
 
-**Read first:** `../architecture/overview.md` - Comprehensive system design
+## Lifecycle
 
----
+Statuses: `skeleton` -> `design` -> `ready` -> `in-progress` -> closed.
+`blocked` and `deferred` are parking states. The full workflow rules live in
+`ai/rules/planning.md`; the spec format lives in `plan/TEMPLATE.md`.
 
-## Plan Status
+A spec that passes its Review Gate is not done until it is **deleted** from
+`plan/`: closure is two commits (commit A: code + spec + learned summary;
+commit B: `git rm` the spec). Completed knowledge survives as
+`plan/learned/NNN-<name>.md`, indexed in `ai/LEARNED-INDEX.md`. There is no
+`done/` directory.
 
-### ✅ Complete (in `done/`)
+## Working With Specs
 
-| Plan | Description |
-|------|-------------|
-| `spec-asn4-packcontext.md` | ASN4 in PackContext (RFC 6793) |
-| `spec-negotiated-packing.md` | Unified Pack(ctx) pattern (RFC 7911) |
-| `spec-addpath-encoding.md` | ADD-PATH encoding support |
-| `spec-extcomm-hex.md` | Extended-community hex format (RFC 4360) |
-| `spec-extended-nexthop.md` | RFC 8950 design (implemented) |
-| `spec-collision-detection.md` | BGP collision detection (RFC 4271 §6.8) |
-| `spec-process-backpressure.md` | Process backpressure and respawn |
-| `spec-self-check-rewrite.md` | ExaBGP-style functional tests |
-| `unified-commit-system.md` | Full CommitService with wire format |
-| `two-level-grouping.md` | Two-level route grouping for UPDATEs |
-| `neighbor-to-peer-rename.md` | All 6 phases done, v2 syntax removed |
-| `config-migration-system.md` | v2→v3 migration, CLI commands |
-| `rfc7606-extension.md` | RFC 7606 full compliance |
-| `spec-listener-per-local-address.md` | Multi-listener from peer LocalAddress |
-| `spec-environment-config-block.md` | Environment block in config (ZeBGP-specific) |
-| `spec-mup-api-support.md` | MUP SAFI support in API parser |
-| `spec-encoding-context-design.md` | EncodingContext design |
-| `spec-encoding-context-impl.md` | EncodingContext implementation |
-| `spec-api-test-features.md` | API test features (14/14 pass) |
-| `spec-route-families.md` | FlowSpec/VPLS/EVPN keyword validation |
-| `spec-update-builder.md` | Fluent UPDATE builder pattern |
-| `spec-format-based-migration.md` | Config migration with transformations |
-| `spec-api-command-serial.md` | API command serial numbers (ACK control) |
-
-### 📋 Implementation Specs (Active)
-
-| Spec | Description | Priority |
-|------|-------------|----------|
-| `spec-peer-encoding-extraction.md` | Extract UPDATE builders from peer.go | High |
-| ~~`spec-pool-handle-migration.md`~~ | **MOVED** to `docs/architecture/plugin/rib-storage-design.md` | - |
-| `spec-rfc7606-validation-cache.md` | Validation result caching (optional) | Low |
-
-### 📋 Feature Plans (Not Yet Specs)
-
-| Plan | Description | Priority |
-|------|-------------|----------|
-| `exabgp-migration-tool.md` | CLI tool to convert ExaBGP configs | Medium |
-| `plugin-system-mvp.md` | Plugin system MVP specification | Low |
-
-### 📖 Reference
-
-| Plan | Description |
-|------|-------------|
-| `../architecture/overview.md` | System architecture |
-| `exabgp-alignment.md` | Review decisions (18 ALIGN, 7 KEEP, 2 SKIP, 9 DONE) |
-| `deterministic-simulation-analysis.md` | Simulation testing research |
-
----
-
-## Spec Format
-
-All implementation specs follow the format defined in `.claude/commands/prep.md`:
-
-```markdown
-# Spec: <task-name>
-
-## Task
-<description>
-
-## Embedded Protocol Requirements
-### Default Rules (ALL tasks)
-- **FIRST:** Run `git status` - if modified files exist, ASK user before proceeding
-- **FIRST:** Read `.claude/ESSENTIAL_PROTOCOLS.md` for session rules
-- Tests MUST exist and FAIL before implementation code exists
-- ...
-
-## Codebase Context
-<files to modify>
-
-## Implementation Steps
-<numbered TDD steps>
-
-## Verification Checklist
-<checkboxes>
-```
-
----
-
-## Structure
-
-```
-plan/
-├── done/              # Completed plans
-│   └── <name>.md
-├── spec-<name>.md     # Active implementation specs
-├── <name>.md          # Feature plans (not yet specs)
-├── (moved to ../architecture/overview.md)
-└── README.md          # This index
-```
-
----
-
-**Last Updated:** 2026-01-03
+- `/ze-status` shows a cross-project attention view (statuses, stalls).
+- `/ze-spec` creates or evolves a spec; `/ze-implement` executes one;
+  `/ze-review` runs the completion gate.
+- Session spec selection is tracked in `tmp/session/selected-spec`
+  (see `.claude/rules/planning.md`).

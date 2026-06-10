@@ -3,7 +3,7 @@
 **BLOCKING:** Never use `fmt.Sprintf`, `fmt.Fprintf`, or `fmt.Errorf` when a
 zero-allocation or lower-allocation alternative exists. Never use `.String()`
 concatenation on a hot path when an append-into-buffer pattern exists.
-Conceptual model: `rules/memory-architecture.md` -- data lifecycle, caller-owned buffers.
+Conceptual model: `ai/rules/memory-architecture.md` -- data lifecycle, caller-owned buffers.
 Reference: git log -- plan/analysis-printf-allocations.md (completed, removed from tree)
 
 ## Three Rules
@@ -58,13 +58,19 @@ Before writing any `fmt.Sprintf` (or `Fprintf`, `Errorf`):
 
 ## Banned Patterns
 
-### String concatenation with `+` is BANNED
+### String concatenation with `+` is BANNED in new code
 
-**BLOCKING.** Never use `+` to concatenate strings. Every `+` between strings
-allocates a new backing array and copies both sides. Use `textbuf.Buffer` instead.
+**BLOCKING for new code and all hot paths** (hook-enforced at edit time by
+`c_string_concat`). Every `+` between strings allocates a new backing array
+and copies both sides. Use `textbuf.Buffer` instead.
 
 The only exception is a compile-time constant expression where both sides are
 untyped string literals: `const x = "foo" + "bar"` (the compiler folds these).
+
+**Existing cold-path concatenation is cleanup-on-touch**, not a sweep target:
+the tree carries ~300 legacy cold-path `+` sites (web page rendering, one-shot
+CLI output). Convert them when you edit the surrounding code; never let one
+survive on a hot path (the Hot Path Rule below has no legacy carve-out).
 
 | `+` pattern | Replacement |
 |-------------|-------------|
@@ -427,11 +433,12 @@ func (t *MyType) String() string {
 }
 ```
 
-## String `+` Concatenation is BANNED
+## String `+` Concatenation is BANNED in new code
 
-**BLOCKING.** Never use `+` to build strings. Every `+` between non-constant
-strings allocates a new backing array and copies both operands. This applies
-everywhere, not just loops.
+**BLOCKING for new code and all hot paths.** Never use `+` to build strings.
+Every `+` between non-constant strings allocates a new backing array and
+copies both operands. Existing cold-path sites are cleanup-on-touch (see the
+scope note in the Banned Patterns section above).
 
 The only exception: compile-time constant expressions where both sides are
 untyped string literals (`const x = "foo" + "bar"` -- the compiler folds these

@@ -32,7 +32,7 @@ Total: 72 rules
 | Discovery Updates | A change that adds or changes something future agents need to use, verify, document, or avoid MUST update the discovery path in the same work. | `ai/rules/discovery-updates.md` |
 | Doctor Checks | Every feature that adds a new runtime dependency must register a `ze doctor` check so agents can verify readiness before starting the daemon. | `ai/rules/doctor-checks.md` |
 | Documentation | Every feature change MUST update the specific documentation it affects. | `ai/rules/documentation.md` |
-| Prefer Typed Numeric Over String | Hot paths use typed numeric identity (enum, registered ID, bitset, packed integer), not strings. Across component/engine seams the rule holds plus pointer restrictions (`rules/project-knowledge.md`). | `ai/rules/enum-over-string.md` |
+| Prefer Typed Numeric Over String | Hot paths use typed numeric identity (enum, registered ID, bitset, packed integer), not strings. Across component/engine seams the rule holds plus pointer restrictions... | `ai/rules/enum-over-string.md` |
 | Error Messages | Every error, log line, and failure output you write must let a human or an agent see what failed, why, and what to do next, without opening the source. The error is the corrective signal: if it does... | `ai/rules/error-messages.md` |
 | Exact Or Reject | If the implementation cannot deliver EXACTLY what the operator's config asks for, `ze config verify` / `ze config commit` MUST fail with a clear error. Silent approximation, truncation, or... | `ai/rules/exact-or-reject.md` |
 | File Modularity | Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility. | `ai/rules/file-modularity.md` |

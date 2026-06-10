@@ -6,7 +6,7 @@ file undeleted solely because deletion requires permission; ask the user for
 permission instead.
 Rationale: `ai/rationale/never-destroy-work.md`.
 
-Extends `rules/git-safety.md` (which covers destructive git operations) to
+Extends `ai/rules/git-safety.md` (which covers destructive git operations) to
 the filesystem layer. Destructive git ops and destructive local-file ops
 share the same posture: the cost of pausing to ask is low, the cost of
 losing work the user paid for is high.
@@ -16,7 +16,7 @@ losing work the user paid for is high.
 | Operation | Scope | Replacement |
 |-----------|-------|-------------|
 | `rm <path>` on user-visible files | Any path not already in git's untracked-trash-bin category | Ask for permission before deleting it. If deletion is the correct fix, do not leave the file behind as a workaround. |
-| `git restore <path>` | Any modified working-tree file | Already in `rules/git-safety.md`; same rule |
+| `git restore <path>` | Any modified working-tree file | Already in `ai/rules/git-safety.md`; same rule |
 | `git reset --hard`, `git clean -f` | Any | Already forbidden |
 | Overwriting an existing file with content that drops user edits | Overwriting unsaved changes | Read the current file; merge or ask |
 | Truncating / overwriting log files, session state, tmp/ artifacts the user might be inspecting | Any | Leave it |

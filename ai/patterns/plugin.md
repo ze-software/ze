@@ -1,18 +1,18 @@
 # Pattern: Plugin
 
 Structural template for creating a Ze plugin.
-Rules: `rules/plugin-design.md`. Architecture: `docs/architecture/core-design.md`.
+Rules: `ai/rules/plugin-design.md`. Architecture: `docs/architecture/core-design.md`.
 
 ## Also Read
 
 | Rule | When it applies |
 |------|----------------|
-| `rules/goroutine-lifecycle.md` | OnStarted goroutines, worker patterns, cleanup |
-| `rules/plugin-design.md` (Cross-Boundary Value Types) | Any data crossing plugin boundaries |
-| `rules/plugin-design.md` (DirectBridge) | Sync request/response to/from engine |
-| `rules/plugin-design.md` (EventBus Typed Payloads) | Async broadcast events |
-| `rules/naming.md` | Plugin name, YANG prefix, log subsystem |
-| Full navigation: `ai/NAVIGATION.md` | |
+| `ai/rules/goroutine-lifecycle.md` | OnStarted goroutines, worker patterns, cleanup |
+| `ai/rules/plugin-design.md` (Cross-Boundary Value Types) | Any data crossing plugin boundaries |
+| `ai/rules/plugin-design.md` (DirectBridge) | Sync request/response to/from engine |
+| `ai/rules/plugin-design.md` (EventBus Typed Payloads) | Async broadcast events |
+| `ai/rules/naming.md` | Plugin name, YANG prefix, log subsystem |
+| Full navigation: `ai/INDEX.md` | |
 
 ## File Structure
 
@@ -196,22 +196,31 @@ The engine routes by prefix to the owning plugin's CLIHandler.
 ## Core-to-Plugin Communication
 
 For choosing between EventBus and DirectBridge, see
-`rules/plugin-design.md` "DirectBridge: Choosing the Right Communication Pattern".
+`ai/rules/plugin-design.md` "DirectBridge: Choosing the Right Communication Pattern".
 Short version: EventBus for async broadcast, DirectBridge for sync request/response.
 
 ## Optional Capabilities
 
 ### Route Filters
 
+BGP route filters live in the BGP-owned seam package
+`internal/component/bgp/filterapi`, not in the generic plugin registry.
+Register them in the same init() as `registry.Register()`:
+
 ```go
-IngressFilter: func(info registry.PeerFilterInfo, raw []byte, m map[string]any) (bool, []byte) {
-    // Return (accept, possibly-modified-bytes)
-},
-EgressFilter: func(info registry.PeerFilterInfo, raw []byte, m map[string]any, acc *registry.ModAccumulator) bool {
-    // Return accept/reject
-},
-FilterStage:    registry.FilterStagePolicy,
-FilterPriority: 0,
+filterapi.Register(filterapi.Filter{
+    Name:     "bgp-myfilter", // plugin name; breaks ordering ties
+    Stage:    filterapi.FilterStagePolicy,
+    Priority: 0,
+    Ingress: func(info filterapi.PeerFilterInfo, raw []byte, m map[string]any) (bool, []byte) {
+        // Return (accept, possibly-modified-bytes)
+        return true, nil
+    },
+    Egress: func(src, dst filterapi.PeerFilterInfo, raw []byte, m map[string]any, acc *filterapi.ModAccumulator) bool {
+        // Return accept/reject
+        return true
+    },
+})
 ```
 
 ### NLRI Codec

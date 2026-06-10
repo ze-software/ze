@@ -283,7 +283,7 @@ slice and the grown slice returns to the pool for future reuse.
 ### Tracing Data Lifecycle Before Writing Code
 
 Before writing any buffer/pool/allocation code, answer these questions
-(from `rules/before-writing-code.md`):
+(from `ai/rules/before-writing-code.md`):
 
 1. **Where is the buffer allocated?** Name the function and pool.
 2. **Who holds it?** Which goroutine/struct owns the reference.
@@ -320,16 +320,16 @@ Is this on a per-UPDATE / per-route / per-NLRI path?
 | Holding WireUpdate past readBuf return | WireUpdate references readBuf memory | Copy needed data before returning readBuf to pool |
 | Building `[]string` + `strings.Join` in a loop | N+1 allocations | Single `textbuf.Buffer` outside the loop |
 | `string(bytes)` + comparison in a filter | Allocates the string | Compare bytes directly or use typed value |
-| `map[string]V` keyed by value from a known set | String keys cost: hash over bytes, GC scans pointers | `map[uint16]V` or `map[TypedEnum]V`; parse string at boundary (`rules/enum-over-string.md`) |
+| `map[string]V` keyed by value from a known set | String keys cost: hash over bytes, GC scans pointers | `map[uint16]V` or `map[TypedEnum]V`; parse string at boundary (`ai/rules/enum-over-string.md`) |
 | `BufHandle{Buf: make(...)}` | Corrupts pool tracking | Only use pool-issued BufHandles (hook `block-fake-bufhandle.sh` enforces) |
 
 ## Related Documents
 
 | Document | Covers |
 |---|---|
-| `rules/buffer-first.md` | Mechanical rules for wire encoding |
-| `rules/no-sprintf-alloc.md` | String formatting alternatives, textbuf reference |
-| `rules/design-principles.md` | Encapsulation onion, lazy-over-eager, pool strategy |
+| `ai/rules/buffer-first.md` | Mechanical rules for wire encoding |
+| `ai/rules/no-sprintf-alloc.md` | String formatting alternatives, textbuf reference |
+| `ai/rules/design-principles.md` | Encapsulation onion, lazy-over-eager, pool strategy |
 | `docs/architecture/pool-architecture.md` | API program attribute dedup pools |
 | `docs/architecture/encoding-context.md` | ContextID, zero-copy forwarding |
 | `docs/architecture/forward-congestion-pool.md` | Two-tier forward pool, per-peer workers |
