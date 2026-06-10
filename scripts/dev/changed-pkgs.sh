@@ -5,6 +5,9 @@
 # The set is the union of:
 #   1. packages with uncommitted .go changes (unstaged + staged + untracked)
 #   2. packages changed by commits made SINCE the last GREEN `make ze-verify`
+#   3. packages that IMPORT any package from (1)+(2) -- reverse dependencies;
+#      a behavior change in a core package must retest its importers, not
+#      only itself
 #
 # Why (2): ze-verify-changed historically derived its package set from the
 # working-tree diff alone. Once a change was committed it left that diff, so
@@ -42,11 +45,71 @@ collect_files() {
 	fi
 }
 
-collect_files |
-	sort -u |
-	while IFS= read -r file; do
-		[ -n "$file" ] || continue
-		dir=$(dirname "$file")
-		[ -d "$dir" ] && printf './%s\n' "$dir"
-	done |
-	sort -u
+changed_dirs=$(
+	collect_files |
+		sort -u |
+		while IFS= read -r file; do
+			[ -n "$file" ] || continue
+			dir=$(dirname "$file")
+			[ -d "$dir" ] && printf './%s\n' "$dir"
+		done |
+		sort -u
+)
+
+[ -n "$changed_dirs" ] || exit 0
+
+# Reverse dependencies: a package IMPORTING a changed package can break even
+# when none of its own files changed; scoped verify must retest importers.
+# Skipped when there is no Go module context (go list unavailable).
+importer_dirs=""
+module=$(go list -m 2>/dev/null | head -1)
+if [ -n "$module" ]; then
+	importer_dirs=$(
+		{
+			printf '%s\n' "$changed_dirs" | sed 's|^\./|CHANGED |'
+			go list -f '{{.ImportPath}} {{range .Deps}}{{.}} {{end}}' ./... 2>/dev/null
+		} | awk -v module="$module" '
+			$1 == "CHANGED" {
+				if ($2 == ".") changed[module] = 1
+				else changed[module "/" $2] = 1
+				next
+			}
+			{
+				for (i = 2; i <= NF; i++) {
+					if ($i in changed) { print $1; break }
+				}
+			}
+		' | while IFS= read -r ip; do
+			if [ "$ip" = "$module" ]; then
+				dir="."
+			else
+				dir="${ip#"$module"/}"
+			fi
+			[ -d "$dir" ] && printf './%s\n' "$dir"
+		done
+	)
+fi
+
+combined=$(
+	{
+		printf '%s\n' "$changed_dirs"
+		[ -n "$importer_dirs" ] && printf '%s\n' "$importer_dirs"
+	} | sort -u
+)
+
+# Drop directories that do not form a buildable package (e.g. scripts/ build
+# tools whose only .go files carry `//go:build ignore`): golangci-lint and
+# `go test` fail on them with "build constraints exclude all Go files".
+# Without a module context, emit the set unfiltered (matches earlier behavior).
+module_name=$(go list -m 2>/dev/null | head -1)
+if [ -n "$module_name" ] && [ "$module_name" != "command-line-arguments" ]; then
+	root=$(pwd -P)
+	# shellcheck disable=SC2086 # word-splitting of the dir list is intended
+	go list -e -f '{{if not .Error}}{{.Dir}}{{end}}' $combined 2>/dev/null |
+		awk -v root="$root" 'length($0) {
+			if (index($0, root "/") == 1) { print "./" substr($0, length(root) + 2) }
+			else if ($0 == root) { print "." }
+		}' | sort -u
+else
+	printf '%s\n' "$combined"
+fi

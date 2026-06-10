@@ -40,6 +40,16 @@ var consumers = []string{
 	"internal/component/web/assets",
 }
 
+// targetedAssets are synced to a single consumer instead of every consumer.
+var targetedAssets = []struct {
+	srcDir string
+	name   string
+	dest   string
+}{
+	{"third_party/web/swagger-ui", "swagger-ui.css", "internal/component/api/rest/assets"},
+	{"third_party/web/swagger-ui", "swagger-ui-bundle.js", "internal/component/api/rest/assets"},
+}
+
 func sync() error {
 	root, err := repoRoot()
 	if err != nil {
@@ -78,10 +88,32 @@ func sync() error {
 		}
 	}
 
+	for _, a := range targetedAssets {
+		src := filepath.Join(root, a.srcDir, a.name)
+		dst := filepath.Join(root, a.dest, a.name)
+
+		srcData, err := os.ReadFile(src)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: vendor file not found: %s\n", src)
+			continue
+		}
+
+		dstData, err := os.ReadFile(dst)
+		if err == nil && bytes.Equal(srcData, dstData) {
+			continue
+		}
+
+		if err := os.WriteFile(dst, srcData, 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", dst, err)
+		}
+		fmt.Fprintf(os.Stdout, "synced: %s\n", dst)
+		changed++
+	}
+
 	if changed == 0 {
 		fmt.Println("all consumer copies are up to date")
 	} else {
-		fmt.Printf("synced %d file(s)\n", changed)
+		fmt.Fprintf(os.Stdout, "synced %d file(s)\n", changed)
 	}
 	return nil
 }

@@ -37,6 +37,9 @@ docs/research/ze-vpp-plan.md
 coverage.out
 coverage.html
 
+# Mutation testing incremental cache (gomu hardcodes this cwd path)
+.gomu_history.json
+
 # Python
 __pycache__/
 

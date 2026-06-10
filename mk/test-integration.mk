@@ -221,11 +221,18 @@ endif
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--keep-alive
 
+# Package list is DERIVED from `//go:build integration && linux` tags so a new
+# linux-only package cannot be silently omitted (ai/rules/qemu-testing.md).
+# Exclusions: ldp runs in ze-qemu-ldp-frr-test (needs FRR in the VM).
+# firewall/vpp is added explicitly: its fakeOps tests are linux-tagged but not
+# integration-tagged, and still need a linux GOOS to compile.
+ZE_QEMU_INTEGRATION_PKGS = $(shell grep -rl --include='*.go' '^//go:build integration && linux' internal/ cmd/ 2>/dev/null | sed 's|/[^/]*$$||' | sort -u | grep -v '^internal/component/ldp$$' | sed 's|^|./|')
+
 ze-qemu-integration-test:
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 iputils-ping kmod iptables" \
-		--run 'go test -tags integration -count=1 -timeout 120s ./cmd/ze/doctor ./internal/component/iface/... ./internal/component/config/system/... ./internal/core/routewatch/... ./internal/plugins/fib/kernel/... ./internal/plugins/firewall/nft/... ./internal/plugins/firewall/vpp/... ./internal/plugins/traffic/netlink/... ./internal/plugins/tftpserver/... ./internal/plugins/dhcpserver/...'
+		--run 'go test -tags integration -count=1 -timeout 120s $(ZE_QEMU_INTEGRATION_PKGS) ./internal/plugins/firewall/vpp/...'
 
 ze-qemu-ldp-frr-test:
 	@echo "Running LDP interop test against FRR ldpd in QEMU Linux VM (installs frr)..."

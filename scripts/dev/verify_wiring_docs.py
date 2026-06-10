@@ -49,6 +49,16 @@ MAKE_TARGETS = {
 # Keep this small. A new entry here should name the path and symbol exactly.
 WIRING_ALLOWLIST: set[tuple[str, str]] = set()
 
+# User-facing area -> functional suite directory expected to change with it
+# (ai/rules/functional-test-gate.md). Advisory, not blocking: a session that
+# changed user-facing behavior with no test/ change gets a named pointer.
+FUNCTIONAL_SUITE_BY_AREA = {
+    "internal/component/cli/": "test/ui/ or test/editor/",
+    "internal/component/web/": "test/web/",
+    "internal/component/config/": "test/parse/",
+    "internal/component/cmd/": "test/ui/",
+}
+
 FUNC_RE = re.compile(r"^func\s+(?:\([^)]*\)\s*)?([A-Z][A-Za-z0-9_]*)\s*\(")
 TYPE_RE = re.compile(r"^type\s+([A-Z][A-Za-z0-9_]*)\b")
 CONST_RE = re.compile(r"^const\s+(.+)$")
@@ -99,16 +109,23 @@ def main() -> int:
         changed = changed_files(root)
 
     targets = selected_targets(root, changed)
+    advisory = functional_test_advisory(changed)
     if args.dry_run:
         if targets:
             print("\n".join(targets))
         else:
             print("No wiring/doc/inventory checks needed")
+        if advisory:
+            print(advisory)
         return 0
+
+    ratchet_rc = check_ci_sleep_ratchet(root, changed)
 
     if not targets:
         print("No wiring/doc/inventory checks needed")
-        return 0
+        if advisory:
+            print(advisory)
+        return ratchet_rc
 
     if "wiring" in targets:
         issues = check_wiring(root, changed)
@@ -124,8 +141,81 @@ def main() -> int:
             continue
         run_make_target(args.make, target, root)
 
+    if advisory:
+        print(advisory)
+    if ratchet_rc:
+        return ratchet_rc
     print("Wiring/doc/inventory gates passed")
     return 0
+
+
+SLEEP_BASELINE = "test/.ci-sleep-baseline"
+SLEEP_RE = re.compile(r"time\.sleep\(")
+
+
+def check_ci_sleep_ratchet(root: Path, changed: Iterable[str]) -> int:
+    """Ratchet: the time.sleep count in .ci files may only go down.
+
+    Sleeps in embedded observers hide real races; ze_api provides
+    wait_for_event / wait_for_shutdown. Legacy sleeps are tolerated at the
+    committed baseline; new ones fail the gate.
+    Returns the process exit contribution (0 ok, 1 failed).
+    """
+    if not any(p.startswith("test/") and p.endswith(".ci") for p in changed):
+        return 0
+    baseline_path = root / SLEEP_BASELINE
+    try:
+        baseline = int(baseline_path.read_text().strip())
+    except (OSError, ValueError):
+        return 0  # no baseline committed: ratchet not active for this tree
+    count = 0
+    for ci in (root / "test").rglob("*.ci"):
+        try:
+            count += len(SLEEP_RE.findall(ci.read_text(encoding="utf-8")))
+        except OSError:
+            continue
+    if count > baseline:
+        print("ci-sleep ratchet FAILED:")
+        print(
+            f"  test/**/*.ci now contains {count} time.sleep( calls; the"
+            f" committed baseline ({SLEEP_BASELINE}) is {baseline}."
+        )
+        print(
+            "  Replace the new sleep with ze_api wait_for_event /"
+            " wait_for_shutdown (test/scripts/ze_api.py), or raise the"
+            " baseline only with explicit user approval."
+        )
+        return 1
+    if count < baseline:
+        print(
+            f"ci-sleep ratchet: count dropped to {count};"
+            f" lower {SLEEP_BASELINE} to {count} in this change."
+        )
+    else:
+        print(f"ci-sleep ratchet OK ({count} <= baseline {baseline})")
+    return 0
+
+
+def functional_test_advisory(changed: Iterable[str]) -> str | None:
+    """Warn when user-facing code changed but no functional test did."""
+    changed_list = list(changed)
+    if any(p.startswith("test/") for p in changed_list):
+        return None
+    suites: dict[str, list[str]] = {}
+    for path in changed_list:
+        if not path.endswith(".go") or path.endswith("_test.go"):
+            continue
+        for prefix, suite in FUNCTIONAL_SUITE_BY_AREA.items():
+            if path.startswith(prefix):
+                suites.setdefault(suite, []).append(path)
+                break
+    if not suites:
+        return None
+    lines = ["ADVISORY: user-facing code changed without a functional-test change"]
+    for suite, paths in sorted(suites.items()):
+        lines.append(f"  expected coverage in {suite} for: {', '.join(sorted(paths))}")
+    lines.append("  see ai/rules/functional-test-gate.md")
+    return "\n".join(lines)
 
 
 def find_repo_root(start: Path) -> Path:

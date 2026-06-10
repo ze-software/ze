@@ -98,6 +98,42 @@ func TestChangedPkgsInvalidBaselineShaIgnored(t *testing.T) {
 	assertPkgs(t, got, nil)
 }
 
+// VALIDATES: directories whose only .go files carry `//go:build ignore`
+// (build tools) are excluded -- golangci-lint and go test fail on them.
+// PREVENTS: `make ze-lint-changed` erroring with "build constraints exclude
+// all Go files" after editing a scripts/ build tool.
+func TestChangedPkgsExcludesIgnoreOnlyDirs(t *testing.T) {
+	root := makeChangedPkgsRepo(t)
+	writeFixture(t, root, "go.mod", "module example.com/m\n\ngo 1.21\n")
+	writeFixture(t, root, "pkg/a/a.go", "package a\n")
+	writeFixture(t, root, "scripts/tool/tool.go", "//go:build ignore\n\npackage main\n")
+	gitCommitAll(t, root, "init")
+
+	writeFixture(t, root, "pkg/a/a.go", "package a\n\nvar X = 1\n")
+	writeFixture(t, root, "scripts/tool/tool.go", "//go:build ignore\n\npackage main\n\nvar Y = 1\n")
+
+	got := runChangedPkgs(t, root, missingStatus(t))
+	assertPkgs(t, got, []string{"./pkg/a"})
+}
+
+// VALIDATES: a package IMPORTING a changed package is included in the scoped
+// set even when none of its own files changed.
+// PREVENTS: a behavior change in a core package passing scoped verify while
+// breaking an importer's tests (only caught by the next full verify).
+func TestChangedPkgsIncludesReverseDependencies(t *testing.T) {
+	root := makeChangedPkgsRepo(t)
+	writeFixture(t, root, "go.mod", "module example.com/m\n\ngo 1.21\n")
+	writeFixture(t, root, "pkg/a/a.go", "package a\n\nvar X = 1\n")
+	writeFixture(t, root, "pkg/b/b.go", "package b\n\nimport \"example.com/m/pkg/a\"\n\nvar Y = a.X\n")
+	writeFixture(t, root, "pkg/c/c.go", "package c\n")
+	gitCommitAll(t, root, "init")
+
+	writeFixture(t, root, "pkg/a/a.go", "package a\n\nvar X = 2\n")
+
+	got := runChangedPkgs(t, root, missingStatus(t))
+	assertPkgs(t, got, []string{"./pkg/a", "./pkg/b"})
+}
+
 func TestChangedPkgsDeletedPackageFilteredOut(t *testing.T) {
 	root := makeChangedPkgsRepo(t)
 	writeFixture(t, root, "pkg/a/a.go", "package a\n")

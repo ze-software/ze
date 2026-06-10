@@ -87,6 +87,55 @@ if issues:
 	}
 }
 
+// VALIDATES: a diff touching user-facing code (cli/web/config/cmd) with no
+// test/ change emits a functional-test advisory naming the expected suite dir.
+// PREVENTS: direct-to-code sessions bypassing the functional-test gate
+// (ai/rules/functional-test-gate.md) with no signal at verify time.
+func TestVerifyWiringDocsAdvisesFunctionalTests(t *testing.T) {
+	out := runVerifyWiringDocsDryRun(t, "internal/component/web/handler_admin.go")
+	mustContain(t, out, "ADVISORY: user-facing code changed without a functional-test change")
+	mustContain(t, out, "test/web/")
+}
+
+// VALIDATES: the .ci sleep ratchet fails when time.sleep occurrences exceed
+// the committed baseline, and asks for a baseline lower-down when below it.
+// PREVENTS: new timing-dependent .ci tests (sleeps hide real races; ze_api
+// provides wait_for_event) growing the 400+ legacy sleep surface.
+func TestVerifyWiringDocsSleepRatchet(t *testing.T) {
+	root := makeFixtureRoot(t)
+	writeFixture(t, root, "go.mod", "module example.com/m\n")
+	writeFixture(t, root, "test/.ci-sleep-baseline", "1\n")
+	writeFixture(t, root, "test/x/a.ci", "run=python\ntime.sleep(1)\ntime.sleep(2)\n")
+
+	out := runCommandAllowError(t, repoRoot(t), "python3",
+		"scripts/dev/verify_wiring_docs.py", "--root", root,
+		"--changed-file", "test/x/a.ci")
+	mustContain(t, out, "ci-sleep ratchet FAILED")
+	mustContain(t, out, "wait_for_event")
+}
+
+// VALIDATES: the ratchet passes at or below the baseline and suggests
+// lowering it when the count dropped.
+func TestVerifyWiringDocsSleepRatchetSuggestsLowering(t *testing.T) {
+	root := makeFixtureRoot(t)
+	writeFixture(t, root, "go.mod", "module example.com/m\n")
+	writeFixture(t, root, "test/.ci-sleep-baseline", "5\n")
+	writeFixture(t, root, "test/x/a.ci", "run=python\ntime.sleep(1)\n")
+
+	out := runCommand(t, repoRoot(t), "python3",
+		"scripts/dev/verify_wiring_docs.py", "--root", root,
+		"--changed-file", "test/x/a.ci")
+	mustContain(t, out, "lower test/.ci-sleep-baseline to 1")
+}
+
+// VALIDATES: the advisory stays silent when the diff already touches test/.
+func TestVerifyWiringDocsNoAdvisoryWhenTestsChanged(t *testing.T) {
+	out := runVerifyWiringDocsDryRun(t, "internal/component/web/handler_admin.go", "test/web/example.wb")
+	if strings.Contains(out, "ADVISORY: user-facing code changed") {
+		t.Fatalf("advisory must not fire when test/ files changed, got:\n%s", out)
+	}
+}
+
 func runVerifyWiringDocsDryRun(t *testing.T, files ...string) string {
 	t.Helper()
 	args := []string{"scripts/dev/verify_wiring_docs.py", "--dry-run"}
@@ -94,6 +143,21 @@ func runVerifyWiringDocsDryRun(t *testing.T, files ...string) string {
 		args = append(args, "--changed-file", file)
 	}
 	return runCommand(t, repoRoot(t), "python3", args...)
+}
+
+// runCommandAllowError returns combined output regardless of exit code,
+// for asserting on intentional gate failures.
+func runCommandAllowError(t *testing.T, dir, name string, args ...string) string {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), verifyWiringDocsTimeout)
+	defer cancel()
+	cmd := osexec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	out, _ := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		t.Fatalf("%s %s timed out", name, strings.Join(args, " "))
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func runPythonSnippet(t *testing.T, script string) string {

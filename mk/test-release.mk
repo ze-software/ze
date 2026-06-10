@@ -1,7 +1,7 @@
 # Release evidence: full test matrix for release-readiness proof
 #
 # These targets compose every existing test suite into a single gate.
-# ze-verify stays fast (~2 min) for pre-commit. ze-release-evidence runs
+# ze-verify stays the fast pre-commit gate (4-10 min). ze-release-evidence runs
 # everything: interop, chaos, fuzz, perf regression, QEMU, deployment.
 #
 # Quick reference:
@@ -134,9 +134,21 @@ ze-release-evidence: ze-release-evidence-preflight bin/ze bin/ze-test
 		printf "════════════════════════════════════════\n"; \
 		"$$@" && printf "\033[32mPASS  %s\033[0m\n" "$$cat" || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }$$cat"; printf "\033[31mFAIL  %s\033[0m\n" "$$cat"; }; \
 	}; \
+	run_advisory() { \
+		cat="$$1"; shift; \
+		if echo ",$(ZE_RELEASE_SKIP)," | grep -q ",$$cat,"; then \
+			skip_category "$$cat" "ZE_RELEASE_SKIP"; \
+			return 0; \
+		fi; \
+		printf "\n════════════════════════════════════════\n"; \
+		printf "CATEGORY: %s (advisory, non-gating)\n" "$$cat"; \
+		printf "════════════════════════════════════════\n"; \
+		"$$@" || printf "\033[33mADVISORY  %s reported issues (does not gate the release)\033[0m\n" "$$cat"; \
+	}; \
 	run_category verify $(MAKE) --no-print-directory ze-verify; \
 	run_category chaos $(MAKE) --no-print-directory ze-chaos-test; \
 	run_category fuzz $(MAKE) --no-print-directory ze-fuzz-test; \
+	run_advisory mutation $(MAKE) --no-print-directory ze-mutation-changed; \
 	run_if_docker interop $(MAKE) --no-print-directory ze-interop-test; \
 	run_if_docker ipsec-interop $(MAKE) --no-print-directory ze-ipsec-interop-test; \
 	run_if_docker l2tp-interop $(MAKE) --no-print-directory ze-deployment-l2tp-ppp-docker-test; \

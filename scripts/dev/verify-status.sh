@@ -56,10 +56,13 @@ cmd="${1:-}"
 case "$cmd" in
     write)
         code="${2:-1}"
+        mode="${3:-ze-verify}"
         mkdir -p tmp
         {
             printf 'exit=%s\n' "$code"
             printf 'timestamp=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf 'mode=%s\n' "$mode"
+            printf 'skipped=%s\n' "${ZE_SKIP_SUITES:-}"
             printf 'git_sha=%s\n' "$(git rev-parse HEAD 2>/dev/null || echo unknown)"
             printf 'tree_hash=%s\n' "$(tree_hash)"
         } > "$STATUS_FILE"
@@ -75,9 +78,19 @@ case "$cmd" in
             echo "STALE: last verify failed (exit=$exit, at $timestamp)"
             exit 1
         fi
+        if [ -n "${skipped:-}" ]; then
+            # A pass with suites skipped via ZE_SKIP_SUITES is partial: it must
+            # not block a real verify before commit.
+            echo "STALE: last pass skipped suites ($skipped) at $timestamp"
+            exit 1
+        fi
         current=$(tree_hash)
         if [ "$current" = "$tree_hash" ]; then
-            echo "FRESH: tree unchanged since PASS at $timestamp (sha $git_sha)"
+            # mode qualifies the freshness: ze-verify-changed is a weaker pass
+            # than full ze-verify (no full lint, no vet evidence, no cached
+            # full unit pass). Status files from before the mode field default
+            # to the full label.
+            echo "FRESH(${mode:-ze-verify}): tree unchanged since PASS at $timestamp (sha $git_sha)"
             exit 0
         else
             echo "STALE: tree changed since last PASS at $timestamp"
