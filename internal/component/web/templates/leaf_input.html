@@ -6,8 +6,9 @@
          {{if .Value}}checked{{end}}
          title="{{.Description}}">
   {{else if eq .InputType "select"}}
-  <select class="config-input config-select" id="field-{{.Name}}" name="{{.Name}}"
+  <select class="config-input config-select{{if not .IsConfigured}} default-value{{end}}" id="field-{{.Name}}" name="{{.Name}}"
           title="{{.Description}}">
+    {{if not .Value}}<option value="" selected>{{if .Default}}({{.Default}}){{else}}-- select --{{end}}</option>{{end}}
     {{range .Options}}
     <option value="{{.}}"{{if eq . $.Value}} selected{{end}}>{{.}}</option>
     {{end}}

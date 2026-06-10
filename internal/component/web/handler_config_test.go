@@ -388,6 +388,89 @@ func TestLeafInputTypeMapping(t *testing.T) {
 	}
 }
 
+// TestBuildLeafFieldEnumUsesSelectOptions verifies that legacy Finder config
+// views render YANG enum leaves as select inputs instead of free text fields.
+//
+// VALIDATES: Enum values flow from LeafNode.Enums into LeafField.Options.
+// PREVENTS: Operators typing invalid enum values because the UI hid the valid list.
+func TestBuildLeafFieldEnumUsesSelectOptions(t *testing.T) {
+	leaf := config.Leaf(config.TypeString)
+	leaf.Enums = []string{"stdout", "stderr", "syslog"}
+
+	field := buildLeafField("output", leaf, "stderr", true)
+
+	assert.Equal(t, "select", field.InputType)
+	assert.Equal(t, []string{"stdout", "stderr", "syslog"}, field.Options)
+	assert.Equal(t, "stderr", field.Value)
+	assert.True(t, field.IsConfigured)
+}
+
+// TestConfigViewRendersEnumSelect verifies the legacy config template turns
+// enum LeafFields into an HTML selector with the current value selected.
+//
+// VALIDATES: LeafField enum metadata reaches the operator-visible HTML.
+// PREVENTS: Regression to a free text input for schema-constrained enum leaves.
+func TestConfigViewRendersEnumSelect(t *testing.T) {
+	leaf := config.Leaf(config.TypeString)
+	leaf.Enums = []string{"stdout", "stderr", "syslog"}
+
+	schema := config.NewSchema()
+	schema.Define("environment", config.Container(
+		config.Field("log", config.Container(
+			config.Field("output", leaf),
+		)),
+	))
+
+	logTree := config.NewTree()
+	logTree.Set("output", "stderr")
+	envTree := config.NewTree()
+	envTree.SetContainer("log", logTree)
+	tree := config.NewTree()
+	tree.SetContainer("environment", envTree)
+
+	data, err := buildConfigViewData(schema, tree, []string{"environment", "log"})
+	require.NoError(t, err)
+
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	html := string(renderer.RenderConfigToHTML("container.html", data))
+
+	assert.Contains(t, html, `<select`)
+	assert.Contains(t, html, `id="field-output"`)
+	assert.Contains(t, html, `<option value="stderr" selected>stderr</option>`)
+	assert.NotContains(t, html, `type="text" class="config-input`)
+}
+
+// TestEnumSelectPlaceholderWhenUnconfigured verifies the legacy template shows
+// a placeholder option when an enum leaf has no configured value.
+//
+// VALIDATES: Unconfigured enum selects show "-- select --", not the first enum.
+// PREVENTS: Operator mistaking browser-default first option for a configured value.
+func TestEnumSelectPlaceholderWhenUnconfigured(t *testing.T) {
+	leaf := config.Leaf(config.TypeString)
+	leaf.Enums = []string{"stdout", "stderr", "syslog"}
+
+	schema := config.NewSchema()
+	schema.Define("environment", config.Container(
+		config.Field("log", config.Container(
+			config.Field("output", leaf),
+		)),
+	))
+
+	tree := config.NewTree()
+
+	data, err := buildConfigViewData(schema, tree, []string{"environment", "log"})
+	require.NoError(t, err)
+
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	html := string(renderer.RenderConfigToHTML("container.html", data))
+
+	assert.Contains(t, html, `<option value="" selected>-- select --</option>`)
+	assert.Contains(t, html, `default-value`)
+	assert.NotContains(t, html, `<option value="stdout" selected`)
+}
+
 // TestDefaultValuePlaceholder verifies that an unconfigured leaf with a schema
 // default value produces the correct placeholder and IsConfigured=false.
 // VALIDATES: AC-19 (default value shown as placeholder, visually distinct).
