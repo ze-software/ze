@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import os
 import re
 import secrets
@@ -146,10 +147,61 @@ def validate_remove_path(repo: Path, path: str) -> None:
         raise UsageError(f"--remove path is not tracked: {path}")
 
 
+def _ps_field(field: str, pid: int) -> str:
+    try:
+        return subprocess.run(
+            ["ps", "-o", field, "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+    except Exception:
+        return ""
+
+
+def claude_session_fingerprint() -> str:
+    """Identify the Claude session that owns this process.
+
+    Concurrent Claude sessions share tmp/; when they also shared one
+    tmp/commit-session-id they shared one tmp/commit-<SESSION>.sh, and a
+    --replace from one session silently overwrote the other session's
+    prepared script (observed 2026-06-10). Keying the session file by the
+    owning Claude session gives every session its own script path. Uses
+    the session_id claim of the access token when present, else the PID
+    of the `claude` ancestor process (stable across Bash tool calls of
+    one session), else the parent PID.
+    """
+    tok = os.environ.get("CLAUDE_CODE_SESSION_ACCESS_TOKEN", "")
+    if tok.count(".") >= 2:
+        try:
+            payload = tok.split(".")[1].replace("_", "/").replace("-", "+")
+            payload += "=" * (-len(payload) % 4)
+            decoded = base64.b64decode(payload).decode("utf-8", "replace")
+            m = re.search(r'"session_id":\s*"([^"]+)"', decoded)
+            if m:
+                return re.sub(r"[^A-Za-z0-9._-]", "-", m.group(1))
+        except Exception:
+            pass
+    pid = os.getpid()
+    for _ in range(64):
+        if pid <= 1:
+            break
+        argv0 = _ps_field("comm=", pid)
+        if argv0.rsplit("/", 1)[-1] == "claude":
+            return str(pid)
+        ppid = _ps_field("ppid=", pid)
+        if not ppid.isdigit():
+            break
+        pid = int(ppid)
+    return str(os.getppid())
+
+
 def session_id(repo: Path, requested: str | None) -> str:
     tmp_dir = repo / "tmp"
     tmp_dir.mkdir(exist_ok=True)
-    session_file = tmp_dir / "commit-session-id"
+    # Per-Claude-session file: concurrent sessions must never resolve to
+    # the same tmp/commit-<SESSION>.sh script path.
+    session_file = tmp_dir / f"commit-session-id-{claude_session_fingerprint()}"
     if requested:
         session = requested.lower()
         if not SESSION_RE.match(session):
