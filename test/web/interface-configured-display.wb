@@ -1,0 +1,29 @@
+# Test: Configured-only interfaces stay visible in workbench tables
+# VALIDATES: an ethernet entry created from All Interfaces remains visible on All and Ethernet pages before a real OS link exists.
+# PREVENTS: interface config existing in the editor while /show/iface/ hides it after navigation.
+
+option=timeout:value=60s
+
+action=open:path=/show/iface/
+expect=element:id=workbench-shell
+expect=element:text=Add Interface
+
+action=click:id=btn-add-entry
+action=wait:ms=500
+expect=element:text=Add Interface
+expect=element:id=field-interface-name
+
+action=fill:id=field-interface-name:value=web-display-test
+action=fill:id=field-mac-address:value=11:22:33:44:55:66
+action=click:text=Save
+action=wait:ms=1000
+
+# Leave and return through the purpose-built tables, not the generic config list.
+action=open:path=/show/
+action=wait
+action=open:path=/show/iface/
+expect=element:text=web-display-test
+
+action=open:path=/show/iface/?type=ethernet
+expect=element:text=web-display-test
+expect=element:text=ethernet

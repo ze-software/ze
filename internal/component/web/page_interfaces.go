@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -31,13 +32,229 @@ func InterfaceTypes() []string {
 	return result
 }
 
-// ifaceFlag computes the flag string for an interface row.
-// R = link state "up".
-func ifaceFlag(info iface.InterfaceInfo) (string, string) {
-	if info.State == "up" {
-		return "R", flagClassGreen
+const (
+	interfaceStateConfigured = "configured"
+	interfaceTypeVLAN        = "vlan"
+	defaultInterfaceMTU      = 1500
+)
+
+func buildInterfaceTableDataForView(runtime []iface.InterfaceInfo, viewTree *config.Tree, filterType string) WorkbenchTableData {
+	infos := mergeInterfaceInfos(runtime, collectConfiguredInterfaces(viewTree))
+	return BuildInterfaceTableData(infos, filterType)
+}
+
+func collectConfiguredInterfaces(viewTree *config.Tree) []iface.InterfaceInfo {
+	if viewTree == nil {
+		return nil
 	}
-	return ".", flagClassRed
+	ifaceTree := viewTree.GetContainer("interface")
+	if ifaceTree == nil {
+		return nil
+	}
+
+	var infos []iface.InterfaceInfo
+	for _, typ := range iface.SupportedTypes() {
+		if typ == "loopback" {
+			if loop := ifaceTree.GetContainer("loopback"); loop != nil {
+				infos = append(infos, configuredInterfaceInfo("loopback", typ, loop))
+			}
+			continue
+		}
+		for _, entry := range ifaceTree.GetListOrdered(typ) {
+			info := configuredInterfaceInfo(entry.Key, typ, entry.Value)
+			infos = append(infos, info)
+			infos = append(infos, configuredVLANInfos(info, entry.Value)...)
+		}
+	}
+	return infos
+}
+
+func configuredInterfaceInfo(name, typ string, entry *config.Tree) iface.InterfaceInfo {
+	info := iface.InterfaceInfo{
+		Name:  name,
+		Type:  typ,
+		State: interfaceStateConfigured,
+		MTU:   defaultInterfaceMTU,
+	}
+	if entry == nil {
+		return info
+	}
+	if mtu, ok := entry.Get("mtu"); ok {
+		if v, err := strconv.Atoi(mtu); err == nil && v > 0 {
+			info.MTU = v
+		}
+	}
+	if mac := entry.GetContainer("mac"); mac != nil {
+		if address, ok := mac.Get("address"); ok {
+			info.MAC = address
+		}
+	}
+	info.Addresses = configuredInterfaceAddresses(entry)
+	return info
+}
+
+func configuredVLANInfos(parent iface.InterfaceInfo, entry *config.Tree) []iface.InterfaceInfo {
+	if entry == nil {
+		return nil
+	}
+	var infos []iface.InterfaceInfo
+	for _, unit := range entry.GetListOrdered("unit") {
+		vlanID := configuredUnitVLANID(unit.Value)
+		if vlanID <= 0 {
+			continue
+		}
+		var tb textbuf.Buffer
+		name := tb.Str(parent.Name).Byte('.').Int(int64(vlanID)).String()
+		infos = append(infos, iface.InterfaceInfo{
+			Name:      name,
+			Type:      interfaceTypeVLAN,
+			State:     interfaceStateConfigured,
+			MTU:       parent.MTU,
+			MAC:       parent.MAC,
+			Addresses: configuredUnitAddresses(unit.Value),
+			VlanID:    vlanID,
+		})
+	}
+	return infos
+}
+
+func configuredInterfaceAddresses(entry *config.Tree) []iface.AddrInfo {
+	var addrs []iface.AddrInfo
+	for _, unit := range entry.GetListOrdered("unit") {
+		if configuredUnitVLANID(unit.Value) > 0 {
+			continue
+		}
+		addrs = append(addrs, configuredUnitAddresses(unit.Value)...)
+	}
+	return addrs
+}
+
+func configuredUnitVLANID(unit *config.Tree) int {
+	if unit == nil {
+		return 0
+	}
+	raw, ok := unit.Get("vlan-id")
+	if !ok {
+		return 0
+	}
+	vlanID, err := strconv.Atoi(raw)
+	if err != nil || vlanID <= 0 {
+		return 0
+	}
+	return vlanID
+}
+
+func configuredUnitAddresses(unit *config.Tree) []iface.AddrInfo {
+	if unit == nil {
+		return nil
+	}
+	var addrs []iface.AddrInfo
+	for _, family := range []string{"ipv4", "ipv6"} {
+		familyTree := unit.GetContainer(family)
+		if familyTree == nil {
+			continue
+		}
+		for _, cidr := range familyTree.GetSlice("address") {
+			addrs = append(addrs, configuredAddrInfo(cidr, family))
+		}
+	}
+	return addrs
+}
+
+func configuredAddrInfo(cidr, family string) iface.AddrInfo {
+	address, prefixRaw, ok := strings.Cut(cidr, "/")
+	if !ok {
+		return iface.AddrInfo{Address: cidr, Family: family}
+	}
+	prefix, err := strconv.Atoi(prefixRaw)
+	if err != nil {
+		return iface.AddrInfo{Address: address, Family: family}
+	}
+	return iface.AddrInfo{Address: address, PrefixLength: prefix, Family: family}
+}
+
+func mergeInterfaceInfos(runtime, configured []iface.InterfaceInfo) []iface.InterfaceInfo {
+	if len(configured) == 0 {
+		return runtime
+	}
+	byName := make(map[string]int, len(runtime))
+	byMAC := make(map[string]int, len(runtime))
+	for i := range runtime {
+		byName[runtime[i].Name] = i
+		if runtime[i].MAC != "" {
+			byMAC[strings.ToLower(runtime[i].MAC)] = i
+		}
+	}
+
+	usedRuntime := make([]bool, len(runtime))
+	infos := make([]iface.InterfaceInfo, 0, len(configured)+len(runtime))
+	for _, cfg := range configured {
+		info := cfg
+		if idx, ok := byName[cfg.Name]; ok {
+			info = mergeConfiguredRuntime(cfg, runtime[idx])
+			usedRuntime[idx] = true
+		} else if cfg.MAC != "" {
+			if idx, ok := byMAC[strings.ToLower(cfg.MAC)]; ok {
+				info = mergeConfiguredRuntime(cfg, runtime[idx])
+				info.Name = cfg.Name
+				usedRuntime[idx] = true
+			}
+		}
+		infos = append(infos, info)
+	}
+	for i := range runtime {
+		if !usedRuntime[i] {
+			infos = append(infos, runtime[i])
+		}
+	}
+	return infos
+}
+
+func mergeConfiguredRuntime(cfg, runtime iface.InterfaceInfo) iface.InterfaceInfo {
+	info := runtime
+	info.Name = cfg.Name
+	if cfg.Type != "" {
+		info.Type = cfg.Type
+	}
+	if info.State == "" {
+		info.State = cfg.State
+	}
+	if info.MTU == 0 {
+		info.MTU = cfg.MTU
+	}
+	if info.MAC == "" {
+		info.MAC = cfg.MAC
+	}
+	if len(info.Addresses) == 0 {
+		info.Addresses = cfg.Addresses
+	}
+	if info.VlanID == 0 {
+		info.VlanID = cfg.VlanID
+	}
+	return info
+}
+
+func normalizeInterfaceInfo(info iface.InterfaceInfo) iface.InterfaceInfo {
+	if info.VlanID > 0 || info.Type == interfaceTypeVLAN {
+		return info
+	}
+	if typ := iface.CanonicalInterfaceType(&info); typ != "" {
+		info.Type = typ
+	}
+	return info
+}
+
+// ifaceFlag computes the flag string for an interface row.
+// R = live link up, C = configured but not present in live state.
+func ifaceFlag(info iface.InterfaceInfo) (string, string) {
+	switch info.State {
+	case "up":
+		return "R", flagClassGreen
+	case interfaceStateConfigured:
+		return "C", flagClassYellow
+	default:
+		return ".", flagClassRed
+	}
 }
 
 // BuildInterfaceTableData constructs a WorkbenchTableData from a list of
@@ -61,6 +278,7 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 
 	var rows []WorkbenchTableRow
 	for _, info := range infos {
+		info = normalizeInterfaceInfo(info)
 		if filterType != "" && !matchesTypeFilter(info, filterType) {
 			continue
 		}
@@ -70,7 +288,11 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 		addrs := make([]string, 0, len(info.Addresses))
 		for _, a := range info.Addresses {
 			var bAddr textbuf.Buffer
-			addrs = append(addrs, bAddr.Reset().Str(a.Address).Byte('/').Int(int64(a.PrefixLength)).String())
+			bAddr.Str(a.Address)
+			if a.PrefixLength > 0 {
+				bAddr.Byte('/').Int(int64(a.PrefixLength))
+			}
+			addrs = append(addrs, bAddr.String())
 		}
 		addrStr := textbuf.Join(addrs, ", ")
 		if addrStr == "" {
@@ -129,18 +351,23 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 // "vlan" matches interfaces with a VlanID > 0.
 // "tunnel" matches both tunnel and wireguard types.
 func matchesTypeFilter(info iface.InterfaceInfo, filterType string) bool {
+	typ := interfaceDisplayType(info)
 	switch filterType {
-	case "vlan":
-		return info.VlanID > 0
+	case interfaceTypeVLAN:
+		return typ == interfaceTypeVLAN || info.VlanID > 0
 	case "tunnel":
-		return info.Type == "tunnel" || info.Type == "wireguard" ||
+		return typ == "tunnel" || typ == "wireguard" ||
 			info.Type == "gre" || info.Type == "gretap" ||
 			info.Type == "ip6gre" || info.Type == "ip6gretap" ||
 			info.Type == "ipip" || info.Type == "sit" ||
 			info.Type == "ip6tnl"
 	default:
-		return info.Type == filterType
+		return typ == filterType
 	}
+}
+
+func interfaceDisplayType(info iface.InterfaceInfo) string {
+	return normalizeInterfaceInfo(info).Type
 }
 
 // BuildInterfaceDetailData constructs a WorkbenchDetailData for a single
@@ -281,12 +508,12 @@ func writeKV(b *textbuf.Buffer, key, value string) {
 // HandleInterfacesPage renders the interface list table within the workbench.
 // It is called by the workbench handler when the path starts with "iface/".
 // Returns the rendered HTML content for embedding in the workbench shell.
-func HandleInterfacesPage(renderer *Renderer, r *http.Request, path []string) template.HTML {
+func HandleInterfacesPage(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree) template.HTML {
 	filterType := r.URL.Query().Get("type")
 
 	// Detail sub-path: /show/iface/detail/<name>
 	if len(path) >= 2 && path[0] == "detail" {
-		return handleInterfaceDetailContent(renderer, path[1])
+		return handleInterfaceDetailContent(renderer, path[1], viewTree)
 	}
 
 	// Counters sub-path: /show/iface/counters/<name> (HTMX partial for auto-refresh)
@@ -301,23 +528,36 @@ func HandleInterfacesPage(renderer *Renderer, r *http.Request, path []string) te
 
 	infos, err := iface.ListInterfaces()
 	if err != nil {
-		// Backend not loaded: show empty table gracefully.
-		tableData := BuildInterfaceTableData(nil, filterType)
+		// Backend not loaded: still show configured entries from the editor tree.
+		tableData := buildInterfaceTableDataForView(nil, viewTree, filterType)
 		return renderer.RenderFragment("workbench_table", tableData)
 	}
 
-	tableData := BuildInterfaceTableData(infos, filterType)
+	tableData := buildInterfaceTableDataForView(infos, viewTree, filterType)
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 
-func handleInterfaceDetailContent(renderer *Renderer, name string) template.HTML {
+func handleInterfaceDetailContent(renderer *Renderer, name string, viewTree *config.Tree) template.HTML {
 	info, err := iface.GetInterface(name)
 	if err != nil || info == nil {
+		info = configuredInterfaceByName(viewTree, name)
+	}
+	if info == nil {
 		return template.HTML(`<div class="wb-detail-panel"><p>Interface not found.</p></div>`) //nolint:gosec // static HTML
 	}
 
 	detailData := BuildInterfaceDetailData(info)
 	return renderer.RenderFragment("workbench_detail", detailData)
+}
+
+func configuredInterfaceByName(viewTree *config.Tree, name string) *iface.InterfaceInfo {
+	for _, info := range collectConfiguredInterfaces(viewTree) {
+		if info.Name == name {
+			found := info
+			return &found
+		}
+	}
+	return nil
 }
 
 func handleInterfaceCountersContent(name string) template.HTML {

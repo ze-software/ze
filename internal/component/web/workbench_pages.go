@@ -32,7 +32,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 
 	switch path[0] {
 	case "iface":
-		return HandleInterfacesPage(renderer, r, path[1:]), true
+		return HandleInterfacesPage(renderer, r, path[1:], viewTree), true
 	case "ip":
 		if len(path) < 2 {
 			return "", false

@@ -119,6 +119,12 @@ func DiscoverInterfaces() ([]DiscoveredInterface, error) {
 	return result, nil
 }
 
+// CanonicalInterfaceType maps an InterfaceInfo to a Ze/YANG interface type.
+// It returns "" for link types not represented by Ze's interface schema.
+func CanonicalInterfaceType(info *InterfaceInfo) string {
+	return infoToZeType(info)
+}
+
 // infoToZeType maps an InterfaceInfo to a Ze interface type string.
 // Returns "" for link types not supported by Ze's YANG schema.
 func infoToZeType(info *InterfaceInfo) string {

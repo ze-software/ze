@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
@@ -104,6 +105,192 @@ func TestInterfaceTableData_FilterByType(t *testing.T) {
 	data = BuildInterfaceTableData(infos, "vlan")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "eth0.100", data.Rows[0].Key)
+}
+
+// TestInterfaceTableData_FilterEthernetMatchesKernelDevice verifies Linux
+// netlink physical links are classified as Ethernet for display and filtering.
+// VALIDATES: an interface with kernel type "device" appears on the Ethernet page.
+// PREVENTS: physical appliance NICs disappearing from /show/iface/?type=ethernet.
+func TestInterfaceTableData_FilterEthernetMatchesKernelDevice(t *testing.T) {
+	infos := []iface.InterfaceInfo{
+		{Name: "enp1s0", Type: "device", State: "up", MTU: 1500, MAC: "00:11:22:33:44:55"},
+	}
+
+	data := BuildInterfaceTableData(infos, "ethernet")
+	require.Len(t, data.Rows, 1)
+	assert.Equal(t, "enp1s0", data.Rows[0].Key)
+	assert.Equal(t, "ethernet", data.Rows[0].Cells[1])
+}
+
+// TestBuildInterfaceTableDataForView_IncludesConfiguredOnlyTypes verifies the
+// workbench source includes configuration entries even when the OS has no link.
+// VALIDATES: every configured interface type remains visible after navigation.
+// PREVENTS: pending or unapplied interface config disappearing from tables.
+func TestBuildInterfaceTableDataForView_IncludesConfiguredOnlyTypes(t *testing.T) {
+	tree := config.NewTree()
+	ifaceTree := config.NewTree()
+	for _, typ := range []string{"ethernet", "bridge", "dummy", "veth", "tunnel", "wireguard", "xfrm"} {
+		entry := config.NewTree()
+		if typ == "ethernet" {
+			mac := config.NewTree()
+			mac.Set("address", "11:22:33:44:55:66")
+			entry.SetContainer("mac", mac)
+		}
+		ifaceTree.AddListEntry(typ, typ+"-test", entry)
+	}
+	tree.SetContainer("interface", ifaceTree)
+
+	data := buildInterfaceTableDataForView(nil, tree, "")
+	require.Len(t, data.Rows, 7)
+	for _, typ := range []string{"ethernet", "bridge", "dummy", "veth", "tunnel", "wireguard", "xfrm"} {
+		row := requireInterfaceRow(t, data, typ+"-test")
+		assert.Equal(t, typ, row.Cells[1])
+		assert.Equal(t, "configured", row.Cells[2])
+	}
+
+	ethernet := buildInterfaceTableDataForView(nil, tree, "ethernet")
+	require.Len(t, ethernet.Rows, 1)
+	assert.Equal(t, "ethernet-test", ethernet.Rows[0].Key)
+	assert.Equal(t, "11:22:33:44:55:66", ethernet.Rows[0].Cells[4])
+}
+
+// TestBuildInterfaceTableDataForView_IncludesConfiguredVLANUnits verifies VLAN
+// units render as VLAN interface rows before their OS subinterface exists.
+// VALIDATES: interface ethernet <name> unit <n> vlan-id <id> appears on VLAN page.
+// PREVENTS: configured VLANs disappearing until the config has been committed.
+func TestBuildInterfaceTableDataForView_IncludesConfiguredVLANUnits(t *testing.T) {
+	tree := config.NewTree()
+	ifaceTree := config.NewTree()
+	eth := config.NewTree()
+	mac := config.NewTree()
+	mac.Set("address", "aa:bb:cc:dd:ee:ff")
+	eth.SetContainer("mac", mac)
+	unit := config.NewTree()
+	unit.Set("vlan-id", "100")
+	ipv4 := config.NewTree()
+	ipv4.SetSlice("address", []string{"192.0.2.1/24"})
+	unit.SetContainer("ipv4", ipv4)
+	eth.AddListEntry("unit", "default", unit)
+	ifaceTree.AddListEntry("ethernet", "uplink", eth)
+	tree.SetContainer("interface", ifaceTree)
+
+	data := buildInterfaceTableDataForView(nil, tree, "vlan")
+	require.Len(t, data.Rows, 1)
+	assert.Equal(t, "uplink.100", data.Rows[0].Key)
+	assert.Equal(t, "vlan", data.Rows[0].Cells[1])
+	assert.Equal(t, "192.0.2.1/24", data.Rows[0].Cells[5])
+}
+
+// TestBuildInterfaceTableDataForView_VLANWithMACNotOnEthernetPage verifies a
+// VLAN entry whose parent has a MAC does not leak onto the Ethernet filter page.
+// PREVENTS: CanonicalInterfaceType MAC fallback reclassifying VLANs as ethernet.
+func TestBuildInterfaceTableDataForView_VLANWithMACNotOnEthernetPage(t *testing.T) {
+	tree := config.NewTree()
+	ifaceTree := config.NewTree()
+	eth := config.NewTree()
+	mac := config.NewTree()
+	mac.Set("address", "aa:bb:cc:dd:ee:ff")
+	eth.SetContainer("mac", mac)
+	unit := config.NewTree()
+	unit.Set("vlan-id", "200")
+	eth.AddListEntry("unit", "default", unit)
+	ifaceTree.AddListEntry("ethernet", "wan0", eth)
+	tree.SetContainer("interface", ifaceTree)
+
+	vlanData := buildInterfaceTableDataForView(nil, tree, "vlan")
+	require.Len(t, vlanData.Rows, 1)
+	assert.Equal(t, "wan0.200", vlanData.Rows[0].Key)
+
+	ethernetData := buildInterfaceTableDataForView(nil, tree, "ethernet")
+	for _, row := range ethernetData.Rows {
+		assert.NotEqual(t, "wan0.200", row.Key, "VLAN row must not appear on ethernet page")
+	}
+}
+
+// TestConfiguredUnitVLANID_Boundaries verifies VLAN ID parsing edge cases.
+func TestConfiguredUnitVLANID_Boundaries(t *testing.T) {
+	tests := []struct {
+		name   string
+		setup  func(*config.Tree)
+		expect int
+	}{
+		{"nil tree", func(_ *config.Tree) {}, 0},
+		{"missing key", func(tree *config.Tree) {}, 0},
+		{"zero", func(tree *config.Tree) { tree.Set("vlan-id", "0") }, 0},
+		{"negative", func(tree *config.Tree) { tree.Set("vlan-id", "-1") }, 0},
+		{"non-numeric", func(tree *config.Tree) { tree.Set("vlan-id", "abc") }, 0},
+		{"valid", func(tree *config.Tree) { tree.Set("vlan-id", "100") }, 100},
+		{"max 4094", func(tree *config.Tree) { tree.Set("vlan-id", "4094") }, 4094},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tree := config.NewTree()
+			tc.setup(tree)
+			got := configuredUnitVLANID(tree)
+			assert.Equal(t, tc.expect, got)
+		})
+	}
+	assert.Equal(t, 0, configuredUnitVLANID(nil))
+}
+
+// TestConfiguredInterfaceInfo_MTUBoundaries verifies MTU parsing edge cases.
+func TestConfiguredInterfaceInfo_MTUBoundaries(t *testing.T) {
+	tests := []struct {
+		name   string
+		mtu    string
+		expect int
+	}{
+		{"zero", "0", defaultInterfaceMTU},
+		{"negative", "-1", defaultInterfaceMTU},
+		{"non-numeric", "abc", defaultInterfaceMTU},
+		{"valid", "9000", 9000},
+		{"minimum", "1", 1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			entry := config.NewTree()
+			entry.Set("mtu", tc.mtu)
+			info := configuredInterfaceInfo("eth0", "ethernet", entry)
+			assert.Equal(t, tc.expect, info.MTU)
+		})
+	}
+	info := configuredInterfaceInfo("eth0", "ethernet", nil)
+	assert.Equal(t, defaultInterfaceMTU, info.MTU)
+}
+
+// TestConfiguredAddrInfo_Boundaries verifies CIDR address parsing edge cases.
+func TestConfiguredAddrInfo_Boundaries(t *testing.T) {
+	tests := []struct {
+		name   string
+		cidr   string
+		addr   string
+		prefix int
+		family string
+	}{
+		{"ipv4 with prefix", "192.0.2.1/24", "192.0.2.1", 24, "ipv4"},
+		{"ipv6 with prefix", "2001:db8::1/64", "2001:db8::1", 64, "ipv6"},
+		{"no slash", "10.0.0.1", "10.0.0.1", 0, "ipv4"},
+		{"non-numeric prefix", "10.0.0.1/abc", "10.0.0.1", 0, "ipv4"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			info := configuredAddrInfo(tc.cidr, tc.family)
+			assert.Equal(t, tc.addr, info.Address)
+			assert.Equal(t, tc.prefix, info.PrefixLength)
+			assert.Equal(t, tc.family, info.Family)
+		})
+	}
+}
+
+func requireInterfaceRow(t *testing.T, data WorkbenchTableData, key string) WorkbenchTableRow {
+	t.Helper()
+	for _, row := range data.Rows {
+		if row.Key == key {
+			return row
+		}
+	}
+	require.Failf(t, "missing interface row", "key %q in %#v", key, data.Rows)
+	return WorkbenchTableRow{}
 }
 
 // TestInterfaceTableData_EmptyState verifies empty table renders correctly.
