@@ -78,9 +78,20 @@ while IFS= read -r file; do
     fi
 done <<< "$changed"
 
-# Deduplicate unmapped package directories.
+# Deduplicate unmapped package directories and drop directories that do not
+# form a buildable package (e.g. scripts/ build tools whose only .go files
+# carry `//go:build ignore`): `go test` fails on them with "build constraints
+# exclude all Go files".
 if [ ${#rest_pkgs[@]} -gt 0 ]; then
     mapfile -t rest_pkgs < <(printf '%s\n' "${rest_pkgs[@]}" | sort -u)
+    root=$(pwd -P)
+    mapfile -t rest_pkgs < <(
+        go list -e -f '{{if not .Error}}{{.Dir}}{{end}}' "${rest_pkgs[@]}" 2>/dev/null |
+            awk -v root="$root" 'length($0) {
+                if (index($0, root "/") == 1) { print "./" substr($0, length(root) + 2) }
+                else if ($0 == root) { print "." }
+            }' | sort -u
+    )
 fi
 
 if [ "$mode" = "pkgs" ]; then

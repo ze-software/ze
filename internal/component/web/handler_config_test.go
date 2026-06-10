@@ -774,7 +774,7 @@ func TestWebShowUnaffectedByRBAC(t *testing.T) {
 // PREVENTS: SetValue not called, wrong redirect target, missing form parsing.
 func TestHandleConfigSet(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigSet(mgr, schema, nil)
+	handler := handleConfigSet(mgr, schema, nil)
 
 	form := url.Values{
 		"leaf":  {"router-id"},
@@ -810,7 +810,7 @@ func TestHandleConfigSet(t *testing.T) {
 // PREVENTS: DeleteValue not called, value persisting after delete.
 func TestHandleConfigDelete(t *testing.T) {
 	mgr, _ := newHandlerTestManager(t)
-	handler := HandleConfigDelete(mgr)
+	handler := handleConfigDelete(mgr)
 
 	// First set a value so there is something to delete.
 	err := mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
@@ -834,7 +834,7 @@ func TestHandleConfigDelete(t *testing.T) {
 // keyed list entry and redirects back to the parent list view.
 func TestHandleConfigRename(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigRename(mgr, schema)
+	handler := handleConfigRename(mgr, schema)
 
 	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
 	require.NoError(t, err)
@@ -871,7 +871,7 @@ func TestHandleConfigRename(t *testing.T) {
 // TestHandleConfigRenameNormalizesKey verifies rename input is trimmed and lowercased.
 func TestHandleConfigRenameNormalizesKey(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigRename(mgr, schema)
+	handler := handleConfigRename(mgr, schema)
 
 	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
 	require.NoError(t, err)
@@ -892,7 +892,7 @@ func TestHandleConfigRenameNormalizesKey(t *testing.T) {
 // TestHandleConfigRenameInvalidKey verifies invalid rename targets are rejected before mutation.
 func TestHandleConfigRenameInvalidKey(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigRename(mgr, schema)
+	handler := handleConfigRename(mgr, schema)
 
 	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
 	require.NoError(t, err)
@@ -911,7 +911,7 @@ func TestHandleConfigRenameInvalidKey(t *testing.T) {
 // TestHandleConfigRenameTargetExists verifies duplicate targets are rejected cleanly.
 func TestHandleConfigRenameTargetExists(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigRename(mgr, schema)
+	handler := handleConfigRename(mgr, schema)
 
 	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
 	require.NoError(t, err)
@@ -934,7 +934,7 @@ func TestHandleConfigRenameTargetExists(t *testing.T) {
 // (not a keyed list entry) is rejected explicitly.
 func TestHandleConfigRenameNonListPathRejected(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigRename(mgr, schema)
+	handler := handleConfigRename(mgr, schema)
 
 	form := url.Values{"new-key": {"newname"}}
 	req := postConfigRequest(t, "/config/rename/bgp/", form, "alice")
@@ -949,7 +949,7 @@ func TestHandleConfigRenameNonListPathRejected(t *testing.T) {
 // TestHandleConfigRenameNoOpSameKey verifies that renaming to the same key is rejected.
 func TestHandleConfigRenameNoOpSameKey(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigRename(mgr, schema)
+	handler := handleConfigRename(mgr, schema)
 
 	err := mgr.CreateEntry("alice", []string{"bgp", "peer", "london"})
 	require.NoError(t, err)
@@ -971,7 +971,7 @@ func TestHandleConfigRenameNoOpSameKey(t *testing.T) {
 // PREVENTS: Draft persisting after discard, wrong redirect target.
 func TestHandleConfigDiscard(t *testing.T) {
 	mgr, _ := newHandlerTestManager(t)
-	handler := HandleConfigDiscard(mgr)
+	handler := handleConfigDiscard(mgr)
 
 	// Set a value so the user has a draft to discard.
 	err := mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
@@ -1001,7 +1001,7 @@ func TestHandleConfigDiscard(t *testing.T) {
 // PREVENTS: Invalid paths silently accepted into the draft.
 func TestHandleConfigSetValidationError(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigSet(mgr, schema, nil)
+	handler := handleConfigSet(mgr, schema, nil)
 
 	form := url.Values{
 		"leaf":  {"router-id"},
@@ -1021,7 +1021,7 @@ func TestHandleConfigSetValidationError(t *testing.T) {
 		"error body must describe the path validation failure")
 }
 
-// TestBoolCheckboxConversion verifies that HandleConfigSet converts HTML
+// TestBoolCheckboxConversion verifies that handleConfigSet converts HTML
 // checkbox presence ("on" value) to "true" for TypeBool leaves, so the
 // Editor receives the correct boolean string.
 //
@@ -1035,7 +1035,7 @@ func TestBoolCheckboxConversion(t *testing.T) {
 	// config.YANGSchema() might not have an easily addressable bool leaf
 	// at a short path. Use the test schema for isBoolLeaf detection.
 	testSchema, _ := buildTestSchemaAndTree()
-	handler := HandleConfigSet(mgr, testSchema, nil)
+	handler := handleConfigSet(mgr, testSchema, nil)
 
 	// POST with value="on" for a bool leaf (simulating a checked checkbox).
 	form := url.Values{
@@ -1096,7 +1096,7 @@ func TestHandleConfigCommitGET(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err, "precondition: set value for pending diff")
 
-	handler := HandleConfigCommit(mgr, renderer, nil)
+	handler := handleConfigCommit(mgr, renderer, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/config/commit/", http.NoBody)
 	ctx := context.WithValue(req.Context(), ctxKeyUsername, "alice")
@@ -1129,7 +1129,7 @@ func TestHandleConfigCommitPOST(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err, "precondition: set value before commit")
 
-	handler := HandleConfigCommit(mgr, renderer, nil)
+	handler := handleConfigCommit(mgr, renderer, nil)
 
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
@@ -1165,7 +1165,7 @@ func TestHandleConfigCommitPOST_HookCalled(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err, "precondition: set value before commit")
 
-	handler := HandleConfigCommit(mgr, renderer, nil)
+	handler := handleConfigCommit(mgr, renderer, nil)
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
 
@@ -1187,7 +1187,7 @@ func TestHandleConfigCommitPOST_HookError(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err, "precondition: set value before commit")
 
-	handler := HandleConfigCommit(mgr, renderer, nil)
+	handler := handleConfigCommit(mgr, renderer, nil)
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
 
@@ -1254,7 +1254,7 @@ func TestAddFormRejectsIncompleteRequired(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	handler := HandleConfigAdd(mgr, schema, renderer)
+	handler := handleConfigAdd(mgr, schema, renderer)
 
 	// POST a new peer without connection/remote/ip (required, no inheritance possible).
 	formData := url.Values{
@@ -1273,14 +1273,14 @@ func TestAddFormRejectsIncompleteRequired(t *testing.T) {
 
 // TestAddFormAcceptsRequiredFromForm verifies that providing a required field
 // via the form allows creation (no rejection).
-// VALIDATES: HandleConfigAdd accepts form-provided required values.
+// VALIDATES: handleConfigAdd accepts form-provided required values.
 // PREVENTS: Required check rejecting entries when all fields are filled.
 func TestAddFormAcceptsRequiredFromForm(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	handler := HandleConfigAdd(mgr, schema, renderer)
+	handler := handleConfigAdd(mgr, schema, renderer)
 
 	formData := url.Values{
 		"name":                       {"test_peer"},

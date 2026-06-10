@@ -18,9 +18,9 @@ func TestScenario_BGPPeerCreateAndCommit(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	addHandler := HandleConfigAdd(mgr, schema, renderer)
-	setHandler := HandleConfigSet(mgr, schema, renderer)
-	commitHandler := HandleConfigCommit(mgr, renderer, nil)
+	addHandler := handleConfigAdd(mgr, schema, renderer)
+	setHandler := handleConfigSet(mgr, schema, renderer)
+	commitHandler := handleConfigCommit(mgr, renderer, nil)
 
 	addPeer := func(name, remoteIP, remoteASN string) {
 		t.Helper()
@@ -69,9 +69,9 @@ func TestScenario_InterfaceCreateWithUnit(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	addHandler := HandleConfigAdd(mgr, schema, renderer)
-	setHandler := HandleConfigSet(mgr, schema, renderer)
-	commitHandler := HandleConfigCommit(mgr, renderer, nil)
+	addHandler := handleConfigAdd(mgr, schema, renderer)
+	setHandler := handleConfigSet(mgr, schema, renderer)
+	commitHandler := handleConfigCommit(mgr, renderer, nil)
 
 	addEntry := func(path string, form url.Values) int {
 		t.Helper()
@@ -119,9 +119,9 @@ func TestScenario_FirewallChainAndMatchLeaves(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	addHandler := HandleConfigAdd(mgr, schema, renderer)
-	setHandler := HandleConfigSet(mgr, schema, renderer)
-	commitHandler := HandleConfigCommit(mgr, renderer, nil)
+	addHandler := handleConfigAdd(mgr, schema, renderer)
+	setHandler := handleConfigSet(mgr, schema, renderer)
+	commitHandler := handleConfigCommit(mgr, renderer, nil)
 
 	addEntry := func(path string, form url.Values) int {
 		t.Helper()
@@ -183,9 +183,9 @@ func TestScenario_NATChainWithSourceLeaf(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	addHandler := HandleConfigAdd(mgr, schema, renderer)
-	setHandler := HandleConfigSet(mgr, schema, renderer)
-	commitHandler := HandleConfigCommit(mgr, renderer, nil)
+	addHandler := handleConfigAdd(mgr, schema, renderer)
+	setHandler := handleConfigSet(mgr, schema, renderer)
+	commitHandler := handleConfigCommit(mgr, renderer, nil)
 
 	addEntry := func(path string, form url.Values) int {
 		t.Helper()
@@ -235,9 +235,9 @@ func TestScenario_FullRouterSetup(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	addHandler := HandleConfigAdd(mgr, schema, renderer)
-	setHandler := HandleConfigSet(mgr, schema, renderer)
-	commitHandler := HandleConfigCommit(mgr, renderer, nil)
+	addHandler := handleConfigAdd(mgr, schema, renderer)
+	setHandler := handleConfigSet(mgr, schema, renderer)
+	commitHandler := handleConfigCommit(mgr, renderer, nil)
 
 	add := func(path string, form url.Values) {
 		t.Helper()
