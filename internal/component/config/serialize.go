@@ -39,6 +39,15 @@ func canInlineContainer(tree *Tree) bool {
 	if len(tree.inactiveValues) > 0 {
 		return false
 	}
+	// A deactivated leaf-list member needs its own `inactive: <leaf>
+	// <member>` statement line, which inline form cannot carry.
+	for _, items := range tree.multiValues {
+		for _, item := range items {
+			if strings.HasPrefix(item, inactiveValuePrefix) {
+				return false
+			}
+		}
+	}
 	return (len(tree.values)+len(tree.multiValues)) == 1 &&
 		len(tree.containers) == 0 && len(tree.lists) == 0
 }
@@ -299,24 +308,38 @@ func serializeNode(b *textbuf.Buffer, tree *Tree, name string, node Node, indent
 		// Direct access: caller holds tree.mu.RLock, calling GetSlice
 		// would recursively RLock the same mutex (unsafe per Go docs).
 		if items := tree.multiValues[name]; len(items) > 0 {
+			// Deactivated members render as the bare member in the leaf
+			// line plus an `inactive: <leaf> <member>` statement (the
+			// hierarchical analog of the set-format `inactive <path>
+			// <member>` line): the raw "inactive:" prefix would fail item
+			// validation (e.g. ip-address) on reparse.
+			bare, inactiveMembers := splitInactiveMembers(items)
 			b.Str(prefix)
 			if tree.inactiveValues[name] {
 				b.Str("inactive: ")
 			}
 			b.Str(name)
-			if len(items) == 1 {
+			if len(bare) == 1 {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(items[0]))
+				b.Str(quoteIfNeeded(bare[0]))
 				b.Str("\n")
 			} else {
 				b.Str(" [ ")
-				for i, item := range items {
+				for i, item := range bare {
 					if i > 0 {
 						b.Str(" ")
 					}
 					b.Str(quoteIfNeeded(item))
 				}
 				b.Str(" ]\n")
+			}
+			for _, member := range inactiveMembers {
+				b.Str(prefix)
+				b.Str("inactive: ")
+				b.Str(name)
+				b.Str(" ")
+				b.Str(quoteIfNeeded(member))
+				b.Str("\n")
 			}
 		}
 

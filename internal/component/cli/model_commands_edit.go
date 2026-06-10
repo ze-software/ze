@@ -296,6 +296,12 @@ func (m *Model) cmdInsert(args []string) (commandResult, error) {
 		return commandResult{}, errInsertFailedTargetIsNotA
 	}
 
+	// Validate value against the leaf-list's YANG type before applying,
+	// the same gate cmdSet applies to scalar leaves.
+	if err := m.completer.ValidateValueAtPath(fullPath, value); err != nil {
+		return commandResult{}, err
+	}
+
 	if err := m.editor.InsertLeafListValue(containerPath, leafListName, value, position, ref); err != nil {
 		return commandResult{}, fmt.Errorf("insert failed: %w", err)
 	}

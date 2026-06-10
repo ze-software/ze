@@ -80,10 +80,20 @@ bgp {
     inactive: peer scratch { ... }      # list entry -- whole subtree skipped
     inactive: filter { ... }            # container -- whole subtree skipped
     filter {
-        import [ inactive:no-self-as reject-bogons ];   # leaf-list value
+        import [ no-self-as reject-bogons ];
+        inactive: import no-self-as;    # single leaf-list member
     }
 }
 ```
+
+A single deactivated **leaf-list member** keeps its bare value in the
+leaf line and is declared inactive by a follow-up `inactive: <leaf>
+<member>` statement (above: `no-self-as` stays listed, marked
+inactive). The member statement only has this meaning when the value is
+already an active member of the leaf-list; otherwise `inactive: <leaf>
+<values...>` keeps its whole-leaf meaning. The internal
+`inactive:<member>` token never appears in serialized output -- it
+would fail per-item type validation (e.g. `ip-address`) on reparse.
 
 The CLI verbs `ze config deactivate <file> <path>` and `ze config
 activate <file> <path>` add and remove the prefix. The TUI accepts the
@@ -92,7 +102,8 @@ The mechanism is engine-level: every YANG node is deactivatable, no
 schema annotation is required.
 
 In the **set / single-line format**, the inactive state is declared
-with a top-level `inactive <path>` keyword on its own line:
+with a top-level `inactive <path>` keyword on its own line; a leaf-list
+member appends the member value (`inactive system name-server 8.8.8.8`):
 
 ```
 set bgp router-id 10.0.0.1

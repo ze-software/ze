@@ -251,18 +251,22 @@ func serializeBlameTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 	case *ValueOrArrayNode:
 		// Direct access: caller holds tree.mu.RLock via serializeBlameTree.
 		if items := tree.multiValues[name]; len(items) > 0 {
+			// Same form as the plain hierarchical serializer: bare members
+			// plus one `inactive: <leaf> <member>` line per deactivated
+			// member, never the internal "inactive:" prefix.
+			bare, inactiveMembers := splitInactiveMembers(items)
 			writeBlameGutter(b, meta, name)
 			b.Str(prefix)
 			if tree.inactiveValues[name] {
 				b.Str("inactive: ")
 			}
 			b.Str(name)
-			if len(items) == 1 {
+			if len(bare) == 1 {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(items[0]))
+				b.Str(quoteIfNeeded(bare[0]))
 			} else {
 				b.Str(" [ ")
-				for i, item := range items {
+				for i, item := range bare {
 					if i > 0 {
 						b.Str(" ")
 					}
@@ -271,6 +275,15 @@ func serializeBlameTreeNode(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name 
 				b.Str(" ]")
 			}
 			b.Str("\n")
+			for _, member := range inactiveMembers {
+				writeBlameGutter(b, meta, name)
+				b.Str(prefix)
+				b.Str("inactive: ")
+				b.Str(name)
+				b.Str(" ")
+				b.Str(quoteIfNeeded(member))
+				b.Str("\n")
+			}
 		}
 
 	case *ContainerNode:

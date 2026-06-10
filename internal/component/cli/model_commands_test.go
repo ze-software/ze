@@ -2655,6 +2655,44 @@ func TestInsertBadSyntax(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestInsertValidatesValueType verifies insert validates the value against
+// the leaf-list's YANG type before applying, mirroring cmdSet.
+//
+// VALIDATES: insert rejects values that fail the leaf-list YANG type.
+// PREVENTS: wrong-typed leaf-list members surfacing only at commit validation.
+func TestInsertValidatesValueType(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	configWithNameServer := testValidBGPConfigWithPeer + `
+system {
+	name-server [ 8.8.8.8 ]
+}`
+
+	err := os.WriteFile(configPath, []byte(configWithNameServer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// name-server is zt:ip-address: a non-IP value must be rejected
+	// before it reaches the tree.
+	_, err = model.cmdInsert([]string{"system", "name-server", "not-an-ip", "last"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid value")
+	assert.NotContains(t, ed.WorkingContent(), "not-an-ip")
+
+	// A valid IP is accepted at the requested position.
+	result, err := model.cmdInsert([]string{"system", "name-server", "1.1.1.1", "first"})
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "Inserted 1.1.1.1")
+	assert.Contains(t, ed.WorkingContent(), "name-server [ 1.1.1.1 8.8.8.8 ]")
+}
+
 // TestDeactivateLeafListValue verifies deactivate adds inactive: prefix.
 //
 // VALIDATES: AC-5 -- deactivate on leaf-list value adds inactive: prefix.
@@ -2701,9 +2739,13 @@ func TestDeactivateLeafListValue(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "Deactivated no-self-as")
 
+	// The member stays in the leaf line and the deactivation renders as an
+	// `inactive: <leaf> <member>` statement, never the internal
+	// "inactive:" prefix (which fails item validation on reparse).
 	content := ed.WorkingContent()
-	assert.Contains(t, content, "inactive:no-self-as")
-	assert.Contains(t, content, "reject-bogons")
+	assert.Contains(t, content, "import [ no-self-as reject-bogons ]")
+	assert.Contains(t, content, "inactive: import no-self-as")
+	assert.NotContains(t, content, "inactive:no-self-as")
 }
 
 // TestActivateLeafListValue verifies activate removes inactive: prefix.
@@ -2804,7 +2846,8 @@ func TestDeactivateLeafListPerPeer(t *testing.T) {
 	assert.Contains(t, result.statusMessage, "Deactivated no-self-as")
 
 	content := ed.WorkingContent()
-	assert.Contains(t, content, "inactive:no-self-as")
+	assert.Contains(t, content, "inactive: import no-self-as")
+	assert.NotContains(t, content, "inactive:no-self-as")
 }
 
 // TestInsertDuplicateRejected verifies insert rejects duplicate values.

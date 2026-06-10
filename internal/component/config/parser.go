@@ -85,16 +85,62 @@ func (p *Parser) parseRoot() (*Tree, error) {
 			return nil, p.errorf(tok, "unknown top-level keyword: %s", name)
 		}
 
-		if err := p.parseNode(tree, name, node); err != nil {
-			return nil, err
+		if markInactive {
+			if err := p.parseNodeInactive(tree, name, node, tok.Line); err != nil {
+				return nil, err
+			}
+			continue
 		}
 
-		if markInactive {
-			applyInactive(tree, name, node, p, tok.Line)
+		if err := p.parseNode(tree, name, node); err != nil {
+			return nil, err
 		}
 	}
 
 	return tree, nil
+}
+
+// parseNodeInactive parses one statement that carried the "inactive:"
+// prefix. Plain leaf-lists (ValueOrArrayNode) support member-level
+// deactivation -- `inactive: <leaf-list> <member>` where <member> is
+// already an active member of the parsed leaf marks just that member
+// (the form the serializer writes for deactivated members). Every other
+// shape parses normally and the whole node is marked inactive.
+// Shared by parseRoot, parseContainer, and parseListFieldBlock.
+func (p *Parser) parseNodeInactive(tree *Tree, name string, node Node, line int) error {
+	if vn, ok := node.(*ValueOrArrayNode); ok {
+		return p.parseInactiveValueOrArray(tree, name, vn, line)
+	}
+	if err := p.parseNode(tree, name, node); err != nil {
+		return err
+	}
+	applyInactive(tree, name, node, p, line)
+	return nil
+}
+
+// parseInactiveValueOrArray handles `inactive: <leaf-list> ...` statements.
+// A single bare value naming an existing active member deactivates only
+// that member. Any other shape (bracket form, multiple values, member not
+// yet present) keeps the whole-leaf semantics: the items replace the leaf
+// content and the leaf itself is marked inactive.
+func (p *Parser) parseInactiveValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, line int) error {
+	items, bracket, tok, err := p.collectValueOrArrayItems(name)
+	if err != nil {
+		return err
+	}
+	if !bracket && len(items) == 1 {
+		if present, inactive := tree.MultiValueMemberState(name, items[0]); present && !inactive {
+			if err := tree.DeactivateMultiValue(name, items[0]); err != nil {
+				return p.errorf(tok, "deactivate member %s %s: %v", name, items[0], err)
+			}
+			return nil
+		}
+	}
+	if err := p.storeValueOrArray(tree, name, node, items, tok); err != nil {
+		return err
+	}
+	applyInactive(tree, name, node, p, line)
+	return nil
 }
 
 // applyInactive records the inactive flag on the just-parsed node. Shared
@@ -334,12 +380,15 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 			return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
 		}
 
-		if err := p.parseNode(child, fieldName, fieldNode); err != nil {
-			return err
+		if markInactive {
+			if err := p.parseNodeInactive(child, fieldName, fieldNode, tok.Line); err != nil {
+				return err
+			}
+			continue
 		}
 
-		if markInactive {
-			applyInactive(child, fieldName, fieldNode, p, tok.Line)
+		if err := p.parseNode(child, fieldName, fieldNode); err != nil {
+			return err
 		}
 	}
 

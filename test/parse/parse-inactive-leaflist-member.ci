@@ -1,0 +1,33 @@
+# Test: parser accepts `inactive: <leaf-list> <member>;` member deactivation
+# Validates the hierarchical serializer's deactivated-member form on a TYPED
+# leaf-list (system name-server, ip-address): the member stays bare in the
+# leaf line and the follow-up inactive: statement marks it. The old internal
+# form (`name-server [ inactive:8.8.8.8 ]`) failed per-item type validation.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+system {
+	name-server [ 9.9.9.9 8.8.8.8 ]
+	inactive: name-server 8.8.8.8
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -
+expect=exit:code=0

@@ -215,6 +215,98 @@ func TestSetFormatDeactivatedMemberRoundTrip(t *testing.T) {
 	}
 }
 
+// TestHierarchicalDeactivatedMemberRoundTrip: the hierarchical serializer
+// renders a deactivated leaf-list member as the bare member in the leaf line
+// plus an `inactive: <leaf> <member>` statement (the hierarchical analog of
+// the set-format `inactive <path> <member>` line), and the hierarchical
+// parser restores the member state from that form.
+//
+// VALIDATES: hierarchical serialize/parse round-trip of deactivated members.
+// PREVENTS: the internal "inactive:" member prefix leaking into hierarchical
+// output, where typed leaf-lists (e.g. ip-address) fail item validation on
+// reparse.
+func TestHierarchicalDeactivatedMemberRoundTrip(t *testing.T) {
+	schema := testLeafListSchema(t)
+	input := "system {\n\tname-server [ 9.9.9.9 8.8.8.8 ]\n}\n"
+
+	tree, err := NewParser(schema).Parse(input)
+	require.NoError(t, err)
+	system := tree.GetContainer("system")
+	require.NotNil(t, system)
+	require.NoError(t, system.DeactivateMultiValue("name-server", "8.8.8.8"))
+
+	out := Serialize(tree, schema)
+	assert.NotContains(t, out, "inactive:8.8.8.8",
+		"raw inactive: prefix must not be serialized (fails reparse validation)")
+	assert.Contains(t, out, "inactive: name-server 8.8.8.8",
+		"deactivation must serialize as an inactive: member statement")
+
+	tree2, parseErr := NewParser(schema).Parse(out)
+	require.NoError(t, parseErr, "serialized form must reparse")
+	system2 := tree2.GetContainer("system")
+	require.NotNil(t, system2)
+	assert.Equal(t, []string{"9.9.9.9", "inactive:8.8.8.8"}, system2.GetSlice("name-server"),
+		"deactivated member must survive the round-trip")
+	assert.False(t, system2.IsLeafInactive("name-server"),
+		"member deactivation must not deactivate the whole leaf")
+}
+
+// TestHierarchicalWholeLeafInactiveStillWorks: the pre-existing whole-leaf
+// form `inactive: <leaf> <values...>` keeps its meaning when the leaf was
+// not previously populated (member deactivation only triggers for a single
+// bare value already present in the leaf).
+//
+// VALIDATES: whole-leaf deactivation syntax is unchanged.
+// PREVENTS: the member-aware inactive: parse path hijacking whole-leaf form.
+func TestHierarchicalWholeLeafInactiveStillWorks(t *testing.T) {
+	schema := testLeafListSchema(t)
+
+	for _, tc := range []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{"bracket form", "system {\n\tinactive: name-server [ 9.9.9.9 8.8.8.8 ]\n}\n", []string{"9.9.9.9", "8.8.8.8"}},
+		{"single value", "system {\n\tinactive: name-server 9.9.9.9\n}\n", []string{"9.9.9.9"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tree, err := NewParser(schema).Parse(tc.input)
+			require.NoError(t, err)
+			system := tree.GetContainer("system")
+			require.NotNil(t, system)
+			assert.Equal(t, tc.want, system.GetSlice("name-server"))
+			assert.True(t, system.IsLeafInactive("name-server"),
+				"whole leaf must be inactive")
+		})
+	}
+}
+
+// TestHierarchicalSingleDeactivatedMemberRoundTrip: a one-member leaf-list
+// whose only member is deactivated round-trips (leaf line + inactive line),
+// distinct from the whole-leaf-inactive single-value form above.
+//
+// VALIDATES: single-member deactivation survives hierarchical round-trip.
+// PREVENTS: ambiguity between member and whole-leaf deactivation collapsing
+// the one-member case.
+func TestHierarchicalSingleDeactivatedMemberRoundTrip(t *testing.T) {
+	schema := testLeafListSchema(t)
+
+	tree, err := NewParser(schema).Parse("system {\n\tname-server 8.8.8.8\n}\n")
+	require.NoError(t, err)
+	system := tree.GetContainer("system")
+	require.NotNil(t, system)
+	require.NoError(t, system.DeactivateMultiValue("name-server", "8.8.8.8"))
+
+	out := Serialize(tree, schema)
+	tree2, parseErr := NewParser(schema).Parse(out)
+	require.NoError(t, parseErr, "serialized form must reparse: %s", out)
+	system2 := tree2.GetContainer("system")
+	require.NotNil(t, system2)
+	assert.Equal(t, []string{"inactive:8.8.8.8"}, system2.GetSlice("name-server"))
+	assert.False(t, system2.IsLeafInactive("name-server"),
+		"member deactivation must not deactivate the whole leaf")
+}
+
 // TestChangeFileMemberOpsRoundTrip: the leaf-list member structural ops
 // (insert-member with position, deactivate-member, activate-member) survive
 // the change-file serialize → parse round-trip.

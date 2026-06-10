@@ -106,12 +106,15 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 			return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
 		}
 
-		if err := p.parseNode(entry, fieldName, fieldNode); err != nil {
-			return err
+		if markInactive {
+			if err := p.parseNodeInactive(entry, fieldName, fieldNode, tok.Line); err != nil {
+				return err
+			}
+			continue
 		}
 
-		if markInactive {
-			applyInactive(entry, fieldName, fieldNode, p, tok.Line)
+		if err := p.parseNode(entry, fieldName, fieldNode); err != nil {
+			return err
 		}
 	}
 
@@ -337,12 +340,23 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, node *BracketLeaf
 // Stores result as a slice via SetSlice for GetSlice() access.
 // Also stores as space-separated string via Set for Get() access.
 func (p *Parser) parseValueOrArray(tree *Tree, name string, node *ValueOrArrayNode) error {
-	tok := p.tok.Peek()
+	items, _, tok, err := p.collectValueOrArrayItems(name)
+	if err != nil {
+		return err
+	}
+	return p.storeValueOrArray(tree, name, node, items, tok)
+}
 
-	var items []string
+// collectValueOrArrayItems reads the value part of a plain leaf-list
+// statement: "value;", "value value ...;" or "[ item item ... ];".
+// Returns the raw items, whether the bracket form was used, and the
+// terminating token (for error positions).
+func (p *Parser) collectValueOrArrayItems(name string) (items []string, bracket bool, tok Token, err error) {
+	tok = p.tok.Peek()
 
 	// Check if it's an array (starts with [)
 	if tok.Type == TokenLBracket {
+		bracket = true
 		p.tok.Next() // consume [
 
 		for {
@@ -355,14 +369,14 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 				items = append(items, tok.Value)
 				p.tok.Next()
 			} else {
-				return p.errorf(tok, "expected item or ']' in %s, got %s", name, tok.Type)
+				return nil, bracket, tok, p.errorf(tok, "expected item or ']' in %s, got %s", name, tok.Type)
 			}
 		}
 
 		// Expect semicolon
 		tok = p.tok.Peek()
 		if tok.Type != TokenSemicolon {
-			return p.errorf(tok, "expected ';' after %s, got %s", name, tok.Type)
+			return nil, bracket, tok, p.errorf(tok, "expected ';' after %s, got %s", name, tok.Type)
 		}
 		p.tok.Next()
 	} else {
@@ -377,11 +391,16 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, node *ValueOrArrayNo
 				items = append(items, tok.Value)
 				p.tok.Next()
 			} else {
-				return p.errorf(tok, "expected value or ';' in %s, got %s", name, tok.Type)
+				return nil, bracket, tok, p.errorf(tok, "expected value or ';' in %s, got %s", name, tok.Type)
 			}
 		}
 	}
+	return items, bracket, tok, nil
+}
 
+// storeValueOrArray validates collected leaf-list items against the schema
+// and stores them (slice for GetSlice, joined string for Get).
+func (p *Parser) storeValueOrArray(tree *Tree, name string, node *ValueOrArrayNode, items []string, tok Token) error {
 	// Validate enum values if the schema defines valid values
 	if node.ValidValues != nil {
 		for _, item := range items {
