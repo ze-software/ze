@@ -60,6 +60,63 @@ func TestRenderWorkbench(t *testing.T) {
 	}
 }
 
+// TestRenderWorkbenchTopbarUsesSharedChrome verifies that the workbench top bar
+// reuses the same left breadcrumb and right action controls as Finder and CLI.
+//
+// VALIDATES: Workbench chrome has the same control surface as Finder and CLI.
+// PREVENTS: Reintroducing the old "Ze ze WORKBENCH" brand stack.
+func TestRenderWorkbenchTopbarUsesSharedChrome(t *testing.T) {
+	r, err := NewRenderer()
+	assert.NoError(t, err)
+
+	data := WorkbenchData{
+		LayoutData: LayoutData{
+			Title:          "Ze: /",
+			Content:        template.HTML(`<p>workspace</p>`),
+			ActiveUI:       uiModeTokenWorkbench,
+			RouterIdentity: "ze",
+			Insecure:       true,
+		},
+		Sections: WorkbenchSections(nil),
+	}
+
+	rec := httptest.NewRecorder()
+	assert.NoError(t, r.RenderWorkbench(rec, data))
+
+	body := rec.Body.String()
+
+	assert.Contains(t, body, `class="breadcrumb-nav"`, "workbench topbar must use shared breadcrumb nav")
+	assert.Contains(t, body, `class="breadcrumb-actions"`, "workbench topbar must use shared actions")
+	assert.Contains(t, body, `data-mode="finder"`, "workbench topbar must offer Finder switch")
+	assert.Contains(t, body, `href="/cli"`, "workbench topbar must offer CLI switch")
+	assert.Equal(t, 1, strings.Count(body, `class="ze-logo"`), "topbar must show one Ze logo")
+	assert.NotContains(t, body, `workbench-brand-name`, "product name must not be duplicated in workbench topbar")
+	assert.NotContains(t, body, `workbench-brand-mode`, "mode label must not be rendered as a second brand")
+	assert.NotContains(t, body, `workbench-router-name">ze</span>`, "fallback router identity must not duplicate Ze")
+}
+
+// TestRenderWorkbenchTopbarShowsConfiguredIdentity keeps the non-default
+// router identity visible while suppressing only the fallback "ze" duplicate.
+func TestRenderWorkbenchTopbarShowsConfiguredIdentity(t *testing.T) {
+	r, err := NewRenderer()
+	assert.NoError(t, err)
+
+	data := WorkbenchData{
+		LayoutData: LayoutData{
+			Title:          "Ze: /",
+			Content:        template.HTML(`<p>workspace</p>`),
+			ActiveUI:       uiModeTokenWorkbench,
+			RouterIdentity: "edge-01",
+		},
+		Sections: WorkbenchSections(nil),
+	}
+
+	rec := httptest.NewRecorder()
+	assert.NoError(t, r.RenderWorkbench(rec, data))
+
+	assert.Contains(t, rec.Body.String(), `workbench-router-name">edge-01</span>`)
+}
+
 // TestRenderWorkbench_NoFinderMarkers verifies that the workbench shell does
 // NOT include Finder-only markers. Mixing Finder columns into the workbench
 // would defeat the table-first design and confuse the rollback-mode test.

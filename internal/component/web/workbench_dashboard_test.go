@@ -157,6 +157,18 @@ func TestRenderDashboard(t *testing.T) {
 	// Dashboard grid.
 	assert.Contains(t, html, `wb-dashboard-grid`)
 	assert.Contains(t, html, `wb-dashboard-panel`)
+	assert.Contains(t, html, `wb-dashboard-stat-value`)
+}
+
+func TestDashboardStatValueAlignmentCSS(t *testing.T) {
+	cssBytes, err := assetsFS.ReadFile("assets/style.css")
+	require.NoError(t, err)
+
+	css := string(cssBytes)
+	assert.Contains(t, css, `.wb-dashboard-stat-value`)
+	assert.Contains(t, css, `flex: 1 1 auto`)
+	assert.Contains(t, css, `text-align: right`)
+	assert.Contains(t, css, `overflow-wrap: anywhere`)
 }
 
 // TestRenderDashboard_EmptyState verifies the dashboard template renders
