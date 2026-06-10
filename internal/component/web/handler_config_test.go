@@ -1199,6 +1199,57 @@ func TestHandleConfigCommitPOST_HookError(t *testing.T) {
 		"response must contain the hook error")
 }
 
+// commitErrManager builds an EditorManager whose editor fails CommitSession,
+// plus a renderer, for exercising the F3 commit-error path.
+func commitErrManager(t *testing.T, commitErr error) (*EditorManager, *Renderer) {
+	t.Helper()
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte("bgp {\n\trouter-id 1.2.3.4\n}\n"), 0o600))
+	store := storage.NewFilesystem()
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactoryCommitErr(commitErr), testEditSessionFactory())
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	return mgr, renderer
+}
+
+// TestCommitErrorFragment: an HX-Request commit that fails must re-render the
+// open diff modal with the failure text and return 200, not drop the error as a
+// bare 500 that htmx silently discards (F3/AC-3).
+func TestCommitErrorFragment(t *testing.T) {
+	mgr, renderer := commitErrManager(t, errors.New("validation failed: bad value"))
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9"))
+
+	handler := handleConfigCommit(mgr, renderer)
+	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
+	req.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code, "HX error path returns 200 with a renderable fragment")
+	body := rec.Body.String()
+	assert.Contains(t, body, "diff-modal", "response must be the diff modal fragment")
+	assert.Contains(t, body, "Commit failed", "modal must label the failure")
+	assert.Contains(t, body, "validation failed: bad value", "modal must show the underlying error")
+}
+
+// TestCommitErrorNonHTMX: a non-HX commit failure keeps the 500 + plain-text
+// error so curl/scripts still see the failure (F3 preserves prior behavior).
+func TestCommitErrorNonHTMX(t *testing.T) {
+	mgr, renderer := commitErrManager(t, errors.New("validation failed: bad value"))
+	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9"))
+
+	handler := handleConfigCommit(mgr, renderer)
+	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Contains(t, rec.Body.String(), "validation failed: bad value")
+}
+
 // TestResolveInheritedDefaults_Group verifies that the form resolver picks up
 // group-level inherited values for required fields.
 // VALIDATES: AC-6 -- group-level values resolved for form.

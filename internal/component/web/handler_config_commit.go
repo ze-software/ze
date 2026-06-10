@@ -103,13 +103,36 @@ func handleCommitGet(w http.ResponseWriter, mgr *EditorManager, renderer *Render
 	}
 }
 
+// commitModalData is the payload for the diff_modal_open fragment. It carries
+// the pending diff, a merge-conflict report, or a commit error so each is shown
+// inside the open review modal rather than dropped.
+type commitModalData struct {
+	Diff        string
+	ChangeCount int
+}
+
 // handleCommitPost applies pending changes and redirects or re-renders on conflict.
 // On successful commit (no conflicts), broadcasts a config-change SSE event.
 func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string, broker *EventBroker, recorder audit.Recorder) {
 	detail, _ := mgr.Diff(username)
 	result, err := mgr.Commit(username)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("commit: %v", err), http.StatusInternalServerError)
+		// htmx drops non-2xx bodies, so a bare http.Error leaves the modal open
+		// with no feedback (F3). For HX requests, re-render the open modal with
+		// the failure text; non-HX clients still receive a 500 with the message.
+		var tb textbuf.Buffer
+		if r.Header.Get("HX-Request") == htmxRequestTrue {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			modal := renderer.RenderFragment("diff_modal_open", commitModalData{
+				Diff:        tb.Str("Commit failed:\n").Err(err).String(),
+				ChangeCount: mgr.ChangeCount(username),
+			})
+			if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
+				return
+			}
+			return
+		}
+		http.Error(w, tb.Str("commit: ").Err(err).String(), http.StatusInternalServerError)
 		return
 	}
 
@@ -122,12 +145,8 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		}
 
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
-			type diffData struct {
-				Diff        string
-				ChangeCount int
-			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			modal := renderer.RenderFragment("diff_modal_open", diffData{
+			modal := renderer.RenderFragment("diff_modal_open", commitModalData{
 				Diff:        msg.String(),
 				ChangeCount: mgr.ChangeCount(username),
 			})

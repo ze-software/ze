@@ -78,10 +78,16 @@ func webOnlyDispatcher(ring *pluginserver.EventRing) zeweb.CommandDispatcher {
 			return string(b), nil
 
 		default:
-			return "", fmt.Errorf("command not available in web-only mode: %s", command)
+			return "", errWebOnlyUnavailable
 		}
 	}
 }
+
+// errWebOnlyUnavailable is returned by webOnlyDispatcher for any operational
+// command that needs the daemon. The message is written for direct display in
+// the web UI (tools render dispatch errors inline; log pages map it to an
+// honest empty state) rather than exposing the raw command string (F4/AC-10).
+var errWebOnlyUnavailable = errors.New("operational commands require a running daemon with a loaded configuration; the web interface is running in standalone mode")
 
 // serverDispatcherWithSurface creates a CommandDispatcher with fixed audit surface attribution.
 func serverDispatcherWithSurface(s *pluginserver.Server, surface string) func(command, username, remoteAddr string) (string, error) {

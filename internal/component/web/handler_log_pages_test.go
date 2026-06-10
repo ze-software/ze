@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -118,8 +119,12 @@ func TestLogWarningsRendersTable(t *testing.T) {
 	assert.Contains(t, html, "bgp")
 }
 
-func TestLogWarningsEmptyState(t *testing.T) {
-	handler := workbenchForLogs(t, nil, nil)
+// TestLogWarningsAllClear: with a working dispatcher returning no warnings, the
+// page shows the genuine "all clear" state (F4: that claim is only honest when
+// the dispatcher actually answered).
+func TestLogWarningsAllClear(t *testing.T) {
+	dispatch, _ := mockDispatcher(`{"warnings":[],"count":0}`)
+	handler := workbenchForLogs(t, dispatch, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/show/logs/warnings/", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -129,6 +134,21 @@ func TestLogWarningsEmptyState(t *testing.T) {
 	html := rec.Body.String()
 	assert.Contains(t, html, "No active warnings")
 	assert.Contains(t, html, "All systems operating normally")
+}
+
+// TestLogWarningsUnavailableWithoutDispatch: with no dispatcher, the page must
+// NOT claim all is well -- it could not ask (F4/AC-9).
+func TestLogWarningsUnavailableWithoutDispatch(t *testing.T) {
+	handler := workbenchForLogs(t, nil, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/show/logs/warnings/", http.NoBody)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	html := rec.Body.String()
+	assert.Contains(t, html, "unavailable in this mode")
+	assert.NotContains(t, html, "All systems operating normally")
 }
 
 // --- Errors ---
@@ -162,7 +182,9 @@ func TestLogErrorsEmptyJSON(t *testing.T) {
 	assert.Contains(t, html, "No recent errors")
 }
 
-func TestLogErrorsEmptyState(t *testing.T) {
+// TestLogErrorsUnavailableWithoutDispatch: with no dispatcher, the Errors page
+// shows the honest "unavailable" message rather than "No recent errors" (F4/AC-9).
+func TestLogErrorsUnavailableWithoutDispatch(t *testing.T) {
 	handler := workbenchForLogs(t, nil, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/show/logs/errors/", http.NoBody)
@@ -171,5 +193,38 @@ func TestLogErrorsEmptyState(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	html := rec.Body.String()
-	assert.Contains(t, html, "No recent errors")
+	assert.Contains(t, html, "unavailable in this mode")
+	assert.NotContains(t, html, "No recent errors")
+}
+
+// TestLogPagesDispatchError: when the dispatcher returns an error (e.g. web-only
+// standalone mode where "show warnings" is not available), both log pages show
+// the honest "unavailable" message, never the "all good" empty state (F4/AC-9).
+func TestLogPagesDispatchError(t *testing.T) {
+	failing := func(_, _, _ string) (string, error) {
+		return "", errors.New("operational commands require a running daemon")
+	}
+
+	for _, tc := range []struct {
+		name      string
+		path      string
+		forbidden string
+	}{
+		{"warnings", "/show/logs/warnings/", "All systems operating normally"},
+		{"errors", "/show/logs/errors/", "No recent errors"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := workbenchForLogs(t, failing, nil)
+			req := httptest.NewRequest(http.MethodGet, tc.path, http.NoBody)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			assert.Equal(t, http.StatusOK, rec.Code)
+			html := rec.Body.String()
+			assert.Contains(t, html, "unavailable in this mode",
+				"dispatch error must surface an honest unavailable message")
+			assert.NotContains(t, html, tc.forbidden,
+				"must not claim all-good when the dispatcher errored")
+		})
+	}
 }

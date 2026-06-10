@@ -34,9 +34,26 @@ func testEditSessionFactory() contract.EditSessionFactory {
 	}
 }
 
+// testEditorFactoryCommitErr is like testEditorFactory but the produced editor
+// fails CommitSession with commitErr, exercising the web commit error path (F3).
+func testEditorFactoryCommitErr(commitErr error) contract.EditorFactory {
+	return func(storeAny any, configPath string) (contract.Editor, error) {
+		store, ok := storeAny.(storage.Storage)
+		if !ok {
+			return nil, fmt.Errorf("expected storage.Storage, got %T", storeAny)
+		}
+		ed, err := cli.NewEditorWithStorage(store, configPath)
+		if err != nil {
+			return nil, err
+		}
+		return &testEditorAdapter{ed: ed, commitErr: commitErr}, nil
+	}
+}
+
 // testEditorAdapter adapts *cli.Editor to contract.Editor for tests.
 type testEditorAdapter struct {
-	ed *cli.Editor
+	ed        *cli.Editor
+	commitErr error // when set, CommitSession returns it (commit error-path tests)
 }
 
 func (a *testEditorAdapter) SetSession(s contract.EditSession) {
@@ -54,6 +71,9 @@ func (a *testEditorAdapter) RenameListEntry(parentPath []string, listName, oldKe
 	return a.ed.RenameListEntry(parentPath, listName, oldKey, newKey)
 }
 func (a *testEditorAdapter) CommitSession() (*contract.CommitResult, error) {
+	if a.commitErr != nil {
+		return nil, a.commitErr
+	}
 	return a.ed.CommitSession()
 }
 func (a *testEditorAdapter) CommitSessionCandidate(stamp time.Time) (*contract.CommitResult, string, error) {

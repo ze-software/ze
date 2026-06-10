@@ -70,9 +70,41 @@ func HandleLogLiveStream(broker *EventBroker) http.HandlerFunc {
 
 // --- Warnings ---
 
+// operationalUnavailableMessage / Hint are shown when a page cannot reach the
+// operational dispatcher (web-only standalone mode, or a dispatch error). Pages
+// MUST use these instead of their "all good" empty state when they could not
+// actually ask -- claiming "All systems operating normally" while blind is F4.
+const (
+	operationalUnavailableMessage = "Operational data is unavailable in this mode."
+	operationalUnavailableHint    = "The web interface is not connected to a running daemon. Start ze with a loaded configuration to view live operational data."
+)
+
+// fillOperationalRows populates data.Rows from the dispatcher, or replaces the
+// empty-state text with an honest "unavailable" message when the dispatcher is
+// absent or returns an error. Only a successful, empty response keeps the
+// caller's "all good" EmptyMessage (F4/AC-9).
+func fillOperationalRows(data *LogTableData, dispatch CommandDispatcher, r *http.Request, command, key string, includeDuration bool) {
+	if dispatch == nil {
+		data.EmptyMessage = operationalUnavailableMessage
+		data.EmptyHint = operationalUnavailableHint
+		return
+	}
+	username := GetUsernameFromRequest(r)
+	output, err := dispatch(command, username, r.RemoteAddr)
+	if err != nil {
+		data.EmptyMessage = operationalUnavailableMessage
+		data.EmptyHint = operationalUnavailableHint
+		return
+	}
+	if output != "" {
+		data.Rows = parseIssueJSON(output, key, includeDuration)
+	}
+}
+
 // HandleLogWarningsPage returns the rendered HTML for the Warnings table.
-// Dispatches "show warnings" and renders the response. With no dispatcher
-// or no warnings, shows the empty state.
+// Dispatches "show warnings" and renders the response. With a working
+// dispatcher and no warnings, shows the "all clear" empty state; with no
+// dispatcher or a dispatch error, shows the honest "unavailable" message.
 func HandleLogWarningsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
 	data := LogTableData{
 		Title: "Warnings",
@@ -85,13 +117,7 @@ func HandleLogWarningsPage(renderer *Renderer, r *http.Request, dispatch Command
 		EmptyMessage: "No active warnings. All systems operating normally.",
 	}
 
-	if dispatch != nil {
-		username := GetUsernameFromRequest(r)
-		output, err := dispatch("show warnings", username, r.RemoteAddr)
-		if err == nil && output != "" {
-			data.Rows = parseIssueJSON(output, "warnings", true)
-		}
-	}
+	fillOperationalRows(&data, dispatch, r, "show warnings", "warnings", true)
 
 	return renderer.RenderFragment("log_table", data)
 }
@@ -99,8 +125,9 @@ func HandleLogWarningsPage(renderer *Renderer, r *http.Request, dispatch Command
 // --- Errors ---
 
 // HandleLogErrorsPage returns the rendered HTML for the Errors table.
-// Dispatches "show errors" and renders the response. With no dispatcher
-// or no errors, shows the empty state.
+// Dispatches "show errors" and renders the response. With a working dispatcher
+// and no errors, shows the "no recent errors" empty state; with no dispatcher
+// or a dispatch error, shows the honest "unavailable" message.
 func HandleLogErrorsPage(renderer *Renderer, r *http.Request, dispatch CommandDispatcher) template.HTML {
 	data := LogTableData{
 		Title: "Errors",
@@ -112,13 +139,7 @@ func HandleLogErrorsPage(renderer *Renderer, r *http.Request, dispatch CommandDi
 		EmptyMessage: "No recent errors.",
 	}
 
-	if dispatch != nil {
-		username := GetUsernameFromRequest(r)
-		output, err := dispatch("show errors", username, r.RemoteAddr)
-		if err == nil && output != "" {
-			data.Rows = parseIssueJSON(output, "errors", false)
-		}
-	}
+	fillOperationalRows(&data, dispatch, r, "show errors", "errors", false)
 
 	return renderer.RenderFragment("log_table", data)
 }
