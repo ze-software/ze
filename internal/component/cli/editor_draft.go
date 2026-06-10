@@ -490,6 +490,17 @@ func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.Structura
 		if present {
 			return nil
 		}
+		if allowAlreadyApplied &&
+			(op.Position == config.InsertBefore || op.Position == config.InsertAfter) {
+			// Replay onto a base whose reference member was removed (or
+			// deactivated) concurrently: keep the member by appending so
+			// the draft never loses data. The commit pre-scan
+			// (insertRefStaleConflict) surfaces the lost position to the
+			// user as a stale conflict.
+			if refPresent, refInactive := target.MultiValueMemberState(op.ListName, op.OldKey); !refPresent || refInactive {
+				return target.InsertMultiValue(op.ListName, op.NewKey, config.InsertLast, "")
+			}
+		}
 		return target.InsertMultiValue(op.ListName, op.NewKey, op.Position, op.OldKey)
 	case config.StructuralOpDeactivateMember:
 		if present && inactive {

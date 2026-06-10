@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,4 +195,114 @@ func TestCommitStampsSchemaVersion(t *testing.T) {
 		assert.NotEmpty(t, backupRelease,
 			"backup should contain schema stamp from committed config")
 	}
+}
+
+// insertConflictConfig holds a leaf-list (bgp filter import) used by the
+// ordered-insert conflict tests below.
+const insertConflictConfig = `bgp {
+  router-id 1.2.3.4
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  filter {
+    import [ alpha bravo ];
+  }
+  peer peer1 {
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
+  }
+}`
+
+// newInsertConflictEditor seeds insertConflictConfig, opens a session editor,
+// and records an ordered insert of "charlie" after "alpha".
+func newInsertConflictEditor(t *testing.T) (*Editor, string) {
+	t.Helper()
+	configPath := writeTestConfig(t, insertConflictConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ed.Close() })
+	ed.SetSession(NewEditSession("thomas", "local"))
+
+	require.NoError(t, ed.InsertLeafListValue(
+		[]string{"bgp", "filter"}, "import", "charlie", config.InsertAfter, "alpha"))
+	return ed, configPath
+}
+
+// TestCommitInsertRefRemovedIsConflict: an ordered insert whose before/after
+// reference member was removed by a concurrent commit must surface as a stale
+// conflict the user can resolve, not abort the commit with a raw apply error.
+//
+// VALIDATES: missing insert reference -> CommitResult.Conflicts (ConflictStale).
+// PREVENTS: "apply structural ops: ... not found" failing commit without
+// identifying the stale edit.
+func TestCommitInsertRefRemovedIsConflict(t *testing.T) {
+	ed, configPath := newInsertConflictEditor(t)
+
+	// Concurrent commit removes the reference member alpha.
+	modified := strings.Replace(insertConflictConfig,
+		"import [ alpha bravo ];", "import [ bravo ];", 1)
+	require.NoError(t, os.WriteFile(configPath, []byte(modified), 0o600))
+
+	result, err := ed.CommitSession()
+	require.NoError(t, err,
+		"missing insert reference must be a conflict, not a commit error")
+	require.NotEmpty(t, result.Conflicts, "stale conflict expected")
+	assert.Equal(t, 0, result.Applied, "no changes should be applied")
+
+	c := result.Conflicts[0]
+	assert.Equal(t, ConflictStale, c.Type)
+	assert.Contains(t, c.Path, "bgp filter import")
+	assert.Contains(t, c.MyValue, "charlie")
+	assert.Equal(t, "alpha", c.PreviousValue,
+		"conflict should name the removed reference member")
+}
+
+// TestCommitCandidateInsertRefRemovedIsConflict: same protection on the
+// transactional CommitSessionCandidate path.
+//
+// VALIDATES: candidate commit surfaces missing insert reference as a conflict.
+// PREVENTS: the full-daemon commit path keeping the raw-error behavior.
+func TestCommitCandidateInsertRefRemovedIsConflict(t *testing.T) {
+	ed, configPath := newInsertConflictEditor(t)
+
+	modified := strings.Replace(insertConflictConfig,
+		"import [ alpha bravo ];", "import [ bravo ];", 1)
+	require.NoError(t, os.WriteFile(configPath, []byte(modified), 0o600))
+
+	result, _, err := ed.CommitSessionCandidate(time.Now())
+	require.NoError(t, err,
+		"missing insert reference must be a conflict, not a commit error")
+	require.NotEmpty(t, result.Conflicts, "stale conflict expected")
+	assert.Equal(t, ConflictStale, result.Conflicts[0].Type)
+}
+
+// TestCommitInsertMemberAlreadyPresentNoConflict: when the inserted member
+// already landed in the committed config (idempotent replay or identical
+// concurrent edit), commit proceeds without conflict.
+//
+// VALIDATES: present member short-circuits the missing-ref conflict check.
+// PREVENTS: false conflicts on idempotent member inserts.
+func TestCommitInsertMemberAlreadyPresentNoConflict(t *testing.T) {
+	ed, configPath := newInsertConflictEditor(t)
+
+	// Concurrent commit removed alpha but already contains charlie.
+	modified := strings.Replace(insertConflictConfig,
+		"import [ alpha bravo ];", "import [ charlie bravo ];", 1)
+	require.NoError(t, os.WriteFile(configPath, []byte(modified), 0o600))
+
+	result, err := ed.CommitSession()
+	require.NoError(t, err)
+	assert.Empty(t, result.Conflicts,
+		"member already present must not conflict")
 }
