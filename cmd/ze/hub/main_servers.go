@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	bgpcli "codeberg.org/thomas-mangin/ze/internal/component/bgp/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -88,6 +89,25 @@ func webOnlyDispatcher(ring *pluginserver.EventRing) zeweb.CommandDispatcher {
 // the web UI (tools render dispatch errors inline; log pages map it to an
 // honest empty state) rather than exposing the raw command string (F4/AC-10).
 var errWebOnlyUnavailable = errors.New("operational commands require a running daemon with a loaded configuration; the web interface is running in standalone mode")
+
+// withBGPDecode wraps a CommandDispatcher to handle "show bgp decode" in-process.
+// BGP decode is a pure function registered as a local command; neither the
+// plugin-server dispatcher nor the web-only stub knows about it. This wrapper
+// intercepts the command and calls the decoder directly so the web tool page
+// works in both full-daemon and web-only modes (F5/AC-8).
+func withBGPDecode(inner zeweb.CommandDispatcher) zeweb.CommandDispatcher {
+	const prefix = "show bgp decode "
+	return func(command, username, remoteAddr string) (string, error) {
+		if strings.HasPrefix(command, prefix) {
+			hex := strings.TrimSpace(command[len(prefix):])
+			return bgpcli.DecodeHexPacket(hex, "", "", false)
+		}
+		if inner != nil {
+			return inner(command, username, remoteAddr)
+		}
+		return "", errWebOnlyUnavailable
+	}
+}
 
 // serverDispatcherWithSurface creates a CommandDispatcher with fixed audit surface attribution.
 func serverDispatcherWithSurface(s *pluginserver.Server, surface string) func(command, username, remoteAddr string) (string, error) {
@@ -198,6 +218,8 @@ func endpointsToAddrs(servers []zeconfig.ServerEndpoint) []string {
 // *http.Server; Shutdown closes all of them.
 // Requires blob storage -- TLS keys and config must not leak to the filesystem.
 func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, commitHook func() error, configUsers []authz.UserConfig) (*zeweb.WebServer, *zeweb.EventBroker, *zeweb.EditorManager) {
+	dispatch = withBGPDecode(dispatch)
+
 	if !storage.IsBlobStorage(store) {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: requires blob storage (run ze init first)\n")
 		return nil, nil, nil
@@ -208,6 +230,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	}
 
 	var users []authz.UserConfig
+	var powerUserNames []string
 	if !insecureWeb {
 		// Both the always-on zefs power user and config-file users may log in.
 		// A failure to load the power user is not fatal as long as config users
@@ -217,6 +240,9 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 			fmt.Fprintf(os.Stderr, "warning: web power-user auth unavailable: %v\n", err)
 		} else {
 			users = zefsUsers
+			for _, u := range zefsUsers {
+				powerUserNames = append(powerUserNames, u.Name)
+			}
 		}
 		users = mergeAuthUsers(users, configUsers)
 		if len(users) == 0 {
@@ -225,6 +251,11 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "WARNING: authentication disabled (--insecure-web)\n")
+		if zefsUsers, err := loadZefsUsers(); err == nil {
+			for _, u := range zefsUsers {
+				powerUserNames = append(powerUserNames, u.Name)
+			}
+		}
 	}
 
 	// Persist TLS cert in zefs so browsers don't have to re-accept on every restart.
@@ -331,7 +362,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	uiMode := zeweb.GetUIMode()
 	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
 	workbenchHandler := zeweb.HandleWorkbench(renderer, schema, tree, editorMgr, insecureWeb,
-		zeweb.WithDispatch(dispatch), zeweb.WithBroker(broker))
+		zeweb.WithDispatch(dispatch), zeweb.WithBroker(broker), zeweb.WithPowerUsers(powerUserNames))
 	fmt.Fprintf(os.Stderr, "web UI default: %s\n", uiMode)
 	showHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch zeweb.ReadUIModeFromRequest(r, uiMode) {

@@ -30,11 +30,8 @@ func TestHandleWorkbench_RootRendersShell(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
+	rec := newGET("/show/").serve(t, handler)
+	requireStatus(t, http.StatusOK, rec)
 
 	html := rec.Body.String()
 	assert.Contains(t, html, `id="workbench-shell"`)
@@ -64,12 +61,8 @@ func TestHandleWorkbench_HTMXPartialReusesOOBResponse(t *testing.T) {
 
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/", http.NoBody)
-	req.Header.Set("HX-Request", "true")
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
+	rec := newGET("/show/bgp/").htmx().serve(t, handler)
+	requireStatus(t, http.StatusOK, rec)
 
 	html := rec.Body.String()
 	// HTMX partial must NOT include the full workbench shell wrappers.
@@ -241,9 +234,6 @@ func TestHandleWorkbench_BadPathReturns400(t *testing.T) {
 	handler := HandleWorkbench(renderer, schema, tree, nil, true)
 
 	// `..` is forbidden by ValidatePathSegments.
-	req := httptest.NewRequest(http.MethodGet, "/show/bgp/..", http.NoBody)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	rec := newGET("/show/bgp/..").serve(t, handler)
+	requireStatus(t, http.StatusBadRequest, rec)
 }

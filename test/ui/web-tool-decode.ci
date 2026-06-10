@@ -1,0 +1,15 @@
+# Test: web BGP decode tool returns decoded output in web-only mode
+# VALIDATES: AC-8 -- BGP Decode with valid UPDATE hex renders decoded attributes
+# PREVENTS: decode tool broken because of wrong dispatch key or missing in-process path
+
+option=env:var=ze.config.dir:value=.
+option=timeout:value=20s
+
+tmpfs=decode-hex.form:encoding=base64:terminator=EOF_HEX
+aGV4PUZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGMDAyRjAyMDAwMDAwMTg0MDAxMDEwMDQwMDIwMDQwMDMwNDY1MDE2NTAxNDAwNTA0MDAwMDAwNjQwMDE4YWMxMDAxMDA=
+EOF_HEX
+
+cmd=foreground:seq=1:exec=ze --web $PORT2 --insecure-web:timeout=20s
+
+http=wait:seq=1:url=https://127.0.0.1:$PORT2/show/:status=200:insecure-tls=true:timeout=15s
+http=post:seq=2:url=https://127.0.0.1:$PORT2/show/tools/bgp-decode/:status=200:sendfile=decode-hex.form:content-type=application/x-www-form-urlencoded:insecure-tls=true:contains=origin

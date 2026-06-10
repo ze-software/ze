@@ -151,7 +151,7 @@ func handleBGPDecodeSubmit(r *http.Request, dispatch CommandDispatcher) ToolPage
 	}
 
 	var tb textbuf.Buffer
-	cmd := tb.Str("show bgp/decode ").Str(compact).String()
+	cmd := tb.Str("show bgp decode ").Str(compact).String()
 
 	return dispatchToolCommand(r, dispatch, cmd)
 }

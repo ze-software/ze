@@ -66,13 +66,9 @@ func TestDashboardOverviewRendersPanels(t *testing.T) {
 	tree := config.NewTree()
 	handler := workbenchForDashboard(t, tree, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
+	rec := newGET("/show/").serve(t, handler)
+	requireContains(t, rec, "wb-dashboard")
 	html := rec.Body.String()
-	assert.Contains(t, html, "wb-dashboard")
 	assert.Contains(t, html, "System")
 	assert.Contains(t, html, "BGP Summary")
 	assert.Contains(t, html, "Interfaces")

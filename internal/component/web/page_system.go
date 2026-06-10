@@ -143,6 +143,7 @@ type userEntry struct {
 	Name     string
 	Profiles []string
 	KeyCount int
+	System   bool
 }
 
 // collectUsers walks the config tree and returns all local users from
@@ -203,15 +204,22 @@ func BuildUsersTableData(users []userEntry) WorkbenchTableData {
 		if profileStr == "" {
 			profileStr = "-"
 		}
-		userURL := tb.Reset().Str("/show/system/authentication/user/").Str(u.Name).Byte('/').String()
-		rows = append(rows, WorkbenchTableRow{
+		nameDisplay := u.Name
+		if u.System {
+			nameDisplay = tb.Reset().Str(u.Name).Str(" (system)").String()
+		}
+		row := WorkbenchTableRow{
 			Key:   u.Name,
-			URL:   userURL,
-			Cells: []string{u.Name, profileStr, strconv.Itoa(u.KeyCount)},
-			Actions: []WorkbenchRowAction{
+			Cells: []string{nameDisplay, profileStr, strconv.Itoa(u.KeyCount)},
+		}
+		if !u.System {
+			userURL := tb.Reset().Str("/show/system/authentication/user/").Str(u.Name).Byte('/').String()
+			row.URL = userURL
+			row.Actions = []WorkbenchRowAction{
 				{Label: "Edit", URL: userURL},
-			},
-		})
+			}
+		}
+		rows = append(rows, row)
 	}
 
 	return WorkbenchTableData{
@@ -225,10 +233,17 @@ func BuildUsersTableData(users []userEntry) WorkbenchTableData {
 	}
 }
 
-// HandleUsersPage renders the System Users table.
-func HandleUsersPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	users := collectUsers(viewTree)
-	tableData := BuildUsersTableData(users)
+// HandleUsersPage renders the System Users table. Power user names (from the
+// zefs database, created by ze init) are prepended as system users so the
+// page never claims "No users configured" when authentication is active.
+func HandleUsersPage(renderer *Renderer, viewTree *config.Tree, powerUsers []string) template.HTML {
+	configUsers := collectUsers(viewTree)
+	allUsers := make([]userEntry, 0, len(powerUsers)+len(configUsers))
+	for _, name := range powerUsers {
+		allUsers = append(allUsers, userEntry{Name: name, System: true})
+	}
+	allUsers = append(allUsers, configUsers...)
+	tableData := BuildUsersTableData(allUsers)
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 

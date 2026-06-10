@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -55,14 +56,12 @@ func TestToolPingDispatchesCommand(t *testing.T) {
 	dispatch, captured := mockDispatcher("PING 192.0.2.1: 5 packets")
 	handler := workbenchForTools(t, dispatch)
 
-	body := "destination=192.0.2.1&count=5&timeout=5"
-	req := httptest.NewRequest(http.MethodPost, "/show/tools/ping/", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("HX-Request", "true")
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
+	rec := newPOST("/show/tools/ping/").
+		form(url.Values{"destination": {"192.0.2.1"}, "count": {"5"}, "timeout": {"5"}}).
+		htmx().
+		serve(t, handler)
 
-	assert.Equal(t, http.StatusOK, rec.Code)
+	requireStatus(t, http.StatusOK, rec)
 	assert.Equal(t, "show ping 192.0.2.1 count 5 timeout 5s", *captured)
 	assert.Contains(t, rec.Body.String(), "PING 192.0.2.1")
 }
@@ -195,7 +194,7 @@ func TestToolBGPDecodeDispatchesCommand(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "show bgp/decode FFFFFFFF00000017", *captured)
+	assert.Equal(t, "show bgp decode FFFFFFFF00000017", *captured)
 	assert.Contains(t, rec.Body.String(), "decoded output")
 }
 

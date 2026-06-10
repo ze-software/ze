@@ -25,7 +25,7 @@ const (
 // content. Returns the rendered HTML and true if the path was handled, or
 // empty HTML and false if the path should fall through to the generic YANG
 // detail view.
-func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, schema *config.Schema, dispatch CommandDispatcher, broker *EventBroker) (template.HTML, bool) {
+func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, schema *config.Schema, dispatch CommandDispatcher, broker *EventBroker, powerUsers []string) (template.HTML, bool) {
 	if len(path) == 0 {
 		return "", false
 	}
@@ -52,7 +52,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 	case segSystem:
 		return renderSystemPageContent(renderer, path[1:], viewTree)
 	case "users":
-		return HandleUsersPage(renderer, viewTree), true
+		return HandleUsersPage(renderer, viewTree, powerUsers), true
 	case segL2TP:
 		return renderL2TPPageContent(renderer, path[1:], viewTree)
 	case segSSH, segWeb, segTelemetry, segTACACS, segMCP, segLG, segAPI:

@@ -1,0 +1,11 @@
+# Test: BGP Decode tool page renders form and accepts hex input
+# VALIDATES: AC-8 -- BGP Decode tool page loads with hex textarea
+# PREVENTS: decode tool page broken by routing or template error
+
+option=timeout:value=30s
+
+action=open:path=/show/tools/bgp-decode/
+expect=element:id=workbench-shell
+expect=element:id=field-hex
+expect=html:contains=BGP Decode
+expect=html:contains=textarea

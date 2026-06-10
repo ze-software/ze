@@ -29,8 +29,9 @@ import (
 // Dependencies that are nil degrade gracefully (tool forms render but
 // command dispatch is unavailable).
 type workbenchConfig struct {
-	dispatch CommandDispatcher
-	broker   *EventBroker
+	dispatch   CommandDispatcher
+	broker     *EventBroker
+	powerUsers []string
 }
 
 // WorkbenchOption configures optional workbench handler dependencies.
@@ -44,6 +45,11 @@ func WithDispatch(d CommandDispatcher) WorkbenchOption {
 // WithBroker sets the EventBroker for Live Log SSE streaming.
 func WithBroker(b *EventBroker) WorkbenchOption {
 	return func(c *workbenchConfig) { c.broker = b }
+}
+
+// WithPowerUsers sets the zefs power user names for the Users page.
+func WithPowerUsers(names []string) WorkbenchOption {
+	return func(c *workbenchConfig) { c.powerUsers = names }
 }
 
 // HandleWorkbench returns an HTTP handler that serves /show/* and the root
@@ -80,7 +86,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 
 		// Purpose-built pages handle their own data sourcing and do not
 		// walk the YANG schema. Detect them before the generic schema walk.
-		if pageContent, handled := renderPageContent(renderer, r, path, viewTree, schema, cfg.dispatch, cfg.broker); handled {
+		if pageContent, handled := renderPageContent(renderer, r, path, viewTree, schema, cfg.dispatch, cfg.broker, cfg.powerUsers); handled {
 			if r.Header.Get("HX-Request") == htmxRequestTrue {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				if _, writeErr := w.Write([]byte(pageContent)); writeErr != nil {

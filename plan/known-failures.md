@@ -61,29 +61,9 @@ make ze-qemu-integration-test   # flaky; log seen in tmp/qemu-routewatch.log
 
 ### 2026-06-04 — `make ze-verify-wiring-docs` command validation drift
 
-**Open (triage).** While verifying a rules-only change, `make ze-verify-wiring-docs`
-failed in the `ze-doc-test` YANG/handler contract stage. Wiring passed and
-documentation drift passed. Command validation reported two YANG commands with no
-handler:
-
-- `ze-show:gnmi` (`show > gnmi` in `ze-cli-show-cmd`)
-- `ze-show:storage-smart` (`show > storage > smart` in `ze-cli-show-cmd`)
-
-It also reported 15 local handlers with no YANG command: `crashes`, `crashes show`,
-`debug disable`, `debug enable`, `debug show`, `doctor`, `explain`,
-`generate wireguard keypair`, `help command`, `host`, `host show`,
-`show config graph`, `skills`, `support`, and `validate config`.
-
-**Root-cause hypothesis:** command registration/YANG schema drift in the CLI command
-inventory, unrelated to rules documentation. Needs focused triage before treating
-`make ze-verify-wiring-docs` as a clean baseline.
-
-**Reproduce:**
-```
-make ze-verify-wiring-docs
-```
-
-Observed output artifact from the first run: `artifact://4`.
+**Resolved 2026-06-11.** `make ze-verify-wiring-docs` now passes clean (wiring,
+doc, and inventory gates all green). The YANG/handler drift was fixed by
+intervening commits between 2026-06-04 and 2026-06-11.
 
 ### 2026-05-31 — pppoe-client `no-default-route` rejected by config parser
 

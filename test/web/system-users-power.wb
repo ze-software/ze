@@ -1,0 +1,10 @@
+# Test: Users page shows power user with system marker
+# VALIDATES: AC-14 -- zefs admin listed as system/power user alongside config users
+# PREVENTS: Users page claiming "No users configured" when authentication is active
+
+option=timeout:value=30s
+
+action=open:path=/show/users/
+expect=element:id=workbench-shell
+expect=html:contains=(system)
+expect=html:contains=Users

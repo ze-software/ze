@@ -109,6 +109,33 @@ func TestBuildUsersTableData_Empty(t *testing.T) {
 	assert.Equal(t, "No users configured.", table.EmptyMessage)
 }
 
+func TestUsersIncludesPowerUser(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	auth := sys.GetOrCreateContainer("authentication")
+	auth.AddListEntry("user", "operator", config.NewTree())
+
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	html := string(HandleUsersPage(renderer, tree, []string{"admin"}))
+
+	assert.Contains(t, html, "admin (system)", "power user must appear with system marker")
+	assert.Contains(t, html, "operator", "config user must still appear")
+}
+
+func TestBuildUsersTableData_SystemUserNoEditAction(t *testing.T) {
+	users := []userEntry{
+		{Name: "admin", System: true},
+		{Name: "operator"},
+	}
+	table := BuildUsersTableData(users)
+	require.Len(t, table.Rows, 2)
+	assert.Empty(t, table.Rows[0].Actions, "system user should have no edit action")
+	assert.NotEmpty(t, table.Rows[1].Actions, "config user should have edit action")
+	assert.Contains(t, table.Rows[0].Cells[0], "(system)")
+}
+
 func TestBuildResourcesData(t *testing.T) {
 	data := BuildResourcesData()
 	assert.NotEmpty(t, data.Version)
