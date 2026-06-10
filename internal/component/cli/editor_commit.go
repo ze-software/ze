@@ -191,7 +191,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	e.tree = committedTree
 	e.meta = commitMeta
 	e.dirty.Store(false)
-	e.deleteEditFile()
+	e.deleteEditFileGuard(guard)
 
 	return &CommitResult{Applied: applied, MigrationWarning: migrationWarning}, nil
 }
@@ -499,8 +499,10 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 
 	e.tree = baseTree
 	e.meta = baseMeta
-	// Dirty if change file still has entries (partial discard).
-	e.dirty.Store(e.store.Exists(changePath))
+	// Dirty if change file still has entries (partial discard). Use the guard's
+	// Has, not e.store.Exists: the latter re-locks the store and deadlocks while
+	// this guard holds the write lock (same class as the CommitSession bug).
+	e.dirty.Store(guard.Has(changePath))
 	return nil
 }
 

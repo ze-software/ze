@@ -260,6 +260,14 @@ func (g *blobGuard) Remove(name string) error {
 	return g.wl.Remove(key)
 }
 
+// Has reports existence through the held WriteLock. WriteLock.Has reads the
+// in-memory tree without re-acquiring the store mutex, so it is safe to call
+// while the guard holds the exclusive lock (unlike blobStorage.Exists, which
+// re-locks and would deadlock).
+func (g *blobGuard) Has(name string) bool {
+	return g.wl.Has(resolveKey(name, g.configDir))
+}
+
 func (g *blobGuard) Release() error {
 	return g.wl.Release()
 }

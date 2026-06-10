@@ -90,6 +90,13 @@ type WriteGuard interface {
 	ReadFile(name string) ([]byte, error)
 	WriteFile(name string, data []byte, perm fs.FileMode) error
 	Remove(name string) error
+
+	// Has reports whether the named file exists, using the already-held lock.
+	// Callers inside a guarded section MUST use this instead of Storage.Exists:
+	// the unlocked Exists re-acquires the store mutex (a read lock for blob
+	// storage), which deadlocks against the write lock this guard holds.
+	Has(name string) bool
+
 	Release() error
 
 	// SetModifier records which session is performing writes through this guard.
@@ -201,6 +208,11 @@ func (g *filesystemGuard) WriteFile(name string, data []byte, perm fs.FileMode) 
 
 func (g *filesystemGuard) Remove(name string) error {
 	return os.Remove(name)
+}
+
+func (g *filesystemGuard) Has(name string) bool {
+	_, err := os.Stat(name) //nolint:gosec // paths are resolved by caller
+	return err == nil
 }
 
 func (g *filesystemGuard) Release() error {

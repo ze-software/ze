@@ -45,10 +45,21 @@ func (e *Editor) SaveEditState() error {
 }
 
 // deleteEditFile removes the .edit file if it exists.
+// MUST NOT be called while a WriteGuard is held: e.store.Remove re-acquires the
+// store mutex and self-deadlocks. Use deleteEditFileGuard inside a guarded section.
 func (e *Editor) deleteEditFile() {
 	var tb textbuf.Buffer
 	editPath := tb.Str(e.originalPath).Str(".edit").String()
 	_ = e.store.Remove(editPath) // Ignore error if doesn't exist
+}
+
+// deleteEditFileGuard removes the .edit file through an already-held write guard.
+// CommitSession calls this while holding the store lock; routing the removal
+// through the guard avoids the self-deadlock that e.store.Remove would cause.
+func (e *Editor) deleteEditFileGuard(guard storage.WriteGuard) {
+	var tb textbuf.Buffer
+	editPath := tb.Str(e.originalPath).Str(".edit").String()
+	guard.Remove(editPath) //nolint:errcheck // Best effort; ignore error if it doesn't exist
 }
 
 // SetWorkingContent sets the working content and parses it into the tree.
