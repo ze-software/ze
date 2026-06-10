@@ -1096,7 +1096,7 @@ func TestHandleConfigCommitGET(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err, "precondition: set value for pending diff")
 
-	handler := handleConfigCommit(mgr, renderer, nil)
+	handler := handleConfigCommit(mgr, renderer)
 
 	req := httptest.NewRequest(http.MethodGet, "/config/commit/", http.NoBody)
 	ctx := context.WithValue(req.Context(), ctxKeyUsername, "alice")
@@ -1129,7 +1129,7 @@ func TestHandleConfigCommitPOST(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err, "precondition: set value before commit")
 
-	handler := handleConfigCommit(mgr, renderer, nil)
+	handler := handleConfigCommit(mgr, renderer)
 
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
@@ -1165,7 +1165,7 @@ func TestHandleConfigCommitPOST_HookCalled(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err, "precondition: set value before commit")
 
-	handler := handleConfigCommit(mgr, renderer, nil)
+	handler := handleConfigCommit(mgr, renderer)
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
 
@@ -1187,7 +1187,7 @@ func TestHandleConfigCommitPOST_HookError(t *testing.T) {
 	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err, "precondition: set value before commit")
 
-	handler := handleConfigCommit(mgr, renderer, nil)
+	handler := handleConfigCommit(mgr, renderer)
 	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
 	rec := httptest.NewRecorder()
 

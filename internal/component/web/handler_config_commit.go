@@ -39,13 +39,13 @@ func HandleConfigChanges(mgr *EditorManager, renderer *Renderer) http.HandlerFun
 // GET: shows the commit page with a diff of pending changes.
 // POST: applies the user's pending changes via mgr.Commit.
 //
-// On successful commit, broadcasts a config-change SSE event to all
-// connected web clients (if broker is non-nil) and redirects to
-// /config/edit/ (config root).
+// On successful commit redirects to /config/edit/ (config root); the
+// production path with SSE broadcast and audit is
+// HandleConfigCommitWithAuthorizerAndAudit below.
 // On conflict, re-renders the commit page with conflict errors.
 // HTMX requests receive HX-Redirect instead of an HTTP redirect.
-func handleConfigCommit(mgr *EditorManager, renderer *Renderer, broker *EventBroker) http.HandlerFunc {
-	return HandleConfigCommitWithAuthorizer(mgr, renderer, broker, nil)
+func handleConfigCommit(mgr *EditorManager, renderer *Renderer) http.HandlerFunc {
+	return HandleConfigCommitWithAuthorizer(mgr, renderer, nil, nil)
 }
 
 // HandleConfigCommitWithAuthorizer returns a handler for /config/commit/ that
