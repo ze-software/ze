@@ -100,6 +100,24 @@ summary.
   flag unset and keeps its fail-fast single-binder behaviour. Same pattern
   applies to any future fixed-port protocol (L2TP, TACACS+, etc.).
 
+- **Netns thread roulette (2026-06-10).** A test locks its thread and
+  switches into a fresh network namespace, then the code under test spawns
+  a goroutine that opens a kernel-facing socket. The goroutine runs on an
+  arbitrary OS thread: threads created before the netns switch are in the
+  init namespace; threads the runtime cloned from the locked thread after
+  the switch inherit the test namespace. Which one wins is scheduler
+  roulette -- run-to-run flake on identical code (the routewatch QEMU
+  flake; the failing run's ListExisting dump contained the HOST QEMU SLIRP
+  routes, proving the wrong-ns subscribe). Fix: capture the caller's netns
+  in the synchronous part of Start (`netns.Get()` before `go func`), pass
+  it to the socket-opening API (`RouteSubscribeOptions.Namespace`). Any
+  goroutine-spawning API that opens netlink/raw sockets needs the same
+  treatment to be netns-test-safe. Bonus trap: the accompanying
+  "Receive failed: resource temporarily unavailable" (EAGAIN) log was
+  teardown noise (socket closed mid-poll surfaces the previous attempt's
+  EWOULDBLOCK in netlink v1.3.1), only visible on failing runs because go
+  test prints logs for failures -- a perfect red herring.
+
 - **Shallow map merge drops YANG augmentations.** `findModuleEntry` and
   `mergedRoot` used `maps.Copy` on module Dir maps, overwriting colliding
   keys. When multiple `-conf` modules augment the same container (e.g.
@@ -154,3 +172,7 @@ summary.
 - `internal/component/cli/testing/headless.go`,
   `internal/component/config/tree.go`,
   `meta.go` -- per-node RWMutex on Tree/MetaTree for concurrent dispatch
+- `internal/core/routewatch/routewatch.go` (`captureNamespace` in Start),
+  `routewatch_linux.go` (Namespace option, resubscribe loop),
+  `integration_linux_test.go` (`eventRecorder.waitFor` poll helper) --
+  netns thread roulette fix + sleep-free integration tests

@@ -4,6 +4,61 @@ Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before An
 Commit" → pre-existing failures >10 min): logged, not blocking unrelated commits.
 
 
+### 2026-06-10: routewatch QEMU integration tests flaky (netns roulette)
+
+**Resolved 2026-06-10** (commit pending). Fixed in `routewatch`:
+`Watcher.Start` now captures the caller's network namespace
+(`captureNamespace`, `routewatch.go` / `routewatch_linux.go`) and passes it
+as `RouteSubscribeOptions.Namespace`, so the subscription socket always opens
+in the namespace of the goroutine that called Start. The subscribe loop also
+resubscribes after the netlink library kills its receive loop on a transient
+error (ENOBUFS/EAGAIN class) instead of dying silently for the process
+lifetime. Tests replaced fixed sleeps with event polling (`eventRecorder.waitFor`).
+Evidence: 5 consecutive QEMU iterations all green (45/45 PASS,
+`tmp/qemu-routewatch-fix.log`). Original diagnosis kept below.
+
+**Was Open (root cause known).** `TestIntegration_FanoutFromNetlink` and
+`TestIntegration_RouteDelete` (`internal/core/routewatch/integration_linux_test.go`)
+fail/pass run-to-run in the QEMU VM on identical code.
+
+**Root cause: the netlink subscription socket lands in a random network
+namespace.** `withNetNS` switches only the locked test thread into the fresh
+netns. `Watcher.Start` (`internal/core/routewatch/routewatch.go:71`) spawns the
+subscription goroutine, which the scheduler places on an arbitrary OS thread:
+threads created before the netns switch are in the init namespace, threads
+cloned from the locked thread after the switch inherit the test namespace.
+When the subscriber lands in the init namespace it never sees the routes added
+in the test namespace. Hard evidence from the failing run
+(`tmp/qemu-routewatch.log`): the received event list contains the HOST
+namespace routes (`10.0.2.0/24` QEMU SLIRP, `fe80::/64`, ...) from the
+`ListExisting` dump, not the test netns routes.
+
+**The logged "watcher error: Receive failed: resource temporarily unavailable"
+(EAGAIN) is teardown noise, not the cause.** `defer w.Stop()` closes the
+subscription socket while the vishvananda/netlink `Receive` is parked in the
+poller; `NetlinkSocket.Receive` (v1.3.1 `nl/nl_linux.go`) checks the stale
+`innerErr` (EWOULDBLOCK from the previous recvfrom attempt) before the poll
+close error, so close-during-receive surfaces as EAGAIN. It happens on passing
+runs too; `go test` only prints t.Logf output for failing tests.
+
+**Fix sketch:** capture the caller's netns in `Watcher.Start` (callers in
+tests run on the netns-locked thread) and pass it as
+`RouteSubscribeOptions.Namespace` in `routewatch_linux.go subscribe()`.
+No-op in production (all threads share the init netns).
+
+**Related robustness gap (production, separate fix):** any `Receive` error
+closes the library channel and `subscribe()` returns; the watcher dies
+permanently with no resubscribe (`routewatch_linux.go:38-41`). Under route
+churn, ENOBUFS would silently kill route watching for
+`internal/plugins/fib/kernel/monitor_linux.go` and
+`internal/plugins/kernel/kernel.go`. The tests' `time.Sleep` syncs should also
+become poll-until-event.
+
+**Reproduce:**
+```
+make ze-qemu-integration-test   # flaky; log seen in tmp/qemu-routewatch.log
+```
+
 ### 2026-06-04 — `make ze-verify-wiring-docs` command validation drift
 
 **Open (triage).** While verifying a rules-only change, `make ze-verify-wiring-docs`
