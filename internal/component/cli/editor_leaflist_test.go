@@ -235,6 +235,51 @@ func TestLeafListConflictDetection(t *testing.T) {
 	assert.NotEmpty(t, edA.DetectConflicts(), "set vs delete of the same member must conflict")
 }
 
+// TestDiscardPathPreservesOtherSessionMembers: a partial discard of one
+// session's added member must remove only that member from the shared
+// per-user change tree. Delete(leafName) wiped the whole leaf-list, so the
+// other session's member survived only via the serializer's orphan-intent
+// fallback, which emitted its set line twice (member path + writeDeleteMetaLines).
+//
+// VALIDATES: member-aware removal in DiscardSessionPath partial discard.
+// PREVENTS: same-user sibling sessions' members degrading to duplicated
+// orphan lines in the change file after a partial discard.
+func TestDiscardPathPreservesOtherSessionMembers(t *testing.T) {
+	configPath := writeTestConfig(t, leafListSeedConfig)
+
+	edA, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer edA.Close() //nolint:errcheck // test cleanup
+	edA.SetSession(NewEditSession("thomas", "local"))
+
+	edB, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer edB.Close() //nolint:errcheck // test cleanup
+	// Different origin: session IDs embed user@origin%start-second, so two
+	// same-origin sessions created in the same second would collide.
+	edB.SetSession(NewEditSession("thomas", "ssh"))
+
+	require.NoError(t, edA.SetValue([]string{"system"}, "name-server", "8.8.8.8"))
+	require.NoError(t, edB.SetValue([]string{"system"}, "name-server", "1.1.1.1"))
+
+	require.NoError(t, edA.DiscardSessionPath([]string{"system", "name-server"}))
+
+	changeData, err := os.ReadFile(ChangePath(configPath, "thomas"))
+	require.NoError(t, err)
+	content := string(changeData)
+	assert.NotContains(t, content, "8.8.8.8",
+		"discarded member must leave the change file")
+	assert.Equal(t, 1, strings.Count(content, "set system name-server 1.1.1.1"),
+		"sibling session's member must survive in the tree exactly once, not as a duplicated orphan line")
+
+	result, err := edB.CommitSession()
+	require.NoError(t, err)
+	require.Empty(t, result.Conflicts)
+	members := committedNameServers(t, configPath)
+	assert.ElementsMatch(t, []string{"9.9.9.9", "1.1.1.1"}, members,
+		"commit after sibling discard must apply only the surviving member")
+}
+
 // TestCommitSessionCandidateAppliesLeafList: the transactional (candidate)
 // commit path applies leaf-list members too — this is the path SSH commits
 // take once the reload notifier is wired.

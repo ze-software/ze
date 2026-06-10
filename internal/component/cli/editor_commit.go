@@ -91,12 +91,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	// Check for stale conflicts (committed changed since editing).
 	var conflicts []Conflict
 	for i := range myOps {
-		if myOps[i].Type != config.StructuralOpRename {
-			continue
-		}
-		if conflict := renameStaleConflict(committedTree, e.schema, myOps[i]); conflict != nil {
-			conflicts = append(conflicts, *conflict)
-		}
+		conflicts = appendStructuralOpConflict(conflicts, committedTree, e.schema, myOps[i])
 	}
 	for _, se := range myEntries {
 		// Leaf-list member operations are idempotent and commutative:
@@ -269,12 +264,7 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 
 	var conflicts []Conflict
 	for i := range myOps {
-		if myOps[i].Type != config.StructuralOpRename {
-			continue
-		}
-		if conflict := renameStaleConflict(committedTree, e.schema, myOps[i]); conflict != nil {
-			conflicts = append(conflicts, *conflict)
-		}
+		conflicts = appendStructuralOpConflict(conflicts, committedTree, e.schema, myOps[i])
 	}
 	for _, se := range myEntries {
 		// Member operations skip stale detection; see CommitSession.
@@ -406,8 +396,16 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 			metaTarget := walkOrCreateMeta(changeMeta, e.schema, parentPath)
 			metaTarget.RemoveSessionEntry(leafName, e.session.ID)
 			// Also remove the value from the change tree so it is not serialized back.
+			// Member entries remove only their own member: Delete would wipe the
+			// whole leaf-list, dropping other sessions' members from the tree and
+			// leaving them to the serializer's orphan-intent fallback (which emits
+			// a duplicate line via writeDeleteMetaLines until the next round trip).
 			if treeTarget := walkPath(changeTree, e.schema, parentPath); treeTarget != nil {
-				treeTarget.Delete(leafName)
+				if se.Entry.Member != "" {
+					treeTarget.RemoveMultiValueMember(leafName, se.Entry.Member)
+				} else {
+					treeTarget.Delete(leafName)
+				}
 			}
 		}
 		filteredOps := changeOps[:0]
@@ -489,6 +487,60 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 	// Has, not e.store.Exists: the latter re-locks the store and deadlocks while
 	// this guard holds the write lock (same class as the CommitSession bug).
 	e.dirty.Store(guard.Has(changePath))
+	return nil
+}
+
+// appendStructuralOpConflict appends the stale conflict (if any) for one
+// structural op against the freshly parsed committed tree. Rename ops check
+// source/destination keys; ordered member inserts check their before/after
+// reference. Other op types have no commit-time staleness to detect.
+func appendStructuralOpConflict(conflicts []Conflict, committedTree *config.Tree, schema *config.Schema, op config.StructuralOp) []Conflict {
+	var conflict *Conflict
+	switch op.Type { //nolint:exhaustive // remaining op types have no stale check
+	case config.StructuralOpRename:
+		conflict = renameStaleConflict(committedTree, schema, op)
+	case config.StructuralOpInsertMember:
+		conflict = insertRefStaleConflict(committedTree, schema, op)
+	}
+	if conflict != nil {
+		conflicts = append(conflicts, *conflict)
+	}
+	return conflicts
+}
+
+// insertRefStaleConflict reports a stale conflict when an ordered insert's
+// before/after reference member no longer exists (in active form) in the
+// committed tree -- removed or deactivated by a concurrent commit. Without
+// this pre-scan the apply step would abort the whole commit with a raw
+// `"ref" not found` error instead of returning a resolvable conflict.
+func insertRefStaleConflict(committedTree *config.Tree, schema *config.Schema, op config.StructuralOp) *Conflict {
+	if op.Position != config.InsertBefore && op.Position != config.InsertAfter {
+		return nil
+	}
+	parentPath := strings.Fields(op.ParentPath)
+	target := walkPath(committedTree, schema, parentPath)
+	if target == nil {
+		return &Conflict{
+			Path:       op.PendingChange().Path,
+			Type:       ConflictStale,
+			MyValue:    op.PendingChange().Summary(),
+			OtherValue: "insert target path missing",
+		}
+	}
+	// Member already present: applyMemberOp treats the insert as already
+	// applied, so the missing reference never matters.
+	if target.HasMultiValueMember(op.ListName, op.NewKey) {
+		return nil
+	}
+	if present, inactive := target.MultiValueMemberState(op.ListName, op.OldKey); !present || inactive {
+		return &Conflict{
+			Path:          op.PendingChange().Path,
+			Type:          ConflictStale,
+			MyValue:       op.PendingChange().Summary(),
+			OtherValue:    "insert reference removed",
+			PreviousValue: op.OldKey,
+		}
+	}
 	return nil
 }
 
