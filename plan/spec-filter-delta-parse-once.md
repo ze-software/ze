@@ -420,8 +420,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Dry-run (`show policy test`) | exercised via `policy_dryrun_test.go` + plugin suite | green |
 
 ### ze-verify (AC-7)
-- `make ze-verify` run 2026-06-10 on the shared working tree; result recorded in Executive Summary.
-- Known interference: concurrent session's uncommitted leaf-list work in `internal/component/config/` fails `TestCmdDeactivateLeafListValue` (config/cli); no import path from `config/cli` to `bgp/reactor`; failure reproduces with this spec's changes absent from the equation (their files, their test).
+- `make ze-verify` run 2026-06-10T22:12Z on the shared working tree: all functional, exabgp, lint, and build stages PASS; the only failures are `ze-unit-test-cached` and `ze-unit-test-race-changed`, both on the single test `TestCmdDeactivateLeafListValue` (`internal/component/config/cli`).
+- That test is broken by a concurrent session's uncommitted leaf-list work in `internal/component/config/` (parser.go, parser_list.go, serialize.go modified in tree). No import path from `config/cli` to `bgp/reactor`; this spec's changes are confined to `internal/component/bgp/reactor/`, whose suite passes including under -race.
+- Full logs: `tmp/ze-verify.log`, `tmp/ze-verify-failures.log`.
 
 ## Checklist
 
