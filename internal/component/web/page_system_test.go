@@ -9,6 +9,16 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+// TestResourcesUptime verifies the System Resources page reports a real uptime
+// and current time instead of the "-" placeholders (F12/AC-13).
+func TestResourcesUptime(t *testing.T) {
+	data := BuildResourcesData()
+	assert.NotEqual(t, "-", data.Uptime, "uptime must be populated")
+	assert.NotEmpty(t, data.Uptime)
+	assert.NotEqual(t, "-", data.CurrentTime, "current time must be populated")
+	assert.NotEmpty(t, data.CurrentTime)
+}
+
 func TestBuildSystemIdentityFormData_WithValues(t *testing.T) {
 	tree := config.NewTree()
 	sys := tree.GetOrCreateContainer("system")

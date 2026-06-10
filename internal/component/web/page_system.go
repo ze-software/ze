@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"runtime"
 	"strconv"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
@@ -253,14 +254,14 @@ func BuildResourcesData() ResourcesData {
 
 	return ResourcesData{
 		Version:     version.Short(),
-		Uptime:      "-", // Requires operational data from show RPC (future)
+		Uptime:      formatUptime(time.Since(processStart)),
 		CPUCount:    runtime.NumCPU(),
 		GOMAXPROCS:  runtime.GOMAXPROCS(0),
 		Goroutines:  runtime.NumGoroutine(),
 		MemAlloc:    formatBytes(mem.Alloc),
 		MemSys:      formatBytes(mem.Sys),
 		GCRuns:      mem.NumGC,
-		CurrentTime: "-", // Requires operational data from show RPC (future)
+		CurrentTime: time.Now().Format("2006-01-02 15:04:05 MST"),
 	}
 }
 

@@ -9,7 +9,41 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
 )
+
+// TestComponentHealthRow verifies the health table resolves a component's row
+// from a live probe first, then AlwaysUp (web is serving), then config presence
+// (F10/AC-11) -- so the Web row never reads "Not configured" while serving.
+func TestComponentHealthRow(t *testing.T) {
+	tree := config.NewTree()
+	probes := map[string]health.ComponentHealth{}
+
+	// Web is always running: it is serving this page, even with empty config.
+	web := componentDef{Name: "Web", ConfigKey: "environment/web", AlwaysUp: true}
+	status, flag, _ := componentHealthRow(web, tree, probes)
+	assert.Equal(t, "Running", status)
+	assert.Equal(t, flagClassGreen, flag)
+
+	// A live healthy probe shows Running.
+	bgp := componentDef{Name: "BGP", ConfigKey: "bgp", HealthName: "bgp"}
+	probes["bgp"] = health.ComponentHealth{Name: "bgp", Status: health.StatusHealthy}
+	status, _, _ = componentHealthRow(bgp, tree, probes)
+	assert.Equal(t, "Running", status)
+
+	// A down probe shows Down/red and surfaces the reason.
+	probes["bgp"] = health.ComponentHealth{Name: "bgp", Status: health.StatusDown, Reason: "no sessions"}
+	status, flag, summary := componentHealthRow(bgp, tree, probes)
+	assert.Equal(t, "Down", status)
+	assert.Equal(t, flagClassRed, flag)
+	assert.Equal(t, "no sessions", summary)
+
+	// No probe and not configured -> Not configured.
+	dns := componentDef{Name: "DNS", ConfigKey: "dns"}
+	status, flag, _ = componentHealthRow(dns, tree, probes)
+	assert.Equal(t, "Not configured", status)
+	assert.Equal(t, flagClassGrey, flag)
+}
 
 // workbenchForDashboard creates a workbench handler for dashboard testing.
 func workbenchForDashboard(t *testing.T, tree *config.Tree, dispatch CommandDispatcher) http.HandlerFunc {

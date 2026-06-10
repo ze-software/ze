@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
 )
 
 // DashboardHealthData is the template payload for the component health table.
@@ -42,27 +43,32 @@ type DashboardEventsData struct {
 
 // componentDef describes one component for the health table.
 type componentDef struct {
-	Name      string
-	ConfigKey string // top-level config key to check
+	Name       string
+	ConfigKey  string // top-level config key to check for "configured" fallback
+	HealthName string // matching name in the health registry (empty = none)
+	AlwaysUp   bool   // true for components proven running by serving this page
 }
 
-// knownComponents lists the components shown in the health table.
+// knownComponents lists the components shown in the health table. HealthName
+// links a row to a live probe in health.DefaultRegistry; AlwaysUp marks the web
+// server, which is necessarily running to serve this page.
 var knownComponents = []componentDef{
-	{Name: "BGP", ConfigKey: "bgp"},
-	{Name: "Interfaces", ConfigKey: "iface"},
-	{Name: "L2TP", ConfigKey: "l2tp"},
+	{Name: "BGP", ConfigKey: "bgp", HealthName: "bgp"},
+	{Name: "Interfaces", ConfigKey: "iface", HealthName: "iface"},
+	{Name: "L2TP", ConfigKey: "l2tp", HealthName: "l2tp"},
 	{Name: "DNS", ConfigKey: "dns"},
 	{Name: "SSH", ConfigKey: "environment/ssh"},
-	{Name: "Web", ConfigKey: "environment/web"},
+	{Name: "Web", ConfigKey: "environment/web", AlwaysUp: true},
 	{Name: "Telemetry", ConfigKey: "telemetry"},
 	{Name: "MCP", ConfigKey: "environment/mcp"},
 	{Name: "Looking Glass", ConfigKey: "environment/looking-glass"},
 }
 
-// HandleDashboardHealthPage returns the rendered HTML for the component health table.
-// In v1, health is derived from config presence (configured = green, not configured = grey).
-// Future versions dispatch "show health" for real operational state.
-func HandleDashboardHealthPage(renderer *Renderer, viewTree *config.Tree, _ *http.Request, dispatch CommandDispatcher) template.HTML {
+// HandleDashboardHealthPage returns the rendered HTML for the component health
+// table. Rows backed by a live probe in health.DefaultRegistry show real
+// operational state; the web server is always shown running (it is serving this
+// page); the remaining rows fall back to config-tree presence (F10).
+func HandleDashboardHealthPage(renderer *Renderer, viewTree *config.Tree, _ *http.Request, _ CommandDispatcher) template.HTML {
 	data := DashboardHealthData{
 		Title: "Component Health",
 		Columns: []WorkbenchTableColumn{
@@ -73,25 +79,54 @@ func HandleDashboardHealthPage(renderer *Renderer, viewTree *config.Tree, _ *htt
 		EmptyMessage: "No component information available.",
 	}
 
-	// Build rows from config tree presence. Future: dispatch "show health"
-	// for real operational state when dispatch is available.
+	// Index live probes by name for O(1) lookup.
+	probes := make(map[string]health.ComponentHealth)
+	for _, c := range health.Check().Components {
+		probes[c.Name] = c
+	}
+
 	for _, comp := range knownComponents {
-		status := "Not configured"
-		flagClass := flagClassGrey
-
-		if isComponentConfigured(viewTree, comp.ConfigKey) {
-			status = "Configured"
-			flagClass = flagClassGreen
-		}
-
+		status, flagClass, summary := componentHealthRow(comp, viewTree, probes)
 		data.Rows = append(data.Rows, WorkbenchTableRow{
 			Key:       strings.ToLower(comp.Name),
 			FlagClass: flagClass,
-			Cells:     []string{comp.Name, status, "-"},
+			Cells:     []string{comp.Name, status, summary},
 		})
 	}
 
 	return renderer.RenderFragment("dashboard_health", data)
+}
+
+// componentHealthRow resolves one component's status, flag color, and summary:
+// a live probe wins, then AlwaysUp (web is serving), then config presence.
+func componentHealthRow(comp componentDef, viewTree *config.Tree, probes map[string]health.ComponentHealth) (status, flagClass, summary string) {
+	if comp.HealthName != "" {
+		if probe, ok := probes[comp.HealthName]; ok {
+			switch probe.Status {
+			case health.StatusHealthy:
+				return "Running", flagClassGreen, healthSummary(probe.Reason, "Operational")
+			case health.StatusDegraded:
+				return "Degraded", flagClassYellow, healthSummary(probe.Reason, "Degraded")
+			case health.StatusDown:
+				return "Down", flagClassRed, healthSummary(probe.Reason, "Not running")
+			}
+		}
+	}
+	if comp.AlwaysUp {
+		return "Running", flagClassGreen, "Serving this page"
+	}
+	if isComponentConfigured(viewTree, comp.ConfigKey) {
+		return "Configured", flagClassGreen, "-"
+	}
+	return "Not configured", flagClassGrey, "-"
+}
+
+// healthSummary returns the probe reason, or a fallback when the probe gave none.
+func healthSummary(reason, fallback string) string {
+	if reason != "" {
+		return reason
+	}
+	return fallback
 }
 
 // isComponentConfigured checks if a component has config entries in the tree.
