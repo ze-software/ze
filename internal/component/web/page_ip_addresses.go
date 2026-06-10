@@ -1,4 +1,4 @@
-// Design: plan/spec-web-4-interfaces.md -- IP Addresses page
+// Design: plan/learned/688-web-4-interfaces.md -- IP Addresses page
 // Related: workbench_table.go -- Reusable table component
 // Related: page_interfaces.go -- Interface page (sibling)
 

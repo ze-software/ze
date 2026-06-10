@@ -2927,7 +2927,7 @@ func TestSetCLIFormatInvalid(t *testing.T) {
 	ok := handleSetCLIFormat("set cli format bogus", m)
 	assert.True(t, ok, "should handle set cli format")
 	assert.Contains(t, m.statusMessage, "invalid format")
-	assert.Contains(t, m.statusMessage, "valid: text, table, json, yaml, ndjson")
+	assert.Contains(t, m.statusMessage, "valid: json, ndjson, table, text, yaml")
 }
 
 // TestSetCLIFormatShow verifies `set cli format` (no value) shows current setting.

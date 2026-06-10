@@ -1,5 +1,5 @@
 // Design: docs/architecture/web-interface.md -- Server-Sent Events for live updates
-// Related: handler_config.go -- Commit handler triggers SSE broadcast
+// Related: handler_config_commit.go -- Commit handler triggers SSE broadcast
 // Related: render.go -- Template rendering
 
 package web

@@ -4,6 +4,8 @@
 package cli
 
 import (
+	"maps"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -668,6 +670,12 @@ var validCLIFormats = map[string]bool{
 	"text": true, "table": true, "json": true, "yaml": true, "ndjson": true,
 }
 
+// validCLIFormatNames returns the accepted format names, sorted, for error text.
+// Derived from validCLIFormats so the list is never duplicated (ai/rules/derive-not-hardcode.md).
+func validCLIFormatNames() string {
+	return textbuf.Join(slices.Sorted(maps.Keys(validCLIFormats)), ", ")
+}
+
 func appendCLIFormatCompletions(completions []Completion, input string) []Completion {
 	const cmd = "set cli format"
 	if input == "" || strings.HasPrefix(cmd, input) {
@@ -721,7 +729,7 @@ func handleSetCLIFormat(input string, m *Model) bool {
 
 	if !validCLIFormats[rest] {
 		var tb textbuf.Buffer
-		m.statusMessage = tb.Str("invalid format: ").Str(rest).Str(" (valid: text, table, json, yaml, ndjson)").String()
+		m.statusMessage = tb.Str("invalid format: ").Str(rest).Str(" (valid: ").Str(validCLIFormatNames()).Byte(')').String()
 		return true
 	}
 

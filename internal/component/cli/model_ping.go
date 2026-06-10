@@ -1,6 +1,7 @@
 // Design: docs/architecture/api/commands.md -- monitor ping TUI model
 // Related: model_traceroute.go -- same poll/drain/render pattern
 // Related: model_monitor.go -- generic monitor session pattern
+// Related: model_enrich.go -- | resolve / | origin enrichment for the | log legend
 
 package cli
 
@@ -74,6 +75,10 @@ type pingState struct {
 	cancel   context.CancelFunc
 }
 
+// pingPipedState holds state for piped monitor ping (| json, | log, etc.).
+// pipeResolve/pipeOrigin mirror traceroutePipedState: the | log render path
+// bypasses ApplyPipes, so data-transform pipes are applied via enrichAddr
+// when the target legend is written (see ai/rules/pipe-completeness.md).
 type pingPipedState struct {
 	target        string
 	interval      time.Duration
@@ -83,6 +88,8 @@ type pingPipedState struct {
 	formatFn      func(string) string
 	logMode       bool
 	hasFormatPipe bool
+	pipeResolve   bool
+	pipeOrigin    bool
 	replyCh       <-chan map[string]any
 	cancel        context.CancelFunc
 }
@@ -246,6 +253,8 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 		formatFn:      formatFn,
 		logMode:       pipeFlags.Log,
 		hasFormatPipe: pipeFlags.HasFormat,
+		pipeResolve:   pipeFlags.Resolve,
+		pipeOrigin:    pipeFlags.Origin,
 		replyCh:       ch,
 		cancel:        cancel,
 	}
@@ -391,8 +400,10 @@ func (m Model) handlePingPipedPoll() (tea.Model, tea.Cmd) {
 					if ps.stats.sent > 1 {
 						m.outputBuf.WriteString("\n")
 					}
+					// Data-transform pipes (| resolve, | origin) apply even in
+					// the custom | log render path: enrich the target legend.
 					m.outputBuf.WriteString("--- ")
-					m.outputBuf.WriteString(ps.target)
+					m.outputBuf.WriteString(enrichAddr(ps.target, ps.pipeResolve, ps.pipeOrigin))
 					m.outputBuf.WriteString(" ---\n")
 				}
 				line = formatPingReplyLine(reply)

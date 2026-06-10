@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — editor test infrastructure
+// Related: fake_monitor.go -- option=monitor:ping=fake deterministic monitor fakes
 
 package testing
 
@@ -119,6 +120,7 @@ func runTestCase(tc *TestCase) *TestResult {
 	lifecycleMode := ""      // "wired" = mock shutdown/restart callbacks
 	useHistoryStore := false // option=history:store -- persist history to zefs
 	editorMode := "config"   // option=mode:value=operational -- operational-only mode
+	monitorPing := ""        // option=monitor:ping=fake -- deterministic ping factory + resolvers
 	sessionUser := ""
 	sessionOrigin := ""
 
@@ -168,6 +170,10 @@ func runTestCase(tc *TestCase) *TestResult {
 			}
 			if origin, ok := opt.Values["origin"]; ok {
 				sessionOrigin = origin
+			}
+		case "monitor":
+			if ping, ok := opt.Values["ping"]; ok {
+				monitorPing = ping
 			}
 		}
 	}
@@ -236,6 +242,11 @@ func runTestCase(tc *TestCase) *TestResult {
 		m := hm.Model()
 		m.SetShutdownFunc(func() {})
 		m.SetRestartFunc(func() {})
+	}
+
+	// Configure deterministic monitor ping factory + resolvers if requested.
+	if monitorPing == "fake" {
+		wireFakePingMonitor(hm)
 	}
 
 	// Set window size if specified

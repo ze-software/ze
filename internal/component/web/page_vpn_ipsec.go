@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-10-cli-diag.md -- VPN IPsec web page
+// Design: plan/learned/745-ipsec-10-cli-diag.md -- VPN IPsec web page
 // Related: page_l2tp.go -- Table page pattern
 // Related: page_interfaces.go -- HTMX auto-refresh partial pattern
 

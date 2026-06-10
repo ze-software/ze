@@ -1,0 +1,40 @@
+# Test: monitor ping | resolve | log and | origin | log enrich the target legend
+# VALIDATES: pipe-completeness -- data-transform pipes (| resolve, | origin) apply
+# in the custom | log render path of monitor ping (model_ping.go), which bypasses
+# ApplyPipes. The headless editor drives the real TUI model with a deterministic
+# ping factory and fake PTR/origin resolvers (option=monitor:ping=fake).
+# PREVENTS: monitor ping | log silently dropping | resolve / | origin enrichment.
+
+option=timeout:value=30s
+
+# go.mod marker: ze-test editor roots its base dir at the first go.mod above
+# the working directory, so --dir . resolves to this test's temp dir.
+tmpfs=go.mod:terminator=EOF_MOD
+module ze-ui-monitor-ping-fixture
+EOF_MOD
+
+tmpfs=monitor-ping-resolve-log.et:terminator=EOF_ET
+# Test: monitor ping | resolve | log enriches the target legend with PTR + AS data
+option=mode:value=operational
+option=monitor:ping=fake
+
+# | resolve enriches the legend with the fake PTR name
+input=type:text=monitor ping 192.0.2.1 | resolve | log
+input=enter
+expect=viewport:contains=--- 192.0.2.1 ping-target.test ---
+expect=viewport:contains=seq=0
+expect=viewport:contains=seq=2
+
+# | origin enriches the legend with the fake AS name (output accumulates)
+input=type:text=monitor ping 192.0.2.1 | origin | log
+input=enter
+expect=viewport:contains=--- 192.0.2.1 TEST-NET-AS ---
+
+# without enrichment pipes the legend stays the plain target
+input=type:text=monitor ping 198.51.100.9 | log
+input=enter
+expect=viewport:contains=--- 198.51.100.9 ---
+EOF_ET
+
+cmd=foreground:seq=1:exec=ze-test editor --dir . --all
+expect=exit:code=0

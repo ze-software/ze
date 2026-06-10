@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"math"
 	"testing"
 	"time"
@@ -136,6 +137,98 @@ func TestPingReplyToJSONEscapesControlChars(t *testing.T) {
 func TestPingReplyToJSONFloat64Seq(t *testing.T) {
 	j := pingReplyToJSON("1.1.1.1", map[string]any{"seq": float64(7), "status": "ok", "rtt-ms": 0.5})
 	assert.Equal(t, `{"target":"1.1.1.1","seq":7,"status":"ok","rtt-ms":0.500}`, j)
+}
+
+// pingTestFactory returns a PingFactory whose channel is pre-filled with the
+// given replies and closed, so a single poll drains the whole session.
+func pingTestFactory(replies []map[string]any) PingFactory {
+	return func(_ context.Context, _ string, _, _ time.Duration) (<-chan map[string]any, context.CancelFunc, error) {
+		ch := make(chan map[string]any, len(replies)+1)
+		for _, r := range replies {
+			ch <- r
+		}
+		close(ch)
+		_, cancel := context.WithCancel(context.Background())
+		return ch, cancel, nil
+	}
+}
+
+// VALIDATES: | resolve and | origin flags are captured by startPingMonitorPiped.
+// PREVENTS: pipe flags parsed but dropped before the | log render path.
+func TestStartPingMonitorPiped_CapturesEnrichmentFlags(t *testing.T) {
+	m := NewCommandModel()
+	m.pingFactory = pingTestFactory(nil)
+
+	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | resolve | origin | log")
+	require.NotNil(t, cmd)
+	require.NotNil(t, m.pingMonitorPiped)
+	assert.True(t, m.pingMonitorPiped.logMode)
+	assert.True(t, m.pingMonitorPiped.pipeResolve)
+	assert.True(t, m.pingMonitorPiped.pipeOrigin)
+	assert.False(t, m.pingMonitorPiped.hasFormatPipe)
+}
+
+// VALIDATES: monitor ping | resolve | log enriches the target legend with the
+// PTR name (pipe-completeness: data-transform pipes apply in | log mode).
+// PREVENTS: | log rendering bypassing | resolve enrichment.
+func TestHandlePingPipedPoll_LogResolveEnrichesLegend(t *testing.T) {
+	setStubResolvers(t)
+
+	m := NewCommandModel()
+	m.pingFactory = pingTestFactory([]map[string]any{
+		{"seq": 0, "status": "ok", "rtt-ms": 1.5},
+		{"seq": 1, "status": "timeout"},
+	})
+
+	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | resolve | log")
+	require.NotNil(t, cmd)
+
+	_, pollCmd := m.handlePingPipedPoll()
+	assert.Nil(t, pollCmd, "closed reply channel must end the piped session")
+
+	out := m.outputBuf.String()
+	assert.Contains(t, out, "--- 192.0.2.1 ping-target.test ---")
+	assert.Contains(t, out, "seq=0")
+	assert.Contains(t, out, "seq=1")
+}
+
+// VALIDATES: monitor ping | origin | log enriches the target legend with AS data.
+func TestHandlePingPipedPoll_LogOriginEnrichesLegend(t *testing.T) {
+	setStubResolvers(t)
+
+	m := NewCommandModel()
+	m.pingFactory = pingTestFactory([]map[string]any{
+		{"seq": 0, "status": "ok", "rtt-ms": 1.5},
+	})
+
+	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | origin | log")
+	require.NotNil(t, cmd)
+
+	_, pollCmd := m.handlePingPipedPoll()
+	assert.Nil(t, pollCmd, "closed reply channel must end the piped session")
+
+	assert.Contains(t, m.outputBuf.String(), "--- 192.0.2.1 TEST-NET-AS ---")
+}
+
+// VALIDATES: without | resolve / | origin the legend stays the plain target.
+func TestHandlePingPipedPoll_LogPlainLegend(t *testing.T) {
+	setStubResolvers(t)
+
+	m := NewCommandModel()
+	m.pingFactory = pingTestFactory([]map[string]any{
+		{"seq": 0, "status": "ok", "rtt-ms": 1.5},
+	})
+
+	cmd := m.startPingMonitorPiped("monitor ping 192.0.2.1 | log")
+	require.NotNil(t, cmd)
+
+	_, pollCmd := m.handlePingPipedPoll()
+	assert.Nil(t, pollCmd, "closed reply channel must end the piped session")
+
+	out := m.outputBuf.String()
+	assert.Contains(t, out, "--- 192.0.2.1 ---")
+	assert.NotContains(t, out, "ping-target.test")
+	assert.NotContains(t, out, "TEST-NET-AS")
 }
 
 func TestRenderPingStatsPlain(t *testing.T) {

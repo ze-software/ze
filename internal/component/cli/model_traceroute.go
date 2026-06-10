@@ -1,5 +1,6 @@
 // Design: model_dashboard.go -- poll-based live view pattern
 // Related: model_monitor.go -- channel-drain pattern (50ms poll tick)
+// Related: model_enrich.go -- | resolve / | origin enrichment for the | log legend
 
 package cli
 
@@ -595,28 +596,6 @@ func formatTracerouteLogMap(hops []tracerouteHop, resolve, origin bool) string {
 	}
 	sb.Byte('\n')
 	return sb.String()
-}
-
-func enrichAddr(addr string, resolve, origin bool) string {
-	if addr == "*" || addr == "" {
-		return addr
-	}
-	var tb textbuf.Buffer
-	if origin {
-		o := command.LookupOrigin(addr)
-		if o.ASN > 0 && o.Name != "" {
-			return tb.Str(addr).Byte(' ').Str(o.Name).String()
-		}
-		if o.ASN > 0 {
-			return tb.Str(addr).Str(" AS").Int(int64(o.ASN)).String()
-		}
-	}
-	if resolve {
-		if name := command.ReverseLookup(addr); name != "" {
-			return tb.Str(addr).Byte(' ').Str(name).String()
-		}
-	}
-	return addr
 }
 
 // formatTracerouteLogHeader renders the column header using hop numbers.

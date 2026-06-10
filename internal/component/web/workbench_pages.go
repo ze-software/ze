@@ -1,4 +1,4 @@
-// Design: plan/spec-web-4-interfaces.md -- Workbench page dispatch
+// Design: plan/learned/688-web-4-interfaces.md -- Workbench page dispatch
 // Related: handler_workbench.go -- Workbench handler that calls renderPageContent
 // Related: page_interfaces.go -- Interface table and detail pages
 // Related: page_traffic.go -- Traffic monitoring page

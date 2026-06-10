@@ -36,7 +36,7 @@ expect=status:contains=cli format set to table
 input=type:text=set cli format bogus
 input=enter
 expect=status:contains=invalid format
-expect=status:contains=valid: text, table, json, yaml, ndjson
+expect=status:contains=valid: json, ndjson, table, text, yaml
 
 # Show current (should be table from last valid set)
 input=type:text=set cli format
