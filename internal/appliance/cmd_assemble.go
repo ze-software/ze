@@ -182,17 +182,18 @@ func resolveSeedConfig(baseDir, name string, cfg *ApplianceConfig) (string, erro
 	}
 
 	var seed string
-	if base == "" && overlay == "" {
+	switch {
+	case base == "" && overlay == "":
 		defaultPath := filepath.Join("gokrazy", "ze", "ze.conf")
 		if data, err := os.ReadFile(defaultPath); err == nil { //nolint:gosec // source tree default
 			seed = string(data)
 		}
-	} else if overlay != "" && base != "" {
+	case overlay != "" && base != "":
 		var tb textbuf.Buffer
 		seed = tb.Str(base).Byte('\n').Str(overlay).String()
-	} else if base != "" {
+	case base != "":
 		seed = base
-	} else {
+	default:
 		seed = overlay
 	}
 
