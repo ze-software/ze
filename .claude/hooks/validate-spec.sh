@@ -286,6 +286,18 @@ else
     fi
 fi
 
+# === RISKS & ASSUMPTIONS CHECK ===
+# New specs should record design-time assumptions and risks (WARNING only:
+# specs created before the section existed are exempt -- see ai/rules/planning.md).
+if ! grep -q "^## Risks & Assumptions" "$FILE_PATH"; then
+    WARNINGS+=("Missing '## Risks & Assumptions' section. Record assumptions (A-N) and risks (R-N) from design gates (see plan/TEMPLATE.md)")
+else
+    RA_SECTION=$(sed -n '/^## Risks & Assumptions/,/^## /p' "$FILE_PATH" | head -40)
+    if ! echo "$RA_SECTION" | grep -qE 'A-[0-9]+'; then
+        WARNINGS+=("Risks & Assumptions: Assumptions table should have A-N rows with Basis + validation method")
+    fi
+fi
+
 # === CONTEXT CHECKPOINT CHECK ===
 # Required Reading entries should have → Decision: or → Constraint: checkpoint lines
 REQ_READING_SECTION=$(sed -n '/^## Required Reading/,/^## /p' "$FILE_PATH" | head -40)

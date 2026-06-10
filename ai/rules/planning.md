@@ -61,6 +61,28 @@ present options and wait. Never edit files until explicitly approved.
 - **Deletion allowed:** Writing summary to learned, user requests, typo fixes only.
 - **Research capture (MUST DO):** All findings from RESEARCH phase go in spec exhaustively — file surveys, function lists, split decisions, reasons for NOT splitting. Spec is single source of truth. Implementation sessions execute from spec alone.
 
+## Risks & Assumptions (BLOCKING for new specs)
+
+Every spec carries a `## Risks & Assumptions` section (see `plan/TEMPLATE.md`) that is
+written during RESEARCH/DESIGN and kept live through implementation. Concerns raised at
+/ze-spec gates (assumption challenge, Failure Mode Analysis) MUST be written into these
+tables, not just spoken at the gate — gate conversation does not survive the session.
+
+| Table | Captures | Lifecycle |
+|-------|----------|-----------|
+| Assumptions (A-N) | Beliefs the design depends on, with Basis and a validation method | `unvalidated` → `confirmed` or `broken`. Validate cheap ones (grep/read) during the /ze-implement audit, before coding. |
+| Risks (R-N) | Failure modes that exist even if assumptions hold, with early signal + mitigation | Reviewed at each phase; surviving risks copy forward to the Executive Summary and learned summary. |
+
+Rules:
+
+- An assumption without a validation method is a guess. Name the test, grep, or user
+  confirmation that would settle it.
+- A `broken` assumption gets a Mistake Log "Wrong Assumptions" row and a Deviations
+  entry. If it invalidates the approved design, STOP and present to the user.
+- No assumption may still be `unvalidated` at Pre-Commit Verification (the spec's
+  "Assumptions Resolved" table records final status with evidence).
+- Existing specs (created before this rule) are exempt; do not retrofit without user request.
+
 ## Spec Sets
 
 When multiple specs form a related set (umbrella + child specs), use a shared prefix with numbering:
@@ -130,6 +152,7 @@ A spec that stays in `design` during implementation is lying about its state.
 [ ] Current Behavior section completed
 [ ] Data Flow section completed
 [ ] AC-N table rows with testable assertions
+[ ] Risks & Assumptions filled — every assumption has Basis + validation method; failure modes recorded as risks
 [ ] Required Reading has → Decision: / → Constraint: checkpoints
 [ ] All research findings captured exhaustively
 [ ] CLI grammar: if adding CLI commands, Integration Checklist marks "CLI grammar" as needed
@@ -164,6 +187,8 @@ If a spec describes work that is **already implemented**, run the full Completio
       - Files Exist: `ls` every file from "Files to Create" — paste output
       - AC Verified: for each AC-N, grep/test for fresh evidence — do NOT copy from audit
       - Wiring Verified: read each .ci file, confirm it tests the claimed path
+      - Assumptions Resolved: every A-N row is `confirmed` or `broken` with evidence —
+        none `unvalidated`; broken ones have Mistake Log + Deviations entries
       Fill the "## Pre-Commit Verification" section in the spec.
       Hook `pre-commit-spec-audit.sh` (exit 2) checks this section is filled.
 [ ] 6. Critical Review (BLOCKING — rules/quality.md)
@@ -282,7 +307,7 @@ Before marking a spec done, for every deferral: verify the receiving spec exists
 | Design decisions | Choices made during implementation that weren't explicitly dictated. The user should know what was decided on their behalf. "None — all choices were explicit" is valid. |
 | Deviations | What differed from spec/plan/instructions and why. "None" is valid. |
 | Not done | Explicit scope boundary. Prevents the assumption that everything related was handled. Surfaces deferred items. |
-| Risks & observations | Things that might bite later: new coupling, stale references elsewhere, edge cases not covered, follow-up work needed. |
+| Risks & observations | Things that might bite later: new coupling, stale references elsewhere, edge cases not covered, follow-up work needed. Start from the spec's Risks table (R-N rows that survived implementation) — this section is a copy-forward, not an invention at the end. |
 | Verification | What was run, what passed. Not "make ze-test passes" but actual output or specific test names. |
 
 ## Documentation Update Checklist (BLOCKING)

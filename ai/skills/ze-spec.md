@@ -103,7 +103,11 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
    - What is still unclear or ambiguous in the existing code?
    - What assumption are we making that could be wrong?
    - What existing behavior might this feature accidentally break?
-9. **GATE:** ASK user: "Is my understanding correct? Here's what concerns me: [concern]."
+9. **Record assumptions (BLOCKING):** Every assumption surfaced — in the challenge above
+   or anywhere during research — goes into the spec's **Risks & Assumptions** Assumptions
+   table (A-N rows) with Basis, "If wrong" impact, and a validation method. Gate
+   conversation does not survive the session; the table does.
+10. **GATE:** ASK user: "Is my understanding correct? Here's what concerns me: [concern]."
    Do not proceed to DESIGN until user confirms research is complete.
 
 ---
@@ -143,6 +147,11 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
     - What happens if a dependency (pool, channel, config) is missing or full?
     - What happens under concurrent access?
 
+    **Record each failure mode (BLOCKING):** every item enumerated above becomes an
+    R-N row in the spec's **Risks & Assumptions** Risks table (with early signal and
+    mitigation), or an A-N Assumptions row if it hinges on an unverified belief.
+    Failure modes presented only at the gate are lost when the session ends.
+
 #### Triple Challenge (MANDATORY)
 
 Answer all three before presenting the gate. If any answer is "no", redesign.
@@ -175,6 +184,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - Required Reading with `→ Decision:` / `→ Constraint:` annotations
    - Current Behavior (from research)
    - Data Flow (from research)
+   - Risks & Assumptions (assumptions from research, risks from Failure Mode Analysis)
    - Wiring Test table (from design)
    - AC table (from design)
    - TDD Test Plan (from design)
@@ -185,6 +195,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - No code snippets
    - Tables not prose for structured data
    - AC-N rows with testable assertions
+   - Every assumption row has Basis + validation method; every risk row has early signal + mitigation
    - All reading entries have `→ Decision:` or `→ Constraint:`
    - Wiring test rows all have concrete test names
 
@@ -195,6 +206,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - For each AC: can a test be written from the AC text alone, without guessing?
    - For each implementation step: are the inputs, outputs, and constraints stated?
    - Is there anything "we discussed" that isn't captured in the spec?
+   - Are all concerns raised at the SCOPE/RESEARCH/DESIGN gates captured as A-N or R-N rows?
    If any answer is "no", fix the spec before presenting it.
 
 #### Gate

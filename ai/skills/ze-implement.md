@@ -10,7 +10,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 |-------|--------------------------|
 | 1. Read spec | Entire spec |
 | 2. Update status | Spec metadata |
-| 3. Audit | Files to Modify, Files to Create, TDD Test Plan |
+| 3. Audit | Files to Modify, Files to Create, TDD Test Plan, **Risks & Assumptions** (validate assumptions before coding) |
 | 4. Wiring phase | **Wiring Test** table (entry points, registration, skeleton) |
 | 5. Implement | Implementation Phases, TDD Test Plan, Acceptance Criteria |
 | 6. Verify | (make targets) |
@@ -30,6 +30,12 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
    **Why this is BLOCKING:** other sessions check spec status to avoid collisions. A spec that
    stays in `design` or `ready` during implementation lies about its state.
 3. **Audit first:** Run `/ze-audit` logic. Check Files to Modify, Files to Create, and TDD Test Plan against the codebase. Identify what's already implemented, partially done, or missing. Do not redo existing work.
+   - **Validate assumptions (BLOCKING):** Read the spec's **Risks & Assumptions** Assumptions
+     table. For every A-N row whose validation method is cheap (grep, read a file, run an
+     existing test), run it NOW — before any feature code — and flip Status to `confirmed`
+     or `broken`. A `broken` assumption gets a Mistake Log "Wrong Assumptions" row; if it
+     invalidates the approved design, STOP and present to the user before coding.
+   - If the spec has the section but with only placeholder rows, treat it as missing (see Rules).
 4. **Wiring phase (MANDATORY FIRST — before any feature code):**
    Read the spec's **Wiring Test** table. For each row:
    - Identify the entry point (CLI command, web route, config leaf, plugin event, RPC handler).
@@ -42,6 +48,9 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
    - Implement minimal code to pass
    - Run `make ze-unit-test` until green
    - Confirm the wiring test from step 4 now passes (or progresses) after each phase
+   - Update the **Risks & Assumptions** tables: flip A-N statuses as evidence arrives;
+     when an assumption breaks mid-phase, add the Mistake Log row immediately and STOP
+     if the approved design no longer holds. Add new A-N/R-N rows as they surface.
    - Move to next phase
 6. **Run full verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
 7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
@@ -62,6 +71,7 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
     - If anything is missing or incomplete, go back to step 4 and implement it
     - Also re-read Acceptance Criteria -- verify each AC-N with file:line evidence
     - **Goal Validation (BLOCKING):** Fill the spec's **Goal Validation** table. For each goal stated in the Task section, provide concrete evidence (test name, interop scenario, benchmark result) that the goal is achieved. Per `ai/rules/interop-and-goal-validation.md`: "tests pass" alone is not sufficient; map goals to evidence.
+    - **Assumptions Resolved (BLOCKING):** Every A-N row in **Risks & Assumptions** must be `confirmed` or `broken` with evidence -- none left `unvalidated`. Fill the spec's Pre-Commit Verification "Assumptions Resolved" table. Broken assumptions need Mistake Log + Deviations entries. Copy surviving R-N risks into the Executive Summary "Risks & observations".
     - **Interop (BLOCKING for protocol features):** If the spec adds/changes protocol behavior, verify an interop test scenario exists and passes. If none exists, create one before proceeding.
 12. **Security review:** Use the spec's **Security Review Checklist** table as the starting point. For each row:
     - Check the specific concern described
@@ -123,5 +133,6 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
 - Do NOT skip the audit step -- re-implementing existing code wastes time
 - If the same issue reappears after 3 fix attempts (3-Fix Rule, `ai/rules/anti-rationalization.md`), STOP and ask for guidance. Otherwise keep reviewing -- there is no pass limit.
 - If the spec is missing a **Critical Review Checklist**, **Deliverables Checklist**, **Security Review Checklist**, or **Documentation Update Checklist**, STOP and inform the user that the spec needs updating before implementation can proceed
+- If the spec has a **Risks & Assumptions** section containing only template placeholder rows, STOP and ask the user to complete it (or confirm there are genuinely none). Specs created before the section existed are exempt -- do not retrofit without user request.
 - Before reporting done, re-read the spec and confirm each item is actually implemented in the code
 - Before reporting done, verify documentation stayed current: source anchors for changed files checked, examples validated against code, and `make ze-doc-test` run when docs changed

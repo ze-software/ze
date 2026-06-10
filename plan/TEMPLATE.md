@@ -77,6 +77,26 @@
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
 
+## Risks & Assumptions
+
+<!-- LIVE -- written during RESEARCH/DESIGN, statuses updated during implementation. -->
+<!-- Gate answers from /ze-spec (assumption challenge, Failure Mode Analysis) land HERE, not just in conversation. -->
+
+### Assumptions
+<!-- Things believed true that the design depends on. Every row needs a validation method. -->
+<!-- Status: unvalidated → confirmed | broken. A broken assumption also gets a Mistake Log "Wrong Assumptions" row. -->
+<!-- No assumption may still be `unvalidated` at Pre-Commit Verification. -->
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | [what we believe] | [where the belief comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
+
+### Risks
+<!-- Things that could go wrong even if all assumptions hold. From /ze-spec Failure Mode Analysis. -->
+<!-- Surviving risks copy forward to the Executive Summary "Risks & observations" and the learned summary. -->
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | [what could bite] | [how we'd notice] | [what we'd do] |
+
 ## Wiring Test (MANDATORY — NOT deferrable)
 
 <!-- BLOCKING: Proves the feature is reachable from its intended entry point. -->
@@ -416,6 +436,12 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
 
+### Assumptions Resolved
+<!-- For EVERY A-N row in Risks & Assumptions: final status with evidence. -->
+<!-- `unvalidated` is not a valid final status. Broken assumptions need a Mistake Log row + Deviations entry. -->
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+
 ### Documentation Verified
 <!-- For EVERY Yes in Documentation Update Checklist: verify the edited doc claim against source. -->
 <!-- For EVERY No: paste the grep/source check that proves no doc update was needed. -->
@@ -434,6 +460,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md` — no failures)
+- [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`); broken ones in Mistake Log; surviving risks copied to Executive Summary
 
 ### Quality Gates (SHOULD pass — defer with user approval)
 - [ ] RFC constraint comments added

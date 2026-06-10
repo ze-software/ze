@@ -12,6 +12,7 @@
 | Add route processing | `ai/rules/architecture-summary.md` | `docs/architecture/core-design.md` |
 | Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` |
+| Record design risks and assumptions | `ai/rules/planning.md` (Risks & Assumptions) | A-N/R-N tables in `plan/TEMPLATE.md`; validate during /ze-implement audit |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
 | Add or change an agent behavior rule | `ai/rules/canonical-sources.md` | Put shared Ze rules in `ai/rules/` and startup pointers in `ai/INSTRUCTIONS.md` |
 | Reorganize YANG tree | `scripts/dev/yang_move.py --help` | Preview diff, then `--apply` |
