@@ -19,7 +19,7 @@
       {{end}}
       {{range .Fields}}
       <div class="add-entry-row add-entry-{{.Category}}">
-        <label class="add-entry-label" for="field-{{fieldid .Path}}">{{.Path}}{{if eq .Category "required"}} <span class="add-entry-req-mark">*</span>{{end}}</label>
+        <label class="add-entry-label" for="field-{{fieldid .Path}}">{{fieldlabel .Path}}{{if eq .Category "required"}} <span class="add-entry-req-mark">*</span>{{end}}</label>
         <input type="text" class="add-entry-input" id="field-{{fieldid .Path}}" name="field:{{.Path}}"
                {{if .Inherited}}value="{{.Inherited}}"{{end}}
                placeholder="{{if .Placeholder}}{{.Placeholder}}{{end}}"

@@ -96,6 +96,7 @@ func NewRenderer() (*Renderer, error) {
 		"fieldid":      formFieldID,
 		"fieldname":    formFieldName,
 		"fieldchecked": formFieldChecked,
+		"fieldlabel":   humanizeFieldLabel,
 	}
 
 	layout, err := template.New("layout.html").Funcs(funcMap).ParseFS(templatesFS,
@@ -398,9 +399,28 @@ func (r *Renderer) RenderLogin(w http.ResponseWriter, data LoginData) error {
 // Mount at /assets/ with http.StripPrefix. Assets use no-cache so browsers
 // pick up changes after binary updates without requiring a hard refresh.
 func (r *Renderer) AssetHandler() http.Handler {
-	fs := http.FileServer(http.FS(r.assets))
+	fileServer := http.FileServer(http.FS(r.assets))
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
-		fs.ServeHTTP(w, req)
+		fileServer.ServeHTTP(w, req)
+	})
+}
+
+// FaviconHandler serves the Ze logo as the site favicon. Browsers request
+// /favicon.ico automatically on every page; without this route the catch-all
+// treated it as a bad /show path and bounced to /show/?error=... on every view
+// (F14). Mount unauthenticated at /favicon.ico, like /assets/.
+func (r *Renderer) FaviconHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		data, err := fs.ReadFile(r.assets, "ze.svg")
+		if err != nil {
+			http.Error(w, "favicon not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		if _, writeErr := w.Write(data); writeErr != nil {
+			return
+		}
 	})
 }

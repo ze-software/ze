@@ -21,6 +21,11 @@ var (
 	errPathDoesNotEndAtA              = errors.New("path does not end at a named list entry")
 )
 
+// suggestAutoDefault is written to a ze:suggest leaf the operator left blank
+// when the leaf's YANG type accepts it (e.g. bgp peer connection/local/ip,
+// a union of ip-address and the "auto" sentinel). See handleConfigAdd (F8).
+const suggestAutoDefault = "auto"
+
 // handleConfigAdd returns a POST handler for /config/add/<yang-path>/.
 // It creates a list entry and sets any form field values.
 // The entry key comes from the URL path (last segment) or the "name" form field.
@@ -146,17 +151,16 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			fields = append(fields, fieldSet{fieldPath, leaf, parentSuffix, value})
 		}
 
-		// All validation passed. Create entry and set fields.
+		// All validation passed. Create entry and set fields. The entry key is
+		// carried by the entry path itself (CreateEntry records it); it must NOT
+		// be written as a child leaf. Emitting `set <list> <key> <keyName> <key>`
+		// produces e.g. "bgp peer lab-peer name lab-peer", which the hierarchical
+		// parser rejects as "unknown field in peer: name" (the key leaf is not a
+		// settable child of its own entry) -- the F8 add-peer commit failure.
 		if createErr := mgr.CreateEntry(username, path); createErr != nil {
-			returnAddError(w, r, renderer, schema, mgr, username, listPath, fmt.Sprintf("create entry: %v", createErr))
+			var tb textbuf.Buffer
+			returnAddError(w, r, renderer, schema, mgr, username, listPath, tb.Str("create entry: ").Err(createErr).String())
 			return
-		}
-		if r.FormValue("_workbench") == "1" {
-			if ln, ok := listNode.(*config.ListNode); ok && ln.KeyName != "" {
-				if setErr := mgr.SetValue(username, path, ln.KeyName, entryKey); setErr != nil {
-					serverLogger.Warn("add-entry set key field failed", "field", ln.KeyName, "error", setErr)
-				}
-			}
 		}
 		for _, f := range fields {
 			setPath := make([]string, len(path))
@@ -166,6 +170,38 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			}
 			if setErr := mgr.SetValue(username, setPath, f.leaf, f.value); setErr != nil {
 				serverLogger.Warn("add-entry set field failed", "field", f.fieldPath, "error", setErr)
+			}
+		}
+
+		// Default any ze:suggest leaf the user left blank to "auto" when the
+		// leaf's YANG type accepts it. connection/local/ip is suggested, but the
+		// BGP reactor requires a value (IP address or "auto"); without this a
+		// form-created peer commits to a config the reactor rejects with "local
+		// ip is required" (F8). Schema-driven: only leaves whose union type
+		// includes the "auto" sentinel are defaulted, so this generalises beyond
+		// peers without hard-coding any plugin's field names.
+		if ln, ok := listNode.(*config.ListNode); ok {
+			provided := make(map[string]bool, len(fields))
+			for _, f := range fields {
+				provided[f.fieldPath] = true
+			}
+			for _, sp := range ln.Suggest {
+				fieldPath := textbuf.Join(sp, "/")
+				if provided[fieldPath] {
+					continue
+				}
+				if config.ValidateValue(resolveLeafType(ln, fieldPath), suggestAutoDefault) != nil {
+					continue // leaf type does not accept "auto"
+				}
+				leaf, parentSuffix := splitFieldPath(fieldPath)
+				setPath := make([]string, len(path))
+				copy(setPath, path)
+				if parentSuffix != "" {
+					setPath = append(setPath, strings.Split(parentSuffix, "/")...)
+				}
+				if setErr := mgr.SetValue(username, setPath, leaf, suggestAutoDefault); setErr != nil {
+					serverLogger.Warn("add-entry default suggest field failed", "field", fieldPath, "error", setErr)
+				}
 			}
 		}
 

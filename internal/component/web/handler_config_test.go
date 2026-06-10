@@ -830,6 +830,57 @@ func TestHandleConfigDelete(t *testing.T) {
 		"redirect must go to parent path under /config/edit/")
 }
 
+// TestAddPeerFormFields verifies the Add Peer form produces a config the
+// validator accepts (F8): the entry key is NOT written as a `name` leaf (which
+// the parser rejects as "unknown field in peer: name"), and the suggested but
+// reactor-required connection/local/ip is defaulted to "auto" when the operator
+// leaves it blank.
+//
+// VALIDATES: AC-7 -- UI-created peer is valid (no name leaf; local ip defaulted).
+// PREVENTS: the add form emitting a key-as-leaf or omitting required local ip.
+func TestAddPeerFormFields(t *testing.T) {
+	mgr, schema := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+	handler := handleConfigAdd(mgr, schema, renderer)
+
+	form := url.Values{
+		"name":                       {"lab-peer"},
+		"_workbench":                 {"1"},
+		"field:connection/remote/ip": {"192.0.2.1"},
+		"field:session/asn/local":    {"65000"},
+		"field:session/asn/remote":   {"65001"},
+	}
+	req := postConfigRequest(t, "/config/add/bgp/peer/", form, "alice")
+	req.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	peers := mgr.Tree("alice").GetContainer("bgp").GetList("peer")
+	peer := peers["lab-peer"]
+	require.NotNil(t, peer, "peer entry must be created")
+
+	// F8 part 1: the key must not be duplicated as a `name` leaf.
+	_, hasName := peer.Get("name")
+	assert.False(t, hasName, "entry key must not be written as a name leaf")
+
+	// F8 part 2: connection/local/ip is defaulted to auto (reactor requires it).
+	conn := peer.GetContainer("connection")
+	require.NotNil(t, conn, "connection container must exist")
+	local := conn.GetContainer("local")
+	require.NotNil(t, local, "connection/local must be created with the auto default")
+	ip, ok := local.Get("ip")
+	assert.True(t, ok, "connection/local/ip must be set")
+	assert.Equal(t, "auto", ip, "blank local ip must default to auto")
+
+	// The created peer must commit cleanly: the name-leaf bug made commit fail
+	// validation with "unknown field in peer: name".
+	result, commitErr := mgr.Commit("alice")
+	require.NoError(t, commitErr, "UI-created peer must pass commit validation")
+	assert.Empty(t, result.Conflicts)
+}
+
 // TestHandleConfigRename verifies that POST /config/rename/<entry>/ renames a
 // keyed list entry and redirects back to the parent list view.
 func TestHandleConfigRename(t *testing.T) {

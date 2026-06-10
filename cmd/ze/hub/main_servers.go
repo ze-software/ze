@@ -427,6 +427,9 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	srv.HandleFunc("POST /login", loginHandler)
 	srv.Handle("/assets/", assetHandler)
+	// Serve /favicon.ico from assets so the browser's automatic request does not
+	// fall through to the catch-all and trigger an error-redirect (F14).
+	srv.Handle("GET /favicon.ico", renderer.FaviconHandler())
 	srv.Handle("/events", authWrap(broker))
 	srv.Handle("/admin/", mutationWrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {

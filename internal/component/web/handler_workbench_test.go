@@ -111,6 +111,118 @@ func TestHandleWorkbench_DashboardRendersOverview(t *testing.T) {
 	assert.Contains(t, html, `id="workbench-shell"`)
 }
 
+// TestWorkbenchWebServiceRoute verifies that /show/web/ renders the Web service
+// configuration page. The handler (HandleWebServicePage) already existed but
+// renderPageContent never routed segWeb, so the link returned a 400 (F6).
+//
+// VALIDATES: AC-5 -- Services > Web nav link renders content, not "bad request".
+// PREVENTS: a nav entry with a working handler left unrouted.
+func TestWorkbenchWebServiceRoute(t *testing.T) {
+	renderer, err := NewRenderer()
+	assert.NoError(t, err)
+	schema, schemaErr := config.YANGSchema()
+	assert.NoError(t, schemaErr)
+
+	handler := HandleWorkbench(renderer, schema, config.NewTree(), nil, true)
+	req := httptest.NewRequest(http.MethodGet, "/show/web/", http.NoBody)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	html := rec.Body.String()
+	assert.NotContains(t, html, "bad request")
+	assert.Contains(t, html, "Web Configuration", "Web service link must render the web config page")
+}
+
+// TestBGPPeerDetailRoute verifies that /show/bgp/peer/<name>/ renders the single
+// peer's detail (generic YANG view), not the whole peers table (F7). The table
+// lists every peer; the detail is scoped to one, so peer-b must not appear when
+// viewing peer-a.
+//
+// VALIDATES: AC-6 -- peer row Edit opens that peer, not the table.
+// PREVENTS: bgp/peer/<name> matching the table handler regardless of depth.
+func TestBGPPeerDetailRoute(t *testing.T) {
+	renderer, err := NewRenderer()
+	assert.NoError(t, err)
+	schema, schemaErr := config.YANGSchema()
+	assert.NoError(t, schemaErr)
+	tree := buildTestBGPTree()
+
+	handler := HandleWorkbench(renderer, schema, tree, nil, true)
+
+	// The table at /show/bgp/peer/ lists all peers.
+	tableReq := httptest.NewRequest(http.MethodGet, "/show/bgp/peer/", http.NoBody)
+	tableRec := httptest.NewRecorder()
+	handler.ServeHTTP(tableRec, tableReq)
+	assert.Equal(t, http.StatusOK, tableRec.Code)
+	tableHTML := tableRec.Body.String()
+	assert.Contains(t, tableHTML, "BGP Peers", "table view shows the peers table title")
+	assert.Contains(t, tableHTML, "peer-a")
+	assert.Contains(t, tableHTML, "peer-b")
+
+	// The detail at /show/bgp/peer/peer-a/ is scoped to peer-a only.
+	detailReq := httptest.NewRequest(http.MethodGet, "/show/bgp/peer/peer-a/", http.NoBody)
+	detailRec := httptest.NewRecorder()
+	handler.ServeHTTP(detailRec, detailReq)
+	assert.Equal(t, http.StatusOK, detailRec.Code)
+	detailHTML := detailRec.Body.String()
+	assert.Contains(t, detailHTML, "peer-a", "detail view shows the selected peer")
+	assert.NotContains(t, detailHTML, "peer-b",
+		"detail must be scoped to peer-a; listing peer-b means it rendered the table")
+}
+
+// TestWorkbenchNavAllRoutes walks every URL declared in the left-nav sections()
+// and asserts each renders 200 with shell content and no "bad request" — the
+// regression guard for F6 (dead nav links). Dead entries that mapped to no real
+// config area were removed from sections(); the survivors must all resolve.
+//
+// VALIDATES: AC-5 -- every nav link returns 200 + non-empty content.
+// PREVENTS: a nav entry pointing at a path with no page handler or YANG target.
+func TestWorkbenchNavAllRoutes(t *testing.T) {
+	renderer, err := NewRenderer()
+	assert.NoError(t, err)
+	schema, schemaErr := config.YANGSchema()
+	assert.NoError(t, schemaErr)
+	tree := buildTestBGPTree()
+
+	handler := HandleWorkbench(renderer, schema, tree, nil, true)
+
+	for _, def := range sections() {
+		for _, child := range def.children {
+			t.Run(def.key+"_"+child.Key, func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodGet, child.URL, http.NoBody)
+				rec := httptest.NewRecorder()
+				handler.ServeHTTP(rec, req)
+
+				assert.Equal(t, http.StatusOK, rec.Code,
+					"nav %q (%s) must return 200", child.Label, child.URL)
+				body := rec.Body.String()
+				assert.NotContains(t, body, "bad request",
+					"nav %q (%s) must not render a bad-request page", child.Label, child.URL)
+				assert.Contains(t, body, "workbench-shell",
+					"nav %q (%s) must render inside the workbench shell", child.Label, child.URL)
+			})
+		}
+	}
+}
+
+// TestFaviconHandlerServesAsset verifies /favicon.ico is served from assets with
+// a 200 and an image content type, instead of falling through the catch-all to
+// an error redirect on every page view (F14/AC-15).
+func TestFaviconHandlerServesAsset(t *testing.T) {
+	renderer, err := NewRenderer()
+	assert.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/favicon.ico", http.NoBody)
+	rec := httptest.NewRecorder()
+	renderer.FaviconHandler().ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Header().Get("Content-Type"), "image/svg+xml")
+	assert.NotEmpty(t, rec.Body.Bytes(), "favicon body must not be empty")
+	assert.NotContains(t, rec.Body.String(), "error=", "favicon must not be an error redirect")
+}
+
 // TestHandleWorkbench_BadPathReturns400 verifies that a path containing
 // invalid YANG-identifier characters is rejected before any rendering work
 // happens. The shared ValidatePathSegments helper is the gate.

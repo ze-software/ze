@@ -7,6 +7,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestHumanizeFieldLabel verifies raw YANG field paths become friendly labels
+// for the Add-entry overlay, upper-casing common networking acronyms (F16).
+func TestHumanizeFieldLabel(t *testing.T) {
+	cases := map[string]string{
+		"connection/remote/ip": "Connection Remote IP",
+		"connection/local/ip":  "Connection Local IP",
+		"session/asn/local":    "Session ASN Local",
+		"router-id":            "Router ID",
+		"name":                 "Name",
+		"ipv4/unicast":         "IPv4 Unicast",
+	}
+	for in, want := range cases {
+		assert.Equal(t, want, humanizeFieldLabel(in), "humanizeFieldLabel(%q)", in)
+	}
+}
+
 // TestRenderWorkbenchForm renders a form with multiple field types and verifies
 // the form structure, field labels, Save and Discard buttons.
 func TestRenderWorkbenchForm(t *testing.T) {

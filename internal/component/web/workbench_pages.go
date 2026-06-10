@@ -55,7 +55,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 		return HandleUsersPage(renderer, viewTree), true
 	case segL2TP:
 		return renderL2TPPageContent(renderer, path[1:], viewTree)
-	case segSSH, segTelemetry, segTACACS, segMCP, segLG, segAPI:
+	case segSSH, segWeb, segTelemetry, segTACACS, segMCP, segLG, segAPI:
 		return renderServicePageContent(renderer, path[0], viewTree)
 	case "vpn":
 		return renderVPNPageContent(renderer, r, path[1:])
@@ -83,8 +83,15 @@ func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, vi
 
 	switch path[0] {
 	case bgpPeerSegment:
-		filterGroup := r.URL.Query().Get(bgpGroupSegment)
-		return HandleBGPPeersPage(renderer, viewTree, filterGroup), true
+		// /show/bgp/peer/ shows the peers table; /show/bgp/peer/<name>/ falls
+		// through to the generic YANG detail view (the peer's editable config),
+		// mirroring how bgp/group/<name> is handled below. Without this, the
+		// peer row "Edit" link re-rendered the whole table instead of the peer.
+		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
+			filterGroup := r.URL.Query().Get(bgpGroupSegment)
+			return HandleBGPPeersPage(renderer, viewTree, filterGroup), true
+		}
+		return "", false
 	case bgpGroupSegment:
 		// /show/bgp/group/ shows the groups table.
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {

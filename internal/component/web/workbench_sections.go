@@ -99,12 +99,9 @@ func sections() []sectionDef {
 			{Key: "groups", Label: "Groups", URL: "/show/bgp/group/"},
 			{Key: "families", Label: "Families", URL: "/show/bgp/family/"},
 			{Key: "summary", Label: "Summary", URL: "/show/bgp/summary/"},
-			{Key: "redistribute", Label: "Redistribute", URL: "/show/redistribute/"},
 		}},
 		{key: segPolicy, label: "Policy", children: []WorkbenchSubPage{
 			{Key: "filters", Label: "Filters", URL: "/show/bgp/policy/"},
-			{Key: "communities", Label: "Communities", URL: "/show/bgp/community/"},
-			{Key: "prefix-lists", Label: "Prefix Lists", URL: "/show/bgp/prefix-list/"},
 		}},
 		{key: segFirewall, label: "Firewall", children: []WorkbenchSubPage{
 			{Key: "tables", Label: "Tables", URL: "/show/firewall/"},
@@ -225,27 +222,15 @@ func selectChild(section *WorkbenchSection, currentPath []string) {
 			return
 		}
 	case segRouting:
-		if first != segBGP && first != "redistribute" {
-			return
-		}
-		// bgp/policy and bgp/community and bgp/prefix-list belong to Policy.
-		if first == segBGP && len(currentPath) > 1 {
-			switch currentPath[1] {
-			case segPolicy, "community", "prefix-list":
-				return
-			}
-		}
-	case segPolicy:
 		if first != segBGP {
 			return
 		}
-		if len(currentPath) < 2 {
+		// bgp/policy belongs to the Policy section, not Routing.
+		if len(currentPath) > 1 && currentPath[1] == segPolicy {
 			return
 		}
-		switch currentPath[1] {
-		case segPolicy, "community", "prefix-list":
-			// matches
-		default:
+	case segPolicy:
+		if first != segBGP || len(currentPath) < 2 || currentPath[1] != segPolicy {
 			return
 		}
 	case segFirewall:
