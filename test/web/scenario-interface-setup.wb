@@ -21,8 +21,8 @@ action=wait:ms=1000
 expect=element:text=web-eth0
 expect=element:text=Review & Commit
 
-action=click:text=web-eth0
-action=wait:ms=500
+action=open:path=/show/interface/ethernet/web-eth0/
+action=wait
 expect=element:id=field-mtu
 action=fill:id=field-mtu:value=1500
 action=click:text=Save

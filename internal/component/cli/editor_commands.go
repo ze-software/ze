@@ -242,9 +242,21 @@ func (e *Editor) DeleteByPath(fullPath []string) error {
 		}
 	}
 
-	// Not a list entry: try leaf delete, then container delete
+	// Not a list entry: resolve the target node from schema so session mode
+	// preserves container deletes as structural ops instead of misrecording them
+	// as leaf deletes.
 	target := fullPath[len(fullPath)-1]
 	parentPath := fullPath[:len(fullPath)-1]
+	parentSchema := e.walkSchema(parentPath)
+	if parentSchema != nil {
+		switch parentSchema.Get(target).(type) {
+		case *config.LeafNode, *config.FreeformNode,
+			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode:
+			return e.DeleteValue(parentPath, target)
+		case *config.ContainerNode, *config.FlexNode:
+			return e.DeleteContainer(parentPath, target)
+		}
+	}
 
 	if err := e.DeleteValue(parentPath, target); err != nil {
 		if errC := e.DeleteContainer(parentPath, target); errC != nil {
@@ -258,7 +270,8 @@ func (e *Editor) DeleteByPath(fullPath []string) error {
 // at the end of the path (or nil if any element is not found or not navigable).
 func (e *Editor) walkSchema(path []string) schemaGetter {
 	var current schemaGetter = e.schema
-	for _, name := range path {
+	for i := 0; i < len(path); i++ {
+		name := path[i]
 		node := current.Get(name)
 		if node == nil {
 			return nil
@@ -268,11 +281,18 @@ func (e *Editor) walkSchema(path []string) schemaGetter {
 			current = n
 		case *config.ListNode:
 			current = n
+			if i+1 < len(path) && n.Get(path[i+1]) == nil {
+				i++
+			}
 		case *config.FlexNode:
 			current = n
+		case *config.InlineListNode:
+			current = n
+			if i+1 < len(path) && n.Get(path[i+1]) == nil {
+				i++
+			}
 		case *config.LeafNode, *config.FreeformNode,
-			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode,
-			*config.InlineListNode:
+			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode:
 			return nil // Can't navigate into leaf nodes
 		}
 	}

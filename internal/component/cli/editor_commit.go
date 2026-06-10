@@ -184,11 +184,14 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	// Also clean up the per-user change file now that structural ops are committed.
 	guard.Remove(changePath) //nolint:errcheck // Best effort
 
-	// Update in-memory state.
+	// Update in-memory state to the committed config and clear any stale dirty
+	// markers or saved edit snapshots from the pre-commit working tree.
 	e.originalContent = committedOutput
+	e.workingContent = committedOutput
 	e.tree = committedTree
 	e.meta = commitMeta
 	e.dirty.Store(false)
+	e.deleteEditFile()
 
 	return &CommitResult{Applied: applied, MigrationWarning: migrationWarning}, nil
 }

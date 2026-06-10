@@ -5,6 +5,11 @@
 # Python plugin dispatches resolve ping 127.0.0.1 via engine API and verifies
 # the response contains success output.
 
+# The raw-ICMP resolve ping path currently has no unprivileged darwin
+# equivalent in the test runner environment, so skip there like other
+# raw-socket suites.
+option=skip-os:value=darwin
+
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=20s

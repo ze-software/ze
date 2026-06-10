@@ -52,10 +52,11 @@ func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
 
 	for i := 1; i < len(tokens); i++ {
 		part := tokens[i]
-		if entry.Dir == nil {
+		children := effectiveChildren(entry)
+		if len(children) == 0 {
 			return nil, fmt.Errorf("unknown path: %s", textbuf.Join(tokens[:i+1], " "))
 		}
-		child, ok := entry.Dir[part]
+		child, ok := children[part]
 		if !ok {
 			return nil, fmt.Errorf("unknown path: %s", textbuf.Join(tokens[:i+1], " "))
 		}
@@ -70,7 +71,8 @@ func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
 				return nil, fmt.Errorf("%s is a list — requires a key (e.g., %s <key> ...)", part, part)
 			}
 			nextToken := tokens[i+1]
-			_, isChild := entry.Dir[nextToken]
+			children := effectiveChildren(entry)
+			_, isChild := children[nextToken]
 			isKeyLeaf := entry.Key == nextToken
 			if isChild && !isKeyLeaf {
 				return nil, fmt.Errorf("%s is a list — requires a key (e.g., %s <key> %s ...)", part, part, nextToken)

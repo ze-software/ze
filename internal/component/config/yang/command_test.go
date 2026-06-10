@@ -363,19 +363,24 @@ func TestCommitNoEditShortcut(t *testing.T) {
 	assert.False(t, HasEditShortcutExtension(entry.Dir["commit"]), "ze-bgp:commit is NOT an edit shortcut")
 }
 
-// TestLogCmdModule verifies ze-cli-log-cmd.yang (log operations from cmd/log plugin).
+// TestLogCmdModule verifies the bare anchor and relocated log command module.
 //
-// VALIDATES: Log command YANG module loads with log > levels and log > set nodes.
-// PREVENTS: Log commands missing from the command tree.
+// VALIDATES: Central cmd/log schema is anchor-only and log commands live in ze-log-cmd.
+// PREVENTS: Plugin self-containment regressions for log commands.
 func TestLogCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	loadCmdModule(t, loader, cmdBase+"log/yang/ze-cli-log-cmd.yang")
+	loadCmdModule(t, loader, "../../../plugins/log/yang/ze-log-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-cli-log-cmd")
+	anchor := loader.GetEntry("ze-cli-log-cmd")
+	require.NotNil(t, anchor)
+	assert.Empty(t, anchor.Dir, "ze-cli-log-cmd is a bare anchor after relocation")
+
+	entry := loader.GetEntry("ze-log-cmd")
 	require.NotNil(t, entry)
 
 	show := entry.Dir["show"]
@@ -469,9 +474,7 @@ func TestCliUpdateCmdModule(t *testing.T) {
 	assert.Equal(t, "", GetCommandExtension(update), "update is a grouping, no handler")
 
 	assert.Nil(t, update.Dir["bgp"], "update > bgp must not exist (update bgp peer prefix removed)")
-
-	sys := update.Dir["system"]
-	require.NotNil(t, sys, "update > system must exist")
+	assert.Nil(t, update.Dir["system"], "update anchor is bare after firmware command relocation")
 }
 
 // TestCliSetCmdModule verifies ze-cli-set-cmd.yang (set verb from cmd/set).
@@ -494,9 +497,7 @@ func TestCliSetCmdModule(t *testing.T) {
 	assert.Equal(t, "", GetCommandExtension(set), "set is a grouping, no handler")
 
 	assert.Nil(t, set.Dir["bgp"], "set > bgp must not exist (set bgp peer with/save removed)")
-
-	sys := set.Dir["system"]
-	require.NotNil(t, sys, "set > system must exist")
+	assert.Nil(t, set.Dir["system"], "set anchor is bare after host command relocation")
 }
 
 // TestPeerCmdModuleOwnsDeleteBgpPeer verifies the BGP peer command owner declares
@@ -1087,15 +1088,19 @@ func TestArgDefsPopulated(t *testing.T) {
 	// ping feature module, the show traceroute / show probe-round nodes are
 	// owned by the dedicated traceroute feature module, and the show dns
 	// lookup/cache nodes are owned by the resolve component, so those command
-	// modules live next to their owners rather than in the central show schema.
 	cmdFiles := []string{
 		cmdBase + "show/yang/ze-cli-show-cmd.yang",
 		cmdBase + "set/yang/ze-cli-set-cmd.yang",
 		cmdBase + "log/yang/ze-cli-log-cmd.yang",
 		"../../../component/iface/yang/ze-iface-show-cmd.yang",
-		"../../../component/ping/yang/ze-ping-cmd.yang",
-		"../../../component/traceroute/yang/ze-traceroute-cmd.yang",
-		"../../../component/resolve/yang/ze-resolve-cmd.yang",
+		"../../../plugins/crashes/yang/ze-crashes-cmd.yang",
+		"../../../plugins/diag/yang/ze-diag-cmd.yang",
+		"../../../plugins/host-cmd/yang/ze-host-cmd.yang",
+		"../../../plugins/host-cmd/yang/ze-host-set-cmd.yang",
+		"../../../plugins/log/yang/ze-log-cmd.yang",
+		"../../../plugins/ping-cmd/yang/ze-ping-cmd.yang",
+		"../../../plugins/resolve-cmd/yang/ze-resolve-cmd.yang",
+		"../../../plugins/traceroute-cmd/yang/ze-traceroute-cmd.yang",
 	}
 	for _, path := range cmdFiles {
 		loadCmdModule(t, loader, path)

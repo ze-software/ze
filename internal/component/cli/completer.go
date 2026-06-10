@@ -140,7 +140,7 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 		if entry != nil && entry.Dir != nil {
 			for _, name := range c.getSortedChildren(entry) {
 				if strings.HasPrefix(name, cmd) {
-					child := entry.Dir[name]
+					child := effectiveChild(entry, name)
 					if !c.backendAllowed(child) {
 						continue
 					}
@@ -637,10 +637,8 @@ func (c *Completer) navigateTreeToPath(contextPath []string) *config.Tree {
 			part = contextPath[0]
 		} else {
 			part = contextPath[i]
-			if entry.Dir == nil {
-				return nil
-			}
-			child, ok := entry.Dir[part]
+			children := effectiveChildren(entry)
+			child, ok := children[part]
 			if !ok {
 				return nil
 			}
@@ -650,7 +648,8 @@ func (c *Completer) navigateTreeToPath(contextPath []string) *config.Tree {
 		// If this is a list, next path element is the key value
 		if entry.IsList() && i+1 < len(contextPath) {
 			nextPart := contextPath[i+1]
-			if _, hasChild := entry.Dir[nextPart]; !hasChild {
+			children := effectiveChildren(entry)
+			if _, hasChild := children[nextPart]; !hasChild {
 				// Next element is a list key — navigate into the list entry
 				entries := tree.GetList(part)
 				if entries == nil {
@@ -701,7 +700,7 @@ func (c *Completer) matchChildren(path []string, prefix string) []Completion {
 			continue // Skip list key — already set as the identifier
 		}
 		if prefix == "" || strings.HasPrefix(name, prefix) {
-			child := entry.Dir[name]
+			child := effectiveChild(entry, name)
 			if !c.backendAllowed(child) {
 				continue
 			}
@@ -729,7 +728,7 @@ func (c *Completer) matchEditTargets(path []string, prefix string) []Completion 
 
 	for _, name := range children {
 		if prefix == "" || strings.HasPrefix(name, prefix) {
-			child := entry.Dir[name]
+			child := effectiveChild(entry, name)
 			if !c.backendAllowed(child) {
 				continue
 			}
@@ -965,10 +964,8 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 	// Navigate through remaining path, handling list keys
 	for i := 1; i < len(path); i++ {
 		part := path[i]
-		if entry.Dir == nil {
-			return nil
-		}
-		child, ok := entry.Dir[part]
+		children := effectiveChildren(entry)
+		child, ok := children[part]
 		if !ok {
 			return nil
 		}
@@ -980,7 +977,8 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 		// and used as a key value in config paths (e.g., "peer name" where "name" is the key).
 		if entry.IsList() && i+1 < len(path) {
 			nextPart := path[i+1]
-			_, hasChild := entry.Dir[nextPart]
+			children := effectiveChildren(entry)
+			_, hasChild := children[nextPart]
 			isKeyLeaf := entry.Key == nextPart
 			if !hasChild || isKeyLeaf {
 				// Next element is a key value, skip it
@@ -1067,13 +1065,74 @@ func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
 	return &merged
 }
 
-// getSortedChildren returns sorted child names.
-func (c *Completer) getSortedChildren(entry *gyang.Entry) []string {
+func effectiveChildren(entry *gyang.Entry) map[string]*gyang.Entry {
 	if entry == nil || entry.Dir == nil {
 		return nil
 	}
-	children := make([]string, 0, len(entry.Dir))
-	for name := range entry.Dir {
+	out := make(map[string]*gyang.Entry, len(entry.Dir))
+	var walk func(node *gyang.Entry)
+	walk = func(node *gyang.Entry) {
+		if node == nil || node.Dir == nil {
+			return
+		}
+		for name, child := range node.Dir {
+			if child == nil {
+				continue
+			}
+			if child.IsChoice() || child.IsCase() {
+				walk(child)
+				continue
+			}
+			if existing, ok := out[name]; ok {
+				out[name] = mergeAugmentedEntries([]*gyang.Entry{existing, child})
+				continue
+			}
+			out[name] = child
+		}
+	}
+	walk(entry)
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func effectiveChild(entry *gyang.Entry, name string) *gyang.Entry {
+	if entry == nil || entry.Dir == nil {
+		return nil
+	}
+	var find func(node *gyang.Entry) *gyang.Entry
+	find = func(node *gyang.Entry) *gyang.Entry {
+		if node == nil || node.Dir == nil {
+			return nil
+		}
+		for k, child := range node.Dir {
+			if child == nil {
+				continue
+			}
+			if child.IsChoice() || child.IsCase() {
+				if found := find(child); found != nil {
+					return found
+				}
+				continue
+			}
+			if k == name {
+				return child
+			}
+		}
+		return nil
+	}
+	return find(entry)
+}
+
+// getSortedChildren returns sorted child names.
+func (c *Completer) getSortedChildren(entry *gyang.Entry) []string {
+	childrenMap := effectiveChildren(entry)
+	if len(childrenMap) == 0 {
+		return nil
+	}
+	children := make([]string, 0, len(childrenMap))
+	for name := range childrenMap {
 		children = append(children, name)
 	}
 	sort.Strings(children)

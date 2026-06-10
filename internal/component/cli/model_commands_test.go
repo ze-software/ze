@@ -1220,6 +1220,40 @@ func TestSetRejectsConfigFalse(t *testing.T) {
 	assert.Contains(t, err.Error(), "read-only")
 }
 
+// TestSetListKeyKeywordThenChild verifies that a list entry created through the
+// key-leaf keyword can immediately accept child leaf updates.
+//
+// VALIDATES: "set ... next hop address <ip>" followed by "set ... next hop <ip> weight 2".
+// PREVENTS: keyed entry creation from dropping the next status update or child mutation.
+func TestSetListKeyKeywordThenChild(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	content := `static {
+  table default {
+    route 0.0.0.0/0 {
+      next { }
+    }
+  }
+}`
+	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.dispatchCommand("set static table default route 0.0.0.0/0 next hop address 10.104.1.254")
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "created hop 10.104.1.254")
+
+	result, err = model.dispatchCommand("set static table default route 0.0.0.0/0 next hop 10.104.1.254 weight 2")
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "set")
+	assert.Contains(t, ed.WorkingContent(), "weight 2")
+}
+
 // TestSetRejectsMissingListKey verifies set rejects a list path without a key.
 //
 // VALIDATES: spec-editor-2 AC-3: "set bgp peer timer receive-hold-time 90" (missing key) → error.
@@ -1822,6 +1856,47 @@ func TestCmdCommitSessionReload(t *testing.T) {
 	assert.True(t, notified, "reload notifier should be called")
 	assert.Contains(t, result.statusMessage, "reloaded", "status should mention reloaded")
 	assert.False(t, ed.Dirty(), "editor should be clean after successful transactional session commit")
+}
+
+// TestCmdCommitSessionDeleteContainerClearsDirty verifies that a session commit
+// of a container deletion leaves the editor clean.
+//
+// VALIDATES: delete container + commit clears dirty state in session mode.
+// PREVENTS: committed container deletions lingering as unsaved changes.
+func TestCmdCommitSessionDeleteContainerClearsDirty(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	content := `bgp {
+  session {
+    asn { local 65000; }
+  }
+  router-id 1.2.3.4;
+  peer peer1 {
+    connection { remote { ip 1.1.1.1; } }
+    session { asn { remote 65001; } }
+    timer { receive-hold-time 90; }
+  }
+}`
+	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	ed.SetSession(NewEditSession("thomas", "local"))
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.dispatchCommand("delete bgp peer peer1 timer")
+	require.NoError(t, err)
+	changeData, readErr := ed.store.ReadFile(ChangePath(configPath, "thomas"))
+	require.NoError(t, readErr)
+	assert.Contains(t, string(changeData), "delete-container bgp peer peer1 timer")
+
+	result, err := model.cmdCommitSession()
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "change(s) applied")
+	assert.False(t, ed.Dirty(), "status=%q working=%q original=%q", result.statusMessage, ed.WorkingContent(), ed.OriginalContent())
 }
 
 // TestCmdCommitSessionReloadFails verifies session commit rejects reload failure.
