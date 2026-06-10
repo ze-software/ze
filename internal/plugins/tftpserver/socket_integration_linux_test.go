@@ -80,7 +80,7 @@ func tftpFetch(t *testing.T, srvAddr *net.UDPAddr, filename string) ([]byte, err
 	var out bytes.Buffer
 	var tid *net.UDPAddr
 	expect := uint16(1)
-	buf := make([]byte, 4+blockSize)
+	buf := make([]byte, 4+defaultBlockSize)
 
 	for {
 		if err := cli.SetReadDeadline(time.Now().Add(3 * time.Second)); err != nil {
@@ -117,7 +117,7 @@ func tftpFetch(t *testing.T, srvAddr *net.UDPAddr, filename string) ([]byte, err
 			t.Fatalf("send ACK: %v", err)
 		}
 
-		if n-4 < blockSize {
+		if n-4 < defaultBlockSize {
 			return out.Bytes(), nil // final (short) block
 		}
 		expect++
