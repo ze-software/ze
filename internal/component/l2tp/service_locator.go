@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- CLI service locator
+// Design: docs/guide/l2tp.md -- CLI service locator
 // Related: subsystem.go -- sole publisher
 // Related: subsystem_snapshot.go -- the published value's methods
 

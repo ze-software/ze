@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-1-radius-attributes.md -- session/idle timeout tests
+// Design: plan/learned/666-bng-1-radius-attributes.md -- session/idle timeout tests
 
 package l2tp
 

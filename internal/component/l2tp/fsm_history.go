@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-2-event-history.md -- L2TP tunnel/session FSM history
+// Design: plan/learned/665-diag-2-event-history.md -- L2TP tunnel/session FSM history
 
 package l2tp
 

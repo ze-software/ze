@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- runtime profiling via runtime/pprof
+// Design: plan/learned/727-diag-core.md -- runtime profiling via runtime/pprof
 // Related: system.go -- existing system memory/cpu handlers
 
 package show

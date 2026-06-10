@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- subsystem read/write façade for CLI
+// Design: docs/guide/l2tp.md -- subsystem read/write façade for CLI
 // Related: subsystem.go -- owns the reactor slice this file reads from
 // Related: snapshot.go -- reactor-scoped read API this file aggregates
 

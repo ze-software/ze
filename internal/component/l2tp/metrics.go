@@ -1,4 +1,4 @@
-// Design: plan/spec-l2tp-10-metrics.md -- Prometheus metrics exposure
+// Design: plan/learned/661-l2tp-10-metrics.md -- Prometheus metrics exposure
 // Related: observer.go -- CQM ring buffers that feed histogram/gauge metrics
 // Related: subsystem.go -- Start/Stop wires metrics registration and poller
 

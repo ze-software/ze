@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- process memory map from /proc/self/status (pmap replacement)
+// Design: plan/learned/727-diag-core.md -- process memory map from /proc/self/status (pmap replacement)
 // Related: system.go -- existing Go runtime memory stats
 //
 //go:build linux

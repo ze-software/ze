@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // buildFullCommunityAttr builds a full COMMUNITY attribute (flags+code+extlen+data) for handler tests.
@@ -43,7 +43,7 @@ func TestCommunityAttrModHandlerAdd(t *testing.T) {
 	// Op: add community 2:2
 	addBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(addBuf, 0x0002_0002)
-	ops := []registry.AttrOp{{Code: byte(attribute.AttrCommunity), Action: registry.AttrModAdd, Buf: addBuf}}
+	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
 	buf := make([]byte, 256)
 	off := communityAttrModHandler(src, ops, buf, 0)
@@ -72,7 +72,7 @@ func TestCommunityAttrModHandlerRemove(t *testing.T) {
 	// Op: remove 1:1
 	rmBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(rmBuf, 0x0001_0001)
-	ops := []registry.AttrOp{{Code: byte(attribute.AttrCommunity), Action: registry.AttrModRemove, Buf: rmBuf}}
+	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModRemove, Buf: rmBuf}}
 
 	buf := make([]byte, 256)
 	off := communityAttrModHandler(src, ops, buf, 0)
@@ -93,7 +93,7 @@ func TestCommunityAttrModHandlerRemoveAll(t *testing.T) {
 
 	rmBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(rmBuf, 0x0001_0001)
-	ops := []registry.AttrOp{{Code: byte(attribute.AttrCommunity), Action: registry.AttrModRemove, Buf: rmBuf}}
+	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModRemove, Buf: rmBuf}}
 
 	buf := make([]byte, 256)
 	off := communityAttrModHandler(src, ops, buf, 0)
@@ -109,7 +109,7 @@ func TestCommunityAttrModHandlerRemoveAll(t *testing.T) {
 func TestCommunityAttrModHandlerCreateAbsent(t *testing.T) {
 	addBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(addBuf, 0x0003_0003)
-	ops := []registry.AttrOp{{Code: byte(attribute.AttrCommunity), Action: registry.AttrModAdd, Buf: addBuf}}
+	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
 	buf := make([]byte, 256)
 	off := communityAttrModHandler(nil, ops, buf, 0) // nil src = attribute absent
@@ -128,7 +128,7 @@ func TestCommunityAttrModHandlerCreateAbsent(t *testing.T) {
 func TestCommunityAttrModHandlerBoundsCheck(t *testing.T) {
 	addBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(addBuf, 0x0001_0001)
-	ops := []registry.AttrOp{{Code: byte(attribute.AttrCommunity), Action: registry.AttrModAdd, Buf: addBuf}}
+	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
 	tinyBuf := make([]byte, 4) // Too small for header(4) + data(4)
 	off := communityAttrModHandler(nil, ops, tinyBuf, 0)
@@ -145,7 +145,7 @@ func TestLargeCommunityAttrModHandler(t *testing.T) {
 	binary.BigEndian.PutUint32(addBuf[0:4], 65000)
 	binary.BigEndian.PutUint32(addBuf[4:8], 1)
 	binary.BigEndian.PutUint32(addBuf[8:12], 2)
-	ops := []registry.AttrOp{{Code: byte(attribute.AttrLargeCommunity), Action: registry.AttrModAdd, Buf: addBuf}}
+	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrLargeCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
 	buf := make([]byte, 256)
 	off := largeCommunityAttrModHandler(nil, ops, buf, 0)
@@ -167,7 +167,7 @@ func TestLargeCommunityAttrModHandler(t *testing.T) {
 // PREVENTS: Wrong value size breaking extended community encoding.
 func TestExtCommunityAttrModHandler(t *testing.T) {
 	addBuf := []byte{0x00, 0x02, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64} // target:65000:100
-	ops := []registry.AttrOp{{Code: byte(attribute.AttrExtCommunity), Action: registry.AttrModAdd, Buf: addBuf}}
+	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrExtCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
 	buf := make([]byte, 256)
 	off := extCommunityAttrModHandler(nil, ops, buf, 0)
@@ -191,7 +191,7 @@ func TestCommunityAttrModHandlerSet(t *testing.T) {
 	// Set to 3:3 only (replaces everything).
 	setBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(setBuf, 0x0003_0003)
-	ops := []registry.AttrOp{{Code: byte(attribute.AttrCommunity), Action: registry.AttrModSet, Buf: setBuf}}
+	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModSet, Buf: setBuf}}
 
 	buf := make([]byte, 256)
 	off := communityAttrModHandler(src, ops, buf, 0)
@@ -219,7 +219,7 @@ func TestCommunityAttrModHandlerNonExtendedSrc(t *testing.T) {
 	// Add community 2:2
 	addBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(addBuf, 0x0002_0002)
-	ops := []registry.AttrOp{{Code: byte(attribute.AttrCommunity), Action: registry.AttrModAdd, Buf: addBuf}}
+	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
 	buf := make([]byte, 256)
 	off := communityAttrModHandler(src, ops, buf, 0)
@@ -252,7 +252,7 @@ func TestApplyEgressFilterOps(t *testing.T) {
 		egressTag:   []string{"tag-it"},
 	}
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	applyEgressFilter(defs, fc, &mods)
 
 	ops := mods.Ops()
@@ -260,11 +260,11 @@ func TestApplyEgressFilterOps(t *testing.T) {
 
 	// Strip comes first (strip-before-tag ordering).
 	assert.Equal(t, byte(attribute.AttrCommunity), ops[0].Code)
-	assert.Equal(t, registry.AttrModRemove, ops[0].Action)
+	assert.Equal(t, filterapi.AttrModRemove, ops[0].Action)
 	assert.Equal(t, stripWire, ops[0].Buf)
 
 	// Tag second.
 	assert.Equal(t, byte(attribute.AttrCommunity), ops[1].Code)
-	assert.Equal(t, registry.AttrModAdd, ops[1].Action)
+	assert.Equal(t, filterapi.AttrModAdd, ops[1].Action)
 	assert.Equal(t, tagWire, ops[1].Buf)
 }

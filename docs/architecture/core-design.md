@@ -594,7 +594,7 @@ Peer-down route inventory (withdrawal map) uses extract-then-forward: NLRI
 records are extracted as compact `netip.Prefix` values before forwarding,
 then string keys are produced off the forward critical path.
 
-<!-- source: internal/component/plugin/registry/registry.go -- ModAccumulator, EgressFilterFunc, IngressFilterFunc -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- ModAccumulator, EgressFilterFunc, IngressFilterFunc -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.ForwardCached, SetForwardCached -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
@@ -606,7 +606,7 @@ Per-peer inbound filtering runs in the reactor on every received UPDATE,
 Two filter chains run in order:
 
 1. **In-process ingress filters** (`reactor.ingressFilters`, registered via
-   `registry.IngressFilters()`). Signature
+   `filterapi.IngressFilters()`). Signature
    `func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)`.
    `accept=false` drops the route (no caching, no dispatch). A non-nil
    `modifiedPayload` REPLACES the original bytes for caching and downstream
@@ -634,7 +634,7 @@ depending on path); the original wire buffer is released when the
 filtering as well as egress.
 
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- ingress filter chain (line ~302) and import policy filter chain (line ~357) -->
-<!-- source: internal/component/plugin/registry/registry_bgp_filter.go -- IngressFilterFunc contract -->
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- IngressFilterFunc contract -->
 
 ### Route Metadata and Modification Accumulator
 
@@ -1245,7 +1245,7 @@ The system update surface is a single registered backend interface in `internal/
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateBackend platform selection -->
 
 The `ze-self-update` backend delegates to the existing passive `UpdateChecker` when only version checking is configured, and to `SelfUpdater` when auto-apply or restart policy is configured. This preserves the existing download, verification, staging, restart, and history code path.
-<!-- source: internal/component/config/system/backend_ze.go -- zeBackend wrapper -->
+<!-- source: internal/component/config/system/backend_ze_distro.go -- newZeBackend -->
 <!-- source: internal/component/config/system/update.go -- UpdateChecker -->
 <!-- source: internal/component/config/system/selfupdate.go -- SelfUpdater -->
 
@@ -1273,7 +1273,7 @@ Runtime: after `config-push` applies a new config, a 30-second health window mon
 <!-- source: cmd/ze/main.go -- cmdStart, checkPushedConfig, writeConfigActiveHash -->
 <!-- source: cmd/ze/pushed_config.go -- pushed config loading and validation -->
 <!-- source: cmd/ze/health_revert.go -- auto-revert health monitor -->
-<!-- source: cmd/ze/install/appliance/cmd_assemble.go -- last-known-good hash write -->
+<!-- source: internal/appliance/cmd_assemble.go -- assembleConfigTemplate -->
 
 ---
 

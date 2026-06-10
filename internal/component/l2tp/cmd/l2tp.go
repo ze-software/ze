@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- L2TP CLI handlers
+// Design: docs/guide/l2tp.md -- L2TP CLI handlers
 //
 // Package l2tp registers engine-side RPC handlers that expose the L2TP
 // subsystem's observability and teardown surface to the CLI. The L2TP

@@ -20,8 +20,11 @@ import (
 	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	bgpyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"
+	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
@@ -41,6 +44,11 @@ var (
 )
 
 func init() {
+	// The reactor raises these codes (reactor/session_health.go); the BGP
+	// subsystem owns its health row (ai/rules/plugin-self-containment.md).
+	health.Register("bgp", report.HealthProbeDegraded(
+		"session-stuck", "session-flap", "eor-timeout"))
+
 	_ = events.RegisterNamespace(bgpevents.Namespace,
 		bgpevents.EventUpdate, bgpevents.EventOpen, bgpevents.EventNotification,
 		bgpevents.EventKeepalive, bgpevents.EventRefresh, bgpevents.EventState,
@@ -49,6 +57,11 @@ func init() {
 		bgpevents.EventUpdateNotification,
 		events.DirectionSent, // "sent" is a config receive flag, not a true event type
 	)
+
+	// BGP owns the namespace for plugin-declared event types and
+	// namespace-less plugin RPC subscriptions; the plugin host stays
+	// protocol-neutral (ai/rules/plugin-self-containment.md).
+	zeplugin.RegisterDefaultEventNamespace(bgpevents.Namespace)
 
 	reg := registry.Registration{
 		Name:               "bgp",

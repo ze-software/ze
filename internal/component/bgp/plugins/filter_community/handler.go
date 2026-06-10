@@ -10,23 +10,23 @@ import (
 	"encoding/binary"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // communityAttrModHandler handles AttrModAdd/Remove for COMMUNITY (code 8, 4-byte values).
 // Called by buildModifiedPayload during the progressive build for egress forwarding.
 // src is the FULL attribute (flags+code+len+data), not just the value.
-func communityAttrModHandler(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+func communityAttrModHandler(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 	return genericCommunityHandler(attribute.AttrCommunity, 4, src, ops, buf, off)
 }
 
 // largeCommunityAttrModHandler handles AttrModAdd/Remove for LARGE_COMMUNITY (code 32, 12-byte values).
-func largeCommunityAttrModHandler(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+func largeCommunityAttrModHandler(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 	return genericCommunityHandler(attribute.AttrLargeCommunity, 12, src, ops, buf, off)
 }
 
 // extCommunityAttrModHandler handles AttrModAdd/Remove for EXTENDED_COMMUNITY (code 16, 8-byte values).
-func extCommunityAttrModHandler(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+func extCommunityAttrModHandler(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 	return genericCommunityHandler(attribute.AttrExtCommunity, 8, src, ops, buf, off)
 }
 
@@ -61,7 +61,7 @@ func extractAttrValue(src []byte) []byte {
 // Writes complete attribute (flags + code + extlen + value) into buf at off.
 // Returns new offset after written bytes, or off unchanged if attribute omitted.
 // Buf MUST NOT be retained beyond the call.
-func genericCommunityHandler(code attribute.AttributeCode, valueSize int, src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+func genericCommunityHandler(code attribute.AttributeCode, valueSize int, src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 	// Extract value portion from full attribute (strip header).
 	var data []byte
 	if src != nil {
@@ -74,17 +74,17 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, src []
 	// Apply ops: remove first, then add, then set (strip-before-tag within egress).
 	// Set intentionally overrides all prior Remove/Add ops.
 	for _, op := range ops {
-		if op.Action == registry.AttrModRemove {
+		if op.Action == filterapi.AttrModRemove {
 			data = removeValues(data, valueSize, op.Buf)
 		}
 	}
 	for _, op := range ops {
-		if op.Action == registry.AttrModAdd {
+		if op.Action == filterapi.AttrModAdd {
 			data = append(data, op.Buf...)
 		}
 	}
 	for _, op := range ops {
-		if op.Action == registry.AttrModSet {
+		if op.Action == filterapi.AttrModSet {
 			data = make([]byte, len(op.Buf))
 			copy(data, op.Buf)
 		}

@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- non-Linux stub for memory map
+// Design: plan/learned/727-diag-core.md -- non-Linux stub for memory map
 // Overview: memory_map_linux.go -- Linux implementation
 //
 //go:build !linux

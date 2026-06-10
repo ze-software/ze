@@ -1,12 +1,15 @@
-// Design: plan/spec-doctor-health-checks.md -- interface error counter monitoring
+// Design: plan/learned/768-doctor-health-checks.md -- interface error counter monitoring
 // Related: backend.go -- GetStats for counter reads
 // Related: iface.go -- InterfaceStats with RxErrors/TxErrors fields
 
 package iface
 
 import (
+	"context"
 	"sync"
+	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -103,4 +106,26 @@ func ResetErrorTracker() {
 	errorTracker.mu.Lock()
 	defer errorTracker.mu.Unlock()
 	errorTracker.prev = make(map[string]errorSnapshot)
+}
+
+// healthErrorProbe reports degraded while iface-errors warnings are active.
+var healthErrorProbe = report.HealthProbeDegraded(reportCodeIfaceErrors)
+
+// checkHealth sweeps interface error counters with a one-second guard, then
+// reports the iface-errors warning state. Registered from register.go so
+// deleting this component removes its health row.
+func checkHealth() (health.Status, string) {
+	done := make(chan struct{})
+	go func() {
+		CheckAllInterfaceErrors()
+		close(done)
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		return health.StatusDegraded, "interface error check timed out"
+	}
+	return healthErrorProbe()
 }

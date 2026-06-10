@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- offline CLI entry points
+// Design: docs/guide/l2tp.md -- offline CLI entry points
 
 package cli
 

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // buildTestAttrs creates raw attributes with ORIGIN + optional OTC.
@@ -431,7 +431,7 @@ func TestOTCIngressFilter(t *testing.T) {
 	}()
 
 	t.Run("no_config_passthrough", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99"), PeerAS: 65099}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99"), PeerAS: 65099}
 		payload := buildTestPayload(buildTestAttrs(65001), nil)
 		meta := make(map[string]any)
 		accept, modified := OTCIngressFilter(src, payload, meta)
@@ -446,7 +446,7 @@ func TestOTCIngressFilter(t *testing.T) {
 		setFilterState(map[string]*peerRoleConfig{
 			"10.0.0.50": {role: roleProvider},
 		}, nil, 0)
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50"), PeerAS: 65050}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50"), PeerAS: 65050}
 		meta := make(map[string]any)
 		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
 		assert.True(t, accept)
@@ -465,13 +465,13 @@ func TestOTCIngressFilter(t *testing.T) {
 	})
 
 	t.Run("reject_leak_from_customer", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
 		accept, _ := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65001), nil), make(map[string]any))
 		assert.False(t, accept)
 	})
 
 	t.Run("stamp_from_provider", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
 		meta := make(map[string]any)
 		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
 		assert.True(t, accept)
@@ -486,20 +486,20 @@ func TestOTCIngressFilter(t *testing.T) {
 	})
 
 	t.Run("accept_peer_otc_matches", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
 		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65003), nil), make(map[string]any))
 		assert.True(t, accept)
 		assert.Nil(t, modified)
 	})
 
 	t.Run("reject_peer_otc_mismatch", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
 		accept, _ := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65099), nil), make(map[string]any))
 		assert.False(t, accept)
 	})
 
 	t.Run("reject_malformed_otc", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
 		malformed := []byte{0x40, 0x01, 0x01, 0x00, 0xC0, 35, 3, 0x00, 0x01, 0x02}
 		accept, _ := OTCIngressFilter(src, buildTestPayload(malformed, nil), make(map[string]any))
 		assert.False(t, accept)
@@ -530,101 +530,101 @@ func TestOTCEgressFilter(t *testing.T) {
 	withOTC := buildTestPayload(buildTestAttrs(65001), nil)
 
 	t.Run("no_source_config_accept", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("no_export_no_otc_accept", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_to_customer_accept", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_to_provider_suppress", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
 		assert.False(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_to_rs_client_accept", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.13")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.13")}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_to_peer_suppress", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")}
 		assert.False(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("explicit_customer_peer_to_customer", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("explicit_customer_peer_to_provider", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
 		assert.False(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_unknown_to_untagged", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.6")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.14")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.6")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.14")}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_only_to_untagged_suppress", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.14")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.14")}
 		assert.False(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("otc_suppress_to_provider", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
 		assert.False(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
 	})
 
 	t.Run("otc_allow_to_customer", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
 		assert.True(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
 	})
 
 	t.Run("otc_suppress_to_peer", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")}
 		assert.False(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
 	})
 
 	t.Run("otc_suppress_to_rs", func(t *testing.T) {
 		setFilterRemoteRole("10.0.0.15", roleRS)
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.15")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.15")}
 		assert.False(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
 	})
 
 	t.Run("otc_allow_to_rs_client", func(t *testing.T) {
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.13")}
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.13")}
 		assert.True(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
 	})
 
 	t.Run("meta_wrong_type_not_suppressed", func(t *testing.T) {
 		// meta["src-role"] with wrong type (int instead of string) must NOT trigger Gao-Rexford suppression.
 		// Use noOTC payload: wire-bytes OTC check would suppress withOTC to Provider regardless of meta.
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, map[string]any{"src-role": 42}, nil),
 			"int src-role is not string -- Gao-Rexford must not trigger")
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, map[string]any{"src-role": true}, nil),
@@ -642,8 +642,8 @@ func TestOTCEgressFilter(t *testing.T) {
 
 	t.Run("src_role_customer_to_provider_suppress", func(t *testing.T) {
 		// src-role "customer" = we are customer = source IS Provider → suppress to Provider.
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
 		meta := map[string]any{"src-role": "customer"}
 		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
 			"src IS Provider (our role=customer), dest=provider: suppress")
@@ -651,8 +651,8 @@ func TestOTCEgressFilter(t *testing.T) {
 
 	t.Run("src_role_provider_to_provider_accept", func(t *testing.T) {
 		// src-role "provider" = we are provider = source IS Customer → accept to Provider.
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
 		meta := map[string]any{"src-role": "provider"}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
 			"src IS Customer (our role=provider), dest=provider: accept")
@@ -660,8 +660,8 @@ func TestOTCEgressFilter(t *testing.T) {
 
 	t.Run("src_role_provider_to_customer_accept", func(t *testing.T) {
 		// src-role "provider" = source IS Customer → accept to Customer.
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")} // customer
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")} // customer
 		meta := map[string]any{"src-role": "provider"}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
 			"src IS Customer (our role=provider), dest=customer: accept")
@@ -669,8 +669,8 @@ func TestOTCEgressFilter(t *testing.T) {
 
 	t.Run("src_role_peer_to_peer_suppress", func(t *testing.T) {
 		// src-role "peer" = source IS Peer → suppress to Peer.
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")} // peer
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")} // peer
 		meta := map[string]any{"src-role": "peer"}
 		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
 			"src IS Peer (our role=peer), dest=peer: suppress")
@@ -678,8 +678,8 @@ func TestOTCEgressFilter(t *testing.T) {
 
 	t.Run("src_role_peer_to_rs_suppress", func(t *testing.T) {
 		// src-role "peer" = source IS Peer → suppress to RS.
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.15")} // RS
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.15")} // RS
 		meta := map[string]any{"src-role": "peer"}
 		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
 			"src IS Peer (our role=peer), dest=RS: suppress")
@@ -687,8 +687,8 @@ func TestOTCEgressFilter(t *testing.T) {
 
 	t.Run("src_role_rs_client_to_provider_suppress", func(t *testing.T) {
 		// src-role "rs-client" = we are RS-client = source IS RS → suppress to Provider.
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
 		meta := map[string]any{"src-role": "rs-client"}
 		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
 			"src IS RS (our role=rs-client), dest=provider: suppress")
@@ -696,8 +696,8 @@ func TestOTCEgressFilter(t *testing.T) {
 
 	t.Run("src_role_rs_to_provider_accept", func(t *testing.T) {
 		// src-role "rs" = we are RS = source IS RS-Client → accept to Provider.
-		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
 		meta := map[string]any{"src-role": "rs"}
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
 			"src IS RS-Client (our role=rs), dest=provider: accept")
@@ -803,7 +803,7 @@ func TestLooseIngressFilter_IBGPNoRole_RouteWithOTC(t *testing.T) {
 	setFilterState(nil, nil, 0)
 	defer setFilterState(nil, nil, 0)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.100"), PeerAS: 65000}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.100"), PeerAS: 65000}
 	payload := buildTestPayload(buildTestAttrs(65001), nil) // route has OTC
 	accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
 	assert.True(t, accept, "IBGP peer without role: route with OTC should pass")
@@ -841,27 +841,27 @@ func TestEgressFilter_IBGPSourceToEBGPDest_WithOTC(t *testing.T) {
 	}()
 
 	// Source is IBGP peer (no config for this address), route has OTC.
-	ibgpSrc := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50"), PeerAS: 65000}
+	ibgpSrc := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50"), PeerAS: 65000}
 	withOTC := buildTestPayload(buildTestAttrs(65001), nil)
 
 	// OTC -> Provider: SUPPRESS (RFC 9234: routes with OTC must not propagate to providers).
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.200")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.200")}
 	assert.False(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP provider: suppress")
 
 	// OTC -> Customer: ALLOW (customer is downstream, OTC is fine).
-	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.201")}
+	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.201")}
 	assert.True(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP customer: allow")
 
 	// OTC -> Peer: SUPPRESS.
-	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.202")}
+	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.202")}
 	assert.False(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP peer: suppress")
 
 	// OTC -> RS: SUPPRESS.
-	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.203")}
+	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.203")}
 	assert.False(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP RS: suppress")
 
 	// OTC -> RS-Client: ALLOW (downstream).
-	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.204")}
+	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.204")}
 	assert.True(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP RS-client: allow")
 }
 
@@ -880,11 +880,11 @@ func TestEgressFilter_IBGPSourceToEBGPDest_NoOTC(t *testing.T) {
 		filterMu.Unlock()
 	}()
 
-	ibgpSrc := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50"), PeerAS: 65000}
+	ibgpSrc := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50"), PeerAS: 65000}
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 
 	for _, destAddr := range []string{"10.0.0.200", "10.0.0.201", "10.0.0.202"} {
-		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr(destAddr)}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr(destAddr)}
 		assert.True(t, OTCEgressFilter(ibgpSrc, dest, noOTC, nil, nil),
 			"route without OTC from IBGP to %s: should pass", destAddr)
 	}
@@ -917,21 +917,21 @@ func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 
 	// Route from configured peer (provider, export default) to provider dest: suppress (not in default set).
-	src1 := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest1 := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
+	src1 := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest1 := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
 	assert.False(t, OTCEgressFilter(src1, dest1, noOTC, nil, nil), "provider src, export default, to provider dest: suppress")
 
 	// Route from unconfigured peer (no role) WITH OTC to provider dest: SUPPRESS.
 	// RFC 9234 Section 5 egress rule 2: "If a route already contains the OTC Attribute,
 	// it MUST NOT be propagated to Providers, Peers, or RSes." (unconditional on source role)
-	src2 := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2")}
+	src2 := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2")}
 	assert.False(t, OTCEgressFilter(src2, dest1, withOTC, nil, nil), "no-role src with OTC to provider: suppress (RFC 9234 egress rule 2)")
 
 	// Route from unconfigured peer to provider dest without OTC: pass (no OTC, no filtering).
 	assert.True(t, OTCEgressFilter(src2, dest1, noOTC, nil, nil), "no-role src, no OTC to provider: pass")
 
 	// Route from unconfigured peer to untagged dest: always pass.
-	dest2 := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.20")}
+	dest2 := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.20")}
 	assert.True(t, OTCEgressFilter(src2, dest2, noOTC, nil, nil), "no-role src to untagged: pass")
 }
 
@@ -955,18 +955,18 @@ func TestOTCEgressStampMod(t *testing.T) {
 	}()
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
 	meta := map[string]any{"src-role": roleCustomer} // Our role for src peer is provider
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
 	assert.True(t, accept, "route should be accepted")
 
 	ops := mods.Ops()
 	require.Len(t, ops, 1, "should write exactly one AttrOp")
 	assert.Equal(t, otcAttrCode, ops[0].Code, "op code should be OTC (35)")
-	assert.Equal(t, registry.AttrModSet, ops[0].Action, "op action should be AttrModSet")
+	assert.Equal(t, filterapi.AttrModSet, ops[0].Action, "op action should be AttrModSet")
 	assert.Len(t, ops[0].Buf, 4, "op buf should be 4-byte ASN")
 	asn := binary.BigEndian.Uint32(ops[0].Buf)
 	assert.Equal(t, uint32(65000), asn, "OTC should be stamped with local ASN")
@@ -988,10 +988,10 @@ func TestOTCEgressNoStampProvider(t *testing.T) {
 	}()
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	accept := OTCEgressFilter(src, dest, noOTC, nil, &mods)
 	assert.True(t, accept)
 	assert.Equal(t, 0, mods.Len(), "no mod should be written for Provider destination")
@@ -1013,11 +1013,11 @@ func TestOTCEgressPreserveExisting(t *testing.T) {
 	}()
 
 	withOTC := buildTestPayload(buildTestAttrs(65001), nil)
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
 	meta := map[string]any{"src-role": roleCustomer}
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	accept := OTCEgressFilter(src, dest, withOTC, meta, &mods)
 	assert.True(t, accept)
 	assert.Equal(t, 0, mods.Len(), "no mod when OTC already present")
@@ -1039,11 +1039,11 @@ func TestOTCEgressStampLocalASN(t *testing.T) {
 	}()
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), PeerAS: 65002}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), PeerAS: 65002}
 	meta := map[string]any{"src-role": roleCustomer}
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	OTCEgressFilter(src, dest, noOTC, meta, &mods)
 
 	ops := mods.Ops()
@@ -1075,11 +1075,11 @@ func TestOTCEgressUnicastOnly(t *testing.T) {
 	attrs = append(attrs, mpReach...)
 	multicastPayload := buildTestPayload(attrs, nil)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
 	meta := map[string]any{"src-role": roleCustomer}
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	accept := OTCEgressFilter(src, dest, multicastPayload, meta, &mods)
 	assert.True(t, accept, "non-unicast always accepted")
 	assert.Equal(t, 0, mods.Len(), "no OTC mod for non-unicast")
@@ -1109,7 +1109,7 @@ func TestOTCIngressUnicastOnly(t *testing.T) {
 	attrs = append(attrs, mpReach...)
 	multicastPayload := buildTestPayload(attrs, nil)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 	meta := map[string]any{}
 	accept, modified := OTCIngressFilter(src, multicastPayload, meta)
 	assert.True(t, accept, "non-unicast always accepted even with OTC from Provider")
@@ -1119,7 +1119,7 @@ func TestOTCIngressUnicastOnly(t *testing.T) {
 // VALIDATES: AC-12 — otcAttrModHandler registered by attr code 35 via init().
 // PREVENTS: Progressive build cannot find OTC handler.
 func TestOTCAttrModHandlerRegisteredInRegistry(t *testing.T) {
-	handler := registry.AttrModHandlerFor(otcAttrCode)
+	handler := filterapi.AttrModHandlerFor(otcAttrCode)
 	require.NotNil(t, handler, "attr mod handler for code 35 must be registered via init()")
 }
 
@@ -1128,7 +1128,7 @@ func TestOTCAttrModHandlerRegisteredInRegistry(t *testing.T) {
 func TestOTCAttrModHandlerNewAttr(t *testing.T) {
 	asnBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(asnBuf, 65000)
-	ops := []registry.AttrOp{{Code: otcAttrCode, Action: registry.AttrModSet, Buf: asnBuf}}
+	ops := []filterapi.AttrOp{{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asnBuf}}
 
 	buf := make([]byte, 64)
 	newOff := otcAttrModHandler(nil, ops, buf, 0)
@@ -1148,7 +1148,7 @@ func TestOTCAttrModHandlerExistingPreserved(t *testing.T) {
 	srcOTC := buildOTCAttr(65001)
 	asnBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(asnBuf, 65000) // Different ASN in the op.
-	ops := []registry.AttrOp{{Code: otcAttrCode, Action: registry.AttrModSet, Buf: asnBuf}}
+	ops := []filterapi.AttrOp{{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asnBuf}}
 
 	buf := make([]byte, 64)
 	newOff := otcAttrModHandler(srcOTC[:], ops, buf, 0)
@@ -1163,7 +1163,7 @@ func TestOTCAttrModHandlerExistingPreserved(t *testing.T) {
 func TestOTCAttrModHandlerOverflow(t *testing.T) {
 	asnBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(asnBuf, 65000)
-	ops := []registry.AttrOp{{Code: otcAttrCode, Action: registry.AttrModSet, Buf: asnBuf}}
+	ops := []filterapi.AttrOp{{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asnBuf}}
 
 	buf := make([]byte, 3) // Too small for 7-byte OTC.
 	newOff := otcAttrModHandler(nil, ops, buf, 0)
@@ -1186,11 +1186,11 @@ func TestOTCEgressStampPeer(t *testing.T) {
 	}()
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
 	meta := map[string]any{"src-role": rolePeer}
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
 	// Peer-to-Peer with no OTC: Gao-Rexford suppresses (src=peer, dest=peer).
 	// RFC 9234 Section 3.1: Peer MAY only propagate Customer-learned or local routes to Peer.
@@ -1213,11 +1213,11 @@ func TestOTCEgressStampRSClient(t *testing.T) {
 	}()
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
 	meta := map[string]any{"src-role": roleCustomer}
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
 	assert.True(t, accept, "route to RS-client should be accepted")
 
@@ -1244,11 +1244,11 @@ func TestOTCEgressStampLocalASNZero(t *testing.T) {
 	}()
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
 	meta := map[string]any{"src-role": roleCustomer}
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
 	assert.True(t, accept)
 	assert.Equal(t, 0, mods.Len(), "no mod when localASN is 0")
@@ -1314,27 +1314,27 @@ func TestOTCEgressWireBytesCheck(t *testing.T) {
 		filterMu.Unlock()
 	}()
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50")}
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50")}
 	withOTC := buildTestPayload(buildTestAttrs(65001), nil)
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 
 	// Route WITH OTC to Provider: MUST NOT propagate (RFC 9234 Section 5 egress rule 2).
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.200")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.200")}
 	assert.False(t, OTCEgressFilter(src, dest, withOTC, nil, nil), "OTC to provider: suppress")
 
 	// Route WITH OTC to Peer: MUST NOT propagate.
-	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.202")}
+	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.202")}
 	assert.False(t, OTCEgressFilter(src, dest, withOTC, nil, nil), "OTC to peer: suppress")
 
 	// Route WITH OTC to RS: MUST NOT propagate.
-	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.203")}
+	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.203")}
 	assert.False(t, OTCEgressFilter(src, dest, withOTC, nil, nil), "OTC to RS: suppress")
 
 	// Route WITH OTC to Customer: allowed (downstream).
-	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.201")}
+	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.201")}
 	assert.True(t, OTCEgressFilter(src, dest, withOTC, nil, nil), "OTC to customer: allow")
 
 	// Route WITHOUT OTC to Provider: allowed (no OTC, no filtering from unconfigured src).
-	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.200")}
+	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.200")}
 	assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil), "no OTC to provider: allow")
 }

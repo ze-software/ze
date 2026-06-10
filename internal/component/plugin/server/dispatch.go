@@ -14,7 +14,6 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
@@ -281,11 +280,21 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 		proc.SetEncoding(input.Encoding)
 	}
 
-	bgpNS := events.LookupNamespaceID(bgpevents.Namespace)
+	// The subscribe-events RPC carries no namespace; subscriptions go into
+	// the default event namespace registered by the owning protocol
+	// component ("bgp" today). Without a registration the namespace ID is
+	// NamespaceUnknown and the subscription cannot match: log so the gap is
+	// visible instead of silently dropping events.
+	namespace := plugin.DefaultEventNamespace()
+	if namespace == "" {
+		logger().Warn("rpc event subscription: no default event namespace registered, subscriptions will not match (call plugin.RegisterDefaultEventNamespace from the protocol component's register.go)",
+			"plugin", proc.Name())
+	}
+	nsID := events.LookupNamespaceID(namespace)
 	for _, event := range input.Events {
 		eventType, direction := parseEventString(event)
 		sub := &Subscription{
-			Namespace: bgpNS,
+			Namespace: nsID,
 			EventType: eventType,
 			Direction: direction,
 		}

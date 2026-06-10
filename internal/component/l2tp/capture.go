@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-0-umbrella.md -- L2TP control packet capture ring
+// Design: plan/learned/673-diag-0-umbrella.md -- L2TP control packet capture ring
 // Related: reactor.go -- append on inbound/outbound control messages
 
 package l2tp

@@ -21,24 +21,16 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/cmd"                           // init() registers BFD show RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor"           // init() registers monitor streaming RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"               // init() registers RIB proxy RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
 	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/delete"    // init() registers del verb RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"   // init() registers metrics show/list RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show"      // init() registers show verb RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/config/archive/cmd" // init() registers config archive trigger RPC
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"      // init() registers interface show/migrate RPCs
 	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd" // init() registers ping RPCs; NewPingSession used below
-	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"     // init() registers all YANG schemas
+
+	// plugin/all is GENERATED (scripts/codegen/plugin_imports.go) and blank-
+	// imports every schema, RPC command, and plugin package -- including the
+	// verb/cmd packages this file used to enumerate by hand. Never re-add
+	// per-package blank imports here; regenerate with `make generate`.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	traceroutecmd "codeberg.org/thomas-mangin/ze/internal/component/traceroute/cmd" // init() registers traceroute RPCs; NewTracerouteSession used below
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"

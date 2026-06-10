@@ -17,7 +17,6 @@ import (
 	"net/http/httptest"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
-	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -29,27 +28,14 @@ import (
 // argCount is the CLI argument keyword that takes a positive integer
 // limit on the number of returned entries. Centralized so goconst stops
 // flagging the literal repetition across the show package.
-const (
-	argCount               = "count"
-	msgSubsystemNotRunning = "subsystem not running"
-)
+const argCount = "count"
+
+// Per-component health checks are registered by their OWNERS (l2tp, iface,
+// bgp/plugin, fib/kernel, plugin/process, core/report), not here: deleting a
+// component must remove its health row (ai/rules/plugin-self-containment.md).
+// This package keeps only the generic show-health RPC below.
 
 func init() {
-	health.Register("l2tp", func() (health.Status, string) {
-		if l2tp.LookupService() == nil {
-			return health.StatusDegraded, msgSubsystemNotRunning
-		}
-		return health.StatusHealthy, ""
-	})
-	health.Register("report-bus", func() (health.Status, string) {
-		return health.StatusHealthy, ""
-	})
-
-	health.Register("bgp", checkBGPHealth)
-	health.Register("fib", checkFIBHealth)
-	health.Register("iface", checkIfaceHealth)
-	health.Register("plugins", checkPluginHealth)
-
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:version",

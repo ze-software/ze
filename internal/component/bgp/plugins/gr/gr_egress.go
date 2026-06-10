@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // Attribute type codes used in modification operations.
@@ -46,7 +46,7 @@ func setEgressState(s *egressFilterState) {
 	egressState.Store(s)
 }
 
-// LLGREgressFilter is the LLGR egress filter registered in the plugin registry.
+// LLGREgressFilter is the LLGR egress filter registered with the BGP filter pipeline (filterapi).
 // Called by the reactor for each destination peer during ForwardUpdate.
 //
 // RFC 9494 Section 4.5: LLGR_STALE routes SHOULD NOT be advertised to peers
@@ -54,7 +54,7 @@ func setEgressState(s *egressFilterState) {
 //
 // Fast path: when no peers are in LLGR state (common case), returns true
 // after one atomic load -- zero overhead on normal traffic.
-func LLGREgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map[string]any, mods *registry.ModAccumulator) bool {
+func LLGREgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) bool {
 	s := egressState.Load()
 	if s == nil {
 		return true // Plugin not yet started.
@@ -86,8 +86,8 @@ func LLGREgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta ma
 		// RFC 9494 Section 4.5.3: Partial deployment (IBGP).
 		// Attach NO_EXPORT community and set LOCAL_PREF=0.
 		// Route is delivered but deprioritized.
-		mods.Op(attrCodeCommunity, registry.AttrModAdd, communityNoExport[:])
-		mods.Op(attrCodeLocalPref, registry.AttrModSet, localPrefZero[:])
+		mods.Op(attrCodeCommunity, filterapi.AttrModAdd, communityNoExport[:])
+		mods.Op(attrCodeLocalPref, filterapi.AttrModSet, localPrefZero[:])
 		return true
 	}
 

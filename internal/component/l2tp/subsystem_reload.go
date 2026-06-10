@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- subsystem Reload semantics
+// Design: docs/guide/l2tp.md -- subsystem Reload semantics
 // Related: subsystem.go -- owns the Parameters field Reload mutates
 // Related: config.go -- ExtractParameters produces the diff input
 

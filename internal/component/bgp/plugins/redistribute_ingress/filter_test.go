@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 
 	"github.com/stretchr/testify/assert"
@@ -47,7 +47,7 @@ func buildMPReachPayload(afi uint16, safi uint8) []byte {
 func TestIngressFilterNoRedistribution(t *testing.T) {
 	redistribute.SetGlobal(nil)
 
-	src := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
+	src := filterapi.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
 	accept, modified := IngressFilter(src, buildIPv4Payload(), make(map[string]any))
 	assert.True(t, accept)
 	assert.Nil(t, modified)
@@ -61,7 +61,7 @@ func TestIngressFilterEBGPAccepted(t *testing.T) {
 	}))
 	defer redistribute.SetGlobal(nil)
 
-	src := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
+	src := filterapi.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
 	accept, _ := IngressFilter(src, buildIPv4Payload(), make(map[string]any))
 	assert.True(t, accept)
 }
@@ -74,7 +74,7 @@ func TestIngressFilterFamilyRejected(t *testing.T) {
 	}))
 	defer redistribute.SetGlobal(nil)
 
-	src := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
+	src := filterapi.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
 	accept, _ := IngressFilter(src, buildMPReachPayload(2, 1), make(map[string]any))
 	assert.False(t, accept)
 }
@@ -87,11 +87,11 @@ func TestIngressFilterIBGPvsEBGP(t *testing.T) {
 	}))
 	defer redistribute.SetGlobal(nil)
 
-	ibgpSrc := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65000}
+	ibgpSrc := filterapi.PeerFilterInfo{LocalAS: 65000, PeerAS: 65000}
 	accept, _ := IngressFilter(ibgpSrc, buildIPv4Payload(), make(map[string]any))
 	assert.True(t, accept)
 
-	ebgpSrc := registry.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
+	ebgpSrc := filterapi.PeerFilterInfo{LocalAS: 65000, PeerAS: 65001}
 	accept, _ = IngressFilter(ebgpSrc, buildIPv4Payload(), make(map[string]any))
 	assert.False(t, accept)
 }

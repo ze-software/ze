@@ -1,4 +1,4 @@
-// Design: plan/spec-arch-0-system-boundaries.md — PluginManager implementation
+// Design: plan/learned/425-arch-0-system-boundaries.md — PluginManager implementation
 // Design: docs/architecture/plugin-manager-wiring.md — two-phase startup
 // Related: ../server/startup.go — Server calls SpawnMore/GetProcessManager during handshake
 

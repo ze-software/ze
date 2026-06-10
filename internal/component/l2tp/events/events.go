@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- L2TP route-change event handle
+// Design: docs/guide/l2tp.md -- L2TP route-change event handle
 // Related: ../redistribute.go -- source registration (config layer)
 
 // Package events defines the typed EventBus handle for L2TP subscriber

@@ -1,0 +1,334 @@
+// Design: docs/architecture/api/architecture.md -- BGP route filter pipeline
+// Related: filterapi_test.go -- ordering and accumulator semantics moved from the generic registry tests
+//
+// Package filterapi defines the BGP route filter pipeline contract: the
+// value types passed to ingress/egress filters, the modification
+// accumulator egress filters write to, and the registration of filter
+// chains and attribute-modification handlers. It is a leaf package
+// (stdlib only) so filter plugins, the reactor, and protocol filters can
+// all import it without cycles.
+//
+// These types are BGP-owned: other protocols (OSPF, IS-IS) would define
+// their own filter seam packages following the same registration pattern.
+// The generic plugin registry (internal/component/plugin/registry) carries
+// no protocol filter knowledge.
+
+package filterapi
+
+import (
+	"errors"
+	"fmt"
+	"maps"
+	"net/netip"
+	"sort"
+	"sync"
+)
+
+// PeerFilterInfo holds BGP peer metadata for filter decisions.
+// Passed by the reactor to registered filter functions.
+type PeerFilterInfo struct {
+	Address      netip.Addr // Peer IP address
+	PeerAS       uint32     // Remote AS number
+	LocalAS      uint32     // Local AS number (for iBGP detection)
+	RouterID     uint32     // Local Router ID (for ORIGINATOR_ID/CLUSTER_LIST loop detection)
+	ASN4         bool       // 4-byte ASN negotiated (affects AS_PATH parsing)
+	Name         string     // Peer name from config (for filter config lookup)
+	GroupName    string     // Group name (empty if standalone peer)
+	AllowOwnAS   uint8      // Loop detection: number of own-AS occurrences to tolerate (0 = reject on first)
+	ClusterID    uint32     // Loop detection: explicit cluster-id (0 = use RouterID)
+	LoopDisabled bool       // Loop detection deactivated for this peer (inactive: prefix)
+}
+
+// IngressFilterFunc is called for received UPDATEs before caching and dispatching.
+// payload is the UPDATE body (without BGP header).
+// meta is a shared metadata map; filters can read and write to it.
+// Caller MUST pass a non-nil meta map; writing to a nil meta panics.
+// Returns accept=false to drop the route. If modifiedPayload is non-nil,
+// it replaces the original payload for caching and event dispatch.
+type IngressFilterFunc func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)
+
+// EgressFilterFunc is called per destination peer during ForwardUpdate.
+// payload is the UPDATE body (without BGP header).
+// meta is route metadata set at ingress (read-only); may be nil.
+// mods accumulates per-peer modifications applied after all filters pass.
+// MUST NOT retain the mods pointer beyond the call -- it is reused per peer.
+// Returns false to suppress the route for this destination peer.
+type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte, meta map[string]any, mods *ModAccumulator) bool
+
+// ModAccumulator collects per-peer route modifications from egress filters.
+// NOT safe for concurrent use. Each peer iteration gets a fresh instance.
+type ModAccumulator struct {
+	ops      []AttrOp
+	withdraw bool // convert announce to withdrawal for this peer
+}
+
+// Len returns the number of accumulated modifications (excluding withdraw flag).
+func (a *ModAccumulator) Len() int { return len(a.ops) }
+
+// Reset clears all accumulated modifications for reuse.
+func (a *ModAccumulator) Reset() {
+	a.ops = a.ops[:0]
+	a.withdraw = false
+}
+
+// Op accumulates an attribute modification operation.
+// Lazily allocates the slice on first call to avoid allocation
+// when no filter writes modifications (the common case).
+// Multiple calls with the same code are allowed -- the handler
+// receives all ops for a given code at once during the progressive build.
+func (a *ModAccumulator) Op(code, action uint8, buf []byte) {
+	a.ops = append(a.ops, AttrOp{Code: code, Action: action, Buf: buf})
+}
+
+// Ops returns the accumulated attribute modification operations.
+// Returns nil if no ops have been accumulated.
+func (a *ModAccumulator) Ops() []AttrOp { return a.ops }
+
+// SetWithdraw marks this route for withdrawal conversion.
+// The forward path will convert the announce UPDATE to a withdrawal
+// for this destination peer. Used by LLGR egress filter (RFC 9494)
+// to withdraw stale routes from EBGP non-LLGR peers.
+func (a *ModAccumulator) SetWithdraw() { a.withdraw = true }
+
+// IsWithdraw returns true if the route should be converted to a withdrawal.
+func (a *ModAccumulator) IsWithdraw() bool { return a.withdraw }
+
+// Attribute modification action constants.
+const (
+	AttrModSet      uint8 = iota // Replace entire attribute value (or create if absent)
+	AttrModAdd                   // Append value to attribute's list (e.g., COMMUNITY)
+	AttrModRemove                // Remove value from attribute's list (e.g., COMMUNITY)
+	AttrModPrepend               // Prepend value to attribute's sequence (e.g., AS_PATH)
+	AttrModSuppress              // Remove entire attribute from UPDATE (handler writes nothing)
+)
+
+// Filter stage constants define coarse ordering classes for the filter pipeline.
+// Filters are sorted by stage first, then by priority within a stage, then by name.
+// Gaps between values allow inserting new stages without renumbering.
+const (
+	FilterStageProtocol   int = 0   // RFC-mandated checks (loop detection, RFC 4271/4456)
+	FilterStagePolicy     int = 100 // Operator-configured filtering (community, prefix, IRR)
+	FilterStageAnnotation int = 200 // Protocol modifications that stamp routes (OTC/RFC 9234)
+)
+
+// AttrOp describes a single attribute modification operation.
+// Egress filters accumulate AttrOps in the ModAccumulator via Op().
+// Multiple AttrOps with the same Code are allowed and are passed together
+// to the registered handler during the progressive build.
+type AttrOp struct {
+	Code   uint8  // Attribute type code (e.g., 35 for OTC, 8 for COMMUNITY)
+	Action uint8  // AttrModSet, AttrModAdd, AttrModRemove, AttrModPrepend
+	Buf    []byte // Pre-built wire bytes of the VALUE (handler writes the header)
+}
+
+// AttrModHandler is a per-attribute-code handler for the progressive build.
+// It receives the source attribute bytes (nil if absent in source), all ops
+// for this attribute code, the output buffer, and the current write offset.
+// It writes the complete attribute (header + value) into buf and returns
+// the new offset after the written bytes.
+// It cannot reject a route -- only transform. MUST NOT retain buf beyond the call.
+type AttrModHandler func(src []byte, ops []AttrOp, buf []byte, off int) int
+
+// Filter describes one plugin's contribution to the BGP route filter
+// pipeline: an optional ingress filter, an optional egress filter, and the
+// (stage, priority) pair ordering both within their chains. Name is the
+// registering plugin's name and breaks ordering ties.
+type Filter struct {
+	Name     string
+	Stage    int               // Coarse ordering class (FilterStageProtocol/Policy/Annotation)
+	Priority int               // Fine ordering within a stage; equal priority sorted by name
+	Ingress  IngressFilterFunc // nil = no ingress filtering
+	Egress   EgressFilterFunc  // nil = no egress filtering
+}
+
+var (
+	// ErrEmptyFilterName is returned when registering a filter with an empty name.
+	ErrEmptyFilterName = errors.New("filterapi: filter name is empty")
+	// ErrNoFilterFunc is returned when a filter has neither ingress nor egress func.
+	ErrNoFilterFunc = errors.New("filterapi: filter declares neither ingress nor egress function")
+	// ErrDuplicateFilterName is returned when a filter name is already registered.
+	ErrDuplicateFilterName = errors.New("filterapi: duplicate filter name")
+)
+
+var (
+	mu sync.RWMutex
+
+	// filters maps plugin name to its pipeline contribution.
+	// Populated at init() time by plugins, read at runtime by the reactor.
+	filters = make(map[string]Filter)
+
+	// attrModHandlers stores registered attr mod handlers keyed by attribute code.
+	// Populated at init() time by plugins, read at runtime by the reactor.
+	attrModHandlers = make(map[uint8]AttrModHandler)
+)
+
+// Register adds a plugin's filter pipeline contribution.
+// Must be called from init() functions only.
+// Returns an error on empty name, missing functions, or duplicate name.
+func Register(f Filter) error {
+	if f.Name == "" {
+		return ErrEmptyFilterName
+	}
+	if f.Ingress == nil && f.Egress == nil {
+		return fmt.Errorf("%w: %q", ErrNoFilterFunc, f.Name)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if _, exists := filters[f.Name]; exists {
+		return fmt.Errorf("%w: %q", ErrDuplicateFilterName, f.Name)
+	}
+	filters[f.Name] = f
+	return nil
+}
+
+// sortedFilters returns the filters selected by hasFunc, sorted by stage,
+// then priority, then name. Caller MUST hold mu (read or write).
+func sortedFilters(hasFunc func(Filter) bool) []Filter {
+	var entries []Filter
+	for _, f := range filters {
+		if hasFunc(f) {
+			entries = append(entries, f)
+		}
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Stage != entries[j].Stage {
+			return entries[i].Stage < entries[j].Stage
+		}
+		if entries[i].Priority != entries[j].Priority {
+			return entries[i].Priority < entries[j].Priority
+		}
+		return entries[i].Name < entries[j].Name
+	})
+	return entries
+}
+
+// IngressFilters returns all registered ingress filter functions,
+// sorted by stage, then priority, then by plugin name.
+// Called by the reactor to build the ingress filter chain.
+func IngressFilters() []IngressFilterFunc {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	entries := sortedFilters(func(f Filter) bool { return f.Ingress != nil })
+	chain := make([]IngressFilterFunc, 0, len(entries))
+	for _, e := range entries {
+		chain = append(chain, e.Ingress)
+	}
+	return chain
+}
+
+// ingressFilterNames returns the names of plugins with ingress filters,
+// in execution order (sorted by stage, then priority, then name).
+func ingressFilterNames() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	entries := sortedFilters(func(f Filter) bool { return f.Ingress != nil })
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name)
+	}
+	return names
+}
+
+// EgressFilters returns all registered egress filter functions,
+// sorted by stage, then priority, then by plugin name.
+// Called by the reactor to build the egress filter chain.
+func EgressFilters() []EgressFilterFunc {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	entries := sortedFilters(func(f Filter) bool { return f.Egress != nil })
+	chain := make([]EgressFilterFunc, 0, len(entries))
+	for _, e := range entries {
+		chain = append(chain, e.Egress)
+	}
+	return chain
+}
+
+// egressFilterNames returns the names of plugins with egress filters,
+// in execution order (sorted by stage, then priority, then name).
+func egressFilterNames() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	entries := sortedFilters(func(f Filter) bool { return f.Egress != nil })
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name)
+	}
+	return names
+}
+
+// RegisterAttrModHandler registers a handler for the given attribute code.
+// Must be called from init() functions only. Ignores nil handlers.
+func RegisterAttrModHandler(code uint8, handler AttrModHandler) {
+	if handler == nil {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	attrModHandlers[code] = handler
+}
+
+// unregisterAttrModHandler removes an attr mod handler. Only for use in tests.
+func unregisterAttrModHandler(code uint8) {
+	mu.Lock()
+	defer mu.Unlock()
+	delete(attrModHandlers, code)
+}
+
+// attrModHandlerFor returns the registered handler for the given attribute code, or nil.
+func attrModHandlerFor(code uint8) AttrModHandler {
+	mu.RLock()
+	defer mu.RUnlock()
+	return attrModHandlers[code]
+}
+
+// AttrModHandlers returns a snapshot of all registered attr mod handlers.
+// Called by the reactor to build the handler map at startup.
+func AttrModHandlers() map[uint8]AttrModHandler {
+	mu.RLock()
+	defer mu.RUnlock()
+	result := make(map[uint8]AttrModHandler, len(attrModHandlers))
+	maps.Copy(result, attrModHandlers)
+	return result
+}
+
+// PipelineSnapshot holds a copy of the filter pipeline state for test save/restore.
+type PipelineSnapshot struct {
+	filters         map[string]Filter
+	attrModHandlers map[uint8]AttrModHandler
+}
+
+// Snapshot returns a copy of the current pipeline state. Only for use in tests.
+// Use with Restore to safely reset and restore after test-specific registrations.
+func Snapshot() PipelineSnapshot {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	fs := make(map[string]Filter, len(filters))
+	maps.Copy(fs, filters)
+	ah := make(map[uint8]AttrModHandler, len(attrModHandlers))
+	maps.Copy(ah, attrModHandlers)
+	return PipelineSnapshot{filters: fs, attrModHandlers: ah}
+}
+
+// Restore replaces the pipeline state with a previously saved snapshot.
+// Only for use in tests.
+func Restore(snap PipelineSnapshot) {
+	mu.Lock()
+	defer mu.Unlock()
+	filters = snap.filters
+	attrModHandlers = snap.attrModHandlers
+}
+
+// ResetForTest clears all registered filters and attr mod handlers.
+// Only for use in tests, paired with Snapshot/Restore.
+func ResetForTest() {
+	mu.Lock()
+	defer mu.Unlock()
+	filters = make(map[string]Filter)
+	attrModHandlers = make(map[uint8]AttrModHandler)
+}

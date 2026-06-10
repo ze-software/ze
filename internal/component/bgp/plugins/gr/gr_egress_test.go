@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // newTestEgressState creates an egressFilterState for testing with the given localAS
@@ -33,9 +33,9 @@ func TestLLGREgressFilter_NonStale(t *testing.T) {
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
-	var mods registry.ModAccumulator
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
+	var mods filterapi.ModAccumulator
 
 	// No meta["stale"] => non-stale route, should pass through.
 	meta := map[string]any{}
@@ -55,9 +55,9 @@ func TestLLGREgressFilter_NoLLGRActive(t *testing.T) {
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
-	var mods registry.ModAccumulator
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
+	var mods filterapi.ModAccumulator
 
 	// Even with stale metadata, fast path skips everything.
 	meta := map[string]any{"stale": uint8(2)}
@@ -74,9 +74,9 @@ func TestLLGREgressFilter_NoLLGRActive(t *testing.T) {
 func TestLLGREgressFilter_NilState(t *testing.T) {
 	setEgressState(nil)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
-	var mods registry.ModAccumulator
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
+	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
 	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
@@ -98,9 +98,9 @@ func TestLLGREgressFilter_LLGRPeer(t *testing.T) {
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
-	var mods registry.ModAccumulator
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
+	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
 	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
@@ -121,9 +121,9 @@ func TestLLGREgressFilter_EBGPNonLLGR(t *testing.T) {
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001} // EBGP (65001 != 65000)
-	var mods registry.ModAccumulator
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001} // EBGP (65001 != 65000)
+	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
 	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
@@ -146,9 +146,9 @@ func TestLLGREgressFilter_IBGPPartial(t *testing.T) {
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000} // IBGP (65000 == localAS)
-	var mods registry.ModAccumulator
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65000} // IBGP (65000 == localAS)
+	var mods filterapi.ModAccumulator
 
 	meta := map[string]any{"stale": uint8(2)}
 	accept := LLGREgressFilter(src, dest, nil, meta, &mods)
@@ -162,7 +162,7 @@ func TestLLGREgressFilter_IBGPPartial(t *testing.T) {
 	hasLocalPrefSet := false
 	for _, op := range ops {
 		// COMMUNITIES type code 8
-		if op.Code == 8 && op.Action == registry.AttrModAdd {
+		if op.Code == 8 && op.Action == filterapi.AttrModAdd {
 			hasCommunityAdd = true
 			// Verify NO_EXPORT community value (0xFFFFFF01) in big-endian
 			assert.Equal(t, 4, len(op.Buf), "community value should be 4 bytes")
@@ -170,7 +170,7 @@ func TestLLGREgressFilter_IBGPPartial(t *testing.T) {
 			assert.Equal(t, uint32(0xFFFFFF01), val, "should be NO_EXPORT community")
 		}
 		// LOCAL_PREF type code 5
-		if op.Code == 5 && op.Action == registry.AttrModSet {
+		if op.Code == 5 && op.Action == filterapi.AttrModSet {
 			hasLocalPrefSet = true
 			// Verify LOCAL_PREF=0 in big-endian
 			assert.Equal(t, 4, len(op.Buf), "local-pref value should be 4 bytes")
@@ -192,9 +192,9 @@ func TestLLGREgressFilter_NilMeta(t *testing.T) {
 	setEgressState(state)
 	defer setEgressState(nil)
 
-	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
-	var mods registry.ModAccumulator
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65001}
+	var mods filterapi.ModAccumulator
 
 	accept := LLGREgressFilter(src, dest, nil, nil, &mods)
 
@@ -217,9 +217,9 @@ func TestLLGREgressFilter_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 100 {
 		wg.Go(func() {
-			src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-			dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 64501}
-			var mods registry.ModAccumulator
+			src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+			dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 64501}
+			var mods filterapi.ModAccumulator
 			meta := map[string]any{"stale": uint8(2)}
 			LLGREgressFilter(src, dest, nil, meta, &mods)
 		})

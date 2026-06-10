@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-1-radius-attributes.md -- Acct-Interim-Interval clamping
+// Design: plan/learned/666-bng-1-radius-attributes.md -- Acct-Interim-Interval clamping
 
 package l2tpauthradius
 

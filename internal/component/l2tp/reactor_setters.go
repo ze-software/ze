@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- reactor setters used by Reload
+// Design: docs/guide/l2tp.md -- reactor setters used by Reload
 // Related: reactor.go -- owns the fields these setters mutate
 // Related: subsystem_reload.go -- sole caller
 

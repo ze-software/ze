@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- goroutine dump via runtime.Stack
+// Design: plan/learned/727-diag-core.md -- goroutine dump via runtime.Stack
 // Related: system.go -- existing system-cpu handler reports goroutine count
 
 package show

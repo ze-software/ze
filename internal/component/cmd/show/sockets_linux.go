@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- TCP/UDP socket state from /proc/net (ss replacement)
+// Design: plan/learned/727-diag-core.md -- TCP/UDP socket state from /proc/net (ss replacement)
 // Related: conntrack.go -- existing /proc reading pattern
 //
 //go:build linux

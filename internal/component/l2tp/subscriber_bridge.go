@@ -1,4 +1,4 @@
-// Design: plan/spec-subscriber-session-model.md -- L2TP subscriber event bridge
+// Design: plan/learned/760-subscriber-session-model.md -- L2TP subscriber event bridge
 // Related: reactor_kernel.go -- emits L2TP session events
 
 package l2tp

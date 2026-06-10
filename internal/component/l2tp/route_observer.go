@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- subscriber route lifecycle
+// Design: docs/guide/l2tp.md -- subscriber route lifecycle
 // Related: redistribute.go -- source registration
 // Related: events/events.go -- typed EventBus handle for route-change
 // Related: reactor.go -- session FSM calls OnSessionIPUp / OnSessionDown

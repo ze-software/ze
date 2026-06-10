@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	bgpevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 )
@@ -71,6 +70,42 @@ func InternalPluginInfo() []PluginInfo {
 	return result
 }
 
+// defaultEventNamespace holds the event namespace under which plugin-declared
+// EventTypes and namespace-less RPC event subscriptions are registered. The
+// protocol component that owns the plugin host registers it from its
+// register.go init() (BGP registers "bgp"); the host itself stays
+// protocol-neutral. Empty until registered: consumers fail closed with an
+// error log instead of guessing a namespace.
+var (
+	defaultEventNamespaceMu sync.RWMutex
+	defaultEventNamespace   string
+)
+
+// RegisterDefaultEventNamespace sets the namespace for plugin-declared event
+// types and namespace-less plugin RPC subscriptions. Must be called from a
+// protocol component's init() (register.go). Calling twice with the same
+// value is idempotent; a conflicting second registration is a programmer
+// error and panics.
+func RegisterDefaultEventNamespace(namespace string) {
+	if namespace == "" {
+		panic("BUG: plugin: RegisterDefaultEventNamespace called with empty namespace")
+	}
+	defaultEventNamespaceMu.Lock()
+	defer defaultEventNamespaceMu.Unlock()
+	if defaultEventNamespace != "" && defaultEventNamespace != namespace {
+		panic("BUG: plugin: conflicting default event namespace registration")
+	}
+	defaultEventNamespace = namespace
+}
+
+// DefaultEventNamespace returns the registered default event namespace, or
+// "" when no protocol component has registered one.
+func DefaultEventNamespace() string {
+	defaultEventNamespaceMu.RLock()
+	defer defaultEventNamespaceMu.RUnlock()
+	return defaultEventNamespace
+}
+
 // registerEventTypesOnce ensures plugin event types are registered exactly once.
 var registerEventTypesOnce sync.Once
 
@@ -80,11 +115,18 @@ var registerEventTypesOnce sync.Once
 // and NewServer (startup).
 func RegisterPluginEventTypes() {
 	registerEventTypesOnce.Do(func() {
+		// Plugin event types go into the default event namespace registered
+		// by the owning protocol component ("bgp" today). If a future plugin
+		// needs another namespace, EventTypes would need namespace info.
+		namespace := DefaultEventNamespace()
 		for _, reg := range registry.All() {
 			for _, et := range reg.EventTypes {
-				// All plugin event types currently go into the BGP namespace.
-				// If a future plugin needs RIB events, EventTypes would need namespace info.
-				if err := events.RegisterEventType(bgpevents.Namespace, et); err != nil {
+				if namespace == "" {
+					slog.Error("register plugin event type failed: no default event namespace registered (call plugin.RegisterDefaultEventNamespace from the protocol component's register.go)",
+						"plugin", reg.Name, "event", et)
+					continue
+				}
+				if err := events.RegisterEventType(namespace, et); err != nil {
 					slog.Error("register plugin event type failed", "plugin", reg.Name, "event", et, "error", err)
 				}
 			}

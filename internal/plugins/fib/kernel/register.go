@@ -11,7 +11,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	fibevents "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/events"
 	fibyang "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/yang"
@@ -45,6 +47,11 @@ func parseFIBConfig(sections []sdk.ConfigSection) (fibConfig, error) {
 }
 
 func init() {
+	// This plugin raises the fib-* warning codes (fibkernel.go); the FIB
+	// programming layer owns its health row.
+	health.Register("fib", report.HealthProbeDegraded(
+		"fib-sync-failure", "fib-orphan", "fib-programming-lag"))
+
 	_ = events.RegisterNamespace(fibevents.Namespace, fibevents.EventExternalChange)
 
 	reg := registry.Registration{

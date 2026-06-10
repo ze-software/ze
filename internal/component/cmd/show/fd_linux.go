@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- FD inspection from /proc/self/fd (lsof replacement)
+// Design: plan/learned/727-diag-core.md -- FD inspection from /proc/self/fd (lsof replacement)
 // Related: conntrack.go -- existing /proc reading pattern
 //
 //go:build linux

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	gryang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -27,6 +28,16 @@ func init() {
 		}
 	}
 
+	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
+	if err := filterapi.Register(filterapi.Filter{
+		Name:   "bgp-gr",
+		Stage:  filterapi.FilterStageAnnotation,
+		Egress: LLGREgressFilter,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "gr: filter registration failed: %v\n", err)
+		os.Exit(1)
+	}
+
 	reg := registry.Registration{
 		Name:            "bgp-gr",
 		Description:     "Graceful Restart capability and mechanism plugin",
@@ -37,8 +48,6 @@ func init() {
 		YANG:            gryang.ZeGracefulRestartYANG,
 		CapabilityCodes: []uint8{64, 71},
 		Dependencies:    []string{"bgp", "bgp-rib"},
-		EgressFilter:    LLGREgressFilter,
-		FilterStage:     registry.FilterStageAnnotation,
 		RunEngine:       RunGRPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)

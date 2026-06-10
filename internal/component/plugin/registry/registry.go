@@ -112,14 +112,6 @@ type Registration struct {
 	// Used by BGP to wire EventDispatcher and command dispatch to the shared server.
 	ConfigurePluginServer func(server any)
 
-	// In-process peer filters: called by the reactor for ingress/egress route filtering.
-	// Ingress: before caching/dispatching received UPDATEs. Egress: per destination peer.
-	// Filter closures capture plugin state (e.g., role configs) -- reactor passes only PeerFilterInfo.
-	IngressFilter  IngressFilterFunc // nil = no ingress filtering
-	EgressFilter   EgressFilterFunc  // nil = no egress filtering
-	FilterStage    int               // Coarse ordering class (FilterStageProtocol/Policy/Annotation)
-	FilterPriority int               // Fine ordering within stage; equal priority sorted by name
-
 	// RPCHandlers maps RPC method names to handler functions. Registered at init()
 	// and collected by the plugin server for dispatch. Each handler unmarshals its
 	// own params and returns a result or error. Used by BGP for codec RPCs
@@ -700,93 +692,6 @@ func WriteUsage(w io.Writer) error {
 	return nil
 }
 
-// filterEntry pairs a filter with its registration metadata for sorting.
-type filterEntry struct {
-	name     string
-	stage    int
-	priority int
-}
-
-// collectFilterEntries returns sorted filter entries. Caller MUST hold mu.RLock.
-func collectFilterEntries(hasFilter func(*Registration) bool) []filterEntry {
-	var entries []filterEntry
-	for _, reg := range plugins {
-		if hasFilter(reg) {
-			entries = append(entries, filterEntry{name: reg.Name, stage: reg.FilterStage, priority: reg.FilterPriority})
-		}
-	}
-	sort.Slice(entries, func(i, j int) bool {
-		if entries[i].stage != entries[j].stage {
-			return entries[i].stage < entries[j].stage
-		}
-		if entries[i].priority != entries[j].priority {
-			return entries[i].priority < entries[j].priority
-		}
-		return entries[i].name < entries[j].name
-	})
-	return entries
-}
-
-// sortedFilterPlugins returns plugin names with the given filter type,
-// sorted by FilterStage, then FilterPriority, then by name.
-func sortedFilterPlugins(hasFilter func(*Registration) bool) []string {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	entries := collectFilterEntries(hasFilter)
-	names := make([]string, len(entries))
-	for i, e := range entries {
-		names[i] = e.name
-	}
-	return names
-}
-
-// IngressFilters returns all registered ingress filter functions,
-// sorted by FilterStage, then FilterPriority, then by plugin name.
-// Called by the reactor to build the ingress filter chain.
-func IngressFilters() []IngressFilterFunc {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	entries := collectFilterEntries(func(r *Registration) bool { return r.IngressFilter != nil })
-	filters := make([]IngressFilterFunc, 0, len(entries))
-	for _, e := range entries {
-		if reg, ok := plugins[e.name]; ok {
-			filters = append(filters, reg.IngressFilter)
-		}
-	}
-	return filters
-}
-
-// IngressFilterNames returns the names of plugins with ingress filters,
-// in execution order (sorted by FilterStage, then FilterPriority, then name).
-func IngressFilterNames() []string {
-	return sortedFilterPlugins(func(r *Registration) bool { return r.IngressFilter != nil })
-}
-
-// EgressFilters returns all registered egress filter functions,
-// sorted by FilterStage, then FilterPriority, then by plugin name.
-// Called by the reactor to build the egress filter chain.
-func EgressFilters() []EgressFilterFunc {
-	mu.RLock()
-	defer mu.RUnlock()
-
-	entries := collectFilterEntries(func(r *Registration) bool { return r.EgressFilter != nil })
-	filters := make([]EgressFilterFunc, 0, len(entries))
-	for _, e := range entries {
-		if reg, ok := plugins[e.name]; ok {
-			filters = append(filters, reg.EgressFilter)
-		}
-	}
-	return filters
-}
-
-// EgressFilterNames returns the names of plugins with egress filters,
-// in execution order (sorted by FilterStage, then FilterPriority, then name).
-func EgressFilterNames() []string {
-	return sortedFilterPlugins(func(r *Registration) bool { return r.EgressFilter != nil })
-}
-
 // Reset clears the registry. Only for use in tests.
 func Reset() {
 	mu.Lock()
@@ -794,7 +699,6 @@ func Reset() {
 	plugins = make(map[string]*Registration)
 	familyIndex = make(map[string]*Registration)
 	filterTypes = make(map[string]string)
-	attrModHandlers = make(map[uint8]AttrModHandler)
 	rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
 	metricsRegistry = nil
 	eventBusInstance = nil
@@ -804,7 +708,6 @@ func Reset() {
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.
 type RegistrySnapshot struct {
 	plugins          map[string]*Registration
-	attrModHandlers  map[uint8]AttrModHandler
 	rpcHandlers      map[string]func(json.RawMessage) (any, error)
 	eventBusInstance any
 	ntpSyncProvider  func() map[string]any
@@ -818,11 +721,9 @@ func Snapshot() RegistrySnapshot {
 
 	ps := make(map[string]*Registration, len(plugins))
 	maps.Copy(ps, plugins)
-	ah := make(map[uint8]AttrModHandler, len(attrModHandlers))
-	maps.Copy(ah, attrModHandlers)
 	rh := make(map[string]func(json.RawMessage) (any, error), len(rpcHandlers))
 	maps.Copy(rh, rpcHandlers)
-	return RegistrySnapshot{plugins: ps, attrModHandlers: ah, rpcHandlers: rh, eventBusInstance: eventBusInstance, ntpSyncProvider: ntpSyncProvider}
+	return RegistrySnapshot{plugins: ps, rpcHandlers: rh, eventBusInstance: eventBusInstance, ntpSyncProvider: ntpSyncProvider}
 }
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
@@ -830,7 +731,6 @@ func Restore(snap RegistrySnapshot) {
 	mu.Lock()
 	defer mu.Unlock()
 	plugins = snap.plugins
-	attrModHandlers = snap.attrModHandlers
 	rpcHandlers = snap.rpcHandlers
 	eventBusInstance = snap.eventBusInstance
 	ntpSyncProvider = snap.ntpSyncProvider

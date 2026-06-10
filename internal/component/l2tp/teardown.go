@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- operator-initiated teardown
+// Design: docs/guide/l2tp.md -- operator-initiated teardown
 // Related: reactor.go -- owns tunnelsByLocalID and tunnelsByPeer
 // Related: snapshot.go -- read-side API, sibling to this write-side API
 

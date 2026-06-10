@@ -16,7 +16,7 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -129,7 +129,7 @@ func configureCommunityFilter(bgpCfg map[string]any) error {
 
 // ingressFilter is the registered IngressFilterFunc.
 // Looks up the source peer's filter config and applies strip then tag.
-func ingressFilter(src registry.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
+func ingressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
 	mu.RLock()
 	defs := definitions
 	fc, hasCfg := peerConfigs[src.Name]
@@ -152,7 +152,7 @@ func ingressFilter(src registry.PeerFilterInfo, payload []byte, _ map[string]any
 
 // egressFilter is the registered EgressFilterFunc.
 // Looks up the destination peer's filter config and accumulates ops.
-func egressFilter(_, dest registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
+func egressFilter(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
 	mu.RLock()
 	defs := definitions
 	fc, hasCfg := peerConfigs[dest.Name]

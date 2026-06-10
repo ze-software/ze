@@ -1,6 +1,7 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS auth plugin lifecycle
 // Related: l2tpauthradius.go -- atomic logger, Name constant
 // Related: handler.go -- RADIUS auth handler
+// Related: doctor.go -- RADIUS server reachability doctor check
 
 package l2tpauthradius
 
@@ -18,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/l2tpauthradius/yang"
@@ -37,6 +39,22 @@ func init() {
 	l2tp.RegisterAuthHandler(func(req ppp.EventAuthRequest, respond l2tp.AuthRespondFunc) l2tp.AuthResult {
 		return authInstance.handle(req, respond)
 	})
+
+	// This plugin owns the l2tp.auth.radius config block, so it owns the
+	// RADIUS server reachability doctor check (ai/rules/doctor-checks.md).
+	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
+		Name:         "l2tp-auth-radius-servers",
+		Phase:        diagnostic.DoctorPhasePostConfig,
+		Order:        710,
+		Component:    "l2tp-auth-radius",
+		Dependencies: []string{"radius-server"},
+		Platforms:    []string{diagnostic.DoctorPlatformAny},
+		Codes:        []string{"doctor-radius-unreachable"},
+		Check:        checkRADIUSServers,
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: doctor check registration failed: %v\n", Name, err)
+		os.Exit(2)
+	}
 
 	reg := registry.Registration{
 		Name:                    Name,

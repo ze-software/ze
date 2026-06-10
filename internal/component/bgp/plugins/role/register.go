@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	roleyang "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -16,7 +17,18 @@ func init() {
 
 	// Register attr mod handler for OTC egress stamping (progressive build path).
 	// Called by buildModifiedPayload in the reactor forward path after egress filters accept.
-	registry.RegisterAttrModHandler(otcAttrCode, otcAttrModHandler)
+	filterapi.RegisterAttrModHandler(otcAttrCode, otcAttrModHandler)
+
+	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
+	if err := filterapi.Register(filterapi.Filter{
+		Name:    "bgp-role",
+		Stage:   filterapi.FilterStageAnnotation,
+		Ingress: OTCIngressFilter,
+		Egress:  OTCEgressFilter,
+	}); err != nil {
+		logger().Error("bgp-role: filter registration failed", "error", err)
+		os.Exit(1)
+	}
 
 	reg := registry.Registration{
 		Name:            "bgp-role",
@@ -29,9 +41,6 @@ func init() {
 		YANG:            roleyang.ZeRoleYANG,
 		CapabilityCodes: []uint8{roleCapCode},
 		RunEngine:       RunRolePlugin,
-		IngressFilter:   OTCIngressFilter,
-		EgressFilter:    OTCEgressFilter,
-		FilterStage:     registry.FilterStageAnnotation,
 		ConfigureEngineLogger: func(loggerName string) {
 			ConfigureLogger(slogutil.Logger(loggerName))
 		},

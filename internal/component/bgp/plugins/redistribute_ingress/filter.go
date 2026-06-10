@@ -5,15 +5,15 @@ package redistributeingress
 import (
 	"encoding/binary"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/redistribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
-// IngressFilter is the redistribution ingress filter registered in the plugin registry.
+// IngressFilter is the redistribution ingress filter registered with the BGP filter pipeline (filterapi).
 // It checks whether the UPDATE's family and source (ibgp/ebgp) are accepted by the
 // redistribution import rules. When no redistribution is configured, all routes pass.
-func IngressFilter(src registry.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
+func IngressFilter(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
 	ev := redistribute.Global()
 	if ev == nil {
 		return true, nil

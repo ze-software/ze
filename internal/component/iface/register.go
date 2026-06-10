@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/health"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -116,6 +117,8 @@ func GetEventBus() ze.EventBus {
 }
 
 func init() {
+	health.Register("iface", checkHealth)
+
 	_ = events.RegisterNamespace(ifaceevents.Namespace,
 		ifaceevents.EventCreated, ifaceevents.EventUp, ifaceevents.EventDown,
 		ifaceevents.EventAddrAdded, ifaceevents.EventAddrRemoved,

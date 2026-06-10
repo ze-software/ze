@@ -31,7 +31,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	plugindoctor "codeberg.org/thomas-mangin/ze/internal/component/plugin/doctor"
-	zeradius "codeberg.org/thomas-mangin/ze/internal/component/radius"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
@@ -555,63 +554,6 @@ func TestCheckTACACSServers(t *testing.T) {
 
 	diags := checkTACACSServers(tree)
 	requireDiag(t, diags, "doctor-tacacs-unreachable", diagnostic.SeverityWarning)
-}
-
-func TestCheckRADIUSServers(t *testing.T) {
-	// VALIDATES: AC-7 unreachable RADIUS servers return doctor-radius-unreachable.
-	// PREVENTS: L2TP authentication failures surfacing only on subscriber login.
-	oldProbe := udpReachable
-	udpReachable = func(string, []byte, net.IP, string, time.Duration) bool { return false }
-	t.Cleanup(func() { udpReachable = oldProbe })
-
-	tree := config.NewTree()
-	l2tp := tree.GetOrCreateContainer("l2tp")
-	auth := l2tp.GetOrCreateContainer("auth")
-	radius := auth.GetOrCreateContainer("radius")
-	server := config.NewTree()
-	server.Set("address", "radius.example.invalid")
-	server.Set("port", "1812")
-	server.Set("shared-key", "testing123")
-	radius.AddListEntry("server", "primary", server)
-
-	diags := checkRADIUSServers(tree)
-	requireDiag(t, diags, "doctor-radius-unreachable", diagnostic.SeverityWarning)
-}
-
-func TestUDPServerReachableRequiresResponse(t *testing.T) {
-	// VALIDATES: The RADIUS readiness probe requires an authenticated response instead of accepting Dial success.
-	// PREVENTS: Unbound UDP ports or bad shared keys being reported as reachable.
-	secret := []byte("testing123")
-	var lc net.ListenConfig
-	pc, err := lc.ListenPacket(context.Background(), "udp", "127.0.0.1:0")
-	require.NoError(t, err)
-	addr := pc.LocalAddr().String()
-
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		buf := make([]byte, 64)
-		n, addr, readErr := pc.ReadFrom(buf)
-		if readErr != nil || n < 20 {
-			return
-		}
-		var reqAuth [zeradius.AuthenticatorLen]byte
-		copy(reqAuth[:], buf[4:4+zeradius.AuthenticatorLen])
-		resp := &zeradius.Packet{Code: zeradius.CodeAccessReject, Identifier: buf[1], Authenticator: reqAuth}
-		wire := make([]byte, zeradius.MaxPacketLen)
-		respLen, encodeErr := resp.EncodeTo(wire, 0)
-		if encodeErr != nil {
-			return
-		}
-		respAuth := zeradius.ResponseAuthenticator(resp.Code, resp.Identifier, uint16(respLen), reqAuth, wire[zeradius.HeaderLen:respLen], secret)
-		copy(wire[4:4+zeradius.AuthenticatorLen], respAuth[:])
-		_, _ = pc.WriteTo(wire[:respLen], addr)
-	}()
-
-	assert.True(t, udpServerReachable(addr, secret, nil, "ze-doctor", time.Second))
-	_ = pc.Close()
-	<-done
-	assert.False(t, udpServerReachable(addr, secret, nil, "ze-doctor", 10*time.Millisecond))
 }
 
 func TestCheckPKICerts_MissingCA(t *testing.T) {

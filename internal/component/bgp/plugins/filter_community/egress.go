@@ -7,14 +7,14 @@
 package filter_community
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // applyEgressFilter accumulates community strip/tag ops into the ModAccumulator
 // for the destination peer. The actual wire manipulation happens later in
 // buildModifiedPayload via the registered AttrModHandlers.
 // mods MUST be non-nil (caller guarantees fresh instance per peer).
-func applyEgressFilter(defs communityDefs, fc filterConfig, mods *registry.ModAccumulator) {
+func applyEgressFilter(defs communityDefs, fc filterConfig, mods *filterapi.ModAccumulator) {
 	if mods == nil {
 		return
 	}
@@ -26,7 +26,7 @@ func applyEgressFilter(defs communityDefs, fc filterConfig, mods *registry.ModAc
 		}
 		code := byte(communityAttrCode(def.typ))
 		for _, wire := range def.wireValues {
-			mods.Op(code, registry.AttrModRemove, wire)
+			mods.Op(code, filterapi.AttrModRemove, wire)
 		}
 	}
 
@@ -37,7 +37,7 @@ func applyEgressFilter(defs communityDefs, fc filterConfig, mods *registry.ModAc
 		}
 		code := byte(communityAttrCode(def.typ))
 		for _, wire := range def.wireValues {
-			mods.Op(code, registry.AttrModAdd, wire)
+			mods.Op(code, filterapi.AttrModAdd, wire)
 		}
 	}
 }

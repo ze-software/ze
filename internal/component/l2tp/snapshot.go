@@ -1,4 +1,4 @@
-// Design: docs/architecture/l2tp.md -- CLI snapshot data shape
+// Design: docs/guide/l2tp.md -- CLI snapshot data shape
 // Related: reactor.go -- snapshot source; owns the tunnel and session maps
 
 package l2tp

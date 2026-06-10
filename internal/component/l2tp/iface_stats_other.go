@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-1-radius-attributes.md -- idle timeout traffic detection
+// Design: plan/learned/666-bng-1-radius-attributes.md -- idle timeout traffic detection
 //go:build !linux
 
 package l2tp

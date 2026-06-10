@@ -9,7 +9,7 @@ import (
 	"slices"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // OTC attribute constants.
@@ -300,7 +300,7 @@ func payloadToWithdrawal(payload []byte) []byte {
 	return result
 }
 
-// OTCIngressFilter is the ingress filter function registered in the plugin registry.
+// OTCIngressFilter is the ingress filter function registered with the BGP filter pipeline (filterapi).
 // Called by the reactor for each received UPDATE before caching and dispatching.
 // Checks OTC ingress rules per RFC 9234 Section 5.
 //
@@ -308,7 +308,7 @@ func payloadToWithdrawal(payload []byte) []byte {
 // The egress filter uses this for suppression decisions -- our configured knowledge of the
 // peer relationship, independent of whether OTC is in the wire bytes.
 // If we don't configure a role for a peer, we don't filter its routes.
-func OTCIngressFilter(src registry.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
+func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
 	cfg, remoteRole := getFilterConfig(src.Address.String())
 
 	// Always record source peer's role in metadata from our configuration.
@@ -361,14 +361,14 @@ func OTCIngressFilter(src registry.PeerFilterInfo, payload []byte, meta map[stri
 	return true, nil
 }
 
-// OTCEgressFilter is the egress filter function registered in the plugin registry.
+// OTCEgressFilter is the egress filter function registered with the BGP filter pipeline (filterapi).
 // Called by the reactor per destination peer during ForwardUpdate.
 // Checks both export role filtering and OTC egress suppression per RFC 9234 Section 5.
 //
 // Two independent egress checks:
 //  1. Wire-bytes OTC check (unconditional): if route has OTC, MUST NOT propagate to Provider/Peer/RS.
 //  2. Meta-based Gao-Rexford check: if source role is Provider/Peer/RS, suppress to Provider/Peer/RS.
-func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map[string]any, mods *registry.ModAccumulator) bool {
+func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) bool {
 	// RFC 9234 Section 5: OTC MUST NOT be applied to other address families by default.
 	if !isPayloadUnicast(payload) {
 		return true
@@ -430,7 +430,7 @@ func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map
 			if localASN > 0 {
 				var asnBuf [otcAttrLen]byte
 				binary.BigEndian.PutUint32(asnBuf[:], localASN)
-				mods.Op(otcAttrCode, registry.AttrModSet, asnBuf[:]) // value bytes only (4-byte ASN)
+				mods.Op(otcAttrCode, filterapi.AttrModSet, asnBuf[:]) // value bytes only (4-byte ASN)
 				logger().Debug("OTC egress stamp mod",
 					"src", src.Address, "dest", dest.Address, "dest-role", destRemoteRole, "otc-asn", localASN)
 			}
@@ -449,7 +449,7 @@ func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map
 //
 // RFC 9234 Section 5: "Once the OTC Attribute has been set, it MUST be preserved unchanged."
 // If source already has OTC, it is copied unchanged (set op is ignored).
-func otcAttrModHandler(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+func otcAttrModHandler(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 	// OTC already present in source: preserve unchanged.
 	if len(src) > 0 {
 		if off+len(src) > len(buf) {
@@ -460,7 +460,7 @@ func otcAttrModHandler(src []byte, ops []registry.AttrOp, buf []byte, off int) i
 	}
 	// OTC absent: create from the first set op's value bytes.
 	for _, op := range ops {
-		if op.Action != registry.AttrModSet || len(op.Buf) != otcAttrLen {
+		if op.Action != filterapi.AttrModSet || len(op.Buf) != otcAttrLen {
 			continue
 		}
 		if off+otcWireLen > len(buf) {

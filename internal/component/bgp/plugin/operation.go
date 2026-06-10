@@ -33,7 +33,8 @@ type bgpOperationReactor interface {
 
 func init() {
 	if err := configtx.RegisterOperationDecomposer(configRootBGP, decomposeBGPOperations); err != nil {
-		panic(err)
+		slog.Error("register bgp operation decomposer", "error", err)
+		panic("BUG: register bgp operation decomposer failed")
 	}
 	if err := configtx.RegisterConstraintRule(configtx.ConstraintRule{
 		ID:       "bgp-add-address-before-peer",
