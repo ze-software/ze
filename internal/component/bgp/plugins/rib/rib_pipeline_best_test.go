@@ -5,6 +5,7 @@ package rib
 
 import (
 	"encoding/json"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,13 +38,13 @@ func TestBestPipelineReason_LocalPrefWinner(t *testing.T) {
 	attrA := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrA, nlriBytes, true)
-	r.bgpPeers["192.0.2.1"] = peerA
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
 
 	// Peer B: LOCAL_PREF=200 (winner)
 	attrB := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref200)
 	peerB := storage.NewPeerRIB("192.0.2.2")
 	peerB.Insert(fam, attrB, nlriBytes, true)
-	r.bgpPeers["192.0.2.2"] = peerB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
 
 	result := r.bestPipeline("*", []string{"reason"})
 
@@ -92,7 +93,7 @@ func TestBestPipelineReason_SingleCandidate(t *testing.T) {
 	attrA := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrA, nlriBytes, true)
-	r.bgpPeers["192.0.2.1"] = peerA
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
 
 	result := r.bestPipeline("*", []string{"reason"})
 
@@ -128,7 +129,7 @@ func TestBestPipelineReason_WithPrefixFilter(t *testing.T) {
 	peer := storage.NewPeerRIB("192.0.2.1")
 	peer.Insert(fam, attr, nlri1, true)
 	peer.Insert(fam, attr, nlri2, true)
-	r.bgpPeers["192.0.2.1"] = peer
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peer
 
 	result := r.bestPipeline("*", []string{"prefix", "10.0.0.0/24", "reason"})
 
@@ -182,11 +183,11 @@ func TestBestPipeline_MultipathPeersInOutput(t *testing.T) {
 
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrBytes, nlriBytes, true)
-	r.bgpPeers["192.0.2.1"] = peerA
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
 
 	peerB := storage.NewPeerRIB("192.0.2.2")
 	peerB.Insert(fam, attrBytes, nlriBytes, true)
-	r.bgpPeers["192.0.2.2"] = peerB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
 
 	result := r.bestPipeline("*", nil)
 
@@ -225,10 +226,10 @@ func TestBestPipeline_MultipathDisabledDefaults(t *testing.T) {
 
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrBytes, nlriBytes, true)
-	r.bgpPeers["192.0.2.1"] = peerA
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
 	peerB := storage.NewPeerRIB("192.0.2.2")
 	peerB.Insert(fam, attrBytes, nlriBytes, true)
-	r.bgpPeers["192.0.2.2"] = peerB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
 
 	result := r.bestPipeline("*", nil)
 
@@ -257,12 +258,12 @@ func TestBestPipelineLockReduced(t *testing.T) {
 	attrA := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
 	peerA := storage.NewPeerRIB("192.0.2.1")
 	peerA.Insert(fam, attrA, nlri, true)
-	r.bgpPeers["192.0.2.1"] = peerA
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerA
 
 	attrB := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref200)
 	peerB := storage.NewPeerRIB("192.0.2.2")
 	peerB.Insert(fam, attrB, nlri, true)
-	r.bgpPeers["192.0.2.2"] = peerB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peerB
 
 	// Second prefix on peer A only
 	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24

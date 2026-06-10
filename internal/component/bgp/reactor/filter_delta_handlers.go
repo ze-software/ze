@@ -8,7 +8,7 @@ import (
 	"encoding/binary"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // genericAttrSetHandler returns an AttrModHandler that supports AttrModSet for any
@@ -17,18 +17,18 @@ import (
 //
 // This enables the policy filter text-delta-to-wire bridge for attributes that don't
 // have specialized handlers (community types and OTC have their own).
-func genericAttrSetHandler(flags, code byte) registry.AttrModHandler {
-	return func(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+func genericAttrSetHandler(flags, code byte) filterapi.AttrModHandler {
+	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 		// Find the last Set or Suppress op (last wins).
-		var setOp *registry.AttrOp
+		var setOp *filterapi.AttrOp
 		for i := range ops {
-			if ops[i].Action == registry.AttrModSet || ops[i].Action == registry.AttrModSuppress {
+			if ops[i].Action == filterapi.AttrModSet || ops[i].Action == filterapi.AttrModSuppress {
 				setOp = &ops[i]
 			}
 		}
 
 		// Suppress: write nothing, effectively removing the attribute.
-		if setOp != nil && setOp.Action == registry.AttrModSuppress {
+		if setOp != nil && setOp.Action == filterapi.AttrModSuppress {
 			return off
 		}
 
@@ -100,8 +100,8 @@ var genericAttrCodes = []struct {
 // originatorIDHandler handles ORIGINATOR_ID (type 9, RFC 4456 Section 8).
 // AttrModSet: set only if the attribute is absent in the source. If already present,
 // copies the existing value unchanged (the original originator is preserved).
-func originatorIDHandler() registry.AttrModHandler {
-	return func(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+func originatorIDHandler() filterapi.AttrModHandler {
+	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 		// If source already has ORIGINATOR_ID, preserve it.
 		if len(src) > 0 {
 			if off+len(src) <= len(buf) {
@@ -112,7 +112,7 @@ func originatorIDHandler() registry.AttrModHandler {
 		}
 		// Source absent: write new ORIGINATOR_ID from the Set op.
 		for i := range ops {
-			if ops[i].Action != registry.AttrModSet || len(ops[i].Buf) != 4 {
+			if ops[i].Action != filterapi.AttrModSet || len(ops[i].Buf) != 4 {
 				continue
 			}
 			// Flags: 0x80 = Optional, Non-transitive (RFC 4456).
@@ -133,15 +133,15 @@ func originatorIDHandler() registry.AttrModHandler {
 // clusterListHandler handles CLUSTER_LIST (type 10, RFC 4456 Section 8).
 // AttrModPrepend: prepends a 4-byte cluster-id before any existing cluster-list values.
 // AttrModSet: replaces the entire cluster-list.
-func clusterListHandler() registry.AttrModHandler {
-	return func(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+func clusterListHandler() filterapi.AttrModHandler {
+	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 		// Collect prepend ops (cluster-ids to prepend in order).
 		var prependBufs [][]byte
 		var setBuf []byte
 		for i := range ops {
-			if ops[i].Action == registry.AttrModPrepend && len(ops[i].Buf) == 4 {
+			if ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) == 4 {
 				prependBufs = append(prependBufs, ops[i].Buf)
-			} else if ops[i].Action == registry.AttrModSet {
+			} else if ops[i].Action == filterapi.AttrModSet {
 				setBuf = ops[i].Buf
 			}
 		}
@@ -238,12 +238,12 @@ func clusterListHandler() registry.AttrModHandler {
 // Only AttrModSet ops are honored (last-wins). AttrModSuppress on a
 // MP_REACH_NLRI would strip the entire route, which is a withdraw -- that is
 // expressed via ModAccumulator.SetWithdraw(), not via this handler.
-func mpReachNextHopHandler() registry.AttrModHandler {
-	return func(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+func mpReachNextHopHandler() filterapi.AttrModHandler {
+	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 		// Pick the last Set op.
 		var setBuf []byte
 		for i := range ops {
-			if ops[i].Action == registry.AttrModSet && len(ops[i].Buf) > 0 {
+			if ops[i].Action == filterapi.AttrModSet && len(ops[i].Buf) > 0 {
 				setBuf = ops[i].Buf
 			}
 		}
@@ -371,20 +371,20 @@ func mpReachNextHopHandler() registry.AttrModHandler {
 // aspathHandler handles AS_PATH (type 2) with support for AttrModPrepend.
 // Prepend inserts a new AS_SEQUENCE segment before the existing AS_PATH value.
 // Set replaces the entire attribute (via genericAttrSetHandler fallback).
-func aspathHandler() registry.AttrModHandler {
+func aspathHandler() filterapi.AttrModHandler {
 	setHandler := genericAttrSetHandler(0x40, byte(attribute.AttrASPath))
 
-	return func(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 		// Check for prepend ops and a possible Set base. Set is applied first,
 		// then prepend ops are placed in front of that base path.
 		var prependBufs [][]byte
 		hasPrepend := false
-		var setOp *registry.AttrOp
+		var setOp *filterapi.AttrOp
 		for i := range ops {
-			if ops[i].Action == registry.AttrModPrepend && len(ops[i].Buf) > 0 {
+			if ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) > 0 {
 				prependBufs = append(prependBufs, ops[i].Buf)
 				hasPrepend = true
-			} else if ops[i].Action == registry.AttrModSet || ops[i].Action == registry.AttrModSuppress {
+			} else if ops[i].Action == filterapi.AttrModSet || ops[i].Action == filterapi.AttrModSuppress {
 				setOp = &ops[i]
 			}
 		}
@@ -394,7 +394,7 @@ func aspathHandler() registry.AttrModHandler {
 			return setHandler(src, ops, buf, off)
 		}
 
-		if setOp != nil && setOp.Action == registry.AttrModSuppress {
+		if setOp != nil && setOp.Action == filterapi.AttrModSuppress {
 			return off
 		}
 
@@ -464,9 +464,9 @@ func aspathHandler() registry.AttrModHandler {
 
 // attrModHandlersWithDefaults returns the registered AttrModHandler map with
 // generic set handlers filled in for attribute codes that lack specialized handlers.
-// Called by the reactor at startup instead of registry.AttrModHandlers() directly.
-func attrModHandlersWithDefaults() map[uint8]registry.AttrModHandler {
-	handlers := registry.AttrModHandlers()
+// Called by the reactor at startup instead of filterapi.AttrModHandlers() directly.
+func attrModHandlersWithDefaults() map[uint8]filterapi.AttrModHandler {
+	handlers := filterapi.AttrModHandlers()
 	for _, entry := range genericAttrCodes {
 		code := byte(entry.code)
 		if handlers[code] == nil {

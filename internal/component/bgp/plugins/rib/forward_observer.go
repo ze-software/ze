@@ -1,4 +1,4 @@
-// Design: plan/design-rib-rs-fastpath.md -- observability subscriber for Change.Forward
+// Design: plan/learned/784-rib-rs-fastpath.md -- observability subscriber for Change.Forward
 // Related: rib.go -- SetLocRIB registers the observer
 // Related: forward_handle.go -- ribForwardHandle is the producer side
 

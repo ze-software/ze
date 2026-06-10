@@ -1,4 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB plugin structured delivery
+// RFC: rfc/short/rfc7313.md -- Enhanced Route Refresh (refresh subtype handling)
 // Overview: rib.go — RIB plugin main entry and JSON dispatch
 // Related: rib_bestchange.go — best-path change tracking and Bus publishing
 //
@@ -8,6 +9,8 @@
 package rib
 
 import (
+	"fmt"
+	"net/netip"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
@@ -18,6 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -26,6 +30,19 @@ var affectedPool = sync.Pool{
 		s := make([]affectedPrefix, 0, 128)
 		return &s
 	},
+}
+
+// parsePeerAddr converts a peer address string to netip.Addr at the event /
+// command boundary. The engine produces canonical netip.Addr.String() values
+// (PeerInfo.AddrStr), so a failure means a malformed producer or operator
+// input; the caller must log or return the error and stop (fail closed,
+// never a zero-Addr map key).
+func parsePeerAddr(peerAddr string) (netip.Addr, error) {
+	addr, err := netip.ParseAddr(peerAddr)
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("bgp rib: invalid peer address %q: %w (expected an IP address)", peerAddr, err)
+	}
+	return addr, nil
 }
 
 // dispatchStructured routes a StructuredEvent to the appropriate handler.
@@ -56,8 +73,12 @@ type affectedPrefix struct {
 // After all inserts/removes, checks best-path changes for affected prefixes and
 // publishes a batch event to the Bus (collected under lock, published after release).
 func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
-	peerAddr := se.PeerAddress
-	if peerAddr == "" {
+	if se.PeerAddress == "" {
+		return
+	}
+	peerAddr, err := parsePeerAddr(se.PeerAddress)
+	if err != nil {
+		logger().Warn("received structured event dropped", "error", err)
 		return
 	}
 
@@ -131,7 +152,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 	peerRIB := r.bgpPeers[peerAddr]
 	if peerRIB == nil {
-		peerRIB = storage.NewPeerRIB(peerAddr)
+		// Canonical string: PeerRIB.PeerAddr() feeds the best-path interner
+		// and metric labels, which must match netip.Addr.String() everywhere.
+		peerRIB = storage.NewPeerRIB(peerAddr.String())
 		r.bgpPeers[peerAddr] = peerRIB
 	}
 	r.peerMu.Unlock()
@@ -285,10 +308,14 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 // handleSentStructured processes sent UPDATE events from wire types.
 // Interns wire attribute bytes into pool.RibOut for deduplication.
 func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
-	peerAddr := se.PeerAddress
 	msgID := se.MessageID
 
-	if peerAddr == "" {
+	if se.PeerAddress == "" {
+		return
+	}
+	peerAddr, err := parsePeerAddr(se.PeerAddress)
+	if err != nil {
+		logger().Warn("sent structured event dropped", "error", err)
 		return
 	}
 
@@ -373,7 +400,7 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 
 // storeSentEntries walks NLRI bytes and stores ribOutEntry records in ribOut.
 // Caller must hold write lock.
-func (r *RIBManager) storeSentEntries(peerAddr string, fam family.Family, nlriData []byte, addPath bool,
+func (r *RIBManager) storeSentEntries(peerAddr netip.Addr, fam family.Family, nlriData []byte, addPath bool,
 	msgID uint64, attrHandle attrpool.Handle, sourcePeer string) {
 
 	if r.ribOut[peerAddr][fam] == nil {
@@ -408,7 +435,7 @@ func (r *RIBManager) storeSentEntries(peerAddr string, fam family.Family, nlriDa
 
 // removeSentNLRIs walks NLRI bytes and removes ribOutEntry records from ribOut.
 // Caller must hold write lock.
-func (r *RIBManager) removeSentNLRIs(peerAddr string, fam family.Family, wdData []byte, addPath bool) {
+func (r *RIBManager) removeSentNLRIs(peerAddr netip.Addr, fam family.Family, wdData []byte, addPath bool) {
 	familyRoutes := r.ribOut[peerAddr][fam]
 	if familyRoutes == nil {
 		return
@@ -454,8 +481,12 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	safi := msg.RawBytes[3]
 	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)}
 
-	peerAddr := se.PeerAddress
-	if peerAddr == "" {
+	if se.PeerAddress == "" {
+		return
+	}
+	peerAddr, err := parsePeerAddr(se.PeerAddress)
+	if err != nil {
+		logger().Warn("refresh structured event dropped", "error", err)
 		return
 	}
 
@@ -473,9 +504,11 @@ func (r *RIBManager) handleRefreshStructured(se *rpc.StructuredEvent) {
 	routesToSend := r.collectRibOutRoutes(peerAddr, fam)
 	r.peerMu.RUnlock()
 
-	r.dispatchPeerAction(peerAddr, "borr "+fam.String())
-	r.sendRoutes(peerAddr, routesToSend)
-	r.dispatchPeerAction(peerAddr, "eorr "+fam.String())
+	// The RPC selector stays the original event string.
+	var tb textbuf.Buffer
+	r.dispatchPeerAction(se.PeerAddress, tb.Str("borr ").Str(fam.String()).String())
+	r.sendRoutes(se.PeerAddress, routesToSend)
+	r.dispatchPeerAction(se.PeerAddress, tb.Reset().Str("eorr ").Str(fam.String()).String())
 }
 
 // insertLabeled handles a single labeled unicast NLRI announce. It strips

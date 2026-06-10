@@ -113,7 +113,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	// Set up peer metadata for eBGP.
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	// Insert a route from peer.
@@ -121,7 +121,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	// Check best-path change under lock.
@@ -168,8 +168,8 @@ func TestPurgeBestPrevForPeer(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	fam := family.Family{AFI: 1, SAFI: 1}
-	leavingPeer := "192.0.2.1"
-	survivingPeer := "192.0.2.2"
+	leavingPeer := netip.MustParseAddr("192.0.2.1")
+	survivingPeer := netip.MustParseAddr("192.0.2.2")
 
 	// Seed two bestPrev records for the leaving peer, plus one for the
 	// surviving peer. Go through checkBestPathChange so the interner
@@ -178,8 +178,8 @@ func TestPurgeBestPrevForPeer(t *testing.T) {
 	r.peerUp[survivingPeer] = true
 	r.peerMeta[leavingPeer] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 	r.peerMeta[survivingPeer] = &PeerMeta{PeerASN: 65002, LocalASN: 65000}
-	r.bgpPeers[leavingPeer] = storage.NewPeerRIB(leavingPeer)
-	r.bgpPeers[survivingPeer] = storage.NewPeerRIB(survivingPeer)
+	r.bgpPeers[leavingPeer] = storage.NewPeerRIB(leavingPeer.String())
+	r.bgpPeers[survivingPeer] = storage.NewPeerRIB(survivingPeer.String())
 
 	leavingPrefixes := [][]byte{
 		ipv4Prefix(24, 10, 0, 0), // 10.0.0.0/24
@@ -212,7 +212,7 @@ func TestPurgeBestPrevForPeer(t *testing.T) {
 	// the whole DOWN flow runs (ribInPool delete + peerMeta delete +
 	// purge under peerMu).
 	r.handleStructuredState(&rpc.StructuredEvent{
-		PeerAddress: leavingPeer,
+		PeerAddress: leavingPeer.String(),
 		State:       rpc.SessionStateDown,
 	})
 
@@ -278,10 +278,10 @@ func TestPurgeBestPrevForPeerLocRIB(t *testing.T) {
 	r.SetLocRIB(loc)
 
 	fam := family.Family{AFI: 1, SAFI: 1}
-	peerAddr := "192.0.2.10"
+	peerAddr := netip.MustParseAddr("192.0.2.10")
 	r.peerUp[peerAddr] = true
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 
 	prefix := ipv4Prefix(24, 10, 7, 0) // 10.7.0.0/24
 	attrs := makeAttrBytes([4]byte{192, 168, 7, 7})
@@ -296,7 +296,7 @@ func TestPurgeBestPrevForPeerLocRIB(t *testing.T) {
 	}
 
 	// Trigger DOWN. Purge must walk + delete from locrib too.
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr, State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr.String(), State: rpc.SessionStateDown})
 
 	if _, ok := loc.Lookup(fam, parsedPfx); ok {
 		t.Fatal("locrib still holds the BGP best path after peer-down purge")
@@ -317,14 +317,14 @@ func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	fam := family.Family{AFI: 1, SAFI: 1}
-	leavingPeer := "192.0.2.20"
-	survivingPeer := "192.0.2.21"
+	leavingPeer := netip.MustParseAddr("192.0.2.20")
+	survivingPeer := netip.MustParseAddr("192.0.2.21")
 	r.peerUp[leavingPeer] = true
 	r.peerUp[survivingPeer] = true
 	r.peerMeta[leavingPeer] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 	r.peerMeta[survivingPeer] = &PeerMeta{PeerASN: 65002, LocalASN: 65000}
-	r.bgpPeers[leavingPeer] = storage.NewPeerRIB(leavingPeer)
-	r.bgpPeers[survivingPeer] = storage.NewPeerRIB(survivingPeer)
+	r.bgpPeers[leavingPeer] = storage.NewPeerRIB(leavingPeer.String())
+	r.bgpPeers[survivingPeer] = storage.NewPeerRIB(survivingPeer.String())
 	// Enable ADD-PATH on the per-peer FamilyRIB so the storage layer
 	// keys inserts by (prefix, pathID) rather than collapsing all
 	// pathIDs onto the same prefix key.
@@ -363,7 +363,7 @@ func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 	}
 	require.Equal(t, 3, totalBefore, "expected three AP records before purge")
 
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer, State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer.String(), State: rpc.SessionStateDown})
 
 	depthsAfter := r.bestPrev.shardDepth(fam)
 	totalAfter := 0
@@ -388,10 +388,10 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	fam := family.Family{AFI: 1, SAFI: 1}
-	leavingPeer := "192.0.2.30"
+	leavingPeer := netip.MustParseAddr("192.0.2.30")
 	r.peerUp[leavingPeer] = true
 	r.peerMeta[leavingPeer] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
-	r.bgpPeers[leavingPeer] = storage.NewPeerRIB(leavingPeer)
+	r.bgpPeers[leavingPeer] = storage.NewPeerRIB(leavingPeer.String())
 	r.bgpPeers[leavingPeer].SetAddPath(fam, true)
 
 	apPrefix := func(pathID uint32, prefLen byte, a, b, c byte) []byte {
@@ -432,7 +432,7 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 
 	// DOWN: purgeBestPrevForPeer multi branch emits one Withdraw per pathID.
 	bus.events = nil // drop prior seed batches so we only see the DOWN batch
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer, State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: leavingPeer.String(), State: rpc.SessionStateDown})
 
 	// Collect every Withdraw entry across emitted batches for 10.31.0.0/24.
 	var withdrawPathIDs []uint32
@@ -469,12 +469,12 @@ func TestBestChangeEntryPathIDNonAddPath(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	fam := family.Family{AFI: 1, SAFI: 1}
-	peerAddr := "192.0.2.40"
+	peerAddr := netip.MustParseAddr("192.0.2.40")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 	prefix := ipv4Prefix(24, 10, 40, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 40, 40})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	entry, ok := r.checkBestPathChange(fam, prefix, false, nil)
@@ -507,10 +507,10 @@ func TestBestChangeEntryAddPathZeroPathID(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	fam := family.Family{AFI: 1, SAFI: 1}
-	peerAddr := "192.0.2.41"
+	peerAddr := netip.MustParseAddr("192.0.2.41")
 	r.peerUp[peerAddr] = true
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].SetAddPath(fam, true)
 
 	// ADD-PATH NLRI with pathID=0: [00 00 00 00][18 0a 29 00] = 10.41.0.0/24.
@@ -544,10 +544,10 @@ func TestPurgeBestPrevForPeerMultiFamily(t *testing.T) {
 
 	family4 := family.Family{AFI: 1, SAFI: 1} // ipv4/unicast
 	family6 := family.Family{AFI: 2, SAFI: 1} // ipv6/unicast
-	peerAddr := "192.0.2.30"
+	peerAddr := netip.MustParseAddr("192.0.2.30")
 	r.peerUp[peerAddr] = true
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 
 	// IPv4 NLRI.
 	v4prefix := ipv4Prefix(24, 10, 30, 0)
@@ -579,7 +579,7 @@ func TestPurgeBestPrevForPeerMultiFamily(t *testing.T) {
 	require.Equal(t, 1, totalV4Before, "v4 seeded record")
 	require.Equal(t, 1, totalV6Before, "v6 seeded record")
 
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr, State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerAddr.String(), State: rpc.SessionStateDown})
 
 	totalV4After := 0
 	for _, d := range r.bestPrev.shardDepth(family4) {
@@ -606,10 +606,10 @@ func TestPurgeBestPrevForPeerHandleState(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	fam := family.Family{AFI: 1, SAFI: 1}
-	peerAddr := "192.0.2.40"
+	peerAddr := netip.MustParseAddr("192.0.2.40")
 	r.peerUp[peerAddr] = true
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 
 	prefix := ipv4Prefix(24, 10, 40, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 40, 40})
@@ -621,7 +621,7 @@ func TestPurgeBestPrevForPeerHandleState(t *testing.T) {
 	// peer encoded in Peer (JSON blob) + State.
 	event := &Event{
 		Message: &MessageInfo{Type: rpc.EventKindState},
-		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": peerAddr}, "state": "down"}),
+		Peer:    mustMarshal(t, map[string]any{"remote": map[string]any{"address": peerAddr.String()}, "state": "down"}),
 	}
 	r.handleState(event)
 
@@ -638,14 +638,14 @@ func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	// First check: detects new best.
@@ -667,14 +667,14 @@ func TestRIBBestChangeWithdraw(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	// Establish best path.
@@ -698,7 +698,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
@@ -709,7 +709,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	}
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	for _, p := range prefixes {
 		r.bgpPeers[peerAddr].Insert(fam, attrs, p, true)
 	}
@@ -756,14 +756,14 @@ func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
@@ -785,14 +785,14 @@ func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65000, LocalASN: 65000} // same AS = iBGP
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
@@ -807,14 +807,14 @@ func TestRIBBestChangeEBGPPriority(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
@@ -829,14 +829,14 @@ func TestRIBBestChangeIBGPPriority(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65000, LocalASN: 65000} // same AS = iBGP
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	change, ok := r.checkBestPathChange(fam, prefix, false, nil)
@@ -855,9 +855,9 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	prefix := ipv4Prefix(24, 10, 0, 0)
 
 	// Peer 1: iBGP route.
-	peer1 := "192.0.2.1"
+	peer1 := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peer1] = &PeerMeta{PeerASN: 65000, LocalASN: 65000}
-	r.bgpPeers[peer1] = storage.NewPeerRIB(peer1)
+	r.bgpPeers[peer1] = storage.NewPeerRIB(peer1.String())
 	r.bgpPeers[peer1].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 1}), prefix, true)
 
 	change1, ok1 := r.checkBestPathChange(fam, prefix, false, nil)
@@ -865,9 +865,9 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 	assert.Equal(t, ribevents.BestChangeAdd, change1.Action)
 
 	// Peer 2: eBGP route (better -- eBGP preferred over iBGP).
-	peer2 := "192.0.2.2"
+	peer2 := netip.MustParseAddr("192.0.2.2")
 	r.peerMeta[peer2] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
-	r.bgpPeers[peer2] = storage.NewPeerRIB(peer2)
+	r.bgpPeers[peer2] = storage.NewPeerRIB(peer2.String())
 	r.bgpPeers[peer2].Insert(fam, makeAttrBytes([4]byte{10, 0, 0, 2}), prefix, true)
 
 	change2, ok2 := r.checkBestPathChange(fam, prefix, false, nil)
@@ -887,14 +887,14 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	// Set up a peer with a route and establish best path.
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	r.checkBestPathChange(fam, prefix, false, nil)
@@ -1084,12 +1084,12 @@ func TestBestPrevInternerOverflow(t *testing.T) {
 			require.True(t, ok)
 		}
 
-		peerAddr := "192.0.2.1"
+		peerAddr := netip.MustParseAddr("192.0.2.1")
 		r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 		fam := family.Family{AFI: 1, SAFI: 1}
 		prefix := ipv4Prefix(24, 10, 0, 0)
 		attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
-		r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+		r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 		r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 		require.NotPanics(t, func() {
@@ -1239,10 +1239,10 @@ func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
 	r := newTestRIBManagerWithBus(bus)
 
 	fam := family.Family{AFI: 1, SAFI: 1}
-	peerA := "192.0.2.50"
+	peerA := netip.MustParseAddr("192.0.2.50")
 	r.peerUp[peerA] = true
 	r.peerMeta[peerA] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
-	r.bgpPeers[peerA] = storage.NewPeerRIB(peerA)
+	r.bgpPeers[peerA] = storage.NewPeerRIB(peerA.String())
 
 	prefix := ipv4Prefix(24, 10, 9, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 9, 9})
@@ -1250,23 +1250,23 @@ func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, ok, "seed must intern peerA and store a bestPrev record")
 
-	idxA, ok := r.bestPathInterner.peerIdxOf(peerA)
+	idxA, ok := r.bestPathInterner.peerIdxOf(peerA.String())
 	require.True(t, ok, "peerA must be in the interner forward map after seed")
 
 	// DOWN path: handleStructuredState removes ribInPool entry and calls
 	// purgeBestPrevForPeer which forgetPeers peerA.
-	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerA, State: rpc.SessionStateDown})
+	r.handleStructuredState(&rpc.StructuredEvent{PeerAddress: peerA.String(), State: rpc.SessionStateDown})
 
-	_, stillThere := r.bestPathInterner.peerIdxOf(peerA)
+	_, stillThere := r.bestPathInterner.peerIdxOf(peerA.String())
 	assert.False(t, stillThere, "purge must release peerA from the forward map")
 	assert.Contains(t, r.bestPathInterner.peersFree, idxA,
 		"peerA's slot must be on the free-list after DOWN")
 
 	// A brand-new peer arrives: it must reuse peerA's slot rather than
 	// extending peers[].
-	peerB := "192.0.2.51"
+	peerB := netip.MustParseAddr("192.0.2.51")
 	sizeBefore := len(r.bestPathInterner.peers)
-	idxB, ok := r.bestPathInterner.internPeer(peerB)
+	idxB, ok := r.bestPathInterner.internPeer(peerB.String())
 	require.True(t, ok)
 	assert.Equal(t, idxA, idxB, "newcomer reuses peerA's reclaimed slot")
 	assert.Equal(t, sizeBefore, len(r.bestPathInterner.peers),
@@ -1374,16 +1374,16 @@ func TestPurgeBestPrevForPeerReclaimsWithoutRecords(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 
-	peerAddr := "192.0.2.77"
-	idx, ok := r.bestPathInterner.internPeer(peerAddr)
+	peerAddr := netip.MustParseAddr("192.0.2.77")
+	idx, ok := r.bestPathInterner.internPeer(peerAddr.String())
 	require.True(t, ok)
-	require.Contains(t, r.bestPathInterner.peerIdx, peerAddr)
+	require.Contains(t, r.bestPathInterner.peerIdx, peerAddr.String())
 
 	// No bestPrev records for this peer. Purge still reclaims the slot.
-	pending := r.purgeBestPrevForPeer(peerAddr)
+	pending := r.purgeBestPrevForPeer(peerAddr.String())
 	r.emitPurgedWithdraws(pending)
 
-	assert.NotContains(t, r.bestPathInterner.peerIdx, peerAddr,
+	assert.NotContains(t, r.bestPathInterner.peerIdx, peerAddr.String(),
 		"purge forgetPeers the interned peer even when it had no bestPrev records")
 	assert.Contains(t, r.bestPathInterner.peersFree, idx,
 		"slot lands on the free-list for the next peer")
@@ -1446,14 +1446,14 @@ func TestLocRIBMirror(t *testing.T) {
 	loc := locrib.NewRIB()
 	r.SetLocRIB(loc)
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
@@ -1488,14 +1488,14 @@ func TestLocRIBMirrorPropagatesForwardHandle(t *testing.T) {
 	var seen []locrib.Change
 	loc.OnChange(func(c locrib.Change) { seen = append(seen, c) })
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	// Simulate the wire buffer as handleReceivedStructured would see it.

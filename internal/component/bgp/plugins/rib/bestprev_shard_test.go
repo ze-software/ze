@@ -66,8 +66,8 @@ func TestParallelCheckBestPathChangeNoLostWrites(t *testing.T) {
 	)
 	r := newTestRIBManager(t)
 	fam := family.Family{AFI: 1, SAFI: 1}
-	peerAddr := "10.0.0.1"
-	peerRIB := storage.NewPeerRIB(peerAddr)
+	peerAddr := netip.MustParseAddr("10.0.0.1")
+	peerRIB := storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr] = peerRIB
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
@@ -115,7 +115,7 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 	const iterations = 128
 	r := newTestRIBManager(t)
 	fam := family.Family{AFI: 1, SAFI: 1}
-	peerAddr := "10.0.0.42"
+	peerAddr := netip.MustParseAddr("10.0.0.42")
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -129,7 +129,7 @@ func TestConcurrentDownVsUpdate(t *testing.T) {
 			r.peerMu.Lock()
 			peerRIB := r.bgpPeers[peerAddr]
 			if peerRIB == nil {
-				peerRIB = storage.NewPeerRIB(peerAddr)
+				peerRIB = storage.NewPeerRIB(peerAddr.String())
 				r.bgpPeers[peerAddr] = peerRIB
 			}
 			r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
@@ -194,14 +194,14 @@ func TestParallelMultiPeerNoLostWrites(t *testing.T) {
 	var wg sync.WaitGroup
 	for p := range peers {
 		wg.Add(1)
-		peerAddr := fmt.Sprintf("10.0.0.%d", p+1)
-		go func(p int, peerAddr string) {
+		peerAddr := netip.MustParseAddr(fmt.Sprintf("10.0.0.%d", p+1))
+		go func(p int, peerAddr netip.Addr) {
 			defer wg.Done()
 
 			// Phase 1: brief lock to create this peer's slot. Matches
 			// rib_structured.go::handleReceivedStructured.
 			r.peerMu.Lock()
-			peerRIB := storage.NewPeerRIB(peerAddr)
+			peerRIB := storage.NewPeerRIB(peerAddr.String())
 			r.bgpPeers[peerAddr] = peerRIB
 			r.peerMeta[peerAddr] = &PeerMeta{PeerASN: uint32(65000 + p + 1), LocalASN: 65000}
 			r.peerMu.Unlock()

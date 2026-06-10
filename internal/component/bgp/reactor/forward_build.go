@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // modBufPool provides reusable buffers for the progressive build.
@@ -57,8 +57,8 @@ var modBufPool = sync.Pool{
 // Returns (nil, 0) if no modifications were needed.
 func buildModifiedPayload(
 	payload []byte,
-	mods *registry.ModAccumulator,
-	handlers map[uint8]registry.AttrModHandler,
+	mods *filterapi.ModAccumulator,
+	handlers map[uint8]filterapi.AttrModHandler,
 	pp *peerPool,
 	nlriOverride []byte,
 ) ([]byte, int) {
@@ -506,15 +506,15 @@ func safeCopy(buf []byte, off int, src []byte) bool {
 
 // groupOpsByCode groups AttrOps by attribute code into a fixed array.
 // Two-pass: count first, then pre-allocate and fill.
-func groupOpsByCode(ops []registry.AttrOp) [256][]registry.AttrOp {
+func groupOpsByCode(ops []filterapi.AttrOp) [256][]filterapi.AttrOp {
 	var counts [256]int
 	for i := range ops {
 		counts[ops[i].Code]++
 	}
-	var m [256][]registry.AttrOp
+	var m [256][]filterapi.AttrOp
 	for code := range counts {
 		if counts[code] > 0 {
-			m[code] = make([]registry.AttrOp, counts[code]) // pool-fallback
+			m[code] = make([]filterapi.AttrOp, counts[code]) // pool-fallback
 			counts[code] = 0
 		}
 	}
@@ -528,7 +528,7 @@ func groupOpsByCode(ops []registry.AttrOp) [256][]registry.AttrOp {
 
 // safeAttrModHandler calls an AttrModHandler with panic recovery.
 // Returns the new offset on success, or the original offset on panic.
-func safeAttrModHandler(handler registry.AttrModHandler, code uint8, src []byte, ops []registry.AttrOp, buf []byte, off int) (newOff int) {
+func safeAttrModHandler(handler filterapi.AttrModHandler, code uint8, src []byte, ops []filterapi.AttrOp, buf []byte, off int) (newOff int) {
 	defer func() {
 		if r := recover(); r != nil {
 			fwdLogger().Error("attr mod handler panic, skipping modification",

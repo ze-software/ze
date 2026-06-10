@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // buildMPReachSource constructs a raw MP_REACH_NLRI attribute (header + value).
@@ -52,8 +52,8 @@ func TestMPReachNextHopHandler_Rewrite16Bytes(t *testing.T) {
 		0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0x00, 0x02,
 	}
-	ops := []registry.AttrOp{
-		{Code: 14, Action: registry.AttrModSet, Buf: newNH},
+	ops := []filterapi.AttrOp{
+		{Code: 14, Action: filterapi.AttrModSet, Buf: newNH},
 	}
 
 	buf := make([]byte, 256)
@@ -103,8 +103,8 @@ func TestMPReachNextHopHandler_Rewrite32Bytes(t *testing.T) {
 		0xfe, 0x80, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0x00, 0x02,
 	})
-	ops := []registry.AttrOp{
-		{Code: 14, Action: registry.AttrModSet, Buf: newNH},
+	ops := []filterapi.AttrOp{
+		{Code: 14, Action: filterapi.AttrModSet, Buf: newNH},
 	}
 
 	buf := make([]byte, 256)
@@ -159,8 +159,8 @@ func TestMPReachNextHopHandler_InvalidOpLength(t *testing.T) {
 	nlri := []byte{0x30, 0xfc, 0x00, 0x00}
 	src := buildMPReachSource(2, 1, oldNH, nlri)
 
-	ops := []registry.AttrOp{
-		{Code: 14, Action: registry.AttrModSet, Buf: []byte{1, 2, 3}}, // 3 bytes -- invalid
+	ops := []filterapi.AttrOp{
+		{Code: 14, Action: filterapi.AttrModSet, Buf: []byte{1, 2, 3}}, // 3 bytes -- invalid
 	}
 	buf := make([]byte, 256)
 	handler := mpReachNextHopHandler()
@@ -182,8 +182,8 @@ func TestMPReachNextHopHandler_IPv4NextHopThroughMPReach(t *testing.T) {
 	src := buildMPReachSource(1 /*AFI IPv4*/, 4 /*SAFI labeled-unicast*/, oldNH, nlri)
 
 	newNH := []byte{10, 0, 0, 2}
-	ops := []registry.AttrOp{
-		{Code: 14, Action: registry.AttrModSet, Buf: newNH},
+	ops := []filterapi.AttrOp{
+		{Code: 14, Action: filterapi.AttrModSet, Buf: newNH},
 	}
 	buf := make([]byte, 256)
 	handler := mpReachNextHopHandler()
@@ -216,8 +216,8 @@ func TestMPReachNextHopHandler_RejectsOverflow(t *testing.T) {
 	require.GreaterOrEqual(t, len(src), 65504)
 
 	newNH := make([]byte, 32)
-	ops := []registry.AttrOp{
-		{Code: 14, Action: registry.AttrModSet, Buf: newNH},
+	ops := []filterapi.AttrOp{
+		{Code: 14, Action: filterapi.AttrModSet, Buf: newNH},
 	}
 
 	buf := make([]byte, 131072)
@@ -269,8 +269,8 @@ func TestBuildModifiedPayload_MPReachNextHopSelf(t *testing.T) {
 		0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0x00, 0x02,
 	}
-	var mods registry.ModAccumulator
-	mods.Op(14, registry.AttrModSet, newNH)
+	var mods filterapi.ModAccumulator
+	mods.Op(14, filterapi.AttrModSet, newNH)
 
 	handlers := attrModHandlersWithDefaults()
 	modified, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
@@ -317,7 +317,7 @@ func TestApplyNextHopMod_IPv4EmitsBothOps(t *testing.T) {
 		NextHopMode:  NextHopSelf,
 		LocalAddress: netip.MustParseAddr("127.0.0.2"),
 	}
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	applyNextHopMod(dest, &mods)
 
 	ops := mods.Ops()
@@ -348,7 +348,7 @@ func TestApplyNextHopMod_IPv6EmitsOnlyMPReach(t *testing.T) {
 		NextHopMode:  NextHopSelf,
 		LocalAddress: netip.MustParseAddr("2001:db8::1"),
 	}
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	applyNextHopMod(dest, &mods)
 
 	ops := mods.Ops()
@@ -356,5 +356,5 @@ func TestApplyNextHopMod_IPv6EmitsOnlyMPReach(t *testing.T) {
 	assert.Equal(t, uint8(14), ops[0].Code, "op is MP_REACH_NLRI")
 	assert.Len(t, ops[0].Buf, 16, "IPv6 next-hop is 16 bytes")
 	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 S3.3: PrefixSID suppress")
-	assert.Equal(t, registry.AttrModSuppress, ops[1].Action)
+	assert.Equal(t, filterapi.AttrModSuppress, ops[1].Action)
 }

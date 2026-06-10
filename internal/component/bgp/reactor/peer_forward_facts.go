@@ -9,8 +9,8 @@ import (
 	"net/netip"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 const (
@@ -60,7 +60,7 @@ type peerForwardFacts struct {
 	extendedMsg bool
 	maxMsgSize  int
 
-	filterInfo registry.PeerFilterInfo
+	filterInfo filterapi.PeerFilterInfo
 
 	secondaryAS uint32
 
@@ -120,7 +120,7 @@ func (p *Peer) refreshForwardFacts() {
 		extendedMsg: extendedMsg,
 		maxMsgSize:  int(message.MaxMessageLength(message.TypeUPDATE, extendedMsg)),
 
-		filterInfo: registry.PeerFilterInfo{
+		filterInfo: filterapi.PeerFilterInfo{
 			Address:   s.Address,
 			PeerAS:    s.PeerAS,
 			Name:      s.Name,
@@ -215,35 +215,35 @@ func precomputeSendCommunity(s *PeerSettings, f *peerForwardFacts) {
 	}
 }
 
-func applyFactsNextHop(f *peerForwardFacts, mods *registry.ModAccumulator) {
+func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator) {
 	switch f.nhMode {
 	case nhModeNone:
 		return
 	case nhModeSelf4, nhModeExplicit4:
-		mods.Op(3, registry.AttrModSet, f.nhLegacy[:])
-		mods.Op(14, registry.AttrModSet, f.nhMapped[:])
+		mods.Op(3, filterapi.AttrModSet, f.nhLegacy[:])
+		mods.Op(14, filterapi.AttrModSet, f.nhMapped[:])
 	case nhModeSelfV6, nhModeExplicitV6:
-		mods.Op(14, registry.AttrModSet, f.nhGlobal[:])
+		mods.Op(14, filterapi.AttrModSet, f.nhGlobal[:])
 	case nhModeSelfV6LL:
-		mods.Op(14, registry.AttrModSet, f.nhGlobalLL[:])
+		mods.Op(14, filterapi.AttrModSet, f.nhGlobalLL[:])
 	}
 	// RFC 9252 Section 3.3: when next-hop is changed, strip PrefixSID.
 	// Ze does not originate local SRv6 SIDs, so the correct behavior is
 	// to remove the attribute rather than rebuild with a local SID.
-	mods.Op(40, registry.AttrModSuppress, nil)
+	mods.Op(40, filterapi.AttrModSuppress, nil)
 }
 
-func applyFactsSendCommunity(f *peerForwardFacts, mods *registry.ModAccumulator) {
+func applyFactsSendCommunity(f *peerForwardFacts, mods *filterapi.ModAccumulator) {
 	if f.scMask == 0 {
 		return
 	}
 	if f.scMask&scSuppressStandard != 0 {
-		mods.Op(8, registry.AttrModSuppress, nil)
+		mods.Op(8, filterapi.AttrModSuppress, nil)
 	}
 	if f.scMask&scSuppressExtended != 0 {
-		mods.Op(16, registry.AttrModSuppress, nil)
+		mods.Op(16, filterapi.AttrModSuppress, nil)
 	}
 	if f.scMask&scSuppressLarge != 0 {
-		mods.Op(32, registry.AttrModSuppress, nil)
+		mods.Op(32, filterapi.AttrModSuppress, nil)
 	}
 }

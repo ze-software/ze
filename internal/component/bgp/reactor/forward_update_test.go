@@ -10,8 +10,8 @@ import (
 	"time"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/selector"
 
@@ -337,13 +337,13 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	markerValue := []byte{0xDE, 0xAD}
 
 	// Egress filter that writes an AttrOp mod.
-	egressFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
-		mods.Op(250, registry.AttrModSet, markerValue)
+	egressFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
+		mods.Op(250, filterapi.AttrModSet, markerValue)
 		return true // accept
 	}
 
 	// AttrModHandler that adds a marker attribute (flags+code+len+value = 5 bytes).
-	markerHandler := registry.AttrModHandler(func(_ []byte, ops []registry.AttrOp, buf []byte, off int) int {
+	markerHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 		buf[off] = 0xC0  // flags: Optional + Transitive
 		buf[off+1] = 250 // private code
 		buf[off+2] = byte(len(ops[0].Buf))
@@ -367,8 +367,8 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 		recentUpdates:   cache,
 		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 		fwdPool:         testPool,
-		egressFilters:   []registry.EgressFilterFunc{egressFilter},
-		attrModHandlers: map[uint8]registry.AttrModHandler{250: markerHandler},
+		egressFilters:   []filterapi.EgressFilterFunc{egressFilter},
+		attrModHandlers: map[uint8]filterapi.AttrModHandler{250: markerHandler},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -447,12 +447,12 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	peer.sendCtxID = ctxID
 	peer.refreshForwardFacts()
 
-	egressFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
-		mods.Op(251, registry.AttrModSet, []byte{0x01})
+	egressFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
+		mods.Op(251, filterapi.AttrModSet, []byte{0x01})
 		return true
 	}
 
-	panicHandler := registry.AttrModHandler(func(_ []byte, _ []registry.AttrOp, _ []byte, _ int) int {
+	panicHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, _ []byte, _ int) int {
 		panic("deliberate test panic")
 	})
 
@@ -472,8 +472,8 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 		recentUpdates:   cache,
 		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 		fwdPool:         testPool,
-		egressFilters:   []registry.EgressFilterFunc{egressFilter},
-		attrModHandlers: map[uint8]registry.AttrModHandler{251: panicHandler},
+		egressFilters:   []filterapi.EgressFilterFunc{egressFilter},
+		attrModHandlers: map[uint8]filterapi.AttrModHandler{251: panicHandler},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -546,8 +546,8 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	peer.refreshForwardFacts()
 
 	// Egress filter writes an AttrOp for a code with NO registered handler.
-	egressFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
-		mods.Op(252, registry.AttrModSet, []byte{0x01})
+	egressFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
+		mods.Op(252, filterapi.AttrModSet, []byte{0x01})
 		return true
 	}
 
@@ -567,8 +567,8 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 		recentUpdates:   cache,
 		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 		fwdPool:         testPool,
-		egressFilters:   []registry.EgressFilterFunc{egressFilter},
-		attrModHandlers: map[uint8]registry.AttrModHandler{}, // empty: no handler for code 252
+		egressFilters:   []filterapi.EgressFilterFunc{egressFilter},
+		attrModHandlers: map[uint8]filterapi.AttrModHandler{}, // empty: no handler for code 252
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -758,13 +758,13 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 
 	// Egress filter: mod applies only when destination == peerA.
 	marker := []byte{0xDE, 0xAD}
-	egressFilter := func(_, dst registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
+	egressFilter := func(_, dst filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
 		if dst.Address == peerA.Settings().Address {
-			mods.Op(250, registry.AttrModSet, marker)
+			mods.Op(250, filterapi.AttrModSet, marker)
 		}
 		return true
 	}
-	markerHandler := registry.AttrModHandler(func(_ []byte, ops []registry.AttrOp, buf []byte, off int) int {
+	markerHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
 		buf[off] = 0xC0
 		buf[off+1] = 250
 		buf[off+2] = byte(len(ops[0].Buf))
@@ -796,8 +796,8 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 			peerB.Settings().PeerKey(): peerB,
 		},
 		fwdPool:         testPool,
-		egressFilters:   []registry.EgressFilterFunc{egressFilter},
-		attrModHandlers: map[uint8]registry.AttrModHandler{250: markerHandler},
+		egressFilters:   []filterapi.EgressFilterFunc{egressFilter},
+		attrModHandlers: map[uint8]filterapi.AttrModHandler{250: markerHandler},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 

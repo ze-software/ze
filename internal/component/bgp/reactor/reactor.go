@@ -33,6 +33,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"             // init() registers cache command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit"            // init() registers commit command RPCs
@@ -260,11 +261,11 @@ type Reactor struct {
 	// Peer filter chains: collected from plugin registry at startup.
 	// Ingress: called before caching/dispatching received UPDATEs.
 	// Egress: called per destination peer during ForwardUpdate.
-	ingressFilters []registry.IngressFilterFunc
-	egressFilters  []registry.EgressFilterFunc
+	ingressFilters []filterapi.IngressFilterFunc
+	egressFilters  []filterapi.EgressFilterFunc
 	// Attr mod handlers: per-attribute-code handlers for progressive build.
 	// Keyed by attribute type code (uint8). Collected from registry at startup.
-	attrModHandlers map[uint8]registry.AttrModHandler
+	attrModHandlers map[uint8]filterapi.AttrModHandler
 
 	// dynamicGroups holds group configs with `ip dynamic` + `range`.
 	// Checked by findDynamicGroup when findPeerByAddr returns false.
@@ -1145,8 +1146,8 @@ func (r *Reactor) startAPIServer() error {
 		r.eventDispatcher.SetEventBus(r.eventBus)
 	}
 	r.messageReceiver = r.eventDispatcher
-	r.ingressFilters = registry.IngressFilters()
-	r.egressFilters = registry.EgressFilters()
+	r.ingressFilters = filterapi.IngressFilters()
+	r.egressFilters = filterapi.EgressFilters()
 	r.attrModHandlers = attrModHandlersWithDefaults()
 	r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 	r.SetAPIProcessCount(len(r.config.Plugins))

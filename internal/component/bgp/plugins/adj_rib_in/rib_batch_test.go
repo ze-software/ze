@@ -1,6 +1,7 @@
 package adj_rib_in
 
 import (
+	"net/netip"
 	"strconv"
 	"testing"
 	"time"
@@ -81,8 +82,8 @@ func BenchmarkAcceptRoutesBatch(b *testing.B) {
 func benchManager(b *testing.B) *AdjRIBInManager {
 	b.Helper()
 	return &AdjRIBInManager{
-		ribIn:          make(map[string]*seqmap.Map[compactRouteKey, *RawRoute]),
-		peerUp:         make(map[string]bool),
+		ribIn:          make(map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute]),
+		peerUp:         make(map[netip.Addr]bool),
 		pending:        make(map[compactPendingKey]*PendingRoute),
 		earlyDecisions: make(map[compactPendingKey]*EarlyDecision),
 	}
@@ -104,8 +105,8 @@ func benchPrefixTable() ([]string, []compactRouteKey) {
 func benchPopulatePending(r *AdjRIBInManager, prefixes []string, rKeys []compactRouteKey) {
 	r.mu.Lock()
 	for i := range benchN {
-		r.pending[pendingKey("10.0.0.1", rKeys[i])] = &PendingRoute{
-			peerAddr: "10.0.0.1", family: family.IPv4Unicast, prefix: prefixes[i],
+		r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKeys[i])] = &PendingRoute{
+			peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: prefixes[i],
 			routeKey: rKeys[i], route: &RawRoute{Family: family.IPv4Unicast},
 			state: ValidationPending,
 		}
@@ -124,18 +125,18 @@ func TestBatchValidateMixedAcceptReject(t *testing.T) {
 	rKey3 := routeKeyFromStrings(family.IPv6Unicast, "2001:db8::/32", 0)
 
 	r.mu.Lock()
-	r.pending[pendingKey("10.0.0.1", rKey1)] = &PendingRoute{
-		peerAddr: "10.0.0.1", family: family.IPv4Unicast, prefix: "10.0.0.0/24",
+	r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey1)] = &PendingRoute{
+		peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: "10.0.0.0/24",
 		routeKey: rKey1, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0000"},
 		receivedAt: time.Now(), state: ValidationPending,
 	}
-	r.pending[pendingKey("10.0.0.1", rKey2)] = &PendingRoute{
-		peerAddr: "10.0.0.1", family: family.IPv4Unicast, prefix: "10.0.1.0/24",
+	r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey2)] = &PendingRoute{
+		peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: "10.0.1.0/24",
 		routeKey: rKey2, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "180a0001"},
 		receivedAt: time.Now(), state: ValidationPending,
 	}
-	r.pending[pendingKey("10.0.0.1", rKey3)] = &PendingRoute{
-		peerAddr: "10.0.0.1", family: family.IPv6Unicast, prefix: "2001:db8::/32",
+	r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey3)] = &PendingRoute{
+		peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv6Unicast, prefix: "2001:db8::/32",
 		routeKey: rKey3, route: &RawRoute{Family: family.IPv6Unicast, AttrHex: "40010100", NHopHex: "20010db8", NLRIHex: "2020010db8"},
 		receivedAt: time.Now(), state: ValidationPending,
 	}
@@ -161,30 +162,34 @@ func TestBatchValidateMixedAcceptReject(t *testing.T) {
 
 	assert.Empty(t, r.pending)
 
-	require.Contains(t, r.ribIn, "10.0.0.1")
-	rt1, ok := r.ribIn["10.0.0.1"].Get(rKey1)
+	require.Contains(t, r.ribIn, netip.MustParseAddr("10.0.0.1"))
+	rt1, ok := r.ribIn[netip.MustParseAddr("10.0.0.1")].Get(rKey1)
 	require.True(t, ok, "accepted route 1 should be installed")
 	assert.Equal(t, ValidationValid, rt1.ValidationState)
 
-	_, ok = r.ribIn["10.0.0.1"].Get(rKey2)
+	_, ok = r.ribIn[netip.MustParseAddr("10.0.0.1")].Get(rKey2)
 	assert.False(t, ok, "rejected route should not be installed")
 
-	rt3, ok := r.ribIn["10.0.0.1"].Get(rKey3)
+	rt3, ok := r.ribIn[netip.MustParseAddr("10.0.0.1")].Get(rKey3)
 	require.True(t, ok, "accepted route 3 should be installed")
 	assert.Equal(t, ValidationNotFound, rt3.ValidationState)
 }
 
-// TestBatchValidateOddPeerIdentifiers verifies batch handles peer keys
-// containing spaces, quotes, and backslashes without tokenization.
+// TestBatchValidateOddPeerIdentifiers verifies that peer keys which are not
+// IP addresses (spaces, quotes, backslashes) are rejected at the command
+// boundary: peer addresses are parsed once into netip.Addr, and a non-IP
+// identifier fails closed with an error naming the offending value, leaving
+// the pending map untouched.
 func TestBatchValidateOddPeerIdentifiers(t *testing.T) {
 	r := newTestManager(t)
 	r.validationEnabled = true
 	peer := `peer "odd\name" with spaces`
+	validPeer := netip.MustParseAddr("10.0.0.9")
 	rKey := routeKeyFromStrings(family.IPv4Unicast, "203.0.113.0/24", 42)
 
 	r.mu.Lock()
-	r.pending[pendingKey(peer, rKey)] = &PendingRoute{
-		peerAddr: peer, family: family.IPv4Unicast, prefix: "203.0.113.0/24",
+	r.pending[pendingKey(validPeer, rKey)] = &PendingRoute{
+		peerAddr: validPeer, family: family.IPv4Unicast, prefix: "203.0.113.0/24",
 		routeKey: rKey, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001", NLRIHex: "18cb0071"},
 		receivedAt: time.Now(), state: ValidationPending,
 	}
@@ -192,17 +197,16 @@ func TestBatchValidateOddPeerIdentifiers(t *testing.T) {
 
 	args := []string{"a", peer, "ipv4/unicast", "203.0.113.0/24", "42", "1"}
 	status, _, err := r.handleCommand("request adj-rib-in batch-validate", args, "")
-	require.NoError(t, err)
-	assert.Equal(t, statusDone, status)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid peer address")
+	assert.Contains(t, err.Error(), strconv.Quote(peer), "error must name the offending value")
+	assert.Equal(t, statusError, status)
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	assert.Empty(t, r.pending)
-	require.Contains(t, r.ribIn, peer)
-	rt, ok := r.ribIn[peer].Get(rKey)
-	require.True(t, ok)
-	assert.Equal(t, ValidationValid, rt.ValidationState)
+	assert.Len(t, r.pending, 1, "rejected batch must not mutate pending state")
+	assert.Empty(t, r.ribIn, "rejected batch must not install routes")
 }
 
 // TestBatchValidateEarlyDecisions verifies batch stores early decisions
@@ -228,13 +232,13 @@ func TestBatchValidateEarlyDecisions(t *testing.T) {
 	defer r.mu.RUnlock()
 
 	rKey1 := routeKeyFromStrings(family.IPv4Unicast, "10.0.0.0/24", 0)
-	ed1, ok := r.earlyDecisions[pendingKey("10.0.0.1", rKey1)]
+	ed1, ok := r.earlyDecisions[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey1)]
 	require.True(t, ok, "early accept should be stored")
 	assert.Equal(t, earlyAccept, ed1.action)
 	assert.Equal(t, ValidationValid, ed1.state)
 
 	rKey2 := routeKeyFromStrings(family.IPv4Unicast, "10.0.1.0/24", 0)
-	ed2, ok := r.earlyDecisions[pendingKey("10.0.0.1", rKey2)]
+	ed2, ok := r.earlyDecisions[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey2)]
 	require.True(t, ok, "early reject should be stored")
 	assert.Equal(t, earlyReject, ed2.action)
 }
@@ -336,8 +340,8 @@ func TestBatchValidateMatchesIndividual(t *testing.T) {
 		r.mu.Lock()
 		for i, p := range prefixes {
 			rKey := routeKeyFromStrings(family.IPv4Unicast, p, uint32(i))
-			r.pending[pendingKey("10.0.0.1", rKey)] = &PendingRoute{
-				peerAddr: "10.0.0.1", family: family.IPv4Unicast, prefix: p,
+			r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey)] = &PendingRoute{
+				peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: p,
 				routeKey: rKey, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001"},
 				receivedAt: time.Now(), state: ValidationPending,
 			}
@@ -399,8 +403,8 @@ func TestBatchValidateTypedMatchesString(t *testing.T) {
 		r.mu.Lock()
 		for i, p := range prefixes {
 			rKey := routeKeyFromStrings(family.IPv4Unicast, p, uint32(i))
-			r.pending[pendingKey("10.0.0.1", rKey)] = &PendingRoute{
-				peerAddr: "10.0.0.1", family: family.IPv4Unicast, prefix: p,
+			r.pending[pendingKey(netip.MustParseAddr("10.0.0.1"), rKey)] = &PendingRoute{
+				peerAddr: netip.MustParseAddr("10.0.0.1"), family: family.IPv4Unicast, prefix: p,
 				routeKey: rKey, route: &RawRoute{Family: family.IPv4Unicast, AttrHex: "40010100", NHopHex: "0a000001"},
 				receivedAt: time.Now(), state: ValidationPending,
 			}

@@ -53,22 +53,31 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 	seen := make(map[string]routeKey) // "familyStr|nlriKey" → routeKey
 
 	// Caller bestPipeline holds r.peerMu.RLock across this function; the
-	// ribInPool iteration below is protected by that outer lock.
+	// bgpPeers / ribInPool iterations below are protected by that outer lock.
+	collect := func(peerRIB *storage.PeerRIB) {
+		peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
+			fStr := formatFamily(fam)
+			pStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
+			var tb textbuf.Buffer
+			key := tb.Str(fStr).Byte('|').Str(string(nlriBytes)).String()
+			if _, ok := seen[key]; !ok {
+				seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
+			}
+			return true
+		})
+	}
+	for peer, peerRIB := range r.bgpPeers {
+		if !sel.Matches(peer) {
+			continue
+		}
+		collect(peerRIB)
+	}
 	for _, protoPeers := range r.ribInPool {
 		for peer, peerRIB := range protoPeers {
 			if !sel.MatchesPeerKey(peer) {
 				continue
 			}
-			peerRIB.IterateSorted(func(fam family.Family, nlriBytes []byte, _ storage.RouteEntry) bool {
-				fStr := formatFamily(fam)
-				pStr := formatNLRIAsPrefix(fam, nlriBytes, peerRIB.IsAddPath(fam))
-				var tb textbuf.Buffer
-				key := tb.Str(fStr).Byte('|').Str(string(nlriBytes)).String()
-				if _, ok := seen[key]; !ok {
-					seen[key] = routeKey{fam: fam, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
-				}
-				return true
-			})
+			collect(peerRIB)
 		}
 	}
 
@@ -99,9 +108,9 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		}
 
 		// Attach the pool entry from the winning peer for attribute access.
-		// Caller bestPipeline holds r.peerMu.RLock; this ribInPool read is
+		// Caller bestPipeline holds r.peerMu.RLock; this bgpPeers read is
 		// protected by that outer lock.
-		if peerRIB := r.bgpPeers[best.PeerAddr]; peerRIB != nil {
+		if peerRIB := r.bgpPeers[best.PeerIP]; peerRIB != nil {
 			if entry, ok := peerRIB.Lookup(rk.fam, []byte(rk.nlriKey)); ok {
 				item.HasInEntry = true
 				item.InEntry = entry

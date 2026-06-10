@@ -1,4 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — Adj-RIB-In raw hex storage
+// RFC: rfc/short/rfc4271.md -- Adj-RIBs-In stores unprocessed routing information
 // Detail: rib_commands.go — command handlers (status, show, replay, validation)
 // Detail: rib_validation.go — RPKI validation gate (pending routes, timeout, state constants)
 //
@@ -13,6 +14,7 @@ package adj_rib_in
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -79,10 +81,12 @@ type AdjRIBInManager struct {
 
 	// ribIn stores routes received FROM peers.
 	// sourcePeer → seqmap of compactRouteKey → RawRoute
-	ribIn map[string]*seqmap.Map[compactRouteKey, *RawRoute]
+	// Keyed by netip.Addr: peer strings are parsed once at the event /
+	// command boundary (see parsePeerAddress).
+	ribIn map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute]
 
 	// peerUp tracks which peers are currently up.
-	peerUp map[string]bool
+	peerUp map[netip.Addr]bool
 
 	// seqCounter is the monotonic sequence counter for incremental replay.
 	seqCounter uint64
@@ -122,8 +126,8 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 
 	r := &AdjRIBInManager{
 		plugin:         p,
-		ribIn:          make(map[string]*seqmap.Map[compactRouteKey, *RawRoute]),
-		peerUp:         make(map[string]bool),
+		ribIn:          make(map[netip.Addr]*seqmap.Map[compactRouteKey, *RawRoute]),
+		peerUp:         make(map[netip.Addr]bool),
 		pending:        make(map[compactPendingKey]*PendingRoute),
 		earlyDecisions: make(map[compactPendingKey]*EarlyDecision),
 	}
@@ -195,6 +199,19 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 	return 0
 }
 
+// parsePeerAddress converts a peer address string to netip.Addr at the
+// event / command boundary. The engine produces canonical netip.Addr.String()
+// values, so a failure means a malformed producer or operator input; the
+// caller must log or return the error and stop (fail closed, never a
+// zero-Addr map key).
+func parsePeerAddress(peerAddr string) (netip.Addr, error) {
+	addr, err := netip.ParseAddr(peerAddr)
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("adj-rib-in: invalid peer address %q: %w (expected an IP address)", peerAddr, err)
+	}
+	return addr, nil
+}
+
 // updateRoute sends a route update command to matching peers via the engine.
 func (r *AdjRIBInManager) updateRoute(peerSelector, command string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -215,8 +232,12 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		return
 	}
 
-	peerAddr := se.PeerAddress
-	if peerAddr == "" {
+	if se.PeerAddress == "" {
+		return
+	}
+	peerAddr, err := parsePeerAddress(se.PeerAddress)
+	if err != nil {
+		logger().Warn("received structured event dropped", "error", err)
 		return
 	}
 
@@ -282,7 +303,7 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 
 // installStructuredNLRIs walks simple-prefix wire bytes and installs routes.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr string, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string) {
+func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopHex string) {
 	if attrHex == "" || nhopHex == "" {
 		return
 	}
@@ -332,7 +353,7 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr string, fam family.Fam
 
 // removeStructuredNLRIs walks simple-prefix wire bytes and removes routes.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr string, fam family.Family, data []byte, addPath bool) {
+func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool) {
 	iter := nlri.NewNLRIIterator(data, addPath)
 	for {
 		wirePrefix, pathID, ok := iter.Next()
@@ -354,7 +375,7 @@ func (r *AdjRIBInManager) removeStructuredNLRIs(peerAddr string, fam family.Fami
 // installComplexNLRIs handles non-simple-prefix families (VPN, EVPN) via wireNLRIsToAny.
 // These are rare in benchmarks and their wire format prevents direct prefix extraction.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) installComplexNLRIs(peerAddr string, fam family.Family, data []byte, addPath bool, attrHex, nhopStr string) {
+func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool, attrHex, nhopStr string) {
 	if attrHex == "" {
 		return
 	}
@@ -408,7 +429,7 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr string, fam family.Family
 
 // removeComplexNLRIs handles withdrawal of non-simple-prefix families.
 // Caller must hold r.mu.
-func (r *AdjRIBInManager) removeComplexNLRIs(peerAddr string, fam family.Family, data []byte, addPath bool) {
+func (r *AdjRIBInManager) removeComplexNLRIs(peerAddr netip.Addr, fam family.Family, data []byte, addPath bool) {
 	nlris := wireNLRIsToAny(data, addPath, fam)
 	for _, nlriVal := range nlris {
 		prefix, pathID := bgp.ParseNLRIValue(nlriVal)
@@ -511,8 +532,12 @@ func wireNLRIsToAny(data []byte, addPath bool, fam family.Family) []any {
 
 // handleStructuredState processes a structured state event from DirectBridge.
 func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
-	peerAddr := se.PeerAddress
-	if peerAddr == "" {
+	if se.PeerAddress == "" {
+		return
+	}
+	peerAddr, err := parsePeerAddress(se.PeerAddress)
+	if err != nil {
+		logger().Warn("state structured event dropped", "error", err)
 		return
 	}
 
@@ -537,9 +562,9 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 		cmds, _ := r.buildReplayCommands(peerAddr, 0)
 		for _, cmd := range cmds {
 			if r.routeSender != nil {
-				r.routeSender(peerAddr, cmd)
+				r.routeSender(se.PeerAddress, cmd)
 			} else {
-				r.updateRoute(peerAddr, cmd)
+				r.updateRoute(se.PeerAddress, cmd)
 			}
 		}
 	}
@@ -560,8 +585,12 @@ func (r *AdjRIBInManager) dispatch(event *bgp.Event) {
 // handleReceived processes received UPDATE events from peers.
 // Stores routes as raw hex from format=full events.
 func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
-	peerAddr := event.GetPeerAddress()
-	if peerAddr == "" {
+	if event.GetPeerAddress() == "" {
+		return
+	}
+	peerAddr, err := parsePeerAddress(event.GetPeerAddress())
+	if err != nil {
+		logger().Warn("received event dropped", "error", err)
 		return
 	}
 
@@ -668,8 +697,12 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 // (buildReplayCommands takes RLock, updateRoute does I/O).
 // Only processes "up" and "down" states; unknown/intermediate FSM states are ignored.
 func (r *AdjRIBInManager) handleState(event *bgp.Event) {
-	peerAddr := event.GetPeerAddress()
-	if peerAddr == "" {
+	if event.GetPeerAddress() == "" {
+		return
+	}
+	peerAddr, err := parsePeerAddress(event.GetPeerAddress())
+	if err != nil {
+		logger().Warn("state event dropped", "error", err)
 		return
 	}
 
@@ -701,9 +734,9 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 		cmds, _ := r.buildReplayCommands(peerAddr, 0)
 		for _, cmd := range cmds {
 			if r.routeSender != nil {
-				r.routeSender(peerAddr, cmd)
+				r.routeSender(event.GetPeerAddress(), cmd)
 			} else {
-				r.updateRoute(peerAddr, cmd)
+				r.updateRoute(event.GetPeerAddress(), cmd)
 			}
 		}
 	}
@@ -712,7 +745,7 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 // buildReplayCommands builds "update hex" commands for replay to a target peer.
 // Returns the commands and the maximum sequence index of replayed routes.
 // Uses seqmap.Since for O(log N + K) delta replay instead of O(N) full scan.
-func (r *AdjRIBInManager) buildReplayCommands(targetPeer string, fromIndex uint64) ([]string, uint64) {
+func (r *AdjRIBInManager) buildReplayCommands(targetPeer netip.Addr, fromIndex uint64) ([]string, uint64) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

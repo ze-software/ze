@@ -142,14 +142,14 @@ func TestAdminDistanceAppliedEBGP(t *testing.T) {
 	loc := locrib.NewRIB()
 	r.SetLocRIB(loc)
 
-	peerAddr := "192.0.2.1"
+	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 1})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)
@@ -173,14 +173,14 @@ func TestAdminDistanceAppliedIBGP(t *testing.T) {
 	loc := locrib.NewRIB()
 	r.SetLocRIB(loc)
 
-	peerAddr := "192.0.2.2"
+	peerAddr := netip.MustParseAddr("192.0.2.2")
 	r.peerMeta[peerAddr] = &PeerMeta{PeerASN: 65000, LocalASN: 65000}
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 1, 0)
 	attrs := makeAttrBytes([4]byte{192, 168, 1, 2})
 
-	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr)
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
 	r.bgpPeers[peerAddr].Insert(fam, attrs, prefix, true)
 
 	_, ok := r.checkBestPathChange(fam, prefix, false, nil)

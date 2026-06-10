@@ -1,4 +1,4 @@
-// Design: plan/spec-rs-gap-1-reactor-fastpath.md -- reactor-native RS forwarding
+// Design: plan/learned/663-rs-gap-0-structural-forwarding.md -- reactor-native RS forwarding
 // Related: reactor_api_forward.go -- ForwardUpdate egress pipeline (shared helpers)
 // Related: forward_pool.go -- per-peer forward worker pool
 // Related: forward_build.go -- buildModifiedPayload, buildWithdrawalPayload
@@ -8,10 +8,10 @@ import (
 	"net/netip"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // tryDirectWriteNoFlush writes UPDATE bodies directly to the destination peer's
@@ -209,9 +209,9 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	}
 
 	// Build source PeerFilterInfo once for egress filter chain.
-	var srcFilter registry.PeerFilterInfo
+	var srcFilter filterapi.PeerFilterInfo
 	if len(r.egressFilters) > 0 {
-		srcFilter = registry.PeerFilterInfo{Address: sourcePeerAddr}
+		srcFilter = filterapi.PeerFilterInfo{Address: sourcePeerAddr}
 		r.mu.RLock()
 		if srcPeer, ok := r.findPeerByAddr(sourcePeerAddr); ok {
 			srcFilter.PeerAS = srcPeer.Settings().PeerAS
@@ -294,10 +294,10 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 		}
 
-		var mods registry.ModAccumulator
+		var mods filterapi.ModAccumulator
 
 		if facts.rsClient && len(communityStripBytes) > 0 {
-			mods.Op(8, registry.AttrModRemove, communityStripBytes)
+			mods.Op(8, filterapi.AttrModRemove, communityStripBytes)
 		}
 		if len(r.egressFilters) > 0 {
 			destFilter := facts.filterInfo
@@ -316,8 +316,8 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		// RFC 4456: Route reflection attribute injection for IBGP destinations.
 		if srcIsIBGP && !facts.isEBGP {
-			mods.Op(9, registry.AttrModSet, origBuf[:])
-			mods.Op(10, registry.AttrModPrepend, facts.clusterIDBytes[:])
+			mods.Op(9, filterapi.AttrModSet, origBuf[:])
+			mods.Op(10, filterapi.AttrModPrepend, facts.clusterIDBytes[:])
 		}
 
 		applyFactsNextHop(facts, &mods)

@@ -3,7 +3,7 @@
 // RFC: rfc/short/rfc4456.md
 //
 // Package filter implements protocol-mandated ingress filters for the BGP reactor.
-// Filters are registered with the plugin registry at init() and called by the
+// Filters are registered with the BGP filter pipeline (filterapi) at init() and called by the
 // reactor's ingress filter chain for each received UPDATE.
 package filter
 
@@ -11,7 +11,7 @@ import (
 	"encoding/binary"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -24,7 +24,7 @@ var logger = slogutil.LazyLogger("bgp.filter")
 //  1. AS loop: local ASN in AS_PATH (all sessions, RFC 4271 Section 9)
 //  2. Originator-ID loop: ORIGINATOR_ID == local Router ID (iBGP only, RFC 4456 Section 8)
 //  3. Cluster-list loop: local Router ID in CLUSTER_LIST (iBGP only, RFC 4456 Section 8)
-func LoopIngress(src registry.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
+func LoopIngress(src filterapi.PeerFilterInfo, payload []byte, _ map[string]any) (bool, []byte) {
 	if src.LoopDisabled {
 		return true, nil
 	}

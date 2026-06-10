@@ -13,10 +13,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // TracePolicyFilterChain runs a chain of named filters on an update text and
@@ -215,7 +215,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 // construct a modified payload: this is a read-only explanation, so it only
 // reports the operations as "<ATTRIBUTE> <verb>" strings.
 func computeWireChanges(before, after string, attrs *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []string {
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	textDeltaToModOps(before, after, &mods)
 	ExtractRemovePrivateASOps(after, attrs, asn4, peerAS, &mods)
 	ExtractASPathPrependOps(after, localAS, &mods)
@@ -236,15 +236,15 @@ func computeWireChanges(before, after string, attrs *attribute.AttributesWire, a
 // dry-run output.
 func wireModVerb(action uint8) string {
 	switch action {
-	case registry.AttrModSet:
+	case filterapi.AttrModSet:
 		return "set"
-	case registry.AttrModAdd:
+	case filterapi.AttrModAdd:
 		return "add"
-	case registry.AttrModRemove:
+	case filterapi.AttrModRemove:
 		return "remove"
-	case registry.AttrModPrepend:
+	case filterapi.AttrModPrepend:
 		return "prepend"
-	case registry.AttrModSuppress:
+	case filterapi.AttrModSuppress:
 		return "suppressed"
 	default:
 		return "modified"

@@ -9,7 +9,7 @@ import (
 	"net/netip"
 	"slices"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
@@ -211,7 +211,7 @@ func (a *reactorAPIAdapter) resolveSourceInfo(srcAddr netip.Addr) forwardSourceI
 			globalLocalAS:  s.GlobalLocalAS,
 		}
 		if len(a.r.egressFilters) > 0 {
-			info.filterInfo = registry.PeerFilterInfo{
+			info.filterInfo = filterapi.PeerFilterInfo{
 				Address:   s.Address,
 				PeerAS:    s.PeerAS,
 				Name:      s.Name,

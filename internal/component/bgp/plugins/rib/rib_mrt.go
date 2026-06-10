@@ -4,7 +4,6 @@ package rib
 
 import (
 	"encoding/binary"
-	"net"
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
@@ -32,7 +31,7 @@ func (ribDumpBridge) DumpRIB(visitor registry.RIBDumpVisitor) {
 
 func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 	type peerSnapshot struct {
-		addr  string
+		addr  string // canonical label for visitor.OnPeer (string boundary)
 		asn   uint32
 		bgpID [4]byte
 		ipv6  bool
@@ -42,22 +41,23 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 	r.peerMu.Lock()
 	snaps := make([]peerSnapshot, 0, len(r.bgpPeers))
 	for addr, peerRIB := range r.bgpPeers {
-		s := peerSnapshot{addr: addr, rib: peerRIB}
+		// PeerRIB caches the canonical address string for the visitor label;
+		// the typed key answers the IPv6 question without re-parsing.
+		s := peerSnapshot{addr: peerRIB.PeerAddr(), rib: peerRIB}
 		if meta := r.peerMeta[addr]; meta != nil {
 			s.asn = meta.PeerASN
 			binary.BigEndian.PutUint32(s.bgpID[:], meta.RouterID)
 		}
-		ip := net.ParseIP(addr)
-		s.ipv6 = ip != nil && ip.To4() == nil
+		s.ipv6 = !addr.Unmap().Is4()
 		snaps = append(snaps, s)
 	}
 	r.peerMu.Unlock()
 
-	peerIndices := make(map[string]uint16, len(snaps))
+	// Per-snapshot index, no peer-keyed map needed: snaps and indices align.
+	peerIndices := make([]uint16, len(snaps))
 	for i := range snaps {
 		s := &snaps[i]
-		idx := visitor.OnPeer(s.addr, s.asn, s.bgpID, s.ipv6)
-		peerIndices[s.addr] = idx
+		peerIndices[i] = visitor.OnPeer(s.addr, s.asn, s.bgpID, s.ipv6)
 	}
 
 	type routeSnap struct {
@@ -68,7 +68,7 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 	attrBuf := make([]byte, 0, 4096)
 	for i := range snaps {
 		s := &snaps[i]
-		peerIdx := peerIndices[s.addr]
+		peerIdx := peerIndices[i]
 		if s.rib == nil {
 			continue
 		}

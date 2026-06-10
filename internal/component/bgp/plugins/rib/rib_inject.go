@@ -1,4 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — BMP wire route injection
+// RFC: rfc/short/rfc7606.md — path attribute validation before storing
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_structured.go — handleReceivedStructured (BGP UPDATE parsing precedent)
 
@@ -20,6 +21,7 @@ var (
 	errShowProtocolRequiresProtocol               = errors.New("show-protocol requires <protocol>")
 	errWithdrawProtocolRequiresProtocolPeerKey    = errors.New("withdraw-protocol requires <protocol> <peer-key>")
 	errWithdrawRouterRequiresProtocolRouterPrefix = errors.New("withdraw-router requires <protocol> <router-prefix>")
+	errInjectWireRouteBGPProtocol                 = errors.New("inject-wire-route rejected: protocol \"bgp\" must use the BGP UPDATE path, not protocol injection")
 )
 
 // handleInjectWireRoute stores BGP UPDATE routes under a named protocol's
@@ -40,6 +42,13 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 	if !ok {
 		logger().Warn("inject-wire-route: unknown protocol", "protocol", protocol)
 		return nil
+	}
+	if protoID == bgpProtocolID {
+		// BGP Adj-RIB-In is keyed by netip.Addr in bgpPeers and fed by UPDATE
+		// events; protocol namespaces hold composite string keys. Reject so
+		// routes cannot land in a slot invisible to best-path selection.
+		logger().Warn("inject-wire-route rejected: protocol \"bgp\" must use the BGP UPDATE path, not protocol injection", "peer", peerKey)
+		return errInjectWireRouteBGPProtocol
 	}
 
 	wu := wireu.NewWireUpdate(updateBody, 0)
@@ -171,6 +180,8 @@ func registerInjectCommands() {
 }
 
 // showProtocolPipeline runs the show pipeline filtered to a single protocol's peers.
+// Protocol "bgp" reads from the netip.Addr-keyed bgpPeers map; every other
+// protocol reads its string-keyed ribInPool namespace.
 func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []string) any {
 	protoID, ok := redistevents.ProtocolIDOf(protocol)
 	if !ok {
@@ -180,8 +191,10 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 
-	protoPeers := r.ribInPool[protoID]
-	if len(protoPeers) == 0 {
+	if protoID != bgpProtocolID && len(r.ribInPool[protoID]) == 0 {
+		return json.RawMessage(`{"adj-rib-in":{}}`)
+	}
+	if protoID == bgpProtocolID && len(r.bgpPeers) == 0 {
 		return json.RawMessage(`{"adj-rib-in":{}}`)
 	}
 
@@ -193,7 +206,12 @@ func (r *RIBManager) showProtocolPipeline(protocol, selector string, args []stri
 		selector = pipeSelector
 	}
 
-	source := PipelineIterator(newProtocolInboundSource(r, protoID, selector))
+	var source PipelineIterator
+	if protoID == bgpProtocolID {
+		source = newInboundSource(r, selector)
+	} else {
+		source = newProtocolInboundSource(r, protoID, selector)
+	}
 
 	current := source
 	for _, stage := range stages {

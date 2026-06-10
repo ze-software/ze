@@ -1,4 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB command handlers
+// RFC: rfc/short/rfc4724.md — Graceful Restart (mark-stale, purge-stale, retain/release)
+// RFC: rfc/short/rfc9494.md — LLGR stale propagation to Adj-RIB-Out
+// RFC: rfc/short/rfc8950.md — IPv6 next-hop validation for injected routes
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_nlri.go — NLRI wire format helpers
 // Related: rib_attr_format.go — attribute formatting for show enrichment
@@ -37,7 +40,7 @@ const grTimerMargin = 5 * time.Second
 // The owner parameter is the peerGRState that created this timer. If a consecutive
 // restart replaced it (new mark-stale created a new state), the callback is stale
 // and must be a no-op — otherwise it would purge the new cycle's routes.
-func (r *RIBManager) autoExpireStale(peerAddr string, owner *peerGRState) {
+func (r *RIBManager) autoExpireStale(peerAddr netip.Addr, owner *peerGRState) {
 	type staleNLRI struct {
 		fam     family.Family
 		nlri    []byte
@@ -224,13 +227,13 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 		return statusError, "", errUsageRibInjectPeerFamilyPrefix
 	}
 
-	peer := args[0]
 	familyStr := args[1]
 	prefix := args[2]
 
-	// Validate peer looks like an IP address.
-	if _, err := netip.ParseAddr(peer); err != nil {
-		return statusError, "", fmt.Errorf("invalid peer address: %s", peer)
+	// Parse the peer address once at the command boundary.
+	peer, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("bgp rib inject: invalid peer address %q: %w (expected an IP address)", args[0], err)
 	}
 
 	// Validate family is a simple prefix type (IPv4/IPv6 unicast/multicast).
@@ -314,14 +317,16 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 
 	r.peerMu.Lock()
 	if r.bgpPeers[peer] == nil {
-		r.bgpPeers[peer] = storage.NewPeerRIB(peer)
+		// Canonical string: PeerRIB.PeerAddr() feeds the best-path interner
+		// and metric labels, which must match netip.Addr.String() everywhere.
+		r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
 	}
 	r.bgpPeers[peer].Insert(fam, attrBytes, nlriBytes, true)
 	r.peerMu.Unlock()
 
 	r.reconcileBestPath(fam, nlriBytes)
 
-	return statusDone, map[string]any{"injected": prefix, "peer": peer, "family": familyStr}, nil
+	return statusDone, map[string]any{"injected": prefix, "peer": args[0], "family": familyStr}, nil
 }
 
 // validateIPv6NextHop checks whether an IPv6 next-hop is valid for this peer and family.
@@ -329,7 +334,7 @@ func (r *RIBManager) injectRoute(_ string, args []string) (string, any, error) {
 // Unknown peers (injected, no session): accept with a warning log.
 //
 // Acquires r.peerMu.RLock for the brief peerMeta read.
-func (r *RIBManager) validateIPv6NextHop(peer string, fam family.Family) error {
+func (r *RIBManager) validateIPv6NextHop(peer netip.Addr, fam family.Family) error {
 	r.peerMu.RLock()
 	meta := r.peerMeta[peer]
 	r.peerMu.RUnlock()
@@ -367,12 +372,12 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, any, error)
 		return statusError, "", errUsageRibWithdrawPeerFamilyPrefix
 	}
 
-	peer := args[0]
 	familyStr := args[1]
 	prefix := args[2]
 
-	if _, err := netip.ParseAddr(peer); err != nil {
-		return statusError, "", fmt.Errorf("invalid peer address: %s", peer)
+	peer, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("bgp rib withdraw: invalid peer address %q: %w (expected an IP address)", args[0], err)
 	}
 
 	nlriBytes, err := prefixToWire(familyStr, prefix, 0, false)
@@ -397,7 +402,7 @@ func (r *RIBManager) withdrawRoute(_ string, args []string) (string, any, error)
 
 	r.reconcileBestPath(fam, nlriBytes)
 
-	return statusDone, map[string]any{"withdrawn": prefix, "peer": peer, "family": familyStr, "existed": removed}, nil
+	return statusDone, map[string]any{"withdrawn": prefix, "peer": args[0], "family": familyStr, "existed": removed}, nil
 }
 
 // rpfLookup performs a Reverse Path Forwarding lookup: longest-prefix-match
@@ -537,10 +542,10 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.Lock()
 	cleared := 0
-	var purgedPeers []string
+	var purgedPeers []netip.Addr
 
 	for peer, peerRIB := range r.bgpPeers {
-		if !sel.MatchesPeerKey(peer) {
+		if !sel.Matches(peer) {
 			continue
 		}
 		cleared += peerRIB.Len()
@@ -563,11 +568,11 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 	sel := selector.ParseDefault(selectorStr)
 	r.peerMu.RLock()
-	var peersToResend []string
-	groupsToResend := make(map[string][]replayGroup)
+	var peersToResend []netip.Addr
+	groupsToResend := make(map[netip.Addr][]replayGroup)
 
 	for peer := range r.ribOut {
-		if !sel.MatchesPeerKey(peer) {
+		if !sel.Matches(peer) {
 			continue
 		}
 		if !r.peerUp[peer] {
@@ -590,7 +595,8 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 
 	resent := 0
 	for _, peer := range peersToResend {
-		resent += r.resendRoutesWithCursor(peer, groupsToResend[peer])
+		// RPC selector is a string boundary: one conversion per resent peer.
+		resent += r.resendRoutesWithCursor(peer.String(), groupsToResend[peer])
 	}
 
 	return map[string]any{"resent": resent, "peers": len(peersToResend)}
@@ -621,6 +627,10 @@ func (r *RIBManager) status() any {
 
 	routesIn := 0
 	staleRoutes := 0
+	for _, peerRIB := range r.bgpPeers {
+		routesIn += peerRIB.Len()
+		staleRoutes += peerRIB.StaleCount()
+	}
 	for _, protoPeers := range r.ribInPool {
 		for _, peerRIB := range protoPeers {
 			routesIn += peerRIB.Len()
@@ -647,7 +657,7 @@ func (r *RIBManager) status() any {
 	if len(r.grState) > 0 {
 		grPeers := make(map[string]any, len(r.grState))
 		for peer, state := range r.grState {
-			grPeers[peer] = map[string]any{
+			grPeers[peer.String()] = map[string]any{
 				"stale-at":     state.StaleAt.Format(time.RFC3339),
 				"restart-time": state.RestartTime,
 				"expires-at":   state.ExpiresAt.Format(time.RFC3339),
@@ -669,7 +679,7 @@ func (r *RIBManager) retainRoutes(selectorStr string) any {
 
 	retained := 0
 	for peer := range r.bgpPeers {
-		if !sel.MatchesPeerKey(peer) {
+		if !sel.Matches(peer) {
 			continue
 		}
 		r.retainedPeers[peer] = true
@@ -687,9 +697,9 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 	r.peerMu.Lock()
 
 	released := 0
-	var purgedPeers []string
+	var purgedPeers []netip.Addr
 	for peer := range r.retainedPeers {
-		if !sel.MatchesPeerKey(peer) {
+		if !sel.Matches(peer) {
 			continue
 		}
 		delete(r.retainedPeers, peer)
@@ -721,7 +731,10 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 		return statusError, "", errMarkStaleRequiresPeerRestartTime
 	}
 
-	peerAddr := args[0]
+	peerAddr, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("mark-stale: invalid peer address %q: %w (expected an IP address)", args[0], err)
+	}
 	restartSec, err := strconv.ParseUint(args[1], 10, 16)
 	if err != nil {
 		return statusError, "", fmt.Errorf("invalid restart-time %q: %w", args[1], err)
@@ -755,9 +768,12 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 	// Only routes originally received from peerAddr are marked; routes from other
 	// peers are left fresh. During LLGR readvertisement, sendRoutes carries
 	// meta["stale"] through ForwardUpdate to egress filters.
+	// ribOutSourceRef.peer is the engine's canonical source-peer string;
+	// compare against the canonical form of the command argument (cold path).
+	peerStr := peerAddr.String()
 	for fam, keys := range r.ribOutSource {
 		for key, src := range keys {
-			if src.peer != peerAddr {
+			if src.peer != peerStr {
 				continue
 			}
 			for _, peerFamilies := range r.ribOut {
@@ -808,7 +824,10 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, any, error) {
 		return statusError, "", errPurgeStaleRequiresPeer
 	}
 
-	peerAddr := args[0]
+	peerAddr, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("purge-stale: invalid peer address %q: %w (expected an IP address)", args[0], err)
+	}
 	familyFilter := ""
 	if len(args) >= 2 {
 		familyFilter = args[1]
@@ -887,6 +906,10 @@ func (r *RIBManager) bestPathStatus() any {
 
 	totalPeers := 0
 	totalRoutes := 0
+	for _, peerRIB := range r.bgpPeers {
+		totalPeers++
+		totalRoutes += peerRIB.Len()
+	}
 	for _, protoPeers := range r.ribInPool {
 		for _, peerRIB := range protoPeers {
 			totalPeers++
@@ -929,7 +952,9 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 		if IsSRv6Ineligible(entry) {
 			continue
 		}
-		c := r.extractCandidate(peer, entry)
+		// The map key gives the typed address; PeerRIB caches the canonical
+		// string, so the hot path performs no parse and no conversion.
+		c := r.extractCandidate(peer, peerRIB.PeerAddr(), entry)
 		candidates = append(candidates, c)
 	}
 	return candidates
@@ -937,11 +962,12 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 
 // extractCandidate builds a Candidate from a RouteEntry by reading pool handles.
 // Extracts attribute values needed for RFC 4271 §9.1.2 comparison.
-func (r *RIBManager) extractCandidate(peerAddr string, entry storage.RouteEntry) *Candidate {
-	peerIP, _ := netip.ParseAddr(peerAddr)
+// peerAddr is the typed map key; peerStr is PeerRIB's cached canonical string
+// (kept alongside to avoid a per-candidate Addr.String() allocation).
+func (r *RIBManager) extractCandidate(peerAddr netip.Addr, peerStr string, entry storage.RouteEntry) *Candidate {
 	c := &Candidate{
-		PeerAddr:  peerAddr,
-		PeerIP:    peerIP,
+		PeerAddr:  peerStr,
+		PeerIP:    peerAddr,
 		LocalPref: 100, // RFC 4271 default
 	}
 

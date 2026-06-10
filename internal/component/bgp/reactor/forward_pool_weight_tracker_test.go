@@ -290,6 +290,38 @@ func TestWeightTracker_NilCallback(t *testing.T) {
 	wt.RemovePeer("10.0.0.1")
 }
 
+func TestWeightTracker_InvalidPeerAddress(t *testing.T) {
+	// Unparseable peer addresses are rejected at the boundary: no entry is
+	// created, no callback fires, and lookups report zero demand.
+	var callCount int
+	wt := newWeightTracker(func(_, _ int, _ overflowBudgetResult) { callCount++ })
+
+	wt.AddPeer("not-an-ip", 1000, 1)
+	if wt.PeerCount() != 0 {
+		t.Fatalf("PeerCount() = %d, want 0 after invalid AddPeer", wt.PeerCount())
+	}
+	if callCount != 0 {
+		t.Error("callback should not fire for invalid peer address")
+	}
+	if d := wt.PeerDemand("not-an-ip"); d != 0 {
+		t.Errorf("PeerDemand(invalid) = %d, want 0", d)
+	}
+
+	// Invalid keys in overflow depths are skipped, valid ones still resolve.
+	wt.AddPeer("10.0.0.1", 1000, 1) // preEOR demand = 50
+	ratios := wt.UsageToWeightRatios(map[string]int{"bogus": 10, "10.0.0.1": 100})
+	if _, ok := ratios["bogus"]; ok {
+		t.Error("invalid depth key should be omitted from ratios")
+	}
+	if r := ratios["10.0.0.1"]; r != 2.0 {
+		t.Errorf("10.0.0.1 ratio = %v, want 2.0", r)
+	}
+	worst, ratio := wt.WorstPeerRatio(map[string]int{"bogus": 10, "10.0.0.1": 100})
+	if worst != "10.0.0.1" || ratio != 2.0 {
+		t.Errorf("WorstPeerRatio = (%q, %v), want (\"10.0.0.1\", 2.0)", worst, ratio)
+	}
+}
+
 // --- fwd-auto-sizing Phase 5 tests ---
 
 func TestOverflowPoolAutoResize(t *testing.T) {

@@ -1,4 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — iterator pipeline for RIB show commands
+// RFC: rfc/short/rfc4271.md -- route attributes surfaced by show pipelines
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestJSONTerminal)
 // Related: rib_topology.go — graph terminal for AS path topology rendering
@@ -9,6 +10,7 @@ package rib
 
 import (
 	"encoding/json"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -84,10 +86,12 @@ type inboundSource struct {
 func newInboundSource(r *RIBManager, selectorStr string) *inboundSource {
 	sel := selector.ParseDefault(selectorStr)
 	// Caller holds r.peerMu.RLock (see type doc); read r.bgpPeers under it.
+	// RouteItem.Peer is the JSON output string; PeerRIB caches the
+	// canonical form so no conversion happens here.
 	var peers []inboundPeerRef
 	for peer, peerRIB := range r.bgpPeers {
-		if sel.MatchesPeerKey(peer) {
-			peers = append(peers, inboundPeerRef{peer: peer, peerRIB: peerRIB})
+		if sel.Matches(peer) {
+			peers = append(peers, inboundPeerRef{peer: peerRIB.PeerAddr(), peerRIB: peerRIB})
 		}
 	}
 	return &inboundSource{peers: peers}
@@ -205,7 +209,7 @@ func (s *protocolInboundSource) Meta() PipelineMeta {
 // the writers that release those handles -- handleSent holds peerMu.Lock (I2).
 type outboundSource struct {
 	r       *RIBManager
-	peers   []string
+	peers   []netip.Addr
 	peerIdx int
 	items   []RouteItem
 	itemIdx int
@@ -214,9 +218,9 @@ type outboundSource struct {
 
 func newOutboundSource(r *RIBManager, selectorStr string) *outboundSource {
 	sel := selector.ParseDefault(selectorStr)
-	var peers []string
+	var peers []netip.Addr
 	for peer := range r.ribOut {
-		if sel.MatchesPeerKey(peer) {
+		if sel.Matches(peer) {
 			peers = append(peers, peer)
 		}
 	}
@@ -241,6 +245,10 @@ func (s *outboundSource) Next() (RouteItem, bool) {
 		s.items = s.items[:0]
 		s.itemIdx = 0
 
+		// RouteItem.Peer is the JSON output string: one conversion per peer
+		// (not per route), on this cold show-command path.
+		peerStr := peer.String()
+
 		// Reconstruct under the caller's held peerMu.RLock: reconstructRoute
 		// copies all wire bytes into an owned *Route, so the materialized
 		// items remain valid for the rest of the drain. (I2)
@@ -248,7 +256,7 @@ func (s *outboundSource) Next() (RouteItem, bool) {
 			for key, entry := range familyRoutes {
 				rt := reconstructRoute(entry, fam, key, s.r.ribOutSourcePeer(fam, key))
 				s.items = append(s.items, RouteItem{
-					Peer:      peer,
+					Peer:      peerStr,
 					Family:    fam,
 					Prefix:    rt.Prefix,
 					Direction: rpc.DirectionSent,

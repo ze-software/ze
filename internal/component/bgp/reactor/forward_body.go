@@ -1,4 +1,4 @@
-// Design: plan/spec-rs-gap-1-reactor-fastpath.md -- shared body-building for forwarding
+// Design: plan/learned/663-rs-gap-0-structural-forwarding.md -- shared body-building for forwarding
 // Related: reactor_api_forward.go -- ForwardUpdate (caller)
 // Related: forward_rs.go -- reactorForwardRS (caller)
 package reactor

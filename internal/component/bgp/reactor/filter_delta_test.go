@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // TestExtractLegacyNLRIOverride covers the per-prefix modify path helper for
@@ -190,13 +190,13 @@ func TestTextDeltaToModOps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var mods registry.ModAccumulator
+			var mods filterapi.ModAccumulator
 			textDeltaToModOps(tt.original, tt.modified, &mods)
 			assert.Equal(t, tt.wantOps, mods.Len())
 			if tt.wantOps == 1 {
 				ops := mods.Ops()
 				assert.Equal(t, byte(tt.wantCode), ops[0].Code)
-				assert.Equal(t, registry.AttrModSet, ops[0].Action)
+				assert.Equal(t, filterapi.AttrModSet, ops[0].Action)
 				if tt.wantNilBuf {
 					assert.Nil(t, ops[0].Buf, "removal op should have nil Buf")
 				} else {
@@ -312,12 +312,12 @@ func TestDirtyTracking(t *testing.T) {
 	originalText := "origin igp local-preference 100"
 	modifiedText := "origin igp local-preference 200"
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	textDeltaToModOps(originalText, modifiedText, &mods)
 	require.Equal(t, 1, mods.Len(), "should have one op for local-pref")
 
 	// Register a generic handler for LOCAL_PREF (code 5).
-	handlers := map[uint8]registry.AttrModHandler{
+	handlers := map[uint8]filterapi.AttrModHandler{
 		byte(attribute.AttrLocalPref): genericAttrSetHandler(0x40, byte(attribute.AttrLocalPref)),
 	}
 
@@ -379,7 +379,7 @@ func TestFilterModifyOnlyDeclared(t *testing.T) {
 		violation := validateModifyDelta("local-preference 200", declared)
 		assert.Empty(t, violation, "declared attribute should pass validation")
 
-		var mods registry.ModAccumulator
+		var mods filterapi.ModAccumulator
 		textDeltaToModOps(original, modified, &mods)
 		assert.Equal(t, 1, mods.Len(), "declared attribute change should produce op")
 	})
@@ -404,9 +404,9 @@ func TestGenericAttrSetHandler(t *testing.T) {
 	// Set op: new value = 300.
 	newVal := make([]byte, 4)
 	binary.BigEndian.PutUint32(newVal, 300)
-	ops := []registry.AttrOp{{
+	ops := []filterapi.AttrOp{{
 		Code:   byte(attribute.AttrLocalPref),
-		Action: registry.AttrModSet,
+		Action: filterapi.AttrModSet,
 		Buf:    newVal,
 	}}
 
@@ -439,9 +439,9 @@ func TestGenericAttrSetHandler(t *testing.T) {
 		binary.BigEndian.PutUint32(oldVal, 100)
 		src := makeAttr(0x40, byte(attribute.AttrLocalPref), oldVal)
 
-		noOps := []registry.AttrOp{{
+		noOps := []filterapi.AttrOp{{
 			Code:   byte(attribute.AttrLocalPref),
-			Action: registry.AttrModAdd, // Not Set.
+			Action: filterapi.AttrModAdd, // Not Set.
 			Buf:    newVal,
 		}}
 		newOff := handler(src, noOps, buf, 0)
@@ -459,9 +459,9 @@ func TestOriginatorIDHandler(t *testing.T) {
 	buf := make([]byte, 64)
 
 	t.Run("set when absent", func(t *testing.T) {
-		ops := []registry.AttrOp{{
+		ops := []filterapi.AttrOp{{
 			Code:   byte(attribute.AttrOriginatorID),
-			Action: registry.AttrModSet,
+			Action: filterapi.AttrModSet,
 			Buf:    []byte{10, 0, 0, 1}, // 10.0.0.1
 		}}
 		off := handler(nil, ops, buf, 0)
@@ -475,9 +475,9 @@ func TestOriginatorIDHandler(t *testing.T) {
 	t.Run("preserve existing", func(t *testing.T) {
 		// Source has ORIGINATOR_ID = 192.168.1.1
 		src := []byte{0x80, byte(attribute.AttrOriginatorID), 4, 192, 168, 1, 1}
-		ops := []registry.AttrOp{{
+		ops := []filterapi.AttrOp{{
 			Code:   byte(attribute.AttrOriginatorID),
-			Action: registry.AttrModSet,
+			Action: filterapi.AttrModSet,
 			Buf:    []byte{10, 0, 0, 1}, // Would set to 10.0.0.1, but should be ignored
 		}}
 		off := handler(src, ops, buf, 0)
@@ -502,9 +502,9 @@ func TestClusterListHandler(t *testing.T) {
 	buf := make([]byte, 128)
 
 	t.Run("prepend to empty", func(t *testing.T) {
-		ops := []registry.AttrOp{{
+		ops := []filterapi.AttrOp{{
 			Code:   byte(attribute.AttrClusterList),
-			Action: registry.AttrModPrepend,
+			Action: filterapi.AttrModPrepend,
 			Buf:    []byte{1, 1, 1, 1}, // cluster-id 1.1.1.1
 		}}
 		off := handler(nil, ops, buf, 0)
@@ -518,9 +518,9 @@ func TestClusterListHandler(t *testing.T) {
 	t.Run("prepend to existing", func(t *testing.T) {
 		// Source: CLUSTER_LIST = [2.2.2.2]
 		src := []byte{0x80, byte(attribute.AttrClusterList), 4, 2, 2, 2, 2}
-		ops := []registry.AttrOp{{
+		ops := []filterapi.AttrOp{{
 			Code:   byte(attribute.AttrClusterList),
-			Action: registry.AttrModPrepend,
+			Action: filterapi.AttrModPrepend,
 			Buf:    []byte{1, 1, 1, 1}, // prepend 1.1.1.1
 		}}
 		off := handler(src, ops, buf, 0)
@@ -550,9 +550,9 @@ func TestGenericAttrSetHandler_Suppress(t *testing.T) {
 
 	t.Run("suppress removes attribute", func(t *testing.T) {
 		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64} // community 65534:100
-		ops := []registry.AttrOp{{
+		ops := []filterapi.AttrOp{{
 			Code:   8,
-			Action: registry.AttrModSuppress,
+			Action: filterapi.AttrModSuppress,
 		}}
 		off := handler(src, ops, buf, 0)
 		assert.Equal(t, 0, off, "suppress should write nothing")
@@ -560,9 +560,9 @@ func TestGenericAttrSetHandler_Suppress(t *testing.T) {
 
 	t.Run("suppress wins over set", func(t *testing.T) {
 		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64}
-		ops := []registry.AttrOp{
-			{Code: 8, Action: registry.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}},
-			{Code: 8, Action: registry.AttrModSuppress}, // last wins
+		ops := []filterapi.AttrOp{
+			{Code: 8, Action: filterapi.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}},
+			{Code: 8, Action: filterapi.AttrModSuppress}, // last wins
 		}
 		off := handler(src, ops, buf, 0)
 		assert.Equal(t, 0, off, "suppress after set should suppress")
@@ -570,9 +570,9 @@ func TestGenericAttrSetHandler_Suppress(t *testing.T) {
 
 	t.Run("set wins over suppress when last", func(t *testing.T) {
 		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64}
-		ops := []registry.AttrOp{
-			{Code: 8, Action: registry.AttrModSuppress},
-			{Code: 8, Action: registry.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}}, // last wins
+		ops := []filterapi.AttrOp{
+			{Code: 8, Action: filterapi.AttrModSuppress},
+			{Code: 8, Action: filterapi.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}}, // last wins
 		}
 		off := handler(src, ops, buf, 0)
 		assert.Equal(t, 7, off, "set after suppress should write attribute")
@@ -602,13 +602,13 @@ func TestApplySendCommunityFilter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var mods registry.ModAccumulator
+			var mods filterapi.ModAccumulator
 			ps := &PeerSettings{SendCommunity: tt.send}
 			applySendCommunityFilter(ps, &mods)
 
 			hasSuppressFor := func(code uint8) bool {
 				for _, op := range mods.Ops() {
-					if op.Code == code && op.Action == registry.AttrModSuppress {
+					if op.Code == code && op.Action == filterapi.AttrModSuppress {
 						return true
 					}
 				}
@@ -628,12 +628,12 @@ func TestApplySendCommunityFilter(t *testing.T) {
 // PREVENTS: Wrong ASN prepended, wrong count, or no op when expected.
 func TestExtractASPathPrependOps(t *testing.T) {
 	t.Run("prepend_3", func(t *testing.T) {
-		var mods registry.ModAccumulator
+		var mods filterapi.ModAccumulator
 		ExtractASPathPrependOps("origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24", 65000, &mods)
 		require.Equal(t, 1, mods.Len())
 		op := mods.Ops()[0]
 		assert.Equal(t, byte(attribute.AttrASPath), op.Code)
-		assert.Equal(t, registry.AttrModPrepend, op.Action)
+		assert.Equal(t, filterapi.AttrModPrepend, op.Action)
 		// Wire: type(1) + count(1) + 3*ASN(4) = 14 bytes
 		require.Len(t, op.Buf, 14)
 		assert.Equal(t, byte(attribute.ASSequence), op.Buf[0])
@@ -645,13 +645,13 @@ func TestExtractASPathPrependOps(t *testing.T) {
 	})
 
 	t.Run("no_prepend", func(t *testing.T) {
-		var mods registry.ModAccumulator
+		var mods filterapi.ModAccumulator
 		ExtractASPathPrependOps("origin igp local-preference 200", 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 
 	t.Run("prepend_1", func(t *testing.T) {
-		var mods registry.ModAccumulator
+		var mods filterapi.ModAccumulator
 		ExtractASPathPrependOps("as-path-prepend 1", 65001, &mods)
 		require.Equal(t, 1, mods.Len())
 		op := mods.Ops()[0]
@@ -660,13 +660,13 @@ func TestExtractASPathPrependOps(t *testing.T) {
 	})
 
 	t.Run("invalid_count_zero", func(t *testing.T) {
-		var mods registry.ModAccumulator
+		var mods filterapi.ModAccumulator
 		ExtractASPathPrependOps("as-path-prepend 0", 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 
 	t.Run("invalid_count_over_32", func(t *testing.T) {
-		var mods registry.ModAccumulator
+		var mods filterapi.ModAccumulator
 		ExtractASPathPrependOps("as-path-prepend 33", 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
@@ -687,9 +687,9 @@ func TestAspathHandler(t *testing.T) {
 
 		// Prepend: AS_SEQUENCE [65000]
 		prependVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE8} // 65000
-		ops := []registry.AttrOp{{
+		ops := []filterapi.AttrOp{{
 			Code:   byte(attribute.AttrASPath),
-			Action: registry.AttrModPrepend,
+			Action: filterapi.AttrModPrepend,
 			Buf:    prependVal,
 		}}
 
@@ -706,9 +706,9 @@ func TestAspathHandler(t *testing.T) {
 
 	t.Run("prepend_to_empty", func(t *testing.T) {
 		prependVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE8}
-		ops := []registry.AttrOp{{
+		ops := []filterapi.AttrOp{{
 			Code:   byte(attribute.AttrASPath),
-			Action: registry.AttrModPrepend,
+			Action: filterapi.AttrModPrepend,
 			Buf:    prependVal,
 		}}
 
@@ -720,9 +720,9 @@ func TestAspathHandler(t *testing.T) {
 
 	t.Run("set_delegates_to_generic", func(t *testing.T) {
 		newVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE9}
-		ops := []registry.AttrOp{{
+		ops := []filterapi.AttrOp{{
 			Code:   byte(attribute.AttrASPath),
-			Action: registry.AttrModSet,
+			Action: filterapi.AttrModSet,
 			Buf:    newVal,
 		}}
 
@@ -734,9 +734,9 @@ func TestAspathHandler(t *testing.T) {
 	t.Run("set_and_prepend", func(t *testing.T) {
 		setVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xEA}     // 65002
 		prependVal := []byte{byte(attribute.ASSequence), 1, 0, 0, 0xFD, 0xE8} // 65000
-		ops := []registry.AttrOp{
-			{Code: byte(attribute.AttrASPath), Action: registry.AttrModSet, Buf: setVal},
-			{Code: byte(attribute.AttrASPath), Action: registry.AttrModPrepend, Buf: prependVal},
+		ops := []filterapi.AttrOp{
+			{Code: byte(attribute.AttrASPath), Action: filterapi.AttrModSet, Buf: setVal},
+			{Code: byte(attribute.AttrASPath), Action: filterapi.AttrModPrepend, Buf: prependVal},
 		}
 
 		off := handler(nil, ops, buf, 0)
@@ -763,13 +763,13 @@ func TestExtractRemovePrivateASOps(t *testing.T) {
 	}
 	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 
 	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	require.Equal(t, byte(attribute.AttrASPath), op.Code)
-	require.Equal(t, registry.AttrModSet, op.Action)
+	require.Equal(t, filterapi.AttrModSet, op.Action)
 	want := []byte{
 		byte(attribute.ASSequence), 1,
 		0, 0, 0xFB, 0xF0,
@@ -789,7 +789,7 @@ func TestExtractRemovePrivateASOpsReplacePeerAS(t *testing.T) {
 	}
 	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 
 	ExtractRemovePrivateASOps("remove-private peer-as", attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
@@ -811,13 +811,13 @@ func TestExtractRemovePrivateASOpsAS4Path(t *testing.T) {
 	}
 	attrs := makeAttr(0xC0, byte(attribute.AttrAS4Path), as4Val)
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 
 	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	assert.Equal(t, byte(attribute.AttrAS4Path), op.Code)
-	assert.Equal(t, registry.AttrModSuppress, op.Action)
+	assert.Equal(t, filterapi.AttrModSuppress, op.Action)
 }
 
 // VALIDATES: AC-14 -- AS_PATH stays present with an empty value when every ASN is stripped.
@@ -830,13 +830,13 @@ func TestExtractRemovePrivateASOpsEmptyASPath(t *testing.T) {
 	}
 	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 
 	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	assert.Equal(t, byte(attribute.AttrASPath), op.Code)
-	assert.Equal(t, registry.AttrModSet, op.Action)
+	assert.Equal(t, filterapi.AttrModSet, op.Action)
 	assert.Empty(t, op.Buf)
 }
 
@@ -850,7 +850,7 @@ func TestExtractRemovePrivateASOpsNoPrivateASN(t *testing.T) {
 	}
 	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 
 	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
 	assert.Equal(t, 0, mods.Len())
@@ -862,7 +862,7 @@ func TestExtractRemovePrivateASOpsMalformedASPath(t *testing.T) {
 	asPathVal := []byte{byte(attribute.ASSequence), 1, 0, 0}
 	attrs := makeAttr(0x40, byte(attribute.AttrASPath), asPathVal)
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 
 	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
 	assert.Equal(t, 0, mods.Len())
@@ -884,7 +884,7 @@ func TestExportRemovePrivateASBeforeEBGPPrepend(t *testing.T) {
 	payload := buildModTestPayload(attrs, []byte{24, 10, 0, 0})
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65002, &mods)
 	modified, _ := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
 	require.NotNil(t, modified)
@@ -974,13 +974,13 @@ func TestCommunityAddDeltaToModOps(t *testing.T) {
 	original := "origin igp community 65000:100 as-path 65001"
 	modified := "origin igp community 65000:100 community-add 65000:200 as-path 65001"
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	textDeltaToModOps(original, modified, &mods)
 
 	ops := mods.Ops()
 	found := false
 	for _, op := range ops {
-		if op.Code == byte(attribute.AttrCommunity) && op.Action == registry.AttrModAdd {
+		if op.Code == byte(attribute.AttrCommunity) && op.Action == filterapi.AttrModAdd {
 			found = true
 			if len(op.Buf) != 4 {
 				t.Errorf("expected 4-byte community value, got %d", len(op.Buf))
@@ -997,13 +997,13 @@ func TestCommunityRemoveDeltaToModOps(t *testing.T) {
 	original := "origin igp community 65000:100 65000:200 as-path 65001"
 	modified := "origin igp community 65000:100 65000:200 community-remove 65000:100 as-path 65001"
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	textDeltaToModOps(original, modified, &mods)
 
 	ops := mods.Ops()
 	found := false
 	for _, op := range ops {
-		if op.Code == byte(attribute.AttrCommunity) && op.Action == registry.AttrModRemove {
+		if op.Code == byte(attribute.AttrCommunity) && op.Action == filterapi.AttrModRemove {
 			found = true
 			if len(op.Buf) != 4 {
 				t.Errorf("expected 4-byte community value, got %d", len(op.Buf))
@@ -1020,13 +1020,13 @@ func TestLargeCommunityAddDeltaToModOps(t *testing.T) {
 	original := "origin igp as-path 65001"
 	modified := "origin igp large-community-add 65000:100:200 as-path 65001"
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	textDeltaToModOps(original, modified, &mods)
 
 	ops := mods.Ops()
 	found := false
 	for _, op := range ops {
-		if op.Code == byte(attribute.AttrLargeCommunity) && op.Action == registry.AttrModAdd {
+		if op.Code == byte(attribute.AttrLargeCommunity) && op.Action == filterapi.AttrModAdd {
 			found = true
 			if len(op.Buf) != 12 {
 				t.Errorf("expected 12-byte large community value, got %d", len(op.Buf))
@@ -1044,12 +1044,12 @@ func TestCommunityRemoveMultiValue(t *testing.T) {
 	original := "origin igp community 65000:100 65000:200 65000:300 as-path 65001"
 	modified := "origin igp community 65000:100 65000:200 65000:300 community-remove 65000:100 65000:200 as-path 65001"
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	textDeltaToModOps(original, modified, &mods)
 
 	removeCount := 0
 	for _, op := range mods.Ops() {
-		if op.Code == byte(attribute.AttrCommunity) && op.Action == registry.AttrModRemove {
+		if op.Code == byte(attribute.AttrCommunity) && op.Action == filterapi.AttrModRemove {
 			if len(op.Buf) != 4 {
 				t.Errorf("remove op should be exactly 4 bytes, got %d", len(op.Buf))
 			}
@@ -1066,11 +1066,11 @@ func TestCommunityDirectiveNoSetInterference(t *testing.T) {
 	original := "origin igp community 65000:100 as-path 65001"
 	modified := "origin igp community 65000:100 community-add 65000:200 as-path 65001"
 
-	var mods registry.ModAccumulator
+	var mods filterapi.ModAccumulator
 	textDeltaToModOps(original, modified, &mods)
 
 	for _, op := range mods.Ops() {
-		if op.Code == byte(attribute.AttrCommunity) && op.Action == registry.AttrModSet {
+		if op.Code == byte(attribute.AttrCommunity) && op.Action == filterapi.AttrModSet {
 			t.Error("unexpected AttrModSet for COMMUNITY (should only have AttrModAdd)")
 		}
 	}

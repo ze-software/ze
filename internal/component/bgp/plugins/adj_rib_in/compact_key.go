@@ -32,12 +32,6 @@ func routeKeyFromStrings(fam family.Family, prefix string, pathID uint32) compac
 	return compactRouteKey{Fam: fam, Prefix: pfx, PathID: pathID}
 }
 
-// pendingKeyFromStrings constructs a compactPendingKey from string values.
-func pendingKeyFromStrings(peerAddr string, rk compactRouteKey) compactPendingKey {
-	addr, _ := netip.ParseAddr(peerAddr)
-	return compactPendingKey{PeerAddr: addr, Route: rk}
-}
-
 // routeKeyFromWire constructs a compactRouteKey from wire-parsed prefix.
 func routeKeyFromWire(fam family.Family, prefix netip.Prefix, pathID uint32) compactRouteKey {
 	return compactRouteKey{Fam: fam, Prefix: prefix, PathID: pathID}

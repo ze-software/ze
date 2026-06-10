@@ -2,6 +2,7 @@ package rib
 
 import (
 	"encoding/json"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -127,7 +128,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
-	r.bgpPeers["192.0.2.1"] = peerRIB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "192.0.2.1")
 
@@ -162,7 +163,7 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlriBytes, true)
-	r.bgpPeers["192.0.2.1"] = peerRIB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("192.0.2.1", []string{"received"})), "adj-rib-in", "192.0.2.1")
 
@@ -187,7 +188,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 
 	med := uint32(100)
 	localPref := uint32(200)
-	r.ribOut["192.0.2.1"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.ribOut[netip.MustParseAddr("192.0.2.1")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family:           family.IPv4Unicast,
@@ -245,7 +246,7 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(ipv4Family, attrBytes, nlriIPv4, true)
 	peerRIB.Insert(ipv6Family, attrBytes, nlriIPv6, true)
-	r.bgpPeers["192.0.2.1"] = peerRIB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Without filter: both families
 	allRoutes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "192.0.2.1")
@@ -274,7 +275,7 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(fam, attrBytes, nlri1, true)
 	peerRIB.Insert(fam, attrBytes, nlri2, true)
-	r.bgpPeers["192.0.2.1"] = peerRIB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Filter by prefix (exact prefix string match)
 	routes := requirePeerRoutes(t, anyToJSONStr(t, r.showPipeline("*", []string{"received", "prefix", "10.0.0.0/24"})), "adj-rib-in", "192.0.2.1")
@@ -291,7 +292,7 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 func TestOutboundShowMinimalAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["192.0.2.2"] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
+	r.ribOut[netip.MustParseAddr("192.0.2.2")] = testRibOutFamilyMap(map[family.Family]map[string]*Route{
 		family.IPv4Unicast: {
 			"10.0.0.0/24": {
 				Family:  family.IPv4Unicast,
@@ -325,12 +326,12 @@ func TestInjectUsesProtocolSlot(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 
-	require.NotNil(t, r.bgpPeers["10.0.0.1"])
-	assert.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
+	require.NotNil(t, r.bgpPeers[netip.MustParseAddr("10.0.0.1")])
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
 
 	nlri, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	_, found := r.bgpPeers["10.0.0.1"].Lookup(ipv4Uni, nlri)
+	_, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4Uni, nlri)
 	assert.True(t, found)
 }
 
@@ -358,7 +359,7 @@ func TestWithdrawUsesProtocolSlot(t *testing.T) {
 		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
-	require.Equal(t, 1, r.bgpPeers["10.0.0.1"].Len())
+	require.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Len())
 
 	status, data, err := r.handleCommand("request bgp rib withdraw", "", []string{
 		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24",
@@ -371,6 +372,6 @@ func TestWithdrawUsesProtocolSlot(t *testing.T) {
 
 	nlri, err := prefixToWire("ipv4/unicast", "10.0.0.0/24", 0, false)
 	require.NoError(t, err)
-	_, found := r.bgpPeers["10.0.0.1"].Lookup(ipv4Uni, nlri)
+	_, found := r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Lookup(ipv4Uni, nlri)
 	assert.False(t, found)
 }

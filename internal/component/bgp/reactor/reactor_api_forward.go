@@ -17,8 +17,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 
@@ -191,7 +191,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				globalLocalAS:  s.GlobalLocalAS,
 			}
 			if len(a.r.egressFilters) > 0 {
-				srcInfo.filterInfo = registry.PeerFilterInfo{
+				srcInfo.filterInfo = filterapi.PeerFilterInfo{
 					Address:   s.Address,
 					PeerAS:    s.PeerAS,
 					Name:      s.Name,
@@ -222,7 +222,7 @@ type forwardSourceInfo struct {
 	isRRClient     bool
 	remoteRouterID uint32
 	globalLocalAS  uint32
-	filterInfo     registry.PeerFilterInfo
+	filterInfo     filterapi.PeerFilterInfo
 }
 
 // forwardUpdateCore is the per-destination dispatch loop shared by ForwardUpdate
@@ -439,10 +439,10 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			}
 		}
 
-		var mods registry.ModAccumulator
+		var mods filterapi.ModAccumulator
 
 		if facts.rsClient && len(communityStripBytes) > 0 {
-			mods.Op(8, registry.AttrModRemove, communityStripBytes)
+			mods.Op(8, filterapi.AttrModRemove, communityStripBytes)
 		}
 		if len(a.r.egressFilters) > 0 {
 			destFilter := facts.filterInfo
@@ -475,7 +475,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				continue
 			}
 			if modifiedText != updateText {
-				var exportMods registry.ModAccumulator
+				var exportMods filterapi.ModAccumulator
 				textDeltaToModOps(updateText, modifiedText, &exportMods)
 				srcCtx := bgpctx.Registry.Get(update.WireUpdate.SourceCtxID())
 				srcASN4 := srcCtx != nil && srcCtx.ASN4()
@@ -492,8 +492,8 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 
 		// RFC 4456: Route reflection attribute injection.
 		if srcInfo.isIBGP && !facts.isEBGP {
-			mods.Op(9, registry.AttrModSet, origBuf[:])
-			mods.Op(10, registry.AttrModPrepend, facts.clusterIDBytes[:])
+			mods.Op(9, filterapi.AttrModSet, origBuf[:])
+			mods.Op(10, filterapi.AttrModPrepend, facts.clusterIDBytes[:])
 		}
 
 		applyFactsNextHop(facts, &mods)
@@ -706,7 +706,7 @@ func (a *reactorAPIAdapter) UnregisterCacheConsumer(name string) {
 // For IPv6 local addresses, only the MP_REACH_NLRI op is emitted. IPv4 routes
 // over IPv6 transport still need a paired IPv4 local address in the peer config
 // (not yet supported).
-func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
+func applyNextHopMod(dest *PeerSettings, mods *filterapi.ModAccumulator) {
 	switch dest.NextHopMode {
 	case NextHopAuto:
 		// Default: rewrite for eBGP, preserve for iBGP. No mod needed --
@@ -725,13 +725,13 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 		local := dest.LocalAddress.Unmap()
 		if local.Is4() {
 			nhBytes := local.As4()
-			mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP (legacy IPv4)
+			mods.Op(3, filterapi.AttrModSet, nhBytes[:]) // NEXT_HOP (legacy IPv4)
 			// Also emit MP_REACH next-hop as IPv4-mapped IPv6 (::ffff:a.b.c.d)
 			// for mixed-family sessions carrying IPv6 routes over IPv4 transport.
 			// The mpReachNextHopHandler is a no-op when the source UPDATE has no
 			// MP_REACH_NLRI, so this is safe for pure-IPv4 UPDATEs.
 			mapped := local.As16() // IPv4-mapped IPv6: ::ffff:a.b.c.d
-			mods.Op(14, registry.AttrModSet, mapped[:])
+			mods.Op(14, filterapi.AttrModSet, mapped[:])
 			return
 		}
 		// IPv6: rewrite MP_REACH_NLRI next-hop. When the peer config carries
@@ -744,11 +744,11 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 			ll := dest.LinkLocal.As16()
 			copy(nh[:16], global[:])
 			copy(nh[16:], ll[:])
-			mods.Op(14, registry.AttrModSet, nh)
+			mods.Op(14, filterapi.AttrModSet, nh)
 			return
 		}
 		nh := local.As16()
-		mods.Op(14, registry.AttrModSet, nh[:])
+		mods.Op(14, filterapi.AttrModSet, nh[:])
 	case NextHopUnchanged:
 		// Explicitly preserve: no mod needed -- the original wire bytes
 		// already contain the source next-hop.
@@ -760,12 +760,12 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 		explicit := dest.NextHopAddress.Unmap()
 		if explicit.Is4() {
 			nhBytes := explicit.As4()
-			mods.Op(3, registry.AttrModSet, nhBytes[:]) // NEXT_HOP (legacy IPv4)
+			mods.Op(3, filterapi.AttrModSet, nhBytes[:]) // NEXT_HOP (legacy IPv4)
 			// Also emit MP_REACH next-hop as IPv4-mapped IPv6 for mixed-family sessions.
 			mapped := explicit.As16()
-			mods.Op(14, registry.AttrModSet, mapped[:])
+			mods.Op(14, filterapi.AttrModSet, mapped[:])
 			// RFC 9252 Section 3.3: strip PrefixSID when next-hop changes.
-			mods.Op(40, registry.AttrModSuppress, nil)
+			mods.Op(40, filterapi.AttrModSuppress, nil)
 			return
 		}
 		// Explicit IPv6 next-hop: global-only (16-byte NH). The dual-address
@@ -773,16 +773,16 @@ func applyNextHopMod(dest *PeerSettings, mods *registry.ModAccumulator) {
 		// where the router knows both addresses. IPv4 explicit is handled above
 		// with both legacy NEXT_HOP and IPv4-mapped MP_REACH ops.
 		nh := explicit.As16()
-		mods.Op(14, registry.AttrModSet, nh[:])
+		mods.Op(14, filterapi.AttrModSet, nh[:])
 	}
 	// RFC 9252 Section 3.3: strip PrefixSID when next-hop changes.
-	mods.Op(40, registry.AttrModSuppress, nil)
+	mods.Op(40, filterapi.AttrModSuppress, nil)
 }
 
 // applySendCommunityFilter suppresses community attributes not in the peer's send list.
 // nil/empty SendCommunity means send all (default). "none" suppresses all.
 // Individual types: "standard" (type 8), "large" (type 32), "extended" (type 16).
-func applySendCommunityFilter(dest *PeerSettings, mods *registry.ModAccumulator) {
+func applySendCommunityFilter(dest *PeerSettings, mods *filterapi.ModAccumulator) {
 	if len(dest.SendCommunity) == 0 {
 		return // Default: send all community types.
 	}
@@ -795,9 +795,9 @@ func applySendCommunityFilter(dest *PeerSettings, mods *registry.ModAccumulator)
 			return // Explicit "all" means send everything.
 		case "none":
 			// Suppress all three community types.
-			mods.Op(8, registry.AttrModSuppress, nil)  // COMMUNITIES
-			mods.Op(16, registry.AttrModSuppress, nil) // EXTENDED_COMMUNITIES
-			mods.Op(32, registry.AttrModSuppress, nil) // LARGE_COMMUNITIES
+			mods.Op(8, filterapi.AttrModSuppress, nil)  // COMMUNITIES
+			mods.Op(16, filterapi.AttrModSuppress, nil) // EXTENDED_COMMUNITIES
+			mods.Op(32, filterapi.AttrModSuppress, nil) // LARGE_COMMUNITIES
 			return
 		case "standard":
 			sendStandard = true
@@ -810,19 +810,19 @@ func applySendCommunityFilter(dest *PeerSettings, mods *registry.ModAccumulator)
 
 	// Suppress types not in the allowed set.
 	if !sendStandard {
-		mods.Op(8, registry.AttrModSuppress, nil) // COMMUNITIES
+		mods.Op(8, filterapi.AttrModSuppress, nil) // COMMUNITIES
 	}
 	if !sendExtended {
-		mods.Op(16, registry.AttrModSuppress, nil) // EXTENDED_COMMUNITIES
+		mods.Op(16, filterapi.AttrModSuppress, nil) // EXTENDED_COMMUNITIES
 	}
 	if !sendLarge {
-		mods.Op(32, registry.AttrModSuppress, nil) // LARGE_COMMUNITIES
+		mods.Op(32, filterapi.AttrModSuppress, nil) // LARGE_COMMUNITIES
 	}
 }
 
 // applyASOverride replaces occurrences of the peer's ASN with local ASN in AS_PATH.
 // RFC 4271: AS_PATH is type 2. The handler rewrites the AS_PATH segment data.
-func applyASOverride(peerAS, localAS uint32, wire *wireu.WireUpdate, asn4 bool, mods *registry.ModAccumulator) {
+func applyASOverride(peerAS, localAS uint32, wire *wireu.WireUpdate, asn4 bool, mods *filterapi.ModAccumulator) {
 	attrs, err := wire.Attrs()
 	if err != nil || attrs == nil {
 		return
@@ -841,7 +841,7 @@ func applyASOverride(peerAS, localAS uint32, wire *wireu.WireUpdate, asn4 bool, 
 	data := raw[hdrLen:]
 	rewritten := rewriteASPathOverride(data, peerAS, localAS, asn4)
 	if rewritten != nil {
-		mods.Op(2, registry.AttrModSet, rewritten)
+		mods.Op(2, filterapi.AttrModSet, rewritten)
 	}
 }
 

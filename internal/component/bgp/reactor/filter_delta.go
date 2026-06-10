@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 const (
@@ -195,7 +195,7 @@ func splitNLRIBlocks(nlriField string) []string {
 // (well-known) or omits it entirely (optional/community), effectively removing it.
 //
 // Parse errors for individual attributes are logged and skipped (fail-open).
-func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator) {
+func textDeltaToModOps(original, modified string, mods *filterapi.ModAccumulator) {
 	origAttrs := parseFilterAttrs(original)
 	modAttrs := parseFilterAttrs(modified)
 
@@ -221,7 +221,7 @@ func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator)
 			continue // Skip this attribute; don't fail the entire delta.
 		}
 
-		mods.Op(byte(code), registry.AttrModSet, wireVal)
+		mods.Op(byte(code), filterapi.AttrModSet, wireVal)
 	}
 
 	// Community add/remove directives: new keys that don't exist in original.
@@ -236,7 +236,7 @@ func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator)
 				"directive", name, "value", modVal, "error", err)
 			continue
 		}
-		if directive.action == registry.AttrModRemove && directive.valueSize > 0 {
+		if directive.action == filterapi.AttrModRemove && directive.valueSize > 0 {
 			for off := 0; off+directive.valueSize <= len(wireVal); off += directive.valueSize {
 				mods.Op(byte(directive.code), directive.action, wireVal[off:off+directive.valueSize])
 			}
@@ -258,7 +258,7 @@ func textDeltaToModOps(original, modified string, mods *registry.ModAccumulator)
 			continue
 		}
 		// Zero-length Set: handler omits optional attributes, writes empty well-known.
-		mods.Op(byte(code), registry.AttrModSet, nil)
+		mods.Op(byte(code), filterapi.AttrModSet, nil)
 	}
 }
 
@@ -270,12 +270,12 @@ type communityDirective struct {
 }
 
 var communityDirectives = map[string]communityDirective{
-	"community-add":             {attribute.AttrCommunity, registry.AttrModAdd, "community", 4},
-	"community-remove":          {attribute.AttrCommunity, registry.AttrModRemove, "community", 4},
-	"large-community-add":       {attribute.AttrLargeCommunity, registry.AttrModAdd, "large-community", 12},
-	"large-community-remove":    {attribute.AttrLargeCommunity, registry.AttrModRemove, "large-community", 12},
-	"extended-community-add":    {attribute.AttrExtCommunity, registry.AttrModAdd, "extended-community", 8},
-	"extended-community-remove": {attribute.AttrExtCommunity, registry.AttrModRemove, "extended-community", 8},
+	"community-add":             {attribute.AttrCommunity, filterapi.AttrModAdd, "community", 4},
+	"community-remove":          {attribute.AttrCommunity, filterapi.AttrModRemove, "community", 4},
+	"large-community-add":       {attribute.AttrLargeCommunity, filterapi.AttrModAdd, "large-community", 12},
+	"large-community-remove":    {attribute.AttrLargeCommunity, filterapi.AttrModRemove, "large-community", 12},
+	"extended-community-add":    {attribute.AttrExtCommunity, filterapi.AttrModAdd, "extended-community", 8},
+	"extended-community-remove": {attribute.AttrExtCommunity, filterapi.AttrModRemove, "extended-community", 8},
 }
 
 // encodeAttrValue converts a text attribute value to wire VALUE bytes.
@@ -536,7 +536,7 @@ func stripAttrHeader(wire []byte) []byte {
 // for import, reactor_api_forward.go for export).
 //
 // Does nothing if the modified text does not contain as-path-prepend.
-func ExtractASPathPrependOps(modified string, localAS uint32, mods *registry.ModAccumulator) {
+func ExtractASPathPrependOps(modified string, localAS uint32, mods *filterapi.ModAccumulator) {
 	attrs := parseFilterAttrs(modified)
 	countStr, ok := attrs[policyAttrASPathPrepend]
 	if !ok || countStr == "" {
@@ -558,7 +558,7 @@ func ExtractASPathPrependOps(modified string, localAS uint32, mods *registry.Mod
 	for i := range n {
 		binary.BigEndian.PutUint32(buf[2+i*4:], localAS)
 	}
-	mods.Op(byte(attribute.AttrASPath), registry.AttrModPrepend, buf)
+	mods.Op(byte(attribute.AttrASPath), filterapi.AttrModPrepend, buf)
 }
 
 // ExtractRemovePrivateASOps checks the modified filter text for an
@@ -569,7 +569,7 @@ func ExtractASPathPrependOps(modified string, localAS uint32, mods *registry.Mod
 // RFC 6996 Section 4 requires private-use ASNs to be removed from AS path
 // attributes (including AS4_PATH if utilizing a four-octet AS number space)
 // before being advertised to the global Internet.
-func ExtractRemovePrivateASOps(modified string, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *registry.ModAccumulator) {
+func ExtractRemovePrivateASOps(modified string, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *filterapi.ModAccumulator) {
 	mode, ok := extractRemovePrivateASMode(modified)
 	if !ok || attrs == nil {
 		return
@@ -578,7 +578,7 @@ func ExtractRemovePrivateASOps(modified string, attrs *attribute.AttributesWire,
 	rawASPath, err := attrs.GetRaw(attribute.AttrASPath)
 	if err == nil && len(rawASPath) > 0 {
 		if rewritten, changed := rewriteASPathRemovePrivate(rawASPath, asn4, mode, peerAS); changed {
-			mods.Op(byte(attribute.AttrASPath), registry.AttrModSet, rewritten)
+			mods.Op(byte(attribute.AttrASPath), filterapi.AttrModSet, rewritten)
 		}
 	} else if err != nil {
 		fwdLogger().Warn("remove-private-as: AS_PATH raw lookup failed", "error", err)
@@ -588,9 +588,9 @@ func ExtractRemovePrivateASOps(modified string, attrs *attribute.AttributesWire,
 	if err == nil && len(rawAS4Path) > 0 {
 		if rewritten, changed := rewriteAS4PathRemovePrivate(rawAS4Path, mode, peerAS); changed {
 			if len(rewritten) == 0 {
-				mods.Op(byte(attribute.AttrAS4Path), registry.AttrModSuppress, nil)
+				mods.Op(byte(attribute.AttrAS4Path), filterapi.AttrModSuppress, nil)
 			} else {
-				mods.Op(byte(attribute.AttrAS4Path), registry.AttrModSet, rewritten)
+				mods.Op(byte(attribute.AttrAS4Path), filterapi.AttrModSet, rewritten)
 			}
 		}
 	} else if err != nil {

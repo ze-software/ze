@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
@@ -217,10 +217,10 @@ func TestSignalHandlerRecoversPanic(t *testing.T) {
 // VALIDATES: fail-closed behavior -- panicking filter rejects instead of accepting.
 // PREVENTS: Regression to fail-open where a buggy filter would accept unfiltered routes.
 func TestSafeIngressFilterPanicRejects(t *testing.T) {
-	panicFilter := func(_ registry.PeerFilterInfo, _ []byte, _ map[string]any) (bool, []byte) {
+	panicFilter := func(_ filterapi.PeerFilterInfo, _ []byte, _ map[string]any) (bool, []byte) {
 		panic("simulated ingress filter panic")
 	}
-	src := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
+	src := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
 	meta := make(map[string]any)
 
 	accept, modified := safeIngressFilter(panicFilter, src, []byte{0x00, 0x00, 0x00, 0x00}, meta)
@@ -234,12 +234,12 @@ func TestSafeIngressFilterPanicRejects(t *testing.T) {
 // VALIDATES: fail-closed behavior -- panicking filter suppresses instead of accepting.
 // PREVENTS: Regression to fail-open where a buggy filter would forward unfiltered routes.
 func TestSafeEgressFilterPanicSuppresses(t *testing.T) {
-	panicFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, _ *registry.ModAccumulator) bool {
+	panicFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, _ *filterapi.ModAccumulator) bool {
 		panic("simulated egress filter panic")
 	}
-	src := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
-	dest := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
-	var mods registry.ModAccumulator
+	src := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
+	dest := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
+	var mods filterapi.ModAccumulator
 
 	accept := safeEgressFilter(panicFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
 	assert.False(t, accept, "panicking egress filter must suppress (fail-closed)")
@@ -249,11 +249,11 @@ func TestSafeEgressFilterPanicSuppresses(t *testing.T) {
 // TestSafeIngressFilterNormalPassthrough verifies the happy path: a well-behaved
 // ingress filter's result passes through unchanged.
 func TestSafeIngressFilterNormalPassthrough(t *testing.T) {
-	normalFilter := func(_ registry.PeerFilterInfo, _ []byte, meta map[string]any) (bool, []byte) {
+	normalFilter := func(_ filterapi.PeerFilterInfo, _ []byte, meta map[string]any) (bool, []byte) {
 		meta["test"] = 42
 		return true, nil
 	}
-	src := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
+	src := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
 	meta := make(map[string]any)
 
 	accept, modified := safeIngressFilter(normalFilter, src, []byte{0x00, 0x00, 0x00, 0x00}, meta)
@@ -265,15 +265,15 @@ func TestSafeIngressFilterNormalPassthrough(t *testing.T) {
 // TestSafeEgressFilterNormalPassthrough verifies the happy path: a well-behaved
 // egress filter's result passes through and mods are accumulated.
 func TestSafeEgressFilterNormalPassthrough(t *testing.T) {
-	normalFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
+	normalFilter := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
 		lpBuf := make([]byte, 4)
 		binary.BigEndian.PutUint32(lpBuf, 100)
-		mods.Op(5, registry.AttrModSet, lpBuf)
+		mods.Op(5, filterapi.AttrModSet, lpBuf)
 		return true
 	}
-	src := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
-	dest := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
-	var mods registry.ModAccumulator
+	src := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
+	dest := filterapi.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
+	var mods filterapi.ModAccumulator
 
 	accept := safeEgressFilter(normalFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
 	assert.True(t, accept)
@@ -281,7 +281,7 @@ func TestSafeEgressFilterNormalPassthrough(t *testing.T) {
 	ops := mods.Ops()
 	require.Len(t, ops, 1)
 	assert.Equal(t, uint8(5), ops[0].Code)
-	assert.Equal(t, registry.AttrModSet, ops[0].Action)
+	assert.Equal(t, filterapi.AttrModSet, ops[0].Action)
 	lp := binary.BigEndian.Uint32(ops[0].Buf)
 	assert.Equal(t, uint32(100), lp)
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
@@ -59,7 +60,10 @@ func (r *RIBManager) attachCommunityCommand(args []string) (string, any, error) 
 		return statusError, "", errAttachCommunityRequiresPeerFamilyCommunity
 	}
 
-	peerAddr := args[0]
+	peerAddr, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("attach-community: invalid peer address %q: %w (expected an IP address)", args[0], err)
+	}
 	familyStr := args[1]
 	commHex := args[2]
 
@@ -125,7 +129,10 @@ func (r *RIBManager) deleteWithCommunityCommand(args []string) (string, any, err
 		return statusError, "", errDeleteWithCommunityRequiresPeerFamily
 	}
 
-	peerAddr := args[0]
+	peerAddr, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("delete-with-community: invalid peer address %q: %w (expected an IP address)", args[0], err)
+	}
 	familyStr := args[1]
 	commHex := args[2]
 

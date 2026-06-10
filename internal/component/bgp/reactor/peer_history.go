@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-2-event-history.md -- per-peer BGP FSM transition history
+// Design: plan/learned/665-diag-2-event-history.md -- per-peer BGP FSM transition history
 // Related: peer_run.go -- FSM callback appends transitions
 
 package reactor

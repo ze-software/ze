@@ -2,10 +2,14 @@
 // Overview: forward_pool.go -- forward pool dispatch
 // Related: forward_pool_weight.go -- weight calculation functions
 // Related: forward_pool_congestion.go -- two-threshold congestion enforcement
+// RFC: rfc/short/rfc8654.md -- Extended Message support (overflow buffer sizing)
 
 package reactor
 
-import "sync"
+import (
+	"net/netip"
+	"sync"
+)
 
 // weightTracker tracks per-peer buffer demand and recalculates pool budget
 // when the peer set changes. It is the bridge between prefix maximums
@@ -13,9 +17,14 @@ import "sync"
 //
 // Thread-safe. All methods may be called from any goroutine.
 // The onBudgetChanged callback is always called outside the lock.
+//
+// Method parameters stay strings because every caller (reactor peer
+// lifecycle, congestion controller, OverflowDepths) passes the cached
+// canonical netip.Addr.String() label; parseWeightPeerAddr converts once
+// at this boundary and the map is keyed by netip.Addr internally.
 type weightTracker struct {
 	mu    sync.Mutex
-	peers map[string]*peerWeight // key: peer address
+	peers map[netip.Addr]*peerWeight // key: peer address
 
 	// onBudgetChanged is called after every recalculation with the new
 	// guaranteed and overflow buffer counts plus the overflow byte budget
@@ -38,9 +47,24 @@ type peerWeight struct {
 // overflow byte budget. Callback may be nil.
 func newWeightTracker(onBudgetChanged func(guaranteed, overflow int, ob overflowBudgetResult)) *weightTracker {
 	return &weightTracker{
-		peers:           make(map[string]*peerWeight),
+		peers:           make(map[netip.Addr]*peerWeight),
 		onBudgetChanged: onBudgetChanged,
 	}
+}
+
+// parseWeightPeerAddr parses a peer address label at the weightTracker
+// boundary. Callers pass cached canonical netip.Addr.String() labels, so a
+// parse failure indicates a programming error upstream; it is logged with
+// the offending value and the entry is dropped (fail closed, never a
+// zero-Addr key).
+func parseWeightPeerAddr(peerAddr string) (netip.Addr, bool) {
+	addr, err := netip.ParseAddr(peerAddr)
+	if err != nil {
+		fwdLogger().Warn("weight tracker: invalid peer address, dropping entry",
+			"peer", peerAddr, "error", err, "hint", "pass the canonical netip.Addr.String() label")
+		return netip.Addr{}, false
+	}
+	return addr, true
 }
 
 // AddPeer registers a peer with its prefix maximum and family count.
@@ -51,8 +75,12 @@ func newWeightTracker(onBudgetChanged func(guaranteed, overflow int, ob overflow
 // If the peer already exists, its prefix maximum is updated and EOR
 // state is reset to pre-EOR.
 func (wt *weightTracker) AddPeer(peerAddr string, prefixMax uint32, familyCount int) {
+	addr, ok := parseWeightPeerAddr(peerAddr)
+	if !ok {
+		return
+	}
 	wt.mu.Lock()
-	wt.peers[peerAddr] = &peerWeight{
+	wt.peers[addr] = &peerWeight{
 		prefixMax:   prefixMax,
 		preEOR:      true,
 		familyCount: familyCount,
@@ -65,12 +93,16 @@ func (wt *weightTracker) AddPeer(peerAddr string, prefixMax uint32, familyCount 
 // RemovePeer removes a peer from tracking. Recalculates pool budget.
 // No-op if the peer is not tracked.
 func (wt *weightTracker) RemovePeer(peerAddr string) {
+	addr, ok := parseWeightPeerAddr(peerAddr)
+	if !ok {
+		return
+	}
 	wt.mu.Lock()
-	if _, ok := wt.peers[peerAddr]; !ok {
+	if _, ok := wt.peers[addr]; !ok {
 		wt.mu.Unlock()
 		return
 	}
-	delete(wt.peers, peerAddr)
+	delete(wt.peers, addr)
 	g, o, ob := wt.budgetLocked()
 	wt.mu.Unlock()
 	wt.fireCallback(g, o, ob)
@@ -81,8 +113,12 @@ func (wt *weightTracker) RemovePeer(peerAddr string) {
 // demand (shrinks allocation). Recalculates pool budget on transition.
 // No-op if peer is unknown or already post-EOR.
 func (wt *weightTracker) PeerEORReceived(peerAddr string) {
+	addr, ok := parseWeightPeerAddr(peerAddr)
+	if !ok {
+		return
+	}
 	wt.mu.Lock()
-	pw, ok := wt.peers[peerAddr]
+	pw, ok := wt.peers[addr]
 	if !ok || !pw.preEOR {
 		wt.mu.Unlock()
 		return
@@ -104,8 +140,12 @@ func (wt *weightTracker) PeerEORReceived(peerAddr string) {
 // to be complete. Recalculates pool budget. No-op if peer is unknown
 // or already post-EOR.
 func (wt *weightTracker) PeerEORComplete(peerAddr string) {
+	addr, ok := parseWeightPeerAddr(peerAddr)
+	if !ok {
+		return
+	}
 	wt.mu.Lock()
-	pw, ok := wt.peers[peerAddr]
+	pw, ok := wt.peers[addr]
 	if !ok || !pw.preEOR {
 		wt.mu.Unlock()
 		return
@@ -121,8 +161,12 @@ func (wt *weightTracker) PeerEORComplete(peerAddr string) {
 // This corrects the initial estimate from config-declared families.
 // No-op if peer is unknown or already post-EOR.
 func (wt *weightTracker) UpdateFamilyCount(peerAddr string, negotiatedFamilies int) {
+	addr, ok := parseWeightPeerAddr(peerAddr)
+	if !ok {
+		return
+	}
 	wt.mu.Lock()
-	pw, ok := wt.peers[peerAddr]
+	pw, ok := wt.peers[addr]
 	if !ok || !pw.preEOR {
 		wt.mu.Unlock()
 		return
@@ -150,8 +194,12 @@ func (wt *weightTracker) PeerCount() int {
 // PeerDemand returns the current buffer demand for a peer (pre-EOR or
 // post-EOR based on state). Returns 0 for unknown peers.
 func (wt *weightTracker) PeerDemand(peerAddr string) int {
+	addr, ok := parseWeightPeerAddr(peerAddr)
+	if !ok {
+		return 0
+	}
 	wt.mu.Lock()
-	pw, ok := wt.peers[peerAddr]
+	pw, ok := wt.peers[addr]
 	if !ok {
 		wt.mu.Unlock()
 		return 0
@@ -179,8 +227,12 @@ func (wt *weightTracker) UsageToWeightRatios(overflowDepths map[string]int) map[
 	defer wt.mu.Unlock()
 
 	result := make(map[string]float64)
-	for addr, depth := range overflowDepths {
+	for label, depth := range overflowDepths {
 		if depth <= 0 {
+			continue
+		}
+		addr, ok := parseWeightPeerAddr(label)
+		if !ok {
 			continue
 		}
 		pw, ok := wt.peers[addr]
@@ -191,20 +243,26 @@ func (wt *weightTracker) UsageToWeightRatios(overflowDepths map[string]int) map[
 		if demand <= 0 {
 			continue
 		}
-		result[addr] = float64(depth) / float64(demand)
+		result[label] = float64(depth) / float64(demand)
 	}
 	return result
 }
 
 // WorstPeerRatio returns the peer address with the highest usage-to-weight
 // ratio and that ratio value. Returns ("", 0) if no peer has overflow items.
+// The returned address is the caller's original overflowDepths key (the
+// canonical addr label) so string comparisons against worker labels hold.
 // Used by the congestion controller to identify the teardown candidate (AC-4).
 func (wt *weightTracker) WorstPeerRatio(overflowDepths map[string]int) (worstAddr string, worstRatio float64) {
 	wt.mu.Lock()
 	defer wt.mu.Unlock()
 
-	for addr, depth := range overflowDepths {
+	for label, depth := range overflowDepths {
 		if depth <= 0 {
+			continue
+		}
+		addr, ok := parseWeightPeerAddr(label)
+		if !ok {
 			continue
 		}
 		pw, ok := wt.peers[addr]
@@ -218,7 +276,7 @@ func (wt *weightTracker) WorstPeerRatio(overflowDepths map[string]int) (worstAdd
 		ratio := float64(depth) / float64(demand)
 		if ratio > worstRatio {
 			worstRatio = ratio
-			worstAddr = addr
+			worstAddr = label
 		}
 	}
 	return worstAddr, worstRatio
@@ -229,8 +287,12 @@ func (wt *weightTracker) WorstPeerRatio(overflowDepths map[string]int) (worstAdd
 // overflow budget uses 64K buffers instead of 4K. Recalculates pool budget.
 // No-op if peer is unknown.
 func (wt *weightTracker) UpdateExtMsg(peerAddr string, extMsg bool) {
+	addr, ok := parseWeightPeerAddr(peerAddr)
+	if !ok {
+		return
+	}
 	wt.mu.Lock()
-	pw, ok := wt.peers[peerAddr]
+	pw, ok := wt.peers[addr]
 	if !ok {
 		wt.mu.Unlock()
 		return

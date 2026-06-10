@@ -7,14 +7,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 )
 
 // VALIDATES: RFC 4271 Section 9 (AS loop), RFC 4456 Section 8 (originator-ID and cluster-list loops).
 // PREVENTS: Routes looping through the local AS or reflected back to originators.
 
-func ibgpPeer() registry.PeerFilterInfo {
-	return registry.PeerFilterInfo{
+func ibgpPeer() filterapi.PeerFilterInfo {
+	return filterapi.PeerFilterInfo{
 		Address:  netip.MustParseAddr("192.0.2.1"),
 		PeerAS:   65001,
 		LocalAS:  65001,
@@ -22,8 +22,8 @@ func ibgpPeer() registry.PeerFilterInfo {
 	}
 }
 
-func ebgpPeer() registry.PeerFilterInfo {
-	return registry.PeerFilterInfo{
+func ebgpPeer() filterapi.PeerFilterInfo {
+	return filterapi.PeerFilterInfo{
 		Address:  netip.MustParseAddr("192.0.2.1"),
 		PeerAS:   65002,
 		LocalAS:  65001,
@@ -102,7 +102,7 @@ func buildClusterListAttr(ids []uint32) []byte {
 	return attr
 }
 
-func accept(src registry.PeerFilterInfo, body []byte) bool {
+func accept(src filterapi.PeerFilterInfo, body []byte) bool {
 	ok, _ := LoopIngress(src, body, nil)
 	return ok
 }

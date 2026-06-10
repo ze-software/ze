@@ -1,4 +1,5 @@
-// Design: plan/spec-rib-feed-replay-batch.md — grouped collection and cursor replay
+// Design: plan/learned/824-rib-feed-replay-batch.md — grouped collection and cursor replay
+// RFC: rfc/short/rfc9494.md -- LLGR stale metadata on replay
 // Overview: rib.go — replayRoutes, updateRoute
 // Related: ribout_entry.go — ribOutEntry, reconstructRoute, pool.RibOut
 // Related: ../cmd/update/cursor.go — handleUpdateCursor (engine side)
@@ -7,6 +8,7 @@ package rib
 import (
 	"encoding/hex"
 	"hash/fnv"
+	"net/netip"
 	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
@@ -35,19 +37,19 @@ type groupKey struct {
 
 // collectGroupedRibOutRoutes groups ribOut entries by (family, AttrHandle, pathID, StaleLevel).
 // Each distinct AttrHandle is decoded once. Returns groups ready for replay.
-func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr string) []replayGroup {
+func (r *RIBManager) collectGroupedRibOutRoutes(peerAddr netip.Addr) []replayGroup {
 	return r.collectGroupedRibOutRoutesFiltered(peerAddr, family.Family{})
 }
 
 // collectGroupedRibOutRoutesForFamily is like collectGroupedRibOutRoutes but
 // restricted to a single address family.
-func (r *RIBManager) collectGroupedRibOutRoutesForFamily(peerAddr string, fam family.Family) []replayGroup {
+func (r *RIBManager) collectGroupedRibOutRoutesForFamily(peerAddr netip.Addr, fam family.Family) []replayGroup {
 	return r.collectGroupedRibOutRoutesFiltered(peerAddr, fam)
 }
 
 // collectGroupedRibOutRoutesFiltered groups ribOut entries for replay.
 // When filterFam is zero-value, all families are included.
-func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr string, filterFam family.Family) []replayGroup {
+func (r *RIBManager) collectGroupedRibOutRoutesFiltered(peerAddr netip.Addr, filterFam family.Family) []replayGroup {
 	peerFamilies := r.ribOut[peerAddr]
 	if peerFamilies == nil {
 		return nil

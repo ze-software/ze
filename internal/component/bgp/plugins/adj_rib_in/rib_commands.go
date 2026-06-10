@@ -6,6 +6,7 @@ package adj_rib_in
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -61,10 +62,16 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 	if len(decisions) > maxBatchValidateCount {
 		return nil, fmt.Errorf("batch-validate: %d decisions exceeds maximum %d", len(decisions), maxBatchValidateCount)
 	}
+	peerAddrs := make([]netip.Addr, len(decisions))
 	for i := range decisions {
 		if decisions[i].Accept && decisions[i].ValState != ValidationValid && decisions[i].ValState != ValidationNotFound {
 			return nil, fmt.Errorf("batch-validate: invalid validation state %d at index %d (expected 1=Valid or 2=NotFound)", decisions[i].ValState, i)
 		}
+		addr, err := netip.ParseAddr(decisions[i].PeerAddr)
+		if err != nil {
+			return nil, fmt.Errorf("batch-validate: invalid peer address %q at index %d: %w (expected an IP address)", decisions[i].PeerAddr, i, err)
+		}
+		peerAddrs[i] = addr
 	}
 
 	r.mu.Lock()
@@ -73,14 +80,15 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 	var accepted, rejected, early int
 	for i := range decisions {
 		d := &decisions[i]
+		peerAddr := peerAddrs[i]
 		dFam, _ := family.LookupFamily(d.Family)
 		rKey := routeKeyFromStrings(dFam, d.Prefix, d.PathID)
-		pKey := pendingKey(d.PeerAddr, rKey)
+		pKey := pendingKey(peerAddr, rKey)
 
 		if d.Accept {
 			pr, ok := r.pending[pKey]
 			if !ok {
-				r.storeEarlyDecision(d.PeerAddr, rKey, earlyAccept, d.ValState)
+				r.storeEarlyDecision(peerAddr, rKey, earlyAccept, d.ValState)
 				early++
 				accepted++
 				continue
@@ -90,7 +98,7 @@ func (r *AdjRIBInManager) handleBatchValidateTyped(decisions []rpc.ValidationDec
 			accepted++
 		} else {
 			if _, ok := r.pending[pKey]; !ok {
-				r.storeEarlyDecision(d.PeerAddr, rKey, earlyReject, 0)
+				r.storeEarlyDecision(peerAddr, rKey, earlyReject, 0)
 				early++
 				rejected++
 				continue
@@ -124,7 +132,8 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 	}
 	type decision struct {
 		action   byte
-		peerAddr string
+		peerAddr netip.Addr
+		peerStr  string // original arg, for debug logging
 		fam      string
 		prefix   string
 		pathID   uint32
@@ -138,6 +147,10 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 		if act != "a" && act != "r" {
 			return statusError, "", fmt.Errorf("batch-validate: unknown action %q at index %d (expected \"a\" or \"r\")", act, off)
 		}
+		peerAddr, err := netip.ParseAddr(args[off+1])
+		if err != nil {
+			return statusError, "", fmt.Errorf("batch-validate: invalid peer address %q at index %d: %w (expected an IP address)", args[off+1], off+1, err)
+		}
 		pathID, err := strconv.ParseUint(args[off+4], 10, 32)
 		if err != nil {
 			return statusError, "", fmt.Errorf("batch-validate: invalid pathID %q at index %d: %w", args[off+4], off+4, err)
@@ -150,7 +163,7 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 			}
 		}
 		decisions[i] = decision{
-			action: act[0], peerAddr: args[off+1], fam: args[off+2],
+			action: act[0], peerAddr: peerAddr, peerStr: args[off+1], fam: args[off+2],
 			prefix: args[off+3], pathID: uint32(pathID), valState: valState,
 		}
 	}
@@ -185,7 +198,7 @@ func (r *AdjRIBInManager) batchValidateCommand(args []string) (string, any, erro
 				continue
 			}
 			delete(r.pending, pKey)
-			logger().Debug("rejected pending route (batch)", "peer", d.peerAddr, "family", d.fam, "prefix", d.prefix, "pathID", d.pathID)
+			logger().Debug("rejected pending route (batch)", "peer", d.peerStr, "family", d.fam, "prefix", d.prefix, "pathID", d.pathID)
 			rejected++
 		}
 	}
@@ -211,7 +224,7 @@ func (r *AdjRIBInManager) status() any {
 	totalRoutes := 0
 	peers := make(map[string]int)
 	for peer, routes := range r.ribIn {
-		peers[peer] = routes.Len()
+		peers[peer.String()] = routes.Len()
 		totalRoutes += routes.Len()
 	}
 
@@ -231,7 +244,7 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 	result := make(map[string][]map[string]any)
 
 	for peer, routes := range r.ribIn {
-		if !sel.MatchesPeerKey(peer) {
+		if !sel.Matches(peer) {
 			continue
 		}
 		routeList := make([]map[string]any, 0, routes.Len())
@@ -253,7 +266,7 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 			return true
 		})
 		if len(routeList) > 0 {
-			result[peer] = routeList
+			result[peer.String()] = routeList
 		}
 	}
 
@@ -268,10 +281,12 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 		return statusError, "", errAdjRibInReplayRequiresTarget
 	}
 
-	targetPeer := args[0]
+	targetPeer, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("adj-rib-in replay: invalid target peer address %q: %w (expected an IP address)", args[0], err)
+	}
 	var fromIndex uint64
 	if len(args) > 1 {
-		var err error
 		fromIndex, err = strconv.ParseUint(args[1], 10, 64)
 		if err != nil {
 			return statusError, "", fmt.Errorf("invalid from-index: %s", args[1])
@@ -280,9 +295,9 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 
 	cmds, maxSeq := r.buildReplayCommands(targetPeer, fromIndex)
 
-	// Send all replay commands to target peer.
+	// Send all replay commands to target peer (original arg as RPC selector).
 	for _, cmd := range cmds {
-		r.updateRoute(targetPeer, cmd)
+		r.updateRoute(args[0], cmd)
 	}
 
 	return statusDone, map[string]any{"last-index": maxSeq, "replayed": len(cmds)}, nil
@@ -306,7 +321,10 @@ func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error
 		return statusError, "", errAcceptRoutesRequiresPeerFamilyPrefix
 	}
 
-	peerAddr := args[0]
+	peerAddr, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("accept-routes: invalid peer address %q: %w (expected an IP address)", args[0], err)
+	}
 	fam := args[1]
 	prefix := args[2]
 	pathID, err := strconv.ParseUint(args[3], 10, 32)
@@ -343,7 +361,10 @@ func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error
 		return statusError, "", errRejectRoutesRequiresPeerFamilyPrefix
 	}
 
-	peerAddr := args[0]
+	peerAddr, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return statusError, "", fmt.Errorf("reject-routes: invalid peer address %q: %w (expected an IP address)", args[0], err)
+	}
 	fam := args[1]
 	prefix := args[2]
 	pathID, err := strconv.ParseUint(args[3], 10, 32)
@@ -397,7 +418,7 @@ func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) 
 				return true
 			}
 			routes = append(routes, map[string]any{
-				"peer":             peer,
+				"peer":             peer.String(),
 				"family":           famStr,
 				"prefix":           prefix,
 				"attr-hex":         rt.AttrHex,

@@ -1,4 +1,5 @@
 // Design: docs/architecture/pool-architecture.md — Adj-RIB-Out compact storage
+// RFC: rfc/short/rfc4271.md -- AS_PATH / community wire formats reconstructed for replay
 // Related: rib_replay.go — collectGroupedRibOutRoutes, collectGroupedRibOutRoutesForFamily
 //
 // ribOutEntry replaces *Route in ribOut maps. Wire attribute bytes are
@@ -245,7 +246,7 @@ func (r *RIBManager) ribOutSourcePeer(fam family.Family, key ribOutKey) string {
 }
 
 // collectRibOutRoutes reconstructs Routes from ribOut entries for a peer+family.
-func (r *RIBManager) collectRibOutRoutes(peerAddr string, fam family.Family) []*Route {
+func (r *RIBManager) collectRibOutRoutes(peerAddr netip.Addr, fam family.Family) []*Route {
 	familyRoutes := r.ribOut[peerAddr][fam]
 	if familyRoutes == nil {
 		return nil

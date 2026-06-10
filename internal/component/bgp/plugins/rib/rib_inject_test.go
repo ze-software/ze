@@ -4,6 +4,7 @@ package rib
 
 import (
 	"encoding/json"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,8 +67,9 @@ func TestInjectWireRouteStoresBMPProtocol(t *testing.T) {
 	require.NotNil(t, bmpPeers["router1:10.0.0.1"])
 	assert.Equal(t, 1, bmpPeers["router1:10.0.0.1"].Len())
 
-	// Route must NOT be in bgpPeers.
-	assert.Nil(t, r.bgpPeers["router1:10.0.0.1"])
+	// Route must NOT be in bgpPeers (composite keys cannot even be
+	// netip.Addr keys; assert the map stayed untouched).
+	assert.Empty(t, r.bgpPeers, "BMP injection must not create bgpPeers entries")
 
 	// Verify the actual prefix is stored by looking it up.
 	nlri := []byte{24, 10, 0, 0}
@@ -87,8 +89,8 @@ func TestBMPRoutesExcludedFromBestPath(t *testing.T) {
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
 
 	// Insert same prefix via both BGP and BMP.
-	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, nlri, true)
+	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Insert(ipv4Uni, attrBytes, nlri, true)
 
 	bmpPeers := r.ribInPool[bmpProtocolID]
 	bmpPeers["router1:10.0.0.2"] = storage.NewPeerRIB("router1:10.0.0.2")
@@ -190,8 +192,8 @@ func TestShowProtocolPipelineBMP(t *testing.T) {
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
 
 	// Insert BGP route.
-	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
+	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
 
 	// Insert BMP route.
 	bmpPeers := r.ribInPool[bmpProtocolID]
@@ -274,8 +276,8 @@ func TestBGPShowExcludesBMP(t *testing.T) {
 	ipv4Uni := family.Family{AFI: 1, SAFI: 1}
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00}
 
-	r.bgpPeers["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
-	r.bgpPeers["10.0.0.1"].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
+	r.bgpPeers[netip.MustParseAddr("10.0.0.1")] = storage.NewPeerRIB("10.0.0.1")
+	r.bgpPeers[netip.MustParseAddr("10.0.0.1")].Insert(ipv4Uni, attrBytes, []byte{24, 10, 0, 0}, true)
 
 	bmpPeers := r.ribInPool[bmpProtocolID]
 	bmpPeers["router1:peer1"] = storage.NewPeerRIB("router1:peer1")

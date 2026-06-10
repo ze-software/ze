@@ -13,6 +13,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -24,7 +25,7 @@ import (
 
 // safeIngressFilter calls an ingress filter with panic recovery.
 // Fail-closed: a panicking filter rejects the route (drops the UPDATE).
-func safeIngressFilter(filter registry.IngressFilterFunc, src registry.PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modified []byte) {
+func safeIngressFilter(filter filterapi.IngressFilterFunc, src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modified []byte) {
 	defer func() {
 		if r := recover(); r != nil {
 			sessionLogger().Error("ingress filter panic, rejecting route", "peer", src.Address, "panic", r)
@@ -37,7 +38,7 @@ func safeIngressFilter(filter registry.IngressFilterFunc, src registry.PeerFilte
 
 // safeEgressFilter calls an egress filter with panic recovery.
 // Fail-closed: a panicking filter suppresses the route for this peer.
-func safeEgressFilter(filter registry.EgressFilterFunc, src, dest registry.PeerFilterInfo, payload []byte, meta map[string]any, mods *registry.ModAccumulator) (accept bool) {
+func safeEgressFilter(filter filterapi.EgressFilterFunc, src, dest filterapi.PeerFilterInfo, payload []byte, meta map[string]any, mods *filterapi.ModAccumulator) (accept bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			fwdLogger().Error("egress filter panic, suppressing route", "src", src.Address, "dest", dest.Address, "panic", r)
@@ -390,7 +391,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// Only for received UPDATEs. Filter closures check peer role, OTC, etc.
 	var routeMeta map[string]any
 	if direction == rpc.DirectionReceived && wireUpdate != nil && len(r.ingressFilters) > 0 {
-		src := registry.PeerFilterInfo{
+		src := filterapi.PeerFilterInfo{
 			Address:  peerAddr,
 			PeerAS:   peerInfo.PeerAS,
 			LocalAS:  peerInfo.LocalAS,
@@ -476,7 +477,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			// to buildModifiedPayload so step 8 of the progressive build
 			// writes the filtered NLRI tail instead of copying the original.
 			if modifiedText != updateText {
-				var importMods registry.ModAccumulator
+				var importMods filterapi.ModAccumulator
 				textDeltaToModOps(updateText, modifiedText, &importMods)
 				srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 				srcASN4 := srcCtx != nil && srcCtx.ASN4()

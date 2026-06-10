@@ -2,6 +2,7 @@ package rib
 
 import (
 	"encoding/json"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,12 +29,12 @@ func setupGRTestRIB(t *testing.T) *RIBManager {
 	peer1RIB := storage.NewPeerRIB("192.0.2.1")
 	peer1RIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0}, true)               // 10.0.0.0/24
 	peer1RIB.Insert(ipv6Family, attrBytes, []byte{32, 0x20, 0x01, 0x0d, 0xb8}, true) // 2001:db8::/32
-	r.bgpPeers["192.0.2.1"] = peer1RIB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peer1RIB
 
 	// Peer 2: one family
 	peer2RIB := storage.NewPeerRIB("192.0.2.2")
 	peer2RIB.Insert(ipv4Family, attrBytes, []byte{24, 172, 16, 0}, true) // 172.16.0.0/24
-	r.bgpPeers["192.0.2.2"] = peer2RIB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.2")] = peer2RIB
 
 	return r
 }
@@ -57,11 +58,11 @@ func TestRIBMarkStaleCommand(t *testing.T) {
 	assert.Equal(t, float64(2), result["marked"], "should mark 2 routes for peer 1")
 
 	// Verify peer 1 routes are stale.
-	peer1RIB := r.bgpPeers["192.0.2.1"]
+	peer1RIB := r.bgpPeers[netip.MustParseAddr("192.0.2.1")]
 	assert.Equal(t, 2, peer1RIB.StaleCount(), "peer 1 should have 2 stale routes")
 
 	// Verify peer 2 routes are NOT stale.
-	peer2RIB := r.bgpPeers["192.0.2.2"]
+	peer2RIB := r.bgpPeers[netip.MustParseAddr("192.0.2.2")]
 	assert.Equal(t, 0, peer2RIB.StaleCount(), "peer 2 should have 0 stale routes")
 }
 
@@ -78,7 +79,7 @@ func TestRIBMarkStaleCommandStoresGRState(t *testing.T) {
 
 	// Verify GR state is stored.
 	r.peerMu.RLock()
-	state := r.grState["192.0.2.1"]
+	state := r.grState[netip.MustParseAddr("192.0.2.1")]
 	r.peerMu.RUnlock()
 	require.NotNil(t, state, "GR state should be stored for peer")
 	assert.Equal(t, uint16(120), state.RestartTime)
@@ -139,7 +140,7 @@ func TestRIBMarkStaleCommandExplicitLevel(t *testing.T) {
 
 	// Verify routes have StaleLevel=2, not the default 1.
 	ipv4Family := family.IPv4Unicast
-	entry, ok := r.bgpPeers["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
+	entry, ok := r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Lookup(ipv4Family, []byte{24, 10, 0, 0})
 	require.True(t, ok)
 	assert.Equal(t, uint8(2), entry.StaleLevel, "route should have StaleLevel=2")
 }
@@ -208,11 +209,11 @@ func TestRIBPurgeStaleCommand(t *testing.T) {
 
 	// Insert a fresh route for peer 1 (new NLRI, should have Stale=false).
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}, true) // 192.168.0.0/24
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}, true) // 192.168.0.0/24
 
 	// Peer 1 now has 3 routes: 2 stale + 1 fresh.
-	assert.Equal(t, 3, r.bgpPeers["192.0.2.1"].Len())
-	assert.Equal(t, 2, r.bgpPeers["192.0.2.1"].StaleCount())
+	assert.Equal(t, 3, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Len())
+	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount())
 
 	// Purge stale for peer 1.
 	status, data, err := r.handleCommand("request bgp rib purge-stale", "*", []string{"192.0.2.1"})
@@ -224,11 +225,11 @@ func TestRIBPurgeStaleCommand(t *testing.T) {
 	assert.Equal(t, float64(2), result["purged"], "should purge 2 stale routes")
 
 	// Verify: only the fresh route survives.
-	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].Len(), "only fresh route should remain")
-	assert.Equal(t, 0, r.bgpPeers["192.0.2.1"].StaleCount(), "no stale routes should remain")
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Len(), "only fresh route should remain")
+	assert.Equal(t, 0, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount(), "no stale routes should remain")
 
 	// Verify: peer 2 is unaffected.
-	assert.Equal(t, 1, r.bgpPeers["192.0.2.2"].Len(), "peer 2 should be unaffected")
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.2")].Len(), "peer 2 should be unaffected")
 }
 
 // TestRIBPurgeStaleFamilyCommand verifies per-family purge-stale.
@@ -242,7 +243,7 @@ func TestRIBPurgeStaleFamilyCommand(t *testing.T) {
 	// Mark all peer 1 routes as stale (ipv4 and ipv6).
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
-	assert.Equal(t, 2, r.bgpPeers["192.0.2.1"].StaleCount())
+	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount())
 
 	// Purge stale only for ipv4/unicast.
 	status, data, err := r.handleCommand("request bgp rib purge-stale", "*", []string{"192.0.2.1", "ipv4/unicast"})
@@ -254,8 +255,8 @@ func TestRIBPurgeStaleFamilyCommand(t *testing.T) {
 	assert.Equal(t, float64(1), result["purged"], "should purge 1 stale ipv4 route")
 
 	// Verify: ipv6 stale route still exists.
-	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].Len(), "ipv6 stale route should remain")
-	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].StaleCount(), "1 stale route should remain (ipv6)")
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Len(), "ipv6 stale route should remain")
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount(), "1 stale route should remain (ipv6)")
 }
 
 // TestRIBPurgeStalePreservesFresh verifies fresh routes survive purge-stale after implicit unstale.
@@ -271,14 +272,14 @@ func TestRIBPurgeStalePreservesFresh(t *testing.T) {
 	// Mark all peer 1 routes as stale.
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
-	assert.Equal(t, 2, r.bgpPeers["192.0.2.1"].StaleCount())
+	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount())
 
 	// Re-announce the IPv4 route with different attributes (implicit unstale via replacement).
 	newAttrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireMED100)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, newAttrBytes, []byte{24, 10, 0, 0}, true) // 10.0.0.0/24
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Insert(ipv4Family, newAttrBytes, []byte{24, 10, 0, 0}, true) // 10.0.0.0/24
 
 	// Now: ipv4 route is fresh (replaced), ipv6 route is still stale.
-	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].StaleCount(), "only ipv6 should be stale")
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount(), "only ipv6 should be stale")
 
 	// Purge stale for peer 1.
 	status, data, err := r.handleCommand("request bgp rib purge-stale", "*", []string{"192.0.2.1"})
@@ -290,10 +291,10 @@ func TestRIBPurgeStalePreservesFresh(t *testing.T) {
 	assert.Equal(t, float64(1), result["purged"], "should purge only the stale ipv6 route")
 
 	// Verify: IPv4 route survives (it was refreshed).
-	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].Len(), "refreshed ipv4 route should survive")
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Len(), "refreshed ipv4 route should survive")
 
 	// Verify the surviving route is the IPv4 one via lookup.
-	_, found := r.bgpPeers["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
+	_, found := r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Lookup(ipv4Family, []byte{24, 10, 0, 0})
 	assert.True(t, found, "refreshed 10.0.0.0/24 should still be in RIB")
 }
 
@@ -311,14 +312,14 @@ func TestGRFlowMarkAndPurge(t *testing.T) {
 	// Step 1: Peer goes down → mark-stale (simulating bgp-gr 3-step sequence)
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
-	assert.Equal(t, 2, r.bgpPeers["192.0.2.1"].StaleCount())
+	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount())
 
 	// Step 2: Peer reconnects, sends fresh UPDATEs for IPv4 (same NLRI, different attrs)
 	freshAttr := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 0, 0}, true) // re-announce 10.0.0.0/24
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Insert(ipv4Family, freshAttr, []byte{24, 10, 0, 0}, true) // re-announce 10.0.0.0/24
 
 	// Also sends a brand new route
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 1, 0}, true) // new 10.1.0.0/24
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Insert(ipv4Family, freshAttr, []byte{24, 10, 1, 0}, true) // new 10.1.0.0/24
 
 	// Step 3: EOR received for ipv4/unicast → purge stale for that family
 	_, data, err := r.handleCommand("request bgp rib purge-stale", "*", []string{"192.0.2.1", "ipv4/unicast"})
@@ -335,15 +336,15 @@ func TestGRFlowMarkAndPurge(t *testing.T) {
 	assert.Equal(t, float64(1), purge2["purged"], "1 stale ipv6 route purged")
 
 	// Final state: 2 fresh IPv4 routes (re-announced + new), 0 IPv6.
-	assert.Equal(t, 2, r.bgpPeers["192.0.2.1"].Len(), "2 fresh routes should remain")
-	assert.Equal(t, 0, r.bgpPeers["192.0.2.1"].StaleCount(), "no stale routes should remain")
+	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Len(), "2 fresh routes should remain")
+	assert.Equal(t, 0, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount(), "no stale routes should remain")
 
 	// Verify specific routes.
-	_, found := r.bgpPeers["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
+	_, found := r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Lookup(ipv4Family, []byte{24, 10, 0, 0})
 	assert.True(t, found, "re-announced 10.0.0.0/24 should exist")
-	_, found = r.bgpPeers["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 1, 0})
+	_, found = r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Lookup(ipv4Family, []byte{24, 10, 1, 0})
 	assert.True(t, found, "new 10.1.0.0/24 should exist")
-	_, found = r.bgpPeers["192.0.2.1"].Lookup(ipv6Family, []byte{32, 0x20, 0x01, 0x0d, 0xb8})
+	_, found = r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Lookup(ipv6Family, []byte{32, 0x20, 0x01, 0x0d, 0xb8})
 	assert.False(t, found, "stale 2001:db8::/32 should be purged")
 }
 
@@ -360,12 +361,12 @@ func TestGRConsecutiveRestart(t *testing.T) {
 	// First disconnect: mark all routes as stale.
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
 	require.NoError(t, err)
-	assert.Equal(t, 2, r.bgpPeers["192.0.2.1"].StaleCount())
+	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount())
 
 	// Peer reconnects, re-announces only IPv4 (IPv6 stays stale).
 	freshAttr := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 10, 0, 0}, true) // refreshes 10.0.0.0/24
-	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].StaleCount(), "only ipv6 stale after refresh")
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Insert(ipv4Family, freshAttr, []byte{24, 10, 0, 0}, true) // refreshes 10.0.0.0/24
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount(), "only ipv6 stale after refresh")
 
 	// Second disconnect before EOR! Consecutive restart.
 	// Step 1: purge-stale (delete old stale routes from previous cycle)
@@ -381,12 +382,12 @@ func TestGRConsecutiveRestart(t *testing.T) {
 	require.NoError(t, err)
 
 	// Now: only the refreshed IPv4 route exists, and it's marked stale for the new cycle.
-	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].Len(), "1 route should remain")
-	assert.Equal(t, 1, r.bgpPeers["192.0.2.1"].StaleCount(), "1 route should be stale (new cycle)")
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Len(), "1 route should remain")
+	assert.Equal(t, 1, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount(), "1 route should be stale (new cycle)")
 
 	// GR state should reflect the new restart time.
 	r.peerMu.RLock()
-	state := r.grState["192.0.2.1"]
+	state := r.grState[netip.MustParseAddr("192.0.2.1")]
 	r.peerMu.RUnlock()
 	require.NotNil(t, state)
 	assert.Equal(t, uint16(90), state.RestartTime, "restart time should be updated to new value")
@@ -428,7 +429,7 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 
 	// Insert a fresh route so we can verify mixed output.
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
-	r.bgpPeers["192.0.2.1"].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}, true) // fresh 192.168.0.0/24
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}, true) // fresh 192.168.0.0/24
 
 	// Show received should have "stale": true on stale routes, no "stale" on fresh.
 	_, data, err = r.handleCommand("show bgp rib", "192.0.2.1", []string{"received"})
@@ -479,7 +480,7 @@ func TestRIBMarkStaleStartsExpiryTimer(t *testing.T) {
 	require.NoError(t, err)
 
 	r.peerMu.RLock()
-	state := r.grState["192.0.2.1"]
+	state := r.grState[netip.MustParseAddr("192.0.2.1")]
 	r.peerMu.RUnlock()
 	require.NotNil(t, state)
 	assert.NotNil(t, state.expiryTimer, "mark-stale should start expiry timer")
@@ -498,20 +499,20 @@ func TestRIBExpiryTimerAutoExpires(t *testing.T) {
 	// call autoExpireStale directly instead of waiting for timer.
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{"192.0.2.1", "1"})
 	require.NoError(t, err)
-	assert.Equal(t, 2, r.bgpPeers["192.0.2.1"].StaleCount())
+	assert.Equal(t, 2, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].StaleCount())
 
 	// Simulate timer firing by calling autoExpireStale directly.
 	r.peerMu.RLock()
-	state := r.grState["192.0.2.1"]
+	state := r.grState[netip.MustParseAddr("192.0.2.1")]
 	r.peerMu.RUnlock()
-	r.autoExpireStale("192.0.2.1", state)
+	r.autoExpireStale(netip.MustParseAddr("192.0.2.1"), state)
 
 	// All stale routes should be purged.
-	assert.Equal(t, 0, r.bgpPeers["192.0.2.1"].Len(), "auto-expire should purge all stale routes")
+	assert.Equal(t, 0, r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Len(), "auto-expire should purge all stale routes")
 
 	// GR state should be cleaned up.
 	r.peerMu.RLock()
-	_, hasState := r.grState["192.0.2.1"]
+	_, hasState := r.grState[netip.MustParseAddr("192.0.2.1")]
 	r.peerMu.RUnlock()
 	assert.False(t, hasState, "GR state should be cleared after auto-expire")
 }
@@ -534,7 +535,7 @@ func TestRIBPurgeStaleStopsTimer(t *testing.T) {
 
 	// GR state (and timer) should be cleaned up.
 	r.peerMu.RLock()
-	_, hasState := r.grState["192.0.2.1"]
+	_, hasState := r.grState[netip.MustParseAddr("192.0.2.1")]
 	r.peerMu.RUnlock()
 	assert.False(t, hasState, "GR state should be cleared after full purge")
 }
@@ -552,7 +553,7 @@ func TestRIBConsecutiveRestartResetsTimer(t *testing.T) {
 	require.NoError(t, err)
 
 	r.peerMu.RLock()
-	state1 := r.grState["192.0.2.1"]
+	state1 := r.grState[netip.MustParseAddr("192.0.2.1")]
 	timer1 := state1.expiryTimer
 	r.peerMu.RUnlock()
 	require.NotNil(t, timer1)
@@ -562,7 +563,7 @@ func TestRIBConsecutiveRestartResetsTimer(t *testing.T) {
 	require.NoError(t, err)
 
 	r.peerMu.RLock()
-	state2 := r.grState["192.0.2.1"]
+	state2 := r.grState[netip.MustParseAddr("192.0.2.1")]
 	r.peerMu.RUnlock()
 	require.NotNil(t, state2)
 	assert.NotNil(t, state2.expiryTimer, "new timer should be set")
@@ -643,7 +644,7 @@ func TestAttachCommunity(t *testing.T) {
 	assert.Equal(t, float64(1), result["attached"], "should attach to 1 stale ipv4 route")
 
 	// Verify community attached and StaleLevel raised
-	entry, found := r.bgpPeers["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
+	entry, found := r.bgpPeers[netip.MustParseAddr("192.0.2.1")].Lookup(ipv4Family, []byte{24, 10, 0, 0})
 	require.True(t, found)
 	assert.True(t, entry.StaleLevel >= storage.DepreferenceThreshold, "StaleLevel should be raised")
 	grBundle := entry.GetBundle()
@@ -667,7 +668,7 @@ func TestDeleteWithCommunity(t *testing.T) {
 	attrWithComm := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireCommunityB)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(ipv4Family, attrWithComm, []byte{24, 10, 0, 0}, true)
-	r.bgpPeers["192.0.2.1"] = peerRIB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Mark stale
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})
@@ -698,7 +699,7 @@ func TestAttachCommunity_Idempotent(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0}, true)
-	r.bgpPeers["192.0.2.1"] = peerRIB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	nlriBytes := []byte{24, 10, 0, 0}
 
@@ -735,7 +736,7 @@ func TestAttachCommunity_NoCommunities(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 	peerRIB := storage.NewPeerRIB("192.0.2.1")
 	peerRIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0}, true)
-	r.bgpPeers["192.0.2.1"] = peerRIB
+	r.bgpPeers[netip.MustParseAddr("192.0.2.1")] = peerRIB
 
 	// Mark stale + attach community
 	_, _, err := r.handleCommand("request bgp rib mark-stale", "*", []string{"192.0.2.1", "120"})

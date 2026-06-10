@@ -1,4 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md -- best-path change tracking
+// RFC: rfc/short/rfc4271.md -- best-path decision process (S9.1.2)
+// RFC: rfc/short/rfc9252.md -- SRv6 SID extraction and transposition
+// RFC: rfc/short/rfc9494.md -- LLGR stale depreference
 // Overview: rib.go -- RIB plugin core types and event handlers
 // Related: bestpath.go -- best-path selection algorithm (RFC 4271 S9.1.2)
 // Related: rib_structured.go -- structured event handlers that trigger best-path checks
@@ -711,10 +714,10 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		nextHop = r.bestCandidateNextHopAddr(fam, nlriBytes, newBest)
 		isEBGP = r.protocolType(newBest) == bgptypes.BGPProtocolEBGP
 		if fam.SAFI == family.SAFIMPLSLabel {
-			bestLabels = r.lookupLabelsForBest(fam, nlriBytes, newBest.PeerAddr)
+			bestLabels = r.lookupLabelsForBest(fam, nlriBytes, newBest.PeerIP)
 		}
 		if fam.SAFI != family.SAFIMPLSLabel {
-			srv6SID = r.lookupSRv6SIDForBest(fam, nlriBytes, newBest.PeerAddr)
+			srv6SID = r.lookupSRv6SIDForBest(fam, nlriBytes, newBest.PeerIP)
 		}
 	}
 
@@ -834,7 +837,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 
 // lookupLabelsForBest retrieves MPLS labels from the winning peer's PeerRIB
 // for a labeled unicast prefix. Caller must not hold r.peerMu.
-func (r *RIBManager) lookupLabelsForBest(fam family.Family, nlriBytes []byte, peerAddr string) []uint32 {
+func (r *RIBManager) lookupLabelsForBest(fam family.Family, nlriBytes []byte, peerAddr netip.Addr) []uint32 {
 	r.peerMu.RLock()
 	peerRIB := r.bgpPeers[peerAddr]
 	r.peerMu.RUnlock()
@@ -851,7 +854,7 @@ func (r *RIBManager) lookupLabelsForBest(fam family.Family, nlriBytes []byte, pe
 // reconstruct the full SID from the partial SID + NLRI label bits.
 // Returns an invalid Addr if the attribute is absent or not SRv6.
 // Caller must not hold r.peerMu.
-func (r *RIBManager) lookupSRv6SIDForBest(fam family.Family, nlriBytes []byte, peerAddr string) netip.Addr {
+func (r *RIBManager) lookupSRv6SIDForBest(fam family.Family, nlriBytes []byte, peerAddr netip.Addr) netip.Addr {
 	r.peerMu.RLock()
 	peerRIB := r.bgpPeers[peerAddr]
 	r.peerMu.RUnlock()
@@ -988,7 +991,7 @@ func (r *RIBManager) protocolType(c *Candidate) bgptypes.BGPProtocolType {
 // without any outer lock held.
 func (r *RIBManager) bestCandidateNextHopAddr(fam family.Family, nlriBytes []byte, best *Candidate) netip.Addr {
 	r.peerMu.RLock()
-	peerRIB := r.bgpPeers[best.PeerAddr]
+	peerRIB := r.bgpPeers[best.PeerIP]
 	r.peerMu.RUnlock()
 	if peerRIB == nil {
 		return netip.Addr{}
@@ -1160,10 +1163,11 @@ func (r *RIBManager) reconcileBestPath(fam family.Family, nlriBytes []byte) {
 // Locks peerMu per peer (not once for all) so concurrent UPDATE processing
 // is not blocked for the full sweep; re-insertion between iterations is safe
 // because purgeBestPrevForPeer is idempotent.
-func (r *RIBManager) reconcileBestPathBulk(peers []string) {
+func (r *RIBManager) reconcileBestPathBulk(peers []netip.Addr) {
 	for _, peer := range peers {
 		r.peerMu.Lock()
-		pending := r.purgeBestPrevForPeer(peer)
+		// The interner is keyed by the canonical address string.
+		pending := r.purgeBestPrevForPeer(peer.String())
 		r.peerMu.Unlock()
 		r.emitPurgedWithdraws(pending)
 	}

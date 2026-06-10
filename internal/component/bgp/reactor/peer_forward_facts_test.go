@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/filterapi"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -150,7 +150,7 @@ func TestForwardFactsFilterInfo(t *testing.T) {
 
 	facts := peer.forwardFacts()
 	require.NotNil(t, facts)
-	assert.Equal(t, registry.PeerFilterInfo{
+	assert.Equal(t, filterapi.PeerFilterInfo{
 		Address:   netip.MustParseAddr("10.0.0.1"),
 		PeerAS:    65001,
 		Name:      "test-peer",
@@ -237,7 +237,7 @@ func TestPrecomputeNextHop(t *testing.T) {
 			precomputeNextHop(tt.settings, &facts)
 			assert.Equal(t, tt.wantMode, facts.nhMode)
 
-			var mods registry.ModAccumulator
+			var mods filterapi.ModAccumulator
 			applyFactsNextHop(&facts, &mods)
 			assert.Equal(t, tt.wantOps, mods.Len())
 		})
@@ -267,11 +267,11 @@ func TestPrecomputeSendCommunity(t *testing.T) {
 			precomputeSendCommunity(&PeerSettings{SendCommunity: tt.send}, &facts)
 			assert.Equal(t, tt.wantMask, facts.scMask)
 
-			var mods registry.ModAccumulator
+			var mods filterapi.ModAccumulator
 			applyFactsSendCommunity(&facts, &mods)
 			assert.Equal(t, tt.wantOps, mods.Len())
 
-			var origMods registry.ModAccumulator
+			var origMods filterapi.ModAccumulator
 			applySendCommunityFilter(&PeerSettings{SendCommunity: tt.send}, &origMods)
 			assert.Equal(t, origMods.Len(), mods.Len(), "op count must match original")
 		})

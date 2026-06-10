@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-3-bgp-react.md — BGP reactions to interface events
+// Design: plan/learned/492-iface-3-bgp-react.md — BGP reactions to interface events
 // Overview: reactor.go — Reactor struct and lifecycle
 
 package reactor
