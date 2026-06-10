@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-7-ikev2-engine.md -- IKE SA lifecycle events
+// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE SA lifecycle events
 package engine
 
 import "codeberg.org/thomas-mangin/ze/internal/core/events"

@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-0-umbrella.md -- component health aggregation (diag-6)
+// Design: plan/learned/673-diag-0-umbrella.md -- component health aggregation (diag-6)
 
 package health
 

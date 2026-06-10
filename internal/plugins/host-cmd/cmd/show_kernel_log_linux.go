@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md — kernel log reader from /dev/kmsg (dmesg replacement)
+// Design: plan/learned/727-diag-core.md — kernel log reader from /dev/kmsg (dmesg replacement)
 
 //go:build linux
 

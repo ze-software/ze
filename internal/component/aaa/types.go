@@ -1,4 +1,4 @@
-// Design: .claude/patterns/registration.md -- AAA registry (VFS-like)
+// Design: ai/patterns/registration.md -- AAA registry (VFS-like)
 // Overview: aaa.go -- AAA interfaces
 
 package aaa

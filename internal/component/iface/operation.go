@@ -19,7 +19,8 @@ import (
 
 func init() {
 	if err := tx.RegisterOperationDecomposer(configRootInterface, decomposeIfaceOperations); err != nil {
-		panic(err)
+		slog.Error("register iface operation decomposer", "error", err)
+		panic("BUG: register iface operation decomposer failed")
 	}
 	if err := tx.RegisterConstraintRule(tx.ConstraintRule{
 		ID:       "iface-add-interface-before-address",

@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-8-ikev2-child-xfrm.md -- established SA lifecycle
+// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- established SA lifecycle
 // RFC: rfc/short/rfc7296.md -- Child SA, DPD, rekeying after IKE_AUTH
 
 package engine

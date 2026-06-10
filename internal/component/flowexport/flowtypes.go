@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- flow-record value types and encoder interfaces
+// Design: plan/learned/819-flow-export-2-flow-records.md -- flow-record value types and encoder interfaces
 // Related: encoder_registry.go -- flow encoder factory registration
 // Related: exporter.go -- ExportFlowSample / ExportFlows dispatch
 

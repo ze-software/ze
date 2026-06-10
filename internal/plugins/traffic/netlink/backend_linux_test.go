@@ -1,4 +1,4 @@
-// Design: plan/deployment-readiness-deep-review.md -- tc original-qdisc restore regressions
+// Design: plan/learned/656-deployment-readiness-review.md -- tc original-qdisc restore regressions
 
 //go:build linux
 

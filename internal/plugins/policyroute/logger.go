@@ -1,4 +1,4 @@
-// Design: plan/spec-policy-routing.md -- logger
+// Design: plan/learned/684-policy-routing.md -- logger
 
 package policyroute
 

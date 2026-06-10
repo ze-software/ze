@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-4-device-config.md — auto-revert on runtime failure after config push
+// Design: plan/learned/678-appliance-4-device-config.md — auto-revert on runtime failure after config push
 
 //go:build ze_core
 

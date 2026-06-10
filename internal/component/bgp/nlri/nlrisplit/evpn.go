@@ -1,4 +1,4 @@
-// Design: plan/design-rib-unified.md -- Phase 3g (per-family NLRI split)
+// Design: plan/learned/639-rib-unified.md -- Phase 3g (per-family NLRI split)
 // Related: register.go -- binds SplitEVPN to AFI L2VPN / SAFI EVPN
 
 package nlrisplit

@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-5-pppoe.md -- PPPoE subsystem lifecycle
+// Design: plan/learned/669-bng-5-pppoe.md -- PPPoE subsystem lifecycle
 // Related: config.go -- Parameters consumed at Start
 // Related: service.go -- PublishService / LookupService
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-crash-capture.md -- stderr redirect and syslog forwarding
+// Design: plan/learned/726-diag-crash-capture.md -- stderr redirect and syslog forwarding
 
 package crashlog
 

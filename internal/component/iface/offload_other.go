@@ -1,4 +1,4 @@
-// Design: plan/spec-gap-4-iface-offload.md -- no-op stub for non-Linux
+// Design: plan/learned/708-gap-4-iface-offload.md -- no-op stub for non-Linux
 
 //go:build !linux
 

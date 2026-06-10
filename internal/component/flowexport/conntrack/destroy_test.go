@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- conntrack destroy-event parser test
+// Design: plan/learned/819-flow-export-2-flow-records.md -- conntrack destroy-event parser test
 
 package conntrack
 

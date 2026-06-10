@@ -1,4 +1,4 @@
-// Design: plan/spec-fw-7-traffic-vpp.md -- VPP traffic backend stub for non-Linux
+// Design: plan/learned/627-fw-7-traffic-vpp.md -- VPP traffic backend stub for non-Linux
 
 //go:build !linux
 

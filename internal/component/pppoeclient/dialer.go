@@ -1,4 +1,4 @@
-// Design: plan/spec-cpe-1-pppoe-client.md -- PPPoE client discovery dialer
+// Design: plan/learned/705-cpe-1-pppoe-client.md -- PPPoE client discovery dialer
 // Related: session.go -- LCP/auth/NCP negotiation invoked after discovery
 
 package pppoeclient

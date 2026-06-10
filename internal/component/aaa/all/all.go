@@ -1,4 +1,4 @@
-// Design: .claude/patterns/registration.md -- AAA registry (VFS-like)
+// Design: ai/patterns/registration.md -- AAA registry (VFS-like)
 
 // Package all blank-imports every AAA backend so their init() functions fire
 // and aaa.Default contains the backend factories. Binaries that need the

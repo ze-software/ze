@@ -1,4 +1,4 @@
-// Design: plan/spec-install-2-tftpserver.md -- Linux SO_BINDTODEVICE for interface-specific TFTP
+// Design: plan/learned/807-install-2-tftpserver.md -- Linux SO_BINDTODEVICE for interface-specific TFTP
 
 //go:build linux
 

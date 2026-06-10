@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config deactivate command
 // Detail: cmd_set.go — same one-shot pattern (flags, editor, save, notify)
-// Detail: ../../cli/model_commands.go — TUI cmdDeactivate dispatch we mirror
+// Detail: ../../cli/model_commands_edit.go — TUI cmdDeactivate implementation we mirror
 
 package cli
 

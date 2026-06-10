@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-6-ikev2-crypto.md -- DH key exchange groups
+// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- DH key exchange groups
 
 package crypto
 

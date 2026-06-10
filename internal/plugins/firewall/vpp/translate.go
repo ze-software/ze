@@ -1,4 +1,4 @@
-// Design: plan/spec-fw-6-firewall-vpp.md -- Translation contract
+// Design: plan/learned/671-fw-6-firewall-vpp.md -- Translation contract
 //
 // Pure translation functions mapping ze firewall Match/Action types to
 // VPP ACL rule fields. These functions contain no I/O and no references

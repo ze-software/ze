@@ -1,4 +1,4 @@
-// Design: plan/spec-subscriber-session-model.md -- handler registry tests
+// Design: plan/learned/760-subscriber-session-model.md -- handler registry tests
 
 package subscriber
 

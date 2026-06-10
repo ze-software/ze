@@ -1,4 +1,4 @@
-// Design: plan/design-rib-unified.md -- Phase 3c (Loc-RIB change notifications)
+// Design: plan/learned/639-rib-unified.md -- Phase 3c (Loc-RIB change notifications)
 // Design: plan/design-rib-rs-fastpath.md -- Change.Forward handle for zero-copy forwarding
 // Related: manager.go -- RIB.Insert / RIB.Remove dispatch to subscribed ChangeHandlers
 // Related: forward_handle.go -- ForwardHandle interface carried by Change.Forward

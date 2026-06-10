@@ -1,4 +1,4 @@
-// Design: plan/spec-install-7c-vendor-updater.md — push tests with updater protocol
+// Design: plan/learned/817-install-7c-vendor-updater.md — push tests with updater protocol
 
 package appliance
 

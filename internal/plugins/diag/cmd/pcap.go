@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-0-umbrella.md -- pcap writer (stdlib-only)
+// Design: plan/learned/673-diag-0-umbrella.md -- pcap writer (stdlib-only)
 
 package cmd
 

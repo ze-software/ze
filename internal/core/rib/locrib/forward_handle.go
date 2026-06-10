@@ -1,4 +1,4 @@
-// Design: plan/design-rib-rs-fastpath.md -- zero-copy forwarding for Change subscribers
+// Design: plan/learned/784-rib-rs-fastpath.md -- zero-copy forwarding for Change subscribers
 // Related: change.go -- Change.Forward field carries the handle
 // Related: manager.go -- InsertForward passes the handle through to dispatch
 

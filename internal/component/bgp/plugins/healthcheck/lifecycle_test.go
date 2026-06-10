@@ -1,4 +1,4 @@
-// Design: plan/spec-healthcheck-0-umbrella.md -- config reload lifecycle tests
+// Design: plan/learned/516-healthcheck-0-umbrella.md -- config reload lifecycle tests
 package healthcheck
 
 import (

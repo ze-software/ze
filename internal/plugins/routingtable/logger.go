@@ -1,4 +1,4 @@
-// Design: plan/spec-gap-2-static-route-enhancements.md -- routing-table plugin logger
+// Design: plan/learned/710-gap-2-static-route-enhancements.md -- routing-table plugin logger
 
 package routingtable
 

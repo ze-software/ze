@@ -1,4 +1,4 @@
-// Design: plan/spec-healthcheck-0-umbrella.md -- probe shell command execution
+// Design: plan/learned/516-healthcheck-0-umbrella.md -- probe shell command execution
 // Overview: healthcheck.go -- plugin lifecycle and probe management
 package healthcheck
 

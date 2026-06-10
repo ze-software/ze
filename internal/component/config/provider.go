@@ -1,4 +1,4 @@
-// Design: plan/spec-arch-0-system-boundaries.md — ConfigProvider implementation
+// Design: plan/learned/425-arch-0-system-boundaries.md — ConfigProvider implementation
 // Design: plan/spec-arch-4-config-manager.md — ConfigProvider spec
 
 package config

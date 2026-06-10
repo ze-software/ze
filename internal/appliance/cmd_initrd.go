@@ -1,4 +1,4 @@
-// Design: plan/spec-install-10-iso-prerequisites.md — installer initrd download/build
+// Design: plan/learned/856-install-10-iso-prerequisites.md — installer initrd download/build
 
 package appliance
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-11-interop-eap.md -- EAP peer session tests
+// Design: plan/learned/805-ipsec-11-interop-eap.md -- EAP peer session tests
 
 package eap
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-traceroute.md -- traceroute argument parsing and wiring tests
+// Design: plan/learned/729-diag-traceroute.md -- traceroute argument parsing and wiring tests
 
 package cmd
 

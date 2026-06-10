@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-3-data-model.md -- IPsec cross-reference validation
+// Design: plan/learned/734-ipsec-3-data-model.md -- IPsec cross-reference validation
 
 package ipsec
 

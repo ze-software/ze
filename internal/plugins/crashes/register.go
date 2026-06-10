@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-crash-capture.md -- offline crash file CLI
+// Design: plan/learned/726-diag-crash-capture.md -- offline crash file CLI
 
 // codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
 

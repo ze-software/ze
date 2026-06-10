@@ -1,4 +1,4 @@
-// Design: .claude/rules/design-principles.md -- "Pool strategy by goroutine shape"
+// Design: ai/rules/design-principles.md -- "Pool strategy by goroutine shape"
 
 // Package bufpool provides a sync.Pool-seeded-for-peak byte-slice pool
 // for protocol subsystems that share a buffer path across multiple

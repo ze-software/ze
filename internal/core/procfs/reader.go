@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- shared /proc reading infrastructure
+// Design: plan/learned/727-diag-core.md -- shared /proc reading infrastructure
 // Related: reader_other.go -- non-Linux stub
 
 package procfs

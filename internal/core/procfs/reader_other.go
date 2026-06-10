@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- non-Linux stub for /proc reading
+// Design: plan/learned/727-diag-core.md -- non-Linux stub for /proc reading
 // Overview: reader.go -- types and parsing helpers
 //
 //go:build !linux

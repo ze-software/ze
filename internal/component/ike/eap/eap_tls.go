@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-9-ikev2-eap-nat.md -- EAP-TLS method handler
+// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- EAP-TLS method handler
 // RFC: rfc/short/rfc5216.md -- EAP-TLS: TLS handshake in EAP, fragmentation, MSK derivation
 
 package eap

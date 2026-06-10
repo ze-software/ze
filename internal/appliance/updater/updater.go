@@ -1,4 +1,4 @@
-// Design: plan/spec-install-7c-vendor-updater.md — vendored gokrazy updater library
+// Design: plan/learned/817-install-7c-vendor-updater.md — vendored gokrazy updater library
 //
 // Package updater implements updating the different parts of a running gokrazy
 // installation (boot/root file systems and MBR).

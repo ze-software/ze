@@ -1,4 +1,4 @@
-// Design: plan/spec-prefix-data.md -- PeeringDB client for prefix update
+// Design: plan/learned/415-prefix-data.md -- PeeringDB client for prefix update
 //
 // Package peeringdb provides a client for querying PeeringDB-compatible APIs
 // for per-ASN prefix counts. Used by the prefix update command to suggest

@@ -1,4 +1,4 @@
-// Design: plan/spec-healthcheck-0-umbrella.md -- healthcheck config parsing
+// Design: plan/learned/516-healthcheck-0-umbrella.md -- healthcheck config parsing
 // Overview: healthcheck.go -- plugin lifecycle and probe management
 package healthcheck
 

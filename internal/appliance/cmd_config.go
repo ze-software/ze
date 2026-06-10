@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-2-remote.md — config preview (merged base + overlay)
+// Design: plan/learned/677-appliance-2-remote.md — config preview (merged base + overlay)
 
 package appliance
 

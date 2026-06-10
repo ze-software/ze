@@ -1,4 +1,4 @@
-// Design: .claude/patterns/registration.md -- AAA registry (VFS-like)
+// Design: ai/patterns/registration.md -- AAA registry (VFS-like)
 // Related: infra_setup.go -- infraSetup installs the bundle on config load
 // Related: main.go -- runYANGConfig defers closeAAABundle on exit
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
+// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
 // RFC: rfc/short/rfc4303.md -- ESP SA parameters
 
 //go:build linux

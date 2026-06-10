@@ -1,4 +1,4 @@
-// Design: plan/spec-policy-routing.md — config to nftables/ip-rule translation
+// Design: plan/learned/684-policy-routing.md — config to nftables/ip-rule translation
 
 package policyroute
 

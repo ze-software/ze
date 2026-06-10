@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-6-ikev2-crypto.md -- PRF and prf+ key expansion
+// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- PRF and prf+ key expansion
 
 package crypto
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-10-cli-diag.md -- IPsec metrics tests
+// Design: plan/learned/745-ipsec-10-cli-diag.md -- IPsec metrics tests
 
 package engine
 

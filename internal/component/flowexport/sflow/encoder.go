@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-1-counter-export.md -- sFlow v5 datagram encoder
+// Design: plan/learned/818-flow-export-1-counter-export.md -- sFlow v5 datagram encoder
 
 package sflow
 

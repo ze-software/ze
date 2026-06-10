@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-4-device-config.md — pushed config loading priority at boot
+// Design: plan/learned/678-appliance-4-device-config.md — pushed config loading priority at boot
 
 //go:build ze_core
 

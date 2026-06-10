@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-8-ikev2-child-xfrm.md -- inbound message handling for established SAs
+// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- inbound message handling for established SAs
 // RFC: rfc/short/rfc7296.md -- INFORMATIONAL (Section 1.4), CREATE_CHILD_SA (Section 1.3)
 
 package engine

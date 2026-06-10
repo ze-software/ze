@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-1-pki-store.md -- PKI certificate store types
+// Design: plan/learned/733-pki-store.md -- PKI certificate store types
 
 package pki
 

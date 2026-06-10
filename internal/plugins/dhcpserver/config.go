@@ -1,4 +1,4 @@
-// Design: plan/spec-cpe-2-dhcp-server.md -- DHCP server config parsing
+// Design: plan/learned/706-cpe-2-dhcp-server.md -- DHCP server config parsing
 
 package dhcpserver
 

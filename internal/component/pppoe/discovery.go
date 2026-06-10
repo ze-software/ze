@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-5-pppoe.md -- PPPoE discovery wire format
+// Design: plan/learned/669-bng-5-pppoe.md -- PPPoE discovery wire format
 // Related: server.go -- InterfaceServer uses ParseDiscovery + Build* functions
 
 package pppoe

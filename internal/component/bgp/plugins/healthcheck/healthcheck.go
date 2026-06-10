@@ -1,4 +1,4 @@
-// Design: plan/spec-healthcheck-0-umbrella.md -- healthcheck plugin design
+// Design: plan/learned/516-healthcheck-0-umbrella.md -- healthcheck plugin design
 // Detail: config.go -- config parsing and validation
 // Detail: fsm.go -- 8-state FSM with trigger shortcuts
 // Detail: hooks.go -- async hook execution with timeout

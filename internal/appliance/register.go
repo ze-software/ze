@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-command-plugin.md — appliance command provider
+// Design: plan/learned/850-appliance-command-plugin.md — appliance command provider
 package appliance
 
 import (

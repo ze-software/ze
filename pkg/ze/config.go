@@ -1,4 +1,4 @@
-// Design: plan/spec-arch-0-system-boundaries.md — ConfigProvider interface
+// Design: plan/learned/425-arch-0-system-boundaries.md — ConfigProvider interface
 
 package ze
 

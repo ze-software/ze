@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-crash-capture.md -- offline crash file viewer
+// Design: plan/learned/726-diag-crash-capture.md -- offline crash file viewer
 //
 // Package crashes provides `ze crashes show [latest|<name>]`. Works offline
 // (no daemon required) by reading crash files directly from disk.

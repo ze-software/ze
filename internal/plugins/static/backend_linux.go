@@ -1,4 +1,4 @@
-// Design: plan/spec-static-routes.md -- Linux netlink backend with multipath
+// Design: plan/learned/650-static-routes.md -- Linux netlink backend with multipath
 
 //go:build linux
 

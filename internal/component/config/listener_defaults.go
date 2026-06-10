@@ -1,4 +1,4 @@
-// Design: plan/spec-doctor-improvements.md -- AC-1/AC-2 listener defaults
+// Design: plan/learned/788-doctor-improvements.md -- AC-1/AC-2 listener defaults
 
 package config
 

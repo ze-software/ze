@@ -1,4 +1,4 @@
-// Design: plan/spec-install-10-iso-prerequisites.md — doctor check functions for appliance build prerequisites
+// Design: plan/learned/856-install-10-iso-prerequisites.md — doctor check functions for appliance build prerequisites
 
 package appliance
 

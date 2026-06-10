@@ -1,4 +1,4 @@
-// Design: plan/deployment-readiness-deep-review.md -- tc original-qdisc restore
+// Design: plan/learned/656-deployment-readiness-review.md -- tc original-qdisc restore
 // Related: ops_linux.go -- tc operation seam used by snapshot checks
 
 //go:build linux

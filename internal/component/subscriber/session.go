@@ -1,4 +1,4 @@
-// Design: plan/spec-subscriber-session-model.md -- shared subscriber session type
+// Design: plan/learned/760-subscriber-session-model.md -- shared subscriber session type
 
 package subscriber
 

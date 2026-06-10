@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-8-ikev2-child-xfrm.md -- Child SA and IKE SA rekeying
+// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- Child SA and IKE SA rekeying
 // RFC: rfc/short/rfc7296.md -- Rekeying (Section 2.8), collision (Section 2.8.1)
 
 package engine

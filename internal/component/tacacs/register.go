@@ -1,4 +1,4 @@
-// Design: .claude/patterns/registration.md -- AAA registry (VFS-like)
+// Design: ai/patterns/registration.md -- AAA registry (VFS-like)
 // Overview: client.go -- TACACS+ TCP client and wire protocol
 // Related: authenticator.go -- bridges client to aaa.Authenticator
 // Related: authorizer.go -- bridges client to aaa.Authorizer

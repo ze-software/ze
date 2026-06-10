@@ -1,4 +1,4 @@
-// Design: plan/spec-host-0-inventory.md — offline `ze host show` CLI
+// Design: plan/learned/631-host-0-inventory.md — offline `ze host show` CLI
 
 // Package host is the offline home for `ze host show [section] [--text]`.
 // It reads the hardware inventory directly from sysfs/procfs (no daemon

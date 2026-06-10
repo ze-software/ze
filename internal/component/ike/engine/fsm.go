@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-7-ikev2-engine.md -- IKE SA finite state machine
+// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE SA finite state machine
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT and IKE_AUTH exchanges (Sections 1.2, 2.4)
 package engine
 

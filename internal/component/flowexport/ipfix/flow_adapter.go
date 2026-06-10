@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- IPFIX flow-record encoder adapter
+// Design: plan/learned/819-flow-export-2-flow-records.md -- IPFIX flow-record encoder adapter
 // Related: flow_data.go -- WriteFlowDataSet / FlowRecord
 // Related: flow_template.go -- BuildFlowTemplate / FlowTemplateID (v4 + v6)
 // Related: register.go -- registers newIPFIXFlowEncoder as the flow-record factory

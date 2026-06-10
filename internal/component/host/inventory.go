@@ -1,4 +1,4 @@
-// Design: plan/spec-host-0-inventory.md — hardware inventory detection
+// Design: plan/learned/631-host-0-inventory.md — hardware inventory detection
 // Detail: cached.go — CachedDetector with TTL wrapping Detector
 // Detail: metrics.go — Prometheus export of inventory gauges
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-crash-capture.md -- fd2 redirect on unix platforms
+// Design: plan/learned/726-diag-crash-capture.md -- fd2 redirect on unix platforms
 
 //go:build unix
 

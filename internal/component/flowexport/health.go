@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-1-counter-export.md -- flow export health check
+// Design: plan/learned/818-flow-export-1-counter-export.md -- flow export health check
 // Related: register.go -- RegisterHealthCheck called from init()
 // Related: exporter.go -- Status() supplies per-collector send-error counts
 

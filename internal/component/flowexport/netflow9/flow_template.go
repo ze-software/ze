@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- NetFlow v9 per-flow template
+// Design: plan/learned/819-flow-export-2-flow-records.md -- NetFlow v9 per-flow template
 // Related: flow_adapter.go -- builds export packets from these templates
 
 package netflow9

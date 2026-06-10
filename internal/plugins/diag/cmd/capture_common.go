@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-0-umbrella.md -- shared capture constants and helpers
+// Design: plan/learned/673-diag-0-umbrella.md -- shared capture constants and helpers
 
 package cmd
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-host-0-inventory.md — hardware inventory detection
+// Design: plan/learned/631-host-0-inventory.md — hardware inventory detection
 // Related: tuning_linux.go — writes scaling governor (write-side counterpart)
 
 //go:build linux

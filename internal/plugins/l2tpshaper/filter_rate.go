@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-1-radius-attributes.md -- Filter-Id rate parsing
+// Design: plan/learned/666-bng-1-radius-attributes.md -- Filter-Id rate parsing
 
 package l2tpshaper
 

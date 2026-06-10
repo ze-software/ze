@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- sFlow v5 flow sample encoding
+// Design: plan/learned/819-flow-export-2-flow-records.md -- sFlow v5 flow sample encoding
 // Related: flow_adapter.go -- assembles flow_sample datagrams using these record writers
 
 package sflow

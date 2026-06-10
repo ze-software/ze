@@ -1,4 +1,4 @@
-// Design: .claude/patterns/registration.md -- AAA registry (VFS-like)
+// Design: ai/patterns/registration.md -- AAA registry (VFS-like)
 // Detail: types.go -- value types (AuthResult, Bundle, Contribution, ...) and BackendRegistry
 
 // Package aaa defines the pluggable AAA (Authentication, Authorization,

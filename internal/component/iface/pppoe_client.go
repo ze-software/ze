@@ -1,4 +1,4 @@
-// Design: plan/spec-cpe-1-pppoe-client.md -- PPPoE client interface kind
+// Design: plan/learned/705-cpe-1-pppoe-client.md -- PPPoE client interface kind
 // Related: config.go -- pppoeClientEntry parsed from YANG config
 
 package iface

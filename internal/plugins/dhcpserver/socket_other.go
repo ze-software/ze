@@ -1,4 +1,4 @@
-// Design: plan/spec-cpe-2-dhcp-server.md -- Non-Linux DHCP socket fallback
+// Design: plan/learned/706-cpe-2-dhcp-server.md -- Non-Linux DHCP socket fallback
 
 //go:build !linux
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- conntrack flow-record lifecycle
+// Design: plan/learned/819-flow-export-2-flow-records.md -- conntrack flow-record lifecycle
 // Related: conntrack/reader_linux.go -- netlink conntrack dump
 // Related: conntrack/delta.go -- per-flow delta tracking between dumps
 

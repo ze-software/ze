@@ -1,4 +1,4 @@
-// Design: plan/spec-op-2-surface-parity.md -- dedicated per-user change-file structural ops
+// Design: plan/learned/645-operator-surface-parity.md -- dedicated per-user change-file structural ops
 // Related: meta.go -- leaf-level metadata (MetaTree)
 // Related: serialize_set.go -- set-format serialization (tree + meta)
 // Related: setparser.go -- set-format parser

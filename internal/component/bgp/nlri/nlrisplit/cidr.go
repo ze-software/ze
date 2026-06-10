@@ -1,4 +1,4 @@
-// Design: plan/design-rib-unified.md -- Phase 3g (per-family NLRI split)
+// Design: plan/learned/639-rib-unified.md -- Phase 3g (per-family NLRI split)
 // Related: nlrisplit.go -- Splitter type and registry this splitter plugs into
 // Related: register.go -- binds SplitCIDR to IPv4/IPv6 unicast/multicast
 

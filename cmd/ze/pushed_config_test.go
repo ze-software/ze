@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-4-device-config.md — pushed config loading tests
+// Design: plan/learned/678-appliance-4-device-config.md — pushed config loading tests
 
 //go:build ze_core
 

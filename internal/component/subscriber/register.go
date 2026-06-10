@@ -1,3 +1,3 @@
-// Design: plan/spec-subscriber-session-model.md -- component registration
+// Design: plan/learned/760-subscriber-session-model.md -- component registration
 
 package subscriber

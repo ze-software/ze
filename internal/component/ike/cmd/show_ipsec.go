@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-10-cli-diag.md -- show vpn ipsec handlers.
+// Design: plan/learned/745-ipsec-10-cli-diag.md -- show vpn ipsec handlers.
 // Owned by the ike component so that removing it removes the `show vpn ipsec ...`
 // command, its schema, and these handlers together. See
 // ai/rules/plugin-self-containment.md.

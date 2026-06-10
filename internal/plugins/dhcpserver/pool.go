@@ -1,4 +1,4 @@
-// Design: plan/spec-cpe-3-dhcp-ranges.md -- DHCP address pool allocation
+// Design: plan/learned/725-spec-cpe-3-dhcp-ranges.md -- DHCP address pool allocation
 
 package dhcpserver
 

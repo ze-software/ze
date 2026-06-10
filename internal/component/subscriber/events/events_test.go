@@ -1,4 +1,4 @@
-// Design: plan/spec-subscriber-session-model.md -- subscriber events tests
+// Design: plan/learned/760-subscriber-session-model.md -- subscriber events tests
 
 package events
 

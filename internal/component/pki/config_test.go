@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-1-pki-store.md -- PKI config parser tests
+// Design: plan/learned/733-pki-store.md -- PKI config parser tests
 
 package pki
 

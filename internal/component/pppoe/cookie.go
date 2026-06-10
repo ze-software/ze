@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-5-pppoe.md -- AC-Cookie anti-DoS protection
+// Design: plan/learned/669-bng-5-pppoe.md -- AC-Cookie anti-DoS protection
 // Related: server.go -- InterfaceServer calls GenerateCookie/VerifyCookie
 // RFC 2516 Section 5.2: AC-Cookie for DoS protection.
 // The Access Concentrator includes an AC-Cookie tag in PADO replies.

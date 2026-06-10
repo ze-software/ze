@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-8-ikev2-child-xfrm.md -- Child SA creation and teardown
+// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- Child SA creation and teardown
 // RFC: rfc/short/rfc7296.md -- Child SA keying material (Section 2.17), Traffic Selectors (Section 2.9)
 
 package engine

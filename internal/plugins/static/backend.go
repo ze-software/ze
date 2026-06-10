@@ -1,4 +1,4 @@
-// Design: plan/spec-static-routes.md -- backend abstraction
+// Design: plan/learned/650-static-routes.md -- backend abstraction
 
 package static
 

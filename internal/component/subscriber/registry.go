@@ -1,4 +1,4 @@
-// Design: plan/spec-subscriber-session-model.md -- session registry
+// Design: plan/learned/760-subscriber-session-model.md -- session registry
 
 package subscriber
 

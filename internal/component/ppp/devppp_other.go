@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-5-pppoe.md -- non-Linux stub for /dev/ppp setup
+// Design: plan/learned/669-bng-5-pppoe.md -- non-Linux stub for /dev/ppp setup
 
 //go:build !linux
 

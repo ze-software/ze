@@ -1,4 +1,4 @@
-// Design: plan/spec-subscriber-session-model.md -- PPPoE auth/pool drain goroutines
+// Design: plan/learned/760-subscriber-session-model.md -- PPPoE auth/pool drain goroutines
 // Related: server.go -- InterfaceServer session lifecycle
 
 package pppoe

@@ -1,4 +1,4 @@
-// Design: plan/spec-healthcheck-0-umbrella.md -- FSM transition tests
+// Design: plan/learned/516-healthcheck-0-umbrella.md -- FSM transition tests
 package healthcheck
 
 import "testing"

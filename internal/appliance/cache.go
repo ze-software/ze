@@ -1,4 +1,4 @@
-// Design: plan/spec-install-10-iso-prerequisites.md — XDG cache resolution and artifact download
+// Design: plan/learned/856-install-10-iso-prerequisites.md — XDG cache resolution and artifact download
 
 package appliance
 

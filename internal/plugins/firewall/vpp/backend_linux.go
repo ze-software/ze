@@ -1,4 +1,4 @@
-// Design: plan/spec-fw-6-firewall-vpp.md -- VPP firewall backend
+// Design: plan/learned/671-fw-6-firewall-vpp.md -- VPP firewall backend
 
 //go:build linux
 

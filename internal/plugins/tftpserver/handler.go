@@ -1,4 +1,4 @@
-// Design: plan/spec-install-2-tftpserver.md -- TFTP packet handling (RFC 1350, RFC 2347 option negotiation)
+// Design: plan/learned/807-install-2-tftpserver.md -- TFTP packet handling (RFC 1350, RFC 2347 option negotiation)
 
 package tftpserver
 

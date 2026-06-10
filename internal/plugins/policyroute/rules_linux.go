@@ -1,4 +1,4 @@
-// Design: plan/spec-policy-routing.md -- netlink ip rule and route management
+// Design: plan/learned/684-policy-routing.md -- netlink ip rule and route management
 
 package policyroute
 

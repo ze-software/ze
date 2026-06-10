@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-9-ikev2-eap-nat.md -- NAT keepalive tests
+// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- NAT keepalive tests
 
 package transport
 

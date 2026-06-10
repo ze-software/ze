@@ -1,4 +1,4 @@
-// Design: plan/spec-appliance-3-recovery.md — bastion disaster recovery export
+// Design: plan/learned/676-appliance-3-recovery.md — bastion disaster recovery export
 
 package appliance
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- DNS lookup and cache stats (dig replacement)
+// Design: plan/learned/727-diag-core.md -- DNS lookup and cache stats (dig replacement)
 // Related: dns.go -- clear dns cache (same resolve component owner)
 
 package cmd

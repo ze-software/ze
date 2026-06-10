@@ -1,4 +1,4 @@
-// Design: plan/spec-fw-7-traffic-vpp.md -- VPP traffic backend
+// Design: plan/learned/627-fw-7-traffic-vpp.md -- VPP traffic backend
 // Related: ops.go -- vppOps interface consumed by applyWithOps / applyAll / applyInterface / reconcileRemovals
 
 //go:build linux

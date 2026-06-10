@@ -1,4 +1,4 @@
-// Design: plan/spec-chaos-3-ai.md -- Chaos MCP tools for AI queries
+// Design: plan/learned/679-chaos-ai.md -- Chaos MCP tools for AI queries
 
 package mcp
 

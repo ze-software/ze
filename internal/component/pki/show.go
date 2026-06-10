@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-1-pki-store.md -- PKI show command handlers
+// Design: plan/learned/733-pki-store.md -- PKI show command handlers
 
 package pki
 

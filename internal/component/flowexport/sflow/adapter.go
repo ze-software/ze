@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-1-counter-export.md -- sFlow protocol encoder adapter
+// Design: plan/learned/818-flow-export-1-counter-export.md -- sFlow protocol encoder adapter
 
 package sflow
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-9-ikev2-eap-nat.md -- Virtual IP pool tests
+// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- Virtual IP pool tests
 
 package eap
 

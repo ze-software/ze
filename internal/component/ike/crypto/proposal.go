@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-6-ikev2-crypto.md -- IKE/ESP proposal negotiation
+// Design: plan/learned/739-ipsec-6-ikev2-crypto.md -- IKE/ESP proposal negotiation
 
 package crypto
 

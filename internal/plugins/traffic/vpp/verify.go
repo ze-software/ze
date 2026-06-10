@@ -1,4 +1,4 @@
-// Design: plan/spec-fw-7-traffic-vpp.md -- Commit-time rejection matrix
+// Design: plan/learned/627-fw-7-traffic-vpp.md -- Commit-time rejection matrix
 
 package trafficvpp
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-8-ikev2-child-xfrm.md -- Dead Peer Detection
+// Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- Dead Peer Detection
 // RFC: rfc/short/rfc7296.md -- Liveness check via empty INFORMATIONAL (Section 2.4)
 
 package engine

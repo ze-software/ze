@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md -- TCP port connectivity check (nc replacement)
+// Design: plan/learned/727-diag-core.md -- TCP port connectivity check (nc replacement)
 
 package cmd
 

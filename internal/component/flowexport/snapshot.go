@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-0-umbrella.md -- Counter snapshot value types
+// Design: plan/learned/820-flow-export-0-umbrella.md -- Counter snapshot value types
 
 package flowexport
 

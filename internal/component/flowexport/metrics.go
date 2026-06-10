@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-1-counter-export.md -- Export Prometheus metrics
+// Design: plan/learned/818-flow-export-1-counter-export.md -- Export Prometheus metrics
 
 package flowexport
 

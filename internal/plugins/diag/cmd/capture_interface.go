@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-capture-interface.md -- portable types and helpers
+// Design: plan/learned/730-diag-capture-interface.md -- portable types and helpers
 
 //go:build linux
 

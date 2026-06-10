@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-5-pppoe.md -- PADI rate limiting
+// Design: plan/learned/669-bng-5-pppoe.md -- PADI rate limiting
 
 package pppoe
 

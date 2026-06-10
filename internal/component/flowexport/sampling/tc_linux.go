@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- tc sample action setup/teardown
+// Design: plan/learned/819-flow-export-2-flow-records.md -- tc sample action setup/teardown
 
 //go:build linux
 

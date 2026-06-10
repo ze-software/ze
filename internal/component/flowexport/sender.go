@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-0-umbrella.md -- Buffer pool and UDP sender
+// Design: plan/learned/820-flow-export-0-umbrella.md -- Buffer pool and UDP sender
 
 package flowexport
 

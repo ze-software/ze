@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-9-ikev2-eap-nat.md -- AUTH payload from EAP MSK
+// Design: plan/learned/744-ipsec-9-ikev2-eap-nat.md -- AUTH payload from EAP MSK
 // RFC: rfc/short/rfc7296.md -- Section 2.16: AUTH = prf(prf(MSK, "Key Pad for IKEv2"), signed_octets)
 
 package engine

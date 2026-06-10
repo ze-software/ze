@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-1-counter-export.md -- NetFlow v9 data FlowSet encoding
+// Design: plan/learned/818-flow-export-1-counter-export.md -- NetFlow v9 data FlowSet encoding
 
 package netflow9
 

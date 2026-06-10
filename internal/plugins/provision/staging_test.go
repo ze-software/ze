@@ -1,4 +1,4 @@
-// Design: plan/spec-install-10-pxe-staging.md -- staging unit tests
+// Design: plan/learned/851-install-10-pxe-staging.md -- staging unit tests
 
 package provision
 

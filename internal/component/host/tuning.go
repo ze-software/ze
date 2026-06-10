@@ -1,4 +1,4 @@
-// Design: plan/spec-host-2-tuning.md — runtime hardware tuning
+// Design: plan/learned/697-host-2-tuning.md — runtime hardware tuning
 // Overview: inventory.go — Detector reads current state; Tuner writes desired state
 
 package host

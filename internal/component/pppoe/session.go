@@ -1,4 +1,4 @@
-// Design: plan/spec-bng-5-pppoe.md — session table and SID allocation
+// Design: plan/learned/669-bng-5-pppoe.md — session table and SID allocation
 // Related: server.go -- InterfaceServer uses SessionTable for session lifecycle
 //
 // RFC 2516 Section 4: session ID 0 is reserved (used in discovery);

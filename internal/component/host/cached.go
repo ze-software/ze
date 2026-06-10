@@ -1,4 +1,4 @@
-// Design: plan/spec-host-0-inventory.md -- cached inventory with TTL
+// Design: plan/learned/631-host-0-inventory.md -- cached inventory with TTL
 // Related: inventory.go -- Detector and Inventory types
 
 package host

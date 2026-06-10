@@ -1,4 +1,4 @@
-// Design: .claude/patterns/registration.md -- AAA registry (VFS-like)
+// Design: ai/patterns/registration.md -- AAA registry (VFS-like)
 // Overview: auth.go -- LocalAuthenticator implementation
 // Related: ../aaa/aaa.go -- AAA interfaces this backend implements
 

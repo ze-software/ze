@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-7-ikev2-engine.md -- IKE_SA_INIT initiator logic
+// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE_SA_INIT initiator logic
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT exchange (Section 1.2)
 package engine
 

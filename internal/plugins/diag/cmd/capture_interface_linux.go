@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-capture-interface.md -- AF_PACKET live capture
+// Design: plan/learned/730-diag-capture-interface.md -- AF_PACKET live capture
 
 //go:build linux
 

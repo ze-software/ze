@@ -1,4 +1,4 @@
-// Design: plan/spec-rib-feed-replay-batch.md — stateful cursor for replay batching
+// Design: plan/learned/824-rib-feed-replay-batch.md — stateful cursor for replay batching
 // Overview: update_text.go — handleUpdate dispatch, parsedAttrs, snapshot, parseCommonAttributeText
 // Related: update_text_nlri.go — parseNLRISection (reused unchanged)
 package update

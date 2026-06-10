@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- IPFIX per-flow data Set
+// Design: plan/learned/819-flow-export-2-flow-records.md -- IPFIX per-flow data Set
 // Related: flow_adapter.go -- WriteFlowDataSet / WriteFlowDataSet6 callers
 
 package ipfix

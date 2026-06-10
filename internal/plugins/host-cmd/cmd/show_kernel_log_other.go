@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-core.md — non-Linux stub for kernel log
+// Design: plan/learned/727-diag-core.md — non-Linux stub for kernel log
 
 //go:build !linux
 

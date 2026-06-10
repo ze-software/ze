@@ -1,4 +1,4 @@
-// Design: plan/spec-cpe-6-self-update.md — standalone update server with enhanced manifest
+// Design: plan/learned/748-cpe-6-self-update.md — standalone update server with enhanced manifest
 
 //go:build ze_core
 

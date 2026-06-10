@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- IPFIX per-flow template
+// Design: plan/learned/819-flow-export-2-flow-records.md -- IPFIX per-flow template
 // Related: flow_adapter.go -- builds IPFIX messages from these templates
 
 package ipfix

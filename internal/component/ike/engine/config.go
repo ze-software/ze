@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-7-ikev2-engine.md -- config parsing for IKE engine
+// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- config parsing for IKE engine
 package engine
 
 import (

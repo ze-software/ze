@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-7-ikev2-engine.md -- IKE engine component registration
+// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE engine component registration
 package engine
 
 import (

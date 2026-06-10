@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-0-umbrella.md -- diag-7 structured log query
+// Design: plan/learned/673-diag-0-umbrella.md -- diag-7 structured log query
 
 package slogutil
 

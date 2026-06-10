@@ -1,4 +1,4 @@
-// Design: plan/spec-static-routes.md -- VPP static route programming via GoVPP
+// Design: plan/learned/650-static-routes.md -- VPP static route programming via GoVPP
 
 package staticvpp
 

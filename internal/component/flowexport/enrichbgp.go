@@ -1,4 +1,4 @@
-// Design: plan/spec-flow-export-2-flow-records.md -- BGP RIB enrichment wiring
+// Design: plan/learned/819-flow-export-2-flow-records.md -- BGP RIB enrichment wiring
 // Related: enrich/enricher.go -- atomic radix tree the builder feeds
 // Related: enrich/radix.go -- prefix-to-AS tree rebuilt from RIB updates
 

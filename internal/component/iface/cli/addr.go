@@ -1,4 +1,4 @@
-// Design: plan/spec-iface-2-manage.md — Interface addr subcommand
+// Design: plan/learned/491-iface-2-manage.md — Interface addr subcommand
 
 package cli
 

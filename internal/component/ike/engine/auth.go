@@ -1,4 +1,4 @@
-// Design: plan/spec-ipsec-7-ikev2-engine.md -- AUTH payload computation
+// Design: plan/learned/740-ipsec-7-ikev2-engine.md -- AUTH payload computation
 // RFC: rfc/short/rfc7296.md -- Authentication of the IKE SA (Section 2.15)
 // RFC: rfc/short/rfc7427.md -- Digital Signature AUTH method 14
 package engine

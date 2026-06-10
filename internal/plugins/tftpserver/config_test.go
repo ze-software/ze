@@ -1,4 +1,4 @@
-// Design: plan/spec-install-2-tftpserver.md -- TFTP server config tests
+// Design: plan/learned/807-install-2-tftpserver.md -- TFTP server config tests
 
 package tftpserver
 
