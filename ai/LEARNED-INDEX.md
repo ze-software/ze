@@ -180,6 +180,7 @@ Metrics, telemetry, Prometheus exporters, third-party format compatibility.
 
 - [653](plan/learned/653-netdata-os-collectors.md) -- Netdata-compatible OS collector framework, 138 metrics, counter-wrap protection, per-collector config via YANG, verify names against source not summaries
 - [736](plan/learned/736-iface-rate.md) -- Interface rate tracker: raw backend stats (not baseline-adjusted), 12 GaugeVec, stale label cleanup, ticker+stop-channel lifecycle
+- [808](plan/learned/808-smart-management.md) -- YANG-modeled SMART disk health: core/smart ioctl library (host wraps, no smartctl), storage.Manager ticker+stopCh, three-tier temperature alerting via report bus, self-test scheduling, `show storage smart` RPC via atomic pointer; hub-wired (not a plugin)
 
 ## Security/Auth
 

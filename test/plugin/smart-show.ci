@@ -1,0 +1,113 @@
+# Test: `show storage smart` RPC dispatches through the plugin engine
+# VALIDATES: spec-smart-management AC-8 -- configured daemon returns
+#            StatusDone with a `devices` list via ze-show:storage-smart.
+# PREVENTS:  regression where the show RPC is unregistered or the manager
+#            pointer is never wired, breaking `show storage smart`.
+
+tmpfs=smart-show-done.run:mode=755:terminator=EOF_DONE
+#!/usr/bin/env python3
+"""Dispatch `show storage smart` against a configured daemon: expect done + devices."""
+
+import json
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    r = dispatch(api, 'show storage smart')
+    if r.get('status') != 'done':
+        runtime_fail(
+            f"show storage smart (configured): expected done, "
+            f"got status={r.get('status')} data={result_text_data(r)[:200]}")
+
+    try:
+        data = result_json_data(r, {})
+    except json.JSONDecodeError as exc:
+        runtime_fail(f"show storage smart: invalid JSON: {exc}: {result_text_data(r)[:200]}")
+        data = {}
+
+    if 'devices' not in data:
+        runtime_fail(f"show storage smart: missing 'devices' key: {data!r}")
+    if not isinstance(data['devices'], list):
+        runtime_fail(
+            f"show storage smart: 'devices' is {type(data['devices']).__name__}, not list")
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_DONE
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external smart-show-done {
+        run ./smart-show-done.run
+        encoder json
+    }
+}
+
+storage {
+    smart {
+        enabled true
+        check-interval 1800
+        temperature {
+            difference 4
+            informational 45
+            critical 55
+        }
+    }
+}
+
+bgp {
+    peer peer1 {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability {
+                graceful-restart disable
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+        process smart-show-done {
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0

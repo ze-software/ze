@@ -1,6 +1,6 @@
 # 808 - SMART Disk Health Management
 
-Spec: `plan/spec-smart-management.md` (closed)
+Spec: `plan/spec-smart-management.md` (closed 2026-06-10 via two-commit flow)
 
 ## What Was Built
 
@@ -26,13 +26,17 @@ via `show storage smart`. Ze is the first NOS with configurable SMART management
 - `discover_linux.go`: `/sys/class/block/` enumeration, partition filtering
 - `schema/ze-storage-conf.yang`: full YANG schema with range constraints on all
   numeric leaves, pattern-constrained time/interval strings, day enumeration
+  (actual path `internal/component/storage/yang/ze-storage-conf.yang`)
 - `manager_test.go`: 16 unit tests covering lifecycle, temperature alerting
   (informational, critical, rate-of-change, clearing), health status dedup,
   reconfigure, time-of-day matching, day-of-week matching
 
-### Show RPC (`internal/component/cmd/show/storage.go`)
+### Show RPC (`internal/component/storage/show.go`)
 - `ze-show:storage-smart` RPC registered via `pluginserver.RegisterRPCs`
-- `atomic.Pointer[storage.Manager]` set by hub, handler calls `Manager.Status()`
+- `atomic.Pointer[storage.Manager]` set by hub, handler calls `Manager.Status()`;
+  returns the stable error `storage SMART management not configured` when the
+  manager pointer is nil (no `storage { smart { ... } }` in config)
+- CLI verb declared in `internal/plugins/storage-cmd/yang/ze-storage-cmd.yang`
 
 ### Hub Wiring (`cmd/ze/hub/main_system.go`)
 - `startSmartManager`: extract config from tree, create Manager, Start, wire show RPC
@@ -40,13 +44,18 @@ via `show storage smart`. Ze is the first NOS with configurable SMART management
 - `reloadSmartManager`: live reconfigure or create/destroy on config change
 - Pattern matches archive scheduler (not plugin registration)
 
-### Doctor Check (`cmd/ze/doctor/checks_linux.go`)
+### Doctor Check (`internal/component/doctor/checks_linux.go`)
 - `checkSmartEnabled`: when config has `storage.smart.enabled=true`, enumerates
   sysfs devices and warns if none are SMART-accessible
 
 ### Functional Tests
 - `test/parse/smart-config.ci`: full SMART config validates cleanly
-- `test/plugin/smart-show.ci`: show RPC responds (proves wiring)
+- `test/plugin/smart-show.ci`: configured daemon -> `show storage smart` returns
+  `done` with a `devices` list (proves the RPC is wired through the plugin
+  dispatch entry point; `devices` is empty on a non-Linux/no-block-device host)
+- `test/plugin/smart-show-unconfigured.ci`: daemon with no SMART config ->
+  `show storage smart` returns the stable not-configured error (proves the
+  error contract and that an unconfigured daemon does not panic)
 
 ## Key Decisions
 
@@ -88,8 +97,21 @@ via `show storage smart`. Ze is the first NOS with configurable SMART management
 - Consider a `storage.Register()` function if other components need to discover
   the storage manager (currently only show RPC needs it, wired via atomic pointer).
 
+## Closure Lesson (2026-06-10)
+
+The first closure attempt set the spec to `Status: done` and wrote this summary
+*before* the AC-8 functional test existed: the audit tables claimed
+`test/plugin/smart-show.ci` was "Created" when no `.ci` exercised
+`ze-show:storage-smart`, and the Review Gate was never filled. The two-commit
+closure flow was also never run (the spec was never `git rm`'d). The closure
+audit caught this, reverted to `in-progress`, and the gap was closed by actually
+writing the two functional tests above and the Review Gate. Lesson: a claimed
+test in an audit table is not evidence; verify the file exists and runs before
+marking an AC done, and do not write the learned summary until closure actually
+proceeds.
+
 ## Metrics
 
-- 16 unit tests, 2 functional tests
+- 16 unit tests, 3 functional tests
 - ~650 lines of new code across core/smart + component/storage
 - Zero external dependencies (pure ioctl + sysfs)

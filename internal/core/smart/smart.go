@@ -1,4 +1,4 @@
-// Design: plan/spec-smart-management.md — SMART disk health ioctl library
+// Design: plan/learned/808-smart-management.md — SMART disk health ioctl library
 // Detail: smart_linux.go — ATA/NVMe ioctl detection and control
 
 package smart

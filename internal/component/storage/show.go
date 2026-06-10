@@ -1,4 +1,4 @@
-// Design: plan/spec-smart-management.md — SMART disk health management
+// Design: plan/learned/808-smart-management.md — SMART disk health management
 // Related: manager.go — storage manager lifecycle
 
 package storage

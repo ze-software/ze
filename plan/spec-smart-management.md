@@ -9,10 +9,14 @@
 
 > Closure audit 2026-06-10: `Status: done` violated the closure rule (a done
 > spec must be deleted via the two-commit flow). Reverted to in-progress
-> because two gaps block honest closure: AC-8's claimed functional test
-> `test/plugin/smart-show.ci` does not exist (no functional test exercises
+> because two gaps blocked honest closure: AC-8's claimed functional test
+> `test/plugin/smart-show.ci` did not exist (no functional test exercised
 > `ze-show:storage-smart`), and the Review Gate section was never filled.
-> Implementation itself appears complete per the audit tables below.
+> Both gaps closed 2026-06-10: `test/plugin/smart-show.ci` (configured ->
+> `done` + `devices`) and `test/plugin/smart-show-unconfigured.ci`
+> (unconfigured -> stable not-configured error) now exercise the RPC through
+> the plugin dispatch entry point, and the Review Gate is filled below. Ready
+> for two-commit closure.
 
 ## Post-Compaction Recovery
 
@@ -215,8 +219,9 @@ storage {
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-smart-config` | `test/parse/smart-config.ci` | Config parses | |
-| `test-smart-show` | `test/plugin/smart-show.ci` | Show RPC returns data | |
+| `test-smart-config` | `test/parse/smart-config.ci` | Config parses | Pass |
+| `test-smart-show` | `test/plugin/smart-show.ci` | Configured: `show storage smart` returns `done` + `devices` list | Pass |
+| `test-smart-show-unconfigured` | `test/plugin/smart-show-unconfigured.ci` | Unconfigured: `show storage smart` returns the stable not-configured error | Pass |
 
 ## Files to Modify
 - `internal/component/host/storage_linux.go` - change detectSMART call to storage.DetectSMART
@@ -396,7 +401,7 @@ NVMe: admin command Get Log Page 0x06 (Device Self-test) byte 4 bits 7:4.
 | AC-5 | Done | `TestHealthPollRaisesError` | Critical threshold raises error |
 | AC-6 | Done | `TestHealthPollClearsWarning` | Warning cleared on temp drop |
 | AC-7 | Done | `TestCheckHealthUnhealthy` | smart-failing error on unhealthy |
-| AC-8 | Done | `test/plugin/smart-show.ci` | Show RPC returns JSON response |
+| AC-8 | Done | `test/plugin/smart-show.ci` (configured), `test/plugin/smart-show-unconfigured.ci` (error contract) | Show RPC dispatched through plugin engine; `done`+`devices` when configured, stable error when not |
 | AC-9 | Done | `manager.go:checkSelfTest` calls `IsSelfTestInProgress` | Skips if test running |
 | AC-10 | Done | `manager.go:checkDevice` Unavailable branch | Logged once, excluded from polling |
 | AC-11 | Done | `doctor/checks_linux.go:checkSmartEnabled` | Warns if no devices accessible |
@@ -414,7 +419,7 @@ NVMe: admin command Get Log Page 0x06 (Device Self-test) byte 4 bits 7:4.
 | `TestHealthPollClearsWarning` | Done | `storage/manager_test.go` | Recovery clears warning |
 | `TestSelfTestScheduling` | Renamed | `TestPastTimeOfDay`, `TestMatchesDay` | Scheduling logic tested via helpers |
 | `TestSelfTestSkipsInProgress` | Not unit tested | `manager.go:253-254` | Guarded by `IsSelfTestInProgress` call, needs real device |
-| `TestShowStorageSmart` | Functional | `test/plugin/smart-show.ci` | Functional test instead of unit |
+| `TestShowStorageSmart` | Functional | `test/plugin/smart-show.ci`, `test/plugin/smart-show-unconfigured.ci` | Functional tests instead of unit: both dispatch paths exercised through the plugin engine |
 | `TestReconfigure` | Done | `storage/manager_test.go` | Live interval change |
 | `TestDetectSMART_MovedFromHost` | Renamed | `host/smart_linux_test.go:TestDetectSMART_TestdataMode` | Testdata mode routing |
 
@@ -433,7 +438,8 @@ NVMe: admin command Get Log Page 0x06 (Device Self-test) byte 4 bits 7:4.
 | `storage/yang/embed.go` | Created | YANG embed |
 | `show/storage.go` | Created | Show RPC handler |
 | `test/parse/smart-config.ci` | Created | Config validation test |
-| `test/plugin/smart-show.ci` | Created | Show RPC functional test |
+| `test/plugin/smart-show.ci` | Created | Show RPC functional test (configured -> `done` + `devices`) |
+| `test/plugin/smart-show-unconfigured.ci` | Created | Show RPC error-contract test (unconfigured -> stable not-configured error) |
 | `core/smart/smart.go` | Created | Info type, ParseNVMeBuf, NvmeNamespace |
 | `core/smart/smart_test.go` | Created | NvmeNamespace + ParseNVMeBuf tests |
 | `host/smart_linux.go` (delete planned) | Kept | Thin wrapper delegating to core/smart |
@@ -446,6 +452,8 @@ NVMe: admin command Get Log Page 0x06 (Device Self-test) byte 4 bits 7:4.
 - **Partial:** 0
 - **Skipped:** 1 (register.go, not needed)
 - **Changed:** 7 (core/smart placement, host files kept, test renames)
+- **Closure (2026-06-10):** AC-8 functional tests written (`test/plugin/smart-show.ci`,
+  `test/plugin/smart-show-unconfigured.ci`); they were previously claimed but absent.
 
 ## Goal Validation (BLOCKING)
 
@@ -455,32 +463,75 @@ NVMe: admin command Get Log Page 0x06 (Device Self-test) byte 4 bits 7:4.
 | Self-tests scheduled | unit test | `TestPastTimeOfDay`, `TestMatchesDay` validate scheduling logic |
 | Temperature alerting | unit test | `TestHealthPollRaisesWarning`, `TestHealthPollRaisesError`, `TestHealthPollClearsWarning`, `TestCriticalClearsTempHigh` |
 | Show RPC live data | functional test | `test/plugin/smart-show.ci` proves RPC wired and responds |
-| Doctor verifies SMART | code | `cmd/ze/doctor/checks_linux.go:checkSmartEnabled` registered in `doctor.go:196` |
+| Doctor verifies SMART | code | `internal/component/doctor/checks_linux.go:checkSmartEnabled` registered in `internal/component/doctor/doctor.go` |
 | Host show still works after move | unit test | `host/smart_linux_test.go:TestDetectSMART_TestdataMode`, host delegates to `core/smart` |
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (closure, 2026-06-10)
+Scope reviewed: the closure diff only -- two new functional tests
+(`test/plugin/smart-show.ci`, `test/plugin/smart-show-unconfigured.ci`),
+comment-only `// Design:` reference rewrites in 10 `.go` files (spec path ->
+`plan/learned/808-smart-management.md`), and spec/learned/LEARNED-INDEX
+bookkeeping. No production logic changed (the `.go` diff is comment-only,
+verified by filtering non-comment `+/-` lines -> empty).
+
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | Tests host the observer plugin under a BGP peer that never connects (no `ze-peer`); this is the established plugin-dispatch harness pattern (bfd/doctor), not a defect. | `test/plugin/smart-show*.ci` | none |
+| 2 | NOTE | Configured test asserts `devices` is a list (empty on a non-Linux/no-block-device host) rather than asserting populated device data; populated-device logic is covered by the 16 unit tests in `manager_test.go`. Matches handover guidance. | `test/plugin/smart-show.ci` | none |
+
+Wiring: no new production symbols introduced; the new tests prove the
+pre-existing `ze-show:storage-smart` RPC is reachable through the plugin
+dispatch entry point (configured -> `done`+`devices`, unconfigured -> stable
+error). Functional-test coverage: the diff *is* the AC-8 functional tests; both
+pass (`ze-test bgp plugin --pattern smart-show` -> 2/2 PASS). Removed-behavior:
+none (comment-only `.go` edits). Logic/security/allocation/hot-path: N/A (no
+production code changed). Unit tests for `storage` + `core/smart` pass green.
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded
+
+**Result:** 0 BLOCKER, 0 ISSUE, 2 NOTE (both recorded above, no action). Gate clean.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/core/smart/smart.go` | Yes | `ls` 2.0K |
+| `internal/core/smart/smart_linux.go` | Yes | `ls` 9.9K |
+| `internal/core/smart/smart_other.go` | Yes | `ls` 593B |
+| `internal/component/storage/manager.go` | Yes | `ls` 8.6K |
+| `internal/component/storage/config.go` | Yes | `ls` 1.4K |
+| `internal/component/storage/show.go` | Yes | `ls` 1.1K |
+| `internal/component/storage/discover_linux.go` | Yes | `ls` 767B |
+| `internal/component/storage/discover_other.go` | Yes | `ls` 289B |
+| `internal/component/storage/yang/ze-storage-conf.yang` | Yes | `ls` 3.9K |
+| `internal/plugins/storage-cmd/yang/ze-storage-cmd.yang` | Yes | declares `ze-show:storage-smart` |
+| `internal/component/doctor/checks_linux.go` | Yes | `checkSmartEnabled` present |
+| `test/parse/smart-config.ci` | Yes | `ls` 752B |
+| `test/plugin/smart-show.ci` | Yes | `ls` 2.9K (new) |
+| `test/plugin/smart-show-unconfigured.ci` | Yes | `ls` 2.6K (new) |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Auto-enable on detected devices | `grep enableOnce internal/component/storage/manager.go` -> `manager.go:194,165` |
+| AC-4/5/6 | Three-tier temperature alerting | `manager.go:checkTemperature` raises `temp-rising`/`temp-high`/`temp-critical`; `TestHealthPollRaisesWarning/Error/ClearsWarning` pass |
+| AC-7 | smart-failing on unhealthy | `manager.go:checkHealth` -> `report.RaiseError("storage","smart-failing",...)` |
+| AC-8 | Show RPC dispatched | `grep ze-show:storage-smart internal/component/storage/show.go:23`; `ze-test bgp plugin --pattern smart-show` -> 2/2 PASS |
+| AC-11 | Doctor check | `grep checkSmartEnabled internal/component/doctor/checks_linux.go` |
+| AC-12/13 | Lifecycle + reconfigure | `TestManagerStartStop`, `TestReconfigure` pass |
+| AC-15 | Host show after move | `host/smart_linux.go` delegates to `core/smart`; host tests pass |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `storage { smart { enabled true } }` config parses | `test/parse/smart-config.ci` | PASS (1/1) |
+| `show storage smart` (configured) -> `done` + `devices` list | `test/plugin/smart-show.ci` | PASS |
+| `show storage smart` (unconfigured) -> stable not-configured error | `test/plugin/smart-show-unconfigured.ci` | PASS |
 
 ## Checklist
 
