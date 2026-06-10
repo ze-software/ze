@@ -38,7 +38,7 @@ func TestTaskWorker_ElicitFlipsInputRequired(t *testing.T) {
 	elicitDone := make(chan error, 1)
 
 	go func() {
-		_, elicitErr := TaskElicit(reg, sess, taskID, taskCtx, "confirm?", schema)
+		_, elicitErr := TaskElicit(taskCtx, reg, sess, taskID, "confirm?", schema)
 		elicitDone <- elicitErr
 	}()
 
@@ -98,7 +98,7 @@ func TestTaskElicit_DeclineFails(t *testing.T) {
 
 	elicitDone := make(chan error, 1)
 	go func() {
-		_, elicitErr := TaskElicit(reg, sess, taskID, taskCtx, "name?", schema)
+		_, elicitErr := TaskElicit(taskCtx, reg, sess, taskID, "name?", schema)
 		elicitDone <- elicitErr
 	}()
 
@@ -155,7 +155,7 @@ func TestTaskElicit_CtxCancelUnblocks(t *testing.T) {
 
 	elicitDone := make(chan error, 1)
 	go func() {
-		_, elicitErr := TaskElicit(reg, sess, taskID, ctx, "question", schema)
+		_, elicitErr := TaskElicit(ctx, reg, sess, taskID, "question", schema)
 		elicitDone <- elicitErr
 	}()
 

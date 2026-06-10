@@ -1,6 +1,6 @@
 //go:build ze_distro
 
-// Design: plan/spec-cpe-6-self-update.md -- download, verify, stage, restart logic
+// Design: plan/learned/748-cpe-6-self-update.md -- download, verify, stage, restart logic
 
 package system
 

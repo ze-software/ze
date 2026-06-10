@@ -266,7 +266,7 @@ func (s *Streamable) createTask(req *request, sess *session, remoteAddr string, 
 		return runner.dispatchGenerated(capturedPrefix, capturedActions, capturedArgs), nil
 	}
 
-	runTaskWorker(s.tasks, sess, taskID, taskCtx, work)
+	runTaskWorker(taskCtx, s.tasks, sess, taskID, work)
 
 	return s.ok(req.ID, map[string]any{
 		"taskId": taskID,

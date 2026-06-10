@@ -20,12 +20,12 @@ const (
 // FailureGroup is the native suite-local failure routing unit emitted by ze-test.
 type FailureGroup struct {
 	Stage     string   `json:"stage"`
-	GroupID   string   `json:"group_id"`
+	GroupID   string   `json:"group-id"`
 	Kind      string   `json:"kind"`
 	Related   []string `json:"related"`
 	Summary   string   `json:"summary"`
 	Rerun     string   `json:"rerun"`
-	DetailLog string   `json:"detail_log"`
+	DetailLog string   `json:"detail-log"`
 	Parallel  string   `json:"parallel"`
 }
 

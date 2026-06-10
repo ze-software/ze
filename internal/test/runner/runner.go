@@ -15,11 +15,20 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var logger = slogutil.LazyLogger("test.runner")
+
+// Test-runner env vars (also read by internal/test/cli, which imports this package).
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.tags", Type: "string", Description: "Extra Go build tags for test builds (comma or space separated)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bin", Type: "string", Description: "Pre-built ze binary path for the test runner (absolute or repo-relative)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.test.bin", Type: "string", Description: "Pre-built ze-test binary path for the test runner (absolute or repo-relative)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.test.no.build", Type: "bool", Description: "Skip the in-process go build and require pre-built test binaries"})
+)
 
 const binNameZePeer = "ze-peer"
 
@@ -31,7 +40,7 @@ const TestPluginBuildTag = "zetest"
 // the provision plugin (install remote) and appliance tooling. zetest adds
 // test-only plugins on top.
 func TestBuildTags() string {
-	tags := strings.FieldsFunc(os.Getenv("ZE_TAGS"), func(r rune) bool {
+	tags := strings.FieldsFunc(env.Get("ze.tags"), func(r rune) bool {
 		return r == ',' || r == ' ' || r == '\t' || r == '\n'
 	})
 	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup")
@@ -87,14 +96,14 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 	binDir := filepath.Join(baseDir, "bin")
 
 	zePath := filepath.Join(binDir, "ze")
-	if v := os.Getenv("ZE_BIN"); v != "" {
+	if v := env.Get("ze.bin"); v != "" {
 		if !filepath.IsAbs(v) {
 			v = filepath.Join(baseDir, v)
 		}
 		zePath = v
 	}
 	testBinPath := filepath.Join(binDir, "ze-test")
-	if v := os.Getenv("ZE_TEST_BIN"); v != "" {
+	if v := env.Get("ze.test.bin"); v != "" {
 		if !filepath.IsAbs(v) {
 			v = filepath.Join(baseDir, v)
 		}
@@ -149,7 +158,7 @@ func (r *Runner) Cleanup() {
 // VM whose only writable storage is a slow 9p mount) reuse binaries cross-compiled
 // on a fast host, instead of compiling the whole tree inside the VM.
 func (r *Runner) Build(ctx context.Context) error {
-	if os.Getenv("ZE_TEST_NO_BUILD") == "1" {
+	if env.IsEnabled("ze.test.no.build") {
 		return r.verifyPrebuilt()
 	}
 

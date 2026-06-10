@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-0-umbrella.md -- VPP dataplane trace via CLI socket
+// Design: plan/learned/673-diag-0-umbrella.md -- VPP dataplane trace via CLI socket
 
 //go:build linux
 
@@ -8,10 +8,10 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -20,8 +20,10 @@ const (
 	cliTimeout       = 10 * time.Second
 )
 
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.test.vpp.cli.socket", Type: "string", Description: "Override the VPP CLI unix socket path (tests)"})
+
 func cliSocketPath() string {
-	if v := os.Getenv("ZE_TEST_VPP_CLI_SOCKET"); v != "" {
+	if v := env.Get("ze.test.vpp.cli.socket"); v != "" {
 		return v
 	}
 	return defaultCLISocket

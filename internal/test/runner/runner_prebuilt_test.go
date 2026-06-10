@@ -7,7 +7,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+// setBuildEnv sets a build-related env var and resets the env cache so
+// env.Get/env.IsEnabled see the change (and the restore at cleanup).
+func setBuildEnv(t *testing.T, key, value string) {
+	t.Helper()
+	t.Setenv(key, value)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+}
 
 // TestBuildNoBuildSkip verifies the ZE_TEST_NO_BUILD path: Build skips the
 // in-process `go build` and uses pre-built binaries, erroring only when they
@@ -19,7 +30,7 @@ import (
 // PREVENTS: silent fallthrough to a real compile, or a confusing failure when
 // the prebuilt binaries are missing.
 func TestBuildNoBuildSkip(t *testing.T) {
-	t.Setenv("ZE_TEST_NO_BUILD", "1")
+	setBuildEnv(t, "ZE_TEST_NO_BUILD", "1")
 	baseDir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(baseDir, "bin"), 0o755))
 
@@ -41,14 +52,14 @@ func TestBuildNoBuildSkip(t *testing.T) {
 }
 
 func TestBuildNoBuildWithEnvOverride(t *testing.T) {
-	t.Setenv("ZE_TEST_NO_BUILD", "1")
+	setBuildEnv(t, "ZE_TEST_NO_BUILD", "1")
 	baseDir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(baseDir, "bin"), 0o755))
 
 	zeBin := filepath.Join(baseDir, "bin", "ze-linux-arm64")
 	testBin := filepath.Join(baseDir, "bin", "ze-test-linux-arm64")
-	t.Setenv("ZE_BIN", zeBin)
-	t.Setenv("ZE_TEST_BIN", testBin)
+	setBuildEnv(t, "ZE_BIN", zeBin)
+	setBuildEnv(t, "ZE_TEST_BIN", testBin)
 
 	r, err := NewRunner(NewEncodingTests(baseDir), baseDir)
 	require.NoError(t, err)

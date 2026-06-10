@@ -9,10 +9,21 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
-func TestParallelRunnerFailureLinesAppearWithoutVerboseWhenVerifyMode(t *testing.T) {
+// setVerifyMode enables verify mode for a test and resets the env cache so
+// env.IsEnabled sees the change (and the restore at cleanup).
+func setVerifyMode(t *testing.T) {
+	t.Helper()
 	t.Setenv("ZE_VERIFY_MODE", "1")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+}
+
+func TestParallelRunnerFailureLinesAppearWithoutVerboseWhenVerifyMode(t *testing.T) {
+	setVerifyMode(t)
 	r := NewParallelRunner[string](NewColorsWithOverride(false))
 	r.SetLabel("parse")
 	r.SetQuiet(true)
@@ -281,7 +292,7 @@ func TestParallelRunnerOnReportNotCalledOnSuccess(t *testing.T) {
 // VALIDATES: verify-mode integration -- groups + all-failures both fire.
 // PREVENTS: regression where one report path suppresses the other.
 func TestParallelRunnerVerifyModeEmitsBothGroupsAndReport(t *testing.T) {
-	t.Setenv("ZE_VERIFY_MODE", "1")
+	setVerifyMode(t)
 
 	colors := NewColorsWithOverride(false)
 	var buf bytes.Buffer
@@ -322,7 +333,7 @@ func TestParallelRunnerVerifyModeEmitsBothGroupsAndReport(t *testing.T) {
 // VALIDATES: quiet gate on failure reports matches old .ci behavior.
 // PREVENTS: verify-mode failure groups leaking into stress-mode iterations.
 func TestParallelRunnerQuietSuppressesReports(t *testing.T) {
-	t.Setenv("ZE_VERIFY_MODE", "1")
+	setVerifyMode(t)
 
 	colors := NewColorsWithOverride(false)
 	var buf bytes.Buffer

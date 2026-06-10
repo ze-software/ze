@@ -1,4 +1,4 @@
-// Design: plan/spec-cpe-5-firmware-update.md — unit tests for update checker
+// Design: plan/learned/714-cpe-5-firmware-update.md — unit tests for update checker
 
 package system
 

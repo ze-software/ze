@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
@@ -440,14 +441,15 @@ func zeTestRunClientOnly(ctx context.Context, cli *zeTestRunCLIFlags, tests *run
 }
 
 func buildZe(ctx context.Context, baseDir string) (string, error) {
+	// "ze.bin" and "ze.test.no.build" are registered in internal/test/runner.
 	zePath := filepath.Join(baseDir, "bin", "ze")
-	if v := os.Getenv("ZE_BIN"); v != "" {
+	if v := env.Get("ze.bin"); v != "" {
 		if !filepath.IsAbs(v) {
 			v = filepath.Join(baseDir, v)
 		}
 		zePath = v
 	}
-	if os.Getenv("ZE_TEST_NO_BUILD") == "1" {
+	if env.IsEnabled("ze.test.no.build") {
 		if _, err := os.Stat(zePath); err != nil {
 			return "", fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", zePath, err)
 		}

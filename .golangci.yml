@@ -36,6 +36,7 @@ linters:
     - staticcheck
     - unused
     # Additional linters
+    - forbidigo
     - gocritic
     - gosec
     - misspell
@@ -122,6 +123,19 @@ linters:
 
     exhaustive:
       default-signifies-exhaustive: true
+
+    forbidigo:
+      analyze-types: true
+      forbid:
+        # Legacy log package is forbidden; use log/slog (ai/rules/go-standards.md).
+        # NOTE: forbidigo matches identifiers/selectors only, never call
+        # arguments, so `os.Getenv("ZE_...")` cannot be expressed here; a
+        # blanket os.Getenv ban would flood legitimate system-var reads
+        # (HOME, PATH, ...). Ze env access (internal/core/env only) is
+        # enforced by ai/rules/go-standards.md and the edit hooks instead.
+        - pattern: '^log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)$'
+          pkg: '^log$'
+          msg: "use log/slog -- ai/rules/go-standards.md"
 
 formatters:
   enable:

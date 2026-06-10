@@ -1,13 +1,16 @@
-// Design: plan/spec-diag-netlink-monitor.md -- netlink monitor handler registration
+// Design: plan/learned/728-diag-netlink-monitor.md -- netlink monitor handler registration
 // Related: interface_rate.go -- existing streaming monitor handler in iface/cmd
 
 package cmd
 
 import (
+	"errors"
+	"slices"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 const (
@@ -16,6 +19,31 @@ const (
 	netlinkGroupAddress = "address"
 	netlinkGroupAll     = "all"
 )
+
+// netlinkGroups is the canonical list of accepted netlink monitor groups.
+// Every "valid: ..." message derives from it (ai/rules/derive-not-hardcode.md).
+var netlinkGroups = []string{netlinkGroupRoute, netlinkGroupLink, netlinkGroupAddress, netlinkGroupAll}
+
+var errUnknownNetlinkGroup = newUnknownNetlinkGroupError()
+
+func newUnknownNetlinkGroupError() error {
+	var tb textbuf.Buffer
+	tb.Str("unknown netlink group (valid: ").Join(netlinkGroups, ", ").Byte(')')
+	return errors.New(tb.String())
+}
+
+// netlinkGroupFromArgs parses and validates the requested netlink group.
+// No argument selects the "all" group.
+func netlinkGroupFromArgs(args []string) (string, error) {
+	group := netlinkGroupAll
+	if len(args) > 0 {
+		group = strings.ToLower(args[0])
+	}
+	if !slices.Contains(netlinkGroups, group) {
+		return "", errUnknownNetlinkGroup
+	}
+	return group, nil
+}
 
 func init() {
 	pluginserver.RegisterStreamingHandler("monitor system netlink", streamNetlinkMonitor)
@@ -28,17 +56,9 @@ func init() {
 }
 
 func handleMonitorSystemNetlink(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	group := netlinkGroupAll
-	if len(args) > 0 {
-		group = strings.ToLower(args[0])
-	}
-	switch group {
-	case netlinkGroupRoute, netlinkGroupLink, netlinkGroupAddress, netlinkGroupAll:
-	default:
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "unknown netlink group (valid: route, link, address, all)",
-		}, nil
+	group, err := netlinkGroupFromArgs(args)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,

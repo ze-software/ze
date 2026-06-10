@@ -422,7 +422,7 @@ type taskWorkerFunc func(ctx context.Context) (map[string]any, error)
 // runTaskWorker launches a goroutine that executes work, transitions
 // the task on completion/failure, stores the result, and emits a
 // status notification on the session's GET stream.
-func runTaskWorker(reg *taskRegistry, sess *session, taskID string, ctx context.Context, work taskWorkerFunc) {
+func runTaskWorker(ctx context.Context, reg *taskRegistry, sess *session, taskID string, work taskWorkerFunc) {
 	go func() {
 		result, err := work(ctx)
 
@@ -461,7 +461,7 @@ func runTaskWorker(reg *taskRegistry, sess *session, taskID string, ctx context.
 // State transitions: working -> input_required -> (block) -> working.
 // On decline/cancel, transitions back to working so the worker can
 // decide the terminal state.
-func TaskElicit(reg *taskRegistry, sess *session, taskID string, ctx context.Context, message string, schema map[string]any) (map[string]any, error) {
+func TaskElicit(ctx context.Context, reg *taskRegistry, sess *session, taskID, message string, schema map[string]any) (map[string]any, error) {
 	if !sess.ClientSupportsElicit() {
 		return nil, ErrElicitUnsupported
 	}

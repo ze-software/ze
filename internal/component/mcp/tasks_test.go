@@ -262,7 +262,7 @@ func TestTaskWorker_DispatchCompletesAndStores(t *testing.T) {
 		defer close(done)
 		return map[string]any{"content": []any{map[string]any{"type": "text", "text": "hello"}}}, nil
 	}
-	runTaskWorker(r, sess, id, ctx, work)
+	runTaskWorker(ctx, r, sess, id, work)
 	<-done
 
 	// Give the goroutine a moment to finish transition.
@@ -288,7 +288,7 @@ func TestTaskWorker_DispatchErrorFails(t *testing.T) {
 		defer close(done)
 		return nil, errors.New("dispatch broke")
 	}
-	runTaskWorker(r, nil, id, ctx, work)
+	runTaskWorker(ctx, r, nil, id, work)
 	<-done
 
 	waitForState(t, r, id, TaskFailed)
@@ -311,7 +311,7 @@ func TestTaskWorker_CtxCancelTransitions(t *testing.T) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
-	runTaskWorker(r, nil, id, ctx, work)
+	runTaskWorker(ctx, r, nil, id, work)
 	<-started
 	cancel()
 

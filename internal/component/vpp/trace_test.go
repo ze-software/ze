@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 func startMockCLI(t *testing.T, response string) string {
@@ -35,6 +37,8 @@ func startMockCLI(t *testing.T, response string) string {
 func setTestSocket(t *testing.T, path string) {
 	t.Helper()
 	t.Setenv("ZE_TEST_VPP_CLI_SOCKET", path)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
 }
 
 func TestExecCLI(t *testing.T) {
@@ -79,14 +83,14 @@ func TestExecCLIEmptyResponse(t *testing.T) {
 }
 
 func TestCliSocketPathDefault(t *testing.T) {
-	t.Setenv("ZE_TEST_VPP_CLI_SOCKET", "")
+	setTestSocket(t, "")
 	if got := cliSocketPath(); got != defaultCLISocket {
 		t.Errorf("cliSocketPath() = %q, want %q", got, defaultCLISocket)
 	}
 }
 
 func TestCliSocketPathOverride(t *testing.T) {
-	t.Setenv("ZE_TEST_VPP_CLI_SOCKET", "/tmp/custom.sock")
+	setTestSocket(t, "/tmp/custom.sock")
 	if got := cliSocketPath(); got != "/tmp/custom.sock" {
 		t.Errorf("cliSocketPath() = %q, want /tmp/custom.sock", got)
 	}

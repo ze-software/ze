@@ -4,9 +4,10 @@ package runner
 
 import (
 	"context"
-	"os"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // Parallel execution constants.
@@ -16,8 +17,17 @@ const (
 	StatusUpdateInterval      = 200 * time.Millisecond
 )
 
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.verify.mode", Type: "bool", Description: "Set by the verify runner; suites emit machine-readable failure groups"})
+
 func verifyModeEnabled() bool {
-	return os.Getenv("ZE_VERIFY_MODE") == "1"
+	return env.IsEnabled("ze.verify.mode")
+}
+
+// VerifyModeEnabled reports whether this run is part of a `make ze-verify`
+// gate (the verify runner sets ZE_VERIFY_MODE=1). Suites use it to turn
+// silent environment skips into hard failures.
+func VerifyModeEnabled() bool {
+	return verifyModeEnabled()
 }
 
 // ParallelTest represents a test that can be run in parallel.

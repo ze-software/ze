@@ -40,12 +40,12 @@ type stage struct {
 
 type failureGroup struct {
 	Stage     string   `json:"stage"`
-	GroupID   string   `json:"group_id"`
+	GroupID   string   `json:"group-id"`
 	Kind      string   `json:"kind"`
 	Related   []string `json:"related"`
 	Summary   string   `json:"summary"`
 	Rerun     string   `json:"rerun"`
-	DetailLog string   `json:"detail_log"`
+	DetailLog string   `json:"detail-log"`
 	Parallel  string   `json:"parallel"`
 	Excerpt   []string `json:"excerpt,omitempty"`
 }
@@ -53,7 +53,7 @@ type failureGroup struct {
 type stageResult struct {
 	Stage     string         `json:"stage"`
 	ExitCode  int            `json:"exit_code"`
-	DetailLog string         `json:"detail_log"`
+	DetailLog string         `json:"detail-log"`
 	Groups    []failureGroup `json:"groups,omitempty"`
 }
 
@@ -72,7 +72,7 @@ type verifyConfig struct {
 	Now         func() time.Time
 	Out         io.Writer
 	RunStage    func(context.Context, string, stage, io.Writer) int
-	WriteStatus func(string, int, time.Time) error
+	WriteStatus func(root string, exitCode int, mode, skipped string, now time.Time) error
 }
 
 func main() {
@@ -217,7 +217,7 @@ func runVerify(ctx context.Context, cfg verifyConfig) (int, error) {
 	if err := writeFailureArtifacts(cfg.Root, index); err != nil {
 		return 2, err
 	}
-	if err := cfg.WriteStatus(cfg.Root, exitCode, cfg.Now()); err != nil {
+	if err := cfg.WriteStatus(cfg.Root, exitCode, cfg.Mode, os.Getenv("ZE_SKIP_SUITES"), cfg.Now()); err != nil {
 		return 2, fmt.Errorf("write verify status: %w", err)
 	}
 
@@ -773,7 +773,7 @@ func writeln(w io.Writer, args ...any) {
 	_, _ = fmt.Fprintln(w, args...) //nolint:errcheck // output
 }
 
-func writeVerifyStatus(root string, exitCode int, now time.Time) error {
+func writeVerifyStatus(root string, exitCode int, mode, skipped string, now time.Time) error {
 	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
 		return err
 	}
@@ -785,6 +785,10 @@ func writeVerifyStatus(root string, exitCode int, now time.Time) error {
 	var content strings.Builder
 	writef(&content, "exit=%d\n", exitCode)
 	writef(&content, "timestamp=%s\n", now.UTC().Format(time.RFC3339))
+	// mode distinguishes FRESH(ze-verify) from the weaker FRESH(ze-verify-changed);
+	// skipped records ZE_SKIP_SUITES so a partial pass cannot read as a full one.
+	writef(&content, "mode=%s\n", mode)
+	writef(&content, "skipped=%s\n", skipped)
 	writef(&content, "git_sha=%s\n", strings.TrimSpace(sha))
 	writef(&content, "tree_hash=%s\n", hash)
 	return os.WriteFile(filepath.Join(root, statusPath), []byte(content.String()), 0o600)

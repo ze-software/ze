@@ -7,7 +7,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+// setBuildEnv sets a build-related env var and resets the env cache so
+// env.Get/env.IsEnabled see the change (and the restore at cleanup).
+func setBuildEnv(t *testing.T, key, value string) {
+	t.Helper()
+	t.Setenv(key, value)
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+}
 
 // TestBuildZeNoBuild verifies that buildZe honors ZE_TEST_NO_BUILD the same way
 // runner.Runner.Build does: with the flag set it reuses a pre-built bin/ze rather
@@ -20,7 +31,7 @@ import (
 // 9p) when a host cross-compiled binary already exists, defeating the
 // host-compile architecture used by `make ze-qemu-all-test`.
 func TestBuildZeNoBuild(t *testing.T) {
-	t.Setenv("ZE_TEST_NO_BUILD", "1")
+	setBuildEnv(t, "ZE_TEST_NO_BUILD", "1")
 	base := t.TempDir()
 
 	// Binary absent: must fail with a named, actionable error rather than
@@ -40,11 +51,11 @@ func TestBuildZeNoBuild(t *testing.T) {
 }
 
 func TestBuildZeNoBuildEnvOverride(t *testing.T) {
-	t.Setenv("ZE_TEST_NO_BUILD", "1")
+	setBuildEnv(t, "ZE_TEST_NO_BUILD", "1")
 	base := t.TempDir()
 
 	override := filepath.Join(base, "bin", "ze-linux-arm64")
-	t.Setenv("ZE_BIN", override)
+	setBuildEnv(t, "ZE_BIN", override)
 
 	// Override path absent: must fail pointing at the overridden path.
 	_, err := buildZe(context.Background(), base)
@@ -61,11 +72,11 @@ func TestBuildZeNoBuildEnvOverride(t *testing.T) {
 }
 
 func TestBuildZeNoBuildRelativeOverride(t *testing.T) {
-	t.Setenv("ZE_TEST_NO_BUILD", "1")
+	setBuildEnv(t, "ZE_TEST_NO_BUILD", "1")
 	base := t.TempDir()
 
 	// Relative path gets joined with baseDir.
-	t.Setenv("ZE_BIN", "bin/ze-linux-arm64")
+	setBuildEnv(t, "ZE_BIN", "bin/ze-linux-arm64")
 
 	override := filepath.Join(base, "bin", "ze-linux-arm64")
 	require.NoError(t, os.MkdirAll(filepath.Dir(override), 0o755))

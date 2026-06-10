@@ -45,6 +45,16 @@ Examples:
   ze-test web -l             List available tests with N/TOTAL and one-based id
 `
 
+// webBrowserMissing decides what happens when agent-browser is not in PATH:
+// hard failure under the verify gate (a silent skip would record a full PASS
+// that never ran the .wb suite), silent skip for casual local runs.
+func webBrowserMissing(verifyMode bool) error {
+	if verifyMode {
+		return errors.New("agent-browser not found in PATH: the web suite is part of the verify gate and cannot be skipped silently; install agent-browser or skip explicitly with ZE_SKIP_SUITES=web")
+	}
+	return nil
+}
+
 func cmdWeb(args []string) int {
 	if err := cmdWebMain(args); err != nil {
 		if !errors.Is(err, ErrTestsFailed) {
@@ -143,6 +153,9 @@ func cmdWebMain(args []string) error {
 	}
 
 	if _, lookErr := exec.LookPath("agent-browser"); lookErr != nil {
+		if err := webBrowserMissing(runner.VerifyModeEnabled()); err != nil {
+			return err
+		}
 		fmt.Fprintf(os.Stdout, "agent-browser not found in PATH, skipping web tests\n") //nolint:errcheck // terminal output
 		return nil
 	}

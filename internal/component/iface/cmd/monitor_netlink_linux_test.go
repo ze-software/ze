@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-netlink-monitor.md -- unit tests for netlink message parsing
+// Design: plan/learned/728-diag-netlink-monitor.md -- unit tests for netlink message parsing
 //
 //go:build linux
 

@@ -5,6 +5,7 @@ package system
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
@@ -87,13 +88,15 @@ var factories = map[BackendName]backendFactory{}
 
 func registerBackend(name BackendName, fn backendFactory) {
 	if name == "" {
-		panic("system update backend: empty name")
+		panic("BUG: system update backend: empty name")
 	}
 	if fn == nil {
-		panic("system update backend: nil factory for " + string(name))
+		slog.Error("system update backend registration: nil factory", "backend", string(name))
+		panic("BUG: system update backend: nil factory")
 	}
 	if _, exists := factories[name]; exists {
-		panic("system update backend: duplicate factory for " + string(name))
+		slog.Error("system update backend registration: duplicate factory", "backend", string(name))
+		panic("BUG: system update backend: duplicate factory")
 	}
 	factories[name] = fn
 }

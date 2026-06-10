@@ -1,4 +1,4 @@
-// Design: plan/spec-diag-netlink-monitor.md -- kernel netlink event streaming
+// Design: plan/learned/728-diag-netlink-monitor.md -- kernel netlink event streaming
 // Related: interface_rate.go -- existing streaming monitor handler in iface/cmd
 //
 //go:build linux
@@ -8,11 +8,9 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -22,18 +20,10 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
-var errUnknownNetlinkGroup = errors.New("unknown netlink group (valid: route, link, address, all)")
-
 func streamNetlinkMonitor(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args []string) error {
-	group := netlinkGroupAll
-	if len(args) > 0 {
-		group = strings.ToLower(args[0])
-	}
-
-	switch group {
-	case netlinkGroupRoute, netlinkGroupLink, netlinkGroupAddress, netlinkGroupAll:
-	default:
-		return errUnknownNetlinkGroup
+	group, err := netlinkGroupFromArgs(args)
+	if err != nil {
+		return err
 	}
 
 	done := make(chan struct{})

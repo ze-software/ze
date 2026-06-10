@@ -182,6 +182,8 @@ func TestVerifyRunAllPassFixture(t *testing.T) {
 	mustReadFileContains(t, root, combinedLogPath, "PASS  all 2 verify stage(s)")
 
 	mustReadFileContains(t, root, statusPath, "exit=0")
+	mustReadFileContains(t, root, statusPath, "mode=ze-verify")
+	mustReadFileContains(t, root, statusPath, "skipped=")
 }
 
 func TestVerifyRunFunctionalFixtureWithRelatedPluginFailures(t *testing.T) {
@@ -325,8 +327,8 @@ func fixedNow() time.Time {
 	return time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 }
 
-func testStatusWriter(root string, code int, now time.Time) error {
-	content := "exit=" + strconv.Itoa(code) + "\n" + "timestamp=" + now.UTC().Format(time.RFC3339) + "\ngit_sha=test\ntree_hash=test\n"
+func testStatusWriter(root string, code int, mode, skipped string, now time.Time) error {
+	content := "exit=" + strconv.Itoa(code) + "\n" + "timestamp=" + now.UTC().Format(time.RFC3339) + "\nmode=" + mode + "\nskipped=" + skipped + "\ngit_sha=test\ntree_hash=test\n"
 	return os.WriteFile(filepath.Join(root, statusPath), []byte(content), 0o644)
 }
 
