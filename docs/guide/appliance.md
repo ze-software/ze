@@ -16,8 +16,9 @@ Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 
 Ze owns network configuration (DHCP) and time synchronization (NTP). The gokrazy
 default DHCP and NTP packages are excluded from the image -- ze handles both via
-its config pipeline (`interface { dhcp-auto true }` discovers the first ethernet
-and runs DHCP on it; `environment { ntp { enabled true } }` syncs the clock).
+its config pipeline (`interface { dhcp-auto true }` discovers all ethernet
+interfaces and runs DHCP on each; `environment { ntp { enabled true } }` syncs
+the clock).
 
 The root filesystem is read-only (SquashFS). Persistent data lives on a separate ext4 partition mounted at `/perm`.
 

@@ -380,8 +380,9 @@ func readAuthLine(conn net.Conn, maxSize int) ([]byte, error) {
 // bootstrapConfigFromTemplate reads file/template/ze.conf from zefs,
 // runs interface discovery, merges them, and writes the result to the
 // active config. When discovery succeeds, explicit DHCPv4 is added
-// to the first ethernet interface so the machine gets an IP without
-// relying on runtime re-discovery via dhcp-auto.
+// to every ethernet interface so the machine gets an IP regardless of
+// which port has a cable, without relying on runtime re-discovery via
+// dhcp-auto.
 func bootstrapConfigFromTemplate(store storage.Storage, configName string) bool {
 	templateKey := zefs.KeyFileTemplate.Key("ze.conf")
 	tmpl, err := store.ReadFile(templateKey)

@@ -125,20 +125,19 @@ func emitWireguardBlock(b *textbuf.Buffer, di *DiscoveredInterface) {
 }
 
 // EmitSetConfigWithDHCP produces set-command format with DHCPv4 enabled
-// on the first discovered ethernet interface. Used by the first-boot
-// bootstrap path so the active config has an explicit DHCP unit that
-// does not depend on runtime re-discovery via dhcp-auto.
+// on every discovered ethernet interface. Used by the first-boot
+// bootstrap path so the active config has explicit DHCP units that
+// do not depend on runtime re-discovery via dhcp-auto.
 func EmitSetConfigWithDHCP(discovered []DiscoveredInterface) string {
 	return emitSetConfig(discovered, true)
 }
 
-func emitSetConfig(discovered []DiscoveredInterface, dhcpFirstEthernet bool) string {
+func emitSetConfig(discovered []DiscoveredInterface, dhcpEthernet bool) string {
 	if len(discovered) == 0 {
 		return ""
 	}
 
 	var b textbuf.Buffer
-	dhcpEmitted := false
 	for i := range discovered {
 		di := &discovered[i]
 		switch di.Type {
@@ -153,9 +152,8 @@ func emitSetConfig(discovered []DiscoveredInterface, dhcpFirstEthernet bool) str
 				b.Str("set interface ").Str(di.Type).Byte(' ').Str(di.Name).Str(" mac address ").Str(di.MAC).Byte('\n')
 			}
 			b.Str("set interface ").Str(di.Type).Byte(' ').Str(di.Name).Str(" os-name ").Str(di.Name).Byte('\n')
-			if dhcpFirstEthernet && !dhcpEmitted && di.Type == zeTypeEthernet {
+			if dhcpEthernet && di.Type == zeTypeEthernet {
 				b.Str("set interface ethernet ").Str(di.Name).Str(" unit default ipv4 dhcp enabled true\n")
-				dhcpEmitted = true
 			}
 		case zeTypeWireguard:
 			if !safeEmitName(di.Name) {

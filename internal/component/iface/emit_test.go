@@ -721,7 +721,7 @@ func TestEmitSetConfigXFRM(t *testing.T) {
 	}
 }
 
-func TestEmitSetConfigWithDHCPFirstEthernet(t *testing.T) {
+func TestEmitSetConfigWithDHCPAllEthernet(t *testing.T) {
 	dis := []DiscoveredInterface{
 		{Name: "br0", Type: zeTypeBridge, MAC: "11:22:33:44:55:66"},
 		{Name: "eth0", Type: zeTypeEthernet, MAC: "aa:bb:cc:dd:ee:ff"},
@@ -729,13 +729,11 @@ func TestEmitSetConfigWithDHCPFirstEthernet(t *testing.T) {
 	}
 	out := EmitSetConfigWithDHCP(dis)
 
-	want := "set interface ethernet eth0 unit default ipv4 dhcp enabled true"
-	if !strings.Contains(out, want) {
-		t.Errorf("missing DHCP line for first ethernet:\n%s", out)
-	}
-
-	if strings.Contains(out, "eth1 unit default ipv4 dhcp") {
-		t.Errorf("DHCP should only be on first ethernet, not eth1:\n%s", out)
+	for _, name := range []string{"eth0", "eth1"} {
+		want := "set interface ethernet " + name + " unit default ipv4 dhcp enabled true"
+		if !strings.Contains(out, want) {
+			t.Errorf("missing DHCP line for %s:\n%s", name, out)
+		}
 	}
 
 	if strings.Contains(out, "br0 unit default ipv4 dhcp") {
