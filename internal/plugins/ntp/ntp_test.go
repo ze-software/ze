@@ -270,9 +270,12 @@ func TestHandleDHCPEvent(t *testing.T) {
 // VALIDATES: Wiring Test row 1 - show system ntp entry point.
 // PREVENTS: Handler not registered or returning nil.
 func TestShowSystemNTPWiring(t *testing.T) {
-	t.Parallel()
+	// Deliberately NOT parallel: the handler reads the package-global state
+	// and parallel siblings publish it. Sequential tests run while parallel
+	// bodies are parked, so resetting here is race-free.
+	storeState(nil)
 
-	// No state published yet -> disabled.
+	// No state published -> disabled.
 	resp, err := handleShowSystemNTP(nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -287,9 +290,11 @@ func TestShowSystemNTPWiring(t *testing.T) {
 // VALIDATES: Wiring Test row 2 - show system ntp peers entry point.
 // PREVENTS: Handler not registered or returning nil.
 func TestShowSystemNTPPeersWiring(t *testing.T) {
-	t.Parallel()
+	// Sequential for the same reason as TestShowSystemNTPWiring: the
+	// handler reads package-global state that parallel siblings publish.
+	storeState(nil)
 
-	// No state published yet -> empty peers.
+	// No state published -> empty peers.
 	resp, err := handleShowSystemNTPPeers(nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
