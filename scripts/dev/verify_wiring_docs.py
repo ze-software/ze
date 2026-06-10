@@ -47,7 +47,11 @@ MAKE_TARGETS = {
 
 # Reviewed exceptions for exported symbols that are deliberately API surface.
 # Keep this small. A new entry here should name the path and symbol exactly.
-WIRING_ALLOWLIST: set[tuple[str, str]] = set()
+WIRING_ALLOWLIST: set[tuple[str, str]] = {
+    # Cross-package test API: plugins (e.g. bgp/plugins/role) look up their
+    # registered attr-mod handler in their own tests.
+    ("internal/component/bgp/filterapi/filterapi.go", "AttrModHandlerFor"),
+}
 
 # User-facing area -> functional suite directory expected to change with it
 # (ai/rules/functional-test-gate.md). Advisory, not blocking: a session that

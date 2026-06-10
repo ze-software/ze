@@ -152,9 +152,9 @@ func TestAttrModHandlerRegistration(t *testing.T) {
 	RegisterAttrModHandler(35, handler)
 	t.Cleanup(func() { unregisterAttrModHandler(35) })
 
-	got := attrModHandlerFor(35)
+	got := AttrModHandlerFor(35)
 	if got == nil {
-		t.Fatal("attrModHandlerFor returned nil for registered code")
+		t.Fatal("AttrModHandlerFor returned nil for registered code")
 	}
 
 	buf := make([]byte, 64)
@@ -167,9 +167,9 @@ func TestAttrModHandlerRegistration(t *testing.T) {
 // VALIDATES: AC-18 — Unknown attr code returns nil handler.
 // PREVENTS: Panic on unregistered code lookup.
 func TestAttrModHandlerNotFound(t *testing.T) {
-	got := attrModHandlerFor(99)
+	got := AttrModHandlerFor(99)
 	if got != nil {
-		t.Fatal("attrModHandlerFor returned non-nil for unregistered code")
+		t.Fatal("AttrModHandlerFor returned non-nil for unregistered code")
 	}
 }
 
@@ -192,7 +192,7 @@ func TestAttrModHandlersSnapshot(t *testing.T) {
 
 	// Mutating snapshot must not affect registry.
 	delete(snap, 200)
-	if attrModHandlerFor(200) == nil {
+	if AttrModHandlerFor(200) == nil {
 		t.Fatal("deleting from snapshot affected the registry")
 	}
 }
@@ -203,7 +203,7 @@ func TestRegisterAttrModHandlerNil(t *testing.T) {
 	RegisterAttrModHandler(250, nil)
 	t.Cleanup(func() { unregisterAttrModHandler(250) })
 
-	got := attrModHandlerFor(250)
+	got := AttrModHandlerFor(250)
 	if got != nil {
 		t.Fatal("nil handler should not be registered")
 	}

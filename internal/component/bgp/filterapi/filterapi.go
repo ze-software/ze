@@ -279,8 +279,8 @@ func unregisterAttrModHandler(code uint8) {
 	delete(attrModHandlers, code)
 }
 
-// attrModHandlerFor returns the registered handler for the given attribute code, or nil.
-func attrModHandlerFor(code uint8) AttrModHandler {
+// AttrModHandlerFor returns the registered handler for the given attribute code, or nil.
+func AttrModHandlerFor(code uint8) AttrModHandler {
 	mu.RLock()
 	defer mu.RUnlock()
 	return attrModHandlers[code]
