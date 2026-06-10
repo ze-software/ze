@@ -70,16 +70,19 @@ func registerAAAAccountingProvider(bundle *aaa.Bundle) {
 }
 
 // setupInfraHook creates and registers the infrastructure setup hook.
-func setupInfraHook(recorder audit.Recorder) {
+// reloadFn is the daemon-reaching config reload threaded into every SSH
+// session editor (commit = apply + propagate); the hub passes a late-bound
+// wrapper because the hook is registered before reloadAfterCommit exists.
+func setupInfraHook(recorder audit.Recorder, reloadFn func() error) {
 	bgpconfig.SetInfraHook(func(params bgpconfig.InfraHookParams) {
-		_ = infraSetup(params, recorder)
+		_ = infraSetup(params, recorder, reloadFn)
 	})
 }
 
 // infraSetup creates SSH server, wires authorization, command executors,
 // monitor factory, and login warnings on the reactor's post-start callback.
 // Returns the SSH server (nil if SSH was not configured or failed to start).
-func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder) *zessh.Server {
+func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloadFn func() error) *zessh.Server {
 	log := slogutil.Logger("hub.infra")
 	r := params.Reactor
 
@@ -163,7 +166,7 @@ func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder) *zess
 		} else {
 			log.Info("SSH server listening", "address", srv.Address())
 			sshSrv = srv
-			sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, params, recorder))
+			sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, params, recorder, reloadFn))
 			if ephemeralFile != "" {
 				if writeErr := os.WriteFile(ephemeralFile, []byte(srv.Address()), 0o600); writeErr != nil {
 					log.Warn("failed to write ephemeral SSH address", "error", writeErr)

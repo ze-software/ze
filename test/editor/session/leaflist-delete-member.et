@@ -1,0 +1,38 @@
+# Test: Session leaf-list delete removes one member only
+# VALIDATES: spec-session-commit-apply AC-4: `delete system name-server 8.8.8.8`
+#            with two committed members removes only that member
+# PREVENTS: member delete wiping the whole leaf-list, or not persisting
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+}
+system {
+  name-server [ 9.9.9.9 8.8.8.8 ];
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=ssh
+
+# Delete one member
+input=type:text=delete system name-server 8.8.8.8
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Commit
+input=type:text=commit
+input=enter
+expect=error:none
+expect=dirty:false
+
+# Only the deleted member is gone; the other remains
+expect=file:path=test.conf:contains=9.9.9.9
+expect=file:path=test.conf:not-contains=8.8.8.8

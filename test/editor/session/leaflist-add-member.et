@@ -1,0 +1,48 @@
+# Test: Session leaf-list sets accumulate members (add-member, not replace)
+# VALIDATES: spec-session-commit-apply AC-2: two sets on the same leaf-list keep
+#            BOTH members after commit (JunOS add-member semantics)
+# VALIDATES: spec-session-commit-apply AC-3: setting the same member twice does
+#            not duplicate it
+# PREVENTS: a second `set` replacing the whole leaf-list, or duplicate members
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+}
+system {
+  name-server [ 9.9.9.9 ];
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=ssh
+
+# Add two members, the second one twice (idempotency)
+input=type:text=set system name-server 8.8.8.8
+input=enter
+expect=error:none
+input=type:text=set system name-server 1.1.1.1
+input=enter
+expect=error:none
+input=type:text=set system name-server 1.1.1.1
+input=enter
+expect=error:none
+
+# Commit
+input=type:text=commit
+input=enter
+expect=error:none
+expect=dirty:false
+
+# All three members present: the committed seed and both added members
+expect=file:path=test.conf:contains=9.9.9.9
+expect=file:path=test.conf:contains=8.8.8.8
+expect=file:path=test.conf:contains=1.1.1.1
+# No duplicate of the twice-set member
+expect=file:path=test.conf:not-contains=1.1.1.1 1.1.1.1

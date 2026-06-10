@@ -257,7 +257,19 @@ func (m *EditorManager) Diff(username string) (string, error) {
 		case contract.PendingChangeRename:
 			fmt.Fprintf(&b, "~ rename %s to %s\n", change.OldPath, change.NewPath) //nolint:errcheck // buffer output
 		case contract.PendingChangeDelete:
-			fmt.Fprintf(&b, "- %s %s\n", change.Path, change.Previous) //nolint:errcheck // buffer output
+			b.WriteString("- ")
+			b.WriteString(change.Path)
+			b.WriteString(" ")
+			if change.Member != "" {
+				b.WriteString(change.Member)
+			} else {
+				b.WriteString(change.Previous)
+			}
+			b.WriteString("\n")
+		case contract.PendingChangeDeactivate:
+			writeMemberDiffLine(&b, "~ deactivate ", change)
+		case contract.PendingChangeActivate:
+			writeMemberDiffLine(&b, "~ activate ", change)
 		default:
 			if change.Previous != "" {
 				fmt.Fprintf(&b, "- %s %s\n+ %s %s\n", change.Path, change.Previous, change.Path, change.Value) //nolint:errcheck // buffer output
@@ -267,6 +279,16 @@ func (m *EditorManager) Diff(username string) (string, error) {
 		}
 	}
 	return b.String(), nil
+}
+
+// writeMemberDiffLine writes a "<verb> <path> <member>" diff line for a
+// leaf-list member deactivation or activation.
+func writeMemberDiffLine(b *strings.Builder, verb string, change contract.PendingChange) {
+	b.WriteString(verb)
+	b.WriteString(change.Path)
+	b.WriteString(" ")
+	b.WriteString(change.Member)
+	b.WriteString("\n")
 }
 
 // PendingChangePaths returns the YANG paths of every pending change in the

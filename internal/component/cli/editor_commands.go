@@ -18,7 +18,6 @@ var (
 	errEmptyPath                           = errors.New("empty path")
 	errSchemaNotAvailable                  = errors.New("schema not available")
 	errCopyNotSupportedInSessionMode       = errors.New("copy not supported in session mode")
-	errInsertNotSupportedInSessionMode     = errors.New("insert not supported in session mode")
 	errDeactivateNotSupportedInSessionMode = errors.New("deactivate not supported in session mode")
 	errActivateNotSupportedInSessionMode   = errors.New("activate not supported in session mode")
 	errPathTooShortForListEntry            = errors.New("path too short for list entry")
@@ -178,7 +177,14 @@ func (e *Editor) CreateEntry(path []string) error {
 }
 
 // SetValue sets a leaf value at the given path in the tree.
+// Plain leaf-lists (ValueOrArrayNode) get JunOS add-member semantics: each
+// set appends one member (idempotently); it never replaces the list. The
+// member lands in the multi-value store — the store every serializer reads —
+// not the scalar map, where it would be silently dropped.
 func (e *Editor) SetValue(path []string, key, value string) error {
+	if e.isValueOrArrayLeaf(path, key) {
+		return e.setLeafListMember(path, key, value)
+	}
 	if e.session != nil {
 		return e.writeThroughSet(path, key, value)
 	}
@@ -187,6 +193,57 @@ func (e *Editor) SetValue(path []string, key, value string) error {
 		return err
 	}
 	target.Set(key, value)
+	e.dirty.Store(true)
+	return nil
+}
+
+// isValueOrArrayLeaf reports whether key under path is a plain leaf-list
+// (ValueOrArrayNode). Bracket and multi-word leaf kinds keep scalar
+// semantics.
+func (e *Editor) isValueOrArrayLeaf(path []string, key string) bool {
+	if e.schema == nil {
+		return false
+	}
+	parentSchema := e.walkSchema(path)
+	if parentSchema == nil {
+		return false
+	}
+	_, ok := parentSchema.Get(key).(*config.ValueOrArrayNode)
+	return ok
+}
+
+// setLeafListMember adds one member to a leaf-list (add-member semantics).
+func (e *Editor) setLeafListMember(path []string, key, member string) error {
+	if e.session != nil {
+		return e.writeThroughSetMember(path, key, member)
+	}
+	target, err := e.walkOrCreate(path)
+	if err != nil {
+		return err
+	}
+	target.AddMultiValueMember(key, member)
+	e.dirty.Store(true)
+	return nil
+}
+
+// DeleteLeafListValue removes one member from a leaf-list (the inverse of
+// add-member set). Returns an error if the member is not present.
+func (e *Editor) DeleteLeafListValue(path []string, leafListName, value string) error {
+	if e.session != nil {
+		return e.writeThroughDeleteMember(path, leafListName, value)
+	}
+	var target *config.Tree
+	if len(path) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(path)
+	}
+	if target == nil {
+		return errPathNotFound
+	}
+	if !target.RemoveMultiValueMember(leafListName, value) {
+		return fmt.Errorf("%q not found in %s", value, leafListName)
+	}
 	e.dirty.Store(true)
 	return nil
 }
@@ -250,6 +307,15 @@ func (e *Editor) DeleteByPath(fullPath []string) error {
 			if _, isList := schemaNode.(*config.ListNode); isList {
 				return e.DeleteListEntry(parentPath, possibleListName, possibleKey)
 			}
+		}
+	}
+
+	// Leaf-list member: path ends `<leaf-list> <member>` — delete one member.
+	if len(fullPath) >= 2 {
+		memberParent := fullPath[:len(fullPath)-2]
+		leafName := fullPath[len(fullPath)-2]
+		if e.isValueOrArrayLeaf(memberParent, leafName) {
+			return e.DeleteLeafListValue(memberParent, leafName, fullPath[len(fullPath)-1])
 		}
 	}
 
@@ -592,7 +658,7 @@ func (e *Editor) CopyListEntry(parentPath []string, listName, srcKey, dstKey str
 // reference value for before/after.
 func (e *Editor) InsertLeafListValue(path []string, leafListName, value, position, ref string) error {
 	if e.session != nil {
-		return errInsertNotSupportedInSessionMode
+		return e.writeThroughMemberOp(path, config.StructuralOpInsertMember, leafListName, value, position, ref)
 	}
 	var target *config.Tree
 	if len(path) == 0 {
@@ -613,7 +679,7 @@ func (e *Editor) InsertLeafListValue(path []string, leafListName, value, positio
 // DeactivateLeafListValue adds "inactive:" prefix to a value in a leaf-list.
 func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value string) error {
 	if e.session != nil {
-		return errDeactivateNotSupportedInSessionMode
+		return e.writeThroughMemberOp(path, config.StructuralOpDeactivateMember, leafListName, value, "", "")
 	}
 	var target *config.Tree
 	if len(path) == 0 {
@@ -634,7 +700,7 @@ func (e *Editor) DeactivateLeafListValue(path []string, leafListName, value stri
 // ActivateLeafListValue removes "inactive:" prefix from a value in a leaf-list.
 func (e *Editor) ActivateLeafListValue(path []string, leafListName, value string) error {
 	if e.session != nil {
-		return errActivateNotSupportedInSessionMode
+		return e.writeThroughMemberOp(path, config.StructuralOpActivateMember, leafListName, value, "", "")
 	}
 	var target *config.Tree
 	if len(path) == 0 {

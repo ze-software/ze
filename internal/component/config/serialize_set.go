@@ -64,8 +64,10 @@ func DetectFormat(content string) ConfigFormat {
 			return FormatSetMeta
 		}
 
-		// Record set/delete but keep scanning for metadata.
-		if strings.HasPrefix(line, "set ") || strings.HasPrefix(line, "delete ") {
+		// Record set/delete/inactive but keep scanning for metadata.
+		// "inactive <path>" (no colon) is the set-format deactivation line;
+		// the hierarchical form is "inactive: <field>" inside a block.
+		if strings.HasPrefix(line, "set ") || strings.HasPrefix(line, "delete ") || strings.HasPrefix(line, "inactive ") {
 			hasSet = true
 			continue
 		}
@@ -164,15 +166,20 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 	case *ValueOrArrayNode:
 		// Direct access: caller holds tree.mu.RLock (see serializeSetNode).
 		if items := tree.multiValues[name]; len(items) > 0 {
+			// Deactivated members serialize as the bare member in the set
+			// line plus an `inactive <path> <member>` line: the raw
+			// "inactive:" prefix would fail item validation (e.g.
+			// ip-address) on reparse.
+			bare, inactive := splitInactiveMembers(items)
 			b.Str("set ")
 			b.Str(prefix)
 			b.Str(name)
-			if len(items) == 1 {
+			if len(bare) == 1 {
 				b.Str(" ")
-				b.Str(quoteIfNeeded(items[0]))
+				b.Str(quoteIfNeeded(bare[0]))
 			} else {
 				b.Str(" [ ")
-				for i, item := range items {
+				for i, item := range bare {
 					if i > 0 {
 						b.Str(" ")
 					}
@@ -181,6 +188,7 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 				b.Str(" ]")
 			}
 			b.Str("\n")
+			emitInactiveMemberLines(b, name, prefix, inactive)
 			emitSetInactive(b, tree, name, prefix)
 		}
 
@@ -198,6 +206,35 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 
 	case *InlineListNode:
 		serializeSetInlineList(b, tree, name, n, prefix)
+	}
+}
+
+// splitInactiveMembers separates leaf-list items into bare member values
+// (with any "inactive:" prefix stripped) and the list of members that were
+// deactivated. The bare slice preserves order, deactivated members included.
+func splitInactiveMembers(items []string) (bare, inactive []string) {
+	bare = make([]string, len(items))
+	for i, item := range items {
+		if member, ok := strings.CutPrefix(item, inactiveValuePrefix); ok {
+			bare[i] = member
+			inactive = append(inactive, member)
+		} else {
+			bare[i] = item
+		}
+	}
+	return bare, inactive
+}
+
+// emitInactiveMemberLines writes one `inactive <path> <member>` line per
+// deactivated leaf-list member (the form parseInactive reads back).
+func emitInactiveMemberLines(b *textbuf.Buffer, name, prefix string, inactive []string) {
+	for _, member := range inactive {
+		b.Str("inactive ")
+		b.Str(prefix)
+		b.Str(name)
+		b.Str(" ")
+		b.Str(quoteIfNeeded(member))
+		b.Str("\n")
 	}
 }
 
@@ -531,18 +568,32 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 		}
 
 	case *ValueOrArrayNode:
-		// Direct access: caller holds tree.mu.RLock (see serializeSetMetaNode).
-		if items := tree.multiValues[name]; len(items) > 0 {
+		// Direct access: caller holds tree.mu.RLock (and meta.mu.RLock when
+		// meta is non-nil; see serializeSetMetaNode).
+		items := tree.multiValues[name]
+		var entries []MetaEntry
+		if meta != nil {
+			entries = meta.entries[name]
+		}
+		if hasMemberEntries(entries) {
+			writeLeafListMemberLines(b, name, prefix, items, entries)
+			return
+		}
+		if len(items) > 0 {
+			// See the plain serializer: deactivated members become bare
+			// values plus trailing `inactive` lines, never raw "inactive:".
+			bare, inactive := splitInactiveMembers(items)
 			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
-			if len(items) == 1 {
-				writeMetaLeafLine(b, meta, name, pathPfx, quoteIfNeeded(items[0]))
+			if len(bare) == 1 {
+				writeMetaLeafLine(b, meta, name, pathPfx, quoteIfNeeded(bare[0]))
 			} else {
-				parts := make([]string, len(items))
-				for i, item := range items {
+				parts := make([]string, len(bare))
+				for i, item := range bare {
 					parts[i] = quoteIfNeeded(item)
 				}
 				writeMetaLeafLine(b, meta, name, pathPfx, tb.Reset().Str("[ ").Join(parts, " ").Str(" ]").String())
 			}
+			emitInactiveMemberLines(b, name, prefix, inactive)
 		}
 
 	case *ContainerNode:
@@ -559,6 +610,75 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 
 	case *InlineListNode:
 		serializeSetMetaInlineList(b, tree, meta, name, n, prefix)
+	}
+}
+
+// hasMemberEntries reports whether any metadata entry is a leaf-list
+// member operation (add or delete of one member).
+func hasMemberEntries(entries []MetaEntry) bool {
+	for i := range entries {
+		if entries[i].Member != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// findMemberAddEntry returns the add-intent entry for a member, or nil.
+// Delete intents (Value == "") never match: they are emitted separately
+// as delete lines even if the member is still present in the tree.
+func findMemberAddEntry(entries []MetaEntry, member string) *MetaEntry {
+	for i := range entries {
+		if entries[i].Member == member && entries[i].Value != "" {
+			return &entries[i]
+		}
+	}
+	return nil
+}
+
+// writeLeafListMemberLines serializes a leaf-list that carries per-member
+// session metadata: one `set <path> <member>` line per tree member (with
+// the owning session's prefix when one exists), then one line per member
+// intent not represented in the tree — `delete <path> <member>` for delete
+// intents, `set <path> <member>` for add intents whose member another
+// session removed. This per-member form is what makes concurrent add-member
+// sessions mergeable; it round-trips through the set parser's member-merge.
+// Caller must hold tree.mu.RLock and meta.mu.RLock (see serializeSetMetaNode).
+func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []string, entries []MetaEntry) {
+	bare, inactive := splitInactiveMembers(items)
+	emitted := make(map[string]bool, len(bare))
+	for _, member := range bare {
+		if e := findMemberAddEntry(entries, member); e != nil {
+			writeMetaPrefix(b, *e)
+			emitted[member] = true
+		}
+		b.Str("set ")
+		b.Str(prefix)
+		b.Str(name)
+		b.Str(" ")
+		b.Str(quoteIfNeeded(member))
+		b.Str("\n")
+	}
+	emitInactiveMemberLines(b, name, prefix, inactive)
+	for i := range entries {
+		e := entries[i]
+		if e.Member == "" || (e.Value != "" && emitted[e.Member]) {
+			continue
+		}
+		if e.Value != "" && multiValueIndex(bare, e.Member) >= 0 {
+			continue
+		}
+		writeMetaPrefix(b, e)
+		if e.Value != "" {
+			b.Str("set ")
+		} else {
+			b.Str("delete ")
+		}
+		b.Str(prefix)
+		b.Str(name)
+		b.Str(" ")
+		b.Str(quoteIfNeeded(e.Member))
+		b.Str("\n")
 	}
 }
 
@@ -836,9 +956,16 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 
 	var names []string
 	for name := range meta.entries {
-		if _, hasValue := tree.values[name]; !hasValue {
-			names = append(names, name)
+		if _, hasValue := tree.values[name]; hasValue {
+			continue
 		}
+		// Leaf-lists with members present were already serialized by the
+		// ValueOrArrayNode member path (values stays in sync with
+		// multiValues, but be defensive about the invariant).
+		if len(tree.multiValues[name]) > 0 {
+			continue
+		}
+		names = append(names, name)
 	}
 	if len(names) == 0 {
 		return
@@ -856,10 +983,15 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 				b.Str(" ")
 				b.Str(quoteIfNeeded(e.Value))
 			} else {
-				// Session deleted the value.
+				// Session deleted the value (one member for leaf-lists,
+				// the whole leaf otherwise).
 				b.Str("delete ")
 				b.Str(prefix)
 				b.Str(name)
+				if e.Member != "" {
+					b.Str(" ")
+					b.Str(quoteIfNeeded(e.Member))
+				}
 			}
 			b.Str("\n")
 		}

@@ -156,6 +156,23 @@ func applyHostTuningFromMap(tree map[string]any) {
 	}
 }
 
+// applyResolvConf rewrites resolv.conf from the reloaded tree (reload path).
+// A session commit that changes system name-server must reach the resolver
+// without a daemon restart ("commit = apply + propagate"). Best-effort like
+// the other reload-time system effects; no-op on non-Linux.
+func applyResolvConf(parsedTree *zeconfig.Tree) {
+	if parsedTree == nil {
+		return
+	}
+	sc := system.ExtractSystemConfig(parsedTree)
+	if len(sc.NameServers) == 0 {
+		return
+	}
+	if err := system.WriteResolvConf(sc.ResolvConfPath, sc.NameServers); err != nil {
+		slogutil.Logger("hub").Warn("resolv.conf write failed (reload)", "path", sc.ResolvConfPath, "err", err)
+	}
+}
+
 // applyConsoleFromMap extracts console config from a map tree (reload path)
 // and applies it.
 func applyConsoleFromMap(tree map[string]any) {

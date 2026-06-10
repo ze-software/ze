@@ -1332,7 +1332,7 @@ system {
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `name-server` | leaf-list ip-address | (none) | Static DNS servers. First server used by ze internal resolver. All written to resolv.conf. |
+| `name-server` | leaf-list ip-address | (none) | Static DNS servers. First server used by ze internal resolver. All written to resolv.conf at startup and after every config commit/reload. |
 | `resolv-conf-path` | string | `/tmp/resolv.conf` | Path for resolv.conf output. Default suits gokrazy (read-only rootfs). Empty disables. |
 | `timeout` | uint16 | `5` | Query timeout in seconds. Range: 1-60. |
 | `cache-size` | uint32 | `10000` | Maximum cached entries. 0 disables caching entirely. |

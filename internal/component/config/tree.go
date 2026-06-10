@@ -604,6 +604,9 @@ const (
 	InsertAfter  = "after"
 )
 
+// inactiveValuePrefix marks a deactivated member inside a multi-value list.
+const inactiveValuePrefix = "inactive:"
+
 // syncMultiValueToValueLocked updates the values map to match multiValues for
 // a key. Caller MUST hold t.mu.Lock().
 func (t *Tree) syncMultiValueToValueLocked(name string) {
@@ -654,6 +657,70 @@ func (t *Tree) InsertMultiValue(name, value, position, ref string) error {
 
 	t.syncMultiValueToValueLocked(name)
 	return nil
+}
+
+// AddMultiValueMember appends a member to a leaf-list if not already present
+// (JunOS add-member semantics: each set appends, duplicates are no-ops).
+// A member already present in its deactivated form ("inactive:" prefix) also
+// counts as present — set does not re-activate it. Keeps the scalar values
+// map in sync (joined copy) like InsertMultiValue.
+func (t *Tree) AddMultiValueMember(name, value string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	items := t.multiValues[name]
+	if multiValueIndex(items, value) >= 0 || multiValueIndex(items, inactiveValuePrefix+value) >= 0 {
+		return
+	}
+	t.multiValues[name] = append(items, value)
+	t.syncMultiValueToValueLocked(name)
+}
+
+// HasMultiValueMember reports whether a leaf-list contains a member
+// (in active or deactivated form).
+func (t *Tree) HasMultiValueMember(name, value string) bool {
+	present, _ := t.MultiValueMemberState(name, value)
+	return present
+}
+
+// MultiValueMemberState reports whether a leaf-list member is present and
+// whether it is deactivated. Used by commit-time apply logic to make member
+// operations idempotent (desired state already reached is not an error).
+func (t *Tree) MultiValueMemberState(name, value string) (present, inactive bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	items := t.multiValues[name]
+	if multiValueIndex(items, value) >= 0 {
+		return true, false
+	}
+	if multiValueIndex(items, inactiveValuePrefix+value) >= 0 {
+		return true, true
+	}
+	return false, false
+}
+
+// RemoveMultiValueMember removes one member from a leaf-list (active or
+// deactivated form). Returns false if the member is not present.
+// Keeps the scalar values map in sync; removing the last member clears
+// both maps.
+func (t *Tree) RemoveMultiValueMember(name, value string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	items := t.multiValues[name]
+	idx := multiValueIndex(items, value)
+	if idx < 0 {
+		idx = multiValueIndex(items, inactiveValuePrefix+value)
+	}
+	if idx < 0 {
+		return false
+	}
+	t.multiValues[name] = append(items[:idx], items[idx+1:]...)
+	if len(t.multiValues[name]) == 0 {
+		delete(t.multiValues, name)
+	}
+	t.syncMultiValueToValueLocked(name)
+	return true
 }
 
 // DeactivateMultiValue adds "inactive:" prefix to a value in a multi-value list.

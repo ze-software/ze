@@ -28,6 +28,12 @@ type MetaEntry struct {
 	Time     time.Time // Session start time. Serialized as %ISO8601. Same for all edits in a session.
 	Previous string    // Value from config.conf before this session's change.
 	Value    string    // The value this session set (for contested leaves in draft).
+
+	// Member marks a leaf-list member operation (add-member when Value is the
+	// member, delete-member when Value is empty). Empty for scalar leaves.
+	// Not serialized as its own token: it is derived from the line shape
+	// (`set <path> <member>` / `delete <path> <member>` on a leaf-list node).
+	Member string
 }
 
 // SessionKey returns the grouping key for concurrent editing.
@@ -76,8 +82,10 @@ func NewMetaTree() *MetaTree {
 }
 
 // SetEntry stores metadata for a leaf at the given name.
-// If an entry from the same session exists, it is replaced.
-// Entries from different sessions are preserved (for live conflict detection).
+// If an entry from the same session for the same leaf-list member exists,
+// it is replaced (scalar leaves have Member == "", so scalar entries keep
+// plain replace-by-session semantics). Entries from different sessions, and
+// entries for different members of the same leaf-list, are preserved.
 func (mt *MetaTree) SetEntry(name string, entry MetaEntry) {
 	mt.mu.Lock()
 	defer mt.mu.Unlock()
@@ -86,8 +94,8 @@ func (mt *MetaTree) SetEntry(name string, entry MetaEntry) {
 	var updated []MetaEntry
 	replaced := false
 	for _, e := range existing {
-		if e.SessionKey() == entry.SessionKey() {
-			// Replace same-session entry (including sessionless overwrites).
+		if e.SessionKey() == entry.SessionKey() && e.Member == entry.Member {
+			// Replace same-session, same-member entry (including sessionless overwrites).
 			updated = append(updated, entry)
 			replaced = true
 		} else {

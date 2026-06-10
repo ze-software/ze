@@ -99,6 +99,12 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		}
 	}
 	for _, se := range myEntries {
+		// Leaf-list member operations are idempotent and commutative:
+		// adding or removing one member never contests the whole leaf,
+		// so they skip stale detection (AC-7).
+		if se.Entry.Member != "" {
+			continue
+		}
 		pathParts := strings.Fields(se.Path)
 		myValue := se.Entry.Value
 
@@ -123,23 +129,16 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 
 	// No conflicts: apply my changes to committed tree.
 	if err := applyStructuralOps(committedTree, e.schema, myOps, false); err != nil {
-		return nil, fmt.Errorf("apply rename: %w", err)
+		return nil, fmt.Errorf("apply structural ops: %w", err)
 	}
 	applied := len(myOps)
 	for _, se := range myEntries {
 		pathParts := strings.Fields(se.Path)
-		value := se.Entry.Value
 		if len(pathParts) > 0 {
 			leafName := pathParts[len(pathParts)-1]
 			parentPath := pathParts[:len(pathParts)-1]
-			target, walkErr := e.walkOrCreateIn(committedTree, parentPath)
-			if walkErr != nil {
+			if err := e.applySessionEntryToTree(committedTree, parentPath, leafName, se.Entry); err != nil {
 				continue
-			}
-			if value != "" {
-				target.Set(leafName, value)
-			} else {
-				target.Delete(leafName)
 			}
 			applied++
 		}
@@ -278,6 +277,10 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 		}
 	}
 	for _, se := range myEntries {
+		// Member operations skip stale detection; see CommitSession.
+		if se.Entry.Member != "" {
+			continue
+		}
 		pathParts := strings.Fields(se.Path)
 		myValue := se.Entry.Value
 
@@ -301,23 +304,16 @@ func (e *Editor) CommitSessionCandidate(stamp time.Time) (*CommitResult, string,
 	}
 
 	if err := applyStructuralOps(committedTree, e.schema, myOps, false); err != nil {
-		return nil, "", fmt.Errorf("apply rename: %w", err)
+		return nil, "", fmt.Errorf("apply structural ops: %w", err)
 	}
 	applied := len(myOps)
 	for _, se := range myEntries {
 		pathParts := strings.Fields(se.Path)
-		value := se.Entry.Value
 		if len(pathParts) > 0 {
 			leafName := pathParts[len(pathParts)-1]
 			parentPath := pathParts[:len(pathParts)-1]
-			target, walkErr := e.walkOrCreateIn(committedTree, parentPath)
-			if walkErr != nil {
+			if err := e.applySessionEntryToTree(committedTree, parentPath, leafName, se.Entry); err != nil {
 				continue
-			}
-			if value != "" {
-				target.Set(leafName, value)
-			} else {
-				target.Delete(leafName)
 			}
 			applied++
 		}
@@ -460,7 +456,7 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 	if pathPrefix != "" {
 		_, changeMeta, changeOps := e.readChangeFile(guard, changePath)
 		if err := applyStructuralOps(baseTree, e.schema, changeOps, true); err != nil {
-			return fmt.Errorf("discard apply rename: %w", err)
+			return fmt.Errorf("discard apply structural ops: %w", err)
 		}
 		if err := applyStructuralOpsToMeta(baseMeta, e.schema, changeOps, true); err != nil {
 			return fmt.Errorf("discard apply rename meta: %w", err)
@@ -473,17 +469,7 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 				}
 				leafName := pathParts[len(pathParts)-1]
 				parentPath := pathParts[:len(pathParts)-1]
-				if se.Entry.Value != "" {
-					target, walkErr := e.walkOrCreateIn(baseTree, parentPath)
-					if walkErr == nil {
-						target.Set(leafName, se.Entry.Value)
-					}
-				} else {
-					// Delete operation: remove leaf from base tree.
-					if target := walkPath(baseTree, e.schema, parentPath); target != nil {
-						target.Delete(leafName)
-					}
-				}
+				_ = e.applySessionEntryToTree(baseTree, parentPath, leafName, se.Entry) // best-effort replay, mirrors the old walk-error tolerance
 				metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
 				metaTarget.SetEntry(leafName, se.Entry)
 			}
@@ -644,8 +630,11 @@ func buildCommitMeta(existingMeta, draftMeta *config.MetaTree, myEntries []confi
 
 	// For each committed entry, record user and time (no session, no previous).
 	// This overwrites any prior metadata for leaves this session changed.
-	// For deletes (Value=""), remove any existing metadata instead of creating
-	// a tombstone -- deleted leaves don't need metadata in the committed config.
+	// For whole-leaf deletes (Value="" and no member), remove any existing
+	// metadata instead of creating a tombstone -- deleted leaves don't need
+	// metadata in the committed config. Member operations (add or remove of
+	// one leaf-list member) annotate the leaf like a set: the leaf still
+	// exists with its remaining members.
 	for _, se := range myEntries {
 		pathParts := strings.Fields(se.Path)
 		if len(pathParts) == 0 {
@@ -654,7 +643,7 @@ func buildCommitMeta(existingMeta, draftMeta *config.MetaTree, myEntries []confi
 		leafName := pathParts[len(pathParts)-1]
 		parentPath := pathParts[:len(pathParts)-1]
 		target := walkOrCreateMeta(commitMeta, schema, parentPath)
-		if se.Entry.Value == "" {
+		if se.Entry.Value == "" && se.Entry.Member == "" {
 			// Delete: remove all metadata for this leaf (not a tombstone).
 			target.RemoveEntry(leafName)
 		} else {

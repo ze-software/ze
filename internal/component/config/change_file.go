@@ -23,6 +23,12 @@ const (
 	ChangeFileDeleteEntryToken = "delete-entry"
 	// ChangeFileDeleteContainerToken identifies a container delete structural op line.
 	ChangeFileDeleteContainerToken = "delete-container"
+	// ChangeFileInsertMemberToken identifies a leaf-list positional insert op line.
+	ChangeFileInsertMemberToken = "insert-member"
+	// ChangeFileDeactivateMemberToken identifies a leaf-list member deactivation op line.
+	ChangeFileDeactivateMemberToken = "deactivate-member"
+	// ChangeFileActivateMemberToken identifies a leaf-list member activation op line.
+	ChangeFileActivateMemberToken = "activate-member"
 )
 
 // StructuralOpType identifies the kind of structural op stored in a change file.
@@ -35,19 +41,33 @@ const (
 	StructuralOpDeleteEntry StructuralOpType = ChangeFileDeleteEntryToken
 	// StructuralOpDeleteContainer removes a container.
 	StructuralOpDeleteContainer StructuralOpType = ChangeFileDeleteContainerToken
+	// StructuralOpInsertMember inserts a leaf-list member at a position
+	// (first/last/before/after). Recorded as a structural op — not a plain
+	// add-member metadata entry — so the position is applied exactly at
+	// commit time instead of degrading to append.
+	StructuralOpInsertMember StructuralOpType = ChangeFileInsertMemberToken
+	// StructuralOpDeactivateMember marks one leaf-list member inactive in place.
+	StructuralOpDeactivateMember StructuralOpType = ChangeFileDeactivateMemberToken
+	// StructuralOpActivateMember clears a member's inactive marker in place.
+	StructuralOpActivateMember StructuralOpType = ChangeFileActivateMemberToken
 )
 
 // PendingChangeKind identifies the operator-visible type of a pending change.
 type PendingChangeKind string
 
 const (
-	PendingChangeSet    PendingChangeKind = "set"
-	PendingChangeDelete PendingChangeKind = "delete"
-	PendingChangeRename PendingChangeKind = "rename"
+	PendingChangeSet        PendingChangeKind = "set"
+	PendingChangeDelete     PendingChangeKind = "delete"
+	PendingChangeRename     PendingChangeKind = "rename"
+	PendingChangeDeactivate PendingChangeKind = "deactivate"
+	PendingChangeActivate   PendingChangeKind = "activate"
 )
 
 // PendingChange is the unified pending-change view used by session diff/count code.
 // Leaf changes use Path/Previous/Value. Renames use OldPath/NewPath.
+// Member is set for leaf-list member operations (add when Value non-empty,
+// remove when Value empty); members of the same leaf-list are independent
+// changes, not contested values.
 type PendingChange struct {
 	SessionID string
 	Kind      PendingChangeKind
@@ -56,9 +76,14 @@ type PendingChange struct {
 	Value     string
 	OldPath   string
 	NewPath   string
+	Member    string
 }
 
 // StructuralOp records a structural change in a per-user change file.
+// Field use by type: rename uses ListName/OldKey/NewKey; delete-entry and
+// delete-container use ListName/OldKey; the leaf-list member ops use
+// ListName (leaf name) and NewKey (member), with insert-member also using
+// Position and OldKey (the before/after reference member).
 type StructuralOp struct {
 	Type       StructuralOpType
 	User       string
@@ -68,6 +93,7 @@ type StructuralOp struct {
 	ListName   string
 	OldKey     string
 	NewKey     string
+	Position   string
 }
 
 // SessionKey returns the stable per-session identifier for the op.
@@ -76,10 +102,24 @@ func (op StructuralOp) SessionKey() string {
 	return entry.SessionKey()
 }
 
+// isMemberOp reports whether the op targets one leaf-list member.
+func (op StructuralOp) isMemberOp() bool {
+	switch op.Type {
+	case StructuralOpInsertMember, StructuralOpDeactivateMember, StructuralOpActivateMember:
+		return true
+	case StructuralOpRename, StructuralOpDeleteEntry, StructuralOpDeleteContainer:
+		return false
+	}
+	return false
+}
+
 // SourcePath returns the full YANG path to the original list entry.
 func (op StructuralOp) SourcePath() string {
 	if op.Type == StructuralOpDeleteContainer {
 		return joinChangePath(op.ParentPath, op.ListName)
+	}
+	if op.isMemberOp() {
+		return joinChangePath(op.ParentPath, op.ListName, op.NewKey)
 	}
 	return joinChangePath(op.ParentPath, op.ListName, op.OldKey)
 }
@@ -100,6 +140,31 @@ func (op StructuralOp) PendingChange() PendingChange {
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeDelete,
 			Path:      op.SourcePath(),
+		}
+	case StructuralOpInsertMember:
+		return PendingChange{
+			SessionID: op.SessionKey(),
+			Kind:      PendingChangeSet,
+			Path:      joinChangePath(op.ParentPath, op.ListName),
+			Value:     op.NewKey,
+			Member:    op.NewKey,
+		}
+	case StructuralOpDeactivateMember:
+		// Value stays empty: a deactivation conflicts with a concurrent set
+		// or activation of the same member (which carry Value=member).
+		return PendingChange{
+			SessionID: op.SessionKey(),
+			Kind:      PendingChangeDeactivate,
+			Path:      joinChangePath(op.ParentPath, op.ListName),
+			Member:    op.NewKey,
+		}
+	case StructuralOpActivateMember:
+		return PendingChange{
+			SessionID: op.SessionKey(),
+			Kind:      PendingChangeActivate,
+			Path:      joinChangePath(op.ParentPath, op.ListName),
+			Value:     op.NewKey,
+			Member:    op.NewKey,
 		}
 	default:
 		return PendingChange{
@@ -130,7 +195,11 @@ func (pc PendingChange) Summary() string {
 	var tb textbuf.Buffer
 	switch pc.Kind {
 	case PendingChangeDelete:
-		return tb.Str("delete ").Str(pc.Path).String()
+		tb.Str("delete ").Str(pc.Path)
+		if pc.Member != "" {
+			tb.Byte(' ').Str(pc.Member)
+		}
+		return tb.String()
 	case PendingChangeRename:
 		return tb.Str("rename ").Str(pc.OldPath).Str(" to ").Str(pc.NewPath).String()
 	default:
@@ -151,6 +220,7 @@ func PendingChangeFromSessionEntry(se SessionEntry) PendingChange {
 		Path:      se.Path,
 		Previous:  se.Entry.Previous,
 		Value:     se.Entry.Value,
+		Member:    se.Entry.Member,
 	}
 }
 
@@ -346,6 +416,15 @@ func parseStructuralOp(lineNum int, entry MetaEntry, cmdLine string) (Structural
 	case ChangeFileDeleteContainerToken:
 		op, err := parseDeleteContainerLine(lineNum, entry, cmdLine)
 		return op, err, true
+	case ChangeFileInsertMemberToken:
+		op, err := parseInsertMemberLine(lineNum, entry, cmdLine)
+		return op, err, true
+	case ChangeFileDeactivateMemberToken:
+		op, err := parseMemberToggleLine(lineNum, entry, cmdLine, StructuralOpDeactivateMember)
+		return op, err, true
+	case ChangeFileActivateMemberToken:
+		op, err := parseMemberToggleLine(lineNum, entry, cmdLine, StructuralOpActivateMember)
+		return op, err, true
 	}
 	return StructuralOp{}, nil, false
 }
@@ -357,9 +436,111 @@ func formatStructuralLine(op StructuralOp) string {
 		return formatDeleteEntryLine(op)
 	case StructuralOpDeleteContainer:
 		return formatDeleteContainerLine(op)
+	case StructuralOpInsertMember:
+		return formatInsertMemberLine(op)
+	case StructuralOpDeactivateMember, StructuralOpActivateMember:
+		return formatMemberToggleLine(op)
 	default:
 		return formatRenameLine(op)
 	}
+}
+
+// parseInsertMemberLine parses a positional leaf-list insert op line.
+// Form: insert-member <parent-path> <leaf> <member> first|last
+// or:   insert-member <parent-path> <leaf> <member> before|after <ref>
+func parseInsertMemberLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp, error) {
+	tokens := strings.Fields(cmdLine)
+	if entry.User == "" {
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires #user metadata", lineNum, ChangeFileInsertMemberToken)
+	}
+
+	op := StructuralOp{
+		Type:   StructuralOpInsertMember,
+		User:   entry.User,
+		Source: entry.Source,
+		Time:   entry.Time,
+	}
+	var rest []string
+	last := tokens[len(tokens)-1]
+	switch {
+	case len(tokens) >= 4 && (last == InsertFirst || last == InsertLast):
+		op.Position = last
+		rest = tokens[1 : len(tokens)-1]
+	case len(tokens) >= 5 && (tokens[len(tokens)-2] == InsertBefore || tokens[len(tokens)-2] == InsertAfter):
+		op.Position = tokens[len(tokens)-2]
+		op.OldKey = last
+		rest = tokens[1 : len(tokens)-2]
+	default:
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires <parent-path> <leaf> <member> first|last|before <ref>|after <ref>", lineNum, ChangeFileInsertMemberToken)
+	}
+	if len(rest) < 2 {
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires a leaf name and a member", lineNum, ChangeFileInsertMemberToken)
+	}
+	op.NewKey = rest[len(rest)-1]
+	op.ListName = rest[len(rest)-2]
+	op.ParentPath = textbuf.Join(rest[:len(rest)-2], " ")
+	return op, nil
+}
+
+// parseMemberToggleLine parses a deactivate-member or activate-member op line.
+// Form: <token> <parent-path> <leaf> <member>.
+func parseMemberToggleLine(lineNum int, entry MetaEntry, cmdLine string, opType StructuralOpType) (StructuralOp, error) {
+	tokens := strings.Fields(cmdLine)
+	if len(tokens) < 3 {
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires <leaf> <member>", lineNum, tokens[0])
+	}
+	if entry.User == "" {
+		return StructuralOp{}, fmt.Errorf("line %d: %s requires #user metadata", lineNum, tokens[0])
+	}
+	return StructuralOp{
+		Type:       opType,
+		User:       entry.User,
+		Source:     entry.Source,
+		Time:       entry.Time,
+		ParentPath: textbuf.Join(tokens[1:len(tokens)-2], " "),
+		ListName:   tokens[len(tokens)-2],
+		NewKey:     tokens[len(tokens)-1],
+	}, nil
+}
+
+func formatInsertMemberLine(op StructuralOp) string {
+	var b textbuf.Buffer
+	writeMetaPrefix(&b, MetaEntry{User: op.User, Source: op.Source, Time: op.Time})
+	b.Str(ChangeFileInsertMemberToken)
+	b.Byte(' ')
+	if op.ParentPath != "" {
+		b.Str(op.ParentPath)
+		b.Byte(' ')
+	}
+	b.Str(op.ListName)
+	b.Byte(' ')
+	b.Str(op.NewKey)
+	b.Byte(' ')
+	b.Str(op.Position)
+	if op.OldKey != "" {
+		b.Byte(' ')
+		b.Str(op.OldKey)
+	}
+	return b.String()
+}
+
+func formatMemberToggleLine(op StructuralOp) string {
+	var b textbuf.Buffer
+	writeMetaPrefix(&b, MetaEntry{User: op.User, Source: op.Source, Time: op.Time})
+	if op.Type == StructuralOpActivateMember {
+		b.Str(ChangeFileActivateMemberToken)
+	} else {
+		b.Str(ChangeFileDeactivateMemberToken)
+	}
+	b.Byte(' ')
+	if op.ParentPath != "" {
+		b.Str(op.ParentPath)
+		b.Byte(' ')
+	}
+	b.Str(op.ListName)
+	b.Byte(' ')
+	b.Str(op.NewKey)
+	return b.String()
 }
 
 // parseDeleteEntryLine parses a delete-entry structural op line.

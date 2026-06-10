@@ -5,6 +5,7 @@ package hub
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -14,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	pingcmd "codeberg.org/thomas-mangin/ze/internal/component/ping/cmd"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
@@ -21,10 +23,32 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
+// newSessionEditor builds the storage-backed editor for one SSH session:
+// validated user, session identity, and — when a reload function is given —
+// the reload notifier. The notifier is what routes `commit` through the
+// transactional CommitSessionCandidate + NotifyReload path so a session
+// commit reaches the running daemons instead of only writing config.conf.
+func newSessionEditor(store storage.Storage, configPath, username string, reloadFn func() error) (*cli.Editor, error) {
+	if err := cli.ValidateUser(username); err != nil {
+		return nil, fmt.Errorf("invalid username: %w", err)
+	}
+	ed, err := cli.NewEditorWithStorage(store, configPath)
+	if err != nil {
+		return nil, err
+	}
+	ed.SetSession(cli.NewEditSession(username, "ssh"))
+	if reloadFn != nil {
+		ed.SetReloadNotifier(reloadFn)
+	}
+	return ed, nil
+}
+
 // buildSessionModelFactory creates a SessionModelFactory that produces bubbletea
 // models for SSH sessions. This is the logic formerly in ssh/session.go's
 // createSessionModel, moved here to decouple ssh from cli.
-func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParams, recorder audit.Recorder) contract.SessionModelFactory {
+// reloadFn is wired into every session editor as the reload notifier
+// (see newSessionEditor); nil leaves commits non-transactional.
+func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParams, recorder audit.Recorder, reloadFn func() error) contract.SessionModelFactory {
 	log := slogutil.Logger("hub.session")
 
 	return func(username, remoteAddr string) tea.Model {
@@ -47,15 +71,10 @@ func buildSessionModelFactory(srv *zessh.Server, params bgpconfig.InfraHookParam
 
 		// Try to create editor-capable model.
 		if params.ConfigPath != "" && params.Store != nil {
-			ed, err := cli.NewEditorWithStorage(params.Store, params.ConfigPath)
+			ed, err := newSessionEditor(params.Store, params.ConfigPath, username, reloadFn)
 			if err != nil {
 				log.Warn("session editor creation failed", "user", username, "error", err)
-			} else if err := cli.ValidateUser(username); err != nil {
-				log.Warn("session invalid username", "user", username, "error", err)
 			} else {
-				session := cli.NewEditSession(username, "ssh")
-				ed.SetSession(session)
-
 				m, modelErr := cli.NewModel(ed)
 				if modelErr != nil {
 					log.Warn("session model creation failed", "user", username, "error", modelErr)

@@ -280,6 +280,41 @@ YANG constructs map to CLI syntax as follows:
 | `presence container` | `foo` (no value, enables) |
 | `leaf { type empty }` | `foo` (flag, no value) |
 
+### Leaf-List Editing Semantics
+
+Plain leaf-lists (`leaf-list` without `ze:syntax`, compiled to
+`ValueOrArrayNode`) use JunOS-style member operations in every editing mode:
+
+| Command | Effect |
+|---------|--------|
+| `set <path> <member>` | Adds one member (idempotent; never replaces the list) |
+| `delete <path> <member>` | Removes one member |
+| `delete <path>` | Removes the whole leaf-list |
+| `insert <path> <member> first\|last\|before <ref>\|after <ref>` | Adds at an exact position |
+| `deactivate <path> <member>` / `activate <path> <member>` | Toggles one member in place |
+
+**Invariant: leaf-list nodes MUST use the multi-value Tree API
+(`AddMultiValueMember`, `RemoveMultiValueMember`, `SetSlice`,
+`InsertMultiValue`) in every write and apply path.** Every serializer reads
+the multi-value store; a value stored through the scalar `Set` is silently
+dropped on the next serialize. The scalar map only carries a joined copy,
+synchronized by the multi-value API for `Get()` callers.
+<!-- source: internal/component/config/tree.go -- AddMultiValueMember, RemoveMultiValueMember -->
+<!-- source: internal/component/config/setparser.go -- walkAndSet ValueOrArrayNode member merge -->
+
+Session change tracking is per-member: each add or remove records one
+metadata entry with `MetaEntry.Member` set, so concurrent sessions adding
+different members never conflict, and commit applies each member operation
+idempotently. Ordered operations (insert position, deactivate, activate) are
+recorded as structural ops (`insert-member`, `deactivate-member`,
+`activate-member`) so the exact position survives the change-file → draft →
+commit chain. Deactivated members serialize as an `inactive <path> <member>`
+line — never as a raw `inactive:` item, which would fail item validation on
+reparse.
+<!-- source: internal/component/config/meta.go -- MetaEntry.Member -->
+<!-- source: internal/component/config/change_file.go -- StructuralOpInsertMember -->
+<!-- source: internal/component/config/serialize_set.go -- writeLeafListMemberLines, emitInactiveMemberLines -->
+
 ### CLI Help from YANG
 
 Leaf descriptions and type constraints generate help text:

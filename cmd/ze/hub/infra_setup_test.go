@@ -37,7 +37,7 @@ func TestInfraSetupWiresSessionModelFactory(t *testing.T) {
 		},
 	}
 
-	sshSrv := infraSetup(params, nil)
+	sshSrv := infraSetup(params, nil, nil)
 	require.NotNil(t, sshSrv, "infraSetup should return a running SSH server")
 	assert.True(t, sshSrv.HasSessionModelFactory(),
 		"session model factory must be set for interactive SSH sessions to work")

@@ -207,6 +207,7 @@ func doReload(s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider,
 	applyConntrackFromMap(newTree, s)
 	applyUpdateCheckerFromMap(newTree)
 	applyArchiveSchedulerFromMap(s.ConfigPath(), s)
+	applyResolvConf(parsedTree)
 	reloadSmartManager(parsedTree)
 
 	if candidateSet {

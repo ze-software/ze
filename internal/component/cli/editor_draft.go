@@ -350,7 +350,7 @@ func (e *Editor) SaveDraft() error {
 	baseTree, baseMeta := e.readDraftOrConfig(guard, draftPath)
 
 	if err := applyStructuralOps(baseTree, e.schema, myOps, true); err != nil {
-		return fmt.Errorf("save apply rename: %w", err)
+		return fmt.Errorf("save apply structural ops: %w", err)
 	}
 	if err := applyStructuralOpsToMeta(baseMeta, e.schema, myOps, true); err != nil {
 		return fmt.Errorf("save apply rename meta: %w", err)
@@ -365,17 +365,8 @@ func (e *Editor) SaveDraft() error {
 		leafName := pathParts[len(pathParts)-1]
 		parentPath := pathParts[:len(pathParts)-1]
 
-		if se.Entry.Value != "" {
-			target, walkErr := e.walkOrCreateIn(baseTree, parentPath)
-			if walkErr != nil {
-				return fmt.Errorf("save apply %s: %w", se.Path, walkErr)
-			}
-			target.Set(leafName, se.Entry.Value)
-		} else {
-			target := walkPath(baseTree, e.schema, parentPath)
-			if target != nil {
-				target.Delete(leafName)
-			}
+		if err := e.applySessionEntryToTree(baseTree, parentPath, leafName, se.Entry); err != nil {
+			return fmt.Errorf("save apply %s: %w", se.Path, err)
 		}
 
 		// Record metadata in draft.
@@ -468,9 +459,60 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 				return fmt.Errorf("path not found: %s", ops[i].ParentPath)
 			}
 			target.DeleteContainer(ops[i].ListName)
+		case config.StructuralOpInsertMember, config.StructuralOpDeactivateMember, config.StructuralOpActivateMember:
+			if err := applyMemberOp(tree, schema, ops[i], allowAlreadyApplied); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
 		}
+	}
+	return nil
+}
+
+// applyMemberOp applies one leaf-list member structural op. Desired state
+// already reached (member present for insert, already inactive for
+// deactivate, already active for activate) is treated as success so draft
+// replays and concurrent idempotent sessions do not fail the apply.
+func applyMemberOp(tree *config.Tree, schema *config.Schema, op config.StructuralOp, allowAlreadyApplied bool) error {
+	parentPath := strings.Fields(op.ParentPath)
+	target := walkPath(tree, schema, parentPath)
+	if target == nil {
+		if allowAlreadyApplied {
+			return nil
+		}
+		return fmt.Errorf("path not found: %s", op.ParentPath)
+	}
+
+	present, inactive := target.MultiValueMemberState(op.ListName, op.NewKey)
+	switch op.Type { //nolint:exhaustive // callers dispatch only member op types here
+	case config.StructuralOpInsertMember:
+		if present {
+			return nil
+		}
+		return target.InsertMultiValue(op.ListName, op.NewKey, op.Position, op.OldKey)
+	case config.StructuralOpDeactivateMember:
+		if present && inactive {
+			return nil
+		}
+		if !present {
+			if allowAlreadyApplied {
+				return nil
+			}
+			return fmt.Errorf("%q not found in %s", op.NewKey, op.ListName)
+		}
+		return target.DeactivateMultiValue(op.ListName, op.NewKey)
+	case config.StructuralOpActivateMember:
+		if present && !inactive {
+			return nil
+		}
+		if !present {
+			if allowAlreadyApplied {
+				return nil
+			}
+			return fmt.Errorf("%q not found in %s", op.NewKey, op.ListName)
+		}
+		return target.ActivateMultiValue(op.ListName, op.NewKey)
 	}
 	return nil
 }
@@ -505,6 +547,10 @@ func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops 
 				continue
 			}
 			target.DeleteMetaContainer(ops[i].ListName)
+		case config.StructuralOpInsertMember, config.StructuralOpDeactivateMember, config.StructuralOpActivateMember:
+			// Member ops reorder or toggle values inside one leaf; the
+			// metadata tree structure is unaffected.
+			continue
 		default:
 			return fmt.Errorf("unsupported structural op %q", ops[i].Type)
 		}
@@ -599,7 +645,22 @@ func (e *Editor) DetectConflicts() []Conflict {
 
 func pendingChangesConflict(a, b config.PendingChange) bool {
 	if a.Kind != config.PendingChangeRename && b.Kind != config.PendingChangeRename {
-		return a.Path == b.Path && a.Value != b.Value
+		if a.Path != b.Path {
+			return false
+		}
+		if a.Member != "" || b.Member != "" {
+			if a.Member != "" && b.Member != "" {
+				// Leaf-list members are independent changes: two sessions
+				// touching different members never conflict; the same member
+				// conflicts only when one session sets it and the other
+				// deletes it (Value empty = delete intent).
+				return a.Member == b.Member && a.Value != b.Value
+			}
+			// A member operation against a whole-leaf operation (delete of
+			// the entire leaf-list) on the same path always conflicts.
+			return true
+		}
+		return a.Value != b.Value
 	}
 	for _, aPath := range a.ConflictPaths() {
 		for _, bPath := range b.ConflictPaths() {
@@ -777,6 +838,7 @@ func (e *Editor) AdoptSession(oldSessionID string) error {
 			Time:     e.session.StartTime,
 			Previous: se.Entry.Previous,
 			Value:    se.Entry.Value,
+			Member:   se.Entry.Member,
 		})
 	}
 

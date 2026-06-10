@@ -246,15 +246,16 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
 		}
-		for _, item := range bracketItems(tokens) {
-			if valueOrArray.ValidValues != nil && !containsString(valueOrArray.ValidValues, item) {
-				return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, textbuf.Join(valueOrArray.ValidValues, ", "))
-			}
-			if err := validateValuePatterns(valueOrArray.Type, valueOrArray.Patterns, item); err != nil {
-				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
-			}
+		items := bracketItems(tokens)
+		if err := validateValueOrArrayItems(valueOrArray, name, items, lineNum); err != nil {
+			return err
 		}
-		tree.Set(name, parseBracketValue(tokens))
+		// Add-member merge: each line appends missing members (JunOS set
+		// semantics); members land in the multi-value store the serializers
+		// read, with the scalar map kept in sync for Get() callers.
+		for _, item := range items {
+			tree.AddMultiValueMember(name, item)
+		}
 		return nil
 	}
 
@@ -469,6 +470,12 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
 	}
 
+	// Leaf-list member delete: `delete <path> <member>` removes one member.
+	if _, ok := node.(*ValueOrArrayNode); ok && len(tokens) == 1 {
+		tree.RemoveMultiValueMember(name, tokens[0])
+		return nil
+	}
+
 	// Leaf-like types: delete the value directly.
 	if isLeafLike(node) {
 		if len(tokens) != 0 {
@@ -526,6 +533,21 @@ func isLeafLike(node Node) bool {
 		return true
 	}
 	return false
+}
+
+// validateValueOrArrayItems checks every leaf-list item against the node's
+// enum values and type patterns. Shared by the plain and metadata-aware
+// set parsers.
+func validateValueOrArrayItems(node *ValueOrArrayNode, name string, items []string, lineNum int) error {
+	for _, item := range items {
+		if node.ValidValues != nil && !containsString(node.ValidValues, item) {
+			return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, textbuf.Join(node.ValidValues, ", "))
+		}
+		if err := validateValuePatterns(node.Type, node.Patterns, item); err != nil {
+			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+		}
+	}
+	return nil
 }
 
 // deleteFromList handles delete for ListNode (entire list, entry, or field within entry).
@@ -591,9 +613,16 @@ func (p *SetParser) deleteFromInlineList(tree *Tree, il *InlineListNode, name st
 	return p.walkAndDelete(entry, il, tokens, lineNum)
 }
 
-// Delete removes a leaf value and its insertion-order entry.
+// Delete removes a leaf value, its multi-value members, and its
+// insertion-order entry. Clearing multiValues matters for leaf-lists: the
+// serializers read the multi-value store, so leaving it populated would
+// resurrect a deleted leaf-list on the next serialize.
 // No-op if the key does not exist.
 func (t *Tree) Delete(name string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	delete(t.multiValues, name)
 	if _, exists := t.values[name]; !exists {
 		return
 	}

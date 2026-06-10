@@ -751,7 +751,8 @@ func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
 	addEntries := func(entries []config.SessionEntry) {
 		for _, entry := range entries {
 			var tb textbuf.Buffer
-			key := tb.Str(entry.Entry.SessionKey()).Byte('|').Str(entry.Path).String()
+			// Member distinguishes per-member leaf-list entries that share a path.
+			key := tb.Str(entry.Entry.SessionKey()).Byte('|').Str(entry.Path).Byte('|').Str(entry.Entry.Member).String()
 			if seen[key] {
 				continue
 			}
@@ -898,7 +899,13 @@ func pendingChangeKey(change config.PendingChange) string {
 	case config.PendingChangeRename:
 		return tb.Str(change.SessionID).Str("|rename|").Str(change.OldPath).Byte('|').Str(change.NewPath).String()
 	default:
-		return tb.Str(change.SessionID).Byte('|').Str(string(change.Kind)).Byte('|').Str(change.Path).String()
+		tb.Str(change.SessionID).Byte('|').Str(string(change.Kind)).Byte('|').Str(change.Path)
+		if change.Member != "" {
+			// Each leaf-list member is its own pending change; without the
+			// member in the key, a second member would dedupe into the first.
+			tb.Byte('|').Str(change.Member)
+		}
+		return tb.String()
 	}
 }
 

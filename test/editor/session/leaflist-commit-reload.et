@@ -1,0 +1,38 @@
+# Test: Session leaf-list commit takes the transactional path and reloads
+# VALIDATES: spec-session-commit-apply AC-10: with a reload notifier wired
+#            (as the SSH session factory now does), a leaf-list commit reports
+#            "and reloaded" — proof it took CommitSessionCandidate + NotifyReload
+# PREVENTS: session commits silently writing config.conf without daemon reload
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=reload:mode=success
+option=session:user=thomas:origin=ssh
+
+# Set a leaf-list member
+input=type:text=set system name-server 8.8.8.8
+input=enter
+expect=error:none
+
+# Commit must apply AND reload
+input=type:text=commit
+input=enter
+expect=error:none
+expect=status:contains=1 change(s) applied and reloaded
+
+# The editor's committed view holds the member. The on-disk promotion is the
+# daemon's job (doReload promotes the candidate); the mock reload notifier
+# does not promote, so the file itself is asserted by the unit test
+# TestCommitSessionCandidateAppliesLeafList and the QEMU daemon-effect test.
+expect=content:contains=8.8.8.8

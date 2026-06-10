@@ -58,9 +58,19 @@ func (m *Model) cmdShowChanges(args []string) (commandResult, error) {
 func formatChangeEntry(b *textbuf.Buffer, change config.PendingChange) {
 	switch change.Kind {
 	case config.PendingChangeDelete:
-		b.Str("  - delete ").Str(change.Path).Str("  (was: ").Str(change.Previous).Str(")\n")
+		b.Str("  - delete ").Str(change.Path)
+		if change.Member != "" {
+			b.Byte(' ').Str(change.Member)
+			b.Str("\n")
+			return
+		}
+		b.Str("  (was: ").Str(change.Previous).Str(")\n")
 	case config.PendingChangeRename:
 		b.Str("  ~ rename ").Str(change.OldPath).Str(" to ").Str(change.NewPath).Byte('\n')
+	case config.PendingChangeDeactivate:
+		b.Str("  ~ deactivate ").Str(change.Path).Byte(' ').Str(change.Member).Byte('\n')
+	case config.PendingChangeActivate:
+		b.Str("  ~ activate ").Str(change.Path).Byte(' ').Str(change.Member).Byte('\n')
 	default:
 		marker := byte('+')
 		annotation := "(new)"

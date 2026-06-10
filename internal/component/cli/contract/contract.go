@@ -94,12 +94,16 @@ type SessionChange struct {
 type PendingChangeKind string
 
 const (
-	PendingChangeSet    PendingChangeKind = "set"
-	PendingChangeDelete PendingChangeKind = "delete"
-	PendingChangeRename PendingChangeKind = "rename"
+	PendingChangeSet        PendingChangeKind = "set"
+	PendingChangeDelete     PendingChangeKind = "delete"
+	PendingChangeRename     PendingChangeKind = "rename"
+	PendingChangeDeactivate PendingChangeKind = "deactivate"
+	PendingChangeActivate   PendingChangeKind = "activate"
 )
 
 // PendingChange is the unified pending-change view used by web diff/count UI.
+// Member is set for leaf-list member operations (one member added, removed,
+// deactivated, or activated).
 type PendingChange struct {
 	Kind     PendingChangeKind
 	Path     string
@@ -107,6 +111,7 @@ type PendingChange struct {
 	Value    string
 	OldPath  string
 	NewPath  string
+	Member   string
 }
 
 // BackupInfo describes one config backup entry.

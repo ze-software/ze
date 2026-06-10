@@ -103,6 +103,7 @@ func (a *editorAdapter) PendingChanges(sessionID string) []contract.PendingChang
 			Value:    entry.Value,
 			OldPath:  entry.OldPath,
 			NewPath:  entry.NewPath,
+			Member:   entry.Member,
 		}
 	}
 	return changes

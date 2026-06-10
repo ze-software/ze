@@ -212,9 +212,14 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 		}
 		p.recordDeleteMeta(meta, entry, tokens)
 		return nil
+	case cmdInactive:
+		// Inactive declarations describe tree state (deactivated leaves,
+		// containers, or leaf-list members); they carry no authorship
+		// metadata of their own.
+		return p.parseInactive(tree, tokens, lineNum)
 	}
 
-	return fmt.Errorf("line %d: unknown command: %s (expected set/delete)", lineNum, cmd)
+	return fmt.Errorf("line %d: unknown command: %s (expected set/delete/inactive)", lineNum, cmd)
 }
 
 // parseSetWithMeta handles: set <path...> <value> and records metadata along the path.
@@ -300,15 +305,33 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		if len(tokens) == 0 {
 			return nil // structural-only: no value to set
 		}
-		for _, item := range bracketItems(tokens) {
-			if valueOrArray.ValidValues != nil && !containsString(valueOrArray.ValidValues, item) {
-				return fmt.Errorf("line %d: invalid value for %s: %q (valid: %s)", lineNum, name, item, textbuf.Join(valueOrArray.ValidValues, ", "))
-			}
-			if err := validateValuePatterns(valueOrArray.Type, valueOrArray.Patterns, item); err != nil {
-				return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
+		items := bracketItems(tokens)
+		if err := validateValueOrArrayItems(valueOrArray, name, items, lineNum); err != nil {
+			return err
+		}
+		for _, item := range items {
+			tree.AddMultiValueMember(name, item)
+		}
+		if hasMetadata {
+			if entry.Source != "" {
+				// Session line: one entry per member so concurrent sessions
+				// can add/remove independent members without contesting the
+				// whole leaf.
+				for _, item := range items {
+					memberEntry := entry
+					memberEntry.Member = item
+					memberEntry.Value = item
+					meta.SetEntry(name, memberEntry)
+				}
+			} else {
+				// Committed annotation (no @source): one entry for the leaf,
+				// matching the bracket-form line buildCommitMeta writes. No
+				// Value: the tree's member list is the source of truth, and a
+				// joined Value would be re-emitted as one quoted token by the
+				// contested-leaf serializer when annotations accumulate.
+				meta.SetEntry(name, entry)
 			}
 		}
-		setLeafMeta(parseBracketValue(tokens))
 		return nil
 	}
 
@@ -445,6 +468,13 @@ func (p *SetParser) walkAndRecordDeleteMeta(meta *MetaTree, parent Node, entry M
 
 	node := resolveSchemaNode(p.schema, parent, name)
 	if node == nil {
+		return
+	}
+
+	// Leaf-list member delete: record which member the delete targets.
+	if _, ok := node.(*ValueOrArrayNode); ok && len(tokens) == 1 {
+		entry.Member = tokens[0]
+		meta.SetEntry(name, entry)
 		return
 	}
 

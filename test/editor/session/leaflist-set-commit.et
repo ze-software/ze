@@ -1,0 +1,44 @@
+# Test: Session leaf-list set persists through commit
+# VALIDATES: spec-session-commit-apply AC-1: session `set system name-server 8.8.8.8`
+#            stores the member, the change file is non-empty, and commit applies 1 change
+# PREVENTS: leaf-list set reporting "0 change(s) applied" with an empty change file
+#           (value stored in the scalar map while serializers read the multi-value map)
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=ssh
+
+# Initial state clean
+expect=dirty:false
+
+# Set a leaf-list member
+input=type:text=set system name-server 8.8.8.8
+input=enter
+expect=dirty:true
+expect=error:none
+
+# The per-user change file must contain the member (was empty before the fix)
+expect=file:path=test.conf.change.thomas:contains=8.8.8.8
+
+# Commit the change
+input=type:text=commit
+input=enter
+expect=dirty:false
+expect=error:none
+expect=status:contains=1 change(s) applied
+
+# Committed config holds the member; session state is cleaned up
+expect=file:path=test.conf:contains=name-server 8.8.8.8
+expect=file:path=test.conf.change.thomas:absent
+expect=file:path=test.conf.draft:absent

@@ -351,6 +351,40 @@ func walkPath(tree *config.Tree, schema *config.Schema, path []string) *config.T
 	return current
 }
 
+// applySessionEntryToTree applies one session change to a tree: a leaf-list
+// member add/remove when entry.Member is set, otherwise a scalar set/delete.
+// Member operations are idempotent (add merges, remove no-ops when absent).
+// Used by every apply loop (save, both commit paths, discard replay) so the
+// node-kind handling cannot diverge between them.
+func (e *Editor) applySessionEntryToTree(tree *config.Tree, parentPath []string, leafName string, entry config.MetaEntry) error {
+	if entry.Member != "" {
+		if entry.Value != "" {
+			target, walkErr := e.walkOrCreateIn(tree, parentPath)
+			if walkErr != nil {
+				return walkErr
+			}
+			target.AddMultiValueMember(leafName, entry.Member)
+			return nil
+		}
+		if target := walkPath(tree, e.schema, parentPath); target != nil {
+			target.RemoveMultiValueMember(leafName, entry.Member)
+		}
+		return nil
+	}
+	if entry.Value != "" {
+		target, walkErr := e.walkOrCreateIn(tree, parentPath)
+		if walkErr != nil {
+			return walkErr
+		}
+		target.Set(leafName, entry.Value)
+		return nil
+	}
+	if target := walkPath(tree, e.schema, parentPath); target != nil {
+		target.Delete(leafName)
+	}
+	return nil
+}
+
 // getValueAtPath retrieves a leaf value from a tree at the given YANG path.
 func getValueAtPath(tree *config.Tree, schema *config.Schema, pathParts []string) string {
 	if len(pathParts) == 0 {

@@ -421,7 +421,19 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	system.RegisterConntrackManagedKeys()
 	// Register infrastructure hook before engine starts.
 	// The BGP plugin calls this when creating the reactor.
-	setupInfraHook(auditLog)
+	// The session reload function is late-bound: the hook registers here,
+	// but reloadAfterCommit can only be built after the API server and
+	// engine exist. The holder is populated alongside reloadAfterCommit;
+	// SSH commits happen long after startup, so sessions always see it.
+	var sessionReloadHolder atomic.Pointer[func() error]
+	sessionReload := func() error {
+		fn := sessionReloadHolder.Load()
+		if fn == nil {
+			return errors.New("config reload not ready: daemon still starting")
+		}
+		return (*fn)()
+	}
+	setupInfraHook(auditLog, sessionReload)
 	coordinator := zePlugin.NewCoordinator(configTree)
 
 	// Store config state for the BGP plugin's reactor factory.
@@ -655,6 +667,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		return nil
 	}
+	// Publish the reload for SSH session editors created by the infra hook
+	// (registered before this closure could exist).
+	sessionReloadHolder.Store(&reloadAfterCommit)
 
 	var webEditorMgr *zeweb.EditorManager
 	if webEnabled && storage.IsBlobStorage(store) {
@@ -742,10 +757,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			slog.Warn("SSH server config error", "error", sshErr)
 		} else {
 			// Wire session model factory so interactive SSH sessions work.
+			// reloadAfterCommit is in scope here (no-BGP path starts SSH
+			// after the reload closure is built), so commits propagate to
+			// the running daemons.
 			sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, bgpconfig.InfraHookParams{
 				ConfigPath: configPath,
 				Store:      cfg.Storage,
-			}, auditLog))
+			}, auditLog, reloadAfterCommit))
 			// Wire executor factory for non-interactive exec commands
 			// (e.g., config edit's "run show traceroute" via SSH exec).
 			sshSrv.SetExecutorFactory(func(username, remoteAddr string) zessh.CommandExecutor {
