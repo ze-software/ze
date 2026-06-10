@@ -94,6 +94,7 @@ func (a *testEditorAdapter) ContentAtPath(path []string) string { return a.ed.Co
 func (a *testEditorAdapter) OriginalContentAtPath(path []string) string {
 	return a.ed.OriginalContentAtPath(path)
 }
+func (a *testEditorAdapter) Dirty() bool              { return a.ed.Dirty() }
 func (a *testEditorAdapter) ActiveSessions() []string { return a.ed.ActiveSessions() }
 func (a *testEditorAdapter) SessionChanges(sessionID string) []contract.SessionChange {
 	entries := a.ed.SessionChanges(sessionID)

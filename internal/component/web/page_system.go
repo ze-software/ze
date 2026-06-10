@@ -49,6 +49,7 @@ func BuildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
 		Fields: []WorkbenchFormField{
 			{
 				Name:        "hostname",
+				Path:        "system/host",
 				Label:       "Hostname",
 				Type:        "text",
 				Value:       hostname,
@@ -56,6 +57,7 @@ func BuildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
 			},
 			{
 				Name:        "domain",
+				Path:        "system/domain",
 				Label:       "Domain",
 				Type:        "text",
 				Value:       domain,
@@ -63,13 +65,14 @@ func BuildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
 			},
 			{
 				Name:        "router-id",
+				Path:        "bgp/router-id",
 				Label:       "Router ID",
 				Type:        "ip",
 				Value:       routerID,
 				Description: "BGP router identifier (from bgp/router-id)",
 			},
 		},
-		SaveURL:    "/admin/system/identity/save",
+		SaveURL:    "/config/form/",
 		DiscardURL: "/show/system/identity/",
 	}
 }
@@ -212,7 +215,7 @@ func BuildUsersTableData(users []userEntry) WorkbenchTableData {
 
 	return WorkbenchTableData{
 		Title:        "Users",
-		AddURL:       "/show/system/authentication/user/add",
+		AddURL:       "/show/system/authentication/user/",
 		AddLabel:     "Add User",
 		Columns:      columns,
 		Rows:         rows,
@@ -574,7 +577,7 @@ func BuildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableD
 
 	return WorkbenchTableData{
 		Title:        "Sysctl Profiles",
-		AddURL:       "/show/sysctl/profile/add",
+		AddURL:       "/show/sysctl/profile/",
 		AddLabel:     "Add Profile",
 		Columns:      columns,
 		Rows:         rows,

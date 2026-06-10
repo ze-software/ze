@@ -123,7 +123,7 @@ func BuildSSHFormData(tree *config.Tree) WorkbenchFormData {
 				Description: "Maximum concurrent SSH sessions",
 			},
 		},
-		SaveURL:    "/admin/services/ssh/save",
+		SaveURL:    "/config/form/environment/ssh/",
 		DiscardURL: "/show/ssh/",
 	}
 }
@@ -164,7 +164,7 @@ func BuildWebFormData(tree *config.Tree) WorkbenchFormData {
 				Description: "Disable authentication (forces host to 127.0.0.1)",
 			},
 		},
-		SaveURL:    "/admin/services/web/save",
+		SaveURL:    "/config/form/environment/web/",
 		DiscardURL: "/show/web/",
 	}
 }
@@ -268,7 +268,7 @@ func BuildTelemetryFormData(tree *config.Tree) WorkbenchFormData {
 				Description: "Per-Netdata-collector enable and interval overrides",
 			},
 		},
-		SaveURL:    "/admin/services/telemetry/save",
+		SaveURL:    "/config/form/telemetry/prometheus/",
 		DiscardURL: "/show/telemetry/",
 	}
 }
@@ -323,7 +323,7 @@ func BuildTACACSFormData(tree *config.Tree) WorkbenchFormData {
 				Description: "Enable command execution accounting",
 			},
 		},
-		SaveURL:    "/admin/services/tacacs/save",
+		SaveURL:    "/config/form/system/authentication/tacacs/",
 		DiscardURL: "/show/tacacs/",
 	}
 }
@@ -415,7 +415,7 @@ func BuildMCPFormData(tree *config.Tree) WorkbenchFormData {
 				Description: "Path to PEM-encoded private key file (sensitive)",
 			},
 		},
-		SaveURL:    "/admin/services/mcp/save",
+		SaveURL:    "/config/form/environment/mcp/",
 		DiscardURL: "/show/mcp/",
 	}
 }
@@ -456,7 +456,7 @@ func BuildLookingGlassFormData(tree *config.Tree) WorkbenchFormData {
 				Description: "Enable TLS (requires blob storage for certificates)",
 			},
 		},
-		SaveURL:    "/admin/services/lg/save",
+		SaveURL:    "/config/form/environment/looking-glass/",
 		DiscardURL: "/show/lg/",
 	}
 }
@@ -533,7 +533,7 @@ func BuildAPIFormData(tree *config.Tree) WorkbenchFormData {
 				Description: "Path to TLS private key file for gRPC (sensitive)",
 			},
 		},
-		SaveURL:    "/admin/services/api/save",
+		SaveURL:    "/config/form/environment/api-server/",
 		DiscardURL: "/show/api/",
 	}
 }

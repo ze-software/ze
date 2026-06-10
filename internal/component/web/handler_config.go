@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -266,6 +267,213 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 	}
 }
 
+type configFormField struct {
+	path   []string
+	leaf   string
+	value  string
+	delete bool
+}
+
+// HandleConfigFormWithAuthorizer returns a POST handler for Workbench form
+// saves and enforces the same RBAC command as /config/set/.
+func HandleConfigFormWithAuthorizer(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		username := GetUsernameFromRequest(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if !authorizeWebConfigMutation(w, r, authorizer, username, webCommandConfigSet) {
+			return
+		}
+
+		parsed, err := ParseURL(r)
+		if err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, 65536)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		fields, fieldErr := parseConfigFormFields(r.PostForm, parsed.Path, schema)
+		if fieldErr != nil {
+			if renderer != nil {
+				WriteOOBError(w, renderer, "config form", fieldErr.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, fieldErr.Error(), http.StatusBadRequest)
+			}
+			return
+		}
+		currentTree := mgr.Tree(username)
+
+		for _, f := range fields {
+			var setErr error
+			if f.delete {
+				var pathbuf textbuf.Buffer
+				if currentTree == nil || getConfigValue(currentTree, pathbuf.Join(append(append([]string{}, f.path...), f.leaf), "/").String()) == "" {
+					continue
+				}
+				setErr = mgr.DeleteValue(username, f.path, f.leaf)
+			} else {
+				setErr = mgr.SetValue(username, f.path, f.leaf, f.value)
+			}
+			if setErr != nil {
+				errPath := textbuf.Join(append(f.path, f.leaf), "/")
+				if renderer != nil {
+					WriteOOBError(w, renderer, errPath, setErr.Error(), http.StatusBadRequest)
+				} else {
+					http.Error(w, setErr.Error(), http.StatusBadRequest)
+				}
+				return
+			}
+		}
+
+		if r.Header.Get("HX-Request") == htmxRequestTrue {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			type saveOK struct{ ChangeCount int }
+			oob := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: mgr.ChangeCount(username)})
+			if _, writeErr := w.Write([]byte(oob)); writeErr != nil {
+				return
+			}
+			return
+		}
+
+		http.Redirect(w, r, backToRefererOrShow(r), http.StatusSeeOther)
+	}
+}
+
+func parseConfigFormFields(form map[string][]string, basePath []string, schema *config.Schema) ([]configFormField, error) {
+	fields := make([]configFormField, 0, len(form))
+	for key, values := range form {
+		if !strings.HasPrefix(key, "field:") || len(values) == 0 {
+			continue
+		}
+		fieldPath := strings.TrimPrefix(key, "field:")
+		path, leaf, leafNode, resolveErr := resolveConfigFormField(schema, basePath, fieldPath)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		fullPath := append(append([]string{}, path...), leaf)
+
+		value := strings.TrimSpace(lastFormValue(values))
+		if leafNode.Type == config.TypeBool {
+			value = normalizeBoolFormValue(value)
+		}
+		if value == "" {
+			fields = append(fields, configFormField{path: path, leaf: leaf, delete: true})
+			continue
+		}
+		if valErr := config.ValidateValue(leafNode.Type, value); valErr != nil {
+			return nil, fmt.Errorf("invalid %s: %w", textbuf.Join(fullPath, "/"), valErr)
+		}
+		fields = append(fields, configFormField{path: path, leaf: leaf, value: value})
+	}
+	return fields, nil
+}
+
+func resolveConfigFormField(schema *config.Schema, basePath []string, fieldPath string) ([]string, string, *config.LeafNode, error) {
+	parts := strings.Split(fieldPath, "/")
+	if err := ValidatePathSegments(parts); err != nil {
+		return nil, "", nil, fmt.Errorf("invalid config form field %q: %w", fieldPath, err)
+	}
+	fullPath := append(append([]string{}, basePath...), parts...)
+	if len(fullPath) == 0 {
+		return nil, "", nil, fmt.Errorf("config form field %q has no leaf", fieldPath)
+	}
+	path := append([]string{}, fullPath[:len(fullPath)-1]...)
+	leaf := fullPath[len(fullPath)-1]
+	if leafNode := findLeafNode(schema, path, leaf); leafNode != nil {
+		return path, leaf, leafNode, nil
+	}
+	if strings.Contains(fieldPath, "/") {
+		return nil, "", nil, fmt.Errorf("config form field %q is not a leaf", textbuf.Join(fullPath, "/"))
+	}
+	flattened, leafNode := resolveFlattenedFormField(schema, basePath, fieldPath)
+	if leafNode == nil {
+		return nil, "", nil, fmt.Errorf("config form field %q is not a leaf", textbuf.Join(fullPath, "/"))
+	}
+	return flattened[:len(flattened)-1], flattened[len(flattened)-1], leafNode, nil
+}
+
+func resolveFlattenedFormField(schema *config.Schema, basePath []string, fieldName string) ([]string, *config.LeafNode) {
+	baseNode, err := walkSchema(schema, basePath)
+	if err != nil {
+		return nil, nil
+	}
+	getter, ok := baseNode.(schemaGetter)
+	if !ok {
+		return nil, nil
+	}
+	tokens := strings.Split(fieldName, "-")
+	suffix, leaf := resolveFlattenedFromNode(getter, tokens)
+	if leaf == nil {
+		return nil, nil
+	}
+	fullPath := append(append([]string{}, basePath...), suffix...)
+	return fullPath, leaf
+}
+
+func resolveFlattenedFromNode(node schemaGetter, tokens []string) ([]string, *config.LeafNode) {
+	for end := len(tokens); end >= 1; end-- {
+		name := strings.Join(tokens[:end], "-")
+		child := node.Get(name)
+		if child == nil {
+			continue
+		}
+		if end == len(tokens) {
+			if leaf, ok := child.(*config.LeafNode); ok {
+				return []string{name}, leaf
+			}
+			continue
+		}
+		getter, ok := child.(schemaGetter)
+		if !ok {
+			continue
+		}
+		rest, leaf := resolveFlattenedFromNode(getter, tokens[end:])
+		if leaf != nil {
+			return append([]string{name}, rest...), leaf
+		}
+	}
+	return nil, nil
+}
+
+func lastFormValue(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	return values[len(values)-1]
+}
+
+func normalizeBoolFormValue(value string) string {
+	if value == boolTrue || value == "1" || value == "on" {
+		return boolTrue
+	}
+	return boolFalse
+}
+
+func backToRefererOrShow(r *http.Request) string {
+	const fallback = "/show/"
+	ref := r.Referer()
+	if ref == "" {
+		return fallback
+	}
+	u, err := url.Parse(ref)
+	if err != nil || u.Path == "" || !strings.HasPrefix(u.Path, "/") || strings.HasPrefix(u.Path, "//") {
+		return fallback
+	}
+	return u.Path
+}
+
 // HandleConfigAdd returns a POST handler for /config/add/<yang-path>/.
 // It creates a list entry and sets any form field values.
 // The entry key comes from the URL path (last segment) or the "name" form field.
@@ -396,6 +604,13 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 			returnAddError(w, r, renderer, schema, mgr, username, listPath, fmt.Sprintf("create entry: %v", createErr))
 			return
 		}
+		if r.FormValue("_workbench") == "1" {
+			if ln, ok := listNode.(*config.ListNode); ok && ln.KeyName != "" {
+				if setErr := mgr.SetValue(username, path, ln.KeyName, entryKey); setErr != nil {
+					serverLogger.Warn("add-entry set key field failed", "field", ln.KeyName, "error", setErr)
+				}
+			}
+		}
 		for _, f := range fields {
 			setPath := make([]string, len(path))
 			copy(setPath, path)
@@ -409,6 +624,13 @@ func HandleConfigAddWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 
 		// HTMX: return updated list table + commit bar + finder for the parent list path.
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
+			if r.FormValue("_workbench") == "1" {
+				var tb textbuf.Buffer
+				target := tb.Str("/show/").Join(listPath, "/").Byte('/').String()
+				w.Header().Set("HX-Redirect", target)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
 			// Keyless lists: redirect to the new entry so the page reloads with it.
 			if ln, ok := listNode.(*config.ListNode); ok && ln.KeyName == "" {
 				var tb textbuf.Buffer
@@ -623,23 +845,47 @@ func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Re
 		listName := strings.ToUpper(listPath[len(listPath)-1][:1]) + listPath[len(listPath)-1][1:]
 		keyless := listNode.KeyName == ""
 		displayKey := listNode.DisplayKey
+		workbench := r.URL.Query().Get("ui") == "workbench"
+		heading := "New " + listName
+		keyLabel := listNode.KeyName
+		keyInputID := "field-" + formFieldID(keyLabel)
+		if keyLabel == "" {
+			keyLabel = "name"
+			keyInputID = "field-name"
+		}
+		if workbench && len(listPath) == 2 && listPath[0] == "interface" && listPath[1] == "ethernet" {
+			heading = "Add Interface"
+			keyLabel = "Interface Name"
+			keyInputID = "field-interface-name"
+		}
+		includeKeyField := workbench && listNode.KeyName != ""
 
 		data := struct {
-			AddURL     string
-			ListName   string
-			KeyName    string
-			Keyless    bool
-			DisplayKey string
-			Fields     []formField
+			AddURL          string
+			ListName        string
+			Heading         string
+			KeyName         string
+			KeyLabel        string
+			KeyInputID      string
+			Keyless         bool
+			DisplayKey      string
+			Workbench       bool
+			IncludeKeyField bool
+			Fields          []formField
 		}{
 			AddURL: func() string {
 				var tb textbuf.Buffer
 				return tb.Str("/config/add/").Join(listPath, "/").Byte('/').String()
 			}(),
-			ListName:   listName,
-			KeyName:    listNode.KeyName,
-			Keyless:    keyless,
-			DisplayKey: displayKey,
+			ListName:        listName,
+			Heading:         heading,
+			KeyName:         listNode.KeyName,
+			KeyLabel:        keyLabel,
+			KeyInputID:      keyInputID,
+			Keyless:         keyless,
+			DisplayKey:      displayKey,
+			Workbench:       workbench,
+			IncludeKeyField: includeKeyField,
 		}
 
 		// Resolve inherited defaults from parent context in the config tree.
@@ -761,12 +1007,7 @@ func HandleConfigChanges(mgr *EditorManager, renderer *Renderer) http.HandlerFun
 
 		type saveOK struct{ ChangeCount int }
 		count := mgr.ChangeCount(username)
-		var html template.HTML
-		if count > 0 {
-			html = renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
-		} else {
-			html = renderer.RenderFragment("commit_bar", nil)
-		}
+		html := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 			return

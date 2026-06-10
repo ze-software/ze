@@ -216,9 +216,15 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string) WorkbenchTabl
 		emptyMsg = tb.Str("No peers in group ").Str(strconv.Quote(filterGroup)).Byte('.').String()
 	}
 
+	addURL := "/show/bgp/peer/"
+	if filterGroup != "" {
+		var tb textbuf.Buffer
+		addURL = tb.Str("/show/bgp/group/").Str(filterGroup).Str("/peer/").String()
+	}
+
 	return WorkbenchTableData{
 		Title:        "BGP Peers",
-		AddURL:       "/show/bgp/peer/add",
+		AddURL:       addURL,
 		AddLabel:     "Add Peer",
 		Columns:      columns,
 		Rows:         rows,

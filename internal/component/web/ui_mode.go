@@ -22,8 +22,11 @@ const (
 )
 
 const (
-	// uiModeCookie is the cookie name used to persist the user's UI preference.
+	// uiModeCookie is the legacy cookie name. It is ignored during the
+	// Workbench cutover so stale Finder cookies cannot select the old shell.
 	uiModeCookie = "ze-ui"
+	// uiModeSwitchCookie is written only by the current UI switch controls.
+	uiModeSwitchCookie = "ze-ui-mode"
 
 	uiModeTokenFinder    = "finder"
 	uiModeTokenWorkbench = "workbench"
@@ -50,17 +53,17 @@ func ParseUIMode(s string) UIMode {
 	}
 }
 
-// GetUIMode reads ze.web.ui from the env registry and returns the
-// startup default. Both UIs are always available; this only controls
-// which one /show/ renders when no cookie override is set.
+// GetUIMode reads ze.web.ui from the env registry and returns the startup
+// mode. Workbench is the normal UI; Finder is only an explicit rollback.
 func GetUIMode() UIMode {
 	return ParseUIMode(env.Get("ze.web.ui"))
 }
 
-// ReadUIModeFromRequest checks the ze-ui cookie for a per-user override,
-// falling back to the startup default.
+// ReadUIModeFromRequest checks the current UI switch cookie before falling back
+// to the server-selected startup mode. The legacy ze-ui cookie is deliberately
+// ignored so old browser state cannot strand operators on Finder.
 func ReadUIModeFromRequest(r *http.Request, fallback UIMode) UIMode {
-	c, err := r.Cookie(uiModeCookie)
+	c, err := r.Cookie(uiModeSwitchCookie)
 	if err != nil || c.Value == "" {
 		return fallback
 	}

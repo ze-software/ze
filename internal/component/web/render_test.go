@@ -81,9 +81,9 @@ func TestHandleCLIPageAvoidsInlineStyle(t *testing.T) {
 	}
 }
 
-// TestRenderLayout verifies that the layout template renders all four areas:
-// breadcrumb navigation, content, notification area, and CLI bar with prompt.
-// VALIDATES: AC-11 (layout has four areas).
+// TestRenderLayout verifies that the legacy layout renders breadcrumb
+// navigation, content, and notification areas without the retired bottom CLI.
+// VALIDATES: normal pages do not expose the CLI input outside /cli.
 func TestRenderLayout(t *testing.T) {
 	r, err := NewRenderer()
 	if err != nil {
@@ -151,9 +151,9 @@ func TestRenderLayout(t *testing.T) {
 		t.Error("output missing notification-bar class")
 	}
 
-	// CLI bar remains part of the Finder shell; /cli is the full terminal page.
-	if !strings.Contains(body, `class="cli-bar"`) {
-		t.Error("layout missing cli-bar")
+	// The bottom CLI bar is retired; /cli is the full terminal page.
+	if strings.Contains(body, `class="cli-bar"`) {
+		t.Error("layout must not render cli-bar")
 	}
 
 	// Theme toggle

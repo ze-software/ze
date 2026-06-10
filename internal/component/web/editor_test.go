@@ -212,3 +212,17 @@ func TestEditorManagerChangeCount(t *testing.T) {
 	count = mgr.ChangeCount("alice")
 	assert.Greater(t, count, 0, "change count must be > 0 after SetValue")
 }
+
+// TestEditorManagerChangeCountCreateOnly verifies that structural create
+// operations without leaf edits still surface as pending work in the Web UI.
+//
+// VALIDATES: add-entry flows show commit state for empty keyed rows.
+// PREVENTS: newly created list entries appearing in tables but remaining invisible to commit controls.
+func TestEditorManagerChangeCountCreateOnly(t *testing.T) {
+	mgr := newTestEditorManager(t)
+
+	err := mgr.CreateEntry("alice", []string{"bgp", "group", "web-group"})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, mgr.ChangeCount("alice"))
+}

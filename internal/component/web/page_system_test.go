@@ -23,7 +23,7 @@ func TestBuildSystemIdentityFormData_WithValues(t *testing.T) {
 	assert.Equal(t, "router01", form.Fields[0].Value)
 	assert.Equal(t, "example.com", form.Fields[1].Value)
 	assert.Equal(t, "10.0.0.1", form.Fields[2].Value)
-	assert.Equal(t, "/admin/system/identity/save", form.SaveURL)
+	assert.Equal(t, "/config/form/", form.SaveURL)
 }
 
 func TestBuildSystemIdentityFormData_NilTree(t *testing.T) {

@@ -145,6 +145,7 @@ type Editor interface {
 	Tree() any
 	ContentAtPath(path []string) string
 	OriginalContentAtPath(path []string) string
+	Dirty() bool
 	SessionChanges(sessionID string) []SessionChange
 	PendingChanges(sessionID string) []PendingChange
 	ActiveSessions() []string

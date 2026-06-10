@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang" // Register BGP YANG for editor tests.
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/yang"   // Required by ze-bgp-conf.yang.
@@ -193,6 +194,30 @@ func runTerminalCommand(t *testing.T, handler http.HandlerFunc, command string) 
 	var resp terminalResponse
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	return resp
+}
+
+func runTerminalCommandForm(t *testing.T, handler http.HandlerFunc, values url.Values) terminalResponse {
+	t.Helper()
+
+	w := httptest.NewRecorder()
+	r := authedRequest(http.MethodPost, "/cli/terminal", values)
+	handler.ServeHTTP(w, r)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var resp terminalResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	return resp
+}
+
+type fakeCommandCompleter struct {
+	seenInput string
+	items     []contract.Completion
+}
+
+func (f *fakeCommandCompleter) Complete(input string) []contract.Completion {
+	f.seenInput = input
+	return f.items
 }
 
 // authedRequest creates a request with a username in context for handler tests.
@@ -406,6 +431,69 @@ func TestTerminalModeCommand(t *testing.T) {
 	var resp terminalResponse
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Contains(t, resp.Output, "commands:")
+}
+
+// TestTerminalModeOperationalSwitching verifies that the Web CLI mirrors the
+// SSH CLI mode grammar: exit enters operational mode, configure returns to
+// config mode, and run executes one operational command without switching.
+//
+// VALIDATES: web terminal implements exit/configure/run operational mode.
+// PREVENTS: Web CLI being config-only while SSH supports operational mode.
+func TestTerminalModeOperationalSwitching(t *testing.T) {
+	mgr, schema, tree, _ := setupCLITerminalYANGTest(t)
+	var seen []string
+	dispatch := func(command, username, remoteAddr string) (string, error) {
+		seen = append(seen, command+"|"+username+"|"+remoteAddr)
+		return `{"namespaces":[{"namespace":"test","count":1}]}`, nil
+	}
+	handler := HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, dispatch, nil, nil)
+
+	exitResp := runTerminalCommandForm(t, handler, url.Values{"command": {"exit"}, "mode": {"config"}})
+	assert.Equal(t, terminalModeOperational, exitResp.Mode)
+	assert.Equal(t, "ze> ", exitResp.Prompt)
+
+	opsResp := runTerminalCommandForm(t, handler, url.Values{"command": {"show event namespaces | json"}, "mode": {"operational"}})
+	assert.Equal(t, terminalModeOperational, opsResp.Mode)
+	assert.Contains(t, opsResp.Output, `"namespace"`)
+	assert.Equal(t, []string{"show event namespaces|testuser|192.0.2.1:1234"}, seen)
+
+	configResp := runTerminalCommandForm(t, handler, url.Values{"command": {"configure"}, "mode": {"operational"}})
+	assert.Equal(t, terminalModeConfig, configResp.Mode)
+	assert.Equal(t, "ze# ", configResp.Prompt)
+	assert.Contains(t, configResp.Output, "bgp")
+
+	runResp := runTerminalCommandForm(t, handler, url.Values{"command": {"run show event namespaces | json"}, "mode": {"config"}})
+	assert.Equal(t, terminalModeConfig, runResp.Mode)
+	assert.Contains(t, runResp.Output, `"namespace"`)
+	assert.Len(t, seen, 2)
+	assert.Equal(t, "show event namespaces|testuser|192.0.2.1:1234", seen[1])
+}
+
+// TestCLICompleteOperationalMode verifies that terminal mode requests command
+// completions from the operational command tree.
+//
+// VALIDATES: operational mode and config-mode run completions match SSH mode behavior.
+// PREVENTS: Tab completion staying config-only in the Web CLI.
+func TestCLICompleteOperationalMode(t *testing.T) {
+	mgr, _ := setupCLITest(t)
+	schema, _ := buildTestSchemaAndTree()
+	cmdComp := &fakeCommandCompleter{
+		items: []contract.Completion{{Text: "show", Description: "show command", Type: "command"}},
+	}
+	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cmdComp, mgr, schema)
+
+	w := httptest.NewRecorder()
+	r := authedRequest(http.MethodGet, "/cli/complete?input=sh&mode=operational", nil)
+	handler.ServeHTTP(w, r)
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "sh", cmdComp.seenInput)
+	assert.Contains(t, w.Body.String(), `"show"`)
+
+	w = httptest.NewRecorder()
+	r = authedRequest(http.MethodGet, "/cli/complete?input=run+sh&mode=config", nil)
+	handler.ServeHTTP(w, r)
+	require.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "sh", cmdComp.seenInput)
 }
 
 // VALIDATES: integrated web CLI enforces profile RBAC before config mutations.

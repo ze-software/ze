@@ -173,7 +173,7 @@ func TestFirewallTablesEmpty(t *testing.T) {
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No firewall tables configured.", data.EmptyMessage)
 	assert.Contains(t, data.EmptyHint, "Create a table")
-	assert.NotEmpty(t, data.AddURL)
+	assert.Equal(t, "/show/firewall/table/", data.AddURL)
 }
 
 func TestFirewallTableViewModel(t *testing.T) {
@@ -205,13 +205,12 @@ func TestFirewallTablesRowActions(t *testing.T) {
 
 	require.NotEmpty(t, data.Rows)
 	row := data.Rows[0]
-	require.Len(t, row.Actions, 3)
+	require.Len(t, row.Actions, 2)
 	assert.Equal(t, "View Chains", row.Actions[0].Label)
 	assert.Contains(t, row.Actions[0].URL, "table=filter")
 	assert.Equal(t, "Edit", row.Actions[1].Label)
-	assert.Equal(t, "Delete", row.Actions[2].Label)
-	assert.Equal(t, "danger", row.Actions[2].Class)
-	assert.NotEmpty(t, row.Actions[2].Confirm)
+	assert.Empty(t, row.Actions[0].HxPost)
+	assert.Empty(t, row.Actions[1].HxPost)
 }
 
 func TestFirewallTablesStripZePrefix(t *testing.T) {
@@ -238,6 +237,7 @@ func TestFirewallChainsRendersTable(t *testing.T) {
 	assert.Equal(t, "Firewall Chains", data.Title)
 	assert.Len(t, data.Rows, 4)
 	assert.Equal(t, "Add Chain", data.AddLabel)
+	assert.Empty(t, data.AddURL, "global chain view must not expose dead add action without a table context")
 
 	// Verify columns
 	assert.Len(t, data.Columns, 7)
@@ -262,6 +262,7 @@ func TestFirewallChainsFilterByTable(t *testing.T) {
 
 	data := BuildFirewallChainsTableData(entries, "filter")
 	assert.Len(t, data.Rows, 3)
+	assert.Equal(t, "/show/firewall/table/filter/chain/", data.AddURL)
 }
 
 func TestFirewallChainsFilterByHook(t *testing.T) {
@@ -355,11 +356,11 @@ func TestFirewallChainsRowActions(t *testing.T) {
 
 	require.NotEmpty(t, data.Rows)
 	row := data.Rows[0]
-	require.Len(t, row.Actions, 3)
+	require.Len(t, row.Actions, 2)
 	assert.Equal(t, "View Rules", row.Actions[0].Label)
 	assert.Equal(t, "Edit", row.Actions[1].Label)
-	assert.Equal(t, "Delete", row.Actions[2].Label)
-	assert.Equal(t, "danger", row.Actions[2].Class)
+	assert.Empty(t, row.Actions[0].HxPost)
+	assert.Empty(t, row.Actions[1].HxPost)
 }
 
 // --- Rules page tests ---
@@ -788,10 +789,9 @@ func TestFirewallSetsRowActions(t *testing.T) {
 
 	require.NotEmpty(t, data.Rows)
 	row := data.Rows[0]
-	require.Len(t, row.Actions, 2)
+	require.Len(t, row.Actions, 1)
 	assert.Equal(t, "View Elements", row.Actions[0].Label)
-	assert.Equal(t, "Delete", row.Actions[1].Label)
-	assert.Equal(t, "danger", row.Actions[1].Class)
+	assert.Empty(t, row.Actions[0].HxPost)
 }
 
 // --- Connections page tests ---
@@ -998,7 +998,7 @@ func TestWorkbench_FirewallSetsPageDispatch(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	body := rec.Body.String()
 	assert.Contains(t, body, "wb-table", "must render workbench table")
-	assert.Contains(t, body, "Add Set", "must contain add set button")
+	assert.NotContains(t, body, "Add Set", "global sets view must not expose dead add action without a table context")
 }
 
 func TestWorkbench_FirewallConnectionsPageDispatch(t *testing.T) {

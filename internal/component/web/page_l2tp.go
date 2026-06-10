@@ -159,7 +159,7 @@ func BuildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
 				Description: "L2TP server listen endpoints (UDP)",
 			},
 		},
-		SaveURL:    "/admin/services/l2tp/save",
+		SaveURL:    "/config/form/l2tp/",
 		DiscardURL: "/show/l2tp/",
 	}
 }

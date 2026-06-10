@@ -60,8 +60,7 @@ func portalTarget(key string) (PortalService, bool) {
 // where key matches a registered PortalService. This avoids open redirects
 // by only allowing pre-registered targets.
 //
-// The portal page renders inside the workbench or finder shell based on the
-// user's ze-ui cookie (falling back to defaultMode) so the topbar remains
+// The portal page renders inside the server-selected shell so the topbar remains
 // visible for navigation back.
 func HandlePortal(renderer *Renderer, defaultMode UIMode) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

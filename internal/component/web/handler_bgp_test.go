@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 )
 
 // buildTestBGPTree creates a config tree with BGP peers and groups for testing.
@@ -123,6 +124,7 @@ func TestBGPPeersEmptyState(t *testing.T) {
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No BGP peers configured.", data.EmptyMessage)
 	assert.NotEmpty(t, data.AddURL)
+	assert.Equal(t, "/show/bgp/peer/", data.AddURL)
 }
 
 func TestBGPPeersEmptyStateNilTree(t *testing.T) {
@@ -160,6 +162,7 @@ func TestBGPPeersFilterByGroup(t *testing.T) {
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "transit-peer", data.Rows[0].Key)
 	assert.Contains(t, data.EmptyMessage, "") // not empty since we have rows
+	assert.Equal(t, "/show/bgp/group/transit/peer/", data.AddURL)
 }
 
 func TestBGPPeersFilterByGroupEmpty(t *testing.T) {
@@ -169,6 +172,7 @@ func TestBGPPeersFilterByGroupEmpty(t *testing.T) {
 	data := BuildBGPPeersTableData(peers, "nonexistent")
 	assert.Empty(t, data.Rows)
 	assert.Contains(t, data.EmptyMessage, "nonexistent")
+	assert.Equal(t, "/show/bgp/group/nonexistent/peer/", data.AddURL)
 }
 
 func TestBGPPeersRowActions(t *testing.T) {
@@ -255,7 +259,7 @@ func TestBGPGroupsViewPeersLink(t *testing.T) {
 	row := data.Rows[0]
 	require.Len(t, row.Actions, 2)
 	assert.Equal(t, "View Peers", row.Actions[0].Label)
-	assert.Contains(t, row.Actions[0].URL, "group=transit")
+	assert.Equal(t, "/show/bgp/group/transit/peer/", row.Actions[0].URL)
 }
 
 // --- Summary page tests ---
@@ -317,10 +321,13 @@ func TestBGPFamiliesEmptyState(t *testing.T) {
 
 func TestBGPPolicyEmptyState(t *testing.T) {
 	tree := config.NewTree()
-	entries := collectPolicies(tree)
-	data := BuildBGPPolicyTableData(entries)
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	entries := collectPolicies(tree, schema)
+	data := BuildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No filters configured.", data.EmptyMessage)
+	assertPolicyAddAction(t, data.AddActions, "/show/bgp/policy/prefix-list/")
 }
 
 func TestBGPPolicyWithData(t *testing.T) {
@@ -335,17 +342,32 @@ func TestBGPPolicyWithData(t *testing.T) {
 	rule := config.NewTree()
 	rule.Set("match", "any")
 	filterEntry.AddListEntry("rule", "10", rule)
-	policy.AddListEntry("filter", "reject-all", filterEntry)
+	policy.AddListEntry("prefix-list", "reject-all", filterEntry)
 
-	entries := collectPolicies(tree)
+	schema, err := config.YANGSchema()
+	require.NoError(t, err)
+	entries := collectPolicies(tree, schema)
 	require.Len(t, entries, 1)
 	assert.Equal(t, "reject-all", entries[0].Name)
-	assert.Equal(t, "filter", entries[0].Type)
+	assert.Equal(t, "prefix-list", entries[0].Type)
 	assert.Equal(t, 1, entries[0].RuleCount)
 
-	data := BuildBGPPolicyTableData(entries)
+	data := BuildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "reject-all", data.Rows[0].Key)
+	assert.Empty(t, data.AddURL, "generic BGP policy page must not hardcode a single add target")
+	assertPolicyAddAction(t, data.AddActions, "/show/bgp/policy/prefix-list/")
+}
+
+func assertPolicyAddAction(t *testing.T, actions []WorkbenchTableAddAction, url string) {
+	t.Helper()
+	for _, action := range actions {
+		if action.URL == url {
+			assert.NotEmpty(t, action.Label)
+			return
+		}
+	}
+	assert.Failf(t, "missing policy add action", "url %s in %#v", url, actions)
 }
 
 // --- Peer detail tests ---

@@ -1214,3 +1214,44 @@ func TestAddFormAcceptsRequiredFromForm(t *testing.T) {
 	body := rec.Body.String()
 	assert.NotContains(t, body, "required field", "should not reject when all required fields provided via form")
 }
+
+// TestConfigFormIgnoresEmptyUnconfiguredLeaves verifies that singleton form
+// saves do not fail just because optional sibling fields are blank and absent
+// from the current config.
+//
+// VALIDATES: Workbench Save button can submit a partially filled form.
+// PREVENTS: /config/form/ treating untouched empty leaves as delete errors.
+func TestConfigFormIgnoresEmptyUnconfiguredLeaves(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+	err := os.WriteFile(configPath, []byte(""), 0o600)
+	require.NoError(t, err)
+
+	store := storage.NewFilesystem()
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	renderer, renderErr := NewRenderer()
+	require.NoError(t, renderErr)
+
+	handler := HandleConfigFormWithAuthorizer(mgr, schema, renderer, nil)
+	formData := url.Values{
+		"field:system/host":   {"web-host-1"},
+		"field:system/domain": {""},
+		"field:bgp/router-id": {""},
+	}
+	req := postConfigRequest(t, "/config/form/", formData, "alice")
+	req.Header.Set("HX-Request", "true")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	tree := mgr.Tree("alice")
+	require.NotNil(t, tree)
+	sys := tree.GetContainer("system")
+	require.NotNil(t, sys)
+	value, ok := sys.Get("host")
+	require.True(t, ok)
+	assert.Equal(t, "web-host-1", value)
+}

@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // policyEntry holds one filter/policy definition from the config tree.
@@ -19,10 +20,10 @@ type policyEntry struct {
 }
 
 // collectPolicies walks the bgp/policy container and returns all filter
-// definitions. Each filter type is a list augmented by its plugin; the
-// list entries are the named filter instances.
-func collectPolicies(viewTree *config.Tree) []policyEntry {
-	if viewTree == nil {
+// definitions. Filter list names come from the merged YANG schema so
+// plugin-provided filters appear and vanish with their plugin.
+func collectPolicies(viewTree *config.Tree, schema *config.Schema) []policyEntry {
+	if viewTree == nil || schema == nil {
 		return nil
 	}
 	bgpTree := viewTree.GetContainer("bgp")
@@ -35,28 +36,7 @@ func collectPolicies(viewTree *config.Tree) []policyEntry {
 	}
 
 	var entries []policyEntry
-
-	// Each container name under policy is a filter type (augmented by plugins).
-	for _, typeName := range policyTree.ContainerNames() {
-		typeTree := policyTree.GetContainer(typeName)
-		if typeTree == nil {
-			continue
-		}
-		// Each filter type may contain named filter lists. Walk all lists.
-		for _, listName := range listNamesFromTree(typeTree) {
-			for _, item := range typeTree.GetListOrdered(listName) {
-				ruleCount := countRules(item.Value)
-				entries = append(entries, policyEntry{
-					Name:      item.Key,
-					Type:      typeName,
-					RuleCount: ruleCount,
-				})
-			}
-		}
-	}
-
-	// Also check for direct lists under policy (non-container filter types).
-	for _, listName := range listNamesFromTree(policyTree) {
+	for _, listName := range policyFilterListNames(schema) {
 		for _, item := range policyTree.GetListOrdered(listName) {
 			ruleCount := countRules(item.Value)
 			entries = append(entries, policyEntry{
@@ -66,28 +46,22 @@ func collectPolicies(viewTree *config.Tree) []policyEntry {
 			})
 		}
 	}
-
 	return entries
 }
 
-// listNamesFromTree returns the names of all lists in a tree by checking
-// which list keys exist.
-func listNamesFromTree(t *config.Tree) []string {
-	if t == nil {
+func policyFilterListNames(schema *config.Schema) []string {
+	node, err := walkSchema(schema, []string{"bgp", "policy"})
+	if err != nil {
 		return nil
 	}
-	// Use ContainerNames to enumerate, then check for lists.
-	// The Tree type does not expose a ListNames() method, so we check
-	// known policy list patterns. For a fully generic approach, we would
-	// need the schema. For v1, we return container names and check for
-	// lists by trying GetListOrdered on the tree's own level.
-	// Actually, we need to find list keys at this level.
-	// GetList returns nil for non-existent lists, so we check all
-	// known YANG list names under policy.
-	var names []string
-	for _, candidate := range []string{"filter", "community", "prefix-list", "as-path", "route-map"} {
-		if l := t.GetList(candidate); len(l) > 0 {
-			names = append(names, candidate)
+	lister, ok := node.(childLister)
+	if !ok {
+		return nil
+	}
+	names := make([]string, 0, len(lister.Children()))
+	for _, name := range lister.Children() {
+		if _, ok := lister.Get(name).(*config.ListNode); ok {
+			names = append(names, name)
 		}
 	}
 	return names
@@ -109,7 +83,7 @@ func countRules(filterTree *config.Tree) int {
 }
 
 // BuildBGPPolicyTableData constructs a WorkbenchTableData for the policy page.
-func BuildBGPPolicyTableData(entries []policyEntry) WorkbenchTableData {
+func BuildBGPPolicyTableData(entries []policyEntry, addActions ...WorkbenchTableAddAction) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Name", Sortable: true},
 		{Key: "type", Label: "Type", Sortable: true},
@@ -134,8 +108,7 @@ func BuildBGPPolicyTableData(entries []policyEntry) WorkbenchTableData {
 
 	return WorkbenchTableData{
 		Title:        "BGP Filters",
-		AddURL:       "/show/bgp/policy/add",
-		AddLabel:     "Add Filter",
+		AddActions:   addActions,
 		Columns:      columns,
 		Rows:         rows,
 		EmptyMessage: "No filters configured.",
@@ -143,9 +116,39 @@ func BuildBGPPolicyTableData(entries []policyEntry) WorkbenchTableData {
 	}
 }
 
+func policyFilterAddActions(schema *config.Schema) []WorkbenchTableAddAction {
+	names := policyFilterListNames(schema)
+	actions := make([]WorkbenchTableAddAction, 0, len(names))
+	for _, name := range names {
+		actions = append(actions, WorkbenchTableAddAction{
+			Label: "Add " + titleFromSchemaName(name),
+			URL:   "/show/bgp/policy/" + name + "/",
+		})
+	}
+	return actions
+}
+
+func titleFromSchemaName(name string) string {
+	var out textbuf.Buffer
+	upperNext := true
+	for _, r := range name {
+		if r == '-' || r == '_' {
+			out.Byte(' ')
+			upperNext = true
+			continue
+		}
+		if upperNext && r >= 'a' && r <= 'z' {
+			r -= 'a' - 'A'
+		}
+		out.WriteRune(r)
+		upperNext = false
+	}
+	return out.String()
+}
+
 // HandleBGPPolicyPage renders the BGP policy/filters table within the workbench.
-func HandleBGPPolicyPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	entries := collectPolicies(viewTree)
-	tableData := BuildBGPPolicyTableData(entries)
+func HandleBGPPolicyPage(renderer *Renderer, viewTree *config.Tree, schema *config.Schema) template.HTML {
+	entries := collectPolicies(viewTree, schema)
+	tableData := BuildBGPPolicyTableData(entries, policyFilterAddActions(schema)...)
 	return renderer.RenderFragment("workbench_table", tableData)
 }

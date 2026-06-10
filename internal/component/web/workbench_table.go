@@ -22,10 +22,17 @@ type WorkbenchTableData struct {
 	Title        string
 	AddURL       string
 	AddLabel     string
+	AddActions   []WorkbenchTableAddAction
 	Columns      []WorkbenchTableColumn
 	Rows         []WorkbenchTableRow
 	EmptyMessage string
 	EmptyHint    string
+}
+
+// WorkbenchTableAddAction describes one table-level add action.
+type WorkbenchTableAddAction struct {
+	Label string
+	URL   string
 }
 
 // WorkbenchTableColumn describes one column header in the table.

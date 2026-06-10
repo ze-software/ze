@@ -13,6 +13,8 @@ expect=element:text=Dashboard
 expect=element:text=Interfaces
 expect=element:text=Routing
 expect=element:text=CLI
+expect=element:text=Finder
 expect=element:not-id=cli-bar
 expect=element:not-id=cli-input
+expect=element:not-text=Workbench requires a viewport
 expect=element:not-text=panic

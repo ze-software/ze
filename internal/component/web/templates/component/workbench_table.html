@@ -1,7 +1,8 @@
 {{define "workbench_table"}}
 <div class="wb-table-container">
+  {{if .Title}}<h2 class="wb-table-title">{{.Title}}</h2>{{end}}
   <div class="wb-table-toolbar">
-    {{if .AddURL}}<a href="{{.AddURL}}" class="wb-table-add" id="btn-add-entry">{{if .AddLabel}}{{.AddLabel}}{{else}}Add{{end}}</a>{{end}}
+    {{if .AddActions}}{{range .AddActions}}<button type="button" class="wb-table-add" data-action="add-entry" data-base-url="{{.URL}}">{{.Label}}</button>{{end}}{{else if .AddURL}}<button type="button" class="wb-table-add" id="btn-add-entry" data-action="add-entry" data-base-url="{{.AddURL}}">{{if .AddLabel}}{{.AddLabel}}{{else}}Add{{end}}</button>{{end}}
     <div class="wb-table-toolbar-right">
       <input type="search" class="wb-table-search" placeholder="Search..." aria-label="Search table">
     </div>
@@ -35,7 +36,7 @@
             <div class="wb-table-empty-content">
               <p class="wb-table-empty-message">{{.EmptyMessage}}</p>
               {{if .EmptyHint}}<p class="wb-table-empty-hint">{{.EmptyHint}}</p>{{end}}
-              {{if .AddURL}}<a href="{{.AddURL}}" class="wb-table-add wb-table-empty-add">{{if .AddLabel}}{{.AddLabel}}{{else}}Add{{end}}</a>{{end}}
+              {{if .AddActions}}{{range .AddActions}}<button type="button" class="wb-table-add wb-table-empty-add" data-action="add-entry" data-base-url="{{.URL}}">{{.Label}}</button>{{end}}{{else if .AddURL}}<button type="button" class="wb-table-add wb-table-empty-add" data-action="add-entry" data-base-url="{{.AddURL}}">{{if .AddLabel}}{{.AddLabel}}{{else}}Add{{end}}</button>{{end}}
             </div>
           </td>
         </tr>

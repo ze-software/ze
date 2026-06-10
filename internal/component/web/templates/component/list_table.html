@@ -30,7 +30,7 @@
       <tr class="{{if .HasPendingChanges}}row--pending{{end}}" data-row-key="{{.KeyValue}}">
         <td class="finder-table-action"><button class="finder-rename-btn" data-action="rename-entry" data-url="{{.URL}}" data-key="{{.KeyValue}}" title="Rename">&#9998;</button></td>
         <td>{{if .HasPendingChanges}}<span class="row-pending-marker" title="Uncommitted changes" aria-label="Pending changes">●</span>{{end}}<a class="finder-table-link" href="{{.URL}}"
-               hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="{{.URL}}">{{.KeyValue}}</a></td>
+               hx-get="/fragment/detail?path={{.HxPath}}{{if eq $.ActiveUI "workbench"}}&ui=workbench{{end}}" hx-target="{{if eq $.ActiveUI "workbench"}}#workbench-workspace{{else}}#content-area{{end}}" hx-swap="innerHTML" hx-push-url="{{.URL}}">{{.KeyValue}}</a></td>
         {{range .Cells}}
         <td><input class="finder-table-input" type="text" value="{{.Value}}"
                    placeholder="{{.Placeholder}}"

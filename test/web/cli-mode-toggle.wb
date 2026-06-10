@@ -7,6 +7,8 @@ option=timeout:value=30s
 action=open:path=/cli
 expect=element:id=content-area
 expect=element:id=terminal-input
+expect=element:text=Workbench
+expect=element:text=Finder
 expect=element:not-id=cli-bar
 expect=element:not-id=cli-input
 
@@ -16,3 +18,37 @@ action=wait:ms=1000
 expect=element:text=commands:
 expect=element:text=set <path> <value>
 expect=element:not-text=Switch to Integrated Mode
+
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+action=wait:ms=1000
+expect=html:contains=>operational<
+expect=element:text=ze>
+
+action=fill:id=terminal-input:value=show event namespaces | json
+action=press:id=terminal-input:key=Enter
+action=wait:ms=1000
+expect=element:text=namespace
+
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+action=wait:ms=1000
+expect=html:contains=>config<
+expect=element:text=ze#
+
+action=fill:id=terminal-input:value=run show event namespaces | json
+action=press:id=terminal-input:key=Enter
+action=wait:ms=1000
+expect=element:text=namespace
+
+action=click:text=Workbench
+action=wait:ms=1000
+expect=element:id=workbench-shell
+expect=element:not-id=terminal-input
+
+action=open:path=/cli
+action=click:text=Finder
+action=wait:ms=1000
+expect=element:not-id=workbench-shell
+expect=element:not-id=terminal-input
+expect=element:text=environment

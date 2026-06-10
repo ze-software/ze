@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -30,8 +31,9 @@ const (
 type terminalResponse struct {
 	Output   string `json:"output"`
 	Feedback string `json:"feedback"`
-	Path     string `json:"path,omitempty"`
+	Path     string `json:"path"`
 	Prompt   string `json:"prompt,omitempty"`
+	Mode     string `json:"mode,omitempty"`
 }
 
 // HandleCLITerminal returns a POST handler for /cli/terminal that processes
@@ -50,6 +52,12 @@ func HandleCLITerminal(mgr *EditorManager, schema *config.Schema, tree *config.T
 // enforces profile-based RBAC before direct editor mutations and records
 // successful commit/discard/rollback actions.
 func HandleCLITerminalWithAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, tree *config.Tree, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
+	return HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr, schema, tree, nil, authorizer, recorder)
+}
+
+// HandleCLITerminalWithDispatchAuthorizerAndAudit returns a terminal-mode
+// handler that supports both config mode and operational mode.
+func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, tree *config.Tree, dispatch CommandDispatcher, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -74,8 +82,8 @@ func HandleCLITerminalWithAuthorizerAndAudit(mgr *EditorManager, schema *config.
 			return
 		}
 
-		command := r.FormValue("command")
-		if len(command) > maxCommandLength {
+		commandText := r.FormValue("command")
+		if len(commandText) > maxCommandLength {
 			http.Error(w, "command too long", http.StatusBadRequest)
 			return
 		}
@@ -91,35 +99,30 @@ func HandleCLITerminalWithAuthorizerAndAudit(mgr *EditorManager, schema *config.
 			return
 		}
 
-		cmd := parseCLICommand(command)
-		if authCommand := terminalAuthCommand(cmd); authCommand != "" {
+		mode := normalizeTerminalMode(r.FormValue("mode"))
+		cmd := parseCLICommand(commandText)
+		if authCommand := terminalAuthCommandForMode(mode, cmd); authCommand != "" {
 			if !authorizeWebConfigMutation(w, r, authorizer, username, authCommand) {
 				return
 			}
 		}
-		auditAction, auditDetail := terminalAuditContext(mgr, username, cmd, command)
+		auditAction, auditDetail := terminalAuditContext(mgr, username, cmd, commandText)
 
 		// Keep the committed hub tree as the compare baseline. Display commands
 		// use the per-user working tree when one exists.
 		viewTree := tree
 
-		newPath, output := executeTerminalNav(schema, viewTree, mgr, username, contextPath, cmd)
-		if terminalAuditSucceeded(auditAction, output) {
+		result := executeTerminalCommand(schema, viewTree, mgr, username, r.RemoteAddr, contextPath, mode, cmd, commandText, dispatch)
+		if terminalAuditSucceeded(auditAction, result.output) {
 			recordWebAudit(recorder, r, username, auditAction, auditDetail)
 		}
 
 		resp := terminalResponse{
-			Output:   output,
-			Feedback: terminalFeedback(cmd, output),
-		}
-
-		// After navigation, show config at the new path.
-		if newPath != nil {
-			resp.Path = textbuf.Join(newPath, "/")
-			resp.Prompt = formatCLIPrompt(newPath)
-			if cmd.Verb == verbEdit || cmd.Verb == verbUp || cmd.Verb == verbTop {
-				resp.Output = serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, newPath)
-			}
+			Output:   result.output,
+			Feedback: terminalFeedback(cmd, result.output),
+			Path:     textbuf.Join(result.path, "/"),
+			Prompt:   formatTerminalPrompt(result.mode, result.path),
+			Mode:     result.mode,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -154,6 +157,121 @@ func terminalAuthCommand(cmd cliCommand) string {
 		return webCommandConfigSave
 	}
 	return ""
+}
+
+func terminalAuthCommandForMode(mode string, cmd cliCommand) string {
+	if normalizeTerminalMode(mode) == terminalModeOperational && !terminalConfigCommandInOperationalMode(cmd.Verb) {
+		return ""
+	}
+	return terminalAuthCommand(cmd)
+}
+
+type terminalCommandResult struct {
+	path   []string
+	mode   string
+	output string
+}
+
+func executeTerminalCommand(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, mode string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
+	result := terminalCommandResult{
+		path: append([]string{}, contextPath...),
+		mode: normalizeTerminalMode(mode),
+	}
+
+	if result.mode == terminalModeOperational {
+		return executeTerminalOperationalMode(schema, viewTree, mgr, username, remoteAddr, result.path, cmd, raw, dispatch)
+	}
+	return executeTerminalConfigMode(schema, viewTree, mgr, username, remoteAddr, result.path, cmd, dispatch)
+}
+
+func executeTerminalConfigMode(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, dispatch CommandDispatcher) terminalCommandResult {
+	result := terminalCommandResult{path: contextPath, mode: terminalModeConfig}
+	switch cmd.Verb {
+	case verbRun:
+		if len(cmd.Args) == 0 {
+			result.output = "usage: run <command>"
+			return result
+		}
+		result.output = executeTerminalOperational(dispatch, username, remoteAddr, textbuf.Join(cmd.Args, " "))
+		return result
+	case verbExit:
+		if mgr.ChangeCount(username) > 0 {
+			result.output = "Pending changes. Use 'commit' or 'discard' before exit."
+			return result
+		}
+		result.mode = terminalModeOperational
+		return result
+	case verbConfigure:
+		result.output = "already in config mode"
+		return result
+	}
+
+	newPath, output := executeTerminalNav(schema, viewTree, mgr, username, contextPath, cmd)
+	result.output = output
+	if newPath != nil {
+		result.path = append([]string{}, newPath...)
+		if cmd.Verb == verbEdit || cmd.Verb == verbUp || cmd.Verb == verbTop {
+			result.output = serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, newPath)
+		}
+	}
+	return result
+}
+
+func executeTerminalOperationalMode(schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
+	result := terminalCommandResult{path: contextPath, mode: terminalModeOperational}
+	switch cmd.Verb {
+	case verbConfigure:
+		result.mode = terminalModeConfig
+		result.output = serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, contextPath)
+		return result
+	case verbExit, verbQuit:
+		result.output = "exit is not available in the web CLI; use Workbench or Finder to leave CLI."
+		return result
+	case verbHelp:
+		result.output = terminalOperationalHelp()
+		return result
+	}
+	if terminalConfigCommandInOperationalMode(cmd.Verb) {
+		return executeTerminalConfigMode(schema, viewTree, mgr, username, remoteAddr, contextPath, cmd, dispatch)
+	}
+	result.output = executeTerminalOperational(dispatch, username, remoteAddr, raw)
+	return result
+}
+
+func terminalConfigCommandInOperationalMode(verb string) bool {
+	switch verb {
+	case verbSet, verbDelete, verbEdit, verbTop, verbUp, verbCommit, verbDiscard,
+		verbCompare, verbSave, verbHistory, verbRollback, verbRename, verbCopy,
+		verbInsert, verbDeactivate, verbActivate:
+		return true
+	default:
+		return false
+	}
+}
+
+func executeTerminalOperational(dispatch CommandDispatcher, username, remoteAddr, input string) string {
+	if dispatch == nil {
+		return "error: operational command dispatch not available"
+	}
+	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input)
+	if pipeErr != "" {
+		var tb textbuf.Buffer
+		return tb.Str("pipe error: ").Str(pipeErr).String()
+	}
+	output, err := dispatch(cmdStr, username, remoteAddr)
+	if err != nil {
+		var tb textbuf.Buffer
+		return tb.Str("error: ").Err(err).String()
+	}
+	return formatFn(output)
+}
+
+func terminalOperationalHelp() string {
+	return `commands:
+  configure            Enter config mode
+  <command>            Execute operational command
+  <command> | json     Use pipe operators
+  exit                 Stay on the web CLI page`
 }
 
 func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, raw string) (string, string) {

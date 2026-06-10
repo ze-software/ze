@@ -14,42 +14,41 @@ import (
 
 // DNSFormData holds the DNS resolver configuration for the form.
 type DNSFormData struct {
-	Servers      []string
-	CacheEnabled bool
-	CacheSize    uint32
+	Servers        []string
+	ResolvConfPath string
+	Timeout        string
+	CacheSize      uint32
+	CacheTTL       string
 }
 
 // BuildDNSFormData reads DNS resolver configuration from the config tree.
 // Returns sensible defaults when the tree has no DNS section.
 func BuildDNSFormData(tree *config.Tree) DNSFormData {
 	data := DNSFormData{
-		CacheSize: 10000, // must match system.go default
+		CacheSize: 10000, // must match system DNS YANG default
 	}
 
 	if tree == nil {
 		return data
 	}
-
-	// Try to read resolve/dns configuration from the tree.
-	resolveTree := tree.GetContainer("resolve")
-	if resolveTree == nil {
-		return data
-	}
-
-	dnsTree := resolveTree.GetContainer("dns")
-	if dnsTree == nil {
-		return data
-	}
-
-	if server, ok := dnsTree.Get("server"); ok && server != "" {
-		data.Servers = []string{server}
-	}
-
-	if cacheSize, ok := dnsTree.Get("cache-size"); ok && cacheSize != "" {
-		var size uint32
-		if _, err := fmt.Sscanf(cacheSize, "%d", &size); err == nil {
-			data.CacheSize = size
-			data.CacheEnabled = size > 0
+	if systemTree := tree.GetContainer("system"); systemTree != nil {
+		data.Servers = append(data.Servers, systemTree.GetSlice("name-server")...)
+		if dnsTree := systemTree.GetContainer("dns"); dnsTree != nil {
+			if resolvConfPath, ok := dnsTree.Get("resolv-conf-path"); ok {
+				data.ResolvConfPath = resolvConfPath
+			}
+			if timeout, ok := dnsTree.Get("timeout"); ok {
+				data.Timeout = timeout
+			}
+			if cacheSize, ok := dnsTree.Get("cache-size"); ok && cacheSize != "" {
+				var size uint32
+				if _, err := fmt.Sscanf(cacheSize, "%d", &size); err == nil {
+					data.CacheSize = size
+				}
+			}
+			if cacheTTL, ok := dnsTree.Get("cache-ttl"); ok {
+				data.CacheTTL = cacheTTL
+			}
 		}
 	}
 
@@ -58,39 +57,52 @@ func BuildDNSFormData(tree *config.Tree) DNSFormData {
 
 // BuildDNSWorkbenchForm constructs a WorkbenchFormData for DNS configuration.
 func BuildDNSWorkbenchForm(data DNSFormData) WorkbenchFormData {
-	cacheValue := "false"
-	if data.CacheEnabled {
-		cacheValue = htmxRequestTrue // reuse package-level "true" constant
-	}
-
 	fields := []WorkbenchFormField{
 		{
-			Name:        "servers",
-			Label:       "Upstream DNS Servers",
-			Type:        "list",
-			Items:       data.Servers,
-			Description: "DNS servers for name resolution (e.g., 8.8.8.8, 1.1.1.1)",
+			Name:        "resolv-conf-path",
+			Path:        "system/dns/resolv-conf-path",
+			Label:       "resolv.conf Path",
+			Type:        "text",
+			Value:       data.ResolvConfPath,
+			Description: "Path where Ze writes resolver configuration",
 		},
 		{
-			Name:        "cache-enabled",
-			Label:       "Cache Enabled",
-			Type:        "toggle",
-			Value:       cacheValue,
-			Description: "Enable DNS response caching",
+			Name:        "timeout",
+			Path:        "system/dns/timeout",
+			Label:       "Query Timeout",
+			Type:        "number",
+			Value:       data.Timeout,
+			Description: "DNS query timeout in seconds",
 		},
 		{
 			Name:        "cache-size",
+			Path:        "system/dns/cache-size",
 			Label:       "Cache Size",
 			Type:        "number",
 			Value:       strconv.Itoa(int(data.CacheSize)),
 			Description: "Maximum number of cached DNS entries (0 disables cache)",
+		},
+		{
+			Name:        "cache-ttl",
+			Path:        "system/dns/cache-ttl",
+			Label:       "Cache TTL",
+			Type:        "number",
+			Value:       data.CacheTTL,
+			Description: "Maximum cache TTL in seconds",
+		},
+		{
+			Name:        "servers",
+			Label:       "Static Name Servers",
+			Type:        "list",
+			Items:       data.Servers,
+			Description: "Static DNS name servers",
 		},
 	}
 
 	return WorkbenchFormData{
 		Title:      "DNS Configuration",
 		Fields:     fields,
-		SaveURL:    "/admin/ip/dns/save",
+		SaveURL:    "/config/form/",
 		DiscardURL: "/show/ip/dns/",
 	}
 }

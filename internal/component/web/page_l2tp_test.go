@@ -40,7 +40,7 @@ func TestBuildL2TPConfigFormData_WithValues(t *testing.T) {
 	assert.Equal(t, "50", form.Fields[2].Value)
 	assert.Equal(t, "password", form.Fields[3].Type)
 	assert.Equal(t, "60", form.Fields[4].Value)
-	assert.Equal(t, "/admin/services/l2tp/save", form.SaveURL)
+	assert.Equal(t, "/config/form/l2tp/", form.SaveURL)
 }
 
 func TestBuildL2TPConfigFormData_NilTree(t *testing.T) {

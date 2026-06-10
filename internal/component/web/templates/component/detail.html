@@ -15,6 +15,11 @@
   <div class="config-fields">
     {{range .Fields}}{{fieldFor .}}{{end}}
   </div>
+  {{if eq .ActiveUI "workbench"}}
+  <div class="field-page-actions">
+    <button type="button" class="field-page-save" data-action="save-field-page">Save</button>
+  </div>
+  {{end}}
 </section>
 {{else if not .Sidebar}}
 <section class="config-section">

@@ -116,7 +116,7 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 
 	return WorkbenchTableData{
 		Title:        title,
-		AddURL:       "/show/iface/create",
+		AddURL:       "/show/interface/ethernet/",
 		AddLabel:     "Add Interface",
 		Columns:      columns,
 		Rows:         rows,

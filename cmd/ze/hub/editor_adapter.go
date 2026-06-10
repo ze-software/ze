@@ -76,6 +76,7 @@ func (a *editorAdapter) ContentAtPath(path []string) string { return a.ed.Conten
 func (a *editorAdapter) OriginalContentAtPath(path []string) string {
 	return a.ed.OriginalContentAtPath(path)
 }
+func (a *editorAdapter) Dirty() bool              { return a.ed.Dirty() }
 func (a *editorAdapter) ActiveSessions() []string { return a.ed.ActiveSessions() }
 
 func (a *editorAdapter) SessionChanges(sessionID string) []contract.SessionChange {

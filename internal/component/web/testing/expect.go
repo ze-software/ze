@@ -15,6 +15,8 @@ func checkExpectation(b *Browser, e *WBExpectation) error {
 		return checkElement(b, e)
 	case "breadcrumb":
 		return checkBreadcrumb(b, e)
+	case "html":
+		return checkHTML(b, e)
 	case "url":
 		return checkURL(b, e)
 	case "title":
@@ -69,6 +71,24 @@ func checkElement(b *Browser, e *WBExpectation) error {
 		}
 	}
 
+	return nil
+}
+
+func checkHTML(b *Browser, e *WBExpectation) error {
+	html, err := b.GetHTML()
+	if err != nil {
+		return fmt.Errorf("html: %w", err)
+	}
+	if sub, ok := e.Values["contains"]; ok {
+		if !strings.Contains(html, sub) {
+			return fmt.Errorf("HTML does not contain %q", sub)
+		}
+	}
+	if sub, ok := e.Values["not-contains"]; ok {
+		if strings.Contains(html, sub) {
+			return fmt.Errorf("HTML unexpectedly contains %q", sub)
+		}
+	}
 	return nil
 }
 

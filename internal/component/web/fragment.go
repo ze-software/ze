@@ -248,6 +248,9 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 		data.Insecure = insecure
 		data.Services = PortalServices()
 		data.Monitor = strings.HasPrefix(r.URL.Path, "/monitor/")
+		if r.URL.Query().Get("ui") == uiModeTokenWorkbench {
+			data.ActiveUI = uiModeTokenWorkbench
+		}
 
 		// HTMX partial request: render OOB response via template.
 		if r.Header.Get("HX-Request") == "true" {

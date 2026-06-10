@@ -23,7 +23,7 @@ func routeFlag(route iface.KernelRoute) (string, string) {
 	switch route.Protocol {
 	case "static":
 		return "A S", ""
-	case "bgp":
+	case segBGP:
 		return "A B", ""
 	case "kernel":
 		return "A C", flagClassGreen

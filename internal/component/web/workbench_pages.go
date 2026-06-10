@@ -15,12 +15,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+const (
+	bgpGroupSegment = "group"
+	bgpPeerSegment  = "peer"
+)
+
 // renderPageContent checks if the given path corresponds to a purpose-built
 // page (Interfaces, IP, Tools, Logs, Dashboard sub-pages) and renders its
 // content. Returns the rendered HTML and true if the path was handled, or
 // empty HTML and false if the path should fall through to the generic YANG
 // detail view.
-func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, dispatch CommandDispatcher, broker *EventBroker) (template.HTML, bool) {
+func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, schema *config.Schema, dispatch CommandDispatcher, broker *EventBroker) (template.HTML, bool) {
 	if len(path) == 0 {
 		return "", false
 	}
@@ -40,8 +45,8 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 		case "dns":
 			return HandleDNSPage(renderer, viewTree), true
 		}
-	case "bgp":
-		return renderBGPPageContent(renderer, r, path[1:], viewTree)
+	case segBGP:
+		return renderBGPPageContent(renderer, r, path[1:], viewTree, schema)
 	case segFirewall:
 		return renderFirewallPageContent(renderer, r, path[1:])
 	case segSystem:
@@ -70,20 +75,24 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 // renderBGPPageContent dispatches BGP sub-pages. The path slice has the
 // leading "bgp" segment already stripped. Returns (content, true) if a
 // page handler matched, or ("", false) to fall through to generic YANG.
-func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree) (template.HTML, bool) {
+func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, schema *config.Schema) (template.HTML, bool) {
 	if len(path) == 0 {
 		// /show/bgp/ itself falls through to generic YANG detail.
 		return "", false
 	}
 
 	switch path[0] {
-	case "peer":
-		filterGroup := r.URL.Query().Get("group")
+	case bgpPeerSegment:
+		filterGroup := r.URL.Query().Get(bgpGroupSegment)
 		return HandleBGPPeersPage(renderer, viewTree, filterGroup), true
-	case "group":
-		// /show/bgp/group/ shows the groups table; deeper paths fall through.
+	case bgpGroupSegment:
+		// /show/bgp/group/ shows the groups table.
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
 			return HandleBGPGroupsPage(renderer, viewTree), true
+		}
+		// /show/bgp/group/<name>/peer/ shows the peer table scoped to the group.
+		if len(path) >= 3 && path[2] == bgpPeerSegment {
+			return HandleBGPPeersPage(renderer, viewTree, path[1]), true
 		}
 		return "", false
 	case "summary":
@@ -93,7 +102,7 @@ func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, vi
 	case "policy":
 		// /show/bgp/policy/ shows the filters table; deeper paths fall through.
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
-			return HandleBGPPolicyPage(renderer, viewTree), true
+			return HandleBGPPolicyPage(renderer, viewTree, schema), true
 		}
 		return "", false
 	}

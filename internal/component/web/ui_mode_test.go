@@ -1,6 +1,8 @@
 package web
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,6 +50,30 @@ func TestUIMode_RollbackFinder(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 
 	assert.Equal(t, UIModeFinder, GetUIMode())
+}
+
+// TestReadUIModeFromRequestIgnoresStaleFinderCookie verifies that an old
+// browser cookie cannot strand operators on the deprecated Finder shell.
+//
+// VALIDATES: Workbench cutover is not overridden by stale ze-ui=finder cookies.
+// PREVENTS: Normal pages showing the old Finder layout and bottom CLI bar.
+func TestReadUIModeFromRequestIgnoresStaleFinderCookie(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req.AddCookie(&http.Cookie{Name: uiModeCookie, Value: uiModeTokenFinder})
+
+	assert.Equal(t, UIModeWorkbench, ReadUIModeFromRequest(req, UIModeWorkbench))
+}
+
+// TestReadUIModeFromRequestAcceptsCurrentSwitchCookie verifies that explicit
+// UI switch controls can still select Finder or Workbench.
+//
+// VALIDATES: Operators can switch between Finder and Workbench intentionally.
+// PREVENTS: CLI return navigation becoming one-way.
+func TestReadUIModeFromRequestAcceptsCurrentSwitchCookie(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
+	req.AddCookie(&http.Cookie{Name: uiModeSwitchCookie, Value: uiModeTokenFinder})
+
+	assert.Equal(t, UIModeFinder, ReadUIModeFromRequest(req, UIModeWorkbench))
 }
 
 // TestParseUIMode_KnownTokens verifies the parser recognizes both labels in

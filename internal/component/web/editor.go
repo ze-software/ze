@@ -330,7 +330,14 @@ func (m *EditorManager) ChangeCount(username string) int {
 		return 0
 	}
 
-	return len(us.editor.PendingChanges(sid))
+	count := len(us.editor.PendingChanges(sid))
+	if count > 0 {
+		return count
+	}
+	if us.editor.Dirty() {
+		return 1
+	}
+	return 0
 }
 
 // Tree returns the user's working configuration tree for rendering.

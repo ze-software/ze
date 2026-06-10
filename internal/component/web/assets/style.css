@@ -2538,7 +2538,7 @@ body.ui-workbench {
   z-index: 100;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   body.ui-workbench::before {
     content: "Workbench requires a viewport of at least 1024px wide.";
     display: block;

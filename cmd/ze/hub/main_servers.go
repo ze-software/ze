@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	zeconfigcmd "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -260,16 +261,19 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		return nil, nil, nil
 	}
 
+	var commandTree *command.Node
 	// Strict ze:related validation against the full operational command
 	// tree. Surfaces typos and renamed-command drift at hub startup so
 	// operators see the diagnostic before any workbench click. Logged as
 	// a warning (not fatal) so a single drifted descriptor never prevents
 	// the hub from serving the rest of the UI.
 	if loader, loaderErr := yangloader.DefaultLoader(); loaderErr == nil {
-		commandTree := yangloader.BuildCommandTree(loader)
+		commandTree = yangloader.BuildCommandTree(loader)
 		if validateErr := zeconfig.ValidateSchemaAgainstCommandTree(schema, commandTree); validateErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: ze:related validation: %v\n", validateErr)
 		}
+	} else {
+		fmt.Fprintf(os.Stderr, "warning: operational command tree unavailable: %v\n", loaderErr)
 	}
 
 	// Ensure a config file exists for the editor.
@@ -298,6 +302,10 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		editorMgr.SetCommitHook(commitHook)
 	}
 
+	var commandCompleter zeweb.CommandCompleter
+	if commandTree != nil {
+		commandCompleter = cli.NewCommandCompleter(commandTree)
+	}
 	// Create CLI completer for Tab/? autocomplete.
 	completer := cli.NewCompleter()
 
@@ -311,9 +319,9 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// SSE broker for live config change notifications and log streaming.
 	broker := zeweb.NewEventBroker(0)
 
-	// Both UIs are always available. The ze.web.ui env var (default: finder)
-	// controls which one /show/ renders when no ze-ui cookie is set. Users
-	// switch at runtime via the Finder/Workbench links in the topbar.
+	// Workbench is the normal UI. Finder remains as a server-side rollback when
+	// ze.web.ui=finder is set before startup; stale browser cookies do not switch
+	// operators back to the deprecated shell.
 	uiMode := zeweb.GetUIMode()
 	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
 	workbenchHandler := zeweb.HandleWorkbench(renderer, schema, tree, editorMgr, insecureWeb,
@@ -333,6 +341,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// Config set, add, and delete handlers for editing leaf values.
 	setHandler := zeweb.HandleConfigSetWithAuthorizer(editorMgr, schema, renderer, authorizer)
+	formHandler := zeweb.HandleConfigFormWithAuthorizer(editorMgr, schema, renderer, authorizer)
 	addHandler := zeweb.HandleConfigAddWithAuthorizer(editorMgr, schema, renderer, authorizer)
 	addFormHandler := zeweb.HandleConfigAddForm(editorMgr, schema, renderer)
 	renameHandler := zeweb.HandleConfigRenameWithAuthorizer(editorMgr, schema, authorizer)
@@ -373,9 +382,9 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// CLI handlers: command execution, autocomplete, terminal mode.
 	cliHandler := zeweb.HandleCLICommandWithAuthorizer(editorMgr, schema, renderer, authorizer)
-	completeHandler := zeweb.HandleCLIComplete(completer, editorMgr, schema)
-	terminalHandler := zeweb.HandleCLITerminalWithAuthorizerAndAudit(editorMgr, schema, tree, authorizer, recorder)
+	terminalHandler := zeweb.HandleCLITerminalWithDispatchAuthorizerAndAudit(editorMgr, schema, tree, dispatch, authorizer, recorder)
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
+	completeHandler := zeweb.HandleCLICompleteWithCommandCompleter(completer, commandCompleter, editorMgr, schema)
 
 	// Auth wrapper for protecting individual routes.
 	webAuth := &authz.LocalAuthenticator{Users: users}
@@ -402,10 +411,9 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// silent fallback after loader failure would surface as broken admin
 	// links rather than a clear error.
 	var adminChildren map[string][]string
-	if loader, loaderErr := yangloader.DefaultLoader(); loaderErr == nil {
-		adminChildren = zeweb.AdminTreeFromYANG(yangloader.BuildCommandTree(loader))
+	if commandTree != nil {
+		adminChildren = zeweb.AdminTreeFromYANG(commandTree)
 	} else {
-		fmt.Fprintf(os.Stderr, "warning: admin command tree unavailable: %v\n", loaderErr)
 		adminChildren = map[string][]string{}
 	}
 	adminViewHandler := zeweb.HandleAdminView(renderer, adminChildren)
@@ -428,6 +436,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("POST /cli/mode", mutationWrap(modeHandler))
 	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
 	srv.Handle("POST /config/set/", mutationWrap(setHandler))
+	srv.Handle("POST /config/form/", mutationWrap(formHandler))
 	srv.Handle("POST /config/add/", mutationWrap(addHandler))
 	srv.Handle("GET /config/add-form/", authWrap(addFormHandler))
 	srv.Handle("POST /config/rename/", mutationWrap(renameHandler))

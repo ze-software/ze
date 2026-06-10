@@ -90,7 +90,7 @@ func BuildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 				valueOrDash(ge.Families),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Peers", URL: tb.Reset().Str("/show/bgp/peer/?group=").Str(ge.Name).String()},
+				{Label: "View Peers", URL: tb.Reset().Str("/show/bgp/group/").Str(ge.Name).Str("/peer/").String()},
 				{Label: "Edit", URL: groupURL},
 			},
 		})
@@ -98,7 +98,7 @@ func BuildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 
 	return WorkbenchTableData{
 		Title:        "BGP Groups",
-		AddURL:       "/show/bgp/group/add",
+		AddURL:       "/show/bgp/group/",
 		AddLabel:     "Add Group",
 		Columns:      columns,
 		Rows:         rows,

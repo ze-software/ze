@@ -27,6 +27,11 @@ var (
 
 const configEditPath = "/config/edit/"
 
+// CommandCompleter provides operational command completions for terminal mode.
+type CommandCompleter interface {
+	Complete(input string) []contract.Completion
+}
+
 // maxCommandLength is the maximum allowed CLI command text length.
 const maxCommandLength = 4096
 
@@ -59,6 +64,10 @@ const (
 	verbActivate   = "activate"
 	verbErrors     = "errors"
 	verbDisconnect = "disconnect"
+	verbRun        = "run"
+	verbConfigure  = "configure"
+	verbExit       = "exit"
+	verbQuit       = "quit"
 )
 
 // cliCommand holds the parsed verb and arguments from a CLI bar input.
@@ -128,11 +137,30 @@ func formatCLIPrompt(path []string) string {
 	return tb.Str("ze[").Join(path, " ").Str("]# ").String()
 }
 
+const (
+	terminalModeConfig      = "config"
+	terminalModeOperational = "operational"
+)
+
+func normalizeTerminalMode(mode string) string {
+	if strings.EqualFold(strings.TrimSpace(mode), terminalModeOperational) {
+		return terminalModeOperational
+	}
+	return terminalModeConfig
+}
+
+func formatTerminalPrompt(mode string, path []string) string {
+	if normalizeTerminalMode(mode) == terminalModeOperational {
+		return "ze> "
+	}
+	return formatCLIPrompt(path)
+}
+
 // HandleCLIPage renders the CLI terminal page content for the workbench.
 // Layout matches the SSH CLI: output viewport fills available space, two-line
 // message area shows feedback and hints, prompt + input at the very bottom.
 func HandleCLIPage(renderer *Renderer) template.HTML {
-	prompt := formatCLIPrompt(nil)
+	prompt := formatTerminalPrompt(terminalModeConfig, nil)
 
 	var buf textbuf.Buffer
 	buf.Str(`<div class="cli-page">`)
@@ -148,6 +176,7 @@ func HandleCLIPage(renderer *Renderer) template.HTML {
 	buf.Str(`<div class="terminal-completions is-hidden" id="terminal-completions"></div>`)
 	buf.Str(`</div>`)
 	buf.Str(`<span id="cli-context-path" class="is-hidden"></span>`)
+	buf.Str(`<span id="cli-mode" class="is-hidden">`).Str(terminalModeConfig).Str(`</span>`)
 	buf.Str(`</div>`)
 
 	return template.HTML(buf.String()) //nolint:gosec // trusted template output
@@ -485,8 +514,6 @@ func handleCLIDiscard(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 	htmxRedirect(w, r, configEditPath)
 }
 
-// HandleCLIComplete returns a GET handler for /cli/complete that provides
-// tab-completion candidates for the CLI bar input.
 // adjustListContext corrects the web URL path for CLI use.
 // The web can display a named node's table (e.g., /show/bgp/peer/), but in the CLI
 // you are always before the named node or after (inside an entry) -- never at it.
@@ -505,7 +532,15 @@ func adjustListContext(schema *config.Schema, path []string) []string {
 	return path
 }
 
+// HandleCLIComplete returns a GET handler for /cli/complete that provides
+// tab-completion candidates for the CLI bar input.
 func HandleCLIComplete(completer contract.Completer, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+	return HandleCLICompleteWithCommandCompleter(completer, nil, mgr, schema)
+}
+
+// HandleCLICompleteWithCommandCompleter returns a completion handler that can
+// complete config-mode paths and operational-mode command trees.
+func HandleCLICompleteWithCommandCompleter(completer contract.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -534,17 +569,7 @@ func HandleCLIComplete(completer contract.Completer, mgr *EditorManager, schema 
 			return
 		}
 
-		// Adjust context: CLI can't be "at" a list, step back to parent.
-		contextPath = adjustListContext(schema, contextPath)
-
-		// Set the editor tree so completions can see existing list entries.
-		if mgr != nil {
-			if userTree := mgr.Tree(username); userTree != nil {
-				completer.SetTree(userTree)
-			}
-		}
-
-		completions := completer.Complete(input, contextPath)
+		completions := completeCLIInput(completer, commandCompleter, mgr, schema, username, input, contextPath, normalizeTerminalMode(r.URL.Query().Get("mode")))
 		if len(completions) > maxCompletionResults {
 			completions = completions[:maxCompletionResults]
 		}
@@ -570,4 +595,23 @@ func HandleCLIComplete(completer contract.Completer, mgr *EditorManager, schema 
 			http.Error(w, fmt.Sprintf("json encode: %v", err), http.StatusInternalServerError)
 		}
 	}
+}
+
+func completeCLIInput(completer contract.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema, username, input string, contextPath []string, mode string) []contract.Completion {
+	if commandCompleter != nil {
+		if mode == terminalModeOperational {
+			return commandCompleter.Complete(input)
+		}
+		if rest, ok := strings.CutPrefix(input, verbRun+" "); ok {
+			return commandCompleter.Complete(rest)
+		}
+	}
+
+	contextPath = adjustListContext(schema, contextPath)
+	if mgr != nil {
+		if userTree := mgr.Tree(username); userTree != nil {
+			completer.SetTree(userTree)
+		}
+	}
+	return completer.Complete(input, contextPath)
 }

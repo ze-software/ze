@@ -49,6 +49,7 @@ type LayoutData struct {
 	ActiveUI         string // "workbench", "finder", or "cli" — controls which nav buttons appear
 	RouterIdentity   string // Resolved display name: system/host > bgp/router-id > "ze"
 	FleetPeers       []FleetPeer
+	ChangeCount      int
 }
 
 // FleetPeer is one entry in the fleet selector dropdown.
@@ -91,7 +92,10 @@ type Renderer struct {
 // Returns an error if any template fails to parse.
 func NewRenderer() (*Renderer, error) {
 	funcMap := template.FuncMap{
-		"sub": func(a, b int) int { return a - b },
+		"sub":          func(a, b int) int { return a - b },
+		"fieldid":      formFieldID,
+		"fieldname":    formFieldName,
+		"fieldchecked": formFieldChecked,
 	}
 
 	layout, err := template.New("layout.html").Funcs(funcMap).ParseFS(templatesFS,

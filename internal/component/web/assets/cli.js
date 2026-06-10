@@ -361,10 +361,16 @@
         var path = btn.getAttribute('data-path');
         var entryKey = btn.getAttribute('data-key');
         deleteEntry(path, entryKey);
+      } else if (action === 'save-field-page') {
+        if (document.activeElement && document.activeElement.blur) {
+          document.activeElement.blur();
+        }
+        setTimeout(refreshCommitBar, 300);
       } else if (action === 'switch-ui') {
         var mode = btn.getAttribute('data-mode');
         if (mode) {
-          document.cookie = 'ze-ui=' + mode + ';path=/;max-age=31536000';
+          document.cookie = 'ze-ui-mode=' + mode + ';path=/;max-age=31536000;samesite=lax';
+          document.cookie = 'ze-ui=;path=/;max-age=0;samesite=lax';
         }
       } else if (action === 'toggle-theme') {
         var html = document.documentElement;
@@ -412,6 +418,12 @@
       if (e.target && e.target.matches('[data-close-on-after-request="true"]')) {
         var overlay = document.getElementById('add-entry-overlay');
         if (overlay) overlay.remove();
+        setTimeout(refreshCommitBar, 300);
+      }
+      if (e.target && e.target.closest && e.target.closest('.wb-form-post')) {
+        if (e.detail && e.detail.successful) {
+          setTimeout(function() { window.location.reload(); }, 50);
+        }
       }
     });
   }
@@ -421,6 +433,9 @@
   // Keyless lists create the entry server-side and return a redirect (no form).
   function showAddEntryOverlay(baseURL) {
     var formURL = baseURL.replace(/^\/show\//, '/config/add-form/');
+    if (document.getElementById('workbench-shell')) {
+      formURL += (formURL.indexOf('?') === -1 ? '?' : '&') + 'ui=workbench';
+    }
     fetch(formURL, { credentials: 'same-origin' })
       .then(function(r) {
         // Keyless lists: server creates entry and returns HX-Redirect.
@@ -603,6 +618,7 @@
     var hintEl = document.getElementById('cli-hint');
     var promptEl = document.getElementById('terminal-prompt');
     var contextEl = document.getElementById('cli-context-path');
+    var modeEl = document.getElementById('cli-mode');
     var completionsBox = document.getElementById('terminal-completions');
 
     var termHistory = [];
@@ -616,9 +632,14 @@
       return contextEl ? contextEl.textContent.trim() : '';
     }
 
-    function setTermPath(path, prompt) {
-      if (contextEl) contextEl.textContent = path;
-      if (promptEl) promptEl.textContent = prompt;
+    function getTermMode() {
+      return modeEl ? (modeEl.textContent.trim() || 'config') : 'config';
+    }
+
+    function setTermState(path, prompt, mode) {
+      if (contextEl && path !== undefined && path !== null) contextEl.textContent = path;
+      if (modeEl && mode) modeEl.textContent = mode;
+      if (promptEl && prompt) promptEl.textContent = prompt;
     }
 
     function setOutput(text) {
@@ -706,15 +727,11 @@
           method: 'POST',
           credentials: 'same-origin',
           headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(ctxPath)
+          body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(ctxPath) + '&mode=' + encodeURIComponent(getTermMode())
         }).then(function(r) { return r.json(); })
           .then(function(data) {
-            if (data.path !== undefined && data.path !== null && data.prompt) {
-              setTermPath(data.path, data.prompt);
-            }
-            if (data.output) {
-              setOutput(data.output);
-            }
+            setTermState(data.path, data.prompt, data.mode);
+            setOutput(data.output || '');
             var isError = data.feedback && (data.feedback.indexOf('error') === 0 || data.feedback.indexOf('conflict') === 0);
             setFeedback(data.feedback ? '► ' + data.feedback : '', isError);
             setHint('');
@@ -754,7 +771,7 @@
 
     function doTermComplete(inp, box, val) {
       var completePath = getTermPath();
-      fetch('/cli/complete?input=' + encodeURIComponent(val) + '&path=' + encodeURIComponent(completePath), {credentials: 'same-origin'})
+      fetch('/cli/complete?input=' + encodeURIComponent(val) + '&path=' + encodeURIComponent(completePath) + '&mode=' + encodeURIComponent(getTermMode()), {credentials: 'same-origin'})
         .then(function(r) { return r.json(); })
         .then(function(items) {
           if (!items || items.length === 0) {
@@ -805,10 +822,11 @@
       method: 'POST',
       credentials: 'same-origin',
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: 'command=show&path='
+      body: 'command=show&path=&mode=' + encodeURIComponent(getTermMode())
     }).then(function(r) { return r.json(); })
       .then(function(data) {
-        if (data.output) setOutput(data.output);
+        setTermState(data.path, data.prompt, data.mode);
+        setOutput(data.output || '');
       });
 
     input.focus();
@@ -822,6 +840,7 @@
     initActions();
     initFlyout();
     initToolOverlay();
+    refreshCommitBar();
     initTerminal();
   });
 })();

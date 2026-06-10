@@ -18,4 +18,6 @@ action=fill:id=field-name:value=web-group
 action=click:text=Save
 action=wait:ms=1000
 expect=element:text=web-group
-expect=element:text=Review & Commit
+action=open:path=/config/changes
+expect=html:contains=commit-bar visible
+expect=html:contains=pending change

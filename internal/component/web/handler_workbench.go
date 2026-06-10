@@ -73,10 +73,14 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 
 		routerIdentity := ResolveRouterIdentity(viewTree)
 		fleetPeers := CollectFleetPeers(viewTree, routerIdentity)
+		changeCount := 0
+		if mgr != nil && username != "" {
+			changeCount = mgr.ChangeCount(username)
+		}
 
 		// Purpose-built pages handle their own data sourcing and do not
 		// walk the YANG schema. Detect them before the generic schema walk.
-		if pageContent, handled := renderPageContent(renderer, r, path, viewTree, cfg.dispatch, cfg.broker); handled {
+		if pageContent, handled := renderPageContent(renderer, r, path, viewTree, schema, cfg.dispatch, cfg.broker); handled {
 			if r.Header.Get("HX-Request") == htmxRequestTrue {
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
 				if _, writeErr := w.Write([]byte(pageContent)); writeErr != nil {
@@ -106,6 +110,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 					ActiveUI:       uiModeTokenWorkbench,
 					RouterIdentity: routerIdentity,
 					FleetPeers:     fleetPeers,
+					ChangeCount:    changeCount,
 				},
 				Sections: WorkbenchSections(path),
 			}
@@ -184,6 +189,7 @@ func HandleWorkbench(renderer *Renderer, schema *config.Schema, tree *config.Tre
 				ActiveUI:       uiModeTokenWorkbench,
 				RouterIdentity: routerIdentity,
 				FleetPeers:     fleetPeers,
+				ChangeCount:    changeCount,
 			},
 			Sections: WorkbenchSections(path),
 		}

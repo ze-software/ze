@@ -71,7 +71,7 @@ func BuildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProto
 
 	return WorkbenchTableData{
 		Title:        "IP Addresses",
-		AddURL:       "/show/ip/addresses/add",
+		AddURL:       "",
 		AddLabel:     "Add Address",
 		Columns:      columns,
 		Rows:         rows,
