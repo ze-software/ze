@@ -86,7 +86,7 @@ Destructive commands live under the `clear` verb (not a top-level `l2tp`
 noun) to match ze's CLI grammar. The `clear` prefix is denied in the
 built-in read-only authz profile.
 
-<!-- source: internal/component/l2tp/yang/ze-l2tp-cmd.yang -->
+<!-- source: internal/plugins/l2tp-cmd/yang/ze-l2tp-cmd.yang -->
 
 ### Offline dispatcher
 

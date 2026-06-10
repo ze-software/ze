@@ -61,7 +61,7 @@ Auto-reconnect uses exponential backoff: idle-timeout x 2^(N-1), capped at 1 hou
 **Prometheus metrics:** `ze_bgp_prefix_count`, `ze_bgp_prefix_maximum`, `ze_bgp_prefix_warning`, `ze_bgp_prefix_warning_exceeded`, `ze_bgp_prefix_ratio`, `ze_bgp_prefix_maximum_exceeded_total`, `ze_bgp_prefix_teardown_total`, `ze_bgp_prefix_stale`.
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement -->
 <!-- source: internal/component/bgp/reactor/peer.go -- idle-timeout and reconnect logic -->
-<!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- PeeringDB update command -->
+<!-- source: internal/component/resolve/cmd/resolve.go -- handlePeeringDBMaxPrefix -->
 
 ### Cross-Peer Update Groups
 

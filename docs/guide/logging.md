@@ -63,7 +63,7 @@ ze cli -c "bgp log set bgp.fsm debug"
 ze cli -c "bgp log set bgp.reactor info"
 ze cli -c "bgp log levels"         # show current levels
 ```
-<!-- source: internal/core/slogutil/cmd/ -- log show/set RPCs -->
+<!-- source: internal/plugins/log/cmd/handlers.go -- log show/set RPCs -->
 
 ## Priority Order
 

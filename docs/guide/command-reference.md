@@ -433,8 +433,8 @@ ze support --since 2h                  # Time scope for log collection
 ze support --output /var/support/      # Output directory (default: cwd)
 ```
 
-<!-- source: internal/plugins/support/support.go -- Run, collect, moduleRegistry -->
-<!-- source: internal/plugins/support/modules.go -- ModuleNames, ModuleList -->
+<!-- source: internal/component/support/support.go -- Run, collect, moduleRegistry -->
+<!-- source: internal/component/support/modules.go -- ModuleNames, ModuleList -->
 
 ### ze interface
 
@@ -654,7 +654,7 @@ ze show system kernel-log level err count 10    # Combined
 Reads /dev/kmsg. Returns entries with level, sequence, timestamp-us, message.
 Levels: emerg, alert, crit, err, warning, notice, info, debug. Linux only.
 
-<!-- source: internal/component/host/cmd/show_kernel_log_linux.go -- handleShowSystemKernelLog -->
+<!-- source: internal/plugins/host-cmd/cmd/show_kernel_log_linux.go -- handleShowSystemKernelLog -->
 
 ### show system goroutines
 
@@ -679,7 +679,7 @@ ze show tcp-check <host> <port> source 10.0.0.1    # Bind source IP
 
 Returns result (connected/refused/timeout) and latency-ms.
 
-<!-- source: internal/component/diag/cmd/tcp_check.go -- HandleTCPCheck -->
+<!-- source: internal/plugins/diag/cmd/tcp_check.go -- HandleTCPCheck -->
 
 ### show traceroute
 
@@ -761,7 +761,7 @@ packet: `TIMESTAMP PROTO SRC:PORT -> DST:PORT FLAGS LEN HEX`. Limits: count
 1-10000, duration 1s-60s, snap-len 64-65535. One active capture per interface.
 Linux only (requires CAP_NET_RAW). Pure Go, no libpcap/cgo dependency.
 
-<!-- source: internal/component/diag/cmd/capture_interface_linux.go -- HandleCaptureInterface -->
+<!-- source: internal/plugins/diag/cmd/capture_interface_linux.go -- HandleCaptureInterface -->
 
 ### show system file-descriptors
 
@@ -869,7 +869,7 @@ Status values: "up to date", "update available", "downloading", "verifying", "st
 "paused by server", "waiting for maintenance window", "waiting for spread",
 "check failed", "not configured", "error: ...".
 
-<!-- source: internal/component/update/cmd/show.go -- handleShowSystemUpdate -->
+<!-- source: internal/plugins/update-cmd/cmd/show.go -- handleShowSystemUpdate -->
 
 ### show system update history
 
@@ -885,7 +885,7 @@ Result values: "success", "failed-download", "failed-checksum", "failed-stage",
 History is persisted to `ze-update-history.json` in the binary's directory and
 survives restarts.
 
-<!-- source: internal/component/update/cmd/show.go -- handleShowSystemUpdateHistory -->
+<!-- source: internal/plugins/update-cmd/cmd/show.go -- handleShowSystemUpdateHistory -->
 
 ### update system firmware
 
@@ -907,7 +907,7 @@ sha256 is absent from the manifest.
 `rollback` renames the `.prev` backup to the target binary and restarts. After
 rollback, `.prev` no longer exists and the new version is gone from disk.
 
-<!-- source: internal/component/update/cmd/firmware.go -- firmware CLI handlers -->
+<!-- source: internal/plugins/update-cmd/cmd/firmware.go -- firmware CLI handlers -->
 
 ### show summary
 
@@ -1303,7 +1303,7 @@ ze env get <key>                 # Show single env var details
 | Flag | Purpose |
 |------|---------|
 | `-v`, `--verbose` | Show current effective values (list) |
-<!-- source: internal/core/env/cli/main.go -- Run -->
+<!-- source: internal/plugins/env/env.go -- Run -->
 
 ### ze resolve
 
@@ -1553,7 +1553,7 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 | `group-updates` | enable/disable | No | UPDATE grouping |
 
 <!-- source: internal/component/config/setparser_inline.go -- ParseInlineArgs YANG-driven parser -->
-<!-- source: internal/component/plugin/server/node_with.go -- HandleNodeWith generic set handler -->
+<!-- source: internal/component/config/setparser.go -- parseSet structural-only commands -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- HandleBgpPeerWith, preparePeerTree -->
 
 ### Del Commands
@@ -1720,7 +1720,7 @@ The `clear l2tp session teardown` command accepts optional keyword arguments:
 - `reason <text...>`: free-text audit reason, recorded in the per-session event ring
 - `cause <code>`: RADIUS Disconnect-Cause value (uint16), recorded alongside the reason
 
-<!-- source: internal/component/l2tp/yang/ze-l2tp-cmd.yang -->
+<!-- source: internal/plugins/l2tp-cmd/yang/ze-l2tp-cmd.yang -->
 <!-- source: internal/component/l2tp/cmd/l2tp.go -- handleSessionTeardown, parseKeywordArgs -->
 
 ### PPPoE Commands
@@ -1733,7 +1733,7 @@ The `clear l2tp session teardown` command accepts optional keyword arguments:
 | `show pppoe statistics` | run | Per-interface session counts and limits |
 | `show pppoe interfaces` | run | Configured PPPoE access interfaces |
 
-<!-- source: internal/component/pppoe/yang/ze-pppoe-cmd.yang -->
+<!-- source: internal/plugins/pppoe-cmd/yang/ze-pppoe-cmd.yang -->
 <!-- source: internal/component/pppoe/cmd/pppoe.go -- RPC handlers -->
 
 ### L2TPv2 Web UI
@@ -1841,7 +1841,7 @@ Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
 | `request log level <subsystem> <level>` | write | Set log level at runtime |
 
 Levels: debug, info, warn, err, disabled.
-<!-- source: internal/core/slogutil/cmd/handlers.go -- show log levels/recent, request log level RPCs; internal/core/slogutil/slogutil.go -- level definitions -->
+<!-- source: internal/plugins/log/cmd/handlers.go -- show log levels/recent, request log level RPCs; internal/core/slogutil/slogutil.go -- level definitions -->
 
 ### Plugin Configuration (from plugin context)
 
@@ -1860,7 +1860,7 @@ Levels: debug, info, warn, err, disabled.
 | `command-list` | read-only | List all commands with descriptions |
 | `command-help <name>` | read-only | Detailed help for a command |
 | `event-list` | read-only | List available event types |
-<!-- source: internal/component/command/cmd/ -- help/discovery RPCs -->
+<!-- source: internal/plugins/meta/cmd/help.go -- help/discovery RPCs -->
 
 ---
 

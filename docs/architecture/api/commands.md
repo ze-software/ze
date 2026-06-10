@@ -457,7 +457,7 @@ bgp log set <subsystem> <level>   # Change subsystem log level at runtime
 ```
 
 Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slog.LevelVar` atomic swap. Only loggers created via `slogutil.Logger()` or `slogutil.LazyLogger()` (non-disabled) are shown and modifiable.
-<!-- source: internal/core/slogutil/yang/ze-log-cmd.yang -- log command YANG -->
+<!-- source: internal/plugins/log/yang/ze-log-cmd.yang -- log command YANG -->
 
 ### Metrics Commands (Ze)
 
