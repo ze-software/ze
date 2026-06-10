@@ -184,12 +184,15 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 		}
 	}
 
-	// Compute changed attributes.
+	// Compute changed attributes. Parse each filter text exactly once and
+	// share the maps read-only (spec filter-delta-parse-once).
 	var changedAttrs []string
 	var wireChanges []string
 	if textBefore != textAfter && textAfter != "" {
-		changedAttrs = computeChangedAttrs(textBefore, textAfter)
-		wireChanges = computeWireChanges(textBefore, textAfter, attrs, asn4, peerAS, localAS)
+		beforeAttrs := parseFilterAttrs(textBefore)
+		afterAttrs := parseFilterAttrs(textAfter)
+		changedAttrs = computeChangedAttrs(beforeAttrs, afterAttrs)
+		wireChanges = computeWireChanges(beforeAttrs, afterAttrs, attrs, asn4, peerAS, localAS)
 	}
 
 	return &plugin.PolicyDryRunResult{
@@ -213,12 +216,14 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 //
 // It builds the same ModAccumulator the forward path builds but does not
 // construct a modified payload: this is a read-only explanation, so it only
-// reports the operations as "<ATTRIBUTE> <verb>" strings.
-func computeWireChanges(before, after string, attrs *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []string {
+// reports the operations as "<ATTRIBUTE> <verb>" strings. beforeAttrs and
+// afterAttrs are the caller's single parseFilterAttrs results, shared
+// read-only with computeChangedAttrs.
+func computeWireChanges(beforeAttrs, afterAttrs map[string]string, attrs *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []string {
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(before, after, &mods)
-	ExtractRemovePrivateASOps(after, attrs, asn4, peerAS, &mods)
-	ExtractASPathPrependOps(after, localAS, &mods)
+	textDeltaToModOps(beforeAttrs, afterAttrs, &mods)
+	ExtractRemovePrivateASOps(afterAttrs, attrs, asn4, peerAS, &mods)
+	ExtractASPathPrependOps(afterAttrs, localAS, &mods)
 
 	ops := mods.Ops()
 	if len(ops) == 0 {
@@ -277,12 +282,11 @@ func resolveFilterOverride(name string, chain []string) string {
 	return ""
 }
 
-// computeChangedAttrs compares before and after filter text and returns
-// the list of attribute names that differ.
-func computeChangedAttrs(before, after string) []string {
-	beforeAttrs := parseFilterAttrs(before)
-	afterAttrs := parseFilterAttrs(after)
-
+// computeChangedAttrs compares the parsed before and after filter attribute
+// maps and returns the list of attribute names that differ. Both maps are
+// the caller's single parseFilterAttrs results, shared read-only with
+// computeWireChanges.
+func computeChangedAttrs(beforeAttrs, afterAttrs map[string]string) []string {
 	// Iterate in the canonical attribute order used by formatFilterAttrs
 	// so output is deterministic without sorting.
 	order := [...]string{

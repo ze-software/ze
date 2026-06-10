@@ -8,6 +8,7 @@ import (
 	"context"
 	"maps"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -106,10 +107,16 @@ var policySingleToken = map[string]bool{
 	"as-path-prepend": true, policyAttrRemovePrivate: true, "aigp": true,
 }
 
+// parseFilterAttrsCalls counts parseFilterAttrs invocations. Test seam for
+// TestFilterDeltaParseCallCount, which proves the filter modify paths parse
+// each filter text exactly once (spec filter-delta-parse-once AC-2/AC-3).
+var parseFilterAttrsCalls atomic.Uint64
+
 // parseFilterAttrs parses text-format attributes into a map.
 // Each attribute is "name value" where value may contain spaces.
 // Special key "nlri" captures the NLRI section.
 func parseFilterAttrs(text string) map[string]string {
+	parseFilterAttrsCalls.Add(1)
 	attrs := make(map[string]string)
 	if text == "" {
 		return attrs

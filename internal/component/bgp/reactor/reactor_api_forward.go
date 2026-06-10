@@ -476,11 +476,15 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			}
 			if modifiedText != updateText {
 				var exportMods filterapi.ModAccumulator
-				textDeltaToModOps(updateText, modifiedText, &exportMods)
+				// Parse each filter text exactly once; the three extractors
+				// share the maps read-only (spec filter-delta-parse-once).
+				origAttrs := parseFilterAttrs(updateText)
+				modAttrs := parseFilterAttrs(modifiedText)
+				textDeltaToModOps(origAttrs, modAttrs, &exportMods)
 				srcCtx := bgpctx.Registry.Get(update.WireUpdate.SourceCtxID())
 				srcASN4 := srcCtx != nil && srcCtx.ASN4()
-				ExtractRemovePrivateASOps(modifiedText, attrsWire, srcASN4, facts.peerAS, &exportMods)
-				ExtractASPathPrependOps(modifiedText, facts.localAS, &exportMods)
+				ExtractRemovePrivateASOps(modAttrs, attrsWire, srcASN4, facts.peerAS, &exportMods)
+				ExtractASPathPrependOps(modAttrs, facts.localAS, &exportMods)
 				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
 				if exportMods.Len() > 0 || nlriOverride != nil {
 					if modPayload, _ := buildModifiedPayload(update.WireUpdate.Payload(), &exportMods, a.r.attrModHandlers, nil, nlriOverride); modPayload != nil {

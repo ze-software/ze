@@ -207,7 +207,7 @@ func TestComputeChangedAttrs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := computeChangedAttrs(tt.before, tt.after)
+			got := computeChangedAttrs(parseFilterAttrs(tt.before), parseFilterAttrs(tt.after))
 			sort.Strings(got)
 			sort.Strings(tt.want)
 			if len(got) != len(tt.want) {
@@ -254,7 +254,7 @@ func TestComputeWireChangesAS4Path(t *testing.T) {
 		before := "origin igp as-path [64500 23456]"
 		after := "origin igp as-path [64500 23456] remove-private strip"
 
-		changes := computeWireChanges(before, after, attrs, false, 65001, 65000)
+		changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, false, 65001, 65000)
 		if !slices.Contains(changes, "AS4_PATH suppressed") {
 			t.Errorf("wire changes = %v, want to contain %q", changes, "AS4_PATH suppressed")
 		}
@@ -275,7 +275,7 @@ func TestComputeWireChangesAS4Path(t *testing.T) {
 		before := "origin igp as-path [64500 23456]"
 		after := "origin igp as-path [64500 23456] remove-private strip"
 
-		changes := computeWireChanges(before, after, attrs, false, 65001, 65000)
+		changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, false, 65001, 65000)
 		if !slices.Contains(changes, "AS4_PATH set") {
 			t.Errorf("wire changes = %v, want to contain %q", changes, "AS4_PATH set")
 		}
@@ -295,7 +295,7 @@ func TestComputeWireChangesAS4Path(t *testing.T) {
 		before := "origin igp as-path [64500 23456] med 100"
 		after := "origin igp as-path [64500 23456] med 200"
 
-		changes := computeWireChanges(before, after, attrs, false, 65001, 65000)
+		changes := computeWireChanges(parseFilterAttrs(before), parseFilterAttrs(after), attrs, false, 65001, 65000)
 		for _, c := range changes {
 			if c == "AS4_PATH suppressed" || c == "AS4_PATH set" {
 				t.Errorf("unexpected AS4_PATH wire change %q in %v", c, changes)

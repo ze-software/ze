@@ -52,6 +52,7 @@ Buffer-first, zero-copy, attribute pools, UPDATE building, NLRI parsing.
 - [770](plan/learned/770-precomputation-review.md) -- Precomputation critical review: 3 of 7 proposals rejected after source validation showed trivially cheap operations; profile before optimizing
 - [771](plan/learned/771-performance-optimization-campaign.md) -- Full optimization campaign: Ze 91ms->71ms convergence (22%), BIRD gap from 1.82x to 1.61x; profile-driven, lifecycle-boundary precomputation
 - [859](plan/learned/859-perf-hot-alloc-reduction.md) -- Hot-path allocation reduction: value-type struct keys (netip.Prefix, compactRouteKey, withdrawalKey) replace string maps across rib/adj-rib-in/RS; adj-rib-in bypasses bgp.Event; Ze 71ms->62ms, now matches BIRD
+- [875](plan/learned/875-filter-delta-parse-once.md) -- Filter modify path parses filter text once and passes maps to the three extractors (was 4 parses per modified UPDATE); golden-corpus equivalence gate for AS-path refactors; modify path -39% time, -29% allocs
 - [785](plan/learned/785-rfc7606-validation-cache.md) -- RFC 7606 validation cache: rejected, validation too cheap (67-138 ns) to benefit from caching despite 77-97% hit rate; cache lookup cost rivals validation cost
 
 ## Plugin System

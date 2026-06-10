@@ -478,11 +478,15 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			// writes the filtered NLRI tail instead of copying the original.
 			if modifiedText != updateText {
 				var importMods filterapi.ModAccumulator
-				textDeltaToModOps(updateText, modifiedText, &importMods)
+				// Parse each filter text exactly once; the three extractors
+				// share the maps read-only (spec filter-delta-parse-once).
+				origAttrs := parseFilterAttrs(updateText)
+				modAttrs := parseFilterAttrs(modifiedText)
+				textDeltaToModOps(origAttrs, modAttrs, &importMods)
 				srcCtx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 				srcASN4 := srcCtx != nil && srcCtx.ASN4()
-				ExtractRemovePrivateASOps(modifiedText, attrsWire, srcASN4, peerInfo.PeerAS, &importMods)
-				ExtractASPathPrependOps(modifiedText, peer.settings.LocalAS, &importMods)
+				ExtractRemovePrivateASOps(modAttrs, attrsWire, srcASN4, peerInfo.PeerAS, &importMods)
+				ExtractASPathPrependOps(modAttrs, peer.settings.LocalAS, &importMods)
 				nlriOverride := extractLegacyNLRIOverride(updateText, modifiedText)
 				if importMods.Len() > 0 || nlriOverride != nil {
 					if modPayload, _ := buildModifiedPayload(wireUpdate.Payload(), &importMods, r.attrModHandlers, nil, nlriOverride); modPayload != nil {

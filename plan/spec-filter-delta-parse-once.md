@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-29 |
+| Phase | 7/7 |
+| Updated | 2026-06-10 |
 
 ## Post-Compaction Recovery
 
@@ -297,79 +297,131 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Implementation Summary
 
 ### What Was Implemented
-- [filled during implementation]
+- `textDeltaToModOps`, `ExtractASPathPrependOps`, `ExtractRemovePrivateASOps`, and `extractRemovePrivateASMode` now accept parsed `map[string]string` attribute maps instead of raw filter text (`filter_delta.go`).
+- All three call sites parse each filter text exactly once and share the maps read-only: egress `reactor_api_forward.go:479-487`, ingress `reactor_notify.go:481-489`, dry-run `policy_dryrun.go:187-196`.
+- Dry-run additionally hoists the parse above `computeChangedAttrs` + `computeWireChanges`, collapsing 6 parses per dry-run to 2 (both helpers now take maps).
+- Test seam `parseFilterAttrsCalls` (atomic counter) added in `filter_chain.go` for the parse-count proof.
+- Tests: `TestFilterDeltaParseOnceEquivalence` (12-case golden corpus captured from pre-refactor code), `TestFilterDeltaParseCallCount` (TDD red at 4 parses, green at 2), `BenchmarkFilterModifyEgress`.
+- Benchmark (Apple M4 Max, count 5): 2447 ns/op, 3000 B/op, 34 allocs/op before; 1501 ns/op, 1704 B/op, 24 allocs/op after (-39% time, -43% bytes, -29% allocs per modified UPDATE).
 
 ### Bugs Found/Fixed
-- [filled during implementation]
+- None; output proven byte-identical by golden corpus.
 
 ### Documentation Updates
-- [filled during implementation]
+- `filter_delta.go` header: `// RFC:` lines added for rfc6996/rfc6793 (hook convention), `// Related:` updated for parseFilterAttrs.
+- `docs/guide/plugins.md` anchors checked (`extractLegacyNLRIOverride`, `ExtractASPathPrependOps`, `ExtractRemovePrivateASOps`): claims are behavioral and remain accurate; no doc change needed.
 
 ### Deviations from Plan
-- [filled during implementation]
+- `computeChangedAttrs` (dry-run) also converted to maps; spec listed only `computeWireChanges`. Same parse-once principle, keeps the dry-run caller to one parse per text.
+- Spec's line references drifted (egress 483-489 -> 479-483 pre-change); structure matched exactly.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Parse original and modified once each | Done | `reactor_api_forward.go:482-483`, `reactor_notify.go:484-485`, `policy_dryrun.go:191-192` | one `parseFilterAttrs` per text per site |
+| Pass parsed maps to all three extractors | Done | `filter_delta.go:202` (textDeltaToModOps), `:541` (ExtractASPathPrependOps), `:574` (ExtractRemovePrivateASOps) | map params, read-only |
+| Output unchanged | Done | `TestFilterDeltaParseOnceEquivalence` | golden corpus captured pre-refactor |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestFilterDeltaParseOnceEquivalence` 12/12 green pre- and post-refactor | sorted-multiset comparison (op order from map iteration was never deterministic) |
+| AC-2 | Done | `TestFilterDeltaParseCallCount` (red at 4, green at 2) + `reactor_api_forward.go:482-483` | |
+| AC-3 | Done | same test seam; `reactor_notify.go:484-485` | symmetric with egress |
+| AC-4 | Done | `policy_dryrun.go:191-192`; `policy_dryrun_test.go` green | dry-run now 2 parses (was 6) |
+| AC-5 | Done | `make ze-plugin-test` 404/404 (includes policy-test-remove-private-as, policy-test-as4path-suppress) | |
+| AC-6 | Done | `BenchmarkFilterModifyEgress`: 2447->1501 ns/op, 34->24 allocs/op (count 5) | logs: tmp/filter-delta-bench-before.log / -after.log |
+| AC-7 | See Pre-Commit Verification | `make ze-verify` run on shared tree | sole failure is concurrent session's in-flight leaf-list work (config/cli), independent of this change |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestFilterDeltaParseOnceEquivalence | Done | `filter_delta_test.go` | golden corpus, 12 cases |
+| TestFilterDeltaParseCallCount | Done | `filter_delta_test.go` | retry-3 hardened against background-goroutine counter noise |
+| BenchmarkFilterModifyEgress | Done | `filter_delta_test.go` | b.Loop, ReportAllocs |
+| policy-test-remove-private-as.ci | Done (existing) | `test/plugin/` | green in plugin suite |
+| policy-test-as4path-suppress.ci | Done (existing) | `test/plugin/` | green in plugin suite |
+| egress modify encode | Done (existing) | `test/encode/` suite 51/51 | no new .ci needed |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `filter_delta.go` | Done | extractors take maps; doc comments + RFC header updated |
+| `reactor_api_forward.go` | Done | parse once, pass maps |
+| `reactor_notify.go` | Done | parse once, pass maps |
+| `policy_dryrun.go` | Done | parse hoisted to caller; computeChangedAttrs also converted (deviation, same principle) |
+| `filter_chain.go` | Done | parseFilterAttrs unchanged except atomic call counter (test seam) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 17
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (computeChangedAttrs map conversion beyond spec list)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Output unchanged | equivalence + functional test | `TestFilterDeltaParseOnceEquivalence` + `policy-test-remove-private-as.ci` |
-| Fewer parses on hot path | benchmark / call-count test | `BenchmarkFilterModifyEgress` allocs drop; `TestFilterDeltaParseCallCount` |
+| Output unchanged | equivalence + functional test | `TestFilterDeltaParseOnceEquivalence` 12/12 green across refactor; `make ze-plugin-test` 404/404 incl. policy-test-remove-private-as.ci, policy-test-as4path-suppress.ci; `make ze-encode-test` 51/51 |
+| Fewer parses on hot path | benchmark + call-count test | `BenchmarkFilterModifyEgress` 2447->1501 ns/op, 34->24 allocs/op; `TestFilterDeltaParseCallCount` proves exactly 2 parses (was 4) |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred / acknowledged |
+| 1 | NOTE | `parseFilterAttrsCalls` adds one uncontended atomic add to every parse (incl. applyFilterDelta); ~1ns vs ~700ns parse cost, exists as AC-2 test seam | `filter_chain.go:110-119` | acknowledged (documented in code comment) |
+| 2 | NOTE | `extractLegacyNLRIOverride` still re-tokenizes the nlri block from raw text at all three call sites; pre-existing, block extraction not a full parseFilterAttrs; future cleanup could derive from parsed maps' "nlri" key | `filter_delta.go:49` | acknowledged (outside spec scope) |
 
 ### Fixes applied
-- [per BLOCKER/ISSUE]
+- None required (0 BLOCKER, 0 ISSUE on run 1).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | run 1 was clean | - | - |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+  → Decision: run 1 found 0 BLOCKER, 0 ISSUE; gate clean first pass.
 - [ ] All NOTEs recorded above (or explicitly "none")
+  → Decision: both NOTEs recorded and acknowledged above.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/bgp/reactor/filter_delta.go` | yes | git diff stat (52 lines changed) |
+| `internal/component/bgp/reactor/filter_chain.go` | yes | git diff stat (7 lines added) |
+| `internal/component/bgp/reactor/reactor_api_forward.go` | yes | git diff stat (10 lines) |
+| `internal/component/bgp/reactor/reactor_notify.go` | yes | git diff stat (10 lines) |
+| `internal/component/bgp/reactor/policy_dryrun.go` | yes | git diff stat (32 lines) |
+| `internal/component/bgp/reactor/filter_delta_test.go` | yes | git diff stat (250+ lines added) |
+| `internal/component/bgp/reactor/policy_dryrun_test.go` | yes | git diff stat (8 lines) |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | ops byte-identical | `go test -run TestFilterDeltaParseOnceEquivalence` 12/12 PASS post-refactor (tmp/filter-delta-test-final.log) |
+| AC-2/3 | 2 parses per modify | `TestFilterDeltaParseCallCount` PASS; grep shows exactly one `parseFilterAttrs(updateText)` + one `parseFilterAttrs(modifiedText)` per call site |
+| AC-4 | dry-run parse-once, output unchanged | `policy_dryrun.go:191-192`; reactor package suite green |
+| AC-5 | RFC semantics preserved | plugin suite 404/404 (policy-test-remove-private-as, policy-test-as4path-suppress green) |
+| AC-6 | fewer allocs | bench before 34 allocs/op vs after 24 allocs/op (tmp/filter-delta-bench-{before,after}.log) |
+| AC-7 | full verification | `make ze-lint-changed` 0 issues; reactor suite green; plugin 404/404; encode 51/51; `make ze-verify` result recorded below |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Modified UPDATE on egress (export filter) | `test/plugin/policy-test-remove-private-as.ci` (existing) | green in `make ze-plugin-test` 404/404 |
+| Modified UPDATE on ingress (import filter) | `test/plugin/policy-test-configured-import.ci` (existing) | green in `make ze-plugin-test` 404/404 |
+| Dry-run (`show policy test`) | exercised via `policy_dryrun_test.go` + plugin suite | green |
+
+### ze-verify (AC-7)
+- `make ze-verify` run 2026-06-10 on the shared working tree; result recorded in Executive Summary.
+- Known interference: concurrent session's uncommitted leaf-list work in `internal/component/config/` fails `TestCmdDeactivateLeafListValue` (config/cli); no import path from `config/cli` to `bgp/reactor`; failure reproduces with this spec's changes absent from the equation (their files, their test).
 
 ## Checklist
 

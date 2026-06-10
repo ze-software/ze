@@ -1,7 +1,9 @@
 // Design: docs/architecture/core-design.md -- policy filter wire-level dirty tracking
-// Related: filter_chain.go -- PolicyFilterChain returns text delta
+// Related: filter_chain.go -- PolicyFilterChain returns text delta; parseFilterAttrs parses it
 // Related: filter_format.go -- attrNameToCode, FormatAttrsForFilter
 // Related: forward_build.go -- buildModifiedPayload consumes ModAccumulator ops
+// RFC: rfc/short/rfc6996.md -- Private Use ASN ranges (remove-private rewriting)
+// RFC: rfc/short/rfc6793.md -- AS4_PATH handling (four-octet AS number space)
 
 package reactor
 
@@ -178,12 +180,14 @@ func splitNLRIBlocks(nlriField string) []string {
 	}
 }
 
-// textDeltaToModOps compares original and modified filter text, encoding changed
-// attributes to wire VALUE bytes as AttrModSet operations on the ModAccumulator.
+// textDeltaToModOps compares the parsed original and modified filter
+// attribute maps, encoding changed attributes to wire VALUE bytes as
+// AttrModSet operations on the ModAccumulator.
 //
-// Both original and modified use the policy filter text format:
-//
-//	"<attr-name> <value> [<attr-name> <value> ...] [nlri <family> <op> <prefix>...]"
+// Both maps come from parseFilterAttrs; the call site parses each filter
+// text exactly once and shares the maps read-only across the three
+// extractors (textDeltaToModOps, ExtractRemovePrivateASOps,
+// ExtractASPathPrependOps).
 //
 // Skipped attributes (not converted to wire ops):
 //   - NLRI: not modifiable via the attribute modification pipeline
@@ -195,10 +199,7 @@ func splitNLRIBlocks(nlriField string) []string {
 // (well-known) or omits it entirely (optional/community), effectively removing it.
 //
 // Parse errors for individual attributes are logged and skipped (fail-open).
-func textDeltaToModOps(original, modified string, mods *filterapi.ModAccumulator) {
-	origAttrs := parseFilterAttrs(original)
-	modAttrs := parseFilterAttrs(modified)
-
+func textDeltaToModOps(origAttrs, modAttrs map[string]string, mods *filterapi.ModAccumulator) {
 	// Changed or added attributes.
 	for name, modVal := range modAttrs {
 		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend || name == policyAttrRemovePrivate {
@@ -529,16 +530,16 @@ func stripAttrHeader(wire []byte) []byte {
 	return wire[3:]
 }
 
-// ExtractASPathPrependOps checks the modified filter text for an
-// "as-path-prepend N" directive and emits an AttrModPrepend op with N
+// ExtractASPathPrependOps checks the parsed modified filter attributes for
+// an "as-path-prepend N" directive and emits an AttrModPrepend op with N
 // copies of localAS as wire bytes. Called separately from textDeltaToModOps
 // because the local AS is only known at the call site (reactor_notify.go
-// for import, reactor_api_forward.go for export).
+// for import, reactor_api_forward.go for export). The map comes from the
+// call site's single parseFilterAttrs(modified) and is read, never mutated.
 //
-// Does nothing if the modified text does not contain as-path-prepend.
-func ExtractASPathPrependOps(modified string, localAS uint32, mods *filterapi.ModAccumulator) {
-	attrs := parseFilterAttrs(modified)
-	countStr, ok := attrs[policyAttrASPathPrepend]
+// Does nothing if the modified attributes do not contain as-path-prepend.
+func ExtractASPathPrependOps(modAttrs map[string]string, localAS uint32, mods *filterapi.ModAccumulator) {
+	countStr, ok := modAttrs[policyAttrASPathPrepend]
 	if !ok || countStr == "" {
 		return
 	}
@@ -561,16 +562,18 @@ func ExtractASPathPrependOps(modified string, localAS uint32, mods *filterapi.Mo
 	mods.Op(byte(attribute.AttrASPath), filterapi.AttrModPrepend, buf)
 }
 
-// ExtractRemovePrivateASOps checks the modified filter text for an
-// "remove-private" directive and emits AS_PATH / AS4_PATH Set or
+// ExtractRemovePrivateASOps checks the parsed modified filter attributes
+// for a "remove-private" directive and emits AS_PATH / AS4_PATH Set or
 // Suppress ops after rewriting raw path segments. The plugin supplies the
-// policy intent; the reactor owns wire-safe segment preservation.
+// policy intent; the reactor owns wire-safe segment preservation. The map
+// comes from the call site's single parseFilterAttrs(modified) and is
+// read, never mutated.
 //
 // RFC 6996 Section 4 requires private-use ASNs to be removed from AS path
 // attributes (including AS4_PATH if utilizing a four-octet AS number space)
 // before being advertised to the global Internet.
-func ExtractRemovePrivateASOps(modified string, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *filterapi.ModAccumulator) {
-	mode, ok := extractRemovePrivateASMode(modified)
+func ExtractRemovePrivateASOps(modAttrs map[string]string, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *filterapi.ModAccumulator) {
+	mode, ok := extractRemovePrivateASMode(modAttrs)
 	if !ok || attrs == nil {
 		return
 	}
@@ -598,9 +601,8 @@ func ExtractRemovePrivateASOps(modified string, attrs *attribute.AttributesWire,
 	}
 }
 
-func extractRemovePrivateASMode(modified string) (string, bool) {
-	attrs := parseFilterAttrs(modified)
-	mode, ok := attrs[policyAttrRemovePrivate]
+func extractRemovePrivateASMode(modAttrs map[string]string) (string, bool) {
+	mode, ok := modAttrs[policyAttrRemovePrivate]
 	if !ok {
 		return "", false
 	}

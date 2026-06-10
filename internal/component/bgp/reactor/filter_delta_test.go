@@ -3,6 +3,8 @@ package reactor
 
 import (
 	"encoding/binary"
+	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -191,7 +193,7 @@ func TestTextDeltaToModOps(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var mods filterapi.ModAccumulator
-			textDeltaToModOps(tt.original, tt.modified, &mods)
+			textDeltaToModOps(parseFilterAttrs(tt.original), parseFilterAttrs(tt.modified), &mods)
 			assert.Equal(t, tt.wantOps, mods.Len())
 			if tt.wantOps == 1 {
 				ops := mods.Ops()
@@ -313,7 +315,7 @@ func TestDirtyTracking(t *testing.T) {
 	modifiedText := "origin igp local-preference 200"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(originalText, modifiedText, &mods)
+	textDeltaToModOps(parseFilterAttrs(originalText), parseFilterAttrs(modifiedText), &mods)
 	require.Equal(t, 1, mods.Len(), "should have one op for local-pref")
 
 	// Register a generic handler for LOCAL_PREF (code 5).
@@ -380,7 +382,7 @@ func TestFilterModifyOnlyDeclared(t *testing.T) {
 		assert.Empty(t, violation, "declared attribute should pass validation")
 
 		var mods filterapi.ModAccumulator
-		textDeltaToModOps(original, modified, &mods)
+		textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 		assert.Equal(t, 1, mods.Len(), "declared attribute change should produce op")
 	})
 
@@ -629,7 +631,7 @@ func TestApplySendCommunityFilter(t *testing.T) {
 func TestExtractASPathPrependOps(t *testing.T) {
 	t.Run("prepend_3", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps("origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24", 65000, &mods)
+		ExtractASPathPrependOps(parseFilterAttrs("origin igp as-path-prepend 3 nlri ipv4/unicast add 10.0.0.0/24"), 65000, &mods)
 		require.Equal(t, 1, mods.Len())
 		op := mods.Ops()[0]
 		assert.Equal(t, byte(attribute.AttrASPath), op.Code)
@@ -646,13 +648,13 @@ func TestExtractASPathPrependOps(t *testing.T) {
 
 	t.Run("no_prepend", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps("origin igp local-preference 200", 65000, &mods)
+		ExtractASPathPrependOps(parseFilterAttrs("origin igp local-preference 200"), 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 
 	t.Run("prepend_1", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps("as-path-prepend 1", 65001, &mods)
+		ExtractASPathPrependOps(parseFilterAttrs("as-path-prepend 1"), 65001, &mods)
 		require.Equal(t, 1, mods.Len())
 		op := mods.Ops()[0]
 		require.Len(t, op.Buf, 6) // type(1) + count(1) + 1*ASN(4)
@@ -661,13 +663,13 @@ func TestExtractASPathPrependOps(t *testing.T) {
 
 	t.Run("invalid_count_zero", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps("as-path-prepend 0", 65000, &mods)
+		ExtractASPathPrependOps(parseFilterAttrs("as-path-prepend 0"), 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 
 	t.Run("invalid_count_over_32", func(t *testing.T) {
 		var mods filterapi.ModAccumulator
-		ExtractASPathPrependOps("as-path-prepend 33", 65000, &mods)
+		ExtractASPathPrependOps(parseFilterAttrs("as-path-prepend 33"), 65000, &mods)
 		assert.Equal(t, 0, mods.Len())
 	})
 }
@@ -765,7 +767,7 @@ func TestExtractRemovePrivateASOps(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	require.Equal(t, byte(attribute.AttrASPath), op.Code)
@@ -791,7 +793,7 @@ func TestExtractRemovePrivateASOpsReplacePeerAS(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps("remove-private peer-as", attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private peer-as"), attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	want := []byte{
@@ -813,7 +815,7 @@ func TestExtractRemovePrivateASOpsAS4Path(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	assert.Equal(t, byte(attribute.AttrAS4Path), op.Code)
@@ -832,7 +834,7 @@ func TestExtractRemovePrivateASOpsEmptyASPath(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	require.Equal(t, 1, mods.Len())
 	op := mods.Ops()[0]
 	assert.Equal(t, byte(attribute.AttrASPath), op.Code)
@@ -852,7 +854,7 @@ func TestExtractRemovePrivateASOpsNoPrivateASN(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	assert.Equal(t, 0, mods.Len())
 }
 
@@ -864,7 +866,7 @@ func TestExtractRemovePrivateASOpsMalformedASPath(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 	var mods filterapi.ModAccumulator
 
-	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65001, &mods)
+	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65001, &mods)
 	assert.Equal(t, 0, mods.Len())
 }
 
@@ -885,7 +887,7 @@ func TestExportRemovePrivateASBeforeEBGPPrepend(t *testing.T) {
 	attrsWire := attribute.NewAttributesWire(attrs, 0)
 
 	var mods filterapi.ModAccumulator
-	ExtractRemovePrivateASOps("remove-private strip", attrsWire, true, 65002, &mods)
+	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65002, &mods)
 	modified, _ := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
 	require.NotNil(t, modified)
 
@@ -975,7 +977,7 @@ func TestCommunityAddDeltaToModOps(t *testing.T) {
 	modified := "origin igp community 65000:100 community-add 65000:200 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(original, modified, &mods)
+	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	ops := mods.Ops()
 	found := false
@@ -998,7 +1000,7 @@ func TestCommunityRemoveDeltaToModOps(t *testing.T) {
 	modified := "origin igp community 65000:100 65000:200 community-remove 65000:100 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(original, modified, &mods)
+	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	ops := mods.Ops()
 	found := false
@@ -1021,7 +1023,7 @@ func TestLargeCommunityAddDeltaToModOps(t *testing.T) {
 	modified := "origin igp large-community-add 65000:100:200 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(original, modified, &mods)
+	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	ops := mods.Ops()
 	found := false
@@ -1045,7 +1047,7 @@ func TestCommunityRemoveMultiValue(t *testing.T) {
 	modified := "origin igp community 65000:100 65000:200 65000:300 community-remove 65000:100 65000:200 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(original, modified, &mods)
+	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	removeCount := 0
 	for _, op := range mods.Ops() {
@@ -1067,11 +1069,228 @@ func TestCommunityDirectiveNoSetInterference(t *testing.T) {
 	modified := "origin igp community 65000:100 community-add 65000:200 as-path 65001"
 
 	var mods filterapi.ModAccumulator
-	textDeltaToModOps(original, modified, &mods)
+	textDeltaToModOps(parseFilterAttrs(original), parseFilterAttrs(modified), &mods)
 
 	for _, op := range mods.Ops() {
 		if op.Code == byte(attribute.AttrCommunity) && op.Action == filterapi.AttrModSet {
 			t.Error("unexpected AttrModSet for COMMUNITY (should only have AttrModAdd)")
 		}
+	}
+}
+
+// runFilterDeltaExtractors mirrors the three-call sequence shared by the
+// egress (reactor_api_forward.go), ingress (reactor_notify.go), and dry-run
+// (policy_dryrun.go) call sites. TestFilterDeltaParseOnceEquivalence pins the
+// ops this sequence produces so the parse-once refactor can prove its output
+// unchanged (spec filter-delta-parse-once AC-1).
+func runFilterDeltaExtractors(original, modified string, attrsWire *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []filterapi.AttrOp {
+	var mods filterapi.ModAccumulator
+	origAttrs := parseFilterAttrs(original)
+	modAttrs := parseFilterAttrs(modified)
+	textDeltaToModOps(origAttrs, modAttrs, &mods)
+	ExtractRemovePrivateASOps(modAttrs, attrsWire, asn4, peerAS, &mods)
+	ExtractASPathPrependOps(modAttrs, localAS, &mods)
+	return mods.Ops()
+}
+
+// goldenOps renders ops as "code action hex(buf)" strings, sorted. Ops from
+// textDeltaToModOps follow Go map iteration order, which was never
+// deterministic, so equivalence is a sorted-multiset comparison.
+func goldenOps(ops []filterapi.AttrOp) []string {
+	out := make([]string, 0, len(ops))
+	for _, op := range ops {
+		out = append(out, fmt.Sprintf("%d %d %x", op.Code, op.Action, op.Buf))
+	}
+	slices.Sort(out)
+	return out
+}
+
+// filterDeltaPrivateASFixture returns an AttributesWire whose AS_PATH mixes
+// private and public ASNs: AS_SEQUENCE [64496 64512], AS_SET [64497 65534].
+func filterDeltaPrivateASFixture() *attribute.AttributesWire {
+	asPathVal := []byte{
+		byte(attribute.ASSequence), 2,
+		0, 0, 0xFB, 0xF0, // 64496 (public)
+		0, 0, 0xFC, 0x00, // 64512 (private)
+		byte(attribute.ASSet), 2,
+		0, 0, 0xFB, 0xF1, // 64497 (public)
+		0, 0, 0xFF, 0xFE, // 65534 (private)
+	}
+	return attribute.NewAttributesWire(makeAttr(0x40, byte(attribute.AttrASPath), asPathVal), 0)
+}
+
+// filterDeltaAS4PathFixture returns an AttributesWire with a public-only
+// AS_PATH plus an AS4_PATH holding only private ASNs, so remove-private
+// strip suppresses AS4_PATH entirely (RFC 6793 + RFC 6996).
+func filterDeltaAS4PathFixture() *attribute.AttributesWire {
+	asPath := makeAttr(0x40, byte(attribute.AttrASPath), []byte{
+		byte(attribute.ASSequence), 1,
+		0, 0, 0xFB, 0xF0, // 64496 (public)
+	})
+	as4Path := makeAttr(0xC0, byte(attribute.AttrAS4Path), []byte{
+		byte(attribute.ASSequence), 2,
+		0, 0, 0xFC, 0x00, // 64512 (private)
+		0, 0, 0xFF, 0xFE, // 65534 (private)
+	})
+	packed := make([]byte, 0, len(asPath)+len(as4Path))
+	packed = append(packed, asPath...)
+	packed = append(packed, as4Path...)
+	return attribute.NewAttributesWire(packed, 0)
+}
+
+// TestFilterDeltaParseOnceEquivalence is the golden gate for the parse-once
+// refactor: the corpus covers set, add, remove, nlri-only change, prepend,
+// remove-private (strip, peer-as, AS4_PATH suppress), community directives,
+// and the combined call-site case. The golden strings were captured from the
+// pre-refactor implementation; the refactored path must reproduce them.
+//
+// VALIDATES: AC-1 -- ModAccumulator ops are identical before/after refactor.
+// PREVENTS: the parse-once refactor silently changing wire-level filter ops.
+func TestFilterDeltaParseOnceEquivalence(t *testing.T) {
+	attrsPrivate := filterDeltaPrivateASFixture()
+	attrsAS4 := filterDeltaAS4PathFixture()
+
+	tests := []struct {
+		name     string
+		original string
+		modified string
+		attrs    *attribute.AttributesWire
+		asn4     bool
+		peerAS   uint32
+		localAS  uint32
+		want     []string
+	}{
+		{
+			name:     "no-op identical text",
+			original: "origin igp local-preference 100",
+			modified: "origin igp local-preference 100",
+			want:     []string{},
+		},
+		{
+			name:     "set origin",
+			original: "origin igp",
+			modified: "origin egp",
+			want:     []string{"1 0 01"},
+		},
+		{
+			name:     "add med",
+			original: "origin igp",
+			modified: "origin igp med 50",
+			want:     []string{"4 0 00000032"},
+		},
+		{
+			name:     "remove community",
+			original: "origin igp community 65000:1",
+			modified: "origin igp",
+			want:     []string{"8 0 "},
+		},
+		{
+			name:     "nlri-only change emits no attr ops",
+			original: "origin igp nlri ipv4/unicast add 10.0.0.0/24 10.1.0.0/24",
+			modified: "origin igp nlri ipv4/unicast add 10.0.0.0/24",
+			want:     []string{},
+		},
+		{
+			name:     "as-path prepend",
+			original: "origin igp",
+			modified: "origin igp as-path-prepend 3",
+			localAS:  65000,
+			want:     []string{"2 3 02030000fde80000fde80000fde8"},
+		},
+		{
+			name:     "remove-private strip",
+			original: "origin igp",
+			modified: "origin igp remove-private strip",
+			attrs:    attrsPrivate,
+			asn4:     true,
+			peerAS:   65001,
+			want:     []string{"2 0 02010000fbf001010000fbf1"},
+		},
+		{
+			name:     "remove-private peer-as",
+			original: "origin igp",
+			modified: "origin igp remove-private peer-as",
+			attrs:    attrsPrivate,
+			asn4:     true,
+			peerAS:   65001,
+			want:     []string{"2 0 02020000fbf00000fde901020000fbf10000fde9"},
+		},
+		{
+			name:     "remove-private suppresses all-private AS4_PATH",
+			original: "origin igp",
+			modified: "origin igp remove-private strip",
+			attrs:    attrsAS4,
+			asn4:     true,
+			peerAS:   65001,
+			want:     []string{"17 4 "},
+		},
+		{
+			name:     "community-add directive",
+			original: "origin igp",
+			modified: "origin igp community-add 65000:1 65000:2",
+			want:     []string{"8 1 fde80001fde80002"},
+		},
+		{
+			name:     "community-remove directive splits per value",
+			original: "origin igp",
+			modified: "origin igp community-remove 65000:1 65000:2",
+			want:     []string{"8 2 fde80001", "8 2 fde80002"},
+		},
+		{
+			name:     "combined set+remove+prepend+remove-private",
+			original: "origin igp community 65000:99",
+			modified: "origin egp as-path-prepend 2 remove-private strip",
+			attrs:    attrsPrivate,
+			asn4:     true,
+			peerAS:   65001,
+			localAS:  64999,
+			want:     []string{"1 0 01", "2 0 02010000fbf001010000fbf1", "2 3 02020000fde70000fde7", "8 0 "},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := goldenOps(runFilterDeltaExtractors(tt.original, tt.modified, tt.attrs, tt.asn4, tt.peerAS, tt.localAS))
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestFilterDeltaParseCallCount proves the call-site sequence parses the
+// original filter text exactly once and the modified text exactly once.
+//
+// VALIDATES: AC-2/AC-3 -- no redundant parseFilterAttrs calls on the modify path.
+// PREVENTS: extractors silently re-parsing text the call site already parsed.
+func TestFilterDeltaParseCallCount(t *testing.T) {
+	attrsPrivate := filterDeltaPrivateASFixture()
+	// Retry guards against a stray background goroutine (another test's
+	// reactor) bumping the global counter inside the measurement window.
+	// A real regression adds parses on every attempt, so 3 misses = fail.
+	var got uint64
+	for range 3 {
+		before := parseFilterAttrsCalls.Load()
+		runFilterDeltaExtractors("origin igp", "origin egp as-path-prepend 2 remove-private strip", attrsPrivate, true, 65001, 65000)
+		got = parseFilterAttrsCalls.Load() - before
+		if got == 2 {
+			return
+		}
+	}
+	require.Equal(t, uint64(2), got, "modify path must parse original once and modified once, got %d parses", got)
+}
+
+// BenchmarkFilterModifyEgress measures the text-delta-to-wire-ops sequence as
+// invoked per modified UPDATE on the egress hot path (AC-6 evidence).
+func BenchmarkFilterModifyEgress(b *testing.B) {
+	attrsWire := filterDeltaPrivateASFixture()
+	original := "origin igp local-preference 100 community 65001:100 65001:200 nlri ipv4/unicast add 10.0.0.0/24"
+	modified := "origin igp local-preference 200 community 65001:100 65001:200 as-path-prepend 2 remove-private strip nlri ipv4/unicast add 10.0.0.0/24"
+	b.ReportAllocs()
+	for b.Loop() {
+		var mods filterapi.ModAccumulator
+		origAttrs := parseFilterAttrs(original)
+		modAttrs := parseFilterAttrs(modified)
+		textDeltaToModOps(origAttrs, modAttrs, &mods)
+		ExtractRemovePrivateASOps(modAttrs, attrsWire, true, 65001, &mods)
+		ExtractASPathPrependOps(modAttrs, 65000, &mods)
 	}
 }
