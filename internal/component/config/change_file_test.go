@@ -173,6 +173,57 @@ func TestChangeFileDeleteContainerEmptyParent(t *testing.T) {
 	assert.Equal(t, "bgp", parsedOps[0].ListName)
 }
 
+// TestChangeFileRoundTripDeleteListOp verifies delete-list ops round-trip through serialize/parse.
+//
+// VALIDATES: formatDeleteListLine and parseDeleteListLine are symmetric.
+// PREVENTS: delete-list ops lost or corrupted during change-file persistence.
+func TestChangeFileRoundTripDeleteListOp(t *testing.T) {
+	schema := testChangeFileSchema()
+	stamp := time.Date(2026, 4, 21, 12, 34, 56, 0, time.UTC)
+
+	ops := []StructuralOp{{
+		Type:       StructuralOpDeleteList,
+		User:       "thomas",
+		Source:     "local",
+		Time:       stamp,
+		ParentPath: "bgp",
+		ListName:   "peer",
+	}}
+
+	content := SerializeChangeFile(NewTree(), NewMetaTree(), ops, schema)
+	assert.Contains(t, content, "#thomas @local %2026-04-21T12:34:56Z delete-list bgp peer")
+
+	_, _, parsedOps, err := ParseChangeFile(content, NewSetParser(schema))
+	require.NoError(t, err)
+	require.Len(t, parsedOps, 1)
+	assert.Equal(t, ops[0], parsedOps[0])
+}
+
+// TestChangeFileDeleteListEmptyParent verifies delete-list at root level.
+//
+// VALIDATES: delete-list round-trips with empty parent path.
+// PREVENTS: parseDeleteListLine mishandling root-level list deletes.
+func TestChangeFileDeleteListEmptyParent(t *testing.T) {
+	schema := testChangeFileSchema()
+	stamp := time.Date(2026, 4, 21, 12, 34, 56, 0, time.UTC)
+
+	ops := []StructuralOp{{
+		Type:     StructuralOpDeleteList,
+		User:     "thomas",
+		Source:   "local",
+		Time:     stamp,
+		ListName: "peer",
+	}}
+
+	content := SerializeChangeFile(NewTree(), NewMetaTree(), ops, schema)
+
+	_, _, parsedOps, err := ParseChangeFile(content, NewSetParser(schema))
+	require.NoError(t, err)
+	require.Len(t, parsedOps, 1)
+	assert.Equal(t, "", parsedOps[0].ParentPath)
+	assert.Equal(t, "peer", parsedOps[0].ListName)
+}
+
 // TestParseChangeFileRejectsMalformedDeleteEntry verifies missing metadata is rejected.
 func TestParseChangeFileRejectsMalformedDeleteEntry(t *testing.T) {
 	schema := testChangeFileSchema()

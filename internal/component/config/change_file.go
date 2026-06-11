@@ -29,6 +29,8 @@ const (
 	ChangeFileDeactivateMemberToken = "deactivate-member"
 	// ChangeFileActivateMemberToken identifies a leaf-list member activation op line.
 	ChangeFileActivateMemberToken = "activate-member"
+	// ChangeFileDeleteListToken identifies a whole-list delete structural op line.
+	ChangeFileDeleteListToken = "delete-list"
 )
 
 // StructuralOpType identifies the kind of structural op stored in a change file.
@@ -50,6 +52,8 @@ const (
 	StructuralOpDeactivateMember StructuralOpType = ChangeFileDeactivateMemberToken
 	// StructuralOpActivateMember clears a member's inactive marker in place.
 	StructuralOpActivateMember StructuralOpType = ChangeFileActivateMemberToken
+	// StructuralOpDeleteList removes an entire list (all entries).
+	StructuralOpDeleteList StructuralOpType = ChangeFileDeleteListToken
 )
 
 // PendingChangeKind identifies the operator-visible type of a pending change.
@@ -107,7 +111,7 @@ func (op StructuralOp) isMemberOp() bool {
 	switch op.Type {
 	case StructuralOpInsertMember, StructuralOpDeactivateMember, StructuralOpActivateMember:
 		return true
-	case StructuralOpRename, StructuralOpDeleteEntry, StructuralOpDeleteContainer:
+	case StructuralOpRename, StructuralOpDeleteEntry, StructuralOpDeleteContainer, StructuralOpDeleteList:
 		return false
 	}
 	return false
@@ -115,7 +119,7 @@ func (op StructuralOp) isMemberOp() bool {
 
 // SourcePath returns the full YANG path to the original list entry.
 func (op StructuralOp) SourcePath() string {
-	if op.Type == StructuralOpDeleteContainer {
+	if op.Type == StructuralOpDeleteContainer || op.Type == StructuralOpDeleteList {
 		return joinChangePath(op.ParentPath, op.ListName)
 	}
 	if op.isMemberOp() {
@@ -126,7 +130,7 @@ func (op StructuralOp) SourcePath() string {
 
 // DestinationPath returns the full YANG path to the renamed list entry.
 func (op StructuralOp) DestinationPath() string {
-	if op.Type == StructuralOpDeleteEntry || op.Type == StructuralOpDeleteContainer {
+	if op.Type == StructuralOpDeleteEntry || op.Type == StructuralOpDeleteContainer || op.Type == StructuralOpDeleteList {
 		return op.SourcePath()
 	}
 	return joinChangePath(op.ParentPath, op.ListName, op.NewKey)
@@ -135,7 +139,7 @@ func (op StructuralOp) DestinationPath() string {
 // PendingChange converts the structural op into the unified pending-change form.
 func (op StructuralOp) PendingChange() PendingChange {
 	switch op.Type {
-	case StructuralOpDeleteEntry, StructuralOpDeleteContainer:
+	case StructuralOpDeleteEntry, StructuralOpDeleteContainer, StructuralOpDeleteList:
 		return PendingChange{
 			SessionID: op.SessionKey(),
 			Kind:      PendingChangeDelete,
@@ -416,6 +420,9 @@ func parseStructuralOp(lineNum int, entry MetaEntry, cmdLine string) (Structural
 	case ChangeFileDeleteContainerToken:
 		op, err := parseDeleteContainerLine(lineNum, entry, cmdLine)
 		return op, err, true
+	case ChangeFileDeleteListToken:
+		op, err := parseDeleteListLine(lineNum, entry, cmdLine)
+		return op, err, true
 	case ChangeFileInsertMemberToken:
 		op, err := parseInsertMemberLine(lineNum, entry, cmdLine)
 		return op, err, true
@@ -436,6 +443,8 @@ func formatStructuralLine(op StructuralOp) string {
 		return formatDeleteEntryLine(op)
 	case StructuralOpDeleteContainer:
 		return formatDeleteContainerLine(op)
+	case StructuralOpDeleteList:
+		return formatDeleteListLine(op)
 	case StructuralOpInsertMember:
 		return formatInsertMemberLine(op)
 	case StructuralOpDeactivateMember, StructuralOpActivateMember:
@@ -606,6 +615,39 @@ func formatDeleteContainerLine(op StructuralOp) string {
 	var b textbuf.Buffer
 	writeMetaPrefix(&b, MetaEntry{User: op.User, Source: op.Source, Time: op.Time})
 	b.Str(ChangeFileDeleteContainerToken)
+	b.Byte(' ')
+	if op.ParentPath != "" {
+		b.Str(op.ParentPath)
+		b.Byte(' ')
+	}
+	b.Str(op.ListName)
+	return b.String()
+}
+
+func parseDeleteListLine(lineNum int, entry MetaEntry, cmdLine string) (StructuralOp, error) {
+	tokens := strings.Fields(cmdLine)
+	if len(tokens) < 2 {
+		return StructuralOp{}, fmt.Errorf("line %d: delete-list requires <list-name>", lineNum)
+	}
+	if entry.User == "" {
+		return StructuralOp{}, fmt.Errorf("line %d: delete-list requires #user metadata", lineNum)
+	}
+	listName := tokens[len(tokens)-1]
+	parentPath := textbuf.Join(tokens[1:len(tokens)-1], " ")
+	return StructuralOp{
+		Type:       StructuralOpDeleteList,
+		User:       entry.User,
+		Source:     entry.Source,
+		Time:       entry.Time,
+		ParentPath: parentPath,
+		ListName:   listName,
+	}, nil
+}
+
+func formatDeleteListLine(op StructuralOp) string {
+	var b textbuf.Buffer
+	writeMetaPrefix(&b, MetaEntry{User: op.User, Source: op.Source, Time: op.Time})
+	b.Str(ChangeFileDeleteListToken)
 	b.Byte(' ')
 	if op.ParentPath != "" {
 		b.Str(op.ParentPath)

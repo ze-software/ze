@@ -943,6 +943,26 @@ func TestEditorDeleteByPathContainer(t *testing.T) {
 	assert.Nil(t, ed.WalkPath([]string{"bgp"}), "bgp should be gone")
 }
 
+// TestEditorDeleteByPathList verifies DeleteByPath removes an entire list.
+//
+// VALIDATES: DeleteByPath with path ending at a ListNode uses DeleteList.
+// PREVENTS: Bug 21 -- delete of a whole list silently succeeds but removes nothing.
+func TestEditorDeleteByPathList(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	bgp := ed.WalkPath([]string{"bgp"})
+	require.NotNil(t, bgp)
+	require.NotNil(t, bgp.GetList("peer"), "peer list must exist before delete")
+
+	err = ed.DeleteByPath([]string{"bgp", "peer"})
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty())
+	assert.Nil(t, bgp.GetList("peer"), "peer list should be gone after delete")
+}
+
 // TestEditorContentAfterSet verifies WorkingContent returns serialized tree.
 //
 // VALIDATES: After SetValue, WorkingContent() returns Serialize(tree) containing the new value.

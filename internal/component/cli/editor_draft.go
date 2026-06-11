@@ -450,7 +450,7 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 				return fmt.Errorf("path not found: %s", ops[i].ParentPath)
 			}
 			target.RemoveListEntry(ops[i].ListName, ops[i].OldKey)
-		case config.StructuralOpDeleteContainer:
+		case config.StructuralOpDeleteContainer, config.StructuralOpDeleteList:
 			target := walkPath(tree, schema, parentPath)
 			if target == nil {
 				if allowAlreadyApplied {
@@ -458,7 +458,11 @@ func applyStructuralOps(tree *config.Tree, schema *config.Schema, ops []config.S
 				}
 				return fmt.Errorf("path not found: %s", ops[i].ParentPath)
 			}
-			target.DeleteContainer(ops[i].ListName)
+			if ops[i].Type == config.StructuralOpDeleteList {
+				target.DeleteList(ops[i].ListName)
+			} else {
+				target.DeleteContainer(ops[i].ListName)
+			}
 		case config.StructuralOpInsertMember, config.StructuralOpDeactivateMember, config.StructuralOpActivateMember:
 			if err := applyMemberOp(tree, schema, ops[i], allowAlreadyApplied); err != nil {
 				return err
@@ -552,7 +556,7 @@ func applyStructuralOpsToMeta(meta *config.MetaTree, schema *config.Schema, ops 
 				continue
 			}
 			target.DeleteMetaListEntry(ops[i].ListName, ops[i].OldKey)
-		case config.StructuralOpDeleteContainer:
+		case config.StructuralOpDeleteContainer, config.StructuralOpDeleteList:
 			target := walkMetaReadOnly(meta, schema, parentPath)
 			if target == nil {
 				continue

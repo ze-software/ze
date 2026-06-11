@@ -332,6 +332,8 @@ func (e *Editor) DeleteByPath(fullPath []string) error {
 			return e.DeleteValue(parentPath, target)
 		case *config.ContainerNode, *config.FlexNode:
 			return e.DeleteContainer(parentPath, target)
+		case *config.ListNode, *config.InlineListNode:
+			return e.DeleteList(parentPath, target)
 		}
 	}
 
@@ -554,6 +556,32 @@ func (e *Editor) writeThroughDeleteListEntry(parentPath []string, listName, key 
 // writeThroughDeleteContainer records a container deletion as a structural op
 // in the per-user change file and removes the container from the in-memory tree.
 func (e *Editor) writeThroughDeleteContainer(parentPath []string, containerName string) error {
+	return e.writeThroughDeleteNamed(parentPath, containerName, config.StructuralOpDeleteContainer, (*config.Tree).DeleteContainer)
+}
+
+// DeleteList removes an entire list (all entries) at the given path.
+func (e *Editor) DeleteList(path []string, name string) error {
+	if e.session != nil {
+		return e.writeThroughDeleteNamed(path, name, config.StructuralOpDeleteList, (*config.Tree).DeleteList)
+	}
+	var target *config.Tree
+	if len(path) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(path)
+	}
+	if target == nil {
+		return errPathNotFound
+	}
+	target.DeleteList(name)
+	e.dirty.Store(true)
+	return nil
+}
+
+// writeThroughDeleteNamed records a named-child deletion (container or list)
+// as a structural op in the per-user change file and removes the child from
+// the in-memory tree.
+func (e *Editor) writeThroughDeleteNamed(parentPath []string, name string, opType config.StructuralOpType, remove func(*config.Tree, string)) error {
 	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
@@ -565,12 +593,12 @@ func (e *Editor) writeThroughDeleteContainer(parentPath []string, containerName 
 	changeTree, changeMeta, changeOps := e.readChangeFile(guard, changePath)
 
 	op := config.StructuralOp{
-		Type:       config.StructuralOpDeleteContainer,
+		Type:       opType,
 		User:       e.session.User,
 		Source:     e.session.Origin,
 		Time:       e.session.StartTime,
 		ParentPath: textbuf.Join(parentPath, " "),
-		ListName:   containerName,
+		ListName:   name,
 	}
 	changeOps = append(changeOps, op)
 
@@ -581,7 +609,7 @@ func (e *Editor) writeThroughDeleteContainer(parentPath []string, containerName 
 		changeTarget = walkPath(changeTree, e.schema, parentPath)
 	}
 	if changeTarget != nil {
-		changeTarget.DeleteContainer(containerName)
+		remove(changeTarget, name)
 	}
 
 	output := config.SerializeChangeFile(changeTree, changeMeta, changeOps, e.schema)
@@ -598,7 +626,7 @@ func (e *Editor) writeThroughDeleteContainer(parentPath []string, containerName 
 	if target == nil {
 		return errPathNotFound
 	}
-	target.DeleteContainer(containerName)
+	remove(target, name)
 
 	e.dirty.Store(true)
 	e.draftSaved = false

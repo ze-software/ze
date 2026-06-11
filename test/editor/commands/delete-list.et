@@ -1,0 +1,36 @@
+# Test: Delete command removes an entire list
+# VALIDATES: delete <path> where path ends at a list removes all entries
+# PREVENTS: Bug 21 -- delete of a whole list silently succeeds but removes nothing
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
+  peer peer1 {
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Delete the entire peer list (not just one entry)
+input=type:text=delete bgp peer
+input=enter
+expect=dirty:true
+expect=status:contains=Deleted bgp peer
+expect=error:none
