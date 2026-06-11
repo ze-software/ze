@@ -521,3 +521,32 @@ should be access-controlled.
 | RFC 1832 / RFC 4506 | XDR encoding | Wire format for all sFlow structures |
 | RFC 2233 / RFC 2863 | Interfaces Group MIB (ifTable, ifXTable) | Source of generic interface counter definitions |
 | RFC 2358 | EtherLike-MIB (dot3StatsTable) | Source of ethernet counter definitions |
+
+## Compliance Checklist
+
+Note: sFlow v5 is an industry specification, not an IETF RFC. The following requirements are derived from the sFlow v5 specification using RFC 2119-style language where the specification prescribes mandatory or recommended behavior.
+
+- [ ] [MUST] Datagram version field MUST be set to 5 (Datagram Format)
+- [ ] [MUST] Agent address MUST be a stable IP (e.g., loopback) that uniquely identifies the device across reboots (Agent Architecture)
+- [ ] [MUST] Agent address + sub_agent_id MUST uniquely identify a sampling entity (Agent Architecture)
+- [ ] [MUST] Each sub-agent MUST maintain its own sequence number space (Agent Architecture)
+- [ ] [MUST] Datagram size MUST NOT exceed path MTU (Transport)
+- [ ] [MUST] Samples MUST NOT be held more than 1 second before sending (Transport)
+- [ ] [MUST] All structures MUST use XDR encoding: 4-byte alignment, big-endian (Datagram Format)
+- [ ] [MUST] Variable-length arrays and opaque data MUST be prefixed by a 4-byte count and padded to 4-byte boundary (XDR Encoding)
+- [ ] [MUST] Sequence numbers MUST be per-agent (datagram-level) and per-source (sample-level), unsigned 32-bit, wrapping (Transport)
+- [ ] [MUST] flow_sample MUST include the actual sampling_rate used by the agent (Flow Sample)
+- [ ] [MUST] sample_pool MUST track total packets seen by the data source (Flow Sample)
+- [ ] [MUST] Expanded sample types MUST be used when ifIndex exceeds 2^24-1 or 2^30-1 (Expanded Flow/Counter Sample)
+- [ ] [MUST] Unknown record formats MUST be skipped using the opaque length prefix (Record Wrappers)
+- [ ] [MUST] Counter samples MUST be produced at the configured polling interval for each data source (Counter Polling)
+- [ ] [MUST] All counters MUST be cumulative since boot (Counter Polling)
+- [ ] [MUST] Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance)
+- [ ] [SHOULD] Default datagram max size SHOULD be 1400 bytes (Transport)
+- [ ] [SHOULD] Default max header size SHOULD be 128 bytes for sampled_header (Raw Packet Header)
+- [ ] [SHOULD] Counter polls SHOULD be staggered across sources with randomized initial offset (Counter Polling)
+- [ ] [SHOULD] Per-source skip counter SHOULD be initialized to random value in [1, 2*N-1] for 1-in-N sampling (Packet Sampling)
+- [ ] [SHOULD] UDP port 6343 SHOULD be used (IANA-assigned) (Transport)
+- [ ] [MAY] Multiple sFlow instances MAY exist per data source (Agent Architecture)
+- [ ] [MAY] Counter samples MAY piggyback on flow sample datagrams when space permits (Counter Polling)
+- [ ] [MAY] Agents MAY adjust sampling rates to hardware-supported values; actual rate MUST be reported in each flow sample (Packet Sampling)

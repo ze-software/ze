@@ -15,6 +15,9 @@ Generate a structured implementation summary from an RFC text file.
    - Quoted requirements match RFC exactly?
    - Section references correct?
    - Field sizes/offsets accurate?
+   - Compliance Checklist covers EVERY RFC 2119 keyword occurrence?
+   - No duplicate checklist entries?
+   - Checklist entries grouped by keyword level (MUST > SHOULD > MAY)?
 
 ## Structure
 
@@ -68,6 +71,39 @@ Group by:
 ### SHOULD/MAY
 - [SHOULD] requirement - <consequence if not>
 - [MAY] option - <when to use>
+
+## Compliance Checklist
+
+**MANDATORY section.** Every RFC 2119 keyword (MUST, MUST NOT, SHOULD,
+SHOULD NOT, MAY, SHALL, SHALL NOT, REQUIRED, RECOMMENDED, NOT
+RECOMMENDED, OPTIONAL) extracted from the RFC becomes one checkbox
+line. This section is the single place an implementer verifies full
+coverage.
+
+Format:
+```
+- [ ] [MUST] <requirement quoted or tightly paraphrased> (§<section>)
+- [ ] [MUST NOT] <prohibition> (§<section>)
+- [ ] [SHOULD] <recommendation> (§<section>)
+- [ ] [SHOULD NOT] <discouragement> (§<section>)
+- [ ] [NOT RECOMMENDED] <discouragement> (§<section>)
+- [ ] [MAY] <option> (§<section>)
+```
+
+Rules:
+- One line per distinct requirement, not per sentence. If a sentence
+  contains two independent obligations, split them.
+- Merge duplicates: if the same requirement appears in multiple sections,
+  list it once with all section references.
+- Group by keyword level: all MUST/MUST NOT first, then SHOULD/SHOULD NOT,
+  then MAY.
+- Within each group, order by section number.
+- The checkbox is always `[ ]` (unchecked). Implementers tick it; the
+  summary never does.
+- Quote the RFC text when short enough; paraphrase only when the original
+  is too long for a single line.
+- Include the section reference so the implementer can find the normative
+  text.
 
 ### Error Handling
 | Condition | Detect How | Response | Code/Subcode |

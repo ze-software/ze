@@ -268,3 +268,20 @@ No IANA registry defined for ASPA validation states.
 ## Errata
 
 Not applicable (Internet-Draft, no RFC number assigned).
+
+## Compliance Checklist
+
+- [ ] [MUST] Apply upstream verification to routes received from customers and lateral peers (Section 6)
+- [ ] [MUST] AS_SET in path must result in Unknown validation state (Section 6)
+- [ ] [MUST] Prepend removal must only collapse consecutive duplicates (Section 6)
+- [ ] [MUST] Support per-AFI ASPA records if provided by cache (Section 6)
+- [ ] [MUST] AS0 in ASPA provider set must be ignored (Pitfalls)
+- [ ] [MUST NOT] Invalid routes must not be preferred over Valid or Unknown routes (Section 8)
+- [ ] [MUST] Re-run verification when ASPA data changes (Section 7)
+- [ ] [MUST] Use the most recent ASPA data available (Section 7)
+- [ ] [SHOULD] Reject Invalid routes by default (Section 8)
+- [ ] [SHOULD] Accept Unknown routes as unverified (Section 8)
+- [ ] [SHOULD] Log Invalid results for operational visibility (Section 8)
+- [ ] [MAY] Assign local-pref based on ASPA validation state (Section 8)
+- [ ] [MAY] Skip verification for routes from upstream providers (Section 6)
+- [ ] [MAY] Apply verification to IBGP-learned routes (Section 6)
