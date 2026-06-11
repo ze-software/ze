@@ -79,7 +79,7 @@ func formFieldName(f WorkbenchFormField) string {
 }
 
 func formFieldChecked(f WorkbenchFormField) bool {
-	return f.Value == "true"
+	return f.Value == htmxRequestTrue
 }
 
 // formFieldID returns a stable DOM id suffix for a config path.
