@@ -577,6 +577,199 @@ func TestParseDefaultStar(t *testing.T) {
 	}
 }
 
+// TestKindZeroIsInvalid verifies the zero Kind is distinct from all named kinds.
+//
+// VALIDATES: iota+1 offset keeps zero-value Kind invalid.
+// PREVENTS: Zero-value Selector accidentally matching as KindAll.
+func TestKindZeroIsInvalid(t *testing.T) {
+	var zero Kind
+	if zero == KindAll {
+		t.Error("Kind(0) must not equal KindAll")
+	}
+	if zero == KindAddr {
+		t.Error("Kind(0) must not equal KindAddr")
+	}
+}
+
+// TestKindString verifies Kind.String() for valid and out-of-range kinds.
+//
+// VALIDATES: String() returns correct names and "unknown" for out-of-range.
+// PREVENTS: Wrong kind names in logs, panic on invalid kind.
+func TestKindString(t *testing.T) {
+	tests := []struct {
+		kind Kind
+		want string
+	}{
+		{KindAll, "all"},
+		{KindAddr, "addr"},
+		{KindAddrs, "addrs"},
+		{KindName, "name"},
+		{KindASN, "asn"},
+		{KindGlob, "glob"},
+		{Kind(255), "unknown"},
+	}
+	for _, tt := range tests {
+		got := tt.kind.String()
+		if got != tt.want {
+			t.Errorf("Kind(%d).String() = %q, want %q", tt.kind, got, tt.want)
+		}
+	}
+}
+
+// TestMultiAddrIPSetThreshold verifies ipSet is built for >16 IPs.
+//
+// VALIDATES: Large IP lists use O(1) set lookup.
+// PREVENTS: O(N) scan on large peer lists.
+func TestMultiAddrIPSetThreshold(t *testing.T) {
+	ips := make([]netip.Addr, 20)
+	for i := range ips {
+		ips[i] = netip.AddrFrom4([4]byte{10, 0, 0, byte(i + 1)})
+	}
+	sel := MultiAddr(ips)
+	if sel.ipSet == nil {
+		t.Fatal("ipSet should be non-nil for >16 IPs")
+	}
+	if !sel.Matches(ips[0]) {
+		t.Error("should match first IP via ipSet")
+	}
+	if !sel.Matches(ips[19]) {
+		t.Error("should match last IP via ipSet")
+	}
+	if sel.Matches(netip.MustParseAddr("10.0.0.99")) {
+		t.Error("should not match absent IP")
+	}
+}
+
+// TestMultiAddrBelowThreshold verifies ipSet is nil for <=16 IPs.
+//
+// VALIDATES: Small IP lists use slice scan, no map overhead.
+// PREVENTS: Unnecessary allocation for small lists.
+func TestMultiAddrBelowThreshold(t *testing.T) {
+	ips := make([]netip.Addr, 16)
+	for i := range ips {
+		ips[i] = netip.AddrFrom4([4]byte{10, 0, 0, byte(i + 1)})
+	}
+	sel := MultiAddr(ips)
+	if sel.ipSet != nil {
+		t.Error("ipSet should be nil for <=16 IPs")
+	}
+	if !sel.Matches(ips[0]) {
+		t.Error("should match first IP via slice")
+	}
+}
+
+// TestMatchesPeerKeyAllBranches exercises every MatchesPeerKey branch.
+//
+// VALIDATES: All selector kinds handle IP and non-IP peer keys correctly.
+// PREVENTS: Missing branch coverage in MatchesPeerKey switch.
+func TestMatchesPeerKeyAllBranches(t *testing.T) {
+	tests := []struct {
+		name    string
+		sel     *Selector
+		peerKey string
+		want    bool
+	}{
+		{"all-ip", All(), "10.0.0.1", true},
+		{"all-name", All(), "router1", true},
+		{"name-match", PeerName("router1"), "router1", true},
+		{"name-no-match", PeerName("router1"), "router2", false},
+		{"addr-ip-match", Addr(netip.MustParseAddr("10.0.0.1")), "10.0.0.1", true},
+		{"addr-ip-no-match", Addr(netip.MustParseAddr("10.0.0.1")), "10.0.0.2", false},
+		{"addr-nonip-string-match", Addr(netip.MustParseAddr("10.0.0.1")), "10.0.0.1", true},
+		{"addr-nonip-no-match", Addr(netip.MustParseAddr("10.0.0.1")), "router1", false},
+		{"addrs-ip-match", MultiAddr([]netip.Addr{netip.MustParseAddr("10.0.0.1")}), "10.0.0.1", true},
+		{"addrs-nonip", MultiAddr([]netip.Addr{netip.MustParseAddr("10.0.0.1")}), "router1", false},
+		{"asn-returns-false", ASN(65000), "10.0.0.1", false},
+		{"glob-returns-false", Glob("10.*"), "10.0.0.1", false},
+	}
+	for _, tt := range tests {
+		got := tt.sel.MatchesPeerKey(tt.peerKey)
+		if got != tt.want {
+			t.Errorf("%s: MatchesPeerKey(%q) = %v, want %v", tt.name, tt.peerKey, got, tt.want)
+		}
+	}
+}
+
+// TestMatchesPeerKeyAddrNonIPExclude verifies addr-exclude with a non-IP key
+// falls back to string comparison and correctly negates.
+//
+// VALIDATES: Non-IP peer keys compared by string with IP.String().
+// PREVENTS: Non-IP keys always matching or never matching exclude selectors.
+func TestMatchesPeerKeyAddrNonIPExclude(t *testing.T) {
+	sel := ExcludeAddr(netip.MustParseAddr("10.0.0.1"))
+	if sel.MatchesPeerKey("10.0.0.1") {
+		t.Error("excluded IP string should not match")
+	}
+	if !sel.MatchesPeerKey("router1") {
+		t.Error("non-matching name should be included")
+	}
+}
+
+// TestParseASNRejection verifies parseASNSelector rejects non-ASN strings.
+//
+// VALIDATES: Only "as<digits>" (case-insensitive) parses as ASN.
+// PREVENTS: Random strings parsing as ASN selectors.
+func TestParseASNRejection(t *testing.T) {
+	rejects := []string{
+		"a",     // too short
+		"as",    // no number
+		"AS",    // no number
+		"bs100", // wrong first char
+		"ab100", // wrong second char
+		"aS",    // no number
+		"as-1",  // not a number
+		"as1.5", // not an integer
+		"asXYZ", // not a number
+	}
+	for _, s := range rejects {
+		sel, err := Parse(s)
+		if err != nil {
+			t.Errorf("Parse(%q) error: %v (should parse as name, not error)", s, err)
+			continue
+		}
+		if sel.SelectorKind() == KindASN {
+			t.Errorf("Parse(%q) should not be KindASN", s)
+		}
+	}
+}
+
+// TestParseDefaultExclude verifies ParseDefault with "!" prefix parses as exclude.
+//
+// VALIDATES: ParseDefault doesn't short-circuit on strings <= "*".
+// PREVENTS: Exclude selectors accidentally returning All().
+func TestParseDefaultExclude(t *testing.T) {
+	sel := ParseDefault("!10.0.0.1")
+	if sel.SelectorKind() == KindAll {
+		t.Error("ParseDefault(\"!10.0.0.1\") should not return KindAll")
+	}
+	if !sel.IsExclude() {
+		t.Error("ParseDefault(\"!10.0.0.1\") should have exclude flag")
+	}
+}
+
+// TestStringDefaultCase verifies String() for an invalid/zero selector kind.
+//
+// VALIDATES: Unknown kind returns "<invalid>", not empty or panic.
+// PREVENTS: Empty string in logs for malformed selectors.
+func TestStringDefaultCase(t *testing.T) {
+	sel := &Selector{kind: Kind(255)}
+	got := sel.String()
+	if got != "<invalid>" {
+		t.Errorf("String() for invalid kind = %q, want %q", got, "<invalid>")
+	}
+}
+
+// TestParseMultiIPEmptyPart verifies empty parts in comma-separated lists are rejected.
+//
+// VALIDATES: ",," or trailing "," returns error.
+// PREVENTS: Silent acceptance of malformed IP lists.
+func TestParseMultiIPEmptyPart(t *testing.T) {
+	_, err := Parse("10.0.0.1,,10.0.0.2")
+	if err == nil {
+		t.Error("expected error for empty part in IP list")
+	}
+}
+
 func must(sel *Selector, err error) *Selector {
 	if err != nil {
 		panic(err)

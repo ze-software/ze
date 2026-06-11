@@ -316,6 +316,73 @@ func TestLookupUnregisteredSAFI(t *testing.T) {
 	})
 }
 
+// TestLookupFamilyStringAllSlots verifies the packed cache returns correct strings
+// for all four AFI slots, exercising the full encode/decode path.
+//
+// VALIDATES: afiSlot mapping, buildPack encoding, lookupFamilyString decoding.
+// PREVENTS: Wrong AFI slot assignment, pack corruption, cache miss on known families.
+func TestLookupFamilyStringAllSlots(t *testing.T) {
+	withCleanRegistry(t, func() {
+		RegisterTestFamilies()
+
+		tests := []struct {
+			f    Family
+			want string
+		}{
+			{Family{AFI: AFIIPv4, SAFI: SAFIUnicast}, "ipv4/unicast"},
+			{Family{AFI: AFIIPv6, SAFI: SAFIUnicast}, "ipv6/unicast"},
+			{Family{AFI: AFIL2VPN, SAFI: SAFIEVPN}, "l2vpn/evpn"},
+			{Family{AFI: AFIBGPLS, SAFI: SAFIBGPLinkState}, "bgp-ls/bgp-ls"},
+		}
+		for _, tt := range tests {
+			got := lookupFamilyString(tt.f)
+			assert.Equal(t, tt.want, got, "lookupFamilyString(%v)", tt.f)
+		}
+	})
+}
+
+// TestAFIConflictLexOrder verifies AFI conflict detection regardless of string ordering.
+//
+// VALIDATES: Conflict detection uses != not > or <.
+// PREVENTS: Lexicographically ordered names slipping past conflict check.
+func TestAFIConflictLexOrder(t *testing.T) {
+	withCleanRegistry(t, func() {
+		_, err := RegisterFamily(AFIIPv4, SAFIUnicast, "ipv4", "unicast")
+		require.NoError(t, err)
+
+		_, err = RegisterFamily(AFIIPv4, SAFIMulticast, "ipv9", "multicast")
+		require.Error(t, err, "lexicographically larger AFI name must still conflict")
+		assert.True(t, errors.Is(err, ErrAFIConflict))
+	})
+}
+
+// TestSAFIConflictLexOrder verifies SAFI conflict detection regardless of string ordering.
+//
+// VALIDATES: Conflict detection uses != not < or >.
+// PREVENTS: Lexicographically ordered names slipping past conflict check.
+func TestSAFIConflictLexOrder(t *testing.T) {
+	withCleanRegistry(t, func() {
+		_, err := RegisterFamily(AFIIPv4, SAFIFlowSpec, "ipv4", "flow")
+		require.NoError(t, err)
+
+		_, err = RegisterFamily(AFIIPv6, SAFIFlowSpec, "ipv6", "aflow")
+		require.Error(t, err, "lexicographically smaller SAFI name must still conflict")
+		assert.True(t, errors.Is(err, ErrSAFIConflict))
+	})
+}
+
+// TestMustRegisterPanicsOnBadInput verifies MustRegister panics on registration error.
+//
+// VALIDATES: MustRegister propagates errors from RegisterFamily as panics.
+// PREVENTS: Silent failure on bad registrations at init time.
+func TestMustRegisterPanicsOnBadInput(t *testing.T) {
+	withCleanRegistry(t, func() {
+		assert.Panics(t, func() {
+			MustRegister(AFIIPv4, SAFIUnicast, "", "unicast")
+		})
+	})
+}
+
 // BenchmarkFamilyString verifies the read path is zero-allocation for registered families.
 //
 // VALIDATES: AC-11 -- Family.String() zero allocation for registered families.

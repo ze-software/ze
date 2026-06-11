@@ -639,6 +639,24 @@ func TestHostPort(t *testing.T) {
 	assert.Equal(t, "10.0.0.1:179", HostPort("10.0.0.1", 179))
 	assert.Equal(t, "0.0.0.0:0", HostPort("0.0.0.0", 0))
 	assert.Equal(t, "host:65535", HostPort("host", 65535))
+	assert.Equal(t, "[::1]:80", HostPort("::1", 80))
+	assert.Equal(t, "[2001:db8::1]:179", HostPort("2001:db8::1", 179))
+}
+
+func TestBufferHostPort(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "10.0.0.1:179", b.Reset().HostPort("10.0.0.1", "179").String())
+	assert.Equal(t, "[::1]:80", b.Reset().HostPort("::1", "80").String())
+	assert.Equal(t, "[2001:db8::1]:179", b.Reset().HostPort("2001:db8::1", "179").String())
+}
+
+func TestBufferHostPortN(t *testing.T) {
+	t.Parallel()
+	var b Buffer
+	assert.Equal(t, "10.0.0.1:179", b.Reset().HostPortN("10.0.0.1", 179).String())
+	assert.Equal(t, "[::1]:80", b.Reset().HostPortN("::1", 80).String())
+	assert.Equal(t, "[2001:db8::1]:179", b.Reset().HostPortN("2001:db8::1", 179).String())
 }
 
 func TestJoin(t *testing.T) {

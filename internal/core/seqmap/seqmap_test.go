@@ -2,6 +2,7 @@ package seqmap
 
 import (
 	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -385,4 +386,119 @@ func TestSinceAfterDelete(t *testing.T) {
 	})
 
 	assert.Equal(t, []uint64{1, 3}, seqs, "deleted entry seq=2 should be skipped")
+}
+
+// TestDeleteTracksDead verifies Delete increments the dead-entry counter.
+//
+// VALIDATES: dead counter increases on Delete (drives compaction timing).
+// PREVENTS: Broken compaction scheduling if dead counter goes wrong.
+func TestDeleteTracksDead(t *testing.T) {
+	m := New[string, int]()
+	m.Put("a", 1, 100)
+	m.Put("b", 2, 200)
+
+	m.Delete("a")
+	assert.Equal(t, 1, m.dead, "Delete should increment dead counter")
+}
+
+// TestCompactionNotTriggeredBelowMinLog verifies compaction requires log > compactMinLog.
+//
+// VALIDATES: Compaction does not trigger when log length equals compactMinLog exactly.
+// PREVENTS: Off-by-one in the compactMinLog threshold.
+func TestCompactionNotTriggeredBelowMinLog(t *testing.T) {
+	m := New[string, int]()
+	for i := range compactMinLog {
+		m.Put("k", uint64(i+1), i)
+	}
+	assert.Equal(t, compactMinLog-1, m.dead, "no compaction at exactly compactMinLog entries")
+	assert.Equal(t, compactMinLog, len(m.log), "log should not be compacted")
+}
+
+// TestCompactionTriggeredAboveMinLog verifies compaction triggers above compactMinLog.
+//
+// VALIDATES: One entry above threshold triggers compaction, resetting dead and shrinking log.
+// PREVENTS: Compaction never triggering due to wrong threshold arithmetic.
+func TestCompactionTriggeredAboveMinLog(t *testing.T) {
+	m := New[string, int]()
+	for i := range compactMinLog + 1 {
+		m.Put("k", uint64(i+1), i)
+	}
+	assert.Equal(t, 0, m.dead, "compaction should reset dead counter")
+	assert.Equal(t, 1, len(m.log), "compaction should shrink log to live entries only")
+}
+
+// TestCompactionRequiresStrictDeadMajority verifies dead must strictly exceed half the log.
+//
+// VALIDATES: dead == len/2 does not trigger compaction (strict >).
+// PREVENTS: Off-by-one where dead-equals-half incorrectly triggers compaction.
+func TestCompactionRequiresStrictDeadMajority(t *testing.T) {
+	m := New[string, int]()
+	n := compactMinLog + 2 // 258
+	for i := range n {
+		m.Put(strconv.Itoa(i), uint64(i+1), i)
+	}
+	for i := range n / 2 {
+		m.Delete(strconv.Itoa(i))
+	}
+	assert.Equal(t, n/2, m.dead, "dead == len/2: compaction should not trigger")
+}
+
+// TestCompactionTriggersOnDeadMajority verifies compaction fires when dead just exceeds half.
+//
+// VALIDATES: dead == len/2 + 1 triggers compaction (complement to StrictDeadMajority).
+// PREVENTS: Wrong arithmetic in dead-ratio threshold (e.g. len-2 instead of len/2).
+func TestCompactionTriggersOnDeadMajority(t *testing.T) {
+	m := New[string, int]()
+	n := compactMinLog + 2 // 258
+	for i := range n {
+		m.Put(strconv.Itoa(i), uint64(i+1), i)
+	}
+	for i := range n/2 + 1 {
+		m.Delete(strconv.Itoa(i))
+	}
+	assert.Equal(t, 0, m.dead, "dead just above half: compaction should trigger")
+}
+
+// TestCompactionIgnoredWithFewDeadEntries verifies compaction needs a dead majority.
+//
+// VALIDATES: A single dead entry in a large log does not trigger compaction.
+// PREVENTS: Compaction on every Put regardless of dead ratio.
+func TestCompactionIgnoredWithFewDeadEntries(t *testing.T) {
+	m := New[string, int]()
+	for i := range compactMinLog + 1 {
+		m.Put(strconv.Itoa(i), uint64(i+1), i)
+	}
+	m.Put("0", uint64(compactMinLog+2), 999)
+	assert.Equal(t, 1, m.dead, "single overwrite should leave dead=1")
+	assert.Equal(t, compactMinLog+2, len(m.log), "log should not be compacted with few dead")
+}
+
+// TestCompactSortsMultipleLiveEntries verifies compact rebuilds log in seq order.
+//
+// VALIDATES: After compaction with many live entries, Since returns ascending seq order.
+// PREVENTS: Broken sort comparator in compact (reversed or no-op sort).
+func TestCompactSortsMultipleLiveEntries(t *testing.T) {
+	m := New[string, int]()
+	nKeys := 130
+	for i := range nKeys {
+		m.Put(strconv.Itoa(i), uint64(i+1), i)
+	}
+	seq := uint64(nKeys + 1)
+	for range 2 {
+		for i := range 100 {
+			m.Put(strconv.Itoa(i), seq, i)
+			seq++
+		}
+	}
+	require.Equal(t, nKeys, m.Len())
+
+	var seqs []uint64
+	m.Since(0, func(_ string, s uint64, _ int) bool {
+		seqs = append(seqs, s)
+		return true
+	})
+	require.Equal(t, nKeys, len(seqs))
+	for i := 1; i < len(seqs); i++ {
+		assert.Less(t, seqs[i-1], seqs[i], "seq order violated at index %d", i)
+	}
 }
