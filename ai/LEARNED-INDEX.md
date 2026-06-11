@@ -174,6 +174,7 @@ Graceful restart, route refresh, capability negotiation, session management.
 - [128](plan/learned/128-graceful-restart-plugin.md) -- Graceful restart plugin design
 - [574](plan/learned/574-bgp-4-bmp.md) -- BMP receiver + sender (RFC 7854), config-as-strings, synthetic OPENs
 - [647](plan/learned/647-bmp-5-sender-compliance.md) -- BMP sender compliance: real OPENs, Route Mirroring, ribout dedup
+- [879](plan/learned/879-l2tp-priority.md) -- L2TP control message priority: Ns-at-send-time invariant enables queue reordering; kernel P-bit limitation
 
 ## Observability
 

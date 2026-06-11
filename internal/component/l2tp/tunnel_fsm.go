@@ -191,7 +191,7 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 	defer PutBuf(bodyBuf)
 	n := writeSCCRPBody(*bodyBuf, t.localTID, defaults, t.ourChallenge, peerResponse)
 
-	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now)
+	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now, false)
 	if err != nil {
 		t.logger.Warn("l2tp: SCCRP enqueue failed; tunnel stays idle", "error", err.Error())
 		return nil
@@ -264,7 +264,7 @@ func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16) []sendReq
 	defer PutBuf(bodyBuf)
 	n := writeStopCCNBody(*bodyBuf, t.localTID, resultCode)
 
-	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now)
+	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now, true)
 	if err != nil {
 		t.logger.Warn("l2tp: StopCCN enqueue failed", "error", err.Error())
 		t.transition(L2TPTunnelClosed, "StopCCN enqueue failed")
@@ -681,7 +681,7 @@ func (t *L2TPTunnel) handleHelloTimer(now time.Time) []sendRequest {
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)
 	n := WriteAVPUint16(*bodyBuf, 0, true, AVPMessageType, uint16(MsgHello))
-	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now)
+	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now, true)
 	if err != nil {
 		t.logger.Warn("l2tp: HELLO enqueue failed", "error", err.Error())
 		return nil

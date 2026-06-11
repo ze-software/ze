@@ -331,8 +331,10 @@ func NewReliableEngine(cfg ReliableConfig) *ReliableEngine {
 // consume a sequence number. For ZLB ACKs, use BuildZLB.
 // Returns ErrBodyTooLarge if len(body) > 1023 - ControlHeaderLen.
 // Returns ErrSendQueueFull if the gated send queue is full
-// (MaxSendQueueDepth).
-func (e *ReliableEngine) Enqueue(sessionID uint16, body []byte, now time.Time) ([]byte, error) {
+// (MaxSendQueueDepth). Priority messages (StopCCN, HELLO) are
+// exempt from the depth cap and prepended so they transmit before
+// queued session messages when the window reopens.
+func (e *ReliableEngine) Enqueue(sessionID uint16, body []byte, now time.Time, priority bool) ([]byte, error) {
 	if e.closed {
 		return nil, ErrEngineClosed
 	}
@@ -354,11 +356,20 @@ func (e *ReliableEngine) Enqueue(sessionID uint16, body []byte, now time.Time) (
 	// If outstanding count is at the window limit, queue.
 	outstanding := uint16(len(e.rtmsQueue)) //nolint:gosec // rtmsQueue is bounded by window <= 32768
 	if e.win.available(outstanding) == 0 {
-		if len(e.sendQueue) >= MaxSendQueueDepth {
+		if !priority && len(e.sendQueue) >= MaxSendQueueDepth {
 			e.bufs.Put(slab)
 			return nil, ErrSendQueueFull
 		}
-		e.sendQueue = append(e.sendQueue, pendingSend{sessionID: sessionID, slab: slab, bodyLen: bodyLen})
+		ps := pendingSend{sessionID: sessionID, slab: slab, bodyLen: bodyLen}
+		if priority {
+			// RFC 2661 does not define control-channel priority, but
+			// tunnel-level messages (StopCCN, HELLO) should not sit
+			// behind session-level traffic. Ns is assigned at send()
+			// time, so prepending does not break wire ordering.
+			e.sendQueue = append([]pendingSend{ps}, e.sendQueue...)
+		} else {
+			e.sendQueue = append(e.sendQueue, ps)
+		}
 		return nil, nil
 	}
 

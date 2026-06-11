@@ -136,7 +136,7 @@ func (t *L2TPTunnel) handleICRQ(payload []byte, now time.Time, logger *slog.Logg
 	defer PutBuf(bodyBuf)
 	n := writeICRPBody(*bodyBuf, localSID)
 
-	wire, enqErr := t.engine.Enqueue(info.assignedSessionID, (*bodyBuf)[:n], now)
+	wire, enqErr := t.engine.Enqueue(info.assignedSessionID, (*bodyBuf)[:n], now, false)
 	if enqErr != nil {
 		logger.Warn("l2tp: ICRP enqueue failed", "error", enqErr.Error())
 		t.removeSession(localSID)
@@ -273,7 +273,7 @@ func (t *L2TPTunnel) handleOCRQ(payload []byte, now time.Time, logger *slog.Logg
 	defer PutBuf(bodyBuf)
 	n := writeOCRPBody(*bodyBuf, localSID)
 
-	wire, enqErr := t.engine.Enqueue(info.assignedSessionID, (*bodyBuf)[:n], now)
+	wire, enqErr := t.engine.Enqueue(info.assignedSessionID, (*bodyBuf)[:n], now, false)
 	if enqErr != nil {
 		logger.Warn("l2tp: OCRP enqueue failed", "error", enqErr.Error())
 		t.removeSession(localSID)
@@ -452,7 +452,7 @@ func (t *L2TPTunnel) teardownSession(sess *L2TPSession, resultCode uint16, now t
 	// session locally -- the engine is either closed (terminal) or the
 	// send queue is full (peer already unreachable), so keeping local
 	// state would only delay cleanup without ever producing a CDN.
-	wire, err := t.engine.Enqueue(sess.remoteSID, (*bodyBuf)[:n], now)
+	wire, err := t.engine.Enqueue(sess.remoteSID, (*bodyBuf)[:n], now, false)
 	if err != nil {
 		logger.Warn("l2tp: CDN enqueue failed; session dropped without peer notification",
 			"local-sid", sess.localSID, "error", err.Error())
@@ -475,7 +475,7 @@ func (t *L2TPTunnel) sendCDNNoSession(remoteSID, resultCode uint16, now time.Tim
 	// Our local SID is 0 since we never allocated one.
 	n := writeCDNBody(*bodyBuf, 0, resultCode)
 
-	wire, err := t.engine.Enqueue(remoteSID, (*bodyBuf)[:n], now)
+	wire, err := t.engine.Enqueue(remoteSID, (*bodyBuf)[:n], now, false)
 	if err != nil {
 		logger.Warn("l2tp: CDN (no-session) enqueue failed", "error", err.Error())
 		return nil

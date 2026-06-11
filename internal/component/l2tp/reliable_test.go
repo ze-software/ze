@@ -57,7 +57,7 @@ func parseSent(t *testing.T, sent []byte) MessageHeader {
 //nolint:unparam // sid varies in integration tests; unit tests stay tunnel-scoped
 func mustEnqueue(t *testing.T, e *ReliableEngine, sid uint16, body []byte, now time.Time) []byte {
 	t.Helper()
-	sent, err := e.Enqueue(sid, body, now)
+	sent, err := e.Enqueue(sid, body, now, false)
 	if err != nil {
 		t.Fatalf("Enqueue: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestEnqueueOpenWindow(t *testing.T) {
 	now := time.Unix(0, 0)
 	body := messageTypeAVP(1) // SCCRQ
 
-	sent, err := e.Enqueue(0, body, now)
+	sent, err := e.Enqueue(0, body, now, false)
 	if err != nil {
 		t.Fatalf("Enqueue: %v", err)
 	}
@@ -100,11 +100,11 @@ func TestEnqueueWindowFull(t *testing.T) {
 	e := newTestEngine()
 	now := time.Unix(0, 0)
 
-	sent1, _ := e.Enqueue(0, messageTypeAVP(1), now)
+	sent1, _ := e.Enqueue(0, messageTypeAVP(1), now, false)
 	if sent1 == nil {
 		t.Fatalf("first Enqueue returned nil, expected bytes")
 	}
-	sent2, err := e.Enqueue(0, messageTypeAVP(2), now)
+	sent2, err := e.Enqueue(0, messageTypeAVP(2), now, false)
 	if err != nil {
 		t.Fatalf("second Enqueue: %v", err)
 	}
@@ -537,11 +537,11 @@ func TestEnqueueSendQueueCap(t *testing.T) {
 	// queues. The (1 + MaxSendQueueDepth)-th Enqueue must fail.
 	mustEnqueue(t, e, 0, messageTypeAVP(1), now)
 	for range MaxSendQueueDepth {
-		if _, err := e.Enqueue(0, messageTypeAVP(1), now); err != nil {
+		if _, err := e.Enqueue(0, messageTypeAVP(1), now, false); err != nil {
 			t.Fatalf("Enqueue within cap failed: %v", err)
 		}
 	}
-	_, err := e.Enqueue(0, messageTypeAVP(1), now)
+	_, err := e.Enqueue(0, messageTypeAVP(1), now, false)
 	if !errors.Is(err, ErrSendQueueFull) {
 		t.Errorf("Enqueue past cap: err = %v, want ErrSendQueueFull", err)
 	}
@@ -551,7 +551,7 @@ func TestEnqueueSendQueueCap(t *testing.T) {
 func TestEnqueueBodyTooLarge(t *testing.T) {
 	e := newTestEngine()
 	big := make([]byte, 1024) // 1024 + 12 > 0x03FF
-	_, err := e.Enqueue(0, big, time.Unix(0, 0))
+	_, err := e.Enqueue(0, big, time.Unix(0, 0), false)
 	if !errors.Is(err, ErrBodyTooLarge) {
 		t.Errorf("err = %v, want ErrBodyTooLarge", err)
 	}
@@ -566,13 +566,13 @@ func TestEnqueueBodyEmpty(t *testing.T) {
 	now := time.Unix(0, 0)
 	cases := [][]byte{nil, {}, make([]byte, AVPHeaderLen+1)}
 	for _, body := range cases {
-		_, err := e.Enqueue(0, body, now)
+		_, err := e.Enqueue(0, body, now, false)
 		if !errors.Is(err, ErrBodyEmpty) {
 			t.Errorf("Enqueue(len=%d): err = %v, want ErrBodyEmpty", len(body), err)
 		}
 	}
 	// Minimum legal body (Message Type AVP = 8 octets) succeeds.
-	if _, err := e.Enqueue(0, messageTypeAVP(1), now); err != nil {
+	if _, err := e.Enqueue(0, messageTypeAVP(1), now, false); err != nil {
 		t.Errorf("minimum body (Message Type AVP): err = %v, want nil", err)
 	}
 }
@@ -619,11 +619,11 @@ func TestUpdatePeerRWSDrainsSendQueue(t *testing.T) {
 	now := time.Unix(0, 0)
 
 	// First Enqueue hits the wire (available = min(4, 1) = 1).
-	if sent, err := e.Enqueue(0, messageTypeAVP(1), now); err != nil || sent == nil {
+	if sent, err := e.Enqueue(0, messageTypeAVP(1), now, false); err != nil || sent == nil {
 		t.Fatalf("first Enqueue: sent=%v err=%v", sent != nil, err)
 	}
 	// Second Enqueue queues (peerRWS-bottlenecked).
-	if sent, err := e.Enqueue(0, messageTypeAVP(2), now); err != nil || sent != nil {
+	if sent, err := e.Enqueue(0, messageTypeAVP(2), now, false); err != nil || sent != nil {
 		t.Fatalf("second Enqueue: expected queued, got sent=%v err=%v", sent != nil, err)
 	}
 	if len(e.sendQueue) != 1 {
@@ -647,7 +647,7 @@ func TestEnqueueAfterClose(t *testing.T) {
 	now := time.Unix(0, 0)
 	e.Close(now)
 
-	_, err := e.Enqueue(0, messageTypeAVP(1), now)
+	_, err := e.Enqueue(0, messageTypeAVP(1), now, false)
 	if !errors.Is(err, ErrEngineClosed) {
 		t.Errorf("err = %v, want ErrEngineClosed", err)
 	}
@@ -711,7 +711,7 @@ func TestEnqueueDefensiveCopy(t *testing.T) {
 	now := time.Unix(0, 0)
 
 	body := messageTypeAVP(1)
-	sent, _ := e.Enqueue(0, body, now)
+	sent, _ := e.Enqueue(0, body, now, false)
 	bodyCopy := bytes.Clone(body)
 	body[6] = 0xff // mutate caller buffer
 
@@ -726,7 +726,7 @@ func TestReliableStats(t *testing.T) {
 	e := newTestEngine()
 	now := time.Unix(0, 0)
 
-	_, err := e.Enqueue(0, messageTypeAVP(6), now)
+	_, err := e.Enqueue(0, messageTypeAVP(6), now, false)
 	if err != nil {
 		t.Fatalf("Enqueue: %v", err)
 	}
@@ -760,5 +760,132 @@ func TestReliableStatsZeroState(t *testing.T) {
 	}
 	if s.RetransmitCount != 0 {
 		t.Errorf("RetransmitCount = %d, want 0", s.RetransmitCount)
+	}
+}
+
+// VALIDATES: AC-1, AC-6 priority=true prepends to sendQueue; when the
+// window opens, the priority message is sent first (lowest Ns), then
+// the two non-priority messages in their original order.
+func TestEnqueuePriorityPrependsToSendQueue(t *testing.T) {
+	e := newTestEngine()
+	now := time.Unix(0, 0)
+
+	// Fill the window (cwnd=1): first message goes on wire.
+	mustEnqueue(t, e, 0, messageTypeAVP(1), now)
+
+	// Queue two non-priority messages.
+	if _, err := e.Enqueue(0, messageTypeAVP(2), now, false); err != nil {
+		t.Fatalf("non-priority enqueue 1: %v", err)
+	}
+	if _, err := e.Enqueue(0, messageTypeAVP(3), now, false); err != nil {
+		t.Fatalf("non-priority enqueue 2: %v", err)
+	}
+	// Queue one priority message -- should land at front.
+	if _, err := e.Enqueue(0, messageTypeAVP(4), now, true); err != nil {
+		t.Fatalf("priority enqueue: %v", err)
+	}
+	if len(e.sendQueue) != 3 {
+		t.Fatalf("sendQueue length = %d, want 3", len(e.sendQueue))
+	}
+
+	// ACK the first message to open the window and drain.
+	ackHdr := MessageHeader{IsControl: true, Nr: 1, Ns: 0}
+	res := e.OnReceive(ackHdr, nil, now) // ZLB from peer
+	if len(res.NewSends) == 0 {
+		t.Fatalf("expected NewSends after ACK, got 0")
+	}
+
+	// Verify wire Ns ordering: priority message got Ns=1 (sent first
+	// from the queue), then non-priority Ns=2, Ns=3.
+	for i, wire := range res.NewSends {
+		hdr := parseSent(t, wire)
+		wantNs := uint16(i + 1)
+		if hdr.Ns != wantNs {
+			t.Errorf("NewSends[%d]: Ns = %d, want %d", i, hdr.Ns, wantNs)
+		}
+	}
+
+	// Verify the priority message body (type=4) was sent first.
+	firstBody := res.NewSends[0][ControlHeaderLen:]
+	if len(firstBody) >= AVPHeaderLen+2 {
+		mt := binary.BigEndian.Uint16(firstBody[AVPHeaderLen:])
+		if mt != 4 {
+			t.Errorf("first drained message type = %d, want 4 (priority)", mt)
+		}
+	}
+}
+
+// VALIDATES: AC-2 non-priority preserves FIFO order.
+func TestEnqueueNonPriorityAppends(t *testing.T) {
+	e := newTestEngine()
+	now := time.Unix(0, 0)
+
+	mustEnqueue(t, e, 0, messageTypeAVP(1), now) // fills window
+
+	if _, err := e.Enqueue(0, messageTypeAVP(2), now, false); err != nil {
+		t.Fatalf("enqueue 2: %v", err)
+	}
+	if _, err := e.Enqueue(0, messageTypeAVP(3), now, false); err != nil {
+		t.Fatalf("enqueue 3: %v", err)
+	}
+
+	if len(e.sendQueue) != 2 {
+		t.Fatalf("sendQueue = %d, want 2", len(e.sendQueue))
+	}
+
+	// ACK to drain.
+	res := e.OnReceive(MessageHeader{IsControl: true, Nr: 1, Ns: 0}, nil, now)
+
+	// First drained should be type=2, second type=3 (FIFO).
+	for i, wire := range res.NewSends {
+		body := wire[ControlHeaderLen:]
+		if len(body) >= AVPHeaderLen+2 {
+			mt := binary.BigEndian.Uint16(body[AVPHeaderLen:])
+			want := uint16(i + 2)
+			if mt != want {
+				t.Errorf("NewSends[%d]: message type = %d, want %d", i, mt, want)
+			}
+		}
+	}
+}
+
+// VALIDATES: AC-3 priority=true with open window sends immediately.
+func TestEnqueuePriorityOpenWindow(t *testing.T) {
+	e := newTestEngine()
+	now := time.Unix(0, 0)
+
+	sent, err := e.Enqueue(0, messageTypeAVP(1), now, true)
+	if err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+	if sent == nil {
+		t.Fatal("priority Enqueue with open window returned nil")
+	}
+	if e.Outstanding() != 1 {
+		t.Errorf("Outstanding = %d, want 1", e.Outstanding())
+	}
+}
+
+// VALIDATES: AC-7 priority bypasses MaxSendQueueDepth cap.
+func TestEnqueuePriorityAtCapacity(t *testing.T) {
+	e := newTestEngine()
+	now := time.Unix(0, 0)
+
+	mustEnqueue(t, e, 0, messageTypeAVP(1), now) // fills window
+	for range MaxSendQueueDepth {
+		if _, err := e.Enqueue(0, messageTypeAVP(1), now, false); err != nil {
+			t.Fatalf("fill queue: %v", err)
+		}
+	}
+	// Non-priority at capacity must fail.
+	if _, err := e.Enqueue(0, messageTypeAVP(1), now, false); !errors.Is(err, ErrSendQueueFull) {
+		t.Errorf("non-priority at cap: err = %v, want ErrSendQueueFull", err)
+	}
+	// Priority at capacity must succeed.
+	if _, err := e.Enqueue(0, messageTypeAVP(1), now, true); err != nil {
+		t.Errorf("priority at cap: err = %v, want nil", err)
+	}
+	if len(e.sendQueue) != MaxSendQueueDepth+1 {
+		t.Errorf("sendQueue = %d, want %d", len(e.sendQueue), MaxSendQueueDepth+1)
 	}
 }
