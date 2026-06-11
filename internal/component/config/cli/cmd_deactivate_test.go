@@ -104,7 +104,7 @@ func TestCmdDeactivateLeafListValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read back: %v", err)
 	}
-	if !strings.Contains(string(content), "inactive:no-self-as") {
+	if !strings.Contains(string(content), "inactive: import no-self-as") {
 		t.Fatalf("leaf-list value not deactivated:\n%s", content)
 	}
 }
