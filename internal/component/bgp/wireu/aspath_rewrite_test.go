@@ -2,6 +2,7 @@ package wireu
 
 import (
 	"encoding/binary"
+	"net/netip"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
@@ -478,4 +479,107 @@ func FuzzRewriteASPath(f *testing.F) {
 			return // Errors are fine, only panics are bugs
 		}
 	})
+}
+
+// TestRewriteASPath_AggregatorNonMappable verifies that RewriteASPath transcodes
+// AGGREGATOR when crossing ASN4→ASN2 encoding and the aggregator ASN is non-mappable.
+//
+// VALIDATES: RFC 6793 Section 4.2.2: AGGREGATOR re-encoded with AS_TRANS; AS4_AGGREGATOR inserted.
+// PREVENTS: Sending 8-byte AGGREGATOR to a 2-byte-only peer on the EBGP prepend path.
+func TestRewriteASPath_AggregatorNonMappable(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{200000}},
+	}, true)
+	aggAddr := netip.MustParseAddr("10.0.0.1")
+	agg := buildAggregatorAttr(4200000000, aggAddr, true)
+	attrs := concatAttrs(origin, aspath, agg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 65000, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AS_PATH: prepended + transcoded to 2-byte.
+	path := parseASPathFromPayload(t, result, false)
+	require.Len(t, path.Segments, 1)
+	assert.Equal(t, []uint32{65000, attribute.ASTrans}, path.Segments[0].ASNs)
+
+	// AGGREGATOR: 6 bytes with AS_TRANS.
+	asn, valLen, found := parseAggregatorFromPayload(t, result)
+	require.True(t, found, "AGGREGATOR must be present")
+	assert.Equal(t, 6, valLen)
+	assert.Equal(t, uint32(23456), asn, "AGGREGATOR ASN should be AS_TRANS")
+
+	// AS4_AGGREGATOR: original 4-byte ASN + IP.
+	as4ASN, as4Addr, found := parseAS4AggregatorFromPayload(t, result)
+	require.True(t, found, "AS4_AGGREGATOR must be present")
+	assert.Equal(t, uint32(4200000000), as4ASN)
+	assert.Equal(t, aggAddr, as4Addr)
+}
+
+// TestRewriteASPath_AggregatorMappable verifies that RewriteASPath transcodes
+// AGGREGATOR from 8→6 bytes without inserting AS4_AGGREGATOR when the ASN fits.
+//
+// VALIDATES: RFC 6793 Section 4.2.2: mappable AGGREGATOR re-encoded; no AS4_AGGREGATOR.
+// PREVENTS: Sending 8-byte AGGREGATOR to a 2-byte-only peer for mappable ASNs.
+func TestRewriteASPath_AggregatorMappable(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, true)
+	aggAddr := netip.MustParseAddr("192.0.2.1")
+	agg := buildAggregatorAttr(65001, aggAddr, true)
+	attrs := concatAttrs(origin, aspath, agg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 65000, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AGGREGATOR: 6 bytes, ASN preserved.
+	asn, valLen, found := parseAggregatorFromPayload(t, result)
+	require.True(t, found)
+	assert.Equal(t, 6, valLen)
+	assert.Equal(t, uint32(65001), asn)
+
+	// No AS4_AGGREGATOR.
+	_, _, found = parseAS4AggregatorFromPayload(t, result)
+	assert.False(t, found, "AS4_AGGREGATOR should not be present for mappable ASN")
+}
+
+// TestRewriteASPath_AggregatorSameEncoding verifies that AGGREGATOR is
+// preserved as-is when srcASN4 == dstASN4 (no transcoding needed).
+//
+// VALIDATES: AGGREGATOR untouched when encoding matches.
+// PREVENTS: Unnecessary AGGREGATOR rewrite on same-encoding path.
+func TestRewriteASPath_AggregatorSameEncoding(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, true)
+	aggAddr := netip.MustParseAddr("10.0.0.1")
+	agg := buildAggregatorAttr(4200000000, aggAddr, true)
+	attrs := concatAttrs(origin, aspath, agg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 65000, true, true)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AGGREGATOR: 8 bytes, unchanged.
+	asn, valLen, found := parseAggregatorFromPayload(t, result)
+	require.True(t, found)
+	assert.Equal(t, 8, valLen, "AGGREGATOR should stay 8 bytes when encoding matches")
+	assert.Equal(t, uint32(4200000000), asn)
+
+	// No AS4_AGGREGATOR.
+	_, _, found = parseAS4AggregatorFromPayload(t, result)
+	assert.False(t, found)
 }

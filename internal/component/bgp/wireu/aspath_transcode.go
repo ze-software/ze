@@ -61,6 +61,12 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 	as4AttrOff := -1
 	as4HdrLen := 0
 	as4ValueLen := 0
+	aggAttrOff := -1
+	aggHdrLen := 0
+	aggValueLen := 0
+	as4AggAttrOff := -1
+	as4AggHdrLen := 0
+	as4AggValueLen := 0
 
 	off := attrsStart
 	for off < attrsStart+attrLen {
@@ -98,34 +104,49 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 			as4HdrLen = hdrLen
 			as4ValueLen = length
 		}
+		if code == attribute.AttrAggregator {
+			aggAttrOff = off
+			aggHdrLen = hdrLen
+			aggValueLen = length
+		}
+		if code == attribute.AttrAS4Aggregator {
+			as4AggAttrOff = off
+			as4AggHdrLen = hdrLen
+			as4AggValueLen = length
+		}
 
 		off += hdrLen + length
 	}
 
-	if aspAttrOff == -1 {
+	if aspAttrOff == -1 && aggAttrOff == -1 {
 		return copy(dst, payload), nil
 	}
 
-	aspValueStart := aspAttrOff + aspHdrLen
-	aspValue := payload[aspValueStart : aspValueStart+aspValueLen]
+	// --- AS_PATH transcoding ---
 
-	existingPath, err := attribute.ParseASPath(aspValue, srcASN4)
-	if err != nil {
-		return 0, fmt.Errorf("transcode AS_PATH: parse existing: %w", err)
+	var existingPath *attribute.ASPath
+	var newASPValueLen, newASPHdrLen int
+	if aspAttrOff != -1 {
+		aspValueStart := aspAttrOff + aspHdrLen
+		aspValue := payload[aspValueStart : aspValueStart+aspValueLen]
+
+		var err error
+		existingPath, err = attribute.ParseASPath(aspValue, srcASN4)
+		if err != nil {
+			return 0, fmt.Errorf("transcode AS_PATH: parse existing: %w", err)
+		}
+
+		newASPValueLen = existingPath.LenWithASN4(dstASN4)
+		newASPHdrLen = 3
+		if newASPValueLen > 255 {
+			newASPHdrLen = 4
+		}
 	}
 
-	oldASPWireSize := aspHdrLen + aspValueLen
-	newASPValueLen := existingPath.LenWithASN4(dstASN4)
-	newASPHdrLen := 3
-	if newASPValueLen > 255 {
-		newASPHdrLen = 4
-	}
-
-	// RFC 6793 Section 4.2.2: compute AS4_PATH size for attrLen calculation.
-	// Written directly into dst later (no intermediate buffer needed).
+	// RFC 6793 Section 4.2.2: compute AS4_PATH if non-mappable ASNs present.
 	var as4Path *attribute.AS4Path
 	var newAS4ValLen, newAS4WireSize int
-	if !dstASN4 && hasNonMappableASN(existingPath) {
+	if existingPath != nil && !dstASN4 && hasNonMappableASN(existingPath) {
 		as4Path = &attribute.AS4Path{Segments: existingPath.Segments}
 		newAS4ValLen = as4Path.Len()
 		as4HdrSize := 3
@@ -135,47 +156,133 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 		newAS4WireSize = as4HdrSize + newAS4ValLen
 	}
 
-	oldAS4WireSize := 0
+	// --- AGGREGATOR transcoding (RFC 6793 Section 4.2.2) ---
+
+	var aggASN uint32
+	var aggIP []byte
+	var needAS4Agg bool
+	var newAggValueLen int
+	if aggAttrOff != -1 && srcASN4 != dstASN4 {
+		aggValueStart := aggAttrOff + aggHdrLen
+		if srcASN4 && aggValueLen == 8 {
+			// 4→2: re-encode 8-byte to 6-byte.
+			aggASN = binary.BigEndian.Uint32(payload[aggValueStart : aggValueStart+4])
+			aggIP = payload[aggValueStart+4 : aggValueStart+8]
+			needAS4Agg = aggASN > 65535
+			newAggValueLen = 6
+		} else if !srcASN4 && aggValueLen == 6 {
+			// 2→4: re-encode 6-byte to 8-byte.
+			aggASN = uint32(binary.BigEndian.Uint16(payload[aggValueStart : aggValueStart+2]))
+			aggIP = payload[aggValueStart+2 : aggValueStart+6]
+			newAggValueLen = 8
+		}
+	}
+
+	// --- Compute new attrLen ---
+
+	newAttrLen := attrLen
+
+	if aspAttrOff != -1 {
+		newAttrLen += (newASPHdrLen + newASPValueLen) - (aspHdrLen + aspValueLen)
+	}
 	if as4AttrOff != -1 {
-		oldAS4WireSize = as4HdrLen + as4ValueLen
+		newAttrLen -= as4HdrLen + as4ValueLen
+	}
+	newAttrLen += newAS4WireSize
+
+	if newAggValueLen != 0 {
+		newAggHdrLen := 3
+		newAttrLen += (newAggHdrLen + newAggValueLen) - (aggHdrLen + aggValueLen)
+	}
+	if as4AggAttrOff != -1 && newAggValueLen != 0 {
+		newAttrLen -= as4AggHdrLen + as4AggValueLen
+	}
+	if needAS4Agg {
+		newAttrLen += 3 + 8 // header(3) + AS4_AGGREGATOR value(8)
 	}
 
-	newAttrLen := attrLen + (newASPHdrLen + newASPValueLen) - oldASPWireSize - oldAS4WireSize + newAS4WireSize
+	// --- Build output: iterate attributes, replace/skip special ones ---
 
-	// Build output. Handle AS4_PATH appearing before or after AS_PATH.
-	n := 0
-	aspAttrEnd := aspAttrOff + oldASPWireSize
+	n := copy(dst, payload[:attrsStart])
 
-	if as4AttrOff != -1 && as4AttrOff < aspAttrOff {
-		// AS4_PATH before AS_PATH: skip AS4_PATH in the prefix, then handle AS_PATH.
-		as4AttrEnd := as4AttrOff + oldAS4WireSize
-		n += copy(dst[n:], payload[:as4AttrOff])
-		n += copy(dst[n:], payload[as4AttrEnd:aspAttrOff])
-	} else {
-		n += copy(dst[n:], payload[:aspAttrOff])
+	off = attrsStart
+	for off < nlriStart {
+		flags := attribute.AttributeFlags(payload[off])
+		code := attribute.AttributeCode(payload[off+1])
+		var length, hdrLen int
+		if flags.IsExtLength() {
+			length = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
+			hdrLen = 4
+		} else {
+			length = int(payload[off+2])
+			hdrLen = 3
+		}
+
+		switch code {
+		case attribute.AttrASPath:
+			if existingPath != nil {
+				n += attribute.WriteHeaderTo(dst, n, attribute.FlagTransitive,
+					attribute.AttrASPath, uint16(newASPValueLen)) //nolint:gosec // bounded by BGP max
+				n += existingPath.WriteToWithASN4(dst, n, dstASN4)
+			} else {
+				n += copy(dst[n:], payload[off:off+hdrLen+length])
+			}
+
+		case attribute.AttrAS4Path:
+			// Skip: replaced by new AS4_PATH appended at end.
+
+		case attribute.AttrAggregator:
+			if newAggValueLen != 0 {
+				n += attribute.WriteHeaderTo(dst, n,
+					attribute.FlagOptional|attribute.FlagTransitive,
+					attribute.AttrAggregator, uint16(newAggValueLen)) //nolint:gosec // bounded by BGP max
+				if newAggValueLen == 6 {
+					// RFC 6793 Section 4.2.2: "set the AS number field in the
+					// existing AGGREGATOR attribute to the reserved AS number, AS_TRANS"
+					asn := aggASN
+					if asn > 65535 {
+						asn = 23456
+					}
+					binary.BigEndian.PutUint16(dst[n:], uint16(asn)) //nolint:gosec // AS_TRANS handles overflow
+					n += 2
+				} else {
+					binary.BigEndian.PutUint32(dst[n:], aggASN)
+					n += 4
+				}
+				n += copy(dst[n:], aggIP)
+			} else {
+				n += copy(dst[n:], payload[off:off+hdrLen+length])
+			}
+
+		case attribute.AttrAS4Aggregator:
+			if newAggValueLen == 0 {
+				n += copy(dst[n:], payload[off:off+hdrLen+length])
+			}
+			// Otherwise skip: replaced by new AS4_AGGREGATOR appended at end.
+
+		default:
+			n += copy(dst[n:], payload[off:off+hdrLen+length])
+		}
+
+		off += hdrLen + length
 	}
 
-	// Write transcoded AS_PATH.
-	n += attribute.WriteHeaderTo(dst, n, attribute.FlagTransitive,
-		attribute.AttrASPath, uint16(newASPValueLen)) //nolint:gosec // bounded by BGP max
-	n += existingPath.WriteToWithASN4(dst, n, dstASN4)
-
-	// Copy remaining attrs after AS_PATH, skipping old AS4_PATH if it follows.
-	remaining := payload[aspAttrEnd:nlriStart]
-	if as4AttrOff != -1 && as4AttrOff > aspAttrOff {
-		relOff := as4AttrOff - aspAttrEnd
-		n += copy(dst[n:], remaining[:relOff])
-		n += copy(dst[n:], remaining[relOff+oldAS4WireSize:])
-	} else {
-		n += copy(dst[n:], remaining)
-	}
-
-	// Write new AS4_PATH directly into dst.
+	// Append new AS4_PATH.
 	if as4Path != nil {
 		n += attribute.WriteHeaderTo(dst, n,
 			attribute.FlagOptional|attribute.FlagTransitive,
 			attribute.AttrAS4Path, uint16(newAS4ValLen)) //nolint:gosec // bounded by BGP max
 		n += as4Path.WriteTo(dst, n)
+	}
+
+	// Append new AS4_AGGREGATOR.
+	if needAS4Agg {
+		n += attribute.WriteHeaderTo(dst, n,
+			attribute.FlagOptional|attribute.FlagTransitive,
+			attribute.AttrAS4Aggregator, 8)
+		binary.BigEndian.PutUint32(dst[n:], aggASN)
+		n += 4
+		n += copy(dst[n:], aggIP)
 	}
 
 	// Copy NLRI.

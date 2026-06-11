@@ -2,6 +2,7 @@ package wireu
 
 import (
 	"encoding/binary"
+	"net/netip"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
@@ -335,4 +336,309 @@ func TestTranscodeASPath_4to2_AS4PathBeforeASPath(t *testing.T) {
 	path := parseASPathFromPayload(t, result, false)
 	require.Len(t, path.Segments, 1)
 	assert.Equal(t, []uint32{64512, attribute.ASTrans}, path.Segments[0].ASNs)
+}
+
+// buildAggregatorAttr constructs an AGGREGATOR attribute with the given ASN and IP.
+// When asn4=true, uses 8-byte format (4-byte ASN + 4-byte IP).
+// When asn4=false, uses 6-byte format (2-byte ASN + 4-byte IP).
+func buildAggregatorAttr(asn uint32, addr netip.Addr, asn4 bool) []byte { //nolint:unparam // asn4 is always true in current tests but parameter needed for correctness
+	if asn4 {
+		buf := make([]byte, 3+8)
+		attribute.WriteHeaderTo(buf, 0,
+			attribute.FlagOptional|attribute.FlagTransitive,
+			attribute.AttrAggregator, 8)
+		binary.BigEndian.PutUint32(buf[3:], asn)
+		copy(buf[7:], addr.AsSlice())
+		return buf
+	}
+	buf := make([]byte, 3+6)
+	attribute.WriteHeaderTo(buf, 0,
+		attribute.FlagOptional|attribute.FlagTransitive,
+		attribute.AttrAggregator, 6)
+	binary.BigEndian.PutUint16(buf[3:], uint16(asn)) //nolint:gosec // test data
+	copy(buf[5:], addr.AsSlice())
+	return buf
+}
+
+// buildAS4AggregatorAttr constructs an AS4_AGGREGATOR attribute (always 8 bytes).
+func buildAS4AggregatorAttr(asn uint32, addr netip.Addr) []byte {
+	buf := make([]byte, 3+8)
+	attribute.WriteHeaderTo(buf, 0,
+		attribute.FlagOptional|attribute.FlagTransitive,
+		attribute.AttrAS4Aggregator, 8)
+	binary.BigEndian.PutUint32(buf[3:], asn)
+	copy(buf[7:], addr.AsSlice())
+	return buf
+}
+
+// parseAggregatorFromPayload extracts AGGREGATOR from a payload.
+// Returns (asn, addr, valueLen, found).
+func parseAggregatorFromPayload(t *testing.T, payload []byte) (uint32, int, bool) {
+	t.Helper()
+	require.True(t, len(payload) >= 4, "payload too short")
+
+	wdLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	attrLenOff := 2 + wdLen
+	require.True(t, len(payload) >= attrLenOff+2, "payload too short for attrLen")
+
+	attrLen := int(binary.BigEndian.Uint16(payload[attrLenOff : attrLenOff+2]))
+	attrsStart := attrLenOff + 2
+	require.True(t, len(payload) >= attrsStart+attrLen, "payload too short for attrs")
+
+	off := attrsStart
+	for off < attrsStart+attrLen {
+		_, code, length, hl, err := attribute.ParseHeader(payload[off:])
+		require.NoError(t, err, "parse attr header")
+		if code == attribute.AttrAggregator {
+			value := payload[off+hl : off+hl+int(length)]
+			valLen := int(length)
+			var asn uint32
+			switch valLen {
+			case 8:
+				asn = binary.BigEndian.Uint32(value[0:4])
+			case 6:
+				asn = uint32(binary.BigEndian.Uint16(value[0:2]))
+			default:
+				t.Fatalf("unexpected AGGREGATOR value length: %d", valLen)
+			}
+			return asn, valLen, true
+		}
+		off += hl + int(length)
+	}
+	return 0, 0, false
+}
+
+// parseAS4AggregatorFromPayload extracts AS4_AGGREGATOR from a payload.
+func parseAS4AggregatorFromPayload(t *testing.T, payload []byte) (uint32, netip.Addr, bool) {
+	t.Helper()
+	require.True(t, len(payload) >= 4, "payload too short")
+
+	wdLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	attrLenOff := 2 + wdLen
+	require.True(t, len(payload) >= attrLenOff+2, "payload too short for attrLen")
+
+	attrLen := int(binary.BigEndian.Uint16(payload[attrLenOff : attrLenOff+2]))
+	attrsStart := attrLenOff + 2
+	require.True(t, len(payload) >= attrsStart+attrLen, "payload too short for attrs")
+
+	off := attrsStart
+	for off < attrsStart+attrLen {
+		_, code, length, hl, err := attribute.ParseHeader(payload[off:])
+		require.NoError(t, err, "parse attr header")
+		if code == attribute.AttrAS4Aggregator {
+			value := payload[off+hl : off+hl+int(length)]
+			require.Equal(t, 8, int(length), "AS4_AGGREGATOR must be 8 bytes")
+			asn := binary.BigEndian.Uint32(value[0:4])
+			addr, ok := netip.AddrFromSlice(value[4:8])
+			require.True(t, ok, "AS4_AGGREGATOR IP parse")
+			return asn, addr, true
+		}
+		off += hl + int(length)
+	}
+	return 0, netip.Addr{}, false
+}
+
+// TestTranscodeASPath_4to2_AggregatorMappable verifies that an AGGREGATOR
+// with a mappable ASN (<=65535) is re-encoded from 8 to 6 bytes without
+// inserting AS4_AGGREGATOR.
+//
+// VALIDATES: RFC 6793 Section 4.2.2: mappable AGGREGATOR re-encoded to 2-byte; no AS4_AGGREGATOR.
+// PREVENTS: Sending 8-byte AGGREGATOR to a 2-byte-only peer.
+func TestTranscodeASPath_4to2_AggregatorMappable(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, true)
+	aggAddr := netip.MustParseAddr("192.0.2.1")
+	agg := buildAggregatorAttr(65001, aggAddr, true)
+	attrs := concatAttrs(origin, aspath, agg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := TranscodeASPath(dst, payload, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AGGREGATOR should be 6 bytes (2-byte ASN + 4-byte IP), ASN preserved.
+	asn, valLen, found := parseAggregatorFromPayload(t, result)
+	require.True(t, found, "AGGREGATOR must be present")
+	assert.Equal(t, 6, valLen, "AGGREGATOR value should be 6 bytes for 2-byte encoding")
+	assert.Equal(t, uint32(65001), asn)
+
+	// No AS4_AGGREGATOR needed.
+	_, _, found = parseAS4AggregatorFromPayload(t, result)
+	assert.False(t, found, "AS4_AGGREGATOR should not be present for mappable ASN")
+}
+
+// TestTranscodeASPath_4to2_AggregatorNonMappable verifies that an AGGREGATOR
+// with a non-mappable ASN (>65535) is re-encoded with AS_TRANS, and
+// AS4_AGGREGATOR carries the original 4-byte ASN + IP.
+//
+// VALIDATES: RFC 6793 Section 4.2.2: non-mappable AGGREGATOR gets AS_TRANS; AS4_AGGREGATOR inserted.
+// PREVENTS: Sending non-mappable 4-byte AGGREGATOR ASN to a 2-byte-only peer.
+func TestTranscodeASPath_4to2_AggregatorNonMappable(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{200000}},
+	}, true)
+	aggAddr := netip.MustParseAddr("10.0.0.1")
+	agg := buildAggregatorAttr(4200000000, aggAddr, true)
+	attrs := concatAttrs(origin, aspath, agg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := TranscodeASPath(dst, payload, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AGGREGATOR: 6 bytes, ASN = AS_TRANS (23456).
+	asn, valLen, found := parseAggregatorFromPayload(t, result)
+	require.True(t, found, "AGGREGATOR must be present")
+	assert.Equal(t, 6, valLen, "AGGREGATOR value should be 6 bytes")
+	assert.Equal(t, uint32(23456), asn, "AGGREGATOR ASN should be AS_TRANS")
+
+	// AS4_AGGREGATOR: original 4-byte ASN + IP.
+	as4ASN, as4Addr, found := parseAS4AggregatorFromPayload(t, result)
+	require.True(t, found, "AS4_AGGREGATOR must be present for non-mappable ASN")
+	assert.Equal(t, uint32(4200000000), as4ASN)
+	assert.Equal(t, aggAddr, as4Addr)
+}
+
+// TestTranscodeASPath_4to2_StaleAS4Aggregator verifies that an existing
+// AS4_AGGREGATOR from the source is stripped when transcoding produces a new one.
+//
+// VALIDATES: Stale AS4_AGGREGATOR replaced by fresh one with correct values.
+// PREVENTS: Duplicate or stale AS4_AGGREGATOR in forwarded UPDATE.
+func TestTranscodeASPath_4to2_StaleAS4Aggregator(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{200000}},
+	}, true)
+	aggAddr := netip.MustParseAddr("10.0.0.1")
+	agg := buildAggregatorAttr(4200000000, aggAddr, true)
+	staleAS4Agg := buildAS4AggregatorAttr(99999, netip.MustParseAddr("1.1.1.1"))
+	attrs := concatAttrs(origin, aspath, agg, staleAS4Agg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := TranscodeASPath(dst, payload, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AS4_AGGREGATOR should have the NEW values, not stale.
+	as4ASN, as4Addr, found := parseAS4AggregatorFromPayload(t, result)
+	require.True(t, found, "AS4_AGGREGATOR must be present")
+	assert.Equal(t, uint32(4200000000), as4ASN, "should be the new ASN, not stale")
+	assert.Equal(t, aggAddr, as4Addr, "should be the new addr, not stale")
+}
+
+// TestTranscodeASPath_4to2_AggregatorNoASPath verifies AGGREGATOR transcoding
+// when no AS_PATH is present (e.g. End-of-RIB with optional attributes).
+//
+// VALIDATES: AGGREGATOR transcoded even without AS_PATH.
+// PREVENTS: Skipping AGGREGATOR transcode when AS_PATH is absent.
+func TestTranscodeASPath_4to2_AggregatorNoASPath(t *testing.T) {
+	origin := buildOriginAttr()
+	aggAddr := netip.MustParseAddr("10.0.0.1")
+	agg := buildAggregatorAttr(4200000000, aggAddr, true)
+	attrs := concatAttrs(origin, agg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := TranscodeASPath(dst, payload, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AGGREGATOR should be transcoded to 6 bytes with AS_TRANS.
+	asn, valLen, found := parseAggregatorFromPayload(t, result)
+	require.True(t, found, "AGGREGATOR must be present")
+	assert.Equal(t, 6, valLen)
+	assert.Equal(t, uint32(23456), asn)
+
+	// AS4_AGGREGATOR should carry the original.
+	as4ASN, as4Addr, found := parseAS4AggregatorFromPayload(t, result)
+	require.True(t, found, "AS4_AGGREGATOR must be present")
+	assert.Equal(t, uint32(4200000000), as4ASN)
+	assert.Equal(t, aggAddr, as4Addr)
+}
+
+// TestTranscodeASPath_4to2_AggregatorBoundary verifies the 65535/65536 boundary
+// for AGGREGATOR transcoding (same boundary as AS_PATH).
+//
+// VALIDATES: AGGREGATOR ASN 65535 maps to itself; 65536 maps to AS_TRANS.
+// PREVENTS: Off-by-one in the >65535 threshold for AGGREGATOR.
+func TestTranscodeASPath_4to2_AggregatorBoundary(t *testing.T) {
+	aggAddr := netip.MustParseAddr("10.0.0.1")
+	tests := []struct {
+		name       string
+		aggASN     uint32
+		wantASN    uint32
+		wantAS4Agg bool
+	}{
+		{"last_mappable_65535", 65535, 65535, false},
+		{"first_nonmappable_65536", 65536, 23456, true},
+		{"large_4byte", 4200000000, 23456, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origin := buildOriginAttr()
+			aspath := buildASPathAttr([]attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+			}, true)
+			agg := buildAggregatorAttr(tt.aggASN, aggAddr, true)
+			attrs := concatAttrs(origin, aspath, agg)
+			payload := buildPayload(nil, attrs, nil)
+
+			dst := make([]byte, len(payload)+128)
+			n, err := TranscodeASPath(dst, payload, true, false)
+			require.NoError(t, err)
+			require.Positive(t, n)
+			result := dst[:n]
+
+			asn, valLen, found := parseAggregatorFromPayload(t, result)
+			require.True(t, found)
+			assert.Equal(t, 6, valLen)
+			assert.Equal(t, tt.wantASN, asn)
+
+			_, _, found = parseAS4AggregatorFromPayload(t, result)
+			if tt.wantAS4Agg {
+				assert.True(t, found, "AS4_AGGREGATOR expected")
+			} else {
+				assert.False(t, found, "AS4_AGGREGATOR not expected")
+			}
+		})
+	}
+}
+
+// TestTranscodeASPath_4to2_OrphanedAS4Aggregator verifies that an existing
+// AS4_AGGREGATOR is preserved when AGGREGATOR was not transcoded (e.g.
+// malformed AGGREGATOR size or no AGGREGATOR present).
+//
+// VALIDATES: AS4_AGGREGATOR preserved when AGGREGATOR not transcoded.
+// PREVENTS: Silent loss of AS4_AGGREGATOR when AGGREGATOR size is unexpected.
+func TestTranscodeASPath_4to2_OrphanedAS4Aggregator(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{200000}},
+	}, true)
+	// AS4_AGGREGATOR without a matching AGGREGATOR.
+	as4Agg := buildAS4AggregatorAttr(4200000000, netip.MustParseAddr("10.0.0.1"))
+	attrs := concatAttrs(origin, aspath, as4Agg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := TranscodeASPath(dst, payload, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AS4_AGGREGATOR must be preserved (no AGGREGATOR to transcode).
+	as4ASN, as4Addr, found := parseAS4AggregatorFromPayload(t, result)
+	require.True(t, found, "orphaned AS4_AGGREGATOR must be preserved")
+	assert.Equal(t, uint32(4200000000), as4ASN)
+	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), as4Addr)
 }

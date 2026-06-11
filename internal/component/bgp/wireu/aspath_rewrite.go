@@ -1,6 +1,7 @@
 // Design: docs/architecture/wire/attributes.md — AS-PATH rewriting for EBGP forwarding
 // RFC: rfc/short/rfc4271.md — AS_PATH prepend on EBGP (Section 5.1.2)
 // RFC: rfc/short/rfc6793.md — 4-byte ASN AS_PATH rewriting
+// Related: aspath_transcode.go — transcode-only (no prepend) for RS-client forwarding
 
 package wireu
 
@@ -82,10 +83,11 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 
 	nlriStart := attrsStart + attrLen
 
-	// Scan attributes to find AS_PATH (type code 2)
-	aspAttrOff := -1 // offset of AS_PATH attribute relative to payload start
-	aspHdrLen := 0   // header length (3 or 4)
-	aspValueLen := 0 // value length
+	// Scan attributes to find AS_PATH. Break early: the hot path
+	// (tryDirectPrepend, same encoding) only needs AS_PATH position.
+	aspAttrOff := -1
+	aspHdrLen := 0
+	aspValueLen := 0
 	off := attrsStart
 
 	for off < attrsStart+attrLen {
@@ -124,12 +126,58 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 	}
 
 	if aspAttrOff == -1 {
-		// No AS_PATH found — insert one
+		// No AS_PATH found -- insert one.
 		return rewriteInsertASPath(dst, payload, asns, dstASN4, attrLen, attrLenOff, nlriStart)
 	}
 
-	return rewritePrependASPath(dst, payload, asns, srcASN4, dstASN4,
-		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen)
+	// Fast path: same encoding, single prepend into AS_SEQUENCE with room.
+	// No AGGREGATOR scan needed since encoding matches.
+	if n, ok := tryDirectPrepend(dst, payload, asns, srcASN4, dstASN4,
+		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen); ok {
+		return n, nil
+	}
+
+	// Slow path: cross-encoding or complex AS_PATH. Scan for
+	// AGGREGATOR/AS4_AGGREGATOR. Bounds already validated by the
+	// AS_PATH scan above.
+	aggAttrOff := -1
+	aggHdrLen := 0
+	aggValueLen := 0
+	as4AggAttrOff := -1
+	as4AggHdrLen := 0
+	as4AggValueLen := 0
+
+	off = attrsStart
+	for off < attrsStart+attrLen {
+		flags := attribute.AttributeFlags(payload[off])
+		code := attribute.AttributeCode(payload[off+1])
+		var length, hdrLen int
+		if flags.IsExtLength() {
+			length = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
+			hdrLen = 4
+		} else {
+			length = int(payload[off+2])
+			hdrLen = 3
+		}
+
+		if code == attribute.AttrAggregator {
+			aggAttrOff = off
+			aggHdrLen = hdrLen
+			aggValueLen = length
+		}
+		if code == attribute.AttrAS4Aggregator {
+			as4AggAttrOff = off
+			as4AggHdrLen = hdrLen
+			as4AggValueLen = length
+		}
+
+		off += hdrLen + length
+	}
+
+	return rewritePrependASPathFull(dst, payload, asns, srcASN4, dstASN4,
+		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen, nlriStart,
+		aggAttrOff, aggHdrLen, aggValueLen,
+		as4AggAttrOff, as4AggHdrLen, as4AggValueLen)
 }
 
 // rewriteInsertASPath handles the case where no AS_PATH exists in the payload.
@@ -174,21 +222,6 @@ func rewriteInsertASPath(dst, payload []byte, asns []uint32, dstASN4 bool,
 	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(newAttrLen)) //nolint:gosec // bounded by BGP max
 
 	return off, nil
-}
-
-// rewritePrependASPath handles the case where an AS_PATH exists.
-// Uses a fast offset-based path for the common single-ASN prepend into an
-// AS_SEQUENCE with room, falling back to full parse for complex cases.
-func rewritePrependASPath(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
-	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen int) (int, error) {
-
-	if n, ok := tryDirectPrepend(dst, payload, asns, srcASN4, dstASN4,
-		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen); ok {
-		return n, nil
-	}
-
-	return rewritePrependASPathFull(dst, payload, asns, srcASN4, dstASN4,
-		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen)
 }
 
 // tryDirectPrepend attempts a zero-allocation offset-based AS_SEQUENCE prepend.
@@ -265,9 +298,11 @@ func tryDirectPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
 
 // rewritePrependASPathFull is the fallback that parses the AS_PATH, prepends
 // via the ASPath object, and re-serializes. Handles AS_SET, segment overflow,
-// cross-ASN-encoding, and multi-ASN prepend.
+// cross-ASN-encoding, multi-ASN prepend, and AGGREGATOR transcoding.
 func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstASN4 bool,
-	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen int) (int, error) {
+	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen, nlriStart int,
+	aggAttrOff, aggHdrLen, aggValueLen int,
+	as4AggAttrOff, as4AggHdrLen, as4AggValueLen int) (int, error) {
 
 	// Parse existing AS_PATH value
 	aspValueStart := aspAttrOff + aspHdrLen
@@ -284,35 +319,123 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 		existingPath.Prepend(asn)
 	}
 
-	// Compute new sizes
-	oldAttrWireSize := aspHdrLen + aspValueLen
+	// Compute new AS_PATH sizes
 	newValueLen := existingPath.LenWithASN4(dstASN4)
 	newHdrLen := 3
 	if newValueLen > 255 {
 		newHdrLen = 4
 	}
-	newAttrWireSize := newHdrLen + newValueLen
-	shift := newAttrWireSize - oldAttrWireSize
 
-	// Write patched payload into dst
-	off := 0
+	// --- AGGREGATOR transcoding (RFC 6793 Section 4.2.2) ---
 
-	// 1. Copy bytes before AS_PATH attribute
-	off += copy(dst[off:], payload[:aspAttrOff])
+	var aggASN uint32
+	var aggIP []byte
+	var needAS4Agg bool
+	var newAggValueLen int
+	if aggAttrOff != -1 && srcASN4 != dstASN4 {
+		aggValueStart := aggAttrOff + aggHdrLen
+		if srcASN4 && aggValueLen == 8 {
+			aggASN = binary.BigEndian.Uint32(payload[aggValueStart : aggValueStart+4])
+			aggIP = payload[aggValueStart+4 : aggValueStart+8]
+			needAS4Agg = aggASN > 65535
+			newAggValueLen = 6
+		} else if !srcASN4 && aggValueLen == 6 {
+			aggASN = uint32(binary.BigEndian.Uint16(payload[aggValueStart : aggValueStart+2]))
+			aggIP = payload[aggValueStart+2 : aggValueStart+6]
+			newAggValueLen = 8
+		}
+	}
 
-	// 2. Write new AS_PATH attribute header
-	off += attribute.WriteHeaderTo(dst, off, attribute.FlagTransitive, attribute.AttrASPath, uint16(newValueLen)) //nolint:gosec // bounded by BGP max
+	// --- Compute new attrLen ---
 
-	// 3. Write new AS_PATH value
-	off += existingPath.WriteToWithASN4(dst, off, dstASN4)
+	newAttrLen := attrLen
+	newAttrLen += (newHdrLen + newValueLen) - (aspHdrLen + aspValueLen)
 
-	// 4. Copy bytes after old AS_PATH attribute (remaining attrs + NLRI)
-	aspAttrEnd := aspAttrOff + oldAttrWireSize
-	off += copy(dst[off:], payload[aspAttrEnd:])
+	if newAggValueLen != 0 {
+		newAttrLen += (3 + newAggValueLen) - (aggHdrLen + aggValueLen)
+	}
+	if as4AggAttrOff != -1 && newAggValueLen != 0 {
+		newAttrLen -= as4AggHdrLen + as4AggValueLen
+	}
+	if needAS4Agg {
+		newAttrLen += 3 + 8
+	}
 
-	// 5. Update global attrLen
-	newAttrLen := attrLen + shift
+	// --- Build output: iterate attributes ---
+
+	attrsStart := attrLenOff + 2
+	n := copy(dst, payload[:attrsStart])
+
+	off := attrsStart
+	for off < nlriStart {
+		flags := attribute.AttributeFlags(payload[off])
+		code := attribute.AttributeCode(payload[off+1])
+		var length, hl int
+		if flags.IsExtLength() {
+			length = int(binary.BigEndian.Uint16(payload[off+2 : off+4]))
+			hl = 4
+		} else {
+			length = int(payload[off+2])
+			hl = 3
+		}
+
+		switch code {
+		case attribute.AttrASPath:
+			n += attribute.WriteHeaderTo(dst, n, attribute.FlagTransitive,
+				attribute.AttrASPath, uint16(newValueLen)) //nolint:gosec // bounded by BGP max
+			n += existingPath.WriteToWithASN4(dst, n, dstASN4)
+
+		case attribute.AttrAggregator:
+			if newAggValueLen != 0 {
+				n += attribute.WriteHeaderTo(dst, n,
+					attribute.FlagOptional|attribute.FlagTransitive,
+					attribute.AttrAggregator, uint16(newAggValueLen)) //nolint:gosec // bounded by BGP max
+				if newAggValueLen == 6 {
+					// RFC 6793 Section 4.2.2: "set the AS number field in the
+					// existing AGGREGATOR attribute to the reserved AS number, AS_TRANS"
+					asn := aggASN
+					if asn > 65535 {
+						asn = 23456
+					}
+					binary.BigEndian.PutUint16(dst[n:], uint16(asn)) //nolint:gosec // AS_TRANS handles overflow
+					n += 2
+				} else {
+					binary.BigEndian.PutUint32(dst[n:], aggASN)
+					n += 4
+				}
+				n += copy(dst[n:], aggIP)
+			} else {
+				n += copy(dst[n:], payload[off:off+hl+length])
+			}
+
+		case attribute.AttrAS4Aggregator:
+			if newAggValueLen == 0 {
+				n += copy(dst[n:], payload[off:off+hl+length])
+			}
+			// Otherwise skip: replaced by new AS4_AGGREGATOR appended at end.
+
+		default:
+			n += copy(dst[n:], payload[off:off+hl+length])
+		}
+
+		off += hl + length
+	}
+
+	// Append new AS4_AGGREGATOR.
+	if needAS4Agg {
+		n += attribute.WriteHeaderTo(dst, n,
+			attribute.FlagOptional|attribute.FlagTransitive,
+			attribute.AttrAS4Aggregator, 8)
+		binary.BigEndian.PutUint32(dst[n:], aggASN)
+		n += 4
+		n += copy(dst[n:], aggIP)
+	}
+
+	// Copy NLRI.
+	n += copy(dst[n:], payload[nlriStart:])
+
+	// Update attrLen.
 	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(newAttrLen)) //nolint:gosec // bounded by BGP max
 
-	return off, nil
+	return n, nil
 }
