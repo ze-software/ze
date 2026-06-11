@@ -114,6 +114,7 @@ func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	if webSrv == nil {
 		return 1
 	}
+	wireEventRingToBroker(ring, broker)
 
 	sigCh := make(chan os.Signal, 2) //nolint:mnd // buffer 2: graceful + force
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -683,6 +684,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			lm.SetWeb(webSrv)
 			if ring := apiServer.EventRing(); ring != nil {
 				ring.Append("web", "server.started")
+				wireEventRingToBroker(ring, broker)
 			}
 			defer func() {
 				broker.Close()

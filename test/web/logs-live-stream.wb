@@ -1,0 +1,11 @@
+# Test: Live Log page renders with SSE connection status
+# VALIDATES: AC-12 -- Live Log page connects to SSE and shows status
+# PREVENTS: Live Log stuck on static "Connecting..." text forever
+
+option=timeout:value=30s
+
+action=open:path=/show/logs/live/
+expect=element:id=workbench-shell
+expect=html:contains=Live Log
+expect=element:id=log-stream
+expect=html:contains=Connecting

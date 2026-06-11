@@ -46,7 +46,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 			return HandleDNSPage(renderer, viewTree), true
 		}
 	case segBGP:
-		return renderBGPPageContent(renderer, r, path[1:], viewTree, schema)
+		return renderBGPPageContent(renderer, r, path[1:], viewTree, schema, dispatch)
 	case segFirewall:
 		return renderFirewallPageContent(renderer, r, path[1:])
 	case segSystem:
@@ -75,7 +75,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 // renderBGPPageContent dispatches BGP sub-pages. The path slice has the
 // leading "bgp" segment already stripped. Returns (content, true) if a
 // page handler matched, or ("", false) to fall through to generic YANG.
-func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, schema *config.Schema) (template.HTML, bool) {
+func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, viewTree *config.Tree, schema *config.Schema, dispatch CommandDispatcher) (template.HTML, bool) {
 	if len(path) == 0 {
 		// /show/bgp/ itself falls through to generic YANG detail.
 		return "", false
@@ -89,7 +89,7 @@ func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, vi
 		// peer row "Edit" link re-rendered the whole table instead of the peer.
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
 			filterGroup := r.URL.Query().Get(bgpGroupSegment)
-			return HandleBGPPeersPage(renderer, viewTree, filterGroup), true
+			return HandleBGPPeersPage(renderer, r, viewTree, filterGroup, dispatch), true
 		}
 		return "", false
 	case bgpGroupSegment:
@@ -99,11 +99,11 @@ func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, vi
 		}
 		// /show/bgp/group/<name>/peer/ shows the peer table scoped to the group.
 		if len(path) >= 3 && path[2] == bgpPeerSegment {
-			return HandleBGPPeersPage(renderer, viewTree, path[1]), true
+			return HandleBGPPeersPage(renderer, r, viewTree, path[1], dispatch), true
 		}
 		return "", false
 	case "summary":
-		return HandleBGPSummaryPage(renderer, viewTree), true
+		return HandleBGPSummaryPage(renderer, r, viewTree, dispatch), true
 	case "family":
 		return HandleBGPFamiliesPage(renderer, viewTree), true
 	case "policy":

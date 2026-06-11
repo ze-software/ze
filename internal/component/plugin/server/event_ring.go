@@ -19,10 +19,11 @@ type EventRecord struct {
 // EventRing is a fixed-size circular buffer of EventRecord values.
 // Safe for concurrent use. Append is O(1) with no allocation.
 type EventRing struct {
-	mu      sync.Mutex
-	records []EventRecord
-	head    int
-	count   int
+	mu       sync.Mutex
+	records  []EventRecord
+	head     int
+	count    int
+	onAppend func(EventRecord)
 }
 
 // NewEventRing creates a ring with the given capacity.
@@ -33,20 +34,30 @@ func NewEventRing(capacity int) *EventRing {
 	return &EventRing{records: make([]EventRecord, capacity)}
 }
 
+// SetOnAppend registers a callback invoked after each Append, outside the
+// lock. Used by the web SSE broker to push live log entries. The callback
+// must not block; a slow callback delays the Append caller.
+func (r *EventRing) SetOnAppend(fn func(EventRecord)) {
+	r.mu.Lock()
+	r.onAppend = fn
+	r.mu.Unlock()
+}
+
 // Append adds a record to the ring, overwriting the oldest if full.
 func (r *EventRing) Append(namespace, eventType string) {
 	now := time.Now()
+	rec := EventRecord{Timestamp: now, Namespace: namespace, EventType: eventType}
 	r.mu.Lock()
-	r.records[r.head] = EventRecord{
-		Timestamp: now,
-		Namespace: namespace,
-		EventType: eventType,
-	}
+	r.records[r.head] = rec
 	r.head = (r.head + 1) % len(r.records)
 	if r.count < len(r.records) {
 		r.count++
 	}
+	fn := r.onAppend
 	r.mu.Unlock()
+	if fn != nil {
+		fn(rec)
+	}
 }
 
 // Snapshot returns up to limit records, newest first. If limit <= 0,

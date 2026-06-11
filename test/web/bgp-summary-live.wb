@@ -1,0 +1,12 @@
+# Test: BGP Summary page renders with live state columns
+# VALIDATES: AC-16 -- BGP Summary shows State/Uptime/Msg columns from dispatch
+# PREVENTS: summary page showing only "--" placeholders when dispatch is available
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/summary/
+expect=element:id=workbench-shell
+expect=html:contains=BGP Summary
+expect=html:contains=State
+expect=html:contains=Uptime
+expect=html:contains=Msg In

@@ -7,6 +7,7 @@ package web
 
 import (
 	"html/template"
+	"net/http"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -121,22 +122,27 @@ const (
 	peerStateDisabled   = "Disabled"
 )
 
-// peerFlag computes the flag string and CSS class for a peer row.
-// For v1 (config-only, no live state), configured peers show green,
-// disabled peers show grey.
-func peerFlag(pe peerEntry) (string, string) {
+// peerFlagFromState computes the flag using live FSM state when available.
+func peerFlagFromState(pe peerEntry, state string) (string, string) {
 	if pe.Disabled {
 		return "D", flagClassGrey
 	}
-	// Config-only: mark as configured (green). Once operational state
-	// is available (future spec), this will use FSM state colors:
-	// green=Established, red=Idle/error, yellow=Active/Connect.
-	return "C", flagClassGreen
+	switch state {
+	case "Established":
+		return "E", flagClassGreen
+	case "Idle", "":
+		return "I", flagClassRed
+	case peerStateConfigured:
+		return "C", flagClassGreen
+	default:
+		return "A", flagClassYellow
+	}
 }
 
 // BuildBGPPeersTableData constructs a WorkbenchTableData from a list
 // of peer entries. filterGroup restricts the table to peers in that group.
-func BuildBGPPeersTableData(peers []peerEntry, filterGroup string) WorkbenchTableData {
+// live provides operational state from "show bgp summary" (nil when unavailable).
+func BuildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[string]bgpSummaryPeer) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "name", Label: "Name", Sortable: true},
 		{Key: "remote-ip", Label: "Remote IP", Sortable: true},
@@ -153,13 +159,15 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string) WorkbenchTabl
 			continue
 		}
 
-		flags, flagClass := peerFlag(pe)
-
-		// State column is placeholder until operational data is available.
 		state := peerStateConfigured
 		if pe.Disabled {
 			state = peerStateDisabled
 		}
+		if op, ok := live[pe.Name]; ok {
+			state = op.State
+		}
+
+		flags, flagClass := peerFlagFromState(pe, state)
 
 		cells := []string{
 			pe.Name,
@@ -234,9 +242,10 @@ func BuildBGPPeersTableData(peers []peerEntry, filterGroup string) WorkbenchTabl
 }
 
 // HandleBGPPeersPage renders the BGP peers table within the workbench.
-func HandleBGPPeersPage(renderer *Renderer, viewTree *config.Tree, filterGroup string) template.HTML {
+func HandleBGPPeersPage(renderer *Renderer, r *http.Request, viewTree *config.Tree, filterGroup string, dispatch CommandDispatcher) template.HTML {
 	peers := collectPeers(viewTree)
-	tableData := BuildBGPPeersTableData(peers, filterGroup)
+	live := fetchBGPSummaryPeers(r, dispatch)
+	tableData := BuildBGPPeersTableData(peers, filterGroup, live)
 	return renderer.RenderFragment("workbench_table", tableData)
 }
 

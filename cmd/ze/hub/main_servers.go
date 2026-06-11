@@ -109,6 +109,18 @@ func withBGPDecode(inner zeweb.CommandDispatcher) zeweb.CommandDispatcher {
 	}
 }
 
+// wireEventRingToBroker connects an EventRing to an SSE broker so that new
+// events are pushed to connected Live Log clients as "log-entry" SSE events.
+func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBroker) {
+	ring.SetOnAppend(func(rec pluginserver.EventRecord) {
+		var tb textbuf.Buffer
+		entry := tb.Str(rec.Timestamp.Format("15:04:05")).
+			Byte(' ').Str(rec.Namespace).
+			Byte(' ').Str(rec.EventType).String()
+		broker.Broadcast("log-entry", entry)
+	})
+}
+
 // serverDispatcherWithSurface creates a CommandDispatcher with fixed audit surface attribution.
 func serverDispatcherWithSurface(s *pluginserver.Server, surface string) func(command, username, remoteAddr string) (string, error) {
 	return func(input, username, remoteAddr string) (string, error) {

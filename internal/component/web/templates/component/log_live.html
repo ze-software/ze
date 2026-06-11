@@ -12,8 +12,8 @@
     <input type="search" id="log-search" class="wb-form-input" placeholder="Search..." aria-label="Search log entries">
     <button id="log-pause" class="wb-form-save">Pause</button>
   </div>
-  <div class="wb-log-stream" id="log-stream">
-    <p class="wb-log-hint">Connecting to live log stream via SSE. Events will appear here in real time.</p>
+  <div class="wb-log-stream" id="log-stream" data-log-live="true">
+    <p class="wb-log-hint" id="log-status">Connecting to live log stream...</p>
   </div>
 </div>
 {{end}}
