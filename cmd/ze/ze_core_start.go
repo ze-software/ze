@@ -55,7 +55,8 @@ func startUsage() {
 		Sections: []helpfmt.HelpSection{
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
 				{Name: "--cli", Desc: "Attach interactive CLI after startup"},
-				{Name: "--web <port>", Desc: "Enable web UI on given port"},
+				{Name: "--web <port>", Desc: "Enable web UI on given port (requires config)"},
+				{Name: "--web-only", Desc: "Start web UI only, no daemon (config editing only)"},
 				{Name: "--insecure-web", Desc: "Disable web auth (binds to localhost only)"},
 				{Name: "--mcp <port>", Desc: "Enable MCP server on given port"},
 				{Name: "--mcp-token <token>", Desc: "Bearer token for MCP authentication"},
@@ -70,17 +71,19 @@ func startUsage() {
 			"ze start --cli                     Start daemon and attach interactive CLI",
 			"ze start --web 3443                Start with web UI on port 3443",
 			"ze start --web 3443 --insecure-web Start with web UI, no auth (localhost)",
+			"ze start --web-only --web 3443     Web UI only (no operational commands)",
 		},
 	}
 	p.Write()
 }
 
-func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, globalMCPAddr, globalMCPToken, globalWebPort string, globalInsecureWeb bool) int {
+func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, globalMCPAddr, globalMCPToken, globalWebPort string, globalInsecureWeb, globalWebOnly bool) int {
 	// Start with global flag values, allow local flags to override.
 	mcpAddr := globalMCPAddr
 	mcpToken := globalMCPToken
 	webPort := globalWebPort
 	insecureWeb := globalInsecureWeb
+	webOnly := globalWebOnly
 	cliEnabled := false
 
 	for i := 0; i < len(args); i++ {
@@ -99,6 +102,8 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 				fmt.Fprintf(os.Stderr, "error: --web requires a port\n")
 				return 1
 			}
+		case "--web-only":
+			webOnly = true
 		case "--insecure-web":
 			insecureWeb = true
 		case "--mcp":
@@ -134,9 +139,15 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 			webListenAddr = tb.Reset().Str("127.0.0.1:").Str(webPort).String()
 		}
 	}
-	if insecureWeb && !webEnabled {
-		fmt.Fprintf(os.Stderr, "error: --insecure-web requires --web <port>\n")
+	if insecureWeb && !webEnabled && !webOnly {
+		fmt.Fprintf(os.Stderr, "error: --insecure-web requires --web <port> or --web-only\n")
 		return 1
+	}
+	if webOnly && webListenAddr == "" {
+		webListenAddr = "0.0.0.0:3443"
+		if insecureWeb {
+			webListenAddr = "127.0.0.1:3443"
+		}
 	}
 
 	store := resolveStorage()
@@ -145,6 +156,17 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	if !storage.IsBlobStorage(store) {
 		fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
 		return 1
+	}
+
+	// Explicit --web-only: start standalone web UI, no daemon.
+	if webOnly {
+		if cliEnabled {
+			fmt.Fprintf(os.Stderr, "warning: --cli ignored in --web-only mode (no daemon to attach to)\n")
+		}
+		if mcpAddr != "" {
+			fmt.Fprintf(os.Stderr, "warning: --mcp ignored in --web-only mode (no daemon)\n")
+		}
+		return withPanicCapture(func() int { return hub.RunWebOnly(store, webListenAddr, insecureWeb) })
 	}
 
 	// Check managed mode: meta/instance/managed=true in blob.
@@ -160,10 +182,11 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 			fmt.Fprintf(os.Stderr, "bootstrap: created config from template + discovery\n")
 		case bootstrapFromDiscovery(store, configName):
 			fmt.Fprintf(os.Stderr, "bootstrap: created config from interface discovery (DHCP + SSH)\n")
-		case webEnabled:
-			return withPanicCapture(func() int { return hub.RunWebOnly(store, webListenAddr, insecureWeb) })
 		default:
 			fmt.Fprintf(os.Stderr, "error: no config found in database (run ze config edit first)\n")
+			if webEnabled {
+				fmt.Fprintf(os.Stderr, "hint: use --web-only to start the web UI without a daemon\n")
+			}
 			return 1
 		}
 	}
@@ -179,7 +202,9 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 
 	ct := detectConfigType(store, configName)
 	if ct == config.ConfigTypeUnknown && webEnabled {
-		return withPanicCapture(func() int { return hub.RunWebOnly(store, webListenAddr, insecureWeb) })
+		fmt.Fprintf(os.Stderr, "error: config %q has unknown type; cannot start daemon with --web\n", configName)
+		fmt.Fprintf(os.Stderr, "hint: use --web-only to start the web UI without a daemon\n")
+		return 1
 	}
 
 	return withPanicCapture(func() int {

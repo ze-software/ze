@@ -76,9 +76,10 @@ type RuntimeContext struct {
 	ConfigOverride string
 	// PrintVersion prints the process version (extended or short form).
 	PrintVersion func(extended bool)
-	// WebPort, InsecureWeb, MCPAddr, MCPToken are the web/MCP process flags
-	// captured during global flag parsing.
+	// WebPort, WebOnly, InsecureWeb, MCPAddr, MCPToken are the web/MCP process
+	// flags captured during global flag parsing.
 	WebPort     string
+	WebOnly     bool
 	InsecureWeb bool
 	MCPAddr     string
 	MCPToken    string

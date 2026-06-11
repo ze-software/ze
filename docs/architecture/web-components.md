@@ -191,7 +191,8 @@ Two ways:
 
 | Method | What happens |
 |--------|-------------|
-| `ze start --web <port>` | Starts web server alongside BGP engine (or standalone if no config) |
+| `ze start --web <port>` | Starts web server alongside BGP engine (requires config) |
+| `ze start --web-only` | Starts web UI only, no daemon (config editing, default port 3443) |
 | `environment { web { } }` in config | Detected during config load, enables web server |
 
 Both paths call `startWebServer()` in `cmd/ze/hub/main.go` which wires all routes, creates the EditorManager, CLI completer, and session store.

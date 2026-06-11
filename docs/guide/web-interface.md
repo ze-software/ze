@@ -19,8 +19,9 @@ When no certificate is configured, ze generates an ECDSA P-256 self-signed certi
 
 | Flag | Description |
 |------|-------------|
-| `--web <port>` | Start web interface on `0.0.0.0:<port>` |
-| `--insecure-web` | Disable authentication (forces `127.0.0.1`, requires `--web`) |
+| `--web <port>` | Start web interface on `0.0.0.0:<port>` (requires config) |
+| `--web-only` | Start web UI only, no daemon (config editing only, default port 3443) |
+| `--insecure-web` | Disable authentication (forces `127.0.0.1`, requires `--web` or `--web-only`) |
 
 ### Workbench UI
 

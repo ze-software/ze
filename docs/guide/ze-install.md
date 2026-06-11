@@ -481,7 +481,7 @@ a PXE-provisioned device boots for the first time.
   SSH is enabled on all interfaces.
 - If no ethernet interfaces are found (or the netlink backend is not
   available), bootstrap mode does not activate and ze falls through to
-  the next startup path (web-only or error).
+  the next startup path (error; use `--web-only` for standalone web UI).
 
 ### Limitations
 

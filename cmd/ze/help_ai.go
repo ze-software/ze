@@ -156,6 +156,7 @@ func printCLICommands() {
 	fmt.Println("    --plugin <name>        Load plugin before starting (repeatable)")
 	fmt.Println("    --mcp <port>           Start MCP server on 127.0.0.1:<port>")
 	fmt.Println("    --web <port>           Start web server on 0.0.0.0:<port>")
+	fmt.Println("    --web-only             Web UI only, no daemon (config editing only)")
 	fmt.Println("    --insecure-web         Disable web auth (forces 127.0.0.1)")
 	fmt.Println("    --pprof <addr:port>    Start pprof HTTP server")
 	fmt.Println("    -V, --version          Show version")
@@ -533,7 +534,7 @@ func printServices() {
 
 	// CLI flag mapping: service name -> flag syntax.
 	cliFlags := map[string]string{
-		"web": "--web <port>  --insecure-web",
+		"web": "--web <port>  --web-only  --insecure-web",
 		"mcp": "--mcp <port>",
 	}
 

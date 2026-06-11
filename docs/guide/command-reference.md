@@ -1216,8 +1216,9 @@ ze start --web 8443 --mcp 9718                   # Both web and MCP
 
 | Flag | Purpose |
 |------|---------|
-| `--web <port>` | Start web interface on `0.0.0.0:<port>` |
-| `--insecure-web` | Disable authentication (forces `127.0.0.1`, requires `--web`) |
+| `--web <port>` | Start web interface on `0.0.0.0:<port>` (requires config) |
+| `--web-only` | Start web UI only, no daemon (config editing only, default port 3443) |
+| `--insecure-web` | Disable authentication (forces `127.0.0.1`, requires `--web` or `--web-only`) |
 | `--mcp <port>` | Start MCP server on `127.0.0.1:<port>` (AI control interface) |
 
 The web server uses a self-signed ECDSA P-256 certificate (persisted in zefs) with SANs

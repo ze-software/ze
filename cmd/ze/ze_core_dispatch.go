@@ -92,6 +92,7 @@ type zeGlobalFlags struct {
 	mcpToken     string
 	webPort      string
 	insecureWeb  bool
+	webOnly      bool
 }
 
 var zeFlags zeGlobalFlags
@@ -239,6 +240,9 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 		case "--insecure-web":
 			zeFlags.insecureWeb = true
 			args = args[1:]
+		case "--web-only":
+			zeFlags.webOnly = true
+			args = args[1:]
 		case "--color":
 			_ = env.Set("ze.log.color", "true")
 			args = args[1:]
@@ -335,8 +339,12 @@ func zeDispatch(args []string) int {
 			webListenAddr = wb.Reset().Str("127.0.0.1:").Str(zeFlags.webPort).String()
 		}
 	}
-	if zeFlags.insecureWeb && !webEnabled {
-		fmt.Fprintf(os.Stderr, "error: --insecure-web requires --web <port>\n")
+	if zeFlags.insecureWeb && !webEnabled && !zeFlags.webOnly {
+		fmt.Fprintf(os.Stderr, "error: --insecure-web requires --web <port> or --web-only\n")
+		return 1
+	}
+	if zeFlags.webOnly && looksLikeConfig(arg) {
+		fmt.Fprintf(os.Stderr, "error: --web-only cannot be used with a config file (use 'ze start --web-only' instead)\n")
 		return 1
 	}
 
@@ -389,12 +397,12 @@ func registerLocalCommands() {
 			startUsage()
 			return 0
 		}
-		return cmdStart(args, rctx.Plugins, rctx.ChaosSeed, rctx.ChaosRate, rctx.MCPAddr, rctx.MCPToken, rctx.WebPort, rctx.InsecureWeb)
+		return cmdStart(args, rctx.Plugins, rctx.ChaosSeed, rctx.ChaosRate, rctx.MCPAddr, rctx.MCPToken, rctx.WebPort, rctx.InsecureWeb, rctx.WebOnly)
 	}, registry.Meta{
 		Description: "Start the Ze daemon from blob storage config",
 		Mode:        "setup",
 		Section:     registry.SectionSystem,
-		Subs:        "--web <port>, --insecure-web, --mcp <port>",
+		Subs:        "--web <port>, --web-only, --insecure-web, --mcp <port>",
 	})
 	registry.MustRegisterRootHandler("version", func(rctx *registry.RuntimeContext, args []string) int {
 		rctx.PrintVersion(slices.Contains(args, "--extended"))
@@ -449,6 +457,7 @@ func newZeRuntimeContext() *registry.RuntimeContext {
 		ConfigOverride: zeFlags.fileOverride,
 		PrintVersion:   printVersion,
 		WebPort:        zeFlags.webPort,
+		WebOnly:        zeFlags.webOnly,
 		InsecureWeb:    zeFlags.insecureWeb,
 		MCPAddr:        zeFlags.mcpAddr,
 		MCPToken:       zeFlags.mcpToken,
