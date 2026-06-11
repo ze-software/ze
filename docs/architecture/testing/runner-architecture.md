@@ -60,8 +60,8 @@ Both engines render through the same components:
 
 - **Live status and per-test result lines** — `Display` (header, in-place status, `TestFinished`, `Summary`). <!-- source: internal/test/runner/display.go -- Display, TestFinished, Summary -->
 - **Color/glyph formatting** — `Colors`, TTY-aware via `slogutil.UseColor`. <!-- source: internal/test/runner/color.go -- Colors, NewColors -->
-- **Timing baseline** — rolling per-test durations persisted under the suite label. <!-- source: internal/test/runner/timing.go -- Timings, Record, Save -->
-- **Failure routing** — under `ZE_VERIFY_MODE=1`, failed suites emit a compact `VERIFY FAILURE INDEX` with one `VERIFY FAILURE GROUP: {json}` token per group. <!-- source: internal/test/runner/failure_group.go -- GroupFunctionalFailures, PrintFailureGroups --> <!-- source: internal/test/runner/parallel.go -- verifyModeEnabled, ZE_VERIFY_MODE -->
+- **Timing baseline** — rolling per-test durations persisted under the suite label. Baseline updates are suppressed when the run is contended (host load > CPUs with concurrent test processes) to prevent slow-run pollution. <!-- source: internal/test/runner/timing.go -- Timings, Record, Save --> <!-- source: internal/test/runner/hostload.go -- HostLoad, Contended -->
+- **Failure routing** — under `ZE_VERIFY_MODE=1`, failed suites emit a compact `VERIFY FAILURE INDEX` with one `VERIFY FAILURE GROUP: {json}` token per group. Contended runs label the index header and attach host load context to each group. A `near_timeout` failure kind classifies tests that consumed >80% of their timeout without the context deadline firing. <!-- source: internal/test/runner/failure_group.go -- GroupFunctionalFailures, PrintFailureGroups --> <!-- source: internal/test/runner/parallel.go -- verifyModeEnabled, ZE_VERIFY_MODE --> <!-- source: internal/test/runner/hostload.go -- IsNearTimeout, FailTypeNearTimeout -->
 
 ### Engine unification
 

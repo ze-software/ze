@@ -452,6 +452,13 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		rec.FailureType = stateUnknown
 	}
 
+	// Reclassify "unknown" as "near_timeout" when the test consumed most of
+	// its budget. This distinguishes CPU-starvation near-misses from genuine
+	// unknown failures so failure groups are actionable under load.
+	if IsNearTimeout(float64(rec.Duration)/float64(timeout), rec.FailureType) {
+		rec.FailureType = FailTypeNearTimeout
+	}
+
 	if err != nil {
 		rec.Error = err
 	}
@@ -1046,6 +1053,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				rec.FailureType = FailTypeConnectionRefuse
 			default:
 				rec.FailureType = stateUnknown
+			}
+			if IsNearTimeout(float64(rec.Duration)/float64(timeout), rec.FailureType) {
+				rec.FailureType = FailTypeNearTimeout
 			}
 			if err != nil {
 				rec.Error = err

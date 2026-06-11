@@ -61,6 +61,24 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-mutation-changed` | Incremental mutation testing on changed files only (advisory, fast) |
 | `make ze-mutation-report` | Mutation testing with HTML report to `tmp/mutation-report.html` |
 
+### Contended Run Verdicts
+
+When `make ze-verify` runs on a loaded machine, the failure index may show
+`VERIFY FAILURE INDEX (CONTENDED RUN)` with host load details. This means the
+system had load > CPU count with concurrent ze-test or go-test processes.
+
+How to read contended failures:
+- `near_timeout` kind: the test consumed >80% of its timeout but the context
+  deadline did not fire. This is CPU starvation, not a bug. Rerun on a quiet
+  machine.
+- `host-load` field in failure group JSON: load average, CPU count, and
+  concurrent process counts at run start.
+- Timing baseline updates are suppressed during contended runs to prevent
+  slow-run pollution of the EMA.
+- The project rejects retry-on-failure masking. Contended verdicts are for
+  classification, not automatic retry.
+<!-- source: internal/test/runner/hostload.go -- HostLoad, Contended, IsNearTimeout -->
+
 ### Linux-Only Tests (QEMU)
 
 **Full rule: `ai/rules/qemu-testing.md`** (build tags, virtual substitutes,

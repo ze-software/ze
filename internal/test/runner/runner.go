@@ -246,6 +246,8 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 		parallel = len(selected)
 	}
 
+	load := SnapshotHostLoad()
+
 	pr := NewParallelRunner[*Record](r.colors)
 	pr.SetDisplay(r.display)
 	pr.SetConcurrency(parallel)
@@ -253,6 +255,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	pr.SetQuiet(opts.Quiet)
 	pr.SetLabel(r.display.label)
 	pr.SetNoHeader(true)
+	pr.SetHostLoad(&load)
 
 	if !opts.SkipTimings {
 		pr.SetBaseDir(r.baseDir)

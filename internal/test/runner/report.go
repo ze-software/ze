@@ -14,9 +14,10 @@ import (
 
 // Report generates AI-friendly failure output.
 type Report struct {
-	colors *Colors
-	output io.Writer
-	label  string // test suite label for debug commands (e.g., "encode", "plugin")
+	colors   *Colors
+	output   io.Writer
+	label    string    // test suite label for debug commands (e.g., "encode", "plugin")
+	hostLoad *HostLoad // snapshot at run start; attached to failure groups when contended
 }
 
 // NewReport creates a new report generator.
@@ -35,6 +36,11 @@ func (r *Report) SetOutput(w io.Writer) {
 // SetLabel sets the test suite label for debug commands.
 func (r *Report) SetLabel(label string) {
 	r.label = label
+}
+
+// SetHostLoad records the host load snapshot taken at run start.
+func (r *Report) SetHostLoad(h *HostLoad) {
+	r.hostLoad = h
 }
 
 // PrintFailure prints a detailed failure report for a test.

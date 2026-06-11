@@ -53,6 +53,7 @@ type ParallelRunner[T any] struct {
 	baseDir        string         // project root for timing baseline persistence
 	concurrency    int            // max concurrent tests; 0 means DefaultParallelConcurrent
 	statusInterval time.Duration  // status ticker interval; 0 means StatusUpdateInterval
+	hostLoad       *HostLoad      // snapshot at run start; suppresses baseline when contended
 }
 
 // NewParallelRunner creates a parallel test runner.
@@ -122,6 +123,13 @@ func (r *ParallelRunner[T]) SetOnReport(fn func(*Tests)) {
 // Use for stress-mode iterations where the caller controls post-run output.
 func (r *ParallelRunner[T]) SetNoSummary(v bool) {
 	r.noSummary = v
+}
+
+// SetHostLoad records the host load snapshot taken at run start.
+// When contended, timing baseline updates are suppressed and failure
+// groups include the load context.
+func (r *ParallelRunner[T]) SetHostLoad(h *HostLoad) {
+	r.hostLoad = h
 }
 
 // AddRecord adds a test with a pre-existing Record. The Record must already
@@ -291,18 +299,24 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 
 	// Record and display timing baseline.
 	// Skip timed-out tests -- their duration is the kill time, not actual runtime.
+	// Skip ALL recording when the run is contended to prevent baseline pollution.
+	contended := r.hostLoad != nil && r.hostLoad.Contended()
 	if r.baseDir != "" && r.label != "" {
 		timings := LoadTimings(r.baseDir)
-		for _, t := range r.tests {
-			if t.Record.Duration > 0 && t.Record.State != StateTimeout {
-				timings.Record(r.label, t.Name, t.Record.Duration)
+		if !contended {
+			for _, t := range r.tests {
+				if t.Record.Duration > 0 && t.Record.State != StateTimeout {
+					timings.Record(r.label, t.Name, t.Record.Duration)
+				}
 			}
 		}
 		if !r.noSummary {
 			r.display.TimingDetail(r.label, timings)
 		}
-		if err := timings.Save(r.baseDir); err != nil {
-			logger().Warn("save timings failed", "error", err)
+		if !contended {
+			if err := timings.Save(r.baseDir); err != nil {
+				logger().Warn("save timings failed", "error", err)
+			}
 		}
 	}
 	if !r.quiet && len(failures) > 0 {
@@ -310,6 +324,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 			report := NewReport(r.colors)
 			report.SetOutput(r.display.output)
 			report.SetLabel(r.label)
+			report.SetHostLoad(r.hostLoad)
 			report.PrintFailureGroups(r.display.tests)
 		}
 		if r.onReport != nil {

@@ -11,7 +11,7 @@ func TestFunctionalFailureGroupsUseSuiteTypeAndSubsystemPrefix(t *testing.T) {
 		{Name: "bfd-peer-timeout", Nick: "2", State: StateTimeout},
 		{Name: "fib-observer-mismatch", Nick: "3", State: StateFail, FailureType: FailTypeMismatch},
 	}
-	groups := GroupFunctionalFailures("plugin", records)
+	groups := GroupFunctionalFailures("plugin", records, nil)
 	if len(groups) != 2 {
 		t.Fatalf("expected bfd timeout and fib mismatch groups, got %+v", groups)
 	}
@@ -31,7 +31,7 @@ func TestTopLevelCIFailureGroupsDoNotMergeByFirstToken(t *testing.T) {
 		{Name: "cli-schema-protocol", Nick: "1", State: StateFail, FailureType: FailTypeMismatch},
 		{Name: "cli-show-bgp-encode", Nick: "2", State: StateFail, FailureType: FailTypeMismatch},
 	}
-	groups := GroupFunctionalFailures("ui", records)
+	groups := GroupFunctionalFailures("ui", records, nil)
 	if len(groups) != 2 {
 		t.Fatalf("expected separate groups for unrelated cli failures, got %+v", groups)
 	}
@@ -48,7 +48,7 @@ func TestEditorFailureGroupsUsePositionalReruns(t *testing.T) {
 		{Name: "test/editor/commands/show-full.et", Nick: "7", State: StateFail, FailureType: stateUnknown},
 		{Name: "test/editor/navigation/up-one-level.et", Nick: "8", State: StateFail, FailureType: stateUnknown},
 	}
-	groups := GroupFunctionalFailures("editor", records)
+	groups := GroupFunctionalFailures("editor", records, nil)
 	if len(groups) != 2 {
 		t.Fatalf("expected exact editor test groups, got %+v", groups)
 	}
@@ -65,7 +65,7 @@ func TestParseFailureGroupsUseExactTestNames(t *testing.T) {
 		{Name: "invalid/peer-as.conf", Nick: "P", State: StateFail, FailureType: stateUnknown},
 		{Name: "invalid/router-id.conf", Nick: "Q", State: StateFail, FailureType: stateUnknown},
 	}
-	groups := GroupFunctionalFailures("parse", records)
+	groups := GroupFunctionalFailures("parse", records, nil)
 	if len(groups) != 2 {
 		t.Fatalf("expected exact parse groups, got %+v", groups)
 	}
@@ -74,6 +74,37 @@ func TestParseFailureGroupsUseExactTestNames(t *testing.T) {
 	}
 	if groups[1].GroupID != "parse:unknown:invalid-router-id-conf" || groups[1].Rerun != "ze-test bgp parse Q" {
 		t.Fatalf("unexpected second parse group: %+v", groups[1])
+	}
+}
+
+func TestContendedLoadAttachedToFailureGroups(t *testing.T) {
+	records := []*Record{
+		{Name: "add-remove", Nick: "1", State: StateFail, FailureType: stateUnknown},
+	}
+	contended := &HostLoad{LoadAvg1: 20.0, CPUs: 8, ZeProcs: 3, GoTestProcs: 2}
+	groups := GroupFunctionalFailures("plugin", records, contended)
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	if groups[0].HostLoad == nil {
+		t.Fatal("expected HostLoad to be set on contended run")
+	}
+	if groups[0].HostLoad.LoadAvg1 != 20.0 {
+		t.Errorf("HostLoad.LoadAvg1 = %v, want 20.0", groups[0].HostLoad.LoadAvg1)
+	}
+}
+
+func TestQuietLoadNotAttachedToFailureGroups(t *testing.T) {
+	records := []*Record{
+		{Name: "add-remove", Nick: "1", State: StateFail, FailureType: stateUnknown},
+	}
+	quiet := &HostLoad{LoadAvg1: 1.0, CPUs: 8, ZeProcs: 1, GoTestProcs: 0}
+	groups := GroupFunctionalFailures("plugin", records, quiet)
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group, got %d", len(groups))
+	}
+	if groups[0].HostLoad != nil {
+		t.Fatal("expected HostLoad to be nil on quiet run")
 	}
 }
 

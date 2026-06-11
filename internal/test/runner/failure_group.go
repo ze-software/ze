@@ -4,7 +4,6 @@ package runner
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -19,19 +18,21 @@ const (
 
 // FailureGroup is the native suite-local failure routing unit emitted by ze-test.
 type FailureGroup struct {
-	Stage     string   `json:"stage"`
-	GroupID   string   `json:"group-id"`
-	Kind      string   `json:"kind"`
-	Related   []string `json:"related"`
-	Summary   string   `json:"summary"`
-	Rerun     string   `json:"rerun"`
-	DetailLog string   `json:"detail-log"`
-	Parallel  string   `json:"parallel"`
+	Stage     string    `json:"stage"`
+	GroupID   string    `json:"group-id"`
+	Kind      string    `json:"kind"`
+	Related   []string  `json:"related"`
+	Summary   string    `json:"summary"`
+	Rerun     string    `json:"rerun"`
+	DetailLog string    `json:"detail-log"`
+	Parallel  string    `json:"parallel"`
+	HostLoad  *HostLoad `json:"host-load,omitempty"`
 }
 
 // GroupFunctionalFailures groups failed records by suite, failure kind, and a
-// suite-specific routing key.
-func GroupFunctionalFailures(suite string, records []*Record) []FailureGroup {
+// suite-specific routing key. When load is non-nil and contended, each group
+// gets the load context for downstream classification.
+func GroupFunctionalFailures(suite string, records []*Record, load *HostLoad) []FailureGroup {
 	if suite == "" {
 		suite = defaultFailureSuite
 	}
@@ -57,11 +58,17 @@ func GroupFunctionalFailures(suite string, records []*Record) []FailureGroup {
 		}
 		group.Related = append(group.Related, target.Related)
 	}
+	var contendedLoad *HostLoad
+	if load != nil && load.Contended() {
+		contendedLoad = load
+	}
 	groups := make([]FailureGroup, 0, len(order))
 	for _, key := range order {
 		group := byKey[key]
 		group.Rerun = FormatRerunCommand(group.Stage, group.Related)
-		group.Summary = fmt.Sprintf("%s %s %s: %d test(s)", group.Stage, group.Kind, subjects[key], len(group.Related))
+		var stb textbuf.Buffer
+		group.Summary = stb.Str(group.Stage).Byte(' ').Str(group.Kind).Byte(' ').Str(subjects[key]).Str(": ").Int(int64(len(group.Related))).Str(" test(s)").String()
+		group.HostLoad = contendedLoad
 		groups = append(groups, *group)
 	}
 	return groups
@@ -224,12 +231,17 @@ func quoteCommand(args []string) []string {
 }
 
 func (r *Report) PrintFailureGroups(tests *Tests) {
-	groups := GroupFunctionalFailures(r.label, tests.FailedRecords())
+	groups := GroupFunctionalFailures(r.label, tests.FailedRecords(), r.hostLoad)
 	if len(groups) == 0 {
 		return
 	}
 	r.writeln(r.colors.LineSeparator())
-	r.writeln(r.colors.Yellow("VERIFY FAILURE INDEX:"))
+	if r.hostLoad != nil && r.hostLoad.Contended() {
+		r.writeln(r.colors.Yellow("VERIFY FAILURE INDEX (CONTENDED RUN):"))
+		r.writef("  %s\n", r.colors.Yellow(r.hostLoad.String()))
+	} else {
+		r.writeln(r.colors.Yellow("VERIFY FAILURE INDEX:"))
+	}
 	r.writeln(r.colors.LineSeparator())
 	for _, group := range groups {
 		payload, err := json.Marshal(group)
