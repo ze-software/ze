@@ -5,7 +5,7 @@
         "GOOS=linux"
     ],
     "Packages": [
-        "github.com/gokrazy/serial-busybox",
+        "codeberg.org/thomas-mangin/ze/cmd/ze-serial-shell",
         "codeberg.org/thomas-mangin/ze/cmd/ze"
     ],
     "GokrazyPackages": [

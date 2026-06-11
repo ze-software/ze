@@ -12,7 +12,7 @@ Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 | Linux kernel | Boot and hardware drivers |
 | Gokrazy init | Process supervisor, entropy seeding, watchdog heartbeat |
 | Ze | BGP daemon with DHCP client, NTP, and all internal plugins |
-| serial-busybox | Emergency shell on serial console (not started by default) |
+| ze-serial-shell | Authenticated emergency shell on serial console (login required) |
 
 Ze owns network configuration (DHCP) and time synchronization (NTP). The gokrazy
 default DHCP and NTP packages are excluded from the image -- ze handles both via
@@ -182,7 +182,8 @@ Or import into Proxmox:
 qm importdisk <vmid> tmp/gokrazy/ze.img <storage>
 ```
 
-The machine boots to a serial console (115200 baud). Ze starts automatically, gets a DHCP address, and begins listening for BGP connections according to `/etc/ze/ze.conf`.
+The machine boots to a serial console (115200 baud). Ze starts automatically, gets a DHCP address, and begins listening for BGP connections according to `/etc/ze/ze.conf`. The serial console requires authentication with the local admin credentials before granting shell access. If the credentials database is missing or unreadable, access is granted without authentication for emergency recovery.
+<!-- source: cmd/ze/login.go -- loginMain, fail-open path -->
 
 ## Configuration
 
@@ -281,7 +282,7 @@ gokrazy/
         cmd/heartbeat/    # watchdog heartbeat
         cmd/randomd/      # entropy seeder
       github.com/gokrazy/serial-busybox/
-        go.mod, go.sum    # emergency serial shell
+        go.mod, go.sum    # legacy serial shell (replaced by ze-serial-shell)
 cmd/ze-gok/
   main.go                 # gok wrapper (built by make bin/gok)
 ```

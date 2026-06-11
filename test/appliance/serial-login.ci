@@ -1,0 +1,19 @@
+# Test: ze serial login -- authentication gate on serial console
+# spec-appliance-login-shell AC-1..AC-9
+#
+# This test requires QEMU with serial port forwarding to exercise the full
+# serial console login flow (gokrazy -> symlink -> ze login -> busybox).
+# Unit tests in cmd/ze/login_test.go cover all login logic (argv[0] dispatch,
+# valid/invalid credentials, fail-open, retry limits, non-terminal rejection,
+# ZeFS fallback path).
+#
+# QEMU test plan (when appliance serial test infrastructure is ready):
+#   1. Build appliance image with ze-serial-shell package
+#   2. Boot in QEMU with -serial stdio
+#   3. Send credentials via serial port
+#   4. Verify shell access granted on correct password
+#   5. Verify rejection on wrong password
+#   6. Verify fail-open when ZeFS is missing
+#
+# Deferred: requires QEMU serial port forwarding infrastructure.
+# Coverage: unit tests exercise all code paths; this would add integration proof.

@@ -122,6 +122,10 @@ func withPanicCapture(fn func() int) (exitCode int) {
 }
 
 func zeSetup(args []string) ([]string, int) {
+	if isShellInvocation(binaryName()) {
+		return nil, loginMain()
+	}
+
 	pluginserver.SetVersion(version, buildDate)
 	diagnostic.RegisterBuiltinCodes()
 	registerLocalCommands()
