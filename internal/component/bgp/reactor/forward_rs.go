@@ -208,6 +208,23 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		return wire, true
 	}
 
+	// Resolve srcASN4 eagerly: one registry lookup, used by both getEBGPWire
+	// and the RS-client transcode guard. Zero cost on the common path where
+	// all peers share the same ASN4 capability.
+	if !srcASN4Set {
+		srcASN4Set = true
+		if srcCtxID := update.WireUpdate.SourceCtxID(); srcCtxID != 0 {
+			if srcCtx := bgpctx.Registry.Get(srcCtxID); srcCtx != nil {
+				srcASN4 = srcCtx.ASN4()
+			}
+		}
+	}
+
+	// RFC 6793 Section 4.2.2: lazily-generated transcode wire for RS-client
+	// peers that lack ASN4. Only allocated on the first mismatch peer.
+	var rsTranscodeWire *wireu.WireUpdate
+	var rsTranscodeSet, rsTranscodeFailed bool
+
 	// Build source PeerFilterInfo once for egress filter chain.
 	var srcFilter filterapi.PeerFilterInfo
 	if len(r.egressFilters) > 0 {
@@ -328,6 +345,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		}
 
 		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
+		// RFC 6793 Section 4.2.2: MUST transcode ASN4→ASN2 even for RS-clients.
 		peerWire := update.WireUpdate
 		if facts.isEBGP && !facts.rsClient {
 			wire, ok := getEBGPWire(facts.localAS, facts.secondaryAS, facts.sendASN4)
@@ -336,6 +354,33 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 			if wire != nil {
 				peerWire = wire
+			}
+		} else if facts.isEBGP && facts.rsClient && srcASN4 && !facts.sendASN4 {
+			if rsTranscodeFailed {
+				continue
+			}
+			if !rsTranscodeSet {
+				rsTranscodeSet = true
+				payload := update.WireUpdate.Payload()
+				extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
+				buf := getReadBuf(extendedMessage)
+				if buf.Buf == nil {
+					rsTranscodeFailed = true
+					continue
+				}
+				n, err := wireu.TranscodeASPath(buf.Buf, payload, srcASN4, false)
+				if err != nil || n <= 0 {
+					ReturnReadBuffer(buf)
+					rsTranscodeFailed = true
+					continue
+				}
+				wire := wireu.NewWireUpdate(buf.Buf[:n], update.WireUpdate.SourceCtxID())
+				wire.SetMessageID(update.WireUpdate.MessageID())
+				wire.SetSourceID(update.WireUpdate.SourceID())
+				rsTranscodeWire = wire
+			}
+			if rsTranscodeWire != nil {
+				peerWire = rsTranscodeWire
 			}
 		}
 

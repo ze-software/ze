@@ -368,6 +368,19 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		return wire, true
 	}
 
+	// Resolve srcASN4 eagerly for the RS-client transcode guard.
+	if !srcASN4Set {
+		srcCtxID := update.WireUpdate.SourceCtxID()
+		srcCtx := bgpctx.Registry.Get(srcCtxID)
+		srcASN4 = srcCtx != nil && srcCtx.ASN4()
+		srcASN4Set = true
+	}
+
+	// RFC 6793 Section 4.2.2: lazily-generated transcode wire for RS-client
+	// peers that lack ASN4. Only allocated on the first mismatch peer.
+	var rsTranscodeWire *wireu.WireUpdate
+	var rsTranscodeSet, rsTranscodeFailed bool
+
 	var parseCache fwdParseCache
 	var dispatchedCount int
 
@@ -514,6 +527,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 
 		// RFC 4271 S9.1.2: EBGP peers get AS-PATH-prepended wire.
 		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
+		// RFC 6793 Section 4.2.2: MUST transcode ASN4→ASN2 even for RS-clients.
 		peerWire := peerBaseWire
 		if facts.isEBGP && !facts.rsClient {
 			wire, ok := getEBGPWire(peerBaseWire, facts.localAS, facts.secondaryAS, facts.sendASN4)
@@ -522,6 +536,51 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			}
 			if wire != nil {
 				peerWire = wire
+			}
+		} else if facts.isEBGP && facts.rsClient && srcASN4 && !facts.sendASN4 {
+			if peerBaseWire != update.WireUpdate {
+				// Export-filter override: transcode inline (not cacheable).
+				// srcASN4 is still correct: exportWireOverride preserves SourceCtxID.
+				extMsg := len(peerBaseWire.Payload()) > message.MaxMsgLen-message.HeaderLen
+				buf := getReadBuf(extMsg)
+				if buf.Buf == nil {
+					continue
+				}
+				n, err := wireu.TranscodeASPath(buf.Buf, peerBaseWire.Payload(), srcASN4, false)
+				if err != nil || n <= 0 {
+					ReturnReadBuffer(buf)
+					continue
+				}
+				peerWire = wireu.NewWireUpdate(buf.Buf[:n], peerBaseWire.SourceCtxID())
+				peerWire.SetMessageID(peerBaseWire.MessageID())
+				peerWire.SetSourceID(peerBaseWire.SourceID())
+			} else {
+				if rsTranscodeFailed {
+					continue
+				}
+				if !rsTranscodeSet {
+					rsTranscodeSet = true
+					payload := update.WireUpdate.Payload()
+					extMsg := len(payload) > message.MaxMsgLen-message.HeaderLen
+					buf := getReadBuf(extMsg)
+					if buf.Buf == nil {
+						rsTranscodeFailed = true
+						continue
+					}
+					n, err := wireu.TranscodeASPath(buf.Buf, payload, srcASN4, false)
+					if err != nil || n <= 0 {
+						ReturnReadBuffer(buf)
+						rsTranscodeFailed = true
+						continue
+					}
+					wire := wireu.NewWireUpdate(buf.Buf[:n], update.WireUpdate.SourceCtxID())
+					wire.SetMessageID(update.WireUpdate.MessageID())
+					wire.SetSourceID(update.WireUpdate.SourceID())
+					rsTranscodeWire = wire
+				}
+				if rsTranscodeWire != nil {
+					peerWire = rsTranscodeWire
+				}
 			}
 		}
 
