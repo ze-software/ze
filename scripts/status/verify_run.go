@@ -851,8 +851,8 @@ func openControlledFile(path string) (*os.File, error) {
 }
 
 func contendedWarning() string {
-	zeCount := pgrepCount("ze-test")
-	goCount := pgrepCount("go.test")
+	zeCount := grepProcCount("ze-test")
+	goCount := grepProcCount("\\.test")
 	if zeCount <= 1 && goCount == 0 {
 		return ""
 	}
@@ -865,18 +865,23 @@ func contendedWarning() string {
 	return tb.String()
 }
 
-func pgrepCount(pattern string) int {
+func grepProcCount(pattern string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "pgrep", "-c", pattern).Output() //nolint:gosec // fixed argument
+	var tb textbuf.Buffer
+	shellCmd := tb.Str("ps -eo comm | grep -c '").Str(pattern).Byte('\'').String()
+	cmd := exec.CommandContext(ctx, "sh", "-c", shellCmd) //nolint:gosec // pattern is a compile-time constant
+	out, err := cmd.Output()
 	if err != nil {
 		return 0
 	}
+	s := strings.TrimSpace(string(out))
 	n := 0
-	for _, b := range strings.TrimSpace(string(out)) {
-		if b >= '0' && b <= '9' {
-			n = n*10 + int(b-'0')
+	for _, b := range s {
+		if b < '0' || b > '9' {
+			break
 		}
+		n = n*10 + int(b-'0')
 	}
 	return n
 }
