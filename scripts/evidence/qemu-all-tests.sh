@@ -144,6 +144,7 @@ run_check "unit tests (no -race, cacheable)" \
 run_check "integration tests (-tags integration)" \
 	go test -tags integration -count=1 -timeout 120s \
 	./cmd/ze/doctor \
+	./internal/component/host/... \
 	./internal/component/iface/... \
 	./internal/component/config/system/... \
 	./internal/core/routewatch/... \
