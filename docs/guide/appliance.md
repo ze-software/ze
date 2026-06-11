@@ -1,6 +1,6 @@
 # VM Appliance
 
-Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org). The default target is x86_64. The legacy Make workflow uses `GOKRAZY_ARCH=arm64` for native Apple Silicon QEMU images; the structured `ze appliance build` workflow uses `image.arch` in `appliance.json`. The result is a minimal Linux system that runs Ze as its only application, with no package manager, no shell (except emergency serial console), and automatic process supervision.
+Build a bootable VM image with Ze baked in using [gokrazy](https://gokrazy.org). The default target is x86_64. The legacy Make workflow uses `GOKRAZY_ARCH=arm64` for native Apple Silicon QEMU images; the structured `ze appliance build` workflow uses `image.arch` in `appliance.json`. The result is a minimal Linux system that runs Ze as its only application, with no package manager, no shell (except authenticated emergency serial console), and automatic process supervision.
 
 Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.
 <!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
@@ -281,10 +281,11 @@ gokrazy/
         cmd/ntp/          # NTP client
         cmd/heartbeat/    # watchdog heartbeat
         cmd/randomd/      # entropy seeder
-      github.com/gokrazy/serial-busybox/
-        go.mod, go.sum    # legacy serial shell (replaced by ze-serial-shell)
+cmd/ze-serial-shell/        # serial console login gate (replaces serial-busybox)
+  main.go                   # gokrazy wrapper: symlink + DontStartOnBoot
+  _gokrazy/                 # renamed busybox extrafiles per arch
 cmd/ze-gok/
-  main.go                 # gok wrapper (built by make bin/gok)
+  main.go                   # gok wrapper (built by make bin/gok)
 ```
 
 The gok build tool source is vendored in the main `vendor/github.com/gokrazy/` directory. The `builddir/` files are small text (go.mod + go.sum, ~27KB). System packages (kernel, init) live in the Go module cache after `make ze-gokrazy-deps`.

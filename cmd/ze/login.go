@@ -10,9 +10,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,16 +26,17 @@ import (
 )
 
 const (
-	shellBinaryPath   = "/usr/local/bin/ze-recovery-shell"
-	defaultZeFSDir    = "/perm/ze"
-	maxLoginRetries   = 3
-	retryDelaySeconds = 2
+	shellBinaryPath = "/usr/local/bin/ze-recovery-shell"
+	defaultZeFSDir  = "/perm/ze"
+	maxLoginRetries = 3
+	maxInputLen     = 256
 )
 
 var (
 	execShellFn    = defaultExecShell
 	readPasswordFn = defaultReadPassword
 	isTerminalFn   = defaultIsTerminal
+	retryDelay     = 2 * time.Second
 )
 
 func isShellInvocation(basename string) bool {
@@ -70,11 +73,16 @@ func loginMain() int {
 		return execShellFn()
 	}
 
+	scanner := bufio.NewScanner(os.Stdin)
+
 	for attempt := range maxLoginRetries {
 		fmt.Fprint(os.Stdout, "login: ") //nolint:errcheck // serial console output
-		var inputUser string
-		if _, err := fmt.Fscanln(os.Stdin, &inputUser); err != nil {
+		if !scanner.Scan() {
 			return 1
+		}
+		inputUser := strings.TrimRight(scanner.Text(), "\r")
+		if len(inputUser) > maxInputLen {
+			inputUser = inputUser[:maxInputLen]
 		}
 
 		fmt.Fprint(os.Stdout, "password: ") //nolint:errcheck // serial console output
@@ -83,11 +91,16 @@ func loginMain() int {
 		if err != nil {
 			return 1
 		}
+		if len(inputPass) > maxInputLen {
+			inputPass = inputPass[:maxInputLen]
+		}
 
-		if inputUser != string(username) || bcrypt.CompareHashAndPassword(hash, inputPass) != nil {
+		// Always run bcrypt regardless of username match to avoid timing side-channel.
+		passErr := bcrypt.CompareHashAndPassword(hash, inputPass)
+		if inputUser != string(username) || passErr != nil {
 			fmt.Fprintln(os.Stderr, "login incorrect") //nolint:errcheck // serial console output
 			if attempt < maxLoginRetries-1 {
-				time.Sleep(retryDelaySeconds * time.Second)
+				time.Sleep(retryDelay)
 			}
 			continue
 		}

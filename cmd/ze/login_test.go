@@ -30,10 +30,13 @@ func setConfigDir(t *testing.T, dir string) {
 
 func setupLoginMocks(t *testing.T) {
 	t.Helper()
+	origDelay := retryDelay
+	retryDelay = 0
 	t.Cleanup(func() {
 		execShellFn = defaultExecShell
 		readPasswordFn = defaultReadPassword
 		isTerminalFn = defaultIsTerminal
+		retryDelay = origDelay
 	})
 }
 
@@ -118,6 +121,29 @@ func TestLoginInvalidCredentials(t *testing.T) {
 	}
 	if execCalled {
 		t.Error("execShellFn should not be called on wrong password")
+	}
+}
+
+func TestLoginWrongUsernameCorrectPassword(t *testing.T) {
+	dir := t.TempDir()
+	db := createTestDB(t, dir, "admin", "secret123")
+	db.Close() //nolint:errcheck // test cleanup
+
+	var execCalled bool
+	setupLoginMocks(t)
+	execShellFn = func() int { execCalled = true; return 0 }
+	readPasswordFn = func(_ int) ([]byte, error) { return []byte("secret123"), nil }
+	isTerminalFn = func(_ int) bool { return true }
+
+	setConfigDir(t, dir)
+	pipeStdin(t, "wronguser\nwronguser\nwronguser\n")
+
+	code := loginMain()
+	if code != 1 {
+		t.Errorf("loginMain() = %d, want 1 (wrong username rejects even with correct password)", code)
+	}
+	if execCalled {
+		t.Error("execShellFn should not be called with wrong username")
 	}
 }
 
