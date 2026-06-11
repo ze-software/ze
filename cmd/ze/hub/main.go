@@ -65,6 +65,7 @@ var (
 	errCannotResolveConfigDirectory = errors.New("cannot resolve config directory")
 	errEmptyUsernameInZefs          = errors.New("empty username in zefs")
 	errEmptyPasswordInZefs          = errors.New("empty password hash in zefs")
+	errAdminDisabledInZefs          = errors.New("local admin login disabled in zefs")
 )
 
 // Env var registrations are centralized in internal/component/config/environment.go.
@@ -730,7 +731,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			AuditRecorder: auditLog,
 		}
 		if zefsUsers, err := loadZefsUsers(); err == nil {
-			cfg.Users = append(zefsUsers, cfg.Users...)
+			cfg.Users = mergeAuthUsers(zefsUsers, cfg.Users)
 		}
 
 		// Build the AAA bundle via the registry (local + any enabled remote backends).

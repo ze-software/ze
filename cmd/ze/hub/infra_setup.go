@@ -104,10 +104,11 @@ func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloa
 	// Users from zefs + config. Loaded regardless of SSH so the local AAA
 	// backend sees them even on API-only or MCP-only deployments where
 	// authorization and accounting must still apply.
-	users := append([]aaa.UserCredential{}, sshCfg.Users...)
-	if zefsUsers, err := loadZefsUsers(); err == nil {
-		users = append(zefsUsers, users...)
+	var zefsUsers []aaa.UserCredential
+	if u, err := loadZefsUsers(); err == nil {
+		zefsUsers = u
 	}
+	users := mergeAuthUsers(zefsUsers, sshCfg.Users)
 
 	// Warn on every ze:bcrypt canonical leaf that holds a non-bcrypt value.
 	// `ze config validate` already surfaces this, but a daemon reload from a

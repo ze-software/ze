@@ -557,18 +557,22 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	return srv, broker, editorMgr
 }
 
-// mergeAuthUsers returns the always-on zefs power user(s) followed by the
-// config-file users, so both authenticate on a surface. Mirrors the SSH paths
-// (infra_setup.go / main.go). Order puts the power user first; the result is a
-// fresh slice (never aliases either input).
-//
-// Duplicate names are intentionally NOT deduplicated: if a name appears in both
-// sources (e.g. both define "admin"), both entries are kept and the
-// authenticator accepts either password. There is no override -- the power user
-// cannot be shadowed or disabled by a config-file user of the same name.
+// mergeAuthUsers returns the zefs power user(s) followed by the config-file
+// users. When a config user has the same name as a zefs power user, the config
+// entry takes precedence and the zefs entry is dropped; this lets operators
+// override the built-in password via configuration. The result is a fresh
+// slice (never aliases either input).
 func mergeAuthUsers(zefsUsers, configUsers []authz.UserConfig) []authz.UserConfig {
+	cfgNames := make(map[string]bool, len(configUsers))
+	for _, u := range configUsers {
+		cfgNames[u.Name] = true
+	}
 	out := make([]authz.UserConfig, 0, len(zefsUsers)+len(configUsers))
-	out = append(out, zefsUsers...)
+	for _, u := range zefsUsers {
+		if !cfgNames[u.Name] {
+			out = append(out, u)
+		}
+	}
 	out = append(out, configUsers...)
 	return out
 }
@@ -593,7 +597,12 @@ func loadZefsUsers() ([]authz.UserConfig, error) {
 
 // usersFromZefsDB reads the dedicated local power-user credentials from zefs.
 // Missing or empty credentials return an error so the caller fails closed.
+// When meta/instance/admin-disabled is "true", returns errAdminDisabledInZefs
+// so the caller skips the built-in power user.
 func usersFromZefsDB(db *zefs.BlobStore) ([]authz.UserConfig, error) {
+	if disabled, err := db.ReadFile(zefs.KeyInstanceAdminDisabled.Pattern); err == nil && string(disabled) == "true" {
+		return nil, errAdminDisabledInZefs
+	}
 	username, err := db.ReadFile(zefs.KeyLocalAdminUsername.Pattern)
 	if err != nil {
 		return nil, fmt.Errorf("read local username: %w", err)

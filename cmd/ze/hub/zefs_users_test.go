@@ -144,9 +144,74 @@ func TestUsersFromZefsDBFailsClosedOnEmptyHash(t *testing.T) {
 	}
 }
 
-// Confirms both credential sources are active: the always-on power user plus
-// any config-file users (the basis for web/API admitting config users, not just
-// the power user).
+// VALIDATES: admin-disabled flag in zefs blocks the power user from loading.
+// PREVENTS: built-in admin remaining active after operator explicitly disables it.
+func TestUsersFromZefsDBRespectsAdminDisabled(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "database.zefs")
+	store, err := zefs.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte("admin"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFile(zefs.KeyLocalAdminPassword.Pattern, []byte("$2y$10$hash"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFile(zefs.KeyInstanceAdminDisabled.Pattern, []byte("true"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := zefs.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() }) //nolint:errcheck // test cleanup
+
+	if _, err := usersFromZefsDB(db); !errors.Is(err, errAdminDisabledInZefs) {
+		t.Fatalf("got %v, want errAdminDisabledInZefs", err)
+	}
+}
+
+// VALIDATES: admin-disabled="false" does not block power user loading.
+func TestUsersFromZefsDBAllowsExplicitFalse(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "database.zefs")
+	store, err := zefs.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte("admin"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFile(zefs.KeyLocalAdminPassword.Pattern, []byte("$2y$10$hash"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFile(zefs.KeyInstanceAdminDisabled.Pattern, []byte("false"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db, err := zefs.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() }) //nolint:errcheck // test cleanup
+
+	users, err := usersFromZefsDB(db)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(users) != 1 || users[0].Name != "admin" {
+		t.Fatalf("got %+v, want admin user", users)
+	}
+}
+
+// Confirms both credential sources are active: the zefs power user plus
+// any config-file users. Config user with the same name overrides the
+// zefs entry.
 func TestMergeAuthUsers(t *testing.T) {
 	power := []authz.UserConfig{{Name: "admin", Hash: "h1"}}
 	cfg := []authz.UserConfig{{Name: "op1", Hash: "h2"}, {Name: "op2", Hash: "h3"}}
@@ -180,5 +245,43 @@ func TestMergeAuthUsers(t *testing.T) {
 	got2[0] = authz.UserConfig{Name: "mutated"}
 	if power[0].Name != "admin" {
 		t.Error("mergeAuthUsers must not alias its input slice")
+	}
+}
+
+// VALIDATES: config user with same name as zefs power user overrides it.
+// PREVENTS: dual entries allowing stale zefs password as a backdoor.
+func TestMergeAuthUsersConfigOverridesZefs(t *testing.T) {
+	power := []authz.UserConfig{{Name: "admin", Hash: "zefs-hash"}}
+	cfg := []authz.UserConfig{{Name: "admin", Hash: "config-hash"}, {Name: "op1", Hash: "h2"}}
+
+	got := mergeAuthUsers(power, cfg)
+	if len(got) != 2 {
+		t.Fatalf("got %d users, want 2 (config admin replaces zefs admin + op1)", len(got))
+	}
+	for _, u := range got {
+		if u.Name == "admin" && u.Hash != "config-hash" {
+			t.Errorf("admin hash = %q, want config-hash (config must override zefs)", u.Hash)
+		}
+	}
+}
+
+// VALIDATES: multiple zefs users where only one is overridden.
+func TestMergeAuthUsersPartialOverride(t *testing.T) {
+	zefs := []authz.UserConfig{{Name: "admin", Hash: "z1"}, {Name: "rescue", Hash: "z2"}}
+	cfg := []authz.UserConfig{{Name: "admin", Hash: "c1"}}
+
+	got := mergeAuthUsers(zefs, cfg)
+	if len(got) != 2 {
+		t.Fatalf("got %d users, want 2 (rescue from zefs + admin from config)", len(got))
+	}
+	hashes := map[string]string{}
+	for _, u := range got {
+		hashes[u.Name] = u.Hash
+	}
+	if hashes["admin"] != "c1" {
+		t.Errorf("admin hash = %q, want c1", hashes["admin"])
+	}
+	if hashes["rescue"] != "z2" {
+		t.Errorf("rescue hash = %q, want z2", hashes["rescue"])
 	}
 }

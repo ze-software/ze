@@ -182,8 +182,8 @@ Or import into Proxmox:
 qm importdisk <vmid> tmp/gokrazy/ze.img <storage>
 ```
 
-The machine boots to a serial console (115200 baud). Ze starts automatically, gets a DHCP address, and begins listening for BGP connections according to `/etc/ze/ze.conf`. The serial console requires authentication with the local admin credentials before granting shell access. If the credentials database is missing or unreadable, access is granted without authentication for emergency recovery.
-<!-- source: cmd/ze/login.go -- loginMain, fail-open path -->
+The machine boots to a serial console (115200 baud). Ze starts automatically, gets a DHCP address, and begins listening for BGP connections according to `/etc/ze/ze.conf`. The serial console requires authentication with the local admin credentials before granting shell access. If the credentials database is missing or unreadable, access is granted without authentication for emergency recovery. When `admin-enabled: false` is set in the appliance config, the serial console denies the built-in admin (fail-closed) and prints "local admin login disabled".
+<!-- source: cmd/ze/login.go -- loginMain, fail-open path, admin-disabled check -->
 
 ## Configuration
 

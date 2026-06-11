@@ -61,6 +61,11 @@ func loginMain() int {
 	}
 	defer db.Close() //nolint:errcheck // read-only access
 
+	if disabled, disErr := db.ReadFile(zefs.KeyInstanceAdminDisabled.Pattern); disErr == nil && string(disabled) == "true" {
+		fmt.Fprintln(os.Stderr, "local admin login disabled") //nolint:errcheck // serial console output
+		return 1
+	}
+
 	username, err := db.ReadFile(zefs.KeyLocalAdminUsername.Pattern)
 	if err != nil || len(username) == 0 {
 		fmt.Fprintf(os.Stderr, "warning: local admin credentials not configured (granting access without authentication)\n") //nolint:errcheck // serial console output

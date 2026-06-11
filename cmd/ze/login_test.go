@@ -240,6 +240,34 @@ func TestZeFSFallbackPath(t *testing.T) {
 	}
 }
 
+// VALIDATES: admin-disabled in zefs blocks serial console login (fail-closed).
+// PREVENTS: built-in admin remaining accessible on serial console after disable.
+func TestLoginAdminDisabled(t *testing.T) {
+	dir := t.TempDir()
+	db := createTestDB(t, dir, "admin", "secret123")
+	if err := db.WriteFile(zefs.KeyInstanceAdminDisabled.Pattern, []byte("true"), 0); err != nil {
+		t.Fatal(err)
+	}
+	db.Close() //nolint:errcheck // test cleanup
+
+	var execCalled bool
+	setupLoginMocks(t)
+	execShellFn = func() int { execCalled = true; return 0 }
+	readPasswordFn = func(_ int) ([]byte, error) { return []byte("secret123"), nil }
+	isTerminalFn = func(_ int) bool { return true }
+
+	setConfigDir(t, dir)
+	pipeStdin(t, "admin\n")
+
+	code := loginMain()
+	if code != 1 {
+		t.Errorf("loginMain() = %d, want 1 (admin disabled)", code)
+	}
+	if execCalled {
+		t.Error("execShellFn should not be called when admin is disabled")
+	}
+}
+
 func createTestDB(t *testing.T, dir, username, password string) *zefs.BlobStore {
 	t.Helper()
 	dbPath := filepath.Join(dir, "database.zefs")

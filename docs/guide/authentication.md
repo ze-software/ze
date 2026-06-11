@@ -13,8 +13,20 @@ passwords, and connecting as them with the `ze` CLI.
 | YANG users | `system.authentication.user <name>` | Config edit | Day-to-day operators, auditors, scripts |
 
 The daemon merges both sources at config load: any login attempt is checked
-against the combined list. The super-admin always works; YANG users work
-only when the config is loaded.
+against the combined list. YANG users work only when the config is loaded.
+
+When a YANG user has the same name as the zefs super-admin, the YANG entry
+takes precedence and the zefs entry is dropped. This lets operators override
+the bootstrap password via configuration without a stale zefs hash remaining
+as a backdoor.
+
+### Disabling the super-admin
+
+Setting `meta/instance/admin-disabled` to `"true"` in the zefs database
+(via `admin-enabled: false` in the appliance config) disables the super-admin
+on all surfaces: SSH, web, API, and serial console. The serial console
+returns "local admin login disabled" and denies access (fail-closed), unlike
+the missing-database case which grants access for emergency recovery.
 
 <!-- source: internal/plugins/init/main.go -- RunWithReader entries -->
 <!-- source: cmd/ze/hub/main_servers.go -- usersFromZefsDB -->
