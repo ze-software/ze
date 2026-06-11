@@ -41,7 +41,7 @@ Pick the group matching your change.
 
 ## Test types
 
-Ze has three levels of testing, each covering a different concern.
+Ze has four levels of testing, each covering a different concern.
 
 ### Unit tests (`*_test.go`)
 
@@ -101,6 +101,34 @@ make ze-plugin-test     # all plugin tests
 make ze-functional-test # all release-gate suites
 make ze-exabgp-test     # ExaBGP compatibility through ze-test
 ```
+
+### Mutation tests (gomu)
+
+Coverage tells you which lines ran. Mutation testing tells you whether the tests
+would notice if those lines did something different.
+[gomu](https://github.com/sivchari/gomu) rewrites the AST (arithmetic, conditional,
+logical, bitwise, branch, return value, and error handling operators), runs the test
+suite against each mutation, and reports which mutations survived.
+
+gomu uses overlay-based execution, so it never modifies source files on disk. It is
+vendored in `tools.go` and runs via `go run`; no separate install is needed.
+
+```sh
+make ze-mutation-changed                              # changed files only (fast)
+make ze-mutation-pkg PKG=./internal/core/textbuf/     # one package
+make ze-mutation-test                                 # all non-excluded packages (slow)
+make ze-mutation-report                               # full run with HTML report
+```
+
+Mutation testing is advisory. It never gates `ze-verify` or CI. A surviving mutant
+is a signal that a test could be stronger, not a blocking failure.
+
+Files with custom build tags and `cmd/ze/` are excluded via `.gomuignore` because
+gomu has no `--tags` support. Reports land in `tmp/` (gitignored). Mutation score
+history is tracked in `test/mutation/history.ndjson`.
+
+Tuning: `GOMU_WORKERS` (default: half CPU cores), `GOMU_TIMEOUT` (default: 120s),
+`GOMU_THRESHOLD` (default: 0%).
 
 ### Interop and integration tests
 
@@ -179,4 +207,6 @@ fuzz corpus entry becomes a regression test automatically.
 | List functional tests | `bin/ze-test bgp encode --list` |
 | Run fuzz for one target | `make ze-fuzz-one FUZZ=FuzzName PKG=./path/... TIME=30s` |
 | Check test coverage | `make ze-unit-test-cover` then open `coverage.html` |
+| Mutation test changed files | `make ze-mutation-changed` |
+| Mutation test one package | `make ze-mutation-pkg PKG=./internal/core/textbuf/` |
 | Debug a verify failure | `grep FAIL tmp/ze-verify.log` |
