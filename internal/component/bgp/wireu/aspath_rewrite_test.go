@@ -583,3 +583,38 @@ func TestRewriteASPath_AggregatorSameEncoding(t *testing.T) {
 	_, _, found = parseAS4AggregatorFromPayload(t, result)
 	assert.False(t, found)
 }
+
+// TestRewriteASPath_MalformedAggregatorTombstone verifies that RewriteASPath
+// replaces a malformed AGGREGATOR with an ATTR_TOMBSTONE when crossing
+// ASN4→ASN2 encoding.
+//
+// VALIDATES: Malformed AGGREGATOR produces tombstone on the EBGP prepend path.
+// PREVENTS: Forwarding unparseable AGGREGATOR bytes after AS_PATH prepend.
+func TestRewriteASPath_MalformedAggregatorTombstone(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, true)
+	// Malformed AGGREGATOR: 5 bytes instead of 8 for 4-byte encoding.
+	malformedAgg := []byte{0xC0, byte(attribute.AttrAggregator), 5, 0x01, 0x02, 0x03, 0x04, 0x05}
+	attrs := concatAttrs(origin, aspath, malformedAgg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := RewriteASPath(dst, payload, 65000, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AS_PATH should be prepended + transcoded.
+	path := parseASPathFromPayload(t, result, false)
+	require.Len(t, path.Segments, 1)
+	assert.Equal(t, []uint32{65000, 64512}, path.Segments[0].ASNs)
+
+	// AGGREGATOR should be replaced by ATTR_TOMBSTONE.
+	origCode, reason, valLen, found := parseTombstoneFromPayload(t, result)
+	require.True(t, found, "ATTR_TOMBSTONE must be present for malformed AGGREGATOR")
+	assert.Equal(t, byte(attribute.AttrAggregator), origCode)
+	assert.Equal(t, TombstoneInvalidLength, reason)
+	assert.Equal(t, 5, valLen)
+}

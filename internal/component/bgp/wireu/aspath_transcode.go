@@ -250,6 +250,8 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 					n += 4
 				}
 				n += copy(dst[n:], aggIP)
+			} else if tn := WriteTombstone(dst, n, payload[off], attribute.AttrAggregator, hdrLen, length, TombstoneInvalidLength); tn > 0 {
+				n += tn
 			} else {
 				n += copy(dst[n:], payload[off:off+hdrLen+length])
 			}

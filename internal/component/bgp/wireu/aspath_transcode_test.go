@@ -642,3 +642,124 @@ func TestTranscodeASPath_4to2_OrphanedAS4Aggregator(t *testing.T) {
 	assert.Equal(t, uint32(4200000000), as4ASN)
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), as4Addr)
 }
+
+// parseTombstoneFromPayload extracts the first ATTR_TOMBSTONE from a payload.
+// Returns (origCode, reason, valueLen, found).
+func parseTombstoneFromPayload(t *testing.T, payload []byte) (byte, byte, int, bool) {
+	t.Helper()
+	require.True(t, len(payload) >= 4, "payload too short")
+
+	wdLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	attrLenOff := 2 + wdLen
+	require.True(t, len(payload) >= attrLenOff+2, "payload too short for attrLen")
+
+	attrLen := int(binary.BigEndian.Uint16(payload[attrLenOff : attrLenOff+2]))
+	attrsStart := attrLenOff + 2
+	require.True(t, len(payload) >= attrsStart+attrLen, "payload too short for attrs")
+
+	off := attrsStart
+	for off < attrsStart+attrLen {
+		_, code, length, hl, err := attribute.ParseHeader(payload[off:])
+		require.NoError(t, err, "parse attr header")
+		if code == attribute.AttrTombstone {
+			value := payload[off+hl : off+hl+int(length)]
+			require.True(t, int(length) >= 2, "tombstone value too short")
+			return value[0], value[1], int(length), true
+		}
+		off += hl + int(length)
+	}
+	return 0, 0, 0, false
+}
+
+// TestTranscodeASPath_4to2_MalformedAggregator verifies that an AGGREGATOR
+// with wrong value length (not 8 for 4-byte encoding) is replaced with
+// an ATTR_TOMBSTONE marker instead of being copied verbatim.
+//
+// VALIDATES: draft-mangin-idr-attr-tombstone-00: malformed attribute overwritten in-place.
+// PREVENTS: Forwarding unparseable AGGREGATOR bytes to downstream peers.
+func TestTranscodeASPath_4to2_MalformedAggregator(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, true)
+	// Malformed AGGREGATOR: 5 bytes instead of 8 for 4-byte encoding.
+	malformedAgg := []byte{0xC0, byte(attribute.AttrAggregator), 5, 0x01, 0x02, 0x03, 0x04, 0x05}
+	attrs := concatAttrs(origin, aspath, malformedAgg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := TranscodeASPath(dst, payload, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AGGREGATOR should be replaced by ATTR_TOMBSTONE.
+	origCode, reason, valLen, found := parseTombstoneFromPayload(t, result)
+	require.True(t, found, "ATTR_TOMBSTONE must be present for malformed AGGREGATOR")
+	assert.Equal(t, byte(attribute.AttrAggregator), origCode, "original code preserved")
+	assert.Equal(t, TombstoneInvalidLength, reason, "reason: invalid length")
+	assert.Equal(t, 5, valLen, "value length inherited from original")
+}
+
+// TestTranscodeASPath_4to2_MalformedAggregatorTinyValue verifies that a
+// malformed AGGREGATOR with value length < 2 is copied verbatim (tombstone
+// cannot fit the code+reason pair).
+//
+// VALIDATES: WriteTombstone fallback when valueLen < 2.
+// PREVENTS: Panic or corrupt output on degenerate malformed AGGREGATOR.
+func TestTranscodeASPath_4to2_MalformedAggregatorTinyValue(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, true)
+	// Malformed AGGREGATOR: 1-byte value (too small for tombstone pair).
+	malformedAgg := []byte{0xC0, byte(attribute.AttrAggregator), 1, 0xFF}
+	attrs := concatAttrs(origin, aspath, malformedAgg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := TranscodeASPath(dst, payload, true, false)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// No tombstone (value too short). AGGREGATOR copied verbatim.
+	_, _, _, found := parseTombstoneFromPayload(t, result)
+	assert.False(t, found, "tombstone should not be generated for 1-byte value")
+
+	// Verify output contains the original malformed AGGREGATOR bytes.
+	// The attribute header (C0 07 01) + value (FF) should appear in the output.
+	assert.Contains(t, string(result), string(malformedAgg), "malformed AGGREGATOR bytes preserved")
+}
+
+// TestTranscodeASPath_2to4_Aggregator verifies the 2→4 AGGREGATOR transcoding
+// direction (6-byte to 8-byte).
+//
+// VALIDATES: AGGREGATOR re-encoded from 2-byte ASN to 4-byte ASN.
+// PREVENTS: Untested 2→4 code path at TranscodeASPath line 173.
+func TestTranscodeASPath_2to4_Aggregator(t *testing.T) {
+	origin := buildOriginAttr()
+	aspath := buildASPathAttr([]attribute.ASPathSegment{
+		{Type: attribute.ASSequence, ASNs: []uint32{64512}},
+	}, false) // 2-byte AS_PATH
+	aggAddr := netip.MustParseAddr("10.0.0.1")
+	agg := buildAggregatorAttr(65001, aggAddr, false) // 6-byte AGGREGATOR
+	attrs := concatAttrs(origin, aspath, agg)
+	payload := buildPayload(nil, attrs, nil)
+
+	dst := make([]byte, len(payload)+128)
+	n, err := TranscodeASPath(dst, payload, false, true)
+	require.NoError(t, err)
+	require.Positive(t, n)
+	result := dst[:n]
+
+	// AGGREGATOR should be 8 bytes (4-byte ASN + 4-byte IP).
+	asn, valLen, found := parseAggregatorFromPayload(t, result)
+	require.True(t, found, "AGGREGATOR must be present")
+	assert.Equal(t, 8, valLen, "AGGREGATOR value should be 8 bytes for 4-byte encoding")
+	assert.Equal(t, uint32(65001), asn)
+
+	// No AS4_AGGREGATOR needed (2→4 direction).
+	_, _, found = parseAS4AggregatorFromPayload(t, result)
+	assert.False(t, found, "AS4_AGGREGATOR should not be present in 2→4 direction")
+}
