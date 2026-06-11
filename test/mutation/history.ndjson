@@ -37,3 +37,8 @@
 {"ts":"2026-06-11T15:52:36Z","sha":"6d146ef54","package":"internal/core/report","mutants":216,"killed":183,"score":84.7}
 {"ts":"2026-06-11T15:54:24Z","sha":"6d146ef54","package":"internal/core/rib/locrib","mutants":274,"killed":181,"score":66.1}
 {"ts":"2026-06-11T15:58:18Z","sha":"6d146ef54","package":"internal/core/report","mutants":216,"killed":183,"score":84.7}
+{"ts":"2026-06-11T16:00:53Z","sha":"2cc1863cd","package":"internal/core/slogutil","mutants":708,"killed":473,"score":66.8}
+{"ts":"2026-06-11T16:01:21Z","sha":"2cc1863cd","package":"internal/component/bgp/attrpool","mutants":869,"killed":541,"score":62.3}
+{"ts":"2026-06-11T16:12:50Z","sha":"dab958fdf","package":"internal/core/rib/locrib","mutants":274,"killed":181,"score":66.1}
+{"ts":"2026-06-11T16:16:31Z","sha":"dab958fdf","package":"internal/core/rib/locrib","mutants":43,"killed":27,"score":62.8}
+{"ts":"2026-06-11T16:20:46Z","sha":"dab958fdf","package":"internal/core/rib/locrib","mutants":274,"killed":190,"score":69.3}

@@ -466,3 +466,64 @@ func TestLocRIB_LPM_InvalidAddr(t *testing.T) {
 	_, _, ok := r.LPM(famV4, netip.Addr{})
 	assert.False(t, ok)
 }
+
+// TestChangeKindString verifies ChangeKind.String() returns correct values.
+//
+// VALIDATES: String representation of each ChangeKind variant.
+// PREVENTS: Wrong change kind in logs and diagnostics.
+func TestChangeKindString(t *testing.T) {
+	assert.Equal(t, "add", ChangeAdd.String())
+	assert.Equal(t, "update", ChangeUpdate.String())
+	assert.Equal(t, "remove", ChangeRemove.String())
+	assert.Equal(t, "unspecified", ChangeUnspecified.String())
+	assert.Equal(t, "unspecified", ChangeKind(255).String())
+}
+
+// TestAdminDistanceTrumpsMetric verifies that a path with lower AdminDistance
+// wins even when a competing path has much lower Metric.
+//
+// VALIDATES: selectBest skips higher-AD paths regardless of Metric.
+// PREVENTS: Metric comparison across different AdminDistance levels.
+func TestAdminDistanceTrumpsMetric(t *testing.T) {
+	r := NewRIB()
+
+	// OSPF with very low metric, then Static with very high metric.
+	r.Insert(famV4, pfx, pathOSPF(1))
+	best, changed := r.Insert(famV4, pfx, Path{
+		Source:        idStatic,
+		Instance:      0,
+		NextHop:       netip.MustParseAddr("192.0.2.1"),
+		AdminDistance: 1,
+		Metric:        999999,
+	})
+	require.True(t, changed)
+	assert.Equal(t, idStatic, best.Source, "lower AdminDistance must win despite higher Metric")
+}
+
+// TestMetricTiebreakStable verifies that equal-AD paths with different metrics
+// select the lower metric, and a path with higher metric does not replace it.
+//
+// VALIDATES: Metric comparison is strictly less-than, not less-or-equal or not-equal.
+// PREVENTS: Higher-metric path winning within the same AdminDistance.
+func TestMetricTiebreakStable(t *testing.T) {
+	r := NewRIB()
+
+	best, _ := r.Insert(famV4, pfx, pathBGP(1, 50))
+	assert.Equal(t, uint32(50), best.Metric)
+
+	best, changed := r.Insert(famV4, pfx, pathBGP(2, 200))
+	assert.False(t, changed, "higher-metric path must not become best")
+	assert.Equal(t, uint32(50), best.Metric)
+}
+
+// TestRemoveNotFoundReturnsFalse verifies remove on a non-existent path returns false.
+//
+// VALIDATES: PathGroup.remove returns false for missing paths.
+// PREVENTS: False-positive removal success.
+func TestRemoveNotFoundReturnsFalse(t *testing.T) {
+	r := NewRIB()
+	r.Insert(famV4, pfx, pathBGP(1, 10))
+	// Remove a path that was never inserted.
+	_, changed := r.Remove(famV4, pfx, idOSPF, 0)
+	assert.False(t, changed)
+}
