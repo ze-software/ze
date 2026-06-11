@@ -52,13 +52,14 @@ module ze-iface-conf {
         uses interface-common;
 
         container mac {
-            description "Hardware MAC settings";
+            description "Override the kernel-assigned MAC address. Applied at interface creation time.";
             leaf address {
                 type string {
                     pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
                 }
                 ze:validate "mac-address";
-                description "Hardware MAC address";
+                description "Explicit MAC address in colon-separated hex (e.g., 02:42:ac:11:00:02).
+                             When omitted, the kernel assigns a MAC automatically.";
             }
         }
 
@@ -213,7 +214,9 @@ module ze-iface-conf {
 
             leaf vrf {
                 type string;
-                description "VRF membership";
+                description "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.
+                             The VRF must be defined separately. Traffic on this unit uses the VRF's
+                             routing table instead of the main table.";
             }
 
             leaf-list sysctl-profile {
@@ -227,7 +230,7 @@ module ze-iface-conf {
             }
 
             container ipv4 {
-                description "IPv4 protocol settings";
+                description "IPv4 addressing, forwarding, ARP behavior, and DHCP client for this unit.";
 
                 leaf-list address {
                     type string {
@@ -239,22 +242,30 @@ module ze-iface-conf {
 
                 leaf forwarding {
                     type boolean;
-                    description "Enable IPv4 forwarding";
+                    description "Allow this interface to forward IPv4 packets between interfaces.
+                                 Sets net.ipv4.conf.<iface>.forwarding. Required for routing.
+                                 When disabled, packets not destined for a local address are dropped.";
                 }
 
                 leaf arp-filter {
                     type boolean;
-                    description "Enable ARP filtering";
+                    description "Only respond to ARP requests for addresses on the receiving interface
+                                 (net.ipv4.conf.<iface>.arp_filter). Prevents answering for addresses
+                                 assigned to other interfaces. Recommended for multi-homed hosts.";
                 }
 
                 leaf arp-accept {
                     type boolean;
-                    description "Accept unsolicited ARP replies";
+                    description "Accept gratuitous ARP frames and add their entries to the ARP cache
+                                 (net.ipv4.conf.<iface>.arp_accept). Useful for failover scenarios
+                                 where a peer announces a new MAC for an existing IP.";
                 }
 
                 leaf proxy-arp {
                     type boolean;
-                    description "Enable proxy ARP";
+                    description "Answer ARP requests on behalf of other hosts that are reachable via
+                                 this router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging
+                                 subnets without L2 connectivity or for unnumbered interfaces.";
                 }
 
                 leaf arp-announce {
@@ -294,7 +305,9 @@ module ze-iface-conf {
 
                     leaf client-id {
                         type string;
-                        description "Client identifier";
+                        description "DHCP option 61 client identifier. Sent in DISCOVER/REQUEST messages.
+                                     When omitted, the MAC address is used. Override for environments
+                                     where the DHCP server keys leases on client-id rather than MAC.";
                     }
 
                     leaf hostname {
@@ -305,7 +318,7 @@ module ze-iface-conf {
             }
 
             container ipv6 {
-                description "IPv6 protocol settings";
+                description "IPv6 addressing, forwarding, autoconfiguration, and DHCPv6 client for this unit.";
 
                 leaf-list address {
                     type string {
@@ -330,7 +343,9 @@ module ze-iface-conf {
 
                 leaf forwarding {
                     type boolean;
-                    description "Enable IPv6 forwarding";
+                    description "Allow this interface to forward IPv6 packets between interfaces.
+                                 Sets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA
+                                 acceptance unless accept-ra is set to 2.";
                 }
 
                 leaf rpf-check {
@@ -339,12 +354,16 @@ module ze-iface-conf {
                         enum strict;
                         enum loose;
                     }
-                    description "Reverse path filtering mode (VPP data plane only on IPv6)";
+                    description "Reverse path filtering mode (VPP data plane only on IPv6).
+                                 strict: drop packets whose source would not be routed back via this interface.
+                                 loose: drop packets whose source has no route at all.
+                                 disable: no source address validation.";
                 }
 
                 container dhcpv6 {
                     ze:backend "netlink";
-                    description "DHCPv6 client configuration";
+                    description "DHCPv6 stateful client. Requests addresses and/or delegated prefixes from
+                                 a DHCPv6 server (RFC 8415). Runs alongside SLAAC when autoconf is also enabled.";
 
                     leaf enabled {
                         type boolean;
@@ -365,7 +384,9 @@ module ze-iface-conf {
 
                     leaf duid {
                         type string;
-                        description "DUID override";
+                        description "Override the DHCPv6 Unique Identifier (RFC 8415 Section 11).
+                                     When omitted, a DUID-LL based on the interface MAC is generated.
+                                     Set this when the DHCP server binds leases to a specific DUID.";
                     }
                 }
             }
@@ -482,11 +503,13 @@ module ze-iface-conf {
         list ethernet {
             key "name";
             unique "mac/address";
-            description "Ethernet interface";
+            description "Physical or virtual Ethernet interface. Ze manages the interface's
+                         addresses, MTU, offload settings, and units. The interface must already
+                         exist in the OS (ze does not create physical interfaces).";
 
             leaf name {
                 type string;
-                description "Interface name";
+                description "OS interface name (e.g., eth0, ens3). Must match an existing kernel interface.";
             }
 
             uses interface-l2;
@@ -495,11 +518,13 @@ module ze-iface-conf {
 
         list dummy {
             key "name";
-            description "Dummy interface";
+            description "Dummy (loopback-like) interface. Created by ze if it does not exist.
+                         Used for hosting service addresses that are not tied to a physical link
+                         (e.g., router-id, anycast VIPs).";
 
             leaf name {
                 type string;
-                description "Interface name";
+                description "Interface name (e.g., dummy0). Ze creates the interface at apply time.";
             }
 
             uses interface-l2;
@@ -514,7 +539,7 @@ module ze-iface-conf {
 
             leaf name {
                 type string;
-                description "Interface name";
+                description "Veth interface name (e.g., veth0). Ze creates the pair at apply time.";
             }
 
             leaf peer {
@@ -530,11 +555,12 @@ module ze-iface-conf {
             key "name";
             unique "mac/address";
             ze:backend "netlink";
-            description "Bridge interface";
+            description "Linux bridge interface. Forwards Ethernet frames between member ports at L2.
+                         Created by ze if it does not exist. Member interfaces are enslaved at apply time.";
 
             leaf name {
                 type string;
-                description "Interface name";
+                description "Bridge interface name (e.g., br0). Ze creates the bridge at apply time.";
             }
 
             leaf stp {
@@ -713,7 +739,7 @@ module ze-iface-conf {
                     case ipip {
                         description "IPv4 in IPv4 (RFC 2003). No GRE header, no key. L3.";
                         container ipip {
-                            description "IPIP parameters";
+                            description "IPv4-in-IPv4 tunnel parameters (RFC 2003). Minimal overhead, no key support.";
                             uses tunnel-v4-endpoints;
 
                             leaf ttl {
@@ -763,7 +789,7 @@ module ze-iface-conf {
                     case ip6tnl {
                         description "IPv6 in IPv6 (RFC 2473). Also covers ip6ip6. L3.";
                         container ip6tnl {
-                            description "IP6TNL parameters";
+                            description "IPv6-in-IPv6 tunnel parameters (RFC 2473). Also handles ip6ip6 encapsulation.";
                             uses tunnel-v6-endpoints;
 
                             leaf hoplimit {
@@ -790,7 +816,7 @@ module ze-iface-conf {
                         description "IPv4 in IPv6 (RFC 2473 with Next Header = 4). L3.
                                      Implemented via the ip6tnl Linux kind with Proto=IPPROTO_IPIP.";
                         container ipip6 {
-                            description "IPIP6 parameters";
+                            description "IPv4-in-IPv6 tunnel parameters (RFC 2473, Next Header = 4). Uses the ip6tnl kernel kind.";
                             uses tunnel-v6-endpoints;
 
                             leaf hoplimit {
@@ -868,11 +894,12 @@ module ze-iface-conf {
 
             list peer {
                 key "name";
-                description "WireGuard peer";
+                description "WireGuard peer. Each peer is identified by its public key and has its own
+                             set of allowed-ips that define which traffic is routed through the tunnel.";
 
                 leaf name {
                     type string;
-                    description "Peer name (free-form, used as list key)";
+                    description "Config-level peer name (free-form label, used as list key). Not sent on the wire.";
                 }
 
                 leaf public-key {
@@ -1053,7 +1080,8 @@ module ze-iface-conf {
         }
 
         container loopback {
-            description "Loopback interface";
+            description "The system loopback interface (lo). Always present; ze manages its addresses
+                         and units. Used for hosting router-id addresses accessible from any interface.";
 
             uses interface-unit;
         }

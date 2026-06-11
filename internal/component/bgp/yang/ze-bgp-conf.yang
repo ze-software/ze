@@ -14,7 +14,8 @@ module ze-bgp-conf {
 
     // BGP block - main BGP configuration
     container bgp {
-        description "BGP configuration";
+        description "Border Gateway Protocol routing configuration.
+                     Peers inherit from group defaults; groups inherit from this global level.";
 
         // Global BGP related tools (workbench V2). Spec D7/D12.
         // Command paths target the registered command tree: `show bgp-health`
@@ -230,24 +231,24 @@ module ze-bgp-conf {
                     }
                     description "Next hop address or 'self'";
                 }
-                leaf med { type uint32; description "Multi-Exit Discriminator"; }
-                leaf local-preference { type uint32; description "Local preference"; }
-                leaf-list as-path { type string; description "AS path"; }
-                leaf-list community { type string; description "Communities"; }
-                leaf-list large-community { type string; description "Large communities"; }
-                leaf-list extended-community { type string; description "Extended communities"; }
-                leaf label { type string; description "MPLS label"; }
-                leaf-list labels { type string; description "Multi-label stack (RFC 8277)"; }
-                leaf path-information { type string; description "ADD-PATH path-id"; }
-                leaf rd { type zt:route-distinguisher; description "Route Distinguisher (RFC 4364)"; }
-                leaf aggregator { type string; description "Aggregator AS:IP"; }
-                leaf atomic-aggregate { type boolean; description "Atomic aggregate flag"; }
-                leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
-                leaf-list cluster-list { type zt:ipv4-address; description "Cluster list"; }
-                leaf-list attribute { type string; description "Generic hex attributes"; }
-                container bgp-prefix-sid { presence "Prefix-SID enabled"; description "Prefix-SID (label index)"; }
-                container bgp-prefix-sid-srv6 { presence "SRv6 Prefix-SID enabled"; description "SRv6 Prefix-SID"; }
-                leaf split { type string; description "Prefix splitting"; }
+                leaf med { type uint32; description "Multi-Exit Discriminator (MED). Lower values are preferred. Used to influence inbound path selection by an external peer (RFC 4271 Section 5.1.4)."; }
+                leaf local-preference { type uint32; description "LOCAL_PREF value for iBGP best-path selection. Higher wins. Only meaningful within a single AS (RFC 4271 Section 5.1.5). Default: 100."; }
+                leaf-list as-path { type string; description "AS_PATH segments prepended to the route. Space-separated ASNs. Affects loop detection and path selection (shorter preferred)."; }
+                leaf-list community { type string; description "Standard BGP communities (RFC 1997). Format: AS:value (e.g., 65000:100) or well-known names (no-export, no-advertise)."; }
+                leaf-list large-community { type string; description "Large BGP communities (RFC 8092). Format: global:local1:local2. Supports 4-byte ASNs natively."; }
+                leaf-list extended-community { type string; description "Extended communities (RFC 4360). Used for route targets, site-of-origin, and VPN semantics. Format: type:admin:value."; }
+                leaf label { type string; description "MPLS label value for labeled unicast routes (RFC 3107). Numeric or keyword."; }
+                leaf-list labels { type string; description "MPLS label stack for multi-label routes (RFC 8277). Ordered bottom-to-top."; }
+                leaf path-information { type string; description "ADD-PATH path identifier (RFC 7911). Distinguishes multiple paths for the same prefix from the same peer."; }
+                leaf rd { type zt:route-distinguisher; description "Route Distinguisher (RFC 4364). Prepended to the prefix to create a unique VPN route. Format: ASN:nn or IP:nn."; }
+                leaf aggregator { type string; description "AGGREGATOR attribute (RFC 4271 Section 5.1.7). Format: AS:IP. Identifies the AS and router that formed the aggregate."; }
+                leaf atomic-aggregate { type boolean; description "ATOMIC_AGGREGATE flag (RFC 4271 Section 5.1.6). Signals that the route was formed by aggregation and AS_PATH information was lost."; }
+                leaf originator-id { type zt:ipv4-address; description "ORIGINATOR_ID for route reflection (RFC 4456). Set by the reflector to the originating router's ID. Used for loop prevention."; }
+                leaf-list cluster-list { type zt:ipv4-address; description "CLUSTER_LIST for route reflection (RFC 4456). Each reflector prepends its cluster ID. Used for loop detection between reflectors."; }
+                leaf-list attribute { type string; description "Raw BGP attributes in hex encoding. For attributes not covered by named fields. Format: flags:type:hex-value."; }
+                container bgp-prefix-sid { presence "Prefix-SID enabled"; description "Prefix-SID attribute (RFC 8669). Carries an MPLS label index for Segment Routing, allowing a node to advertise its SID without per-prefix label allocation."; }
+                container bgp-prefix-sid-srv6 { presence "SRv6 Prefix-SID enabled"; description "SRv6 Prefix-SID attribute (RFC 9252). Carries SRv6 SID information for IPv6 Segment Routing, including SRv6 L3 Service TLVs."; }
+                leaf split { type string; description "Split a single prefix into multiple more-specifics for announcement. Format: /length (e.g., /24 splits a /16 into 256 /24s)."; }
             }
 
             list nlri {
@@ -273,7 +274,8 @@ module ze-bgp-conf {
             description "Transport-level connection settings";
 
             container local {
-                description "Local connection settings";
+                description "Local endpoint for the TCP session. Controls the bind address, port,
+                             and whether to accept inbound connections.";
                 leaf ip {
                     type union {
                         type zt:ip-address;
@@ -295,7 +297,8 @@ module ze-bgp-conf {
             }
 
             container remote {
-                description "Remote connection settings";
+                description "Remote endpoint for the TCP session. Controls the peer address, port,
+                             outbound connection initiation, and dynamic peer ranges.";
                 leaf ip {
                     type union {
                         type zt:ip-address;
@@ -434,7 +437,8 @@ module ze-bgp-conf {
 
         // Session container - BGP session settings
         container session {
-            description "BGP session settings";
+            description "BGP session parameters: ASN, capabilities, address families, next-hop policy,
+                         and community control. Inherited from group to peer; peer values override.";
 
             container asn {
                 description "AS number configuration";
@@ -634,34 +638,38 @@ module ze-bgp-conf {
                 leaf asn4 {
                     type boolean;
                     default true;
-                    description "4-byte ASN support";
+                    description "Advertise 4-byte ASN capability (RFC 6793). Required for ASNs above 65535.
+                                 Disable only for peers running legacy 2-byte-only implementations.";
                 }
 
                 container route-refresh {
                     presence "Route Refresh capability enabled";
-                    description "Route Refresh capability";
+                    description "Route Refresh capability (RFC 2918). Allows the peer to request a full
+                                 re-advertisement of routes without tearing down the session.";
                 }
 
                 // NOTE: graceful-restart moved to GR plugin (ze-graceful-restart.yang)
 
                 container add-path {
                     presence "ADD-PATH capability enabled";
-                    description "ADD-PATH capability";
+                    description "ADD-PATH capability (RFC 7911). Allows advertising multiple paths for the
+                                 same prefix, each identified by a path-id. Enables path diversity.";
                     leaf send {
                         type boolean;
                         default false;
-                        description "Send ADD-PATH";
+                        description "Advertise willingness to send multiple paths per prefix to this peer.";
                     }
                     leaf receive {
                         type boolean;
                         default false;
-                        description "Receive ADD-PATH";
+                        description "Advertise willingness to receive multiple paths per prefix from this peer.";
                     }
                 }
 
                 container extended-message {
                     presence "Extended Message capability enabled";
-                    description "Extended Message capability";
+                    description "Extended Message capability (RFC 8654). Raises the BGP message size limit
+                                 from 4096 to 65535 bytes. Required for large UPDATE messages with many attributes.";
                 }
 
                 list nexthop {
@@ -708,39 +716,50 @@ module ze-bgp-conf {
 
         // Behaviour container - operational knobs
         container behavior {
-            description "Operational behavior settings";
+            description "Operational knobs that control how the reactor processes and forwards
+                         UPDATE messages for this peer. Most users can leave these at defaults.";
 
             leaf group-updates {
                 type boolean;
                 default true;
-                description "Group UPDATE messages";
+                description "Pack multiple NLRI into a single UPDATE message when they share the same
+                             path attributes. Reduces the number of UPDATE messages from O(routes) to
+                             O(unique-attribute-sets). Disable for peers that require one prefix per UPDATE.";
             }
 
             leaf manual-eor {
                 type boolean;
-                description "Manual End-of-RIB";
+                description "Do not send End-of-RIB automatically after initial route advertisement.
+                             When enabled, End-of-RIB must be triggered externally via the process API.
+                             Used when an external controller manages convergence signaling.";
             }
 
             leaf auto-flush {
                 type boolean;
-                description "Auto-flush routes";
+                description "Automatically withdraw all routes advertised to this peer when the session
+                             goes down. When disabled, routes remain until explicitly withdrawn or the
+                             hold timer expires. Legacy ExaBGP option, retained for migration.";
             }
 
             leaf rs-fast-path {
                 type boolean;
                 default false;
-                description "Reactor-native RS forwarding";
+                description "Forward received UPDATEs directly inside the reactor for RS-client peers,
+                             bypassing the plugin dispatch chain. Lower latency for route server
+                             forwarding. Peers with export filters are excluded and use the normal path.";
             }
         }
 
         // Basic peer identification
         leaf description {
             type string;
-            description "Peer description";
+            description "Free-text label for this peer. Shown in the CLI, web UI, and logs.
+                         Typically the peer's role or location (e.g., 'upstream-transit-provider').";
         }
 
         container timer {
-            description "BGP timer configuration";
+            description "BGP session timers: hold time, keepalive interval, and connect retry delay.
+                         Hold time is proposed in OPEN and negotiated to the lower of both peers' values.";
 
             leaf receive-hold-time {
                 type uint16 {
@@ -776,40 +795,43 @@ module ze-bgp-conf {
         // Process bindings
         list process {
             key "name";
-            description "Process binding";
+            description "External process that receives BGP events and can inject messages.
+                         Ze spawns the process and communicates via stdin/stdout JSON.";
 
             leaf name {
                 type string;
-                description "Process name";
+                description "Unique identifier for this process binding. Used in logs and status output.";
             }
 
             leaf run {
                 type string;
-                description "Command to execute";
+                description "Shell command to spawn the external process. Ze pipes BGP events to its
+                             stdin and reads commands from its stdout.";
             }
 
             // Old syntax fields
             leaf-list processes {
                 type string;
-                description "Process list";
+                description "Legacy ExaBGP process reference list. Use 'receive' and 'send' instead.";
             }
 
             leaf-list processes-match {
                 type string;
-                description "Process match patterns";
+                description "Legacy ExaBGP process match patterns for event filtering.";
             }
 
             container neighbor-changes {
                 presence "Neighbor change notifications enabled";
-                description "Neighbor change notifications";
+                description "Send session state change events (up/down/reset) to this process.
+                             Enables the process to react to peer lifecycle transitions.";
             }
 
             // New syntax fields
             container content {
-                description "Content configuration";
-                leaf encoding { type string; description "Event encoding format"; }
-                leaf format { type string; description "Event output format"; }
-                leaf attribute { type string; description "Attribute filter expression"; }
+                description "Controls the encoding and filtering of events sent to this process.";
+                leaf encoding { type string; description "Wire encoding for events sent to the process (e.g., json, text)."; }
+                leaf format { type string; description "Output format template for event rendering."; }
+                leaf attribute { type string; description "Filter expression to select which BGP attributes are included in events."; }
             }
 
             leaf-list receive {
@@ -848,34 +870,46 @@ module ze-bgp-conf {
 
         // RIB configuration
         container rib {
-            description "RIB configuration";
+            description "Route Information Base settings for this peer. Controls which RIB tables
+                         are maintained and how outbound route batching works.";
             container adj {
-                description "Adjacency RIB settings";
+                description "Adjacency RIB storage. These tables hold the raw routes before and after
+                             policy processing, enabling route-refresh and soft-reconfiguration.";
                 leaf in {
                     type boolean;
-                    description "Maintain Adj-RIB-In";
+                    description "Store received routes in Adj-RIB-In before policy. Enables soft
+                                 reconfiguration inbound (re-apply import filters without session reset).
+                                 Uses additional memory proportional to received route count.";
                 }
                 leaf out {
                     type boolean;
-                    description "Maintain Adj-RIB-Out";
+                    description "Store advertised routes in Adj-RIB-Out after policy. Required for
+                                 route-refresh (RFC 2918) to re-send routes on peer request.
+                                 Uses additional memory proportional to advertised route count.";
                 }
             }
             container out {
-                description "Outbound RIB settings";
+                description "Outbound RIB batching settings. Control how route changes are grouped
+                             and flushed to the peer.";
                 leaf group-updates {
                     type boolean;
                     default true;
-                    description "Group updates";
+                    description "Pack routes with identical attributes into a single UPDATE. Same as
+                                 the behavior-level group-updates but scoped to this peer's Adj-RIB-Out.";
                 }
                 leaf auto-commit-delay {
                     type uint32;
                     default 0;
-                    description "Auto-commit delay in milliseconds";
+                    description "Milliseconds to wait before flushing pending route changes to the peer.
+                                 Allows batching rapid successive changes into fewer UPDATEs.
+                                 0 means flush immediately on each change.";
                 }
                 leaf max-batch-size {
                     type int32;
                     default 0;
-                    description "Max batch size";
+                    description "Maximum number of route changes to include in a single flush cycle.
+                                 0 means no limit (flush all pending changes at once).
+                                 Limits per-cycle CPU cost at the expense of convergence latency.";
                 }
             }
         }
@@ -885,7 +919,8 @@ module ze-bgp-conf {
     // BGP-owned environment settings — augment hub's environment container
     augment "/hub:environment" {
         container bgp {
-            description "BGP protocol settings";
+            description "BGP protocol environment settings: global defaults that apply before
+                         any peer-level config. Controls OPEN wait timeout and initial announce delay.";
             leaf openwait {
                 type int32 { range "1..3600"; }
                 default "120";
@@ -899,11 +934,12 @@ module ze-bgp-conf {
         }
 
         container reactor {
-            description "Reactor settings";
-            leaf speed { type string; default "1.0"; description "Reactor loop time multiplier (0.1-10.0)"; }
-            leaf cache-ttl { type uint32; default 60; description "Update cache TTL in seconds (0=immediate)"; }
-            leaf cache-max { type uint32; default 1000000; description "Update cache max entries (0=unlimited)"; }
-            leaf update-groups { type boolean; default true; description "Cross-peer UPDATE grouping (build once, send to all peers with same encoding context)"; }
+            description "BGP reactor engine tuning. The reactor is the core event loop that processes
+                         incoming messages, runs peer FSMs, and dispatches outbound UPDATEs.";
+            leaf speed { type string; default "1.0"; description "Reactor loop cycle time multiplier. Values below 1.0 run faster (lower latency, higher CPU). Values above 1.0 run slower (higher latency, lower CPU). Range: 0.1 to 10.0."; }
+            leaf cache-ttl { type uint32; default 60; description "Seconds to keep recently-built UPDATE wire messages in the encoding cache. Cached UPDATEs are reused for peers with the same encoding context, avoiding redundant serialization. 0 disables caching (every UPDATE is built fresh)."; }
+            leaf cache-max { type uint32; default 1000000; description "Maximum number of cached UPDATE wire messages. Bounds memory usage of the encoding cache. 0 means unlimited (cache grows with the route table)."; }
+            leaf update-groups { type boolean; default true; description "Build each UPDATE once and send to all peers with the same encoding context (same capabilities, same address families). Reduces CPU from O(peers x routes) to O(groups x routes). Disable only for debugging."; }
         }
     }
 }
