@@ -177,6 +177,10 @@ func TestReloadNoOpOnIdentical(t *testing.T) {
 		MaxTunnels:    10,
 		MaxSessions:   20,
 		AuthMethod:    DefaultAuthMethod,
+		AuthTimeout:   DefaultAuthTimeoutSecs * time.Second,
+		EnableIPCP:    true,
+		EnableIPv6CP:  true,
+		NCPTimeout:    DefaultNCPTimeoutSecs * time.Second,
 		ListenAddrs:   []netip.AddrPort{netip.MustParseAddrPort("0.0.0.0:1701")},
 	})
 	prev := s.params

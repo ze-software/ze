@@ -135,6 +135,64 @@ module ze-l2tp-conf {
                  Divided by the 100-second bucket interval to determine
                  ring capacity. Default 86400 (24 hours) = 864 buckets.";
         }
+
+        container authentication {
+            description "PPP authentication phase settings for L2TP sessions.";
+
+            leaf timeout {
+                type uint16 {
+                    range "1..3600";
+                }
+                default 30;
+                description
+                    "PPP auth-phase timeout in seconds. Sessions that do
+                     not complete authentication within this window are
+                     torn down. Default 30 seconds.";
+            }
+
+            leaf reauth-interval {
+                type uint32 {
+                    range "0 | 5..86400";
+                }
+                default 0;
+                description
+                    "Periodic re-authentication interval in seconds
+                     (CHAP/MS-CHAPv2 only). Zero disables re-auth.
+                     Values 1-4 are rejected to prevent re-auth storms.
+                     Default 0 (disabled).";
+            }
+        }
+
+        container ncp {
+            description "NCP (Network Control Protocol) settings for L2TP sessions.";
+
+            leaf enable-ipcp {
+                type boolean;
+                default true;
+                description
+                    "Enable the IPCP NCP (RFC 1332) for new L2TP sessions.
+                     When false, no IPv4 address is negotiated.";
+            }
+
+            leaf enable-ipv6cp {
+                type boolean;
+                default true;
+                description
+                    "Enable the IPv6CP NCP (RFC 5072) for new L2TP sessions.
+                     When false, no IPv6 interface identifier is negotiated.";
+            }
+
+            leaf timeout {
+                type uint16 {
+                    range "1..3600";
+                }
+                default 30;
+                description
+                    "NCP negotiation timeout in seconds. Sessions that do
+                     not complete NCP within this window are torn down.
+                     Default 30 seconds.";
+            }
+        }
     }
 
     container environment {

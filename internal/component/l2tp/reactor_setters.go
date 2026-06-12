@@ -62,6 +62,36 @@ func (r *L2TPReactor) setPPPAuthRequired(required bool) {
 	r.tunnelsMu.Unlock()
 }
 
+func (r *L2TPReactor) setAuthTimeout(d time.Duration) {
+	r.tunnelsMu.Lock()
+	r.params.AuthTimeout = d
+	r.tunnelsMu.Unlock()
+}
+
+func (r *L2TPReactor) setReauthInterval(d time.Duration) {
+	r.tunnelsMu.Lock()
+	r.params.ReauthInterval = d
+	r.tunnelsMu.Unlock()
+}
+
+func (r *L2TPReactor) setEnableIPCP(enabled bool) {
+	r.tunnelsMu.Lock()
+	r.params.EnableIPCP = enabled
+	r.tunnelsMu.Unlock()
+}
+
+func (r *L2TPReactor) setEnableIPv6CP(enabled bool) {
+	r.tunnelsMu.Lock()
+	r.params.EnableIPv6CP = enabled
+	r.tunnelsMu.Unlock()
+}
+
+func (r *L2TPReactor) setNCPTimeout(d time.Duration) {
+	r.tunnelsMu.Lock()
+	r.params.NCPTimeout = d
+	r.tunnelsMu.Unlock()
+}
+
 // SetRouteObserver installs a RouteObserver for this reactor. MUST be
 // called before Start(); the goroutine creation barrier synchronizes
 // the write here with reads in the run loop. Passing nil is a no-op

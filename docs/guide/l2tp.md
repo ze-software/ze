@@ -125,14 +125,19 @@ Each phase has a configurable timeout. LCP proxy (RFC 2661 S18) is
 supported: when the LAC provides proxy LCP AVPs, ze validates them
 and optionally renegotiates rather than starting LCP from scratch.
 
-NCP enablement is controlled via environment variables:
+NCP enablement is controlled via the `ncp` container under `l2tp`:
 
-- `ze.l2tp.ncp.enable-ipcp` (default: true)
-- `ze.l2tp.ncp.enable-ipv6cp` (default: true)
-- `ze.l2tp.ncp.ip-timeout` (default: 30s) -- how long the NCP phase
-  waits for the IP handler response
+```
+l2tp {
+    ncp {
+        enable-ipcp true
+        enable-ipv6cp true
+        timeout 30
+    }
+}
+```
 
-<!-- source: internal/component/l2tp/reactor.go -- PPP worker dispatch -->
+<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- ncp container -->
 
 ## Authentication
 
@@ -199,14 +204,22 @@ l2tp {
 }
 ```
 
-Re-authentication interval is configured via `ze.l2tp.auth.reauth-interval`
-(env var, not YANG). When set, sessions are periodically re-authenticated
-against the auth handler. A safety floor prevents setting the interval
-too low.
+Authentication timing is controlled via the `authentication` container under `l2tp`:
 
-- `ze.l2tp.auth.timeout` (default: 30s) -- PPP auth-phase timeout
+```
+l2tp {
+    authentication {
+        timeout 30
+        reauth-interval 0
+    }
+}
+```
 
-<!-- source: internal/component/l2tp/handler_registry.go -->
+The `timeout` leaf (1-3600 seconds, default 30) bounds the PPP auth phase.
+The `reauth-interval` leaf (0 or 5-86400 seconds, default 0) enables periodic
+re-authentication when non-zero. Values 1-4 are rejected to prevent re-auth storms.
+
+<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- authentication container -->
 <!-- source: internal/plugins/l2tpauthlocal/ -->
 <!-- source: internal/plugins/l2tpauthradius/ -->
 
@@ -446,6 +459,11 @@ each knob according to this policy:
 | `max-sessions` | Hot-apply at next admission decision. |
 | `auth-method` | Hot-apply to new PPP sessions. |
 | `allow-no-auth` | Hot-apply to new PPP sessions. |
+| `authentication/timeout` | Hot-apply to new PPP sessions. |
+| `authentication/reauth-interval` | Hot-apply to new PPP sessions. |
+| `ncp/enable-ipcp` | Hot-apply to new PPP sessions. |
+| `ncp/enable-ipv6cp` | Hot-apply to new PPP sessions. |
+| `ncp/timeout` | Hot-apply to new PPP sessions. |
 | `enabled` flip | Rejected with WARN. Restart to enable/disable. |
 | Listener endpoint change | Rejected with WARN. Restart to rebind. |
 
@@ -459,39 +477,18 @@ explicit restart.
 
 ## Environment variables
 
-Config leaves have matching `ze.l2tp.*` env var overrides registered
-via `env.MustRegister()`. See `ze env registered` for the authoritative
-list; the relevant entries are:
-
-### Logging
+Remaining `ze.l2tp.*` env vars (not promoted to YANG config):
 
 - `ze.log.l2tp` -- log level for the L2TP subsystem
-
-### PPP / NCP
-
-- `ze.l2tp.ncp.enable-ipcp` (default: true)
-- `ze.l2tp.ncp.enable-ipv6cp` (default: true)
-- `ze.l2tp.ncp.ip-timeout` (default: 30s) -- NCP IP handler response timeout
-
-### Authentication
-
-- `ze.l2tp.auth.timeout` (default: 30s) -- PPP auth-phase timeout
-- `ze.l2tp.auth.reauth-interval` -- periodic re-auth interval (disabled by default; has a safety floor)
-
-### Metrics
-
 - `ze.l2tp.metrics.poll-interval` (default: 30s) -- kernel stats polling interval
+- `ze.l2tp.cqm.echo-interval` -- echo probe interval for CQM RTT measurement
+- `ze.l2tp.skip-kernel-probe` (default: false) -- skip modprobe at Start (test-only)
 
-### CQM
-
-- `ze.l2tp.cqm.echo-interval` -- echo probe interval for CQM RTT measurement (read at start; default derived from LCP echo config)
-
-### Test-only
-
-- `ze.l2tp.skip-kernel-probe` (default: false) -- skip modprobe at Start for CLI tests without CAP_NET_ADMIN
+PPP authentication and NCP settings are now YANG config leaves under
+`l2tp { authentication { ... } }` and `l2tp { ncp { ... } }`.
 
 <!-- source: internal/component/l2tp/config.go -->
-<!-- source: internal/component/config/environment.go -->
+<!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -->
 
 ## Architecture
 

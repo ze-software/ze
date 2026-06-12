@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/4 |
 | Updated | 2026-06-12 |
 
 ## Post-Compaction Recovery
@@ -93,18 +93,20 @@ Per `ai/rules/config-surface.md`: operator-tuning settings belong in YANG.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | L2TP config struct exists and carries settings to subsystem | config.go | Need alternate path | grep | unvalidated |
+| A-1 | L2TP config struct exists and carries settings to subsystem | config.go | Need alternate path | grep | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Env var + YANG precedence confusion | Unexpected value | Document precedence in YANG description |
+| R-1 | Env var + YANG precedence confusion | Unexpected value | Eliminated: env vars removed, YANG is sole config surface |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `set protocols l2tp authentication timeout 60s` | -> | L2TP auth timeout = 60s | TBD |
+| `l2tp { authentication { timeout 60 } }` | -> | L2TP auth timeout = 60s | TestConfig_AuthTimeoutOverride |
+| `l2tp { ncp { enable-ipcp false } }` | -> | IPCP disabled | TestConfig_NCPDisableIPCP |
+| `l2tp { authentication { reauth-interval 300 } }` | -> | Reauth = 300s | TestConfig_ReauthIntervalOverride |
 
 ## Acceptance Criteria
 
@@ -228,40 +230,80 @@ N/A - internal config.
 ## Implementation Summary
 
 ### What Was Implemented
-- [to fill]
+- YANG `authentication` container with `timeout` (uint16, 1..3600, default 30) and `reauth-interval` (uint32, 0|5..86400, default 0)
+- YANG `ncp` container with `enable-ipcp` (boolean, default true), `enable-ipv6cp` (boolean, default true), `timeout` (uint16, 1..3600, default 30)
+- Parameters struct: AuthTimeout, ReauthInterval, EnableIPCP, EnableIPv6CP, NCPTimeout
+- ReactorParams: same five fields, wired from subsystem.go
+- ExtractParameters reads config tree containers
+- reactor_kernel.go uses r.params instead of env.Get for all 5 settings
+- subsystem.go uses s.params.ReauthInterval instead of env.Get
+- Removed clampReauthInterval (YANG range replaces runtime clamping)
+- 14 new unit tests (defaults, overrides, boundaries, gap rejection)
+- 4 converted reactor tests (auth timeout, NCP toggles, NCP timeout, reauth interval)
+- 1 new functional test (test/parse/l2tp-auth-ncp.ci)
 
 ### Bugs Found/Fixed
-- [to fill]
+- None
 
 ### Documentation Updates
-- [to fill]
+- YANG descriptions are self-documenting for CLI completion
 
 ### Deviations from Plan
-- [to fill]
+- Env vars removed entirely (no backward compatibility) per user instruction, rather than preserved as overrides
+- clampReauthInterval deleted; YANG range "0 | 5..86400" enforces the safety floor at parse time
 
 ## Implementation Audit
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Promote 5 env vars to YANG | Done | ze-l2tp-conf.yang | authentication + ncp containers |
+| Config resolution feeds L2TP | Done | config.go:188-221 | ExtractParameters reads containers |
+| Defaults unchanged | Done | config.go:125-136 | Same 30s/0s/true/true/30s defaults |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | TestConfig_AuthTimeoutOverride | 60s config -> 60s Parameters |
+| AC-2 | Done | TestConfig_NCPDisableIPCP, TestConfig_NCPDisableIPv6CP | false/true toggle works |
+| AC-3 | Done | TestConfig_AuthTimeoutDefault, TestConfig_NCPDefaults | hardcoded defaults used |
+| AC-4 | Done | TestConfig_AuthTimeoutZeroRejected, TestConfig_ReauthIntervalGapRejected, TestConfig_NCPTimeoutZeroRejected | YANG range rejects |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Config from YANG | Done | config_test.go | 14 new tests |
+| Boundary tests | Done | config_test.go | auth timeout, reauth interval, NCP timeout |
+| Functional test | Done | test/parse/l2tp-auth-ncp.ci | Config validates |
 
 ### Files from Plan
 | File | Status | Notes |
+|------|--------|-------|
+| ze-l2tp-conf.yang | Modified | +2 containers, +5 leaves |
+| config.go | Modified | Parameters + ExtractParameters + constants |
+| reactor.go | Modified | ReactorParams + removed clampReauthInterval |
+| reactor_kernel.go | Modified | Uses r.params instead of env.Get |
+| subsystem.go | Modified | Wires new ReactorParams fields |
+| environment.go | Modified | Removed 2 auth env var registrations |
+| config_test.go | Modified | +14 tests |
+| reactor_ppp_linux_test.go | Modified | Converted 4 tests from env to params |
+| reactor_kernel_linux_test.go | Modified | Updated newUnstartedReactor defaults |
+| test/parse/l2tp-auth-ncp.ci | Created | Functional test |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 18 (3 requirements + 4 ACs + 3 test categories + 8 files)
+- **Done:** 18
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (env vars removed instead of preserved as override)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
+| Settings visible in show configuration | YANG leaf | 5 leaves in ze-l2tp-conf.yang authentication + ncp containers |
+| Settings validated by YANG | Unit test | TestConfig_AuthTimeoutZeroRejected, TestConfig_ReauthIntervalGapRejected, TestConfig_NCPTimeoutZeroRejected |
+| Settings part of commit/rollback | YANG structure | Leaves under l2tp{} container, parsed by config system |
+| Config resolution feeds L2TP subsystem | Unit test | TestConfig_AuthTimeoutOverride (60s), TestL2TPReactorAuthTimeoutFromParams (45s) |
+| Defaults unchanged | Unit test | TestConfig_AuthTimeoutDefault (30s), TestConfig_NCPDefaults (true/true/30s) |
 
 ## Review Gate
 ### Run 1 (initial)

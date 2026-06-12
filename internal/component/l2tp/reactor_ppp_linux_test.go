@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // discardLoggerForTest returns a logger that drops every record.
@@ -27,38 +26,47 @@ func discardLoggerForTest() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-// VALIDATES: clampReauthInterval applies the 5 s safety floor, ignores
-//
-//	non-positive values, and logs a WARN when falling back or
-//	clamping. An empty value yields 0 (disabled); a malformed
-//	duration yields 0 (disabled); a 1 ms value clamps to 5 s;
-//	a 10 s value passes through verbatim.
-//
-// PREVENTS: regression where a 1 us operator typo in
-//
-//	ze.l2tp.auth.reauth-interval would launch a reauth
-//	storm (ISSUE 2 from /ze-review 2026-04-17).
-func TestClampReauthInterval(t *testing.T) {
+// VALIDATES: ReactorParams.ReauthInterval flows through to StartSession.
+// The YANG range "0 | 5..86400" on reauth-interval rejects values 1-4
+// at config parse time (see TestConfig_ReauthIntervalBoundary).
+func TestReactorReauthIntervalFromParams(t *testing.T) {
 	cases := []struct {
 		name string
-		raw  string
-		want time.Duration
+		val  time.Duration
 	}{
-		{"empty disables", "", 0},
-		{"zero disables", "0s", 0},
-		{"negative disables", "-1s", 0},
-		{"malformed disables", "not-a-duration", 0},
-		{"one microsecond clamps to floor", "1us", reauthIntervalFloor},
-		{"one millisecond clamps to floor", "1ms", reauthIntervalFloor},
-		{"floor passes through verbatim", reauthIntervalFloor.String(), reauthIntervalFloor},
-		{"ten seconds passes through", "10s", 10 * time.Second},
-		{"one hour passes through", "1h", time.Hour},
+		{"disabled", 0},
+		{"floor", 5 * time.Second},
+		{"ten seconds", 10 * time.Second},
+		{"one hour", time.Hour},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := clampReauthInterval(discardLoggerForTest(), tc.raw)
-			if got != tc.want {
-				t.Errorf("clampReauthInterval(%q) = %v, want %v", tc.raw, got, tc.want)
+			ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
+			require.NoError(t, ln.Start(context.Background()))
+			defer func() { _ = ln.Stop() }()
+
+			r := NewL2TPReactor(ln, discardLoggerForTest(), ReactorParams{
+				AuthTimeout:    DefaultAuthTimeoutSecs * time.Second,
+				ReauthInterval: tc.val,
+				EnableIPCP:     true,
+				EnableIPv6CP:   true,
+				NCPTimeout:     DefaultNCPTimeoutSecs * time.Second,
+				Defaults:       TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
+			})
+			fake := newFakePPPDriver()
+			r.SetPPPDriver(fake)
+			mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
+
+			r.handleKernelSuccess(kernelSetupSucceeded{
+				localTID: 100, localSID: 1001, lnsMode: true,
+				fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
+			})
+
+			select {
+			case start := <-fake.sessionsIn:
+				require.Equal(t, tc.val, start.ReauthInterval)
+			case <-time.After(2 * time.Second):
+				t.Fatal("timed out waiting for ppp.StartSession dispatch")
 			}
 		})
 	}
@@ -134,35 +142,34 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 		require.Equal(t, []byte{0x03}, start.ProxyLCPLastSent)
 		require.Equal(t, []byte{0x04}, start.ProxyLCPLastRecv)
 		require.Equal(t, 30*time.Second, start.AuthTimeout,
-			"default ze.l2tp.auth.timeout (30s) should flow into StartSession.AuthTimeout")
+			"default auth timeout (30s) should flow into StartSession.AuthTimeout")
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for ppp.StartSession dispatch")
 	}
 }
 
-func TestL2TPReactorAuthTimeoutFromEnv(t *testing.T) {
-	// VALIDATES: spec-l2tp-6b-auth Phase 3 -- ze.l2tp.auth.timeout env var
-	// overrides the default 30s and is plumbed onto every new StartSession.
-	// PREVENTS: operator setting auth-timeout in env and seeing no effect
-	// until spec-l2tp-7-subsystem wires the YANG leaf.
-	env.ResetCache()
-	t.Cleanup(env.ResetCache)
-	t.Setenv("ze.l2tp.auth.timeout", "45s")
-	env.ResetCache()
+func TestL2TPReactorAuthTimeoutFromParams(t *testing.T) {
+	// VALIDATES: ReactorParams.AuthTimeout is plumbed onto every new
+	// StartSession. YANG leaf l2tp/authentication/timeout controls this.
+	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
+	require.NoError(t, ln.Start(context.Background()))
+	defer func() { _ = ln.Stop() }()
 
-	_, r, stop := newUnstartedReactor(t)
-	defer stop()
-
+	r := NewL2TPReactor(ln, discardLoggerForTest(), ReactorParams{
+		AuthTimeout:  45 * time.Second,
+		EnableIPCP:   true,
+		EnableIPv6CP: true,
+		NCPTimeout:   DefaultNCPTimeoutSecs * time.Second,
+		Defaults:     TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
+	})
 	fake := newFakePPPDriver()
 	r.SetPPPDriver(fake)
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
 	r.handleKernelSuccess(kernelSetupSucceeded{
-		localTID: 100,
-		localSID: 1001,
-		lnsMode:  true,
-		fds:      pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
+		localTID: 100, localSID: 1001, lnsMode: true,
+		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	})
 
 	select {
@@ -173,74 +180,66 @@ func TestL2TPReactorAuthTimeoutFromEnv(t *testing.T) {
 	}
 }
 
-func TestL2TPReactorAuthTimeoutInvalidEnvFallsBack(t *testing.T) {
-	// VALIDATES: ze.l2tp.auth.timeout set to a value time.ParseDuration
-	// cannot decode (operator typo, wrong units) falls back to 30s and does
-	// not crash.
-	// PREVENTS: a bad env value propagating as 0 or a partial parse into
-	// ppp.StartSession.AuthTimeout, which would either disable the fail-
-	// closed guard or time sessions out immediately.
-	env.ResetCache()
-	t.Cleanup(env.ResetCache)
-	t.Setenv("ze.l2tp.auth.timeout", "not-a-duration")
-	env.ResetCache()
+func TestL2TPReactorNCPToggleFromParams(t *testing.T) {
+	// VALIDATES: ReactorParams.EnableIPCP/EnableIPv6CP are negated
+	// and plumbed as DisableIPCP/DisableIPv6CP on StartSession.
+	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
+	require.NoError(t, ln.Start(context.Background()))
+	defer func() { _ = ln.Stop() }()
 
-	_, r, stop := newUnstartedReactor(t)
-	defer stop()
-
+	r := NewL2TPReactor(ln, discardLoggerForTest(), ReactorParams{
+		AuthTimeout:  DefaultAuthTimeoutSecs * time.Second,
+		EnableIPCP:   false,
+		EnableIPv6CP: true,
+		NCPTimeout:   DefaultNCPTimeoutSecs * time.Second,
+		Defaults:     TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
+	})
 	fake := newFakePPPDriver()
 	r.SetPPPDriver(fake)
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
 	r.handleKernelSuccess(kernelSetupSucceeded{
-		localTID: 100,
-		localSID: 1001,
-		lnsMode:  true,
-		fds:      pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
+		localTID: 100, localSID: 1001, lnsMode: true,
+		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	})
 
 	select {
 	case start := <-fake.sessionsIn:
-		require.Equal(t, 30*time.Second, start.AuthTimeout,
-			"invalid env value must fall back to the 30s default")
+		require.True(t, start.DisableIPCP, "EnableIPCP=false must map to DisableIPCP=true")
+		require.False(t, start.DisableIPv6CP, "EnableIPv6CP=true must map to DisableIPv6CP=false")
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for ppp.StartSession dispatch")
 	}
 }
 
-func TestL2TPReactorAuthTimeoutZeroPropagates(t *testing.T) {
-	// VALIDATES: ze.l2tp.auth.timeout=0s is NOT interpreted by the reactor
-	// as "use default". The reactor forwards 0 onto StartSession.AuthTimeout
-	// verbatim; it is ppp that documents zero as "use package default (30s)"
-	// in start_session.go. Pins the boundary so neither side accidentally
-	// starts (or stops) doing the zero translation.
-	// PREVENTS: double translation where reactor reads 0s, substitutes 30s,
-	// then ppp sees 30s and cannot distinguish default from explicit.
-	env.ResetCache()
-	t.Cleanup(env.ResetCache)
-	t.Setenv("ze.l2tp.auth.timeout", "0s")
-	env.ResetCache()
+func TestL2TPReactorNCPTimeoutFromParams(t *testing.T) {
+	// VALIDATES: ReactorParams.NCPTimeout is plumbed onto
+	// StartSession.IPTimeout. YANG leaf l2tp/ncp/timeout controls this.
+	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), discardLoggerForTest())
+	require.NoError(t, ln.Start(context.Background()))
+	defer func() { _ = ln.Stop() }()
 
-	_, r, stop := newUnstartedReactor(t)
-	defer stop()
-
+	r := NewL2TPReactor(ln, discardLoggerForTest(), ReactorParams{
+		AuthTimeout:  DefaultAuthTimeoutSecs * time.Second,
+		EnableIPCP:   true,
+		EnableIPv6CP: true,
+		NCPTimeout:   60 * time.Second,
+		Defaults:     TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
+	})
 	fake := newFakePPPDriver()
 	r.SetPPPDriver(fake)
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
 	r.handleKernelSuccess(kernelSetupSucceeded{
-		localTID: 100,
-		localSID: 1001,
-		lnsMode:  true,
-		fds:      pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
+		localTID: 100, localSID: 1001, lnsMode: true,
+		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	})
 
 	select {
 	case start := <-fake.sessionsIn:
-		require.Equal(t, time.Duration(0), start.AuthTimeout,
-			"0s env must propagate as 0; ppp (not reactor) owns the zero-as-default contract")
+		require.Equal(t, 60*time.Second, start.IPTimeout)
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for ppp.StartSession dispatch")
 	}
@@ -347,7 +346,11 @@ func newUnstartedReactorWithLogs(t *testing.T) (*L2TPReactor, *lockedBuffer, fun
 	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
 	require.NoError(t, ln.Start(context.Background()))
 	r := NewL2TPReactor(ln, logger, ReactorParams{
-		Defaults: TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
+		AuthTimeout:  DefaultAuthTimeoutSecs * time.Second,
+		EnableIPCP:   true,
+		EnableIPv6CP: true,
+		NCPTimeout:   DefaultNCPTimeoutSecs * time.Second,
+		Defaults:     TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
 	})
 	stop := func() {
 		_ = ln.Stop()

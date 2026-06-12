@@ -46,44 +46,6 @@ var _ = [6]ppp.Event{
 	ppp.EventEchoRTT{},
 }
 
-// reauthIntervalFloor is the minimum PPP periodic re-auth interval the
-// reactor will honor from operator config. Below this floor a re-auth
-// storm (millisecond-scale Challenge round-trips) would starve the
-// session of useful throughput and potentially dominate the log.
-// Operators requesting a value below this floor are clamped up with a
-// WARN. Programmatic callers (tests constructing `ppp.StartSession`
-// directly) bypass this check because they are expected to know what
-// they are doing.
-const reauthIntervalFloor = 5 * time.Second
-
-// clampReauthInterval parses the operator-supplied
-// ze.l2tp.auth.reauth-interval env value, applies the safety floor,
-// and returns the duration to thread into StartSession.ReauthInterval.
-// An empty string or a zero/negative parsed value disables re-auth
-// (returns 0); a malformed duration logs a WARN and disables re-auth.
-// A positive value below reauthIntervalFloor is clamped up with a
-// WARN. No parse-success, no clamp, no log.
-func clampReauthInterval(logger *slog.Logger, raw string) time.Duration {
-	if raw == "" {
-		return 0
-	}
-	d, err := time.ParseDuration(raw)
-	if err != nil {
-		logger.Warn("l2tp: invalid ze.l2tp.auth.reauth-interval; disabling re-auth",
-			"value", raw, "err", err)
-		return 0
-	}
-	if d <= 0 {
-		return 0
-	}
-	if d < reauthIntervalFloor {
-		logger.Warn("l2tp: ze.l2tp.auth.reauth-interval below safety floor; clamping",
-			"value", raw, "floor", reauthIntervalFloor.String())
-		return reauthIntervalFloor
-	}
-	return d
-}
-
 // peerKey uniquely identifies a tunnel during SCCRQ retransmit dedup.
 // RFC 2661 S24.17 allows multiple tunnels between the same IP pair, so
 // peer address alone is insufficient; the peer's Assigned Tunnel ID AVP
@@ -102,7 +64,12 @@ type ReactorParams struct {
 	MaxSessions     uint16         // 0 = unbounded per-tunnel session limit
 	AuthMethod      ppp.AuthMethod // PPP Auth-Protocol first advertised to new sessions
 	AuthRequired    bool           // fail if LCP opens with AuthMethodNone
+	AuthTimeout     time.Duration  // PPP auth-phase timeout
+	ReauthInterval  time.Duration  // periodic re-auth; 0 = disabled
 	HelloInterval   time.Duration  // peer silence before HELLO; 0 = no keepalive
+	EnableIPCP      bool           // IPCP NCP enabled
+	EnableIPv6CP    bool           // IPv6CP NCP enabled
+	NCPTimeout      time.Duration  // NCP negotiation timeout
 	CQMEchoInterval time.Duration  // when >0, overrides PPP echo interval for CQM sampling
 	Defaults        TunnelDefaults
 	Clock           func() time.Time // injected for tests; time.Now if nil

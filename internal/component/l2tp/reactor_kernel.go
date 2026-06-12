@@ -6,11 +6,9 @@ package l2tp
 import (
 	"fmt"
 	"net/netip"
-	"time"
 
 	l2tpevents "codeberg.org/thomas-mangin/ze/internal/component/l2tp/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/ppp"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -102,45 +100,6 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	}
 	r.tunnelsMu.Unlock()
 
-	// ze.l2tp.auth.timeout (registered in internal/component/config/environment.go)
-	// bounds the PPP auth phase. spec-l2tp-7-subsystem will wire this to a
-	// YANG leaf; until then the env var is the only config surface. Inline
-	// parse rather than env.GetDuration so malformed operator input surfaces
-	// as a WARN instead of silently falling back to 30s.
-	authTimeout := 30 * time.Second
-	if raw := env.Get("ze.l2tp.auth.timeout"); raw != "" {
-		if d, err := time.ParseDuration(raw); err == nil {
-			authTimeout = d
-		} else {
-			r.logger.Warn("l2tp: invalid ze.l2tp.auth.timeout; falling back to 30s",
-				"value", raw, "err", err)
-		}
-	}
-
-	// ze.l2tp.auth.reauth-interval (spec-l2tp-6b-auth Phase 9). Zero
-	// disables periodic CHAP re-auth (default). Same inline-parse
-	// pattern as auth.timeout so operator typos are visible at WARN.
-	// A positive value below reauthIntervalFloor (5s) is clamped up
-	// to that floor with a WARN: values in the microsecond or
-	// millisecond range would create a reauth storm that starves the
-	// session of useful throughput.
-	reauthInterval := clampReauthInterval(r.logger, env.Get("ze.l2tp.auth.reauth-interval"))
-
-	// spec-l2tp-6c-ncp: NCP enablement and timeout drawn from env vars.
-	// Defaults: both NCPs enabled, 30s ip-timeout. Inline parsing so
-	// operator typos log at WARN instead of silently defaulting.
-	disableIPCP := !env.GetBool("ze.l2tp.ncp.enable-ipcp", true)
-	disableIPv6CP := !env.GetBool("ze.l2tp.ncp.enable-ipv6cp", true)
-	ipTimeout := 30 * time.Second
-	if raw := env.Get("ze.l2tp.ncp.ip-timeout"); raw != "" {
-		if d, err := time.ParseDuration(raw); err == nil {
-			ipTimeout = d
-		} else {
-			r.logger.Warn("l2tp: invalid ze.l2tp.ncp.ip-timeout; falling back to 30s",
-				"value", raw, "err", err)
-		}
-	}
-
 	start := ppp.StartSession{
 		TunnelID:            ksucc.localTID,
 		SessionID:           ksucc.localSID,
@@ -151,11 +110,11 @@ func (r *L2TPReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		PeerAddr:            peerAddr,
 		AuthMethod:          r.params.AuthMethod,
 		AuthRequired:        r.params.AuthRequired,
-		AuthTimeout:         authTimeout,
-		ReauthInterval:      reauthInterval,
-		DisableIPCP:         disableIPCP,
-		DisableIPv6CP:       disableIPv6CP,
-		IPTimeout:           ipTimeout,
+		AuthTimeout:         r.params.AuthTimeout,
+		ReauthInterval:      r.params.ReauthInterval,
+		DisableIPCP:         !r.params.EnableIPCP,
+		DisableIPv6CP:       !r.params.EnableIPv6CP,
+		IPTimeout:           r.params.NCPTimeout,
 		ProxyLCPInitialRecv: ksucc.proxyInitialRecvLCPConfReq,
 		ProxyLCPLastSent:    ksucc.proxyLastSentLCPConfReq,
 		ProxyLCPLastRecv:    ksucc.proxyLastRecvLCPConfReq,

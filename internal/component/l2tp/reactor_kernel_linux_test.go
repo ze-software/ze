@@ -23,7 +23,11 @@ func newUnstartedReactor(t *testing.T) (*UDPListener, *L2TPReactor, func()) {
 	ln := NewUDPListener(netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0), logger)
 	require.NoError(t, ln.Start(context.Background()))
 	r := NewL2TPReactor(ln, logger, ReactorParams{
-		Defaults: TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
+		AuthTimeout:  DefaultAuthTimeoutSecs * time.Second,
+		EnableIPCP:   true,
+		EnableIPv6CP: true,
+		NCPTimeout:   DefaultNCPTimeoutSecs * time.Second,
+		Defaults:     TunnelDefaults{HostName: "ze-test", FramingCapabilities: 0x3, RecvWindow: 16},
 	})
 	stop := func() {
 		_ = ln.Stop()

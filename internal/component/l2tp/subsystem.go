@@ -143,14 +143,8 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		return nil
 	}
 
-	// spec-l2tp-6b-auth Phase 9: surface the effective PPP periodic
-	// re-auth interval at startup so the clamp WARN (or the "disabled"
-	// parse warning) fires once, before any session connects, rather
-	// than only on first successful kernel setup in handleKernelSuccess.
-	// handleKernelSuccess still re-reads the env per session so operators
-	// can change the value on reload for new sessions.
-	if d := clampReauthInterval(s.logger, env.Get("ze.l2tp.auth.reauth-interval")); d > 0 {
-		s.logger.Info("l2tp: periodic PPP re-auth enabled", "interval", d)
+	if s.params.ReauthInterval > 0 {
+		s.logger.Info("l2tp: periodic PPP re-auth enabled", "interval", s.params.ReauthInterval)
 	}
 
 	// spec-l2tp-7 Phase 6: register the L2TP redistribute source
@@ -210,7 +204,12 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 			MaxSessions:     s.params.MaxSessions,
 			AuthMethod:      s.params.AuthMethod,
 			AuthRequired:    !s.params.AllowNoAuth,
+			AuthTimeout:     s.params.AuthTimeout,
+			ReauthInterval:  s.params.ReauthInterval,
 			HelloInterval:   s.params.HelloInterval,
+			EnableIPCP:      s.params.EnableIPCP,
+			EnableIPv6CP:    s.params.EnableIPv6CP,
+			NCPTimeout:      s.params.NCPTimeout,
 			CQMEchoInterval: s.cqmEchoInterval(),
 			Defaults: TunnelDefaults{
 				// HostName left empty; reactor applies "ze" default.

@@ -1,0 +1,29 @@
+# Test: ze config validate accepts L2TP authentication and NCP containers
+# VALIDATES: authentication/timeout, authentication/reauth-interval,
+#            ncp/enable-ipcp, ncp/enable-ipv6cp, ncp/timeout parse through YANG
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+	authentication {
+		timeout 60
+		reauth-interval 300
+	}
+	ncp {
+		enable-ipcp true
+		enable-ipv6cp false
+		timeout 45
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

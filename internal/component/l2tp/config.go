@@ -45,27 +45,6 @@ var (
 		Description: "Skip kernel module probe at Start (test-only; bypasses modprobe for L2TP CLI tests)",
 		Private:     true,
 	})
-	// spec-l2tp-6c-ncp: NCP enablement and timeout. Default enabled
-	// for both families; ip-timeout bounds how long PPP waits for the
-	// IP handler's response after emitting EventIPRequest.
-	_ = env.MustRegister(env.EnvEntry{
-		Key:         "ze.l2tp.ncp.enable-ipcp",
-		Type:        "bool",
-		Default:     "true",
-		Description: "Enable the IPCP NCP (RFC 1332) for new L2TP sessions",
-	})
-	_ = env.MustRegister(env.EnvEntry{
-		Key:         "ze.l2tp.ncp.enable-ipv6cp",
-		Type:        "bool",
-		Default:     "true",
-		Description: "Enable the IPv6CP NCP (RFC 5072) for new L2TP sessions",
-	})
-	_ = env.MustRegister(env.EnvEntry{
-		Key:         "ze.l2tp.ncp.ip-timeout",
-		Type:        "string",
-		Default:     "30s",
-		Description: "Duration the NCP phase waits for an IP handler response (spec-l2tp-6c-ncp AC-17)",
-	})
 	_ = env.MustRegister(env.EnvEntry{
 		Key:         "ze.l2tp.metrics.poll-interval",
 		Type:        "string",
@@ -82,6 +61,10 @@ const (
 	DefaultMaxTunnels  uint16 = 1024
 	DefaultMaxSessions uint16 = 1024
 	DefaultAuthMethod         = ppp.AuthMethodCHAPMD5
+
+	DefaultAuthTimeoutSecs    = 30
+	DefaultReauthIntervalSecs = 0
+	DefaultNCPTimeoutSecs     = 30
 
 	configTrue = "true"
 )
@@ -102,6 +85,15 @@ type Parameters struct {
 	// S4.2). Empty means peers that include a Challenge AVP in SCCRQ will
 	// be rejected with StopCCN Result Code 4 (Not Authorized).
 	SharedSecret string
+
+	// PPP authentication phase settings.
+	AuthTimeout    time.Duration
+	ReauthInterval time.Duration
+
+	// NCP settings.
+	EnableIPCP   bool
+	EnableIPv6CP bool
+	NCPTimeout   time.Duration
 
 	// CQM observer parameters (spec-l2tp-9-observer).
 	CQMEnabled              bool
@@ -131,11 +123,16 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 	}
 
 	p := Parameters{
-		Enabled:       true, // presence of l2tp{} implies enabled
-		HelloInterval: time.Duration(DefaultHelloSecs) * time.Second,
-		MaxTunnels:    DefaultMaxTunnels,
-		MaxSessions:   DefaultMaxSessions,
-		AuthMethod:    DefaultAuthMethod,
+		Enabled:        true, // presence of l2tp{} implies enabled
+		HelloInterval:  time.Duration(DefaultHelloSecs) * time.Second,
+		MaxTunnels:     DefaultMaxTunnels,
+		MaxSessions:    DefaultMaxSessions,
+		AuthMethod:     DefaultAuthMethod,
+		AuthTimeout:    DefaultAuthTimeoutSecs * time.Second,
+		ReauthInterval: DefaultReauthIntervalSecs * time.Second,
+		EnableIPCP:     true,
+		EnableIPv6CP:   true,
+		NCPTimeout:     DefaultNCPTimeoutSecs * time.Second,
 	}
 
 	if v, ok := l2tpRoot.Get("enabled"); ok {
@@ -186,6 +183,41 @@ func ExtractParameters(tree *config.Tree) (Parameters, error) {
 
 	if v, ok := l2tpRoot.Get("shared-secret"); ok {
 		p.SharedSecret = v
+	}
+
+	// Authentication container.
+	if authC := l2tpRoot.GetContainer("authentication"); authC != nil {
+		if v, ok := authC.Get("timeout"); ok {
+			n, err := strconv.ParseUint(v, 10, 16)
+			if err != nil {
+				return Parameters{}, fmt.Errorf("l2tp authentication timeout: %w", err)
+			}
+			p.AuthTimeout = time.Duration(n) * time.Second
+		}
+		if v, ok := authC.Get("reauth-interval"); ok {
+			n, err := strconv.ParseUint(v, 10, 32)
+			if err != nil {
+				return Parameters{}, fmt.Errorf("l2tp authentication reauth-interval: %w", err)
+			}
+			p.ReauthInterval = time.Duration(n) * time.Second
+		}
+	}
+
+	// NCP container.
+	if ncpC := l2tpRoot.GetContainer("ncp"); ncpC != nil {
+		if v, ok := ncpC.Get("enable-ipcp"); ok {
+			p.EnableIPCP = v == configTrue
+		}
+		if v, ok := ncpC.Get("enable-ipv6cp"); ok {
+			p.EnableIPv6CP = v == configTrue
+		}
+		if v, ok := ncpC.Get("timeout"); ok {
+			n, err := strconv.ParseUint(v, 10, 16)
+			if err != nil {
+				return Parameters{}, fmt.Errorf("l2tp ncp timeout: %w", err)
+			}
+			p.NCPTimeout = time.Duration(n) * time.Second
+		}
 	}
 
 	// CQM observer (spec-l2tp-9-observer).

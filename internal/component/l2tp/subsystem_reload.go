@@ -160,6 +160,53 @@ func (s *Subsystem) Reload(_ context.Context, cfg ze.ConfigProvider) error {
 		applied++
 	}
 
+	// Hot-apply: auth/NCP settings for new sessions.
+	if prev.AuthTimeout != next.AuthTimeout {
+		s.params.AuthTimeout = next.AuthTimeout
+		for _, r := range s.reactors {
+			r.setAuthTimeout(next.AuthTimeout)
+		}
+		s.logger.Info("l2tp reload: authentication timeout updated",
+			"previous", prev.AuthTimeout.String(), "new", next.AuthTimeout.String())
+		applied++
+	}
+	if prev.ReauthInterval != next.ReauthInterval {
+		s.params.ReauthInterval = next.ReauthInterval
+		for _, r := range s.reactors {
+			r.setReauthInterval(next.ReauthInterval)
+		}
+		s.logger.Info("l2tp reload: reauth-interval updated",
+			"previous", prev.ReauthInterval.String(), "new", next.ReauthInterval.String())
+		applied++
+	}
+	if prev.EnableIPCP != next.EnableIPCP {
+		s.params.EnableIPCP = next.EnableIPCP
+		for _, r := range s.reactors {
+			r.setEnableIPCP(next.EnableIPCP)
+		}
+		s.logger.Info("l2tp reload: enable-ipcp updated",
+			"previous", prev.EnableIPCP, "new", next.EnableIPCP)
+		applied++
+	}
+	if prev.EnableIPv6CP != next.EnableIPv6CP {
+		s.params.EnableIPv6CP = next.EnableIPv6CP
+		for _, r := range s.reactors {
+			r.setEnableIPv6CP(next.EnableIPv6CP)
+		}
+		s.logger.Info("l2tp reload: enable-ipv6cp updated",
+			"previous", prev.EnableIPv6CP, "new", next.EnableIPv6CP)
+		applied++
+	}
+	if prev.NCPTimeout != next.NCPTimeout {
+		s.params.NCPTimeout = next.NCPTimeout
+		for _, r := range s.reactors {
+			r.setNCPTimeout(next.NCPTimeout)
+		}
+		s.logger.Info("l2tp reload: ncp timeout updated",
+			"previous", prev.NCPTimeout.String(), "new", next.NCPTimeout.String())
+		applied++
+	}
+
 	if applied == 0 && rejected == 0 {
 		s.logger.Debug("l2tp reload: no changes detected")
 	}
@@ -182,11 +229,16 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 		return Parameters{}, nil
 	}
 	p := Parameters{
-		Enabled:       true,
-		HelloInterval: time.Duration(DefaultHelloSecs) * time.Second,
-		MaxTunnels:    DefaultMaxTunnels,
-		MaxSessions:   DefaultMaxSessions,
-		AuthMethod:    DefaultAuthMethod,
+		Enabled:        true,
+		HelloInterval:  time.Duration(DefaultHelloSecs) * time.Second,
+		MaxTunnels:     DefaultMaxTunnels,
+		MaxSessions:    DefaultMaxSessions,
+		AuthMethod:     DefaultAuthMethod,
+		AuthTimeout:    DefaultAuthTimeoutSecs * time.Second,
+		ReauthInterval: DefaultReauthIntervalSecs * time.Second,
+		EnableIPCP:     true,
+		EnableIPv6CP:   true,
+		NCPTimeout:     DefaultNCPTimeoutSecs * time.Second,
 	}
 	if v, ok := l2tpRoot["enabled"].(string); ok {
 		p.Enabled = v == configTrue
@@ -230,6 +282,37 @@ func extractFromProvider(cfg ze.ConfigProvider) (Parameters, error) {
 	}
 	if p.AuthMethod == ppp.AuthMethodNone && !p.AllowNoAuth {
 		return Parameters{}, errAuthMethodNoneRequiresAllowNo
+	}
+	if authC, ok := l2tpRoot["authentication"].(map[string]any); ok {
+		if v, ok := authC["timeout"].(string); ok {
+			n, perr := strconv.ParseUint(v, 10, 16)
+			if perr != nil {
+				return Parameters{}, fmt.Errorf("authentication timeout: %w", perr)
+			}
+			p.AuthTimeout = time.Duration(n) * time.Second
+		}
+		if v, ok := authC["reauth-interval"].(string); ok {
+			n, perr := strconv.ParseUint(v, 10, 32)
+			if perr != nil {
+				return Parameters{}, fmt.Errorf("authentication reauth-interval: %w", perr)
+			}
+			p.ReauthInterval = time.Duration(n) * time.Second
+		}
+	}
+	if ncpC, ok := l2tpRoot["ncp"].(map[string]any); ok {
+		if v, ok := ncpC["enable-ipcp"].(string); ok {
+			p.EnableIPCP = v == configTrue
+		}
+		if v, ok := ncpC["enable-ipv6cp"].(string); ok {
+			p.EnableIPv6CP = v == configTrue
+		}
+		if v, ok := ncpC["timeout"].(string); ok {
+			n, perr := strconv.ParseUint(v, 10, 16)
+			if perr != nil {
+				return Parameters{}, fmt.Errorf("ncp timeout: %w", perr)
+			}
+			p.NCPTimeout = time.Duration(n) * time.Second
+		}
 	}
 	if v, ok := l2tpRoot["cqm-enabled"].(string); ok {
 		p.CQMEnabled = v == configTrue

@@ -457,6 +457,305 @@ environment {
 	}
 }
 
+// --- Authentication container tests ---
+
+func TestConfig_AuthTimeoutDefault(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.Equal(t, 30*time.Second, p.AuthTimeout)
+	assert.Equal(t, time.Duration(0), p.ReauthInterval)
+}
+
+func TestConfig_AuthTimeoutOverride(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	authentication {
+		timeout 60
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.Equal(t, 60*time.Second, p.AuthTimeout)
+}
+
+func TestConfig_AuthTimeoutBoundary(t *testing.T) {
+	cases := []struct {
+		name    string
+		value   string
+		expect  time.Duration
+		wantErr bool
+	}{
+		{"minimum-valid", "1", 1 * time.Second, false},
+		{"maximum-valid", "3600", 3600 * time.Second, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := `l2tp {
+	enabled true
+	authentication {
+		timeout ` + tc.value + `
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+			tree := loadTree(t, src)
+			p, err := l2tp.ExtractParameters(tree)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expect, p.AuthTimeout)
+		})
+	}
+}
+
+func TestConfig_AuthTimeoutZeroRejected(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	authentication {
+		timeout 0
+	}
+}`
+	_, err := zeconfig.LoadConfig(src, "test.conf", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "timeout")
+}
+
+func TestConfig_ReauthIntervalOverride(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	authentication {
+		reauth-interval 300
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.Equal(t, 300*time.Second, p.ReauthInterval)
+}
+
+func TestConfig_ReauthIntervalBoundary(t *testing.T) {
+	cases := []struct {
+		name    string
+		value   string
+		expect  time.Duration
+		wantErr bool
+	}{
+		{"disabled", "0", 0, false},
+		{"floor", "5", 5 * time.Second, false},
+		{"maximum", "86400", 86400 * time.Second, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := `l2tp {
+	enabled true
+	authentication {
+		reauth-interval ` + tc.value + `
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+			tree := loadTree(t, src)
+			p, err := l2tp.ExtractParameters(tree)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expect, p.ReauthInterval)
+		})
+	}
+}
+
+func TestConfig_ReauthIntervalGapRejected(t *testing.T) {
+	for _, val := range []string{"1", "2", "3", "4"} {
+		t.Run("value-"+val, func(t *testing.T) {
+			src := `l2tp {
+	enabled true
+	authentication {
+		reauth-interval ` + val + `
+	}
+}`
+			_, err := zeconfig.LoadConfig(src, "test.conf", nil)
+			require.Error(t, err, "reauth-interval=%s must be rejected (gap between 0 and 5)", val)
+		})
+	}
+}
+
+// --- NCP container tests ---
+
+func TestConfig_NCPDefaults(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.True(t, p.EnableIPCP)
+	assert.True(t, p.EnableIPv6CP)
+	assert.Equal(t, 30*time.Second, p.NCPTimeout)
+}
+
+func TestConfig_NCPDisableIPCP(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	ncp {
+		enable-ipcp false
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.False(t, p.EnableIPCP)
+	assert.True(t, p.EnableIPv6CP)
+}
+
+func TestConfig_NCPDisableIPv6CP(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	ncp {
+		enable-ipv6cp false
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.True(t, p.EnableIPCP)
+	assert.False(t, p.EnableIPv6CP)
+}
+
+func TestConfig_NCPTimeoutOverride(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	ncp {
+		timeout 120
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+	tree := loadTree(t, src)
+	p, err := l2tp.ExtractParameters(tree)
+	require.NoError(t, err)
+	assert.Equal(t, 120*time.Second, p.NCPTimeout)
+}
+
+func TestConfig_NCPTimeoutBoundary(t *testing.T) {
+	cases := []struct {
+		name   string
+		value  string
+		expect time.Duration
+	}{
+		{"minimum-valid", "1", 1 * time.Second},
+		{"maximum-valid", "3600", 3600 * time.Second},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			src := `l2tp {
+	enabled true
+	ncp {
+		timeout ` + tc.value + `
+	}
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port 1701
+		}
+	}
+}`
+			tree := loadTree(t, src)
+			p, err := l2tp.ExtractParameters(tree)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expect, p.NCPTimeout)
+		})
+	}
+}
+
+func TestConfig_NCPTimeoutZeroRejected(t *testing.T) {
+	const src = `l2tp {
+	enabled true
+	ncp {
+		timeout 0
+	}
+}`
+	_, err := zeconfig.LoadConfig(src, "test.conf", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "timeout")
+}
+
 // loadTree parses the given ze-config source via the public LoadConfig API
 // and returns the resulting tree. It centralizes YANG loading so each
 // test stays focused on assertions.
