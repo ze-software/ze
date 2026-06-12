@@ -65,17 +65,33 @@ The user reads "ready to commit" as "everything works." Honor that reading.
 
 ## Scope Reduction Requires Explicit User Approval
 
-If during implementation you discover that an acceptance criterion is harder than
-expected and you want to reduce scope:
+**ABSOLUTE PROHIBITION. No self-authorized scope reduction. No exceptions.**
 
-1. Stop implementing.
+If during implementation you discover that an acceptance criterion or deliverable
+is harder than expected:
+
+1. **Stop implementing.**
 2. Tell the user: "AC #N is harder than expected because X. Do you want me to
    continue with it, or drop it from this spec?"
-3. Wait for an answer.
+3. **Wait for an answer.** Do not proceed without it.
 4. Only if the user explicitly says to drop it may you proceed without it.
 
 You may NOT unilaterally decide an AC is "out of scope," "a follow-up," or
 "better handled separately." That is scope reduction dressed as planning.
+
+### Documentation Is Not a Substitute for Implementation
+
+Writing "documented as known limitation" or "deferred to integration tests"
+does NOT resolve a missing deliverable. It is scope reduction without permission.
+The same applies to:
+
+- "Requires infrastructure not available" -- attempt it first; ask only if genuinely blocked
+- "Noted in the spec as a deviation" -- a deviation entry is tracking, not resolution
+- "Unit tests cover this; functional tests can come later" -- both are required per the spec
+- "Will be handled in QEMU/integration/follow-up" -- that is deferral, not completion
+
+If the deliverable is in the spec, implement it. If you cannot, stop and ask.
+Never present documentation of a gap as closure of the gap.
 
 ## On Violation
 

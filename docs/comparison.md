@@ -331,7 +331,7 @@ attributes are consumed:
 | Framed-Pool (88) | RFC 2865 | Selects a named pool for IP allocation |
 | Session-Timeout (27) | RFC 2865 S5.27 | Enforces maximum session duration; CDN on expiry |
 | Idle-Timeout (28) | RFC 2865 S5.28 | Disconnects after inactivity period (Linux RX byte counters) |
-| Filter-Id (11) | RFC 2865 S5.11 | Sets initial shaping rate at session establishment |
+| Filter-Id (11) | RFC 2865 S5.11 | Multi-valued: "cos:\<name\>" selects a dynamic 802.1p CoS profile for the access VLAN; other values set the initial shaping rate |
 | Acct-Interim-Interval (85) | RFC 2866 S5.18 | Overrides per-session accounting update interval [60,3600]s |
 
 <!-- source: internal/plugins/l2tpauthradius/extract.go -- extractAuthMetadata -->

@@ -20,6 +20,9 @@ func (m *mockMigrateBackend) CreateBridge(_ string) error  { return fmt.Errorf("
 func (m *mockMigrateBackend) CreateVLAN(_ VLANSpec) error {
 	return fmt.Errorf("mock: not supported")
 }
+func (m *mockMigrateBackend) UpdateVLANQoSMap(_ string, _, _ map[uint32]uint32) error {
+	return fmt.Errorf("mock: not supported")
+}
 func (m *mockMigrateBackend) CreateTunnel(_ TunnelSpec) error {
 	return fmt.Errorf("mock: not supported")
 }

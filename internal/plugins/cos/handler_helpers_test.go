@@ -1,0 +1,15 @@
+// Design: plan/spec-cos-dynamic.md -- test helpers for CoS handler tests
+
+package cos
+
+import "codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+
+func storeMetadataForTest(tunnelID, sessionID uint16, cosProfile string) {
+	l2tp.StoreSessionMetadata(tunnelID, sessionID, &l2tp.AuthMetadata{
+		CoSProfile: cosProfile,
+	})
+}
+
+func clearMetadataForTest(tunnelID, sessionID uint16) {
+	l2tp.ClearSessionMetadata(tunnelID, sessionID)
+}

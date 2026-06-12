@@ -2019,6 +2019,8 @@ func (b *fakeBackend) CreateVLAN(spec VLANSpec) error {
 	return nil
 }
 
+func (b *fakeBackend) UpdateVLANQoSMap(_ string, _, _ map[uint32]uint32) error { return nil }
+
 func (b *fakeBackend) CreateTunnel(spec TunnelSpec) error {
 	b.ensureMaps()
 	b.created[spec.Name] = true

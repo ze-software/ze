@@ -26,10 +26,13 @@ func unsupported() error {
 	return fmt.Errorf("interface management not supported on %s", runtime.GOOS)
 }
 
-func (s *stubBackend) CreateDummy(_ string) error                           { return unsupported() }
-func (s *stubBackend) CreateVeth(_, _ string) error                         { return unsupported() }
-func (s *stubBackend) CreateBridge(_ string) error                          { return unsupported() }
-func (s *stubBackend) CreateVLAN(_ iface.VLANSpec) error                    { return unsupported() }
+func (s *stubBackend) CreateDummy(_ string) error        { return unsupported() }
+func (s *stubBackend) CreateVeth(_, _ string) error      { return unsupported() }
+func (s *stubBackend) CreateBridge(_ string) error       { return unsupported() }
+func (s *stubBackend) CreateVLAN(_ iface.VLANSpec) error { return unsupported() }
+func (s *stubBackend) UpdateVLANQoSMap(_ string, _, _ map[uint32]uint32) error {
+	return unsupported()
+}
 func (s *stubBackend) CreateTunnel(_ iface.TunnelSpec) error                { return unsupported() }
 func (s *stubBackend) CreateWireguardDevice(_ string) error                 { return unsupported() }
 func (s *stubBackend) ConfigureWireguardDevice(_ iface.WireguardSpec) error { return unsupported() }

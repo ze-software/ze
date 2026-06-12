@@ -51,6 +51,25 @@ func TestAll(t *testing.T) {
 	assert.Equal(t, map[uint32]uint32{6: 6}, all["b"].EgressMap)
 }
 
+func TestParseFilterID(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantName string
+		wantOK   bool
+	}{
+		{"cos:residential", "residential", true},
+		{"cos:business", "business", true},
+		{"10mbit", "", false},
+		{"", "", false},
+		{"cos:", "", false},
+	}
+	for _, tt := range tests {
+		name, ok := ParseFilterID(tt.input)
+		assert.Equal(t, tt.wantOK, ok, "input=%q", tt.input)
+		assert.Equal(t, tt.wantName, name, "input=%q", tt.input)
+	}
+}
+
 func TestResolveNoResolver(t *testing.T) {
 	t.Cleanup(ClearResolver)
 

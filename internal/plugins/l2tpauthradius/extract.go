@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
+	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
 )
 
 const maxFramedRoutesPerSession = 64
@@ -60,8 +61,16 @@ func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 		found = true
 	}
 
-	if raw := resp.FindAttr(radius.AttrFilterID); len(raw) > 0 && len(raw) <= 253 {
-		meta.FilterID = string(raw)
+	for _, raw := range resp.FindAllAttr(radius.AttrFilterID) {
+		if len(raw) == 0 || len(raw) > 253 {
+			continue
+		}
+		s := string(raw)
+		if name, ok := coreCos.ParseFilterID(s); ok && meta.CoSProfile == "" {
+			meta.CoSProfile = name
+		} else if meta.FilterID == "" {
+			meta.FilterID = s
+		}
 		found = true
 	}
 

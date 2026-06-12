@@ -1,0 +1,33 @@
+# Test: CoS profiles coexist with shaper rate config.
+#
+# VALIDATES: spec-cos-dynamic AC-13 -- rate and CoS Filter-Ids coexist.
+# VALIDATES: spec-cos-dynamic AC-6 -- rate-only sessions unaffected by CoS plugin.
+# PREVENTS:  CoS plugin breaking shaper or config validation when both are present.
+
+stdin=config:terminator=EOF_CONF
+class-of-service {
+    ieee-802.1p residential {
+        ingress { pcp 0 { priority 0; } }
+        egress { priority 0 { pcp 0; } priority 6 { pcp 6; } }
+    }
+}
+
+l2tp {
+    enabled true
+    shaper {
+        default-rate 10mbit
+    }
+}
+
+interface {
+    backend netlink;
+    ethernet eth0 {
+        class-of-service residential;
+        unit v100 { vlan-id 100; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

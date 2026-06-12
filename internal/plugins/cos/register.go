@@ -6,13 +6,18 @@ import (
 	"os"
 	"sort"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/cos/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
+
+var dynamicHandler *cosHandler
 
 func init() {
 	coreCos.RegisterResolver(resolveCoSForUnit)
@@ -27,6 +32,23 @@ func init() {
 		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg any) {
+			if r, ok := reg.(metrics.Registry); ok {
+				BindMetrics(r)
+			}
+		},
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
+				updateFn := func(ifaceName string, ingress, egress map[uint32]uint32) error {
+					b := iface.GetBackend()
+					if b == nil {
+						return fmt.Errorf("cos: no iface backend loaded")
+					}
+					return b.UpdateVLANQoSMap(ifaceName, ingress, egress)
+				}
+				dynamicHandler = newCosHandler(e, updateFn, nil)
+			}
 		},
 	}
 	reg.CLIHandler = func(args []string) int {
@@ -94,7 +116,15 @@ func runPlugin(conn net.Conn) int {
 	logger().Debug("cos plugin starting")
 
 	p := sdk.NewWithConn(Name, conn)
-	defer func() { _ = p.Close() }()
+	defer func() {
+		if dynamicHandler != nil {
+			dynamicHandler.stop()
+			dynamicHandler = nil
+		}
+		if err := p.Close(); err != nil {
+			logger().Warn("cos: close failed", "error", err)
+		}
+	}()
 
 	p.OnConfigVerify(verifyCoSConfig)
 

@@ -60,9 +60,10 @@ const SessionUpEvent = "session-up"
 // Emitted by the reactor when PPP LCP, authentication, and all enabled
 // NCPs complete successfully (ppp.EventSessionUp).
 type SessionUpPayload struct {
-	TunnelID  uint16
-	SessionID uint16
-	Interface string
+	TunnelID        uint16
+	SessionID       uint16
+	Interface       string
+	AccessInterface string // access VLAN name (e.g. "eth0.100"); empty for pure LNS
 }
 
 // SessionUp is the typed handle for (l2tp, session-up). Consumed by
@@ -85,6 +86,22 @@ type SessionRateChangePayload struct {
 // SessionRateChange is the typed handle for (l2tp, session-rate-change).
 // Consumed by the shaper plugin to update TC rules on the session's pppN.
 var SessionRateChange = events.Register[*SessionRateChangePayload](Namespace, SessionRateChangeEvent)
+
+// SessionCoSChangeEvent is the event type string for CoS profile change notifications.
+const SessionCoSChangeEvent = "session-cos-change"
+
+// SessionCoSChangePayload carries the new CoS profile name for a session.
+// Emitted by the CoA handler when a RADIUS server sends a CoA-Request
+// with a Filter-Id carrying a "cos:" prefix.
+type SessionCoSChangePayload struct {
+	TunnelID        uint16
+	SessionID       uint16
+	AccessInterface string
+	ProfileName     string
+}
+
+// SessionCoSChange is the typed handle for (l2tp, session-cos-change).
+var SessionCoSChange = events.Register[*SessionCoSChangePayload](Namespace, SessionCoSChangeEvent)
 
 // EchoRTTEvent is the event type string for echo round-trip time notifications.
 const EchoRTTEvent = "echo-rtt"

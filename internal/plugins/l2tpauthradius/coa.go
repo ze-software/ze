@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
 	subevents "codeberg.org/thomas-mangin/ze/internal/component/subscriber/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
+	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -167,14 +168,16 @@ func (cl *coaListener) isAllowedSource(ip net.IP) bool {
 
 func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 	downloadRate := extractRate(pkt)
-	if downloadRate == 0 {
+	cosProfile := extractCoSProfile(pkt)
+
+	if downloadRate == 0 && cosProfile == "" {
 		cl.sendResponse(from, pkt, radius.CodeCoANAK, radius.ErrorCauseUnsupportedAttribute)
 		return
 	}
 
 	// Try subscriber registry first (works for both PPPoE and L2TP).
 	if subSess, ok := cl.findSubscriberSession(pkt); ok {
-		if cl.bus != nil {
+		if downloadRate > 0 && cl.bus != nil {
 			if _, emitErr := subevents.SessionRateChange.Emit(cl.bus, &subevents.SessionRateChangePayload{
 				SessionID:    subSess.ID,
 				DownloadRate: downloadRate,
@@ -185,7 +188,7 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 		}
 		// For L2TP sessions, also emit the L2TP-specific event so the
 		// existing shaper plugin picks it up.
-		if subSess.AccessType == subscriber.AccessL2TP && cl.bus != nil {
+		if downloadRate > 0 && subSess.AccessType == subscriber.AccessL2TP && cl.bus != nil {
 			if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.bus, &l2tpevents.SessionRateChangePayload{
 				TunnelID:     subSess.TunnelID,
 				SessionID:    subSess.SessionID,
@@ -195,9 +198,20 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 				logger().Warn("coa: emit l2tp rate-change failed", "error", emitErr)
 			}
 		}
+		if cosProfile != "" && cl.bus != nil {
+			if _, emitErr := l2tpevents.SessionCoSChange.Emit(cl.bus, &l2tpevents.SessionCoSChangePayload{
+				TunnelID:        subSess.TunnelID,
+				SessionID:       subSess.SessionID,
+				AccessInterface: subSess.AccessInterface,
+				ProfileName:     cosProfile,
+			}); emitErr != nil {
+				logger().Warn("coa: emit cos-change failed", "error", emitErr)
+			}
+		}
 		cl.sendResponse(from, pkt, radius.CodeCoAACK, 0)
 		logger().Info("coa: accepted CoA",
-			"subscriber", subSess.ID, "rate-bps", downloadRate, "from", from)
+			"subscriber", subSess.ID, "rate-bps", downloadRate,
+			"cos-profile", cosProfile, "from", from)
 		return
 	}
 
@@ -220,19 +234,26 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 	}
 
 	if cl.bus != nil {
-		if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.bus, &l2tpevents.SessionRateChangePayload{
-			TunnelID:     sess.TunnelLocalTID,
-			SessionID:    sid,
-			DownloadRate: downloadRate,
-			UploadRate:   downloadRate,
-		}); emitErr != nil {
-			logger().Warn("coa: emit rate-change failed", "error", emitErr)
+		if downloadRate > 0 {
+			if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.bus, &l2tpevents.SessionRateChangePayload{
+				TunnelID:     sess.TunnelLocalTID,
+				SessionID:    sid,
+				DownloadRate: downloadRate,
+				UploadRate:   downloadRate,
+			}); emitErr != nil {
+				logger().Warn("coa: emit rate-change failed", "error", emitErr)
+			}
+		}
+		if cosProfile != "" {
+			logger().Warn("coa: CoS change requested for L2TP-only session without AccessInterface; skipping",
+				"session", sid, "profile", cosProfile)
 		}
 	}
 
 	cl.sendResponse(from, pkt, radius.CodeCoAACK, 0)
 	logger().Info("coa: accepted CoA",
-		"session", sid, "rate-bps", downloadRate, "from", from)
+		"session", sid, "rate-bps", downloadRate,
+		"cos-profile", cosProfile, "from", from)
 }
 
 func (cl *coaListener) handleDisconnect(pkt *radius.Packet, from *net.UDPAddr) {
@@ -328,12 +349,23 @@ func (cl *coaListener) findSession(pkt *radius.Packet) (uint16, bool) {
 // extractRate reads the download rate from CoA attributes.
 // Checks Filter-Id for a rate string (e.g. "10mbit").
 func extractRate(pkt *radius.Packet) uint64 {
-	if filterID := pkt.FindAttr(radius.AttrFilterID); filterID != nil {
-		if rate, err := traffic.ParseRateBps(string(filterID)); err == nil {
+	for _, raw := range pkt.FindAllAttr(radius.AttrFilterID) {
+		if rate, err := traffic.ParseRateBps(string(raw)); err == nil {
 			return rate
 		}
 	}
 	return 0
+}
+
+// extractCoSProfile reads the CoS profile name from CoA attributes.
+// Checks Filter-Id for a "cos:<name>" value.
+func extractCoSProfile(pkt *radius.Packet) string {
+	for _, raw := range pkt.FindAllAttr(radius.AttrFilterID) {
+		if name, ok := coreCos.ParseFilterID(string(raw)); ok {
+			return name
+		}
+	}
+	return ""
 }
 
 func (cl *coaListener) sendResponse(to *net.UDPAddr, req *radius.Packet, code uint8, errorCause uint32) {

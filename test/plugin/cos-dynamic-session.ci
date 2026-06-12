@@ -1,0 +1,137 @@
+# Test: dynamic CoS profiles loaded and queriable at runtime via show command.
+#
+# VALIDATES: spec-cos-dynamic AC-2 -- CoS profiles available for session-up handler.
+# VALIDATES: spec-cos-dynamic AC-12 -- show class-of-service returns registered profiles.
+# PREVENTS:  CoS plugin startup failure or profile registration silently dropped.
+#
+# The full session lifecycle (RADIUS -> session-up -> maps applied -> session-down
+# -> maps reverted) requires L2TP kernel support and runs in QEMU integration tests.
+# This test verifies the wiring that makes that lifecycle possible: profiles load
+# from config, the plugin starts, and the show command returns correct data.
+
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=cos-dynamic-session.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Dispatch show class-of-service and verify profiles loaded at runtime."""
+
+import json
+import time
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    r = None
+    for _ in range(20):
+        r = dispatch(api, 'show class-of-service')
+        if r.get('status') == 'done':
+            break
+        time.sleep(0.25)
+    if r is None or r.get('status') != 'done':
+        status = r.get('status') if r else 'nil'
+        data = result_text_data(r) if r else ''
+        runtime_fail(f'show class-of-service: status={status} data={data[:200]}')
+
+    profiles = result_json_data(r, [])
+    if not isinstance(profiles, list):
+        runtime_fail(f'expected list, got {type(profiles).__name__}')
+    names = {p.get('name') for p in profiles}
+
+    if 'residential' not in names:
+        runtime_fail(f'residential profile missing; got {names}')
+    if 'business' not in names:
+        runtime_fail(f'business profile missing; got {names}')
+
+    for p in profiles:
+        if p.get('name') == 'residential':
+            egress_map = {e['from']: e['to'] for e in p.get('egress', [])}
+            if egress_map.get(6) != 6:
+                runtime_fail(f'residential egress[6] want 6 got {egress_map.get(6)}')
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+    external cos-dynamic-session-test {
+        run ./cos-dynamic-session.run
+    }
+}
+
+class-of-service {
+    ieee-802.1p residential {
+        ingress {
+            pcp 0 { priority 0; }
+            pcp 6 { priority 6; }
+        }
+        egress {
+            priority 0 { pcp 0; }
+            priority 6 { pcp 6; }
+        }
+    }
+    ieee-802.1p business {
+        ingress {
+            pcp 0 { priority 0; }
+        }
+        egress {
+            priority 0 { pcp 1; }
+            priority 1 { pcp 3; }
+        }
+    }
+}
+
+interface {
+    backend netlink;
+    ethernet eth0 {
+        unit v100 { vlan-id 100; }
+    }
+}
+
+bgp {
+    peer peer1 {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.1; accept false; }
+        }
+        session {
+            asn { local 1; remote 1; }
+            router-id 1.2.3.4
+            family { ipv4/unicast { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        process cos-dynamic-session-test { }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0

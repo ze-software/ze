@@ -161,6 +161,32 @@ func validateQoSMap(m map[uint32]uint32) error {
 	return nil
 }
 
+func (b *netlinkBackend) UpdateVLANQoSMap(ifaceName string, ingress, egress map[uint32]uint32) error {
+	if err := iface.ValidateIfaceName(ifaceName); err != nil {
+		return fmt.Errorf("iface: update vlan qos %q: %w", ifaceName, err)
+	}
+	if err := validateQoSMap(ingress); err != nil {
+		return fmt.Errorf("iface: update vlan qos %q: ingress: %w", ifaceName, err)
+	}
+	if err := validateQoSMap(egress); err != nil {
+		return fmt.Errorf("iface: update vlan qos %q: egress: %w", ifaceName, err)
+	}
+	link, err := netlink.LinkByName(ifaceName)
+	if err != nil {
+		return fmt.Errorf("iface: update vlan qos %q: not found: %w", ifaceName, err)
+	}
+	vlan, ok := link.(*netlink.Vlan)
+	if !ok {
+		return fmt.Errorf("iface: update vlan qos %q: not a VLAN device", ifaceName)
+	}
+	vlan.IngressQosMap = ingress
+	vlan.EgressQosMap = egress
+	if err := netlink.LinkModify(vlan); err != nil {
+		return fmt.Errorf("iface: update vlan qos %q: %w", ifaceName, err)
+	}
+	return nil
+}
+
 func (b *netlinkBackend) DeleteInterface(name string) error {
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: delete %q: %w", name, err)

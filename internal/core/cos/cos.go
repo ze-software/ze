@@ -4,6 +4,7 @@ package cos
 
 import (
 	"maps"
+	"strings"
 	"sync"
 )
 
@@ -84,4 +85,19 @@ func Resolve(parentCoS, unitCoS string, hasInlineMaps bool) (ingress, egress map
 		return nil, nil, nil
 	}
 	return fn(parentCoS, unitCoS, hasInlineMaps)
+}
+
+const filterPrefix = "cos:"
+
+// ParseFilterID extracts the profile name from a RADIUS Filter-Id
+// value with a "cos:" prefix. Returns ("", false) for non-CoS values.
+func ParseFilterID(filterID string) (string, bool) {
+	if !strings.HasPrefix(filterID, filterPrefix) {
+		return "", false
+	}
+	name := filterID[len(filterPrefix):]
+	if name == "" {
+		return "", false
+	}
+	return name, true
 }

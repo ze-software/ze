@@ -273,6 +273,56 @@ func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 	return nil
 }
 
+func (b *vppBackendImpl) UpdateVLANQoSMap(ifaceName string, ingress, egress map[uint32]uint32) error {
+	for pcp, prio := range ingress {
+		if pcp != prio {
+			return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q: ingress pcp %d -> priority %d: VPP only supports identity mapping", ifaceName, pcp, prio)
+		}
+	}
+	subIdx, err := b.resolveIndex(ifaceName)
+	if err != nil {
+		return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q: %w", ifaceName, err)
+	}
+	if len(egress) > 0 {
+		mapID := uint32(subIdx)
+		row := qos.QosEgressMapRow{Outputs: make([]byte, 256)}
+		for prio, pcp := range egress {
+			if prio < 256 && pcp < 256 {
+				row.Outputs[prio] = byte(pcp)
+			}
+		}
+		var emap qos.QosEgressMap
+		emap.ID = mapID
+		emap.Rows[qos.QOS_API_SOURCE_VLAN] = row
+
+		emReply := &qos.QosEgressMapUpdateReply{}
+		if err := b.ch.SendRequest(&qos.QosEgressMapUpdate{
+			Map: emap,
+		}).ReceiveReply(emReply); err != nil {
+			return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q egress-map: %w", ifaceName, err)
+		}
+		if emReply.Retval != 0 {
+			return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q egress-map retval=%d", ifaceName, emReply.Retval)
+		}
+
+		markReply := &qos.QosMarkEnableDisableReply{}
+		if err := b.ch.SendRequest(&qos.QosMarkEnableDisable{
+			Mark: qos.QosMark{
+				SwIfIndex:    uint32(subIdx),
+				MapID:        mapID,
+				OutputSource: qos.QOS_API_SOURCE_VLAN,
+			},
+			Enable: true,
+		}).ReceiveReply(markReply); err != nil {
+			return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark: %w", ifaceName, err)
+		}
+		if markReply.Retval != 0 {
+			return fmt.Errorf("ifacevpp: UpdateVLANQoSMap %q mark retval=%d", ifaceName, markReply.Retval)
+		}
+	}
+	return nil
+}
+
 // enableVLANQoS wires VPP's QoS record + egress-map + mark pipeline on a
 // VLAN sub-interface. "qos record" copies the ingress PCP verbatim into
 // internal QoS bits (identity only). The egress map translates internal
@@ -294,7 +344,7 @@ func (b *vppBackendImpl) enableVLANQoS(subIdx interface_types.InterfaceIndex, sp
 
 	if len(spec.EgressQoSMap) > 0 {
 		mapID := uint32(subIdx)
-		var row qos.QosEgressMapRow
+		row := qos.QosEgressMapRow{Outputs: make([]byte, 256)}
 		for prio, pcp := range spec.EgressQoSMap {
 			if prio < 256 && pcp < 256 {
 				row.Outputs[prio] = byte(pcp)

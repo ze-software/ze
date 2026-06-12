@@ -251,6 +251,54 @@ func TestCreateVLANRejectsNonIdentityIngress(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-14 -- VPP egress map update on live sub-interface.
+// PREVENTS: regression in dynamic CoS map application.
+func TestVPPUpdateVLANQoSMap(t *testing.T) {
+	ch := &routeChannel{}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {})
+	b.names.Add("xe0.100", 42, "xe0.100")
+
+	egress := map[uint32]uint32{0: 0, 1: 1, 5: 3}
+	if err := b.UpdateVLANQoSMap("xe0.100", nil, egress); err != nil {
+		t.Fatalf("UpdateVLANQoSMap: %v", err)
+	}
+	if len(ch.allRequests) != 2 {
+		t.Fatalf("expected 2 VPP requests (egress-map + mark), got %d", len(ch.allRequests))
+	}
+}
+
+// VALIDATES: AC-15 -- VPP rejects non-identity ingress in dynamic update.
+// PREVENTS: silent ingress PCP remapping that VPP cannot perform.
+func TestVPPUpdateVLANQoSMapNonIdentityIngress(t *testing.T) {
+	b := &vppBackendImpl{names: newNameMap()}
+	b.names.Add("xe0.100", 42, "xe0.100")
+
+	err := b.UpdateVLANQoSMap("xe0.100", map[uint32]uint32{6: 3}, nil)
+	if err == nil {
+		t.Fatal("expected error for non-identity ingress map")
+	}
+	if !strings.Contains(err.Error(), "identity") {
+		t.Errorf("expected 'identity' error, got: %v", err)
+	}
+}
+
+// VALIDATES: AC-16 -- VPP revert clears egress map.
+// PREVENTS: stale QoS maps after session-down.
+func TestVPPUpdateVLANQoSMapRevert(t *testing.T) {
+	ch := &routeChannel{}
+	b := &vppBackendImpl{ch: ch, names: newNameMap()}
+	b.populate.Do(func() {})
+	b.names.Add("xe0.100", 42, "xe0.100")
+
+	if err := b.UpdateVLANQoSMap("xe0.100", nil, nil); err != nil {
+		t.Fatalf("UpdateVLANQoSMap revert: %v", err)
+	}
+	if len(ch.allRequests) != 0 {
+		t.Fatalf("expected 0 VPP requests for nil maps (revert to static), got %d", len(ch.allRequests))
+	}
+}
+
 func TestSetMTUValidation(t *testing.T) {
 	// VALIDATES: AC-9 -- MTU boundary
 	// PREVENTS: invalid MTU reaching VPP

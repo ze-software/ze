@@ -41,6 +41,7 @@ type AuthMetadata struct {
 	SessionTimeout      uint32       // seconds, 0 = not set
 	IdleTimeout         uint32       // seconds, 0 = not set
 	FilterID            string
+	CoSProfile          string        // "cos:<name>" extracted from Filter-Id; empty if none
 	AcctInterimInterval uint32        // seconds, 0 = not set
 	FramedRoutes        []FramedRoute // RFC 2865 attr 22 + RFC 6911 attr 99
 }

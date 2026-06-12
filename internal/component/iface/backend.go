@@ -69,6 +69,10 @@ type Backend interface {
 	// The optional QoS maps translate between 802.1p PCP bits and internal
 	// priority; nil maps mean no mapping is configured.
 	CreateVLAN(spec VLANSpec) error
+	// UpdateVLANQoSMap replaces the ingress and egress 802.1p QoS maps
+	// on an existing VLAN sub-interface. nil maps mean "clear to defaults".
+	// Used by dynamic CoS to change PCP mappings without deleting the VLAN.
+	UpdateVLANQoSMap(ifaceName string, ingress, egress map[uint32]uint32) error
 	// CreateTunnel creates an L3 or L2 tunnel netdev for one of the kinds in
 	// TunnelKind. The TunnelSpec carries kind-specific parameters; fields not
 	// applicable to a kind are ignored. See tunnel.go for the spec shape.

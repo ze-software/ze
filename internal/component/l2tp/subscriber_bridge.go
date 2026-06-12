@@ -55,13 +55,14 @@ func l2tpSessionID(tunnelID, sessionID uint16) string {
 
 func (b *subscriberBridge) onSessionUp(p *l2tpevents.SessionUpPayload) {
 	sess := subscriber.Session{
-		ID:           l2tpSessionID(p.TunnelID, p.SessionID),
-		AccessType:   subscriber.AccessL2TP,
-		State:        subscriber.StateActive,
-		TunnelID:     p.TunnelID,
-		SessionID:    p.SessionID,
-		PppInterface: p.Interface,
-		ActivatedAt:  time.Now(),
+		ID:              l2tpSessionID(p.TunnelID, p.SessionID),
+		AccessType:      subscriber.AccessL2TP,
+		State:           subscriber.StateActive,
+		TunnelID:        p.TunnelID,
+		SessionID:       p.SessionID,
+		PppInterface:    p.Interface,
+		AccessInterface: p.AccessInterface,
+		ActivatedAt:     time.Now(),
 	}
 	if meta := LoadSessionMetadata(p.TunnelID, p.SessionID); meta != nil {
 		sess.PoolName = meta.FramedPool
