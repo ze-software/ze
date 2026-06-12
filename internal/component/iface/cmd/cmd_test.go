@@ -254,6 +254,62 @@ func TestHandleInterfaceUpDown_UsageGate(t *testing.T) {
 	assert.Contains(t, resp.Error, "usage: request interface")
 }
 
+// TestHandleUnitAdd_Validation verifies the unit-add handler rejects
+// malformed input BEFORE calling the backend.
+func TestHandleUnitAdd_Validation(t *testing.T) {
+	tests := []struct {
+		name      string
+		selectors map[string]string
+		args      []string
+		wantErr   string
+	}{
+		{"missing all", nil, nil, "usage: create interface"},
+		{"missing vid", map[string]string{"name": "eth0"}, nil, "usage: create interface"},
+		{"non-numeric", map[string]string{"name": "eth0"}, []string{"abc"}, "invalid VLAN ID"},
+		{"zero", map[string]string{"name": "eth0"}, []string{"0"}, "invalid VLAN ID"},
+		{"above max", map[string]string{"name": "eth0"}, []string{"4095"}, "invalid VLAN ID"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &pluginserver.CommandContext{Selectors: tt.selectors}
+			resp, err := handleUnitAdd(ctx, tt.args)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.Equal(t, "error", resp.Status)
+			assert.Contains(t, resp.Error, tt.wantErr)
+		})
+	}
+}
+
+// TestHandleUnitDel_Validation verifies the unit-del handler rejects
+// malformed input and constructs the correct sub-interface name.
+// PREVENTS: regression where handleUnitDel deleted the parent interface
+// instead of the VLAN sub-interface (parent.vid).
+func TestHandleUnitDel_Validation(t *testing.T) {
+	tests := []struct {
+		name      string
+		selectors map[string]string
+		args      []string
+		wantErr   string
+	}{
+		{"missing all", nil, nil, "usage: delete interface"},
+		{"missing vid", map[string]string{"name": "eth0"}, nil, "usage: delete interface"},
+		{"non-numeric", map[string]string{"name": "eth0"}, []string{"abc"}, "invalid VLAN ID"},
+		{"zero", map[string]string{"name": "eth0"}, []string{"0"}, "invalid VLAN ID"},
+		{"above max", map[string]string{"name": "eth0"}, []string{"4095"}, "invalid VLAN ID"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &pluginserver.CommandContext{Selectors: tt.selectors}
+			resp, err := handleUnitDel(ctx, tt.args)
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.Equal(t, "error", resp.Status)
+			assert.Contains(t, resp.Error, tt.wantErr)
+		})
+	}
+}
+
 // TestHandleCreateBridge_UsageGate verifies the create-bridge handler
 // rejects an empty arg list with the usage line.
 func TestHandleCreateBridge_UsageGate(t *testing.T) {

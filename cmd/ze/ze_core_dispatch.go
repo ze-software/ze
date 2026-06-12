@@ -271,8 +271,12 @@ func zeParseGlobalFlags(args []string) ([]string, int) {
 }
 
 func zeDispatch(args []string) int {
-	if zeFlags.pprofAddr != "" {
-		startPprof(zeFlags.pprofAddr)
+	pprofAddr := zeFlags.pprofAddr
+	if pprofAddr == "" {
+		pprofAddr = env.Get("ze.pprof")
+	}
+	if pprofAddr != "" {
+		startPprof(pprofAddr)
 	}
 
 	if zeFlags.fileOverride != "" {

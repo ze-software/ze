@@ -187,13 +187,6 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 
 	r := reactor.New(reactorCfg)
 
-	// Start pprof HTTP server from ze.pprof env var (set by ApplyEnvConfig
-	// from the YANG `environment/pprof` leaf, or directly by the operator).
-	// CLI --pprof flag takes precedence (started earlier in main.go).
-	if addr := coreenv.Get("ze.pprof"); addr != "" {
-		startPprofServer(addr)
-	}
-
 	// Start Prometheus metrics HTTP server from telemetry config block.
 	// Creates a shared registry that the reactor (and future components) register metrics into.
 	// Every entry in cfg.Endpoints becomes a bound listener on the shared http.Server.

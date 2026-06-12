@@ -132,16 +132,24 @@ func handleUnitAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 
 func handleUnitDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	name := ctx.Selector("name")
-	if name == "" {
-		return errResp("usage: delete interface <name> unit")
+	if name == "" || len(args) == 0 {
+		return errResp("usage: delete interface <name> unit <vid>")
 	}
-	if err := iface.DeleteInterface(name); err != nil {
+	vidStr := args[0]
+	vid, parseErr := strconv.Atoi(vidStr)
+	if parseErr != nil || vid < 1 || vid > 4094 {
+		var tb textbuf.Buffer
+		return errResp(tb.Str("invalid VLAN ID ").Str(vidStr).Str(" (must be 1-4094)").String())
+	}
+	var bName textbuf.Buffer
+	subName := bName.Reset().Str(name).Byte('.').Int(int64(vid)).String()
+	if err := iface.DeleteInterface(subName); err != nil {
 		return errResp(err.Error())
 	}
-	var tb textbuf.Buffer
+	var bMsg textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Str("deleted unit ").Str(name).String()},
+		Data:   plugin.Map{"message": bMsg.Reset().Str("deleted unit ").Str(name).Byte('.').Int(int64(vid)).String()},
 	}, nil
 }
 
