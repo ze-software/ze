@@ -216,53 +216,52 @@ N/A.
 ## Implementation Summary
 
 ### What Was Implemented
-- [to fill]
+- YANG module `ze-rs-conf.yang` augmenting `/bgp:bgp` with `route-server/worker-queue-size` (uint32, range 1..1000000, default 4096)
+- OnConfigure handler in RunRouteServer reading YANG config and calling SetChanSize on the worker pool
+- SetChanSize method on workerPool for thread-safe config updates
+- Env var renamed from `ze.rs.chan.size` to `ze.bgp.route-server.worker-queue-size` (mirrors YANG path)
+- Plugin registration updated with ConfigRoots, Features, YANG
 
 ### Bugs Found/Fixed
-- [to fill]
+- None
 
 ### Documentation Updates
-- [to fill]
+- `docs/architecture/config/environment.md` updated with new env var name
 
 ### Deviations from Plan
-- [to fill]
+- Env var named `ze.bgp.route-server.worker-queue-size` (not `ze.rs.worker-queue-size`) per config-naming.md hierarchy rule, caught during review
 
 ## Implementation Audit
-### Requirements from Task
-| Requirement | Status | Location | Notes |
-
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
-
-### Tests from TDD Plan
-| Test | Status | Location | Notes |
-
-### Files from Plan
-| File | Status | Notes |
+| AC-1 | Done | OnConfigure + SetChanSize + TestParseWorkerQueueSize | Config value feeds worker pool |
+| AC-2 | Done | env.GetInt default + TestPoolChanSizeDefault | Default 4096 preserved |
+| AC-3 | Done | YANG range + bgp-rs-worker-queue-size-invalid.ci | Out-of-range rejected |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 3
+- **Done:** 3
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
+| Promote ze.rs.chan.size to YANG config | Functional test | bgp-rs-worker-queue-size.ci passes |
+| YANG validation rejects invalid | Functional test | bgp-rs-worker-queue-size-invalid.ci passes |
 
 ## Review Gate
-### Run 1 (initial)
+### Run 1
 | # | Severity | Finding | Location | Action |
+| 1 | ISSUE | Env var path does not mirror YANG tree path | server.go:38 | Fixed |
 
-### Fixes applied
+### Run 2
+Clean pass. 0 BLOCKER, 0 ISSUE, 0 NOTE.
 
-### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
+### Run 3 (full, 3 parallel agents)
+Clean pass. 0 BLOCKER, 0 ISSUE, 0 NOTE.
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above (none)
 
 ## Pre-Commit Verification
 ### Files Exist (ls)
