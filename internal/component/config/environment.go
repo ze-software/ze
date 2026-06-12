@@ -109,7 +109,7 @@ var (
 	// Forward pool tuning (consumed in internal/component/bgp/reactor/).
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "256", Description: "Per-destination forward worker channel capacity"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "0", Description: "Overflow MixedBufMux byte budget override (0 = auto-sized from peer prefix maximums)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "0", Description: "Overflow MixedBufMux byte budget override (0 = auto-sized from peer prefix maximums)", Deprecated: "ze.fwd.pool.maxbytes"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Grace period at >95% pool + >2x weight before forced teardown"})

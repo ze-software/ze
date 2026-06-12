@@ -30,7 +30,7 @@
 | CLI command | `ai/patterns/cli-command.md` | `ai/rules/cli-grammar.md`, `ai/rules/pipe-completeness.md` | `ai/rules/derive-not-hardcode.md` if it lists things |
 | Web page/endpoint | `ai/patterns/web-endpoint.md` | `docs/architecture/web-interface.md`, `docs/architecture/web-components.md` | SSE: `docs/architecture/web-components.md` SSE section |
 | Plugin | `ai/patterns/plugin.md` | `ai/rules/plugin-design.md`, `ai/rules/goroutine-lifecycle.md` | `ai/rules/naming.md` for registered names |
-| Config option | `ai/patterns/config-option.md` | `ai/rules/config-design.md` (listener pattern if network endpoint) | `ai/rules/go-standards.md` env var section |
+| Config option | `ai/patterns/config-option.md` | `ai/rules/config-design.md` (listener pattern if network endpoint) | `ai/rules/config-surface.md` (YANG vs env var), `ai/rules/config-naming.md` (naming), `ai/rules/go-standards.md` env var section |
 | NLRI family | `ai/patterns/plugin.md` (NLRI codec section) | `docs/architecture/wire/nlri.md`, `ai/rules/buffer-first.md` | `ai/rules/plugin-design.md` family registration |
 | Capability | `ai/patterns/plugin.md` (capabilities section) | `docs/architecture/wire/capabilities.md` | |
 | Attribute | `ai/rules/buffer-first.md` | `docs/architecture/wire/attributes.md` | `docs/architecture/encoding-context.md` |
@@ -65,7 +65,7 @@
 | Plugin SDK | `ai/rules/plugin-design.md` (SDK Is Generic) | No plugin-specific code in SDK |
 | Hub / engine | `docs/architecture/hub-architecture.md` | Protocol-agnostic, Coordinator pattern |
 | Forward pool | `docs/architecture/forward-congestion-pool.md` | Two-tier model, per-peer workers |
-| YANG schemas | `ai/rules/config-design.md` | Augment vs grouping, listener pattern |
+| YANG schemas | `ai/rules/config-design.md` | Augment vs grouping, listener pattern, `ai/rules/config-naming.md` (leaf naming), `ai/rules/config-surface.md` (YANG vs env var) |
 | Registration code | `ai/patterns/registration.md` | `init()` + registry + blank import pattern |
 
 ### Fixing a Bug

@@ -31,6 +31,9 @@ Never add new third-party imports (not already in `go.mod`) without asking the u
 
 **BLOCKING:** All Ze environment variable access MUST use `env.Get()` / `env.Set()` or typed helpers. Never use `os.Getenv()` or `os.Setenv()` for Ze-specific vars.
 
+Before adding an env var, read `ai/rules/config-surface.md` (should this be YANG config instead?)
+and `ai/rules/config-naming.md` (naming conventions, env var path must mirror YANG path).
+
 | Getters | Use |
 |---------|-----|
 | `env.Get("ze.foo.bar")` | String lookup (case-insensitive, dot/underscore agnostic) |

@@ -63,29 +63,44 @@ var secretCleared = make(map[string]bool)
 
 // Get returns the value of a Ze environment variable.
 // key is the canonical dot-notation form (e.g. "ze.plugin.hub.host").
+// Aliases registered via EnvEntry.Aliases resolve to the canonical key.
 // Matching is case-insensitive and treats dots and underscores as equivalent.
 // Aborts if the key was not registered via MustRegister (programming error).
 // For vars registered with Secret: true, the first Get() clears the var from the
 // OS environment (removes it from /proc/<pid>/environ). The value stays in cache.
 func Get(key string) string {
-	mustBeRegistered(key)
+	canonical := resolveAlias(key)
+	mustBeRegistered(canonical)
 	ensureCache()
 
+	var v string
+
 	// For secret vars, use write lock to protect both cache read and secretCleared.
-	if IsSecret(key) {
+	if IsSecret(canonical) {
 		cacheMu.Lock()
-		v := cache[normalize(key)]
-		if !secretCleared[key] {
-			clearSecretFromEnv(key)
-			secretCleared[key] = true
+		var ok bool
+		v, ok = cache[normalize(canonical)]
+		if !ok && key != canonical {
+			v = cache[normalize(key)]
+		}
+		if !secretCleared[canonical] {
+			clearSecretFromEnv(canonical)
+			secretCleared[canonical] = true
 		}
 		cacheMu.Unlock()
-		return v
+	} else {
+		cacheMu.RLock()
+		var ok bool
+		v, ok = cache[normalize(canonical)]
+		if !ok && key != canonical {
+			v = cache[normalize(key)]
+		}
+		cacheMu.RUnlock()
 	}
 
-	cacheMu.RLock()
-	v := cache[normalize(key)]
-	cacheMu.RUnlock()
+	if v != "" {
+		warnDeprecated(canonical)
+	}
 	return v
 }
 
@@ -94,12 +109,13 @@ func Get(key string) string {
 // dot-notation key so that child processes inherit a canonical form.
 // Aborts if the key was not registered via MustRegister (programming error).
 func Set(key, value string) error {
-	mustBeRegistered(key)
+	canonical := resolveAlias(key)
+	mustBeRegistered(canonical)
 	ensureCache()
 	cacheMu.Lock()
-	cache[normalize(key)] = value
+	cache[normalize(canonical)] = value
 	cacheMu.Unlock()
-	return os.Setenv(key, value)
+	return os.Setenv(canonical, value)
 }
 
 // SetInt sets an integer Ze environment variable.
@@ -127,13 +143,18 @@ func mustBeRegistered(key string) {
 // clearSecretFromEnv removes all OS environment forms of a dot-notation key.
 // The value remains in the in-process cache for subsequent Get() calls.
 func clearSecretFromEnv(dotKey string) {
-	norm := normalize(dotKey)
+	norms := map[string]bool{normalize(dotKey): true}
+	if e, ok := registered[dotKey]; ok {
+		for _, alias := range e.Aliases {
+			norms[normalize(alias)] = true
+		}
+	}
 	for _, entry := range os.Environ() {
 		envKey, _, ok := strings.Cut(entry, "=")
 		if !ok {
 			continue
 		}
-		if normalize(envKey) == norm {
+		if norms[normalize(envKey)] {
 			_ = os.Unsetenv(envKey) //nolint:errcheck // best-effort cleanup
 		}
 	}
@@ -148,6 +169,10 @@ func ResetCache() {
 	cache = nil
 	secretCleared = make(map[string]bool)
 	cacheMu.Unlock()
+
+	deprecatedWarnedMu.Lock()
+	deprecatedWarned = make(map[string]bool)
+	deprecatedWarnedMu.Unlock()
 }
 
 // GetInt returns an integer env var value, or defaultVal if unset or invalid.

@@ -76,7 +76,7 @@ When `ze.user` is not set, no privilege dropping occurs.
 |----------|---------|-------------|
 | `ze.fwd.chan.size` | 256 | Per-destination forward worker channel capacity |
 | `ze.fwd.write.deadline` | 30s | TCP write deadline for forward pool batch writes |
-| `ze.fwd.pool.size` | 0 | Overflow MixedBufMux byte budget (0 = auto) |
+| `ze.fwd.pool.size` | 0 | **Deprecated:** use `ze.fwd.pool.maxbytes` instead |
 | `ze.fwd.pool.maxbytes` | 0 | Combined byte budget for 4K+64K buffer pools (0 = unlimited) |
 | `ze.fwd.batch.limit` | 1024 | Max items per forward batch |
 | `ze.fwd.teardown.grace` | 5s | Grace period before forced teardown |
@@ -174,7 +174,20 @@ time. Calling `env.Get()` with an unregistered key aborts the process.
 |------|---------|
 | `Private` | Hidden from `ze env list` (tokens, test-only keys) |
 | `Secret` | Cleared from OS environment after first `env.Get()`; value remains in the in-process cache |
+| `Aliases` | Alternative keys that resolve to the same entry (for YANG-aligned names during promotion) |
+| `Deprecated` | Prints a one-time warning to stderr on first use when the var is set, suggesting the replacement key |
+
+**Aliases:** When a setting is promoted from env-only to YANG config, the old
+abbreviated env var key stays for backward compatibility and the new
+YANG-aligned key is registered as an alias (or vice versa). `Get()` and
+`Set()` resolve aliases to the canonical key transparently. Precedence:
+canonical key value > alias key value. See `ai/rules/config-naming.md`.
+
+**Deprecation:** When an env var is superseded (e.g., `ze.fwd.pool.size` by
+`ze.fwd.pool.maxbytes`), mark it with `Deprecated: "replacement.key"`.
+The warning only fires when the deprecated var is actually set (non-empty),
+avoiding noise on every startup.
 
 ---
 
-**Last Updated:** 2026-04-18
+**Last Updated:** 2026-06-12

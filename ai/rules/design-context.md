@@ -32,11 +32,11 @@ request/response and adding DirectBridge to the anti-pattern table.
 | Cross-plugin comm (broadcast) | `pkg/ze/eventbus.go` + `internal/core/events/typed.go` + one consumer (e.g. fibkernel) | EventBus is for async pub/sub notifications, not request/response |
 | Cross-plugin comm (request/response) | `pkg/plugin/rpc/bridge.go` (DirectBridge) + `plan/learned/294-inprocess-direct-transport.md` | DirectBridge for sync typed calls from core to internal plugins. Do not reinvent this. |
 | Shared registry | `internal/core/family/` (read the code) | Registry inside a plugin instead of core |
-| Config option | `ai/patterns/config-option.md` + `ai/rules/config-design.md` | Missing env var, wrong YANG shape |
+| Config option | `ai/patterns/config-option.md` + `ai/rules/config-design.md` + `ai/rules/config-surface.md` + `ai/rules/config-naming.md` | Missing env var, wrong YANG shape, env-only when should be config, wrong leaf name |
 | CLI command | `ai/patterns/cli-command.md` | Wrong dispatch structure |
 | Platform-specific | Existing splits (`fibkernel/backend_linux.go`, `ifacenetlink/sysctl_linux.go`) | Wrong build tag, wrong abstraction level |
 | New feature with dataplane effect | `internal/plugins/iface/netlink/` + `internal/plugins/iface/vpp/` | Netlink-only feature without VPP support |
-| Naming | `ai/rules/naming.md` + grep analogous names | Inventing ze-names when kernel/standard names exist |
+| Naming | `ai/rules/naming.md` + `ai/rules/config-naming.md` (config/env) + grep analogous names | Inventing ze-names when kernel/standard names exist, abbreviated YANG leaves, env var path not mirroring YANG |
 
 ## Tier 3: When the Design Touches These Areas
 
@@ -44,7 +44,7 @@ request/response and adding DirectBridge to the anti-pattern table.
 |------|------|----------|
 | Plugin startup timing | `internal/component/plugin/server/startup.go` (`TopologicalTiers`, `runPluginPhase`) | Hand-waving instead of tier ordering |
 | Wire encoding | `ai/rules/buffer-first.md` | Allocations in encoding |
-| Env vars | `ai/rules/go-standards.md` + `internal/core/env/` | `os.Getenv`, missing `MustRegister` |
+| Env vars | `ai/rules/go-standards.md` + `ai/rules/config-surface.md` + `ai/rules/config-naming.md` + `internal/core/env/` | `os.Getenv`, missing `MustRegister`, env-only when should be YANG config, wrong naming convention |
 | JSON format | `ai/rules/json-format.md` | Wrong key casing |
 | Testing | `ai/rules/testing.md` + `ai/patterns/functional-test.md` | Missing .ci tests, wrong structure |
 | Daemon lifecycle | `OnStarted`/`OnAllPluginsReady` in a similar plugin | Wrong callback, missing cleanup |

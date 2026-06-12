@@ -192,13 +192,16 @@ Namespace: `urn:ze:<domain>:<purpose>` (e.g., `urn:ze:bgp:conf`).
 
 ## Naming Across Layers
 
+Full naming conventions: `ai/rules/config-naming.md`
+Decision framework (YANG vs env var): `ai/rules/config-surface.md`
+
 | Layer | Convention | Example |
 |-------|-----------|---------|
-| YANG leaf | kebab-case | `my-option` |
-| Go struct field | PascalCase | `MyOption` |
-| Env var | dots + kebab | `ze.bgp.section.my-option` |
-| CLI input | kebab-case | `section my-option value` |
-| Config file | kebab-case | `my-option value;` |
+| YANG leaf | kebab-case, no abbreviations | `forward-queue-size` |
+| Go struct field | PascalCase of YANG leaf | `ForwardQueueSize` |
+| Env var | `ze.<component>.<container>.<yang-leaf>` | `ze.bgp.reactor.forward-queue-size` |
+| CLI input | kebab-case | `reactor forward-queue-size 128` |
+| Config file | kebab-case | `forward-queue-size 128;` |
 
 ## Config Override Priority (highest first)
 

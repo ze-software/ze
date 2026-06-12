@@ -11,3 +11,6 @@ Rationale: `ai/rationale/naming.md`
 | BGP JSON format | `ze-bgp` |
 | Go variables | `ZeBGPConf*` |
 | YANG suffixes | config `-conf`, API `-api` |
+
+Config-specific naming (YANG leaves, env var keys, Go struct fields):
+`ai/rules/config-naming.md`

@@ -2,6 +2,8 @@
 
 Rationale: `ai/rationale/config-design.md`
 Structural template: `ai/patterns/config-option.md`
+Decision framework (YANG vs env var): `ai/rules/config-surface.md`
+Naming conventions: `ai/rules/config-naming.md`
 
 - No version numbers in config. Design for machine-transformable migration.
 - Fail on unknown keys at any level. No silent ignore. Suggest closest valid key.

@@ -154,7 +154,7 @@
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs/config) | [ ] | `internal/component/<name>/yang/` or the owning plugin's `yang/` |
+| YANG schema (new RPCs/config) | [ ] | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config-surface.md` (YANG vs env var) and `ai/rules/config-naming.md` (naming) |
 | YANG validation constraints | [ ] | Every leaf MUST have maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
 | YANG custom validators | [ ] | If native YANG constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for tab-completion. Register in `validators_register.go` |
 | CLI commands/flags | [ ] | `cmd/ze/*/main.go` or subcommand files |
@@ -162,7 +162,7 @@
 | Editor autocomplete | [ ] | Automatic for YANG enum/type leaves. For dynamic values: `CompleteFn` in custom validator returns valid options |
 | Functional test for new RPC/API | [ ] | `test/plugin/*.ci` or `test/decode/*.ci` |
 | Pipe completeness | [ ] | If command produces output: route through `ApplyPipes`/`ProcessPipes`, support all pipe operators per `ai/rules/pipe-completeness.md` |
-| Env var registration | [ ] | If YANG config leaves added under `environment/`: matching `ze.<name>.<leaf>` env var via `env.MustRegister()` |
+| Env var registration | [ ] | If YANG config leaves added under `environment/`: matching `ze.<name>.<leaf>` env var via `env.MustRegister()`. Read `ai/rules/config-surface.md` before adding env-only settings |
 | Doctor check for runtime dependencies | [ ] | If any file path, socket, external service, kernel module, listen port, procfs/sysctl, netlink, external binary, or certificate material is introduced: owning package doctor check, `internal/core/diagnostic/codes.go`, unit test, functional test (see `ai/rules/doctor-checks.md`) |
 | Prometheus counters/metrics | [ ] | If feature has observable state: define counters, register in telemetry, list metric names and labels in this spec |
 

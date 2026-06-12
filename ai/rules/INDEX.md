@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 72 rules
+Total: 74 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -21,8 +21,10 @@ Total: 72 rules
 | CLI Grammar: Keywords Before Values | Every CLI command must place a closed keyword before any user-supplied value. This eliminates ambiguity where a free-form value could collide with a keyword. | `ai/rules/cli-grammar.md` |
 | CLI Patterns | All CLI commands MUST follow these patterns. | `ai/rules/cli-patterns.md` |
 | No Backwards Compatibility | Ze has never been released. No users. No compat code, comments, shims, or fallbacks anywhere — including the plugin API. If something needs to change, just change it. | `ai/rules/compatibility.md` |
-| Config Design | Augment is for cross-component plugin extensions only. Same-component shared structure uses grouping. If you are writing an augment and both the source and target are in the same component, use a... | `ai/rules/config-design.md` |
+| Config Design | Decision framework (YANG vs env var): `ai/rules/config-surface.md` Naming conventions: `ai/rules/config-naming.md` | `ai/rules/config-design.md` |
 | Config Manipulation | Config content MUST be manipulated through one of two methods only. | `ai/rules/config-manipulation.md` |
+| Config Naming Conventions | Extends: `ai/rules/naming.md`, `ai/rules/config-design.md` | `ai/rules/config-naming.md` |
+| Config Surface: YANG Config vs Env Var | Extends: `ai/rules/config-design.md`, `ai/patterns/config-option.md` Naming: `ai/rules/config-naming.md` | `ai/rules/config-surface.md` |
 | Data Flow Tracing | Trace full data flow before writing or reviewing specs. | `ai/rules/data-flow-tracing.md` |
 | Deferral Tracking | Every decision to not perform in-scope work MUST be recorded. | `ai/rules/deferral-tracking.md` |
 | Derive, Never Hardcode | If enumerated data has a canonical source (registry, map, typed enum, list function), DERIVE every display/help/error/usage/doc string from it. No second hardcoded copy. | `ai/rules/derive-not-hardcode.md` |

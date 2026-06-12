@@ -72,17 +72,17 @@ tacacs, telemetry, traceroute, traffic, update, vpp, web
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
 <!-- BEGIN GENERATED: arch-system-plugins (scripts/dev/arch_map.py; make ze-regen) -->
-63 directories under `internal/plugins/`:
+64 directories under `internal/plugins/`:
 
 aaa-cmd, bfd, completion, config-archive-cmd, config-cli, config-schema,
-config-storage, config-yang, connect, connected, crashes, debug, dhcpserver,
-diag, env, exabgp, explain, fib, firewall, flowexport-cmd, flowspec-firewall,
-gnmi-cmd, host, host-cmd, iface, ifacenetlink, imageserver, init, kernel,
-l2tp-cmd, l2tpauthlocal, l2tpauthradius, l2tppool, l2tpshaper, ldp-cmd, local,
-log, meta, mpls-cmd, ntp, passwd, ping-cmd, pki-cmd, policyroute, pppoe-cmd,
-provision, resolve-cmd, routingtable, rsvpte-cmd, signal, skills, static,
-storage-cmd, subscriber-cmd, support, sysctl, sysrib, systemd, tftpserver,
-traceroute-cmd, traffic, traffic-cmd, update-cmd
+config-storage, config-yang, connect, connected, cos, crashes, debug,
+dhcpserver, diag, env, exabgp, explain, fib, firewall, flowexport-cmd,
+flowspec-firewall, gnmi-cmd, host, host-cmd, iface, ifacenetlink, imageserver,
+init, kernel, l2tp-cmd, l2tpauthlocal, l2tpauthradius, l2tppool, l2tpshaper,
+ldp-cmd, local, log, meta, mpls-cmd, ntp, passwd, ping-cmd, pki-cmd,
+policyroute, pppoe-cmd, provision, resolve-cmd, routingtable, rsvpte-cmd,
+signal, skills, static, storage-cmd, subscriber-cmd, support, sysctl, sysrib,
+systemd, tftpserver, traceroute-cmd, traffic, traffic-cmd, update-cmd
 <!-- END GENERATED: arch-system-plugins -->
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
@@ -148,6 +148,7 @@ means "no rule applies".
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/`, `ai/rules/hook-mapping.md` (which checks will fire) |
 | Touch wire encoding, allocate memory, or build strings | `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md`, `ai/rules/no-sprintf-alloc.md` -- load-bearing divergence from standard Go |
+| Add a YANG leaf, env var, or config option | `ai/rules/config-surface.md` (YANG vs env var decision), `ai/rules/config-naming.md` (naming), `ai/patterns/config-option.md` (structural template) |
 | Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugin-self-containment.md` -- remove the plugin and ALL its features vanish; no plugin spelling in generic/central packages |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/interop-and-goal-validation.md` |

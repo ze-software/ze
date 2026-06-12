@@ -23,6 +23,9 @@ func TestMain(m *testing.M) {
 	MustRegister(EnvEntry{Key: "ze.test.public.val", Type: "string", Description: "visible"})
 	MustRegister(EnvEntry{Key: "ze.test.secret.val", Type: "string", Description: "sensitive token", Secret: true})
 	MustRegister(EnvEntry{Key: "ze.test.nonsecret.val", Type: "string", Description: "normal var"})
+	MustRegister(EnvEntry{Key: "ze.test.alias.canonical", Type: "string", Description: "canonical key with alias", Aliases: []string{"ze.test.alias.alt"}})
+	MustRegister(EnvEntry{Key: "ze.test.deprecated.old", Type: "string", Description: "deprecated var", Deprecated: "ze.test.deprecated.new"})
+	MustRegister(EnvEntry{Key: "ze.test.deprecated.new", Type: "string", Description: "replacement var"})
 	os.Exit(m.Run())
 }
 
@@ -397,4 +400,151 @@ func TestNonSecretEnvVarNotCleared(t *testing.T) {
 
 	// OS env should still have the variable.
 	assert.Equal(t, "keep-me", os.Getenv("ZE_TEST_NONSECRET_VAL"), "non-secret var must NOT be cleared from OS env")
+}
+
+// TestAliasResolvesToCanonical verifies that Get() via an alias key returns
+// the value set under the canonical key.
+func TestAliasResolvesToCanonical(t *testing.T) {
+	const canonical = "ze.test.alias.canonical"
+	const alias = "ze.test.alias.alt"
+
+	unsetAll(t, canonical)
+	unsetAll(t, alias)
+	defer unsetAll(t, canonical)
+	defer unsetAll(t, alias)
+
+	require.NoError(t, os.Setenv("ZE_TEST_ALIAS_CANONICAL", "from-canonical"))
+	ResetCache()
+
+	assert.Equal(t, "from-canonical", Get(canonical))
+	assert.Equal(t, "from-canonical", Get(alias))
+}
+
+// TestAliasValueFallback verifies that Get() via an alias finds the value
+// even when it was set under the alias key form in the OS environment.
+func TestAliasValueFallback(t *testing.T) {
+	const canonical = "ze.test.alias.canonical"
+	const alias = "ze.test.alias.alt"
+
+	unsetAll(t, canonical)
+	unsetAll(t, alias)
+	defer unsetAll(t, canonical)
+	defer unsetAll(t, alias)
+
+	require.NoError(t, os.Setenv("ZE_TEST_ALIAS_ALT", "from-alias"))
+	ResetCache()
+
+	assert.Equal(t, "from-alias", Get(alias))
+}
+
+// TestAliasPrecedence verifies that when both canonical and alias env vars are
+// set, the canonical value wins.
+func TestAliasPrecedence(t *testing.T) {
+	const canonical = "ze.test.alias.canonical"
+	const alias = "ze.test.alias.alt"
+
+	unsetAll(t, canonical)
+	unsetAll(t, alias)
+	defer unsetAll(t, canonical)
+	defer unsetAll(t, alias)
+
+	require.NoError(t, os.Setenv("ZE_TEST_ALIAS_CANONICAL", "canonical-wins"))
+	require.NoError(t, os.Setenv("ZE_TEST_ALIAS_ALT", "alias-value"))
+	ResetCache()
+
+	assert.Equal(t, "canonical-wins", Get(canonical))
+	assert.Equal(t, "canonical-wins", Get(alias))
+}
+
+// TestAliasSet verifies that Set() via an alias stores under the canonical key.
+func TestAliasSet(t *testing.T) {
+	const canonical = "ze.test.alias.canonical"
+	const alias = "ze.test.alias.alt"
+
+	unsetAll(t, canonical)
+	unsetAll(t, alias)
+	defer unsetAll(t, canonical)
+	defer unsetAll(t, alias)
+
+	require.NoError(t, Set(alias, "set-via-alias"))
+
+	assert.Equal(t, "set-via-alias", Get(canonical))
+	assert.Equal(t, "set-via-alias", Get(alias))
+}
+
+// TestAliasIsRegistered verifies that IsRegistered returns true for alias keys.
+func TestAliasIsRegistered(t *testing.T) {
+	assert.True(t, IsRegistered("ze.test.alias.alt"))
+	assert.True(t, IsRegistered("ze.test.alias.canonical"))
+	assert.False(t, IsRegistered("ze.test.alias.nonexistent"))
+}
+
+// TestDeprecatedWarnsOnce verifies that a deprecated key prints a warning
+// to stderr on first use only, and only when the var is actually set.
+func TestDeprecatedWarnsOnce(t *testing.T) {
+	const key = "ze.test.deprecated.old"
+
+	unsetAll(t, key)
+	defer unsetAll(t, key)
+
+	// Reset warned state for this test.
+	deprecatedWarnedMu.Lock()
+	delete(deprecatedWarned, key)
+	deprecatedWarnedMu.Unlock()
+
+	// Set the deprecated var so the warning fires.
+	require.NoError(t, os.Setenv("ZE_TEST_DEPRECATED_OLD", "some-value"))
+	ResetCache()
+
+	// Capture stderr.
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	origStderr := os.Stderr
+	os.Stderr = w
+
+	_ = Get(key) // first call: should warn
+	_ = Get(key) // second call: should not warn again
+
+	require.NoError(t, w.Close())
+	os.Stderr = origStderr
+
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	require.NoError(t, r.Close())
+	output := string(buf[:n])
+
+	assert.Contains(t, output, "deprecated")
+	assert.Contains(t, output, "ze.test.deprecated.new")
+	assert.Equal(t, 1, strings.Count(output, "deprecated, use"), "warning should appear exactly once")
+}
+
+// TestDeprecatedNoWarnWhenUnset verifies that a deprecated key does NOT print
+// a warning when the env var is not set (empty value).
+func TestDeprecatedNoWarnWhenUnset(t *testing.T) {
+	const key = "ze.test.deprecated.old"
+
+	unsetAll(t, key)
+	defer unsetAll(t, key)
+
+	// Reset warned state.
+	deprecatedWarnedMu.Lock()
+	delete(deprecatedWarned, key)
+	deprecatedWarnedMu.Unlock()
+
+	// Capture stderr.
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	origStderr := os.Stderr
+	os.Stderr = w
+
+	_ = Get(key) // var not set: should NOT warn
+
+	require.NoError(t, w.Close())
+	os.Stderr = origStderr
+
+	buf := make([]byte, 512)
+	n, _ := r.Read(buf)
+	require.NoError(t, r.Close())
+
+	assert.Equal(t, 0, n, "no warning should be printed when deprecated var is not set")
 }
