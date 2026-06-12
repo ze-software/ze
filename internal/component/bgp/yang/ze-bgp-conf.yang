@@ -940,6 +940,13 @@ module ze-bgp-conf {
             leaf cache-ttl { type uint32; default 60; description "Seconds to keep recently-built UPDATE wire messages in the encoding cache. Cached UPDATEs are reused for peers with the same encoding context, avoiding redundant serialization. 0 disables caching (every UPDATE is built fresh)."; }
             leaf cache-max { type uint32; default 1000000; description "Maximum number of cached UPDATE wire messages. Bounds memory usage of the encoding cache. 0 means unlimited (cache grows with the route table)."; }
             leaf update-groups { type boolean; default true; description "Build each UPDATE once and send to all peers with the same encoding context (same capabilities, same address families). Reduces CPU from O(peers x routes) to O(groups x routes). Disable only for debugging."; }
+            leaf forward-queue-size { type uint32 { range "1..1000000"; } default 256; description "Per-destination forward channel capacity. Controls how many UPDATE items can be buffered per destination peer before backpressure kicks in."; }
+            leaf forward-batch-limit { type uint32 { range "0..1000000"; } default 1024; description "Max items per drain batch. Bounds writeMu hold time during forward dispatch. 0 means unlimited."; }
+            leaf forward-pool-max-bytes { type uint32; default 0; description "Combined byte budget for 4K+64K buffer pools in bytes (max ~4GB). 0 means unlimited (auto-sized from peer prefix maximums)."; }
+            leaf forward-pool-headroom { type uint32; default 0; description "Extra bytes beyond auto-sized pool baseline (max ~4GB). Ignored when forward-pool-max-bytes is explicitly set."; }
+            leaf forward-teardown-grace { type string; default "5s"; description "Grace period before forced teardown on congestion (duration string, e.g. 5s, 1m)."; }
+            leaf read-buffer-size { type uint32 { range "4096..16777216"; } default 65536; description "Per-session TCP read buffer size in bytes."; }
+            leaf write-buffer-size { type uint32 { range "4096..16777216"; } default 16384; description "Per-session TCP write buffer size in bytes."; }
         }
     }
 }

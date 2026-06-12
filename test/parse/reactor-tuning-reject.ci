@@ -1,0 +1,12 @@
+# Test: reactor tuning YANG range constraints reject invalid values
+# VALIDATES: AC-8 -- forward-queue-size 0 is below range "1..1000000"
+stdin=config:terminator=EOF_CONF
+environment {
+    reactor {
+        forward-queue-size 0;
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

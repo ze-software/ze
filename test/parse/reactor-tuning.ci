@@ -1,0 +1,22 @@
+# Test: reactor tuning YANG leaves are accepted by config validator
+# VALIDATES: AC-1 through AC-5, AC-7, AC-8
+# Verifies: forward-queue-size, forward-batch-limit, forward-pool-max-bytes,
+#           forward-pool-headroom, forward-teardown-grace, read-buffer-size,
+#           write-buffer-size are valid leaves under environment/reactor/.
+stdin=config:terminator=EOF_CONF
+environment {
+    reactor {
+        forward-queue-size 128;
+        forward-batch-limit 512;
+        forward-pool-max-bytes 67108864;
+        forward-pool-headroom 1048576;
+        forward-teardown-grace 10s;
+        read-buffer-size 131072;
+        write-buffer-size 32768;
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

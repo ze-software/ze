@@ -1,0 +1,12 @@
+# Test: reactor tuning YANG range rejects read-buffer-size below 4096
+# VALIDATES: AC-8 -- read-buffer-size 2048 is below range "4096..16777216"
+stdin=config:terminator=EOF_CONF
+environment {
+    reactor {
+        read-buffer-size 2048;
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

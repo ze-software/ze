@@ -1665,7 +1665,14 @@ Configure reactor behavior under `environment { reactor { } }`:
 ```
 environment {
     reactor {
-        update-groups true;   # cross-peer UPDATE grouping (default: true)
+        update-groups true;           # cross-peer UPDATE grouping (default: true)
+        forward-queue-size 256;       # per-destination forward channel capacity
+        forward-batch-limit 1024;     # max items per drain batch (0=unlimited)
+        forward-pool-max-bytes 0;     # buffer pool byte budget (0=unlimited/auto)
+        forward-pool-headroom 0;      # extra bytes beyond auto-sized baseline
+        forward-teardown-grace 5s;    # congestion teardown grace period
+        read-buffer-size 65536;       # TCP read buffer (bytes)
+        write-buffer-size 16384;      # TCP write buffer (bytes)
     }
 }
 ```
@@ -1673,6 +1680,13 @@ environment {
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `update-groups` | boolean | `true` | Enable cross-peer UPDATE grouping. When enabled, peers with identical encoding contexts share a single UPDATE build. |
+| `forward-queue-size` | uint32 | `256` | Per-destination forward channel capacity (range: 1-1000000). |
+| `forward-batch-limit` | uint32 | `1024` | Max items per drain batch, bounds write lock hold time (range: 0-1000000, 0=unlimited). |
+| `forward-pool-max-bytes` | uint32 | `0` | Combined byte budget for 4K+64K buffer pools (0=unlimited, auto-sized from peer prefix maximums). |
+| `forward-pool-headroom` | uint32 | `0` | Extra bytes beyond auto-sized pool baseline. Ignored when forward-pool-max-bytes is set. |
+| `forward-teardown-grace` | string | `5s` | Grace period before forced teardown on congestion (duration, e.g. 5s, 1m). |
+| `read-buffer-size` | uint32 | `65536` | Per-session TCP read buffer size in bytes (range: 4096-16777216). |
+| `write-buffer-size` | uint32 | `16384` | Per-session TCP write buffer size in bytes (range: 4096-16777216). |
 
 When `update-groups` is true (the default), the reactor groups established peers by their outbound encoding context (ContextID + policy). UPDATEs are built once per group and the wire bytes are fanned out to all group members. This reduces CPU usage proportionally to group size -- for a route server with 100 peers sharing the same capabilities, UPDATE building work is reduced by approximately 100x.
 

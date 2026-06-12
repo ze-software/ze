@@ -188,6 +188,50 @@ func TestEnvPlumbingTableSectionsExtracted(t *testing.T) {
 	}
 }
 
+// TestApplyEnvConfigReactorTuning verifies that the promoted reactor tuning
+// YANG leaves plumb through to their corresponding env var keys.
+func TestApplyEnvConfigReactorTuning(t *testing.T) {
+	tests := []struct {
+		option string
+		value  string
+		envKey string
+	}{
+		{"forward-queue-size", "128", "ze.fwd.chan.size"},
+		{"forward-batch-limit", "512", "ze.fwd.batch.limit"},
+		{"forward-pool-max-bytes", "67108864", "ze.fwd.pool.maxbytes"},
+		{"forward-pool-headroom", "1048576", "ze.fwd.pool.headroom"},
+		{"forward-teardown-grace", "10s", "ze.fwd.teardown.grace"},
+		{"read-buffer-size", "131072", "ze.buf.read.size"},
+		{"write-buffer-size", "32768", "ze.buf.write.size"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.option, func(t *testing.T) {
+			resetEnvCache(t)
+			ApplyEnvConfig(map[string]map[string]string{
+				"reactor": {tt.option: tt.value},
+			})
+			if got := env.Get(tt.envKey); got != tt.value {
+				t.Errorf("%s = %q, want %q", tt.envKey, got, tt.value)
+			}
+		})
+	}
+}
+
+// TestApplyEnvConfigReactorTuningOSWins verifies that OS env vars override
+// YANG reactor tuning leaves (same rule as all other plumbed values).
+func TestApplyEnvConfigReactorTuningOSWins(t *testing.T) {
+	t.Setenv("ze.fwd.chan.size", "999")
+	resetEnvCache(t)
+
+	ApplyEnvConfig(map[string]map[string]string{
+		"reactor": {"forward-queue-size": "128"},
+	})
+
+	if got := env.Get("ze.fwd.chan.size"); got != "999" {
+		t.Errorf("ze.fwd.chan.size = %q, want 999 (OS env wins)", got)
+	}
+}
+
 // splitSectionDot splits "a.b" into ("a", "b", true). Returns (_, _, false)
 // if the input has no dot.
 func splitSectionDot(s string) (parent, child string, ok bool) {

@@ -56,7 +56,7 @@ pre-existing OS env var).
 | `pprof` | (top-level leaf) | `ze.pprof` | "" | pprof HTTP server address, e.g. `:6060` |
 | `chaos` | `seed` | `ze.bgp.chaos.seed` | 0 | PRNG seed (0 = disabled) |
 | `chaos` | `rate` | `ze.bgp.chaos.rate` | "0.1" | Fault probability (0.0-1.0) |
-| `reactor` | `speed`, `cache-ttl`, `cache-max`, `update-groups` | `ze.bgp.reactor.*` | per-leaf | Reactor tuning |
+| `reactor` | `speed`, `cache-ttl`, `cache-max`, `update-groups`, `forward-queue-size`, `forward-batch-limit`, `forward-pool-max-bytes`, `forward-pool-headroom`, `forward-teardown-grace`, `read-buffer-size`, `write-buffer-size` | `ze.bgp.reactor.*` / `ze.fwd.*` / `ze.buf.*` | per-leaf | Reactor tuning |
 | `exabgp/api` | `ack` | `exabgp.api.ack` | true | ExaBGP bridge ack emission |
 <!-- source: internal/component/hub/yang/ze-hub-conf.yang -- environment container -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- environment augment -->
