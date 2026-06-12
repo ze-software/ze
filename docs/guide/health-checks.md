@@ -111,3 +111,103 @@ show warnings source bgp
 | `plugin-crash` | plugin | error | Plugin process exited unexpectedly |
 | `plugin-down` | plugin | warning | Plugin disabled (respawn limit) |
 | `iface-errors` | iface | warning | RX/TX error counters increasing |
+
+## Adding Doctor Checks
+
+Plugins and components extend `ze doctor` by registering their own checks.
+There are two registration paths depending on whether the owner is a plugin.
+
+### Internal plugins (preferred)
+
+Declare checks in `registry.Registration.DoctorChecks`. The doctor runner
+bridges these at execution time. Each check receives a `DoctorCheckContext`
+(config tree + platform) and returns diagnostics.
+
+```go
+reg := registry.Registration{
+    Name: "my-plugin",
+    // ...
+    DoctorChecks: []registry.DoctorCheckDef{{
+        Name:         "my-plugin-reachable",
+        Phase:        rpc.DoctorPhasePostConfig,
+        Order:        700,
+        Dependencies: []string{"config-parse"},
+        Platforms:    []string{"any"},
+        Codes:        []string{"doctor-my-plugin-unreachable"},
+        Check:        checkMyService,
+    }},
+}
+```
+
+Reference example: `internal/plugins/l2tpauthradius/register.go`.
+
+### Non-plugin components
+
+Components that are not plugins (appliance, web, SSH) use
+`diagnostic.RegisterDoctorCheck()` from their owning package's `init()`.
+
+```go
+func init() {
+    diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
+        Name:         "my-component-ready",
+        Phase:        "post-config",
+        Order:        500,
+        Component:    "my-component",
+        Dependencies: []string{"config-parse"},
+        Platforms:    []string{"any"},
+        Codes:        []string{"doctor-my-component-missing"},
+        Check:        checkMyComponent,
+    })
+}
+```
+
+### External plugins (RPC)
+
+External plugins declare checks in `DoctorChecks` during Stage 1
+registration, then handle the `doctor-check` callback at runtime.
+
+Declaration (in `sdk.Registration`):
+
+```go
+p.Run(ctx, sdk.Registration{
+    DoctorChecks: []rpc.DoctorCheckDecl{{
+        Name:         "my-cache-reachable",
+        Phase:        rpc.DoctorPhasePostConfig,
+        Order:        700,
+        Dependencies: []string{"config-parse"},
+        Platforms:    []string{"any"},
+        Codes:        []string{"doctor-my-cache-unreachable"},
+    }},
+})
+```
+
+Callback handler:
+
+```go
+p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+    if name == "my-cache-reachable" {
+        if err := pingCache(); err != nil {
+            return []rpc.DoctorCheckDiagnostic{{
+                Code:     "doctor-my-cache-unreachable",
+                Severity: "error",
+                Message:  "cache server not reachable: " + err.Error(),
+            }}, nil
+        }
+    }
+    return nil, nil
+})
+```
+
+The engine invokes plugin checks only at runtime (`show doctor`), not
+during offline `ze doctor`. See `docs/architecture/api/process-protocol.md`
+for the full protocol.
+
+### Requirements
+
+Every new doctor check must:
+
+1. Use a diagnostic code with the `doctor-` prefix.
+2. Register the code in `internal/core/diagnostic/codes.go` so
+   `ze explain <code>` works.
+3. Include a unit test proving the check fires when the relevant config
+   is present and emits the registered code.
