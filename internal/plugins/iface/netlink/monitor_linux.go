@@ -42,6 +42,7 @@ type monitor struct {
 	stopFn       sync.Once
 	started      atomic.Bool
 	known        sync.Map // map[int]struct{} — known link indices
+	linkNames    sync.Map // map[int]string — index to name, updated by link events
 	knownRouters sync.Map // map[neighKey]struct{} — neighbors seen with NTF_ROUTER
 }
 
@@ -185,6 +186,8 @@ func (m *monitor) handleLinkUpdate(lu netlink.LinkUpdate) {
 	name := attrs.Name
 	idx := attrs.Index
 
+	m.linkNames.Store(idx, name)
+
 	switch lu.Header.Type {
 	case unix.RTM_NEWLINK:
 		if _, seen := m.known.LoadOrStore(idx, struct{}{}); !seen {
@@ -200,6 +203,7 @@ func (m *monitor) handleLinkUpdate(lu netlink.LinkUpdate) {
 		}
 	case unix.RTM_DELLINK:
 		m.known.Delete(idx)
+		m.linkNames.Delete(idx)
 		// Interface deletion maps to (interface, down): there is no
 		// separate "deleted" event type in the stream registry. Down is
 		// the closest semantic match (link is no longer operational).
@@ -213,22 +217,17 @@ func (m *monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 	if au.LinkAddress.IP == nil {
 		return
 	}
-	if au.Flags&unix.IFA_F_TENTATIVE != 0 {
+	if au.Flags&unix.IFA_F_TENTATIVE != 0 && au.LinkAddress.IP.To4() == nil {
 		return
 	}
 
-	link, err := netlink.LinkByIndex(au.LinkIndex)
-	if err != nil {
-		loggerPtr.Load().Debug("iface monitor: link lookup failed",
-			"index", au.LinkIndex, "err", err)
+	nameVal, ok := m.linkNames.Load(au.LinkIndex)
+	if !ok {
+		loggerPtr.Load().Debug("iface monitor: unknown link index for addr event",
+			"index", au.LinkIndex)
 		return
 	}
-	attrs := link.Attrs()
-	if attrs == nil {
-		return
-	}
-
-	ifaceName := attrs.Name
+	ifaceName := nameVal.(string)
 	parent, unit, _ := resolveVLANUnit(ifaceName)
 	addr := au.LinkAddress.IP.String()
 	ones, _ := au.LinkAddress.Mask.Size()
@@ -264,15 +263,11 @@ func (m *monitor) handleNeighUpdate(nu netlink.NeighUpdate) {
 		return // only link-local (fe80::) routers are default route gateways
 	}
 
-	link, err := netlink.LinkByIndex(nu.LinkIndex)
-	if err != nil {
+	nameVal, ok := m.linkNames.Load(nu.LinkIndex)
+	if !ok {
 		return
 	}
-	attrs := link.Attrs()
-	if attrs == nil {
-		return
-	}
-	ifaceName := attrs.Name
+	ifaceName := nameVal.(string)
 
 	nk := neighKey{linkIndex: nu.LinkIndex, ip: nu.IP.String()}
 	isRouter := nu.Flags&netlink.NTF_ROUTER != 0

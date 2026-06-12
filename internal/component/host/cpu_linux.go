@@ -163,6 +163,15 @@ func applyCPUInfoField(cpu *CPUInfo, current **CoreInfo, flags *[]string, key, v
 		if cpu.ModelName == "" {
 			cpu.ModelName = val
 		}
+	case "CPU implementer":
+		if cpu.ModelName == "" {
+			cpu.ModelName = "ARM"
+		}
+	case "CPU part":
+		if cpu.ModelName == "ARM" {
+			var tb textbuf.Buffer
+			cpu.ModelName = tb.Str("ARM (part ").Str(val).Byte(')').String()
+		}
 	case "microcode":
 		if cpu.Microcode == "" {
 			cpu.Microcode = val
