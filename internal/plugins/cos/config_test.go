@@ -76,6 +76,37 @@ func TestCoSProfileParseEmpty(t *testing.T) {
 	assert.Empty(t, p.EgressMap)
 }
 
+// VALIDATES: resolver handles inheritance, "none", mutual exclusion, and lookup.
+// PREVENTS: resolution logic broken when moved from iface to cos plugin.
+func TestResolveCoSForUnit(t *testing.T) {
+	t.Cleanup(coreCos.Clear)
+	coreCos.Register("res", coreCos.Profile{
+		IngressMap: map[uint32]uint32{6: 6},
+		EgressMap:  map[uint32]uint32{6: 6},
+	})
+
+	in, eg, err := resolveCoSForUnit("res", "", false)
+	require.NoError(t, err)
+	assert.Equal(t, map[uint32]uint32{6: 6}, in)
+	assert.Equal(t, map[uint32]uint32{6: 6}, eg)
+
+	in, eg, err = resolveCoSForUnit("res", "none", false)
+	require.NoError(t, err)
+	assert.Nil(t, in)
+	assert.Nil(t, eg)
+
+	in, eg, err = resolveCoSForUnit("", "", false)
+	require.NoError(t, err)
+	assert.Nil(t, in)
+	assert.Nil(t, eg)
+
+	_, _, err = resolveCoSForUnit("res", "", true)
+	assert.ErrorContains(t, err, "mutually exclusive")
+
+	_, _, err = resolveCoSForUnit("missing", "", false)
+	assert.ErrorContains(t, err, "not found")
+}
+
 // VALIDATES: boundary values 0 and 7 are both accepted.
 // PREVENTS: off-by-one in range validation.
 func TestCoSProfileParseBoundary(t *testing.T) {

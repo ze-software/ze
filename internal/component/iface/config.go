@@ -883,23 +883,14 @@ func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 				return nil, fmt.Errorf("unit %q: %w", name, err)
 			}
 
-			cosName, _ := um["class-of-service"].(string)
-			if cosName == "" {
-				cosName = parentCoS
+			unitCoS, _ := um["class-of-service"].(string)
+			ingress, egress, cosErr := cos.Resolve(parentCoS, unitCoS, u.IngressQoSMap != nil || u.EgressQoSMap != nil)
+			if cosErr != nil {
+				return nil, fmt.Errorf("unit %q: %w", name, cosErr)
 			}
-			if cosName == "none" {
-				cosName = ""
-			}
-			if cosName != "" {
-				if u.IngressQoSMap != nil || u.EgressQoSMap != nil {
-					return nil, fmt.Errorf("unit %q: class-of-service and inline qos maps are mutually exclusive", name)
-				}
-				p, ok := cos.Lookup(cosName)
-				if !ok {
-					return nil, fmt.Errorf("unit %q: class-of-service profile %q not found", name, cosName)
-				}
-				u.IngressQoSMap = p.IngressMap
-				u.EgressQoSMap = p.EgressMap
+			if ingress != nil || egress != nil {
+				u.IngressQoSMap = ingress
+				u.EgressQoSMap = egress
 			}
 
 			if (u.IngressQoSMap != nil || u.EgressQoSMap != nil) && u.VLANID <= 0 {

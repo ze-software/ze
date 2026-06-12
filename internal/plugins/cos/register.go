@@ -14,6 +14,8 @@ import (
 )
 
 func init() {
+	coreCos.RegisterResolver(resolveCoSForUnit)
+
 	reg := registry.Registration{
 		Name:                    Name,
 		Description:             "802.1p class-of-service profile definitions",

@@ -38,3 +38,37 @@ func TestRegistryClear(t *testing.T) {
 	_, ok := Lookup("test")
 	assert.False(t, ok)
 }
+
+func TestResolveNoResolver(t *testing.T) {
+	t.Cleanup(ClearResolver)
+
+	ingress, egress, err := Resolve("residential", "", false)
+	assert.NoError(t, err)
+	assert.Nil(t, ingress)
+	assert.Nil(t, egress)
+}
+
+func TestResolveWithResolver(t *testing.T) {
+	t.Cleanup(func() { Clear(); ClearResolver() })
+
+	Register("res", Profile{
+		IngressMap: map[uint32]uint32{6: 6},
+		EgressMap:  map[uint32]uint32{6: 6},
+	})
+	RegisterResolver(func(parentCoS, unitCoS string, _ bool) (map[uint32]uint32, map[uint32]uint32, error) {
+		name := unitCoS
+		if name == "" {
+			name = parentCoS
+		}
+		p, ok := Lookup(name)
+		if !ok {
+			return nil, nil, nil
+		}
+		return p.IngressMap, p.EgressMap, nil
+	})
+
+	ingress, egress, err := Resolve("res", "", false)
+	require.NoError(t, err)
+	assert.Equal(t, map[uint32]uint32{6: 6}, ingress)
+	assert.Equal(t, map[uint32]uint32{6: 6}, egress)
+}

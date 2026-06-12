@@ -11,9 +11,17 @@ type Profile struct {
 	EgressMap  map[uint32]uint32 // internal priority -> transmitted PCP
 }
 
+// ResolverFunc resolves class-of-service references for an interface unit.
+// parentCoS is the interface-level setting, unitCoS is the per-unit setting.
+// hasInlineMaps is true when the unit already has inline ingress/egress maps.
+// Returns resolved maps (nil/nil when no profile applies) or an error on
+// conflict or missing profile.
+type ResolverFunc func(parentCoS, unitCoS string, hasInlineMaps bool) (ingress, egress map[uint32]uint32, err error)
+
 var (
 	mu       sync.RWMutex
 	profiles = map[string]Profile{}
+	resolver ResolverFunc
 )
 
 // Register stores a named profile, replacing any previous entry.
@@ -36,4 +44,32 @@ func Clear() {
 	mu.Lock()
 	profiles = map[string]Profile{}
 	mu.Unlock()
+}
+
+// RegisterResolver sets the callback used by Resolve. The cos plugin
+// registers this at init time; removing the plugin leaves no resolver,
+// so Resolve becomes a no-op.
+func RegisterResolver(fn ResolverFunc) {
+	mu.Lock()
+	resolver = fn
+	mu.Unlock()
+}
+
+// ClearResolver removes the registered resolver.
+func ClearResolver() {
+	mu.Lock()
+	resolver = nil
+	mu.Unlock()
+}
+
+// Resolve delegates to the registered resolver. Returns nil, nil, nil
+// when no resolver is registered (cos plugin absent).
+func Resolve(parentCoS, unitCoS string, hasInlineMaps bool) (ingress, egress map[uint32]uint32, err error) {
+	mu.RLock()
+	fn := resolver
+	mu.RUnlock()
+	if fn == nil {
+		return nil, nil, nil
+	}
+	return fn(parentCoS, unitCoS, hasInlineMaps)
 }

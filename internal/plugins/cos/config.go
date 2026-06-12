@@ -116,6 +116,27 @@ func parsePriorityToPCP(profileName, direction string, entries map[string]any) (
 	return m, nil
 }
 
+// resolveCoSForUnit implements the class-of-service resolution logic:
+// inheritance from parent, per-unit override, "none" opt-out, mutual
+// exclusion with inline maps, and profile lookup.
+func resolveCoSForUnit(parentCoS, unitCoS string, hasInlineMaps bool) (map[uint32]uint32, map[uint32]uint32, error) {
+	name := unitCoS
+	if name == "" {
+		name = parentCoS
+	}
+	if name == "none" || name == "" {
+		return nil, nil, nil
+	}
+	if hasInlineMaps {
+		return nil, nil, fmt.Errorf("class-of-service and inline qos maps are mutually exclusive")
+	}
+	p, ok := coreCos.Lookup(name)
+	if !ok {
+		return nil, nil, fmt.Errorf("class-of-service profile %q not found", name)
+	}
+	return p.IngressMap, p.EgressMap, nil
+}
+
 func parsePCPValue(s string) (uint32, error) {
 	n, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
