@@ -233,30 +233,21 @@ func TestCreateVLANValidation(t *testing.T) {
 	}
 }
 
-// VALIDATES: spec-vlan-qos-map -- VPP rejects QoS maps (pipeline not wired).
-// PREVENTS: silent map drop when backend cannot apply them.
-func TestCreateVLANRejectsQoSMaps(t *testing.T) {
+// VALIDATES: spec-cos-plugin -- VPP rejects non-identity ingress QoS maps.
+// PREVENTS: silent PCP remapping that VPP qos-record cannot perform.
+func TestCreateVLANRejectsNonIdentityIngress(t *testing.T) {
 	b := &vppBackendImpl{names: newNameMap()}
 
 	err := b.CreateVLAN(iface.VLANSpec{
 		Parent:        "xe0",
 		VLANID:        100,
-		IngressQoSMap: map[uint32]uint32{6: 6},
+		IngressQoSMap: map[uint32]uint32{6: 3},
 	})
 	if err == nil {
-		t.Fatal("expected error for QoS maps on VPP")
+		t.Fatal("expected error for non-identity ingress map on VPP")
 	}
-	if !strings.Contains(err.Error(), "not supported") {
-		t.Errorf("expected 'not supported' error, got: %v", err)
-	}
-
-	err = b.CreateVLAN(iface.VLANSpec{
-		Parent:       "xe0",
-		VLANID:       100,
-		EgressQoSMap: map[uint32]uint32{6: 6},
-	})
-	if err == nil {
-		t.Fatal("expected error for egress QoS map on VPP")
+	if !strings.Contains(err.Error(), "identity") {
+		t.Errorf("expected 'identity' error, got: %v", err)
 	}
 }
 

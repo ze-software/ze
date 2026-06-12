@@ -22,6 +22,7 @@ import (
 	"go.fd.io/govpp/binapi/interface_types"
 	"go.fd.io/govpp/binapi/ip_types"
 	"go.fd.io/govpp/binapi/l2"
+	"go.fd.io/govpp/binapi/qos"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	vppcomp "codeberg.org/thomas-mangin/ze/internal/component/vpp"
@@ -239,11 +240,10 @@ func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 	if spec.VLANID < 1 || spec.VLANID > 4094 {
 		return fmt.Errorf("ifacevpp: VLAN ID %d out of range (1-4094)", spec.VLANID)
 	}
-	// Exact-or-reject: VPP has no equivalent of the kernel VLAN QoS maps
-	// wired up yet (the VPP QoS record+mark pipeline is not implemented),
-	// so silently dropping the mapping would misconfigure the network.
-	if len(spec.IngressQoSMap) > 0 || len(spec.EgressQoSMap) > 0 {
-		return errNotSupported("VLAN QoS maps (VPP QoS record+mark pipeline not implemented)")
+	for pcp, prio := range spec.IngressQoSMap {
+		if pcp != prio {
+			return fmt.Errorf("ifacevpp: ingress qos map pcp %d -> priority %d: VPP only supports identity mapping", pcp, prio)
+		}
 	}
 	parentIdx, err := b.resolveIndex(spec.Parent)
 	if err != nil {
@@ -260,9 +260,75 @@ func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
 	if reply.Retval != 0 {
 		return fmt.Errorf("ifacevpp: CreateVlanSubif retval=%d", reply.Retval)
 	}
+	subIdx := reply.SwIfIndex
 	var bSub textbuf.Buffer
 	subName := bSub.Reset().Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
-	b.names.Add(subName, uint32(reply.SwIfIndex), subName)
+	b.names.Add(subName, uint32(subIdx), subName)
+
+	if len(spec.IngressQoSMap) > 0 || len(spec.EgressQoSMap) > 0 {
+		if err := b.enableVLANQoS(subIdx, spec); err != nil {
+			return fmt.Errorf("ifacevpp: %s qos: %w", subName, err)
+		}
+	}
+	return nil
+}
+
+// enableVLANQoS wires VPP's QoS record + egress-map + mark pipeline on a
+// VLAN sub-interface. "qos record" copies the ingress PCP verbatim into
+// internal QoS bits (identity only). The egress map translates internal
+// QoS values to transmitted PCP via the VLAN source row.
+func (b *vppBackendImpl) enableVLANQoS(subIdx interface_types.InterfaceIndex, spec iface.VLANSpec) error {
+	recReply := &qos.QosRecordEnableDisableReply{}
+	if err := b.ch.SendRequest(&qos.QosRecordEnableDisable{
+		Record: qos.QosRecord{
+			SwIfIndex:   subIdx,
+			InputSource: qos.QOS_API_SOURCE_VLAN,
+		},
+		Enable: true,
+	}).ReceiveReply(recReply); err != nil {
+		return fmt.Errorf("qos record enable: %w", err)
+	}
+	if recReply.Retval != 0 {
+		return fmt.Errorf("qos record enable retval=%d", recReply.Retval)
+	}
+
+	if len(spec.EgressQoSMap) > 0 {
+		mapID := uint32(subIdx)
+		var row qos.QosEgressMapRow
+		for prio, pcp := range spec.EgressQoSMap {
+			if prio < 256 && pcp < 256 {
+				row.Outputs[prio] = byte(pcp)
+			}
+		}
+		var emap qos.QosEgressMap
+		emap.ID = mapID
+		emap.Rows[qos.QOS_API_SOURCE_VLAN] = row
+
+		emReply := &qos.QosEgressMapUpdateReply{}
+		if err := b.ch.SendRequest(&qos.QosEgressMapUpdate{
+			Map: emap,
+		}).ReceiveReply(emReply); err != nil {
+			return fmt.Errorf("qos egress-map update: %w", err)
+		}
+		if emReply.Retval != 0 {
+			return fmt.Errorf("qos egress-map update retval=%d", emReply.Retval)
+		}
+
+		markReply := &qos.QosMarkEnableDisableReply{}
+		if err := b.ch.SendRequest(&qos.QosMarkEnableDisable{
+			Mark: qos.QosMark{
+				SwIfIndex:    uint32(subIdx),
+				MapID:        mapID,
+				OutputSource: qos.QOS_API_SOURCE_VLAN,
+			},
+			Enable: true,
+		}).ReceiveReply(markReply); err != nil {
+			return fmt.Errorf("qos mark enable: %w", err)
+		}
+		if markReply.Retval != 0 {
+			return fmt.Errorf("qos mark enable retval=%d", markReply.Retval)
+		}
+	}
 	return nil
 }
 

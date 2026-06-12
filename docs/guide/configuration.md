@@ -891,9 +891,17 @@ This mirrors a BNG-style CoS setup: traffic classified to internal priority 6
 (for example by a tc class matching DSCP CS6) leaves `eth0.100` with PCP 6 in
 the 802.1Q header, and tagged frames arriving with PCP 6 are classified to
 internal priority 6 for upstream scheduling. The configured maps are visible
-in `show interface` output as `ingress-qos-map` / `egress-qos-map`. The VPP
-backend rejects QoS maps (the VPP QoS pipeline is not wired); use the default
-netlink backend.
+in `show interface` output as `ingress-qos-map` / `egress-qos-map`.
+
+**VPP backend limitation:** VPP's `qos record` copies the VLAN PCP value
+verbatim into internal QoS bits, so ingress maps must be identity
+(pcp == priority for every entry, e.g. `pcp 6 { priority 6; }`). Non-identity
+ingress maps (e.g. `pcp 6 { priority 3; }`) are rejected at config validation.
+Egress maps are fully supported via VPP's `qos egress-map` + `qos mark`
+pipeline. Use the netlink backend if remapped ingress is required.
+
+<!-- source: internal/plugins/iface/vpp/ifacevpp.go -- enableVLANQoS qos-record + egress-map + mark -->
+<!-- source: internal/component/iface/config.go -- validateVPPQoSMaps identity check -->
 
 ### Class-of-Service Profiles
 

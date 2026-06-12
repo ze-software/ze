@@ -182,6 +182,11 @@ func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, er
 	if cfg.Backend == "" {
 		return nil, errInterfaceNoBackendConfiguredAndNo
 	}
+	if cfg.Backend == vppBackendName {
+		if err := validateVPPQoSMaps(cfg); err != nil {
+			return nil, err
+		}
+	}
 	return cfg, nil
 }
 

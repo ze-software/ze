@@ -1,0 +1,19 @@
+# Test: VPP backend rejects non-identity ingress QoS map at validation
+# VALIDATES: VPP ingress identity constraint enforced at config validation.
+# PREVENTS: apply-time failure for remapped ingress on VPP backend.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend vpp;
+	ethernet xe0 {
+		unit v100 {
+			vlan-id 100;
+			ingress-qos-map 6 {
+				priority 3;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

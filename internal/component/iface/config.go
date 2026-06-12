@@ -902,6 +902,49 @@ func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 	return units, nil
 }
 
+// validateVPPQoSMaps checks that all QoS maps in the config are compatible
+// with VPP's QoS pipeline. VPP's "qos record" copies the VLAN PCP value
+// verbatim into internal QoS bits, so ingress maps must be identity
+// (pcp == priority for every entry). Egress maps are arbitrary (handled
+// by "qos egress-map"). Called only when the backend is VPP.
+func validateVPPQoSMaps(cfg *ifaceConfig) error {
+	check := func(iface string, units []unitEntry) error {
+		for i := range units {
+			for pcp, prio := range units[i].IngressQoSMap {
+				if pcp != prio {
+					return fmt.Errorf(
+						"%s unit %q: VPP ingress QoS maps must be identity (pcp == priority); got pcp %d -> priority %d. "+
+							"VPP qos-record copies PCP verbatim; use the netlink backend for remapped ingress",
+						iface, units[i].Label, pcp, prio,
+					)
+				}
+			}
+		}
+		return nil
+	}
+	for _, e := range cfg.Ethernet {
+		if err := check(e.Name, e.Units); err != nil {
+			return err
+		}
+	}
+	for _, e := range cfg.Dummy {
+		if err := check(e.Name, e.Units); err != nil {
+			return err
+		}
+	}
+	for _, e := range cfg.Veth {
+		if err := check(e.Name, e.Units); err != nil {
+			return err
+		}
+	}
+	for _, e := range cfg.Bridge {
+		if err := check(e.Name, e.Units); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // parseQoSMap reads an 802.1p QoS map list from the unit container. The YANG
 // list key (PCP for ingress, priority for egress) arrives as the JSON object
 // key; valueLeaf names the single value leaf inside each entry. Both sides

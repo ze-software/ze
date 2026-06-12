@@ -3913,3 +3913,66 @@ func TestCoSProfileNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
+
+// TestValidateVPPQoSMapsIdentityAccepted verifies that identity ingress maps
+// (pcp == priority) pass VPP validation.
+//
+// VALIDATES: VPP accepts identity ingress + arbitrary egress QoS maps.
+// PREVENTS: false rejection of valid VPP QoS config.
+func TestValidateVPPQoSMapsIdentityAccepted(t *testing.T) {
+	cfg := &ifaceConfig{
+		Backend: "vpp",
+		Ethernet: []ifaceEntry{{
+			Name: "xe0",
+			Units: []unitEntry{{
+				Label:         "v100",
+				VLANID:        100,
+				IngressQoSMap: map[uint32]uint32{0: 0, 6: 6, 7: 7},
+				EgressQoSMap:  map[uint32]uint32{0: 0, 6: 5, 7: 3},
+			}},
+		}},
+	}
+	assert.NoError(t, validateVPPQoSMaps(cfg))
+}
+
+// TestValidateVPPQoSMapsNonIdentityRejected verifies that non-identity ingress
+// maps (pcp != priority) are rejected at validation time for VPP.
+//
+// VALIDATES: VPP rejects non-identity ingress maps at config validation.
+// PREVENTS: apply-time failure that should be caught at commit.
+func TestValidateVPPQoSMapsNonIdentityRejected(t *testing.T) {
+	cfg := &ifaceConfig{
+		Backend: "vpp",
+		Ethernet: []ifaceEntry{{
+			Name: "xe0",
+			Units: []unitEntry{{
+				Label:         "v100",
+				VLANID:        100,
+				IngressQoSMap: map[uint32]uint32{6: 3},
+			}},
+		}},
+	}
+	err := validateVPPQoSMaps(cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "identity")
+}
+
+// TestValidateVPPQoSMapsEgressOnlyAccepted verifies that egress-only maps
+// (no ingress) pass VPP validation.
+//
+// VALIDATES: VPP accepts egress-only QoS maps.
+// PREVENTS: false rejection when only egress mapping is configured.
+func TestValidateVPPQoSMapsEgressOnlyAccepted(t *testing.T) {
+	cfg := &ifaceConfig{
+		Backend: "vpp",
+		Ethernet: []ifaceEntry{{
+			Name: "xe0",
+			Units: []unitEntry{{
+				Label:        "v100",
+				VLANID:       100,
+				EgressQoSMap: map[uint32]uint32{6: 6},
+			}},
+		}},
+	}
+	assert.NoError(t, validateVPPQoSMaps(cfg))
+}
