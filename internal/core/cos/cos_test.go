@@ -39,6 +39,18 @@ func TestRegistryClear(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestAll(t *testing.T) {
+	t.Cleanup(Clear)
+
+	Register("a", Profile{IngressMap: map[uint32]uint32{0: 0}})
+	Register("b", Profile{EgressMap: map[uint32]uint32{6: 6}})
+
+	all := All()
+	assert.Len(t, all, 2)
+	assert.Equal(t, map[uint32]uint32{0: 0}, all["a"].IngressMap)
+	assert.Equal(t, map[uint32]uint32{6: 6}, all["b"].EgressMap)
+}
+
 func TestResolveNoResolver(t *testing.T) {
 	t.Cleanup(ClearResolver)
 

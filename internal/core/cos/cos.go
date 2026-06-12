@@ -2,7 +2,10 @@
 
 package cos
 
-import "sync"
+import (
+	"maps"
+	"sync"
+)
 
 // Profile holds ingress and egress 802.1p QoS maps for a named
 // class-of-service profile. Keys and values are 0-7 (3-bit PCP).
@@ -37,6 +40,15 @@ func Lookup(name string) (Profile, bool) {
 	p, ok := profiles[name]
 	mu.RUnlock()
 	return p, ok
+}
+
+// All returns a copy of all registered profiles keyed by name.
+func All() map[string]Profile {
+	mu.RLock()
+	defer mu.RUnlock()
+	m := make(map[string]Profile, len(profiles))
+	maps.Copy(m, profiles)
+	return m
 }
 
 // Clear removes all registered profiles.

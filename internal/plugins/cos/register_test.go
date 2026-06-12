@@ -1,6 +1,7 @@
 package cos
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,6 +74,29 @@ func TestVerifyCoSConfigClearsStaleProfiles(t *testing.T) {
 	assert.NoError(t, err)
 	_, ok = coreCos.Lookup("stale")
 	assert.False(t, ok, "stale profile must be cleared after re-verification")
+}
+
+// VALIDATES: showProfiles returns sorted profiles with sorted map entries.
+// PREVENTS: show class-of-service returning empty or unsorted output.
+func TestShowProfiles(t *testing.T) {
+	t.Cleanup(coreCos.Clear)
+
+	coreCos.Register("business", coreCos.Profile{
+		IngressMap: map[uint32]uint32{5: 5, 7: 7},
+		EgressMap:  map[uint32]uint32{5: 5},
+	})
+	coreCos.Register("residential", coreCos.Profile{
+		IngressMap: map[uint32]uint32{0: 0, 6: 6},
+	})
+
+	result := showProfiles()
+	data, err := json.Marshal(result)
+	assert.NoError(t, err)
+	var parsed []map[string]any
+	assert.NoError(t, json.Unmarshal(data, &parsed))
+	assert.Len(t, parsed, 2)
+	assert.Equal(t, "business", parsed[0]["name"])
+	assert.Equal(t, "residential", parsed[1]["name"])
 }
 
 // VALIDATES: stale profiles are cleared even when no class-of-service section is sent.

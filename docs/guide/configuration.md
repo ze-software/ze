@@ -944,6 +944,11 @@ parent interface). Unit `v200` opts out with `class-of-service none` and
 gets no QoS maps. A unit cannot have both a class-of-service reference and
 inline qos maps; the two are mutually exclusive.
 
+Use `show class-of-service` to list the registered profiles and their
+ingress/egress map entries.
+
+<!-- source: internal/plugins/cos/register.go -- showProfiles, OnExecuteCommand "show class-of-service" -->
+
 ### Reverse Path Filtering (rpf-check)
 
 The `rpf-check` leaf in the `ipv4` and `ipv6` unit containers controls unicast

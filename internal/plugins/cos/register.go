@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -41,6 +42,41 @@ func init() {
 	}
 }
 
+func showProfiles() any {
+	all := coreCos.All()
+	names := make([]string, 0, len(all))
+	for name := range all {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	type mapEntry struct {
+		From uint32 `json:"from"`
+		To   uint32 `json:"to"`
+	}
+	type profileView struct {
+		Name    string     `json:"name"`
+		Ingress []mapEntry `json:"ingress,omitempty"`
+		Egress  []mapEntry `json:"egress,omitempty"`
+	}
+
+	result := make([]profileView, 0, len(names))
+	for _, name := range names {
+		p := all[name]
+		pv := profileView{Name: name}
+		for from, to := range p.IngressMap {
+			pv.Ingress = append(pv.Ingress, mapEntry{From: from, To: to})
+		}
+		for from, to := range p.EgressMap {
+			pv.Egress = append(pv.Egress, mapEntry{From: from, To: to})
+		}
+		sort.Slice(pv.Ingress, func(i, j int) bool { return pv.Ingress[i].From < pv.Ingress[j].From })
+		sort.Slice(pv.Egress, func(i, j int) bool { return pv.Egress[i].From < pv.Egress[j].From })
+		result = append(result, pv)
+	}
+	return result
+}
+
 func verifyCoSConfig(sections []sdk.ConfigSection) error {
 	coreCos.Clear()
 	for _, sec := range sections {
@@ -74,11 +110,21 @@ func runPlugin(conn net.Conn) int {
 		return nil
 	})
 
+	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
+		if command == "show class-of-service" {
+			return "done", showProfiles(), nil
+		}
+		return "error", "", fmt.Errorf("unknown command: %s", command)
+	})
+
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{"class-of-service"},
 		VerifyBudget: 1,
+		Commands: []sdk.CommandDecl{
+			{Name: "show class-of-service"},
+		},
 	}); err != nil {
 		logger().Error("cos plugin failed", "error", err)
 		return 1
