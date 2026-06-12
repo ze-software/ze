@@ -35,7 +35,7 @@ import (
 
 // Env var registrations (also in internal/component/config/environment.go for centralized docs).
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.route-server.worker-queue-size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity (overrides YANG config)"})
 )
 
 // statusDone is the command response status for successful operations.
@@ -188,9 +188,9 @@ func RunRouteServer(conn net.Conn) int {
 		withdrawals: make(map[string]map[withdrawalKey]struct{}),
 	}
 
-	// ze.rs.chan.size overrides the per-source-peer worker channel capacity.
+	// ze.bgp.route-server.worker-queue-size overrides the per-source-peer worker channel capacity.
 	// Default: 4096. Invalid/zero/negative values use default (guard in newWorkerPool).
-	rrChanSize := env.GetInt("ze.rs.chan.size", 4096)
+	rrChanSize := env.GetInt("ze.bgp.route-server.worker-queue-size", 4096)
 
 	// rs-fastpath-3: former async release + forward sender goroutines are gone.
 	// Workers now call p.ForwardCached / p.ReleaseCached directly; those RPCs
@@ -262,6 +262,25 @@ func RunRouteServer(conn net.Conn) int {
 	// Register command handler: responds to "show rs status" and "show rs peers".
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return rs.handleCommand(command)
+	})
+
+	// Register config handler for YANG-delivered worker-queue-size.
+	// OnConfigure fires during Stage 2 of p.Run(), before events arrive (Stage 4+).
+	// Env var takes precedence; if set, YANG config is ignored.
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		if env.Get("ze.bgp.route-server.worker-queue-size") != "" {
+			return nil
+		}
+		for _, section := range sections {
+			if section.Root != "bgp" {
+				continue
+			}
+			if size := parseWorkerQueueSize(section.Data); size > 0 {
+				rs.workers.SetChanSize(size)
+				logger().Info("worker-queue-size from config", "size", size)
+			}
+		}
+		return nil
 	})
 
 	// Register event subscriptions atomically with startup completion.
@@ -700,6 +719,38 @@ func parseStructuredRefresh(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) *
 		AFI:      family.AFI(uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])),
 		SAFI:     family.SAFI(msg.RawBytes[3]),
 	}
+}
+
+// parseWorkerQueueSize extracts the worker-queue-size value from a BGP config JSON tree.
+// Returns 0 if the key is absent or invalid.
+func parseWorkerQueueSize(jsonData string) int {
+	var tree map[string]any
+	if err := json.Unmarshal([]byte(jsonData), &tree); err != nil {
+		return 0
+	}
+	bgp, ok := tree["bgp"].(map[string]any)
+	if !ok {
+		return 0
+	}
+	rs, ok := bgp["route-server"].(map[string]any)
+	if !ok {
+		return 0
+	}
+	v, ok := rs["worker-queue-size"]
+	if !ok {
+		return 0
+	}
+	switch n := v.(type) {
+	case float64:
+		if n >= 1 && n <= 1000000 {
+			return int(n)
+		}
+	case string:
+		if i, err := strconv.Atoi(n); err == nil && i >= 1 && i <= 1000000 {
+			return i
+		}
+	}
+	return 0
 }
 
 // maxBatchSize is the maximum number of IDs accumulated before a batch flush.

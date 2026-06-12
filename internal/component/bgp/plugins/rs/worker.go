@@ -355,6 +355,17 @@ func (wp *workerPool) Stop() {
 	}
 }
 
+// SetChanSize updates the channel capacity for newly created workers.
+// Existing workers keep their current channel size until they exit (idle timeout)
+// and are recreated. Safe for concurrent use with Dispatch.
+func (wp *workerPool) SetChanSize(size int) {
+	wp.mu.Lock()
+	defer wp.mu.Unlock()
+	if size > 0 {
+		wp.cfg.chanSize = size
+	}
+}
+
 // WorkerCount returns the number of active workers.
 func (wp *workerPool) WorkerCount() int {
 	return int(wp.count.Load())

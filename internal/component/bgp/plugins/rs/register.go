@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rs/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -14,6 +15,9 @@ func init() {
 		Name:        "bgp-rs",
 		Description: "Route Server",
 		RFCs:        []string{"7947"},
+		ConfigRoots: []string{"bgp"},
+		Features:    "yang",
+		YANG:        yang.ZeRsConfYANG,
 		// bgp-adj-rib-in is optional: bgp-rs uses it for replay-on-peer-up
 		// when present, and gracefully disables replay with a one-shot WARN
 		// when absent. See spec-rs-fastpath-2-adjrib learned summary.

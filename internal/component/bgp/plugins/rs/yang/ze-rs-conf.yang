@@ -1,0 +1,27 @@
+module ze-rs-conf {
+    namespace "urn:ze:rs:conf";
+    prefix rs;
+
+    import ze-bgp-conf { prefix bgp; }
+
+    description "BGP route server plugin configuration for Ze";
+
+    revision 2026-06-12 {
+        description "Initial revision";
+    }
+
+    augment "/bgp:bgp" {
+        container route-server {
+            description "Route server plugin tuning parameters";
+
+            leaf worker-queue-size {
+                type uint32 {
+                    range "1..1000000";
+                }
+                default 4096;
+                description "Per-source-peer worker channel capacity.
+                             Env var ze.bgp.route-server.worker-queue-size overrides this value.";
+            }
+        }
+    }
+}

@@ -39,6 +39,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rpki_decorator/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rr/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rs/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/yang"

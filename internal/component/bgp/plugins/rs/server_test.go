@@ -1971,3 +1971,33 @@ func TestReplayForPeer_FailedReplay_SendsEOR(t *testing.T) {
 		t.Errorf("expected ipv4/unicast EOR in commands, got: %v", commands)
 	}
 }
+
+func TestParseWorkerQueueSize(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		want int
+	}{
+		{name: "valid", json: `{"bgp":{"route-server":{"worker-queue-size":8192}}}`, want: 8192},
+		{name: "minimum", json: `{"bgp":{"route-server":{"worker-queue-size":1}}}`, want: 1},
+		{name: "maximum", json: `{"bgp":{"route-server":{"worker-queue-size":1000000}}}`, want: 1000000},
+		{name: "string_value", json: `{"bgp":{"route-server":{"worker-queue-size":"2048"}}}`, want: 2048},
+		{name: "zero_rejected", json: `{"bgp":{"route-server":{"worker-queue-size":0}}}`, want: 0},
+		{name: "negative_rejected", json: `{"bgp":{"route-server":{"worker-queue-size":-1}}}`, want: 0},
+		{name: "over_max_rejected", json: `{"bgp":{"route-server":{"worker-queue-size":1000001}}}`, want: 0},
+		{name: "missing_key", json: `{"bgp":{"route-server":{}}}`, want: 0},
+		{name: "missing_container", json: `{"bgp":{}}`, want: 0},
+		{name: "missing_bgp", json: `{}`, want: 0},
+		{name: "invalid_json", json: `{bad`, want: 0},
+		{name: "empty", json: ``, want: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseWorkerQueueSize(tt.json)
+			if got != tt.want {
+				t.Errorf("parseWorkerQueueSize() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}

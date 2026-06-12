@@ -527,6 +527,28 @@ func TestPoolChanSizeDefault(t *testing.T) {
 	}
 }
 
+// TestSetChanSize verifies SetChanSize updates capacity for new workers.
+func TestSetChanSize(t *testing.T) {
+	var handled atomic.Int32
+	handler := func(_ workerKey, _ workItem) {
+		handled.Add(1)
+	}
+
+	wp := newWorkerPool(handler, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
+	defer wp.Stop()
+
+	require.Equal(t, 64, wp.cfg.chanSize)
+
+	wp.SetChanSize(256)
+	require.Equal(t, 256, wp.cfg.chanSize)
+
+	// Zero/negative ignored.
+	wp.SetChanSize(0)
+	require.Equal(t, 256, wp.cfg.chanSize)
+	wp.SetChanSize(-1)
+	require.Equal(t, 256, wp.cfg.chanSize)
+}
+
 // TestWorkerPool_OverflowNonBlocking verifies Dispatch returns immediately when channel is full.
 //
 // VALIDATES: Dispatch never blocks the caller (SDK event loop) even when channel is at capacity.

@@ -1,0 +1,18 @@
+# Test: BGP route-server worker-queue-size rejects out-of-range
+# Validates: YANG range 1..1000000 enforced
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1
+	session {
+		asn {
+			local 65000
+		}
+	}
+	route-server {
+		worker-queue-size 0
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

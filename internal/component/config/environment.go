@@ -56,9 +56,8 @@ var (
 	//
 	// PHASE 4 DEFAULT FLIP (PENDING): change Default below from "finder" to
 	// "workbench" only after `bin/ze-test web -p workbench-bgp-change-verify`
-	// passes every Promotion Criteria threshold. Until that verification, the
-	// default stays at finder; operators can still opt in via ze.web.ui=workbench.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.ui", Type: "string", Default: "finder", Description: "Web UI mode: finder (default) or workbench (V2 experiment)"})
+	// passes every Promotion Criteria threshold. Until that verification, the default stays.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.ui-mode", Type: "string", Default: "finder", Description: "Web UI mode: finder (default) or workbench (V2 experiment)"})
 
 	// MCP server.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.listen", Type: "string", Default: "127.0.0.1:8080", Description: "MCP server listen address (ip:port)"})
@@ -107,25 +106,22 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.rate", Type: "string", Default: "0.1", Description: "Fault probability per operation (0.0-1.0)"})
 
 	// Forward pool tuning (consumed in internal/component/bgp/reactor/).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "256", Description: "Per-destination forward worker channel capacity"})
+	// Promoted to YANG: environment/reactor/forward-queue-size et al.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "256", Description: "Per-destination forward worker channel capacity", Deprecated: "YANG reactor/forward-queue-size"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "0", Description: "Overflow MixedBufMux byte budget override (0 = auto-sized from peer prefix maximums)", Deprecated: "ze.fwd.pool.maxbytes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Grace period at >95% pool + >2x weight before forced teardown"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.headroom", Type: "int64", Default: "0", Description: "Extra bytes beyond auto-sized pool baseline (0 = no extra)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "0", Description: "Overflow MixedBufMux byte budget override (0 = auto-sized from peer prefix maximums)", Deprecated: "YANG reactor/forward-pool-max-bytes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)", Deprecated: "YANG reactor/forward-pool-max-bytes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)", Deprecated: "YANG reactor/forward-batch-limit"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Grace period at >95% pool + >2x weight before forced teardown", Deprecated: "YANG reactor/forward-teardown-grace"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.headroom", Type: "int64", Default: "0", Description: "Extra bytes beyond auto-sized pool baseline (0 = no extra)", Deprecated: "YANG reactor/forward-pool-headroom"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.dest.cap", Type: "int", Default: "4096", Description: "Max destinations per Plugin.ForwardCached call (bounds per-call allocation)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: "int", Default: "16384", Description: "Per-session TCP write buffer size (bytes)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)", Deprecated: "YANG reactor/read-buffer-size"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: "int", Default: "16384", Description: "Per-session TCP write buffer size (bytes)", Deprecated: "YANG reactor/write-buffer-size"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.metrics.interval", Type: "duration", Default: "10s", Description: "Periodic metrics refresh interval"})
 
 	// Route server (consumed in internal/component/bgp/plugins/rs/).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
-
-	// L2TP PPP authentication (consumed in internal/component/l2tp/).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.l2tp.auth.timeout", Type: "duration", Default: "30s", Description: "PPP auth-phase timeout; session fails closed if no AuthResponse within this window"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.l2tp.auth.reauth-interval", Type: "duration", Default: "0s", Description: "PPP periodic re-authentication interval (CHAP/MS-CHAPv2 only); zero disables re-auth"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.route-server.worker-queue-size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity (overrides YANG config)"})
 )
 
 // Plugin encoder type names (used by pc.Encoder and extracted from the
