@@ -35,6 +35,7 @@ request/response and adding DirectBridge to the anti-pattern table.
 | Config option | `ai/patterns/config-option.md` + `ai/rules/config-design.md` | Missing env var, wrong YANG shape |
 | CLI command | `ai/patterns/cli-command.md` | Wrong dispatch structure |
 | Platform-specific | Existing splits (`fibkernel/backend_linux.go`, `ifacenetlink/sysctl_linux.go`) | Wrong build tag, wrong abstraction level |
+| New feature with dataplane effect | `internal/plugins/iface/netlink/` + `internal/plugins/iface/vpp/` | Netlink-only feature without VPP support |
 | Naming | `ai/rules/naming.md` + grep analogous names | Inventing ze-names when kernel/standard names exist |
 
 ## Tier 3: When the Design Touches These Areas
@@ -70,6 +71,7 @@ request/response and adding DirectBridge to the anti-pattern table.
 | "DispatchCommand for cross-plugin calls" | EventBus for broadcast; DirectBridge for request/response |
 | "New direct-call mechanism for internal plugins" | DirectBridge already exists (`pkg/plugin/rpc/bridge.go`). Read it before proposing. |
 | "No cleanup needed on stop" | Ze owns what it touches |
+| "VPP support can be added later" | If the feature has a netlink implementation, add the VPP implementation in the same work. Ze targets both dataplanes; netlink-only features create drift. |
 | "Defaults are suggestions" | Defaults are requirements; log when overridden |
 
 ## Mechanical Check
