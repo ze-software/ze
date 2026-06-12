@@ -1,0 +1,28 @@
+# Test: unit with class-of-service none opts out of inheritance
+# VALIDATES: spec-cos-plugin AC-6 -- "none" disables parent profile.
+# PREVENTS: "none" treated as a profile name lookup instead of opt-out.
+stdin=config:terminator=EOF_CONF
+class-of-service {
+	ieee-802.1p residential {
+		ingress {
+			pcp 0 { priority 0; }
+		}
+		egress {
+			priority 0 { pcp 0; }
+		}
+	}
+}
+
+interface {
+	backend netlink;
+	ethernet eth0 {
+		class-of-service residential;
+		unit v100 { vlan-id 100; }
+		unit v200 { vlan-id 200; class-of-service none; }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

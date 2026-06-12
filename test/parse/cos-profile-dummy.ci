@@ -1,0 +1,29 @@
+# Test: class-of-service profile on dummy interface validates
+# VALIDATES: spec-cos-plugin AC-10 -- profile ref works on non-ethernet types.
+# PREVENTS: YANG container-merge missing for dummy/veth/bridge.
+stdin=config:terminator=EOF_CONF
+class-of-service {
+	ieee-802.1p residential {
+		ingress {
+			pcp 0 { priority 0; }
+		}
+		egress {
+			priority 0 { pcp 0; }
+		}
+	}
+}
+
+interface {
+	backend netlink;
+	dummy lo0 {
+		class-of-service residential;
+		unit v100 {
+			vlan-id 100;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

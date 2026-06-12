@@ -2,6 +2,7 @@ package ifacevpp
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"go.fd.io/govpp/api"
@@ -218,7 +219,7 @@ func TestCreateVLANValidation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := b.CreateVLAN("xe0", tt.vlanID)
+			err := b.CreateVLAN(iface.VLANSpec{Parent: "xe0", VLANID: tt.vlanID})
 			// All return error (either validation or "not supported"), but
 			// validation errors should fire before "not supported".
 			if tt.wantErr && err == nil {
@@ -229,6 +230,33 @@ func TestCreateVLANValidation(t *testing.T) {
 				return
 			}
 		})
+	}
+}
+
+// VALIDATES: spec-vlan-qos-map -- VPP rejects QoS maps (pipeline not wired).
+// PREVENTS: silent map drop when backend cannot apply them.
+func TestCreateVLANRejectsQoSMaps(t *testing.T) {
+	b := &vppBackendImpl{names: newNameMap()}
+
+	err := b.CreateVLAN(iface.VLANSpec{
+		Parent:        "xe0",
+		VLANID:        100,
+		IngressQoSMap: map[uint32]uint32{6: 6},
+	})
+	if err == nil {
+		t.Fatal("expected error for QoS maps on VPP")
+	}
+	if !strings.Contains(err.Error(), "not supported") {
+		t.Errorf("expected 'not supported' error, got: %v", err)
+	}
+
+	err = b.CreateVLAN(iface.VLANSpec{
+		Parent:       "xe0",
+		VLANID:       100,
+		EgressQoSMap: map[uint32]uint32{6: 6},
+	})
+	if err == nil {
+		t.Fatal("expected error for egress QoS map on VPP")
 	}
 }
 

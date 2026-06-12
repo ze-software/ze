@@ -50,7 +50,7 @@ func CreateVLAN(parent string, vid int) error {
 	if err != nil {
 		return err
 	}
-	return b.CreateVLAN(parent, vid)
+	return b.CreateVLAN(VLANSpec{Parent: parent, VLANID: vid})
 }
 func DeleteInterface(name string) error {
 	b, err := backendOrErr()

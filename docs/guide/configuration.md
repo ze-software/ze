@@ -852,6 +852,90 @@ goes down, its metric becomes 1025 (1 + 1024), so backup (metric 5) takes over. 
 uplink recovers, its metric returns to 1 and traffic shifts back. The default value
 is 0 (kernel default), which preserves existing behavior when not configured.
 
+### VLAN 802.1p QoS Maps
+
+VLAN units (units with `vlan-id`) accept two QoS maps that translate between
+the 3-bit 802.1p PCP field of the 802.1Q tag header and the kernel's internal
+packet priority. `ingress-qos-map` (keyed by PCP) classifies received tagged
+frames: a frame arriving with the listed PCP gets the mapped internal priority,
+which tc filters and nftables can then act on. `egress-qos-map` (keyed by
+priority) stamps outgoing frames: a packet leaving with the listed internal
+priority gets the mapped PCP on the wire, so downstream L2 switches honor the
+class of service without inspecting IP headers. Both sides of every entry are
+0-7; unmapped values fall back to 0. The maps require `vlan-id` and are
+applied when the VLAN sub-interface is created.
+
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ingress-qos-map, egress-qos-map lists -->
+<!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap -->
+
+```
+interface {
+    ethernet eth0 {
+        unit v100 {
+            vlan-id 100;
+            ingress-qos-map 6 {
+                priority 6;
+            }
+            egress-qos-map 6 {
+                pcp 6;
+            }
+            ipv4 {
+                address [10.0.0.1/30]
+            }
+        }
+    }
+}
+```
+
+This mirrors a BNG-style CoS setup: traffic classified to internal priority 6
+(for example by a tc class matching DSCP CS6) leaves `eth0.100` with PCP 6 in
+the 802.1Q header, and tagged frames arriving with PCP 6 are classified to
+internal priority 6 for upstream scheduling. The configured maps are visible
+in `show interface` output as `ingress-qos-map` / `egress-qos-map`. The VPP
+backend rejects QoS maps (the VPP QoS pipeline is not wired); use the default
+netlink backend.
+
+### Class-of-Service Profiles
+
+Named 802.1p profiles define PCP-to-priority mappings that can be referenced
+from interfaces instead of repeating inline `ingress-qos-map` / `egress-qos-map`
+lists on every unit. The `class-of-service` section is provided by the cos
+plugin. Profiles are inherited by all VLAN units on the interface; individual
+units can override with a different profile or opt out with `none`.
+
+<!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ieee-802.1p profile definitions -->
+<!-- source: internal/component/iface/config.go -- parseUnits class-of-service resolution -->
+
+```
+class-of-service {
+    ieee-802.1p residential {
+        ingress {
+            pcp 0 { priority 0; }
+            pcp 5 { priority 5; }
+            pcp 6 { priority 6; }
+        }
+        egress {
+            priority 0 { pcp 0; }
+            priority 5 { pcp 5; }
+            priority 6 { pcp 6; }
+        }
+    }
+}
+
+interface {
+    ethernet eth0 {
+        class-of-service residential;
+        unit v100 { vlan-id 100; }
+        unit v200 { vlan-id 200; class-of-service none; }
+    }
+}
+```
+
+The profile `residential` is applied to unit `v100` (inherited from the
+parent interface). Unit `v200` opts out with `class-of-service none` and
+gets no QoS maps. A unit cannot have both a class-of-service reference and
+inline qos maps; the two are mutually exclusive.
+
 ### Reverse Path Filtering (rpf-check)
 
 The `rpf-check` leaf in the `ipv4` and `ipv6` unit containers controls unicast

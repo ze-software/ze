@@ -235,17 +235,23 @@ func (b *vppBackendImpl) CreateBridge(name string) error {
 	return nil
 }
 
-func (b *vppBackendImpl) CreateVLAN(parentName string, vlanID int) error {
-	if vlanID < 1 || vlanID > 4094 {
-		return fmt.Errorf("ifacevpp: VLAN ID %d out of range (1-4094)", vlanID)
+func (b *vppBackendImpl) CreateVLAN(spec iface.VLANSpec) error {
+	if spec.VLANID < 1 || spec.VLANID > 4094 {
+		return fmt.Errorf("ifacevpp: VLAN ID %d out of range (1-4094)", spec.VLANID)
 	}
-	parentIdx, err := b.resolveIndex(parentName)
+	// Exact-or-reject: VPP has no equivalent of the kernel VLAN QoS maps
+	// wired up yet (the VPP QoS record+mark pipeline is not implemented),
+	// so silently dropping the mapping would misconfigure the network.
+	if len(spec.IngressQoSMap) > 0 || len(spec.EgressQoSMap) > 0 {
+		return errNotSupported("VLAN QoS maps (VPP QoS record+mark pipeline not implemented)")
+	}
+	parentIdx, err := b.resolveIndex(spec.Parent)
 	if err != nil {
 		return err
 	}
 	req := &interfaces.CreateVlanSubif{
 		SwIfIndex: parentIdx,
-		VlanID:    uint32(vlanID),
+		VlanID:    uint32(spec.VLANID),
 	}
 	reply := &interfaces.CreateVlanSubifReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
@@ -255,7 +261,7 @@ func (b *vppBackendImpl) CreateVLAN(parentName string, vlanID int) error {
 		return fmt.Errorf("ifacevpp: CreateVlanSubif retval=%d", reply.Retval)
 	}
 	var bSub textbuf.Buffer
-	subName := bSub.Reset().Str(parentName).Byte('.').Int(int64(vlanID)).String()
+	subName := bSub.Reset().Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
 	b.names.Add(subName, uint32(reply.SwIfIndex), subName)
 	return nil
 }

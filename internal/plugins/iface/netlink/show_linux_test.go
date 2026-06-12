@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vishvananda/netlink"
 )
 
 func TestListInterfaces(t *testing.T) {
@@ -57,6 +58,33 @@ func TestGetInterfaceInvalidName(t *testing.T) {
 
 	_, err = b.GetInterface("a/b")
 	require.Error(t, err)
+}
+
+// TestLinkToInfoVLANQoSMaps verifies the QoS maps the kernel reports on a VLAN
+// link are copied into InterfaceInfo so show output exposes them, and that a
+// VLAN without maps yields nil (no JSON keys emitted).
+//
+// VALIDATES: spec-vlan-qos-map AC-7 -- show interface displays QoS maps.
+// PREVENTS: maps configured but invisible to operators.
+func TestLinkToInfoVLANQoSMaps(t *testing.T) {
+	vlan := &netlink.Vlan{
+		LinkAttrs:     netlink.LinkAttrs{Name: "eth0.100", Index: 7, ParentIndex: 2, MTU: 1500},
+		VlanId:        100,
+		IngressQosMap: map[uint32]uint32{6: 6},
+		EgressQosMap:  map[uint32]uint32{0: 0, 6: 6},
+	}
+	info := linkToInfo(vlan)
+	assert.Equal(t, 100, info.VlanID)
+	assert.Equal(t, map[uint32]uint32{6: 6}, info.IngressQoSMap)
+	assert.Equal(t, map[uint32]uint32{0: 0, 6: 6}, info.EgressQoSMap)
+
+	bare := &netlink.Vlan{
+		LinkAttrs: netlink.LinkAttrs{Name: "eth0.200", Index: 8, ParentIndex: 2, MTU: 1500},
+		VlanId:    200,
+	}
+	bareInfo := linkToInfo(bare)
+	assert.Nil(t, bareInfo.IngressQoSMap)
+	assert.Nil(t, bareInfo.EgressQoSMap)
 }
 
 // TestParseLinkSpeedDuplex covers the sysfs value handling for the flow-export

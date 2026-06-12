@@ -96,6 +96,8 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 	if vlan, ok := link.(*netlink.Vlan); ok {
 		info.VlanID = vlan.VlanId
 		info.ParentIndex = attrs.ParentIndex
+		info.IngressQoSMap = vlan.IngressQosMap
+		info.EgressQoSMap = vlan.EgressQosMap
 	}
 	return info
 }

@@ -75,6 +75,7 @@ Registration, SDK, event flow, lifecycle, hook integration.
 - [819](plan/learned/819-flow-export-2-flow-records.md) -- flow export spec-2 integration: FlowSample/ConntrackFlow neutral types + factory-registered flow encoders (import-graph constraint), platform-independent workers delegating to _linux netlink, BestChange typed-handle enrichment (next-hop only), deadlock-safe Stop ordering
 - [820](plan/learned/820-flow-export-0-umbrella.md) -- flow export umbrella: single-collection/multiple-consumers via iface callback, registration over imports, buffer-first, in-process SDK component; spec-1 complete, spec-2 CI-gated
 - [821](plan/learned/821-plugin-internal-keyword.md) -- Plugin internal keyword: explicit `plugin internal <name> { use <builtin> }` config, cross-list uniqueness, internal plugins do not use external encoder/respawn/timeout leaves
+- [884](plan/learned/884-cos-plugin.md) -- CoS plugin: shared registry in core/cos, YANG container-merge over augment for interface binding, InProcessConfigVerifier ordering relies on alphabetical registry.All() ("cos" < "interface")
 - [828](plan/learned/828-codec-callback-passthrough.md) -- NLRI decode single-marshal: DecodeNLRIHex returns any, registry marshals once; RunCLIDecode callers share function so need own marshal
 - [830](plan/learned/830-typed-inter-plugin-dispatch.md) -- Typed exact-command inter-plugin dispatch: `DispatchCommandArgs` over rebuilt strings, `CommandArgsAuthorizer` over canonical fallback, command/args boundary pinned by tests
 - [858](plan/learned/858-typed-peer-selector.md) -- Typed peer selector: BGPReactor takes `*selector.Selector` not string; SDK `*Sel` variants for DirectBridge; `SoftClearPeer` fixed for name/ASN; GR stays string at args boundary
@@ -90,6 +91,8 @@ YANG schema, migration, config reload, editor, environment variables.
 - [226](plan/learned/226-config-reload-6-remove-bgpconfig.md) -- BGPConfig removal, map[string]any
 - [232](plan/learned/232-editor-tree-canonical.md) -- Editor tree canonical representation
 - [716](plan/learned/716-iface-2-urpf.md) -- rpf-check enum over raw sysctl integer; three-state nil/disable/value pattern; sysctl profile ordering issue
+- [882](plan/learned/882-vlan-qos-map.md) -- VLAN 802.1p QoS maps: VLANSpec struct (TunnelSpec precedent), nil-means-unconfigured, duplicate-canonical-key rejection, defense-in-depth validation at 3 layers
+- [883](plan/learned/883-vlan-qos-lab.md) -- VLAN QoS wire-level lab: AF_PACKET TCI decode, single-netns veth with static ARP, nftables meta priority counters for ingress, negative controls as first-class tests
 - [725](plan/learned/725-spec-cpe-3-dhcp-ranges.md) -- YANG container-to-list migration, composite pool with per-segment bitmaps, format detection for backward compat
 - [743](plan/learned/743-config-schema-stamp.md) -- Schema stamp as comment line (not YANG leaf), emitted at persistence site only, prep for downgrade recovery
 - [746](plan/learned/746-cpe-4-firewall-global-options.md) -- Firewall global-options: keyword-to-sysctl mapping via EventBus default layer; inverted semantics for ignore-type sysctls

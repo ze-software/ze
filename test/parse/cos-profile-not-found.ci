@@ -1,0 +1,17 @@
+# Test: class-of-service reference to nonexistent profile rejected
+# VALIDATES: spec-cos-plugin AC-9 -- missing profile detected.
+# PREVENTS: silent acceptance of config that references undefined profiles.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet eth0 {
+		class-of-service nonexistent;
+		unit v100 {
+			vlan-id 100;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

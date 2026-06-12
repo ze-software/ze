@@ -29,7 +29,7 @@ func unsupported() error {
 func (s *stubBackend) CreateDummy(_ string) error                           { return unsupported() }
 func (s *stubBackend) CreateVeth(_, _ string) error                         { return unsupported() }
 func (s *stubBackend) CreateBridge(_ string) error                          { return unsupported() }
-func (s *stubBackend) CreateVLAN(_ string, _ int) error                     { return unsupported() }
+func (s *stubBackend) CreateVLAN(_ iface.VLANSpec) error                    { return unsupported() }
 func (s *stubBackend) CreateTunnel(_ iface.TunnelSpec) error                { return unsupported() }
 func (s *stubBackend) CreateWireguardDevice(_ string) error                 { return unsupported() }
 func (s *stubBackend) ConfigureWireguardDevice(_ iface.WireguardSpec) error { return unsupported() }

@@ -1,0 +1,20 @@
+# Test: out-of-range 802.1p values in a VLAN QoS map are rejected
+# VALIDATES: spec-vlan-qos-map AC-4, AC-5 -- PCP and priority are 3-bit
+#            fields (IEEE 802.1Q); 8 is the first invalid value.
+# PREVENTS: out-of-range PCP reaching the kernel netlink attribute.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit v100 {
+			vlan-id 100;
+			ingress-qos-map 8 {
+				priority 1;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

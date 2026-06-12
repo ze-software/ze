@@ -1,0 +1,30 @@
+# Test: interface-level class-of-service inherited by VLAN unit
+# VALIDATES: spec-cos-plugin AC-4 -- inheritance from parent interface.
+# PREVENTS: profile resolution skipping inheritance, leaving units without maps.
+stdin=config:terminator=EOF_CONF
+class-of-service {
+	ieee-802.1p residential {
+		ingress {
+			pcp 0 { priority 0; }
+			pcp 6 { priority 6; }
+		}
+		egress {
+			priority 0 { pcp 0; }
+			priority 6 { pcp 6; }
+		}
+	}
+}
+
+interface {
+	backend netlink;
+	ethernet eth0 {
+		class-of-service residential;
+		unit v100 { vlan-id 100; }
+		unit v200 { vlan-id 200; }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

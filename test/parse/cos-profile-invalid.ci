@@ -1,0 +1,15 @@
+# Test: class-of-service profile with out-of-range PCP rejected
+# VALIDATES: spec-cos-plugin AC-2 -- boundary enforcement in YANG and Go.
+# PREVENTS: out-of-range 802.1p values reaching the kernel.
+stdin=config:terminator=EOF_CONF
+class-of-service {
+	ieee-802.1p bad {
+		ingress {
+			pcp 8 { priority 0; }
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1

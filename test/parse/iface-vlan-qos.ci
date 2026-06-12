@@ -1,0 +1,37 @@
+# Test: VLAN unit with both 802.1p QoS maps validates
+# VALIDATES: spec-vlan-qos-map AC-1, AC-2 -- ingress-qos-map (PCP -> priority)
+#            and egress-qos-map (priority -> PCP) parse through the real
+#            binary, including the 0 and 7 boundary values.
+# PREVENTS: YANG schema and Go parser drifting apart on the QoS map syntax.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit v100 {
+			vlan-id 100;
+			ingress-qos-map 0 {
+				priority 1;
+			}
+			ingress-qos-map 6 {
+				priority 6;
+			}
+			ingress-qos-map 7 {
+				priority 7;
+			}
+			egress-qos-map 0 {
+				pcp 0;
+			}
+			egress-qos-map 6 {
+				pcp 6;
+			}
+			egress-qos-map 7 {
+				pcp 7;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

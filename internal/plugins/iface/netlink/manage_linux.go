@@ -107,19 +107,25 @@ func (b *netlinkBackend) CreateBridge(name string) error {
 	return nil
 }
 
-func (b *netlinkBackend) CreateVLAN(parentName string, vlanID int) error {
-	if err := iface.ValidateIfaceName(parentName); err != nil {
-		return fmt.Errorf("iface: create vlan on %q: %w", parentName, err)
+func (b *netlinkBackend) CreateVLAN(spec iface.VLANSpec) error {
+	if err := iface.ValidateIfaceName(spec.Parent); err != nil {
+		return fmt.Errorf("iface: create vlan on %q: %w", spec.Parent, err)
 	}
-	if err := validateVLANID(vlanID); err != nil {
-		return fmt.Errorf("iface: create vlan on %q: %w", parentName, err)
+	if err := validateVLANID(spec.VLANID); err != nil {
+		return fmt.Errorf("iface: create vlan on %q: %w", spec.Parent, err)
 	}
-	parent, err := netlink.LinkByName(parentName)
+	if err := validateQoSMap(spec.IngressQoSMap); err != nil {
+		return fmt.Errorf("iface: create vlan on %q: ingress-qos-map: %w", spec.Parent, err)
+	}
+	if err := validateQoSMap(spec.EgressQoSMap); err != nil {
+		return fmt.Errorf("iface: create vlan on %q: egress-qos-map: %w", spec.Parent, err)
+	}
+	parent, err := netlink.LinkByName(spec.Parent)
 	if err != nil {
-		return fmt.Errorf("iface: create vlan: parent %q not found: %w", parentName, err)
+		return fmt.Errorf("iface: create vlan: parent %q not found: %w", spec.Parent, err)
 	}
 	var bVlan textbuf.Buffer
-	vlanName := bVlan.Reset().Str(parentName).Byte('.').Int(int64(vlanID)).String()
+	vlanName := bVlan.Reset().Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
 	if err := iface.ValidateIfaceName(vlanName); err != nil {
 		return fmt.Errorf("iface: create vlan: composed name too long: %w", err)
 	}
@@ -128,7 +134,11 @@ func (b *netlinkBackend) CreateVLAN(parentName string, vlanID int) error {
 			Name:        vlanName,
 			ParentIndex: parent.Attrs().Index,
 		},
-		VlanId: vlanID,
+		VlanId: spec.VLANID,
+		// Serialized as IFLA_VLAN_INGRESS_QOS / IFLA_VLAN_EGRESS_QOS inside
+		// RTM_NEWLINK; nil maps emit no attribute.
+		IngressQosMap: spec.IngressQoSMap,
+		EgressQosMap:  spec.EgressQoSMap,
 	}
 	if err := netlink.LinkAdd(vlan); err != nil {
 		return fmt.Errorf("iface: create vlan %q: %w", vlanName, err)
@@ -136,6 +146,17 @@ func (b *netlinkBackend) CreateVLAN(parentName string, vlanID int) error {
 	if err := netlink.LinkSetUp(vlan); err != nil {
 		_ = netlink.LinkDel(vlan)
 		return fmt.Errorf("iface: set up vlan %q: %w", vlanName, err)
+	}
+	return nil
+}
+
+// validateQoSMap checks every entry of an 802.1p QoS map is within the 3-bit
+// PCP/priority range. IEEE 802.1Q: the PCP field of the TCI is 3 bits (0-7).
+func validateQoSMap(m map[uint32]uint32) error {
+	for from, to := range m {
+		if from > 7 || to > 7 {
+			return fmt.Errorf("entry %d:%d out of range (0-7)", from, to)
+		}
 	}
 	return nil
 }

@@ -15,6 +15,8 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | Veth pairs | have | |
 | | Bridge (basic) | have | |
 | | VLAN 802.1Q | have | |
+| | VLAN 802.1p QoS maps (ingress/egress PCP-priority) | have | |
+| | Class-of-service named profiles (802.1p, interface-level inheritance) | have | |
 | | Loopback | have | |
 | | Bonding / LACP | missing | high |
 | | VXLAN | missing | medium |

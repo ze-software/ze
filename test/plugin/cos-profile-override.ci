@@ -1,0 +1,36 @@
+# Test: unit-level class-of-service overrides interface-level
+# VALIDATES: spec-cos-plugin AC-5 -- per-unit override.
+# PREVENTS: parent profile always applied regardless of unit setting.
+stdin=config:terminator=EOF_CONF
+class-of-service {
+	ieee-802.1p residential {
+		ingress {
+			pcp 0 { priority 0; }
+		}
+		egress {
+			priority 0 { pcp 0; }
+		}
+	}
+	ieee-802.1p business {
+		ingress {
+			pcp 5 { priority 5; }
+		}
+		egress {
+			priority 5 { pcp 5; }
+		}
+	}
+}
+
+interface {
+	backend netlink;
+	ethernet eth0 {
+		class-of-service residential;
+		unit v100 { vlan-id 100; }
+		unit v200 { vlan-id 200; class-of-service business; }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

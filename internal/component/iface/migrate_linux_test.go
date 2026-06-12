@@ -17,7 +17,7 @@ type mockMigrateBackend struct{}
 func (m *mockMigrateBackend) CreateDummy(_ string) error   { return fmt.Errorf("mock: not supported") }
 func (m *mockMigrateBackend) CreateVeth(_, _ string) error { return fmt.Errorf("mock: not supported") }
 func (m *mockMigrateBackend) CreateBridge(_ string) error  { return fmt.Errorf("mock: not supported") }
-func (m *mockMigrateBackend) CreateVLAN(_ string, _ int) error {
+func (m *mockMigrateBackend) CreateVLAN(_ VLANSpec) error {
 	return fmt.Errorf("mock: not supported")
 }
 func (m *mockMigrateBackend) CreateTunnel(_ TunnelSpec) error {

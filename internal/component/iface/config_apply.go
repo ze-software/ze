@@ -652,7 +652,12 @@ func applyConfig(cfg, previous *ifaceConfig, b Backend) []error {
 				vlanName := bVlan.Reset().Str(e.Name).Byte('.').Int(int64(u.VLANID)).String()
 				created := false
 				if err := applyBackendStep(journal, func() error {
-					if err := b.CreateVLAN(e.Name, u.VLANID); err != nil {
+					if err := b.CreateVLAN(VLANSpec{
+						Parent:        e.Name,
+						VLANID:        u.VLANID,
+						IngressQoSMap: u.IngressQoSMap,
+						EgressQoSMap:  u.EgressQoSMap,
+					}); err != nil {
 						if _, getErr := b.GetInterface(vlanName); getErr != nil {
 							return err
 						}
@@ -951,7 +956,12 @@ func recreateManagedVLAN(parent string, units []unitEntry, name string, b Backen
 		if bCheck.Reset().Str(parent).Byte('.').Int(int64(u.VLANID)).String() != name {
 			continue
 		}
-		return b.CreateVLAN(parent, u.VLANID)
+		return b.CreateVLAN(VLANSpec{
+			Parent:        parent,
+			VLANID:        u.VLANID,
+			IngressQoSMap: u.IngressQoSMap,
+			EgressQoSMap:  u.EgressQoSMap,
+		})
 	}
 	return nil
 }

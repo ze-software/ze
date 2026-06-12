@@ -16,6 +16,7 @@ import (
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/cos"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -150,6 +151,10 @@ type unitEntry struct {
 	MirrorIngress  string // destination interface name, empty = not configured
 	MirrorEgress   string
 	MPLSEnable     *bool // enable MPLS label input (net.mpls.conf.<iface>.input)
+	// 802.1p QoS maps (IEEE 802.1Q PCP, 3 bits). nil = not configured,
+	// no netlink attribute sent. Keys and values are 0-7.
+	IngressQoSMap map[uint32]uint32 // received PCP -> internal priority
+	EgressQoSMap  map[uint32]uint32 // internal priority -> transmitted PCP
 }
 
 // dhcpUnitConfig holds DHCPv4 client settings parsed from the YANG
@@ -393,7 +398,7 @@ func parseIfaceConfig(data string) (*ifaceConfig, error) {
 	if loMap, ok := ifaceMap["loopback"].(map[string]any); ok {
 		lo := &loopbackEntry{}
 		var err error
-		lo.Units, err = parseUnits(loMap)
+		lo.Units, err = parseUnits(loMap, "")
 		if err != nil {
 			return nil, fmt.Errorf("loopback: %w", err)
 		}
@@ -807,15 +812,16 @@ func parseIfaceEntry(name string, m map[string]any) (ifaceEntry, error) {
 		entry.Disable = true
 	}
 	entry.Offload = parseOffloadConfig(m)
+	parentCoS, _ := m["class-of-service"].(string)
 	var err error
-	entry.Units, err = parseUnits(m)
+	entry.Units, err = parseUnits(m, parentCoS)
 	if err != nil {
 		return entry, fmt.Errorf("%s: %w", name, err)
 	}
 	return entry, nil
 }
 
-func parseUnits(m map[string]any) ([]unitEntry, error) {
+func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 	unitMap, ok := m["unit"].(map[string]any)
 	if !ok {
 		return nil, nil //nolint:nilnil // no unit container means no units, not an error
@@ -867,10 +873,93 @@ func parseUnits(m map[string]any) ([]unitEntry, error) {
 					u.MPLSEnable = &b
 				}
 			}
+
+			u.IngressQoSMap, err = parseQoSMap(um, "ingress-qos-map", "priority")
+			if err != nil {
+				return nil, fmt.Errorf("unit %q: %w", name, err)
+			}
+			u.EgressQoSMap, err = parseQoSMap(um, "egress-qos-map", "pcp")
+			if err != nil {
+				return nil, fmt.Errorf("unit %q: %w", name, err)
+			}
+
+			cosName, _ := um["class-of-service"].(string)
+			if cosName == "" {
+				cosName = parentCoS
+			}
+			if cosName == "none" {
+				cosName = ""
+			}
+			if cosName != "" {
+				if u.IngressQoSMap != nil || u.EgressQoSMap != nil {
+					return nil, fmt.Errorf("unit %q: class-of-service and inline qos maps are mutually exclusive", name)
+				}
+				p, ok := cos.Lookup(cosName)
+				if !ok {
+					return nil, fmt.Errorf("unit %q: class-of-service profile %q not found", name, cosName)
+				}
+				u.IngressQoSMap = p.IngressMap
+				u.EgressQoSMap = p.EgressMap
+			}
+
+			if (u.IngressQoSMap != nil || u.EgressQoSMap != nil) && u.VLANID <= 0 {
+				return nil, fmt.Errorf("unit %q: qos maps require vlan-id", name)
+			}
 		}
 		units = append(units, u)
 	}
 	return units, nil
+}
+
+// parseQoSMap reads an 802.1p QoS map list from the unit container. The YANG
+// list key (PCP for ingress, priority for egress) arrives as the JSON object
+// key; valueLeaf names the single value leaf inside each entry. Both sides
+// are 3-bit 802.1p values (0-7). Returns nil when the list is absent OR
+// present but empty, so the backend never emits an empty netlink mapping
+// attribute (the vendor lib serializes any non-nil map).
+func parseQoSMap(um map[string]any, listName, valueLeaf string) (map[uint32]uint32, error) {
+	listMap, ok := um[listName].(map[string]any)
+	if !ok || len(listMap) == 0 {
+		return nil, nil //nolint:nilnil // absent or empty list means unconfigured, not an error
+	}
+	// At most 8 entries can be valid (keys are 0-7); do not size the map
+	// from the raw JSON key count.
+	m := make(map[uint32]uint32, min(len(listMap), 8))
+	for keyStr, v := range listMap {
+		key, err := parsePCPValue(keyStr)
+		if err != nil {
+			return nil, fmt.Errorf("%s key %q: %w", listName, keyStr, err)
+		}
+		if _, dup := m[key]; dup {
+			// "06" and "6" are distinct JSON keys but the same 802.1p value;
+			// silent last-write-wins would be nondeterministic.
+			return nil, fmt.Errorf("%s key %q: duplicate entry for value %d", listName, keyStr, key)
+		}
+		entry, _ := v.(map[string]any)
+		valStr, ok := entry[valueLeaf].(string)
+		if !ok {
+			return nil, fmt.Errorf("%s entry %q: missing %s", listName, keyStr, valueLeaf)
+		}
+		val, err := parsePCPValue(valStr)
+		if err != nil {
+			return nil, fmt.Errorf("%s entry %q: %s %q: %w", listName, keyStr, valueLeaf, valStr, err)
+		}
+		m[key] = val
+	}
+	return m, nil
+}
+
+// parsePCPValue parses a 3-bit 802.1p value (PCP or internal priority).
+// IEEE 802.1Q: the PCP field of the TCI is 3 bits, so 0-7.
+func parsePCPValue(s string) (uint32, error) {
+	n, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, errors.New("not a number")
+	}
+	if n > 7 {
+		return 0, errors.New("out of range (0-7)")
+	}
+	return uint32(n), nil
 }
 
 func parseIPv4Settings(um map[string]any) (*ipv4Settings, error) {

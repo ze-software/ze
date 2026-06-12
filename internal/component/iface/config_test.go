@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	vppevents "codeberg.org/thomas-mangin/ze/internal/component/vpp/events"
+	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -1938,6 +1940,7 @@ type fakeBackend struct {
 	tunnels        map[string]TunnelSpec
 	wgConfigs      map[string]WireguardSpec
 	wgConfigCt     map[string]int
+	vlans          map[string]VLANSpec
 	routeAdds      []routeCall
 	routeRemoves   []routeCall
 	staleRoutes    []RouteInfo // returned by ListRoutes for stale cleanup tests
@@ -1973,6 +1976,9 @@ func (b *fakeBackend) ensureMaps() {
 	if b.wgConfigCt == nil {
 		b.wgConfigCt = make(map[string]int)
 	}
+	if b.vlans == nil {
+		b.vlans = make(map[string]VLANSpec)
+	}
 }
 
 func addressErrKey(ifaceName, cidr string) string {
@@ -2003,7 +2009,15 @@ func (b *fakeBackend) CreateBridge(name string) error {
 	return nil
 }
 
-func (b *fakeBackend) CreateVLAN(_ string, _ int) error { return nil }
+func (b *fakeBackend) CreateVLAN(spec VLANSpec) error {
+	b.ensureMaps()
+	var nb textbuf.Buffer
+	name := nb.Str(spec.Parent).Byte('.').Int(int64(spec.VLANID)).String()
+	b.created[name] = true
+	b.vlans[name] = spec
+	b.ifaces[name] = fakeIface{name: name, linkType: "vlan"}
+	return nil
+}
 
 func (b *fakeBackend) CreateTunnel(spec TunnelSpec) error {
 	b.ensureMaps()
@@ -3513,4 +3527,356 @@ func TestApplyXFRMChangedTriggersRecreate(t *testing.T) {
 	assert.Empty(t, errs)
 	assert.True(t, b.deleted["xfrm0"])
 	assert.True(t, b.created["xfrm0"])
+}
+
+// TestParseUnitQoSMap verifies that ingress-qos-map (PCP -> internal priority)
+// and egress-qos-map (internal priority -> PCP) on a VLAN unit are parsed into
+// unitEntry maps, including the 0 and 7 boundary values.
+//
+// VALIDATES: spec-vlan-qos-map AC-1, AC-2 -- QoS map entries populate unitEntry.
+// PREVENTS: silent loss of 802.1p mapping config between YANG and the backend.
+func TestParseUnitQoSMap(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"v100": {
+							"vlan-id": "100",
+							"ingress-qos-map": {
+								"0": { "priority": "1" },
+								"6": { "priority": "6" },
+								"7": { "priority": "7" }
+							},
+							"egress-qos-map": {
+								"0": { "pcp": "0" },
+								"6": { "pcp": "6" },
+								"7": { "pcp": "7" }
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Equal(t, map[uint32]uint32{0: 1, 6: 6, 7: 7}, u.IngressQoSMap)
+	assert.Equal(t, map[uint32]uint32{0: 0, 6: 6, 7: 7}, u.EgressQoSMap)
+}
+
+// TestParseUnitQoSMapInvalid verifies invalid QoS map values are rejected at
+// parse time: PCP or priority above 7 (3-bit 802.1p field), non-numeric
+// values, missing value leaf, and QoS maps on a unit without vlan-id.
+//
+// VALIDATES: spec-vlan-qos-map AC-4, AC-5 -- boundary enforcement (last valid
+// 7, first invalid 8).
+// PREVENTS: out-of-range values reaching the kernel netlink attribute.
+func TestParseUnitQoSMapInvalid(t *testing.T) {
+	tests := []struct {
+		name string
+		unit string
+	}{
+		{"ingress pcp 8", `{"vlan-id": "100", "ingress-qos-map": {"8": {"priority": "1"}}}`},
+		{"ingress priority 8", `{"vlan-id": "100", "ingress-qos-map": {"1": {"priority": "8"}}}`},
+		{"egress priority 8", `{"vlan-id": "100", "egress-qos-map": {"8": {"pcp": "1"}}}`},
+		{"egress pcp 8", `{"vlan-id": "100", "egress-qos-map": {"1": {"pcp": "8"}}}`},
+		{"non-numeric key", `{"vlan-id": "100", "ingress-qos-map": {"voice": {"priority": "6"}}}`},
+		{"non-numeric value", `{"vlan-id": "100", "ingress-qos-map": {"6": {"priority": "high"}}}`},
+		{"missing value leaf", `{"vlan-id": "100", "ingress-qos-map": {"6": {}}}`},
+		{"ingress without vlan-id", `{"ingress-qos-map": {"6": {"priority": "6"}}}`},
+		{"egress without vlan-id", `{"egress-qos-map": {"6": {"pcp": "6"}}}`},
+		{"duplicate canonical key", `{"vlan-id": "100", "ingress-qos-map": {"6": {"priority": "6"}, "06": {"priority": "1"}}}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseIfaceConfig(`{
+				"interface": {
+					"ethernet": {
+						"eth0": {
+							"unit": { "v100": ` + tt.unit + ` }
+						}
+					}
+				}
+			}`)
+			assert.Error(t, err)
+		})
+	}
+}
+
+// TestApplyVLANQoSMap verifies the apply path forwards the parsed QoS maps to
+// the backend inside the VLANSpec, and that units without maps pass nil.
+//
+// VALIDATES: spec-vlan-qos-map AC-3, AC-6 -- config to backend wiring.
+// PREVENTS: maps parsed but dropped before reaching netlink.
+func TestApplyVLANQoSMap(t *testing.T) {
+	cfg := &ifaceConfig{
+		Ethernet: []ifaceEntry{{
+			Name: "eth0",
+			Units: []unitEntry{{
+				Label:         "v100",
+				VLANID:        100,
+				IngressQoSMap: map[uint32]uint32{6: 6},
+				EgressQoSMap:  map[uint32]uint32{6: 6, 0: 0},
+			}, {
+				Label:  "v200",
+				VLANID: 200,
+			}},
+		}},
+	}
+	b := &fakeBackend{ifaces: map[string]fakeIface{"eth0": {name: "eth0"}}}
+	errs := applyConfig(cfg, nil, b)
+	assert.Empty(t, errs)
+	require.Contains(t, b.vlans, "eth0.100")
+	spec := b.vlans["eth0.100"]
+	assert.Equal(t, "eth0", spec.Parent)
+	assert.Equal(t, 100, spec.VLANID)
+	assert.Equal(t, map[uint32]uint32{6: 6}, spec.IngressQoSMap)
+	assert.Equal(t, map[uint32]uint32{6: 6, 0: 0}, spec.EgressQoSMap)
+	require.Contains(t, b.vlans, "eth0.200")
+	assert.Nil(t, b.vlans["eth0.200"].IngressQoSMap)
+	assert.Nil(t, b.vlans["eth0.200"].EgressQoSMap)
+}
+
+// TestParseUnitQoSMapEmpty verifies a VLAN unit without QoS maps parses with
+// nil maps, preserving the pre-feature behavior (no netlink attributes sent).
+// A present-but-empty list also yields nil: the vendor netlink lib serializes
+// any non-nil map, and an empty IFLA_VLAN_*_QOS attribute must never be sent.
+//
+// VALIDATES: spec-vlan-qos-map AC-6 -- backward compatibility.
+// PREVENTS: zero-length maps being sent to the kernel for legacy configs.
+func TestParseUnitQoSMapEmpty(t *testing.T) {
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"v100": {
+							"vlan-id": "100"
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Nil(t, u.IngressQoSMap)
+	assert.Nil(t, u.EgressQoSMap)
+
+	cfg = mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"unit": {
+						"v100": {
+							"vlan-id": "100",
+							"ingress-qos-map": {},
+							"egress-qos-map": {}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u = cfg.Ethernet[0].Units[0]
+	assert.Nil(t, u.IngressQoSMap, "present-but-empty list must normalize to nil")
+	assert.Nil(t, u.EgressQoSMap, "present-but-empty list must normalize to nil")
+}
+
+// TestCoSProfileResolution verifies that a class-of-service reference on the
+// parent ethernet interface is resolved via cos.Lookup and populates the
+// unit's IngressQoSMap/EgressQoSMap.
+//
+// VALIDATES: spec-cos-plugin AC-4 -- interface-level profile populates unit maps.
+// PREVENTS: class-of-service ref silently ignored during parsing.
+func TestCoSProfileResolution(t *testing.T) {
+	t.Cleanup(coreCos.Clear)
+	coreCos.Register("residential", coreCos.Profile{
+		IngressMap: map[uint32]uint32{0: 0, 6: 6},
+		EgressMap:  map[uint32]uint32{0: 0, 6: 6},
+	})
+
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"class-of-service": "residential",
+					"unit": {
+						"v100": {
+							"vlan-id": "100"
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Equal(t, map[uint32]uint32{0: 0, 6: 6}, u.IngressQoSMap)
+	assert.Equal(t, map[uint32]uint32{0: 0, 6: 6}, u.EgressQoSMap)
+}
+
+// TestCoSProfileUnitOverride verifies that a unit-level class-of-service
+// overrides the parent interface setting.
+//
+// VALIDATES: spec-cos-plugin AC-5 -- per-unit override wins over parent.
+// PREVENTS: parent CoS always applied even when unit has its own.
+func TestCoSProfileUnitOverride(t *testing.T) {
+	t.Cleanup(coreCos.Clear)
+	coreCos.Register("residential", coreCos.Profile{
+		IngressMap: map[uint32]uint32{0: 0, 6: 6},
+		EgressMap:  map[uint32]uint32{0: 0, 6: 6},
+	})
+	coreCos.Register("business", coreCos.Profile{
+		IngressMap: map[uint32]uint32{5: 5, 7: 7},
+		EgressMap:  map[uint32]uint32{5: 5, 7: 7},
+	})
+
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"class-of-service": "residential",
+					"unit": {
+						"v100": {
+							"vlan-id": "100",
+							"class-of-service": "business"
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Equal(t, map[uint32]uint32{5: 5, 7: 7}, u.IngressQoSMap)
+	assert.Equal(t, map[uint32]uint32{5: 5, 7: 7}, u.EgressQoSMap)
+}
+
+// TestCoSProfileUnitOptOut verifies that "class-of-service none" on a unit
+// disables inheritance from the parent interface.
+//
+// VALIDATES: spec-cos-plugin AC-6 -- "none" opts out of parent profile.
+// PREVENTS: parent CoS applied even when unit explicitly requests no maps.
+func TestCoSProfileUnitOptOut(t *testing.T) {
+	t.Cleanup(coreCos.Clear)
+	coreCos.Register("residential", coreCos.Profile{
+		IngressMap: map[uint32]uint32{0: 0, 6: 6},
+		EgressMap:  map[uint32]uint32{0: 0, 6: 6},
+	})
+
+	cfg := mustParseIfaceJSON(t, `{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"class-of-service": "residential",
+					"unit": {
+						"v100": {
+							"vlan-id": "100",
+							"class-of-service": "none"
+						}
+					}
+				}
+			}
+		}
+	}`)
+	require.Len(t, cfg.Ethernet, 1)
+	require.Len(t, cfg.Ethernet[0].Units, 1)
+	u := cfg.Ethernet[0].Units[0]
+	assert.Nil(t, u.IngressQoSMap)
+	assert.Nil(t, u.EgressQoSMap)
+}
+
+// TestCoSProfileNoVLAN verifies that class-of-service on a unit without
+// vlan-id is rejected (same constraint as inline qos maps).
+//
+// VALIDATES: spec-cos-plugin AC-7 -- class-of-service requires vlan-id.
+// PREVENTS: kernel error from VLAN QoS map on a non-VLAN interface.
+func TestCoSProfileNoVLAN(t *testing.T) {
+	t.Cleanup(coreCos.Clear)
+	coreCos.Register("residential", coreCos.Profile{
+		IngressMap: map[uint32]uint32{0: 0},
+		EgressMap:  map[uint32]uint32{0: 0},
+	})
+
+	_, err := parseIfaceConfig(`{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"class-of-service": "residential",
+					"unit": {
+						"v100": {}
+					}
+				}
+			}
+		}
+	}`)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vlan-id")
+}
+
+// TestCoSProfileConflictInline verifies that a unit with both a
+// class-of-service reference and inline qos maps is rejected.
+//
+// VALIDATES: spec-cos-plugin AC-8 -- mutual exclusion.
+// PREVENTS: ambiguous config where both mechanisms set the same maps.
+func TestCoSProfileConflictInline(t *testing.T) {
+	t.Cleanup(coreCos.Clear)
+	coreCos.Register("residential", coreCos.Profile{
+		IngressMap: map[uint32]uint32{0: 0},
+		EgressMap:  map[uint32]uint32{0: 0},
+	})
+
+	_, err := parseIfaceConfig(`{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"class-of-service": "residential",
+					"unit": {
+						"v100": {
+							"vlan-id": "100",
+							"ingress-qos-map": {
+								"6": { "priority": "6" }
+							}
+						}
+					}
+				}
+			}
+		}
+	}`)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "mutually exclusive")
+}
+
+// TestCoSProfileNotFound verifies that referencing a nonexistent profile
+// name is rejected during parsing.
+//
+// VALIDATES: spec-cos-plugin AC-9 -- missing profile detected.
+// PREVENTS: silent config acceptance that would leave VLAN without maps.
+func TestCoSProfileNotFound(t *testing.T) {
+	t.Cleanup(coreCos.Clear)
+
+	_, err := parseIfaceConfig(`{
+		"interface": {
+			"ethernet": {
+				"eth0": {
+					"class-of-service": "nonexistent",
+					"unit": {
+						"v100": {
+							"vlan-id": "100"
+						}
+					}
+				}
+			}
+		}
+	}`)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
 }

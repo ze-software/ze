@@ -40,6 +40,19 @@ var ErrCountersNotResettable = errors.New("iface: backend cannot reset counters 
 // without relying on a string literal scattered across the package.
 const vppBackendName = "vpp"
 
+// VLANSpec carries the parameters for an 802.1Q sub-interface. The QoS maps
+// translate between the 3-bit 802.1p PCP field of the tag header and the
+// internal packet priority (IEEE 802.1Q: PCP and priority are 0-7):
+// IngressQoSMap maps received PCP to internal priority, EgressQoSMap maps
+// internal priority to transmitted PCP. nil maps mean unconfigured -- the
+// backend MUST NOT emit an empty mapping attribute for them.
+type VLANSpec struct {
+	Parent        string
+	VLANID        int
+	IngressQoSMap map[uint32]uint32 // received PCP -> internal priority
+	EgressQoSMap  map[uint32]uint32 // internal priority -> transmitted PCP
+}
+
 // Backend defines the operations that an interface management backend must
 // implement. The iface component dispatches all OS-specific work through
 // this interface. Implementations are registered via RegisterBackend and
@@ -52,7 +65,10 @@ type Backend interface {
 	CreateDummy(name string) error
 	CreateVeth(name, peerName string) error
 	CreateBridge(name string) error
-	CreateVLAN(parentName string, vlanID int) error
+	// CreateVLAN creates an 802.1Q sub-interface named "<Parent>.<VLANID>".
+	// The optional QoS maps translate between 802.1p PCP bits and internal
+	// priority; nil maps mean no mapping is configured.
+	CreateVLAN(spec VLANSpec) error
 	// CreateTunnel creates an L3 or L2 tunnel netdev for one of the kinds in
 	// TunnelKind. The TunnelSpec carries kind-specific parameters; fields not
 	// applicable to a kind are ignored. See tunnel.go for the spec shape.

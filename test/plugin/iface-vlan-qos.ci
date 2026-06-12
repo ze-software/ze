@@ -1,0 +1,80 @@
+# Test: full BNG-style CoS chain config validates end-to-end
+# The user-facing scenario behind spec-vlan-qos-map: DSCP-marked traffic is
+# classified by traffic-control, and the VLAN egress-qos-map stamps the
+# matching 802.1p PCP on the wire; the ingress map classifies the reverse
+# direction. This validates the three subsystems (iface VLAN QoS maps,
+# firewall DSCP, traffic-control DSCP filter) compose in one configuration.
+#
+# VALIDATES: spec-vlan-qos-map Goal -- bidirectional CoS-to-PCP mapping is
+#            configurable through the real binary alongside the existing
+#            L3 QoS features it bridges to.
+# PREVENTS: schema regressions in any one subsystem breaking the combined
+#           BNG configuration story.
+stdin=config:terminator=EOF_CONF
+interface {
+	backend netlink;
+	ethernet eth0 {
+		unit v100 {
+			vlan-id 100;
+			ingress-qos-map 6 {
+				priority 6;
+			}
+			egress-qos-map 6 {
+				pcp 6;
+			}
+			ipv4 {
+				address [10.0.0.1/30]
+			}
+		}
+	}
+}
+
+firewall {
+	backend nft;
+	table cos {
+		family inet;
+		chain forward {
+			type filter;
+			hook forward;
+			priority 0;
+			policy accept;
+			term voice {
+				from {
+					dscp ef;
+				}
+				then {
+					dscp-set ef;
+					accept;
+				}
+			}
+		}
+	}
+}
+
+traffic-control {
+	backend tc
+	interface eth0.100 {
+		qdisc {
+			type htb;
+			default-class default;
+			class voice {
+				rate 10mbit;
+				ceil 20mbit;
+				priority 0;
+				match dscp {
+					value 46;
+				}
+			}
+			class default {
+				rate 50mbit;
+				ceil 100mbit;
+				priority 1;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
