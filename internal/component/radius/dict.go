@@ -65,7 +65,38 @@ const (
 
 // Vendor IDs for vendor-specific attributes (RFC 2865 Section 5.26).
 const (
+	VendorCisco     = 9
 	VendorMicrosoft = 311
+	VendorHuawei    = 2011
+	VendorJuniper   = 4874
+	VendorNokia     = 6527
+	VendorMikrotik  = 14988
+)
+
+// Cisco vendor-specific attribute types.
+const (
+	CiscoAVPair = 1
+)
+
+// Juniper ERX vendor-specific attribute types.
+const (
+	ERXIngressPolicyName = 10
+	ERXEgressPolicyName  = 11
+)
+
+// Huawei vendor-specific attribute types.
+const (
+	HWSubscriberQoSProfile = 17
+)
+
+// Nokia vendor-specific attribute types.
+const (
+	AlcSubscriberQoSOverride = 126
+)
+
+// MikroTik vendor-specific attribute types.
+const (
+	MikrotikRateLimit = 8
 )
 
 // Microsoft vendor-specific attribute types.

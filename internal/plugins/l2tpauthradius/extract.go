@@ -74,6 +74,19 @@ func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 		found = true
 	}
 
+	if meta.CoSProfile == "" {
+		if name := extractVSACoSProfile(resp); name != "" {
+			meta.CoSProfile = name
+			found = true
+		}
+	}
+	if meta.FilterID == "" {
+		if rate := extractVSARate(resp); rate > 0 {
+			meta.FilterID = mikrotikRateToFilterID(rate)
+			found = true
+		}
+	}
+
 	if raw := resp.FindAttr(radius.AttrAcctInterimInterval); len(raw) == 4 {
 		meta.AcctInterimInterval = binary.BigEndian.Uint32(raw)
 		found = true

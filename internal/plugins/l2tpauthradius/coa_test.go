@@ -423,3 +423,38 @@ func TestExtractRate_Invalid(t *testing.T) {
 		t.Errorf("extractRate with invalid filter-id: got %d, want 0", got)
 	}
 }
+
+// VALIDATES: AC-12 -- CoA with Cisco-AVPair extracts CoS profile.
+func TestCoAExtractCiscoCoS(t *testing.T) {
+	vsaValue := []byte("subscriber:sub-qos-policy-in=business")
+	encoded, err := radius.EncodeVSA(radius.VendorCisco, radius.CiscoAVPair, vsaValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkt := &radius.Packet{
+		Attrs: []radius.Attr{
+			{Type: radius.AttrVendorSpecific, Value: encoded[2:]},
+		},
+	}
+	got := extractCoSProfile(pkt)
+	if got != "business" {
+		t.Errorf("extractCoSProfile = %q, want %q", got, "business")
+	}
+}
+
+// VALIDATES: AC-12 -- CoA MikroTik VSA rate extraction.
+func TestCoAExtractMikrotikRate(t *testing.T) {
+	encoded, err := radius.EncodeVSA(radius.VendorMikrotik, radius.MikrotikRateLimit, []byte("10M/5M"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkt := &radius.Packet{
+		Attrs: []radius.Attr{
+			{Type: radius.AttrVendorSpecific, Value: encoded[2:]},
+		},
+	}
+	got := extractRate(pkt)
+	if got != 10_000_000 {
+		t.Errorf("extractRate = %d, want %d", got, 10_000_000)
+	}
+}

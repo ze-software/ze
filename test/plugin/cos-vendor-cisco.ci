@@ -1,0 +1,37 @@
+# Test: Daemon starts with vendor VSA CoS extraction active.
+#
+# VALIDATES: spec-cos-vendor-radius -- vendor VSA parsing compiles and loads.
+# PREVENTS:  registration or import cycle blocking startup with vendor VSA code.
+
+stdin=config:terminator=EOF_CONF
+class-of-service {
+    ieee-802.1p gold {
+        ingress { pcp 0 { priority 0; } }
+        egress { priority 0 { pcp 0; } }
+    }
+}
+
+l2tp {
+    enabled true
+    authentication {
+        radius {
+            server main {
+                address 127.0.0.1;
+                shared-key testing;
+            }
+        }
+    }
+}
+
+interface {
+    backend netlink;
+    ethernet eth0 {
+        class-of-service gold;
+        unit v100 { vlan-id 100; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

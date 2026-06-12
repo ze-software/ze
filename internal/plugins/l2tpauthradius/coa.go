@@ -347,23 +347,29 @@ func (cl *coaListener) findSession(pkt *radius.Packet) (uint16, bool) {
 }
 
 // extractRate reads the download rate from CoA attributes.
-// Checks Filter-Id for a rate string (e.g. "10mbit").
+// Checks Filter-Id first, then MikroTik VSA as fallback.
 func extractRate(pkt *radius.Packet) uint64 {
 	for _, raw := range pkt.FindAllAttr(radius.AttrFilterID) {
 		if rate, err := traffic.ParseRateBps(string(raw)); err == nil {
 			return rate
 		}
 	}
+	if rate := extractVSARate(pkt); rate > 0 {
+		return rate
+	}
 	return 0
 }
 
 // extractCoSProfile reads the CoS profile name from CoA attributes.
-// Checks Filter-Id for a "cos:<name>" value.
+// Checks Filter-Id first, then vendor VSA as fallback.
 func extractCoSProfile(pkt *radius.Packet) string {
 	for _, raw := range pkt.FindAllAttr(radius.AttrFilterID) {
 		if name, ok := coreCos.ParseFilterID(string(raw)); ok {
 			return name
 		}
+	}
+	if name := extractVSACoSProfile(pkt); name != "" {
+		return name
 	}
 	return ""
 }
