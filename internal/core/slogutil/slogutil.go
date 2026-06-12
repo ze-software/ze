@@ -451,6 +451,8 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 		case "relay":
 			envKey = tb.Reset().Str("ze.log.").Str(key).String()
 			isLevel = true
+		case "color":
+			envKey = "ze.log.color"
 		default:
 			envKey = tb.Reset().Str("ze.log.").Str(key).String()
 			isLevel = true

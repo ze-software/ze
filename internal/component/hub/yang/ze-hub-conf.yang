@@ -53,6 +53,11 @@ module ze-hub-conf {
                 description "Plugin stderr relay level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL (case-insensitive)";
             }
 
+            leaf color {
+                type boolean;
+                description "Force color log output on (true) or off (false). When unset, auto-detected from terminal.";
+            }
+
             // Subsystem-specific log levels (any key allowed)
             // Syntax: <subsystem-path> <level>;
             // Example: bgp.routes debug;

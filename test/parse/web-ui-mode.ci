@@ -1,0 +1,33 @@
+# Test: ze config validate accepts environment web ui-mode leaf
+# VALIDATES: ui-mode YANG enum leaf (finder/workbench) parses correctly
+# PREVENTS: YANG schema rejecting the new ui-mode config option
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+environment {
+	web {
+		ui-mode workbench
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

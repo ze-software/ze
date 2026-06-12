@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -109,6 +110,10 @@ func ExtractWebConfig(tree *Tree) (WebListenConfig, bool) {
 
 	if v, ok := web.Get("insecure"); ok && v == configTrue {
 		cfg.Insecure = true
+	}
+
+	if v, ok := web.Get("ui-mode"); ok && v != "" && env.Get("ze.web.ui-mode") == "" {
+		_ = env.Set("ze.web.ui-mode", v)
 	}
 
 	// Insecure forces every entry to 127.0.0.1 binding.

@@ -150,13 +150,13 @@ No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
 |--------|---------|
 | CLI flag | `ze start --web <port>` |
 | Config | `environment { web { enabled true; server main { ip 0.0.0.0; port 3443; } } }` |
-| Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true`, `ze.web.ui=finder` (rollback to legacy Finder) |
+| Env vars | `ze.web.listen=ip:port`, `ze.web.enabled=true`, `ze.web.insecure=true`, `ze.web.ui-mode=finder` (rollback to legacy Finder) |
 
 Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BGP config) starts the web server standalone for initial setup.
 
 ## Workbench UI (default)
 
-The RouterOS-style operator workbench is the default UI. Set `ze.web.ui=finder` to roll back to the legacy Finder shell.
+The RouterOS-style operator workbench is the default UI. Set `ze.web.ui-mode=finder` to roll back to the legacy Finder shell.
 
 | Region | Source |
 |--------|--------|

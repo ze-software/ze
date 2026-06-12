@@ -53,10 +53,10 @@ func ParseUIMode(s string) UIMode {
 	}
 }
 
-// GetUIMode reads ze.web.ui from the env registry and returns the startup
+// GetUIMode reads ze.web.ui-mode from the env registry and returns the startup
 // mode. Workbench is the normal UI; Finder is only an explicit rollback.
 func GetUIMode() UIMode {
-	return ParseUIMode(env.Get("ze.web.ui"))
+	return ParseUIMode(env.Get("ze.web.ui-mode"))
 }
 
 // ReadUIModeFromRequest checks the current UI switch cookie before falling back

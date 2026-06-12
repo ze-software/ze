@@ -48,6 +48,15 @@ module ze-web-conf {
                 default false;
                 description "Disable authentication (forces host to 127.0.0.1)";
             }
+
+            leaf ui-mode {
+                type enumeration {
+                    enum finder { description "Default file-browser style UI"; }
+                    enum workbench { description "V2 workbench experiment"; }
+                }
+                default "finder";
+                description "Web UI mode";
+            }
         }
     }
 }

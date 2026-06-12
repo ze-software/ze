@@ -7,45 +7,45 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	// Side-effect import: registers ze.web.ui.
+	// Side-effect import: registers ze.web.ui-mode.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
-// TestUIMode_DefaultsToWorkbench verifies that with no ze.web.ui env var set,
+// TestUIMode_DefaultsToWorkbench verifies that with no ze.web.ui-mode env var set,
 // the hub defaults to the Workbench UI. Finder remains available only as an
 // explicit rollback mode.
 //
 // VALIDATES: Default UI is Workbench.
 // PREVENTS: Falling back to the old Finder shell on the main page.
 func TestUIMode_DefaultsToWorkbench(t *testing.T) {
-	t.Setenv("ze.web.ui", "")
+	t.Setenv("ze.web.ui-mode", "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
 	assert.Equal(t, UIModeWorkbench, GetUIMode())
 }
 
-// TestUIMode_OptInWorkbench verifies that ze.web.ui=workbench selects V2.
+// TestUIMode_OptInWorkbench verifies that ze.web.ui-mode=workbench selects V2.
 //
 // VALIDATES: AC-1 (workbench opt-in renders the V2 shell).
 // PREVENTS: The opt-in switch silently being ignored.
 func TestUIMode_OptInWorkbench(t *testing.T) {
-	t.Setenv("ze.web.ui", "workbench")
+	t.Setenv("ze.web.ui-mode", "workbench")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 
 	assert.Equal(t, UIModeWorkbench, GetUIMode())
 }
 
-// TestUIMode_RollbackFinder verifies that ze.web.ui=finder selects Finder
+// TestUIMode_RollbackFinder verifies that ze.web.ui-mode=finder selects Finder
 // explicitly. During Phases 1-3 this is identical to the default; after the
 // Phase 4 default flip this becomes the emergency rollback path.
 //
 // VALIDATES: AC-1a (explicit Finder rollback works).
 // PREVENTS: The rollback switch being broken when the default flips.
 func TestUIMode_RollbackFinder(t *testing.T) {
-	t.Setenv("ze.web.ui", "finder")
+	t.Setenv("ze.web.ui-mode", "finder")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 

@@ -1,0 +1,33 @@
+# Test: ze config validate accepts environment log color leaf
+# VALIDATES: log color boolean YANG leaf parses correctly
+# PREVENTS: YANG schema rejecting the new color config option
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+environment {
+	log {
+		color true
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
