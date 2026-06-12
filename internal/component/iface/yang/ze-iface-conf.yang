@@ -189,51 +189,6 @@ module ze-iface-conf {
                 description "VLAN identifier";
             }
 
-            list ingress-qos-map {
-                key "pcp";
-                description "Map the 802.1p PCP value of received tagged frames
-                             to an internal priority. Requires vlan-id. Frames
-                             whose PCP has no entry keep priority 0.";
-
-                leaf pcp {
-                    type uint8 {
-                        range "0..7";
-                    }
-                    description "PCP value in the received 802.1Q header (IEEE 802.1Q, 3 bits)";
-                }
-
-                leaf priority {
-                    type uint8 {
-                        range "0..7";
-                    }
-                    mandatory true;
-                    description "Internal priority assigned to matching frames";
-                }
-            }
-
-            list egress-qos-map {
-                key "priority";
-                description "Map the internal priority of outgoing packets to
-                             the 802.1p PCP value stamped in the 802.1Q header.
-                             Requires vlan-id. Priorities with no entry are
-                             sent with PCP 0.";
-
-                leaf priority {
-                    type uint8 {
-                        range "0..7";
-                    }
-                    description "Internal priority of the outgoing packet";
-                }
-
-                leaf pcp {
-                    type uint8 {
-                        range "0..7";
-                    }
-                    mandatory true;
-                    description "PCP value stamped in the 802.1Q header (IEEE 802.1Q, 3 bits)";
-                }
-            }
-
             leaf description {
                 type string {
                     length "0..255";

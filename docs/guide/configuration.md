@@ -865,7 +865,7 @@ class of service without inspecting IP headers. Both sides of every entry are
 0-7; unmapped values fall back to 0. The maps require `vlan-id` and are
 applied when the VLAN sub-interface is created.
 
-<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ingress-qos-map, egress-qos-map lists -->
+<!-- source: internal/plugins/cos/yang/ze-cos-conf.yang -- ingress-qos-map, egress-qos-map lists (qos-maps grouping) -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go -- CreateVLAN IngressQosMap/EgressQosMap -->
 
 ```
