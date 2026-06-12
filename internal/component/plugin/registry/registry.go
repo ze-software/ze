@@ -124,6 +124,10 @@ type Registration struct {
 	// should not silently produce a running ze with no BGP.
 	FatalOnConfigError bool
 
+	// DoctorChecks declares doctor readiness checks this plugin provides.
+	// Types defined in doctor.go. Component is set from the plugin Name.
+	DoctorChecks []DoctorCheckDef
+
 	// CLI metadata (used by RunPlugin).
 	Features     string // Space-separated feature list (e.g., "nlri yang")
 	SupportsNLRI bool   // Plugin can decode NLRI via CLI
@@ -149,6 +153,8 @@ var (
 	ErrCircularDependency = errors.New("registry: circular dependency")
 	// ErrMissingDependency is returned when a registered plugin declares a dependency on an unknown name.
 	ErrMissingDependency = errors.New("registry: missing dependency")
+	// ErrInvalidDoctorCheck is returned when a doctor check declaration is invalid.
+	ErrInvalidDoctorCheck = errors.New("registry: invalid doctor check")
 )
 
 var (
@@ -242,6 +248,11 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 		}
 		if existing, dup := filterTypes[ft]; dup {
 			return fmt.Errorf("registry: filter type %q already registered by %q", ft, existing)
+		}
+	}
+	for i, dc := range reg.DoctorChecks {
+		if err := validateDoctorCheckDef(reg.Name, i, dc); err != nil {
+			return err
 		}
 	}
 

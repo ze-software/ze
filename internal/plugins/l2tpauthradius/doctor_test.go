@@ -5,7 +5,6 @@ package l2tpauthradius
 import (
 	"context"
 	"net"
-	"slices"
 	"testing"
 	"time"
 
@@ -13,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 )
 
 func TestCheckRADIUSServers(t *testing.T) {
@@ -34,10 +33,10 @@ func TestCheckRADIUSServers(t *testing.T) {
 	server.Set("shared-key", "testing123")
 	radiusBlock.AddListEntry("server", "primary", server)
 
-	diags := checkRADIUSServers(diagnostic.DoctorCheckContext{Tree: tree})
+	diags := checkRADIUSServers(registry.DoctorCheckContext{Tree: tree})
 	require.Len(t, diags, 1)
 	assert.Equal(t, "doctor-radius-unreachable", diags[0].Code)
-	assert.Equal(t, diagnostic.SeverityWarning, diags[0].Severity)
+	assert.Equal(t, "warning", diags[0].Severity)
 	assert.Equal(t, "none of the configured RADIUS servers are reachable", diags[0].Message)
 }
 
@@ -48,16 +47,24 @@ func TestCheckRADIUSServersAbsentConfig(t *testing.T) {
 	udpReachable = func(string, []byte, net.IP, string, time.Duration) bool { return false }
 	t.Cleanup(func() { udpReachable = oldProbe })
 
-	assert.Empty(t, checkRADIUSServers(diagnostic.DoctorCheckContext{Tree: config.NewTree()}))
-	assert.Empty(t, checkRADIUSServers(diagnostic.DoctorCheckContext{Tree: nil}))
+	assert.Empty(t, checkRADIUSServers(registry.DoctorCheckContext{Tree: config.NewTree()}))
+	assert.Empty(t, checkRADIUSServers(registry.DoctorCheckContext{Tree: nil}))
 }
 
 func TestRADIUSDoctorCheckRegistered(t *testing.T) {
 	// VALIDATES: this plugin registers the l2tp-auth-radius-servers doctor check
-	// so `ze doctor` runs it through the registry, not a central call list.
+	// so `ze doctor` runs it through the plugin registry, not a central call list.
 	// PREVENTS: the removal test failing: deleting this plugin must delete the check.
-	assert.True(t, slices.Contains(diagnostic.DoctorCheckNames(), "l2tp-auth-radius-servers"),
-		"doctor check l2tp-auth-radius-servers not registered by plugin init")
+	checks := registry.PluginDoctorChecks()
+	found := false
+	for _, c := range checks {
+		if c.Name == "l2tp-auth-radius-servers" {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found,
+		"doctor check l2tp-auth-radius-servers not registered via Registration.DoctorChecks")
 }
 
 func TestUDPServerReachableRequiresResponse(t *testing.T) {

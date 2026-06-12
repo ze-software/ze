@@ -31,10 +31,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	zeplugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	plugindoctor "codeberg.org/thomas-mangin/ze/internal/component/plugin/doctor"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/resolve"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
@@ -1608,4 +1610,58 @@ func TestDoctorDependencyInventory(t *testing.T) {
 	total := len(covered) + len(excluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)
+}
+
+func TestRunDoctorChecksIncludesPluginRegistryChecks(t *testing.T) {
+	// VALIDATES: plugin doctor checks declared via registry.Registration.DoctorChecks
+	// are executed by the doctor runner through the bridge.
+	// PREVENTS: plugin checks registered via the new Registration field being silently ignored.
+	t.Cleanup(func() { registry.Restore(registry.Snapshot()) })
+	snap := registry.Snapshot()
+	registry.Reset()
+
+	called := false
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "test-doctor-bridge",
+		Description: "bridge test plugin",
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "bridge-test-check",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        900,
+			Dependencies: []string{"config-loaded"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-bridge-test"},
+			Check: func(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
+				called = true
+				return []rpc.DoctorCheckDiagnostic{{
+					Code:     "doctor-bridge-test",
+					Severity: "warning",
+					Message:  "bridge test fired",
+				}}
+			},
+		}},
+	}))
+
+	tree := config.NewTree()
+	platform := &host.PlatformInfo{Type: host.PlatformDarwin}
+	ctx := doctorCheckContext{
+		Tree:      tree,
+		ConfigDir: t.TempDir(),
+		Platform:  platform,
+	}
+	diags := runDoctorChecks(doctorCheckPhasePostConfig, ctx)
+
+	assert.True(t, called, "plugin registry doctor check was not called")
+	found := false
+	for _, d := range diags {
+		if d.Code == "doctor-bridge-test" {
+			found = true
+			assert.Equal(t, diagnostic.SeverityWarning, d.Severity)
+			assert.Equal(t, "bridge test fired", d.Message)
+		}
+	}
+	assert.True(t, found, "expected doctor-bridge-test diagnostic from plugin registry bridge")
+	registry.Restore(snap)
 }

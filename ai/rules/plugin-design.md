@@ -197,6 +197,7 @@ plugins in later phases are loaded.
 | `InProcessNLRIEncoder` | func | No | NLRI encode |
 | `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
 | `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
+| `DoctorChecks` | []DoctorCheckDef | No | Doctor readiness checks this plugin provides. Each entry carries metadata (name, phase, order, platforms, codes) and a check function. Component is set from the plugin Name. See `ai/rules/doctor-checks.md`. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 
 ## Optional Dependencies
@@ -337,6 +338,7 @@ side of the hub it lives on).
 [ ] Update TestAllPluginsRegistered expected count
 [ ] Add YANG schema if config support (schema/ subdir)
 [ ] Add EventTypes if plugin produces custom event types (e.g., ["update-rpki"])
+[ ] Add DoctorChecks if plugin adds runtime dependencies (see ai/rules/doctor-checks.md)
 [ ] Add functional tests in test/plugin/
 [ ] If plugin sets/reads route metadata: register keys in docs/architecture/meta/README.md, create docs/architecture/meta/<name>.md (see template there)
 ```

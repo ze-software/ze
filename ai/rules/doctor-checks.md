@@ -15,9 +15,17 @@ own the registration, check function, and unit test.
 the user entry point, and checks that have no narrower owner. Do not add new
 runtime dependency checks by appending another direct call to the central
 `runChecks` list. Do not add owner-specific registrations in `internal/component/doctor`
-just because the runner lives there. If the current registry API cannot be
-imported from the owning package, first move or expose the registry through a
-leaf package, then register from the owner.
+just because the runner lives there.
+
+**Internal plugins (preferred path):** declare doctor checks in
+`registry.Registration.DoctorChecks`. The doctor runner bridges these at
+execution time via `checks_plugin_registry.go`. The check function uses
+`registry.DoctorCheckContext` (Tree and Platform as `any`) and returns
+`[]rpc.DoctorCheckDiagnostic`. Component is set automatically from the plugin
+name. See `l2tpauthradius/register.go` for the reference example.
+
+**Components that are not plugins** (e.g., appliance, web, SSH): use
+`diagnostic.RegisterDoctorCheck()` from the owning package's init().
 
 | New dependency | Doctor check needed |
 |----------------|---------------------|
@@ -52,13 +60,13 @@ If you added a runtime dependency and no registered doctor check declares its
 
 ## Where to Register Checks
 
-| Dependency owner | Registration and unit test location |
-|------------------|-------------------------------------|
-| Web, MCP, looking-glass, or other listener component | Owning component package; `internal/component/doctor` keeps only functional runner coverage |
-| SSH host-key dependency | SSH component package |
-| Interface backend | Backend owner package |
-| Plugin external binary/config | Plugin config owner package |
-| Kernel module, procfs, sysctl, netlink, VPP, or platform-specific backend | Owning backend/component package, with build-tagged files where needed |
+| Dependency owner | Registration mechanism |
+|------------------|-----------------------|
+| Internal plugin (registered via `registry.Register`) | `Registration.DoctorChecks` field; bridge runs at doctor execution time |
+| Web, MCP, looking-glass, or other listener component | `diagnostic.RegisterDoctorCheck()` from owning component |
+| SSH host-key dependency | `diagnostic.RegisterDoctorCheck()` from SSH component |
+| Interface backend | `diagnostic.RegisterDoctorCheck()` from backend owner |
+| Kernel module, procfs, sysctl, netlink, VPP, or platform-specific backend | `diagnostic.RegisterDoctorCheck()` from owning backend/component, with build-tagged files where needed |
 | Blob storage, platform detection, generic runner state, or dependency with no narrower owner | `internal/component/doctor`, with a comment or test name making the lack of owner explicit |
 
 If no plugin, component, backend, or command package owns the dependency, keep

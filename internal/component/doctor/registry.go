@@ -85,6 +85,8 @@ func runDoctorChecks(phase doctorCheckPhase, ctx doctorCheckContext) []diagnosti
 		}
 		diags = append(diags, exported[i].Check(exportedCtx)...)
 	}
+
+	diags = append(diags, runPluginRegistryChecks(phase, ctx)...)
 	return diags
 }
 

@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/radius"
-	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // udpReachable is a test seam over udpServerReachable.
@@ -22,7 +23,7 @@ var udpReachable = udpServerReachable
 // Access-Request and emits doctor-radius-unreachable when none responds.
 // This plugin owns the l2tp.auth.radius config block, so it owns the
 // readiness check (see ai/rules/doctor-checks.md "Where to Register Checks").
-func checkRADIUSServers(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+func checkRADIUSServers(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	tree, ok := ctx.Tree.(*config.Tree)
 	if !ok || tree == nil {
 		return nil
@@ -53,9 +54,9 @@ func checkRADIUSServers(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnost
 	if !checked {
 		return nil
 	}
-	return []diagnostic.Diagnostic{{
+	return []rpc.DoctorCheckDiagnostic{{
 		Code:     "doctor-radius-unreachable",
-		Severity: diagnostic.SeverityWarning,
+		Severity: "warning",
 		Message:  "none of the configured RADIUS servers are reachable",
 	}}
 }
