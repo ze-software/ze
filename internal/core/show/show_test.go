@@ -203,6 +203,53 @@ func TestEnrichSkipsNilDetail(t *testing.T) {
 	}
 }
 
+func TestUnregister(t *testing.T) {
+	t.Cleanup(ResetForTest)
+
+	MustRegister("cmd", "a", Enricher{
+		Detail: func(base map[string]any) { base["a"] = true },
+	})
+	MustRegister("cmd", "b", Enricher{
+		Detail: func(base map[string]any) { base["b"] = true },
+	})
+
+	Unregister("cmd", "a")
+
+	base := map[string]any{}
+	Enrich("cmd", base)
+
+	if _, ok := base["a"]; ok {
+		t.Fatal("enricher 'a' should have been unregistered")
+	}
+	if base["b"] != true {
+		t.Fatal("enricher 'b' should still be registered")
+	}
+}
+
+func TestUnregisterNonExistent(t *testing.T) {
+	t.Cleanup(ResetForTest)
+
+	Unregister("cmd", "nonexistent")
+	Unregister("nonexistent-cmd", "key")
+}
+
+func TestUnregisterLastForCommand(t *testing.T) {
+	t.Cleanup(ResetForTest)
+
+	MustRegister("cmd", "only", Enricher{
+		Detail: func(base map[string]any) { base["only"] = true },
+	})
+
+	Unregister("cmd", "only")
+
+	base := map[string]any{}
+	Enrich("cmd", base)
+
+	if len(base) != 0 {
+		t.Fatalf("expected empty map after unregistering last enricher, got %d keys", len(base))
+	}
+}
+
 func TestEnrichOrderAlphabetical(t *testing.T) {
 	t.Cleanup(ResetForTest)
 

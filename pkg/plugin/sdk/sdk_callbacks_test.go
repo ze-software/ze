@@ -231,6 +231,76 @@ func TestOnDoctorCheckDefaultNoOp(t *testing.T) {
 	<-errCh
 }
 
+// TestOnEnrichShowCallback verifies the enrich-show callback dispatches correctly.
+//
+// VALIDATES: AC-2 (external plugin receives base map, returns enrichment)
+// PREVENTS: SDK callback wiring regression for enrich-show RPC.
+func TestOnEnrichShowCallback(t *testing.T) {
+	t.Parallel()
+	p, engine := newTestPair(t)
+
+	p.OnEnrichShow(func(command, key, mode string, base map[string]any) (map[string]any, error) {
+		return map[string]any{
+			"cos-profile": "residential",
+			"speed":       float64(1000),
+			"mode":        mode,
+		}, nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	completeStartup(t, ctx, engine)
+
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:enrich-show",
+		rpc.EnrichShowInput{
+			Command: "show subscriber detail",
+			Key:     "cos",
+			Mode:    "detail",
+			Base:    map[string]any{"id": "s1", "state": "active"},
+		})
+	require.NoError(t, err)
+
+	var out rpc.EnrichShowOutput
+	require.NoError(t, json.Unmarshal(raw, &out))
+	assert.Equal(t, "residential", out.Data["cos-profile"])
+	assert.Equal(t, float64(1000), out.Data["speed"])
+	assert.Equal(t, "detail", out.Data["mode"])
+
+	cancel()
+	<-errCh
+}
+
+// TestOnEnrichShowDefaultNoOp verifies empty data when no handler registered.
+func TestOnEnrichShowDefaultNoOp(t *testing.T) {
+	t.Parallel()
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- p.Run(ctx, Registration{}) }()
+	completeStartup(t, ctx, engine)
+
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:enrich-show",
+		rpc.EnrichShowInput{
+			Command: "show subscriber detail",
+			Key:     "cos",
+			Base:    map[string]any{"id": "s1"},
+		})
+	require.NoError(t, err)
+
+	var out rpc.EnrichShowOutput
+	require.NoError(t, json.Unmarshal(raw, &out))
+	assert.Empty(t, out.Data)
+
+	cancel()
+	<-errCh
+}
+
 // TestOnExecuteCommandStringIsDoubleEncoded documents the hazard that motivated
 // the single-marshal sweep: a handler that returns a pre-marshaled JSON *string*
 // (instead of a Go value) is re-quoted by the SDK, so the wire Data is a JSON

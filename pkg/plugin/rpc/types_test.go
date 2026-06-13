@@ -129,6 +129,89 @@ func TestDeclareRegistrationInputNoDoctorChecks(t *testing.T) {
 	assert.Len(t, decoded.Commands, 1)
 }
 
+// TestEnrichShowInputJSON verifies JSON round-trip for EnrichShowInput preserves base map.
+func TestEnrichShowInputJSON(t *testing.T) {
+	t.Parallel()
+
+	input := EnrichShowInput{
+		Command: "show subscriber detail",
+		Key:     "cos",
+		Mode:    "detail",
+		Base: map[string]any{
+			"id":    "s1",
+			"state": "active",
+			"vlan":  float64(100),
+		},
+	}
+
+	data, err := json.Marshal(input)
+	require.NoError(t, err)
+
+	var decoded EnrichShowInput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, "show subscriber detail", decoded.Command)
+	assert.Equal(t, "cos", decoded.Key)
+	assert.Equal(t, "detail", decoded.Mode)
+	assert.Equal(t, "s1", decoded.Base["id"])
+	assert.Equal(t, "active", decoded.Base["state"])
+	assert.Equal(t, float64(100), decoded.Base["vlan"])
+}
+
+// TestEnrichShowOutputJSON verifies JSON round-trip for EnrichShowOutput.
+func TestEnrichShowOutputJSON(t *testing.T) {
+	t.Parallel()
+
+	output := EnrichShowOutput{
+		Data: map[string]any{
+			"cos-profile": "residential",
+			"speed":       float64(1000),
+		},
+	}
+
+	data, err := json.Marshal(output)
+	require.NoError(t, err)
+
+	var decoded EnrichShowOutput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, "residential", decoded.Data["cos-profile"])
+	assert.Equal(t, float64(1000), decoded.Data["speed"])
+}
+
+// TestDeclareRegistrationInputEnrichers verifies enrichers field in DeclareRegistrationInput.
+func TestDeclareRegistrationInputEnrichers(t *testing.T) {
+	t.Parallel()
+
+	input := DeclareRegistrationInput{
+		Enrichers: []EnricherDecl{
+			{Command: "show subscriber detail", Key: "cos"},
+		},
+	}
+
+	data, err := json.Marshal(input)
+	require.NoError(t, err)
+
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.Contains(t, raw, "enrichers")
+
+	var decoded DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	require.Len(t, decoded.Enrichers, 1)
+	assert.Equal(t, "show subscriber detail", decoded.Enrichers[0].Command)
+	assert.Equal(t, "cos", decoded.Enrichers[0].Key)
+}
+
+// TestDeclareRegistrationInputNoEnrichers verifies backward compat: no enrichers field.
+func TestDeclareRegistrationInputNoEnrichers(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{"commands":[{"name":"test-cmd"}]}`)
+	var decoded DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Empty(t, decoded.Enrichers)
+	assert.Len(t, decoded.Commands, 1)
+}
+
 // TestConfigApplyInputMarshal verifies JSON round-trip for ConfigApplyInput.
 //
 // VALIDATES: ConfigApplyInput with ConfigDiffSection marshals/unmarshals correctly.

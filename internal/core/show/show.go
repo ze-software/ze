@@ -45,6 +45,29 @@ func MustRegister(command, key string, e Enricher) {
 	}
 }
 
+func Unregister(command, key string) {
+	mu.Lock()
+	defer mu.Unlock()
+	entries, ok := registry[command]
+	if !ok {
+		return
+	}
+	for i, e := range entries {
+		if e.key != key {
+			continue
+		}
+		fresh := make([]entry, 0, len(entries)-1)
+		fresh = append(fresh, entries[:i]...)
+		fresh = append(fresh, entries[i+1:]...)
+		if len(fresh) == 0 {
+			delete(registry, command)
+		} else {
+			registry[command] = fresh
+		}
+		return
+	}
+}
+
 func Enrich(command string, base map[string]any) {
 	mu.RLock()
 	entries := registry[command]

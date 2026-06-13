@@ -146,6 +146,11 @@ class API:
         # Doctor check callback handler (runtime)
         self._doctor_check_handler: Callable | None = None
 
+        # Accumulated enricher declarations for Stage 1
+        self._enrichers: list[dict[str, str]] = []
+        # Enrich-show callback handler (runtime)
+        self._enrich_show_handler: Callable | None = None
+
         # Accumulated capabilities for Stage 3
         self._capabilities: list[dict[str, Any]] = []
 
@@ -416,6 +421,17 @@ class API:
                 self._respond_result(req_id, {"diagnostics": diags or []})
             else:
                 self._respond_result(req_id, {"diagnostics": []})
+        elif method == "ze-plugin-callback:enrich-show":
+            if self._enrich_show_handler and params:
+                data = self._enrich_show_handler(
+                    params.get("command", ""),
+                    params.get("key", ""),
+                    params.get("mode", "detail"),
+                    params.get("base", {}),
+                )
+                self._respond_result(req_id, {"data": data or {}})
+            else:
+                self._respond_result(req_id, {"data": {}})
         else:
             self._respond_ok(req_id)
 
@@ -584,6 +600,26 @@ class API:
         """
         self._doctor_check_handler = handler
 
+    def declare_enricher(self, command: str, key: str) -> None:
+        """Declare a show enricher (Stage 1).
+
+        Args:
+            command: Show command path (e.g., 'show subscriber detail')
+            key: Unique enricher key within command (kebab-case)
+        """
+        self._enrichers.append({"command": command, "key": key})
+
+    def on_enrich_show(self, handler: Callable) -> None:
+        """Register a handler for enrich-show callbacks (runtime).
+
+        The handler receives (command, key, mode, base) and must return a dict
+        of enrichment data to merge into the base map. Mode is "detail" or "brief".
+
+        Args:
+            handler: Callback function(command, key, mode, base) -> dict
+        """
+        self._enrich_show_handler = handler
+
     def on_config_verify(self, handler: Callable[[dict], dict]) -> None:
         """Register a handler for config-verify RPCs (runtime, reload).
 
@@ -642,6 +678,8 @@ class API:
             params["filters"] = self._filters
         if self._doctor_checks:
             params["doctor-checks"] = self._doctor_checks
+        if self._enrichers:
+            params["enrichers"] = self._enrichers
 
         self._call_engine("ze-plugin-engine:declare-registration", params)
 
@@ -1055,6 +1093,10 @@ class API:
                 continue
 
             if method == "ze-plugin-callback:doctor-check":
+                self._handle_callback(req_id, method, params)
+                continue
+
+            if method == "ze-plugin-callback:enrich-show":
                 self._handle_callback(req_id, method, params)
                 continue
 

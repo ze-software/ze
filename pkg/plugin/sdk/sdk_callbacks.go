@@ -74,6 +74,10 @@ type FilterUpdateHandler func(*FilterUpdateInput) (*FilterUpdateOutput, error)
 // DoctorCheckHandler handles doctor check requests. Receives the check name, returns diagnostics.
 type DoctorCheckHandler func(name string) ([]rpc.DoctorCheckDiagnostic, error)
 
+// EnrichShowHandler handles show enrichment requests. Receives the command, key, mode
+// ("detail" or "brief"), and base data map. Returns enrichment data to merge into the base map.
+type EnrichShowHandler func(command, key, mode string, base map[string]any) (map[string]any, error)
+
 // StartedHandler runs after the 5-stage startup completes but before the event loop.
 // Do NOT call DispatchCommand from here targeting other plugins; use AllPluginsReadyHandler.
 type StartedHandler func(ctx context.Context) error
@@ -100,6 +104,10 @@ func (p *Plugin) initCallbackDefaults() {
 		// Doctor check: empty diagnostics when no handler registered.
 		callbackDoctorCheck: func(json.RawMessage) (json.RawMessage, error) {
 			return json.Marshal(&rpc.DoctorCheckOutput{Diagnostics: []rpc.DoctorCheckDiagnostic{}})
+		},
+		// Enrich-show: empty data when no handler registered.
+		callbackEnrichShow: func(json.RawMessage) (json.RawMessage, error) {
+			return json.Marshal(&rpc.EnrichShowOutput{})
 		},
 		// Bye: no-op when no handler registered.
 		callbackBye: func(json.RawMessage) (json.RawMessage, error) { return nil, nil },
@@ -505,6 +513,26 @@ func (p *Plugin) OnDoctorCheck(fn DoctorCheckHandler) {
 			diags = []rpc.DoctorCheckDiagnostic{}
 		}
 		return json.Marshal(&rpc.DoctorCheckOutput{Diagnostics: diags})
+	}
+}
+
+// OnEnrichShow sets the handler for show enrichment requests.
+// The handler receives the command, enricher key, and base data map, and returns
+// enrichment data to merge into the base map. If no handler is registered,
+// enrich-show returns empty data (no-op).
+func (p *Plugin) OnEnrichShow(fn EnrichShowHandler) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[callbackEnrichShow] = func(params json.RawMessage) (json.RawMessage, error) {
+		var input rpc.EnrichShowInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("unmarshal enrich-show: %w", err)
+		}
+		data, err := fn(input.Command, input.Key, input.Mode, input.Base)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(&rpc.EnrichShowOutput{Data: data})
 	}
 }
 

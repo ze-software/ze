@@ -13,6 +13,7 @@
 package all
 
 import (
+	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakeenrich"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakefib"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp"
 	_ "codeberg.org/thomas-mangin/ze/internal/test/plugins/fakel2tp/yang"

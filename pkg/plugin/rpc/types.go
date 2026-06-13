@@ -40,6 +40,27 @@ type DeclareRegistrationInput struct {
 	ConnectionHandlers     []ConnectionHandlerDecl `json:"connection-handlers,omitempty"`
 	Filters                []FilterDecl            `json:"filters,omitempty"`
 	DoctorChecks           []DoctorCheckDecl       `json:"doctor-checks,omitempty"`
+	Enrichers              []EnricherDecl          `json:"enrichers,omitempty"`
+}
+
+// EnricherDecl declares a show enricher the plugin provides.
+// Declared during Stage 1 registration; invoked at runtime via callback.
+type EnricherDecl struct {
+	Command string `json:"command"` // Show command path (e.g., "show subscriber detail")
+	Key     string `json:"key"`     // Unique enricher key within command (kebab-case)
+}
+
+// EnrichShowInput is the input for ze-plugin-callback:enrich-show.
+type EnrichShowInput struct {
+	Command string         `json:"command"` // Show command path
+	Key     string         `json:"key"`     // Enricher key
+	Mode    string         `json:"mode"`    // "detail" or "brief"
+	Base    map[string]any `json:"base"`    // Base data map to enrich
+}
+
+// EnrichShowOutput is the output for ze-plugin-callback:enrich-show.
+type EnrichShowOutput struct {
+	Data map[string]any `json:"data,omitempty"` // Enrichment data to merge into base
 }
 
 // DoctorCheckDecl declares a doctor readiness check the plugin provides.

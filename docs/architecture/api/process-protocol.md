@@ -196,6 +196,23 @@ pre-start readiness.
 <!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC doctor checks, validateDoctorCheckDecls -->
 <!-- source: internal/component/plugin/registration.go -- DoctorCheckRegistration -->
 
+**Enricher Declaration (Stage 1):**
+
+Plugins may include an `enrichers` list in their `declare-registration` to provide
+show command enrichment. Each entry declares a command path and unique key. The
+server registers a proxy enricher via `show.Register()` for each declaration. At
+show time, the proxy serializes the base map, calls `enrich-show` with a 2s timeout,
+and merges the response into the base map. Proxy enrichers are cleaned up via
+`show.Unregister()` when the plugin process exits.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `enrichers[].command` | string | Show command path (e.g., `show subscriber detail`) |
+| `enrichers[].key` | string | Unique enricher key within command (kebab-case, 1-128 chars) |
+
+<!-- source: pkg/plugin/rpc/types.go -- EnricherDecl -->
+<!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, validateEnricherDecls -->
+
 ### Tier-Ordered Startup
 
 Plugins are grouped into dependency tiers before handshake begins. All processes
@@ -289,6 +306,7 @@ For external plugins, the process is expected to exit cleanly after receiving by
 | `bye` | `ByeInput` | `ok` | Shutdown signal |
 | `filter-update` | `FilterUpdateInput` | `FilterUpdateOutput` | Route filter request |
 | `doctor-check` | `DoctorCheckInput` | `DoctorCheckOutput` | Doctor readiness check |
+| `enrich-show` | `EnrichShowInput` | `EnrichShowOutput` | Show command enrichment |
 
 All methods are prefixed with `ze-plugin-callback:`.
 
@@ -301,6 +319,17 @@ Only invoked at runtime via `show doctor`; offline `ze doctor` does not reach pl
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnDoctorCheck -->
 <!-- source: internal/component/plugin/server/server.go -- CallDoctorCheck, DoctorCheckPlugins -->
 <!-- source: internal/component/doctor/cmd/show.go -- HandleShowDoctor plugin integration -->
+
+**enrich-show:** Engine invokes a plugin's declared show enricher at show time.
+Plugin receives the command, key, mode ("detail" or "brief"), and base data map as
+JSON, returns enrichment data to merge into the base map. Declared during Stage 1
+via `enrichers` field in `declare-registration`. Invoked at runtime when a show
+handler calls `show.Enrich()` (mode "detail") or `show.EnrichBrief()` (mode "brief").
+2s timeout prevents hung plugins from blocking show commands.
+
+<!-- source: pkg/plugin/rpc/types.go -- EnricherDecl, EnrichShowInput, EnrichShowOutput -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEnrichShow -->
+<!-- source: internal/component/plugin/server/enricher.go -- registerProxyEnrichers, makeProxyCall -->
 
 **filter-update:** Engine sends UPDATE attributes to a named filter.
 Plugin responds accept, reject, or modify (delta-only changed attributes).

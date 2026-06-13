@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -474,6 +475,15 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		return
 	}
 
+	// Validate enricher declarations before proxy registration.
+	if err := validateEnricherDecls(regInput.Enrichers); err != nil {
+		var tb textbuf.Buffer
+		if sendErr := conn.SendError(s.ctx, req.ID, tb.Str("invalid enricher: ").Err(err).String()); sendErr != nil {
+			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
 	// Convert RPC input to engine registration type
 	reg := registrationFromRPC(&regInput)
 	reg.Name = proc.Config().Name
@@ -514,6 +524,11 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		}
 		s.handlePluginConflict(proc, reg.Name, "plugin family registration conflict", err)
 		return
+	}
+
+	// Register proxy enrichers for declared show enrichers.
+	if len(regInput.Enrichers) > 0 {
+		registerProxyEnrichers(proc.Config().Name, regInput.Enrichers, conn)
 	}
 
 	// Send OK response

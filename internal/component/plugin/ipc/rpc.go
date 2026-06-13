@@ -417,6 +417,19 @@ func (pc *PluginConn) SendValidateOpen(ctx context.Context, input *rpc.ValidateO
 	return &out, nil
 }
 
+// SendEnrichShow requests show enrichment from the plugin.
+func (pc *PluginConn) SendEnrichShow(ctx context.Context, input *rpc.EnrichShowInput) (*rpc.EnrichShowOutput, error) {
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:enrich-show", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.EnrichShowOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal enrich-show result: %w", err)
+	}
+	return &out, nil
+}
+
 // SendDoctorCheck invokes a plugin's doctor check callback and returns diagnostics.
 func (pc *PluginConn) SendDoctorCheck(ctx context.Context, name string) (*rpc.DoctorCheckOutput, error) {
 	input := &rpc.DoctorCheckInput{Name: name}

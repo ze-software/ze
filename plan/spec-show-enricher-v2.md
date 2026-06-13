@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-show-enricher (completed) |
-| Phase | - |
+| Phase | 6/8 |
 | Updated | 2026-06-13 |
 
 ## Post-Compaction Recovery
@@ -147,10 +147,10 @@ Extend the show enricher registry (v1: in-process only) to three new surfaces:
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | External plugin process is alive when show.Enrich() runs | Plugin lifecycle managed by server | Proxy enricher call times out (2s); show command returns partial data | Test with plugin stopped mid-session | unvalidated |
-| A-2 | json.Marshal/Unmarshal round-trip preserves all map[string]any value types used by handlers | Go JSON handles string, int, float64, bool, nil, nested maps/slices | uint16 values marshal as float64; enricher must handle number types | Unit test with uint16/int/float64 values | unvalidated |
-| A-3 | show.Register supports an Unregister operation for cleanup | v1 has ResetForTest but no per-key Unregister | Need to add Unregister(command, key) to core/show | Read show.go | unvalidated |
-| A-4 | L2TP session detail page has a template context where enriched data can be displayed | page_l2tp.go builds WorkbenchTableData | May need a new template section for enriched data | Read page_l2tp.go detail builder | unvalidated |
-| A-5 | DeclareRegistrationInput can be extended with a new Enrichers field without breaking existing plugins | JSON unmarshaling ignores unknown fields | Old plugins sending without Enrichers field work fine | Existing .ci tests still pass | unvalidated |
+| A-2 | json.Marshal/Unmarshal round-trip preserves all map[string]any value types used by handlers | Go JSON handles string, int, float64, bool, nil, nested maps/slices | uint16 values marshal as float64; enricher must handle number types | Unit test with uint16/int/float64 values | confirmed |
+| A-3 | show.Register supports an Unregister operation for cleanup | v1 has ResetForTest but no per-key Unregister | Need to add Unregister(command, key) to core/show | Read show.go | confirmed |
+| A-4 | L2TP session detail page has a template context where enriched data can be displayed | handler_l2tp.go HandleL2TPDetail builds map[string]any | Can add enriched fields to data map | Read handler_l2tp.go detail builder | confirmed |
+| A-5 | DeclareRegistrationInput can be extended with a new Enrichers field without breaking existing plugins | JSON unmarshaling ignores unknown fields | Old plugins sending without Enrichers field work fine | Existing .ci tests still pass | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

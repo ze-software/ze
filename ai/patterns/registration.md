@@ -354,10 +354,18 @@ Register with `filterapi.Register(filterapi.Filter{Name, Stage, Priority, Ingres
 (`internal/component/bgp/filterapi`) in the plugin's init(), alongside `registry.Register()`.
 See `ai/patterns/plugin.md`.
 
-### New show enricher
+### New show enricher (in-process)
 Register with `show.MustRegister(command, key, show.Enricher{Detail: fn, Brief: fn})`
 (`internal/core/show`) in the plugin's init(). Add `show.Enrich()` or
 `show.EnrichBrief()` calls in the target handler if not already present.
+
+### New show enricher (external plugin)
+Declare `EnricherDecl{Command, Key}` in `DeclareRegistrationInput.Enrichers` at
+Stage 1. Register `OnEnrichShow(fn)` callback in the SDK. The server registers a
+proxy enricher via `show.Register()` for each declaration; at show time the proxy
+serializes the base map, calls `ze-plugin-callback:enrich-show` with a 2s timeout,
+and merges the response into the base map. Cleanup: proxy enrichers are removed via
+`show.Unregister()` when the plugin process exits (`RegisterProcessCleanup` hook).
 
 ### New event/send type
 Part of plugin registration. Set `EventTypes`/`SendTypes` fields.

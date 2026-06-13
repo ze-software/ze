@@ -167,6 +167,15 @@ type DecodeMPUnreachOutput = rpc.DecodeMPUnreachOutput
 // DecodeUpdateOutput is the output for decode-update (plugin→engine).
 type DecodeUpdateOutput = rpc.DecodeUpdateOutput
 
+// EnricherDecl declares a show enricher the plugin provides.
+type EnricherDecl = rpc.EnricherDecl
+
+// EnrichShowInput is the input for enrich-show (runtime callback).
+type EnrichShowInput = rpc.EnrichShowInput
+
+// EnrichShowOutput is the output for enrich-show (runtime callback).
+type EnrichShowOutput = rpc.EnrichShowOutput
+
 // DoctorCheckDecl declares a doctor readiness check the plugin provides.
 type DoctorCheckDecl = rpc.DoctorCheckDecl
 

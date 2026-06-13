@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
+	"codeberg.org/thomas-mangin/ze/internal/core/show"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -119,10 +120,17 @@ func (h *L2TPHandlers) HandleL2TPDetail() http.HandlerFunc {
 		}
 		events := svc.SessionEvents(sid)
 
+		enriched := map[string]any{
+			"session-id": ss.LocalSID,
+			"username":   ss.Username,
+		}
+		show.Enrich("show l2tp session detail", enriched)
+
 		data := map[string]any{
-			"Session": ss,
-			"Events":  events,
-			"Login":   ss.Username,
+			"Session":  ss,
+			"Events":   events,
+			"Login":    ss.Username,
+			"Enriched": enriched,
 		}
 
 		if NegotiateContentType(r) == formatJSON {
