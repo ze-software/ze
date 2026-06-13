@@ -69,3 +69,10 @@ AGENTS.md
 
 test/perf/results/
 bin/ze-perf-linux
+
+# Runtime / scratch artifacts that leak into the working tree from running ze
+/stderr
+/stdout
+etc/ze/*.tmp
+etc/ze/debug.zefs
+internal/appliance/tools/installer-kernel/build/
