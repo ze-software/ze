@@ -11,15 +11,16 @@ import (
 
 func TestParseIRRConfig(t *testing.T) {
 	tests := []struct {
-		name    string
-		bgpCfg  map[string]any
-		wantSrv string
-		wantInt uint32
+		name       string
+		bgpCfg     map[string]any
+		wantSrv    string
+		wantPDBURL string
+		wantInt    uint32
 	}{
 		{
 			"defaults",
 			map[string]any{},
-			"whois.radb.net", 3600,
+			"whois.radb.net", "https://www.peeringdb.com", 3600,
 		},
 		{
 			"explicit server and interval",
@@ -31,7 +32,18 @@ func TestParseIRRConfig(t *testing.T) {
 					},
 				},
 			},
-			"whois.ripe.net", 1800,
+			"whois.ripe.net", "https://www.peeringdb.com", 1800,
+		},
+		{
+			"explicit peeringdb-url",
+			map[string]any{
+				"policy": map[string]any{
+					"irr": map[string]any{
+						"peeringdb-url": "http://127.0.0.1:9999",
+					},
+				},
+			},
+			"whois.radb.net", "http://127.0.0.1:9999", 3600,
 		},
 		{
 			"interval as float64",
@@ -42,7 +54,7 @@ func TestParseIRRConfig(t *testing.T) {
 					},
 				},
 			},
-			"whois.radb.net", 7200,
+			"whois.radb.net", "https://www.peeringdb.com", 7200,
 		},
 	}
 	for _, tt := range tests {
@@ -50,6 +62,9 @@ func TestParseIRRConfig(t *testing.T) {
 			cfg := parseIRRConfig(tt.bgpCfg)
 			if cfg.Server != tt.wantSrv {
 				t.Errorf("Server = %q, want %q", cfg.Server, tt.wantSrv)
+			}
+			if cfg.PeeringDBURL != tt.wantPDBURL {
+				t.Errorf("PeeringDBURL = %q, want %q", cfg.PeeringDBURL, tt.wantPDBURL)
 			}
 			if cfg.RefreshInterval != tt.wantInt {
 				t.Errorf("RefreshInterval = %d, want %d", cfg.RefreshInterval, tt.wantInt)

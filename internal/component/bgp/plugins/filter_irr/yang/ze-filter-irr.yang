@@ -49,6 +49,15 @@ module ze-filter-irr {
                 description "IRR whois server hostname or host:port.";
             }
 
+            leaf peeringdb-url {
+                type string {
+                    pattern 'https?://.*';
+                }
+                default "https://www.peeringdb.com";
+                description "Base URL for PeeringDB API queries.
+                             Override for testing with a mock server.";
+            }
+
             leaf refresh-interval {
                 type uint32 {
                     range "60..86400";

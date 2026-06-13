@@ -42,6 +42,9 @@ func parseIRRConfig(bgpCfg map[string]any) *irrConfig {
 			if srv, ok := irrBlock["server"].(string); ok && srv != "" {
 				cfg.Server = srv
 			}
+			if pdbURL, ok := irrBlock["peeringdb-url"].(string); ok && pdbURL != "" {
+				cfg.PeeringDBURL = pdbURL
+			}
 			if v, ok := readUint(irrBlock["refresh-interval"]); ok {
 				cfg.RefreshInterval = clampRefreshInterval(v)
 			}

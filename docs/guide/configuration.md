@@ -388,6 +388,7 @@ bgp {
     policy {
         irr {
             server whois.radb.net    // IRR whois server (default)
+            peeringdb-url https://www.peeringdb.com  // PeeringDB API base URL (default)
             refresh-interval 3600   // seconds between re-queries (60-86400)
         }
     }
