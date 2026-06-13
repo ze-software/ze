@@ -37,19 +37,18 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for initial IRR query to complete.
-    time.sleep(5.0)
-
-    # Trigger manual refresh.
-    result = dispatch(api, 'update bgp irr all')
+    # // test-relax: removed two fixed sleeps. `update bgp irr all` is now
+    # synchronous and authoritative (refreshAllNow), so dispatch_until_done
+    # retries past mock-IRR startup with no sleep, and the post-refresh sleep is
+    # redundant once the command returns "done". Assertions are unchanged.
+    # Trigger manual refresh (retries until the synchronous refresh reports done).
+    result = api.dispatch_until_done('update bgp irr all')
     status = result.get('status', '')
     if status != 'done':
         print(f'FAIL: update bgp irr all status={status}', file=sys.stderr)
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
         sys.exit(1)
-
-    time.sleep(2.0)
 
     # Verify show bgp irr works.
     result = dispatch(api, 'show bgp irr')
@@ -78,7 +77,7 @@ plugin {
 bgp {
 	policy {
 		irr {
-			server 127.0.0.1:$IRR_PORT
+			server 127.0.0.1:$PORT2
 			refresh-interval 3600
 		}
 	}
@@ -118,7 +117,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=background:seq=1:exec=ze-test irr --port 0:portvar=IRR_PORT
+cmd=background:seq=1:exec=ze-test irr --port $PORT2
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-irr --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0

@@ -44,9 +44,10 @@ type deprecatedAlias struct {
 // (AddBuiltin) and are not validated by this function.
 //
 // Seeded with the verbs reachable through plugin command registration today
-// (show/set/clear/request) plus the operator verbs commit/cache from the same
-// grammar. To add a plugin command whose first verb is not yet listed, add the
-// verb here in the same change. There is no compatibility escape hatch: a
+// (show/set/clear/request), the operator verbs commit/cache, and update (the
+// data-refresh verb, e.g. `update bgp irr` to re-query IRR prefix data) from the
+// same grammar. To add a plugin command whose first verb is not yet listed, add
+// the verb here in the same change. There is no compatibility escape hatch: a
 // noun-first duplicate of a verb-first command is layering to delete, not a
 // token to add (ai/rules/no-layering.md).
 //
@@ -62,6 +63,7 @@ var commandVerbs = map[string]bool{
 	"request": true,
 	"commit":  true,
 	"cache":   true,
+	"update":  true,
 }
 
 // validVerbList returns the sorted, comma-separated list of valid command verbs,

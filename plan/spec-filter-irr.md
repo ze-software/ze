@@ -537,12 +537,16 @@ asynchronously.
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (post-merge audit, 2026-06-13) -- see plan/learned/898-filter-irr-fixes.md
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | `update bgp irr {all,asn,as-set}` rejected at registration: `update` not in the registry verb set, so all 3 commands were dead | `filter_irr.go:113-115` | Fixed: added `update` to `commandVerbs` (`command_registry.go`) |
+| 2 | BLOCKER | Functional tests 158/159 never gate-run; used a non-existent `portvar=` mechanism so `$IRR_PORT` was never substituted | `filter-irr.ci`, `filter-irr-update.ci` | Fixed: bound mock IRR to the reserved `$PORT2` |
+| 3 | ISSUE | Manual refresh was fire-and-forget; could not report failure and a failed refresh risked clobbering last-known-good state | `filter_irr.go` `updateASN`/`updateASSet`/all | Fixed: synchronous, errors when AS-SET undetermined, preserves existing prefix-list; unit tests added |
+| 4 | BLOCKER | Multi-NLRI UPDATE with one out-of-list prefix rejected the whole update, dropping legitimate routes (no modify path) | `match.go` `evaluateUpdate` | Fixed: added `partitionUpdate` + `FilterModify` (mirrors filter_prefix); unit tests + deterministic functional test |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  (formal gate still to run before closing)
 
 ## Pre-Commit Verification
 

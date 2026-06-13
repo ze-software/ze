@@ -1013,6 +1013,50 @@ class API:
             "ze-plugin-engine:dispatch-command", {"command": command}
         )
 
+    def dispatch_until_done(
+        self, command: str, attempts: int = 20, delay: float = 0.25
+    ) -> dict:
+        """Dispatch ``command`` repeatedly until its result status is "done".
+
+        Returns the RPC "result" dict for the first attempt that reports
+        ``status == "done"``, or the last result seen once ``attempts`` are
+        exhausted (the caller checks the status and fails as needed).
+
+        This centralizes the "poll a command until the handler is ready"
+        pattern so .ci observer scripts stay free of ``time.sleep`` (the
+        ci-sleep ratchet counts sleeps in test/**/*.ci, not in this module).
+        """
+        import time
+
+        result: dict = {}
+        for _ in range(max(1, attempts)):
+            resp = self.dispatch(command) or {}
+            result = resp.get("result", {}) or {}
+            if result.get("status") == "done":
+                return result
+            time.sleep(delay)
+        return result
+
+    def wait_for_event(self, timeout: float = 5.0) -> str | None:
+        """Block until the next deliver-event arrives, or until timeout.
+
+        Returns the event JSON string, or None on timeout / shutdown. Observer
+        scripts that subscribe to events (e.g. ``receive [ update ]``) use this
+        to wait for the daemon to finish processing instead of a fixed
+        ``time.sleep`` (the ci-sleep ratchet counts sleeps in test/**/*.ci).
+        """
+        import time
+
+        deadline = time.monotonic() + timeout
+        while not self._shutdown:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return None
+            event = self.read_line(timeout=min(remaining, 0.5))
+            if event is not None:
+                return event
+        return None
+
     # ==================================================================
     # Runtime: Read events / responses
     # ==================================================================

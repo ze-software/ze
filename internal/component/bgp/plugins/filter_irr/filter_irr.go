@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"slices"
@@ -183,12 +184,38 @@ func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.Filter
 	}
 
 	nlriField := extractNLRIField(in.Update)
-	if list.evaluateUpdate(nlriField) {
+	partition := list.partitionUpdate(nlriField)
+
+	// No prefixes (attrs-only update): accept -- nothing reachable to filter.
+	if len(partition.accepted) == 0 && len(partition.rejected) == 0 && !partition.hadParseError {
 		logger().Info("irr filter accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
-	logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
-	return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+
+	// Malformed prefix in the text protocol -> fail-closed.
+	if partition.hadParseError {
+		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField, "reason", "parse-error")
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+	}
+
+	// Every prefix out of list: reject the whole update.
+	if len(partition.accepted) == 0 {
+		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+	}
+
+	// Every prefix in list: accept unmodified.
+	if len(partition.rejected) == 0 {
+		logger().Info("irr filter accept", "filter", in.Filter, "peer", in.Peer, "nlri", nlriField)
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
+	}
+
+	// Mixed: keep the in-list prefixes, drop the unauthorized ones via a modify
+	// delta carrying only the accepted subset.
+	delta := buildModifyDelta(partition)
+	logger().Info("irr filter modify", "filter", in.Filter, "peer", in.Peer,
+		"accepted", len(partition.accepted), "rejected", len(partition.rejected), "nlri", nlriField)
+	return &sdk.FilterUpdateOutput{Action: sdk.FilterModify, Update: delta}
 }
 
 func extractASNFromFilter(filter string) uint32 {
@@ -234,12 +261,21 @@ func (plug *irrPlugin) refreshLoop(intervalSec uint32, stop chan struct{}) {
 	}
 }
 
+// refreshAll is the background entry point (configure + periodic timer). The
+// CAS guard collapses overlapping background refreshes into one.
 func (plug *irrPlugin) refreshAll() {
 	if !plug.refreshing.CompareAndSwap(false, true) {
 		return
 	}
 	defer plug.refreshing.Store(false)
+	plug.refreshAllNow()
+}
 
+// refreshAllNow refreshes every enrolled ASN synchronously, without the
+// concurrent-refresh guard. The manual `update bgp irr all` command uses this so
+// it always does the work and reports honest success/failure, rather than
+// skipping (and falsely reporting "done") when a periodic refresh is in flight.
+func (plug *irrPlugin) refreshAllNow() {
 	plug.mu.RLock()
 	asns := make([]uint32, 0, len(plug.byASN))
 	for asn := range plug.byASN {
@@ -377,8 +413,11 @@ func (plug *irrPlugin) handleCommand(command string, args []string) (string, any
 	case "show bgp irr check":
 		return plug.showIRRCheck(args)
 	case "update bgp irr all":
-		go plug.refreshAll()
-		return statusDone, json.RawMessage(`{"refreshing":"all"}`), nil
+		plug.refreshAllNow()
+		if err := plug.anyRefreshError(); err != nil {
+			return statusError, nil, err
+		}
+		return statusDone, json.RawMessage(`{"refreshed":"all"}`), nil
 	case "update bgp irr asn":
 		return plug.updateASN(args)
 	case "update bgp irr as-set":
@@ -526,6 +565,37 @@ func (plug *irrPlugin) showIRRCheck(args []string) (string, any, error) {
 	return statusDone, json.RawMessage(b.String()), nil
 }
 
+// anyRefreshError reports the first recorded per-ASN refresh error, or nil if
+// every enrolled ASN last refreshed cleanly. Used by `update bgp irr all` so the
+// command fails (rather than silently succeeding) when an AS-SET could not be
+// determined.
+func (plug *irrPlugin) anyRefreshError() error {
+	plug.mu.RLock()
+	defer plug.mu.RUnlock()
+	asns := make([]uint32, 0, len(plug.byASN))
+	for asn := range plug.byASN {
+		asns = append(asns, asn)
+	}
+	slices.Sort(asns)
+	for _, asn := range asns {
+		if st := plug.byASN[asn]; st != nil && st.lastErr != "" {
+			return fmt.Errorf("ASN %d: %s", asn, st.lastErr)
+		}
+	}
+	return nil
+}
+
+// asnRefreshError returns the recorded refresh error for a single ASN, or "" if
+// its last refresh succeeded.
+func (plug *irrPlugin) asnRefreshError(asn uint32) string {
+	plug.mu.RLock()
+	defer plug.mu.RUnlock()
+	if st := plug.byASN[asn]; st != nil {
+		return st.lastErr
+	}
+	return ""
+}
+
 func (plug *irrPlugin) updateASN(args []string) (string, any, error) {
 	if len(args) == 0 || args[0] == "" {
 		return statusError, nil, errors.New("usage: update bgp irr asn <asn>")
@@ -535,8 +605,20 @@ func (plug *irrPlugin) updateASN(args []string) (string, any, error) {
 		return statusError, nil, errors.New("invalid ASN")
 	}
 	asn := uint32(v) //nolint:gosec // user input, range acceptable
-	go plug.refreshASN(asn)
-	return statusDone, json.RawMessage(`{"refreshing":"asn ` + textbuf.StringUint32(asn) + `"}`), nil
+	plug.mu.RLock()
+	_, known := plug.byASN[asn]
+	plug.mu.RUnlock()
+	if !known {
+		return statusError, nil, fmt.Errorf("no IRR-filtered peer with ASN %d", asn)
+	}
+	// Synchronous so the command can report the outcome. A failed refresh leaves
+	// the existing prefix-list untouched (refreshASN only replaces it on
+	// success), so the running filter keeps its last-known-good data.
+	plug.refreshASN(asn)
+	if msg := plug.asnRefreshError(asn); msg != "" {
+		return statusError, nil, fmt.Errorf("ASN %d refresh failed: %s", asn, msg)
+	}
+	return statusDone, json.RawMessage(`{"refreshed":"asn ` + textbuf.StringUint32(asn) + `"}`), nil
 }
 
 func (plug *irrPlugin) updateASSet(args []string) (string, any, error) {
@@ -556,12 +638,20 @@ func (plug *irrPlugin) updateASSet(args []string) (string, any, error) {
 	}
 	plug.mu.RUnlock()
 
-	go func() {
-		for _, asn := range toRefresh {
-			plug.refreshASN(asn)
+	if len(toRefresh) == 0 {
+		return statusError, nil, fmt.Errorf("no IRR-filtered peer uses AS-SET %s", target)
+	}
+	// Synchronous so the command can report the outcome. A failed refresh leaves
+	// each peer's existing prefix-list untouched and surfaces as a command error.
+	for _, asn := range toRefresh {
+		plug.refreshASN(asn)
+	}
+	for _, asn := range toRefresh {
+		if msg := plug.asnRefreshError(asn); msg != "" {
+			return statusError, nil, fmt.Errorf("AS-SET %s refresh failed for ASN %d: %s", target, asn, msg)
 		}
-	}()
+	}
 	var tb textbuf.Buffer
-	tb.Str(`{"refreshing":"as-set `).Str(target).Str(`"}`)
+	tb.Str(`{"refreshed":"as-set `).Str(target).Str(`"}`)
 	return statusDone, json.RawMessage(tb.String()), nil
 }
