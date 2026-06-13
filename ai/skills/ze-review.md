@@ -8,6 +8,8 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
 ## Steps
 
+0. **Automated pre-check:** Run `make ze-validate`. If it reports findings, fix them before proceeding. This catches the mechanical subset of steps 1-3 (stale source anchors, line-number anchors, unwired exports, spec AC completeness, CLI handler coverage) without manual review.
+
 1. **Wiring verification (FIRST — before any other analysis):** For every new function, type, handler, route, config option, CLI command, or plugin introduced in the diff, prove it is reachable from a user entry point. This is the FIRST step because it catches the project's most recurring defect class (see `plan/learned/RECURRING-PATTERNS.md`). If new code has no caller in production, nothing else in this review matters.
 
     For each new symbol, answer: **"What user action reaches this code?"** If you cannot name one, it is a BLOCKER.

@@ -1,7 +1,7 @@
 .PHONY: all build ze ze-appliance ze-setup-bin chaos test analyse clean fmt vet tidy generate help
 .PHONY: ze-docker
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
-.PHONY: ze-test ze-verify ze-verify-changed ze-smoke ze-ci ze-all ze-all-test
+.PHONY: ze-test ze-verify ze-verify-changed ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp
 .PHONY: _ze-verify-impl _ze-verify-changed-impl
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
@@ -234,6 +234,9 @@ ze-verify-changed:
 
 _ze-verify-changed-impl: ze-lint-changed ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification (changed) passed"
+
+ze-validate:
+	@python3 scripts/dev/validate.py --root .
 
 ze-all: ze-verify ze-chaos-verify
 	@echo "All verification passed (ze + chaos)"
@@ -471,6 +474,7 @@ help-test:
 	@echo "    ze-smoke                  Lint + unit + build (~2 min)"
 	@echo "    ze-verify                 Pre-commit gate: lint + wiring/docs + unit (two-pass) + functional + exabgp"
 	@echo "    ze-verify-changed         Scoped: changed packages + wiring/docs + functional + exabgp"
+	@echo "    ze-validate               Post-verify: source anchors, wiring, spec completeness (~0.2s)"
 	@echo "    ze-test                   All ze tests including fuzz"
 	@echo "    ze-all                    ze-verify + chaos-verify"
 	@echo "    ze-all-test               ze-test + chaos-verify"

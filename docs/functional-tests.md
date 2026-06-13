@@ -33,7 +33,13 @@ top-level stage failures, and write:
 
 The functional test target runs 13 suites: encode, plugin, parse, decode, reload,
 ui, editor, managed, l2tp, firewall, policy, web, install.
+
+`make ze-validate` is a fast (~0.2s) post-verify check that catches recurring
+implementation mistakes: stale source anchors, line-number anchors, unwired
+exported symbols, and incomplete spec AC tables. Run it after `ze-verify` passes,
+before presenting work as complete.
 <!-- source: Makefile -- ze-verify, ze-verify-changed, ze-exabgp-test -->
+<!-- source: scripts/dev/validate.py -- post-verify validation checks -->
 <!-- source: scripts/status/verify_run.go -- artifact writing and grouped summaries -->
 <!-- source: scripts/dev/verify-lock.sh -- verify-class lock -->
 <!-- source: scripts/dev/verify-status.sh -- tmp/ze-verify.status -->
