@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 74 rules
+Total: 75 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -31,6 +31,7 @@ Total: 74 rules
 | Design Context | Before any design decision (communication mechanism, naming, package placement, platform backend, lifecycle), load the relevant context below. Trained instincts about "how software works" are wrong... | `ai/rules/design-context.md` |
 | Design Document References | All `.go` source files (non-test, non-generated) MUST have `// Design:` comment. | `ai/rules/design-doc-references.md` |
 | Design Principles | Read before any design decision; the checklist (no premature abstraction, no speculative features, single responsibility, minimal coupling, explicit behavior) gates new structure. | `ai/rules/design-principles.md` |
+| Diagnosis Before Fix | Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first. Editing to silence the symptom before the root cause is named... | `ai/rules/diagnosis-before-fix.md` |
 | Discovery Updates | A change that adds or changes something future agents need to use, verify, document, or avoid MUST update the discovery path in the same work. | `ai/rules/discovery-updates.md` |
 | Doctor Checks | Every feature that adds a new runtime dependency must register a `ze doctor` check so agents can verify readiness before starting the daemon. | `ai/rules/doctor-checks.md` |
 | Documentation | Every feature change MUST update the specific documentation it affects. | `ai/rules/documentation.md` |
@@ -62,7 +63,7 @@ Total: 74 rules
 | No Layering | When replacing X with Y: DELETE X first, then implement Y. Never keep both. | `ai/rules/no-layering.md` |
 | No Partial Completion | Read before claiming any work "done"; every acceptance criterion needs working code plus a test, "deferred" is not "done," and scope cuts require explicit user approval. | `ai/rules/no-partial-completion.md` |
 | No Printf Allocations | Never use `fmt.Sprintf`, `fmt.Fprintf`, or `fmt.Errorf` when a zero-allocation or lower-allocation alternative exists. Never use `.String()` concatenation on a hot path when an append-into-buffer... | `ai/rules/no-sprintf-alloc.md` |
-| Test Deletion | ASK user before deleting any test code (`*_test.go`, `.ci`, `Test*`, `t.Run`, assertions, table entries). Exception: user already explicitly requested the deletion. | `ai/rules/no-test-deletion.md` |
+| Test Deletion and Weakening | A red test means the CODE is wrong by default. Diagnose the failure and fix the source. Do NOT weaken the test to make it green. ASK the user before deleting OR weakening any test code (`*_test.go`,... | `ai/rules/no-test-deletion.md` |
 | No Workarounds For Missing Behavior | If a user could experience a problem while trying to achieve a goal, implement the missing behavior at the source. Do not bypass, mask, special-case, weaken a check, adjust a fixture, or route... | `ai/rules/no-workarounds-for-missing-behavior.md` |
 | OS-Specific Tests | A test that cannot run on every OS MUST either carry a build tag (`//go:build linux`) on its file, or skip (`t.Skip`) with a reason on the OSes where it cannot run. Never weaken the assertion to... | `ai/rules/os-specific-tests.md` |
 | Pipe Completeness | Every command that produces output MUST support all pipe operators. | `ai/rules/pipe-completeness.md` |

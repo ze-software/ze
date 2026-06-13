@@ -252,6 +252,85 @@ POST_CASES = [
 ]
 
 
+# --- test-weakening corpus: (label, relpath, old, new, mode) ---
+# Paths are under pkg/ (NOT internal/) so c_pre_write_go's session-state gate does
+# not mask c_test_weakening. In a fresh temp dir only c_test_weakening can fire,
+# which isolates its exit code. mode "edit" sends old/new_string; mode "write"
+# writes `old` to disk first, then sends `new` as Write content.
+WEAKEN_CASES = [
+    (
+        "skip added",
+        "pkg/s/a_test.go",
+        "func TestX(t *testing.T){ require.Equal(t, 1, f()) }",
+        'func TestX(t *testing.T){ t.Skip("flaky"); require.Equal(t, 1, f()) }',
+        "edit",
+    ),
+    (
+        "skip added with relax token",
+        "pkg/s/b_test.go",
+        "func TestX(t *testing.T){ require.Equal(t, 1, f()) }",
+        'func TestX(t *testing.T){ t.Skip("x") // test-relax: feature removed per spec-foo\n require.Equal(t, 1, f()) }',
+        "edit",
+    ),
+    (
+        "partial assertion removal",
+        "pkg/s/c_test.go",
+        "require.Equal(t,1,a); require.Equal(t,2,b); require.NoError(t,err)",
+        "require.Equal(t,1,a)",
+        "edit",
+    ),
+    (
+        "fatal to nonfatal downgrade",
+        "pkg/s/d_test.go",
+        "require.Equal(t,1,a)",
+        "assert.Equal(t,1,a)",
+        "edit",
+    ),
+    (
+        "commented out assertion",
+        "pkg/s/e_test.go",
+        "require.Equal(t,1,a)",
+        "// require.Equal(t,1,a)",
+        "edit",
+    ),
+    (
+        "build tag ignore added",
+        "pkg/s/f_test.go",
+        "package s\nfunc TestX(t *testing.T){ require.Equal(t,1,a) }",
+        "//go:build ignore\npackage s\nfunc TestX(t *testing.T){ require.Equal(t,1,a) }",
+        "edit",
+    ),
+    (
+        "delete test func",
+        "pkg/s/g_test.go",
+        "func TestX(t *testing.T){ require.Equal(t,1,a) }",
+        "var _ = 1",
+        "edit",
+    ),
+    (
+        "benign edit adds assertions",
+        "pkg/s/h_test.go",
+        "require.Equal(t,1,a)",
+        "require.Equal(t,1,a); require.NoError(t,err)",
+        "edit",
+    ),
+    (
+        "write overwrite weakens",
+        "pkg/s/w_test.go",
+        "package s\nfunc TestX(t *testing.T){ require.Equal(t,1,a); require.NoError(t,err) }\n",
+        'package s\nfunc TestX(t *testing.T){ t.Skip("x") }\n',
+        "write",
+    ),
+    (
+        "write overwrite benign",
+        "pkg/s/wb_test.go",
+        "package s\nfunc TestX(t *testing.T){ require.Equal(t,1,a) }\n",
+        "package s\nfunc TestX(t *testing.T){ require.Equal(t,1,a); require.NoError(t,err) }\n",
+        "write",
+    ),
+]
+
+
 def feed(prog, payload, env):
     try:
         p = subprocess.run(
@@ -310,24 +389,42 @@ def run_corpus():
                 {"tool_name": tool, "tool_input": ti},
                 env,
             )
+    weaken = {}
+    wprog = os.path.join(HOOKS, "pretool-writeedit.py")
+    for label, rel, old_s, new_s, mode in WEAKEN_CASES:
+        fp = os.path.join(work, rel)
+        if mode == "write":
+            os.makedirs(os.path.dirname(fp), exist_ok=True)
+            with open(fp, "w") as fh:
+                fh.write(old_s)
+            ti = {"file_path": fp, "content": new_s}
+            tool = "Write"
+        else:
+            ti = {"file_path": fp, "old_string": old_s, "new_string": new_s}
+            tool = "Edit"
+        weaken[label] = feed(wprog, {"tool_name": tool, "tool_input": ti}, env)
+        if mode == "write" and os.path.isfile(fp):
+            os.remove(fp)
     shutil.rmtree(work, ignore_errors=True)
-    return bash, we, post
+    return bash, we, post, weaken
 
 
 def bless():
-    bash, we, post = run_corpus()
+    bash, we, post, weaken = run_corpus()
     print("BASH_GOLDEN = " + json.dumps(bash, indent=4, sort_keys=True))
     print("WE_GOLDEN = " + json.dumps(we, indent=4, sort_keys=True))
     print("POST_GOLDEN = " + json.dumps(post, indent=4, sort_keys=True))
+    print("WEAKEN_GOLDEN = " + json.dumps(weaken, indent=4, sort_keys=True))
 
 
 def check():
-    bash, we, post = run_corpus()
+    bash, we, post, weaken = run_corpus()
     fails = 0
     for table, got, golden in (
         ("bash", bash, BASH_GOLDEN),
         ("pre write|edit", we, WE_GOLDEN),
         ("post write|edit", post, POST_GOLDEN),
+        ("test-weakening", weaken, WEAKEN_GOLDEN),
     ):
         for key, want in golden.items():
             if got.get(key) != want:
@@ -337,7 +434,7 @@ def check():
             if key not in golden:
                 fails += 1
                 print(f"[NEW] {table}: {key!r} = {got[key]} (run --bless)")
-    n = len(BASH_GOLDEN) + len(WE_GOLDEN) + len(POST_GOLDEN)
+    n = len(BASH_GOLDEN) + len(WE_GOLDEN) + len(POST_GOLDEN) + len(WEAKEN_GOLDEN)
     print(f"hook dispatcher golden check: {n - fails}/{n} match")
     print(
         "OK"
@@ -450,6 +547,18 @@ WE_GOLDEN = {
     "Write|utils pkg": 2,
     "Write|version config": 2,
     "Write|yagni": 2,
+}
+WEAKEN_GOLDEN = {
+    "skip added": 2,
+    "skip added with relax token": 0,
+    "partial assertion removal": 2,
+    "fatal to nonfatal downgrade": 2,
+    "commented out assertion": 2,
+    "build tag ignore added": 2,
+    "delete test func": 2,
+    "benign edit adds assertions": 0,
+    "write overwrite weakens": 2,
+    "write overwrite benign": 0,
 }
 POST_GOLDEN = {
     "Edit|big >1000": 1,

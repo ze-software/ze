@@ -32,6 +32,10 @@ Determine what code to review based on the argument:
 
 Read the diff to understand the full changeset. Build a file list.
 
+Then run the deterministic test-relaxation audit and keep its output for the Test Coverage agent (and the final report):
+- `python3 scripts/dev/audit-test-relaxation.py` (uncommitted), or `python3 scripts/dev/audit-test-relaxation.py main` when reviewing a branch.
+- It reports tests that were `[DELETED]`, `[WEAKENED]` (assertions removed, `t.Skip` added, `require`->`assert` downgrade, commented-out asserts, `ignore` build tag), or `[RELAXED]` (a documented `// test-relax:` token). This is read-only. Hand its output to Agent 4 and surface every finding in the report.
+
 ### 2. Select agents
 
 If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules, docs/documentation, performance/perf/alloc), run only those. Otherwise, present this menu and **wait for the user to choose**:
@@ -158,7 +162,12 @@ You are a test coverage auditor. Your job is to find untested code paths, weak a
 
 SCOPE: Review these changed files: {file_list}
 
-For every changed function/method:
+FIRST, the test-relaxation audit. Run `python3 scripts/dev/audit-test-relaxation.py` (add `main` if this is a branch review) — read-only. For every entry it reports:
+- `[DELETED]` or `[WEAKENED]`: a test was removed or neutered (assertions dropped, `t.Skip` added, `require`->`assert` downgrade, commented-out asserts, `ignore` build tag). Report as HIGH severity unless you can prove from the diff that the code was genuinely fixed and the test legitimately no longer applies. "The test was failing" is never a valid reason.
+- `[RELAXED]`: a documented `// test-relax:` token. Report as MEDIUM and quote the reason; it is valid ONLY for a removed feature or replaced coverage.
+Also watch for weakening the audit cannot see: an expected value changed in place to match new (possibly wrong) output. If a golden/expected literal changed, verify the new value is correct, not just convenient.
+
+Then, for every changed function/method:
 1. Does a test exist that exercises it? Name the test.
 2. Does the test verify BEHAVIOR (correct output for given input) or just EXECUTION (no crash)?
 3. Are error paths tested? What happens when dependencies fail?

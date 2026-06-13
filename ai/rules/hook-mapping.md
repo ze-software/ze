@@ -89,7 +89,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | goroutine-lifecycle | `goroutine-lifecycle.md` | hot-path `.go` | Blocks `go func()` in reactor/event/dispatch/hub/wire/message. BLOCKING. |
 | require-design-ref | `design-doc-references.md` | `.go` | Blocks Go files without `// Design:` comment. BLOCKING. |
 | require-related-refs | `related-refs.md` | `.go` | Blocks missing/stale `// Related:`/`// Detail:`/`// Overview:` refs. BLOCKING. |
-| test-deletion (Edit) | `no-test-deletion.md` | test files | Blocks removing test funcs/cases/assertions. BLOCKING. |
+| test-weakening (Edit/Write/MultiEdit) | `no-test-deletion.md` | test files | Blocks deleting OR weakening tests: removed funcs/cases/assertions, added `t.Skip`, `require`->`assert` downgrade, commented-out asserts, `ignore` build tag. Escape: `// test-relax: <reason>`. BLOCKING. |
 | system-tmp (path) | `testing.md` | any | Blocks writing to `/tmp`. BLOCKING. |
 | generated-files | `canonical-sources.md` | `CLAUDE.md`/`AGENTS.md` | Blocks editing generated files. BLOCKING. |
 | claude-plans | `.claude/rules/planning.md` | Write | Blocks `.claude/plans/` and `~/.claude/plan/`. BLOCKING. | <!-- doc-links: ignore (banned location, deliberately nonexistent) -->
@@ -158,7 +158,7 @@ Hot-path files (reactor/event/dispatch/hub/wire/message) also: goroutine-lifecyc
 
 ### Test files (`_test.go`, `.ci`)
 
-test-deletion (if removing tests), check-existing-tests (if new), require-test-docs,
+test-weakening (if removing/weakening tests), check-existing-tests (if new), require-test-docs,
 boundary-tests, observer-sys-exit (`.ci` with Python).
 
 ### Spec files (`plan/spec-*.md`)

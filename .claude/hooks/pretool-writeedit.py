@@ -1514,19 +1514,22 @@ def c_system_tmp_we(ctx):
     return None
 
 
-def c_test_deletion_edit(ctx):
-    if ctx["tool"] != "Edit":
-        return None
-    fp = ctx["fp"]
-    old = ctx["ti"].get("old_string", "")
-    new = ctx["ti"].get("new_string", "")
-    is_test = bool(
-        re.search(r"_test\.go$", fp) or (fp.endswith(".ci") and "/test/" in fp)
-    )
-    if not is_test:
-        return None
+# Intentionally BROADER than the original shell-hook (which only blocked outright
+# deletion on Edit). c_test_weakening also catches the quiet ways a failing test
+# gets neutered instead of the code being fixed: adding t.Skip, dropping *some*
+# assertions, downgrading require->assert, commenting assertions out, build-tag
+# 'ignore', and the same via Write/MultiEdit overwrite. Rule: ai/rules/no-test-deletion.md
+_RELAX_TOKEN = re.compile(r"//[ \t]*test-relax:[ \t]*\S")
+_ASSERT_PAT = r"(?:t\.(?:Error|Errorf|Fatal|Fatalf|Fail|FailNow)|assert\.|require\.)"
+_FATAL_PAT = r"(?:t\.(?:Fatal|Fatalf|FailNow)|require\.)"
+_SKIP_PAT = r"\b[A-Za-z_]\w*\.Skip(?:Now|f)?[ \t]*\("
+_IGNORE_TAG = r"//(?:go:build ignore\b|[ \t]*\+build ignore\b)"
+
+
+def _test_weakening_errs(old, new, fp):
+    """Describe every way `new` weakens the test in `old`. Empty list = no weakening."""
     errs = []
-    if new.strip() == "" and old:
+    if new.strip() == "" and old.strip():
         errs.append("replacing test content with empty string")
     if grep_any(old, r"^func (Test|Fuzz|Benchmark)") and not grep_any(
         new, r"^func (Test|Fuzz|Benchmark)"
@@ -1536,28 +1539,83 @@ def c_test_deletion_edit(ctx):
         errs.append(
             f"removing t.Run cases ({old.count('t.Run(')} -> {new.count('t.Run(')})"
         )
-    old_tbl = len(re.findall(r"\{[ \t]*(name|Name)[ \t]*:", old))
-    new_tbl = len(re.findall(r"\{[ \t]*(name|Name)[ \t]*:", new))
+    old_tbl = len(re.findall(r"\{[ \t]*(?:name|Name)[ \t]*:", old))
+    new_tbl = len(re.findall(r"\{[ \t]*(?:name|Name)[ \t]*:", new))
     if old_tbl > new_tbl:
         errs.append(f"removing table-driven cases ({old_tbl} -> {new_tbl})")
-    old_as = len(re.findall(r"(t\.(Error|Fatal|Fail)|assert\.|require\.)", old))
-    new_as = len(re.findall(r"(t\.(Error|Fatal|Fail)|assert\.|require\.)", new))
-    if old_as > 0 and new_as == 0 and new:
-        errs.append(f"removing all assertions ({old_as} -> 0)")
+    old_as = len(re.findall(_ASSERT_PAT, old))
+    new_as = len(re.findall(_ASSERT_PAT, new))
+    if old_as > new_as and new.strip():
+        errs.append(f"removing assertions ({old_as} -> {new_as})")
+    old_fatal = len(re.findall(_FATAL_PAT, old))
+    new_fatal = len(re.findall(_FATAL_PAT, new))
+    if old_fatal > new_fatal and new_as >= old_as:
+        errs.append(
+            f"downgrading fatal assertions to non-fatal ({old_fatal} -> {new_fatal} require/Fatal)"
+        )
+    old_skip = len(re.findall(_SKIP_PAT, old))
+    new_skip = len(re.findall(_SKIP_PAT, new))
+    if new_skip > old_skip:
+        errs.append(f"adding t.Skip ({old_skip} -> {new_skip}); the test stops running")
+    if re.search(_IGNORE_TAG, new) and not re.search(_IGNORE_TAG, old):
+        errs.append("adding 'ignore' build tag; file dropped from the build")
+    old_cmt = len(re.findall(r"//[^\n]*" + _ASSERT_PAT, old))
+    new_cmt = len(re.findall(r"//[^\n]*" + _ASSERT_PAT, new))
+    if new_cmt > old_cmt:
+        errs.append(f"commenting out assertions ({old_cmt} -> {new_cmt})")
     if fp.endswith(".ci"):
         old_l = len([l for l in old.split("\n") if not re.match(r"^[ \t]*(#|$)", l)])
         new_l = len([l for l in new.split("\n") if not re.match(r"^[ \t]*(#|$)", l)])
         if old_l > new_l:
             errs.append(f"removing .ci test lines ({old_l} -> {new_l})")
-    if errs:
-        detail = "\n".join(f"  - {e}" for e in errs)
-        return (
-            2,
-            f"{YELLOW}{BOLD}❓ Test deletion - user approval required{RESET}\n"
-            f"  Detected in {os.path.basename(fp)}:\n{detail}\n"
-            "  If intentional, the user must approve this edit.",
-        )
-    return None
+    return errs
+
+
+def c_test_weakening(ctx):
+    fp = ctx["fp"]
+    is_test = bool(
+        re.search(r"_test\.go$", fp) or (fp.endswith(".ci") and "/test/" in fp)
+    )
+    if not is_test:
+        return None
+    tool = ctx["tool"]
+    if tool == "Edit":
+        old = ctx["ti"].get("old_string", "")
+        new = ctx["ti"].get("new_string", "")
+    elif tool == "MultiEdit":
+        edits = ctx["ti"].get("edits") or []
+        old = "\n".join(e.get("old_string", "") for e in edits)
+        new = "\n".join(e.get("new_string", "") for e in edits)
+    elif tool == "Write":
+        # Only an overwrite of an existing test file can weaken it.
+        if not isfile(fp):
+            return None
+        try:
+            with open(fp, encoding="utf-8", errors="replace") as fh:
+                old = fh.read()
+        except OSError:
+            return None
+        new = ctx["ti"].get("content", "") or ""
+    else:
+        return None
+    # Documented, auditable escape hatch. Forces a written reason instead of a
+    # silent edit. Audit every relaxation: grep -rn 'test-relax:' --include='*_test.go'
+    if _RELAX_TOKEN.search(new):
+        return None
+    errs = _test_weakening_errs(old, new, fp)
+    if not errs:
+        return None
+    detail = "\n".join(f"  - {e}" for e in errs)
+    return (
+        2,
+        f"{YELLOW}{BOLD}❓ Test weakening blocked - fix the code, not the test{RESET}\n"
+        f"  Detected in {os.path.basename(fp)}:\n{detail}\n"
+        "  A red test means the CODE is wrong by default. Diagnose the failure and\n"
+        "  fix the source. Only relax a test for a removed feature or replaced coverage.\n"
+        "  If genuinely obsolete, document why on/above the changed line:\n"
+        "    // test-relax: <why this test/assertion no longer applies>\n"
+        "  (the user can audit all relaxations: grep -rn 'test-relax:')",
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -1628,7 +1686,7 @@ CHECKS = (
     c_switch_dispatch,
     c_require_design_ref,
     c_require_related_refs,
-    c_test_deletion_edit,
+    c_test_weakening,
     c_json_kebab,
     c_goroutine,
     c_version_config,
