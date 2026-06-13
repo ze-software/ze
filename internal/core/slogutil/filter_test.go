@@ -194,6 +194,44 @@ func TestFilterHandlerMultipleFlags(t *testing.T) {
 	}
 }
 
+func TestActiveFilterReturnsConfiguredState(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	_ = Logger("test.activefilter")
+	ConfigureFilter("test.activefilter", []string{"update", "open"}, map[string]string{"neighbor": "192.0.2.1"})
+
+	state := ActiveFilter("test.activefilter")
+	if state == nil {
+		t.Fatal("expected non-nil FilterState")
+	}
+	if len(state.Flags) != 2 {
+		t.Errorf("flags count = %d, want 2", len(state.Flags))
+	}
+	if state.Scopes["neighbor"] != "192.0.2.1" {
+		t.Errorf("scope neighbor = %q, want 192.0.2.1", state.Scopes["neighbor"])
+	}
+}
+
+func TestActiveFilterReturnsNilWhenEmpty(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	_ = Logger("test.activefilter.empty")
+
+	state := ActiveFilter("test.activefilter.empty")
+	if state != nil {
+		t.Errorf("expected nil FilterState for unconfigured subsystem, got %+v", state)
+	}
+}
+
+func TestActiveFilterReturnsNilForUnknown(t *testing.T) {
+	state := ActiveFilter("nonexistent.subsystem")
+	if state != nil {
+		t.Errorf("expected nil for unknown subsystem, got %+v", state)
+	}
+}
+
 func TestFilterHandlerMultiScopeAllMustMatch(t *testing.T) {
 	var buf bytes.Buffer
 	logger, fh := newTestFilterLogger(&buf)

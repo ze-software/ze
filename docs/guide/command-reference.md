@@ -1252,7 +1252,11 @@ ze debug timeout <duration>                      # Auto-disable timer (e.g. 30m,
 Hierarchical prefixes work: `ze debug bgp` covers all bgp.* subsystems.
 Not auto-applied on reboot (safety). Use `ze debug restore` after restart.
 Each plugin declares valid flags via the debug YANG registry; invalid flags are rejected.
+
+`debug show` reads the stored profile (offline). To see the daemon's actual live state,
+use `show debug` (YANG-dispatched RPC, requires running daemon).
 <!-- source: internal/plugins/debug/debug.go -- Run, cmdToggle, applyProfile -->
+<!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
 <!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 
 ### ze format
@@ -1881,6 +1885,17 @@ Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
 
 Levels: debug, info, warn, err, disabled.
 <!-- source: internal/plugins/log/cmd/handlers.go -- show log levels/recent, request log level RPCs; internal/core/slogutil/slogutil.go -- level definitions -->
+
+### Debug (live state)
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `show debug` | read-only | Show live debug state from the running daemon (levels, flags, scopes) |
+
+Unlike `debug show` (offline, reads stored profile from debug.zefs), `show debug` queries the
+daemon's actual runtime slogutil state. Use this to verify what is active after toggling or
+restoring a profile.
+<!-- source: internal/plugins/debug/cmd/handlers.go -- show debug RPC -->
 
 ### Plugin Configuration (from plugin context)
 

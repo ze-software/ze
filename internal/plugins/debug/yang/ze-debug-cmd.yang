@@ -1,0 +1,21 @@
+module ze-debug-cmd {
+    namespace "urn:ze:debug:cmd";
+    prefix debugcmd;
+    import ze-extensions { prefix ze; }
+    description "Live debug state inspection via daemon RPC. Complements the offline 'debug show' command which reads stored profiles from debug.zefs.";
+    revision 2026-06-13 { description "Initial: show debug returns live slogutil levels, flags, and scopes."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container debug {
+            config false;
+            ze:command "ze-debug:debug-state";
+            description "Show live debug state from the running daemon.
+Lists every registered subsystem with its current log level and any
+active flag or scope filters. Unlike 'debug show' (which reads the
+stored profile), this reflects actual runtime state.";
+        }
+    }
+}

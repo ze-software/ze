@@ -229,6 +229,27 @@ ze.log.config=debug ze bgp server config.conf
 
 ---
 
+## 5. Granular Debug (runtime)
+
+Toggle debug per-module with filters and named profiles:
+
+```bash
+ze debug bgp.reactor                         # Toggle debug on/off
+ze debug bgp.reactor flag update             # Filter to specific flag
+ze debug bgp.reactor scope neighbor 192.0.2.1  # Filter by scope
+ze debug show                                # Show stored profile (offline)
+show debug                                   # Show live daemon state (YANG RPC)
+ze debug profile save deep-trace             # Save named profile
+ze debug restore                             # Reload saved profile after restart
+```
+
+`debug show` reads from `debug.zefs` (works offline). `show debug` queries the running
+daemon's actual slogutil state (requires daemon).
+<!-- source: internal/plugins/debug/debug.go -- Run, cmdToggle -->
+<!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
+
+---
+
 ## Debugging Workflow
 
 ### 1. Config Issues

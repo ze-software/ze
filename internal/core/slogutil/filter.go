@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"maps"
+	"slices"
 	"sync"
 )
 
@@ -103,6 +104,31 @@ func (h *filterHandler) clearFilters() {
 	defer h.mu.Unlock()
 	h.flags = nil
 	h.scopes = nil
+}
+
+func (h *filterHandler) activeFlags() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if len(h.flags) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(h.flags))
+	for f := range h.flags {
+		out = append(out, f)
+	}
+	slices.Sort(out)
+	return out
+}
+
+func (h *filterHandler) activeScopes() map[string]string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if len(h.scopes) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(h.scopes))
+	maps.Copy(out, h.scopes)
+	return out
 }
 
 func (h *filterHandler) matchFlag(attrs []slog.Attr) bool {

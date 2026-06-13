@@ -572,6 +572,31 @@ func ClearFilter(subsystem string) {
 	fh.clearFilters()
 }
 
+// FilterState holds the active filter configuration for a subsystem.
+type FilterState struct {
+	Flags  []string
+	Scopes map[string]string
+}
+
+// ActiveFilter returns the current filter state for a subsystem.
+// Returns nil if no filters are configured.
+func ActiveFilter(subsystem string) *FilterState {
+	val, ok := filterRegistry.Load(subsystem)
+	if !ok {
+		return nil
+	}
+	fh, ok := val.(*filterHandler)
+	if !ok {
+		return nil
+	}
+	flags := fh.activeFlags()
+	scopes := fh.activeScopes()
+	if len(flags) == 0 && len(scopes) == 0 {
+		return nil
+	}
+	return &FilterState{Flags: flags, Scopes: scopes}
+}
+
 // ResetLevelRegistry clears all entries from the level and filter registries. Only for use in tests.
 func ResetLevelRegistry() {
 	levelRegistry.Range(func(key, _ any) bool {
