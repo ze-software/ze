@@ -140,6 +140,9 @@ var validLevelNames = []string{levelDebug, "info", "warn", "warning", "err", "er
 // Only loggers created via Logger() or LazyLogger() are registered (not disabled ones).
 var levelRegistry sync.Map // map[string]*slog.LevelVar
 
+// filterRegistry tracks subsystem names to their *filterHandler for runtime filter changes.
+var filterRegistry sync.Map // map[string]*filterHandler
+
 // getLogEnv returns the log level for a subsystem using hierarchical lookup.
 // Walks from most specific to least specific: ze.log.bgp.fsm → ze.log.bgp → ze.log
 // At each level, checks dot, lowercase underscore, and uppercase underscore notation.
@@ -186,7 +189,9 @@ func Logger(subsystem string) *slog.Logger {
 		lv.Set(slog.LevelWarn)
 		levelRegistry.Store(subsystem, lv)
 		handler := createHandler(lv)
-		return slog.New(handler).With("subsystem", subsystem)
+		fh := newFilterHandler(handler)
+		filterRegistry.Store(subsystem, fh)
+		return slog.New(fh).With("subsystem", subsystem)
 	}
 	lvl, enabled := parseLevel(v)
 	if !enabled {
@@ -196,7 +201,9 @@ func Logger(subsystem string) *slog.Logger {
 	lv.Set(lvl)
 	levelRegistry.Store(subsystem, lv)
 	handler := createHandler(lv)
-	return slog.New(handler).With("subsystem", subsystem)
+	fh := newFilterHandler(handler)
+	filterRegistry.Store(subsystem, fh)
+	return slog.New(fh).With("subsystem", subsystem)
 }
 
 // PluginLogger returns a logger for plugin processes.
@@ -494,6 +501,12 @@ func ListLevels() map[string]string {
 	return result
 }
 
+// ValidateLevel returns true if the level string is a valid log level.
+func ValidateLevel(level string) bool {
+	_, enabled := parseLevel(level)
+	return enabled
+}
+
 // SetLevel changes the log level for a subsystem at runtime.
 // Returns an error if the subsystem is unknown or the level string is invalid.
 func SetLevel(subsystem, level string) error {
@@ -531,10 +544,42 @@ func LevelString(level slog.Level) string {
 	return level.String()
 }
 
-// ResetLevelRegistry clears all entries from the level registry. Only for use in tests.
+// ConfigureFilter sets flag and scope filters on a subsystem's filterHandler.
+// Direction filtering uses the scope mechanism: pass "direction" as a scope key.
+func ConfigureFilter(subsystem string, flags []string, scopes map[string]string) {
+	val, ok := filterRegistry.Load(subsystem)
+	if !ok {
+		return
+	}
+	fh, ok := val.(*filterHandler)
+	if !ok {
+		return
+	}
+	fh.setFlags(flags)
+	fh.setScopes(scopes)
+}
+
+// ClearFilter removes all filters from a subsystem's FilterHandler.
+func ClearFilter(subsystem string) {
+	val, ok := filterRegistry.Load(subsystem)
+	if !ok {
+		return
+	}
+	fh, ok := val.(*filterHandler)
+	if !ok {
+		return
+	}
+	fh.clearFilters()
+}
+
+// ResetLevelRegistry clears all entries from the level and filter registries. Only for use in tests.
 func ResetLevelRegistry() {
 	levelRegistry.Range(func(key, _ any) bool {
 		levelRegistry.Delete(key)
+		return true
+	})
+	filterRegistry.Range(func(key, _ any) bool {
+		filterRegistry.Delete(key)
 		return true
 	})
 }

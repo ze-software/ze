@@ -56,6 +56,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/archive/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/redistribute/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/debug/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/doctor/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/flowexport/yang"

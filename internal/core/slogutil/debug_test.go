@@ -1,180 +1,12 @@
+// VALIDATES: AC-10 -- ValidateSubsystem and SubsystemsMatching work correctly.
+// PREVENTS: Invalid subsystem names accepted, hierarchical matching broken.
+
 package slogutil
 
 import (
-	"io/fs"
 	"strings"
 	"testing"
 )
-
-// fakeDebugStore implements DebugStore for testing.
-type fakeDebugStore struct {
-	files map[string]string
-}
-
-func newFakeStore() *fakeDebugStore {
-	return &fakeDebugStore{files: make(map[string]string)}
-}
-
-func (s *fakeDebugStore) ReadFile(name string) ([]byte, error) {
-	v, ok := s.files[name]
-	if !ok {
-		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrNotExist}
-	}
-	return []byte(v), nil
-}
-
-func (s *fakeDebugStore) Has(name string) bool {
-	_, ok := s.files[name]
-	return ok
-}
-
-func (s *fakeDebugStore) List(prefix string) []string {
-	var result []string
-	for k := range s.files {
-		if strings.HasPrefix(k, prefix) {
-			result = append(result, k)
-		}
-	}
-	return result
-}
-
-func (s *fakeDebugStore) set(key, value string) {
-	s.files[key] = value
-}
-
-func TestResolveDebugStateDefault(t *testing.T) {
-	ResetLevelRegistry()
-	_ = Logger("test.alpha")
-	_ = Logger("test.beta")
-
-	store := newFakeStore()
-	states := ResolveDebugStates(store)
-
-	for _, s := range states {
-		if s.Enabled {
-			t.Errorf("subsystem %s: expected disabled by default, got enabled", s.Name)
-		}
-		if s.Source != DebugSourceDefault {
-			t.Errorf("subsystem %s: expected source default, got %s", s.Name, s.Source)
-		}
-	}
-}
-
-func TestResolveDebugStateExplicit(t *testing.T) {
-	ResetLevelRegistry()
-	_ = Logger("test.alpha")
-	_ = Logger("test.beta")
-
-	store := newFakeStore()
-	store.set("state/debug/test.alpha", "on")
-
-	states := ResolveDebugStates(store)
-
-	for _, s := range states {
-		switch s.Name {
-		case "test.alpha":
-			if !s.Enabled {
-				t.Error("test.alpha: expected enabled")
-			}
-			if s.Source != DebugSourceExplicit {
-				t.Errorf("test.alpha: expected source explicit, got %s", s.Source)
-			}
-		case "test.beta":
-			if s.Enabled {
-				t.Error("test.beta: expected disabled")
-			}
-			if s.Source != DebugSourceDefault {
-				t.Errorf("test.beta: expected source default, got %s", s.Source)
-			}
-		}
-	}
-}
-
-func TestResolveDebugStateGlobalOverride(t *testing.T) {
-	ResetLevelRegistry()
-	_ = Logger("test.alpha")
-	_ = Logger("test.beta")
-
-	store := newFakeStore()
-	store.set("state/debug/all", "on")
-	store.set("state/debug/test.alpha", "off")
-
-	states := ResolveDebugStates(store)
-
-	for _, s := range states {
-		if !s.Enabled {
-			t.Errorf("subsystem %s: expected enabled (global override), got disabled", s.Name)
-		}
-		if s.Source != DebugSourceGlobal {
-			t.Errorf("subsystem %s: expected source global, got %s", s.Name, s.Source)
-		}
-	}
-}
-
-func TestResolveDebugStateHierarchical(t *testing.T) {
-	ResetLevelRegistry()
-	_ = Logger("test.parent.child1")
-	_ = Logger("test.parent.child2")
-	_ = Logger("test.other")
-
-	store := newFakeStore()
-	store.set("state/debug/test.parent", "on")
-
-	states := ResolveDebugStates(store)
-
-	for _, s := range states {
-		switch {
-		case strings.HasPrefix(s.Name, "test.parent."):
-			if !s.Enabled {
-				t.Errorf("%s: expected enabled via parent key, got disabled", s.Name)
-			}
-			if s.Source != DebugSourceExplicit {
-				t.Errorf("%s: expected source explicit, got %s", s.Name, s.Source)
-			}
-		case s.Name == "test.other":
-			if s.Enabled {
-				t.Errorf("test.other: expected disabled, got enabled")
-			}
-		}
-	}
-}
-
-func TestResolveDebugStateExplicitOffWithGlobalOff(t *testing.T) {
-	ResetLevelRegistry()
-	_ = Logger("test.alpha")
-
-	store := newFakeStore()
-	store.set("state/debug/test.alpha", "on")
-	store.set("state/debug/all", "off")
-
-	states := ResolveDebugStates(store)
-
-	for _, s := range states {
-		if s.Name == "test.alpha" {
-			if !s.Enabled {
-				t.Error("test.alpha: expected enabled (per-subsystem on, global off)")
-			}
-			if s.Source != DebugSourceExplicit {
-				t.Errorf("test.alpha: expected source explicit, got %s", s.Source)
-			}
-		}
-	}
-}
-
-func TestApplyDebugFlagsFromStore(t *testing.T) {
-	ResetLevelRegistry()
-	_ = Logger("test.apply")
-
-	store := newFakeStore()
-	store.set("state/debug/test.apply", "on")
-
-	ApplyDebugFlags(store)
-
-	levels := ListLevels()
-	if levels["test.apply"] != "debug" {
-		t.Errorf("test.apply: expected debug level after ApplyDebugFlags, got %s", levels["test.apply"])
-	}
-}
 
 func TestValidateSubsystem(t *testing.T) {
 	ResetLevelRegistry()
@@ -220,22 +52,74 @@ func TestSubsystemsMatching(t *testing.T) {
 	}
 }
 
-func TestReadFlagValues(t *testing.T) {
-	store := newFakeStore()
-	store.set("state/debug/a", "on")
-	store.set("state/debug/b", "off")
-	store.set("state/debug/c", " on ")
+func TestRestoreLevel(t *testing.T) {
+	ResetLevelRegistry()
+	_ = Logger("test.restore")
 
-	if !readFlag(store, "state/debug/a") {
-		t.Error("expected 'on' to be true")
+	_ = SetLevel("test.restore", "debug")
+	levels := ListLevels()
+	if levels["test.restore"] != "debug" {
+		t.Fatalf("level = %q, want debug", levels["test.restore"])
 	}
-	if readFlag(store, "state/debug/b") {
-		t.Error("expected 'off' to be false")
+
+	RestoreLevel("test.restore")
+	levels = ListLevels()
+	if levels["test.restore"] == "debug" {
+		t.Error("level should not be debug after RestoreLevel")
 	}
-	if !readFlag(store, "state/debug/c") {
-		t.Error("expected ' on ' (trimmed) to be true")
+}
+
+func TestSubsystemsMatchingExact(t *testing.T) {
+	ResetLevelRegistry()
+	_ = Logger("test.exact")
+
+	matches := SubsystemsMatching("test.exact")
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match, got %d: %v", len(matches), matches)
 	}
-	if readFlag(store, "state/debug/missing") {
-		t.Error("expected missing key to be false")
+	if matches[0] != "test.exact" {
+		t.Errorf("match = %q, want test.exact", matches[0])
+	}
+}
+
+func TestSubsystemsMatchingNone(t *testing.T) {
+	ResetLevelRegistry()
+	_ = Logger("test.nomatch")
+
+	matches := SubsystemsMatching("nonexistent")
+	if len(matches) != 0 {
+		t.Errorf("expected 0 matches, got %d: %v", len(matches), matches)
+	}
+}
+
+func TestValidateSubsystemAll(t *testing.T) {
+	ResetLevelRegistry()
+	if !ValidateSubsystem("all") {
+		t.Error("expected 'all' to be valid")
+	}
+}
+
+func TestSubsystemsMatchingAll(t *testing.T) {
+	ResetLevelRegistry()
+	_ = Logger("test.all.a")
+	_ = Logger("test.all.b")
+
+	matches := SubsystemsMatching("all")
+	if len(matches) < 2 {
+		t.Errorf("SubsystemsMatching(all): got %d matches, want >=2", len(matches))
+	}
+}
+
+func TestSubsystemsMatchingPrefix(t *testing.T) {
+	ResetLevelRegistry()
+	_ = Logger("test.prefix.a")
+	_ = Logger("test.prefix.b")
+	_ = Logger("test.other")
+
+	matches := SubsystemsMatching("test.prefix")
+	for _, m := range matches {
+		if !strings.HasPrefix(m, "test.prefix") {
+			t.Errorf("unexpected match: %q", m)
+		}
 	}
 }

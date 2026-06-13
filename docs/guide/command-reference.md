@@ -1229,17 +1229,31 @@ See [Web Interface Guide](web-interface.md) for full usage documentation.
 
 ### ze debug
 
-Persistent debug flags stored in ZeFS. Flags survive daemon restarts.
+Granular debug with toggle semantics and named profiles. Stored in `debug.zefs`.
 
 ```
-ze debug enable <subsystem|all>    # Enable debug logging
-ze debug disable <subsystem|all>   # Disable debug logging
-ze debug show                      # Show debug state for all subsystems
+ze debug <module>                                # Toggle debug on/off
+ze debug <module> level <level>                  # Set level (debug/info/warn/error)
+ze debug <module> flag <flag>                    # Toggle flag
+ze debug <module> scope direction <dir>          # Direction filter (send/receive)
+ze debug <module> scope <kind> <value>           # Toggle scope filter
+ze debug show                                    # Show active debug state
+ze debug show <module>                           # Show module subtree
+ze debug show saved                              # Show saved profile
+ze debug restore                                 # Load and apply default profile
+ze debug restore profile <name>                  # Load and apply named profile
+ze debug clear                                   # Clear default profile
+ze debug profile save <name>                     # Save current state as named
+ze debug profile list                            # List profiles
+ze debug profile delete <name>                   # Delete a profile
+ze debug timeout <minutes>                       # Auto-disable timer (0=off)
 ```
 
-Three-tier resolution: global override > per-subsystem key > default (off).
-Hierarchical prefixes work: `ze debug enable bgp` enables all bgp.* subsystems.
-<!-- source: internal/plugins/debug/debug.go -- Run -->
+Hierarchical prefixes work: `ze debug bgp` covers all bgp.* subsystems.
+Not auto-applied on reboot (safety). Use `ze debug restore` after restart.
+Each plugin declares valid flags via the debug YANG registry; invalid flags are rejected.
+<!-- source: internal/plugins/debug/debug.go -- Run, cmdToggle, applyProfile -->
+<!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 
 ### ze data
 

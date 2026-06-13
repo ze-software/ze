@@ -1,174 +1,109 @@
+// VALIDATES: AC-1 -- debug <module> when not in profile adds module, prints "enabled".
+// VALIDATES: AC-2 -- debug <module> when in profile removes module, prints "disabled".
+// VALIDATES: AC-3 -- debug <module> flag <flag> toggles flag entry.
+// VALIDATES: AC-12 -- debug restore loads and applies saved profile.
+// VALIDATES: AC-14 -- invalid flag name rejected with YANG-derived error.
+// PREVENTS: Toggle semantics broken, profile not persisting, timeout bounds violation.
+
 package debug
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
+	debugyang "codeberg.org/thomas-mangin/ze/internal/component/debug/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-func setupTestStore(t *testing.T) (string, func()) {
+func setupTestDebugStore(t *testing.T) func() {
 	t.Helper()
 	dir := t.TempDir()
-	storePath := filepath.Join(dir, "test.zefs")
+	storePath := filepath.Join(dir, "debug.zefs")
 	store, err := zefs.Create(storePath)
 	if err != nil {
 		t.Fatalf("create store: %v", err)
 	}
 	store.Close() //nolint:errcheck // test setup
-	return storePath, func() { _ = os.RemoveAll(dir) }
+
+	orig := debugStoreOverride
+	debugStoreOverride = storePath
+	return func() { debugStoreOverride = orig }
 }
 
-func TestDebugEnableSubsystem(t *testing.T) {
+func TestDebugToggleOn(t *testing.T) {
 	slogutil.ResetLevelRegistry()
-	_ = slogutil.Logger("test.debug.en")
+	_ = slogutil.Logger("test.debug.toggle")
 
-	storePath, cleanup := setupTestStore(t)
+	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	origBlobPath := blobPathOverride
-	blobPathOverride = storePath
-	defer func() { blobPathOverride = origBlobPath }()
-
-	code := Run([]string{"enable", "test.debug.en"})
+	code := Run([]string{"test.debug.toggle"})
 	if code != 0 {
-		t.Fatalf("enable returned %d, want 0", code)
-	}
-
-	store, err := zefs.Open(storePath)
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
-	defer store.Close() //nolint:errcheck // test
-
-	data, err := store.ReadFile("state/debug/test.debug.en")
-	if err != nil {
-		t.Fatalf("read key: %v", err)
-	}
-	if string(data) != "on" {
-		t.Errorf("key value = %q, want %q", string(data), "on")
+		t.Fatalf("toggle on returned %d, want 0", code)
 	}
 
 	levels := slogutil.ListLevels()
-	if levels["test.debug.en"] != "debug" {
-		t.Errorf("level = %q, want debug", levels["test.debug.en"])
+	if levels["test.debug.toggle"] != "debug" {
+		t.Errorf("level = %q, want debug", levels["test.debug.toggle"])
 	}
 }
 
-func TestDebugDisableSubsystem(t *testing.T) {
+func TestDebugToggleOff(t *testing.T) {
 	slogutil.ResetLevelRegistry()
-	_ = slogutil.Logger("test.debug.dis")
+	_ = slogutil.Logger("test.debug.toggle2")
 
-	storePath, cleanup := setupTestStore(t)
+	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	origBlobPath := blobPathOverride
-	blobPathOverride = storePath
-	defer func() { blobPathOverride = origBlobPath }()
-
-	Run([]string{"enable", "test.debug.dis"})
-	code := Run([]string{"disable", "test.debug.dis"})
+	Run([]string{"test.debug.toggle2"})
+	code := Run([]string{"test.debug.toggle2"})
 	if code != 0 {
-		t.Fatalf("disable returned %d, want 0", code)
-	}
-
-	store, err := zefs.Open(storePath)
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
-	defer store.Close() //nolint:errcheck // test
-
-	data, err := store.ReadFile("state/debug/test.debug.dis")
-	if err != nil {
-		t.Fatalf("read key: %v", err)
-	}
-	if string(data) != "off" {
-		t.Errorf("key value = %q, want %q", string(data), "off")
+		t.Fatalf("toggle off returned %d, want 0", code)
 	}
 
 	levels := slogutil.ListLevels()
-	if levels["test.debug.dis"] == "debug" {
-		t.Error("level should not be debug after disable")
+	if levels["test.debug.toggle2"] == "debug" {
+		t.Error("level should not be debug after toggle off")
 	}
 }
 
-func TestDebugEnableAll(t *testing.T) {
+func TestDebugToggleFlag(t *testing.T) {
 	slogutil.ResetLevelRegistry()
-	_ = slogutil.Logger("test.debug.all1")
-	_ = slogutil.Logger("test.debug.all2")
+	_ = slogutil.Logger("test.debug.flag")
 
-	storePath, cleanup := setupTestStore(t)
+	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	origBlobPath := blobPathOverride
-	blobPathOverride = storePath
-	defer func() { blobPathOverride = origBlobPath }()
-
-	code := Run([]string{"enable", nameAll})
+	code := Run([]string{"test.debug.flag", "flag", "update"})
 	if code != 0 {
-		t.Fatalf("enable all returned %d, want 0", code)
-	}
-
-	levels := slogutil.ListLevels()
-	for _, name := range []string{"test.debug.all1", "test.debug.all2"} {
-		if levels[name] != "debug" {
-			t.Errorf("%s level = %q, want debug", name, levels[name])
-		}
+		t.Fatalf("flag toggle returned %d, want 0", code)
 	}
 }
 
-func TestDebugDisableAll(t *testing.T) {
+func TestDebugDirectionAsScope(t *testing.T) {
 	slogutil.ResetLevelRegistry()
-	_ = slogutil.Logger("test.debug.dall")
+	_ = slogutil.Logger("test.debug.dirscope")
 
-	storePath, cleanup := setupTestStore(t)
+	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	origBlobPath := blobPathOverride
-	blobPathOverride = storePath
-	defer func() { blobPathOverride = origBlobPath }()
-
-	Run([]string{"enable", nameAll})
-	code := Run([]string{"disable", nameAll})
+	code := Run([]string{"test.debug.dirscope", "scope", "direction", "receive"})
 	if code != 0 {
-		t.Fatalf("disable all returned %d, want 0", code)
-	}
-
-	levels := slogutil.ListLevels()
-	if levels["test.debug.dall"] == "debug" {
-		t.Error("level should not be debug after disable all")
+		t.Fatalf("direction scope toggle returned %d, want 0", code)
 	}
 }
 
-func TestDebugDisableAllPreservesPerSubsystem(t *testing.T) {
+func TestDebugToggleScope(t *testing.T) {
 	slogutil.ResetLevelRegistry()
-	_ = slogutil.Logger("test.debug.kept")
-	_ = slogutil.Logger("test.debug.cleared")
+	_ = slogutil.Logger("test.debug.scope")
 
-	storePath, cleanup := setupTestStore(t)
+	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	origBlobPath := blobPathOverride
-	blobPathOverride = storePath
-	defer func() { blobPathOverride = origBlobPath }()
-
-	// Enable per-subsystem for "kept", then enable all, then disable all.
-	// "kept" should remain at debug because its per-subsystem key is "on".
-	Run([]string{"enable", "test.debug.kept"})
-	Run([]string{"enable", nameAll})
-	code := Run([]string{"disable", nameAll})
+	code := Run([]string{"test.debug.scope", "scope", "neighbor", "192.0.2.1"})
 	if code != 0 {
-		t.Fatalf("disable all returned %d, want 0", code)
-	}
-
-	levels := slogutil.ListLevels()
-	if levels["test.debug.kept"] != "debug" {
-		t.Errorf("test.debug.kept: expected debug (per-subsystem on), got %q", levels["test.debug.kept"])
-	}
-	if levels["test.debug.cleared"] == "debug" {
-		t.Error("test.debug.cleared: should not be debug after disable all")
+		t.Fatalf("scope toggle returned %d, want 0", code)
 	}
 }
 
@@ -176,12 +111,10 @@ func TestDebugShow(t *testing.T) {
 	slogutil.ResetLevelRegistry()
 	_ = slogutil.Logger("test.debug.show")
 
-	storePath, cleanup := setupTestStore(t)
+	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	origBlobPath := blobPathOverride
-	blobPathOverride = storePath
-	defer func() { blobPathOverride = origBlobPath }()
+	Run([]string{"test.debug.show"})
 
 	code := Run([]string{"show"})
 	if code != 0 {
@@ -189,20 +122,123 @@ func TestDebugShow(t *testing.T) {
 	}
 }
 
-func TestDebugInvalidSubsystem(t *testing.T) {
+func TestDebugShowSubtree(t *testing.T) {
 	slogutil.ResetLevelRegistry()
-	_ = slogutil.Logger("test.debug.valid")
+	_ = slogutil.Logger("test.debug.sub.a")
+	_ = slogutil.Logger("test.debug.sub.b")
 
-	storePath, cleanup := setupTestStore(t)
+	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	origBlobPath := blobPathOverride
-	blobPathOverride = storePath
-	defer func() { blobPathOverride = origBlobPath }()
+	Run([]string{"test.debug.sub.a"})
 
-	code := Run([]string{"enable", "nonexistent.subsystem"})
+	code := Run([]string{"show", "test.debug.sub"})
+	if code != 0 {
+		t.Fatalf("show subtree returned %d, want 0", code)
+	}
+}
+
+func TestDebugRestore(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.restore")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	Run([]string{"test.debug.restore"})
+
+	slogutil.RestoreLevel("test.debug.restore")
+	levels := slogutil.ListLevels()
+	if levels["test.debug.restore"] == "debug" {
+		t.Fatal("level should not be debug after RestoreLevel")
+	}
+
+	code := Run([]string{"restore"})
+	if code != 0 {
+		t.Fatalf("restore returned %d, want 0", code)
+	}
+
+	levels = slogutil.ListLevels()
+	if levels["test.debug.restore"] != "debug" {
+		t.Errorf("level = %q, want debug after restore", levels["test.debug.restore"])
+	}
+}
+
+func TestDebugProfileSaveList(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.profsave")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	Run([]string{"test.debug.profsave"})
+
+	code := Run([]string{"profile", "save", "test-profile"})
+	if code != 0 {
+		t.Fatalf("profile save returned %d, want 0", code)
+	}
+
+	code = Run([]string{"profile", "list"})
+	if code != 0 {
+		t.Fatalf("profile list returned %d, want 0", code)
+	}
+}
+
+func TestDebugProfileDelete(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.profdel")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	Run([]string{"test.debug.profdel"})
+	Run([]string{"profile", "save", "to-delete"})
+
+	code := Run([]string{"profile", "delete", "to-delete"})
+	if code != 0 {
+		t.Fatalf("profile delete returned %d, want 0", code)
+	}
+}
+
+func TestDebugClear(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.clear")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	Run([]string{"test.debug.clear"})
+
+	code := Run([]string{"clear"})
+	if code != 0 {
+		t.Fatalf("clear returned %d, want 0", code)
+	}
+
+	levels := slogutil.ListLevels()
+	if levels["test.debug.clear"] == "debug" {
+		t.Error("level should not be debug after clear")
+	}
+}
+
+func TestDebugUnregisteredSubsystemAccepted(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"any.module.name"})
+	if code != 0 {
+		t.Errorf("unregistered subsystem returned %d, want 0 (profile stores intent)", code)
+	}
+}
+
+func TestDebugInvalidModuleName(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"has/slash"})
 	if code != 1 {
-		t.Errorf("enable nonexistent returned %d, want 1", code)
+		t.Errorf("module with slash returned %d, want 1", code)
 	}
 }
 
@@ -213,28 +249,147 @@ func TestDebugNoArgs(t *testing.T) {
 	}
 }
 
-func TestDebugUnknownSubcommand(t *testing.T) {
-	code := Run([]string{"bogus"})
-	if code != 1 {
-		t.Errorf("unknown subcommand returned %d, want 1", code)
+func TestDebugHelp(t *testing.T) {
+	code := Run([]string{"help"})
+	if code != 0 {
+		t.Errorf("help returned %d, want 0", code)
 	}
 }
 
-func TestZefsKeyRegistration(t *testing.T) {
-	allKey := zefs.KeyDebugAll.Key()
-	if allKey != "state/debug/all" {
-		t.Errorf("KeyDebugAll = %q, want %q", allKey, "state/debug/all")
+func TestDebugTimeoutValid(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "30"})
+	if code != 0 {
+		t.Fatalf("timeout 30 returned %d, want 0", code)
+	}
+}
+
+func TestDebugTimeoutZero(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "0"})
+	if code != 0 {
+		t.Fatalf("timeout 0 returned %d, want 0", code)
+	}
+}
+
+func TestDebugTimeoutLastValid(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "1440"})
+	if code != 0 {
+		t.Fatalf("timeout 1440 returned %d, want 0", code)
+	}
+}
+
+func TestDebugTimeoutAboveMax(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "1441"})
+	if code != 1 {
+		t.Errorf("timeout 1441 returned %d, want 1", code)
+	}
+}
+
+func TestDebugTimeoutNonNumeric(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "abc"})
+	if code != 1 {
+		t.Errorf("timeout abc returned %d, want 1", code)
+	}
+}
+
+func TestDebugInvalidFlagRejected(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.flagval")
+
+	debugyang.ResetForTest()
+	defer debugyang.ResetForTest()
+	debugyang.RegisterModule(debugyang.Module{
+		Prefix: "test.debug",
+		Flags:  []string{"update", "open", "keepalive"},
+	})
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"test.debug.flagval", "flag", "nonexistent"})
+	if code != 1 {
+		t.Errorf("invalid flag returned %d, want 1", code)
 	}
 
-	subKey := zefs.KeyDebugSubsystem.Key("bgp")
-	if subKey != "state/debug/bgp" {
-		t.Errorf("KeyDebugSubsystem(bgp) = %q, want %q", subKey, "state/debug/bgp")
+	code = Run([]string{"test.debug.flagval", "flag", "update"})
+	if code != 0 {
+		t.Errorf("valid flag returned %d, want 0", code)
+	}
+}
+
+func TestDebugNoFlagsRegisteredAcceptsAny(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.noflag")
+
+	debugyang.ResetForTest()
+	defer debugyang.ResetForTest()
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"test.debug.noflag", "flag", "anything"})
+	if code != 0 {
+		t.Errorf("flag with no modules should be accepted (no validation), got %d", code)
+	}
+}
+
+func TestDebugOverlappingModulesSpecificWins(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.overlap.child")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	Run([]string{"test.debug.overlap", "level", "debug"})
+	Run([]string{"test.debug.overlap.child", "level", "info"})
+
+	levels := slogutil.ListLevels()
+	if levels["test.debug.overlap.child"] != "info" {
+		t.Errorf("more-specific module should win, got %q want info", levels["test.debug.overlap.child"])
+	}
+}
+
+func TestDebugInvalidLevelRejected(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.badlevel")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"test.debug.badlevel", "level", "bogus"})
+	if code != 1 {
+		t.Errorf("invalid level returned %d, want 1", code)
+	}
+}
+
+func TestDebugSetLevel(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.level")
+
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"test.debug.level", "level", "info"})
+	if code != 0 {
+		t.Fatalf("set level returned %d, want 0", code)
 	}
 
-	if !zefs.IsRegistered("state/debug/all") {
-		t.Error("state/debug/all not registered")
-	}
-	if !zefs.IsRegistered("state/debug/bgp.reactor") {
-		t.Error("state/debug/bgp.reactor not registered (template match)")
+	levels := slogutil.ListLevels()
+	if levels["test.debug.level"] != "info" {
+		t.Errorf("level = %q, want info", levels["test.debug.level"])
 	}
 }

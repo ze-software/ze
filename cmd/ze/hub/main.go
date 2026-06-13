@@ -266,11 +266,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	// Phase 1a: Apply persistent debug flags from zefs (after config-driven log levels).
-	if bs, ok := storage.BlobStoreFrom(store); ok {
-		slogutil.ApplyDebugFlags(bs)
-	}
-
 	// Phase 1b: Schema evolution. Apply registered evolutions newer than the
 	// config's stamped release, then re-stamp and write back.
 	evolveLogger := slogutil.Logger("hub.evolve")

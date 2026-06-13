@@ -1,5 +1,5 @@
-// Design: docs/architecture/zefs-format.md -- debug flags stored as zefs keys
-// Overview: debug.go -- Run handler for enable/disable/show
+// Design: plan/spec-granular-debug.md -- debug CLI registration
+// Related: debug.go -- Run handler
 
 // codegen:skip -- CLI command wired via cmd/ze/main.go, not a runtime plugin.
 
@@ -13,18 +13,21 @@ func init() {
 	registry.MustRegisterRootHandler("debug", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
-		Description: "Toggle persistent debug flags (stored in ZeFS, survive restarts)",
+		Description: "Granular debug with toggle semantics and named profiles (stored in debug.zefs)",
 		Mode:        "offline",
 		Section:     registry.SectionOperations,
-		Subs:        "enable, disable, show",
+		Subs:        "show, restore, clear, profile, timeout, <module>",
 	})
-	registry.MustRegisterLocalMeta("debug enable", func(args []string) int {
-		return Run(append([]string{"enable"}, args...))
-	}, registry.Meta{Description: "Turn on a debug flag. Persisted in ZeFS so it survives restarts."})
-	registry.MustRegisterLocalMeta("debug disable", func(args []string) int {
-		return Run(append([]string{"disable"}, args...))
-	}, registry.Meta{Description: "Turn off a debug flag and remove it from ZeFS."})
 	registry.MustRegisterLocalMeta("debug show", func(args []string) int {
 		return Run(append([]string{"show"}, args...))
-	}, registry.Meta{Description: "List all debug flags currently enabled."})
+	}, registry.Meta{Description: "Show active debug state (module, level, flags, scopes)."})
+	registry.MustRegisterLocalMeta("debug clear", func(args []string) int {
+		return Run(append([]string{"clear"}, args...))
+	}, registry.Meta{Description: "Clear default debug profile."})
+	registry.MustRegisterLocalMeta("debug restore", func(args []string) int {
+		return Run(append([]string{"restore"}, args...))
+	}, registry.Meta{Description: "Load and apply saved debug profile."})
+	registry.MustRegisterLocalMeta("debug profile", func(args []string) int {
+		return Run(append([]string{"profile"}, args...))
+	}, registry.Meta{Description: "Manage named debug profiles (save/list/delete)."})
 }
