@@ -447,6 +447,14 @@ func registerLocalCommands() {
 		Section:     registry.SectionSystem,
 		Subs:        "--json",
 	})
+	registry.MustRegisterRootHandler("format", func(_ *registry.RuntimeContext, args []string) int {
+		return runFormat(args)
+	}, registry.Meta{
+		Description: "Apply pipe formatting to stdin (json, table, yaml, match, count)",
+		Mode:        "offline",
+		Section:     registry.SectionSystem,
+		Subs:        "json, table, text, yaml, ndjson, match <pattern>, count, first <n>, last <n>, resolve",
+	})
 	registry.MustRegisterLocalMeta("help command", func(args []string) int {
 		printHelpCommand(args)
 		return 0

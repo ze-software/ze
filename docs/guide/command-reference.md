@@ -1255,6 +1255,30 @@ Each plugin declares valid flags via the debug YANG registry; invalid flags are 
 <!-- source: internal/plugins/debug/debug.go -- Run, cmdToggle, applyProfile -->
 <!-- source: internal/component/debug/yang/register.go -- RegisterModule, ValidateFlag -->
 
+### ze format
+
+Apply pipe formatting to stdin. Offline commands (like `ze debug show`) do not pass
+through the YANG-dispatched pipe infrastructure. `ze format` provides the same
+operators as a standalone filter.
+
+```
+<command> | ze format json [compact]     # Format as JSON (pretty or compact)
+<command> | ze format yaml               # YAML output
+<command> | ze format table              # Box-drawing table
+<command> | ze format text               # Space-aligned columns
+<command> | ze format ndjson             # One compact JSON object per line
+<command> | ze format match <pattern>    # Grep lines (case-insensitive)
+<command> | ze format count              # Count items (JSON-aware)
+<command> | ze format first <n>          # Take first N items
+<command> | ze format last <n>           # Take last N items
+<command> | ze format resolve            # Add reverse DNS for IP values
+```
+
+Format operators (json, yaml, table, text, ndjson) expect JSON input. Filter
+operators (match, count, first, last) work on both JSON and plain text.
+`resolve` adds a `<key>-name` sibling field for each IP address value in JSON.
+<!-- source: cmd/ze/ze_core_format.go -- runFormat -->
+
 ### ze data
 
 Low-level blob store management.
