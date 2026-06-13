@@ -41,18 +41,24 @@ input=enter
 expect=error:none
 expect=dirty:false
 
-# Inserted member first, deactivated member as an inactive line. The exact
-# bracket line also proves members serialize bare (a raw "inactive:" item
-# would change the bracket line and fail reparse validation; the needle
-# cannot be asserted directly because .et directive values split on ':').
-expect=file:path=test.conf:contains=name-server [ 1.1.1.1 9.9.9.9 8.8.8.8 ]
-expect=file:path=test.conf:contains=inactive system name-server 8.8.8.8
+# Inserted member first; the deactivated member serializes as a `nop` line.
+# With any deactivated member the leaf-list serializes as individual
+# `set`/`nop` lines (bracket form is used only when every member is active --
+# learned 893 D-3). The inserted member is present as a `set` line and the
+# deactivated member as a `nop` line.
+expect=file:path=test.conf:contains=set system name-server 1.1.1.1
+expect=file:path=test.conf:contains=set system name-server 9.9.9.9
+expect=file:path=test.conf:contains=nop system name-server 8.8.8.8
 
-# Activate restores the member in place
+# Activate restores the member in place. With all members active again the
+# leaf-list collapses back to bracket form (learned 893 D-3), so no `nop`
+# (or legacy `inactive`) line remains.
 input=type:text=activate system name-server 8.8.8.8
 input=enter
 expect=error:none
 input=type:text=commit
 input=enter
 expect=error:none
+expect=file:path=test.conf:contains=name-server [ 1.1.1.1 9.9.9.9 8.8.8.8 ]
+expect=file:path=test.conf:not-contains=nop system name-server
 expect=file:path=test.conf:not-contains=inactive system name-server
