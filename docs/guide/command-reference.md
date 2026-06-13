@@ -1656,6 +1656,18 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families |
 <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin -->
 
+### IRR Filter Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `show bgp irr` | read-only | Per-ASN IRR filter status: AS-SET, prefix count, server, last/next refresh |
+| `show bgp irr prefix <peer>` | read-only | List all IRR-resolved prefixes for a peer |
+| `show bgp irr check <peer> <prefix>` | read-only | Test whether a prefix would be accepted by the IRR filter |
+| `update bgp irr all` | write | Refresh all IRR prefix-lists immediately |
+| `update bgp irr asn <asn>` | write | Refresh IRR prefix-list for a specific ASN |
+| `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET |
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet -->
+
 ### Healthcheck Commands
 
 | Command | Access | Purpose |

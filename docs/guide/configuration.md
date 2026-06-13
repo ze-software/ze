@@ -377,6 +377,61 @@ disambiguation or advanced use:
 <!-- source: internal/component/bgp/plugins/filter_prefix/config.go -- parsePrefixLists -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, per-prefix partition modify path -->
 
+### IRR Prefix-List Filter
+
+The `bgp-filter-irr` plugin generates prefix-list filters from IRR (Internet
+Routing Registry) data. It queries a whois server for an AS-SET's prefixes
+and applies them as import filters, replacing the external bgpq4 workflow.
+
+```
+bgp {
+    policy {
+        irr {
+            server whois.radb.net    // IRR whois server (default)
+            refresh-interval 3600   // seconds between re-queries (60-86400)
+        }
+    }
+
+    peer customer-a {
+        session {
+            asn { local 65000; remote 65001; }
+            irr {
+                as-set AS-CUSTOMER    // explicit AS-SET (omit for PeeringDB auto-discovery)
+            }
+        }
+        filter {
+            import [ bgp-filter-irr:$remote_as ]
+        }
+    }
+}
+```
+
+The `$remote_as` variable is resolved by the reactor to the peer's remote ASN,
+so the filter name becomes `bgp-filter-irr:65001`. The plugin queries IRR for
+the AS-SET's prefixes and builds a prefix-list keyed by ASN. Routes with
+prefixes in the list are accepted; all others are rejected (implicit deny).
+
+When `irr { as-set }` is omitted, the plugin auto-discovers the AS-SET from
+PeeringDB using the peer's remote ASN. Set `irr { enable disable; }` to opt
+a peer out of IRR filtering entirely.
+
+The plugin refreshes prefix-lists automatically at the configured interval and
+on demand via `update bgp irr all`. Resolved prefixes are stored as operational
+data in zefs (not in the config tree) and survive restarts.
+
+| Command | Purpose |
+|---------|---------|
+| `show bgp irr` | Per-ASN status: AS-SET, prefix count, last/next refresh |
+| `show bgp irr prefix <peer>` | List all prefixes for a peer |
+| `show bgp irr check <peer> <prefix>` | Test if a prefix would be accepted |
+| `update bgp irr all` | Refresh all peers immediately |
+| `update bgp irr asn <asn>` | Refresh a specific ASN |
+| `update bgp irr as-set <as-set>` | Refresh peers using a specific AS-SET |
+
+<!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- IRR filter YANG schema -->
+<!-- source: internal/component/bgp/plugins/filter_irr/config.go -- parseIRRConfig -->
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- RunFilterIRR, handleFilterUpdate, refreshASN -->
+
 ### AS-Path Filter
 
 Named AS-path regex filters live under `bgp { policy { as-path-list NAME { ... } } }`.

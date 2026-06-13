@@ -50,6 +50,7 @@ Three filter categories:
 | bgp-hostname | FQDN capability for peer identification |
 | bgp-softver | Software version capability advertisement |
 | bgp-filter-community | Community tag/strip filter (standard, large, extended) |
+| bgp-filter-irr | IRR-based prefix-list filter from whois queries (replaces bgpq4 workflow) |
 | loop | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
 
 <!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr -->
@@ -62,6 +63,7 @@ Three filter categories:
 <!-- source: internal/component/bgp/plugins/softver/register.go -- bgp-softver -->
 <!-- source: internal/component/bgp/plugins/aigp/register.go -- bgp-aigp -->
 <!-- source: internal/component/bgp/plugins/filter_community/register.go -- bgp-filter-community -->
+<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- bgp-filter-irr -->
 <!-- source: internal/component/bgp/reactor/filter/register.go -- loop -->
 
 ### Infrastructure

@@ -1,0 +1,74 @@
+module ze-filter-irr {
+    namespace "urn:ze:filter-irr";
+    prefix firr;
+
+    import ze-bgp-conf { prefix bgp; }
+
+    description "IRR-based prefix-list filter for eBGP peers.
+                 Queries IRR databases for AS-SET prefixes and applies them
+                 as import filters. Referenced from peer filter chains as
+                 bgp-filter-irr:$remote_as.";
+
+    revision 2026-06-13 {
+        description "Initial revision";
+    }
+
+    grouping irr-peer-config {
+        container irr {
+            description "Per-peer IRR filter settings.";
+
+            leaf as-set {
+                type string;
+                description "Explicit AS-SET name for IRR prefix lookup.
+                             When omitted, the AS-SET is auto-discovered
+                             from PeeringDB using the peer's remote ASN.";
+            }
+
+            leaf enable {
+                type enumeration {
+                    enum enable {
+                        description "Enable IRR filtering for this peer (default).";
+                    }
+                    enum disable {
+                        description "Disable IRR filtering for this peer.";
+                    }
+                }
+                default "enable";
+                description "Enable or disable IRR filtering for this peer.";
+            }
+        }
+    }
+
+    augment "/bgp:bgp/bgp:policy" {
+        container irr {
+            description "Global IRR filtering settings.";
+
+            leaf server {
+                type string;
+                default "whois.radb.net";
+                description "IRR whois server hostname or host:port.";
+            }
+
+            leaf refresh-interval {
+                type uint32 {
+                    range "60..86400";
+                }
+                default "3600";
+                units "seconds";
+                description "Seconds between automatic IRR re-queries.";
+            }
+        }
+    }
+
+    augment "/bgp:bgp/bgp:peer/bgp:session" {
+        uses irr-peer-config;
+    }
+
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:session" {
+        uses irr-peer-config;
+    }
+
+    augment "/bgp:bgp/bgp:group/bgp:session" {
+        uses irr-peer-config;
+    }
+}
