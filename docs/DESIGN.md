@@ -334,6 +334,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-filter-aspath-length` | Named AS-path length filter by hop count |
 | `bgp-filter-remove-private-as` | AS-path action filter that removes RFC 6996 Private Use ASNs |
 | `bgp-filter-prefix` | Prefix-list filter |
+| `bgp-filter-irr` | IRR-based prefix-list filter for eBGP peers |
 | `bgp-filter-modify` | Attribute modification filter (set LP, prepend, communities) |
 | `bgp-filter-community-match` | Community match filter |
 | `bgp-healthcheck` | Link/target health-dependent route withdrawal |
@@ -353,6 +354,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `firewall` | Firewall management via nftables |
 | `flowspec-firewall` | Translate BGP FlowSpec routes into nftables firewall rules |
 | `traffic` | Traffic control (TC qdisc/class) via netlink or VPP backend |
+| `cos` | 802.1p class-of-service profile definitions |
 | `interface` | Interface management via netlink or VPP backend |
 | `iface-dhcp` | DHCP client for interface address assignment |
 | `routing-table` | Named routing table registry for kernel table IDs |
