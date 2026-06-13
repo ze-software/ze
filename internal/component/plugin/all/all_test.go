@@ -9,7 +9,31 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
+
+func assertSnapshot(t *testing.T, label string, got, expected []string) {
+	t.Helper()
+	if slices.Equal(got, expected) {
+		return
+	}
+	have := make(map[string]bool, len(got))
+	for _, s := range got {
+		have[s] = true
+	}
+	want := make(map[string]bool, len(expected))
+	for _, s := range expected {
+		want[s] = true
+		if !have[s] {
+			t.Errorf("missing %s: %q", label, s)
+		}
+	}
+	for _, s := range got {
+		if !want[s] {
+			t.Errorf("unexpected %s: %q (add to expected list if intentional)", label, s)
+		}
+	}
+}
 
 // TestRegisteredPluginNames snapshots the full set of registered plugin names.
 //
@@ -99,31 +123,7 @@ func TestRegisteredPluginNames(t *testing.T) {
 		}
 	}
 
-	if !slices.Equal(filtered, expected) {
-		var missing, extra []string
-		have := make(map[string]bool, len(filtered))
-		for _, n := range filtered {
-			have[n] = true
-		}
-		want := make(map[string]bool, len(expected))
-		for _, n := range expected {
-			want[n] = true
-			if !have[n] {
-				missing = append(missing, n)
-			}
-		}
-		for _, n := range filtered {
-			if !want[n] {
-				extra = append(extra, n)
-			}
-		}
-		if len(missing) > 0 {
-			t.Errorf("missing plugins: %v", missing)
-		}
-		if len(extra) > 0 {
-			t.Errorf("unexpected plugins: %v (add to expected list if intentional)", extra)
-		}
-	}
+	assertSnapshot(t, "plugin", filtered, expected)
 }
 
 // TestFilterTypeMappings snapshots the registered filter types.
@@ -152,6 +152,322 @@ func TestFilterTypeMappings(t *testing.T) {
 			t.Errorf("unexpected filter type %q -> %q (add to expected map if intentional)", ft, plugin)
 		}
 	}
+}
+
+// TestRegisteredWireMethods snapshots the full set of RPC wire methods.
+//
+// VALIDATES: Every expected CLI/API command is registered after init().
+// PREVENTS: Silent removal of a user-facing command (deleted handler, dropped register).
+func TestRegisteredWireMethods(t *testing.T) {
+	expected := []string{
+		"ze-bfd-api:show-profile",
+		"ze-bfd-api:show-session",
+		"ze-bfd-api:show-sessions",
+		"ze-bgp:cache-expire",
+		"ze-bgp:cache-forward",
+		"ze-bgp:cache-list",
+		"ze-bgp:cache-release",
+		"ze-bgp:cache-retain",
+		"ze-bgp:command-complete",
+		"ze-bgp:command-help",
+		"ze-bgp:command-list",
+		"ze-bgp:commit",
+		"ze-bgp:event-list",
+		"ze-bgp:help",
+		"ze-bgp:log-levels",
+		"ze-bgp:log-recent",
+		"ze-bgp:log-set",
+		"ze-bgp:metrics-list",
+		"ze-bgp:metrics-values",
+		"ze-bgp:monitor",
+		"ze-bgp:peer-borr",
+		"ze-bgp:peer-capabilities",
+		"ze-bgp:peer-clear-soft",
+		"ze-bgp:peer-detail",
+		"ze-bgp:peer-eorr",
+		"ze-bgp:peer-flush",
+		"ze-bgp:peer-history",
+		"ze-bgp:peer-list",
+		"ze-bgp:peer-pause",
+		"ze-bgp:peer-raw",
+		"ze-bgp:peer-refresh",
+		"ze-bgp:peer-resume",
+		"ze-bgp:peer-rib",
+		"ze-bgp:peer-statistics",
+		"ze-bgp:peer-teardown",
+		"ze-bgp:peer-update",
+		"ze-bgp:plugin-ack",
+		"ze-bgp:plugin-encoding",
+		"ze-bgp:plugin-format",
+		"ze-bgp:pool-stats",
+		"ze-bgp:subscribe",
+		"ze-bgp:summary",
+		"ze-bgp:unsubscribe",
+		"ze-clear:dns-cache",
+		"ze-clear:interface-counters",
+		"ze-clear:vpn-ipsec-sa",
+		"ze-config-archive:trigger",
+		"ze-debug:debug-state",
+		"ze-delete:bgp-peer",
+		"ze-editor:mode-command",
+		"ze-editor:mode-edit",
+		"ze-event:monitor",
+		"ze-iface:interface-addr-add",
+		"ze-iface:interface-addr-del",
+		"ze-iface:interface-create-bridge",
+		"ze-iface:interface-create-dummy",
+		"ze-iface:interface-create-veth",
+		"ze-iface:interface-delete",
+		"ze-iface:interface-down",
+		"ze-iface:interface-mac",
+		"ze-iface:interface-migrate",
+		"ze-iface:interface-mtu",
+		"ze-iface:interface-unit-add",
+		"ze-iface:interface-unit-del",
+		"ze-iface:interface-up",
+		"ze-l2tp-api:config",
+		"ze-l2tp-api:cqm",
+		"ze-l2tp-api:echo",
+		"ze-l2tp-api:listeners",
+		"ze-l2tp-api:observer",
+		"ze-l2tp-api:reliable",
+		"ze-l2tp-api:session",
+		"ze-l2tp-api:session-history",
+		"ze-l2tp-api:session-teardown",
+		"ze-l2tp-api:session-teardown-all",
+		"ze-l2tp-api:session-traffic",
+		"ze-l2tp-api:sessions",
+		"ze-l2tp-api:statistics",
+		"ze-l2tp-api:summary",
+		"ze-l2tp-api:tunnel",
+		"ze-l2tp-api:tunnel-history",
+		"ze-l2tp-api:tunnel-teardown",
+		"ze-l2tp-api:tunnel-teardown-all",
+		"ze-l2tp-api:tunnels",
+		"ze-monitor:interface-rate",
+		"ze-monitor:ping",
+		"ze-monitor:system-netlink",
+		"ze-monitor:traceroute",
+		"ze-monitor:vpn-ipsec",
+		"ze-plugin:command-complete",
+		"ze-plugin:command-help",
+		"ze-plugin:command-list",
+		"ze-plugin:help",
+		"ze-plugin:session-bye",
+		"ze-plugin:session-peer-ready",
+		"ze-plugin:session-ping",
+		"ze-plugin:session-ready",
+		"ze-pppoe-api:interfaces",
+		"ze-pppoe-api:session",
+		"ze-pppoe-api:sessions",
+		"ze-pppoe-api:statistics",
+		"ze-pppoe-api:summary",
+		"ze-resolve:cymru-asn-name",
+		"ze-resolve:dns-a",
+		"ze-resolve:dns-aaaa",
+		"ze-resolve:dns-ptr",
+		"ze-resolve:dns-txt",
+		"ze-resolve:irr-expand",
+		"ze-resolve:irr-prefix",
+		"ze-resolve:peeringdb-as-set",
+		"ze-resolve:peeringdb-max-prefix",
+		"ze-resolve:ping",
+		"ze-resolve:traceroute",
+		"ze-rib-api:best",
+		"ze-rib-api:best-status",
+		"ze-rib-api:clear-in",
+		"ze-rib-api:clear-out",
+		"ze-rib-api:inject",
+		"ze-rib-api:routes",
+		"ze-rib-api:rpf",
+		"ze-rib-api:status",
+		"ze-rib-api:withdraw",
+		"ze-set:system-file-descriptors",
+		"ze-show:aaa-accounting",
+		"ze-show:audit",
+		"ze-show:bgp-health",
+		"ze-show:bmp-collectors",
+		"ze-show:bmp-peers",
+		"ze-show:bmp-rib",
+		"ze-show:bmp-sessions",
+		"ze-show:capture",
+		"ze-show:capture-interface",
+		"ze-show:capture-raw",
+		"ze-show:crashes",
+		"ze-show:dns-cache",
+		"ze-show:dns-lookup",
+		"ze-show:doctor",
+		"ze-show:errors",
+		"ze-show:event-namespaces",
+		"ze-show:event-recent",
+		"ze-show:firewall-group",
+		"ze-show:firewall-ruleset",
+		"ze-show:flow-export",
+		"ze-show:gnmi",
+		"ze-show:health",
+		"ze-show:host-all",
+		"ze-show:host-cpu",
+		"ze-show:host-dmi",
+		"ze-show:host-kernel",
+		"ze-show:host-memory",
+		"ze-show:host-nic",
+		"ze-show:host-platform",
+		"ze-show:host-storage",
+		"ze-show:host-thermal",
+		"ze-show:interface",
+		"ze-show:interface-counters",
+		"ze-show:interface-detail",
+		"ze-show:interface-scan",
+		"ze-show:ip-arp",
+		"ze-show:ip-route",
+		"ze-show:kernel-routes",
+		"ze-show:l2tp-health",
+		"ze-show:ldp-binding",
+		"ze-show:ldp-neighbor",
+		"ze-show:metrics-query",
+		"ze-show:mpls-forwarding",
+		"ze-show:neighbors",
+		"ze-show:ping",
+		"ze-show:pki-certificate",
+		"ze-show:pki-certificates",
+		"ze-show:policy-chain",
+		"ze-show:policy-list",
+		"ze-show:policy-routes",
+		"ze-show:policy-test",
+		"ze-show:probe-round",
+		"ze-show:route-lookup",
+		"ze-show:rr-peers",
+		"ze-show:rr-status",
+		"ze-show:rsvp-te-interface",
+		"ze-show:rsvp-te-lsp",
+		"ze-show:rsvp-te-tunnel",
+		"ze-show:static",
+		"ze-show:storage-smart",
+		"ze-show:system-conntrack",
+		"ze-show:system-cpu",
+		"ze-show:system-date",
+		"ze-show:system-file-descriptors",
+		"ze-show:system-goroutines",
+		"ze-show:system-kernel-log",
+		"ze-show:system-memory",
+		"ze-show:system-memory-map",
+		"ze-show:system-ntp",
+		"ze-show:system-ntp-peers",
+		"ze-show:system-platform",
+		"ze-show:system-profile",
+		"ze-show:system-sockets",
+		"ze-show:system-subsystem-list",
+		"ze-show:system-update",
+		"ze-show:system-update-history",
+		"ze-show:tcp-check",
+		"ze-show:traceroute",
+		"ze-show:traffic",
+		"ze-show:uptime",
+		"ze-show:version",
+		"ze-show:vpn-ipsec-peer",
+		"ze-show:vpn-ipsec-sa",
+		"ze-show:vpn-ipsec-status",
+		"ze-show:vpp-runtime",
+		"ze-show:vpp-trace-clear",
+		"ze-show:vpp-trace-show",
+		"ze-show:vpp-trace-start",
+		"ze-show:warnings",
+		"ze-subscriber-api:detail",
+		"ze-subscriber-api:summary",
+		"ze-system:command-complete",
+		"ze-system:command-help",
+		"ze-system:command-list",
+		"ze-system:daemon-quit",
+		"ze-system:daemon-reboot",
+		"ze-system:daemon-reload",
+		"ze-system:daemon-shutdown",
+		"ze-system:daemon-status",
+		"ze-system:dispatch",
+		"ze-system:help",
+		"ze-system:subsystem-list",
+		"ze-system:version-api",
+		"ze-system:version-software",
+		"ze-update:system-firmware-apply",
+		"ze-update:system-firmware-check",
+		"ze-update:system-firmware-download",
+		"ze-update:system-firmware-restart",
+		"ze-update:system-firmware-rollback",
+	}
+
+	rpcs := pluginserver.AllBuiltinRPCs()
+	var methods []string
+	for _, r := range rpcs {
+		methods = append(methods, r.WireMethod)
+	}
+	sort.Strings(methods)
+
+	assertSnapshot(t, "wire method", methods, expected)
+}
+
+// TestYANGSchemaProviders snapshots the set of plugins that provide YANG schemas.
+//
+// VALIDATES: Every expected plugin provides a YANG schema.
+// PREVENTS: Silent removal of configuration surface (deleted YANG field).
+func TestYANGSchemaProviders(t *testing.T) {
+	expected := []string{
+		"bfd",
+		"bgp",
+		"bgp-adj-rib-in",
+		"bgp-bmp",
+		"bgp-filter-aspath",
+		"bgp-filter-aspath-length",
+		"bgp-filter-community",
+		"bgp-filter-community-match",
+		"bgp-filter-modify",
+		"bgp-filter-prefix",
+		"bgp-filter-remove-private-as",
+		"bgp-gr",
+		"bgp-healthcheck",
+		"bgp-hostname",
+		"bgp-llnh",
+		"bgp-rib",
+		"bgp-role",
+		"bgp-route-refresh",
+		"bgp-rpki",
+		"bgp-rpki-decorator",
+		"bgp-rs",
+		"bgp-softver",
+		"connected",
+		"cos",
+		"dhcpserver",
+		"fib-kernel",
+		"fib-p4",
+		"fib-vpp",
+		"firewall",
+		"flow-export",
+		"imageserver",
+		"interface",
+		"kernel",
+		"l2tp-auth-local",
+		"l2tp-auth-radius",
+		"l2tp-pool",
+		"l2tp-shaper",
+		"ldp",
+		"ntp",
+		"policy-routes",
+		"rib",
+		"routing-table",
+		"rsvp-te",
+		"static",
+		"sysctl",
+		"tftpserver",
+		"traffic",
+		"vpp",
+	}
+
+	schemas := registry.YANGSchemas()
+	var names []string
+	for n := range schemas {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+
+	assertSnapshot(t, "YANG provider", names, expected)
 }
 
 // TestGeneratedPluginImportsCurrent verifies that the generated blank-import
