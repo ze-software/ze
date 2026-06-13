@@ -1040,10 +1040,16 @@ class API:
     def wait_for_event(self, timeout: float = 5.0) -> str | None:
         """Block until the next deliver-event arrives, or until timeout.
 
-        Returns the event JSON string, or None on timeout / shutdown. Observer
-        scripts that subscribe to events (e.g. ``receive [ update ]``) use this
-        to wait for the daemon to finish processing instead of a fixed
-        ``time.sleep`` (the ci-sleep ratchet counts sleeps in test/**/*.ci).
+        Returns the event JSON string, or None on timeout / shutdown.
+
+        Caveat: returns the FIRST event of ANY subscribed type. An observer
+        subscribed to multiple types (e.g. ``receive [ update state ]``) may
+        wake on a state event, not an update. Callers needing a specific
+        event type must inspect the returned JSON.
+
+        Observer scripts use this to wait for the daemon to finish processing
+        instead of a fixed ``time.sleep`` (the ci-sleep ratchet counts sleeps
+        in test/**/*.ci).
         """
         import time
 
@@ -1056,6 +1062,25 @@ class API:
             if event is not None:
                 return event
         return None
+
+    def wait_for_events(self, count: int = 1, timeout: float = 5.0) -> list[str]:
+        """Collect up to count deliver-events within timeout.
+
+        Returns a list of event JSON strings (may be shorter than count
+        if the timeout expires or shutdown occurs first).
+        """
+        import time
+
+        events: list[str] = []
+        deadline = time.monotonic() + timeout
+        while len(events) < count and not self._shutdown:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            event = self.read_line(timeout=min(remaining, 0.5))
+            if event is not None:
+                events.append(event)
+        return events
 
     # ==================================================================
     # Runtime: Read events / responses
@@ -1178,11 +1203,13 @@ class API:
         return None
 
     def wait_for_ack(self, expected_count: int = 1, timeout: float = 2.0) -> bool:
-        """Wait for route delivery after send().
+        """Wait for route delivery after send() or any forwarded route.
 
         Sends a ze-bgp:peer-flush RPC that blocks until all forward pool
         workers have drained their queued items to peer sockets, then adds
-        a short delay for ze-peer cmd=api command interleaving.
+        a short delay for ze-peer cmd=api command interleaving. Because
+        peer-flush drains ALL forward-pool workers, this is valid for any
+        forwarded route (e.g. RS-transcoded), not just send()-originated.
 
         Args:
             expected_count: Number of routes sent (scales post-flush delay)
@@ -1348,7 +1375,7 @@ def send(command: str) -> None:
 
 
 def wait_for_ack(expected_count: int = 1, timeout: float = 2.0) -> bool:
-    """Wait for ACK responses (no-op in YANG RPC)."""
+    """Wait for route delivery via peer-flush (any forwarded route, not just send())."""
     return _get_api().wait_for_ack(expected_count, timeout)
 
 

@@ -14,13 +14,12 @@
 
 option=env:var=ze.log.bgp.filter.irr:value=info
 
-# // test-relax: filter now uses the per-prefix modify path (keep in-list, drop
-# out-of-list) instead of all-or-nothing accept/reject. The prior two-message
-# accept+reject scenario was coalescing-dependent -- both NLRIs were evaluated
-# together and the whole UPDATE was rejected (the bug being fixed). Replaced with
-# one multi-NLRI UPDATE that deterministically exercises modify; the strong
-# outcome check (adj-rib-in total==1 in the observer) is preserved and the
-# accept/reject/modify partition is covered by unit tests TestPartitionUpdate*.
+# // test-relax: the test uses per-prefix modify (one multi-NLRI UPDATE with one
+# in-list and one out-of-list prefix) and asserts the modify decision via stderr
+# (irr filter modify, accepted=1, rejected=1, filter=65001). A RIB-level
+# adj-rib-in assertion is omitted: ze-peer intermittently disconnects after send,
+# withdrawing the route before the observer can read adj-rib-in. The
+# accept/reject partition is covered by unit tests TestPartitionUpdate*.
 # Source peer sends ONE UPDATE carrying two NLRIs: one in the IRR list, one not.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -36,19 +35,8 @@ option=timeout:value=20s
 action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE940030401010101180A000018C0A800
 EOF_PEER
 
-# // test-relax: replaced adj-rib-in introspection (a dest-1 antipattern) with
-# the stderr "irr filter modify" decision assertion used by the sibling test
-# prefix-filter-modify-partial.ci. The accept/reject partition is also covered by
-# unit tests TestPartitionUpdate*. The observer is now a minimal shutdown so ze
-# exits cleanly within the timeout.
 tmpfs=test-filter-irr.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-# // test-relax: a RIB-level adj-rib-in assertion was tried and reverted -- it is
-# flaky because ze-peer intermittently disconnects after send, which withdraws
-# the route. The modify->RIB delivery IS confirmed (the route is present in
-# adj-rib-in whenever the peer stays connected); the modify decision is asserted
-# via stderr below and the accept/reject partition by unit tests
-# TestPartitionUpdate*.
 """Shutdown observer for the IRR per-prefix modify test."""
 from ze_api import API
 
@@ -131,6 +119,3 @@ expect=stderr:pattern=irr filter modify
 expect=stderr:pattern=accepted=1
 expect=stderr:pattern=rejected=1
 expect=stderr:pattern=filter=65001
-# // test-relax: the observer's RIB-level "modify kept 1 route" assertion was
-# reverted (flaky -- ze-peer disconnect withdraws the route; see observer note);
-# the modify decision is asserted above and the partition by unit tests.
