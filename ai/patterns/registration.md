@@ -267,6 +267,23 @@ No central metric registry. Each component creates metrics via a `metrics.Regist
 **Convention:** metric names follow `ze_<subsystem>_<metric>`
 **Consumers:** `/metrics` HTTP endpoint, `show metrics` CLI
 
+### Show Enricher Registry
+
+Plugins register enrichers for show commands. At show time, the handler calls
+`show.Enrich(command, base)` to merge plugin-contributed data into its output.
+Enrichers mutate the base `map[string]any` in place.
+
+<!-- source: internal/core/show/show.go -- Register, Enrich, EnrichBrief -->
+
+**Location:** `internal/core/show/show.go` (leaf package, stdlib-only imports)
+**Registration:** `show.MustRegister(command, key, show.Enricher{Detail, Brief})` in plugin `init()`
+**Consumer:** handler calls `show.Enrich(command, base)` or `show.EnrichBrief(command, base)`
+**Key:** `command` is the CLI path with selectors stripped (e.g., `"show subscriber detail"`);
+`key` is unique per command (e.g., `"cos"`). Duplicate keys are rejected.
+**Ordering:** enrichers called in alphabetical key order per command.
+**Panic safety:** `Enrich()` recovers from panicking enrichers and logs a warning.
+**Test:** `show.ResetForTest()` clears all registrations.
+
 ### Web Routes (no registry)
 
 HTTP handlers registered directly on `http.ServeMux` during hub startup. No discovery mechanism.
@@ -337,6 +354,11 @@ Register with `filterapi.Register(filterapi.Filter{Name, Stage, Priority, Ingres
 (`internal/component/bgp/filterapi`) in the plugin's init(), alongside `registry.Register()`.
 See `ai/patterns/plugin.md`.
 
+### New show enricher
+Register with `show.MustRegister(command, key, show.Enricher{Detail: fn, Brief: fn})`
+(`internal/core/show`) in the plugin's init(). Add `show.Enrich()` or
+`show.EnrichBrief()` calls in the target handler if not already present.
+
 ### New event/send type
 Part of plugin registration. Set `EventTypes`/`SendTypes` fields.
 Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
@@ -351,5 +373,6 @@ Consumers use `registry.PluginForEventType()` / `registry.PluginForSendType()`.
 | No circular plugin deps | Dependency resolver rejects cycles |
 | No missing plugin deps | Resolver checks all declared deps exist |
 | Plugins never import siblings | `ai/rules/plugin-design.md` import rules + code review |
+| No duplicate show enricher keys | `show.Register()` returns error; `show.MustRegister()` panics |
 | All blank imports auto-generated | `make generate` + `scripts/codegen/plugin_imports.go` |
 | YANG is source of truth for CLI tree | WireMethod -> YANG path mapping in dispatcher |

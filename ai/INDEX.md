@@ -68,6 +68,7 @@
 | Forward pool | `docs/architecture/forward-congestion-pool.md` | Two-tier model, per-peer workers |
 | YANG schemas | `ai/rules/config-design.md` | Augment vs grouping, listener pattern, `ai/rules/config-naming.md` (leaf naming), `ai/rules/config-surface.md` (YANG vs env var) |
 | Registration code | `ai/patterns/registration.md` | `init()` + registry + blank import pattern |
+| Show enricher | `ai/patterns/registration.md` (Show Enricher Registry) | `internal/core/show/` -- plugins register enrichers, handlers call `show.Enrich()` |
 
 ### Fixing a Bug
 

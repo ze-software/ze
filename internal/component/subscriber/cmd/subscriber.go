@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/subscriber"
+	"codeberg.org/thomas-mangin/ze/internal/core/show"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/subscriber-cmd/yang"
 )
@@ -34,7 +35,9 @@ func handleSummary(_ *pluginserver.CommandContext, _ []string) (*plugin.Response
 
 	out := make([]map[string]any, 0, len(sessions))
 	for i := range sessions {
-		out = append(out, sessionBrief(&sessions[i]))
+		m := sessionBrief(&sessions[i])
+		show.EnrichBrief("show subscriber", m)
+		out = append(out, m)
 	}
 
 	payload := map[string]any{
@@ -65,7 +68,9 @@ func handleDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 	if !ok {
 		return errResponse(fmt.Errorf("subscriber: session %q not found", id)), nil
 	}
-	return jsonResponse("subscriber detail", sessionFull(&sess))
+	detail := sessionFull(&sess)
+	show.Enrich("show subscriber detail", detail)
+	return jsonResponse("subscriber detail", detail)
 }
 
 func sessionBrief(s *subscriber.Session) map[string]any {

@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	coreCos "codeberg.org/thomas-mangin/ze/internal/core/cos"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
+	"codeberg.org/thomas-mangin/ze/internal/core/show"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/cos/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -21,6 +22,13 @@ var dynamicHandler *cosHandler
 
 func init() {
 	coreCos.RegisterResolver(resolveCoSForUnit)
+
+	show.MustRegister("show subscriber detail", "cos", show.Enricher{
+		Detail: enrichSubscriberDetail,
+	})
+	show.MustRegister("show subscriber", "cos", show.Enricher{
+		Brief: enrichSubscriberBrief,
+	})
 
 	reg := registry.Registration{
 		Name:                    Name,
