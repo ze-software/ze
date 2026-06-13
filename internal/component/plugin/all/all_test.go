@@ -5,10 +5,154 @@ import (
 	"os/exec"
 	"runtime"
 	"slices"
+	"sort"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
+
+// TestRegisteredPluginNames snapshots the full set of registered plugin names.
+//
+// VALIDATES: Every expected plugin is registered after init().
+// PREVENTS: Silent removal of a plugin (deleted register.go, dropped import).
+func TestRegisteredPluginNames(t *testing.T) {
+	expected := []string{
+		"bfd",
+		"bgp",
+		"bgp-adj-rib-in",
+		"bgp-aigp",
+		"bgp-bmp",
+		"bgp-filter-aspath",
+		"bgp-filter-aspath-length",
+		"bgp-filter-community",
+		"bgp-filter-community-match",
+		"bgp-filter-modify",
+		"bgp-filter-prefix",
+		"bgp-filter-remove-private-as",
+		"bgp-gr",
+		"bgp-healthcheck",
+		"bgp-hostname",
+		"bgp-llnh",
+		"bgp-nlri-evpn",
+		"bgp-nlri-flowspec",
+		"bgp-nlri-labeled",
+		"bgp-nlri-ls",
+		"bgp-nlri-mup",
+		"bgp-nlri-mvpn",
+		"bgp-nlri-rtc",
+		"bgp-nlri-vpls",
+		"bgp-nlri-vpn",
+		"bgp-persist",
+		"bgp-redistribute",
+		"bgp-rib",
+		"bgp-role",
+		"bgp-route-refresh",
+		"bgp-rpki",
+		"bgp-rpki-decorator",
+		"bgp-rr",
+		"bgp-rs",
+		"bgp-softver",
+		"bgp-watchdog",
+		"connected",
+		"cos",
+		"dhcpserver",
+		"fib-kernel",
+		"fib-p4",
+		"fib-vpp",
+		"firewall",
+		"flow-export",
+		"flowspec-firewall",
+		"ike",
+		"imageserver",
+		"interface",
+		"kernel",
+		"l2tp-auth-local",
+		"l2tp-auth-radius",
+		"l2tp-pool",
+		"l2tp-shaper",
+		"ldp",
+		"loop",
+		"ntp",
+		"policy-routes",
+		"redistribute-orchestrator",
+		"rib",
+		"routing-table",
+		"rsvp-te",
+		"static",
+		"sysctl",
+		"tftpserver",
+		"traffic",
+		"vpp",
+	}
+
+	names := registry.Names()
+	sort.Strings(names)
+
+	// linux-only plugins (e.g. iface-dhcp) are excluded from the
+	// cross-platform snapshot; TestPlatformPlugins covers them.
+	platformOnly := map[string]bool{"iface-dhcp": true}
+
+	var filtered []string
+	for _, n := range names {
+		if !platformOnly[n] {
+			filtered = append(filtered, n)
+		}
+	}
+
+	if !slices.Equal(filtered, expected) {
+		var missing, extra []string
+		have := make(map[string]bool, len(filtered))
+		for _, n := range filtered {
+			have[n] = true
+		}
+		want := make(map[string]bool, len(expected))
+		for _, n := range expected {
+			want[n] = true
+			if !have[n] {
+				missing = append(missing, n)
+			}
+		}
+		for _, n := range filtered {
+			if !want[n] {
+				extra = append(extra, n)
+			}
+		}
+		if len(missing) > 0 {
+			t.Errorf("missing plugins: %v", missing)
+		}
+		if len(extra) > 0 {
+			t.Errorf("unexpected plugins: %v (add to expected list if intentional)", extra)
+		}
+	}
+}
+
+// TestFilterTypeMappings snapshots the registered filter types.
+//
+// VALIDATES: Every expected policy filter type is registered.
+// PREVENTS: Silent removal of a policy feature (e.g. prefix-list filtering).
+func TestFilterTypeMappings(t *testing.T) {
+	expected := map[string]string{
+		"as-path-length":    "bgp-filter-aspath-length",
+		"as-path-list":      "bgp-filter-aspath",
+		"community-match":   "bgp-filter-community-match",
+		"modify":            "bgp-filter-modify",
+		"prefix-list":       "bgp-filter-prefix",
+		"remove-private-as": "bgp-filter-remove-private-as",
+	}
+
+	fm := registry.FilterTypesMap()
+	for ft, wantPlugin := range expected {
+		if got := fm[ft]; got != wantPlugin {
+			t.Errorf("FilterTypesMap[%q] = %q, want %q", ft, got, wantPlugin)
+		}
+	}
+
+	for ft, plugin := range fm {
+		if _, ok := expected[ft]; !ok {
+			t.Errorf("unexpected filter type %q -> %q (add to expected map if intentional)", ft, plugin)
+		}
+	}
+}
 
 // TestGeneratedPluginImportsCurrent verifies that the generated blank-import
 // file matches register.go discovery.
