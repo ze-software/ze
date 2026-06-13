@@ -35,13 +35,10 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    result = None
-    for _ in range(20):
-        result = dispatch(api, 'show test enrich')
-        if result.get('status') == 'done':
-            break
-        time.sleep(0.25)
-    if result is None or result.get('status') != 'done':
+    # // test-relax: poll loop centralized into api.dispatch_until_done (ci-sleep
+    # ratchet); behavior and the status assertion below are unchanged.
+    result = api.dispatch_until_done('show test enrich')
+    if result.get('status') != 'done':
         status = result.get('status') if result else 'nil'
         data = result_text_data(result) if result else ''
         runtime_fail(f'show test enrich: status={status} data={data[:200]}')

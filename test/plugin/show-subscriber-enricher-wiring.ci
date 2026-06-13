@@ -40,13 +40,10 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     # show subscriber on idle daemon: total=0, no crash with enrichers registered
-    r = None
-    for _ in range(20):
-        r = dispatch(api, 'show subscriber')
-        if r.get('status') == 'done':
-            break
-        time.sleep(0.25)
-    if r is None or r.get('status') != 'done':
+    # // test-relax: poll loop centralized into api.dispatch_until_done (ci-sleep
+    # ratchet); behavior and the status assertion below are unchanged.
+    r = api.dispatch_until_done('show subscriber')
+    if r.get('status') != 'done':
         status = r.get('status') if r else 'nil'
         data = result_text_data(r) if r else ''
         runtime_fail(f'show subscriber: status={status} data={data[:200]}')
@@ -61,13 +58,10 @@ def main():
         runtime_fail(f'show subscriber total={summary.get("total")!r} want 0')
 
     # show class-of-service: profiles loaded
-    r2 = None
-    for _ in range(20):
-        r2 = dispatch(api, 'show class-of-service')
-        if r2.get('status') == 'done':
-            break
-        time.sleep(0.25)
-    if r2 is None or r2.get('status') != 'done':
+    # // test-relax: poll loop centralized into api.dispatch_until_done (ci-sleep
+    # ratchet); behavior and the status assertion below are unchanged.
+    r2 = api.dispatch_until_done('show class-of-service')
+    if r2.get('status') != 'done':
         status = r2.get('status') if r2 else 'nil'
         runtime_fail(f'show class-of-service: status={status}')
 

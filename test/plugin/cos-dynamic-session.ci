@@ -43,13 +43,10 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    r = None
-    for _ in range(20):
-        r = dispatch(api, 'show class-of-service')
-        if r.get('status') == 'done':
-            break
-        time.sleep(0.25)
-    if r is None or r.get('status') != 'done':
+    # // test-relax: poll loop centralized into api.dispatch_until_done (ci-sleep
+    # ratchet); behavior and the status assertion below are unchanged.
+    r = api.dispatch_until_done('show class-of-service')
+    if r.get('status') != 'done':
         status = r.get('status') if r else 'nil'
         data = result_text_data(r) if r else ''
         runtime_fail(f'show class-of-service: status={status} data={data[:200]}')
