@@ -64,10 +64,10 @@ func DetectFormat(content string) ConfigFormat {
 			return FormatSetMeta
 		}
 
-		// Record set/delete/inactive but keep scanning for metadata.
-		// "inactive <path>" (no colon) is the set-format deactivation line;
+		// Record set/nop/delete/inactive but keep scanning for metadata.
+		// "inactive <path>" (no colon) is the legacy set-format deactivation line;
 		// the hierarchical form is "inactive: <field>" inside a block.
-		if strings.HasPrefix(line, "set ") || strings.HasPrefix(line, "delete ") || strings.HasPrefix(line, "inactive ") {
+		if strings.HasPrefix(line, "set ") || strings.HasPrefix(line, "nop ") || strings.HasPrefix(line, "delete ") || strings.HasPrefix(line, "inactive ") {
 			hasSet = true
 			continue
 		}
@@ -92,18 +92,13 @@ func SerializeSet(tree *Tree, schema *Schema) string {
 	return b.String()
 }
 
-// emitSetInactive emits an `inactive <path>` line if the leaf at name
-// is marked inactive. Caller must hold tree.mu.RLock and have already
-// emitted the matching `set` line so the inactive declaration refers
-// to a known path.
-func emitSetInactive(b *textbuf.Buffer, tree *Tree, name, prefix string) {
-	if !tree.inactiveValues[name] {
-		return
+// setOrNop returns "nop " if the leaf is inactive, "set " otherwise.
+// Caller must hold tree.mu.RLock.
+func setOrNop(tree *Tree, name string) string {
+	if tree.inactiveValues[name] {
+		return "nop "
 	}
-	b.Str("inactive ")
-	b.Str(prefix)
-	b.Str(name)
-	b.Str("\n")
+	return "set "
 }
 
 // serializeSetNode walks the schema children in order, emitting set commands.
@@ -132,64 +127,58 @@ func serializeSetChild(b *textbuf.Buffer, tree *Tree, name string, node Node, pr
 	switch n := node.(type) {
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
-			b.Str("set ")
+			b.Str(setOrNop(tree, name))
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" ")
 			b.Str(quoteIfNeeded(normalizeBool(v)))
 			b.Str("\n")
-			emitSetInactive(b, tree, name, prefix)
 		}
 
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
-			b.Str("set ")
+			b.Str(setOrNop(tree, name))
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" ")
 			b.Str(v)
 			b.Str("\n")
-			emitSetInactive(b, tree, name, prefix)
 		}
 
 	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
-			b.Str("set ")
+			b.Str(setOrNop(tree, name))
 			b.Str(prefix)
 			b.Str(name)
 			b.Str(" [ ")
 			b.Str(v)
 			b.Str(" ]\n")
-			emitSetInactive(b, tree, name, prefix)
 		}
 
 	case *ValueOrArrayNode:
-		// Direct access: caller holds tree.mu.RLock (see serializeSetNode).
 		if items := tree.multiValues[name]; len(items) > 0 {
-			// Deactivated members serialize as the bare member in the set
-			// line plus an `inactive <path> <member>` line: the raw
-			// "inactive:" prefix would fail item validation (e.g.
-			// ip-address) on reparse.
 			bare, inactive := splitInactiveMembers(items)
-			b.Str("set ")
-			b.Str(prefix)
-			b.Str(name)
-			if len(bare) == 1 {
-				b.Str(" ")
-				b.Str(quoteIfNeeded(bare[0]))
+			if len(inactive) > 0 || tree.inactiveValues[name] {
+				emitValueOrArrayNop(b, tree, name, prefix, bare, inactive)
 			} else {
-				b.Str(" [ ")
-				for i, item := range bare {
-					if i > 0 {
-						b.Str(" ")
+				b.Str("set ")
+				b.Str(prefix)
+				b.Str(name)
+				if len(bare) == 1 {
+					b.Str(" ")
+					b.Str(quoteIfNeeded(bare[0]))
+				} else {
+					b.Str(" [ ")
+					for i, item := range bare {
+						if i > 0 {
+							b.Str(" ")
+						}
+						b.Str(quoteIfNeeded(item))
 					}
-					b.Str(quoteIfNeeded(item))
+					b.Str(" ]")
 				}
-				b.Str(" ]")
+				b.Str("\n")
 			}
-			b.Str("\n")
-			emitInactiveMemberLines(b, name, prefix, inactive)
-			emitSetInactive(b, tree, name, prefix)
 		}
 
 	case *ContainerNode:
@@ -225,11 +214,20 @@ func splitInactiveMembers(items []string) (bare, inactive []string) {
 	return bare, inactive
 }
 
-// emitInactiveMemberLines writes one `inactive <path> <member>` line per
-// deactivated leaf-list member (the form parseInactive reads back).
-func emitInactiveMemberLines(b *textbuf.Buffer, name, prefix string, inactive []string) {
-	for _, member := range inactive {
-		b.Str("inactive ")
+// emitValueOrArrayNop emits individual set/nop lines for a leaf-list
+// that has deactivated members or is wholly inactive.
+func emitValueOrArrayNop(b *textbuf.Buffer, tree *Tree, name, prefix string, bare, inactive []string) {
+	inactiveSet := make(map[string]bool, len(inactive))
+	for _, m := range inactive {
+		inactiveSet[m] = true
+	}
+	wholeInactive := tree.inactiveValues[name]
+	for _, member := range bare {
+		if inactiveSet[member] || wholeInactive {
+			b.Str("nop ")
+		} else {
+			b.Str("set ")
+		}
 		b.Str(prefix)
 		b.Str(name)
 		b.Str(" ")
@@ -238,11 +236,56 @@ func emitInactiveMemberLines(b *textbuf.Buffer, name, prefix string, inactive []
 	}
 }
 
+// emitMetaValueOrArrayNop emits individual set/nop lines with the
+// leaf-level metadata prefix preserved on each line.
+func emitMetaValueOrArrayNop(b *textbuf.Buffer, meta *MetaTree, tree *Tree, name, prefix string, bare, inactive []string) {
+	inactiveSet := make(map[string]bool, len(inactive))
+	for _, m := range inactive {
+		inactiveSet[m] = true
+	}
+	wholeInactive := tree.inactiveValues[name]
+
+	var entry MetaEntry
+	hasEntry := false
+	if meta != nil {
+		if entries := meta.entries[name]; len(entries) == 1 {
+			entry = entries[0]
+			hasEntry = true
+		}
+	}
+
+	for _, member := range bare {
+		if hasEntry {
+			writeMetaPrefix(b, entry)
+		}
+		if inactiveSet[member] || wholeInactive {
+			b.Str("nop ")
+		} else {
+			b.Str("set ")
+		}
+		b.Str(prefix)
+		b.Str(name)
+		b.Str(" ")
+		b.Str(quoteIfNeeded(member))
+		b.Str("\n")
+	}
+}
+
+// emitStructuralNop emits `nop <path>` for a container or list entry
+// that is deactivated (Option A: structural marker before children).
+func emitStructuralNop(b *textbuf.Buffer, sub *Tree, path string) {
+	if sub == nil || !sub.IsInactive() {
+		return
+	}
+	b.Str("nop ")
+	b.Str(path)
+	b.Str("\n")
+}
+
 // serializeSetContainer handles container nodes, including presence containers.
 func serializeSetContainer(b *textbuf.Buffer, tree *Tree, name string, node *ContainerNode, prefix string) {
 	var tb textbuf.Buffer
 	if node.Presence {
-		// Presence container as flag or value
 		if v, ok := tree.values[name]; ok {
 			b.Str("set ")
 			b.Str(prefix)
@@ -253,7 +296,6 @@ func serializeSetContainer(b *textbuf.Buffer, tree *Tree, name string, node *Con
 			}
 			b.Str("\n")
 		}
-		// Presence container with children
 		if child := tree.containers[name]; child != nil {
 			childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 			serializeSetNode(b, child, node, childPrefix)
@@ -261,26 +303,11 @@ func serializeSetContainer(b *textbuf.Buffer, tree *Tree, name string, node *Con
 		return
 	}
 
-	// Regular container
 	if child := tree.containers[name]; child != nil {
+		emitStructuralNop(b, child, tb.Reset().Str(prefix).Str(name).String())
 		childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 		serializeSetNode(b, child, node, childPrefix)
-		emitSetInactiveStructural(b, child, tb.Reset().Str(prefix).Str(name).String())
 	}
-}
-
-// emitSetInactiveStructural emits `inactive <path>` for a container
-// or list entry that is deactivated.
-func emitSetInactiveStructural(b *textbuf.Buffer, sub *Tree, path string) {
-	if sub == nil {
-		return
-	}
-	if !sub.IsInactive() {
-		return
-	}
-	b.Str("inactive ")
-	b.Str(path)
-	b.Str("\n")
 }
 
 // serializeSetList handles list nodes with keyed entries.
@@ -291,7 +318,6 @@ func serializeSetList(b *textbuf.Buffer, tree *Tree, name string, node *ListNode
 		return
 	}
 
-	// Use insertion order if available, otherwise sort
 	keys := tree.listOrder[name]
 	if len(keys) == 0 {
 		keys = make([]string, 0, len(entries))
@@ -307,9 +333,10 @@ func serializeSetList(b *textbuf.Buffer, tree *Tree, name string, node *ListNode
 			continue
 		}
 		displayKey := StripListKeySuffix(key)
-		entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(displayKey)).Byte(' ').String()
+		entryPath := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(displayKey)).String()
+		emitStructuralNop(b, entry, entryPath)
+		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 		serializeSetNode(b, entry, node, entryPrefix)
-		emitSetInactiveStructural(b, entry, prefix+name+" "+quoteIfNeeded(displayKey))
 	}
 }
 
@@ -554,17 +581,20 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 	switch n := node.(type) {
 	case *LeafNode:
 		if v, ok := tree.values[name]; ok {
-			writeMetaLeafLine(b, meta, name, prefix+name+" ", quoteIfNeeded(normalizeBool(v)))
+			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
+			writeMetaLeafLineCmd(b, meta, name, setOrNop(tree, name), pathPfx, quoteIfNeeded(normalizeBool(v)))
 		}
 
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
-			writeMetaLeafLine(b, meta, name, prefix+name+" ", v)
+			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
+			writeMetaLeafLineCmd(b, meta, name, setOrNop(tree, name), pathPfx, v)
 		}
 
 	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
-			writeMetaLeafLine(b, meta, name, prefix+name+" ", "[ "+v+" ]")
+			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
+			writeMetaLeafLineCmd(b, meta, name, setOrNop(tree, name), pathPfx, tb.Reset().Str("[ ").Str(v).Str(" ]").String())
 		}
 
 	case *ValueOrArrayNode:
@@ -580,20 +610,21 @@ func serializeSetMetaChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name s
 			return
 		}
 		if len(items) > 0 {
-			// See the plain serializer: deactivated members become bare
-			// values plus trailing `inactive` lines, never raw "inactive:".
 			bare, inactive := splitInactiveMembers(items)
-			pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
-			if len(bare) == 1 {
-				writeMetaLeafLine(b, meta, name, pathPfx, quoteIfNeeded(bare[0]))
+			if len(inactive) > 0 || tree.inactiveValues[name] {
+				emitMetaValueOrArrayNop(b, meta, tree, name, prefix, bare, inactive)
 			} else {
-				parts := make([]string, len(bare))
-				for i, item := range bare {
-					parts[i] = quoteIfNeeded(item)
+				pathPfx := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
+				if len(bare) == 1 {
+					writeMetaLeafLine(b, meta, name, pathPfx, quoteIfNeeded(bare[0]))
+				} else {
+					parts := make([]string, len(bare))
+					for i, item := range bare {
+						parts[i] = quoteIfNeeded(item)
+					}
+					writeMetaLeafLine(b, meta, name, pathPfx, tb.Reset().Str("[ ").Join(parts, " ").Str(" ]").String())
 				}
-				writeMetaLeafLine(b, meta, name, pathPfx, tb.Reset().Str("[ ").Join(parts, " ").Str(" ]").String())
 			}
-			emitInactiveMemberLines(b, name, prefix, inactive)
 		}
 
 	case *ContainerNode:
@@ -646,20 +677,27 @@ func findMemberAddEntry(entries []MetaEntry, member string) *MetaEntry {
 // Caller must hold tree.mu.RLock and meta.mu.RLock (see serializeSetMetaNode).
 func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []string, entries []MetaEntry) {
 	bare, inactive := splitInactiveMembers(items)
+	inactiveSet := make(map[string]bool, len(inactive))
+	for _, m := range inactive {
+		inactiveSet[m] = true
+	}
 	emitted := make(map[string]bool, len(bare))
 	for _, member := range bare {
 		if e := findMemberAddEntry(entries, member); e != nil {
 			writeMetaPrefix(b, *e)
 			emitted[member] = true
 		}
-		b.Str("set ")
+		if inactiveSet[member] {
+			b.Str("nop ")
+		} else {
+			b.Str("set ")
+		}
 		b.Str(prefix)
 		b.Str(name)
 		b.Str(" ")
 		b.Str(quoteIfNeeded(member))
 		b.Str("\n")
 	}
-	emitInactiveMemberLines(b, name, prefix, inactive)
 	for i := range entries {
 		e := entries[i]
 		if e.Member == "" || (e.Value != "" && emitted[e.Member]) {
@@ -682,26 +720,29 @@ func writeLeafListMemberLines(b *textbuf.Buffer, name, prefix string, items []st
 	}
 }
 
-// writeMetaLeafLine writes set line(s) with optional metadata prefix.
-// pathPrefix is everything before the value (including trailing space).
-// value is the formatted value (empty for flag-style entries).
-// For contested leaves (multiple session entries), it emits one line per entry,
-// substituting the entry's Value for the tree value.
+// writeMetaLeafLine writes set/nop line(s) with optional metadata prefix.
+// Delegates to writeMetaLeafLineCmd with "set ".
 func writeMetaLeafLine(b *textbuf.Buffer, meta *MetaTree, name, pathPrefix, value string) {
+	writeMetaLeafLineCmd(b, meta, name, "set ", pathPrefix, value)
+}
+
+// writeMetaLeafLineCmd writes cmd line(s) with optional metadata prefix.
+// cmd is "set " or "nop ". pathPrefix is everything before the value
+// (including trailing space). value is the formatted value (empty for flags).
+// For contested leaves (multiple session entries), it emits one line per entry.
+func writeMetaLeafLineCmd(b *textbuf.Buffer, meta *MetaTree, name, cmd, pathPrefix, value string) {
 	if meta != nil {
 		entries := meta.entries[name]
 		if len(entries) > 1 {
-			// Contested leaf: emit one line per session entry with its own value.
 			for _, e := range entries {
 				writeMetaPrefix(b, e)
 				if e.Value == "" && e.Source != "" {
-					// Active session deleted the value (committed entries have no Source).
 					b.Str("delete ")
 					b.Str(strings.TrimRight(pathPrefix, " "))
 					b.Str("\n")
 					continue
 				}
-				b.Str("set ")
+				b.Str(cmd)
 				b.Str(pathPrefix)
 				if e.Value != "" {
 					if !strings.HasSuffix(pathPrefix, " ") {
@@ -709,9 +750,6 @@ func writeMetaLeafLine(b *textbuf.Buffer, meta *MetaTree, name, pathPrefix, valu
 					}
 					b.Str(quoteIfNeeded(e.Value))
 				} else {
-					// Sessionless (committed) entry: Value is always "" because
-					// committed metadata doesn't store the value separately --
-					// the tree value IS the committed value. Use the tree value.
 					b.Str(value)
 				}
 				b.Str("\n")
@@ -722,7 +760,7 @@ func writeMetaLeafLine(b *textbuf.Buffer, meta *MetaTree, name, pathPrefix, valu
 			writeMetaPrefix(b, entries[0])
 		}
 	}
-	b.Str("set ")
+	b.Str(cmd)
 	b.Str(pathPrefix)
 	b.Str(value)
 	b.Str("\n")
@@ -747,6 +785,7 @@ func serializeSetMetaContainer(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 	}
 
 	if child := tree.containers[name]; child != nil {
+		emitStructuralNop(b, child, tb.Reset().Str(prefix).Str(name).String())
 		childPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').String()
 		serializeSetMetaNode(b, child, metaContainerChild(meta, name), node, childPrefix)
 	}
@@ -775,7 +814,9 @@ func serializeSetMetaList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, name st
 			continue
 		}
 		displayKey := StripListKeySuffix(key)
-		entryPrefix := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(displayKey)).Byte(' ').String()
+		entryPath := tb.Reset().Str(prefix).Str(name).Byte(' ').Str(quoteIfNeeded(displayKey)).String()
+		emitStructuralNop(b, entry, entryPath)
+		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
 		entryMeta := metaListEntry(meta, name, key)
 		serializeSetMetaNode(b, entry, entryMeta, node, entryPrefix)
 	}
@@ -998,23 +1039,28 @@ func writeDeleteMetaLines(b *textbuf.Buffer, tree *Tree, meta *MetaTree, prefix 
 	}
 }
 
-// FilterSetByPath returns only the set/inactive lines whose path matches
+// FilterSetByPath returns only the set/nop/inactive lines whose path matches
 // the given prefix. Returns all content when path is empty.
 func FilterSetByPath(content string, path []string) string {
 	if len(path) == 0 {
 		return content
 	}
 	var tb textbuf.Buffer
-	prefix := tb.Str("set ").Join(path, " ").String()
+	setPrefix := tb.Str("set ").Join(path, " ").String()
+	setPrefixSpace := tb.Reset().Str("set ").Join(path, " ").Byte(' ').String()
+	nopPrefix := tb.Reset().Str("nop ").Join(path, " ").String()
+	nopPrefixSpace := tb.Reset().Str("nop ").Join(path, " ").Byte(' ').String()
 	inactivePrefix := tb.Reset().Str("inactive ").Join(path, " ").String()
+	inactivePrefixSpace := tb.Reset().Str("inactive ").Join(path, " ").Byte(' ').String()
 	var buf textbuf.Buffer
 	for line := range strings.SplitSeq(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue
 		}
-		if trimmed == prefix || strings.HasPrefix(trimmed, prefix+" ") ||
-			trimmed == inactivePrefix || strings.HasPrefix(trimmed, inactivePrefix+" ") {
+		if trimmed == setPrefix || strings.HasPrefix(trimmed, setPrefixSpace) ||
+			trimmed == nopPrefix || strings.HasPrefix(trimmed, nopPrefixSpace) ||
+			trimmed == inactivePrefix || strings.HasPrefix(trimmed, inactivePrefixSpace) {
 			buf.Str(line)
 			buf.Byte('\n')
 		}

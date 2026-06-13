@@ -17,6 +17,7 @@ import (
 
 const (
 	cmdSet      = "set"
+	cmdNop      = "nop"
 	cmdDelete   = "delete"
 	cmdInactive = "inactive"
 )
@@ -94,12 +95,14 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 	switch cmd {
 	case cmdSet:
 		return p.parseSet(tree, tokens, lineNum)
+	case cmdNop:
+		return p.parseNop(tree, tokens, lineNum)
 	case cmdDelete:
 		return p.parseDelete(tree, tokens, lineNum)
 	case cmdInactive:
 		return p.parseInactive(tree, tokens, lineNum)
 	default:
-		return fmt.Errorf("line %d: unknown command: %s (expected set/delete/inactive)", lineNum, cmd)
+		return fmt.Errorf("line %d: unknown command: %s (expected set/nop/delete/inactive)", lineNum, cmd)
 	}
 }
 
@@ -315,6 +318,103 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	}
 
 	return fmt.Errorf("line %d: unknown node type %T for %s", lineNum, node, name)
+}
+
+// parseNop handles: nop <path...> [<value>].
+// Sets the value (like parseSet) and marks the resolved node inactive in one step.
+func (p *SetParser) parseNop(tree *Tree, tokens []string, lineNum int) error {
+	if len(tokens) < 1 {
+		return fmt.Errorf("line %d: nop requires at least a path", lineNum)
+	}
+	if err := p.walkAndSet(tree, p.schema.root, tokens, lineNum); err != nil {
+		return err
+	}
+	p.markNopInactive(tree, p.schema.root, tokens)
+	return nil
+}
+
+// markNopInactive walks the schema path and marks the terminal node
+// inactive. Unlike walkAndMarkInactive, it understands that leaf value tokens
+// are part of the token stream (consumed by the prior walkAndSet) and stops
+// at the leaf name rather than trying to descend into the value.
+//
+//nolint:cyclop // exhaustive node-type handling mirrors walkAndMarkInactive
+func (p *SetParser) markNopInactive(tree *Tree, parent Node, tokens []string) {
+	if len(tokens) == 0 {
+		return
+	}
+
+	name := tokens[0]
+	tokens = tokens[1:]
+
+	node := resolveSchemaNode(p.schema, parent, name)
+	if node == nil {
+		return
+	}
+
+	if _, ok := node.(*LeafNode); ok {
+		tree.SetLeafInactive(name, true)
+		return
+	}
+	if _, ok := node.(*MultiLeafNode); ok {
+		tree.SetLeafInactive(name, true)
+		return
+	}
+	if _, ok := node.(*BracketLeafListNode); ok {
+		tree.SetLeafInactive(name, true)
+		return
+	}
+
+	if _, ok := node.(*ValueOrArrayNode); ok {
+		for _, item := range bracketItems(tokens) {
+			_ = tree.DeactivateMultiValue(name, item)
+		}
+		return
+	}
+
+	if container, ok := node.(*ContainerNode); ok {
+		child := tree.GetContainer(name)
+		if child == nil {
+			return
+		}
+		if len(tokens) == 0 {
+			child.SetInactive(true)
+			return
+		}
+		p.markNopInactive(child, container, tokens)
+		return
+	}
+
+	if list, ok := node.(*ListNode); ok {
+		if len(tokens) == 0 {
+			return
+		}
+		key := tokens[0]
+		entries := tree.GetList(name)
+		entry := entries[key]
+		if entry == nil {
+			return
+		}
+		if len(tokens) == 1 {
+			entry.SetInactive(true)
+			return
+		}
+		p.markNopInactive(entry, list, tokens[1:])
+		return
+	}
+
+	if flex, ok := node.(*FlexNode); ok {
+		child := tree.GetContainer(name)
+		if child == nil {
+			child = NewTree()
+			tree.SetContainer(name, child)
+		}
+		if len(tokens) == 0 {
+			child.SetInactive(true)
+			return
+		}
+		p.markNopInactive(child, flex, tokens)
+	}
 }
 
 // parseInactive handles: inactive <path...>.

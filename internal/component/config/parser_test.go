@@ -17,6 +17,8 @@ func testSchema() *Schema {
 	schema.Define("router-id", Leaf(TypeIPv4))
 	schema.Define("local-as", Leaf(TypeUint32))
 
+	schema.Define("name-server", ValueOrArray(TypeIP))
+
 	schema.Define("neighbor", List(TypeIP,
 		Field("description", Leaf(TypeString)),
 		Field("router-id", Leaf(TypeIPv4)),

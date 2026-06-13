@@ -101,17 +101,36 @@ same `deactivate <path>` / `activate <path>` commands while editing.
 The mechanism is engine-level: every YANG node is deactivatable, no
 schema annotation is required.
 
-In the **set / single-line format**, the inactive state is declared
-with a top-level `inactive <path>` keyword on its own line; a leaf-list
-member appends the member value (`inactive system name-server 8.8.8.8`):
+In the **set / single-line format**, the `nop` keyword replaces `set`
+on a deactivated line. "nop" means "no operation": the config entry
+exists in the file but produces no operational effect. Toggling
+activation is a 3-byte in-place edit (`set` <-> `nop`):
+<!-- source: internal/component/config/setparser.go -- cmdNop, parseNop -->
 
 ```
+nop bgp router-id 10.0.0.1
+```
+
+For leaf-lists with per-member deactivation, each member gets its own
+line: active members use `set`, deactivated members use `nop`:
+
+```
+set system name-server 8.8.8.8
+nop system name-server 1.1.1.1
+```
+
+Container deactivation uses a structural `nop <container-path>` line
+before its children. Children retain their own `set`/`nop` state:
+
+```
+nop bgp
 set bgp router-id 10.0.0.1
-inactive bgp router-id
+set bgp neighbor 192.0.2.1 peer-as 65001
 ```
 
-Single-keyword design: there is no symmetric `activate` keyword. To
-re-activate, drop the `inactive <path>` line.
+**Backward compatibility:** the `inactive <path>` keyword from older
+configs is still accepted by the parser. On save, `inactive` lines
+are migrated to the `nop` form automatically.
 
 Coexists with per-feature `disable` semantics (e.g. a peer's
 `admin-state disable` leaf), which are protocol-aware and operationally

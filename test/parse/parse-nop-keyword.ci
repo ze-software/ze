@@ -1,0 +1,15 @@
+# Test: parser accepts `nop` keyword in set-format config
+# VALIDATES: AC-1, AC-4 -- nop lines parse and inactive lines still accepted
+# PREVENTS: config files with nop keyword rejected by ze config validate
+stdin=config:terminator=EOF_CONF
+set bgp router-id 10.0.0.1
+set bgp session asn local 65533
+nop bgp peer peer1
+set bgp peer peer1 connection remote ip 127.0.0.1
+set bgp peer peer1 connection local ip 127.0.0.1
+set bgp peer peer1 session asn remote 65534
+nop bgp peer peer1 description "maintenance mode"
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -
+expect=exit:code=0

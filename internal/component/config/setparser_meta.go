@@ -206,6 +206,12 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 	switch cmd {
 	case cmdSet:
 		return p.parseSetWithMeta(tree, meta, entry, tokens, lineNum)
+	case cmdNop:
+		if err := p.parseSetWithMeta(tree, meta, entry, tokens, lineNum); err != nil {
+			return err
+		}
+		p.markNopInactive(tree, p.schema.root, tokens)
+		return nil
 	case cmdDelete:
 		if err := p.parseDelete(tree, tokens, lineNum); err != nil {
 			return err
@@ -213,13 +219,10 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 		p.recordDeleteMeta(meta, entry, tokens)
 		return nil
 	case cmdInactive:
-		// Inactive declarations describe tree state (deactivated leaves,
-		// containers, or leaf-list members); they carry no authorship
-		// metadata of their own.
 		return p.parseInactive(tree, tokens, lineNum)
 	}
 
-	return fmt.Errorf("line %d: unknown command: %s (expected set/delete/inactive)", lineNum, cmd)
+	return fmt.Errorf("line %d: unknown command: %s (expected set/nop/delete/inactive)", lineNum, cmd)
 }
 
 // parseSetWithMeta handles: set <path...> <value> and records metadata along the path.

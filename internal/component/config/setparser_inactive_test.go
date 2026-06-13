@@ -45,23 +45,20 @@ inactive neighbor 1.1.1.1
 }
 
 // TestSetSerializeInactiveLeaf verifies the set-format serializer emits
-// an `inactive <path>` line after the matching `set` line for a leaf
-// that has been marked inactive.
+// a `nop` prefix for a leaf that has been marked inactive.
 func TestSetSerializeInactiveLeaf(t *testing.T) {
 	tree := NewTree()
 	tree.Set("router-id", "1.2.3.4")
 	tree.SetLeafInactive("router-id", true)
 
 	out := SerializeSet(tree, testSchema())
-	assert.Contains(t, out, "set router-id 1.2.3.4")
-	assert.Contains(t, out, "inactive router-id")
-	assert.NotContains(t, out, "deactivate router-id",
-		"single-keyword design: never emit `deactivate`")
+	assert.Contains(t, out, "nop router-id 1.2.3.4")
+	assert.NotContains(t, out, "inactive router-id",
+		"nop replaces the old set+inactive two-line form")
 }
 
 // TestSetSerializeInactiveContainer verifies a container with the
-// Tree-level inactive flag is rendered as a trailing
-// `inactive <path>` rather than `set ... inactive true`.
+// Tree-level inactive flag is rendered as a structural `nop <path>` line.
 func TestSetSerializeInactiveContainer(t *testing.T) {
 	tree := NewTree()
 	entry := NewTree()
@@ -71,23 +68,21 @@ func TestSetSerializeInactiveContainer(t *testing.T) {
 
 	out := SerializeSet(tree, testSchema())
 	assert.Contains(t, out, "set neighbor 1.1.1.1 peer-as 65001")
-	assert.Contains(t, out, "inactive neighbor 1.1.1.1")
-	assert.NotContains(t, out, "set neighbor 1.1.1.1 inactive true",
-		"set ... inactive true must not appear")
+	assert.Contains(t, out, "nop neighbor 1.1.1.1\n")
+	assert.NotContains(t, out, "inactive neighbor 1.1.1.1",
+		"nop replaces the old inactive line")
 }
 
 // TestSetRoundTripInactiveLeaf verifies parse->serialize->parse stays
-// fixed for an inactive leaf, in the set format.
+// fixed for an inactive leaf. Old set+inactive input migrates to nop on save.
 func TestSetRoundTripInactiveLeaf(t *testing.T) {
-	input := `set router-id 1.2.3.4
-inactive router-id
-`
+	input := "set router-id 1.2.3.4\ninactive router-id\n"
 	schema := testSchema()
 	tree1, err := NewSetParser(schema).Parse(input)
 	require.NoError(t, err)
 
 	out := SerializeSet(tree1, schema)
-	require.Contains(t, out, "inactive router-id")
+	require.Contains(t, out, "nop router-id 1.2.3.4")
 
 	tree2, err := NewSetParser(schema).Parse(out)
 	require.NoError(t, err)
@@ -100,7 +95,7 @@ func TestSetParseUnknownVerb(t *testing.T) {
 	_, err := NewSetParser(testSchema()).Parse("bogus router-id 1.2.3.4\n")
 	require.Error(t, err)
 	assert.True(t,
-		strings.Contains(err.Error(), "set/delete/inactive"),
+		strings.Contains(err.Error(), "set/nop/delete/inactive"),
 		"error must list the supported verbs, got: %v", err)
 }
 

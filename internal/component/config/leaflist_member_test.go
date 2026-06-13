@@ -180,9 +180,9 @@ func TestParseWithMetaLeafListMembers(t *testing.T) {
 }
 
 // TestSetFormatDeactivatedMemberRoundTrip: deactivated members serialize as
-// an `inactive <path> <member>` line with the bare member in the set line —
-// never as an "inactive:"-prefixed item, which would fail item validation on
-// reparse for typed leaf-lists (ip-address).
+// individual `nop <path> <member>` lines (active as `set`, deactivated as
+// `nop`), never as an "inactive:"-prefixed item which would fail item
+// validation on reparse for typed leaf-lists (ip-address).
 //
 // VALIDATES: set-format round-trip of deactivated leaf-list members.
 // PREVENTS: a committed config with a deactivated name-server member that
@@ -203,8 +203,10 @@ func TestSetFormatDeactivatedMemberRoundTrip(t *testing.T) {
 	} {
 		assert.NotContains(t, out, "inactive:8.8.8.8",
 			"raw inactive: prefix must not be serialized (fails reparse validation)")
-		assert.Contains(t, out, "inactive system name-server 8.8.8.8",
-			"deactivation must serialize as an inactive line")
+		assert.Contains(t, out, "nop system name-server 8.8.8.8",
+			"deactivated member must serialize as nop line")
+		assert.Contains(t, out, "set system name-server 9.9.9.9",
+			"active member must serialize as set line")
 
 		tree2, parseErr := NewSetParser(schema).Parse(out)
 		require.NoError(t, parseErr, "serialized form must reparse")

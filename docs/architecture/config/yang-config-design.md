@@ -308,12 +308,12 @@ different members never conflict, and commit applies each member operation
 idempotently. Ordered operations (insert position, deactivate, activate) are
 recorded as structural ops (`insert-member`, `deactivate-member`,
 `activate-member`) so the exact position survives the change-file → draft →
-commit chain. Deactivated members serialize as an `inactive <path> <member>`
-line — never as a raw `inactive:` item, which would fail item validation on
-reparse.
+commit chain. Deactivated members serialize as individual `nop <path> <member>` lines
+(active members as `set`, deactivated as `nop`) — never as a raw
+`inactive:` item, which would fail item validation on reparse.
 <!-- source: internal/component/config/meta.go -- MetaEntry.Member -->
 <!-- source: internal/component/config/change_file.go -- StructuralOpInsertMember -->
-<!-- source: internal/component/config/serialize_set.go -- writeLeafListMemberLines, emitInactiveMemberLines -->
+<!-- source: internal/component/config/serialize_set.go -- writeLeafListMemberLines, emitValueOrArrayNop -->
 
 ### CLI Help from YANG
 

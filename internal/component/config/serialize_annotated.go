@@ -644,38 +644,72 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 		}
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(normalizeBool(v))) //nolint:errcheck // output
+			b.Str(setOrNop(tree, name))
+			b.Str(path)
+			b.Str(" ")
+			b.Str(quoteIfNeeded(normalizeBool(v)))
+			b.Str("\n")
 		}
 
 	case *MultiLeafNode:
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			fmt.Fprintf(b, "set %s %s\n", path, v) //nolint:errcheck // output
+			b.Str(setOrNop(tree, name))
+			b.Str(path)
+			b.Str(" ")
+			b.Str(v)
+			b.Str("\n")
 		}
 
 	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
-			fmt.Fprintf(b, "set %s [ %s ]\n", path, v) //nolint:errcheck // output
+			b.Str(setOrNop(tree, name))
+			b.Str(path)
+			b.Str(" [ ")
+			b.Str(v)
+			b.Str(" ]\n")
 		}
 
 	case *ValueOrArrayNode:
-		// Direct access: caller holds tree.mu.RLock via serializeAnnotatedSetNode.
 		if items := tree.multiValues[name]; len(items) > 0 {
-			writeAnnotatedLeafGutter(b, meta, name, columns)
-			if len(items) == 1 {
-				fmt.Fprintf(b, "set %s %s\n", path, quoteIfNeeded(items[0])) //nolint:errcheck // output
+			bare, inactive := splitInactiveMembers(items)
+			if len(inactive) > 0 || tree.inactiveValues[name] {
+				inactiveSet := make(map[string]bool, len(inactive))
+				for _, m := range inactive {
+					inactiveSet[m] = true
+				}
+				wholeInactive := tree.inactiveValues[name]
+				for _, member := range bare {
+					writeAnnotatedLeafGutter(b, meta, name, columns)
+					if inactiveSet[member] || wholeInactive {
+						b.Str("nop ")
+					} else {
+						b.Str("set ")
+					}
+					b.Str(path)
+					b.Str(" ")
+					b.Str(quoteIfNeeded(member))
+					b.Str("\n")
+				}
 			} else {
+				writeAnnotatedLeafGutter(b, meta, name, columns)
 				b.Str("set ")
 				b.Str(path)
-				b.Str(" [ ")
-				for i, item := range items {
-					if i > 0 {
-						b.Str(" ")
+				if len(bare) == 1 {
+					b.Str(" ")
+					b.Str(quoteIfNeeded(bare[0]))
+				} else {
+					b.Str(" [ ")
+					for i, item := range bare {
+						if i > 0 {
+							b.Str(" ")
+						}
+						b.Str(quoteIfNeeded(item))
 					}
-					b.Str(quoteIfNeeded(item))
+					b.Str(" ]")
 				}
-				b.Str(" ]\n")
+				b.Str("\n")
 			}
 		}
 
@@ -694,8 +728,16 @@ func serializeAnnotatedSetChild(b *textbuf.Buffer, tree *Tree, meta *MetaTree, n
 			}
 		}
 		if child := tree.containers[name]; child != nil {
+			if !n.Presence && child.IsInactive() {
+				writeEmptyAnnotatedGutter(b, columns)
+				b.Str("nop ")
+				b.Str(path)
+				b.Str("\n")
+			}
 			childMeta := metaContainerChild(meta, name)
-			serializeAnnotatedSetNode(b, child, childMeta, n, columns, path+" ")
+			var tb textbuf.Buffer
+			childPrefix := tb.Str(path).Byte(' ').String()
+			serializeAnnotatedSetNode(b, child, childMeta, n, columns, childPrefix)
 		}
 
 	case *ListNode:
@@ -764,8 +806,15 @@ func serializeAnnotatedSetList(b *textbuf.Buffer, tree *Tree, meta *MetaTree, na
 		}
 		displayKey := StripListKeySuffix(key)
 		entryPath := tb.Reset().Str(path).Byte(' ').Str(quoteIfNeeded(displayKey)).String()
+		if entry.IsInactive() {
+			writeEmptyAnnotatedGutter(b, columns)
+			b.Str("nop ")
+			b.Str(entryPath)
+			b.Str("\n")
+		}
 		entryMeta := metaListEntry(meta, name, key)
-		serializeAnnotatedSetNode(b, entry, entryMeta, node, columns, entryPath+" ")
+		entryPrefix := tb.Reset().Str(entryPath).Byte(' ').String()
+		serializeAnnotatedSetNode(b, entry, entryMeta, node, columns, entryPrefix)
 	}
 }
 
