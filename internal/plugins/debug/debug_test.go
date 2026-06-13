@@ -256,13 +256,33 @@ func TestDebugHelp(t *testing.T) {
 	}
 }
 
-func TestDebugTimeoutValid(t *testing.T) {
+func TestDebugTimeoutMinutes(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "30"})
+	code := Run([]string{"timeout", "30m"})
 	if code != 0 {
-		t.Fatalf("timeout 30 returned %d, want 0", code)
+		t.Fatalf("timeout 30m returned %d, want 0", code)
+	}
+}
+
+func TestDebugTimeoutHours(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "1h"})
+	if code != 0 {
+		t.Fatalf("timeout 1h returned %d, want 0", code)
+	}
+}
+
+func TestDebugTimeoutSeconds(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "90s"})
+	if code != 0 {
+		t.Fatalf("timeout 90s returned %d, want 0", code)
 	}
 }
 
@@ -280,9 +300,19 @@ func TestDebugTimeoutLastValid(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "1440"})
+	code := Run([]string{"timeout", "1440m"})
 	if code != 0 {
-		t.Fatalf("timeout 1440 returned %d, want 0", code)
+		t.Fatalf("timeout 1440m returned %d, want 0", code)
+	}
+}
+
+func TestDebugTimeout24h(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "24h"})
+	if code != 0 {
+		t.Fatalf("timeout 24h returned %d, want 0", code)
 	}
 }
 
@@ -290,19 +320,49 @@ func TestDebugTimeoutAboveMax(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
-	code := Run([]string{"timeout", "1441"})
+	code := Run([]string{"timeout", "1441m"})
 	if code != 1 {
-		t.Errorf("timeout 1441 returned %d, want 1", code)
+		t.Errorf("timeout 1441m returned %d, want 1", code)
 	}
 }
 
-func TestDebugTimeoutNonNumeric(t *testing.T) {
+func TestDebugTimeoutAboveMax25h(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "25h"})
+	if code != 1 {
+		t.Errorf("timeout 25h returned %d, want 1", code)
+	}
+}
+
+func TestDebugTimeoutNoUnit(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "30"})
+	if code != 1 {
+		t.Errorf("timeout without unit returned %d, want 1", code)
+	}
+}
+
+func TestDebugTimeoutBadFormat(t *testing.T) {
 	cleanup := setupTestDebugStore(t)
 	defer cleanup()
 
 	code := Run([]string{"timeout", "abc"})
 	if code != 1 {
 		t.Errorf("timeout abc returned %d, want 1", code)
+	}
+}
+
+func TestDebugTimeoutOverflow(t *testing.T) {
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	code := Run([]string{"timeout", "99999999999999999999m"})
+	if code != 1 {
+		t.Errorf("overflow duration returned %d, want 1", code)
 	}
 }
 

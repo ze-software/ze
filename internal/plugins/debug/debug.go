@@ -11,6 +11,7 @@ import (
 	"text/tabwriter"
 
 	debugyang "codeberg.org/thomas-mangin/ze/internal/component/debug/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/duration"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
@@ -340,21 +341,18 @@ func cmdProfileDelete(args []string) int {
 
 func cmdTimeout(args []string) int {
 	if len(args) == 0 {
-		stderrLine("usage: debug timeout <minutes>")
+		stderrLine("usage: debug timeout <duration>  (e.g. 30m, 1h, 90s, 0; seconds rounded up to minutes)")
 		return 1
 	}
 
-	minutes := 0
-	for _, c := range args[0] {
-		if c < '0' || c > '9' {
-			stderrLine("error: timeout must be a number (0-1440)")
-			return 1
-		}
-		minutes = minutes*10 + int(c-'0')
+	minutes, ok := duration.ParseMinutes(args[0])
+	if !ok {
+		stderrLine("error: invalid duration (use e.g. 30m, 1h, 90s, or 0 to disable; seconds rounded up to minutes)")
+		return 1
 	}
 
 	if minutes > 1440 {
-		stderrLine("error: timeout must be 0-1440 minutes")
+		stderrLine("error: timeout must be at most 24h (1440m)")
 		return 1
 	}
 
@@ -371,7 +369,7 @@ func cmdTimeout(args []string) int {
 		stdoutLine("debug timeout disabled")
 	} else {
 		var tb textbuf.Buffer
-		stdoutLine(tb.Str("debug timeout set to ").Int(int64(minutes)).Str(" minutes").String())
+		stdoutLine(tb.Str("debug timeout set to ").Int(int64(minutes)).Str("m").String())
 	}
 	return 0
 }
@@ -487,7 +485,7 @@ func usage() {
 				{Name: "profile delete <name>", Desc: "Delete a named profile"},
 			}},
 			{Title: "Other", Entries: []helpfmt.HelpEntry{
-				{Name: "timeout <minutes>", Desc: "Auto-disable timer (0 to disable)"},
+				{Name: "timeout <duration>", Desc: "Auto-disable timer (e.g. 30m, 1h, 90s; 0 to disable)"},
 			}},
 		},
 		Examples: []string{

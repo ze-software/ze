@@ -1246,7 +1246,7 @@ ze debug clear                                   # Clear default profile
 ze debug profile save <name>                     # Save current state as named
 ze debug profile list                            # List profiles
 ze debug profile delete <name>                   # Delete a profile
-ze debug timeout <minutes>                       # Auto-disable timer (0=off)
+ze debug timeout <duration>                      # Auto-disable timer (e.g. 30m, 1h, 90s; 0=off)
 ```
 
 Hierarchical prefixes work: `ze debug bgp` covers all bgp.* subsystems.

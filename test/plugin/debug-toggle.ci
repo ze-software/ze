@@ -42,6 +42,15 @@ if echo "$OUT" | grep -q "bgp.reactor"; then
   echo "FAIL: show after clear still has module" >&2; exit 1
 fi
 
+# Timeout with duration unit
+OUT=$(ze debug timeout 30m)
+echo "$OUT" | grep -q "timeout" || { echo "FAIL: timeout 30m: $OUT" >&2; exit 1; }
+
+# Bare number rejected
+if ze debug timeout 30 2>/dev/null; then
+  echo "FAIL: bare number accepted" >&2; exit 1
+fi
+
 # Invalid module name
 if ze debug "has/slash" 2>/dev/null; then
   echo "FAIL: slash accepted" >&2; exit 1

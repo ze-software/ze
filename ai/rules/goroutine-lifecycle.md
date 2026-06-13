@@ -12,6 +12,6 @@ Rationale: `ai/rationale/goroutine-lifecycle.md`
 
 Pattern: channel + worker. Start → create chan + start worker. Hot path → enqueue. Stop → close chan.
 
-**`go func()` IS OK for:** component startup (one-time), test helpers, `ProcessManager.Stop()` wait, `Process.Wait()` bridge.
+**`go func()` IS OK for:** component startup (one-time), test helpers, `ProcessManager.Stop()` wait, `Process.Wait()` bridge, timers and scheduled tasks (dedicated goroutine that sleeps/selects on a timer, cancellable via context or channel).
 
-**Before writing `go func()`:** Inside event loop? → channel + worker. Called per message? → channel + worker. One-time lifecycle? → OK.
+**Before writing `go func()`:** Inside event loop? → channel + worker. Called per message? → channel + worker. One-time lifecycle? → OK. Timer/scheduler? → OK (dedicated goroutine with cancellation).
