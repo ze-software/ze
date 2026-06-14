@@ -468,6 +468,44 @@ currently covered.
 
 ---
 
+### New test type added but not back-filled to existing code
+
+**Symptom.** A new test type, technique, or infrastructure is
+introduced (fuzz target, property test, mutation gate, `-race` sweep,
+clock-injection audit, `.et` editor test, QEMU integration harness),
+and it is applied only to the code written alongside it. Equivalent
+already-written code never receives the new test type, so a class of
+existing code stays uncovered by a technique built specifically to
+catch its failure mode.
+
+**Cause.** The new test type ships with the feature that motivated it.
+The session's scope is that feature, so "apply it everywhere it
+applies" reads as out of scope. No step forces a backward sweep of
+existing call sites, so coverage grows only forward from the
+introduction date.
+
+**Evidence.** User-reported 2026-06-14. Recurs because the
+discovery-updates rule historically wired a new test type *forward*
+(where to place new tests) but said nothing about *backward*
+application to existing code. Related: the periodic-test-sweep
+categories -- pure functions with only integration coverage, platform
+code assumed untestable, missing test-infra support.
+
+**Avoid it by.** When you add a new test type or technique, in the same
+work: (1) name the set of existing code it applies to (package glob,
+symbol kind, or call-site pattern); (2) either back-fill that set, or
+record the uncovered remainder as an explicit, tracked backlog in the
+spec or handoff -- never leave it implicit. A grep- or registry-driven
+audit that enumerates every applicable site beats per-file judgement.
+See `ai/rules/testing.md` "Back-Fill New Test Types".
+
+**Recover if you hit it.** Run the new test type's selector across the
+whole applicable set, triage the gaps, and file the remainder as
+tracked work. `/ze-hunt` can enumerate applicable sites for
+grep-detectable test types.
+
+---
+
 ## Multi-source-of-truth traps
 
 ### YANG module registered but not in `yang_schema.go`

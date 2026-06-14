@@ -7,6 +7,16 @@ Structural template: `ai/patterns/functional-test.md`
 
 **BLOCKING:** When a test fails, fix the code to make the test pass. NEVER weaken or simplify test expectations to match broken code. Tests are ground truth. Even if an underlying mechanism changed (e.g., Unix sockets replaced by SSH), the test expectations stay and the replacement mechanism must satisfy them.
 
+## Back-Fill New Test Types (BLOCKING)
+
+**BLOCKING:** When you introduce a new test type, technique, or infrastructure (fuzz target, property test, mutation gate, `-race` sweep, clock-injection audit, new `.ci`/`.et` category, QEMU harness), apply it to the existing code it covers, not only to the code added alongside it. Coverage that grows only forward from the introduction date is the trap (`plan/learned/RECURRING-PATTERNS.md`, "New test type added but not back-filled to existing code").
+
+In the same work:
+
+1. Name the applicable set: the package glob, symbol kind, or call-site pattern the new test type is meant to cover.
+2. Back-fill that set, OR record the uncovered remainder as explicit, tracked backlog (spec, handoff, or deferral table). Never leave it implicit.
+3. Prefer a grep- or registry-driven audit that enumerates every applicable site over per-file judgement. `/ze-hunt` enumerates sites for grep-detectable patterns.
+
 ## No Throw-Away Tests
 
 **BLOCKING:** Never write temporary test code. Add functional or unit tests that run in CI.
