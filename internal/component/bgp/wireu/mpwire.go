@@ -46,7 +46,9 @@ func (m MPReachWire) Family() family.Family {
 
 // NextHop returns the first next-hop address from the attribute.
 // RFC 4760 Section 3: Next Hop Network Address field.
-// Returns invalid Addr if data is malformed or too short.
+// Returns invalid Addr if data is malformed, too short, or the AFI is not
+// IPv4/IPv6 (VPN/EVPN next-hops are family-specific and not decoded here).
+// Callers MUST check IsValid() before use.
 func (m MPReachWire) NextHop() netip.Addr {
 	if len(m) < 4 {
 		return netip.Addr{}
@@ -79,7 +81,10 @@ func (m MPReachWire) NextHop() netip.Addr {
 
 // Prefixes parses and returns all NLRI prefixes from the attribute.
 // RFC 4760 Section 3: NLRI field follows NextHop + Reserved byte.
-// Returns nil if data is malformed.
+// Returns nil if data is malformed, or for non-IPv4/IPv6 AFIs: only IP
+// prefixes are representable as netip.Prefix, so VPN/EVPN/FlowSpec yield nil
+// here by design (the sole caller, appendMPBlock, omits prefixes for
+// non-CIDR families). Use NLRIs()/NLRIIterator() for full family support.
 //
 // Note: This method does NOT preserve ADD-PATH path-id. Use NLRIs() instead.
 func (m MPReachWire) Prefixes() []netip.Prefix {
@@ -205,7 +210,10 @@ func (m MPUnreachWire) Family() family.Family {
 
 // Prefixes parses and returns all withdrawn prefixes from the attribute.
 // RFC 4760 Section 4: Withdrawn Routes field follows AFI + SAFI.
-// Returns nil if data is malformed.
+// Returns nil if data is malformed, or for non-IPv4/IPv6 AFIs: only IP
+// prefixes are representable as netip.Prefix, so VPN/EVPN/FlowSpec yield nil
+// here by design (the sole caller, appendMPBlock, omits prefixes for
+// non-CIDR families). Use NLRIs()/NLRIIterator() for full family support.
 //
 // Note: This method does NOT preserve ADD-PATH path-id. Use NLRIs() instead.
 func (m MPUnreachWire) Prefixes() []netip.Prefix {

@@ -51,10 +51,8 @@ Unknown wire code/keyword silently routed to a default value instead of an error
   `internal/component/bgp/{wireu,message,attribute,capability}`,
   `internal/component/bgp/plugins/nlri`.
 - **Real shape:** `default:` returns a *value* (`return nil`, `return netip.Addr{}`,
-  `return false`, or assigns the most common enum) with no error and no log.
-- **Known real candidates (verify callers, fix if unhandled):**
-  `internal/component/bgp/wireu/mpwire.go` default branches returning
-  `netip.Addr{}` / `nil` on unknown AFI.
+  `return false`, or assigns the most common enum) with no error and no log,
+  in an *encoder* or in a *decoder whose caller does not handle the sentinel*.
 - **Known false positives (do NOT report):**
   - `default:` that returns an error naming the unknown value (e.g.
     `nlri/evpn/encode.go`, `nlri/vpls/encode.go`, `attribute/builder_parse.go`).
@@ -62,6 +60,11 @@ Unknown wire code/keyword silently routed to a default value instead of an error
     bare protocol/number implies equality.
   - `wireu/mpwire.go` default wrapping unknown families as opaque `WireNLRI` --
     intentional family preservation.
+  - `wireu/mpwire.go` `NextHop()` / `Prefixes()` defaults returning
+    `netip.Addr{}` / `nil` for non-IPv4/IPv6 AFI -- verified benign: read
+    accessors returning documented sentinels, not encoders. Callers check
+    `IsValid()` (`server/codec.go`) or omit non-CIDR prefixes (`appendMPBlock`);
+    `netip.Prefix` cannot represent VPN/EVPN/FlowSpec, which use `NLRIs()`.
 
 ### H2 -- Signed subtraction for sequence-number ordering
 
