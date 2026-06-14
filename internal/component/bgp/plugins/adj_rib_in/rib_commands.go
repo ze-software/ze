@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	errAdjRibInReplayRequiresTarget         = errors.New("request adj-rib-in replay requires target peer address")
+	errAdjRibInReplayRequiresTarget         = errors.New("request bgp adj-rib-in replay requires target peer address")
 	errAcceptRoutesRequiresPeerFamilyPrefix = errors.New("accept-routes requires: <peer> <family> <prefix> <pathID> <state>")
 	errRejectRoutesRequiresPeerFamilyPrefix = errors.New("reject-routes requires: <peer> <family> <prefix> <pathID>")
 	errRevalidateRequiresFamilyPrefix       = errors.New("revalidate requires: <family> <prefix>")
@@ -27,21 +27,21 @@ var (
 // Returns (status, data, error) for the SDK to send back to the engine.
 func (r *AdjRIBInManager) handleCommand(command string, args []string, peer string) (string, any, error) {
 	switch command {
-	case "show adj-rib-in status":
+	case "show bgp adj-rib-in status":
 		return statusDone, r.status(), nil
-	case "show adj-rib-in":
+	case "show bgp adj-rib-in":
 		return statusDone, r.show(showSelector(args, peer)), nil
-	case "request adj-rib-in replay":
+	case "request bgp adj-rib-in replay":
 		return r.replayCommand(args)
-	case "request adj-rib-in enable-validation":
+	case "request bgp adj-rib-in enable-validation":
 		return r.enableValidationCommand()
-	case "request adj-rib-in accept-routes":
+	case "request bgp adj-rib-in accept-routes":
 		return r.acceptRoutesCommand(args)
-	case "request adj-rib-in reject-routes":
+	case "request bgp adj-rib-in reject-routes":
 		return r.rejectRoutesCommand(args)
-	case "request adj-rib-in batch-validate":
+	case "request bgp adj-rib-in batch-validate":
 		return r.batchValidateCommand(args)
-	case "request adj-rib-in revalidate":
+	case "request bgp adj-rib-in revalidate":
 		return r.revalidateCommand(args)
 	} // unknown commands return error below
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
@@ -273,7 +273,7 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 	return map[string]any{"adj-rib-in": result}
 }
 
-// replayCommand handles "request adj-rib-in replay" via execute-command.
+// replayCommand handles "request bgp adj-rib-in replay" via execute-command.
 // Args format: "<target-peer> [<from-index>]".
 // Replays routes from ALL source peers except target, filtered by from-index.
 func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
@@ -303,7 +303,7 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 	return statusDone, map[string]any{"last-index": maxSeq, "replayed": len(cmds)}, nil
 }
 
-// enableValidationCommand handles "request adj-rib-in enable-validation".
+// enableValidationCommand handles "request bgp adj-rib-in enable-validation".
 // Sets the validationEnabled flag so subsequent routes use pending state.
 func (r *AdjRIBInManager) enableValidationCommand() (string, any, error) {
 	r.mu.Lock()
@@ -314,7 +314,7 @@ func (r *AdjRIBInManager) enableValidationCommand() (string, any, error) {
 	return statusDone, map[string]any{"validation-enabled": true}, nil
 }
 
-// acceptRoutesCommand handles "request adj-rib-in accept-routes <peer> <family> <prefix> <pathID> <state>".
+// acceptRoutesCommand handles "request bgp adj-rib-in accept-routes <peer> <family> <prefix> <pathID> <state>".
 // Promotes a pending route to installed with the given validation state.
 func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error) {
 	if len(args) < 5 {
@@ -354,7 +354,7 @@ func (r *AdjRIBInManager) acceptRoutesCommand(args []string) (string, any, error
 	return statusDone, map[string]any{"status": "ok"}, nil
 }
 
-// rejectRoutesCommand handles "request adj-rib-in reject-routes <peer> <family> <prefix> <pathID>".
+// rejectRoutesCommand handles "request bgp adj-rib-in reject-routes <peer> <family> <prefix> <pathID>".
 // Discards a pending route (does not install it).
 func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error) {
 	if len(args) < 4 {
@@ -389,7 +389,7 @@ func (r *AdjRIBInManager) rejectRoutesCommand(args []string) (string, any, error
 	return statusDone, map[string]any{"status": "ok"}, nil
 }
 
-// revalidateCommand handles "request adj-rib-in revalidate <family> <prefix>".
+// revalidateCommand handles "request bgp adj-rib-in revalidate <family> <prefix>".
 // Returns installed route data for the given prefix so the validator can re-validate.
 func (r *AdjRIBInManager) revalidateCommand(args []string) (string, any, error) {
 	if len(args) < 2 {

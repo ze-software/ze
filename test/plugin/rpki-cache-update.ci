@@ -38,7 +38,7 @@ def main():
 
     try:
         # Verify VRPs loaded via rpki roa command
-        result = dispatch(api, 'show rpki roa')
+        result = dispatch(api, 'show bgp rpki roa')
         if result.get('status') != 'done':
             print(f'FAIL: rpki roa status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

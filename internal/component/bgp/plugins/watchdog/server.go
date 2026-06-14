@@ -42,8 +42,8 @@ func newWatchdogServer(sendRoute func(peer, cmd string)) *watchdogServer {
 }
 
 const (
-	commandRequestWatchdogAnnounce = "request watchdog announce"
-	commandRequestWatchdogWithdraw = "request watchdog withdraw"
+	commandRequestWatchdogAnnounce = "request bgp watchdog announce"
+	commandRequestWatchdogWithdraw = "request bgp watchdog withdraw"
 
 	statusDone  = "done"
 	statusError = "error"
@@ -85,7 +85,7 @@ func (s *watchdogServer) handleCommand(command string, args []string, peer strin
 // for a named watchdog pool. Flips state even if the peer is down so
 // reconnect resend picks up the correct state.
 //
-// Announce syntax: request watchdog announce <name> [med <N>] [peer]
+// Announce syntax: request bgp watchdog announce <name> [med <N>] [peer]
 // When peer is "*", the action applies to all peers that have the named pool.
 func (s *watchdogServer) handlePoolAction(args []string, peer string, announce bool) (string, any, error) {
 	if len(args) < 1 {
@@ -292,7 +292,7 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 
 		// First pass: mark only initiallyAnnounced routes as announced for this peer.
 		// Routes with initiallyAnnounced=false (withdraw=true in config) are left
-		// untouched — they require an explicit "request watchdog announce" command.
+		// untouched — they require an explicit "request bgp watchdog announce" command.
 		pools.AnnounceInitial(poolName, peerAddr)
 
 		// Second pass: send all announced routes. When an earlier

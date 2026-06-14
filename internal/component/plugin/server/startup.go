@@ -646,7 +646,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	if reg := proc.Registration(); reg != nil && len(reg.Commands) > 0 {
 		defs := make([]CommandDef, len(reg.Commands))
 		for i, name := range reg.Commands {
-			defs[i] = CommandDef{Name: name, Description: reg.CommandDescriptions[name]}
+			defs[i] = CommandDef{Name: name, Description: reg.CommandDescriptions[name], Hidden: reg.CommandHidden[name], Completable: reg.CommandCompletable[name]}
 		}
 		results := s.dispatcher.Registry().Register(proc, defs)
 		for _, r := range results {
@@ -836,6 +836,18 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 				reg.CommandDescriptions = make(map[string]string, len(input.Commands))
 			}
 			reg.CommandDescriptions[cmd.Name] = cmd.Description
+		}
+		if cmd.Hidden {
+			if reg.CommandHidden == nil {
+				reg.CommandHidden = make(map[string]bool, len(input.Commands))
+			}
+			reg.CommandHidden[cmd.Name] = true
+		}
+		if cmd.Completable {
+			if reg.CommandCompletable == nil {
+				reg.CommandCompletable = make(map[string]bool, len(input.Commands))
+			}
+			reg.CommandCompletable[cmd.Name] = true
 		}
 		if len(cmd.DeprecatedNames) > 0 {
 			if reg.CommandDeprecatedNames == nil {

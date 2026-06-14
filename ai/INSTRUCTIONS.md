@@ -60,11 +60,11 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
 <!-- BEGIN GENERATED: arch-components (scripts/dev/arch_map.py; make ze-regen) -->
-49 directories under `internal/component/`:
+50 directories under `internal/component/`:
 
-aaa, api, audit, authz, bfd, bgp, cli, cmd, command, config, diag, doctor,
-engine, firewall, flowexport, gnmi, gokrazy, host, hub, iface, ike, ipsec,
-l2tp, ldp, lg, managed, mcp, mpls, mrt, ping, pki, plugin, ppp, pppoe,
+aaa, api, audit, authz, bfd, bgp, cli, cmd, command, config, debug, diag,
+doctor, engine, firewall, flowexport, gnmi, gokrazy, host, hub, iface, ike,
+ipsec, l2tp, ldp, lg, managed, mcp, mpls, mrt, ping, pki, plugin, ppp, pppoe,
 pppoeclient, radius, resolve, rsvpte, ssh, storage, subscriber, support,
 tacacs, telemetry, traceroute, traffic, update, vpp, web
 <!-- END GENERATED: arch-components -->
@@ -88,13 +88,13 @@ systemd, tftpserver, traceroute-cmd, traffic, traffic-cmd, update-cmd
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
 
 <!-- BEGIN GENERATED: arch-bgp-plugins (scripts/dev/arch_map.py; make ze-regen) -->
-28 directories under `internal/component/bgp/plugins/`:
+29 directories under `internal/component/bgp/plugins/`:
 
 adj_rib_in, aigp, bmp, cmd, filter_aspath, filter_aspath_length,
-filter_community, filter_community_match, filter_modify, filter_prefix,
-filter_remove_private_as, gr, healthcheck, hostname, llnh, nlri, persist,
-redistribute_egress, redistribute_ingress, rib, role, route_refresh, rpki,
-rpki_decorator, rr, rs, softver, watchdog
+filter_community, filter_community_match, filter_irr, filter_modify,
+filter_prefix, filter_remove_private_as, gr, healthcheck, hostname, llnh,
+nlri, persist, redistribute_egress, redistribute_ingress, rib, role,
+route_refresh, rpki, rpki_decorator, rr, rs, softver, watchdog
 <!-- END GENERATED: arch-bgp-plugins -->
 
 **CLI** -- SSH-accessible network OS CLI: YANG-modeled config editor with modes, completion, diff, commit, history, dashboard, monitoring.

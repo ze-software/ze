@@ -1672,9 +1672,9 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `show healthcheck` | read-only | JSON summary of all healthcheck probes |
-| `show healthcheck <name>` | read-only | Detailed status of a single probe |
-| `clear healthcheck <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. |
+| `show bgp healthcheck` | read-only | JSON summary of all healthcheck probes |
+| `show bgp healthcheck <name>` | read-only | Detailed status of a single probe |
+| `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. |
 <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand -->
 
 ### BMP (RFC 7854)

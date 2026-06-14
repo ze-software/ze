@@ -38,7 +38,7 @@ def main():
     # Wait for peer route to be stored
     for _ in range(20):
         time.sleep(0.5)
-        result = dispatch(api, 'show adj-rib-in status')
+        result = dispatch(api, 'show bgp adj-rib-in status')
         if result.get('status') != 'done':
             continue
         data = result_json_data(result, {})
@@ -51,7 +51,7 @@ def main():
         sys.exit(1)
 
     # Replay to a fake peer (10.0.0.99) - proves replay mechanism works
-    result = dispatch(api, 'request adj-rib-in replay 10.0.0.99 0')
+    result = dispatch(api, 'request bgp adj-rib-in replay 10.0.0.99 0')
     if result.get('status') != 'done':
         print(f'FAIL: replay failed: {result}', file=sys.stderr)
         dispatch(api, 'request shutdown')

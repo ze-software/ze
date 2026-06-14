@@ -420,14 +420,14 @@ func TestDispatcherPluginMatch(t *testing.T) {
 
 	// Register plugin command with full prefix — plugins that handle
 	// commands arriving via update-route RPC must include the verb and domain
-	// prefix (e.g., "request watchdog announce", not bare "announce").
+	// prefix (e.g., "request bgp watchdog announce", not bare "announce").
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-watchdog"})
 	d.Registry().Register(proc, []CommandDef{
-		{Name: "request watchdog announce", Description: "Announce watchdog group"},
+		{Name: "request bgp watchdog announce", Description: "Announce watchdog group"},
 	})
 
 	// Prefixed command matches (process not running → error, but not ErrUnknownCommand)
-	_, err := d.Dispatch(nil, "request watchdog announce dnsr")
+	_, err := d.Dispatch(nil, "request bgp watchdog announce dnsr")
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, ErrUnknownCommand),
 		"plugin command should match, got: %v", err)

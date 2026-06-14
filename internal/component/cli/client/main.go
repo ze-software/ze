@@ -685,10 +685,7 @@ func buildRuntimeTree(client *cliClient) *Command {
 
 	// Parse response to get available command names and descriptions
 	var data struct {
-		Commands []struct {
-			Value string `json:"value"`
-			Help  string `json:"help"`
-		} `json:"commands"`
+		Commands []commandEntry `json:"commands"`
 	}
 	if json.Unmarshal([]byte(output), &data) != nil {
 		return commandTree
@@ -696,10 +693,14 @@ func buildRuntimeTree(client *cliClient) *Command {
 
 	available := make(map[string]bool, len(data.Commands))
 	descriptions := make(map[string]string, len(data.Commands))
+	hidden := make(map[string]bool)
 	for _, c := range data.Commands {
 		available[strings.ToLower(c.Value)] = true
 		if c.Help != "" {
 			descriptions[c.Value] = c.Help
+		}
+		if c.Hidden {
+			hidden[strings.ToLower(c.Value)] = true
 		}
 	}
 
@@ -726,6 +727,11 @@ func buildRuntimeTree(client *cliClient) *Command {
 	applyDescriptions(tree, descriptions)
 	wireValueHints(tree)
 
+	// Inject non-hidden plugin commands into the completion tree.
+	// Plugin commands not backed by YANG proxy RPCs are missing from the tree
+	// unless we add them here.
+	injectPluginCommands(tree, data.Commands, hidden)
+
 	// Attach dynamic peer selector completion to the "peer" node.
 	// This allows "peer <TAB>" to suggest peer names and IPs.
 	if tree.Children != nil {
@@ -748,10 +754,7 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	}
 
 	var data struct {
-		Commands []struct {
-			Value string `json:"value"`
-			Help  string `json:"help"`
-		} `json:"commands"`
+		Commands []commandEntry `json:"commands"`
 	}
 	if json.Unmarshal([]byte(output), &data) != nil {
 		return commandTree
@@ -759,10 +762,14 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 
 	available := make(map[string]bool, len(data.Commands))
 	descriptions := make(map[string]string, len(data.Commands))
+	hidden := make(map[string]bool)
 	for _, c := range data.Commands {
 		available[strings.ToLower(c.Value)] = true
 		if c.Help != "" {
 			descriptions[c.Value] = c.Help
+		}
+		if c.Hidden {
+			hidden[strings.ToLower(c.Value)] = true
 		}
 	}
 
@@ -784,6 +791,9 @@ func buildRuntimeTreeFromDispatch(dispatch CommandFunc) *Command {
 	tree := cmd.BuildTree(filtered, false)
 	applyDescriptions(tree, descriptions)
 	wireValueHints(tree)
+
+	// Inject non-hidden plugin commands into the completion tree.
+	injectPluginCommands(tree, data.Commands, hidden)
 
 	if tree.Children != nil {
 		if peerNode, ok := tree.Children["peer"]; ok {

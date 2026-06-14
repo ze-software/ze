@@ -113,15 +113,15 @@ Query RPKI status through the ze CLI:
 
 | Command | Description |
 |---------|-------------|
-| `show rpki status` | Show RTR session count and VRP counts |
-| `show rpki cache` | Show cache server connection details |
-| `show rpki roa` | Show ROA table summary |
-| `show rpki summary` | Show validation statistics |
+| `show bgp rpki status` | Show RTR session count and VRP counts |
+| `show bgp rpki cache` | Show cache server connection details |
+| `show bgp rpki roa` | Show ROA table summary |
+| `show bgp rpki summary` | Show validation statistics |
 
 Example:
 
 ```
-$ ze cli -c "show rpki status"
+$ ze cli -c "show bgp rpki status"
 {"running":true,"vrp-count-ipv4":3,"vrp-count-ipv6":0,"sessions":1}
 ```
 <!-- source: internal/component/bgp/plugins/rpki/ -- RPKI CLI commands (status, cache, roa, summary) -->
@@ -305,7 +305,7 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 
 ## Without RPKI
 
-When the rpki plugin is not loaded, routes flow directly into the adj-rib-in with zero overhead. No pending state, no validation delay. The validation gate is only activated when the rpki plugin sends `request adj-rib-in enable-validation` during startup.
+When the rpki plugin is not loaded, routes flow directly into the adj-rib-in with zero overhead. No pending state, no validation delay. The validation gate is only activated when the rpki plugin sends `request bgp adj-rib-in enable-validation` during startup.
 <!-- source: internal/component/bgp/plugins/adj_rib_in/ -- adj-rib-in validation gate -->
 
 ## Troubleshooting
@@ -313,6 +313,6 @@ When the rpki plugin is not loaded, routes flow directly into the adj-rib-in wit
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Routes delayed 30s then accepted | RTR cache server unreachable | Check connectivity to cache server, verify port |
-| All routes Invalid | Wrong cache server data, or origin AS mismatch | Check `show rpki roa` output, verify VRP coverage |
-| No VRPs loaded | RTR session not established | Check `show rpki status`, verify cache server is running |
+| All routes Invalid | Wrong cache server data, or origin AS mismatch | Check `show bgp rpki roa` output, verify VRP coverage |
+| No VRPs loaded | RTR session not established | Check `show bgp rpki status`, verify cache server is running |
 | Routes accepted without validation | rpki plugin not bound to peer | Add `process rpki { receive [ update ] }` to peer config |

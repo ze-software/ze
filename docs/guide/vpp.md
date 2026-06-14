@@ -246,7 +246,7 @@ Two places expose VPP state through ze:
    vectors-per-call, and system-wide vector and input rates. Poll
    interval is configurable via `vpp.stats.poll-interval`.
 <!-- source: internal/component/vpp/telemetry.go -- newVPPMetrics, poller.run -->
-2. **The `show fib-vpp` command.** Dumps the routes `fib-vpp` believes
+2. **The `show fib vpp` command.** Dumps the routes `fib-vpp` believes
    it has installed in VPP, as JSON `[{"prefix": ..., "next-hop": ...}, ...]`.
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- showInstalled -->
 

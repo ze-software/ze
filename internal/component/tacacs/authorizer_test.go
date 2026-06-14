@@ -90,7 +90,7 @@ func TestTacacsAuthorizerAuthorizeCommandArgsPreservesOddArgs(t *testing.T) {
 	result := authorizer.AuthorizeCommandArgs(
 		"admin",
 		"10.0.0.1:22",
-		"request adj-rib-in accept-routes",
+		"request bgp adj-rib-in accept-routes",
 		[]string{"peer key with spaces", `quote"inside`, `slash\inside`},
 		"",
 		true,
@@ -100,6 +100,7 @@ func TestTacacsAuthorizerAuthorizeCommandArgsPreservesOddArgs(t *testing.T) {
 	assert.Equal(t, []string{
 		"service=shell",
 		"cmd=request",
+		"cmd-arg=bgp",
 		"cmd-arg=adj-rib-in",
 		"cmd-arg=accept-routes",
 		"cmd-arg=peer key with spaces",

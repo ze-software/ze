@@ -93,7 +93,7 @@ func extractRoutesFromTree(tree *config.Tree) (*UpdateBlockRoutes, error) {
 		// All watchdog routes are owned by the bgp-watchdog plugin and must not
 		// be added as engine static routes. The plugin sends them via UpdateRoute
 		// on peer session establishment (for non-withdrawn routes) and on
-		// explicit "request watchdog announce" commands (for withdrawn routes).
+		// explicit "request bgp watchdog announce" commands (for withdrawn routes).
 		if hasWatchdogContainer(entry.Value) {
 			continue
 		}

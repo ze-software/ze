@@ -15,7 +15,7 @@ See also: `/ze-audit` (pre-impl: what already exists?), `/ze-review` (code quali
 5. **Check file lists:** For every file in "Files to Modify" and "Files to Create", verify it was modified/created.
 6. **Check wiring tests:** For every row in the Wiring Test table, verify the .ci file exists and tests the claimed path.
 7. **Check documentation:** Were architecture docs, example configs, and syntax docs updated as spec requires?
-8. **Check conventions:** kebab-case JSON keys, YANG `-conf`/`-api` suffixes, Go naming patterns.
+8. **Check conventions:** kebab-case JSON keys, YANG `-conf`/`-api` suffixes, Go naming patterns, CLI command tab-completion (every user-facing command must appear in the YANG command tree or have a plugin `CommandDecl` without `Hidden: true`; see `ai/rules/cli-patterns.md` "Command Completion").
 9. **Report findings** as a numbered list with severity:
    - **BLOCKER:** Spec requirement not implemented, test missing, or file not created
    - **ISSUE:** Test name mismatch, documentation gap, or convention violation

@@ -24,7 +24,7 @@ type replayDispatchCall struct {
 // TestReplayForPeerDispatchesTypedReplayCommand verifies RR keeps the exact
 // registered command name separate from its replay args.
 //
-// VALIDATES: replayForPeer dispatches command="request adj-rib-in replay" with peer/index in args.
+// VALIDATES: replayForPeer dispatches command="request bgp adj-rib-in replay" with peer/index in args.
 // PREVENTS: peer or cursor being folded into the exact command name, which would miss registry lookup.
 func TestReplayForPeerDispatchesTypedReplayCommand(t *testing.T) {
 	t.Parallel()
@@ -75,10 +75,10 @@ func TestReplayForPeerDispatchesTypedReplayCommand(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	require.Len(t, calls, 2)
-	assert.Equal(t, "request adj-rib-in replay", calls[0].command)
+	assert.Equal(t, "request bgp adj-rib-in replay", calls[0].command)
 	assert.Equal(t, []string{"10.0.0.1", "0"}, calls[0].args)
 	assert.Empty(t, calls[0].peer)
-	assert.Equal(t, "request adj-rib-in replay", calls[1].command)
+	assert.Equal(t, "request bgp adj-rib-in replay", calls[1].command)
 	assert.Equal(t, []string{"10.0.0.1", "5"}, calls[1].args)
 	assert.Empty(t, calls[1].peer)
 }

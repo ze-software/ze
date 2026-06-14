@@ -516,12 +516,12 @@ type BatchValidateResult struct {
 type BatchValidateHandler func(decisions []ValidationDecision) (*BatchValidateResult, error)
 
 // globalBatchValidator holds the process-wide BatchValidateHandler registered
-// by the adj-rib-in plugin. The engine-side bridge handler reads this to dispatch
-// batch-validate calls from any plugin to adj-rib-in.
+// by the bgp adj-rib-in plugin. The engine-side bridge handler reads this to dispatch
+// batch-validate calls from any plugin to bgp adj-rib-in.
 var globalBatchValidator atomic.Value
 
 // RegisterBatchValidator stores the batch validate handler (called by
-// adj-rib-in at startup). Thread-safe via atomic.Value.
+// bgp adj-rib-in at startup). Thread-safe via atomic.Value.
 func RegisterBatchValidator(fn BatchValidateHandler) {
 	globalBatchValidator.Store(fn)
 }

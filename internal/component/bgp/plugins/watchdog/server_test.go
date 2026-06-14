@@ -46,7 +46,7 @@ func TestCommandAnnounce(t *testing.T) {
 	}
 	mgr.peerUp["10.0.0.1"] = true
 
-	status, data, err := mgr.handleCommand("request watchdog announce", []string{"dnsr"}, "10.0.0.1")
+	status, data, err := mgr.handleCommand("request bgp watchdog announce", []string{"dnsr"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestCommandWithdraw(t *testing.T) {
 	mgr.peerPools["10.0.0.2"].AnnouncePool("dnsr", "10.0.0.2")
 	mgr.peerUp["10.0.0.2"] = true
 
-	status, _, err := mgr.handleCommand("request watchdog withdraw", []string{"dnsr"}, "10.0.0.2")
+	status, _, err := mgr.handleCommand("request bgp watchdog withdraw", []string{"dnsr"}, "10.0.0.2")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestCommandUnknownGroup(t *testing.T) {
 	mgr.peerPools["10.0.0.1"] = NewPoolSet()
 	mgr.peerUp["10.0.0.1"] = true
 
-	status, _, err := mgr.handleCommand("request watchdog announce", []string{"nonexistent"}, "10.0.0.1")
+	status, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"nonexistent"}, "10.0.0.1")
 	if err == nil {
 		t.Fatal("expected error for nonexistent group")
 		return
@@ -191,7 +191,7 @@ func TestDisconnectedStateUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Peer is NOT up — announce while disconnected
-	status, _, err := mgr.handleCommand("request watchdog announce", []string{"dnsr"}, "10.0.0.1")
+	status, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dnsr"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestStateDownPreventsRoutesSending(t *testing.T) {
 	mu.Unlock()
 
 	// Announce while down — state updated but nothing sent
-	_, _, err := mgr.handleCommand("request watchdog announce", []string{"dnsr"}, "10.0.0.4")
+	_, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dnsr"}, "10.0.0.4")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -457,7 +457,7 @@ func TestWildcardMixedPeerStates(t *testing.T) {
 	mgr.peerUp["10.0.0.3"] = true
 
 	// Wildcard announce for "dnsr"
-	status, data, err := mgr.handleCommand("request watchdog announce", []string{"dnsr"}, "*")
+	status, data, err := mgr.handleCommand("request bgp watchdog announce", []string{"dnsr"}, "*")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -506,11 +506,11 @@ func TestMultiPoolIndependence(t *testing.T) {
 	mgr.peerUp["10.0.0.1"] = true
 
 	// Announce both pools first
-	_, _, err := mgr.handleCommand("request watchdog announce", []string{"dns"}, "10.0.0.1")
+	_, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dns"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("announce dns: %v", err)
 	}
-	_, _, err = mgr.handleCommand("request watchdog announce", []string{"web"}, "10.0.0.1")
+	_, _, err = mgr.handleCommand("request bgp watchdog announce", []string{"web"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("announce web: %v", err)
 	}
@@ -520,7 +520,7 @@ func TestMultiPoolIndependence(t *testing.T) {
 	mu.Unlock()
 
 	// Now withdraw only "web" — dns should remain announced
-	_, _, err = mgr.handleCommand("request watchdog withdraw", []string{"web"}, "10.0.0.1")
+	_, _, err = mgr.handleCommand("request bgp watchdog withdraw", []string{"web"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("withdraw web: %v", err)
 	}
@@ -573,7 +573,7 @@ func TestExplicitWithdrawSurvivesReconnect(t *testing.T) {
 	mgr.handleStateUp("10.0.0.1")
 
 	// Explicit announce
-	_, _, err := mgr.handleCommand("request watchdog announce", []string{"dnsr"}, "10.0.0.1")
+	_, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dnsr"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("announce: %v", err)
 	}
@@ -583,7 +583,7 @@ func TestExplicitWithdrawSurvivesReconnect(t *testing.T) {
 	mu.Unlock()
 
 	// Explicit withdraw
-	_, _, err = mgr.handleCommand("request watchdog withdraw", []string{"dnsr"}, "10.0.0.1")
+	_, _, err = mgr.handleCommand("request bgp watchdog withdraw", []string{"dnsr"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("withdraw: %v", err)
 	}
@@ -637,7 +637,7 @@ func TestInitiallyAnnouncedRestoredOnReconnect(t *testing.T) {
 	mu.Unlock()
 
 	// Explicit withdraw during session
-	_, _, err := mgr.handleCommand("request watchdog withdraw", []string{"dnsr"}, "10.0.0.1")
+	_, _, err := mgr.handleCommand("request bgp watchdog withdraw", []string{"dnsr"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("withdraw: %v", err)
 	}
@@ -691,7 +691,7 @@ func TestReconnectResendAfterEstablished(t *testing.T) {
 	mu.Unlock()
 
 	// Phase 2: explicit announce
-	_, _, err := mgr.handleCommand("request watchdog announce", []string{"dnsr"}, "10.0.0.1")
+	_, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dnsr"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("announce: %v", err)
 	}
@@ -733,7 +733,7 @@ func TestWildcardNonexistentPool(t *testing.T) {
 	}
 	mgr.peerUp["10.0.0.1"] = true
 
-	status, data, err := mgr.handleCommand("request watchdog announce", []string{"missing-pool"}, "*")
+	status, data, err := mgr.handleCommand("request bgp watchdog announce", []string{"missing-pool"}, "*")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -784,7 +784,7 @@ func TestMEDOverrideProducesOneOffCommand(t *testing.T) {
 	mgr.peerUp["10.0.0.1"] = true
 
 	// Announce with MED override to 500
-	status, _, err := mgr.handleCommand("request watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+	status, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -837,12 +837,12 @@ func TestMEDOverrideBypassesDedup(t *testing.T) {
 	mgr.peerUp["10.0.0.1"] = true
 
 	// First MED override
-	_, _, err := mgr.handleCommand("request watchdog announce", []string{"dns", "med", "100"}, "10.0.0.1")
+	_, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "100"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("first announce: %v", err)
 	}
 	// Second MED override with different value
-	_, _, err = mgr.handleCommand("request watchdog announce", []string{"dns", "med", "1000"}, "10.0.0.1")
+	_, _, err = mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "1000"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("second announce: %v", err)
 	}
@@ -880,12 +880,12 @@ func TestNoMEDPreservesDedup(t *testing.T) {
 	mgr.peerUp["10.0.0.1"] = true
 
 	// First announce (no MED)
-	_, _, err := mgr.handleCommand("request watchdog announce", []string{"dns"}, "10.0.0.1")
+	_, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dns"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("first announce: %v", err)
 	}
 	// Second announce (no MED, already announced)
-	_, _, err = mgr.handleCommand("request watchdog announce", []string{"dns"}, "10.0.0.1")
+	_, _, err = mgr.handleCommand("request bgp watchdog announce", []string{"dns"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("second announce: %v", err)
 	}
@@ -921,7 +921,7 @@ func TestMEDOverrideFromWithdrawn(t *testing.T) {
 	mgr.peerUp["10.0.0.1"] = true
 	// Route starts withdrawn (not announced for this peer)
 
-	status, _, err := mgr.handleCommand("request watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+	status, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -964,7 +964,7 @@ func TestMEDOverrideWildcard(t *testing.T) {
 		mgr.peerUp[peer] = true
 	}
 
-	_, _, err := mgr.handleCommand("request watchdog announce", []string{"dns", "med", "500"}, "*")
+	_, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "500"}, "*")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -1007,7 +1007,7 @@ func TestMEDOverrideWithExplicitPeer(t *testing.T) {
 	}
 
 	// MED override with explicit peer -- should only go to 10.0.0.1
-	status, _, err := mgr.handleCommand("request watchdog announce", []string{"dns", "med", "500", "10.0.0.1"}, "*")
+	status, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "500", "10.0.0.1"}, "*")
 	if err != nil {
 		t.Fatalf("handleCommand: %v", err)
 	}
@@ -1036,7 +1036,7 @@ func TestMEDGroupNameRejected(t *testing.T) {
 	mgr.peerPools["10.0.0.1"] = NewPoolSet()
 	mgr.peerUp["10.0.0.1"] = true
 
-	status, _, err := mgr.handleCommand("request watchdog announce", []string{"med"}, "10.0.0.1")
+	status, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"med"}, "10.0.0.1")
 	if err == nil {
 		t.Fatal("expected error for group name 'med'")
 	}
@@ -1068,7 +1068,7 @@ func TestMEDInvalidValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, _, err := mgr.handleCommand("request watchdog announce", tt.args, "10.0.0.1")
+			status, _, err := mgr.handleCommand("request bgp watchdog announce", tt.args, "10.0.0.1")
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -1103,9 +1103,9 @@ func TestNoMEDAfterMEDOverride(t *testing.T) {
 	mgr.peerUp["10.0.0.1"] = true
 
 	// MED override
-	_, _, _ = mgr.handleCommand("request watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+	_, _, _ = mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
 	// Non-MED announce (should be deduped because announced=true after MED override)
-	_, _, _ = mgr.handleCommand("request watchdog announce", []string{"dns"}, "10.0.0.1")
+	_, _, _ = mgr.handleCommand("request bgp watchdog announce", []string{"dns"}, "10.0.0.1")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -1138,9 +1138,9 @@ func TestWithdrawAfterMEDOverride(t *testing.T) {
 	mgr.peerUp["10.0.0.1"] = true
 
 	// MED override announce
-	_, _, _ = mgr.handleCommand("request watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+	_, _, _ = mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
 	// Withdraw
-	_, _, err := mgr.handleCommand("request watchdog withdraw", []string{"dns"}, "10.0.0.1")
+	_, _, err := mgr.handleCommand("request bgp watchdog withdraw", []string{"dns"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("withdraw: %v", err)
 	}
@@ -1181,7 +1181,7 @@ func TestReconnectUsesStoredNotOverride(t *testing.T) {
 	// First up
 	mgr.handleStateUp("10.0.0.1")
 	// MED override
-	_, _, _ = mgr.handleCommand("request watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
+	_, _, _ = mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "500"}, "10.0.0.1")
 
 	mu.Lock()
 	sent = nil
@@ -1219,7 +1219,7 @@ func TestMEDOverrideBoundary(t *testing.T) {
 	mgr.peerUp["10.0.0.1"] = true
 
 	// Max uint32 should work
-	status, _, err := mgr.handleCommand("request watchdog announce", []string{"dns", "med", "4294967295"}, "10.0.0.1")
+	status, _, err := mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "4294967295"}, "10.0.0.1")
 	if err != nil {
 		t.Fatalf("max uint32: %v", err)
 	}
@@ -1228,7 +1228,7 @@ func TestMEDOverrideBoundary(t *testing.T) {
 	}
 
 	// Overflow should fail
-	status, _, err = mgr.handleCommand("request watchdog announce", []string{"dns", "med", "4294967296"}, "10.0.0.1")
+	status, _, err = mgr.handleCommand("request bgp watchdog announce", []string{"dns", "med", "4294967296"}, "10.0.0.1")
 	if err == nil {
 		t.Fatal("expected error for overflow")
 	}

@@ -289,7 +289,7 @@ Read the project's .claude/rules/ directory to understand all rules. Then check 
 4. **json-format.md**: kebab-case JSON keys, correct envelope format
 5. **naming.md**: ze- prefix conventions, correct YANG suffixes
 6. **plugin-design.md**: Proximity principle, YANG required for RPCs, import rules
-7. **cli-patterns.md**: flag.NewFlagSet, exit codes, stderr for errors
+7. **cli-patterns.md**: flag.NewFlagSet, exit codes, stderr for errors, tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`)
 8. **config-design.md**: Fail on unknown keys, no version numbers
 9. **design-doc-references.md**: // Design: comment present in every .go file
 10. **related-refs.md**: // Detail: / // Overview: / // Related: cross-references are bidirectional

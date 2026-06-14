@@ -14,7 +14,7 @@ import (
 
 // PoolSet manages named watchdog route pools.
 // Provides a centralized store for routes that can be
-// announced/withdrawn in bulk via "request watchdog announce/withdraw <name>".
+// announced/withdrawn in bulk via "request bgp watchdog announce/withdraw <name>".
 //
 // Thread-safe for concurrent access from command handlers and state events.
 type PoolSet struct {

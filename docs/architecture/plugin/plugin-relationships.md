@@ -116,7 +116,7 @@ These are top-level plugins that own config roots and manage OS or routing resou
 | ConfigRoots | `fib.kernel` |
 | WantsConfig | `fib.kernel` |
 | Dependencies | `rib` |
-| Commands | `show fib-kernel` |
+| Commands | `show fib kernel` |
 | Transaction | Verify (accept), Apply (no-op journal, reacts to bus events), Rollback (no-op) |
 | VerifyBudget | 1s |
 | ApplyBudget | 1s |
@@ -141,7 +141,7 @@ These are top-level plugins that own config roots and manage OS or routing resou
 | ConfigRoots | `fib.p4` |
 | WantsConfig | `fib.p4` |
 | Dependencies | `rib` |
-| Commands | `show fib-p4` |
+| Commands | `show fib p4` |
 | Transaction | Verify (accept), Apply (no-op journal, reacts to bus events), Rollback (no-op) |
 | VerifyBudget | 1s |
 | ApplyBudget | 1s |

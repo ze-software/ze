@@ -215,7 +215,7 @@ func RunRPKIPlugin(conn net.Conn) int {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		status, _, err := p.DispatchCommandArgs(ctx, "request adj-rib-in enable-validation", nil, "")
+		status, _, err := p.DispatchCommandArgs(ctx, "request bgp adj-rib-in enable-validation", nil, "")
 		if err != nil {
 			logger().Error("rpki: failed to enable validation gate", "error", err)
 			return fmt.Errorf("enable validation gate: %w", err)
@@ -230,12 +230,12 @@ func RunRPKIPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "show rpki status", Description: "Show RPKI validation status and cache server overview"},
-			{Name: "show rpki cache", Description: "Show RTR cache server sessions with protocol details"},
-			{Name: "show rpki roa", Description: "Show ROA table entries or lookup covering VRPs for a prefix"},
-			{Name: "show rpki summary", Description: "Show RPKI validation summary with session and ASPA counts"},
-			{Name: "request rpki validate", Description: "Validate a prefix against the ROA cache", Args: []string{"<prefix>", "<origin-asn>"}},
-			{Name: "show rpki aspa", Description: "Show ASPA cache or lookup providers for a customer AS"},
+			{Name: "show bgp rpki status", Description: "Show RPKI validation status and cache server overview"},
+			{Name: "show bgp rpki cache", Description: "Show RTR cache server sessions with protocol details"},
+			{Name: "show bgp rpki roa", Description: "Show ROA table entries or lookup covering VRPs for a prefix"},
+			{Name: "show bgp rpki summary", Description: "Show RPKI validation summary with session and ASPA counts"},
+			{Name: "request bgp rpki validate", Description: "Validate a prefix against the ROA cache", Args: []string{"<prefix>", "<origin-asn>"}},
+			{Name: "show bgp rpki aspa", Description: "Show ASPA cache or lookup providers for a customer AS"},
 		},
 		WantsConfig: []string{"bgp"},
 	})
@@ -851,17 +851,17 @@ func rpkiOriginASFromASPath(asp *attribute.ASPath) uint32 {
 // handleCommand processes RPKI CLI commands.
 func (rp *RPKIPlugin) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
-	case "show rpki status":
+	case "show bgp rpki status":
 		return rp.statusCommand()
-	case "show rpki cache":
+	case "show bgp rpki cache":
 		return rp.cacheCommand()
-	case "show rpki roa":
+	case "show bgp rpki roa":
 		return rp.roaCommand(args)
-	case "show rpki summary":
+	case "show bgp rpki summary":
 		return rp.summaryCommand()
-	case "request rpki validate":
+	case "request bgp rpki validate":
 		return rp.validateCommand(args)
-	case "show rpki aspa":
+	case "show bgp rpki aspa":
 		return rp.aspaCommand(args)
 	}
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
@@ -938,7 +938,7 @@ func (rp *RPKIPlugin) cacheCommand() (string, any, error) {
 const roaDiagLimit = 1000
 
 func (rp *RPKIPlugin) roaCommand(args []string) (string, any, error) {
-	// "show rpki roa <prefix>" looks up covering VRPs for prefix.
+	// "show bgp rpki roa <prefix>" looks up covering VRPs for prefix.
 	if len(args) > 0 && args[0] != "" {
 		_, _, err := net.ParseCIDR(args[0])
 		if err != nil {
@@ -1073,7 +1073,7 @@ func (rp *RPKIPlugin) validateCommand(args []string) (string, any, error) {
 const aspaDiagLimit = 1000
 
 func (rp *RPKIPlugin) aspaCommand(args []string) (string, any, error) {
-	// "show rpki aspa <customer-asn>" looks up a specific customer.
+	// "show bgp rpki aspa <customer-asn>" looks up a specific customer.
 	if len(args) > 0 && args[0] != "" {
 		asn, err := strconv.ParseUint(args[0], 10, 32)
 		if err != nil {

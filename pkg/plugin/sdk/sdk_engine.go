@@ -125,7 +125,7 @@ func (p *Plugin) BatchValidate(ctx context.Context, decisions []rpc.ValidationDe
 		pathIDStr := string(strconv.AppendUint(buf[:0], uint64(d.PathID), 10))
 		args = append(args, action, d.PeerAddr, d.Family, d.Prefix, pathIDStr, stateStr)
 	}
-	status, data, err := p.DispatchCommandArgs(ctx, "request adj-rib-in batch-validate", args, "")
+	status, data, err := p.DispatchCommandArgs(ctx, "request bgp adj-rib-in batch-validate", args, "")
 	if err != nil {
 		return nil, err
 	}

@@ -533,7 +533,7 @@ func TestValidateCommandNameAcceptsShippingCommands(t *testing.T) {
 		"show bgp rib status",
 		"show ecmp-groups",
 		"request bgp rib inject",
-		"request adj-rib-in replay",
+		"request bgp adj-rib-in replay",
 		"clear bgp rib in",
 		"set sysctl",
 		"commit start",
@@ -618,4 +618,56 @@ func TestRegisterDeprecatedRejectsConflicts(t *testing.T) {
 		proc := newProc()
 		assert.ErrorContains(t, registry.RegisterDeprecated(proc, "show fixture old", "show fixture missing"), "unregistered command")
 	})
+}
+
+// TestHiddenCommandExcludedFromCompletion verifies that hidden commands are
+// excluded from Complete() results but still reachable via Lookup().
+//
+// VALIDATES: AC-2 -- Hidden commands do not appear in tab-completion but work when typed.
+// PREVENTS: Hidden commands leaking into CLI completion suggestions.
+func TestHiddenCommandExcludedFromCompletion(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+
+	registry.Register(proc, []CommandDef{
+		{Name: "show status", Description: "Show status"},
+		{Name: "show internal", Description: "Internal diagnostics", Hidden: true},
+		{Name: "show statistics", Description: "Show statistics"},
+	})
+
+	completions := registry.Complete("show ")
+	found := make(map[string]bool)
+	for _, c := range completions {
+		found[c.Value] = true
+	}
+
+	assert.True(t, found["show status"], "visible command should appear in completions")
+	assert.True(t, found["show statistics"], "visible command should appear in completions")
+	assert.False(t, found["show internal"], "hidden command should not appear in completions")
+
+	// Hidden command still works when typed in full via Lookup
+	cmd := registry.Lookup("show internal")
+	assert.NotNil(t, cmd, "hidden command should be reachable via Lookup")
+	assert.Equal(t, "show internal", cmd.Name)
+	assert.True(t, cmd.Hidden)
+}
+
+// test-relax: VisibleCommands method removed (dead code -- CLI uses system command list instead)
+
+// TestHiddenCommandPreservedInAll verifies that All() still returns hidden
+// commands (needed by dispatch and system command list).
+//
+// VALIDATES: All() is unchanged -- dispatch path still finds hidden commands.
+// PREVENTS: Hidden commands becoming unreachable for dispatch.
+func TestHiddenCommandPreservedInAll(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+
+	registry.Register(proc, []CommandDef{
+		{Name: "show status", Description: "Show status"},
+		{Name: "show internal", Description: "Internal diagnostics", Hidden: true},
+	})
+
+	all := registry.All()
+	assert.Equal(t, 2, len(all), "All() should return both visible and hidden commands")
 }

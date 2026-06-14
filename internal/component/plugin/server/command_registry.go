@@ -135,6 +135,7 @@ type Completion struct {
 	Value  string `json:"value"`            // The completion text
 	Help   string `json:"help,omitempty"`   // Optional description
 	Source string `json:"source,omitempty"` // "builtin" or process name (verbose mode)
+	Hidden bool   `json:"hidden,omitempty"` // Hidden from completion tree (works when typed in full)
 }
 
 // CommandDef describes a command to register.
@@ -144,6 +145,7 @@ type CommandDef struct {
 	Description string        // Help text
 	Args        string        // Usage hint (e.g., "<component>")
 	Completable bool          // Process handles arg completion
+	Hidden      bool          // Hidden from completion and help (works when typed in full)
 	Timeout     time.Duration // Per-command timeout (0 = default 30s)
 }
 
@@ -161,6 +163,7 @@ type RegisteredCommand struct {
 	Description  string
 	Args         string           // Usage hint (e.g., "<component>")
 	Completable  bool             // Process handles arg completion
+	Hidden       bool             // Hidden from completion and help (works when typed in full)
 	Timeout      time.Duration    // Per-command timeout
 	Process      *process.Process // Owning process
 	RegisteredAt time.Time
@@ -248,6 +251,7 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 			Description:  def.Description,
 			Args:         def.Args,
 			Completable:  def.Completable,
+			Hidden:       def.Hidden,
 			Timeout:      timeout,
 			Process:      proc,
 			RegisteredAt: now,
@@ -455,6 +459,9 @@ func (r *CommandRegistry) Complete(partial string) []Completion {
 	var completions []Completion
 
 	for key, cmd := range r.commands {
+		if cmd.Hidden {
+			continue
+		}
 		if strings.HasPrefix(key, partial) {
 			completions = append(completions, Completion{
 				Value:  cmd.Name,

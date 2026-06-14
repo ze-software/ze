@@ -22,6 +22,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
     | Struct / type | Same: at least one non-test consumer |
     | HTTP handler / web route | Registered on a mux (`srv.Handle`, `mux.HandleFunc`, etc.) and reachable from `hub/main.go` or `web/server.go` |
     | CLI command | Registered via `registry.MustRegisterLocal` or `registry.RegisterRoot` in a `register.go` with a blank import chain to `main.go` |
+    | CLI command (completion) | Command appears in tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`). A command without completion is undiscoverable. See `ai/rules/cli-patterns.md` "Command Completion". |
     | Plugin | Has `register.go` with `registry.Register()`, appears in generated `all.go` (or will after `make generate`) |
     | Config option / YANG leaf | YANG module registered, leaf read by runtime code (not just parsed) |
     | Env var | `env.MustRegister()` call exists, `env.Get*()` call exists |
@@ -113,7 +114,7 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 | New goroutine | `goroutine-lifecycle.md` -- long-lived worker, not per-event |
 | Naming (types, JSON keys, YANG) | `naming.md`, `json-format.md` -- kebab-case JSON, ze- prefix |
 | Plugin code | `plugin-design.md` -- proximity, YANG required, import rules |
-| CLI handler | `cli-patterns.md` -- flag.NewFlagSet, exit codes, stderr for errors |
+| CLI handler | `cli-patterns.md` -- flag.NewFlagSet, exit codes, stderr for errors, tab-completion |
 | Config parsing | `config-design.md` -- fail on unknown keys, no version numbers |
 | New data wrapper/struct | `design-principles.md` -- lazy over eager, no identity wrappers |
 

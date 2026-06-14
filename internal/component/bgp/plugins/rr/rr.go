@@ -485,7 +485,7 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 	defer cancel()
 
 	// Full replay from adj-rib-in index 0.
-	status, data, err := rr.dispatchCommand(ctx, "request adj-rib-in replay", peerAddr, "0")
+	status, data, err := rr.dispatchCommand(ctx, "request bgp adj-rib-in replay", peerAddr, "0")
 	if err != nil || status != statusDone {
 		// Replay failure is non-fatal: the peer will still receive new routes
 		// going forward. Log and return without sending EOR.
@@ -505,7 +505,7 @@ func (rr *RouteReflector) replayForPeer(peerAddr string, gen uint64) {
 		if i > 0 {
 			time.Sleep(replayConvergenceDelay)
 		}
-		_, deltaData, deltaErr := rr.dispatchCommand(ctx, "request adj-rib-in replay", peerAddr, textbuf.StringUint(lastIndex))
+		_, deltaData, deltaErr := rr.dispatchCommand(ctx, "request bgp adj-rib-in replay", peerAddr, textbuf.StringUint(lastIndex))
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
 			break

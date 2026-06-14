@@ -23,7 +23,7 @@ All CLI commands must follow `<verb> <noun> [<action>] [<identifier>]` grammar p
 
 ## Gotchas
 
-- `replace_all` on strings with trailing spaces (e.g., `"watchdog announce "` -> `"request watchdog announce"`) silently drops the space, concatenating the next token. Always include the space in the replacement string or use a pattern that preserves it.
+- `replace_all` on strings with trailing spaces (e.g., `"watchdog announce "` -> `"request bgp watchdog announce"`) silently drops the space, concatenating the next token. Always include the space in the replacement string or use a pattern that preserves it.
 - The `dispatchPlugin` path does longest-prefix matching on `registry.All()`, NOT exact lookup. Deprecated aliases need their own prefix-matching path (`LookupDeprecatedPrefix`), not just `Lookup`.
 - The RIB plugin has a secondary dispatch table (`registeredCommands` map in `rib_commands.go`) separate from the SDK `CommandDecl` registration. Both must be updated.
 - The `cmd/rib/rib.go` file has command constants used by CLI pipe infrastructure; these are separate from the plugin registration and easily missed.

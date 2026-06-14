@@ -29,13 +29,13 @@ const errUnknownCommandMarker = "unknown command"
 
 // cmdAdjRIBInReplay is the dispatch-command that asks bgp-adj-rib-in to replay a
 // peer's stored Adj-RIB-In. Args carry the peer address and cursor index.
-const cmdAdjRIBInReplay = "request adj-rib-in replay"
+const cmdAdjRIBInReplay = "request bgp adj-rib-in replay"
 
 // isDispatchUnknownCommand reports whether err from rs.dispatchCommand comes
 // from the engine's ErrUnknownCommand -- i.e. no plugin handled the command.
 // Used as the soft-dep "adj-rib-in is not loaded" signal in replayForPeer.
 // Caller is responsible for knowing that the only command rs dispatches is
-// "request adj-rib-in replay ..."; this helper does not re-verify the command text.
+// "request bgp adj-rib-in replay ..."; this helper does not re-verify the command text.
 func isDispatchUnknownCommand(err error) bool {
 	if err == nil {
 		return false
@@ -383,9 +383,9 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 // Returns (status, data, error) for the SDK to send back to the engine.
 func (rs *RouteServer) handleCommand(command string) (string, any, error) {
 	switch command {
-	case "show rs status":
+	case "show bgp rs status":
 		return statusDone, map[string]any{"running": true}, nil
-	case "show rs peers":
+	case "show bgp rs peers":
 		return statusDone, rs.peerStatus(), nil
 	default:
 		return statusError, "", fmt.Errorf("unknown command: %s", command)

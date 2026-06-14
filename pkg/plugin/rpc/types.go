@@ -135,6 +135,7 @@ type CommandDecl struct {
 	Description     string   `json:"description,omitempty"`
 	Args            []string `json:"args,omitempty"`
 	Completable     bool     `json:"completable,omitempty"`
+	Hidden          bool     `json:"hidden,omitempty"`
 	DeprecatedNames []string `json:"deprecated-names,omitempty"`
 }
 

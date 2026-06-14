@@ -82,10 +82,10 @@ Named update windows for atomic route changes:
 
 | Command | Description |
 |---------|-------------|
-| `show rpki status` | RTR session count and VRP counts |
-| `show rpki cache` | Cache server connection details |
-| `show rpki roa` | ROA table summary |
-| `show rpki summary` | Validation statistics |
+| `show bgp rpki status` | RTR session count and VRP counts |
+| `show bgp rpki cache` | Cache server connection details |
+| `show bgp rpki roa` | ROA table summary |
+| `show bgp rpki summary` | Validation statistics |
 
 ## Daemon Control
 

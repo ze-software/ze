@@ -69,6 +69,8 @@ type PluginRegistration struct {
 	DecodeFamilies         []string            // Families this plugin decodes (claimed via "declare family X decode")
 	Commands               []string            // Command names to register
 	CommandDescriptions    map[string]string   // Command name -> description (from CommandDecl)
+	CommandHidden          map[string]bool     // Command name -> hidden from completion (from CommandDecl)
+	CommandCompletable     map[string]bool     // Command name -> process handles arg completion (from CommandDecl)
 	CommandDeprecatedNames map[string][]string // Canonical command name -> deprecated aliases
 	Receive                []string            // Message types to receive (update, open, negotiated, etc.)
 	SchemaDeclarations     []SchemaDeclaration // Schema extensions for capability config

@@ -43,6 +43,27 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 - `-` for stdin, `--json` for JSON output
 - Repeatable flags: `stringSlice` with `String()` + `Set()`
 
+## Command Completion (BLOCKING)
+
+**Every user-facing command MUST have tab-completion.** No exceptions by default.
+
+The completion tree is built from two sources:
+1. **YANG command schemas** for built-in commands (via `BuildCommandTree`)
+2. **Plugin command registry** for SDK plugin commands (via `CommandRegistry`)
+
+Both feed the same completion tree. A plugin that registers a `CommandDecl` gets
+completion automatically without writing a YANG file.
+
+**Opt-out:** Set `Hidden: true` on a `CommandDecl` to suppress a command from
+completion and help. The command still works when typed in full. Use this only
+for internal/diagnostic commands that operators should not discover through
+tab-completion. Hidden is the exception, not the default.
+
+**Known gap:** 51 commands across 12 plugins currently lack completion because the
+plugin registry does not yet feed the completion tree. Tracked as a framework
+change (inject `CommandRegistry` entries into the command tree after plugin
+registration). No per-plugin YANG files needed.
+
 ## New Command Checklist
 
 ```
@@ -53,5 +74,6 @@ Each subcommand: own `flag.NewFlagSet` with custom `fs.Usage`. Parse flags, chec
 [ ] Check required positional args
 [ ] Errors to stderr, proper exit codes
 [ ] Register in parent dispatch
+[ ] Tab-completion works (verify with tab in CLI)
 [ ] Functional tests
 ```

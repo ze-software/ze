@@ -157,7 +157,7 @@ def main():
     time.sleep(6.0)
 
     # Verify routes were accepted in adj-rib-in.
-    result = dispatch(api, 'show adj-rib-in status')
+    result = dispatch(api, 'show bgp adj-rib-in status')
     data = result_json_data(result, {})
     total = data.get('total-routes', 0)
 

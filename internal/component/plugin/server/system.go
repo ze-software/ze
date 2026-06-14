@@ -41,7 +41,7 @@ func init() {
 
 // handleSystemDispatch dispatches a text command through the standard command dispatcher.
 // This enables API socket clients to invoke any command reachable through the text
-// dispatcher, including plugin-registered commands (e.g., "request watchdog announce dnsr").
+// dispatcher, including plugin-registered commands (e.g., "request bgp watchdog announce dnsr").
 // Args are joined into a single command string for the dispatcher.
 func handleSystemDispatch(ctx *CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
@@ -73,8 +73,11 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			commands = append(commands, tb.Reset().Str(cmd.Name).Str(" - ").Str(cmd.Help).String())
 		}
-		// Add plugin commands
+		// Add plugin commands (skip hidden)
 		for _, cmd := range ctx.Dispatcher().Registry().All() {
+			if cmd.Hidden {
+				continue
+			}
 			tb.Reset().Str(cmd.Name)
 			if cmd.Args != "" {
 				tb.Byte(' ').Str(cmd.Args)
@@ -316,8 +319,9 @@ func handleSystemCommandList(ctx *CommandContext, args []string) (*plugin.Respon
 		// Add plugin commands
 		for _, cmd := range ctx.Dispatcher().Registry().All() {
 			c := Completion{
-				Value: cmd.Name,
-				Help:  cmd.Description,
+				Value:  cmd.Name,
+				Help:   cmd.Description,
+				Hidden: cmd.Hidden,
 			}
 			if verbose {
 				c.Source = cmd.Process.Name()

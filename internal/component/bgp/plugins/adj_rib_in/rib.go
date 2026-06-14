@@ -97,7 +97,7 @@ type AdjRIBInManager struct {
 	// earlyDecisions buffers RPKI decisions that arrived before the route.
 	earlyDecisions map[compactPendingKey]*EarlyDecision
 
-	// validationEnabled is set by "request adj-rib-in enable-validation".
+	// validationEnabled is set by "request bgp adj-rib-in enable-validation".
 	// When true, received routes are stored as pending instead of installed.
 	validationEnabled bool
 
@@ -181,14 +181,14 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "show adj-rib-in status"},
-			{Name: "show adj-rib-in"},
-			{Name: "request adj-rib-in replay"},
-			{Name: "request adj-rib-in enable-validation"},
-			{Name: "request adj-rib-in accept-routes"},
-			{Name: "request adj-rib-in reject-routes"},
-			{Name: "request adj-rib-in batch-validate"},
-			{Name: "request adj-rib-in revalidate"},
+			{Name: "show bgp adj-rib-in status"},
+			{Name: "show bgp adj-rib-in"},
+			{Name: "request bgp adj-rib-in replay"},
+			{Name: "request bgp adj-rib-in enable-validation"},
+			{Name: "request bgp adj-rib-in accept-routes"},
+			{Name: "request bgp adj-rib-in reject-routes"},
+			{Name: "request bgp adj-rib-in batch-validate"},
+			{Name: "request bgp adj-rib-in revalidate"},
 		},
 	})
 	if err != nil {

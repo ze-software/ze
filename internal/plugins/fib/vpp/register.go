@@ -155,7 +155,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
-		if command == "show fib-vpp" {
+		if command == "show fib vpp" {
 			if fib == nil {
 				return "done", "[]", nil
 			}
@@ -171,7 +171,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show fib-vpp"},
+			{Name: "show fib vpp"},
 		},
 	})
 	if err != nil {

@@ -566,8 +566,8 @@ The following legacy commands have been removed:
 ### Watchdog Commands
 
 ```
-request watchdog announce <name> [med <N>] [peer]  # Send all routes in pool (optional MED override)
-request watchdog withdraw <name> [peer]            # Withdraw all routes in pool from peers
+request bgp watchdog announce <name> [med <N>] [peer]  # Send all routes in pool (optional MED override)
+request bgp watchdog withdraw <name> [peer]            # Withdraw all routes in pool from peers
 ```
 
 Routes are tagged with a pool when announced:
@@ -576,7 +576,7 @@ update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog s
 ```
 
 > **Note:** `watchdog set` in wire-mode updates is parsed but not yet
-> implemented. The `request watchdog announce`/`request watchdog withdraw`
+> implemented. The `request bgp watchdog announce`/`request bgp watchdog withdraw`
 > pool commands work independently of this tagging.
 
 ### RIB Commands

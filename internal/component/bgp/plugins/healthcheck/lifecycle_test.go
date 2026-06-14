@@ -275,7 +275,7 @@ func TestDebounce(t *testing.T) {
 
 	// With debounce=true, should dispatch exactly once (INIT->UP transition),
 	// plus the exit withdraw. Not once per interval.
-	// The exit dispatch adds a "request watchdog withdraw" at the end.
+	// The exit dispatch adds a "request bgp watchdog withdraw" at the end.
 	if count > 2 {
 		t.Errorf("debounce=true: dispatches = %d, want <= 2 (UP + exit withdraw)", count)
 	}
@@ -286,7 +286,7 @@ func TestDebounce(t *testing.T) {
 
 func TestShowEmptyProbes(t *testing.T) {
 	mgr := newTestManager()
-	status, data, err := mgr.handleCommand("show healthcheck", nil)
+	status, data, err := mgr.handleCommand("show bgp healthcheck", nil)
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -311,7 +311,7 @@ func TestHandleUnknownCommand(t *testing.T) {
 
 func TestResetNonexistentProbe(t *testing.T) {
 	mgr := newTestManager()
-	status, _, err := mgr.handleCommand("clear healthcheck", []string{"missing"})
+	status, _, err := mgr.handleCommand("clear bgp healthcheck", []string{"missing"})
 	if err == nil {
 		t.Fatal("expected error for nonexistent probe")
 	}
@@ -331,7 +331,7 @@ func TestShowAllProbes(t *testing.T) {
 	})
 	defer mgr.applyConfig(nil)
 
-	status, data, err := mgr.handleCommand("show healthcheck", nil)
+	status, data, err := mgr.handleCommand("show bgp healthcheck", nil)
 	if err != nil {
 		t.Fatalf("show: %v", err)
 	}
@@ -354,7 +354,7 @@ func TestShowSingleProbe(t *testing.T) {
 	})
 	defer mgr.applyConfig(nil)
 
-	status, data, err := mgr.handleCommand("show healthcheck", []string{"dns"})
+	status, data, err := mgr.handleCommand("show bgp healthcheck", []string{"dns"})
 	if err != nil {
 		t.Fatalf("show dns: %v", err)
 	}
@@ -369,7 +369,7 @@ func TestShowSingleProbe(t *testing.T) {
 func TestShowNonexistentProbe(t *testing.T) {
 	mgr := newTestManager()
 
-	status, _, err := mgr.handleCommand("show healthcheck", []string{"missing"})
+	status, _, err := mgr.handleCommand("show bgp healthcheck", []string{"missing"})
 	if err == nil {
 		t.Fatal("expected error for nonexistent probe")
 	}
@@ -385,7 +385,7 @@ func TestResetProbe(t *testing.T) {
 	})
 	defer mgr.applyConfig(nil)
 
-	status, data, err := mgr.handleCommand("clear healthcheck", []string{"dns"})
+	status, data, err := mgr.handleCommand("clear bgp healthcheck", []string{"dns"})
 	if err != nil {
 		t.Fatalf("reset: %v", err)
 	}
@@ -412,7 +412,7 @@ func TestResetDisabledProbe(t *testing.T) {
 	})
 	defer mgr.applyConfig(nil)
 
-	status, _, err := mgr.handleCommand("clear healthcheck", []string{"dns"})
+	status, _, err := mgr.handleCommand("clear bgp healthcheck", []string{"dns"})
 	if err == nil {
 		t.Fatal("expected error for DISABLED probe reset")
 	}
@@ -424,7 +424,7 @@ func TestResetDisabledProbe(t *testing.T) {
 func TestResetMissingName(t *testing.T) {
 	mgr := newTestManager()
 
-	status, _, err := mgr.handleCommand("clear healthcheck", nil)
+	status, _, err := mgr.handleCommand("clear bgp healthcheck", nil)
 	if err == nil {
 		t.Fatal("expected error for missing name")
 	}
@@ -458,14 +458,14 @@ func TestDispatchStateAction(t *testing.T) {
 		wantCommand    string
 		wantArgs       []string
 	}{
-		{StateUp, false, "request watchdog announce", []string{"hc-dns", "med", "100"}},
-		{StateUp, true, "request watchdog announce", []string{"hc-dns", "med", "100"}},
-		{StateDown, false, "request watchdog announce", []string{"hc-dns", "med", "1000"}},
-		{StateDown, true, "request watchdog withdraw", []string{"hc-dns"}},
-		{StateDisabled, false, "request watchdog announce", []string{"hc-dns", "med", "500"}},
-		{StateDisabled, true, "request watchdog withdraw", []string{"hc-dns"}},
-		{StateExit, false, "request watchdog withdraw", []string{"hc-dns"}},
-		{StateExit, true, "request watchdog withdraw", []string{"hc-dns"}},
+		{StateUp, false, "request bgp watchdog announce", []string{"hc-dns", "med", "100"}},
+		{StateUp, true, "request bgp watchdog announce", []string{"hc-dns", "med", "100"}},
+		{StateDown, false, "request bgp watchdog announce", []string{"hc-dns", "med", "1000"}},
+		{StateDown, true, "request bgp watchdog withdraw", []string{"hc-dns"}},
+		{StateDisabled, false, "request bgp watchdog announce", []string{"hc-dns", "med", "500"}},
+		{StateDisabled, true, "request bgp watchdog withdraw", []string{"hc-dns"}},
+		{StateExit, false, "request bgp watchdog withdraw", []string{"hc-dns"}},
+		{StateExit, true, "request bgp watchdog withdraw", []string{"hc-dns"}},
 	}
 
 	ctx := context.Background()

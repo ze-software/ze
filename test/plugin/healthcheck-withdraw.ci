@@ -1,6 +1,6 @@
-# Healthcheck: probe failure triggers request watchdog withdraw.
+# Healthcheck: probe failure triggers request bgp watchdog withdraw.
 # Config: probe runs "false" (always fails), fall=1 for fast DOWN, withdraw-on-down true.
-# The route starts withdrawn (request watchdog withdraw=true), probe fails -> DOWN -> withdraw dispatched.
+# The route starts withdrawn (request bgp watchdog withdraw=true), probe fails -> DOWN -> withdraw dispatched.
 # Since route is already withdrawn, the withdraw is a no-op at the pool level.
 # To test withdraw visibly: first announce via a helper, then let healthcheck withdraw.
 

@@ -117,6 +117,7 @@ For any doc showing CLI commands or flags:
 1. Read the actual command handler (`cmd/ze/`)
 2. Verify flags exist with documented names and types
 3. Verify output format matches documented format
+4. Verify documented commands have tab-completion (YANG command tree or plugin `CommandDecl` without `Hidden: true`). A documented command without completion is undiscoverable. See `ai/rules/cli-patterns.md` "Command Completion".
 
 ### 5. Completeness analysis
 

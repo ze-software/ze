@@ -429,7 +429,7 @@ Plugins subscribe to events using either:
 
 **Cross-Plugin DispatchCommand from Startup.** A plugin whose startup logic
 must call `DispatchCommand` on a sibling plugin's command (e.g., `bgp-rpki`
-enabling the `request adj-rib-in enable-validation` gate) MUST register the call via
+enabling the `request bgp adj-rib-in enable-validation` gate) MUST register the call via
 `OnAllPluginsReady`, not `OnStarted`. `OnStarted` fires after the plugin's own
 5-stage handshake but potentially BEFORE other plugins in later startup phases
 are loaded, so the dispatcher may not yet know about the target command.
@@ -856,7 +856,7 @@ peer selector separately, so runtime values are not split by the command tokeniz
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgs -->
 
 ```
-#4 ze-plugin-engine:dispatch-command-args {"command":"request adj-rib-in replay","args":["peer key with spaces","0"],"peer":"*"}
+#4 ze-plugin-engine:dispatch-command-args {"command":"request bgp adj-rib-in replay","args":["peer key with spaces","0"],"peer":"*"}
 #4 ok {"status":"done","data":{"last-index":7,"replayed":3}}
 ```
 

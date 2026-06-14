@@ -7,13 +7,13 @@ stdin=peer:terminator=EOF_PEER
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001540010100400200400304010203044005040000006420424242422058585858
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001540010100400200400304C0A80164400504000000642064646464
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=request watchdog announce dnsr med 500
+cmd=api:conn=1:seq=1:text=request bgp watchdog announce dnsr med 500
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C4001010040020040030401020304800404000001F440050400000064204D4D4D4D
-cmd=api:conn=1:seq=2:text=request watchdog announce dnsr med 1000
+cmd=api:conn=1:seq=2:text=request bgp watchdog announce dnsr med 1000
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C4001010040020040030401020304800404000003E840050400000064204D4D4D4D
-cmd=api:conn=1:seq=3:text=request watchdog withdraw dnsr
+cmd=api:conn=1:seq=3:text=request bgp watchdog withdraw dnsr
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
-cmd=api:conn=1:seq=4:text=request watchdog announce dnsr med 200
+cmd=api:conn=1:seq=4:text=request bgp watchdog announce dnsr med 200
 expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C4001010040020040030401020304800404000000C840050400000064204D4D4D4D
 EOF_PEER
 
@@ -39,19 +39,19 @@ def main() -> None:
     api.wait_for_ack(expected_count=3)
 
     # MED override to 500
-    api.send('request watchdog announce dnsr med 500')
+    api.send('request bgp watchdog announce dnsr med 500')
     api.wait_for_ack()
 
     # MED override to 1000 (dedup bypassed -- different MED)
-    api.send('request watchdog announce dnsr med 1000')
+    api.send('request bgp watchdog announce dnsr med 1000')
     api.wait_for_ack()
 
     # Withdraw
-    api.send('request watchdog withdraw dnsr')
+    api.send('request bgp watchdog withdraw dnsr')
     api.wait_for_ack()
 
     # Re-announce with MED 200
-    api.send('request watchdog announce dnsr med 200')
+    api.send('request bgp watchdog announce dnsr med 200')
     api.wait_for_ack()
 
     api.wait_for_shutdown()

@@ -319,7 +319,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 
 3. **Check RPKI validation:** If bgp-rpki is loaded, routes may be pending validation. Check:
    ```bash
-   ze cli -c "show rpki status"
+   ze cli -c "show bgp rpki status"
    ```
 
 ### Crash Capture
