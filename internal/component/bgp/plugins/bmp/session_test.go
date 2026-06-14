@@ -1,10 +1,19 @@
 package bmp
 
 import (
+	"errors"
 	"net"
 	"testing"
 	"time"
 )
+
+// isTimeout reports whether err is an i/o deadline (timeout) error. A read that
+// fails with a timeout means the server did NOT close the connection in time,
+// which the session tests treat as a failure rather than a successful close.
+func isTimeout(err error) bool {
+	var ne net.Error
+	return errors.As(err, &ne) && ne.Timeout()
+}
 
 func TestBMPSessionAccepts(t *testing.T) {
 	// VALIDATES: AC-12 -- Plugin accepts TCP connection, reads BMP Common Header, validates version==3
@@ -92,17 +101,19 @@ func TestBMPMalformedHeaderDrops(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	// Wait briefly for server to close its end.
-	time.Sleep(50 * time.Millisecond)
-
-	// Verify server closed the connection: read should return EOF or error.
+	// Verify the server closed the connection after the bad version. The read
+	// blocks until the server closes its end (deterministic: EOF/reset arrives
+	// immediately on close), or the generous deadline fires if it never does.
 	readBuf := make([]byte, 1)
-	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+	if err := conn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
 		t.Fatalf("set deadline: %v", err)
 	}
 	_, readErr := conn.Read(readBuf)
-	if readErr == nil {
+	switch {
+	case readErr == nil:
 		t.Error("expected connection closed by server after bad version, but read succeeded")
+	case isTimeout(readErr):
+		t.Errorf("server did not close connection after bad version within deadline: %v", readErr)
 	}
 
 	if err := conn.Close(); err != nil {
@@ -148,23 +159,27 @@ func TestBMPMaxSessionsRejects(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	// Brief pause to let session goroutine start.
-	time.Sleep(50 * time.Millisecond)
-
-	// Second connection: should be rejected (max sessions = 1).
+	// Second connection: should be rejected (max sessions = 1). The accept loop
+	// is single-goroutine and serial, so conn1 is accepted and counted
+	// (active.Add(1) in acceptLoop) before conn2 can be accepted; no pause is
+	// needed to let the first session "start".
 	conn2, err := (&net.Dialer{Timeout: time.Second}).DialContext(t.Context(), "tcp", ln.Addr().String())
 	if err != nil {
 		t.Fatalf("dial 2: %v", err)
 	}
 
-	// Server should close conn2 immediately. Verify with a read.
-	if err := conn2.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+	// Server should close conn2 immediately. The read blocks until the server
+	// closes its end (deterministic), or the generous deadline fires.
+	if err := conn2.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
 		t.Fatalf("set deadline: %v", err)
 	}
 	readBuf := make([]byte, 1)
 	_, readErr := conn2.Read(readBuf)
-	if readErr == nil {
+	switch {
+	case readErr == nil:
 		t.Error("expected second connection to be rejected, but read succeeded")
+	case isTimeout(readErr):
+		t.Errorf("server did not reject second connection within deadline: %v", readErr)
 	}
 
 	if err := conn1.Close(); err != nil {

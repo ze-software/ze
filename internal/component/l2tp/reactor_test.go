@@ -1274,10 +1274,12 @@ func TestTunnelFSM_StopCCNEstablished(t *testing.T) {
 
 	// Retransmitted StopCCN should be ACKed (ZLB).
 	client.Send(t, buildStopCCN(t, localTID, 2, 1, 42, 1))
-	// Give the reactor time to process.
-	time.Sleep(50 * time.Millisecond)
 
-	// The engine should ACK the retransmitted StopCCN.
+	// No fixed delay: the duplicate StopCCN is deduped by the reliable
+	// engine (no FSM-level log to poll), but it still drives a ZLB ACK via
+	// the NeedsZLB path. readDatagram blocks on that actual datagram with a
+	// 2s deadline and fails on timeout, so it is the real synchronization
+	// point for "the reactor processed the retransmit".
 	zlb := readDatagram(t, client)
 	require.Equal(t, 12, len(zlb), "ZLB ACK should be exactly 12 bytes (control header only)")
 }

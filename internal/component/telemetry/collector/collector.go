@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
 
@@ -44,6 +45,7 @@ type Manager struct {
 	stop       chan struct{}
 	wg         sync.WaitGroup
 	logger     *slog.Logger
+	clock      clock.Clock
 }
 
 // NewManager creates a Manager that will register metrics on reg with the
@@ -65,7 +67,15 @@ func NewManager(reg metrics.Registry, prefix string, interval time.Duration, log
 		overrides: make(map[string]CollectorOverride),
 		stop:      make(chan struct{}),
 		logger:    logger,
+		clock:     clock.RealClock{},
 	}
+}
+
+// setClock overrides the clock used for the collection ticker and timestamps.
+// Test-only: must be called before Start. Production uses the real clock set
+// by NewManager.
+func (m *Manager) setClock(c clock.Clock) {
+	m.clock = c
 }
 
 // SetOverrides applies per-collector enable/disable and interval settings.
@@ -102,8 +112,13 @@ func (m *Manager) Start() {
 
 	m.collectAll(true)
 
+	// Create the ticker synchronously here (not inside loop) so that, with a
+	// fake clock, it is registered before Start returns. A test can then call
+	// FireTickers immediately without racing the loop goroutine's startup.
+	ticker := m.clock.NewTicker(time.Second)
+
 	m.wg.Add(1)
-	go m.loop()
+	go m.loop(ticker)
 }
 
 // Stop signals the collection loop to exit and waits for it to finish.
@@ -112,23 +127,22 @@ func (m *Manager) Stop() {
 	m.wg.Wait()
 }
 
-func (m *Manager) loop() {
+func (m *Manager) loop(ticker clock.Ticker) {
 	defer m.wg.Done()
-	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-m.stop:
 			return
-		case <-ticker.C:
+		case <-ticker.C():
 			m.collectAll(false)
 		}
 	}
 }
 
 func (m *Manager) collectAll(force bool) {
-	now := time.Now()
+	now := m.clock.Now()
 	for i := range m.scheduled {
 		sc := &m.scheduled[i]
 		if !force && now.Sub(sc.lastRun) < sc.interval {

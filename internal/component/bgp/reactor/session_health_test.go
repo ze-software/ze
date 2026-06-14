@@ -1,25 +1,32 @@
 package reactor
 
+// VALIDATES: sessionHealth raises/clears session-stuck, session-flap, and
+// eor-timeout warnings driven by its injected clock.Clock timers (stuck timer,
+// EOR/GR restart timer) and by state transitions.
+// PREVENTS: Regression where timer-driven warnings fail to fire, fire early,
+// fire after cancellation, or fail to clear on Established/Stop/EOR. Driven by a
+// sim.FakeClock so AfterFunc callbacks fire on Add() instead of via wall-clock
+// sleeps, keeping the suite deterministic and race-clean.
+
 import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
+	"codeberg.org/thomas-mangin/ze/internal/test/sim"
 )
-
-type fakeClock struct {
-	clock.RealClock
-	now time.Time
-}
-
-func (c *fakeClock) Now() time.Time { return c.now }
-
-func (c *fakeClock) advance(d time.Duration) { c.now = c.now.Add(d) }
 
 const testStuckTimeout = 50 * time.Millisecond
 
-func newTestSessionHealth(addr string, clk *fakeClock) *sessionHealth {
+// newTestClock returns a sim.FakeClock: an Add-driven clock whose AfterFunc
+// callbacks fire synchronously in the caller's goroutine when fake time is
+// advanced past their deadline. This lets the session-health timers fire
+// deterministically and instantly, with no wall-clock sleeping.
+func newTestClock() *sim.FakeClock {
+	return sim.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+}
+
+func newTestSessionHealth(addr string, clk *sim.FakeClock) *sessionHealth {
 	sh := newSessionHealth(addr, clk)
 	sh.stuckTimeout = testStuckTimeout
 	return sh
@@ -28,7 +35,7 @@ func newTestSessionHealth(addr string, clk *fakeClock) *sessionHealth {
 func TestSessionStuckWarning(t *testing.T) {
 	report.ResetForTest()
 
-	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clk := newTestClock()
 	sh := newTestSessionHealth("192.0.2.1", clk)
 
 	sh.onStateChange(PeerStateStopped, PeerStateConnecting)
@@ -41,7 +48,7 @@ func TestSessionStuckWarning(t *testing.T) {
 		}
 	}
 
-	time.Sleep(testStuckTimeout + 20*time.Millisecond)
+	clk.Add(testStuckTimeout + 20*time.Millisecond)
 
 	warnings = report.Warnings()
 	found := false
@@ -70,12 +77,12 @@ func TestSessionStuckWarning(t *testing.T) {
 func TestSessionStuckClearedOnStop(t *testing.T) {
 	report.ResetForTest()
 
-	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clk := newTestClock()
 	sh := newTestSessionHealth("192.0.2.2", clk)
 
 	sh.onStateChange(PeerStateStopped, PeerStateActive)
 
-	time.Sleep(testStuckTimeout + 20*time.Millisecond)
+	clk.Add(testStuckTimeout + 20*time.Millisecond)
 
 	warnings := report.Warnings()
 	found := false
@@ -101,11 +108,11 @@ func TestSessionStuckClearedOnStop(t *testing.T) {
 func TestSessionFlapDetection(t *testing.T) {
 	report.ResetForTest()
 
-	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clk := newTestClock()
 	sh := newTestSessionHealth("192.0.2.3", clk)
 
 	for range flapThreshold {
-		clk.advance(10 * time.Second)
+		clk.Add(10 * time.Second)
 		sh.onStateChange(PeerStateEstablished, PeerStateActive)
 		sh.onStateChange(PeerStateActive, PeerStateEstablished)
 	}
@@ -135,7 +142,7 @@ func TestSessionFlapDetection(t *testing.T) {
 func TestEORTimeoutWarning(t *testing.T) {
 	report.ResetForTest()
 
-	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clk := newTestClock()
 	sh := newTestSessionHealth("192.0.2.10", clk)
 
 	// Start EOR timer: 1 second timeout, 2 families expected.
@@ -149,7 +156,7 @@ func TestEORTimeoutWarning(t *testing.T) {
 		}
 	}
 
-	time.Sleep(1200 * time.Millisecond)
+	clk.Add(1200 * time.Millisecond)
 
 	warnings = report.Warnings()
 	found := false
@@ -169,13 +176,13 @@ func TestEORTimeoutWarning(t *testing.T) {
 func TestEORTimeoutClearedOnAllFamilies(t *testing.T) {
 	report.ResetForTest()
 
-	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clk := newTestClock()
 	sh := newTestSessionHealth("192.0.2.11", clk)
 
 	// 2 families expected, 1 second timeout.
 	sh.startEORTimer(1, 2)
 
-	time.Sleep(1200 * time.Millisecond)
+	clk.Add(1200 * time.Millisecond)
 
 	// Verify warning is raised.
 	warnings := report.Warnings()
@@ -217,7 +224,7 @@ func TestEORTimeoutClearedOnAllFamilies(t *testing.T) {
 func TestEORTimeoutCancelledBeforeFiring(t *testing.T) {
 	report.ResetForTest()
 
-	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clk := newTestClock()
 	sh := newTestSessionHealth("192.0.2.12", clk)
 
 	// 1 family, 2 second timeout.
@@ -226,7 +233,7 @@ func TestEORTimeoutCancelledBeforeFiring(t *testing.T) {
 	// EOR received before timeout.
 	sh.onEORReceived()
 
-	time.Sleep(2200 * time.Millisecond)
+	clk.Add(2200 * time.Millisecond)
 
 	// Warning should never have fired.
 	warnings := report.Warnings()
@@ -242,13 +249,13 @@ func TestEORTimeoutCancelledBeforeFiring(t *testing.T) {
 func TestEORTimeoutZeroRestartTime(t *testing.T) {
 	report.ResetForTest()
 
-	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clk := newTestClock()
 	sh := newTestSessionHealth("192.0.2.13", clk)
 
 	// Zero restart-time means GR timer is disabled.
 	sh.startEORTimer(0, 2)
 
-	time.Sleep(100 * time.Millisecond)
+	clk.Add(100 * time.Millisecond)
 
 	warnings := report.Warnings()
 	for _, w := range warnings {
@@ -265,7 +272,7 @@ func TestEORTimeoutZeroRestartTime(t *testing.T) {
 func TestSessionHealthFlapLifetime(t *testing.T) {
 	report.ResetForTest()
 
-	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clk := newTestClock()
 	sh := newTestSessionHealth("192.0.2.20", clk)
 
 	if sh.FlapCount() != 0 {
@@ -277,7 +284,7 @@ func TestSessionHealthFlapLifetime(t *testing.T) {
 		t.Fatalf("expected 1 flap, got %d", sh.FlapCount())
 	}
 
-	clk.advance(10 * time.Minute)
+	clk.Add(10 * time.Minute)
 	sh.onStateChange(PeerStateActive, PeerStateEstablished)
 	sh.onStateChange(PeerStateEstablished, PeerStateConnecting)
 	if sh.FlapCount() != 2 {
@@ -290,11 +297,11 @@ func TestSessionHealthFlapLifetime(t *testing.T) {
 func TestSessionFlapNotTriggeredWithSlowTransitions(t *testing.T) {
 	report.ResetForTest()
 
-	clk := &fakeClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	clk := newTestClock()
 	sh := newTestSessionHealth("192.0.2.4", clk)
 
 	for range flapThreshold + 1 {
-		clk.advance(flapWindow + time.Minute)
+		clk.Add(flapWindow + time.Minute)
 		sh.onStateChange(PeerStateEstablished, PeerStateActive)
 		sh.onStateChange(PeerStateActive, PeerStateEstablished)
 	}

@@ -43,13 +43,26 @@ func TestAdHocProcessHandshake(t *testing.T) {
 	p := sdk.NewWithConn("test-adhoc", pluginSide)
 	defer p.Close() //nolint:errcheck // test cleanup
 
+	// OnStarted fires synchronously after the plugin's 5-stage handshake
+	// completes and before the event loop begins. Signal it so we close the
+	// connection only once the handshake is genuinely done -- no fixed sleep.
+	handshakeComplete := make(chan struct{})
+	p.OnStarted(func(context.Context) error {
+		close(handshakeComplete)
+		return nil
+	})
+
 	runDone := make(chan error, 1)
 	go func() {
 		runDone <- p.Run(context.Background(), sdk.Registration{})
 	}()
 
-	// Give the handshake time to complete, then close plugin side.
-	time.Sleep(200 * time.Millisecond)
+	// Wait for the handshake to complete, then close plugin side.
+	select {
+	case <-handshakeComplete:
+	case <-time.After(5 * time.Second):
+		t.Fatal("handshake did not complete in time")
+	}
 
 	// Close triggers shutdown of both sides.
 	require.NoError(t, p.Close())
@@ -139,6 +152,14 @@ func TestNewWithIO(t *testing.T) {
 	p := sdk.NewWithIO("test-io", pluginSide, pluginSide)
 	defer p.Close() //nolint:errcheck // test cleanup
 
+	// OnStarted fires after the plugin's 5-stage handshake completes; use it
+	// to synchronize the close instead of a fixed sleep.
+	handshakeComplete := make(chan struct{})
+	p.OnStarted(func(context.Context) error {
+		close(handshakeComplete)
+		return nil
+	})
+
 	// Minimal server for handshake.
 	s := &Server{
 		subscriptions: NewSubscriptionManager(),
@@ -161,7 +182,11 @@ func TestNewWithIO(t *testing.T) {
 		runDone <- p.Run(context.Background(), sdk.Registration{})
 	}()
 
-	time.Sleep(200 * time.Millisecond)
+	select {
+	case <-handshakeComplete:
+	case <-time.After(5 * time.Second):
+		t.Fatal("handshake did not complete in time")
+	}
 	require.NoError(t, p.Close())
 
 	select {

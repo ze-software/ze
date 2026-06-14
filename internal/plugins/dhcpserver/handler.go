@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"net"
 	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 )
 
 // RFC 2131 Section 2: DHCP message op codes.
@@ -78,7 +80,7 @@ type dhcpHandler struct {
 
 func newDHCPHandler(sub subnetConfig, serverIP netip.Addr, pxe pxeConfig) *dhcpHandler {
 	p := newPool(sub.Ranges, sub.StaticMappings)
-	lt := newLeaseTable(p)
+	lt := newLeaseTable(p, clock.RealClock{})
 
 	staticByMAC := make(map[string]netip.Addr, len(sub.StaticMappings))
 	for _, sm := range sub.StaticMappings {

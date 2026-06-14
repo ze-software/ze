@@ -33,11 +33,15 @@ func TestWaitConnectedTimeout(t *testing.T) {
 func TestWaitConnectedContextCancel(t *testing.T) {
 	c := NewConnector("/does/not/matter")
 	ctx, cancel := context.WithCancel(context.Background())
+	// Run WaitConnected (never connects) in a goroutine and cancel the context
+	// from the test body. WaitConnected observes ctx.Done() in its select loop
+	// and returns context.Canceled; no fixed delay needed.
+	errc := make(chan error, 1)
 	go func() {
-		time.Sleep(80 * time.Millisecond)
-		cancel()
+		errc <- c.WaitConnected(ctx, 5*time.Second)
 	}()
-	err := c.WaitConnected(ctx, 5*time.Second)
+	cancel()
+	err := <-errc
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
@@ -70,13 +74,18 @@ func TestWaitConnectedZeroTimeout(t *testing.T) {
 
 func TestWaitConnectedBecomesConnected(t *testing.T) {
 	c := NewConnector("/does/not/matter")
+	// Run WaitConnected first (it is not connected yet, so it enters its 50ms
+	// polling loop), then flip connected=true from the test body. The next
+	// poll tick detects the transition and WaitConnected returns nil. No fixed
+	// delay: the polling loop is the synchronization point being exercised.
+	errc := make(chan error, 1)
 	go func() {
-		time.Sleep(80 * time.Millisecond)
-		c.mu.Lock()
-		c.connected = true
-		c.mu.Unlock()
+		errc <- c.WaitConnected(context.Background(), 5*time.Second)
 	}()
-	if err := c.WaitConnected(context.Background(), 500*time.Millisecond); err != nil {
+	c.mu.Lock()
+	c.connected = true
+	c.mu.Unlock()
+	if err := <-errc; err != nil {
 		t.Fatalf("WaitConnected should have succeeded: %v", err)
 	}
 }

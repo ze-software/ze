@@ -31,7 +31,6 @@ func TestManagerStartStop(t *testing.T) {
 	cfg.CheckInterval = 50 * time.Millisecond
 	m := NewManager(cfg)
 	m.Start()
-	time.Sleep(10 * time.Millisecond)
 	m.Stop()
 }
 
@@ -161,7 +160,6 @@ func TestReconfigure(t *testing.T) {
 	newCfg.CheckInterval = 200 * time.Millisecond
 	m.Reconfigure(newCfg)
 
-	time.Sleep(10 * time.Millisecond)
 	m.Stop()
 
 	if m.config.CheckInterval != 200*time.Millisecond {
@@ -349,6 +347,10 @@ func TestCheckHealthResetsAfterRecovery(t *testing.T) {
 	}
 }
 
+// test-relax: removed the waitReady helper (and the production-only `ready`
+// channel it read). Stop() already waits on m.done for goroutine exit, so the
+// Start/Reconfigure tests need no separate readiness signal; the channel only
+// existed for tests, which is the smell being removed.
 type fakeSmartInfo struct {
 	temp    int
 	healthy bool

@@ -12,24 +12,99 @@ import (
 )
 
 // mockStatsProvider implements statsProvider for testing.
+//
+// polled is a test-only signal: the poller calls GetInterfaceStats first on
+// every poll cycle. The mock sends that poll's call number on polled after it
+// has taken the lock and read the provider state, letting a test wait for a
+// specific poll cycle deterministically instead of sleeping a fixed duration.
+// The channel is buffered and the send is non-blocking, so it never stalls
+// the poller when no test is waiting.
 type mockStatsProvider struct {
-	mu    sync.Mutex
-	iface api.InterfaceStats
-	node  api.NodeStats
-	sys   api.SystemStats
-	err   error
-	calls int
+	mu     sync.Mutex
+	iface  api.InterfaceStats
+	node   api.NodeStats
+	sys    api.SystemStats
+	err    error
+	calls  int
+	polled chan int
 }
 
 func (m *mockStatsProvider) GetInterfaceStats(s *api.InterfaceStats) error {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.calls++
-	if m.err != nil {
-		return m.err
+	n := m.calls
+	polled := m.polled
+	err := m.err
+	if err == nil {
+		*s = m.iface
 	}
-	*s = m.iface
-	return nil
+	m.mu.Unlock()
+
+	if polled != nil {
+		select {
+		case polled <- n:
+		default:
+		}
+	}
+	return err
+}
+
+// notifyPolls makes the mock signal each poll cycle (by call number) on a
+// buffered channel. Tests call this before starting the poller, then receive
+// from the channel to wait for poll cycles deterministically. Because the
+// number is the value of calls read under the same lock that guards the
+// provider state, a poll with number > k is guaranteed to have read any state
+// set while holding the lock when calls was <= k.
+func (m *mockStatsProvider) notifyPolls() <-chan int {
+	ch := make(chan int, 16)
+	m.mu.Lock()
+	m.polled = ch
+	m.mu.Unlock()
+	return ch
+}
+
+// recvPoll blocks for one poll-cycle signal and returns its call number, or
+// fails the test on timeout.
+func recvPoll(t *testing.T, ch <-chan int, what string) int {
+	t.Helper()
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	select {
+	case n := <-ch:
+		return n
+	case <-timeout.C:
+		t.Fatalf("timed out waiting for %s", what)
+		return 0
+	}
+}
+
+// waitPolls blocks until n poll cycles have started (n receives on the signal
+// channel), or fails the test if they do not occur within a generous deadline.
+func waitPolls(t *testing.T, ch <-chan int, n int) {
+	t.Helper()
+	for range n {
+		recvPoll(t, ch, "poll cycle")
+	}
+}
+
+// waitPollAfterChange returns once a full poll cycle that ran strictly after
+// call number base has completed (metrics written). base must be captured
+// while holding provider.mu during the state change, so a poll with number
+// > base provably read the post-change state.
+//
+// The signal fires after a poll's GetInterfaceStats read the provider state,
+// so the signal for poll N also proves poll N-1 fully completed (including its
+// metric writes). We therefore wait for the first signal with number > base
+// (that poll read the new state) and then one further signal (proving the
+// new-state poll finished writing metrics).
+func waitPollAfterChange(t *testing.T, ch <-chan int, base int) {
+	t.Helper()
+	for {
+		if recvPoll(t, ch, "post-change poll") > base {
+			recvPoll(t, ch, "post-change poll completion")
+			return
+		}
+	}
 }
 
 func (m *mockStatsProvider) GetNodeStats(s *api.NodeStats) error {
@@ -208,10 +283,11 @@ func TestStatsPollerRun(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	polled := provider.notifyPolls()
 	go poller.run(ctx)
 
 	// Wait for at least one poll cycle.
-	time.Sleep(time.Millisecond * 150)
+	waitPolls(t, polled, 1)
 	cancel()
 
 	provider.mu.Lock()
@@ -256,8 +332,9 @@ func TestInterfaceStatsToMetrics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	polled := provider.notifyPolls()
 	go poller.run(ctx)
-	time.Sleep(time.Millisecond * 150)
+	waitPolls(t, polled, 2) // first signal proves the initial poll completed.
 	cancel()
 
 	// Check per-interface metrics via GaugeVec.
@@ -327,8 +404,9 @@ func TestNodeStatsToMetrics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	polled := provider.notifyPolls()
 	go poller.run(ctx)
-	time.Sleep(time.Millisecond * 150)
+	waitPolls(t, polled, 2) // first signal proves the initial poll completed.
 	cancel()
 
 	clocks := reg.gaugeVecs["ze_vpp_node_clocks"]
@@ -373,8 +451,9 @@ func TestSystemStatsToMetrics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	polled := provider.notifyPolls()
 	go poller.run(ctx)
-	time.Sleep(time.Millisecond * 150)
+	waitPolls(t, polled, 2) // first signal proves the initial poll completed.
 	cancel()
 
 	vectorRate := reg.gauges["ze_vpp_system_vector_rate"]
@@ -435,8 +514,9 @@ func TestStatsUpGauge(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	polled := provider.notifyPolls()
 	go poller.run(ctx)
-	time.Sleep(time.Millisecond * 100)
+	waitPolls(t, polled, 2) // first signal proves the initial poll completed.
 
 	statsUp := reg.gauges["ze_vpp_stats_up"]
 	if statsUp == nil {
@@ -449,9 +529,10 @@ func TestStatsUpGauge(t *testing.T) {
 	// Simulate disconnect by setting error.
 	provider.mu.Lock()
 	provider.err = api.VPPApiError(1)
+	base := provider.calls
 	provider.mu.Unlock()
 
-	time.Sleep(time.Millisecond * 100)
+	waitPollAfterChange(t, polled, base)
 
 	if got := statsUp.get(); got != 0 {
 		t.Errorf("stats_up while disconnected: got %v, want 0", got)
@@ -477,8 +558,9 @@ func TestInterfaceCounterDelta(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	polled := provider.notifyPolls()
 	go poller.run(ctx)
-	time.Sleep(time.Millisecond * 80)
+	waitPolls(t, polled, 2) // first signal proves the initial poll completed.
 
 	rxPkts := reg.counterVecs["ze_vpp_interface_rx_packets"]
 	if rxPkts == nil {
@@ -496,8 +578,9 @@ func TestInterfaceCounterDelta(t *testing.T) {
 			{InterfaceName: "eth0", Rx: api.InterfaceCounterCombined{Packets: 200}},
 		},
 	}
+	base := provider.calls
 	provider.mu.Unlock()
-	time.Sleep(time.Millisecond * 80)
+	waitPollAfterChange(t, polled, base)
 
 	got2 := rxPkts.get("eth0")
 	if got2 != 200 {
@@ -511,8 +594,9 @@ func TestInterfaceCounterDelta(t *testing.T) {
 			{InterfaceName: "eth0", Rx: api.InterfaceCounterCombined{Packets: 50}},
 		},
 	}
+	base = provider.calls
 	provider.mu.Unlock()
-	time.Sleep(time.Millisecond * 80)
+	waitPollAfterChange(t, polled, base)
 
 	got3 := rxPkts.get("eth0")
 	if got3 != 250 {
@@ -535,8 +619,9 @@ func TestStatsReconnect(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	polled := provider.notifyPolls()
 	go poller.run(ctx)
-	time.Sleep(time.Millisecond * 100)
+	waitPolls(t, polled, 2) // first signal proves the initial poll completed.
 
 	// Stats should be up.
 	statsUp := reg.gauges["ze_vpp_stats_up"]
@@ -550,8 +635,9 @@ func TestStatsReconnect(t *testing.T) {
 	// Simulate VPP crash.
 	provider.mu.Lock()
 	provider.err = api.VPPApiError(1)
+	base := provider.calls
 	provider.mu.Unlock()
-	time.Sleep(time.Millisecond * 100)
+	waitPollAfterChange(t, polled, base)
 
 	if got := statsUp.get(); got != 0 {
 		t.Errorf("stats_up during error: got %v, want 0", got)
@@ -561,8 +647,9 @@ func TestStatsReconnect(t *testing.T) {
 	provider.mu.Lock()
 	provider.err = nil
 	provider.sys = api.SystemStats{VectorRate: 200}
+	base = provider.calls
 	provider.mu.Unlock()
-	time.Sleep(time.Millisecond * 100)
+	waitPollAfterChange(t, polled, base)
 
 	if got := statsUp.get(); got != 1 {
 		t.Errorf("stats_up after recovery: got %v, want 1", got)

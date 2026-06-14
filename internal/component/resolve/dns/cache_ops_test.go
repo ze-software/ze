@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/test/sim"
 )
 
 func TestCacheClear(t *testing.T) {
@@ -113,10 +115,12 @@ func TestCacheEntriesSortedByTTL(t *testing.T) {
 
 func TestCacheEntriesExcludesExpired(t *testing.T) {
 	c := newCache(100, 0)
+	clk := sim.NewFakeClock(time.Now())
+	c.clk = clk
 	c.put("live.com", 1, []string{"1.1.1.1"}, 300)
 	c.put("dying.com", 1, []string{"2.2.2.2"}, 1)
 
-	time.Sleep(1100 * time.Millisecond)
+	clk.Add(1100 * time.Millisecond)
 
 	entries := c.Entries()
 	require.Len(t, entries, 1, "expired entry should be excluded")

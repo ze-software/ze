@@ -88,6 +88,70 @@ func TestFakeClockAfterFuncReturnsTimer(t *testing.T) {
 	timer.Stop()
 }
 
+// TestFakeClockAfterFuncFiresOnAdd verifies AfterFunc callbacks fire when Add()
+// advances past their deadline, and not before.
+//
+// VALIDATES: scheduled AfterFunc firing (the capability that lets timer-driven
+// code be tested deterministically without wall-clock sleeps).
+// PREVENTS: regression to inert AfterFunc, which would force tests back to sleeps.
+func TestFakeClockAfterFuncFiresOnAdd(t *testing.T) {
+	c := NewFakeClock(time.Unix(0, 0))
+	fired := 0
+	c.AfterFunc(time.Second, func() { fired++ })
+
+	c.Add(500 * time.Millisecond) // before deadline
+	if fired != 0 {
+		t.Fatalf("callback fired early: fired=%d", fired)
+	}
+	c.Add(600 * time.Millisecond) // now past 1s deadline
+	if fired != 1 {
+		t.Fatalf("callback did not fire on Add past deadline: fired=%d", fired)
+	}
+	c.Add(time.Second) // already fired, must not fire again
+	if fired != 1 {
+		t.Fatalf("callback fired twice: fired=%d", fired)
+	}
+}
+
+// TestFakeClockAfterFuncStopPreventsFire verifies Stop() before the deadline
+// prevents the callback from firing.
+//
+// VALIDATES: AfterFunc Stop semantics under the scheduled-timer model.
+// PREVENTS: stopped timers still firing (would break lease re-add / EOR cancel).
+func TestFakeClockAfterFuncStopPreventsFire(t *testing.T) {
+	c := NewFakeClock(time.Unix(0, 0))
+	fired := false
+	timer := c.AfterFunc(time.Second, func() { fired = true })
+	if !timer.Stop() {
+		t.Fatal("Stop() returned false for an active timer")
+	}
+	c.Add(2 * time.Second)
+	if fired {
+		t.Fatal("stopped timer fired")
+	}
+	if timer.Stop() {
+		t.Fatal("Stop() returned true for an already-stopped timer")
+	}
+}
+
+// TestFakeClockAfterFuncDeadlineOrder verifies callbacks fire in deadline order
+// when a single Add() crosses multiple deadlines.
+//
+// VALIDATES: ordered firing (FIFO for equal deadlines) within one Add().
+// PREVENTS: out-of-order timer effects in code that relies on deadline ordering.
+func TestFakeClockAfterFuncDeadlineOrder(t *testing.T) {
+	c := NewFakeClock(time.Unix(0, 0))
+	var order []int
+	c.AfterFunc(3*time.Second, func() { order = append(order, 3) })
+	c.AfterFunc(1*time.Second, func() { order = append(order, 1) })
+	c.AfterFunc(2*time.Second, func() { order = append(order, 2) })
+
+	c.Add(5 * time.Second)
+	if len(order) != 3 || order[0] != 1 || order[1] != 2 || order[2] != 3 {
+		t.Fatalf("callbacks fired out of order: %v", order)
+	}
+}
+
 // TestFakeClockNewTimerReturnsTimer verifies NewTimer returns a valid Timer.
 //
 // VALIDATES: NewTimer returns non-nil Timer with non-nil C() channel.

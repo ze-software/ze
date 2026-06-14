@@ -1,9 +1,6 @@
 // Package sim provides fake implementations of clock and network interfaces
-// for use in unit tests. These are minimal, inert fakes — time only advances
-// when the test explicitly calls Add/Set/FireTickers.
-//
-// For simulation-grade clocks with timer heaps and Advance-driven firing,
-// see internal/chaos.VirtualClock.
+// for use in unit tests. Time only advances when the test explicitly calls
+// Add/Set/FireTickers.
 //
 // Design: docs/architecture/chaos-web-dashboard.md — simulation infrastructure
 package sim
@@ -21,13 +18,16 @@ import (
 // FakeClock is a Clock implementation with controllable time for testing.
 // Time only advances when Add() or Set() is called explicitly.
 //
-// Minimal implementation: supports Now() and Add(). Timer methods
-// (AfterFunc, NewTimer, After) return inert fakes sufficient for code
-// paths that only use Now().
+// AfterFunc timers are scheduled: their callbacks fire synchronously, in
+// deadline order, when Add()/Set() advances past their deadline (matching
+// chaos.VirtualClock). NewTimer/After channels remain inert and tickers fire
+// only via FireTickers().
 type FakeClock struct {
 	mu      sync.Mutex
 	now     time.Time
 	tickers []*fakeTicker
+	timers  []*fakeTimer // scheduled AfterFunc timers, fired on Add/Set
+	seq     uint64       // FIFO tie-break for same-deadline timers
 }
 
 // NewFakeClock creates a FakeClock starting at the given time.
@@ -42,21 +42,56 @@ func (c *FakeClock) Now() time.Time {
 	return c.now
 }
 
-// Add shifts the fake clock by d (positive = forward, negative = backward).
-// Mirrors time.Time.Add() semantics.
+// Add shifts the fake clock by d (positive = forward, negative = backward),
+// firing scheduled AfterFunc timers whose deadline is reached when moving
+// forward. Mirrors time.Time.Add() semantics.
 func (c *FakeClock) Add(d time.Duration) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = c.now.Add(d)
+	target := c.now.Add(d)
+	c.mu.Unlock()
+	c.advanceTo(target)
 }
 
-// Set jumps the fake clock to an arbitrary time, forward or backward.
-// Use this for DST fall-back simulation (clock goes backward 1 hour)
-// or any scenario where Add is insufficient.
+// Set jumps the fake clock to an arbitrary time, forward or backward, firing
+// scheduled AfterFunc timers whose deadline is reached when moving forward.
+// Use this for DST fall-back simulation (clock goes backward 1 hour) or any
+// scenario where Add is insufficient.
 func (c *FakeClock) Set(t time.Time) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = t
+	c.advanceTo(t)
+}
+
+// advanceTo moves now to target, firing AfterFunc callbacks whose deadline is
+// <= target in deadline order (FIFO for ties). The lock is released before each
+// callback, which may take other locks or schedule new timers. Moving backward
+// (target <= now) fires nothing.
+func (c *FakeClock) advanceTo(target time.Time) {
+	for {
+		c.mu.Lock()
+		var earliest *fakeTimer
+		if target.After(c.now) {
+			for _, t := range c.timers {
+				if t.stopped || t.fired || t.deadline.After(target) {
+					continue
+				}
+				if earliest == nil || t.deadline.Before(earliest.deadline) ||
+					(t.deadline.Equal(earliest.deadline) && t.seq < earliest.seq) {
+					earliest = t
+				}
+			}
+		}
+		if earliest == nil {
+			c.now = target
+			c.mu.Unlock()
+			return
+		}
+		earliest.fired = true
+		c.now = earliest.deadline
+		cb := earliest.callback
+		c.mu.Unlock()
+		if cb != nil {
+			cb()
+		}
+	}
 }
 
 // Sleep is a no-op in FakeClock. Callers should use Add() to
@@ -68,10 +103,15 @@ func (c *FakeClock) After(time.Duration) <-chan time.Time {
 	return make(chan time.Time) // blocks forever — sufficient for Now()-only paths
 }
 
-// AfterFunc returns an inert fakeTimer. The callback is NOT automatically
-// invoked. Sufficient for code paths that only use Now().
-func (c *FakeClock) AfterFunc(time.Duration, func()) clock.Timer {
-	return &fakeTimer{}
+// AfterFunc schedules f to be called when now+d is reached via Add()/Set().
+// The callback fires synchronously during Add()/Set(), in deadline order.
+func (c *FakeClock) AfterFunc(d time.Duration, f func()) clock.Timer {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	t := &fakeTimer{clock: c, deadline: c.now.Add(d), callback: f, seq: c.seq}
+	c.seq++
+	c.timers = append(c.timers, t)
+	return t
 }
 
 // NewTimer returns a fakeTimer with a blocking channel.
@@ -109,14 +149,51 @@ func (c *FakeClock) FireTickers() {
 	}
 }
 
-// fakeTimer is a minimal Timer implementation for FakeClock.
+// fakeTimer implements clock.Timer for FakeClock. AfterFunc timers carry a
+// clock pointer, deadline, and callback, and are fired by advanceTo. NewTimer
+// timers (clock == nil) are inert channels that never fire.
 type fakeTimer struct {
-	ch chan time.Time
+	clock    *FakeClock
+	ch       chan time.Time
+	deadline time.Time
+	callback func()
+	seq      uint64
+	stopped  bool
+	fired    bool
 }
 
-func (t *fakeTimer) Stop() bool               { return true }
-func (t *fakeTimer) Reset(time.Duration) bool { return true }
-func (t *fakeTimer) C() <-chan time.Time      { return t.ch }
+// Stop prevents an AfterFunc timer from firing. Returns true if it was still
+// active. Inert (NewTimer) timers report true without state.
+func (t *fakeTimer) Stop() bool {
+	if t.clock == nil {
+		return true
+	}
+	t.clock.mu.Lock()
+	defer t.clock.mu.Unlock()
+	if t.stopped || t.fired {
+		return false
+	}
+	t.stopped = true
+	return true
+}
+
+// Reset re-arms an AfterFunc timer to fire d after the current fake time.
+func (t *fakeTimer) Reset(d time.Duration) bool {
+	if t.clock == nil {
+		return true
+	}
+	t.clock.mu.Lock()
+	defer t.clock.mu.Unlock()
+	wasActive := !t.stopped && !t.fired
+	t.deadline = t.clock.now.Add(d)
+	t.stopped = false
+	t.fired = false
+	t.seq = t.clock.seq
+	t.clock.seq++
+	return wasActive
+}
+
+func (t *fakeTimer) C() <-chan time.Time { return t.ch }
 
 // fakeTicker is a minimal Ticker implementation for FakeClock.
 type fakeTicker struct {

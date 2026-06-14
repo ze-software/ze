@@ -9,6 +9,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 )
 
 // cacheKey identifies a cached DNS query by name and record type.
@@ -51,7 +53,8 @@ type cache struct {
 	maxSize   uint32
 	maxTTL    uint32 // Seconds. 0 means use response TTL only.
 	entries   map[cacheKey]*cacheEntry
-	lru       *list.List // Front = oldest (evict first), Back = newest.
+	lru       *list.List  // Front = oldest (evict first), Back = newest.
+	clk       clock.Clock // Time source for expiry. Defaults to RealClock.
 	hits      uint64
 	misses    uint64
 	evictions uint64
@@ -66,6 +69,7 @@ func newCache(maxSize, maxTTL uint32) *cache {
 		maxTTL:  maxTTL,
 		entries: make(map[cacheKey]*cacheEntry),
 		lru:     list.New(),
+		clk:     clock.RealClock{},
 	}
 }
 
@@ -93,7 +97,7 @@ func (c *cache) getWithTTL(name string, qtype uint16) ([]string, uint32, bool) {
 		return nil, 0, false
 	}
 
-	now := time.Now()
+	now := c.clk.Now()
 	if now.After(entry.expires) {
 		c.removeLocked(entry)
 		c.expired++
@@ -163,7 +167,7 @@ func (c *cache) put(name string, qtype uint16, records []string, responseTTL uin
 	entry := &cacheEntry{
 		key:     key,
 		records: stored,
-		expires: time.Now().Add(time.Duration(ttl) * time.Second),
+		expires: c.clk.Now().Add(time.Duration(ttl) * time.Second),
 	}
 	entry.element = c.lru.PushBack(entry)
 	c.entries[key] = entry
@@ -244,7 +248,7 @@ func (c *cache) ResetStats() {
 func (c *cache) Entries() []CacheEntryInfo {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	now := time.Now()
+	now := c.clk.Now()
 	out := make([]CacheEntryInfo, 0, len(c.entries))
 	for _, entry := range c.entries {
 		ttl := int(entry.expires.Sub(now).Seconds())

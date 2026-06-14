@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/test/sim"
 )
 
 // TestCacheHit verifies cached entries are returned without network query.
@@ -65,6 +67,8 @@ func TestCacheEviction(t *testing.T) {
 func TestCacheTTL(t *testing.T) {
 	// Use a very short max TTL so the entry expires quickly.
 	c := newCache(100, 1)
+	clk := sim.NewFakeClock(time.Now())
+	c.clk = clk
 
 	c.put("example.com", 1, []string{"1.2.3.4"}, 1)
 
@@ -73,8 +77,8 @@ func TestCacheTTL(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, []string{"1.2.3.4"}, records)
 
-	// Wait for expiry.
-	time.Sleep(1100 * time.Millisecond)
+	// Advance virtual time past the 1-second TTL.
+	clk.Add(1100 * time.Millisecond)
 
 	_, ok = c.get("example.com", 1)
 	assert.False(t, ok, "entry should have expired after TTL")
@@ -87,11 +91,13 @@ func TestCacheTTL(t *testing.T) {
 func TestCacheTTLCappedByConfig(t *testing.T) {
 	// Max TTL = 1 second, but response TTL is 3600.
 	c := newCache(100, 1)
+	clk := sim.NewFakeClock(time.Now())
+	c.clk = clk
 
 	c.put("example.com", 1, []string{"1.2.3.4"}, 3600)
 
-	// Wait for config max TTL to expire.
-	time.Sleep(1100 * time.Millisecond)
+	// Advance past the config max TTL (1s) but far short of the response TTL (3600s).
+	clk.Add(1100 * time.Millisecond)
 
 	_, ok := c.get("example.com", 1)
 	assert.False(t, ok, "entry should have expired at config max TTL, not response TTL")

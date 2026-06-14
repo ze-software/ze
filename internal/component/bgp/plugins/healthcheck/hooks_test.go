@@ -3,9 +3,31 @@ package healthcheck
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
+
+// waitFor polls cond until it returns true, or fails the test after a generous
+// timeout. The 1ms poll is a backoff, not a fixed "hope it ran" delay: it
+// observes the hook's real side effect (a marker file / file content), so the
+// test is deterministic without any completion signal on the production
+// runHooks path.
+func waitFor(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
 
 func TestHookOnUp(t *testing.T) {
 	dir := t.TempDir()
@@ -17,7 +39,7 @@ func TestHookOnUp(t *testing.T) {
 	}
 
 	runHooks(cfg, StateUp)
-	time.Sleep(200 * time.Millisecond) // hooks are async
+	waitFor(t, "on-up marker", func() bool { return fileExists(marker) })
 
 	if _, err := os.Stat(marker); err != nil {
 		t.Errorf("on-up hook did not create marker: %v", err)
@@ -34,7 +56,7 @@ func TestHookOnDown(t *testing.T) {
 	}
 
 	runHooks(cfg, StateDown)
-	time.Sleep(200 * time.Millisecond)
+	waitFor(t, "on-down marker", func() bool { return fileExists(marker) })
 
 	if _, err := os.Stat(marker); err != nil {
 		t.Errorf("on-down hook did not create marker: %v", err)
@@ -51,7 +73,7 @@ func TestHookOnDisabled(t *testing.T) {
 	}
 
 	runHooks(cfg, StateDisabled)
-	time.Sleep(200 * time.Millisecond)
+	waitFor(t, "on-disabled marker", func() bool { return fileExists(marker) })
 
 	if _, err := os.Stat(marker); err != nil {
 		t.Errorf("on-disabled hook did not create marker: %v", err)
@@ -68,7 +90,7 @@ func TestHookOnChange(t *testing.T) {
 	}
 
 	runHooks(cfg, StateUp)
-	time.Sleep(200 * time.Millisecond)
+	waitFor(t, "on-change marker", func() bool { return fileExists(marker) })
 
 	if _, err := os.Stat(marker); err != nil {
 		t.Errorf("on-change hook did not create marker: %v", err)
@@ -86,7 +108,11 @@ func TestHookOrderStateBeforeChange(t *testing.T) {
 	}
 
 	runHooks(cfg, StateUp)
-	time.Sleep(500 * time.Millisecond)
+	// Wait for both hooks to land (the on-change hook sleeps 0.05s first).
+	waitFor(t, "both hooks logged", func() bool {
+		b, err := os.ReadFile(logFile)
+		return err == nil && strings.Contains(string(b), "up") && strings.Contains(string(b), "change")
+	})
 
 	data, err := os.ReadFile(logFile)
 	if err != nil {
@@ -111,7 +137,7 @@ func TestHookMultipleEntries(t *testing.T) {
 	}
 
 	runHooks(cfg, StateUp)
-	time.Sleep(200 * time.Millisecond)
+	waitFor(t, "both hook markers", func() bool { return fileExists(marker1) && fileExists(marker2) })
 
 	if _, err := os.Stat(marker1); err != nil {
 		t.Errorf("hook1 not executed: %v", err)
@@ -131,7 +157,10 @@ func TestHookStateEnv(t *testing.T) {
 	}
 
 	runHooks(cfg, StateUp)
-	time.Sleep(200 * time.Millisecond)
+	waitFor(t, "state file written", func() bool {
+		b, err := os.ReadFile(outFile)
+		return err == nil && len(b) > 0
+	})
 
 	data, err := os.ReadFile(outFile)
 	if err != nil {
@@ -153,7 +182,7 @@ func TestHookNoFireOnEnd(t *testing.T) {
 	}
 
 	runHooks(cfg, StateEnd)
-	time.Sleep(200 * time.Millisecond)
+	waitFor(t, "on-change marker for END", func() bool { return fileExists(marker) })
 
 	// END has no state-specific hooks and on-change should still fire for END.
 	// Actually per spec: "No hooks fire (END causes early return before hook dispatch)."
@@ -167,15 +196,15 @@ func TestHookNoFireOnEnd(t *testing.T) {
 }
 
 func TestHookFailureNoEffect(t *testing.T) {
-	// Hook that fails should not crash or block.
+	// Hook that fails should not crash or block. runHooks returning proves it
+	// does not block; a failing command only logs, so there is no side effect to
+	// await and a panic (none possible from `false`) would crash the test anyway.
 	cfg := ProbeConfig{
 		Name: "test",
 		OnUp: []string{"false"},
 	}
 
 	runHooks(cfg, StateUp)
-	time.Sleep(200 * time.Millisecond)
-	// No crash = pass.
 }
 
 func TestStateNameAllStates(t *testing.T) {
@@ -211,7 +240,10 @@ func TestHookStateEnvDown(t *testing.T) {
 	}
 
 	runHooks(cfg, StateDown)
-	time.Sleep(200 * time.Millisecond)
+	waitFor(t, "state file written", func() bool {
+		b, err := os.ReadFile(outFile)
+		return err == nil && len(b) > 0
+	})
 
 	data, err := os.ReadFile(outFile)
 	if err != nil {

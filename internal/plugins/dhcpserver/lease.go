@@ -7,13 +7,15 @@ import (
 	"net/netip"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 )
 
 type lease struct {
 	mac    net.HardwareAddr
 	addr   netip.Addr
 	expiry time.Time
-	timer  *time.Timer
+	timer  clock.Timer
 }
 
 type leaseTable struct {
@@ -21,14 +23,16 @@ type leaseTable struct {
 	byMAC   map[string]*lease
 	byAddr  map[netip.Addr]*lease
 	pool    *pool
+	clock   clock.Clock
 	stopped bool
 }
 
-func newLeaseTable(p *pool) *leaseTable {
+func newLeaseTable(p *pool, clk clock.Clock) *leaseTable {
 	return &leaseTable{
 		byMAC:  make(map[string]*lease),
 		byAddr: make(map[netip.Addr]*lease),
 		pool:   p,
+		clock:  clk,
 	}
 }
 
@@ -48,9 +52,9 @@ func (lt *leaseTable) add(mac net.HardwareAddr, addr netip.Addr, leaseSec uint32
 	l := &lease{
 		mac:    mac,
 		addr:   addr,
-		expiry: time.Now().Add(time.Duration(leaseSec) * time.Second),
+		expiry: lt.clock.Now().Add(time.Duration(leaseSec) * time.Second),
 	}
-	l.timer = time.AfterFunc(time.Duration(leaseSec)*time.Second, func() {
+	l.timer = lt.clock.AfterFunc(time.Duration(leaseSec)*time.Second, func() {
 		lt.expire(mac)
 	})
 

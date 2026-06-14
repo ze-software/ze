@@ -72,6 +72,15 @@ func TestPerProcessSyncWriterConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 
+	// started is closed by the goroutine the instant before it enters WaitFor,
+	// so the main goroutine can proceed on a real signal that peer2's blocking
+	// read has begun rather than a fixed delay. This is strictly stronger than a
+	// sleep: it guarantees the goroutine was scheduled (a bare sleep does not on a
+	// loaded machine). The assertion below holds regardless of ordering anyway --
+	// nothing is ever written to po2 -- so the remaining sub-poll gap inside
+	// WaitFor is immaterial; WaitFor exposes no "now blocking" state to close it.
+	started := make(chan struct{})
+
 	// Start WaitFor on peer2 in a goroutine (will block).
 	wg.Add(1)
 	var po2Found bool
@@ -79,11 +88,12 @@ func TestPerProcessSyncWriterConcurrent(t *testing.T) {
 		defer wg.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
+		close(started)
 		po2Found = po2.stdout.WaitFor(ctx)
 	}()
 
-	// Write "listening on" to peer1 concurrently.
-	time.Sleep(20 * time.Millisecond) // Let peer2's WaitFor start blocking
+	// Write "listening on" to peer1 concurrently, once peer2's WaitFor has begun.
+	<-started
 	_, err := po1.stdout.Write([]byte("listening on 127.0.0.1:1790\n"))
 	require.NoError(t, err)
 

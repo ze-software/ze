@@ -51,6 +51,8 @@ func TestParallelRunnerFailureLinesAppearWithoutVerboseWhenVerifyMode(t *testing
 // PREVENTS: ignoring the configured cap and running all tests at once.
 func TestParallelRunnerHonorsConfiguredConcurrency(t *testing.T) {
 	const maxConcurrent = 2
+	// totalTests must be an exact multiple of maxConcurrent so every barrier
+	// cohort fills (otherwise a trailing cohort would block forever).
 	const totalTests = 6
 
 	r := NewParallelRunner[string](NewColorsWithOverride(false))
@@ -62,6 +64,16 @@ func TestParallelRunnerHonorsConfiguredConcurrency(t *testing.T) {
 	var peak int
 	var current int
 
+	// Cohort barrier: replaces a fixed sleep that merely hoped enough tests
+	// would overlap. Each test entering the body parks until exactly
+	// maxConcurrent tests are simultaneously parked, then the whole cohort is
+	// released together. This makes "peak == maxConcurrent" deterministic: the
+	// runner's semaphore caps the body at maxConcurrent, and the barrier proves
+	// that many actually overlap. cond guards arrived/cohort.
+	cond := sync.NewCond(&mu)
+	var arrived int // tests parked in the current cohort
+	var cohort int  // bumped each time a cohort releases, so members wake exactly once
+
 	for i := range totalTests {
 		name := fmt.Sprintf("test-%d", i)
 		r.AddTest(name, name, func(_ context.Context, _ string) (bool, error) {
@@ -70,11 +82,21 @@ func TestParallelRunnerHonorsConfiguredConcurrency(t *testing.T) {
 			if current > peak {
 				peak = current
 			}
-			mu.Unlock()
 
-			time.Sleep(50 * time.Millisecond)
+			// Join the cohort and wait for it to fill to maxConcurrent.
+			myCohort := cohort
+			arrived++
+			if arrived == maxConcurrent {
+				// Last arrival: release this cohort and reset for the next.
+				arrived = 0
+				cohort++
+				cond.Broadcast()
+			} else {
+				for cohort == myCohort {
+					cond.Wait()
+				}
+			}
 
-			mu.Lock()
 			current--
 			mu.Unlock()
 			return true, nil

@@ -42,6 +42,10 @@ func TestRaiseWarningDedup(t *testing.T) {
 	reset()
 	RaiseWarning("bgp", "prefix-threshold", "10.0.0.1", "first message", nil)
 	first := Warnings()[0]
+	// Sleep so the re-raise lands on a strictly later wall-clock tick: the
+	// Updated.After(first.Updated) assertion below needs distinct timestamps,
+	// and the bus reads time.Now() with no injectable clock to set them
+	// directly. Not an "await async work" sleep.
 	time.Sleep(2 * time.Millisecond)
 	RaiseWarning("bgp", "prefix-threshold", "10.0.0.1", "second message", nil)
 
@@ -168,62 +172,42 @@ func TestWarningsCapEviction(t *testing.T) {
 // PREVENTS: data races in production. MUST run with -race.
 func TestRaiseClearConcurrent(t *testing.T) {
 	reset()
+
+	// Each worker performs a fixed number of operations rather than running
+	// for a fixed wall-clock duration. This makes the concurrent interleaving
+	// the -race detector exercises deterministic (a guaranteed iteration count)
+	// instead of "however many operations happened to fit in a 50ms sleep",
+	// and lets the test synchronize on the real signal: every worker finished
+	// its work, observed via wg.Wait().
+	const iterations = 2000
+
 	var wg sync.WaitGroup
-	stop := make(chan struct{})
 
 	wg.Go(func() {
-		i := 0
-		for {
-			select {
-			case <-stop:
-				return
-			default:
-				RaiseWarning("bgp", "prefix-threshold", "peer-"+strconv.Itoa(i%10), "m", nil)
-				i++
-			}
+		for i := range iterations {
+			RaiseWarning("bgp", "prefix-threshold", "peer-"+strconv.Itoa(i%10), "m", nil)
 		}
 	})
 
 	wg.Go(func() {
-		i := 0
-		for {
-			select {
-			case <-stop:
-				return
-			default:
-				ClearWarning("bgp", "prefix-threshold", "peer-"+strconv.Itoa(i%10))
-				i++
-			}
+		for i := range iterations {
+			ClearWarning("bgp", "prefix-threshold", "peer-"+strconv.Itoa(i%10))
 		}
 	})
 
 	wg.Go(func() {
-		for {
-			select {
-			case <-stop:
-				return
-			default:
-				_ = Warnings()
-			}
+		for range iterations {
+			_ = Warnings()
 		}
 	})
 
 	wg.Go(func() {
-		i := 0
-		for {
-			select {
-			case <-stop:
-				return
-			default:
-				RaiseError("bgp", "notification-sent", "peer-"+strconv.Itoa(i%10), "m", nil)
-				_ = Errors(0)
-				i++
-			}
+		for i := range iterations {
+			RaiseError("bgp", "notification-sent", "peer-"+strconv.Itoa(i%10), "m", nil)
+			_ = Errors(0)
 		}
 	})
 
-	time.Sleep(50 * time.Millisecond)
-	close(stop)
 	wg.Wait()
 }
 
@@ -461,6 +445,11 @@ func TestWarningCap1(t *testing.T) {
 	if got := Warnings(); len(got) != 1 || got[0].Subject != "10.0.0.1" {
 		t.Fatalf("first raise: got %d entries (%v)", len(got), got)
 	}
+	// Sleep so the second warning carries a strictly later Updated timestamp.
+	// evictOldestWarning() drops the entry with the oldest Updated, so the
+	// two raises must land on distinct ticks for the eviction to be
+	// deterministic. The bus reads time.Now() with no injectable clock to set
+	// the timestamps directly. Not an "await async work" sleep.
 	time.Sleep(5 * time.Millisecond)
 	RaiseWarning("bgp", "prefix-threshold", "10.0.0.2", "second", nil)
 	got := Warnings()

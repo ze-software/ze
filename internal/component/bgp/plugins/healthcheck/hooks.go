@@ -20,7 +20,9 @@ const (
 // runHooks executes hook commands for a state transition.
 // State-specific hooks run first (in config order), then on-change hooks.
 // Concurrency is bounded by maxConcHooks to prevent goroutine accumulation (#5).
-// Hooks do NOT block the FSM. Failures are logged.
+// Hooks do NOT block the FSM (each runs in its own goroutine). Failures are
+// logged. Tests observe completion through each hook's own side effect (e.g. a
+// marker file), so no completion signal is exposed on the production path.
 func runHooks(cfg ProbeConfig, state State) {
 	var stateHooks []string
 	switch state {
