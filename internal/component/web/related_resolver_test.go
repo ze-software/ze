@@ -236,15 +236,16 @@ func TestRelatedToolResolve_ResolvedCommandLengthLimit(t *testing.T) {
 	bgp := tree.GetOrCreateContainer("bgp")
 	bgp.AddListEntry("peer", longKey, config.NewTree())
 
-	cmd := "peer"
+	var cmd strings.Builder
+	cmd.WriteString("peer")
 	for range 17 { // 17 * 250 = 4250 > 4096
-		cmd += " ${key}"
+		cmd.WriteString(" ${key}")
 	}
-	require.LessOrEqual(t, len(cmd), 512, "test setup keeps template under cap")
+	require.LessOrEqual(t, len(cmd.String()), 512, "test setup keeps template under cap")
 	tool := &config.RelatedTool{
 		ID:      "x",
 		Label:   "X",
-		Command: cmd,
+		Command: cmd.String(),
 	}
 	r := NewRelatedResolver(schema, tree)
 	_, err = r.Resolve(tool, []string{"bgp", "peer", longKey})

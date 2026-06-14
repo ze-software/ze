@@ -420,16 +420,16 @@ func TestSendNotTreatedAsExpect(t *testing.T) {
 func TestUTF8TruncationSafety(t *testing.T) {
 	// Create a string with multi-byte characters near the 255 boundary
 	// Each emoji is 4 bytes, so 64 emojis = 256 bytes
-	var text string
+	var text strings.Builder
 	for range 64 {
-		text += "👋" // 4 bytes each
+		text.WriteString("👋") // 4 bytes each
 	}
 
-	if len([]byte(text)) != 256 {
-		t.Fatalf("test setup: expected 256 bytes, got %d", len([]byte(text)))
+	if len([]byte(text.String())) != 256 {
+		t.Fatalf("test setup: expected 256 bytes, got %d", len([]byte(text.String())))
 	}
 
-	msg := NotificationMsg(text)
+	msg := NotificationMsg(text.String())
 
 	// Extract the text from the message (starts at byte 22)
 	extractedText := msg[22:]

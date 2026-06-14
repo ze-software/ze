@@ -1,6 +1,7 @@
 package message
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -494,13 +495,13 @@ func TestBuildShutdownDataInvalidUTF8(t *testing.T) {
 // PREVENTS: Mid-character truncation producing invalid UTF-8.
 func TestBuildShutdownDataAllMultibyteTruncation(t *testing.T) {
 	// 43 copies of "日" (3 bytes each) = 129 bytes total, exceeds 128-byte limit.
-	var input string
+	var input strings.Builder
 	for range 43 {
-		input += "日"
+		input.WriteString("日")
 	}
-	require.Len(t, []byte(input), 129, "precondition: input must be 129 bytes")
+	require.Len(t, []byte(input.String()), 129, "precondition: input must be 129 bytes")
 
-	data := BuildShutdownData(input)
+	data := BuildShutdownData(input.String())
 
 	// Must truncate to 42 chars = 126 bytes (can't fit the 43rd 3-byte char).
 	require.GreaterOrEqual(t, len(data), 2, "data must have length byte + message")
