@@ -4,5 +4,8 @@ package yang
 
 import _ "embed"
 
+//go:embed ze-filter-irr-cmd.yang
+var ZeFilterIrrCmdYANG string
+
 //go:embed ze-filter-irr.yang
 var ZeFilterIrrYANG string

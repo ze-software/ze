@@ -238,6 +238,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_irr"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rr"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cli"

@@ -413,8 +413,11 @@ the AS-SET's prefixes and builds a prefix-list keyed by ASN. Routes with
 prefixes in the list are accepted; all others are rejected (implicit deny).
 
 When `irr { as-set }` is omitted, the plugin auto-discovers the AS-SET from
-PeeringDB using the peer's remote ASN. Set `irr { enable disable; }` to opt
-a peer out of IRR filtering entirely.
+PeeringDB using the peer's remote ASN. If PeeringDB has no AS-SET registered
+for the ASN, the plugin falls back to querying IRR directly using
+`AS<number>` (e.g. `AS65001`). If the IRR query also fails, the existing
+prefix-list is preserved and the error is reported via `show bgp irr`.
+Set `irr { enable disable; }` to opt a peer out of IRR filtering entirely.
 
 The plugin refreshes prefix-lists automatically at the configured interval and
 on demand via `update bgp irr all`. Resolved prefixes are stored as operational

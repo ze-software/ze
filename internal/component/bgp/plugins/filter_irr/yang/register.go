@@ -7,5 +7,6 @@ import (
 )
 
 func init() {
+	configyang.RegisterModule("ze-filter-irr-cmd.yang", ZeFilterIrrCmdYANG)
 	configyang.RegisterModule("ze-filter-irr.yang", ZeFilterIrrYANG)
 }

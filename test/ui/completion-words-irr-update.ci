@@ -1,0 +1,9 @@
+# Test: ze completion words -- update bgp irr subcommand completion
+# VALIDATES: YANG command schema provides tab-completion for update bgp irr
+# PREVENTS: ze-filter-irr-cmd.yang removed or broken without detection
+
+cmd=foreground:seq=1:exec=ze completion words run update bgp irr
+expect=exit:code=0
+expect=stdout:contains=all
+expect=stdout:contains=asn
+expect=stdout:contains=as-set

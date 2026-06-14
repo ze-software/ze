@@ -50,7 +50,7 @@ def main():
         api.wait_for_shutdown()
         sys.exit(1)
 
-    # Verify show bgp irr works.
+    # Verify show bgp irr works via plugin dispatch.
     result = dispatch(api, 'show bgp irr')
     status = result.get('status', '')
     if status != 'done':
@@ -59,7 +59,18 @@ def main():
         api.wait_for_shutdown()
         sys.exit(1)
 
-    print('OK: update bgp irr all succeeded, show bgp irr returned data', file=sys.stderr)
+    # Verify show bgp irr works via YANG wire method (ze-show:irr-status).
+    # This proves the cmd_irr.go forwarding layer is wired correctly.
+    wire_resp = api._call_engine('ze-show:irr-status', {})
+    wire_result = wire_resp.get('result', {})
+    wire_status = wire_result.get('status', '')
+    if wire_status != 'done':
+        print(f'FAIL: ze-show:irr-status wire method status={wire_status}', file=sys.stderr)
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print('OK: update bgp irr all succeeded, show bgp irr returned data (both dispatch paths)', file=sys.stderr)
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

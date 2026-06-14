@@ -290,7 +290,7 @@ Also works with dynamic peers for the same reason.
 | AC-12 | IPv4 and IPv6 prefixes from IRR | Both families filtered correctly |
 | AC-13 | IRR returns aggregated/collapsed prefixes | Aggregation from `irr.LookupPrefixes` preserved (no re-expansion) |
 | AC-14 | Peer with `irr { enable disable }` | IRR filtering opt-out; no PeeringDB query, no filter applied |
-| AC-15 | PeeringDB returns no AS-SET for a peer's ASN | Peer logged as "no AS-SET found", no filter applied (fail-open for discovery, not for filtering) |
+| AC-15 | PeeringDB returns no AS-SET for a peer's ASN | Plugin falls back to querying IRR directly using AS<number> (e.g. AS65001). If the IRR query also fails, existing prefix-list is preserved and the error is reported |
 | AC-16 | Resolved prefix-lists stored in zefs | Prefixes NOT in config tree; stored as operational data in zefs blob store; survives restart |
 | AC-17 | `show bgp irr prefix <peer>` | Lists all IPv4 and IPv6 prefixes in the IRR-resolved list for this peer |
 | AC-18 | `show bgp irr check <peer> <prefix>` | Reports whether the prefix would be accepted or rejected by the IRR filter, and which entry matches |
@@ -339,6 +339,8 @@ N/A. IRR filtering is management-plane (whois protocol + internal filter). The B
 - `internal/component/bgp/plugins/filter_irr/yang/embed.go` - YANG embed
 - `internal/component/bgp/plugins/filter_irr/yang/register.go` - YANG registration
 - `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang` - config schema
+- `internal/component/bgp/plugins/filter_irr/command.go` - command handlers (show/update bgp irr)
+- `internal/component/bgp/plugins/filter_irr/cmd_irr.go` - YANG command forwarding (RPC registration)
 - `internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang` - command schema (`update bgp irr`, `show bgp irr`)
 - `test/plugin/filter-irr.ci` - functional test: filter evaluation
 - `test/plugin/filter-irr-update.ci` - functional test: manual refresh

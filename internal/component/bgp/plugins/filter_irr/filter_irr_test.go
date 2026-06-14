@@ -93,10 +93,9 @@ func TestExtractASNFromFilter(t *testing.T) {
 	}
 }
 
-// VALIDATES: when the AS-SET cannot be determined, `update bgp irr asn` fails
-// (returns statusError) and leaves the existing prefix-list untouched (no
-// configuration/state change). PREVENTS: a failed refresh wiping last-known-good
-// data and silently reporting success.
+// VALIDATES: when PeeringDB returns no AS-SET and IRR is unreachable,
+// `update bgp irr asn` fails (returns statusError) and leaves the existing
+// prefix-list untouched. PREVENTS: a failed refresh wiping last-known-good data.
 func TestUpdateASNFailurePreservesState(t *testing.T) {
 	existing := &irrPrefixList{entries: prefixListFromIRR(irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
@@ -105,7 +104,8 @@ func TestUpdateASNFailurePreservesState(t *testing.T) {
 		byASN: map[uint32]*asnState{
 			65010: {asn: 65010, asSet: "", list: existing},
 		},
-		// Unreachable endpoints so AS-SET discovery fails fast (refused, local).
+		// Unreachable endpoints: PeeringDB returns nothing, IRR connection refused.
+		// The plugin falls back to AS65010 but the IRR query fails.
 		pdbClient: peeringdb.NewPeeringDB("http://127.0.0.1:1"),
 		irrClient: irr.NewIRR("127.0.0.1:1"),
 	}
@@ -118,12 +118,16 @@ func TestUpdateASNFailurePreservesState(t *testing.T) {
 	plug.mu.RLock()
 	got := plug.byASN[65010].list
 	lastErr := plug.byASN[65010].lastErr
+	asSet := plug.byASN[65010].asSet
 	plug.mu.RUnlock()
 	if got != existing {
 		t.Error("prefix-list was replaced on a failed refresh; want last-known-good preserved")
 	}
 	if lastErr == "" {
 		t.Error("lastErr not recorded for a failed refresh")
+	}
+	if asSet != "AS65010" {
+		t.Errorf("asSet = %q, want AS65010 (fallback from empty PeeringDB)", asSet)
 	}
 }
 

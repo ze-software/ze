@@ -36,6 +36,16 @@ def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
     return resp.get('result', {})
 
+def wait_for_irr_settled(api):
+    """Poll show bgp irr until the initial refresh for ASN 65100 completes."""
+    for _ in range(20):
+        result = dispatch(api, 'show bgp irr')
+        data = result_json_data(result, {})
+        for entry in data.get('entries', []):
+            if entry.get('asn') == 65100 and entry.get('status') != 'pending':
+                return
+        api.wait_for_event(timeout=0.5)
+
 def main():
     api = API()
     api.declare_done()
@@ -44,7 +54,9 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Update command must fail: PeeringDB returns no AS-SET for ASN 65100.
+    wait_for_irr_settled(api)
+
+    # Update command must fail: IRR server unreachable for AS65100.
     result = dispatch(api, 'update bgp irr asn 65100')
     status = result.get('status', '')
     if status != 'error':
@@ -127,4 +139,4 @@ cmd=background:seq=1:exec=ze-test peeringdb --port $PORT2
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-irr --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
-expect=stderr:pattern=no AS-SET for ASN
+expect=stderr:pattern=irr: lookup failed
