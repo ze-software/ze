@@ -36,6 +36,8 @@ ExaBGP supports 42 AFI/SAFI combinations. Ze supports ~19 families (17 plugin-re
 | 1 (IPv4) | 133 (flow_ip) | flowspec4 | MP_REACH_NLRI |
 | 2 (IPv6) | 1 (unicast) | inet6 | MP_REACH_NLRI |
 | 2 (IPv6) | 128 (mpls_vpn) | vpnv6 | MP_REACH_NLRI |
+| 1 (IPv4) | 73 (sr-policy) | sr-policy4 | MP_REACH_NLRI |
+| 2 (IPv6) | 73 (sr-policy) | sr-policy6 | MP_REACH_NLRI |
 | 25 (L2VPN) | 70 (evpn) | evpn | MP_REACH_NLRI |
 | 16388 (BGP-LS) | 71 (bgp_ls) | bgp-ls | MP_REACH_NLRI |
 
@@ -69,6 +71,7 @@ NLRI (interface)
 │   ├── BGPLSLink
 │   ├── BGPLSPrefix
 │   └── BGPLSSRv6SID
+├── SRPolicy (SR-Policy, RFC 9830) [standalone: distinguisher, color, endpoint]
 ├── VPLS (RFC 4761)
 └── RTC (Route Target Constraint, RFC 4684)
 ```

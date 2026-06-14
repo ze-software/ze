@@ -159,6 +159,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/mup"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/mvpn"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/rtc"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/srpolicy"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpls"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpn"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/persist"

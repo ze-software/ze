@@ -173,6 +173,14 @@ func convertWithdraw(peerIP, routeStr string) string {
 
 func convertAnnounceFamily(peerIP, rest string) string {
 	rest = strings.TrimSpace(rest)
+
+	// SR-Policy has a different syntax: ipv4/ipv6 sr-policy distinguisher ...
+	srPolicyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+sr-policy\s+(.+)$`)
+	if match := srPolicyRE.FindStringSubmatch(rest); match != nil {
+		afi := strings.ToLower(match[1])
+		return convertAnnounceSRPolicy(peerIP, afi, match[2])
+	}
+
 	familyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flowspec)\s+(.+)$`)
 	match := familyRE.FindStringSubmatch(rest)
 	if match != nil {
@@ -190,6 +198,14 @@ func convertAnnounceFamily(peerIP, rest string) string {
 
 func convertWithdrawFamily(peerIP, rest string) string {
 	rest = strings.TrimSpace(rest)
+
+	// SR-Policy withdraw: ipv4/ipv6 sr-policy distinguisher ...
+	srPolicyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+sr-policy\s+(.+)$`)
+	if match := srPolicyRE.FindStringSubmatch(rest); match != nil {
+		afi := strings.ToLower(match[1])
+		return convertWithdrawSRPolicy(peerIP, afi, match[2])
+	}
+
 	familyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flowspec)\s+(.+)$`)
 	match := familyRE.FindStringSubmatch(rest)
 	var tb textbuf.Buffer
@@ -202,6 +218,60 @@ func convertWithdrawFamily(peerIP, rest string) string {
 	}
 
 	return tb.Str("peer ").Str(peerIP).Str(" withdraw ").Str(rest).String()
+}
+
+// convertAnnounceSRPolicy translates ExaBGP SR-Policy announce to Ze's update text format.
+//
+// ExaBGP: announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 100 ...
+// Ze:     peer <ip> update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1
+//
+// Extracts next-hop and the three NLRI fields (distinguisher, color, endpoint).
+// Tunnel encapsulation tokens (preference, segment-list, etc.) are not yet supported.
+func convertAnnounceSRPolicy(peerIP, afi, rest string) string {
+	rest = strings.TrimSpace(rest)
+	parts := strings.Fields(rest)
+
+	var nhop, distinguisher, color, endpoint string
+	for i := 0; i < len(parts); i++ {
+		key := strings.ToLower(parts[i])
+		if i+1 >= len(parts) {
+			break
+		}
+		switch key {
+		case "next-hop":
+			nhop = parts[i+1]
+			i++
+		case "distinguisher":
+			distinguisher = parts[i+1]
+			i++
+		case "color":
+			color = parts[i+1]
+			i++
+		case "endpoint":
+			endpoint = parts[i+1]
+			i++
+		}
+	}
+
+	var tb textbuf.Buffer
+	tb.Str("peer ").Str(peerIP).Str(" update text")
+	if nhop != "" {
+		tb.Str(" nhop ").Str(nhop)
+	}
+	tb.Str(" nlri ").Str(afi).Str("/sr-policy add")
+	tb.Str(" distinguisher ").Str(distinguisher)
+	tb.Str(" color ").Str(color)
+	tb.Str(" endpoint ").Str(endpoint)
+	return tb.String()
+}
+
+// convertWithdrawSRPolicy translates ExaBGP SR-Policy withdraw to Ze's update text format.
+func convertWithdrawSRPolicy(peerIP, afi, rest string) string {
+	rest = strings.TrimSpace(rest)
+
+	var tb textbuf.Buffer
+	tb.Str("peer ").Str(peerIP).Str(" update text nlri ").Str(afi).Str("/sr-policy del ").Str(rest)
+	return tb.String()
 }
 
 func convertAnnounceWithFamily(peerIP, family, routeStr string) string {

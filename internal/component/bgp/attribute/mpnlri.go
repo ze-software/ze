@@ -250,6 +250,9 @@ const RDSize = 8
 // SAFIMPLSLabel is SAFI 4 (RFC 8277: MPLS labeled unicast).
 const SAFIMPLSLabel SAFI = 4
 
+// SAFISRPolicy is SAFI 73 (RFC 9830: SR Policy).
+const SAFISRPolicy SAFI = 73
+
 // ValidNextHopLens returns the set of valid next-hop byte lengths for an AFI/SAFI.
 // This is the single source of truth for both encode and decode paths, ensuring
 // they agree on what constitutes a valid wire format.
@@ -271,6 +274,8 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 			return []int{4}
 		case SAFIVPN:
 			return []int{12, 24} // RD+IPv4 or RD+IPv6
+		case SAFISRPolicy:
+			return []int{4, 16} // RFC 9830: NH AFI independent of policy AFI
 		case SAFIFlowSpec, SAFIEVPN:
 			// FlowSpec: permissive (no test coverage yet for strict validation)
 			// EVPN: uses AFI L2VPN (25), not IPv4
@@ -283,6 +288,8 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 			return []int{16, 32}
 		case SAFIVPN:
 			return []int{24, 48} // RD+IPv6 or dual
+		case SAFISRPolicy:
+			return []int{4, 16, 32} // RFC 9830: NH AFI independent of policy AFI
 		case SAFIFlowSpec, SAFIEVPN:
 			// FlowSpec: permissive (no test coverage yet for strict validation)
 			// EVPN: uses AFI L2VPN (25), not IPv6

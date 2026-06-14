@@ -717,6 +717,8 @@ func TestValidateFamily(t *testing.T) {
 		"ipv4/flow-vpn",
 		"ipv6/mpls-vpn",
 		"l2vpn/evpn",
+		"ipv4/sr-policy",
+		"ipv6/sr-policy",
 		"IPV4/UNICAST", // case insensitive
 	}
 
@@ -1249,11 +1251,14 @@ func TestMuxConnCommandFormatting(t *testing.T) {
 	b.running = true
 
 	// pluginToZebgp blocks on dispatch ack, then the flush response.
-	// Signal both from a goroutine so each wait unblocks.
+	// Signal each only once pluginToZebgp has registered the corresponding
+	// waiter, so the signal lands on a real waiter instead of racing a sleep.
 	go func() {
-		time.Sleep(10 * time.Millisecond)
+		require.Eventually(t, func() bool { return pending.isWaiting(1) },
+			2*time.Second, time.Millisecond, "dispatch waiter (id 1) should register")
 		pending.signal(1, pendingResult{ok: true}) // dispatch ack
-		time.Sleep(10 * time.Millisecond)
+		require.Eventually(t, func() bool { return pending.isWaiting(2) },
+			2*time.Second, time.Millisecond, "flush waiter (id 2) should register")
 		pending.signal(2, pendingResult{ok: true}) // flush
 	}()
 
@@ -1444,7 +1449,10 @@ func TestFlushBlocksUntilResponse(t *testing.T) {
 	}()
 
 	// Ack the dispatch first so pluginToZebgp reaches the flush wait.
-	time.Sleep(20 * time.Millisecond)
+	// Wait until the dispatch waiter is registered so the signal cannot race
+	// ahead of pluginToZebgp's register/wait.
+	require.Eventually(t, func() bool { return pending.isWaiting(1) },
+		2*time.Second, time.Millisecond, "dispatch waiter (id 1) should register")
 	pending.signal(1, pendingResult{ok: true})
 
 	// pluginToZebgp should NOT finish yet -- it's blocked on flush.
@@ -1455,7 +1463,10 @@ func TestFlushBlocksUntilResponse(t *testing.T) {
 		// Expected: still blocked.
 	}
 
-	// Signal the flush response.
+	// Signal the flush response. Confirm the flush waiter is registered first
+	// so the signal lands on a real waiter rather than racing registration.
+	require.Eventually(t, func() bool { return pending.isWaiting(2) },
+		2*time.Second, time.Millisecond, "flush waiter (id 2) should register")
 	pending.signal(2, pendingResult{ok: true}) // flush ID
 
 	// Now it should finish.
@@ -1491,4 +1502,63 @@ func TestPendingResponseSignalAndWait(t *testing.T) {
 	assert.Error(t, err)
 	// Leak check: a late signal on id=100 must find no waiter now.
 	assert.False(t, p.signal(100, pendingResult{ok: true}), "timed-out waiter should have been removed from the map")
+}
+
+// TestBridgeSRPolicyFamilyParse verifies sr-policy family parsing in parseFamilyToAFISAFI.
+//
+// VALIDATES: AC-8, AC-9 -- parseFamilyToAFISAFI returns correct AFI/SAFI for sr-policy.
+// PREVENTS: sr-policy family rejected by bridge.
+func TestBridgeSRPolicyFamilyParse(t *testing.T) {
+	afi, safi := parseFamilyToAFISAFI("ipv4/sr-policy")
+	assert.Equal(t, uint16(1), afi)
+	assert.Equal(t, uint16(73), safi)
+
+	afi, safi = parseFamilyToAFISAFI("ipv6/sr-policy")
+	assert.Equal(t, uint16(2), afi)
+	assert.Equal(t, uint16(73), safi)
+
+	// L2VPN should not support sr-policy
+	afi, safi = parseFamilyToAFISAFI("l2vpn/sr-policy")
+	assert.Equal(t, uint16(0), afi)
+	assert.Equal(t, uint16(0), safi)
+}
+
+// TestBridgeSRPolicyCommand verifies ExaBGP SR-Policy command translation.
+//
+// VALIDATES: AC-11 -- ExaBGP sr-policy announce translated to Ze format.
+// PREVENTS: SR-Policy commands silently dropped or mistranslated.
+func TestBridgeSRPolicyCommand(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			"announce_ipv4",
+			"neighbor 10.0.0.1 announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4",
+			"peer 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1",
+		},
+		{
+			"announce_ipv4_with_preference",
+			"neighbor 10.0.0.1 announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 200",
+			"peer 10.0.0.1 update text nhop 1.2.3.4 nlri ipv4/sr-policy add distinguisher 0 color 100 endpoint 10.0.0.1",
+		},
+		{
+			"announce_ipv6",
+			"neighbor 10.0.0.1 announce ipv6 sr-policy distinguisher 1 color 200 endpoint 2001:db8::1 next-hop 2001:db8::2",
+			"peer 10.0.0.1 update text nhop 2001:db8::2 nlri ipv6/sr-policy add distinguisher 1 color 200 endpoint 2001:db8::1",
+		},
+		{
+			"withdraw_ipv4",
+			"neighbor 10.0.0.1 withdraw ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1",
+			"peer 10.0.0.1 update text nlri ipv4/sr-policy del distinguisher 0 color 100 endpoint 10.0.0.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExabgpToZebgpCommand(tt.input)
+			assert.Equal(t, tt.want, result)
+		})
+	}
 }

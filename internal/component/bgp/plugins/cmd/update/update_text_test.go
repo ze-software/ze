@@ -23,6 +23,7 @@ import (
 	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/labeled" // blank import: registers InProcessNLRIDecoder
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/srpolicy"
 	vplspkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpls"
 	vpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/vpn"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
@@ -3626,4 +3627,104 @@ func TestUpdateText_LocalPrefRange_YANG(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "local-preference")
+}
+
+// TestParseUpdateText_SRPolicyBasic verifies SR-Policy NLRI announce.
+//
+// VALIDATES: SR-Policy NLRI parsed from update text with distinguisher/color/endpoint.
+// PREVENTS: SR-Policy family not recognized, NLRI fields not extracted.
+func TestParseUpdateText_SRPolicyBasic(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "192.0.2.1",
+		"nlri", "ipv4/sr-policy", "add",
+		"distinguisher", "0", "color", "100", "endpoint", "10.0.0.1",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.Equal(t, family.SAFISRPolicy, result.Groups[0].Family.SAFI)
+	require.Len(t, result.Groups[0].Announce, 1)
+
+	// Verify wire round-trip: decode the WireNLRI bytes back through srpolicy.Parse
+	wireBytes := result.Groups[0].Announce[0].Bytes()
+	// Wire format: [length-bits:1][distinguisher:4][color:4][endpoint:4]
+	require.Equal(t, 13, len(wireBytes), "IPv4 SR-Policy wire NLRI = 1 + 12 bytes")
+	assert.Equal(t, byte(96), wireBytes[0], "length = 96 bits for IPv4")
+	sp, parseErr := srpolicy.Parse(family.AFIIPv4, wireBytes[1:])
+	require.NoError(t, parseErr)
+	assert.Equal(t, uint32(0), sp.Distinguisher())
+	assert.Equal(t, uint32(100), sp.Color())
+	assert.Equal(t, "10.0.0.1", sp.Endpoint().String())
+}
+
+// TestParseUpdateText_SRPolicyWithdraw verifies SR-Policy NLRI withdraw.
+//
+// VALIDATES: SR-Policy withdraw parsed correctly.
+// PREVENTS: Withdraw path broken for SR-Policy.
+func TestParseUpdateText_SRPolicyWithdraw(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/sr-policy", "del",
+		"distinguisher", "0", "color", "100", "endpoint", "10.0.0.1",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.Equal(t, family.SAFISRPolicy, result.Groups[0].Family.SAFI)
+	require.Len(t, result.Groups[0].Withdraw, 1)
+}
+
+// TestParseUpdateText_SRPolicyIPv6 verifies IPv6 SR-Policy NLRI.
+//
+// VALIDATES: IPv6 endpoint parsed correctly in SR-Policy.
+// PREVENTS: IPv6 SR-Policy treated as IPv4.
+func TestParseUpdateText_SRPolicyIPv6(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "2001:db8::2",
+		"nlri", "ipv6/sr-policy", "add",
+		"distinguisher", "1", "color", "200", "endpoint", "2001:db8::1",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.Equal(t, family.AFIIPv6, result.Groups[0].Family.AFI)
+	assert.Equal(t, family.SAFISRPolicy, result.Groups[0].Family.SAFI)
+	require.Len(t, result.Groups[0].Announce, 1)
+}
+
+// TestParseUpdateText_SRPolicyMissingField verifies error on incomplete SR-Policy.
+//
+// VALIDATES: Missing endpoint rejected with clear error.
+// PREVENTS: Partial SR-Policy NLRI silently accepted.
+func TestParseUpdateText_SRPolicyMissingField(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"nhop", "1.2.3.4",
+		"nlri", "ipv4/sr-policy", "add",
+		"distinguisher", "0", "color", "100",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "endpoint")
+}
+
+// TestParseUpdateText_SRPolicyEOR verifies SR-Policy EOR marker.
+//
+// VALIDATES: EOR for SR-Policy family accepted.
+// PREVENTS: SR-Policy EOR rejected.
+func TestParseUpdateText_SRPolicyEOR(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/sr-policy", "eor",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.EORFamilies, 1)
+	assert.Equal(t, family.SAFISRPolicy, result.EORFamilies[0].SAFI)
+}
+
+// TestParseUpdateText_SRPolicyUnknownKeyword verifies typos are rejected.
+//
+// VALIDATES: Unknown keywords produce clear error instead of silent skip.
+// PREVENTS: Typo in "distinguisher" silently dropped, confusing "missing" error.
+func TestParseUpdateText_SRPolicyUnknownKeyword(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"nhop", "1.2.3.4",
+		"nlri", "ipv4/sr-policy", "add",
+		"distingisher", "0", "color", "100", "endpoint", "10.0.0.1",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown keyword")
 }

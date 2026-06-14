@@ -283,6 +283,11 @@ func parseFamilyToAFISAFI(family string) (afi, safi uint16) {
 			return 0, 0 // L2VPN doesn't use flowspec-vpn.
 		}
 		safi = 134
+	case "sr-policy":
+		if afi == 25 {
+			return 0, 0 // L2VPN doesn't use SR-Policy.
+		}
+		safi = 73
 	default:
 		return 0, 0
 	}

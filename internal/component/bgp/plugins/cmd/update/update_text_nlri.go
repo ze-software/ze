@@ -67,6 +67,12 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 		return parseEVPNSection(args, fam, accum)
 	}
 
+	// SR-Policy families use different parsing (distinguisher/color/endpoint)
+	// RFC 9830: SR-Policy NLRI + Tunnel Encapsulation attribute
+	if fam.SAFI == family.SAFISRPolicy {
+		return parseSRPolicySection(args, fam)
+	}
+
 	consumed := 2 // "nlri" + family
 	i := 2
 
@@ -388,6 +394,9 @@ func isSupportedFamily(f family.Family) bool {
 	case family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}: // VPLS (SAFI 65) - RFC 4761
 		return true
 	case family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}: // EVPN (SAFI 70) - RFC 7432
+		return true
+	case family.Family{AFI: family.AFIIPv4, SAFI: family.SAFISRPolicy},
+		family.Family{AFI: family.AFIIPv6, SAFI: family.SAFISRPolicy}: // SR-Policy (SAFI 73) - RFC 9830
 		return true
 	default: // unsupported family
 		return false

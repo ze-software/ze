@@ -721,6 +721,8 @@ func TestValidNextHopLens_Coverage(t *testing.T) {
 		{AFIIPv6, SAFIVPN, "IPv6 VPN"},
 		{AFIIPv6, SAFIMPLSLabel, "IPv6 MPLS"},
 		{AFIL2VPN, SAFIEVPN, "L2VPN EVPN"},
+		{AFIIPv4, SAFISRPolicy, "IPv4 SR-Policy"},
+		{AFIIPv6, SAFISRPolicy, "IPv6 SR-Policy"},
 	}
 
 	for _, e := range expected {

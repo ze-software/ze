@@ -134,6 +134,20 @@ func (p *pendingResponses) register(id uint64) chan pendingResult {
 	return ch
 }
 
+// isWaiting reports whether a waiter is currently registered for the given
+// request ID, without consuming it (unlike signal).
+//
+// Test-only introspection: it has no production caller by design. Tests use it
+// to observe that the command goroutine has reached its register/wait point
+// before delivering a response, replacing timing-based ordering guesses. It
+// takes p.mu and does not mutate state, so it is safe alongside the live path.
+func (p *pendingResponses) isWaiting(id uint64) bool {
+	p.mu.Lock()
+	_, found := p.waiters[id]
+	p.mu.Unlock()
+	return found
+}
+
 // signal delivers a result for the given request ID. Returns true if a
 // waiter was found and signaled. Callers must pass pendingResult{ok: true}
 // for plain "ok" responses and {ok: false, errText: ...} for errors.

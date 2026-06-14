@@ -58,6 +58,7 @@ const (
 	AttrExtCommunity     AttributeCode = 16  // RFC 4360
 	AttrAS4Path          AttributeCode = 17  // RFC 6793
 	AttrAS4Aggregator    AttributeCode = 18  // RFC 6793
+	AttrTunnelEncap      AttributeCode = 23  // RFC 9012
 	AttrIPv6ExtCommunity AttributeCode = 25  // RFC 5701
 	AttrAIGP             AttributeCode = 26  // RFC 7311
 	AttrLargeCommunity   AttributeCode = 32  // RFC 8092
@@ -81,6 +82,7 @@ var attrCodeNames = map[AttributeCode]string{
 	AttrExtCommunity:     "EXTENDED_COMMUNITIES",
 	AttrAS4Path:          "AS4_PATH",
 	AttrAS4Aggregator:    "AS4_AGGREGATOR",
+	AttrTunnelEncap:      "TUNNEL_ENCAPSULATION",
 	AttrIPv6ExtCommunity: "IPV6_EXTENDED_COMMUNITIES",
 	AttrAIGP:             "AIGP",
 	AttrLargeCommunity:   "LARGE_COMMUNITIES",

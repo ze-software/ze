@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/nlri.md -- BGP address family types
+// RFC: rfc/short/rfc4760.md -- Multiprotocol Extensions (AFI/SAFI wire format)
 // Detail: registry.go -- runtime registration and string cache
 //
 // Package family defines the BGP address family types (AFI, SAFI, Family) and
@@ -89,6 +90,7 @@ const (
 	SAFIEVPN            SAFI = 70  // RFC 7432
 	SAFIBGPLinkState    SAFI = 71  // RFC 7752
 	SAFIBGPLinkStateVPN SAFI = 72  // RFC 7752
+	SAFISRPolicy        SAFI = 73  // IANA SAFI 73
 	SAFIMUP             SAFI = 85  // draft-mpmz-bess-mup-safi
 	SAFIVPN             SAFI = 128 // RFC 4364 (VPNv4), RFC 4659 (VPNv6)
 	SAFIRTC             SAFI = 132 // RFC 4684
