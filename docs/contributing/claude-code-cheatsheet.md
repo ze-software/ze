@@ -26,6 +26,7 @@ are available inside Claude Code when working in the ze repository.
 | `/ze-find-alloc` | Scan encoding paths for allocations that should use buffers |
 | `/ze-fix-alloc <file:line>` | Convert a specific allocation to buffer-writing |
 | `/ze-extract <src> <dst> <symbols>` | Move Go symbols between files |
+| `/ze-hunt [path]` | Sweep the tree for recorded bug classes (silent fall-through, seqnum ordering, unenforced lock contracts, count-asserts) and triage each hit |
 
 
 <!-- source: ai/skills/ze-commit.md -- scoped commit workflow -->
@@ -88,4 +89,5 @@ The four review commands serve different purposes:
 <!-- source: scripts/dev/commit_helper.py -- generated message file and user-run script -->
 - `/ze-verify` is the same as `make ze-verify` but formats the output as a structured report.
 - `/ze-review-deep` accepts arguments: path scope, agent names, or `branch` for branch review.
+- `/ze-hunt` differs from the review family: the reviews look at the **diff**, `/ze-hunt` sweeps the **existing tree** for the recurring bug classes recorded in `plan/learned/RECURRING-PATTERNS.md`. Use it for periodic latent-bug sweeps, not for checking a change.
 - All commands are read-only unless explicitly stated. Reviews report findings without making changes.
