@@ -422,7 +422,7 @@ func (m *Model) writeCommandEcho() {
 		}
 	}
 	var tb textbuf.Buffer
-	m.outputBuf.WriteString(tb.Str("ze> ").Str(m.lastCommand).Byte('\n').String())
+	m.outputBuf.WriteString(tb.Str("ze> ").Str(m.lastCommand).Byte('\n').Slice())
 }
 
 // draftPollInterval is how often the model checks for draft changes by other sessions.

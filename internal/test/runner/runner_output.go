@@ -149,7 +149,7 @@ func (r *Runner) saveTestOutput(rec *Record, out *testOutput, saveDir string) er
 	for _, exp := range rec.Expects {
 		expected.Str(exp).Byte(10)
 	}
-	if err := os.WriteFile(filepath.Join(testDir, "expected.txt"), []byte(expected.String()), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(testDir, "expected.txt"), expected.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("write expected.txt: %w", err)
 	}
 
@@ -158,7 +158,7 @@ func (r *Runner) saveTestOutput(rec *Record, out *testOutput, saveDir string) er
 	for _, raw := range rec.ReceivedRaw {
 		received.Str(raw).Byte(10)
 	}
-	if err := os.WriteFile(filepath.Join(testDir, "received.txt"), []byte(received.String()), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(testDir, "received.txt"), received.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("write received.txt: %w", err)
 	}
 

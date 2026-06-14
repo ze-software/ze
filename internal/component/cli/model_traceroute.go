@@ -400,7 +400,7 @@ func (m *Model) stopTraceroutePiped() {
 		}
 		var hb textbuf.Buffer
 		hb.Str("Traceroute to ").Str(target).Str("  rounds ").Int(int64(rounds)).Str("\n\n")
-		m.outputBuf.WriteString(hb.String())
+		m.outputBuf.WriteString(hb.Slice())
 		m.outputBuf.WriteString(lastOutput)
 	}
 

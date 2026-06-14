@@ -20,7 +20,7 @@ func AuthHeader() string {
 		return ""
 	}
 	var tb textbuf.Buffer
-	creds := base64.StdEncoding.EncodeToString([]byte(tb.Str("gokrazy:").Str(password).String()))
+	creds := base64.StdEncoding.EncodeToString(tb.Str("gokrazy:").Bytes())
 	return tb.Reset().Str("Basic ").Str(creds).String()
 }
 

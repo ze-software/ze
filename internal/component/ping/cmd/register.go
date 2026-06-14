@@ -45,14 +45,14 @@ func showPingLocal(args []string) int {
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("show ping: ").Err(err).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
 	results, pingErr := doPing(dest, count, timeout, pingOpts{})
 	if pingErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("show ping: ").Err(pingErr).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
 	printPingResults(os.Stdout, results)
@@ -64,7 +64,7 @@ func monitorPingLocal(args []string) int {
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("monitor ping: ").Err(err).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
 
@@ -75,14 +75,14 @@ func monitorPingLocal(args []string) int {
 	if sessionErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("monitor ping: ").Err(sessionErr).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
 	defer cancel()
 
 	var tb textbuf.Buffer
 	tb.Str("PING ").Str(dest.String()).Str(" (Ctrl-C to stop)\n")
-	os.Stdout.WriteString(tb.String()) //nolint:errcheck // stdout
+	os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // stdout
 
 	for result := range ch {
 		tb.Reset(0)
@@ -95,7 +95,7 @@ func monitorPingLocal(args []string) int {
 		} else {
 			tb.Str("  ").Str(status).Byte('\n')
 		}
-		os.Stdout.WriteString(tb.String()) //nolint:errcheck // stdout
+		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // stdout
 	}
 	return 0
 }

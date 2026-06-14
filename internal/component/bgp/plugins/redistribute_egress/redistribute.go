@@ -115,7 +115,7 @@ func run(ctx context.Context) {
 	bus := getEventBus()
 	if bus == nil {
 		var tb textbuf.Buffer
-		logger().Warn(tb.Str(Name).Str(": no event bus configured").String())
+		logger().Warn(tb.Str(Name).Str(": no event bus configured").Slice())
 		return
 	}
 
@@ -134,7 +134,7 @@ func run(ctx context.Context) {
 	logger().Debug(Name+": running", "producers", len(unsubs))
 	<-ctx.Done()
 	var tb2 textbuf.Buffer
-	logger().Debug(tb2.Str(Name).Str(": stopped").String())
+	logger().Debug(tb2.Str(Name).Str(": stopped").Slice())
 }
 
 func subscribe(ctx context.Context, bus ze.EventBus, skipIDs map[redistevents.ProtocolID]bool) []func() {
@@ -163,11 +163,11 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 	}
 	var tb textbuf.Buffer
 	if b == nil {
-		logger().Warn(tb.Str(Name).Str(": nil batch").String())
+		logger().Warn(tb.Str(Name).Str(": nil batch").Slice())
 		return
 	}
 	if b.Protocol == redistevents.ProtocolUnspecified {
-		logger().Warn(tb.Reset().Str(Name).Str(": batch with unspecified protocol").String())
+		logger().Warn(tb.Reset().Str(Name).Str(": batch with unspecified protocol").Slice())
 		return
 	}
 	if skipIDs[b.Protocol] {

@@ -105,7 +105,7 @@ func runShow(args []string) int {
 
 	if err := mrt.ReadFile(inputFile, handler); err != nil {
 		var tb textbuf.Buffer
-		os.Stderr.WriteString(tb.Str("show: ").Err(err).Byte('\n').String()) //nolint:errcheck // error output
+		os.Stderr.WriteString(tb.Str("show: ").Err(err).Byte('\n').Slice()) //nolint:errcheck // error output
 		return 1
 	}
 	return 0
@@ -119,7 +119,7 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 	case 1:
 		o := parsed.Open
 		tb.Reset().Str(prefix).Str("OPEN v").Uint8(o.Version).Str(" AS").Uint32(o.ASN).Str(" hold=").Uint16(o.HoldTime).Byte('\n')
-		os.Stdout.WriteString(tb.String()) //nolint:errcheck // output
+		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
 	case 2:
 		u := parsed.Update
 		var lb textbuf.Buffer
@@ -141,14 +141,14 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 			lb.Str(" nh=").Addr(nh)
 		}
 		tb.Reset().Str(prefix).Str("UPDATE ").Str(lb.String()).Byte('\n')
-		os.Stdout.WriteString(tb.String()) //nolint:errcheck // output
+		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
 	case 3:
 		n := parsed.Notification
 		tb.Reset().Str(prefix).Str("NOTIFICATION code=").Uint8(n.Code).Byte('/').Uint8(n.Subcode).Byte('\n')
-		os.Stdout.WriteString(tb.String()) //nolint:errcheck // output
+		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
 	case 4:
 		tb.Reset().Str(prefix).Str("KEEPALIVE\n")
-		os.Stdout.WriteString(tb.String()) //nolint:errcheck // output
+		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
 	}
 }
 

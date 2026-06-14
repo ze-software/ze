@@ -80,7 +80,7 @@ func runList(args []string) int {
 	defer b.Release()
 	for _, s := range inventory {
 		b.Reset().Str(s.Name).Str(" — ").Str(s.Description).Byte('\n')
-		if _, err := os.Stdout.WriteString(b.String()); err != nil {
+		if _, err := os.Stdout.WriteString(b.Slice()); err != nil {
 			return 1
 		}
 	}

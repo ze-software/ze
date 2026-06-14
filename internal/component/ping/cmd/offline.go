@@ -46,5 +46,5 @@ func printPingResults(w io.Writer, results map[string]any) {
 		tb.Str(strconv.FormatFloat(maxRTT, 'f', 3, 64)).Str(" ms\n")
 	}
 
-	io.WriteString(w, tb.String()) //nolint:errcheck // stdout
+	io.WriteString(w, tb.Slice()) //nolint:errcheck // stdout
 }

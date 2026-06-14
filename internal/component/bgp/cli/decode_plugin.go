@@ -102,7 +102,7 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 
 	// Send decode request
 	var tb textbuf.Buffer
-	if _, err := stdin.Write([]byte(tb.Str(request).Byte('\n').String())); err != nil {
+	if _, err := stdin.Write(tb.Str(request).Byte('\n').Bytes()); err != nil {
 		slog.Debug("plugin write failed", "plugin", pluginName, "err", err)
 	}
 	if err := stdin.Close(); err != nil {
@@ -217,7 +217,7 @@ func invokePluginPath(path string, userArgs []string, request string) any {
 	}
 
 	var tb2 textbuf.Buffer
-	if _, err := stdin.Write([]byte(tb2.Str(request).Byte('\n').String())); err != nil {
+	if _, err := stdin.Write(tb2.Str(request).Byte('\n').Bytes()); err != nil {
 		slog.Debug("plugin path write failed", "path", path, "err", err)
 	}
 	if err := stdin.Close(); err != nil {
@@ -294,7 +294,7 @@ func invokePluginSubprocess(pluginName, request string) any {
 	}
 
 	var tb3 textbuf.Buffer
-	if _, err := stdin.Write([]byte(tb3.Str(request).Byte('\n').String())); err != nil {
+	if _, err := stdin.Write(tb3.Str(request).Byte('\n').Bytes()); err != nil {
 		slog.Debug("plugin write failed", "plugin", pluginName, "err", err)
 	}
 	if err := stdin.Close(); err != nil {
@@ -380,7 +380,7 @@ func invokePluginInternal(pluginName, request string) any {
 
 	// Send request and close input.
 	var tb5 textbuf.Buffer
-	if _, err := inW.Write([]byte(tb5.Str(request).Byte('\n').String())); err != nil {
+	if _, err := inW.Write(tb5.Str(request).Byte('\n').Bytes()); err != nil {
 		slog.Debug("internal plugin write failed", "plugin", pluginName, "err", err)
 		if err := inW.Close(); err != nil {
 			slog.Debug("internal plugin inW close failed", "plugin", pluginName, "err", err)

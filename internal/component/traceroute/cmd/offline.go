@@ -26,5 +26,5 @@ func printTracerouteResults(w io.Writer, target string, hops []map[string]any) {
 		tb.Byte('\n')
 	}
 
-	io.WriteString(w, tb.String()) //nolint:errcheck // stdout
+	io.WriteString(w, tb.Slice()) //nolint:errcheck // stdout
 }

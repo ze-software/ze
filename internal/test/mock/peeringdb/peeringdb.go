@@ -117,7 +117,7 @@ func handleNet(w http.ResponseWriter, r *http.Request) {
 	b.Str(irrASSet)
 	b.Str(`"}]}`)
 
-	if _, wErr := io.WriteString(w, b.String()); wErr != nil {
+	if _, wErr := io.WriteString(w, b.Slice()); wErr != nil {
 		return
 	}
 }

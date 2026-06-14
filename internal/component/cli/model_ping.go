@@ -262,7 +262,7 @@ func (m *Model) startPingMonitorPiped(input string) tea.Cmd {
 	if pipeFlags.Log {
 		var hdr textbuf.Buffer
 		hdr.Str("--- monitor ping ").Str(target).Str(" | log (Esc to stop) ---\n")
-		m.outputBuf.WriteString(hdr.String())
+		m.outputBuf.WriteString(hdr.Slice())
 		m.setViewportTextBottom(m.outputBuf.String())
 	}
 	m.statusMessage = "monitoring ping (Esc to stop)"

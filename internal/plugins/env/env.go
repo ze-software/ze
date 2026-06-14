@@ -138,7 +138,7 @@ func printRow(w *tabwriter.Writer, cols ...string) {
 
 func writeLine(w *bufio.Writer, s string) {
 	var tb textbuf.Buffer
-	if _, err := w.WriteString(tb.Str(s).Byte('\n').String()); err != nil {
+	if _, err := w.WriteString(tb.Str(s).Byte('\n').Slice()); err != nil {
 		return
 	}
 }
@@ -168,11 +168,11 @@ func showOne(key string) int {
 		current := currentValue(e.Key)
 		out := bufio.NewWriter(os.Stdout)
 		var tb textbuf.Buffer
-		writeLine(out, tb.Str("Key:         ").Str(e.Key).String())
-		writeLine(out, tb.Reset().Str("Type:        ").Str(e.Type).String())
-		writeLine(out, tb.Reset().Str("Default:     ").Str(valueOrDash(e.Default)).String())
-		writeLine(out, tb.Reset().Str("Current:     ").Str(valueOrDash(current)).String())
-		writeLine(out, tb.Reset().Str("Description: ").Str(e.Description).String())
+		writeLine(out, tb.Str("Key:         ").Str(e.Key).Slice())
+		writeLine(out, tb.Reset().Str("Type:        ").Str(e.Type).Slice())
+		writeLine(out, tb.Reset().Str("Default:     ").Str(valueOrDash(e.Default)).Slice())
+		writeLine(out, tb.Reset().Str("Current:     ").Str(valueOrDash(current)).Slice())
+		writeLine(out, tb.Reset().Str("Description: ").Str(e.Description).Slice())
 		if e.Private {
 			writeLine(out, "Private:     yes")
 		}
@@ -183,9 +183,9 @@ func showOne(key string) int {
 		under := strings.ReplaceAll(e.Key, ".", "_")
 		writeLine(out, "")
 		writeLine(out, "Accepted forms:")
-		writeLine(out, tb.Reset().Str("  ").Str(e.Key).String())
-		writeLine(out, tb.Reset().Str("  ").Str(under).String())
-		writeLine(out, tb.Reset().Str("  ").Str(strings.ToUpper(under)).String())
+		writeLine(out, tb.Reset().Str("  ").Str(e.Key).Slice())
+		writeLine(out, tb.Reset().Str("  ").Str(under).Slice())
+		writeLine(out, tb.Reset().Str("  ").Str(strings.ToUpper(under)).Slice())
 		if err := out.Flush(); err != nil {
 			return 1
 		}
@@ -193,7 +193,7 @@ func showOne(key string) int {
 	}
 
 	var tb textbuf.Buffer
-	writeErr(tb.Str("error: unknown env var \"").Str(key).Byte('"').String())
+	writeErr(tb.Str("error: unknown env var \"").Str(key).Byte('"').Slice())
 	return 1
 }
 
@@ -206,7 +206,7 @@ func valueOrDash(v string) string {
 
 func writeErr(s string) {
 	var tb textbuf.Buffer
-	if _, err := os.Stderr.WriteString(tb.Str(s).Byte('\n').String()); err != nil {
+	if _, err := os.Stderr.WriteString(tb.Str(s).Byte('\n').Slice()); err != nil {
 		return
 	}
 }

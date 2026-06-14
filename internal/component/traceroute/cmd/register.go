@@ -48,14 +48,14 @@ func showTracerouteLocal(args []string) int {
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("show traceroute: ").Err(err).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
 	hops, trErr := doTraceroute(target, maxHops, timeout, probes, tracerouteOpts{})
 	if trErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("show traceroute: ").Err(trErr).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
 	printTracerouteResults(os.Stdout, target.String(), hops)
@@ -67,7 +67,7 @@ func monitorTracerouteLocal(args []string) int {
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("monitor traceroute: ").Err(err).Byte('\n')
-		os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 		return 1
 	}
 
@@ -76,7 +76,7 @@ func monitorTracerouteLocal(args []string) int {
 
 	var hdr textbuf.Buffer
 	hdr.Str("traceroute to ").Str(target.String()).Str(" (Ctrl-C to stop)\n")
-	os.Stdout.WriteString(hdr.String()) //nolint:errcheck // stdout
+	os.Stdout.WriteString(hdr.Slice()) //nolint:errcheck // stdout
 
 	for round := 1; ; round++ {
 		ch, cancel, sessionErr := NewTracerouteSession(ctx, target.String(), maxHops)
@@ -84,7 +84,7 @@ func monitorTracerouteLocal(args []string) int {
 			if round == 1 {
 				var tb textbuf.Buffer
 				tb.Str("monitor traceroute: ").Err(sessionErr).Byte('\n')
-				os.Stderr.WriteString(tb.String()) //nolint:errcheck // stderr
+				os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // stderr
 				return 1
 			}
 			break
@@ -111,7 +111,7 @@ func monitorTracerouteLocal(args []string) int {
 			}
 			tb.Byte('\n')
 		}
-		os.Stdout.WriteString(tb.String()) //nolint:errcheck // stdout
+		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // stdout
 
 		select {
 		case <-time.After(time.Second):
