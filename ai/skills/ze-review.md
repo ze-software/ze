@@ -33,6 +33,22 @@ See also: `/ze-review-deep` (exhaustive multi-agent review), `/ze-review-spec` (
 
     **If any wiring BLOCKER is found:** report it immediately. Do not proceed to the remaining review steps until the user acknowledges. Unwired code means the feature does not exist from the user's perspective, so reviewing its correctness, security, or edge cases is premature.
 
+    **Top-down feature walkthrough (MANDATORY for new features):** The bottom-up check above proves existing code is reachable. It cannot find code that should exist but was never written. For every new feature (new NLRI family, new plugin, new protocol, new command category), also trace TOP-DOWN:
+
+    1. Enumerate every user-facing operation the feature enables (decode, encode, announce, withdraw, display, configure, filter, `ze bgp decode`).
+    2. For each operation, trace the full path from user entry point through every component that must participate. Name every link in the chain.
+    3. If any link has no implementation, that is a BLOCKER: "feature chain broken at [component]."
+
+    | Feature type | Reference to compare against | Key registration/handler checklist |
+    |-------------|-----------------------------|------------------------------------|
+    | NLRI family | MUP plugin (`bgp/plugins/nlri/mup/`) | family registered, splitter registered, `registry.Registration{}` with RunEngine + InProcessNLRIDecoder + InProcessNLRIEncoder + InProcessRouteEncoder, command handler, functional test |
+    | System plugin | An existing plugin of the same shape | `registry.Register()` in `register.go`, blank import in `all/all.go`, event types, send types, YANG schema |
+    | BGP plugin | An existing BGP plugin of the same shape | `Registration{}` fields, hook functions, config handling |
+    | Bridge command | An existing bridge command family | `parseFamilyToAFISAFI` case, `convertAnnounceFamily` regex, command parser, event translation |
+    | CLI command | An existing CLI command | `registry.MustRegisterLocal`, handler, completion, YANG entry |
+
+    Find the most similar existing feature. Diff its registrations, handlers, and tests against the new feature. Report anything the reference has that the new feature lacks as a BLOCKER: "missing [component] -- reference [feature] has it at [file:line]."
+
 2. **Functional test coverage (BLOCKING — immediately after wiring):** For every new or changed user-facing behavior in the diff, verify a functional test (`.ci` or `.et`) exists that exercises the full path. Apply the mapping from `ai/rules/functional-test-gate.md`: match the change type to the required test directory and check for a test covering the behavior.
 
     | Change type | Required test |

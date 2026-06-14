@@ -115,6 +115,22 @@
 | AC-1 | [what triggers the behavior] | [observable outcome] |
 | AC-2 | [what triggers the behavior] | [observable outcome] |
 
+## End-to-End User Stories (MANDATORY for new features)
+
+<!-- For each user-facing operation the feature enables, trace the full path.
+     This section catches missing code that narrow ACs miss. ACs verify individual
+     components work; user stories verify the full chain is connected.
+     Every story must have a corresponding functional or wiring test. -->
+
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | [e.g., "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+| 2 | [e.g., "announces SR-Policy via ExaBGP bridge"] | [bridge command -> dispatch -> handler -> encoder -> wire] | [test name] |
+| 3 | [e.g., "runs `ze bgp decode` on SR-Policy hex"] | [CLI -> InProcessNLRIDecoder -> Parse -> display] | [test name] |
+
+<!-- If a path has a broken link (no implementation at some step), that is a spec gap.
+     Add the missing component to ACs, Files to Create, and TDD Test Plan before proceeding. -->
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
@@ -256,6 +272,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation with file:line |
+| Feature completeness | Every End-to-End User Story has a working path (no broken links in the chain). Reference feature comparison: new feature has everything the reference has |
 | Correctness | [feature-specific: e.g., "merge order correct", "error messages accurate"] |
 | Naming | [feature-specific: e.g., "JSON keys use kebab-case", "YANG uses kebab-case"] |
 | Data flow | [feature-specific: e.g., "resolution in X only, reactor unaware of Y"] |
@@ -452,6 +469,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
+- [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)

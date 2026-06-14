@@ -18,7 +18,7 @@ The orchestrator (this skill) runs at the session's model. Spawned agents use di
 
 | Model | Agents | Why |
 |-------|--------|-----|
-| **sonnet** | Security (#1), Concurrency (#2), Logic (#5), Data Flow (#6), Performance (#10) | Reasoning-heavy: exploit paths, race analysis, subtle bugs, cross-boundary tracing, escape analysis |
+| **sonnet** | Security (#1), Concurrency (#2), Logic (#5), Data Flow (#6), Performance (#10), Feature Completeness (#11) | Reasoning-heavy: exploit paths, race analysis, subtle bugs, cross-boundary tracing, escape analysis, missing-code detection |
 | **haiku** | Error Handling (#3), Test Coverage (#4), API Compat (#7), Project Rules (#8), Documentation (#9) | Mechanical: checklist matching, grep callers, compare docs to code |
 
 ## Steps
@@ -38,7 +38,7 @@ Then run the deterministic test-relaxation audit and keep its output for the Tes
 
 ### 2. Select agents
 
-If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules, docs/documentation, performance/perf/alloc), run only those. Otherwise, present this menu and **wait for the user to choose**:
+If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules, docs/documentation, performance/perf/alloc, completeness/feature), run only those. Otherwise, present this menu and **wait for the user to choose**:
 
 ```
 Which review agents should I run?
@@ -53,6 +53,7 @@ Which review agents should I run?
 8. Project Rules Compliance
 9. Documentation Accuracy
 10. Performance & Allocations
+11. Feature Completeness (missing code)
 
 Enter numbers (e.g., 1,5), "all", or names (e.g., "security, logic"):
 ```
@@ -61,7 +62,7 @@ Enter numbers (e.g., 1,5), "all", or names (e.g., "security, logic"):
 
 ### 3. Launch selected agents
 
-Launch the selected agents simultaneously using the Agent tool. Use `model: sonnet` for agents 1, 2, 5, 6, 10 and `model: haiku` for agents 3, 4, 7, 8, 9 (see Model Selection table). Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
+Launch the selected agents simultaneously using the Agent tool. Use `model: sonnet` for agents 1, 2, 5, 6, 10, 11 and `model: haiku` for agents 3, 4, 7, 8, 9 (see Model Selection table). Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
 - Read the actual changed files (not just the diff)
 - Apply its specific lens exhaustively
 - Return findings in the structured format below
@@ -394,6 +395,58 @@ is unbounded. Focus severity on hot-path issues.
 If no performance issues found, say "No performance issues found" with a brief explanation of what was checked.
 ```
 
+**Agent 11 -- Feature Completeness (Missing Code)**
+```
+You are a feature completeness auditor. Your job is NOT to review code quality. Your job is to find what's MISSING -- code that should exist but was never written.
+
+{AGENT_PREAMBLE}
+
+SCOPE: Review these changed files: {file_list}
+
+The other agents review the code that exists. You review what DOESN'T exist. This is a fundamentally different lens. A feature can have all its new code properly wired, tested, and correct -- and still be non-functional because essential connecting pieces were never written.
+
+**Step 1: Identify the feature.**
+From the diff, determine what feature is being added (new NLRI family, new plugin, new protocol support, new command, etc.). Read the spec if one exists (check `tmp/session/selected-spec`).
+
+**Step 2: Enumerate every user story.**
+List every operation a user would expect this feature to support:
+- Can a user RECEIVE/DECODE this? (wire -> struct -> display)
+- Can a user SEND/ENCODE this? (command/config -> struct -> wire)
+- Can a user DISPLAY this? (`ze bgp decode`, `show` commands, web UI, JSON events)
+- Can a user CONFIGURE this? (YANG config, CLI, bridge commands)
+- Can a user FILTER this? (route filtering, policy)
+- Can Ze FORWARD this? (receive from one peer, send to another)
+
+For each user story, trace the full path from entry point through every component. Name every link. If any link has no implementation, report it.
+
+**Step 3: Reference comparison.**
+Find the most similar existing feature in the codebase. For NLRI families, compare against MUP (`internal/component/bgp/plugins/nlri/mup/`). For plugins, find one of the same shape. For bridge commands, compare against an existing bridge command family.
+
+Read the reference feature's registration, handlers, and tests. Build a checklist of everything it has. Then check whether the new feature has each item. Report anything missing.
+
+For NLRI families specifically, the reference checklist is:
+| Component | Reference location | Purpose |
+|-----------|--------------------|---------|
+| Family registration | `types.go` MustRegister | AFI/SAFI known to the system |
+| Splitter | `split.go` + register in nlrisplit | Extract individual NLRIs from wire |
+| NLRI type with Parse/WriteTo | `types.go` | Struct representing the NLRI |
+| registry.Registration{} | `register.go` | Hooks into the BGP engine |
+| - RunEngine | Registration field | Engine can process this NLRI |
+| - InProcessNLRIDecoder | Registration field | `ze bgp decode` works |
+| - InProcessNLRIEncoder | Registration field | Engine can construct wire bytes |
+| - InProcessRouteEncoder | Registration field | Route display/JSON works |
+| Command handler | Plugin or bridge | User can announce/withdraw |
+| Functional test (.ci) | test/decode/ or test/plugin/ | End-to-end proof |
+
+**Step 4: Check the spec's Task vs ACs.**
+If a spec exists, read the Task description (what the feature is supposed to do) and the Acceptance Criteria (what is tested). Report any operation promised by the Task that has no corresponding AC. A spec with narrow ACs can pass review-spec while the feature is incomplete.
+
+For each finding report:
+SEVERITY (critical/high/medium/low) | CATEGORY (missing-handler/missing-registration/missing-test/broken-chain/spec-gap) | WHAT IS MISSING | WHY IT MATTERS (what user operation fails) | REFERENCE (where the similar feature has it)
+
+If the feature is complete, say "Feature is complete" with the reference comparison summary.
+```
+
 ---
 
 ### 4. Collect and deduplicate
@@ -453,6 +506,7 @@ Format the surviving findings into the report:
 | Project Rules | N | ... |
 | Documentation | N | ... |
 | Performance | N | ... |
+| Feature Completeness | N | ... |
 | **Total** | **N** | **highest** |
 
 ### Verdict
