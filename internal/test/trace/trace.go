@@ -69,7 +69,7 @@ func writeHuman(w io.Writer, s StepResult, colorEnabled bool) {
 		b.Str(" -> ").Str(detail)
 	}
 	b.Byte('\n')
-	io.WriteString(w, b.String()) //nolint:errcheck // terminal output
+	io.WriteString(w, b.Slice()) //nolint:errcheck // terminal output
 }
 
 func writeMachine(w io.Writer, file string, s StepResult) {

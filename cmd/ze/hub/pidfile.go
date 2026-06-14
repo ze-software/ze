@@ -43,7 +43,7 @@ func writePIDFile() (string, error) {
 	}
 	pid := os.Getpid()
 	var tb textbuf.Buffer
-	if _, werr := f.WriteString(tb.Int(int64(pid)).Byte('\n').String()); werr != nil {
+	if _, werr := f.WriteString(tb.Int(int64(pid)).Byte('\n').Slice()); werr != nil {
 		if closeErr := f.Close(); closeErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: close pid file %q after write failure: %v\n", path, closeErr)
 		}

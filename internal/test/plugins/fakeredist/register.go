@@ -55,7 +55,7 @@ func init() {
 // runPlugin is the engine-mode entry point.
 func runPlugin(conn net.Conn) int {
 	var tb textbuf.Buffer
-	logger().Debug(tb.Str(Name).Str(" plugin starting (RPC)").String())
+	logger().Debug(tb.Str(Name).Str(" plugin starting (RPC)").Slice())
 
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()

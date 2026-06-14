@@ -54,9 +54,9 @@ func (d *Dispatcher) Dispatch(args []string) int {
 	h, ok := d.handlers[args[0]]
 	if !ok {
 		var tb textbuf.Buffer
-		writeStderr(tb.Str("unknown ").Str(d.Command).Str(" target: ").Str(args[0]).Byte('\n').String())
+		writeStderr(tb.Str("unknown ").Str(d.Command).Str(" target: ").Str(args[0]).Byte('\n').Slice())
 		if s := suggest.Command(args[0], d.targetNames()); s != "" {
-			writeStderr(tb.Reset().Str("hint: did you mean '").Str(s).Str("'?\n").String())
+			writeStderr(tb.Reset().Str("hint: did you mean '").Str(s).Str("'?\n").Slice())
 		}
 		d.usage()
 		return 1

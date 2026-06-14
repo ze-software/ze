@@ -172,7 +172,7 @@ func runInit(args []string) int {
 			sb.Str(k).Byte('\n')
 		}
 		authKeysPath := secretFilePath(dir, name, "authorized_keys")
-		if err := os.WriteFile(authKeysPath, []byte(sb.String()), 0o600); err != nil {
+		if err := os.WriteFile(authKeysPath, sb.Bytes(), 0o600); err != nil {
 			fmt.Fprintf(os.Stderr, "error: write authorized_keys: %v\n", err)
 			return exitError
 		}
@@ -471,7 +471,7 @@ func initOneFromBatch(dir string, entry batchEntry, password string, passphrase 
 			sb.Str(k).Byte('\n')
 		}
 		authKeysPath := secretFilePath(dir, name, "authorized_keys")
-		if err := os.WriteFile(authKeysPath, []byte(sb.String()), 0o600); err != nil {
+		if err := os.WriteFile(authKeysPath, sb.Bytes(), 0o600); err != nil {
 			fmt.Fprintf(os.Stderr, "error: write authorized_keys for %s: %v\n", name, err)
 			return exitError
 		}

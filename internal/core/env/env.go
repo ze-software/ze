@@ -135,7 +135,7 @@ func mustBeRegistered(key string) {
 		// Unregistered env var is a programming error.
 		// Use os.Stderr + os.Exit since this package cannot import slogutil (circular).
 		var tb textbuf.Buffer
-		os.Stderr.WriteString(tb.Str("FATAL: env.Get called with unregistered key: ").Str(key).Byte('\n').String()) //nolint:errcheck // pre-exit
+		os.Stderr.WriteString(tb.Str("FATAL: env.Get called with unregistered key: ").Str(key).Byte('\n').Slice()) //nolint:errcheck // pre-exit
 		os.Exit(2)
 	}
 }
@@ -221,7 +221,7 @@ func GetBool(key string, defaultVal bool) bool {
 	}
 	// Unrecognized value: warn and fall back to default.
 	var tb textbuf.Buffer
-	os.Stderr.WriteString(tb.Str("WARNING: env var ").Str(key).Str(" has unrecognized boolean value ").Str(s).Str(", using default\n").String()) //nolint:errcheck // pre-exit diagnostic
+	os.Stderr.WriteString(tb.Str("WARNING: env var ").Str(key).Str(" has unrecognized boolean value ").Str(s).Str(", using default\n").Slice()) //nolint:errcheck // pre-exit diagnostic
 	return defaultVal
 }
 

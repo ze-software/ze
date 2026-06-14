@@ -565,7 +565,7 @@ func StringMAC(mac []byte) string {
 // HostPort returns "host:port" without net.JoinHostPort or fmt.Sprintf.
 func HostPort(host string, port uint16) string {
 	var b Buffer
-	return b.HostPortN(host, port).Slice()
+	return b.HostPortN(host, port).String()
 }
 
 func Join(items []string, sep string) string {

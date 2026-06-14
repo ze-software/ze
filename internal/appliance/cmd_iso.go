@@ -727,7 +727,7 @@ func writeGrubConfig(path string, input isoBuildInput) error {
 	b.Byte('\n')
 	b.Str("    initrd /boot/initrd.img.gz\n")
 	b.Str("}\n")
-	return os.WriteFile(path, []byte(b.String()), 0o644) //nolint:gosec // boot config
+	return os.WriteFile(path, b.Bytes(), 0o644) //nolint:gosec // boot config
 }
 
 func isoKernelConsoleArgs(arch string) (string, error) {
