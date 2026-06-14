@@ -458,8 +458,12 @@ func (c *RecentUpdateCache) ackEntryLocked(id uint64, e *cacheEntry) {
 // Must be called with c.mu held.
 func (c *RecentUpdateCache) evictLocked(id uint64, e *cacheEntry) {
 	ReturnReadBuffer(e.update.poolBuf)
-	ReturnReadBuffer(e.update.ebgpPoolBuf4)
-	ReturnReadBuffer(e.update.ebgpPoolBuf2)
+	if s := e.update.ebgpSlotASN4.Load(); s != nil {
+		ReturnReadBuffer(s.handle)
+	}
+	if s := e.update.ebgpSlotASN2.Load(); s != nil {
+		ReturnReadBuffer(s.handle)
+	}
 	c.entries.Delete(id)
 	if id > c.highestFullyAcked {
 		c.highestFullyAcked = id
@@ -520,8 +524,12 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 
 	if e, ok := c.entries.Get(id); ok {
 		ReturnReadBuffer(e.update.poolBuf)
-		ReturnReadBuffer(e.update.ebgpPoolBuf4)
-		ReturnReadBuffer(e.update.ebgpPoolBuf2)
+		if s := e.update.ebgpSlotASN4.Load(); s != nil {
+			ReturnReadBuffer(s.handle)
+		}
+		if s := e.update.ebgpSlotASN2.Load(); s != nil {
+			ReturnReadBuffer(s.handle)
+		}
 		c.entries.Delete(id)
 		return true
 	}

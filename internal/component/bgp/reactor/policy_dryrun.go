@@ -219,7 +219,7 @@ func (a *reactorAPIAdapter) PolicyDryRun(peerAddr, direction, filterOverride str
 // reports the operations as "<ATTRIBUTE> <verb>" strings. beforeAttrs and
 // afterAttrs are the caller's single parseFilterAttrs results, shared
 // read-only with computeChangedAttrs.
-func computeWireChanges(beforeAttrs, afterAttrs map[string]string, attrs *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []string {
+func computeWireChanges(beforeAttrs, afterAttrs *filterAttrs, attrs *attribute.AttributesWire, asn4 bool, peerAS, localAS uint32) []string {
 	var mods filterapi.ModAccumulator
 	textDeltaToModOps(beforeAttrs, afterAttrs, &mods)
 	ExtractRemovePrivateASOps(afterAttrs, attrs, asn4, peerAS, &mods)
@@ -286,24 +286,13 @@ func resolveFilterOverride(name string, chain []string) string {
 // maps and returns the list of attribute names that differ. Both maps are
 // the caller's single parseFilterAttrs results, shared read-only with
 // computeWireChanges.
-func computeChangedAttrs(beforeAttrs, afterAttrs map[string]string) []string {
-	// Iterate in the canonical attribute order used by formatFilterAttrs
-	// so output is deterministic without sorting.
-	order := [...]string{
-		"origin", "as-path", "next-hop", "med", "local-preference",
-		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
-		"cluster-list", "extended-community", "aigp", "large-community",
-		"community-add", "community-remove",
-		"large-community-add", "large-community-remove",
-		"extended-community-add", "extended-community-remove",
-		"as-path-prepend", policyAttrRemovePrivate, policyAttrNLRI,
-	}
+func computeChangedAttrs(beforeAttrs, afterAttrs *filterAttrs) []string {
 	var changed []string
-	for _, name := range order {
-		bv, bOK := beforeAttrs[name]
-		av, aOK := afterAttrs[name]
+	for _, id := range formatFilterAttrsOrder {
+		bv, bOK := beforeAttrs.get(id)
+		av, aOK := afterAttrs.get(id)
 		if bOK != aOK || bv != av {
-			changed = append(changed, name)
+			changed = append(changed, filterAttrNames[id])
 		}
 	}
 	return changed

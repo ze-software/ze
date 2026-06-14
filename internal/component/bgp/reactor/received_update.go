@@ -17,6 +17,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 )
 
+// ebgpWireSlot bundles a generated EBGP wire variant with its backing pool
+// buffer handle. Published atomically via atomic.Pointer so cache-hit readers
+// see the complete pair in a single load without taking ebgpMu.
+// Immutable after publication: fields are never modified once stored.
+type ebgpWireSlot struct {
+	wire   *wireu.WireUpdate
+	handle BufHandle
+}
+
 var errEbgpWireBufferExhaustedPoolAt = errors.New("EBGP wire buffer exhausted: pool at maximum allocation")
 
 // msgIDCounter generates unique message IDs.
@@ -33,7 +42,7 @@ func nextMsgID() uint64 {
 //
 // Memory contract: WireUpdate slices into poolBuf.Buf; all derived slices share it.
 // When cache evicts this entry, poolBuf is returned to the buffer multiplexer.
-// EBGP pool buffers (ebgpPoolBuf4, ebgpPoolBuf2) are returned on cache eviction too.
+// EBGP variant buffers (in ebgpSlotASN4/ebgpSlotASN2) are returned on eviction too.
 // Message ID is stored in WireUpdate, accessible via WireUpdate.MessageID().
 type ReceivedUpdate struct {
 	// WireUpdate contains the UPDATE payload with zero-copy accessors.
@@ -65,24 +74,18 @@ type ReceivedUpdate struct {
 	// Set once at creation from the peer's cached address string.
 	SourcePeerStr string
 
-	// ebgpMu protects lazy EBGP wire generation.
+	// ebgpMu protects EBGP wire generation (miss path only).
+	// Cache-hit reads use atomic loads and never acquire this mutex.
 	ebgpMu sync.Mutex
 
-	// ebgpWireASN4 is the lazily-generated EBGP wire version with 4-byte ASN encoding.
-	// Cached after first call to EBGPWire(_, _, true).
-	ebgpWireASN4 *wireu.WireUpdate
+	// ebgpSlotASN4 holds the lazily-generated EBGP wire for 4-byte ASN peers.
+	// nil until the first EBGPWire(_, _, true) call generates and publishes it.
+	// Once non-nil, immutable: readers load atomically without ebgpMu.
+	ebgpSlotASN4 atomic.Pointer[ebgpWireSlot]
 
-	// ebgpWireASN2 is the lazily-generated EBGP wire version with 2-byte ASN encoding.
-	// Cached after first call to EBGPWire(_, _, false).
-	ebgpWireASN2 *wireu.WireUpdate
-
-	// ebgpPoolBuf4 is the pool buffer handle backing ebgpWireASN4.
-	// Returned to multiplexer on cache eviction.
-	ebgpPoolBuf4 BufHandle
-
-	// ebgpPoolBuf2 is the pool buffer handle backing ebgpWireASN2.
-	// Returned to multiplexer on cache eviction.
-	ebgpPoolBuf2 BufHandle
+	// ebgpSlotASN2 holds the lazily-generated EBGP wire for 2-byte ASN peers.
+	// nil until the first EBGPWire(_, _, false) call generates and publishes it.
+	ebgpSlotASN2 atomic.Pointer[ebgpWireSlot]
 }
 
 // getReadBuf gets a buffer handle from the appropriate multiplexer.
@@ -98,7 +101,9 @@ func getReadBuf(extendedMessage bool) BufHandle {
 // RFC 4271 Section 9.1.2: EBGP speakers MUST prepend their own AS number.
 //
 // Lazy: first call per dstASN4 variant generates and caches the result.
-// Subsequent calls return the cached pointer. Thread-safe via ebgpMu.
+// Subsequent calls return the cached pointer.
+// Cache-hit path is lock-free (single atomic pointer load).
+// Miss path uses double-checked locking under ebgpMu.
 //
 // Parameters:
 //   - localASN: the local AS number to prepend
@@ -108,24 +113,22 @@ func getReadBuf(extendedMessage bool) BufHandle {
 // The returned WireUpdate shares the original SourceCtxID for zero-copy
 // compatibility checks with other peers using the same encoding context.
 func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcASN4, dstASN4 bool) (*wireu.WireUpdate, error) {
+	slot := u.ebgpSlot(dstASN4)
+
+	// Fast path: atomic load, no lock.
+	if s := slot.Load(); s != nil {
+		return s.wire, nil
+	}
+
+	// Miss: generate under ebgpMu with double-checked locking.
 	u.ebgpMu.Lock()
 	defer u.ebgpMu.Unlock()
 
-	// Check cache
-	if dstASN4 {
-		if u.ebgpWireASN4 != nil {
-			return u.ebgpWireASN4, nil
-		}
-	} else {
-		if u.ebgpWireASN2 != nil {
-			return u.ebgpWireASN2, nil
-		}
+	if s := slot.Load(); s != nil {
+		return s.wire, nil
 	}
 
-	// Generate patched payload
 	payload := u.WireUpdate.Payload()
-
-	// Use extended multiplexer if original payload is large
 	extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
 	dst := getReadBuf(extendedMessage)
 	if dst.Buf == nil {
@@ -134,23 +137,23 @@ func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcASN4, dstASN4 bool) (*wire
 
 	n, err := wireu.RewriteASPath(dst.Buf, payload, localASN, srcASN4, dstASN4)
 	if err != nil {
-		ReturnReadBuffer(dst) // Return handle on error
+		ReturnReadBuffer(dst)
 		return nil, fmt.Errorf("EBGP wire rewrite: %w", err)
 	}
 
-	// Wrap in WireUpdate with same context ID as original
 	wu := wireu.NewWireUpdate(dst.Buf[:n], u.WireUpdate.SourceCtxID())
 	wu.SetMessageID(u.WireUpdate.MessageID())
 	wu.SetSourceID(u.WireUpdate.SourceID())
 
-	// Cache result
-	if dstASN4 {
-		u.ebgpWireASN4 = wu
-		u.ebgpPoolBuf4 = dst
-	} else {
-		u.ebgpWireASN2 = wu
-		u.ebgpPoolBuf2 = dst
-	}
+	slot.Store(&ebgpWireSlot{wire: wu, handle: dst})
 
 	return wu, nil
+}
+
+// ebgpSlot returns the atomic slot pointer for the given ASN-width variant.
+func (u *ReceivedUpdate) ebgpSlot(dstASN4 bool) *atomic.Pointer[ebgpWireSlot] {
+	if dstASN4 {
+		return &u.ebgpSlotASN4
+	}
+	return &u.ebgpSlotASN2
 }

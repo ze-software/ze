@@ -199,67 +199,62 @@ func splitNLRIBlocks(nlriField string) []string {
 // (well-known) or omits it entirely (optional/community), effectively removing it.
 //
 // Parse errors for individual attributes are logged and skipped (fail-open).
-func textDeltaToModOps(origAttrs, modAttrs map[string]string, mods *filterapi.ModAccumulator) {
-	// Changed or added attributes.
-	for name, modVal := range modAttrs {
-		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend || name == policyAttrRemovePrivate {
+func textDeltaToModOps(origAttrs, modAttrs *filterAttrs, mods *filterapi.ModAccumulator) {
+	for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // prealloc linter crashes on range-over-int
+		name := filterAttrNames[id]
+
+		if id == faNLRI || id == faASPath || id == faASPathPrepend || id == faRemovePrivate {
 			continue
 		}
-		origVal, existed := origAttrs[name]
-		if existed && origVal == modVal {
-			continue // Unchanged.
-		}
 
-		code, ok := attrNameToCode[name]
-		if !ok {
-			continue // Unknown attribute name; skip.
-		}
+		modVal, modPresent := modAttrs.get(id)
+		origVal, origPresent := origAttrs.get(id)
 
-		wireVal, err := encodeAttrValue(name, modVal)
-		if err != nil {
-			fwdLogger().Warn("policy filter delta: encode failed",
-				"attr", name, "value", modVal, "error", err)
-			continue // Skip this attribute; don't fail the entire delta.
-		}
-
-		mods.Op(byte(code), filterapi.AttrModSet, wireVal)
-	}
-
-	// Community add/remove directives: new keys that don't exist in original.
-	for name, modVal := range modAttrs {
-		directive, ok := communityDirectives[name]
-		if !ok {
-			continue
-		}
-		wireVal, err := encodeAttrValue(directive.encoderName, modVal)
-		if err != nil {
-			fwdLogger().Warn("policy filter delta: community directive encode failed",
-				"directive", name, "value", modVal, "error", err)
-			continue
-		}
-		if directive.action == filterapi.AttrModRemove && directive.valueSize > 0 {
-			for off := 0; off+directive.valueSize <= len(wireVal); off += directive.valueSize {
-				mods.Op(byte(directive.code), directive.action, wireVal[off:off+directive.valueSize])
+		// Community add/remove directives.
+		if directive, ok := communityDirectives[name]; ok && modPresent {
+			wireVal, err := encodeAttrValue(directive.encoderName, modVal)
+			if err != nil {
+				fwdLogger().Warn("policy filter delta: community directive encode failed",
+					"directive", name, "value", modVal, "error", err)
+				continue
 			}
-		} else {
-			mods.Op(byte(directive.code), directive.action, wireVal)
+			if directive.action == filterapi.AttrModRemove && directive.valueSize > 0 {
+				for off := 0; off+directive.valueSize <= len(wireVal); off += directive.valueSize {
+					mods.Op(byte(directive.code), directive.action, wireVal[off:off+directive.valueSize])
+				}
+			} else {
+				mods.Op(byte(directive.code), directive.action, wireVal)
+			}
+			continue
 		}
-	}
 
-	// Removed attributes: present in original, absent in modified.
-	for name := range origAttrs {
-		if name == policyAttrNLRI || name == policyAttrASPath || name == policyAttrASPathPrepend || name == policyAttrRemovePrivate {
+		// Changed or added attributes.
+		if modPresent {
+			if origPresent && origVal == modVal {
+				continue
+			}
+			code, ok := attrNameToCode[name]
+			if !ok {
+				continue
+			}
+			wireVal, err := encodeAttrValue(name, modVal)
+			if err != nil {
+				fwdLogger().Warn("policy filter delta: encode failed",
+					"attr", name, "value", modVal, "error", err)
+				continue
+			}
+			mods.Op(byte(code), filterapi.AttrModSet, wireVal)
 			continue
 		}
-		if _, still := modAttrs[name]; still {
-			continue // Still present.
+
+		// Removed attributes: present in original, absent in modified.
+		if origPresent {
+			code, ok := attrNameToCode[name]
+			if !ok {
+				continue
+			}
+			mods.Op(byte(code), filterapi.AttrModSet, nil)
 		}
-		code, ok := attrNameToCode[name]
-		if !ok {
-			continue
-		}
-		// Zero-length Set: handler omits optional attributes, writes empty well-known.
-		mods.Op(byte(code), filterapi.AttrModSet, nil)
 	}
 }
 
@@ -538,8 +533,8 @@ func stripAttrHeader(wire []byte) []byte {
 // call site's single parseFilterAttrs(modified) and is read, never mutated.
 //
 // Does nothing if the modified attributes do not contain as-path-prepend.
-func ExtractASPathPrependOps(modAttrs map[string]string, localAS uint32, mods *filterapi.ModAccumulator) {
-	countStr, ok := modAttrs[policyAttrASPathPrepend]
+func ExtractASPathPrependOps(modAttrs *filterAttrs, localAS uint32, mods *filterapi.ModAccumulator) {
+	countStr, ok := modAttrs.get(faASPathPrepend)
 	if !ok || countStr == "" {
 		return
 	}
@@ -572,7 +567,7 @@ func ExtractASPathPrependOps(modAttrs map[string]string, localAS uint32, mods *f
 // RFC 6996 Section 4 requires private-use ASNs to be removed from AS path
 // attributes (including AS4_PATH if utilizing a four-octet AS number space)
 // before being advertised to the global Internet.
-func ExtractRemovePrivateASOps(modAttrs map[string]string, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *filterapi.ModAccumulator) {
+func ExtractRemovePrivateASOps(modAttrs *filterAttrs, attrs *attribute.AttributesWire, asn4 bool, peerAS uint32, mods *filterapi.ModAccumulator) {
 	mode, ok := extractRemovePrivateASMode(modAttrs)
 	if !ok || attrs == nil {
 		return
@@ -601,8 +596,8 @@ func ExtractRemovePrivateASOps(modAttrs map[string]string, attrs *attribute.Attr
 	}
 }
 
-func extractRemovePrivateASMode(modAttrs map[string]string) (string, bool) {
-	mode, ok := modAttrs[policyAttrRemovePrivate]
+func extractRemovePrivateASMode(modAttrs *filterAttrs) (string, bool) {
+	mode, ok := modAttrs.get(faRemovePrivate)
 	if !ok {
 		return "", false
 	}

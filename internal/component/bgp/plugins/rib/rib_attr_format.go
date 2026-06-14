@@ -7,11 +7,103 @@
 package rib
 
 import (
+	"encoding/hex"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
+
+// communityList wraps a typed community slice for lazy JSON marshaling.
+// MarshalJSON produces a JSON array of quoted strings identical to
+// json.Marshal([]string{...}) but without per-element string allocations.
+type communityList []attribute.Community
+
+func (cl communityList) MarshalJSON() ([]byte, error) {
+	if len(cl) == 0 {
+		return []byte("[]"), nil
+	}
+	buf := make([]byte, 0, len(cl)*12)
+	buf = append(buf, '[')
+	for i, c := range cl {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '"')
+		buf = c.AppendText(buf)
+		buf = append(buf, '"')
+	}
+	buf = append(buf, ']')
+	return buf, nil
+}
+
+// largeCommunityList wraps a typed large community slice for lazy JSON marshaling.
+type largeCommunityList []attribute.LargeCommunity
+
+func (cl largeCommunityList) MarshalJSON() ([]byte, error) {
+	if len(cl) == 0 {
+		return []byte("[]"), nil
+	}
+	buf := make([]byte, 0, len(cl)*20)
+	buf = append(buf, '[')
+	for i, lc := range cl {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '"')
+		buf = lc.AppendText(buf)
+		buf = append(buf, '"')
+	}
+	buf = append(buf, ']')
+	return buf, nil
+}
+
+// extCommunityList wraps a typed extended community slice for lazy JSON marshaling.
+type extCommunityList []attribute.ExtendedCommunity
+
+func (cl extCommunityList) MarshalJSON() ([]byte, error) {
+	if len(cl) == 0 {
+		return []byte("[]"), nil
+	}
+	buf := make([]byte, 0, len(cl)*20)
+	buf = append(buf, '[')
+	for i, ec := range cl {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '"')
+		buf = hex.AppendEncode(buf, ec[:])
+		buf = append(buf, '"')
+	}
+	buf = append(buf, ']')
+	return buf, nil
+}
+
+// communityByteList wraps raw community pool bytes for lazy JSON marshaling.
+// The byte slice must be a copy of the pool data (not a reference into pool
+// storage) because json.Marshal may run after the pool shard lock is released.
+type communityByteList []byte
+
+func (cl communityByteList) MarshalJSON() ([]byte, error) {
+	n := len(cl) / 4
+	if n == 0 {
+		return []byte("[]"), nil
+	}
+	buf := make([]byte, 0, n*12)
+	buf = append(buf, '[')
+	for i := 0; i+4 <= len(cl); i += 4 {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '"')
+		c := uint32(cl[i])<<24 | uint32(cl[i+1])<<16 | uint32(cl[i+2])<<8 | uint32(cl[i+3])
+		buf = attribute.Community(c).AppendText(buf)
+		buf = append(buf, '"')
+	}
+	buf = append(buf, ']')
+	return buf, nil
+}
 
 // enrichRouteMapFromEntry adds path attributes from a pool-based RouteEntry to a route map.
 // Only adds attributes that are present (valid handle) — missing attributes are omitted.
@@ -57,8 +149,10 @@ func enrichRouteMapFromEntry(routeMap map[string]any, entry storage.RouteEntry) 
 	}
 	if b.HasCommunities() {
 		if data, err := pool.Communities.Get(b.Communities); err == nil {
-			if communities := formatCommunities(data); communities != nil {
-				routeMap["community"] = attrWithFlags(communities, attribute.FlagOptional|attribute.FlagTransitive)
+			if len(data) >= 4 && len(data)%4 == 0 {
+				cp := make([]byte, len(data))
+				copy(cp, data)
+				routeMap["community"] = attrWithFlags(communityByteList(cp), attribute.FlagOptional|attribute.FlagTransitive)
 			}
 		}
 	}
@@ -82,25 +176,13 @@ func enrichRouteMapFromRoute(routeMap map[string]any, rt *Route) {
 		routeMap["local-preference"] = attrWithFlags(*rt.LocalPreference, attribute.FlagTransitive)
 	}
 	if len(rt.Communities) > 0 {
-		strs := make([]string, len(rt.Communities))
-		for i, c := range rt.Communities {
-			strs[i] = c.String()
-		}
-		routeMap["community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
+		routeMap["community"] = attrWithFlags(communityList(rt.Communities), attribute.FlagOptional|attribute.FlagTransitive)
 	}
 	if len(rt.LargeCommunities) > 0 {
-		strs := make([]string, len(rt.LargeCommunities))
-		for i, lc := range rt.LargeCommunities {
-			strs[i] = lc.String()
-		}
-		routeMap["large-community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
+		routeMap["large-community"] = attrWithFlags(largeCommunityList(rt.LargeCommunities), attribute.FlagOptional|attribute.FlagTransitive)
 	}
 	if len(rt.ExtendedCommunities) > 0 {
-		strs := make([]string, len(rt.ExtendedCommunities))
-		for i, ec := range rt.ExtendedCommunities {
-			strs[i] = textbuf.StringHex(ec[:])
-		}
-		routeMap["extended-community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
+		routeMap["extended-community"] = attrWithFlags(extCommunityList(rt.ExtendedCommunities), attribute.FlagOptional|attribute.FlagTransitive)
 	}
 }
 

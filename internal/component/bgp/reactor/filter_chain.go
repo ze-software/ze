@@ -6,7 +6,6 @@ package reactor
 
 import (
 	"context"
-	"maps"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -17,6 +16,87 @@ import (
 
 const policyAttrNLRI = "nlri"
 const policyAttrAtomicAggregate = "atomic-aggregate"
+
+type filterAttrID uint8
+
+const (
+	faOrigin filterAttrID = iota
+	faASPath
+	faNextHop
+	faMED
+	faLocalPreference
+	faAtomicAggregate
+	faAggregator
+	faCommunity
+	faOriginatorID
+	faClusterList
+	faExtendedCommunity
+	faAIGP
+	faLargeCommunity
+	faCommunityAdd
+	faCommunityRemove
+	faLargeCommunityAdd
+	faLargeCommunityRemove
+	faExtendedCommunityAdd
+	faExtendedCommunityRemove
+	faASPathPrepend
+	faRemovePrivate
+	faNLRI
+	faCount
+)
+
+var filterAttrNames = [faCount]string{
+	faOrigin: "origin", faASPath: "as-path", faNextHop: "next-hop",
+	faMED: "med", faLocalPreference: "local-preference",
+	faAtomicAggregate: policyAttrAtomicAggregate, faAggregator: "aggregator",
+	faCommunity: "community", faOriginatorID: "originator-id",
+	faClusterList: "cluster-list", faExtendedCommunity: "extended-community",
+	faAIGP: "aigp", faLargeCommunity: "large-community",
+	faCommunityAdd: "community-add", faCommunityRemove: "community-remove",
+	faLargeCommunityAdd: "large-community-add", faLargeCommunityRemove: "large-community-remove",
+	faExtendedCommunityAdd: "extended-community-add", faExtendedCommunityRemove: "extended-community-remove",
+	faASPathPrepend: "as-path-prepend", faRemovePrivate: policyAttrRemovePrivate,
+	faNLRI: "nlri",
+}
+
+var filterAttrNameToID map[string]filterAttrID
+
+func init() {
+	filterAttrNameToID = make(map[string]filterAttrID, faCount)
+	for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // prealloc linter crashes on range-over-int
+		filterAttrNameToID[filterAttrNames[id]] = id
+	}
+}
+
+type filterAttrs struct {
+	values      [faCount]string
+	present     uint32
+	unknownName string // first unrecognized token at key position (for validateModifyDelta)
+}
+
+func (a *filterAttrs) set(id filterAttrID, val string) {
+	a.values[id] = val
+	a.present |= 1 << id
+}
+
+func (a *filterAttrs) get(id filterAttrID) (string, bool) {
+	if a.present&(1<<id) == 0 {
+		return "", false
+	}
+	return a.values[id], true
+}
+
+func (a *filterAttrs) has(id filterAttrID) bool {
+	return a.present&(1<<id) != 0
+}
+
+func (a *filterAttrs) merge(delta *filterAttrs) {
+	for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // prealloc linter crashes on range-over-int
+		if delta.has(id) {
+			a.set(id, delta.values[id])
+		}
+	}
+}
 
 // PolicyAction is the result of a policy filter evaluation.
 type PolicyAction int
@@ -94,8 +174,7 @@ func applyFilterDelta(current, delta string) string {
 	currentAttrs := parseFilterAttrs(current)
 	deltaAttrs := parseFilterAttrs(delta)
 
-	// Apply delta: overwrite matching keys, append new ones.
-	maps.Copy(currentAttrs, deltaAttrs)
+	currentAttrs.merge(deltaAttrs)
 
 	return formatFilterAttrs(currentAttrs)
 }
@@ -112,12 +191,12 @@ var policySingleToken = map[string]bool{
 // each filter text exactly once (spec filter-delta-parse-once AC-2/AC-3).
 var parseFilterAttrsCalls atomic.Uint64
 
-// parseFilterAttrs parses text-format attributes into a map.
+// parseFilterAttrs parses text-format attributes into a fixed struct.
 // Each attribute is "name value" where value may contain spaces.
 // Special key "nlri" captures the NLRI section.
-func parseFilterAttrs(text string) map[string]string {
+func parseFilterAttrs(text string) *filterAttrs {
 	parseFilterAttrsCalls.Add(1)
-	attrs := make(map[string]string)
+	attrs := &filterAttrs{}
 	if text == "" {
 		return attrs
 	}
@@ -128,36 +207,42 @@ func parseFilterAttrs(text string) map[string]string {
 		name := fields[i]
 		i++
 
+		id, known := filterAttrNameToID[name]
+		if !known {
+			if attrs.unknownName == "" {
+				attrs.unknownName = name
+			}
+			continue
+		}
+
 		if name == policyAttrNLRI {
-			// Capture everything from "nlri" to end or next known attr.
 			start := i - 1
 			for i < len(fields) && !isPolicyAttrName(fields[i]) {
 				i++
 			}
-			attrs["nlri"] = textbuf.Join(fields[start:i], " ")
+			attrs.set(id, textbuf.Join(fields[start:i], " "))
 			continue
 		}
 
 		if name == policyAttrAtomicAggregate {
-			attrs[name] = ""
+			attrs.set(id, "")
 			continue
 		}
 
 		if policySingleToken[name] {
 			if i < len(fields) {
-				attrs[name] = fields[i]
+				attrs.set(id, fields[i])
 				i++
 			}
 			continue
 		}
 
-		// Multi-token: collect until next attribute name or end.
 		var values []string
 		for i < len(fields) && !isPolicyAttrName(fields[i]) {
 			values = append(values, fields[i])
 			i++
 		}
-		attrs[name] = textbuf.Join(values, " ")
+		attrs.set(id, textbuf.Join(values, " "))
 	}
 
 	return attrs
@@ -178,35 +263,38 @@ func isPolicyAttrName(s string) bool {
 	return false
 }
 
-// formatFilterAttrs converts a map of attributes back to text format.
-// Attributes are output in a fixed order for deterministic results.
-func formatFilterAttrs(attrs map[string]string) string {
-	order := []string{
-		"origin", "as-path", "next-hop", "med", "local-preference",
-		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
-		"cluster-list", "extended-community", "aigp", "large-community",
-		"community-add", "community-remove",
-		"large-community-add", "large-community-remove",
-		"extended-community-add", "extended-community-remove",
-		"as-path-prepend", policyAttrRemovePrivate, "nlri",
-	}
+// formatFilterAttrsOrder defines the output order for formatFilterAttrs.
+// Matches the historical map-based order for deterministic results.
+var formatFilterAttrsOrder = [...]filterAttrID{
+	faOrigin, faASPath, faNextHop, faMED, faLocalPreference,
+	faAtomicAggregate, faAggregator, faCommunity, faOriginatorID,
+	faClusterList, faExtendedCommunity, faAIGP, faLargeCommunity,
+	faCommunityAdd, faCommunityRemove,
+	faLargeCommunityAdd, faLargeCommunityRemove,
+	faExtendedCommunityAdd, faExtendedCommunityRemove,
+	faASPathPrepend, faRemovePrivate, faNLRI,
+}
 
+// formatFilterAttrs converts a filterAttrs struct back to text format.
+// Attributes are output in a fixed order for deterministic results.
+func formatFilterAttrs(attrs *filterAttrs) string {
 	var buf []byte
-	for _, key := range order {
-		val, ok := attrs[key]
+	for _, id := range formatFilterAttrsOrder {
+		val, ok := attrs.get(id)
 		if !ok {
 			continue
 		}
 		if len(buf) > 0 {
 			buf = append(buf, ' ')
 		}
-		switch key {
-		case "nlri":
+		name := filterAttrNames[id]
+		switch id {
+		case faNLRI:
 			buf = append(buf, val...)
-		case policyAttrAtomicAggregate:
-			buf = append(buf, key...)
+		case faAtomicAggregate:
+			buf = append(buf, name...)
 		default:
-			buf = append(buf, key...)
+			buf = append(buf, name...)
 			buf = append(buf, ' ')
 			buf = append(buf, val...)
 		}
@@ -288,9 +376,12 @@ func validateModifyDelta(delta string, declaredAttrs []string) string {
 
 	// Parse the delta to find which attributes it touches.
 	deltaAttrs := parseFilterAttrs(delta)
-	for key := range deltaAttrs {
-		if !allowed[key] {
-			return key
+	if deltaAttrs.unknownName != "" && !allowed[deltaAttrs.unknownName] {
+		return deltaAttrs.unknownName
+	}
+	for id := filterAttrID(0); id < faCount; id++ { //nolint:modernize // prealloc linter crashes on range-over-int
+		if deltaAttrs.has(id) && !allowed[filterAttrNames[id]] {
+			return filterAttrNames[id]
 		}
 	}
 

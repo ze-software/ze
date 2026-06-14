@@ -425,6 +425,18 @@ Once all consumers migrated:
 
 ---
 
+## EBGP Variant Cache (ReceivedUpdate)
+
+<!-- source: internal/component/bgp/reactor/received_update.go -- ebgpWireSlot, ebgpSlotASN4, ebgpSlotASN2, EBGPWire -->
+
+`ReceivedUpdate.EBGPWire` lazily generates and caches the EBGP AS-prepended
+variant of an UPDATE, one per ASN-width (ASN4, ASN2). Each variant bundles
+its `WireUpdate` pointer and backing `BufHandle` in an `ebgpWireSlot` struct
+published via `atomic.Pointer`. Cache-hit reads are a single atomic load
+(lock-free). Generation uses double-checked locking under `ebgpMu`. Slots
+are fire-once (written at most once, never mutated). Eviction
+(`evictLocked`, `Delete`) loads each slot atomically and returns its handle.
+
 ## Related Documentation
 
 - `docs/architecture/encoding-context.md` - Context-dependent encoding

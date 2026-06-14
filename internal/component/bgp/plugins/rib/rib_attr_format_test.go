@@ -1,9 +1,14 @@
 package rib
 
 import (
+	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // TestFormatOrigin verifies ORIGIN byte to string conversion.
@@ -124,6 +129,119 @@ func TestFormatUint32Attr(t *testing.T) {
 			assert.Equal(t, tt.ok, ok)
 			if ok {
 				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+// TestEnrichCommunityJSONByteIdentical verifies that the lazy MarshalJSON
+// wrappers produce byte-identical JSON to the old []string approach.
+//
+// VALIDATES: AC-1 — JSON output byte-identical across community kinds,
+// well-known names, zero/one/many elements.
+// PREVENTS: Wrapper output diverging from the established JSON format.
+func TestEnrichCommunityJSONByteIdentical(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		communities      []attribute.Community
+		largeCommunities []attribute.LargeCommunity
+		extCommunities   []attribute.ExtendedCommunity
+	}{
+		{
+			"single_standard",
+			[]attribute.Community{attribute.Community(65000<<16 | 100)},
+			nil, nil,
+		},
+		{
+			"well_known_no_export",
+			[]attribute.Community{attribute.CommunityNoExport},
+			nil, nil,
+		},
+		{
+			"mixed_wellknown_and_numeric",
+			[]attribute.Community{
+				attribute.Community(65000<<16 | 100),
+				attribute.CommunityNoExport,
+				attribute.CommunityNoAdvertise,
+				attribute.Community(1<<16 | 2),
+			},
+			nil, nil,
+		},
+		{
+			"large_communities",
+			nil,
+			[]attribute.LargeCommunity{
+				{GlobalAdmin: 65000, LocalData1: 100, LocalData2: 200},
+				{GlobalAdmin: 1, LocalData1: 0, LocalData2: 0},
+			},
+			nil,
+		},
+		{
+			"extended_communities",
+			nil, nil,
+			[]attribute.ExtendedCommunity{
+				{0x00, 0x02, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64},
+				{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+			},
+		},
+		{
+			"all_three_kinds",
+			[]attribute.Community{attribute.Community(65000<<16 | 100)},
+			[]attribute.LargeCommunity{{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2}},
+			[]attribute.ExtendedCommunity{{0x00, 0x02, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Build "old" style: []string values
+			oldMap := make(map[string]any)
+			if len(tt.communities) > 0 {
+				strs := make([]string, len(tt.communities))
+				for i, c := range tt.communities {
+					strs[i] = c.String()
+				}
+				oldMap["community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
+			}
+			if len(tt.largeCommunities) > 0 {
+				strs := make([]string, len(tt.largeCommunities))
+				for i, lc := range tt.largeCommunities {
+					strs[i] = lc.String()
+				}
+				oldMap["large-community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
+			}
+			if len(tt.extCommunities) > 0 {
+				strs := make([]string, len(tt.extCommunities))
+				for i, ec := range tt.extCommunities {
+					strs[i] = textbuf.StringHex(ec[:])
+				}
+				oldMap["extended-community"] = attrWithFlags(strs, attribute.FlagOptional|attribute.FlagTransitive)
+			}
+
+			// Build "new" style: wrapper values via enrichRouteMapFromRoute
+			rt := &Route{
+				Communities:         tt.communities,
+				LargeCommunities:    tt.largeCommunities,
+				ExtendedCommunities: tt.extCommunities,
+			}
+			newMap := make(map[string]any)
+			enrichRouteMapFromRoute(newMap, rt)
+
+			oldJSON, err := json.Marshal(oldMap)
+			if err != nil {
+				t.Fatalf("old marshal: %v", err)
+			}
+			newJSON, err := json.Marshal(newMap)
+			if err != nil {
+				t.Fatalf("new marshal: %v", err)
+			}
+
+			if !bytes.Equal(oldJSON, newJSON) {
+				t.Errorf("JSON mismatch:\n old: %s\n new: %s", oldJSON, newJSON)
 			}
 		})
 	}

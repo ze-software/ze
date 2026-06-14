@@ -54,9 +54,14 @@ func (e ExtendedCommunity) AppendText(buf []byte) []byte {
 	return hex.AppendEncode(buf, e[:])
 }
 
-// appendCommunityText appends a single standard community (32-bit value) using
-// its well-known lowercase name if known, otherwise "<asn>:<val>". Matches the
-// legacy FormatCommunity output byte-for-byte.
+// AppendText appends this community's display form to buf.
+// Uses the well-known lowercase name if known, otherwise "ASN:value".
+func (c Community) AppendText(buf []byte) []byte {
+	return appendCommunityText(buf, uint32(c))
+}
+
+// appendCommunityText appends a standard community (32-bit value) using
+// its well-known lowercase name if known, otherwise "<asn>:<val>".
 func appendCommunityText(buf []byte, c uint32) []byte {
 	switch c {
 	case uint32(CommunityNoExport):

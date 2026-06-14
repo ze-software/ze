@@ -192,6 +192,36 @@ func TestAppendText_AtomicAggregate(t *testing.T) {
 // VALIDATES: Communities.AppendText well-known community names match legacy
 // FormatCommunity (lowercase: no-export, no-advertise, etc., plus blackhole).
 // PREVENTS: filter drift when a community is serialized by its well-known name.
+// TestCommunityAppendText verifies that Community.AppendText produces
+// identical output to Community.String() for well-known names and numeric values.
+//
+// VALIDATES: AC-3 — AppendText == String for every communityNames entry + numeric edges.
+// PREVENTS: Divergence between the new AppendText and the established String() form.
+func TestCommunityAppendText(t *testing.T) {
+	t.Parallel()
+	wellKnown := []Community{
+		CommunityNoExport, CommunityNoAdvertise, CommunityNoExportSubconfed,
+		CommunityNoPeer, CommunityGracefulShutdown, CommunityAcceptOwn,
+		CommunityRouteFilterTranslatedV4, CommunityRouteFilterV4,
+		CommunityRouteFilterTranslatedV6, CommunityRouteFilterV6,
+		CommunityLLGRStale, CommunityNoLLGR, CommunityAcceptOwnNexthop,
+		CommunityStandbyPE, CommunityBlackhole,
+	}
+	numeric := []Community{
+		Community(0),
+		Community(1<<16 | 1),
+		Community(65000<<16 | 100),
+		Community(65535<<16 | 65535),
+	}
+	for _, c := range append(wellKnown, numeric...) {
+		want := c.String()
+		got := string(c.AppendText(nil))
+		if got != want {
+			t.Errorf("Community(%d).AppendText = %q, want %q (from String)", c, got, want)
+		}
+	}
+}
+
 func TestAppendText_Community_WellKnown(t *testing.T) {
 	cases := []struct {
 		comm uint32

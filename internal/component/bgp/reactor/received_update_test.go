@@ -242,11 +242,10 @@ func TestReceivedUpdate_EBGPWireLazyASN4(t *testing.T) {
 	}
 
 	// Verify cached
-	if update.ebgpWireASN4 == nil {
-		t.Error("ebgpWireASN4 should be cached")
-	}
-	if update.ebgpPoolBuf4.Buf == nil {
-		t.Error("ebgpPoolBuf4 should be stored")
+	if s := update.ebgpSlotASN4.Load(); s == nil {
+		t.Error("ebgpSlotASN4 should be cached")
+	} else if s.handle.Buf == nil {
+		t.Error("ebgpSlotASN4 handle should be stored")
 	}
 }
 
@@ -316,17 +315,15 @@ func TestReceivedUpdate_EBGPWireLazyASN2(t *testing.T) {
 	if asn4Wire == asn2Wire {
 		t.Error("ASN4 and ASN2 should be different objects")
 	}
-	if update.ebgpWireASN4 == nil {
-		t.Error("ebgpWireASN4 should be cached")
+	if s := update.ebgpSlotASN4.Load(); s == nil {
+		t.Error("ebgpSlotASN4 should be cached")
+	} else if s.handle.Buf == nil {
+		t.Error("ebgpSlotASN4 handle should be stored")
 	}
-	if update.ebgpWireASN2 == nil {
-		t.Error("ebgpWireASN2 should be cached")
-	}
-	if update.ebgpPoolBuf4.Buf == nil {
-		t.Error("ebgpPoolBuf4 should be stored")
-	}
-	if update.ebgpPoolBuf2.Buf == nil {
-		t.Error("ebgpPoolBuf2 should be stored")
+	if s := update.ebgpSlotASN2.Load(); s == nil {
+		t.Error("ebgpSlotASN2 should be cached")
+	} else if s.handle.Buf == nil {
+		t.Error("ebgpSlotASN2 handle should be stored")
 	}
 }
 
@@ -383,5 +380,120 @@ func TestReceivedUpdate_EBGPWireConcurrent(t *testing.T) {
 				t.Error("all ASN4 results should be same pointer")
 			}
 		}
+	}
+}
+
+// TestReceivedUpdate_EBGPWireEvictionReturnsBuffers verifies that cache
+// eviction returns exactly the published EBGP variant pool buffers.
+//
+// VALIDATES: AC-5 — eviction of entries with 0, 1, or 2 published variants
+// returns the correct buffers.
+// PREVENTS: Pool buffer leaks when cache entries with EBGP variants are evicted.
+func TestReceivedUpdate_EBGPWireEvictionReturnsBuffers(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	cases := []struct {
+		name     string
+		variants int // 0, 1, or 2
+	}{
+		{"no variants", 0},
+		{"one variant (ASN4)", 1},
+		{"both variants", 2},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, stdBefore := bufMuxStd.Stats()
+
+			payload := testUpdatePayloadWithASPath([]uint32{64512, 64513})
+			wu := wireu.NewWireUpdate(payload, ctxID)
+			id := nextMsgID()
+			wu.SetMessageID(id)
+
+			update := &ReceivedUpdate{
+				WireUpdate:   wu,
+				poolBuf:      BufHandle{ID: noPoolBufID, Buf: make([]byte, 4096)},
+				SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+				ReceivedAt:   time.Now(),
+			}
+
+			if tc.variants >= 1 {
+				_, err := update.EBGPWire(65000, true, true)
+				if err != nil {
+					t.Fatalf("EBGPWire(ASN4) error = %v", err)
+				}
+			}
+			if tc.variants >= 2 {
+				_, err := update.EBGPWire(65000, true, false)
+				if err != nil {
+					t.Fatalf("EBGPWire(ASN2) error = %v", err)
+				}
+			}
+
+			_, stdAfterGen := bufMuxStd.Stats()
+			variantsAllocated := stdAfterGen - stdBefore
+			if variantsAllocated != tc.variants {
+				t.Errorf("expected %d variant buffers in use, got delta %d", tc.variants, variantsAllocated)
+			}
+
+			cache := NewRecentUpdateCache(100)
+			cache.RegisterConsumer("test-plugin")
+			cache.Add(update)
+			cache.Activate(id, 1)
+			_ = cache.Ack(id, "test-plugin")
+
+			_, stdAfterEvict := bufMuxStd.Stats()
+			leaked := stdAfterEvict - stdBefore
+			if leaked != 0 {
+				t.Errorf("expected 0 buffers leaked after eviction, got delta %d", leaked)
+			}
+		})
+	}
+}
+
+// TestReceivedUpdate_EBGPWireErrorDoesNotPublish verifies that a failed
+// generation does not cache the variant and returns the pool buffer.
+//
+// VALIDATES: AC-4 — generation error leaves slot nil; buffer returned; later call retries.
+// PREVENTS: Stale nil-wire cached after error; pool buffer leak on error path.
+func TestReceivedUpdate_EBGPWireErrorDoesNotPublish(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	// Truncated payload: too short for RewriteASPath to parse.
+	truncated := []byte{0x00, 0x00}
+	wu := wireu.NewWireUpdate(truncated, ctxID)
+	wu.SetMessageID(nextMsgID())
+
+	update := &ReceivedUpdate{
+		WireUpdate:   wu,
+		poolBuf:      BufHandle{ID: noPoolBufID, Buf: make([]byte, 4096)},
+		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		ReceivedAt:   time.Now(),
+	}
+
+	_, stdBefore := bufMuxStd.Stats()
+
+	_, err := update.EBGPWire(65000, true, true)
+	if err == nil {
+		t.Fatal("expected error from EBGPWire with truncated payload")
+	}
+
+	// test-relax: ebgpWireASN4/ebgpPoolBuf4 fields replaced by atomic ebgpSlotASN4;
+	// a nil slot covers both assertions (wire==nil AND handle not stored).
+	if s := update.ebgpSlotASN4.Load(); s != nil {
+		t.Error("ebgpSlotASN4 should be nil after error (no wire cached, no handle stored)")
+	}
+
+	_, stdAfter := bufMuxStd.Stats()
+	if stdAfter != stdBefore {
+		t.Errorf("pool buffer leaked: inUse before=%d, after=%d", stdBefore, stdAfter)
+	}
+
+	// Retry should attempt generation again (not return cached nil).
+	_, err2 := update.EBGPWire(65000, true, true)
+	if err2 == nil {
+		t.Fatal("expected error on retry with truncated payload")
 	}
 }
