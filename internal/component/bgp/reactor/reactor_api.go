@@ -12,8 +12,6 @@ import (
 	"maps"
 	"net/netip"
 	"slices"
-	"strconv"
-	"strings"
 	"time"
 
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
@@ -1072,10 +1070,9 @@ func (a *reactorAPIAdapter) matchPositive(sel *selector.Selector) []*Peer {
 		return peers
 
 	case selector.KindGlob:
-		pattern := sel.GlobPattern()
 		var peers []*Peer
 		for addrPort, peer := range a.r.peers {
-			if ipGlobMatch(pattern, addrPort.Addr().String()) {
+			if sel.Matches(addrPort.Addr()) {
 				peers = append(peers, peer)
 			}
 		}
@@ -1088,54 +1085,6 @@ func (a *reactorAPIAdapter) matchPositive(sel *selector.Selector) []*Peer {
 // addrToKey converts a netip.Addr to the AddrPort key format used by the reactor.
 func addrToKey(addr netip.Addr) netip.AddrPort {
 	return netip.AddrPortFrom(addr, DefaultBGPPort)
-}
-
-// ipGlobMatch checks if an IP address matches a glob pattern.
-// Pattern "*" matches any IP (IPv4 or IPv6).
-// For IPv4, each octet can be "*" to match any value 0-255.
-// Examples: "192.168.*.*", "10.*.0.1", "*.*.*.1".
-// Both pattern and ip may include a ":port" suffix, which is stripped before matching.
-func ipGlobMatch(pattern, ip string) bool {
-	// "*" or empty matches everything
-	if pattern == "*" || pattern == "" {
-		return true
-	}
-
-	// Strip port suffix from both pattern and ip (e.g., "127.0.0.1:179" -> "127.0.0.1").
-	// Go formats IPv6+port as "[::1]:179", so LastIndex(":") correctly finds the port separator.
-	if idx := strings.LastIndex(pattern, ":"); idx >= 0 {
-		if _, err := strconv.Atoi(pattern[idx+1:]); err == nil {
-			pattern = pattern[:idx]
-		}
-	}
-	if idx := strings.LastIndex(ip, ":"); idx >= 0 {
-		if _, err := strconv.Atoi(ip[idx+1:]); err == nil {
-			ip = ip[:idx]
-		}
-	}
-
-	// Check if pattern looks like IPv4 glob (contains dots)
-	if strings.Contains(pattern, ".") && strings.Contains(ip, ".") {
-		patternParts := strings.Split(pattern, ".")
-		ipParts := strings.Split(ip, ".")
-
-		if len(patternParts) != 4 || len(ipParts) != 4 {
-			return false
-		}
-
-		for i := range 4 {
-			if patternParts[i] == "*" {
-				continue // wildcard matches any octet
-			}
-			if patternParts[i] != ipParts[i] {
-				return false
-			}
-		}
-		return true
-	}
-
-	// For IPv6 or exact match, just compare strings
-	return pattern == ip
 }
 
 // SignalAPIReady signals that an API process is ready.

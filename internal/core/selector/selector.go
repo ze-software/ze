@@ -121,7 +121,7 @@ func ParseDefault(s string) *Selector {
 
 // MatchesPeerKey returns true if the selector matches a peer identified by key.
 // The key may be an IP address string or a non-IP name (e.g. BMP "router1:peer1").
-// For KindASN and KindGlob, returns false (reactor-level resolution needed).
+// For KindASN, returns false (reactor-level resolution needed).
 func (sel *Selector) MatchesPeerKey(peerKey string) bool {
 	switch sel.kind {
 	case KindAll:
@@ -148,6 +148,12 @@ func (sel *Selector) MatchesPeerKey(peerKey string) bool {
 			return false
 		}
 		return sel.Matches(addr)
+	case KindGlob:
+		match := matchIPGlob(sel.name, peerKey)
+		if sel.exclude {
+			return !match
+		}
+		return match
 	default:
 		return false
 	}
@@ -261,8 +267,8 @@ func parseMultiIP(s string) (*Selector, error) {
 }
 
 // Matches returns true if the selector matches the given peer address.
-// For KindName, KindASN, and KindGlob, this method returns false because
-// IP-only matching is insufficient — use SelectorKind() to dispatch at the reactor level.
+// For KindName and KindASN, this method returns false because
+// IP-only matching is insufficient -- use SelectorKind() to dispatch at the reactor level.
 // Exclusion is handled: KindAddr with exclude returns true for non-matching addresses.
 func (sel *Selector) Matches(peer netip.Addr) bool {
 	var match bool
@@ -277,7 +283,9 @@ func (sel *Selector) Matches(peer netip.Addr) bool {
 		} else {
 			match = slices.Contains(sel.ips, peer)
 		}
-	case KindName, KindASN, KindGlob:
+	case KindGlob:
+		match = matchIPGlob(sel.name, peer.String())
+	case KindName, KindASN:
 		match = false
 	default:
 		match = false
@@ -286,6 +294,29 @@ func (sel *Selector) Matches(peer netip.Addr) bool {
 		return !match
 	}
 	return match
+}
+
+// matchIPGlob checks if an IP address string matches a glob pattern.
+// For IPv4, each octet can be "*" to match any value 0-255.
+// Examples: "192.168.*.*", "10.*.0.1".
+func matchIPGlob(pattern, ip string) bool {
+	if pattern == "*" || pattern == "" {
+		return true
+	}
+	if strings.Contains(pattern, ".") && strings.Contains(ip, ".") {
+		patParts := strings.Split(pattern, ".")
+		ipParts := strings.Split(ip, ".")
+		if len(patParts) != 4 || len(ipParts) != 4 {
+			return false
+		}
+		for i := range 4 {
+			if patParts[i] != "*" && patParts[i] != ipParts[i] {
+				return false
+			}
+		}
+		return true
+	}
+	return pattern == ip
 }
 
 // String returns the canonical string representation.

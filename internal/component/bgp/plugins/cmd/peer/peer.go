@@ -121,7 +121,13 @@ func filterPeersBySelectorValue(ctx *pluginserver.CommandContext, selectorStr st
 		return matched, nil, nil
 
 	case peersel.KindGlob:
-		return nil, nil, nil
+		var matched []plugin.PeerInfo
+		for i := range allPeers {
+			if sel.Matches(allPeers[i].Address) {
+				matched = append(matched, allPeers[i])
+			}
+		}
+		return matched, nil, nil
 	}
 
 	return nil, nil, nil

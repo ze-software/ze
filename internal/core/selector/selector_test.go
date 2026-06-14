@@ -443,21 +443,79 @@ func TestConstructorMatchesEquivalence(t *testing.T) {
 	}
 }
 
-// TestNameASNGlobMatchesReturnsFalse verifies that Matches returns false
+// TestNameASNMatchesReturnsFalse verifies that Matches returns false
 // for kinds that require more than an IP address.
 //
-// VALIDATES: Name/ASN/Glob selectors don't accidentally match by IP.
+// VALIDATES: Name/ASN selectors don't accidentally match by IP.
 // PREVENTS: False positive peer selection.
-func TestNameASNGlobMatchesReturnsFalse(t *testing.T) {
+func TestNameASNMatchesReturnsFalse(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.1")
 	sels := []*Selector{
 		PeerName("peer1"),
 		ASN(65000),
-		Glob("10.*.*.*"),
 	}
 	for _, sel := range sels {
 		if sel.Matches(addr) {
 			t.Errorf("%v.Matches(%v) = true, want false", sel, addr)
+		}
+	}
+}
+
+// TestGlobMatches verifies that Matches handles glob patterns correctly,
+// including exclude patterns.
+//
+// VALIDATES: Glob selectors match by IP octet pattern.
+// PREVENTS: Glob silently returning no results.
+func TestGlobMatches(t *testing.T) {
+	tests := []struct {
+		selector string
+		addr     string
+		want     bool
+	}{
+		{"10.*.*.*", "10.0.0.1", true},
+		{"10.*.*.*", "192.168.0.1", false},
+		{"192.168.1.*", "192.168.1.55", true},
+		{"192.168.1.*", "192.168.2.55", false},
+		{"*", "10.0.0.1", true},
+		{"!10.*.*.*", "10.0.0.1", false},
+		{"!10.*.*.*", "192.168.0.1", true},
+		{"!192.168.1.*", "192.168.1.55", false},
+	}
+	for _, tt := range tests {
+		sel, err := Parse(tt.selector)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", tt.selector, err)
+		}
+		addr := netip.MustParseAddr(tt.addr)
+		if got := sel.Matches(addr); got != tt.want {
+			t.Errorf("Parse(%q).Matches(%s) = %v, want %v", tt.selector, tt.addr, got, tt.want)
+		}
+	}
+}
+
+// TestMatchesPeerKeyGlob verifies that MatchesPeerKey handles glob patterns.
+//
+// VALIDATES: MatchesPeerKey delegates glob matching correctly.
+// PREVENTS: Glob returning false for all keys in MatchesPeerKey.
+func TestMatchesPeerKeyGlob(t *testing.T) {
+	tests := []struct {
+		selector string
+		peerKey  string
+		want     bool
+	}{
+		{"10.*.*.*", "10.0.0.1", true},
+		{"10.*.*.*", "192.168.0.1", false},
+		{"!10.*.*.*", "10.0.0.1", false},
+		{"!10.*.*.*", "192.168.0.1", true},
+		{"10.*.*.*", "router1:peer1", false},
+	}
+	for _, tt := range tests {
+		sel, err := Parse(tt.selector)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", tt.selector, err)
+		}
+		if got := sel.MatchesPeerKey(tt.peerKey); got != tt.want {
+			t.Errorf("Parse(%q).MatchesPeerKey(%q) = %v, want %v", tt.selector, tt.peerKey, got, tt.want)
 		}
 	}
 }

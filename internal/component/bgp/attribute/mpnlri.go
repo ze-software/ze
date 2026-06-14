@@ -387,10 +387,14 @@ func parseNextHops(afi AFI, safi SAFI, data []byte) ([]netip.Addr, error) {
 			return nil, ErrInvalidNextHopLen
 		}
 
-	default:
-		// Unknown AFI - try to preserve the raw data as best we can
-		// Return empty slice, the raw data is still in the attribute
-		return nil, nil
+	default: // Unknown AFI -- parse by length (16/32-byte IPv6 already handled above)
+		if len(data) == 4 {
+			var ip [4]byte
+			copy(ip[:], data)
+			hops = append(hops, netip.AddrFrom4(ip))
+		} else {
+			return nil, ErrInvalidNextHopLen
+		}
 	}
 
 	return hops, nil
