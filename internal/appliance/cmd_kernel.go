@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"io"
+	"net/http"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
@@ -376,17 +377,23 @@ func ensureFirmware(profile string) (string, error) {
 	return fwDir, nil
 }
 
-func downloadFirmwareBlob(url, destPath string) error {
+func downloadFirmwareBlob(rawURL, destPath string) error {
 	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
 		return fmt.Errorf("create firmware directory: %w", err)
 	}
-	resp, err := httpGetFn(url)
+	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody) //nolint:gosec // URL from constant
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req) //nolint:bodyclose // closed below
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close() //nolint:errcheck // HTTP response
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
+		return fmt.Errorf("HTTP %d from %s", resp.StatusCode, rawURL)
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(destPath), ".fw-*")
 	if err != nil {
