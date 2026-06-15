@@ -80,6 +80,8 @@ Three filter categories:
 | sysctl | Kernel tunable management with default, transient, and config layers. |
 | traffic | Traffic control lifecycle and backend dispatch. |
 | vpp | VPP lifecycle and telemetry. |
+| cos | 802.1p class-of-service profile definitions. Named QoS maps, dynamic per-subscriber CoS via RADIUS. |
+| bgp-nlri-srpolicy | SR-Policy NLRI (SAFI 73) with Tunnel Encapsulation attribute. |
 
 <!-- source: internal/component/iface/register.go -- interface -->
 

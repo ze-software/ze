@@ -25,8 +25,11 @@
 | IPv4 RTC | `ipv4/rtc` | 1/132 | No | Yes | No |
 | IPv4 MUP | `ipv4/mup` | 1/85 | Yes | Yes | Yes |
 | IPv6 MUP | `ipv6/mup` | 2/85 | Yes | Yes | Yes |
+| IPv4 SR-Policy | `ipv4/sr-policy` | 1/73 | Yes | Yes | Yes |
+| IPv6 SR-Policy | `ipv6/sr-policy` | 2/73 | Yes | Yes | Yes |
 
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN family registration -->
+<!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR-Policy family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/vpn/register.go -- VPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP family registration -->
@@ -53,6 +56,7 @@
 | Hostname | 73 | draft | FQDN capability |
 | Software Version | 75 | draft | Software version advertisement |
 | Link-Local Next Hop | 77 | — | IPv6 link-local as next-hop |
+| PATHS-LIMIT | 76 | draft-abraitis-idr-addpath-paths-limit | Per-family path count limit for ADD-PATH |
 
 <!-- source: internal/component/bgp/capability/capability.go -- capability code constants -->
 <!-- source: internal/component/bgp/capability/encoding.go -- ASN4, AddPath, ExtMsg, ExtNH -->
