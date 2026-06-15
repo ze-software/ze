@@ -1,0 +1,10 @@
+# bgp-srpolicy-2 decoding test - SR-Policy IPv6 NLRI via ze-test decode
+# Tests SR-Policy NLRI (RFC 9830, SAFI 73) with distinguisher=42, color=200, endpoint=2001:db8::1
+#
+# Wire bytes breakdown (24-byte body, no length prefix for --nlri mode):
+# 00 00 00 2A = distinguisher 42
+# 00 00 00 C8 = color 200
+# 20 01 0D B8 00 00 00 00 00 00 00 00 00 00 00 01 = endpoint 2001:db8::1
+stdin=payload:hex=0000002A000000C820010DB8000000000000000000000001
+cmd=foreground:seq=1:exec=ze-test decode --json --nlri ipv6/sr-policy -:stdin=payload
+expect=json:json={"color":200,"distinguisher":42,"endpoint":"2001:db8::1"}

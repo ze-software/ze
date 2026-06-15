@@ -125,3 +125,29 @@ func TestSRPolicySupportsAddPath(t *testing.T) {
 	assert.False(t, sp.HasPathID())
 	assert.Equal(t, uint32(0), sp.PathID())
 }
+
+func TestSRPolicyAppendJSON(t *testing.T) {
+	sp := New(family.AFIIPv4, 0, 100, netip.MustParseAddr("10.0.0.1"))
+	got := string(sp.AppendJSON(nil))
+	assert.JSONEq(t, `{"color":100,"distinguisher":0,"endpoint":"10.0.0.1"}`, got)
+}
+
+func TestSRPolicyDecodeNLRIHex(t *testing.T) {
+	result, err := DecodeNLRIHex("ipv4/sr-policy", "00000000000000640A000001")
+	require.NoError(t, err)
+	m, ok := result.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, uint32(0), m["distinguisher"])
+	assert.Equal(t, uint32(100), m["color"])
+	assert.Equal(t, "10.0.0.1", m["endpoint"])
+}
+
+func TestSRPolicyDecodeNLRIHexIPv6(t *testing.T) {
+	result, err := DecodeNLRIHex("ipv6/sr-policy", "0000002A000000C820010DB8000000000000000000000001")
+	require.NoError(t, err)
+	m, ok := result.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, uint32(42), m["distinguisher"])
+	assert.Equal(t, uint32(200), m["color"])
+	assert.Equal(t, "2001:db8::1", m["endpoint"])
+}

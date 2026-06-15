@@ -6,7 +6,12 @@
 package srpolicy
 
 import (
+	"log/slog"
+	"net"
+	"os"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri/nlrisplit"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
@@ -19,4 +24,19 @@ var (
 func init() {
 	nlrisplit.Register(IPv4SRPolicy, SplitSRPolicy)
 	nlrisplit.Register(IPv6SRPolicy, SplitSRPolicy)
+
+	reg := registry.Registration{
+		Name:                 "bgp-nlri-srpolicy",
+		Description:          "SR-Policy family plugin (RFC 9830, SAFI 73)",
+		SupportsNLRI:         true,
+		Features:             "nlri",
+		Families:             []string{"ipv4/sr-policy", "ipv6/sr-policy"},
+		InProcessNLRIDecoder: DecodeNLRIHex,
+		RunEngine:            func(net.Conn) int { return 0 },
+		CLIHandler:           func([]string) int { return 0 },
+	}
+	if err := registry.Register(reg); err != nil {
+		slog.Error("srpolicy: registration failed", "error", err)
+		os.Exit(1)
+	}
 }

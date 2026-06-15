@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // buildMPReachZe builds Ze format NLRI operations from MP_REACH_NLRI.
@@ -205,6 +207,18 @@ func parseNLRIByFamily(data []byte, afi family.AFI, safi family.SAFI, _ bool) []
 		} else {
 			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
 		}
+	case safi == family.SAFISRPolicy:
+		famStr := family.Family{AFI: afi, SAFI: safi}.String()
+		hexData := textbuf.StringHexUpper(data)
+		if raw, err := registry.DecodeNLRIByFamily(famStr, hexData); err == nil {
+			var decoded any
+			if json.Unmarshal(raw, &decoded) == nil {
+				routes = []any{decoded}
+			}
+		}
+		if routes == nil {
+			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
+		}
 	default: // IPv4/IPv6 unicast/multicast - simple prefix format
 		routes = parseGenericNLRI(data, afi)
 	}
@@ -257,14 +271,24 @@ func decodeNLRIOnly(data []byte, family string, outputJSON bool) (string, error)
 		return "", err
 	}
 
-	// Try plugin decode first if plugin is enabled for this family
+	// Fast path: in-process NLRI decoder registered in plugin registry.
+	hexData := textbuf.StringHexUpper(data)
+	if raw, err := registry.DecodeNLRIByFamily(family, hexData); err == nil {
+		if !outputJSON {
+			var m map[string]any
+			if json.Unmarshal(raw, &m) == nil {
+				return formatNLRIHuman(m, family), nil
+			}
+		}
+		return string(raw), nil
+	}
+
+	// Try plugin subprocess decode if a plugin is registered for this family.
 	pluginName := lookupFamilyPlugin(family)
 	if pluginName != "" {
-		hexData := fmt.Sprintf("%X", data)
 		result := invokePluginNLRIDecode(pluginName, family, hexData)
 		if result != nil {
 			if !outputJSON {
-				// Handle both array and map results
 				if mapResult, ok := result.(map[string]any); ok {
 					return formatNLRIHuman(mapResult, family), nil
 				}
@@ -280,13 +304,12 @@ func decodeNLRIOnly(data []byte, family string, outputJSON bool) (string, error)
 			}
 			return string(jsonData), nil
 		}
-		// Plugin failed, fall through to built-in decode
 	}
 
-	// Plugin failed or unknown family - return raw bytes
+	// No decoder available - return raw bytes.
 	result := map[string]any{
 		"parsed": false,
-		"raw":    fmt.Sprintf("%X", data),
+		"raw":    hexData,
 	}
 
 	// Human-readable output
