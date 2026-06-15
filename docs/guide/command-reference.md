@@ -23,9 +23,13 @@ Some `ze show` subcommands run locally: `version`, `bgp decode`, `bgp encode`,
 
 ### ze
 
-Start the daemon or access subcommands.
+Start the daemon or access subcommands. When invoked with no arguments in an
+interactive terminal, shows a navigable menu of all commands grouped by section.
+When piped or scripted (stdin is not a TTY), prints static help and exits 1.
+<!-- source: cmd/ze/tui_menu.go -- runTUILauncher, buildTopLevel -->
 
 ```
+ze                               # Interactive command menu (TTY only)
 ze <config-file>                 # Start daemon with config
 ze start                         # Start daemon from database
 ```

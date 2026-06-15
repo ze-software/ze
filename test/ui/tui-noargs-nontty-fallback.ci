@@ -1,0 +1,8 @@
+# Test: ze with no args in non-TTY shows static help and exits 1
+# VALIDATES: AC-2 (non-TTY invocation falls back to static help)
+# PREVENTS: regression where non-TTY invocations hang on interactive menu
+
+cmd=foreground:seq=1:exec=ze
+expect=exit:code=1
+expect=stderr:contains=Usage:
+expect=stderr:contains=ze <verb> <command>

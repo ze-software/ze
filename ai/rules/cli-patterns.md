@@ -75,5 +75,6 @@ registration). No per-plugin YANG files needed.
 [ ] Errors to stderr, proper exit codes
 [ ] Register in parent dispatch
 [ ] Tab-completion works (verify with tab in CLI)
+[ ] Colors follow semantic roles (docs/architecture/cli/color-system.md)
 [ ] Functional tests
 ```

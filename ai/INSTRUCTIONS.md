@@ -147,6 +147,7 @@ means "no rule applies".
 | Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/canonical-sources.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/`, `ai/rules/hook-mapping.md` (which checks will fire) |
+| Add terminal colors or TUI styling | `docs/architecture/cli/color-system.md` -- 7 semantic roles, consistent palette across all surfaces |
 | Touch wire encoding, allocate memory, or build strings | `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md`, `ai/rules/no-sprintf-alloc.md` -- load-bearing divergence from standard Go |
 | Add a YANG leaf, env var, or config option | `ai/rules/config-surface.md` (YANG vs env var decision), `ai/rules/config-naming.md` (naming), `ai/patterns/config-option.md` (structural template) |
 | Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugin-self-containment.md` -- remove the plugin and ALL its features vanish; no plugin spelling in generic/central packages |

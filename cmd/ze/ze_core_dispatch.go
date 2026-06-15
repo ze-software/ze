@@ -291,8 +291,16 @@ func zeDispatch(args []string) int {
 	}
 
 	if len(args) < 1 {
-		zeUsage()
-		return 1
+		if stdinIsTerminal() {
+			chosen := runTUILauncher()
+			if chosen == "" {
+				return 0
+			}
+			args = strings.Fields(chosen)
+		} else {
+			zeUsage()
+			return 1
+		}
 	}
 
 	arg := args[0]
