@@ -482,6 +482,7 @@ func BuildCommandTree(readOnly bool) *Command {
 		mergeDescriptions(tree, yangCmdTree)
 		mergeArgDefs(tree, yangCmdTree)
 	}
+	cmd.MergeYANGNodes(tree, yangCmdTree)
 	wireValueHints(tree)
 	return tree
 }
@@ -521,6 +522,10 @@ func BuildVerbCommandTree(verb string) *Command {
 	tree := cmd.BuildTree(infos, false)
 	applyDescriptions(tree, descriptions)
 	applyArgDefs(tree, argDefs)
+	if yangCmdTree != nil {
+		yangVerb := yangCmdTree.Children[verb]
+		cmd.MergeYANGNodes(tree, yangVerb)
+	}
 	wireValueHints(tree)
 	return tree
 }

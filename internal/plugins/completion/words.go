@@ -15,6 +15,7 @@ import (
 
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -83,7 +84,72 @@ func completionTree(args []string) (*command.Node, []string) {
 	if args[0] == "show" {
 		return cli.BuildVerbCommandTree("show"), args[1:]
 	}
+	if tree := rootCommandTree(args[0]); tree != nil {
+		return tree, args[1:]
+	}
 	return nil, nil
+}
+
+func rootCommandTree(name string) *command.Node {
+	for _, cmd := range registry.ListRoot() {
+		if cmd.Name != name {
+			continue
+		}
+		root := &command.Node{Name: name, Description: cmd.Meta.Description}
+		subs := cmd.Meta.ResolveSubs()
+		if subs != "" {
+			root.Children = make(map[string]*command.Node)
+			for sub := range strings.SplitSeq(subs, ",") {
+				sub = strings.TrimSpace(sub)
+				if sub == "" {
+					continue
+				}
+				cmdName, hint, _ := strings.Cut(sub, " ")
+				if cmdName[0] == '-' || cmdName[0] == '[' {
+					continue
+				}
+				root.Children[cmdName] = &command.Node{Name: cmdName, Description: hint}
+			}
+		}
+		mergeShowDescriptions(name, root)
+		if name == "env" {
+			wireEnvKeyHints(root)
+		}
+		return root
+	}
+	return nil
+}
+
+func mergeShowDescriptions(name string, root *command.Node) {
+	if root.Children == nil {
+		return
+	}
+	showTree := cli.BuildVerbCommandTree("show")
+	if showTree == nil {
+		return
+	}
+	src := showTree.Children[name]
+	if src == nil || src.Children == nil {
+		return
+	}
+	for childName, child := range root.Children {
+		if child.Description == "" {
+			if srcChild, ok := src.Children[childName]; ok && srcChild.Description != "" {
+				child.Description = srcChild.Description
+			}
+		}
+	}
+}
+
+func wireEnvKeyHints(root *command.Node) {
+	if root.Children == nil {
+		return
+	}
+	for _, leaf := range []string{"get", "registered"} {
+		if node, ok := root.Children[leaf]; ok {
+			node.ValueHints = command.EnvValueHints
+		}
+	}
 }
 
 func runCompletionTree(path []string) (*command.Node, []string) {

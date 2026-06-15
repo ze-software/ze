@@ -118,6 +118,7 @@ Command structure, text format, IPC, RPC dispatch.
 - [727](plan/learned/727-diag-core.md) -- 9 built-in diagnostic commands (procfs package, build-split patterns, singleflight without x/sync, BFD capture provider interface)
 - [728](plan/learned/728-diag-netlink-monitor.md) -- Netlink monitor streaming (unified output channel, YANG verb tree placement, register_*.go hook bypass)
 - [729](plan/learned/729-diag-traceroute.md) -- ICMP traceroute (ttlSetter interface for IPv4/IPv6 TTL, pure Go over library, argTimeout goconst pattern)
+- [901](plan/learned/901-env-autocomplete.md) -- Env autocomplete (local handlers don't create tree nodes, ensureEnvPath with desc guard, registry-derived shell roots, core envcatalog)
 - [738](plan/learned/738-cli-grammar.md) -- CLI grammar: closed keywords before free-form values (YANG sub-containers consume dispatch tokens, compatibility only after release)
 - [730](plan/learned/730-diag-capture-interface.md) -- AF_PACKET live capture (mdlayher/packet + go-pcap BPF, portable/linux file split, Ethernet link type for raw sockets)
 - [755](plan/learned/755-ze-doctor.md) -- Offline system readiness checks: diagnostic code taxonomy, error/warning severity, platform-split checks, shared resolve package

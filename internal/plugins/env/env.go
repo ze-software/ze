@@ -12,6 +12,7 @@ import (
 	"text/tabwriter"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/envcatalog"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -192,9 +193,38 @@ func showOne(key string) int {
 		return 0
 	}
 
+	if sub, ok := envcatalog.LookupLogSubsystem(normalized); ok {
+		return showLogSubsystem(normalized, sub)
+	}
+
 	var tb textbuf.Buffer
 	writeErr(tb.Str("error: unknown env var \"").Str(key).Byte('"').Slice())
 	return 1
+}
+
+func showLogSubsystem(key string, sub slogutil.SubsystemInfo) int {
+	out := bufio.NewWriter(os.Stdout)
+	var tb textbuf.Buffer
+	desc := sub.Description
+	if desc == "" {
+		desc = tb.Reset().Str("Log level for ").Str(sub.Name).String()
+	}
+	writeLine(out, tb.Reset().Str("Key:         ").Str(key).Slice())
+	writeLine(out, "Type:        string")
+	writeLine(out, "Default:     -")
+	writeLine(out, tb.Reset().Str("Current:     ").Str(valueOrDash(env.Get(key))).Slice())
+	writeLine(out, tb.Reset().Str("Description: ").Str(desc).Slice())
+
+	under := strings.ReplaceAll(key, ".", "_")
+	writeLine(out, "")
+	writeLine(out, "Accepted forms:")
+	writeLine(out, tb.Reset().Str("  ").Str(key).Slice())
+	writeLine(out, tb.Reset().Str("  ").Str(under).Slice())
+	writeLine(out, tb.Reset().Str("  ").Str(strings.ToUpper(under)).Slice())
+	if err := out.Flush(); err != nil {
+		return 1
+	}
+	return 0
 }
 
 func valueOrDash(v string) string {

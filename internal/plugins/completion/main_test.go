@@ -29,22 +29,21 @@ func TestRunBash(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-3 — all top-level commands present in bash command list.
+// VALIDATES: AC-3 — top-level commands derived from registry appear in bash command list.
 func TestBashContainsCommands(t *testing.T) {
 	var buf strings.Builder
 	generate("bash", &buf)
 	out := buf.String()
 
-	// The commands variable line is the single source of truth
 	commandsLine := extractLine(out, `local commands="`)
 	if commandsLine == "" {
 		t.Fatal("bash output missing 'local commands=' line")
 	}
 
-	for _, cmd := range []string{
-		"bgp", "config", "cli", "schema", "show", "status",
-		"plugin", "exabgp", "signal", "completion", "version", "help",
-	} {
+	// Check commands available through the test import chain.
+	// Commands from cmd/ze/ (version, help, bgp, config, etc.) are only
+	// registered when the full binary is built.
+	for _, cmd := range []string{"cli", "schema", "show", "plugin", "completion", "env"} {
 		if !strings.Contains(commandsLine, cmd) {
 			t.Errorf("bash commands line missing %q: %s", cmd, commandsLine)
 		}
@@ -204,16 +203,14 @@ func TestRunFish(t *testing.T) {
 	}
 }
 
-// VALIDATES: fish top-level commands have descriptions.
+// VALIDATES: fish top-level commands have descriptions from registry.
 func TestFishCommandDescriptions(t *testing.T) {
 	var buf strings.Builder
 	generate("fish", &buf)
 	out := buf.String()
 
-	for _, cmd := range []string{
-		"bgp", "config", "cli", "schema", "show",
-		"plugin", "exabgp", "status", "signal", "completion", "version", "help",
-	} {
+	// Check commands available through the test import chain.
+	for _, cmd := range []string{"cli", "schema", "show", "plugin", "completion", "env"} {
 		pattern := "-a " + cmd + " -d '"
 		if !strings.Contains(out, pattern) {
 			t.Errorf("fish output missing command with description: %q", cmd)
@@ -266,16 +263,14 @@ func TestFishSchemaIsDynamic(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-2 — all top-level commands present in zsh commands array.
+// VALIDATES: AC-2 — registry-derived top-level commands present in zsh commands array.
 func TestZshContainsCommands(t *testing.T) {
 	var buf strings.Builder
 	generate("zsh", &buf)
 	out := buf.String()
 
-	for _, cmd := range []string{
-		"bgp:", "config:", "cli:", "schema:", "show:", "status:",
-		"plugin:", "exabgp:", "signal:", "completion:", "version:", "help:",
-	} {
+	// Check commands available through the test import chain.
+	for _, cmd := range []string{"cli:", "schema:", "show:", "plugin:", "completion:", "env:"} {
 		if !strings.Contains(out, "'"+cmd) {
 			t.Errorf("zsh output missing command entry starting with %q", cmd)
 		}
@@ -415,6 +410,7 @@ func TestRunWords(t *testing.T) {
 }
 
 // VALIDATES: nushell script has correct structure.
+// test-relax: sub-extern checks removed because nushell was restructured to use a single extern with context-aware subargs completer to avoid duplicate completion entries
 func TestRunNushell(t *testing.T) {
 	var buf strings.Builder
 	code := generate("nushell", &buf)
@@ -426,11 +422,9 @@ func TestRunNushell(t *testing.T) {
 
 	for _, want := range []string{
 		`extern "ze"`,
-		`extern "ze bgp"`,
-		`extern "ze config"`,
-		`extern "ze show"`,
+		"nu-complete ze commands",
+		"nu-complete ze subargs",
 		"nu-complete ze plugins",
-		"nu-complete ze schema-modules",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("nushell output missing %q", want)
@@ -454,21 +448,18 @@ func TestNushellGlobalFlags(t *testing.T) {
 	}
 }
 
-// VALIDATES: nushell has extern definitions for all top-level subcommands.
+// VALIDATES: nushell subargs completer delegates to ze completion words dynamically.
+// test-relax: sub-extern and match-arm checks replaced by dynamic completer check after full registry-derived restructure
 func TestNushellContainsSubcommands(t *testing.T) {
 	var buf strings.Builder
 	generate("nushell", &buf)
 	out := buf.String()
 
-	for _, cmd := range []string{
-		"ze bgp", "ze config", "ze cli", "ze schema", "ze show",
-		"ze plugin", "ze exabgp", "ze status", "ze signal", "ze completion",
-		"ze version", "ze help",
-	} {
-		want := `extern "` + cmd + `"`
-		if !strings.Contains(out, want) {
-			t.Errorf("nushell output missing extern %q", want)
-		}
+	if !strings.Contains(out, "ze completion words $subcmd") {
+		t.Error("nushell subargs completer should call 'ze completion words $subcmd' dynamically")
+	}
+	if !strings.Contains(out, "nu-complete ze subargs") {
+		t.Error("nushell script missing nu-complete ze subargs completer")
 	}
 }
 
@@ -478,8 +469,8 @@ func TestNushellShowDynamic(t *testing.T) {
 	generate("nushell", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "ze completion words show") {
-		t.Error("nushell show completion should call 'ze completion words show' dynamically")
+	if !strings.Contains(out, "ze completion words $subcmd") {
+		t.Error("nushell completions should call 'ze completion words $subcmd' dynamically")
 	}
 }
 
@@ -494,14 +485,14 @@ func TestNushellDynamicPlugins(t *testing.T) {
 	}
 }
 
-// VALIDATES: nushell schema completion is dynamic.
+// VALIDATES: nushell schema completion is dynamic via generic subargs.
 func TestNushellSchemaIsDynamic(t *testing.T) {
 	var buf strings.Builder
 	generate("nushell", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "ze schema list") {
-		t.Error("nushell schema completion should call 'ze schema list' for dynamic module names")
+	if !strings.Contains(out, "ze completion words $subcmd") {
+		t.Error("nushell completions should call 'ze completion words $subcmd' for dynamic subcommand data")
 	}
 }
 
@@ -510,6 +501,147 @@ func TestRunNuAlias(t *testing.T) {
 	code := Run([]string{"nu"})
 	if code != 0 {
 		t.Errorf("Run(nu) = %d, want 0", code)
+	}
+}
+
+// VALIDATES: AC-4 — shell scripts expose env as a root command from registry.
+// PREVENTS: env missing from shell completion because it was never added to a hardcoded list.
+func TestShellScriptsExposeEnvRootFromRegistry(t *testing.T) {
+	roots := shellRootCommands()
+	found := false
+	for _, r := range roots {
+		if r.Name == "env" {
+			found = true
+			if r.Description == "" {
+				t.Error("env root entry should have a description")
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("shellRootCommands() must include 'env' (registered via registry.MustRegisterRootHandler)")
+	}
+}
+
+// VALIDATES: AC-4 — registry-derived root discovery preserves all pre-migration root commands.
+// PREVENTS: converting to registry-derived roots silently dropping existing commands.
+func TestShellRootMigrationPreservesExistingCommands(t *testing.T) {
+	roots := shellRootCommands()
+	nameSet := make(map[string]bool, len(roots))
+	for _, r := range roots {
+		nameSet[r.Name] = true
+	}
+
+	// Commands available through the test import chain (plugin/all + cli/client).
+	// version, help, bgp, config, exabgp, signal, status are registered from
+	// cmd/ze/ or build-tag-gated packages and may not be present in unit tests.
+	testAvailable := []string{
+		"cli", "interface", "plugin", "schema", "completion", "show", "env",
+	}
+	for _, cmd := range testAvailable {
+		if !nameSet[cmd] {
+			t.Errorf("pre-migration root command %q missing from shellRootCommands()", cmd)
+		}
+	}
+
+	if !nameSet["show"] {
+		t.Error("synthetic 'show' entry missing from shellRootCommands()")
+	}
+
+	if len(roots) < len(testAvailable) {
+		t.Errorf("shellRootCommands() returned only %d entries, expected at least %d", len(roots), len(testAvailable))
+	}
+}
+
+// VALIDATES: AC-4 — bash script includes env branch with dynamic completion.
+// PREVENTS: env subcommand completion missing from bash.
+func TestBashEnvBranch(t *testing.T) {
+	var buf strings.Builder
+	generate("bash", &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "env)") {
+		t.Error("bash script missing env) case branch")
+	}
+	if !strings.Contains(out, "ze completion words env") {
+		t.Error("bash env branch should call 'ze completion words env' dynamically")
+	}
+}
+
+// VALIDATES: AC-4 — zsh script includes env branch with dynamic completion.
+func TestZshEnvBranch(t *testing.T) {
+	var buf strings.Builder
+	generate("zsh", &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "env)") {
+		t.Error("zsh script missing env) case branch")
+	}
+	if !strings.Contains(out, "ze completion words env") {
+		t.Error("zsh env branch should call 'ze completion words env' dynamically")
+	}
+}
+
+// VALIDATES: AC-4 — fish script includes env with dynamic completion.
+func TestFishEnvBranch(t *testing.T) {
+	var buf strings.Builder
+	generate("fish", &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "__ze_complete_dynamic env") {
+		t.Error("fish script should use __ze_complete_dynamic for env")
+	}
+}
+
+// VALIDATES: AC-4 — nushell script includes env with dynamic completion.
+// test-relax: env-specific match arm removed; nushell now uses one generic ze completion words $subcmd call for all commands including env
+func TestNushellEnvBranch(t *testing.T) {
+	var buf strings.Builder
+	generate("nushell", &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "ze completion words $subcmd") {
+		t.Error("nushell subargs completer should call ze completion words dynamically for all commands including env")
+	}
+}
+
+// VALIDATES: AC-4 — shell scripts use dynamic env helpers, not embedded env key lists.
+// PREVENTS: env keys being hardcoded into shell scripts and going stale.
+func TestShellScriptsUseDynamicEnvHelper(t *testing.T) {
+	shells := []struct {
+		name    string
+		gen     func() string
+		pattern string
+	}{
+		{"bash", bashScript, "ze completion words env"},
+		{"zsh", zshScript, "ze completion words env"},
+		{"fish", fishScript, "__ze_complete_dynamic env"},
+		{"nushell", nushellScript, "ze completion words $subcmd"},
+	}
+	for _, sh := range shells {
+		t.Run(sh.name, func(t *testing.T) {
+			out := sh.gen()
+			if !strings.Contains(out, sh.pattern) {
+				t.Errorf("%s script should contain %q for dynamic env completion", sh.name, sh.pattern)
+			}
+		})
+	}
+}
+
+// VALIDATES: nushell subargs completer uses correct column indices for tab-separated output.
+// PREVENTS: value/description swap from wrong column0/column1 references.
+func TestNushellColumnIndices(t *testing.T) {
+	out := nushellScript()
+
+	if strings.Contains(out, "$row.column2") {
+		t.Error("nushell script references column2 but ze completion words produces only two columns (column0=word, column1=description)")
+	}
+
+	// Every { value: $row.columnN must use column0 (the word), not column1 (the description).
+	for _, bad := range []string{"value: $row.column1", "value: $row.column2"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("nushell script has %q; value should reference $row.column0 (the command/key name)", bad)
+		}
 	}
 }
 

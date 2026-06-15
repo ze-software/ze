@@ -117,6 +117,66 @@ func TestWordsShowBGPRibIncludesFamilyHints(t *testing.T) {
 
 // VALIDATES: pipe operators are filtered from words output.
 // PREVENTS: shell completion showing pipe operators as command suggestions.
+// VALIDATES: AC-2 — ze completion words env get returns public env keys.
+// PREVENTS: env context missing from shell completion path.
+func TestWordsEnvGetIncludesPublicKeys(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeWords(&buf, []string{"env", "get"})
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
+	}
+
+	output := buf.String()
+	if output == "" {
+		t.Fatal("expected non-empty output for 'env get' completion")
+	}
+
+	if !strings.Contains(output, "ze.log\t") {
+		t.Error("env get output should contain 'ze.log' as a completable key")
+	}
+
+	for line := range strings.SplitSeq(strings.TrimSpace(output), "\n") {
+		parts := strings.SplitN(line, "\t", 2)
+		if len(parts) != 2 {
+			t.Errorf("expected tab-separated pair, got: %q", line)
+		}
+	}
+}
+
+// VALIDATES: AC-3 — ze completion words show env get returns same catalog.
+// PREVENTS: show-tree env path diverging from env context.
+func TestWordsShowEnvGetIncludesPublicKeys(t *testing.T) {
+	var buf bytes.Buffer
+	code := writeWords(&buf, []string{"show", "env", "get"})
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
+	}
+
+	output := buf.String()
+	if output == "" {
+		t.Fatal("expected non-empty output for 'show env get' completion")
+	}
+
+	if !strings.Contains(output, "ze.log\t") {
+		t.Error("show env get output should contain 'ze.log' as a completable key")
+	}
+}
+
+// VALIDATES: AC-7 — env completion words never include Private entries.
+// PREVENTS: private env vars leaking through shell completion.
+func TestWordsEnvGetExcludesPrivate(t *testing.T) {
+	var buf bytes.Buffer
+	writeWords(&buf, []string{"env", "get"})
+	output := buf.String()
+
+	for line := range strings.SplitSeq(strings.TrimSpace(output), "\n") {
+		parts := strings.SplitN(line, "\t", 2)
+		if len(parts) > 0 && strings.Contains(parts[0], "<") {
+			t.Errorf("env completion should not contain angle-bracket key: %q", parts[0])
+		}
+	}
+}
+
 func TestWordsPipeOperatorsFiltered(t *testing.T) {
 	var buf bytes.Buffer
 	// "show" with no further path lists top-level commands.

@@ -1330,6 +1330,8 @@ ze completion nushell
 | Zsh | `eval "$(ze completion zsh)"` | `ze completion zsh > ~/.zsh/completions/_ze && autoload -Uz compinit && compinit` |
 | Fish | `ze completion fish \| source` | `ze completion fish > ~/.config/fish/completions/ze.fish` |
 | Nushell | `ze completion nushell \| save -f ($nu.default-config-dir \| path join "completions" "ze.nu")` | Add `source completions/ze.nu` to `config.nu` |
+
+Shell completion is registered by command name (`ze`), not by path. If using a local build (`./bin/ze`), ensure the binary is reachable as `ze` in your PATH for completion to activate.
 <!-- source: internal/plugins/completion/main.go -- Run -->
 
 ### ze env
@@ -1341,12 +1343,16 @@ ze env registered                # List all registered env vars + log subsystems
 ze env registered <key>          # Show details for a specific env var
 ze env list -v                   # List with current effective values
 ze env get <key>                 # Show single env var details
+ze env get ze.log.bgp.reactor    # Inspect a concrete log-subsystem key
 ```
 
 | Flag | Purpose |
 |------|---------|
 | `-v`, `--verbose` | Show current effective values (list) |
+
+Shell completion offers env keys after `ze env get` and `ze env registered` via `ze completion words env`. Concrete `ze.log.<subsystem>` keys that appear in `ze env list` are completable and inspectable.
 <!-- source: internal/plugins/env/env.go -- Run -->
+<!-- source: internal/core/envcatalog/catalog.go -- VisibleEntries -->
 
 ### ze resolve
 

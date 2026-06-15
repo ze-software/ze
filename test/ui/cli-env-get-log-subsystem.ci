@@ -1,0 +1,8 @@
+# Test: ze env get on a concrete log subsystem key
+# VALIDATES: AC-6 -- completed log-subsystem key is inspectable
+
+cmd=foreground:seq=1:exec=ze env get ze.log.bgp.reactor
+expect=exit:code=0
+expect=stdout:contains=Key:
+expect=stdout:contains=ze.log.bgp.reactor
+expect=stdout:contains=Description:

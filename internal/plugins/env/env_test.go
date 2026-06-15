@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 func TestMain(m *testing.M) {
@@ -95,6 +96,21 @@ func TestShowOneUnknownKey(t *testing.T) {
 
 	assert.Equal(t, 1, code)
 	assert.Contains(t, stderr, "unknown env var")
+}
+
+// VALIDATES: AC-6 — ze env get resolves concrete log-subsystem keys.
+// PREVENTS: completed log key returning "unknown env var" from showOne.
+func TestShowOneFindsConcreteLogSubsystem(t *testing.T) {
+	slogutil.LazyLogger("test.env.logsub")
+
+	var code int
+	out := captureStdout(t, func() {
+		code = Run([]string{"get", "ze.log.test.env.logsub"})
+	})
+
+	assert.Equal(t, 0, code, "ze env get should succeed for concrete log subsystem key")
+	assert.Contains(t, out, "ze.log.test.env.logsub")
+	assert.Contains(t, out, "Key:")
 }
 
 func TestListRejectsUnknownFlags(t *testing.T) {

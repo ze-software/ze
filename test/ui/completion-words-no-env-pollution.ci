@@ -1,0 +1,15 @@
+# Test: ze completion words -- non-env commands must not contain env children
+# VALIDATES: wireEnvHints does not pollute arbitrary command trees
+# PREVENTS: env appearing as a subcommand of bgp, signal, config, etc.
+
+cmd=foreground:seq=1:exec=ze completion words bgp
+expect=exit:code=0
+expect=stdout:not-contains=env
+
+cmd=foreground:seq=2:exec=ze completion words signal
+expect=exit:code=0
+expect=stdout:not-contains=env
+
+cmd=foreground:seq=3:exec=ze completion words config
+expect=exit:code=0
+expect=stdout:not-contains=env	Ze

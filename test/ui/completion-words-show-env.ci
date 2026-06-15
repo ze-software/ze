@@ -1,0 +1,7 @@
+# Test: ze completion words show env get -- returns env keys via show tree
+# VALIDATES: AC-3 -- show-tree env path produces same catalog as env context
+
+cmd=foreground:seq=1:exec=ze completion words show env get
+expect=exit:code=0
+expect=stdout:contains=ze.log
+expect=stdout:contains=ze.web.listen

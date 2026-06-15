@@ -204,6 +204,22 @@ canonical key value > alias key value. See `ai/rules/config-naming.md`.
 The warning only fires when the deprecated var is actually set (non-empty),
 avoiding noise on every startup.
 
+## Env Completion Catalog
+
+The `internal/core/envcatalog` package provides a shared public env-key
+catalog for shell and operational CLI completion. It merges `env.Entries()`
+(excludes Private, skips angle-bracket template keys) with concrete
+`ze.log.<subsystem>` rows expanded from `slogutil.Subsystems()`.
+<!-- source: internal/core/envcatalog/catalog.go -- VisibleEntries -->
+
+Completion never calls `env.Get()` or any typed getter, so it cannot
+mutate `Secret` entries or leak current values. The catalog is metadata-only.
+
+`LookupLogSubsystem()` resolves a concrete `ze.log.<name>` key to its
+`slogutil.SubsystemInfo`, enabling `ze env get ze.log.bgp.reactor` to
+return metadata for log keys that are not in the static env registry.
+<!-- source: internal/core/envcatalog/catalog.go -- LookupLogSubsystem -->
+
 ---
 
 ## Env Var Debt

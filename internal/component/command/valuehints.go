@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/envcatalog"
 )
 
 // WireValueHints attaches ValueHints callbacks to known nodes in a command tree.
@@ -21,6 +22,64 @@ func WireValueHints(tree *Node) {
 	}
 
 	wireRibHints(tree)
+	wireEnvHints(tree)
+}
+
+func wireEnvHints(tree *Node) {
+	for _, path := range [][]string{
+		{"show", "env", "get"},
+		{"show", "env", "registered"},
+		{"env", "get"},
+		{"env", "registered"},
+		{"get"},
+		{"registered"},
+	} {
+		if node := navigatePath(tree, path...); node != nil {
+			node.ValueHints = EnvValueHints
+		}
+	}
+}
+
+// MergeYANGNodes creates command nodes missing from tree but present in the
+// YANG tree. Local handlers (registered via MustRegisterLocal) define YANG
+// command structures but don't produce RPC-tree nodes, so they'd otherwise
+// be absent from completion. This fills those gaps with YANG descriptions.
+func MergeYANGNodes(tree, yangTree *Node) {
+	if tree == nil || yangTree == nil || yangTree.Children == nil {
+		return
+	}
+	mergeChildren(tree, yangTree)
+}
+
+func mergeChildren(dst, src *Node) {
+	if src.Children == nil {
+		return
+	}
+	if dst.Children == nil {
+		dst.Children = make(map[string]*Node, len(src.Children))
+	}
+	for name, srcChild := range src.Children {
+		dstChild, exists := dst.Children[name]
+		if !exists {
+			dstChild = &Node{Name: name, Description: srcChild.Description}
+			dst.Children[name] = dstChild
+		}
+		mergeChildren(dstChild, srcChild)
+	}
+}
+
+// EnvValueHints returns public env-key suggestions from the shared catalog.
+func EnvValueHints() []Suggestion {
+	entries := envcatalog.VisibleEntries()
+	hints := make([]Suggestion, 0, len(entries))
+	for _, e := range entries {
+		hints = append(hints, Suggestion{
+			Text:        e.Key,
+			Description: e.Description,
+			Type:        "value",
+		})
+	}
+	return hints
 }
 
 func wireRibHints(tree *Node) {

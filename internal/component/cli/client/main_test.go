@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // captureOutput captures stdout or stderr during a function call.
@@ -562,6 +563,79 @@ func TestBuildCommandTreeLogLevelArgDefs(t *testing.T) {
 	for _, want := range []string{"debug", "info", "warn", "err", "disabled"} {
 		if !found[want] {
 			t.Errorf("request log level ArgDefs missing level %q", want)
+		}
+	}
+}
+
+// VALIDATES: AC-1 — show env get and show env registered nodes get env-key ValueHints.
+// PREVENTS: env-key completion missing from operational CLI and shell show path.
+func TestBuildCommandTreeEnvValueHints(t *testing.T) {
+	tree := BuildCommandTree(false)
+
+	show := tree.Children["show"]
+	if show == nil {
+		t.Fatal("show command missing from command tree")
+	}
+
+	envNode := show.Children["env"]
+	if envNode == nil {
+		t.Fatal("show env node missing from command tree")
+	}
+
+	for _, sub := range []string{"get", "registered"} {
+		node := envNode.Children[sub]
+		if node == nil {
+			t.Errorf("show env %s node missing from command tree", sub)
+			continue
+		}
+		if node.ValueHints == nil {
+			t.Errorf("show env %s node should have ValueHints for env keys", sub)
+			continue
+		}
+		hints := node.ValueHints()
+		if len(hints) == 0 {
+			t.Errorf("show env %s ValueHints returned no entries", sub)
+			continue
+		}
+
+		hasPublic := false
+		for _, h := range hints {
+			if h.Text == "ze.test.environ.public" || strings.HasPrefix(h.Text, "ze.") {
+				hasPublic = true
+			}
+			if h.Type != "value" {
+				t.Errorf("env hint %q should have Type 'value', got %q", h.Text, h.Type)
+			}
+		}
+		if !hasPublic {
+			t.Errorf("show env %s ValueHints should include public env keys", sub)
+		}
+	}
+}
+
+// VALIDATES: AC-7 — env ValueHints never include Private entries.
+// PREVENTS: private env vars leaking through completion.
+func TestBuildCommandTreeEnvHintsExcludePrivate(t *testing.T) {
+	tree := BuildCommandTree(false)
+	show := tree.Children["show"]
+	if show == nil || show.Children["env"] == nil || show.Children["env"].Children["get"] == nil {
+		t.Fatal("show env get node not available in command tree")
+	}
+	node := show.Children["env"].Children["get"]
+	if node.ValueHints == nil {
+		t.Fatal("show env get should have ValueHints")
+	}
+
+	privateKeys := make(map[string]bool)
+	for _, e := range env.AllEntries() {
+		if e.Private {
+			privateKeys[e.Key] = true
+		}
+	}
+
+	for _, h := range node.ValueHints() {
+		if privateKeys[h.Text] {
+			t.Errorf("env ValueHints should not contain Private entry %q", h.Text)
 		}
 	}
 }

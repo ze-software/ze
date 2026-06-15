@@ -61,6 +61,19 @@ environment {
 }
 ```
 
+## Discoverability
+
+Shell completion offers env-key suggestions after `ze env get` and
+`ze env registered` using canonical dot-form keys. Concrete
+`ze.log.<subsystem>` keys (visible in `ze env list`) are completable
+and inspectable via `ze env get`.
+<!-- source: internal/core/envcatalog/catalog.go -- VisibleEntries -->
+
+In the interactive CLI operational mode, `show env get` and
+`show env registered` also offer env-key completion through the
+shared command tree.
+<!-- source: internal/component/command/valuehints.go -- wireEnvHints -->
+
 ## Changes in 2026-04
 
 The ExaBGP compatibility surface was trimmed. Every
