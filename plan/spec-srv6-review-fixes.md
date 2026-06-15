@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
 | Phase | - |
 | Updated | 2026-05-24 |
@@ -387,16 +387,26 @@ MUST document: validation rules, error conditions, transposition scheme.
 ## Implementation Summary
 
 ### What Was Implemented
-- [pending]
+- SID Info Sub-TLV: 21-byte minimum encoding, Behavior as uint16
+- Label-Index TLV: Reserved(1)+Flags(2)+LabelIndex(4) layout, uint32 range
+- Trailing-byte validation in outer TLV and Service TLV loops
+- Sub-sub-TLV bounds validation within SID Info
+- SID extraction minimum raised from 17 to 21
+- Transposition reads label bits from high-order positions (errata 7652)
+- Best-change short-circuit bypassed when SRv6 SID present
+- sysrib resolvedNH deferred past SID resolvability check
+- replayBest skips routes with unresolvable SRv6 SIDs
 
 ### Bugs Found/Fixed
-- [pending]
+All 8 spec findings confirmed and fixed.
 
 ### Documentation Updates
-- [pending]
+- RFC header comments added to routeattr_prefixsid.go and srv6sid.go
+- Functional test hex updated for corrected encoding
 
 ### Deviations from Plan
-- [pending]
+- Implemented directly without formal /ze-implement workflow (user request)
+- Bug 5 (best-change short-circuit): used flag-based bypass instead of interning SRv6 SID
 
 ## Implementation Audit
 
