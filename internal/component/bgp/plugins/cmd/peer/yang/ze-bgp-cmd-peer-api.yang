@@ -18,4 +18,5 @@ module ze-bgp-cmd-peer-api {
   rpc session-peer-ready { description "Signal peer-specific plugin init complete"; }
   rpc warnings { description "Show active prefix warnings (stale data, threshold exceeded)"; }
   rpc peer-history { description "Show FSM transition history for a peer"; }
+  rpc bgp-peer-prefix { description "Update prefix maximums from PeeringDB for matched peer(s)"; }
 }

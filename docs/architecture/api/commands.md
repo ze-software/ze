@@ -44,7 +44,7 @@ The action verb determines the command's behavior; the module implements it.
 | `show` | Read-only display (returns data, exits) | `show peer detail X`, `show bgp warnings` |
 | `set` | Create or modify | `set bgp peer X ...` |
 | `delete` | Remove | `delete bgp peer X` |
-| `update` | Route operations (announce, withdraw, refresh), firmware | `update system firmware check` |
+| `update` | Route operations (announce, withdraw, refresh), firmware, prefix data | `update system firmware check`, `update bgp peer * prefix` |
 | `monitor` | Long-running auto-refreshing display | `monitor bgp` (TUI dashboard) |
 
 <!-- source: internal/component/cmd/show/doc.go -- show verb -->

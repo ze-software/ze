@@ -44,6 +44,7 @@ func init() {
 		// Additional owner-registered BGP peer commands.
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-history", Handler: handlePeerHistory, RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-delete:bgp-peer", Handler: HandleBgpPeerRemove, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-update:bgp-peer-prefix", Handler: handleBgpPeerPrefixUpdate, RequiresSelector: true},
 	)
 }
 

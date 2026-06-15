@@ -1677,6 +1677,8 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `update bgp irr asn <asn>` | write | Refresh IRR prefix-list for a specific ASN |
 | `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET |
 <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet -->
+| `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) |
+<!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate -->
 
 ### Healthcheck Commands
 

@@ -108,6 +108,31 @@ configuration. Does not modify the config file on disk.";
         }
     }
 
+    container update {
+        config false;
+        description "Pull fresh data from external sources";
+
+        container bgp {
+            config false;
+            description "BGP operational updates";
+
+            container peer {
+                config false;
+                description "Per-peer data refresh";
+
+                container prefix {
+                    config false;
+                    ze:command "ze-update:bgp-peer-prefix";
+                    description "Refresh max-prefix limits from PeeringDB.
+Usage: update bgp peer <selector> prefix. Queries PeeringDB for each
+matched peer's ASN, applies the configured margin, and writes the
+result to the config draft. Run 'config commit' to apply.";
+                    leaf selector { type string; mandatory true; description "Peer selector"; }
+                }
+            }
+        }
+    }
+
     container request {
         config false;
         description "Peer lifecycle and flow control operations";

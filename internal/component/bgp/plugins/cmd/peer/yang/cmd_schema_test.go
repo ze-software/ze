@@ -15,8 +15,10 @@ func TestPeerCmdSchemaOwnsCarvedVerbs(t *testing.T) {
 	for _, want := range []string{
 		`ze:command "ze-show:bgp-health"`,
 		`ze:command "ze-delete:bgp-peer"`,
+		`ze:command "ze-update:bgp-peer-prefix"`,
 		"container show",
 		"container delete",
+		"container update",
 	} {
 		if !strings.Contains(ZePeerCmdYANG, want) {
 			t.Errorf("ze-peer-cmd.yang must declare %q so removing the BGP peer command owner removes that surface", want)
