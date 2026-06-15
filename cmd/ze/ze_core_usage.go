@@ -6,15 +6,15 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
-	"strconv"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -97,24 +97,29 @@ func printPlugins(jsonOutput bool) {
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, "%-12s  %-35s  %-20s  %-15s  %s\n", //nolint:errcheck // CLI output
-		"NAME", "DESCRIPTION", "RFC", "CAPABILITY", "FAMILY")
-	fmt.Fprintf(os.Stdout, "%-12s  %-35s  %-20s  %-15s  %s\n", //nolint:errcheck // CLI output
-		"----", "-----------", "---", "----------", "------")
-
+	entries := make([]helpfmt.HelpEntry, 0, len(plugins))
+	var tb textbuf.Buffer
 	for _, info := range plugins {
-		rfcs := textbuf.Join(info.RFCs, ", ")
-		caps := ""
-		if len(info.Capabilities) > 0 {
-			capStrs := make([]string, len(info.Capabilities))
-			for i, c := range info.Capabilities {
-				capStrs[i] = strconv.Itoa(c)
-			}
-			caps = textbuf.Join(capStrs, ", ")
-		}
-		families := textbuf.Join(info.Families, ", ")
+		tb.Reset()
+		desc := helpfmt.Summary(info.Description)
+		tb.Str(desc)
 
-		fmt.Fprintf(os.Stdout, "%-12s  %-35s  %-20s  %-15s  %s\n", //nolint:errcheck // CLI output
-			info.Name, info.Description, rfcs, caps, families)
+		if len(info.Families) > 0 {
+			tb.Str(" [").Str(textbuf.Join(info.Families, ", ")).Byte(']')
+		}
+		if len(info.RFCs) > 0 && !strings.Contains(desc, "RFC") {
+			tb.Str(" (RFC ").Str(textbuf.Join(info.RFCs, ", ")).Byte(')')
+		}
+
+		entries = append(entries, helpfmt.HelpEntry{Name: info.Name, Desc: tb.String()})
 	}
+
+	p := helpfmt.Page{
+		Command: "ze --plugins",
+		Summary: "Internal plugins available in this build",
+		Sections: []helpfmt.HelpSection{
+			{Title: "Plugins", Entries: entries},
+		},
+	}
+	p.WriteTo(os.Stdout, slogutil.UseColor(os.Stdout))
 }
