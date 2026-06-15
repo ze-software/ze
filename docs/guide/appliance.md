@@ -304,7 +304,52 @@ make ze-setup              # produces bin/ze-setup
 
 ## Building and installing an appliance (end to end)
 
-The full pipeline from source to bootable media:
+### From a JSON config (recommended)
+
+Write an appliance config file (arch, kernel profile, credentials, networking):
+
+```json
+{
+    "credentials": { "username": "exa", "admin-enabled": true },
+    "ssh":   { "host": "0.0.0.0", "port": "21982" },
+    "web":   { "enabled": true, "host": "0.0.0.0", "port": "8080" },
+    "tls":   { "cert-name": "router.local", "validity-years": 10 },
+    "identity": { "hostname": "ze-prod" },
+    "device": { "address": "10.12.104.10", "update-port": 443 },
+    "image": { "arch": "amd64", "size-bytes": 2147483648, "kernel-profile": "hardware-kms" }
+}
+```
+
+Build the full ISO in one command:
+
+```bash
+make ze-iso CONFIG=prod.json SSH_PASSWORD='choose-a-strong-one'
+```
+
+This runs the entire pipeline: init, kernel build, initrd, disk image, and ISO.
+The appliance name is derived from the config filename (`prod.json` creates
+appliance `prod`). Subsequent builds with the same config reinitialize from
+scratch.
+
+Rebuild after code changes (appliance config unchanged):
+
+```bash
+make ze-iso-build NAME=prod
+```
+
+Set up PXE boot (optional, after the ISO build):
+
+```bash
+make ze-pxe NAME=prod
+```
+
+See `make help-deploy` for all variables (`APPLIANCE_BUILDER`, `PXE_DIR`, etc.).
+<!-- source: mk/appliance.mk -- ze-iso, ze-iso-build, ze-pxe -->
+
+### Manual steps
+
+The Makefile targets call these `ze-setup` commands under the hood. Run them
+individually when you need finer control:
 
 ```bash
 # 1. Build ze-setup
