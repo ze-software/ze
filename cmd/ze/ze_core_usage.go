@@ -14,7 +14,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -121,5 +120,5 @@ func printPlugins(jsonOutput bool) {
 			{Title: "Plugins", Entries: entries},
 		},
 	}
-	p.WriteTo(os.Stdout, slogutil.UseColor(os.Stdout))
+	p.Write()
 }
