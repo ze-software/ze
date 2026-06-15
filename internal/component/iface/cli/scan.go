@@ -56,7 +56,7 @@ func cmdScan(args []string) int {
 				"ze interface scan --managed",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

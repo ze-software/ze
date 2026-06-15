@@ -434,5 +434,5 @@ func usage() {
 			"ze provision --interface eth0 --network 10.0.0.0/24 --image /path/to/gokrazy.img --ssh-username admin --ssh-password secret",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

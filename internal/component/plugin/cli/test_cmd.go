@@ -71,7 +71,7 @@ func cmdPluginTest(args []string) int {
 				"ze plugin test --json --root bgp/peer config.conf",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

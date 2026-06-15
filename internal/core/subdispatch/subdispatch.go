@@ -93,5 +93,5 @@ func (d *Dispatcher) usage() {
 			{Title: "Targets", Entries: entries},
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

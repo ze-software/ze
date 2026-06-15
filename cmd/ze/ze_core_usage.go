@@ -83,7 +83,7 @@ func zeUsage() {
 			"ze bgp decode <hex>                  Decode BGP message",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 func printPlugins(jsonOutput bool) {
@@ -120,5 +120,5 @@ func printPlugins(jsonOutput bool) {
 			{Title: "Plugins", Entries: entries},
 		},
 	}
-	p.Write()
+	p.WriteOut()
 }

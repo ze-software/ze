@@ -147,13 +147,14 @@ func TestCompleterYANGMandatory(t *testing.T) {
 func TestCompleterEnumValues(t *testing.T) {
 	c := NewCompleter()
 
-	// In session/capability/add-path context, should show send/receive children
+	// In session/capability/add-path context, should show direction/family/limit children
 	completions := c.Complete("set ", []string{"bgp", "peer", "session", "capability", "add-path"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "receive")
-	assert.Contains(t, texts, "send")
+	assert.Contains(t, texts, "direction")
+	assert.Contains(t, texts, "family")
+	assert.Contains(t, texts, "limit")
 }
 
 // TestCompleterSetListKeys verifies that "set bgp peer " shows list key completions.

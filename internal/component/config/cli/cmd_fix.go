@@ -82,5 +82,5 @@ func fixUsage() {
 			"ze config fix --plan --json config.conf",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

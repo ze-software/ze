@@ -435,7 +435,7 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 				"ze config edit -f /etc/ze/config.conf  Edit from filesystem",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 		fmt.Fprintf(os.Stderr, "\nConfig file defaults to <name>.conf (from meta/instance/name) or ze.conf.\n")
 	}
 

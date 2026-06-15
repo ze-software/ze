@@ -49,7 +49,7 @@ func cmdMigrate(args []string) int {
 				"cat config.conf | ze config migrate -                  # Read from stdin",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

@@ -268,5 +268,5 @@ func usage() {
 			"ze doctor --json /etc/ze/ze.conf",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

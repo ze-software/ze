@@ -393,5 +393,5 @@ func helpCommandUsage() {
 			}},
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

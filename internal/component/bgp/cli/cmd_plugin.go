@@ -55,7 +55,7 @@ func pluginUsage() {
 			"ze bgp plugin cli --name my-test           Enter with custom plugin name",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 // cmdPluginCLI runs the plugin debug shell.
@@ -87,7 +87,7 @@ func cmdPluginCLI(args []string) int {
 				}},
 			},
 		}
-		p.Write()
+		p.WriteErr()
 		fmt.Fprintf(os.Stderr, "\nHit Enter at each prompt to accept defaults.\n")
 	}
 

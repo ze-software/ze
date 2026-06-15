@@ -59,7 +59,7 @@ func usage() {
 			"ze tacacs show /etc/ze.conf --json",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 // probeResult is a single server's reachability probe outcome.
@@ -100,7 +100,7 @@ func cmdShow(args []string) int {
 				}},
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 	if err := fs.Parse(args); err != nil {
 		return exitUsage

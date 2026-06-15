@@ -88,5 +88,5 @@ func formatUsage() {
 			"ze show bgp peer list | ze format resolve",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

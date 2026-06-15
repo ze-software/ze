@@ -269,5 +269,5 @@ func usage() {
 			"ze env get ZE_PLUGIN_HUB_HOST    # Look up by any notation",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

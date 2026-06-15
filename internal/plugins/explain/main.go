@@ -117,5 +117,5 @@ func usage() {
 			"ze explain --json config-yang-type",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

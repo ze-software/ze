@@ -354,5 +354,5 @@ func usage() {
 			"ze data --path /tmp/test.zefs import router.conf",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

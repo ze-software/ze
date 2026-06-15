@@ -336,7 +336,7 @@ func zeDispatch(args []string) int {
 					{Title: "Commands", Entries: entries},
 				},
 			}
-			p.Write()
+			p.WriteErr()
 			return 0
 		}
 		readOnly := command.IsReadOnlyVerb(arg)

@@ -34,7 +34,7 @@ func cmdImportWithStorage(store storage.Storage, args []string) int {
 				"ze config import site-a.conf site-b.conf",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

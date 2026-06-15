@@ -87,5 +87,5 @@ func usage() {
 			"ze resolve irr as-set AS-CLOUDFLARE",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

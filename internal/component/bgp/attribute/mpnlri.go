@@ -298,7 +298,7 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 		switch safi {
 		case SAFIEVPN:
 			return []int{4, 16} // IPv4 or IPv6
-		case SAFIUnicast, SAFIMulticast, SAFIMPLSLabel, SAFIVPN, SAFIFlowSpec:
+		case SAFIUnicast, SAFIMulticast, SAFIMPLSLabel, SAFIVPN, SAFIFlowSpec, SAFISRPolicy:
 			// These SAFIs don't apply to L2VPN AFI
 		}
 	}

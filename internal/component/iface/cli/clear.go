@@ -99,5 +99,5 @@ func clearUsage() {
 			"ze interface clear counters eth0",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

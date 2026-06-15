@@ -36,7 +36,7 @@ func cmdShow(args []string) int {
 				"ze interface show --json",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

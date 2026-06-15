@@ -48,7 +48,7 @@ func runInitrd(args []string) int {
 				"ze appliance initrd",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

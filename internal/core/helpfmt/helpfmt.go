@@ -52,8 +52,14 @@ type HelpEntry struct {
 	Desc string // description text
 }
 
-// Write renders the help page to stdout with automatic color detection.
-func (p *Page) Write() {
+// WriteErr renders the help page to stderr with automatic color detection.
+func (p *Page) WriteErr() {
+	color := slogutil.UseColor(os.Stderr)
+	p.WriteTo(os.Stderr, color)
+}
+
+// WriteOut renders the help page to stdout with automatic color detection.
+func (p *Page) WriteOut() {
 	color := slogutil.UseColor(os.Stdout)
 	p.WriteTo(os.Stdout, color)
 }

@@ -32,7 +32,7 @@ func cmdDump(args []string) int {
 				}},
 			},
 		}
-		p.Write()
+		p.WriteErr()
 		fmt.Fprintf(os.Stderr, "\nSensitive values (passwords, keys) are displayed as $9$-encoded by default.\n")
 		fmt.Fprintf(os.Stderr, "Use --strip-private to replace them with /* SECRET-DATA */ for sharing.\n")
 		fmt.Fprintf(os.Stderr, "Use - to read from stdin.\n")

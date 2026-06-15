@@ -165,5 +165,5 @@ func usage() {
 			"ze config set router.conf bgp local as 65000",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

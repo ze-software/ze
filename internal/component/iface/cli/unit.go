@@ -114,6 +114,6 @@ func unitUsage() {
 			"ze interface unit del eth0 100",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 	fmt.Fprintf(os.Stderr, "\nUnit ID must be > 0. Unit 0 is the parent interface (implicit).\nThe OS interface name for unit N on parent P is \"P.N\".\n")
 }

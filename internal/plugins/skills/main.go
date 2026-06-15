@@ -188,5 +188,5 @@ func usage() {
 			"ze skills list --json",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

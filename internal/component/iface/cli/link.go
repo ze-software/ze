@@ -208,7 +208,7 @@ func upDownUsage(verb string) {
 			tb.Reset().Str("ze interface ").Str(verb).Str(" eth0").String(),
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 func mtuUsage() {
@@ -221,7 +221,7 @@ func mtuUsage() {
 			"ze interface mtu eth0 9000",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 func macUsage() {
@@ -233,5 +233,5 @@ func macUsage() {
 			"ze interface mac eth0 02:00:00:00:00:01",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

@@ -85,7 +85,7 @@ func runKernel(args []string) int {
 				"ze appliance kernel --version 6.12.9 prod",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

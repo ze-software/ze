@@ -113,7 +113,7 @@ func Run(args []string) int {
 				"ze signal stop --host 10.0.0.1 --port 2222",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {
@@ -178,7 +178,7 @@ func RunStatus(args []string) int {
 				"ze status --host 10.0.0.1 --port 2222",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

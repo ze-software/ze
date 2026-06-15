@@ -184,5 +184,5 @@ func usage() {
 			"ze appliance show lab",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

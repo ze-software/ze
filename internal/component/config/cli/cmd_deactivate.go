@@ -90,7 +90,7 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 				tb.Reset().Str("ze config ").Str(verb).Str(" router.conf bgp filter import no-self-as").String(),
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

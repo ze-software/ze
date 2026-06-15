@@ -213,5 +213,5 @@ func installUsage() {
 			"ze local install --dry-run",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

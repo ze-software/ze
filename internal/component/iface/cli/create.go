@@ -105,5 +105,5 @@ func createUsage() {
 			"ze interface create bridge br0",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

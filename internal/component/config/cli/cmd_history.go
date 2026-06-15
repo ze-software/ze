@@ -38,7 +38,7 @@ func cmdHistoryImpl(store storage.Storage, args []string) int {
 				}},
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

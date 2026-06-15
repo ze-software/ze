@@ -37,7 +37,7 @@ func cmdNeighbors(args []string) int {
 				"ze interface neighbors ipv6 --json",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

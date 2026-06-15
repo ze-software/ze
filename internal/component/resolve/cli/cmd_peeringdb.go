@@ -104,5 +104,5 @@ func peeringDBUsage() {
 			"ze resolve peeringdb --url http://localhost:8080 max-prefix 65001",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

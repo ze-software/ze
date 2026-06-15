@@ -532,8 +532,8 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
             }
             capability {
                 add-path {
-                    send true
-                    receive true
+                    direction send
+                    limit 10
                 }
             }
         }
@@ -542,9 +542,9 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 			checkTree: func(t *testing.T, cap *Tree) {
 				ap := cap.GetContainer("add-path")
 				require.NotNil(t, ap, "add-path should be a container")
-				v, ok := ap.Get("send")
+				v, ok := ap.Get("direction")
 				require.True(t, ok)
-				assert.Equal(t, "true", v)
+				assert.Equal(t, "send", v)
 			},
 		},
 	}

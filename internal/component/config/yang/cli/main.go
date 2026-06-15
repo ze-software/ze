@@ -68,7 +68,7 @@ func usage() {
 			`ze yang doc "show bgp peer list"`,
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 func cmdCompletion(args []string) int {
@@ -87,7 +87,7 @@ func cmdCompletion(args []string) int {
 				}},
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -139,7 +139,7 @@ func cmdTree(args []string) int {
 				}},
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -193,7 +193,7 @@ func cmdDoc(args []string) int {
 				}},
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 	if err := fs.Parse(args); err != nil {
 		return 1

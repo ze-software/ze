@@ -87,7 +87,7 @@ func usage() {
 			`ze cli -c "show version"         One-shot command`,
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 // CommandFunc dispatches a CLI command and returns the response.

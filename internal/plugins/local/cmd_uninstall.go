@@ -134,5 +134,5 @@ func uninstallUsage() {
 			"ze local uninstall --dry-run",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

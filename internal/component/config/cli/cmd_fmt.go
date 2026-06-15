@@ -67,7 +67,7 @@ func cmdFmt(args []string) int {
 				"ze config fmt -                    Read from stdin, write to stdout",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 		fmt.Fprintf(os.Stderr, "\nFormats current config files only. For old configs, run \"ze config migrate\" first.\n")
 	}
 

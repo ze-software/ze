@@ -111,7 +111,7 @@ func usage() {
 			"ze schema events",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 // encodeJSON writes v as indented JSON to stdout.

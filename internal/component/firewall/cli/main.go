@@ -129,5 +129,5 @@ func usage() {
 			},
 		}},
 	}
-	p.Write()
+	p.WriteErr()
 }

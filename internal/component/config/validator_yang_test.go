@@ -484,10 +484,9 @@ func TestValidateTree_AddPathDirectionEnum(t *testing.T) {
 							"asn": map[string]any{
 								"remote": uint32(65002),
 							},
-							"add-path": map[string]any{
-								"ipv4/unicast": map[string]any{
+							"capability": map[string]any{
+								"add-path": map[string]any{
 									"direction": tt.dir,
-									"mode":      "enable",
 								},
 							},
 						},

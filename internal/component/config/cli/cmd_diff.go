@@ -48,7 +48,7 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 				}},
 			},
 		}
-		p.Write()
+		p.WriteErr()
 		fmt.Fprintf(os.Stderr, "\nWhen first argument is a number, compares current config against rollback revision N.\n")
 		fmt.Fprintf(os.Stderr, "Operates on resolved config (after template expansion).\n")
 		fmt.Fprintf(os.Stderr, "Use - for stdin (only one file can be stdin).\n")

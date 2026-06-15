@@ -402,7 +402,7 @@ var reservedPeerNames = map[string]bool{
 	"history": true, "rib": true,
 	"pause": true, "resume": true, "flush": true, "teardown": true,
 	"update": true, "raw": true, "refresh": true, "borr": true, "eorr": true,
-	"clear": true, "plugin": true,
+	"clear": true, "plugin": true, "prefix": true,
 }
 
 func validatePeerName(name string) error {

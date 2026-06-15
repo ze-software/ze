@@ -71,7 +71,7 @@ func usage() {
 			`  }`,
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 // familyList is a custom flag type for repeatable --family flags.
@@ -115,7 +115,7 @@ func cmdPlugin(args []string) int {
 				`  }`,
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {
@@ -222,7 +222,7 @@ func cmdMigrate(args []string) int {
 				"ze exabgp migrate --env /etc/exabgp/exabgp.env",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

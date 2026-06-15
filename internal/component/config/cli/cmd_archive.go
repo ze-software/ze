@@ -31,7 +31,7 @@ func cmdArchiveImpl(args []string) int {
 				"ze config archive offsite",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 		fmt.Fprintf(os.Stderr, "\nThe named archive block must be defined in the config's system { archive { } } section.\n")
 		fmt.Fprintf(os.Stderr, "The daemon must be running. Archive settings come from the daemon's config.\n")
 	}

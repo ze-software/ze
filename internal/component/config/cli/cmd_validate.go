@@ -144,7 +144,7 @@ func cmdValidate(args []string) int {
 				"ze config validate --limit environment  # validate env vars only",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

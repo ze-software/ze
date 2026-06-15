@@ -87,5 +87,5 @@ func cymruUsage() {
 			"ze resolve cymru --dns-server 8.8.8.8 asn-name 65001",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

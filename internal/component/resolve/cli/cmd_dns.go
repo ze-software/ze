@@ -98,5 +98,5 @@ func dnsUsage() {
 			"ze resolve dns --server 8.8.8.8 a example.com",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

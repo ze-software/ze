@@ -74,5 +74,5 @@ func usage() {
 			"ze version           Show version",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

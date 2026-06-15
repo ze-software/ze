@@ -80,7 +80,7 @@ func TestShellArgvDispatch(t *testing.T) {
 
 func TestLoginValidCredentials(t *testing.T) {
 	dir := t.TempDir()
-	db := createTestDB(t, dir, "admin", "secret123")
+	db := createTestDB(t, dir)
 	db.Close() //nolint:errcheck // test cleanup
 
 	var execCalled bool
@@ -103,7 +103,7 @@ func TestLoginValidCredentials(t *testing.T) {
 
 func TestLoginInvalidCredentials(t *testing.T) {
 	dir := t.TempDir()
-	db := createTestDB(t, dir, "admin", "secret123")
+	db := createTestDB(t, dir)
 	db.Close() //nolint:errcheck // test cleanup
 
 	var execCalled bool
@@ -126,7 +126,7 @@ func TestLoginInvalidCredentials(t *testing.T) {
 
 func TestLoginWrongUsernameCorrectPassword(t *testing.T) {
 	dir := t.TempDir()
-	db := createTestDB(t, dir, "admin", "secret123")
+	db := createTestDB(t, dir)
 	db.Close() //nolint:errcheck // test cleanup
 
 	var execCalled bool
@@ -193,7 +193,7 @@ func TestLoginMissingCreds(t *testing.T) {
 
 func TestLoginMaxRetries(t *testing.T) {
 	dir := t.TempDir()
-	db := createTestDB(t, dir, "admin", "secret123")
+	db := createTestDB(t, dir)
 	db.Close() //nolint:errcheck // test cleanup
 
 	retryCount := 0
@@ -244,7 +244,7 @@ func TestZeFSFallbackPath(t *testing.T) {
 // PREVENTS: built-in admin remaining accessible on serial console after disable.
 func TestLoginAdminDisabled(t *testing.T) {
 	dir := t.TempDir()
-	db := createTestDB(t, dir, "admin", "secret123")
+	db := createTestDB(t, dir)
 	if err := db.WriteFile(zefs.KeyInstanceAdminDisabled.Pattern, []byte("true"), 0); err != nil {
 		t.Fatal(err)
 	}
@@ -268,18 +268,18 @@ func TestLoginAdminDisabled(t *testing.T) {
 	}
 }
 
-func createTestDB(t *testing.T, dir, username, password string) *zefs.BlobStore {
+func createTestDB(t *testing.T, dir string) *zefs.BlobStore {
 	t.Helper()
 	dbPath := filepath.Join(dir, "database.zefs")
 	db, err := zefs.Create(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.MinCost)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte(username), 0o644); err != nil {
+	if err := db.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte("admin"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.WriteFile(zefs.KeyLocalAdminPassword.Pattern, hash, 0o600); err != nil {

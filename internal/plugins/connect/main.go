@@ -395,5 +395,5 @@ func usage() {
 			"ze connect remove 10.0.1.5 --port 2223",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

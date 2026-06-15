@@ -25,7 +25,7 @@ func cmdGraph(args []string) int {
 				"ze config graph config.conf",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

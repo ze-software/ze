@@ -82,7 +82,7 @@ func Run(args []string) int {
 				"ze init --force --yes   (replace without confirmation)",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

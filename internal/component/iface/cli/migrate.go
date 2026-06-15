@@ -161,5 +161,5 @@ func migrateUsage() {
 			"ze interface migrate --from eth0.100 --to lo2.0 --address fd00::1/64 --timeout 60s",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

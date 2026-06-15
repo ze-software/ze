@@ -44,7 +44,7 @@ func Run(args []string) int {
 				`ze config set ze.conf system authentication user alice password "$(echo secret | ze passwd)"`,
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 	if err := fs.Parse(args); err != nil {
 		return 1

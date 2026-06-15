@@ -50,5 +50,5 @@ func deleteUsage() {
 			"ze interface delete ze0",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

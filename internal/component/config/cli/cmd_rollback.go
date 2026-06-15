@@ -40,7 +40,7 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 			},
 			SeeAlso: []string{"ze config history"},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

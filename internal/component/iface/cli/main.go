@@ -158,5 +158,5 @@ func usage() {
 			"ze interface addr del eth0 unit 100 192.168.1.1/24",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

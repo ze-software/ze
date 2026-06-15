@@ -42,7 +42,7 @@ func cmdCompletion(args []string) int {
 				"ze config completion --ghost --context bgp --input set+router config.conf",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 		fmt.Fprintf(os.Stderr, "\nUseful for testing and debugging config editor completions.\n")
 		fmt.Fprintf(os.Stderr, "Use - to read config from stdin.\n")
 		fmt.Fprintf(os.Stderr, "\nInput uses + for spaces (unquoted), or regular spaces (quoted):\n")

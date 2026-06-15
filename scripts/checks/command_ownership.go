@@ -52,6 +52,7 @@ var noOwnerAllowlist = map[string]string{
 	"doctor":       "Process readiness aggregator; owner-specific checks register with the doctor registry.",
 	"explain":      "Diagnostic-code lookup tied to the process binary.",
 	"host":         "Offline hardware inventory for the box.",
+	"format":       "Pipe formatting utility for stdin; applies generic text transforms without a runtime component owner.",
 	"--plugins":    "Process-global flag that dumps the linked plugin inventory.",
 }
 

@@ -52,7 +52,7 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 				"ze config set --dry-run config.conf bgp peer peer1 timer receive-hold-time 90",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {

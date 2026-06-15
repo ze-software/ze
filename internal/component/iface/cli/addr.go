@@ -122,6 +122,6 @@ func addrUsage() {
 			"ze interface addr del eth0 unit 0 10.0.0.1/24",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 	fmt.Fprintf(os.Stderr, "\nUnit 0 refers to the parent interface itself.\nUnit N (N > 0) refers to VLAN subinterface \"<name>.<N>\".\n")
 }

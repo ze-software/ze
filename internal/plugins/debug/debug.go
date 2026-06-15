@@ -499,5 +499,5 @@ func usage() {
 			"ze debug restore",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

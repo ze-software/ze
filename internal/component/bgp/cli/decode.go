@@ -68,7 +68,7 @@ func cmdDecode(args []string) int {
 				"ze bgp decode --plugin flowspec --nlri ipv4/flow 07...  Decode NLRI via plugin",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 		fmt.Fprintf(os.Stderr, "\nThe hex payload can include colons or spaces which will be stripped.\n")
 	}
 

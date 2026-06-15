@@ -75,5 +75,5 @@ func usage() {
 			"Plugins run as API processes spawned by the router via plugin configuration.",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

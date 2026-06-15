@@ -253,5 +253,5 @@ func usage() {
 			"ze cli -c \"set sysctl net.core.somaxconn 4096\"",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

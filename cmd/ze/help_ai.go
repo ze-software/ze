@@ -933,5 +933,5 @@ func helpUsage() {
 		Usage:    []string{"ze help [--ai [--json|--cli|--api|--mcp|--dispatch|--all]]"},
 		Sections: sections,
 	}
-	p.Write()
+	p.WriteErr()
 }

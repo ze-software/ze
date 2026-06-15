@@ -77,7 +77,7 @@ func defaultUsage() {
 			{Title: "Commands", Entries: entries},
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 // defaultDispatch handles the common case: look up a registered root command

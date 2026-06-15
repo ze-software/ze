@@ -100,5 +100,5 @@ func irrUsage() {
 			"ze resolve irr --server rr.ntt.net as-set AS-EXAMPLE",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }

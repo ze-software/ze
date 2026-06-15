@@ -70,7 +70,7 @@ func usage() {
 			`ze completion nushell | save -f ($nu.default-config-dir | path join "completions" "ze.nu")`,
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 // generate writes the completion script for the given shell to w.

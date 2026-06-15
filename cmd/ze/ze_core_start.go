@@ -74,7 +74,7 @@ func startUsage() {
 			"ze start --web-only --web 3443     Web UI only (no operational commands)",
 		},
 	}
-	p.Write()
+	p.WriteErr()
 }
 
 func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, globalMCPAddr, globalMCPToken, globalWebPort string, globalInsecureWeb, globalWebOnly bool) int {

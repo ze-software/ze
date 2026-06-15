@@ -46,7 +46,7 @@ func cmdRoutes(args []string) int {
 				"ze interface routes --json",
 			},
 		}
-		p.Write()
+		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {
