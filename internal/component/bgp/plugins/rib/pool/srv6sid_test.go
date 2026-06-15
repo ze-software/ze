@@ -162,12 +162,13 @@ func TestExtractSRv6SIDFull_WithTransposition(t *testing.T) {
 
 func TestApplyTransposition(t *testing.T) {
 	// SID: 2001:db8:1:: with function bits (bits 48-63) zeroed.
-	// Label carries the function value 0xABCD (16 bits).
+	// Label carries the function value 0xABCD in high-order 16 bits of 20-bit
+	// VPN label field (errata 7652: transposed bits occupy high-order positions).
 	// After transposition at offset 48, length 16: SID becomes 2001:db8:1:abcd::
 	baseSID := netip.MustParseAddr("2001:db8:1::")
-	label := uint32(0xABCD) // 16-bit value in low bits
+	label := uint32(0xABCD) << 4 // 16-bit value in high-order positions of 20-bit label
 
-	got := ApplyTransposition(baseSID, label, 48, 16)
+	got := ApplyTransposition(baseSID, label, 48, 16, 20)
 	want := netip.MustParseAddr("2001:db8:1:abcd::")
 	if got != want {
 		t.Errorf("ApplyTransposition() = %v, want %v", got, want)
@@ -177,21 +178,36 @@ func TestApplyTransposition(t *testing.T) {
 func TestApplyTransposition_20BitVPN(t *testing.T) {
 	// Typical VPN case: 20-bit transposition (MPLS label width).
 	// SID: fc00:1:: with function bits (bits 32-51) zeroed.
-	// Label = 0x12345 (20 bits).
+	// Label = 0x12345 (all 20 bits used, transposLen == labelWidth).
 	// After transposition at offset 32, length 20: result is fc00:1:1234:5000::
 	baseSID := netip.MustParseAddr("fc00:1::")
 	label := uint32(0x12345)
 
-	got := ApplyTransposition(baseSID, label, 32, 20)
+	got := ApplyTransposition(baseSID, label, 32, 20, 20)
 	want := netip.MustParseAddr("fc00:1:1234:5000::")
 	if got != want {
 		t.Errorf("ApplyTransposition(20-bit) = %v, want %v", got, want)
 	}
 }
 
+func TestApplyTransposition_24BitEVPN(t *testing.T) {
+	// EVPN case: 16-bit transposition in a 24-bit label field.
+	// SID: 2001:db8:1:: with function bits (bits 48-63) zeroed.
+	// Label carries 0xABCD in high-order 16 bits of 24-bit EVPN label.
+	// After transposition at offset 48, length 16: SID becomes 2001:db8:1:abcd::
+	baseSID := netip.MustParseAddr("2001:db8:1::")
+	label := uint32(0xABCD) << 8 // 16-bit value in high-order positions of 24-bit label
+
+	got := ApplyTransposition(baseSID, label, 48, 16, 24)
+	want := netip.MustParseAddr("2001:db8:1:abcd::")
+	if got != want {
+		t.Errorf("ApplyTransposition(EVPN 24-bit) = %v, want %v", got, want)
+	}
+}
+
 func TestApplyTransposition_ZeroLength(t *testing.T) {
 	sid := netip.MustParseAddr("2001:db8::1")
-	got := ApplyTransposition(sid, 0xFFFF, 0, 0)
+	got := ApplyTransposition(sid, 0xFFFF, 0, 0, 20)
 	if got != sid {
 		t.Errorf("ApplyTransposition(len=0) = %v, want %v (unchanged)", got, sid)
 	}

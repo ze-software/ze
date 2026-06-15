@@ -1,4 +1,6 @@
 // Design: docs/architecture/config/syntax.md — prefix-SID and SRv6 attribute parsing
+// RFC: rfc/short/rfc8669.md — Label-Index TLV (Type 1) wire format
+// RFC: rfc/short/rfc9252.md — SRv6 SID Information Sub-TLV wire format
 // Overview: routeattr.go — core route attribute types
 
 package bgpconfig
@@ -35,7 +37,7 @@ type PrefixSID struct {
 //   - Type (1 byte) + Length (2 bytes) + Value (variable)
 //
 // Label Index TLV (Type 1):
-//   - Reserved (3 bytes) + Flags (1 byte) + Label-Index (3 bytes)
+//   - Reserved (1 byte) + Flags (2 bytes) + Label-Index (4 bytes)
 func ParsePrefixSID(s string) (PrefixSID, error) {
 	if s == "" {
 		return PrefixSID{}, nil
@@ -57,22 +59,17 @@ func ParsePrefixSID(s string) (PrefixSID, error) {
 		return PrefixSID{}, fmt.Errorf("invalid prefix-sid label index %q: %w", s, err)
 	}
 
-	// RFC 8669: Label-Index is 24 bits (max 16777215)
-	if idx > 0xFFFFFF {
-		return PrefixSID{}, fmt.Errorf("prefix-sid label index %d exceeds 24-bit maximum (16777215)", idx)
-	}
-
 	// Build TLV for Label Index (Type 1)
-	// RFC 8669 Section 4.1: Type(1) + Length(2) + Reserved(3) + Flags(1) + LabelIndex(3) = 10 bytes
+	// RFC 8669 Section 4.1: Type(1) + Length(2) + Reserved(1) + Flags(2) + LabelIndex(4) = 10 bytes
 	tlv := []byte{
 		1,               // Type: Label Index
 		0,               // Length high byte
 		7,               // Length low byte (7 bytes value)
-		0,               // Reserved byte 1
-		0,               // Reserved byte 2
-		0,               // Reserved byte 3
-		0,               // Flags
-		byte(idx >> 16), // Label Index (3 bytes, big-endian)
+		0,               // Reserved
+		0,               // Flags high byte
+		0,               // Flags low byte
+		byte(idx >> 24), // Label Index (4 bytes, big-endian)
+		byte(idx >> 16),
 		byte(idx >> 8),
 		byte(idx),
 	}
@@ -102,11 +99,6 @@ func parsePrefixSIDWithSRGB(s string) (PrefixSID, error) {
 		return PrefixSID{}, fmt.Errorf("invalid prefix-sid label index %q: %w", idxStr, err)
 	}
 
-	// RFC 8669: Label-Index is 24 bits (max 16777215)
-	if idx > 0xFFFFFF {
-		return PrefixSID{}, fmt.Errorf("prefix-sid label index %d exceeds 24-bit maximum (16777215)", idx)
-	}
-
 	// Parse SRGB list
 	srgbStr := parts[1]
 	srgbs, err := parseSRGBList(srgbStr)
@@ -116,16 +108,16 @@ func parsePrefixSIDWithSRGB(s string) (PrefixSID, error) {
 
 	// Build TLVs
 	// Label Index TLV (Type 1)
-	// Type(1) + Length(2) + Reserved(3) + Flags(1) + LabelIndex(3) = 10 bytes
+	// Type(1) + Length(2) + Reserved(1) + Flags(2) + LabelIndex(4) = 10 bytes
 	result := []byte{
 		1,               // Type: Label Index
 		0,               // Length high byte
 		7,               // Length low byte (7 bytes value)
-		0,               // Reserved byte 1
-		0,               // Reserved byte 2
-		0,               // Reserved byte 3
-		0,               // Flags
-		byte(idx >> 16), // Label Index (3 bytes, big-endian)
+		0,               // Reserved
+		0,               // Flags high byte
+		0,               // Flags low byte
+		byte(idx >> 24), // Label Index (4 bytes, big-endian)
+		byte(idx >> 16),
 		byte(idx >> 8),
 		byte(idx),
 	}
@@ -254,7 +246,7 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 
 	// Parse IPv6 address (required)
 	var ipv6 netip.Addr
-	var behavior byte
+	var behavior uint16
 	var sidStruct []byte
 
 	// Find end of IPv6 address (space, 0x, or [)
@@ -291,11 +283,11 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 			}
 		}
 		behStr := s[2:behEnd]
-		behVal, err := strconv.ParseUint(behStr, 16, 8)
+		behVal, err := strconv.ParseUint(behStr, 16, 16)
 		if err != nil {
 			return PrefixSID{}, fmt.Errorf("invalid srv6 behavior %q: %w", s[:behEnd], err)
 		}
-		behavior = byte(behVal)
+		behavior = uint16(behVal)
 		s = strings.TrimSpace(s[behEnd:])
 	}
 
@@ -322,15 +314,15 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 	// Build wire format per RFC 9252
 	// Outer TLV: Type 5/6 (L3/L2 Service)
 	//   Inner Sub-TLV: Type 1 (SRv6 SID Information)
-	//     Value: reserved(1) + SID(16) + flags(1) + behavior(1) + [optional sub-sub-TLV]
+	//     Value: Reserved(1) + SID(16) + Flags(1) + Behavior(2) + Reserved(1) + [optional sub-sub-TLV]
 	//       Optional sub-sub-TLV: Type 1 (SRv6 SID Structure, 6 bytes)
 
 	// Build inner sub-TLV value (Type 1: SRv6 SID Information)
-	// RFC 9252 format: reserved(1) + SID(16) + flags(1) + reserved(1) + behavior(1) + [sub-TLVs]
+	// RFC 9252 Section 3.2: Reserved(1) + SID(16) + Flags(1) + Behavior(2) + Reserved(1) + [sub-sub-TLVs]
 	var innerValue []byte
-	innerValue = append(innerValue, 0) // reserved
+	innerValue = append(innerValue, 0) // Reserved
 	innerValue = append(innerValue, ipv6.AsSlice()...)
-	innerValue = append(innerValue, 0, 0, behavior) // flags, reserved, behavior
+	innerValue = append(innerValue, 0, byte(behavior>>8), byte(behavior), 0) // Flags(1), Behavior(2), Reserved(1)
 
 	// Add SID structure sub-sub-TLV if provided
 	if len(sidStruct) == 6 {

@@ -1,4 +1,5 @@
 // Design: plan/spec-fib-depth-4-srv6.md -- SRv6 SID extraction from PrefixSID attribute
+// RFC: rfc/short/rfc9252.md -- SRv6 SID Information Sub-TLV and transposition scheme
 
 package pool
 
@@ -80,7 +81,7 @@ func extractSIDFromServiceTLV(data []byte) SRv6SIDResult {
 			return SRv6SIDResult{}
 		}
 		// RFC 9252 Section 3.2: min length 21 = Reserved(1) + SID(16) + Flags(1) + Behavior(2) + Reserved(1)
-		if subType == subTLVTypeSRv6SIDInfo && subLen >= 17 {
+		if subType == subTLVTypeSRv6SIDInfo && subLen >= 21 {
 			var ip6 [16]byte
 			// Value: Reserved(1) + SRv6 SID(16) + ...
 			copy(ip6[:], data[off+1:off+17])
@@ -140,9 +141,10 @@ func parseSIDStructure(subSubTLVs []byte) (bool, uint8, uint8) {
 
 // ApplyTransposition reconstructs the full SRv6 SID by merging transposed bits
 // from the NLRI label field into the partial SID at the specified bit offset.
-// RFC 9252 Section 3.2.1: the label carries transposLen bits of the SID starting
-// at transposOffset. The bits are in the high-order positions of the label value.
-func ApplyTransposition(sid netip.Addr, label uint32, transposOffset, transposLen uint8) netip.Addr {
+// RFC 9252 Section 3.2.1 + errata 7652: the label carries transposLen bits of
+// the SID starting at transposOffset. The bits occupy the high-order positions
+// of the label field (labelWidth: 20 for VPN, 24 for EVPN).
+func ApplyTransposition(sid netip.Addr, label uint32, transposOffset, transposLen, labelWidth uint8) netip.Addr {
 	if transposLen == 0 || !sid.Is6() {
 		return sid
 	}
@@ -154,8 +156,8 @@ func ApplyTransposition(sid netip.Addr, label uint32, transposOffset, transposLe
 		}
 		byteIdx := bitPos / 8
 		bitIdx := uint(7 - bitPos%8)
-		// Extract bit from label: MSB-first, bit i of transposLen bits.
-		labelBit := (label >> (uint(transposLen) - 1 - uint(i))) & 1
+		// Extract bit from label: MSB-first from high-order position of labelWidth field.
+		labelBit := (label >> (uint(labelWidth) - 1 - uint(i))) & 1
 		if labelBit != 0 {
 			ip6[byteIdx] |= 1 << bitIdx
 		}

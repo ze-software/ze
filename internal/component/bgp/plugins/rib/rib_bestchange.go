@@ -48,6 +48,7 @@ const (
 	shiftPeerIdx    = 32
 	shiftNextHopIdx = 16
 	flagEBGP        = 0x0001
+	flagHadSRv6SID  = 0x0002
 	// internerCap is the exclusive upper bound for any single interner
 	// reverse table. uint16 cardinality is architecturally unreachable
 	// (~2k peers at the largest Internet IXP); the cap exists only so
@@ -773,7 +774,8 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 		if ir.peerAt(prev.PeerIdx()) == newBest.PeerAddr &&
 			ir.nextHopAt(prev.NextHopIdx()) == nextHop &&
 			ir.metricAt(prev.MetricIdx()) == newBest.MED &&
-			prev.IsEBGP() == isEBGP {
+			prev.IsEBGP() == isEBGP &&
+			!srv6SID.IsValid() && prev.Flags()&flagHadSRv6SID == 0 {
 			return bestChangeEntry{}, false
 		}
 	}
@@ -793,6 +795,9 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	var flags uint16
 	if isEBGP {
 		flags |= flagEBGP
+	}
+	if srv6SID.IsValid() {
+		flags |= flagHadSRv6SID
 	}
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
@@ -878,7 +883,7 @@ func (r *RIBManager) lookupSRv6SIDForBest(fam family.Family, nlriBytes []byte, p
 		h := peerRIB.LookupLabels(fam, nlriBytes)
 		labels := pool.ResolveLabels(h)
 		if len(labels) > 0 {
-			return pool.ApplyTransposition(result.SID, labels[0], result.TransposOffset, result.TransposLen)
+			return pool.ApplyTransposition(result.SID, labels[0], result.TransposOffset, result.TransposLen, labelWidthForSAFI(fam.SAFI))
 		}
 	}
 	return result.SID
@@ -886,6 +891,14 @@ func (r *RIBManager) lookupSRv6SIDForBest(fam family.Family, nlriBytes []byte, p
 
 func needsTransposition(fam family.Family) bool {
 	return fam.SAFI == family.SAFIVPN || fam.SAFI == family.SAFIEVPN
+}
+
+// RFC 9252 Section 4.1/6.2: VPN labels are 20 bits, EVPN labels are 24 bits.
+func labelWidthForSAFI(safi family.SAFI) uint8 {
+	if safi == family.SAFIEVPN {
+		return 24
+	}
+	return 20
 }
 
 // IsSRv6Ineligible reports whether a route entry is ineligible for best-path

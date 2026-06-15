@@ -402,7 +402,6 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 		ecmpPaths := ecmpCollect(protocols, winner)
 		s.lastECMP[key] = ecmpPaths
 		resolved := resolveNextHop(winner.nextHop)
-		s.resolvedNH[key] = resolved
 		if r := getNHResolver(); r != nil {
 			if winner.nextHop.IsValid() {
 				r.Track(winner.nextHop, key.prefix)
@@ -414,6 +413,7 @@ func (s *sysRIB) recomputeBest(key prefixKey) *outgoingChange {
 				}
 			}
 		}
+		s.resolvedNH[key] = resolved
 		return &outgoingChange{
 			Action:    bgptypes.RouteActionAdd,
 			Prefix:    key.prefix,
@@ -723,6 +723,10 @@ func (s *sysRIB) replayBest() {
 	s.mu.RLock()
 	changesByFamily := make(map[family.Family][]outgoingChange)
 	for key, route := range s.best {
+		// RFC 9252 Section 5: skip routes with unresolvable SRv6 SIDs.
+		if route.srv6SID.IsValid() && !srv6SIDResolvable(route.srv6SID) {
+			continue
+		}
 		changesByFamily[key.family] = append(changesByFamily[key.family], outgoingChange{
 			Action:    bgptypes.RouteActionAdd,
 			Prefix:    key.prefix,

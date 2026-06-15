@@ -1942,3 +1942,72 @@ func TestRFC7606ASPath4ByteASNOverrun(t *testing.T) {
 	require.Equal(t, uint8(2), result.AttrCode)
 	require.Contains(t, result.Description, "overrun")
 }
+
+// RFC 8669/9252 Prefix-SID validation tests.
+
+func TestValidatePrefixSIDAttr_Valid(t *testing.T) {
+	// Valid SRv6 L3 Service TLV with 21-byte SID Info sub-TLV.
+	sidInfoValue := make([]byte, 21)
+	var value []byte
+	value = append(value, 0, 1, 0, 21) // Reserved + SID Info sub-TLV: type=1, length=21
+	value = append(value, sidInfoValue...)
+
+	var data []byte
+	data = append(data, 5, byte(len(value)>>8), byte(len(value))) // Type=5
+	data = append(data, value...)
+
+	result := validatePrefixSIDAttr(40, len(data), data, false, false)
+	require.Nil(t, result)
+}
+
+func TestValidatePrefixSIDAttr_TrailingBytes(t *testing.T) {
+	// RFC 8669 Section 6: Label-Index TLV followed by 1 trailing byte.
+	data := []byte{
+		1, 0, 7,
+		0, 0, 0, 0, 0, 0x03, 0x09,
+		0xFF, // trailing byte
+	}
+	result := validatePrefixSIDAttr(40, len(data), data, false, false)
+	require.NotNil(t, result)
+	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
+	require.Contains(t, result.Description, "trailing bytes")
+}
+
+func TestValidateSRv6ServiceTLV_TrailingBytes(t *testing.T) {
+	// RFC 9252 Section 3.4: Service TLV with trailing byte after sub-TLV.
+	sidInfoValue := make([]byte, 21)
+	var value []byte
+	value = append(value, 0, 1, 0, 21) // Reserved + SID Info sub-TLV header
+	value = append(value, sidInfoValue...)
+	value = append(value, 0xFF) // trailing byte
+
+	var data []byte
+	data = append(data, 5, byte(len(value)>>8), byte(len(value)))
+	data = append(data, value...)
+
+	result := validatePrefixSIDAttr(40, len(data), data, false, false)
+	require.NotNil(t, result)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Contains(t, result.Description, "trailing bytes")
+}
+
+func TestValidateSRv6ServiceTLV_SubSubTLVExceedsBounds(t *testing.T) {
+	// RFC 9252 Section 3.2: sub-sub-TLV length exceeds SID Info sub-TLV.
+	sidInfoValue := make([]byte, 24) // 21 fixed + 3 sub-sub-TLV header
+	sidInfoValue[21] = 1             // sub-sub-TLV type
+	sidInfoValue[22] = 0             // length high
+	sidInfoValue[23] = 100           // length low = 100 (exceeds bounds)
+
+	var value []byte
+	value = append(value, 0, 1, byte(len(sidInfoValue)>>8), byte(len(sidInfoValue)))
+	value = append(value, sidInfoValue...)
+
+	var data []byte
+	data = append(data, 5, byte(len(value)>>8), byte(len(value)))
+	data = append(data, value...)
+
+	result := validatePrefixSIDAttr(40, len(data), data, false, false)
+	require.NotNil(t, result)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Contains(t, result.Description, "sub-sub-TLV exceeds")
+}

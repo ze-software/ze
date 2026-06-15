@@ -743,6 +743,15 @@ func validatePrefixSIDAttr(code uint8, length int, attrData []byte, _, _ bool) *
 		}
 		off += tlvLen
 	}
+	// RFC 8669 Section 6: trailing bytes after last TLV are malformed.
+	if off != length {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionAttributeDiscard,
+			AttrCode:    code,
+			Reason:      DiscardReasonInvalidLength,
+			Description: "RFC 8669 Section 6: trailing bytes in Prefix-SID attribute",
+		}
+	}
 	return nil
 }
 
@@ -778,7 +787,33 @@ func validateSRv6ServiceTLV(value []byte, tlvType uint8) *RFC7606ValidationResul
 				Description: b.Reset().Str("RFC 9252 Section 3.2: SID Info Sub-TLV length ").Int(int64(subLen)).Str(" < 21").String(),
 			}
 		}
+		// RFC 9252 Section 3.2: validate sub-sub-TLV bounds within SID Info.
+		if value[off-3] == 1 && subLen > 21 {
+			ssOff := 21
+			for ssOff+3 <= subLen {
+				ssLen := int(value[off+ssOff+1])<<8 | int(value[off+ssOff+2])
+				ssOff += 3
+				if ssOff+ssLen > subLen {
+					var b textbuf.Buffer
+					return &RFC7606ValidationResult{
+						Action:      RFC7606ActionTreatAsWithdraw,
+						AttrCode:    attrCodePrefixSID,
+						Description: b.Reset().Str("RFC 9252 Section 3.2: sub-sub-TLV exceeds SID Info bounds in Service TLV type ").Int(int64(tlvType)).String(),
+					}
+				}
+				ssOff += ssLen
+			}
+		}
 		off += subLen
+	}
+	// RFC 9252 Section 3.4: trailing bytes after last sub-TLV are malformed.
+	if off != len(value) {
+		var b textbuf.Buffer
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    attrCodePrefixSID,
+			Description: b.Reset().Str("RFC 9252 Section 3.4: trailing bytes in SRv6 Service TLV type ").Int(int64(tlvType)).String(),
+		}
 	}
 	return nil
 }
