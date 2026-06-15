@@ -12,8 +12,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/crashlog"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	zeversion "codeberg.org/thomas-mangin/ze/internal/core/version"
 )
 
@@ -56,22 +58,26 @@ func defaultUsage() {
 	name := binaryName()
 
 	if len(roots) == 0 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <command> [options]\n", name)
+		fmt.Fprintf(os.Stderr, "Usage: %s <command> [options]\n", name) //nolint:errcheck // help output
 		return
 	}
 
-	width := 0
-	for _, rc := range roots {
-		if len(rc.Name) > width {
-			width = len(rc.Name)
-		}
+	entries := make([]helpfmt.HelpEntry, len(roots))
+	for i, rc := range roots {
+		entries[i] = helpfmt.HelpEntry{Name: rc.Name, Desc: rc.Meta.Description}
 	}
 
-	fmt.Fprintf(os.Stderr, "Usage: %s <command> [options]\n\nCommands:\n", name)
-	for _, rc := range roots {
-		fmt.Fprintf(os.Stderr, "  %-*s  %s\n", width, rc.Name, rc.Meta.Description)
+	var tb textbuf.Buffer
+	tb.Str(name).Str(" <command> [options]")
+
+	p := helpfmt.Page{
+		Command: name,
+		Usage:   []string{tb.String()},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Commands", Entries: entries},
+		},
 	}
-	fmt.Fprintf(os.Stderr, "\nRun '%s <command> --help' for command-specific help.\n", name)
+	p.Write()
 }
 
 // defaultDispatch handles the common case: look up a registered root command

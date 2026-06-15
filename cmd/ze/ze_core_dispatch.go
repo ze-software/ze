@@ -17,6 +17,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -310,20 +311,32 @@ func zeDispatch(args []string) int {
 			yangTree := cli.YANGCommandTree()
 			yangNode := command.FindNode(yangTree, helpPath)
 
-			pathStr := textbuf.Join(helpPath, " ")
-			fmt.Fprintf(os.Stderr, "Usage: ze %s <command> [options]\n\n", pathStr)
-			if yangNode != nil && yangNode.Description != "" {
-				var lb textbuf.Buffer
-				label := lb.Str(strings.ToUpper(helpPath[len(helpPath)-1][:1])).Str(helpPath[len(helpPath)-1][1:]).String()
-				fmt.Fprintf(os.Stderr, "%s (%s).\n\n", label, yangNode.Description)
+			var tb textbuf.Buffer
+			tb.Str("ze ").Str(textbuf.Join(helpPath, " "))
+			cmdPath := tb.String()
+
+			summary := ""
+			var entries []helpfmt.HelpEntry
+			if yangNode != nil {
+				summary = yangNode.Description
+				entries = make([]helpfmt.HelpEntry, 0, len(yangNode.Children))
+				for _, e := range command.HelpEntries(yangNode, nil) {
+					entries = append(entries, helpfmt.HelpEntry{Name: e.Name, Desc: e.Desc})
+				}
 			}
-			fmt.Fprintf(os.Stderr, "Available commands:\n")
-			if yangNode != nil && len(yangNode.Children) > 0 {
-				command.WriteHelp(os.Stderr, yangNode, nil)
-			} else {
-				fmt.Fprintf(os.Stderr, "  (no commands registered)\n")
+
+			tb.Reset()
+			tb.Str(cmdPath).Str(" <command> [options]")
+
+			p := helpfmt.Page{
+				Command: cmdPath,
+				Summary: summary,
+				Usage:   []string{tb.String()},
+				Sections: []helpfmt.HelpSection{
+					{Title: "Commands", Entries: entries},
+				},
 			}
-			fmt.Fprintln(os.Stderr)
+			p.Write()
 			return 0
 		}
 		readOnly := command.IsReadOnlyVerb(arg)
