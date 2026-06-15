@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"time"
 
+	"io"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -27,7 +29,13 @@ const (
 	kernelDockerImage        = "ze-installer-kernel-builder"
 	builderDocker            = "docker"
 	builderQEMU              = "qemu"
+	firmwareCacheDir         = "firmware"
+	firmwareBaseURL          = "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain"
 )
+
+var i915FirmwareBlobs = []string{
+	"i915/adlp_dmc.bin",
+}
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         kernelURLKey,
@@ -220,6 +228,10 @@ func defaultDockerBuild(version, arch, profile, destPath string) error {
 	if err != nil {
 		return err
 	}
+	fwDir, err := ensureFirmware(profile)
+	if err != nil {
+		return err
+	}
 
 	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
 		return fmt.Errorf("create cache directory: %w", err)
@@ -239,7 +251,7 @@ func defaultDockerBuild(version, arch, profile, destPath string) error {
 	}
 
 	var tb textbuf.Buffer
-	runCmd := exec.CommandContext(buildCtx, builderDocker, "run", "--rm", "--platform", platform, //nolint:gosec // controlled args
+	dockerArgs := []string{"run", "--rm", "--platform", platform,
 		"-e", tb.Str("LINUX_VERSION=").Str(version).String(),
 		"-e", tb.Reset().Str("ARCH=").Str(arch).String(),
 		"-e", tb.Reset().Str("PROFILE=").Str(profile).String(),
@@ -248,8 +260,19 @@ func defaultDockerBuild(version, arch, profile, destPath string) error {
 		"-v", tb.Reset().Str(builderDir).Str(":/builder:ro").String(),
 		"-v", tb.Reset().Str(configDir).Str(":/src:ro").String(),
 		"-v", tb.Reset().Str(outDir).Str(":/out").String(),
-		kernelDockerImage, "sh", "/builder/build.sh",
-	)
+	}
+	if fwDir != "" {
+		absFW, absErr := filepath.Abs(fwDir)
+		if absErr != nil {
+			return fmt.Errorf("resolve firmware directory: %w", absErr)
+		}
+		dockerArgs = append(dockerArgs,
+			"-v", tb.Reset().Str(absFW).Str(":/firmware:ro").String(),
+			"-e", "FIRMWARE_DIR=/firmware",
+		)
+	}
+	dockerArgs = append(dockerArgs, kernelDockerImage, "sh", "/builder/build.sh")
+	runCmd := exec.CommandContext(buildCtx, builderDocker, dockerArgs...) //nolint:gosec // controlled args
 	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stdout
 	if err := runCmd.Run(); err != nil {
@@ -292,6 +315,10 @@ func defaultQEMUBuild(version, arch, profile, destPath string) error {
 	if err != nil {
 		return fmt.Errorf("resolve build script path: %w", err)
 	}
+	fwDir, err := ensureFirmware(profile)
+	if err != nil {
+		return err
+	}
 
 	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
 		return fmt.Errorf("create cache directory: %w", err)
@@ -303,14 +330,18 @@ func defaultQEMUBuild(version, arch, profile, destPath string) error {
 	buildCtx, buildCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
 	defer buildCancel()
 
-	cmd := exec.CommandContext(buildCtx, "python3", scriptPath, //nolint:gosec // controlled args
+	qemuArgs := []string{scriptPath,
 		"--arch", arch,
 		"--profile", profile,
 		"--version", version,
 		"--builder-dir", kernelBuilderDir,
 		"--src-dir", kernelInstallerConfigDir,
 		"--out-dir", kernelInstallerOutputDir,
-	)
+	}
+	if fwDir != "" {
+		qemuArgs = append(qemuArgs, "--firmware-dir", fwDir)
+	}
+	cmd := exec.CommandContext(buildCtx, "python3", qemuArgs...) //nolint:gosec // controlled args
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stdout
 	if err := cmd.Run(); err != nil {
@@ -323,6 +354,56 @@ func defaultQEMUBuild(version, arch, profile, destPath string) error {
 	}
 
 	return copyToToolsPath(builtKernel, destPath)
+}
+
+func ensureFirmware(profile string) (string, error) {
+	if profile != ProfileHardwareKMS {
+		return "", nil
+	}
+	fwDir := filepath.Join(ResolveCacheDir(), firmwareCacheDir)
+	for _, blob := range i915FirmwareBlobs {
+		dest := filepath.Join(fwDir, blob)
+		if _, err := os.Stat(dest); err == nil {
+			continue
+		}
+		var tb textbuf.Buffer
+		url := tb.Str(firmwareBaseURL).Byte('/').Str(blob).String()
+		if err := downloadFirmwareBlob(url, dest); err != nil {
+			return "", fmt.Errorf("download firmware %s: %w", blob, err)
+		}
+		fmt.Fprintf(os.Stdout, "  firmware: %s\n", blob) //nolint:errcheck // CLI output
+	}
+	return fwDir, nil
+}
+
+func downloadFirmwareBlob(url, destPath string) error {
+	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
+		return fmt.Errorf("create firmware directory: %w", err)
+	}
+	resp, err := httpGetFn(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close() //nolint:errcheck // HTTP response
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(destPath), ".fw-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer func() {
+		os.Remove(tmpPath) //nolint:errcheck // cleanup
+	}()
+	if _, err := io.Copy(tmp, resp.Body); err != nil {
+		tmp.Close() //nolint:errcheck // cleanup
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, destPath)
 }
 
 func cliErrorf(format string, args ...any) {

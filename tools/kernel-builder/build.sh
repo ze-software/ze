@@ -121,6 +121,24 @@ echo ">>> configuring (defconfig + kernel.config + ${PROFILE} profile) for ${ARC
 make ARCH="$KERNEL_ARCH" defconfig
 # shellcheck disable=SC2086 # intentional word-splitting on profile_configs
 ./scripts/kconfig/merge_config.sh -m .config "${SRC_DIR}/kernel.config" $profile_configs
+
+FIRMWARE_DIR="${FIRMWARE_DIR:-}"
+if [ "$PROFILE" = "hardware-kms" ] && [ -n "$FIRMWARE_DIR" ]; then
+    FW_LIST="i915/adlp_dmc.bin"
+    echo ">>> embedding firmware from ${FIRMWARE_DIR}"
+    for blob in $FW_LIST; do
+        if [ ! -f "${FIRMWARE_DIR}/${blob}" ]; then
+            echo "FATAL: firmware ${blob} not found in ${FIRMWARE_DIR}" >&2
+            exit 1
+        fi
+        echo "  ${blob}: $(wc -c < "${FIRMWARE_DIR}/${blob}") bytes"
+    done
+    cat >> .config <<FWEOF
+CONFIG_EXTRA_FIRMWARE="${FW_LIST}"
+CONFIG_EXTRA_FIRMWARE_DIR="${FIRMWARE_DIR}"
+FWEOF
+fi
+
 make ARCH="$KERNEL_ARCH" olddefconfig
 
 require_yes() {
@@ -157,6 +175,10 @@ if [ "$PROFILE" = "hardware-kms" ]; then
     for opt in CONFIG_DRM_KMS_HELPER CONFIG_DRM_I915 CONFIG_BACKLIGHT_CLASS_DEVICE; do
         require_yes "$opt" "required for hardware-kms profile"
     done
+    if ! grep -q '^CONFIG_EXTRA_FIRMWARE=' .config; then
+        echo "FATAL: CONFIG_EXTRA_FIRMWARE not set (i915 needs embedded firmware for display)" >&2
+        exit 1
+    fi
 fi
 
 if [ "$PROFILE" = "runtime" ]; then

@@ -733,9 +733,9 @@ func writeGrubConfig(path string, input isoBuildInput) error {
 func isoKernelConsoleArgs(arch string) (string, error) {
 	switch arch {
 	case archAMD64:
-		return "console=tty0 console=ttyS0,115200n8", nil
+		return "console=ttyS0,115200n8 console=tty0", nil
 	case archARM64:
-		return "console=tty0 console=ttyAMA0,115200n8", nil
+		return "console=ttyAMA0,115200n8 console=tty0", nil
 	default:
 		return "", fmt.Errorf("unsupported appliance ISO architecture %q", arch)
 	}

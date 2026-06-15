@@ -69,7 +69,6 @@ def ccache_dir() -> Path:
     return d
 
 
-
 def validate_version(value: str) -> str:
     if (
         value == ""
@@ -92,8 +91,7 @@ def validate_arch(value: str) -> str:
 def validate_profile(value: str) -> str:
     if value not in ("qemu", "hardware", "hardware-kms", "runtime"):
         raise SystemExit(
-            "--profile must be qemu, hardware, hardware-kms, or runtime: "
-            f"{value}"
+            f"--profile must be qemu, hardware, hardware-kms, or runtime: {value}"
         )
     return value
 
@@ -102,6 +100,7 @@ def validate_jobs(value: str) -> str:
     if value and any(ch not in "0123456789" for ch in value):
         raise SystemExit(f"--jobs must be numeric: {value}")
     return value
+
 
 def build_dir(target_arch: str, profile: str) -> Path:
     root = repo_root()
@@ -120,8 +119,7 @@ def repo_relative(value: str, flag: str) -> str:
         or any(ch not in allowed for ch in value)
     ):
         raise SystemExit(
-            f"{flag} must be a repo-relative path with only [A-Za-z0-9/._-]: "
-            f"{value}"
+            f"{flag} must be a repo-relative path with only [A-Za-z0-9/._-]: {value}"
         )
     return path.as_posix()
 
@@ -213,6 +211,7 @@ def _build_qemu_args(
     memory: str,
     ccache_path: Path | None = None,
     build_path: Path | None = None,
+    firmware_path: Path | None = None,
 ) -> list[str]:
     qemu = qemu_binary(target_arch)
     args = [qemu]
@@ -279,6 +278,14 @@ def _build_qemu_args(
                 "-virtfs",
                 f"local,path={build_path},mount_tag=builddir,"
                 f"security_model=none,id=bd0,readonly=off",
+            ]
+        )
+    if firmware_path is not None:
+        args.extend(
+            [
+                "-virtfs",
+                f"local,path={firmware_path},mount_tag=firmware,"
+                f"security_model=none,id=fw0,readonly=on",
             ]
         )
     return args
@@ -373,13 +380,15 @@ def _run_build(
     builder_dir: str,
     modules: str,
     patches_dir: str,
+    firmware_dir: str,
 ) -> int:
     ssh_port = find_free_port()
     cc_dir = ccache_dir()
     bd_dir = build_dir(target_arch, profile)
     memory = _vm_memory()
+    fw_path = Path(firmware_dir) if firmware_dir else None
     args = _build_qemu_args(
-        iso, workspace, target_arch, ssh_port, memory, cc_dir, bd_dir
+        iso, workspace, target_arch, ssh_port, memory, cc_dir, bd_dir, fw_path
     )
 
     print(
@@ -473,6 +482,12 @@ def _run_build(
                 "builddir /build",
             ]
         )
+        if firmware_dir:
+            setup += (
+                " && mkdir -p /firmware"
+                " && mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576,ro "
+                "firmware /firmware"
+            )
 
         src_vm = f"/workspace/{src_dir}"
         out_vm = f"/workspace/{out_dir}"
@@ -487,6 +502,8 @@ def _run_build(
         )
         if patches_dir:
             build_env += f" PATCHES_DIR=/workspace/{patches_dir}"
+        if firmware_dir:
+            build_env += " FIRMWARE_DIR=/firmware"
         if jobs:
             build_env += f" JOBS={jobs}"
         build_cmd = f"{build_env} sh {builder_vm}/build.sh"
@@ -591,8 +608,12 @@ def main() -> int:
         default=os.environ.get("PATCHES_DIR", ""),
         help="Repo-relative patch series directory",
     )
+    parser.add_argument(
+        "--firmware-dir",
+        default="",
+        help="Host-absolute path to firmware directory for kernel embedding",
+    )
     args = parser.parse_args()
-
 
     root = repo_root()
     arch = validate_arch(args.arch)
@@ -621,6 +642,7 @@ def main() -> int:
         builder_dir,
         args.modules,
         patches_dir,
+        args.firmware_dir,
     )
 
 

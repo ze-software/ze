@@ -296,7 +296,7 @@ func TestIsoBuildsArm64BootArtifacts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read grub.cfg: %v", err)
 	}
-	if !strings.Contains(string(grub), "console=tty0 console=ttyAMA0,115200n8") {
+	if !strings.Contains(string(grub), "console=ttyAMA0,115200n8 console=tty0") {
 		t.Fatalf("grub.cfg missing arm64 console: %s", string(grub))
 	}
 }
@@ -587,7 +587,7 @@ func TestIsoBuildsExpectedStagingPlan(t *testing.T) {
 	if strings.TrimSpace(string(mediaIDData)) != manifest.MediaID {
 		t.Fatalf("media-id file = %q, manifest = %q", strings.TrimSpace(string(mediaIDData)), manifest.MediaID)
 	}
-	if !strings.Contains(string(grub), "search --no-floppy --file /ze-install/media-id --set=root") || !strings.Contains(string(grub), "ze.source=iso") || !strings.Contains(string(grub), "ze.target=/dev/vda") || !strings.Contains(string(grub), "ze.media-id="+manifest.MediaID) || !strings.Contains(string(grub), "console=tty0 console=ttyS0,115200n8") || !strings.Contains(string(grub), "ze.image=ze-20260101-000000.img.gz") {
+	if !strings.Contains(string(grub), "search --no-floppy --file /ze-install/media-id --set=root") || !strings.Contains(string(grub), "ze.source=iso") || !strings.Contains(string(grub), "ze.target=/dev/vda") || !strings.Contains(string(grub), "ze.media-id="+manifest.MediaID) || !strings.Contains(string(grub), "console=ttyS0,115200n8 console=tty0") || !strings.Contains(string(grub), "ze.image=ze-20260101-000000.img.gz") {
 		t.Fatalf("grub.cfg does not contain ISO source, media search, target, media id, compressed image name, and amd64 console: %s", string(grub))
 	}
 }

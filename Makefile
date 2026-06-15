@@ -4,6 +4,7 @@
 .PHONY: ze-test ze-verify ze-verify-changed ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp
 .PHONY: _ze-verify-impl _ze-verify-changed-impl
+.PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-yang-glue-check ze-regen ze-regen-check
 .PHONY: check ze-setup ze-setup-build ze-setup-lint
@@ -59,6 +60,7 @@ include mk/perf.mk
 include mk/inventory.mk
 include mk/gokrazy.mk
 include mk/test-mutation.mk
+include mk/appliance.mk
 
 # ─── Build ──────────────────────────────────────────────────────────────────
 
@@ -489,6 +491,15 @@ help-test:
 
 help-deploy:
 	@echo "Ze Deployment Targets"
+	@echo ""
+	@echo "  Appliance installer ISO (from JSON config):"
+	@echo "    ze-iso                   Full build from config: init + kernel + initrd + image + ISO"
+	@echo "                             CONFIG=prod.json SSH_PASSWORD='...'"
+	@echo "    ze-iso-build             Rebuild (appliance already initialized)"
+	@echo "                             NAME=prod APPLIANCE_BUILDER=docker"
+	@echo "    ze-iso-check             Check ISO build prerequisites"
+	@echo "    ze-pxe                   Build iPXE + TFTP for PXE boot"
+	@echo "                             NAME=prod PXE_DIR=/var/lib/ze/install"
 	@echo ""
 	@echo "  Docker:"
 	@echo "    ze-docker                Build Docker image (ZE_DOCKER_IMAGE=ze ZE_DOCKER_TAG=...)"
