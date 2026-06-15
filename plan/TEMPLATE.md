@@ -167,6 +167,33 @@
      described in the referenced architecture doc, include the doc here too -->
 - `internal/...` - [feature changes]
 
+### BGP Family Checklist (if new SAFI / capability / attribute)
+<!-- BLOCKING: If this spec adds a new address family, SAFI, capability, or attribute,
+     you MUST read ai/patterns/bgp-family.md BEFORE filling this section.
+     Copy the relevant sections below and answer every one.
+     Delete this block if the spec does not involve a BGP protocol extension. -->
+<!-- See ai/patterns/bgp-family.md for the full 12-section checklist with file paths. -->
+| BGP Integration Point | Needed? | File | Done? |
+|----------------------|---------|------|-------|
+| SAFI constant + family MustRegister | [ ] | `internal/core/family/family.go`, `register.go` | [ ] |
+| NLRI struct (Family/Bytes/Len/String/PathID/WriteTo/SupportsAddPath) | [ ] | `plugins/nlri/<name>/types.go` | [ ] |
+| Splitter + registration | [ ] | `nlrisplit/` | [ ] |
+| ValidNextHopLens case | [ ] | `attribute/mpnlri.go` | [ ] |
+| AppendJSON method | [ ] | `plugins/nlri/<name>/json.go` | [ ] |
+| DecodeNLRIHex function | [ ] | `plugins/nlri/<name>/decode.go` | [ ] |
+| parseNLRIByFamily case | [ ] | `cli/decode_mp.go` | [ ] |
+| Plugin registry Registration (InProcessNLRIDecoder, Families) | [ ] | `plugins/nlri/<name>/register.go` | [ ] |
+| Capability struct + negotiation + JSON | [ ] | `capability/`, `cli/decode_open.go`, `format/json.go` | [ ] |
+| ExaBGP bridge (family map, command parser, event forwarding) | [ ] | `bridge/` | [ ] |
+| Exhaustive switch audit (`grep 'case.*SAFI' internal/`) | [ ] | all switches on SAFI | [ ] |
+| Snapshot tests (all_test.go plugin names + wire methods) | [ ] | `plugin/all/all_test.go` | [ ] |
+| Config surface guards (reservedPeerNames, command_ownership) | [ ] | `bgp/config/resolve.go`, `scripts/checks/` | [ ] |
+| Functional decode tests (.ci per AFI) | [ ] | `test/decode/` | [ ] |
+| Functional encode tests (.ci round-trip) | [ ] | `test/encode/` | [ ] |
+| Interop scenario + existing interop config audit | [ ] | `test/interop/scenarios/` | [ ] |
+| Cross-plugin impact (existing NLRI plugins still decode correctly) | [ ] | run existing decode tests | [ ] |
+| Feature docs + comparison tables | [ ] | `docs/features/`, `docs/comparison/` | [ ] |
+
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|

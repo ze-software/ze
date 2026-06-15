@@ -35,6 +35,11 @@ See also: `/ze-audit` (check what exists first), `/ze-review-spec` (post-impl ve
    **Why this is BLOCKING:** other sessions check spec status to avoid collisions. A spec that
    stays in `design` or `ready` during implementation lies about its state.
 3. **Audit first:** Run `/ze-audit` logic. Check Files to Modify, Files to Create, and TDD Test Plan against the codebase. Identify what's already implemented, partially done, or missing. Do not redo existing work.
+   - **BGP Family Checklist (BLOCKING):** If the spec involves a new SAFI, capability, or attribute
+     but has no "BGP Family Checklist" section, STOP. Read `ai/patterns/bgp-family.md`, add the
+     checklist section to the spec, and present to the user before coding. This gate exists because
+     SR-Policy shipped incomplete (3 commits) due to missing integration points that the generic
+     wiring rules did not catch.
    - **Validate assumptions (BLOCKING):** Read the spec's **Risks & Assumptions** Assumptions
      table. For every A-N row whose validation method is cheap (grep, read a file, run an
      existing test), run it NOW — before any feature code — and flip Status to `confirmed`

@@ -66,6 +66,21 @@ See also: `/ze-design` (stress-test a design), `/ze-explore` (research a topic),
 
 **Status transition:** When starting research, edit the spec: set `Status` to `design`, `Updated` to today. Do this before reading any source files.
 
+#### BGP Family Gate (BLOCKING)
+
+If the spec involves a new SAFI, capability, or attribute:
+1. Read `ai/patterns/bgp-family.md` in full before any other research
+2. Copy the 12-section checklist into the spec's Integration Checklist
+3. Every section must be answered (Yes with file, or N/A with reason)
+
+Detection: if the task mentions any of these, the gate applies:
+- New address family, NLRI type, SAFI
+- New BGP capability or capability code
+- New BGP attribute or attribute code
+- ExaBGP bridge family support
+
+Skipping this gate is how SR-Policy shipped in 3 commits instead of 1.
+
 #### Checkpoint Rules
 
 - **Never change `[ ]` to `[x]` in spec files** -- checkboxes are template markers

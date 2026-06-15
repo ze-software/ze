@@ -31,9 +31,9 @@
 | Web page/endpoint | `ai/patterns/web-endpoint.md` | `docs/architecture/web-interface.md`, `docs/architecture/web-components.md` | SSE: `docs/architecture/web-components.md` SSE section |
 | Plugin | `ai/patterns/plugin.md` | `ai/rules/plugin-design.md`, `ai/rules/goroutine-lifecycle.md` | `ai/rules/naming.md` for registered names |
 | Config option | `ai/patterns/config-option.md` | `ai/rules/config-design.md` (listener pattern if network endpoint) | `ai/rules/config-surface.md` (YANG vs env var), `ai/rules/config-naming.md` (naming), `ai/rules/go-standards.md` env var section |
-| NLRI family | `ai/patterns/plugin.md` (NLRI codec section) | `docs/architecture/wire/nlri.md`, `ai/rules/buffer-first.md` | `ai/rules/plugin-design.md` family registration |
-| Capability | `ai/patterns/plugin.md` (capabilities section) | `docs/architecture/wire/capabilities.md` | |
-| Attribute | `ai/rules/buffer-first.md` | `docs/architecture/wire/attributes.md` | `docs/architecture/encoding-context.md` |
+| NLRI family | **`ai/patterns/bgp-family.md`** (BLOCKING) | `docs/architecture/wire/nlri.md`, `ai/rules/buffer-first.md` | `ai/rules/plugin-design.md` family registration |
+| Capability | **`ai/patterns/bgp-family.md`** (BLOCKING) | `docs/architecture/wire/capabilities.md` | |
+| Attribute | **`ai/patterns/bgp-family.md`** (BLOCKING) | `docs/architecture/wire/attributes.md` | `docs/architecture/encoding-context.md` |
 | Functional test | `ai/patterns/functional-test.md` | `docs/architecture/testing/ci-format.md` | `ai/rules/testing.md` for format selection (.ci vs .et vs Go) |
 | Editor test | `ai/rules/testing.md` (Editor Tests section) | `test/editor/` existing examples | |
 | Telemetry/metrics | `plan/learned/653-netdata-os-collectors.md` | `plan/learned/736-iface-rate.md` | Registration in loader_create.go |
@@ -180,6 +180,7 @@ Mechanical recipes for creating common artifacts. Read before coding.
 | Pattern | File | What it covers |
 |---------|------|---------------|
 | **Registration** | `ai/patterns/registration.md` | **All registries, startup flow, modular core architecture** |
+| **BGP Family** | `ai/patterns/bgp-family.md` | **New SAFI, capability, or attribute: exhaustive 12-section checklist** |
 | CLI Command | `ai/patterns/cli-command.md` | Offline/online dispatch, grammar, YANG tree, exit codes |
 | Web Endpoint | `ai/patterns/web-endpoint.md` | Handler sequence, templates, HTMX OOB, route registration |
 | Plugin | `ai/patterns/plugin.md` | register.go, logger, SDK protocol, filters, codecs |
@@ -276,7 +277,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | attribute, AS_PATH, NEXT_HOP, MED | `core-design.md`, `wire/attributes.md`, `update-building.md` |
 | community, ext community, large community | `wire/attributes.md` |
 | NLRI, prefix, MP_REACH, MP_UNREACH | `core-design.md`, `wire/nlri.md` |
-| multiprotocol, AFI, SAFI | `wire/nlri.md`, `wire/capabilities.md` |
+| multiprotocol, AFI, SAFI, new family, new SAFI | `ai/patterns/bgp-family.md`, `wire/nlri.md`, `wire/capabilities.md` |
 | capability, OPEN, negotiate | `wire/capabilities.md` |
 | pool, memory, dedup, zero-copy, lifecycle | `ai/rules/memory-architecture.md`, `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
 | textbuf, string building, AppendTo, alloc-free | `ai/rules/no-sprintf-alloc.md`, `ai/rules/memory-architecture.md`, `internal/core/textbuf/` |

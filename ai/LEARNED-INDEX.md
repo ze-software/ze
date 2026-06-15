@@ -60,6 +60,7 @@ Buffer-first, zero-copy, attribute pools, UPDATE building, NLRI parsing.
 Registration, SDK, event flow, lifecycle, hook integration.
 
 - [253](plan/learned/253-nlri-plugin-extraction.md) -- NLRI codec extraction to plugins
+- [905](plan/learned/905-bgp-family-checklist.md) -- BGP family integration checklist: 12-section pattern from SR-Policy/PATHS-LIMIT/SRv6 post-mortem; BLOCKING gates in /ze-spec and /ze-implement
 - [757](plan/learned/757-typed-route-result.md) -- Typed RouteResult replaces map[string]any in update-route, eliminating int/float64 transport divergence
 - [781](plan/learned/781-remove-private-as.md) -- Remove-private-as: plugin intent + reactor wire rewrite; Set+Prepend composition
 - [806](plan/learned/806-install-1-dhcp-pxe.md) -- DHCP PXE extension: additive options in existing buildReply, server-wide pxeConfig, 1500-byte reply buffer, siaddr+option 66 dual-set for PXE ROM compat
