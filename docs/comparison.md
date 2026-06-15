@@ -60,6 +60,7 @@ Last updated: 2026-05-30
 | Long-Lived GR (RFC 9494) | Yes | Yes | Yes | No | No | Partial | Yes | No | No | Yes | Yes |
 | Notification GR (RFC 8538) | Yes | Yes | No | No | No | No | Yes | No | Yes | No | No |
 | Add-Path (RFC 7911) | Yes | Yes | Yes | Yes | Rx only | Yes | Yes | Yes | Yes | Yes | Yes |
+| Paths-Limit (draft-abraitis) | Yes | No | No | No | No | Yes | No | Yes | No | No | No |
 | Extended Messages (RFC 8654) | Yes | Yes | Yes | No | No | Yes | No | Yes | Yes | Yes | Yes |
 | Extended Nexthop (RFC 8950) | Yes | Yes | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |
 | Route Reflector (RFC 4456) | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |

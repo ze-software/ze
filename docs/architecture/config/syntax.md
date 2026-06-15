@@ -375,7 +375,6 @@ bgp {
                 link-local <ipv6>;
                 family { ... }
                 capability { ... }
-                add-path { ... }
             }
 
             # Behavior (operational knobs)
@@ -428,7 +427,7 @@ Peer configuration is organized into nested containers by concern.
 | `session { link-local; }` | IPv6 | IPv6 link-local address for MP_REACH_NLRI next-hop (RFC 2545) |
 | `session { family { ... } }` | list | Address families with per-family prefix enforcement |
 | `session { capability { ... } }` | container | BGP capabilities (see below) |
-| `session { add-path { ... } }` | list | Per-family ADD-PATH configuration |
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path inside capability container -->
 
 ### behavior (operational knobs)
 
@@ -501,19 +500,22 @@ capability {
 
 Each line is parsed as: `<family> <next-hop-afi> [<mode>]` where family is the list key, `next-hop-afi` is `ipv4` or `ipv6`, and mode defaults to `enable`.
 
-**ADD-PATH** -- trailing mode token (global or per-family):
+**ADD-PATH** -- unified block with default direction, per-family overrides, and PATHS-LIMIT:
 
 ```
 capability {
-    add-path send/receive require; # Global: require ADD-PATH for all families
-}
-add-path {
-    ipv4/unicast send require;     # Per-family: require ADD-PATH for IPv4 unicast
-    ipv6/unicast send/receive;     # Per-family: enable (no enforcement)
+    add-path {
+        direction send/receive;           # default for all families
+        limit 10;                         # default PATHS-LIMIT
+        family {
+            ipv4/unicast { mode require; } # per-family mode
+        }
+    }
 }
 ```
 
-The last token is interpreted as a mode if it matches `require`|`refuse`|`enable`|`disable`. Otherwise the existing direction parsing applies unchanged.
+The `direction` and `limit` on the container are inherited by all negotiated families. Per-family entries override direction, limit, or mode.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability container -->
 
 **Defaults:** ASN4 defaults to `enable`. All other capabilities are absent (opt-in) -- they only participate in negotiation when explicitly configured.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf asn4 default true -->
@@ -544,20 +546,27 @@ Block syntax is also supported: `ipv4 { unicast; multicast require; }`.
 
 ### ADD-PATH Section
 
-Structured inline list keyed by family:
+ADD-PATH and PATHS-LIMIT are configured inside `session > capability > add-path`:
 
 ```
-add-path {
-    ipv4/unicast;                    # Both send and receive (enable)
-    ipv4/unicast send;               # Send only (enable)
-    ipv4/unicast receive;            # Receive only (enable)
-    ipv4/unicast send require;       # Send only, reject peer if missing
-    ipv6/unicast send/receive refuse; # Refuse if peer has it
+capability {
+    add-path {
+        direction send/receive;      # default for all families
+        limit 10;                    # default PATHS-LIMIT (inherited)
+        family {
+            ipv4/unicast {
+                direction send;      # per-family override
+                limit 5;            # per-family limit override
+                mode require;       # reject peer if missing
+            }
+            ipv6/unicast             # inherits direction + limit from container
+        }
+    }
 }
 ```
 
-Each line is parsed as: `<family> [<direction>] [<mode>]` where family is the list key, direction is `send`, `receive`, or `send/receive` (default: `send/receive`), and mode defaults to `enable`.
-<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- list add-path, leaf direction, leaf mode -->
+The `direction` and `limit` leaves on the container apply to all negotiated families unless overridden per-family. Per-family `mode` supports `enable` (default), `require`, `refuse`, `disable`.
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container add-path, list family, leaf direction, leaf limit, leaf mode -->
 
 ### Process Section
 
