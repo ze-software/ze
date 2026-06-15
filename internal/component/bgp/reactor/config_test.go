@@ -542,6 +542,42 @@ func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 	assert.Equal(t, capability.AddPathSend, addPath.Families[0].Mode)
 }
 
+// TestParsePeerCapabilityPathsLimit verifies paths-limit capability from config.
+//
+// VALIDATES: add-path { family { ipv4/unicast { limit 10; } } } produces PathsLimit capability.
+// PREVENTS: PATHS-LIMIT capability not advertised when limit is configured.
+func TestParsePeerCapabilityPathsLimit(t *testing.T) {
+	tree := map[string]any{
+		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
+		"session": map[string]any{
+			"asn":    map[string]any{"remote": "65001"},
+			"family": map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
+			"capability": map[string]any{"add-path": map[string]any{
+				"direction": "send/receive",
+				"family":    map[string]any{"ipv4/unicast": map[string]any{"limit": "10"}},
+			}},
+		},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+
+	var addPath *capability.AddPath
+	var pathsLimit *capability.PathsLimit
+	for _, c := range ps.Capabilities {
+		if ap, ok := c.(*capability.AddPath); ok {
+			addPath = ap
+		}
+		if pl, ok := c.(*capability.PathsLimit); ok {
+			pathsLimit = pl
+		}
+	}
+	require.NotNil(t, addPath, "AddPath capability should be present")
+	require.NotNil(t, pathsLimit, "PathsLimit capability should be present")
+	require.Len(t, pathsLimit.Entries, 1)
+	assert.Equal(t, uint16(10), pathsLimit.Entries[0].Limit)
+}
+
 // TestParsePeerCapabilityExtendedNextHop verifies RFC 8950 extended next-hop parsing.
 //
 // VALIDATES: nexthop { ipv4/unicast ipv6; } creates ExtendedNextHop capability.
