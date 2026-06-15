@@ -155,6 +155,11 @@ func (s *Session) handleOpen(body []byte) error {
 		return err
 	}
 
+	// Validate per-family ADD-PATH required/refused.
+	if err := s.validateAddPathFamilyModes(conn, neg, s.settings.RequiredAddPathFamilies, s.settings.RefusedAddPathFamilies); err != nil {
+		return err
+	}
+
 	// Update FSM.
 	if err := s.fsm.Event(fsm.EventBGPOpen); err != nil {
 		return err

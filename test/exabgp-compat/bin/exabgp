@@ -33,16 +33,17 @@ _SSH_HASH = '$2a$04$7an2xuyUkE94D4FwxauYPOILpSYl08/IR3nqLIWWfprP5pcplMviu'
 
 def find_ze_binary() -> str:
     """Find the ze binary."""
-    # Check relative to this script first (development mode - local build takes priority)
     script_dir = Path(__file__).parent.parent.parent.parent
-    ze_path = script_dir / 'ze'
-    if ze_path.exists():
-        return str(ze_path)
 
-    # Check bin/ directory (make build output)
+    # Check bin/ directory first (make build output, always up to date)
     bin_path = script_dir / 'bin' / 'ze'
     if bin_path.exists():
         return str(bin_path)
+
+    # Fallback: root-level ze (may be stale)
+    ze_path = script_dir / 'ze'
+    if ze_path.exists():
+        return str(ze_path)
 
     # Fallback: check if ze is in PATH
     result = subprocess.run(['which', 'ze'], capture_output=True, text=True)

@@ -376,6 +376,11 @@ type PeerSettings struct {
 	// Unlike require, refuse checks against peer's raw capabilities, not negotiated intersection.
 	RefusedCapabilities []capability.Code
 
+	// RequiredAddPathFamilies are families that must have ADD-PATH negotiated.
+	RequiredAddPathFamilies []capability.Family
+	// RefusedAddPathFamilies are families that must NOT have ADD-PATH in peer's OPEN.
+	RefusedAddPathFamilies []capability.Family
+
 	// StaticRoutes are announced when session is established.
 	StaticRoutes []StaticRoute
 

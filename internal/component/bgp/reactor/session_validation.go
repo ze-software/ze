@@ -284,6 +284,37 @@ func (s *Session) validateCapabilityModes(conn net.Conn, neg *capability.Negotia
 	return nil
 }
 
+// validateAddPathFamilyModes checks per-family ADD-PATH required/refused against negotiation.
+func (s *Session) validateAddPathFamilyModes(conn net.Conn, neg *capability.Negotiated, required, refused []capability.Family) error {
+	if neg == nil {
+		return nil
+	}
+
+	for _, f := range required {
+		if neg.AddPathMode(f) != capability.AddPathNone {
+			continue
+		}
+		capData := buildUnsupportedCapabilityData([]capability.Family{f})
+		s.logNotifyErr(conn, message.NotifyOpenMessage, message.NotifyOpenUnsupportedCapability, capData)
+		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
+		s.closeConn()
+		return fmt.Errorf("%w: required ADD-PATH family not negotiated: %s", ErrInvalidState, f)
+	}
+
+	for _, f := range refused {
+		if neg.AddPathMode(f) == capability.AddPathNone {
+			continue
+		}
+		capData := buildUnsupportedCapabilityData([]capability.Family{f})
+		s.logNotifyErr(conn, message.NotifyOpenMessage, message.NotifyOpenUnsupportedCapability, capData)
+		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
+		s.closeConn()
+		return fmt.Errorf("%w: refused ADD-PATH family present in peer OPEN: %s", ErrInvalidState, f)
+	}
+
+	return nil
+}
+
 // buildUnsupportedCapabilityData builds NOTIFICATION data for Unsupported Capability.
 //
 // RFC 5492 Section 3: The Data field contains one or more capability tuples.

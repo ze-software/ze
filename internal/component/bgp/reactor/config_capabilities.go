@@ -309,6 +309,14 @@ func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
 				}
 			}
 
+			switch entry.mode {
+			case capModeRequire:
+				ps.RequiredAddPathFamilies = append(ps.RequiredAddPathFamilies, fam)
+			case capModeRefuse:
+				ps.RefusedAddPathFamilies = append(ps.RefusedAddPathFamilies, fam)
+			case capModeEnable, capModeDisable:
+			}
+
 			if entry.dir != capability.AddPathNone {
 				perFamily = append(perFamily, entry)
 			}
