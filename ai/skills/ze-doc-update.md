@@ -1,3 +1,8 @@
+---
+name: ze-doc-update
+description: Doc Update
+---
+
 # Doc Update
 
 Sync the wiki (`../wiki`) and in-tree docs (`docs/`) with all user-facing changes since the last documented commit.

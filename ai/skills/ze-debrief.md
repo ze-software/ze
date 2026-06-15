@@ -1,3 +1,8 @@
+---
+name: ze-debrief
+description: Debrief
+---
+
 # Debrief
 
 Summarize the current session state so the user can quickly understand where things stand.

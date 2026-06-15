@@ -1,3 +1,8 @@
+---
+name: ze-check
+description: Check
+---
+
 # Check
 
 Run completeness and health checks on uncommitted changes without preparing a commit.

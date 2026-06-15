@@ -1,3 +1,8 @@
+---
+name: ze-status
+description: Status
+---
+
 # Status
 
 Unified attention view across all project concerns. Shows what needs attention, with suggested next actions.

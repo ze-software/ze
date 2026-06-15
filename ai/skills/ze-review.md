@@ -1,3 +1,8 @@
+---
+name: ze-review
+description: Review For Issues
+---
+
 # Review For Issues
 
 Quick single-pass review (~2 min) for bugs, edge cases, security gaps, and missing tests in uncommitted changes.

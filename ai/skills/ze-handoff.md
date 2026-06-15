@@ -1,3 +1,8 @@
+---
+name: ze-handoff
+description: Handoff
+---
+
 # Handoff
 
 Generate a session handoff document for continuing work in a new session.

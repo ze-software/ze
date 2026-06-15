@@ -1,3 +1,8 @@
+---
+name: ze-review-deep
+description: Deep Review
+---
+
 # Deep Review
 
 Multi-agent code review. Spawns parallel focused agents, each reviewing a different aspect of the code changes. Use before merge or commit of significant work.

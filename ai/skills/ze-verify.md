@@ -1,3 +1,8 @@
+---
+name: ze-verify
+description: Verify
+---
+
 # Verify
 
 Run `make ze-verify` and report results clearly.

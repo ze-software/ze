@@ -1,3 +1,8 @@
+---
+name: ze-load
+description: Load Rules
+---
+
 # Load Rules
 
 Force-read all project rules, patterns, and context into the current session.

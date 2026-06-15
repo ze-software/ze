@@ -1,3 +1,8 @@
+---
+name: ze-extract
+description: Extract Go Symbols
+---
+
 # Extract Go Symbols
 
 Move Go symbols (functions, types, vars, consts) from one file to another.

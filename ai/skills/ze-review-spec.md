@@ -1,3 +1,8 @@
+---
+name: ze-review-spec
+description: Review Against Spec
+---
+
 # Review Against Spec
 
 Post-implementation verification: does the implementation match the spec? Every requirement, every test, every file.

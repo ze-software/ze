@@ -1,3 +1,8 @@
+---
+name: ze-hunt
+description: Hunt Known Bug Classes
+---
+
 # Hunt Known Bug Classes
 
 Sweep the whole tree (or a scoped path) for the recurring defect classes this

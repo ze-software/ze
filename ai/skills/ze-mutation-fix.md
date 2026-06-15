@@ -1,3 +1,8 @@
+---
+name: ze-mutation-fix
+description: Fix Surviving Mutations
+---
+
 # Fix Surviving Mutations
 
 Run mutation testing on a package, analyze surviving mutants, and either

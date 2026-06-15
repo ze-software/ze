@@ -1,3 +1,8 @@
+---
+name: ze-debug
+description: Debug Failing Tests
+---
+
 # Debug Failing Tests
 
 Investigate and fix test failures using parallel hypotheses.

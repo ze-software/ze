@@ -1,3 +1,8 @@
+---
+name: ze-rfc
+description: RFC Implementation Summary
+---
+
 # RFC Implementation Summary
 
 Generate a structured implementation summary from an RFC text file.

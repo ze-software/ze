@@ -1,3 +1,8 @@
+---
+name: ze-explore
+description: Explore Topic
+---
+
 # Explore Topic
 
 Find and read all files related to a topic before proposing any changes.

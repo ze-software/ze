@@ -1,3 +1,8 @@
+---
+name: ze-design
+description: Design Collaboration
+---
+
 # Design Collaboration
 
 Stress-test and refine a plan or design through structured, depth-first decision-making.

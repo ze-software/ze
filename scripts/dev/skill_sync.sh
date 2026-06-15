@@ -3,10 +3,10 @@
 # tool-specific directories.
 #
 # Skills:
-#   Canonical source: ai/skills/<name>.md
+#   Canonical source: ai/skills/<name>.md (has YAML frontmatter)
 #   Targets:
 #     .claude/skills/<name>/SKILL.md  -- verbatim copy
-#     .codex/skills/<name>/SKILL.md   -- YAML frontmatter added
+#     .codex/skills/<name>/SKILL.md   -- verbatim copy
 #     .agents/skills/<name>/SKILL.md  -- .claude/ paths replaced with .agents/
 #
 # CLAUDE.md / AGENTS.md:
@@ -39,29 +39,18 @@ esac
 # preserving repo-relative paths.
 generate_into() {
     local root="$1"
-    local src name first_line description
+    local src name
     for src in "$CANON_DIR"/*.md; do
         [ -f "$src" ] || continue
         name=$(basename "$src" .md)
-
-        # Extract first heading as description (strip # prefix)
-        first_line=$(head -1 "$src")
-        description="${first_line#\# }"
 
         # Claude: verbatim copy
         mkdir -p "$root/$CLAUDE_DIR/$name"
         cp "$src" "$root/$CLAUDE_DIR/$name/SKILL.md"
 
-        # Codex: add YAML frontmatter
+        # Codex: verbatim copy
         mkdir -p "$root/$CODEX_DIR/$name"
-        {
-            echo "---"
-            echo "name: $name"
-            echo "description: $description"
-            echo "---"
-            echo ""
-            cat "$src"
-        } > "$root/$CODEX_DIR/$name/SKILL.md"
+        cp "$src" "$root/$CODEX_DIR/$name/SKILL.md"
 
         # Agents (Codex CLI): replace .claude/ references with .agents/
         mkdir -p "$root/$AGENTS_DIR/$name"

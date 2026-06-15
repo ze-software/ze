@@ -1,3 +1,8 @@
+---
+name: ze-commit-check
+description: Scoped Commit with Verification
+---
+
 # Scoped Commit with Verification
 
 Prepare a user-run commit script with verification only when needed. Does NOT

@@ -1,3 +1,8 @@
+---
+name: ze-find-alloc
+description: Find Encoding Allocations
+---
+
 # Find Encoding Allocations
 
 Scan encoding paths for `make([]byte, ...)` allocations that should use buffer-writing instead.

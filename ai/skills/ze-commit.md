@@ -1,3 +1,8 @@
+---
+name: ze-commit
+description: Scoped Commit
+---
+
 # Scoped Commit
 
 Prepare a user-run commit script immediately. No verification, no health

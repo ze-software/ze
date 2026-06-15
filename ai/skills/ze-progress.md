@@ -1,3 +1,8 @@
+---
+name: ze-progress
+description: Progress
+---
+
 # Progress
 
 Check the lifecycle stage of the currently selected spec and recommend the single next action.

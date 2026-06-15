@@ -1,3 +1,8 @@
+---
+name: ze-spec
+description: Spec Workflow
+---
+
 # Spec Workflow
 
 Interactive spec creation and resumption with hard gates between phases.

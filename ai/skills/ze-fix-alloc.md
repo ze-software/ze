@@ -1,3 +1,8 @@
+---
+name: ze-fix-alloc
+description: Fix Encoding Allocation
+---
+
 # Fix Encoding Allocation
 
 Convert a `make([]byte, ...)` allocation to buffer-writing pattern.

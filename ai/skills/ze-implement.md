@@ -1,3 +1,8 @@
+---
+name: ze-implement
+description: Implement Spec
+---
+
 # Implement Spec
 
 Implement the selected spec end-to-end with built-in review loops.

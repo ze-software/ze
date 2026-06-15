@@ -1,3 +1,8 @@
+---
+name: ze-audit
+description: Spec Audit
+---
+
 # Spec Audit
 
 Audit the current codebase against the selected spec BEFORE implementation begins. Answers: **"What already exists? What's left to build?"**
