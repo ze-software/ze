@@ -12,6 +12,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
+const (
+	bridgeAttrNextHop = "next-hop"
+	bridgeAttrOrigin  = "origin"
+	bridgeFlowSAFI    = "flow"
+	bridgeFlowVPNSAFI = "flow-vpn"
+)
+
 // ExabgpToZebgpCommand converts an ExaBGP text command to ZeBGP format.
 //
 // ExaBGP: neighbor <ip> announce route <prefix> next-hop <nh> [origin <o>] ...
@@ -70,21 +77,21 @@ func convertAnnounce(peerIP, routeStr string) string {
 	attrs := parts[1:]
 
 	// Parse attributes
-	var cmdParts []string
-	cmdParts = append(cmdParts, "peer "+peerIP+" update text")
+	cmdParts := make([]string, 1, len(attrs)+2)
+	cmdParts[0] = "peer " + peerIP + " update text"
 
 	i := 0
 	for i < len(attrs) {
 		key := strings.ToLower(attrs[i])
 		switch key {
-		case "next-hop":
+		case bridgeAttrNextHop:
 			if i+1 < len(attrs) {
 				cmdParts = append(cmdParts, "nhop "+attrs[i+1])
 				i += 2
 			} else {
 				i++
 			}
-		case "origin":
+		case bridgeAttrOrigin:
 			if i+1 < len(attrs) {
 				cmdParts = append(cmdParts, "origin "+strings.ToLower(attrs[i+1]))
 				i += 2
@@ -181,14 +188,17 @@ func convertAnnounceFamily(peerIP, rest string) string {
 		return convertAnnounceSRPolicy(peerIP, afi, match[2])
 	}
 
-	familyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flowspec)\s+(.+)$`)
+	familyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flow|flowspec|flow-vpn|flowspec-vpn)\s+(.+)$`)
 	match := familyRE.FindStringSubmatch(rest)
 	if match != nil {
 		afi := strings.ToLower(match[1])
-		safi := strings.ToLower(match[2])
+		safi := canonicalExabgpSAFI(strings.ToLower(match[2]))
 		routeStr := match[3]
 		var tb textbuf.Buffer
 		fam := tb.Str(afi).Byte('/').Str(safi).String()
+		if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
+			return convertAnnounceFlowSpec(peerIP, fam, routeStr)
+		}
 		return convertAnnounceWithFamily(peerIP, fam, routeStr)
 	}
 
@@ -206,14 +216,18 @@ func convertWithdrawFamily(peerIP, rest string) string {
 		return convertWithdrawSRPolicy(peerIP, afi, match[2])
 	}
 
-	familyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flowspec)\s+(.+)$`)
+	familyRE := regexp.MustCompile(`(?i)^(ipv[46])\s+(unicast|multicast|nlri-mpls|flow|flowspec|flow-vpn|flowspec-vpn)\s+(.+)$`)
 	match := familyRE.FindStringSubmatch(rest)
 	var tb textbuf.Buffer
 	if match != nil {
 		afi := strings.ToLower(match[1])
-		safi := strings.ToLower(match[2])
-		prefix := strings.Fields(match[3])[0]
+		safi := canonicalExabgpSAFI(strings.ToLower(match[2]))
+		routeStr := match[3]
 		fam := tb.Str(afi).Byte('/').Str(safi).String()
+		if safi == bridgeFlowSAFI || safi == bridgeFlowVPNSAFI {
+			return convertWithdrawFlowSpec(peerIP, fam, routeStr)
+		}
+		prefix := strings.Fields(routeStr)[0]
 		return tb.Reset().Str("peer ").Str(peerIP).Str(" update text nlri ").Str(fam).Str(" del ").Str(prefix).String()
 	}
 
@@ -272,6 +286,207 @@ func convertWithdrawSRPolicy(peerIP, afi, rest string) string {
 	var tb textbuf.Buffer
 	tb.Str("peer ").Str(peerIP).Str(" update text nlri ").Str(afi).Str("/sr-policy del ").Str(rest)
 	return tb.String()
+}
+
+func canonicalExabgpSAFI(safi string) string {
+	switch safi {
+	case "flowspec":
+		return "flow"
+	case "flowspec-vpn":
+		return "flow-vpn"
+	default:
+		return safi
+	}
+}
+
+func convertAnnounceFlowSpec(peerIP, family, routeStr string) string {
+	fam, attrs, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
+	cmdParts := make([]string, 1, len(attrs)+2)
+	cmdParts[0] = "peer " + peerIP + " update text"
+	cmdParts = append(cmdParts, attrs...)
+
+	var nlriPart textbuf.Buffer
+	nlriPart.Str("nlri ").Str(fam).Str(" add")
+	if rd != "" {
+		nlriPart.Str(" rd ").Str(rd)
+	}
+	if nlri != "" {
+		nlriPart.Byte(' ').Str(nlri)
+	}
+	cmdParts = append(cmdParts, nlriPart.String())
+	return textbuf.Join(cmdParts, " ")
+}
+
+func convertWithdrawFlowSpec(peerIP, family, routeStr string) string {
+	fam, _, rd, nlri := parseFlowSpecBridgeRoute(family, routeStr)
+	var tb textbuf.Buffer
+	tb.Str("peer ").Str(peerIP).Str(" update text nlri ").Str(fam).Str(" del")
+	if rd != "" {
+		tb.Str(" rd ").Str(rd)
+	}
+	if nlri != "" {
+		tb.Byte(' ').Str(nlri)
+	}
+	return tb.String()
+}
+
+func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string, string) {
+	parts := strings.Fields(strings.TrimSpace(routeStr))
+	attrs := make([]string, 0, 4)
+	nlri := make([]string, 0, len(parts))
+	rd := ""
+	fam := family
+	currentComponent := ""
+	inList := false
+
+	for i := 0; i < len(parts); {
+		key := strings.ToLower(parts[i])
+		switch key {
+		case bridgeAttrNextHop:
+			if i+1 < len(parts) {
+				attrs = append(attrs, "nhop "+parts[i+1])
+				i += 2
+			} else {
+				i++
+			}
+		case bridgeAttrOrigin:
+			if i+1 < len(parts) {
+				attrs = append(attrs, "origin "+strings.ToLower(parts[i+1]))
+				i += 2
+			} else {
+				i++
+			}
+		case "community", "large-community", "extended-community":
+			if i+1 < len(parts) {
+				value, next := collectBridgeAttrValue(parts, i+1)
+				if key == "extended-community" {
+					value = normalizeFlowSpecExtCommunityValue(value)
+				}
+				attrs = append(attrs, key+" "+value)
+				i = next
+			} else {
+				i++
+			}
+		case "rd":
+			if i+1 < len(parts) {
+				rd = parts[i+1]
+				fam = flowSpecVPNFamily(fam)
+				i += 2
+			} else {
+				i++
+			}
+		default:
+			token := normalizeFlowSpecComponentToken(fam, parts[i])
+			if isFlowSpecComponentKeyword(token) {
+				currentComponent = strings.ToLower(token)
+				nlri = append(nlri, token)
+			} else {
+				nlri = append(nlri, normalizeFlowSpecComponentValue(currentComponent, token))
+				switch {
+				case strings.Contains(parts[i], "[") && !strings.Contains(parts[i], "]"):
+					inList = true
+				case strings.Contains(parts[i], "]"):
+					inList = false
+					currentComponent = ""
+				case !inList:
+					currentComponent = ""
+				}
+			}
+			i++
+		}
+	}
+
+	return fam, attrs, rd, textbuf.Join(nlri, " ")
+}
+
+func isFlowSpecComponentKeyword(token string) bool {
+	switch strings.ToLower(token) {
+	case "destination", "destination-ipv6", "source", "source-ipv6",
+		"protocol", "next-header", "port", "destination-port", "source-port",
+		"icmp-type", "icmp-code", "tcp-flags", "packet-length", "dscp",
+		"fragment", "traffic-class", "flow-label":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeFlowSpecComponentValue(component, token string) string {
+	switch component {
+	case "protocol", "next-header":
+		return strings.TrimPrefix(token, "=")
+	default:
+		return token
+	}
+}
+
+func flowSpecVPNFamily(family string) string {
+	if strings.HasPrefix(family, "ipv6/") {
+		return "ipv6/flow-vpn"
+	}
+	return "ipv4/flow-vpn"
+}
+
+func collectBridgeAttrValue(parts []string, start int) (string, int) {
+	if start >= len(parts) {
+		return "", start
+	}
+	if strings.Contains(parts[start], "[") && !strings.Contains(parts[start], "]") {
+		valueParts := []string{parts[start]}
+		i := start + 1
+		for i < len(parts) {
+			valueParts = append(valueParts, parts[i])
+			if strings.Contains(parts[i], "]") {
+				return textbuf.Join(valueParts, " "), i + 1
+			}
+			i++
+		}
+		return textbuf.Join(valueParts, " "), i
+	}
+	return parts[start], start + 1
+}
+
+func normalizeFlowSpecExtCommunityValue(value string) string {
+	if value == "" {
+		return value
+	}
+	if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
+		inner := strings.TrimSpace(value[1 : len(value)-1])
+		if inner == "" {
+			return value
+		}
+		fields := strings.Fields(inner)
+		for i := range fields {
+			fields[i] = normalizeFlowSpecExtCommunityToken(fields[i])
+		}
+		return "[" + textbuf.Join(fields, " ") + "]"
+	}
+	return normalizeFlowSpecExtCommunityToken(value)
+}
+
+func normalizeFlowSpecExtCommunityToken(value string) string {
+	if rate, ok := strings.CutPrefix(value, "rate-limit-packets:"); ok {
+		var tb textbuf.Buffer
+		return tb.Str("rate-limit:").Str(rate).Str(":packets").String()
+	}
+	if strings.HasSuffix(value, ":bytes") && strings.HasPrefix(value, "rate-limit:") {
+		return strings.TrimSuffix(value, ":bytes")
+	}
+	return value
+}
+
+func normalizeFlowSpecComponentToken(family, token string) string {
+	switch strings.ToLower(token) {
+	case "source-ipv4":
+		if strings.HasPrefix(family, "ipv4/") {
+			return "source"
+		}
+	case "destination-ipv4":
+		if strings.HasPrefix(family, "ipv4/") {
+			return "destination"
+		}
+	}
+	return token
 }
 
 func convertAnnounceWithFamily(peerIP, family, routeStr string) string {

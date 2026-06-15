@@ -187,7 +187,21 @@ func parseFlowSpecRoute(name string, route *config.Tree) FlowSpecRouteConfig {
 			case "discard":
 				extComms = append(extComms, "discard")
 			case "rate-limit":
-				extComms = append(extComms, "rate-limit:"+value)
+				rate, unit, hasUnit := strings.Cut(value, " ")
+				if hasUnit {
+					switch unit {
+					case "packets":
+						extComms = append(extComms, "rate-limit:"+rate+":packets")
+					case "bytes":
+						extComms = append(extComms, "rate-limit:"+rate)
+					default:
+						extComms = append(extComms, "rate-limit:"+value)
+					}
+				} else {
+					extComms = append(extComms, "rate-limit:"+value)
+				}
+			case "rate-limit-packets":
+				extComms = append(extComms, "rate-limit:"+value+":packets")
 			case "redirect":
 				extComms = append(extComms, "redirect:"+value)
 			case "redirect-to-nexthop-draft":

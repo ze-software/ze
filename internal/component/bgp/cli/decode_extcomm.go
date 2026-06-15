@@ -6,6 +6,9 @@ package cli
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // parseExtendedCommunities parses extended communities (type 16).
@@ -26,9 +29,11 @@ func parseExtendedCommunities(data []byte) []map[string]any {
 		// Parse based on type
 		switch {
 		case typeHigh == 0x80 && typeLow == 0x06:
-			// Traffic-rate (FlowSpec)
-			rate := binary.BigEndian.Uint32(data[4:8])
-			comm["string"] = fmt.Sprintf("rate-limit:%d", rate)
+			// RFC 8955 Section 7.1: Traffic-rate-bytes uses a 4-octet IEEE float.
+			comm["string"] = formatFlowSpecTrafficRate("rate-limit", "", data[4:8])
+		case typeHigh == 0x80 && typeLow == 0x0c:
+			// RFC 8955 Section 7.2: Traffic-rate-packets uses the same encoding as traffic-rate-bytes.
+			comm["string"] = formatFlowSpecTrafficRate("rate-limit", "packets", data[4:8])
 		case typeHigh == 0x80 && typeLow == 0x07:
 			// Traffic-action (FlowSpec)
 			comm["string"] = "traffic-action"
@@ -61,4 +66,18 @@ func parseExtendedCommunities(data []byte) []map[string]any {
 	}
 
 	return comms
+}
+
+func formatFlowSpecTrafficRate(name, unit string, data []byte) string {
+	rate := math.Float32frombits(binary.BigEndian.Uint32(data))
+	// RFC 8955 Section 7.1/7.2: negative decoded rates MUST be treated as zero.
+	if rate < 0 || math.IsNaN(float64(rate)) {
+		rate = 0
+	}
+	var tb textbuf.Buffer
+	tb.Str(name).Byte(':').Uint(uint64(rate))
+	if unit != "" {
+		tb.Byte(':').Str(unit)
+	}
+	return tb.String()
 }

@@ -419,9 +419,30 @@ func TestExtendedCommunities(t *testing.T) {
 		},
 		{
 			name: "traffic_rate_1000",
-			data: []byte{0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x03, 0xE8},
+			data: []byte{0x80, 0x06, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00},
 			want: []map[string]any{
-				{"value": uint64(9225060886715040744), "string": "rate-limit:1000"},
+				{"value": uint64(9225060887863885824), "string": "rate-limit:1000"},
+			},
+		},
+		{
+			name: "traffic_rate_negative_clamped",
+			data: []byte{0x80, 0x06, 0x00, 0x00, 0xbf, 0xc0, 0x00, 0x00},
+			want: []map[string]any{
+				{"value": uint64(9225060889932070912), "string": "rate-limit:0"},
+			},
+		},
+		{
+			name: "traffic_rate_packets_1000",
+			data: []byte{0x80, 0x0c, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00},
+			want: []map[string]any{
+				{"value": uint64(9226749737724149760), "string": "rate-limit:1000:packets"},
+			},
+		},
+		{
+			name: "traffic_rate_packets_negative_clamped",
+			data: []byte{0x80, 0x0c, 0x00, 0x00, 0xbf, 0xc0, 0x00, 0x00},
+			want: []map[string]any{
+				{"value": uint64(9226749739792334848), "string": "rate-limit:0:packets"},
 			},
 		},
 		{
@@ -533,6 +554,32 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 
 	comm, _ := extComm[0].(map[string]any) //nolint:forcetypeassert // test
 	assert.Equal(t, "rate-limit:0", comm["string"])
+}
+
+// TestFlowSpecWithPacketRateExtendedCommunity verifies RFC 8955 traffic-rate-packets decode.
+//
+// VALIDATES: FlowSpec UPDATE with subtype 0x0c produces rate-limit unit JSON.
+//
+// PREVENTS: ExaBGP bridge JSON losing RFC 8955 packet-rate actions.
+func TestFlowSpecWithPacketRateExtendedCommunity(t *testing.T) {
+	hexInput := "0000002E4001010040020040050400000064C01008800C0000447A0000800E1200018500000C02180A000103810605910C38"
+
+	output, err := DecodeHexPacket(hexInput, "update", "ipv4/flow", true)
+	require.NoError(t, err, "decode failed")
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
+
+	bgp, _ := result["bgp"].(map[string]any)    //nolint:forcetypeassert // test
+	update, _ := bgp["update"].(map[string]any) //nolint:forcetypeassert // test
+	attrs, _ := update["attr"].(map[string]any) //nolint:forcetypeassert // test
+
+	ecWrapped, _ := attrs["extended-community"].(map[string]any) //nolint:forcetypeassert // test
+	extComm, _ := ecWrapped["value"].([]any)                     //nolint:forcetypeassert // test
+	require.Len(t, extComm, 1, "extended-community count")
+
+	comm, _ := extComm[0].(map[string]any) //nolint:forcetypeassert // test
+	assert.Equal(t, "rate-limit:1000:packets", comm["string"])
 }
 
 // =============================================================================

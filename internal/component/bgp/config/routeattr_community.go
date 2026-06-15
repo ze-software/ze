@@ -17,6 +17,13 @@ import (
 
 var err4ByteAsnWithIpValue = errors.New("4-byte ASN with IP value not supported")
 
+const (
+	flowSpecRateLimitName        = "rate-limit"
+	flowSpecRateLimitPacketsName = "rate-limit-packets"
+	flowSpecPacketsUnit          = "packets"
+	flowSpecBytesUnit            = "bytes"
+)
+
 // Community represents standard BGP communities (RFC 1997).
 // Each community is 4 bytes: high 16 bits = ASN, low 16 bits = value.
 type Community struct {
@@ -192,7 +199,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 // Supports formats:
 //   - Hex format: 0x0002fde800000001 (16 hex chars = 8 bytes wire format)
 //   - Named format: target:ASN:NN, origin:ASN:NN
-//   - FlowSpec actions: rate-limit:N, redirect-to-nexthop-draft, copy-to-nexthop, mark N
+//   - FlowSpec actions: rate-limit:N, rate-limit:N:packets, rate-limit-packets:N, redirect-to-nexthop-draft, copy-to-nexthop, mark N
 //   - Generic format: ASN:NN, IP:NN
 func parseOneExtCommunity(s string) ([]byte, error) {
 	// Check for hex format (0x prefix, no colons)
@@ -216,9 +223,22 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 	// Format: [type:]value1:value2
 	parts := strings.Split(s, ":")
 
-	// FlowSpec rate-limit:N format.
-	if len(parts) == 2 && parts[0] == "rate-limit" {
+	// FlowSpec rate-limit:N, rate-limit:N:packets, and legacy rate-limit-packets:N formats.
+	if len(parts) == 2 && parts[0] == flowSpecRateLimitPacketsName {
+		return parseFlowSpecRateLimitWithSubtype(parts[1], 0x0c)
+	}
+	if len(parts) == 2 && parts[0] == flowSpecRateLimitName {
 		return parseFlowSpecRateLimit(parts[1])
+	}
+	if len(parts) == 3 && parts[0] == flowSpecRateLimitName {
+		switch parts[2] {
+		case flowSpecPacketsUnit:
+			return parseFlowSpecRateLimitWithSubtype(parts[1], 0x0c)
+		case flowSpecBytesUnit:
+			return parseFlowSpecRateLimitWithSubtype(parts[1], 0x06)
+		default:
+			return nil, fmt.Errorf("unknown rate-limit unit %q", parts[2])
+		}
 	}
 
 	if len(parts) == 2 {
@@ -512,18 +532,40 @@ func parseRouteTargetOrOrigin4(subtype byte, asnStr, numStr string) ([]byte, err
 	}, nil
 }
 
-// parseFlowSpecRateLimit parses rate-limit:N format for FlowSpec (RFC 5575).
-// Traffic Rate extended community: type 0x80, subtype 0x06.
-// Value is a 4-byte IEEE float for rate in bytes/second.
+// parseFlowSpecRateLimit parses rate-limit:N and rate-limit:N:packets formats for FlowSpec.
+// RFC 8955 Section 7.1: Traffic Rate extended community: type 0x80, subtype 0x06.
+// RFC 8955 Section 7.2: Traffic Rate Packets extended community: type 0x80, subtype 0x0c.
+// Value is a 4-byte IEEE float for rate in bytes/second or packets/second.
 func parseFlowSpecRateLimit(rateStr string) ([]byte, error) {
+	rate, unit, hasUnit := strings.Cut(rateStr, ":")
+	if hasUnit {
+		switch unit {
+		case flowSpecPacketsUnit:
+			return parseFlowSpecRateLimitWithSubtype(rate, 0x0c)
+		case flowSpecBytesUnit:
+			return parseFlowSpecRateLimitWithSubtype(rate, 0x06)
+		default:
+			return nil, fmt.Errorf("unknown rate-limit unit %q", unit)
+		}
+	}
+	return parseFlowSpecRateLimitWithSubtype(rate, 0x06)
+}
+
+func parseFlowSpecRateLimitWithSubtype(rateStr string, subtype byte) ([]byte, error) {
 	rate, err := strconv.ParseFloat(rateStr, 32)
 	if err != nil {
-		return nil, fmt.Errorf("invalid rate-limit value %q: %w", rateStr, err)
+		return nil, fmt.Errorf("invalid %s value %q: %w", flowSpecRateLimitName, rateStr, err)
 	}
+	// RFC 8955 Section 7.1: "On encoding, the traffic-rate MUST NOT be negative."
+	// RFC 8955 Section 7.2: "On encoding, the traffic-rate-packets MUST NOT be negative."
+	if rate < 0 {
+		return nil, fmt.Errorf("%s must not be negative: %s", flowSpecRateLimitName, rateStr)
+	}
+
 	// Convert to IEEE 754 single-precision float (4 bytes)
 	bits := math.Float32bits(float32(rate))
 	return []byte{
-		0x80, 0x06, // Type: Traffic Rate
+		0x80, subtype, // Type: Traffic Rate variant
 		0x00, 0x00, // AS number (informational, usually 0)
 		byte(bits >> 24), byte(bits >> 16), byte(bits >> 8), byte(bits),
 	}, nil

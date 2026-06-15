@@ -1129,6 +1129,23 @@ func TestParseExtendedCommunity(t *testing.T) {
 			input: "rate-limit:1250000000",
 			want:  [8]byte{0x80, 0x06, 0x00, 0x00, 0x4E, 0x95, 0x02, 0xF9}, // Rate as IEEE 754 float
 		},
+		{
+			name:  "rate-limit bytes unit",
+			input: "rate-limit:1250000000:bytes",
+			want:  [8]byte{0x80, 0x06, 0x00, 0x00, 0x4E, 0x95, 0x02, 0xF9}, // Explicit bytes unit matches bare byte-rate wire format
+		},
+		// Traffic rate in packets (RFC 8955 Section 7.2)
+		// Type 0x80, Subtype 0x0c: packet rate in IEEE 754 float
+		{
+			name:  "rate-limit packets unit",
+			input: "rate-limit:1000:packets",
+			want:  [8]byte{0x80, 0x0c, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00}, // Packet rate as IEEE 754 float
+		},
+		{
+			name:  "rate-limit-packets legacy alias",
+			input: "rate-limit-packets:1000",
+			want:  [8]byte{0x80, 0x0c, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00}, // Packet rate as IEEE 754 float
+		},
 
 		// Invalid cases
 		{
@@ -1201,6 +1218,84 @@ func TestParseExtendedCommunities(t *testing.T) {
 			}
 			if len(comms) != tt.wantCount {
 				t.Errorf("ParseExtendedCommunities(%v) count = %d, want %d", tt.args, len(comms), tt.wantCount)
+			}
+		})
+	}
+}
+
+// TestParseExtendedCommunitiesTrafficRatePackets verifies RFC 8955 rate-limit unit parsing.
+//
+// VALIDATES: traffic-rate unit syntax plus ExaBGP 5.0 aliases encode the correct FlowSpec subtype.
+// PREVENTS: ExaBGP FlowSpec unit-qualified rate limits being rejected or encoded with the wrong rate type.
+func TestParseExtendedCommunitiesTrafficRatePackets(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		want         attribute.ExtendedCommunity
+		wantConsumed int
+		wantErr      bool
+	}{
+		{
+			name:         "list packet syntax",
+			args:         []string{"[rate-limit:1000:packets]"},
+			want:         attribute.ExtendedCommunity{0x80, 0x0c, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00},
+			wantConsumed: 1,
+		},
+		{
+			name:         "list bytes syntax",
+			args:         []string{"[rate-limit:1000:bytes]"},
+			want:         attribute.ExtendedCommunity{0x80, 0x06, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00},
+			wantConsumed: 1,
+		},
+		{
+			name:         "legacy list syntax",
+			args:         []string{"[rate-limit-packets:1000]"},
+			want:         attribute.ExtendedCommunity{0x80, 0x0c, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00},
+			wantConsumed: 1,
+		},
+		{
+			name:         "function bytes syntax",
+			args:         []string{"traffic-rate", "65000", "1000", "bytes"},
+			want:         attribute.ExtendedCommunity{0x80, 0x06, 0xfd, 0xe8, 0x44, 0x7a, 0x00, 0x00},
+			wantConsumed: 4,
+		},
+		{
+			name:         "function packet syntax",
+			args:         []string{"traffic-rate", "65000", "1000", "packets"},
+			want:         attribute.ExtendedCommunity{0x80, 0x0c, 0xfd, 0xe8, 0x44, 0x7a, 0x00, 0x00},
+			wantConsumed: 4,
+		},
+		{
+			name:         "legacy function syntax",
+			args:         []string{"traffic-rate-packets", "65000", "1000"},
+			want:         attribute.ExtendedCommunity{0x80, 0x0c, 0xfd, 0xe8, 0x44, 0x7a, 0x00, 0x00},
+			wantConsumed: 3,
+		},
+		{
+			name:    "negative packet rate",
+			args:    []string{"traffic-rate", "0", "-1", "packets"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			comms, consumed, err := ParseExtendedCommunities(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseExtendedCommunities(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			if consumed != tt.wantConsumed {
+				t.Errorf("ParseExtendedCommunities(%v) consumed = %d, want %d", tt.args, consumed, tt.wantConsumed)
+			}
+			if len(comms) != 1 {
+				t.Fatalf("ParseExtendedCommunities(%v) count = %d, want 1", tt.args, len(comms))
+			}
+			if comms[0] != tt.want {
+				t.Errorf("ParseExtendedCommunities(%v) = %x, want %x", tt.args, comms[0], tt.want)
 			}
 		})
 	}
@@ -1427,6 +1522,21 @@ func TestParseFlowSpecArgs_InvalidKeywords(t *testing.T) {
 		{
 			name:    "valid then rate-limit",
 			args:    strings.Fields("match destination 10.0.0.0/24 then rate-limit 1000000"),
+			wantErr: false,
+		},
+		{
+			name:    "valid then rate-limit packets unit",
+			args:    strings.Fields("match destination 10.0.0.0/24 then rate-limit 1000 packets"),
+			wantErr: false,
+		},
+		{
+			name:    "valid then rate-limit bytes unit",
+			args:    strings.Fields("match destination 10.0.0.0/24 then rate-limit 1000 bytes"),
+			wantErr: false,
+		},
+		{
+			name:    "valid then rate-limit-packets legacy alias",
+			args:    strings.Fields("match destination 10.0.0.0/24 then rate-limit-packets 1000"),
 			wantErr: false,
 		},
 

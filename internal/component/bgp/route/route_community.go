@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	errTrafficRateRequiresAsnRate = errors.New("traffic-rate requires <asn> <rate>")
+	errTrafficRateRequiresAsnRate = errors.New("traffic-rate requires <asn> <rate> [bytes|packets]")
 	errRedirectRequiresAsnTarget  = errors.New("redirect requires <asn> <target>")
 	errTrafficMarkingRequiresDscp = errors.New("traffic-marking requires <dscp>")
 	errEmptyExtendedCommunity     = errors.New("empty extended community")
@@ -73,10 +73,11 @@ func parseLargeCommunities(args []string) ([]bgptypes.LargeCommunity, int, error
 //   - origin:ASN:IP (Type 0x00, Subtype 0x03) - 2-byte ASN + IPv4
 //   - origin:IP:ASN (Type 0x01, Subtype 0x03) - IPv4 + 2-byte ASN
 //   - redirect:ASN:target (Type 0x80, Subtype 0x08) - Traffic redirect
-//   - rate-limit:bps (Type 0x80, Subtype 0x06) - Traffic rate limit
+//   - rate-limit:bps (Type 0x80, Subtype 0x06) - Traffic rate limit in bytes/sec
+//   - rate-limit:bps:packets (Type 0x80, Subtype 0x0c) - Traffic rate limit in packets/sec
 //
-// Function format types (RFC 5575 FlowSpec actions):
-//   - traffic-rate <asn> <rate> - Rate limit in bytes/sec
+// Function format types (RFC 8955 FlowSpec actions):
+//   - traffic-rate <asn> <rate> [bytes|packets] - Rate limit in bytes/sec or packets/sec
 //   - discard - Sugar for traffic-rate 0 0
 //   - redirect <asn> <target> - Redirect to VRF
 //   - traffic-marking <dscp> - Set DSCP value
@@ -90,6 +91,8 @@ func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int
 	switch firstToken {
 	case "traffic-rate":
 		return parseTrafficRateFunction(args)
+	case "traffic-rate-packets":
+		return parseTrafficRatePacketsFunction(args)
 	case "discard":
 		return parseDiscardFunction()
 	case "redirect":
@@ -112,9 +115,10 @@ func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int
 	return comms, consumed, nil
 }
 
-// parseTrafficRateFunction parses: traffic-rate <asn> <rate>
-// RFC 5575 Section 7.2: Traffic-rate action (Type 0x80, Subtype 0x06).
-// Format: 2-byte ASN + 4-byte IEEE 754 float (rate in bytes/sec).
+// parseTrafficRateFunction parses: traffic-rate <asn> <rate> [bytes|packets]
+// RFC 8955 Section 7.1: Traffic-rate-bytes action (Type 0x80, Subtype 0x06).
+// RFC 8955 Section 7.2: Traffic-rate-packets action (Type 0x80, Subtype 0x0c).
+// Format: 2-byte ASN + 4-byte IEEE 754 float.
 // Rate of 0 means discard (drop all matching traffic).
 func parseTrafficRateFunction(args []string) ([]attribute.ExtendedCommunity, int, error) {
 	if len(args) < 3 {
@@ -126,19 +130,40 @@ func parseTrafficRateFunction(args []string) ([]attribute.ExtendedCommunity, int
 		return nil, 0, fmt.Errorf("invalid ASN in traffic-rate: %s", args[1])
 	}
 
-	rate, err := strconv.ParseFloat(args[2], 32)
-	if err != nil {
-		return nil, 0, fmt.Errorf("invalid rate in traffic-rate: %s", args[2])
+	subtype := byte(0x06)
+	consumed := 3
+	if len(args) > 3 {
+		switch strings.ToLower(args[3]) {
+		case "bytes":
+			consumed = 4
+		case "packets":
+			subtype = 0x0c
+			consumed = 4
+		}
 	}
 
-	bits := math.Float32bits(float32(rate))
+	bits, err := parseFlowSpecTrafficRateBits(args[2], "traffic-rate")
+	if err != nil {
+		return nil, 0, err
+	}
+
 	ec := attribute.ExtendedCommunity{
-		0x80, 0x06, // Type=0x80 (transitive), Subtype=0x06 (traffic-rate)
+		0x80, subtype, // Type=0x80 (transitive), Subtype=traffic-rate variant
 		byte(asn >> 8), byte(asn), // 2-byte ASN
 		byte(bits >> 24), byte(bits >> 16), byte(bits >> 8), byte(bits), // IEEE 754 float
 	}
 
-	return []attribute.ExtendedCommunity{ec}, 3, nil
+	return []attribute.ExtendedCommunity{ec}, consumed, nil
+}
+
+// parseTrafficRatePacketsFunction accepts ExaBGP 5.0 packet-rate function spelling.
+func parseTrafficRatePacketsFunction(args []string) ([]attribute.ExtendedCommunity, int, error) {
+	if len(args) < 3 {
+		return nil, 0, errTrafficRateRequiresAsnRate
+	}
+	aliasArgs := []string{"traffic-rate", args[1], args[2], "packets"}
+	comms, _, err := parseTrafficRateFunction(aliasArgs)
+	return comms, 3, err
 }
 
 // parseDiscardFunction parses: discard
@@ -216,6 +241,7 @@ func parseTrafficMarkingFunction(args []string) ([]attribute.ExtendedCommunity, 
 //   - origin:IP:ASN     -> Type 0x01, Subtype 0x03 (4-byte IP + 2-byte ASN)
 //   - redirect:ASN:target -> Type 0x80, Subtype 0x08 (2-byte ASN + 4-byte target)
 //   - rate-limit:bps    -> Type 0x80, Subtype 0x06 (IEEE 754 float rate)
+//   - rate-limit:pps:packets -> Type 0x80, Subtype 0x0c (IEEE 754 float rate)
 func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	if s == "" {
 		return attribute.ExtendedCommunity{}, errEmptyExtendedCommunity
@@ -239,6 +265,8 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 		return parseRedirectExtCommunity(value)
 	case "rate-limit":
 		return parseRateLimitExtCommunity(value)
+	case "rate-limit-packets":
+		return parseRateLimitExtCommunityWithSubtype(value, 0x0c)
 	default:
 		return attribute.ExtendedCommunity{}, fmt.Errorf("unknown extended community type: %s", typePrefix)
 	}
@@ -349,21 +377,50 @@ func parseRedirectExtCommunity(value string) (attribute.ExtendedCommunity, error
 }
 
 // parseRateLimitExtCommunity parses FlowSpec rate-limit extended community.
-// RFC 5575: Traffic rate limiting.
-// Format: rate-limit:bps (Type 0x80, Subtype 0x06)
+// RFC 8955 Section 7.1: Traffic rate limiting in bytes per second.
+// RFC 8955 Section 7.2: Traffic rate limiting in packets per second.
+// Formats:
+//   - rate-limit:bps (Type 0x80, Subtype 0x06)
+//   - rate-limit:pps:packets (Type 0x80, Subtype 0x0c)
+//
 // The rate is encoded as an IEEE 754 single-precision float.
 func parseRateLimitExtCommunity(value string) (attribute.ExtendedCommunity, error) {
-	rate, err := strconv.ParseFloat(value, 32)
+	rate, unit, hasUnit := strings.Cut(value, ":")
+	if hasUnit {
+		switch {
+		case strings.EqualFold(unit, "packets"):
+			return parseRateLimitExtCommunityWithSubtype(rate, 0x0c)
+		case strings.EqualFold(unit, "bytes"):
+			return parseRateLimitExtCommunityWithSubtype(rate, 0x06)
+		default:
+			return attribute.ExtendedCommunity{}, fmt.Errorf("unknown rate-limit unit: %s", unit)
+		}
+	}
+	return parseRateLimitExtCommunityWithSubtype(rate, 0x06)
+}
+
+func parseRateLimitExtCommunityWithSubtype(value string, subtype byte) (attribute.ExtendedCommunity, error) {
+	bits, err := parseFlowSpecTrafficRateBits(value, "rate-limit")
 	if err != nil {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid rate in rate-limit: %s", value)
+		return attribute.ExtendedCommunity{}, err
 	}
 
-	// Convert to IEEE 754 single-precision float (4 bytes)
-	bits := math.Float32bits(float32(rate))
-
 	return attribute.ExtendedCommunity{
-		0x80, 0x06, // Type=0x80, Subtype=0x06 (Rate Limit)
-		0x00, 0x00, // Reserved bytes
+		0x80, subtype, // Type=0x80, Subtype=traffic-rate variant
+		0x00, 0x00, // AS number 0
 		byte(bits >> 24), byte(bits >> 16), byte(bits >> 8), byte(bits), // IEEE 754 float
 	}, nil
+}
+
+func parseFlowSpecTrafficRateBits(value, name string) (uint32, error) {
+	rate, err := strconv.ParseFloat(value, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid rate in %s: %s", name, value)
+	}
+	// RFC 8955 Section 7.1: "On encoding, the traffic-rate MUST NOT be negative."
+	// RFC 8955 Section 7.2: "On encoding, the traffic-rate-packets MUST NOT be negative."
+	if rate < 0 {
+		return 0, fmt.Errorf("%s must not be negative: %s", name, value)
+	}
+	return math.Float32bits(float32(rate)), nil
 }

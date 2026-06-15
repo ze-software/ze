@@ -100,6 +100,41 @@ func TestParseExtendedCommunityHexList(t *testing.T) {
 	assert.Equal(t, []byte{0x00, 0x02, 0x27, 0x10, 0x00, 0x00, 0x00, 0x01}, ec.Bytes[8:16])
 }
 
+// TestParseExtendedCommunityRateLimitPackets verifies RFC 8955 packet-rate action parsing.
+//
+// VALIDATES: ExaBGP current unit syntax and 5.0 rate-limit-packets alias map to subtype 0x0c.
+//
+// PREVENTS: Migrated ExaBGP FlowSpec configs losing packet-rate actions.
+func TestParseExtendedCommunityRateLimitPackets(t *testing.T) {
+	ec, err := ParseExtendedCommunity("[ rate-limit:1000:packets ]")
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x80, 0x0c, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00}, ec.Bytes)
+
+	ec, err = ParseExtendedCommunity("[ rate-limit-packets:1000 ]")
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x80, 0x0c, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00}, ec.Bytes)
+
+	_, err = ParseExtendedCommunity("[ rate-limit:1:bits ]")
+	require.Error(t, err)
+
+	_, err = ParseExtendedCommunity("[ rate-limit:1:packets ]")
+	require.NoError(t, err)
+
+	_, err = ParseExtendedCommunity("[ rate-limit:-1:packets ]")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not be negative")
+
+	// rate-limit:N:bytes is explicit bytes unit, equivalent to bare rate-limit:N (subtype 0x06).
+	ec, err = ParseExtendedCommunity("[ rate-limit:9600:bytes ]")
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x80, 0x06, 0x00, 0x00}, ec.Bytes[:4])
+
+	// Bare rate-limit:N and rate-limit:N:bytes produce identical wire bytes.
+	ecBare, err := ParseExtendedCommunity("[ rate-limit:9600 ]")
+	require.NoError(t, err)
+	assert.Equal(t, ecBare.Bytes, ec.Bytes)
+}
+
 // TestParsePrefixSIDSRv6Integration verifies SRv6 Prefix-SID parsing flow.
 //
 // VALIDATES: bgp-prefix-sid-srv6 config field is correctly parsed to bytes.

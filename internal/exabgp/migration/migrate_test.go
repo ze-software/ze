@@ -163,6 +163,61 @@ neighbor 127.0.0.1 {
 	assert.Contains(t, output, "split /24")
 }
 
+// TestMigrateFlowRateLimitPackets verifies RFC 8955 packet-rate action migration.
+//
+// VALIDATES: ExaBGP current unit syntax and 5.0 rate-limit-packets alias migrate to Ze packet-rate extcomm syntax.
+// PREVENTS: Migrating ExaBGP FlowSpec configs from dropping packet-rate actions.
+func TestMigrateFlowRateLimitPackets(t *testing.T) {
+	input := `
+neighbor 127.0.0.1 {
+	local-as 65533
+	peer-as 65533
+	flow {
+		route packet-rate {
+			match {
+				source 10.0.1.0/24
+				protocol tcp
+			}
+			then {
+				rate-limit-packets 1000
+			}
+		}
+		route packet-rate-current {
+			match {
+				source 10.0.2.0/24
+				protocol tcp
+			}
+			then {
+				rate-limit 1001 packets
+			}
+		}
+		route byte-rate-current {
+			match {
+				source 10.0.3.0/24
+				protocol tcp
+			}
+			then {
+				rate-limit 1002 bytes
+			}
+		}
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	require.NoError(t, err, "parse")
+
+	result, err := MigrateFromExaBGP(tree)
+	require.NoError(t, err, "migrate")
+
+	output := SerializeTree(result.Tree)
+	assert.Contains(t, output, "extended-community [rate-limit:1000:packets]")
+	assert.Contains(t, output, "extended-community [rate-limit:1001:packets]")
+	assert.Contains(t, output, "extended-community [rate-limit:1002]")
+	assert.Contains(t, output, "ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp")
+	assert.Contains(t, output, "ipv4/flow add source-ipv4 10.0.2.0/24 protocol tcp")
+	assert.Contains(t, output, "ipv4/flow add source-ipv4 10.0.3.0/24 protocol tcp")
+}
+
 // TestMigrateLinkLocal verifies local-link-local field is renamed to link-local during migration.
 //
 // VALIDATES: ExaBGP "local-link-local fe80::1" migrates to Ze "link-local fe80::1".

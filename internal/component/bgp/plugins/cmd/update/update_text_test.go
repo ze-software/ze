@@ -2316,6 +2316,23 @@ func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 	require.Len(t, testExtractExtCommunities(t, result.Groups[0].Wire), 1)
 }
 
+// TestParseUpdateText_ExtCommTrafficRatePackets verifies RFC 8955 packet-rate function.
+//
+// VALIDATES: extended-community traffic-rate <asn> <rate> packets creates subtype 0x0c extcomm.
+// PREVENTS: ExaBGP FlowSpec packet-rate actions being rejected by update text.
+func TestParseUpdateText_ExtCommTrafficRatePackets(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"extended-community", "traffic-rate", "65000", "1000", "packets",
+		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	extcomms := testExtractExtCommunities(t, result.Groups[0].Wire)
+	require.Len(t, extcomms, 1)
+	assert.Equal(t, attribute.ExtendedCommunity{0x80, 0x0c, 0xfd, 0xe8, 0x44, 0x7a, 0x00, 0x00}, extcomms[0])
+}
+
 // TestParseUpdateText_ExtCommDiscard verifies discard sugar.
 //
 // VALIDATES: discard creates traffic-rate 0 0.
@@ -2356,6 +2373,40 @@ func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, testExtractExtCommunities(t, result.Groups[0].Wire), 1)
+}
+
+// TestParseUpdateText_ExtCommRateLimitPacketsList verifies ExaBGP list syntax.
+//
+// VALIDATES: extended-community [rate-limit:N:packets] creates RFC 8955 subtype 0x0c.
+// PREVENTS: ExaBGP API commands carrying packet-rate actions from losing the action.
+func TestParseUpdateText_ExtCommRateLimitPacketsList(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"extended-community", "[rate-limit:1000:packets]",
+		"nlri", "ipv4/flow", "add", "source", "10.0.1.0/24", "protocol", "tcp", "destination-port", "=3128",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	extcomms := testExtractExtCommunities(t, result.Groups[0].Wire)
+	require.Len(t, extcomms, 1)
+	assert.Equal(t, attribute.ExtendedCommunity{0x80, 0x0c, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00}, extcomms[0])
+}
+
+// TestParseUpdateText_ExtCommRateLimitPacketsLegacyList verifies ExaBGP 5.0 list syntax.
+//
+// VALIDATES: extended-community [rate-limit-packets:N] stays accepted as a legacy alias.
+// PREVENTS: ExaBGP 5.0 packet-rate actions being rejected by update text.
+func TestParseUpdateText_ExtCommRateLimitPacketsLegacyList(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"extended-community", "[rate-limit-packets:1000]",
+		"nlri", "ipv4/flow", "add", "source", "10.0.1.0/24", "protocol", "tcp", "destination-port", "=3128",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	extcomms := testExtractExtCommunities(t, result.Groups[0].Wire)
+	require.Len(t, extcomms, 1)
+	assert.Equal(t, attribute.ExtendedCommunity{0x80, 0x0c, 0x00, 0x00, 0x44, 0x7a, 0x00, 0x00}, extcomms[0])
 }
 
 // TestParseUpdateText_FlowSpecSourcePrefix verifies source prefix component.
@@ -3164,6 +3215,11 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 		{
 			name:       "traffic_marking",
 			extcomm:    []string{"extended-community", "traffic-marking", "46"},
+			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp"},
+		},
+		{
+			name:       "traffic_rate_packets",
+			extcomm:    []string{"extended-community", "traffic-rate", "65000", "1000", "packets"},
 			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp"},
 		},
 	}

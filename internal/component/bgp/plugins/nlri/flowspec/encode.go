@@ -102,13 +102,22 @@ func flowSpecRouteToParams(r bgptypes.FlowSpecRoute, nlriBytes []byte) (message.
 		extComms = append(extComms, 0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
 	}
 
-	// Rate-limit action (RFC 5575)
+	// Rate-limit action (RFC 8955 Section 7.1)
 	if r.Actions.RateLimit > 0 {
-		// Traffic-rate extended community
-		// Type 0x80, Subtype 0x06, 2 reserved bytes, 4-byte IEEE 754 float
+		// Traffic-rate-bytes extended community.
+		// Type 0x80, Subtype 0x06, 2-octet AS, 4-byte IEEE 754 float.
 		rate := float32(r.Actions.RateLimit)
 		bits := floatToIEEE754(rate)
 		extComms = append(extComms, 0x80, 0x06, 0x00, 0x00, byte(bits>>24), byte(bits>>16), byte(bits>>8), byte(bits))
+	}
+
+	// Packet rate-limit action (RFC 8955 Section 7.2)
+	if r.Actions.RateLimitPackets > 0 {
+		// Traffic-rate-packets extended community.
+		// Type 0x80, Subtype 0x0c, 2-octet AS, 4-byte IEEE 754 float.
+		rate := float32(r.Actions.RateLimitPackets)
+		bits := floatToIEEE754(rate)
+		extComms = append(extComms, 0x80, 0x0c, 0x00, 0x00, byte(bits>>24), byte(bits>>16), byte(bits>>8), byte(bits))
 	}
 
 	// DSCP marking (RFC 5575)

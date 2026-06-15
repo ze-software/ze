@@ -822,13 +822,17 @@ update {
 | Extended Community | Action |
 |--------------------|--------|
 | `rate-limit:0` | Discard (rate-limit to zero) |
-| `rate-limit:<bps>` | Rate limit |
+| `rate-limit:<bps>` | Rate limit in bytes per second |
+| `rate-limit:<bps>:bytes` | Explicit bytes-per-second form, canonicalized to `rate-limit:<bps>` |
+| `rate-limit:<pps>:packets` | Rate limit in packets per second |
 | `redirect:<asn>:<value>` | Redirect to VRF |
 | `redirect-to-nexthop <ip>` | Redirect to IP (RFC 7674) |
 | `redirect-to-nexthop-draft` | Redirect to next-hop (draft) |
 | `copy-to-nexthop` | Copy to next-hop |
 | `action sample-terminal` | Sampling action |
 | `mark <dscp>` | Set DSCP value |
+
+Legacy ExaBGP 5.0 packet-rate syntax `rate-limit-packets:<pps>` is still accepted during parsing. ExaBGP's explicit byte form `rate-limit:<bps>:bytes` is also accepted and normalized to bare `rate-limit:<bps>`.
 
 ### Watchdog
 

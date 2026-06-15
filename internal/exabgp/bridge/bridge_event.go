@@ -6,13 +6,16 @@
 package bridge
 
 import (
+	"maps"
 	"os"
 	"strings"
 	"time"
 )
 
-// Version is the ExaBGP version string used in the JSON envelope.
-const Version = "5.0.0"
+// Version is the ExaBGP JSON envelope version. Set to 6.0.0 to match
+// ExaBGP main, which is the syntax target for the bridge (RFC 8955
+// packet-rate, SR-Policy, unified rate-limit:N:packets spelling).
+const Version = "6.0.0"
 
 // Mode/direction string constants.
 // Used for both ExaBGP JSON direction field and ADD-PATH CLI mode.
@@ -52,7 +55,7 @@ const (
 // ExaBGP format (nested):
 //
 //	{
-//	  "exabgp": "5.0.0",
+//	  "exabgp": "6.0.0",
 //	  "type": "update",
 //	  "neighbor": {
 //	    "address": {"peer": "10.0.0.1"},
@@ -230,9 +233,10 @@ func hostname() string {
 func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	update := make(map[string]any)
 
-	// Extract attributes from "attr" object
+	// Extract attributes from "attr" object.
+	// Strip redundant :bytes suffix from rate-limit extended communities.
 	if attrObj, ok := eventData["attr"].(map[string]any); ok && len(attrObj) > 0 {
-		update["attribute"] = attrObj
+		update["attribute"] = normalizeOutgoingAttributes(attrObj)
 	}
 
 	// Convert NLRI sections from "nlri" object
@@ -297,4 +301,89 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	}
 
 	return update
+}
+
+func normalizeOutgoingAttributes(attrObj map[string]any) map[string]any {
+	extComms, ok := attrObj["extended-community"]
+	if !ok {
+		return attrObj
+	}
+	normalized, changed := normalizeOutgoingExtendedCommunities(extComms)
+	if !changed {
+		return attrObj
+	}
+	cloned := make(map[string]any, len(attrObj))
+	maps.Copy(cloned, attrObj)
+	cloned["extended-community"] = normalized
+	return cloned
+}
+
+func normalizeOutgoingExtendedCommunities(value any) (any, bool) {
+	switch typed := value.(type) {
+	case []any:
+		return normalizeOutgoingExtendedCommunityList(typed)
+	case map[string]any:
+		values, ok := typed["value"]
+		if !ok {
+			return value, false
+		}
+		normalized, changed := normalizeOutgoingExtendedCommunities(values)
+		if !changed {
+			return value, false
+		}
+		cloned := make(map[string]any, len(typed))
+		maps.Copy(cloned, typed)
+		cloned["value"] = normalized
+		return cloned, true
+	default:
+		return value, false
+	}
+}
+
+func normalizeOutgoingExtendedCommunityList(entries []any) (any, bool) {
+	var cloned []any
+	for i, entry := range entries {
+		normalized, changed := normalizeOutgoingExtendedCommunityEntry(entry)
+		if !changed {
+			if cloned != nil {
+				cloned = append(cloned, entry)
+			}
+			continue
+		}
+		if cloned == nil {
+			cloned = make([]any, 0, len(entries))
+			cloned = append(cloned, entries[:i]...)
+		}
+		cloned = append(cloned, normalized)
+	}
+	if cloned == nil {
+		return entries, false
+	}
+	return cloned, true
+}
+
+func normalizeOutgoingExtendedCommunityEntry(entry any) (any, bool) {
+	typed, ok := entry.(map[string]any)
+	if !ok {
+		return entry, false
+	}
+	value, ok := typed["string"].(string)
+	if !ok {
+		return entry, false
+	}
+	normalized := normalizeOutgoingExtendedCommunityToken(value)
+	if normalized == value {
+		return entry, false
+	}
+	cloned := make(map[string]any, len(typed))
+	maps.Copy(cloned, typed)
+	cloned["string"] = normalized
+	return cloned, true
+}
+
+func normalizeOutgoingExtendedCommunityToken(value string) string {
+	if strings.HasSuffix(value, ":bytes") && strings.HasPrefix(value, "rate-limit:") {
+		return strings.TrimSuffix(value, ":bytes")
+	}
+	return value
 }

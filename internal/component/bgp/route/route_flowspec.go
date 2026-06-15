@@ -125,7 +125,32 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 				if err != nil {
 					return route, fmt.Errorf("invalid rate limit: %s", args[i+1])
 				}
-				route.Actions.RateLimit = uint32(rate)
+				consumedUnit := false
+				if i+2 < len(args) {
+					switch {
+					case strings.EqualFold(args[i+2], "packets"):
+						route.Actions.RateLimitPackets = uint32(rate)
+						i += 2
+						consumedUnit = true
+					case strings.EqualFold(args[i+2], "bytes"):
+						route.Actions.RateLimit = uint32(rate)
+						i += 2
+						consumedUnit = true
+					}
+				}
+				if !consumedUnit {
+					route.Actions.RateLimit = uint32(rate)
+					i++
+				}
+			case "rate-limit-packets":
+				if i+1 >= len(args) {
+					return route, errMissingRateLimitValue
+				}
+				rate, err := strconv.ParseUint(args[i+1], 10, 32)
+				if err != nil {
+					return route, fmt.Errorf("invalid packet rate limit: %s", args[i+1])
+				}
+				route.Actions.RateLimitPackets = uint32(rate)
 				i++
 			case "redirect":
 				if i+1 >= len(args) {
@@ -153,7 +178,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 			switch arg {
 			case "destination", "source", "protocol", "port", "destination-port", "source-port":
 				return route, fmt.Errorf("match keyword %q must appear after 'match'", arg)
-			case "accept", "discard", "rate-limit", "redirect", "mark":
+			case "accept", "discard", "rate-limit", "rate-limit-packets", "redirect", "mark":
 				return route, fmt.Errorf("then keyword %q must appear after 'then'", arg)
 			default: // reject completely unknown keyword
 				return route, fmt.Errorf("unknown keyword %q", arg)

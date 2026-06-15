@@ -86,6 +86,76 @@ func TestZebgpToExabgpJSON_UpdateAnnounce(t *testing.T) {
 	assert.Equal(t, map[string]any{"nlri": "192.168.1.0/24"}, announce["ipv4 unicast"]["10.0.0.1"][0])
 }
 
+// TestZebgpToExabgpJSON_FlowSpecExtendedCommunityNormalize verifies outgoing bridge normalization.
+//
+// VALIDATES: Redundant :bytes suffix is stripped; :packets passes through (matches ExaBGP main).
+// PREVENTS: Outgoing JSON containing non-canonical :bytes suffix.
+func TestZebgpToExabgpJSON_FlowSpecExtendedCommunityNormalize(t *testing.T) {
+	zebgp := map[string]any{
+		"type": "bgp",
+		"bgp": map[string]any{
+			"type": "update",
+			"peer": map[string]any{"remote": map[string]any{"address": "10.0.0.1", "as": float64(65001)}},
+			"update": map[string]any{
+				"message": map[string]any{"direction": "received"},
+				"attr": map[string]any{
+					"extended-community": []any{
+						map[string]any{"string": "rate-limit:1000:packets", "value": float64(9226749737724149760)},
+						map[string]any{"string": "rate-limit:9600:bytes", "value": float64(9225060887890886656)},
+						map[string]any{"string": "redirect:65001:119", "value": float64(9225903013837668471)},
+					},
+				},
+				"nlri": map[string]any{
+					"ipv4/flow": []any{
+						map[string]any{"action": "add", "nlri": []any{"source 10.0.1.0/24"}},
+					},
+				},
+			},
+		},
+	}
+
+	result := ZebgpToExabgpJSON(zebgp)
+
+	neighbor, ok := result["neighbor"].(map[string]any)
+	require.True(t, ok)
+	msg, ok := neighbor["message"].(map[string]any)
+	require.True(t, ok)
+	update, ok := msg["update"].(map[string]any)
+	require.True(t, ok)
+	attrs, ok := update["attribute"].(map[string]any)
+	require.True(t, ok)
+	extComms, ok := attrs["extended-community"].([]any)
+	require.True(t, ok)
+	require.Len(t, extComms, 3)
+
+	first, ok := extComms[0].(map[string]any)
+	require.True(t, ok)
+	second, ok := extComms[1].(map[string]any)
+	require.True(t, ok)
+	third, ok := extComms[2].(map[string]any)
+	require.True(t, ok)
+
+	assert.Equal(t, "rate-limit:1000:packets", first["string"])
+	assert.Equal(t, "rate-limit:9600", second["string"])
+	assert.Equal(t, "redirect:65001:119", third["string"])
+
+	// Input map stays untouched. Bridge must not mutate the caller's event payload.
+	originalBGP, ok := zebgp["bgp"].(map[string]any)
+	require.True(t, ok)
+	originalUpdate, ok := originalBGP["update"].(map[string]any)
+	require.True(t, ok)
+	originalAttrs, ok := originalUpdate["attr"].(map[string]any)
+	require.True(t, ok)
+	originalExtComms, ok := originalAttrs["extended-community"].([]any)
+	require.True(t, ok)
+	originalFirst, ok := originalExtComms[0].(map[string]any)
+	require.True(t, ok)
+	originalSecond, ok := originalExtComms[1].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "rate-limit:1000:packets", originalFirst["string"])
+	assert.Equal(t, "rate-limit:9600:bytes", originalSecond["string"])
+}
+
 // TestZebgpToExabgpJSON_UpdateWithdraw verifies UPDATE withdraw conversion.
 //
 // VALIDATES: ZeBGP ze-bgp JSON JSON → ExaBGP JSON for IPv4 unicast withdraw.
@@ -335,6 +405,38 @@ func TestExabgpToZebgpCommand_ExplicitFamily(t *testing.T) {
 			assert.Contains(t, result, tt.contain)
 		})
 	}
+}
+
+// TestExabgpToZebgpCommand_FlowSpecRateLimitPackets verifies ExaBGP FlowSpec command bridging.
+//
+// VALIDATES: ExaBGP current unit syntax and 5.0 alias become Ze update text.
+// PREVENTS: RFC 8955 packet-rate actions being dropped by the ExaBGP bridge.
+func TestExabgpToZebgpCommand_FlowSpecRateLimitPackets(t *testing.T) {
+	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128 extended-community [rate-limit:1000:packets]"
+	result := ExabgpToZebgpCommand(cmd)
+
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source 10.0.1.0/24 protocol tcp destination-port =3128", result)
+}
+
+func TestExabgpToZebgpCommand_FlowSpecRateLimitPacketsLegacyAlias(t *testing.T) {
+	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128 extended-community [rate-limit-packets:1000]"
+	result := ExabgpToZebgpCommand(cmd)
+
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source 10.0.1.0/24 protocol tcp destination-port =3128", result)
+}
+
+func TestExabgpToZebgpCommand_FlowSpecRateLimitBytesExplicit(t *testing.T) {
+	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600:bytes]"
+	result := ExabgpToZebgpCommand(cmd)
+
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source 10.0.1.0/24 protocol tcp", result)
+}
+
+func TestExabgpToZebgpCommand_FlowSpecVPNFamily(t *testing.T) {
+	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.0.1/32 rd 65535:65536 extended-community [rate-limit:0]"
+	result := ExabgpToZebgpCommand(cmd)
+
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:0] nlri ipv4/flow-vpn add rd 65535:65536 source 10.0.0.1/32", result)
 }
 
 // TestExabgpToZebgpCommand_NonNeighbor verifies pass-through for non-neighbor commands.

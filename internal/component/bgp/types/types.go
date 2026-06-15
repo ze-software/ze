@@ -75,11 +75,12 @@ type FlowSpecRoute struct {
 
 // FlowSpecActions specifies what to do with matching traffic.
 type FlowSpecActions struct {
-	Accept    bool   // Accept traffic (default)
-	Discard   bool   // Drop traffic
-	RateLimit uint32 // Rate limit in bps (0 = no limit)
-	Redirect  string // Redirect target (RT or IP)
-	MarkDSCP  uint8  // DSCP marking value
+	Accept           bool   // Accept traffic (default)
+	Discard          bool   // Drop traffic
+	RateLimit        uint32 // Rate limit in bytes/sec (0 = no limit)
+	RateLimitPackets uint32 // Rate limit in packets/sec (0 = no limit)
+	Redirect         string // Redirect target (RT or IP)
+	MarkDSCP         uint8  // DSCP marking value
 }
 
 // VPLSRoute specifies a VPLS route for announcement.
