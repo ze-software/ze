@@ -305,20 +305,41 @@ func (p *Peer) sendInitialRoutes() {
 		return // Don't send family-specific routes after teardown
 	}
 
+	// Hold the session write lock across family-specific routes AND EOR.
+	// The route-server plugin (always loaded) sends EOR via AnnounceEOR ->
+	// peer.SendUpdate in a separate goroutine. Without holding writeMu, the
+	// RS EOR can interleave between config routes and EOR markers. HoldWrites
+	// blocks the RS (writeMu.Lock blocks) and the forward pool (TryLock fails)
+	// until the full sequence completes. Route methods use sendHeld (passed as
+	// a callback) to write without re-acquiring writeMu.
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	sendFn := p.sendUpdateDirect
+	if session != nil {
+		session.HoldWrites()
+		sendFn = session.SendUpdateHeld
+	}
+
 	// Send family-specific routes (config-originated)
-	p.sendMVPNRoutes()
-	p.sendVPLSRoutes()
-	p.sendFlowSpecRoutes()
-	p.sendMUPRoutes()
+	p.sendMVPNRoutesVia(sendFn)
+	p.sendVPLSRoutesVia(sendFn)
+	p.sendFlowSpecRoutesVia(sendFn)
+	p.sendMUPRoutesVia(sendFn)
 
 	// Send EOR for ALL negotiated families per RFC 4724 Section 4.
 	// RFC 4724: "including the case when there is no update to send"
-	// IMPORTANT: EORs must be sent AFTER all routes for each family.
 	// Families() returns families in deterministic order (sorted by AFI, then SAFI).
-	for _, fam := range nc.Families() {
-		_ = p.SendUpdate(message.BuildEOR(fam))
+	families := nc.Families()
+	for _, fam := range families {
+		_ = sendFn(message.BuildEOR(fam))
 		p.IncrEORSent()
 		routesLogger().Debug("sent EOR", "peer", addr, "family", fam)
+	}
+
+	if session != nil {
+		session.ReleaseWrites()
 	}
 
 	// Drain any commands that were queued while EOR was being sent.
@@ -386,8 +407,13 @@ func (p *Peer) sendInitialRoutes() {
 	p.mu.Unlock()
 }
 
-// sendMVPNRoutes sends MVPN routes configured for this peer.
-func (p *Peer) sendMVPNRoutes() {
+// sendUpdateDirect is the default send callback when writeMu is not held.
+func (p *Peer) sendUpdateDirect(update *message.Update) error {
+	return p.SendUpdate(update)
+}
+
+// sendMVPNRoutesVia sends MVPN routes configured for this peer.
+func (p *Peer) sendMVPNRoutesVia(sendFn func(*message.Update) error) {
 	nc := p.negotiated.Load()
 	if nc == nil {
 		return
@@ -435,7 +461,7 @@ func (p *Peer) sendMVPNRoutes() {
 		ipv4Groups := groupMVPNRoutesByKey(ipv4Routes)
 		for _, key := range sortedKeys(ipv4Groups) {
 			routes := ipv4Groups[key]
-			if err := ub.BuildGroupedMVPN(toMVPNParams(routes), maxMsgSize, p.SendUpdate); err != nil {
+			if err := ub.BuildGroupedMVPN(toMVPNParams(routes), maxMsgSize, sendFn); err != nil {
 				if isMVPNBuildError(err) {
 					routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
 				} else {
@@ -456,7 +482,7 @@ func (p *Peer) sendMVPNRoutes() {
 		ipv6Groups := groupMVPNRoutesByKey(ipv6Routes)
 		for _, key := range sortedKeys(ipv6Groups) {
 			routes := ipv6Groups[key]
-			if err := ub.BuildGroupedMVPN(toMVPNParams(routes), maxMsgSize, p.SendUpdate); err != nil {
+			if err := ub.BuildGroupedMVPN(toMVPNParams(routes), maxMsgSize, sendFn); err != nil {
 				if isMVPNBuildError(err) {
 					routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
 				} else {
@@ -548,8 +574,8 @@ func sortedKeys[V any](m map[string]V) []string {
 	return keys
 }
 
-// sendVPLSRoutes sends VPLS routes configured for this peer.
-func (p *Peer) sendVPLSRoutes() {
+// sendVPLSRoutesVia sends VPLS routes configured for this peer.
+func (p *Peer) sendVPLSRoutesVia(sendFn func(*message.Update) error) {
 	nc := p.negotiated.Load()
 	if nc == nil || !nc.Has(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}) {
 		if len(p.settings.VPLSRoutes) > 0 {
@@ -571,20 +597,16 @@ func (p *Peer) sendVPLSRoutes() {
 		defer message.PutUpdateBuilder(ub)
 		for i := range p.settings.VPLSRoutes {
 			update := ub.BuildVPLS(toVPLSParams(p.settings.VPLSRoutes[i]))
-			if err := p.SendUpdate(update); err != nil {
+			if err := sendFn(update); err != nil {
 				routesLogger().Debug("VPLS send error", "peer", addr, "error", err)
 			}
 		}
 	}
-	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
-	// negotiated families, so we don't send family-specific EORs here.
 }
 
 // sendFlowSpecRoutes sends FlowSpec routes configured for this peer.
 // Only sends routes for families that were successfully negotiated.
-// Per RFC 4724 Section 4, EOR is sent for all negotiated families,
-// "including the case when there is no update to send".
-func (p *Peer) sendFlowSpecRoutes() {
+func (p *Peer) sendFlowSpecRoutesVia(sendFn func(*message.Update) error) {
 	nc := p.negotiated.Load()
 	if nc == nil {
 		return
@@ -639,7 +661,7 @@ func (p *Peer) sendFlowSpecRoutes() {
 			routesLogger().Debug("FlowSpec build error (too large?)", "peer", addr, "error", err)
 			continue
 		}
-		sendErr := p.SendUpdate(update)
+		sendErr := sendFn(update)
 		message.PutUpdateBuilder(ub)
 		if sendErr != nil {
 			routesLogger().Debug("FlowSpec send error", "peer", addr, "error", sendErr)
@@ -650,13 +672,10 @@ func (p *Peer) sendFlowSpecRoutes() {
 	if sentCount > 0 {
 		routesLogger().Debug("sent FlowSpec routes", "peer", addr, "count", sentCount)
 	}
-
-	// Note: EOR for FlowSpec families is now sent by the main sendInitialRoutes loop
-	// which iterates over all negotiated families using nc.Families().
 }
 
 // sendMUPRoutes sends MUP routes configured for this peer.
-func (p *Peer) sendMUPRoutes() {
+func (p *Peer) sendMUPRoutesVia(sendFn func(*message.Update) error) {
 	nc := p.negotiated.Load()
 	if nc == nil {
 		return
@@ -700,7 +719,7 @@ func (p *Peer) sendMUPRoutes() {
 		defer message.PutUpdateBuilder(ub)
 		for _, route := range ipv4Routes {
 			update := ub.BuildMUP(toMUPParams(route))
-			if err := p.SendUpdate(update); err != nil {
+			if err := sendFn(update); err != nil {
 				routesLogger().Debug("MUP send error", "peer", addr, "error", err)
 			}
 		}
@@ -715,13 +734,11 @@ func (p *Peer) sendMUPRoutes() {
 		defer message.PutUpdateBuilder(ub)
 		for _, route := range ipv6Routes {
 			update := ub.BuildMUP(toMUPParams(route))
-			if err := p.SendUpdate(update); err != nil {
+			if err := sendFn(update); err != nil {
 				routesLogger().Debug("MUP send error", "peer", addr, "error", err)
 			}
 		}
 	}
-	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
-	// negotiated families, so we don't send family-specific EORs here.
 }
 
 // defaultRouteForAFI returns the default prefix and a valid next-hop for the given AFI.

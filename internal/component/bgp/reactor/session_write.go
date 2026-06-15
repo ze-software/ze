@@ -390,6 +390,39 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	return nil
 }
 
+// HoldWrites acquires the session write lock, preventing the forward pool
+// (which uses TryLock) from interleaving messages. Caller MUST call
+// ReleaseWrites when done and use SendUpdateHeld instead of SendUpdate.
+func (s *Session) HoldWrites() {
+	s.writeMu.Lock()
+}
+
+// ReleaseWrites releases the write lock acquired by HoldWrites.
+func (s *Session) ReleaseWrites() {
+	s.writeMu.Unlock()
+}
+
+// SendUpdateHeld sends an UPDATE while writeMu is already held by the caller
+// via HoldWrites. Calling without HoldWrites is undefined.
+func (s *Session) SendUpdateHeld(update *message.Update) error {
+	s.mu.RLock()
+	state := s.fsm.State()
+	s.mu.RUnlock()
+
+	if state != fsm.StateEstablished {
+		return ErrInvalidState
+	}
+
+	if err := s.writeUpdate(update); err != nil {
+		return err
+	}
+	if err := s.flushWrites(); err != nil {
+		return err
+	}
+	s.resetSendHoldTimer()
+	return nil
+}
+
 // SendAnnounce sends a BGP UPDATE message for announcing a route.
 // Eliminates large buffer allocations by writing directly to session buffer.
 // Returns ErrInvalidState if the session is not established.
