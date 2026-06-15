@@ -43,6 +43,7 @@ ze-iso: bin/ze-setup
 	@test -n "$(CONFIG)" || { echo "error: CONFIG required"; echo "  make ze-iso CONFIG=mybox.json SSH_PASSWORD='...'"; exit 1; }
 	@test -f "$(CONFIG)" || { echo "error: $(CONFIG) not found"; exit 1; }
 	@test -n "$(SSH_PASSWORD)" || { echo "error: SSH_PASSWORD required"; echo "  make ze-iso CONFIG=$(CONFIG) SSH_PASSWORD='...'"; exit 1; }
+	@rm -rf $(APPLIANCE_DIR)
 	@echo "=== Initializing appliance $(NAME) from $(CONFIG) ==="
 	env ze.appliance.ssh.password='$(SSH_PASSWORD)' \
 		bin/ze-setup appliance init --config $(CONFIG) $(NAME)
