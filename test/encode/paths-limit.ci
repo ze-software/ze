@@ -1,0 +1,61 @@
+# ze-peer expectations
+# Verify OPEN contains PATHS-LIMIT capability (code 76) for ipv4/unicast limit 10
+# Then accept a simple UPDATE to confirm session establishment
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=peer * update text origin igp nhop 10.0.0.1 nlri ipv4/unicast add 192.0.2.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F020000001840010100400200400304C0A8000140050400000064C00028180C0002
+EOF_PEER
+
+# ze bgp configuration with PATHS-LIMIT
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				add-path {
+					direction send/receive
+					limit 10
+					family {
+						ipv4/unicast
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				next-hop 192.168.0.1
+				local-preference 100
+			}
+			nlri {
+				ipv4/unicast add 12.0.2.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

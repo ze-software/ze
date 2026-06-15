@@ -1,0 +1,6 @@
+# bgp-paths-limit decoding test (Ze format)
+# draft-abraitis-idr-addpath-paths-limit: PATHS-LIMIT capability (code 76)
+# OPEN with: Multiprotocol ipv4/unicast + ASN4 65533 + ADD-PATH both + PATHS-LIMIT ipv4/unicast limit 10
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00380104FFFD00B40A0000021B021901040001000141040000FFFD4504000101034C05000101000A
+cmd=foreground:seq=1:exec=ze bgp decode --json --open -:stdin=payload
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"open"},"open":{"asn":65533,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":65,"name":"asn4","value":"65533"},{"code":69,"name":"add-path","value":["ipv4/unicast"]},{"code":76,"name":"paths-limit","value":["ipv4/unicast 10"]}],"router-id":"10.0.0.2","timer":{"hold-time":180}},"peer":{"address":"127.0.0.1","remote":{"as":65533}}},"type":"bgp"}
