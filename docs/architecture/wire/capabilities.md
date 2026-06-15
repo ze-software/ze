@@ -60,6 +60,7 @@ All capabilities share a common TLV (Type-Length-Value) format:
 | 70 | 0x46 | Enhanced Route Refresh | RFC 7313 | 0 |
 | 73 | 0x49 | FQDN | draft-walton-bgp-hostname | Variable |
 | 75 | 0x4B | Software Version | draft-abraitis-bgp-version | Variable |
+| 76 | 0x4C | PATHS-LIMIT | draft-abraitis-idr-addpath-paths-limit | 5 per family |
 | 128 | 0x80 | Route Refresh (Cisco) | Vendor | 0 |
 | 131 | 0x83 | Multisession (Cisco) | Vendor | Variable |
 
@@ -252,6 +253,27 @@ Multiple entries concatenated (4 bytes each).
 When ADD-PATH is enabled, NLRI includes a 4-byte Path ID before each prefix.
 
 <!-- source: internal/component/bgp/capability/capability.go -- AddPath struct, AddPathMode, AddPathFamily -->
+
+---
+
+## 7b. PATHS-LIMIT (Code 76)
+
+draft-abraitis-idr-addpath-paths-limit: per-family path count limit for ADD-PATH.
+
+```
++---------------------------------------------+
+| AFI (2 bytes) | SAFI (1) | Max Paths (2)    |
++---------------------------------------------+
+```
+
+Variable length: sequence of 5-byte entries. Only meaningful for families with ADD-PATH negotiated.
+
+- Entries with limit 0 are skipped during parsing.
+- Duplicate AFI/SAFI: first entry wins.
+- Receiver-advertised: remote's limit constrains our send, ours constrains peer's send.
+- RS fast-path peers suppress PATHS-LIMIT (no per-prefix state in forwarding).
+
+<!-- source: internal/component/bgp/capability/capability.go -- PathsLimit struct, PathsLimitEntry -->
 
 ---
 

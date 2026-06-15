@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var errDataTooShortForHeader = errors.New("data too short for header")
@@ -87,6 +88,13 @@ func capabilityToZeJSON(c capability.Capability) map[string]any {
 			families[i] = fmt.Sprintf("%s/%s", f.AFI.String(), f.SAFI.String())
 		}
 		return map[string]any{"code": code, "name": "add-path", "value": families}
+	case *capability.PathsLimit:
+		entries := make([]string, len(cap.Entries))
+		for i, e := range cap.Entries {
+			var tb textbuf.Buffer
+			entries[i] = tb.Str(e.AFI.String()).Byte('/').Str(e.SAFI.String()).Byte(' ').Uint16(e.Limit).String()
+		}
+		return map[string]any{"code": code, "name": "paths-limit", "value": entries}
 	}
 	// Unknown or plugin-decoded capability type - try plugin decode or return raw
 	return unknownCapabilityZe(c)

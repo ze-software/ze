@@ -4,12 +4,11 @@
 package reactor
 
 import (
-	"slices"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // capMode represents the negotiation mode for a non-family capability.
@@ -187,34 +186,6 @@ func extractNextHopEntry(rawVal any) (string, capMode) {
 	return "", capModeEnable
 }
 
-// extractAddPathEntry extracts family, direction, and mode from an add-path entry.
-// Handles both old format (key="ipv4/unicast send require" or key="ipv4/unicast", val="send require")
-// and new list format (key="ipv4/unicast", val=map{"direction":"send","mode":"require"}).
-func extractAddPathEntry(key string, val any) (familyKey, direction, mode string) {
-	// New list entry format: val is map[string]any.
-	if m, ok := val.(map[string]any); ok {
-		dir, _ := mapString(m, "direction")
-		md, _ := mapString(m, "mode")
-		return key, dir, md
-	}
-
-	// Old format: key may contain space-separated tokens, or val is a string.
-	parts := strings.Fields(key)
-	if len(parts) < 2 {
-		if vs, ok := val.(string); ok {
-			parts = append(parts, strings.Fields(vs)...)
-		}
-	}
-	// Check for trailing mode token.
-	if len(parts) >= 3 && isCapModeToken(parts[len(parts)-1]) {
-		return parts[0], parts[1], parts[len(parts)-1]
-	}
-	if len(parts) >= 2 {
-		return parts[0], parts[1], ""
-	}
-	return key, "", ""
-}
-
 // parseExtendedNextHopFromTree parses RFC 8950 extended next-hop families.
 // Map key is the NLRI family (e.g., "ipv4/unicast"), value is "nhAFI [mode]":
 //
@@ -278,107 +249,83 @@ func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) capMod
 	return mode
 }
 
-// capModeTokens is the single source of truth for capability mode keywords.
-var capModeTokens = []string{valRequire, valRefuse, valEnable, valDisable}
-
-// isCapModeToken reports whether s is a capability mode keyword.
-func isCapModeToken(s string) bool {
-	return slices.Contains(capModeTokens, strings.ToLower(s))
-}
-
-// parseAddPathFromTree parses ADD-PATH capability from the capability map and peer tree.
-// RFC 7911: Supports both global add-path mode and per-family overrides.
-// An optional trailing mode token (require/refuse/enable/disable) sets enforcement.
-func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
-	var globalSend, globalReceive bool
-	addPathMode := capModeEnable
-
-	// Check capability block for add-path (flex: string or map).
-	if val, ok := capMap["add-path"]; ok {
-		switch v := val.(type) {
-		case string:
-			// Global mode: "send/receive [require]" — last token may be a mode.
-			parts := strings.Fields(v)
-			if len(parts) >= 2 && isCapModeToken(parts[len(parts)-1]) {
-				addPathMode = parseCapMode(parts[len(parts)-1])
-				parts = parts[:len(parts)-1]
-			}
-			dir := textbuf.Join(parts, "/")
-			switch dir {
-			case "send/receive", "receive/send":
-				globalSend = true
-				globalReceive = true
-			case "send":
-				globalSend = true
-			case "receive":
-				globalReceive = true
-			}
-		case map[string]any:
-			// Block mode: add-path { send true; receive true; }
-			if s, ok := mapString(v, "send"); ok {
-				globalSend = s == valTrue
-			}
-			if r, ok := mapString(v, "receive"); ok {
-				globalReceive = r == valTrue
-			}
-		}
-	}
-
-	// Per-family add-path from peer tree.
-	var perFamily []capability.AddPathFamily
-	perFamilyHasEnforcement := false // true when any per-family entry sets require/refuse
-	if addPathMap, ok := mapMap(peerTree, "add-path"); ok {
-		for key, val := range addPathMap {
-			familyKey, dirStr, modeStr := extractAddPathEntry(key, val)
-
-			// Apply enforcement mode.
-			if modeStr != "" {
-				entryMode := parseCapMode(modeStr)
-				if entryMode == capModeRequire {
-					addPathMode = capModeRequire
-					perFamilyHasEnforcement = true
-				} else if entryMode == capModeRefuse && addPathMode != capModeRequire {
-					addPathMode = capModeRefuse
-					perFamilyHasEnforcement = true
-				}
-			}
-
-			if familyKey == "" || dirStr == "" {
-				continue
-			}
-			fam, ok := family.LookupFamily(familyKey)
-			if !ok {
-				continue
-			}
-			var mode capability.AddPathMode
-			switch dirStr {
-			case "send":
-				mode = capability.AddPathSend
-			case "receive":
-				mode = capability.AddPathReceive
-			case "send/receive", "receive/send":
-				mode = capability.AddPathBoth
-			}
-			if mode != capability.AddPathNone {
-				perFamily = append(perFamily, capability.AddPathFamily{
-					AFI:  fam.AFI,
-					SAFI: fam.SAFI,
-					Mode: mode,
-				})
-			}
-		}
-	}
-
-	// Apply add-path enforcement mode.
-	if globalSend || globalReceive || perFamilyHasEnforcement {
-		applyCapMode(addPathMode, capability.CodeAddPath, ps)
-	}
-
-	if !globalSend && !globalReceive && len(perFamily) == 0 {
+// parseAddPathFromTree parses ADD-PATH + PATHS-LIMIT from the unified capability add-path block.
+// RFC 7911 + draft-abraitis-idr-addpath-paths-limit.
+// Unified config: add-path { direction send; family ipv4/unicast { direction send/receive; limit 10; } }.
+func parseAddPathFromTree(capMap, _ map[string]any, ps *PeerSettings) {
+	apBlock, ok := mapMap(capMap, "add-path")
+	if !ok {
 		return
 	}
 
-	// Don't advertise the capability if mode suppresses it (disable/refuse).
+	// Default direction and limit from container level.
+	defaultDir := parseAddPathDirection(flexString(apBlock, "direction"))
+	var defaultLimit uint16
+	if limitStr := flexString(apBlock, "limit"); limitStr != "" {
+		defaultLimit = parseUint16(limitStr)
+	}
+	addPathMode := capModeEnable
+
+	// Per-family overrides from nested family list.
+	type familyEntry struct {
+		fam  family.Family
+		dir  capability.AddPathMode
+		mode capMode
+	}
+	var perFamily []familyEntry
+	var pathsLimitEntries []capability.PathsLimitEntry
+	perFamilyHasLimit := make(map[family.Family]bool)
+
+	if familyMap, ok := mapMap(apBlock, "family"); ok {
+		for key, val := range familyMap {
+			fam, famOK := family.LookupFamily(key)
+			if !famOK {
+				continue
+			}
+
+			entry := familyEntry{fam: fam, dir: defaultDir, mode: capModeEnable}
+
+			if m, ok := val.(map[string]any); ok {
+				if dirStr, ok := mapString(m, "direction"); ok {
+					entry.dir = parseAddPathDirection(dirStr)
+				}
+				if modeStr, ok := mapString(m, "mode"); ok {
+					entry.mode = parseCapMode(modeStr)
+					if entry.mode == capModeRequire {
+						addPathMode = capModeRequire
+					} else if entry.mode == capModeRefuse && addPathMode != capModeRequire {
+						addPathMode = capModeRefuse
+					}
+				}
+				if limitStr, ok := mapString(m, "limit"); ok {
+					if limit := parseUint16(limitStr); limit > 0 {
+						pathsLimitEntries = append(pathsLimitEntries, capability.PathsLimitEntry{
+							AFI:   fam.AFI,
+							SAFI:  fam.SAFI,
+							Limit: limit,
+						})
+						perFamilyHasLimit[fam] = true
+					}
+				}
+			}
+
+			if entry.dir != capability.AddPathNone {
+				perFamily = append(perFamily, entry)
+			}
+		}
+	}
+
+	hasDefault := defaultDir != capability.AddPathNone
+
+	// Apply enforcement.
+	if hasDefault || len(perFamily) > 0 {
+		applyCapMode(addPathMode, capability.CodeAddPath, ps)
+	}
+
+	if !hasDefault && len(perFamily) == 0 {
+		return
+	}
+
 	if !addPathMode.advertise() {
 		return
 	}
@@ -387,32 +334,73 @@ func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 		Families: make([]capability.AddPathFamily, 0),
 	}
 
-	// Apply global mode to all configured families.
-	if globalSend || globalReceive {
-		var globalMode capability.AddPathMode
-		switch {
-		case globalSend && globalReceive:
-			globalMode = capability.AddPathBoth
-		case globalSend:
-			globalMode = capability.AddPathSend
-		case globalReceive:
-			globalMode = capability.AddPathReceive
+	// Apply default direction to all multiprotocol families.
+	if hasDefault {
+		overridden := make(map[family.Family]bool)
+		for _, pf := range perFamily {
+			overridden[pf.fam] = true
 		}
 		for _, cap := range ps.Capabilities {
 			if mp, ok := cap.(*capability.Multiprotocol); ok {
-				addPath.Families = append(addPath.Families, capability.AddPathFamily{
-					AFI:  mp.AFI,
-					SAFI: mp.SAFI,
-					Mode: globalMode,
+				f := family.Family{AFI: mp.AFI, SAFI: mp.SAFI}
+				if !overridden[f] {
+					addPath.Families = append(addPath.Families, capability.AddPathFamily{
+						AFI: mp.AFI, SAFI: mp.SAFI, Mode: defaultDir,
+					})
+				}
+			}
+		}
+	}
+
+	// Add per-family overrides.
+	for _, pf := range perFamily {
+		if pf.mode.advertise() {
+			addPath.Families = append(addPath.Families, capability.AddPathFamily{
+				AFI: pf.fam.AFI, SAFI: pf.fam.SAFI, Mode: pf.dir,
+			})
+		}
+	}
+
+	if len(addPath.Families) > 0 {
+		ps.Capabilities = append(ps.Capabilities, addPath)
+	}
+
+	// Apply default limit to AddPath families without a per-family limit.
+	if defaultLimit > 0 {
+		for _, apf := range addPath.Families {
+			f := family.Family{AFI: apf.AFI, SAFI: apf.SAFI}
+			if !perFamilyHasLimit[f] {
+				pathsLimitEntries = append(pathsLimitEntries, capability.PathsLimitEntry{
+					AFI: apf.AFI, SAFI: apf.SAFI, Limit: defaultLimit,
 				})
 			}
 		}
 	}
 
-	// Override with per-family settings.
-	addPath.Families = append(addPath.Families, perFamily...)
-
-	if len(addPath.Families) > 0 {
-		ps.Capabilities = append(ps.Capabilities, addPath)
+	// Emit PATHS-LIMIT capability if any family has a limit.
+	if len(pathsLimitEntries) > 0 {
+		ps.Capabilities = append(ps.Capabilities, &capability.PathsLimit{Entries: pathsLimitEntries})
 	}
+}
+
+// parseAddPathDirection converts a direction string to AddPathMode.
+func parseAddPathDirection(dir string) capability.AddPathMode {
+	switch dir {
+	case "send":
+		return capability.AddPathSend
+	case "receive":
+		return capability.AddPathReceive
+	case "send/receive", "receive/send":
+		return capability.AddPathBoth
+	}
+	return capability.AddPathNone
+}
+
+// parseUint16 parses a string to uint16, returning 0 on failure.
+func parseUint16(s string) uint16 {
+	n, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return 0
+	}
+	return uint16(n)
 }

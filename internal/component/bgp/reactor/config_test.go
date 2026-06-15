@@ -450,9 +450,9 @@ func TestParsePeerCapabilityGracefulRestart(t *testing.T) {
 	assert.Equal(t, "120", ps.RawCapabilityConfig["graceful-restart"]["restart-time"])
 }
 
-// TestParsePeerCapabilityAddPathGlobal verifies global ADD-PATH mode.
+// TestParsePeerCapabilityAddPathGlobal verifies default direction applies to all families.
 //
-// VALIDATES: Global add-path "send/receive" creates AddPath capability for all families.
+// VALIDATES: add-path { direction send/receive; } creates AddPath for all configured families.
 // PREVENTS: ADD-PATH not applied to configured families.
 func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 	tree := map[string]any{
@@ -460,7 +460,7 @@ func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 		"session": map[string]any{
 			"asn":        map[string]any{"remote": "65001"},
 			"family":     map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}, "ipv6/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
-			"capability": map[string]any{"add-path": "send/receive"},
+			"capability": map[string]any{"add-path": map[string]any{"direction": "send/receive"}},
 		},
 	}
 
@@ -481,17 +481,20 @@ func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 	}
 }
 
-// TestParsePeerCapabilityAddPathBlock verifies block-style ADD-PATH config.
+// TestParsePeerCapabilityAddPathBlock verifies per-family override in unified add-path block.
 //
-// VALIDATES: add-path { send true; receive true; } is equivalent to "send/receive".
-// PREVENTS: Block-style add-path config not being parsed.
+// VALIDATES: add-path { direction send; family ipv4/unicast { direction send/receive; } } overrides.
+// PREVENTS: Per-family direction override not applied.
 func TestParsePeerCapabilityAddPathBlock(t *testing.T) {
 	tree := map[string]any{
 		"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
 		"session": map[string]any{
-			"asn":        map[string]any{"remote": "65001"},
-			"family":     map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
-			"capability": map[string]any{"add-path": map[string]any{"send": "true", "receive": "true"}},
+			"asn":    map[string]any{"remote": "65001"},
+			"family": map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
+			"capability": map[string]any{"add-path": map[string]any{
+				"direction": "send",
+				"family":    map[string]any{"ipv4/unicast": map[string]any{"direction": "send/receive"}},
+			}},
 		},
 	}
 
@@ -512,7 +515,7 @@ func TestParsePeerCapabilityAddPathBlock(t *testing.T) {
 
 // TestParsePeerCapabilityAddPathSendOnly verifies send-only ADD-PATH.
 //
-// VALIDATES: add-path "send" creates AddPathSend for all families.
+// VALIDATES: add-path { direction send; } creates AddPathSend for all families.
 // PREVENTS: Wrong mode when only send is requested.
 func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 	tree := map[string]any{
@@ -520,7 +523,7 @@ func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 		"session": map[string]any{
 			"asn":        map[string]any{"remote": "65001"},
 			"family":     map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
-			"capability": map[string]any{"add-path": "send"},
+			"capability": map[string]any{"add-path": map[string]any{"direction": "send"}},
 		},
 	}
 
@@ -1372,24 +1375,35 @@ func TestParseCapabilityModeBackwardsCompat(t *testing.T) {
 	}
 }
 
-// TestParseAddPathWithMode verifies add-path capability modes.
+// TestParseAddPathWithMode verifies add-path capability modes in unified config.
 //
-// VALIDATES: Global and per-family add-path modes parsed with trailing mode token.
-// PREVENTS: Mode token consumed as direction, or direction parsing broken.
+// VALIDATES: Per-family mode in unified add-path block parsed correctly.
+// PREVENTS: Mode not applied or direction parsing broken.
 func TestParseAddPathWithMode(t *testing.T) {
+	conn := map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}}
 	fam := map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}}
 	tests := []struct {
 		name         string
 		tree         map[string]any
 		wantRequired []capability.Code
 		wantRefused  []capability.Code
+		suppressCap  bool
 	}{
-		{"global add-path require", map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}}, "session": map[string]any{"asn": map[string]any{"remote": "65001"}, "family": fam, "capability": map[string]any{"add-path": "send/receive require"}}}, []capability.Code{capability.CodeAddPath}, nil},
-		{"per-family add-path require", map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}}, "session": map[string]any{"asn": map[string]any{"remote": "65001"}, "family": fam, "capability": map[string]any{}, "add-path": map[string]any{"ipv4/unicast": map[string]any{"direction": "send", "mode": "require"}}}}, []capability.Code{capability.CodeAddPath}, nil},
-		{"global add-path refuse", map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}}, "session": map[string]any{"asn": map[string]any{"remote": "65001"}, "family": fam, "capability": map[string]any{"add-path": "send/receive refuse"}}}, nil, []capability.Code{capability.CodeAddPath}},
-		{"global add-path no mode means enable", map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}}, "session": map[string]any{"asn": map[string]any{"remote": "65001"}, "family": fam, "capability": map[string]any{"add-path": "send/receive"}}}, nil, nil},
-		{"global add-path disable suppresses capability", map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}}, "session": map[string]any{"asn": map[string]any{"remote": "65001"}, "family": fam, "capability": map[string]any{"add-path": "send/receive disable"}}}, nil, nil},
-		{"global add-path refuse suppresses capability", map[string]any{"connection": map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}}, "session": map[string]any{"asn": map[string]any{"remote": "65001"}, "family": fam, "capability": map[string]any{"add-path": "send/receive refuse"}}}, nil, []capability.Code{capability.CodeAddPath}},
+		{
+			"per-family require",
+			map[string]any{"connection": conn, "session": map[string]any{"asn": map[string]any{"remote": "65001"}, "family": fam, "capability": map[string]any{"add-path": map[string]any{"family": map[string]any{"ipv4/unicast": map[string]any{"direction": "send", "mode": "require"}}}}}},
+			[]capability.Code{capability.CodeAddPath}, nil, false,
+		},
+		{
+			"per-family refuse suppresses that family",
+			map[string]any{"connection": conn, "session": map[string]any{"asn": map[string]any{"remote": "65001"}, "family": fam, "capability": map[string]any{"add-path": map[string]any{"family": map[string]any{"ipv4/unicast": map[string]any{"direction": "send", "mode": "refuse"}}}}}},
+			nil, []capability.Code{capability.CodeAddPath}, true,
+		},
+		{
+			"default direction no mode means enable",
+			map[string]any{"connection": conn, "session": map[string]any{"asn": map[string]any{"remote": "65001"}, "family": fam, "capability": map[string]any{"add-path": map[string]any{"direction": "send/receive"}}}},
+			nil, nil, false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1397,13 +1411,13 @@ func TestParseAddPathWithMode(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantRequired, ps.RequiredCapabilities, "RequiredCapabilities")
 			assert.Equal(t, tt.wantRefused, ps.RefusedCapabilities, "RefusedCapabilities")
-			var hasAddPath bool
-			for _, c := range ps.Capabilities {
-				if _, ok := c.(*capability.AddPath); ok {
-					hasAddPath = true
+			if tt.suppressCap {
+				var hasAddPath bool
+				for _, c := range ps.Capabilities {
+					if _, ok := c.(*capability.AddPath); ok {
+						hasAddPath = true
+					}
 				}
-			}
-			if tt.name == "global add-path disable suppresses capability" || tt.name == "global add-path refuse suppresses capability" {
 				assert.False(t, hasAddPath, "AddPath capability should be suppressed")
 			}
 		})

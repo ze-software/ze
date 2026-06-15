@@ -1,5 +1,5 @@
 # Test: ze config completion — capability add-path children
-# VALIDATES: add-path sub-container shows send/receive
+# VALIDATES: add-path container shows direction, limit, family
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -29,5 +29,5 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/session/capability/add-path --input set+ test.conf
 expect=exit:code=0
-expect=stdout:contains=send
-expect=stdout:contains=receive
+expect=stdout:contains=direction
+expect=stdout:contains=family

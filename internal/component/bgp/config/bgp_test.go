@@ -315,8 +315,7 @@ bgp {
                     restart-time 120;
                 }
                 add-path {
-                    send true;
-                    receive true;
+                    direction send/receive;
                 }
             }
         }
@@ -348,8 +347,8 @@ bgp {
 	addPath := cap.GetContainer("add-path")
 	require.NotNil(t, addPath)
 
-	val, _ = addPath.Get("send")
-	require.Equal(t, "true", val)
+	val, _ = addPath.Get("direction")
+	require.Equal(t, "send/receive", val)
 }
 
 // TestBGPSchemaNexthopList verifies nexthop parsed as list with positional children.
@@ -409,12 +408,12 @@ bgp {
 	require.Equal(t, "require", mode)
 }
 
-// TestBGPSchemaPeerAddPathList verifies peer-level add-path parsed as list.
+// TestBGPSchemaAddPathFamilyList verifies per-family add-path inside capability block.
 //
-// VALIDATES: add-path { ipv4/unicast send; } stores direction="send" on the entry.
+// VALIDATES: add-path { family { ipv4/unicast { direction send; limit 10; } } } parsed as list.
 //
-// PREVENTS: Lost per-family add-path config after removing ze:allow-unknown-fields.
-func TestBGPSchemaPeerAddPathList(t *testing.T) {
+// PREVENTS: Lost per-family add-path config in unified block.
+func TestBGPSchemaAddPathFamilyList(t *testing.T) {
 	input := `
 bgp {
     peer transit1 {
@@ -428,9 +427,19 @@ bgp {
                 local 65000
                 remote 65001
             }
-            add-path {
-                ipv4/unicast send;
-                ipv6/unicast send/receive require;
+            capability {
+                add-path {
+                    family {
+                        ipv4/unicast {
+                            direction send;
+                            limit 10;
+                        }
+                        ipv6/unicast {
+                            direction send/receive;
+                            mode require;
+                        }
+                    }
+                }
             }
         }
     }
@@ -444,18 +453,22 @@ bgp {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	n := tree.GetContainer("bgp").GetList("peer")["transit1"]
-	apList := n.GetContainer("session").GetList("add-path")
-	require.Len(t, apList, 2)
+	cap := tree.GetContainer("bgp").GetList("peer")["transit1"].GetContainer("session").GetContainer("capability")
+	addPath := cap.GetContainer("add-path")
+	require.NotNil(t, addPath)
 
-	// ipv4/unicast -> direction=send
-	ipv4u := apList["ipv4/unicast"]
+	famList := addPath.GetList("family")
+	require.Len(t, famList, 2)
+
+	ipv4u := famList["ipv4/unicast"]
 	dir, ok := ipv4u.Get("direction")
 	require.True(t, ok)
 	require.Equal(t, "send", dir)
+	limit, ok := ipv4u.Get("limit")
+	require.True(t, ok)
+	require.Equal(t, "10", limit)
 
-	// ipv6/unicast -> direction=send/receive, mode=require
-	ipv6u := apList["ipv6/unicast"]
+	ipv6u := famList["ipv6/unicast"]
 	dir, ok = ipv6u.Get("direction")
 	require.True(t, ok)
 	require.Equal(t, "send/receive", dir)

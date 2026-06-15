@@ -26,6 +26,12 @@ type EncodingCaps struct {
 	// RFC 8950: Extended next-hop encoding per family.
 	// Value is the next-hop AFI (e.g., AFIIPv6 for IPv4 prefix with IPv6 NH).
 	ExtendedNextHop map[Family]AFI
+
+	// draft-abraitis-idr-addpath-paths-limit: per-family path count limits.
+	// PathsLimitSend holds the remote peer's advertised limits (constrains our send).
+	// PathsLimitRecv holds our advertised limits (constrains peer's send).
+	PathsLimitSend map[Family]uint16
+	PathsLimitRecv map[Family]uint16
 }
 
 // SupportsFamily returns true if the family was negotiated.

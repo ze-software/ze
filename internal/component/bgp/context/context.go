@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"hash"
 	"hash/fnv"
+	"maps"
 	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
@@ -61,8 +62,9 @@ type EncodingContext struct {
 	encoding *capability.EncodingCaps
 
 	// Direction-specific derived data
-	direction Direction
-	addPath   map[family.Family]bool // Derived from encoding.AddPathMode + direction
+	direction  Direction
+	addPath    map[family.Family]bool   // Derived from encoding.AddPathMode + direction
+	pathsLimit map[family.Family]uint16 // Derived from encoding.PathsLimitSend/Recv + direction
 
 	// Cached hash for registry deduplication
 	hash uint64
@@ -76,10 +78,11 @@ type EncodingContext struct {
 //   - Send: check for Send or Both mode
 func NewEncodingContext(identity *capability.PeerIdentity, encoding *capability.EncodingCaps, dir Direction) *EncodingContext {
 	ctx := &EncodingContext{
-		identity:  identity,
-		encoding:  encoding,
-		direction: dir,
-		addPath:   make(map[family.Family]bool),
+		identity:   identity,
+		encoding:   encoding,
+		direction:  dir,
+		addPath:    make(map[family.Family]bool),
+		pathsLimit: make(map[family.Family]uint16),
 	}
 
 	// Derive addPath map based on direction
@@ -98,6 +101,18 @@ func NewEncodingContext(identity *capability.PeerIdentity, encoding *capability.
 				ctx.addPath[f] = true
 			}
 		}
+	}
+
+	// draft-abraitis-idr-addpath-paths-limit: derive direction-specific pathsLimit
+	if encoding != nil {
+		var src map[family.Family]uint16
+		switch dir {
+		case DirectionSend:
+			src = encoding.PathsLimitSend
+		case DirectionRecv:
+			src = encoding.PathsLimitRecv
+		}
+		maps.Copy(ctx.pathsLimit, src)
 	}
 
 	// Compute and cache hash
@@ -187,6 +202,15 @@ func (c *EncodingContext) AddPathFor(f family.Family) bool {
 	return c.AddPath(f)
 }
 
+// PathsLimit returns the negotiated path count limit for the given family in this direction.
+// draft-abraitis-idr-addpath-paths-limit: returns 0 if no limit is negotiated.
+func (c *EncodingContext) PathsLimit(f family.Family) uint16 {
+	if c == nil || c.pathsLimit == nil {
+		return 0
+	}
+	return c.pathsLimit[f]
+}
+
 // ExtendedNextHopFor returns the next-hop AFI for the given family.
 // RFC 8950: Returns the next-hop AFI if extended next-hop is negotiated.
 // Returns 0 if not negotiated.
@@ -248,6 +272,10 @@ func (c *EncodingContext) computeHash() uint64 {
 		hashFamilyAFIMap(h, c.encoding.ExtendedNextHop)
 	}
 
+	// PathsLimit map (sorted for determinism)
+	hashSeparator(h, 0xFD)
+	hashFamilyUint16Map(h, c.pathsLimit)
+
 	return h.Sum64()
 }
 
@@ -302,6 +330,35 @@ func hashFamilyAFIMap(h hash.Hash64, m map[capability.Family]capability.AFI) {
 		buf[2] = uint8(k.SAFI)
 		binary.BigEndian.PutUint16(buf[3:5], uint16(m[k]))
 		_, _ = h.Write(buf)
+	}
+}
+
+// hashSeparator writes a one-byte separator to the hash.
+// hash.Hash.Write never returns an error per interface contract.
+func hashSeparator(h hash.Hash64, b byte) {
+	h.Write([]byte{b}) //nolint:errcheck // hash.Hash.Write
+}
+
+// hashFamilyUint16Map writes PathsLimit map entries to hash in deterministic order.
+func hashFamilyUint16Map(h hash.Hash64, m map[family.Family]uint16) {
+	if len(m) == 0 {
+		return
+	}
+
+	keys := make([]family.Family, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return family.FamilyLess(keys[i], keys[j])
+	})
+
+	buf := make([]byte, 5)
+	for _, k := range keys {
+		binary.BigEndian.PutUint16(buf[0:2], uint16(k.AFI))
+		buf[2] = uint8(k.SAFI)
+		binary.BigEndian.PutUint16(buf[3:5], m[k])
+		h.Write(buf) //nolint:errcheck // hash.Hash.Write
 	}
 }
 

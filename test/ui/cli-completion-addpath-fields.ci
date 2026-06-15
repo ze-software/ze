@@ -1,5 +1,5 @@
-# Test: ze config completion — add-path list fields
-# VALIDATES: add-path list shows direction and mode fields
+# Test: ze config completion — add-path family list fields
+# VALIDATES: add-path family list shows direction, mode, and limit fields
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -27,8 +27,8 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/session/add-path --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/session/capability/add-path/family --input set+ test.conf
 expect=exit:code=0
 expect=stdout:contains=direction
 expect=stdout:contains=mode
-expect=stdout:contains=family
+expect=stdout:contains=limit

@@ -84,6 +84,9 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 		return stats, nil
 	}
 
+	// draft-abraitis-idr-addpath-paths-limit: enforce per-prefix path count limits.
+	routes = c.enforcePathsLimit(routes)
+
 	// Track which families have routes
 	familySeen := make(map[family.Family]bool)
 
@@ -220,6 +223,68 @@ func (c *CommitService) useTraditionalNLRI(fam family.Family, nextHop netip.Addr
 	// Only IPv4 unicast with IPv4 next-hop uses traditional NLRI field
 	// IPv4 unicast with IPv6 next-hop (RFC 5549) must use MP_REACH_NLRI
 	return fam.AFI == 1 && fam.SAFI == 1 && nextHop.Is4()
+}
+
+// enforcePathsLimit filters routes to respect per-prefix path count limits.
+// draft-abraitis-idr-addpath-paths-limit Section 4: the sender MUST NOT send
+// more paths per prefix than the receiver's advertised limit.
+// For VPN/labeled NLRIs, NLRI.Bytes() includes RD/label, so counting is per-RD+prefix.
+func (c *CommitService) enforcePathsLimit(routes []*Route) []*Route {
+	if c.ctx == nil {
+		return routes
+	}
+
+	// Fast check: scan families present in routes. Skip entirely if none has a limit.
+	var seenFamilies [4]family.Family
+	nSeen := 0
+	hasLimit := false
+	for _, r := range routes {
+		fam := r.NLRI().Family()
+		found := false
+		for i := range nSeen {
+			if seenFamilies[i] == fam {
+				found = true
+				break
+			}
+		}
+		if !found {
+			if c.ctx.PathsLimit(fam) > 0 {
+				hasLimit = true
+				break
+			}
+			if nSeen < len(seenFamilies) {
+				seenFamilies[nSeen] = fam
+				nSeen++
+			}
+		}
+	}
+	if !hasLimit {
+		return routes
+	}
+
+	// Count paths per (family, prefix-bytes) key; drop excess.
+	type prefixKey struct {
+		fam    family.Family
+		prefix string
+	}
+	counts := make(map[prefixKey]uint16, len(routes))
+	n := 0
+	for _, r := range routes {
+		fam := r.NLRI().Family()
+		limit := c.ctx.PathsLimit(fam)
+		if limit == 0 {
+			routes[n] = r
+			n++
+			continue
+		}
+		pk := prefixKey{fam: fam, prefix: string(r.NLRI().Bytes())}
+		if counts[pk] < limit {
+			counts[pk]++
+			routes[n] = r
+			n++
+		}
+	}
+	return routes[:n]
 }
 
 // addPathFor returns whether ADD-PATH is negotiated for the given family.

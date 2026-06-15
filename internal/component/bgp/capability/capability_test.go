@@ -28,6 +28,7 @@ func TestCapabilityCodeConstants(t *testing.T) {
 		{CodeASN4, 65, "4-Byte AS"},
 		{CodeAddPath, 69, "ADD-PATH"},
 		{CodeFQDN, 73, "FQDN"},
+		{CodePathsLimit, 76, "PATHS-LIMIT"},
 	}
 
 	for _, tt := range tests {
@@ -252,6 +253,9 @@ func TestCapabilityRoundTrip(t *testing.T) {
 			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
 		}}},
 		{"FQDN", &FQDN{Hostname: "router1", DomainName: "example.com"}},
+		{"PathsLimit", &PathsLimit{Entries: []PathsLimitEntry{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10},
+		}}},
 	}
 
 	for _, tt := range tests {
@@ -419,6 +423,10 @@ func TestCapabilityWriteTo(t *testing.T) {
 		}},
 		&FQDN{Hostname: "router1", DomainName: "example.com"},
 		&FQDN{Hostname: "", DomainName: ""},
+		&PathsLimit{Entries: []PathsLimitEntry{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10},
+			{AFI: AFIIPv6, SAFI: SAFIUnicast, Limit: 65535},
+		}},
 		NewPlugin(99, []byte{0xDE, 0xAD}),
 	}
 
@@ -483,6 +491,314 @@ func TestCapabilityWriteToAtOffset(t *testing.T) {
 			}
 			for i := offset + n; i < len(buf); i++ {
 				assert.Equal(t, byte(0xFF), buf[i], "byte after data corrupted at %d", i)
+			}
+		})
+	}
+}
+
+// TestPathsLimitCode verifies capability code is 76.
+//
+// VALIDATES: Correct IANA capability code.
+//
+// PREVENTS: Wrong capability code in OPEN message.
+func TestPathsLimitCode(t *testing.T) {
+	t.Parallel()
+	pl := &PathsLimit{}
+	assert.Equal(t, CodePathsLimit, pl.Code())
+	assert.Equal(t, Code(76), pl.Code())
+}
+
+// TestParsePathsLimit verifies parsing 5-byte entries from wire bytes.
+//
+// VALIDATES: draft-abraitis-idr-addpath-paths-limit wire parsing.
+//
+// PREVENTS: Interop failures with peers advertising PATHS-LIMIT.
+func TestParsePathsLimit(t *testing.T) {
+	t.Parallel()
+	data := []byte{
+		0x4C,       // Code = PATHS-LIMIT (76)
+		0x0A,       // Length = 10 (2 entries * 5 bytes)
+		0x00, 0x01, // AFI = IPv4
+		0x01,       // SAFI = Unicast
+		0x00, 0x0A, // Limit = 10
+		0x00, 0x02, // AFI = IPv6
+		0x01,       // SAFI = Unicast
+		0x00, 0x14, // Limit = 20
+	}
+
+	caps, err := Parse(data)
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+
+	pl, ok := caps[0].(*PathsLimit)
+	require.True(t, ok)
+	require.Len(t, pl.Entries, 2)
+
+	assert.Equal(t, AFIIPv4, pl.Entries[0].AFI)
+	assert.Equal(t, SAFIUnicast, pl.Entries[0].SAFI)
+	assert.Equal(t, uint16(10), pl.Entries[0].Limit)
+
+	assert.Equal(t, AFIIPv6, pl.Entries[1].AFI)
+	assert.Equal(t, SAFIUnicast, pl.Entries[1].SAFI)
+	assert.Equal(t, uint16(20), pl.Entries[1].Limit)
+}
+
+// TestParsePathsLimitEmpty verifies empty data produces empty PathsLimit.
+//
+// VALIDATES: Edge case with no entries.
+//
+// PREVENTS: Panic on empty PATHS-LIMIT capability.
+func TestParsePathsLimitEmpty(t *testing.T) {
+	t.Parallel()
+	data := []byte{
+		0x4C, // Code = PATHS-LIMIT (76)
+		0x00, // Length = 0
+	}
+
+	caps, err := Parse(data)
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+
+	pl, ok := caps[0].(*PathsLimit)
+	require.True(t, ok)
+	assert.Empty(t, pl.Entries)
+}
+
+// TestParsePathsLimitShortRead verifies truncated data returns ErrShortRead.
+//
+// VALIDATES: Malformed data detection.
+//
+// PREVENTS: Buffer overread from corrupted packets.
+func TestParsePathsLimitShortRead(t *testing.T) {
+	t.Parallel()
+	data := []byte{
+		0x4C,       // Code = PATHS-LIMIT (76)
+		0x03,       // Length = 3 (not multiple of 5)
+		0x00, 0x01, // AFI
+		0x01, // SAFI (truncated: missing 2-byte limit)
+	}
+
+	_, err := Parse(data)
+	require.ErrorIs(t, err, ErrShortRead)
+}
+
+// TestParsePathsLimitSkipZero verifies entries with limit 0 are skipped.
+//
+// VALIDATES: draft-abraitis-idr-addpath-paths-limit: limit 0 means skip.
+//
+// PREVENTS: Accepting 0 as a valid limit (would mean "no paths").
+func TestParsePathsLimitSkipZero(t *testing.T) {
+	t.Parallel()
+	data := []byte{
+		0x4C,       // Code = PATHS-LIMIT (76)
+		0x0A,       // Length = 10
+		0x00, 0x01, // AFI = IPv4
+		0x01,       // SAFI = Unicast
+		0x00, 0x00, // Limit = 0 (skip)
+		0x00, 0x02, // AFI = IPv6
+		0x01,       // SAFI = Unicast
+		0x00, 0x05, // Limit = 5
+	}
+
+	caps, err := Parse(data)
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+
+	pl, ok := caps[0].(*PathsLimit)
+	require.True(t, ok)
+	require.Len(t, pl.Entries, 1)
+	assert.Equal(t, AFIIPv6, pl.Entries[0].AFI)
+	assert.Equal(t, uint16(5), pl.Entries[0].Limit)
+}
+
+// TestParsePathsLimitDuplicateFirstWins verifies duplicate AFI/SAFI: first entry kept.
+//
+// VALIDATES: draft-abraitis-idr-addpath-paths-limit duplicate handling.
+//
+// PREVENTS: Later duplicates overwriting the first valid entry.
+func TestParsePathsLimitDuplicateFirstWins(t *testing.T) {
+	t.Parallel()
+	data := []byte{
+		0x4C,       // Code
+		0x0A,       // Length = 10
+		0x00, 0x01, // AFI = IPv4
+		0x01,       // SAFI = Unicast
+		0x00, 0x0A, // Limit = 10 (first, kept)
+		0x00, 0x01, // AFI = IPv4
+		0x01,       // SAFI = Unicast
+		0x00, 0x14, // Limit = 20 (duplicate, ignored)
+	}
+
+	caps, err := Parse(data)
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+
+	pl, ok := caps[0].(*PathsLimit)
+	require.True(t, ok)
+	require.Len(t, pl.Entries, 1)
+	assert.Equal(t, uint16(10), pl.Entries[0].Limit)
+}
+
+// TestPathsLimitWriteTo verifies WriteTo produces correct wire bytes.
+//
+// VALIDATES: draft-abraitis-idr-addpath-paths-limit wire encoding.
+//
+// PREVENTS: Malformed OPEN messages sent to peers.
+func TestPathsLimitWriteTo(t *testing.T) {
+	t.Parallel()
+	pl := &PathsLimit{
+		Entries: []PathsLimitEntry{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10},
+			{AFI: AFIIPv6, SAFI: SAFIUnicast, Limit: 65535},
+		},
+	}
+
+	buf := make([]byte, pl.Len())
+	n := pl.WriteTo(buf, 0)
+
+	assert.Equal(t, pl.Len(), n)
+	assert.Equal(t, 12, n) // 2 header + 2*5 data
+
+	assert.Equal(t, byte(76), buf[0]) // Code
+	assert.Equal(t, byte(10), buf[1]) // Length = 10
+
+	// Entry 1: IPv4/unicast limit 10
+	assert.Equal(t, byte(0x00), buf[2])
+	assert.Equal(t, byte(0x01), buf[3]) // AFI = 1
+	assert.Equal(t, byte(0x01), buf[4]) // SAFI = 1
+	assert.Equal(t, byte(0x00), buf[5])
+	assert.Equal(t, byte(0x0A), buf[6]) // Limit = 10
+
+	// Entry 2: IPv6/unicast limit 65535
+	assert.Equal(t, byte(0x00), buf[7])
+	assert.Equal(t, byte(0x02), buf[8]) // AFI = 2
+	assert.Equal(t, byte(0x01), buf[9]) // SAFI = 1
+	assert.Equal(t, byte(0xFF), buf[10])
+	assert.Equal(t, byte(0xFF), buf[11]) // Limit = 65535
+}
+
+// TestPathsLimitRoundTrip verifies encode then decode yields same struct.
+//
+// VALIDATES: Serialization correctness.
+//
+// PREVENTS: Data corruption during pack/parse cycle.
+func TestPathsLimitRoundTrip(t *testing.T) {
+	t.Parallel()
+	original := &PathsLimit{
+		Entries: []PathsLimitEntry{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10},
+			{AFI: AFIIPv6, SAFI: SAFIUnicast, Limit: 100},
+			{AFI: AFIIPv4, SAFI: SAFIVPN, Limit: 1},
+		},
+	}
+
+	packed := make([]byte, original.Len())
+	original.WriteTo(packed, 0)
+	parsed, err := Parse(packed)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+
+	pl, ok := parsed[0].(*PathsLimit)
+	require.True(t, ok)
+	require.Len(t, pl.Entries, 3)
+
+	for i, entry := range pl.Entries {
+		assert.Equal(t, original.Entries[i].AFI, entry.AFI)
+		assert.Equal(t, original.Entries[i].SAFI, entry.SAFI)
+		assert.Equal(t, original.Entries[i].Limit, entry.Limit)
+	}
+}
+
+// TestPathsLimitLen verifies Len returns 2 + 5*N.
+//
+// VALIDATES: Correct size calculation for buffer allocation.
+//
+// PREVENTS: Buffer overflows from wrong size.
+func TestPathsLimitLen(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		entries int
+		want    int
+	}{
+		{"empty", 0, 0},
+		{"one", 1, 7},
+		{"two", 2, 12},
+		{"max_50", 50, 252},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			entries := make([]PathsLimitEntry, tt.entries)
+			for i := range entries {
+				entries[i] = PathsLimitEntry{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10}
+			}
+			pl := &PathsLimit{Entries: entries}
+			assert.Equal(t, tt.want, pl.Len())
+		})
+	}
+}
+
+// TestPathsLimitConfigValues verifies ConfigValues returns scoped keys.
+//
+// VALIDATES: Plugin config delivery for PATHS-LIMIT capability.
+//
+// PREVENTS: Missing capability config in plugin Stage 2 delivery.
+func TestPathsLimitConfigValues(t *testing.T) {
+	t.Parallel()
+	pl := &PathsLimit{
+		Entries: []PathsLimitEntry{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10},
+		},
+	}
+	vals := pl.ConfigValues()
+	assert.Equal(t, "true", vals["draft-abraitis-paths-limit:enabled"])
+
+	empty := &PathsLimit{}
+	assert.Nil(t, empty.ConfigValues())
+}
+
+// TestPathsLimitBoundary verifies boundary values for limit field.
+//
+// VALIDATES: uint16 boundary handling (1 and 65535).
+//
+// PREVENTS: Off-by-one in limit encoding/decoding.
+func TestPathsLimitBoundary(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		limit uint16
+		kept  bool
+	}{
+		{"zero_skipped", 0, false},
+		{"min_valid", 1, true},
+		{"max_valid", 65535, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			original := &PathsLimit{
+				Entries: []PathsLimitEntry{
+					{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: tt.limit},
+				},
+			}
+
+			packed := make([]byte, original.Len())
+			original.WriteTo(packed, 0)
+			parsed, err := Parse(packed)
+			require.NoError(t, err)
+			require.Len(t, parsed, 1)
+
+			pl, ok := parsed[0].(*PathsLimit)
+			require.True(t, ok)
+
+			if tt.kept {
+				require.Len(t, pl.Entries, 1)
+				assert.Equal(t, tt.limit, pl.Entries[0].Limit)
+			} else {
+				assert.Empty(t, pl.Entries)
 			}
 		})
 	}

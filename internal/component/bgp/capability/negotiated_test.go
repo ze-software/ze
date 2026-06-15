@@ -518,3 +518,118 @@ func TestCheckRefusedCodes(t *testing.T) {
 		})
 	}
 }
+
+// TestNegotiatePathsLimit verifies PATHS-LIMIT negotiation with both peers.
+//
+// VALIDATES: draft-abraitis-idr-addpath-paths-limit: limits stored per direction.
+//
+// PREVENTS: Wrong path count enforcement direction.
+func TestNegotiatePathsLimit(t *testing.T) {
+	t.Parallel()
+	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&AddPath{Families: []AddPathFamily{{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth}}},
+		&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 5}}},
+	}
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&AddPath{Families: []AddPathFamily{{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth}}},
+		&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10}}},
+	}
+
+	neg := Negotiate(local, remote, 65001, 65002)
+
+	// Remote's limit (10) constrains our send
+	assert.Equal(t, uint16(10), neg.Encoding.PathsLimitSend[ipv4])
+	// Our limit (5) constrains peer's send
+	assert.Equal(t, uint16(5), neg.Encoding.PathsLimitRecv[ipv4])
+}
+
+// TestNegotiatePathsLimitOneSided verifies one-sided PATHS-LIMIT.
+//
+// VALIDATES: Only the advertising direction gets limits stored.
+//
+// PREVENTS: Phantom limits when only one peer advertises.
+func TestNegotiatePathsLimitOneSided(t *testing.T) {
+	t.Parallel()
+	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&AddPath{Families: []AddPathFamily{{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth}}},
+	}
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&AddPath{Families: []AddPathFamily{{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth}}},
+		&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10}}},
+	}
+
+	neg := Negotiate(local, remote, 65001, 65002)
+
+	// Remote advertises: constrains our send
+	assert.Equal(t, uint16(10), neg.Encoding.PathsLimitSend[ipv4])
+	// Local does not advertise: no constraint on peer's send
+	assert.Equal(t, uint16(0), neg.Encoding.PathsLimitRecv[ipv4])
+}
+
+// TestNegotiatePathsLimitNoAddPath verifies PathsLimit without AddPath is excluded.
+//
+// VALIDATES: draft-abraitis-idr-addpath-paths-limit: requires ADD-PATH.
+//
+// PREVENTS: Storing limits for families without ADD-PATH negotiated.
+func TestNegotiatePathsLimitNoAddPath(t *testing.T) {
+	t.Parallel()
+	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 5}}},
+	}
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10}}},
+	}
+
+	neg := Negotiate(local, remote, 65001, 65002)
+
+	// No ADD-PATH negotiated: no limits
+	assert.Equal(t, uint16(0), neg.Encoding.PathsLimitSend[ipv4])
+	assert.Equal(t, uint16(0), neg.Encoding.PathsLimitRecv[ipv4])
+}
+
+// TestNegotiatePathsLimitPartialAddPath verifies PathsLimit for family not in AddPath.
+//
+// VALIDATES: Per-family filtering against AddPath.
+//
+// PREVENTS: Limits leaking to families without ADD-PATH support.
+func TestNegotiatePathsLimitPartialAddPath(t *testing.T) {
+	t.Parallel()
+	ipv4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
+	ipv6 := Family{AFI: AFIIPv6, SAFI: SAFIUnicast}
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast},
+		&AddPath{Families: []AddPathFamily{{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth}}},
+		&PathsLimit{Entries: []PathsLimitEntry{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 5},
+			{AFI: AFIIPv6, SAFI: SAFIUnicast, Limit: 3},
+		}},
+	}
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast},
+		&AddPath{Families: []AddPathFamily{{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth}}},
+		&PathsLimit{Entries: []PathsLimitEntry{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10},
+			{AFI: AFIIPv6, SAFI: SAFIUnicast, Limit: 8},
+		}},
+	}
+
+	neg := Negotiate(local, remote, 65001, 65002)
+
+	// IPv4 has ADD-PATH: limits apply
+	assert.Equal(t, uint16(10), neg.Encoding.PathsLimitSend[ipv4])
+	assert.Equal(t, uint16(5), neg.Encoding.PathsLimitRecv[ipv4])
+	// IPv6 has NO ADD-PATH: limits excluded
+	assert.Equal(t, uint16(0), neg.Encoding.PathsLimitSend[ipv6])
+	assert.Equal(t, uint16(0), neg.Encoding.PathsLimitRecv[ipv6])
+}

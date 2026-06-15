@@ -205,6 +205,18 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 		result["add_path"] = converted
 	}
 
+	// Convert paths-limit (ZeBGP uses hyphen, ExaBGP uses underscore; families use space separator)
+	if pathsLimit, ok := zebgp["paths-limit"].(map[string]any); ok {
+		converted := make(map[string]any)
+		if send, ok := pathsLimit["send"].(map[string]any); ok {
+			converted["send"] = convertFamilyKeyMap(send)
+		}
+		if recv, ok := pathsLimit["receive"].(map[string]any); ok {
+			converted["receive"] = convertFamilyKeyMap(recv)
+		}
+		result["paths_limit"] = converted
+	}
+
 	return result
 }
 
@@ -216,6 +228,16 @@ func convertFamilyList(families []any) []string {
 		if s, ok := f.(string); ok {
 			result = append(result, strings.ReplaceAll(s, "/", " "))
 		}
+	}
+	return result
+}
+
+// convertFamilyKeyMap converts a map with family keys from ZeBGP to ExaBGP format.
+// Keys: "ipv4/unicast" -> "ipv4 unicast". Values are preserved as-is.
+func convertFamilyKeyMap(m map[string]any) map[string]any {
+	result := make(map[string]any, len(m))
+	for k, v := range m {
+		result[strings.ReplaceAll(k, "/", " ")] = v
 	}
 	return result
 }

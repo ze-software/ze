@@ -160,6 +160,22 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 			})
 		}
 		return results
+	case *capability.PathsLimit:
+		if len(c.Entries) == 0 {
+			return []DecodedCapability{{Code: code, Name: "paths-limit"}}
+		}
+		var results []DecodedCapability
+		for _, e := range c.Entries {
+			out := family.Family{AFI: e.AFI, SAFI: e.SAFI}.AppendTo(sb[:0])
+			out = append(out, ' ')
+			out = strconv.AppendUint(out, uint64(e.Limit), 10)
+			results = append(results, DecodedCapability{
+				Code:  code,
+				Name:  "paths-limit",
+				Value: string(out),
+			})
+		}
+		return results
 	}
 	// Unknown / plugin-decoded capability.
 	buf := make([]byte, cap.Len())
@@ -380,6 +396,10 @@ type DecodedNegotiated struct {
 	AddPathReceive []string
 	// ExtendedNextHop maps family to nexthop AFI (e.g., {"ipv4/unicast": "ipv6"}).
 	ExtendedNextHop map[string]string
+	// PathsLimitSend maps family to path count limit from remote (constrains our send).
+	PathsLimitSend map[string]uint16
+	// PathsLimitRecv maps family to path count limit from us (constrains peer's send).
+	PathsLimitRecv map[string]uint16
 }
 
 // NegotiatedToDecoded converts capability.Negotiated to DecodedNegotiated.
@@ -434,6 +454,23 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 		}
 	}
 
+	// Convert PATHS-LIMIT (direction-aware)
+	var plSend, plRecv map[string]uint16
+	if neg.Encoding != nil {
+		for f, limit := range neg.Encoding.PathsLimitSend {
+			if plSend == nil {
+				plSend = make(map[string]uint16)
+			}
+			plSend[f.String()] = limit
+		}
+		for f, limit := range neg.Encoding.PathsLimitRecv {
+			if plRecv == nil {
+				plRecv = make(map[string]uint16)
+			}
+			plRecv[f.String()] = limit
+		}
+	}
+
 	return DecodedNegotiated{
 		MessageSize:     msgSize,
 		HoldTime:        neg.HoldTime,
@@ -443,5 +480,7 @@ func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
 		AddPathSend:     addPathSend,
 		AddPathReceive:  addPathRecv,
 		ExtendedNextHop: extNH,
+		PathsLimitSend:  plSend,
+		PathsLimitRecv:  plRecv,
 	}
 }

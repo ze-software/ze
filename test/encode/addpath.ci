@@ -32,11 +32,13 @@ bgp {
 				ipv6/unicast { prefix { maximum 10000; } }
 			}
 			capability {
-				add-path send/receive
-			}
-			add-path {
-				ipv4/mpls-vpn
-				ipv4/unicast
+				add-path {
+					direction send/receive
+					family {
+						ipv4/mpls-vpn
+						ipv4/unicast
+					}
+				}
 			}
 		}
 		behavior {

@@ -124,6 +124,18 @@ func (s *Session) sendOpen(conn net.Conn) error {
 		caps = append(caps, &capability.ASN4{ASN: s.settings.LocalAS})
 	}
 
+	// draft-abraitis-idr-addpath-paths-limit: suppress PATHS-LIMIT for RS fast-path peers
+	// (RS fast-path forwards raw UPDATEs without per-prefix path tracking).
+	if s.settings.RSFastPath {
+		filtered := make([]capability.Capability, 0, len(otherCaps))
+		for _, c := range otherCaps {
+			if c.Code() != capability.CodePathsLimit {
+				filtered = append(filtered, c)
+			}
+		}
+		otherCaps = filtered
+	}
+
 	// Add remaining capabilities.
 	caps = append(caps, otherCaps...)
 

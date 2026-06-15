@@ -55,6 +55,7 @@ const (
 	CodeAddPath              Code = 69 // RFC 7911 Section 4
 	CodeEnhancedRouteRefresh Code = 70 // RFC 7313 Section 3.1
 	CodeFQDN                 Code = 73 // RFC 8516
+	CodePathsLimit           Code = 76 // draft-abraitis-idr-addpath-paths-limit
 )
 
 // String returns human-readable capability code name.
@@ -80,6 +81,8 @@ func (c Code) String() string {
 		return "Enhanced Route Refresh(70)"
 	case CodeFQDN:
 		return "FQDN(73)"
+	case CodePathsLimit:
+		return "PATHS-LIMIT(76)"
 	default:
 		return textbuf.StrIntStr("Unknown(", int64(c), ")")
 	}
@@ -211,6 +214,8 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		return parseGracefulRestart(data)
 	case CodeFQDN:
 		return parseFQDN(data)
+	case CodePathsLimit:
+		return parsePathsLimit(data)
 	default: // RFC 5492 Section 3: Unrecognized capabilities MUST be ignored.
 		// We preserve raw data for debugging/logging purposes.
 		return &Unknown{code: code, Data: append([]byte{}, data...)}, nil
@@ -695,6 +700,95 @@ func parseFQDN(data []byte) (*FQDN, error) {
 		Hostname:   hostname,
 		DomainName: domainName,
 	}, nil
+}
+
+// PathsLimitEntry describes path count limit for one AFI/SAFI.
+//
+// draft-abraitis-idr-addpath-paths-limit Section 3: Each entry is 5 octets:
+// AFI (2) + SAFI (1) + Max Paths (2).
+type PathsLimitEntry struct {
+	AFI   AFI
+	SAFI  SAFI
+	Limit uint16
+}
+
+// PathsLimit represents PATHS-LIMIT capability (draft-abraitis-idr-addpath-paths-limit).
+//
+// draft-abraitis-idr-addpath-paths-limit Section 3: Capability Code 76, variable length.
+// The receiver advertises the maximum number of paths it wants to receive per prefix,
+// per address family. Only meaningful when ADD-PATH is also negotiated.
+type PathsLimit struct {
+	Entries []PathsLimitEntry
+}
+
+func (p *PathsLimit) Code() Code { return CodePathsLimit }
+
+// Len returns 0 when Entries is empty (draft-abraitis-idr-addpath-paths-limit: do not emit empty).
+func (p *PathsLimit) Len() int {
+	if len(p.Entries) == 0 {
+		return 0
+	}
+	return 2 + len(p.Entries)*5
+}
+
+func (p *PathsLimit) WriteTo(buf []byte, off int) int {
+	if len(p.Entries) == 0 {
+		return 0
+	}
+	dataLen := len(p.Entries) * 5
+	writeCapabilityTo(buf, off, CodePathsLimit, dataLen)
+	for i, e := range p.Entries {
+		o := off + 2 + i*5
+		binary.BigEndian.PutUint16(buf[o:], uint16(e.AFI))
+		buf[o+2] = byte(e.SAFI)
+		binary.BigEndian.PutUint16(buf[o+3:], e.Limit)
+	}
+	return 2 + dataLen
+}
+
+// ConfigValues implements ConfigProvider for plugin config delivery.
+func (p *PathsLimit) ConfigValues() map[string]string {
+	if len(p.Entries) == 0 {
+		return nil
+	}
+	return map[string]string{"draft-abraitis-paths-limit:enabled": "true"}
+}
+
+// parsePathsLimit parses a PATHS-LIMIT capability.
+//
+// draft-abraitis-idr-addpath-paths-limit Section 3: Capability value length
+// must be a multiple of 5. Each entry is <AFI(2), SAFI(1), Max Paths(2)>.
+// Entries with limit 0 are skipped. Duplicate AFI/SAFI: first entry wins.
+func parsePathsLimit(data []byte) (*PathsLimit, error) {
+	if len(data)%5 != 0 {
+		return nil, ErrShortRead
+	}
+
+	seen := make(map[Family]bool)
+	entries := make([]PathsLimitEntry, 0, len(data)/5)
+	for i := 0; i+5 <= len(data); i += 5 {
+		afi := AFI(binary.BigEndian.Uint16(data[i:]))
+		safi := SAFI(data[i+2])
+		limit := binary.BigEndian.Uint16(data[i+3:])
+
+		// draft-abraitis-idr-addpath-paths-limit: skip entries with limit 0
+		if limit == 0 {
+			continue
+		}
+
+		f := Family{AFI: afi, SAFI: safi}
+		if seen[f] {
+			continue
+		}
+		seen[f] = true
+
+		entries = append(entries, PathsLimitEntry{
+			AFI:   afi,
+			SAFI:  safi,
+			Limit: limit,
+		})
+	}
+	return &PathsLimit{Entries: entries}, nil
 }
 
 // ParseFromOptionalParams extracts capabilities from OPEN optional parameters.

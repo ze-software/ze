@@ -256,6 +256,27 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		buf.WriteString("}\n")
 	}
 
+	// Write add-path block (unified ADD-PATH + PATHS-LIMIT).
+	if addPath := tree.GetContainer("add-path"); addPath != nil {
+		buf.WriteString(indent)
+		buf.WriteString("add-path {\n")
+		if dir, ok := addPath.Get("direction"); ok {
+			buf.WriteString(indent)
+			buf.WriteString("\tdirection ")
+			buf.WriteString(dir)
+			buf.WriteString("\n")
+		}
+		if lim, ok := addPath.Get("limit"); ok {
+			buf.WriteString(indent)
+			buf.WriteString("\tlimit ")
+			buf.WriteString(lim)
+			buf.WriteString("\n")
+		}
+		serializeAddPathFamilies(addPath, buf, indent)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
 	// Write hostname block (FQDN capability).
 	if hostname := tree.GetContainer("hostname"); hostname != nil {
 		buf.WriteString(indent)
@@ -380,4 +401,47 @@ func serializeGroupValues(tree *config.Tree, buf *textbuf.Buffer, indent string)
 		}
 		buf.WriteString("\n")
 	}
+}
+
+// serializeAddPathFamilies writes the add-path family list block.
+func serializeAddPathFamilies(addPath *config.Tree, buf *textbuf.Buffer, indent string) {
+	famBlock := addPath.GetContainer("family")
+	if famBlock == nil {
+		return
+	}
+	keys := famBlock.ContainerNames()
+	if len(keys) == 0 {
+		return
+	}
+	buf.WriteString(indent)
+	buf.WriteString("\tfamily {\n")
+	for _, key := range keys {
+		buf.WriteString(indent)
+		buf.WriteString("\t\t")
+		buf.WriteString(key)
+		sub := famBlock.GetContainer(key)
+		if sub == nil {
+			buf.WriteString("\n")
+			continue
+		}
+		subVals := sub.Values()
+		if len(subVals) > 0 {
+			buf.WriteString(" {\n")
+			for _, sv := range subVals {
+				v, _ := sub.Get(sv)
+				buf.WriteString(indent)
+				buf.WriteString("\t\t\t")
+				buf.WriteString(sv)
+				buf.WriteString(" ")
+				buf.WriteString(v)
+				buf.WriteString("\n")
+			}
+			buf.WriteString(indent)
+			buf.WriteString("\t\t}\n")
+		} else {
+			buf.WriteString("\n") // no sub-keys, bare family entry
+		}
+	}
+	buf.WriteString(indent)
+	buf.WriteString("\t}\n")
 }

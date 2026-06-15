@@ -89,11 +89,13 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability {
-				add-path send/receive
+				add-path {
+					direction send/receive
+					family {
+						ipv4/unicast
+					}
+				}
 				graceful-restart disable
-			}
-			add-path {
-				ipv4/unicast
 			}
 		}
 		behavior {

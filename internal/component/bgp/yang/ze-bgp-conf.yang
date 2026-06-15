@@ -652,17 +652,47 @@ module ze-bgp-conf {
 
                 container add-path {
                     presence "ADD-PATH capability enabled";
-                    description "ADD-PATH capability (RFC 7911). Allows advertising multiple paths for the
-                                 same prefix, each identified by a path-id. Enables path diversity.";
-                    leaf send {
-                        type boolean;
-                        default false;
-                        description "Advertise willingness to send multiple paths per prefix to this peer.";
+                    description "ADD-PATH capability (RFC 7911) with optional PATHS-LIMIT
+                                 (draft-abraitis-idr-addpath-paths-limit). Default direction applies
+                                 to all negotiated multiprotocol families. Per-family entries override.";
+                    leaf direction {
+                        type enumeration {
+                            enum send { description "Send multiple paths"; }
+                            enum receive { description "Receive multiple paths"; }
+                            enum send/receive { description "Both send and receive multiple paths"; }
+                        }
+                        description "Default ADD-PATH direction for all negotiated families.";
                     }
-                    leaf receive {
-                        type boolean;
-                        default false;
-                        description "Advertise willingness to receive multiple paths per prefix from this peer.";
+                    leaf limit {
+                        type uint16 { range "1..65535"; }
+                        description "Default maximum paths per prefix (PATHS-LIMIT). Inherited by all
+                                     families unless overridden per-family.";
+                    }
+                    list family {
+                        key "name";
+                        description "Per-family ADD-PATH overrides with optional path count limit.";
+                        leaf name { type zt:address-family; description "Address family (e.g. ipv4/unicast)"; }
+                        leaf direction {
+                            type enumeration {
+                                enum send { description "Send ADD-PATH"; }
+                                enum receive { description "Receive ADD-PATH"; }
+                                enum send/receive { description "Both send and receive ADD-PATH"; }
+                            }
+                            description "ADD-PATH direction override for this family.";
+                        }
+                        leaf limit {
+                            type uint16 { range "1..65535"; }
+                            description "Maximum paths per prefix to receive (PATHS-LIMIT capability).";
+                        }
+                        leaf mode {
+                            type enumeration {
+                                enum enable { description "Enable ADD-PATH for this family"; }
+                                enum disable { description "Disable ADD-PATH for this family"; }
+                                enum require { description "Require ADD-PATH for this family"; }
+                                enum refuse { description "Refuse ADD-PATH for this family"; }
+                            }
+                            description "ADD-PATH negotiation mode for this family.";
+                        }
                     }
                 }
 
@@ -689,29 +719,6 @@ module ze-bgp-conf {
                 }
             }
 
-            // Per-family add-path configuration
-            list add-path {
-                key "family";
-                description "Per-family ADD-PATH configuration (RFC 7911)";
-                leaf family { type zt:address-family; description "Address family (e.g. ipv4/unicast)"; }
-                leaf direction {
-                    type enumeration {
-                        enum send { description "Send ADD-PATH"; }
-                        enum receive { description "Receive ADD-PATH"; }
-                        enum send/receive { description "Both send and receive ADD-PATH"; }
-                    }
-                    description "ADD-PATH direction";
-                }
-                leaf mode {
-                    type enumeration {
-                        enum enable { description "Enable ADD-PATH for this family"; }
-                        enum disable { description "Disable ADD-PATH for this family"; }
-                        enum require { description "Require ADD-PATH for this family"; }
-                        enum refuse { description "Refuse ADD-PATH for this family"; }
-                    }
-                    description "ADD-PATH negotiation mode";
-                }
-            }
         }
 
         // Behaviour container - operational knobs

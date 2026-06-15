@@ -36,7 +36,9 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 			capability {
-				add-path send/receive
+				add-path {
+					direction send/receive
+				}
 			}
 		}
 

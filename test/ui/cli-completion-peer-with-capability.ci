@@ -25,8 +25,8 @@ bgp {
 			capability {
 				asn4 true
 				add-path {
-					send true
-					receive true
+					direction send/receive
+					limit 10
 				}
 			}
 		}

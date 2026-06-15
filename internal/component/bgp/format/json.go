@@ -242,6 +242,18 @@ func (e *JSONEncoder) Negotiated(peer *plugin.PeerInfo, neg DecodedNegotiated) s
 		inner["add-path"] = addPath
 	}
 
+	// PATHS-LIMIT: direction-aware family->limit maps
+	if len(neg.PathsLimitSend) > 0 || len(neg.PathsLimitRecv) > 0 {
+		pathsLimit := map[string]any{}
+		if len(neg.PathsLimitSend) > 0 {
+			pathsLimit["send"] = neg.PathsLimitSend
+		}
+		if len(neg.PathsLimitRecv) > 0 {
+			pathsLimit["receive"] = neg.PathsLimitRecv
+		}
+		inner["paths-limit"] = pathsLimit
+	}
+
 	return e.marshal(outer)
 }
 

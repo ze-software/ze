@@ -89,6 +89,8 @@ type Negotiated struct {
 	families        map[Family]bool
 	addPath         map[Family]AddPathMode
 	extendedNextHop map[Family]AFI
+	pathsLimitSend  map[Family]uint16 // Remote's limits (constrains our send)
+	pathsLimitRecv  map[Family]uint16 // Our limits (constrains peer's send)
 
 	// peerCodes tracks which capability codes the peer advertised.
 	// Used by CheckRefusedCodes to detect refused capabilities in peer's OPEN,
@@ -124,6 +126,7 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 	localFamilies := make(map[Family]bool)
 	remoteFamilies := make(map[Family]bool)
 	var localAddPath, remoteAddPath *AddPath
+	var localPathsLimit, remotePathsLimit *PathsLimit
 	var localExtNH, remoteExtNH *ExtendedNextHop
 	localASN4 := false
 	remoteASN4 := false
@@ -150,6 +153,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			localERR = true
 		case *ExtendedNextHop:
 			localExtNH = cap
+		case *PathsLimit:
+			localPathsLimit = cap
 		}
 	}
 
@@ -174,6 +179,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			neg.GracefulRestart = cap
 		case *ExtendedNextHop:
 			remoteExtNH = cap
+		case *PathsLimit:
+			remotePathsLimit = cap
 		}
 	}
 
@@ -308,10 +315,47 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 		}
 	}
 
+	// draft-abraitis-idr-addpath-paths-limit: PATHS-LIMIT negotiation.
+	// PATHS-LIMIT is only meaningful for families where ADD-PATH is also negotiated.
+	// Remote's PathsLimit constrains our send; local's PathsLimit constrains peer's send.
+	neg.negotiatePathsLimit(localPathsLimit, remotePathsLimit)
+
 	// Build composite sub-components
 	neg.buildSubComponents()
 
 	return neg
+}
+
+// negotiatePathsLimit processes PATHS-LIMIT capabilities after ADD-PATH negotiation.
+// draft-abraitis-idr-addpath-paths-limit Section 3: PATHS-LIMIT is only meaningful
+// for families where ADD-PATH is also negotiated.
+func (n *Negotiated) negotiatePathsLimit(local, remote *PathsLimit) {
+	if local == nil && remote == nil {
+		return
+	}
+
+	n.pathsLimitSend = make(map[Family]uint16)
+	n.pathsLimitRecv = make(map[Family]uint16)
+
+	// Remote's limits constrain our send
+	if remote != nil {
+		for _, e := range remote.Entries {
+			f := Family{AFI: e.AFI, SAFI: e.SAFI}
+			if n.addPath[f] != AddPathNone {
+				n.pathsLimitSend[f] = e.Limit
+			}
+		}
+	}
+
+	// Local's limits constrain peer's send
+	if local != nil {
+		for _, e := range local.Entries {
+			f := Family{AFI: e.AFI, SAFI: e.SAFI}
+			if n.addPath[f] != AddPathNone {
+				n.pathsLimitRecv[f] = e.Limit
+			}
+		}
+	}
 }
 
 // buildSubComponents creates Identity, Encoding, and Session from negotiated data.
@@ -340,12 +384,18 @@ func (n *Negotiated) buildSubComponents() {
 	maps.Copy(addPathCopy, n.addPath)
 	extNHCopy := make(map[Family]AFI, len(n.extendedNextHop))
 	maps.Copy(extNHCopy, n.extendedNextHop)
+	plSendCopy := make(map[Family]uint16, len(n.pathsLimitSend))
+	maps.Copy(plSendCopy, n.pathsLimitSend)
+	plRecvCopy := make(map[Family]uint16, len(n.pathsLimitRecv))
+	maps.Copy(plRecvCopy, n.pathsLimitRecv)
 	n.Encoding = &EncodingCaps{
 		ASN4:            n.ASN4,
 		ExtendedMessage: n.ExtendedMessage, // RFC 8654: affects wire encoding (max message size)
 		Families:        families,
 		AddPathMode:     addPathCopy,
 		ExtendedNextHop: extNHCopy,
+		PathsLimitSend:  plSendCopy,
+		PathsLimitRecv:  plRecvCopy,
 	}
 
 	// Create Session
@@ -408,6 +458,7 @@ func (n *Negotiated) CheckRequiredCodes(required []Code) []Code {
 		CodeAddPath:         len(n.addPath) > 0,
 		CodeExtendedNextHop: len(n.extendedNextHop) > 0,
 		CodeGracefulRestart: n.GracefulRestart != nil,
+		CodePathsLimit:      len(n.pathsLimitSend) > 0 || len(n.pathsLimitRecv) > 0,
 	}
 
 	var missing []Code

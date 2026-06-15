@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -574,7 +575,7 @@ func migrateCapability(src, dst *config.Tree) error {
 		}
 
 		// Fields that keep their values (Flex type in schema).
-		valueFields := []string{"graceful-restart", "add-path", "software-version"}
+		valueFields := []string{"graceful-restart", "software-version"}
 		for _, field := range valueFields {
 			// Check for container form first (e.g., graceful-restart { restart-time 120; }).
 			if container := srcCap.GetContainer(field); container != nil {
@@ -596,6 +597,13 @@ func migrateCapability(src, dst *config.Tree) error {
 			}
 		}
 	}
+
+	// ADD-PATH: convert ExaBGP capability-level direction + neighbor-level per-family
+	// into unified ze add-path block.
+	// ExaBGP capability: add-path { send true; receive true; }
+	// ExaBGP neighbor: add-path { ipv4 unicast; ipv4 unicast limit 10; }
+	// Ze: capability { add-path { direction send/receive; family { ipv4/unicast { limit 10; } } } }
+	migrateAddPathToUnified(srcCap, src, dstCap, &hasCapabilities)
 
 	// RFC 8950: Move nexthop block into capability.
 	// ExaBGP: nexthop { ipv4 unicast ipv6; } at neighbor level
@@ -627,6 +635,88 @@ func migrateCapability(src, dst *config.Tree) error {
 		sessionContainer.SetContainer("capability", dstCap)
 	}
 	return nil
+}
+
+const dirSendReceive = "send/receive"
+
+// migrateAddPathToUnified converts ExaBGP add-path config into the unified ze format.
+// ExaBGP has add-path at two levels:
+//   - capability: add-path { send true; receive true; } (direction)
+//   - neighbor: add-path { ipv4 unicast; ipv4 unicast limit 10; } (per-family + optional limit)
+//
+// Ze unified: capability { add-path { direction send/receive; family { ipv4/unicast { limit 10; } } } }.
+func migrateAddPathToUnified(srcCap, src, dstCap *config.Tree, hasCapabilities *bool) {
+	var direction string
+
+	// Extract direction from capability-level add-path.
+	if srcCap != nil {
+		if container := srcCap.GetContainer("add-path"); container != nil {
+			s, _ := container.Get("send")
+			r, _ := container.Get("receive")
+			switch {
+			case s == configTrue && r == configTrue:
+				direction = dirSendReceive
+			case s == configTrue:
+				direction = "send"
+			case r == configTrue:
+				direction = "receive"
+			}
+		} else if v, ok := srcCap.GetFlex("add-path"); ok {
+			if v == configTrue || v == "enable" || v == "" {
+				direction = dirSendReceive
+			} else {
+				direction = v
+			}
+		}
+	}
+
+	// Extract per-family entries from neighbor-level add-path.
+	// ExaBGP freeform parser joins all words into the key: "ipv4 unicast limit 10" -> key, "true" -> value.
+	var familyBlock *config.Tree
+	if ap := src.GetContainer("add-path"); ap != nil {
+		familyBlock = config.NewTree()
+		for _, key := range ap.Values() {
+			parts := strings.Fields(key)
+			if len(parts) < 2 {
+				continue
+			}
+			var tb textbuf.Buffer
+			famKey := tb.Str(parts[0]).Byte('/').Str(parts[1]).String()
+			entry := config.NewTree()
+			for _, p := range parts[2:] {
+				if n := parseLimit(p); n > 0 {
+					entry.Set("limit", p)
+				}
+			}
+			familyBlock.SetContainer(famKey, entry)
+		}
+	}
+
+	if direction == "" && familyBlock == nil {
+		return
+	}
+
+	// If no capability-level direction, default to send/receive.
+	if direction == "" {
+		direction = "send/receive"
+	}
+
+	addPathBlock := config.NewTree()
+	addPathBlock.Set("direction", direction)
+	if familyBlock != nil {
+		addPathBlock.SetContainer("family", familyBlock)
+	}
+	dstCap.SetContainer("add-path", addPathBlock)
+	*hasCapabilities = true
+}
+
+// parseLimit extracts a numeric limit value from a string token.
+func parseLimit(s string) int {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 // migrateHostnameToCapability converts peer-level host-name/domain-name

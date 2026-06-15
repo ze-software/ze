@@ -397,3 +397,56 @@ func TestExtendedMessageHashDiffers(t *testing.T) {
 	assert.NotEqual(t, ctx1.Hash(), ctx2.Hash(),
 		"Different ExtendedMessage should produce different hashes")
 }
+
+// TestEncodingContextPathsLimit verifies direction-specific pathsLimit derivation.
+//
+// VALIDATES: Send context uses PathsLimitSend, recv context uses PathsLimitRecv.
+//
+// PREVENTS: Wrong direction limits applied to encoding context.
+func TestEncodingContextPathsLimit(t *testing.T) {
+	t.Parallel()
+	ipv4 := family.IPv4Unicast
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+	encoding := &capability.EncodingCaps{
+		Families: []capability.Family{ipv4},
+		AddPathMode: map[capability.Family]capability.AddPathMode{
+			ipv4: capability.AddPathBoth,
+		},
+		PathsLimitSend: map[capability.Family]uint16{ipv4: 10},
+		PathsLimitRecv: map[capability.Family]uint16{ipv4: 5},
+	}
+
+	sendCtx := NewEncodingContext(identity, encoding, DirectionSend)
+	recvCtx := NewEncodingContext(identity, encoding, DirectionRecv)
+
+	assert.Equal(t, uint16(10), sendCtx.PathsLimit(ipv4))
+	assert.Equal(t, uint16(5), recvCtx.PathsLimit(ipv4))
+
+	// Family without limit returns 0
+	ipv6 := family.IPv6Unicast
+	assert.Equal(t, uint16(0), sendCtx.PathsLimit(ipv6))
+}
+
+// TestEncodingContextHashIncludesPathsLimit verifies hash changes when pathsLimit differs.
+//
+// VALIDATES: Deduplication distinguishes contexts with different path limits.
+//
+// PREVENTS: Contexts with different limits colliding in the registry.
+func TestEncodingContextHashIncludesPathsLimit(t *testing.T) {
+	t.Parallel()
+	ipv4 := family.IPv4Unicast
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+
+	enc1 := &capability.EncodingCaps{
+		PathsLimitSend: map[capability.Family]uint16{ipv4: 10},
+	}
+	enc2 := &capability.EncodingCaps{
+		PathsLimitSend: map[capability.Family]uint16{ipv4: 20},
+	}
+
+	ctx1 := NewEncodingContext(identity, enc1, DirectionSend)
+	ctx2 := NewEncodingContext(identity, enc2, DirectionSend)
+
+	assert.NotEqual(t, ctx1.Hash(), ctx2.Hash(),
+		"Different PathsLimit should produce different hashes")
+}
