@@ -685,6 +685,41 @@ Go toolchain ignores them.
 
 ---
 
+### Refactoring removes a feature by over-generalizing its category
+
+**Symptom.** A feature stops working after a structural refactor. The
+commit message groups it with genuinely removed code under a shared
+label ("config-mutation commands that bypass the editor"), but the
+feature does not actually belong to that category.
+
+**Cause.** During a batch cleanup, features are classified by surface
+similarity rather than by what they do. `update bgp peer prefix` was a
+data-refresh command that proposed config changes through the editor,
+but it was grouped with `set bgp peer with/save` (which genuinely
+bypassed the editor) and removed together. The shared label ("bypasses
+the editor") was wrong for one of the three.
+
+**Evidence.** 904 (`update bgp peer prefix` removed in `6c19edc32` as
+part of the command-surface-ownership refactor; restored 12 days later
+after the operator had no way to refresh max-prefix limits from
+PeeringDB, leaving login warnings with no actionable fix).
+
+**Avoid it by.** Before removing code in a batch, classify each item
+independently: name what the code does (not what it looks like) and
+what user operation it serves. If an item serves a distinct user need
+from the others in the batch, it does not belong in the batch. Ask:
+"if I remove this, what does the operator do instead?" If the answer
+is "nothing" or "do it manually per peer," the removal needs its own
+justification.
+
+**Recover if you hit it.** Restore from git history. Adapt to
+current APIs (the old code's dependencies may have changed). The
+restoration is usually straightforward because the feature's runtime
+dependencies survive the refactor -- only the entry point and glue
+are deleted.
+
+---
+
 ## How to use this document
 
 At session start, scan headings. At each commit, re-scan for the two
