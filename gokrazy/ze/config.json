@@ -34,6 +34,7 @@
         }
     },
     "SerialConsole": "ttyS0,115200",
+    "KernelExtraArgs": ["loglevel=8"],
     "KernelPackage": "github.com/rtr7/kernel",
     "FirmwarePackage": "",
     "EEPROMPackage": ""
