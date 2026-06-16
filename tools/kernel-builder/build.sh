@@ -25,6 +25,12 @@ case "$LINUX_VERSION" in
     ""|*[!0-9.]*|.*|*.) echo "unsupported LINUX_VERSION=$LINUX_VERSION (expected digits and dots)" >&2; exit 2 ;;
 esac
 
+LINUX_MAJOR="${LINUX_VERSION%%.*}"
+if [ "$LINUX_MAJOR" -lt 7 ] 2>/dev/null; then
+    echo "FATAL: kernel >= 7.0 required (L2TP_NETLINK removed, serial 8250 deps changed)" >&2
+    exit 2
+fi
+
 case "$ARCH" in
     arm64) KERNEL_ARCH="arm64"; IMAGE_PATH="arch/arm64/boot/Image"; MAKE_TARGET="Image" ;;
     amd64|x86_64) KERNEL_ARCH="x86_64"; IMAGE_PATH="arch/x86/boot/bzImage"; MAKE_TARGET="bzImage" ;;
@@ -183,7 +189,7 @@ fi
 
 if [ "$PROFILE" = "runtime" ]; then
     for opt in CONFIG_MODULES CONFIG_PPP CONFIG_PPPOL2TP CONFIG_L2TP CONFIG_L2TP_V3 \
-               CONFIG_L2TP_NETLINK CONFIG_DEVTMPFS_MOUNT CONFIG_BLK_DEV_INITRD \
+               CONFIG_DEVTMPFS_MOUNT CONFIG_BLK_DEV_INITRD \
                CONFIG_VIRTIO_NET; do
         require_yes "$opt" "required for runtime profile"
     done
