@@ -484,9 +484,13 @@ func (r *Runner) decodeToEnvelope(hexMsg string) (map[string]any, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, r.zePath, "bgp", "decode", "--json", "--update", hexMsg) //nolint:gosec // test runner
-	output, err := cmd.CombinedOutput()
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("ze bgp decode: %w: %s", err, string(output))
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return nil, fmt.Errorf("ze bgp decode: %w: %s", err, string(ee.Stderr))
+		}
+		return nil, fmt.Errorf("ze bgp decode: %w", err)
 	}
 
 	var envelope map[string]any
