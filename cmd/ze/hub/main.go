@@ -645,7 +645,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	SetIdentityStore(store)
 	startUpdateChecker(&sc)
 	defer stopBackend()
-	startArchiveScheduler(loadResult.Tree, configPath, apiServer)
+	startArchiveScheduler(loadResult.Tree, configPath, store, apiServer)
 	defer stopArchiveScheduler()
 
 	lm := NewListenerMigrator(nil)

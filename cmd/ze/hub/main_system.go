@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
+	configstorage "codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/host"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -381,7 +382,11 @@ var (
 // startArchiveScheduler launches the background scheduler for time-based
 // archive triggers (daily/hourly). The scheduler goroutine stops when the
 // cancel function is called (at shutdown or config reload).
-func startArchiveScheduler(tree *zeconfig.Tree, configPath string, srv *pluginserver.Server) {
+func startArchiveScheduler(tree *zeconfig.Tree, configPath string, store configstorage.Storage, srv *pluginserver.Server) {
+	if tree == nil {
+		return
+	}
+
 	archiveSchedulerMu.Lock()
 	defer archiveSchedulerMu.Unlock()
 
@@ -402,7 +407,7 @@ func startArchiveScheduler(tree *zeconfig.Tree, configPath string, srv *pluginse
 		}
 	}
 
-	sched := archive.NewScheduler(configs, configPath, archive.ReadConfigFromPath(configPath), eventFn)
+	sched := archive.NewScheduler(configs, configPath, readConfigWithStorage(store, configPath), eventFn)
 
 	parent := context.Background()
 	if srv != nil {
@@ -415,17 +420,36 @@ func startArchiveScheduler(tree *zeconfig.Tree, configPath string, srv *pluginse
 	go sched.Run(ctx)
 }
 
-// applyArchiveSchedulerFromMap restarts the archive scheduler on config reload.
-func applyArchiveSchedulerFromMap(configPath string, srv *pluginserver.Server) {
-	readConfig := archive.ReadConfigFromPath(configPath)
-	data, tree, err := readConfig()
-	if err != nil {
-		slogutil.Logger("archive").Warn("reload: read config", "error", err)
-		return
+// readConfigWithStorage returns a config reader that tries blob storage
+// (active version) before falling back to os.ReadFile. On gokrazy the
+// config lives in blob storage; a bare os.ReadFile on the logical config
+// name fails.
+func readConfigWithStorage(store configstorage.Storage, configPath string) func() ([]byte, *zeconfig.Tree, error) {
+	if store == nil {
+		return archive.ReadConfigFromPath(configPath)
 	}
-	_ = data
+	return func() ([]byte, *zeconfig.Tree, error) {
+		data, err := configstorage.ReadActiveConfig(store, configPath)
+		if err != nil {
+			data, err = os.ReadFile(configPath) //nolint:gosec // operator-supplied path
+		}
+		if err != nil {
+			return nil, nil, err
+		}
 
-	startArchiveScheduler(tree, configPath, srv)
+		schema, schErr := zeconfig.YANGSchema()
+		if schErr != nil {
+			return nil, nil, schErr
+		}
+
+		parser := zeconfig.NewParser(schema)
+		tree, parseErr := parser.Parse(string(data))
+		if parseErr != nil {
+			return nil, nil, parseErr
+		}
+
+		return data, tree, nil
+	}
 }
 
 // stopArchiveScheduler stops the active archive scheduler.
