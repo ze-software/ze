@@ -16,6 +16,7 @@ Apply this rule when adding or changing any of these:
 | Test runner, test format, fixture pattern, or required test category | Agents must place tests in the right suite and run the right target |
 | Runtime dependency or readiness condition | Agents must verify the host with `ze doctor` before starting Ze |
 | Structural decision, repeated gotcha, or workflow change | Agents must find it through the learned index or a rule before repeating the mistake |
+| New BGP family, SAFI, or capability | Agents must update migration schema, route converter, bridge, and compat tests (`ai/patterns/bgp-family.md`) |
 
 Private refactors with no new surface still trigger this rule when they change a
 pattern future work must follow.

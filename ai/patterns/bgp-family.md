@@ -99,6 +99,28 @@ registrations. Missing the plugin registry entry means `--nlri decode` and
 [ ] Bridge test coverage
 ```
 
+### 5b. ExaBGP Migration (if ExaBGP supports the family)
+
+ExaBGP config migration is a separate path from the bridge. When ExaBGP
+supports a SAFI, ze's migration must handle it or `ze exabgp migrate` rejects
+configs that use it. Three files need updating; missing any one causes silent
+config rejection.
+
+```
+[ ] exabgp.yang schema container for the new SAFI
+      (internal/exabgp/migration/exabgp.yang — add container under ipv4/ipv6)
+[ ] flexSafis list in convertAnnounceToUpdate OR a dedicated convert*ToUpdate
+      function if the SAFI's attribute encoding doesn't fit the generic
+      convertFlexToUpdate (FlowSpec and SR-Policy both needed dedicated converters)
+      (internal/exabgp/migration/migrate_routes.go)
+[ ] ExaBGP compat encoding test files
+      (test/exabgp-compat/encoding/conf-<name>.ci + test/exabgp-compat/etc/conf-<name>.conf)
+```
+
+Verification: diff ExaBGP's `qa/encoding/*.ci` filenames against
+`test/exabgp-compat/encoding/*.ci`. Any ExaBGP test without a ze counterpart
+is an untested migration path.
+
 ### 6. Exhaustive Switch Audit (BLOCKING)
 
 New SAFI/capability constants break exhaustive switches elsewhere in the codebase.
@@ -201,3 +223,5 @@ InProcessNLRIDecoder plugins including MUP.
 | No JSON output for the NLRI in show/monitor | Missing AppendJSON method | Section 2 |
 | Interop test used stale config syntax | Config restructure didn't update existing interop scenarios | Section 9 |
 | Config rejected valid peer name | New CLI verb not in reservedPeerNames | Section 8 |
+| `ze exabgp migrate` rejected config with SR-Policy routes | No `sr-policy` container in `exabgp.yang`, no entry in `flexSafis`, no dedicated converter | Section 5b |
+| ExaBGP added feature silently missing from ze compat tests | No diff check between ExaBGP `qa/encoding/` and ze `test/exabgp-compat/encoding/` | Section 5b |

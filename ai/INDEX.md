@@ -308,7 +308,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |
 | EVPN, MAC-IP | `wire/nlri.md`, `wire/nlri-evpn.md` |
 | BGP-LS, link-state | `wire/nlri-bgpls.md`, `wire/bgpls-attribute-naming.md` |
-| ExaBGP | `exabgp/exabgp-code-map.md`, `exabgp/exabgp-differences.md` |
+| ExaBGP, migrate, exabgp.yang | `exabgp/exabgp-code-map.md`, `exabgp/exabgp-differences.md`, `ai/patterns/bgp-family.md` (Section 5b) |
 | ASN4, AS4 | `edge-cases/as4.md` |
 | ADD-PATH | `edge-cases/addpath.md` |
 | extended message | `edge-cases/extended-message.md` |

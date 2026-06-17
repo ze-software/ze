@@ -185,6 +185,9 @@
 | Plugin registry Registration (InProcessNLRIDecoder, Families) | [ ] | `plugins/nlri/<name>/register.go` | [ ] |
 | Capability struct + negotiation + JSON | [ ] | `capability/`, `cli/decode_open.go`, `format/json.go` | [ ] |
 | ExaBGP bridge (family map, command parser, event forwarding) | [ ] | `bridge/` | [ ] |
+| ExaBGP migration YANG schema container | [ ] | `internal/exabgp/migration/exabgp.yang` | [ ] |
+| ExaBGP migration route converter (flexSafis or dedicated convert*ToUpdate) | [ ] | `internal/exabgp/migration/migrate_routes.go` | [ ] |
+| ExaBGP compat encoding tests (.ci + .conf) | [ ] | `test/exabgp-compat/encoding/`, `test/exabgp-compat/etc/` | [ ] |
 | Exhaustive switch audit (`grep 'case.*SAFI' internal/`) | [ ] | all switches on SAFI | [ ] |
 | Snapshot tests (all_test.go plugin names + wire methods) | [ ] | `plugin/all/all_test.go` | [ ] |
 | Config surface guards (reservedPeerNames, command_ownership) | [ ] | `bgp/config/resolve.go`, `scripts/checks/` | [ ] |
