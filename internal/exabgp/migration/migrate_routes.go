@@ -97,7 +97,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 
 		// Handle flex SAFIs (mcast-vpn, mup, vpls) which store values via AppendValue.
 		// These use ze:syntax "flex" in the ExaBGP YANG schema, so GetListOrdered returns nothing.
-		flexSafis := []string{"mcast-vpn", "mup", "vpls"}
+		flexSafis := []string{"mcast-vpn", "mup", "vpls", "sr-policy"}
 		for _, safi := range flexSafis {
 			values := afiBlock.GetMultiValues(safi)
 			if len(values) == 0 {

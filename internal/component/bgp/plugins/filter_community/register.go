@@ -16,6 +16,12 @@ func init() {
 	filterapi.RegisterAttrModHandler(byte(attribute.AttrLargeCommunity), largeCommunityAttrModHandler)
 	filterapi.RegisterAttrModHandler(byte(attribute.AttrExtCommunity), extCommunityAttrModHandler)
 
+	// JSON formatters for community attributes.
+	attribute.RegisterJSONFormatter(attribute.AttrCommunity, "communities", appendCommunitiesJSON)
+	attribute.RegisterJSONFormatter(attribute.AttrLargeCommunity, "large-communities", appendLargeCommunitiesJSON)
+	attribute.RegisterJSONFormatter(attribute.AttrExtCommunity, "extended-communities", appendExtCommunitiesJSON)
+	attribute.RegisterJSONFormatter(attribute.AttrIPv6ExtCommunity, "ipv6-extended-communities", appendIPv6ExtCommunitiesJSON)
+
 	// Route filter pipeline contribution (BGP-owned seam, not the generic registry).
 	if err := filterapi.Register(filterapi.Filter{
 		Name:     "bgp-filter-community",

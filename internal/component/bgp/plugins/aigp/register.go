@@ -2,13 +2,28 @@ package aigp
 
 import (
 	"log/slog"
+	"strconv"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
+func appendAIGPJSON(buf []byte, attr attribute.Attribute) []byte {
+	a, ok := attr.(*attribute.AIGP)
+	if !ok {
+		return nil
+	}
+	metric, found := a.Metric()
+	if !found {
+		return nil
+	}
+	return strconv.AppendUint(buf, metric, 10)
+}
+
 func init() {
+	attribute.RegisterJSONFormatter(attribute.AttrAIGP, "aigp", appendAIGPJSON)
 	reg := registry.Registration{
 		Name:        "bgp-aigp",
 		Description: "Accumulated IGP Metric (RFC 7311)",

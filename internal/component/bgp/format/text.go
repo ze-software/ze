@@ -39,6 +39,17 @@ func appendJSONSafeString(buf []byte, s string) []byte {
 	return append(buf, s...)
 }
 
+func appendRouterID(buf []byte, rid uint32) []byte {
+	buf = strconv.AppendUint(buf, uint64(rid>>24&0xFF), 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, uint64(rid>>16&0xFF), 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, uint64(rid>>8&0xFF), 10)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, uint64(rid&0xFF), 10)
+	return buf
+}
+
 // appendJSONString appends s to buf wrapped in JSON string escaping rules.
 // Escapes: \ " and control characters (0x00-0x1F). Byte-identical output
 // to the legacy JSON-escape path (writeJSONEscapedString + jsonSafeReplacer
@@ -110,7 +121,13 @@ func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 	buf = append(buf, '}')
 	buf = append(buf, `,"name":"`...)
 	buf = appendJSONSafeString(buf, peer.Name)
-	buf = append(buf, `","remote":{"address":"`...)
+	buf = append(buf, '"')
+	if peer.RouterID != 0 {
+		buf = append(buf, `,"router-id":"`...)
+		buf = appendRouterID(buf, peer.RouterID)
+		buf = append(buf, '"')
+	}
+	buf = append(buf, `,"remote":{"address":"`...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, `","as":`...)
 	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)

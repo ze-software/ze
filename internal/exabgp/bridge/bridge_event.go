@@ -104,10 +104,12 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 	peer, _ := bgpPayload["peer"].(map[string]any)
 	var peerAddr string
 	var peerASN float64
+	var routerID string
 	if remote, ok := peer["remote"].(map[string]any); ok {
 		peerAddr, _ = remote["address"].(string)
 		peerASN, _ = remote["as"].(float64)
 	}
+	routerID, _ = peer["router-id"].(string)
 
 	// Get event-specific data from nested key (except state which is a string)
 	eventData := bgpPayload
@@ -132,6 +134,9 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 		"address":   map[string]any{"peer": peerAddr},
 		"asn":       map[string]any{"peer": peerASN},
 		"direction": direction,
+	}
+	if routerID != "" {
+		neighbor["router-id"] = routerID
 	}
 
 	switch msgType {

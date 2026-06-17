@@ -162,6 +162,7 @@ module exabgp {
                 container mcast-vpn { ze:syntax "flex"; }
                 container mup { ze:syntax "flex"; }
                 container flow { ze:syntax "flex"; }
+                container sr-policy { ze:syntax "flex"; }
             }
             container ipv6 {
                 container unicast {
@@ -187,6 +188,7 @@ module exabgp {
                 container mcast-vpn { ze:syntax "flex"; }
                 container mup { ze:syntax "flex"; }
                 container flow { ze:syntax "flex"; }
+                container sr-policy { ze:syntax "flex"; }
             }
             container l2vpn {
                 container vpls { ze:syntax "flex"; }

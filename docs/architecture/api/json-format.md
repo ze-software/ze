@@ -194,7 +194,12 @@ Attributes appear under the `attr` object:
 | communities | `"communities": ["65001:100", "65001:200"]` |
 | large-communities | `"large-communities": ["65001:0:100"]` |
 | extended-communities | `"extended-communities": ["0002..."]` (hex) |
-<!-- source: internal/component/bgp/format/text.go -- JSON attribute formatters -->
+| ipv6-extended-communities | `"ipv6-extended-communities": ["000c2a02..."]` (hex) |
+| aigp | `"aigp": 123` |
+<!-- source: internal/component/bgp/attribute/json.go -- RegisterJSONFormatter, GetJSONFormatter (registry) -->
+<!-- source: internal/component/bgp/attribute/register.go -- core attribute formatters -->
+<!-- source: internal/component/bgp/plugins/filter_community/json.go -- community attribute formatters -->
+<!-- source: internal/component/bgp/plugins/aigp/register.go -- AIGP formatter -->
 
 ---
 

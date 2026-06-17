@@ -355,133 +355,16 @@ func appendFamilyOpsJSON(buf []byte, familyOps map[string][]familyOperation) []b
 // When includeFlags is true, each attribute value is wrapped with RFC 4271 flag booleans:
 // "name":{"value":<v>,"optional":bool,"transitive":bool,"partial":bool}.
 func appendAttributeJSON(buf []byte, code attribute.AttributeCode, attr attribute.Attribute, includeFlags bool) []byte {
-	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
-	case attribute.AttrOrigin:
-		switch o := attr.(type) {
-		case *attribute.Origin:
-			buf = attrKeyOpen(buf, "origin", includeFlags)
-			buf = append(buf, '"')
-			buf = appendLower(buf, o.String())
-			buf = append(buf, '"')
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		case attribute.Origin:
-			buf = attrKeyOpen(buf, "origin", includeFlags)
-			buf = append(buf, '"')
-			buf = appendLower(buf, o.String())
-			buf = append(buf, '"')
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
+	if f := attribute.GetJSONFormatter(code); f != nil {
+		mark := len(buf)
+		buf = attrKeyOpen(buf, f.Key, includeFlags)
+		if result := f.AppendValue(buf, attr); result != nil {
+			buf = attrFlagsClose(result, attr.Flags(), includeFlags)
+			return buf
 		}
-		return buf
-	case attribute.AttrNextHop:
-		if nh, ok := attr.(*attribute.NextHop); ok {
-			buf = attrKeyOpen(buf, "next-hop", includeFlags)
-			buf = append(buf, '"')
-			buf = nh.Addr.AppendTo(buf)
-			buf = append(buf, '"')
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		}
-		return buf
-	case attribute.AttrASPath:
-		if ap, ok := attr.(*attribute.ASPath); ok {
-			buf = attrKeyOpen(buf, "as-path", includeFlags)
-			buf = append(buf, '[')
-			first := true
-			for _, seg := range ap.Segments {
-				for _, asn := range seg.ASNs {
-					if !first {
-						buf = append(buf, ',')
-					}
-					first = false
-					buf = strconv.AppendUint(buf, uint64(asn), 10)
-				}
-			}
-			buf = append(buf, ']')
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		}
-		return buf
-	case attribute.AttrMED:
-		switch m := attr.(type) {
-		case *attribute.MED:
-			buf = attrKeyOpen(buf, "med", includeFlags)
-			buf = strconv.AppendUint(buf, uint64(uint32(*m)), 10)
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		case attribute.MED:
-			buf = attrKeyOpen(buf, "med", includeFlags)
-			buf = strconv.AppendUint(buf, uint64(uint32(m)), 10)
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		}
-		return buf
-	case attribute.AttrLocalPref:
-		switch lp := attr.(type) {
-		case *attribute.LocalPref:
-			buf = attrKeyOpen(buf, "local-preference", includeFlags)
-			buf = strconv.AppendUint(buf, uint64(uint32(*lp)), 10)
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		case attribute.LocalPref:
-			buf = attrKeyOpen(buf, "local-preference", includeFlags)
-			buf = strconv.AppendUint(buf, uint64(uint32(lp)), 10)
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		}
-		return buf
-	case attribute.AttrCommunity:
-		if c, ok := attr.(*attribute.Communities); ok {
-			buf = attrKeyOpen(buf, "communities", includeFlags)
-			buf = append(buf, '[')
-			for i, comm := range *c {
-				if i > 0 {
-					buf = append(buf, ',')
-				}
-				buf = append(buf, '"')
-				buf = append(buf, comm.String()...)
-				buf = append(buf, '"')
-			}
-			buf = append(buf, ']')
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		}
-		return buf
-	case attribute.AttrLargeCommunity:
-		if lc, ok := attr.(*attribute.LargeCommunities); ok {
-			buf = attrKeyOpen(buf, "large-communities", includeFlags)
-			buf = append(buf, '[')
-			for i, comm := range *lc {
-				if i > 0 {
-					buf = append(buf, ',')
-				}
-				buf = append(buf, '"')
-				buf = append(buf, comm.String()...)
-				buf = append(buf, '"')
-			}
-			buf = append(buf, ']')
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		}
-		return buf
-	case attribute.AttrExtCommunity:
-		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
-			buf = attrKeyOpen(buf, "extended-communities", includeFlags)
-			buf = append(buf, '[')
-			for i, comm := range *ec {
-				if i > 0 {
-					buf = append(buf, ',')
-				}
-				buf = append(buf, '"')
-				buf = hex.AppendEncode(buf, comm[:])
-				buf = append(buf, '"')
-			}
-			buf = append(buf, ']')
-			buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-		}
-		return buf
-	case attribute.AttrAIGP:
-		if a, ok := attr.(*attribute.AIGP); ok {
-			if metric, found := a.Metric(); found {
-				buf = attrKeyOpen(buf, "aigp", includeFlags)
-				buf = strconv.AppendUint(buf, metric, 10)
-				buf = attrFlagsClose(buf, attr.Flags(), includeFlags)
-				return buf
-			}
-		}
+		buf = buf[:mark]
 	}
-	// Unknown attribute code — format as "attr-N": "hex".
+	// Unknown or unhandled attribute code — format as "attr-N": "hex".
 	// attr.Len() bounds hex output; stack scratch for the common case, heap
 	// spill via make for pathological inputs (RFC 4271 extended max is 65535).
 	var scratch [512]byte

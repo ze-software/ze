@@ -234,6 +234,30 @@ Maps BGP attribute codes to human-readable names.
 **Query:** `AttributeCode.String()` for display
 **Count:** 20+ pre-registered (ORIGIN, AS_PATH, NEXT_HOP, etc.) + plugin additions
 
+### Attribute JSON Formatter Registry
+
+Plugins register how their attribute types render to JSON. Replaces the
+hardcoded switch that was in `format/text_json.go`. The format package
+calls `GetJSONFormatter(code)`, writes the key, calls `AppendValue(buf, attr)`,
+writes flags. Returns nil = fall through to hex.
+
+**Location:** `internal/component/bgp/attribute/json.go`
+**Registration:** `attribute.RegisterJSONFormatter(code, key, fn)` in owner's `register.go`
+**Query:** `attribute.GetJSONFormatter(code)` returns `*JSONFormatter` or nil
+**Formatter:** named function in owner's `json.go` (never inline closure)
+**Consumer:** `format/text_json.go:appendAttributeJSON` -- mark/truncate pattern
+**Registered:**
+- `attribute/register.go`: Origin, NextHop, ASPath, MED, LocalPref (core, no plugin)
+- `plugins/filter_community/register.go`: Community, LargeCommunity, ExtCommunity, IPv6ExtCommunity
+- `plugins/aigp/register.go`: AIGP
+
+**Ownership rule:** if a plugin registers `AttrModHandler` for a code, it also
+owns that code's JSON formatter. Core attributes (RFC 4271 mandatory, no
+dedicated plugin) register from `attribute/register.go`.
+
+**Banned:** switch cases in `appendAttributeJSON`, inline closures in registration,
+`AppendValue(nil, attr)` (allocates on hot path -- pass buf directly).
+
 ### Attribute Modification Handler Registry
 
 Plugins that modify attributes during egress (forward path).

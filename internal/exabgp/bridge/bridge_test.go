@@ -86,6 +86,39 @@ func TestZebgpToExabgpJSON_UpdateAnnounce(t *testing.T) {
 	assert.Equal(t, map[string]any{"nlri": "192.168.1.0/24"}, announce["ipv4 unicast"]["10.0.0.1"][0])
 }
 
+func TestZebgpToExabgpJSON_RouterID(t *testing.T) {
+	zebgp := map[string]any{
+		"type": "bgp",
+		"bgp": map[string]any{
+			"type": "update",
+			"peer": map[string]any{
+				"remote":    map[string]any{"address": "10.0.0.1", "as": float64(65001)},
+				"router-id": "1.2.3.4",
+			},
+			"update": map[string]any{
+				"message": map[string]any{"direction": "received"},
+				"attr":    map[string]any{"origin": "igp"},
+				"nlri":    map[string]any{},
+			},
+		},
+	}
+
+	result := ZebgpToExabgpJSON(zebgp)
+	neighbor, ok := result["neighbor"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "1.2.3.4", neighbor["router-id"])
+
+	// Without router-id, field should be absent
+	peerMap, ok := zebgp["bgp"].(map[string]any)["peer"].(map[string]any)
+	require.True(t, ok)
+	delete(peerMap, "router-id")
+	result2 := ZebgpToExabgpJSON(zebgp)
+	neighbor2, ok := result2["neighbor"].(map[string]any)
+	require.True(t, ok)
+	_, hasRouterID := neighbor2["router-id"]
+	assert.False(t, hasRouterID)
+}
+
 // TestZebgpToExabgpJSON_FlowSpecExtendedCommunityNormalize verifies outgoing bridge normalization.
 //
 // VALIDATES: Redundant :bytes suffix is stripped; :packets passes through (matches ExaBGP main).
