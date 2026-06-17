@@ -1,6 +1,6 @@
 //go:build ze_distro
 
-// Design: plan/spec-unified-update-backend.md -- Ze self-update backend wrapper
+// Design: plan/learned/909-unified-update-backend.md -- Ze self-update backend wrapper
 
 package system
 

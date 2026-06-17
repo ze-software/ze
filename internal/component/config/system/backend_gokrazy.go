@@ -1,4 +1,4 @@
-// Design: plan/spec-unified-update-backend.md -- gokrazy-managed update backend
+// Design: plan/learned/909-unified-update-backend.md -- gokrazy-managed update backend
 
 package system
 

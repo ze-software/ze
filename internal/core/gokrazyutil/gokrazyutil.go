@@ -1,4 +1,4 @@
-// Design: plan/spec-unified-update-backend.md -- shared gokrazy management helpers
+// Design: plan/learned/909-unified-update-backend.md -- shared gokrazy management helpers
 
 package gokrazyutil
 

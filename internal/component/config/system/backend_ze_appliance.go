@@ -1,4 +1,4 @@
-// Design: plan/spec-unified-update-backend.md -- minimal-build Ze self-update stub
+// Design: plan/learned/909-unified-update-backend.md -- minimal-build Ze self-update stub
 //
 //go:build !ze_distro
 

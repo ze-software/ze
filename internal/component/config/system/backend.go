@@ -1,4 +1,4 @@
-// Design: plan/spec-unified-update-backend.md -- active update backend registry
+// Design: plan/learned/909-unified-update-backend.md -- active update backend registry
 
 package system
 

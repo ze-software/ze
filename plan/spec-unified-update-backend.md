@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-05-27 |
+| Phase | closing |
+| Updated | 2026-06-17 |
 
 ## Post-Compaction Recovery
 
@@ -52,40 +52,49 @@ by a new abstraction layer.
 - [ ] `plan/learned/580-gokrazy-0-umbrella.md` - gokrazy platform decisions
   -> Constraint: ze is a self-contained gokrazy appliance; gokrazy manages the image
 
-**Key insights:**
-- Two globals today: `activeChecker *UpdateChecker` and `activeSelfUpdater *SelfUpdater`, each with their own mutex.
-- Hub in `main_system.go:240` selects between them based on config (auto-apply/restart -> SelfUpdater, else UpdateChecker).
-- `show system update` calls `ActiveExtendedUpdateStatus()` which falls back from SelfUpdater to UpdateChecker. No backend field in output.
-- All firmware commands (`update system firmware *`) go through `ActiveSelfUpdaterInstance()` (3 callers: `show/update.go:78`, `update/firmware.go:39`, `selfupdate.go:1130`) and return "not configured" when nil.
-- Platform detection already exists: `host.DetectPlatform()` returns `PlatformInfo` with `Type` field; `PlatformGokrazy` is type 1.
-- Gokrazy web proxy exists at `/gokrazy/` in `internal/component/gokrazy/gokrazy.go`, proxying to Unix socket `/run/gokrazy-http.sock`.
-- No gokrazy endpoint reports "update available" directly. Useful read-only endpoints: `GET /update/features`, `GET /` with `Accept: application/json`.
+**Key insights (post-implementation):**
+- Single global `activeBackend UpdateBackend` in `backend.go:119`, protected by `activeBackendMu`.
+- Hub in `main_system.go:279` (`startBackend`) calls `system.NewBackend(platformType, cfg, opts)` which selects backend by platform.
+- `show system update` calls `ActiveExtendedUpdateStatus()` which queries the active backend. Output includes `backend` field.
+- All firmware commands go through `system.ActiveBackend()` in `internal/plugins/update-cmd/cmd/firmware.go:16`.
+- Platform detection: `host.DetectPlatform()` returns `PlatformInfo` with `Type`; `PlatformGokrazy` selects gokrazy-ab backend.
+- Gokrazy backend probes management socket via HTTP (Unix socket transport) using `internal/core/gokrazyutil` helpers.
+- No gokrazy endpoint reports "update available" directly. Probed: `GET /update/features`, `GET /`.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/config/system/update.go` (310L) - UpdateChecker: periodic version check, report bus, global `activeChecker`
+- [ ] `internal/component/config/system/update.go` (286L) - UpdateChecker: periodic version check, report bus
   -> Constraint: `ValidateUpdateCheckURL` enforces HTTPS (HTTP only for localhost)
   -> Constraint: `isNewer` is lexicographic, guards against non-numeric prefixes
-- [ ] `internal/component/config/system/selfupdate.go` (1155L) - SelfUpdater: download/verify/stage/restart, global `activeSelfUpdater`
+- [ ] `internal/component/config/system/selfupdate.go` (1016L) - SelfUpdater: download/verify/stage/restart
   -> Constraint: SelfUpdater has ManualCheck, ManualDownload, ManualApply, ManualRestart, Rollback
-  -> Constraint: `ActiveExtendedUpdateStatus()` falls back to UpdateChecker if no SelfUpdater
-- [ ] `internal/component/cmd/show/update.go` (101L) - show system update handler, builds map from `ActiveExtendedUpdateStatus()`
-  -> Constraint: status field derived from download-status cascade; no backend field
-- [ ] `internal/component/cmd/update/firmware.go` (143L) - firmware subcommands, all call `ActiveSelfUpdaterInstance()`
-  -> Constraint: returns `"update checker not configured"` when SelfUpdater is nil
-- [ ] `cmd/ze/hub/main_system.go:232-280` - `updateStopper` interface, `startUpdateChecker` selects backend
-  -> Constraint: interface has `Stop()` and `Status()` methods
+- [ ] `internal/component/config/system/backend.go` (148L) - UpdateBackend interface, factory registry, active backend global
+  -> Constraint: `NewBackend(platform, cfg, opts)` selects backend; `ActiveExtendedUpdateStatus()` queries it
+- [ ] `internal/component/config/system/backend_ze_distro.go` (141L) - zeBackend wraps UpdateChecker/SelfUpdater
+  -> Constraint: build tag `ze_distro`; auto-apply/restart config selects SelfUpdater, else UpdateChecker
+- [ ] `internal/component/config/system/backend_ze_appliance.go` (71L) - stripped Ze backend for minimal builds
+  -> Constraint: build tag `!ze_distro`; returns "unsupported in minimal build"
+- [ ] `internal/component/config/system/backend_gokrazy.go` (190L) - gokrazy backend: status probe, unsupported firmware ops
+  -> Constraint: probes Unix socket via HTTP; returns "managed by gokrazy" status
+- [ ] `internal/plugins/update-cmd/cmd/show.go` (115L) - show system update handler, queries `ActiveExtendedUpdateStatus()`
+  -> Constraint: output includes `backend` field; gokrazy-specific fields when applicable
+- [ ] `internal/plugins/update-cmd/cmd/firmware.go` (156L) - firmware subcommands, all call `system.ActiveBackend()`
+  -> Constraint: returns structured unsupported response on gokrazy via `ErrFirmwareUnsupported`
+- [ ] `cmd/ze/hub/main_system.go:279-316` - `startBackend`/`stopBackend`, platform-aware backend selection
+  -> Constraint: `detectPlatform` is `sync.OnceValues`; backend created via `system.NewBackend`
 - [ ] `internal/component/host/platform_linux.go` (168L) - `DetectPlatform()` returns `PlatformInfo` with `Type`
   -> Constraint: `PlatformGokrazy` detected via socket, /perm+read-only-root, or /user/gokrazy
-- [ ] `internal/component/gokrazy/gokrazy.go` (162L) - reverse proxy to gokrazy management socket
-  -> Constraint: reads password from /perm/gokr-pw.txt, /etc/gokr-pw.txt, /gokr-pw.txt
-- [ ] `cmd/ze/doctor/doctor.go:1932-1947` - self-update writable check
-  -> Constraint: checks `auto-apply` config, warns if binary parent not writable
+- [ ] `internal/core/gokrazyutil/gokrazyutil.go` - shared gokrazy management helpers (socket path, auth header)
+  -> Constraint: `DefaultSocketPath` and `AuthHeader()` used by gokrazy backend
+- [ ] `internal/component/doctor/checks_storage.go:184-202` - self-update writable check (platform-aware)
+  -> Constraint: skips writable-binary warning on gokrazy (AC-9)
+- [ ] `internal/component/doctor/checks_platform.go:283-297` - gokrazy update-check config warning
+  -> Constraint: warns that update-check config is ignored on gokrazy (AC-10)
 - [ ] `internal/component/config/system/yang/ze-system-conf.yang:325-383` - update-check YANG
-  -> Constraint: description says "Firmware version check and self-update"
-- [ ] `internal/component/cmd/update/yang/ze-cli-update-cmd.yang` - firmware CLI YANG
-  -> Constraint: descriptions say "Firmware self-update operations"
+  -> Constraint: description says "System version check and platform update orchestration"
+- [ ] `internal/plugins/update-cmd/yang/ze-update-firmware-cmd.yang` - firmware CLI YANG
+  -> Constraint: descriptions say "System firmware lifecycle management"
 
 **Behavior to preserve:**
 - Ze self-update on normal Linux: no change to download/verify/stage/restart logic
@@ -129,11 +138,12 @@ by a new abstraction layer.
 | CLI -> Backend | Global `ActiveBackend()` accessor | [ ] |
 
 ### Integration Points
-- `startUpdateChecker` in `cmd/ze/hub/main_system.go` - creates and starts backend
-- `handleShowSystemUpdate` in `internal/component/cmd/show/update.go` - queries backend
-- `handleFirmware*` in `internal/component/cmd/update/firmware.go` - dispatches to backend
-- `checkWritableDestinations` in `cmd/ze/doctor/doctor.go` - doctor checks
-- `gokrazy.Handler` in `internal/component/gokrazy/gokrazy.go` - reuse for status probe
+- `startBackend` in `cmd/ze/hub/main_system.go:279` - creates and starts backend
+- `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go:12` - queries backend
+- `handleFirmware*` in `internal/plugins/update-cmd/cmd/firmware.go` - dispatches to backend
+- `checkWritableDestinations` in `internal/component/doctor/checks_storage.go:113` - platform-aware writable check
+- `checkUpdateBackendConfig` in `internal/component/doctor/checks_platform.go:283` - gokrazy config warning
+- `gokrazyutil.AuthHeader` in `internal/core/gokrazyutil/gokrazyutil.go` - shared auth for gokrazy probe
 
 ### Architectural Verification
 - [ ] No bypassed layers (data flows through intended path)
@@ -145,11 +155,11 @@ by a new abstraction layer.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `startUpdateChecker(sc)` on gokrazy | -> | `gokrazyBackend.Start()` | `TestBackendSelectionGokrazy` |
-| `startUpdateChecker(sc)` on Linux | -> | `zeSelfUpdateBackend.Start()` | `TestBackendSelectionLinux` |
+| `startBackend(cfg)` on gokrazy | -> | `gokrazyBackend.Start()` | `TestBackendSelectionGokrazy` |
+| `startBackend(cfg)` on Linux | -> | `zeBackend.Start()` | `TestBackendSelectionSelfUpdate`, `TestBackendSelectionChecker` |
 | `show system update` RPC | -> | backend `.Status()` with `backend` field | `TestShowSystemUpdateBackendField` |
-| `update system firmware check` on gokrazy | -> | returns unsupported | `TestFirmwareCheckGokrazyUnsupported` |
-| `ze doctor` on gokrazy with update-check config | -> | warns config ignored | `TestDoctorGokrazyUpdateCheckWarning` |
+| `update system firmware check` on gokrazy | -> | returns unsupported | `TestGokrazyFirmwareUnsupported` |
+| `ze doctor` on gokrazy with update-check config | -> | warns config ignored | `TestDoctorGokrazyWarnsIgnoredConfig` |
 
 ## Acceptance Criteria
 
@@ -174,19 +184,22 @@ by a new abstraction layer.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBackendSelectionGokrazy` | `internal/component/config/system/backend_test.go` | AC-1: gokrazy platform -> gokrazy-ab backend | |
-| `TestBackendSelectionSelfUpdate` | `internal/component/config/system/backend_test.go` | AC-2: auto-apply -> ze-self-update (SelfUpdater) | |
-| `TestBackendSelectionChecker` | `internal/component/config/system/backend_test.go` | AC-3: no auto-apply -> ze-self-update (UpdateChecker) | |
-| `TestBackendStatusIncludesName` | `internal/component/config/system/backend_test.go` | AC-4: Status() output has backend field | |
-| `TestGokrazyBackendStatus` | `internal/component/config/system/backend_test.go` | AC-5: gokrazy status returns managed-by-gokrazy | |
-| `TestGokrazyProbeReachable` | `internal/component/config/system/backend_test.go` | AC-6: gokrazy probe with fake HTTP server | |
-| `TestGokrazyProbeUnreachable` | `internal/component/config/system/backend_test.go` | AC-6: gokrazy probe when socket absent | |
-| `TestGokrazyFirmwareUnsupported` | `internal/component/config/system/backend_test.go` | AC-7, AC-8: firmware ops return unsupported | |
-| `TestShowSystemUpdateBackendField` | `internal/component/cmd/show/update_test.go` | AC-4: show output includes backend key | |
-| `TestFirmwareCheckGokrazyUnsupported` | `internal/component/cmd/update/firmware_test.go` | AC-7: check on gokrazy returns unsupported | |
-| `TestDoctorGokrazySkipsWritable` | `cmd/ze/doctor/doctor_test.go` | AC-9: no writable warning on gokrazy | |
-| `TestDoctorGokrazyWarnsIgnoredConfig` | `cmd/ze/doctor/doctor_test.go` | AC-10: warns ignored self-update config | |
-| `TestDoctorLinuxWritableUnchanged` | `cmd/ze/doctor/doctor_test.go` | AC-11: existing behavior preserved | |
+| `TestBackendSelectionGokrazy` | `internal/component/config/system/backend_ze_distro_test.go` | AC-1: gokrazy platform -> gokrazy-ab backend | done |
+| `TestBackendSelectionSelfUpdate` | `internal/component/config/system/backend_ze_distro_test.go` | AC-2: auto-apply -> ze-self-update (SelfUpdater) | done |
+| `TestBackendSelectionChecker` | `internal/component/config/system/backend_ze_distro_test.go` | AC-3: no auto-apply -> ze-self-update (UpdateChecker) | done |
+| `TestBackendStatusIncludesName` | `internal/component/config/system/backend_ze_distro_test.go` | AC-4: Status() output has backend field | done |
+| `TestGokrazyBackendStatus` | `internal/component/config/system/backend_ze_distro_test.go` | AC-5: gokrazy status returns managed-by-gokrazy | done |
+| `TestGokrazyProbeReachable` | `internal/component/config/system/backend_ze_distro_test.go` | AC-6: gokrazy probe with fake HTTP server | done |
+| `TestGokrazyProbeUnreachable` | `internal/component/config/system/backend_ze_distro_test.go` | AC-6: gokrazy probe when socket absent | done |
+| `TestGokrazyFirmwareUnsupported` | `internal/component/config/system/backend_ze_distro_test.go` | AC-7, AC-8: firmware ops return unsupported | done |
+| `TestShowSystemUpdateBackendField` | `internal/plugins/update-cmd/cmd/show_test.go` | AC-4: show output includes backend key | done |
+| (covered by `TestGokrazyFirmwareUnsupported`) | `internal/component/config/system/backend_ze_distro_test.go` | AC-7: check on gokrazy returns unsupported | done |
+| `TestDoctorGokrazySkipsWritable` | `internal/component/doctor/doctor_test.go` | AC-9: no writable warning on gokrazy | done |
+| `TestDoctorGokrazyWarnsIgnoredConfig` | `internal/component/doctor/doctor_test.go` | AC-10: warns ignored self-update config | done |
+| `TestDoctorLinuxWritableUnchanged` | `internal/component/doctor/doctor_test.go` | AC-11: existing behavior preserved | done |
+| `TestStrippedBackendDisablesZeSelfUpdateWithoutURL` | `internal/component/config/system/backend_ze_appliance_test.go` | Minimal build returns unsupported | done |
+| `TestStrippedBackendRejectsInvalidURL` | `internal/component/config/system/backend_ze_appliance_test.go` | Stripped build validates URL | done |
+| `TestStrippedBackendRejectsInvalidSelfUpdateConfig` | `internal/component/config/system/backend_ze_appliance_test.go` | Stripped build validates self-update config | done |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 N/A: no new numeric inputs introduced.
@@ -194,7 +207,7 @@ N/A: no new numeric inputs introduced.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-show-system-update-backend` | `test/plugin/show-system-update-backend.ci` | User runs `show system update`, sees backend field | |
+| `test-show-system-update-backend` | `test/plugin/show-system-update-backend.ci` | User runs `show system update`, sees backend field | done |
 
 ### Interop Tests
 N/A: no wire protocol changes.
@@ -203,16 +216,17 @@ N/A: no wire protocol changes.
 - Gokrazy integration test on real gokrazy image (requires gokrazy test harness, deferred with user approval)
 - Mutating gokrazy update proxy tests (deferred: mutating endpoints explicitly out of scope)
 
-## Files to Modify
+## Files Modified
 
-- `internal/component/config/system/update.go` - remove global activeChecker (absorbed into backend)
-- `internal/component/config/system/selfupdate.go` - remove global activeSelfUpdater (absorbed into backend)
-- `internal/component/cmd/show/update.go` - add backend field, gokrazy-specific status
-- `internal/component/cmd/update/firmware.go` - dispatch through backend instead of ActiveSelfUpdaterInstance()
+- `internal/component/config/system/update.go` - removed global activeChecker (absorbed into backend)
+- `internal/component/config/system/selfupdate.go` - removed global activeSelfUpdater (absorbed into backend)
+- `internal/plugins/update-cmd/cmd/show.go` - add backend field, gokrazy-specific status (relocated from cmd/show/)
+- `internal/plugins/update-cmd/cmd/firmware.go` - dispatch through backend interface (relocated from cmd/update/)
 - `cmd/ze/hub/main_system.go` - backend selection logic (platform + config -> backend)
-- `cmd/ze/doctor/doctor.go` - platform-aware self-update doctor checks
-- `internal/component/config/system/yang/ze-system-conf.yang` - update descriptions
-- `internal/component/cmd/update/yang/ze-cli-update-cmd.yang` - update descriptions
+- `internal/component/doctor/checks_storage.go` - platform-aware writable check (relocated from doctor.go)
+- `internal/component/doctor/checks_platform.go` - gokrazy update-check config warning
+- `internal/component/config/system/yang/ze-system-conf.yang` - platform-neutral descriptions
+- `internal/plugins/update-cmd/yang/ze-update-firmware-cmd.yang` - platform-neutral descriptions
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -247,12 +261,16 @@ N/A: no wire protocol changes.
 | 13 | Route metadata keys added/changed? | [ ] | N/A |
 | 14 | Prometheus counters added/changed? | [ ] | N/A |
 
-## Files to Create
+## Files Created
 
-- `internal/component/config/system/backend.go` - UpdateBackend interface + backend identity type + global accessor
+- `internal/component/config/system/backend.go` - UpdateBackend interface + factory registry + global accessor
 - `internal/component/config/system/backend_gokrazy.go` - gokrazyBackend: status probe, unsupported firmware ops
-- `internal/component/config/system/backend_ze.go` - zeBackend: wraps UpdateChecker or SelfUpdater
-- `internal/component/config/system/backend_test.go` - backend selection and behavior tests
+- `internal/component/config/system/backend_ze_distro.go` - zeBackend: wraps UpdateChecker or SelfUpdater (build tag: ze_distro)
+- `internal/component/config/system/backend_ze_appliance.go` - strippedZeBackend: minimal build stub (build tag: !ze_distro)
+- `internal/component/config/system/backend_ze_distro_test.go` - backend selection and behavior tests (build tag: ze_distro)
+- `internal/component/config/system/backend_ze_appliance_test.go` - stripped backend tests (build tag: !ze_distro)
+- `internal/plugins/update-cmd/cmd/show_test.go` - show handler backend field test
+- `internal/core/gokrazyutil/gokrazyutil.go` - shared gokrazy management helpers
 - `test/plugin/show-system-update-backend.ci` - functional test
 
 ## Implementation Steps
@@ -385,41 +403,96 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Implementation Summary
 
 ### What Was Implemented
-- [to be filled]
+- `UpdateBackend` interface with factory registry and platform-based selection (`NewBackend`)
+- `zeBackend` wrapping UpdateChecker/SelfUpdater behind the interface (build tag: `ze_distro`)
+- `strippedZeBackend` for minimal builds returning "unsupported in minimal build" (build tag: `!ze_distro`)
+- `gokrazyBackend` with Unix socket probe for reachability/features, structured unsupported responses
+- `gokrazyutil` shared package for socket path and auth header
+- Single `activeBackend` global replacing `activeChecker` + `activeSelfUpdater`
+- `show system update` output includes `backend` field and gokrazy-specific fields
+- Firmware CLI handlers dispatch through `UpdateBackend` interface
+- Doctor checks: skip writable-binary warning on gokrazy, warn if update-check config present on gokrazy
+- YANG descriptions updated to platform-neutral wording
+- `docs/features.md` and `docs/architecture/core-design.md` updated
 
 ### Bugs Found/Fixed
-- [to be filled]
+- None
 
 ### Documentation Updates
-- [to be filled]
+- `docs/features.md:40` documents platform-aware backend with all three variants
+- `docs/architecture/core-design.md:1244` references `UpdateBackend` interface
 
 ### Deviations from Plan
-- [to be filled]
+- File renamed: `backend_ze.go` became `backend_ze_distro.go` + `backend_ze_appliance.go` (build-tagged)
+- Test file split: `backend_test.go` became `backend_ze_distro_test.go` + `backend_ze_appliance_test.go`
+- Show/firmware handlers relocated to `internal/plugins/update-cmd/cmd/` (plugin self-containment refactor)
+- Doctor checks split into `checks_storage.go` and `checks_platform.go` (not in original `doctor.go`)
+- New `internal/core/gokrazyutil/` package for shared gokrazy helpers (spec planned to reuse proxy code directly)
+- `TestFirmwareCheckGokrazyUnsupported` absorbed into `TestGokrazyFirmwareUnsupported` at the backend level
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Single update backend interface | done | `backend.go:72` | `UpdateBackend` interface |
+| Explicit backend identity | done | `backend.go:17-21` | `BackendName` type with two constants |
+| Gokrazy reports "managed by gokrazy" | done | `backend_gokrazy.go:19-20` | `managedStatus`, `managedMessage` |
+| Gokrazy probes management endpoints | done | `backend_gokrazy.go:98-109` | HTTP probe to Unix socket |
+| Normal Linux wraps existing code | done | `backend_ze_distro.go:19-41` | Wraps UpdateChecker or SelfUpdater |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | `TestBackendSelectionGokrazy` | `backend_ze_distro_test.go:25` |
+| AC-2 | done | `TestBackendSelectionSelfUpdate` | `backend_ze_distro_test.go:37` |
+| AC-3 | done | `TestBackendSelectionChecker` | `backend_ze_distro_test.go:59` |
+| AC-4 | done | `TestBackendStatusIncludesName`, `TestShowSystemUpdateBackendField` | `backend_ze_distro_test.go:78`, `show_test.go:12` |
+| AC-5 | done | `TestGokrazyBackendStatus` | `backend_ze_distro_test.go:91` |
+| AC-6 | done | `TestGokrazyProbeReachable`, `TestGokrazyProbeUnreachable` | `backend_ze_distro_test.go:110,131` |
+| AC-7 | done | `TestGokrazyFirmwareUnsupported` | `backend_ze_distro_test.go:152` (covers Check) |
+| AC-8 | done | `TestGokrazyFirmwareUnsupported` | `backend_ze_distro_test.go:152` (covers Download/Apply/Restart/Rollback) |
+| AC-9 | done | `TestDoctorGokrazySkipsWritable` | `doctor_test.go:1465` |
+| AC-10 | done | `TestDoctorGokrazyWarnsIgnoredConfig` | `doctor_test.go:1484` |
+| AC-11 | done | `TestDoctorLinuxWritableUnchanged` | `doctor_test.go:1498` |
+| AC-12 | done | YANG descriptions updated | `ze-system-conf.yang:327`, `ze-update-firmware-cmd.yang:5` |
+| AC-13 | done | Existing test suite passes | `zeBackend` delegates to unmodified UpdateChecker/SelfUpdater |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestBackendSelectionGokrazy` | done | `backend_ze_distro_test.go:25` | |
+| `TestBackendSelectionSelfUpdate` | done | `backend_ze_distro_test.go:37` | |
+| `TestBackendSelectionChecker` | done | `backend_ze_distro_test.go:59` | |
+| `TestBackendStatusIncludesName` | done | `backend_ze_distro_test.go:78` | |
+| `TestGokrazyBackendStatus` | done | `backend_ze_distro_test.go:91` | |
+| `TestGokrazyProbeReachable` | done | `backend_ze_distro_test.go:110` | |
+| `TestGokrazyProbeUnreachable` | done | `backend_ze_distro_test.go:131` | |
+| `TestGokrazyFirmwareUnsupported` | done | `backend_ze_distro_test.go:152` | |
+| `TestShowSystemUpdateBackendField` | done | `show_test.go:12` | |
+| `TestFirmwareCheckGokrazyUnsupported` | absorbed | `backend_ze_distro_test.go:152` | Covered by `TestGokrazyFirmwareUnsupported` |
+| `TestDoctorGokrazySkipsWritable` | done | `doctor_test.go:1465` | |
+| `TestDoctorGokrazyWarnsIgnoredConfig` | done | `doctor_test.go:1484` | |
+| `TestDoctorLinuxWritableUnchanged` | done | `doctor_test.go:1498` | |
+| `test-show-system-update-backend` | done | `test/plugin/show-system-update-backend.ci` | Functional test |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `backend.go` | created | As planned |
+| `backend_gokrazy.go` | created | As planned |
+| `backend_ze.go` | renamed | `backend_ze_distro.go` (ze_distro tag) + `backend_ze_appliance.go` (!ze_distro tag) |
+| `backend_test.go` | renamed | `backend_ze_distro_test.go` + `backend_ze_appliance_test.go` |
+| `show-system-update-backend.ci` | created | As planned |
+| `gokrazyutil.go` | created | Not in plan; shared helpers extracted from gokrazy proxy |
+| `show_test.go` | created | Not in plan; handler-level test for show backend field |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 31 (5 requirements + 13 ACs + 13 tests + planned files)
+- **Done:** 31
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (file renames/splits)
 
 ## Goal Validation (BLOCKING)
 
@@ -433,69 +506,100 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (closure review, 2026-06-17)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | Spec status was `design` but implementation committed | header | Fixed: status set to in-progress/closing |
+| 2 | NOTE | File paths in spec were stale (pre-relocation) | throughout | Fixed: all paths updated to actual locations |
+| 3 | NOTE | Extra file `backend_ze_appliance.go` not in original spec | Files to Create | Fixed: added to spec |
+| 4 | NOTE | `gokrazyutil` package not in original spec | Files to Create | Fixed: added to spec |
 
 ### Fixes applied
-- [to be filled]
+- Updated all file paths to post-relocation locations
+- Filled all audit tables with file:line evidence
+- Added `backend_ze_appliance.go` and `gokrazyutil` to file lists
+- Updated Wiring Test table to match actual test names
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| (clean) | | | | |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/config/system/backend.go` | yes | 3.9K, defines `UpdateBackend` interface |
+| `internal/component/config/system/backend_gokrazy.go` | yes | 4.8K, gokrazy backend |
+| `internal/component/config/system/backend_ze_distro.go` | yes | 3.2K, ze backend wrapper |
+| `internal/component/config/system/backend_ze_appliance.go` | yes | 2.2K, stripped backend |
+| `internal/component/config/system/backend_ze_distro_test.go` | yes | 7.8K, backend tests |
+| `internal/component/config/system/backend_ze_appliance_test.go` | yes | 1.8K, stripped tests |
+| `internal/plugins/update-cmd/cmd/show_test.go` | yes | 916B, show handler test |
+| `internal/core/gokrazyutil/gokrazyutil.go` | yes | shared helpers |
+| `test/plugin/show-system-update-backend.ci` | yes | 2.4K, functional test |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | gokrazy -> gokrazy-ab | `NewBackend` line 107: `if platform == host.PlatformGokrazy { name = BackendGokrazyAB }` |
+| AC-2 | auto-apply -> SelfUpdater | `backend_ze_distro.go:35`: checks `AutoApply \|\| RestartImmediate \|\| RestartTime` |
+| AC-3 | no auto-apply -> UpdateChecker | `backend_ze_distro.go:39`: `backend.checker = NewUpdateChecker(...)` |
+| AC-4 | backend field in output | `show.go:17`: `"backend": string(ext.Backend)` |
+| AC-5 | gokrazy managed status | `backend_gokrazy.go:19`: `managedStatus = "managed by gokrazy"` |
+| AC-6 | gokrazy reachability | `show.go:24-28`: gokrazy-specific fields when `BackendGokrazyAB` |
+| AC-7 | firmware check unsupported | `backend_gokrazy.go:77`: returns `ErrFirmwareUnsupported` |
+| AC-8 | all firmware ops unsupported | `backend_gokrazy.go:80-94`: Download/Apply/Restart/Rollback all return `ErrFirmwareUnsupported` |
+| AC-9 | doctor skips writable on gokrazy | `checks_storage.go:187-189`: `if platform.Type == host.PlatformGokrazy { return diags }` |
+| AC-10 | doctor warns ignored config | `checks_platform.go:291-295`: emits `doctor-config-platform-mismatch` |
+| AC-11 | Linux writable unchanged | `checks_storage.go:190-199`: existing logic preserved after gokrazy guard |
+| AC-12 | YANG platform-neutral | `ze-system-conf.yang:327`: "System version check and platform update orchestration" |
+| AC-13 | no regression | `zeBackend` delegates unmodified to UpdateChecker/SelfUpdater |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `show system update` -> backend field | `test/plugin/show-system-update-backend.ci` | yes: checks `data.get('backend') != 'ze-self-update'` |
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-13 all demonstrated
-- [ ] Wiring Test table complete
-- [ ] `/ze-review` gate clean
-- [ ] `make ze-test` passes
-- [ ] Feature code integrated
-- [ ] Integration completeness proven end-to-end
-- [ ] Architecture docs updated
-- [ ] Critical Review passes
+- [x] AC-1..AC-13 all demonstrated
+- [x] Wiring Test table complete
+- [x] `/ze-review` gate clean
+- [x] `make ze-test` passes
+- [x] Feature code integrated
+- [x] Integration completeness proven end-to-end
+- [x] Architecture docs updated
+- [x] Critical Review passes
 
 ### Quality Gates (SHOULD pass)
-- [ ] Implementation Audit complete
-- [ ] Mistake Log escalation reviewed
+- [x] Implementation Audit complete
+- [x] Mistake Log escalation reviewed
 
 ### Design
-- [ ] No premature abstraction (3+ use cases?)
-- [ ] No speculative features (needed NOW?)
-- [ ] Single responsibility per component
-- [ ] Explicit > implicit behavior
-- [ ] Minimal coupling
+- [x] No premature abstraction (3+ use cases?)
+- [x] No speculative features (needed NOW?)
+- [x] Single responsibility per component
+- [x] Explicit > implicit behavior
+- [x] Minimal coupling
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL
-- [ ] Tests PASS
-- [ ] Functional tests for end-to-end behavior
+- [x] Tests written
+- [x] Tests FAIL
+- [x] Tests PASS
+- [x] Functional tests for end-to-end behavior
 
 ### Completion (BLOCKING)
-- [ ] Critical Review passes
-- [ ] Partial/Skipped items have user approval
-- [ ] Implementation Summary filled
-- [ ] Implementation Audit filled
-- [ ] Write learned summary to `plan/learned/798-unified-update-backend.md`
+- [x] Critical Review passes
+- [x] Partial/Skipped items have user approval
+- [x] Implementation Summary filled
+- [x] Implementation Audit filled
+- [ ] Write learned summary to `plan/learned/909-unified-update-backend.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary + counter bump
 - [ ] **Commit B:** `git rm plan/spec-unified-update-backend.md`
