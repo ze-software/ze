@@ -317,6 +317,9 @@ func decodeAttrValue(code byte, value []byte) string {
 	case 16: // EXT_COMMUNITIES
 		return decodeExtCommunities(value)
 
+	case 23: // TUNNEL_ENCAPSULATION
+		return decodeTunnelEncap(value)
+
 	default:
 		return hex.EncodeToString(value)
 	}

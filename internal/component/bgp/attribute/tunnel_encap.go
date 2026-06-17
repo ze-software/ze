@@ -82,3 +82,68 @@ func (te *TunnelEncap) WriteTo(buf []byte, off int) int {
 func (te *TunnelEncap) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return te.WriteTo(buf, off)
 }
+
+// Sub-TLV type constants (RFC 9012 Section 13, RFC 9830 Section 2.4).
+const (
+	SubTLVPreference  uint8 = 12  // RFC 9830 Section 2.4.1
+	SubTLVBindingSID  uint8 = 13  // RFC 9830 Section 2.4.2
+	SubTLVPriority    uint8 = 15  // RFC 9830 Section 2.4.6
+	SubTLVSegmentList uint8 = 128 // RFC 9830 Section 2.4.5 (2-byte length)
+)
+
+// SubTLV is a single sub-TLV within a tunnel type's value.
+// Returned by on-demand parsing; Value aliases the TunnelTLV.Value slice.
+type SubTLV struct {
+	Type  uint8
+	Value []byte
+}
+
+// SubTLVs parses the sub-TLVs within this tunnel TLV on demand.
+// RFC 9012: types 0-127 use 1-byte length, 128-255 use 2-byte length.
+// Unknown sub-TLVs are included. Returns partial results plus error on truncation.
+func (t *TunnelTLV) SubTLVs() ([]SubTLV, error) {
+	data := t.Value
+	var result []SubTLV
+	for len(data) > 0 {
+		if len(data) < 2 {
+			return result, fmt.Errorf("tunnel-encap: sub-TLV header truncated (have %d)", len(data))
+		}
+		stype := data[0]
+		var length int
+		var hdrLen int
+		// RFC 9012 Section 3: types 0-127 use 1-byte length, 128-255 use 2-byte length.
+		if stype < 128 {
+			hdrLen = 2
+			length = int(data[1])
+		} else {
+			hdrLen = 3
+			if len(data) < 3 {
+				return result, fmt.Errorf("tunnel-encap: sub-TLV long header truncated for type %d (have %d)", stype, len(data))
+			}
+			length = int(binary.BigEndian.Uint16(data[1:3]))
+		}
+		if len(data) < hdrLen+length {
+			return result, fmt.Errorf("tunnel-encap: sub-TLV type %d value truncated (need %d, have %d)", stype, length, len(data)-hdrLen)
+		}
+		result = append(result, SubTLV{Type: stype, Value: data[hdrLen : hdrLen+length]})
+		data = data[hdrLen+length:]
+	}
+	return result, nil
+}
+
+// Preference parses sub-TLVs on demand and returns the Preference value
+// (RFC 9830 Section 2.4.1) if present. Returns 0, false if not found or
+// the sub-TLV value is malformed.
+func (t *TunnelTLV) Preference() (uint32, bool) {
+	stlvs, err := t.SubTLVs()
+	if err != nil {
+		return 0, false
+	}
+	for i := range stlvs {
+		if stlvs[i].Type == SubTLVPreference && len(stlvs[i].Value) >= 8 {
+			// flags(1) + reserved(3) + preference(4)
+			return binary.BigEndian.Uint32(stlvs[i].Value[4:8]), true
+		}
+	}
+	return 0, false
+}

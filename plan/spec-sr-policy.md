@@ -169,7 +169,7 @@ This enables Ze to negotiate, decode, encode, and forward SR-Policy UPDATEs, and
 | AC-11 | ExaBGP command "neighbor X announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4" | Bridge translates to Ze command format |
 | AC-12 | Truncated SR-Policy NLRI wire bytes | SplitSRPolicy returns error |
 | AC-13 | AttrTunnelEncap constant equals 23 | Attribute code registered |
-| AC-14 | Tunnel Encap wire bytes with Tunnel Type 15 and Preference sub-TLV | Parsed into TunnelEncap with SRPolicyTunnel containing PreferenceSubTLV |
+| AC-14 | Tunnel Encap wire bytes with Tunnel Type 15 and Preference sub-TLV | TunnelTLV.SubTLVs() parses on demand; TunnelTLV.Preference() returns uint32 value |
 | AC-15 | Tunnel Encap wire bytes with unknown tunnel type | Preserved as opaque TLV for forwarding |
 
 ## TDD Test Plan

@@ -106,3 +106,114 @@ func TestTunnelEncapPreservesUnknownTypes(t *testing.T) {
 	te.WriteTo(buf, 0)
 	assert.Equal(t, data, buf)
 }
+
+func TestTunnelTLVSubTLVsShortHeader(t *testing.T) {
+	// Two sub-TLVs with short headers (type < 128):
+	// type=12(Preference), length=8, value=8 bytes
+	// type=15(Priority), length=2, value=2 bytes
+	value := make([]byte, 14) // (2+8) + (2+2)
+	value[0] = SubTLVPreference
+	value[1] = 8
+	binary.BigEndian.PutUint32(value[6:10], 200) // preference at offset 4 within value
+	value[10] = SubTLVPriority
+	value[11] = 2
+	value[12] = 0x00
+	value[13] = 0x05
+
+	tlv := TunnelTLV{TunnelType: 15, Value: value}
+	stlvs, err := tlv.SubTLVs()
+	require.NoError(t, err)
+	require.Len(t, stlvs, 2)
+	assert.Equal(t, SubTLVPreference, stlvs[0].Type)
+	assert.Len(t, stlvs[0].Value, 8)
+	assert.Equal(t, SubTLVPriority, stlvs[1].Type)
+	assert.Len(t, stlvs[1].Value, 2)
+}
+
+func TestTunnelTLVSubTLVsLongHeader(t *testing.T) {
+	// Sub-TLV type 128 (Segment List) uses 2-byte length.
+	// type=128, length=4 (2 bytes), value=4 bytes
+	value := make([]byte, 7) // 1 + 2 + 4
+	value[0] = SubTLVSegmentList
+	binary.BigEndian.PutUint16(value[1:3], 4)
+	value[3] = 0x01
+	value[4] = 0x02
+	value[5] = 0x03
+	value[6] = 0x04
+
+	tlv := TunnelTLV{TunnelType: 15, Value: value}
+	stlvs, err := tlv.SubTLVs()
+	require.NoError(t, err)
+	require.Len(t, stlvs, 1)
+	assert.Equal(t, SubTLVSegmentList, stlvs[0].Type)
+	assert.Equal(t, []byte{0x01, 0x02, 0x03, 0x04}, stlvs[0].Value)
+}
+
+func TestTunnelTLVSubTLVsMixed(t *testing.T) {
+	// Short header sub-TLV followed by long header sub-TLV.
+	// type=12, len=8, val=8bytes | type=128, len=2, val=2bytes
+	value := make([]byte, 15) // (2+8) + (3+2)
+	value[0] = SubTLVPreference
+	value[1] = 8
+	// value[2:10] = preference sub-TLV value (zeros, flags+reserved+pref=0)
+	value[10] = SubTLVSegmentList
+	binary.BigEndian.PutUint16(value[11:13], 2)
+	value[13] = 0xAA
+	value[14] = 0xBB
+
+	tlv := TunnelTLV{TunnelType: 15, Value: value}
+	stlvs, err := tlv.SubTLVs()
+	require.NoError(t, err)
+	require.Len(t, stlvs, 2)
+	assert.Equal(t, SubTLVPreference, stlvs[0].Type)
+	assert.Equal(t, SubTLVSegmentList, stlvs[1].Type)
+}
+
+func TestTunnelTLVSubTLVsTruncated(t *testing.T) {
+	// Short header says length=10 but only 3 bytes of value available.
+	value := []byte{SubTLVPreference, 10, 0x00, 0x00, 0x00}
+	tlv := TunnelTLV{TunnelType: 15, Value: value}
+	_, err := tlv.SubTLVs()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "truncated")
+}
+
+func TestTunnelTLVSubTLVsEmpty(t *testing.T) {
+	tlv := TunnelTLV{TunnelType: 15, Value: nil}
+	stlvs, err := tlv.SubTLVs()
+	assert.NoError(t, err)
+	assert.Empty(t, stlvs)
+}
+
+func TestTunnelTLVPreference(t *testing.T) {
+	// Preference sub-TLV: type=12, length=8, flags(1)+reserved(3)+preference(4)
+	value := make([]byte, 10) // 2 (header) + 8 (value)
+	value[0] = SubTLVPreference
+	value[1] = 8
+	// value[2] = flags (0)
+	// value[3:5] = reserved (0)
+	binary.BigEndian.PutUint32(value[6:10], 200) // preference
+
+	tlv := TunnelTLV{TunnelType: 15, Value: value}
+	pref, ok := tlv.Preference()
+	assert.True(t, ok)
+	assert.Equal(t, uint32(200), pref)
+}
+
+func TestTunnelTLVPreferenceNotPresent(t *testing.T) {
+	// Only a Priority sub-TLV, no Preference.
+	value := []byte{SubTLVPriority, 2, 0x00, 0x05}
+	tlv := TunnelTLV{TunnelType: 15, Value: value}
+	pref, ok := tlv.Preference()
+	assert.False(t, ok)
+	assert.Equal(t, uint32(0), pref)
+}
+
+func TestTunnelTLVPreferenceMalformedValue(t *testing.T) {
+	// Preference sub-TLV with value too short (4 bytes instead of 8).
+	value := []byte{SubTLVPreference, 4, 0x00, 0x00, 0x00, 0x00}
+	tlv := TunnelTLV{TunnelType: 15, Value: value}
+	pref, ok := tlv.Preference()
+	assert.False(t, ok)
+	assert.Equal(t, uint32(0), pref)
+}
