@@ -599,8 +599,9 @@ const (
 
 // SetElement is a single element in a named set.
 type SetElement struct {
-	Value   string // string representation (IP, port, etc.)
-	Timeout uint32 // per-element timeout in seconds (0 = no timeout)
+	Value       string // string representation (IP, port, etc.)
+	Timeout     uint32 // per-element timeout in seconds (0 = no timeout)
+	IntervalEnd bool   // marks the exclusive upper bound of an interval range
 }
 
 // --- Composite types ---

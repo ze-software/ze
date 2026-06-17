@@ -244,12 +244,59 @@ firewall {
 Note: `all-ping` and `broadcast-ping` have inverted semantics because the
 underlying sysctl controls "ignore" behavior.
 
+## IRR Prefix-List Filtering
+
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- firewall-irr plugin entry point -->
+
+Firewall rules can match traffic by ASN or AS-SET using IRR-resolved prefix
+lists. The `firewall-irr` plugin resolves references via the IRR whois client,
+caches results in zefs, and populates nftables interval sets.
+
+### Operator Workflow
+
+1. Fetch prefix data: `update firewall irr asn 13335`
+2. Inspect cached data: `show firewall irr`
+3. Commit config with `source-asn 13335` in a term's from-block
+4. Refresh all cached entries: `update firewall irr all`
+
+### Config Leaves
+
+| Leaf | Type | Description |
+|------|------|-------------|
+| `source-asn` | uint32 (1-4294967294) | Match source address against IRR-resolved prefixes for this ASN |
+| `source-as-set` | string | Match source address against IRR-resolved prefixes for this AS-SET |
+| `destination-asn` | uint32 (1-4294967294) | Match destination address against IRR-resolved prefixes for this ASN |
+| `destination-as-set` | string | Match destination address against IRR-resolved prefixes for this AS-SET |
+
+### IRR Policy
+
+```
+firewall {
+    irr {
+        server whois.radb.net;
+        peeringdb-url https://www.peeringdb.com;
+        refresh-interval 0;  /* 0 = manual only; 60-86400 = auto-refresh seconds */
+    }
+}
+```
+
+Config commit rejects if a referenced ASN/AS-SET has no cached prefix data,
+with an actionable error naming the missing entry and the command to run.
+
+Auto-refresh (when `refresh-interval > 0`) is fail-closed: a failed IRR query
+preserves the last-good cache and logs an error.
+
 ## CLI
 
 | Command | Description |
 |---------|-------------|
 | `ze firewall show` | Display all firewall tables and rules |
 | `ze firewall counters` | Show per-term packet and byte counters |
+| `show firewall irr` | Show IRR filter status for all cached entries |
+| `show firewall irr prefix <name>` | List cached prefixes for an ASN or AS-SET |
+| `update firewall irr asn <N>` | Fetch/refresh IRR prefix-list for an ASN |
+| `update firewall irr as-set <name>` | Fetch/refresh IRR prefix-list for an AS-SET |
+| `update firewall irr all` | Refresh all cached IRR entries |
 
 ## Lifecycle
 

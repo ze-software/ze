@@ -218,7 +218,7 @@ func (b *backend) applySet(t *nftables.Table, s *firewall.Set) (*nftables.Set, e
 		if err != nil {
 			return nil, fmt.Errorf("element %q: %w", e.Value, err)
 		}
-		el := nftables.SetElement{Key: key}
+		el := nftables.SetElement{Key: key, IntervalEnd: e.IntervalEnd}
 		// Per-element timeout reaches the kernel as time.Duration.
 		// Zero stays zero (no timeout) so unset elements keep the
 		// prior behavior. The set itself must carry flags-timeout

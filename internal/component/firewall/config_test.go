@@ -1371,3 +1371,64 @@ func TestExtractGlobalOptionsNoFirewall(t *testing.T) {
 		t.Errorf("expected empty map, got %v", got)
 	}
 }
+
+// VALIDATES: AC-4 source-asn in from-block emits MatchInSet with deterministic set name.
+// PREVENTS: set name mismatch between config parser and IRR plugin.
+func TestParseFromSourceASN(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"term":{"t":{"from":{"source-asn":"13335"}}}}}}}}}`
+	tables, err := ParseFirewallConfig(data)
+	if err != nil {
+		t.Fatalf("ParseFirewallConfig: %v", err)
+	}
+	term := tables[0].Chains[0].Terms[0]
+	m, ok := term.Matches[0].(MatchInSet)
+	if !ok {
+		t.Fatalf("match type = %T, want MatchInSet", term.Matches[0])
+	}
+	if m.SetName != "irr_v4_AS13335" {
+		t.Errorf("SetName = %q, want %q", m.SetName, "irr_v4_AS13335")
+	}
+	if m.MatchField != SetFieldSourceAddr {
+		t.Errorf("MatchField = %v, want SetFieldSourceAddr", m.MatchField)
+	}
+}
+
+// VALIDATES: AC-7 destination-asn emits MatchInSet with SetFieldDestAddr.
+func TestParseFromDestinationASN(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"fwd":{"term":{"t":{"from":{"destination-asn":"64496"}}}}}}}}}`
+	tables, err := ParseFirewallConfig(data)
+	if err != nil {
+		t.Fatalf("ParseFirewallConfig: %v", err)
+	}
+	term := tables[0].Chains[0].Terms[0]
+	m, ok := term.Matches[0].(MatchInSet)
+	if !ok {
+		t.Fatalf("match type = %T, want MatchInSet", term.Matches[0])
+	}
+	if m.SetName != "irr_v4_AS64496" {
+		t.Errorf("SetName = %q, want %q", m.SetName, "irr_v4_AS64496")
+	}
+	if m.MatchField != SetFieldDestAddr {
+		t.Errorf("MatchField = %v, want SetFieldDestAddr", m.MatchField)
+	}
+}
+
+// VALIDATES: AC-6 source-as-set emits MatchInSet with AS-SET name.
+func TestParseFromSourceASSet(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"term":{"t":{"from":{"source-as-set":"AS-CLOUDFLARE"}}}}}}}}}`
+	tables, err := ParseFirewallConfig(data)
+	if err != nil {
+		t.Fatalf("ParseFirewallConfig: %v", err)
+	}
+	term := tables[0].Chains[0].Terms[0]
+	m, ok := term.Matches[0].(MatchInSet)
+	if !ok {
+		t.Fatalf("match type = %T, want MatchInSet", term.Matches[0])
+	}
+	if m.SetName != "irr_v4_AS-CLOUDFLARE" {
+		t.Errorf("SetName = %q, want %q", m.SetName, "irr_v4_AS-CLOUDFLARE")
+	}
+	if m.MatchField != SetFieldSourceAddr {
+		t.Errorf("MatchField = %v, want SetFieldSourceAddr", m.MatchField)
+	}
+}

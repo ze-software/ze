@@ -1,0 +1,91 @@
+module ze-firewall-irr {
+    namespace "urn:ze:firewall-irr";
+    prefix fwirr;
+
+    import ze-firewall-conf { prefix fw; }
+
+    description "IRR-based source/destination address filtering for the firewall.
+                 Resolves ASN or AS-SET references to prefix lists via the IRR whois
+                 client and populates nftables interval sets. Augments the firewall
+                 from-block with source-asn, source-as-set, destination-asn, and
+                 destination-as-set leaves, and adds a firewall irr policy container
+                 for server, refresh-interval, and peeringdb-url settings.";
+
+    revision 2026-06-17 {
+        description "Initial revision";
+    }
+
+    augment "/fw:firewall" {
+        container irr {
+            description "IRR policy settings for firewall prefix-list resolution.";
+
+            leaf server {
+                type string;
+                default "whois.radb.net";
+                description "IRR whois server hostname or host:port.";
+            }
+
+            leaf peeringdb-url {
+                type string {
+                    pattern 'https?://.*';
+                }
+                default "https://www.peeringdb.com";
+                description "Base URL for PeeringDB API queries.
+                             Override for testing with a mock server.";
+            }
+
+            leaf refresh-interval {
+                type uint32 {
+                    range "0 | 60..86400";
+                }
+                default "0";
+                units "seconds";
+                description "Seconds between automatic IRR re-queries.
+                             0 (default) disables automatic refresh; the operator
+                             must use 'update firewall irr' manually. A value in
+                             60..86400 enables periodic refresh with fail-closed
+                             semantics (failed refresh preserves last-good cache).";
+            }
+        }
+    }
+
+    augment "/fw:firewall/fw:table/fw:chain/fw:term/fw:from" {
+        leaf source-asn {
+            type uint32 {
+                range "1..4294967294";
+            }
+            description "Match source address against IRR-resolved prefixes for
+                         this ASN. Requires cached prefix data (run 'update
+                         firewall irr asn <N>' first). Config commit rejects
+                         if no cached data exists.";
+        }
+
+        leaf source-as-set {
+            type string {
+                length "1..255";
+                pattern '[A-Za-z0-9:._-]+';
+            }
+            description "Match source address against IRR-resolved prefixes for
+                         this AS-SET. Requires cached prefix data (run 'update
+                         firewall irr as-set <name>' first). Config commit
+                         rejects if no cached data exists.";
+        }
+
+        leaf destination-asn {
+            type uint32 {
+                range "1..4294967294";
+            }
+            description "Match destination address against IRR-resolved prefixes
+                         for this ASN. Same caching semantics as source-asn.";
+        }
+
+        leaf destination-as-set {
+            type string {
+                length "1..255";
+                pattern '[A-Za-z0-9:._-]+';
+            }
+            description "Match destination address against IRR-resolved prefixes
+                         for this AS-SET. Same caching semantics as source-as-set.";
+        }
+    }
+}

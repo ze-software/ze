@@ -131,8 +131,9 @@ func (b *backend) fillSets(kt *nftables.Table, t *firewall.Table) error {
 				timeout = uint32(el.Timeout / time.Second)
 			}
 			s.Elements = append(s.Elements, firewall.SetElement{
-				Value:   decodeSetElementKey(s.Type, el.Key),
-				Timeout: timeout,
+				Value:       decodeSetElementKey(s.Type, el.Key),
+				Timeout:     timeout,
+				IntervalEnd: el.IntervalEnd,
 			})
 		}
 		t.Sets = append(t.Sets, s)

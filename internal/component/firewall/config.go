@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 var (
@@ -230,6 +232,19 @@ func parseFromBlock(m map[string]any) ([]Match, error) {
 			return nil, fmt.Errorf("destination address: %w", err)
 		}
 		matches = append(matches, match)
+	}
+
+	if v, ok := m["source-asn"].(string); ok {
+		matches = append(matches, irrSetMatch(v, false, true))
+	}
+	if v, ok := m["source-as-set"].(string); ok {
+		matches = append(matches, irrSetMatch(v, true, true))
+	}
+	if v, ok := m["destination-asn"].(string); ok {
+		matches = append(matches, irrSetMatch(v, false, false))
+	}
+	if v, ok := m["destination-as-set"].(string); ok {
+		matches = append(matches, irrSetMatch(v, true, false))
 	}
 
 	if v, ok := m["source-port"].(string); ok {
@@ -515,6 +530,25 @@ func parseLogAction(m map[string]any) (Log, error) {
 }
 
 // --- Helper parsers ---
+
+// irrSetMatch builds a MatchInSet for an IRR-resolved prefix set.
+// Naming coupling with firewall-irr plugin is accepted per spec design decision.
+func irrSetMatch(v string, isASSet, isSource bool) MatchInSet {
+	var tb textbuf.Buffer
+	switch {
+	case isASSet:
+		tb.Str("irr_v4_").Str(v)
+	case len(v) >= 2 && (v[0] == 'A' || v[0] == 'a') && (v[1] == 'S' || v[1] == 's'):
+		tb.Str("irr_v4_").Str(v)
+	default:
+		tb.Str("irr_v4_AS").Str(v)
+	}
+	field := SetFieldSourceAddr
+	if !isSource {
+		field = SetFieldDestAddr
+	}
+	return MatchInSet{SetName: tb.String(), MatchField: field}
+}
 
 func parseAddressMatch(v string, isSource bool) (Match, error) {
 	if strings.HasPrefix(v, "@") {
