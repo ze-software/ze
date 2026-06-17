@@ -1564,8 +1564,9 @@ def _test_weakening_errs(old, new, fp):
     if new_cmt > old_cmt:
         errs.append(f"commenting out assertions ({old_cmt} -> {new_cmt})")
     if fp.endswith(".ci"):
-        old_l = len([l for l in old.split("\n") if not re.match(r"^[ \t]*(#|$)", l)])
-        new_l = len([l for l in new.split("\n") if not re.match(r"^[ \t]*(#|$)", l)])
+        ci_skip = re.compile(r"^[ \t]*(#|option=|$)")
+        old_l = len([l for l in old.split("\n") if not ci_skip.match(l)])
+        new_l = len([l for l in new.split("\n") if not ci_skip.match(l)])
         if old_l > new_l:
             errs.append(f"removing .ci test lines ({old_l} -> {new_l})")
     return errs
