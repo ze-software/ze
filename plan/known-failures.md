@@ -8,23 +8,26 @@ Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commit
 
 **Open (pre-existing).** Verified against current working tree.
 
-#### Plugin (8/431 FAIL) -- pre-existing from 2026-06-13
+#### Plugin (2/424 FAIL) -- was 8, observer/RIB resolved 2026-06-17
 
-**Observer timeout / RIB visibility** (6 tests, 15-20s timeout, observer
-never sees route in RIB):
-
-| # | Name | Observer detail |
-|---|------|-----------------|
-| 40 | bestpath-reason | expected 2+ candidates, got 1 |
-| 220 | multipath-basic | multipath-peers empty |
-| 224 | nexthop-self | route 10.1.0.0/24 not in RIB |
-| 225 | nexthop-unchanged | route 10.1.0.0/24 not in RIB |
-| 308 | rib-forward-handle-observed | 192.168.1.0/24 never appeared |
-| 350 | rr-basic | route 10.1.0.0/24 not in RIB |
-
-**Exit-code mismatch** (2 tests): `126` cos-vendor-cisco, `127`
+**Exit-code mismatch** (2 tests, OPEN): `126` cos-vendor-cisco, `127`
 cos-vendor-coexist (expected 0, got 1). Config parser rejects
-`authentication { radius { ... } }` inside `l2tp {}`.
+`authentication { radius { ... } }` inside `l2tp {}`. A missing YANG/config
+path for L2TP RADIUS auth; unrelated to BGP.
+
+The **observer timeout / RIB visibility** group (`40` bestpath-reason, `220`
+multipath-basic, `224` nexthop-self, `225` nexthop-unchanged, `308`
+rib-forward-handle-observed, `350` rr-basic) is **resolved** -- see Resolved
+section. Same class as the exabgp suite: an establishment-time EoR race read as
+"routes never reach the RIB", not a forwarding bug.
+
+**Harness note (not bugs):** the full plugin suite shows load-induced
+flakiness under max parallelism -- e.g. `257`, `258`, `312` failed in one
+`--all` run but pass 3/3 in isolation. Running two full `--all` suites
+back-to-back melts down (resource exhaustion: ~50 timeouts, ~200 "failures").
+Triage individual tests in isolation; treat a contiguous block of failures or a
+spike of timeouts in `--all` as a harness/resource artifact, not real
+regressions.
 
 #### Parse (3/224 FAIL) -- pre-existing
 
@@ -46,13 +49,27 @@ All tests hit the 30.1s timeout. The test runner starts
 with `config "ze.conf" has unknown type`. Needs a minimal config in the
 temp directory or `--web-only` mode.
 
-#### Lint: `internal/analyze/inject.go:64` goconst (pre-existing)
-
-`--router-id` has 3 occurrences; surfaced by `ze-lint-changed` via the
-committed-since-verify set. From `3215ece93` (2026-06-09), unrelated to any
-2026-06-17 work.
-
 ## Resolved
+
+### 2026-06-18 -- Lint: `internal/analyze/inject.go:64` goconst
+
+`--router-id` had 3 occurrences across inject.go, serve.go, replay.go.
+Added `//nolint:goconst` to inject.go and serve.go (replay.go already had it).
+
+### 2026-06-17 -- Plugin observer/RIB visibility (6 tests) -> PASS
+
+**Resolved 2026-06-17.** `40` bestpath-reason, `220` multipath-basic, `224`
+nexthop-self, `225` nexthop-unchanged, `308` rib-forward-handle-observed, `350`
+rr-basic. Triaged as "routes never appear in RIB within 15-20s timeout (product
+bug in forwarding)". Actually the same establishment-time EoR race as the exabgp
+suite: these tests have the mock peer wait for ze's End-of-RIB
+(`rib-forward-handle-observed.ci:21`) and an observer poll for the prefix; the
+bgp-rs duplicate/misordered EoR perturbed establishment so the poll timed out.
+Fixed by `99c943404` (`AnnounceEOR` honors `ShouldQueue()`). Now 0 failures
+across 5 runs (~2-4s each, not the 15-20s timeout); full plugin suite 422/424
+(only 126/127 cos-vendor remain). Causation is circumstantial (not bisected --
+reverting a committed fix needs forbidden git ops) but the failing->passing
+transition lands in this commit's window and the EoR mechanism is shared.
 
 ### 2026-06-17 -- `ze-test bgp encode 38 paths-limit` (broken fixture) -> PASS
 
