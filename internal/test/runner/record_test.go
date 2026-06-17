@@ -256,6 +256,32 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	assert.Equal(t, []string{"hello"}, rec.ExpectStdoutMatch)
 }
 
+func TestParseCIRejectStdoutPattern(t *testing.T) {
+	ResetNickCounter()
+
+	tmpDir := t.TempDir()
+	ciFile := filepath.Join(tmpDir, "test.ci")
+	confFile := filepath.Join(tmpDir, "test.conf")
+
+	ciContent := `option=file:path=test.conf
+reject=stdout:pattern=error.*fatal
+reject=stdout:contains=forbidden
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
+
+	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
+
+	et := NewEncodingTests(tmpDir)
+	_, err := et.parseAndAdd(ciFile)
+	require.NoError(t, err)
+
+	rec := et.GetByNick("1")
+	require.NotNil(t, rec)
+
+	assert.Equal(t, []string{`error.*fatal`}, rec.RejectStdoutRegex)
+	assert.Equal(t, []string{"forbidden"}, rec.ExpectStdoutNotMatch)
+}
+
 func TestTestsSelectStartActivatesSuffix(t *testing.T) {
 	ResetNickCounter()
 	tests := NewTests()

@@ -449,9 +449,14 @@ Validates the foreground process exit code.
 
 ```
 expect=stdout:contains=<text>
+expect=stdout:!contains=<text>
+expect=stdout:pattern=<regex>
 ```
 
-Validates that stdout contains the given substring. Multiple `expect=stdout:contains=` lines are allowed per test — all must match.
+Three modes:
+- `contains=` -- substring match against stdout (multiple allowed, all must match)
+- `!contains=` -- negative substring match (stdout must NOT contain text)
+- `pattern=` -- regex match against stdout (uses Go `regexp` syntax)
 
 ### Stderr Expectations
 
@@ -499,16 +504,21 @@ files, and logs. Do not write shell just to inspect files.
 
 ```
 reject=stderr:pattern=<regex>
+reject=stdout:contains=<text>
+reject=stdout:pattern=<regex>
 reject=syslog:pattern=<regex>
 ```
 
-Inverse of `expect=` — the test **fails** if the pattern matches. Used to verify that unwanted output (e.g., deprecated warnings, ERROR-level messages) does NOT appear.
+Inverse of `expect=` -- the test **fails** if the pattern matches. Used to verify that unwanted output (e.g., deprecated warnings, ERROR-level messages) does NOT appear.
 
 | Type | Description |
 |------|-------------|
 | `reject=stderr:pattern=<regex>` | Fail if stderr matches regex |
+| `reject=stdout:contains=<text>` | Fail if stdout contains substring |
+| `reject=stdout:pattern=<regex>` | Fail if stdout matches regex |
 | `reject=syslog:pattern=<regex>` | Fail if syslog output matches regex |
-<!-- source: internal/test/runner/runner_validate.go -- reject expectation handling -->
+<!-- source: internal/test/runner/runner_exec.go -- stdout reject handling -->
+<!-- source: internal/test/runner/runner_validate.go -- stderr/syslog reject handling -->
 
 ## Actions
 

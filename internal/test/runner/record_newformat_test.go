@@ -362,6 +362,8 @@ func TestParseCIEmptyPatternRejected(t *testing.T) {
 		{"expect_stdout_invalid", "expect=stdout:pattern=[invalid", "invalid expect=stdout pattern"},
 		{"expect_syslog", "expect=syslog:pattern=", "expect=syslog:pattern= must not be empty"},
 		{"reject_stderr", "reject=stderr:pattern=", "reject=stderr:pattern= must not be empty"},
+		{"reject_stdout", "reject=stdout:pattern=", "reject=stdout:pattern= must not be empty"},
+		{"reject_stdout_invalid", "reject=stdout:pattern=[invalid", "invalid reject=stdout pattern"},
 		{"reject_syslog", "reject=syslog:pattern=", "reject=syslog:pattern= must not be empty"},
 	}
 

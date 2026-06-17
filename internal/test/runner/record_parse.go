@@ -539,8 +539,15 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 		r.RejectSyslog = append(r.RejectSyslog, pattern)
 
 	case "stdout":
-		// reject=stdout:contains=TEXT -- stdout must NOT contain TEXT. Routed to
-		// the same field/matcher as expect=stdout:!contains= (one mechanism).
+		if pattern, ok := kv["pattern"]; ok {
+			if pattern == "" {
+				return errors.New("reject=stdout:pattern= must not be empty (an empty regex matches everything)")
+			}
+			if _, err := regexp.Compile(pattern); err != nil {
+				return fmt.Errorf("invalid reject=stdout pattern %q: %w", pattern, err)
+			}
+			r.RejectStdoutRegex = append(r.RejectStdoutRegex, pattern)
+		}
 		if contains := kv["contains"]; contains != "" {
 			r.ExpectStdoutNotMatch = append(r.ExpectStdoutNotMatch, contains)
 		}

@@ -1,7 +1,8 @@
-// Design: docs/architecture/testing/ci-format.md — test execution and process orchestration
-// Overview: runner.go — Runner struct, Build, Run lifecycle
-// Related: runner_validate.go — post-execution result validation
-// Related: runner_output.go — output capture and saving
+// Design: docs/architecture/testing/ci-format.md -- test execution and process orchestration
+// Overview: runner.go -- Runner struct, Build, Run lifecycle
+// Related: runner_exec_util.go -- syncWriter, daemon arg helpers, terminateGracefully
+// Related: runner_validate.go -- post-execution result validation
+// Related: runner_output.go -- output capture and saving
 
 package runner
 
@@ -17,7 +18,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -26,151 +26,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
 )
-
-var errEmptyExecCommand = errors.New("empty exec command")
-
-const (
-	modeForeground  = "foreground"
-	fileCheckFailed = "file_check_failed"
-	failParseError  = "parse_error"
-)
-
-// syncWriter is an io.Writer that captures output and supports waiting for patterns.
-// Used to wait for ze-peer's "listening on" message before starting the client.
-type syncWriter struct {
-	mu      sync.Mutex
-	buf     strings.Builder
-	pattern string
-	found   bool
-}
-
-// peerListeningPattern is the string ze-peer prints to stdout when ready.
-const peerListeningPattern = "listening on"
-
-// newSyncWriter creates a writer that waits for ze-peer's "listening on" output.
-func newSyncWriter() *syncWriter {
-	return &syncWriter{pattern: peerListeningPattern}
-}
-
-// maxOutputBytes caps captured output to prevent OOM from runaway processes.
-const maxOutputBytes = 10 << 20 // 10 MB
-
-// Write captures data and checks for the pattern.
-// Output is capped at maxOutputBytes to prevent unbounded memory growth.
-func (sw *syncWriter) Write(p []byte) (int, error) {
-	sw.mu.Lock()
-	defer sw.mu.Unlock()
-
-	if sw.buf.Len() < maxOutputBytes {
-		remaining := maxOutputBytes - sw.buf.Len()
-		if len(p) > remaining {
-			p = p[:remaining]
-		}
-		sw.buf.Write(p) //nolint:errcheck // strings.Builder.Write never fails
-	}
-	if !sw.found && strings.Contains(sw.buf.String(), sw.pattern) {
-		sw.found = true
-	}
-	return len(p), nil
-}
-
-// WaitFor waits until the pattern is found or context is canceled.
-// Returns true if pattern was found, false on timeout/cancel.
-func (sw *syncWriter) WaitFor(ctx context.Context) bool {
-	// Poll with small intervals to support context cancellation.
-	// Using sync.Cond with context is tricky; polling is simpler and reliable.
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		sw.mu.Lock()
-		found := sw.found
-		sw.mu.Unlock()
-
-		if found {
-			return true
-		}
-
-		select {
-		case <-ctx.Done():
-			return false
-		case <-ticker.C:
-			// Continue polling
-		}
-	}
-}
-
-// String returns all captured output.
-func (sw *syncWriter) String() string {
-	sw.mu.Lock()
-	defer sw.mu.Unlock()
-	return sw.buf.String()
-}
-
-// peerOutput tracks stdout/stderr for a single ze-peer background process.
-// Multi-peer tests create one per ze-peer so each has independent WaitFor
-// synchronization and output capture.
-type peerOutput struct {
-	stdout *syncWriter
-	stderr *strings.Builder
-	proc   *exec.Cmd
-}
-
-// waitReady polls for a readiness file, returning when found or timeout expires.
-// Used to synchronize daemon.pid creation with foreground process initialization:
-// the process writes the readiness file after registering signal handlers, and
-// the test runner writes daemon.pid only after the readiness file appears.
-func waitReady(ctx context.Context, path string, timeout time.Duration) {
-	waitCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	ticker := time.NewTicker(20 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		if _, err := os.Stat(path); err == nil {
-			return
-		}
-		select {
-		case <-waitCtx.Done():
-			return
-		case <-ticker.C:
-		}
-	}
-}
-
-func zeDaemonConfigArgIndex(args []string) int {
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		switch arg {
-		case "-d", "--debug", "--insecure-web", "--color", "--no-color":
-			continue
-		case "-f", "--server", "--name", "--token", "--plugin", "--pprof", "--chaos-seed", "--chaos-rate", "--mcp", "--mcp-token", "--web":
-			i++
-			continue
-		}
-
-		if arg == "-" || strings.HasSuffix(arg, ".conf") || strings.HasSuffix(arg, ".cfg") || strings.HasSuffix(arg, ".yaml") || strings.HasSuffix(arg, ".yml") || strings.HasSuffix(arg, ".json") {
-			return i
-		}
-		if strings.Contains(arg, string(filepath.Separator)) || strings.HasPrefix(arg, ".") {
-			return i
-		}
-		return -1
-	}
-	return -1
-}
-
-func zeDaemonUsesWeb(args []string) bool {
-	for _, arg := range args {
-		if arg == "--web" || strings.HasPrefix(arg, "--web=") {
-			return true
-		}
-	}
-	return false
-}
-
-func zeDaemonShouldForceFileStorage(args []string) bool {
-	return zeDaemonConfigArgIndex(args) >= 0 && !zeDaemonUsesWeb(args)
-}
 
 // runTest executes a single test.
 func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) bool {
@@ -1040,6 +895,22 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 		recStep("stdout-regex", true, "")
 	}
+	for _, pattern := range rec.RejectStdoutRegex {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			rec.Error = fmt.Errorf("invalid reject stdout regex %q: %w", pattern, err)
+			rec.FailureType = "stdout_mismatch"
+			recStep("stdout-reject-regex", false, rec.Error.Error())
+			return false
+		}
+		if re.MatchString(rec.ClientOutput) {
+			rec.Error = fmt.Errorf("stdout matches forbidden regex %q", pattern)
+			rec.FailureType = "stdout_mismatch"
+			recStep("stdout-reject-regex", false, rec.Error.Error())
+			return false
+		}
+		recStep("stdout-reject-regex", true, "")
+	}
 
 	// Decide what governs this test's success:
 	//   * exit-code tests and peer-less foreground commands are self-validated by
@@ -1053,6 +924,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		len(rec.ExpectStdoutMatch) > 0 ||
 		len(rec.ExpectStdoutNotMatch) > 0 ||
 		len(rec.ExpectStdoutRegex) > 0 ||
+		len(rec.RejectStdoutRegex) > 0 ||
 		len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
 		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 ||
 		len(rec.FileChecks) > 0 ||
@@ -1114,20 +986,4 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		recStep("file-check", true, "")
 	}
 	return true
-}
-
-// terminateGracefully sends SIGTERM to a process and waits for it to exit.
-// If it doesn't exit within timeout, it is forcefully killed.
-// No goroutines are spawned — time.AfterFunc handles the deadline.
-func terminateGracefully(cmd *exec.Cmd, timeout time.Duration) {
-	if cmd.Process == nil {
-		_ = cmd.Wait()
-		return
-	}
-	_ = cmd.Process.Signal(syscall.SIGTERM)
-	timer := time.AfterFunc(timeout, func() {
-		_ = cmd.Process.Kill()
-	})
-	_ = cmd.Wait()
-	timer.Stop()
 }
