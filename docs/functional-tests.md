@@ -507,7 +507,7 @@ fixtures.
 **Format:**
 ```
 stdin=payload:hex=<hex-encoded-bgp-message>
-cmd=foreground:seq=1:exec=ze-test decode --family <family> -:stdin=payload
+cmd=foreground:seq=1:exec=ze bgp decode --json --family <family> -:stdin=payload
 expect=json:json=<expected-json>
 ```
 
