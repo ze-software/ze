@@ -111,7 +111,6 @@ Optionally pass an interface name to watch just one link.";
 
     container clear {
         config false;
-        description "Reset operational state without changing configuration";
 
         container interface {
             config false;

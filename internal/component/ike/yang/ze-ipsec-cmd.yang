@@ -57,7 +57,6 @@ byte counts. Usage: show vpn ipsec peer name <name>.";
 
     container clear {
         config false;
-        description "Reset counters, caches, and operational state. Config is never modified.";
 
         container vpn {
             config false;

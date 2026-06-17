@@ -9,7 +9,6 @@ module ze-peer-cmd {
 
     container show {
         config false;
-        description "Peer inspection and diagnostics";
 
         container bgp {
             config false;
@@ -90,7 +89,6 @@ you just need a status overview.";
 
     container delete {
         config false;
-        description "Delete elements from the running configuration";
 
         container bgp {
             config false;
@@ -110,7 +108,6 @@ configuration. Does not modify the config file on disk.";
 
     container update {
         config false;
-        description "Pull fresh data from external sources";
 
         container bgp {
             config false;
@@ -135,7 +132,6 @@ result to the config draft. Run 'config commit' to apply.";
 
     container request {
         config false;
-        description "Peer lifecycle and flow control operations";
 
         container peer {
             config false;

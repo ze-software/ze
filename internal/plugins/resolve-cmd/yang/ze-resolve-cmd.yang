@@ -152,7 +152,6 @@ component to be active.";
 
     container clear {
         config false;
-        description "Reset operational state without changing configuration";
 
         container dns {
             config false;

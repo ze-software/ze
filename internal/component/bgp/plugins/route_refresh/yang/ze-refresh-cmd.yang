@@ -7,11 +7,9 @@ module ze-refresh-cmd {
 
     container request {
         config false;
-        description "Route refresh and soft-clear operations";
 
         container peer {
             config false;
-            description "Route refresh and soft-clear operations";
 
             container refresh {
                 config false;

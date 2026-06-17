@@ -45,7 +45,6 @@ prefix would be accepted or rejected, and which entry matches.";
 
     container update {
         config false;
-        description "Trigger operational changes";
 
         container bgp {
             config false;

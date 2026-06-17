@@ -95,7 +95,6 @@ bundles or automated inventory collection.";
 
         container system {
             config false;
-            description "System-level status and diagnostics";
 
             container kernel-log {
                 config false;

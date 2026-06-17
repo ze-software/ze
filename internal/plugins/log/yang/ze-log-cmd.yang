@@ -52,7 +52,6 @@ directly.";
 
     container request {
         config false;
-        description "Operational actions";
 
         container log {
             config false;

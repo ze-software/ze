@@ -8,7 +8,6 @@ module ze-cli-cache-cmd {
 
     container show {
         config false;
-        description "Read-only cache inspection";
 
         container cache {
             config false;

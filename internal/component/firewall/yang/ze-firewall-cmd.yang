@@ -34,7 +34,6 @@ set elements. Reads from the last applied config, not the kernel.";
 
         container system {
             config false;
-            description "System-level monitoring and diagnostics";
             container conntrack {
                 config false;
                 ze:command "ze-show:system-conntrack";

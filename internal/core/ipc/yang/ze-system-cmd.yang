@@ -90,7 +90,6 @@ module ze-system-cmd {
 
     container show {
         config false;
-        description "Read-only process inspection";
 
         container status {
             config false;
@@ -103,7 +102,6 @@ module ze-system-cmd {
 
     container request {
         config false;
-        description "Process lifecycle actions";
 
         container shutdown {
             config false;

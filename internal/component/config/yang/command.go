@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
@@ -186,7 +187,36 @@ func BuildCommandTree(loader *Loader) *command.Node {
 		mergeYANGEntry(root, entry)
 	}
 
+	validateOnce.Do(func() { validateNode(root, "") })
+
 	return root
+}
+
+var validateOnce sync.Once
+
+// validateCommandTree walks the merged command tree and warns about nodes
+// that have no description after all modules have been merged. Every node
+// should inherit a description from at least one contributing module.
+// Called automatically by BuildCommandTree (once per process).
+func validateCommandTree(root *command.Node) {
+	validateNode(root, "")
+}
+
+func validateNode(node *command.Node, prefix string) {
+	if node == nil {
+		return
+	}
+	for name, child := range node.Children {
+		path := name
+		if prefix != "" {
+			var tb textbuf.Buffer
+			path = tb.Str(prefix).Byte(' ').Str(name).String()
+		}
+		if child.Description == "" {
+			slog.Warn("YANG command node missing description", "path", path)
+		}
+		validateNode(child, path)
+	}
 }
 
 // mergeYANGEntry recursively walks a YANG entry's children and merges them

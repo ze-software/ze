@@ -11,7 +11,6 @@ module ze-ntp-cmd {
 
         container system {
             config false;
-            description "System-level monitoring and diagnostics";
 
             container ntp {
                 config false;

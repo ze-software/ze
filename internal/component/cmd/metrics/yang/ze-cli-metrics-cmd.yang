@@ -8,7 +8,6 @@ module ze-cli-metrics-cmd {
 
     container show {
         config false;
-        description "Read-only metrics inspection";
 
         container metrics {
             config false;

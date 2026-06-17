@@ -7,7 +7,6 @@ module ze-update-cmd {
 
     container peer {
         config false;
-        description "Per-peer UPDATE operations";
 
         container update {
             config false;

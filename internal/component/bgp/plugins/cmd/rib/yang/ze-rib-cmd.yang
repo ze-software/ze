@@ -7,7 +7,6 @@ module ze-rib-cmd {
 
     container show {
         config false;
-        description "Read operational state";
 
         container bgp {
             config false;
@@ -60,7 +59,6 @@ Use this to verify RPF checks would pass for a given source.";
 
     container clear {
         config false;
-        description "Reset runtime counters and state without touching configuration";
 
         container bgp {
             config false;
@@ -95,7 +93,6 @@ down the session. Selector: IP, name, AS pattern, glob, or *.";
 
     container request {
         config false;
-        description "Request an operational action";
 
         container bgp {
             config false;

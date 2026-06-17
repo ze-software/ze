@@ -98,7 +98,6 @@ Usage: create interface <name> address <prefix>. Interface must already exist.";
 
     container delete {
         config false;
-        description "Delete resources";
 
         container interface {
             config false;
@@ -127,7 +126,6 @@ Usage: delete interface <name> address <prefix>.";
 
     container request {
         config false;
-        description "Operational actions on network interfaces";
 
         container interface {
             config false;

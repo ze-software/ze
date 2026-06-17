@@ -1224,6 +1224,24 @@ func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	assert.Equal(t, []string{"netlink"}, bridgeAddr.Backend, "bridge > address must have netlink backend")
 }
 
+func TestValidateCommandTreeWarnsMissingDescription(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(old)
+
+	root := &command.Node{Children: map[string]*command.Node{
+		"show":    {Name: "show", Description: "Has description"},
+		"request": {Name: "request"},
+	}}
+
+	validateCommandTree(root)
+
+	assert.NotContains(t, buf.String(), "path=show", "described nodes produce no warning")
+	assert.Contains(t, buf.String(), "YANG command node missing description")
+	assert.Contains(t, buf.String(), "path=request")
+}
+
 func TestMergeYANGEntryWarnsOnDescriptionMismatch(t *testing.T) {
 	var buf bytes.Buffer
 	old := slog.Default()
