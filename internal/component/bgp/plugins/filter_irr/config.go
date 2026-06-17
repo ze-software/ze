@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
 )
 
 const (
@@ -80,8 +81,12 @@ func parsePeerIRR(peerAddr string, peerMap map[string]any) peerIRRConfig {
 	}
 
 	if irrBlock, ok := session["irr"].(map[string]any); ok {
-		if asSet, ok := irrBlock["as-set"].(string); ok {
-			p.ASSet = asSet
+		if asSet, ok := irrBlock["as-set"].(string); ok && asSet != "" {
+			if irr.ValidateASSetName(asSet) == nil {
+				p.ASSet = asSet
+			} else {
+				logger().Warn("irr: ignoring invalid as-set in config", "peer", peerAddr, "as-set", asSet)
+			}
 		}
 		if enable, ok := irrBlock["enable"].(string); ok && enable == "disable" {
 			p.Disabled = true

@@ -183,3 +183,34 @@ func TestParseIRRConfigBoundary(t *testing.T) {
 		})
 	}
 }
+
+// VALIDATES: a peer as-set that fails IRR name validation is dropped at parse
+// (left empty), not stored -- defense-in-depth against malformed/injected names.
+func TestParsePeerIRRRejectsBadASSet(t *testing.T) {
+	bgpCfg := map[string]any{
+		"peer": map[string]any{
+			"10.0.0.1": map[string]any{
+				"session": map[string]any{
+					"asn": map[string]any{"remote": "65001"},
+					"irr": map[string]any{"as-set": "AS-OK"},
+				},
+			},
+			"10.0.0.2": map[string]any{
+				"session": map[string]any{
+					"asn": map[string]any{"remote": "65002"},
+					"irr": map[string]any{"as-set": "AS BAD WITH SPACE"},
+				},
+			},
+		},
+	}
+	got := map[uint32]string{}
+	for _, p := range parseIRRConfig(bgpCfg).Peers {
+		got[p.RemoteASN] = p.ASSet
+	}
+	if got[65001] != "AS-OK" {
+		t.Errorf("AS65001 as-set = %q, want AS-OK", got[65001])
+	}
+	if got[65002] != "" {
+		t.Errorf("AS65002 as-set = %q, want empty (malformed rejected)", got[65002])
+	}
+}

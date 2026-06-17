@@ -514,3 +514,30 @@ func TestRefreshASNNilStore(t *testing.T) {
 		t.Error("nil prefixStore: existing list must be left untouched")
 	}
 }
+
+// VALIDATES: showIRR escapes the configured server, so a server value with a
+// quote cannot inject extra JSON keys into `show bgp irr` output.
+func TestShowIRRServerEscaped(t *testing.T) {
+	plug := &irrPlugin{
+		byASN:  map[uint32]*asnState{},
+		config: &irrConfig{Server: `whois.example","injected":"x`},
+	}
+	_, data, err := plug.showIRR()
+	if err != nil {
+		t.Fatalf("showIRR: %v", err)
+	}
+	raw, ok := data.(json.RawMessage)
+	if !ok {
+		t.Fatalf("data is %T, want json.RawMessage", data)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("output is not valid JSON (injection): %v", err)
+	}
+	if _, injected := parsed["injected"]; injected {
+		t.Error("server value injected an extra JSON key; not escaped")
+	}
+	if parsed["server"] != `whois.example","injected":"x` {
+		t.Errorf("server = %v, want the raw value preserved as one string", parsed["server"])
+	}
+}
