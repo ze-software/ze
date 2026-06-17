@@ -16,11 +16,13 @@ and is constructed explicitly at hub startup.
 | `resolve/cymru/` | Team Cymru ASN name resolution via TXT DNS | 1h via shared cache |
 | `resolve/peeringdb/` | PeeringDB HTTP client for prefix counts | 1h via shared cache + 1s rate limit |
 | `resolve/irr/` | IRR whois client for AS-SET expansion | 1h via shared cache |
+| `resolve/irr/store/` | Shared IRR prefix store (resolve + PeeringDB discovery + zefs persistence) | zefs `meta/irr/{name}` + in-memory map |
 
 <!-- source: internal/component/resolve/dns/resolver.go -- DNS resolver -->
 <!-- source: internal/component/resolve/cymru/cymru.go -- Cymru resolver -->
 <!-- source: internal/component/resolve/peeringdb/client.go -- PeeringDB client -->
 <!-- source: internal/component/resolve/irr/client.go -- IRR whois client -->
+<!-- source: internal/component/resolve/irr/store/store.go -- IRR prefix store -->
 
 ## Construction
 
@@ -43,9 +45,37 @@ and IRR are created independently with their configured server addresses.
 ```
 cymru --> resolve/dns (sibling import, TXT queries)
 peeringdb --> resolve/irr (AS-SET name validation)
+irr/store --> resolve/irr (PrefixList, LookupPrefixes)
+irr/store --> resolve/peeringdb (AS-SET discovery)
 ```
 
-These are genuine data dependencies, not architectural coupling.
+These are genuine data dependencies, not architectural coupling. `irr/store` is
+a subpackage of `irr` precisely so it can import `peeringdb` without a cycle:
+`peeringdb --> irr` and `irr` never imports the store, so
+`store --> peeringdb --> irr` stays acyclic.
+
+## IRR Prefix Store
+
+<!-- source: internal/component/resolve/irr/store/store.go -- PrefixStore -->
+
+`resolve/irr/store` is a shared cache of IRR-resolved prefix lists keyed by name
+(an ASN like `AS13335` or an AS-SET like `AS-CLOUDFLARE`). It owns the full
+resolution pipeline: AS-SET discovery for bare ASNs via PeeringDB (falling back
+to the literal `AS<asn>` name when PeeringDB has no answer), the IRR prefix
+lookup, and persistence to zefs under per-entry keys `meta/irr/{name}`.
+
+Consumers (the BGP `filter_irr` plugin, the upcoming `firewall-irr` plugin) are
+process-isolated plugins; they do not share a `PrefixStore` instance. Each
+builds its own and they share cached data through the zefs file on disk.
+In-process writers are serialized by the store's own mutex (each persist flushes
+atomically -- in-place for small updates, full rewrite on growth). zefs's `Lock` is an in-process mutex, not a
+file lock, so two writer **processes** would clobber each other on flush: exactly
+one process may write a given store file until zefs gains a cross-process lock (a
+prerequisite for the firewall-irr consumer).
+
+On `Open`, a legacy single-blob cache (`meta/bgp/irr-cache`, keyed by ASN) is
+migrated once into per-entry keys, and the legacy key is removed only after
+every per-entry key is written.
 
 ## CLI
 

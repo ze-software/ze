@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr/store"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -52,9 +53,8 @@ type asnState struct {
 }
 
 type irrPlugin struct {
-	plugin    *sdk.Plugin
-	irrClient *irr.IRR
-	pdbClient *peeringdb.PeeringDB
+	plugin      *sdk.Plugin
+	prefixStore *store.PrefixStore
 
 	mu          sync.RWMutex
 	byASN       map[uint32]*asnState
@@ -122,10 +122,11 @@ func runFilterIRR(conn net.Conn) int {
 
 func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 	cfg := parseIRRConfig(bgpCfg)
-	plug.config = cfg
 
-	plug.irrClient = irr.NewIRR(cfg.Server)
-	plug.pdbClient = peeringdb.NewPeeringDB(cfg.PeeringDBURL)
+	ps := store.New(irr.NewIRR(cfg.Server), peeringdb.NewPeeringDB(cfg.PeeringDBURL), cacheStorePath())
+	if err := ps.Open(); err != nil {
+		logger().Warn("irr: prefix store open failed", "error", err)
+	}
 
 	newByASN := make(map[uint32]*asnState)
 	for _, peer := range cfg.Peers {
@@ -143,11 +144,8 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 		}
 	}
 
-	if plug.refreshStop != nil {
-		close(plug.refreshStop)
-	}
-	plug.refreshStop = make(chan struct{})
-
+	// All mutable plugin fields are published under plug.mu so a concurrent
+	// `show bgp irr` / refresh never reads a half-updated configure.
 	plug.mu.Lock()
 	for asn, newSt := range newByASN {
 		oldSt, ok := plug.byASN[asn]
@@ -164,12 +162,19 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 		}
 	}
 	plug.byASN = newByASN
+	plug.prefixStore = ps
+	plug.config = cfg
+	if plug.refreshStop != nil {
+		close(plug.refreshStop)
+	}
+	plug.refreshStop = make(chan struct{})
+	refreshStop := plug.refreshStop
 	plug.mu.Unlock()
 
-	plug.loadCache()
+	plug.loadFromStore()
 
 	go plug.refreshAll()
-	go plug.refreshLoop(cfg.RefreshInterval, plug.refreshStop)
+	go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
 
 	logger().Debug("configured", "peers", len(cfg.Peers), "asns", len(newByASN), "server", cfg.Server)
 }
@@ -302,35 +307,40 @@ func (plug *irrPlugin) refreshAllNow() {
 func (plug *irrPlugin) refreshASN(asn uint32) {
 	plug.mu.RLock()
 	st := plug.byASN[asn]
+	ps := plug.prefixStore
 	asSet := ""
 	if st != nil {
 		asSet = st.asSet
 	}
 	plug.mu.RUnlock()
-	if st == nil {
+	if st == nil || ps == nil {
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if asSet == "" {
-		discovered, err := plug.pdbClient.LookupASSet(ctx, asn)
-		if err != nil || len(discovered) == 0 {
-			var tb textbuf.Buffer
-			asSet = tb.Str("AS").Uint32(asn).String()
-			logger().Info("irr: no AS-SET via PeeringDB, using ASN directly", "asn", asn, "as-set", asSet)
-		} else {
-			asSet = discovered[0]
-		}
-		plug.mu.Lock()
-		st.asSet = asSet
-		plug.mu.Unlock()
-	}
+	// The shared store owns AS-SET discovery (PeeringDB), the IRR query, and
+	// zefs persistence. The ASN is the stable identity/key; the configured (or
+	// previously-discovered) AS-SET is passed as a hint.
+	entry, err := ps.Refresh(ctx, asnName(asn), asSet)
+	now := time.Now()
 
-	prefixes, err := plug.irrClient.LookupPrefixes(ctx, asSet)
+	plug.mu.Lock()
+	// Re-fetch under the write lock: a reconfigure between the RLock above and
+	// here may have replaced byASN, orphaning the captured st. Apply the result
+	// to the live entry, or drop it if the ASN is no longer enrolled.
+	st = plug.byASN[asn]
+	if st == nil {
+		plug.mu.Unlock()
+		return
+	}
+	if entry != nil {
+		// Record the resolved AS-SET even on a failed lookup, so `show bgp irr`
+		// reflects the fallback name and later refreshes reuse it.
+		st.asSet = entry.ASSet
+	}
 	if err != nil {
-		plug.mu.Lock()
 		st.lastErr = err.Error()
 		plug.mu.Unlock()
 		logger().Warn("irr: lookup failed", "asn", asn, "as-set", asSet, "error", err)
@@ -338,22 +348,25 @@ func (plug *irrPlugin) refreshASN(asn uint32) {
 		return
 	}
 
-	entries := prefixListFromIRR(prefixes)
-	now := time.Now()
-
-	plug.mu.Lock()
-	st.list = &irrPrefixList{entries: entries}
+	pl := entry.PrefixList()
+	st.list = &irrPrefixList{entries: prefixListFromIRR(pl)}
 	st.lastOK = now
 	st.lastErr = ""
-	st.v4Count = len(prefixes.IPv4)
-	st.v6Count = len(prefixes.IPv6)
+	st.v4Count = len(pl.IPv4)
+	st.v6Count = len(pl.IPv6)
 	plug.lastRefresh = now
 	plug.mu.Unlock()
 
-	logger().Info("irr: refreshed", "asn", asn, "as-set", asSet, "v4", len(prefixes.IPv4), "v6", len(prefixes.IPv6))
+	logger().Info("irr: refreshed", "asn", asn, "as-set", entry.ASSet, "v4", len(pl.IPv4), "v6", len(pl.IPv6))
 	incRefreshOutcome("success")
 	updateMetricsGauges(plug)
-	plug.saveCache()
+}
+
+// asnName renders an ASN as its canonical "AS<n>" name, the PrefixStore key the
+// BGP filter uses as a stable per-ASN identity.
+func asnName(asn uint32) string {
+	var tb textbuf.Buffer
+	return tb.Str("AS").Uint32(asn).String()
 }
 
 const maxPrefixEntries = 500_000

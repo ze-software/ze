@@ -1,13 +1,18 @@
 package filter_irr
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
+	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr/store"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 )
 
@@ -287,9 +292,8 @@ func TestUpdateASNFailurePreservesState(t *testing.T) {
 			65010: {asn: 65010, asSet: "", list: existing},
 		},
 		// Unreachable endpoints: PeeringDB returns nothing, IRR connection refused.
-		// The plugin falls back to AS65010 but the IRR query fails.
-		pdbClient: peeringdb.NewPeeringDB("http://127.0.0.1:1"),
-		irrClient: irr.NewIRR("127.0.0.1:1"),
+		// The store falls back to AS65010 but the IRR query fails.
+		prefixStore: store.New(irr.NewIRR("127.0.0.1:1"), peeringdb.NewPeeringDB("http://127.0.0.1:1"), ""),
 	}
 
 	status, _, err := plug.updateASN([]string{"65010"})
@@ -368,5 +372,145 @@ func TestPartitionUpdateAllOrNone(t *testing.T) {
 	allGood := list.partitionUpdate("ipv4/unicast add 10.0.0.0/24")
 	if len(allGood.accepted) != 1 || len(allGood.rejected) != 0 {
 		t.Errorf("all-in-list: accepted=%v rejected=%v, want 1 accepted / 0 rejected", allGood.accepted, allGood.rejected)
+	}
+}
+
+// fakeIRRv4 starts a TCP whois server answering "!a4<name>" queries from the
+// given per-name prefix table.
+func fakeIRRv4(t *testing.T, v4 map[string]string) string {
+	t.Helper()
+	lc := net.ListenConfig{}
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			conn, acceptErr := ln.Accept()
+			if acceptErr != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer func() { _ = c.Close() }()
+				buf := make([]byte, 4096)
+				n, readErr := c.Read(buf)
+				if readErr != nil {
+					return
+				}
+				query := strings.TrimSpace(string(buf[:n]))
+				if prefixes, ok := v4[strings.TrimPrefix(query, "!a4")]; ok && strings.HasPrefix(query, "!a4") && prefixes != "" {
+					if _, err := fmt.Fprintf(c, "A1\n%s\nC\n", prefixes); err != nil {
+						return
+					}
+					return
+				}
+				if _, err := fmt.Fprint(c, "D\n"); err != nil {
+					return
+				}
+			}(conn)
+		}
+	}()
+	return ln.Addr().String()
+}
+
+// VALIDATES: TestFilterIRRUsesStore -- refreshASN delegates resolution and
+// persistence to the shared PrefixStore; the resolved prefixes land in the
+// plugin's per-ASN state and in the store under the ASN identity.
+func TestFilterIRRUsesStore(t *testing.T) {
+	addr := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
+	plug := &irrPlugin{
+		byASN:       map[uint32]*asnState{65001: {asn: 65001, asSet: "AS-TEST"}},
+		prefixStore: store.New(irr.NewIRR(addr), nil, ""),
+	}
+
+	plug.refreshASN(65001)
+
+	st := plug.byASN[65001]
+	if st.lastErr != "" {
+		t.Fatalf("unexpected lastErr: %s", st.lastErr)
+	}
+	if st.list == nil || len(st.list.entries) != 1 {
+		t.Fatalf("refreshASN did not populate list from store: %+v", st.list)
+	}
+	if st.v4Count != 1 {
+		t.Errorf("v4Count = %d, want 1", st.v4Count)
+	}
+	if plug.prefixStore.Get("AS65001") == nil {
+		t.Error("store has no entry for AS65001 after refresh")
+	}
+}
+
+// VALIDATES: ASN boundary handling in filter name -> ASN extraction.
+// Range 1..4294967295 (uint32); below (0) and above (>0xFFFFFFFF) yield 0.
+func TestExtractASNFromFilterBoundaries(t *testing.T) {
+	tests := []struct {
+		filter string
+		want   uint32
+	}{
+		{"bgp-filter-irr:0", 0}, // below valid range
+		{"bgp-filter-irr:1", 1}, // first valid
+		{"bgp-filter-irr:4294967294", 4294967294},
+		{"bgp-filter-irr:4294967295", 4294967295}, // max uint32
+		{"bgp-filter-irr:4294967296", 0},          // overflow uint32
+	}
+	for _, tt := range tests {
+		if got := extractASNFromFilter(tt.filter); got != tt.want {
+			t.Errorf("extractASNFromFilter(%q) = %d, want %d", tt.filter, got, tt.want)
+		}
+	}
+}
+
+// VALIDATES: refreshASN reads plug.prefixStore AND re-reads plug.byASN under
+// plug.mu, so a reconfigure that swaps both (as handleConfigure does) cannot
+// data-race with an in-flight refresh. PREVENTS: a torn read of the store
+// pointer, and writing a refresh result into an orphaned asnState after byASN
+// is replaced. Run with -race.
+func TestRefreshASNStoreFieldRace(t *testing.T) {
+	plug := &irrPlugin{
+		byASN:  map[uint32]*asnState{65001: {asn: 65001}},
+		stopCh: make(chan struct{}),
+	}
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	// Writer: reassign the store and byASN under plug.mu, as handleConfigure does.
+	wg.Go(func() {
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				ps := store.New(irr.NewIRR("127.0.0.1:1"), nil, "")
+				plug.mu.Lock()
+				plug.prefixStore = ps
+				plug.byASN = map[uint32]*asnState{65001: {asn: 65001}}
+				plug.mu.Unlock()
+			}
+		}
+	})
+
+	// Reader: refreshASN reads the store pointer and byASN; must be under plug.mu.
+	for range 200 {
+		plug.refreshASN(65001)
+	}
+	close(stop)
+	wg.Wait()
+}
+
+// VALIDATES: refreshASN is a safe no-op when prefixStore is nil (config never
+// ran, or store open failed) -- no panic, no list mutation.
+func TestRefreshASNNilStore(t *testing.T) {
+	existing := &irrPrefixList{entries: prefixListFromIRR(irr.PrefixList{
+		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
+	})}
+	plug := &irrPlugin{
+		byASN:  map[uint32]*asnState{65001: {asn: 65001, list: existing}},
+		stopCh: make(chan struct{}),
+		// prefixStore intentionally nil
+	}
+	plug.refreshASN(65001) // must not panic
+	if plug.byASN[65001].list != existing {
+		t.Error("nil prefixStore: existing list must be left untouched")
 	}
 }

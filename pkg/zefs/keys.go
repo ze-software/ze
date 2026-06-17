@@ -32,5 +32,6 @@ var (
 	KeyConfigLastKnownGood   = MustRegister(KeyEntry{Pattern: "meta/config/last-known-good", Description: "SHA-256 hash of validated seed config"})
 	KeyMachineID             = MustRegister(KeyEntry{Pattern: "meta/instance/machine-id", Description: "Stable machine identity (hex string)"})
 	KeyDebugProfile          = MustRegister(KeyEntry{Pattern: "debug/profile/{name}", Description: "Named debug profile (JSON)"})
-	KeyIRRCache              = MustRegister(KeyEntry{Pattern: "meta/bgp/irr-cache", Description: "IRR-resolved prefix cache (JSON, all ASNs)"})
+	KeyIRRCache              = MustRegister(KeyEntry{Pattern: "meta/bgp/irr-cache", Description: "IRR-resolved prefix cache (JSON, all ASNs; legacy, migrated to meta/irr/{name})"})
+	KeyIRRPrefixCache        = MustRegister(KeyEntry{Pattern: "meta/irr/{name}", Description: "IRR-resolved prefix cache, per ASN/AS-SET (JSON)"})
 )
