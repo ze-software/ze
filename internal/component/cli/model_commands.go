@@ -347,3 +347,20 @@ func filterOutSessionCommands(completions []Completion) []Completion {
 	}
 	return result
 }
+
+// appendNewCompletions appends only completions whose Text is not already present.
+func appendNewCompletions(existing, extra []Completion) []Completion {
+	if len(extra) == 0 {
+		return existing
+	}
+	seen := make(map[string]struct{}, len(existing))
+	for _, c := range existing {
+		seen[c.Text] = struct{}{}
+	}
+	for _, c := range extra {
+		if _, ok := seen[c.Text]; !ok {
+			existing = append(existing, c)
+		}
+	}
+	return existing
+}

@@ -154,6 +154,34 @@ func TestCommandModeCompletionsWired(t *testing.T) {
 	}
 }
 
+func TestOperationalModeDedupsConfigCompletions(t *testing.T) {
+	m := newTestModel(t)
+	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
+		Children: map[string]*CommandNode{
+			"show": {Name: "show", Description: "Operational show"},
+		},
+	}))
+
+	m.SwitchMode(ModeOperational)
+	m.UpdateCompletions()
+	comps := m.Completions()
+
+	count := 0
+	for _, c := range comps {
+		if c.Text == "show" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected exactly 1 'show' completion, got %d", count)
+		for _, c := range comps {
+			if c.Text == "show" {
+				t.Logf("  show: %q", c.Description)
+			}
+		}
+	}
+}
+
 func TestCommandModeDispatch(t *testing.T) {
 	// VALIDATES: AC-5 — Enter in command mode sends to executor, response shown in viewport
 	m := newTestModel(t)

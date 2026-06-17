@@ -2992,3 +2992,34 @@ func TestSetCLIFormatNotMatched(t *testing.T) {
 	assert.False(t, handleSetCLIFormat("set cli formatting foo", m), "should not match prefix-only (regression: #1)")
 	assert.False(t, handleSetCLIFormat("set cli formatjson", m), "should not match without space separator")
 }
+
+func TestAppendNewCompletions(t *testing.T) {
+	t.Run("empty extra returns existing unchanged", func(t *testing.T) {
+		existing := []Completion{{Text: "a", Description: "A"}}
+		got := appendNewCompletions(existing, nil)
+		assert.Equal(t, existing, got)
+	})
+
+	t.Run("non-overlapping entries appended", func(t *testing.T) {
+		existing := []Completion{{Text: "a", Description: "A"}}
+		extra := []Completion{{Text: "b", Description: "B"}}
+		got := appendNewCompletions(existing, extra)
+		assert.Len(t, got, 2)
+		assert.Equal(t, "b", got[1].Text)
+	})
+
+	t.Run("duplicate text skipped", func(t *testing.T) {
+		existing := []Completion{{Text: "show", Description: "Operational show"}}
+		extra := []Completion{{Text: "show", Description: "Config show"}, {Text: "set", Description: "Set value"}}
+		got := appendNewCompletions(existing, extra)
+		assert.Len(t, got, 2)
+		assert.Equal(t, "Operational show", got[0].Description, "first entry wins")
+		assert.Equal(t, "set", got[1].Text)
+	})
+
+	t.Run("empty existing accepts all", func(t *testing.T) {
+		extra := []Completion{{Text: "x"}, {Text: "y"}}
+		got := appendNewCompletions(nil, extra)
+		assert.Len(t, got, 2)
+	})
+}

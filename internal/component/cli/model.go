@@ -677,7 +677,7 @@ func (m *Model) updateCompletions() {
 		}
 		if m.completer != nil {
 			configComps := m.completer.Complete(input, m.contextPath)
-			m.completions = append(m.completions, configComps...)
+			m.completions = appendNewCompletions(m.completions, configComps)
 			if m.ghostText == "" {
 				m.ghostText = m.completer.GhostText(input, m.contextPath)
 			}
