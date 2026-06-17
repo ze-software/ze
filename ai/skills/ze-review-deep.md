@@ -210,6 +210,7 @@ Read every changed function. For each one:
 8. For slice operations: are indices bounds-checked before access?
 9. Does the code match its git history intent? (Use git blame/log to understand WHY old code existed -- flag if a guard or workaround is being removed)
 10. Removed-behavior audit: for every line the diff DELETES or replaces, name the invariant or behavior it enforced. Search the new code for where that invariant is re-established. If you cannot find it, that is a finding: a removed guard, a dropped error path, a narrowed validation, a deleted test that covered a real case.
+11. Test rewrite check: for every test file where the diff changes assertions (not just adds new ones), verify the OLD behavior is still tested. A test rewritten to cover a new issue while dropping the old assertion is a coverage regression even when the assertion count stays the same. Ask: "what did the old assertion prove, and where is that proof now?" Report as CRITICAL if coverage is lost. Rule: `ai/rules/no-test-deletion.md` "Test Rewrite as Replacement."
 
 Specifically check for:
 - Inverted conditions

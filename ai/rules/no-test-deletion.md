@@ -28,6 +28,28 @@ value in place while the assertion structure stays (e.g. `Equal(t, 1, x)` ->
 the same discipline manually. Adjusting an expected value to match broken code is
 the same violation as removing the assertion.
 
+## Test Rewrite as Replacement (BLOCKING)
+
+When fixing a new issue that happens to touch an area with existing tests, ADD a
+new test case or function for the new issue. Do not repurpose an existing test to
+cover the new behavior. The old test verified a behavior that still needs coverage.
+
+| Scenario | Correct | Wrong |
+|----------|---------|-------|
+| New bug in `parsePeer`, existing `TestParsePeer` | Add `TestParsePeerRejectsEmpty` alongside `TestParsePeer` | Rewrite `TestParsePeer` to test the new edge case |
+| Table-driven test, new case needed | Add a row to the table | Replace an existing row with the new case |
+| Existing test fails because code changed | Fix the code so both old test and new test pass | Rewrite the old test to match the changed (broken) code |
+
+**Why the hook cannot catch this:** the rewrite maintains the same structural
+shape (same function count, same assertion count), so the mechanical check sees
+no weakening. The coverage loss is semantic, not structural.
+
+**Detection:** `/ze-review` step 0 (`audit-test-relaxation.py`) flags structural
+changes. For semantic replacement, `/ze-review` step 7 (removed-behavior audit)
+must verify that every assertion the diff replaces still has coverage elsewhere.
+When reviewing a test edit that changes WHAT is asserted (not just adding new
+assertions), ask: "is the old behavior still tested?"
+
 ## Escape hatch (auditable)
 
 When relaxation IS legitimate, document the reason on or above the changed line:
