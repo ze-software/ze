@@ -53,7 +53,10 @@ func Run(args []string) int {
 		return 1
 	}
 
-	serverIP, ipErr := resolveServerIP(*iface, *address)
+	serverIP, addedCIDR, ipErr := resolveOrConfigureIP(*iface, *address, *network)
+	if addedCIDR != "" {
+		defer cleanupAddress(*iface, addedCIDR)
+	}
 	if ipErr != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", ipErr)
 		return 1

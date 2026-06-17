@@ -358,6 +358,9 @@ This starts three servers on `eth0`:
 | HTTP | 80/tcp | Disk image and boot file serving |
 
 The server IP is resolved from the interface's first IPv4 address.
+If the interface has no IPv4 address, the address from `--network` is
+added via netlink and removed on exit (if `--network` is a network
+address like `192.168.1.0/24`, the first host `192.168.1.1` is used).
 Use `--address` to override.
 
 ### Flags
@@ -369,7 +372,7 @@ Use `--address` to override.
 | `--image` | Yes | | Path to gokrazy disk image file |
 | `--ssh-username` | Yes | | Admin username for the installed target |
 | `--ssh-password` | Yes | | Admin password (bcrypt-hashed before embedding) |
-| `--address` | No | First IPv4 on interface | Server IP override |
+| `--address` | No | First IPv4 on interface (or from `--network` if none) | Server IP override |
 | `--kernel` | No | | Path to installer kernel (copied to boot directory) |
 | `--initrd` | No | | Path to installer initrd (copied to boot directory) |
 
@@ -435,7 +438,8 @@ manually and running `ze <config-file>`.
 
 ### Requirements
 
-- Root privileges (DHCP, TFTP, and HTTP bind to privileged ports)
+- Root privileges (DHCP, TFTP, and HTTP bind to privileged ports;
+  interface auto-configuration uses netlink)
 - Disk image at the path specified by `--image`
 - Installer kernel and initrd: pass `--kernel` and `--initrd` on first run,
   or pre-stage files in `/var/lib/ze/install/boot/`

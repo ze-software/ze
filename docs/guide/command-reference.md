@@ -1142,7 +1142,7 @@ The daemon socket is `/run/ze/ze.socket` under this unit. Configure
 | `--image` | Path to gokrazy disk image (required) |
 | `--ssh-username` | Admin username for installed target (required) |
 | `--ssh-password` | Admin password, bcrypt-hashed before use (required) |
-| `--address` | Override server IP (default: first IPv4 on interface) |
+| `--address` | Override server IP (default: first IPv4 on interface, or from `--network` if none) |
 
 Zero-touch provisioning server. Generates a ze config from CLI flags and
 forks `ze -` to start DHCP+PXE, TFTP, and HTTP servers for PXE-booting
