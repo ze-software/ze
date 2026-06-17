@@ -163,61 +163,89 @@ func TestInjectZeFSUsesRunExternalFn(t *testing.T) {
 	var calledNames []string
 	var mkfsArgs []string
 	old := runExternalFn
+	defer func() { runExternalFn = old }()
+
+	imgDir := t.TempDir()
+	imgPath := filepath.Join(imgDir, "test.img")
+
+	// Image must be large enough for extractPartition (Go ReadAt) to succeed.
+	// Partition at LBA 8..15 → offset 4096, size 4096 → image >= 8192 bytes.
+	img := make([]byte, 8192)
+	for i := range 16 {
+		img[1024+i] = 0xAA
+	}
+	img[1024+32] = 0x08 // Start LBA = 8
+	img[1024+40] = 0x0F // End LBA = 15
+
+	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dbContent := []byte("test-database-zefs-content")
+	dbPath := filepath.Join(imgDir, "database.zefs")
+	if err := os.WriteFile(dbPath, dbContent, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	e2fs := t.TempDir()
+	if err := os.WriteFile(filepath.Join(e2fs, "mkfs.ext4"), nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(e2fs, "debugfs"), nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldE2fs := e2fsDir
+	e2fsDir = e2fs
+	defer func() { e2fsDir = oldE2fs }()
+
+	// debugfs write is mocked: simulate success by injecting db bytes into
+	// the perm temp file so verifyInjectedDB (bytes.Contains) passes.
 	runExternalFn = func(name string, args ...string) ([]byte, error) {
 		base := filepath.Base(name)
 		calledNames = append(calledNames, base)
 		if base == "mkfs.ext4" {
 			mkfsArgs = append([]string{}, args...)
 		}
+		if base == "debugfs" {
+			for _, a := range args {
+				if len(a) > 6 && a[:6] == "write " {
+					// Append db content to the perm temp file so verify passes.
+					permTmp := args[len(args)-1]
+					f, _ := os.OpenFile(permTmp, os.O_APPEND|os.O_WRONLY, 0) //nolint:gosec,errcheck // test
+					if f != nil {
+						f.Write(dbContent) //nolint:errcheck // test
+						f.Close()          //nolint:errcheck // test
+					}
+				}
+			}
+		}
 		return nil, nil
 	}
-	defer func() { runExternalFn = old }()
 
-	imgDir := t.TempDir()
-	imgPath := filepath.Join(imgDir, "test.img")
-
-	// Create a minimal GPT image with one partition entry.
-	img := make([]byte, 4096)
-	// GPT entry at LBA 2 (offset 1024), partition type GUID (non-zero).
-	for i := range 16 {
-		img[1024+i] = 0xAA
-	}
-	// Start LBA = 2048 sectors.
-	img[1024+32] = 0x00
-	img[1024+33] = 0x08
-	// End LBA = 4096 sectors.
-	img[1024+40] = 0x00
-	img[1024+41] = 0x10
-
-	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
-		t.Fatal(err)
+	code := injectZeFS(imgPath, dbPath)
+	if code != exitOK {
+		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
 	}
 
-	dbPath := filepath.Join(imgDir, "database.zefs")
-	if err := os.WriteFile(dbPath, []byte("test"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	oldE2fs := e2fsDir
-	e2fsDir = "/usr/sbin"
-	defer func() { e2fsDir = oldE2fs }()
-
-	injectZeFS(imgPath, dbPath)
-
-	hasDD := false
+	hasMkfs := false
+	hasDebugfs := false
 	for _, n := range calledNames {
-		if n == "dd" {
-			hasDD = true
+		if n == "mkfs.ext4" {
+			hasMkfs = true
+		}
+		if n == "debugfs" {
+			hasDebugfs = true
 		}
 	}
-	if !hasDD {
-		t.Error("injectZeFS did not call dd via runExternalFn")
+	if !hasMkfs {
+		t.Error("injectZeFS did not call mkfs.ext4 via runExternalFn")
+	}
+	if !hasDebugfs {
+		t.Error("injectZeFS did not call debugfs via runExternalFn")
 	}
 
-	// Regression: mkfs.ext4 must force 4096-byte blocks and size the filesystem
-	// in those blocks. For this partition (start 2048, end 4096 → permSize
-	// 1049088) perm4K = 256. The old code passed permSize/1024 = 1024 with no
-	// -b, which formats a filesystem 4x the partition so /perm won't mount.
+	// mkfs.ext4 must force 4096-byte blocks. For partition LBA 8..15:
+	// permSize = 4096, perm4K = 1, permBlocks = 1.
 	foundB := false
 	for i := 0; i+1 < len(mkfsArgs); i++ {
 		if mkfsArgs[i] == "-b" && mkfsArgs[i+1] == "4096" {
@@ -227,12 +255,130 @@ func TestInjectZeFSUsesRunExternalFn(t *testing.T) {
 	if !foundB {
 		t.Errorf("mkfs.ext4 missing -b 4096: %v", mkfsArgs)
 	}
-	if len(mkfsArgs) == 0 || mkfsArgs[len(mkfsArgs)-1] != "256" {
-		t.Errorf("mkfs.ext4 block count = last arg of %v, want 256 (perm4K)", mkfsArgs)
+	if len(mkfsArgs) == 0 || mkfsArgs[len(mkfsArgs)-1] != "1" {
+		t.Errorf("mkfs.ext4 block count = last arg of %v, want 1 (perm4K)", mkfsArgs)
 	}
-	for _, a := range mkfsArgs {
-		if a == "1024" {
-			t.Errorf("mkfs.ext4 uses permSize/1024 block count (the 4x bug): %v", mkfsArgs)
+}
+
+// VALIDATES: AC-1 wiring test — injectZeFS fails when debugfs write silently drops the file.
+func TestInjectZeFSFailsWhenWriteSilentlyDropped(t *testing.T) {
+	imgDir := t.TempDir()
+	imgPath := filepath.Join(imgDir, "test.img")
+
+	img := make([]byte, 8192)
+	for i := range 16 {
+		img[1024+i] = 0xAA
+	}
+	img[1024+32] = 0x08
+	img[1024+40] = 0x0F
+
+	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(imgDir, "database.zefs")
+	if err := os.WriteFile(dbPath, []byte("unique-zefs-content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	e2fs := t.TempDir()
+	if err := os.WriteFile(filepath.Join(e2fs, "mkfs.ext4"), nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(e2fs, "debugfs"), nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldE2fs := e2fsDir
+	e2fsDir = e2fs
+	defer func() { e2fsDir = oldE2fs }()
+
+	old := runExternalFn
+	runExternalFn = func(_ string, _ ...string) ([]byte, error) {
+		return nil, nil
+	}
+	defer func() { runExternalFn = old }()
+
+	code := injectZeFS(imgPath, dbPath)
+	if code != exitError {
+		t.Fatalf("injectZeFS should fail when debugfs write is silent-dropped, got %d want %d", code, exitError)
+	}
+
+	if _, err := os.Stat(imgPath); err != nil {
+		t.Errorf("image file should still exist (caller removes it), got: %v", err)
+	}
+}
+
+// VALIDATES: AC-5 — exact mkfs.ext4 argument vector is pinned.
+func TestInjectZeFSMkfsArgsPinned(t *testing.T) {
+	imgDir := t.TempDir()
+	imgPath := filepath.Join(imgDir, "test.img")
+
+	img := make([]byte, 8192)
+	for i := range 16 {
+		img[1024+i] = 0xAA
+	}
+	img[1024+32] = 0x08
+	img[1024+40] = 0x0F
+
+	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dbContent := []byte("mkfs-test-db")
+	dbPath := filepath.Join(imgDir, "database.zefs")
+	if err := os.WriteFile(dbPath, dbContent, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	e2fs := t.TempDir()
+	if err := os.WriteFile(filepath.Join(e2fs, "mkfs.ext4"), nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(e2fs, "debugfs"), nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldE2fs := e2fsDir
+	e2fsDir = e2fs
+	defer func() { e2fsDir = oldE2fs }()
+
+	var mkfsArgs []string
+	old := runExternalFn
+	runExternalFn = func(name string, args ...string) ([]byte, error) {
+		if filepath.Base(name) == "mkfs.ext4" {
+			mkfsArgs = append([]string{}, args...)
+		}
+		if filepath.Base(name) == "debugfs" {
+			for _, a := range args {
+				if len(a) > 6 && a[:6] == "write " {
+					permTmp := args[len(args)-1]
+					f, _ := os.OpenFile(permTmp, os.O_APPEND|os.O_WRONLY, 0) //nolint:gosec,errcheck // test
+					if f != nil {
+						f.Write(dbContent) //nolint:errcheck // test
+						f.Close()          //nolint:errcheck // test
+					}
+				}
+			}
+		}
+		return nil, nil
+	}
+	defer func() { runExternalFn = old }()
+
+	code := injectZeFS(imgPath, dbPath)
+	if code != exitOK {
+		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
+	}
+
+	// Partition LBA 8..15: permOff=4096, permBlocks=1
+	wantArgs := []string{
+		"-q", "-F", "-O", "^metadata_csum",
+		"-b", "4096",
+		"-E", "offset=4096",
+		imgPath, "1",
+	}
+	if len(mkfsArgs) != len(wantArgs) {
+		t.Fatalf("mkfs.ext4 args = %v, want %v", mkfsArgs, wantArgs)
+	}
+	for i := range wantArgs {
+		if mkfsArgs[i] != wantArgs[i] {
+			t.Errorf("mkfs.ext4 arg[%d] = %q, want %q", i, mkfsArgs[i], wantArgs[i])
 		}
 	}
 }

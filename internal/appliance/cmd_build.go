@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -267,10 +268,8 @@ func injectZeFS(imgPath, dbPath string) int {
 	// Filesystem size in 4096-byte blocks. mkfs is forced to -b 4096 below, so
 	// the block count must be in 4096-byte units. Using permSize/1024 here with
 	// 4096-byte blocks would format a filesystem 4x the partition, overrunning
-	// /perm so it fails to mount on the target. This matches the bs=4096
-	// extraction below.
+	// /perm so it fails to mount on the target.
 	permBlocks := perm4K
-	permSkip := permOff / 4096
 
 	mkfs := filepath.Join(e2fsDir, "mkfs.ext4")
 	debugfs := filepath.Join(e2fsDir, "debugfs")
@@ -289,13 +288,13 @@ func injectZeFS(imgPath, dbPath string) int {
 	defer os.Remove(permImg) //nolint:errcheck // temp file cleanup
 
 	fmt.Fprintf(os.Stderr, "injecting credentials into /perm...\n")
-	if _, err := runExternalFn("dd",
-		"if="+imgPath, "of="+permImg,
-		"bs=4096",
-		"skip="+strconv.FormatInt(permSkip, 10),
-		"count="+strconv.FormatInt(perm4K, 10),
-	); err != nil {
-		fmt.Fprintf(os.Stderr, "error: extract /perm: %v\n", err)
+	permData, extractErr := extractPartition(imgPath, permOff, permSize)
+	if extractErr != nil {
+		slog.Error("extract /perm partition", "error", extractErr)
+		return exitError
+	}
+	if writeErr := os.WriteFile(permImg, permData, 0o600); writeErr != nil {
+		slog.Error("write perm temp file", "error", writeErr)
 		return exitError
 	}
 
@@ -310,13 +309,17 @@ func injectZeFS(imgPath, dbPath string) int {
 		return exitError
 	}
 
-	if _, err := runExternalFn("dd",
-		"if="+permImg, "of="+imgPath,
-		"bs=4096",
-		"seek="+strconv.FormatInt(permSkip, 10),
-		"conv=notrunc",
-	); err != nil {
-		fmt.Fprintf(os.Stderr, "error: write /perm back: %v\n", err)
+	if err := verifyInject(permImg, dbPath); err != nil {
+		return exitError
+	}
+
+	updatedPerm, readErr := os.ReadFile(permImg) //nolint:gosec // build-controlled temp file
+	if readErr != nil {
+		slog.Error("read perm temp file", "error", readErr)
+		return exitError
+	}
+	if wbErr := writePartition(imgPath, updatedPerm, permOff); wbErr != nil {
+		slog.Error("write /perm back", "error", wbErr)
 		return exitError
 	}
 

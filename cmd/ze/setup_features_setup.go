@@ -7,5 +7,6 @@ package main
 import (
 	_ "codeberg.org/thomas-mangin/ze/cmd/ze/install"
 	_ "codeberg.org/thomas-mangin/ze/internal/appliance"
+	_ "codeberg.org/thomas-mangin/ze/internal/install/disk"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/provision"
 )

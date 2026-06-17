@@ -151,11 +151,26 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	}
 
 	store := resolveStorage()
-	defer store.Close() //nolint:errcheck // best-effort cleanup
+	defer func() {
+		if store != nil {
+			store.Close() //nolint:errcheck // best-effort
+		}
+	}()
 
 	if !storage.IsBlobStorage(store) {
-		fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
-		return 1
+		if env.IsEnabled("ze.gokrazy.enabled") {
+			store.Close() //nolint:errcheck // closing filesystem fallback before re-resolve
+			var initErr error
+			store, initErr = gokrazyAutoInit()
+			if initErr != nil {
+				slog.Error("gokrazy auto-init failed", "error", initErr)
+				return 1
+			}
+			slog.Info("gokrazy: auto-init fallback, created database")
+		} else {
+			fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
+			return 1
+		}
 	}
 
 	// Explicit --web-only: start standalone web UI, no daemon.
