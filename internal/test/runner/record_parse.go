@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -450,7 +451,15 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 
 	case "stdout":
-		// Support contains= (substring match) and !contains= (negative match)
+		if pattern, ok := kv["pattern"]; ok {
+			if pattern == "" {
+				return errors.New("expect=stdout:pattern= must not be empty (an empty regex matches everything)")
+			}
+			if _, err := regexp.Compile(pattern); err != nil {
+				return fmt.Errorf("invalid expect=stdout pattern %q: %w", pattern, err)
+			}
+			r.ExpectStdoutRegex = append(r.ExpectStdoutRegex, pattern)
+		}
 		if contains := kv["contains"]; contains != "" {
 			r.ExpectStdoutMatch = append(r.ExpectStdoutMatch, contains)
 		}

@@ -62,7 +62,7 @@ func runServe(args []string) int {
 				return 1
 			}
 			localAS = uint32(v) //nolint:gosec // validated range
-		case "--router-id":
+		case "--router-id": //nolint:goconst // CLI flag name
 			i++
 			if i >= len(args) {
 				os.Stderr.WriteString(serveUsage) //nolint:errcheck // usage

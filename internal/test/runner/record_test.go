@@ -230,6 +230,32 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	assert.Equal(t, []string{"subsystem=server"}, rec.ExpectStderr)
 }
 
+func TestParseCIStdoutPattern(t *testing.T) {
+	ResetNickCounter()
+
+	tmpDir := t.TempDir()
+	ciFile := filepath.Join(tmpDir, "test.ci")
+	confFile := filepath.Join(tmpDir, "test.conf")
+
+	ciContent := `option=file:path=test.conf
+expect=stdout:pattern=version=\d+\.\d+
+expect=stdout:contains=hello
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
+
+	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
+	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
+
+	et := NewEncodingTests(tmpDir)
+	_, err := et.parseAndAdd(ciFile)
+	require.NoError(t, err)
+
+	rec := et.GetByNick("1")
+	require.NotNil(t, rec)
+
+	assert.Equal(t, []string{`version=\d+\.\d+`}, rec.ExpectStdoutRegex)
+	assert.Equal(t, []string{"hello"}, rec.ExpectStdoutMatch)
+}
+
 func TestTestsSelectStartActivatesSuffix(t *testing.T) {
 	ResetNickCounter()
 	tests := NewTests()

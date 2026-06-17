@@ -134,6 +134,7 @@ type Record struct {
 	ExpectStderrMatch    string   // expect=stderr:contains=TEXT - substring match (not regex)
 	ExpectStdoutMatch    []string // expect=stdout:contains=TEXT - substring match (not regex), multiple allowed
 	ExpectStdoutNotMatch []string // expect=stdout:!contains=TEXT - stdout must NOT contain TEXT, multiple allowed
+	ExpectStdoutRegex    []string // expect=stdout:pattern=PATTERN (regex)
 
 	// Tmpfs embedded files
 	TmpfsFiles   map[string][]byte // path -> content from tmpfs= blocks

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -1023,6 +1024,22 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 		recStep("stdout-not-contains", true, "")
 	}
+	for _, pattern := range rec.ExpectStdoutRegex {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			rec.Error = fmt.Errorf("invalid stdout regex %q: %w", pattern, err)
+			rec.FailureType = "stdout_mismatch"
+			recStep("stdout-regex", false, rec.Error.Error())
+			return false
+		}
+		if !re.MatchString(rec.ClientOutput) {
+			rec.Error = fmt.Errorf("stdout does not match regex %q", pattern)
+			rec.FailureType = "stdout_mismatch"
+			recStep("stdout-regex", false, rec.Error.Error())
+			return false
+		}
+		recStep("stdout-regex", true, "")
+	}
 
 	// Decide what governs this test's success:
 	//   * exit-code tests and peer-less foreground commands are self-validated by
@@ -1035,6 +1052,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	hasOutputAssertion := rec.ExpectStderrMatch != "" ||
 		len(rec.ExpectStdoutMatch) > 0 ||
 		len(rec.ExpectStdoutNotMatch) > 0 ||
+		len(rec.ExpectStdoutRegex) > 0 ||
 		len(rec.ExpectStderr) > 0 || len(rec.RejectStderr) > 0 ||
 		len(rec.ExpectSyslog) > 0 || len(rec.RejectSyslog) > 0 ||
 		len(rec.FileChecks) > 0 ||

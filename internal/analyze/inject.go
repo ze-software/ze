@@ -61,7 +61,7 @@ func parseInjectOpts(args []string) (*injectOpts, bool) {
 				return nil, false
 			}
 			opts.localAS = uint32(v) //nolint:gosec // validated range
-		case "--router-id":
+		case "--router-id": //nolint:goconst // CLI flag name
 			i++
 			if i >= len(args) {
 				return nil, false
