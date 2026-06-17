@@ -46,6 +46,20 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 		if peer.State() != PeerStateEstablished {
 			continue
 		}
+		// During initial route sync, sendInitialRoutes owns EoR ordering: it
+		// drains the opQueue (announces/withdraws queued via ShouldQueue) and
+		// then emits a per-family EoR for every negotiated family (RFC 4724,
+		// peer_initial_sync.go). Announce/withdraw already honor ShouldQueue();
+		// AnnounceEOR was the one route-op that wrote directly, so a plugin or
+		// route-server EoR could race ahead of the still-queued route NLRI and
+		// reach the wire first. Skip here -- the reactor's own EoR covers this
+		// family. Counted as handled (so a route-server replay does not see a
+		// spurious "no peers" error) but not metered: sendInitialRoutes meters
+		// the EoR it sends.
+		if peer.ShouldQueue() {
+			sentCount++
+			continue
+		}
 		if err := peer.SendUpdate(update); err != nil {
 			errs = append(errs, err)
 		} else {

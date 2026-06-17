@@ -1288,6 +1288,7 @@ To ensure routes are replayed before EOR is sent, the engine uses an API sync pr
 4. **RIB signals ready:** `"peer <addr> plugin session ready"`
 5. **SignalPeerAPIReady:** Engine decrements counter, closes channel when all received
 6. **sendInitialRoutes:** Waits up to 500ms for API sync before sending EOR
+7. **AnnounceEOR guard:** External `AnnounceEOR` calls (plugin, route-server) skip peers where `ShouldQueue()` is true, preventing a race where a plugin EoR reaches the wire before queued route NLRI. The peer's own `sendInitialRoutes` EoR covers those families.
 
 ```go
 // In sendInitialRoutes()
