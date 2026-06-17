@@ -1,5 +1,7 @@
 # Installer initrd unit tests: cmdline parsing, disk detection, ISO media
-# discovery, and the image download/write paths (HTTP stream + local checksum).
+# discovery, the image download/write paths (HTTP stream + local checksum),
+# the network fallback (ensure_network + foreign-DHCP recovery), console
+# fan-out / rescue-shell selection, and server connectivity.
 # Runs the shell-based test scripts from tools/installer-initrd/test/.
 # spec-install-8 / installer-initrd build system.
 #
@@ -25,4 +27,20 @@ expect=stdout:regex=download: [0-9]+ passed, 0 failed
 cmd=foreground:seq=5:exec=sh tools/installer-initrd/test/test-ventoy-detect.sh
 expect=exit:code=0
 expect=stdout:regex=ventoy-detect: [0-9]+ passed, 0 failed
+
+cmd=foreground:seq=6:exec=sh tools/installer-initrd/test/test-ensure-network.sh
+expect=exit:code=0
+expect=stdout:regex=ensure_network: [0-9]+ passed, 0 failed
+
+cmd=foreground:seq=7:exec=sh tools/installer-initrd/test/test-console.sh
+expect=exit:code=0
+expect=stdout:regex=console: [0-9]+ passed, 0 failed
+
+cmd=foreground:seq=8:exec=sh tools/installer-initrd/test/test-connectivity.sh
+expect=exit:code=0
+expect=stdout:regex=connectivity: [0-9]+ passed, 0 failed
+
+cmd=foreground:seq=9:exec=sh tools/installer-initrd/test/test-applets.sh
+expect=exit:code=0
+expect=stdout:regex=applets: [0-9]+ passed, 0 failed
 

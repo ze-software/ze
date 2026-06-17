@@ -113,9 +113,12 @@ log() { :; }
 # via glob. This wrapper replaces the glob with $MOCK_SYSNET_DIR/*.
 ensure_network_testable() {
     if has_default_route; then
-        return 0
+        if server_reachable; then
+            return 0
+        fi
+        log "Default route present but $ZE_SERVER:$ZE_PORT unreachable; retrying DHCP per interface..."
     fi
-    log "No IPv4 address from kernel ip=dhcp, trying userspace DHCP..."
+    log "Acquiring a lease that can reach $ZE_SERVER via userspace DHCP..."
     for iface in "$MOCK_SYSNET_DIR"/*; do
         ifname=$(basename "$iface")
         case "$ifname" in lo) continue ;; esac
@@ -427,6 +430,37 @@ rc=$?
 assert_eq "bug15-all-unreachable: returns 1" "1" "$rc"
 assert_eq "bug15-all-unreachable: tried both" "eth0 eth1" "$MOCK_UDHCPC_CALLS"
 assert_eq "bug15-all-unreachable: flushed both" "ip-addr-flush-eth0 ip-route-del- ip-addr-flush-eth1 ip-route-del-" "$MOCK_IP_CALLS"
+
+# Test 13 (foreign DHCP): kernel ip=dhcp installed a default route via a
+# foreign/corporate DHCP with no route to ze.server. ensure_network must NOT
+# trust it; it must re-run per-interface DHCP and pick the reachable interface.
+rm -rf "$MOCK_SYSNET_DIR"
+setup_sysnet
+mkdir -p "$MOCK_SYSNET_DIR/eth0" "$MOCK_SYSNET_DIR/eth1"
+echo "1" > "$MOCK_SYSNET_DIR/eth0/carrier"
+echo "1" > "$MOCK_SYSNET_DIR/eth1/carrier"
+reset_mocks
+MOCK_HAS_ROUTE=0          # kernel default route present (foreign lease)
+udhcpc() {
+    iface=""
+    while [ $# -gt 0 ]; do case "$1" in -i) iface="$2"; shift ;; esac; shift; done
+    MOCK_UDHCPC_CALLS="${MOCK_UDHCPC_CALLS}${MOCK_UDHCPC_CALLS:+ }$iface"
+    return 0
+}
+wget() {
+    MOCK_WGET_CALLS="${MOCK_WGET_CALLS}${MOCK_WGET_CALLS:+ }wget"
+    last_iface="${MOCK_UDHCPC_CALLS##* }"
+    [ "$last_iface" = "eth1" ] && return 0
+    return 1
+}
+ensure_network_testable
+rc=$?
+assert_eq "foreign-dhcp: returns 0" "0" "$rc"
+assert_eq "foreign-dhcp: re-ran per-iface DHCP" "eth0 eth1" "$MOCK_UDHCPC_CALLS"
+case "$MOCK_IP_CALLS" in
+    *addr-flush-eth0*) assert_eq "foreign-dhcp: flushed unreachable eth0" "yes" "yes" ;;
+    *) assert_eq "foreign-dhcp: flushed unreachable eth0" "yes" "no" ;;
+esac
 
 # Cleanup
 rm -rf "$MOCK_SYSNET_DIR"

@@ -432,8 +432,14 @@ func TestServeDynamicBootIPXE(t *testing.T) {
 	if !strings.Contains(script, "ip=dhcp") {
 		t.Errorf("missing ip=dhcp in script:\n%s", script)
 	}
-	if !strings.Contains(script, "console=tty0 console=ttyS0,115200n8 console=ttyAMA0,115200n8") {
-		t.Errorf("missing console args in script:\n%s", script)
+	// Console selection is arch-aware via iPXE ${buildarch}: x86 must not carry
+	// the ARM-only ttyAMA0 (it never registers and can dead-end /dev/console),
+	// while arm64 keeps the full set. Exactly one branch runs on the client.
+	if !strings.Contains(script, "iseq ${buildarch} arm64 && set zeconsole console=tty0 console=ttyS0,115200n8 console=ttyAMA0,115200n8 || set zeconsole console=tty0 console=ttyS0,115200n8\n") {
+		t.Errorf("missing arch-aware console selection in script:\n%s", script)
+	}
+	if !strings.Contains(script, "panic=-1 ${zeconsole}\n") {
+		t.Errorf("kernel line should reference the arch-selected ${zeconsole}:\n%s", script)
 	}
 	if strings.Contains(script, "ze.port=") {
 		t.Errorf("port 80 should not include ze.port in script:\n%s", script)

@@ -323,6 +323,16 @@ present.
 `ze install remote` is a one-command provisioning server that PXE-boots
 target machines with a gokrazy image containing ze.
 
+> **Warning: the provisioning network MUST be isolated.** Run `ze install
+> remote` only on a dedicated segment with no other DHCP server. On a shared
+> network a foreign DHCP server (for example a corporate one) can win the
+> boot-time race and hand the target a lease with no route back to `ze.server`;
+> the installer then probes an unreachable server until `ze.wait` expires and
+> drops to a debug shell, and the disk is never written. The initrd now
+> re-validates the kernel lease and recovers when a reachable interface exists
+> (see [Kernel Command Line](#kernel-command-line)), but a second DHCP server on
+> the same L2 segment is unsupported and can still break provisioning.
+
 ### How It Works
 
 1. The operator runs `ze install remote` on an existing ze device connected
@@ -438,6 +448,8 @@ manually and running `ze <config-file>`.
 
 ### Requirements
 
+- An **isolated** provisioning network: no second DHCP server on the L2
+  segment, or a foreign lease can leave the target with no route to `ze.server`
 - Root privileges (DHCP, TFTP, and HTTP bind to privileged ports;
   interface auto-configuration uses netlink)
 - Disk image at the path specified by `--image`
@@ -554,20 +566,36 @@ The bootloader sets these parameters:
 an ephemeral port). ISO mode does not use `ze.server`, `ze.port`, or `ip=dhcp`.
 
 On some hardware (e.g. Intel I226-V) the kernel `ip=dhcp` autoconfiguration
-races against NIC carrier detection and times out before the link comes up. The
-initrd detects this by checking `/proc/net/route` for a default route. When none
-exists, it brings up all non-loopback interfaces, waits up to 10 seconds for
-carrier, and runs `udhcpc` on each interface, verifying the server is reachable
-before accepting the lease. Interfaces that obtain a lease but cannot route to
-`ze.server:ze.port` are flushed and skipped. If no interface produces a working
-route, the installer drops to a debug shell. Even after the network
-is configured, the install server may not be reachable yet (switch STP port
-transitions can block traffic for 30-50 seconds after a reboot). The initrd
-probes the server with a 2-second timeout, retrying up to 30 times. Each probe
-distinguishes "TCP unreachable" from "HTTP error response" so a server that
-returns 404 is still considered reachable. Interface state and routing tables are
-logged every 10 attempts for diagnostics.
-<!-- source: tools/installer-initrd/init -- ensure_network, has_default_route, wait_for_server, log_network_state -->
+races against NIC carrier detection and times out before the link comes up; on a
+non-isolated network it can also win a lease from a foreign DHCP server (for
+example a corporate one) whose default route cannot reach `ze.server`. The initrd
+guards against both. It trusts the kernel-provided default route only when
+`ze.server` actually answers an HTTP probe; if there is no default route, or the
+route present cannot reach the server, it brings up all non-loopback interfaces,
+waits up to 10 seconds for carrier, and runs `udhcpc` on each interface,
+verifying the server is reachable before accepting the lease. Interfaces that
+obtain a lease but cannot route to `ze.server:ze.port` are flushed and skipped.
+If no interface produces a working route, the installer drops to a debug shell.
+(A foreign DHCP server on a shared segment can still defeat this if it also wins
+the per-interface lease race, which is why the provisioning network must be
+isolated.) Even after the network is configured, the install server may not be
+reachable yet (switch STP port transitions can block traffic for 30-50 seconds
+after a reboot). The initrd probes the server with a 2-second timeout, retrying
+up to 30 times. Each probe distinguishes "TCP unreachable" from "HTTP error
+response" so a server that returns 404 is still considered reachable. Interface
+state and routing tables are logged every 10 attempts for diagnostics.
+<!-- source: tools/installer-initrd/init -- ensure_network, server_reachable, has_default_route, wait_for_server, log_network_state -->
+
+The installer fans its progress and `FATAL` lines to every console listed in
+`/sys/class/tty/console/active`, not just the single `/dev/console` the kernel
+marks preferred. On a headless box the preferred console can be a dead VGA tty
+while kernel messages still reach the serial line, which would otherwise hide all
+installer output. The generated `boot.ipxe` also selects the console set per
+client architecture via iPXE's `${buildarch}`: x86 clients get `console=tty0
+console=ttyS0`, while arm64 also keeps `console=ttyAMA0` (the ARM PL011 UART,
+which never registers on x86 and can dead-end `/dev/console` if left on an x86
+cmdline).
+<!-- source: tools/installer-initrd/init -- setup_console, emit, debug_console; internal/plugins/imageserver/handler.go -- serveBootIPXE -->
 Existing `ze install remote` deployments need no `ze.source` change because the
 default source is `http`.
 <!-- source: tools/installer-initrd/init -- parse_cmdline, validate_source -->
@@ -590,7 +618,11 @@ Supported target disk forms include `/dev/sda` (SATA/SCSI), `/dev/vda`
 If the init script encounters an error (missing server IP, no disk found,
 download failure after 3 retries), it drops to a shell for debugging
 instead of rebooting. This allows the operator to diagnose network or
-hardware issues.
+hardware issues. The rescue shell is bound to a real, working console
+(preferring a serial console, since headless installs are driven over serial)
+rather than inheriting PID 1's stdio, which may be a dead VGA tty nobody can
+drive.
+<!-- source: tools/installer-initrd/init -- fatal, debug_console -->
 
 ### Running Tests
 
@@ -598,8 +630,10 @@ hardware issues.
 make -C tools/installer-initrd test
 ```
 
-This runs the cmdline parsing, disk detection, ISO media discovery, and image
-write unit tests without requiring QEMU or real hardware.
+This runs the cmdline parsing, disk detection, ISO media discovery, image
+write, network fallback (`ensure_network`, including the foreign-DHCP recovery
+path), console fan-out / rescue-shell selection, and server-connectivity unit
+tests without requiring QEMU or real hardware.
 
 ### Busybox Applets
 

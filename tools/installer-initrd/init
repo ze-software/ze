@@ -37,13 +37,89 @@ VENTOY_USB_DISK=""
 
 # -- helpers --
 
+# CONSOLES holds every active console device (filled by setup_console).
+# Kernel printk broadcasts to all console= devices, but userspace stdio only
+# follows the single /dev/console the kernel marked preferred. On a headless
+# box that preferred console can be a dead VGA tty0, hiding ALL installer
+# output while kernel messages still reach the serial line. Fan our own
+# progress and error lines to every console so they are always visible.
+CONSOLES=""
+
+setup_console() {
+    # ZE_CONSOLE_ACTIVE overrides the sysfs path for unit tests; production
+    # always reads the kernel's active-console list.
+    active_file="${ZE_CONSOLE_ACTIVE:-/sys/class/tty/console/active}"
+    [ -r "$active_file" ] || return 0
+    # The file is a single line of space-separated tty names (e.g. "tty0 ttyS0").
+    read -r active < "$active_file" || return 0
+    for c in $active; do
+        [ -c "/dev/$c" ] && CONSOLES="${CONSOLES}${CONSOLES:+ }/dev/$c"
+    done
+    # The loop's last command exits non-zero when the final console has no /dev
+    # node, and setup_console runs bare under `set -e` in main. Return success
+    # explicitly so a missing device node can never abort the installer (which
+    # would also strand emit's empty-CONSOLES stdout fallback unreached).
+    return 0
+}
+
+emit() {
+    if [ -z "$CONSOLES" ]; then
+        echo "$1"
+        return 0
+    fi
+    emit_ok=0
+    for con in $CONSOLES; do
+        if echo "$1" > "$con" 2>/dev/null; then
+            emit_ok=1
+        fi
+    done
+    # If no console accepted the write, fall back to stdout so the line is not
+    # silently lost. `return 0` keeps emit safe to call bare under `set -e`.
+    [ "$emit_ok" = "1" ] || echo "$1"
+    return 0
+}
+
+# debug_console picks the console most likely to be a usable interactive
+# terminal for the rescue shell: the first serial console among the active set
+# (headless installs are driven over serial), else the last active console
+# (the kernel's preferred device), else /dev/console. Without this the rescue
+# shell inherits PID 1's stdio, which may be a dead VGA tty nobody can drive.
+debug_console() {
+    dc_serial=""
+    dc_last=""
+    for con in $CONSOLES; do
+        dc_last="$con"
+        case "$con" in
+            /dev/ttyS*|/dev/ttyUSB*|/dev/ttyAMA*)
+                [ -z "$dc_serial" ] && dc_serial="$con" ;;
+        esac
+    done
+    if [ -n "$dc_serial" ]; then
+        printf '%s\n' "$dc_serial"
+    elif [ -n "$dc_last" ]; then
+        printf '%s\n' "$dc_last"
+    else
+        printf '%s\n' "/dev/console"
+    fi
+}
+
 log() {
-    echo "[ze-install] $1"
+    emit "[ze-install] $1"
 }
 
 fatal() {
-    echo "[ze-install] FATAL: $1" >&2
-    echo "[ze-install] Dropping to shell for debugging."
+    emit "[ze-install] FATAL: $1"
+    emit "[ze-install] Dropping to shell for debugging."
+    con="$(debug_console)"
+    if [ -c "$con" ]; then
+        # Bind the rescue shell to a real, working console. -i forces an
+        # interactive prompt and line editing even though stdin is a redirected
+        # device rather than the process's controlling terminal.
+        # shellcheck disable=SC2094 # $con is a tty char device: reading and
+        # writing the same console is the intended terminal pattern, not a
+        # truncating read+write of a regular file.
+        exec /bin/sh -i <"$con" >"$con" 2>&1
+    fi
     exec /bin/sh
 }
 
@@ -603,12 +679,31 @@ link_up() {
     ip link set "$1" up 2>/dev/null
 }
 
-ensure_network() {
-    if has_default_route; then
+# server_reachable probes ze.server over HTTP. Any HTTP response (even 404)
+# proves TCP connectivity; only a connection failure ("can't connect") counts
+# as unreachable.
+server_reachable() {
+    sr_err="/tmp/ze-reach.err"
+    if wget -T 3 --spider -q "http://${ZE_SERVER}:${ZE_PORT}/" 2>"$sr_err"; then
         return 0
     fi
+    [ -s "$sr_err" ] && ! grep -q "can't connect" "$sr_err" 2>/dev/null
+}
 
-    log "No IPv4 address from kernel ip=dhcp, trying userspace DHCP..."
+ensure_network() {
+    # A kernel ip=dhcp default route is not enough: on a non-isolated network a
+    # foreign DHCP server (e.g. corporate) can win the race and hand out a lease
+    # with no route to ze.server. Only trust the kernel lease when ze.server
+    # actually answers; otherwise fall through to per-interface DHCP, which
+    # flushes interfaces that cannot reach the server (below).
+    if has_default_route; then
+        if server_reachable; then
+            return 0
+        fi
+        log "Default route present but $ZE_SERVER:$ZE_PORT unreachable; retrying DHCP per interface..."
+    fi
+
+    log "Acquiring a lease that can reach $ZE_SERVER via userspace DHCP..."
 
     for iface in /sys/class/net/*; do
         ifname=$(basename "$iface")
@@ -722,6 +817,11 @@ main() {
     mount -t sysfs none /sys 2>/dev/null || true
     mount -t devtmpfs none /dev 2>/dev/null || true
     mkdir -p /mnt/perm "$ISO_MOUNT"
+
+    # /sys and /dev exist now: fan installer output to every console so progress
+    # and FATAL are visible regardless of the cmdline console= ordering.
+    setup_console
+    log "Ze installer initrd console ready"
 
     parse_cmdline
 

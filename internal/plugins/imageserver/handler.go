@@ -139,9 +139,18 @@ func (h *imageHandler) serveBootIPXE(w http.ResponseWriter, r *http.Request) {
 		portArg = tb.Reset().Str(" ze.port=").Int(int64(h.serverPort)).String()
 	}
 
+	// Select the console set on the client via iPXE's ${buildarch}: one server
+	// PXE-boots heterogeneous clients, so the arch is known to iPXE, not to us.
+	// ttyAMA0 is the ARM PL011 UART and never registers on x86; left on an x86
+	// cmdline it can leave /dev/console (and the installer's userspace stdio)
+	// pointing at a dead device. Give x86 only tty0+ttyS0; keep the full set
+	// for arm64. The iseq && ... || ... form always runs exactly one branch, so
+	// the script never aborts when buildarch is not arm64.
 	script := tb.Reset().
-		Str("#!ipxe\nkernel ").Str(baseURL).Str("/install/boot/vmlinuz ze.server=").Str(h.serverAddr).
-		Str(" ze.image=").Str(imgName).Str(portArg).Str(" ip=dhcp panic=-1 console=tty0 console=ttyS0,115200n8 console=ttyAMA0,115200n8\n").
+		Str("#!ipxe\n").
+		Str("iseq ${buildarch} arm64 && set zeconsole console=tty0 console=ttyS0,115200n8 console=ttyAMA0,115200n8 || set zeconsole console=tty0 console=ttyS0,115200n8\n").
+		Str("kernel ").Str(baseURL).Str("/install/boot/vmlinuz ze.server=").Str(h.serverAddr).
+		Str(" ze.image=").Str(imgName).Str(portArg).Str(" ip=dhcp panic=-1 ${zeconsole}\n").
 		Str("initrd ").Str(baseURL).Str("/install/boot/initrd.img.gz\n").
 		Str("boot\n").
 		String()

@@ -39,7 +39,7 @@ $(INITRD): check-busybox init
 	mkdir -p $(ROOTFS)/dev $(ROOTFS)/mnt/perm $(ROOTFS)/mnt/iso $(ROOTFS)/tmp
 	cp "$(BUSYBOX)" $(ROOTFS)/bin/busybox
 	chmod 755 $(ROOTFS)/bin/busybox
-	for cmd in sh cat echo mount umount mkdir sleep wget dd sync \
+	for cmd in sh cat echo printf mount umount mkdir sleep wget dd sync \
 		reboot poweroff blockdev basename rm mktemp mkfifo sha256sum tee wc tr ip gunzip grep \
 		losetup mknod; do \
 		ln -sf busybox $(ROOTFS)/bin/$$cmd; \
@@ -61,6 +61,8 @@ test:
 	@sh test/test-download.sh
 	@sh test/test-ventoy-detect.sh
 	@sh test/test-ensure-network.sh
+	@sh test/test-console.sh
+	@sh test/test-applets.sh
 	@echo "---"
 	@sh test/test-connectivity.sh
 	@echo "All tests passed."
