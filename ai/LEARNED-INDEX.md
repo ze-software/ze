@@ -225,6 +225,7 @@ Test patterns, infrastructure, chaos testing.
 - [842](plan/learned/842-scoped-verify-committed-gap.md) -- Scoped verify committed gap: ze-verify-changed tested only the working-tree diff, so a regression committed before verifying was skipped on the clean tree; changed set now adds packages committed since the last green verify (`scripts/dev/changed-pkgs.sh`, baseline from `tmp/ze-verify.status`)
 - [843](plan/learned/843-verify-debugging-protocol.md) -- Verify failure-routing protocol: tested `verify_run.go` owns ze-verify, writes compact text+JSON failure index, groups by stage boundary first (never across), native `VERIFY FAILURE GROUP: {json}` manifests over text parsing, `ZE_VERIFY_MODE=1` env-gated rendering; the house convention for machine-readable test output
 - [892](plan/learned/892-spec-validate-command.md) -- Post-verify validation tool (`make ze-validate`): Python-based doc/spec hygiene checks (stale anchors, line-number anchors, unwired exports, spec AC completeness); grep-based cross-package search over Python rglob for speed
+- [908](plan/learned/908-test-trace-mode.md) -- Per-step trace output: leaf `internal/test/trace` package, dual human+machine format (`VERIFY STEP: {json}`), two-tier gate (failure default, `-v` all), incremental `.ci` recording over full collect-all refactor
 
 ## Build/Deployment
 

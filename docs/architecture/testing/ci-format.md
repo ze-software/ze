@@ -47,6 +47,20 @@ routing and keeps the full `TEST FAILURE` blocks in the stage log.
 <!-- source: internal/test/runner/report.go -- TEST FAILURE blocks -->
 <!-- source: internal/test/runner/display.go -- per-test result lines -->
 
+### Per-step trace output
+
+All three runner families (`.ci`, `.wb`, `.et`) record per-step outcomes during
+execution and emit dual-format trace output:
+
+- **Human:** colored checkmark/cross glyph per step with kind, assert, and detail.
+- **Machine:** `VERIFY STEP: {"file":"...","step":N,"kind":"...","status":"pass|fail",...}` -- one JSON line per step, matching the `VERIFY FAILURE GROUP:` prefix convention.
+
+Trace is emitted automatically for failed tests. Under `-v`, passing tests also
+show their trace. The `.ci` runner includes the trace in its `TEST FAILURE` report
+block when `StepTrace` is non-empty.
+<!-- source: internal/test/trace/trace.go -- StepResult, PrintTrace, writeHuman, writeMachine -->
+<!-- source: internal/test/runner/report.go -- step trace in failure reports -->
+
 ### conn and seq
 
 Most directives use `conn=N` and `seq=N` to identify message ordering:

@@ -162,18 +162,36 @@ These formats are documented in [`ci-format.md`](ci-format.md):
 - **`.et`** — editor TUI tests: `input=` actions, `expect=` editor-state
   assertions, plus `session=`/`restart=`/`wait=` steps, executed in source order.
 
-Both record an ordered `Steps` slice like `.wb`, and both currently report only a
-single PASS/FAIL per file. <!-- source: internal/component/cli/testing/parser.go -- TestCase.Steps, InputAction, Expectation --> <!-- source: internal/component/cli/testing/runner.go -- runTestCase iterates tc.Steps -->
+Both record an ordered `Steps` slice like `.wb`, and both emit per-step trace
+output on failure (and on all tests under `-v`).
+<!-- source: internal/component/cli/testing/parser.go -- TestCase.Steps, InputAction, Expectation -->
+<!-- source: internal/component/cli/testing/runner.go -- runTestCase iterates tc.Steps -->
 
-## Direction (planned)
+## Per-step trace output
 
-The three engines and the sequential web loop are slated to consolidate onto one
-central scheduler, with parallel web execution and per-assertion trace output.
-This is **not yet implemented**; it is tracked as a three-spec sequence:
+All three runners record `trace.StepResult` slices during execution and emit
+dual-format trace output via `internal/test/trace`:
 
-1. `plan/spec-test-runner-unify.md` — one central `ParallelRunner`; `.ci` delegates scheduling; configurable per-suite concurrency cap.
-2. `plan/spec-test-web-parallel.md` — per-test `ze` daemon + `agent-browser --session`; web runs through the unified runner.
-3. `plan/spec-test-trace-mode.md` — per-assertion `✓`/`✗` trace plus a `VERIFY STEP` machine token, implemented once in the unified runner.
+- **Human:** colored `checkmark`/`cross` glyphs, one line per step, with kind, assert, and failure detail.
+- **Machine:** `VERIFY STEP: {json}` token per step, matching the `VERIFY FAILURE GROUP` convention from `failure_group.go`.
 
-Implementation is sequenced after `plan/spec-verify-debugging-protocol.md`, which
-is concurrently editing `runner.go`, `parallel.go`, `display.go`, and `report.go`.
+Trace is emitted automatically on failure (default tier). Under `-v`, passing tests
+also show their step trace. The `.ci` runner emits trace in failure reports when
+`rec.StepTrace` is non-empty.
+
+The trace package (`internal/test/trace`) is a leaf with no runner imports, avoiding
+cycles between the three runner packages that all import it.
+<!-- source: internal/test/trace/trace.go -- StepResult, PrintTrace -->
+<!-- source: internal/test/runner/report.go -- step trace in failure reports -->
+<!-- source: internal/test/cli/cmd_web.go -- web trace on fail + verbose -->
+<!-- source: internal/test/cli/cmd_editor.go -- editor trace on fail + verbose -->
+
+### History
+
+This was a three-spec sequence, now complete:
+
+1. `plan/learned/868-test-web-parallel.md` -- web migrated from bespoke loop to `ParallelRunner`, per-test daemon + session isolation.
+2. `plan/learned/908-test-trace-mode.md` -- per-step trace output across all three runners.
+
+The `verify-debugging-protocol` dependency (`plan/learned/843-verify-debugging-protocol.md`)
+landed the failure-group and verify-mode foundation that trace mode builds on.

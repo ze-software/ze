@@ -2,14 +2,15 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
-| Depends | test-web-parallel |
-| Phase | - |
-| Updated | 2026-06-02 |
+| Status | done |
+| Depends | test-web-parallel (closed), verify-debugging-protocol (closed) |
+| Phase | complete |
+| Updated | 2026-06-17 |
 
-> **Spec 3 of 3** in the test-runner sequence: `test-runner-unify` → `test-web-parallel` → **`test-trace-mode`**.
-> Trace mode is implemented once in the unified runner (Spec 1) over the now-parallel families (Spec 2).
-> Research below (three-runner map, format/token, serialization) was captured before the sequence was split and remains valid input; design resumes after Specs 1-2 land. Implementation is gated on `verify-debugging-protocol` closing.
+> **Spec 3 of 3** in the test-runner sequence: `test-web-parallel` -> **`test-trace-mode`**.
+> (`test-runner-unify` was absorbed into `test-web-parallel`; web migrated to `ParallelRunner`.)
+> Implementation landed in commit `093bf7bda` ("feat(test): add per-step trace output to test runners").
+> This spec is being closed retroactively: the feature shipped but the spec was never updated from skeleton.
 
 ## Post-Compaction Recovery
 
@@ -219,8 +220,31 @@ That spec owns the macro failure-routing layer (compact failure index, conservat
 | Dual output (human ✓/✗ + greppable `VERIFY STEP` token) | Human-only; JSON-lines only | Serves terminal reading and AI/tooling parsing in one pass; matches existing `VERIFY FAILURE GROUP` idiom |
 | All three families in one spec | Web-only first; web+editor first | Shared tracer concept; `.ci` is heavier but belongs with the same format contract (user-confirmed) |
 
+## Implementation Summary (retroactive)
+
+Implemented in commit `093bf7bda`. All three runners now record per-step `trace.StepResult` slices and emit dual-format trace output via `trace.PrintTrace`.
+
+| What | How |
+|------|-----|
+| Leaf trace package | `internal/test/trace/trace.go` -- `StepResult`, `PrintTrace`, `ErrString`; no import cycles |
+| Human output | Colored `checkmark`/`cross` glyphs via `textbuf.Buffer` color API (not `Colors` methods) |
+| Machine output | `VERIFY STEP: {json}` token per step, matching `VERIFY FAILURE GROUP` convention |
+| Web runner (.wb) | `runWBTestCase` records `trace.StepResult` per action/expect; `cmd_web.go` prints on failure (always) and on pass (`-v`) |
+| Editor runner (.et) | `runTestCase` records `trace.StepResult` per step type; `cmd_editor.go` prints on failure (always) and on pass (`-v`) |
+| CI runner (.ci) | `recStep` closure in `runner_exec.go` records per-assertion steps into `rec.StepTrace`; `report.go` prints under failed-test reports |
+| Verbose gate | Web/editor: `-v` flag gates passing-test traces at the command level. CI: trace printed for all failed tests when `StepTrace` is non-empty |
+| Parallelism | Default tier (failure-only) is safe: printed post-execution. Verbose tier (`-v`): web/editor iterate after `pr.Run()` completes |
+| Tests | 5 unit tests in `internal/test/trace/trace_test.go` (human pass, human fail, machine format, line number, step fallback) |
+
+**Deviations from spec design:**
+- `.ci` did NOT need a full collect-all refactor. A `recStep` closure records steps incrementally; fail-fast verdict unchanged.
+- Glyphs added directly in `trace.go` via `textbuf.Buffer`, not as `Colors` methods.
+- Editor steps use ordinal fallback (no `Line` field added to `InputAction`/`Expectation`).
+- File paths changed: CLI entry points are `internal/test/cli/cmd_web.go` and `internal/test/cli/cmd_editor.go`, not `cmd/ze-test/web.go` and `cmd/ze-test/editor.go` (those never existed; the spec's paths were wrong).
+
 ## Known Limitations
-- (fill during design)
+- Editor `.et` trace shows step ordinal, not source line number (parser structs lack `Line` field).
+- CI trace is only emitted in failure reports, not gated on `-v` for passing tests.
 
 ## Checklist
 
