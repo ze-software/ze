@@ -4,6 +4,7 @@
 package yang
 
 import (
+	"log/slog"
 	"regexp"
 	"sort"
 	"strings"
@@ -216,14 +217,17 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 		// ze:command nodes get their WireMethod and description (executable commands).
 		// Grouping containers also get their YANG description for help text.
 		wm := GetCommandExtension(child)
-		if wm != "" && target.WireMethod == "" {
+		switch {
+		case wm != "" && target.WireMethod == "":
 			target.WireMethod = wm
 			target.Description = child.Description
 			if ts := GetTaskSupportExtension(child); ts != "" {
 				target.TaskSupport = ts
 			}
-		} else if target.Description == "" && child.Description != "" {
+		case target.Description == "" && child.Description != "":
 			target.Description = child.Description
+		case child.Description != "" && target.Description != child.Description:
+			slog.Warn("YANG command description mismatch", "node", name, "existing", target.Description, "incoming", child.Description)
 		}
 
 		if be := GetBackendExtension(child); be != nil && target.Backend == nil {

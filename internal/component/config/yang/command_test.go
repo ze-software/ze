@@ -1,6 +1,8 @@
 package yang
 
 import (
+	"bytes"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -1220,4 +1222,57 @@ func TestBuildCommandTreeEnsureExists(t *testing.T) {
 	bridgeAddr := bridge.Children["address"]
 	require.NotNil(t, bridgeAddr, "bridge > address must exist")
 	assert.Equal(t, []string{"netlink"}, bridgeAddr.Backend, "bridge > address must have netlink backend")
+}
+
+func TestMergeYANGEntryWarnsOnDescriptionMismatch(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(old)
+
+	root := &command.Node{Children: map[string]*command.Node{
+		"show": {Name: "show", Description: "First description"},
+	}}
+
+	entry := &gyang.Entry{
+		Dir: map[string]*gyang.Entry{
+			"show": {
+				Name:        "show",
+				Description: "Different description",
+				Config:      gyang.TSFalse,
+			},
+		},
+	}
+
+	mergeYANGEntry(root, entry)
+
+	assert.Contains(t, buf.String(), "YANG command description mismatch")
+	assert.Contains(t, buf.String(), "First description")
+	assert.Contains(t, buf.String(), "Different description")
+	assert.Equal(t, "First description", root.Children["show"].Description, "first description wins")
+}
+
+func TestMergeYANGEntrySilentOnMatchingDescription(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(old)
+
+	root := &command.Node{Children: map[string]*command.Node{
+		"show": {Name: "show", Description: "Same description"},
+	}}
+
+	entry := &gyang.Entry{
+		Dir: map[string]*gyang.Entry{
+			"show": {
+				Name:        "show",
+				Description: "Same description",
+				Config:      gyang.TSFalse,
+			},
+		},
+	}
+
+	mergeYANGEntry(root, entry)
+
+	assert.Empty(t, buf.String(), "no warning when descriptions match")
 }
