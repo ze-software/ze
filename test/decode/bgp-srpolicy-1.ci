@@ -1,4 +1,4 @@
-# bgp-srpolicy-1 decoding test - SR-Policy IPv4 NLRI via ze-test decode
+# bgp-srpolicy-1 decoding test - SR-Policy IPv4 NLRI via ze bgp decode
 # Tests SR-Policy NLRI (RFC 9830, SAFI 73) with distinguisher=0, color=100, endpoint=10.0.0.1
 #
 # Wire bytes breakdown (12-byte body, no length prefix for --nlri mode):
@@ -6,5 +6,5 @@
 # 00 00 00 64 = color 100
 # 0A 00 00 01 = endpoint 10.0.0.1
 stdin=payload:hex=00000000000000640A000001
-cmd=foreground:seq=1:exec=ze-test decode --json --nlri ipv4/sr-policy -:stdin=payload
+cmd=foreground:seq=1:exec=ze bgp decode --json --nlri ipv4/sr-policy -:stdin=payload
 expect=json:json={"color":100,"distinguisher":0,"endpoint":"10.0.0.1"}

@@ -39,6 +39,7 @@ func cmdDecode(args []string) int {
 	keepaliveMsg := fs.Bool("keepalive", false, "decode as KEEPALIVE message")
 	nlriFamily := fs.String("nlri", "", "decode as NLRI with family (e.g., 'ipv4/flow')")
 	fam := fs.String("f", "", "address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
+	fs.StringVar(fam, "family", "", "address family for UPDATE (long form of -f)")
 	outputJSON := fs.Bool("json", false, "output JSON instead of human-readable format")
 	var plugins pluginFlags
 	fs.Var(&plugins, "plugin", "plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)")

@@ -479,13 +479,16 @@ func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 
 	// Run command
 	cmd := exec.CommandContext(ctx, r.zePath, args...) //nolint:gosec // Test runner, paths from temp dir
-	output, err := cmd.CombinedOutput()
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	err := cmd.Run()
 	if err != nil {
-		test.Error = fmt.Errorf("command failed: %w: %s", err, string(output))
+		test.Error = fmt.Errorf("command failed: %w: %s", err, stderrBuf.String())
 		return false
 	}
 
-	test.ActualJSON = strings.TrimSpace(string(output))
+	test.ActualJSON = strings.TrimSpace(stdoutBuf.String())
 
 	// Compare JSON (ignoring volatile fields)
 	return r.compareJSON(test)
