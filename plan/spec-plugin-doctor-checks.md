@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Depends | - |
 | Phase | 5/6 |
 | Updated | 2026-06-06 |
@@ -403,7 +403,7 @@ No RFCs apply. Internal protocol extension.
 ### Deviations from Plan
 - Dropped `Detail` field from `DoctorCheckDiagnostic` (not present in `diagnostic.Diagnostic` struct)
 - AC-10 scoped to runtime (plugin codes registered dynamically, offline `ze explain` covers Go-registered codes only)
-- Functional test `test/plugin/api-doctor-check.ci` not written (requires test plugin infrastructure; deferred to follow-up)
+- Added Go plugin registry doctor checks (`internal/component/plugin/registry/doctor.go`) extending the pattern to internal plugins (beyond spec's external-only scope)
 
 ## Implementation Audit
 
@@ -454,14 +454,14 @@ No RFCs apply. Internal protocol extension.
 | `internal/component/plugin/server/server.go` | Modified | `CallDoctorCheck`, `DoctorCheckPlugins` |
 | `internal/component/doctor/cmd/show.go` | Modified | Plugin doctor check integration |
 | `docs/architecture/api/process-protocol.md` | Modified | Doctor-check callback + Stage 1 declaration docs |
-| `test/plugin/api-doctor-check.ci` | Not created | Deferred: requires test plugin infrastructure |
+| `test/plugin/api-doctor-check.ci` | Created | End-to-end test with Python doctor-provider and doctor-checker plugins |
 
 ### Audit Summary
 - **Total items:** 11 files + 12 tests + 10 ACs
 - **Done:** 10 files modified, 12 tests passing, 10 ACs demonstrated
-- **Partial:** 1 (functional test deferred)
+- **Partial:** 0
 - **Skipped:** 0
-- **Changed:** AC-10 scoped to runtime, `Detail` field dropped
+- **Changed:** AC-10 scoped to runtime, `Detail` field dropped; Go plugin registry added beyond spec scope
 
 ## Goal Validation (BLOCKING)
 
@@ -474,38 +474,63 @@ No RFCs apply. Internal protocol extension.
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (closure review 2026-06-17)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | Spec said functional test deferred but it exists | spec lines 407,457 | Fixed in spec |
+| 2 | NOTE | Second commit added Go plugin registry doctor checks beyond spec scope | `internal/component/plugin/registry/doctor.go` | Noted in Deviations |
+| 3 | NOTE | `collectPluginDoctorChecks` creates `context.Background()` per check instead of deriving from parent | `show.go:88` | Acceptable for infrequent invocation |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
-
-### Run 2+ (re-runs until clean)
-| # | Severity | Finding | Location | Action |
-|---|----------|---------|----------|--------|
+- Updated spec Deviations, Files from Plan, Audit Summary to reflect functional test and Go registry
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `pkg/plugin/rpc/types.go` | Yes | DoctorCheckDecl at line 68 |
+| `pkg/plugin/sdk/sdk_callbacks.go` | Yes | OnDoctorCheck at line 500 |
+| `pkg/plugin/sdk/sdk_dispatch.go` | Yes | callbackDoctorCheck at line 37 |
+| `pkg/plugin/sdk/sdk_types.go` | Yes | DoctorCheckDecl alias at line 180 |
+| `internal/component/plugin/registration.go` | Yes | DoctorCheckRegistration at line 122 |
+| `internal/component/plugin/server/startup.go` | Yes | validateDoctorCheckDecls at line 934 |
+| `internal/component/plugin/ipc/rpc.go` | Yes | SendDoctorCheck at line 434 |
+| `internal/component/plugin/server/server.go` | Yes | CallDoctorCheck at line 384 |
+| `internal/component/doctor/cmd/show.go` | Yes | collectPluginDoctorChecks at line 51 |
+| `test/plugin/api-doctor-check.ci` | Yes | 161 lines, Python test plugins |
+| `docs/architecture/api/process-protocol.md` | Yes | doctor-check callback at line 308 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | DoctorChecks stored in PluginRegistration | `TestRegistrationFromRPCDoctorChecks` PASS |
+| AC-2 | OnDoctorCheck handler dispatched | `TestOnDoctorCheckCallback` + `TestSendDoctorCheckRoundTrip` PASS |
+| AC-3 | Plugin diagnostics in show doctor | `collectPluginDoctorChecks` in show.go:35 |
+| AC-4 | No handler = empty diagnostics | `TestOnDoctorCheckDefaultNoOp` PASS |
+| AC-5 | Invalid declarations rejected | `TestDoctorCheckDeclValidation` PASS (8 subtests) |
+| AC-6 | Offline ze doctor unchanged | `internal/component/doctor/doctor.go` has no plugin callback code |
+| AC-7 | Error severity = ready:false | show.go:41 checks `SeverityError` |
+| AC-8 | Kebab-case wire format | `TestDoctorCheckDeclJSON` PASS |
+| AC-9 | SDK type aliases | `sdk_types.go` lines 180,183,193 |
+| AC-10 | Runtime code validation | `validateDoctorCheckDecls` in startup.go:934 |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| Plugin sends declare-registration with doctor-checks | `test/plugin/api-doctor-check.ci` | Yes |
+| Engine calls ze-plugin-callback:doctor-check | `test/plugin/api-doctor-check.ci` | Yes |
+| show doctor queries running plugins | `test/plugin/api-doctor-check.ci` | Yes |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| process-protocol.md doctor-check callback | Line 308, source anchors at lines 318-320 | Yes |
+| process-protocol.md Stage 1 declaration | Lines 177-197, field table | Yes |
 
 ## Checklist
 
