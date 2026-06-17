@@ -7,7 +7,7 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"strconv"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -17,13 +17,13 @@ import (
 
 var errDataTooShortForHeader = errors.New("data too short for header")
 
-// pluginCapabilityMap maps capability codes to plugin names.
-// Populated from plugin registry at init time.
-var pluginCapabilityMap = registry.CapabilityMap()
+// capabilityMap returns capability code to plugin name mapping.
+// Lazy: all plugin init() functions must complete before first decode call.
+var capabilityMap = sync.OnceValue(registry.CapabilityMap)
 
-// pluginFamilyMap maps address families to plugin names for CLI decode.
-// Populated from plugin registry at init time.
-var pluginFamilyMap = registry.FamilyMap()
+// familyMap returns address family to plugin name mapping.
+// Lazy: all plugin init() functions must complete before first decode call.
+var familyMap = sync.OnceValue(registry.FamilyMap)
 
 // decodeOpenMessage decodes a BGP OPEN message and returns Ze format.
 func decodeOpenMessage(data []byte, hasHeader bool) (map[string]any, error) {
@@ -72,48 +72,19 @@ func decodeOpenMessage(data []byte, hasHeader bool) (map[string]any, error) {
 
 // capabilityToZeJSON converts a capability to Ze ze-bgp JSON format.
 // Ze format: {"code": N, "name": "...", "value": "..."}.
-func capabilityToZeJSON(c capability.Capability) map[string]any {
-	code := int(c.Code())
-
-	switch cap := c.(type) {
-	case *capability.Multiprotocol:
-		return map[string]any{"code": code, "name": "multiprotocol", "value": cap.AFI.String() + "/" + cap.SAFI.String()}
-	case *capability.ASN4:
-		return map[string]any{"code": code, "name": "asn4", "value": strconv.Itoa(int(cap.ASN))}
-	case *capability.ExtendedMessage:
-		return map[string]any{"code": code, "name": "extended-message"}
-	case *capability.AddPath:
-		families := make([]string, len(cap.Families))
-		for i, f := range cap.Families {
-			families[i] = fmt.Sprintf("%s/%s", f.AFI.String(), f.SAFI.String())
-		}
-		return map[string]any{"code": code, "name": "add-path", "value": families}
-	case *capability.PathsLimit:
-		entries := make([]string, len(cap.Entries))
-		for i, e := range cap.Entries {
-			var tb textbuf.Buffer
-			entries[i] = tb.Str(e.AFI.String()).Byte('/').Str(e.SAFI.String()).Byte(' ').Uint16(e.Limit).String()
-		}
-		return map[string]any{"code": code, "name": "paths-limit", "value": entries}
-	}
-	// Unknown or plugin-decoded capability type - try plugin decode or return raw
-	return unknownCapabilityZe(c)
-}
-
-// unknownCapabilityZe returns Ze format JSON for an unrecognized/plugin-required capability.
-// Auto-invokes registered plugins for known capability codes (consistent with NLRI family auto-lookup).
+// All capability names and values come from registered plugin decoders.
 // Falls back to raw hex if no plugin is registered or decode fails.
-func unknownCapabilityZe(c capability.Capability) map[string]any {
+func capabilityToZeJSON(c capability.Capability) map[string]any {
 	code := int(c.Code())
 	raw := make([]byte, c.Len())
 	c.WriteTo(raw, 0)
 	var rawHex string
 	if len(raw) >= 2 {
-		rawHex = fmt.Sprintf("%X", raw[2:])
+		rawHex = textbuf.StringHexUpper(raw[2:])
 	}
 
 	// Auto-invoke registered plugin for known capability codes.
-	pluginName, hasPlugin := pluginCapabilityMap[uint8(c.Code())]
+	pluginName, hasPlugin := capabilityMap()[uint8(c.Code())]
 	if hasPlugin {
 		result := invokePluginDecode(pluginName, uint8(c.Code()), rawHex)
 		if result != nil {

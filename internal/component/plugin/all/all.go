@@ -139,6 +139,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/aigp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bmp"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/capa"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/policy"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_aspath_length"

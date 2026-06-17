@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -75,7 +76,7 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 		return nil
 	}
 
-	// Build plugin command - pluginName comes from fixed maps (pluginCapabilityMap, pluginFamilyMap)
+	// Build plugin command - pluginName comes from lazy registry maps (capabilityMap, familyMap)
 	args := []string{"plugin", pluginName, "--decode"}
 
 	// Create command with timeout context for subprocess decode operation.
@@ -325,14 +326,14 @@ func invokePluginSubprocess(pluginName, request string) any {
 	return nil
 }
 
-// inProcessDecoders maps plugin names to their in-process decode functions.
-// Populated from plugin registry at init time.
-var inProcessDecoders = registry.InProcessDecoders()
+// decoders returns plugin name to in-process decode function mapping.
+// Lazy: all plugin init() functions must complete before first decode call.
+var decoders = sync.OnceValue(registry.InProcessDecoders)
 
 // invokePluginInProcess runs plugin decode in-process (Direct mode: ze-name).
 // Synchronous, blocking - fastest invocation for CLI decode.
 func invokePluginInProcess(pluginName, request string) any {
-	decoder, ok := inProcessDecoders[pluginName]
+	decoder, ok := decoders()[pluginName]
 	if !ok {
 		return nil
 	}
@@ -349,7 +350,7 @@ func invokePluginInProcess(pluginName, request string) any {
 // invokePluginInternal runs decode via goroutine + pipes (Internal mode: ze.name).
 // Uses decode-only runners (same as Direct) but with async pipe I/O.
 func invokePluginInternal(pluginName, request string) any {
-	decoder, ok := inProcessDecoders[pluginName]
+	decoder, ok := decoders()[pluginName]
 	if !ok {
 		slog.Debug("internal plugin decoder not available", "plugin", pluginName)
 		return nil
@@ -434,10 +435,10 @@ func validateDecodeFamily(family string) error {
 }
 
 // lookupFamilyPlugin returns the plugin name for a family.
-// For families in pluginFamilyMap, the plugin is auto-invoked without requiring --plugin flag.
+// For families in familyMap(), the plugin is auto-invoked without requiring --plugin flag.
 // Family string is normalized to lowercase for lookup.
 func lookupFamilyPlugin(family string) string {
-	if pluginName, ok := pluginFamilyMap[strings.ToLower(family)]; ok {
+	if pluginName, ok := familyMap()[strings.ToLower(family)]; ok {
 		return pluginName
 	}
 	return ""
