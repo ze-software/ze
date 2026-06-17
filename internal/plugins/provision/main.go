@@ -346,6 +346,45 @@ func u32ToAddr(v uint32) netip.Addr {
 	})
 }
 
+// withInstallLogDefaults raises the install servers to info-level logging for a
+// provisioning session so the operator sees DHCP leases, TFTP/HTTP downloads,
+// and the served image, unless they already chose a level. An explicit global
+// ze.log is respected as-is; otherwise the three install subsystems default to
+// info while everything else stays at the normal warn level.
+func withInstallLogDefaults(environ []string) []string {
+	if hasEnvKey(environ, "ze.log") {
+		return environ
+	}
+	out := append([]string(nil), environ...)
+	for _, kv := range []struct{ key, assign string }{
+		{"ze.log.dhcpserver", "ze.log.dhcpserver=info"},
+		{"ze.log.tftpserver", "ze.log.tftpserver=info"},
+		{"ze.log.imageserver", "ze.log.imageserver=info"},
+	} {
+		if !hasEnvKey(out, kv.key) {
+			out = append(out, kv.assign)
+		}
+	}
+	return out
+}
+
+func hasEnvKey(environ []string, key string) bool {
+	want := normalizeEnvKey(key)
+	for _, e := range environ {
+		name, _, ok := strings.Cut(e, "=")
+		if ok && normalizeEnvKey(name) == want {
+			return true
+		}
+	}
+	return false
+}
+
+// normalizeEnvKey matches the env package: lookup is case-insensitive and treats
+// dots and underscores as equivalent, so ze.log, ze_log and ZE_LOG are one key.
+func normalizeEnvKey(k string) string {
+	return strings.ToLower(strings.ReplaceAll(k, ".", "_"))
+}
+
 func forkAndServe(config string) int {
 	self, err := os.Executable()
 	if err != nil {
@@ -357,6 +396,7 @@ func forkAndServe(config string) int {
 	cmd := exec.CommandContext(ctx, self, "-") // #nosec G204 - self is our own binary
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = withInstallLogDefaults(os.Environ())
 
 	stdin, pipeErr := cmd.StdinPipe()
 	if pipeErr != nil {

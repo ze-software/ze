@@ -140,6 +140,10 @@ The first build:
 3. Cross-compiles Ze for linux/`GOKRAZY_ARCH` in the Make workflow, or linux/`image.arch` in the structured `ze appliance build` workflow, and builds a 2GB disk image
 4. Formats the persistent `/perm` partition
 5. Injects `database.zefs` (credentials + TLS cert) into `/perm/ze/`
+6. Bakes a build manifest (appliance, timestamp, arch, image name) into
+   `/perm/ze/build.json` so `ze version` on the installed box can report which
+   build it is running (the manifest omits the image checksum, which would be
+   self-referential; the full checksum is in the external `build.json`)
 
 The database is kept at `tmp/gokrazy/init/database.zefs` between builds. Browsers that trust the certificate on first use will not prompt again after image rebuilds.
 
@@ -549,7 +553,8 @@ MiB of content compresses to roughly 100 MiB). The installer initrd decompresses
 the image during installation. The ISO does not rebuild the appliance, regenerate
 credentials, fetch a separate ZeFS database, or mutate `/perm` after writing the
 disk image. The installed disk receives the selected image bytes, including the
-`/perm/ze/database.zefs` that `build` already injected.
+`/perm/ze/database.zefs` and `/perm/ze/build.json` manifest that `build` already
+injected.
 <!-- source: internal/appliance/cmd_iso.go -- stageISO -->
 <!-- source: tools/installer-initrd/init -- ZE_SOURCE=iso branch -->
 <!-- source: internal/appliance/cmd_build.go -- injectZeFS -->

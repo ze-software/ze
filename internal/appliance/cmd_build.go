@@ -147,7 +147,27 @@ func buildOne(name string) int {
 		return code
 	}
 
-	if code := injectZeFS(imgPath, dbPath); code != exitOK {
+	// Bake an identity manifest into the image so `ze version` on the installed
+	// box can report which build it is running. It omits image-sha256, which
+	// would be self-referential (baking changes the image); the external
+	// build.json below carries the full checksum for integrity.
+	seedConfig, _ := resolveSeedConfig(dir, name, cfg)
+	bakedPath := filepath.Join(AppliancePath(dir, name), ".build.json.baked")
+	if writeErr := WriteManifest(bakedPath, &BuildManifest{
+		Appliance:  name,
+		Timestamp:  ts,
+		ZeVersion:  "dev",
+		Arch:       cfg.Image.Arch,
+		ConfigHash: ConfigHash(seedConfig),
+		Image:      imgName,
+	}); writeErr != nil {
+		slog.Warn("prepare baked build manifest failed (non-fatal)", "error", writeErr)
+		bakedPath = ""
+	} else {
+		defer os.Remove(bakedPath) //nolint:errcheck // temp cleanup
+	}
+
+	if code := injectZeFS(imgPath, dbPath, bakedPath); code != exitOK {
 		os.Remove(imgPath) //nolint:errcheck // cleanup failed image
 		return code
 	}
@@ -159,7 +179,6 @@ func buildOne(name string) int {
 		fmt.Fprintf(os.Stderr, "warning: checksum: %v\n", hashErr)
 	}
 
-	seedConfig, _ := resolveSeedConfig(dir, name, cfg)
 	manifest := &BuildManifest{
 		Appliance:   name,
 		Timestamp:   ts,
@@ -257,7 +276,12 @@ func runGokBuild(cfg *ApplianceConfig, imgPath string) int {
 	return exitOK
 }
 
-func injectZeFS(imgPath, dbPath string) int {
+// injectZeFS writes the credential database into the image /perm partition and,
+// when manifestPath is non-empty, also bakes the build manifest at
+// ze/build.json so an installed box can report its build identity via
+// `ze version`. The manifest write is non-fatal: it is a diagnostic aid, not
+// required for the image to boot or for credentials to load.
+func injectZeFS(imgPath, dbPath, manifestPath string) int {
 	permOff, permSize, err := findLastPartition(imgPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: find /perm partition: %v\n", err)
@@ -307,6 +331,14 @@ func injectZeFS(imgPath, dbPath string) int {
 	if _, err := runExternalFn(debugfs, "-w", "-R", writeCmd, permImg); err != nil {
 		fmt.Fprintf(os.Stderr, "error: debugfs write: %v\n", err)
 		return exitError
+	}
+
+	if manifestPath != "" {
+		var tb textbuf.Buffer
+		manifestCmd := tb.Str("write ").Str(manifestPath).Str(" ze/build.json").String()
+		if _, err := runExternalFn(debugfs, "-w", "-R", manifestCmd, permImg); err != nil {
+			slog.Warn("bake build.json into image failed (non-fatal)", "error", err)
+		}
 	}
 
 	if err := verifyInject(permImg, dbPath); err != nil {

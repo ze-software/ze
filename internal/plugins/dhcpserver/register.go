@@ -178,6 +178,9 @@ func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
 				break
 			}
 		}
+
+		logExchange(log, pkt, resp)
+
 		if resp == nil {
 			continue
 		}
@@ -187,6 +190,39 @@ func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
 			log.Debug("dhcpserver: write failed", "dst", dst.String(), "error", writeErr)
 		}
 	}
+}
+
+// logExchange surfaces each DHCP request/reply at info so a provisioning
+// operator can watch address assignment and PXE bootfile selection live.
+// Errors and unanswered control packets stay quieter (debug/info).
+func logExchange(log *slog.Logger, req, resp []byte) {
+	if len(req) < minPacketLen {
+		return
+	}
+	reqType := parseMsgType(req)
+	mac := extractMAC(req)
+
+	if resp == nil {
+		switch reqType {
+		case msgDiscover, msgRequest:
+			log.Info("dhcpserver: no reply (no free address or not our subnet)",
+				"request", msgTypeName(reqType), "mac", mac.String())
+		default:
+			log.Debug("dhcpserver: received", "request", msgTypeName(reqType), "mac", mac.String())
+		}
+		return
+	}
+
+	respType := parseMsgType(resp)
+	attrs := []any{"request", msgTypeName(reqType), "reply", msgTypeName(respType), "mac", mac.String()}
+	if respType != msgNak {
+		yiaddr := netip.AddrFrom4([4]byte(resp[16:20]))
+		attrs = append(attrs, "ip", yiaddr.String())
+	}
+	if bf := parseOptionString(resp, optBootfileName); bf != "" {
+		attrs = append(attrs, "bootfile", bf)
+	}
+	log.Info("dhcpserver: lease", attrs...)
 }
 
 // RFC 2131 Section 4.1: response delivery rules.

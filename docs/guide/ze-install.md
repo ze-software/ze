@@ -446,6 +446,48 @@ plugins:
 The same provisioning setup can be achieved by writing the config
 manually and running `ze <config-file>`.
 
+### Watching Provisioning Activity
+
+`ze install remote` runs the install servers at `info` log level by default, so the
+terminal shows the live boot sequence with no extra flags:
+
+- **dhcpserver** logs each lease: `dhcpserver: lease request=DISCOVER reply=OFFER mac=… ip=… bootfile=…`
+- **tftpserver** logs each bootloader fetch: `tftpserver: read request file=ipxe.efi client=…`
+- **imageserver** logs each HTTP request (`boot.ipxe`, `vmlinuz`, `initrd.img.gz`, the
+  disk image, `database.zefs`) and, at startup, the image it will serve with its build
+  identity: `imageserver: image to install image=ze-<ts>.img built=<ts> ze-version=… sha256=…`
+
+Set `ze.log` to change verbosity (`ze.log=debug`, `ze.log=warn`); an explicit `ze.log`
+or per-subsystem `ze.log.{dhcpserver,tftpserver,imageserver}` overrides the info default.
+<!-- source: internal/plugins/provision/main.go -- withInstallLogDefaults -->
+
+If you see the iPXE downloads (`boot.ipxe`, `vmlinuz`, `initrd.img.gz`) but never an
+`/install/image/<name>` request, the target booted the kernel but its initrd could not
+reach the server to pull the image (commonly a foreign DHCP lease on a non-isolated
+network) and the install did not complete.
+
+### Confirming Which Image Is Installed
+
+A failed PXE install never writes the disk, so the target reboots into whatever was on
+it before (for example a previous ISO install) and can look unchanged. To confirm the
+build actually running, `ze appliance build` bakes a manifest into the image at
+`/perm/ze/build.json`, which `ze version` reports:
+
+```
+ze 26.06.17 (built …)
+  …
+  image:    ze-20260617-160000.img (built 20260617-160000)
+  appliance: prod
+```
+
+The baked manifest omits the image checksum (it would be self-referential, since
+baking changes the image); the full `sha256` is in the external `build.json` next
+to the image and in the provisioning server's `imageserver: image to install` log.
+Compare the `image:`/`built` line on the target with that server log line to verify
+the latest image installed.
+<!-- source: internal/core/version/version.go -- Extended, ReadManifestFile -->
+<!-- source: internal/appliance/cmd_build.go -- injectZeFS baked manifest -->
+
 ### Requirements
 
 - An **isolated** provisioning network: no second DHCP server on the L2

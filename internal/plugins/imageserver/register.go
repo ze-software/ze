@@ -8,12 +8,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/version"
 	imgyang "codeberg.org/thomas-mangin/ze/internal/plugins/imageserver/yang"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -141,6 +143,7 @@ func runImageServerPlugin(conn net.Conn) int {
 
 		logAvailableFiles(log, "image-directory", cfg.ImageDirectory)
 		logAvailableFiles(log, "boot-directory", cfg.BootDirectory)
+		logServedImage(log, cfg.ImageDirectory)
 
 		go func() {
 			log.Info("imageserver: started",
@@ -214,6 +217,41 @@ func closeLogged(c closer, log *slog.Logger, what string) {
 	if err := c.Close(); err != nil {
 		log.Debug("imageserver: close failed", "what", what, "error", err)
 	}
+}
+
+// logServedImage reports the image that will actually be installed (the newest
+// .img in the image directory, matching serveBootIPXE's latestImage) together
+// with its build.json identity, so an operator can confirm at a glance that the
+// latest build is being served rather than a stale or wrong image.
+func logServedImage(log *slog.Logger, imageDir string) {
+	if imageDir == "" {
+		return
+	}
+	served, err := latestImage(imageDir)
+	if err != nil {
+		log.Warn("imageserver: no installable .img found", "image-directory", imageDir, "error", err)
+		return
+	}
+
+	attrs := []any{"image", served}
+	var m version.ImageInfo
+	m, found := version.ReadManifestFile(filepath.Join(imageDir, "build.json"))
+	if found {
+		attrs = append(attrs,
+			"appliance", m.Appliance,
+			"built", m.Timestamp,
+			"ze-version", m.ZeVersion,
+			"arch", m.Arch,
+			"sha256", m.SHA256)
+		if m.Image != "" && m.Image != served {
+			log.Warn("imageserver: build.json names a different image than the one being served",
+				"manifest-image", m.Image, "serving", served)
+		}
+	} else {
+		log.Warn("imageserver: no build.json next to image; cannot confirm build identity",
+			"image-directory", imageDir)
+	}
+	log.Info("imageserver: image to install", attrs...)
 }
 
 func logAvailableFiles(log *slog.Logger, label, dir string) {

@@ -10,6 +10,8 @@
 package version
 
 import (
+	"encoding/json"
+	"os"
 	"runtime"
 	"runtime/debug"
 	"sync"
@@ -114,7 +116,61 @@ func Extended() string {
 		}
 		b.Byte('\n').Str("  cgo:      ").Str(cgoLabel)
 	}
+	if img, ok := readImageManifest(); ok {
+		b.Byte('\n').Str("  image:    ").Str(img.Image)
+		if img.Timestamp != "" {
+			b.Str(" (built ").Str(img.Timestamp).Byte(')')
+		}
+		if img.Appliance != "" {
+			b.Byte('\n').Str("  appliance:").Byte(' ').Str(img.Appliance)
+		}
+		if img.SHA256 != "" {
+			b.Byte('\n').Str("  img-sha:  ").Str(img.SHA256)
+		}
+	}
 	return b.String()
+}
+
+// imageManifestPath is where `ze appliance build` bakes the build manifest into
+// the image (/perm/ze/build.json). Overridable in tests.
+var imageManifestPath = "/perm/ze/build.json"
+
+// ImageInfo mirrors the appliance build manifest fields that ze reports at
+// runtime. It is duplicated here (rather than importing internal/appliance) so
+// this leaf package stays dependency-free; JSON tags MUST match
+// appliance.BuildManifest.
+type ImageInfo struct {
+	Appliance string `json:"appliance"`
+	Timestamp string `json:"timestamp"`
+	ZeVersion string `json:"ze-version"`
+	Arch      string `json:"arch"`
+	Image     string `json:"image"`
+	SHA256    string `json:"image-sha256"`
+}
+
+// readImageManifest loads the build manifest baked into the running image, if
+// any. Returns ok=false on a dev box (no /perm) or a malformed/empty manifest.
+func readImageManifest() (ImageInfo, bool) {
+	return ReadManifestFile(imageManifestPath)
+}
+
+// ReadManifestFile loads an appliance build manifest from path. Returns
+// ok=false when the file is missing, malformed, or carries no identity. Shared
+// by the version command (baked /perm manifest) and the install server (the
+// build.json next to the image it serves).
+func ReadManifestFile(path string) (ImageInfo, bool) {
+	data, err := os.ReadFile(path) //nolint:gosec // caller-controlled manifest path
+	if err != nil {
+		return ImageInfo{}, false
+	}
+	var m ImageInfo
+	if err := json.Unmarshal(data, &m); err != nil {
+		return ImageInfo{}, false
+	}
+	if m.Image == "" && m.Timestamp == "" {
+		return ImageInfo{}, false
+	}
+	return m, true
 }
 
 // CompareReleases compares two Ze releases (YY.MM.DD format).

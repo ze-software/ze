@@ -1,0 +1,11 @@
+# Test: ze --extended-version — version command reports build metadata
+# VALIDATES: ze --extended-version prints VCS/build details through the binary.
+# The baked image manifest (image:/appliance: lines) is added when
+# /perm/ze/build.json exists; it is absent on a dev/test box, so this asserts
+# only the always-present fields. Manifest rendering is unit-tested in
+# internal/core/version (TestReadImageManifest).
+
+cmd=foreground:seq=1:exec=ze --extended-version
+expect=exit:code=0
+expect=stdout:contains=go:
+expect=stdout:contains=os/arch:

@@ -222,7 +222,7 @@ func TestInjectZeFSUsesRunExternalFn(t *testing.T) {
 		return nil, nil
 	}
 
-	code := injectZeFS(imgPath, dbPath)
+	code := injectZeFS(imgPath, dbPath, "")
 	if code != exitOK {
 		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
 	}
@@ -297,7 +297,7 @@ func TestInjectZeFSFailsWhenWriteSilentlyDropped(t *testing.T) {
 	}
 	defer func() { runExternalFn = old }()
 
-	code := injectZeFS(imgPath, dbPath)
+	code := injectZeFS(imgPath, dbPath, "")
 	if code != exitError {
 		t.Fatalf("injectZeFS should fail when debugfs write is silent-dropped, got %d want %d", code, exitError)
 	}
@@ -361,7 +361,7 @@ func TestInjectZeFSMkfsArgsPinned(t *testing.T) {
 	}
 	defer func() { runExternalFn = old }()
 
-	code := injectZeFS(imgPath, dbPath)
+	code := injectZeFS(imgPath, dbPath, "")
 	if code != exitOK {
 		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
 	}
@@ -415,5 +415,151 @@ func TestBuildOneRejectsInvalidName(t *testing.T) {
 	// A name with a space would inject an extra debugfs command via dbPath.
 	if code := buildOne("bad name"); code != exitError {
 		t.Errorf("buildOne(%q) = %d, want exitError (%d)", "bad name", code, exitError)
+	}
+}
+
+// VALIDATES: a non-empty manifest path makes injectZeFS bake ze/build.json into
+// the image alongside ze/database.zefs, so `ze version` can report build identity.
+func TestInjectZeFSBakesManifest(t *testing.T) {
+	imgDir := t.TempDir()
+	imgPath := filepath.Join(imgDir, "test.img")
+
+	img := make([]byte, 8192)
+	for i := range 16 {
+		img[1024+i] = 0xAA
+	}
+	img[1024+32] = 0x08
+	img[1024+40] = 0x0F
+	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dbContent := []byte("bake-test-db")
+	dbPath := filepath.Join(imgDir, "database.zefs")
+	if err := os.WriteFile(dbPath, dbContent, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(imgDir, ".build.json.baked")
+	if err := os.WriteFile(manifestPath, []byte(`{"image":"ze-x.img"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	e2fs := t.TempDir()
+	for _, tool := range []string{"mkfs.ext4", "debugfs"} {
+		if err := os.WriteFile(filepath.Join(e2fs, tool), nil, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldE2fs := e2fsDir
+	e2fsDir = e2fs
+	defer func() { e2fsDir = oldE2fs }()
+
+	hasSuffix := func(s, suf string) bool {
+		return len(s) >= len(suf) && s[len(s)-len(suf):] == suf
+	}
+
+	var writes []string
+	old := runExternalFn
+	runExternalFn = func(name string, args ...string) ([]byte, error) {
+		if filepath.Base(name) == "debugfs" {
+			for _, a := range args {
+				if len(a) > 6 && a[:6] == "write " {
+					writes = append(writes, a)
+					permTmp := args[len(args)-1]
+					f, _ := os.OpenFile(permTmp, os.O_APPEND|os.O_WRONLY, 0) //nolint:gosec,errcheck // test
+					if f != nil {
+						f.Write(dbContent) //nolint:errcheck // test
+						f.Close()          //nolint:errcheck // test
+					}
+				}
+			}
+		}
+		return nil, nil
+	}
+	defer func() { runExternalFn = old }()
+
+	if code := injectZeFS(imgPath, dbPath, manifestPath); code != exitOK {
+		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
+	}
+
+	foundDB, foundManifest := false, false
+	for _, w := range writes {
+		if hasSuffix(w, "ze/database.zefs") {
+			foundDB = true
+		}
+		if hasSuffix(w, "ze/build.json") {
+			foundManifest = true
+		}
+	}
+	if !foundDB {
+		t.Errorf("expected a debugfs write of ze/database.zefs, got %v", writes)
+	}
+	if !foundManifest {
+		t.Errorf("expected a debugfs write of ze/build.json, got %v", writes)
+	}
+}
+
+// VALIDATES: an empty manifest path bakes only ze/database.zefs (no build.json).
+func TestInjectZeFSNoManifest(t *testing.T) {
+	imgDir := t.TempDir()
+	imgPath := filepath.Join(imgDir, "test.img")
+
+	img := make([]byte, 8192)
+	for i := range 16 {
+		img[1024+i] = 0xAA
+	}
+	img[1024+32] = 0x08
+	img[1024+40] = 0x0F
+	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dbContent := []byte("no-manifest-db")
+	dbPath := filepath.Join(imgDir, "database.zefs")
+	if err := os.WriteFile(dbPath, dbContent, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	e2fs := t.TempDir()
+	for _, tool := range []string{"mkfs.ext4", "debugfs"} {
+		if err := os.WriteFile(filepath.Join(e2fs, tool), nil, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldE2fs := e2fsDir
+	e2fsDir = e2fs
+	defer func() { e2fsDir = oldE2fs }()
+
+	hasSuffix := func(s, suf string) bool {
+		return len(s) >= len(suf) && s[len(s)-len(suf):] == suf
+	}
+
+	sawManifest := false
+	old := runExternalFn
+	runExternalFn = func(name string, args ...string) ([]byte, error) {
+		if filepath.Base(name) == "debugfs" {
+			for _, a := range args {
+				if len(a) > 6 && a[:6] == "write " {
+					if hasSuffix(a, "ze/build.json") {
+						sawManifest = true
+					}
+					permTmp := args[len(args)-1]
+					f, _ := os.OpenFile(permTmp, os.O_APPEND|os.O_WRONLY, 0) //nolint:gosec,errcheck // test
+					if f != nil {
+						f.Write(dbContent) //nolint:errcheck // test
+						f.Close()          //nolint:errcheck // test
+					}
+				}
+			}
+		}
+		return nil, nil
+	}
+	defer func() { runExternalFn = old }()
+
+	if code := injectZeFS(imgPath, dbPath, ""); code != exitOK {
+		t.Fatalf("injectZeFS returned %d, want %d", code, exitOK)
+	}
+	if sawManifest {
+		t.Error("injectZeFS wrote ze/build.json despite an empty manifest path")
 	}
 }

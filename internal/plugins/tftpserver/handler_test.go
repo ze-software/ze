@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,79 @@ func closeUDP(t *testing.T, c *net.UDPConn) {
 	t.Helper()
 	if err := c.Close(); err != nil {
 		t.Logf("close: %v", err)
+	}
+}
+
+// syncBuf is a goroutine-safe io.Writer for capturing logger output written by
+// the serve goroutine while the test goroutine reads it.
+type syncBuf struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (s *syncBuf) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.Write(p)
+}
+
+func (s *syncBuf) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.String()
+}
+
+// TestTFTPReadRequestLogged verifies a read request is logged at info with the
+// filename, so a provisioning operator sees the bootloader being fetched.
+func TestTFTPReadRequestLogged(t *testing.T) {
+	t.Parallel()
+
+	rootDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(rootDir, "ipxe.efi"), []byte("boot"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { closeUDP(t, conn) })
+
+	var buf syncBuf
+	log := slogutil.LoggerWithOutput("tftpserver", "info", &buf)
+	sem := make(chan struct{}, 4)
+	go serve(conn, rootDir, sem, log)
+
+	srvAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatal("unexpected address type")
+	}
+
+	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeUDP(t, client)
+
+	rrq := buildRRQPacket("ipxe.efi", "octet")
+	if _, err := client.WriteToUDP(rrq, srvAddr); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for the DATA response: the read-request log is emitted synchronously
+	// in the serve goroutine before the file transfer begins, so once the client
+	// has DATA the log line is already in the buffer.
+	rbuf := make([]byte, 516)
+	if err := client.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := client.ReadFromUDP(rbuf); err != nil {
+		t.Fatalf("no DATA response: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "read request") || !strings.Contains(out, "ipxe.efi") {
+		t.Errorf("expected a read-request log naming ipxe.efi, got %q", out)
 	}
 }
 

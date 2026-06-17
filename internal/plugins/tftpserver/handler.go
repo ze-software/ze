@@ -250,6 +250,10 @@ func handleRRQ(mainConn *net.UDPConn, pkt []byte, clientAddr *net.UDPAddr, rootD
 		return
 	}
 
+	// Surface every read request at info so a provisioning operator can watch
+	// the bootloader (ipxe.efi/ipxe.pxe) being fetched over TFTP.
+	log.Info("tftpserver: read request", "file", filename, "client", clientAddr.String())
+
 	if len(filename) > 255 {
 		sendErr(errFileNotFound, "filename too long")
 		return

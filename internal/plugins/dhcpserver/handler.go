@@ -402,6 +402,57 @@ func parseOptionAddr(pkt []byte, code byte) netip.Addr {
 	return netip.Addr{}
 }
 
+// parseOptionString returns a string-valued option (for example option 67
+// bootfile name) or "" when absent. Used for request/reply logging.
+func parseOptionString(pkt []byte, code byte) string {
+	if len(pkt) < 240 {
+		return ""
+	}
+	opts := pkt[240:]
+	for i := 0; i+1 < len(opts); {
+		if opts[i] == optEnd {
+			break
+		}
+		if opts[i] == optPad {
+			i++
+			continue
+		}
+		l := int(opts[i+1])
+		if i+2+l > len(opts) {
+			break
+		}
+		if opts[i] == code {
+			return string(opts[i+2 : i+2+l])
+		}
+		i += 2 + l
+	}
+	return ""
+}
+
+// msgTypeName maps a DHCP message-type value to its RFC 2132 name for logs.
+func msgTypeName(t byte) string {
+	switch t {
+	case msgDiscover:
+		return "DISCOVER"
+	case msgOffer:
+		return "OFFER"
+	case msgRequest:
+		return "REQUEST"
+	case msgDecline:
+		return "DECLINE"
+	case msgAck:
+		return "ACK"
+	case msgNak:
+		return "NAK"
+	case msgRelease:
+		return "RELEASE"
+	case msgInform:
+		return "INFORM"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 func extractMAC(pkt []byte) net.HardwareAddr {
 	hlen := min(int(pkt[2]), 16)
 	mac := make(net.HardwareAddr, hlen)
