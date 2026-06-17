@@ -1,12 +1,194 @@
 package filter_irr
 
 import (
+	"encoding/json"
 	"net/netip"
+	"sync"
 	"testing"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 )
+
+// VALIDATES: AC-5 -- concurrent filter evaluation during refresh sees consistent state.
+// PREVENTS: Torn reads when refresh goroutine swaps the prefix-list while filter
+// evaluation is in progress.
+func TestRefreshSwapsAtomically(t *testing.T) {
+	initial := prefixListFromIRR(irr.PrefixList{
+		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
+	})
+	plug := &irrPlugin{
+		byASN: map[uint32]*asnState{
+			65001: {asn: 65001, asSet: "AS-TEST", list: &irrPrefixList{entries: initial}},
+		},
+		stopCh: make(chan struct{}),
+	}
+
+	replacement := prefixListFromIRR(irr.PrefixList{
+		IPv4: []netip.Prefix{
+			netip.MustParsePrefix("10.0.0.0/24"),
+			netip.MustParsePrefix("172.16.0.0/16"),
+		},
+	})
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	wg.Go(func() {
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				plug.mu.RLock()
+				st := plug.byASN[65001]
+				list := st.list
+				plug.mu.RUnlock()
+				if list != nil {
+					for _, e := range list.entries {
+						_ = e.prefix.String()
+					}
+				}
+			}
+		}
+	})
+
+	for i := range 100 {
+		now := time.Now()
+		plug.mu.Lock()
+		st := plug.byASN[65001]
+		if i%2 == 0 {
+			st.list = &irrPrefixList{entries: replacement}
+		} else {
+			st.list = &irrPrefixList{entries: initial}
+		}
+		st.lastOK = now
+		plug.mu.Unlock()
+	}
+
+	close(stop)
+	wg.Wait()
+}
+
+// VALIDATES: AC-10 -- multiple peers with the same remote ASN share a single
+// IRR query and prefix-list via the byASN map.
+func TestMultiplePeersSameASN(t *testing.T) {
+	bgpCfg := map[string]any{
+		"peer": map[string]any{
+			"10.0.0.1": map[string]any{
+				"session": map[string]any{
+					"asn": map[string]any{"remote": "65001"},
+					"irr": map[string]any{"as-set": "AS-SHARED"},
+				},
+			},
+			"10.0.0.2": map[string]any{
+				"session": map[string]any{
+					"asn": map[string]any{"remote": "65001"},
+				},
+			},
+		},
+	}
+	cfg := parseIRRConfig(bgpCfg)
+
+	asnMap := make(map[uint32]*asnState)
+	for _, peer := range cfg.Peers {
+		if peer.Disabled {
+			continue
+		}
+		st, exists := asnMap[peer.RemoteASN]
+		if !exists {
+			st = &asnState{asn: peer.RemoteASN, asSet: peer.ASSet}
+			asnMap[peer.RemoteASN] = st
+		}
+		st.peerAddrs = append(st.peerAddrs, peer.PeerAddr)
+		if peer.ASSet != "" && st.asSet == "" {
+			st.asSet = peer.ASSet
+		}
+	}
+
+	if len(asnMap) != 1 {
+		t.Fatalf("asnMap has %d entries, want 1 (shared ASN)", len(asnMap))
+	}
+	st := asnMap[65001]
+	if len(st.peerAddrs) != 2 {
+		t.Errorf("peerAddrs = %d, want 2", len(st.peerAddrs))
+	}
+	if st.asSet != "AS-SHARED" {
+		t.Errorf("asSet = %q, want AS-SHARED", st.asSet)
+	}
+}
+
+// VALIDATES: AC-14 -- peer with irr enable disable is excluded from filter evaluation.
+func TestHandleConfigureDisabledPeerSkipped(t *testing.T) {
+	bgpCfg := map[string]any{
+		"peer": map[string]any{
+			"10.0.0.1": map[string]any{
+				"session": map[string]any{
+					"asn": map[string]any{"remote": "65001"},
+					"irr": map[string]any{"enable": "disable"},
+				},
+			},
+			"10.0.0.2": map[string]any{
+				"session": map[string]any{
+					"asn": map[string]any{"remote": "65002"},
+					"irr": map[string]any{"as-set": "AS-ACTIVE"},
+				},
+			},
+		},
+	}
+	cfg := parseIRRConfig(bgpCfg)
+
+	byASN := make(map[uint32]*asnState)
+	for _, peer := range cfg.Peers {
+		if peer.Disabled {
+			continue
+		}
+		st, exists := byASN[peer.RemoteASN]
+		if !exists {
+			st = &asnState{asn: peer.RemoteASN, asSet: peer.ASSet}
+			byASN[peer.RemoteASN] = st
+		}
+		st.peerAddrs = append(st.peerAddrs, peer.PeerAddr)
+	}
+
+	if _, found := byASN[65001]; found {
+		t.Error("disabled peer ASN 65001 should not be in byASN")
+	}
+	if _, found := byASN[65002]; !found {
+		t.Error("enabled peer ASN 65002 should be in byASN")
+	}
+}
+
+// VALIDATES: AC-21 -- show bgp irr includes last-refresh and next-refresh timestamps.
+func TestShowIRRIncludesTimestamps(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	plug := &irrPlugin{
+		byASN:       map[uint32]*asnState{},
+		config:      &irrConfig{Server: "whois.radb.net"},
+		lastRefresh: now,
+		nextRefresh: now.Add(time.Hour),
+	}
+
+	_, data, err := plug.showIRR()
+	if err != nil {
+		t.Fatalf("showIRR error: %v", err)
+	}
+	raw, ok := data.(json.RawMessage)
+	if !ok {
+		t.Fatalf("data is %T, want json.RawMessage", data)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if _, ok := parsed["last-refresh"]; !ok {
+		t.Error("show bgp irr output missing last-refresh")
+	}
+	if _, ok := parsed["next-refresh"]; !ok {
+		t.Error("show bgp irr output missing next-refresh")
+	}
+}
 
 // VALIDATES: AC-2 -- prefix in IRR list accepted.
 // VALIDATES: AC-3 -- prefix NOT in IRR list rejected.

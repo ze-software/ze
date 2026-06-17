@@ -18,7 +18,7 @@ func init() {
 		YANG:         firryang.ZeFilterIrrYANG,
 		ConfigRoots:  []string{"bgp"},
 		Dependencies: []string{"bgp"},
-		RunEngine:    RunFilterIRR,
+		RunEngine:    runFilterIRR,
 		ConfigureMetrics: func(reg any) {
 			if r, ok := reg.(metrics.Registry); ok {
 				SetMetricsRegistry(r)

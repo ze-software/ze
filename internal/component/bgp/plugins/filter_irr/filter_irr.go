@@ -60,13 +60,14 @@ type irrPlugin struct {
 	byASN       map[uint32]*asnState
 	config      *irrConfig
 	nextRefresh time.Time
+	lastRefresh time.Time
 
 	stopCh      chan struct{}
 	refreshStop chan struct{}
 	refreshing  atomic.Bool
 }
 
-func RunFilterIRR(conn net.Conn) int {
+func runFilterIRR(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-filter-irr", conn)
 	defer func() { _ = p.Close() }()
 
@@ -346,6 +347,7 @@ func (plug *irrPlugin) refreshASN(asn uint32) {
 	st.lastErr = ""
 	st.v4Count = len(prefixes.IPv4)
 	st.v6Count = len(prefixes.IPv6)
+	plug.lastRefresh = now
 	plug.mu.Unlock()
 
 	logger().Info("irr: refreshed", "asn", asn, "as-set", asSet, "v4", len(prefixes.IPv4), "v6", len(prefixes.IPv6))

@@ -53,6 +53,9 @@ func (plug *irrPlugin) showIRR() (string, any, error) {
 		server = plug.config.Server
 	}
 	b.Str(`{"server":"`).Str(server).Byte('"')
+	if !plug.lastRefresh.IsZero() {
+		b.Str(`,"last-refresh":"`).Str(plug.lastRefresh.Format(time.RFC3339)).Byte('"')
+	}
 	if !plug.nextRefresh.IsZero() {
 		b.Str(`,"next-refresh":"`).Str(plug.nextRefresh.Format(time.RFC3339)).Byte('"')
 	}
