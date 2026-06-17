@@ -324,9 +324,12 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 	innerValue = append(innerValue, ipv6.AsSlice()...)
 	innerValue = append(innerValue, 0, byte(behavior>>8), byte(behavior), 0) // Flags(1), Behavior(2), Reserved(1)
 
-	// Add SID structure sub-sub-TLV if provided
+	// Add SID structure sub-sub-TLV if provided.
+	// RFC 9252 Section 3.2.1: Sub-Sub-TLV header = Type(1 octet) + Length(2 octets).
+	// Reserved2 is already emitted above (trailing 0 of the Flags/Behavior/Reserved
+	// group); the sub-sub-TLV starts directly with its Type, with no extra byte.
 	if len(sidStruct) == 6 {
-		innerValue = append(innerValue, 0, 1, 0, byte(len(sidStruct))) // sub-sub-TLV type 1, length
+		innerValue = append(innerValue, 1, 0, byte(len(sidStruct))) // type 1, length(2)
 		innerValue = append(innerValue, sidStruct...)
 	}
 

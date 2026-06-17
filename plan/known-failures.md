@@ -46,15 +46,50 @@ All tests hit the 30.1s timeout. The test runner starts
 with `config "ze.conf" has unknown type`. Needs a minimal config in the
 temp directory or `--web-only` mode.
 
-#### `ze-exabgp-test` (10/40 FAIL) -- product bugs
+#### Lint: `internal/analyze/inject.go:64` goconst (pre-existing)
 
-`1` conf-addpath, `2` conf-aggregator, `20` conf-ipv6grouping,
-`25` conf-mvpn, `29` conf-no-asn4, `32` conf-paths-limit,
-`33` conf-prefix-sid, `35` conf-srv6-mup, `36` conf-srv6-mup-v3,
-`40` conf-watchdog. BGP encoding bugs: ze sends wrong UPDATE messages
-(e.g., MP_UNREACH instead of MP_REACH for mpls-vpn in conf-addpath).
+`--router-id` has 3 occurrences; surfaced by `ze-lint-changed` via the
+committed-since-verify set. From `3215ece93` (2026-06-09), unrelated to any
+2026-06-17 work.
 
 ## Resolved
+
+### 2026-06-17 -- `ze-test bgp encode 38 paths-limit` (broken fixture) -> PASS
+
+**Resolved 2026-06-17.** Not a ze bug. ze emits the route WITH an ADD-PATH
+path-id (`00 00 00 00 18 0C 00 02`); the fixture expected it WITHOUT, so the
+decoder read the four path-id zero bytes as four `0.0.0.0/0` prefixes. ze is
+RFC 7911-correct: the config advertises add-path send/receive, the ze-peer mock
+MIRRORS the OPEN so it advertises receive, the family negotiates
+(`negotiated.go:279` gates on localSend && remoteReceive), and a path-id is then
+mandatory on every ipv4/unicast NLRI. The expected hex in
+`test/encode/paths-limit.ci` (added `56f48c85f`) omitted the path-id and was
+internally inconsistent. Fixed the fixture (user-authorized per
+`ai/rules/testing.md`) to ze's correct output. Encode suite now 53/53.
+
+### 2026-06-17 -- `ze-exabgp-test` (was "10/40 product bugs") -> 40/40 PASS
+
+**Resolved 2026-06-17.** The "10 distinct encoding bugs" was a mis-diagnosis.
+Verified non-deterministic: failure set changed every run (e.g. run A
+{20,32,35,39,40} vs run B {1,14,18,25,31,33,35,36,40}); conf-addpath passed
+5/5 alone yet failed under parallel load. Two real causes:
+
+1. **EoR race (8 tests + watchdog).** Two producers send End-of-RIB on session
+   establishment: reactor `sendInitialRoutes` (always, per-family) and the
+   bgp-rs plugin's `replayForPeer` goroutine (fast-fails when bgp-adj-rib-in is
+   absent, as the exabgp wrapper loads a minimal plugin set). Announce/withdraw
+   honor `ShouldQueue()`+opQueue; `AnnounceEOR` wrote directly, so the plugin
+   EoR raced ahead of the still-queued route NLRI. Partial fix `af60758d0`
+   covered only family-specific routes, not the static-route phase.
+   Fix `99c943404`: `AnnounceEOR` skips peers in initial sync (reactor owns the
+   EoR). Removes the race and the duplicate EoR.
+2. **srv6-mup (1 test) -- the only real encoding bug.** `routeattr_prefixsid.go`
+   wrote the SRv6 SID Structure Sub-Sub-TLV header as 4 bytes (`0,1,0,len`)
+   instead of RFC 9252 3 bytes (`1,0,len`) -- a spurious leading reserved byte,
+   inflating the inner sub-TLV by 1 (0x1F vs 0x1E). Decode side was already
+   correct (`srv6sid.go`). Fix: drop the extra byte.
+
+After both: 40/40 pass across repeated full-suite runs; watchdog 12/12 alone.
 
 ### 2026-06-17 -- decode suite (37/37 FAIL -> 37/37 PASS)
 
