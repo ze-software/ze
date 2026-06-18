@@ -1,4 +1,4 @@
 option=file:conf-paths-limit.conf
 1:cmd:announce route 193.0.2.1/32 next-hop 10.0.0.1 path-information 1.2.3.4 origin igp
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0035:02:00000015400101004002004003040A000001400504000000640102030420C1000201
-1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100},"announce":{"ipv4 unicast":{"10.0.0.1":[{"nlri":"193.0.2.1/32","path-information":"1.2.3.4"}]}}}}}}
+1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100},"announce":{"ipv4 unicast":{"10.0.0.1":[{"nlri":"193.0.2.1/32","path-information":"1.2.3.4"}]}}}}}}
