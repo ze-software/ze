@@ -1,0 +1,35 @@
+# Test: Interface MAC override is settable through the web UI
+# VALIDATES: the nested MAC override (YANG mac/address) is editable on the
+#            interface's mac sub-page and persists as a pending change
+# PREVENTS: the MAC override being unreachable from the web UI -- it is a nested
+#           container leaf, not a flat interface field, so it lives on a sub-page
+
+option=timeout:value=60s
+
+action=open:path=/show/iface/
+expect=element:id=workbench-shell
+expect=element:text=Add Interface
+
+action=click:id=btn-add-entry
+action=wait:ms=500
+expect=element:id=field-interface-name
+action=fill:id=field-interface-name:value=web-mac0
+action=click:text=Save
+action=wait:ms=1000
+expect=element:text=web-mac0
+
+# The MAC override is a nested container (YANG mac/address), so it is edited on
+# the interface's mac sub-page where the "address" leaf renders as field-address,
+# not on the flat detail page.
+action=open:path=/show/interface/ethernet/web-mac0/mac/
+action=wait
+expect=element:id=field-address
+action=fill:id=field-address:value=02:42:ac:11:00:02
+action=click:text=Save
+action=wait:ms=1000
+expect=element:text=Review & Commit
+
+# Reload the mac sub-page and confirm the override persisted.
+action=open:path=/show/interface/ethernet/web-mac0/mac/
+action=wait
+expect=html:contains=02:42:ac:11:00:02
