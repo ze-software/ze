@@ -286,6 +286,36 @@ with an actionable error naming the missing entry and the command to run.
 Auto-refresh (when `refresh-interval > 0`) is fail-closed: a failed IRR query
 preserves the last-good cache and logs an error.
 
+### Per-Interface Source Validation
+
+<!-- source: internal/component/firewall/plugins/irr/sets.go -- buildIfaceTables -->
+
+Bind an AS-SET to a customer-facing interface. Packets arriving on that
+interface with source addresses not in the AS-SET's IRR-resolved prefixes
+are dropped (ingress source validation, BCP 38).
+
+```
+firewall {
+    irr {
+        interface eth1 {
+            source-as-set AS-CUSTOMER-A;
+        }
+        interface eth2 {
+            source-as-set AS-CUSTOMER-B;
+        }
+    }
+}
+```
+
+The plugin generates a `ze_irr_iface` table with a prerouting base chain.
+For each bound interface, accept terms match `input-interface` + `source-address
+in set` for both IPv4 and IPv6, followed by a drop term for that interface.
+Unconfigured interfaces pass through unfiltered (chain policy accept).
+
+Same fail-closed semantics apply: config commit rejects if any bound AS-SET
+has no cached prefix data. Removing an interface binding removes its filter
+on the next apply.
+
 ## CLI
 
 | Command | Description |

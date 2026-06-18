@@ -189,18 +189,21 @@ func (plug *irrPlugin) applyTables() error {
 	cfg := plug.config
 	plug.mu.RUnlock()
 
-	refs := cfg.allRefs()
-	if len(refs) == 0 {
+	termRefs := cfg.termRefs()
+	ifaceBindings := cfg.ifaceBindings
+
+	if len(termRefs) == 0 && len(ifaceBindings) == 0 {
 		firewall.RegisterTables("firewall-irr", nil)
 		return nil
 	}
 
-	tables := buildIRRTables(ps, refs)
+	tables := buildIRRTables(ps, termRefs)
+	tables = append(tables, buildIfaceTables(ps, ifaceBindings)...)
 	firewall.RegisterTables("firewall-irr", tables)
 	if err := firewall.ApplyAll(); err != nil {
 		return fmt.Errorf("firewall-irr: apply: %w", err)
 	}
-	updateMetricsGauges(ps, refs)
+	updateMetricsGauges(ps, cfg.allRefs())
 	return nil
 }
 
@@ -334,7 +337,37 @@ func extractIRRRefs(sections []sdk.ConfigSection) []irrRef {
 		if json.Unmarshal([]byte(s.Data), &root) != nil {
 			continue
 		}
-		return extractRefsFromConfig(root)
+		refs := extractRefsFromConfig(root)
+		refs = append(refs, extractIfaceRefs(root)...)
+		return refs
 	}
 	return nil
+}
+
+func extractIfaceRefs(root map[string]any) []irrRef {
+	fw, ok := root["firewall"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	irrBlock, ok := fw["irr"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	ifaceMap, ok := irrBlock["interface"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	var refs []irrRef
+	for _, v := range ifaceMap {
+		entry, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		asSet, ok := entry["source-as-set"].(string)
+		if !ok || asSet == "" {
+			continue
+		}
+		refs = append(refs, irrRef{Name: asSet, IsASSet: true, IsSrc: true})
+	}
+	return refs
 }

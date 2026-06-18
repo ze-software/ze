@@ -46,6 +46,35 @@ module ze-firewall-irr {
                              60..86400 enables periodic refresh with fail-closed
                              semantics (failed refresh preserves last-good cache).";
             }
+
+            list interface {
+                key "name";
+                description "Per-interface AS-SET binding for ingress source
+                             validation. Packets arriving on this interface with
+                             source addresses not in the AS-SET's IRR-resolved
+                             prefixes are dropped.";
+
+                leaf name {
+                    type string {
+                        length "1..15";
+                        pattern '[a-zA-Z0-9._-]+';
+                    }
+                    description "Interface name (e.g. eth1, bond0.100).
+                                 Must match the kernel interface name exactly.";
+                }
+
+                leaf source-as-set {
+                    type string {
+                        length "1..255";
+                        pattern '[A-Za-z0-9:._-]+';
+                    }
+                    mandatory true;
+                    description "AS-SET whose IRR-resolved prefixes form the
+                                 allowed source-address set for this interface.
+                                 Requires cached prefix data; config commit
+                                 rejects if no cached data exists.";
+                }
+            }
         }
     }
 

@@ -92,6 +92,14 @@ func (s *PrefixStore) Get(name string) *CachedEntry {
 	return s.entries[name]
 }
 
+// Put seeds a cache entry without network access or persistence.
+// Intended for tests and programmatic pre-population.
+func (s *PrefixStore) Put(name string, ipv4, ipv6 []netip.Prefix) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.entries[name] = &CachedEntry{Name: name, IPv4: ipv4, IPv6: ipv6}
+}
+
 // Refresh resolves prefixes for name and persists the result.
 //
 // name is the identity and the zefs key (e.g. "AS13335" or "AS-CLOUDFLARE").

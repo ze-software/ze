@@ -4,6 +4,7 @@ package irr
 
 import (
 	"encoding/json"
+	"sort"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -33,11 +34,17 @@ const (
 	defaultPeeringDBURL = "https://www.peeringdb.com"
 )
 
+type ifaceBinding struct {
+	Interface string
+	ASSet     string
+}
+
 type irrConfig struct {
 	Server          string
 	PeeringDBURL    string
 	RefreshInterval uint32
 	refs            []irrRef
+	ifaceBindings   []ifaceBinding
 }
 
 type irrRef struct {
@@ -48,6 +55,29 @@ type irrRef struct {
 }
 
 func (c *irrConfig) allRefs() []irrRef {
+	if c == nil {
+		return nil
+	}
+	if len(c.ifaceBindings) == 0 {
+		return c.refs
+	}
+	seen := make(map[string]bool, len(c.refs))
+	for _, r := range c.refs {
+		seen[r.Name] = true
+	}
+	all := make([]irrRef, len(c.refs), len(c.refs)+len(c.ifaceBindings))
+	copy(all, c.refs)
+	for _, ib := range c.ifaceBindings {
+		if seen[ib.ASSet] {
+			continue
+		}
+		seen[ib.ASSet] = true
+		all = append(all, irrRef{Name: ib.ASSet, IsASSet: true, IsSrc: true})
+	}
+	return all
+}
+
+func (c *irrConfig) termRefs() []irrRef {
 	if c == nil {
 		return nil
 	}
@@ -82,6 +112,9 @@ func parseIRRConfig(sections []sdk.ConfigSection) *irrConfig {
 				if n, ok := readUint(v); ok && n <= 86400 {
 					cfg.RefreshInterval = uint32(n) //nolint:gosec // range checked
 				}
+			}
+			if ifaceMap, ok := irrBlock["interface"].(map[string]any); ok {
+				cfg.ifaceBindings = parseIfaceBindings(ifaceMap)
 			}
 		}
 		cfg.refs = extractRefsFromConfig(root)
@@ -163,6 +196,25 @@ func extractFromBlock(from map[string]any, seen map[refKey]bool, refs *[]irrRef,
 	if v, ok := from["destination-as-set"].(string); ok {
 		addRef(v, true, false)
 	}
+}
+
+func parseIfaceBindings(m map[string]any) []ifaceBinding {
+	bindings := make([]ifaceBinding, 0, len(m))
+	for name, v := range m {
+		entry, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		asSet, ok := entry["source-as-set"].(string)
+		if !ok || asSet == "" {
+			continue
+		}
+		bindings = append(bindings, ifaceBinding{Interface: name, ASSet: asSet})
+	}
+	sort.Slice(bindings, func(i, j int) bool {
+		return bindings[i].Interface < bindings[j].Interface
+	})
+	return bindings
 }
 
 func asnName(v string) string {

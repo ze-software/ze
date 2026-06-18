@@ -214,3 +214,108 @@ func TestParseRefreshIntervalString(t *testing.T) {
 		t.Errorf("refresh-interval from string = %d, want 1800", cfg.RefreshInterval)
 	}
 }
+
+// VALIDATES: AC-1 interface binding parsed with source-as-set.
+// PREVENTS: interface binding silently ignored during config parsing.
+func TestParseInterfaceBinding(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "firewall",
+		Data: `{"firewall":{"irr":{"interface":{"eth1":{"source-as-set":"AS-FOO"}}}}}`,
+	}}
+	cfg := parseIRRConfig(sections)
+	if len(cfg.ifaceBindings) != 1 {
+		t.Fatalf("expected 1 interface binding, got %d", len(cfg.ifaceBindings))
+	}
+	ib := cfg.ifaceBindings[0]
+	if ib.Interface != "eth1" {
+		t.Errorf("interface = %q, want eth1", ib.Interface)
+	}
+	if ib.ASSet != "AS-FOO" {
+		t.Errorf("as-set = %q, want AS-FOO", ib.ASSet)
+	}
+}
+
+// VALIDATES: AC-3 multiple interfaces with different AS-SETs parsed independently.
+// PREVENTS: map iteration dropping bindings or conflating them.
+func TestParseMultipleInterfaceBindings(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "firewall",
+		Data: `{"firewall":{"irr":{"interface":{"eth1":{"source-as-set":"AS-FOO"},"eth2":{"source-as-set":"AS-BAR"}}}}}`,
+	}}
+	cfg := parseIRRConfig(sections)
+	if len(cfg.ifaceBindings) != 2 {
+		t.Fatalf("expected 2 interface bindings, got %d", len(cfg.ifaceBindings))
+	}
+	found := make(map[string]string)
+	for _, ib := range cfg.ifaceBindings {
+		found[ib.Interface] = ib.ASSet
+	}
+	if found["eth1"] != "AS-FOO" {
+		t.Errorf("eth1 as-set = %q, want AS-FOO", found["eth1"])
+	}
+	if found["eth2"] != "AS-BAR" {
+		t.Errorf("eth2 as-set = %q, want AS-BAR", found["eth2"])
+	}
+}
+
+// VALIDATES: AC-1 interface binding refs included in allRefs for refresh/verify.
+// PREVENTS: interface AS-SET names excluded from cache refresh cycle.
+func TestAllRefsIncludesIfaceBindings(t *testing.T) {
+	cfg := &irrConfig{
+		refs: []irrRef{{Name: "AS13335", TableName: "ze_wan"}},
+		ifaceBindings: []ifaceBinding{
+			{Interface: "eth1", ASSet: "AS-FOO"},
+		},
+	}
+	refs := cfg.allRefs()
+	found := make(map[string]bool)
+	for _, r := range refs {
+		found[r.Name] = true
+	}
+	if !found["AS13335"] {
+		t.Error("expected term ref AS13335 in allRefs")
+	}
+	if !found["AS-FOO"] {
+		t.Error("expected iface ref AS-FOO in allRefs")
+	}
+}
+
+// VALIDATES: interface bindings sorted by name for deterministic chain order.
+// PREVENTS: non-deterministic map iteration causing unnecessary kernel churn.
+func TestParseIfaceBindingsSorted(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "firewall",
+		Data: `{"firewall":{"irr":{"interface":{"eth3":{"source-as-set":"AS-C"},"eth1":{"source-as-set":"AS-A"},"eth2":{"source-as-set":"AS-B"}}}}}`,
+	}}
+	cfg := parseIRRConfig(sections)
+	if len(cfg.ifaceBindings) != 3 {
+		t.Fatalf("expected 3 bindings, got %d", len(cfg.ifaceBindings))
+	}
+	for i := 1; i < len(cfg.ifaceBindings); i++ {
+		if cfg.ifaceBindings[i].Interface < cfg.ifaceBindings[i-1].Interface {
+			t.Errorf("bindings not sorted: %q before %q",
+				cfg.ifaceBindings[i-1].Interface, cfg.ifaceBindings[i].Interface)
+		}
+	}
+}
+
+// VALIDATES: allRefs deduplicates when same AS-SET appears in both term and iface.
+// PREVENTS: double refresh of same name wasting bandwidth.
+func TestAllRefsDeduplicates(t *testing.T) {
+	cfg := &irrConfig{
+		refs: []irrRef{{Name: "AS-FOO", IsASSet: true, TableName: "ze_wan"}},
+		ifaceBindings: []ifaceBinding{
+			{Interface: "eth1", ASSet: "AS-FOO"},
+		},
+	}
+	refs := cfg.allRefs()
+	count := 0
+	for _, r := range refs {
+		if r.Name == "AS-FOO" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected AS-FOO once in allRefs, got %d", count)
+	}
+}

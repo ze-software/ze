@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-firewall-irr (closed) |
-| Phase | - |
+| Phase | 6/6 |
 | Updated | 2026-06-18 |
 
 ## Post-Compaction Recovery
@@ -57,9 +57,12 @@ N/A - no protocol work.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/firewall/plugins/irr/irr.go` - existing plugin lifecycle
-- [ ] `internal/component/firewall/plugins/irr/config.go` - config extraction
-- [ ] `internal/component/firewall/plugins/irr/sets.go` - set generation
+- [x] `internal/component/firewall/plugins/irr/irr.go` - existing plugin lifecycle
+  -> Decision: extend applyTables to build both term and iface tables.
+- [x] `internal/component/firewall/plugins/irr/config.go` - config extraction
+  -> Decision: add ifaceBinding type and parseIfaceBindings; extend allRefs with dedup.
+- [x] `internal/component/firewall/plugins/irr/sets.go` - set generation
+  -> Decision: add buildIfaceTables producing chains+sets per interface.
 
 **Behavior to preserve:**
 - All existing firewall-irr features (update/show commands, term-level source-asn/as-set matching)
@@ -75,7 +78,10 @@ N/A - no protocol work.
 - Config commit with `firewall { irr { interface eth1 { source-as-set AS-FOO; } } }`
 
 ### Transformation Path
-1. (to be filled during design)
+1. Config JSON parsed by `parseIRRConfig` -> `irrConfig.ifaceBindings` populated
+2. `applyTables` calls `buildIfaceTables(ps, bindings)` -> `[]firewall.Table` with chains+sets
+3. Tables registered via `firewall.RegisterTables("firewall-irr", ...)` alongside term tables
+4. `firewall.ApplyAll()` reconciles desired state against kernel
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -98,7 +104,7 @@ N/A - no protocol work.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Per-interface ingress chains can coexist with firewall engine chains | registry merge via mergeSameNameTables | Would need separate table | verify with test | unvalidated |
+| A-1 | Per-interface ingress chains can coexist with firewall engine chains | registry merge via mergeSameNameTables | Would need separate table | verify with test | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -236,9 +242,18 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ## Design Insights
 
+- Interface bindings use a separate table (`ze_irr_iface`) rather than merging into the operator's firewall tables, keeping plugin-generated chains isolated from operator-defined chains.
+- The prerouting hook catches both local-destined and transit traffic, matching ISP source validation requirements.
+- Chain policy is accept so unconfigured interfaces pass through without matching any term.
+
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| Separate `ze_irr_iface` table | Merge into operator's firewall table | Isolation: plugin-generated chains don't interfere with operator chains |
+| Prerouting hook | Input or forward hook | Catches both local-destined and forwarded traffic in one chain |
+| Policy accept with per-interface drop terms | Policy drop with accept terms | Only filters configured interfaces; unconfigured pass through |
+| Extend `allRefs()` with dedup | Separate refresh method for iface refs | Minimal change; dedup prevents double refresh |
 
 ## Known Limitations
-- Spec 1 (term-level IRR matching) must be closed before this work starts
+- Spec 1 (term-level IRR matching) must be closed before this work starts (done)
+- IPv6 filtering requires cached v6 prefixes in the AS-SET (same as term-level)

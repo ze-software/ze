@@ -5,6 +5,8 @@ package irr
 
 import (
 	"testing"
+
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 func TestVerifyRejectsMissingCache(t *testing.T) {
@@ -26,6 +28,26 @@ func TestVerifyRejectsMissingCache(t *testing.T) {
 		}
 	}
 	t.Fatal("verify should have rejected missing cache")
+}
+
+// VALIDATES: AC-2 verify rejects when interface binding AS-SET has no cached data.
+// PREVENTS: commit succeeding with uncached interface AS-SET, producing empty filter.
+func TestVerifyRejectsUncachedIfaceBinding(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "firewall",
+		Data: `{"firewall":{"irr":{"interface":{"eth1":{"source-as-set":"AS-MISSING"}}}}}`,
+	}}
+	refs := extractIRRRefs(sections)
+	found := false
+	for _, ref := range refs {
+		if ref.Name == "AS-MISSING" && ref.IsASSet {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("extractIRRRefs must include interface binding AS-SET refs")
+	}
 }
 
 func TestASNBoundary(t *testing.T) {

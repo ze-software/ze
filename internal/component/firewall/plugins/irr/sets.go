@@ -10,7 +10,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-const maxPrefixEntries = 500_000
+const (
+	maxPrefixEntries = 500_000
+	ifaceTableName   = "ze_irr_iface"
+	ifaceChainName   = "irr_iface_ingress"
+	ifaceChainPrio   = -10
+)
 
 func setNames(name string) (v4, v6 string) {
 	var tb textbuf.Buffer
@@ -108,6 +113,79 @@ func prefixRange(p netip.Prefix) (start, exclusiveEnd netip.Addr) {
 		byteIdx--
 	}
 	return start, netip.AddrFrom16(a)
+}
+
+func buildIfaceTables(ps *store.PrefixStore, bindings []ifaceBinding) []firewall.Table {
+	if len(bindings) == 0 {
+		return nil
+	}
+
+	seenSets := make(map[string]bool)
+	var sets []firewall.Set
+	var terms []firewall.Term
+	for _, ib := range bindings {
+		entry := ps.Get(ib.ASSet)
+		if entry == nil {
+			continue
+		}
+		if !seenSets[ib.ASSet] {
+			seenSets[ib.ASSet] = true
+			sets = append(sets, buildSets(ib.ASSet, entry.IPv4, entry.IPv6)...)
+		}
+
+		v4Name, v6Name := setNames(ib.ASSet)
+		if len(entry.IPv4) > 0 {
+			terms = append(terms, firewall.Term{
+				Name: ifaceTermName(ib.Interface, "v4"),
+				Matches: []firewall.Match{
+					firewall.MatchInputInterface{Name: ib.Interface},
+					firewall.MatchInSet{SetName: v4Name, MatchField: firewall.SetFieldSourceAddr},
+				},
+				Actions: []firewall.Action{firewall.Accept{}},
+			})
+		}
+		if len(entry.IPv6) > 0 {
+			terms = append(terms, firewall.Term{
+				Name: ifaceTermName(ib.Interface, "v6"),
+				Matches: []firewall.Match{
+					firewall.MatchInputInterface{Name: ib.Interface},
+					firewall.MatchInSet{SetName: v6Name, MatchField: firewall.SetFieldSourceAddr},
+				},
+				Actions: []firewall.Action{firewall.Accept{}},
+			})
+		}
+		terms = append(terms, firewall.Term{
+			Name: ifaceTermName(ib.Interface, "drop"),
+			Matches: []firewall.Match{
+				firewall.MatchInputInterface{Name: ib.Interface},
+			},
+			Actions: []firewall.Action{firewall.Drop{}},
+		})
+	}
+
+	if len(terms) == 0 {
+		return nil
+	}
+
+	return []firewall.Table{{
+		Name:   ifaceTableName,
+		Family: firewall.FamilyInet,
+		Sets:   sets,
+		Chains: []firewall.Chain{{
+			Name:     ifaceChainName,
+			IsBase:   true,
+			Type:     firewall.ChainFilter,
+			Hook:     firewall.HookPrerouting,
+			Priority: ifaceChainPrio,
+			Policy:   firewall.PolicyAccept,
+			Terms:    terms,
+		}},
+	}}
+}
+
+func ifaceTermName(iface, suffix string) string {
+	var tb textbuf.Buffer
+	return tb.Str("iface_").Str(iface).Byte('_').Str(suffix).String()
 }
 
 func buildIRRTables(ps *store.PrefixStore, refs []irrRef) []firewall.Table {
