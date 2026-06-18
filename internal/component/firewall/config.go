@@ -183,6 +183,9 @@ func parseChain(name string, m map[string]any) (Chain, error) {
 				return Chain{}, fmt.Errorf("term %q: %w", tName, err)
 			}
 			chain.Terms = append(chain.Terms, term)
+			if v6 := expandIRRTermV6(term); v6 != nil {
+				chain.Terms = append(chain.Terms, *v6)
+			}
 		}
 	}
 
@@ -537,17 +540,45 @@ func irrSetMatch(v string, isASSet, isSource bool) MatchInSet {
 	var tb textbuf.Buffer
 	switch {
 	case isASSet:
-		tb.Str("irr_v4_").Str(v)
+		tb.Str(irrV4Prefix).Str(v)
 	case len(v) >= 2 && (v[0] == 'A' || v[0] == 'a') && (v[1] == 'S' || v[1] == 's'):
-		tb.Str("irr_v4_").Str(v)
+		tb.Str(irrV4Prefix).Str(v)
 	default:
-		tb.Str("irr_v4_AS").Str(v)
+		tb.Str(irrV4Prefix).Str("AS").Str(v)
 	}
 	field := SetFieldSourceAddr
 	if !isSource {
 		field = SetFieldDestAddr
 	}
 	return MatchInSet{SetName: tb.String(), MatchField: field}
+}
+
+const irrV4Prefix = "irr_v4_"
+const irrV6Prefix = "irr_v6_"
+
+func expandIRRTermV6(term Term) *Term {
+	var v6Matches []Match
+	hasIRR := false
+	for _, m := range term.Matches {
+		mis, ok := m.(MatchInSet)
+		if ok && len(mis.SetName) > len(irrV4Prefix) && mis.SetName[:len(irrV4Prefix)] == irrV4Prefix {
+			hasIRR = true
+			var tb textbuf.Buffer
+			v6Name := tb.Str(irrV6Prefix).Str(mis.SetName[len(irrV4Prefix):]).String()
+			v6Matches = append(v6Matches, MatchInSet{SetName: v6Name, MatchField: mis.MatchField})
+		} else {
+			v6Matches = append(v6Matches, m)
+		}
+	}
+	if !hasIRR {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return &Term{
+		Name:    tb.Str(term.Name).Str("_v6").String(),
+		Matches: v6Matches,
+		Actions: term.Actions,
+	}
 }
 
 func parseAddressMatch(v string, isSource bool) (Match, error) {

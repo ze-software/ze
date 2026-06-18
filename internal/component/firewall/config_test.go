@@ -1372,7 +1372,7 @@ func TestExtractGlobalOptionsNoFirewall(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-4 source-asn in from-block emits MatchInSet with deterministic set name.
+// VALIDATES: AC-4 source-asn emits v4 MatchInSet + v6 expanded term.
 // PREVENTS: set name mismatch between config parser and IRR plugin.
 func TestParseFromSourceASN(t *testing.T) {
 	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"term":{"t":{"from":{"source-asn":"13335"}}}}}}}}}`
@@ -1380,16 +1380,26 @@ func TestParseFromSourceASN(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseFirewallConfig: %v", err)
 	}
-	term := tables[0].Chains[0].Terms[0]
-	m, ok := term.Matches[0].(MatchInSet)
+	terms := tables[0].Chains[0].Terms
+	if len(terms) != 2 {
+		t.Fatalf("expected 2 terms (v4+v6), got %d", len(terms))
+	}
+	v4, ok := terms[0].Matches[0].(MatchInSet)
 	if !ok {
-		t.Fatalf("match type = %T, want MatchInSet", term.Matches[0])
+		t.Fatalf("v4 match type = %T, want MatchInSet", terms[0].Matches[0])
 	}
-	if m.SetName != "irr_v4_AS13335" {
-		t.Errorf("SetName = %q, want %q", m.SetName, "irr_v4_AS13335")
+	if v4.SetName != "irr_v4_AS13335" || v4.MatchField != SetFieldSourceAddr {
+		t.Errorf("v4 match = {%q %v}, want {irr_v4_AS13335 SetFieldSourceAddr}", v4.SetName, v4.MatchField)
 	}
-	if m.MatchField != SetFieldSourceAddr {
-		t.Errorf("MatchField = %v, want SetFieldSourceAddr", m.MatchField)
+	v6, ok := terms[1].Matches[0].(MatchInSet)
+	if !ok {
+		t.Fatalf("v6 match type = %T, want MatchInSet", terms[1].Matches[0])
+	}
+	if v6.SetName != "irr_v6_AS13335" || v6.MatchField != SetFieldSourceAddr {
+		t.Errorf("v6 match = {%q %v}, want {irr_v6_AS13335 SetFieldSourceAddr}", v6.SetName, v6.MatchField)
+	}
+	if terms[1].Name != "t_v6" {
+		t.Errorf("v6 term name = %q, want t_v6", terms[1].Name)
 	}
 }
 
@@ -1400,35 +1410,62 @@ func TestParseFromDestinationASN(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseFirewallConfig: %v", err)
 	}
-	term := tables[0].Chains[0].Terms[0]
-	m, ok := term.Matches[0].(MatchInSet)
+	terms := tables[0].Chains[0].Terms
+	if len(terms) != 2 {
+		t.Fatalf("expected 2 terms, got %d", len(terms))
+	}
+	v4, ok := terms[0].Matches[0].(MatchInSet)
 	if !ok {
-		t.Fatalf("match type = %T, want MatchInSet", term.Matches[0])
+		t.Fatalf("v4 match type = %T, want MatchInSet", terms[0].Matches[0])
 	}
-	if m.SetName != "irr_v4_AS64496" {
-		t.Errorf("SetName = %q, want %q", m.SetName, "irr_v4_AS64496")
+	if v4.SetName != "irr_v4_AS64496" || v4.MatchField != SetFieldDestAddr {
+		t.Errorf("v4 match = {%q %v}, want {irr_v4_AS64496 SetFieldDestAddr}", v4.SetName, v4.MatchField)
 	}
-	if m.MatchField != SetFieldDestAddr {
-		t.Errorf("MatchField = %v, want SetFieldDestAddr", m.MatchField)
+	v6, ok := terms[1].Matches[0].(MatchInSet)
+	if !ok {
+		t.Fatalf("v6 match type = %T, want MatchInSet", terms[1].Matches[0])
+	}
+	if v6.SetName != "irr_v6_AS64496" || v6.MatchField != SetFieldDestAddr {
+		t.Errorf("v6 match = {%q %v}, want {irr_v6_AS64496 SetFieldDestAddr}", v6.SetName, v6.MatchField)
 	}
 }
 
-// VALIDATES: AC-6 source-as-set emits MatchInSet with AS-SET name.
+// VALIDATES: AC-6 source-as-set emits v4+v6 terms.
 func TestParseFromSourceASSet(t *testing.T) {
 	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"term":{"t":{"from":{"source-as-set":"AS-CLOUDFLARE"}}}}}}}}}`
 	tables, err := ParseFirewallConfig(data)
 	if err != nil {
 		t.Fatalf("ParseFirewallConfig: %v", err)
 	}
-	term := tables[0].Chains[0].Terms[0]
-	m, ok := term.Matches[0].(MatchInSet)
+	terms := tables[0].Chains[0].Terms
+	if len(terms) != 2 {
+		t.Fatalf("expected 2 terms, got %d", len(terms))
+	}
+	v4, ok := terms[0].Matches[0].(MatchInSet)
 	if !ok {
-		t.Fatalf("match type = %T, want MatchInSet", term.Matches[0])
+		t.Fatalf("v4 match type = %T, want MatchInSet", terms[0].Matches[0])
 	}
-	if m.SetName != "irr_v4_AS-CLOUDFLARE" {
-		t.Errorf("SetName = %q, want %q", m.SetName, "irr_v4_AS-CLOUDFLARE")
+	if v4.SetName != "irr_v4_AS-CLOUDFLARE" || v4.MatchField != SetFieldSourceAddr {
+		t.Errorf("v4 match = {%q %v}, want {irr_v4_AS-CLOUDFLARE SetFieldSourceAddr}", v4.SetName, v4.MatchField)
 	}
-	if m.MatchField != SetFieldSourceAddr {
-		t.Errorf("MatchField = %v, want SetFieldSourceAddr", m.MatchField)
+	v6, ok := terms[1].Matches[0].(MatchInSet)
+	if !ok {
+		t.Fatalf("v6 match type = %T, want MatchInSet", terms[1].Matches[0])
+	}
+	if v6.SetName != "irr_v6_AS-CLOUDFLARE" || v6.MatchField != SetFieldSourceAddr {
+		t.Errorf("v6 match = {%q %v}, want {irr_v6_AS-CLOUDFLARE SetFieldSourceAddr}", v6.SetName, v6.MatchField)
+	}
+}
+
+// VALIDATES: term without IRR matches is NOT expanded.
+func TestParseFromNoIRRNoExpansion(t *testing.T) {
+	data := `{"firewall":{"table":{"wan":{"family":"inet","chain":{"input":{"term":{"t":{"from":{"source-address":"10.0.0.0/8"}}}}}}}}}`
+	tables, err := ParseFirewallConfig(data)
+	if err != nil {
+		t.Fatalf("ParseFirewallConfig: %v", err)
+	}
+	terms := tables[0].Chains[0].Terms
+	if len(terms) != 1 {
+		t.Fatalf("expected 1 term (no IRR expansion), got %d", len(terms))
 	}
 }
