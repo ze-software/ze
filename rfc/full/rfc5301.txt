@@ -1,0 +1,339 @@
+
+
+
+
+
+
+Network Working Group                                       D. McPherson
+Request for Comments: 5301                                Arbor Networks
+Obsoletes: 2763                                                  N. Shen
+Category: Standards Track                                  Cisco Systems
+                                                            October 2008
+
+
+             Dynamic Hostname Exchange Mechanism for IS-IS
+
+Status of This Memo
+
+   This document specifies an Internet standards track protocol for the
+   Internet community, and requests discussion and suggestions for
+   improvements.  Please refer to the current edition of the "Internet
+   Official Protocol Standards" (STD 1) for the standardization state
+   and status of this protocol.  Distribution of this memo is unlimited.
+
+Abstract
+
+   RFC 2763 defined a simple and dynamic mechanism for routers running
+   IS-IS to learn about symbolic hostnames.  RFC 2763 defined a new TLV
+   that allows the IS-IS routers to flood their name-to-systemID mapping
+   information across the IS-IS network.
+
+   This document obsoletes RFC 2763.  This document moves the capability
+   provided by RFC 2763 to the Standards Track.
+
+Table of Contents
+
+   1. Introduction ....................................................2
+      1.1. Specification of Requirements ..............................2
+   2. Possible Solutions ..............................................2
+   3. Dynamic Hostname TLV ............................................3
+   4. Implementation ..................................................4
+   5. Security Considerations .........................................4
+   6. Acknowledgments .................................................4
+   7. IANA Considerations .............................................4
+   8. Informative References ..........................................4
+
+
+
+
+
+
+
+
+
+
+
+
+
+McPherson & Shen            Standards Track                     [Page 1]
+
+RFC 5301                    Dynamic Hostname                October 2008
+
+
+1.  Introduction
+
+   IS-IS uses a variable 1-8 byte system ID (normally 6 bytes) to
+   represent a node in the network.  For management and operation
+   reasons, network operators need to check the status of IS-IS
+   adjacencies, entries in the routing table, and the content of the
+   IS-IS link state database.  It is obvious that, when looking at
+   diagnostics information, hexadecimal representations of system IDs
+   and Link State Protocol Data Unit (LSP) identifiers are less clear
+   than symbolic names.
+
+   One way to overcome this problem is to define a name-to-systemID
+   mapping on a router.  This mapping can be used bidirectionally, e.g.,
+   to find symbolic names for system IDs and to find system IDs for
+   symbolic names.  One way to build this table of mappings is by static
+   definitions.  Among network administrators who use IS-IS as their
+   IGP, it is current practice to define such static mappings.
+
+   Thus, every router has to maintain a statically-configured table with
+   mappings between router names and system IDs.  These tables need to
+   contain the names and system IDs of all routers in the network, and
+   must be modified each time an addition, deletion, or change occurs.
+
+   There are several ways one could build such a table.  One is via
+   static configurations.  Another scheme that could be implemented is
+   via DNS lookups.  In this document, we provide a third solution,
+   which in wide-scale implementation and deployment has proven to be
+   easier and more manageable than static mapping or DNS schemes.
+
+1.1.  Specification of Requirements
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+2.  Possible Solutions
+
+   The obvious drawback of static configuration of mappings is the issue
+   of scalability and maintainability.  The network operators have to
+   maintain the name tables.  They have to maintain an entry in the
+   table for every router in the network, on every router in the
+   network.  The effort to create and maintain these static tables grows
+   with the total number of routers on the network.  Changing the name
+   or system ID of one router, or adding a new router will affect the
+   configurations of all the other routers on the network.  This will
+   make it very likely that those static tables are outdated.
+
+
+
+
+
+McPherson & Shen            Standards Track                     [Page 2]
+
+RFC 5301                    Dynamic Hostname                October 2008
+
+
+   Having one table that can be updated in a centralized place would be
+   helpful.  One could imagine using the DNS system for this.  A
+   drawback is that during the time of network problems, the response
+   time of DNS services might not be satisfactory or the DNS services
+   might not even be available.  Another possible drawback might be the
+   added complexity of DNS.  Also, some DNS implementations might not
+   support A and PTR records for Connection Network Service (CLNS)
+   Network Service Access Points (NSAPs).
+
+   A third way to build dynamic mappings would be to use the transport
+   mechanism of the routing protocol itself to advertise symbolic names
+   in IS-IS link-state PDUs.  This document defines a new TLV that
+   allows the IS-IS routers to include the name-to-systemID mapping data
+   in their LSPs.  This will allow simple and reliable transport of name
+   mapping information across the IS-IS network.
+
+3.  Dynamic Hostname TLV
+
+   The Dynamic hostname TLV is defined here as TLV type 137.
+
+         Length - total length of the value field.
+
+         Value - a string of 1 to 255 bytes.
+
+   The Dynamic hostname TLV is optional.  This TLV may be present in any
+   fragment of a non-pseudonode LSP.  The value field identifies the
+   symbolic name of the router originating the LSP.  This symbolic name
+   can be the FQDN for the router, it can be a subset of the FQDN, or it
+   can be any string operators want to use for the router.  The use of
+   FQDN or a subset of it is strongly recommended.  The content of this
+   value is a domain name, see [RFC2181].  The string is not null-
+   terminated.  The system ID of this router can be derived from the LSP
+   identifier.
+
+   If this TLV is present in a pseudonode LSP, then it SHOULD NOT be
+   interpreted as the DNS hostname of the router.
+
+   The Value field is encoded in 7-bit ASCII.  If a user-interface for
+   configuring or displaying this field permits Unicode characters, that
+   user-interface is responsible for applying the ToASCII and/or
+   ToUnicode algorithm as described in [RFC3490] to achieve the correct
+   format for transmission or display.
+
+
+
+
+
+
+
+
+
+McPherson & Shen            Standards Track                     [Page 3]
+
+RFC 5301                    Dynamic Hostname                October 2008
+
+
+4.  Implementation
+
+   The Dynamic hostname TLV is optional.  When originating an LSP, a
+   router may decide to include this TLV in its LSP.  Upon receipt of an
+   LSP with the Dynamic hostname TLV, a router may decide to ignore this
+   TLV, or to install the symbolic name and system ID in its hostname
+   mapping table for the IS-IS network.
+
+   A router may also optionally insert this TLV in its pseudonode LSP
+   for the association of a symbolic name to a local LAN.
+
+   If a system receives a mapping for a name or system ID that is
+   different from the mapping in the local cache, an implementation
+   SHOULD replace the existing mapping with the latest information.
+
+5.  Security Considerations
+
+   Since the name-to-systemID mapping relies on information provided by
+   the routers themselves, a misconfigured or compromised router can
+   inject false mapping information.  Thus, this information needs to be
+   treated with suspicion when, for example, doing diagnostics about a
+   suspected security incident.
+
+   This document raises no other new security issues for IS-IS.
+   Security issues with IS-IS are discussed in [RFC5304].
+
+6.  Acknowledgments
+
+   The original efforts and corresponding acknowledgements provided in
+   [RFC2763] have enabled this work.  In particular, we'd like to
+   acknowledge Henk Smit as an author of that document.
+
+7.  IANA Considerations
+
+   This document specifies TLV 137, "Dynamic Name".  This TLV has
+   already been allocated and reserved [RFC2763].  As such, no new
+   actions are required on the part of IANA.
+
+8.  Informative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2181]  Elz, R. and R. Bush, "Clarifications to the DNS
+              Specification", RFC 2181, July 1997.
+
+   [RFC2763]  Shen, N. and H. Smit, "Dynamic Hostname Exchange Mechanism
+              for IS-IS", RFC 2763, February 2000.
+
+
+
+McPherson & Shen            Standards Track                     [Page 4]
+
+RFC 5301                    Dynamic Hostname                October 2008
+
+
+   [RFC3490]  Faltstrom, P., Hoffman, P., and A. Costello,
+              "Internationalizing Domain Names in Applications (IDNA)",
+              RFC 3490, March 2003.
+
+   [RFC5304]  Li, T. and R. Atkinson, "IS-IS Cryptographic
+              Authentication", RFC 5304, October 2008.
+
+Authors' Addresses
+
+   Danny McPherson
+   Arbor Networks, Inc.
+   EMail:  danny@arbor.net
+
+   Naiming Shen
+   Cisco Systems, Inc.
+   EMail: naiming@cisco.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+McPherson & Shen            Standards Track                     [Page 5]
+
+RFC 5301                    Dynamic Hostname                October 2008
+
+
+Full Copyright Statement
+
+   Copyright (C) The IETF Trust (2008).
+
+   This document is subject to the rights, licenses and restrictions
+   contained in BCP 78, and except as set forth therein, the authors
+   retain all their rights.
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY, THE IETF TRUST AND
+   THE INTERNET ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF
+   THE INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+Intellectual Property
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at
+   ietf-ipr@ietf.org.
+
+
+
+
+
+
+
+
+
+
+
+
+McPherson & Shen            Standards Track                     [Page 6]
+
