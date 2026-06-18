@@ -13,7 +13,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/core/family"
 )
 
 var errMissingFlowspecCommand = errors.New("missing FlowSpec command")
@@ -70,75 +69,73 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	// Get NLRI bytes
 	nlriBytes := fs.Bytes()
 
-	// Convert to FlowSpecParams
-	params, err := flowSpecRouteToParams(parsed, nlriBytes)
+	// Build the Traffic Filtering Action extended-communities (RFC 8955 Section 7).
+	extComms, err := flowSpecActionExtComm(parsed)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Build UPDATE
-	update := ub.BuildFlowSpec(params)
-
-	// Pack UPDATE body using PackTo
+	// Build UPDATE via the generic plugin builder (SAFI 133, FlowSpec unicast).
+	afi := uint16(1)
+	if isIPv6 {
+		afi = 2
+	}
+	var rawAttrs [][]byte
+	if len(extComms) > 0 {
+		raw := make([]byte, 0, 4+len(extComms))
+		if len(extComms) > 255 {
+			// Extended-length form (flag bit 0x10) when the value exceeds 255 bytes.
+			raw = append(raw, 0xC0|0x10, 16, byte(len(extComms)>>8), byte(len(extComms)))
+		} else {
+			raw = append(raw, 0xC0, 16, byte(len(extComms)))
+		}
+		raw = append(raw, extComms...)
+		rawAttrs = append(rawAttrs, raw)
+	}
+	params := message.PluginParams{AFI: afi, SAFI: 133, IsIPv6: isIPv6, NLRI: nlriBytes, RawAttrs: rawAttrs}
+	update := ub.BuildPlugin(params)
 	updateBody := message.PackTo(update, nil)
 
 	return updateBody, nlriBytes, nil
 }
 
-// flowSpecRouteToParams converts FlowSpecRoute to FlowSpecParams.
-func flowSpecRouteToParams(r bgptypes.FlowSpecRoute, nlriBytes []byte) (message.FlowSpecParams, error) {
-	p := message.FlowSpecParams{
-		IsIPv6: r.Family == family.AFIIPv6,
-		NLRI:   nlriBytes,
-	}
-
-	// Convert actions to extended communities
+// flowSpecActionExtComm builds the Traffic Filtering Action extended-community
+// wire bytes (RFC 8955 Section 7) from a parsed FlowSpec route's actions.
+func flowSpecActionExtComm(r bgptypes.FlowSpecRoute) ([]byte, error) {
 	var extComms []byte
 
-	// Discard action = rate-limit to 0 (RFC 5575)
+	// Discard action = rate-limit to 0 (RFC 5575).
 	if r.Actions.Discard {
-		// Traffic-rate with rate=0 means discard
-		// Type 0x80, Subtype 0x06, 2 reserved bytes, 4-byte IEEE 754 float (0.0)
 		extComms = append(extComms, 0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
 	}
 
-	// Rate-limit action (RFC 8955 Section 7.1)
+	// Rate-limit action (RFC 8955 Section 7.1).
 	if r.Actions.RateLimit > 0 {
-		// Traffic-rate-bytes extended community.
-		// Type 0x80, Subtype 0x06, 2-octet AS, 4-byte IEEE 754 float.
-		rate := float32(r.Actions.RateLimit)
-		bits := floatToIEEE754(rate)
+		bits := floatToIEEE754(float32(r.Actions.RateLimit))
 		extComms = append(extComms, 0x80, 0x06, 0x00, 0x00, byte(bits>>24), byte(bits>>16), byte(bits>>8), byte(bits))
 	}
 
-	// Packet rate-limit action (RFC 8955 Section 7.2)
+	// Packet rate-limit action (RFC 8955 Section 7.2).
 	if r.Actions.RateLimitPackets > 0 {
-		// Traffic-rate-packets extended community.
-		// Type 0x80, Subtype 0x0c, 2-octet AS, 4-byte IEEE 754 float.
-		rate := float32(r.Actions.RateLimitPackets)
-		bits := floatToIEEE754(rate)
+		bits := floatToIEEE754(float32(r.Actions.RateLimitPackets))
 		extComms = append(extComms, 0x80, 0x0c, 0x00, 0x00, byte(bits>>24), byte(bits>>16), byte(bits>>8), byte(bits))
 	}
 
-	// DSCP marking (RFC 5575)
+	// DSCP marking (RFC 5575).
 	if r.Actions.MarkDSCP > 0 {
-		// Traffic-marking extended community
-		// Type 0x80, Subtype 0x09, 6 bytes with DSCP in last byte
 		extComms = append(extComms, 0x80, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, r.Actions.MarkDSCP)
 	}
 
-	// Redirect action (RFC 5575/7674)
+	// Redirect action (RFC 5575/7674).
 	if r.Actions.Redirect != "" {
 		ec, err := parseRedirectTarget(r.Actions.Redirect)
 		if err != nil {
-			return p, fmt.Errorf("invalid redirect: %w", err)
+			return nil, fmt.Errorf("invalid redirect: %w", err)
 		}
 		extComms = append(extComms, ec[:]...)
 	}
 
-	p.ExtCommunityBytes = extComms
-
-	return p, nil
+	return extComms, nil
 }
 
 // floatToIEEE754 converts a float32 to IEEE 754 bits.

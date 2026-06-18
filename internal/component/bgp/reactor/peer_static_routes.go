@@ -16,54 +16,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-func toVPLSParams(r VPLSRoute) message.VPLSParams {
-	return message.VPLSParams{
-		RD: r.RD, Endpoint: r.Endpoint, Base: r.Base, Offset: r.Offset,
-		Size: r.Size, NextHop: r.NextHop, Origin: attribute.Origin(r.Origin),
-		LocalPreference: r.LocalPreference, MED: r.MED, ASPath: r.ASPath,
-		Communities: r.Communities, ExtCommunityBytes: r.ExtCommunityBytes,
-		OriginatorID: r.OriginatorID, ClusterList: r.ClusterList,
-	}
-}
-
-func toFlowSpecParams(r FlowSpecRoute) message.FlowSpecParams {
-	return message.FlowSpecParams{
-		IsIPv6: r.IsIPv6, RD: r.RD, NLRI: r.NLRI, NextHop: r.NextHop,
-		CommunityBytes: r.CommunityBytes, ExtCommunityBytes: r.ExtCommunityBytes,
-		IPv6ExtCommunityBytes: r.IPv6ExtCommunityBytes,
-	}
-}
-
-func toMUPParams(r MUPRoute) message.MUPParams {
-	return message.MUPParams{
-		RouteType: r.RouteType, IsIPv6: r.IsIPv6, NLRI: r.NLRI,
-		NextHop: r.NextHop, ExtCommunityBytes: r.ExtCommunityBytes,
-		PrefixSID: r.PrefixSID,
-	}
-}
-
-func toPluginParams(r PluginRoute, safi byte) message.PluginParams {
+func toPluginParams(r PluginRoute, fam family.Family) message.PluginParams {
 	return message.PluginParams{
-		IsIPv6: r.IsIPv6, SAFI: safi, NLRI: r.NLRI,
+		AFI: uint16(fam.AFI), SAFI: byte(fam.SAFI), IsIPv6: r.IsIPv6, NLRI: r.NLRI,
 		NextHop: r.NextHop, RawAttrs: r.RawAttrs,
+		ASPath: r.ASPath, LocalPreference: r.LocalPreference,
+		MapV4NextHop: r.MapV4NextHop,
 	}
-}
-
-func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
-	params := make([]message.MVPNParams, len(routes))
-	for i := range routes {
-		r := &routes[i]
-		params[i] = message.MVPNParams{
-			RouteType: r.RouteType, IsIPv6: r.IsIPv6, RD: r.RD,
-			SourceAS: r.SourceAS, Source: r.Source, Group: r.Group,
-			NextHop: r.NextHop, Origin: attribute.Origin(r.Origin),
-			LocalPreference: r.LocalPreference, MED: r.MED,
-			ExtCommunityBytes: r.ExtCommunityBytes,
-			OriginatorID:      r.OriginatorID,
-			ClusterList:       r.ClusterList,
-		}
-	}
-	return params
 }
 
 // toStaticRouteUnicastParams converts a StaticRoute to UnicastParams.

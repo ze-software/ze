@@ -430,39 +430,7 @@ func patchRoutes(ps *reactor.PeerSettings, addr string, peerTree *config.Tree) e
 		return err
 	}
 
-	// Convert and patch exotic routes.
-	for i := range routes.MVPNRoutes {
-		route, err := convertMVPNRoute(routes.MVPNRoutes[i])
-		if err != nil {
-			return fmt.Errorf("peer %s mvpn route: %w", addr, err)
-		}
-		ps.MVPNRoutes = append(ps.MVPNRoutes, route)
-	}
-
-	for i := range routes.VPLSRoutes {
-		route, err := convertVPLSRoute(routes.VPLSRoutes[i])
-		if err != nil {
-			return fmt.Errorf("peer %s vpls route: %w", addr, err)
-		}
-		ps.VPLSRoutes = append(ps.VPLSRoutes, route)
-	}
-
-	for i := range routes.FlowSpecRoutes {
-		route, err := convertFlowSpecRoute(routes.FlowSpecRoutes[i])
-		if err != nil {
-			return fmt.Errorf("peer %s flowspec route: %w", addr, err)
-		}
-		ps.FlowSpecRoutes = append(ps.FlowSpecRoutes, route)
-	}
-
-	for i := range routes.MUPRoutes {
-		route, err := convertMUPRoute(routes.MUPRoutes[i])
-		if err != nil {
-			return fmt.Errorf("peer %s mup route: %w", addr, err)
-		}
-		ps.MUPRoutes = append(ps.MUPRoutes, route)
-	}
-
+	// Convert and patch generic plugin routes (native update{} nlri form).
 	for i := range routes.PluginRoutes {
 		route, err := convertPluginRoute(routes.PluginRoutes[i])
 		if err != nil {
@@ -471,41 +439,17 @@ func patchRoutes(ps *reactor.PeerSettings, addr string, peerTree *config.Tree) e
 		ps.PluginRoutes = append(ps.PluginRoutes, route)
 	}
 
-	// Extract exotic routes from legacy ExaBGP syntax blocks.
-	mvpnRoutes := extractMVPNRoutes(peerTree)
-	for i := range mvpnRoutes {
-		route, err := convertMVPNRoute(mvpnRoutes[i])
-		if err != nil {
-			return fmt.Errorf("peer %s mvpn route: %w", addr, err)
-		}
-		ps.MVPNRoutes = append(ps.MVPNRoutes, route)
-	}
-
-	vplsRoutes := extractVPLSRoutes(peerTree)
-	for i := range vplsRoutes {
-		route, err := convertVPLSRoute(vplsRoutes[i])
-		if err != nil {
-			return fmt.Errorf("peer %s vpls route: %w", addr, err)
-		}
-		ps.VPLSRoutes = append(ps.VPLSRoutes, route)
-	}
-
-	flowSpecRoutes := extractFlowSpecRoutes(peerTree)
-	for i := range flowSpecRoutes {
-		route, err := convertFlowSpecRoute(flowSpecRoutes[i])
+	// Legacy ExaBGP flow{} syntax: route through the flowspec plugin's parser.
+	for _, fr := range extractFlowSpecRoutes(peerTree) {
+		prc, err := flowSpecConfigToPlugin(fr)
 		if err != nil {
 			return fmt.Errorf("peer %s flowspec route: %w", addr, err)
 		}
-		ps.FlowSpecRoutes = append(ps.FlowSpecRoutes, route)
-	}
-
-	mupRoutes := extractMUPRoutes(peerTree)
-	for i := range mupRoutes {
-		route, err := convertMUPRoute(mupRoutes[i])
+		route, err := convertPluginRoute(prc)
 		if err != nil {
-			return fmt.Errorf("peer %s mup route: %w", addr, err)
+			return fmt.Errorf("peer %s flowspec route: %w", addr, err)
 		}
-		ps.MUPRoutes = append(ps.MUPRoutes, route)
+		ps.PluginRoutes = append(ps.PluginRoutes, route)
 	}
 
 	return nil

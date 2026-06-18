@@ -38,8 +38,13 @@ const (
 var errSRPolicyMissingFields = errors.New("sr-policy: requires distinguisher, color, and endpoint")
 
 // parseConfigRoute implements InProcessConfigRouteParser for SR-Policy.
-// content is the tokens after the operation keyword (e.g., ["distinguisher","0","color","100",...]).
-func parseConfigRoute(content []string, nextHop string, isIPv6 bool) (registry.PluginRoute, error) {
+// req.Content is the tokens after the operation keyword (e.g., ["distinguisher","0","color","100",...]).
+// SR-Policy carries all of its attributes inside the NLRI content (Tunnel
+// Encapsulation), so it ignores the pre-parsed attribute{} fields.
+func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, error) {
+	content := req.Content
+	nextHop := req.NextHop
+	isIPv6 := req.IsIPv6
 	var (
 		distinguisher uint32
 		color         uint32
@@ -185,10 +190,11 @@ func parseConfigRoute(content []string, nextHop string, isIPv6 bool) (registry.P
 	}
 
 	return registry.PluginRoute{
-		IsIPv6:  isIPv6,
-		NLRI:    nlri,
-		NextHop: nextHop,
-		Attrs:   attrs,
+		IsIPv6:       isIPv6,
+		NLRI:         nlri,
+		NextHop:      nextHop,
+		Attrs:        attrs,
+		MapV4NextHop: true, // multiprotocol next-hop: IPv4-mapped IPv6 for IPv6 family.
 	}, nil
 }
 

@@ -125,11 +125,12 @@ type Registration struct {
 	// should not silently produce a running ze with no BGP.
 	FatalOnConfigError bool
 
-	// InProcessConfigRouteParser parses NLRI content tokens from an update
-	// block into a PluginRoute. Replaces hardcoded family switch cases in the
-	// central config dispatcher. content is the tokens after the operation
-	// keyword, nextHop from the attribute block, isIPv6 from the family name.
-	InProcessConfigRouteParser func(content []string, nextHop string, isIPv6 bool) (PluginRoute, error)
+	// InProcessConfigRouteParser parses an update block's NLRI content tokens
+	// plus its pre-parsed attribute{} block into a PluginRoute. Replaces
+	// hardcoded family switch cases in the central config dispatcher. The plugin
+	// owns the family-specific NLRI encoding and per-family attribute assembly
+	// (e.g. extended-community sort order, NEXT_HOP code-3 for IPv4 MUP/MVPN).
+	InProcessConfigRouteParser func(req ConfigRouteRequest) (PluginRoute, error)
 
 	// DoctorChecks declares doctor readiness checks this plugin provides.
 	// Types defined in doctor.go. Component is set from the plugin Name.
@@ -141,6 +142,32 @@ type Registration struct {
 	SupportsCapa bool   // Plugin can decode capabilities via CLI
 }
 
+// ConfigRouteRequest carries everything a plugin's config route parser needs to
+// build one route: the NLRI content tokens and the pre-parsed generic path
+// attributes from the update's attribute{} block. The central dispatcher reuses
+// the shared attribute parsers to populate the pre-parsed fields so plugins do
+// not import the config package. AS_PATH and LOCAL_PREF are NOT assembled into
+// raw attributes by the plugin: AS_PATH is session-context dependent (ASN4) and
+// LOCAL_PREF is iBGP-gated, so both are carried through typed and built by
+// BuildPlugin at send time.
+type ConfigRouteRequest struct {
+	Content []string // NLRI tokens after the operation keyword.
+	NextHop string   // next-hop from the attribute block (or NLRI).
+	IsIPv6  bool     // derived from the family name prefix.
+
+	// Pre-parsed generic attributes (config order, unsorted).
+	ExtCommunity     []byte   // RFC 4360 extended communities wire bytes.
+	IPv6ExtCommunity []byte   // RFC 5701 IPv6 extended communities wire bytes (attr 25).
+	Community        []uint32 // RFC 1997 communities.
+	PrefixSID        []byte   // RFC 8669/9252 BGP Prefix-SID TLV value (attr 40).
+	OriginatorID     uint32   // RFC 4456 (0 = unset).
+	ClusterList      []uint32 // RFC 4456.
+	MED              uint32   // 0 = unset.
+	LocalPreference  uint32   // 0 = use default (100 on iBGP).
+	ASPath           []uint32 // configured AS_PATH (nil = local-origin default).
+	Origin           uint8    // 0=IGP, 1=EGP, 2=INCOMPLETE.
+}
+
 // PluginRoute is a family-agnostic route produced by a plugin's config parser.
 // All fields use pre-built wire bytes so the central config code needs no
 // family-specific knowledge.
@@ -148,7 +175,21 @@ type PluginRoute struct {
 	IsIPv6  bool
 	NLRI    []byte            // Pre-built NLRI wire bytes.
 	NextHop string            // Next-hop address string.
-	Attrs   []PluginRouteAttr // Extra path attributes beyond ORIGIN/AS_PATH/LOCAL_PREF/NEXT_HOP.
+	Attrs   []PluginRouteAttr // Extra path attributes beyond ORIGIN/AS_PATH/LOCAL_PREF/MP_REACH.
+
+	// ASPath is the configured AS_PATH; BuildPlugin encodes it with ASN4 context.
+	ASPath []uint32
+	// LocalPreference is the configured LOCAL_PREF value; BuildPlugin emits it
+	// only on iBGP sessions (0 = default 100 on iBGP).
+	LocalPreference uint32
+	// Group, when true, lets the reactor pack routes of the same family that
+	// share identical attributes into a single UPDATE (one MP_REACH, multiple
+	// NLRIs) -- required for MVPN wire compatibility (RFC 6514).
+	Group bool
+	// MapV4NextHop, when true, encodes an IPv4 next-hop as an IPv4-mapped IPv6
+	// address (::ffff:x.x.x.x) in MP_REACH for IPv6 families (MUP / SR-Policy
+	// convention). MVPN/VPLS/FlowSpec leave it false (raw next-hop bytes).
+	MapV4NextHop bool
 }
 
 // PluginRouteAttr is a pre-built path attribute carried by a PluginRoute.
@@ -701,7 +742,7 @@ func ConfigNLRIBuilder(family string) func(map[string][]string, bool, bool) []by
 // ConfigRouteParserByFamily returns the config route parser registered for a
 // family, or nil if none. Used by the central config dispatcher to delegate
 // family-specific update-block parsing to plugins.
-func ConfigRouteParserByFamily(family string) func(content []string, nextHop string, isIPv6 bool) (PluginRoute, error) {
+func ConfigRouteParserByFamily(family string) func(req ConfigRouteRequest) (PluginRoute, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 

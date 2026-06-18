@@ -39,12 +39,6 @@ import (
 // Uses LazyLogger to pick up config file settings applied after init().
 var configLogger = slogutil.LazyLogger("bgp.config")
 
-// Origin attribute values.
-const (
-	originIGP = "igp"
-	originEGP = "egp"
-)
-
 // LoadReactor parses config and creates a configured Reactor.
 func LoadReactor(input string) (*reactor.Reactor, error) {
 	result, err := config.LoadConfig(input, "", nil)

@@ -323,10 +323,6 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	// Send family-specific routes (config-originated)
-	p.sendMVPNRoutesVia(sendFn)
-	p.sendVPLSRoutesVia(sendFn)
-	p.sendFlowSpecRoutesVia(sendFn)
-	p.sendMUPRoutesVia(sendFn)
 	p.sendPluginRoutesVia(sendFn)
 
 	// Send EOR for ALL negotiated families per RFC 4724 Section 4.
@@ -413,336 +409,74 @@ func (p *Peer) sendUpdateDirect(update *message.Update) error {
 	return p.SendUpdate(update)
 }
 
-// sendMVPNRoutesVia sends MVPN routes configured for this peer.
-func (p *Peer) sendMVPNRoutesVia(sendFn func(*message.Update) error) {
-	nc := p.negotiated.Load()
-	if nc == nil {
-		return
-	}
-
-	addr := p.settings.Address.String()
-
-	// Group MVPN routes by AFI, filtering by negotiated families
-	var ipv4Routes, ipv6Routes []MVPNRoute
-	var skippedIPv4, skippedIPv6 int
-
-	for i := range p.settings.MVPNRoutes {
-		route := &p.settings.MVPNRoutes[i]
-		if route.IsIPv6 {
-			if nc.Has(family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMVPN}) {
-				ipv6Routes = append(ipv6Routes, *route)
-			} else {
-				skippedIPv6++
-			}
-		} else {
-			if nc.Has(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMVPN}) {
-				ipv4Routes = append(ipv4Routes, *route)
-			} else {
-				skippedIPv4++
-			}
-		}
-	}
-
-	if skippedIPv4 > 0 {
-		routesLogger().Debug("skipping IPv4 MVPN routes (not negotiated)", "peer", addr, "count", skippedIPv4)
-	}
-	if skippedIPv6 > 0 {
-		routesLogger().Debug("skipping IPv6 MVPN routes (not negotiated)", "peer", addr, "count", skippedIPv6)
-	}
-
-	// RFC 8654: Respect peer's max message size (4096 or 65535)
-	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
-
-	// Send IPv4 MVPN routes grouped by attributes (sorted for deterministic order)
-	if len(ipv4Routes) > 0 {
-		ipv4MVPNFamily := family.Family{AFI: 1, SAFI: 5} // IPv4 MVPN
-		addPath := p.addPathFor(ipv4MVPNFamily)
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
-		defer message.PutUpdateBuilder(ub)
-		ipv4Groups := groupMVPNRoutesByKey(ipv4Routes)
-		for _, key := range sortedKeys(ipv4Groups) {
-			routes := ipv4Groups[key]
-			if err := ub.BuildGroupedMVPN(toMVPNParams(routes), maxMsgSize, sendFn); err != nil {
-				if isMVPNBuildError(err) {
-					routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
-				} else {
-					routesLogger().Debug("MVPN send error", "peer", addr, "error", err)
-				}
-				continue
-			}
-			routesLogger().Debug("sent IPv4 MVPN routes", "peer", addr, "routes", len(routes))
-		}
-	}
-
-	// Send IPv6 MVPN routes grouped by attributes (sorted for deterministic order)
-	if len(ipv6Routes) > 0 {
-		ipv6MVPNFamily := family.Family{AFI: 2, SAFI: 5} // IPv6 MVPN
-		addPath := p.addPathFor(ipv6MVPNFamily)
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
-		defer message.PutUpdateBuilder(ub)
-		ipv6Groups := groupMVPNRoutesByKey(ipv6Routes)
-		for _, key := range sortedKeys(ipv6Groups) {
-			routes := ipv6Groups[key]
-			if err := ub.BuildGroupedMVPN(toMVPNParams(routes), maxMsgSize, sendFn); err != nil {
-				if isMVPNBuildError(err) {
-					routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
-				} else {
-					routesLogger().Debug("MVPN send error", "peer", addr, "error", err)
-				}
-				continue
-			}
-			routesLogger().Debug("sent IPv6 MVPN routes", "peer", addr, "routes", len(routes))
-		}
-	}
-	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
-	// negotiated families, so we don't send family-specific EORs here.
+// pluginRouteGroup accumulates the NLRIs of same-family same-attribute routes
+// that share a single UPDATE (MVPN, RFC 6514).
+type pluginRouteGroup struct {
+	fam   family.Family
+	rep   *PluginRoute
+	nlris [][]byte
 }
 
-// isMVPNBuildError reports whether err originates from BuildGroupedMVPN's
-// build-side validation (attrs/NLRI/update size) rather than from the emit
-// callback's send-side failure. Distinguishes operator-visible categories so a
-// flapping session isn't confused with a malformed MVPN config.
-//
-// ASSUMES the emit callback (p.SendUpdate) NEVER returns or wraps any of these
-// size sentinels -- today true because SendUpdate's error surface is limited to
-// ErrNotConnected, ErrInvalidState, and raw TCP write errors. If SendUpdate
-// ever grows to propagate a build sentinel, this classifier would misattribute;
-// switch to a `sentAny bool` flag in the emit closure if that changes.
-//
-// Matches the idiom at peer_initial_sync.go:214,236,338,358 which uses the same
-// sentinels (minus ErrUpdateTooLarge -- sendUpdateWithSplit never produces that;
-// only BuildGroupedMVPN's defense-in-depth check does) to gate connError.
-func isMVPNBuildError(err error) bool {
-	return errors.Is(err, message.ErrAttributesTooLarge) ||
-		errors.Is(err, message.ErrNLRITooLarge) ||
-		errors.Is(err, message.ErrUpdateTooLarge)
+// pluginUpdateSize returns the on-wire size of a built plugin-route UPDATE.
+// Plugin/MP_REACH families carry no inline NLRI, so the size is the 19-byte
+// header plus the withdrawn-routes(2) + total-path-attribute-length(2) fields
+// plus the path attributes.
+func pluginUpdateSize(u *message.Update) int {
+	return message.HeaderLen + 4 + len(u.PathAttributes)
 }
 
-// mvpnRouteGroupKey generates a grouping key for MVPN routes.
-// Routes with identical keys can share path attributes in one UPDATE.
-//
-// Fields in key (shared UPDATE attributes per RFC 4271 Section 4.3):
-// - NextHop, Origin, LocalPreference, MED: Standard path attributes.
-// - ExtCommunityBytes: Route Targets for VPN isolation (RFC 4360).
-// - OriginatorID, ClusterList: Route reflector attributes (RFC 4456).
-//
-// Fields NOT in key (per-NLRI, not per-UPDATE):
-// - IsIPv6: Routes pre-separated by AFI before grouping.
-// - RouteType: Multiple types allowed in same UPDATE.
-// - RD: Per-NLRI field in MP_REACH_NLRI.
-// - SourceAS, Source, Group: Per-NLRI fields.
-//
-// RFC 4456 Section 8: ClusterList is ordered (RRs prepend their CLUSTER_ID).
-// Routes with same cluster IDs in different order traversed different paths
-// and MUST NOT be grouped together. ClusterList is intentionally not sorted.
-func mvpnRouteGroupKey(r MVPNRoute) string {
+// packNLRIs greedily groups NLRIs into batches whose built UPDATE size (per the
+// measure callback) stays within maxSize (RFC 8654 max message size). A single
+// NLRI that alone exceeds maxSize is emitted in its own batch -- it cannot be
+// split further. Each returned batch is the concatenation of its NLRIs.
+func packNLRIs(nlris [][]byte, maxSize int, measure func(batch []byte) int) [][]byte {
+	var batches [][]byte
+	var cur []byte
+	for _, nlri := range nlris {
+		if len(cur) == 0 {
+			cur = append([]byte(nil), nlri...)
+			continue
+		}
+		trial := make([]byte, 0, len(cur)+len(nlri))
+		trial = append(trial, cur...)
+		trial = append(trial, nlri...)
+		if measure(trial) > maxSize {
+			batches = append(batches, cur)
+			cur = append([]byte(nil), nlri...)
+			continue
+		}
+		cur = trial
+	}
+	if len(cur) > 0 {
+		batches = append(batches, cur)
+	}
+	return batches
+}
+
+// pluginRouteGroupKey returns a grouping key: routes with the same key share an
+// UPDATE. Family encodes AFI/SAFI; the remaining fields are the shared path
+// attributes (next-hop, AS_PATH, LOCAL_PREF, and the pre-built raw attrs which
+// carry ORIGIN/MED/ext-community/originator/cluster/NEXT_HOP).
+func pluginRouteGroupKey(r *PluginRoute) string {
 	var b keyBuilder
-	b.Grow(64)
+	b.Grow(96)
+	b.WriteString(r.Family)
+	b.Sep()
 	b.Addr(r.NextHop)
 	b.Sep()
-	b.Uint(uint64(r.Origin))
+	b.Uint32Slice(r.ASPath)
 	b.Sep()
 	b.Uint(uint64(r.LocalPreference))
-	b.Sep()
-	b.Uint(uint64(r.MED))
-	b.Sep()
-	b.Hex(r.ExtCommunityBytes)
-	b.Sep()
-	b.Uint(uint64(r.OriginatorID))
-	b.Sep()
-	b.Uint32Slice(r.ClusterList)
+	for _, raw := range r.RawAttrs {
+		b.Sep()
+		b.Hex(raw)
+	}
 	return b.String()
 }
 
-// groupMVPNRoutesByKey groups MVPN routes by attribute key.
-// Routes with same key can share path attributes in a single UPDATE message.
-func groupMVPNRoutesByKey(routes []MVPNRoute) map[string][]MVPNRoute {
-	groups := make(map[string][]MVPNRoute)
-	for i := range routes {
-		key := mvpnRouteGroupKey(routes[i])
-		groups[key] = append(groups[key], routes[i])
-	}
-	return groups
-}
-
-// sortedKeys returns map keys in sorted order for deterministic iteration.
-func sortedKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-// sendVPLSRoutesVia sends VPLS routes configured for this peer.
-func (p *Peer) sendVPLSRoutesVia(sendFn func(*message.Update) error) {
-	nc := p.negotiated.Load()
-	if nc == nil || !nc.Has(family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIVPLS}) {
-		if len(p.settings.VPLSRoutes) > 0 {
-			addr := p.settings.Address.String()
-			routesLogger().Debug("skipping VPLS routes (L2VPN VPLS not negotiated)", "peer", addr, "count", len(p.settings.VPLSRoutes))
-		}
-		return
-	}
-
-	addr := p.settings.Address.String()
-
-	if len(p.settings.VPLSRoutes) > 0 {
-		routesLogger().Debug("sending VPLS routes", "peer", addr, "count", len(p.settings.VPLSRoutes))
-		// VPLS family: AFI=25 (L2VPN), SAFI=65 (VPLS)
-		// Note: VPLS doesn't support ADD-PATH
-		vplsFamily := family.Family{AFI: 25, SAFI: 65}
-		addPath := p.addPathFor(vplsFamily)
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
-		defer message.PutUpdateBuilder(ub)
-		for i := range p.settings.VPLSRoutes {
-			update := ub.BuildVPLS(toVPLSParams(p.settings.VPLSRoutes[i]))
-			if err := sendFn(update); err != nil {
-				routesLogger().Debug("VPLS send error", "peer", addr, "error", err)
-			}
-		}
-	}
-}
-
-// sendFlowSpecRoutes sends FlowSpec routes configured for this peer.
-// Only sends routes for families that were successfully negotiated.
-func (p *Peer) sendFlowSpecRoutesVia(sendFn func(*message.Update) error) {
-	nc := p.negotiated.Load()
-	if nc == nil {
-		return
-	}
-
-	addr := p.settings.Address.String()
-
-	// RFC 8654: Respect peer's max message size (4096 or 65535)
-	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
-
-	// Send routes only for negotiated families
-	var sentCount int
-	for i := range p.settings.FlowSpecRoutes {
-		route := &p.settings.FlowSpecRoutes[i]
-		// Check if this route's family is negotiated
-		isIPv6 := route.IsIPv6
-		isVPN := route.RD != [8]byte{}
-
-		var fam family.Family
-		switch {
-		case !isIPv6 && !isVPN:
-			fam = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
-		case !isIPv6 && isVPN:
-			fam = family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpecVPN}
-		case isIPv6 && !isVPN:
-			fam = family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpec}
-		case isIPv6 && isVPN:
-			fam = family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIFlowSpecVPN}
-		}
-
-		if !nc.Has(fam) {
-			routesLogger().Debug("skipping FlowSpec route (family not negotiated)", "peer", addr)
-			continue
-		}
-
-		// Determine FlowSpec family: AFI 1/2, SAFI 133 (unicast) or 134 (VPN)
-		afi := uint16(1)
-		if isIPv6 {
-			afi = 2
-		}
-		safi := uint8(133)
-		if isVPN {
-			safi = 134
-		}
-		addPath := p.addPathFor(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
-		// RFC 5575 Section 4: FlowSpec NLRI max 4095 bytes.
-		// Single FlowSpec rule is atomic - cannot be split across UPDATEs.
-		update, err := ub.BuildFlowSpecWithMaxSize(toFlowSpecParams(*route), maxMsgSize)
-		if err != nil {
-			message.PutUpdateBuilder(ub)
-			routesLogger().Debug("FlowSpec build error (too large?)", "peer", addr, "error", err)
-			continue
-		}
-		sendErr := sendFn(update)
-		message.PutUpdateBuilder(ub)
-		if sendErr != nil {
-			routesLogger().Debug("FlowSpec send error", "peer", addr, "error", sendErr)
-			continue
-		}
-		sentCount++
-	}
-	if sentCount > 0 {
-		routesLogger().Debug("sent FlowSpec routes", "peer", addr, "count", sentCount)
-	}
-}
-
-// sendMUPRoutes sends MUP routes configured for this peer.
-func (p *Peer) sendMUPRoutesVia(sendFn func(*message.Update) error) {
-	nc := p.negotiated.Load()
-	if nc == nil {
-		return
-	}
-
-	addr := p.settings.Address.String()
-
-	// Separate routes by AFI, filtering by negotiated families
-	var ipv4Routes, ipv6Routes []MUPRoute
-	var skippedIPv4, skippedIPv6 int
-
-	for _, route := range p.settings.MUPRoutes {
-		if route.IsIPv6 {
-			if nc.Has(family.Family{AFI: family.AFIIPv6, SAFI: family.SAFIMUP}) {
-				ipv6Routes = append(ipv6Routes, route)
-			} else {
-				skippedIPv6++
-			}
-		} else {
-			if nc.Has(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMUP}) {
-				ipv4Routes = append(ipv4Routes, route)
-			} else {
-				skippedIPv4++
-			}
-		}
-	}
-
-	if skippedIPv4 > 0 {
-		routesLogger().Debug("skipping IPv4 MUP routes (not negotiated)", "peer", addr, "count", skippedIPv4)
-	}
-	if skippedIPv6 > 0 {
-		routesLogger().Debug("skipping IPv6 MUP routes (not negotiated)", "peer", addr, "count", skippedIPv6)
-	}
-
-	// Send IPv4 MUP routes
-	if len(ipv4Routes) > 0 {
-		routesLogger().Debug("sending IPv4 MUP routes", "peer", addr, "count", len(ipv4Routes))
-		ipv4MUPFamily := family.Family{AFI: 1, SAFI: 85}
-		addPath := p.addPathFor(ipv4MUPFamily)
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
-		defer message.PutUpdateBuilder(ub)
-		for _, route := range ipv4Routes {
-			update := ub.BuildMUP(toMUPParams(route))
-			if err := sendFn(update); err != nil {
-				routesLogger().Debug("MUP send error", "peer", addr, "error", err)
-			}
-		}
-	}
-
-	// Send IPv6 MUP routes
-	if len(ipv6Routes) > 0 {
-		routesLogger().Debug("sending IPv6 MUP routes", "peer", addr, "count", len(ipv6Routes))
-		ipv6MUPFamily := family.Family{AFI: 2, SAFI: 85}
-		addPath := p.addPathFor(ipv6MUPFamily)
-		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
-		defer message.PutUpdateBuilder(ub)
-		for _, route := range ipv6Routes {
-			update := ub.BuildMUP(toMUPParams(route))
-			if err := sendFn(update); err != nil {
-				routesLogger().Debug("MUP send error", "peer", addr, "error", err)
-			}
-		}
-	}
-}
-
-// sendPluginRoutesVia sends generic plugin-registered routes.
+// sendPluginRoutesVia sends generic plugin-registered routes. Routes whose
+// plugin sets Group=true (MVPN) are packed by shared attributes into a single
+// UPDATE (one MP_REACH, multiple NLRIs); all others are sent one per UPDATE.
 func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
 	nc := p.negotiated.Load()
 	if nc == nil || len(p.settings.PluginRoutes) == 0 {
@@ -750,8 +484,42 @@ func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
 	}
 
 	addr := p.settings.Address.String()
+	// RFC 8654: respect the negotiated max message size (4096 or 65535).
+	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
 
-	for _, route := range p.settings.PluginRoutes {
+	// Pass 1: grouped routes packed by shared attributes, sent in deterministic
+	// key order (family first, so IPv4 families precede IPv6, then by attributes).
+	groups := map[string]*pluginRouteGroup{}
+	var groupOrder []string
+	for i := range p.settings.PluginRoutes {
+		route := &p.settings.PluginRoutes[i]
+		if !route.Group {
+			continue
+		}
+		fam, ok := family.LookupFamily(route.Family)
+		if !ok || !nc.Has(fam) {
+			continue
+		}
+		key := pluginRouteGroupKey(route)
+		g := groups[key]
+		if g == nil {
+			g = &pluginRouteGroup{fam: fam, rep: route}
+			groups[key] = g
+			groupOrder = append(groupOrder, key)
+		}
+		g.nlris = append(g.nlris, route.NLRI)
+	}
+	sort.Strings(groupOrder)
+	for _, key := range groupOrder {
+		p.sendPluginRouteGroup(groups[key], maxMsgSize, sendFn, addr)
+	}
+
+	// Pass 2: non-grouped routes, one per UPDATE, in config order.
+	for i := range p.settings.PluginRoutes {
+		route := &p.settings.PluginRoutes[i]
+		if route.Group {
+			continue
+		}
 		fam, ok := family.LookupFamily(route.Family)
 		if !ok {
 			routesLogger().Debug("skipping plugin route (unknown family)", "peer", addr, "family", route.Family)
@@ -764,11 +532,81 @@ func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
 
 		addPath := p.addPathFor(fam)
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
-		update := ub.BuildPlugin(toPluginParams(route, byte(fam.SAFI)))
+		update := ub.BuildPlugin(toPluginParams(*route, fam))
+		// A single plugin route (e.g. an atomic FlowSpec rule) cannot be split;
+		// skip it rather than emit an UPDATE the peer would reject.
+		if pluginUpdateSize(update) > maxMsgSize {
+			message.PutUpdateBuilder(ub)
+			routesLogger().Debug("skipping plugin route (exceeds max message size)", "peer", addr, "family", route.Family)
+			continue
+		}
 		if err := sendFn(update); err != nil {
 			routesLogger().Debug("plugin route send error", "peer", addr, "family", route.Family, "error", err)
 		}
 		message.PutUpdateBuilder(ub)
+	}
+}
+
+// concatNLRIs joins a group's per-route NLRIs into one contiguous buffer.
+func concatNLRIs(nlris [][]byte) []byte {
+	total := 0
+	for _, n := range nlris {
+		total += len(n)
+	}
+	out := make([]byte, 0, total)
+	for _, n := range nlris {
+		out = append(out, n...)
+	}
+	return out
+}
+
+// sendPluginRouteGroup emits a grouped route (MVPN). The common case -- the whole
+// group fits one UPDATE -- builds exactly once. Only when the concatenated group
+// exceeds maxMsgSize does it fall back to packNLRIs to split across UPDATEs (the
+// rare path; that split does O(n^2) sizing builds, acceptable since oversized
+// same-attribute groups are uncommon and this runs only at session establishment).
+func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, maxMsgSize int, sendFn func(*message.Update) error, addr string) {
+	addPath := p.addPathFor(g.fam)
+	base := toPluginParams(*g.rep, g.fam)
+	emit := func(nlri []byte) {
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		params := base
+		params.NLRI = nlri
+		update := ub.BuildPlugin(params)
+		if err := sendFn(update); err != nil {
+			routesLogger().Debug("plugin route group send error", "peer", addr, "family", g.rep.Family, "error", err)
+		}
+		message.PutUpdateBuilder(ub)
+	}
+
+	// Common case: build the whole group once and send it if it fits.
+	full := concatNLRIs(g.nlris)
+	ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+	params := base
+	params.NLRI = full
+	update := ub.BuildPlugin(params)
+	fits := pluginUpdateSize(update) <= maxMsgSize
+	if fits {
+		if err := sendFn(update); err != nil {
+			routesLogger().Debug("plugin route group send error", "peer", addr, "family", g.rep.Family, "error", err)
+		}
+	}
+	message.PutUpdateBuilder(ub)
+	if fits {
+		return
+	}
+
+	// Oversized group: split NLRIs across multiple size-bounded UPDATEs.
+	batches := packNLRIs(g.nlris, maxMsgSize, func(batch []byte) int {
+		mub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		mparams := base
+		mparams.NLRI = batch
+		sz := pluginUpdateSize(mub.BuildPlugin(mparams))
+		message.PutUpdateBuilder(mub)
+		return sz
+	})
+	for _, batch := range batches {
+		emit(batch)
 	}
 }
 

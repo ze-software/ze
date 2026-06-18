@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/nlri.md — VPLS NLRI plugin
 // RFC: rfc/short/rfc4761.md
+// Related: config.go — VPLS config route parser (uses EncodeNLRIHex)
 
 package vpls
 
@@ -10,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -128,38 +128,21 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 		return nil, nil, fmt.Errorf("invalid RD: %w", err)
 	}
 
-	// Convert to VPLSParams
-	params := vplsRouteToParams(parsed, rd)
-
-	// Build UPDATE
-	update := ub.BuildVPLS(params)
-
-	// Pack UPDATE body using PackTo
-	updateBody := message.PackTo(update, nil)
-
-	// For -n flag, build VPLS NLRI
+	// Build the VPLS NLRI (RFC 4761). VE-ID matches the block offset.
 	vplsNLRI := NewVPLSFull(rd, parsed.VEBlockOffset, parsed.VEBlockOffset, parsed.VEBlockSize, parsed.LabelBase)
 	nlriBytes := vplsNLRI.Bytes()
 
-	return updateBody, nlriBytes, nil
-}
-
-// vplsRouteToParams converts VPLSRoute to VPLSParams.
-func vplsRouteToParams(r bgptypes.VPLSRoute, rd RouteDistinguisher) message.VPLSParams {
-	p := message.VPLSParams{
-		NextHop:  r.NextHop,
-		Offset:   r.VEBlockOffset,
-		Size:     r.VEBlockSize,
-		Base:     r.LabelBase,
-		Endpoint: r.VEBlockOffset, // VE ID typically matches offset
-		Origin:   attribute.OriginIGP,
+	// Build UPDATE via the generic plugin builder (L2VPN AFI 25, SAFI 65).
+	params := message.PluginParams{
+		AFI:     25,
+		SAFI:    65,
+		NLRI:    nlriBytes,
+		NextHop: parsed.NextHop,
 	}
+	update := ub.BuildPlugin(params)
+	updateBody := message.PackTo(update, nil)
 
-	// Copy RD bytes
-	rdBytes := rd.Bytes()
-	copy(p.RD[:], rdBytes)
-
-	return p
+	return updateBody, nlriBytes, nil
 }
 
 // parseVPLSArgs parses VPLS command arguments for encode command.

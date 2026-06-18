@@ -1,6 +1,7 @@
 package bgpconfig
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -197,6 +198,72 @@ bgp {
 			_, err = extractRoutesFromTree(peer)
 			require.Error(t, err, "expected error for %s", tt.name)
 			require.Contains(t, err.Error(), "operation", "error should mention operation keyword for %s", tt.name)
+		})
+	}
+}
+
+// TestPluginRouteRDFirstOperation verifies that RD-first plugin families
+// (l2vpn/vpls, ipv4/flow-vpn) honor del/eor placed AFTER the inline RD: the
+// route must be skipped, not announced as if it were 'add'.
+//
+// VALIDATES: extractOp scans all tokens for the operation keyword.
+// PREVENTS: a `... rd X del ...` route being announced and a `... rd X eor`
+// erroring the whole config load (regression found in /ze-review: extractOp
+// only inspected parts[1], which is "rd" for these families).
+func TestPluginRouteRDFirstOperation(t *testing.T) {
+	const vplsAdd = "l2vpn/vpls rd 192.168.201.1:123 add ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702"
+	cases := []struct {
+		name       string
+		nlriLine   string
+		wantRoutes int
+	}{
+		{name: "vpls add announces", nlriLine: vplsAdd, wantRoutes: 1},
+		{name: "vpls del skipped", nlriLine: strings.Replace(vplsAdd, " add ", " del ", 1), wantRoutes: 0},
+		{name: "flow-vpn eor skipped", nlriLine: "ipv4/flow-vpn rd 65000:100 eor", wantRoutes: 0},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			input := `
+bgp {
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer mypeer {
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+        update {
+            attribute {
+                origin igp;
+                next-hop 10.0.0.1;
+            }
+            nlri {
+                ` + tt.nlriLine + `;
+            }
+        }
+    }
+}
+`
+			schema, err := config.YANGSchema()
+			require.NoError(t, err)
+			tree, err := config.NewParser(schema).Parse(input)
+			require.NoError(t, err)
+			peer := tree.GetContainer("bgp").GetList("peer")["mypeer"]
+			require.NotNil(t, peer)
+
+			routes, err := extractRoutesFromTree(peer)
+			require.NoError(t, err, "del/eor must not error the config load")
+			require.Len(t, routes.PluginRoutes, tt.wantRoutes)
 		})
 	}
 }

@@ -30,7 +30,7 @@ func init() {
 		InProcessNLRIDecoder:       DecodeNLRIHex,
 		InProcessNLRIEncoder:       EncodeNLRIHex,
 		InProcessRouteEncoder:      EncodeRoute,
-		InProcessConfigNLRIBuilder: BuildFlowSpecNLRI,
+		InProcessConfigRouteParser: parseConfigRoute,
 	}
 	reg.CLIHandler = func(args []string) int {
 		var family *string

@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI plugin
 // RFC: rfc/short/rfc5575.md
+// Related: config.go -- parseConfigRoute (supplies the match-criteria map)
 
 package flowspec
 
@@ -10,150 +11,132 @@ import (
 	"strings"
 )
 
-// BuildFlowSpecNLRI builds FlowSpec NLRI bytes from config-format match criteria.
-// This implements the InProcessConfigNLRIBuilder signature for the plugin registry.
-// matchCriteria keys use config syntax (e.g., "destination", "protocol", "port").
-func BuildFlowSpecNLRI(matchCriteria map[string][]string, isIPv6, forVPN bool) []byte {
+// buildFlowSpecComponents builds the FlowSpec from config-format match criteria
+// and returns any criterion keys that were PRESENT in the config but produced no
+// component: either an UNRECOGNIZED key (typo) or a known key whose value(s)
+// failed to parse (e.g. an invalid prefix or a bad port match). Either case would
+// silently widen the filter (worst case an all-match rule), so fail-loud callers
+// reject a non-empty dropped list. The `seen` set is populated by the blocks
+// themselves, so a future criterion missing its block fails loud rather than
+// being silently dropped.
+func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*FlowSpec, []string) {
 	fam := IPv4FlowSpec
 	if isIPv6 {
 		fam = IPv6FlowSpec
 	}
 
 	fs := NewFlowSpec(fam)
+	var dropped []string
+	seen := make(map[string]bool, len(matchCriteria))
 
 	// Add destination prefix (first value only - prefix is singular)
-	if vals, ok := matchCriteria["destination"]; ok && len(vals) > 0 {
-		prefix, offset := parseFlowPrefixWithOffset(vals[0])
-		if prefix.IsValid() {
-			if prefix.Addr().Is6() && offset > 0 {
-				fs.AddComponent(NewFlowDestPrefixComponentWithOffset(prefix, offset))
-			} else {
-				fs.AddComponent(NewFlowDestPrefixComponent(prefix))
-			}
+	if vals, ok := matchCriteria["destination"]; ok {
+		seen["destination"] = true
+		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
+			dropped = append(dropped, "destination")
+		} else if prefix.Addr().Is6() && offset > 0 {
+			fs.AddComponent(NewFlowDestPrefixComponentWithOffset(prefix, offset))
+		} else {
+			fs.AddComponent(NewFlowDestPrefixComponent(prefix))
 		}
 	}
 
 	// Add source prefix (first value only - prefix is singular)
-	if vals, ok := matchCriteria["source"]; ok && len(vals) > 0 {
-		prefix, offset := parseFlowPrefixWithOffset(vals[0])
-		if prefix.IsValid() {
-			if prefix.Addr().Is6() && offset > 0 {
-				fs.AddComponent(NewFlowSourcePrefixComponentWithOffset(prefix, offset))
+	if vals, ok := matchCriteria["source"]; ok {
+		seen["source"] = true
+		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
+			dropped = append(dropped, "source")
+		} else if prefix.Addr().Is6() && offset > 0 {
+			fs.AddComponent(NewFlowSourcePrefixComponentWithOffset(prefix, offset))
+		} else {
+			fs.AddComponent(NewFlowSourcePrefixComponent(prefix))
+		}
+	}
+
+	// Numeric / match criteria: a present key with no parseable value is dropped.
+	addNumeric := func(key string, typ FlowComponentType, parse func([]string) []FlowMatch) {
+		if vals, ok := matchCriteria[key]; ok {
+			seen[key] = true
+			if matches := parse(vals); len(matches) > 0 {
+				fs.AddComponent(NewFlowNumericComponent(typ, matches))
 			} else {
-				fs.AddComponent(NewFlowSourcePrefixComponent(prefix))
+				dropped = append(dropped, key)
 			}
 		}
 	}
+	addNumeric("protocol", FlowIPProtocol, parseFlowProtocolMatchesSlice)
+	addNumeric("next-header", FlowIPProtocol, parseFlowProtocolMatchesSlice)
+	addNumeric("port", FlowPort, parseFlowMatchesSlice)
+	addNumeric("destination-port", FlowDestPort, parseFlowMatchesSlice)
+	addNumeric("source-port", FlowSourcePort, parseFlowMatchesSlice)
+	addNumeric("packet-length", FlowPacketLength, parseFlowMatchesSlice)
+	addNumeric("tcp-flags", FlowTCPFlags, parseFlowTCPFlagMatchesSlice)
 
-	// Add protocol (supports multiple values like [ =tcp =udp ])
-	if vals, ok := matchCriteria["protocol"]; ok {
-		matches := parseFlowProtocolMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(NewFlowNumericComponent(FlowIPProtocol, matches))
-		}
-	}
-
-	// Add next-header (IPv6 equivalent of protocol)
-	if vals, ok := matchCriteria["next-header"]; ok {
-		matches := parseFlowProtocolMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(NewFlowNumericComponent(FlowIPProtocol, matches))
-		}
-	}
-
-	// Add port (matches either source or destination)
-	if vals, ok := matchCriteria["port"]; ok {
-		matches := parseFlowMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(NewFlowNumericComponent(FlowPort, matches))
-		}
-	}
-
-	// Add destination port
-	if vals, ok := matchCriteria["destination-port"]; ok {
-		matches := parseFlowMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(NewFlowNumericComponent(FlowDestPort, matches))
-		}
-	}
-
-	// Add source port
-	if vals, ok := matchCriteria["source-port"]; ok {
-		matches := parseFlowMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(NewFlowNumericComponent(FlowSourcePort, matches))
-		}
-	}
-
-	// Add packet length
-	if vals, ok := matchCriteria["packet-length"]; ok {
-		matches := parseFlowMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(NewFlowNumericComponent(FlowPacketLength, matches))
-		}
-	}
-
-	// Add DSCP
 	if vals, ok := matchCriteria["dscp"]; ok {
-		octets := parseFlowOctetsSlice(vals)
-		if len(octets) > 0 {
+		seen["dscp"] = true
+		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
 			fs.AddComponent(NewFlowDSCPComponent(octets...))
+		} else {
+			dropped = append(dropped, "dscp")
 		}
 	}
-
-	// Add traffic-class (IPv6)
 	if vals, ok := matchCriteria["traffic-class"]; ok {
-		octets := parseFlowOctetsSlice(vals)
-		if len(octets) > 0 {
+		seen["traffic-class"] = true
+		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
 			fs.AddComponent(NewFlowDSCPComponent(octets...))
+		} else {
+			dropped = append(dropped, "traffic-class")
 		}
 	}
-
-	// Add flow-label (IPv6)
 	if vals, ok := matchCriteria["flow-label"]; ok {
-		labels := parseFlowLabelsSlice(vals)
-		if len(labels) > 0 {
+		seen["flow-label"] = true
+		if labels := parseFlowLabelsSlice(vals); len(labels) > 0 {
 			fs.AddComponent(NewFlowFlowLabelComponent(labels...))
+		} else {
+			dropped = append(dropped, "flow-label")
 		}
 	}
-
-	// Add fragment
 	if vals, ok := matchCriteria["fragment"]; ok {
-		flags := parseFlowFragmentSlice(vals)
-		if len(flags) > 0 {
+		seen["fragment"] = true
+		if flags := parseFlowFragmentSlice(vals); len(flags) > 0 {
 			fs.AddComponent(NewFlowFragmentComponent(flags...))
+		} else {
+			dropped = append(dropped, "fragment")
 		}
 	}
-
-	// Add TCP flags
-	if vals, ok := matchCriteria["tcp-flags"]; ok {
-		matches := parseFlowTCPFlagMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(NewFlowNumericComponent(FlowTCPFlags, matches))
-		}
-	}
-
-	// Add ICMP type
 	if vals, ok := matchCriteria["icmp-type"]; ok {
-		types := parseFlowICMPTypesSlice(vals)
-		if len(types) > 0 {
+		seen["icmp-type"] = true
+		if types := parseFlowICMPTypesSlice(vals); len(types) > 0 {
 			fs.AddComponent(NewFlowICMPTypeComponent(types...))
+		} else {
+			dropped = append(dropped, "icmp-type")
 		}
 	}
-
-	// Add ICMP code
 	if vals, ok := matchCriteria["icmp-code"]; ok {
-		codes := parseFlowICMPCodesSlice(vals)
-		if len(codes) > 0 {
+		seen["icmp-code"] = true
+		if codes := parseFlowICMPCodesSlice(vals); len(codes) > 0 {
 			fs.AddComponent(NewFlowICMPCodeComponent(codes...))
+		} else {
+			dropped = append(dropped, "icmp-code")
 		}
 	}
 
-	// For VPN, return component bytes without length prefix
-	if forVPN {
-		return fs.ComponentBytes()
+	// Any criterion key no block recognized is an unknown criterion (typo).
+	for key := range matchCriteria {
+		if !seen[key] {
+			dropped = append(dropped, key)
+		}
 	}
-	return fs.Bytes()
+
+	return fs, dropped
+}
+
+// first returns the first element of s, or "" if s is empty.
+func first(s []string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	return s[0]
 }
 
 // parseFlowPrefixWithOffset parses a FlowSpec prefix like "10.0.0.1/32" or "::1/128/120".

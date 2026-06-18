@@ -24,9 +24,10 @@ func init() {
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecode(input, output)
 		},
-		InProcessNLRIDecoder:  DecodeNLRIHex,
-		InProcessNLRIEncoder:  EncodeNLRIHex,
-		InProcessRouteEncoder: EncodeRoute,
+		InProcessNLRIDecoder:       DecodeNLRIHex,
+		InProcessNLRIEncoder:       EncodeNLRIHex,
+		InProcessRouteEncoder:      EncodeRoute,
+		InProcessConfigRouteParser: parseConfigRoute,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

@@ -1,9 +1,6 @@
 // Design: docs/architecture/config/syntax.md — BGP route extraction from config tree
 // Detail: bgp_routes_flowspec.go — FlowSpec route parsing and extraction
-// Detail: bgp_routes_vpls.go — VPLS route parsing and extraction
-// Detail: bgp_routes_mvpn.go — MVPN route parsing and extraction
-// Detail: bgp_routes_mup.go — MUP route parsing and extraction
-// Detail: bgp_routes_inline.go — shared inline key-value tokenizer
+// Note: MUP/VPLS/MVPN routes are parsed by their bgp-nlri-* plugins' config route parsers.
 
 package bgpconfig
 
@@ -27,12 +24,6 @@ const (
 	opAdd = "add"
 	opDel = "del"
 	opEor = "eor"
-)
-
-// MUP family string constants.
-const (
-	familyIPv4MUP = "ipv4/mup"
-	familyIPv6MUP = "ipv6/mup"
 )
 
 // parseAnnounceAFIRoutes parses routes from an AFI container (ipv4 or ipv6).
@@ -101,10 +92,6 @@ func extractRoutesFromTree(tree *config.Tree) (*UpdateBlockRoutes, error) {
 
 		// Aggregate all route types
 		result.StaticRoutes = append(result.StaticRoutes, updateRoutes.StaticRoutes...)
-		result.FlowSpecRoutes = append(result.FlowSpecRoutes, updateRoutes.FlowSpecRoutes...)
-		result.VPLSRoutes = append(result.VPLSRoutes, updateRoutes.VPLSRoutes...)
-		result.MVPNRoutes = append(result.MVPNRoutes, updateRoutes.MVPNRoutes...)
-		result.MUPRoutes = append(result.MUPRoutes, updateRoutes.MUPRoutes...)
 		result.PluginRoutes = append(result.PluginRoutes, updateRoutes.PluginRoutes...)
 	}
 
@@ -120,12 +107,8 @@ func hasWatchdogContainer(update *config.Tree) bool {
 
 // UpdateBlockRoutes holds all route types extracted from an update { } block.
 type UpdateBlockRoutes struct {
-	StaticRoutes   []StaticRouteConfig
-	FlowSpecRoutes []FlowSpecRouteConfig
-	VPLSRoutes     []VPLSRouteConfig
-	MVPNRoutes     []MVPNRouteConfig
-	MUPRoutes      []MUPRouteConfig
-	PluginRoutes   []PluginRouteConfig
+	StaticRoutes []StaticRouteConfig
+	PluginRoutes []PluginRouteConfig
 }
 
 // extractRoutesFromUpdateBlock parses a single update { attribute { } nlri { } } block.
@@ -158,52 +141,24 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 			continue
 		}
 
-		// Handle complex NLRI families specially
-		switch famName {
-		case "ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn":
-			fr, err := parseFlowSpecNLRILine(line, attr)
-			if err != nil {
-				return nil, fmt.Errorf("flowspec nlri: %w", err)
-			}
-			result.FlowSpecRoutes = append(result.FlowSpecRoutes, fr)
-			continue
-
-		case "l2vpn/vpls":
-			vr, err := parseVPLSNLRILine(line, attr)
-			if err != nil {
-				return nil, fmt.Errorf("vpls nlri: %w", err)
-			}
-			result.VPLSRoutes = append(result.VPLSRoutes, vr)
-			continue
-
-		case "ipv4/mvpn", "ipv6/mvpn":
-			mr, err := parseMVPNNLRILine(line, attr)
-			if err != nil {
-				return nil, fmt.Errorf("mvpn nlri: %w", err)
-			}
-			result.MVPNRoutes = append(result.MVPNRoutes, mr)
-			continue
-
-		case familyIPv4MUP, familyIPv6MUP:
-			mr, err := parseMUPNLRILine(line, attr)
-			if err != nil {
-				return nil, fmt.Errorf("mup nlri: %w", err)
-			}
-			result.MUPRoutes = append(result.MUPRoutes, mr)
-			continue
-
-		}
-
 		// Plugin-registered families: delegate to the plugin's config route parser.
 		if parser := registry.ConfigRouteParserByFamily(famName); parser != nil {
-			contentTokens := extractContentTokens(parts)
+			// An operation keyword (add/del/eor) is mandatory. It may appear after
+			// an inline RD (l2vpn/vpls, ipv4/flow-vpn), so extractOp scans all tokens.
 			op := extractOp(parts)
+			if op == "" {
+				return nil, fmt.Errorf("missing operation keyword (add/del/eor) for family %s", famName)
+			}
 			if op == opEor || op == opDel {
 				continue
 			}
+			contentTokens := extractContentTokens(parts)
 			isIPv6 := strings.HasPrefix(famName, "ipv6/")
-			nextHop, _ := attr.Get("next-hop")
-			pr, err := parser(contentTokens, nextHop, isIPv6)
+			req, err := buildConfigRouteRequest(attr, contentTokens, isIPv6)
+			if err != nil {
+				return nil, fmt.Errorf("%s attributes: %w", famName, err)
+			}
+			pr, err := parser(req)
 			if err != nil {
 				return nil, fmt.Errorf("%s nlri: %w", famName, err)
 			}
@@ -415,12 +370,15 @@ func parseRouteConfig(prefix string, route *config.Tree) (StaticRouteConfig, err
 	return sr, nil
 }
 
-// extractOp returns the operation keyword (add/del/eor) from the NLRI parts, or empty string.
+// extractOp returns the operation keyword (add/del/eor) from the NLRI parts, or
+// empty string if none is present. Some families (l2vpn/vpls, ipv4/flow-vpn)
+// carry an inline RD before the operation, so the keyword is not always at
+// parts[1] -- scan all tokens (RD/criteria values are never bare add/del/eor).
 func extractOp(parts []string) string {
-	if len(parts) >= 2 {
-		switch parts[1] {
+	for _, p := range parts[1:] {
+		switch p {
 		case opAdd, opDel, opEor:
-			return parts[1]
+			return p
 		}
 	}
 	return ""
@@ -451,10 +409,57 @@ func pluginRouteFromRegistry(famName string, pr registry.PluginRoute) PluginRout
 		}
 	}
 	return PluginRouteConfig{
-		Family:  famName,
-		IsIPv6:  pr.IsIPv6,
-		NLRI:    pr.NLRI,
-		NextHop: pr.NextHop,
-		Attrs:   attrs,
+		Family:          famName,
+		IsIPv6:          pr.IsIPv6,
+		NLRI:            pr.NLRI,
+		NextHop:         pr.NextHop,
+		Attrs:           attrs,
+		ASPath:          pr.ASPath,
+		LocalPreference: pr.LocalPreference,
+		Group:           pr.Group,
+		MapV4NextHop:    pr.MapV4NextHop,
 	}
+}
+
+// buildConfigRouteRequest pre-parses an update block's attribute{} tree into a
+// registry.ConfigRouteRequest. It reuses the shared static-route attribute
+// parsers so plugin config parsers receive generic path attributes as typed
+// values / wire bytes without importing the config package. RD is NOT included:
+// it is carried inline with the NLRI content tokens, not the attribute block.
+func buildConfigRouteRequest(attr *config.Tree, content []string, isIPv6 bool) (registry.ConfigRouteRequest, error) {
+	var sr StaticRouteConfig
+	if err := applyAttributesFromTree(attr, &sr); err != nil {
+		return registry.ConfigRouteRequest{}, err
+	}
+	parsed, err := ParseRouteAttributes(&sr)
+	if err != nil {
+		return registry.ConfigRouteRequest{}, err
+	}
+
+	nextHop, _ := attr.Get("next-hop")
+
+	// IPv6 Extended Communities (attr 25): redirect-to-nexthop IPv6 plus any raw
+	// attribute 25 the operator supplied verbatim (RFC 5701).
+	ipv6ExtComm := buildIPv6ExtCommunityFromString(sr.ExtendedCommunity)
+	for i := range parsed.RawAttributes {
+		if parsed.RawAttributes[i].Code == 25 {
+			ipv6ExtComm = append(ipv6ExtComm, parsed.RawAttributes[i].Value...)
+		}
+	}
+
+	return registry.ConfigRouteRequest{
+		Content:          content,
+		NextHop:          nextHop,
+		IsIPv6:           isIPv6,
+		ExtCommunity:     parsed.ExtendedCommunity.Bytes,
+		IPv6ExtCommunity: ipv6ExtComm,
+		Community:        parsed.Community.Values,
+		PrefixSID:        parsed.PrefixSID.Bytes,
+		OriginatorID:     parsed.OriginatorID,
+		ClusterList:      parsed.ClusterList,
+		MED:              parsed.MED,
+		LocalPreference:  parsed.LocalPreference,
+		ASPath:           parsed.ASPath.Values,
+		Origin:           uint8(parsed.Origin),
+	}, nil
 }

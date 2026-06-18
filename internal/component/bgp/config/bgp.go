@@ -17,15 +17,6 @@ const (
 
 	// DefaultHoldTime is the default hold time per RFC 4271 Section 10.
 	DefaultHoldTime = 90
-
-	// MUP route types for SRv6 Mobile User Plane.
-	routeTypeMUPISD  = "mup-isd"
-	routeTypeMUPDSD  = "mup-dsd"
-	routeTypeMUPT1ST = "mup-t1st"
-	routeTypeMUPT2ST = "mup-t2st"
-
-	// Common field names.
-	fieldSource = "source"
 )
 
 // FamilyMode represents the negotiation mode for an address family.
@@ -103,42 +94,6 @@ type StaticRouteConfig struct {
 	Split string
 }
 
-// MVPNRouteConfig holds an MVPN route configuration.
-type MVPNRouteConfig struct {
-	RouteType         string // shared-join, source-join, source-ad
-	IsIPv6            bool
-	RD                string
-	SourceAS          uint32
-	Source            string // source IP or RP IP
-	Group             string // multicast group
-	NextHop           string
-	Origin            string
-	LocalPreference   uint32
-	MED               uint32
-	ExtendedCommunity string
-	OriginatorID      string // RFC 4456 route reflector
-	ClusterList       string // RFC 4456 route reflector
-}
-
-// VPLSRouteConfig holds a VPLS route configuration.
-type VPLSRouteConfig struct {
-	Name              string
-	RD                string
-	Endpoint          uint16
-	Base              uint32
-	Offset            uint16
-	Size              uint16
-	NextHop           string
-	Origin            string
-	LocalPreference   uint32
-	MED               uint32
-	ASPath            string
-	Community         string
-	ExtendedCommunity string
-	OriginatorID      string
-	ClusterList       string
-}
-
 // FlowSpecRouteConfig holds a FlowSpec route configuration.
 // RFC 8955 Section 4: NLRI contains match criteria (destination, source, protocol, ports, etc.)
 // RFC 8955 Section 7: Actions are encoded as Extended Communities (rate-limit, redirect, etc.)
@@ -153,22 +108,6 @@ type FlowSpecRouteConfig struct {
 	Attribute         string // Raw attribute hex: [ code flags value ]
 }
 
-// MUPRouteConfig holds a MUP route configuration.
-type MUPRouteConfig struct {
-	RouteType         string // mup-isd, mup-dsd, mup-t1st, mup-t2st
-	IsIPv6            bool
-	Prefix            string
-	Address           string
-	RD                string
-	TEID              string
-	QFI               uint8
-	Endpoint          string
-	Source            string // T1ST source address
-	NextHop           string
-	ExtendedCommunity string
-	PrefixSID         string
-}
-
 // PluginRouteConfig holds a generic route produced by a plugin's config parser.
 // Mirrors registry.PluginRoute but lives in the config layer.
 type PluginRouteConfig struct {
@@ -177,6 +116,15 @@ type PluginRouteConfig struct {
 	NLRI    []byte // Pre-built NLRI wire bytes.
 	NextHop string
 	Attrs   []PluginRouteAttrConfig // Extra path attributes.
+
+	// ASPath is the configured AS_PATH (built with ASN4 context at send time).
+	ASPath []uint32
+	// LocalPreference is the configured LOCAL_PREF (emitted only on iBGP; 0 = default 100).
+	LocalPreference uint32
+	// Group packs same-family same-attribute routes into one UPDATE (MVPN).
+	Group bool
+	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 for IPv6 families.
+	MapV4NextHop bool
 }
 
 // PluginRouteAttrConfig is a pre-built path attribute for a plugin route.

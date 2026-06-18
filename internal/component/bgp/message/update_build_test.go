@@ -18,6 +18,10 @@ import (
 // aliasing across a potential grow: sub-slices allocated before a grow reference
 // the OLD backing, ones allocated after reference the NEW backing. Passing both
 // to this helper covers the span.
+// test-relax: BuildMVPN / BuildGroupedMVPN / MVPNParams were removed by
+// spec-route-config-plugin-migration. MVPN routes now build via BuildPlugin; NLRI
+// and grouping are tested byte-for-byte by test/encode/mvpn.ci and the mvpn plugin.
+
 func sliceAliasesAny(s []byte, backings ...[]byte) bool {
 	if len(s) == 0 {
 		return false
@@ -50,21 +54,6 @@ func collectGrouped(t *testing.T, ub *UpdateBuilder, routes []UnicastParams, max
 	t.Helper()
 	var updates []*Update
 	err := ub.BuildGroupedUnicast(routes, maxSize, func(u *Update) error {
-		updates = append(updates, &Update{
-			PathAttributes: append([]byte(nil), u.PathAttributes...),
-			NLRI:           append([]byte(nil), u.NLRI...),
-		})
-		return nil
-	})
-	return updates, err
-}
-
-// collectMVPN runs BuildGroupedMVPN with a collecting callback and returns
-// deep-copied Updates for the same reason as collectGrouped.
-func collectMVPN(t *testing.T, ub *UpdateBuilder, routes []MVPNParams, maxSize int) ([]*Update, error) {
-	t.Helper()
-	var updates []*Update
-	err := ub.BuildGroupedMVPN(routes, maxSize, func(u *Update) error {
 		updates = append(updates, &Update{
 			PathAttributes: append([]byte(nil), u.PathAttributes...),
 			NLRI:           append([]byte(nil), u.NLRI...),
@@ -690,127 +679,9 @@ func TestUpdateBuilder_BuildVPN_ExtCommunity(t *testing.T) {
 	}
 }
 
-// TestUpdateBuilder_BuildMVPN_Basic verifies MVPN UPDATE building.
-//
-// VALIDATES: MVPN route produces UPDATE with MP_REACH_NLRI (SAFI=5).
-//
-// PREVENTS: MVPN routes using wrong SAFI or missing route type encoding.
-func TestUpdateBuilder_BuildMVPN_Basic(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, false, true, false)
-
-	params := MVPNParams{
-		RouteType: 5, // Source Active A-D
-		IsIPv6:    false,
-		RD:        [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-		Source:    netip.MustParseAddr("10.0.0.1"),
-		Group:     netip.MustParseAddr("239.1.1.1"),
-		NextHop:   netip.MustParseAddr("192.168.1.1"),
-		Origin:    attribute.OriginIGP,
-	}
-
-	update := ub.BuildMVPN([]MVPNParams{params})
-	if update == nil {
-		t.Fatal("BuildMVPN returned nil")
-		return
-	}
-
-	// MVPN routes should NOT have inline NLRI
-	if len(update.NLRI) != 0 {
-		t.Error("MVPN route should not have inline NLRI")
-	}
-
-	// Should have MP_REACH_NLRI in path attributes
-	codes, err := extractAttributeCodes(update.PathAttributes)
-	if err != nil {
-		t.Fatalf("extractAttributeCodes failed: %v", err)
-	}
-
-	hasMPReach := slices.Contains(codes, attribute.AttrMPReachNLRI)
-	if !hasMPReach {
-		t.Error("MVPN route should have MP_REACH_NLRI")
-	}
-}
-
-// TestUpdateBuilder_BuildMVPN_AttributeOrder verifies RFC 4271 ordering for MVPN.
-//
-// VALIDATES: MVPN UPDATE has attributes ordered by type code.
-//
-// PREVENTS: Attribute ordering violations in MVPN updates.
-func TestUpdateBuilder_BuildMVPN_AttributeOrder(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, true, true, false) // iBGP
-
-	params := MVPNParams{
-		RouteType:       5,
-		IsIPv6:          false,
-		RD:              [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-		Source:          netip.MustParseAddr("10.0.0.1"),
-		Group:           netip.MustParseAddr("239.1.1.1"),
-		NextHop:         netip.MustParseAddr("192.168.1.1"),
-		Origin:          attribute.OriginIGP,
-		LocalPreference: 150,
-	}
-
-	update := ub.BuildMVPN([]MVPNParams{params})
-	if update == nil {
-		t.Fatal("BuildMVPN returned nil")
-		return
-	}
-
-	codes, err := extractAttributeCodes(update.PathAttributes)
-	if err != nil {
-		t.Fatalf("extractAttributeCodes failed: %v", err)
-	}
-
-	// Verify ordering
-	for i := range len(codes) - 1 {
-		if codes[i] > codes[i+1] {
-			t.Errorf("attribute order violation: type %d before type %d at position %d",
-				codes[i], codes[i+1], i)
-		}
-	}
-}
-
-// TestUpdateBuilder_BuildVPLS_Basic verifies VPLS UPDATE building.
-//
-// VALIDATES: VPLS route produces UPDATE with MP_REACH_NLRI (AFI=25, SAFI=65).
-//
-// PREVENTS: VPLS routes using wrong AFI/SAFI.
-func TestUpdateBuilder_BuildVPLS_Basic(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, false, true, false)
-
-	params := VPLSParams{
-		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-		Endpoint: 1,
-		Base:     100,
-		Offset:   0,
-		Size:     10,
-		NextHop:  netip.MustParseAddr("192.168.1.1"),
-		Origin:   attribute.OriginIGP,
-	}
-
-	update := ub.BuildVPLS(params)
-	if update == nil {
-		t.Fatal("BuildVPLS returned nil")
-		return
-	}
-
-	if len(update.NLRI) != 0 {
-		t.Error("VPLS route should not have inline NLRI")
-	}
-
-	codes, err := extractAttributeCodes(update.PathAttributes)
-	if err != nil {
-		t.Fatalf("extractAttributeCodes failed: %v", err)
-	}
-
-	hasMPReach := slices.Contains(codes, attribute.AttrMPReachNLRI)
-	if !hasMPReach {
-		t.Error("VPLS route should have MP_REACH_NLRI")
-	}
-}
+// test-relax: BuildVPLS/VPLSParams removed -- VPLS routes now build via the generic
+// BuildPlugin path (spec-route-config-plugin-migration). Wire output (AFI=25,SAFI=65,
+// MP_REACH) is covered by test/encode/l2vpn.ci and the vpls plugin's config tests.
 
 // TestUpdateBuilder_BuildFlowSpec_Basic verifies FlowSpec UPDATE building.
 //
@@ -849,42 +720,9 @@ func TestUpdateBuilder_BuildFlowSpec_Basic(t *testing.T) {
 	}
 }
 
-// TestUpdateBuilder_BuildMUP_Basic verifies MUP UPDATE building.
-//
-// VALIDATES: MUP route produces UPDATE with MP_REACH_NLRI (SAFI=85).
-//
-// PREVENTS: MUP routes using wrong SAFI.
-func TestUpdateBuilder_BuildMUP_Basic(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, false, true, false)
-
-	params := MUPParams{
-		RouteType: 1,
-		IsIPv6:    false,
-		NLRI:      []byte{0x01, 0x02, 0x03, 0x04},
-		NextHop:   netip.MustParseAddr("192.168.1.1"),
-	}
-
-	update := ub.BuildMUP(params)
-	if update == nil {
-		t.Fatal("BuildMUP returned nil")
-		return
-	}
-
-	if len(update.NLRI) != 0 {
-		t.Error("MUP route should not have inline NLRI")
-	}
-
-	codes, err := extractAttributeCodes(update.PathAttributes)
-	if err != nil {
-		t.Fatalf("extractAttributeCodes failed: %v", err)
-	}
-
-	hasMPReach := slices.Contains(codes, attribute.AttrMPReachNLRI)
-	if !hasMPReach {
-		t.Error("MUP route should have MP_REACH_NLRI")
-	}
-}
+// test-relax: BuildMUP/MUPParams removed -- MUP routes now build via the generic
+// BuildPlugin path (spec-route-config-plugin-migration). Wire output is covered
+// by test/encode/srv6-mup.ci and the mup plugin's config tests.
 
 // TestBuildUnicast_EncodesReflectorAttrs verifies RFC 4456 attribute encoding.
 //
@@ -1235,59 +1073,8 @@ func TestBuildLabeledUnicast_ASN4Disabled(t *testing.T) {
 	}
 }
 
-// TestBuildMVPN_ASN4Disabled verifies 2-byte AS encoding for MVPN routes.
-//
-// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
-// PREVENTS: RFC 6793 violation for legacy peers with MVPN routes.
-func TestBuildMVPN_ASN4Disabled(t *testing.T) {
-
-	ub := NewUpdateBuilder(100, false, false, false)
-
-	params := MVPNParams{
-		RouteType: 5,
-		IsIPv6:    false,
-		RD:        [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-		Source:    netip.MustParseAddr("10.0.0.1"),
-		Group:     netip.MustParseAddr("239.1.1.1"),
-		NextHop:   netip.MustParseAddr("192.168.1.1"),
-		Origin:    attribute.OriginIGP,
-	}
-
-	update := ub.BuildMVPN([]MVPNParams{params})
-
-	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
-	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
-		t.Errorf("MVPN AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
-			expected2ByteAS, update.PathAttributes)
-	}
-}
-
-// TestBuildVPLS_ASN4Disabled verifies 2-byte AS encoding for VPLS routes.
-//
-// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
-// PREVENTS: RFC 6793 violation for legacy peers with VPLS routes.
-func TestBuildVPLS_ASN4Disabled(t *testing.T) {
-
-	ub := NewUpdateBuilder(100, false, false, false)
-
-	params := VPLSParams{
-		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-		Endpoint: 1,
-		Base:     100,
-		Offset:   0,
-		Size:     10,
-		NextHop:  netip.MustParseAddr("192.168.1.1"),
-		Origin:   attribute.OriginIGP,
-	}
-
-	update := ub.BuildVPLS(params)
-
-	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
-	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
-		t.Errorf("VPLS AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
-			expected2ByteAS, update.PathAttributes)
-	}
-}
+// test-relax: BuildVPLS/VPLSParams removed -- VPLS now uses BuildPlugin, whose AS_PATH
+// ASN4 encoding is shared across families (covered by the unicast ASN4 tests and l2vpn.ci).
 
 // TestBuildFlowSpec_ASN4Disabled verifies 2-byte AS encoding for FlowSpec routes.
 //
@@ -1312,53 +1099,9 @@ func TestBuildFlowSpec_ASN4Disabled(t *testing.T) {
 	}
 }
 
-// TestBuildMUP_ASN4Disabled verifies 2-byte AS encoding for MUP routes.
-//
-// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
-// PREVENTS: RFC 6793 violation for legacy peers with MUP routes.
-func TestBuildMUP_ASN4Disabled(t *testing.T) {
-
-	ub := NewUpdateBuilder(100, false, false, false)
-
-	params := MUPParams{
-		RouteType: 1,
-		IsIPv6:    false,
-		NLRI:      []byte{0x01, 0x02, 0x03, 0x04},
-		NextHop:   netip.MustParseAddr("192.168.1.1"),
-	}
-
-	update := ub.BuildMUP(params)
-
-	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
-	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
-		t.Errorf("MUP AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
-			expected2ByteAS, update.PathAttributes)
-	}
-}
-
-// TestBuildMUPWithdraw_ASN4Disabled verifies 2-byte AS encoding for MUP withdrawals.
-//
-// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
-// PREVENTS: RFC 6793 violation for legacy peers with MUP withdrawals.
-func TestBuildMUPWithdraw_ASN4Disabled(t *testing.T) {
-
-	ub := NewUpdateBuilder(100, false, false, false)
-
-	params := MUPParams{
-		RouteType: 1,
-		IsIPv6:    false,
-		NLRI:      []byte{0x01, 0x02, 0x03, 0x04},
-		NextHop:   netip.MustParseAddr("192.168.1.1"),
-	}
-
-	update := ub.BuildMUPWithdraw(params)
-
-	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
-	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
-		t.Errorf("MUPWithdraw AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
-			expected2ByteAS, update.PathAttributes)
-	}
-}
+// test-relax: BuildMUP/BuildMUPWithdraw removed -- MUP now uses BuildPlugin, whose
+// AS_PATH ASN4 encoding is shared with all families and covered by the unicast
+// ASN4 tests above plus test/encode/srv6-mup.ci.
 
 // =============================================================================
 // AGGREGATOR ASN4 Encoding Tests (RFC 6793 Section 4.2.3)
@@ -1453,32 +1196,8 @@ func TestBuildLabeledUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 	}
 }
 
-// TestBuildVPLS_Aggregator_ASN4Disabled verifies 6-byte AGGREGATOR for VPLS routes.
-//
-// VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false.
-// PREVENTS: RFC 6793 violation for VPLS routes.
-func TestBuildVPLS_Aggregator_ASN4Disabled(t *testing.T) {
-
-	ub := NewUpdateBuilder(100, false, false, false)
-
-	params := VPLSParams{
-		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-		Endpoint: 1,
-		Base:     100,
-		Offset:   0,
-		Size:     10,
-		NextHop:  netip.MustParseAddr("192.168.1.1"),
-		Origin:   attribute.OriginIGP,
-		ASPath:   []uint32{100}, // Need AS path to trigger aggregator
-	}
-	// Note: VPLSParams doesn't have HasAggregator - this test documents the limitation
-
-	update := ub.BuildVPLS(params)
-	if update == nil {
-		t.Fatal("BuildVPLS returned nil")
-		return
-	}
-}
+// test-relax: BuildVPLS/VPLSParams removed -- VPLS now uses BuildPlugin (no aggregator
+// support, same as the old VPLSParams which had no HasAggregator field).
 
 // TestBuildGroupedUnicast_Aggregator_ASN4Disabled verifies 6-byte AGGREGATOR for grouped updates.
 //
@@ -1510,45 +1229,6 @@ func TestBuildGroupedUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 	if !bytes.Contains(update.PathAttributes, expected6Byte) {
 		t.Errorf("Grouped AGGREGATOR not 6-byte encoded\nexpected to contain: %x\ngot: %x",
 			expected6Byte, update.PathAttributes)
-	}
-}
-
-// TestBuildMVPN_EncodesReflectorAttrs verifies RFC 4456 attribute encoding for MVPN.
-//
-// VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
-// PREVENTS: Data loss for route reflector configurations with MVPN.
-func TestBuildMVPN_EncodesReflectorAttrs(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, true, true, false)
-
-	routes := []MVPNParams{
-		{
-			RouteType:       5,
-			IsIPv6:          false,
-			Source:          netip.MustParseAddr("192.168.1.1"),
-			Group:           netip.MustParseAddr("239.0.0.1"),
-			NextHop:         netip.MustParseAddr("192.168.1.1"),
-			Origin:          attribute.OriginIGP,
-			LocalPreference: 100,
-			OriginatorID:    0xC0A80101, // 192.168.1.1
-			ClusterList:     []uint32{0xC0A80102, 0xC0A80103},
-		},
-	}
-
-	update := ub.BuildMVPN(routes)
-
-	// ORIGINATOR_ID: flags=0x80 (optional), type=0x09, len=0x04, value=C0A80101
-	expectedOriginator := []byte{0x80, 0x09, 0x04, 0xC0, 0xA8, 0x01, 0x01}
-	if !bytes.Contains(update.PathAttributes, expectedOriginator) {
-		t.Errorf("ORIGINATOR_ID not found in PathAttributes\ngot: %x\nwant to contain: %x",
-			update.PathAttributes, expectedOriginator)
-	}
-
-	// CLUSTER_LIST: flags=0x80, type=0x0A, len=0x08, values=C0A80102 C0A80103
-	expectedClusterType := []byte{0x80, 0x0A, 0x08}
-	if !bytes.Contains(update.PathAttributes, expectedClusterType) {
-		t.Errorf("CLUSTER_LIST not found in PathAttributes\ngot: %x",
-			update.PathAttributes)
 	}
 }
 
@@ -1585,39 +1265,9 @@ func TestBuildFlowSpec_EncodesReflectorAttrs(t *testing.T) {
 	}
 }
 
-// TestBuildMUP_EncodesReflectorAttrs verifies RFC 4456 attribute encoding for MUP.
-//
-// VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
-// PREVENTS: Data loss for route reflector configurations with MUP.
-func TestBuildMUP_EncodesReflectorAttrs(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, true, true, false)
-
-	params := MUPParams{
-		RouteType:    1,
-		IsIPv6:       false,
-		NLRI:         []byte{0x01, 0x00, 0x00, 0x01}, // simple MUP NLRI
-		NextHop:      netip.MustParseAddr("192.168.1.1"),
-		OriginatorID: 0xC0A80101, // 192.168.1.1
-		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
-	}
-
-	update := ub.BuildMUP(params)
-
-	// ORIGINATOR_ID: flags=0x80 (optional), type=0x09, len=0x04, value=C0A80101
-	expectedOriginator := []byte{0x80, 0x09, 0x04, 0xC0, 0xA8, 0x01, 0x01}
-	if !bytes.Contains(update.PathAttributes, expectedOriginator) {
-		t.Errorf("ORIGINATOR_ID not found in PathAttributes\ngot: %x\nwant to contain: %x",
-			update.PathAttributes, expectedOriginator)
-	}
-
-	// CLUSTER_LIST: flags=0x80, type=0x0A, len=0x08, values=C0A80102 C0A80103
-	expectedClusterType := []byte{0x80, 0x0A, 0x08}
-	if !bytes.Contains(update.PathAttributes, expectedClusterType) {
-		t.Errorf("CLUSTER_LIST not found in PathAttributes\ngot: %x",
-			update.PathAttributes)
-	}
-}
+// test-relax: BuildMUP/MUPParams removed -- the reflector-attr (ORIGINATOR_ID/
+// CLUSTER_LIST) capability tested here was never reachable from MUP config
+// (convertMUPRoute never set them); MUP config routes now build via BuildPlugin.
 
 // =============================================================================
 // BuildGroupedUnicastWithLimit Tests (Phase 3: Size-Aware Builder)
@@ -1836,136 +1486,10 @@ func TestBuildWithLimit_AttributesShared(t *testing.T) {
 // API Bounds Safety Tests (spec-api-bounds-safety.md)
 // =============================================================================
 
-// TestBuildFlowSpec_MaxSize_Fits verifies FlowSpec within limit succeeds.
-//
-// VALIDATES: BuildFlowSpec returns UPDATE when size <= maxSize.
-// PREVENTS: False positives on valid FlowSpec routes.
-func TestBuildFlowSpec_MaxSize_Fits(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, false, true, false)
-
-	// Simple FlowSpec NLRI (destination prefix 10.0.0.0/24)
-	params := FlowSpecParams{
-		IsIPv6:  false,
-		NLRI:    []byte{0x03, 0x01, 0x18, 0x0a}, // dest 10.0.0.0/24
-		NextHop: netip.MustParseAddr("192.168.1.1"),
-	}
-
-	// Large maxSize - should fit
-	update, err := ub.BuildFlowSpecWithMaxSize(params, 4096)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if update == nil {
-		t.Fatal("expected non-nil UPDATE")
-		return
-	}
-}
-
-// TestBuildFlowSpec_MaxSize_TooLarge verifies error when FlowSpec > maxSize.
-//
-// VALIDATES: BuildFlowSpec returns ErrUpdateTooLarge when route + attrs > maxSize.
-// PREVENTS: Oversized UPDATE generation for FlowSpec.
-// RFC 5575 Section 4: Single FlowSpec rule is atomic - cannot be split.
-func TestBuildFlowSpec_MaxSize_TooLarge(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, false, true, false)
-
-	params := FlowSpecParams{
-		IsIPv6:  false,
-		NLRI:    []byte{0x03, 0x01, 0x18, 0x0a},
-		NextHop: netip.MustParseAddr("192.168.1.1"),
-	}
-
-	// Very small maxSize - should fail
-	_, err := ub.BuildFlowSpecWithMaxSize(params, 30)
-	if err == nil {
-		t.Fatal("expected ErrUpdateTooLarge, got nil")
-		return
-	}
-	if !errors.Is(err, ErrUpdateTooLarge) {
-		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
-	}
-}
-
-// TestBuildMVPNWithLimit_AllFit verifies MVPN batch fits in single UPDATE.
-//
-// VALIDATES: BuildMVPNWithLimit returns single UPDATE when all routes fit.
-// PREVENTS: Unnecessary splitting of small batches.
-func TestBuildMVPNWithLimit_AllFit(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, true, true, false)
-
-	// Two small MVPN routes that should fit
-	routes := []MVPNParams{
-		{
-			RouteType: 5,
-			IsIPv6:    false,
-			RD:        [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-			Source:    netip.MustParseAddr("10.0.0.1"),
-			Group:     netip.MustParseAddr("239.1.1.1"),
-			NextHop:   netip.MustParseAddr("192.168.1.1"),
-			Origin:    attribute.OriginIGP,
-		},
-		{
-			RouteType: 5,
-			IsIPv6:    false,
-			RD:        [8]byte{0, 1, 0, 0, 0, 100, 0, 101},
-			Source:    netip.MustParseAddr("10.0.0.2"),
-			Group:     netip.MustParseAddr("239.1.1.2"),
-			NextHop:   netip.MustParseAddr("192.168.1.1"),
-			Origin:    attribute.OriginIGP,
-		},
-	}
-
-	updates, err := collectMVPN(t, ub, routes, 4096)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(updates) != 1 {
-		t.Errorf("expected 1 UPDATE (all fit), got %d", len(updates))
-	}
-}
-
-// TestBuildMVPNWithLimit_Split verifies MVPN batch splits across UPDATEs.
-//
-// VALIDATES: BuildMVPNWithLimit returns multiple UPDATEs when routes overflow.
-// PREVENTS: Single oversized UPDATE for large MVPN batches.
-func TestBuildMVPNWithLimit_Split(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, true, true, false)
-
-	// Create 20 MVPN routes - should overflow with small maxSize
-	var routes []MVPNParams
-	for i := range 20 {
-		routes = append(routes, MVPNParams{
-			RouteType: 5,
-			IsIPv6:    false,
-			RD:        [8]byte{0, 1, 0, 0, 0, 100, 0, byte(i)},
-			Source:    netip.MustParseAddr("10.0.0.1"),
-			Group:     netip.MustParseAddr("239.1.1.1"),
-			NextHop:   netip.MustParseAddr("192.168.1.1"),
-			Origin:    attribute.OriginIGP,
-		})
-	}
-
-	// Small maxSize to force splitting
-	updates, err := collectMVPN(t, ub, routes, 200)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(updates) <= 1 {
-		t.Errorf("expected multiple UPDATEs for overflow, got %d", len(updates))
-	}
-
-	// Verify each update is within size limit
-	for i, u := range updates {
-		size := HeaderLen + 4 + len(u.PathAttributes)
-		if size > 200 {
-			t.Errorf("update %d exceeds maxSize: %d > 200", i, size)
-		}
-	}
-}
+// test-relax: BuildFlowSpecWithMaxSize removed by spec-route-config-plugin-migration.
+// FlowSpec config routes now build via BuildPlugin; the atomic max-message-size guard
+// moved to the reactor's generic send path (sendPluginRoutesVia + packNLRIs), covered by
+// reactor.TestPackNLRIs. The base FlowSpec size formula is unchanged.
 
 // TestBuildUnicast_MaxSize_TooLarge verifies error when unicast > maxSize.
 //
@@ -2119,61 +1643,8 @@ func TestBuildLabeledUnicast_MaxSize_TooLarge(t *testing.T) {
 	}
 }
 
-// TestBuildVPLS_MaxSize_Fits verifies VPLS within limit succeeds.
-//
-// VALIDATES: BuildVPLSWithMaxSize returns UPDATE when size <= maxSize.
-// PREVENTS: False positives on valid VPLS routes.
-func TestBuildVPLS_MaxSize_Fits(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, false, true, false)
-
-	params := VPLSParams{
-		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-		Endpoint: 1,
-		Base:     100,
-		Offset:   0,
-		Size:     10,
-		NextHop:  netip.MustParseAddr("192.168.1.1"),
-		Origin:   attribute.OriginIGP,
-	}
-
-	update, err := ub.BuildVPLSWithMaxSize(params, 4096)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if update == nil {
-		t.Fatal("expected non-nil UPDATE")
-		return
-	}
-}
-
-// TestBuildVPLS_MaxSize_TooLarge verifies error when VPLS > maxSize.
-//
-// VALIDATES: BuildVPLSWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
-// PREVENTS: Oversized UPDATE generation for VPLS routes.
-func TestBuildVPLS_MaxSize_TooLarge(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, false, true, false)
-
-	params := VPLSParams{
-		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
-		Endpoint: 1,
-		Base:     100,
-		Offset:   0,
-		Size:     10,
-		NextHop:  netip.MustParseAddr("192.168.1.1"),
-		Origin:   attribute.OriginIGP,
-	}
-
-	_, err := ub.BuildVPLSWithMaxSize(params, 30)
-	if err == nil {
-		t.Fatal("expected ErrUpdateTooLarge, got nil")
-		return
-	}
-	if !errors.Is(err, ErrUpdateTooLarge) {
-		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
-	}
-}
+// test-relax: BuildVPLSWithMaxSize/VPLSParams removed -- VPLS config routes now build
+// via BuildPlugin; the plugin-route send path is the size-guard owner. Covered by l2vpn.ci.
 
 // TestBuildEVPN_MaxSize_Fits verifies EVPN within limit succeeds.
 //
@@ -2225,55 +1696,9 @@ func TestBuildEVPN_MaxSize_TooLarge(t *testing.T) {
 	}
 }
 
-// TestBuildMUP_MaxSize_Fits verifies MUP within limit succeeds.
-//
-// VALIDATES: BuildMUPWithMaxSize returns UPDATE when size <= maxSize.
-// PREVENTS: False positives on valid MUP routes.
-func TestBuildMUP_MaxSize_Fits(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, false, true, false)
-
-	params := MUPParams{
-		RouteType: 1,
-		IsIPv6:    false,
-		NLRI:      []byte{0x01, 0x02, 0x03, 0x04},
-		NextHop:   netip.MustParseAddr("192.168.1.1"),
-	}
-
-	update, err := ub.BuildMUPWithMaxSize(params, 4096)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if update == nil {
-		t.Fatal("expected non-nil UPDATE")
-		return
-	}
-}
-
-// TestBuildMUP_MaxSize_TooLarge verifies error when MUP > maxSize.
-//
-// VALIDATES: BuildMUPWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
-// PREVENTS: Oversized UPDATE generation for MUP routes.
-func TestBuildMUP_MaxSize_TooLarge(t *testing.T) {
-
-	ub := NewUpdateBuilder(65001, false, true, false)
-
-	params := MUPParams{
-		RouteType: 1,
-		IsIPv6:    false,
-		NLRI:      []byte{0x01, 0x02, 0x03, 0x04},
-		NextHop:   netip.MustParseAddr("192.168.1.1"),
-	}
-
-	_, err := ub.BuildMUPWithMaxSize(params, 30)
-	if err == nil {
-		t.Fatal("expected ErrUpdateTooLarge, got nil")
-		return
-	}
-	if !errors.Is(err, ErrUpdateTooLarge) {
-		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
-	}
-}
+// test-relax: BuildMUPWithMaxSize/MUPParams removed -- MUP config routes now build
+// via BuildPlugin; the reactor's plugin-route send path applies the max-size guard
+// generically. Covered by test/encode/srv6-mup.ci.
 
 // TestUpdateBuilderReuse verifies the builder produces identical bytes when reused.
 //
@@ -2673,75 +2098,5 @@ func TestBuildGroupedUnicast_AttrBytesPersistAcrossCallbacks(t *testing.T) {
 	}
 	if chunks < 3 {
 		t.Fatalf("need ≥3 chunks to exercise persistence invariant, got %d", chunks)
-	}
-}
-
-func sampleMVPNRoutes(n int) []MVPNParams {
-	routes := make([]MVPNParams, n)
-	for i := range routes {
-		routes[i] = MVPNParams{
-			RouteType: 5,
-			RD:        [8]byte{0, 0, 0, 1, 0, 0, 0, byte(i)},
-			Source:    netip.MustParseAddr("10.1.1.1"),
-			Group:     netip.AddrFrom4([4]byte{239, 0, byte(i >> 8), byte(i)}),
-			NextHop:   netip.MustParseAddr("192.168.1.1"),
-			Origin:    attribute.OriginIGP,
-		}
-	}
-	return routes
-}
-
-// TestBuildGroupedMVPN_CallbackOrder verifies chunks arrive in route order and
-// each chunk's Update has valid PathAttributes (MP_REACH contains that chunk's
-// NLRI set).
-//
-// VALIDATES: AC-6 (MVPN callback fires per chunk with correct per-chunk attrs).
-func TestBuildGroupedMVPN_CallbackOrder(t *testing.T) {
-	ub := NewUpdateBuilder(65001, false, true, false)
-	routes := sampleMVPNRoutes(30)
-
-	chunks := 0
-	err := ub.BuildGroupedMVPN(routes, 200, func(u *Update) error {
-		chunks++
-		if len(u.PathAttributes) == 0 {
-			t.Errorf("chunk %d has empty PathAttributes", chunks)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("BuildGroupedMVPN: %v", err)
-	}
-	if chunks < 2 {
-		t.Errorf("expected batch to split at maxSize=200, got %d chunks", chunks)
-	}
-}
-
-// TestBuildGroupedMVPN_AttrBytesPersistAcrossCallbacks is weaker than the
-// unicast variant because MVPN rebuilds PathAttributes per chunk (MP_REACH
-// contains chunk NLRI). The invariant here is that each emitted Update's
-// PathAttributes contains the shared base attrs (Origin, AS_PATH, NEXT_HOP,
-// LocalPref/ExtCommunities) plus a per-chunk MP_REACH block. We assert each
-// chunk's PathAttributes is non-empty and prefix/suffix substrings of the
-// first-chunk attrs are present (the shared attribute types).
-//
-// VALIDATES: AC-6 (MVPN chunks carry independent attrBytes per chunk but the
-// same shared baseline across all chunks).
-func TestBuildGroupedMVPN_AttrBytesPersistAcrossCallbacks(t *testing.T) {
-	ub := NewUpdateBuilder(65001, true, true, false) // iBGP for LocalPref to appear
-	routes := sampleMVPNRoutes(30)
-
-	chunks := 0
-	err := ub.BuildGroupedMVPN(routes, 200, func(u *Update) error {
-		chunks++
-		if len(u.PathAttributes) == 0 {
-			t.Errorf("chunk %d: empty PathAttributes", chunks)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("BuildGroupedMVPN: %v", err)
-	}
-	if chunks < 2 {
-		t.Fatalf("need ≥2 chunks to exercise persistence, got %d", chunks)
 	}
 }

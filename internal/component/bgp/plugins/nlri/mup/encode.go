@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/nlri.md — MUP NLRI wire encoding from route commands
 // RFC: rfc/short/draft-ietf-bess-mup-safi.md — MUP SAFI wire format
+// Related: config.go — MUP config route parser (uses EncodeNLRIHex)
 
 package mup
 
@@ -128,7 +129,7 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 
 	// MUP NLRIs are small (max ~68 bytes for T1ST with IPv6).
 	var buf [128]byte
-	n, _, err := writeMUPNLRI(buf[:], 0, spec)
+	n, err := writeMUPNLRI(buf[:], 0, spec)
 	if err != nil {
 		return "", err
 	}
@@ -157,7 +158,7 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 
 	// Build MUP NLRI — small (max ~68 bytes), stack array is sufficient.
 	var buf [128]byte
-	n, routeType, err := writeMUPNLRI(buf[:], 0, parsed)
+	n, err := writeMUPNLRI(buf[:], 0, parsed)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build NLRI: %w", err)
 	}
@@ -175,14 +176,27 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 		}
 	}
 
-	// Build UPDATE using stack buf data.
-	params := message.MUPParams{
-		RouteType: routeType,
-		IsIPv6:    isIPv6,
-		NLRI:      buf[:n],
-		NextHop:   nextHop,
+	// Build UPDATE via the generic plugin builder. MUP is AFI 1/2, SAFI 85.
+	// IPv4 MUP with an IPv4 next-hop also carries a legacy NEXT_HOP (code 3).
+	afi := uint16(1)
+	if isIPv6 {
+		afi = 2
 	}
-	update := ub.BuildMUP(params)
+	var rawAttrs [][]byte
+	if !isIPv6 && nextHop.Is4() {
+		b := nextHop.As4()
+		rawAttrs = append(rawAttrs, []byte{0x40, 3, 4, b[0], b[1], b[2], b[3]})
+	}
+	params := message.PluginParams{
+		AFI:          afi,
+		SAFI:         85,
+		IsIPv6:       isIPv6,
+		NLRI:         buf[:n],
+		NextHop:      nextHop,
+		RawAttrs:     rawAttrs,
+		MapV4NextHop: true,
+	}
+	update := ub.BuildPlugin(params)
 	updateBody := message.PackTo(update, nil)
 
 	return updateBody, nlriBytes, nil
@@ -191,10 +205,10 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 // writeMUPNLRI writes the complete MUP NLRI into buf at off.
 // Returns (bytes written, route type code, error).
 // No allocation — writes into caller-provided buffer.
-func writeMUPNLRI(buf []byte, off int, spec bgptypes.MUPRouteSpec) (int, uint8, error) {
+func writeMUPNLRI(buf []byte, off int, spec bgptypes.MUPRouteSpec) (int, error) {
 	routeType, err := parseMUPRouteType(spec.RouteType)
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 
 	// Parse RD.
@@ -203,7 +217,7 @@ func writeMUPNLRI(buf []byte, off int, spec bgptypes.MUPRouteSpec) (int, uint8, 
 	if spec.RD != "" {
 		parsed, rdErr := ParseRDString(spec.RD)
 		if rdErr != nil {
-			return 0, 0, fmt.Errorf("invalid RD %q: %w", spec.RD, rdErr)
+			return 0, fmt.Errorf("invalid RD %q: %w", spec.RD, rdErr)
 		}
 		rd = parsed
 		rdSize = 8
@@ -222,7 +236,7 @@ func writeMUPNLRI(buf []byte, off int, spec bgptypes.MUPRouteSpec) (int, uint8, 
 		fields, err = parseT2STFields(spec)
 	}
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 
 	// Write MUP header: arch(1) + routeType(2) + dataLength(1).
@@ -249,7 +263,7 @@ func writeMUPNLRI(buf []byte, off int, spec bgptypes.MUPRouteSpec) (int, uint8, 
 		pos += writeT2STData(buf, pos, fields)
 	}
 
-	return pos - off, uint8(routeType), nil //nolint:gosec // MUP route type is always 0-4
+	return pos - off, nil
 }
 
 // parseMUPRouteType converts route type string to MUPRouteType.

@@ -3,11 +3,8 @@
 // Overview: update.go — UPDATE message wire representation
 // Detail: update_build_vpn.go — VPN route building
 // Detail: update_build_labeled.go — labeled unicast route building
-// Detail: update_build_mvpn.go — MVPN route building
-// Detail: update_build_vpls.go — VPLS route building
 // Detail: update_build_flowspec.go — FlowSpec route building
 // Detail: update_build_evpn.go — EVPN route building
-// Detail: update_build_mup.go — MUP route building
 // Detail: update_build_grouped.go — grouped and size-aware builders
 // Related: update_split.go — UPDATE splitting and chunking
 // Related: common_attrs.go — shared attribute extraction helpers

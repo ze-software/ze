@@ -4,113 +4,15 @@
 package bgpconfig
 
 import (
-	"errors"
-	"fmt"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
-var errFlowspecNlriRequiresMatchCriteria = errors.New("flowspec nlri requires match criteria")
-
-// parseFlowSpecNLRILine parses a FlowSpec NLRI line like:
-// "ipv4/flow source-ipv4 10.0.0.1/32 destination-port =80 protocol =tcp".
-// RFC 8955 Section 4 defines the FlowSpec NLRI format.
-func parseFlowSpecNLRILine(line string, attr *config.Tree) (FlowSpecRouteConfig, error) {
-	parts := strings.Fields(line)
-	if len(parts) < 2 {
-		return FlowSpecRouteConfig{}, errFlowspecNlriRequiresMatchCriteria
-	}
-
-	fam := parts[0]
-	fr := FlowSpecRouteConfig{
-		IsIPv6: strings.HasPrefix(fam, "ipv6/"),
-		NLRI:   make(map[string][]string),
-	}
-
-	// Parse inline rd for VPN variant: ipv4/flow-vpn rd 65000:100 add destination ...
-	// RD is part of NLRI (RFC 8955), not a path attribute
-	criteria := parts[1:]
-	if strings.HasSuffix(fam, "-vpn") {
-		if len(criteria) >= 2 && criteria[0] == "rd" {
-			fr.RD = criteria[1]
-			criteria = criteria[2:] // consume rd <value>
-		}
-	}
-
-	// Operation keyword (add/del/eor) is mandatory
-	if len(criteria) == 0 {
-		return FlowSpecRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s", fam)
-	}
-	op := criteria[0]
-	if op != opAdd && op != opDel && op != opEor {
-		return FlowSpecRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", fam, op)
-	}
-	criteria = criteria[1:]
-
-	if op == opEor {
-		return fr, nil
-	}
-
-	// Get next-hop from attributes
-	if v, ok := attr.Get("next-hop"); ok {
-		fr.NextHop = v
-	}
-
-	// Get community from attributes
-	if items := attr.GetSlice("community"); len(items) > 0 {
-		fr.Community = textbuf.Join(items, " ")
-	}
-
-	// Get extended-community from attributes (actions per RFC 8955 Section 7)
-	if items := attr.GetSlice("extended-community"); len(items) > 0 {
-		fr.ExtendedCommunity = textbuf.Join(items, " ")
-	}
-
-	// Get raw attribute (e.g., for IPv6 Extended Community attr 25)
-	if items := attr.GetSlice("attribute"); len(items) > 0 {
-		fr.Attribute = textbuf.Join(items, " ")
-	}
-
-	// Parse NLRI match criteria from remaining parts
-	// Format: <criterion> <value> [<criterion> <value>]...
-	// Values are stored as slices to support multi-value criteria like "protocol [ =tcp =udp ]"
-	for i := 0; i < len(criteria); i++ {
-		criterion := normalizeFlowSpecCriterion(criteria[i])
-		// Handle bracketed lists like [ >200&<300 >400&<500 ]
-		if i+1 < len(criteria) && criteria[i+1] == "[" {
-			// Find closing bracket and collect all values
-			j := i + 2
-			for ; j < len(criteria) && criteria[j] != "]"; j++ {
-				fr.NLRI[criterion] = append(fr.NLRI[criterion], criteria[j])
-			}
-			i = j
-			continue
-		}
-		// Regular key-value pair (single value)
-		if i+1 < len(criteria) {
-			fr.NLRI[criterion] = append(fr.NLRI[criterion], criteria[i+1])
-			i++
-		}
-	}
-
-	return fr, nil
-}
-
-// normalizeFlowSpecCriterion normalizes FlowSpec criterion names to canonical form.
-// Maps "source-ipv4", "source-ipv6" -> "source"; "destination-ipv4", "destination-ipv6" -> "destination".
-// This ensures the NLRI map uses keys that buildFlowSpecNLRI expects.
-func normalizeFlowSpecCriterion(criterion string) string {
-	// Normalize IPv4/IPv6 source/destination variants to family-agnostic names
-	switch criterion {
-	case "source-ipv4", "source-ipv6":
-		return "source"
-	case "destination-ipv4", "destination-ipv6":
-		return "destination"
-	}
-	return criterion
-}
+// NOTE: The update{} nlri form (ipv4/flow ...) is parsed by the bgp-nlri-flowspec
+// plugin's config route parser (plugins/nlri/flowspec/config.go). The functions
+// below handle only the legacy ExaBGP flow{ route{ match{} then{} } } block.
 
 // extractFlowSpecRoutes extracts FlowSpec routes from flow { route ... }.
 func extractFlowSpecRoutes(tree *config.Tree) []FlowSpecRouteConfig {

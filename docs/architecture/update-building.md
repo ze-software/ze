@@ -102,31 +102,36 @@ Config/API → Domain Object → *Params → UpdateBuilder.Build*() → Update
      │              │              │               │              │
      │              │              │               │              └── Contains raw []byte
      │              │              │               └── Packs to wire format
-     │              │              └── Typed struct (UnicastParams, etc.)
-     │              └── FlowSpecRoute, StaticRoute, etc.
+     │              │              └── Typed struct (UnicastParams, PluginParams, etc.)
+     │              └── PluginRoute, StaticRoute, etc.
      └── YAML config, CLI commands
 ```
 
+The MP_REACH exotic families (MUP, VPLS, MVPN, FlowSpec, SR-Policy) all share one
+generic path: the family plugin's config-route parser pre-builds the NLRI and the
+family-specific path attributes, which flow through `reactor.PluginRoute` →
+`message.PluginParams` → `UpdateBuilder.BuildPlugin()`. There is no per-family
+`Build*()` in the message package for these families (see plugin-self-containment).
+
 **Files involved:**
-- `internal/component/bgp/reactor/peersettings.go` - Domain objects (FlowSpecRoute, StaticRoute, etc.)
-- `internal/component/bgp/reactor/peer.go` - Conversion functions (toFlowSpecParams, etc.)
+- `internal/component/bgp/reactor/peersettings.go` - Domain objects (PluginRoute, StaticRoute, etc.)
+- `internal/component/bgp/reactor/peer_static_routes.go` - Conversion functions (toPluginParams, etc.)
 - `internal/component/bgp/message/update_build.go` - UpdateBuilder, *Params structs, Build*() methods
-<!-- source: internal/component/bgp/reactor/peersettings.go -- FlowSpecRoute, StaticRoute -->
-<!-- source: internal/component/bgp/reactor/peer.go -- toFlowSpecParams, toStaticRouteUnicastParams -->
+- `internal/component/bgp/message/update_build_plugin.go` - BuildPlugin + PluginParams (generic exotic-family path)
+<!-- source: internal/component/bgp/reactor/peersettings.go -- PluginRoute, StaticRoute -->
+<!-- source: internal/component/bgp/reactor/peer_static_routes.go -- toPluginParams -->
+<!-- source: internal/component/bgp/message/update_build_plugin.go -- BuildPlugin, PluginParams -->
 
-**Flow example (FlowSpec):**
+**Flow example (FlowSpec via the generic plugin path):**
 ```go
-// 1. Config loader pre-packs communities
-route.CommunityBytes = buildFlowSpecCommunities(fr.Then)  // []byte
+// 1. The flowspec plugin's config parser pre-builds the NLRI + action attrs.
+pr, _ := parser(registry.ConfigRouteRequest{Content: tokens, ExtCommunity: ec})
 
-// 2. At send time, convert to params
-params := message.FlowSpecParams{
-    CommunityBytes: route.CommunityBytes,  // Pass through
-    // ...
-}
+// 2. At send time, convert to params (NLRI + RawAttrs pre-built by the plugin).
+params := message.PluginParams{AFI: 1, SAFI: 133, NLRI: pr.NLRI, RawAttrs: rawAttrs}
 
-// 3. Build UPDATE
-update := ub.BuildFlowSpec(params)  // Returns Update{PathAttributes: []byte}
+// 3. Build UPDATE (BuildPlugin owns only ORIGIN/AS_PATH/LOCAL_PREF/MP_REACH).
+update := ub.BuildPlugin(params)  // Returns Update{PathAttributes: []byte}
 
 // 4. Send
 peer.SendUpdate(update)
@@ -219,16 +224,23 @@ type FlowSpecParams struct {
 
 | Layer | Purpose | Example |
 |-------|---------|---------|
-| Domain Objects | Store route config | `FlowSpecRoute`, `StaticRoute` |
-| *Params | Build UPDATE message | `FlowSpecParams`, `UnicastParams` |
+| Domain Objects | Store route config | `PluginRoute`, `StaticRoute` |
+| *Params | Build UPDATE message | `PluginParams`, `UnicastParams` |
 | Update | Wire format container | `Update{PathAttributes []byte}` |
 
-**Conversion functions in `internal/component/bgp/reactor/peer.go`:**
+**Conversion functions in `internal/component/bgp/reactor/peer_static_routes.go`:**
 ```go
-func toFlowSpecParams(r FlowSpecRoute) message.FlowSpecParams
+func toPluginParams(r PluginRoute, fam family.Family) message.PluginParams
 func toStaticRouteUnicastParams(r StaticRoute, nf bool) message.UnicastParams
 func toVPNParams(r VPNRoute) message.VPNParams
 ```
+<!-- source: internal/component/bgp/reactor/peer_static_routes.go -- toPluginParams, toStaticRouteUnicastParams -->
+
+The exotic MP_REACH families (MUP/VPLS/MVPN/FlowSpec/SR-Policy) share `PluginRoute`
+/ `PluginParams`; their NLRI and family-specific attributes are pre-built by the
+family plugin, so the message package carries no per-family domain object or builder
+for them. (`message.FlowSpecParams` / `BuildFlowSpec` survive only for the ze-chaos
+load generator, not the config/API route path.)
 
 ---
 
@@ -289,9 +301,9 @@ and byte-correct. Treat slices as opaque; never assume they share backing.
 
 ### Callback-builder offset protocol
 
-`BuildGroupedUnicast` and `BuildGroupedMVPN` (and `Splitter.Split`) emit multiple
-Updates per outer call, all sharing a subset of scratch. To keep this safe without
-re-building shared attributes per chunk:
+`BuildGroupedUnicast` (and `Splitter.Split`) emit multiple Updates per outer call,
+all sharing a subset of scratch. To keep this safe without re-building shared
+attributes per chunk:
 
 | Region | Offset | Lifetime |
 |--------|-------|----------|
@@ -426,12 +438,12 @@ Both optimizations can be active simultaneously and are independent.
 ┌─────────────────────────────────────────────────────────────────┐
 │                    BUILD PATH (Local Origination)               │
 │                                                                 │
-│  Config → FlowSpecRoute → FlowSpecParams → BuildFlowSpec()      │
-│                ↓                ↓                 ↓             │
-│         CommunityBytes    (pass-through)    Update{[]byte}      │
+│  Config → PluginRoute → PluginParams → BuildPlugin()           │
+│                ↓              ↓               ↓                 │
+│        plugin-built NLRI  (pass-through)  Update{[]byte}        │
 │                                                                 │
 │  Volume: Low (tens of rules)                                    │
-│  Optimization: Pre-pack at config time                          │
+│  Optimization: Plugin pre-builds NLRI + attrs at config time    │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐

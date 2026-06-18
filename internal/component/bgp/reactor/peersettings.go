@@ -159,64 +159,6 @@ func (r *StaticRoute) RouteKey() string {
 	return b.Str(key).Byte('#').Uint32(r.PathID).String()
 }
 
-// MVPNRoute represents an MVPN route (RFC 6514).
-type MVPNRoute struct {
-	RouteType         uint8      // 5=source-ad, 6=shared-join, 7=source-join
-	IsIPv6            bool       // IPv4 or IPv6 MVPN
-	RD                [8]byte    // Route Distinguisher
-	SourceAS          uint32     // Source AS
-	Source            netip.Addr // Source IP or RP
-	Group             netip.Addr // Multicast group
-	NextHop           netip.Addr
-	Origin            uint8
-	LocalPreference   uint32
-	MED               uint32
-	ExtCommunityBytes []byte
-	OriginatorID      uint32   // RFC 4456
-	ClusterList       []uint32 // RFC 4456
-}
-
-// VPLSRoute represents a VPLS route.
-type VPLSRoute struct {
-	Name              string
-	RD                [8]byte
-	Endpoint          uint16
-	Base              uint32
-	Offset            uint16
-	Size              uint16
-	NextHop           netip.Addr
-	Origin            uint8
-	LocalPreference   uint32
-	MED               uint32
-	ASPath            []uint32
-	Communities       []uint32
-	ExtCommunityBytes []byte
-	OriginatorID      uint32
-	ClusterList       []uint32
-}
-
-// FlowSpecRoute represents a FlowSpec route (RFC 5575).
-type FlowSpecRoute struct {
-	Name                  string
-	IsIPv6                bool
-	RD                    [8]byte // For flow-vpn
-	NLRI                  []byte  // Pre-built FlowSpec NLRI
-	NextHop               netip.Addr
-	CommunityBytes        []byte // Standard communities
-	ExtCommunityBytes     []byte // Extended communities (attribute 16)
-	IPv6ExtCommunityBytes []byte // IPv6 Extended communities (attribute 25, RFC 5701)
-}
-
-// MUPRoute represents a MUP route.
-type MUPRoute struct {
-	RouteType         uint8 // Route subtype
-	IsIPv6            bool
-	NLRI              []byte // Pre-built MUP NLRI
-	NextHop           netip.Addr
-	ExtCommunityBytes []byte
-	PrefixSID         []byte
-}
-
 // PluginRoute is a generic route built by a plugin's config route parser.
 // Carries pre-built wire bytes so the reactor needs no family-specific code.
 type PluginRoute struct {
@@ -225,6 +167,15 @@ type PluginRoute struct {
 	NLRI     []byte // Pre-built NLRI wire bytes.
 	NextHop  netip.Addr
 	RawAttrs [][]byte // Extra pre-built attribute wire bytes (flags+code+len+value).
+
+	// ASPath is the configured AS_PATH, encoded with ASN4 context by BuildPlugin.
+	ASPath []uint32
+	// LocalPreference is emitted only on iBGP sessions (0 = default 100).
+	LocalPreference uint32
+	// Group lets same-family same-attribute routes pack into one UPDATE (MVPN).
+	Group bool
+	// MapV4NextHop maps an IPv4 next-hop to IPv4-mapped IPv6 for IPv6 families.
+	MapV4NextHop bool
 }
 
 // BFDSettings carries the per-peer BFD opt-in parsed from the YANG
@@ -394,12 +345,9 @@ type PeerSettings struct {
 	// StaticRoutes are announced when session is established.
 	StaticRoutes []StaticRoute
 
-	// Exotic route types
-	MVPNRoutes     []MVPNRoute
-	VPLSRoutes     []VPLSRoute
-	FlowSpecRoutes []FlowSpecRoute
-	MUPRoutes      []MUPRoute
-	PluginRoutes   []PluginRoute
+	// Exotic route types (MUP/VPLS/MVPN/FlowSpec/SR-Policy) all flow through the
+	// generic plugin-route path.
+	PluginRoutes []PluginRoute
 
 	// PrefixMaximum is the hard maximum number of prefixes accepted per family.
 	// Key is "afi/safi" string (e.g., "ipv4/unicast"). Mandatory for every negotiated family.
