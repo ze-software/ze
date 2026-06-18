@@ -26,14 +26,15 @@ func init() {
 	nlrisplit.Register(IPv6SRPolicy, SplitSRPolicy)
 
 	reg := registry.Registration{
-		Name:                 "bgp-nlri-srpolicy",
-		Description:          "SR-Policy family plugin (RFC 9830, SAFI 73)",
-		SupportsNLRI:         true,
-		Features:             "nlri",
-		Families:             []string{"ipv4/sr-policy", "ipv6/sr-policy"},
-		InProcessNLRIDecoder: DecodeNLRIHex,
-		RunEngine:            func(net.Conn) int { return 0 },
-		CLIHandler:           func([]string) int { return 0 },
+		Name:                       "bgp-nlri-srpolicy",
+		Description:                "SR-Policy family plugin (RFC 9830, SAFI 73)",
+		SupportsNLRI:               true,
+		Features:                   "nlri",
+		Families:                   []string{"ipv4/sr-policy", "ipv6/sr-policy"},
+		InProcessNLRIDecoder:       DecodeNLRIHex,
+		InProcessConfigRouteParser: parseConfigRoute,
+		RunEngine:                  func(net.Conn) int { return 0 },
+		CLIHandler:                 func([]string) int { return 0 },
 	}
 	if err := registry.Register(reg); err != nil {
 		slog.Error("srpolicy: registration failed", "error", err)

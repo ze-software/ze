@@ -168,3 +168,20 @@ type MUPRouteConfig struct {
 	ExtendedCommunity string
 	PrefixSID         string
 }
+
+// PluginRouteConfig holds a generic route produced by a plugin's config parser.
+// Mirrors registry.PluginRoute but lives in the config layer.
+type PluginRouteConfig struct {
+	Family  string // "ipv4/sr-policy", etc.
+	IsIPv6  bool
+	NLRI    []byte // Pre-built NLRI wire bytes.
+	NextHop string
+	Attrs   []PluginRouteAttrConfig // Extra path attributes.
+}
+
+// PluginRouteAttrConfig is a pre-built path attribute for a plugin route.
+type PluginRouteAttrConfig struct {
+	Code  uint8
+	Flags uint8
+	Value []byte
+}

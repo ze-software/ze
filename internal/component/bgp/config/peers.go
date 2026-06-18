@@ -463,6 +463,14 @@ func patchRoutes(ps *reactor.PeerSettings, addr string, peerTree *config.Tree) e
 		ps.MUPRoutes = append(ps.MUPRoutes, route)
 	}
 
+	for i := range routes.PluginRoutes {
+		route, err := convertPluginRoute(routes.PluginRoutes[i])
+		if err != nil {
+			return fmt.Errorf("peer %s plugin route %s: %w", addr, routes.PluginRoutes[i].Family, err)
+		}
+		ps.PluginRoutes = append(ps.PluginRoutes, route)
+	}
+
 	// Extract exotic routes from legacy ExaBGP syntax blocks.
 	mvpnRoutes := extractMVPNRoutes(peerTree)
 	for i := range mvpnRoutes {

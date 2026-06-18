@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/architecture.md — plugin registry
+// Related: doctor.go -- DoctorCheckDef type used by Registration.DoctorChecks
 //
 // Package registry provides compile-time plugin registration.
 //
@@ -124,6 +125,12 @@ type Registration struct {
 	// should not silently produce a running ze with no BGP.
 	FatalOnConfigError bool
 
+	// InProcessConfigRouteParser parses NLRI content tokens from an update
+	// block into a PluginRoute. Replaces hardcoded family switch cases in the
+	// central config dispatcher. content is the tokens after the operation
+	// keyword, nextHop from the attribute block, isIPv6 from the family name.
+	InProcessConfigRouteParser func(content []string, nextHop string, isIPv6 bool) (PluginRoute, error)
+
 	// DoctorChecks declares doctor readiness checks this plugin provides.
 	// Types defined in doctor.go. Component is set from the plugin Name.
 	DoctorChecks []DoctorCheckDef
@@ -132,6 +139,23 @@ type Registration struct {
 	Features     string // Space-separated feature list (e.g., "nlri yang")
 	SupportsNLRI bool   // Plugin can decode NLRI via CLI
 	SupportsCapa bool   // Plugin can decode capabilities via CLI
+}
+
+// PluginRoute is a family-agnostic route produced by a plugin's config parser.
+// All fields use pre-built wire bytes so the central config code needs no
+// family-specific knowledge.
+type PluginRoute struct {
+	IsIPv6  bool
+	NLRI    []byte            // Pre-built NLRI wire bytes.
+	NextHop string            // Next-hop address string.
+	Attrs   []PluginRouteAttr // Extra path attributes beyond ORIGIN/AS_PATH/LOCAL_PREF/NEXT_HOP.
+}
+
+// PluginRouteAttr is a pre-built path attribute carried by a PluginRoute.
+type PluginRouteAttr struct {
+	Code  uint8
+	Flags uint8
+	Value []byte
 }
 
 var (
@@ -670,6 +694,19 @@ func ConfigNLRIBuilder(family string) func(map[string][]string, bool, bool) []by
 
 	if reg := familyIndex[family]; reg != nil && reg.InProcessConfigNLRIBuilder != nil {
 		return reg.InProcessConfigNLRIBuilder
+	}
+	return nil
+}
+
+// ConfigRouteParserByFamily returns the config route parser registered for a
+// family, or nil if none. Used by the central config dispatcher to delegate
+// family-specific update-block parsing to plugins.
+func ConfigRouteParserByFamily(family string) func(content []string, nextHop string, isIPv6 bool) (PluginRoute, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	if reg := familyIndex[family]; reg != nil && reg.InProcessConfigRouteParser != nil {
+		return reg.InProcessConfigRouteParser
 	}
 	return nil
 }

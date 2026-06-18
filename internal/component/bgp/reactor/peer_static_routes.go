@@ -42,6 +42,13 @@ func toMUPParams(r MUPRoute) message.MUPParams {
 	}
 }
 
+func toPluginParams(r PluginRoute, safi byte) message.PluginParams {
+	return message.PluginParams{
+		IsIPv6: r.IsIPv6, SAFI: safi, NLRI: r.NLRI,
+		NextHop: r.NextHop, RawAttrs: r.RawAttrs,
+	}
+}
+
 func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
 	params := make([]message.MVPNParams, len(routes))
 	for i := range routes {

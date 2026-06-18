@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -104,6 +105,7 @@ func extractRoutesFromTree(tree *config.Tree) (*UpdateBlockRoutes, error) {
 		result.VPLSRoutes = append(result.VPLSRoutes, updateRoutes.VPLSRoutes...)
 		result.MVPNRoutes = append(result.MVPNRoutes, updateRoutes.MVPNRoutes...)
 		result.MUPRoutes = append(result.MUPRoutes, updateRoutes.MUPRoutes...)
+		result.PluginRoutes = append(result.PluginRoutes, updateRoutes.PluginRoutes...)
 	}
 
 	return result, nil
@@ -123,6 +125,7 @@ type UpdateBlockRoutes struct {
 	VPLSRoutes     []VPLSRouteConfig
 	MVPNRoutes     []MVPNRouteConfig
 	MUPRoutes      []MUPRouteConfig
+	PluginRoutes   []PluginRouteConfig
 }
 
 // extractRoutesFromUpdateBlock parses a single update { attribute { } nlri { } } block.
@@ -187,6 +190,24 @@ func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, erro
 				return nil, fmt.Errorf("mup nlri: %w", err)
 			}
 			result.MUPRoutes = append(result.MUPRoutes, mr)
+			continue
+
+		}
+
+		// Plugin-registered families: delegate to the plugin's config route parser.
+		if parser := registry.ConfigRouteParserByFamily(famName); parser != nil {
+			contentTokens := extractContentTokens(parts)
+			op := extractOp(parts)
+			if op == opEor || op == opDel {
+				continue
+			}
+			isIPv6 := strings.HasPrefix(famName, "ipv6/")
+			nextHop, _ := attr.Get("next-hop")
+			pr, err := parser(contentTokens, nextHop, isIPv6)
+			if err != nil {
+				return nil, fmt.Errorf("%s nlri: %w", famName, err)
+			}
+			result.PluginRoutes = append(result.PluginRoutes, pluginRouteFromRegistry(famName, pr))
 			continue
 		}
 
@@ -392,4 +413,48 @@ func parseRouteConfig(prefix string, route *config.Tree) (StaticRouteConfig, err
 	}
 
 	return sr, nil
+}
+
+// extractOp returns the operation keyword (add/del/eor) from the NLRI parts, or empty string.
+func extractOp(parts []string) string {
+	if len(parts) >= 2 {
+		switch parts[1] {
+		case opAdd, opDel, opEor:
+			return parts[1]
+		}
+	}
+	return ""
+}
+
+// extractContentTokens returns the NLRI content tokens after the operation keyword.
+// Input: ["ipv4/sr-policy", "add", "distinguisher", "0", ...].
+// Output: ["distinguisher", "0", ...] (skipping family and operation).
+func extractContentTokens(parts []string) []string {
+	if len(parts) < 2 {
+		return nil
+	}
+	remaining := parts[1:]
+	if len(remaining) > 0 && (remaining[0] == opAdd || remaining[0] == opDel || remaining[0] == opEor) {
+		remaining = remaining[1:]
+	}
+	return remaining
+}
+
+// pluginRouteFromRegistry converts a registry.PluginRoute to a config-layer PluginRouteConfig.
+func pluginRouteFromRegistry(famName string, pr registry.PluginRoute) PluginRouteConfig {
+	attrs := make([]PluginRouteAttrConfig, len(pr.Attrs))
+	for i := range pr.Attrs {
+		attrs[i] = PluginRouteAttrConfig{
+			Code:  pr.Attrs[i].Code,
+			Flags: pr.Attrs[i].Flags,
+			Value: pr.Attrs[i].Value,
+		}
+	}
+	return PluginRouteConfig{
+		Family:  famName,
+		IsIPv6:  pr.IsIPv6,
+		NLRI:    pr.NLRI,
+		NextHop: pr.NextHop,
+		Attrs:   attrs,
+	}
 }

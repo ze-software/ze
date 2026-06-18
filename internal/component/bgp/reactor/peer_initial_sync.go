@@ -327,6 +327,7 @@ func (p *Peer) sendInitialRoutes() {
 	p.sendVPLSRoutesVia(sendFn)
 	p.sendFlowSpecRoutesVia(sendFn)
 	p.sendMUPRoutesVia(sendFn)
+	p.sendPluginRoutesVia(sendFn)
 
 	// Send EOR for ALL negotiated families per RFC 4724 Section 4.
 	// RFC 4724: "including the case when there is no update to send"
@@ -738,6 +739,36 @@ func (p *Peer) sendMUPRoutesVia(sendFn func(*message.Update) error) {
 				routesLogger().Debug("MUP send error", "peer", addr, "error", err)
 			}
 		}
+	}
+}
+
+// sendPluginRoutesVia sends generic plugin-registered routes.
+func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
+	nc := p.negotiated.Load()
+	if nc == nil || len(p.settings.PluginRoutes) == 0 {
+		return
+	}
+
+	addr := p.settings.Address.String()
+
+	for _, route := range p.settings.PluginRoutes {
+		fam, ok := family.LookupFamily(route.Family)
+		if !ok {
+			routesLogger().Debug("skipping plugin route (unknown family)", "peer", addr, "family", route.Family)
+			continue
+		}
+		if !nc.Has(fam) {
+			routesLogger().Debug("skipping plugin route (not negotiated)", "peer", addr, "family", route.Family)
+			continue
+		}
+
+		addPath := p.addPathFor(fam)
+		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+		update := ub.BuildPlugin(toPluginParams(route, byte(fam.SAFI)))
+		if err := sendFn(update); err != nil {
+			routesLogger().Debug("plugin route send error", "peer", addr, "family", route.Family, "error", err)
+		}
+		message.PutUpdateBuilder(ub)
 	}
 }
 

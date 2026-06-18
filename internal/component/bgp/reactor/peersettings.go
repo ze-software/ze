@@ -217,6 +217,16 @@ type MUPRoute struct {
 	PrefixSID         []byte
 }
 
+// PluginRoute is a generic route built by a plugin's config route parser.
+// Carries pre-built wire bytes so the reactor needs no family-specific code.
+type PluginRoute struct {
+	Family   string // "ipv4/sr-policy", etc.
+	IsIPv6   bool
+	NLRI     []byte // Pre-built NLRI wire bytes.
+	NextHop  netip.Addr
+	RawAttrs [][]byte // Extra pre-built attribute wire bytes (flags+code+len+value).
+}
+
 // BFDSettings carries the per-peer BFD opt-in parsed from the YANG
 // `bgp peer connection bfd { ... }` block. A nil BFD field on
 // PeerSettings means the peer does not use BFD at all (the reactor
@@ -389,6 +399,7 @@ type PeerSettings struct {
 	VPLSRoutes     []VPLSRoute
 	FlowSpecRoutes []FlowSpecRoute
 	MUPRoutes      []MUPRoute
+	PluginRoutes   []PluginRoute
 
 	// PrefixMaximum is the hard maximum number of prefixes accepted per family.
 	// Key is "afi/safi" string (e.g., "ipv4/unicast"). Mandatory for every negotiated family.

@@ -480,6 +480,51 @@ func parseOrigin(s string) uint8 {
 	}
 }
 
+// convertPluginRoute converts a PluginRouteConfig to a reactor PluginRoute.
+func convertPluginRoute(pr PluginRouteConfig) (reactor.PluginRoute, error) {
+	route := reactor.PluginRoute{
+		Family: pr.Family,
+		IsIPv6: pr.IsIPv6,
+		NLRI:   pr.NLRI,
+	}
+
+	if pr.NextHop != "" {
+		ip, err := netip.ParseAddr(pr.NextHop)
+		if err != nil {
+			return route, fmt.Errorf("parse next-hop: %w", err)
+		}
+		route.NextHop = ip
+	}
+
+	for i := range pr.Attrs {
+		a := &pr.Attrs[i]
+		raw := buildPluginAttrWire(a.Flags, a.Code, a.Value)
+		route.RawAttrs = append(route.RawAttrs, raw)
+	}
+
+	return route, nil
+}
+
+// buildPluginAttrWire builds the complete wire bytes for a path attribute.
+func buildPluginAttrWire(flags, code uint8, value []byte) []byte {
+	vlen := len(value)
+	if vlen > 255 || (flags&0x10) != 0 {
+		buf := make([]byte, 4+vlen)
+		buf[0] = flags | 0x10
+		buf[1] = code
+		buf[2] = byte(vlen >> 8)
+		buf[3] = byte(vlen)
+		copy(buf[4:], value)
+		return buf
+	}
+	buf := make([]byte, 3+vlen)
+	buf[0] = flags
+	buf[1] = code
+	buf[2] = byte(vlen)
+	copy(buf[3:], value)
+	return buf
+}
+
 // parseASPathSimple parses an AS path string like "[ 30740 30740 ]" to []uint32.
 func parseASPathSimple(s string) ([]uint32, error) {
 	s = strings.Trim(s, "[]")
