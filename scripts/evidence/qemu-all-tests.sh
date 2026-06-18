@@ -140,20 +140,25 @@ run_check "unit tests (no -race, cacheable)" \
 	make --no-print-directory ze-unit-test-cached
 
 # 3. Integration tests: linux-only, netlink/nft/fib/socket. Same package set as
-#    `make ze-qemu-integration-test`, no -race (no C compiler in the VM).
-run_check "integration tests (-tags integration)" \
-	go test -tags integration -count=1 -timeout 120s \
-	./cmd/ze/doctor \
-	./internal/component/host/... \
-	./internal/component/iface/... \
-	./internal/component/config/system/... \
-	./internal/core/routewatch/... \
-	./internal/plugins/fib/kernel/... \
-	./internal/plugins/firewall/nft/... \
-	./internal/plugins/firewall/vpp/... \
-	./internal/plugins/traffic/netlink/... \
-	./internal/plugins/tftpserver/... \
+#    `make ze-qemu-integration-test`; IS-IS transport is added when present.
+integration_pkgs=(
+	./cmd/ze/doctor
+	./internal/component/host/...
+	./internal/component/iface/...
+	./internal/component/config/system/...
+	./internal/core/routewatch/...
+	./internal/plugins/fib/kernel/...
+	./internal/plugins/firewall/nft/...
+	./internal/plugins/firewall/vpp/...
+	./internal/plugins/traffic/netlink/...
+	./internal/plugins/tftpserver/...
 	./internal/plugins/dhcpserver/...
+)
+if [ -d ./internal/component/isis/transport ]; then
+	integration_pkgs+=(./internal/component/isis/transport/...)
+fi
+run_check "integration tests (-tags integration)" \
+	go test -tags integration -count=1 -timeout 120s "${integration_pkgs[@]}"
 
 banner "SUMMARY"
 if [ "$rc" -eq 0 ]; then
