@@ -42,14 +42,45 @@ implemented: `ze config validate` accepts unsupported features under
 clamping". The clamp function was removed; validation moved to YANG range
 checks. Env var path bypasses YANG validation, leaving no safety net.
 
-#### Web (81/81 FAIL) -- systemic: web server startup
-
-All tests hit the 30.1s timeout. The test runner starts
-`ze start --web <port> --insecure-web` without a config file, which fails
-with `config "ze.conf" has unknown type`. Needs a minimal config in the
-temp directory or `--web-only` mode.
-
 ## Resolved
+
+### 2026-06-18 -- Web suite (was 81/81 FAIL) -> harness fixed, genuine bugs fixed
+
+**Resolved 2026-06-18.** Root cause was the harness, not the product: the
+runner launched `ze start --web <port> --insecure-web` against an empty temp
+config store, so the daemon refused to start (full `--web` needs a loaded
+config) and exited before binding the port -- every test timed out at the
+readiness probe (`config "ze.conf" has unknown type`).
+
+Harness fixes (`internal/test/cli/cmd_web.go`,
+`internal/component/web/testing/runner.go`):
+- Launch `--web-only` (standalone web UI, no daemon/config -- the mode the
+  daemon's own error hint recommends). Server now binds; suite 0 -> ~76/81.
+- Readiness probe does an HTTPS GET, not a bare TCP connect (TCP accepts the
+  instant the listener binds, before routes mount, so a browser could hit an
+  empty page).
+- `expect` assertions auto-retry up to 5s (standard auto-waiting pattern),
+  absorbing HTMX/JS render races a single point-in-time snapshot caught as
+  "(empty page)".
+- Each test closes its browser session when done (was leaking 80+ live pages
+  into the shared agent-browser daemon over a run).
+- Seed a zefs local-admin into the temp store so `/show/users/` lists the
+  always-on "(system)" power user (verified via curl: page renders `(system)`).
+
+Four genuine pre-existing test bugs the all-failing harness had masked, all
+fixed (authorized `.wb` edits): `scenario-interface-setup` and
+`interface-configured-display` filled a `field-mac-address` the key-only add
+overlay never renders (removed -- mac-address is edited on the detail page);
+`logs-live-stream` asserted the transient "Connecting" that SSE replaces with
+"Connected" (now asserts "Connected"); `system-users-power` needed the seeded
+admin to show the "(system)" marker.
+
+Residual: this is performance-sensitive browser automation driven through one
+shared agent-browser daemon. Under heavy host load (this dev box sat at load
+avg ~7 from unrelated apps) render races still flake a rotating handful per
+full run; every test passes individually. Expected reliable on a quiet CI
+host. Verified: each fixed test passes in isolation; `webtesting` unit tests
+green; `--web-only` server serves every exercised route.
 
 ### 2026-06-18 -- Lint: `internal/analyze/inject.go:64` goconst
 

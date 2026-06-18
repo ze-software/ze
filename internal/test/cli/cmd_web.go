@@ -4,10 +4,12 @@ package cli
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -20,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 	"codeberg.org/thomas-mangin/ze/internal/test/trace"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 const (
@@ -261,7 +264,17 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string) (*zeTes
 	if tempErr != nil {
 		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
 	}
-	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", portStr, "--insecure-web") //nolint:gosec // test binary path
+	if err := zeTestSeedPowerUser(tempDir); err != nil {
+		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on seed failure
+		return nil, fmt.Errorf("seed power user: %w", err)
+	}
+	// --web-only starts the standalone web UI (no BGP engine, no config
+	// required). The .wb suite exercises the UI surface -- config editor,
+	// navigation, fragments, SSE log stream -- which RunWebOnly serves in full;
+	// it never needs live peer data. Plain "start --web" would demand a loaded
+	// config and exit before binding the port (ze_core_start.go:219), so every
+	// test timed out at the readiness probe.
+	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", portStr, "--web-only", "--insecure-web") //nolint:gosec // test binary path
 	var tb textbuf.Buffer
 	cmd.Env = append(os.Environ(),
 		tb.Str("ze.config.dir=").Str(tempDir).String(),
@@ -272,7 +285,7 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string) (*zeTes
 		return nil, err
 	}
 
-	if err := zeTestProbePort(ctx, listenAddr, 30*time.Second); err != nil {
+	if err := zeTestProbeReady(ctx, listenAddr, 30*time.Second); err != nil {
 		zeTestKillCmd(cmd)
 		os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup on probe failure
 		return nil, fmt.Errorf("daemon not ready: %w", err)
@@ -281,21 +294,64 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string) (*zeTes
 	return &zeTestWebServer{cmd: cmd, tempDir: tempDir}, nil
 }
 
-func zeTestProbePort(ctx context.Context, addr string, timeout time.Duration) error {
+// zeTestSeedPowerUser writes a zefs local-admin credential into the temp config
+// store (pre-creating database.zefs, which ze then opens rather than recreates)
+// so the Users page lists the always-on "(system)" power user, matching a real
+// appliance provisioned by `ze init`. --insecure-web disables web auth, so the
+// hash is never used to log in; it only needs to be non-empty for the power-user
+// loader to surface the account (cmd/ze/hub/main_servers.go usersFromZefsDB).
+func zeTestSeedPowerUser(configDir string) error {
+	store, err := zefs.Create(filepath.Join(configDir, "database.zefs"))
+	if err != nil {
+		return err
+	}
+	if err := store.WriteFile(zefs.KeyLocalAdminUsername.Pattern, []byte("admin"), 0); err != nil {
+		store.Close() //nolint:errcheck // returning the primary write error
+		return err
+	}
+	if err := store.WriteFile(zefs.KeyLocalAdminPassword.Pattern, []byte("$2y$10$ze.web.test.placeholder.admin.hash.value.unused"), 0); err != nil {
+		store.Close() //nolint:errcheck // returning the primary write error
+		return err
+	}
+	return store.Close()
+}
+
+func zeTestProbeReady(ctx context.Context, addr string, timeout time.Duration) error {
+	// A bare TCP connect succeeds the instant the listener binds, which can be
+	// before the HTTP routes are mounted: a browser hitting the server in that
+	// window gets an empty page. Require a real HTTP response (any status proves
+	// the mux is serving) so the readiness signal matches what the browser needs.
+	// This closes the flaky "(empty page)" failures seen under parallel load.
 	deadline := time.Now().Add(timeout)
-	dialer := net.Dialer{Timeout: 200 * time.Millisecond}
+	client := &http.Client{
+		Timeout: 500 * time.Millisecond,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // local self-signed cert under --insecure-web
+		},
+	}
+	var tb textbuf.Buffer
+	url := tb.Str("https://").Str(addr).Byte('/').String()
+	var lastErr error
 	for time.Now().Before(deadline) {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		conn, err := dialer.DialContext(ctx, "tcp", addr)
-		if err == nil {
-			conn.Close() //nolint:errcheck // probe connection, no data exchanged
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+		if reqErr != nil {
+			return reqErr
+		}
+		resp, doErr := client.Do(req)
+		if doErr == nil {
+			resp.Body.Close() //nolint:errcheck // readiness probe, body unused
 			return nil
 		}
+		lastErr = doErr
 		time.Sleep(100 * time.Millisecond)
 	}
-	return fmt.Errorf("port %s not reachable after %s", addr, timeout)
+	if lastErr != nil {
+		return fmt.Errorf("web server %s not ready after %s: %w", addr, timeout, lastErr)
+	}
+	return fmt.Errorf("web server %s not ready after %s", addr, timeout)
 }
 
 func zeTestKillCmd(cmd *exec.Cmd) {

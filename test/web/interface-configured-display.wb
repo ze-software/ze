@@ -14,7 +14,6 @@ expect=element:text=Add Interface
 expect=element:id=field-interface-name
 
 action=fill:id=field-interface-name:value=web-display-test
-action=fill:id=field-mac-address:value=11:22:33:44:55:66
 action=click:text=Save
 action=wait:ms=1000
 

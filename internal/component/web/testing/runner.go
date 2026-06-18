@@ -433,6 +433,12 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 		browser = NewBrowser(baseURL)
 	}
 	browser.Close()
+	// Free this test's browser session when it finishes. Sessions are keyed per
+	// test (unique nick), so without a per-test close they accumulate in the
+	// shared agent-browser daemon for the whole suite -- 80+ live pages that
+	// starve later tests of resources and surface as flaky empty snapshots. The
+	// suite-end sweep is a backstop, not a substitute.
+	defer browser.Close()
 
 	var (
 		steps []trace.StepResult
@@ -457,7 +463,7 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 			}
 		case WBStepExpect:
 			e := tc.Expects[step.ExpectIndex]
-			err := checkExpectation(browser, &e)
+			err := checkExpectationRetry(browser, &e)
 			steps = append(steps, trace.StepResult{
 				Step: i + 1, Line: e.Line,
 				Kind: "expect", Assert: e.Kind,
@@ -473,6 +479,37 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	}
 
 	return &WBTestResult{Passed: true, Steps: steps}
+}
+
+const (
+	// Generous: under parallel CPU load an HTMX/JS render can land seconds after
+	// WaitLoad reports the network idle, so the assertion must out-wait the slow
+	// render without out-waiting the test's own option=timeout.
+	expectRetryDeadline = 5 * time.Second
+	// Poll gently: each retry re-snapshots via agent-browser subprocesses, so a
+	// tight interval would itself load the shared daemon under parallel runs.
+	expectRetryPoll = 250 * time.Millisecond
+)
+
+// checkExpectationRetry polls an expectation until it passes or a short deadline
+// elapses. A browser snapshot is a point-in-time read: under parallel CPU load a
+// page's HTMX/JS render can land a few hundred milliseconds after WaitLoad reports
+// the network idle, so a single snapshot occasionally catches a half-rendered
+// ("empty") page. Retrying converts that race into a bounded wait -- the standard
+// auto-waiting-assertion pattern -- so a correct page is never failed for being
+// briefly late, while a genuinely wrong page still fails after the deadline.
+func checkExpectationRetry(b *Browser, e *WBExpectation) error {
+	deadline := time.Now().Add(expectRetryDeadline)
+	for {
+		err := checkExpectation(b, e)
+		if err == nil {
+			return nil
+		}
+		if !time.Now().Before(deadline) {
+			return err
+		}
+		time.Sleep(expectRetryPoll)
+	}
 }
 
 func executeAction(b *Browser, a *WBAction) error {
