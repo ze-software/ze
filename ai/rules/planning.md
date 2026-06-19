@@ -278,7 +278,7 @@ If it exists, the spec is stale, not the code. Update the spec to match reality.
 
 See `ai/rules/deferral-tracking.md` for the full deferral process and log format.
 
-**No deferral without a destination.** Work deferred from a spec MUST land in a concrete, existing spec with an explicit task item for this work.
+**No deferral without a destination.** Work deferred from a spec MUST land in a concrete, existing spec with an explicit task item for this work. If no such spec exists, create a skeleton spec (`Status | skeleton`, from `plan/TEMPLATE.md`) capturing just the points before committing -- see `ai/rules/deferral-tracking.md` "Destination Spec Missing".
 
 Before marking a spec done, for every deferral: verify the receiving spec exists, has the deferred item listed, and the deferral is recorded in the current spec's Deviations section.
 

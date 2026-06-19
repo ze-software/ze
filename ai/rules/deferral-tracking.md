@@ -41,6 +41,25 @@ Rationale: Untracked deferrals are invisible scope reductions. They accumulate s
 | Record immediately | Do not batch. Record when the decision is made |
 | Review at session end | Check open deferrals before ending |
 
+## Destination Spec Missing -> Create a Skeleton (BLOCKING)
+
+Every open deferral needs a destination spec (see Rules). When the follow-up
+work has no existing spec to land in, do not leave the Destination empty and do
+not drop the work: create a skeleton spec so the information survives the commit.
+
+At commit time, before finalising the commit:
+
+| Step | Action |
+|------|--------|
+| 1 | List what was deferred or left unimplemented from this commit's scope |
+| 2 | For each item with no existing destination spec, create `plan/spec-<name>.md` from `plan/TEMPLATE.md` with `Status \| skeleton` |
+| 3 | Fill only the `## Task` section with the points to complete, plus any constraint already known. Leave the rest as template placeholders |
+| 4 | Record the deferral in `plan/deferrals.md` with the new skeleton spec as Destination |
+
+Keep it small. The goal is zero lost work, not a finished design -- a skeleton is
+captured intent, not a designed spec. It moves to `design` when someone picks it
+up (status table in `ai/rules/planning.md`).
+
 ## Verify Before Deferring (BLOCKING)
 
 Never claim "requires infrastructure that doesn't exist" without grepping for it first.
