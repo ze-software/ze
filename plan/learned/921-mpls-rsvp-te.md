@@ -51,8 +51,10 @@ RESV refresh, AC-6 link-failure handling, AC-9 ERO/RRO display.
   fabric so each engine's own encoded PATH/RESV/PathErr/PathTear is decoded and acted on
   by the peer -- a direct LSP both ways, a three-node ingress/transit/egress LSP (label
   stack push->swap->pop, RRO across hops), a PathErr rejection, hop-by-hop teardown,
-  soft-state refresh, admission denial, and a make-before-break reroute -- the fully-open
-  substitute for the missing peer.
+  soft-state refresh (2- and 3-node), admission denial (single- and multi-interface), and
+  a make-before-break reroute (direct and config-reload-triggered) -- the fully-open
+  substitute for the missing peer. A -race test (register_test.go) proves reconcileTunnels
+  is safe to run concurrently with live signaling (the OnConfigApply-vs-run-loop concurrency).
 - Link-failure matches LSPs by `AdmissionIface`; an LSP whose admission was skipped
   (no interface `address` prefix to resolve) has an empty `AdmissionIface` and is not
   caught -- a known limitation if precise NextHop→iface resolution is later needed.
@@ -66,6 +68,6 @@ RESV refresh, AC-6 link-failure handling, AC-9 ERO/RRO display.
   out of reach, for lack of any open-source RSVP-TE peer.
 
 ## Files
-- `internal/component/rsvpte/engine.go` (sendResv, handleLinkDown, RRO recording), `register.go` (parser fix, refreshPaths, link-down subscription, show ERO/RRO), `build.go` (RRO encode, ErrValueNoRouteAvailable), `rro.go` (+test), `doctor*.go` (+tests), `cmd_show.go` (+test), `config_test.go`, `refresh_rro_test.go`, `linkdown_test.go`, `interop_test.go` (ze-to-ze interop: setup/transit/patherr/teardown/refresh/admission/reroute), `register_test.go` (tunnel reconcile); `reroute.go` (`teardownLSP`); register.go `reconcileTunnels`/`tunnelKey` + OnConfigApply reload reconciliation
+- `internal/component/rsvpte/engine.go` (sendResv, handleLinkDown, RRO recording), `register.go` (parser fix, refreshPaths, link-down subscription, show ERO/RRO), `build.go` (RRO encode, ErrValueNoRouteAvailable), `rro.go` (+test), `doctor*.go` (+tests), `cmd_show.go` (+test), `config_test.go`, `refresh_rro_test.go`, `linkdown_test.go`, `interop_test.go` (ze-to-ze interop: setup/transit/patherr/teardown/refresh/admission/reroute), `register_test.go` (tunnel reconcile + concurrent-with-signaling race); `reroute.go` (`teardownLSP`); register.go `reconcileTunnels`/`tunnelKey` + OnConfigApply reload reconciliation
 - `internal/core/diagnostic/codes.go` (`doctor-rsvpte-rawsock-unavailable`)
 - `internal/test/cli/register.go` (`ze-test rsvpte`); `test/rsvpte/*.ci`

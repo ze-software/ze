@@ -3,6 +3,7 @@ package rsvpte
 
 import (
 	"net/netip"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -59,4 +60,69 @@ func TestReconcileTunnelsSetupAndTeardown(t *testing.T) {
 	require.True(t, ok, "removing t2 originated a PathTear")
 	assert.Equal(t, netip.MustParseAddr("10.0.0.8"), dst, "PathTear sent toward t2's destination")
 	assert.Equal(t, uint16(2), tear.Session.TunnelID, "PathTear carries t2's session")
+}
+
+// VALIDATES: mpls-3 reload -- reconcileTunnels is safe to run concurrently with live
+// signaling. OnConfigApply reconciles on a different goroutine than the engine's run
+// loop (as the link-down handler already does), so two goroutines hammer one engine:
+// one feeds egress PATHs through handlePacket, the other reconciles the tunnel set up
+// and down. -race exercises the LSP-table, admission and per-LSP locking. fib is nil
+// so the deliberately-unsynchronized fakeFIB stays out of the race -- the engine's
+// own state is what must be safe.
+// PREVENTS: a data race between config-reload tunnel reconciliation and signaling.
+func TestReconcileTunnelsConcurrentWithSignaling(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	routerID := netip.MustParseAddr("10.0.0.1")
+	cfgBase := rsvpteConfig{RouterID: routerID, RefreshPeriod: DefaultRefreshPeriod}
+	e := newEngine(newFakeTransport(), newLSPTable(), newAdmissionController(), nil, cfgBase, log)
+
+	cfg := cfgBase
+	cfg.Tunnels = []tunnelConfig{
+		{Name: "t1", Destination: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, Bandwidth: 1e8},
+		{Name: "t2", Destination: netip.MustParseAddr("10.0.0.8"), TunnelID: 2, Bandwidth: 1e8},
+	}
+
+	// An egress PATH this node terminates (SESSION endpoint == its router-id).
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: routerID, TunnelID: 9, ExtTunnelID: 1},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.2"), LSPID: 1},
+		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
+	}
+	pathBytes := buildPath(psb, netip.MustParseAddr("10.0.0.2"), 64)
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	// Signaling: repeatedly process an egress PATH (creates then refreshes the LSP).
+	wg.Go(func() {
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.2"), Payload: pathBytes})
+			}
+		}
+	})
+
+	// Reconcile: repeatedly bring the tunnel set up and tear it all down.
+	wg.Go(func() {
+		var prev map[lspKey]bool
+		for range 300 {
+			prev = reconcileTunnels(log, e.table, cfg, e, prev)
+			prev = reconcileTunnels(log, e.table, cfgBase, e, prev)
+		}
+		close(stop)
+	})
+
+	wg.Wait()
+
+	// The -race result (no report) is the point. As a correctness check, the final
+	// reconcile (with no tunnels) left both ingress tunnel LSPs torn down; the egress
+	// LSP the signaling loop created is not a tunnel, so it legitimately remains.
+	_, ok1 := e.table.Get(tunnelKey(cfg.Tunnels[0], routerID))
+	_, ok2 := e.table.Get(tunnelKey(cfg.Tunnels[1], routerID))
+	assert.False(t, ok1, "t1 ingress LSP torn down by the final reconcile")
+	assert.False(t, ok2, "t2 ingress LSP torn down by the final reconcile")
 }

@@ -530,3 +530,133 @@ func TestEngineZeToZeRerouteInterop(t *testing.T) {
 	assert.Equal(t, 1, fab.delivered(transitA, MsgTypePathTear), "old PathTear relayed via transitA")
 	assert.Len(t, egress.table.All(), 1, "egress holds only the new LSP")
 }
+
+// VALIDATES: mpls-3 reload -- a configured tunnel whose ERO changes on reload
+// reroutes through the production path: reconcileTunnels -> setupTunnel sees the up
+// LSP with a changed ERO and triggers make-before-break. Drives the whole
+// composition (not eng.reroute directly): the LSP comes up via one transit, a
+// second reconcile with a new ERO brings the replacement up via the other transit
+// and tears the original down.
+// PREVENTS: the reload reroute trigger silently not firing (the gap the OnConfigApply
+// wiring closed) even though reroute itself works.
+func TestEngineZeToZeReloadRerouteInterop(t *testing.T) {
+	fab := newFabric()
+	ingressAddr := netip.MustParseAddr("10.0.0.1")
+	transitA := netip.MustParseAddr("10.0.0.5")
+	transitB := netip.MustParseAddr("10.0.0.6")
+	egressAddr := netip.MustParseAddr("10.0.0.9")
+	log := slogutil.DiscardLogger()
+
+	ingress, _ := fabricEngine(t, fab, ingressAddr)
+	tA, tAFib := fabricEngine(t, fab, transitA)
+	tB, tBFib := fabricEngine(t, fab, transitB)
+	egress, _ := fabricEngine(t, fab, egressAddr)
+	nodes := map[netip.Addr]*engine{ingressAddr: ingress, transitA: tA, transitB: tB, egressAddr: egress}
+
+	cfg := rsvpteConfig{RouterID: ingressAddr, RefreshPeriod: DefaultRefreshPeriod}
+	cfg.Tunnels = []tunnelConfig{{
+		Name: "t1", Destination: egressAddr, TunnelID: 1, Bandwidth: 1e8,
+		ERO: []eroHop{{Address: netip.PrefixFrom(transitA, 32)}, {Address: netip.PrefixFrom(egressAddr, 32)}},
+	}}
+
+	// Initial reconcile: the tunnel is set up and signals up via transitA.
+	prev := reconcileTunnels(log, ingress.table, cfg, ingress, nil)
+	fab.pump(t, nodes)
+	oldKey := tunnelKey(cfg.Tunnels[0], ingressAddr)
+	require.Equal(t, LSPStateUp, mustLSP(t, ingress, oldKey).State, "LSP up via transitA")
+	require.Len(t, tAFib.swapped, 1)
+
+	// Reload the same tunnel with the ERO changed to via transitB: reconcileTunnels
+	// -> setupTunnel sees the up LSP with a changed ERO -> make-before-break reroute.
+	cfg.Tunnels[0].ERO = []eroHop{{Address: netip.PrefixFrom(transitB, 32)}, {Address: netip.PrefixFrom(egressAddr, 32)}}
+	reconcileTunnels(log, ingress.table, cfg, ingress, prev)
+	fab.pump(t, nodes)
+
+	newKey := oldKey
+	newKey.LSPID = oldKey.LSPID + 1
+	newLSP, ok := ingress.table.Get(newKey)
+	require.True(t, ok, "reload reroute created the replacement LSP")
+	assert.Equal(t, LSPStateUp, newLSP.State, "replacement up after reload reroute")
+	assert.Equal(t, transitB, newLSP.NextHop, "replacement routed via transitB")
+	require.Len(t, tBFib.swapped, 1, "transitB swapped for the replacement")
+	_, ok = ingress.table.Get(oldKey)
+	assert.False(t, ok, "original LSP torn down once the replacement is up")
+}
+
+// VALIDATES: mpls-3 -- soft-state refresh across a three-node LSP. The head-end
+// re-sends its PATH; the transit re-relays it and the egress re-RESVs, all decoded
+// and acted on by the peer. The egress does not pop a second time and every node's
+// label is stable: a refresh maintains state, it does not re-establish it.
+// PREVENTS: a refresh that a transit or egress mis-handles as a new LSP, churning
+// labels or reservations across the path.
+func TestEngineZeToZeTransitRefreshInterop(t *testing.T) {
+	fab := newFabric()
+	ingressAddr := netip.MustParseAddr("10.0.0.1")
+	transitAddr := netip.MustParseAddr("10.0.0.5")
+	egressAddr := netip.MustParseAddr("10.0.0.9")
+
+	ingress, _ := fabricEngine(t, fab, ingressAddr)
+	transit, trFib := fabricEngine(t, fab, transitAddr)
+	egress, egrFib := fabricEngine(t, fab, egressAddr)
+	nodes := map[netip.Addr]*engine{ingressAddr: ingress, transitAddr: transit, egressAddr: egress}
+
+	key := originateLSP(t, ingress, ingressAddr, egressAddr, 1, transitAddr, egressAddr)
+	fab.pump(t, nodes)
+	require.Len(t, egrFib.popped, 1)
+	require.Len(t, trFib.swapped, 1)
+	egressLabel := egrFib.popped[0]
+	transitInLabel := trFib.swapped[0].in
+
+	// Refresh: re-send the PATH; it propagates to the egress and the RESV back.
+	require.NoError(t, ingress.sendPath(mustLSP(t, ingress, key)))
+	fab.pump(t, nodes)
+
+	// The egress pop is idempotent (guarded by the reservation); the transit
+	// re-programs its swap on the returning RESV (idempotent at the FIB), but with
+	// the SAME labels -- no path-wide re-allocation, and every node stays up.
+	assert.Len(t, egrFib.popped, 1, "egress does not pop again on refresh")
+	assert.Equal(t, egressLabel, egrFib.popped[0], "egress label stable")
+	assert.Equal(t, transitInLabel, mustLSP(t, transit, key).InLabel, "transit in-label stable")
+	for _, sw := range trFib.swapped {
+		assert.Equal(t, transitInLabel, sw.in, "transit swap in-label stable across refresh")
+		assert.Equal(t, egressLabel, sw.out, "transit swap out-label stable across refresh")
+	}
+	assert.Equal(t, LSPStateUp, mustLSP(t, transit, key).State, "transit still up")
+	assert.Equal(t, LSPStateUp, mustLSP(t, egress, key).State, "egress still up")
+	assert.Len(t, transit.table.All(), 1, "no duplicate transit LSP")
+	assert.Len(t, egress.table.All(), 1, "no duplicate egress LSP")
+}
+
+// VALIDATES: mpls-3 -- admission resolves the correct interface by prefix in a
+// multi-interface egress. The link facing the ingress is full while another link is
+// free; the egress must reject (PathErr) because the reservation maps to the full
+// link, not be admitted onto the unrelated free one.
+// PREVENTS: admission charging the wrong interface (or skipping it) when several
+// interfaces are configured, which would let an oversubscribed link accept an LSP.
+func TestEngineZeToZeMultiIfaceAdmissionInterop(t *testing.T) {
+	fab := newFabric()
+	ingressAddr := netip.MustParseAddr("10.0.0.1")
+	egressAddr := netip.MustParseAddr("10.0.0.9")
+
+	ingress, ingFib := fabricEngine(t, fab, ingressAddr)
+	egress, _ := fabricEngine(t, fab, egressAddr)
+	// Two interfaces; the ingress neighbor (10.0.0.1) resolves to eth0 by prefix.
+	egress.cfg.Interfaces = []ifaceConfig{
+		{Name: "eth0", MaxBW: 1e9, MaxReservableBW: 1e9, Prefix: netip.MustParsePrefix("10.0.0.0/24")},
+		{Name: "eth1", MaxBW: 1e9, MaxReservableBW: 1e9, Prefix: netip.MustParsePrefix("10.1.0.0/24")},
+	}
+	egress.admission.setInterface("eth0", 1e9, 1e9)
+	egress.admission.setInterface("eth1", 1e9, 1e9)
+	require.NoError(t, egress.admission.Reserve("eth0", 1e9)) // fill only the ingress-facing link
+	nodes := map[netip.Addr]*engine{ingressAddr: ingress, egressAddr: egress}
+
+	key := originateLSP(t, ingress, ingressAddr, egressAddr, 1)
+	fab.pump(t, nodes)
+
+	// eth0 (resolved from the ingress neighbor) is full, so the egress rejects even
+	// though eth1 is free: the reservation must map to the path's link, not any link.
+	require.Equal(t, 1, fab.delivered(ingressAddr, MsgTypePathErr), "egress rejected on the full eth0")
+	assert.Zero(t, fab.delivered(ingressAddr, MsgTypeResv), "no RESV onto the wrong free link")
+	assert.NotEqual(t, LSPStateUp, mustLSP(t, ingress, key).State, "ingress LSP must not come up")
+	assert.Empty(t, ingFib.pushed, "no push on a denied LSP")
+}
