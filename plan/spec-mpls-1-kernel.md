@@ -314,7 +314,7 @@ MUST document: validation rules, error conditions, label encoding.
   - AC-7 (`show mpls forwarding`): `component/mpls/show_forwarding.go` + `mpls-cmd` YANG, now including label-imposition (push) routes (F14).
   - AC-8 (metrics): `ze_fibkernel_mpls_routes_installed`, `ze_fibkernel_mpls_installs_total` in `fibkernel.go`.
 - Also corrected stale `# TODO: verify kernel MPLS FIB` comments in `test/plugin/mpls-push.ci`/`mpls-withdraw.ci`.
-- **Open**: an end-to-end BGP-LU → kernel-MPLS-route integration test (QEMU/Linux) is still needed to certify AC-1 against a real kernel; do not close this spec until it passes.
+- **Closed**: the end-to-end BGP-LU → kernel-MPLS-route integration test now exists and is QEMU-green. `internal/plugins/fib/kernel/bgplu_mpls_integration_linux_test.go::TestMPLSIntegration_BGPLabeledUnicastPush` drives a labeled `BestChange` through the production `processEvent` → rich-route path to a live Alpine kernel and reads back the MPLS label encap (push), the relabel (replace), the withdraw, and a foreign-route non-clobber case. AC-1/AC-2/AC-3 are now certified against a real kernel through the exact F1 path (distinct from the LDP/RSVP-TE `handleMPLSEntry` path).
 
 ### Bugs Found/Fixed
 - None. (Data-plane is verified under QEMU by `internal/plugins/fib/kernel/mplsentry_integration_linux_test.go`.)
@@ -359,6 +359,7 @@ MUST document: validation rules, error conditions, label encoding.
 | Label withdraw removes entry | integration | `TestMPLSIntegration_Push` (withdraw half); `mpls-withdraw.ci` (control plane) |
 | Relabel updates kernel route | integration | `TestMPLSIntegration_PushRelabel` |
 | Label validation (20-bit/stack) | unit (boundary) | `mpls_linux_test.go::TestMPLSLabelValidationBoundary` |
+| BGP labeled-unicast → kernel encap (F1, AC-1/2/3) | integration | `fib/kernel/bgplu_mpls_integration_linux_test.go::TestMPLSIntegration_BGPLabeledUnicastPush` + `_NoClobberForeign` -- QEMU-green on a live Alpine kernel (push/relabel/withdraw + foreign non-clobber), the production `processEvent` path |
 | BGP labeled-unicast control plane | functional | `mpls-push.ci`/`mpls-withdraw.ci`, `fib-mpls-kernel.ci` |
 
 ## Review Gate

@@ -410,6 +410,7 @@ Add `// RFC 2205 Section X.Y: "<quoted requirement>"` for base RSVP behavior.
 | Link failure → PathErr (AC-6) | unit | `linkdown_test.go::TestHandleLinkDownSendsPathErrAndTears` |
 | ERO/RRO display (AC-9) | unit | `refresh_rro_test.go::TestShowSessionsIncludesEROAndRRO`, `rro_test.go` |
 | Teardown releases state (AC-11) | unit | `engine_test.go::TestEnginePathTearReleases`; `test/rsvpte/rsvpte-lsp-teardown.ci` PASS |
+| LSP FIB programming against a live kernel | integration | `fib/kernel/mplsentry_integration_linux_test.go` (Swap, PopWithNextHop, EgressPopNoNextHop) -- QEMU-green; programs the exact `mplsfibevents` entries `busFIB.ProgramSwap`/`ProgramPop` emit and reads them back from the kernel |
 | FRR interop (AC-12) | N/A — deviation | FRR has no `rsvpd`; covered by engine unit tests, multi-node ze-to-ze deferred (see Mistake Log) |
 
 ## Review Gate

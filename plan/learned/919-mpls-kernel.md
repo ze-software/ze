@@ -39,6 +39,11 @@ bypassing the BGP → Loc-RIB → sysrib production path. F1 added `Labels` to
   RSVP-TE link-down matched the wrong interface. The lesson: a protocol feature is not
   done until a test exercises the FULL path from the user/wire entry point, not a
   hand-built internal struct. Closure must require that integration/functional evidence.
+  That evidence now exists for the F1 path: `TestMPLSIntegration_BGPLabeledUnicastPush`
+  drives a labeled `BestChange` through the production `processEvent` -> rich-route
+  encap path to a live Alpine kernel (QEMU-green), proving push/relabel/withdraw and
+  foreign-route non-clobber. It is deliberately distinct from the `handleMPLSEntry`
+  (`mplsfibevents`) tests, which cover the LDP/RSVP-TE swap/pop path, not BGP-LU.
 - The unified Loc-RIB `Path` is value-typed; adding the `Labels` slice made it
   non-comparable, so `prevBest != newBest` had to become `prevBest.Equal(newBest)` (and
   Equal must compare labels, or a relabel with the same next hop is silently suppressed).
@@ -56,3 +61,5 @@ bypassing the BGP → Loc-RIB → sysrib production path. F1 added `Labels` to
 - `internal/component/mpls/show_forwarding.go`; `internal/component/doctor/checks_linux.go`
 - `internal/component/iface/config_sysctl.go`, `iface/yang/ze-iface-conf.yang`; `internal/core/sysctl/known_linux.go`
 - `test/plugin/mpls-push.ci`, `mpls-withdraw.ci` (comment correction this session)
+- `internal/plugins/fib/kernel/bgplu_mpls_integration_linux_test.go` (F1 BGP-LU ->
+  kernel-encap integration test, QEMU-green; closes the AC-1 end-to-end gap)

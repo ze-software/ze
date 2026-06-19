@@ -40,6 +40,13 @@ RESV refresh, AC-6 link-failure handling, AC-9 ERO/RRO display.
 - Link-failure matches LSPs by `AdmissionIface`; an LSP whose admission was skipped
   (no interface `address` prefix to resolve) has an empty `AdmissionIface` and is not
   caught -- a known limitation if precise NextHop→iface resolution is later needed.
+- The RSVP-TE data plane (the kernel-touching part of LSP setup) IS QEMU-verified:
+  `busFIB.ProgramSwap`/`ProgramPop` emit `mplsfibevents` entries that
+  `mplsentry_integration_linux_test.go` (Swap, PopWithNextHop, EgressPopNoNextHop)
+  programs into a live kernel and reads back. Those tests assert exactly the entries
+  the RSVP-TE egress/transit paths emit (the EgressPop case is the no-via ultimate-hop
+  pop). What stays unit-only is multi-node PATH/RESV signaling (no FRR rsvpd to peer
+  with, AC-12); the FIB output is not unit-only.
 
 ## Files
 - `internal/component/rsvpte/engine.go` (sendResv, handleLinkDown, RRO recording), `register.go` (parser fix, refreshPaths, link-down subscription, show ERO/RRO), `build.go` (RRO encode, ErrValueNoRouteAvailable), `rro.go` (+test), `doctor*.go` (+tests), `cmd_show.go` (+test), `config_test.go`, `refresh_rro_test.go`, `linkdown_test.go`

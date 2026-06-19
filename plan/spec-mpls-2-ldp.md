@@ -358,7 +358,7 @@ Add `// RFC 5036 Section X.Y: "<quoted requirement>"` above enforcing code.
 | Convergence on neighbor loss (AC-5/AC-6) | unit + functional | `discovery_test.go::TestAdjacencyExpired`, `session_test.go` keepalive; `test/ldp/ldp-convergence.ci` PASS |
 | `show ldp neighbor`/`binding` (AC-7/AC-8) | functional | `test/ldp/ldp-session.ci` dispatches both through the daemon (PASS) |
 | Dynamic interface reload (AC-9) | unit + functional | `discovery_manager_test.go`; `test/ldp/ldp-reload.ci` PASS |
-| FRR interop (AC-10) | interop test | `internal/component/ldp/frr_interop_integration_linux_test.go` (real FRR ldpd, QEMU/Linux) |
+| FRR interop (AC-10) | interop test | `internal/component/ldp/frr_interop_integration_linux_test.go` -- QEMU-green via `make ze-qemu-ldp-frr-test` against real FRR ldpd 10.2.1 (session up, label exchange) |
 
 ## Review Gate
 

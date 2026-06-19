@@ -27,6 +27,9 @@ Remaining feature gap: AC-9 dynamic interface reload.
 - Adding/removing an LDP interface in config now takes effect without a restart.
 - `show ldp neighbor`/`binding` now actually dispatch (were recursive before).
 - LDP is now exercised end-to-end through the real binary by `ze-test ldp` (3/3).
+- AC-10 cross-vendor interop is QEMU-green: `make ze-qemu-ldp-frr-test` runs
+  `frr_interop_integration_linux_test.go` against a real FRR ldpd (10.2.1) in an
+  Alpine VM (session up, label exchange) -- the closure evidence for live interop.
 
 ## Gotchas
 - **Plugin config delivery shape is the trap.** `Tree.ToMap` + `BuildPluginConfigSections`
