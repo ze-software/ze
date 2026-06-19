@@ -67,6 +67,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ipsec/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/isis/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ldp/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/yang"
@@ -229,6 +230,7 @@ import (
 
 	// Event namespace packages -- events.RegisterNamespace registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/transaction"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/isis"
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/aaa/cmd"
@@ -257,6 +259,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/cmd"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/isis"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ldp"

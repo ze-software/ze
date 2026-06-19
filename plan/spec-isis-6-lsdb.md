@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | spec-isis-5-adjacency.md |
 | Phase | - |
-| Updated | 2026-06-17 |
+| Updated | 2026-06-19 |
 
 ## Post-Compaction Recovery
 
@@ -200,14 +200,14 @@ exposes a `show isis database` snapshot API consumed and rendered in
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Brings up an IS-IS adjacency and expects the node to advertise itself | adjacency Up -> origination -> LSDB store -> SRM set -> (flood in `spec-isis-7-flooding`) | `TestISISOriginateOnAdjacencyUp`, `test/isis/isis-lsdb-sync.ci` (isis-7) |
+| 1 | Brings up an IS-IS adjacency and expects the node to advertise itself | adjacency Up -> origination -> LSDB store -> SRM set -> (flood in `spec-isis-7-flooding`) | `TestISISOriginateOnAdjacencyUp`, `test/isis/isis-flooding.ci` (isis-7) |
 | 2 | Leaves a node idle long enough for an LSP to age out | aging tick -> lifetime 0 -> purge -> grace -> delete | `TestISISLSDBAgeToPurge` |
 | 3 | Runs `show isis database` to inspect the LSDB | CLI -> RPC -> LSDB snapshot -> render (isis-13) | `test/isis/isis-show.ci` (isis-13), `TestISISLSDBSnapshot` |
 | 4 | Configures the overload bit during maintenance | config -> origination sets overload -> SPF avoids transit | `TestISISOriginateOverloadBit` + SPF honour in `spec-isis-9-spf-rib` |
 | 5 | Advertises enough prefixes to require fragmentation | origination -> exceeds maxPDUSize -> split across LSP numbers | `TestISISOriginateFragmentation` |
 
 <!-- Functional/interop coverage for the full sync path is owned by spec-isis-7-flooding
-     (isis-lsdb-sync.ci) and spec-isis-9-spf-rib (isis-route-install.ci); this spec's
+     (isis-flooding.ci) and spec-isis-9-spf-rib (isis-route-install.ci); this spec's
      functional surface is the show snapshot, exercised in isis-13. -->
 
 ## 🧪 TDD Test Plan
@@ -242,7 +242,7 @@ exposes a `show isis database` snapshot API consumed and rendered in
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| (covered via isis-7) | `test/isis/isis-lsdb-sync.ci` | two nodes exchange LSPs; both LSDBs converge | |
+| (covered via isis-7) | `test/isis/isis-flooding.ci` | two nodes exchange LSPs; both LSDBs converge | |
 | (covered via isis-9) | `test/isis/isis-route-install.ci` | LSDB feeds SPF; remote prefix installed | |
 | (show snapshot) | `test/isis/isis-show.ci` (isis-13) | `show isis database` renders L1/L2 entries | |
 
@@ -440,90 +440,254 @@ MUST document: sequence wraparound (7.3.3, sequence 0 reserved), checksum recomp
 ## Implementation Summary
 
 ### What Was Implemented
-- [To be filled]
+- New package `internal/component/isis/lsdb/`: the two-level (L1/L2) Link-State
+  Database store (`lsdb.go`), the buffer-first per-LSP entry with lazy TLV decode
+  (`entry.go`), own-LSP origination by full regeneration with fragmentation
+  (`origination.go`), and the 1s aging / zero-age purge / refresh / wraparound
+  lifecycle (`aging.go`). IPv6 entry encoders for isis-12 live in
+  `origination_ipv6.go` and are packed by the same fragmenter.
+- Per-circuit SRM/SSN flag data model owned by the entry (set/clear/query plus a
+  `srmSent` resend marker and `ClearCircuit`); the freshness compare
+  (newer/equal/older with the purge tiebreak); the `show isis database` snapshot;
+  and the five umbrella-canonical Prometheus series registered here (owner isis-6).
+- Engine glue in `internal/component/isis/lsdb_wiring.go`: the LSDB + Originator
+  instances, the adjacency-Up -> `originate()` trigger, the per-second aging loop
+  (folding in own-LSP and pseudo-node refresh), SRM-arming on eligible circuits,
+  LSP-change event emission, the snapshot proxy, and metric wiring.
 
 ### Bugs Found/Fixed
-- [To be filled]
+- Flooding amplification: an adjacency flap fired `originate()` from several
+  goroutines for the same resulting state, each bumping the sequence and
+  re-flooding. Fixed by making origination a pure function of (NodeInfo,
+  LevelState) and comparing the freshly built input against the last-originated
+  input under `e.origMu` (`originationUnchanged`); a real change still falls
+  through and floods.
+- Quiescent-network ownership loss: nothing called `originate()` in a settled
+  network, so own LSPs aged to MaxAge and purged. Fixed by folding
+  `refreshOwnLSPs` / `refreshPseudonodes` into the 1s aging tick.
+- Received-purge re-flood storm: re-flooding a received purge every tick. Fixed
+  with the `recvPurgeReflooded` one-shot guard so the tick surfaces a received
+  purge exactly once within its grace window.
 
 ### Documentation Updates
-- [To be filled]
+- `docs/architecture/wire/isis.md` -- LSP origination contents (TLV 1/22/129/132/
+  135/137, overload bit), aging/purge, and fragmentation (wire-format change, Q7).
+- `docs/plugin-development/metrics.md` -- 5 LSDB series rows owned by isis (lsdb):
+  `ze_isis_lsps`, `ze_isis_lsp_fragments`, `ze_isis_lsp_originations_total`,
+  `ze_isis_sequence_wraps_total`, `ze_isis_purges_total` (Q14).
+- `docs/guide/isis.md` -- IS-IS subsystem guide (Q12, internal architecture).
+- RFC behavior comments added in-code (ISO/IEC 10589 7.3.3/7.3.11/7.3.12/7.3.14/
+  7.3.16/7.3.17; RFC 1195 TLV 129/132; RFC 5305 TLV 22/135; RFC 5301 TLV 137;
+  RFC 3786/3787) (Q9).
 
 ### Deviations from Plan
-- [To be filled]
+- "Files to Modify" predicted `server.go` + `events.go` for the origination
+  trigger and aging loop. The wiring actually lives in a dedicated root-package
+  file `internal/component/isis/lsdb_wiring.go` (matching the established
+  `*_wiring.go` subsystem-split convention; the predicted files predate it). The
+  behavior is identical: adjacency Up reaches `originate()` from the `circuits.go`
+  transition hook, and the aging loop runs lifecycle-managed.
+- User-story #1 cited `test/isis/isis-flooding.ci` as the isis-7 sync artifact;
+  the in-tree flooding functional test is `test/isis/isis-flooding.ci` (isis-7).
+  No artifact owned by this spec is missing; the LSDB's own functional surface
+  (the show snapshot) is covered by `test/isis/isis-show.ci`.
+- Additional tests beyond the TDD plan were added: `TestISISLSDBStoreVerbatim`
+  also asserts buffer alias-safety; `TestISISOriginatePurgeStripsBodyAndAuthenticates`
+  (RFC 5304 purge canonicalization); `TestISISReceivedPurgeRefloodSurfaced`;
+  boundary tests; metric-series tests; the engine-level wiring tests in
+  `lsdb_wiring_test.go`.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Per-level (L1/L2) LSDB store keyed by LSPID | Done | `internal/component/isis/lsdb/lsdb.go:63-145` (`db`, `LSDB`, `dbFor`) | Two independent `*db` maps; `Level1`/`Level2` |
+| Raw PDU bytes + parsed metadata header; lazy TLV parse | Done | `internal/component/isis/lsdb/entry.go:37-155` (`Entry`, `Decode`) | Single owned copy; `Decode()` parses on demand |
+| Re-flood unknown TLVs verbatim (10589 7.3.14) | Done | `entry.go:133-137` (`Raw`), `lsdb.go:216-258` (`replaceLocked` copy) | `TestISISLSDBStoreVerbatim` |
+| Freshness compare (newer/equal/older) on receive | Done | `entry.go:191-212` (`compareFreshness`), `lsdb.go:176-205` (`Receive`) | Purge tiebreak + checksum tiebreak |
+| Per-circuit SRM/SSN flag model (set/clear/query) | Done | `lsdb.go:354-463` (Set/Clear/SRM/SSN, `ClearCircuit`) | `TestISISSRMSSNFlagOps` |
+| Own-LSP origination from adjacencies (TLV 22), prefixes (TLV 135), TLV 1/129/132/137 + overload | Done | `origination.go:250-489` (`Originate`, `fixedTLVs`, `fragmentTLVs`, `lspTypeBlock`) | `TestISISOriginateOnAdjacencyUp` |
+| Sequence assignment/increment; regenerate on change | Done | `origination.go:307-349` (`originateFragmentLocked`), `lsdb_wiring.go:160-195` | `TestISISOriginateRegenOnChange` |
+| 1s aging decrement | Done | `aging.go:78-136` (`Tick`, `tickLevelLocked`) | `TestISISLSDBAgeDecrement` |
+| Refresh before expiry (increment seq, reset lifetime, SRM) | Done | `origination.go` (re-Originate path), `lsdb_wiring.go:108-118` (`refreshOwnLSPs`) | `TestISISRefreshIncrementsSeq`, `TestISISEngineRefreshDueReoriginates` |
+| Zero-age purge with grace, distinct from local expiry | Done | `aging.go:90-150` (`tickLevelLocked`, `markPurgedLocked`), `entry.go:70-81` | `TestISISLSDBAgeToPurge`, `TestISISLSDBPurgeVsExpiry` |
+| Sequence wraparound (purge + suspend MaxAge+ZeroAge + re-origin from 1) | Done | `origination.go:312-335` (`originateFragmentLocked` wrap branch) | `TestISISSequenceWraparound` |
+| Fragmentation across LSP numbers 0..255, no TLV split | Done | `origination.go:416-463` (`fragmentTLVs`), `frags.addEntry` | `TestISISOriginateFragmentation` |
+| Overload bit in LSP header (fragment 0) | Done | `origination.go:473-489` (`lspTypeBlock`), `entry.go:114-117` (`IsOverloaded`) | `TestISISOriginateOverloadBit` |
+| `show isis database` snapshot API (per level) | Done | `lsdb.go:465-501` (`LSPSnapshot`, `Snapshot`), `lsdb_wiring.go` snapshot proxy | `TestISISLSDBSnapshot`, `test/isis/isis-show.ci` |
+| Buffer-first encode (`WriteTo`, checksum backfill) | Done | `origination.go:491-501` (`encodeLSP`), codec `LSP.WriteTo` | Checksum computed by isis-2 codec on encode |
+| Single-writer concurrency (RWMutex) | Done | `lsdb.go:82-83` (`mu sync.RWMutex`); all mutators under write lock | Passes `-race` |
+| Prometheus metrics owned + registered here | Done | `lsdb.go:121-136` (`SetMetrics`), `lsdb.go:537-547` (size gauges) | `TestISISLSDBMetricsRegisterExactSeries` |
+| Wiring: adjacency Up -> origination -> store -> SRM | Done | `circuits.go:154` (`e.originate()`), `lsdb_wiring.go:160-195` | `TestISISEngineOriginateOnAdjacencyUp` |
+| Resource-exhaustion bounds (level cap, 256 fragments) | Done | `lsdb.go:45-51` (`MaxLSPsPerLevel`), `origination.go:57-59` (`maxFragments`) | Existing LSP ID always updatable |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestISISOriginateOnAdjacencyUp` (`origination_test.go:73`), `TestISISEngineOriginateOnAdjacencyUp` (`lsdb_wiring_test.go:70`), `test/isis/isis-show.ci` | Own LSP with valid seq + Fletcher checksum + TLV 1/129/22/132/135/137 |
+| AC-2 | Done | `TestISISLSDBAgeToPurge` (`aging_test.go:42`) | Purged not deleted; deleted only after ZeroAgeLifetime grace |
+| AC-3 | Done | `TestISISRefreshIncrementsSeq` (`origination_test.go:183`), `TestISISEngineRefreshDueReoriginates` (`lsdb_wiring_test.go:443`) | Seq++, checksum recomputed, lifetime reset, SRM set |
+| AC-4 | Done | `TestISISSequenceWraparound` (`origination_test.go:209`) | Purge + suspend MaxAge+ZeroAge + re-origin from 1 |
+| AC-5 | Done | `TestISISOriginateFragmentation` (`origination_test.go:261`) | Split across LSP numbers; per-fragment seq+checksum; no entry split, no lost/dup prefix |
+| AC-6 | Done | `TestISISOriginateOverloadBit` (`origination_test.go:332`) | OL bit set in fragment 0 type block; SPF honour deferred to isis-9 (noted in spec) |
+| AC-7 | Done | `TestISISLSDBStoreVerbatim` (`lsdb_test.go:147`) | Unknown TLV 222 stored + decoded byte-for-byte; caller buffer scribbled to prove owned copy |
+| AC-8 | Done | `TestISISLSDBReceiveNewer` (`lsdb_test.go:99`) | Newer replaces (Stored); Equal updates lifetime; Older rejected |
+| AC-9 | Done | `TestISISLSDBPurgeVsExpiry` (`aging_test.go:85`), `TestISISReceivedPurgeRefloodSurfaced` (`aging_test.go:139`) | Received purge re-flooded + retained; local expiry GC'd; distinct paths via `ReceivedPurge` |
+| AC-10 | Done | `TestISISLSDBSnapshot` (`lsdb_test.go:242`), `test/isis/isis-show.ci` | Snapshot rows carry LSPID + seq + lifetime + checksum + overload, per level |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestISISLSDBStoreRetrieve` | Done | `lsdb_test.go:49` | Insert + retrieve by LSPID; L1/L2 isolation |
+| `TestISISLSDBReceiveNewer` | Done | `lsdb_test.go:99` | Newer/equal/older freshness + flag effects |
+| `TestISISLSDBStoreVerbatim` | Done | `lsdb_test.go:147` | Unknown-TLV byte-for-byte round-trip + alias safety |
+| `TestISISLSDBAgeDecrement` | Done | `aging_test.go:27` | 1s tick decrements every entry |
+| `TestISISLSDBAgeToPurge` | Done | `aging_test.go:42` | Purge not delete; delete after grace |
+| `TestISISLSDBPurgeVsExpiry` | Done | `aging_test.go:85` | Received-purge vs local-expiry distinct paths |
+| `TestISISOriginateOnAdjacencyUp` | Done | `origination_test.go:73` | Own LSP with seq+checksum+TLVs 1/129/22/132/135/137 |
+| `TestISISOriginateRegenOnChange` | Done | `origination_test.go:148` | Regen + sequence increment on change |
+| `TestISISRefreshIncrementsSeq` | Done | `origination_test.go:183` | Refresh increments seq, recomputes checksum, resets lifetime |
+| `TestISISSequenceWraparound` | Done | `origination_test.go:209` | 0xFFFFFFFF -> purge + suspend + re-origin from 1 |
+| `TestISISOriginateFragmentation` | Done | `origination_test.go:261` | Split across LSP numbers; no TLV split |
+| `TestISISOriginateOverloadBit` | Done | `origination_test.go:332` | Overload bit set in header |
+| `TestISISSRMSSNFlagOps` | Done | `lsdb_test.go:190` | Per-circuit SRM/SSN set/clear/query; independent; cleared on removal |
+| `TestISISLSDBSnapshot` | Done | `lsdb_test.go:242` | Snapshot LSPID+seq+lifetime+checksum+overload |
+| Boundary: sequence/lifetime/fragment/metric | Done (added) | `boundary_test.go:22,42,64,86` | Mandatory numeric boundary coverage |
+| `test/isis/isis-show.ci` (snapshot functional) | Done | `test/isis/isis-show.ci` (isis-13) | Show database carries own LSP on darwin (no raw socket) |
+| `test/isis/isis-route-install.ci` (LSDB->SPF) | Done (sibling isis-9) | `test/isis/isis-route-install.ci` | SPF wired over LSDB; no phantom routes |
+| `test/interop/scenarios/isis-p2p-frr` (LSDB sync w/ FRR) | Scenario written; execution pending Linux/QEMU | `test/interop/scenarios/isis-p2p-frr/{check.py,frr.conf,ze.conf}` | check.py declares "CANNOT run on darwin" |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/isis/lsdb/lsdb.go` | Done | Store, freshness dispatch, SRM/SSN, snapshot, metrics |
+| `internal/component/isis/lsdb/entry.go` | Done | Raw + metadata entry, lazy Decode, compareFreshness |
+| `internal/component/isis/lsdb/origination.go` | Done | Origination, fragmentation, wraparound, stale-fragment purge |
+| `internal/component/isis/lsdb/aging.go` | Done | 1s decrement, zero-age purge, refresh decision, GC |
+| `internal/component/isis/lsdb/lsdb_test.go` | Done | Store/retrieve, freshness, verbatim, flags, snapshot |
+| `internal/component/isis/lsdb/origination_test.go` | Done | Originate, regen, refresh, wraparound, fragmentation, overload |
+| `internal/component/isis/lsdb/aging_test.go` | Done | Decrement, age-to-purge, purge-vs-expiry, received-purge reflood |
+| `internal/component/isis/server.go` (modify) | Changed | Engine struct holds `originator`; trigger/loop moved to `lsdb_wiring.go` (see Deviations) |
+| `internal/component/isis/events.go` (modify) | Changed | LSP-change event emission used by wiring; trigger lives in `lsdb_wiring.go`/`circuits.go` |
+| `internal/component/isis/lsdb_wiring.go` (added) | Done (deviation) | Engine glue: trigger, aging loop, refresh, SRM arm, snapshot, metrics |
+| `internal/component/isis/lsdb/origination_ipv6.go` (added) | Done | TLV 232/236 encoders packed by the fragmenter (isis-12 consumer) |
+| `internal/component/isis/lsdb/boundary_test.go` (added) | Done | Numeric boundary tests |
+| `internal/component/isis/lsdb_wiring_test.go` (added) | Done | Engine-level origination/snapshot/refresh wiring tests |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 41 (19 requirements + 10 ACs + 12 plan files; plus the 14 TDD tests audited)
+- **Done:** 39
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (`server.go`/`events.go` predicted-location deviation; wiring in `lsdb_wiring.go`)
+- **Interop execution pending Linux/QEMU:** the `isis-p2p-frr` LSDB-sync/convergence interop scenario and the linux-tagged engine integration test (files written, not run on darwin)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Own LSP originated with valid seq + checksum | unit test | `TestISISOriginateOnAdjacencyUp` |
-| Lifetime decrements to purge (not delete) | unit test | `TestISISLSDBAgeToPurge` |
-| Refresh increments sequence | unit test | `TestISISRefreshIncrementsSeq` |
-| Wraparound purges then waits | unit test | `TestISISSequenceWraparound` |
-| Fragmentation across LSP numbers | unit test | `TestISISOriginateFragmentation` |
-| LSDB feeds flooding + SPF | functional test (siblings) | `test/isis/isis-lsdb-sync.ci` (isis-7), `test/isis/isis-route-install.ci` (isis-9) |
+| Own LSP originated with valid seq + checksum | unit test | `TestISISOriginateOnAdjacencyUp` PASS (`origination_test.go:73`); engine chain `TestISISEngineOriginateOnAdjacencyUp` PASS (`lsdb_wiring_test.go:70`); all lsdb tests `ok` under `-race` (107s) |
+| Lifetime decrements to purge (not delete) | unit test | `TestISISLSDBAgeToPurge` PASS (`aging_test.go:42`) |
+| Refresh increments sequence | unit test | `TestISISRefreshIncrementsSeq` PASS (`origination_test.go:183`) |
+| Wraparound purges then waits | unit test | `TestISISSequenceWraparound` PASS (`origination_test.go:209`) |
+| Fragmentation across LSP numbers | unit test | `TestISISOriginateFragmentation` PASS (`origination_test.go:261`): >=2 fragments, per-fragment checksum valid, no lost/dup prefix |
+| Store unknown TLV verbatim (re-floodable) | unit test | `TestISISLSDBStoreVerbatim` PASS (`lsdb_test.go:147`) |
+| `show isis database` snapshot live | functional test | `test/isis/isis-show.ci`: started engine originates own LSP, `show isis database` returns it (darwin, passive interface, no raw socket) |
+| LSDB feeds SPF (no phantom routes) | functional test (sibling isis-9) | `test/isis/isis-route-install.ci`: SPF wired over LSDB, route table empty with no adjacency |
+| LSDB syncs with a real peer (FRR accepts our LSPs; we store FRR's) | interop scenario (Linux-pending) | `test/interop/scenarios/isis-p2p-frr/check.py` written: asserts FRR forms P2P adjacency, learns Ze's LSP, converges routes. Execution pending Linux/QEMU host (check.py declares it cannot run on darwin) |
+| Whole tree builds darwin + linux; lint clean | build + lint | `go build ./...` exit 0 (darwin); `GOOS=linux go build ./...` exit 0; `golangci-lint run ./internal/component/isis/lsdb/...` exit 0 |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | Flooding amplification: an adjacency flap re-originated the same state from multiple goroutines, each bumping the sequence + re-flooding | `lsdb_wiring.go` `originate()` | fixed: origination made a pure function; `originationUnchanged` compare-and-skip under `e.origMu` |
+| 2 | ISSUE | Quiescent network: nothing called `originate()` so own LSPs aged to MaxAge and purged | `lsdb_wiring.go` `ageOnce()` | fixed: folded `refreshOwnLSPs`/`refreshPseudonodes` into the 1s aging tick |
+| 3 | ISSUE | Received purge re-flooded every tick (storm) | `aging.go` `tickLevelLocked` | fixed: `recvPurgeReflooded` one-shot guard; surfaced once within grace window |
+| 4 | NOTE | Purge body not stripped/re-authenticated per RFC 5304 sec 2 | `origination.go` `purgeFragmentLocked` | fixed: route all purges through `packet.StripPurgeBody` then signer |
 
 ### Fixes applied
-- [To be filled]
+- Origination is a pure function of (NodeInfo, LevelState); the engine compares the freshly built input against the last-originated input and skips redundant re-origination (`originationUnchanged`), collapsing a flap burst to one sequence bump / one re-flood.
+- Own-LSP and pseudo-node refresh folded into the lifecycle-managed aging tick so an own LSP never ages out in a settled network.
+- `recvPurgeReflooded` guards the tick-driven received-purge re-flood to exactly once.
+- Purges canonicalized via `packet.StripPurgeBody` + signer (RFC 5304).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | The deep `/ze-review` + adversarial re-review ran across the IS-IS tree this session: 0 surviving BLOCKER / 0 ISSUE after the fixes above | `internal/component/isis/` (incl. lsdb + wiring) | clean |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Recorded: deep `/ze-review` + adversarial re-review across the IS-IS tree this
+session show 0 surviving BLOCKER and 0 ISSUE after the fixes above (not re-run for
+this closure per instruction). One NOTE (purge canonicalization) was fixed.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/isis/lsdb/lsdb.go` | Yes | ls 21809B |
+| `internal/component/isis/lsdb/entry.go` | Yes | ls 10228B |
+| `internal/component/isis/lsdb/origination.go` | Yes | ls 22079B |
+| `internal/component/isis/lsdb/aging.go` | Yes | ls 6696B |
+| `internal/component/isis/lsdb/lsdb_test.go` | Yes | ls 10230B |
+| `internal/component/isis/lsdb/origination_test.go` | Yes | ls 16258B |
+| `internal/component/isis/lsdb/aging_test.go` | Yes | ls 6847B |
+| `internal/component/isis/lsdb/boundary_test.go` | Yes | ls 4536B (added: numeric boundary tests) |
+| `internal/component/isis/lsdb_wiring.go` | Yes | ls 36510B (engine glue; deviation from predicted server.go/events.go) |
+| `internal/component/isis/lsdb_wiring_test.go` | Yes | ls 22374B (engine wiring tests) |
+| `test/isis/isis-show.ci` | Yes | ls 6378B (snapshot functional surface, isis-13) |
+| `test/isis/isis-route-install.ci` | Yes | ls 4613B (LSDB->SPF, isis-9) |
+| `test/interop/scenarios/isis-p2p-frr/check.py` | Yes | ls 2221B (+ frr.conf, ze.conf) -- execution pending Linux/QEMU |
+| `test/isis/isis-flooding.ci` | **No** | MISSING -- referenced only in this spec's prose as an isis-7 artifact; the actual isis-7 flooding functional test is `test/isis/isis-flooding.ci` (ls 3235B). No file owned by THIS spec is missing; reference corrected in Deviations. |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Own LSP has valid seq + Fletcher checksum + TLV 1/129/22/132/135/137 | `TestISISOriginateOnAdjacencyUp` PASS; `isis-show.ci` asserts `show isis database` carries the own LSP with `lsp-id` and detail expands TLVs |
+| AC-2 | Purged not deleted; deleted after grace | `TestISISLSDBAgeToPurge` PASS (`aging_test.go:42`) |
+| AC-3 | Refresh: seq++, checksum, lifetime reset, SRM | `TestISISRefreshIncrementsSeq` PASS (`origination_test.go:183`); `TestISISEngineRefreshDueReoriginates` PASS |
+| AC-4 | Wraparound purge + suspend + re-origin from 1 | `TestISISSequenceWraparound` PASS (`origination_test.go:209`); code `origination.go:312-335` |
+| AC-5 | Split across LSP numbers; no TLV split; per-fragment seq+checksum | `TestISISOriginateFragmentation` PASS: asserts `len(res.Originated) >= 2`, per-fragment `VerifyChecksum()`, no lost/dup prefix (`origination_test.go:280-329`) |
+| AC-6 | Overload bit in fragment 0 header | `TestISISOriginateOverloadBit` PASS (`origination_test.go:332`); `lspTypeBlock` sets OL only on `fragmentZero` (`origination.go:485-487`) |
+| AC-7 | Unknown TLV stored + re-floodable verbatim | `TestISISLSDBStoreVerbatim` PASS: stores TLV 222, scribbles caller buffer, asserts stored bytes intact + decode preserves the unknown TLV (`lsdb_test.go:147-188`) |
+| AC-8 | Newer replaces / Equal updates lifetime / Older rejected | `TestISISLSDBReceiveNewer` PASS (`lsdb_test.go:99`); `compareFreshness` (`entry.go:191-212`) |
+| AC-9 | Received purge re-flooded+retained; local expiry GC'd; distinct paths | `TestISISLSDBPurgeVsExpiry` + `TestISISReceivedPurgeRefloodSurfaced` PASS; `PurgeEvent.ReceivedPurge` flag |
+| AC-10 | Snapshot per level: LSPID+seq+lifetime+checksum+overload | `TestISISLSDBSnapshot` PASS (`lsdb_test.go:242`); `LSPSnapshot` fields (`lsdb.go:471-478`); `isis-show.ci` |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| adjacency reaches Up -> origination builds + stores own LSP + arms SRM | (unit/engine) | Yes: `circuits.go:154` `e.originate()` from transition hook; `TestISISEngineOriginateOnAdjacencyUp` (`lsdb_wiring_test.go:70`) drives the full chain |
+| own LSP stored -> LSDB lookup returns raw + metadata | (unit) | Yes: `TestISISLSDBStoreRetrieve` (`lsdb_test.go:49`) |
+| received LSP (newer) -> freshness replace + flag effects | (unit) | Yes: `TestISISLSDBReceiveNewer` (`lsdb_test.go:99`) |
+| 1s aging tick reaches lifetime 0 -> purge (not delete) + flood signalled | (unit/engine) | Yes: `TestISISLSDBAgeToPurge`; engine `ageOnce` -> `refloodPurge` arms SRM (`lsdb_wiring.go:94-130`) |
+| `show isis database` -> snapshot rendered | `test/isis/isis-show.ci` | Yes: started engine originates own LSP; `show isis database` returns it with `lsp-id`; `database detail` expands TLVs (darwin) |
+| LSDB feeds SPF (no phantom routes) | `test/isis/isis-route-install.ci` | Yes (sibling isis-9): SPF wired over LSDB; route table empty with no adjacency |
+| LSDB sync with a real peer (FRR) | `test/interop/scenarios/isis-p2p-frr/check.py` | Scenario written; execution pending Linux/QEMU (check.py: cannot run on darwin) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | isis-2 codec exposes header parse + lazy full parse: `Entry.Decode` calls `packet.DecodePDU` on demand (`entry.go:146-155`); `Receive` reads header freshness fields without full TLV parse (`lsdb.go:176-205`) |
+| A-2 | confirmed | Adjacency table consumed as a read-only snapshot at origination: `levelState`/`nodeInfo` build `LevelState`/`NodeInfo` from circuits in `lsdb_wiring.go`; `TestISISEngineOriginateOnAdjacencyUp` |
+| A-3 | confirmed | SRM/SSN indexed by small stable `CircuitID`; engine assigns via `circuitIDFor` (`lsdb_wiring.go:47-60`); `TestISISSRMSSNFlagOps` |
+| A-4 | confirmed | MaxAge/refresh configurable (isis-4 leaves) with RFC defaults `DefaultMaxAge=1200s`, `DefaultRefreshInterval=900s`, `ZeroAgeLifetime=60s` (`aging.go:21-36`); aging tests inject short timers via `now func()` |
+| A-5 | confirmed | `MaxLSPSize` derived from circuit MTU with `DefaultMaxLSPSize=1492` and a `minLSPSize` floor (`origination.go:32-59`); `TestISISOriginateFragmentation` forces a tiny max |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| Q7 wire format: LSP origination contents, aging/purge, fragmentation | `docs/architecture/wire/isis.md` (24KB; grep finds 55 lines matching origination/fragment/overload/purge/aging/TLV 132/137/22/135/129/lsdb) | Yes |
+| Q14 Prometheus: 5 LSDB series owned by isis (lsdb) | `docs/plugin-development/metrics.md:132-136` rows `ze_isis_lsps`, `ze_isis_lsp_fragments`, `ze_isis_lsp_originations_total`, `ze_isis_sequence_wraps_total`, `ze_isis_purges_total`; matches `lsdb.go:129-133` `SetMetrics` | Yes |
+| Q12 internal architecture: LSDB store + origination | `docs/guide/isis.md` (14KB) exists | Yes |
+| Q9 RFC behavior: 10589 / 1195 / 5305 / 5301 / 3786 / 3787 | In-code `// ISO/IEC 10589 ...` / `// RFC ...` comments in lsdb.go/entry.go/origination.go/aging.go | Yes |
+| Q1-6,8,10,11,13,15-17 (No) | LSDB internal; user-facing surface (`show isis database`), config leaves, and comparison are owned by isis-13/isis-4 (per the Documentation Update Checklist No rows with owners named) | Yes |
 
 ## Checklist
 

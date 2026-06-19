@@ -1,0 +1,150 @@
+# Test: IS-IS dual-stack IPv6 wiring (spec-isis-12 IPv6 SPF + install + show).
+#
+# VALIDATES: spec-isis-12-ipv6 -- the IS-IS component boots with a DUAL-STACK
+#            top-level `isis { ... }` config (a per-interface address-family
+#            ipv6-unicast leaf), the IPv6 SPF subsystem is wired (a second
+#            BuildRoutesV6 + IPv6-family Loc-RIB Installer pass over the SHARED
+#            tree), and `show isis route ipv6` returns an EMPTY list when the node
+#            has no adjacency and so no remote IPv6 prefix is reachable (no
+#            phantom IPv6 routes). This proves the IPv6 SPF -> Loc-RIB insertion
+#            path is plumbed end to end through the show RPC without fabricating
+#            convergence (User Story 1, the wiring half of AC-3/AC-7).
+# PREVENTS:  a regression where the IPv6 address-family config is rejected, where
+#            `show isis route ipv6` is unwired (returns a stub / error), where the
+#            IPv6 SPF pass installs routes with no adjacency (phantom IPv6 FIB
+#            entries), or a panic in the IPv6 install pass on a freshly started
+#            engine.
+#
+# The LIVE dual-stack install (a remote IPv6 prefix appearing in the kernel FIB
+# tagged RTPROT_ZE via an fe80:: link-local next-hop, a single adjacency carrying
+# both TLV 135 + TLV 236, and IPv6 redistribution both ways) needs raw L2
+# (AF_PACKET) on a Linux veth and is proven by:
+#   - the in-memory unit tests (run on any host, including darwin):
+#     TestISISOriginateTLV236 / TestISISOriginateTLV232Scope /
+#     TestISISProtocolsSupportedDualStack (lsdb origination),
+#     TestISISIIHTLV232LinkLocal (circuit IIH TLV 232 link-local scope),
+#     TestISISIPv6SPFNextHop / TestISISIPv6LinkLocalNextHop /
+#     TestISISIPv6RouteLocRIBInsert / TestISISIPv6MetricAboveMaxIgnored (IPv6 SPF
+#     + install), TestISISRedistConsumerIPv6 / TestISISRedistSourceIPv6
+#     (redistribution both ways);
+#   - the QEMU integration tests + the FRR interop scenario isis-dualstack-frr
+#     (owned by spec-isis-13), which drive a real dual-stack adjacency so a remote
+#     IPv6 prefix reaches the kernel.
+# This functional test exercises the single-daemon half: dual-stack config ->
+# engine -> IPv6 SPF wiring -> `show isis route ipv6`, with no peer. The external
+# dispatcher is anchored under a BGP peer process, matching isis-route-install.
+
+tmpfs=isis-ipv6.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert `show isis route ipv6` is empty with no adjacency (no phantom routes)."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    r = dispatch(api, 'show isis route ipv6')
+    if r.get('status') != 'done':
+        runtime_fail(
+            f"show isis route ipv6: expected done, got status={r.get('status')} "
+            f"data={result_text_data(r)[:200]}")
+    routes = result_json_data(r, None)
+    if routes is None:
+        routes = []
+    if not isinstance(routes, list):
+        runtime_fail(f"show isis route ipv6: expected list, got {routes!r}")
+    # No adjacency -> no remote IPv6 prefix -> no installed route. A non-empty
+    # list here would mean the IPv6 SPF pass fabricated a route with no neighbour.
+    if routes:
+        runtime_fail(
+            f"show isis route ipv6: expected empty list (no peer), got {routes!r}")
+
+    print('OK: IS-IS IPv6 route table empty with no adjacency '
+          '(dual-stack SPF wired, no phantom routes)', file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external isis-ipv6 {
+		run ./isis-ipv6.run
+		encoder json
+	}
+}
+
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	interfaces lo {
+		passive true
+		address-family ipv4-unicast {
+		}
+		address-family ipv6-unicast {
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process isis-ipv6 {
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.isis:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=IS-IS IPv6 route table empty with no adjacency
+reject=stderr:pattern=engine idle
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

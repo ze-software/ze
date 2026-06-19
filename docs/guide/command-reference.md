@@ -556,6 +556,98 @@ MPLS FIB is Linux-only).
 <!-- source: internal/component/mpls/show_forwarding.go -- handleShowMPLSForwarding -->
 <!-- source: internal/component/mpls/forwarding_linux.go -- dumpMPLSRoutes -->
 
+### show rsvp-te
+
+RSVP-TE (RFC 3209) LSP, admission, and RFC 4090 fast-reroute state, reported as
+JSON by the rsvp-te component.
+
+```
+ze show rsvp-te session         # All LSPs: state, role, bandwidth, in/out labels, ERO/RRO
+ze show rsvp-te interface       # Per-interface reserved / available / max bandwidth
+ze show rsvp-te tunnel          # Configured ingress tunnels and their state
+ze show rsvp-te fast-reroute    # RFC 4090 protection: bypass LSPs and protected LSPs
+```
+
+`show rsvp-te fast-reroute` lists each configured `bypass` LSP and each protected
+transit LSP with its armed bypass, the protection `mode` (`facility`), whether
+`node-protection` is requested, and whether local protection is `available` and
+`in-use`. `show rsvp-te lsp` is an alias for `show rsvp-te session`.
+
+<!-- source: internal/component/rsvpte/cmd_show.go -- show rsvp-te RPC proxies -->
+<!-- source: internal/component/rsvpte/show_data.go -- show rsvp-te data builders -->
+
+### show isis
+
+IS-IS link-state IGP state, read from the running IS-IS engine. Each command
+is a thin proxy to a fixed engine command; the output routes through the pipe
+machinery (`| json`, `| table`, `| text`, `| count`, `| match`, `| resolve`,
+`| origin`).
+
+```
+ze show isis neighbor                   # Adjacencies: system-id, interface, level, state, hold time
+ze show isis database                   # LSDB summary: LSPID, sequence, lifetime, checksum, overload
+ze show isis database detail            # LSDB with each LSP expanded into its decoded TLVs
+ze show isis route                      # IS-IS-computed IPv4 routes: prefix, metric, level, next-hops
+ze show isis route ipv6                 # IS-IS-computed IPv6 routes (RFC 5308)
+ze show isis interface                  # Circuits: level, type, metric, hello/hold, passive, DIS, adjacency count
+ze show isis hostname                   # System ID -> dynamic hostname mapping (TLV 137, RFC 5301)
+ze show isis spf-log                    # Recent SPF runs: timestamp, level, trigger, duration, node count
+```
+
+The neighbour and database views are also available in the web UI at `/isis`
+and `/isis/database`, with live updates over SSE.
+
+<!-- source: internal/component/isis/cmd_show.go -- ze-show:isis-* RPC proxies -->
+<!-- source: internal/component/isis/show.go -- hostname/interface/spf-log render -->
+<!-- source: internal/component/isis/yang/ze-isis-cmd.yang -- show/clear command tree -->
+
+### clear isis
+
+Runtime actions that reset IS-IS operational state without changing the
+configuration.
+
+```
+ze clear isis adjacency                 # Tear down every adjacency; neighbors re-form from the next Hello
+ze clear isis counters                  # Reset the SPF-run log (observational state)
+```
+
+`clear isis adjacency` drops the adjacency records so each neighbour re-learns
+from the next Hello, triggering LSP re-origination and an SPF re-run; the
+circuit is not closed. `clear isis counters` clears the SPF-run history surfaced
+by `show isis spf-log`; the monotonic Prometheus series are process counters and
+are not reset (resetting them mid-process breaks `rate()`).
+
+<!-- source: internal/component/isis/cmd_show.go -- ze-clear:isis-* RPC proxies -->
+<!-- source: internal/component/isis/show.go -- clearAdjacencies/clearCounters -->
+
+### IS-IS (Offline Tools)
+
+IS-IS protocol tools that run without a daemon, mirroring `ze bgp decode`.
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `isis-decode [--pretty]` | offline | Decode a hex IS-IS PDU on stdin and emit JSON on stdout |
+
+`ze isis-decode` runs without a daemon. Input is ASCII hex (whitespace and
+newlines allowed); raw PDU bytes piped straight from a capture also work (an
+IS-IS PDU starts with the protocol discriminator `0x83`, which is not an ASCII
+hex digit, so the two encodings are never confused). Output is the JSON view of
+the decoded PDU (common header, body, and decoded TLVs). Use `--pretty` for
+indented output. The verb is `isis-decode` (a dedicated offline tool), distinct
+from the `show isis` / `clear isis` command tree above.
+
+Example:
+
+```
+echo 831b0100... | ze isis-decode --pretty
+```
+
+Exit code is 0 on a successful parse, 1 on unreadable input, oversized input, or
+a malformed PDU; stderr carries the reason.
+
+<!-- source: internal/component/isis/cli/decode.go -- cmdDecode, toWire -->
+<!-- source: internal/component/isis/cli/register.go -- isis-decode root verb -->
+
 ### show pki
 
 PKI certificate store introspection. Shows certificates loaded from

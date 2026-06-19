@@ -1,0 +1,52 @@
+# Test: IS-IS top-level config validation (spec-isis-4 component/config wiring).
+#
+# VALIDATES: spec-isis-4-component-config -- a top-level `isis { ... }` block
+#            reaches the IS-IS component's config schema and validators: a valid
+#            NET (and the per-interface metric/hello/circuit-type/level leaves)
+#            validate through the real YANG schema and the custom NET validator
+#            (User Story 1, AC-1/AC-2), while a structurally invalid NET (bad
+#            length / NSEL) is rejected by the isis-net custom validator before
+#            the engine mutates state (User Story 2, AC-3/AC-4).
+# PREVENTS:  regression where the `isis` config root is not wired (validate
+#            passes vacuously) or the NET validator is not registered (an invalid
+#            NET is silently accepted).
+#
+# Live adjacency / LSDB / SPF behaviour needs raw L2 (AF_PACKET) on a Linux veth
+# and is covered by the QEMU integration tests and the sibling specs
+# (isis-5/6/7/9); this functional test exercises the config wiring only:
+# config file -> YANG schema -> NET/system-id validation.
+
+# --- Valid config: a full isis block validates. -----------------------------
+stdin=isis-valid:terminator=EOF_VALID
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	lsp-lifetime 1200
+	hostname r1
+	interfaces eth0 {
+		metric 10
+		hello-interval 10
+		hold-multiplier 3
+		priority 64
+		circuit-type point-to-point
+		level l1-l2
+	}
+	interfaces eth1 {
+		passive true
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid NET: wrong length / NSEL is rejected. ---------------------------
+stdin=isis-bad-net:terminator=EOF_BAD
+isis {
+	net 49.0001.00
+}
+EOF_BAD
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-bad-net
+expect=exit:code=1

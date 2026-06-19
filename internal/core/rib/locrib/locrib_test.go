@@ -230,6 +230,84 @@ func TestOnChangeFires(t *testing.T) {
 	assert.Len(t, changes, 4, "unsubscribed handler must not fire")
 }
 
+// TestOnChangeCarriesECMPSiblings validates that a Change emitted for a
+// multi-path PathGroup carries the intra-source equal-cost sibling next-hops on
+// Change.ECMP (computed at emit, so a consumer needs no re-lookup), excluding
+// the best's own next-hop, and that a single-path insert carries nil ECMP.
+//
+// VALIDATES: siblingNextHops populates Change.ECMP with the equal-cost siblings
+// of Best (same Source, same AdminDistance + Metric, different valid NextHop)
+// for an IS-IS-shaped group (one Path per next-hop, distinct Instance), on both
+// the insert() best-change path and the Remove() fallback path.
+// PREVENTS: a regression where multipath ECMP collapses to the single best
+// next-hop because the Change drops the siblings, forcing consumers back to a
+// per-change RIB Lookup.
+func TestOnChangeCarriesECMPSiblings(t *testing.T) {
+	r := NewRIB()
+	var changes []Change
+	r.OnChange(func(c Change) { changes = append(changes, c) })
+
+	ecmpPfx := netip.MustParsePrefix("10.50.0.0/24")
+	nh1 := netip.MustParseAddr("10.0.0.1")
+	nh2 := netip.MustParseAddr("10.0.0.2")
+
+	isis := func(instance uint32, nh netip.Addr, metric uint32) Path {
+		return Path{Source: idOSPF, Instance: instance, NextHop: nh, AdminDistance: 115, Metric: metric}
+	}
+
+	// First equal-cost IS-IS Path: a fresh single-path group => nil ECMP. This
+	// is the "single-path insert yields nil ECMP" assertion.
+	r.Insert(famV4, ecmpPfx, isis(0, nh1, 30))
+	require.Len(t, changes, 1)
+	assert.Equal(t, ChangeAdd, changes[0].Kind)
+	assert.Nil(t, changes[0].ECMP, "single-path group must carry nil ECMP")
+
+	// Second IS-IS Path with a strictly lower metric becomes the new best on its
+	// own (still single equal-cost member: nh1 at metric 30 is NOT equal-cost to
+	// nh2 at metric 20), so this Change also carries nil ECMP.
+	r.Insert(famV4, ecmpPfx, isis(1, nh2, 20))
+	require.Len(t, changes, 2)
+	assert.Equal(t, ChangeUpdate, changes[1].Kind)
+	assert.Equal(t, nh2, changes[1].Best.NextHop)
+	assert.Nil(t, changes[1].ECMP, "non-equal-cost group must carry nil ECMP")
+
+	// Update the first Path down to the same metric: now nh1 and nh2 are two
+	// equal-cost members (same Source, same AdminDistance + Metric, distinct
+	// Instance, different next-hop) -- the IS-IS ECMP shape. The best identity
+	// changes (Metric of Instance 0 went 30 -> 20, and first-seen tiebreak now
+	// favors it), so a Change fires carrying the sibling on ECMP.
+	r.Insert(famV4, ecmpPfx, isis(0, nh1, 20))
+	require.Len(t, changes, 3)
+	assert.Equal(t, ChangeUpdate, changes[2].Kind)
+	assertECMPGroup(t, changes[2], nh1, nh2)
+
+	// Remove() fallback: drop the current best; the surviving Path is the only
+	// remaining member, so the synthesized ChangeUpdate carries nil ECMP (no
+	// sibling left). This exercises the Remove path's siblingNextHops call.
+	best := changes[2].Best
+	r.Remove(famV4, ecmpPfx, best.Source, best.Instance)
+	require.Len(t, changes, 4)
+	assert.Equal(t, ChangeUpdate, changes[3].Kind)
+	assert.Nil(t, changes[3].ECMP, "single surviving member must carry nil ECMP")
+}
+
+// assertECMPGroup asserts that c describes a two-member equal-cost group over
+// {a, b}: Best.NextHop is one of them, ECMP holds exactly the other, and ECMP
+// never contains Best.NextHop. Order-independent so it does not depend on the
+// internal slice ordering of selectBest.
+func assertECMPGroup(t *testing.T, c Change, a, b netip.Addr) {
+	t.Helper()
+	best := c.Best.NextHop
+	if best != a && best != b {
+		t.Fatalf("Best.NextHop = %s, want one of {%s, %s}", best, a, b)
+	}
+	require.Len(t, c.ECMP, 1, "ECMP must hold exactly the one sibling")
+	assert.NotEqual(t, best, c.ECMP[0], "ECMP must never contain Best.NextHop")
+	union := map[netip.Addr]bool{best: true, c.ECMP[0]: true}
+	assert.True(t, union[a] && union[b],
+		"Best.NextHop + ECMP = {%s, %s}, want {%s, %s}", best, c.ECMP[0], a, b)
+}
+
 // countingHandle is a ForwardHandle used by the fastpath tests. AddRef /
 // Release increment counters so tests can assert the reactor-side
 // refcount contract without dragging the reactor into locrib.

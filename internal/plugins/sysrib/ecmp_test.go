@@ -125,3 +125,52 @@ func TestECMPChanged_SameNH(t *testing.T) {
 		t.Error("same next-hops should not be changed")
 	}
 }
+
+// TestECMPChanged_LabelOnly is the isis-9 regression: a relabel of the same
+// multipath (identical next-hops, new MPLS label stack) MUST be reported as a
+// change so the kernel's stale label stack is replaced. The previous
+// next-hop-only comparison silently dropped it.
+func TestECMPChanged_LabelOnly(t *testing.T) {
+	a := []sysribevents.ECMPPath{{NextHop: netip.MustParseAddr("10.0.0.1"), Labels: []uint32{100}}}
+	b := []sysribevents.ECMPPath{{NextHop: netip.MustParseAddr("10.0.0.1"), Labels: []uint32{200}}}
+	if !ecmpChanged(a, b) {
+		t.Error("same next-hop but different label stack should be changed")
+	}
+}
+
+// TestECMPChanged_LabelAddedToUnlabeled covers the unlabeled -> labeled
+// transition (kernel previously had no label stack; now it must push one).
+func TestECMPChanged_LabelAddedToUnlabeled(t *testing.T) {
+	a := []sysribevents.ECMPPath{{NextHop: netip.MustParseAddr("10.0.0.1")}}
+	b := []sysribevents.ECMPPath{{NextHop: netip.MustParseAddr("10.0.0.1"), Labels: []uint32{300}}}
+	if !ecmpChanged(a, b) {
+		t.Error("unlabeled -> labeled should be changed")
+	}
+}
+
+// TestECMPChanged_WeightOnly covers an unequal-cost-multipath weight change on
+// an otherwise identical member (same next-hop and labels).
+func TestECMPChanged_WeightOnly(t *testing.T) {
+	a := []sysribevents.ECMPPath{{NextHop: netip.MustParseAddr("10.0.0.1"), Weight: 1}}
+	b := []sysribevents.ECMPPath{{NextHop: netip.MustParseAddr("10.0.0.1"), Weight: 2}}
+	if !ecmpChanged(a, b) {
+		t.Error("same next-hop but different weight should be changed")
+	}
+}
+
+// TestECMPChanged_SameFullPath verifies that identical full paths (next-hop,
+// weight, and labels all equal) are NOT reported as changed, regardless of
+// input order: ecmpChanged sorts defensive copies before comparing.
+func TestECMPChanged_SameFullPath(t *testing.T) {
+	a := []sysribevents.ECMPPath{
+		{NextHop: netip.MustParseAddr("10.0.0.2"), Weight: 1, Labels: []uint32{200}},
+		{NextHop: netip.MustParseAddr("10.0.0.1"), Weight: 1, Labels: []uint32{100}},
+	}
+	b := []sysribevents.ECMPPath{
+		{NextHop: netip.MustParseAddr("10.0.0.1"), Weight: 1, Labels: []uint32{100}},
+		{NextHop: netip.MustParseAddr("10.0.0.2"), Weight: 1, Labels: []uint32{200}},
+	}
+	if ecmpChanged(a, b) {
+		t.Error("identical full paths in different order should not be changed")
+	}
+}

@@ -291,6 +291,10 @@ var builtinCodes = []CodeMeta{
 		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-isis-raw-socket"},
 	},
+	// doctor-isis-net-missing and doctor-isis-system-id-mismatch are NOT listed
+	// here: they are owned and registered by the IS-IS component
+	// (internal/component/isis/codes.go init() via diagnostic.Register), so
+	// deleting the IS-IS component removes them (ai/rules/plugin-self-containment.md).
 	{
 		Code:        "doctor-l2tp-module",
 		Title:       "L2TP kernel module not loaded",

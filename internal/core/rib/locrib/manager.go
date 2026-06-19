@@ -10,6 +10,7 @@ package locrib
 
 import (
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -168,16 +169,23 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	var prevBest Path
 	var hadBest bool
 	var newBest Path
+	// ecmp holds the intra-source equal-cost siblings of newBest, computed
+	// here while the PathGroup is in hand under sh.mu so consumers (sysrib)
+	// never re-look-up the RIB to recover an ECMP group. Nil for single-path
+	// groups; populated only when newBest is itself a multipath member.
+	var ecmp []netip.Addr
 
 	if !sh.store.Modify(prefix, func(g *PathGroup) {
 		prevBest, hadBest = g.best()
 		g.upsert(p)
 		newBest, _ = g.best()
+		ecmp = siblingNextHops(g, newBest)
 	}) {
 		g := PathGroup{Best: -1}
 		g.upsert(p)
 		sh.store.Insert(prefix, g)
 		newBest, _ = g.best()
+		ecmp = siblingNextHops(&g, newBest)
 	}
 	depth := sh.store.Len()
 
@@ -191,10 +199,10 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	)
 	switch {
 	case !hadBest:
-		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest, Forward: forward})
+		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest, Forward: forward, ECMP: ecmp})
 		retBest, changed = newBest, true
 	case !prevBest.Equal(newBest):
-		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, Forward: forward})
+		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, Forward: forward, ECMP: ecmp})
 		retBest, changed = newBest, true
 	default:
 		retBest = newBest
@@ -207,6 +215,37 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 		updateDepth(family, shardIdx, depth)
 	}
 	return retBest, changed
+}
+
+// siblingNextHops returns the intra-source equal-cost sibling next-hops of best
+// within g: the valid next-hops of Paths that share best's Source and tie it on
+// AdminDistance and Metric, EXCLUDING best.NextHop, deduped. It is the data
+// carried on Change.ECMP so a consumer can build an ECMP group without
+// re-reading the PathGroup. Returns nil for single-path groups (the common
+// case) and for any group whose best is not itself a multipath member.
+//
+// The filter mirrors what sysrib formerly recomputed by re-looking-up the
+// PathGroup: same Source as best, same AdminDistance, same Metric, valid
+// next-hop, different from best.NextHop. Runs under the shard lock with g in
+// hand; allocates nothing for single-path groups.
+func siblingNextHops(g *PathGroup, best Path) []netip.Addr {
+	if g == nil || len(g.Paths) <= 1 || !best.Valid() {
+		return nil
+	}
+	var out []netip.Addr
+	for i := range g.Paths {
+		p := g.Paths[i]
+		if p.Source != best.Source || p.NextHop == best.NextHop || !p.NextHop.IsValid() {
+			continue
+		}
+		if p.AdminDistance != best.AdminDistance || p.Metric != best.Metric {
+			continue
+		}
+		if !slices.Contains(out, p.NextHop) {
+			out = append(out, p.NextHop)
+		}
+	}
+	return out
 }
 
 // Remove deletes the Path matching (source, instance) at (fam, prefix).
@@ -235,6 +274,11 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 	var newHad bool
 	var removed bool
 	empty := false
+	// ecmp holds the intra-source equal-cost siblings of the post-removal
+	// newBest, captured here under sh.mu with g in hand so the synthesized
+	// fallback ChangeUpdate carries them without a re-lookup. Nil unless the
+	// surviving best is itself a multipath member.
+	var ecmp []netip.Addr
 
 	sh.store.Modify(prefix, func(g *PathGroup) {
 		prevBest, hadBest = g.best()
@@ -243,6 +287,7 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 		if len(g.Paths) == 0 {
 			empty = true
 		}
+		ecmp = siblingNextHops(g, newBest)
 	})
 
 	if !removed {
@@ -271,7 +316,7 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 		return Path{}, hadBest
 	}
 	if changed {
-		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest})
+		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, ECMP: ecmp})
 	}
 	sh.mu.Unlock()
 	recordRemove(family, shardIdx)

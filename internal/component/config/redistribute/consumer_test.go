@@ -81,3 +81,35 @@ func TestRegisterConsumerConflict(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrConsumerConflict)
 }
+
+// TestReregisterConsumerRewires is the isis-11 regression: re-registering the
+// same consumer name must REWIRE to the new consumer instance rather than fail.
+// On an SDK reconnect OnStarted re-fires with a fresh engine; a plain
+// RegisterConsumer would return ErrConsumerConflict and redistribution into the
+// destination protocol would silently stop for the new instance.
+//
+// VALIDATES: ReregisterConsumer replaces the existing consumer under the same
+// name (no error) and LookupConsumer then returns the NEW instance.
+// PREVENTS: Redistribution silently dropping after an engine recreate because
+// the second registration failed and the stale consumer stayed wired.
+func TestReregisterConsumerRewires(t *testing.T) {
+	first := &stubConsumer{name: "test-rewire"}
+	second := &stubConsumer{name: "test-rewire"}
+
+	// First registration: nothing to replace.
+	require.False(t, ReregisterConsumer(first))
+	got, ok := LookupConsumer("test-rewire")
+	require.True(t, ok)
+	require.Same(t, first, got)
+
+	// Re-register the same name with a new instance: must rewire, not fail.
+	require.True(t, ReregisterConsumer(second), "expected replaced=true on rewire")
+	got, ok = LookupConsumer("test-rewire")
+	require.True(t, ok)
+	require.Same(t, second, got, "lookup must return the NEW consumer after rewire")
+
+	// Routes delivered after the rewire reach the new instance, not the stale one.
+	got.InjectRoute(context.Background(), family.IPv4Unicast, RouteEntry{Prefix: "10.0.0.0/24"})
+	assert.Len(t, second.injected, 1, "new consumer should receive the route")
+	assert.Empty(t, first.injected, "stale consumer must not receive routes after rewire")
+}

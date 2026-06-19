@@ -514,6 +514,16 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("GET /l2tp/{login}/samples.csv", authWrap(zeweb.HandleL2TPSamplesCSV()))
 	srv.Handle("GET /l2tp/{login}/samples/stream", authWrap(zeweb.HandleL2TPSamplesSSE()))
 
+	// IS-IS web UI: neighbor and database views with SSE live updates. The
+	// engine runs as a managed plugin subprocess, so the views read it through
+	// the same CommandDispatcher the CLI uses (spec-isis-13).
+	isisHandlers := &zeweb.ISISHandlers{Renderer: renderer, Dispatch: dispatch}
+	srv.Handle("GET /isis", authWrap(isisHandlers.HandleISISNeighbors()))
+	srv.Handle("GET /isis/neighbors", authWrap(isisHandlers.HandleISISNeighbors()))
+	srv.Handle("GET /isis/neighbors/stream", authWrap(isisHandlers.HandleISISNeighborsSSE()))
+	srv.Handle("GET /isis/database", authWrap(isisHandlers.HandleISISDatabase()))
+	srv.Handle("GET /isis/database/stream", authWrap(isisHandlers.HandleISISDatabaseSSE()))
+
 	// Portal: iframe wrapper for embedded services (gokrazy, etc.).
 	if env.IsEnabled("ze.gokrazy.enabled") {
 		srv.Handle("/gokrazy/", authWrap(zegokrazy.Handler(env.Get("ze.gokrazy.socket"))))

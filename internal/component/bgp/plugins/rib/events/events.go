@@ -66,6 +66,13 @@ type BestChangeEntry struct {
 	// such as flow-export enrichment use them for bgpSource/DestinationAsNumber.
 	OriginAS uint32   `json:"origin-as,omitempty"`
 	ASPath   []uint32 `json:"as-path,omitempty"`
+	// ECMPNextHops are the in-process Loc-RIB intra-source equal-cost sibling
+	// next-hops of this entry's best, carried from sysrib's changeToBatch
+	// (computed at Loc-RIB emit on locrib.Change.ECMP). sysrib uses them to
+	// build the kernel multipath without re-reading the PathGroup. The forked
+	// (cross-process) event-bus path has no Loc-RIB and leaves it nil; json:"-"
+	// because it is an in-process hint only, never part of the wire contract.
+	ECMPNextHops []netip.Addr `json:"-"`
 }
 
 // BestChangeBatch is the payload of (bgp-rib, best-change). One batch is
@@ -76,6 +83,15 @@ type BestChangeBatch struct {
 	Family   family.Family     `json:"family"`           // typed family; JSON "ipv4/unicast" etc. via MarshalText
 	Replay   bool              `json:"replay,omitempty"` // true for full-table replay batches
 	Changes  []BestChangeEntry `json:"changes"`
+	// FromLocRIB marks a batch built in-process from a unified Loc-RIB Change
+	// (sysrib's changeToBatch), as opposed to an independent per-protocol event.
+	// The Loc-RIB has already arbitrated across every source and emits exactly
+	// one authoritative best per prefix, so the consumer replaces (not upserts)
+	// its per-prefix entry and never re-arbitrates Loc-RIB sources by admin
+	// distance. json:"-" because it is an in-process hint only: the cross-process
+	// (forked-plugin) event-bus path never sets it and decodes it as false, which
+	// correctly selects the legacy per-protocol arbitration.
+	FromLocRIB bool `json:"-"`
 }
 
 // BestChange is the typed handle for (bgp-rib, best-change). Producers call

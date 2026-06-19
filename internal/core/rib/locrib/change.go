@@ -71,6 +71,18 @@ type Change struct {
 	// Remove (fallback to next-best) because PathGroup paths do not
 	// retain per-path buffers today.
 	Forward ForwardHandle
+	// ECMP carries the intra-source equal-cost sibling next-hops of Best:
+	// the other valid next-hops in this prefix's PathGroup that share Best's
+	// Source and tie it on AdminDistance and Metric, EXCLUDING Best.NextHop
+	// (and deduped). It is populated for multi-path groups so a consumer can
+	// build an ECMP group without re-reading the PathGroup; computed at emit
+	// while the group is already in hand under the shard lock. Nil for
+	// single-path groups and always nil on ChangeRemove.
+	//
+	// A protocol that inserts one Path per equal-cost next-hop (IS-IS ECMP,
+	// distinct Instance) is the producer this serves: the single best Path on
+	// Best would otherwise collapse the multipath to one next-hop downstream.
+	ECMP []netip.Addr
 }
 
 // ChangeHandler is invoked synchronously from Insert/Remove when the best

@@ -195,6 +195,92 @@ func MACAddressValidator() yang.CustomValidator {
 	}
 }
 
+// isisSystemIDPattern validates the IS-IS System ID dotted-hex form
+// xxxx.xxxx.xxxx (6 octets = three 4-hex-digit groups). RFC 1195 / ISO/IEC
+// 10589 section 1.4: the System ID is a fixed 6-octet field.
+var isisSystemIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}$`)
+
+// ISISNETValidator validates an IS-IS Network Entity Title in dotted-hex text
+// form (e.g. 49.0001.0000.0000.0001.00). Inline (no isis import, to avoid a
+// cycle since the isis component imports config), mirroring the mac-address
+// precedent; the isis component registers the CompleteFn via
+// yang.RegisterCompleteFn.
+//
+// ISO/IEC 10589 section 6.2: a NET is an Area Address (1..13 octets) followed by
+// the 6-octet System ID and a 1-octet NSEL (0x00 for an IS). Total 8..20 octets.
+func ISISNETValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			n, err := isisDecodeNETLen(str)
+			if err != nil {
+				return fmt.Errorf("%q is not a valid IS-IS NET for %s: %w", str, path, err)
+			}
+			// ISO/IEC 10589 section 6.2: 1..13 area + 6 system-id + 1 NSEL = 8..20.
+			if n < 8 || n > 20 {
+				return fmt.Errorf("%q is not a valid IS-IS NET for %s: length %d octets, want 8..20", str, path, n)
+			}
+			return nil
+		},
+	}
+}
+
+// isisDecodeNETLen decodes the dotted-hex NET groups and returns the total octet
+// count, rejecting odd nibble counts and non-hex digits. It does not allocate a
+// byte buffer; it counts octets while validating each group is whole octets.
+func isisDecodeNETLen(s string) (int, error) {
+	if s == "" {
+		return 0, errEmptyNET
+	}
+	total := 0
+	for group := range strings.SplitSeq(s, ".") {
+		if group == "" {
+			return 0, errEmptyNETGroup
+		}
+		if len(group)%2 != 0 {
+			return 0, errOddNETGroup
+		}
+		for i := range len(group) {
+			c := group[i]
+			isHex := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+			if !isHex {
+				return 0, errBadNETHex
+			}
+		}
+		total += len(group) / 2
+	}
+	return total, nil
+}
+
+var (
+	errEmptyNET      = errors.New("empty NET")
+	errEmptyNETGroup = errors.New("empty group in NET")
+	errOddNETGroup   = errors.New("NET group has an odd number of hex digits")
+	errBadNETHex     = errors.New("NET contains a non-hex digit")
+)
+
+// ISISSystemIDValidator validates the IS-IS System ID dotted-hex form
+// xxxx.xxxx.xxxx. The YANG leaf also carries the same pattern, so this is the
+// custom-validator hook for completion (the isis component registers the
+// CompleteFn via yang.RegisterCompleteFn).
+func ISISSystemIDValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if !isisSystemIDPattern.MatchString(str) {
+				return fmt.Errorf("%q is not a valid IS-IS system-id for %s (expected xxxx.xxxx.xxxx)", str, path)
+			}
+			return nil
+		},
+	}
+}
+
 // IPv4AddressValidator returns a validator that accepts valid IPv4 addresses.
 func IPv4AddressValidator() yang.CustomValidator {
 	return yang.CustomValidator{

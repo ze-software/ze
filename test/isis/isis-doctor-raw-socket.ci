@@ -1,0 +1,17 @@
+# Test: ze explain surfaces the IS-IS raw-socket doctor diagnostic
+# VALIDATES: AC-7 the doctor-isis-raw-socket code is registered and explainable
+# (the user-visible surface of the CAP_NET_RAW readiness check owned by
+# spec-isis-3-l2-transport). The raw send/receive path itself is proven by the
+# QEMU integration test transport_integration_linux_test.go, not by a .ci file.
+#
+# NOTE: the `test/isis` functional suite is registered by spec-isis-4 (umbrella
+# "Test + interop wiring"); this case lands with the suite. The doctor check
+# firing on a configured `isis` block also needs the ze-isis-conf.yang schema
+# (isis-4) so the config parses. Until then this case exercises the always-
+# available `ze explain` surface, which does not depend on socket capability or
+# the config schema.
+
+cmd=foreground:seq=1:exec=ze explain doctor-isis-raw-socket
+expect=exit:code=0
+expect=stdout:contains=doctor-isis-raw-socket
+expect=stdout:contains=CAP_NET_RAW

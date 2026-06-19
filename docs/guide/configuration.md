@@ -283,7 +283,7 @@ dispatches accepted routes to the matching consumer.
 | Consumer | Purpose |
 |----------|---------|
 | BGP `IngressFilter` | Ingress ACL: when the source is `ibgp` or `ebgp`, gates received UPDATEs from intra-BGP sources. |
-| `redistribute-orchestrator` plugin | Dispatches non-BGP route-change events to registered consumers (BGP, future OSPF/ISIS). |
+| `redistribute-orchestrator` plugin | Dispatches non-BGP route-change events to registered consumers (BGP, IS-IS). |
 
 ```
 redistribute {
@@ -291,9 +291,21 @@ redistribute {
         import ebgp { family [ ipv4/unicast ipv4/vpn ]; }    # intra-BGP ACL
         import l2tp;                                          # egress, all families
         import connected { family [ ipv4/unicast ]; }         # egress, IPv4 unicast only
+        import isis;                                          # IS-IS SPF routes into BGP
+    }
+    destination isis {
+        import connected;                                    # connected/static/BGP into
+        import static;                                       # IS-IS LSPs as TLV 135
+        import bgp;                                          # Extended IP Reachability
     }
 }
 ```
+
+`import isis` pulls IS-IS SPF routes (both levels, single source `isis`) into BGP.
+`destination isis` injects connected/static/BGP prefixes into the IS-IS link-state
+database as Extended IP Reachability (TLV 135); `destination isis { import isis }`
+is accepted by the schema but is a runtime no-op (loop prevention rejects
+redistributing IS-IS into itself).
 
 Both consumers read the same `redistribute.Global()` evaluator, so a single
 config block governs both behaviors. The producer side (per-protocol route-
@@ -596,16 +608,97 @@ rsvp-te {
         explicit-route 2 {
             address 10.0.0.9/32
         }
+        fast-reroute {
+            backup          facility
+            node-protection false
+        }
+    }
+    bypass around-eth0 {
+        merge-point 10.0.0.5
+        explicit-route 1 {
+            address 10.1.0.5/32
+        }
     }
 }
 ```
 
-Inspect LSP, interface, and tunnel state with the component's
-`show rsvp-te session`, `show rsvp-te interface`, and `show rsvp-te tunnel`
-commands. See [RSVP-TE](rsvp-te.md) for details and current status.
+`fast-reroute` on a tunnel requests RFC 4090 local protection (facility backup);
+`bypass` defines a facility-backup LSP from this Point of Local Repair to a
+`merge-point`, explicitly routed around the protected resource (ze has no CSPF).
+
+Inspect LSP, interface, tunnel, and protection state with the component's
+`show rsvp-te session`, `show rsvp-te interface`, `show rsvp-te tunnel`, and
+`show rsvp-te fast-reroute` commands. See [RSVP-TE](rsvp-te.md) for details and
+current status.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unit/mpls/enable -->
 <!-- source: internal/component/rsvpte/yang/ze-rsvp-te-conf.yang -- rsvp-te -->
+
+## IS-IS
+
+The `isis {}` top-level container configures the native IS-IS link-state IGP
+(ISO/IEC 10589, RFC 1195 / 5305 / 5301). IS-IS runs directly over Layer 2 and
+requires `CAP_NET_RAW`. At least one Network Entity Title (`net`) is required;
+the System ID is derived from the 6 octets before the NSEL of the first NET
+unless an explicit `system-id` is given.
+
+```
+isis {
+    net 49.0001.0000.0000.0001.00
+    level l1-l2
+    lsp-lifetime 1200
+    hostname r1
+    interfaces eth0 {
+        circuit-type point-to-point
+        metric 10
+        hello-interval 10
+        hold-multiplier 3
+        priority 64
+        address-family ipv4-unicast { }
+    }
+    interfaces eth1 {
+        passive true
+    }
+}
+```
+
+Per-interface `level-1 {}` / `level-2 {}` containers override metric, timers, and
+DIS priority per level.
+
+**Authentication** is configured as named `key-chains {}`. Each key has a
+`key-id`, an `algorithm` (`cleartext`, `hmac-md5`, or `hmac-sha-1`/`224`/`256`/
+`384`/`512`), a `secret` (stored `$9$`-encoded, like PPPoE/WireGuard keys), and
+optional `send-lifetime` / `accept-lifetime` windows for hitless rotation. Chains
+are referenced by per-interface (IIH Hellos) and per-level (LSP/CSNP/PSNP)
+`auth-key-chain` leaves — the *area* key for Level 1 and the *domain* key for
+Level 2:
+
+```
+isis {
+    net 49.0001.0000.0000.0001.00
+    key-chains area-key {
+        key 1 {
+            algorithm hmac-sha-256
+            secret $9$....               # entered plaintext, $9$-encoded on commit
+        }
+    }
+    key-chains iih-key {
+        key 1 { algorithm hmac-sha-256  secret ... }
+    }
+    level-1 { auth-key-chain area-key }       # L1 LSP/CSNP/PSNP
+    interfaces eth0 {
+        level-1 { auth-key-chain iih-key }    # L1 Hellos on this circuit
+    }
+}
+```
+
+Under configured auth, a PDU with no, wrong, or misordered Authentication TLV is
+rejected (no adjacency, not stored) and `ze_isis_auth_failures_total` increments.
+See [`docs/guide/isis.md`](isis.md) for the full authentication behaviour.
+Adjacency, LSDB, SPF, and route install are delivered by the runtime IS-IS
+feature set; this release wires the component, config, and circuits.
+
+<!-- source: internal/component/isis/yang/ze-isis-conf.yang -- isis config root -->
 
 ## PKI Certificate Store
 

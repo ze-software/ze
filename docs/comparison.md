@@ -72,14 +72,27 @@ Last updated: 2026-05-30
 ## Cross-Protocol Redistribute
 
 Ze advertises locally-originated routes from non-BGP protocols (connected,
-static, L2TP; future OSPF / ISIS) into BGP via the
+static, L2TP, IS-IS; future OSPF) into BGP via the
 `redistribute-orchestrator` plugin. Operators enable it per-destination and per-source via
 `redistribute { destination <proto> { import <source> { family [...]; } } }`. The same config block
 also drives the intra-BGP `IngressFilter` ACL when the source is `ibgp` /
 `ebgp`. Per-peer NEXT_HOP substitution (`nhop self`) is automatic; explicit
 producer-supplied NEXT_HOP is passed through verbatim.
 
+IS-IS meshes with BGP in **both** directions, matching the vendor IGP<->BGP
+mutual-redistribution operators expect: `import isis` exports IS-IS SPF routes
+into BGP (single source `isis`, both levels), and `destination isis { import
+connected/static/bgp }` injects those prefixes into the IS-IS link-state database
+as Extended IP Reachability (TLV 135). Like FRR/bird, TLV 135 has no external bit;
+the up/down bit (RFC 2966) is set only on a down-level leak. IS-IS is dual-stack
+(RFC 5308): IPv6 rides the same single-topology SPF tree (TLV 232 / 236, NLPID
+0x8E), and IPv6 redistribution works the same way — matching FRR's single-topology
+IS-IS default (FRR also offers RFC 5120 Multi-Topology, which Ze does not yet
+implement).
+
 <!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer -->
+<!-- source: internal/component/isis/redistribute/source.go -- isis source + producer emit -->
+<!-- source: internal/component/isis/redistribute/consumer.go -- isis consumer (TLV 135) -->
 <!-- source: internal/core/redistevents/events.go -- producer-shared payload -->
 
 ## Policy & Route Manipulation

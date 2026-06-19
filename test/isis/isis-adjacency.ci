@@ -1,0 +1,61 @@
+# Test: IS-IS adjacency config surface (spec-isis-5 circuit + adjacency FSM).
+#
+# VALIDATES: spec-isis-5-adjacency -- the per-interface leaves that drive the
+#            adjacency FSM and Hello sender (circuit-type, hello-interval,
+#            hold-multiplier, priority, level) validate through the real
+#            ze-isis-conf.yang schema, on both a point-to-point and a broadcast
+#            circuit (User Story 1, AC-1/AC-3/AC-7). A hold-multiplier outside
+#            the 1..255 range is rejected by the YANG range constraint before the
+#            engine builds a circuit (boundary: hold-multiplier 0).
+# PREVENTS:  a regression where the adjacency-driving leaves are not wired into
+#            the schema (validate passes vacuously) or the hold-multiplier bound
+#            is not enforced (a 0 multiplier would advertise an instantly-
+#            expiring adjacency).
+#
+# Live adjacency formation (two nodes reaching Up via the LAN three-way / P2P
+# RFC 5303 handshake, hold-timer teardown, `show isis neighbor` listing the
+# neighbour) needs raw L2 (AF_PACKET) on a Linux veth and is proven by:
+#   - the two-engine unit test TestISISAdjacencyUp (in-memory circuit, runs on
+#     any host), and
+#   - the QEMU integration test + the FRR interop scenario isis-p2p-frr owned by
+#     spec-isis-13.
+# This functional test exercises the config wiring only: config file -> YANG
+# schema -> per-interface adjacency leaves.
+
+# --- Invalid hold-multiplier (0) is rejected by the YANG range. --------------
+stdin=isis-adj-bad-holdmult:terminator=EOF_BAD
+isis {
+	net 49.0001.0000.0000.0001.00
+	interfaces eth0 {
+		hold-multiplier 0
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-adj-bad-holdmult
+expect=exit:code=1
+
+# --- Valid P2P + broadcast adjacency config validates. -----------------------
+stdin=isis-adj-valid:terminator=EOF_VALID
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	interfaces eth0 {
+		circuit-type point-to-point
+		hello-interval 3
+		hold-multiplier 3
+		level l1-l2
+	}
+	interfaces eth1 {
+		circuit-type broadcast
+		hello-interval 10
+		hold-multiplier 10
+		priority 64
+		level l1
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-adj-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid

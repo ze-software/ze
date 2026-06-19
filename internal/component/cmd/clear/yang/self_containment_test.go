@@ -11,6 +11,8 @@ func TestClearOwnerRemovalLeavesNoResidue(t *testing.T) {
 		`"ze-clear:dns-cache"`:          "DNS cache clear -> internal/plugins/resolve-cmd/yang",
 		`"ze-clear:interface-counters"`: "interface counters clear -> internal/component/iface/yang",
 		`"ze-l2tp-api:`:                 "L2TP clear -> internal/component/cmd/l2tp (already owned)",
+		`"ze-clear:isis-adjacency"`:     "IS-IS adjacency clear -> internal/component/isis/yang",
+		`"ze-clear:isis-counters"`:      "IS-IS counters clear -> internal/component/isis/yang",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliClearCmdYANG, token) {

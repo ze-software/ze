@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-17 |
+| Updated | 2026-06-19 |
 
 ## Post-Compaction Recovery
 
@@ -213,7 +213,7 @@ codec spec `spec-isis-2-wire.md`, and transitively by every later IS-IS child.
 | `TestLSPIDOrder` | `internal/component/isis/types/lspid_test.go` | total order consistent with equality; CSNP range bounding | |
 | `TestNETParseFormatRoundTrip` | `internal/component/isis/types/net_test.go` | `49.0001.0000.0000.0001.00` parse/format identity | |
 | `TestNETAccessors` | `internal/component/isis/types/net_test.go` | `AreaID()`, `SystemID()`, `SEL()` extraction across AreaID lengths | |
-| `TestAreaIDEqualAndOrder` | `internal/component/isis/types/areaid_test.go` | equality and ordering for variable-length area addresses | |
+| `TestAreaIDEqualAndOrder` | `internal/component/isis/types/net_test.go` | equality and ordering for variable-length area addresses | |
 | `TestMetricRange` | `internal/component/isis/types/metric_test.go` | `Metric` 24-bit construction, rejection above 16777215, 3-octet big-endian serialize | |
 | `TestPrefixMetricRange` | `internal/component/isis/types/metric_test.go` | `PrefixMetric` 32-bit construction, full 0..4294967295 range accepted, 4-octet big-endian serialize | |
 | `TestSequenceNumberReserved` | `internal/component/isis/types/sequence_test.go` | 0 is the reserved value (never a valid version); increment helper behaviour up to the maximum | |
@@ -439,88 +439,242 @@ reserved (never a valid originated version; purge is signalled by RemainingLifet
 ## Implementation Summary
 
 ### What Was Implemented
-- [To be filled]
+- The leaf package `internal/component/isis/types/` with the eight IS-IS domain
+  value types and their methods (parse-from-string, parse-from-bytes, format,
+  equality, ordering where meaningful, buffer-first serialization):
+  - `SystemID` (6-byte fixed array) -- `systemid.go`
+  - `SourceID` (SystemID + 1-octet pseudonode ID, 7 bytes) -- `sourceid.go`
+  - `LSPID` (SourceID + 1-octet LSP number, 8 bytes) with `Compare`/`Less` total
+    order for CSNP range bounding -- `lspid.go`
+  - `NET` and `AreaID` (variable-length, AreaID 1..13, NET 8..20) with
+    byte-lexicographic ordering -- `net.go`
+  - `Metric` (24-bit, TLV 22, 3-octet serialize) and `PrefixMetric` (32-bit,
+    TLV 135/236, 4-octet serialize) as TWO distinct types -- `metric.go`
+  - `SequenceNumber` (32-bit) with reserved-zero semantics (`IsReserved`,
+    `Next`/`NextChecked` that never produce 0) -- `sequence.go`
+  - `RemainingLifetime` and `HoldingTime` (16-bit seconds) with `IsPurge` on
+    remaining lifetime -- `lifetime.go`
+- Shared zero-allocation dotted-hex append/parse helpers and the package error
+  set -- `format.go`. The hot-path `AppendTo` is asserted zero-alloc; `String()`
+  costs only the single unavoidable result copy.
+- Package doc stating the leaf-import constraint -- `doc.go`.
+- 38 unit/boundary tests across 11 `*_test.go` files; all pass under `-race`.
 
 ### Bugs Found/Fixed
-- [To be filled]
+- None. This is a new from-scratch leaf package; there was no prior behaviour to
+  regress. Strict parse validation (group count, odd nibbles, separators) and
+  exact/bounded length checks in every `*FromBytes` were built in from the start.
 
 ### Documentation Updates
-- [To be filled]
+- None required in phase 1, matching the Documentation Update Checklist (every
+  user-facing surface -- config syntax, CLI, wire doc, feature table -- is owned
+  by a downstream IS-IS spec: isis-2/4/13). RFC constraints are documented inline
+  as `// ISO/IEC 10589 ...` / `// RFC 5305 ...` / `// RFC 5308 ...` comments above
+  the enforcing constants in `systemid.go`, `net.go`, `metric.go`, `sequence.go`,
+  `lifetime.go`, `lspid.go`, `sourceid.go`.
 
 ### Deviations from Plan
-- [To be filled]
+- Test names: the plan's single `TestLifetimeAndHoldingTime` was split into
+  `TestRemainingLifetimeBoundaries` + `TestHoldingTimeBoundaries` (clearer
+  per-type boundary coverage). The plan's `TestParseRejectsMalformed` and
+  `TestStringNoAlloc` exist verbatim; additional tests were added beyond the plan
+  for stronger coverage: `accessors_test.go` (`TestEqualAndBytesAccessors`,
+  `TestAreaIDAndNETAccessors`), `TestFromBytesRejectsWrongLength`,
+  `TestMetricWidthsDistinct`, `TestSequenceNumberWrap`, `TestLSPIDMapKey`,
+  `TestSystemIDMapKey`, `TestAppendDottedHex`, `TestParseDottedHexErrors`. No
+  planned test was dropped.
+- The package needs only the Go standard library (`errors`, `bytes`, `strings`);
+  the planned optional `internal/core/textbuf` dependency proved unnecessary
+  because the dotted-hex format is self-contained, keeping the dependency closure
+  pure stdlib (the `doc.go` text still notes textbuf as the allowed leaf helper
+  pattern, but it is not imported).
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| `SystemID` 6-byte fixed array, parse/format/equal/serialize | Done | `internal/component/isis/types/systemid.go:20-77` | Fixed array, comparable, map-key safe |
+| `SourceID` = SystemID(6) + pseudonode(1) | Done | `internal/component/isis/types/sourceid.go:25-106` | `IsPseudonode`/`PseudonodeID` accessors |
+| `LSPID` = SourceID(7) + LSP number(1), ordering for CSNP ranges | Done | `internal/component/isis/types/lspid.go:31-136` | `Compare`/`Less` big-endian total order |
+| `NET` variable 8..20 bytes = AreaID + SystemID + SEL | Done | `internal/component/isis/types/net.go:108-186` | Split: last 7 = SystemID+SEL |
+| `AreaID` variable 1..13 bytes, ordering | Done | `internal/component/isis/types/net.go:34-99` | Byte-lexicographic `Compare` (documented R-1) |
+| `Metric` 24-bit (TLV 22), range 0..16777215, 3-octet serialize | Done | `internal/component/isis/types/metric.go:31-68` | `NewMetric` rejects > MaxMetric |
+| `PrefixMetric` 32-bit (TLV 135/236), 4-octet serialize | Done | `internal/component/isis/types/metric.go:70-102` | Distinct width; full uint32 range |
+| `SequenceNumber` 32-bit, 0 reserved (never valid version) | Done | `internal/component/isis/types/sequence.go:25-77` | `IsReserved`, `Next`/`NextChecked` never produce 0 |
+| `RemainingLifetime` / `HoldingTime` 16-bit seconds | Done | `internal/component/isis/types/lifetime.go:15-67` | `IsPurge` on remaining lifetime 0 |
+| Per-type: parse string, parse bytes, format, equality, ordering, buffer-first serialize | Done | all type files; `format.go:33-202` | `WriteTo(buf,off) int` everywhere |
+| Leaf package: stdlib-only, no IS-IS runtime / BGP-LS imports | Done | `go list -deps` shows only stdlib + self | doc.go:18-25 states the constraint |
+| Zero-alloc `String()`/`AppendTo` per no-sprintf-alloc | Done | `format.go`; `format_test.go:13-48` | `AppendTo` 0 allocs; `String()` <= 1 (result copy) |
+| RFC constraint comments above enforcing code | Done | `systemid.go:6-9`, `net.go:9-12`, `metric.go:1-29`, `sequence.go:11-17`, `lifetime.go:9-14` | ISO/IEC 10589, RFC 5305, RFC 5308 cited |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSystemIDParseFormatRoundTrip` (`systemid_test.go:10`) | `ParseSystemID("0001.0002.0003").String()` round-trips; PASS |
+| AC-2 | Done | `TestSystemIDBytesLength` (`systemid_test.go:48`) | len 0/5/7/8 error, len 6 OK; no partial value (`systemid.go:38-45`) |
+| AC-3 | Done | `TestLSPIDParseFormatRoundTrip` (`lspid_test.go:11`) | `0001.0002.0003.00-01` -> sys/pnid 0/lspNum 1; round-trips |
+| AC-4 | Done | `TestNETParseFormatRoundTrip` (`net_test.go:11`) | `49.0001.0000.0000.0001.00` -> AreaID `49.0001`, SystemID `0000.0000.0001`, SEL 0x00; round-trips |
+| AC-5 | Done | `TestNETAccessors` (`net_test.go:55`) | full AreaID 1..13 loop; accessors return right slices |
+| AC-6 | Done | `TestNETBytesBounds` (`net_test.go:83`), `TestParseRejectsMalformed/net_*` (`parse_test.go:12`) | len 7 and 21 error; 8 and 20 OK |
+| AC-7 | Done | `TestMetricRange` (`metric_test.go:11`), `TestPrefixMetricRange` (`metric_test.go:55`), `TestMetricWidthsDistinct` (`metric_test.go:96`) | Metric 16777215 OK / 16777216 rejected; PrefixMetric full 32-bit; 3 vs 4 octets |
+| AC-8 | Done | `TestSequenceNumberReserved` (`sequence_test.go:12`), `TestSequenceNumberWrap` (`sequence_test.go:40`) | `IsReserved()` true for 0; `Next`/`NextChecked` never yield 0 |
+| AC-9 | Done | `TestRemainingLifetimeBoundaries` (`lifetime_test.go:11`), `TestHoldingTimeBoundaries` (`lifetime_test.go:52`) | 0 and 65535 representable; 65535 is the 16-bit max |
+| AC-10 | Done | `TestLSPIDOrder` (`lspid_test.go:66`), `TestAreaIDEqualAndOrder` (`net_test.go:133`) | total order = equality-consistent; CSNP range bounding; equal-prefix-diff-length |
+| AC-11 | Done | `TestSystemIDBytesRoundTrip`, `TestLSPIDBytesRoundTrip`, `TestNETWriteToRoundTrip`, `TestSequenceNumberBytes`, metric/lifetime WriteTo tests | every type: `WriteTo` reproduces `*FromBytes` octets and returns correct count |
+| AC-12 | Done | `TestSystemIDMapKey` (`systemid_test.go:78`), `TestLSPIDMapKey` (`lspid_test.go:120`) | fixed-array types key Go maps; `==` consistent |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestSystemIDParseFormatRoundTrip` | Done | `systemid_test.go:10` | PASS |
+| `TestSystemIDBytesRoundTrip` | Done | `systemid_test.go:30` | PASS; length validation in `TestSystemIDBytesLength:48` |
+| `TestSourceIDParseFormatRoundTrip` | Done | `sourceid_test.go:10` | PASS; pseudonode 0 vs non-zero in `TestSourceIDPseudonode:39` |
+| `TestLSPIDParseFormatRoundTrip` | Done | `lspid_test.go:11` | PASS |
+| `TestLSPIDBytesRoundTrip` | Done | `lspid_test.go:45` | PASS; boundary 7/9 covered |
+| `TestLSPIDOrder` | Done | `lspid_test.go:66` | PASS; CSNP range bounding |
+| `TestNETParseFormatRoundTrip` | Done | `net_test.go:11` | PASS |
+| `TestNETAccessors` | Done | `net_test.go:55` | PASS; AreaID/SystemID/SEL across 1..13 |
+| `TestAreaIDEqualAndOrder` | Done | `net_test.go:133` | PASS |
+| `TestMetricRange` | Done | `metric_test.go:11` | PASS; 24-bit cap + 3-octet serialize |
+| `TestPrefixMetricRange` | Done | `metric_test.go:55` | PASS; full 32-bit + 4-octet serialize |
+| `TestSequenceNumberReserved` | Done | `sequence_test.go:12` | PASS; reserved-zero + increment helper |
+| `TestLifetimeAndHoldingTime` | Changed | `lifetime_test.go:11,52` | Split into `TestRemainingLifetimeBoundaries` + `TestHoldingTimeBoundaries`; both PASS |
+| `TestStringNoAlloc` | Done | `format_test.go:13` | PASS; `AppendTo` 0 allocs, `String()` <= 1 |
+| `TestParseRejectsMalformed` | Done | `parse_test.go:12` | PASS; 22 subcases (group count, odd nibble, separators) |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/isis/types/systemid.go` | Done | created |
+| `internal/component/isis/types/sourceid.go` | Done | created |
+| `internal/component/isis/types/lspid.go` | Done | created |
+| `internal/component/isis/types/net.go` | Done | created (holds `NET` and `AreaID`) |
+| `internal/component/isis/types/metric.go` | Done | created (holds `Metric` 24-bit and `PrefixMetric` 32-bit) |
+| `internal/component/isis/types/sequence.go` | Done | created |
+| `internal/component/isis/types/lifetime.go` | Done | created (`RemainingLifetime` + `HoldingTime`) |
+| `internal/component/isis/types/format.go` | Done | created (shared dotted-hex helpers + error set) |
+| `internal/component/isis/types/doc.go` | Done | created (leaf-package constraint) |
+| `internal/component/isis/types/systemid_test.go` | Done | created |
+| `internal/component/isis/types/sourceid_test.go` | Done | created |
+| `internal/component/isis/types/lspid_test.go` | Done | created |
+| `internal/component/isis/types/net_test.go` | Done | created |
+| `internal/component/isis/types/metric_test.go` | Done | created |
+| `internal/component/isis/types/sequence_test.go` | Done | created |
+| `internal/component/isis/types/lifetime_test.go` | Done | created |
+| `internal/component/isis/types/format_test.go` | Done | created |
+| `internal/component/isis/types/parse_test.go` | Done | created |
+| `internal/component/isis/types/accessors_test.go` | Changed | added beyond plan (Equal/Bytes accessor coverage) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 19 files planned (+1 added test file) + 12 ACs + 15 planned tests
+- **Done:** 19 files created; 12/12 ACs demonstrated; 14/15 planned tests verbatim
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 planned test split into two (`TestLifetimeAndHoldingTime` -> `TestRemainingLifetimeBoundaries` + `TestHoldingTimeBoundaries`); 1 extra test file added (`accessors_test.go`); both documented in Deviations
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Eight IS-IS domain types with parse/format/compare/serialize | unit test | `go test ./internal/component/isis/types/` |
-| Leaf package, no runtime imports | dependency check | `go list -deps ./internal/component/isis/types` |
-| Consumed by the wire codec | downstream build | `spec-isis-2-wire.md` compiles against these types |
+| Eight IS-IS domain types with parse/format/compare/serialize | unit test | `go test -race -count=1 ./internal/component/isis/types/` -> `ok ... 1.324s`; 38 tests PASS (tmp/isis/types-test.log) |
+| Leaf package, no runtime imports | dependency check | `go list -deps ./internal/component/isis/types` closure is stdlib only (`errors`, `bytes`, `strings`, runtime internals) + the package itself; no IS-IS runtime, no BGP-LS |
+| Consumed by the wire codec (downstream) | downstream build | `grep -rln isis/types internal/component/isis/` -> 79 files import it, incl. the wire codec `packet/header.go`, `packet/tlv_core.go`, `packet/checksum.go`; tree builds on darwin+linux (`go vet` GOOS=linux/darwin clean) |
+| Round-trip fidelity (parse/format/bytes/serialize) | unit test | round-trip tests per type: `TestSystemIDParseFormatRoundTrip`, `TestLSPIDBytesRoundTrip`, `TestNETParseFormatRoundTrip`, `TestNETWriteToRoundTrip`, `TestSequenceNumberBytes` all PASS |
+| Wire/interop validation of encoded values | interop (downstream, pending) | These types carry no wire behaviour alone; on-wire validation is exercised where the codec/runtime emit real frames. The IS-IS FRR/QEMU interop scenarios exist (`test/interop/scenarios/isis-*`, `test/isis/*.ci`) but were not executed on this darwin host -- execution pending Linux/QEMU. Not an isis-1 AC (Interop Tests table is N/A for this leaf spec). |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | (none surviving) | The deep `/ze-review` + adversarial re-review ran across the whole IS-IS tree this session (covering this leaf package). After fixes, 0 BLOCKER and 0 ISSUE survived for `internal/component/isis/types/`. | tree-wide isis review | acknowledged -- recorded, not re-run per closure instruction |
 
 ### Fixes applied
-- [To be filled]
+- None outstanding for this package. The session-wide IS-IS review and its
+  adversarial re-review left no surviving BLOCKER/ISSUE touching
+  `internal/component/isis/types/`. Strict parse validation, exact/bounded length
+  checks, distinct metric widths, and reserved-zero sequence handling were all in
+  place at review time.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | Final IS-IS-tree review state: 0 BLOCKER, 0 ISSUE for this package. | - | - |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Recorded result (per closure instruction, not re-run this session): the deep
+`/ze-review` and the adversarial re-review across the IS-IS tree this session
+returned 0 surviving BLOCKER and 0 ISSUE for `internal/component/isis/types/`.
+NOTEs: none for this package.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/isis/types/systemid.go` | Yes | `ls` 2.9K |
+| `internal/component/isis/types/sourceid.go` | Yes | `ls` 3.7K |
+| `internal/component/isis/types/lspid.go` | Yes | `ls` 4.5K |
+| `internal/component/isis/types/net.go` | Yes | `ls` 7.1K (holds NET + AreaID) |
+| `internal/component/isis/types/metric.go` | Yes | `ls` 4.0K (holds Metric + PrefixMetric) |
+| `internal/component/isis/types/sequence.go` | Yes | `ls` 3.3K |
+| `internal/component/isis/types/lifetime.go` | Yes | `ls` 2.7K |
+| `internal/component/isis/types/format.go` | Yes | `ls` 6.1K |
+| `internal/component/isis/types/doc.go` | Yes | `ls` 1.4K |
+| `internal/component/isis/types/systemid_test.go` | Yes | `ls` 2.7K |
+| `internal/component/isis/types/sourceid_test.go` | Yes | `ls` 2.1K |
+| `internal/component/isis/types/lspid_test.go` | Yes | `ls` 4.2K |
+| `internal/component/isis/types/net_test.go` | Yes | `ls` 5.3K |
+| `internal/component/isis/types/metric_test.go` | Yes | `ls` 3.4K |
+| `internal/component/isis/types/sequence_test.go` | Yes | `ls` 2.9K |
+| `internal/component/isis/types/lifetime_test.go` | Yes | `ls` 2.4K |
+| `internal/component/isis/types/format_test.go` | Yes | `ls` 3.6K |
+| `internal/component/isis/types/parse_test.go` | Yes | `ls` 4.6K |
+| `internal/component/isis/types/accessors_test.go` | Yes | `ls` 2.9K (added beyond plan) |
+| (Interop/.ci) none for this leaf spec | N/A | Interop Tests table marks N/A; types carry no wire behaviour alone |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | SystemID parse/format round-trip | `TestSystemIDParseFormatRoundTrip` PASS (tmp/isis/types-test.log:155-156) |
+| AC-2 | SystemIDFromBytes rejects len != 6 | `TestSystemIDBytesLength` PASS (log:159-160); `systemid.go:40-42` length guard before copy |
+| AC-3 | LSPID `00-01` parse/format | `TestLSPIDParseFormatRoundTrip` PASS (log:43-44) |
+| AC-4 | NET split AreaID/SystemID/SEL | `TestNETParseFormatRoundTrip` PASS (log:63-64); asserts AreaID `49.0001`, SystemID, SEL 0x00 |
+| AC-5 | NETFromBytes over AreaID 1..13 | `TestNETAccessors` PASS (log:65-66); loops areaLen 1..13 |
+| AC-6 | NET length 7/21 rejected | `TestNETBytesBounds` PASS (log:67-68); `net.go:129-131` bound guard |
+| AC-7 | Metric 24-bit cap, PrefixMetric 32-bit, distinct widths | `TestMetricRange`/`TestPrefixMetricRange`/`TestMetricWidthsDistinct` PASS (log:53-62) |
+| AC-8 | SequenceNumber 0 reserved | `TestSequenceNumberReserved`/`TestSequenceNumberWrap` PASS (log:143-146); `sequence.go:41,58-66` |
+| AC-9 | Lifetime/HoldingTime 0 and 65535 | `TestRemainingLifetimeBoundaries`/`TestHoldingTimeBoundaries` PASS (log:39-42) |
+| AC-10 | LSPID/AreaID total order | `TestLSPIDOrder`/`TestAreaIDEqualAndOrder` PASS (log:47-48, 73-74) |
+| AC-11 | WriteTo round-trips for every type | systemid/lspid/net/sequence/metric/lifetime WriteTo tests all PASS (log entries above) |
+| AC-12 | Fixed-array types as map keys | `TestSystemIDMapKey`/`TestLSPIDMapKey` PASS (log:163-164, 51-52) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| operator string `49.0001.0000.0000.0001.00` -> `ParseNET`/`String` | (no .ci; leaf-package unit test) | Yes -- `TestNETParseFormatRoundTrip` PASS |
+| wire octets -> `LSPIDFromBytes`/`WriteTo` | (no .ci; leaf-package unit test) | Yes -- `TestLSPIDBytesRoundTrip` PASS |
+| two area addresses -> `AreaID.Equal`/order | (no .ci; leaf-package unit test) | Yes -- `TestAreaIDEqualAndOrder` PASS |
+| isis-2 wire codec references these types | (downstream wiring proof) | Yes -- `grep -rln isis/types internal/component/isis/` = 79 consumers incl. `packet/header.go`, `packet/tlv_core.go`, `packet/checksum.go`; tree builds darwin+linux |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | The wire codec (`internal/component/isis/packet/`) and the rest of the IS-IS tree compile against this package; 79 importers add no new identifier type here |
+| A-2 | confirmed | `TestSystemIDMapKey`/`TestLSPIDMapKey` use the fixed-array types directly as Go map keys; downstream LSDB keys on `LSPID` and compiles |
+| A-3 | confirmed | `TestNETAccessors` parses NET over the full AreaID 1..13 range (last-7-bytes-are-SystemID+SEL heuristic) with correct accessor slices |
+| A-4 | confirmed | `Metric` (24-bit, 3-octet) and `PrefixMetric` (32-bit, 4-octet) are two distinct types; `TestMetricWidthsDistinct` pins the widths; the codec encodes TLV 22 vs TLV 135/236 against them. Narrow 6-bit metric stays out (no dedicated type added) |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| No user-facing doc update in phase 1 | Every user-facing surface is owned by a downstream IS-IS spec (isis-2/4/13) per the Documentation Update Checklist; this leaf package adds no config/CLI/wire-doc/feature row | Yes |
+| RFC behaviour documented inline | `// ISO/IEC 10589 ...`, `// RFC 5305 ...`, `// RFC 5308 ...` comments above enforcing constants in systemid.go/net.go/metric.go/sequence.go/lifetime.go/lspid.go/sourceid.go | Yes |
+| Referenced RFC/research files exist | `ls` confirms `iso/short/iso10589.md`, `rfc/short/rfc5305.md`, `rfc/short/rfc5308.md`, `docs/research/isis-implementation-guide.md`, `plan/spec-isis-0-umbrella.md` all present | Yes |
 
 ## Checklist
 

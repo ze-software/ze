@@ -372,6 +372,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `flow-export` | sFlow, NetFlow v9, and IPFIX counter export |
 | `ldp` | Label Distribution Protocol for MPLS label distribution (RFC 5036) |
 | `rsvp-te` | RSVP-TE signaling for MPLS traffic-engineered LSPs (RFC 3209) |
+| `isis` | Native IS-IS link-state IGP over Layer 2 (ISO/IEC 10589, RFC 1195/5305/5308) |
 | `ike` | IKEv2 engine for native IPsec VPN |
 
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin -->
@@ -404,6 +405,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 <!-- source: internal/component/flowexport/register.go -- flow-export plugin -->
 <!-- source: internal/component/ldp/register.go -- ldp plugin -->
 <!-- source: internal/component/rsvpte/register.go -- rsvp-te plugin -->
+<!-- source: internal/component/isis/register.go -- isis plugin -->
 <!-- source: internal/component/ike/engine/register.go -- ike plugin -->
 
 ---
@@ -764,7 +766,7 @@ entry points is not a substitute.
 BGP daemons. Ze establishes real sessions with FRR, BIRD, and GoBGP in containers and
 verifies correct behavior: session establishment, route exchange, graceful restart,
 route refresh, next-hop handling, BFD failover, ECMP, SRv6, and remove-private-as policy.
-42 interop scenarios run across multiple implementations, written in Python with
+49 interop scenarios run across multiple implementations, written in Python with
 automated container orchestration. Interop correctness is measured by real peers,
 not unit tests alone.
 

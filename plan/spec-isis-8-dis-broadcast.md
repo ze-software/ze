@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | spec-isis-5-adjacency.md, spec-isis-6-lsdb.md, spec-isis-7-flooding.md |
 | Phase | - |
-| Updated | 2026-06-17 |
+| Updated | 2026-06-19 |
 
 ## Post-Compaction Recovery
 
@@ -391,87 +391,212 @@ MUST document: election order (priority then MAC), per-level independence, re-el
 ## Implementation Summary
 
 ### What Was Implemented
-- [To be filled]
+- Pure per-level DIS election (priority desc, then SNPA/MAC desc) with damping in
+  `circuit/dis.go` (`DISState`, `Candidate`, `ElectionResult`), plus the circuit
+  election API (`RunElection`, `LocalIsDIS`, `DISLevels`, `MembersSnapshot`,
+  `candidates`).
+- Per-neighbor DIS priority threaded through the adjacency layer: added
+  `Adjacency.Priority` and `HelloInput.Priority`, stored in `ReceiveHello`, and
+  extracted from the LAN IIH fixed header in `circuit/runtime.go`.
+- Pseudo-node LSP origination reusing the isis-6 path:
+  `Originator.OriginatePseudonode` / `PurgePseudonode` in `lsdb/pseudonode.go`
+  (non-zero pseudonode Source ID, members at metric 0, the same fragmenter and
+  sequence/wraparound state, purge-on-role-loss).
+- Engine wiring in `dis_wiring.go`: run election on adjacency transitions and on a
+  periodic re-election tick (catches DIS loss via the hold-timer sweep); allocate a
+  deterministic non-zero pseudonode ID per (circuit,level); originate/purge the
+  pseudo-node; record the elected pseudo-node for the star encoding; source the
+  periodic LAN CSNP from the pseudo-node Source ID while DIS.
+- Own-LSP star encoding in `lsdb_wiring.go` `levelState`: a broadcast circuit with
+  a DIS elected advertises ONE TLV 22 entry pointing at the pseudo-node (metric =
+  circuit metric) instead of per-peer entries; P2P unchanged.
+- Owned metrics registered: `ze_isis_dis_elections_total{level}` (counter),
+  `ze_isis_pseudonode_lsps{level}` (gauge).
 
 ### Bugs Found/Fixed
-- [To be filled]
+- None in sibling code. Discovered (and documented) an isis-5 limitation: an
+  in-place `reconcile` of a live circuit does not re-advertise a changed DIS
+  priority (the circuit keeps its build-time priority), so an engine-level
+  priority-driven role transfer is not exercisable through reconcile in v1. The
+  election logic itself handles a priority change correctly (unit test); the
+  engine-level runtime triggers tested are DIS loss and a higher-priority join.
 
 ### Documentation Updates
-- [To be filled]
+- `docs/architecture/wire/isis.md`: added "DIS election and pseudo-node LSPs
+  (isis-8)" section (election order, pseudo-node LAN ID, metric-0 members, the
+  star, purge-before-yielding, damping, LAN CSNP).
+- `docs/plugin-development/metrics.md`: added the two `isis (dis)` metric rows.
+- `docs/guide/isis.md`: created the shared IS-IS user guide with the broadcast-LAN
+  DIS/pseudo-node section (priority config, election, pseudo-node, re-election,
+  observability). The umbrella lists this as a shared file; the DIS section is the
+  first content. Siblings append their sections.
 
 ### Deviations from Plan
-- [To be filled]
+- Added `internal/component/isis/dis_wiring.go` + `dis_wiring_test.go` (engine glue)
+  beyond the spec's Files-to-Create list. The spec said to hook election into
+  `circuit/circuit.go` and origination into `lsdb/origination.go`; in this codebase
+  the engine root package owns the cross-package wiring (matching the existing
+  `lsdb_wiring.go` / `flooding_wiring.go` split from isis-6/7), so the engine glue
+  lives in a dedicated root-package file rather than being threaded through the
+  circuit/lsdb packages. The election logic still lives in `circuit/` and the
+  pseudo-node origination in `lsdb/` as the spec requires.
+- `TestOwnLSPPointsAtPseudoNode` lives in the engine package (not `lsdb/`) because
+  the star encoding is in the engine's `levelState`, not the lsdb package.
+- Engine-level AC-5 (priority-change role transfer) is covered by the pure-logic
+  unit test + the engine yield-on-join test (`TestISISDISYieldPurgesPseudonode`)
+  rather than a reconcile-driven test (see Bugs Found, documented with a
+  `// test-relax:` note in `dis_wiring_test.go`).
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Per-level DIS election on broadcast circuits (priority desc, MAC desc; L1/L2 independent) | Done | `internal/component/isis/circuit/dis.go:73-160` (`less`, `elect`, `DISState.Elect`) | comparison at dis.go:77-81; per-level `DISState` so L1/L2 independent |
+| Pseudo-node LSP origination by the elected DIS (non-zero pseudonode ID, members at metric 0) | Done | `internal/component/isis/lsdb/pseudonode.go:79` (`OriginatePseudonode`) | reuses the isis-6 `Originator` path (same fragmenter/sequence state) |
+| Own-LSP star encoding (single TLV 22 pseudo-node entry, not per-peer) | Done | `internal/component/isis/lsdb_wiring.go:464-478` (`levelState`) | `continue` skips per-peer entries on a broadcast circuit with an elected pseudo-node (R-3) |
+| Re-election on neighbour loss / DIS loss; purge stale pseudo-node before yielding | Done | `internal/component/isis/dis_wiring.go:77` (`runElection`), `:421-425` (`clearCircuitDIS`); `lsdb/pseudonode.go:145` (`PurgePseudonode`) | role transfer purges via `LostRole`; abrupt departure ages out (isis-6) |
+| Election damping (hold role across transient candidate flap; umbrella R-1) | Done | `internal/component/isis/circuit/dis.go:114,127-160`; window `dis_wiring.go:30,42` | `disDampWindow` constant; pure damping logic in `Elect` |
+| DIS drives the periodic LAN CSNP cadence (spec-isis-7 CSNP, sourced from pseudo-node ID) | Done | `internal/component/isis/dis_wiring.go:469-487` (`startDISLoop`), `:600-631` (`lanCSNPTick`) | `lanCSNPInterval` = 10s; `flooder.SendCSNP` reused |
+| Per-neighbour DIS priority threaded through the adjacency/LAN-IIH receive path | Done | `adjacency/adjacency.go` (`Adjacency.Priority`), `adjacency/fsm.go` (`HelloInput.Priority`, stored in `ReceiveHello`), `circuit/runtime.go` (LAN IIH extract) | the wire field existed on `LANHello` but was dropped before the adjacency record |
+| P2P circuits untouched (no DIS, no pseudo-node) | Done | `internal/component/isis/lsdb_wiring.go:473` (broadcast-only guard) | star encoding gated on broadcast circuit + elected pseudo-node |
+| Owned Prometheus metrics registered | Done | `internal/component/isis/server.go:228-229,361,366` | `ze_isis_dis_elections_total{level}` (counter), `ze_isis_pseudonode_lsps{level}` (gauge) |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestDISElectionPriority`, `TestISISDISElection` | one DIS per level, highest (priority,MAC) wins |
+| AC-2 | Done | `TestDISElectionMACTiebreak` | equal priority → higher SNPA wins |
+| AC-3 | Done | `TestPseudoNodeLSPBuild`, `TestISISDISElection`, `test/isis/isis-dis.ci` | non-zero pseudonode LAN ID, members at metric 0 |
+| AC-4 | Done | `TestPseudoNodeReOriginateOnMemberChange` | member join/leave re-originates the pseudo-node |
+| AC-5 | Done | `TestDISReElectOnPriorityChange` (logic), `TestISISDISYieldPurgesPseudonode` (engine purge-on-yield) | role transfer; old DIS purges before yielding |
+| AC-6 | Done | `TestDISReElectOnLoss`, `TestISISDISReElectOnLoss` | DIS lost → re-elect; stale pseudo-node handled |
+| AC-7 | Done | `TestOwnLSPPointsAtPseudoNode` | own LSP = single TLV 22 entry at the pseudo-node |
+| AC-8 | Done | `TestDISElectionPriorityZero` | priority 0 still elects via MAC tiebreak |
+| AC-9 | Done | `TestDISElectionPerLevel` | L1 and L2 elect independent DIS on one circuit |
+| AC-10 | Done | `TestDISElectionDamping` | transient flap inside window does not re-churn |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestDISElectionPriority` | Pass | `circuit/dis_test.go` | |
+| `TestDISElectionMACTiebreak` | Pass | `circuit/dis_test.go` | |
+| `TestDISElectionPerLevel` | Pass | `circuit/dis_test.go` | |
+| `TestDISReElectOnLoss` (logic) | Pass | `circuit/dis_test.go` | + engine `TestISISDISReElectOnLoss` |
+| `TestDISReElectOnPriorityChange` | Pass | `circuit/dis_test.go` | engine-level priority change is an isis-5 reconcile limitation (see test-relax note); covered by logic test + engine yield-on-join |
+| `TestDISElectionDamping` | Pass | `circuit/dis_test.go` | |
+| `TestPseudoNodeLSPBuild` | Pass | `lsdb/pseudonode_test.go` | |
+| `TestPseudoNodePurgeOnRoleLoss` | Pass | `lsdb/pseudonode_test.go` | |
+| `TestOwnLSPPointsAtPseudoNode` | Pass | `isis/dis_wiring_test.go` | engine-layer (reads levelState star encoding) |
+| `TestISISDISElection` | Pass | `isis/dis_wiring_test.go` | three engines on one LAN |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/isis/circuit/dis.go` | Done | election state machine + damping + circuit API |
+| `internal/component/isis/circuit/dis_test.go` | Done | 11 election unit tests |
+| `internal/component/isis/lsdb/pseudonode.go` | Done | pseudo-node LSP build/originate/purge |
+| `internal/component/isis/lsdb/pseudonode_test.go` | Done | 7 pseudo-node unit tests |
+| `internal/component/isis/dis_wiring.go` | Done | engine glue (election trigger, origination, LAN CSNP, star) -- not in the original Files list but the engine-layer wiring this spec requires |
+| `internal/component/isis/dis_wiring_test.go` | Done | 4 engine wiring tests |
+| `test/isis/isis-dis.ci` | Done | pseudo-node LSP wire decode (pinned) |
+| own-LSP star encoding | Done | `internal/component/isis/lsdb_wiring.go` levelState (modified) |
+| Priority threading | Done | `adjacency/adjacency.go`, `adjacency/fsm.go`, `circuit/runtime.go` (modified) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 37 (8 task requirements + 10 ACs + 10 TDD-plan tests + 9 files-from-plan)
+- **Done:** 37 (all code + unit/functional evidence on disk and passing on darwin)
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (engine glue placed in dedicated `dis_wiring.go` rather than threaded through `circuit/lsdb`; `TestOwnLSPPointsAtPseudoNode` lives in the engine package where the star encoding lives -- both documented in Deviations from Plan)
+- **Interop validation pending Linux/QEMU:** AC-3 (live three-node LAN, only the pseudo-node wire format is exercised on darwin), and the cross-vendor LAN DIS interop (`isis-lan-dis-frr`, owned by spec-isis-13). On-the-wire AF_PACKET live election and FRR interop require a Linux host and were not executed on this darwin host.
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| One DIS elected per level on a LAN | functional test | `test/isis/isis-dis.ci` |
-| Pseudo-node LSP reflects all members | functional test | `test/isis/isis-dis.ci` |
-| Re-election on priority change and DIS loss | unit test | `TestDISReElectOnPriorityChange`, `TestDISReElectOnLoss` |
+| One DIS elected per level on a LAN | engine wiring test (in-memory L2 segment, runs on darwin) | `TestISISDISElection` (three engines on one wire elect one DIS) -- PASS, `tmp/isis8/engine-tests.log` (race) |
+| Pseudo-node LSP reflects all members (non-zero LAN ID, metric-0 members) | unit test + functional wire-decode | `TestPseudoNodeLSPBuild` PASS; `test/isis/isis-dis.ci` PASS via `bin/ze-test isis 4` (exit 0, `tmp/isis8/isis-dis-only.log`) |
+| Own LSP encodes the LAN as a single pseudo-node TLV 22 entry (star, not mesh) | engine wiring test | `TestOwnLSPPointsAtPseudoNode` -- PASS (`internal/component/isis/dis_wiring_test.go`) |
+| Re-election on priority change and DIS loss; purge on yield | unit + engine tests | `TestDISReElectOnPriorityChange`, `TestDISReElectOnLoss` (logic); `TestISISDISReElectOnLoss`, `TestISISDISYieldPurgesPseudonode` (engine) -- all PASS |
+| Election damping holds the role across transient flap | unit test | `TestDISElectionDamping` -- PASS |
+| Live three-node LAN DIS election + LAN CSNP over AF_PACKET (on-the-wire) | interop / QEMU (Linux only) | scenario `test/isis/isis-dis.ci` documents this; QEMU integration tests + FRR scenario `test/interop/scenarios/isis-lan-dis-frr` written; execution pending Linux/QEMU (not run on this darwin host) |
+| Cross-vendor LAN DIS interop with FRR isisd | interop (Linux only) | scenario `test/interop/scenarios/isis-lan-dis-frr` written (ze.conf, frr.conf, check.py present); execution pending Linux/QEMU; scenario owned by spec-isis-13 |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | (resolved) | Deep `/ze-review` + adversarial re-review ran across the full isis tree this session | `internal/component/isis/` (DIS/pseudo-node/star/CSNP) | all findings fixed before this closure; see Final status |
 
 ### Fixes applied
-- [To be filled]
+- All BLOCKER/ISSUE findings from the deep review + adversarial re-review were fixed in-session across the isis tree; 0 survived. Recorded here per the task brief (the gate already ran -- not re-run for this closure).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | none | re-review after fixes: 0 surviving BLOCKER/ISSUE | `internal/component/isis/` | clean |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Final status (recorded, not re-run for this closure): the deep `/ze-review` and a follow-up adversarial re-review ran across the isis tree this session and, after fixes, left 0 surviving BLOCKER and 0 ISSUE. NOTEs: none surviving. Per the closure task this gate result is recorded, not re-executed.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/isis/circuit/dis.go` | Yes | `ls -la` 14K, Jun 19 |
+| `internal/component/isis/circuit/dis_test.go` | Yes | `ls -la` 11K, Jun 19 |
+| `internal/component/isis/lsdb/pseudonode.go` | Yes | `ls -la` 9.3K, Jun 19 |
+| `internal/component/isis/lsdb/pseudonode_test.go` | Yes | `ls -la` 9.3K, Jun 19 |
+| `internal/component/isis/dis_wiring.go` | Yes | `ls -la` 28K, Jun 19 |
+| `internal/component/isis/dis_wiring_test.go` | Yes | `ls -la` 22K, Jun 19 |
+| `internal/component/isis/lsdb_wiring.go` (star encoding, modified) | Yes | `ls -la` 36K, Jun 19; star at `:464-478` |
+| `internal/component/isis/packet/pseudonode_ci_test.go` | Yes | `ls -la` 3.0K, Jun 19 (pins the .ci fixture) |
+| `test/isis/isis-dis.ci` | Yes | `ls -la` 3.1K, Jun 19 |
+| `adjacency/adjacency.go`, `adjacency/fsm.go`, `circuit/runtime.go` (priority threading, modified) | Yes | `ls -la` all present, Jun 19 |
+| `docs/architecture/wire/isis.md`, `docs/plugin-development/metrics.md`, `docs/guide/isis.md` | Yes | `ls -la` all present, Jun 19 |
+| `test/interop/scenarios/isis-lan-dis-frr/` (ze.conf, frr.conf, check.py) | Yes | `ls -la` dir present with all three files; execution pending Linux/QEMU (owned by spec-isis-13) |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | one DIS per level, highest (priority,MAC) wins | `TestDISElectionPriority`, `TestISISDISElection` PASS (`tmp/isis8/verbose.log`, 25 PASS / 0 FAIL) |
+| AC-2 | equal priority -> higher SNPA wins | `TestDISElectionMACTiebreak` PASS; comparison `dis.go:77-81` |
+| AC-3 | non-zero pseudonode LAN ID, members at metric 0 | `TestPseudoNodeLSPBuild` PASS; `test/isis/isis-dis.ci` PASS (`bin/ze-test isis 4`, exit 0). Live three-node-LAN wire validation pending Linux/QEMU |
+| AC-4 | member join/leave re-originates pseudo-node | `TestPseudoNodeReOriginateOnMemberChange` PASS (`lsdb/pseudonode_test.go`) |
+| AC-5 | priority-change role transfer; old DIS purges before yielding | `TestDISReElectOnPriorityChange` (logic) + `TestISISDISYieldPurgesPseudonode` (engine purge-on-yield) PASS; engine reconcile limitation noted in Deviations |
+| AC-6 | DIS lost -> re-elect; stale pseudo-node handled | `TestDISReElectOnLoss` + `TestISISDISReElectOnLoss` PASS |
+| AC-7 | own LSP = single TLV 22 entry at pseudo-node | `TestOwnLSPPointsAtPseudoNode` PASS; star encoding `lsdb_wiring.go:464-478` (`continue` skips per-peer) |
+| AC-8 | priority 0 still elects via MAC tiebreak | `TestDISElectionPriorityZero` PASS |
+| AC-9 | L1 and L2 elect independent DIS | `TestDISElectionPerLevel` PASS |
+| AC-10 | transient flap inside window does not re-churn | `TestDISElectionDamping` PASS |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| three nodes Up on a shared broadcast segment -> one DIS elected | n/a (engine wiring test) | `TestISISDISElection` PASS under -race (`tmp/isis8/engine-tests.log`) -- three engines on one in-memory L2 wire |
+| pseudo-node LSP wire format (non-zero LAN ID, 3 members metric 0) | `test/isis/isis-dis.ci` | Read in full: hex PDU -> `ze isis-decode` -> JSON asserts `l1-lsp`, `lsp-id 0000.0000.0001.07-00`, TLV `type 22` with the metric-0 member value. `bin/ze-test isis 4` exit 0 (`tmp/isis8/isis-dis-only.log`). The .ci is pinned by `pseudonode_ci_test.go` so codec and fixture cannot drift |
+| own LSP points at pseudo-node (star) | n/a (engine wiring test) | `TestOwnLSPPointsAtPseudoNode` PASS |
+| live three-node LAN over AF_PACKET / FRR interop | `test/interop/scenarios/isis-lan-dis-frr` | scenario written (ze.conf, frr.conf, check.py present); execution pending Linux/QEMU; owned by spec-isis-13 |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | adjacency layer now exposes per-neighbour `(priority, MAC)` per level: `Adjacency.Priority` + `circuit.candidates`/`MembersSnapshot`; `TestISISDISElection` reads the table |
+| A-2 | confirmed | the isis-6 `Originator` originates a non-zero-pseudonode-ID LSP with an arbitrary TLV 22 member list via `OriginatePseudonode` (`lsdb/pseudonode.go:79`); `TestPseudoNodeLSPBuild` PASS |
+| A-3 | confirmed | the isis-7 CSNP build/send is driven on demand by the DIS: `lanCSNPTick` -> `flooder.SendCSNP` (`dis_wiring.go:600-631`) |
+| A-4 | confirmed | a single pseudo-node fragment suffices for test segment sizes; `TestPseudoNodeFragmentation` exercises the isis-6 fragmentation path for the overflow case |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| `docs/architecture/wire/isis.md` DIS/pseudo-node section | file present (24K); section "DIS election and pseudo-node LSPs (isis-8)" | Yes |
+| `docs/plugin-development/metrics.md` two metric rows | file present (13K); rows for `ze_isis_dis_elections_total`/`ze_isis_pseudonode_lsps` | Yes; registered at `server.go:361,366` and asserted by `metrics_test.go:123-124` |
+| `docs/guide/isis.md` broadcast-LAN DIS section | file present (14K) | Yes |
 
 ## Checklist
 

@@ -53,6 +53,7 @@ func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 		`"ze-show:flow-export"`:           "flow export -> internal/plugins/flowexport-cmd/yang",
 		`"ze-show:rsvp-te-`:               "RSVP-TE -> internal/plugins/rsvpte-cmd/yang",
 		`"ze-show:ldp-`:                   "LDP -> internal/plugins/ldp-cmd/yang",
+		`"ze-show:isis-`:                  "IS-IS -> internal/component/isis/yang",
 		`"ze-show:policy-routes"`:         "policy routing -> internal/plugins/policyroute/yang",
 		`"ze-show:static"`:                "static routes -> internal/plugins/static/yang",
 		`"ze-show:vpn-ipsec-`:             "IPsec -> internal/component/ike/yang",

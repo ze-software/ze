@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | spec-isis-3-l2-transport.md |
 | Phase | - |
-| Updated | 2026-06-17 |
+| Updated | 2026-06-19 |
 
 ## Post-Compaction Recovery
 
@@ -357,7 +357,7 @@ for isis-4.
 - `internal/component/isis/config.go` - typed config structs, parse from the `isis` JSON subtree, YANG-default application, NET/system-id validation and derivation
 - `internal/component/isis/events.go` - `events.RegisterNamespace` + IS-IS event types (session up/down, LSP change)
 - `internal/component/isis/server.go` - top-level orchestration: open circuits via spec-isis-3 transport, launch per-circuit goroutine stubs, the PDU-type receive dispatcher (keyed by the 5-bit PDU type, routing IIH to adjacency / LSP / CSNP / PSNP to lsdb/flooding; handlers register at startup, stubs here), clean shutdown, journal-based reconcile
-- `internal/component/isis/yang/ze-isis-conf.yang` - config schema (top-level `isis`, `ze:config-root`, validated leaves per the leaf table). The `yang/` directory is the home for all IS-IS YANG modules: this spec creates only `ze-isis-conf.yang`; the command module `ze-isis-cmd.yang` (CLI command ownership; show binds `ze-show:isis-*`, clear binds `ze-clear:isis-*`, modelled on `internal/plugins/ldp-cmd/yang/ze-ldp-cmd.yang`; there is NO `ze-isis-api.yang`) lives in the same directory but is owned and authored by spec-isis-13-cli-diag-interop per Shared Contracts "Command + API YANG"; this spec does NOT define the cmd schema
+- `internal/component/isis/yang/ze-isis-conf.yang` - config schema (top-level `isis`, `ze:config-root`, validated leaves per the leaf table). The `yang/` directory is the home for all IS-IS YANG modules: this spec creates only `internal/component/isis/yang/ze-isis-conf.yang`; the command module `internal/component/isis/yang/ze-isis-cmd.yang` (CLI command ownership; show binds `ze-show:isis-*`, clear binds `ze-clear:isis-*`, modelled on `internal/plugins/ldp-cmd/yang/ze-ldp-cmd.yang`) lives in the same directory but is owned and authored by spec-isis-13-cli-diag-interop per Shared Contracts "Command + API YANG"; this spec does NOT define the cmd schema. No per-component api yang file is created: by design the show/clear commands register in Go via the central ze-show / ze-clear namespaces, so the umbrella-era ze-isis-api yang module was intentionally never authored (see Deviations from Plan)
 - `internal/component/isis/yang/register.go` - generated glue (`configyang.RegisterModule`), produced by `make generate`
 - `internal/component/isis/yang/embed.go` - generated `//go:embed ze-isis-conf.yang` var, produced by `make generate`
 - `test/isis/isis-config.ci` - functional test: valid `isis` config validates and the component starts; invalid NET rejected
@@ -483,87 +483,236 @@ code where a NET/system-id/metric constraint maps to a normative requirement.
 ## Implementation Summary
 
 ### What Was Implemented
-- [To be filled]
+- `internal/component/isis/register.go`: `init()` -> `registerISIS()` builds the
+  `registry.Registration` (Name "isis", Features "yang", embedded
+  `ZeIsisConfYANG`, ConfigRoots ["isis"], Dependencies ["fib-kernel","sysctl"],
+  RFCs, RunEngine, ConfigureEngineLogger/Metrics/EventBus, CLIHandler) and
+  registers the event namespace, the central-validator CompleteFns, the two
+  config-sanity diagnostic codes, and the config-sanity doctor check.
+  `runISISEngine` wires OnConfigVerify / OnConfigure / OnConfigApply / OnStarted /
+  OnExecuteCommand and `p.Run`, then `eng.shutdown()`.
+- `internal/component/isis/config.go`: typed `Config` / `InterfaceConfig` /
+  `LevelInterfaceConfig` / `KeyChainConfig` / `KeyConfig`, `parseISISConfig`
+  (root-wrapped JSON, string leaves, keyed-list maps, leaf-list scalar/array),
+  YANG-default application, `validateConfig` (ErrNoNET / ErrSystemIDMismatch),
+  system-id derivation from the first NET.
+- `internal/component/isis/events.go`: `Namespace` "isis", EventSessionUp /
+  EventSessionDown / EventLSPChange, typed handles, `eventSink`.
+- `internal/component/isis/server.go`: the 5-bit PDU-type `dispatcher`
+  (register/dispatch/drop/setVerify) and the `engine` (newEngine, openCircuits,
+  reconcile with journal diff, shutdown).
+- `internal/component/isis/yang/ze-isis-conf.yang`: top-level `isis` container
+  with `ze:config-root "isis"` and maximally-validated leaves; generated
+  `yang/register.go` + `yang/embed.go` glue.
+- `internal/component/config/validators_register.go`: central `isis-net` /
+  `isis-system-id` ValidateFns (cycle-break; component owns the CompleteFns).
+- Wiring: `internal/component/plugin/all/all.go` (generated) imports `isis` +
+  `isis/yang`; `internal/test/cli/register.go` + `mk/test-functional.mk` register
+  the `test/isis` suite and the `ze-isis-test` target; `test/isis/isis-config.ci`.
 
 ### Bugs Found/Fixed
-- [To be filled]
+- None specific to isis-4 surfaced at closure. The NET length-boundary test
+  (`TestISISNETValidator`) was corrected during development: the prior "too short"
+  case was actually a valid 9-octet NET; replaced with an exact 7-octet below-min
+  case using `isisDecodeNETLen` (noted inline as `test-relax:`).
 
 ### Documentation Updates
-- [To be filled]
+- `docs/guide/configuration.md` documents the `isis` config block (11 isis
+  mentions). `docs/guide/plugins.md` and `docs/plugin-overview.md` list the isis
+  component. `docs/functional-tests.md` documents the `test/isis/` suite (23 isis
+  mentions). `docs/architecture/config/syntax.md`, `docs/guide/status.md`, and
+  `docs/architecture/core-design.md` were checklist-flagged as Yes in the spec;
+  several of those user-guide updates are owned by spec-isis-13 (when the feature
+  is operator-usable), consistent with the spec's own "deferred to isis-13" notes.
 
 ### Deviations from Plan
-- [To be filled]
+- The NET / system-id `ValidateFn`s live in the central config package
+  (`validators_register.go`), not under `internal/component/isis/`, to break an
+  import cycle (config cannot import isis). The component retains ownership of the
+  `CompleteFn`s via `configyang.RegisterCompleteFn` (mac-address precedent). The
+  spec anticipated this (Required Reading note: "the central config package owns
+  the ValidateFn ... completion guidance is registered here").
+- The `OnExecuteCommand` switch and `sdk.Registration.Commands` already carry the
+  full `show isis <noun>` / `clear isis <action>` surface (siblings filled the
+  snapshots); isis-4 established the dispatch shape and stubs.
+- The `algorithm` enum in the YANG gained `hmac-sha-224` (RFC 5310) beyond the
+  spec leaf table's listed set; additive, harmless.
+- No `ze-isis-api.yang` file was created: by design the show/clear commands
+  register in Go via the central ze-show / ze-clear namespaces (no per-component
+  api/cmd yang), so the umbrella-era api yang module was intentionally never
+  authored. The reference to it was removed from "## Files to Create".
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| `registry.Registration` in `init()` (Name "isis", Features "yang", YANG, ConfigRoots, Dependencies, RFCs, RunEngine, ConfigureEngineLogger/Metrics/EventBus, CLIHandler) | Done | `internal/component/isis/register.go:90-157` | All listed fields present; verified by `TestISISComponentStart` |
+| SDK lifecycle `runISISEngine(conn net.Conn) int` (OnConfigVerify/OnConfigure/OnConfigApply/OnStarted/OnExecuteCommand + `p.Run` + clean shutdown) | Done | `internal/component/isis/register.go:217-409` | All five callbacks wired; `eng.shutdown()` on exit |
+| `ze-isis-conf.yang` top-level `container isis` with `ze:config-root "isis"` + maximally-validated leaves | Done | `internal/component/isis/yang/ze-isis-conf.yang:11-218` | Every numeric/enum/id leaf has range/pattern/enum |
+| Config resolution to typed structs + YANG defaults + required-field validation (>=1 NET, derivable system-id) | Done | `internal/component/isis/config.go:321-510` | `TestISISConfigResolve/Defaults/Validate` |
+| `events.RegisterNamespace` for IS-IS event types | Done | `internal/component/isis/register.go:91`, `events.go:21-59` | `TestISISEventNamespace` |
+| `make generate` adds `isis` + `isis/yang` to `all.go` and generates `yang/register.go`/`embed.go` | Done | `internal/component/plugin/all/all.go:70,233,262`; `yang/register.go`, `yang/embed.go` | Generated; not hand-edited |
+| `server.go` PDU-type receive dispatcher (5-bit type) with stub handlers | Done | `internal/component/isis/server.go:44-138` | `TestISISPDUDispatch`; transport holds no PDU switch |
+| Wiring test `TestISISComponentStart` proves config -> register -> engine -> circuits | Done | `internal/component/isis/server_test.go:113-148` | Passes under -race |
+| Functional `.ci` under `test/isis/` loading config and confirming startup | Done | `test/isis/isis-config.ci` | `ze-test isis 3` exit 0 |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestISISComponentStart` (`server_test.go:132-147`) | Engine opens a circuit per enabled interface over a fake backend (darwin-safe) |
+| AC-2 | Done | `TestISISConfigResolve` (`config_test.go:22-86`) | Full subtree resolves to typed structs with defaults |
+| AC-3 | Done | `TestISISConfigValidate` no-net case (`config_test.go:151-157`) + `test/isis/isis-config.ci` step 2 | `ErrNoNET` |
+| AC-4 | Done | `TestISISConfigInvalidNET` (`config_test.go:178-191`), `TestISISNETValidator` (`validators_isis_test.go:17-81`), `test/isis/isis-config.ci` step 2 (exit 1) | Invalid NET rejected before state mutation |
+| AC-5 | Done | YANG enum on `level` (`ze-isis-conf.yang:38-46`); `TestISISConfigBoundaries` asserts the enum/range declarations | `l3` is not in the enum; native validation rejects it |
+| AC-6 | Done | YANG `range "1..16777215"` on `metric` (`ze-isis-conf.yang:111-115`); `TestISISConfigBoundaries` (`config_test.go:211`) | 16777216 above wide max rejected by native range |
+| AC-7 | Done | `TestISISComponentStart` inventory assertion (`server_test.go:115-130`); `ze plugin` lists `isis` | Proves `make generate` wired `all.go` |
+| AC-8 | Done | `TestISISConfigApplyReconcile` (`server_test.go:150-206`) | Metric-only change opens/closes no circuit; journal marks only eth1 changed |
+| AC-9 | Done | `TestISISConfigValidate` derived-sid case (`config_test.go:144-148`); `config.go:346-348` | System ID = 6 octets before NSEL |
+| AC-10 | Done | `netCompletions`/`systemIDCompletions` (`register.go:195-202`) registered via `configyang.RegisterCompleteFn` (`register.go:106-107`) | CompleteFn returns guidance values |
+| AC-11 | Done | `ze-test isis 3` (isis-config) exit 0; suite registered in `register.go:19` + `mk/test-functional.mk:79,166-167` | Suite resolves; the isis-4 `.ci` passes (a sibling test `isis-flooding` fails -- see Notes below) |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestISISConfigResolve` | Done | `internal/component/isis/config_test.go:22` | PASS -race |
+| `TestISISConfigDefaults` | Done | `internal/component/isis/config_test.go:89` | PASS -race |
+| `TestISISConfigValidate` | Done | `internal/component/isis/config_test.go:136` | PASS -race |
+| `TestISISNETValidator` | Done | `internal/component/config/validators_isis_test.go:17` | PASS -race; lives in config pkg (cycle-break) |
+| `TestISISSystemIDValidator` | Done | `internal/component/config/validators_isis_test.go:83` | PASS -race |
+| `TestISISComponentStart` | Done | `internal/component/isis/server_test.go:113` | PASS -race |
+| `TestISISConfigApplyReconcile` | Done | `internal/component/isis/server_test.go:150` | PASS -race |
+| `TestISISEventNamespace` | Done | `internal/component/isis/events_test.go:14` | PASS -race |
+| `TestISISPDUDispatch` | Done | `internal/component/isis/server_test.go:34` | PASS -race; unknown/short PDUs dropped not panicked |
+| `TestISISConfigBoundaries` (boundary table) | Done (added) | `internal/component/isis/config_test.go:199` | Asserts YANG range/default declarations match the Boundary Tests table |
+| `TestISISConfigInvalidNET` | Done (added) | `internal/component/isis/config_test.go:178` | Structural NET rejection at parse |
+| `TestISISConfigEnabledCircuits` | Done (added) | `internal/component/isis/config_test.go:260` | Only enabled, non-passive interfaces open a circuit |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/isis/register.go` | Done | Registration + SDK lifecycle |
+| `internal/component/isis/config.go` | Done | Typed config + parse + defaults + validation |
+| `internal/component/isis/events.go` | Done | Namespace + event types + eventSink |
+| `internal/component/isis/server.go` | Done | Engine + PDU dispatcher |
+| `internal/component/isis/yang/ze-isis-conf.yang` | Done | Schema, all leaves validated |
+| `internal/component/isis/yang/register.go` | Done | Generated glue |
+| `internal/component/isis/yang/embed.go` | Done | Generated embed |
+| `test/isis/isis-config.ci` | Done | Functional test (valid validates/starts; invalid NET rejected) |
+| `internal/component/plugin/all/all.go` (modify) | Done | Generated; imports isis + isis/yang |
+| `internal/test/cli/register.go` (modify) | Done | `registerCIRoot("isis", ...)` |
+| `mk/test-functional.mk` (modify) | Done | `ze-isis-test` target + suite list + .PHONY |
+| `internal/component/config/validators_register.go` (added) | Changed | Central ValidateFn registration (cycle-break; deviation, see Deviations) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 41 (9 requirements + 11 ACs + 12 tests + 12 files; ACs/tests/files overlap conceptually but are counted per row above)
+- **Done:** 40
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (NET/system-id ValidateFns placed in the central config package, not the isis component, to break an import cycle; CompleteFns remain component-owned)
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| `isis { ... }` reaches a running engine | wiring test | `TestISISComponentStart` |
-| Config accepted and validated, invalid NET rejected | functional test | `test/isis/isis-config.ci` |
-| Component in plugin inventory; `make generate` wires `all.go` | inventory + grep | `ze plugin`, `grep isis internal/component/plugin/all/all.go` |
+| `isis { ... }` reaches a running engine | wiring test (unit, -race) | `TestISISComponentStart` PASS (`tmp/isis4/unit.log:23-24`): registration present, RunEngine set, ConfigRoots ["isis"], circuits opened over fake backend |
+| Config accepted and validated, invalid NET rejected | functional test (darwin) | `ze-test isis 3` (isis-config) exit 0 (`tmp/isis4/isis-config-only.log:5-6`): valid config -> "configuration valid"; invalid NET -> exit 1 |
+| Component in plugin inventory; `make generate` wires `all.go` | inventory + grep | `./bin/ze plugin` lists `isis` (`tmp/isis4/plugin.log:68`); `grep isis internal/component/plugin/all/all.go` -> lines 70/233/262 |
+| Typed config resolution with YANG defaults | unit test (-race) | `TestISISConfigResolve` + `TestISISConfigDefaults` PASS (`tmp/isis4/unit.log:1-4`) |
+| Whole tree builds (darwin) | build | `go build ./...` exit 0 (`tmp/isis4/build.log`) |
+| Interop / on-the-wire validation | interop | N/A for isis-4 by design (no wire protocol). FRR scenario directories exist under `test/interop/scenarios/isis-*-frr` for siblings; execution pending Linux/QEMU (darwin host lacks AF_PACKET raw L2) |
 
 ## Review Gate
+
+The deep `/ze-review` plus an adversarial re-review ran across the entire IS-IS
+tree (including the isis-4 component/config files) during this session. After the
+fixes applied across the tree, 0 BLOCKER and 0 ISSUE survived for the isis-4
+scope. The findings below are recorded for the isis-4 files specifically; this
+gate is not re-run here per the closure brief.
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | NET length-boundary test used a 9-octet NET as a "too short" case, so it tested the wrong boundary | `internal/component/config/validators_isis_test.go` | fixed: exact 7-octet below-min case via `isisDecodeNETLen`, `test-relax:` note |
+| 2 | NOTE | NET/system-id ValidateFn placed in central config package, not the component | `internal/component/config/validators_register.go` | acknowledged: import-cycle break; CompleteFns stay component-owned (mac-address precedent) |
+| 3 | NOTE | PDU dispatcher reads the raw type octet without full header decode | `internal/component/isis/server.go:95-117` | acknowledged: deliberate -- bound-checks and drops malformed PDUs, never panics (security review) |
 
 ### Fixes applied
-- [To be filled]
+- Corrected the NET length-boundary test to cover the genuine below-min (7-octet) case.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | No surviving BLOCKER/ISSUE in the isis-4 scope after the tree-wide review | - | clean |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
+
+Recorded outcome (per closure brief, not re-run here): the tree-wide deep review +
+adversarial re-review left 0 BLOCKER and 0 ISSUE in the isis-4 scope; the two NOTEs
+above are acknowledged.
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/isis/register.go` | Yes | ls EXISTS |
+| `internal/component/isis/config.go` | Yes | ls EXISTS |
+| `internal/component/isis/events.go` | Yes | ls EXISTS |
+| `internal/component/isis/server.go` | Yes | ls EXISTS |
+| `internal/component/isis/yang/ze-isis-conf.yang` | Yes | ls EXISTS |
+| `internal/component/isis/yang/register.go` | Yes | ls EXISTS (generated) |
+| `internal/component/isis/yang/embed.go` | Yes | ls EXISTS (generated) |
+| `test/isis/isis-config.ci` | Yes | ls EXISTS |
+| `internal/component/config/validators_register.go` | Yes | ls EXISTS (central ValidateFns) |
+| `internal/component/config/validators_isis_test.go` | Yes | ls EXISTS |
+| `internal/component/isis/config_test.go` | Yes | ls EXISTS |
+| `internal/component/isis/server_test.go` | Yes | ls EXISTS |
+| `internal/component/isis/events_test.go` | Yes | ls EXISTS |
+| `internal/component/plugin/all/all.go` | Yes | grep isis -> lines 70/233/262 |
+
+All referenced files exist on disk; no missing references found.
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Engine opens a circuit per enabled interface | `TestISISComponentStart` PASS, `tmp/isis4/unit.log:23-24` |
+| AC-2 | Full subtree -> typed structs with defaults | `TestISISConfigResolve` PASS, `tmp/isis4/unit.log:1-2` |
+| AC-3 | No `net` rejected | `TestISISConfigValidate` PASS, `tmp/isis4/unit.log:5`; `isis-config.ci` step 2 exit 1 |
+| AC-4 | Invalid NET rejected before mutation | `TestISISConfigInvalidNET` + `TestISISNETValidator` PASS, `tmp/isis4/unit.log:7-14`, `tmp/isis4/validators.log:1-10` |
+| AC-5 | `level l3` rejected by native enum | YANG enum `ze-isis-conf.yang:38-46`; `TestISISConfigBoundaries` PASS `tmp/isis4/unit.log:15-16` |
+| AC-6 | `metric 16777216` rejected by native range | YANG `range "1..16777215"` `ze-isis-conf.yang:111-115`; `TestISISConfigBoundaries` PASS |
+| AC-7 | `isis` in plugin inventory | `./bin/ze plugin` -> `tmp/isis4/plugin.log:68`; `TestISISComponentStart` inventory assert PASS |
+| AC-8 | Reload reconciles only changed circuit | `TestISISConfigApplyReconcile` PASS, `tmp/isis4/unit.log:25-26` |
+| AC-9 | System-id derived from NET | `TestISISConfigValidate` PASS (`config_test.go:144-148`) |
+| AC-10 | `CompleteFn` returns guidance for net/system-id | `register.go:106-107,195-202`; registered via `configyang.RegisterCompleteFn` (grep confirms) |
+| AC-11 | `test/isis` suite resolves and `isis-config.ci` passes | `ze-test isis 3` exit 0, `tmp/isis4/isis-config-only.log:5-6` |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| config `isis { ... }` present -> registration + engine + circuits | (unit) `TestISISComponentStart` | Yes -- PASS -race |
+| component appears in plugin inventory after `make generate` | (unit + cmd) `TestISISComponentStart` inventory assert + `ze plugin` | Yes |
+| `isis { ... }` via `ze config validate` -> OnConfigVerify accept/reject | `test/isis/isis-config.ci` | Yes -- read the .ci: step 1 valid block expects "configuration valid" exit 0; step 2 bad NET expects exit 1; `ze-test isis 3` exit 0 |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | `make generate` wired `all.go` (lines 70/233/262) and generated `yang/register.go`/`embed.go`; build passes |
+| A-2 | confirmed | `TestISISConfigResolve` parses the full root-wrapped string-leaf shape (keyed lists, leaf-list scalar) into typed structs |
+| A-3 | confirmed | `TestISISComponentStart` opens circuits over a stub `fakeBackend` via the transport interface (no real veth); real veth round-trip is isis-3's QEMU test |
+| A-4 | confirmed | `ze:config-root "isis"` + `ConfigRoots ["isis"]` routes the subtree; `isis-config.ci` validate is non-vacuous (bad NET -> exit 1) |
+| A-5 | confirmed | `config.go:346-348` derives system-id from `NETs[0].SystemID()`; `TestISISConfigValidate` NET-only case asserts `0000.0000.0001` |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| Config syntax (new `isis` block) | `docs/guide/configuration.md` (11 isis mentions, grep) | Yes |
+| Plugin added (new `isis` component) | `docs/guide/plugins.md`, `docs/plugin-overview.md` (grep: 1 isis mention each) | Yes |
+| Test infrastructure (new `test/isis/`) | `docs/functional-tests.md` (23 isis mentions, grep) | Yes |
+| User-guide page `docs/guide/isis.md` | created by spec-isis-13 (per checklist) | N/A here -- owned by isis-13 |
+| `docs/architecture/config/syntax.md`, `docs/guide/status.md`, `docs/architecture/core-design.md` | grep: 0 isis mentions today | Pending -- checklist flagged Yes; several owned by isis-13 when feature is operator-usable. Not blocking isis-4 closure (config/plugin/functional-test docs done) |
 
 ## Checklist
 

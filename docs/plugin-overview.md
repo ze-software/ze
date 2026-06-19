@@ -10,8 +10,8 @@ Most runtime features beyond the core engine are registered components or plugin
 Plugins handle RIB storage, route reflection, graceful restart, RPKI validation,
 NLRI encoding, FIB programming, route redistribution, DHCP/PXE helpers, L2TP
 helpers, and backend integrations. Components such as interface, firewall,
-traffic, VPP, LDP, RSVP-TE, and flow export also register through the same plugin
-registry when they need config-driven lifecycle or IPC. The engine discovers them
+traffic, VPP, LDP, RSVP-TE, IS-IS, and flow export also register through the same
+plugin registry when they need config-driven lifecycle or IPC. The engine discovers them
 through registries and never imports implementation packages directly.
 <!-- source: internal/component/plugin/registry/registry.go -- plugin registry -->
 <!-- source: internal/component/plugin/all/all.go -- plugin blank imports -->
@@ -112,7 +112,7 @@ plugin list. The groups below mirror the current registrations in
 | `bgp-llnh` | Link-local next-hop for IPv6 |
 | `bgp-healthcheck` | Health-dependent route withdrawal |
 | `bgp-redistribute` | Redistribute learned routes into system RIB |
-| `redistribute-orchestrator` | Dispatch redistributed routes to registered protocol consumers |
+| `redistribute-orchestrator` | Dispatch redistributed routes to registered protocol consumers (sources: `bgp`/`ibgp`/`ebgp`, `connected`, `static`, `kernel`, `l2tp`, `isis`; consumers: `bgp`, `isis`) |
 | `loop` | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
 <!-- source: internal/component/bgp/plugins/ -- BGP plugin implementations -->
 

@@ -28,6 +28,13 @@ type RedistConsumer interface {
 type RouteEntry struct {
 	Prefix  string
 	NextHop string
+	// Source is the originating source name ("connected", "static", "bgp", ...)
+	// the orchestrator resolved from the producing protocol. It is informational
+	// for consumers that label by source (e.g. the IS-IS consumer's
+	// ze_isis_redist_injected_total{source}); the BGP consumer ignores it. Empty
+	// when the orchestrator could not resolve a name. Adding it is additive: it
+	// does not change the RedistConsumer interface signature.
+	Source string
 }
 
 var (
@@ -47,6 +54,28 @@ func RegisterConsumer(c RedistConsumer) error {
 	consumers[name] = c
 	slog.Debug("redistribute consumer registered", "name", name)
 	return nil
+}
+
+// ReregisterConsumer installs c under its name, replacing any consumer already
+// registered under that name. Unlike RegisterConsumer it never returns
+// ErrConsumerConflict: it is the idempotent rewire path for a destination
+// protocol whose engine instance is recreated (e.g. an SDK reconnect re-fires
+// OnStarted). Without it, the second RegisterConsumer would fail and
+// redistribution into that protocol would silently stop for the new instance.
+// Returns true when an existing consumer was replaced (informational; callers
+// may log the rewire).
+func ReregisterConsumer(c RedistConsumer) (replaced bool) {
+	consumerMu.Lock()
+	defer consumerMu.Unlock()
+	name := c.Name()
+	_, replaced = consumers[name]
+	consumers[name] = c
+	if replaced {
+		slog.Debug("redistribute consumer re-registered", "name", name)
+	} else {
+		slog.Debug("redistribute consumer registered", "name", name)
+	}
+	return replaced
 }
 
 // LookupConsumer returns the consumer for the given destination protocol name.

@@ -949,7 +949,7 @@ func (r *RIBManager) gatherCandidatesLocked(fam family.Family, nlriBytes []byte)
 			continue
 		}
 		// RFC 9252 Section 5: path with SRv6 Service TLVs but no valid SID is ineligible.
-		if IsSRv6Ineligible(entry) {
+		if isSRv6Ineligible(entry) {
 			continue
 		}
 		// The map key gives the typed address; PeerRIB caches the canonical

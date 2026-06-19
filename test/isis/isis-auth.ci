@@ -1,0 +1,85 @@
+# Test: IS-IS authentication config validation + $9$ secret handling (spec-isis-10).
+#
+# VALIDATES: spec-isis-10-auth -- the authentication config surface reaches the
+#            IS-IS YANG schema and validates: named key chains with key-id,
+#            algorithm enum (cleartext / hmac-md5 / hmac-sha-256), $9$-encoded
+#            secret, and the per-level (area/domain) and per-interface (circuit)
+#            auth-key-chain references all validate through the real schema
+#            (AC-5/AC-6/AC-7/AC-10/AC-11, User Story 5). A bad algorithm enum is
+#            rejected before the engine builds the key store.
+# PREVENTS:  regression where the key-chain schema is not wired (auth config
+#            validates vacuously) or a plaintext secret leaks instead of $9$.
+#
+# Live sign-on-send / verify-on-receive, wrong-key rejection, hitless rotation,
+# and FRR interop all need raw L2 (AF_PACKET) on a Linux veth: they are covered
+# by the engine unit tests (auth_verify_test.go, auth_wiring_test.go,
+# auth_keystore_test.go), the QEMU integration tests, and the FRR interop
+# scenario `isis-auth-frr` (authored/run under spec-isis-13). This functional
+# test exercises the config wiring only: config -> YANG schema -> key-chain
+# validation -> $9$ secret decode.
+#
+# The two ze config-validate runs share one accumulated stdout in the .ci runner,
+# so the INVALID case runs first (seq=1) and the VALID case last (seq=2): the
+# final exit code asserted is the valid run's 0, and each run's distinct stdout
+# marker is matched independently (rejection error + "configuration valid").
+
+# --- Invalid algorithm enum: rejected by the YANG enumeration (seq=1). ---------
+stdin=isis-auth-bad-algo:terminator=EOF_BAD
+isis {
+	net 49.0001.0000.0000.0001.00
+	key-chains kc {
+		key 1 {
+			algorithm rot13
+			secret x
+		}
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-auth-bad-algo
+expect=stdout:contains=invalid value for algorithm
+
+# --- Valid auth config: key chains, algorithms, $9$ secret, per-level/iface refs (seq=2) ---
+stdin=isis-auth-valid:terminator=EOF_VALID
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	key-chains area-key {
+		key 1 {
+			algorithm hmac-sha-256
+			secret $9$QI1cF39tpBEhrAtM87Nbw
+		}
+	}
+	key-chains domain-key {
+		key 1 {
+			algorithm hmac-md5
+			secret backbonepass
+		}
+	}
+	key-chains iih-key {
+		key 1 {
+			algorithm cleartext
+			secret hello123
+		}
+	}
+	level-1 {
+		auth-key-chain area-key
+	}
+	level-2 {
+		auth-key-chain domain-key
+	}
+	interfaces eth0 {
+		circuit-type point-to-point
+		level-1 {
+			auth-key-chain iih-key
+		}
+		level-2 {
+			auth-key-chain iih-key
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-auth-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid

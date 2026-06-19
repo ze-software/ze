@@ -1,0 +1,219 @@
+module ze-isis-conf {
+    namespace "urn:ze:isis:conf";
+    prefix isisconf;
+    import ze-extensions { prefix ze; }
+    description
+        "Native IS-IS link-state IGP configuration (ISO/IEC 10589, RFC 1195,
+         RFC 5305 wide metrics, RFC 5301 dynamic hostname, RFC 5304/5310
+         authentication). Presence of the isis container enables the component.";
+    revision 2026-06-18 { description "Initial revision (spec-isis-4)."; }
+
+    container isis {
+        description "IS-IS routing instance configuration.";
+        ze:config-root "isis";
+
+        // ISO/IEC 10589 section 6.2: a NET is an Area Address (1..13 octets) +
+        // the 6-octet System ID + a 1-octet NSEL of 0x00 for an IS. At least one
+        // NET is required; the system-id is derived from the first NET's 6 bytes
+        // before the NSEL. The custom validator enforces hex/length/NSEL.
+        leaf-list net {
+            type string;
+            ze:validate "isis-net";
+            description
+                "Network Entity Title(s), e.g. 49.0001.0000.0000.0001.00. At least
+                 one is required; the System ID is the 6 octets before the NSEL.";
+        }
+
+        // RFC 1195: the System ID is a fixed 6-octet field. The pattern enforces
+        // the canonical dotted-hex form xxxx.xxxx.xxxx; when omitted it is derived
+        // from the NET.
+        leaf system-id {
+            type string {
+                pattern "[0-9a-fA-F]{4}\\.[0-9a-fA-F]{4}\\.[0-9a-fA-F]{4}";
+            }
+            ze:validate "isis-system-id";
+            description "6-byte System ID (xxxx.xxxx.xxxx); derived from NET if unset.";
+        }
+
+        leaf level {
+            type enumeration {
+                enum l1 { description "Level-1 (intra-area) only."; }
+                enum l2 { description "Level-2 (backbone) only."; }
+                enum l1-l2 { description "Both Level-1 and Level-2."; }
+            }
+            default "l1-l2";
+            description "Routing level of this Intermediate System.";
+        }
+
+        leaf lsp-lifetime {
+            type uint16 { range "1..65535"; }
+            default 1200;
+            units seconds;
+            description "Maximum LSP remaining lifetime.";
+        }
+
+        leaf lsp-refresh-interval {
+            type uint16 { range "1..65535"; }
+            default 900;
+            units seconds;
+            description "LSP refresh interval.";
+        }
+
+        leaf overload {
+            type boolean;
+            default false;
+            description "Set the overload bit (RFC 3787).";
+        }
+
+        // RFC 5301: the dynamic hostname (TLV 137) advertised by this IS.
+        leaf hostname {
+            type string { length "1..255"; }
+            description "Dynamic hostname to advertise (RFC 5301).";
+        }
+
+        list interfaces {
+            key "name";
+            description "Per-interface IS-IS configuration.";
+
+            leaf name {
+                type string;
+                description "Interface name.";
+            }
+            leaf enabled {
+                type boolean;
+                default true;
+                description "IS-IS enabled on this interface.";
+            }
+            leaf passive {
+                type boolean;
+                default false;
+                description "Advertise the interface but form no adjacencies.";
+            }
+            leaf circuit-type {
+                type enumeration {
+                    enum broadcast { description "LAN broadcast circuit (DIS election)."; }
+                    enum point-to-point { description "Point-to-point circuit."; }
+                }
+                default "broadcast";
+                description "Circuit type.";
+            }
+            leaf level {
+                type enumeration {
+                    enum l1;
+                    enum l2;
+                    enum l1-l2;
+                }
+                default "l1-l2";
+                description "Per-interface level override.";
+            }
+            // RFC 5305: wide metric, 24-bit (TLV 22) / 32-bit (TLV 135). The
+            // per-interface circuit metric is bounded to the 24-bit wide range.
+            leaf metric {
+                type uint32 { range "1..16777215"; }
+                default 10;
+                description "Wide metric (RFC 5305).";
+            }
+            leaf hello-interval {
+                type uint16 { range "1..65535"; }
+                default 10;
+                units seconds;
+                description "Hello interval.";
+            }
+            leaf hold-multiplier {
+                type uint8 { range "1..255"; }
+                default 3;
+                description "Hold time = hello-interval * hold-multiplier.";
+            }
+            leaf priority {
+                type uint8 { range "0..127"; }
+                default 64;
+                description "DIS election priority (broadcast circuits).";
+            }
+
+            container level-1 {
+                description "Level-1 per-interface overrides.";
+                leaf metric { type uint32 { range "1..16777215"; } description "L1 wide metric override."; }
+                leaf hello-interval { type uint16 { range "1..65535"; } units seconds; description "L1 hello-interval override."; }
+                leaf hold-multiplier { type uint8 { range "1..255"; } description "L1 hold-multiplier override."; }
+                leaf priority { type uint8 { range "0..127"; } description "L1 DIS priority override."; }
+                leaf auth-key-chain { type string; description "L1 per-interface (IIH) key-chain reference."; }
+            }
+            container level-2 {
+                description "Level-2 per-interface overrides.";
+                leaf metric { type uint32 { range "1..16777215"; } description "L2 wide metric override."; }
+                leaf hello-interval { type uint16 { range "1..65535"; } units seconds; description "L2 hello-interval override."; }
+                leaf hold-multiplier { type uint8 { range "1..255"; } description "L2 hold-multiplier override."; }
+                leaf priority { type uint8 { range "0..127"; } description "L2 DIS priority override."; }
+                leaf auth-key-chain { type string; description "L2 per-interface (IIH) key-chain reference."; }
+            }
+
+            list address-family {
+                key "af";
+                description
+                    "Per-interface address families on this circuit (single-topology;
+                     both ride the shared SPF tree).";
+                leaf af {
+                    type enumeration {
+                        enum ipv4-unicast { description "IPv4 unicast."; }
+                        enum ipv6-unicast { description "IPv6 unicast."; }
+                    }
+                    description "Address family key.";
+                }
+            }
+        }
+
+        list key-chains {
+            key "name";
+            description "Named authentication key chains for hitless key rotation.";
+            leaf name {
+                type string { length "1..63"; }
+                description "Key-chain name; referenced by per-interface and per-level auth leaves.";
+            }
+            list key {
+                key "key-id";
+                description "Keys in this chain.";
+                leaf key-id {
+                    type uint16 { range "0..65535"; }
+                    description "Key identifier carried in TLV 10 (RFC 5310).";
+                }
+                leaf algorithm {
+                    type enumeration {
+                        enum cleartext { description "Cleartext password (auth type 1)."; }
+                        enum hmac-md5 { description "HMAC-MD5 (auth type 54, RFC 5304)."; }
+                        enum hmac-sha-1 { description "HMAC-SHA-1 (auth type 3, RFC 5310)."; }
+                        enum hmac-sha-224 { description "HMAC-SHA-224 (auth type 3, RFC 5310)."; }
+                        enum hmac-sha-256 { description "HMAC-SHA-256 (auth type 3, RFC 5310)."; }
+                        enum hmac-sha-384 { description "HMAC-SHA-384 (auth type 3, RFC 5310)."; }
+                        enum hmac-sha-512 { description "HMAC-SHA-512 (auth type 3, RFC 5310)."; }
+                    }
+                    default "hmac-md5";
+                    description "Authentication algorithm.";
+                }
+                leaf secret {
+                    type string { length "1..255"; }
+                    ze:sensitive;
+                    description "Shared secret, masked and $9$-encoded at rest.";
+                }
+                container send-lifetime {
+                    description "When this key may be used to sign (hitless rotation).";
+                    leaf start { type string; description "RFC3339 start timestamp."; }
+                    leaf end { type string; description "RFC3339 end timestamp."; }
+                }
+                container accept-lifetime {
+                    description "When this key is accepted on receive (hitless rotation).";
+                    leaf start { type string; description "RFC3339 start timestamp."; }
+                    leaf end { type string; description "RFC3339 end timestamp."; }
+                }
+            }
+        }
+
+        container level-1 {
+            description "Level-1 (area) per-level configuration.";
+            leaf auth-key-chain { type string; description "L1 per-level (LSP/SNP, area key) key-chain reference."; }
+        }
+        container level-2 {
+            description "Level-2 (domain) per-level configuration.";
+            leaf auth-key-chain { type string; description "L2 per-level (LSP/SNP, domain key) key-chain reference."; }
+        }
+    }
+}

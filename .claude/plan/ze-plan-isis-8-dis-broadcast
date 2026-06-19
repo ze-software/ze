@@ -1,0 +1,54 @@
+# Plan: isis-8 DIS broadcast
+
+## State of the world (verified by reading)
+isis-1..isis-7 ALREADY EXIST (sibling agents). I integrate, NOT rebuild.
+- circuit/ (isis-5): Circuit holds adjacency table; LAN Hello carries Priority+LANID.
+  helloInput() does NOT extract Priority; Adjacency has no Priority field. -> ADD.
+- adjacency/ (isis-5): Adjacency{SystemID,SNPA,Level,State,...}. Table.Snapshot() value rows.
+- lsdb/ (isis-6/7): Originator.Originate(level,NodeInfo,LevelState) hardcodes pseudonode 0.
+  AdjacencyInfo.Neighbor is SourceID (sys+pseudonode). LSDB.Insert/Lookup/Delete.
+- flooder (isis-7): SendCSNP(FloodCircuit, level, srcID). periodicCSNPTick only P2P;
+  comment says "LAN periodic CSNP is DIS-sourced (isis-8)".
+- engine (root isis pkg): originate() builds LevelState per level via levelState();
+  TLV22 neighbors = NewSourceID(sys,0) per Up adj. circuits.go SetTransitionHooks fires
+  on adj up/down -> publishAdjMetrics + originate + onAdjacencyUpFlood.
+- test harness: multiBackend + relWire = shared broadcast segment; startEngineMulti.
+
+## Design decisions
+- Election is PURE in circuit/dis.go: input = []Candidate{Priority,SNPA,SystemID,Local},
+  output = winner + isLocalDIS. Per level. Damping = hold role until a DIFFERENT winner
+  persists; transient flap inside window does not flip.
+- Per-level DIS state lives on Circuit (DISState per level). Circuit exposes:
+  RunElection(level) -> ElectionResult{ChangedRole, IsDIS, DIS SourceID, Members}.
+- Priority per level: use LevelInterfaceConfig.Priority override when >0 else ic.Priority.
+  Add Priority to Adjacency + HelloInput (LAN only). MAC tiebreak uses SNPA.
+- Pseudonode ID allocation: DIS allocates a stable non-zero pseudonode ID per (circuit,level).
+  Derive from circuit local ID (ifindex low octet) forced non-zero; uniqueness within node
+  by (ifindex, level). Keep it on the engine's DIS state.
+- pseudonode.go: PseudonodeOriginator wraps Originator pattern but for a pseudonode SourceID.
+  Build LSP: src=NewSourceID(localSystemID, pnid); fragment 0 TLV1(areas) + TLV22 entries
+  (each member NewSourceID(memberSys,0) metric 0, INCLUDING DIS itself). Reuse fragmenter.
+  Purge on role loss: zero-age + seq bump via Insert, like purgeFragmentLocked.
+- Own-LSP star: in levelState(), for a BROADCAST circuit where a DIS exists for the level,
+  emit ONE TLV22 entry pointing at the pseudonode (metric = circuit metric) instead of
+  per-peer entries. Engine tracks per-(circuit,level) elected pseudonode SourceID.
+- LAN CSNP cadence: add a DIS CSNP tick in startFloodLoops; for each broadcast circuit where
+  local is DIS for a level, SendCSNP(c, level, pseudonodeSourceID).
+
+## Files
+CREATE: circuit/dis.go, circuit/dis_test.go, lsdb/pseudonode.go, lsdb/pseudonode_test.go,
+        isis/dis_wiring.go, isis/dis_wiring_test.go, test/isis/isis-dis.ci
+MODIFY (additive): adjacency/adjacency.go (Priority), adjacency/fsm.go (HelloInput.Priority+store),
+        circuit/hello.go (extract Priority), circuit/circuit.go (per-level DIS state + API),
+        circuits.go (election on transition), server.go (DIS state + ticks),
+        flooding_wiring.go (LAN DIS CSNP cadence), lsdb_wiring.go (star encoding).
+
+## Metrics (OWN, register here)
+ze_isis_dis_elections_total{level} counter; ze_isis_pseudonode_lsps{level} gauge.
+Pseudonode purge increments ze_isis_purges_total (owned isis-6, via LSDB.Insert purge path).
+
+## Tests
+TestDISElectionPriority/MACTiebreak/PerLevel/ReElectOnLoss/ReElectOnPriorityChange/Damping
+(circuit/dis_test.go); TestPseudoNodeLSPBuild/PurgeOnRoleLoss/OwnLSPPointsAtPseudoNode
+(lsdb/pseudonode_test.go); TestISISDISElection (dis_wiring_test.go, 3 engines on 1 LAN).
+Boundary: priority 0..127, pseudonode 1..255.

@@ -67,7 +67,7 @@ func TestIsSRv6Ineligible_ValidSID(t *testing.T) {
 	entry := makeRouteEntryWithOtherAttrs(otherAttrs)
 	defer entry.Release()
 
-	if IsSRv6Ineligible(entry) {
+	if isSRv6Ineligible(entry) {
 		t.Error("route with valid SRv6 SID should be eligible")
 	}
 }
@@ -77,7 +77,7 @@ func TestIsSRv6Ineligible_InvalidSID(t *testing.T) {
 	entry := makeRouteEntryWithOtherAttrs(otherAttrs)
 	defer entry.Release()
 
-	if !IsSRv6Ineligible(entry) {
+	if !isSRv6Ineligible(entry) {
 		t.Error("route with SRv6 TLVs but no valid SID should be ineligible")
 	}
 }
@@ -87,7 +87,7 @@ func TestIsSRv6Ineligible_NoSRv6TLVs(t *testing.T) {
 	entry := makeRouteEntryWithOtherAttrs(otherAttrs)
 	defer entry.Release()
 
-	if IsSRv6Ineligible(entry) {
+	if isSRv6Ineligible(entry) {
 		t.Error("route with only SR-MPLS TLVs (no SRv6) should be eligible")
 	}
 }
@@ -96,7 +96,7 @@ func TestIsSRv6Ineligible_NoOtherAttrs(t *testing.T) {
 	entry := makeRouteEntryWithOtherAttrs(nil)
 	defer entry.Release()
 
-	if IsSRv6Ineligible(entry) {
+	if isSRv6Ineligible(entry) {
 		t.Error("route with no OtherAttrs should be eligible")
 	}
 }

@@ -939,9 +939,9 @@ func TestBestPathRecordPackUnpack(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := packBestPath(tc.metricIdx, tc.peerIdx, tc.nhIdx, tc.flagsBits)
-			assert.Equal(t, tc.metricIdx, rec.MetricIdx(), "metric idx round-trip")
-			assert.Equal(t, tc.peerIdx, rec.PeerIdx(), "peer idx round-trip")
-			assert.Equal(t, tc.nhIdx, rec.NextHopIdx(), "next-hop idx round-trip")
+			assert.Equal(t, tc.metricIdx, rec.metricIdx(), "metric idx round-trip")
+			assert.Equal(t, tc.peerIdx, rec.peerIdx(), "peer idx round-trip")
+			assert.Equal(t, tc.nhIdx, rec.nextHopIdx(), "next-hop idx round-trip")
 			assert.Equal(t, tc.flagsBits, rec.Flags(), "flags round-trip")
 			assert.Equal(t, tc.flagsBits&flagEBGP != 0, rec.IsEBGP(), "IsEBGP matches flag bit 0")
 		})

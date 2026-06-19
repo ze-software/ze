@@ -1,0 +1,107 @@
+# Test: IS-IS redistribution config surface (spec-isis-11 redistribution wiring).
+#
+# VALIDATES: spec-isis-11-redistribution -- IS-IS meshes with BGP (and connected /
+#            static) through Ze's protocol-agnostic redistribution framework in
+#            BOTH directions:
+#            - `redistribute { destination bgp { import isis } }` is accepted: the
+#              SINGLE source name `isis` is registered with the source registry
+#              (registerISIS -> RegisterISISSources, at init) so the
+#              `redistribute-source` validator/completion accept it (AC-1, AC-2),
+#              and validation works regardless of registration order (AC-9, the
+#              source is registered before `ze config validate` runs the validator).
+#            - `redistribute { destination isis { import connected/static/bgp } }`
+#              is accepted: `destination isis` is a runtime-validated free-form list
+#              key (no YANG schema change, A-1) and the IS-IS consumer (`isis`) is
+#              the destination (AC-3/AC-4/AC-5 config surface).
+#            - `redistribute { destination isis { import isis } }` validates at the
+#              schema level (isis is a registered source) and is a no-op at runtime:
+#              the generic loop-prevention evaluator rejects origin == importing
+#              protocol because the single source name `isis` == the consumer name
+#              `isis` (AC-10).
+# PREVENTS:  a regression where the `isis` source name is NOT registered (so
+#            `import isis` is rejected by the redistribute-source validator) or
+#            `destination isis` is not accepted as a runtime list key.
+#
+# The LIVE route flow -- an IS-IS SPF route appearing in the BGP RIB (AC-1), and a
+# connected/static/BGP prefix appearing as a TLV 135 entry in an IS-IS LSP and in a
+# peer's RIB (AC-3/AC-4/AC-5/AC-6) -- needs raw L2 (AF_PACKET) on a Linux veth and
+# is covered by:
+#   - the unit tests in internal/component/isis/redistribute (producer emit ->
+#     redistevents batch -> orchestrator dispatch shape; consumer InjectRoute ->
+#     TLV 135 PrefixInfo; WithdrawRoute removal; up/down bit; self-import rejection;
+#     metric boundary), and
+#   - the QEMU / FRR isisd interop scenario `isis-redist-frr` (isis-13), which
+#     proves FRR installs the redistributed reachability.
+# This functional test exercises the CONFIG WIRING only: config file -> YANG schema
+# -> redistribute source/destination validation.
+
+# --- Both directions: import isis into BGP, and connected/static/bgp into isis. ---
+stdin=isis-redist-both:terminator=EOF_BOTH
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	interfaces eth0 {
+		metric 10
+		level l1-l2
+	}
+	interfaces eth1 {
+		passive true
+	}
+}
+
+connected {
+}
+
+redistribute {
+	destination bgp {
+		import isis
+	}
+	destination isis {
+		import connected
+		import static
+		import bgp
+	}
+}
+EOF_BOTH
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-redist-both
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Self-import: destination isis { import isis } validates (schema) and is a ----
+# --- runtime no-op via loop prevention (single source name == consumer name). -----
+stdin=isis-redist-self:terminator=EOF_SELF
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+}
+
+redistribute {
+	destination isis {
+		import isis
+	}
+}
+EOF_SELF
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=isis-redist-self
+expect=exit:code=0
+expect=stdout:contains=configuration valid

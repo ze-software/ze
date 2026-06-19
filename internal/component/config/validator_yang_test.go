@@ -847,6 +847,12 @@ func TestCheckAllValidatorsRegistered_AllPresent(t *testing.T) {
 	reg.Register("internal-plugin-name", yang.CustomValidator{
 		ValidateFn: func(path string, value any) error { return nil },
 	})
+	reg.Register("isis-net", yang.CustomValidator{
+		ValidateFn: func(path string, value any) error { return nil },
+	})
+	reg.Register("isis-system-id", yang.CustomValidator{
+		ValidateFn: func(path string, value any) error { return nil },
+	})
 
 	err := yang.CheckAllValidatorsRegistered(loader, reg)
 	assert.NoError(t, err)

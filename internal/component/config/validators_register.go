@@ -15,6 +15,8 @@ func RegisterValidators(reg *yang.ValidatorRegistry) {
 	reg.Register("receive-event-type", ReceiveEventValidator())
 	reg.Register("send-message-type", SendMessageValidator())
 	reg.Register("mac-address", MACAddressValidator())
+	reg.Register("isis-net", ISISNETValidator())
+	reg.Register("isis-system-id", ISISSystemIDValidator())
 	reg.Register("redistribute-source", RedistributeSourceValidator())
 	reg.Register("ipv4-address", IPv4AddressValidator())
 	reg.Register("ipv6-address", IPv6AddressValidator())

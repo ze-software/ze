@@ -490,6 +490,124 @@ class FRR:
         )
 
 
+# --- FRR IS-IS helpers -------------------------------------------------------
+
+
+class FRRISIS:
+    """Helpers for querying FRR isisd via vtysh (spec-isis-13 interop).
+
+    The IS-IS scenarios run Ze and FRR on the shared Docker bridge (eth0), which
+    is a single L2 broadcast domain, so IS-IS PDUs (IIH/LSP/CSNP/PSNP) reach FRR
+    over that link without a separate veth. This class drives the FRR isisd CLI
+    to wait for the adjacency to Up and to inspect the IS-IS-learned routes and
+    the BGP routes redistributed from IS-IS.
+    """
+
+    def __init__(self, container=None, ip=None):
+        self.container = container or FRR_CONTAINER
+        self.ip = ip or FRR_IP
+
+    def _vtysh_quiet(self, command):
+        """Run a vtysh command, return stdout or empty string on failure."""
+        return docker_exec_quiet(self.container, ["vtysh", "-c", command])
+
+    def adjacency_up(self):
+        """Report whether FRR has at least one IS-IS adjacency in the Up state."""
+        out = self._vtysh_quiet("show isis neighbor")
+        # FRR prints a per-neighbor table; an Up adjacency shows state "Up".
+        for line in out.splitlines():
+            if "Up" in line.split():
+                return True
+        return False
+
+    def wait_adjacency(self, timeout=None):
+        """Poll until FRR reports an IS-IS adjacency Up; raise on timeout."""
+        if timeout is None:
+            timeout = SESSION_TIMEOUT
+        log_info("waiting for FRR IS-IS adjacency Up (timeout %ds)..." % timeout)
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.adjacency_up():
+                log_pass("FRR IS-IS adjacency is Up")
+                return
+            time.sleep(2)
+        log_fail("FRR IS-IS adjacency did not reach Up within %ds" % timeout)
+        print(self._vtysh_quiet("show isis neighbor")[:500])
+        print(docker_logs(ZE_CONTAINER, 30))
+        raise AssertionError("FRR IS-IS adjacency not Up")
+
+    def is_dis(self):
+        """Report whether FRR shows a Designated IS elected on any circuit (LAN)."""
+        out = self._vtysh_quiet("show isis interface detail")
+        return "DIS" in out or "Designated" in out
+
+    def has_isis_route(self, prefix):
+        """Check FRR's kernel/zebra RIB for an IS-IS-learned IPv4 route."""
+        out = self._vtysh_quiet("show ip route isis")
+        return prefix in out
+
+    def has_isis_route_v6(self, prefix):
+        """Check FRR's kernel/zebra RIB for an IS-IS-learned IPv6 route."""
+        out = self._vtysh_quiet("show ipv6 route isis")
+        return prefix in out
+
+    def has_database_lsp(self, fragment):
+        """Check FRR's IS-IS LSDB for an LSP whose ID contains fragment."""
+        out = self._vtysh_quiet("show isis database")
+        return fragment in out
+
+    def has_pseudonode_lsp(self):
+        """Report whether FRR's LSDB carries a pseudo-node LSP (LAN DIS, AC-14).
+
+        A pseudo-node LSP ID has a non-zero pseudo-node octet, e.g. the
+        ".XX-00" segment is non-zero (FRR renders e.g. hostname.01-00).
+        """
+        out = self._vtysh_quiet("show isis database")
+        for line in out.splitlines():
+            # LSP IDs look like "<sysid-or-host>.<pn>-<frag>"; a pseudo-node has
+            # a non-zero <pn> field.
+            for tok in line.split():
+                if "." in tok and "-" in tok:
+                    tail = tok.rsplit(".", 1)[-1]
+                    parts = tail.split("-")
+                    if (
+                        len(parts) == 2
+                        and parts[0].isalnum()
+                        and parts[0] not in ("00", "0")
+                    ):
+                        return True
+        return False
+
+    def wait_isis_route(self, prefix, timeout=60, family="ipv4"):
+        """Poll until an IS-IS route for prefix appears in FRR's RIB."""
+        deadline = time.time() + timeout
+        check = self.has_isis_route_v6 if family == "ipv6" else self.has_isis_route
+        while time.time() < deadline:
+            if check(prefix):
+                return
+            time.sleep(2)
+        log_fail(
+            "FRR IS-IS %s route %s not present after %ds" % (family, prefix, timeout)
+        )
+        print(self._vtysh_quiet("show ip route isis")[:500])
+        print(docker_logs(ZE_CONTAINER, 30))
+        raise AssertionError("FRR missing IS-IS %s route %s" % (family, prefix))
+
+    def has_bgp_route_from_isis(self):
+        """Report whether FRR's BGP table carries a route learned from a peer.
+
+        Used by the redistribution scenario: an IS-IS route Ze redistributed to
+        BGP must land in FRR's BGP RIB. We look for any non-local BGP path.
+        """
+        out = self._vtysh_quiet("show bgp ipv4 unicast")
+        # A received BGP route shows a next-hop that is the Ze peer address.
+        return ZE_IP in out
+
+    def isis_summary(self):
+        """Return the `show isis summary` text (diagnostics on failure)."""
+        return self._vtysh_quiet("show isis summary")
+
+
 # --- BIRD helpers ------------------------------------------------------------
 
 

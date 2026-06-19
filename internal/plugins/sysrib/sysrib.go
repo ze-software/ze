@@ -135,6 +135,20 @@ type protocolRoute struct {
 	metric           uint32
 	labels           []uint32   // MPLS label stack (nil for unlabeled routes)
 	srv6SID          netip.Addr // SRv6 SID from PrefixSID attribute (zero if absent)
+
+	// ecmpNextHops are INTRA-protocol equal-cost sibling next-hops for this
+	// prefix from the SAME protocol source, excluding nextHop (the winner).
+	//
+	// A Loc-RIB Change carries only the single best Path (locrib.Change.Best), so
+	// a protocol that inserts one locrib.Path per equal-cost next-hop (IS-IS ECMP,
+	// distinct Instance) would collapse to a single next-hop here, since
+	// s.routes[key] is keyed by protocol string. This field is the committed
+	// path-group expansion (isis-9, umbrella A-2): on the Loc-RIB ingest path,
+	// sysrib reads the full PathGroup and records the winner's equal-cost siblings
+	// here, so ecmpCollect surfaces them in BestChangeEntry.ECMPPaths and the
+	// kernel installs a multipath route. Empty for single-Path prefixes and on the
+	// forked EventBus path (no shared Loc-RIB), so existing sources are unaffected.
+	ecmpNextHops []netip.Addr
 }
 
 // prefixKey identifies a unique prefix in the system RIB.
@@ -283,10 +297,18 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 			}
 			priority := s.effectivePriority(protoType, c.Priority)
 
-			if s.routes[key] == nil {
-				s.routes[key] = make(map[string]*protocolRoute)
-			}
-			s.routes[key][proto] = &protocolRoute{
+			// Loc-RIB vs event-bus storage (see the gated store after this literal).
+			// A unified Loc-RIB has already arbitrated across every source and emits
+			// exactly ONE authoritative best per prefix, so a Loc-RIB-sourced change
+			// REPLACES the whole per-prefix entry: a best switching from protocol A to
+			// B drops A's now-stale slot. That was the ghost-entry -- A used to linger
+			// until its own withdraw and could wrongly win recomputeBest after an
+			// admin-distance reconfig. Intra-protocol ECMP siblings ride on
+			// pr.ecmpNextHops (not separate map entries), so a single slot preserves
+			// ECMP. The event-bus fallback (each protocol emits independently) keeps
+			// the per-protocol upsert so its cross-protocol admin-distance arbitration
+			// still works.
+			pr := &protocolRoute{
 				protocol:         proto,
 				protocolType:     protoType,
 				nextHop:          c.NextHop,
@@ -295,6 +317,23 @@ func (s *sysRIB) processEvent(batch *incomingBatch) (family.Family, []outgoingCh
 				metric:           c.Metric,
 				labels:           c.Labels,
 				srv6SID:          c.SRv6SID,
+				// Intra-protocol equal-cost siblings (isis-9 ECMP, umbrella A-2)
+				// are now carried on the Loc-RIB Change (computed at emit while the
+				// PathGroup is in hand under the shard lock), so there is no
+				// per-change loc.Lookup here. Nil on the forked EventBus path and
+				// for single-Path prefixes.
+				ecmpNextHops: c.ECMPNextHops,
+			}
+			if batch.FromLocRIB {
+				// Loc-RIB authoritative single best: replace the whole per-prefix
+				// entry so a prior best from a different protocol cannot linger as a
+				// ghost and wrongly win recomputeBest after an admin-distance change.
+				s.routes[key] = map[string]*protocolRoute{proto: pr}
+			} else {
+				if s.routes[key] == nil {
+					s.routes[key] = make(map[string]*protocolRoute)
+				}
+				s.routes[key][proto] = pr
 			}
 		} else if c.Action == bgptypes.RouteActionWithdraw {
 			if proto == "" {
@@ -610,9 +649,6 @@ func (s *sysRIB) cascadeRecompute(key prefixKey) *outgoingChange {
 // ecmpCollectResolved collects ECMP paths with resolved NHs, filtering
 // out members whose NHs are unreachable.
 func ecmpCollectResolved(protocols map[string]*protocolRoute, winner *protocolRoute, r *nhResolver) []sysribevents.ECMPPath {
-	if len(protocols) <= 1 {
-		return nil
-	}
 	var paths []sysribevents.ECMPPath
 	for _, route := range protocols {
 		if route == winner {
@@ -634,12 +670,29 @@ func ecmpCollectResolved(protocols map[string]*protocolRoute, winner *protocolRo
 			Labels:  route.labels,
 		})
 	}
+	// Intra-protocol equal-cost siblings of the winner (Loc-RIB path-group
+	// expansion, isis-9), filtered to those whose next-hop resolves.
+	for _, nh := range winner.ecmpNextHops {
+		if nh == winner.nextHop || !nh.IsValid() {
+			continue
+		}
+		memberRes := r.Resolve(nh)
+		if !memberRes.Resolved {
+			continue
+		}
+		paths = append(paths, sysribevents.ECMPPath{
+			NextHop: memberRes.DirectNH,
+			Weight:  1,
+			Labels:  winner.labels,
+		})
+	}
 	if len(paths) == 0 {
 		return nil
 	}
 	slices.SortFunc(paths, func(a, b sysribevents.ECMPPath) int {
 		return a.NextHop.Compare(b.NextHop)
 	})
+	paths = dedupECMP(paths)
 	if len(paths) > sysribevents.MaxECMPPaths-1 {
 		paths = paths[:sysribevents.MaxECMPPaths-1]
 	}
@@ -963,6 +1016,16 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 	case locrib.ChangeUpdate:
 		action = ribevents.BestChangeUpdate
 	case locrib.ChangeRemove:
+		// INVARIANT (locrib/change.go ChangeRemove + Best doc): ChangeRemove fires
+		// ONLY when the last valid path for the prefix goes away, i.e. the Loc-RIB
+		// PathGroup is fully empty, and Best is the zero Path. Because Best is zero,
+		// the Protocol field below resolves to ProtocolName(0) == "" -- the
+		// empty-string sentinel -- which makes processEvent delete EVERY protocol
+		// entry for the prefix (the proto=="" branch). That all-protocols delete is
+		// correct precisely because the PathGroup is empty: there is no surviving
+		// protocol whose sysrib entry we would wrongly drop. If locrib ever started
+		// emitting ChangeRemove on a partial withdraw (PathGroup non-empty), this
+		// would over-delete; the assertion below catches that contract break.
 		action = ribevents.BestChangeWithdraw
 	case locrib.ChangeUnspecified:
 		return nil
@@ -982,9 +1045,21 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 		// Labels; without this they were dropped here).
 		labels = c.Best.Labels
 	}
+	protocol := redistevents.ProtocolName(c.Best.Source)
+	// Assert the ChangeRemove invariant cheaply: a Remove MUST carry the zero Path
+	// (empty protocol sentinel) so processEvent's proto=="" branch deletes every
+	// protocol entry for an already-empty PathGroup. A non-empty protocol on Remove
+	// means locrib broke the contract and would cause a per-protocol delete instead;
+	// log it rather than silently mis-program the FIB. Diagnostic-only; does not
+	// change the produced batch.
+	if c.Kind == locrib.ChangeRemove && protocol != "" {
+		logger().Warn("sysrib: ChangeRemove carried a non-empty protocol; locrib invariant broken",
+			"prefix", c.Prefix, "protocol", protocol)
+	}
 	return &incomingBatch{
-		Protocol: redistevents.ProtocolName(c.Best.Source),
-		Family:   c.Family,
+		Protocol:   protocol,
+		Family:     c.Family,
+		FromLocRIB: true,
 		Changes: []incomingChange{{
 			Action:       action,
 			Prefix:       c.Prefix,
@@ -993,6 +1068,10 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 			Metric:       metric,
 			Labels:       labels,
 			ProtocolType: bgpProtocolTypeFromPath(c.Best),
+			// Intra-source equal-cost siblings computed at Loc-RIB emit; sysrib
+			// builds the ECMP group from these instead of re-looking-up the RIB.
+			// Always nil on ChangeRemove (locrib leaves Change.ECMP nil there).
+			ECMPNextHops: c.ECMP,
 		}},
 	}
 }

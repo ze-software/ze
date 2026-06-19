@@ -1,0 +1,52 @@
+# Test: IS-IS doctor checks (spec-isis-13 config-sanity + surfaced raw-socket).
+#
+# VALIDATES: spec-isis-13 -- the IS-IS doctor codes are registered and explainable
+#            (ze explain), and `ze doctor --json` against a config whose explicit
+#            system-id disagrees with the NET emits doctor-isis-system-id-mismatch
+#            (AC-12). The raw-socket code (owned by isis-3) is surfaced by
+#            ze explain too (AC-11 surface); its firing path needs CAP_NET_RAW and
+#            is a QEMU integration test, not a .ci.
+# PREVENTS:  regression where a config-sanity code is unregistered (not
+#            explainable) or the config-sanity check never fires on a bad config.
+#
+# The net-missing firing path and the raw-socket firing path are covered by the
+# doctor unit tests (internal/component/isis/doctor_test.go) and isis-3's
+# transport doctor test; here we assert the user-visible explain surface for all
+# three codes plus the system-id-mismatch doctor run (which parses cleanly
+# because the config carries a valid NET).
+
+# The config carries a valid NET (so config verification passes) but an explicit
+# system-id that disagrees with the System ID embedded in that NET.
+tmpfs=isis-mismatch.conf:terminator=EOF_CONF
+isis {
+	net 49.0001.0000.0000.0001.00
+	system-id 0000.0000.0002
+	level l1-l2
+}
+EOF_CONF
+
+# --- All three IS-IS doctor codes are explainable. ---------------------------
+# A generous timeout: the runner treats each foreground `ze` as a daemon and,
+# with a tmpfs present, waits ~5s per command for a readiness file the one-shot
+# `ze explain` / `ze doctor` never writes; four commands need >15s of budget.
+cmd=foreground:seq=1:exec=ze explain doctor-isis-net-missing:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=doctor-isis-net-missing
+expect=stdout:contains=net
+
+cmd=foreground:seq=2:exec=ze explain doctor-isis-system-id-mismatch
+expect=exit:code=0
+expect=stdout:contains=doctor-isis-system-id-mismatch
+expect=stdout:contains=System ID
+
+cmd=foreground:seq=3:exec=ze explain doctor-isis-raw-socket
+expect=exit:code=0
+expect=stdout:contains=doctor-isis-raw-socket
+expect=stdout:contains=CAP_NET_RAW
+
+# --- ze doctor --json fires the system-id-mismatch check (AC-12). ------------
+# `ze doctor` exits non-zero when it finds a problem (a SeverityError diagnostic),
+# so a fired config-sanity check returns exit code 1 (cf. doctor-config-reference).
+cmd=foreground:seq=4:exec=ze doctor --json isis-mismatch.conf
+expect=exit:code=1
+expect=stdout:contains=doctor-isis-system-id-mismatch

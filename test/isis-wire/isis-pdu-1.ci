@@ -1,0 +1,24 @@
+# IS-IS wire decode: a captured LAN L1 Hello (IIH)
+# VALIDATES: spec-isis-2-wire Story 1 -- `ze isis-decode` parses a hex IS-IS PDU
+#            on stdin and emits JSON with the common-header type, the IIH fixed
+#            fields, and the TLV list (area / protocols / IS-neighbors).
+# PREVENTS: silent regressions in the common-header parse, PDU dispatch, or TLV
+#           iterator reaching the user-facing offline decode command.
+#
+# The hex is a LAN L1 IIH (PDU type 0x0f) for system 0000.0000.0001 in area
+# 49.0001, holding time 30, priority 64, DIS LAN-id 0000.0000.0002.01, carrying
+# TLV 1 (area), TLV 129 (IPv4 NLPID 0xcc), and TLV 6 (one neighbor SNPA). It is
+# pinned in internal/component/isis/packet (TestISISCIFixtureDecodes) so the
+# fixture and the codec cannot drift.
+stdin=payload:hex=831c01060f01000003000000000001001e002d4000000000000002010104034900018101cc0606001122334455
+cmd=foreground:seq=1:exec=ze isis-decode:stdin=payload
+expect=exit:code=0
+expect=stdout:contains="type":"l1-lan-hello"
+expect=stdout:contains="system-id":"0000.0000.0001"
+expect=stdout:contains="holding-time":30
+expect=stdout:contains="priority":64
+expect=stdout:contains="lan-id":"0000.0000.0002.01"
+expect=stdout:contains="type":1
+expect=stdout:contains="type":129
+expect=stdout:contains="type":6
+expect=stdout:contains="value":"001122334455"

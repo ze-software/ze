@@ -528,9 +528,49 @@ func (v *Validator) validateContainerEntry(path string, entry *yang.Entry, data 
 			if err := v.validateEntry(childPath, child, value); err != nil {
 				return err
 			}
+			// Apply ze:validate custom validators. For a leaf-list the delivered
+			// value is the single item (scalar) or space-separated items; apply the
+			// validator to each item so a leaf-list with ze:validate (e.g. isis
+			// `net`) is checked, matching the single-leaf behavior.
+			if cverr := v.applyContainerCustomValidators(childPath, child, value); cverr != nil {
+				return cverr
+			}
 		}
 	}
 
+	return nil
+}
+
+// applyContainerCustomValidators runs the child's ze:validate custom validators
+// against value (or each leaf-list item), returning the first failure. It is the
+// ValidateContainer-path counterpart of applyCustomValidators (which accumulates
+// errors during a full-tree walk).
+func (v *Validator) applyContainerCustomValidators(path string, child *yang.Entry, value any) error {
+	if v.registry == nil {
+		return nil
+	}
+	if len(SplitValidatorNames(GetValidateExtension(child))) == 0 {
+		return nil
+	}
+	// A leaf-list arrives as a space-separated string (bracket form) or a single
+	// scalar; validate each item. A single leaf validates the whole value.
+	items := []any{value}
+	if child.IsLeafList() {
+		if str, ok := value.(string); ok {
+			fields := strings.Fields(str)
+			items = make([]any, len(fields))
+			for i, f := range fields {
+				items[i] = f
+			}
+		}
+	}
+	var errs []ValidationError
+	for _, item := range items {
+		v.applyCustomValidators(path, child, item, &errs)
+	}
+	if len(errs) > 0 {
+		return &errs[0]
+	}
 	return nil
 }
 
@@ -637,6 +677,11 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 							})
 						}
 					}
+					// Apply ze:validate custom validators per leaf-list item, the
+					// same way a single leaf is custom-validated below. Without this
+					// a ze:validate extension on a leaf-list (e.g. isis `net`) would
+					// never run.
+					v.applyCustomValidators(childPath, child, item, errs)
 				}
 			}
 			continue
@@ -657,30 +702,39 @@ func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any
 		}
 
 		// Check ze:validate extension for custom validation.
-		// Multiple validators joined with "|" use OR semantics:
-		// the value is valid if ANY validator accepts it.
-		if v.registry != nil {
-			if names := SplitValidatorNames(GetValidateExtension(child)); len(names) > 0 {
-				var lastErr error
-				for _, validatorName := range names {
-					if cv := v.registry.Get(validatorName); cv != nil {
-						if cvErr := cv.ValidateFn(childPath, value); cvErr == nil {
-							lastErr = nil
-							break
-						} else {
-							lastErr = cvErr
-						}
-					}
-				}
-				if lastErr != nil {
-					*errs = append(*errs, ValidationError{
-						Path:    childPath,
-						Type:    ErrTypeType,
-						Message: lastErr.Error(),
-					})
-				}
+		v.applyCustomValidators(childPath, child, value, errs)
+	}
+}
+
+// applyCustomValidators runs the child's ze:validate custom validators against
+// value. Multiple validators joined with "|" use OR semantics: the value is
+// valid if ANY validator accepts it. Called for both a single leaf value and
+// each leaf-list item so a ze:validate extension applies uniformly.
+func (v *Validator) applyCustomValidators(path string, child *yang.Entry, value any, errs *[]ValidationError) {
+	if v.registry == nil {
+		return
+	}
+	names := SplitValidatorNames(GetValidateExtension(child))
+	if len(names) == 0 {
+		return
+	}
+	var lastErr error
+	for _, validatorName := range names {
+		if cv := v.registry.Get(validatorName); cv != nil {
+			if cvErr := cv.ValidateFn(path, value); cvErr == nil {
+				lastErr = nil
+				break
+			} else {
+				lastErr = cvErr
 			}
 		}
+	}
+	if lastErr != nil {
+		*errs = append(*errs, ValidationError{
+			Path:    path,
+			Type:    ErrTypeType,
+			Message: lastErr.Error(),
+		})
 	}
 }
 

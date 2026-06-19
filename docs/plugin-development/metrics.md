@@ -127,6 +127,79 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_persist_routes_stored` | Gauge | | bgp-persist |
 | `ze_persist_peers_tracked` | Gauge | | bgp-persist |
 | `ze_persist_route_replays_total` | Counter | | bgp-persist |
+| `ze_isis_adjacencies_up` | GaugeVec | level, interface | isis |
+| `ze_isis_adjacencies_total` | GaugeVec | level | isis |
+| `ze_isis_lsps` | GaugeVec | level | isis (lsdb) |
+| `ze_isis_lsp_fragments` | GaugeVec | level | isis (lsdb) |
+| `ze_isis_lsp_originations_total` | CounterVec | level | isis (lsdb) |
+| `ze_isis_sequence_wraps_total` | CounterVec | level | isis (lsdb) |
+| `ze_isis_purges_total` | CounterVec | level | isis (lsdb) |
+| `ze_isis_lsps_received_total` | CounterVec | level | isis (flooding) |
+| `ze_isis_lsps_transmitted_total` | CounterVec | level | isis (flooding) |
+| `ze_isis_csnp_sent_total` | CounterVec | level | isis (flooding) |
+| `ze_isis_csnp_received_total` | CounterVec | level | isis (flooding) |
+| `ze_isis_psnp_sent_total` | CounterVec | level | isis (flooding) |
+| `ze_isis_psnp_received_total` | CounterVec | level | isis (flooding) |
+| `ze_isis_srm_resends_total` | CounterVec | level | isis (flooding) |
+| `ze_isis_lsps_dropped_total` | CounterVec | level, reason | isis (flooding) |
+| `ze_isis_dis_elections_total` | CounterVec | level | isis (dis) |
+| `ze_isis_pseudonode_lsps` | GaugeVec | level | isis (dis) |
+| `ze_isis_auth_failures_total` | CounterVec | level, interface | isis (auth) |
+| `ze_isis_redist_injected_total` | CounterVec | source, afi | isis (redistribute) |
+| `ze_isis_redist_withdrawn_total` | CounterVec | source, afi | isis (redistribute) |
+| `ze_isis_redist_inject_failures_total` | CounterVec | source | isis (redistribute) |
+| `ze_isis_lsp_reoriginations_total` | CounterVec | level | isis (redistribute) |
+| `ze_isis_spf_runs_total` | CounterVec | level | isis (spf) |
+| `ze_isis_spf_duration_seconds` | HistogramVec | level | isis (spf) |
+| `ze_isis_spf_nodes` | GaugeVec | level | isis (spf) |
+| `ze_isis_routes_installed` | GaugeVec | level, afi | isis (spf) |
+| `ze_isis_frames_sent_total` | CounterVec | interface | isis (transport) |
+| `ze_isis_frames_received_total` | CounterVec | interface | isis (transport) |
+| `ze_isis_frames_dropped_total` | CounterVec | interface, reason | isis (transport) |
+| `ze_isis_sockets_open` | Gauge | | isis (transport) |
+
+The two `isis (dis)` series are the Designated IS / pseudo-node metrics (broadcast
+LANs): `ze_isis_dis_elections_total` counts DIS elections that changed the elected
+DIS per level, and `ze_isis_pseudonode_lsps` gauges the pseudo-node LSPs this node
+currently originates as the elected DIS per level.
+
+The `isis (auth)` series `ze_isis_auth_failures_total` counts IS-IS PDUs rejected
+because authentication verification failed, by level and receiving interface. It
+is incremented at the receive verify site (a PDU with no, wrong, or misordered
+authentication TLV under configured auth) and is the operator's signal for a
+key mismatch, a downgrade attempt, or a spoofed purge.
+
+The four `isis (redistribute)` series track redistribution into IS-IS:
+`ze_isis_redist_injected_total{source,afi}` and
+`ze_isis_redist_withdrawn_total{source,afi}` count routes imported into IS-IS LSPs
+(as TLV 135 IPv4 reachability or TLV 236 IPv6 reachability) and withdrawn, by
+originating source (`connected`, `static`, `bgp`) and address family
+(`afi=ipv4`|`ipv6`); `ze_isis_redist_inject_failures_total{source}` counts
+injections whose LSP re-origination failed; and
+`ze_isis_lsp_reoriginations_total{level}` counts the own-LSP re-originations that
+redistribution drove, by level. Exporting IS-IS routes *out* to BGP uses the
+generic `redistribute-orchestrator` counters, not an IS-IS-specific series.
+
+The four `isis (spf)` series track the shortest-path computation and its Loc-RIB
+install: `ze_isis_spf_runs_total{level}` counts Dijkstra runs per level,
+`ze_isis_spf_duration_seconds{level}` is a histogram of each run's wall-clock
+duration (buckets span 50us..500ms), `ze_isis_spf_nodes{level}` gauges the node
+count of the last run's graph, and `ze_isis_routes_installed{level,afi}` gauges
+the prefixes currently installed into the shared Loc-RIB by level and address
+family (`afi=ipv4`|`ipv6`). The IPv6 install pass runs over the same shared SPF
+tree, so the gauge is the only SPF series carrying an `afi` label.
+
+The four `isis (transport)` series track the raw Layer-2 socket I/O:
+`ze_isis_frames_sent_total{interface}` and
+`ze_isis_frames_received_total{interface}` count frames transmitted and received
+per circuit, `ze_isis_frames_dropped_total{interface,reason}` counts frames
+dropped on receive by reason, and `ze_isis_sockets_open` gauges the number of
+open IS-IS raw L2 sockets process-wide (unlabelled, a single process-level gauge).
+
+Dual-stack IPv6 (RFC 5308) adds **no new IS-IS series**: it sets `afi=ipv6` on the
+labelled series above and on the SPF route-install gauge
+`ze_isis_routes_installed{level,afi}`. IPv4 uses `afi=ipv4`; the IPv6 install pass
+runs over the same shared SPF tree.
 
 ## NopRegistry Fallback
 
