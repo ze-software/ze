@@ -384,14 +384,14 @@ func (r *Runner) validateFileChecks(rec *Record) error {
 	return nil
 }
 
-func validateOneFileCheck(baseDir string, check FileCheck) error {
+func validateOneFileCheck(baseDir string, check fileCheck) error {
 	if check.Path != "" {
 		return validateOnePathCheck(baseDir, check)
 	}
 	return validateOneGlobCheck(baseDir, check)
 }
 
-func validateOnePathCheck(baseDir string, check FileCheck) error {
+func validateOnePathCheck(baseDir string, check fileCheck) error {
 	path, err := resolveCheckPath(baseDir, check.Path)
 	if err != nil {
 		return err
@@ -412,7 +412,7 @@ func validateOnePathCheck(baseDir string, check FileCheck) error {
 	return validateFileContent(check.Path, string(data), check)
 }
 
-func validateOneGlobCheck(baseDir string, check FileCheck) error {
+func validateOneGlobCheck(baseDir string, check fileCheck) error {
 	pattern, err := resolveCheckPath(baseDir, check.Glob)
 	if err != nil {
 		return err
@@ -457,7 +457,7 @@ func validateOneGlobCheck(baseDir string, check FileCheck) error {
 	return nil
 }
 
-func validateFileContent(label, content string, check FileCheck) error {
+func validateFileContent(label, content string, check fileCheck) error {
 	if check.Contains != "" && !strings.Contains(content, check.Contains) {
 		return fmt.Errorf("expect=file:path=%s: missing %q", label, check.Contains)
 	}
@@ -504,7 +504,7 @@ func (r *Runner) decodeToEnvelope(hexMsg string) (map[string]any, error) {
 // executeHTTPChecks runs HTTP assertions in seq order with retry+backoff.
 // Returns nil if all checks pass, or the first error encountered.
 func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
-	checks := make([]HTTPCheck, len(rec.HTTPChecks))
+	checks := make([]httpCheck, len(rec.HTTPChecks))
 	copy(checks, rec.HTTPChecks)
 	sort.Slice(checks, func(i, j int) bool {
 		return checks[i].Seq < checks[j].Seq
@@ -540,7 +540,7 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 	return nil
 }
 
-func httpClientForCheck(chk HTTPCheck) *http.Client {
+func httpClientForCheck(chk httpCheck) *http.Client {
 	client := &http.Client{Timeout: 5 * time.Second}
 	if !chk.InsecureTLS {
 		return client
@@ -554,7 +554,7 @@ func httpClientForCheck(chk HTTPCheck) *http.Client {
 // executeOneHTTPCheck performs a single HTTP request with retry+backoff.
 // Retries up to 20 times with 200ms intervals for connection-refused errors
 // (server may still be starting). Non-connection errors fail immediately.
-func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, chk HTTPCheck, url string) error {
+func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, chk httpCheck, url string) error {
 	const maxRetries = 20
 	const retryInterval = 200 * time.Millisecond
 
@@ -650,7 +650,7 @@ func isTransientConnError(err error) bool {
 // Unlike assertion checks, waits retry on both connection errors AND content
 // mismatches, making them suitable for waiting until a server has populated data.
 func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
-	waits := make([]HTTPCheck, len(rec.HTTPWaits))
+	waits := make([]httpCheck, len(rec.HTTPWaits))
 	copy(waits, rec.HTTPWaits)
 	sort.Slice(waits, func(i, j int) bool {
 		return waits[i].Seq < waits[j].Seq
@@ -670,7 +670,7 @@ func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
 // executeOneHTTPWait polls a single HTTP endpoint until the expected condition
 // is met. Retries on connection errors, wrong status codes, and content
 // mismatches. Default timeout is 15s, overridden by the check's Timeout field.
-func (r *Runner) executeOneHTTPWait(ctx context.Context, client *http.Client, chk HTTPCheck, url string) error {
+func (r *Runner) executeOneHTTPWait(ctx context.Context, client *http.Client, chk httpCheck, url string) error {
 	const retryInterval = 500 * time.Millisecond
 
 	timeout := 15 * time.Second

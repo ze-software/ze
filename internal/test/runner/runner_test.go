@@ -486,7 +486,7 @@ func TestValidateJSONJsonOnlyUnsupportedFamily(t *testing.T) {
 	const evpnJSON = `{"l2vpn/evpn":[{"action":"add","nlri":{"string":"rd 1:1 mac aa:bb:cc:dd:ee:ff"}}]}`
 
 	t.Run("json_only_unsupported_family_fails", func(t *testing.T) {
-		rec := &Record{Messages: []MessageExpect{{Index: 101, JSON: evpnJSON}}}
+		rec := &Record{Messages: []messageExpect{{Index: 101, JSON: evpnJSON}}}
 		err := r.validateJSON(rec)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "cannot extract")
@@ -495,14 +495,14 @@ func TestValidateJSONJsonOnlyUnsupportedFamily(t *testing.T) {
 	t.Run("wire_hex_backed_skips", func(t *testing.T) {
 		// Same content, but an exact wire-byte check backs the message: the JSON
 		// match is supplementary, so skipping it is correct (no error).
-		rec := &Record{Messages: []MessageExpect{{Index: 101, RawHex: "FFFF", JSON: evpnJSON}}}
+		rec := &Record{Messages: []messageExpect{{Index: 101, RawHex: "FFFF", JSON: evpnJSON}}}
 		require.NoError(t, r.validateJSON(rec))
 	})
 
 	t.Run("content_free_json_skips", func(t *testing.T) {
 		// Attribute-only JSON carries no route entries (EOR-like): nothing to
 		// match, and the guard must not trip on it.
-		rec := &Record{Messages: []MessageExpect{{Index: 101, JSON: `{"origin":"igp","as-path":[65001]}`}}}
+		rec := &Record{Messages: []messageExpect{{Index: 101, JSON: `{"origin":"igp","as-path":[65001]}`}}}
 		require.NoError(t, r.validateJSON(rec))
 	})
 }

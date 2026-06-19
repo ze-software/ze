@@ -64,11 +64,6 @@ func NewEncodingTests(baseDir string) *EncodingTests {
 	}
 }
 
-// SetBasePort sets the starting port.
-func (et *EncodingTests) SetBasePort(port int) {
-	et.port = port
-}
-
 // Discover finds all .ci files in the directory.
 func (et *EncodingTests) Discover(dir string) error {
 	pattern := filepath.Join(dir, "*.ci")
@@ -447,7 +442,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			r.ExpectStderr = append(r.ExpectStderr, pattern)
 		}
 		if contains := kv["contains"]; contains != "" {
-			r.ExpectStderrMatch = contains
+			r.ExpectStderrMatch = append(r.ExpectStderrMatch, contains)
 		}
 
 	case "stdout":
@@ -487,8 +482,8 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 	return nil
 }
 
-func parseFileCheck(kv map[string]string) (FileCheck, error) {
-	check := FileCheck{
+func parseFileCheck(kv map[string]string) (fileCheck, error) {
+	check := fileCheck{
 		Path:        kv["path"],
 		Glob:        kv["glob"],
 		Contains:    kv["contains"],
@@ -497,15 +492,15 @@ func parseFileCheck(kv map[string]string) (FileCheck, error) {
 		Absent:      isTruthy(kv["absent"]),
 	}
 	if check.Path == "" && check.Glob == "" {
-		return FileCheck{}, errExpectFileMissingTarget
+		return fileCheck{}, errExpectFileMissingTarget
 	}
 	if check.Path != "" && check.Glob != "" {
-		return FileCheck{}, errors.New("expect:file must use only one of path= or glob=")
+		return fileCheck{}, errors.New("expect:file must use only one of path= or glob=")
 	}
 	if countText := kv["count"]; countText != "" {
 		count, err := strconv.Atoi(countText)
 		if err != nil || count < 0 {
-			return FileCheck{}, fmt.Errorf("expect:file invalid count=%q", countText)
+			return fileCheck{}, fmt.Errorf("expect:file invalid count=%q", countText)
 		}
 		check.Count = &count
 	}
@@ -848,7 +843,7 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		}
 	}
 
-	chk := HTTPCheck{
+	chk := httpCheck{
 		Seq:         seq,
 		Method:      method,
 		URL:         url,

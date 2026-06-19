@@ -11,7 +11,7 @@ func TestFunctionalFailureGroupsUseSuiteTypeAndSubsystemPrefix(t *testing.T) {
 		{Name: "bfd-peer-timeout", Nick: "2", State: StateTimeout},
 		{Name: "fib-observer-mismatch", Nick: "3", State: StateFail, FailureType: FailTypeMismatch},
 	}
-	groups := GroupFunctionalFailures("plugin", records, nil)
+	groups := groupFunctionalFailures("plugin", records, nil)
 	if len(groups) != 2 {
 		t.Fatalf("expected bfd timeout and fib mismatch groups, got %+v", groups)
 	}
@@ -31,7 +31,7 @@ func TestTopLevelCIFailureGroupsDoNotMergeByFirstToken(t *testing.T) {
 		{Name: "cli-schema-protocol", Nick: "1", State: StateFail, FailureType: FailTypeMismatch},
 		{Name: "cli-show-bgp-encode", Nick: "2", State: StateFail, FailureType: FailTypeMismatch},
 	}
-	groups := GroupFunctionalFailures("ui", records, nil)
+	groups := groupFunctionalFailures("ui", records, nil)
 	if len(groups) != 2 {
 		t.Fatalf("expected separate groups for unrelated cli failures, got %+v", groups)
 	}
@@ -48,7 +48,7 @@ func TestEditorFailureGroupsUsePositionalReruns(t *testing.T) {
 		{Name: "test/editor/commands/show-full.et", Nick: "7", State: StateFail, FailureType: stateUnknown},
 		{Name: "test/editor/navigation/up-one-level.et", Nick: "8", State: StateFail, FailureType: stateUnknown},
 	}
-	groups := GroupFunctionalFailures("editor", records, nil)
+	groups := groupFunctionalFailures("editor", records, nil)
 	if len(groups) != 2 {
 		t.Fatalf("expected exact editor test groups, got %+v", groups)
 	}
@@ -65,7 +65,7 @@ func TestParseFailureGroupsUseExactTestNames(t *testing.T) {
 		{Name: "invalid/peer-as.conf", Nick: "P", State: StateFail, FailureType: stateUnknown},
 		{Name: "invalid/router-id.conf", Nick: "Q", State: StateFail, FailureType: stateUnknown},
 	}
-	groups := GroupFunctionalFailures("parse", records, nil)
+	groups := groupFunctionalFailures("parse", records, nil)
 	if len(groups) != 2 {
 		t.Fatalf("expected exact parse groups, got %+v", groups)
 	}
@@ -82,7 +82,7 @@ func TestContendedLoadAttachedToFailureGroups(t *testing.T) {
 		{Name: "add-remove", Nick: "1", State: StateFail, FailureType: stateUnknown},
 	}
 	contended := &HostLoad{LoadAvg1: 20.0, CPUs: 8, ZeProcs: 3, GoTestProcs: 2}
-	groups := GroupFunctionalFailures("plugin", records, contended)
+	groups := groupFunctionalFailures("plugin", records, contended)
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}
@@ -99,7 +99,7 @@ func TestQuietLoadNotAttachedToFailureGroups(t *testing.T) {
 		{Name: "add-remove", Nick: "1", State: StateFail, FailureType: stateUnknown},
 	}
 	quiet := &HostLoad{LoadAvg1: 1.0, CPUs: 8, ZeProcs: 1, GoTestProcs: 0}
-	groups := GroupFunctionalFailures("plugin", records, quiet)
+	groups := groupFunctionalFailures("plugin", records, quiet)
 	if len(groups) != 1 {
 		t.Fatalf("expected 1 group, got %d", len(groups))
 	}

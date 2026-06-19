@@ -42,17 +42,17 @@ expect=bgp:conn=6:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001705`
 	assert.Len(t, rec.Messages, 3, "should have 3 messages")
 
 	// First message: conn=1, seq=1 → index 101
-	msg1 := rec.GetMessage(101)
+	msg1 := rec.getMessage(101)
 	require.NotNil(t, msg1, "message 101 should exist")
 	assert.Equal(t, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", msg1.RawHex)
 
 	// Second message: conn=1, seq=2 → index 102
-	msg2 := rec.GetMessage(102)
+	msg2 := rec.getMessage(102)
 	require.NotNil(t, msg2, "message 102 should exist")
 	assert.Equal(t, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02", msg2.RawHex)
 
 	// Sixth connection: conn=6, seq=1 → index 601.
-	msg3 := rec.GetMessage(601)
+	msg3 := rec.getMessage(601)
 	require.NotNil(t, msg3, "message 601 should exist")
 	assert.Equal(t, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001705", msg3.RawHex)
 }
@@ -85,7 +85,7 @@ expect=json:conn=1:seq=1:json={"type":"keepalive"}`
 	// Should have 1 message with both hex and json
 	assert.Len(t, rec.Messages, 1, "should have 1 message")
 
-	msg := rec.GetMessage(101)
+	msg := rec.getMessage(101)
 	require.NotNil(t, msg)
 	assert.Equal(t, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304", msg.RawHex)
 	assert.Equal(t, `{"type":"keepalive"}`, msg.JSON)
@@ -217,10 +217,10 @@ expect=bgp:conn=2:seq=2:hex=DDDD`
 	// conn=2:seq=1 → index 201, conn=2:seq=2 → index 202
 	assert.Len(t, rec.Messages, 4, "should have 4 messages")
 
-	assert.Equal(t, "AAAA", rec.GetMessage(101).RawHex) // conn=1:seq=1
-	assert.Equal(t, "CCCC", rec.GetMessage(102).RawHex) // conn=1:seq=2
-	assert.Equal(t, "BBBB", rec.GetMessage(201).RawHex) // conn=2:seq=1
-	assert.Equal(t, "DDDD", rec.GetMessage(202).RawHex) // conn=2:seq=2
+	assert.Equal(t, "AAAA", rec.getMessage(101).RawHex) // conn=1:seq=1
+	assert.Equal(t, "CCCC", rec.getMessage(102).RawHex) // conn=1:seq=2
+	assert.Equal(t, "BBBB", rec.getMessage(201).RawHex) // conn=2:seq=1
+	assert.Equal(t, "DDDD", rec.getMessage(202).RawHex) // conn=2:seq=2
 }
 
 // TestParseCISameSeq verifies that same seq number means unordered acceptance.
@@ -309,7 +309,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	rec := et.GetByNick("1")
 	require.NotNil(t, rec)
 
-	msg := rec.GetMessage(101)
+	msg := rec.getMessage(101)
 	require.NotNil(t, msg)
 	assert.Equal(t, "update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24", msg.Cmd)
 }
@@ -577,33 +577,33 @@ func TestParseHTTP(t *testing.T) {
 	tests := []struct {
 		name    string
 		line    string
-		want    HTTPCheck
+		want    httpCheck
 		wantErr string
 	}{
 		{
 			name: "basic_get",
 			line: "http=get:seq=1:url=http://127.0.0.1:8000/:status=200",
-			want: HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/", Status: 200},
+			want: httpCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/", Status: 200},
 		},
 		{
 			name: "with_contains",
 			line: "http=get:seq=2:url=http://127.0.0.1:8000/peers:status=200:contains=peer-0",
-			want: HTTPCheck{Seq: 2, Method: "get", URL: "http://127.0.0.1:8000/peers", Status: 200, Contains: "peer-0"},
+			want: httpCheck{Seq: 2, Method: "get", URL: "http://127.0.0.1:8000/peers", Status: 200, Contains: "peer-0"},
 		},
 		{
 			name: "url_with_query_params",
 			line: "http=get:seq=3:url=http://127.0.0.1:9090/cell?src=0&dst=1:status=200",
-			want: HTTPCheck{Seq: 3, Method: "get", URL: "http://127.0.0.1:9090/cell?src=0&dst=1", Status: 200},
+			want: httpCheck{Seq: 3, Method: "get", URL: "http://127.0.0.1:9090/cell?src=0&dst=1", Status: 200},
 		},
 		{
 			name: "url_with_port_variable",
 			line: "http=get:seq=1:url=http://127.0.0.1:$PORT/viz/events:status=200",
-			want: HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:$PORT/viz/events", Status: 200},
+			want: httpCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:$PORT/viz/events", Status: 200},
 		},
 		{
 			name: "post_sendfile_content_type",
 			line: "http=post:seq=4:url=https://127.0.0.1:$PORT2/config/set/bgp/:status=200:sendfile=set.form:content-type=application/x-www-form-urlencoded:insecure-tls=true",
-			want: HTTPCheck{Seq: 4, Method: "post", URL: "https://127.0.0.1:$PORT2/config/set/bgp/", Status: 200, SendFile: "set.form", ContentType: "application/x-www-form-urlencoded", InsecureTLS: true},
+			want: httpCheck{Seq: 4, Method: "post", URL: "https://127.0.0.1:$PORT2/config/set/bgp/", Status: 200, SendFile: "set.form", ContentType: "application/x-www-form-urlencoded", InsecureTLS: true},
 		},
 		{
 			name:    "invalid_insecure_tls",
@@ -645,7 +645,7 @@ func TestParseHTTP(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			et := NewEncodingTests(t.TempDir())
-			rec := NewRecord("test")
+			rec := newRecord("test")
 
 			// Extract method from the line (http=METHOD:...)
 			parts := strings.SplitN(tt.line, ":", 2)
@@ -668,32 +668,32 @@ func TestParseHTTPWait(t *testing.T) {
 	tests := []struct {
 		name     string
 		line     string
-		want     HTTPCheck
+		want     httpCheck
 		wantErr  string
 		wantWait bool // true = stored in HTTPWaits, false = HTTPChecks
 	}{
 		{
 			name:     "basic_wait",
 			line:     "http=wait:seq=1:url=http://127.0.0.1:8000/:status=200",
-			want:     HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/", Status: 200},
+			want:     httpCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/", Status: 200},
 			wantWait: true,
 		},
 		{
 			name:     "wait_with_contains",
 			line:     "http=wait:seq=1:url=http://127.0.0.1:8000/graph:status=200:contains=AS2914",
-			want:     HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/graph", Status: 200, Contains: "AS2914"},
+			want:     httpCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/graph", Status: 200, Contains: "AS2914"},
 			wantWait: true,
 		},
 		{
 			name:     "wait_with_timeout",
 			line:     "http=wait:seq=1:url=http://127.0.0.1:8000/:status=200:timeout=10s",
-			want:     HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/", Status: 200, Timeout: "10s"},
+			want:     httpCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/", Status: 200, Timeout: "10s"},
 			wantWait: true,
 		},
 		{
 			name:     "wait_with_contains_and_timeout",
 			line:     "http=wait:seq=1:url=http://127.0.0.1:$PORT2/lg/graph:status=200:contains=AS2914:timeout=15s",
-			want:     HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:$PORT2/lg/graph", Status: 200, Contains: "AS2914", Timeout: "15s"},
+			want:     httpCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:$PORT2/lg/graph", Status: 200, Contains: "AS2914", Timeout: "15s"},
 			wantWait: true,
 		},
 		{
@@ -711,7 +711,7 @@ func TestParseHTTPWait(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			et := NewEncodingTests(t.TempDir())
-			rec := NewRecord("test")
+			rec := newRecord("test")
 
 			parts := strings.SplitN(tt.line, ":", 2)
 			method := strings.TrimPrefix(parts[0], "http=")

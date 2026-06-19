@@ -20,14 +20,14 @@ func TestDebugCommandsFullHex(t *testing.T) {
 	rec := &Record{
 		Nick: "A",
 		Name: "test-long-hex",
-		Messages: []MessageExpect{
+		Messages: []messageExpect{
 			{Index: 1, RawHex: longHex},
 		},
 		ReceivedRaw: []string{longHex},
 	}
 
 	var buf bytes.Buffer
-	report := NewReport(NewColorsWithOverride(false))
+	report := newReport(NewColorsWithOverride(false))
 	report.SetOutput(&buf)
 	report.printDebugCommands(rec)
 
@@ -42,7 +42,7 @@ func TestReportDebugCommandsUseSuiteSpecificCommands(t *testing.T) {
 	rec := &Record{Nick: "A", Name: "ui-failure"}
 
 	var buf bytes.Buffer
-	report := NewReport(NewColorsWithOverride(false))
+	report := newReport(NewColorsWithOverride(false))
 	report.SetOutput(&buf)
 	report.SetLabel("ui")
 	report.printDebugCommands(rec)
@@ -70,7 +70,7 @@ func TestGenericReportStructured(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	report := NewReport(NewColorsWithOverride(false))
+	report := newReport(NewColorsWithOverride(false))
 	report.SetOutput(&buf)
 	report.printGenericReport(rec)
 
@@ -94,11 +94,11 @@ func TestLikelyCauseTimeout(t *testing.T) {
 		FailureType:  stateTimeout,
 		ClientOutput: "",
 		ReceivedRaw:  nil,
-		Messages:     []MessageExpect{{Index: 1, RawHex: "FFFF"}},
+		Messages:     []messageExpect{{Index: 1, RawHex: "FFFF"}},
 	}
 
 	var buf bytes.Buffer
-	report := NewReport(NewColorsWithOverride(false))
+	report := newReport(NewColorsWithOverride(false))
 	report.SetOutput(&buf)
 	report.printTimeoutReport(rec)
 
@@ -125,7 +125,7 @@ func TestLikelyCauseEmptyClient(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	report := NewReport(NewColorsWithOverride(false))
+	report := newReport(NewColorsWithOverride(false))
 	report.SetOutput(&buf)
 	report.printGenericReport(rec)
 
@@ -151,13 +151,13 @@ func TestReportGatesVerifyGroups(t *testing.T) {
 	rec.Error = errors.New("broken")
 	rec.CIFile = "test/ui/ui-failure.ci"
 
-	report := NewReport(NewColorsWithOverride(false))
+	report := newReport(NewColorsWithOverride(false))
 	report.SetLabel("ui")
 
 	var buf bytes.Buffer
 	report.SetOutput(&buf)
 
-	report.PrintAllFailures(tests.Tests)
+	report.printAllFailures(tests.Tests)
 	normal := buf.String()
 	if strings.Contains(normal, "VERIFY FAILURE GROUP:") {
 		t.Fatalf("unexpected verify failure group in PrintAllFailures output:\n%s", normal)
@@ -167,7 +167,7 @@ func TestReportGatesVerifyGroups(t *testing.T) {
 	}
 
 	buf.Reset()
-	report.PrintFailureGroups(tests.Tests)
+	report.printFailureGroups(tests.Tests)
 	verify := buf.String()
 	if !strings.Contains(verify, "VERIFY FAILURE GROUP:") {
 		t.Fatalf("missing verify failure group in PrintFailureGroups output:\n%s", verify)

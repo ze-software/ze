@@ -30,17 +30,17 @@ func VerifyModeEnabled() bool {
 	return verifyModeEnabled()
 }
 
-// ParallelTest represents a test that can be run in parallel.
-type ParallelTest[T any] struct {
+// parallelTest represents a test that can be run in parallel.
+type parallelTest[T any] struct {
 	Name   string
 	Record *Record
 	Test   T // The original test object
 	Run    func(ctx context.Context, t T) (passed bool, err error)
 }
 
-// ParallelRunner executes tests in parallel with progress display.
-type ParallelRunner[T any] struct {
-	tests          []*ParallelTest[T]
+// parallelRunner executes tests in parallel with progress display.
+type parallelRunner[T any] struct {
+	tests          []*parallelTest[T]
 	display        *Display
 	colors         *Colors
 	quiet          bool
@@ -57,86 +57,86 @@ type ParallelRunner[T any] struct {
 }
 
 // NewParallelRunner creates a parallel test runner.
-func NewParallelRunner[T any](colors *Colors) *ParallelRunner[T] {
-	return &ParallelRunner[T]{
+func NewParallelRunner[T any](colors *Colors) *parallelRunner[T] {
+	return &parallelRunner[T]{
 		colors: colors,
 	}
 }
 
 // SetQuiet enables quiet mode.
-func (r *ParallelRunner[T]) SetQuiet(quiet bool) {
+func (r *parallelRunner[T]) SetQuiet(quiet bool) {
 	r.quiet = quiet
 }
 
 // SetVerbose enables verbose output for failures.
-func (r *ParallelRunner[T]) SetVerbose(verbose bool) {
+func (r *parallelRunner[T]) SetVerbose(verbose bool) {
 	r.verbose = verbose
 }
 
 // SetLabel sets the test suite label for the header.
-func (r *ParallelRunner[T]) SetLabel(label string) {
+func (r *parallelRunner[T]) SetLabel(label string) {
 	r.label = label
 }
 
-// SetNoHeader prevents Run from printing the section header.
+// setNoHeader prevents Run from printing the section header.
 // Use when the header is managed by the caller.
-func (r *ParallelRunner[T]) SetNoHeader(v bool) {
+func (r *parallelRunner[T]) setNoHeader(v bool) {
 	r.noHeader = v
 }
 
 // SetBaseDir sets the project root for timing baseline persistence.
-func (r *ParallelRunner[T]) SetBaseDir(dir string) {
+func (r *parallelRunner[T]) SetBaseDir(dir string) {
 	r.baseDir = dir
 }
 
 // SetOnFail sets the callback for failed tests.
 // The callback receives the original test object and the error.
-func (r *ParallelRunner[T]) SetOnFail(fn func(T, error)) {
+func (r *parallelRunner[T]) SetOnFail(fn func(T, error)) {
 	r.onFail = fn
 }
 
 // SetConcurrency sets the maximum number of concurrent tests.
 // Zero means DefaultParallelConcurrent.
-func (r *ParallelRunner[T]) SetConcurrency(n int) {
+func (r *parallelRunner[T]) SetConcurrency(n int) {
 	r.concurrency = n
 }
 
-// SetStatusInterval sets the status ticker interval.
+// setStatusInterval sets the status ticker interval.
 // Zero means StatusUpdateInterval.
-func (r *ParallelRunner[T]) SetStatusInterval(d time.Duration) {
+func (r *parallelRunner[T]) setStatusInterval(d time.Duration) {
 	r.statusInterval = d
 }
 
-// SetDisplay injects an existing Display instead of lazy-creating one.
+// setDisplay injects an existing Display instead of lazy-creating one.
 // Use when the caller already owns a Display (e.g., .ci Runner).
-func (r *ParallelRunner[T]) SetDisplay(d *Display) {
+func (r *parallelRunner[T]) setDisplay(d *Display) {
 	r.display = d
 }
 
-// SetOnReport sets a callback invoked after run when there are failures.
+// setOnReport sets a callback invoked after run when there are failures.
 // Use for .ci's PrintAllFailures.
-func (r *ParallelRunner[T]) SetOnReport(fn func(*Tests)) {
+func (r *parallelRunner[T]) setOnReport(fn func(*Tests)) {
 	r.onReport = fn
 }
 
-// SetNoSummary suppresses Summary/TimingDetail/DebugHints in Run.
+// setNoSummary suppresses Summary/TimingDetail/DebugHints in Run.
 // Use for stress-mode iterations where the caller controls post-run output.
-func (r *ParallelRunner[T]) SetNoSummary(v bool) {
+func (r *parallelRunner[T]) setNoSummary(v bool) {
 	r.noSummary = v
 }
 
-// SetHostLoad records the host load snapshot taken at run start.
+// setHostLoad records the host load snapshot taken at run start.
 // When contended, timing baseline updates are suppressed and failure
 // groups include the load context.
-func (r *ParallelRunner[T]) SetHostLoad(h *HostLoad) {
+func (r *parallelRunner[T]) setHostLoad(h *HostLoad) {
 	r.hostLoad = h
 }
 
-// AddRecord adds a test with a pre-existing Record. The Record must already
+// addRecord adds a test with a pre-existing Record. The Record must already
 // be registered in the Display's Tests. Use when the caller owns the Records
 // (e.g., .ci Runner delegates scheduling but keeps its own Record set).
-func (r *ParallelRunner[T]) AddRecord(rec *Record, test T, runFn func(ctx context.Context, t T) (bool, error)) {
-	r.tests = append(r.tests, &ParallelTest[T]{
+func (r *parallelRunner[T]) addRecord(rec *Record, test T, runFn func(ctx context.Context, t T) (bool, error)) {
+	r.tests = append(r.tests, &parallelTest[T]{
 		Name:   rec.Name,
 		Record: rec,
 		Test:   test,
@@ -145,16 +145,16 @@ func (r *ParallelRunner[T]) AddRecord(rec *Record, test T, runFn func(ctx contex
 }
 
 // AddTest adds a test to the runner.
-func (r *ParallelRunner[T]) AddTest(name string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
+func (r *parallelRunner[T]) AddTest(name string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
 	return r.addTest(name, "", test, runFn)
 }
 
 // AddTestWithNick adds a test to the runner with a stable caller-supplied nick.
-func (r *ParallelRunner[T]) AddTestWithNick(name, nick string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
+func (r *parallelRunner[T]) AddTestWithNick(name, nick string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
 	return r.addTest(name, nick, test, runFn)
 }
 
-func (r *ParallelRunner[T]) addTest(name, nick string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
+func (r *parallelRunner[T]) addTest(name, nick string, test T, runFn func(ctx context.Context, t T) (bool, error)) *Record {
 	if r.display == nil {
 		// Lazy init - create Tests container and Display on first AddTest
 		tests := NewTests()
@@ -163,10 +163,10 @@ func (r *ParallelRunner[T]) addTest(name, nick string, test T, runFn func(ctx co
 		r.display.SetTimeout(DefaultParallelTimeout)
 	}
 
-	rec := r.display.tests.AddWithNick(name, nick)
+	rec := r.display.tests.addWithNick(name, nick)
 	rec.Active = true
 
-	r.tests = append(r.tests, &ParallelTest[T]{
+	r.tests = append(r.tests, &parallelTest[T]{
 		Name:   name,
 		Record: rec,
 		Test:   test,
@@ -177,7 +177,7 @@ func (r *ParallelRunner[T]) addTest(name, nick string, test T, runFn func(ctx co
 }
 
 // Run executes all tests in parallel and returns success.
-func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
+func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 	if len(r.tests) == 0 {
 		return true
 	}
@@ -198,7 +198,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 
 	// Channels
 	type result struct {
-		test   *ParallelTest[T]
+		test   *parallelTest[T]
 		passed bool
 		err    error
 	}
@@ -211,7 +211,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 
 	for _, test := range r.tests {
 		wg.Add(1)
-		go func(t *ParallelTest[T]) {
+		go func(t *parallelTest[T]) {
 			defer wg.Done()
 			sem <- struct{}{}        // Acquire
 			defer func() { <-sem }() // Release
@@ -311,7 +311,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 			}
 		}
 		if !r.noSummary {
-			r.display.TimingDetail(r.label, timings)
+			r.display.timingDetail(r.label, timings)
 		}
 		if !contended {
 			if err := timings.Save(r.baseDir); err != nil {
@@ -321,11 +321,11 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 	}
 	if !r.quiet && len(failures) > 0 {
 		if verifyModeEnabled() {
-			report := NewReport(r.colors)
+			report := newReport(r.colors)
 			report.SetOutput(r.display.output)
 			report.SetLabel(r.label)
-			report.SetHostLoad(r.hostLoad)
-			report.PrintFailureGroups(r.display.tests)
+			report.setHostLoad(r.hostLoad)
+			report.printFailureGroups(r.display.tests)
 		}
 		if r.onReport != nil {
 			r.onReport(r.display.tests)
@@ -333,7 +333,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 	}
 
 	if !r.noSummary {
-		r.display.DebugHints()
+		r.display.debugHints()
 	}
 
 	// Verify mode must include concise failure detail in saved logs without

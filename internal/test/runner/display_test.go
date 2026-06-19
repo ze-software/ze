@@ -16,7 +16,7 @@ func TestDisplayDebugHintsUseSuiteSpecificCommands(t *testing.T) {
 	display := NewDisplay(tests, NewColorsWithOverride(false))
 	display.SetOutput(&buf)
 	display.SetLabel("ui")
-	display.DebugHints()
+	display.debugHints()
 
 	out := buf.String()
 	if !strings.Contains(out, "ze-test ui "+rec.Nick) {
@@ -37,7 +37,7 @@ func TestDisplayDebugHintsUseEditorPatternCommand(t *testing.T) {
 	display := NewDisplay(tests, NewColorsWithOverride(false))
 	display.SetOutput(&buf)
 	display.SetLabel("editor")
-	display.DebugHints()
+	display.debugHints()
 
 	out := buf.String()
 	if !strings.Contains(out, "ze-test editor "+rec.Nick) {

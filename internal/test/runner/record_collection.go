@@ -29,8 +29,8 @@ func (ts *Tests) Add(name string) *Record {
 	return ts.add(name, "")
 }
 
-// AddWithNick creates and registers a new test record with a stable caller-supplied nick.
-func (ts *Tests) AddWithNick(name, nick string) *Record {
+// addWithNick creates and registers a new test record with a stable caller-supplied nick.
+func (ts *Tests) addWithNick(name, nick string) *Record {
 	return ts.add(name, nick)
 }
 
@@ -38,7 +38,7 @@ func (ts *Tests) add(name, nick string) *Record {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 
-	r := NewRecord(name)
+	r := newRecord(name)
 	if nick != "" {
 		r.Nick = nick
 	}
@@ -52,35 +52,6 @@ func (ts *Tests) GetByNick(nick string) *Record {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 	return ts.byNick[nick]
-}
-
-// EnableByNick activates a test by nick.
-func (ts *Tests) EnableByNick(nick string) bool {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	if r, ok := ts.byNick[nick]; ok {
-		r.Activate()
-		return true
-	}
-	return false
-}
-
-// EnableAll activates all tests.
-func (ts *Tests) EnableAll() {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	for _, r := range ts.byNick {
-		r.Activate()
-	}
-}
-
-// DisableAll deactivates all tests.
-func (ts *Tests) DisableAll() {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	for _, r := range ts.byNick {
-		r.Deactivate()
-	}
 }
 
 // Registered returns all tests in order.
@@ -137,8 +108,8 @@ func (ts *Tests) Summary() (passed, failed, timedOut, skipped int) {
 	return
 }
 
-// FailedRecords returns failed test records.
-func (ts *Tests) FailedRecords() []*Record {
+// failedRecords returns failed test records.
+func (ts *Tests) failedRecords() []*Record {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 
@@ -152,8 +123,8 @@ func (ts *Tests) FailedRecords() []*Record {
 	return result
 }
 
-// FailedNicks returns nicks of failed tests (not including timed out).
-func (ts *Tests) FailedNicks() []string {
+// failedNicks returns nicks of failed tests (not including timed out).
+func (ts *Tests) failedNicks() []string {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 
@@ -167,8 +138,8 @@ func (ts *Tests) FailedNicks() []string {
 	return result
 }
 
-// SkippedNicks returns nicks of skipped tests (option=skip-os match).
-func (ts *Tests) SkippedNicks() []string {
+// skippedNicks returns nicks of skipped tests (option=skip-os match).
+func (ts *Tests) skippedNicks() []string {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 
@@ -182,8 +153,8 @@ func (ts *Tests) SkippedNicks() []string {
 	return result
 }
 
-// TimedOutNicks returns nicks of timed out tests.
-func (ts *Tests) TimedOutNicks() []string {
+// timedOutNicks returns nicks of timed out tests.
+func (ts *Tests) timedOutNicks() []string {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
 

@@ -58,16 +58,6 @@ type RunOptions struct {
 	SkipTimings bool // skip timing recording (set during stress mode)
 }
 
-// DefaultRunOptions returns sensible defaults.
-func DefaultRunOptions() *RunOptions {
-	return &RunOptions{
-		Timeout:  20 * time.Second,
-		Parallel: DefaultParallelConcurrent,
-		Verbose:  false,
-		Quiet:    false,
-	}
-}
-
 // Runner executes encoding tests.
 type Runner struct {
 	tests    *EncodingTests
@@ -118,7 +108,7 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 		testPath: testBinPath,
 		colors:   colors,
 		display:  NewDisplay(tests.Tests, colors),
-		report:   NewReport(colors),
+		report:   newReport(colors),
 		timings:  LoadTimings(baseDir),
 	}, nil
 }
@@ -162,7 +152,7 @@ func (r *Runner) Build(ctx context.Context) error {
 		return r.verifyPrebuilt()
 	}
 
-	r.display.BuildStatus(true, nil)
+	r.display.buildStatus(true, nil)
 
 	// Build ze (with version ldflags matching Makefile convention)
 	now := time.Now()
@@ -172,7 +162,7 @@ func (r *Runner) Build(ctx context.Context) error {
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
-		r.display.BuildStatus(false, fmt.Errorf("%w: %s", err, output))
+		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
 		return fmt.Errorf("build ze: %w", err)
 	}
 
@@ -181,7 +171,7 @@ func (r *Runner) Build(ctx context.Context) error {
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
-		r.display.BuildStatus(false, fmt.Errorf("%w: %s", err, output))
+		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
 		return fmt.Errorf("build ze-test: %w", err)
 	}
 
@@ -197,12 +187,12 @@ func (r *Runner) Build(ctx context.Context) error {
 		cmd.Dir = r.baseDir
 		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 		if output, err := cmd.CombinedOutput(); err != nil {
-			r.display.BuildStatus(false, fmt.Errorf("%w: %s", err, output))
+			r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
 			return fmt.Errorf("build %s: %w", name, err)
 		}
 	}
 
-	r.display.BuildStatus(false, nil)
+	r.display.buildStatus(false, nil)
 	return nil
 }
 
@@ -211,20 +201,20 @@ func (r *Runner) Build(ctx context.Context) error {
 // binaries (e.g. ze-chaos) are not supported in this mode and must be built
 // normally.
 func (r *Runner) verifyPrebuilt() error {
-	r.display.BuildStatus(true, nil)
+	r.display.buildStatus(true, nil)
 	for _, p := range []string{r.zePath, r.testPath} {
 		if _, err := os.Stat(p); err != nil {
 			buildErr := fmt.Errorf("ZE_TEST_NO_BUILD set but %s is missing (cross-compile it first): %w", p, err)
-			r.display.BuildStatus(false, buildErr)
+			r.display.buildStatus(false, buildErr)
 			return buildErr
 		}
 	}
 	if len(r.extraBinaries) > 0 {
 		buildErr := fmt.Errorf("ZE_TEST_NO_BUILD does not support extra binaries: %v", r.extraBinaries)
-		r.display.BuildStatus(false, buildErr)
+		r.display.buildStatus(false, buildErr)
 		return buildErr
 	}
-	r.display.BuildStatus(false, nil)
+	r.display.buildStatus(false, nil)
 	return nil
 }
 
@@ -249,23 +239,23 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	load := SnapshotHostLoad()
 
 	pr := NewParallelRunner[*Record](r.colors)
-	pr.SetDisplay(r.display)
+	pr.setDisplay(r.display)
 	pr.SetConcurrency(parallel)
-	pr.SetStatusInterval(500 * time.Millisecond)
+	pr.setStatusInterval(500 * time.Millisecond)
 	pr.SetQuiet(opts.Quiet)
 	pr.SetLabel(r.display.label)
-	pr.SetNoHeader(true)
-	pr.SetHostLoad(&load)
+	pr.setNoHeader(true)
+	pr.setHostLoad(&load)
 
 	if !opts.SkipTimings {
 		pr.SetBaseDir(r.baseDir)
 	}
 	if opts.SkipTimings {
-		pr.SetNoSummary(true)
+		pr.setNoSummary(true)
 	}
 
 	for _, rec := range selected {
-		pr.AddRecord(rec, rec, func(runCtx context.Context, rec *Record) (bool, error) {
+		pr.addRecord(rec, rec, func(runCtx context.Context, rec *Record) (bool, error) {
 			success := r.runTest(runCtx, rec, opts)
 			if !success {
 				return false, rec.Error
@@ -274,8 +264,8 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 		})
 	}
 
-	pr.SetOnReport(func(tests *Tests) {
-		r.report.PrintAllFailures(tests)
+	pr.setOnReport(func(tests *Tests) {
+		r.report.printAllFailures(tests)
 	})
 
 	return pr.Run(ctx)

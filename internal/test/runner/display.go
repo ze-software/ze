@@ -383,17 +383,17 @@ func (d *Display) Summary() {
 	b.Str("  ").Int(int64(passed)).Byte('/').Int(int64(total)).Str("  ").Float(rate, 1).Str("%  ").Str(formatDuration(elapsed))
 
 	if failed > 0 {
-		nicks := d.tests.FailedNicks()
+		nicks := d.tests.failedNicks()
 		b.Str("  ").Str(d.colors.Red("failed")).Byte(' ').Int(int64(failed)).Str(" [").Join(nicks, ", ").Byte(']')
 	}
 
 	if timedOut > 0 {
-		nicks := d.tests.TimedOutNicks()
+		nicks := d.tests.timedOutNicks()
 		b.Str("  ").Str(d.colors.Yellow("timeout")).Byte(' ').Int(int64(timedOut)).Str(" [").Join(nicks, ", ").Byte(']')
 	}
 
 	if skipped > 0 {
-		nicks := d.tests.SkippedNicks()
+		nicks := d.tests.skippedNicks()
 		b.Str("  ").Str(d.colors.Gray("skip")).Byte(' ').Int(int64(skipped)).Str(" [").Join(nicks, ", ").Byte(']')
 	}
 
@@ -427,8 +427,8 @@ func (d *Display) UlimitInfo(check *LimitCheck) {
 	}
 }
 
-// BuildStatus prints build status.
-func (d *Display) BuildStatus(building bool, err error) {
+// buildStatus prints build status.
+func (d *Display) buildStatus(building bool, err error) {
 	if d.quiet {
 		return
 	}
@@ -527,9 +527,9 @@ func (d *Display) StressSummary(result *StressResult, count int) {
 	d.println("")
 }
 
-// TimingDetail prints per-test timing and flags slow tests.
+// timingDetail prints per-test timing and flags slow tests.
 // Called after Summary to show timing baseline comparison.
-func (d *Display) TimingDetail(suite string, timings Timings) {
+func (d *Display) timingDetail(suite string, timings Timings) {
 	if d.quiet {
 		return
 	}
@@ -556,14 +556,14 @@ func (d *Display) TimingDetail(suite string, timings Timings) {
 	}
 }
 
-// DebugHints prints commands to rerun failed tests individually.
+// debugHints prints commands to rerun failed tests individually.
 // Called after Summary when there are failures.
-func (d *Display) DebugHints() {
+func (d *Display) debugHints() {
 	if d.quiet || d.label == "" {
 		return
 	}
 
-	failed := d.tests.FailedRecords()
+	failed := d.tests.failedRecords()
 	if len(failed) == 0 {
 		return
 	}
@@ -571,7 +571,7 @@ func (d *Display) DebugHints() {
 	d.println("")
 	d.println(d.colors.Yellow("To run failed tests individually:"))
 	for _, rec := range failed {
-		d.Printf("  %s\n", FormatRecordRerunCommand(d.label, rec))
+		d.Printf("  %s\n", formatRecordRerunCommand(d.label, rec))
 	}
 	d.Printf("\n  %s\n", d.colors.Gray("Add -v for verbose output"))
 	d.println("")

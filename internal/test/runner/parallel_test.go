@@ -149,13 +149,13 @@ func TestParallelRunnerSetDisplayInjectsDisplay(t *testing.T) {
 	display.SetQuiet(true)
 
 	r := NewParallelRunner[string](colors)
-	r.SetDisplay(display)
+	r.setDisplay(display)
 	r.SetLabel("injected")
 
 	rec := tests.Add("pre-existing")
 	rec.Active = true
 
-	r.AddRecord(rec, "payload", func(_ context.Context, _ string) (bool, error) {
+	r.addRecord(rec, "payload", func(_ context.Context, _ string) (bool, error) {
 		return true, nil
 	})
 
@@ -180,13 +180,13 @@ func TestParallelRunnerAddRecordUsesExistingRecord(t *testing.T) {
 	display.SetQuiet(true)
 
 	r := NewParallelRunner[string](colors)
-	r.SetDisplay(display)
+	r.setDisplay(display)
 	r.SetLabel("add-record")
 
 	rec := tests.Add("my-test")
 	rec.Active = true
 
-	r.AddRecord(rec, "data", func(_ context.Context, _ string) (bool, error) {
+	r.addRecord(rec, "data", func(_ context.Context, _ string) (bool, error) {
 		return false, errors.New("intentional")
 	})
 
@@ -211,13 +211,13 @@ func TestParallelRunnerRespectsTerminalState(t *testing.T) {
 	display.SetQuiet(true)
 
 	r := NewParallelRunner[string](colors)
-	r.SetDisplay(display)
+	r.setDisplay(display)
 	r.SetLabel("terminal-state")
 
 	rec := tests.Add("timeout-test")
 	rec.Active = true
 
-	r.AddRecord(rec, "data", func(_ context.Context, _ string) (bool, error) {
+	r.addRecord(rec, "data", func(_ context.Context, _ string) (bool, error) {
 		rec.State = StateTimeout
 		return false, errors.New("timed out")
 	})
@@ -237,7 +237,7 @@ func TestParallelRunnerRespectsTerminalState(t *testing.T) {
 // PREVENTS: status-ticker cadence change when .ci delegates.
 func TestParallelRunnerSetStatusInterval(t *testing.T) {
 	r := NewParallelRunner[string](NewColorsWithOverride(false))
-	r.SetStatusInterval(500 * time.Millisecond)
+	r.setStatusInterval(500 * time.Millisecond)
 	r.SetLabel("interval")
 	r.SetQuiet(true)
 
@@ -259,7 +259,7 @@ func TestParallelRunnerOnReportCalledOnFailure(t *testing.T) {
 	display.SetOutput(&bytes.Buffer{})
 
 	r := NewParallelRunner[string](colors)
-	r.SetDisplay(display)
+	r.setDisplay(display)
 	r.SetLabel("report-hook")
 
 	r.AddTest("failing", "data", func(_ context.Context, _ string) (bool, error) {
@@ -267,7 +267,7 @@ func TestParallelRunnerOnReportCalledOnFailure(t *testing.T) {
 	})
 
 	var reportCalled bool
-	r.SetOnReport(func(tests *Tests) {
+	r.setOnReport(func(tests *Tests) {
 		reportCalled = true
 		_, failed, _, _ := tests.Summary()
 		if failed != 1 {
@@ -297,7 +297,7 @@ func TestParallelRunnerOnReportNotCalledOnSuccess(t *testing.T) {
 	})
 
 	called := false
-	r.SetOnReport(func(_ *Tests) { called = true })
+	r.setOnReport(func(_ *Tests) { called = true })
 
 	if !r.Run(context.Background()) {
 		t.Fatal("expected pass")
@@ -325,14 +325,14 @@ func TestParallelRunnerVerifyModeEmitsBothGroupsAndReport(t *testing.T) {
 	display := NewDisplay(NewTests(), colors)
 	display.SetOutput(&buf)
 	display.SetQuiet(true)
-	r.SetDisplay(display)
+	r.setDisplay(display)
 
 	r.AddTest("broken", "fixture", func(context.Context, string) (bool, error) {
 		return false, errors.New("broken")
 	})
 
 	var reportCalled bool
-	r.SetOnReport(func(tests *Tests) {
+	r.setOnReport(func(tests *Tests) {
 		reportCalled = true
 	})
 
@@ -367,14 +367,14 @@ func TestParallelRunnerQuietSuppressesReports(t *testing.T) {
 	display := NewDisplay(NewTests(), colors)
 	display.SetOutput(&buf)
 	display.SetQuiet(true)
-	r.SetDisplay(display)
+	r.setDisplay(display)
 
 	r.AddTest("broken", "fixture", func(context.Context, string) (bool, error) {
 		return false, errors.New("broken")
 	})
 
 	reportCalled := false
-	r.SetOnReport(func(_ *Tests) { reportCalled = true })
+	r.setOnReport(func(_ *Tests) { reportCalled = true })
 
 	if r.Run(context.Background()) {
 		t.Fatal("expected failure")
@@ -401,7 +401,7 @@ func TestParallelRunnerAddTestWithNickRegistersStableNick(t *testing.T) {
 	if got := r.display.tests.GetByNick("X"); got != rec {
 		t.Fatalf("stable nick lookup returned %p, want %p", got, rec)
 	}
-	if got := r.display.tests.FailedNicks(); len(got) != 1 || got[0] != "X" {
+	if got := r.display.tests.failedNicks(); len(got) != 1 || got[0] != "X" {
 		t.Fatalf("failed nicks = %v, want [X]", got)
 	}
 }

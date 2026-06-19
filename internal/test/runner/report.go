@@ -20,8 +20,8 @@ type Report struct {
 	hostLoad *HostLoad // snapshot at run start; attached to failure groups when contended
 }
 
-// NewReport creates a new report generator.
-func NewReport(colors *Colors) *Report {
+// newReport creates a new report generator.
+func newReport(colors *Colors) *Report {
 	return &Report{
 		colors: colors,
 		output: os.Stdout,
@@ -38,13 +38,13 @@ func (r *Report) SetLabel(label string) {
 	r.label = label
 }
 
-// SetHostLoad records the host load snapshot taken at run start.
-func (r *Report) SetHostLoad(h *HostLoad) {
+// setHostLoad records the host load snapshot taken at run start.
+func (r *Report) setHostLoad(h *HostLoad) {
 	r.hostLoad = h
 }
 
-// PrintFailure prints a detailed failure report for a test.
-func (r *Report) PrintFailure(rec *Record) {
+// printFailure prints a detailed failure report for a test.
+func (r *Report) printFailure(rec *Record) {
 	c := r.colors
 
 	// Header
@@ -222,7 +222,7 @@ func (r *Report) printMismatchReport(rec *Record) {
 	// the test identifier, not the connection letter. Just show first message.
 	// Future: parse actual connection info from testpeer output.
 	expectedIdx := msgIdx
-	if msg := rec.GetMessage(expectedIdx); msg != nil {
+	if msg := rec.getMessage(expectedIdx); msg != nil {
 		if msg.Cmd != "" {
 			r.writef("%s     %s\n", c.Yellow("cmd:"), msg.Cmd)
 		}
@@ -262,7 +262,7 @@ func (r *Report) printMismatchReport(rec *Record) {
 	r.writeln(c.Yellow("DIFF:"))
 	r.writeln(c.LineSeparator())
 
-	if msg := rec.GetMessage(expectedIdx); msg != nil && rcvIdx < len(rec.ReceivedRaw) {
+	if msg := rec.getMessage(expectedIdx); msg != nil && rcvIdx < len(rec.ReceivedRaw) {
 		received := rec.ReceivedRaw[rcvIdx]
 		diff := ColoredDiff(msg.RawHex, received, c)
 		r.write(diff)
@@ -334,7 +334,7 @@ func (r *Report) printDebugCommands(rec *Record) {
 		suite = defaultFailureSuite
 	}
 	r.writef("%s\n", c.Gray("# Run single test:"))
-	r.writef("%s\n\n", FormatRecordRerunCommand(suite, rec))
+	r.writef("%s\n\n", formatRecordRerunCommand(suite, rec))
 	if supportsServerClientDebug(suite) {
 		r.writef("%s\n", c.Gray("# Run test manually (server/client):"))
 		r.writef("%s\n", FormatRerunCommand(suite, []string{"--server", rec.Nick}))
@@ -343,10 +343,10 @@ func (r *Report) printDebugCommands(rec *Record) {
 	r.writeln("")
 }
 
-// PrintAllFailures prints failure reports for all failed tests.
-func (r *Report) PrintAllFailures(tests *Tests) {
-	for _, rec := range tests.FailedRecords() {
-		r.PrintFailure(rec)
+// printAllFailures prints failure reports for all failed tests.
+func (r *Report) printAllFailures(tests *Tests) {
+	for _, rec := range tests.failedRecords() {
+		r.printFailure(rec)
 	}
 }
 

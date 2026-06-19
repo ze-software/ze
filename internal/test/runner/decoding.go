@@ -35,8 +35,8 @@ const (
 	msgTypeKeepalive    = "keepalive"
 )
 
-// DecodingTest holds a single decoding test case.
-type DecodingTest struct {
+// decodingTest holds a single decoding test case.
+type decodingTest struct {
 	BaseTest     // Embeds Name, Nick, Active, Error
 	File         string
 	Type         string   // "open", "update"
@@ -52,14 +52,14 @@ type DecodingTest struct {
 
 // DecodingTests manages decoding test discovery and execution.
 type DecodingTests struct {
-	*TestSet[*DecodingTest]
+	*TestSet[*decodingTest]
 	baseDir string
 }
 
 // NewDecodingTests creates a new decoding test manager.
 func NewDecodingTests(baseDir string) *DecodingTests {
 	return &DecodingTests{
-		TestSet: NewTestSet[*DecodingTest](),
+		TestSet: NewTestSet[*decodingTest](),
 		baseDir: baseDir,
 	}
 }
@@ -81,7 +81,7 @@ func (dt *DecodingTests) Discover(dir string) error {
 	ResetNickCounter()
 
 	for _, testFile := range files {
-		var test *DecodingTest
+		var test *decodingTest
 		var err error
 
 		if strings.HasSuffix(testFile, ".ci") {
@@ -100,7 +100,7 @@ func (dt *DecodingTests) Discover(dir string) error {
 }
 
 // parseTestFile parses a 3-line .test file.
-func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
+func (dt *DecodingTests) parseTestFile(filePath string) (*decodingTest, error) {
 	f, err := os.Open(filePath) //nolint:gosec // Test files from known directory
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 	name := strings.TrimSuffix(filepath.Base(filePath), ".test")
 	nick := GenerateNick(name)
 
-	return &DecodingTest{
+	return &decodingTest{
 		BaseTest: BaseTest{
 			Name: name,
 			Nick: nick,
@@ -157,7 +157,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 //
 //	decode=<type>:family=<family>:hex=<hex-payload>
 //	expect=json:json=<expected-json>
-func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
+func (dt *DecodingTests) parseCIFile(filePath string) (*decodingTest, error) {
 	f, err := os.Open(filePath) //nolint:gosec // Test files from known directory
 	if err != nil {
 		return nil, err
@@ -259,7 +259,7 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 	name := strings.TrimSuffix(filepath.Base(filePath), ".ci")
 	nick := GenerateNick(name)
 
-	return &DecodingTest{
+	return &decodingTest{
 		BaseTest: BaseTest{
 			Name: name,
 			Nick: nick,
@@ -378,8 +378,8 @@ func (dt *DecodingTests) List() {
 	writeTestListFooter()
 }
 
-// DecodingRunner executes decoding tests.
-type DecodingRunner struct {
+// decodingRunner executes decoding tests.
+type decodingRunner struct {
 	tests   *DecodingTests
 	baseDir string
 	zePath  string
@@ -387,8 +387,8 @@ type DecodingRunner struct {
 }
 
 // NewDecodingRunner creates a decoding test runner.
-func NewDecodingRunner(tests *DecodingTests, baseDir, zePath string) *DecodingRunner {
-	return &DecodingRunner{
+func NewDecodingRunner(tests *DecodingTests, baseDir, zePath string) *decodingRunner {
+	return &decodingRunner{
 		tests:   tests,
 		baseDir: baseDir,
 		zePath:  zePath,
@@ -397,7 +397,7 @@ func NewDecodingRunner(tests *DecodingTests, baseDir, zePath string) *DecodingRu
 }
 
 // Run executes selected tests in parallel with real-time progress display.
-func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
+func (r *decodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	selected := r.tests.Selected()
 	if len(selected) == 0 {
 		fmt.Fprintln(os.Stdout, "No tests selected") //nolint:errcheck // user output
@@ -405,16 +405,16 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	}
 
 	// Create parallel runner with generic type for direct test access
-	runner := NewParallelRunner[*DecodingTest](r.colors)
+	runner := NewParallelRunner[*decodingTest](r.colors)
 	runner.SetQuiet(quiet)
 	runner.SetVerbose(verbose)
 	runner.SetLabel("decode")
-	runner.SetNoHeader(true) // header managed by caller
+	runner.setNoHeader(true) // header managed by caller
 	runner.SetBaseDir(r.baseDir)
 
 	// Add tests to runner
 	for _, test := range selected {
-		runner.AddTestWithNick(test.Name, test.Nick, test, func(runCtx context.Context, t *DecodingTest) (bool, error) {
+		runner.AddTestWithNick(test.Name, test.Nick, test, func(runCtx context.Context, t *decodingTest) (bool, error) {
 			success := r.runTest(runCtx, t)
 			if !success {
 				return false, t.Error
@@ -424,7 +424,7 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	}
 
 	// Set failure callback for verbose output
-	runner.SetOnFail(func(test *DecodingTest, _ error) {
+	runner.SetOnFail(func(test *decodingTest, _ error) {
 		fmt.Fprintf(os.Stdout, "%s %s: %v\n", r.colors.Red("✗"), test.Name, test.Error) //nolint:errcheck // user output
 		if test.ActualJSON != "" {
 			r.printJSONDiff(test)
@@ -435,7 +435,7 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 }
 
 // runTest executes a single decoding test.
-func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
+func (r *decodingRunner) runTest(ctx context.Context, test *decodingTest) bool {
 	// Build command args
 	args := []string{"bgp", "decode"}
 
@@ -495,7 +495,7 @@ func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 }
 
 // compareJSON compares actual vs expected JSON, ignoring volatile fields.
-func (r *DecodingRunner) compareJSON(test *DecodingTest) bool {
+func (r *decodingRunner) compareJSON(test *decodingTest) bool {
 	// Parse both JSONs
 	var actual, expected map[string]any
 	if err := json.Unmarshal([]byte(test.ActualJSON), &actual); err != nil {
@@ -556,7 +556,7 @@ func normalizeNeighborSection(m map[string]any) {
 }
 
 // printJSONDiff prints a diff between actual and expected JSON.
-func (r *DecodingRunner) printJSONDiff(test *DecodingTest) {
+func (r *decodingRunner) printJSONDiff(test *decodingTest) {
 	fmt.Println("  Expected:")
 	var expected map[string]any
 	if err := json.Unmarshal([]byte(test.ExpectedJSON), &expected); err == nil {

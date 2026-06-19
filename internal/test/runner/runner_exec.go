@@ -852,9 +852,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// above, so a cmd=foreground test that only checked stdout/stderr/files (no
 	// expect=exit) had every assertion silently skipped and then fell through to
 	// a default "unknown" failure (handover §3).
-	if rec.ExpectStderrMatch != "" {
-		if !strings.Contains(rec.ClientOutput, rec.ExpectStderrMatch) {
-			rec.Error = fmt.Errorf("stderr does not contain %q", rec.ExpectStderrMatch)
+	for _, expected := range rec.ExpectStderrMatch {
+		if !strings.Contains(rec.ClientOutput, expected) {
+			rec.Error = fmt.Errorf("stderr does not contain %q", expected)
 			rec.FailureType = "stderr_mismatch"
 			recStep("stderr-contains", false, rec.Error.Error())
 			return false
@@ -864,7 +864,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	for _, expected := range rec.ExpectStdoutMatch {
 		if !strings.Contains(rec.ClientOutput, expected) {
 			rec.Error = fmt.Errorf("stdout does not contain %q", expected)
-			rec.FailureType = "stdout_mismatch"
+			rec.FailureType = FailTypeStdoutMismatch
 			recStep("stdout-contains", false, rec.Error.Error())
 			return false
 		}
@@ -873,7 +873,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	for _, forbidden := range rec.ExpectStdoutNotMatch {
 		if strings.Contains(rec.ClientOutput, forbidden) {
 			rec.Error = fmt.Errorf("stdout unexpectedly contains %q", forbidden)
-			rec.FailureType = "stdout_mismatch"
+			rec.FailureType = FailTypeStdoutMismatch
 			recStep("stdout-not-contains", false, rec.Error.Error())
 			return false
 		}
@@ -883,13 +883,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		re, err := regexp.Compile(pattern)
 		if err != nil {
 			rec.Error = fmt.Errorf("invalid stdout regex %q: %w", pattern, err)
-			rec.FailureType = "stdout_mismatch"
+			rec.FailureType = FailTypeStdoutMismatch
 			recStep("stdout-regex", false, rec.Error.Error())
 			return false
 		}
 		if !re.MatchString(rec.ClientOutput) {
 			rec.Error = fmt.Errorf("stdout does not match regex %q", pattern)
-			rec.FailureType = "stdout_mismatch"
+			rec.FailureType = FailTypeStdoutMismatch
 			recStep("stdout-regex", false, rec.Error.Error())
 			return false
 		}
@@ -899,13 +899,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		re, err := regexp.Compile(pattern)
 		if err != nil {
 			rec.Error = fmt.Errorf("invalid reject stdout regex %q: %w", pattern, err)
-			rec.FailureType = "stdout_mismatch"
+			rec.FailureType = FailTypeStdoutMismatch
 			recStep("stdout-reject-regex", false, rec.Error.Error())
 			return false
 		}
 		if re.MatchString(rec.ClientOutput) {
 			rec.Error = fmt.Errorf("stdout matches forbidden regex %q", pattern)
-			rec.FailureType = "stdout_mismatch"
+			rec.FailureType = FailTypeStdoutMismatch
 			recStep("stdout-reject-regex", false, rec.Error.Error())
 			return false
 		}
@@ -920,7 +920,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// The !hasPeer guard matters: a peer test may also declare file checks, and
 	// it must still fail when the BGP exchange mismatches rather than passing on
 	// the file checks alone.
-	hasOutputAssertion := rec.ExpectStderrMatch != "" ||
+	hasOutputAssertion := len(rec.ExpectStderrMatch) > 0 ||
 		len(rec.ExpectStdoutMatch) > 0 ||
 		len(rec.ExpectStdoutNotMatch) > 0 ||
 		len(rec.ExpectStdoutRegex) > 0 ||

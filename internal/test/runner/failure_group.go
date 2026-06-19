@@ -16,8 +16,8 @@ const (
 	editorSuite              = "editor"
 )
 
-// FailureGroup is the native suite-local failure routing unit emitted by ze-test.
-type FailureGroup struct {
+// failureGroup is the native suite-local failure routing unit emitted by ze-test.
+type failureGroup struct {
 	Stage     string    `json:"stage"`
 	GroupID   string    `json:"group-id"`
 	Kind      string    `json:"kind"`
@@ -29,14 +29,14 @@ type FailureGroup struct {
 	HostLoad  *HostLoad `json:"host-load,omitempty"`
 }
 
-// GroupFunctionalFailures groups failed records by suite, failure kind, and a
+// groupFunctionalFailures groups failed records by suite, failure kind, and a
 // suite-specific routing key. When load is non-nil and contended, each group
 // gets the load context for downstream classification.
-func GroupFunctionalFailures(suite string, records []*Record, load *HostLoad) []FailureGroup {
+func groupFunctionalFailures(suite string, records []*Record, load *HostLoad) []failureGroup {
 	if suite == "" {
 		suite = defaultFailureSuite
 	}
-	byKey := map[string]*FailureGroup{}
+	byKey := map[string]*failureGroup{}
 	order := []string{}
 	subjects := map[string]string{}
 	for _, rec := range records {
@@ -46,7 +46,7 @@ func GroupFunctionalFailures(suite string, records []*Record, load *HostLoad) []
 		key := tb.Str(suite).Byte(':').Str(kind).Byte(':').Str(target.Key).String()
 		group, ok := byKey[key]
 		if !ok {
-			group = &FailureGroup{
+			group = &failureGroup{
 				Stage:    suite,
 				GroupID:  key,
 				Kind:     kind,
@@ -62,7 +62,7 @@ func GroupFunctionalFailures(suite string, records []*Record, load *HostLoad) []
 	if load != nil && load.Contended() {
 		contendedLoad = load
 	}
-	groups := make([]FailureGroup, 0, len(order))
+	groups := make([]failureGroup, 0, len(order))
 	for _, key := range order {
 		group := byKey[key]
 		group.Rerun = FormatRerunCommand(group.Stage, group.Related)
@@ -179,7 +179,7 @@ func FormatRerunCommand(suite string, args []string) string {
 	return textbuf.Join(quoteCommand(command), " ")
 }
 
-func FormatRecordRerunCommand(suite string, rec *Record) string {
+func formatRecordRerunCommand(suite string, rec *Record) string {
 	if rec == nil {
 		return FormatRerunCommand(suite, nil)
 	}
@@ -230,8 +230,8 @@ func quoteCommand(args []string) []string {
 	return quoted
 }
 
-func (r *Report) PrintFailureGroups(tests *Tests) {
-	groups := GroupFunctionalFailures(r.label, tests.FailedRecords(), r.hostLoad)
+func (r *Report) printFailureGroups(tests *Tests) {
+	groups := groupFunctionalFailures(r.label, tests.failedRecords(), r.hostLoad)
 	if len(groups) == 0 {
 		return
 	}

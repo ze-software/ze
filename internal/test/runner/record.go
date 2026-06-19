@@ -7,7 +7,6 @@ package runner
 import (
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -38,6 +37,7 @@ const (
 	FailTypeJSONMismatch     = "json_mismatch"
 	FailTypeLoggingMismatch  = "logging_mismatch"
 	FailTypeConnectionRefuse = "connection_refused"
+	FailTypeStdoutMismatch   = "stdout_mismatch"
 )
 
 const (
@@ -72,8 +72,8 @@ func (s State) String() string {
 	}
 }
 
-// MessageExpect holds an expected message in multiple formats.
-type MessageExpect struct {
+// messageExpect holds an expected message in multiple formats.
+type messageExpect struct {
 	Index   int    // Message number (1, 2, 3...)
 	Cmd     string // Human-readable API command (if present)
 	Raw     []byte // Wire format bytes
@@ -104,7 +104,7 @@ type Record struct {
 	Conf    map[string]any
 
 	// Expected messages (multiple formats)
-	Messages []MessageExpect
+	Messages []messageExpect
 
 	// Legacy expects (raw strings for backward compat)
 	Expects []string
@@ -131,7 +131,7 @@ type Record struct {
 
 	// Exit code validation
 	ExpectExitCode       *int     // expect:exit:code=N - expected exit code (nil = don't check)
-	ExpectStderrMatch    string   // expect=stderr:contains=TEXT - substring match (not regex)
+	ExpectStderrMatch    []string // expect=stderr:contains=TEXT - substring match (not regex), multiple allowed
 	ExpectStdoutMatch    []string // expect=stdout:contains=TEXT - substring match (not regex), multiple allowed
 	ExpectStdoutNotMatch []string // expect=stdout:!contains=TEXT - stdout must NOT contain TEXT, multiple allowed
 	ExpectStdoutRegex    []string // expect=stdout:pattern=PATTERN (regex)
@@ -148,11 +148,11 @@ type Record struct {
 	RunCommands []RunCommand // run= commands in order
 
 	// HTTP checks for web endpoint assertions
-	HTTPChecks []HTTPCheck // http= assertions in seq order
-	HTTPWaits  []HTTPCheck // http=wait readiness polls (run before checks)
+	HTTPChecks []httpCheck // http= assertions in seq order
+	HTTPWaits  []httpCheck // http=wait readiness polls (run before checks)
 
 	// File checks for post-run filesystem assertions.
-	FileChecks []FileCheck
+	FileChecks []fileCheck
 
 	// StepTrace records per-assertion outcomes for trace output.
 	StepTrace []trace.StepResult
@@ -179,14 +179,14 @@ type RunCommand struct {
 	Timeout string // Timeout for foreground processes (e.g., "10s")
 }
 
-// HTTPCheck represents an HTTP request assertion in a .ci test.
+// httpCheck represents an HTTP request assertion in a .ci test.
 // Format: http=get:seq=N:url=URL:status=CODE[:contains=TEXT]
 // Format: http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:sendfile=FILE][:content-type=TYPE][:insecure-tls=true]
 // Format: http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR]
 // "get"/"post" checks are assertions; "wait" polls until the condition is met
 // (retrying on both connection errors and content mismatches).
 // Executed after all cmd= processes start, with retry+backoff for startup.
-type HTTPCheck struct {
+type httpCheck struct {
 	Seq         int    // Execution order (lower first, among HTTP checks)
 	Method      string // HTTP method: "get", "post", or "wait"
 	URL         string // Request URL (supports $PORT substitution)
@@ -199,9 +199,9 @@ type HTTPCheck struct {
 	Timeout     string // Poll timeout for wait checks (default "15s")
 }
 
-// FileCheck represents an expect=file assertion in a .ci test.
+// fileCheck represents an expect=file assertion in a .ci test.
 // Path checks target one file. Glob checks target all files matching a pattern.
-type FileCheck struct {
+type fileCheck struct {
 	Path        string
 	Glob        string
 	Contains    string
@@ -211,8 +211,8 @@ type FileCheck struct {
 	Count       *int
 }
 
-// NewRecord creates a new test record.
-func NewRecord(name string) *Record {
+// newRecord creates a new test record.
+func newRecord(name string) *Record {
 	return &Record{
 		Name:   name,
 		Nick:   GenerateNick(name),
@@ -288,8 +288,8 @@ func (r *Record) Colored() string {
 	}
 }
 
-// GetMessage returns the message at the given index (1-based).
-func (r *Record) GetMessage(idx int) *MessageExpect {
+// getMessage returns the message at the given index (1-based).
+func (r *Record) getMessage(idx int) *messageExpect {
 	for i := range r.Messages {
 		if r.Messages[i].Index == idx {
 			return &r.Messages[i]
@@ -299,13 +299,13 @@ func (r *Record) GetMessage(idx int) *MessageExpect {
 }
 
 // getOrCreateMessage returns or creates a message at the given index.
-func (r *Record) getOrCreateMessage(idx int) *MessageExpect {
+func (r *Record) getOrCreateMessage(idx int) *messageExpect {
 	for i := range r.Messages {
 		if r.Messages[i].Index == idx {
 			return &r.Messages[i]
 		}
 	}
-	msg := MessageExpect{Index: idx}
+	msg := messageExpect{Index: idx}
 	r.Messages = append(r.Messages, msg)
 	// Sort by index
 	sort.Slice(r.Messages, func(i, j int) bool {
@@ -318,69 +318,4 @@ func (r *Record) getOrCreateMessage(idx int) *MessageExpect {
 		}
 	}
 	return nil
-}
-
-// ConnectionOffset returns the message index offset for API tests based on Nick.
-// Nick "A" or "1" -> 0, "B" or "2" -> 100, "C" or "3" -> 200, etc.
-// Only applies to API tests with single-letter connection identifiers (A, B, C, D).
-func (r *Record) ConnectionOffset() int {
-	// Only apply for API tests with single-letter Nick (multi-connection tests)
-	if !r.IsAPI || len(r.Nick) != 1 {
-		return 0
-	}
-	first := r.Nick[0]
-	// Only A-D are valid connection letters
-	if first >= 'A' && first <= 'D' {
-		return int(first-'A') * 100
-	}
-	if first >= 'a' && first <= 'd' {
-		return int(first-'a') * 100
-	}
-	return 0
-}
-
-// ReceivedMessageOffset returns the offset into ReceivedRaw for the current connection.
-// For connection C, this counts messages from A and B to find where C's messages start.
-// Only applies to API tests with single-letter connection identifiers.
-func (r *Record) ReceivedMessageOffset() int {
-	// Only apply for API tests with single-letter Nick (multi-connection tests)
-	if !r.IsAPI || len(r.Nick) != 1 {
-		return 0
-	}
-	first := r.Nick[0]
-	var connIdx int
-	// Only A-D are valid connection letters
-	if first >= 'A' && first <= 'D' {
-		connIdx = int(first - 'A')
-	} else if first >= 'a' && first <= 'd' {
-		connIdx = int(first - 'a')
-	}
-	if connIdx == 0 {
-		return 0
-	}
-
-	// Count messages from preceding connections
-	offset := 0
-	for _, exp := range r.Expects {
-		parts := strings.SplitN(exp, ":", 2)
-		if len(parts) < 2 {
-			continue
-		}
-		prefix := parts[0]
-		if prefix == "" {
-			continue
-		}
-		expFirst := prefix[0]
-		var expConn int
-		if expFirst >= 'A' && expFirst <= 'D' {
-			expConn = int(expFirst - 'A')
-		} else if expFirst >= 'a' && expFirst <= 'd' {
-			expConn = int(expFirst - 'a')
-		}
-		// Count raw messages from connections before the current one
-		if expConn < connIdx && strings.Contains(exp, ":raw:") {
-			offset++
-		}
-	}
-	return offset
 }

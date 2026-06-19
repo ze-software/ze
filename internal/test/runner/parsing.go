@@ -43,8 +43,8 @@ type ciCommand struct {
 	RejectStderrRe  []*regexp.Regexp
 }
 
-// ParsingTest holds a single parsing test case.
-type ParsingTest struct {
+// parsingTest holds a single parsing test case.
+type parsingTest struct {
 	BaseTest // Embeds Name, Nick, Active, Error
 	File     string
 
@@ -81,14 +81,14 @@ type ParsingTest struct {
 
 // ParsingTests manages parsing test discovery and execution.
 type ParsingTests struct {
-	*TestSet[*ParsingTest]
+	*TestSet[*parsingTest]
 	baseDir string
 }
 
 // NewParsingTests creates a new parsing test manager.
 func NewParsingTests(baseDir string) *ParsingTests {
 	return &ParsingTests{
-		TestSet: NewTestSet[*ParsingTest](),
+		TestSet: NewTestSet[*parsingTest](),
 		baseDir: baseDir,
 	}
 }
@@ -136,7 +136,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 			name := filepath.Base(confFile)
 			nick := GenerateNick(name)
 
-			test := &ParsingTest{
+			test := &parsingTest{
 				BaseTest: BaseTest{
 					Name: tb.Reset().Str("valid/").Str(name).String(),
 					Nick: nick,
@@ -175,7 +175,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 
 			nick := GenerateNick(name)
 
-			test := &ParsingTest{
+			test := &parsingTest{
 				BaseTest: BaseTest{
 					Name: tbE.Reset().Str("invalid/").Str(name).String(),
 					Nick: nick,
@@ -211,7 +211,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 // parseCIFile parses a .ci file for parsing tests.
 // Uses tmpfs.ReadFrom to handle stdin= and tmpfs= blocks, then parses
 // cmd=, expect=, reject=, and option= directives from remaining lines.
-func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
+func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 	v, err := tmpfs.ReadFrom(filePath)
 	if err != nil {
 		return nil, err
@@ -220,7 +220,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 	name := strings.TrimSuffix(filepath.Base(filePath), ".ci")
 	nick := GenerateNick(name)
 
-	test := &ParsingTest{
+	test := &parsingTest{
 		BaseTest: BaseTest{
 			Name: name,
 			Nick: nick,
@@ -387,8 +387,8 @@ func (pt *ParsingTests) List() {
 	writeTestListFooter()
 }
 
-// ParsingRunner executes parsing tests.
-type ParsingRunner struct {
+// parsingRunner executes parsing tests.
+type parsingRunner struct {
 	tests   *ParsingTests
 	baseDir string
 	zePath  string
@@ -396,8 +396,8 @@ type ParsingRunner struct {
 }
 
 // NewParsingRunner creates a parsing test runner.
-func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *ParsingRunner {
-	return &ParsingRunner{
+func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *parsingRunner {
+	return &parsingRunner{
 		tests:   tests,
 		baseDir: baseDir,
 		zePath:  zePath,
@@ -406,7 +406,7 @@ func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *ParsingRunne
 }
 
 // Run executes selected tests in parallel with real-time progress display.
-func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
+func (r *parsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	selected := r.tests.Selected()
 	if len(selected) == 0 {
 		fmt.Fprintln(os.Stdout, "No tests selected") //nolint:errcheck // user output
@@ -414,15 +414,15 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	}
 
 	// Create parallel runner with generic type for direct test access
-	runner := NewParallelRunner[*ParsingTest](r.colors)
+	runner := NewParallelRunner[*parsingTest](r.colors)
 	runner.SetQuiet(quiet)
 	runner.SetVerbose(verbose)
 	runner.SetLabel("parse")
-	runner.SetNoHeader(true) // header managed by caller
+	runner.setNoHeader(true) // header managed by caller
 	runner.SetBaseDir(r.baseDir)
 
 	for _, test := range selected {
-		rec := runner.AddTestWithNick(test.Name, test.Nick, test, func(runCtx context.Context, t *ParsingTest) (bool, error) {
+		rec := runner.AddTestWithNick(test.Name, test.Nick, test, func(runCtx context.Context, t *parsingTest) (bool, error) {
 			success := r.runTest(runCtx, t)
 			if !success {
 				return false, t.Error
@@ -434,7 +434,7 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		rec.SkipReason = test.SkipReason
 	}
 
-	runner.SetOnFail(func(test *ParsingTest, _ error) {
+	runner.SetOnFail(func(test *parsingTest, _ error) {
 		fmt.Fprintf(os.Stdout, "\n%s %s: %v\n", r.colors.Red("✗"), test.Name, test.Error) //nolint:errcheck // user output
 		if test.File != "" {
 			fmt.Fprintf(os.Stdout, "  %s %s\n", r.colors.Gray("File:"), test.File) //nolint:errcheck // user output
@@ -447,7 +447,7 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 // runTest executes a single parsing test.
 // For .ci files with cmd= lines: executes each command in sequence with full
 // expectation checking. For legacy .conf files: runs ze config validate.
-func (r *ParsingRunner) runTest(ctx context.Context, test *ParsingTest) bool {
+func (r *parsingRunner) runTest(ctx context.Context, test *parsingTest) bool {
 	if len(test.Commands) > 0 {
 		return r.runCITest(ctx, test)
 	}
@@ -455,7 +455,7 @@ func (r *ParsingRunner) runTest(ctx context.Context, test *ParsingTest) bool {
 }
 
 // runCITest executes a .ci test with full cmd=, tmpfs, stdin, expect, reject support.
-func (r *ParsingRunner) runCITest(ctx context.Context, test *ParsingTest) bool {
+func (r *parsingRunner) runCITest(ctx context.Context, test *parsingTest) bool {
 	workDir, setupErr := r.setupWorkDir(test)
 	if setupErr != nil {
 		test.Error = setupErr
@@ -478,7 +478,7 @@ func (r *ParsingRunner) runCITest(ctx context.Context, test *ParsingTest) bool {
 	return true
 }
 
-func (r *ParsingRunner) setupWorkDir(test *ParsingTest) (string, error) {
+func (r *parsingRunner) setupWorkDir(test *parsingTest) (string, error) {
 	workDir, mkErr := os.MkdirTemp("", "ze-parse-ci-*")
 	if mkErr != nil {
 		return "", fmt.Errorf("create work dir: %w", mkErr)
@@ -509,7 +509,7 @@ func (r *ParsingRunner) setupWorkDir(test *ParsingTest) (string, error) {
 }
 
 // runOneCommand executes a single cmd= and checks its expectations.
-func (r *ParsingRunner) runOneCommand(ctx context.Context, test *ParsingTest, ci *ciCommand, workDir string, allOutput *strings.Builder) bool {
+func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci *ciCommand, workDir string, allOutput *strings.Builder) bool {
 	cmdLine := ci.Exec
 	if strings.HasPrefix(cmdLine, "ze ") {
 		cmdLine = r.zePath + cmdLine[2:]
@@ -618,7 +618,7 @@ func checkExpectations(ci *ciCommand, stdout, stderr string) string {
 }
 
 // runLegacyTest handles .conf files (valid/ and invalid/ directories).
-func (r *ParsingRunner) runLegacyTest(ctx context.Context, test *ParsingTest) bool {
+func (r *parsingRunner) runLegacyTest(ctx context.Context, test *parsingTest) bool {
 	configPath := test.File
 
 	if test.InlineConfig != nil {
@@ -734,7 +734,7 @@ func containsDash(parts []string) bool {
 }
 
 // Build compiles ze for parsing tests.
-func (r *ParsingRunner) Build(ctx context.Context) error {
+func (r *parsingRunner) Build(ctx context.Context) error {
 	// Use the provided zePath - assume it's already built
 	if _, err := os.Stat(r.zePath); err != nil {
 		return fmt.Errorf("ze binary not found at %s: %w", r.zePath, err)
