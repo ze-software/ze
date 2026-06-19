@@ -1,4 +1,6 @@
 // Design: plan/spec-mpls-3-rsvp-te.md -- make-before-break reroute (AC-7)
+// RFC: rfc/short/rfc3209.md
+// RFC: rfc/short/rfc2205.md
 // Related: engine.go -- sends the new PATH and tears the old LSP once up
 // Related: fsm.go -- LSP.Replaces links the new LSP to the one it supersedes
 //
@@ -71,42 +73,46 @@ func (e *engine) reroute(oldKey lspKey, newERO []eroHop) (lspKey, bool) {
 	return newKey, true
 }
 
-// tearReplaced tears down the LSP a make-before-break replacement supersedes,
-// sending a PathTear toward its egress and releasing its admission bandwidth.
-func (e *engine) tearReplaced(oldKey lspKey) {
-	old := e.table.Remove(oldKey)
-	if old == nil {
+// teardownLSP tears down an ingress LSP this node head-ends: it sends a PathTear
+// toward the egress so transit and egress nodes clear their state hop-by-hop (RFC
+// 2205 Section 3.1.5), and releases the LSP's push entry, admission bandwidth and
+// label. It is the head-end mirror of handlePathTear's relay-and-clean, used both
+// to retire the old LSP after a make-before-break reroute (RFC 3209 Section 6.1)
+// and to remove a tunnel deleted from configuration.
+func (e *engine) teardownLSP(key lspKey) {
+	lsp := e.table.Remove(key)
+	if lsp == nil {
 		return
 	}
 	// Snapshot the removed LSP's fields under its lock; a refresh or show
 	// goroutine may still hold a reference until it next consults the table.
-	old.mu.Lock()
-	psb := old.PSB
-	dst := old.NextHop
-	bandwidth := old.Bandwidth
-	inLabel := old.InLabel
-	admIface := old.AdmissionIface
-	old.mu.Unlock()
+	lsp.mu.Lock()
+	psb := lsp.PSB
+	dst := lsp.NextHop
+	bandwidth := lsp.Bandwidth
+	inLabel := lsp.InLabel
+	admIface := lsp.AdmissionIface
+	lsp.mu.Unlock()
 
 	if psb != nil {
 		raw := buildPathTear(psb, e.cfg.RouterID)
 		if !dst.IsValid() {
-			dst = oldKey.TunnelEndpoint
+			dst = key.TunnelEndpoint
 		}
 		if err := e.transport.Send(dst, raw); err != nil {
-			e.log.Warn("rsvp-te: make-before-break old PathTear failed", "lsp", oldKey.String(), "error", err)
+			e.log.Warn("rsvp-te: head-end PathTear send failed", "lsp", key.String(), "error", err)
 		}
 	}
 	if admIface != "" {
-		e.admission.ReleaseSession(admIface, sessionFromKey(oldKey), float64(bandwidth))
+		e.admission.ReleaseSession(admIface, sessionFromKey(key), float64(bandwidth))
 	}
 	if e.fib != nil {
-		fec := netip.PrefixFrom(oldKey.TunnelEndpoint, oldKey.TunnelEndpoint.BitLen())
+		fec := netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen())
 		if err := e.fib.Remove(fec); err != nil {
-			e.log.Warn("rsvp-te: make-before-break old fib remove failed", "lsp", oldKey.String(), "error", err)
+			e.log.Warn("rsvp-te: head-end fib remove failed", "lsp", key.String(), "error", err)
 		}
 	}
 	e.table.releaseLabel(inLabel)
-	emitLSPDown(e.log, old, e.table.Len())
-	e.log.Info("rsvp-te: make-before-break old LSP torn down", "lsp", oldKey.String())
+	emitLSPDown(e.log, lsp, e.table.Len())
+	e.log.Info("rsvp-te: ingress LSP torn down", "lsp", key.String())
 }

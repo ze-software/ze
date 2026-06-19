@@ -428,7 +428,7 @@ func (e *engine) handleResvIngress(src netip.Addr, msg *ParsedMessage, lsp *LSP,
 
 	// RFC 3209 Section 6.1: now that the replacement is up, tear the old LSP.
 	if replaces != nil {
-		e.tearReplaced(*replaces)
+		e.teardownLSP(*replaces)
 	}
 }
 

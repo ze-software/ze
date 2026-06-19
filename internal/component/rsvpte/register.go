@@ -336,12 +336,22 @@ func runRSVPTEEngine(conn net.Conn) int {
 	lspTable := newLSPTable()
 	admission := newAdmissionController()
 
-	var activeCfg rsvpteConfig
-	var tunnelsMu sync.Mutex
+	var activeCfg, pendingCfg rsvpteConfig
+	var havePending bool
+	var eng *engine
+	var configuredTunnels map[lspKey]bool
+	var tunnelsMu sync.Mutex // guards activeCfg/pendingCfg/havePending, eng, configuredTunnels
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		_, err := parseConfig(sections)
-		return err
+		cfg, err := parseConfig(sections)
+		if err != nil {
+			return err
+		}
+		tunnelsMu.Lock()
+		pendingCfg = cfg
+		havePending = true
+		tunnelsMu.Unlock()
+		return nil
 	})
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -356,6 +366,25 @@ func runRSVPTEEngine(conn net.Conn) int {
 		return nil
 	})
 
+	// OnConfigApply is the reload-pipeline commit step (OnConfigure does not fire
+	// on reload). Adopt the verified pending config and reconcile the tunnel set so
+	// an added tunnel signals, a changed ERO reroutes (make-before-break), and a
+	// removed tunnel is torn down -- all without restarting the engine.
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		tunnelsMu.Lock()
+		defer tunnelsMu.Unlock()
+		if havePending {
+			activeCfg = pendingCfg
+			havePending = false
+		}
+		cfg := activeCfg
+		for _, iface := range cfg.Interfaces {
+			admission.setInterface(iface.Name, float64(iface.MaxBW), float64(iface.MaxReservableBW))
+		}
+		configuredTunnels = reconcileTunnels(log, lspTable, cfg, eng, configuredTunnels)
+		return nil
+	})
+
 	p.OnStarted(func(ctx context.Context) error {
 		cfg := activeCfg
 		if !cfg.RouterID.IsValid() {
@@ -366,14 +395,16 @@ func runRSVPTEEngine(conn net.Conn) int {
 		// Open the raw IP transport (protocol 46). On platforms without it, or
 		// without CAP_NET_RAW, the component stays up for config/show but cannot
 		// signal; this is logged rather than fatal.
-		var eng *engine
 		t, err := newTransport(cfg.RouterID)
 		if err != nil {
 			log.Warn("rsvp-te: raw IP transport unavailable, signaling disabled", "error", err)
 		} else {
-			eng = newEngine(t, lspTable, admission, newBusFIB(getEventBus(), log), cfg, log)
+			e := newEngine(t, lspTable, admission, newBusFIB(getEventBus(), log), cfg, log)
+			tunnelsMu.Lock()
+			eng = e
+			tunnelsMu.Unlock()
 			go func() {
-				eng.run(ctx)
+				e.run(ctx)
 				if cerr := t.Close(); cerr != nil {
 					log.Warn("rsvp-te: transport close", "error", cerr)
 				}
@@ -444,9 +475,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 		}
 
 		tunnelsMu.Lock()
-		for _, tc := range cfg.Tunnels {
-			setupTunnel(log, lspTable, tc, cfg, eng)
-		}
+		configuredTunnels = reconcileTunnels(log, lspTable, cfg, eng, configuredTunnels)
 		tunnelsMu.Unlock()
 
 		return nil
@@ -490,15 +519,45 @@ func addrToUint32(addr netip.Addr) uint32 {
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
-func setupTunnel(log *slog.Logger, lspTable *lspTable, tc tunnelConfig, cfg rsvpteConfig, eng *engine) {
-	extID := addrToUint32(cfg.RouterID)
-	key := lspKey{
+// tunnelKey is the LSP key a configured tunnel maps to: the head-end identity
+// (this router as sender, the tunnel's destination and ID). Shared by setupTunnel
+// and reconcileTunnels so the configured set and the live LSPs key identically.
+func tunnelKey(tc tunnelConfig, routerID netip.Addr) lspKey {
+	return lspKey{
 		TunnelEndpoint: tc.Destination,
 		TunnelID:       tc.TunnelID,
-		ExtTunnelID:    extID,
-		SenderAddr:     cfg.RouterID,
+		ExtTunnelID:    addrToUint32(routerID),
+		SenderAddr:     routerID,
 		LSPID:          1,
 	}
+}
+
+// reconcileTunnels brings the live LSP set in line with cfg's tunnels: it sets up
+// (or, for a changed ERO on an up LSP, reroutes) every configured tunnel and tears
+// down the head-end LSP of any tunnel removed since prev. It returns the new
+// configured-key set. eng may be nil (no transport): setup records intent only and
+// teardown is skipped, since there is no signaled LSP to remove.
+func reconcileTunnels(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine, prev map[lspKey]bool) map[lspKey]bool {
+	next := make(map[lspKey]bool, len(cfg.Tunnels))
+	for _, tc := range cfg.Tunnels {
+		setupTunnel(log, lspTable, tc, cfg, eng)
+		next[tunnelKey(tc, cfg.RouterID)] = true
+	}
+	if eng != nil {
+		for key := range prev {
+			if !next[key] {
+				eng.teardownLSP(key)
+				log.Info("rsvp-te: tunnel removed from config, LSP torn down",
+					"dest", key.TunnelEndpoint, "tunnel-id", key.TunnelID)
+			}
+		}
+	}
+	return next
+}
+
+func setupTunnel(log *slog.Logger, lspTable *lspTable, tc tunnelConfig, cfg rsvpteConfig, eng *engine) {
+	extID := addrToUint32(cfg.RouterID)
+	key := tunnelKey(tc, cfg.RouterID)
 
 	lsp, existed := lspTable.GetOrCreate(key)
 	if existed && lsp.State == LSPStateUp {

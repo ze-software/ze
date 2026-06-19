@@ -365,3 +365,168 @@ func TestEngineZeToZePathErrInterop(t *testing.T) {
 	assert.NotEqual(t, LSPStateUp, ingLSP.State, "ingress LSP must not come up on a PathErr")
 	assert.Empty(t, ingFib.pushed, "no push entry for a failed LSP")
 }
+
+// mustLSP fetches an LSP that must exist, failing the test otherwise.
+func mustLSP(t *testing.T, e *engine, key lspKey) *LSP {
+	t.Helper()
+	lsp, ok := e.table.Get(key)
+	require.True(t, ok, "LSP %s present", key.String())
+	return lsp
+}
+
+// VALIDATES: mpls-3 -- teardown round-trips and propagates. After a three-node LSP
+// is up, the head-end's teardownLSP sends a PathTear that each node decodes and acts
+// on: every node removes its LSP state and forwarding entry, and the transit relays
+// the PathTear on toward the egress. This is the head-end-originated teardown wired
+// into config removal (reconcileTunnels) and make-before-break.
+// PREVENTS: a PathTear that clears the head-end but strands transit swaps or the
+// egress pop in the FIB.
+func TestEngineZeToZeTeardownInterop(t *testing.T) {
+	fab := newFabric()
+	ingressAddr := netip.MustParseAddr("10.0.0.1")
+	transitAddr := netip.MustParseAddr("10.0.0.5")
+	egressAddr := netip.MustParseAddr("10.0.0.9")
+
+	ingress, ingFib := fabricEngine(t, fab, ingressAddr)
+	transit, trFib := fabricEngine(t, fab, transitAddr)
+	egress, egrFib := fabricEngine(t, fab, egressAddr)
+	nodes := map[netip.Addr]*engine{ingressAddr: ingress, transitAddr: transit, egressAddr: egress}
+
+	key := originateLSP(t, ingress, ingressAddr, egressAddr, 1, transitAddr, egressAddr)
+	fab.pump(t, nodes)
+	require.Equal(t, LSPStateUp, mustLSP(t, ingress, key).State, "LSP up before teardown")
+	require.Len(t, trFib.swapped, 1)
+	require.Len(t, egrFib.popped, 1)
+	transitInLabel := trFib.swapped[0].in
+	egressInLabel := egrFib.popped[0]
+
+	// Head-end tears the LSP down; the PathTear propagates downstream.
+	ingress.teardownLSP(key)
+	fab.pump(t, nodes)
+
+	// Every node dropped its LSP state.
+	assert.Empty(t, ingress.table.All(), "ingress state cleared")
+	assert.Empty(t, transit.table.All(), "transit state cleared")
+	assert.Empty(t, egress.table.All(), "egress state cleared")
+
+	// Every forwarding entry was withdrawn.
+	assert.Equal(t, []netip.Prefix{netip.PrefixFrom(egressAddr, 32)}, ingFib.removed, "ingress push withdrawn")
+	assert.Equal(t, []uint32{transitInLabel}, trFib.removedSwap, "transit swap withdrawn")
+	assert.Equal(t, []uint32{egressInLabel}, egrFib.removedSwap, "egress pop withdrawn")
+
+	// The PathTear was relayed hop-by-hop.
+	assert.Equal(t, 1, fab.delivered(transitAddr, MsgTypePathTear), "PathTear ingress->transit")
+	assert.Equal(t, 1, fab.delivered(egressAddr, MsgTypePathTear), "PathTear transit->egress")
+}
+
+// VALIDATES: mpls-3 -- soft-state refresh round-trips idempotently. After an LSP is
+// up, the head-end re-sends its PATH (RFC 2205 soft-state); the egress decodes the
+// refresh, keeps the same label and reservation, and does NOT pop a second time.
+// PREVENTS: a refresh PATH the egress mishandles as a new LSP -- re-allocating a
+// label, double-popping, or creating a duplicate session.
+func TestEngineZeToZeRefreshInterop(t *testing.T) {
+	fab := newFabric()
+	ingressAddr := netip.MustParseAddr("10.0.0.1")
+	egressAddr := netip.MustParseAddr("10.0.0.9")
+
+	ingress, _ := fabricEngine(t, fab, ingressAddr)
+	egress, egrFib := fabricEngine(t, fab, egressAddr)
+	nodes := map[netip.Addr]*engine{ingressAddr: ingress, egressAddr: egress}
+
+	key := originateLSP(t, ingress, ingressAddr, egressAddr, 1)
+	fab.pump(t, nodes)
+	require.Len(t, egrFib.popped, 1)
+	label := egrFib.popped[0]
+	require.Equal(t, label, mustLSP(t, ingress, key).OutLabel)
+
+	// Refresh: re-send the same PATH (what runRefreshLoop does for an ingress LSP).
+	require.NoError(t, ingress.sendPath(mustLSP(t, ingress, key)))
+	fab.pump(t, nodes)
+
+	assert.Len(t, egress.table.All(), 1, "refresh does not create a second egress LSP")
+	assert.Equal(t, LSPStateUp, mustLSP(t, egress, key).State, "egress still up after refresh")
+	assert.Len(t, egrFib.popped, 1, "egress does not pop again on refresh")
+	assert.Equal(t, label, egrFib.popped[0], "egress label stable across refresh")
+	assert.Equal(t, label, mustLSP(t, ingress, key).OutLabel, "ingress out-label stable")
+}
+
+// VALIDATES: mpls-3 -- admission rejection round-trips. The egress link is full, so
+// the egress rejects the reservation and encodes a PathErr (admission control
+// failure) instead of a RESV. The head-end decodes it: the LSP stays down with no
+// push, and no RESV is ever sent.
+// PREVENTS: an admission-failure PathErr the head-end misreads as success.
+func TestEngineZeToZeAdmissionDeniedInterop(t *testing.T) {
+	fab := newFabric()
+	ingressAddr := netip.MustParseAddr("10.0.0.1")
+	egressAddr := netip.MustParseAddr("10.0.0.9")
+
+	ingress, ingFib := fabricEngine(t, fab, ingressAddr)
+	egress, _ := fabricEngine(t, fab, egressAddr)
+	// One interface on the egress, filled: any further reservation is rejected.
+	egress.cfg.Interfaces = []ifaceConfig{{Name: "eth0", MaxBW: 1e9, MaxReservableBW: 1e9}}
+	egress.admission.setInterface("eth0", 1e9, 1e9)
+	require.NoError(t, egress.admission.Reserve("eth0", 1e9))
+	nodes := map[netip.Addr]*engine{ingressAddr: ingress, egressAddr: egress}
+
+	key := originateLSP(t, ingress, ingressAddr, egressAddr, 1)
+	fab.pump(t, nodes)
+
+	// The egress encoded a PathErr to the ingress; no RESV.
+	require.Equal(t, 1, fab.delivered(ingressAddr, MsgTypePathErr), "egress sent a PathErr")
+	assert.Zero(t, fab.delivered(ingressAddr, MsgTypeResv), "no RESV on admission failure")
+
+	// The ingress decoded it: LSP not up, nothing pushed.
+	assert.NotEqual(t, LSPStateUp, mustLSP(t, ingress, key).State, "ingress LSP must not come up")
+	assert.Empty(t, ingFib.pushed, "no push on a denied LSP")
+}
+
+// VALIDATES: mpls-3 -- make-before-break reroute round-trips across engines. An LSP
+// up via one transit is rerouted onto a path via a different transit; the new PATH
+// signals end-to-end and, once its RESV returns, the head-end tears the old LSP down
+// (PathTear via the old transit). The new LSP is up via the new transit and the old
+// is gone everywhere.
+// PREVENTS: a reroute that brings up the new path but strands the old LSP, or tears
+// the old before the new is up.
+func TestEngineZeToZeRerouteInterop(t *testing.T) {
+	fab := newFabric()
+	ingressAddr := netip.MustParseAddr("10.0.0.1")
+	transitA := netip.MustParseAddr("10.0.0.5")
+	transitB := netip.MustParseAddr("10.0.0.6")
+	egressAddr := netip.MustParseAddr("10.0.0.9")
+
+	ingress, _ := fabricEngine(t, fab, ingressAddr)
+	tA, tAFib := fabricEngine(t, fab, transitA)
+	tB, tBFib := fabricEngine(t, fab, transitB)
+	egress, _ := fabricEngine(t, fab, egressAddr)
+	nodes := map[netip.Addr]*engine{ingressAddr: ingress, transitA: tA, transitB: tB, egressAddr: egress}
+
+	// Up via transitA.
+	oldKey := originateLSP(t, ingress, ingressAddr, egressAddr, 1, transitA, egressAddr)
+	fab.pump(t, nodes)
+	require.Equal(t, LSPStateUp, mustLSP(t, ingress, oldKey).State)
+	require.Len(t, tAFib.swapped, 1, "transitA swapped for the original LSP")
+
+	// Reroute onto a path via transitB.
+	newERO := []eroHop{
+		{Address: netip.PrefixFrom(transitB, 32)},
+		{Address: netip.PrefixFrom(egressAddr, 32)},
+	}
+	newKey, ok := ingress.reroute(oldKey, newERO)
+	require.True(t, ok, "reroute started")
+	fab.pump(t, nodes)
+
+	// New LSP up via transitB.
+	newLSP, ok := ingress.table.Get(newKey)
+	require.True(t, ok)
+	assert.Equal(t, LSPStateUp, newLSP.State, "new LSP up")
+	assert.Equal(t, transitB, newLSP.NextHop, "new LSP routed via transitB")
+	require.Len(t, tBFib.swapped, 1, "transitB swapped for the new LSP")
+
+	// Old LSP torn down everywhere.
+	_, ok = ingress.table.Get(oldKey)
+	assert.False(t, ok, "old LSP removed at the head-end")
+	_, ok = tA.table.Get(oldKey)
+	assert.False(t, ok, "old LSP removed at transitA")
+	assert.Equal(t, 1, fab.delivered(transitA, MsgTypePathTear), "old PathTear relayed via transitA")
+	assert.Len(t, egress.table.All(), 1, "egress holds only the new LSP")
+}
