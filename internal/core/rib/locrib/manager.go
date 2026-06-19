@@ -193,7 +193,7 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	case !hadBest:
 		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest, Forward: forward})
 		retBest, changed = newBest, true
-	case prevBest != newBest:
+	case !prevBest.Equal(newBest):
 		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, Forward: forward})
 		retBest, changed = newBest, true
 	default:
@@ -254,7 +254,7 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 		sh.store.Delete(prefix)
 	}
 	depth := sh.store.Len()
-	changed := prevBest != newBest
+	changed := !prevBest.Equal(newBest)
 
 	if !newHad {
 		if hadBest {

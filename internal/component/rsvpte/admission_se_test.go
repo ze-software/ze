@@ -17,12 +17,12 @@ func seSession(tunnelID uint16) sessionID {
 // shares the reservation instead of double-counting it -- the bug this feature
 // fixes. Two 5Gbps LSPs of one session on an 8Gbps link both admit.
 func TestSEAdmissionMBBDoesNotDoubleReserve(t *testing.T) {
-	ac := NewAdmissionController()
-	ac.SetInterface("eth0", 10e9, 8e9)
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
 	sess := seSession(1)
 
-	require.NoError(t, ac.ReserveSession("eth0", sess, 5e9), "old LSP admits")
-	require.NoError(t, ac.ReserveSession("eth0", sess, 5e9), "MBB replacement shares, also admits")
+	require.NoError(t, ac.reserveSession("eth0", sess, 5e9), "old LSP admits")
+	require.NoError(t, ac.reserveSession("eth0", sess, 5e9), "MBB replacement shares, also admits")
 
 	ib, ok := ac.GetInterface("eth0")
 	require.True(t, ok)
@@ -32,11 +32,11 @@ func TestSEAdmissionMBBDoesNotDoubleReserve(t *testing.T) {
 // VALIDATES: without SE sharing the second 5Gbps reservation would exceed the
 // 8Gbps limit -- proves the test above is a real admission that SE enables.
 func TestSEAdmissionDistinctSessionsDoNotShare(t *testing.T) {
-	ac := NewAdmissionController()
-	ac.SetInterface("eth0", 10e9, 8e9)
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
 
-	require.NoError(t, ac.ReserveSession("eth0", seSession(1), 5e9))
-	err := ac.ReserveSession("eth0", seSession(2), 5e9)
+	require.NoError(t, ac.reserveSession("eth0", seSession(1), 5e9))
+	err := ac.reserveSession("eth0", seSession(2), 5e9)
 	assert.ErrorIs(t, err, errAdmissionDenied, "distinct sessions sum and exceed 8Gbps")
 
 	ib, _ := ac.GetInterface("eth0")
@@ -46,12 +46,12 @@ func TestSEAdmissionDistinctSessionsDoNotShare(t *testing.T) {
 // VALIDATES: a replacement that requests MORE bandwidth charges only the
 // increment (footprint growth), not the full new rate.
 func TestSEAdmissionLargerReplacementChargesDelta(t *testing.T) {
-	ac := NewAdmissionController()
-	ac.SetInterface("eth0", 10e9, 8e9)
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
 	sess := seSession(1)
 
-	require.NoError(t, ac.ReserveSession("eth0", sess, 3e9))
-	require.NoError(t, ac.ReserveSession("eth0", sess, 7e9), "footprint grows 3->7Gbps, delta 4Gbps fits")
+	require.NoError(t, ac.reserveSession("eth0", sess, 3e9))
+	require.NoError(t, ac.reserveSession("eth0", sess, 7e9), "footprint grows 3->7Gbps, delta 4Gbps fits")
 
 	ib, _ := ac.GetInterface("eth0")
 	assert.Equal(t, 7e9, ib.ReservedBandwidth, "footprint is the max, not 3+7")
@@ -61,12 +61,12 @@ func TestSEAdmissionLargerReplacementChargesDelta(t *testing.T) {
 // is released (the old LSP can be torn down after MBB without freeing the link
 // the new LSP still uses).
 func TestSEAdmissionReleaseKeepsSharedUntilLast(t *testing.T) {
-	ac := NewAdmissionController()
-	ac.SetInterface("eth0", 10e9, 8e9)
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
 	sess := seSession(1)
 
-	require.NoError(t, ac.ReserveSession("eth0", sess, 5e9))
-	require.NoError(t, ac.ReserveSession("eth0", sess, 5e9))
+	require.NoError(t, ac.reserveSession("eth0", sess, 5e9))
+	require.NoError(t, ac.reserveSession("eth0", sess, 5e9))
 
 	ac.ReleaseSession("eth0", sess, 5e9) // tear down the old LSP
 	ib, _ := ac.GetInterface("eth0")
@@ -80,7 +80,7 @@ func TestSEAdmissionReleaseKeepsSharedUntilLast(t *testing.T) {
 // VALIDATES: ReserveSession on an unconfigured interface is a no-op (accounting
 // skipped, mirroring Reserve) and never denies.
 func TestSEAdmissionUnconfiguredInterface(t *testing.T) {
-	ac := NewAdmissionController()
-	assert.NoError(t, ac.ReserveSession("eth99", seSession(1), 1e9))
+	ac := newAdmissionController()
+	assert.NoError(t, ac.reserveSession("eth99", seSession(1), 1e9))
 	assert.NotPanics(t, func() { ac.ReleaseSession("eth99", seSession(1), 1e9) })
 }

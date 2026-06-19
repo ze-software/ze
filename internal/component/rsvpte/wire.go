@@ -84,6 +84,12 @@ const (
 	MaxLabelStack = 16
 )
 
+// maxRecordRouteHops bounds the Record Route Object. RFC 3209 does not cap the
+// RRO, but an unbounded RRO (a routing loop, or a malicious peer) would overflow
+// the fixed maxRSVPMessage encode buffer. 32 hops is far beyond any real LSP and
+// keeps the encoded RRO (<= 20 bytes/hop) well inside the message buffer.
+const maxRecordRouteHops = 32
+
 // RFC 3209 Section 4.7.4: Style constants.
 const (
 	StyleWildcardFilter uint32 = 17
@@ -112,15 +118,14 @@ type Header struct {
 	Length   uint16
 }
 
-// EncodeHeader writes an RSVP common header. Returns bytes written.
-func EncodeHeader(buf []byte, h Header) int {
+// encodeHeader writes the fixed-size RSVP common header at the start of buf.
+func encodeHeader(buf []byte, h Header) {
 	buf[0] = (h.Version << 4) | (h.Flags & 0x0F)
 	buf[1] = h.MsgType
 	binary.BigEndian.PutUint16(buf[2:4], h.Checksum)
 	buf[4] = h.TTL
 	buf[5] = 0
 	binary.BigEndian.PutUint16(buf[6:8], h.Length)
-	return rsvpHdrLen
 }
 
 // DecodeHeader reads an RSVP common header.
@@ -142,48 +147,47 @@ func DecodeHeader(buf []byte) (Header, error) {
 	return h, nil
 }
 
-// ObjectHeader is a generic RSVP object header (RFC 2205 Section 3.1.2).
-type ObjectHeader struct {
+// objectHeader is a generic RSVP object header (RFC 2205 Section 3.1.2).
+type objectHeader struct {
 	Length   uint16
 	ClassNum uint8
 	CType    uint8
 }
 
-// EncodeObjectHeader writes an object header. Returns bytes written.
-func EncodeObjectHeader(buf []byte, o ObjectHeader) int {
+// encodeObjectHeader writes the fixed-size object header at the start of buf.
+func encodeObjectHeader(buf []byte, o objectHeader) {
 	binary.BigEndian.PutUint16(buf[0:2], o.Length)
 	buf[2] = o.ClassNum
 	buf[3] = o.CType
-	return objHdrLen
 }
 
-// DecodeObjectHeader reads an object header.
-func DecodeObjectHeader(buf []byte) (ObjectHeader, error) {
+// decodeObjectHeader reads an object header.
+func decodeObjectHeader(buf []byte) (objectHeader, error) {
 	if len(buf) < objHdrLen {
-		return ObjectHeader{}, errShortObject
+		return objectHeader{}, errShortObject
 	}
-	o := ObjectHeader{
+	o := objectHeader{
 		Length:   binary.BigEndian.Uint16(buf[0:2]),
 		ClassNum: buf[2],
 		CType:    buf[3],
 	}
 	if o.Length < objHdrLen {
-		return ObjectHeader{}, fmt.Errorf("%w: %d", errBadObjLen, o.Length)
+		return objectHeader{}, fmt.Errorf("%w: %d", errBadObjLen, o.Length)
 	}
 	return o, nil
 }
 
-// SessionIPv4 is the SESSION object for LSP tunnels (RFC 3209 Section 4.6.1).
-type SessionIPv4 struct {
+// sessionIPv4 is the SESSION object for LSP tunnels (RFC 3209 Section 4.6.1).
+type sessionIPv4 struct {
 	TunnelEndpoint netip.Addr
 	TunnelID       uint16
 	ExtTunnelID    uint32
 }
 
-// EncodeSessionIPv4 writes a SESSION object. Returns bytes written.
-func EncodeSessionIPv4(buf []byte, s SessionIPv4) int {
+// encodeSessionIPv4 writes a SESSION object. Returns bytes written.
+func encodeSessionIPv4(buf []byte, s sessionIPv4) int {
 	objLen := uint16(objHdrLen + 12)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassSession, CType: CTypeLSPTunnelIPv4})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassSession, CType: CTypeLSPTunnelIPv4})
 	addr := s.TunnelEndpoint.As4()
 	copy(buf[4:8], addr[:])
 	buf[8] = 0
@@ -193,12 +197,12 @@ func EncodeSessionIPv4(buf []byte, s SessionIPv4) int {
 	return int(objLen)
 }
 
-// DecodeSessionIPv4 reads a SESSION object body (after object header).
-func DecodeSessionIPv4(body []byte) (SessionIPv4, error) {
+// decodeSessionIPv4 reads a SESSION object body (after object header).
+func decodeSessionIPv4(body []byte) (sessionIPv4, error) {
 	if len(body) < 12 {
-		return SessionIPv4{}, errShortObject
+		return sessionIPv4{}, errShortObject
 	}
-	s := SessionIPv4{
+	s := sessionIPv4{
 		TunnelEndpoint: netip.AddrFrom4([4]byte(body[0:4])),
 		TunnelID:       binary.BigEndian.Uint16(body[6:8]),
 		ExtTunnelID:    binary.BigEndian.Uint32(body[8:12]),
@@ -206,16 +210,16 @@ func DecodeSessionIPv4(body []byte) (SessionIPv4, error) {
 	return s, nil
 }
 
-// SenderTemplateIPv4 is the SENDER_TEMPLATE object (RFC 3209 Section 4.6.2).
-type SenderTemplateIPv4 struct {
+// senderTemplateIPv4 is the SENDER_TEMPLATE object (RFC 3209 Section 4.6.2).
+type senderTemplateIPv4 struct {
 	SenderAddr netip.Addr
 	LSPID      uint16
 }
 
-// EncodeSenderTemplate writes a SENDER_TEMPLATE object. Returns bytes written.
-func EncodeSenderTemplate(buf []byte, st SenderTemplateIPv4) int {
+// encodeSenderTemplate writes a SENDER_TEMPLATE object. Returns bytes written.
+func encodeSenderTemplate(buf []byte, st senderTemplateIPv4) int {
 	objLen := uint16(objHdrLen + 8)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassSenderTemplate, CType: CTypeLSPTunnelIPv4})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassSenderTemplate, CType: CTypeLSPTunnelIPv4})
 	addr := st.SenderAddr.As4()
 	copy(buf[4:8], addr[:])
 	buf[8] = 0
@@ -224,125 +228,125 @@ func EncodeSenderTemplate(buf []byte, st SenderTemplateIPv4) int {
 	return int(objLen)
 }
 
-// DecodeSenderTemplate reads a SENDER_TEMPLATE object body.
-func DecodeSenderTemplate(body []byte) (SenderTemplateIPv4, error) {
+// decodeSenderTemplate reads a SENDER_TEMPLATE object body.
+func decodeSenderTemplate(body []byte) (senderTemplateIPv4, error) {
 	if len(body) < 8 {
-		return SenderTemplateIPv4{}, errShortObject
+		return senderTemplateIPv4{}, errShortObject
 	}
-	return SenderTemplateIPv4{
+	return senderTemplateIPv4{
 		SenderAddr: netip.AddrFrom4([4]byte(body[0:4])),
 		LSPID:      binary.BigEndian.Uint16(body[6:8]),
 	}, nil
 }
 
-// RSVPHop is the RSVP_HOP object (RFC 2205 Section A.2).
-type RSVPHop struct {
+// rsvpHop is the RSVP_HOP object (RFC 2205 Section A.2).
+type rsvpHop struct {
 	NextHop netip.Addr
 	LIH     uint32
 }
 
-// EncodeRSVPHop writes an RSVP_HOP object. Returns bytes written.
-func EncodeRSVPHop(buf []byte, h RSVPHop) int {
+// encodeRSVPHop writes an RSVP_HOP object. Returns bytes written.
+func encodeRSVPHop(buf []byte, h rsvpHop) int {
 	objLen := uint16(objHdrLen + 8)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassRSVPHop, CType: CTypeIPv4})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassRSVPHop, CType: CTypeIPv4})
 	addr := h.NextHop.As4()
 	copy(buf[4:8], addr[:])
 	binary.BigEndian.PutUint32(buf[8:12], h.LIH)
 	return int(objLen)
 }
 
-// DecodeRSVPHop reads an RSVP_HOP object body.
-func DecodeRSVPHop(body []byte) (RSVPHop, error) {
+// decodeRSVPHop reads an RSVP_HOP object body.
+func decodeRSVPHop(body []byte) (rsvpHop, error) {
 	if len(body) < 8 {
-		return RSVPHop{}, errShortObject
+		return rsvpHop{}, errShortObject
 	}
-	return RSVPHop{
+	return rsvpHop{
 		NextHop: netip.AddrFrom4([4]byte(body[0:4])),
 		LIH:     binary.BigEndian.Uint32(body[4:8]),
 	}, nil
 }
 
-// TimeValues is the TIME_VALUES object (RFC 2205 Section A.4).
-type TimeValues struct {
+// timeValues is the TIME_VALUES object (RFC 2205 Section A.4).
+type timeValues struct {
 	RefreshPeriod uint32
 }
 
-// EncodeTimeValues writes a TIME_VALUES object. Returns bytes written.
-func EncodeTimeValues(buf []byte, tv TimeValues) int {
+// encodeTimeValues writes a TIME_VALUES object. Returns bytes written.
+func encodeTimeValues(buf []byte, tv timeValues) int {
 	objLen := uint16(objHdrLen + 4)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassTimeValues, CType: CTypeGeneric})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassTimeValues, CType: CTypeGeneric})
 	binary.BigEndian.PutUint32(buf[4:8], tv.RefreshPeriod)
 	return int(objLen)
 }
 
-// DecodeTimeValues reads a TIME_VALUES object body.
-func DecodeTimeValues(body []byte) (TimeValues, error) {
+// decodeTimeValues reads a TIME_VALUES object body.
+func decodeTimeValues(body []byte) (timeValues, error) {
 	if len(body) < 4 {
-		return TimeValues{}, errShortObject
+		return timeValues{}, errShortObject
 	}
-	return TimeValues{
+	return timeValues{
 		RefreshPeriod: binary.BigEndian.Uint32(body[0:4]),
 	}, nil
 }
 
-// LabelRequest is the LABEL_REQUEST object (RFC 3209 Section 4.2).
-type LabelRequest struct {
+// labelRequest is the LABEL_REQUEST object (RFC 3209 Section 4.2).
+type labelRequest struct {
 	L3PID uint16
 }
 
-// EncodeLabelRequest writes a LABEL_REQUEST object. Returns bytes written.
-func EncodeLabelRequest(buf []byte, lr LabelRequest) int {
+// encodeLabelRequest writes a LABEL_REQUEST object. Returns bytes written.
+func encodeLabelRequest(buf []byte, lr labelRequest) int {
 	objLen := uint16(objHdrLen + 4)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassLabelRequest, CType: CTypeGeneric})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassLabelRequest, CType: CTypeGeneric})
 	buf[4] = 0
 	buf[5] = 0
 	binary.BigEndian.PutUint16(buf[6:8], lr.L3PID)
 	return int(objLen)
 }
 
-// DecodeLabelRequest reads a LABEL_REQUEST object body.
-func DecodeLabelRequest(body []byte) (LabelRequest, error) {
+// decodeLabelRequest reads a LABEL_REQUEST object body.
+func decodeLabelRequest(body []byte) (labelRequest, error) {
 	if len(body) < 4 {
-		return LabelRequest{}, errShortObject
+		return labelRequest{}, errShortObject
 	}
-	return LabelRequest{
+	return labelRequest{
 		L3PID: binary.BigEndian.Uint16(body[2:4]),
 	}, nil
 }
 
-// LabelObject is the LABEL object (RFC 3209 Section 4.1).
-type LabelObject struct {
+// labelObject is the LABEL object (RFC 3209 Section 4.1).
+type labelObject struct {
 	Label uint32
 }
 
-// EncodeLabelObject writes a LABEL object. Returns bytes written.
-func EncodeLabelObject(buf []byte, l LabelObject) int {
+// encodeLabelObject writes a LABEL object. Returns bytes written.
+func encodeLabelObject(buf []byte, l labelObject) int {
 	objLen := uint16(objHdrLen + 4)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassLabel, CType: CTypeLabel})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassLabel, CType: CTypeLabel})
 	binary.BigEndian.PutUint32(buf[4:8], l.Label)
 	return int(objLen)
 }
 
-// DecodeLabelObject reads a LABEL object body.
-func DecodeLabelObject(body []byte) (LabelObject, error) {
+// decodeLabelObject reads a LABEL object body.
+func decodeLabelObject(body []byte) (labelObject, error) {
 	if len(body) < 4 {
-		return LabelObject{}, errShortObject
+		return labelObject{}, errShortObject
 	}
 	label := binary.BigEndian.Uint32(body[0:4])
 	if label > MaxLabel {
-		return LabelObject{}, fmt.Errorf("%w: %d", errLabelRange, label)
+		return labelObject{}, fmt.Errorf("%w: %d", errLabelRange, label)
 	}
-	return LabelObject{Label: label}, nil
+	return labelObject{Label: label}, nil
 }
 
-// EROHop is a single hop in an Explicit Route Object.
-type EROHop struct {
+// eroHop is a single hop in an Explicit Route Object.
+type eroHop struct {
 	Loose   bool
 	Address netip.Prefix
 }
 
-// EncodeERO writes an ERO object with the given hops. Returns bytes written.
-func EncodeERO(buf []byte, hops []EROHop) int {
+// encodeERO writes an ERO object with the given hops. Returns bytes written.
+func encodeERO(buf []byte, hops []eroHop) int {
 	off := objHdrLen
 	for _, h := range hops {
 		if h.Address.Addr().Is4() {
@@ -372,13 +376,13 @@ func EncodeERO(buf []byte, hops []EROHop) int {
 		}
 	}
 	objLen := uint16(off)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassExplicitRoute, CType: CTypeGeneric})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassExplicitRoute, CType: CTypeGeneric})
 	return off
 }
 
-// DecodeERO reads an ERO object body and returns the hops.
-func DecodeERO(body []byte) ([]EROHop, error) {
-	var hops []EROHop
+// decodeERO reads an ERO object body and returns the hops.
+func decodeERO(body []byte) ([]eroHop, error) {
+	var hops []eroHop
 	off := 0
 	for off < len(body) {
 		if off+2 > len(body) {
@@ -397,32 +401,38 @@ func DecodeERO(body []byte) ([]EROHop, error) {
 			}
 			addr := netip.AddrFrom4([4]byte(body[off+2 : off+6]))
 			bits := int(body[off+6])
-			hops = append(hops, EROHop{Loose: loose, Address: netip.PrefixFrom(addr, bits)})
+			hops = append(hops, eroHop{Loose: loose, Address: netip.PrefixFrom(addr, bits)})
 		case EROSubIPv6Prefix:
 			if subLen < 20 {
 				return hops, errShortERO
 			}
 			addr := netip.AddrFrom16([16]byte(body[off+2 : off+18]))
 			bits := int(body[off+18])
-			hops = append(hops, EROHop{Loose: loose, Address: netip.PrefixFrom(addr, bits)})
+			hops = append(hops, eroHop{Loose: loose, Address: netip.PrefixFrom(addr, bits)})
 		}
 		off += subLen
 	}
 	return hops, nil
 }
 
-// RROEntry is a single entry in a Record Route Object.
-type RROEntry struct {
+// rroEntry is a single entry in a Record Route Object.
+type rroEntry struct {
 	Type    uint8
 	Address netip.Addr
 	Label   uint32
 	Flags   uint8
 }
 
-// EncodeRRO writes an RRO object. Returns bytes written.
-func EncodeRRO(buf []byte, entries []RROEntry) int {
+// encodeRRO writes an RRO object. Returns bytes written.
+func encodeRRO(buf []byte, entries []rroEntry) int {
 	off := objHdrLen
 	for _, e := range entries {
+		// Never write past the fixed message buffer: each subobject is at most
+		// 20 bytes (IPv6). Stop early rather than overflow if a caller passes an
+		// over-long RRO (defense in depth; callers also cap via prependRRO).
+		if off+20 > len(buf) {
+			break
+		}
 		switch e.Type {
 		case RROSubIPv4:
 			buf[off] = RROSubIPv4
@@ -450,15 +460,20 @@ func EncodeRRO(buf []byte, entries []RROEntry) int {
 		}
 	}
 	objLen := uint16(off)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassRecordRoute, CType: CTypeGeneric})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassRecordRoute, CType: CTypeGeneric})
 	return off
 }
 
-// DecodeRRO reads an RRO object body.
-func DecodeRRO(body []byte) ([]RROEntry, error) {
-	var entries []RROEntry
+// decodeRRO reads an RRO object body.
+func decodeRRO(body []byte) ([]rroEntry, error) {
+	var entries []rroEntry
 	off := 0
 	for off < len(body) {
+		// Cap the recorded route so a malformed or looping RRO cannot grow an
+		// unbounded slice (and cannot be re-encoded past the message buffer).
+		if len(entries) >= maxRecordRouteHops {
+			break
+		}
 		if off+2 > len(body) {
 			return entries, errShortRRO
 		}
@@ -472,7 +487,7 @@ func DecodeRRO(body []byte) ([]RROEntry, error) {
 			if subLen < 8 {
 				return entries, errShortRRO
 			}
-			entries = append(entries, RROEntry{
+			entries = append(entries, rroEntry{
 				Type:    RROSubIPv4,
 				Address: netip.AddrFrom4([4]byte(body[off+2 : off+6])),
 				Flags:   body[off+7],
@@ -481,7 +496,7 @@ func DecodeRRO(body []byte) ([]RROEntry, error) {
 			if subLen < 20 {
 				return entries, errShortRRO
 			}
-			entries = append(entries, RROEntry{
+			entries = append(entries, rroEntry{
 				Type:    RROSubIPv6,
 				Address: netip.AddrFrom16([16]byte(body[off+2 : off+18])),
 				Flags:   body[off+19],
@@ -490,7 +505,7 @@ func DecodeRRO(body []byte) ([]RROEntry, error) {
 			if subLen < 8 {
 				return entries, errShortRRO
 			}
-			entries = append(entries, RROEntry{
+			entries = append(entries, rroEntry{
 				Type:  RROSubLabel,
 				Flags: body[off+2],
 				Label: binary.BigEndian.Uint32(body[off+4 : off+8]),
@@ -510,10 +525,10 @@ type FlowSpec struct {
 	MaxPacketSize  uint32
 }
 
-// EncodeFlowSpec writes a FLOWSPEC (or SENDER_TSPEC) object. Returns bytes written.
-func EncodeFlowSpec(buf []byte, classNum uint8, fs FlowSpec) int {
+// encodeFlowSpec writes a FLOWSPEC (or SENDER_TSPEC) object. Returns bytes written.
+func encodeFlowSpec(buf []byte, classNum uint8, fs FlowSpec) int {
 	objLen := uint16(objHdrLen + 32)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: classNum, CType: 2})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: classNum, CType: 2})
 	off := objHdrLen
 
 	buf[off] = 0
@@ -543,8 +558,8 @@ func EncodeFlowSpec(buf []byte, classNum uint8, fs FlowSpec) int {
 	return int(objLen)
 }
 
-// DecodeFlowSpec reads a FLOWSPEC or SENDER_TSPEC object body.
-func DecodeFlowSpec(body []byte) (FlowSpec, error) {
+// decodeFlowSpec reads a FLOWSPEC or SENDER_TSPEC object body.
+func decodeFlowSpec(body []byte) (FlowSpec, error) {
 	var fs FlowSpec
 	if len(body) < 32 {
 		return fs, errShortObject
@@ -565,18 +580,18 @@ func DecodeFlowSpec(body []byte) (FlowSpec, error) {
 	return fs, nil
 }
 
-// ErrorSpec is the ERROR_SPEC object (RFC 2205 Section A.5).
-type ErrorSpec struct {
+// errorSpec is the ERROR_SPEC object (RFC 2205 Section A.5).
+type errorSpec struct {
 	ErrorNode  netip.Addr
 	Flags      uint8
 	ErrorCode  uint8
 	ErrorValue uint16
 }
 
-// EncodeErrorSpec writes an ERROR_SPEC object. Returns bytes written.
-func EncodeErrorSpec(buf []byte, e ErrorSpec) int {
+// encodeErrorSpec writes an ERROR_SPEC object. Returns bytes written.
+func encodeErrorSpec(buf []byte, e errorSpec) int {
 	objLen := uint16(objHdrLen + 8)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassErrorSpec, CType: CTypeIPv4})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassErrorSpec, CType: CTypeIPv4})
 	addr := e.ErrorNode.As4()
 	copy(buf[4:8], addr[:])
 	buf[8] = e.Flags
@@ -585,12 +600,12 @@ func EncodeErrorSpec(buf []byte, e ErrorSpec) int {
 	return int(objLen)
 }
 
-// DecodeErrorSpec reads an ERROR_SPEC object body.
-func DecodeErrorSpec(body []byte) (ErrorSpec, error) {
+// decodeErrorSpec reads an ERROR_SPEC object body.
+func decodeErrorSpec(body []byte) (errorSpec, error) {
 	if len(body) < 8 {
-		return ErrorSpec{}, errShortObject
+		return errorSpec{}, errShortObject
 	}
-	return ErrorSpec{
+	return errorSpec{
 		ErrorNode:  netip.AddrFrom4([4]byte(body[0:4])),
 		Flags:      body[4],
 		ErrorCode:  body[5],
@@ -598,10 +613,10 @@ func DecodeErrorSpec(body []byte) (ErrorSpec, error) {
 	}, nil
 }
 
-// EncodeStyle writes a STYLE object. Returns bytes written.
-func EncodeStyle(buf []byte, style uint32) int {
+// encodeStyle writes a STYLE object. Returns bytes written.
+func encodeStyle(buf []byte, style uint32) int {
 	objLen := uint16(objHdrLen + 4)
-	EncodeObjectHeader(buf, ObjectHeader{Length: objLen, ClassNum: ClassStyle, CType: CTypeStyle})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassStyle, CType: CTypeStyle})
 	binary.BigEndian.PutUint32(buf[4:8], style)
 	return int(objLen)
 }
@@ -609,17 +624,17 @@ func EncodeStyle(buf []byte, style uint32) int {
 // ParsedMessage is a decoded RSVP message with all its objects.
 type ParsedMessage struct {
 	Header         Header
-	Session        SessionIPv4
-	SenderTemplate SenderTemplateIPv4
-	Hop            RSVPHop
-	TimeValues     TimeValues
-	LabelRequest   LabelRequest
-	Label          LabelObject
-	ERO            []EROHop
-	RRO            []RROEntry
+	Session        sessionIPv4
+	SenderTemplate senderTemplateIPv4
+	Hop            rsvpHop
+	TimeValues     timeValues
+	LabelRequest   labelRequest
+	Label          labelObject
+	ERO            []eroHop
+	RRO            []rroEntry
 	FlowSpec       FlowSpec
 	SenderTSpec    FlowSpec
-	ErrorSpec      ErrorSpec
+	ErrorSpec      errorSpec
 	Style          uint32
 
 	HasSession        bool
@@ -651,7 +666,7 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 	off := rsvpHdrLen
 	end := int(hdr.Length)
 	for off < end {
-		objHdr, err := DecodeObjectHeader(data[off:])
+		objHdr, err := decodeObjectHeader(data[off:])
 		if err != nil {
 			return msg, err
 		}
@@ -662,77 +677,77 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 
 		switch objHdr.ClassNum {
 		case ClassSession:
-			s, err := DecodeSessionIPv4(body)
+			s, err := decodeSessionIPv4(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.Session = s
 			msg.HasSession = true
 		case ClassSenderTemplate, ClassFilterSpec:
-			st, err := DecodeSenderTemplate(body)
+			st, err := decodeSenderTemplate(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.SenderTemplate = st
 			msg.HasSenderTemplate = true
 		case ClassRSVPHop:
-			h, err := DecodeRSVPHop(body)
+			h, err := decodeRSVPHop(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.Hop = h
 			msg.HasHop = true
 		case ClassTimeValues:
-			tv, err := DecodeTimeValues(body)
+			tv, err := decodeTimeValues(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.TimeValues = tv
 			msg.HasTimeValues = true
 		case ClassLabelRequest:
-			lr, err := DecodeLabelRequest(body)
+			lr, err := decodeLabelRequest(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.LabelRequest = lr
 			msg.HasLabelRequest = true
 		case ClassLabel:
-			l, err := DecodeLabelObject(body)
+			l, err := decodeLabelObject(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.Label = l
 			msg.HasLabel = true
 		case ClassExplicitRoute:
-			hops, err := DecodeERO(body)
+			hops, err := decodeERO(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.ERO = hops
 			msg.HasERO = true
 		case ClassRecordRoute:
-			entries, err := DecodeRRO(body)
+			entries, err := decodeRRO(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.RRO = entries
 			msg.HasRRO = true
 		case ClassFlowSpec:
-			fs, err := DecodeFlowSpec(body)
+			fs, err := decodeFlowSpec(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.FlowSpec = fs
 			msg.HasFlowSpec = true
 		case ClassSenderTSpec:
-			ts, err := DecodeFlowSpec(body)
+			ts, err := decodeFlowSpec(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.SenderTSpec = ts
 			msg.HasSenderTSpec = true
 		case ClassErrorSpec:
-			es, err := DecodeErrorSpec(body)
+			es, err := decodeErrorSpec(body)
 			if err != nil {
 				return msg, err
 			}

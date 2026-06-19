@@ -972,10 +972,15 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 	var nextHop netip.Addr
 	var priority int
 	var metric uint32
+	var labels []uint32
 	if c.Kind != locrib.ChangeRemove {
 		nextHop = c.Best.NextHop
 		priority = int(c.Best.AdminDistance)
 		metric = c.Best.Metric
+		// Carry the MPLS label stack so labeled-unicast routes program a kernel
+		// MPLS push entry rather than a plain IP route (the Loc-RIB now retains
+		// Labels; without this they were dropped here).
+		labels = c.Best.Labels
 	}
 	return &incomingBatch{
 		Protocol: redistevents.ProtocolName(c.Best.Source),
@@ -986,6 +991,7 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 			NextHop:      nextHop,
 			Priority:     priority,
 			Metric:       metric,
+			Labels:       labels,
 			ProtocolType: bgpProtocolTypeFromPath(c.Best),
 		}},
 	}
@@ -1019,11 +1025,13 @@ func bgpProtocolTypeFromPath(p locrib.Path) bgptypes.BGPProtocolType {
 	if name != "bgp" {
 		return bgptypes.BGPProtocolUnspecified
 	}
-	switch p.AdminDistance {
-	case 20:
+	// Read the producer's eBGP/iBGP classification directly. Deriving it from
+	// AdminDistance (20/200) silently lost the class whenever the operator
+	// overrode bgp/admin-distance, making this replay path disagree with the
+	// live event-bus ProtocolType. The BGP RIB sets Path.IsEBGP from the peer
+	// ASN relationship; mirror its 2-state resolve() (iBGP unless eBGP).
+	if p.IsEBGP {
 		return bgptypes.BGPProtocolEBGP
-	case 200:
-		return bgptypes.BGPProtocolIBGP
 	}
-	return bgptypes.BGPProtocolUnspecified
+	return bgptypes.BGPProtocolIBGP
 }

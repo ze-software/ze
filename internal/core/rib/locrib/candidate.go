@@ -1,9 +1,11 @@
 // Design: plan/learned/639-rib-unified.md -- Phase 3 (unified Loc-RIB)
+// Related: entry.go -- Entry holds the per-prefix PathGroup these Paths live in
 
 package locrib
 
 import (
 	"net/netip"
+	"slices"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
 )
@@ -45,12 +47,44 @@ type Path struct {
 	// Metric is the per-protocol tiebreaker when AdminDistance ties. Lower
 	// wins. Semantics are protocol-defined (BGP MED, OSPF cost, hop count).
 	Metric uint32
+
+	// Labels is the MPLS label stack to impose toward NextHop (outermost
+	// first), for label-carrying sources such as BGP labeled-unicast (SAFI 4).
+	// Empty for a plain IP route. The producer builds a fresh slice per
+	// best-path change and does not mutate it afterward, so it is shared (not
+	// copied) into the Loc-RIB and on to the FIB, the same as the event-bus
+	// BestChange path.
+	Labels []uint32
+
+	// IsEBGP marks a BGP-sourced path learned from an external peer. Like
+	// Labels, it is carry-through metadata: Loc-RIB never uses it for
+	// arbitration (selection is AdminDistance then Metric). The producing BGP
+	// RIB sets it from the peer ASN relationship, and sysrib reads it to key
+	// its own admin-distance override by protocol type ("ebgp"/"ibgp") without
+	// re-deriving the class from the (operator-overridable) AdminDistance.
+	// False for non-BGP sources. Excluded from Equal/key: a single
+	// (Source, Instance) cannot change its eBGP/iBGP class because a peer's
+	// ASN relationship is fixed.
+	IsEBGP bool
 }
 
 // Valid reports whether p can be selected as a best path. An invalid Path is
 // never returned by (*Manager).Best.
 func (p Path) Valid() bool {
 	return p.Source != redistevents.ProtocolUnspecified
+}
+
+// Equal reports whether two Paths are identical for change detection: every
+// selection field plus the MPLS label stack. Required because Path now has a
+// slice field (Labels) and so cannot be compared with ==/!=. Without the label
+// comparison a relabel (same next hop, new label) would be missed.
+func (p Path) Equal(q Path) bool {
+	return p.Source == q.Source &&
+		p.Instance == q.Instance &&
+		p.NextHop == q.NextHop &&
+		p.AdminDistance == q.AdminDistance &&
+		p.Metric == q.Metric &&
+		slices.Equal(p.Labels, q.Labels)
 }
 
 // key returns the (Source, Instance) identity used to dedup a Path within an

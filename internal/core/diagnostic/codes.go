@@ -274,6 +274,24 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json"},
 	},
 	{
+		Code:        "doctor-ldp-port-unavailable",
+		Title:       "LDP port 646 cannot be bound",
+		Description: "LDP is configured but the daemon cannot bind UDP/TCP port 646 (RFC 5036). The port is privileged (<1024) and may need CAP_NET_BIND_SERVICE or root, or it is already in use by another process.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-ldp-port-unavailable"},
+	},
+	{
+		Code:        "doctor-rsvpte-rawsock-unavailable",
+		Title:       "RSVP-TE raw IP socket unavailable",
+		Description: "RSVP-TE is configured but a raw IP socket for protocol 46 (RFC 2205) cannot be opened. This requires CAP_NET_RAW or root; without it RSVP-TE cannot send or receive PATH/RESV messages.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-rsvpte-rawsock-unavailable"},
+	},
+	{
+		Code:        "doctor-isis-raw-socket",
+		Title:       "IS-IS raw L2 socket unavailable",
+		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-isis-raw-socket"},
+	},
+	{
 		Code:        "doctor-l2tp-module",
 		Title:       "L2TP kernel module not loaded",
 		Description: "The L2TP subsystem is configured but neither l2tp_ppp nor pppol2tp is loaded.",

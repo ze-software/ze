@@ -32,11 +32,11 @@ type sessionID struct {
 	extID    uint32
 }
 
-func sessionFromIPv4(s SessionIPv4) sessionID {
+func sessionFromIPv4(s sessionIPv4) sessionID {
 	return sessionID{endpoint: s.TunnelEndpoint, tunnelID: s.TunnelID, extID: s.ExtTunnelID}
 }
 
-func sessionFromKey(k LSPKey) sessionID {
+func sessionFromKey(k lspKey) sessionID {
 	return sessionID{endpoint: k.TunnelEndpoint, tunnelID: k.TunnelID, extID: k.ExtTunnelID}
 }
 
@@ -82,7 +82,7 @@ func (sr *sessionReservation) remove(bw float64) {
 	sr.holders = append(sr.holders[:maxIdx], sr.holders[maxIdx+1:]...)
 }
 
-// InterfaceBandwidth tracks bandwidth state for one interface.
+// interfaceBandwidth tracks bandwidth state for one interface.
 //
 // Bandwidth is accounted in float64: RSVP FlowSpec carries IEEE 32-bit
 // floats on the wire (RFC 2210), but at realistic link rates (1e9-1e12
@@ -90,14 +90,14 @@ func (sr *sessionReservation) remove(bw float64) {
 // float32 silently rounds small reservations away and admission control
 // fails to reject oversubscription. Values are widened from float32 at the
 // config/wire boundary.
-type InterfaceBandwidth struct {
+type interfaceBandwidth struct {
 	MaxBandwidth      float64
 	MaxReservable     float64
 	ReservedBandwidth float64
 }
 
 // Available returns the remaining reservable bandwidth.
-func (ib *InterfaceBandwidth) Available() float64 {
+func (ib *interfaceBandwidth) Available() float64 {
 	avail := ib.MaxReservable - ib.ReservedBandwidth
 	if avail < 0 {
 		return 0
@@ -105,30 +105,30 @@ func (ib *InterfaceBandwidth) Available() float64 {
 	return avail
 }
 
-// AdmissionController manages per-interface bandwidth accounting.
-type AdmissionController struct {
+// admissionController manages per-interface bandwidth accounting.
+type admissionController struct {
 	mu         sync.Mutex
-	interfaces map[string]*InterfaceBandwidth
+	interfaces map[string]*interfaceBandwidth
 	// sessions holds SE reservation sharing state: interface -> session ->
 	// multiset of per-LSP reservations. Only the session's footprint (max) is
 	// counted in InterfaceBandwidth.ReservedBandwidth.
 	sessions map[string]map[sessionID]*sessionReservation
 }
 
-// NewAdmissionController creates an admission controller.
-func NewAdmissionController() *AdmissionController {
-	return &AdmissionController{
-		interfaces: make(map[string]*InterfaceBandwidth),
+// newAdmissionController creates an admission controller.
+func newAdmissionController() *admissionController {
+	return &admissionController{
+		interfaces: make(map[string]*interfaceBandwidth),
 		sessions:   make(map[string]map[sessionID]*sessionReservation),
 	}
 }
 
-// ReserveSession reserves bandwidth for one LSP of a SESSION on an interface
+// reserveSession reserves bandwidth for one LSP of a SESSION on an interface
 // using SHARED EXPLICIT semantics: the interface is charged only the increase
 // in the session's footprint (max over its LSPs), so a make-before-break
 // replacement at the same rate adds nothing. Returns errAdmissionDenied when the
 // incremental demand would exceed the reservable limit.
-func (ac *AdmissionController) ReserveSession(iface string, sess sessionID, bandwidth float64) error {
+func (ac *admissionController) reserveSession(iface string, sess sessionID, bandwidth float64) error {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	ib, ok := ac.interfaces[iface]
@@ -165,7 +165,7 @@ func (ac *AdmissionController) ReserveSession(iface string, sess sessionID, band
 // ReleaseSession releases one LSP's reservation for a SESSION, returning to the
 // interface only the reduction in the session's footprint (SE). The session's
 // shared reservation persists until its last LSP is released.
-func (ac *AdmissionController) ReleaseSession(iface string, sess sessionID, bandwidth float64) {
+func (ac *admissionController) ReleaseSession(iface string, sess sessionID, bandwidth float64) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	ib, ok := ac.interfaces[iface]
@@ -192,18 +192,18 @@ func (ac *AdmissionController) ReleaseSession(iface string, sess sessionID, band
 	}
 }
 
-// SetInterface configures bandwidth limits for an interface.
-func (ac *AdmissionController) SetInterface(name string, maxBW, maxReservable float64) {
+// setInterface configures bandwidth limits for an interface.
+func (ac *admissionController) setInterface(name string, maxBW, maxReservable float64) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	ac.interfaces[name] = &InterfaceBandwidth{
+	ac.interfaces[name] = &interfaceBandwidth{
 		MaxBandwidth:  maxBW,
 		MaxReservable: maxReservable,
 	}
 }
 
 // Reserve attempts to reserve bandwidth on an interface.
-func (ac *AdmissionController) Reserve(iface string, bandwidth float64) error {
+func (ac *admissionController) Reserve(iface string, bandwidth float64) error {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	ib, ok := ac.interfaces[iface]
@@ -218,7 +218,7 @@ func (ac *AdmissionController) Reserve(iface string, bandwidth float64) error {
 }
 
 // Release returns reserved bandwidth to an interface.
-func (ac *AdmissionController) Release(iface string, bandwidth float64) {
+func (ac *admissionController) Release(iface string, bandwidth float64) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	ib, ok := ac.interfaces[iface]
@@ -232,21 +232,21 @@ func (ac *AdmissionController) Release(iface string, bandwidth float64) {
 }
 
 // GetInterface returns bandwidth state for an interface.
-func (ac *AdmissionController) GetInterface(name string) (InterfaceBandwidth, bool) {
+func (ac *admissionController) GetInterface(name string) (interfaceBandwidth, bool) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	ib, ok := ac.interfaces[name]
 	if !ok {
-		return InterfaceBandwidth{}, false
+		return interfaceBandwidth{}, false
 	}
 	return *ib, true
 }
 
-// AllInterfaces returns bandwidth state for all interfaces.
-func (ac *AdmissionController) AllInterfaces() map[string]InterfaceBandwidth {
+// allInterfaces returns bandwidth state for all interfaces.
+func (ac *admissionController) allInterfaces() map[string]interfaceBandwidth {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	out := make(map[string]InterfaceBandwidth, len(ac.interfaces))
+	out := make(map[string]interfaceBandwidth, len(ac.interfaces))
 	for k, v := range ac.interfaces {
 		out[k] = *v
 	}

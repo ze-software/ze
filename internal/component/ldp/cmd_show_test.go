@@ -32,10 +32,19 @@ func TestLDPShowRPCsRegistered(t *testing.T) {
 // VALIDATES: the proxy handler degrades gracefully when no dispatcher is wired
 // (server unavailable) instead of panicking on a nil dereference.
 func TestProxyShowNilDispatcher(t *testing.T) {
-	h := proxyShowToPlugin("show ldp neighbor")
-	resp, err := h(&pluginserver.CommandContext{}, nil)
+	resp, err := forwardShowNeighbor(&pluginserver.CommandContext{}, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Error, "dispatcher unavailable")
+}
+
+// VALIDATES: the proxy handler rejects extra arguments (the proxied plugin
+// commands take none) before it ever touches the dispatcher.
+func TestProxyShowRejectsArgs(t *testing.T) {
+	resp, err := forwardShowBinding(&pluginserver.CommandContext{}, []string{"extra"})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Error, "unexpected argument")
 }

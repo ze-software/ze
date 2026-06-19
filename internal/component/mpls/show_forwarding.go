@@ -1,11 +1,14 @@
 // Design: plan/spec-mpls-1-kernel.md -- `show mpls forwarding` CLI (AC-7)
+// Related: forwarding_linux.go -- kernel reader (AF_MPLS swap/pop + IP-encap push)
 //
 // `show mpls forwarding` lists the kernel's installed MPLS label-switching
-// entries (the AF_MPLS routing table): incoming label, the operation applied
-// (swap/pop), any outgoing label stack and the next hop. Reading the kernel
-// directly (rather than a daemon's in-memory view) reports the authoritative
-// dataplane state, matching how `show kernel-routes` works for IP. The kernel
-// reader is platform-specific: forwarding_linux.go / forwarding_other.go.
+// entries: the AF_MPLS routing table (swap/pop, keyed by incoming label) AND the
+// label-imposition (push) routes, which are ordinary IP routes carrying an MPLS
+// label encap (keyed by FEC prefix, e.g. a BGP labeled-unicast or LDP/RSVP-TE
+// ingress). Reading the kernel directly (rather than a daemon's in-memory view)
+// reports the authoritative dataplane state, matching how `show kernel-routes`
+// works for IP. The kernel reader is platform-specific: forwarding_linux.go /
+// forwarding_other.go.
 package mpls
 
 import (
@@ -17,9 +20,12 @@ import (
 
 const defaultForwardingLimit = 100_000
 
-// ForwardingEntry is one row of the MPLS forwarding table.
-type ForwardingEntry struct {
-	InLabel   int    `json:"in-label"`
+// forwardingEntry is one row of the MPLS forwarding table. A swap/pop entry is
+// keyed by InLabel; a push entry is keyed by FEC (the IP prefix whose traffic
+// gets the label stack imposed) and has no InLabel.
+type forwardingEntry struct {
+	InLabel   int    `json:"in-label,omitempty"`
+	FEC       string `json:"fec,omitempty"`
 	Operation string `json:"operation"`
 	OutLabels []int  `json:"out-labels,omitempty"`
 	NextHop   string `json:"next-hop,omitempty"`

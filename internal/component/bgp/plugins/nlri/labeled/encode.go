@@ -201,11 +201,14 @@ func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath
 	} else {
 		fam = Family{AFI: AFIIPv4, SAFI: SAFIMPLSLabel}
 	}
-	var label uint32
-	if len(parsed.Labels) > 0 {
-		label = parsed.Labels[0]
+	// Carry the full label stack into the NLRI (a labeled-unicast prefix may
+	// have several labels). Defaulting to a single 0 label keeps a label-less
+	// input encodable rather than producing an empty stack.
+	labels := parsed.Labels
+	if len(labels) == 0 {
+		labels = []uint32{0}
 	}
-	labeledNLRI := NewLabeledUnicast(fam, parsed.Prefix, []uint32{label}, parsed.PathID)
+	labeledNLRI := NewLabeledUnicast(fam, parsed.Prefix, labels, parsed.PathID)
 	nlriBytes := labeledNLRI.Bytes()
 
 	return updateBody, nlriBytes, nil

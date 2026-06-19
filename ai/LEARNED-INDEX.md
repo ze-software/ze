@@ -186,6 +186,9 @@ Graceful restart, route refresh, capability negotiation, session management.
 - [574](plan/learned/574-bgp-4-bmp.md) -- BMP receiver + sender (RFC 7854), config-as-strings, synthetic OPENs
 - [647](plan/learned/647-bmp-5-sender-compliance.md) -- BMP sender compliance: real OPENs, Route Mirroring, ribout dedup
 - [879](plan/learned/879-l2tp-priority.md) -- L2TP control message priority: Ns-at-send-time invariant enables queue reordering; kernel P-bit limitation
+- [919](plan/learned/919-mpls-kernel.md) -- Kernel MPLS FIB: labeled BestChange routed through rich-route RTA_ENCAP; push uses RouteAdd (no-clobber) vs RouteReplace for relabel; AF_MPLS swap/pop via separate mpls-fib topic
+- [920](plan/learned/920-mpls-ldp.md) -- LDP (RFC 5036): dynamic interface reload via discoveryManager reconcile (stop Hellos → adjacency ages out); **plugin config delivered root-wrapped + string-numbers + keyed-map lists — a parser reading the wrong shape leaves the engine idle and unit tests that bypass the parser miss it**; show-proxy must use PluginCommand+ForwardToPlugin (re-Dispatch recurses to stack overflow)
+- [921](plan/learned/921-mpls-rsvp-te.md) -- RSVP-TE (RFC 3209/2205): RESV soft-state refresh at egress/transit; link-failure→PathErr sourced from iface EventDown (no IGP); RRO prepend per §4.4; same config-shape + show-proxy traps as LDP; **AC-12 unsatisfiable — FRR has no rsvpd daemon**
 
 ## Observability
 

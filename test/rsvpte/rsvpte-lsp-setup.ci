@@ -1,6 +1,167 @@
-# RSVP-TE LSP establishment end-to-end
-# VALIDATES: AC-1 (PATH sent), AC-2 (RESV from egress), AC-4 (head-end label push)
-# PREVENTS: regression in LSP signaling path from config to kernel MPLS entry
+# Test: RSVP-TE single-daemon boot, config delivery, and show commands.
 #
-# TODO: requires two ze instances (head-end and tail-end) with raw IP connectivity.
-# Placeholder until RSVP-TE engine runs in ze-test harness.
+# VALIDATES: spec-mpls-3-rsvp-te -- a top-level `rsvp-te { ... }` config block
+#            reaches the in-process RSVP-TE engine (router-id, per-interface
+#            bandwidth list, and tunnel/explicit-route lists all parsed from the
+#            keyed-map YANG config tree), the engine comes up configured (not
+#            idle), populates the admission controller from the interface config,
+#            and answers `show rsvp-te session` / `show rsvp-te interface`.
+# PREVENTS:  regression where the config section is delivered root-wrapped, with
+#            string-typed leaves and keyed-map lists (the Tree.ToMap shape), but
+#            the parser reads the wrong nesting/type, leaving the engine idle
+#            ("no router-id configured") and the interface/tunnel lists empty;
+#            and where the show RPCs recurse into themselves at dispatch.
+#
+# Live LSP signaling (AC-1 PATH sent, AC-2 RESV from egress, AC-4 head-end label
+# push) needs the raw-IP transport (protocol 46) plus a peer LSR. RSVP-TE has no
+# FRR counterpart (FRR ships no rsvpd), so there is NO live interop fixture by
+# design. The signaling state machine -- PATH/RESV exchange, label push, ingress
+# and egress roles -- is unit-tested end to end in
+# internal/component/rsvpte/engine_test.go (TestEngineEgressPathToResv,
+# TestEngineIngressResvToUp, TestEngineTransitForwarding). On hosts without
+# CAP_NET_RAW (or on darwin) the transport stays closed so no PATH is sent, but
+# setupTunnel still installs the configured tunnel's ingress LSP; this test
+# asserts the always-available half: config parse -> engine configured ->
+# interface admission state AND the tunnel's ingress LSP visible via show.
+
+tmpfs=rsvpte-setup.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert `show rsvp-te interface` reflects config and `show rsvp-te session` answers."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def done_array(api, command):
+    r = dispatch(api, command)
+    if r.get('status') != 'done':
+        runtime_fail(
+            f"{command}: expected done, got status={r.get('status')} "
+            f"data={result_text_data(r)[:200]}")
+    arr = result_json_data(r, None)
+    if not isinstance(arr, list):
+        runtime_fail(f"{command}: expected list, got {arr!r}")
+    return arr
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    # The configured `interface lo` must surface in admission state, with its
+    # max/reservable bandwidth carried through the parser -- this is what we
+    # assert proves the keyed-map interface list parsed correctly.
+    ifaces = done_array(api, 'show rsvp-te interface')
+    names = {i.get('name') for i in ifaces}
+    if 'lo' not in names:
+        runtime_fail(f"show rsvp-te interface: expected 'lo', got {ifaces!r}")
+    lo = next(i for i in ifaces if i.get('name') == 'lo')
+    if lo.get('max-reservable') != 8e9:
+        runtime_fail(f"show rsvp-te interface: lo max-reservable={lo.get('max-reservable')!r}, want 8e9")
+
+    # setupTunnel installs the configured tunnel's ingress LSP in the table even
+    # without the raw-IP transport (it just does not send PATH yet), so the
+    # session table MUST contain it: tunnel-endpoint 10.0.0.9, tunnel-id 1, role
+    # ingress. This proves the tunnel/explicit-route keyed-map lists parsed and
+    # reached setupTunnel, not merely that the command dispatches.
+    sessions = done_array(api, 'show rsvp-te session')
+    lsp = next((s for s in sessions
+                if s.get('tunnel-endpoint') == '10.0.0.9' and s.get('tunnel-id') == 1), None)
+    if lsp is None:
+        runtime_fail(f"show rsvp-te session: expected the to-egress tunnel LSP (10.0.0.9), got {sessions!r}")
+    if lsp.get('role') != 'ingress':
+        runtime_fail(f"show rsvp-te session: tunnel LSP role={lsp.get('role')!r}, want ingress")
+
+    print('OK: rsvp-te configured; interface admission + session show dispatched',
+          file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external rsvpte-setup {
+		run ./rsvpte-setup.run
+		encoder json
+	}
+}
+
+rsvp-te {
+	router-id 10.0.0.1
+	refresh-period 30
+	interface lo {
+		max-bandwidth 10e9
+		max-reservable-bandwidth 8e9
+		address 127.0.0.1/8
+	}
+	tunnel to-egress {
+		destination 10.0.0.9
+		tunnel-id 1
+		bandwidth 1e9
+		explicit-route 1 {
+			address 10.0.0.9/32
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process rsvpte-setup {
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.rsvp-te:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=interface admission + session show dispatched
+reject=stderr:pattern=no router-id configured
+reject=stderr:pattern=engine idle
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

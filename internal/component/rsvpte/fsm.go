@@ -13,11 +13,11 @@ import (
 	"time"
 )
 
-// LSPState represents the current state of an LSP.
-type LSPState uint8
+// lspState represents the current state of an LSP.
+type lspState uint8
 
 const (
-	LSPStateDown LSPState = iota
+	LSPStateDown lspState = iota
 	LSPStatePathSent
 	LSPStatePathReceived
 	LSPStateResvSent
@@ -25,7 +25,7 @@ const (
 	LSPStateUp
 )
 
-func (s LSPState) String() string {
+func (s lspState) String() string {
 	switch s {
 	case LSPStateDown:
 		return "down"
@@ -44,16 +44,16 @@ func (s LSPState) String() string {
 	}
 }
 
-// LSPRole identifies this node's role for a given LSP.
-type LSPRole uint8
+// lspRole identifies this node's role for a given LSP.
+type lspRole uint8
 
 const (
-	RoleIngress LSPRole = iota
+	RoleIngress lspRole = iota
 	RoleTransit
 	RoleEgress
 )
 
-func (r LSPRole) String() string {
+func (r lspRole) String() string {
 	switch r {
 	case RoleIngress:
 		return "ingress"
@@ -66,8 +66,8 @@ func (r LSPRole) String() string {
 	}
 }
 
-// LSPKey uniquely identifies an LSP.
-type LSPKey struct {
+// lspKey uniquely identifies an LSP.
+type lspKey struct {
 	TunnelEndpoint netip.Addr
 	TunnelID       uint16
 	ExtTunnelID    uint32
@@ -75,7 +75,7 @@ type LSPKey struct {
 	LSPID          uint16
 }
 
-func (k LSPKey) String() string {
+func (k lspKey) String() string {
 	var buf []byte
 	buf = append(buf, k.TunnelEndpoint.String()...)
 	buf = append(buf, '/')
@@ -89,26 +89,26 @@ func (k LSPKey) String() string {
 	return string(buf)
 }
 
-// PathStateBlock (PSB) stores PATH state for an LSP (RFC 2205 Section 2.1).
-type PathStateBlock struct {
-	Session        SessionIPv4
-	SenderTemplate SenderTemplateIPv4
-	Hop            RSVPHop
-	ERO            []EROHop
+// pathStateBlock (PSB) stores PATH state for an LSP (RFC 2205 Section 2.1).
+type pathStateBlock struct {
+	Session        sessionIPv4
+	SenderTemplate senderTemplateIPv4
+	Hop            rsvpHop
+	ERO            []eroHop
 	SenderTSpec    FlowSpec
-	LabelRequest   LabelRequest
+	LabelRequest   labelRequest
 	RefreshPeriod  time.Duration
 	LastRefresh    time.Time
 }
 
-// ResvStateBlock (RSB) stores RESV state for an LSP (RFC 2205 Section 2.1).
-type ResvStateBlock struct {
-	Session  SessionIPv4
+// resvStateBlock (RSB) stores RESV state for an LSP (RFC 2205 Section 2.1).
+type resvStateBlock struct {
+	Session  sessionIPv4
 	FlowSpec FlowSpec
-	Label    LabelObject
+	Label    labelObject
 	Style    uint32
-	Hop      RSVPHop
-	RRO      []RROEntry
+	Hop      rsvpHop
+	RRO      []rroEntry
 
 	LastRefresh time.Time
 }
@@ -122,12 +122,12 @@ type ResvStateBlock struct {
 type LSP struct {
 	mu sync.Mutex
 
-	Key   LSPKey
-	State LSPState
-	Role  LSPRole
+	Key   lspKey
+	State lspState
+	Role  lspRole
 
-	PSB *PathStateBlock
-	RSB *ResvStateBlock
+	PSB *pathStateBlock
+	RSB *resvStateBlock
 
 	InLabel  uint32
 	OutLabel uint32
@@ -142,7 +142,7 @@ type LSP struct {
 	// Replaces, when set on a make-before-break LSP, names the older LSP this
 	// one supersedes. RFC 3209 Section 6.1: the old LSP is torn down only once
 	// the replacement is up, so traffic is never dropped during a reroute.
-	Replaces *LSPKey
+	Replaces *lspKey
 
 	// Reserved records whether admission control has already committed this
 	// LSP's bandwidth, so PATH refreshes (RFC 2205 soft-state) do not reserve
@@ -162,26 +162,26 @@ type LSP struct {
 // (RFC 3032) and 16-999 are left for static/other allocators.
 const firstDynamicLabel = 1000
 
-// LSPTable manages all LSPs at this node. Thread-safe.
-type LSPTable struct {
+// lspTable manages all LSPs at this node. Thread-safe.
+type lspTable struct {
 	mu   sync.RWMutex
-	lsps map[LSPKey]*LSP
+	lsps map[lspKey]*LSP
 
 	nextLabel uint32
 	freed     []uint32 // labels returned by ReleaseLabel, reused before nextLabel
 }
 
-// NewLSPTable creates an empty LSP table.
-func NewLSPTable() *LSPTable {
-	return &LSPTable{
-		lsps:      make(map[LSPKey]*LSP),
+// newLSPTable creates an empty LSP table.
+func newLSPTable() *lspTable {
+	return &lspTable{
+		lsps:      make(map[lspKey]*LSP),
 		nextLabel: firstDynamicLabel,
 	}
 }
 
 // AllocateLabel returns a local label, preferring labels returned to the free
 // list so wraparound cannot collide with a label that is still in use.
-func (t *LSPTable) AllocateLabel() uint32 {
+func (t *lspTable) AllocateLabel() uint32 {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if n := len(t.freed); n > 0 {
@@ -197,9 +197,9 @@ func (t *LSPTable) AllocateLabel() uint32 {
 	return label
 }
 
-// ReleaseLabel returns a label to the free list for reuse. A zero label (never
+// releaseLabel returns a label to the free list for reuse. A zero label (never
 // allocated) is ignored.
-func (t *LSPTable) ReleaseLabel(label uint32) {
+func (t *lspTable) releaseLabel(label uint32) {
 	if label == 0 {
 		return
 	}
@@ -209,7 +209,7 @@ func (t *LSPTable) ReleaseLabel(label uint32) {
 }
 
 // GetOrCreate returns the LSP for the given key, creating it if absent.
-func (t *LSPTable) GetOrCreate(key LSPKey) (*LSP, bool) {
+func (t *lspTable) GetOrCreate(key lspKey) (*LSP, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	lsp, exists := t.lsps[key]
@@ -227,7 +227,7 @@ func (t *LSPTable) GetOrCreate(key LSPKey) (*LSP, bool) {
 }
 
 // Get returns the LSP for the given key.
-func (t *LSPTable) Get(key LSPKey) (*LSP, bool) {
+func (t *lspTable) Get(key lspKey) (*LSP, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	lsp, ok := t.lsps[key]
@@ -235,7 +235,7 @@ func (t *LSPTable) Get(key LSPKey) (*LSP, bool) {
 }
 
 // Remove deletes an LSP.
-func (t *LSPTable) Remove(key LSPKey) *LSP {
+func (t *lspTable) Remove(key lspKey) *LSP {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	lsp, ok := t.lsps[key]
@@ -246,7 +246,7 @@ func (t *LSPTable) Remove(key LSPKey) *LSP {
 }
 
 // All returns a snapshot of all LSPs.
-func (t *LSPTable) All() []*LSP {
+func (t *lspTable) All() []*LSP {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	out := make([]*LSP, 0, len(t.lsps))
@@ -257,17 +257,17 @@ func (t *LSPTable) All() []*LSP {
 }
 
 // Len returns the number of LSPs.
-func (t *LSPTable) Len() int {
+func (t *lspTable) Len() int {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return len(t.lsps)
 }
 
-// ExpiredPSBs returns LSP keys whose PATH state has expired.
-func (t *LSPTable) ExpiredPSBs(now time.Time, factor int) []LSPKey {
+// expiredPSBs returns LSP keys whose PATH state has expired.
+func (t *lspTable) expiredPSBs(now time.Time, factor int) []lspKey {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	var expired []LSPKey
+	var expired []lspKey
 	for key, lsp := range t.lsps {
 		lsp.mu.Lock()
 		if lsp.PSB == nil {
@@ -283,15 +283,15 @@ func (t *LSPTable) ExpiredPSBs(now time.Time, factor int) []LSPKey {
 	return expired
 }
 
-// SetState updates the LSP state with a timestamp. The caller must hold lsp.mu.
-func (lsp *LSP) SetState(s LSPState) {
+// setState updates the LSP state with a timestamp. The caller must hold lsp.mu.
+func (lsp *LSP) setState(s lspState) {
 	lsp.State = s
 	lsp.LastChanged = time.Now()
 }
 
-// KeyFromMessage extracts an LSPKey from a parsed RSVP message.
-func KeyFromMessage(msg *ParsedMessage) LSPKey {
-	return LSPKey{
+// keyFromMessage extracts an LSPKey from a parsed RSVP message.
+func keyFromMessage(msg *ParsedMessage) lspKey {
+	return lspKey{
 		TunnelEndpoint: msg.Session.TunnelEndpoint,
 		TunnelID:       msg.Session.TunnelID,
 		ExtTunnelID:    msg.Session.ExtTunnelID,

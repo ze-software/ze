@@ -16,17 +16,20 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	rsvpteyang "codeberg.org/thomas-mangin/ze/internal/component/rsvpte/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -120,7 +123,59 @@ type tunnelConfig struct {
 	Bandwidth     float32
 	SetupPriority uint8
 	HoldPriority  uint8
-	ERO           []EROHop
+	ERO           []eroHop
+}
+
+// rsvpteNumber coerces a config-tree scalar to a float64. Tree.ToMap renders
+// every YANG leaf as a JSON string (e.g. "30"), so a numeric leaf arrives as a
+// string here, not a JSON number. We accept both for robustness.
+func rsvpteNumber(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case string:
+		f, err := strconv.ParseFloat(n, 64)
+		if err != nil {
+			return 0, false
+		}
+		return f, true
+	default:
+		return 0, false
+	}
+}
+
+// rsvpteList coerces a YANG list value into its entries sorted by list key.
+// Tree.ToMap renders a YANG list as a keyed map (key -> entry), so this returns
+// the entries paired with their key, ordered by the key string. Pass less to
+// override the default lexical key ordering (e.g. numeric for explicit-route).
+func rsvpteList(v any, numericKey bool) []listEntry {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return nil
+	}
+	entries := make([]listEntry, 0, len(m))
+	for key, raw := range m {
+		em, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		entries = append(entries, listEntry{key: key, data: em})
+	}
+	if numericKey {
+		sort.Slice(entries, func(i, j int) bool {
+			ai, _ := strconv.Atoi(entries[i].key)
+			bj, _ := strconv.Atoi(entries[j].key)
+			return ai < bj
+		})
+	} else {
+		sort.Slice(entries, func(i, j int) bool { return entries[i].key < entries[j].key })
+	}
+	return entries
+}
+
+type listEntry struct {
+	key  string
+	data map[string]any
 }
 
 func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
@@ -132,9 +187,15 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 		if sec.Root != "rsvp-te" || sec.Data == "" {
 			continue
 		}
-		var tree map[string]any
-		if err := json.Unmarshal([]byte(sec.Data), &tree); err != nil {
+		// BuildPluginConfigSections wraps the subtree under its root key, so the
+		// delivered JSON is {"rsvp-te": {...}}. Unwrap before reading leaves.
+		var wrapper map[string]any
+		if err := json.Unmarshal([]byte(sec.Data), &wrapper); err != nil {
 			return cfg, fmt.Errorf("rsvp-te: invalid config JSON: %w", err)
+		}
+		tree, _ := wrapper["rsvp-te"].(map[string]any)
+		if tree == nil {
+			continue
 		}
 		if v, ok := tree["router-id"].(string); ok {
 			addr, err := netip.ParseAddr(v)
@@ -143,94 +204,74 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 			}
 			cfg.RouterID = addr
 		}
-		if v, ok := tree["refresh-period"].(float64); ok && v > 0 {
+		if v, ok := rsvpteNumber(tree["refresh-period"]); ok && v > 0 {
 			cfg.RefreshPeriod = time.Duration(v) * time.Second
 		}
-		if v, ok := tree["refresh-multiplier"].(float64); ok && v > 0 {
+		if v, ok := rsvpteNumber(tree["refresh-multiplier"]); ok && v > 0 {
 			cfg.RefreshMultiplier = int(v)
 		}
-		if ifaces, ok := tree["interface"].([]any); ok {
-			for _, raw := range ifaces {
-				m, ok := raw.(map[string]any)
-				if !ok {
-					continue
-				}
-				ic := ifaceConfig{}
-				if v, ok := m["name"].(string); ok {
-					ic.Name = v
-				}
-				if v, ok := m["max-bandwidth"].(string); ok {
-					if f, err := strconv.ParseFloat(v, 32); err == nil {
-						ic.MaxBW = float32(f)
-					}
-				}
-				if v, ok := m["max-reservable-bandwidth"].(string); ok {
-					if f, err := strconv.ParseFloat(v, 32); err == nil {
-						ic.MaxReservableBW = float32(f)
-					}
-				}
-				if v, ok := m["address"].(string); ok && v != "" {
-					p, err := netip.ParsePrefix(v)
-					if err != nil {
-						return cfg, fmt.Errorf("rsvp-te: interface %s invalid address %q: %w", ic.Name, v, err)
-					}
-					ic.Prefix = p
-				}
-				cfg.Interfaces = append(cfg.Interfaces, ic)
+		for _, entry := range rsvpteList(tree["interface"], false) {
+			m := entry.data
+			ic := ifaceConfig{Name: entry.key}
+			if v, ok := m["name"].(string); ok && v != "" {
+				ic.Name = v
 			}
+			if v, ok := rsvpteNumber(m["max-bandwidth"]); ok {
+				ic.MaxBW = float32(v)
+			}
+			if v, ok := rsvpteNumber(m["max-reservable-bandwidth"]); ok {
+				ic.MaxReservableBW = float32(v)
+			}
+			if v, ok := m["address"].(string); ok && v != "" {
+				p, err := netip.ParsePrefix(v)
+				if err != nil {
+					return cfg, fmt.Errorf("rsvp-te: interface %s invalid address %q: %w", ic.Name, v, err)
+				}
+				ic.Prefix = p
+			}
+			cfg.Interfaces = append(cfg.Interfaces, ic)
 		}
-		if tunnels, ok := tree["tunnel"].([]any); ok {
-			for _, raw := range tunnels {
-				m, ok := raw.(map[string]any)
-				if !ok {
-					continue
-				}
-				tc := tunnelConfig{
-					SetupPriority: 7,
-					HoldPriority:  7,
-				}
-				if v, ok := m["name"].(string); ok {
-					tc.Name = v
-				}
-				if v, ok := m["destination"].(string); ok {
-					if addr, err := netip.ParseAddr(v); err == nil {
-						tc.Destination = addr
-					}
-				}
-				if v, ok := m["tunnel-id"].(float64); ok {
-					tc.TunnelID = uint16(v)
-				}
-				if v, ok := m["bandwidth"].(string); ok {
-					if f, err := strconv.ParseFloat(v, 32); err == nil {
-						tc.Bandwidth = float32(f)
-					}
-				}
-				if v, ok := m["setup-priority"].(float64); ok {
-					tc.SetupPriority = uint8(v)
-				}
-				if v, ok := m["hold-priority"].(float64); ok {
-					tc.HoldPriority = uint8(v)
-				}
-				if ero, ok := m["explicit-route"].([]any); ok {
-					for _, hopRaw := range ero {
-						hopMap, ok := hopRaw.(map[string]any)
-						if !ok {
-							continue
-						}
-						hop := EROHop{}
-						if v, ok := hopMap["address"].(string); ok {
-							if pfx, err := netip.ParsePrefix(v); err == nil {
-								hop.Address = pfx
-							}
-						}
-						if v, ok := hopMap["type"].(string); ok && v == "loose" {
-							hop.Loose = true
-						}
-						tc.ERO = append(tc.ERO, hop)
-					}
-				}
-				cfg.Tunnels = append(cfg.Tunnels, tc)
+		for _, entry := range rsvpteList(tree["tunnel"], false) {
+			m := entry.data
+			tc := tunnelConfig{
+				Name:          entry.key,
+				SetupPriority: 7,
+				HoldPriority:  7,
 			}
+			if v, ok := m["name"].(string); ok && v != "" {
+				tc.Name = v
+			}
+			if v, ok := m["destination"].(string); ok {
+				if addr, err := netip.ParseAddr(v); err == nil {
+					tc.Destination = addr
+				}
+			}
+			if v, ok := rsvpteNumber(m["tunnel-id"]); ok {
+				tc.TunnelID = uint16(v)
+			}
+			if v, ok := rsvpteNumber(m["bandwidth"]); ok {
+				tc.Bandwidth = float32(v)
+			}
+			if v, ok := rsvpteNumber(m["setup-priority"]); ok {
+				tc.SetupPriority = uint8(v)
+			}
+			if v, ok := rsvpteNumber(m["hold-priority"]); ok {
+				tc.HoldPriority = uint8(v)
+			}
+			for _, hopEntry := range rsvpteList(m["explicit-route"], true) {
+				hopMap := hopEntry.data
+				hop := eroHop{}
+				if v, ok := hopMap["address"].(string); ok {
+					if pfx, err := netip.ParsePrefix(v); err == nil {
+						hop.Address = pfx
+					}
+				}
+				if v, ok := hopMap["type"].(string); ok && v == "loose" {
+					hop.Loose = true
+				}
+				tc.ERO = append(tc.ERO, hop)
+			}
+			cfg.Tunnels = append(cfg.Tunnels, tc)
 		}
 	}
 	return cfg, nil
@@ -260,6 +301,15 @@ func registerRSVPTE() {
 				setEventBus(e)
 			}
 		},
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "rsvp-te-rawsock",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        721,
+			Dependencies: []string{"fib-kernel"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-rsvpte-rawsock-unavailable"},
+			Check:        checkRSVPTERawSocket,
+		}},
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
@@ -283,8 +333,8 @@ func runRSVPTEEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("rsvp-te", conn)
 	defer func() { _ = p.Close() }()
 
-	lspTable := NewLSPTable()
-	admission := NewAdmissionController()
+	lspTable := newLSPTable()
+	admission := newAdmissionController()
 
 	var activeCfg rsvpteConfig
 	var tunnelsMu sync.Mutex
@@ -301,7 +351,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 		}
 		activeCfg = cfg
 		for _, iface := range cfg.Interfaces {
-			admission.SetInterface(iface.Name, float64(iface.MaxBW), float64(iface.MaxReservableBW))
+			admission.setInterface(iface.Name, float64(iface.MaxBW), float64(iface.MaxReservableBW))
 		}
 		return nil
 	})
@@ -355,7 +405,43 @@ func runRSVPTEEngine(conn net.Conn) int {
 
 		go runRefreshLoop(ctx, log, lspTable, cfg, eng)
 
-		go runCleanupLoop(ctx, log, lspTable, cfg)
+		go runCleanupLoop(ctx, log, lspTable, cfg, eng)
+
+		// React to interface-down events: an LSP whose downstream link fails is
+		// torn down and a PathErr reported toward the head-end (AC-6). Only
+		// meaningful when signaling is active (eng != nil). The EventBus handler
+		// MUST NOT block (pkg/ze/eventbus.go), so it only enqueues the interface
+		// name; a worker goroutine does the raw-socket sends and FIB mutation.
+		if eng != nil {
+			if eb := getEventBus(); eb != nil {
+				linkDownCh := make(chan string, 16)
+				go func() {
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case name := <-linkDownCh:
+							eng.handleLinkDown(name)
+						}
+					}
+				}()
+				unsub := eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDown, events.AsString(func(data string) {
+					var ev struct {
+						Name string `json:"name"`
+					}
+					if err := json.Unmarshal([]byte(data), &ev); err == nil && ev.Name != "" {
+						select {
+						case linkDownCh <- ev.Name:
+						default: // worker backed up; drop (a later event re-triggers)
+						}
+					}
+				}))
+				go func() {
+					<-ctx.Done()
+					unsub()
+				}()
+			}
+		}
 
 		tunnelsMu.Lock()
 		for _, tc := range cfg.Tunnels {
@@ -404,9 +490,9 @@ func addrToUint32(addr netip.Addr) uint32 {
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
-func setupTunnel(log *slog.Logger, lspTable *LSPTable, tc tunnelConfig, cfg rsvpteConfig, eng *engine) {
+func setupTunnel(log *slog.Logger, lspTable *lspTable, tc tunnelConfig, cfg rsvpteConfig, eng *engine) {
 	extID := addrToUint32(cfg.RouterID)
-	key := LSPKey{
+	key := lspKey{
 		TunnelEndpoint: tc.Destination,
 		TunnelID:       tc.TunnelID,
 		ExtTunnelID:    extID,
@@ -423,7 +509,7 @@ func setupTunnel(log *slog.Logger, lspTable *LSPTable, tc tunnelConfig, cfg rsvp
 		changed := lsp.PSB != nil && !eroEqual(lsp.PSB.ERO, tc.ERO)
 		lsp.mu.Unlock()
 		if changed && eng != nil {
-			if _, ok := eng.Reroute(key, tc.ERO); ok {
+			if _, ok := eng.reroute(key, tc.ERO); ok {
 				log.Info("rsvp-te: tunnel reroute (make-before-break) started", "name", tc.Name, "dest", tc.Destination)
 			}
 		}
@@ -435,13 +521,13 @@ func setupTunnel(log *slog.Logger, lspTable *LSPTable, tc tunnelConfig, cfg rsvp
 	lsp.Bandwidth = tc.Bandwidth
 	lsp.SetupPriority = tc.SetupPriority
 	lsp.HoldPriority = tc.HoldPriority
-	lsp.PSB = &PathStateBlock{
-		Session: SessionIPv4{
+	lsp.PSB = &pathStateBlock{
+		Session: sessionIPv4{
 			TunnelEndpoint: tc.Destination,
 			TunnelID:       tc.TunnelID,
 			ExtTunnelID:    extID,
 		},
-		SenderTemplate: SenderTemplateIPv4{
+		SenderTemplate: senderTemplateIPv4{
 			SenderAddr: cfg.RouterID,
 			LSPID:      1,
 		},
@@ -453,11 +539,11 @@ func setupTunnel(log *slog.Logger, lspTable *LSPTable, tc tunnelConfig, cfg rsvp
 			MinPolicedUnit: 20,
 			MaxPacketSize:  65535,
 		},
-		LabelRequest:  LabelRequest{L3PID: 0x0800},
+		LabelRequest:  labelRequest{L3PID: 0x0800},
 		RefreshPeriod: cfg.RefreshPeriod,
 		LastRefresh:   time.Now(),
 	}
-	lsp.SetState(LSPStatePathSent)
+	lsp.setState(LSPStatePathSent)
 	lsp.mu.Unlock()
 
 	// Send the PATH toward the egress. Without a transport (eng nil) the LSP
@@ -475,7 +561,7 @@ func setupTunnel(log *slog.Logger, lspTable *LSPTable, tc tunnelConfig, cfg rsvp
 
 // eroEqual reports whether two explicit routes are identical (same hops in the
 // same order). Used to detect a configured path change that warrants a reroute.
-func eroEqual(a, b []EROHop) bool {
+func eroEqual(a, b []eroHop) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -487,7 +573,7 @@ func eroEqual(a, b []EROHop) bool {
 	return true
 }
 
-func runRefreshLoop(ctx context.Context, log *slog.Logger, lspTable *LSPTable, cfg rsvpteConfig, eng *engine) {
+func runRefreshLoop(ctx context.Context, log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine) {
 	ticker := time.NewTicker(cfg.RefreshPeriod)
 	defer ticker.Stop()
 	for {
@@ -500,33 +586,49 @@ func runRefreshLoop(ctx context.Context, log *slog.Logger, lspTable *LSPTable, c
 	}
 }
 
-// refreshPaths re-sends PATH for every ingress LSP to maintain RFC 2205
-// soft-state. When no transport is available (eng nil) it only stamps the PSB so
-// local state stays consistent.
-func refreshPaths(log *slog.Logger, lspTable *LSPTable, eng *engine) {
+// refreshPaths maintains RFC 2205 soft-state on every refresh tick: ingress LSPs
+// re-send PATH downstream, while egress and transit LSPs re-send RESV upstream so
+// the reservation does not expire if no fresh PATH/RESV arrives. When no
+// transport is available (eng nil) it only stamps the PSB so local state stays
+// consistent.
+func refreshPaths(log *slog.Logger, lspTable *lspTable, eng *engine) {
 	for _, lsp := range lspTable.All() {
 		// Decide eligibility and stamp the refresh under the LSP lock, then
-		// release it before sendPath (which takes the same lock).
+		// release it before sendPath/sendResv (which take the same lock).
 		lsp.mu.Lock()
 		if lsp.PSB == nil || lsp.State == LSPStateDown {
 			lsp.mu.Unlock()
 			continue
 		}
-		lsp.PSB.LastRefresh = time.Now()
 		isIngress := lsp.Role == RoleIngress
+		hasRSB := lsp.RSB != nil
+		// Only the PATH originator (ingress) refreshes its own PSB soft-state
+		// here. A transit/egress PSB is refreshed by the incoming PATH it relays
+		// (RFC 2205 Section 3.4); stamping it locally would stop the cleanup loop
+		// from ever expiring the LSP once the upstream stops refreshing PATH,
+		// leaking the reservation and FIB state.
+		if isIngress {
+			lsp.PSB.LastRefresh = time.Now()
+		}
 		lsp.mu.Unlock()
 
-		if eng != nil && isIngress {
+		switch {
+		case eng != nil && isIngress:
 			if err := eng.sendPath(lsp); err != nil {
 				log.Warn("rsvp-te: PATH refresh send failed", "lsp", lsp.Key.String(), "error", err)
 			}
-			continue
+		case eng != nil && hasRSB:
+			// Egress/transit: re-send RESV upstream (RFC 2205 Section 3.7).
+			if err := eng.sendResv(lsp); err != nil {
+				log.Warn("rsvp-te: RESV refresh send failed", "lsp", lsp.Key.String(), "error", err)
+			}
+		default:
+			log.Debug("rsvp-te: refresh", "lsp", lsp.Key.String())
 		}
-		log.Debug("rsvp-te: PATH refresh", "lsp", lsp.Key.String())
 	}
 }
 
-func runCleanupLoop(ctx context.Context, log *slog.Logger, lspTable *LSPTable, cfg rsvpteConfig) {
+func runCleanupLoop(ctx context.Context, log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine) {
 	ticker := time.NewTicker(cfg.RefreshPeriod)
 	defer ticker.Stop()
 	for {
@@ -535,19 +637,22 @@ func runCleanupLoop(ctx context.Context, log *slog.Logger, lspTable *LSPTable, c
 			return
 		case <-ticker.C:
 			now := time.Now()
-			expired := lspTable.ExpiredPSBs(now, cfg.RefreshMultiplier)
+			expired := lspTable.expiredPSBs(now, cfg.RefreshMultiplier)
 			for _, key := range expired {
-				lsp := lspTable.Remove(key)
-				if lsp != nil {
-					// Snapshot under the LSP lock: the engine goroutine may
-					// still hold this pointer from a Get that raced the Remove.
+				// Soft-state expiry must release the same state a teardown does:
+				// admission bandwidth, FIB entries, label, and the lsp-down event.
+				// tearLSPLocal does all of that (and the table Remove); without it
+				// an expired LSP leaks its reservation and kernel MPLS entry.
+				if eng != nil {
+					eng.tearLSPLocal(key)
+				} else if lsp := lspTable.Remove(key); lsp != nil {
 					lsp.mu.Lock()
 					inLabel := lsp.InLabel
 					lsp.mu.Unlock()
-					lspTable.ReleaseLabel(inLabel)
-					log.Info("rsvp-te: LSP expired", "lsp", key.String())
+					lspTable.releaseLabel(inLabel)
 					emitLSPDown(log, lsp, lspTable.Len())
 				}
+				log.Info("rsvp-te: LSP expired", "lsp", key.String())
 			}
 		}
 	}
@@ -605,23 +710,25 @@ func emitLSPDown(log *slog.Logger, lsp *LSP, activeCount int) {
 	}
 }
 
-func showSessions(lspTable *LSPTable) any {
+func showSessions(lspTable *lspTable) any {
 	type sessionInfo struct {
-		TunnelEndpoint string  `json:"tunnel-endpoint"`
-		TunnelID       uint16  `json:"tunnel-id"`
-		LSPID          uint16  `json:"lsp-id"`
-		SenderAddr     string  `json:"sender-address"`
-		State          string  `json:"state"`
-		Role           string  `json:"role"`
-		Bandwidth      float32 `json:"bandwidth"`
-		InLabel        uint32  `json:"in-label"`
-		OutLabel       uint32  `json:"out-label"`
+		TunnelEndpoint string   `json:"tunnel-endpoint"`
+		TunnelID       uint16   `json:"tunnel-id"`
+		LSPID          uint16   `json:"lsp-id"`
+		SenderAddr     string   `json:"sender-address"`
+		State          string   `json:"state"`
+		Role           string   `json:"role"`
+		Bandwidth      float32  `json:"bandwidth"`
+		InLabel        uint32   `json:"in-label"`
+		OutLabel       uint32   `json:"out-label"`
+		ERO            []string `json:"ero,omitempty"`
+		RRO            []string `json:"rro,omitempty"`
 	}
 	lsps := lspTable.All()
 	out := make([]sessionInfo, 0, len(lsps))
 	for _, lsp := range lsps {
 		lsp.mu.Lock()
-		out = append(out, sessionInfo{
+		info := sessionInfo{
 			TunnelEndpoint: lsp.Key.TunnelEndpoint.String(),
 			TunnelID:       lsp.Key.TunnelID,
 			LSPID:          lsp.Key.LSPID,
@@ -631,13 +738,20 @@ func showSessions(lspTable *LSPTable) any {
 			Bandwidth:      lsp.Bandwidth,
 			InLabel:        lsp.InLabel,
 			OutLabel:       lsp.OutLabel,
-		})
+		}
+		if lsp.PSB != nil {
+			info.ERO = formatERO(lsp.PSB.ERO)
+		}
+		if lsp.RSB != nil {
+			info.RRO = formatRRO(lsp.RSB.RRO)
+		}
+		out = append(out, info)
 		lsp.mu.Unlock()
 	}
 	return out
 }
 
-func showInterfaces(admission *AdmissionController) any {
+func showInterfaces(admission *admissionController) any {
 	type ifaceInfo struct {
 		Name              string  `json:"name"`
 		MaxBandwidth      float64 `json:"max-bandwidth"`
@@ -645,7 +759,7 @@ func showInterfaces(admission *AdmissionController) any {
 		ReservedBandwidth float64 `json:"reserved-bandwidth"`
 		Available         float64 `json:"available-bandwidth"`
 	}
-	ifaces := admission.AllInterfaces()
+	ifaces := admission.allInterfaces()
 	out := make([]ifaceInfo, 0, len(ifaces))
 	for name, ib := range ifaces {
 		out = append(out, ifaceInfo{
@@ -659,7 +773,7 @@ func showInterfaces(admission *AdmissionController) any {
 	return out
 }
 
-func showTunnels(lspTable *LSPTable) any {
+func showTunnels(lspTable *lspTable) any {
 	type tunnelInfo struct {
 		TunnelEndpoint string  `json:"tunnel-endpoint"`
 		TunnelID       uint16  `json:"tunnel-id"`

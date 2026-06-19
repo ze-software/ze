@@ -5,8 +5,8 @@ import (
 )
 
 func TestRSVPAdmissionReserveAndRelease(t *testing.T) {
-	ac := NewAdmissionController()
-	ac.SetInterface("eth0", 10e9, 8e9)
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
 
 	if err := ac.Reserve("eth0", 3e9); err != nil {
 		t.Fatalf("Reserve 3Gbps: %v", err)
@@ -31,8 +31,8 @@ func TestRSVPAdmissionReserveAndRelease(t *testing.T) {
 }
 
 func TestRSVPAdmissionDenied(t *testing.T) {
-	ac := NewAdmissionController()
-	ac.SetInterface("eth0", 10e9, 8e9)
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
 
 	if err := ac.Reserve("eth0", 7e9); err != nil {
 		t.Fatalf("Reserve 7Gbps: %v", err)
@@ -45,7 +45,7 @@ func TestRSVPAdmissionDenied(t *testing.T) {
 }
 
 func TestRSVPAdmissionUnknownInterface(t *testing.T) {
-	ac := NewAdmissionController()
+	ac := newAdmissionController()
 
 	if err := ac.Reserve("eth99", 1e9); err != nil {
 		t.Fatalf("Reserve on unknown interface should succeed (no limit): %v", err)
@@ -53,8 +53,8 @@ func TestRSVPAdmissionUnknownInterface(t *testing.T) {
 }
 
 func TestRSVPAdmissionReleaseFloor(t *testing.T) {
-	ac := NewAdmissionController()
-	ac.SetInterface("eth0", 10e9, 8e9)
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
 
 	ac.Release("eth0", 5e9)
 	ib, _ := ac.GetInterface("eth0")
@@ -64,11 +64,11 @@ func TestRSVPAdmissionReleaseFloor(t *testing.T) {
 }
 
 func TestRSVPAdmissionAllInterfaces(t *testing.T) {
-	ac := NewAdmissionController()
-	ac.SetInterface("eth0", 10e9, 8e9)
-	ac.SetInterface("eth1", 1e9, 800e6)
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
+	ac.setInterface("eth1", 1e9, 800e6)
 
-	all := ac.AllInterfaces()
+	all := ac.allInterfaces()
 	if len(all) != 2 {
 		t.Fatalf("AllInterfaces returned %d, want 2", len(all))
 	}
@@ -81,8 +81,8 @@ func TestRSVPAdmissionAllInterfaces(t *testing.T) {
 }
 
 func TestRSVPAdmissionExactLimit(t *testing.T) {
-	ac := NewAdmissionController()
-	ac.SetInterface("eth0", 10e9, 8e9)
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
 
 	if err := ac.Reserve("eth0", 8e9); err != nil {
 		t.Fatalf("Reserve exactly at limit should succeed: %v", err)

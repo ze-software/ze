@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -95,6 +97,47 @@ type ldpConfig struct {
 	TransportAddr netip.Addr
 }
 
+// configNumber coerces a config-tree scalar to a float64. Tree.ToMap renders
+// every YANG leaf as a JSON string (e.g. "5"), so a numeric leaf arrives as a
+// string here, not a JSON number. We accept both for robustness.
+func configNumber(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case string:
+		f, err := strconv.ParseFloat(n, 64)
+		if err != nil {
+			return 0, false
+		}
+		return f, true
+	default:
+		return 0, false
+	}
+}
+
+// configLeafList coerces a YANG leaf-list value into a string slice. Tree.ToMap
+// renders a single-element leaf-list as a bare scalar and a multi-element one as
+// a []any, so both forms are handled.
+func configLeafList(v any) []string {
+	switch list := v.(type) {
+	case string:
+		if list == "" {
+			return nil
+		}
+		return []string{list}
+	case []any:
+		out := make([]string, 0, len(list))
+		for _, item := range list {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
 func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 	cfg := ldpConfig{
 		HelloInterval: DefaultHelloInterval,
@@ -105,9 +148,15 @@ func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 		if sec.Root != "ldp" || sec.Data == "" {
 			continue
 		}
-		var tree map[string]any
-		if err := json.Unmarshal([]byte(sec.Data), &tree); err != nil {
+		// BuildPluginConfigSections wraps the subtree under its root key, so the
+		// delivered JSON is {"ldp": {...}}. Unwrap before reading leaves.
+		var wrapper map[string]any
+		if err := json.Unmarshal([]byte(sec.Data), &wrapper); err != nil {
 			return cfg, fmt.Errorf("ldp: invalid config JSON: %w", err)
+		}
+		tree, _ := wrapper["ldp"].(map[string]any)
+		if tree == nil {
+			continue
 		}
 		if v, ok := tree["lsr-id"].(string); ok {
 			addr, err := netip.ParseAddr(v)
@@ -123,22 +172,16 @@ func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 			}
 			cfg.TransportAddr = addr
 		}
-		if v, ok := tree["hello-interval"].(float64); ok && v > 0 {
+		if v, ok := configNumber(tree["hello-interval"]); ok && v > 0 {
 			cfg.HelloInterval = time.Duration(v) * time.Second
 		}
-		if v, ok := tree["hello-hold-time"].(float64); ok && v > 0 {
+		if v, ok := configNumber(tree["hello-hold-time"]); ok && v > 0 {
 			cfg.HelloHoldTime = time.Duration(v) * time.Second
 		}
-		if v, ok := tree["keepalive-time"].(float64); ok && v > 0 {
+		if v, ok := configNumber(tree["keepalive-time"]); ok && v > 0 {
 			cfg.KeepaliveTime = time.Duration(v) * time.Second
 		}
-		if ifaces, ok := tree["interfaces"].([]any); ok {
-			for _, iface := range ifaces {
-				if s, ok := iface.(string); ok {
-					cfg.Interfaces = append(cfg.Interfaces, s)
-				}
-			}
-		}
+		cfg.Interfaces = append(cfg.Interfaces, configLeafList(tree["interfaces"])...)
 	}
 	return cfg, nil
 }
@@ -167,6 +210,15 @@ func registerLDP() {
 				setEventBus(e)
 			}
 		},
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "ldp-port",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        720,
+			Dependencies: []string{"fib-kernel"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-ldp-port-unavailable"},
+			Check:        checkLDPPort,
+		}},
 	}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
@@ -194,13 +246,26 @@ func runLDPEngine(conn net.Conn) int {
 	adjTable := NewAdjacencyTable()
 
 	var activeCfg ldpConfig
+	var pendingCfg ldpConfig
+	var havePending bool
 	var sessionsMu sync.Mutex
 	sessions := make(map[string]*Session)
 	var fib *ldpFIB
+	var discoveryMgr *discoveryManager
+	var mgrMu sync.Mutex // guards activeCfg/pendingCfg/havePending and discoveryMgr
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
-		_, err := parseLDPConfig(sections)
-		return err
+		cfg, err := parseLDPConfig(sections)
+		if err != nil {
+			return err
+		}
+		// Stash the validated config so OnConfigApply (the reload-commit step) can
+		// reconcile discovery to it. OnConfigure is the startup-only delivery.
+		mgrMu.Lock()
+		pendingCfg = cfg
+		havePending = true
+		mgrMu.Unlock()
+		return nil
 	})
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -208,12 +273,34 @@ func runLDPEngine(conn net.Conn) int {
 		if err != nil {
 			return err
 		}
+		mgrMu.Lock()
 		activeCfg = cfg
+		mgrMu.Unlock()
+		return nil
+	})
+
+	// OnConfigApply is the reload-pipeline commit step (OnConfigure does not fire
+	// on reload). Adopt the verified pending config and reconcile discovery so an
+	// added/removed LDP interface starts/stops without restarting the engine (AC-9).
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		mgrMu.Lock()
+		if havePending {
+			activeCfg = pendingCfg
+			havePending = false
+		}
+		cfg := activeCfg
+		mgr := discoveryMgr
+		mgrMu.Unlock()
+		if mgr != nil {
+			mgr.reconcile(cfg)
+		}
 		return nil
 	})
 
 	p.OnStarted(func(ctx context.Context) error {
+		mgrMu.Lock()
 		cfg := activeCfg
+		mgrMu.Unlock()
 		if !cfg.LSRID.IsValid() {
 			log.Warn("ldp: no lsr-id configured, engine idle")
 			return nil
@@ -235,11 +322,18 @@ func runLDPEngine(conn net.Conn) int {
 			fib.ProgramPop(fec, lb.Label)
 		}
 
-		go runDiscoveryLoop(ctx, log, cfg, lsrID, adjTable, func(adj *Adjacency) {
-			startSessionForAdj(ctx, log, adj, lsrID, lib, sessions, &sessionsMu, fib)
-		})
+		startFn := func(ifctx context.Context, ifName string, c ldpConfig) {
+			discoverOnInterface(ifctx, log, c, lsrID, ifName, adjTable, func(adj *Adjacency) {
+				startSessionForAdj(ctx, log, adj, lsrID, lib, sessions, &sessionsMu, fib)
+			})
+		}
+		mgr := newDiscoveryManager(ctx, log, startFn)
+		mgrMu.Lock()
+		discoveryMgr = mgr
+		mgrMu.Unlock()
+		mgr.reconcile(cfg)
 
-		go runAdjacencyExpiry(ctx, log, adjTable)
+		go runAdjacencyExpiry(ctx, log, adjTable, sessions, &sessionsMu)
 
 		return nil
 	})
@@ -382,27 +476,6 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 			})
 		}
 	})
-}
-
-// runDiscoveryLoop runs LDP Basic Discovery. RFC 5036 Section 2.4.1 sends Hellos
-// to 224.0.0.2 on each link LDP is enabled on, so discovery binds one multicast
-// listener per configured interface (Hellos must egress the LDP link, not the
-// system-default multicast interface). With no interface configured it falls back
-// to the system-assigned interface, preserving the prior single-socket behavior.
-func runDiscoveryLoop(ctx context.Context, log *slog.Logger, cfg ldpConfig, lsrID [4]byte, adjTable *AdjacencyTable, onNewAdj func(*Adjacency)) {
-	if len(cfg.Interfaces) == 0 {
-		discoverOnInterface(ctx, log, cfg, lsrID, "", adjTable, onNewAdj)
-		return
-	}
-	var wg sync.WaitGroup
-	for _, name := range cfg.Interfaces {
-		wg.Add(1)
-		go func(name string) {
-			defer wg.Done()
-			discoverOnInterface(ctx, log, cfg, lsrID, name, adjTable, onNewAdj)
-		}(name)
-	}
-	wg.Wait()
 }
 
 // ldpInterfaceRetry is how often discovery re-checks for a configured interface
@@ -691,7 +764,7 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 	}
 }
 
-func runAdjacencyExpiry(ctx context.Context, log *slog.Logger, adjTable *AdjacencyTable) {
+func runAdjacencyExpiry(ctx context.Context, log *slog.Logger, adjTable *AdjacencyTable, sessions map[string]*Session, sessionsMu *sync.Mutex) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -699,10 +772,26 @@ func runAdjacencyExpiry(ctx context.Context, log *slog.Logger, adjTable *Adjacen
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			expired := adjTable.ExpireSweep()
-			for _, key := range expired {
-				log.Info("ldp: adjacency expired", "peer", key)
-			}
+			expireAdjacencies(log, adjTable, sessions, sessionsMu)
+		}
+	}
+}
+
+// expireAdjacencies sweeps timed-out adjacencies and tears the session for each.
+// Stopping a session closes its TCP connection, so runSession exits and withdraws
+// the peer's labels via reconcilePeerDown (F6). Without this the session would
+// linger until its own keepalive timeout, leaving stale labels and FIB state after
+// an interface is removed (discovery stops -> Hellos stop -> adjacency expires
+// here). The adjacency-table key and the session-map key are both
+// AdjacencyKey(LSR-ID, label-space).
+func expireAdjacencies(log *slog.Logger, adjTable *AdjacencyTable, sessions map[string]*Session, sessionsMu *sync.Mutex) {
+	for _, key := range adjTable.ExpireSweep() {
+		log.Info("ldp: adjacency expired", "peer", key)
+		sessionsMu.Lock()
+		sess, ok := sessions[key]
+		sessionsMu.Unlock()
+		if ok {
+			sess.Stop()
 		}
 	}
 }

@@ -96,7 +96,7 @@ func testEngine(t *testing.T, routerID string, cfg func(*rsvpteConfig)) (*engine
 	}
 	ft := newFakeTransport()
 	fib := &fakeFIB{}
-	e := newEngine(ft, NewLSPTable(), NewAdmissionController(), fib, c, slogutil.DiscardLogger())
+	e := newEngine(ft, newLSPTable(), newAdmissionController(), fib, c, slogutil.DiscardLogger())
 	return e, ft, fib
 }
 
@@ -104,14 +104,14 @@ func testEngine(t *testing.T, routerID string, cfg func(*rsvpteConfig)) (*engine
 func TestEngineEgressPathToResv(t *testing.T) {
 	e, ft, fib := testEngine(t, "10.0.0.9", nil)
 
-	psb := &PathStateBlock{
-		Session:        SessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
-		SenderTemplate: SenderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
 		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
-		LabelRequest:   LabelRequest{L3PID: 0x0800},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
 		RefreshPeriod:  DefaultRefreshPeriod,
 	}
-	path := BuildPath(psb, netip.MustParseAddr("10.0.0.1"), 64)
+	path := buildPath(psb, netip.MustParseAddr("10.0.0.1"), 64)
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: path})
 
 	resv, dst, ok := ft.lastByType(MsgTypeResv)
@@ -120,7 +120,7 @@ func TestEngineEgressPathToResv(t *testing.T) {
 	require.True(t, resv.HasLabel)
 	assert.GreaterOrEqual(t, resv.Label.Label, uint32(1000), "label allocated from pool")
 
-	lsp, ok := e.table.Get(KeyFromMessage(resv))
+	lsp, ok := e.table.Get(keyFromMessage(resv))
 	require.True(t, ok)
 	assert.Equal(t, LSPStateUp, lsp.State)
 	assert.Equal(t, RoleEgress, lsp.Role)
@@ -133,21 +133,21 @@ func TestEngineEgressPathToResv(t *testing.T) {
 func TestEngineIngressResvToUp(t *testing.T) {
 	e, _, fib := testEngine(t, "10.0.0.1", nil)
 
-	key := LSPKey{
+	key := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1,
 		ExtTunnelID: 0x0a000001, SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1,
 	}
 	lsp, _ := e.table.GetOrCreate(key)
 	lsp.Role = RoleIngress
-	lsp.SetState(LSPStatePathSent)
+	lsp.setState(LSPStatePathSent)
 
-	rsb := &ResvStateBlock{
-		Session: SessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID},
-		Label:   LabelObject{Label: 16050},
+	rsb := &resvStateBlock{
+		Session: sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID},
+		Label:   labelObject{Label: 16050},
 		Style:   StyleSharedExplicit,
 	}
-	filter := SenderTemplateIPv4{SenderAddr: key.SenderAddr, LSPID: key.LSPID}
-	resv := BuildResv(rsb, filter, DefaultRefreshPeriod, netip.MustParseAddr("10.0.0.9"), 64)
+	filter := senderTemplateIPv4{SenderAddr: key.SenderAddr, LSPID: key.LSPID}
+	resv := buildResv(rsb, filter, DefaultRefreshPeriod, netip.MustParseAddr("10.0.0.9"))
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.9"), Payload: resv})
 
 	got, _ := e.table.Get(key)
@@ -165,15 +165,15 @@ func TestEngineTransitForwarding(t *testing.T) {
 
 	ingress := netip.MustParseAddr("10.0.0.1")
 	egress := netip.MustParseAddr("10.0.0.9")
-	psb := &PathStateBlock{
-		Session:        SessionIPv4{TunnelEndpoint: egress, TunnelID: 1, ExtTunnelID: 0x0a000001},
-		SenderTemplate: SenderTemplateIPv4{SenderAddr: ingress, LSPID: 1},
-		ERO:            []EROHop{{Address: netip.MustParsePrefix("10.0.0.5/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}},
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: egress, TunnelID: 1, ExtTunnelID: 0x0a000001},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: ingress, LSPID: 1},
+		ERO:            []eroHop{{Address: netip.MustParsePrefix("10.0.0.5/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}},
 		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
-		LabelRequest:   LabelRequest{L3PID: 0x0800},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
 	}
 	// Transit node receives PATH from the ingress.
-	e.handlePacket(Packet{Src: ingress, Payload: BuildPath(psb, ingress, 64)})
+	e.handlePacket(Packet{Src: ingress, Payload: buildPath(psb, ingress, 64)})
 
 	// It relays a PATH toward the next ERO hop (the egress).
 	fwd, dst, ok := ft.lastByType(MsgTypePath)
@@ -182,20 +182,20 @@ func TestEngineTransitForwarding(t *testing.T) {
 	require.Len(t, fwd.ERO, 1, "transit consumed its own ERO subobject; only the egress hop remains")
 	assert.Equal(t, egress, fwd.ERO[0].Address.Addr())
 
-	key := KeyFromMessage(fwd)
+	key := keyFromMessage(fwd)
 	lsp, ok := e.table.Get(key)
 	require.True(t, ok)
 	assert.Equal(t, RoleTransit, lsp.Role)
 	assert.Equal(t, LSPStatePathReceived, lsp.State)
 
 	// The egress's RESV comes back with its label; transit swaps and relays.
-	rsb := &ResvStateBlock{
+	rsb := &resvStateBlock{
 		Session: psb.Session,
-		Label:   LabelObject{Label: 18000},
+		Label:   labelObject{Label: 18000},
 		Style:   StyleSharedExplicit,
 	}
 	filter := psb.SenderTemplate
-	e.handlePacket(Packet{Src: egress, Payload: BuildResv(rsb, filter, DefaultRefreshPeriod, egress, 64)})
+	e.handlePacket(Packet{Src: egress, Payload: buildResv(rsb, filter, DefaultRefreshPeriod, egress)})
 
 	up, _ := e.table.Get(key)
 	assert.Equal(t, LSPStateUp, up.State)
@@ -216,16 +216,16 @@ func TestEngineTransitForwarding(t *testing.T) {
 // again before the monotonic counter advances, so wraparound cannot collide
 // with a live label.
 func TestLSPTableLabelReuse(t *testing.T) {
-	tbl := NewLSPTable()
+	tbl := newLSPTable()
 	l1 := tbl.AllocateLabel()
 	l2 := tbl.AllocateLabel()
 	assert.NotEqual(t, l1, l2)
 
-	tbl.ReleaseLabel(l1)
+	tbl.releaseLabel(l1)
 	l3 := tbl.AllocateLabel()
 	assert.Equal(t, l1, l3, "released label is reused")
 
-	tbl.ReleaseLabel(0) // no-op, must not be handed out
+	tbl.releaseLabel(0) // no-op, must not be handed out
 	l4 := tbl.AllocateLabel()
 	assert.NotZero(t, l4)
 	assert.NotEqual(t, l2, l4)
@@ -238,15 +238,15 @@ func TestEngineEgressRefreshIdempotent(t *testing.T) {
 	e, ft, _ := testEngine(t, "10.0.0.9", func(c *rsvpteConfig) {
 		c.Interfaces = []ifaceConfig{{Name: "eth0", MaxBW: 10e9, MaxReservableBW: 10e9}}
 	})
-	e.admission.SetInterface("eth0", 10e9, 10e9)
+	e.admission.setInterface("eth0", 10e9, 10e9)
 
-	psb := &PathStateBlock{
-		Session:        SessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1},
-		SenderTemplate: SenderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
 		SenderTSpec:    FlowSpec{TokenRate: 1e9, TokenBucket: 1e9, PeakRate: 1e9},
-		LabelRequest:   LabelRequest{L3PID: 0x0800},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
 	}
-	path := BuildPath(psb, netip.MustParseAddr("10.0.0.1"), 64)
+	path := buildPath(psb, netip.MustParseAddr("10.0.0.1"), 64)
 
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: path})
 	resv1, _, ok := ft.lastByType(MsgTypeResv)
@@ -270,13 +270,13 @@ func TestEngineEgressRefreshIdempotent(t *testing.T) {
 // exhausted is dropped, neither relayed nor installed.
 func TestEngineTransitTTLExhausted(t *testing.T) {
 	e, ft, _ := testEngine(t, "10.0.0.5", nil)
-	psb := &PathStateBlock{
-		Session:        SessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1},
-		SenderTemplate: SenderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
-		ERO:            []EROHop{{Address: netip.MustParsePrefix("10.0.0.5/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}},
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		ERO:            []eroHop{{Address: netip.MustParsePrefix("10.0.0.5/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}},
 		SenderTSpec:    FlowSpec{TokenRate: 1e8},
 	}
-	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: BuildPath(psb, netip.MustParseAddr("10.0.0.1"), 1)})
+	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: buildPath(psb, netip.MustParseAddr("10.0.0.1"), 1)})
 
 	if _, _, ok := ft.lastByType(MsgTypePath); ok {
 		t.Fatal("TTL-exhausted PATH must not be relayed")
@@ -290,16 +290,16 @@ func TestEngineAdmissionDeniedPathErr(t *testing.T) {
 	e, ft, _ := testEngine(t, "10.0.0.9", func(c *rsvpteConfig) {
 		c.Interfaces = []ifaceConfig{{Name: "eth0", MaxBW: 1e9, MaxReservableBW: 1e9}}
 	})
-	e.admission.SetInterface("eth0", 1e9, 1e9)
+	e.admission.setInterface("eth0", 1e9, 1e9)
 	require.NoError(t, e.admission.Reserve("eth0", 1e9)) // fill the link
 
-	psb := &PathStateBlock{
-		Session:        SessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 2},
-		SenderTemplate: SenderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 2},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
 		SenderTSpec:    FlowSpec{TokenRate: 5e8, TokenBucket: 5e8, PeakRate: 5e8},
-		LabelRequest:   LabelRequest{L3PID: 0x0800},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
 	}
-	path := BuildPath(psb, netip.MustParseAddr("10.0.0.1"), 64)
+	path := buildPath(psb, netip.MustParseAddr("10.0.0.1"), 64)
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: path})
 
 	perr, dst, ok := ft.lastByType(MsgTypePathErr)
@@ -317,16 +317,16 @@ func TestEnginePathTearReleases(t *testing.T) {
 	e, _, fib := testEngine(t, "10.0.0.9", func(c *rsvpteConfig) {
 		c.Interfaces = []ifaceConfig{{Name: "eth0", MaxBW: 1e9, MaxReservableBW: 1e9}}
 	})
-	e.admission.SetInterface("eth0", 1e9, 1e9)
+	e.admission.setInterface("eth0", 1e9, 1e9)
 
 	// Establish an egress LSP via PATH.
-	psb := &PathStateBlock{
-		Session:        SessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 3},
-		SenderTemplate: SenderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 3},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
 		SenderTSpec:    FlowSpec{TokenRate: 4e8, TokenBucket: 4e8, PeakRate: 4e8},
 	}
 	src := netip.MustParseAddr("10.0.0.1")
-	e.handlePacket(Packet{Src: src, Payload: BuildPath(psb, src, 64)})
+	e.handlePacket(Packet{Src: src, Payload: buildPath(psb, src, 64)})
 	ib, _ := e.admission.GetInterface("eth0")
 	require.InDelta(t, 4e8, ib.ReservedBandwidth, 1, "reservation held after PATH")
 
@@ -335,7 +335,7 @@ func TestEnginePathTearReleases(t *testing.T) {
 
 	// Tear it down. The egress withdraws its pop entry (in-label keyed, so via
 	// RemoveSwap) and releases bandwidth; no push entry exists to remove.
-	e.handlePacket(Packet{Src: src, Payload: BuildPathTear(psb, src, 64)})
+	e.handlePacket(Packet{Src: src, Payload: buildPathTear(psb, src)})
 	ib, _ = e.admission.GetInterface("eth0")
 	assert.InDelta(t, 0, ib.ReservedBandwidth, 1, "bandwidth released after PathTear")
 	assert.Empty(t, e.table.All(), "LSP removed")

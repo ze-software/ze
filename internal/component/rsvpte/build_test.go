@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func samplePSB() *PathStateBlock {
-	return &PathStateBlock{
-		Session:        SessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 42, ExtTunnelID: 0x0a000001},
-		SenderTemplate: SenderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 7},
-		ERO: []EROHop{
+func samplePSB() *pathStateBlock {
+	return &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 42, ExtTunnelID: 0x0a000001},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 7},
+		ERO: []eroHop{
 			{Loose: false, Address: netip.MustParsePrefix("10.0.0.5/32")},
 			{Loose: true, Address: netip.MustParsePrefix("10.0.0.9/32")},
 		},
 		SenderTSpec:   FlowSpec{TokenRate: 1e9, TokenBucket: 1e9, PeakRate: 1e9, MinPolicedUnit: 20, MaxPacketSize: 1500},
-		LabelRequest:  LabelRequest{L3PID: 0x0800},
+		LabelRequest:  labelRequest{L3PID: 0x0800},
 		RefreshPeriod: 30 * time.Second,
 	}
 }
@@ -28,7 +28,7 @@ func TestBuildPathRoundTrip(t *testing.T) {
 	psb := samplePSB()
 	hop := netip.MustParseAddr("10.0.0.1")
 
-	raw := BuildPath(psb, hop, 64)
+	raw := buildPath(psb, hop, 64)
 	msg, err := DecodeMessage(raw)
 	require.NoError(t, err)
 
@@ -55,16 +55,16 @@ func TestBuildPathRoundTrip(t *testing.T) {
 }
 
 func TestBuildResvRoundTrip(t *testing.T) {
-	rsb := &ResvStateBlock{
-		Session:  SessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 42, ExtTunnelID: 0x0a000001},
+	rsb := &resvStateBlock{
+		Session:  sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 42, ExtTunnelID: 0x0a000001},
 		FlowSpec: FlowSpec{TokenRate: 5e8, TokenBucket: 5e8, PeakRate: 5e8, MinPolicedUnit: 20, MaxPacketSize: 1500},
-		Label:    LabelObject{Label: 16001},
+		Label:    labelObject{Label: 16001},
 		Style:    StyleSharedExplicit,
 	}
-	filter := SenderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 7}
+	filter := senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 7}
 	hop := netip.MustParseAddr("10.0.0.5")
 
-	raw := BuildResv(rsb, filter, 30*time.Second, hop, 64)
+	raw := buildResv(rsb, filter, 30*time.Second, hop)
 	msg, err := DecodeMessage(raw)
 	require.NoError(t, err)
 
@@ -82,14 +82,14 @@ func TestBuildResvRoundTrip(t *testing.T) {
 }
 
 func TestBuildPathErrRoundTrip(t *testing.T) {
-	session := SessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 42}
-	sender := SenderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 7}
-	es := ErrorSpec{
+	session := sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 42}
+	sender := senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 7}
+	es := errorSpec{
 		ErrorNode:  netip.MustParseAddr("10.0.0.5"),
 		ErrorCode:  ErrCodeAdmissionControlFailure,
 		ErrorValue: ErrValueRequestedBandwidth,
 	}
-	raw := BuildPathErr(session, sender, FlowSpec{}, es, netip.MustParseAddr("10.0.0.5"), 64)
+	raw := buildPathErr(session, sender, FlowSpec{}, es, netip.MustParseAddr("10.0.0.5"), 64)
 	msg, err := DecodeMessage(raw)
 	require.NoError(t, err)
 
@@ -102,7 +102,7 @@ func TestBuildPathErrRoundTrip(t *testing.T) {
 
 func TestBuildPathTearRoundTrip(t *testing.T) {
 	psb := samplePSB()
-	raw := BuildPathTear(psb, netip.MustParseAddr("10.0.0.1"), 64)
+	raw := buildPathTear(psb, netip.MustParseAddr("10.0.0.1"))
 	msg, err := DecodeMessage(raw)
 	require.NoError(t, err)
 	assert.Equal(t, MsgTypePathTear, msg.Header.MsgType)
@@ -114,7 +114,7 @@ func TestBuildPathTearRoundTrip(t *testing.T) {
 func TestInternetChecksumValid(t *testing.T) {
 	// RFC 1071: summing the message including its checksum field yields all-ones
 	// (which the verifier folds to zero after complement).
-	raw := BuildPath(samplePSB(), netip.MustParseAddr("10.0.0.1"), 64)
+	raw := buildPath(samplePSB(), netip.MustParseAddr("10.0.0.1"), 64)
 	assert.NotZero(t, raw[2:4], "checksum field is filled")
 
 	// Recomputing over the message with a correct checksum present must fold to 0.

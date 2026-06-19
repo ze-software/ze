@@ -319,16 +319,15 @@ func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
 	if tree == nil {
 		return nil
 	}
-	bgpBlock := tree.GetContainer("bgp")
-	if bgpBlock == nil {
-		return nil
-	}
+	// MPLS modules only matter for the kernel FIB backend.
 	fibBlock := tree.GetContainer("fib")
-	if fibBlock == nil {
+	if fibBlock == nil || fibBlock.GetContainer("kernel") == nil {
 		return nil
 	}
-	kernelBlock := fibBlock.GetContainer("kernel")
-	if kernelBlock == nil {
+	// Only warn when MPLS forwarding is actually configured (F15): a labeled BGP
+	// family, LDP, RSVP-TE, or a per-interface MPLS enable. A plain BGP config
+	// over the kernel FIB imposes no labels and needs no MPLS modules.
+	if !mplsInUse(tree) {
 		return nil
 	}
 
@@ -353,6 +352,56 @@ func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
 		Severity: diagnostic.SeverityWarning,
 		Message:  tb.Str("MPLS kernel modules not loaded: ").Join(missing, ", ").String(),
 	}}
+}
+
+// mplsInUse reports whether the config actually uses MPLS forwarding: a BGP
+// labeled-unicast/VPN family on a peer (directly or via a group), LDP, RSVP-TE,
+// or a per-interface MPLS enable. checkMPLSSupport gates the MPLS-module warning
+// on this so a plain BGP-over-kernel config does not warn about modules it does
+// not need (F15).
+func mplsInUse(tree *config.Tree) bool {
+	if tree.GetContainer("ldp") != nil || tree.GetContainer("rsvp-te") != nil {
+		return true
+	}
+	for _, i := range tree.GetListOrdered("interface") {
+		if i.Value.GetContainer("mpls") != nil {
+			return true
+		}
+	}
+	bgp := tree.GetContainer("bgp")
+	if bgp == nil {
+		return false
+	}
+	if containerPeersLabeled(bgp) {
+		return true
+	}
+	for _, g := range bgp.GetListOrdered("group") {
+		if containerPeersLabeled(g.Value) {
+			return true
+		}
+	}
+	return false
+}
+
+// containerPeersLabeled reports whether any peer directly under c negotiates a
+// labeled-unicast or MPLS-VPN family.
+func containerPeersLabeled(c *config.Tree) bool {
+	for _, p := range c.GetListOrdered("peer") {
+		session := p.Value.GetContainer("session")
+		if session == nil {
+			continue
+		}
+		fam := session.GetContainer("family")
+		if fam == nil {
+			continue
+		}
+		for _, name := range []string{"ipv4/mpls-label", "ipv6/mpls-label", "ipv4/mpls-vpn", "ipv6/mpls-vpn"} {
+			if fam.GetContainer(name) != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func checkFirewallBackend(tree *config.Tree) []diagnostic.Diagnostic {

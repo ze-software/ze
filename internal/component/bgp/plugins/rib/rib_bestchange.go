@@ -75,14 +75,14 @@ func packBestPath(metricIdx, peerIdx, nextHopIdx, flags uint16) bestPathRecord {
 		uint64(flags))
 }
 
-// MetricIdx returns the interner index for this record's MED value.
-func (r bestPathRecord) MetricIdx() uint16 { return uint16(r >> shiftMetricIdx) }
+// metricIdx returns the interner index for this record's MED value.
+func (r bestPathRecord) metricIdx() uint16 { return uint16(r >> shiftMetricIdx) }
 
-// PeerIdx returns the interner index for this record's peer address.
-func (r bestPathRecord) PeerIdx() uint16 { return uint16(r >> shiftPeerIdx) }
+// peerIdx returns the interner index for this record's peer address.
+func (r bestPathRecord) peerIdx() uint16 { return uint16(r >> shiftPeerIdx) }
 
-// NextHopIdx returns the interner index for this record's next-hop.
-func (r bestPathRecord) NextHopIdx() uint16 { return uint16(r >> shiftNextHopIdx) }
+// nextHopIdx returns the interner index for this record's next-hop.
+func (r bestPathRecord) nextHopIdx() uint16 { return uint16(r >> shiftNextHopIdx) }
 
 // Flags returns the 16-bit flag field; bit 0 = isEBGP, bits 1-15 reserved.
 func (r bestPathRecord) Flags() uint16 { return uint16(r) }
@@ -363,9 +363,9 @@ func (r bestPathRecord) resolve(interner *bestPrevInterner, action bgptypes.Rout
 		Prefix:       prefix,
 		AddPath:      addPath,
 		PathID:       pathID,
-		NextHop:      interner.nextHopAt(r.NextHopIdx()),
+		NextHop:      interner.nextHopAt(r.nextHopIdx()),
 		Priority:     priority,
-		Metric:       interner.metricAt(r.MetricIdx()),
+		Metric:       interner.metricAt(r.metricIdx()),
 		ProtocolType: protoType,
 	}
 }
@@ -567,7 +567,7 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 			// direct: collect prefixes to delete, then delete after Iterate.
 			var directVictims []netip.Prefix
 			sh.store.direct.Iterate(func(pfx netip.Prefix, rec bestPathRecord) bool {
-				if rec.PeerIdx() == peerIdx {
+				if rec.peerIdx() == peerIdx {
 					directVictims = append(directVictims, pfx)
 				}
 				return true
@@ -594,7 +594,7 @@ func (r *RIBManager) purgeBestPrevForPeer(peerAddr string) map[family.Family][]b
 			sh.store.multi.Iterate(func(pfx netip.Prefix, ps bestPrevSet) bool {
 				var pathIDs []uint32
 				for _, e := range ps.entries {
-					if e.rec.PeerIdx() == peerIdx {
+					if e.rec.peerIdx() == peerIdx {
 						pathIDs = append(pathIDs, e.pathID)
 					}
 				}
@@ -769,11 +769,17 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 	// allocation. If the bounds-safe accessors report a miss (stale
 	// index from a reset interner), the comparison falls through and
 	// the record is re-interned below.
-	if havePrev {
+	// Skip same-best suppression for labeled routes: the label stack is not
+	// part of the interned prev record, so a relabel (same peer/next-hop/metric,
+	// new label) would be wrongly suppressed and never reach the kernel. The cost
+	// is a redundant event-bus entry when a labeled best is unchanged, but the
+	// authoritative Loc-RIB path (the default consumer) still dedups via
+	// Path.Equal, so there is no FIB churn.
+	if havePrev && len(bestLabels) == 0 {
 		ir := r.bestPathInterner
-		if ir.peerAt(prev.PeerIdx()) == newBest.PeerAddr &&
-			ir.nextHopAt(prev.NextHopIdx()) == nextHop &&
-			ir.metricAt(prev.MetricIdx()) == newBest.MED &&
+		if ir.peerAt(prev.peerIdx()) == newBest.PeerAddr &&
+			ir.nextHopAt(prev.nextHopIdx()) == nextHop &&
+			ir.metricAt(prev.metricIdx()) == newBest.MED &&
 			prev.IsEBGP() == isEBGP &&
 			!srv6SID.IsValid() && prev.Flags()&flagHadSRv6SID == 0 {
 			return bestChangeEntry{}, false
@@ -815,7 +821,16 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 			Instance:      pathID,
 			NextHop:       nextHop,
 			AdminDistance: distance,
-			Metric:        newBest.MED,
+			// Carry the eBGP/iBGP class explicitly so the sysrib replay path
+			// classifies the protocol type without re-deriving it from the
+			// (operator-overridable) AdminDistance above.
+			IsEBGP: isEBGP,
+			Metric: newBest.MED,
+			// Carry the label stack into the Loc-RIB so labeled-unicast routes
+			// reach the kernel as MPLS push entries. sysrib prefers the Loc-RIB
+			// path, so without this the labels (attached to the event entry
+			// below) are dropped and a plain IP route is installed.
+			Labels: bestLabels,
 		}, forward)
 	}
 	action := ribevents.BestChangeAdd
@@ -901,11 +916,11 @@ func labelWidthForSAFI(safi family.SAFI) uint8 {
 	return 20
 }
 
-// IsSRv6Ineligible reports whether a route entry is ineligible for best-path
+// isSRv6Ineligible reports whether a route entry is ineligible for best-path
 // per RFC 9252 Section 5: a route with PrefixSID containing SRv6 Service TLVs
 // (type 5 or 6) but no extractable valid SID MUST be excluded from best-path.
 // Returns false (eligible) when no SRv6 TLVs are present or SID extraction succeeds.
-func IsSRv6Ineligible(entry storage.RouteEntry) bool {
+func isSRv6Ineligible(entry storage.RouteEntry) bool {
 	b := entry.GetBundle()
 	if !b.HasOtherAttrs() {
 		return false

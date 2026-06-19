@@ -15,21 +15,21 @@ import (
 	"time"
 )
 
-// Reroute starts a make-before-break reroute of the ingress LSP identified by
+// reroute starts a make-before-break reroute of the ingress LSP identified by
 // oldKey along newERO. It creates a replacement LSP with the next LSP_ID and the
 // SE style, sends its PATH, and records the link so handleResv tears the old LSP
 // down once the replacement is up. Returns the new LSP key.
-func (e *engine) Reroute(oldKey LSPKey, newERO []EROHop) (LSPKey, bool) {
+func (e *engine) reroute(oldKey lspKey, newERO []eroHop) (lspKey, bool) {
 	old, ok := e.table.Get(oldKey)
 	if !ok {
-		return LSPKey{}, false
+		return lspKey{}, false
 	}
 
 	// Snapshot the old LSP's parameters under its lock.
 	old.mu.Lock()
 	if old.Role != RoleIngress {
 		old.mu.Unlock()
-		return LSPKey{}, false
+		return lspKey{}, false
 	}
 	bandwidth := old.Bandwidth
 	setupPrio := old.SetupPriority
@@ -51,16 +51,16 @@ func (e *engine) Reroute(oldKey LSPKey, newERO []EROHop) (LSPKey, bool) {
 	newLSP.HoldPriority = holdPrio
 	replaced := oldKey
 	newLSP.Replaces = &replaced
-	newLSP.PSB = &PathStateBlock{
-		Session:        SessionIPv4{TunnelEndpoint: newKey.TunnelEndpoint, TunnelID: newKey.TunnelID, ExtTunnelID: newKey.ExtTunnelID},
-		SenderTemplate: SenderTemplateIPv4{SenderAddr: newKey.SenderAddr, LSPID: newKey.LSPID},
+	newLSP.PSB = &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: newKey.TunnelEndpoint, TunnelID: newKey.TunnelID, ExtTunnelID: newKey.ExtTunnelID},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: newKey.SenderAddr, LSPID: newKey.LSPID},
 		ERO:            newERO,
 		SenderTSpec:    tspec,
-		LabelRequest:   LabelRequest{L3PID: 0x0800},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
 		RefreshPeriod:  e.cfg.RefreshPeriod,
 		LastRefresh:    time.Now(),
 	}
-	newLSP.SetState(LSPStatePathSent)
+	newLSP.setState(LSPStatePathSent)
 	newLSP.mu.Unlock()
 
 	if err := e.sendPath(newLSP); err != nil {
@@ -73,7 +73,7 @@ func (e *engine) Reroute(oldKey LSPKey, newERO []EROHop) (LSPKey, bool) {
 
 // tearReplaced tears down the LSP a make-before-break replacement supersedes,
 // sending a PathTear toward its egress and releasing its admission bandwidth.
-func (e *engine) tearReplaced(oldKey LSPKey) {
+func (e *engine) tearReplaced(oldKey lspKey) {
 	old := e.table.Remove(oldKey)
 	if old == nil {
 		return
@@ -89,7 +89,7 @@ func (e *engine) tearReplaced(oldKey LSPKey) {
 	old.mu.Unlock()
 
 	if psb != nil {
-		raw := BuildPathTear(psb, e.cfg.RouterID, defaultIPTTL)
+		raw := buildPathTear(psb, e.cfg.RouterID)
 		if !dst.IsValid() {
 			dst = oldKey.TunnelEndpoint
 		}
@@ -106,7 +106,7 @@ func (e *engine) tearReplaced(oldKey LSPKey) {
 			e.log.Warn("rsvp-te: make-before-break old fib remove failed", "lsp", oldKey.String(), "error", err)
 		}
 	}
-	e.table.ReleaseLabel(inLabel)
+	e.table.releaseLabel(inLabel)
 	emitLSPDown(e.log, old, e.table.Len())
 	e.log.Info("rsvp-te: make-before-break old LSP torn down", "lsp", oldKey.String())
 }

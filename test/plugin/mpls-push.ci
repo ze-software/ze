@@ -1,10 +1,15 @@
-# MPLS label push: BGP labeled unicast route installed in kernel FIB
+# MPLS label push: BGP labeled unicast control-plane exchange
 # Spec: plan/spec-mpls-1-kernel.md AC-1
 #
-# TODO: requires Linux with MPLS kernel support
-# - peer sends labeled unicast UPDATE with label stack
-# - ze installs MPLS route in kernel via netlink
-# - verify route appears in kernel MPLS FIB
+# Scope: this test exercises the BGP labeled-unicast control plane -- a peer
+# sends a labeled unicast UPDATE with a label stack and ze accepts/re-encodes
+# it (the expect=bgp line below). The kernel data-plane outcome (an MPLS route
+# actually installed via netlink) is verified separately, against a live kernel,
+# by TestMPLSIntegration_Push in
+# internal/plugins/fib/kernel/mplsentry_integration_linux_test.go (//go:build
+# integration && linux), which reads the AF_MPLS/encap route back from the
+# kernel. Splitting it this way keeps the .ci harness free of an MPLS-capable
+# kernel dependency while still proving end-to-end install under QEMU.
 
 option=skip-os:value=darwin
 # ze-peer expectations

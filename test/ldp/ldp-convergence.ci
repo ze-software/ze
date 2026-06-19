@@ -1,33 +1,133 @@
-# LDP label withdrawal on neighbor loss test
-# Verifies: AC-5 (neighbor down), AC-6 (keepalive timeout)
+# Test: LDP boots with the real top-level schema and reports an empty neighbor
+# table when no peer is present (no phantom convergence).
+#
+# VALIDATES: spec-mpls-2-ldp -- the LDP component accepts the real top-level
+#            `ldp { ... interfaces <name> }` schema (NOT the bogus
+#            `protocol { ldp { interface X { ... } } }` form, which never matched
+#            the YANG and silently parsed to nothing), starts discovery, and
+#            `show ldp neighbor` returns an empty list until an adjacency forms.
+# PREVENTS:  regression to the wrong ConfigRoots/`protocol/ldp` path and to a
+#            show handler that fabricates neighbors with no adjacency.
+#
+# AC-5 (neighbor down / label withdrawal) and AC-6 (keepalive hold-time expiry)
+# require a mock LDP peer that establishes then drops a session. That timer and
+# teardown behavior is unit-tested without the network:
+#   - adjacency hold-time expiry: internal/component/ldp/discovery_test.go
+#     (TestAdjacencyExpired, TestAdjacencyTableExpireSweep,
+#      TestAdjacencyTableDefaultHoldTime)
+#   - keepalive negotiation / operational transition:
+#     internal/component/ldp/session_test.go
+#     (TestSessionKeepaliveNegotiation, TestSessionProcessMessagesFiresOperational)
+# Live FRR interop (real Hello/keepalive on the wire) lives in
+# internal/component/ldp/frr_interop_integration_linux_test.go. This functional
+# test covers the single-daemon half: config -> engine -> show, with no peer.
 
-# Ze configuration with LDP
+tmpfs=ldp-converge.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert `show ldp neighbor` is empty with no peer (no phantom convergence)."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    r = dispatch(api, 'show ldp neighbor')
+    if r.get('status') != 'done':
+        runtime_fail(
+            f"show ldp neighbor: expected done, got status={r.get('status')} "
+            f"data={result_text_data(r)[:200]}")
+    neighbors = result_json_data(r, None)
+    if not isinstance(neighbors, list):
+        runtime_fail(f"show ldp neighbor: expected list, got {neighbors!r}")
+    # No peer -> no adjacency -> no neighbor. A non-empty list here would mean
+    # the engine fabricated convergence, which is exactly what we assert against.
+    if neighbors:
+        runtime_fail(f"show ldp neighbor: expected empty list (no peer), got {neighbors!r}")
+
+    print('OK: LDP converged to an empty neighbor table with no peer',
+          file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
 stdin=ze-conf:terminator=EOF_CONF
-protocol {
-	ldp {
-		router-id 10.0.0.1
-		interface lo {
-			hello-interval 5
-			hold-time 15
-		}
+plugin {
+	external ldp-converge {
+		run ./ldp-converge.run
+		encoder json
 	}
 }
+
+ldp {
+	lsr-id 10.0.0.1
+	transport-address 10.0.0.1
+	hello-interval 5
+	hello-hold-time 15
+	interfaces lo
+}
+
 bgp {
 	peer peer1 {
 		connection {
-			remote { ip 127.0.0.1 }
-			local { ip 127.0.0.1; accept false }
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
 		}
 		session {
-			asn { local 65000; remote 65000 }
+			asn {
+				local 65000
+				remote 65000
+			}
 			router-id 10.0.0.1
-			family { ipv4/unicast { prefix { maximum 10000; } } }
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process ldp-converge {
 		}
 	}
 }
 EOF_CONF
 
-# TODO: add ze-peer LDP mock that establishes session then disconnects
-# Verify labels withdrawn and MPLS routes removed from kernel
-# cmd=background:seq=1:exec=ze-peer --ldp --port $PORT --disconnect-after 5s:stdin=peer
-# cmd=foreground:seq=2:exec=ze -:stdin=ze-conf:timeout=20s
+option=env:var=ze.log.ldp:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=discovery started on interface
+expect=stderr:contains=converged to an empty neighbor table
+reject=stderr:pattern=no lsr-id configured
+reject=stderr:pattern=engine idle
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

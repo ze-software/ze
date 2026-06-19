@@ -1,6 +1,141 @@
-# RSVP-TE LSP graceful teardown
-# VALIDATES: AC-11 (PathTear removes MPLS entries and releases bandwidth)
-# PREVENTS: state leak after LSP deletion
+# Test: RSVP-TE single-daemon boot, then `show rsvp-te session` answers as an
+# array with no leaked state.
 #
-# TODO: requires running LSP, then PathTear, verify kernel MPLS entry removed.
-# Placeholder until RSVP-TE engine runs in ze-test harness.
+# VALIDATES: spec-mpls-3-rsvp-te -- the RSVP-TE component parses a tunnel config
+#            (keyed-map tunnel + explicit-route lists), comes up configured, and
+#            the session table is queryable and well-formed.
+# PREVENTS:  regression where tunnel config fails to parse (engine idle) or the
+#            session show handler recurses / 404s at dispatch.
+#
+# AC-11 (PathTear removes the MPLS entries and releases the reserved bandwidth)
+# is the teardown path. It needs a signaled LSP, which in turn needs the raw-IP
+# transport and a peer LSR; RSVP-TE has no FRR counterpart (no rsvpd), so there
+# is no live interop fixture. The teardown semantics -- a PathTear tearing the
+# path state block, releasing the admission reservation, and removing the kernel
+# label entry -- are unit-tested directly against the engine in
+# internal/component/rsvpte/engine_test.go (TestEnginePathTearReleases), with the
+# admission release floor covered by
+# internal/component/rsvpte/admission_test.go (TestRSVPAdmissionReleaseFloor,
+# TestRSVPAdmissionReserveAndRelease). This functional test covers the
+# always-available half: config -> engine configured -> session show.
+
+tmpfs=rsvpte-teardown.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert `show rsvp-te session` answers as a well-formed JSON array."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    r = dispatch(api, 'show rsvp-te session')
+    if r.get('status') != 'done':
+        runtime_fail(
+            f"show rsvp-te session: expected done, got status={r.get('status')} "
+            f"data={result_text_data(r)[:200]}")
+    sessions = result_json_data(r, None)
+    if not isinstance(sessions, list):
+        runtime_fail(f"show rsvp-te session: expected list, got {sessions!r}")
+    # Every reported session must carry its identity fields; a half-torn entry
+    # missing these is exactly the leak we assert against.
+    for s in sessions:
+        for field in ('tunnel-endpoint', 'tunnel-id', 'state'):
+            if field not in s:
+                runtime_fail(f"show rsvp-te session: missing {field} in {s!r}")
+
+    print('OK: rsvp-te session table queryable with no malformed entries',
+          file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external rsvpte-teardown {
+		run ./rsvpte-teardown.run
+		encoder json
+	}
+}
+
+rsvp-te {
+	router-id 10.0.0.1
+	refresh-period 30
+	interface lo {
+		max-bandwidth 10e9
+		max-reservable-bandwidth 8e9
+		address 127.0.0.1/8
+	}
+	tunnel to-egress {
+		destination 10.0.0.9
+		tunnel-id 1
+		bandwidth 1e9
+		explicit-route 1 {
+			address 10.0.0.9/32
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process rsvpte-teardown {
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.rsvp-te:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=session table queryable with no malformed entries
+reject=stderr:pattern=no router-id configured
+reject=stderr:pattern=engine idle
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

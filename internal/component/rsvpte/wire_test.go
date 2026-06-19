@@ -9,22 +9,22 @@ func TestRSVPPathEncode(t *testing.T) {
 	buf := make([]byte, 512)
 	off := 0
 
-	session := SessionIPv4{
+	session := sessionIPv4{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.2"),
 		TunnelID:       100,
 		ExtTunnelID:    0x0a000001,
 	}
-	sender := SenderTemplateIPv4{
+	sender := senderTemplateIPv4{
 		SenderAddr: netip.MustParseAddr("10.0.0.1"),
 		LSPID:      1,
 	}
-	hop := RSVPHop{
+	hop := rsvpHop{
 		NextHop: netip.MustParseAddr("10.0.0.1"),
 		LIH:     0,
 	}
-	tv := TimeValues{RefreshPeriod: 30000}
-	lr := LabelRequest{L3PID: 0x0800}
-	ero := []EROHop{
+	tv := timeValues{RefreshPeriod: 30000}
+	lr := labelRequest{L3PID: 0x0800}
+	ero := []eroHop{
 		{Loose: false, Address: netip.MustParsePrefix("10.0.0.2/32")},
 		{Loose: true, Address: netip.MustParsePrefix("10.0.0.3/32")},
 	}
@@ -37,13 +37,13 @@ func TestRSVPPathEncode(t *testing.T) {
 	}
 
 	off += rsvpHdrLen
-	off += EncodeSessionIPv4(buf[off:], session)
-	off += EncodeSenderTemplate(buf[off:], sender)
-	off += EncodeRSVPHop(buf[off:], hop)
-	off += EncodeTimeValues(buf[off:], tv)
-	off += EncodeLabelRequest(buf[off:], lr)
-	off += EncodeERO(buf[off:], ero)
-	off += EncodeFlowSpec(buf[off:], ClassSenderTSpec, tspec)
+	off += encodeSessionIPv4(buf[off:], session)
+	off += encodeSenderTemplate(buf[off:], sender)
+	off += encodeRSVPHop(buf[off:], hop)
+	off += encodeTimeValues(buf[off:], tv)
+	off += encodeLabelRequest(buf[off:], lr)
+	off += encodeERO(buf[off:], ero)
+	off += encodeFlowSpec(buf[off:], ClassSenderTSpec, tspec)
 
 	hdr := Header{
 		Version: rsvpVersion,
@@ -51,7 +51,7 @@ func TestRSVPPathEncode(t *testing.T) {
 		TTL:     64,
 		Length:  uint16(off),
 	}
-	EncodeHeader(buf, hdr)
+	encodeHeader(buf, hdr)
 
 	if off < rsvpHdrLen+16 {
 		t.Fatalf("PATH message too short: %d bytes", off)
@@ -65,28 +65,28 @@ func TestRSVPPathDecode(t *testing.T) {
 	buf := make([]byte, 512)
 	off := 0
 
-	session := SessionIPv4{
+	session := sessionIPv4{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.2"),
 		TunnelID:       100,
 		ExtTunnelID:    0x0a000001,
 	}
-	sender := SenderTemplateIPv4{
+	sender := senderTemplateIPv4{
 		SenderAddr: netip.MustParseAddr("10.0.0.1"),
 		LSPID:      1,
 	}
-	hop := RSVPHop{
+	hop := rsvpHop{
 		NextHop: netip.MustParseAddr("10.0.0.1"),
 		LIH:     42,
 	}
-	tv := TimeValues{RefreshPeriod: 30000}
-	lr := LabelRequest{L3PID: 0x0800}
+	tv := timeValues{RefreshPeriod: 30000}
+	lr := labelRequest{L3PID: 0x0800}
 
 	off += rsvpHdrLen
-	off += EncodeSessionIPv4(buf[off:], session)
-	off += EncodeSenderTemplate(buf[off:], sender)
-	off += EncodeRSVPHop(buf[off:], hop)
-	off += EncodeTimeValues(buf[off:], tv)
-	off += EncodeLabelRequest(buf[off:], lr)
+	off += encodeSessionIPv4(buf[off:], session)
+	off += encodeSenderTemplate(buf[off:], sender)
+	off += encodeRSVPHop(buf[off:], hop)
+	off += encodeTimeValues(buf[off:], tv)
+	off += encodeLabelRequest(buf[off:], lr)
 
 	hdr := Header{
 		Version: rsvpVersion,
@@ -94,7 +94,7 @@ func TestRSVPPathDecode(t *testing.T) {
 		TTL:     64,
 		Length:  uint16(off),
 	}
-	EncodeHeader(buf, hdr)
+	encodeHeader(buf, hdr)
 
 	msg, err := DecodeMessage(buf[:off])
 	if err != nil {
@@ -149,17 +149,17 @@ func TestRSVPResvEncode(t *testing.T) {
 	buf := make([]byte, 512)
 	off := 0
 
-	session := SessionIPv4{
+	session := sessionIPv4{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.2"),
 		TunnelID:       100,
 		ExtTunnelID:    0x0a000001,
 	}
-	hop := RSVPHop{
+	hop := rsvpHop{
 		NextHop: netip.MustParseAddr("10.0.0.2"),
 		LIH:     0,
 	}
-	tv := TimeValues{RefreshPeriod: 30000}
-	label := LabelObject{Label: 1000}
+	tv := timeValues{RefreshPeriod: 30000}
+	label := labelObject{Label: 1000}
 	fs := FlowSpec{
 		TokenRate:      1e9,
 		TokenBucket:    1e9,
@@ -169,12 +169,12 @@ func TestRSVPResvEncode(t *testing.T) {
 	}
 
 	off += rsvpHdrLen
-	off += EncodeSessionIPv4(buf[off:], session)
-	off += EncodeRSVPHop(buf[off:], hop)
-	off += EncodeTimeValues(buf[off:], tv)
-	off += EncodeStyle(buf[off:], StyleSharedExplicit)
-	off += EncodeFlowSpec(buf[off:], ClassFlowSpec, fs)
-	off += EncodeLabelObject(buf[off:], label)
+	off += encodeSessionIPv4(buf[off:], session)
+	off += encodeRSVPHop(buf[off:], hop)
+	off += encodeTimeValues(buf[off:], tv)
+	off += encodeStyle(buf[off:], StyleSharedExplicit)
+	off += encodeFlowSpec(buf[off:], ClassFlowSpec, fs)
+	off += encodeLabelObject(buf[off:], label)
 
 	hdr := Header{
 		Version: rsvpVersion,
@@ -182,7 +182,7 @@ func TestRSVPResvEncode(t *testing.T) {
 		TTL:     64,
 		Length:  uint16(off),
 	}
-	EncodeHeader(buf, hdr)
+	encodeHeader(buf, hdr)
 
 	msg, err := DecodeMessage(buf[:off])
 	if err != nil {
@@ -210,16 +210,16 @@ func TestRSVPResvEncode(t *testing.T) {
 }
 
 func TestRSVPEROEncode(t *testing.T) {
-	hops := []EROHop{
+	hops := []eroHop{
 		{Loose: false, Address: netip.MustParsePrefix("10.0.0.1/32")},
 		{Loose: true, Address: netip.MustParsePrefix("10.0.0.2/32")},
 		{Loose: false, Address: netip.MustParsePrefix("10.0.0.3/32")},
 	}
 
 	buf := make([]byte, 256)
-	n := EncodeERO(buf, hops)
+	n := encodeERO(buf, hops)
 
-	decoded, err := DecodeERO(buf[objHdrLen:n])
+	decoded, err := decodeERO(buf[objHdrLen:n])
 	if err != nil {
 		t.Fatalf("DecodeERO: %v", err)
 	}
@@ -237,16 +237,16 @@ func TestRSVPEROEncode(t *testing.T) {
 }
 
 func TestRSVPRRODecode(t *testing.T) {
-	entries := []RROEntry{
+	entries := []rroEntry{
 		{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.1"), Flags: 0x01},
 		{Type: RROSubLabel, Label: 1000, Flags: 0x01},
 		{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.2"), Flags: 0x00},
 	}
 
 	buf := make([]byte, 256)
-	n := EncodeRRO(buf, entries)
+	n := encodeRRO(buf, entries)
 
-	decoded, err := DecodeRRO(buf[objHdrLen:n])
+	decoded, err := decodeRRO(buf[objHdrLen:n])
 	if err != nil {
 		t.Fatalf("DecodeRRO: %v", err)
 	}
@@ -291,12 +291,12 @@ func TestRSVPLabelObject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := make([]byte, 16)
-			n := EncodeLabelObject(buf, LabelObject{Label: tt.label})
+			n := encodeLabelObject(buf, labelObject{Label: tt.label})
 			if n != 8 {
 				t.Fatalf("EncodeLabelObject returned %d bytes, want 8", n)
 			}
 
-			decoded, err := DecodeLabelObject(buf[objHdrLen:n])
+			decoded, err := decodeLabelObject(buf[objHdrLen:n])
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error for out-of-range label")
@@ -324,7 +324,7 @@ func TestRSVPHeaderRoundTrip(t *testing.T) {
 	}
 
 	buf := make([]byte, rsvpHdrLen)
-	EncodeHeader(buf, hdr)
+	encodeHeader(buf, hdr)
 
 	decoded, err := DecodeHeader(buf)
 	if err != nil {
@@ -370,9 +370,9 @@ func TestRSVPFlowSpecRoundTrip(t *testing.T) {
 	}
 
 	buf := make([]byte, 64)
-	n := EncodeFlowSpec(buf, ClassSenderTSpec, fs)
+	n := encodeFlowSpec(buf, ClassSenderTSpec, fs)
 
-	decoded, err := DecodeFlowSpec(buf[objHdrLen:n])
+	decoded, err := decodeFlowSpec(buf[objHdrLen:n])
 	if err != nil {
 		t.Fatalf("DecodeFlowSpec: %v", err)
 	}
@@ -394,7 +394,7 @@ func TestRSVPFlowSpecRoundTrip(t *testing.T) {
 }
 
 func TestRSVPErrorSpecRoundTrip(t *testing.T) {
-	es := ErrorSpec{
+	es := errorSpec{
 		ErrorNode:  netip.MustParseAddr("10.0.0.5"),
 		Flags:      0x01,
 		ErrorCode:  24,
@@ -402,9 +402,9 @@ func TestRSVPErrorSpecRoundTrip(t *testing.T) {
 	}
 
 	buf := make([]byte, 16)
-	n := EncodeErrorSpec(buf, es)
+	n := encodeErrorSpec(buf, es)
 
-	decoded, err := DecodeErrorSpec(buf[objHdrLen:n])
+	decoded, err := decodeErrorSpec(buf[objHdrLen:n])
 	if err != nil {
 		t.Fatalf("DecodeErrorSpec: %v", err)
 	}

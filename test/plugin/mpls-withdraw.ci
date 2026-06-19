@@ -1,11 +1,14 @@
-# MPLS label withdraw: BGP labeled unicast route removed from kernel FIB
+# MPLS label withdraw: BGP labeled unicast control-plane exchange
 # Spec: plan/spec-mpls-1-kernel.md AC-2
 #
-# TODO: requires Linux with MPLS kernel support
-# - peer sends labeled unicast UPDATE with label stack
-# - ze installs MPLS route in kernel
-# - peer sends withdraw for the prefix
-# - ze removes MPLS route from kernel
+# Scope: this test exercises the BGP labeled-unicast control plane -- a peer
+# announces then withdraws a labeled unicast prefix and ze accepts/re-encodes
+# both (the expect=bgp lines below). The kernel data-plane outcome (the MPLS
+# route removed from the kernel on withdraw) is verified separately, against a
+# live kernel, by TestMPLSIntegration_Push (withdraw half) in
+# internal/plugins/fib/kernel/mplsentry_integration_linux_test.go (//go:build
+# integration && linux). Splitting it this way keeps the .ci harness free of an
+# MPLS-capable kernel dependency while still proving end-to-end removal under QEMU.
 
 option=skip-os:value=darwin
 # ze-peer expectations

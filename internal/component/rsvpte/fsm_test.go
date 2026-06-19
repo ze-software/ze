@@ -7,9 +7,9 @@ import (
 )
 
 func TestRSVPSessionFSM(t *testing.T) {
-	table := NewLSPTable()
+	table := newLSPTable()
 
-	key := LSPKey{
+	key := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.2"),
 		TunnelID:       100,
 		ExtTunnelID:    0x0a000001,
@@ -25,17 +25,17 @@ func TestRSVPSessionFSM(t *testing.T) {
 		t.Errorf("initial state = %s, want down", lsp.State)
 	}
 
-	lsp.SetState(LSPStatePathSent)
+	lsp.setState(LSPStatePathSent)
 	if lsp.State != LSPStatePathSent {
 		t.Errorf("state = %s, want path-sent", lsp.State)
 	}
 
-	lsp.SetState(LSPStateResvReceived)
+	lsp.setState(LSPStateResvReceived)
 	if lsp.State != LSPStateResvReceived {
 		t.Errorf("state = %s, want resv-received", lsp.State)
 	}
 
-	lsp.SetState(LSPStateUp)
+	lsp.setState(LSPStateUp)
 	if lsp.State != LSPStateUp {
 		t.Errorf("state = %s, want up", lsp.State)
 	}
@@ -50,7 +50,7 @@ func TestRSVPSessionFSM(t *testing.T) {
 }
 
 func TestLSPTableAllocateLabel(t *testing.T) {
-	table := NewLSPTable()
+	table := newLSPTable()
 
 	l1 := table.AllocateLabel()
 	l2 := table.AllocateLabel()
@@ -60,8 +60,8 @@ func TestLSPTableAllocateLabel(t *testing.T) {
 }
 
 func TestLSPTableRemove(t *testing.T) {
-	table := NewLSPTable()
-	key := LSPKey{
+	table := newLSPTable()
+	key := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.2"),
 		TunnelID:       1,
 		SenderAddr:     netip.MustParseAddr("10.0.0.1"),
@@ -88,9 +88,9 @@ func TestLSPTableRemove(t *testing.T) {
 }
 
 func TestLSPTableAll(t *testing.T) {
-	table := NewLSPTable()
+	table := newLSPTable()
 	for i := range uint16(5) {
-		table.GetOrCreate(LSPKey{
+		table.GetOrCreate(lspKey{
 			TunnelEndpoint: netip.MustParseAddr("10.0.0.2"),
 			TunnelID:       i,
 			SenderAddr:     netip.MustParseAddr("10.0.0.1"),
@@ -104,8 +104,8 @@ func TestLSPTableAll(t *testing.T) {
 }
 
 func TestLSPTableExpiredPSBs(t *testing.T) {
-	table := NewLSPTable()
-	key := LSPKey{
+	table := newLSPTable()
+	key := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.2"),
 		TunnelID:       1,
 		SenderAddr:     netip.MustParseAddr("10.0.0.1"),
@@ -113,12 +113,12 @@ func TestLSPTableExpiredPSBs(t *testing.T) {
 	}
 
 	lsp, _ := table.GetOrCreate(key)
-	lsp.PSB = &PathStateBlock{
+	lsp.PSB = &pathStateBlock{
 		RefreshPeriod: 30 * time.Second,
 		LastRefresh:   time.Now().Add(-120 * time.Second),
 	}
 
-	expired := table.ExpiredPSBs(time.Now(), 3)
+	expired := table.expiredPSBs(time.Now(), 3)
 	if len(expired) != 1 {
 		t.Fatalf("ExpiredPSBs returned %d, want 1", len(expired))
 	}
@@ -127,7 +127,7 @@ func TestLSPTableExpiredPSBs(t *testing.T) {
 	}
 
 	lsp.PSB.LastRefresh = time.Now()
-	expired = table.ExpiredPSBs(time.Now(), 3)
+	expired = table.expiredPSBs(time.Now(), 3)
 	if len(expired) != 0 {
 		t.Fatalf("ExpiredPSBs returned %d for fresh PSB, want 0", len(expired))
 	}
@@ -135,18 +135,18 @@ func TestLSPTableExpiredPSBs(t *testing.T) {
 
 func TestKeyFromMessage(t *testing.T) {
 	msg := &ParsedMessage{
-		Session: SessionIPv4{
+		Session: sessionIPv4{
 			TunnelEndpoint: netip.MustParseAddr("10.0.0.2"),
 			TunnelID:       100,
 			ExtTunnelID:    0x0a000001,
 		},
-		SenderTemplate: SenderTemplateIPv4{
+		SenderTemplate: senderTemplateIPv4{
 			SenderAddr: netip.MustParseAddr("10.0.0.1"),
 			LSPID:      1,
 		},
 	}
 
-	key := KeyFromMessage(msg)
+	key := keyFromMessage(msg)
 	if key.TunnelEndpoint != msg.Session.TunnelEndpoint {
 		t.Errorf("TunnelEndpoint mismatch")
 	}
@@ -163,7 +163,7 @@ func TestKeyFromMessage(t *testing.T) {
 
 func TestLSPStateString(t *testing.T) {
 	tests := []struct {
-		state LSPState
+		state lspState
 		want  string
 	}{
 		{LSPStateDown, "down"},
@@ -172,7 +172,7 @@ func TestLSPStateString(t *testing.T) {
 		{LSPStateResvSent, "resv-sent"},
 		{LSPStateResvReceived, "resv-received"},
 		{LSPStateUp, "up"},
-		{LSPState(99), "unknown"},
+		{lspState(99), "unknown"},
 	}
 	for _, tt := range tests {
 		if got := tt.state.String(); got != tt.want {
@@ -183,13 +183,13 @@ func TestLSPStateString(t *testing.T) {
 
 func TestLSPRoleString(t *testing.T) {
 	tests := []struct {
-		role LSPRole
+		role lspRole
 		want string
 	}{
 		{RoleIngress, "ingress"},
 		{RoleTransit, "transit"},
 		{RoleEgress, "egress"},
-		{LSPRole(99), "unknown"},
+		{lspRole(99), "unknown"},
 	}
 	for _, tt := range tests {
 		if got := tt.role.String(); got != tt.want {

@@ -37,7 +37,7 @@ func encodeMessage(msgType, ttl uint8, encoders []objEncoder) []byte {
 		}
 		off += enc(buf[off:])
 	}
-	EncodeHeader(buf, Header{Version: rsvpVersion, MsgType: msgType, TTL: ttl, Length: uint16(off)})
+	encodeHeader(buf, Header{Version: rsvpVersion, MsgType: msgType, TTL: ttl, Length: uint16(off)})
 	out := buf[:off]
 	// Checksum is computed with the checksum field (bytes 2:4) zeroed; EncodeHeader
 	// already wrote 0 there.
@@ -70,86 +70,76 @@ func refreshMillis(d time.Duration) uint32 {
 	return uint32(d / time.Millisecond)
 }
 
-// BuildPath encodes a PATH message from path state. RFC 3209 Section 2: object
+// buildPath encodes a PATH message from path state. RFC 3209 Section 2: object
 // order is SESSION, RSVP_HOP, TIME_VALUES, [ERO], LABEL_REQUEST, SENDER_TEMPLATE,
 // SENDER_TSPEC, [RRO]. hop is this node's address (the downstream neighbour's
 // PHOP) and ttl is the IP TTL echoed in the common header.
-func BuildPath(psb *PathStateBlock, hop netip.Addr, ttl uint8) []byte {
+func buildPath(psb *pathStateBlock, hop netip.Addr, ttl uint8) []byte {
 	encoders := []objEncoder{
-		func(b []byte) int { return EncodeSessionIPv4(b, psb.Session) },
-		func(b []byte) int { return EncodeRSVPHop(b, RSVPHop{NextHop: hop}) },
+		func(b []byte) int { return encodeSessionIPv4(b, psb.Session) },
+		func(b []byte) int { return encodeRSVPHop(b, rsvpHop{NextHop: hop}) },
 		func(b []byte) int {
-			return EncodeTimeValues(b, TimeValues{RefreshPeriod: refreshMillis(psb.RefreshPeriod)})
+			return encodeTimeValues(b, timeValues{RefreshPeriod: refreshMillis(psb.RefreshPeriod)})
 		},
 	}
 	if len(psb.ERO) > 0 {
-		encoders = append(encoders, func(b []byte) int { return EncodeERO(b, psb.ERO) })
+		encoders = append(encoders, func(b []byte) int { return encodeERO(b, psb.ERO) })
 	}
 	encoders = append(encoders,
-		func(b []byte) int { return EncodeLabelRequest(b, psb.LabelRequest) },
-		func(b []byte) int { return EncodeSenderTemplate(b, psb.SenderTemplate) },
-		func(b []byte) int { return EncodeFlowSpec(b, ClassSenderTSpec, psb.SenderTSpec) },
+		func(b []byte) int { return encodeLabelRequest(b, psb.LabelRequest) },
+		func(b []byte) int { return encodeSenderTemplate(b, psb.SenderTemplate) },
+		func(b []byte) int { return encodeFlowSpec(b, ClassSenderTSpec, psb.SenderTSpec) },
 	)
 	return encodeMessage(MsgTypePath, ttl, encoders)
 }
 
-// BuildResv encodes a RESV message from reservation state. RFC 3209 Section 2:
+// buildResv encodes a RESV message from reservation state. RFC 3209 Section 2:
 // object order is SESSION, RSVP_HOP, TIME_VALUES, STYLE, FLOWSPEC, FILTER_SPEC,
 // LABEL, [RRO]. The filter spec identifies the sender being reserved for.
-func BuildResv(rsb *ResvStateBlock, filter SenderTemplateIPv4, refresh time.Duration, hop netip.Addr, ttl uint8) []byte {
+// A RESV travels one hop upstream toward the PHOP and is not per-hop TTL-stepped,
+// so it always uses defaultIPTTL (unlike buildPath, which decrements at transit).
+func buildResv(rsb *resvStateBlock, filter senderTemplateIPv4, refresh time.Duration, hop netip.Addr) []byte {
 	style := rsb.Style
 	if style == 0 {
 		style = StyleFixedFilter
 	}
 	encoders := []objEncoder{
-		func(b []byte) int { return EncodeSessionIPv4(b, rsb.Session) },
-		func(b []byte) int { return EncodeRSVPHop(b, RSVPHop{NextHop: hop}) },
-		func(b []byte) int { return EncodeTimeValues(b, TimeValues{RefreshPeriod: refreshMillis(refresh)}) },
-		func(b []byte) int { return EncodeStyle(b, style) },
-		func(b []byte) int { return EncodeFlowSpec(b, ClassFlowSpec, rsb.FlowSpec) },
-		func(b []byte) int { return EncodeSenderTemplate(b, filter) },
-		func(b []byte) int { return EncodeLabelObject(b, rsb.Label) },
+		func(b []byte) int { return encodeSessionIPv4(b, rsb.Session) },
+		func(b []byte) int { return encodeRSVPHop(b, rsvpHop{NextHop: hop}) },
+		func(b []byte) int { return encodeTimeValues(b, timeValues{RefreshPeriod: refreshMillis(refresh)}) },
+		func(b []byte) int { return encodeStyle(b, style) },
+		func(b []byte) int { return encodeFlowSpec(b, ClassFlowSpec, rsb.FlowSpec) },
+		func(b []byte) int { return encodeSenderTemplate(b, filter) },
+		func(b []byte) int { return encodeLabelObject(b, rsb.Label) },
 	}
-	return encodeMessage(MsgTypeResv, ttl, encoders)
+	if len(rsb.RRO) > 0 {
+		encoders = append(encoders, func(b []byte) int { return encodeRRO(b, rsb.RRO) })
+	}
+	return encodeMessage(MsgTypeResv, defaultIPTTL, encoders)
 }
 
-// BuildPathTear encodes a PathTear message. RFC 2205 Section 3.1.5: it carries
+// buildPathTear encodes a PathTear message. RFC 2205 Section 3.1.5: it carries
 // SESSION, RSVP_HOP and the sender descriptor so the path state is removed
 // hop-by-hop downstream.
-func BuildPathTear(psb *PathStateBlock, hop netip.Addr, ttl uint8) []byte {
+func buildPathTear(psb *pathStateBlock, hop netip.Addr) []byte {
 	encoders := []objEncoder{
-		func(b []byte) int { return EncodeSessionIPv4(b, psb.Session) },
-		func(b []byte) int { return EncodeRSVPHop(b, RSVPHop{NextHop: hop}) },
-		func(b []byte) int { return EncodeSenderTemplate(b, psb.SenderTemplate) },
-		func(b []byte) int { return EncodeFlowSpec(b, ClassSenderTSpec, psb.SenderTSpec) },
+		func(b []byte) int { return encodeSessionIPv4(b, psb.Session) },
+		func(b []byte) int { return encodeRSVPHop(b, rsvpHop{NextHop: hop}) },
+		func(b []byte) int { return encodeSenderTemplate(b, psb.SenderTemplate) },
+		func(b []byte) int { return encodeFlowSpec(b, ClassSenderTSpec, psb.SenderTSpec) },
 	}
-	return encodeMessage(MsgTypePathTear, ttl, encoders)
+	return encodeMessage(MsgTypePathTear, defaultIPTTL, encoders)
 }
 
-// BuildResvTear encodes a ResvTear message removing reservation state upstream.
-func BuildResvTear(rsb *ResvStateBlock, filter SenderTemplateIPv4, hop netip.Addr, ttl uint8) []byte {
-	style := rsb.Style
-	if style == 0 {
-		style = StyleFixedFilter
-	}
-	encoders := []objEncoder{
-		func(b []byte) int { return EncodeSessionIPv4(b, rsb.Session) },
-		func(b []byte) int { return EncodeRSVPHop(b, RSVPHop{NextHop: hop}) },
-		func(b []byte) int { return EncodeStyle(b, style) },
-		func(b []byte) int { return EncodeSenderTemplate(b, filter) },
-	}
-	return encodeMessage(MsgTypeResvTear, ttl, encoders)
-}
-
-// BuildPathErr encodes a PathErr message reporting an error toward the head-end.
+// buildPathErr encodes a PathErr message reporting an error toward the head-end.
 // RFC 2205 Section 3.1.3: SESSION, ERROR_SPEC, then the sender descriptor.
-func BuildPathErr(session SessionIPv4, sender SenderTemplateIPv4, tspec FlowSpec, es ErrorSpec, hop netip.Addr, ttl uint8) []byte {
+func buildPathErr(session sessionIPv4, sender senderTemplateIPv4, tspec FlowSpec, es errorSpec, hop netip.Addr, ttl uint8) []byte {
 	encoders := []objEncoder{
-		func(b []byte) int { return EncodeSessionIPv4(b, session) },
-		func(b []byte) int { return EncodeRSVPHop(b, RSVPHop{NextHop: hop}) },
-		func(b []byte) int { return EncodeErrorSpec(b, es) },
-		func(b []byte) int { return EncodeSenderTemplate(b, sender) },
-		func(b []byte) int { return EncodeFlowSpec(b, ClassSenderTSpec, tspec) },
+		func(b []byte) int { return encodeSessionIPv4(b, session) },
+		func(b []byte) int { return encodeRSVPHop(b, rsvpHop{NextHop: hop}) },
+		func(b []byte) int { return encodeErrorSpec(b, es) },
+		func(b []byte) int { return encodeSenderTemplate(b, sender) },
+		func(b []byte) int { return encodeFlowSpec(b, ClassSenderTSpec, tspec) },
 	}
 	return encodeMessage(MsgTypePathErr, ttl, encoders)
 }
@@ -163,4 +153,7 @@ const (
 	ErrValueRequestedBandwidth     uint16 = 2
 	ErrCodeRoutingProblem          uint8  = 24
 	ErrValueBadEROObject           uint16 = 4
+	// ErrValueNoRouteAvailable reports that the path toward the destination is
+	// gone (e.g. a link on the LSP failed) -- RFC 3209 Section 4.3.5 value 5.
+	ErrValueNoRouteAvailable uint16 = 5
 )

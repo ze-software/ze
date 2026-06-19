@@ -7,6 +7,6 @@
 // grammar still resolves and scripts get a well-formed (empty) response.
 package mpls
 
-func dumpMPLSRoutes(_ int) ([]ForwardingEntry, error) {
+func dumpMPLSRoutes(_ int) ([]forwardingEntry, error) {
 	return nil, nil
 }

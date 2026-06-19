@@ -18,7 +18,7 @@ func TestEngineMakeBeforeBreak(t *testing.T) {
 	e, ft, _ := testEngine(t, "10.0.0.1", nil)
 
 	// Establish the original ingress LSP (LSP_ID 1) and bring it up.
-	oldKey := LSPKey{
+	oldKey := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1,
 		ExtTunnelID: 0x0a000001, SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1,
 	}
@@ -26,16 +26,16 @@ func TestEngineMakeBeforeBreak(t *testing.T) {
 	old.Role = RoleIngress
 	old.Bandwidth = 1e8
 	old.NextHop = netip.MustParseAddr("10.0.0.5")
-	old.PSB = &PathStateBlock{
-		Session:        SessionIPv4{TunnelEndpoint: oldKey.TunnelEndpoint, TunnelID: oldKey.TunnelID, ExtTunnelID: oldKey.ExtTunnelID},
-		SenderTemplate: SenderTemplateIPv4{SenderAddr: oldKey.SenderAddr, LSPID: oldKey.LSPID},
+	old.PSB = &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: oldKey.TunnelEndpoint, TunnelID: oldKey.TunnelID, ExtTunnelID: oldKey.ExtTunnelID},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: oldKey.SenderAddr, LSPID: oldKey.LSPID},
 		SenderTSpec:    FlowSpec{TokenRate: 1e8},
 	}
-	old.SetState(LSPStateUp)
+	old.setState(LSPStateUp)
 
 	// Reroute along a new explicit path.
-	newERO := []EROHop{{Address: netip.MustParsePrefix("10.0.0.6/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}}
-	newKey, ok := e.Reroute(oldKey, newERO)
+	newERO := []eroHop{{Address: netip.MustParsePrefix("10.0.0.6/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}}
+	newKey, ok := e.reroute(oldKey, newERO)
 	require.True(t, ok)
 	assert.Equal(t, uint16(2), newKey.LSPID, "new LSP uses the next LSP_ID")
 
@@ -52,13 +52,13 @@ func TestEngineMakeBeforeBreak(t *testing.T) {
 	assert.Equal(t, oldKey, *newLSP.Replaces)
 
 	// The new LSP's RESV arrives: new comes up, old is torn down.
-	rsb := &ResvStateBlock{
-		Session: SessionIPv4{TunnelEndpoint: newKey.TunnelEndpoint, TunnelID: newKey.TunnelID, ExtTunnelID: newKey.ExtTunnelID},
-		Label:   LabelObject{Label: 17000},
+	rsb := &resvStateBlock{
+		Session: sessionIPv4{TunnelEndpoint: newKey.TunnelEndpoint, TunnelID: newKey.TunnelID, ExtTunnelID: newKey.ExtTunnelID},
+		Label:   labelObject{Label: 17000},
 		Style:   StyleSharedExplicit,
 	}
-	filter := SenderTemplateIPv4{SenderAddr: newKey.SenderAddr, LSPID: newKey.LSPID}
-	resv := BuildResv(rsb, filter, DefaultRefreshPeriod, netip.MustParseAddr("10.0.0.6"), 64)
+	filter := senderTemplateIPv4{SenderAddr: newKey.SenderAddr, LSPID: newKey.LSPID}
+	resv := buildResv(rsb, filter, DefaultRefreshPeriod, netip.MustParseAddr("10.0.0.6"))
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.6"), Payload: resv})
 
 	up, ok := e.table.Get(newKey)
@@ -85,22 +85,22 @@ func TestSetupTunnelEROChangeReroutes(t *testing.T) {
 		Destination: netip.MustParseAddr("10.0.0.9"),
 		TunnelID:    1,
 		Bandwidth:   1e8,
-		ERO:         []EROHop{{Address: netip.MustParsePrefix("10.0.0.5/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}},
+		ERO:         []eroHop{{Address: netip.MustParsePrefix("10.0.0.5/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}},
 	}
 	setupTunnel(slogutil.DiscardLogger(), e.table, tc, cfg, e)
 
-	key := LSPKey{
+	key := lspKey{
 		TunnelEndpoint: tc.Destination, TunnelID: 1,
 		ExtTunnelID: addrToUint32(cfg.RouterID), SenderAddr: cfg.RouterID, LSPID: 1,
 	}
 	lsp, ok := e.table.Get(key)
 	require.True(t, ok)
 	lsp.mu.Lock()
-	lsp.SetState(LSPStateUp)
+	lsp.setState(LSPStateUp)
 	lsp.mu.Unlock()
 
 	// Reconfigure with a different explicit path.
-	tc.ERO = []EROHop{{Address: netip.MustParsePrefix("10.0.0.6/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}}
+	tc.ERO = []eroHop{{Address: netip.MustParsePrefix("10.0.0.6/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}}
 	setupTunnel(slogutil.DiscardLogger(), e.table, tc, cfg, e)
 
 	newKey := key

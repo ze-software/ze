@@ -31,10 +31,9 @@ func TestRSVPTEShowRPCsRegistered(t *testing.T) {
 }
 
 // VALIDATES: the proxy handler rejects extra arguments (the proxied plugin
-// commands take none).
+// commands take none) before it ever touches the dispatcher.
 func TestProxyShowRejectsArgs(t *testing.T) {
-	h := proxyShowToPlugin("show rsvp-te session")
-	resp, err := h(&pluginserver.CommandContext{}, []string{"extra"})
+	resp, err := forwardShowSession(&pluginserver.CommandContext{}, []string{"extra"})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)
@@ -44,8 +43,7 @@ func TestProxyShowRejectsArgs(t *testing.T) {
 // VALIDATES: the proxy handler degrades gracefully when no dispatcher is wired
 // (server unavailable) instead of panicking on a nil dereference.
 func TestProxyShowNilDispatcher(t *testing.T) {
-	h := proxyShowToPlugin("show rsvp-te session")
-	resp, err := h(&pluginserver.CommandContext{}, nil)
+	resp, err := forwardShowInterface(&pluginserver.CommandContext{}, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, plugin.StatusError, resp.Status)

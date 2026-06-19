@@ -166,9 +166,12 @@ func TestLDPInteropFRR(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go runDiscoveryLoop(ctx, log, cfg, lsrID, adjTable, func(adj *Adjacency) {
-		startSessionForAdj(ctx, log, adj, lsrID, lib, sessions, &sessionsMu, fib)
+	mgr := newDiscoveryManager(ctx, log, func(ifctx context.Context, ifName string, c ldpConfig) {
+		discoverOnInterface(ifctx, log, c, lsrID, ifName, adjTable, func(adj *Adjacency) {
+			startSessionForAdj(ctx, log, adj, lsrID, lib, sessions, &sessionsMu, fib)
+		})
 	})
+	mgr.reconcile(cfg)
 
 	// Poll for an operational session and a remote label binding from FRR.
 	var operational bool

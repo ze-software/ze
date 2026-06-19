@@ -19,12 +19,13 @@
 #   make ze-flow-export-test   Flow export sFlow/NetFlow/IPFIX (release evidence only)
 #   make ze-vpp-test           VPP stub (release evidence only)
 #   make ze-l2tp-wire-test     L2TP wire-level (release evidence only)
+#   make ze-isis-wire-test     IS-IS wire-level decode (release evidence only)
 
 .PHONY: ze-functional-test
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
 .PHONY: ze-ui-test ze-editor-test ze-web-test ze-managed-test
 .PHONY: ze-l2tp-test ze-firewall-test ze-policy-test
-.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test
+.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-isis-test
 
 # Per-suite wall-clock cap. A stuck subprocess that holds an output pipe open
 # can make ze-test's own cmd.Wait() block indefinitely after SIGKILL; `timeout`
@@ -48,7 +49,7 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 ZE_SKIP_SUITES ?=
 ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	@failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
-	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy web install"; \
+	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis web install"; \
 	suite_total=0; \
 	for suite in $$all_suites; do \
 		case ",$(ZE_SKIP_SUITES)," in *,$$suite,*) ;; *) suite_total=$$((suite_total + 1));; esac; \
@@ -73,6 +74,9 @@ ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	run_suite l2tp $(SUITE_RUN) bin/ze-test l2tp --all; \
 	run_suite firewall $(SUITE_RUN) bin/ze-test firewall --all; \
 	run_suite policy $(SUITE_RUN) bin/ze-test policy --all; \
+	run_suite ldp $(SUITE_RUN) bin/ze-test ldp --all; \
+	run_suite rsvpte $(SUITE_RUN) bin/ze-test rsvpte --all; \
+	run_suite isis $(SUITE_RUN) bin/ze-test isis --all; \
 	run_suite web $(SUITE_RUN) bin/ze-test web --all; \
 	run_suite install $(SUITE_RUN) bin/ze-test install --all; \
 	if [ -n "$$skipped_names" ]; then \
@@ -155,3 +159,9 @@ ze-vpp-test: bin/ze-test
 
 ze-l2tp-wire-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test l2tp-wire --all
+
+ze-isis-wire-test: bin/ze-test
+	@$(SUITE_RUN) bin/ze-test isis-wire --all
+
+ze-isis-test: bin/ze-test
+	@$(SUITE_RUN) bin/ze-test isis --all

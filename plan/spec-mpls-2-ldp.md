@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-mpls-1-kernel |
 | Phase | 2 of 3 (MPLS) |
-| Updated | 2026-05-22 |
+| Updated | 2026-06-18 |
 
 ## Post-Compaction Recovery
 
@@ -308,16 +308,20 @@ Add `// RFC 5036 Section X.Y: "<quoted requirement>"` above enforcing code.
 ## Implementation Summary
 
 ### What Was Implemented
-- [To be filled]
+- Closure-time audit found discovery/session/LIB/FIB + wire codec already built (AC-1..AC-8, AC-10 covered by unit tests + `frr_interop_integration_linux_test.go`). This session filled the gaps:
+- AC-9 dynamic interface reload: new `discoveryManager.reconcile` starts/stops per-interface discovery on config reload (start added, cancel removed); removing an interface stops Hellos so the neighbor's adjacency ages out via the hold timer (`discovery_manager.go`, `register.go`; `discovery_manager_test.go`).
+- Doctor readiness check `ldp-port` (UDP+TCP 646 bind probe) + diagnostic code `doctor-ldp-port-unavailable` (`doctor.go`, `codes.go`).
+- Functional `.ci` suite made real and registered (`test/ldp/*.ci`, `internal/test/cli/register.go`): single-daemon boot → config → engine → `show ldp neighbor/binding`. 3/3 PASS. Also fixed two `.ci` files that used a non-existent `protocol { ldp { interface … } }` schema instead of the real top-level `ldp { … interfaces … }`.
 
 ### Bugs Found/Fixed
-- [To be filled]
+- **Config parser read the wrong tree shape — engine never configured.** `parseLDPConfig` expected unwrapped/JSON-numeric/array data, but the delivered shape is root-wrapped (`{"ldp":{...}}`), string-typed numbers, scalar-or-array leaf-lists. Every boot logged "no lsr-id configured, engine idle". Fixed + regression test `config_test.go`. LDP never worked through real config before; prior "done" ACs rested on unit tests that bypassed the parser.
+- **`show ldp ...` recursed to a stack overflow** (proxy re-dispatched the same command). Fixed with `PluginCommand`+`ForwardToPlugin` (`cmd_show.go`).
 
 ### Documentation Updates
-- [To be filled]
+- RFC summaries `rfc/short/rfc5036.md`, `rfc/short/rfc5561.md` already exist. No doc files changed this session.
 
 ### Deviations from Plan
-- [To be filled]
+- Functional `.ci` tests are single-daemon (config→engine→show), not full peer-to-peer session establishment, which needs a mock LDP peer. Live cross-implementation interop (AC-10) is covered by `frr_interop_integration_linux_test.go` (real FRR ldpd, `integration && linux`); session/timer behavior (AC-2/3/5/6) by `session_test.go`/`discovery_test.go`.
 
 ## Implementation Audit
 
@@ -348,26 +352,35 @@ Add `// RFC 5036 Section X.Y: "<quoted requirement>"` above enforcing code.
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| LDP session with neighbor | functional test | `ldp-session.ci` |
-| Label distribution | functional test | `ldp-convergence.ci` |
-| FRR interop | interop test | `ldp-session-frr` |
+| Discovery + adjacency (AC-1) | unit + functional | `discovery_test.go`; `test/ldp/ldp-session.ci` asserts engine boots + discovery starts (3/3 PASS) |
+| Session establishment (AC-2) | unit + interop | `session_test.go::TestSessionHandleInit`; `frr_interop_integration_linux_test.go` |
+| Label mapping / LIB → FIB (AC-3/AC-4) | unit + interop | `lib_test.go`, `fib_test.go::TestReconcileFEC`; FRR interop test |
+| Convergence on neighbor loss (AC-5/AC-6) | unit + functional | `discovery_test.go::TestAdjacencyExpired`, `session_test.go` keepalive; `test/ldp/ldp-convergence.ci` PASS |
+| `show ldp neighbor`/`binding` (AC-7/AC-8) | functional | `test/ldp/ldp-session.ci` dispatches both through the daemon (PASS) |
+| Dynamic interface reload (AC-9) | unit + functional | `discovery_manager_test.go`; `test/ldp/ldp-reload.ci` PASS |
+| FRR interop (AC-10) | interop test | `internal/component/ldp/frr_interop_integration_linux_test.go` (real FRR ldpd, QEMU/Linux) |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | BLOCKER | Config parser read wrong tree shape; engine never configured | `register.go parseLDPConfig` | Fixed: unwrap root, coerce string numbers, scalar/array leaf-lists; regression test `config_test.go` |
+| 2 | BLOCKER | `show ldp ...` recursed to stack overflow | `cmd_show.go` | Fixed: `PluginCommand`+`ForwardToPlugin` canonical proxy |
+| 3 | ISSUE | AC-9 dynamic interface reload not implemented | `register.go` discovery | Implemented `discoveryManager.reconcile` + tests |
+| 4 | ISSUE | No port-646 doctor check; 2 `.ci` files used a non-existent schema | doctor + `test/ldp` | Added doctor check; fixed schema; made `.ci` real |
 
 ### Fixes applied
-- [To be filled]
+- All Run 1 findings fixed; see Implementation Summary / Bugs Found.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | none | Re-verify clean: build, lint (0 issues), unit tests, `ze-test ldp` 3/3 | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  → met: 0 blocker / 0 issue after fixes
+- [ ] All NOTEs recorded above (or explicitly "none")  → none outstanding
 
 ## Pre-Commit Verification
 
