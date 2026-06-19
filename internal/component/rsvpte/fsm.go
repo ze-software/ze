@@ -1,5 +1,9 @@
 // Design: plan/spec-mpls-3-rsvp-te.md -- RSVP-TE per-LSP state machine
+// RFC: rfc/short/rfc2205.md
+// RFC: rfc/short/rfc3209.md
+// RFC: rfc/short/rfc4090.md
 // Related: wire.go -- decoded messages drive state transitions
+// Related: frr.go -- protectionRequest carried on the PSB (RFC 4090)
 //
 // RFC 3209 Section 2: RSVP-TE uses soft-state with PATH/RESV refresh.
 // PATH flows downstream (ingress to egress), RESV flows upstream.
@@ -99,6 +103,10 @@ type pathStateBlock struct {
 	LabelRequest   labelRequest
 	RefreshPeriod  time.Duration
 	LastRefresh    time.Time
+	// Protection, when set, requests RFC 4090 local protection for this LSP: PATH
+	// then carries SESSION_ATTRIBUTE (protection-desired flags) and FAST_REROUTE.
+	// A transit node fills it from the received PATH (protectionFromPath).
+	Protection *protectionRequest
 }
 
 // resvStateBlock (RSB) stores RESV state for an LSP (RFC 2205 Section 2.1).
@@ -153,6 +161,19 @@ type LSP struct {
 	// resolved once at reserve time so release charges the same link (empty when
 	// admission was skipped because no interface could be resolved).
 	AdmissionIface string
+
+	// RFC 4090 Fast Reroute. On a transit PLR, Bypass names the bypass LSP armed
+	// to protect this LSP (nil = no backup); ProtectionInUse is set once a local
+	// repair has redirected traffic onto that bypass. IsBypass marks an LSP that
+	// is itself a configured facility-backup bypass (PLR-sourced), so it is not
+	// treated as a protected tunnel. BackupLabel is the inner label the PLR pushes
+	// under the bypass label on local repair: the merge point's label for the
+	// protected LSP (the next hop's swapped label for link protection, or the
+	// next-next hop's recorded label for node protection, RFC 4090 Section 6.4.2).
+	Bypass          *lspKey
+	ProtectionInUse bool
+	IsBypass        bool
+	BackupLabel     uint32
 
 	CreatedAt   time.Time
 	LastChanged time.Time

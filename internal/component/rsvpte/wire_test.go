@@ -418,3 +418,67 @@ func TestRSVPErrorSpecRoundTrip(t *testing.T) {
 		t.Errorf("ErrorValue = %d, want %d", decoded.ErrorValue, es.ErrorValue)
 	}
 }
+
+// TestDecodeEROCapsHops: decodeERO bounds the hop count so a malicious/looping
+// ERO cannot grow an unbounded slice or (after a transit relay) overflow the
+// fixed encode buffer. Regression for the unbounded-ERO panic.
+func TestDecodeEROCapsHops(t *testing.T) {
+	body := make([]byte, 200*8) // 200 IPv4 subobjects (8 bytes each)
+	for i := range 200 {
+		off := i * 8
+		body[off] = EROSubIPv4Prefix
+		body[off+1] = 8
+		body[off+6] = 32
+	}
+	hops, err := decodeERO(body)
+	if err != nil {
+		t.Fatalf("decodeERO: %v", err)
+	}
+	if len(hops) > maxExplicitRouteHops {
+		t.Errorf("decodeERO returned %d hops, want <= %d", len(hops), maxExplicitRouteHops)
+	}
+}
+
+// TestEncodeEROBounded: encodeERO must not write past the buffer even when given
+// more hops than fit (the off+20 guard stops early). Regression for the
+// transit-relay buffer overflow from an oversized ERO.
+func TestEncodeEROBounded(t *testing.T) {
+	hops := make([]eroHop, 300)
+	for i := range hops {
+		hops[i] = eroHop{Address: netip.MustParsePrefix("2001:db8::1/128")} // 20 bytes each
+	}
+	buf := make([]byte, maxRSVPMessage)
+	n := encodeERO(buf, hops) // must not panic / overflow
+	if n > maxRSVPMessage {
+		t.Errorf("encodeERO wrote %d bytes, exceeds buffer %d", n, maxRSVPMessage)
+	}
+}
+
+// TestTransitRelayLargeERONoPanic: the worst-case PATH a transit PLR ever
+// re-encodes -- a capped (64-hop) IPv6 ERO plus the protection objects
+// (SESSION_ATTRIBUTE with a max-length name + FAST_REROUTE) -- must fit the fixed
+// 1500-byte buffer, not panic, and decode back cleanly. This pins the ERO cap to a
+// value that leaves room for every trailing object (the buffer is tightest here).
+func TestTransitRelayLargeERONoPanic(t *testing.T) {
+	hops := make([]eroHop, maxExplicitRouteHops)
+	for i := range hops {
+		hops[i] = eroHop{Address: netip.MustParsePrefix("2001:db8::1/128")} // 20 bytes each (worst case)
+	}
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		ERO:            hops,
+		SenderTSpec:    FlowSpec{TokenRate: 1e8},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
+		// Protection appends SESSION_ATTRIBUTE (max-length name) + FAST_REROUTE after
+		// the max ERO -- the tightest the PATH buffer ever gets.
+		Protection: &protectionRequest{Facility: true, HopLimit: 16, Name: string(make([]byte, maxSessionName))},
+	}
+	raw := buildPath(psb, netip.MustParseAddr("10.0.0.1"), 64)
+	if len(raw) > maxRSVPMessage {
+		t.Fatalf("worst-case PATH is %d bytes, exceeds the %d-byte buffer", len(raw), maxRSVPMessage)
+	}
+	if _, err := DecodeMessage(raw); err != nil {
+		t.Fatalf("DecodeMessage of a worst-case PATH: %v", err)
+	}
+}

@@ -192,10 +192,19 @@ func (ac *admissionController) ReleaseSession(iface string, sess sessionID, band
 	}
 }
 
-// setInterface configures bandwidth limits for an interface.
+// setInterface configures bandwidth limits for an interface. It is also called on
+// every config reload, so it must NOT discard the live reserved bandwidth or the
+// per-session reservations: for an existing interface it updates only the limits.
+// Replacing the struct (zeroing ReservedBandwidth) while LSPs hold reservations
+// would make the link admit past MaxReservable until every pre-reload LSP drains.
 func (ac *admissionController) setInterface(name string, maxBW, maxReservable float64) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
+	if ib, ok := ac.interfaces[name]; ok {
+		ib.MaxBandwidth = maxBW
+		ib.MaxReservable = maxReservable
+		return // keep ReservedBandwidth and the live sessions
+	}
 	ac.interfaces[name] = &interfaceBandwidth{
 		MaxBandwidth:  maxBW,
 		MaxReservable: maxReservable,

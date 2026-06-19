@@ -59,7 +59,7 @@ func (e *engine) reroute(oldKey lspKey, newERO []eroHop) (lspKey, bool) {
 		ERO:            newERO,
 		SenderTSpec:    tspec,
 		LabelRequest:   labelRequest{L3PID: 0x0800},
-		RefreshPeriod:  e.cfg.RefreshPeriod,
+		RefreshPeriod:  e.cfg().RefreshPeriod,
 		LastRefresh:    time.Now(),
 	}
 	newLSP.setState(LSPStatePathSent)
@@ -92,10 +92,11 @@ func (e *engine) teardownLSP(key lspKey) {
 	bandwidth := lsp.Bandwidth
 	inLabel := lsp.InLabel
 	admIface := lsp.AdmissionIface
+	isBypass := lsp.IsBypass
 	lsp.mu.Unlock()
 
 	if psb != nil {
-		raw := buildPathTear(psb, e.cfg.RouterID)
+		raw := buildPathTear(psb, e.cfg().RouterID)
 		if !dst.IsValid() {
 			dst = key.TunnelEndpoint
 		}
@@ -108,11 +109,14 @@ func (e *engine) teardownLSP(key lspKey) {
 	}
 	if e.fib != nil {
 		fec := netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen())
-		if err := e.fib.Remove(fec); err != nil {
+		if err := e.fib.removePush(fec); err != nil {
 			e.log.Warn("rsvp-te: head-end fib remove failed", "lsp", key.String(), "error", err)
 		}
 	}
 	e.table.releaseLabel(inLabel)
+	if isBypass {
+		e.clearBypassReferences(key)
+	}
 	emitLSPDown(e.log, lsp, e.table.Len())
 	e.log.Info("rsvp-te: ingress LSP torn down", "lsp", key.String())
 }

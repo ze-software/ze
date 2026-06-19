@@ -93,3 +93,23 @@ func TestRSVPAdmissionExactLimit(t *testing.T) {
 		t.Fatal("expected denial when at exact capacity")
 	}
 }
+
+// TestSetInterfaceReloadPreservesReservation: re-applying setInterface on a config
+// reload must not zero the live reserved bandwidth, or admission control would admit
+// past MaxReservable until pre-reload LSPs drain (oversubscription).
+func TestSetInterfaceReloadPreservesReservation(t *testing.T) {
+	ac := newAdmissionController()
+	ac.setInterface("eth0", 10e9, 8e9)
+	if err := ac.Reserve("eth0", 5e9); err != nil {
+		t.Fatalf("Reserve 5Gbps: %v", err)
+	}
+	// Reload re-applies the interface config while the reservation is still live.
+	ac.setInterface("eth0", 10e9, 8e9)
+	if ib, ok := ac.GetInterface("eth0"); !ok || ib.ReservedBandwidth != 5e9 {
+		t.Fatalf("reload zeroed reserved bandwidth: got %v, want 5e9", ib.ReservedBandwidth)
+	}
+	// A further 5Gbps would exceed MaxReservable (8Gbps) and must be denied.
+	if err := ac.Reserve("eth0", 5e9); err == nil {
+		t.Fatal("reload allowed oversubscription: second 5Gbps reservation should be denied")
+	}
+}

@@ -25,6 +25,7 @@ import (
 	"context"
 	"log/slog"
 	"net/netip"
+	"sync/atomic"
 	"time"
 )
 
@@ -33,19 +34,24 @@ import (
 // is testable without the kernel and so the (separate) dataplane work can land
 // behind a stable interface.
 type fibProgrammer interface {
-	// ProgramPush installs an ingress push entry: traffic to fec is forwarded
+	// programPush installs an ingress push entry: traffic to fec is forwarded
 	// to nextHop with label pushed.
-	ProgramPush(fec netip.Prefix, label uint32, nextHop netip.Addr) error
-	// ProgramSwap installs a transit swap entry: packets arriving with inLabel
+	programPush(fec netip.Prefix, label uint32, nextHop netip.Addr) error
+	// programSwap installs a transit swap entry: packets arriving with inLabel
 	// are forwarded to nextHop with inLabel swapped for outLabel.
-	ProgramSwap(inLabel, outLabel uint32, nextHop netip.Addr) error
-	// ProgramPop installs an egress pop entry: packets arriving with inLabel are
+	programSwap(inLabel, outLabel uint32, nextHop netip.Addr) error
+	// programBackup installs a facility-backup local-repair entry (RFC 4090
+	// Section 3.2): packets arriving with inLabel are forwarded to nextHop with
+	// the outLabels stack imposed (the bypass label over the swapped protected
+	// label). The kernel AF_MPLS swap already accepts a multi-label stack.
+	programBackup(inLabel uint32, outLabels []uint32, nextHop netip.Addr) error
+	// programPop installs an egress pop entry: packets arriving with inLabel are
 	// stripped of the label and forwarded toward nextHop (disposition).
-	ProgramPop(inLabel uint32, nextHop netip.Addr) error
-	// Remove withdraws a previously programmed push entry for fec.
-	Remove(fec netip.Prefix) error
-	// RemoveSwap withdraws a previously programmed swap or pop entry for inLabel.
-	RemoveSwap(inLabel uint32) error
+	programPop(inLabel uint32, nextHop netip.Addr) error
+	// removePush withdraws a previously programmed push entry for fec.
+	removePush(fec netip.Prefix) error
+	// removeSwap withdraws a previously programmed swap or pop entry for inLabel.
+	removeSwap(inLabel uint32) error
 }
 
 // engine runs the RSVP-TE control plane over a Transport. Per-LSP state is
@@ -56,12 +62,33 @@ type engine struct {
 	table     *lspTable
 	admission *admissionController
 	fib       fibProgrammer
-	cfg       rsvpteConfig
-	log       *slog.Logger
+	// cfgPtr holds the active config behind an atomic pointer so OnConfigApply can
+	// swap in a reloaded config (new interfaces, bypasses, refresh period) while the
+	// run loop reads it. Read it via e.cfg(); never store the struct directly.
+	cfgPtr atomic.Pointer[rsvpteConfig]
+	log    *slog.Logger
+}
+
+// cfg returns the current engine config (atomically loaded; reload-safe). It
+// copies the small struct (slice headers, not backing arrays), so snapshot it once
+// per handler when reading several fields.
+func (e *engine) cfg() rsvpteConfig { return *e.cfgPtr.Load() }
+
+// setConfig swaps in a reloaded config (called from OnConfigApply) so the engine's
+// runtime reads (selectBypass, admissionInterface, message builders) see it.
+// RouterID is the LSR identity, fixed at engine creation (the engine is only built
+// once a valid router-id exists); a changed/removed router-id is NOT adopted at
+// runtime, since the engine's As4-based key and message-encode reads would then
+// panic on the zero Addr. Changing the router-id is a restart-class operation.
+func (e *engine) setConfig(cfg rsvpteConfig) {
+	cfg.RouterID = e.cfg().RouterID
+	e.cfgPtr.Store(&cfg)
 }
 
 func newEngine(t Transport, table *lspTable, adm *admissionController, fib fibProgrammer, cfg rsvpteConfig, log *slog.Logger) *engine {
-	return &engine{transport: t, table: table, admission: adm, fib: fib, cfg: cfg, log: log}
+	e := &engine{transport: t, table: table, admission: adm, fib: fib, log: log}
+	e.cfgPtr.Store(&cfg)
+	return e
 }
 
 // run consumes received packets until the context is canceled or the transport
@@ -110,7 +137,7 @@ func (e *engine) sendPath(lsp *LSP) error {
 		lsp.mu.Unlock()
 		return nil
 	}
-	raw := buildPath(lsp.PSB, e.cfg.RouterID, defaultIPTTL)
+	raw := buildPath(lsp.PSB, e.cfg().RouterID, defaultIPTTL)
 	dst := lsp.Key.TunnelEndpoint
 	lsp.mu.Unlock()
 
@@ -132,7 +159,7 @@ func (e *engine) sendResv(lsp *LSP) error {
 		lsp.mu.Unlock()
 		return nil
 	}
-	raw := buildResv(lsp.RSB, lsp.PSB.SenderTemplate, e.cfg.RefreshPeriod, e.cfg.RouterID)
+	raw := buildResv(lsp.RSB, lsp.PSB.SenderTemplate, e.cfg().RefreshPeriod, e.cfg().RouterID)
 	dst := lsp.PrevHop
 	lsp.RSB.LastRefresh = time.Now()
 	lsp.mu.Unlock()
@@ -159,7 +186,7 @@ func (e *engine) handlePath(src netip.Addr, msg *ParsedMessage) {
 		e.log.Warn("rsvp-te: PATH missing SESSION/SENDER_TEMPLATE", "src", src)
 		return
 	}
-	if msg.Session.TunnelEndpoint == e.cfg.RouterID {
+	if msg.Session.TunnelEndpoint == e.cfg().RouterID {
 		e.handlePathEgress(src, msg)
 		return
 	}
@@ -222,13 +249,21 @@ func (e *engine) handlePathEgress(src netip.Addr, msg *ParsedMessage) {
 	lsp.Reserved = true
 	lsp.AdmissionIface = admIface
 	lsp.Bandwidth = msg.SenderTSpec.TokenRate
+	// RFC 4090: carry the protection request so the egress records its label too
+	// (label recording, needed by an upstream PLR for node-protection backups).
+	egressProtection := protectionFromPath(msg)
+	var egressRecordLabel uint32
+	if egressProtection != nil {
+		egressRecordLabel = label
+	}
 	lsp.PSB = &pathStateBlock{
 		Session:        msg.Session,
 		SenderTemplate: msg.SenderTemplate,
 		SenderTSpec:    msg.SenderTSpec,
 		LabelRequest:   msg.LabelRequest,
-		RefreshPeriod:  e.cfg.RefreshPeriod,
+		RefreshPeriod:  e.cfg().RefreshPeriod,
 		LastRefresh:    time.Now(),
+		Protection:     egressProtection,
 	}
 	lsp.RSB = &resvStateBlock{
 		Session:  msg.Session,
@@ -237,13 +272,13 @@ func (e *engine) handlePathEgress(src netip.Addr, msg *ParsedMessage) {
 		Style:    StyleSharedExplicit,
 		// RFC 3209 Section 4.4: the egress records its own address as the first
 		// RRO entry; upstream nodes prepend themselves as the RESV travels back.
-		RRO:         e.recordRoute(nil, msg.Session.TunnelID),
+		RRO:         e.recordRoute(nil, msg.Session.TunnelID, 0, egressRecordLabel),
 		LastRefresh: time.Now(),
 	}
 	lsp.setState(LSPStateUp)
 	lsp.mu.Unlock()
 
-	raw := buildResv(lsp.RSB, msg.SenderTemplate, e.cfg.RefreshPeriod, e.cfg.RouterID)
+	raw := buildResv(lsp.RSB, msg.SenderTemplate, e.cfg().RefreshPeriod, e.cfg().RouterID)
 	if err := e.transport.Send(src, raw); err != nil {
 		e.log.Warn("rsvp-te: send RESV failed", "dest", src, "error", err)
 		return
@@ -256,7 +291,7 @@ func (e *engine) handlePathEgress(src netip.Addr, msg *ParsedMessage) {
 		// Program the pop (disposition) entry once: packets arriving with our
 		// in-label are decapsulated and IP-forwarded.
 		if e.fib != nil {
-			if err := e.fib.ProgramPop(label, netip.Addr{}); err != nil {
+			if err := e.fib.programPop(label, netip.Addr{}); err != nil {
 				e.log.Warn("rsvp-te: program pop failed", "lsp", key.String(), "error", err)
 			}
 		}
@@ -300,6 +335,19 @@ func (e *engine) handlePathTransit(src netip.Addr, msg *ParsedMessage) {
 		admIface = iface
 	}
 
+	// RFC 4090: if the head-end requested local protection, this transit node is a
+	// candidate PLR. Reconstruct the request and arm a configured bypass whose
+	// merge point is the protected NHOP (link) or NNHOP (node protection). Arming
+	// just records the association; the data-plane switch happens on link-down.
+	pr := protectionFromPath(msg)
+	var bypass *lspKey
+	if pr != nil {
+		if bk, sel := e.selectBypass(rem, pr); sel {
+			bypass = &bk
+		}
+	}
+	cfg := e.cfg() // single consistent snapshot for this relay
+
 	lsp.mu.Lock()
 	lsp.Role = RoleTransit
 	lsp.PrevHop = src
@@ -307,6 +355,7 @@ func (e *engine) handlePathTransit(src netip.Addr, msg *ParsedMessage) {
 	lsp.Reserved = true
 	lsp.AdmissionIface = admIface
 	lsp.Bandwidth = msg.SenderTSpec.TokenRate
+	lsp.Bypass = bypass
 	lsp.PSB = &pathStateBlock{
 		Session:        msg.Session,
 		SenderTemplate: msg.SenderTemplate,
@@ -314,24 +363,31 @@ func (e *engine) handlePathTransit(src netip.Addr, msg *ParsedMessage) {
 		ERO:            rem,
 		SenderTSpec:    msg.SenderTSpec,
 		LabelRequest:   msg.LabelRequest,
-		RefreshPeriod:  e.cfg.RefreshPeriod,
+		RefreshPeriod:  cfg.RefreshPeriod,
 		LastRefresh:    time.Now(),
+		Protection:     pr,
 	}
 	lsp.setState(LSPStatePathReceived)
 	lsp.mu.Unlock()
 
+	if bypass != nil && !alreadyReserved {
+		e.log.Info("rsvp-te: PLR armed bypass for protected LSP", "lsp", key.String(), "bypass", bypass.String())
+	}
+
 	// Relay the PATH downstream with a decremented TTL. The ERO is forwarded
 	// unchanged (rem still begins with the next hop) so the next node strips
-	// itself in turn.
+	// itself in turn. The protection request is relayed so downstream transits
+	// also become candidate PLRs.
 	fwd := &pathStateBlock{
 		Session:        msg.Session,
 		SenderTemplate: msg.SenderTemplate,
 		ERO:            rem,
 		SenderTSpec:    msg.SenderTSpec,
 		LabelRequest:   msg.LabelRequest,
-		RefreshPeriod:  e.cfg.RefreshPeriod,
+		RefreshPeriod:  cfg.RefreshPeriod,
+		Protection:     pr,
 	}
-	raw := buildPath(fwd, e.cfg.RouterID, msg.Header.TTL-1)
+	raw := buildPath(fwd, cfg.RouterID, msg.Header.TTL-1)
 	if err := e.transport.Send(nextHop, raw); err != nil {
 		e.log.Warn("rsvp-te: transit PATH relay failed", "next-hop", nextHop, "error", err)
 		return
@@ -350,7 +406,7 @@ func (e *engine) handlePathTransit(src netip.Addr, msg *ParsedMessage) {
 // then the new first subobject identifies the next hop).
 func (e *engine) nextHopFromERO(ero []eroHop) (netip.Addr, []eroHop, bool) {
 	rem := ero
-	for len(rem) > 0 && rem[0].Address.Addr() == e.cfg.RouterID {
+	for len(rem) > 0 && rem[0].Address.Addr() == e.cfg().RouterID {
 		rem = rem[1:]
 	}
 	if len(rem) == 0 {
@@ -389,13 +445,45 @@ func (e *engine) handleResv(src netip.Addr, msg *ParsedMessage) {
 // recordRoute prepends this node to the downstream RRO and warns if the recorded
 // route hit maxRecordRouteHops. A truncation means a pathological path or routing
 // loop, so it must not pass silently (the head-end's view would be incomplete).
-func (e *engine) recordRoute(downstream []rroEntry, tunnelID uint16) []rroEntry {
-	rro, truncated := prependRRO(e.cfg.RouterID, downstream)
+// selfFlags sets the RFC 4090 protection flags on this node's RRO subobject (0 at
+// the head-end and egress; a PLR reports available/in-use/node protection).
+// recordLabel, when non-zero, records this node's label right after its address
+// (RFC 3209 Section 4.4.3 label recording), so an upstream PLR can learn the merge
+// point's label for node-protection backup forwarding.
+func (e *engine) recordRoute(downstream []rroEntry, tunnelID uint16, selfFlags uint8, recordLabel uint32) []rroEntry {
+	rro, truncated := prependRRO(e.cfg().RouterID, downstream)
 	if truncated {
 		e.log.Warn("rsvp-te: recorded route truncated at hop limit; possible routing loop",
 			"limit", maxRecordRouteHops, "tunnel", tunnelID)
 	}
+	if len(rro) == 0 || rro[0].Type != RROSubIPv4 {
+		return rro
+	}
+	if selfFlags != 0 {
+		rro[0].Flags = selfFlags
+	}
+	if recordLabel != 0 {
+		withLabel := make([]rroEntry, 0, len(rro)+1)
+		withLabel = append(withLabel, rro[0], rroEntry{Type: RROSubLabel, Label: recordLabel})
+		withLabel = append(withLabel, rro[1:]...)
+		rro = withLabel
+	}
 	return rro
+}
+
+// labelForAddr finds the label an address recorded in an RRO (the RROSubLabel
+// subobject immediately following its address subobject, RFC 3209 Section 4.4.3).
+// Returns 0 / false when the address is absent or recorded no label.
+func labelForAddr(rro []rroEntry, addr netip.Addr) (uint32, bool) {
+	for i := range rro {
+		if rro[i].Type == RROSubIPv4 && rro[i].Address == addr {
+			if i+1 < len(rro) && rro[i+1].Type == RROSubLabel {
+				return rro[i+1].Label, true
+			}
+			return 0, false
+		}
+	}
+	return 0, false
 }
 
 func (e *engine) handleResvIngress(src netip.Addr, msg *ParsedMessage, lsp *LSP, key lspKey) {
@@ -409,7 +497,7 @@ func (e *engine) handleResvIngress(src netip.Addr, msg *ParsedMessage, lsp *LSP,
 		FlowSpec:    msg.FlowSpec,
 		Label:       msg.Label,
 		Style:       msg.Style,
-		RRO:         e.recordRoute(msg.RRO, msg.Session.TunnelID),
+		RRO:         e.recordRoute(msg.RRO, msg.Session.TunnelID, 0, 0),
 		LastRefresh: time.Now(),
 	}
 	lsp.setState(LSPStateUp)
@@ -419,7 +507,7 @@ func (e *engine) handleResvIngress(src netip.Addr, msg *ParsedMessage, lsp *LSP,
 
 	if e.fib != nil {
 		fec := netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen())
-		if err := e.fib.ProgramPush(fec, msg.Label.Label, src); err != nil {
+		if err := e.fib.programPush(fec, msg.Label.Label, src); err != nil {
 			e.log.Warn("rsvp-te: program push failed", "lsp", key.String(), "error", err)
 		}
 	}
@@ -436,19 +524,72 @@ func (e *engine) handleResvIngress(src netip.Addr, msg *ParsedMessage, lsp *LSP,
 // that label to the downstream label, and relays a RESV upstream carrying the
 // local label so the upstream node swaps to it.
 func (e *engine) handleResvTransit(src netip.Addr, msg *ParsedMessage, lsp *LSP, key lspKey) {
+	lsp.mu.Lock()
 	if lsp.PSB == nil {
+		lsp.mu.Unlock()
 		e.log.Warn("rsvp-te: transit RESV without path state", "lsp", key.String())
 		return
 	}
 	inLabel := lsp.InLabel
-	if inLabel == 0 {
+	lsp.mu.Unlock()
+	// Allocate the local in-label OUTSIDE the LSP lock: AllocateLabel takes the
+	// table mutex, so holding lsp.mu across it would invert the table->lsp lock
+	// order used by the cleanup walk (expiredPSBs). handleResvTransit runs on the
+	// single receive goroutine, so no other writer of InLabel races here.
+	allocated := inLabel == 0
+	if allocated {
 		inLabel = e.table.AllocateLabel()
 	}
 
 	lsp.mu.Lock()
+	if lsp.PSB == nil {
+		// Torn down between the unlock and the re-lock (defensive; the receive
+		// goroutine is serial). Release the label we just allocated.
+		lsp.mu.Unlock()
+		if allocated {
+			e.table.releaseLabel(inLabel)
+		}
+		return
+	}
 	lsp.InLabel = inLabel
 	lsp.OutLabel = msg.Label.Label
 	lsp.NextHop = src
+	// RFC 4090 Section 6.4.2: compute the inner label the PLR pushes under the
+	// bypass label on a local repair, and record this node's label so an upstream
+	// PLR can do the same. For link protection the merge point is the NHOP, which
+	// expects the label it advertised (msg.Label). For node protection the merge
+	// point is the NNHOP, whose label is recorded in the received RESV RRO.
+	recordLabel := uint32(0)
+	if lsp.PSB.Protection != nil {
+		recordLabel = inLabel
+		if lsp.PSB.Protection.NodeProtection {
+			// RFC 4090 Section 6.4.2: node protection needs the NNHOP's own label
+			// (the merge point expects it, not the NHOP's). Leave BackupLabel 0
+			// ("unresolved") unless the NNHOP recorded its label in the RESV RRO, so
+			// a re-arm on a later PATH refresh cannot reintroduce a wrong-label
+			// repair (tryLocalRepair refuses when BackupLabel is 0).
+			lsp.BackupLabel = 0
+			var nnhopLabel uint32
+			var ok bool
+			if len(lsp.PSB.ERO) >= 2 {
+				nnhopLabel, ok = labelForAddr(msg.RRO, lsp.PSB.ERO[1].Address.Addr())
+			}
+			if ok {
+				lsp.BackupLabel = nnhopLabel
+			} else if lsp.Bypass != nil {
+				// The NNHOP did not record its label (a peer ignoring
+				// label-recording-desired). Disarm rather than blackhole.
+				e.log.Warn("rsvp-te: node protection requested but the NNHOP label is unavailable; disarming bypass",
+					"lsp", key.String())
+				lsp.Bypass = nil
+			}
+		} else {
+			lsp.BackupLabel = msg.Label.Label // link protection: the NHOP's advertised label
+		}
+	}
+	// RFC 4090 Section 4.4: a PLR reports its protection state (available / in use /
+	// node) in its own RRO subobject so the head-end can see the LSP is protected.
+	protFlags := rroProtectionFlags(lsp)
 	lsp.RSB = &resvStateBlock{
 		Session:  msg.Session,
 		FlowSpec: msg.FlowSpec,
@@ -456,21 +597,23 @@ func (e *engine) handleResvTransit(src netip.Addr, msg *ParsedMessage, lsp *LSP,
 		Style:    msg.Style,
 		// RFC 3209 Section 4.4: record this node ahead of the downstream route
 		// before relaying the RESV upstream.
-		RRO:         e.recordRoute(msg.RRO, msg.Session.TunnelID),
+		RRO:         e.recordRoute(msg.RRO, msg.Session.TunnelID, protFlags, recordLabel),
 		LastRefresh: time.Now(),
 	}
 	prevHop := lsp.PSB.Hop.NextHop
 	filter := lsp.PSB.SenderTemplate
+	// Build the RESV under the lock (like sendResv/sendPath): reading lsp.RSB after
+	// the unlock would race the refresh goroutine's LastRefresh write into it.
+	raw := buildResv(lsp.RSB, filter, e.cfg().RefreshPeriod, e.cfg().RouterID)
 	lsp.setState(LSPStateUp)
 	lsp.mu.Unlock()
 
 	if e.fib != nil {
-		if err := e.fib.ProgramSwap(inLabel, msg.Label.Label, src); err != nil {
+		if err := e.fib.programSwap(inLabel, msg.Label.Label, src); err != nil {
 			e.log.Warn("rsvp-te: program swap failed", "lsp", key.String(), "error", err)
 		}
 	}
 
-	raw := buildResv(lsp.RSB, filter, e.cfg.RefreshPeriod, e.cfg.RouterID)
 	if err := e.transport.Send(prevHop, raw); err != nil {
 		e.log.Warn("rsvp-te: transit RESV relay failed", "prev-hop", prevHop, "error", err)
 		return
@@ -502,6 +645,14 @@ func (e *engine) handlePathErr(msg *ParsedMessage) {
 			e.log.Warn("rsvp-te: path-err emit failed", "error", err)
 		}
 	}
+	// RFC 4090 Section 6.5: a Notify ("Tunnel locally repaired") from a PLR means
+	// this LSP is now riding its bypass. The head-end re-optimizes onto a fresh
+	// path (make-before-break) and lets the old, locally-repaired LSP be torn down
+	// once the replacement is up.
+	if msg.HasSenderTemplate && msg.ErrorSpec.ErrorCode == ErrCodeNotify &&
+		msg.ErrorSpec.ErrorValue == ErrValueTunnelLocallyRepaired {
+		e.reoptimizeOnNotify(keyFromMessage(msg))
+	}
 	e.log.Info("rsvp-te: PathErr received", "tunnel", msg.Session.TunnelEndpoint,
 		"code", msg.ErrorSpec.ErrorCode, "value", msg.ErrorSpec.ErrorValue)
 }
@@ -524,6 +675,7 @@ func (e *engine) handlePathTear(msg *ParsedMessage) {
 	nextHop := lsp.NextHop
 	bandwidth := lsp.Bandwidth
 	admIface := lsp.AdmissionIface
+	isBypass := lsp.IsBypass
 	lsp.mu.Unlock()
 
 	if admIface != "" {
@@ -533,19 +685,19 @@ func (e *engine) handlePathTear(msg *ParsedMessage) {
 		switch role {
 		case RoleTransit:
 			if inLabel != 0 {
-				if err := e.fib.RemoveSwap(inLabel); err != nil {
+				if err := e.fib.removeSwap(inLabel); err != nil {
 					e.log.Warn("rsvp-te: fib remove swap failed", "lsp", key.String(), "error", err)
 				}
 			}
 		case RoleIngress:
 			fec := netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen())
-			if err := e.fib.Remove(fec); err != nil {
+			if err := e.fib.removePush(fec); err != nil {
 				e.log.Warn("rsvp-te: fib remove failed", "lsp", key.String(), "error", err)
 			}
 		case RoleEgress:
 			// Egress programmed a pop (in-label keyed); withdraw it.
 			if inLabel != 0 {
-				if err := e.fib.RemoveSwap(inLabel); err != nil {
+				if err := e.fib.removeSwap(inLabel); err != nil {
 					e.log.Warn("rsvp-te: fib remove pop failed", "lsp", key.String(), "error", err)
 				}
 			}
@@ -553,19 +705,25 @@ func (e *engine) handlePathTear(msg *ParsedMessage) {
 	}
 	// Relay the teardown downstream so the rest of the LSP is cleared.
 	if role == RoleTransit && psb != nil && nextHop.IsValid() {
-		raw := buildPathTear(psb, e.cfg.RouterID)
+		raw := buildPathTear(psb, e.cfg().RouterID)
 		if err := e.transport.Send(nextHop, raw); err != nil {
 			e.log.Warn("rsvp-te: transit PathTear relay failed", "next-hop", nextHop, "error", err)
 		}
 	}
 	e.table.releaseLabel(inLabel)
+	// Defensive: a bypass is an ingress LSP this PLR head-ends and should not
+	// receive a PathTear for its own session, but if one ever removes a bypass,
+	// clear the stale association on protected LSPs that armed it.
+	if isBypass {
+		e.clearBypassReferences(key)
+	}
 	emitLSPDown(e.log, lsp, e.table.Len())
 	e.log.Info("rsvp-te: PathTear processed", "lsp", key.String())
 }
 
 func (e *engine) sendPathErr(dst netip.Addr, msg *ParsedMessage, code uint8, value uint16) {
-	es := errorSpec{ErrorNode: e.cfg.RouterID, ErrorCode: code, ErrorValue: value}
-	raw := buildPathErr(msg.Session, msg.SenderTemplate, msg.SenderTSpec, es, e.cfg.RouterID, defaultIPTTL)
+	es := errorSpec{ErrorNode: e.cfg().RouterID, ErrorCode: code, ErrorValue: value}
+	raw := buildPathErr(msg.Session, msg.SenderTemplate, msg.SenderTSpec, es, e.cfg().RouterID)
 	if err := e.transport.Send(dst, raw); err != nil {
 		e.log.Warn("rsvp-te: send PathErr failed", "dest", dst, "error", err)
 	}
@@ -586,7 +744,7 @@ func (e *engine) handleLinkDown(ifaceName string) {
 	if ifaceName == "" {
 		return
 	}
-	es := errorSpec{ErrorNode: e.cfg.RouterID, ErrorCode: ErrCodeRoutingProblem, ErrorValue: ErrValueNoRouteAvailable}
+	es := errorSpec{ErrorNode: e.cfg().RouterID, ErrorCode: ErrCodeRoutingProblem, ErrorValue: ErrValueNoRouteAvailable}
 	for _, lsp := range e.table.All() {
 		lsp.mu.Lock()
 		nextHop := lsp.NextHop
@@ -612,10 +770,27 @@ func (e *engine) handleLinkDown(ifaceName string) {
 			continue
 		}
 
+		// RFC 4090 Section 6.5: a protected transit LSP with a ready bypass is
+		// locally repaired -- traffic is redirected onto the bypass and the
+		// head-end is notified (PathErr Notify, code 25/3) -- instead of being torn
+		// down. The protected LSP keeps forwarding via the bypass until the
+		// head-end re-optimizes.
+		if role == RoleTransit && e.tryLocalRepair(lsp, key) {
+			if psb != nil && prevHop.IsValid() {
+				nes := errorSpec{ErrorNode: e.cfg().RouterID, ErrorCode: ErrCodeNotify, ErrorValue: ErrValueTunnelLocallyRepaired}
+				raw := buildPathErr(psb.Session, psb.SenderTemplate, psb.SenderTSpec, nes, e.cfg().RouterID)
+				if err := e.transport.Send(prevHop, raw); err != nil {
+					e.log.Warn("rsvp-te: local-repair Notify send failed", "lsp", key.String(), "iface", ifaceName, "error", err)
+				}
+			}
+			e.log.Info("rsvp-te: LSP locally repaired on link failure", "lsp", key.String(), "iface", ifaceName)
+			continue
+		}
+
 		switch role {
 		case RoleTransit, RoleEgress:
 			if psb != nil && prevHop.IsValid() {
-				raw := buildPathErr(psb.Session, psb.SenderTemplate, psb.SenderTSpec, es, e.cfg.RouterID, defaultIPTTL)
+				raw := buildPathErr(psb.Session, psb.SenderTemplate, psb.SenderTSpec, es, e.cfg().RouterID)
 				if err := e.transport.Send(prevHop, raw); err != nil {
 					e.log.Warn("rsvp-te: link-down PathErr send failed", "lsp", key.String(), "iface", ifaceName, "error", err)
 				}
@@ -661,6 +836,7 @@ func (e *engine) tearLSPLocal(key lspKey) {
 	inLabel := lsp.InLabel
 	bandwidth := lsp.Bandwidth
 	admIface := lsp.AdmissionIface
+	isBypass := lsp.IsBypass
 	lsp.mu.Unlock()
 
 	if admIface != "" {
@@ -670,18 +846,23 @@ func (e *engine) tearLSPLocal(key lspKey) {
 		switch role {
 		case RoleTransit, RoleEgress:
 			if inLabel != 0 {
-				if err := e.fib.RemoveSwap(inLabel); err != nil {
+				if err := e.fib.removeSwap(inLabel); err != nil {
 					e.log.Warn("rsvp-te: fib remove failed on link-down", "lsp", key.String(), "error", err)
 				}
 			}
 		case RoleIngress:
 			fec := netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen())
-			if err := e.fib.Remove(fec); err != nil {
+			if err := e.fib.removePush(fec); err != nil {
 				e.log.Warn("rsvp-te: fib remove failed on link-down", "lsp", key.String(), "error", err)
 			}
 		}
 	}
 	e.table.releaseLabel(inLabel)
+	// RFC 4090: if a bypass LSP is gone, protected LSPs that armed it no longer have
+	// a backup -- clear their stale association so they stop reporting protection.
+	if isBypass {
+		e.clearBypassReferences(key)
+	}
 	emitLSPDown(e.log, lsp, e.table.Len())
 }
 
@@ -693,13 +874,13 @@ func (e *engine) tearLSPLocal(key lspKey) {
 // interface matches (no prefixes configured, or neighbor outside them) admission
 // accounting is skipped for this LSP rather than charged to the wrong link.
 func (e *engine) admissionInterface(neighbor netip.Addr) (string, bool) {
-	if len(e.cfg.Interfaces) == 1 {
-		return e.cfg.Interfaces[0].Name, true
+	if len(e.cfg().Interfaces) == 1 {
+		return e.cfg().Interfaces[0].Name, true
 	}
 	if !neighbor.IsValid() {
 		return "", false
 	}
-	for _, ic := range e.cfg.Interfaces {
+	for _, ic := range e.cfg().Interfaces {
 		if ic.Prefix.IsValid() && ic.Prefix.Contains(neighbor) {
 			return ic.Name, true
 		}

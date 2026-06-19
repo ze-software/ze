@@ -75,6 +75,9 @@ type rsvpteMetrics struct {
 	resvMsgRecv     metrics.Counter
 	pathErrRecv     metrics.Counter
 	admissionDenied metrics.Counter
+	localRepairs    metrics.Counter // RFC 4090 facility-backup local repairs performed
+	protectedLSPs   metrics.Gauge   // transit LSPs with an armed bypass
+	bypassLSPs      metrics.Gauge   // configured facility-backup bypass LSPs
 }
 
 var rsvpteMetricsPtr atomic.Pointer[rsvpteMetrics]
@@ -89,6 +92,9 @@ func setMetricsRegistry(reg metrics.Registry) {
 		resvMsgRecv:     reg.Counter("ze_rsvpte_resv_recv_total", "Total RESV messages received."),
 		pathErrRecv:     reg.Counter("ze_rsvpte_patherr_recv_total", "Total PathErr messages received."),
 		admissionDenied: reg.Counter("ze_rsvpte_admission_denied_total", "Total admission control denials."),
+		localRepairs:    reg.Counter("ze_rsvpte_local_repairs_total", "Total RFC 4090 facility-backup local repairs performed."),
+		protectedLSPs:   reg.Gauge("ze_rsvpte_protected_lsps", "Current number of transit LSPs with an armed fast-reroute bypass."),
+		bypassLSPs:      reg.Gauge("ze_rsvpte_bypass_lsps", "Current number of configured facility-backup bypass LSPs."),
 	}
 	rsvpteMetricsPtr.Store(m)
 }
@@ -107,6 +113,7 @@ type rsvpteConfig struct {
 	RefreshMultiplier int
 	Interfaces        []ifaceConfig
 	Tunnels           []tunnelConfig
+	Bypasses          []bypassConfig
 }
 
 type ifaceConfig struct {
@@ -124,6 +131,39 @@ type tunnelConfig struct {
 	SetupPriority uint8
 	HoldPriority  uint8
 	ERO           []eroHop
+	FastReroute   *frrTunnelConfig // RFC 4090 local protection, nil when not requested
+}
+
+// frrTunnelConfig is the parsed `fast-reroute` container on a tunnel (RFC 4090).
+type frrTunnelConfig struct {
+	OneToOne            bool // false = facility backup (the default)
+	NodeProtection      bool
+	BandwidthProtection bool
+	HopLimit            uint8
+}
+
+// protection builds the wire-level protectionRequest the head-end PSB carries.
+func (fr *frrTunnelConfig) protection(tc tunnelConfig) *protectionRequest {
+	return &protectionRequest{
+		Facility:            !fr.OneToOne,
+		NodeProtection:      fr.NodeProtection,
+		BandwidthProtection: fr.BandwidthProtection,
+		HopLimit:            fr.HopLimit,
+		Bandwidth:           tc.Bandwidth,
+		SetupPrio:           tc.SetupPriority,
+		HoldPrio:            tc.HoldPriority,
+		Name:                tc.Name,
+	}
+}
+
+// bypassConfig is a configured facility-backup bypass LSP (RFC 4090 Section 3.2):
+// an ordinary RSVP-TE LSP from this PLR to MergePoint, routed (via ERO) to avoid
+// the protected resource.
+type bypassConfig struct {
+	Name           string
+	MergePoint     netip.Addr
+	NodeProtection bool
+	ERO            []eroHop
 }
 
 // rsvpteNumber coerces a config-tree scalar to a float64. Tree.ToMap renders
@@ -178,6 +218,43 @@ type listEntry struct {
 	data map[string]any
 }
 
+// rsvpteBool coerces a config-tree scalar to a bool. Tree.ToMap renders a YANG
+// boolean leaf as the string "true"/"false", so accept both that and a native
+// bool for robustness.
+func rsvpteBool(v any) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case string:
+		return b == "true"
+	default:
+		return false
+	}
+}
+
+// parseERO reads the explicit-route list from a tunnel or bypass entry, sorted by
+// numeric hop index (ordered-by user in YANG, keyed by index here).
+func parseERO(m map[string]any) ([]eroHop, error) {
+	entries := rsvpteList(m["explicit-route"], true)
+	ero := make([]eroHop, 0, len(entries))
+	for _, hopEntry := range entries {
+		hopMap := hopEntry.data
+		hop := eroHop{}
+		if v, ok := hopMap["address"].(string); ok && v != "" {
+			pfx, err := netip.ParsePrefix(v)
+			if err != nil {
+				return nil, fmt.Errorf("invalid explicit-route address %q: %w", v, err)
+			}
+			hop.Address = pfx
+		}
+		if v, ok := hopMap["type"].(string); ok && v == "loose" {
+			hop.Loose = true
+		}
+		ero = append(ero, hop)
+	}
+	return ero, nil
+}
+
 func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 	cfg := rsvpteConfig{
 		RefreshPeriod:     DefaultRefreshPeriod,
@@ -201,6 +278,12 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 			addr, err := netip.ParseAddr(v)
 			if err != nil {
 				return cfg, fmt.Errorf("rsvp-te: invalid router-id: %w", err)
+			}
+			// RSVP-TE here is IPv4-only: the lspKey ExtTunnelID and the bypass
+			// tunnel-id derive from addrToUint32(router-id), whose As4() panics on a
+			// non-IPv4 address. Reject it at parse time rather than crash later.
+			if !addr.Is4() {
+				return cfg, fmt.Errorf("rsvp-te: router-id must be an IPv4 address, got %q", v)
 			}
 			cfg.RouterID = addr
 		}
@@ -241,12 +324,24 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 			if v, ok := m["name"].(string); ok && v != "" {
 				tc.Name = v
 			}
-			if v, ok := m["destination"].(string); ok {
-				if addr, err := netip.ParseAddr(v); err == nil {
-					tc.Destination = addr
+			if v, ok := m["destination"].(string); ok && v != "" {
+				addr, err := netip.ParseAddr(v)
+				if err != nil {
+					return cfg, fmt.Errorf("rsvp-te: tunnel %s invalid destination %q: %w", tc.Name, v, err)
 				}
+				tc.Destination = addr
 			}
 			if v, ok := rsvpteNumber(m["tunnel-id"]); ok {
+				// Range-check before the uint16 cast: a value outside 0-65535 would
+				// silently wrap (65536 -> 0) and could alias another tunnel-id or slip
+				// past the reserved-range check below. YANG bounds it to uint16, but
+				// the parser self-validates rather than rely on that.
+				if v < 0 || v > 65535 {
+					return cfg, fmt.Errorf("rsvp-te: tunnel %s tunnel-id %v out of range (0-65535)", tc.Name, v)
+				}
+				if uint16(v) >= bypassTunnelIDBase {
+					return cfg, fmt.Errorf("rsvp-te: tunnel %s tunnel-id %d is in the reserved fast-reroute bypass range (>= %d)", tc.Name, uint16(v), bypassTunnelIDBase)
+				}
 				tc.TunnelID = uint16(v)
 			}
 			if v, ok := rsvpteNumber(m["bandwidth"]); ok {
@@ -258,23 +353,84 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 			if v, ok := rsvpteNumber(m["hold-priority"]); ok {
 				tc.HoldPriority = uint8(v)
 			}
-			for _, hopEntry := range rsvpteList(m["explicit-route"], true) {
-				hopMap := hopEntry.data
-				hop := eroHop{}
-				if v, ok := hopMap["address"].(string); ok {
-					if pfx, err := netip.ParsePrefix(v); err == nil {
-						hop.Address = pfx
-					}
+			ero, err := parseERO(m)
+			if err != nil {
+				return cfg, fmt.Errorf("rsvp-te: tunnel %s %w", tc.Name, err)
+			}
+			tc.ERO = ero
+			if frRaw, ok := m["fast-reroute"].(map[string]any); ok {
+				fr := &frrTunnelConfig{HopLimit: 16}
+				if v, ok := frRaw["backup"].(string); ok && v == "one-to-one" {
+					fr.OneToOne = true
 				}
-				if v, ok := hopMap["type"].(string); ok && v == "loose" {
-					hop.Loose = true
+				fr.NodeProtection = rsvpteBool(frRaw["node-protection"])
+				fr.BandwidthProtection = rsvpteBool(frRaw["bandwidth-protection"])
+				if v, ok := rsvpteNumber(frRaw["hop-limit"]); ok {
+					fr.HopLimit = uint8(v)
 				}
-				tc.ERO = append(tc.ERO, hop)
+				tc.FastReroute = fr
 			}
 			cfg.Tunnels = append(cfg.Tunnels, tc)
 		}
+		for _, entry := range rsvpteList(tree["bypass"], false) {
+			m := entry.data
+			bc := bypassConfig{Name: entry.key}
+			if v, ok := m["name"].(string); ok && v != "" {
+				bc.Name = v
+			}
+			if v, ok := m["merge-point"].(string); ok && v != "" {
+				addr, err := netip.ParseAddr(v)
+				if err != nil {
+					return cfg, fmt.Errorf("rsvp-te: bypass %s invalid merge-point %q: %w", bc.Name, v, err)
+				}
+				bc.MergePoint = addr
+			}
+			bc.NodeProtection = rsvpteBool(m["node-protection"])
+			bypassERO, err := parseERO(m)
+			if err != nil {
+				return cfg, fmt.Errorf("rsvp-te: bypass %s %w", bc.Name, err)
+			}
+			bc.ERO = bypassERO
+			cfg.Bypasses = append(cfg.Bypasses, bc)
+		}
+	}
+	// Bound the bypass set and reject name-hash collisions so two bypasses cannot
+	// signal under the same lspKey (RFC 4090 facility backup, stable keying).
+	if err := validateBypasses(cfg); err != nil {
+		return cfg, err
 	}
 	return cfg, nil
+}
+
+// maxBypasses bounds the number of configured facility-backup bypass LSPs. The
+// name-hash key space is 4096 (12 bits over the reserved tunnel-id range), so
+// well before that, collisions force a rename; this is a coarse upper guard.
+const maxBypasses = 1024
+
+// validateBypasses rejects too many bypasses and any two bypasses whose name hash
+// to the same reserved lspKey (which would make them indistinguishable).
+func validateBypasses(cfg rsvpteConfig) error {
+	if len(cfg.Bypasses) > maxBypasses {
+		return fmt.Errorf("rsvp-te: too many bypass LSPs (%d > %d)", len(cfg.Bypasses), maxBypasses)
+	}
+	// bypassKey derives a tunnel-id from the router-id (addrToUint32 -> As4), which
+	// panics on the zero Addr. Without a router-id the engine stays idle and
+	// bypasses never signal, so there is nothing to validate.
+	if !cfg.RouterID.IsValid() {
+		return nil
+	}
+	seen := make(map[lspKey]string, len(cfg.Bypasses))
+	for _, bc := range cfg.Bypasses {
+		if !bc.MergePoint.IsValid() {
+			continue
+		}
+		k := bypassKey(bc, cfg.RouterID)
+		if prev, dup := seen[k]; dup {
+			return fmt.Errorf("rsvp-te: bypass %q and %q collide on the same key; rename one", prev, bc.Name)
+		}
+		seen[k] = bc.Name
+	}
+	return nil
 }
 
 func registerRSVPTE() {
@@ -380,6 +536,22 @@ func runRSVPTEEngine(conn net.Conn) int {
 		cfg := activeCfg
 		for _, iface := range cfg.Interfaces {
 			admission.setInterface(iface.Name, float64(iface.MaxBW), float64(iface.MaxReservableBW))
+		}
+		// Push the reloaded config into the running engine so its runtime reads
+		// (selectBypass, admissionInterface, message builders) see the new
+		// interfaces/bypasses/refresh period; otherwise FRR keeps arming against the
+		// stale startup bypass set after a reload.
+		if eng != nil {
+			// router-id is restart-class: setConfig keeps the engine's. A configured
+			// change is ignored (and logged) so we never split-brain. Reconcile against
+			// the engine's EFFECTIVE config so tunnel/bypass keys match the engine's
+			// runtime reads (selectBypass) rather than the new-but-ignored router-id.
+			if cfg.RouterID.IsValid() && cfg.RouterID != eng.cfg().RouterID {
+				log.Warn("rsvp-te: router-id change requires a restart; keeping the running router-id",
+					"running", eng.cfg().RouterID, "configured", cfg.RouterID)
+			}
+			eng.setConfig(cfg)
+			cfg = eng.cfg()
 		}
 		configuredTunnels = reconcileTunnels(log, lspTable, cfg, eng, configuredTunnels)
 		return nil
@@ -489,6 +661,8 @@ func runRSVPTEEngine(conn net.Conn) int {
 			return cmdDone, showInterfaces(admission), nil
 		case "show rsvp-te tunnel":
 			return cmdDone, showTunnels(lspTable), nil
+		case "show rsvp-te fast-reroute":
+			return cmdDone, showFastReroute(lspTable), nil
 		default:
 			return "error", "", fmt.Errorf("unknown command: %s", command)
 		}
@@ -504,6 +678,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 			{Name: "show rsvp-te session"},
 			{Name: "show rsvp-te interface"},
 			{Name: "show rsvp-te tunnel"},
+			{Name: "show rsvp-te fast-reroute"},
 		},
 	})
 	if err != nil {
@@ -538,10 +713,23 @@ func tunnelKey(tc tunnelConfig, routerID netip.Addr) lspKey {
 // configured-key set. eng may be nil (no transport): setup records intent only and
 // teardown is skipped, since there is no signaled LSP to remove.
 func reconcileTunnels(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine, prev map[lspKey]bool) map[lspKey]bool {
-	next := make(map[lspKey]bool, len(cfg.Tunnels))
+	// Tunnel and bypass keys derive from the router-id (addrToUint32 -> As4), which
+	// panics on the zero Addr. Without a router-id the engine is idle and nothing
+	// can be keyed/signaled. OnStarted guards this before calling us, but
+	// OnConfigApply (reload) does not, so guard here to cover every caller.
+	if !cfg.RouterID.IsValid() {
+		return prev
+	}
+	next := make(map[lspKey]bool, len(cfg.Tunnels)+len(cfg.Bypasses))
 	for _, tc := range cfg.Tunnels {
 		setupTunnel(log, lspTable, tc, cfg, eng)
 		next[tunnelKey(tc, cfg.RouterID)] = true
+	}
+	// RFC 4090 Section 3.2: signal configured facility-backup bypass LSPs alongside
+	// protected tunnels so a PLR has a ready bypass to redirect onto on a failure.
+	for _, bc := range cfg.Bypasses {
+		setupBypass(log, lspTable, bc, cfg, eng)
+		next[bypassKey(bc, cfg.RouterID)] = true
 	}
 	if eng != nil {
 		for key := range prev {
@@ -552,6 +740,7 @@ func reconcileTunnels(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, en
 			}
 		}
 	}
+	updateFRRGauges(lspTable)
 	return next
 }
 
@@ -602,6 +791,12 @@ func setupTunnel(log *slog.Logger, lspTable *lspTable, tc tunnelConfig, cfg rsvp
 		RefreshPeriod: cfg.RefreshPeriod,
 		LastRefresh:   time.Now(),
 	}
+	// RFC 4090: when the tunnel requests fast-reroute, the head-end PATH carries
+	// SESSION_ATTRIBUTE (protection-desired flags) and FAST_REROUTE so transit
+	// PLRs arm a backup.
+	if tc.FastReroute != nil {
+		lsp.PSB.Protection = tc.FastReroute.protection(tc)
+	}
 	lsp.setState(LSPStatePathSent)
 	lsp.mu.Unlock()
 
@@ -616,6 +811,52 @@ func setupTunnel(log *slog.Logger, lspTable *lspTable, tc tunnelConfig, cfg rsvp
 	}
 
 	log.Info("rsvp-te: tunnel configured", "name", tc.Name, "dest", tc.Destination, "tunnel-id", tc.TunnelID)
+}
+
+// setupBypass signals a configured facility-backup bypass LSP (RFC 4090 Section
+// 3.2): an ordinary ingress LSP from this PLR to the bypass merge point along the
+// configured ERO. It mirrors setupTunnel but marks the LSP as a bypass so it is
+// not treated as a protected tunnel, and reserves no bandwidth of its own (the
+// protected LSPs already account theirs). Without a transport (eng nil) the LSP
+// stays in path-sent as local intent only.
+func setupBypass(log *slog.Logger, lspTable *lspTable, bc bypassConfig, cfg rsvpteConfig, eng *engine) {
+	if !bc.MergePoint.IsValid() {
+		return
+	}
+	key := bypassKey(bc, cfg.RouterID)
+	lsp, existed := lspTable.GetOrCreate(key)
+	if existed && lsp.State == LSPStateUp {
+		return
+	}
+
+	lsp.mu.Lock()
+	lsp.Role = RoleIngress
+	lsp.IsBypass = true
+	lsp.PSB = &pathStateBlock{
+		Session: sessionIPv4{
+			TunnelEndpoint: bc.MergePoint,
+			TunnelID:       key.TunnelID,
+			ExtTunnelID:    key.ExtTunnelID,
+		},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: cfg.RouterID, LSPID: 1},
+		ERO:            bc.ERO,
+		SenderTSpec: FlowSpec{
+			MinPolicedUnit: 20,
+			MaxPacketSize:  65535,
+		},
+		LabelRequest:  labelRequest{L3PID: 0x0800},
+		RefreshPeriod: cfg.RefreshPeriod,
+		LastRefresh:   time.Now(),
+	}
+	lsp.setState(LSPStatePathSent)
+	lsp.mu.Unlock()
+
+	if eng != nil {
+		if err := eng.sendPath(lsp); err != nil {
+			log.Warn("rsvp-te: bypass PATH send failed", "name", bc.Name, "merge-point", bc.MergePoint, "error", err)
+		}
+	}
+	log.Info("rsvp-te: bypass configured", "name", bc.Name, "merge-point", bc.MergePoint, "node-protection", bc.NodeProtection)
 }
 
 // eroEqual reports whether two explicit routes are identical (same hops in the
@@ -685,6 +926,7 @@ func refreshPaths(log *slog.Logger, lspTable *lspTable, eng *engine) {
 			log.Debug("rsvp-te: refresh", "lsp", lsp.Key.String())
 		}
 	}
+	updateFRRGauges(lspTable)
 }
 
 func runCleanupLoop(ctx context.Context, log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine) {
@@ -769,98 +1011,5 @@ func emitLSPDown(log *slog.Logger, lsp *LSP, activeCount int) {
 	}
 }
 
-func showSessions(lspTable *lspTable) any {
-	type sessionInfo struct {
-		TunnelEndpoint string   `json:"tunnel-endpoint"`
-		TunnelID       uint16   `json:"tunnel-id"`
-		LSPID          uint16   `json:"lsp-id"`
-		SenderAddr     string   `json:"sender-address"`
-		State          string   `json:"state"`
-		Role           string   `json:"role"`
-		Bandwidth      float32  `json:"bandwidth"`
-		InLabel        uint32   `json:"in-label"`
-		OutLabel       uint32   `json:"out-label"`
-		ERO            []string `json:"ero,omitempty"`
-		RRO            []string `json:"rro,omitempty"`
-	}
-	lsps := lspTable.All()
-	out := make([]sessionInfo, 0, len(lsps))
-	for _, lsp := range lsps {
-		lsp.mu.Lock()
-		info := sessionInfo{
-			TunnelEndpoint: lsp.Key.TunnelEndpoint.String(),
-			TunnelID:       lsp.Key.TunnelID,
-			LSPID:          lsp.Key.LSPID,
-			SenderAddr:     lsp.Key.SenderAddr.String(),
-			State:          lsp.State.String(),
-			Role:           lsp.Role.String(),
-			Bandwidth:      lsp.Bandwidth,
-			InLabel:        lsp.InLabel,
-			OutLabel:       lsp.OutLabel,
-		}
-		if lsp.PSB != nil {
-			info.ERO = formatERO(lsp.PSB.ERO)
-		}
-		if lsp.RSB != nil {
-			info.RRO = formatRRO(lsp.RSB.RRO)
-		}
-		out = append(out, info)
-		lsp.mu.Unlock()
-	}
-	return out
-}
-
-func showInterfaces(admission *admissionController) any {
-	type ifaceInfo struct {
-		Name              string  `json:"name"`
-		MaxBandwidth      float64 `json:"max-bandwidth"`
-		MaxReservable     float64 `json:"max-reservable"`
-		ReservedBandwidth float64 `json:"reserved-bandwidth"`
-		Available         float64 `json:"available-bandwidth"`
-	}
-	ifaces := admission.allInterfaces()
-	out := make([]ifaceInfo, 0, len(ifaces))
-	for name, ib := range ifaces {
-		out = append(out, ifaceInfo{
-			Name:              name,
-			MaxBandwidth:      ib.MaxBandwidth,
-			MaxReservable:     ib.MaxReservable,
-			ReservedBandwidth: ib.ReservedBandwidth,
-			Available:         ib.Available(),
-		})
-	}
-	return out
-}
-
-func showTunnels(lspTable *lspTable) any {
-	type tunnelInfo struct {
-		TunnelEndpoint string  `json:"tunnel-endpoint"`
-		TunnelID       uint16  `json:"tunnel-id"`
-		State          string  `json:"state"`
-		Bandwidth      float32 `json:"bandwidth"`
-		EROHops        int     `json:"ero-hops"`
-	}
-	lsps := lspTable.All()
-	out := make([]tunnelInfo, 0, len(lsps))
-	for _, lsp := range lsps {
-		lsp.mu.Lock()
-		if lsp.Role != RoleIngress {
-			lsp.mu.Unlock()
-			continue
-		}
-		eroHops := 0
-		if lsp.PSB != nil {
-			eroHops = len(lsp.PSB.ERO)
-		}
-		info := tunnelInfo{
-			TunnelEndpoint: lsp.Key.TunnelEndpoint.String(),
-			TunnelID:       lsp.Key.TunnelID,
-			State:          lsp.State.String(),
-			Bandwidth:      lsp.Bandwidth,
-			EROHops:        eroHops,
-		}
-		lsp.mu.Unlock()
-		out = append(out, info)
-	}
-	return out
-}
+// The `show rsvp-te ...` data builders (showSessions/showInterfaces/showTunnels)
+// live in show_data.go.

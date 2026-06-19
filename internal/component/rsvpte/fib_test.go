@@ -50,7 +50,7 @@ func TestBusFIBEmitsEntries(t *testing.T) {
 	fib := newBusFIB(bus, slogutil.DiscardLogger())
 	nh := netip.MustParseAddr("10.0.0.5")
 
-	require.NoError(t, fib.ProgramPush(netip.MustParsePrefix("10.0.0.9/32"), 16000, nh))
+	require.NoError(t, fib.programPush(netip.MustParsePrefix("10.0.0.9/32"), 16000, nh))
 	e := bus.lastEntry(t)
 	assert.Equal(t, mplsfibevents.ActionAdd, e.Action)
 	assert.Equal(t, mplsfibevents.OpPush, e.Op)
@@ -58,24 +58,24 @@ func TestBusFIBEmitsEntries(t *testing.T) {
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.9/32"), e.FEC)
 	assert.Equal(t, mplsSourceRSVPTE, e.Source)
 
-	require.NoError(t, fib.ProgramSwap(1000, 2000, nh))
+	require.NoError(t, fib.programSwap(1000, 2000, nh))
 	e = bus.lastEntry(t)
 	assert.Equal(t, mplsfibevents.OpSwap, e.Op)
 	assert.Equal(t, uint32(1000), e.InLabel)
 	assert.Equal(t, []uint32{2000}, e.OutLabels)
 
-	require.NoError(t, fib.ProgramPop(1001, nh))
+	require.NoError(t, fib.programPop(1001, nh))
 	e = bus.lastEntry(t)
 	assert.Equal(t, mplsfibevents.OpPop, e.Op)
 	assert.Equal(t, uint32(1001), e.InLabel)
 	assert.Empty(t, e.OutLabels)
 
-	require.NoError(t, fib.Remove(netip.MustParsePrefix("10.0.0.9/32")))
+	require.NoError(t, fib.removePush(netip.MustParsePrefix("10.0.0.9/32")))
 	e = bus.lastEntry(t)
 	assert.Equal(t, mplsfibevents.ActionRemove, e.Action)
 	assert.Equal(t, mplsfibevents.OpPush, e.Op)
 
-	require.NoError(t, fib.RemoveSwap(1000))
+	require.NoError(t, fib.removeSwap(1000))
 	e = bus.lastEntry(t)
 	assert.Equal(t, mplsfibevents.ActionRemove, e.Action)
 	assert.Equal(t, mplsfibevents.OpSwap, e.Op)
@@ -85,5 +85,5 @@ func TestBusFIBEmitsEntries(t *testing.T) {
 // VALIDATES: busFIB with no bus does not panic (degraded mode).
 func TestBusFIBNilBus(t *testing.T) {
 	fib := newBusFIB(nil, slogutil.DiscardLogger())
-	assert.NoError(t, fib.ProgramPush(netip.MustParsePrefix("10.0.0.9/32"), 16000, netip.Addr{}))
+	assert.NoError(t, fib.programPush(netip.MustParsePrefix("10.0.0.9/32"), 16000, netip.Addr{}))
 }

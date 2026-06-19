@@ -1,0 +1,162 @@
+# Test: RSVP-TE Fast Reroute (RFC 4090) config reaches the engine and the
+# `show rsvp-te fast-reroute` command reports the configured bypass.
+#
+# VALIDATES: spec-mpls-4-rsvp-te-fast-reroute -- a tunnel `fast-reroute` container
+#            and a `bypass` LSP parse from the keyed-map config tree, the engine
+#            sets up the bypass, and `show rsvp-te fast-reroute` answers as a
+#            well-formed JSON array that includes the configured bypass LSP
+#            (kind=bypass) terminating at its merge point.
+# PREVENTS:  regression where the fast-reroute / bypass config is dropped, or the
+#            new show handler recurses / 404s / is not registered.
+#
+# The local-repair data plane (the 2-label backup swap), the PathErr Notify, and
+# the head-end re-optimization are signaling behaviors needing the raw-IP
+# transport and a peer LSR; they are proven by the ze-to-ze fabric interop
+# (internal/component/rsvpte/interop_test.go, TestEngineZeToZeFRRLocalRepair) and
+# the live-kernel 2-label swap (mplsentry_integration_linux_test.go,
+# TestMPLSIntegration_FacilityBackupSwap). This functional test covers the
+# always-available half: the FRR config reaches the engine and the show command
+# dispatches and reports the bypass.
+
+tmpfs=rsvpte-frr.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert `show rsvp-te fast-reroute` dispatches and reports the bypass."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def done_array(api, command):
+    r = dispatch(api, command)
+    if r.get('status') != 'done':
+        runtime_fail(
+            f"{command}: expected done, got status={r.get('status')} "
+            f"data={result_text_data(r)[:200]}")
+    arr = result_json_data(r, None)
+    if not isinstance(arr, list):
+        runtime_fail(f"{command}: expected list, got {arr!r}")
+    return arr
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    # The fast-reroute show must dispatch through the engine and return an array.
+    rows = done_array(api, 'show rsvp-te fast-reroute')
+
+    # The configured bypass LSP must be reported, terminating at its merge point.
+    bypasses = [r for r in rows if r.get('kind') == 'bypass']
+    if not bypasses:
+        runtime_fail(
+            f"show rsvp-te fast-reroute: expected a configured bypass, got {rows!r}")
+    if not any(b.get('tunnel-endpoint') == '10.0.0.5' for b in bypasses):
+        runtime_fail(
+            f"bypass should terminate at the merge point 10.0.0.5, got {bypasses!r}")
+
+    print('OK: rsvp-te fast-reroute show dispatched and reported the bypass',
+          file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external rsvpte-frr {
+		run ./rsvpte-frr.run
+		encoder json
+	}
+}
+
+rsvp-te {
+	router-id 10.0.0.1
+	refresh-period 30
+	interface lo {
+		max-bandwidth 10e9
+		max-reservable-bandwidth 8e9
+		address 127.0.0.1/8
+	}
+	tunnel to-egress {
+		destination 10.0.0.9
+		tunnel-id 1
+		bandwidth 1e9
+		explicit-route 1 {
+			address 10.0.0.5/32
+		}
+		explicit-route 2 {
+			address 10.0.0.9/32
+		}
+		fast-reroute {
+			backup facility
+			node-protection false
+		}
+	}
+	bypass around-eth0 {
+		merge-point 10.0.0.5
+		explicit-route 1 {
+			address 10.1.0.5/32
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process rsvpte-frr {
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.rsvp-te:value=info
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=fast-reroute show dispatched and reported the bypass
+reject=stderr:pattern=no router-id configured
+reject=stderr:pattern=engine idle
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

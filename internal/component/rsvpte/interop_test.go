@@ -145,6 +145,13 @@ func fabricEngine(t *testing.T, fab *fabric, self netip.Addr) (*engine, *fakeFIB
 // traverse; with none, endpoint is the direct next hop.
 func originateLSP(t *testing.T, e *engine, sender, endpoint netip.Addr, tunnelID uint16, ero ...netip.Addr) lspKey {
 	t.Helper()
+	return originateLSPProtected(t, e, sender, endpoint, tunnelID, nil, ero...)
+}
+
+// originateLSPProtected is originateLSP with an optional RFC 4090 protection
+// request set on the head-end PSB (so the PATH carries FAST_REROUTE/SESSION_ATTRIBUTE).
+func originateLSPProtected(t *testing.T, e *engine, sender, endpoint netip.Addr, tunnelID uint16, pr *protectionRequest, ero ...netip.Addr) lspKey {
+	t.Helper()
 	key := lspKey{
 		TunnelEndpoint: endpoint,
 		TunnelID:       tunnelID,
@@ -158,6 +165,7 @@ func originateLSP(t *testing.T, e *engine, sender, endpoint netip.Addr, tunnelID
 		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
 		LabelRequest:   labelRequest{L3PID: 0x0800},
 		RefreshPeriod:  DefaultRefreshPeriod,
+		Protection:     pr,
 	}
 	for _, hop := range ero {
 		psb.ERO = append(psb.ERO, eroHop{Address: netip.PrefixFrom(hop, hop.BitLen())})
@@ -170,6 +178,30 @@ func originateLSP(t *testing.T, e *engine, sender, endpoint netip.Addr, tunnelID
 	lsp.mu.Unlock()
 	require.NoError(t, e.sendPath(lsp))
 	return key
+}
+
+// fabricEngineCfg is fabricEngine with a config modifier, so a PLR node can be
+// given interfaces (for link-down matching) and configured bypass LSPs.
+func fabricEngineCfg(t *testing.T, fab *fabric, self netip.Addr, cfgFn func(*rsvpteConfig)) (*engine, *fakeFIB) {
+	t.Helper()
+	fib := &fakeFIB{}
+	cfg := rsvpteConfig{RouterID: self, RefreshPeriod: DefaultRefreshPeriod}
+	if cfgFn != nil {
+		cfgFn(&cfg)
+	}
+	e := newEngine(fab.attach(self), newLSPTable(), newAdmissionController(), fib, cfg, slogutil.DiscardLogger())
+	for _, ic := range cfg.Interfaces {
+		e.admission.setInterface(ic.Name, float64(ic.MaxBW), float64(ic.MaxReservableBW))
+	}
+	return e, fib
+}
+
+// setEngineInterfaces swaps the engine's interface config (the engine config is
+// behind an atomic pointer, so it cannot be mutated in place).
+func setEngineInterfaces(e *engine, ifaces []ifaceConfig) {
+	cfg := e.cfg()
+	cfg.Interfaces = ifaces
+	e.setConfig(cfg)
 }
 
 // VALIDATES: mpls-3 -- a full ze-to-ze LSP setup. One ze engine originates and
@@ -463,7 +495,7 @@ func TestEngineZeToZeAdmissionDeniedInterop(t *testing.T) {
 	ingress, ingFib := fabricEngine(t, fab, ingressAddr)
 	egress, _ := fabricEngine(t, fab, egressAddr)
 	// One interface on the egress, filled: any further reservation is rejected.
-	egress.cfg.Interfaces = []ifaceConfig{{Name: "eth0", MaxBW: 1e9, MaxReservableBW: 1e9}}
+	setEngineInterfaces(egress, []ifaceConfig{{Name: "eth0", MaxBW: 1e9, MaxReservableBW: 1e9}})
 	egress.admission.setInterface("eth0", 1e9, 1e9)
 	require.NoError(t, egress.admission.Reserve("eth0", 1e9))
 	nodes := map[netip.Addr]*engine{ingressAddr: ingress, egressAddr: egress}
@@ -641,10 +673,10 @@ func TestEngineZeToZeMultiIfaceAdmissionInterop(t *testing.T) {
 	ingress, ingFib := fabricEngine(t, fab, ingressAddr)
 	egress, _ := fabricEngine(t, fab, egressAddr)
 	// Two interfaces; the ingress neighbor (10.0.0.1) resolves to eth0 by prefix.
-	egress.cfg.Interfaces = []ifaceConfig{
+	setEngineInterfaces(egress, []ifaceConfig{
 		{Name: "eth0", MaxBW: 1e9, MaxReservableBW: 1e9, Prefix: netip.MustParsePrefix("10.0.0.0/24")},
 		{Name: "eth1", MaxBW: 1e9, MaxReservableBW: 1e9, Prefix: netip.MustParsePrefix("10.1.0.0/24")},
-	}
+	})
 	egress.admission.setInterface("eth0", 1e9, 1e9)
 	egress.admission.setInterface("eth1", 1e9, 1e9)
 	require.NoError(t, egress.admission.Reserve("eth0", 1e9)) // fill only the ingress-facing link
@@ -659,4 +691,80 @@ func TestEngineZeToZeMultiIfaceAdmissionInterop(t *testing.T) {
 	assert.Zero(t, fab.delivered(ingressAddr, MsgTypeResv), "no RESV onto the wrong free link")
 	assert.NotEqual(t, LSPStateUp, mustLSP(t, ingress, key).State, "ingress LSP must not come up")
 	assert.Empty(t, ingFib.pushed, "no push on a denied LSP")
+}
+
+// VALIDATES: mpls-4 (RFC 4090 facility backup) end to end over the fabric --
+// four real ze engines: a head-end (A), a Point of Local Repair (B), a merge
+// point / egress (C), and a bypass transit (E). A protected LSP A->B->C is
+// signaled with fast-reroute; B arms a configured bypass B->E->C. When B's link
+// to C fails, B redirects the protected LSP onto the bypass with a 2-label stack
+// via E (no re-signaling round trip), sends a Notify (code 25/3) toward A, keeps
+// the LSP up, and A re-optimizes make-before-break. Every PATH/RESV/PathErr is
+// each engine's own encoded bytes decoded by its peer.
+// PREVENTS: a wire or control-flow divergence in the multi-node FRR exchange that
+// single-engine tests cannot surface (no open-source RSVP-TE peer exists).
+func TestEngineZeToZeFRRLocalRepair(t *testing.T) {
+	fab := newFabric()
+	aAddr := netip.MustParseAddr("10.0.0.1") // head-end
+	bAddr := netip.MustParseAddr("10.0.0.2") // Point of Local Repair
+	cAddr := netip.MustParseAddr("10.0.0.3") // merge point + egress
+	eAddr := netip.MustParseAddr("10.0.2.5") // bypass transit
+
+	a, _ := fabricEngine(t, fab, aAddr)
+	b, bFib := fabricEngineCfg(t, fab, bAddr, func(c *rsvpteConfig) {
+		c.Interfaces = []ifaceConfig{
+			{Name: "eth0", Prefix: netip.MustParsePrefix("10.0.0.0/24"), MaxBW: 10e9, MaxReservableBW: 10e9},
+			{Name: "eth1", Prefix: netip.MustParsePrefix("10.0.2.0/24"), MaxBW: 10e9, MaxReservableBW: 10e9},
+		}
+		c.Bypasses = []bypassConfig{{
+			Name: "bp", MergePoint: cAddr,
+			ERO: []eroHop{{Address: netip.PrefixFrom(eAddr, 32)}, {Address: netip.PrefixFrom(cAddr, 32)}},
+		}}
+	})
+	c, _ := fabricEngine(t, fab, cAddr)
+	e, _ := fabricEngine(t, fab, eAddr)
+	nodes := map[netip.Addr]*engine{aAddr: a, bAddr: b, cAddr: c, eAddr: e}
+
+	// B signals its configured bypass (B->E->C) and it comes up over the fabric.
+	reconcileTunnels(slogutil.DiscardLogger(), b.table, b.cfg(), b, nil)
+	fab.pump(t, nodes)
+	bypass, ok := b.table.Get(bypassKey(b.cfg().Bypasses[0], bAddr))
+	require.True(t, ok)
+	require.Equal(t, LSPStateUp, bypass.State, "bypass LSP up via E")
+	require.Equal(t, eAddr, bypass.NextHop, "bypass next hop is the transit E")
+
+	// Head-end A originates the protected LSP A->B->C with facility protection.
+	pr := &protectionRequest{Facility: true, HopLimit: 16, Bandwidth: 1e8}
+	key := originateLSPProtected(t, a, aAddr, cAddr, 1, pr, bAddr, cAddr)
+	fab.pump(t, nodes)
+
+	bLSP, ok := b.table.Get(key)
+	require.True(t, ok, "PLR installed the protected transit LSP")
+	require.NotNil(t, bLSP.Bypass, "PLR armed the bypass from the PATH protection request")
+	require.Equal(t, LSPStateUp, mustLSP(t, a, key).State, "protected LSP up end to end")
+
+	// B's link to C fails. B locally repairs onto the bypass instead of tearing
+	// down. The Notify is queued but not yet delivered, so the repaired LSP is
+	// still in place here -- check the local-repair state before re-optimization
+	// (the head-end will tear the repaired LSP down once it re-optimizes, AC-5).
+	b.handleLinkDown("eth0")
+
+	require.Len(t, bFib.backups, 1, "PLR programmed a backup swap on local repair")
+	assert.Len(t, bFib.backups[0].out, 2, "2-label facility-backup stack (bypass over protected)")
+	assert.Equal(t, eAddr, bFib.backups[0].nextHop, "traffic redirected via the bypass next hop E")
+
+	repaired, ok := b.table.Get(key)
+	require.True(t, ok, "protected LSP retained (not torn down) on local repair")
+	repaired.mu.Lock()
+	inUse := repaired.ProtectionInUse
+	repaired.mu.Unlock()
+	assert.True(t, inUse, "PLR marked local protection in use")
+
+	// Deliver the Notify and let the head-end re-optimize make-before-break.
+	fab.pump(t, nodes)
+	assert.GreaterOrEqual(t, fab.delivered(aAddr, MsgTypePathErr), 1, "Notify delivered to the head-end")
+	newKey := key
+	newKey.LSPID = 2
+	_, reopt := a.table.Get(newKey)
+	assert.True(t, reopt, "head-end re-optimized onto a fresh LSP after the Notify")
 }

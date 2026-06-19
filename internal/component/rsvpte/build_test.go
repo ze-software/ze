@@ -89,7 +89,7 @@ func TestBuildPathErrRoundTrip(t *testing.T) {
 		ErrorCode:  ErrCodeAdmissionControlFailure,
 		ErrorValue: ErrValueRequestedBandwidth,
 	}
-	raw := buildPathErr(session, sender, FlowSpec{}, es, netip.MustParseAddr("10.0.0.5"), 64)
+	raw := buildPathErr(session, sender, FlowSpec{}, es, netip.MustParseAddr("10.0.0.5"))
 	msg, err := DecodeMessage(raw)
 	require.NoError(t, err)
 

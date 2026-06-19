@@ -1,5 +1,6 @@
 // Design: plan/spec-mpls-3-rsvp-te.md -- `show rsvp-te ...` surfaced under the
 // top-level show grammar.
+// Related: show_data.go -- the show data builders these RPC proxies forward to
 //
 // The RSVP-TE introspection data lives in the plugin engine, reachable via the
 // commands the component registers ("show rsvp-te session", ...). These builtin
@@ -26,9 +27,10 @@ import (
 // ForwardToPlugin so the two cannot diverge. They match the CommandDecl names
 // the RSVP-TE engine registers in runRSVPTEEngine.
 const (
-	cmdShowSession   = "show rsvp-te session"
-	cmdShowInterface = "show rsvp-te interface"
-	cmdShowTunnel    = "show rsvp-te tunnel"
+	cmdShowSession     = "show rsvp-te session"
+	cmdShowInterface   = "show rsvp-te interface"
+	cmdShowTunnel      = "show rsvp-te tunnel"
+	cmdShowFastReroute = "show rsvp-te fast-reroute"
 )
 
 func init() {
@@ -36,6 +38,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-show:rsvp-te-lsp", Handler: forwardShowSession, PluginCommand: cmdShowSession},
 		pluginserver.RPCRegistration{WireMethod: "ze-show:rsvp-te-interface", Handler: forwardShowInterface, PluginCommand: cmdShowInterface},
 		pluginserver.RPCRegistration{WireMethod: "ze-show:rsvp-te-tunnel", Handler: forwardShowTunnel, PluginCommand: cmdShowTunnel},
+		pluginserver.RPCRegistration{WireMethod: "ze-show:rsvp-te-fast-reroute", Handler: forwardShowFastReroute, PluginCommand: cmdShowFastReroute},
 	)
 }
 
@@ -49,6 +52,10 @@ func forwardShowInterface(ctx *pluginserver.CommandContext, args []string) (*plu
 
 func forwardShowTunnel(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	return forwardToRSVPTE(ctx, cmdShowTunnel, args)
+}
+
+func forwardShowFastReroute(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return forwardToRSVPTE(ctx, cmdShowFastReroute, args)
 }
 
 // forwardToRSVPTE routes a fixed plugin command to the RSVP-TE engine. The

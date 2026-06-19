@@ -95,10 +95,90 @@ module ze-rsvp-te-conf {
                 description "Hold priority (0 = highest)";
             }
 
+            container fast-reroute {
+                presence "request RFC 4090 local protection for this tunnel";
+                description "Fast Reroute (RFC 4090) local protection for this LSP";
+
+                leaf backup {
+                    type enumeration {
+                        enum facility;
+                        enum one-to-one;
+                    }
+                    default facility;
+                    description "Backup method: facility (one bypass protects many LSPs) or one-to-one (a detour per LSP)";
+                }
+
+                leaf node-protection {
+                    type boolean;
+                    default false;
+                    description "Request NNHOP (node) protection rather than NHOP (link) protection";
+                }
+
+                leaf bandwidth-protection {
+                    type boolean;
+                    default false;
+                    description "Request a backup that guarantees the reserved bandwidth";
+                }
+
+                leaf hop-limit {
+                    type uint8 {
+                        range "0..255";
+                    }
+                    default 16;
+                    description "Maximum number of hops the backup path may take";
+                }
+            }
+
             list explicit-route {
                 key "index";
                 ordered-by user;
                 description "Explicit route hops";
+
+                leaf index {
+                    type uint16;
+                    description "Hop index";
+                }
+
+                leaf address {
+                    type string;
+                    description "Hop address (IPv4 prefix)";
+                }
+
+                leaf type {
+                    type enumeration {
+                        enum strict;
+                        enum loose;
+                    }
+                    default strict;
+                    description "Hop type (strict or loose)";
+                }
+            }
+        }
+
+        list bypass {
+            key "name";
+            description "Facility-backup bypass LSP (RFC 4090 Section 3.2): an LSP from this PLR to a merge point, explicitly routed to avoid the protected resource. A protected transit LSP whose next hop (link protection) or next-next hop (node protection) is this bypass's merge point is redirected onto it on a local failure. Explicit because ze has no IGP/CSPF to auto-compute a backup path.";
+
+            leaf name {
+                type string;
+                description "Bypass name";
+            }
+
+            leaf merge-point {
+                type string;
+                description "Merge point address (IPv4): the protected LSPs' next hop (link protection) or next-next hop (node protection) where this bypass rejoins them";
+            }
+
+            leaf node-protection {
+                type boolean;
+                default false;
+                description "This bypass merges at a next-next hop, providing node protection";
+            }
+
+            list explicit-route {
+                key "index";
+                ordered-by user;
+                description "Bypass path hops (must avoid the protected resource)";
 
                 leaf index {
                     type uint16;

@@ -4,6 +4,7 @@ module ze-rsvp-te-cmd {
     import ze-extensions { prefix ze; }
     description "show rsvp-te ... command tree. Owned by the rsvp-te component so that removing it removes these command nodes together with the handlers. See ai/rules/plugin-self-containment.md.";
     revision 2026-06-03 { description "Relocated show rsvp-te ... out of the central show schema (plugin self-containment)."; }
+    revision 2026-06-19 { description "Add show rsvp-te fast-reroute (RFC 4090 protection state)."; }
 
     container show {
         config false;
@@ -34,6 +35,15 @@ TE-enabled interface.";
                 ze:command "ze-show:rsvp-te-tunnel";
                 description "Show configured RSVP-TE tunnels and their current state.
 Returns tunnel name, endpoints, signaling state, and active LSP.";
+            }
+
+            container fast-reroute {
+                config false;
+                ze:command "ze-show:rsvp-te-fast-reroute";
+                description "Show RSVP-TE Fast Reroute (RFC 4090) protection state.
+Returns each configured facility-backup bypass LSP and each protected
+LSP with its armed bypass, mode, and whether local protection is
+available and in use.";
             }
         }
     }

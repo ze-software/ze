@@ -51,8 +51,15 @@ func (n *netlinkBackend) addMPLSSwap(inLabel uint32, outLabels []uint32, nextHop
 		}
 		route.LinkIndex = lo.Attrs().Index
 	}
-	if err := n.handle.RouteAdd(route); err != nil {
-		return fmt.Errorf("mpls swap add in-label %d: %w", inLabel, err)
+	// RouteReplace (create-or-update) rather than RouteAdd so re-programming the
+	// same in-label updates the route instead of failing EEXIST. RFC 4090 local
+	// repair re-programs a transit LSP's existing swap entry to the backup stack
+	// and bypass next hop on the same in-label; a plain Add would reject it and the
+	// repair would silently not take effect on a live kernel. The AF_MPLS in-label
+	// space is ze's own (unlike the shared IP prefix space the push path guards),
+	// so there is no foreign route to clobber.
+	if err := n.handle.RouteReplace(route); err != nil {
+		return fmt.Errorf("mpls swap replace in-label %d: %w", inLabel, err)
 	}
 	return nil
 }

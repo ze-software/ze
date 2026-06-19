@@ -55,35 +55,47 @@ type swapRec struct {
 	in, out uint32
 }
 
+type backupRec struct {
+	in      uint32
+	out     []uint32
+	nextHop netip.Addr
+}
+
 type fakeFIB struct {
 	pushed      []netip.Prefix
 	removed     []netip.Prefix
 	swapped     []swapRec
+	backups     []backupRec
 	popped      []uint32
 	removedSwap []uint32
 }
 
-func (f *fakeFIB) ProgramPush(fec netip.Prefix, _ uint32, _ netip.Addr) error {
+func (f *fakeFIB) programPush(fec netip.Prefix, _ uint32, _ netip.Addr) error {
 	f.pushed = append(f.pushed, fec)
 	return nil
 }
 
-func (f *fakeFIB) ProgramSwap(inLabel, outLabel uint32, _ netip.Addr) error {
+func (f *fakeFIB) programSwap(inLabel, outLabel uint32, _ netip.Addr) error {
 	f.swapped = append(f.swapped, swapRec{in: inLabel, out: outLabel})
 	return nil
 }
 
-func (f *fakeFIB) ProgramPop(inLabel uint32, _ netip.Addr) error {
+func (f *fakeFIB) programBackup(inLabel uint32, outLabels []uint32, nextHop netip.Addr) error {
+	f.backups = append(f.backups, backupRec{in: inLabel, out: append([]uint32(nil), outLabels...), nextHop: nextHop})
+	return nil
+}
+
+func (f *fakeFIB) programPop(inLabel uint32, _ netip.Addr) error {
 	f.popped = append(f.popped, inLabel)
 	return nil
 }
 
-func (f *fakeFIB) Remove(fec netip.Prefix) error {
+func (f *fakeFIB) removePush(fec netip.Prefix) error {
 	f.removed = append(f.removed, fec)
 	return nil
 }
 
-func (f *fakeFIB) RemoveSwap(inLabel uint32) error {
+func (f *fakeFIB) removeSwap(inLabel uint32) error {
 	f.removedSwap = append(f.removedSwap, inLabel)
 	return nil
 }
@@ -334,7 +346,7 @@ func TestEnginePathTearReleases(t *testing.T) {
 	popLabel := fib.popped[0]
 
 	// Tear it down. The egress withdraws its pop entry (in-label keyed, so via
-	// RemoveSwap) and releases bandwidth; no push entry exists to remove.
+	// removeSwap) and releases bandwidth; no push entry exists to remove.
 	e.handlePacket(Packet{Src: src, Payload: buildPathTear(psb, src)})
 	ib, _ = e.admission.GetInterface("eth0")
 	assert.InDelta(t, 0, ib.ReservedBandwidth, 1, "bandwidth released after PathTear")

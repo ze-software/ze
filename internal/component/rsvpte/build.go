@@ -1,5 +1,9 @@
 // Design: plan/spec-mpls-3-rsvp-te.md -- RSVP-TE full-message encoders
+// RFC: rfc/short/rfc2205.md
+// RFC: rfc/short/rfc3209.md
+// RFC: rfc/short/rfc4090.md
 // Related: wire.go -- per-object Encode*/Decode* primitives this composes
+// Related: frr.go -- FAST_REROUTE/SESSION_ATTRIBUTE added to PATH (RFC 4090)
 // Related: fsm.go -- PathStateBlock / ResvStateBlock provide the object values
 //
 // wire.go provides per-object encoders and a whole-message DECODER, but no
@@ -85,8 +89,20 @@ func buildPath(psb *pathStateBlock, hop netip.Addr, ttl uint8) []byte {
 	if len(psb.ERO) > 0 {
 		encoders = append(encoders, func(b []byte) int { return encodeERO(b, psb.ERO) })
 	}
+	encoders = append(encoders, func(b []byte) int { return encodeLabelRequest(b, psb.LabelRequest) })
+	// RFC 4090: when local protection is requested, the head-end adds a
+	// SESSION_ATTRIBUTE (protection-desired flags, RFC 4090 Section 4.3) and a
+	// FAST_REROUTE object (Section 4.1) so transit PLRs arm a backup. RFC 3209
+	// Section 4.7 places SESSION_ATTRIBUTE after LABEL_REQUEST; FAST_REROUTE
+	// follows it.
+	if psb.Protection != nil {
+		pr := psb.Protection
+		encoders = append(encoders,
+			func(b []byte) int { return encodeSessionAttr(b, pr.sessionAttr()) },
+			func(b []byte) int { return encodeFastReroute(b, pr.fastReroute()) },
+		)
+	}
 	encoders = append(encoders,
-		func(b []byte) int { return encodeLabelRequest(b, psb.LabelRequest) },
 		func(b []byte) int { return encodeSenderTemplate(b, psb.SenderTemplate) },
 		func(b []byte) int { return encodeFlowSpec(b, ClassSenderTSpec, psb.SenderTSpec) },
 	)
@@ -132,8 +148,10 @@ func buildPathTear(psb *pathStateBlock, hop netip.Addr) []byte {
 }
 
 // buildPathErr encodes a PathErr message reporting an error toward the head-end.
-// RFC 2205 Section 3.1.3: SESSION, ERROR_SPEC, then the sender descriptor.
-func buildPathErr(session sessionIPv4, sender senderTemplateIPv4, tspec FlowSpec, es errorSpec, hop netip.Addr, ttl uint8) []byte {
+// RFC 2205 Section 3.1.3: SESSION, ERROR_SPEC, then the sender descriptor. Like
+// buildResv/buildPathTear it uses defaultIPTTL: a PathErr is addressed to the
+// previous hop, not per-hop TTL-stepped.
+func buildPathErr(session sessionIPv4, sender senderTemplateIPv4, tspec FlowSpec, es errorSpec, hop netip.Addr) []byte {
 	encoders := []objEncoder{
 		func(b []byte) int { return encodeSessionIPv4(b, session) },
 		func(b []byte) int { return encodeRSVPHop(b, rsvpHop{NextHop: hop}) },
@@ -141,7 +159,7 @@ func buildPathErr(session sessionIPv4, sender senderTemplateIPv4, tspec FlowSpec
 		func(b []byte) int { return encodeSenderTemplate(b, sender) },
 		func(b []byte) int { return encodeFlowSpec(b, ClassSenderTSpec, tspec) },
 	}
-	return encodeMessage(MsgTypePathErr, ttl, encoders)
+	return encodeMessage(MsgTypePathErr, defaultIPTTL, encoders)
 }
 
 // RFC 2205 Section A.5 / RFC 3209 Section 4.3.5: error codes/values used in
@@ -156,4 +174,9 @@ const (
 	// ErrValueNoRouteAvailable reports that the path toward the destination is
 	// gone (e.g. a link on the LSP failed) -- RFC 3209 Section 4.3.5 value 5.
 	ErrValueNoRouteAvailable uint16 = 5
+	// RFC 4090 Section 6.5: on local repair the PLR notifies the head-end with a
+	// PathErr carrying Error Code 25 ("Notify") and Error Value sub-code 3
+	// ("Tunnel locally repaired"). The protected LSP is NOT torn down.
+	ErrCodeNotify                 uint8  = 25
+	ErrValueTunnelLocallyRepaired uint16 = 3
 )

@@ -92,3 +92,157 @@ func TestParseRSVPTEConfigInvalidRouterID(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid router-id")
 }
+
+// TestParseRSVPTEConfigFastReroute parses the fast-reroute container on a tunnel
+// (booleans arrive as JSON strings) and confirms the head-end PATH then carries
+// FAST_REROUTE + SESSION_ATTRIBUTE -- the config-to-wire wiring (AC-1).
+func TestParseRSVPTEConfigFastReroute(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"router-id":"10.0.0.1","tunnel":{"t1":{"destination":"10.0.0.9","tunnel-id":"1","bandwidth":"1e9",` +
+			`"fast-reroute":{"backup":"facility","node-protection":"true","hop-limit":"8"}}}}}`,
+	}}
+	cfg, err := parseConfig(sections)
+	require.NoError(t, err)
+	require.Len(t, cfg.Tunnels, 1)
+	fr := cfg.Tunnels[0].FastReroute
+	require.NotNil(t, fr, "fast-reroute container parsed")
+	assert.False(t, fr.OneToOne, "backup facility -> not one-to-one")
+	assert.True(t, fr.NodeProtection)
+	assert.Equal(t, uint8(8), fr.HopLimit)
+
+	// config -> PSB.Protection -> PATH carries the objects.
+	pr := fr.protection(cfg.Tunnels[0])
+	psb := &pathStateBlock{
+		Session:        sessionIPv4{TunnelEndpoint: cfg.Tunnels[0].Destination, TunnelID: 1},
+		SenderTemplate: senderTemplateIPv4{SenderAddr: cfg.RouterID, LSPID: 1},
+		LabelRequest:   labelRequest{L3PID: 0x0800},
+		Protection:     pr,
+	}
+	msg, err := DecodeMessage(buildPath(psb, cfg.RouterID, 64))
+	require.NoError(t, err)
+	assert.True(t, msg.HasFastReroute)
+	assert.NotZero(t, msg.SessionAttr.Flags&SessAttrNodeProtection)
+}
+
+// TestParseRSVPTEConfigOneToOneDefault: backup one-to-one sets the flag; an
+// absent fast-reroute container leaves FastReroute nil.
+func TestParseRSVPTEConfigBackupModes(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"router-id":"10.0.0.1","tunnel":{` +
+			`"a":{"destination":"10.0.0.9","tunnel-id":"1","fast-reroute":{"backup":"one-to-one"}},` +
+			`"b":{"destination":"10.0.0.8","tunnel-id":"2"}}}}`,
+	}}
+	cfg, err := parseConfig(sections)
+	require.NoError(t, err)
+	require.Len(t, cfg.Tunnels, 2)
+	byName := map[string]tunnelConfig{cfg.Tunnels[0].Name: cfg.Tunnels[0], cfg.Tunnels[1].Name: cfg.Tunnels[1]}
+	require.NotNil(t, byName["a"].FastReroute)
+	assert.True(t, byName["a"].FastReroute.OneToOne, "backup one-to-one sets the flag")
+	assert.Equal(t, uint8(16), byName["a"].FastReroute.HopLimit, "hop-limit defaults to 16")
+	assert.Nil(t, byName["b"].FastReroute, "no fast-reroute container -> nil")
+}
+
+// TestParseRSVPTEConfigBypass parses a configured facility-backup bypass LSP.
+func TestParseRSVPTEConfigBypass(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"router-id":"10.0.0.2","bypass":{"bp1":{"merge-point":"10.0.0.3","node-protection":"true",` +
+			`"explicit-route":{"1":{"address":"10.0.1.3/32"}}}}}}`,
+	}}
+	cfg, err := parseConfig(sections)
+	require.NoError(t, err)
+	require.Len(t, cfg.Bypasses, 1)
+	bp := cfg.Bypasses[0]
+	assert.Equal(t, "bp1", bp.Name)
+	assert.Equal(t, "10.0.0.3", bp.MergePoint.String())
+	assert.True(t, bp.NodeProtection)
+	require.Len(t, bp.ERO, 1)
+	assert.Equal(t, "10.0.1.3/32", bp.ERO[0].Address.String())
+}
+
+// TestParseRSVPTEConfigBypassInvalidMergePoint rejects a malformed merge-point.
+func TestParseRSVPTEConfigBypassInvalidMergePoint(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"bypass":{"bp1":{"merge-point":"not-an-ip"}}}}`,
+	}}
+	_, err := parseConfig(sections)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid merge-point")
+}
+
+// TestParseRSVPTEConfigInvalidDestination rejects a malformed tunnel destination
+// (fail closed, consistent with merge-point).
+func TestParseRSVPTEConfigInvalidDestination(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"tunnel":{"t1":{"destination":"not-an-ip","tunnel-id":"1"}}}}`,
+	}}
+	_, err := parseConfig(sections)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid destination")
+}
+
+// TestParseRSVPTEConfigInvalidERO rejects a malformed explicit-route address.
+func TestParseRSVPTEConfigInvalidERO(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"tunnel":{"t1":{"destination":"10.0.0.9","tunnel-id":"1",` +
+			`"explicit-route":{"1":{"address":"bogus"}}}}}}`,
+	}}
+	_, err := parseConfig(sections)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "explicit-route")
+}
+
+// TestParseRSVPTEConfigReservedTunnelID rejects a tunnel-id in the reserved
+// fast-reroute bypass range (>= 0xF000).
+func TestParseRSVPTEConfigReservedTunnelID(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"tunnel":{"t1":{"destination":"10.0.0.9","tunnel-id":"61440"}}}}`, // 0xF000
+	}}
+	_, err := parseConfig(sections)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reserved")
+}
+
+// TestParseRSVPTEConfigBypassNoRouterID: a bypass with no router-id must not
+// panic in validateBypasses (bypassKey derives a tunnel-id from the router-id,
+// whose As4() panics on the zero Addr). The engine stays idle without a router-id.
+func TestParseRSVPTEConfigBypassNoRouterID(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"bypass":{"b1":{"merge-point":"10.0.0.1"}}}}`,
+	}}
+	cfg, err := parseConfig(sections) // must not panic
+	require.NoError(t, err)
+	assert.False(t, cfg.RouterID.IsValid())
+	require.Len(t, cfg.Bypasses, 1)
+}
+
+// TestParseRSVPTEConfigIPv6RouterID rejects a non-IPv4 router-id (rsvp-te here is
+// IPv4-only; addrToUint32's As4() would otherwise panic).
+func TestParseRSVPTEConfigIPv6RouterID(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"router-id":"2001:db8::1"}}`,
+	}}
+	_, err := parseConfig(sections)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "IPv4")
+}
+
+// TestParseRSVPTEConfigTunnelIDOutOfRange rejects a tunnel-id outside 0-65535
+// before the lossy uint16 cast can wrap it.
+func TestParseRSVPTEConfigTunnelIDOutOfRange(t *testing.T) {
+	sections := []sdk.ConfigSection{{
+		Root: "rsvp-te",
+		Data: `{"rsvp-te":{"tunnel":{"t1":{"destination":"10.0.0.9","tunnel-id":"65536"}}}}`,
+	}}
+	_, err := parseConfig(sections)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "out of range")
+}

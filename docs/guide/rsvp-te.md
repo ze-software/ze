@@ -33,6 +33,17 @@ rsvp-te {
         explicit-route 2 {
             address 10.0.0.9/32
         }
+        fast-reroute {
+            backup          facility
+            node-protection false
+        }
+    }
+
+    bypass around-eth0 {
+        merge-point 10.0.0.5
+        explicit-route 1 {
+            address 10.1.0.5/32
+        }
     }
 }
 ```
@@ -49,6 +60,15 @@ rsvp-te {
 - `tunnel` -- an ingress (head-end) LSP. Each `explicit-route <index>` names a
   hop `address` (IPv4 prefix) from this node toward the `destination` (the egress
   tunnel endpoint); `type strict|loose` defaults to strict.
+- `fast-reroute` (on a tunnel) -- request RFC 4090 local protection. `backup`
+  is `facility` (one bypass protects many LSPs, the default) or `one-to-one`;
+  `node-protection true` asks for a backup around the next node (not just the
+  next link); `bandwidth-protection` and `hop-limit` (default 16) tune the
+  backup. Presence of the container is what enables protection.
+- `bypass` -- a facility-backup bypass LSP from this node (a Point of Local
+  Repair) to a `merge-point` along an `explicit-route` that avoids the protected
+  resource. ze has no IGP/CSPF, so bypass paths are explicit. `node-protection
+  true` marks a bypass that merges at a next-next hop (for node protection).
 
 ## How signaling works
 
@@ -65,6 +85,34 @@ oversubscribed link is rejected with a `PathErr` (admission-control failure).
 Make-before-break reroute signals a replacement LSP (new LSP-ID, SHARED-EXPLICIT
 style) and tears the old one down only once the new one is up.
 
+## Fast Reroute (RFC 4090)
+
+Fast Reroute pre-signals a backup so an LSP survives a link or node failure with
+local repair instead of waiting for the head-end to re-signal from scratch. ze
+implements **facility backup** (one bypass LSP protects every LSP crossing a
+resource):
+
+1. A tunnel with `fast-reroute` sends a PATH carrying a `FAST_REROUTE` object and
+   a `SESSION_ATTRIBUTE` with "local protection desired" set.
+2. A transit node that can protect the next resource (a **Point of Local Repair**)
+   selects a configured `bypass` whose `merge-point` is the next hop (link
+   protection) or the next-next hop (node protection), arms it, and records
+   "local protection available" in its RESV `RECORD_ROUTE`.
+3. On a link failure the PLR redirects the protected LSP onto the bypass by
+   pushing the bypass label over the protected label (a 2-label stack) and
+   forwarding via the bypass next hop -- within the link-down event handling, no
+   re-signaling round trip. It records "local protection in use".
+4. The PLR sends a `PathErr` "Notify" (code 25, value 3 "Tunnel locally
+   repaired") toward the head-end and **keeps the LSP up** (it does not tear it
+   down). For node protection it pushes the next-next hop's recorded label (label
+   recording is requested automatically).
+5. The head-end re-optimizes onto a fresh path (make-before-break) and tears the
+   locally-repaired LSP once the replacement is up.
+
+An LSP with no matching bypass keeps the base behavior (tear down + `PathErr` on
+a link failure). One-to-one (detour) backup is tracked separately
+(`spec-mpls-9-rsvp-te-one-to-one-backup`).
+
 ## Inspecting LSPs
 
 The RSVP-TE component exposes three introspection commands that report LSP,
@@ -77,6 +125,9 @@ grammar and as direct plugin commands:
   reserved / available / max bandwidth.
 - `show rsvp-te tunnel` -- configured tunnels and
   their state.
+- `show rsvp-te fast-reroute` -- RFC 4090 protection state: each configured
+  bypass LSP and each protected LSP with its armed bypass and whether protection
+  is available / in use.
 
 The `show` forms proxy to the plugin commands through the dispatcher.
 
@@ -85,9 +136,11 @@ The `show` forms proxy to the plugin commands through the dispatcher.
 `ze_rsvpte_lsps_active`, `ze_rsvpte_lsps_total`, `ze_rsvpte_path_sent_total`,
 `ze_rsvpte_path_recv_total`, `ze_rsvpte_resv_sent_total`,
 `ze_rsvpte_resv_recv_total`, `ze_rsvpte_patherr_recv_total`,
-`ze_rsvpte_admission_denied_total`.
+`ze_rsvpte_admission_denied_total`, `ze_rsvpte_local_repairs_total`,
+`ze_rsvpte_protected_lsps`, `ze_rsvpte_bypass_lsps`.
 
 <!-- source: internal/component/rsvpte/engine.go -- signaling engine -->
 <!-- source: internal/component/rsvpte/admission.go -- bandwidth admission -->
 <!-- source: internal/component/rsvpte/reroute.go -- make-before-break -->
+<!-- source: internal/component/rsvpte/frr.go -- RFC 4090 fast reroute -->
 <!-- source: internal/component/rsvpte/yang/ze-rsvp-te-conf.yang -- config schema -->

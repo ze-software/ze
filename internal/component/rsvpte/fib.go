@@ -41,27 +41,36 @@ func (b *busFIB) emit(e mplsfibevents.Entry) {
 	}
 }
 
-func (b *busFIB) ProgramPush(fec netip.Prefix, label uint32, nextHop netip.Addr) error {
+func (b *busFIB) programPush(fec netip.Prefix, label uint32, nextHop netip.Addr) error {
 	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpPush, FEC: fec, OutLabels: []uint32{label}, NextHop: nextHop})
 	return nil
 }
 
-func (b *busFIB) ProgramSwap(inLabel, outLabel uint32, nextHop netip.Addr) error {
+func (b *busFIB) programSwap(inLabel, outLabel uint32, nextHop netip.Addr) error {
 	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap, InLabel: inLabel, OutLabels: []uint32{outLabel}, NextHop: nextHop})
 	return nil
 }
 
-func (b *busFIB) ProgramPop(inLabel uint32, nextHop netip.Addr) error {
+// programBackup emits a swap whose OutLabels is the facility-backup stack (bypass
+// label over the swapped protected label). fib-kernel's addMPLSSwap programs the
+// whole stack on the AF_MPLS route (RFC 4090 Section 3.2); the entry replaces the
+// single-label swap installed for this in-label.
+func (b *busFIB) programBackup(inLabel uint32, outLabels []uint32, nextHop netip.Addr) error {
+	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap, InLabel: inLabel, OutLabels: outLabels, NextHop: nextHop})
+	return nil
+}
+
+func (b *busFIB) programPop(inLabel uint32, nextHop netip.Addr) error {
 	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpPop, InLabel: inLabel, NextHop: nextHop})
 	return nil
 }
 
-func (b *busFIB) Remove(fec netip.Prefix) error {
+func (b *busFIB) removePush(fec netip.Prefix) error {
 	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionRemove, Op: mplsfibevents.OpPush, FEC: fec})
 	return nil
 }
 
-func (b *busFIB) RemoveSwap(inLabel uint32) error {
+func (b *busFIB) removeSwap(inLabel uint32) error {
 	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionRemove, Op: mplsfibevents.OpSwap, InLabel: inLabel})
 	return nil
 }

@@ -126,3 +126,17 @@ func TestReconcileTunnelsConcurrentWithSignaling(t *testing.T) {
 	assert.False(t, ok1, "t1 ingress LSP torn down by the final reconcile")
 	assert.False(t, ok2, "t2 ingress LSP torn down by the final reconcile")
 }
+
+// TestReconcileTunnelsNoRouterIDNoPanic: reconcileTunnels must not panic when the
+// config has tunnels/bypasses but no router-id (tunnelKey/bypassKey derive a
+// tunnel-id from the router-id, whose As4() panics on the zero Addr). OnConfigApply
+// reaches this path on reload without the OnStarted guard.
+func TestReconcileTunnelsNoRouterIDNoPanic(t *testing.T) {
+	cfg := rsvpteConfig{
+		// no RouterID
+		Tunnels:  []tunnelConfig{{Name: "t1", Destination: netip.MustParseAddr("10.0.0.9"), TunnelID: 1}},
+		Bypasses: []bypassConfig{{Name: "bp", MergePoint: netip.MustParseAddr("10.0.0.3")}},
+	}
+	got := reconcileTunnels(slogutil.DiscardLogger(), newLSPTable(), cfg, nil, nil) // must not panic
+	assert.Empty(t, got, "nothing reconciled without a router-id")
+}

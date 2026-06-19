@@ -123,6 +123,62 @@ func TestMPLSIntegration_Swap(t *testing.T) {
 	})
 }
 
+// VALIDATES: mpls-4 AC-3 (RFC 4090 facility backup) -- a local-repair backup swap
+// installs an AF_MPLS route carrying a TWO-label out-stack (the bypass label over
+// the swapped protected label), exactly what rsvpte busFIB.ProgramBackup emits on
+// local repair. This is the live-kernel proof of spec assumption A-1: the kernel
+// MPLS backend programs a 2-label facility-backup stack in one swap entry, so no
+// new data-plane primitive is needed.
+// PREVENTS: the facility-backup label stacking silently failing on a real kernel.
+func TestMPLSIntegration_FacilityBackupSwap(t *testing.T) {
+	loadMPLSModules(t)
+	withNetNS(t, func() {
+		h, err := netlink.NewHandle()
+		require.NoError(t, err)
+		defer h.Close()
+		enableNetnsMPLS(t)
+		setupDummyLink(t, h)
+
+		f := newFIBKernel(newTestBackend(h))
+		// First the protected LSP's ordinary single-label swap is installed (what
+		// rsvpte handleResvTransit emits when the LSP comes up).
+		f.handleMPLSEntry(&mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{{
+			Action:    mplsfibevents.ActionAdd,
+			Op:        mplsfibevents.OpSwap,
+			InLabel:   100,
+			OutLabels: []uint32{200},
+			NextHop:   netip.MustParseAddr("10.0.0.2"),
+		}}})
+
+		// On local repair rsvpte busFIB.ProgramBackup re-programs the SAME in-label
+		// with the 2-label backup stack [bypass, protected] via the bypass next hop
+		// (here a different on-link neighbor, modeling the alternate-link bypass).
+		// This must REPLACE the existing swap (RouteReplace), not fail EEXIST.
+		f.handleMPLSEntry(&mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{{
+			Action:    mplsfibevents.ActionAdd,
+			Op:        mplsfibevents.OpSwap,
+			InLabel:   100,
+			OutLabels: []uint32{5000, 200}, // bypass label outermost, protected label under it
+			NextHop:   netip.MustParseAddr("10.0.0.5"),
+		}}})
+
+		swap, ok := mplsRoutes(t, h)[100]
+		require.True(t, ok, "backup swap route for in-label 100 not found in kernel")
+		require.NotNil(t, swap.NewDst, "backup swap must carry an out-label stack")
+		dst, ok := swap.NewDst.(*netlink.MPLSDestination)
+		require.True(t, ok, "NewDst is *MPLSDestination")
+		assert.Equal(t, []int{5000, 200}, dst.Labels, "2-label facility-backup stack replaced the single-label swap")
+		require.NotNil(t, swap.Via, "backup swap must carry a via next-hop")
+
+		// Withdraw removes it from the kernel.
+		f.handleMPLSEntry(&mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{{
+			Action: mplsfibevents.ActionRemove, Op: mplsfibevents.OpSwap, InLabel: 100,
+		}}})
+		_, ok = mplsRoutes(t, h)[100]
+		assert.False(t, ok, "backup swap should be gone after withdraw")
+	})
+}
+
 // VALIDATES: mpls-2 AC-3 / mpls-3 dataplane -- a pop entry with a next-hop
 // (penultimate-style disposition) installs an AF_MPLS route with no out-labels.
 func TestMPLSIntegration_PopWithNextHop(t *testing.T) {

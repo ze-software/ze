@@ -1,5 +1,9 @@
 // Design: plan/spec-mpls-3-rsvp-te.md -- RSVP-TE wire codec
+// RFC: rfc/short/rfc2205.md
+// RFC: rfc/short/rfc3209.md
+// RFC: rfc/short/rfc4090.md
 // Related: build.go -- composes these object encoders into whole messages
+// Related: frr.go -- FAST_REROUTE/DETOUR/SESSION_ATTRIBUTE codecs (RFC 4090)
 // Related: transport.go -- carries encoded messages over raw IP
 //
 // RSVP-TE message encoding/decoding per RFC 2205 (base RSVP) and
@@ -52,6 +56,9 @@ const (
 	ClassLabelRequest   uint8 = 19
 	ClassLabel          uint8 = 16
 	ClassSessionAttr    uint8 = 207
+	// RFC 4090 Section 4: Fast Reroute object classes.
+	ClassFastReroute uint8 = 205
+	ClassDetour      uint8 = 63
 )
 
 // C-Types for objects.
@@ -63,6 +70,42 @@ const (
 	CTypeGeneric       uint8 = 1
 	CTypeLabel         uint8 = 1
 	CTypeStyle         uint8 = 1
+	// RFC 4090 Section 4.1: FAST_REROUTE C-Type 1.
+	CTypeFastReroute uint8 = 1
+	// RFC 3209 Section 4.7.2: SESSION_ATTRIBUTE C-Type 7 (LSP_TUNNEL, no resource
+	// affinities). RFC 4090 Section 4.4: DETOUR C-Type 7 (IPv4).
+	CTypeSessionAttr uint8 = 7
+	CTypeDetourIPv4  uint8 = 7
+	// RFC 3209 Section 4.7.1: SESSION_ATTRIBUTE C-Type 1 (LSP_TUNNEL_RA), with a
+	// 12-byte resource-affinity prefix before the priorities. ze emits C-Type 7 but
+	// must decode C-Type 1 from interop peers.
+	CTypeSessionAttrRA uint8 = 1
+)
+
+// RFC 4090 Section 4.1: FAST_REROUTE object Flags.
+const (
+	FRRFlagOneToOneBackup uint8 = 0x01
+	FRRFlagFacilityBackup uint8 = 0x02
+)
+
+// SESSION_ATTRIBUTE Flags (RFC 3209 Section 4.7.1, extended by RFC 4090 Section
+// 4.3). The head-end sets these to express the local protection it wants.
+const (
+	SessAttrLocalProtection     uint8 = 0x01 // RFC 3209: local protection desired
+	SessAttrLabelRecording      uint8 = 0x02 // RFC 3209: label recording desired
+	SessAttrSEStyle             uint8 = 0x04 // RFC 3209: SE style desired
+	SessAttrBandwidthProtection uint8 = 0x08 // RFC 4090 Section 4.3: bandwidth protection desired
+	SessAttrNodeProtection      uint8 = 0x10 // RFC 4090 Section 4.3: node protection desired
+)
+
+// RRO subobject Flags (RFC 3209 Section 4.4.1, extended by RFC 4090 Section 4.4).
+// A PLR sets these in its RRO subobject as the RESV travels upstream, reporting
+// protection state to the head-end.
+const (
+	RROFlagProtectionAvailable uint8 = 0x01 // RFC 3209: local protection available
+	RROFlagProtectionInUse     uint8 = 0x02 // RFC 3209: local protection in use
+	RROFlagBandwidthProtection uint8 = 0x04 // RFC 4090 Section 4.4: bandwidth protection
+	RROFlagNodeProtection      uint8 = 0x08 // RFC 4090 Section 4.4: node protection
 )
 
 // RFC 3209 Section 4.1: ERO subobject types.
@@ -89,6 +132,13 @@ const (
 // the fixed maxRSVPMessage encode buffer. 32 hops is far beyond any real LSP and
 // keeps the encoded RRO (<= 20 bytes/hop) well inside the message buffer.
 const maxRecordRouteHops = 32
+
+// maxExplicitRouteHops bounds the Explicit Route Object on decode, for the same
+// reason as maxRecordRouteHops: a transit node re-encodes the (remaining) ERO into
+// the fixed maxRSVPMessage buffer when it relays a PATH, so an unbounded ERO from a
+// malicious peer would otherwise overflow the encode buffer. 64 hops is far beyond
+// any real LSP and keeps the encoded ERO (<= 20 bytes/hop) inside the message.
+const maxExplicitRouteHops = 64
 
 // RFC 3209 Section 4.7.4: Style constants.
 const (
@@ -349,6 +399,13 @@ type eroHop struct {
 func encodeERO(buf []byte, hops []eroHop) int {
 	off := objHdrLen
 	for _, h := range hops {
+		// Never write past the fixed message buffer: each subobject is at most 20
+		// bytes (IPv6). Stop early rather than overflow if a relayed ERO is longer
+		// than the buffer can hold (defense in depth; decodeERO also caps the hop
+		// count, matching encodeRRO's guard).
+		if off+20 > len(buf) {
+			break
+		}
 		if h.Address.Addr().Is4() {
 			var flags uint8
 			if h.Loose {
@@ -385,6 +442,12 @@ func decodeERO(body []byte) ([]eroHop, error) {
 	var hops []eroHop
 	off := 0
 	for off < len(body) {
+		// Cap the explicit route so a malicious or looping ERO cannot grow an
+		// unbounded slice, and (after a transit relay) cannot be re-encoded past
+		// the fixed message buffer. Mirrors decodeRRO's maxRecordRouteHops cap.
+		if len(hops) >= maxExplicitRouteHops {
+			break
+		}
 		if off+2 > len(body) {
 			return hops, errShortERO
 		}
@@ -636,6 +699,8 @@ type ParsedMessage struct {
 	SenderTSpec    FlowSpec
 	ErrorSpec      errorSpec
 	Style          uint32
+	FastReroute    fastReroute
+	SessionAttr    sessionAttribute
 
 	HasSession        bool
 	HasSenderTemplate bool
@@ -649,6 +714,8 @@ type ParsedMessage struct {
 	HasSenderTSpec    bool
 	HasErrorSpec      bool
 	HasStyle          bool
+	HasFastReroute    bool
+	HasSessionAttr    bool
 }
 
 // DecodeMessage parses a complete RSVP message from wire bytes.
@@ -758,6 +825,20 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 				msg.Style = binary.BigEndian.Uint32(body[0:4])
 				msg.HasStyle = true
 			}
+		case ClassFastReroute:
+			fr, err := decodeFastReroute(body)
+			if err != nil {
+				return msg, err
+			}
+			msg.FastReroute = fr
+			msg.HasFastReroute = true
+		case ClassSessionAttr:
+			sa, err := decodeSessionAttr(body, objHdr.CType)
+			if err != nil {
+				return msg, err
+			}
+			msg.SessionAttr = sa
+			msg.HasSessionAttr = true
 		}
 
 		off += int(objHdr.Length)
