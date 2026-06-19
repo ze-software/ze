@@ -117,8 +117,19 @@ func (et *EncodingTests) parseAndAdd(ciFile string) (*Record, error) {
 
 	name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
 	r := et.Add(name)
+	// Default per-test port assignment. This is the live allocator for the shared
+	// ci_runner.go path: the registerCIRoot suites (ldp, rsvpte, static, policy,
+	// traffic, ui, isis, l2tp, firewall, ...; see internal/test/cli/register.go)
+	// neither reserve nor rebase, so they consume Record.Port as set here (via
+	// $PORT/$PORT2 substitution and the BGP peer --port in runner_exec.go). The
+	// bgp suite (cmd_bgp.go, including its parse/plugin modes) and the vpp suite
+	// (cmd_vpp.go) instead OVERRIDE every Record.Port from a concurrency-safe
+	// range (they call runner.ReservePorts, then reassign rr.Port) because they
+	// bind real ze and BGP-peer ports and must not collide across parallel
+	// ze-test processes. So this assignment is load-bearing, not vestigial; do
+	// not remove it.
 	r.Port = et.port
-	et.port += 2 // Reserve 2 ports per test ($PORT and $PORT2)
+	et.port += 2 // 2 ports per test ($PORT and $PORT2)
 	r.CIFile = ciFile
 	r.Files = append(r.Files, ciFile)
 
