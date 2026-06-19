@@ -2,14 +2,14 @@
 // Related: engine.go -- the engine under test; transport.go -- the Transport seam
 // Related: engine_test.go -- reuses fakeFIB and the single-engine harness
 //
-// The engine_test.go cases drive ONE engine with hand-built PATH/RESV packets.
-// These cases instead wire TWO (or more) real engines through an in-memory
-// fabric, so each engine's OWN encoded bytes (buildPath via sendPath, buildResv
-// via handlePathEgress) are delivered to the peer's DecodeMessage. Nothing in the
-// exchange is hand-built: the test only originates an LSP at the head-end and
-// inspects the resulting state and FIB programming at both ends. This is the
-// closest fully-open check that ze's RSVP-TE encoder and decoder agree on the
-// wire, in the absence of any open-source RSVP-TE peer to interop against.
+// engine_test.go drives ONE engine with hand-built PATH/RESV packets. These cases
+// wire TWO or THREE real engines through an in-memory fabric, so each engine's OWN
+// encoded bytes (buildPath via sendPath, buildResv/buildPathErr inside the
+// handlers) are delivered to the peer's DecodeMessage. Nothing in the exchange is
+// hand-built: a test only originates an LSP at the head-end and inspects the
+// resulting state, labels, RRO and FIB programming at every node. A green run is
+// the fully-open evidence that ze's RSVP-TE encoder and decoder agree on the wire
+// across nodes, in the absence of any open-source RSVP-TE peer to interop against.
 package rsvpte
 
 import (
@@ -24,19 +24,29 @@ import (
 )
 
 // fabric is an in-memory RSVP transport mesh. A node's Send is delivered to the
-// destination node's receive queue as a Packet whose Src is the sender's router
-// address -- exactly the (src, payload) shape the real raw-IP transport yields on
-// Recv. A packet addressed to an unattached node is dropped (black hole), as it
-// would be on a real network with no listener.
+// next node along the path as a Packet whose Src is the sender's router address
+// (the (src, payload) shape the real raw-IP transport yields on Recv). RESV,
+// PathErr and PathTear go to their addressed destination; a PATH instead follows
+// its explicit route -- it is delivered to the first remaining ERO hop, modeling
+// the Router Alert hop-by-hop interception RSVP-TE relies on. Each node strips
+// itself from the ERO before relaying (engine.nextHopFromERO), so ERO[0] is always
+// the immediate downstream neighbor. A packet to an unattached address is dropped,
+// as on a real network with no listener.
 type fabric struct {
 	mu    sync.Mutex
 	ports map[netip.Addr]*fabricPort
+	tap   []deliveredMsg
+}
+
+// deliveredMsg records one routed packet so tests can assert the message flow.
+type deliveredMsg struct {
+	dst     netip.Addr
+	msgType uint8
 }
 
 func newFabric() *fabric { return &fabric{ports: make(map[netip.Addr]*fabricPort)} }
 
-// fabricPort is one node's Transport into the fabric. It satisfies the Transport
-// interface the engine sends/receives over.
+// fabricPort is one node's Transport into the fabric.
 type fabricPort struct {
 	fab    *fabric
 	self   netip.Addr
@@ -44,8 +54,8 @@ type fabricPort struct {
 }
 
 // attach registers a node at self and returns its Transport. recvCh is buffered
-// well above the per-exchange message count so Send never blocks under the
-// synchronous pump (a single PATH/RESV setup enqueues a handful of packets).
+// above the per-exchange message count so Send never blocks under the synchronous
+// pump.
 func (fab *fabric) attach(self netip.Addr) *fabricPort {
 	p := &fabricPort{fab: fab, self: self, recvCh: make(chan Packet, 256)}
 	fab.mu.Lock()
@@ -56,11 +66,24 @@ func (fab *fabric) attach(self netip.Addr) *fabricPort {
 
 func (p *fabricPort) Send(dst netip.Addr, msg []byte) error {
 	cp := append([]byte(nil), msg...) // the engine reuses its send buffer; copy out
+
+	// A PATH follows its explicit route: deliver to the first remaining ERO hop
+	// (the immediate downstream neighbor), not straight to the tunnel endpoint.
+	deliverTo := dst
+	var msgType uint8
+	if parsed, err := DecodeMessage(cp); err == nil {
+		msgType = parsed.Header.MsgType
+		if msgType == MsgTypePath && parsed.HasERO && len(parsed.ERO) > 0 {
+			deliverTo = parsed.ERO[0].Address.Addr()
+		}
+	}
+
 	p.fab.mu.Lock()
-	peer := p.fab.ports[dst]
+	p.fab.tap = append(p.fab.tap, deliveredMsg{dst: deliverTo, msgType: msgType})
+	peer := p.fab.ports[deliverTo]
 	p.fab.mu.Unlock()
 	if peer == nil {
-		return nil // no node at dst: dropped, like a packet to nowhere
+		return nil // no node at the destination: dropped, like a packet to nowhere
 	}
 	peer.recvCh <- Packet{Src: p.self, Payload: cp}
 	return nil
@@ -69,11 +92,23 @@ func (p *fabricPort) Send(dst netip.Addr, msg []byte) error {
 func (p *fabricPort) Recv() <-chan Packet { return p.recvCh }
 func (p *fabricPort) Close() error        { return nil }
 
-// pump delivers every queued packet to its node's handlePacket until the fabric
-// is quiescent. It is fully synchronous -- no engine goroutines, no sleeps -- so
-// the exchange is deterministic: a converged LSP setup settles in a few rounds,
-// and a signaling loop trips the iteration bound (a clear failure) instead of
-// hanging. nodes maps each attached address to the engine that owns it.
+// delivered counts packets of msgType the fabric routed to dst.
+func (fab *fabric) delivered(dst netip.Addr, msgType uint8) int {
+	fab.mu.Lock()
+	defer fab.mu.Unlock()
+	n := 0
+	for _, d := range fab.tap {
+		if d.dst == dst && d.msgType == msgType {
+			n++
+		}
+	}
+	return n
+}
+
+// pump delivers every queued packet to its node's handlePacket until the fabric is
+// quiescent. Fully synchronous -- no engine goroutines, no sleeps -- so the
+// exchange is deterministic: a converged setup settles in a few rounds, and a
+// signaling loop trips the iteration bound (a clear failure) instead of hanging.
 func (fab *fabric) pump(t *testing.T, nodes map[netip.Addr]*engine) {
 	t.Helper()
 	for round := 0; ; round++ {
@@ -104,12 +139,11 @@ func fabricEngine(t *testing.T, fab *fabric, self netip.Addr) (*engine, *fakeFIB
 	return e, fib
 }
 
-// originateLSP sets up an ingress (head-end) LSP on e toward endpoint and emits
-// its first PATH through e's real sendPath -- e GENERATES the PATH, the fabric
-// carries those exact bytes. This mirrors what the configured tunnel head-end
-// does. The endpoint is directly reachable (no ERO), so the egress is the next
-// hop and treats the PATH as its own (SESSION.TunnelEndpoint == its RouterID).
-func originateLSP(t *testing.T, e *engine, sender, endpoint netip.Addr, tunnelID uint16) lspKey {
+// originateLSP sets up an ingress (head-end) LSP on e toward endpoint and emits its
+// first PATH through e's real sendPath -- e GENERATES the PATH, the fabric carries
+// those exact bytes. An optional explicit route (ero) pins the hops the PATH must
+// traverse; with none, endpoint is the direct next hop.
+func originateLSP(t *testing.T, e *engine, sender, endpoint netip.Addr, tunnelID uint16, ero ...netip.Addr) lspKey {
 	t.Helper()
 	key := lspKey{
 		TunnelEndpoint: endpoint,
@@ -118,16 +152,20 @@ func originateLSP(t *testing.T, e *engine, sender, endpoint netip.Addr, tunnelID
 		SenderAddr:     sender,
 		LSPID:          1,
 	}
-	lsp, _ := e.table.GetOrCreate(key)
-	lsp.mu.Lock()
-	lsp.Role = RoleIngress
-	lsp.PSB = &pathStateBlock{
+	psb := &pathStateBlock{
 		Session:        sessionIPv4{TunnelEndpoint: endpoint, TunnelID: tunnelID, ExtTunnelID: 0x0a000001},
 		SenderTemplate: senderTemplateIPv4{SenderAddr: sender, LSPID: 1},
 		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
 		LabelRequest:   labelRequest{L3PID: 0x0800},
 		RefreshPeriod:  DefaultRefreshPeriod,
 	}
+	for _, hop := range ero {
+		psb.ERO = append(psb.ERO, eroHop{Address: netip.PrefixFrom(hop, hop.BitLen())})
+	}
+	lsp, _ := e.table.GetOrCreate(key)
+	lsp.mu.Lock()
+	lsp.Role = RoleIngress
+	lsp.PSB = psb
 	lsp.setState(LSPStatePathSent)
 	lsp.mu.Unlock()
 	require.NoError(t, e.sendPath(lsp))
@@ -135,10 +173,10 @@ func originateLSP(t *testing.T, e *engine, sender, endpoint netip.Addr, tunnelID
 }
 
 // VALIDATES: mpls-3 -- a full ze-to-ze LSP setup. One ze engine originates and
-// ENCODES a PATH; a second ze engine DECODES it, allocates a label, programs a
-// pop and ENCODES a RESV; the first ze engine DECODES that RESV and programs a
-// push. No packet is hand-built, so a green run proves ze's RSVP-TE encoder and
-// decoder agree across two independent engine instances.
+// ENCODES a PATH; a second ze engine DECODES it, allocates a label, programs a pop
+// and ENCODES a RESV; the first ze engine DECODES that RESV and programs a push. No
+// packet is hand-built, so a green run proves ze's RSVP-TE encoder and decoder
+// agree across two independent engine instances.
 // PREVENTS: an encoder/decoder divergence (object order, length, checksum, label
 // placement) that single-engine round-trip tests, which decode what the same
 // process encoded with the same helpers, could mask.
@@ -172,8 +210,11 @@ func TestEngineZeToZeLSPInterop(t *testing.T) {
 	assert.Equal(t, egressLabel, ingLSP.OutLabel,
 		"ingress out-label must equal the label the egress encoded in its RESV")
 	require.Len(t, ingFib.pushed, 1, "ingress programmed a push entry")
-	assert.Equal(t, netip.PrefixFrom(egressAddr, 32), ingFib.pushed[0],
-		"push FEC is the tunnel endpoint")
+	assert.Equal(t, netip.PrefixFrom(egressAddr, 32), ingFib.pushed[0], "push FEC is the tunnel endpoint")
+
+	// Exactly one PATH downstream and one RESV upstream crossed the wire.
+	assert.Equal(t, 1, fab.delivered(egressAddr, MsgTypePath), "one PATH to the egress")
+	assert.Equal(t, 1, fab.delivered(ingressAddr, MsgTypeResv), "one RESV back to the ingress")
 }
 
 // VALIDATES: mpls-3 -- the "vice versa": each ze engine acts as BOTH head-end
@@ -219,4 +260,108 @@ func TestEngineZeToZeInteropBothDirections(t *testing.T) {
 	// Each engine pushed exactly once (as head-end of its own LSP).
 	assert.Len(t, fibA.pushed, 1, "A pushed for A->B")
 	assert.Len(t, fibB.pushed, 1, "B pushed for B->A")
+}
+
+// VALIDATES: mpls-3 -- a full three-node LSP (ingress -> transit -> egress)
+// signaled across three real engines. The PATH is relayed hop-by-hop along the ERO
+// and the RESV back upstream; each node decodes the peer's encoded message and
+// acts. The label stack threads correctly through all three: the ingress pushes the
+// transit's in-label, the transit swaps it to the egress's in-label, the egress
+// pops. The head-end records the full route (RRO) the RESV carried.
+// PREVENTS: a multi-hop encode/decode bug -- ERO consumption, label swap, or RRO
+// accumulation -- that a two-node test cannot reach.
+func TestEngineZeToZeTransitInterop(t *testing.T) {
+	fab := newFabric()
+	ingressAddr := netip.MustParseAddr("10.0.0.1")
+	transitAddr := netip.MustParseAddr("10.0.0.5")
+	egressAddr := netip.MustParseAddr("10.0.0.9")
+
+	ingress, ingFib := fabricEngine(t, fab, ingressAddr)
+	transit, trFib := fabricEngine(t, fab, transitAddr)
+	egress, egrFib := fabricEngine(t, fab, egressAddr)
+	nodes := map[netip.Addr]*engine{ingressAddr: ingress, transitAddr: transit, egressAddr: egress}
+
+	// Explicit route ingress -> transit -> egress.
+	key := originateLSP(t, ingress, ingressAddr, egressAddr, 1, transitAddr, egressAddr)
+	fab.pump(t, nodes)
+
+	// Egress: tail-end -- allocated its in-label and popped it.
+	egrLSP, ok := egress.table.Get(key)
+	require.True(t, ok, "egress installed state")
+	assert.Equal(t, LSPStateUp, egrLSP.State)
+	assert.Equal(t, RoleEgress, egrLSP.Role)
+	require.Len(t, egrFib.popped, 1, "egress popped its in-label")
+	labelE := egrFib.popped[0]
+
+	// Transit: allocated its own in-label and programmed a swap to the egress's.
+	trLSP, ok := transit.table.Get(key)
+	require.True(t, ok, "transit installed state")
+	assert.Equal(t, LSPStateUp, trLSP.State)
+	assert.Equal(t, RoleTransit, trLSP.Role)
+	require.Len(t, trFib.swapped, 1, "transit programmed a swap")
+	swap := trFib.swapped[0]
+	assert.Equal(t, labelE, swap.out, "transit swaps to the egress's in-label")
+	assert.Equal(t, swap.in, trLSP.InLabel)
+	assert.Equal(t, labelE, trLSP.OutLabel)
+
+	// Ingress: head-end -- learned the transit's in-label and pushed it.
+	ingLSP, ok := ingress.table.Get(key)
+	require.True(t, ok, "ingress installed state")
+	assert.Equal(t, LSPStateUp, ingLSP.State)
+	assert.Equal(t, swap.in, ingLSP.OutLabel,
+		"ingress pushes the transit's in-label (the stack threads through all three engines)")
+	require.Len(t, ingFib.pushed, 1, "ingress programmed a push")
+	assert.Equal(t, netip.PrefixFrom(egressAddr, 32), ingFib.pushed[0])
+
+	// RRO accumulated as the RESV traveled upstream (RFC 3209 Section 4.4): the
+	// head-end sees the full recorded path, every entry round-tripped on the wire.
+	require.NotNil(t, ingLSP.RSB)
+	require.Len(t, ingLSP.RSB.RRO, 3, "head-end records all three hops")
+	assert.Equal(t, ingressAddr, ingLSP.RSB.RRO[0].Address)
+	assert.Equal(t, transitAddr, ingLSP.RSB.RRO[1].Address)
+	assert.Equal(t, egressAddr, ingLSP.RSB.RRO[2].Address)
+
+	// Message flow: PATH relayed downstream twice, RESV relayed upstream twice.
+	assert.Equal(t, 1, fab.delivered(transitAddr, MsgTypePath), "PATH ingress->transit")
+	assert.Equal(t, 1, fab.delivered(egressAddr, MsgTypePath), "PATH transit->egress")
+	assert.Equal(t, 1, fab.delivered(transitAddr, MsgTypeResv), "RESV egress->transit")
+	assert.Equal(t, 1, fab.delivered(ingressAddr, MsgTypeResv), "RESV transit->ingress")
+}
+
+// VALIDATES: mpls-3 -- the error path round-trips. An ingress originates a PATH
+// whose explicit route ends at the transit (no hop on toward the endpoint), so the
+// transit cannot resolve a next hop and ENCODES a PathErr back upstream. The ingress
+// DECODES it: the LSP never comes up and no forwarding entry is programmed. Proves
+// the PathErr encoder and decoder agree across engines.
+// PREVENTS: a RESV-vs-PathErr divergence that would let a failed LSP look
+// established, or a malformed PathErr the head-end silently drops.
+func TestEngineZeToZePathErrInterop(t *testing.T) {
+	fab := newFabric()
+	ingressAddr := netip.MustParseAddr("10.0.0.1")
+	transitAddr := netip.MustParseAddr("10.0.0.5")
+	endpoint := netip.MustParseAddr("10.0.0.9") // no node here: the ERO dead-ends at the transit
+
+	ingress, ingFib := fabricEngine(t, fab, ingressAddr)
+	transit, trFib := fabricEngine(t, fab, transitAddr)
+	nodes := map[netip.Addr]*engine{ingressAddr: ingress, transitAddr: transit}
+
+	// The explicit route names only the transit: it strips itself and finds no next
+	// hop, so it rejects with a PathErr (RFC 3209 routing-problem / bad ERO).
+	key := originateLSP(t, ingress, ingressAddr, endpoint, 1, transitAddr)
+	fab.pump(t, nodes)
+
+	// The transit encoded a PathErr that crossed back to the ingress; no RESV.
+	assert.Equal(t, 1, fab.delivered(ingressAddr, MsgTypePathErr), "transit sent a PathErr upstream")
+	assert.Zero(t, fab.delivered(ingressAddr, MsgTypeResv), "no RESV on a routing failure")
+
+	// The transit installed no state and programmed nothing (it rejected before
+	// creating the LSP).
+	assert.Empty(t, transit.table.All(), "transit holds no state for a rejected PATH")
+	assert.Empty(t, trFib.swapped, "transit programmed no swap")
+
+	// The ingress decoded the PathErr: the LSP is not up and nothing was pushed.
+	ingLSP, ok := ingress.table.Get(key)
+	require.True(t, ok)
+	assert.NotEqual(t, LSPStateUp, ingLSP.State, "ingress LSP must not come up on a PathErr")
+	assert.Empty(t, ingFib.pushed, "no push entry for a failed LSP")
 }

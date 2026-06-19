@@ -39,9 +39,11 @@ RESV refresh, AC-6 link-failure handling, AC-9 ERO/RRO display.
   BIRD/GoBGP do BGP-signaled MPLS only), so true cross-vendor interop needs a proprietary
   lab container (Juniper cRPD, Cisco IOS XRd, Arista cEOS). Verify a named interop peer
   actually exists before writing an AC. Multi-node ze-to-ze signaling, however, IS now
-  covered by `interop_test.go`: it wires two real engines through an in-memory fabric so
-  each engine's own encoded PATH/RESV is decoded and acted on by the peer (the allocated
-  label round-trips across instances) -- the fully-open substitute for the missing peer.
+  covered by `interop_test.go`: it wires two or three real engines through an in-memory
+  fabric so each engine's own encoded PATH/RESV/PathErr is decoded and acted on by the
+  peer -- a direct LSP both ways, a three-node ingress/transit/egress LSP (the label
+  stack threads push->swap->pop and the RRO accumulates across hops), and a PathErr
+  rejection round-trip -- the fully-open substitute for the missing peer.
 - Link-failure matches LSPs by `AdmissionIface`; an LSP whose admission was skipped
   (no interface `address` prefix to resolve) has an empty `AdmissionIface` and is not
   caught -- a known limitation if precise NextHop→iface resolution is later needed.
