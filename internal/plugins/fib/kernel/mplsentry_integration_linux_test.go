@@ -30,7 +30,7 @@ const mplsPlatformLabels = "/proc/sys/net/mpls/platform_labels"
 func loadMPLSModules(t *testing.T) {
 	t.Helper()
 	for _, m := range []string{"mpls_router", "mpls_iptunnel"} {
-		_ = exec.Command("modprobe", m).Run() //nolint:errcheck // best-effort; verified below
+		_ = exec.Command("modprobe", m).Run() //nolint:errcheck,noctx // best-effort module load; verified below
 	}
 	if _, err := os.Stat(mplsPlatformLabels); err != nil {
 		t.Skipf("kernel MPLS unavailable (no %s): %v -- build a kernel with CONFIG_MPLS_ROUTING", mplsPlatformLabels, err)
@@ -234,7 +234,7 @@ func TestMPLSIntegration_Push(t *testing.T) {
 
 // pushEncapLabels returns the MPLS encap labels of the fib-kernel push route for
 // dst, or nil if absent.
-func pushEncapLabels(t *testing.T, h *netlink.Handle, dst string) []int {
+func pushEncapLabels(t *testing.T, h *netlink.Handle, dst string) []int { //nolint:unparam // dst kept explicit for call-site readability
 	t.Helper()
 	routes, err := h.RouteList(nil, netlink.FAMILY_V4)
 	require.NoError(t, err)

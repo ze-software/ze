@@ -35,7 +35,7 @@ func withNetNS(t *testing.T, fn func()) {
 
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close()
+		origNS.Close() //nolint:errcheck // best-effort; test is skipping
 		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
 	}
 
@@ -43,8 +43,8 @@ func withNetNS(t *testing.T, fn func()) {
 		if restoreErr := netns.Set(origNS); restoreErr != nil {
 			t.Errorf("failed to restore original namespace: %v", restoreErr)
 		}
-		origNS.Close()
-		newNS.Close()
+		origNS.Close()            //nolint:errcheck // best-effort cleanup
+		newNS.Close()             //nolint:errcheck // best-effort cleanup
 		netns.DeleteNamed(nsName) //nolint:errcheck // best-effort cleanup
 		runtime.UnlockOSThread()
 	})
@@ -115,7 +115,7 @@ func routesByProtocol(t *testing.T, h *netlink.Handle, proto int) []netlink.Rout
 	return out
 }
 
-func addChange(prefix, nextHop string) incomingChange {
+func addChange(prefix, nextHop string) incomingChange { //nolint:unparam // nextHop kept explicit to mirror updateChange/withdrawChange
 	return incomingChange{
 		Action:   bgptypes.RouteActionAdd,
 		Prefix:   netip.MustParsePrefix(prefix),
