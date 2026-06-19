@@ -34,9 +34,14 @@ RESV refresh, AC-6 link-failure handling, AC-9 ERO/RRO display.
   by name/index, not arrays) -- ERO hops must be re-sorted by numeric index to preserve
   order. A parser reading the wrong shape leaves the engine idle; pin the shape in a test.
 - Same show-proxy recursion trap (use `PluginCommand` + `ForwardToPlugin`).
-- **AC-12 cannot be satisfied as written: FRR ships no `rsvpd` daemon.** "Interop with
-  FRR rsvpd" is impossible; coverage is the engine unit tests, and multi-node ze-to-ze
-  interop is deferred. Verify a named interop peer actually exists before writing an AC.
+- **AC-12 cannot be satisfied as written: FRR ships no `rsvpd` daemon.** No actively
+  maintained open-source daemon implements RSVP-TE signaling (FRR has ldpd not rsvpd;
+  BIRD/GoBGP do BGP-signaled MPLS only), so true cross-vendor interop needs a proprietary
+  lab container (Juniper cRPD, Cisco IOS XRd, Arista cEOS). Verify a named interop peer
+  actually exists before writing an AC. Multi-node ze-to-ze signaling, however, IS now
+  covered by `interop_test.go`: it wires two real engines through an in-memory fabric so
+  each engine's own encoded PATH/RESV is decoded and acted on by the peer (the allocated
+  label round-trips across instances) -- the fully-open substitute for the missing peer.
 - Link-failure matches LSPs by `AdmissionIface`; an LSP whose admission was skipped
   (no interface `address` prefix to resolve) has an empty `AdmissionIface` and is not
   caught -- a known limitation if precise NextHop→iface resolution is later needed.
@@ -45,10 +50,11 @@ RESV refresh, AC-6 link-failure handling, AC-9 ERO/RRO display.
   `mplsentry_integration_linux_test.go` (Swap, PopWithNextHop, EgressPopNoNextHop)
   programs into a live kernel and reads back. Those tests assert exactly the entries
   the RSVP-TE egress/transit paths emit (the EgressPop case is the no-via ultimate-hop
-  pop). What stays unit-only is multi-node PATH/RESV signaling (no FRR rsvpd to peer
-  with, AC-12); the FIB output is not unit-only.
+  pop). Multi-node PATH/RESV signaling is covered by the ze-to-ze `interop_test.go`
+  (one engine's encoder feeding another's decoder); only cross-VENDOR interop remains
+  out of reach, for lack of any open-source RSVP-TE peer.
 
 ## Files
-- `internal/component/rsvpte/engine.go` (sendResv, handleLinkDown, RRO recording), `register.go` (parser fix, refreshPaths, link-down subscription, show ERO/RRO), `build.go` (RRO encode, ErrValueNoRouteAvailable), `rro.go` (+test), `doctor*.go` (+tests), `cmd_show.go` (+test), `config_test.go`, `refresh_rro_test.go`, `linkdown_test.go`
+- `internal/component/rsvpte/engine.go` (sendResv, handleLinkDown, RRO recording), `register.go` (parser fix, refreshPaths, link-down subscription, show ERO/RRO), `build.go` (RRO encode, ErrValueNoRouteAvailable), `rro.go` (+test), `doctor*.go` (+tests), `cmd_show.go` (+test), `config_test.go`, `refresh_rro_test.go`, `linkdown_test.go`, `interop_test.go` (ze-to-ze signaling interop)
 - `internal/core/diagnostic/codes.go` (`doctor-rsvpte-rawsock-unavailable`)
 - `internal/test/cli/register.go` (`ze-test rsvpte`); `test/rsvpte/*.ci`
