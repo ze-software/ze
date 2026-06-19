@@ -42,14 +42,21 @@ genuinely diverges cannot be hoisted without inventing a fake abstraction. Only
   was the *triage*, not the refactors: separating the 6 producer-owned smells
   from the ~39 switches that are structurally necessary or legitimately local.
   Resist the urge to "fix" backend-lowering switches -- there is nothing to fix.
-- **A type can be fully wired and still fail `ze-validate`.** The new
-  `RouteVerb` enum is reached only through its constants (`RouteVerbInstall`,
-  ...) -- callers switch on the constants and never spell the bare type name, so
-  the gate's whole-word `grep RouteVerb` found no cross-package hit and flagged
-  it as dead. Fixed at the source: `scripts/dev/validate.py` now counts a typed
-  enum as wired when any of its exported constants is referenced cross-package
-  (iota-inheritance aware). The wrong fix would have been to unexport the type,
-  which fights revive's exported-return rule and muddies a legitimate public API.
+- **A type can be fully wired and still fail `ze-validate`.** A type is often
+  reached without ever spelling its bare name in another package: callers switch
+  on its constants (`RouteVerbInstall`) or read it through a struct field
+  (`inv.CPU`, `cap.Families`), so the gate's whole-word `grep` finds no
+  cross-package hit and flags it as dead. Fixed at the source:
+  `scripts/dev/validate.py` now treats a type as wired when (a) any of its
+  exported constants is referenced cross-package (iota-inheritance aware) or
+  (b) it is used as a struct field type within its own package (serialized/wire
+  structs). It also exempts `*ForTest` helpers, which are test-only by
+  convention and the caller search excludes test files. The wrong fix would have
+  been to unexport these types, which fights revive's exported-return rule and
+  muddies legitimate public API. (What the gate legitimately keeps flagging:
+  exported funcs with genuinely no production cross-package caller -- e.g. an
+  API-symmetry convenience func that nothing consumes yet -- which is an
+  over-export signal, not a false positive.)
 - **A carry-through field must be excluded from identity.** `Path.IsEBGP` (like
   `Path.Labels`) is metadata, not part of best-path identity, so it is excluded
   from `Path.Equal`/`key` -- otherwise it would perturb best-path arbitration.

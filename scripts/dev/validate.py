@@ -238,6 +238,44 @@ def _exported_consts_of_type(root: Path, pkg_dir: str, type_name: str) -> set[st
     return names
 
 
+def _type_used_as_field_in_pkg(root: Path, pkg_dir: str, type_name: str) -> bool:
+    """True if type_name is used as a struct field type within its own package.
+
+    A type composed into a struct is reached through field access (inv.CPU,
+    cap.Families), so its bare name need not appear in any other package -- the
+    same blind spot the constants check covers, for serialized and wire structs.
+    Scoped to the declaring package: a field declaration in another package would
+    name the type, so the cross-package grep already covers that case.
+    """
+    pkg_path = root / pkg_dir
+    if not pkg_path.is_dir():
+        return False
+    # Exported field name, optional []/*/map/chan wrappers, then the type. Only
+    # matched inside a struct body, so a "Name Type = value" const spec (which
+    # has the same leading shape) is never mistaken for a field.
+    field_re = re.compile(
+        r"^\s*[A-Z][A-Za-z0-9_]*\s+(?:\[\]|\*|map\[[^\]]+\]|chan\s+)*\*?"
+        + re.escape(type_name)
+        + r"\b"
+    )
+    for go_file in sorted(pkg_path.glob("*.go")):
+        if go_file.name.endswith("_test.go"):
+            continue
+        try:
+            content = go_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        struct_depth = 0  # brace nesting while inside one or more struct bodies
+        for line in content.splitlines():
+            if struct_depth > 0:
+                if field_re.match(line):
+                    return True
+                struct_depth = max(0, struct_depth + line.count("{") - line.count("}"))
+            elif "struct {" in line:
+                struct_depth = max(0, line.count("{") - line.count("}"))
+    return False
+
+
 def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
     go_files = [
         f
@@ -277,16 +315,25 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
         return findings
 
     for go_file, line_num, sym, pkg_dir, kind in symbols:
+        # *ForTest helpers exist to be called by tests in other packages; the
+        # caller search excludes test files by design, so they would always be
+        # flagged. The naming convention declares the test-only intent.
+        if sym.endswith("ForTest"):
+            continue
+
         if _has_cross_pkg_ref(root, sym, pkg_dir, search_dirs):
             continue
 
-        # A typed enum is reached through its constant values, not the bare type
-        # name: callers switch on RouteVerbInstall and never spell RouteVerb. If
-        # any of its exported constants is referenced cross-package, the type is
-        # wired even though grep on the type name found nothing.
-        if kind == "type" and any(
-            _has_cross_pkg_ref(root, const, pkg_dir, search_dirs)
-            for const in _exported_consts_of_type(root, pkg_dir, sym)
+        # A type may be reached without ever spelling its bare name in another
+        # package: callers switch on its constants (RouteVerbInstall) or read it
+        # through a struct field (inv.CPU, cap.Families). Either makes the type
+        # wired even though the cross-package name grep found nothing.
+        if kind == "type" and (
+            any(
+                _has_cross_pkg_ref(root, const, pkg_dir, search_dirs)
+                for const in _exported_consts_of_type(root, pkg_dir, sym)
+            )
+            or _type_used_as_field_in_pkg(root, pkg_dir, sym)
         ):
             continue
 

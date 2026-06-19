@@ -12,8 +12,6 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 from validate import (
-    Finding,
-    check_cli_handler_coverage,
     check_cross_package_wiring,
     check_source_anchor_line_numbers,
     check_source_anchor_stale_paths,
@@ -253,6 +251,59 @@ class TestCrossPackageWiring(unittest.TestCase):
         findings = self._wiring_with_verb_decl(decl, "YOnly")
         self.assertEqual(len(findings), 1)
         self.assertIn("Verb", findings[0].message)
+
+    def test_type_wired_as_struct_field(self):
+        """A type reached only through a struct field (serialized/wire structs)
+        is recognized as wired, like the constants case (NOTE 3)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+            pkg2 = root / "internal" / "beta"
+            pkg2.mkdir(parents=True)
+
+            # Sub is never named outside alpha; it is only the type of Top.S.
+            (pkg / "model.go").write_text(
+                "package alpha\n\n"
+                "type Sub uint8\n\n"
+                "type Top struct {\n"
+                "\tS    Sub\n"
+                "\tList []Sub\n"
+                "}\n"
+            )
+            (pkg2 / "consumer.go").write_text(
+                'package beta\n\nimport "alpha"\n\nfunc Use(t alpha.Top) { _ = t.S }\n'
+            )
+
+            findings = check_cross_package_wiring(root, ["internal/alpha/model.go"])
+            self.assertEqual(findings, [], f"unexpected findings: {findings}")
+
+    def test_plain_unused_type_still_flagged(self):
+        """A struct type with no cross-package caller and not used as a field is
+        still flagged -- the field-type leniency must not over-suppress."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+            (pkg / "model.go").write_text(
+                "package alpha\n\ntype Orphan struct {\n\tX int\n}\n"
+            )
+            findings = check_cross_package_wiring(root, ["internal/alpha/model.go"])
+            self.assertEqual(len(findings), 1)
+            self.assertIn("Orphan", findings[0].message)
+
+    def test_fortest_helper_is_exempt(self):
+        """An exported *ForTest helper is test-only by convention and is exempt
+        from the production-wiring check (NOTE 3)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pkg = root / "internal" / "alpha"
+            pkg.mkdir(parents=True)
+            (pkg / "reset.go").write_text(
+                "package alpha\n\nfunc ResetStateForTest() {}\n"
+            )
+            findings = check_cross_package_wiring(root, ["internal/alpha/reset.go"])
+            self.assertEqual(findings, [], f"unexpected findings: {findings}")
 
 
 class TestSpecACCompleteness(unittest.TestCase):
