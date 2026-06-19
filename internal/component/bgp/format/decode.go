@@ -125,16 +125,9 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 		// Return one entry per family
 		var results []DecodedCapability
 		for _, f := range c.Families {
-			var mode string
-			switch f.Mode {
-			case capability.AddPathNone:
-				continue // Skip none mode
-			case capability.AddPathReceive:
-				mode = "receive"
-			case capability.AddPathSend:
-				mode = "send"
-			case capability.AddPathBoth:
-				mode = "send-receive"
+			mode := f.Mode.Label()
+			if mode == "" {
+				continue // Skip none/unknown mode (no valid RFC 7911 direction)
 			}
 			out := family.Family{AFI: f.AFI, SAFI: f.SAFI}.AppendTo(sb[:0])
 			out = append(out, ' ')

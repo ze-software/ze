@@ -681,15 +681,7 @@ func formatCapInfo(cap capability.Capability) []CapabilityInfo {
 	case *capability.AddPath:
 		var results []CapabilityInfo
 		for _, f := range c.Families {
-			var mode string
-			switch f.Mode { //nolint:exhaustive // AddPathNone skipped intentionally
-			case capability.AddPathReceive:
-				mode = "receive"
-			case capability.AddPathSend:
-				mode = "send"
-			case capability.AddPathBoth:
-				mode = "send-receive"
-			}
+			mode := f.Mode.Label()
 			if mode != "" {
 				var tb textbuf.Buffer
 				results = append(results, CapabilityInfo{Code: code, Name: "addpath", Value: tb.Str(f.AFI.String()).Byte('/').Str(f.SAFI.String()).Byte(' ').Str(mode).String()})

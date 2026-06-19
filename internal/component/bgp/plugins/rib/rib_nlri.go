@@ -186,46 +186,17 @@ func formatNLRIAsPrefix(fam family.Family, nlriBytes []byte, addPath ...bool) st
 	return prefix
 }
 
-// formatFamily converts family.Family to string like "ipv4/unicast".
+// formatFamily renders family.Family as "afi/safi" (e.g. "ipv4/unicast").
+//
+// It delegates to family.Family.String(), the single source of truth: the
+// registry already holds every registered family's canonical name (including
+// plugin-registered ones) and falls back to "afi-N/safi-N" for unregistered
+// families. The former hardcoded AFI/SAFI switch duplicated that table and had
+// drifted -- it emitted "ipv4/flowspec" while the registry, config, and .ci
+// tests all use the canonical "ipv4/flow". String() returns the cached
+// registered name with no per-call allocation for known families.
 func formatFamily(fam family.Family) string {
-	var afi, safi string
-
-	switch fam.AFI { //nolint:exhaustive // Common families only, default handles rest
-	case family.AFIIPv4:
-		afi = "ipv4"
-	case family.AFIIPv6:
-		afi = "ipv6"
-	case family.AFIL2VPN:
-		afi = "l2vpn"
-	case family.AFIBGPLS:
-		afi = "bgp-ls"
-	default: // numeric fallback for unknown AFI
-		var tb textbuf.Buffer
-		afi = tb.Reset().Str("afi-").Uint16(uint16(fam.AFI)).String()
-	}
-
-	switch fam.SAFI { //nolint:exhaustive // Common families only, default handles rest
-	case family.SAFIUnicast:
-		safi = "unicast"
-	case family.SAFIMulticast:
-		safi = "multicast"
-	case family.SAFIVPN:
-		safi = "mpls-vpn"
-	case family.SAFIMPLSLabel:
-		safi = "mpls-label"
-	case family.SAFIEVPN:
-		safi = "evpn"
-	case family.SAFIFlowSpec:
-		safi = "flowspec"
-	case family.SAFIBGPLinkState:
-		safi = "bgp-ls"
-	default: // numeric fallback for unknown SAFI
-		var tb textbuf.Buffer
-		safi = tb.Reset().Str("safi-").Uint16(uint16(fam.SAFI)).String()
-	}
-
-	var tb2 textbuf.Buffer
-	return tb2.Str(afi).Byte('/').Str(safi).String()
+	return fam.String()
 }
 
 // formatNextHop formats NEXT_HOP attribute bytes as an IP address string.

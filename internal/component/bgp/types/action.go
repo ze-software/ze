@@ -78,6 +78,38 @@ func (a *RouteAction) UnmarshalText(data []byte) error {
 	return nil
 }
 
+// RouteVerb is the forwarding-plane operation a RouteAction maps to. FIB
+// backends (fib-kernel, fib-vpp, fib-p4) dispatch on it instead of each
+// re-encoding that Withdraw and Del both mean remove and that Unspecified is a
+// no-op. This package owns RouteAction, so it is the single home for that
+// mapping; every FIB backend already depends on this package for RouteAction.
+type RouteVerb uint8
+
+const (
+	RouteVerbSkip    RouteVerb = iota // Unspecified or unknown action: no-op
+	RouteVerbInstall                  // Add: program a new route
+	RouteVerbReplace                  // Update: replace an existing route
+	RouteVerbRemove                   // Withdraw or Del: remove a route
+)
+
+// Verb maps a RouteAction to the forwarding-plane operation a FIB backend
+// performs. Backends that do not distinguish install from replace (e.g. the
+// MPLS and SRv6 programming paths) handle RouteVerbInstall and RouteVerbReplace
+// together. It is a pure value-enum lookup with no allocation, safe on the hot
+// FIB install path.
+func (a RouteAction) Verb() RouteVerb {
+	switch a {
+	case RouteActionAdd:
+		return RouteVerbInstall
+	case RouteActionUpdate:
+		return RouteVerbReplace
+	case RouteActionWithdraw, RouteActionDel:
+		return RouteVerbRemove
+	default: // RouteActionUnspecified and any unknown value
+		return RouteVerbSkip
+	}
+}
+
 // BGPProtocolType distinguishes iBGP from eBGP routes. This is a BGP-internal
 // 2-value classification, not a cross-protocol identity (see redistevents.ProtocolID).
 type BGPProtocolType uint8

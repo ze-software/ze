@@ -84,6 +84,7 @@ Registration, SDK, event flow, lifecycle, hook integration.
 - [828](plan/learned/828-codec-callback-passthrough.md) -- NLRI decode single-marshal: DecodeNLRIHex returns any, registry marshals once; RunCLIDecode callers share function so need own marshal
 - [830](plan/learned/830-typed-inter-plugin-dispatch.md) -- Typed exact-command inter-plugin dispatch: `DispatchCommandArgs` over rebuilt strings, `CommandArgsAuthorizer` over canonical fallback, command/args boundary pinned by tests
 - [858](plan/learned/858-typed-peer-selector.md) -- Typed peer selector: BGPReactor takes `*selector.Selector` not string; SDK `*Sel` variants for DirectBridge; `SoftClearPeer` fixed for name/ASN; GR stays string at args boundary
+- [922](plan/learned/922-cross-plugin-switch-audit.md) -- Cross-plugin switch audit: most are correct Go (backend lowering has no virtual-dispatch alt); only producer-owned re-derivation is a smell -> hoist as a method on the producer's type (`RouteAction.Verb()`, `Path.IsEBGP`, `AddPathMode.Label()`); 3 dup-hidden bugs fixed; `ze-validate` undercounts a typed enum reached only via its constants (fixed in validate.py)
 
 ## Configuration
 
@@ -189,6 +190,7 @@ Graceful restart, route refresh, capability negotiation, session management.
 - [919](plan/learned/919-mpls-kernel.md) -- Kernel MPLS FIB: labeled BestChange routed through rich-route RTA_ENCAP; push uses RouteAdd (no-clobber) vs RouteReplace for relabel; AF_MPLS swap/pop via separate mpls-fib topic
 - [920](plan/learned/920-mpls-ldp.md) -- LDP (RFC 5036): dynamic interface reload via discoveryManager reconcile (stop Hellos → adjacency ages out); **plugin config delivered root-wrapped + string-numbers + keyed-map lists — a parser reading the wrong shape leaves the engine idle and unit tests that bypass the parser miss it**; show-proxy must use PluginCommand+ForwardToPlugin (re-Dispatch recurses to stack overflow)
 - [921](plan/learned/921-mpls-rsvp-te.md) -- RSVP-TE (RFC 3209/2205): RESV soft-state refresh at egress/transit; link-failure→PathErr sourced from iface EventDown (no IGP); RRO prepend per §4.4; same config-shape + show-proxy traps as LDP; **AC-12 unsatisfiable — FRR has no rsvpd daemon**
+- [923](plan/learned/923-isis-8-dis-broadcast.md) -- IS-IS DIS election + pseudo-node (ISO/IEC 10589 §8.4.5): pure per-level election (priority desc, MAC desc) + damping in circuit/dis.go; pseudo-node LSP reuses the isis-6 Originator (non-zero pseudonode SourceID, members at metric 0); own-LSP star encoding in levelState; **isis-5 reconcile does NOT re-advertise a live circuit's priority** (engine AC-5 via DIS-loss/join, not reconcile); **an abruptly-departed DIS's pseudo-node ages out over MaxLifetime — purge-before-yielding only applies to a node losing the role while present**
 
 ## Observability
 

@@ -467,14 +467,8 @@ func lowerPortMatch(ctx *lowerCtx, ranges []firewall.PortRange, offset uint32) (
 	}, nil
 }
 
-var protoNumbers = map[string]byte{
-	"tcp": 6, "udp": 17, "icmp": 1, "icmpv6": 58,
-	"sctp": 132, "gre": 47, "esp": 50, "ah": 51,
-	"ospf": 89, "vrrp": 112,
-}
-
 func lowerProtoMatch(proto string) ([]expr.Any, error) {
-	num, ok := protoNumbers[proto]
+	num, ok := firewall.ProtocolNumber(proto)
 	if !ok {
 		return nil, fmt.Errorf("unknown protocol %q", proto)
 	}

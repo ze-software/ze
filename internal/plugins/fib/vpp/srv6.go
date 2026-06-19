@@ -30,8 +30,8 @@ func (f *fibVPP) processSRv6Change(c *incomingChange) {
 		return
 	}
 	pfxStr := c.Prefix.String()
-	switch c.Action { //nolint:exhaustive // Unspecified is a no-op for SRv6
-	case bgptypes.RouteActionAdd, bgptypes.RouteActionUpdate:
+	switch c.Action.Verb() { //nolint:exhaustive // Unspecified is a no-op for SRv6
+	case bgptypes.RouteVerbInstall, bgptypes.RouteVerbReplace:
 		if err := f.srv6Backend.addSRv6Steer(c.Prefix, c.SRv6SID, c.TableID); err != nil {
 			logger().Error("fib-vpp: SRv6 steer failed", "prefix", c.Prefix, "sid", c.SRv6SID, "error", err)
 			return
@@ -40,7 +40,7 @@ func (f *fibVPP) processSRv6Change(c *incomingChange) {
 		if m := fibVPPMetricsPtr.Load(); m != nil {
 			m.routeInstalls.Inc()
 		}
-	case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
+	case bgptypes.RouteVerbRemove:
 		if err := f.srv6Backend.delSRv6Steer(c.Prefix, c.TableID); err != nil {
 			logger().Error("fib-vpp: SRv6 steer del failed", "prefix", c.Prefix, "error", err)
 			return

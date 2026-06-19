@@ -35,7 +35,7 @@ func classifyMaskMatch(matches []firewall.Match) (mask, match []byte, err error)
 	for _, m := range matches {
 		switch v := m.(type) {
 		case firewall.MatchProtocol:
-			proto, ok := protoNumbersU8[v.Protocol]
+			proto, ok := firewall.ProtocolNumber(v.Protocol)
 			if !ok {
 				return nil, nil, fmt.Errorf("unknown protocol %q", v.Protocol)
 			}
@@ -60,11 +60,6 @@ func classifyMaskMatch(matches []firewall.Match) (mask, match []byte, err error)
 		}
 	}
 	return mask, match, nil
-}
-
-var protoNumbersU8 = map[string]uint8{
-	"tcp": 6, "udp": 17, "icmp": 1, "icmpv6": 58,
-	"sctp": 132, "gre": 47, "esp": 50, "ah": 51, "ospf": 89, "vrrp": 112,
 }
 
 func applyPrefixMaskMatch(mask, match []byte, prefix netip.Prefix, offset int) {

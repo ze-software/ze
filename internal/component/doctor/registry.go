@@ -201,18 +201,10 @@ func validateDoctorCheckPlatforms(platforms []string) error {
 }
 
 func validDoctorCheckPlatform(platform string) bool {
-	switch platform {
-	case doctorCheckPlatformAny,
-		host.PlatformUnknown.String(),
-		host.PlatformGokrazy.String(),
-		host.PlatformSystemd.String(),
-		host.PlatformContainer.String(),
-		host.PlatformPlainLinux.String(),
-		host.PlatformDarwin.String():
-		return true
-	default:
-		return false
-	}
+	// "any" is the doctor-specific wildcard; everything else must be a name the
+	// host package owns. host.ValidPlatformName is the single source of truth so
+	// this validator cannot drift from the platform set.
+	return platform == doctorCheckPlatformAny || host.ValidPlatformName(platform)
 }
 
 func validateDoctorCheckCodes(codes []string) error {

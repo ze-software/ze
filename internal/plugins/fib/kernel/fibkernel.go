@@ -259,8 +259,8 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 			continue
 		}
 		pfx := c.Prefix.String()
-		switch c.Action {
-		case bgptypes.RouteActionAdd:
+		switch c.Action.Verb() {
+		case bgptypes.RouteVerbInstall:
 			if err := f.addChange(c, pfx, rb); err != nil {
 				logger().Error("fib-kernel: add route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
@@ -284,7 +284,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 					m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 				}
 			}
-		case bgptypes.RouteActionUpdate:
+		case bgptypes.RouteVerbReplace:
 			if err := f.replaceChange(c, pfx, rb); err != nil {
 				logger().Error("fib-kernel: replace route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
@@ -312,7 +312,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 				}
 				m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 			}
-		case bgptypes.RouteActionWithdraw, bgptypes.RouteActionDel:
+		case bgptypes.RouteVerbRemove:
 			if err := f.delChange(c, pfx, rb); err != nil {
 				logger().Error("fib-kernel: del route failed", "prefix", c.Prefix, "error", err)
 				if m := fibMetricsPtr.Load(); m != nil {
@@ -333,7 +333,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 					m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 				}
 			}
-		case bgptypes.RouteActionUnspecified:
+		case bgptypes.RouteVerbSkip:
 			logger().Warn("fib-kernel: skipping change with unspecified action", "prefix", c.Prefix)
 		}
 	}

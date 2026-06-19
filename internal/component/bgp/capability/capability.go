@@ -396,6 +396,26 @@ const (
 	AddPathBoth    AddPathMode = 3 // RFC 7911: able to both send and receive
 )
 
+// Label returns the lowercase RFC 7911 ADD-PATH direction for display and JSON
+// ("receive", "send", "send-receive"), or "" for AddPathNone and any unknown
+// value so callers can skip it. ADD-PATH None is not a valid negotiated mode
+// (RFC 7911), so it has no label. This is the single source of truth shared by
+// the RS capability view and the format/decode capability display. It is
+// deliberately not String(): an empty Stringer result would corrupt fmt/debug
+// output for AddPathNone.
+func (m AddPathMode) Label() string {
+	switch m {
+	case AddPathReceive:
+		return "receive"
+	case AddPathSend:
+		return "send"
+	case AddPathBoth:
+		return "send-receive"
+	default: // AddPathNone and any unknown value
+		return ""
+	}
+}
+
 // AddPathFamily describes ADD-PATH support for one AFI/SAFI.
 //
 // RFC 7911 Section 4: Each tuple is 4 octets: AFI (2) + SAFI (1) + Send/Receive (1).

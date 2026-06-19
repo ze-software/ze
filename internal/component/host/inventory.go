@@ -352,6 +352,20 @@ func (p PlatformType) String() string {
 	return strUnknown
 }
 
+// ValidPlatformName reports whether name is a registered PlatformType name
+// (as produced by PlatformType.String()). It is the membership inverse of the
+// platformTypeNames table, so callers (e.g. the doctor and diagnostic
+// DoctorCheck platform validators) check platform names without re-enumerating
+// the platform set and drifting from it when a PlatformType is added.
+func ValidPlatformName(name string) bool {
+	for _, n := range platformTypeNames {
+		if n == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (p PlatformType) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + p.String() + `"`), nil
 }

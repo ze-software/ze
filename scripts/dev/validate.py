@@ -138,6 +138,106 @@ def check_source_anchor_stale_paths(root: Path) -> list[Finding]:
     return findings
 
 
+def _has_cross_pkg_ref(
+    root: Path, sym: str, pkg_dir: str, search_dirs: list[str]
+) -> bool:
+    """True if sym is referenced (whole word) by a non-test file in another package."""
+    proc = subprocess.run(
+        ["grep", "-rlw", "--include=*.go", sym] + search_dirs,
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    for mf in (f.strip() for f in proc.stdout.splitlines()):
+        if not mf or mf.endswith("_test.go"):
+            continue
+        if str(Path(mf).parent) != pkg_dir:
+            return True
+    return False
+
+
+# One const spec's leading form: "Name1, Name2  Type = expr", "Name = expr",
+# "Name Type", or a bare "Name". Group 1 = comma-separated names, group 2 = the
+# explicit type (absent for value-only or bare specs), group 3 = the "=" when an
+# expression is present.
+CONST_SPEC_RE = re.compile(
+    r"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*)*)"
+    r"(?:\s+([A-Za-z_][A-Za-z0-9_.]*))?"
+    r"(\s*=)?"
+)
+
+
+def _const_spec(text: str) -> tuple[list[str], str | None, bool]:
+    """Parse one const spec into (names, explicit_type, has_value_expression)."""
+    m = CONST_SPEC_RE.match(text)
+    if not m:
+        return [], None, False
+    names = [n.strip() for n in m.group(1).split(",")]
+    return names, m.group(2), m.group(3) is not None
+
+
+def _exported(names: list[str]) -> list[str]:
+    return [n for n in names if n[:1].isupper()]
+
+
+def _exported_consts_of_type(root: Path, pkg_dir: str, type_name: str) -> set[str]:
+    """Exported const identifiers declared with type_name in pkg_dir.
+
+    A typed enum is reached through its constant values, so the bare type name
+    may never appear in another package (callers switch on RouteVerbInstall,
+    never spelling RouteVerb) and the bare-name grep undercounts. This recovers
+    the constants -- single-line consts, block consts, multi-name specs, and the
+    Go iota idiom where a bare spec inherits the type of the last preceding spec
+    that carried one (an explicit "= expr" with no type resets that inheritance,
+    matching the language spec) -- so the caller can prove the type is reachable.
+    """
+    names: set[str] = set()
+    pkg_path = root / pkg_dir
+    if not pkg_path.is_dir():
+        return names
+    for go_file in sorted(pkg_path.glob("*.go")):
+        if go_file.name.endswith("_test.go"):
+            continue
+        try:
+            content = go_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        in_block = False
+        inherits = False  # do bare specs in this block currently inherit type_name?
+        for line in content.splitlines():
+            stripped = line.strip()
+            if not in_block:
+                if re.match(r"^const\s*\(", stripped):
+                    in_block = True
+                    inherits = False
+                else:
+                    m = re.match(r"^const\s+(.+)$", stripped)
+                    if m:
+                        spec, etype, _ = _const_spec(m.group(1))
+                        if etype == type_name:
+                            names.update(_exported(spec))
+                continue
+            if stripped.startswith(")"):
+                in_block = False
+                inherits = False
+                continue
+            if not stripped or stripped.startswith("//"):
+                continue
+            spec, etype, has_value = _const_spec(line)
+            if not spec:
+                continue
+            if etype is not None:
+                inherits = etype == type_name
+                if inherits:
+                    names.update(_exported(spec))
+            elif has_value:
+                inherits = False  # own type from the value; resets iota inheritance
+            elif inherits:
+                names.update(_exported(spec))
+    return names
+
+
 def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
     go_files = [
         f
@@ -149,7 +249,7 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
     if not go_files:
         return []
 
-    symbols: list[tuple[str, int, str, str]] = []
+    symbols: list[tuple[str, int, str, str, str]] = []
     for go_file in go_files:
         full_path = root / go_file
         if not full_path.exists():
@@ -162,11 +262,11 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
         for line_num, line in enumerate(content.splitlines(), 1):
             m = EXPORTED_FUNC_RE.match(line)
             if m:
-                symbols.append((go_file, line_num, m.group(1), pkg_dir))
+                symbols.append((go_file, line_num, m.group(1), pkg_dir, "func"))
                 continue
             m = EXPORTED_TYPE_RE.match(line)
             if m:
-                symbols.append((go_file, line_num, m.group(1), pkg_dir))
+                symbols.append((go_file, line_num, m.group(1), pkg_dir, "type"))
 
     if not symbols:
         return []
@@ -176,34 +276,28 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
     if not search_dirs:
         return findings
 
-    for go_file, line_num, sym, pkg_dir in symbols:
-        proc = subprocess.run(
-            ["grep", "-rlw", "--include=*.go", sym] + search_dirs,
-            cwd=root,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        matching_files = [f.strip() for f in proc.stdout.splitlines() if f.strip()]
+    for go_file, line_num, sym, pkg_dir, kind in symbols:
+        if _has_cross_pkg_ref(root, sym, pkg_dir, search_dirs):
+            continue
 
-        has_cross_pkg = False
-        for mf in matching_files:
-            if mf.endswith("_test.go"):
-                continue
-            mf_pkg = str(Path(mf).parent)
-            if mf_pkg != pkg_dir:
-                has_cross_pkg = True
-                break
+        # A typed enum is reached through its constant values, not the bare type
+        # name: callers switch on RouteVerbInstall and never spell RouteVerb. If
+        # any of its exported constants is referenced cross-package, the type is
+        # wired even though grep on the type name found nothing.
+        if kind == "type" and any(
+            _has_cross_pkg_ref(root, const, pkg_dir, search_dirs)
+            for const in _exported_consts_of_type(root, pkg_dir, sym)
+        ):
+            continue
 
-        if not has_cross_pkg:
-            findings.append(
-                Finding(
-                    severity="ISSUE",
-                    file=go_file,
-                    line=line_num,
-                    message=f"exported symbol {sym} has no cross-package non-test caller",
-                )
+        findings.append(
+            Finding(
+                severity="ISSUE",
+                file=go_file,
+                line=line_num,
+                message=f"exported symbol {sym} has no cross-package non-test caller",
             )
+        )
 
     return findings
 

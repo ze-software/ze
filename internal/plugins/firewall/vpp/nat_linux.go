@@ -173,13 +173,11 @@ func buildDNATMapping(dnat firewall.DNAT, term *firewall.Term, tag string) natSt
 	for _, m := range term.Matches {
 		switch v := m.(type) {
 		case firewall.MatchProtocol:
-			switch v.Protocol {
-			case "tcp":
-				proto = 6
-			case "udp":
-				proto = 17
-			default:
-				proto = 0
+			// Unknown protocols leave proto at 0; known protocols use the
+			// shared IANA table (the former inline switch handled only tcp/udp
+			// and silently programmed 0 for everything else).
+			if num, ok := firewall.ProtocolNumber(v.Protocol); ok {
+				proto = num
 			}
 		case firewall.MatchDestinationPort:
 			if len(v.Ranges) > 0 {
