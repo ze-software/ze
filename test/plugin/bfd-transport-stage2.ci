@@ -15,7 +15,7 @@
 # test uses VRF=default (no CAP_NET_RAW required) and does not bind to a
 # specific interface so the runner environment does not need SO_BINDTODEVICE
 # permissions. The unit tests in
-# internal/plugins/bfd/transport/udp_device_linux_test.go cover the
+# internal/component/bfd/transport/udp_device_linux_test.go cover the
 # bind-to-device paths that do require privilege.
 
 option=env:var=ze.bfd.test-parallel:value=true

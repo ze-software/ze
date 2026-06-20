@@ -6,6 +6,7 @@ import (
 	// with cmd packages that import plugin/server which imports config.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/api/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/authz/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit/yang"
@@ -43,11 +44,11 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/sysrib/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/web/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/aaa-cmd/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/kernel/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/fib/p4/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/gnmi-cmd/yang"
@@ -55,6 +56,5 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/pki-cmd/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/resolve-cmd/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/storage-cmd/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traceroute-cmd/yang"
 )

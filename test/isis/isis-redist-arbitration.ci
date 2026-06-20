@@ -17,7 +17,7 @@
 # once raised) is exercised by the sysrib cross-protocol selection unit tests
 # (run on any host): TestSysRIBSelectByPriority, TestSysRIBStaticWinsOverBGP,
 # TestSysRIBCrossProtocolSelection, TestSysRIBAdminDistanceOverride / Default /
-# Reload (internal/plugins/sysrib) -- the effectivePriority admin-distance path
+# Reload (internal/component/sysrib) -- the effectivePriority admin-distance path
 # IS-IS plugs into -- together with TestISISInstallPath (Source=IS-IS,
 # AdminDistance 115 on the inserted locrib.Path) and TestISISSPFRoute. Live
 # multi-source arbitration is covered by the QEMU/FRR interop (isis-13).

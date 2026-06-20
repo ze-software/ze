@@ -116,7 +116,7 @@ def main():
     stop = threading.Event()
     csock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     # ze binds 0.0.0.0:3784/:3785 with SO_REUSEPORT when
-    # ze.bfd.test-parallel=true (see internal/plugins/bfd/transport/udp_linux.go).
+    # ze.bfd.test-parallel=true (see internal/component/bfd/transport/udp_linux.go).
     # We mirror that so the wildcard and the specific 127.0.0.2 bind can
     # coexist. Linux delivers packets to the longest-prefix-match socket
     # first, so packets to 127.0.0.2:{3784,3785} land here and packets

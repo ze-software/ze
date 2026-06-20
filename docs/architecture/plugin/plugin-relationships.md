@@ -1,6 +1,6 @@
 # Plugin Relationships
 
-<!-- source: internal/plugins/bfd/register.go -- plugin registrations (representative) -->
+<!-- source: internal/component/bfd/register.go -- plugin registrations (representative) -->
 <!-- source: internal/component/bgp/plugin/register.go -- BGP plugin -->
 <!-- source: internal/component/iface/register.go -- interface plugin -->
 <!-- source: internal/component/bgp/plugins/rib/register.go -- BGP sub-plugins (representative) -->
@@ -86,7 +86,7 @@ These are top-level plugins that own config roots and manage OS or routing resou
 
 | Field | Value |
 |-------|-------|
-| Location | `internal/plugins/sysrib/register.go` |
+| Location | `internal/component/sysrib/register.go` |
 | Description | System RIB: selects best route across protocols by admin distance |
 | ConfigRoots | `rib` |
 | WantsConfig | `rib` |

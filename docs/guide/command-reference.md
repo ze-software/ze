@@ -1849,7 +1849,7 @@ Config example: `sysctl { setting net.ipv4.conf.all.forwarding { value 1; } }`
 Named profiles group co-dependent tunables for common use cases. Apply them per interface unit: `sysctl-profile [ dsr hardened ]`. Built-in profiles: `dsr`, `router`, `hardened`, `multihomed`, `proxy`. User-defined profiles declared in `sysctl { profile <name> { ... } }`.
 
 When fib-kernel is loaded, it automatically enables IPv4 and IPv6 forwarding as defaults.
-<!-- source: internal/plugins/sysctl/register.go -- OnExecuteCommand, CommandDecl -->
+<!-- source: internal/component/sysctl/register.go -- OnExecuteCommand, CommandDecl -->
 <!-- source: internal/core/sysctl/profiles.go -- ProfileDef, builtinProfiles -->
 
 ### L2TPv2 (Operational)

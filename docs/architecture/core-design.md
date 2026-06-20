@@ -994,7 +994,7 @@ bgp-rib/best-change/bgp  ──>  System RIB (rib plugin)
                                                     Linux kernel routing table
 ```
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic, best-path tracking -->
-<!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic, admin distance selection -->
+<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic, admin distance selection -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, netlink backend, stale sweep -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route change monitor -->
 
@@ -1030,10 +1030,10 @@ After admin-distance selection, the system RIB performs two additional phases:
    single-path events.
 
 CLI: `show nexthop-table` (resolver tracking table), `show ecmp-groups` (active groups).
-<!-- source: internal/plugins/sysrib/sysrib.go -- protocolRoute, admin distance, outgoingBatch -->
-<!-- source: internal/plugins/sysrib/nhresolver.go -- recursive NH resolution, IGP metric, cascade -->
-<!-- source: internal/plugins/sysrib/ecmp.go -- ECMP path collection -->
-<!-- source: internal/plugins/sysrib/register.go -- rib plugin registration -->
+<!-- source: internal/component/sysrib/sysrib.go -- protocolRoute, admin distance, outgoingBatch -->
+<!-- source: internal/component/sysrib/nhresolver.go -- recursive NH resolution, IGP metric, cascade -->
+<!-- source: internal/component/sysrib/ecmp.go -- ECMP path collection -->
+<!-- source: internal/component/sysrib/register.go -- rib plugin registration -->
 
 ### Shared Route Watcher
 
@@ -1131,11 +1131,11 @@ in the iface YANG schema. The iface plugin resolves profiles, substitutes `<ifac
 templates, and emits settings as `(sysctl, default)` events. A conflict table
 (`internal/core/sysctl/conflicts.go`) warns when incompatible keys are active on the
 same interface (e.g., arp_ignore + proxy_arp).
-<!-- source: internal/plugins/sysctl/sysctl.go -- store, three-layer precedence -->
+<!-- source: internal/component/sysctl/sysctl.go -- store, three-layer precedence -->
 <!-- source: internal/core/sysctl/known.go -- known-keys registry -->
 <!-- source: internal/core/sysctl/profiles.go -- profile registry, builtinProfiles -->
 <!-- source: internal/core/sysctl/conflicts.go -- conflict table, CheckConflicts -->
-<!-- source: internal/plugins/sysctl/register.go -- plugin registration, EventBus wiring -->
+<!-- source: internal/component/sysctl/register.go -- plugin registration, EventBus wiring -->
 
 ---
 

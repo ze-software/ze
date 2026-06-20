@@ -192,13 +192,13 @@ ze --plugins
 | `tftpserver` | Read-only TFTP server (RFC 1350): serves bootloader files for PXE provisioning in 512-byte blocks with stop-and-wait ACK, concurrent transfer limiting, path traversal protection | -- (Config-driven, UDP listener on port 69) |
 | `imageserver` | HTTP image server for PXE provisioning: serves gokrazy disk images, installer boot files, and pre-provisioned zefs databases with SSH credentials. Own HTTP listener, path traversal protection, Range request support | -- (Config-driven, HTTP listener) |
 <!-- source: internal/plugins/policyroute/register.go -- policy-routes registration -->
-<!-- source: internal/plugins/sysctl/register.go -- sysctl registration -->
+<!-- source: internal/component/sysctl/register.go -- sysctl registration -->
 <!-- source: internal/plugins/dhcpserver/register.go -- dhcpserver registration -->
 <!-- source: internal/plugins/tftpserver/register.go -- tftpserver registration -->
 <!-- source: internal/component/iface/register.go -- iface registration -->
 <!-- source: internal/plugins/iface/netlink/register.go -- iface-netlink backend registration -->
 <!-- source: internal/plugins/iface/dhcp/register.go -- iface-dhcp registration -->
-<!-- source: internal/plugins/sysrib/register.go -- rib plugin registration -->
+<!-- source: internal/component/sysrib/register.go -- rib plugin registration -->
 <!-- source: internal/plugins/fib/p4/register.go -- fib-p4 registration -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel registration -->
 <!-- source: internal/plugins/firewall/vpp/register.go -- firewall-vpp backend registration -->
@@ -246,7 +246,7 @@ Bus topics published:
 The `rib` plugin aggregates best routes from all protocol RIBs and selects
 the system-wide best per prefix by administrative distance (lower wins).
 Subscribes to `bgp-rib/best-change/` Bus topic prefix, publishes `system-rib/best-change`.
-<!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic, protocolRoute, admin distance selection -->
+<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic, protocolRoute, admin distance selection -->
 
 The `fib-kernel` plugin programs OS routes from the system RIB into the kernel
 via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
@@ -264,7 +264,7 @@ Bus topics in the FIB pipeline:
 | `system-rib/best-change` | `rib` | `fib-kernel`, `fib-p4` | Batch of system-wide best route changes |
 | `fib/external-change` | `fib-kernel` | monitoring | External route change on ze-managed prefix |
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestChangeTopic -->
-<!-- source: internal/plugins/sysrib/sysrib.go -- system-rib topic -->
+<!-- source: internal/component/sysrib/sysrib.go -- system-rib topic -->
 <!-- source: internal/plugins/fib/kernel/monitor.go -- externalChangeTopic -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- system-rib/best-change subscription -->
 
@@ -281,7 +281,7 @@ Bus topics in the sysctl pipeline:
 | `sysctl/list-result` | `sysctl` | requester | Known keys JSON (request-id, entries) |
 | `sysctl/clear-profile-defaults` | `iface` | `sysctl` | Clear stale profile defaults for an interface before re-emission (interface) |
 <!-- source: internal/component/plugin/server/events.go -- NamespaceSysctl, EventSysctl* -->
-<!-- source: internal/plugins/sysctl/register.go -- EventBus subscribe/emit -->
+<!-- source: internal/component/sysctl/register.go -- EventBus subscribe/emit -->
 
 ### Route Filters
 

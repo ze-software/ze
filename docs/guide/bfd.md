@@ -9,11 +9,11 @@ sessions`, `show bfd session <peer>`, `show bfd profile`, Prometheus
 `bgp peer connection` block opens a per-peer BFD session on
 Established and tears the BGP session down with RFC 9384 Cease
 subcode 10 ("BFD Down") when BFD reports the forwarding path lost.
-<!-- source: internal/plugins/bfd/bfd.go — runtimeState, loopFor, newUDPTransport, pluginService -->
-<!-- source: internal/plugins/bfd/api/registry.go — SetService, GetService -->
-<!-- source: internal/plugins/bfd/engine/loop.go — passesTTLGate, tick jitter -->
-<!-- source: internal/plugins/bfd/transport/udp.go — ListenConfig.Control, ReadMsgUDPAddrPort -->
-<!-- source: internal/plugins/bfd/transport/udp_linux.go — IP_RECVTTL, IP_TTL, SO_BINDTODEVICE -->
+<!-- source: internal/component/bfd/bfd.go — runtimeState, loopFor, newUDPTransport, pluginService -->
+<!-- source: internal/component/bfd/api/registry.go — SetService, GetService -->
+<!-- source: internal/component/bfd/engine/loop.go — passesTTLGate, tick jitter -->
+<!-- source: internal/component/bfd/transport/udp.go — ListenConfig.Control, ReadMsgUDPAddrPort -->
+<!-- source: internal/component/bfd/transport/udp_linux.go — IP_RECVTTL, IP_TTL, SO_BINDTODEVICE -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, stopBFDClient, runBFDSubscriber -->
 
 BFD (RFC 5880) is a low-overhead liveness protocol that detects forwarding
@@ -85,9 +85,9 @@ that opts sessions into RFC 5880 §6.4 Echo mode. The block is
 valid only on single-hop sessions -- RFC 5883 §4 prohibits
 multi-hop echo, and the parser rejects the combination with a
 descriptive error.
-<!-- source: internal/plugins/bfd/config.go — parseEchoConfig + validate -->
-<!-- source: internal/plugins/bfd/packet/echo.go — ZEEC 16-byte envelope -->
-<!-- source: internal/plugins/bfd/session/timers.go — EchoEnabled, EchoInterval -->
+<!-- source: internal/component/bfd/config.go — parseEchoConfig + validate -->
+<!-- source: internal/component/bfd/packet/echo.go — ZEEC 16-byte envelope -->
+<!-- source: internal/component/bfd/session/timers.go — EchoEnabled, EchoInterval -->
 
 ```
 bfd {
@@ -124,9 +124,9 @@ supported: `keyed-md5`, `meticulous-keyed-md5`, `keyed-sha1`, and
 `meticulous-keyed-sha1`. Simple Password is refused at config parse
 time because RFC 5880 §6.7.2 warns it provides no cryptographic
 protection.
-<!-- source: internal/plugins/bfd/auth/signer.go — Signer/Verifier + Settings -->
-<!-- source: internal/plugins/bfd/auth/sha1.go — digestSigner/digestVerifier -->
-<!-- source: internal/plugins/bfd/config.go — parseAuthConfig rejects simple-password -->
+<!-- source: internal/component/bfd/auth/signer.go — Signer/Verifier + Settings -->
+<!-- source: internal/component/bfd/auth/sha1.go — digestSigner/digestVerifier -->
+<!-- source: internal/component/bfd/config.go — parseAuthConfig rejects simple-password -->
 
 ```
 bfd {
@@ -207,7 +207,7 @@ top-level `bfd { profile ... }` block; the BFD plugin resolves it when
 it receives `EnsureSession`. If the BFD plugin is not loaded at all,
 the BGP peer starts without BFD and logs a warning -- BGP is not
 blocked by a missing BFD plugin.
-<!-- source: internal/plugins/bfd/api/registry.go — SetService / GetService -->
+<!-- source: internal/component/bfd/api/registry.go — SetService / GetService -->
 
 ### Multi-hop
 
@@ -343,7 +343,7 @@ the engine's live session state. The handlers live in
 `internal/component/bfd/cmd/bfd.go` and publish JSON payloads so
 scripts can parse the output while the interactive CLI renders them.
 <!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
-<!-- source: internal/plugins/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
+<!-- source: internal/component/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
 
 ### List all sessions
 
@@ -405,10 +405,10 @@ operator@router> show bfd profile fast-link
 ### Prometheus metrics
 
 The plugin registers five metric families via
-`internal/plugins/bfd/metrics.go`. The families appear on the
+`internal/component/bfd/metrics.go`. The families appear on the
 telemetry endpoint when `telemetry { prometheus { enabled true } }`
 is set.
-<!-- source: internal/plugins/bfd/metrics.go — bindMetricsRegistry, metricsHook, refreshSessionsGauge -->
+<!-- source: internal/component/bfd/metrics.go — bindMetricsRegistry, metricsHook, refreshSessionsGauge -->
 
 | Metric | Type | Labels | Meaning |
 |--------|------|--------|---------|
@@ -448,7 +448,7 @@ Multi-hop sessions have no GTSM equivalent; instead each `multi-hop-session`
 carries a `min-ttl` leaf (default 254). Packets arriving with a TTL below
 that floor are discarded before reaching the FSM. Pick `min-ttl` to be
 `256 - max-hops`.
-<!-- source: internal/plugins/bfd/engine/loop.go — passesTTLGate -->
+<!-- source: internal/component/bfd/engine/loop.go — passesTTLGate -->
 
 ### Multi-VRF and interface binding
 
@@ -473,8 +473,8 @@ with the behaviour change. If you need per-interface pinning in a
 non-default VRF, stand up separate sessions per slave device outside
 the shared VRF, or wait for the Stage 3 BGP peer opt-in which can
 drive one session per peer.
-<!-- source: internal/plugins/bfd/bfd.go — resolveLoopDevices, newUDPTransport -->
-<!-- source: internal/plugins/bfd/transport/udp_linux.go — applySocketOptions -->
+<!-- source: internal/component/bfd/bfd.go — resolveLoopDevices, newUDPTransport -->
+<!-- source: internal/component/bfd/transport/udp_linux.go — applySocketOptions -->
 
 ### Transmit jitter
 
@@ -483,8 +483,8 @@ packet, and the reduction must be at least 10% when `detect-multiplier`
 is 1 so the receiver cannot detect before the next packet arrives. Ze
 implements both bands via `engine.Loop.applyJitter`; operators do not
 configure it.
-<!-- source: internal/plugins/bfd/engine/engine.go — applyJitter -->
-<!-- source: internal/plugins/bfd/engine/loop.go — tick -->
+<!-- source: internal/component/bfd/engine/engine.go — applyJitter -->
+<!-- source: internal/component/bfd/engine/loop.go — tick -->
 
 
 ### GC pause sensitivity

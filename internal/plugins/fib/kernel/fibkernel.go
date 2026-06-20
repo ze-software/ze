@@ -23,12 +23,12 @@ import (
 	"time"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	mplsfibevents "codeberg.org/thomas-mangin/ze/internal/core/mplsfib"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 

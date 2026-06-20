@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | ready |
 | Depends | - |
-| Phase | 2/4 (Phase 1 rule+gate done; Phase 2 edge-out done; tiers-3/4 pending) |
+| Phase | 3/4 (Phase 1 rule+gate done; Phase 2 edge-out done; Phase 3 platform-in done; tiers-4/5 pending) |
 | Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
@@ -225,6 +225,60 @@ Results:
 
 Remaining: tiers-3 (platform-in: `bfd, sysctl, sysrib` plugins -> component),
 tiers-4 (borderline `ike`), tiers-5 (Path B preconditions).
+
+## Phase 3 (platform-in) -- COMPLETE (2026-06-20)
+
+Performed via `scripts/dev/migrate_module.py` (learned summary
+`plan/learned/948-tiers-3-platform-in.md`). Moved set = the migration baseline's
+tiers-3 rows: **`bfd, sysctl, sysrib`** `plugins/` -> `component/`. All three are
+`sdk.NewWithConn` engines that a feature DOES depend on (axis B), so the gate
+places them in `internal/component/`: BGP reactor + static depend on BFD; iface +
+firewall on sysctl; the fib backends + fakefib on sysrib.
+
+-> Decision: `bfd` was a MERGE, not a plain move. `internal/component/bfd/` already
+held the BFD CLI command (`cmd/`, discovered via `rpcRoot`), while the engine lived
+at `internal/plugins/bfd/`. The engine's files merged into `internal/component/bfd/`
+alongside the existing `cmd/` (canonical layout: engine at root, CLI in `cmd/`) with
+zero file-level conflict. `migrate_module.py` was extended to perform a
+conflict-checked merge when the destination already exists (refusing on any real
+path collision), and to disambiguate a both-areas name via `--to`.
+
+-> Constraint: the merge exposed a latent bug in the tool's registration-preservation
+proof. It normalised the post-move `all.go` blank-import set BACKWARD (dst->src),
+which wrongly remapped the pre-existing `component/bfd/cmd` and reported a false
+drop. Fixed by normalising the BEFORE set FORWARD (src->dst): forward leaves
+pre-existing destination paths untouched. Both directions stay boundary-safe.
+
+Results:
+- `all.go` registration set preserved (0 dropped, 0 added) for all three moves.
+- Migration baseline shrank 3 -> 0: **`dep_audit.py --check` now reports
+  "engine placement clean; no exceptions (baseline empty)"** -- full
+  engine-placement enforcement with zero exceptions, the umbrella's stated end
+  state for placement.
+- `go build ./...`, moved-package + importer unit tests, generator `--check`,
+  `golangci-lint` (0 issues), `code_to_docs.py`/`arch_map.py` `--check`, and
+  `go test ./scripts/dev/` all pass. Stale path references fixed across `.go`
+  comments / docs / `.mk` / `.ci`; generated indexes regenerated. `plan/` and
+  `.claude/plan/` references left for their owners.
+- The relocation surfaced TWO pre-existing, tiers-3-independent issues in the
+  changed-file-aware commit gate (`verify_wiring_docs.py`), both fixed AT the gate
+  (not worked around), with regression tests:
+  (1) the wiring check was rename-blind -- a moved file's symbols all looked "added"
+      because the baseline reads HEAD at the NEW path (empty); now symbols REMOVED
+      from deleted files in the same change are treated as pre-existing relocations,
+      so a behaviour-preserving move contributes zero "added" symbols.
+  (2) `test/.ci-sleep-baseline` was stale (423) while committed HEAD already held
+      424 sleeps; corrected to 424 (no new sleep introduced by this work).
+
+-> Constraint (pre-existing, NOT tiers-3): `make ze-validate-commands` reports 5
+`ze-firewall-irr-cmd` commands with no handler (from the committed firewall-IRR
+feature `f439d7066`/`d9afefd2d`). The `all.go` diff shows firewall/irr untouched by
+this work, and the validator lists zero `bfd/sysctl/sysrib` problems, so tiers-3 adds
+nothing here; this gap is the firewall-IRR feature's to close and blocks `ze-verify`
+independently of this migration.
+
+Remaining: tiers-4 (borderline `ike`), tiers-5 (Path B preconditions / the infra
+core-vs-host classification in the Open Design Decision + Phase 5 analysis below).
 
 ## Open Design Decision (resolve at child-spec time)
 

@@ -1393,7 +1393,7 @@ in the traditional sense). Run them periodically or before releases.
 <!-- source: internal/component/bgp/wireu/prefix_fuzz_test.go -- NLRI prefix fuzz targets -->
 <!-- source: internal/component/config/fuzz_test.go -- config parser fuzz targets -->
 <!-- source: internal/component/l2tp/ -- L2TP wire fuzz targets -->
-<!-- source: internal/plugins/bfd/ -- BFD packet/auth fuzz targets -->
+<!-- source: internal/component/bfd/ -- BFD packet/auth fuzz targets -->
 <!-- source: internal/component/ppp/ -- PPP frame/protocol fuzz targets -->
 
 ### Writing a New Fuzz Target

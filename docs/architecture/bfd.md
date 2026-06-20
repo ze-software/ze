@@ -9,17 +9,17 @@ Service is live. Session keying includes local address for multi-hop uniqueness.
 
 | Area | Path |
 |------|------|
-| Plugin entry | `internal/plugins/bfd/bfd.go`, `internal/plugins/bfd/register.go` |
-| Public API types | `internal/plugins/bfd/api/` |
-| Wire codec | `internal/plugins/bfd/packet/` |
-| Session FSM + timers | `internal/plugins/bfd/session/` |
-| UDP and loopback transports | `internal/plugins/bfd/transport/` |
-| Express-loop runtime | `internal/plugins/bfd/engine/` |
-| YANG schema | `internal/plugins/bfd/yang/ze-bfd-conf.yang` |
+| Plugin entry | `internal/component/bfd/bfd.go`, `internal/component/bfd/register.go` |
+| Public API types | `internal/component/bfd/api/` |
+| Wire codec | `internal/component/bfd/packet/` |
+| Session FSM + timers | `internal/component/bfd/session/` |
+| UDP and loopback transports | `internal/component/bfd/transport/` |
+| Express-loop runtime | `internal/component/bfd/engine/` |
+| YANG schema | `internal/component/bfd/yang/ze-bfd-conf.yang` |
 | Reference RFCs | `rfc/short/rfc5880.md`, `rfc5881.md`, `rfc5882.md`, `rfc5883.md` |
 | Deep-dive research | `docs/research/bfd-implementation-guide.md` |
 
-<!-- source: internal/plugins/bfd/ -- plugin layout -->
+<!-- source: internal/component/bfd/ -- plugin layout -->
 
 ## Design
 
@@ -32,8 +32,8 @@ value into a `packet.Control` struct without allocation, drive the
 pool buffer via `Control.WriteTo(buf, off) int`. No `make([]byte, ...)` runs
 on the per-packet hot path.
 
-<!-- source: internal/plugins/bfd/packet/control.go -- ParseControl, WriteTo -->
-<!-- source: internal/plugins/bfd/packet/pool.go -- Acquire, Release -->
+<!-- source: internal/component/bfd/packet/control.go -- ParseControl, WriteTo -->
+<!-- source: internal/component/bfd/packet/pool.go -- Acquire, Release -->
 
 ### Express-loop runtime
 
@@ -50,8 +50,8 @@ looks indistinguishable from a real failure. Keeping the hot path
 allocation-free and pinned to one goroutine minimises GC pressure on the
 session-driving thread.
 
-<!-- source: internal/plugins/bfd/engine/loop.go -- run, tick, handleInbound -->
-<!-- source: internal/plugins/bfd/engine/engine.go -- Loop type -->
+<!-- source: internal/component/bfd/engine/loop.go -- run, tick, handleInbound -->
+<!-- source: internal/component/bfd/engine/engine.go -- Loop type -->
 
 ### Session lookup
 
@@ -68,7 +68,7 @@ the session map (a tempting shortcut) is non-deterministic across Go's
 randomised map iteration order — two sessions sharing the same `(peer, mode)`
 but differing by interface/VRF would race for the first incoming packet.
 
-<!-- source: internal/plugins/bfd/engine/engine.go -- firstPacketKey, firstPacketIndex -->
+<!-- source: internal/component/bfd/engine/engine.go -- firstPacketKey, firstPacketIndex -->
 
 ### Discriminator allocation
 
@@ -79,7 +79,7 @@ checking `byDiscr` for collisions before assigning. After 2³² attempts it
 returns `ErrDiscriminatorSpaceExhausted`. The walk is O(N) in live session
 count, which only matters at session creation time and is bounded by config.
 
-<!-- source: internal/plugins/bfd/engine/engine.go -- allocateDiscriminatorLocked -->
+<!-- source: internal/component/bfd/engine/engine.go -- allocateDiscriminatorLocked -->
 
 ### Lock order
 
@@ -92,7 +92,7 @@ capacity check (`trySendStateChange`) so a slow consumer cannot stall the
 loop. The single-writer invariant (only the express loop writes to subscriber
 channels) keeps the `len/cap` precheck race-free.
 
-<!-- source: internal/plugins/bfd/engine/engine.go -- Loop, makeNotify, trySendStateChange -->
+<!-- source: internal/component/bfd/engine/engine.go -- Loop, makeNotify, trySendStateChange -->
 
 ### Timer arithmetic
 
@@ -110,7 +110,7 @@ runs in microseconds because RFC 5880 expresses every interval in
 microseconds; converting to milliseconds anywhere on the hot path produces
 sessions that run 1000× off-rate.
 
-<!-- source: internal/plugins/bfd/session/timers.go -- DetectionInterval, TransmitInterval -->
+<!-- source: internal/component/bfd/session/timers.go -- DetectionInterval, TransmitInterval -->
 
 ### Slow start and Poll/Final
 
@@ -126,8 +126,8 @@ ticks do not see a stale past time. RFC 5880 §6.8.1's requirement to clear
 on peer-signaled Down (a peer-signaled Down still leaves the peer reachable
 and clearing the discriminator would force an unnecessary handshake reset).
 
-<!-- source: internal/plugins/bfd/session/fsm.go -- onStateChange -->
-<!-- source: internal/plugins/bfd/session/timers.go -- CheckDetection -->
+<!-- source: internal/component/bfd/session/fsm.go -- onStateChange -->
+<!-- source: internal/component/bfd/session/timers.go -- CheckDetection -->
 
 ### Memory lifecycle
 
@@ -144,9 +144,9 @@ The `packet.Buf` type wraps `*[]byte` so the same pointer round-trips through
 The benchmark `BenchmarkRoundTrip` measures **0 B/op, 0 allocs/op** at ~60
 ns/op for the full Acquire → WriteTo → ParseControl → Release cycle.
 
-<!-- source: internal/plugins/bfd/packet/pool.go -- Buf, Acquire, Release -->
-<!-- source: internal/plugins/bfd/transport/udp.go -- readLoop -->
-<!-- source: internal/plugins/bfd/packet/bench_test.go -- BenchmarkRoundTrip -->
+<!-- source: internal/component/bfd/packet/pool.go -- Buf, Acquire, Release -->
+<!-- source: internal/component/bfd/transport/udp.go -- readLoop -->
+<!-- source: internal/component/bfd/packet/bench_test.go -- BenchmarkRoundTrip -->
 
 ## Wire format
 
@@ -160,9 +160,9 @@ transition table (`session.applyTransitionLocked`). Every reject path returns
 a typed error so a fuzz harness can assert that no malformed input slips
 through; `FuzzParseControl` and `FuzzParseAuth` cover this.
 
-<!-- source: internal/plugins/bfd/packet/control.go -- ParseControl reception checks -->
-<!-- source: internal/plugins/bfd/session/fsm.go -- applyTransitionLocked -->
-<!-- source: internal/plugins/bfd/packet/fuzz_test.go -- fuzz harnesses -->
+<!-- source: internal/component/bfd/packet/control.go -- ParseControl reception checks -->
+<!-- source: internal/component/bfd/session/fsm.go -- applyTransitionLocked -->
+<!-- source: internal/component/bfd/packet/fuzz_test.go -- fuzz harnesses -->
 
 ## What is not done
 
@@ -171,7 +171,7 @@ as follow-ups when wiring begins:
 
 | Gap | Required for | Notes |
 |-----|--------------|-------|
-| `RunBFDPlugin` real implementation | making the plugin reachable from a running ze | Pattern: `internal/plugins/sysrib/sysrib.go` |
+| `RunBFDPlugin` real implementation | making the plugin reachable from a running ze | Pattern: `internal/component/sysrib/sysrib.go` |
 | `make generate` to add to `internal/component/plugin/all/all.go` | plugin auto-load on engine startup | The `register.go` warning comment exists to prevent accidental wiring |
 | GTSM TTL extraction (`IP_RECVTTL`/`IPV6_RECVHOPLIMIT`) | RFC 5881 §5 single-hop spoofing defence | Transport sets `Inbound.TTL = 0`; engine must enforce TTL=255 once available |
 | Outbound TTL=255 | Peer's GTSM check passing | `IP_TTL` setsockopt |
@@ -195,31 +195,31 @@ are all merged. The production path is now:
 
 | Layer | File | Responsibility |
 |-------|------|----------------|
-| Transport open | `internal/plugins/bfd/transport/udp.go` | `net.ListenConfig.ListenPacket` with a Control callback that invokes `applySocketOptions`. |
-| Socket options | `internal/plugins/bfd/transport/udp_linux.go` | `IP_RECVTTL`, `IP_TTL=255`, `SO_BINDTODEVICE` (Linux only). |
-| Packet recv | `internal/plugins/bfd/transport/udp.go` -- `readLoop` | `ReadMsgUDPAddrPort` + `parseReceivedTTL` populate `Inbound.TTL`. |
-| TTL gate | `internal/plugins/bfd/engine/loop.go` -- `passesTTLGate` | RFC 5881 §5 single-hop TTL=255 and RFC 5883 §5 multi-hop min-TTL. |
-| Jitter | `internal/plugins/bfd/engine/engine.go` -- `applyJitter` | RFC 5880 §6.8.7 [0, 25%) reduction, clamped [10%, 25%) when `detect-multiplier=1`. |
-| Device choice | `internal/plugins/bfd/bfd.go` -- `resolveLoopDevices` | Per-loop `SO_BINDTODEVICE` target derived from pinned sessions. |
+| Transport open | `internal/component/bfd/transport/udp.go` | `net.ListenConfig.ListenPacket` with a Control callback that invokes `applySocketOptions`. |
+| Socket options | `internal/component/bfd/transport/udp_linux.go` | `IP_RECVTTL`, `IP_TTL=255`, `SO_BINDTODEVICE` (Linux only). |
+| Packet recv | `internal/component/bfd/transport/udp.go` -- `readLoop` | `ReadMsgUDPAddrPort` + `parseReceivedTTL` populate `Inbound.TTL`. |
+| TTL gate | `internal/component/bfd/engine/loop.go` -- `passesTTLGate` | RFC 5881 §5 single-hop TTL=255 and RFC 5883 §5 multi-hop min-TTL. |
+| Jitter | `internal/component/bfd/engine/engine.go` -- `applyJitter` | RFC 5880 §6.8.7 [0, 25%) reduction, clamped [10%, 25%) when `detect-multiplier=1`. |
+| Device choice | `internal/component/bfd/bfd.go` -- `resolveLoopDevices` | Per-loop `SO_BINDTODEVICE` target derived from pinned sessions. |
 
 ## Stage 4 complete (operator UX)
 
 Stage 4 adds the operator-facing surface on top of the engine Snapshot:
 three `show bfd` commands and five `ze_bfd_*` Prometheus metrics.
-<!-- source: internal/plugins/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
+<!-- source: internal/component/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
 <!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
-<!-- source: internal/plugins/bfd/metrics.go — bfdMetrics, metricsHook, refreshSessionsGauge -->
+<!-- source: internal/component/bfd/metrics.go — bfdMetrics, metricsHook, refreshSessionsGauge -->
 
 | Layer | File | Responsibility |
 |-------|------|----------------|
-| Snapshot types | `internal/plugins/bfd/api/snapshot.go` | `SessionState`, `TransitionRecord`, `ProfileState` |
-| Engine Snapshot | `internal/plugins/bfd/engine/snapshot.go` | `Loop.Snapshot`, `Loop.SessionDetail`, `sessionEntry.snapshot` |
-| Transition ring | `internal/plugins/bfd/engine/engine.go` | `sessionEntry.recordTransition` (`api.TransitionHistoryDepth=8`) |
-| Metrics hook | `internal/plugins/bfd/engine/engine.go` | `Loop.SetMetricsHook`, `MetricsHook` interface |
-| Prometheus wiring | `internal/plugins/bfd/metrics.go` | `bindMetricsRegistry`, `metricsHook`, `refreshSessionsGauge` |
-| Service surface | `internal/plugins/bfd/api/service.go` | `Snapshot`, `SessionDetail`, `Profiles` |
+| Snapshot types | `internal/component/bfd/api/snapshot.go` | `SessionState`, `TransitionRecord`, `ProfileState` |
+| Engine Snapshot | `internal/component/bfd/engine/snapshot.go` | `Loop.Snapshot`, `Loop.SessionDetail`, `sessionEntry.snapshot` |
+| Transition ring | `internal/component/bfd/engine/engine.go` | `sessionEntry.recordTransition` (`api.TransitionHistoryDepth=8`) |
+| Metrics hook | `internal/component/bfd/engine/engine.go` | `Loop.SetMetricsHook`, `MetricsHook` interface |
+| Prometheus wiring | `internal/component/bfd/metrics.go` | `bindMetricsRegistry`, `metricsHook`, `refreshSessionsGauge` |
+| Service surface | `internal/component/bfd/api/service.go` | `Snapshot`, `SessionDetail`, `Profiles` |
 | CLI handlers | `internal/component/bfd/cmd/bfd.go` | `handleShowSessions`, `handleShowSession`, `handleShowProfile` |
-| YANG API | `internal/plugins/bfd/yang/ze-bfd-api.yang` | `show-sessions`, `show-session`, `show-profile` RPCs |
+| YANG API | `internal/component/bfd/yang/ze-bfd-api.yang` | `show-sessions`, `show-session`, `show-profile` RPCs |
 | YANG cmd tree | `internal/component/cmd/bfd/yang/ze-bfd-cmd.yang` | augments `clishowcmd:show` with `bfd { sessions, session, profile }` |
 
 ### Next sessions: pick from these specs
@@ -249,10 +249,10 @@ deliberate:
 ## Testing
 
 ```
-go test -race ./internal/plugins/bfd/...
-go test -fuzz=FuzzParseControl -fuzztime=10s ./internal/plugins/bfd/packet/
-go test -fuzz=FuzzParseAuth    -fuzztime=10s ./internal/plugins/bfd/packet/
-go test -run=^$ -bench=BenchmarkRoundTrip -benchmem ./internal/plugins/bfd/packet/
+go test -race ./internal/component/bfd/...
+go test -fuzz=FuzzParseControl -fuzztime=10s ./internal/component/bfd/packet/
+go test -fuzz=FuzzParseAuth    -fuzztime=10s ./internal/component/bfd/packet/
+go test -run=^$ -bench=BenchmarkRoundTrip -benchmem ./internal/component/bfd/packet/
 ```
 
 The engine test (`TestLoopbackHandshake`) creates two paired `Loop`

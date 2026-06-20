@@ -28,13 +28,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
 	zestorage "codeberg.org/thomas-mangin/ze/internal/component/storage"
+	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/telemetry/collector"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/identity"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 

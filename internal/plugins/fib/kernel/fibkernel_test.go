@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/report"
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 )
 
 // mockBackend records route operations for testing.

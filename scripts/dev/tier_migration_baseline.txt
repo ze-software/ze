@@ -4,6 +4,3 @@
 # means full engine-placement enforcement with zero exceptions.
 # See ai/rules/module-tiers.md and plan/spec-tiers-0-umbrella.md.
 # columns: <current-dir>\t<expected-area>\t<resolving-child-spec>
-internal/plugins/bfd	internal/component	spec-tiers-3
-internal/plugins/sysctl	internal/component	spec-tiers-3
-internal/plugins/sysrib	internal/component	spec-tiers-3

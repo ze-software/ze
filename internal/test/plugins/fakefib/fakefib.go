@@ -13,11 +13,11 @@ import (
 	"sync/atomic"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/stringsx"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )

@@ -86,7 +86,7 @@ add the annotation to the new files.
 
 | Directory | Annotation |
 |-----------|------------|
-| `internal/plugins/bfd` | `// Design: docs/guide/bfd.md - BFD plugin` |
+| `internal/component/bfd` | `// Design: docs/guide/bfd.md - BFD plugin` |
 | `internal/plugins/connected` | `// Design: docs/guide/redistribution.md - connected route redistribution` |
 | `internal/plugins/fib` | `// Design: docs/architecture/core-design.md - FIB plugins` |
 | `internal/plugins/firewall` | `// Design: docs/guide/firewall.md - firewall backends` |
@@ -94,8 +94,8 @@ add the annotation to the new files.
 | `internal/plugins/kernel` | `// Design: docs/guide/redistribution.md - kernel route redistribution` |
 | `internal/plugins/policyroute` | `// Design: docs/guide/policy-routing.md - policy routing` |
 | `internal/plugins/static` | `// Design: docs/guide/static-routes.md - static routes` |
-| `internal/plugins/sysctl` | `// Design: docs/guide/environment-variables.md - kernel tunables` |
-| `internal/plugins/sysrib` | `// Design: docs/architecture/core-design.md - system RIB` |
+| `internal/component/sysctl` | `// Design: docs/guide/environment-variables.md - kernel tunables` |
+| `internal/component/sysrib` | `// Design: docs/architecture/core-design.md - system RIB` |
 | `internal/plugins/traffic` | `// Design: docs/guide/traffic-control.md - traffic backends` |
 
 ### `internal/core/`

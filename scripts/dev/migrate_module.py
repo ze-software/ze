@@ -8,7 +8,10 @@ make safe mechanically.
 
 What it does (in --apply):
   1. filesystem move of the directory (shutil.move; NEVER `git mv` -- git add/rm/mv
-     are forbidden from tooling, the user runs the commit script afterwards).
+     are forbidden from tooling, the user runs the commit script afterwards). When
+     the destination directory already exists and no file path collides (a MERGE,
+     e.g. an engine joining its `cmd/` subpackage that already occupies the target
+     name), the source's files are merged into it; a real file collision is refused.
   2. repo-wide rewrite of quoted, module-qualified Go import paths, boundary-safe
      (only the exact package and its subpackages; `<name>2` is never touched).
   3. edit of the generator's `pluginDirs` literal in scripts/codegen/plugin_imports.go
@@ -98,10 +101,13 @@ def module_path(root: str) -> str:
     raise SystemExit("go.mod: no module line found")
 
 
-def find_source(root: str, name: str) -> str:
+def find_source(root: str, name: str, to: str | None = None) -> str:
     """Return the area ('internal/component' or 'internal/plugins') that holds NAME.
 
-    Errors if it is in both or neither -- the mover must be unambiguous.
+    Errors if NAME is in neither area. If NAME is in BOTH (a merge: e.g. the engine
+    lives in one area and its `cmd/` subpackage already occupies the same name in the
+    other), the move is unambiguous only when --to names the destination -- the source
+    is then the OTHER area. Without --to a both-areas name is refused.
     """
     here = [a for a in AREAS if os.path.isdir(os.path.join(root, a, name))]
     if len(here) == 1:
@@ -110,9 +116,44 @@ def find_source(root: str, name: str) -> str:
         raise SystemExit(
             f"migrate_module: '{name}' not found under {' or '.join(AREAS)}/"
         )
+    if to in AREAS:  # in both areas -- source is whichever is not the destination
+        return next(a for a in AREAS if a != to)
     raise SystemExit(
-        f"migrate_module: '{name}' exists in BOTH areas ({', '.join(here)}); refusing"
+        f"migrate_module: '{name}' exists in BOTH areas ({', '.join(here)}); "
+        "pass --to to disambiguate (the source is the other area)"
     )
+
+
+def merge_conflicts(src_abs: str, dst_abs: str) -> list:
+    """Relative file paths present in BOTH trees -- a real merge conflict the mover
+    cannot resolve. Empty means every source file slots into the destination tree."""
+    conflicts = []
+    for dirpath, dirs, files in os.walk(src_abs):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        rel_dir = os.path.relpath(dirpath, src_abs)
+        for f in files:
+            rel = f if rel_dir == "." else os.path.join(rel_dir, f)
+            if os.path.exists(os.path.join(dst_abs, rel)):
+                conflicts.append(rel)
+    return sorted(conflicts)
+
+
+def do_merge(src_abs: str, dst_abs: str) -> None:
+    """Move every file from src into dst (creating directories), then remove the
+    now-empty source tree. Callers MUST have verified merge_conflicts() is empty."""
+    for dirpath, dirs, files in os.walk(src_abs):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        rel_dir = os.path.relpath(dirpath, src_abs)
+        for f in files:
+            s = os.path.join(dirpath, f)
+            rel = f if rel_dir == "." else os.path.join(rel_dir, f)
+            d = os.path.join(dst_abs, rel)
+            os.makedirs(os.path.dirname(d), exist_ok=True)
+            shutil.move(s, d)
+    for dirpath, _dirs, files in os.walk(src_abs):  # only empty dirs may remain
+        if files:
+            raise SystemExit(f"do_merge: file left behind under {dirpath}: {files}")
+    shutil.rmtree(src_abs)
 
 
 # --------------------------------------------------------------------------- #
@@ -276,10 +317,23 @@ def read_blank_imports(path: str) -> set:
     return set(re.findall(r'_\s+"([^"]+)"', txt))
 
 
+def _remap(path: str, frm: str, to: str) -> str:
+    """Boundary-safe path-prefix remap: rewrite FRM->TO only at a package boundary,
+    so a sibling like `<name>-cmd` or `<name>2` is never touched."""
+    return re.sub(re.escape(frm) + r"(?![A-Za-z0-9-])", to, path)
+
+
 def norm_back(path: str, dst_rel: str, src_rel: str) -> str:
-    """Map a moved import path back to its pre-move form, boundary-safe so a
-    sibling like `<name>-cmd` is never rewritten."""
-    return re.sub(re.escape(dst_rel) + r"(?![A-Za-z0-9-])", src_rel, path)
+    """Map a moved import path back to its pre-move form (dst->src)."""
+    return _remap(path, dst_rel, src_rel)
+
+
+def norm_fwd(path: str, src_rel: str, dst_rel: str) -> str:
+    """Map a pre-move import path to its post-move form (src->dst). Used by the apply
+    set-diff: normalising the BEFORE set forward (rather than the AFTER set backward)
+    leaves pre-existing destination paths -- e.g. a `cmd/` subpackage already at the
+    merge target -- untouched, so a merge reports no false drop."""
+    return _remap(path, src_rel, dst_rel)
 
 
 def run_goimports(root: str, module: str, plan: dict) -> None:
@@ -316,7 +370,7 @@ def run_generator(root: str) -> int:
 # plan + drive
 # --------------------------------------------------------------------------- #
 def build_plan(root: str, module: str, name: str, to: str | None) -> dict:
-    src_area = find_source(root, name)
+    src_area = find_source(root, name, to)
     dst_area = (
         to
         if to
@@ -343,6 +397,11 @@ def build_plan(root: str, module: str, name: str, to: str | None) -> dict:
     rpc_pkgs = detect_rpc_packages(root, src_rel)
     rpc_hazard = bool(rpc_pkgs) and dst_area == "internal/plugins"
     residual = detect_residual_refs(root, module, src_rel)
+    dst_abs = os.path.join(root, dst_rel)
+    is_merge = os.path.isdir(dst_abs)
+    conflicts = (
+        merge_conflicts(os.path.join(root, src_rel), dst_abs) if is_merge else []
+    )
 
     return {
         "name": name,
@@ -357,6 +416,8 @@ def build_plan(root: str, module: str, name: str, to: str | None) -> dict:
         "rpc_pkgs": rpc_pkgs,
         "rpc_hazard": rpc_hazard,
         "residual": residual,
+        "is_merge": is_merge,
+        "conflicts": conflicts,
     }
 
 
@@ -364,7 +425,19 @@ def print_plan(plan: dict, apply: bool) -> None:
     head = "APPLYING" if apply else "DRY RUN (no changes) --"
     print(f"{head} move {plan['src_rel']}  ->  {plan['dst_rel']}\n")
 
-    print(f"1. filesystem move: {plan['src_rel']}/  ->  {plan['dst_rel']}/")
+    if plan["is_merge"]:
+        print(
+            f"1. filesystem MERGE: {plan['src_rel']}/  ->  {plan['dst_rel']}/ "
+            "(destination already exists)"
+        )
+        if plan["conflicts"]:
+            print("   REFUSED: these paths exist in BOTH trees (real conflict):")
+            for c in plan["conflicts"]:
+                print(f"     ! {c}")
+        else:
+            print("   no file-level conflict; source files merge into the tree")
+    else:
+        print(f"1. filesystem move: {plan['src_rel']}/  ->  {plan['dst_rel']}/")
 
     total = sum(c for _, c in plan["import_hits"])
     print(
@@ -412,27 +485,37 @@ def print_plan(plan: dict, apply: bool) -> None:
 def apply_plan(root: str, module: str, plan: dict) -> int:
     src = os.path.join(root, plan["src_rel"])
     dst = os.path.join(root, plan["dst_rel"])
-    if os.path.exists(dst):
+    if plan["is_merge"]:
+        if plan["conflicts"]:
+            raise SystemExit(
+                "migrate_module: cannot merge -- paths exist in both trees: "
+                + ", ".join(plan["conflicts"])
+            )
+    elif os.path.exists(dst):
         raise SystemExit(
             f"migrate_module: destination already exists: {plan['dst_rel']}"
         )
     all_go = os.path.join(root, ALL_GO)
     before = read_blank_imports(all_go)
 
-    shutil.move(src, dst)
+    if plan["is_merge"]:
+        do_merge(src, dst)
+    else:
+        shutil.move(src, dst)
     rewrite_go_imports(root, plan["old_prefix"], plan["new_prefix"], apply=True)
     edit_plugin_dirs(root, plan["name"], os.path.dirname(plan["dst_rel"]), apply=True)
     rc = run_generator(root)
     run_goimports(root, module, plan)
 
-    # Prove the registration inventory is preserved (NOTE-5): normalise the new
-    # all.go back to old paths and diff against the pre-move set.
-    after = {
-        norm_back(p, plan["dst_rel"], plan["src_rel"])
-        for p in read_blank_imports(all_go)
-    }
-    dropped = sorted(before - after)
-    added = sorted(after - before)
+    # Prove the registration inventory is preserved (NOTE-5): normalise the BEFORE
+    # set FORWARD (src->dst, boundary-safe) and diff against the raw after set.
+    # Forward beats backward for a merge: pre-existing destination paths (an already
+    # present cmd/ subpackage) stay put under forward normalisation, so they are not
+    # reported as a spurious drop.
+    after = read_blank_imports(all_go)
+    before_n = {norm_fwd(p, plan["src_rel"], plan["dst_rel"]) for p in before}
+    dropped = sorted(before_n - after)
+    added = sorted(after - before_n)
     if dropped:
         print(
             "\nWARNING: all.go DROPPED registrations (investigate before commit!):",
@@ -608,6 +691,52 @@ def selftest() -> int:
         plan2 = build_plan(root, mod, "platform", "internal/component")
         assert not plan2["rpc_hazard"], "move-in must not flag rpc hazard"
         assert "internal/component/platform" in plan2["pd_after"], "pd entry not added"
+
+        # --- MERGE: an engine in plugins joins a cmd/ already at the component name ---
+        _w(root, "internal/plugins/widget/w.go", "package widget\n")
+        _w(root, "internal/plugins/widget/yang/y.go", "package yang\n")
+        _w(root, "internal/component/widget/cmd/c.go", "package cmd\n")
+        wplan = build_plan(root, mod, "widget", "internal/component")
+        assert wplan["src_rel"] == "internal/plugins/widget", wplan["src_rel"]
+        assert wplan["is_merge"], "merge not detected (dst dir exists)"
+        assert wplan["conflicts"] == [], wplan["conflicts"]
+        assert "internal/component/widget" in wplan["pd_after"], "pd entry not added"
+        # forward-normalise: pre-existing cmd/ path untouched, moved subtree mapped.
+        assert (
+            norm_fwd(
+                f"{mod}/internal/component/widget/cmd",
+                "internal/plugins/widget",
+                "internal/component/widget",
+            )
+            == f"{mod}/internal/component/widget/cmd"
+        ), "norm_fwd corrupted a pre-existing destination path"
+        assert (
+            norm_fwd(
+                f"{mod}/internal/plugins/widget/yang",
+                "internal/plugins/widget",
+                "internal/component/widget",
+            )
+            == f"{mod}/internal/component/widget/yang"
+        ), "norm_fwd failed to map the moved subtree"
+        do_merge(
+            os.path.join(root, "internal/plugins/widget"),
+            os.path.join(root, "internal/component/widget"),
+        )
+        assert os.path.isfile(os.path.join(root, "internal/component/widget/w.go"))
+        assert os.path.isfile(os.path.join(root, "internal/component/widget/yang/y.go"))
+        assert os.path.isfile(
+            os.path.join(root, "internal/component/widget/cmd/c.go")
+        ), "pre-existing cmd/ lost in merge"
+        assert not os.path.exists(os.path.join(root, "internal/plugins/widget")), (
+            "source tree not removed after merge"
+        )
+
+        # --- MERGE conflict: the same relative file in both trees is refused ---
+        _w(root, "internal/plugins/gadget/dup.go", "package gadget\n")
+        _w(root, "internal/component/gadget/dup.go", "package gadget\n")
+        gplan = build_plan(root, mod, "gadget", "internal/component")
+        assert gplan["is_merge"], "gadget merge not detected"
+        assert gplan["conflicts"] == ["dup.go"], gplan["conflicts"]
 
     print("migrate_module selftest OK")
     return 0

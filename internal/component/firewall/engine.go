@@ -18,8 +18,8 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )

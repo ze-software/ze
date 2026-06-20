@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 )
 
 // parseBatch is a test helper that builds a typed (system-rib, best-change)

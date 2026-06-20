@@ -142,7 +142,7 @@ Best-path decisions flow through the bus:
 1. **BGP RIB** detects best-path changes, publishes to `bgp-rib/best-change/bgp`
 2. **System RIB** selects system-wide best by administrative distance, publishes to `system-rib/best-change`
 3. **FIB Kernel** programs OS routes via netlink (`RTPROT_ZE=250`)
-<!-- source: internal/plugins/sysrib/sysrib.go -- system RIB, admin distance selection -->
+<!-- source: internal/component/sysrib/sysrib.go -- system RIB, admin distance selection -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- RTPROT_ZE, netlink backend -->
 
 ## Programs

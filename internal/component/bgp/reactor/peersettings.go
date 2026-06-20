@@ -284,7 +284,7 @@ type PeerSettings struct {
 	// `bgp peer connection bfd { ... }`. nil means the peer does not
 	// opt into BFD; the reactor skips all BFD client wiring for this
 	// peer. Non-nil means the BGP peer lifecycle calls
-	// internal/plugins/bfd/api.GetService() when the session
+	// internal/component/bfd/api.GetService() when the session
 	// transitions to Established and tears the session down on a
 	// BFD Down event.
 	BFD *BFDSettings

@@ -49,9 +49,9 @@ The metrics surface is now larger than when this decision was first written. Ze 
 
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go - reactorMetrics -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go - SetMetricsRegistry -->
-<!-- source: internal/plugins/sysrib/sysrib.go - SetMetricsRegistry -->
+<!-- source: internal/component/sysrib/sysrib.go - SetMetricsRegistry -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go - SetMetricsRegistry -->
-<!-- source: internal/plugins/bfd/metrics.go - bindMetricsRegistry -->
+<!-- source: internal/component/bfd/metrics.go - bindMetricsRegistry -->
 <!-- source: internal/component/subscriber/metrics.go - BindMetrics -->
 <!-- source: internal/component/ike/engine/metrics.go - RegisterMetrics -->
 <!-- source: internal/component/host/metrics.go - RegisterMetrics -->

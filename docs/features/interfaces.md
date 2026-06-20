@@ -142,7 +142,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 <!-- source: internal/plugins/iface/netlink/wireguard_linux.go — CreateWireguardDevice (netlink), ConfigureWireguardDevice and GetWireguardDevice (wgctrl) -->
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go — netlink multicast subscription -->
 <!-- source: internal/plugins/iface/netlink/bridge_linux.go — bridge ports, STP via sysfs -->
-<!-- source: internal/plugins/sysctl/backend_linux.go -- per-interface sysctl writes -->
+<!-- source: internal/component/sysctl/backend_linux.go -- per-interface sysctl writes -->
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go — traffic mirroring via tc -->
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go — VPP Backend implementation (lazy GoVPP channel) -->
 <!-- source: internal/plugins/iface/vpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump and SwInterfaceSetMacAddress -->

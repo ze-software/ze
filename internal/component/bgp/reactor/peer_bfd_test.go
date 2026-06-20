@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
+	"codeberg.org/thomas-mangin/ze/internal/component/bfd/packet"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bfd/packet"
 )
 
 // fakeBFDHandle is a minimal SessionHandle implementation used by the

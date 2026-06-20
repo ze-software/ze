@@ -20,7 +20,7 @@
 #     Source=IS-IS, AdminDistance 115; forward-remove on loss),
 #     TestISISInstallShrinkECMP, TestISISSPFShortestPath / ECMP / OverloadTransit,
 #     TestISISMetricWidth, and the committed sysrib path-group expansion
-#     TestSysribECMPPathGroup / TestSysribSinglePathNoECMP (internal/plugins/sysrib);
+#     TestSysribECMPPathGroup / TestSysribSinglePathNoECMP (internal/component/sysrib);
 #   - the QEMU integration tests + the FRR interop scenarios isis-p2p-frr /
 #     isis-lan-dis-frr (owned by spec-isis-13), which drive a real adjacency so a
 #     remote prefix reaches the kernel.

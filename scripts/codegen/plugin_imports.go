@@ -120,11 +120,14 @@ func readModulePath(path string) (string, error) {
 
 // pluginDirs lists directories (relative to repo root) that contain plugin register.go files.
 var pluginDirs = []string{
+	"internal/component/bfd",
 	"internal/component/bgp/plugin",
 	"internal/component/bgp/plugins",
 	"internal/component/bgp/reactor/filter",
 	"internal/component/firewall/plugins",
 	"internal/component/iface",
+	"internal/component/sysctl",
+	"internal/component/sysrib",
 	"internal/component/traffic",
 	"internal/component/vpp",
 	"internal/plugins",

@@ -2,7 +2,7 @@
 #
 # VALIDATES: spec-bfd-1-wiring -- BFD plugin is registered with the
 #            CLI dispatcher (its register.go init() ran on startup).
-# PREVENTS:  Forgetting to blank-import internal/plugins/bfd from the
+# PREVENTS:  Forgetting to blank-import internal/component/bfd from the
 #            generated all.go (which would silently drop the plugin).
 
 cmd=foreground:seq=1:exec=ze plugin bfd --features

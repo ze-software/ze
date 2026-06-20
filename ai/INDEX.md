@@ -317,7 +317,7 @@ Full index: `ai/LEARNED-INDEX.md`. All summaries: `plan/learned/`.
 | netdata, telemetry, prometheus, metrics, monitoring, collector | `docs/guide/monitoring.md`, `docs/features.md`, `plan/learned/653-netdata-os-collectors.md` |
 | DHCP, dhcp-server, lease, pool | `internal/plugins/dhcpserver/` (plugin), `ze-dhcp-server-conf.yang` |
 | NTP, time sync | `internal/plugins/ntp/` (plugin), `ze-ntp-conf.yang` |
-| sysctl, kernel tuning, profile | `internal/plugins/sysctl/` (plugin), `ze-sysctl-conf.yang` |
+| sysctl, kernel tuning, profile | `internal/component/sysctl/` (plugin), `ze-sysctl-conf.yang` |
 | firewall, nftables, NAT, masquerade | `internal/component/firewall/` (component), `ze-firewall-conf.yang` |
 | PPPoE, pppoe-client, access concentrator | `internal/component/pppoe/` (AC), `internal/component/iface/` (client), `ze-pppoe-conf.yang` |
 | wireguard, WireGuard, wg | `internal/component/iface/wireguard.go`, `ze-iface-conf.yang` |

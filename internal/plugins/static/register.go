@@ -9,11 +9,11 @@ import (
 	"os"
 	"sync"
 
+	bfdapi "codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/routingtable"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 	staticyang "codeberg.org/thomas-mangin/ze/internal/plugins/static/yang"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"

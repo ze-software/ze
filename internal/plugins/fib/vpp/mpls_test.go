@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 )
 
 func TestMPLSPush(t *testing.T) {

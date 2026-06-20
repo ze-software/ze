@@ -60,21 +60,21 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
 <!-- BEGIN GENERATED: arch-components (scripts/dev/arch_map.py; make ze-regen) -->
-46 directories under `internal/component/`:
+48 directories under `internal/component/`:
 
 aaa, api, audit, authz, bfd, bgp, cli, cmd, command, config, debug, diag,
 doctor, engine, firewall, gnmi, gokrazy, host, hub, iface, ike, ipsec, l2tp,
 lg, managed, mcp, mpls, ping, pki, plugin, ppp, pppoe, pppoeclient, radius,
-resolve, ssh, storage, subscriber, support, tacacs, telemetry, traceroute,
-traffic, update, vpp, web
+resolve, ssh, storage, subscriber, support, sysctl, sysrib, tacacs, telemetry,
+traceroute, traffic, update, vpp, web
 <!-- END GENERATED: arch-components -->
 
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
 <!-- BEGIN GENERATED: arch-system-plugins (scripts/dev/arch_map.py; make ze-regen) -->
-69 directories under `internal/plugins/`:
+66 directories under `internal/plugins/`:
 
-aaa-cmd, bfd, completion, config-archive-cmd, config-cli, config-schema,
+aaa-cmd, completion, config-archive-cmd, config-cli, config-schema,
 config-storage, config-yang, connect, connected, cos, crashes, debug,
 dhcpserver, diag, env, exabgp, explain, fib, firewall, flowexport,
 flowexport-cmd, flowspec-firewall, gnmi-cmd, host, host-cmd, iface,
@@ -82,8 +82,8 @@ ifacenetlink, imageserver, init, isis, kernel, l2tp-cmd, l2tpauthlocal,
 l2tpauthradius, l2tppool, l2tpshaper, ldp, ldp-cmd, local, log, meta,
 mpls-cmd, mrt, ntp, passwd, ping-cmd, pki-cmd, policyroute, pppoe-cmd,
 provision, resolve-cmd, routingtable, rsvpte, rsvpte-cmd, signal, skills,
-static, storage-cmd, subscriber-cmd, support, sysctl, sysrib, systemd,
-tftpserver, traceroute-cmd, traffic, traffic-cmd, update-cmd
+static, storage-cmd, subscriber-cmd, support, systemd, tftpserver,
+traceroute-cmd, traffic, traffic-cmd, update-cmd
 <!-- END GENERATED: arch-system-plugins -->
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.

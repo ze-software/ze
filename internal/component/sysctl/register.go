@@ -1,0 +1,443 @@
+package sysctl
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"maps"
+	"net"
+	"os"
+	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
+	sysctlyang "codeberg.org/thomas-mangin/ze/internal/component/sysctl/yang"
+	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
+)
+
+var (
+	errSysctlDescribeRequiresKeyArgument        = errors.New("sysctl describe: requires key argument")
+	errSysctlDescribeProfileRequiresProfileName = errors.New("sysctl describe-profile: requires profile name argument")
+	errSysctlSetRequiresKeyAndValue             = errors.New("sysctl set: requires key and value arguments")
+)
+
+// eventBusMu guards eventBusRef. An interface cannot be stored in
+// atomic.Pointer directly, so a mutex is used (same pattern as iface).
+var (
+	eventBusMu  sync.Mutex
+	eventBusRef ze.EventBus
+)
+
+func setEventBusRef(eb ze.EventBus) {
+	eventBusMu.Lock()
+	defer eventBusMu.Unlock()
+	eventBusRef = eb
+}
+
+func getEventBusRef() ze.EventBus {
+	eventBusMu.Lock()
+	defer eventBusMu.Unlock()
+	return eventBusRef
+}
+
+func init() {
+	_ = events.RegisterNamespace(sysctlevents.Namespace,
+		sysctlevents.EventDefault, sysctlevents.EventSet, sysctlevents.EventApplied,
+		sysctlevents.EventShowRequest, sysctlevents.EventShowResult,
+		sysctlevents.EventListRequest, sysctlevents.EventListResult,
+		sysctlevents.EventDescribeRequest, sysctlevents.EventDescribeResult,
+		sysctlevents.EventClearProfileDefaults,
+		sysctlevents.EventClearSourceDefaults,
+	)
+
+	reg := registry.Registration{
+		Name:                    "sysctl",
+		Description:             "Kernel tunable management: three-layer precedence, restore on stop",
+		Features:                "yang",
+		YANG:                    sysctlyang.ZeSysctlConfYANG,
+		ConfigRoots:             []string{configRoot},
+		InProcessConfigVerifier: verifySysctlConfig,
+		RunEngine:               runSysctlPlugin,
+		ConfigureEngineLogger: func(loggerName string) {
+			setLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureEventBus: func(eb any) {
+			if e, ok := eb.(ze.EventBus); ok {
+				setEventBusRef(e)
+			}
+		},
+	}
+	reg.CLIHandler = func(args []string) int {
+		cfg := cli.BaseConfig(&reg)
+		cfg.ConfigLogger = func(level string) {
+			setLogger(slogutil.PluginLogger(reg.Name, level))
+		}
+		return cli.RunPlugin(cfg, args)
+	}
+	if err := registry.Register(reg); err != nil {
+		fmt.Fprintf(os.Stderr, "sysctl: registration failed: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+const configRoot = "sysctl"
+
+func verifySysctlConfig(sections []sdk.ConfigSection) error {
+	for _, sec := range sections {
+		if sec.Root != configRoot {
+			continue
+		}
+		settings := parseSysctlConfig(sec.Data)
+		for key, value := range settings {
+			if err := validateKey(key); err != nil {
+				return err
+			}
+			if err := sysctlreg.CheckManaged(key); err != nil {
+				return err
+			}
+			if err := sysctlreg.Validate(key, value); err != nil {
+				return err
+			}
+		}
+		for _, prof := range parseSysctlProfileConfig(sec.Data) {
+			for _, setting := range prof.Settings {
+				if err := validateKey(setting.Key); err != nil {
+					return fmt.Errorf("profile %s: %w", prof.Name, err)
+				}
+				if err := sysctlreg.CheckManaged(setting.Key); err != nil {
+					return fmt.Errorf("profile %s: %w", prof.Name, err)
+				}
+				if err := sysctlreg.Validate(setting.Key, setting.Value); err != nil {
+					return fmt.Errorf("profile %s: %w", prof.Name, err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func runSysctlPlugin(conn net.Conn) int {
+	log := logger()
+	log.Debug("sysctl plugin starting")
+
+	p := sdk.NewWithConn("sysctl", conn)
+	defer func() { _ = p.Close() }()
+
+	be := newBackend()
+	s := newStore(be, log)
+
+	eb := getEventBusRef()
+
+	// Subscribe to EventBus events.
+	var unsubscribers []func()
+	if eb != nil {
+		unsubscribers = append(unsubscribers,
+			// Default events from other plugins.
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventDefault, events.AsString(func(payload string) {
+				var ev struct {
+					Key    string `json:"key"`
+					Value  string `json:"value"`
+					Source string `json:"source"`
+				}
+				if err := json.Unmarshal([]byte(payload), &ev); err != nil {
+					log.Warn("sysctl: bad default event", "err", err)
+					return
+				}
+				applied, err := s.setDefault(ev.Key, ev.Value, ev.Source)
+				if err != nil {
+					log.Warn("sysctl: default write failed", "key", ev.Key, "err", err)
+					return
+				}
+				if applied != "" {
+					if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, applied); emitErr != nil {
+						log.Debug("sysctl: applied emit failed", "err", emitErr)
+					}
+				}
+			})),
+			// Transient set events (from CLI).
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventSet, events.AsString(func(payload string) {
+				var ev struct {
+					Key   string `json:"key"`
+					Value string `json:"value"`
+				}
+				if err := json.Unmarshal([]byte(payload), &ev); err != nil {
+					log.Warn("sysctl: bad set event", "err", err)
+					return
+				}
+				applied, err := s.setTransient(ev.Key, ev.Value)
+				if err != nil {
+					log.Warn("sysctl: set failed", "key", ev.Key, "err", err)
+					return
+				}
+				if applied != "" {
+					if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, applied); emitErr != nil {
+						log.Debug("sysctl: applied emit failed", "err", emitErr)
+					}
+				}
+			})),
+			// Query: show active keys.
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventShowRequest, events.AsString(func(payload string) {
+				var req struct {
+					RequestID string `json:"request-id"`
+				}
+				_ = json.Unmarshal([]byte(payload), &req)
+				entriesJSON, _ := json.Marshal(s.showEntries())
+				resp, _ := json.Marshal(struct {
+					RequestID string `json:"request-id"`
+					Entries   string `json:"entries"`
+				}{RequestID: req.RequestID, Entries: string(entriesJSON)})
+				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventShowResult, string(resp)); err != nil {
+					log.Debug("sysctl: show-result emit failed", "err", err)
+				}
+			})),
+			// Query: list known keys.
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventListRequest, events.AsString(func(payload string) {
+				var req struct {
+					RequestID string `json:"request-id"`
+				}
+				_ = json.Unmarshal([]byte(payload), &req)
+				keysJSON, _ := json.Marshal(listKnownKeys())
+				resp, _ := json.Marshal(struct {
+					RequestID string `json:"request-id"`
+					Entries   string `json:"entries"`
+				}{RequestID: req.RequestID, Entries: string(keysJSON)})
+				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventListResult, string(resp)); err != nil {
+					log.Debug("sysctl: list-result emit failed", "err", err)
+				}
+			})),
+			// Clear profile defaults for an interface (before re-emission on reload).
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventClearProfileDefaults, events.AsString(func(payload string) {
+				var ev struct {
+					Interface string `json:"interface"`
+				}
+				if err := json.Unmarshal([]byte(payload), &ev); err != nil {
+					log.Warn("sysctl: bad clear-profile-defaults event", "err", err)
+					return
+				}
+				s.clearProfileDefaults(ev.Interface)
+			})),
+			// Clear all defaults from a named source (before re-emission on reload).
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventClearSourceDefaults, events.AsString(func(payload string) {
+				var ev struct {
+					Source string `json:"source"`
+				}
+				if err := json.Unmarshal([]byte(payload), &ev); err != nil {
+					log.Warn("sysctl: bad clear-source-defaults event", "err", err)
+					return
+				}
+				s.clearSourceDefaults(ev.Source)
+			})),
+			// Query: describe one key.
+			eb.Subscribe(sysctlevents.Namespace, sysctlevents.EventDescribeRequest, events.AsString(func(payload string) {
+				var req struct {
+					RequestID string `json:"request-id"`
+					Key       string `json:"key"`
+				}
+				_ = json.Unmarshal([]byte(payload), &req)
+				detailJSON, _ := json.Marshal(s.describeKey(req.Key))
+				resp, _ := json.Marshal(struct {
+					RequestID string `json:"request-id"`
+					Detail    string `json:"detail"`
+				}{RequestID: req.RequestID, Detail: string(detailJSON)})
+				if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDescribeResult, string(resp)); err != nil {
+					log.Debug("sysctl: describe-result emit failed", "err", err)
+				}
+			})),
+		)
+	}
+
+	// applyFromJSON parses sysctl config JSON and applies settings.
+	applyFromJSON := func(data string) error {
+		settings := parseSysctlConfig(data)
+		if len(settings) == 0 {
+			return nil
+		}
+		applied, errs := s.applyConfig(settings)
+		if len(errs) > 0 {
+			return fmt.Errorf("sysctl config: %w", errs[0])
+		}
+		if eb != nil {
+			for _, payload := range applied {
+				if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, payload); emitErr != nil {
+					log.Debug("sysctl: applied emit failed", "err", emitErr)
+				}
+			}
+		}
+		log.Info("sysctl config applied", "keys", len(settings))
+		return nil
+	}
+
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		for _, sec := range sections {
+			if sec.Root != configRoot {
+				continue
+			}
+			// Register user-defined profiles before applying settings.
+			for _, prof := range parseSysctlProfileConfig(sec.Data) {
+				sysctlreg.RegisterProfile(prof)
+				log.Info("sysctl: registered user profile", "name", prof.Name, "keys", len(prof.Settings))
+			}
+			return applyFromJSON(sec.Data)
+		}
+		return nil
+	})
+
+	p.OnConfigVerify(verifySysctlConfig)
+
+	var activeJournal *sdk.Journal
+
+	p.OnConfigApply(func(sections []sdk.ConfigDiffSection) error {
+		for _, sec := range sections {
+			if sec.Root != configRoot {
+				continue
+			}
+			// Deregister profiles that were removed from config.
+			for _, prof := range parseSysctlProfileConfig(sec.Removed) {
+				sysctlreg.DeregisterProfile(prof.Name)
+				log.Info("sysctl: deregistered user profile", "name", prof.Name)
+			}
+			// Re-register user-defined profiles from added/changed config.
+			for _, data := range []string{sec.Added, sec.Changed} {
+				for _, prof := range parseSysctlProfileConfig(data) {
+					sysctlreg.RegisterProfile(prof)
+					log.Info("sysctl: registered user profile", "name", prof.Name, "keys", len(prof.Settings))
+				}
+			}
+
+			// Merge Added and Changed into one settings map. Keys absent
+			// from the result cause applyConfig to clear the config layer
+			// (handling Removed implicitly).
+			settings := make(map[string]string)
+			for _, data := range []string{sec.Added, sec.Changed} {
+				maps.Copy(settings, parseSysctlConfig(data))
+			}
+
+			// Snapshot config state before apply for rollback.
+			snap := s.snapshotConfig()
+			j := sdk.NewJournal()
+			err := j.Record(
+				func() error {
+					applied, errs := s.applyConfig(settings)
+					if len(errs) > 0 {
+						return fmt.Errorf("sysctl config: %w", errs[0])
+					}
+					if eb != nil {
+						for _, payload := range applied {
+							if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, payload); emitErr != nil {
+								log.Debug("sysctl: applied emit failed", "err", emitErr)
+							}
+						}
+					}
+					return nil
+				},
+				func() error {
+					s.rollbackConfig(snap)
+					return nil
+				},
+			)
+			if err != nil {
+				j.Rollback()
+				return err
+			}
+			activeJournal = j
+			log.Info("sysctl config reloaded", "keys", len(settings))
+			return nil
+		}
+		return nil
+	})
+
+	p.OnConfigRollback(func(_ string) error {
+		j := activeJournal
+		activeJournal = nil
+		if j == nil {
+			return nil
+		}
+		if errs := j.Rollback(); len(errs) > 0 {
+			return fmt.Errorf("sysctl rollback: %d errors", len(errs))
+		}
+		log.Info("sysctl config rolled back")
+		return nil
+	})
+
+	p.OnStarted(func(_ context.Context) error {
+		log.Info("sysctl plugin started")
+		return nil
+	})
+
+	const (
+		statusDone  = "done"
+		statusError = "error"
+	)
+
+	p.OnExecuteCommand(func(_, command string, args []string, _ string) (string, any, error) {
+		switch command {
+		case "show sysctl":
+			return statusDone, s.showEntries(), nil
+		case "show sysctl keys":
+			return statusDone, listKnownKeys(), nil
+		case "show sysctl key":
+			if len(args) < 1 {
+				return statusError, "", errSysctlDescribeRequiresKeyArgument
+			}
+			return statusDone, s.describeKey(args[0]), nil
+		case "show sysctl profiles":
+			return statusDone, listProfiles(), nil
+		case "show sysctl profile":
+			if len(args) < 1 {
+				return statusError, "", errSysctlDescribeProfileRequiresProfileName
+			}
+			return statusDone, describeProfile(args[0]), nil
+		case "set sysctl":
+			if len(args) < 2 {
+				return statusError, "", errSysctlSetRequiresKeyAndValue
+			}
+			applied, err := s.setTransient(args[0], args[1])
+			if err != nil {
+				return statusError, "", fmt.Errorf("sysctl set %s: %w", args[0], err)
+			}
+			if applied != "" && eb != nil {
+				if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, applied); emitErr != nil {
+					log.Debug("sysctl: applied emit failed", "err", emitErr)
+				}
+			}
+			return statusDone, applied, nil
+		}
+		return statusError, "", fmt.Errorf("unknown command: %s", command)
+	})
+
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+	err := p.Run(ctx, sdk.Registration{
+		WantsConfig:  []string{configRoot},
+		VerifyBudget: 1,
+		ApplyBudget:  1,
+		Commands: []sdk.CommandDecl{
+			{Name: "show sysctl", Description: "Show all active sysctl keys with source and persistence"},
+			{Name: "show sysctl keys", Description: "List all known sysctl keys with descriptions"},
+			{Name: "show sysctl key", Description: "Show detail for one sysctl key", Args: []string{"key"}},
+			{Name: "set sysctl", Description: "Set a transient sysctl value", Args: []string{"key", "value"}},
+			{Name: "show sysctl profiles", Description: "List all registered sysctl profiles"},
+			{Name: "show sysctl profile", Description: "Show detail for one sysctl profile", Args: []string{"name"}},
+		},
+	})
+	if err != nil {
+		log.Error("sysctl plugin failed", "error", err)
+		return 1
+	}
+
+	// Unsubscribe event handlers.
+	for _, unsub := range unsubscribers {
+		unsub()
+	}
+
+	// Restore original values on clean stop.
+	s.restoreAll()
+
+	return 0
+}

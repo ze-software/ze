@@ -87,6 +87,40 @@ if issues:
 	}
 }
 
+// VALIDATES: a symbol merely relocated (file deleted at the old path, re-added
+// at a new path) is NOT reported as a new unwired symbol, even when it has no
+// production reference -- a behaviour-preserving move (e.g. a component<->plugin
+// tier migration) introduces no new API.
+// PREVENTS: every package relocation false-flagging the unwired helpers it carries.
+func TestVerifyWiringDocsIgnoresRelocatedSymbol(t *testing.T) {
+	root := makeFixtureRoot(t)
+	// the moved file exists at the NEW path; the OLD path is deleted (absent).
+	writeFixture(t, root, "internal/component/widget/w.go", "package widget\n\nfunc Helper() {}\n")
+
+	out := runPythonSnippet(t, fmt.Sprintf(`
+import pathlib
+import sys
+sys.path.insert(0, %q)
+import verify_wiring_docs
+root = pathlib.Path(%q)
+def base(path):
+    if path == "internal/plugins/widget/w.go":
+        return "package widget\n\nfunc Helper() {}\n"
+    return ""
+issues = verify_wiring_docs.check_wiring(
+    root,
+    ["internal/plugins/widget/w.go", "internal/component/widget/w.go"],
+    base,
+)
+print("\n".join(issues))
+if issues:
+    raise SystemExit(1)
+`, filepath.Join(repoRoot(t), "scripts", "dev"), root))
+	if out != "" {
+		t.Fatalf("relocated symbol must not be flagged, got:\n%s", out)
+	}
+}
+
 // VALIDATES: a diff touching user-facing code (cli/web/config/cmd) with no
 // test/ change emits a functional-test advisory naming the expected suite dir.
 // PREVENTS: direct-to-code sessions bypassing the functional-test gate

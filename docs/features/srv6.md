@@ -2,7 +2,7 @@
 
 <!-- source: internal/component/bgp/plugins/rib/pool/srv6sid.go -- SRv6 SID extraction and transposition -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SID lookup at best-path emission -->
-<!-- source: internal/plugins/sysrib/sysrib.go -- SID resolvability check and FIB emission -->
+<!-- source: internal/component/sysrib/sysrib.go -- SID resolvability check and FIB emission -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- Linux SEG6 encap -->
 <!-- source: internal/plugins/fib/vpp/srv6.go -- VPP SR steer -->
 <!-- source: internal/component/bgp/message/rfc7606.go -- PrefixSID attribute validation -->

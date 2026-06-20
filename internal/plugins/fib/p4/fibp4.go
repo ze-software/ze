@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 

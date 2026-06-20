@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-	sysribevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysrib/events"
+	sysribevents "codeberg.org/thomas-mangin/ze/internal/component/sysrib/events"
 )
 
 type mockSRv6Backend struct {

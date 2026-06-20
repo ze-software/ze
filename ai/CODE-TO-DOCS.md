@@ -162,9 +162,58 @@ Files: 5 | Docs: `docs/architecture/core-design.md`, `docs/features.md`, `docs/g
 - `internal/component/authz/authz.go` -> `docs/guide/authorization.md`
 - `internal/component/authz/register.go` -> `docs/guide/authorization.md`
 
+## `internal/component/bfd/`
+
+Files: 5 | Docs: `docs/architecture/bfd.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/architecture/plugin/plugin-relationships.md`, `docs/features.md`, `docs/functional-tests.md`, `docs/guide/bfd.md`
+
+| File | Docs |
+|------|------|
+| `` | `docs/architecture/bfd.md`, `docs/functional-tests.md` |
+| `bfd.go` | `docs/features.md`, `docs/guide/bfd.md` |
+| `config.go` | `docs/guide/bfd.md` |
+| `metrics.go` | `docs/architecture/bfd.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/features.md`, `docs/guide/bfd.md` |
+| `register.go` | `docs/architecture/plugin/plugin-relationships.md` |
+
+## `internal/component/bfd/api/`
+
+- `internal/component/bfd/api/registry.go` -> `docs/guide/bfd.md`
+
+## `internal/component/bfd/auth/`
+
+- `internal/component/bfd/auth/sha1.go` -> `docs/guide/bfd.md`
+- `internal/component/bfd/auth/signer.go` -> `docs/guide/bfd.md`
+
 ## `internal/component/bfd/cmd/`
 
 - `internal/component/bfd/cmd/bfd.go` -> `docs/architecture/bfd.md`, `docs/guide/bfd.md`
+
+## `internal/component/bfd/engine/`
+
+- `internal/component/bfd/engine/engine.go` -> `docs/architecture/bfd.md`, `docs/guide/bfd.md`
+- `internal/component/bfd/engine/loop.go` -> `docs/architecture/bfd.md`, `docs/features.md`, `docs/guide/bfd.md`
+- `internal/component/bfd/engine/snapshot.go` -> `docs/architecture/bfd.md`, `docs/features.md`, `docs/guide/bfd.md`
+
+## `internal/component/bfd/packet/`
+
+Files: 5 | Docs: `docs/architecture/bfd.md`, `docs/guide/bfd.md`
+
+| File | Docs |
+|------|------|
+| `bench_test.go` | `docs/architecture/bfd.md` |
+| `control.go` | `docs/architecture/bfd.md` |
+| `echo.go` | `docs/guide/bfd.md` |
+| `fuzz_test.go` | `docs/architecture/bfd.md` |
+| `pool.go` | `docs/architecture/bfd.md` |
+
+## `internal/component/bfd/session/`
+
+- `internal/component/bfd/session/fsm.go` -> `docs/architecture/bfd.md`
+- `internal/component/bfd/session/timers.go` -> `docs/architecture/bfd.md`, `docs/guide/bfd.md`
+
+## `internal/component/bfd/transport/`
+
+- `internal/component/bfd/transport/udp.go` -> `docs/architecture/bfd.md`, `docs/guide/bfd.md`
+- `internal/component/bfd/transport/udp_linux.go` -> `docs/features.md`, `docs/guide/bfd.md`
 
 ## `internal/component/bgp/`
 
@@ -1439,6 +1488,27 @@ Files: 4 | Docs: `docs/architecture/api/architecture.md`, `docs/features/cli-com
 - `internal/component/support/modules.go` -> `docs/guide/command-reference.md`
 - `internal/component/support/support.go` -> `docs/guide/command-reference.md`
 
+## `internal/component/sysctl/`
+
+- `internal/component/sysctl/backend_linux.go` -> `docs/features/interfaces.md`
+- `internal/component/sysctl/register.go` -> `docs/architecture/core-design.md`, `docs/guide/command-reference.md`, `docs/guide/plugins.md`
+- `internal/component/sysctl/sysctl.go` -> `docs/architecture/core-design.md`, `docs/features.md`, `docs/guide/configuration.md`
+
+## `internal/component/sysctl/yang/`
+
+- `internal/component/sysctl/yang/ze-sysctl-conf.yang` -> `docs/guide/configuration.md`
+
+## `internal/component/sysrib/`
+
+Files: 4 | Docs: `docs/architecture.md`, `docs/architecture/core-design.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/features.md`, `docs/features/srv6.md`, `docs/guide/plugins.md`
+
+| File | Docs |
+|------|------|
+| `ecmp.go` | `docs/architecture/core-design.md`, `docs/features.md` |
+| `nhresolver.go` | `docs/architecture/core-design.md`, `docs/features.md` |
+| `register.go` | `docs/architecture/core-design.md`, `docs/guide/plugins.md` |
+| `sysrib.go` | `docs/architecture.md`, `docs/architecture/core-design.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/features.md`, `docs/features/srv6.md`, `docs/guide/plugins.md` |
+
 ## `internal/component/tacacs/`
 
 Files: 7 | Docs: `docs/architecture/core-design.md`, `docs/features.md`, `docs/guide/configuration.md`, `docs/guide/tacacs.md`
@@ -1714,55 +1784,6 @@ Files: 4 | Docs: `docs/features/benchmarking.md`, `docs/guide/benchmarking.md`, 
 ## `internal/plugins/`
 
 - `internal/plugins/` -> `docs/plugin-overview.md`
-
-## `internal/plugins/bfd/`
-
-Files: 5 | Docs: `docs/architecture/bfd.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/architecture/plugin/plugin-relationships.md`, `docs/features.md`, `docs/functional-tests.md`, `docs/guide/bfd.md`
-
-| File | Docs |
-|------|------|
-| `` | `docs/architecture/bfd.md`, `docs/functional-tests.md` |
-| `bfd.go` | `docs/features.md`, `docs/guide/bfd.md` |
-| `config.go` | `docs/guide/bfd.md` |
-| `metrics.go` | `docs/architecture/bfd.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/features.md`, `docs/guide/bfd.md` |
-| `register.go` | `docs/architecture/plugin/plugin-relationships.md` |
-
-## `internal/plugins/bfd/api/`
-
-- `internal/plugins/bfd/api/registry.go` -> `docs/guide/bfd.md`
-
-## `internal/plugins/bfd/auth/`
-
-- `internal/plugins/bfd/auth/sha1.go` -> `docs/guide/bfd.md`
-- `internal/plugins/bfd/auth/signer.go` -> `docs/guide/bfd.md`
-
-## `internal/plugins/bfd/engine/`
-
-- `internal/plugins/bfd/engine/engine.go` -> `docs/architecture/bfd.md`, `docs/guide/bfd.md`
-- `internal/plugins/bfd/engine/loop.go` -> `docs/architecture/bfd.md`, `docs/features.md`, `docs/guide/bfd.md`
-- `internal/plugins/bfd/engine/snapshot.go` -> `docs/architecture/bfd.md`, `docs/features.md`, `docs/guide/bfd.md`
-
-## `internal/plugins/bfd/packet/`
-
-Files: 5 | Docs: `docs/architecture/bfd.md`, `docs/guide/bfd.md`
-
-| File | Docs |
-|------|------|
-| `bench_test.go` | `docs/architecture/bfd.md` |
-| `control.go` | `docs/architecture/bfd.md` |
-| `echo.go` | `docs/guide/bfd.md` |
-| `fuzz_test.go` | `docs/architecture/bfd.md` |
-| `pool.go` | `docs/architecture/bfd.md` |
-
-## `internal/plugins/bfd/session/`
-
-- `internal/plugins/bfd/session/fsm.go` -> `docs/architecture/bfd.md`
-- `internal/plugins/bfd/session/timers.go` -> `docs/architecture/bfd.md`, `docs/guide/bfd.md`
-
-## `internal/plugins/bfd/transport/`
-
-- `internal/plugins/bfd/transport/udp.go` -> `docs/architecture/bfd.md`, `docs/guide/bfd.md`
-- `internal/plugins/bfd/transport/udp_linux.go` -> `docs/features.md`, `docs/guide/bfd.md`
 
 ## `internal/plugins/completion/`
 
@@ -2157,27 +2178,6 @@ Files: 4 | Docs: `docs/architecture/api/commands.md`, `docs/features.md`, `docs/
 ## `internal/plugins/support/`
 
 - `internal/plugins/support/` -> `docs/features.md`
-
-## `internal/plugins/sysctl/`
-
-- `internal/plugins/sysctl/backend_linux.go` -> `docs/features/interfaces.md`
-- `internal/plugins/sysctl/register.go` -> `docs/architecture/core-design.md`, `docs/guide/command-reference.md`, `docs/guide/plugins.md`
-- `internal/plugins/sysctl/sysctl.go` -> `docs/architecture/core-design.md`, `docs/features.md`, `docs/guide/configuration.md`
-
-## `internal/plugins/sysctl/yang/`
-
-- `internal/plugins/sysctl/yang/ze-sysctl-conf.yang` -> `docs/guide/configuration.md`
-
-## `internal/plugins/sysrib/`
-
-Files: 4 | Docs: `docs/architecture.md`, `docs/architecture/core-design.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/features.md`, `docs/features/srv6.md`, `docs/guide/plugins.md`
-
-| File | Docs |
-|------|------|
-| `ecmp.go` | `docs/architecture/core-design.md`, `docs/features.md` |
-| `nhresolver.go` | `docs/architecture/core-design.md`, `docs/features.md` |
-| `register.go` | `docs/architecture/core-design.md`, `docs/guide/plugins.md` |
-| `sysrib.go` | `docs/architecture.md`, `docs/architecture/core-design.md`, `docs/architecture/decisions/001-pull-model-metrics.md`, `docs/features.md`, `docs/features/srv6.md`, `docs/guide/plugins.md` |
 
 ## `internal/plugins/systemd/`
 

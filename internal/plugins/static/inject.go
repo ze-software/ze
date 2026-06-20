@@ -9,8 +9,8 @@ import (
 	"slices"
 	"sync"
 
+	bfdapi "codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
 	"codeberg.org/thomas-mangin/ze/internal/core/redistevents"
-	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 	staticevents "codeberg.org/thomas-mangin/ze/internal/plugins/static/events"
 )
 

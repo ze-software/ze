@@ -4,13 +4,13 @@
 // plugin's observability surface to the CLI. Unlike the bgp-rib or
 // sysrib proxies that hop through ForwardToPlugin, BFD is an
 // in-process plugin and publishes its api.Service via
-// internal/plugins/bfd/api. The handlers call GetService() directly
+// internal/component/bfd/api. The handlers call GetService() directly
 // and format the response; the plugin process boundary does not
 // apply.
 //
 // Two package-level schemas register via init():
 //
-//   - internal/plugins/bfd/yang (ze-bfd-api.yang) -- RPC definitions
+//   - internal/component/bfd/yang (ze-bfd-api.yang) -- RPC definitions
 //   - internal/component/bfd/yang (ze-bfd-cmd.yang) -- CLI tree
 //
 // Both are imported here so a blank import of this package wires the
@@ -22,11 +22,11 @@ import (
 	"net/netip"
 	"strings"
 
+	bfdapi "codeberg.org/thomas-mangin/ze/internal/component/bfd/api"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	bfdapi "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/api"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bfd/yang" // register ze-bfd-cmd.yang + ze-bfd-api.yang
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/yang" // register ze-bfd-cmd.yang + ze-bfd-api.yang
 )
 
 // errBFDServiceUnavailable is returned when a show command runs while

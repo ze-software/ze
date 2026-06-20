@@ -1298,8 +1298,8 @@ The sysctl plugin uses three-layer precedence: config values (above) are authori
 and override both transient values (`set sysctl` from CLI) and plugin defaults
 (e.g., fib-kernel declaring forwarding=1). See the
 [command reference](command-reference.md#sysctl-kernel-tunables) for CLI usage.
-<!-- source: internal/plugins/sysctl/sysctl.go -- parseSysctlConfig, applyConfig -->
-<!-- source: internal/plugins/sysctl/yang/ze-sysctl-conf.yang -- sysctl container -->
+<!-- source: internal/component/sysctl/sysctl.go -- parseSysctlConfig, applyConfig -->
+<!-- source: internal/component/sysctl/yang/ze-sysctl-conf.yang -- sysctl container -->
 
 ### Sysctl Profiles
 

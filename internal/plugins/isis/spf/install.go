@@ -19,7 +19,7 @@
 // Because sysrib keys s.routes[key] by protocol string and the Loc-RIB Change
 // carries only the single best Path, the equal-cost siblings survive to the
 // kernel via the sysrib/locrib path-group expansion into BestChangeEntry.ECMPPaths
-// (internal/plugins/sysrib, this spec's committed deliverable, umbrella A-2).
+// (internal/component/sysrib, this spec's committed deliverable, umbrella A-2).
 
 package spf
 

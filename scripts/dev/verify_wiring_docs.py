@@ -418,6 +418,25 @@ def check_wiring(
     if baseline_reader is None:
         baseline_reader = lambda path: read_head_or_empty(root, path)
 
+    changed = list(changed)
+
+    # A pure relocation (rename / tier move, e.g. internal/plugins/<x> ->
+    # internal/component/<x>) deletes a file and re-adds its exported symbols at a
+    # new path. Collect every exported symbol REMOVED in this change -- a wiring
+    # source that no longer exists on disk but did at the baseline. Those names are
+    # pre-existing API, not new, so a behaviour-preserving move contributes zero
+    # "added" symbols. Without this, relocating a package surfaces every unwired
+    # helper it carries (consts, test-only funcs) as a false "added" symbol,
+    # because the baseline at the NEW path is empty.
+    relocated: set[str] = set()
+    for path in changed:
+        if not is_wiring_source(path):
+            continue
+        if read_current_or_empty(root, path):
+            continue  # still on disk -> not a deletion
+        for sym in exported_symbols(path, baseline_reader(path)):
+            relocated.add(sym.name)
+
     added: list[Symbol] = []
     for path in changed:
         if not is_wiring_source(path):
@@ -427,7 +446,7 @@ def check_wiring(
             continue
         old_names = {sym.name for sym in exported_symbols(path, baseline_reader(path))}
         for sym in exported_symbols(path, current):
-            if sym.name in old_names:
+            if sym.name in old_names or sym.name in relocated:
                 continue
             if (sym.path, sym.name) in WIRING_ALLOWLIST:
                 continue

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strconv"
 
+	sysctlevents "codeberg.org/thomas-mangin/ze/internal/component/sysctl/events"
 	sysctlreg "codeberg.org/thomas-mangin/ze/internal/core/sysctl"
-	sysctlevents "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/events"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
