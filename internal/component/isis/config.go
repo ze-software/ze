@@ -4,7 +4,7 @@
 // Config flows file -> YANG schema -> validated tree -> the SDK delivers the
 // `isis` subtree as a root-wrapped JSON ConfigSection ({"isis": {...}}). Every
 // leaf is rendered as a JSON string by Tree.ToMap (so "10", not 10), keyed lists
-// (interfaces, key-chains) render as a key->entry map, and a single-element
+// (interface, key-chains) render as a key->entry map, and a single-element
 // leaf-list (net) renders as a bare scalar while a multi-element one renders as a
 // []any. This file parses that shape into typed Go structs, applies the YANG
 // defaults, and validates the required fields (at least one NET; a derivable
@@ -268,7 +268,7 @@ func configLeafList(v any) []string {
 }
 
 // listEntry is one entry of a keyed YANG list (key + child map), used for the
-// interfaces and key-chains lists.
+// interface and key-chains lists.
 type listEntry struct {
 	key  string
 	data map[string]any
@@ -376,7 +376,7 @@ func applyTree(cfg *Config, tree map[string]any) error {
 	cfg.Overload = configBool(tree["overload"], false)
 	cfg.Hostname = configString(tree["hostname"])
 
-	for _, entry := range keyedList(tree["interfaces"], false) {
+	for _, entry := range keyedList(tree["interface"], false) {
 		cfg.Interfaces = append(cfg.Interfaces, parseInterface(entry))
 	}
 	for _, entry := range keyedList(tree["key-chains"], false) {
@@ -391,7 +391,7 @@ func applyTree(cfg *Config, tree map[string]any) error {
 	return nil
 }
 
-// parseInterface resolves one interfaces{} entry with YANG defaults.
+// parseInterface resolves one interface{} entry with YANG defaults.
 func parseInterface(entry listEntry) InterfaceConfig {
 	m := entry.data
 	ic := InterfaceConfig{

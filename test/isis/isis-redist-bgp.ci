@@ -59,11 +59,11 @@ bgp {
 isis {
 	net 49.0001.0000.0000.0001.00
 	level l1-l2
-	interfaces eth0 {
+	interface eth0 {
 		metric 10
 		level l1-l2
 	}
-	interfaces eth1 {
+	interface eth1 {
 		passive true
 	}
 }

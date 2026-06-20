@@ -130,7 +130,7 @@ func TestISISComponentStart(t *testing.T) {
 	}
 
 	// AC-1: the engine opens a circuit per enabled interface over a fake backend.
-	cfg, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"eth0":{},"eth1":{}}}}`))
+	cfg, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{},"eth1":{}}}}`))
 	if err != nil {
 		t.Fatalf("parseISISConfig: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestISISComponentStart(t *testing.T) {
 }
 
 func TestISISConfigApplyReconcile(t *testing.T) {
-	cfg, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"eth0":{"metric":"10"},"eth1":{"metric":"10"}}}}`))
+	cfg, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"metric":"10"},"eth1":{"metric":"10"}}}}`))
 	if err != nil {
 		t.Fatalf("parseISISConfig: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestISISConfigApplyReconcile(t *testing.T) {
 
 	// Reload changes only eth1's metric. eth0's circuit must NOT be torn down
 	// (AC-8: reconcile, not restart-all).
-	newCfg, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"eth0":{"metric":"10"},"eth1":{"metric":"20"}}}}`))
+	newCfg, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"metric":"10"},"eth1":{"metric":"20"}}}}`))
 	if err != nil {
 		t.Fatalf("parseISISConfig(reload): %v", err)
 	}
@@ -186,7 +186,7 @@ func TestISISConfigApplyReconcile(t *testing.T) {
 	}
 
 	// Removing eth1 closes its circuit; adding eth2 opens one.
-	addRemove, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"eth0":{"metric":"10"},"eth2":{"metric":"10"}}}}`))
+	addRemove, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"metric":"10"},"eth2":{"metric":"10"}}}}`))
 	if err != nil {
 		t.Fatalf("parseISISConfig(add/remove): %v", err)
 	}

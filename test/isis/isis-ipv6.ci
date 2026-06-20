@@ -98,7 +98,7 @@ plugin {
 isis {
 	net 49.0001.0000.0000.0001.00
 	level l1-l2
-	interfaces lo {
+	interface lo {
 		passive true
 		address-family ipv4-unicast {
 		}

@@ -131,7 +131,7 @@ isis {
 	hostname r1-isis
 	# A passive interface is advertised but opens no raw circuit, so the engine
 	# starts cleanly without CAP_NET_RAW (the show/clear surface is what we test).
-	interfaces lo {
+	interface lo {
 		passive true
 	}
 }

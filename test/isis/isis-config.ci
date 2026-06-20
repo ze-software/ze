@@ -23,7 +23,7 @@ isis {
 	level l1-l2
 	lsp-lifetime 1200
 	hostname r1
-	interfaces eth0 {
+	interface eth0 {
 		metric 10
 		hello-interval 10
 		hold-multiplier 3
@@ -31,7 +31,7 @@ isis {
 		circuit-type point-to-point
 		level l1-l2
 	}
-	interfaces eth1 {
+	interface eth1 {
 		passive true
 	}
 }

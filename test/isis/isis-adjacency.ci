@@ -26,7 +26,7 @@
 stdin=isis-adj-bad-holdmult:terminator=EOF_BAD
 isis {
 	net 49.0001.0000.0000.0001.00
-	interfaces eth0 {
+	interface eth0 {
 		hold-multiplier 0
 	}
 }
@@ -40,13 +40,13 @@ stdin=isis-adj-valid:terminator=EOF_VALID
 isis {
 	net 49.0001.0000.0000.0001.00
 	level l1-l2
-	interfaces eth0 {
+	interface eth0 {
 		circuit-type point-to-point
 		hello-interval 3
 		hold-multiplier 3
 		level l1-l2
 	}
-	interfaces eth1 {
+	interface eth1 {
 		circuit-type broadcast
 		hello-interval 10
 		hold-multiplier 10

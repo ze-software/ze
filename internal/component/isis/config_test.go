@@ -27,7 +27,7 @@ func TestISISConfigResolve(t *testing.T) {
 		`"lsp-refresh-interval":"500",` +
 		`"overload":"true",` +
 		`"hostname":"r1",` +
-		`"interfaces":{"eth0":{"name":"eth0","metric":"100","hello-interval":"3","hold-multiplier":"4","priority":"7","circuit-type":"point-to-point","level":"l1","passive":"false","enabled":"true","address-family":{"ipv4-unicast":{"af":"ipv4-unicast"},"ipv6-unicast":{"af":"ipv6-unicast"}},"level-1":{"metric":"50","priority":"5","auth-key-chain":"area-key"}}},` +
+		`"interface":{"eth0":{"name":"eth0","metric":"100","hello-interval":"3","hold-multiplier":"4","priority":"7","circuit-type":"point-to-point","level":"l1","passive":"false","enabled":"true","address-family":{"ipv4-unicast":{"af":"ipv4-unicast"},"ipv6-unicast":{"af":"ipv6-unicast"}},"level-1":{"metric":"50","priority":"5","auth-key-chain":"area-key"}}},` +
 		`"key-chains":{"area-key":{"name":"area-key","key":{"1":{"key-id":"1","algorithm":"hmac-sha-256","secret":"s3cr3t"}}}},` +
 		`"level-1":{"auth-key-chain":"area-key"},` +
 		`"level-2":{"auth-key-chain":"domain-key"}}}`
@@ -87,7 +87,7 @@ func TestISISConfigResolve(t *testing.T) {
 
 // TestISISConfigDefaults: omitted leaves resolve to YANG defaults.
 func TestISISConfigDefaults(t *testing.T) {
-	data := `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"eth0":{}}}}`
+	data := `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{}}}}`
 	cfg, err := parseISISConfig(sec(data))
 	if err != nil {
 		t.Fatalf("parseISISConfig: %v", err)
@@ -258,7 +258,7 @@ func TestISISConfigBoundaries(t *testing.T) {
 // TestISISConfigEnabledCircuits: only enabled, non-passive interfaces open a
 // circuit.
 func TestISISConfigEnabledCircuits(t *testing.T) {
-	data := `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{` +
+	data := `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{` +
 		`"eth0":{"enabled":"true","passive":"false"},` +
 		`"eth1":{"enabled":"true","passive":"true"},` +
 		`"eth2":{"enabled":"false","passive":"false"}}}}`

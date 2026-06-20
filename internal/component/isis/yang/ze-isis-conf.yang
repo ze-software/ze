@@ -71,7 +71,7 @@ module ze-isis-conf {
             description "Dynamic hostname to advertise (RFC 5301).";
         }
 
-        list interfaces {
+        list interface {
             key "name";
             description "Per-interface IS-IS configuration.";
 
