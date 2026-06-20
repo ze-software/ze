@@ -14,11 +14,11 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/spec-ospf-0-umbrella.md` - umbrella `## Shared Contracts (canonical)`: "LSA inventory" (Type 5 AS-External not flooded into stub/NSSA; Type 7 NSSA-LSA scope = NSSA area only, originated here), "LSA header + body layout" (Type 7 shares the Type 5 body layout; the NSSA P-bit rides in the LSA-header Options field; Forwarding Address + External Route Tag fields), "Route preference / path types" (intra > inter > E1 > E2, resolved INSIDE OSPF SPF, one winning `locrib.Path` per prefix at AdminDistance 110), "Area + interface config model" (`area-type` enum `normal`/`stub`/`nssa`, `no-summary`, `default-cost`, `ranges`), this spec OWNS exactly `ze_ospf_nssa_translations_total{area}`, and the ospf-11 Child Specs / Dependency Graph rows (depends on ospf-9 and ospf-10)
 4. `docs/research/ospf-implementation-guide.md` §6f "Stub, Totally Stubby, and NSSA Areas" (lines 439-455), trap #9 "NSSA Translator Election" (lines 1480-1482), trap #11 "Hello E-bit Mismatch in Stub Areas" (lines 1488-1490)
-5. `rfc/short/rfc3101.md` (to create via `/ze-rfc` at implementation time) - NSSA: §2 Type 7 LSA + P-bit + N-bit, §2.5 route-selection preference (Type 7 P=1 > Type 5 > Type 7 P=0), §3.5 translator election (highest Router ID), §3.6 Type 7→5 translation rules
-6. `rfc/short/rfc2328.md` (to create) - §3.6 stub areas (E-bit clear, no Type 4/5, ABR default), §12.4.3 Summary-LSA default origination, §A.4.5 AS-External-LSA body (shared by Type 7)
+5. `rfc/short/rfc3101.md` - NSSA: §2 Type 7 LSA + P-bit + N-bit, §2.5 route-selection preference (Type 7 P=1 > Type 5 > Type 7 P=0), §3.5 translator election (highest Router ID), §3.6 Type 7→5 translation rules
+6. `rfc/short/rfc2328.md` - §3.6 stub areas (E-bit clear, no Type 4/5, ABR default), §12.4.3 Summary-LSA default origination, §A.4.5 AS-External-LSA body (shared by Type 7)
 7. `plan/spec-ospf-9-inter-area-abr.md` - the ABR + Type 3/4 Summary-LSA + area-range machinery this spec extends for stub default injection and totally-stubby/totally-NSSA Type 3 suppression
 8. `plan/spec-ospf-10-as-external-asbr.md` - the Type 5 AS-External origination + external route computation (§16.4, E1/E2, forwarding address) + redistribution consumer this spec reuses for Type 7 origination and Type 7→5 translation
-9. `internal/component/ospf/spf/` and `internal/component/ospf/lsdb/` - the SPF route computation and LSDB origination packages this spec adds NSSA logic to (created by ospf-8/ospf-9/ospf-10)
+9. `internal/plugins/ospf/spf/` and `internal/plugins/ospf/lsdb/` - the SPF route computation and LSDB origination packages this spec adds NSSA logic to (created by ospf-8/ospf-9/ospf-10)
 
 ## Task
 
@@ -99,9 +99,9 @@ All of this is route-computation + LSA-origination/flooding-policy logic layered
 on the existing per-area LSDB (ospf-7), SPF route table (ospf-8), ABR summaries
 (ospf-9), and ASBR externals (ospf-10). No new wire format is introduced (the
 Type 7 body and the N/P/E option bits are codec-owned by ospf-2). Packages
-touched: `internal/component/ospf/lsdb/` (Type 7 origination, E/N-bit Hello
+touched: `internal/plugins/ospf/lsdb/` (Type 7 origination, E/N-bit Hello
 policy, default injection, totally-stubby/NSSA Type 3 suppression, translator
-election + Type 7→5 translation) and `internal/component/ospf/spf/` (RFC 3101
+election + Type 7→5 translation) and `internal/plugins/ospf/spf/` (RFC 3101
 §2.5 preference in external route computation; stub/NSSA flood-acceptance
 filters).
 
@@ -121,14 +121,14 @@ filters).
 - [ ] `plan/spec-ospf-10-as-external-asbr.md` - Type 5 origination, §16.4 external route computation (E1/E2 + forwarding address), redistribution consumer
   → Constraint: Type 7 origination reuses the ospf-10 redistribution-consumer route source and the Type 5 body builder (the bodies are identical); §16.4 external computation is extended with the §2.5 Type 7/Type 5 preference; the translator re-uses the Type 5 originator to flood the translated LSA
 - [ ] `ai/rules/plugin-self-containment.md`, `ai/rules/registration-dispatch.md` - self-contained component
-  → Constraint: all stub/NSSA policy, election, and translation live under `internal/component/ospf/` (lsdb/ and spf/); no NSSA spelling leaks into generic packages
+  → Constraint: all stub/NSSA policy, election, and translation live under `internal/plugins/ospf/` (lsdb/ and spf/); no NSSA spelling leaks into generic packages
 - [ ] `ai/rules/buffer-first.md` - zero-copy LSDB
   → Constraint: Type 7→5 translation rewrites only the changed header/option fields (P-bit, Advertising Router, LS Age reset, recompute Fletcher checksum) and re-emits via the buffer-first LSA writer; the body bytes (mask, metric, forwarding address, tag) are copied verbatim
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
-- [ ] RFC 3101 short summary (`rfc/short/rfc3101.md`, to create) - The OSPF NSSA Option
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
+- [ ] RFC 3101 short summary (`rfc/short/rfc3101.md`) - The OSPF NSSA Option
   → Constraint: §2 Type 7 LSA format (LS Type 7, body = Type 5 body, P-bit in the Options field, N-bit in Hello/DD Options); §2.3 Forwarding Address rules (non-zero, intra-NSSA reachable, for translation); §2.5 route-selection preference Type 7 P=1 > Type 5 > Type 7 P=0; §3.5 translator election (highest Router ID candidate ABR, sticky, stability interval); §3.6 Type 7→5 translation (clear P-bit, set Advertising Router to translator, preserve Forwarding Address / metric / tag, AS-wide flood); §2.3 a P=0 or zero-FA Type 7 is not translated
-- [ ] RFC 2328 short summary (`rfc/short/rfc2328.md`, to create) - OSPF Version 2 base
+- [ ] RFC 2328 short summary (`rfc/short/rfc2328.md`) - OSPF Version 2 base
   → Constraint: §3.6 stub areas (E-bit clear, Type 4/5 absent, single ABR default at `default-cost`); §12.4.3 the ABR default Summary-LSA; §A.4.5 AS-External-LSA body shared by Type 7; the Options E-bit semantics
 
 **Key insights:** (minimal context to resume after compaction)
@@ -142,13 +142,13 @@ filters).
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (read BEFORE writing this spec; packages created by ospf-7/8/9/10)
-- [ ] `internal/component/ospf/lsdb/lsdb.go` - the per-area LSDB store + self-LSA origination (Router-LSA, Network-LSA) + the §13 flooding procedure (ospf-7), and the ABR Type 3/4 Summary-LSA originator + area ranges (ospf-9), and the ASBR Type 5 AS-External originator + redistribution consumer (ospf-10) live under `internal/component/ospf/lsdb/`
+- [ ] `internal/plugins/ospf/lsdb/lsdb.go` - the per-area LSDB store + self-LSA origination (Router-LSA, Network-LSA) + the §13 flooding procedure (ospf-7), and the ABR Type 3/4 Summary-LSA originator + area ranges (ospf-9), and the ASBR Type 5 AS-External originator + redistribution consumer (ospf-10) live under `internal/plugins/ospf/lsdb/`
   → Constraint: this spec adds, in the same package, the Type 7 originator (reusing the Type 5 body builder), the E/N-bit Hello/Router-LSA option policy, the stub default + totally-stubby/NSSA Type 3 suppression (filtering the ospf-9 summary originator), and the translator election + Type 7→5 translation (reusing the ospf-10 Type 5 originator); it does NOT rewrite the LSDB store or the flooding procedure
-- [ ] `internal/component/ospf/spf/` - intra-area SPF + route table with path types (ospf-8), inter-area route computation from summaries (ospf-9), external route computation §16.4 with E1/E2 + forwarding address (ospf-10)
+- [ ] `internal/plugins/ospf/spf/` - intra-area SPF + route table with path types (ospf-8), inter-area route computation from summaries (ospf-9), external route computation §16.4 with E1/E2 + forwarding address (ospf-10)
   → Constraint: this spec adds the RFC 3101 §2.5 Type 7/Type 5 preference into the external route-computation step and the stub/NSSA accept-filter (do not compute Type 5 routes inside a stub/NSSA); the intra > inter > external preference and the single-winning-`locrib.Path` install model are unchanged
-- [ ] `internal/component/ospf/iface/` - the ISM + Hello send/receive + header validation (ospf-5)
+- [ ] `internal/plugins/ospf/iface/` - the ISM + Hello send/receive + header validation (ospf-5)
   → Constraint: this spec adds the E-bit/N-bit set-on-send and match-on-receive into the existing Hello validation; the ISM and DR/BDR election are unchanged
-- [ ] `internal/component/ospf/yang/ze-ospf-conf.yang` + config resolve (ospf-4) - the `areas/area` container already carries `area-type` (`normal`/`stub`/`nssa`), `no-summary`, `default-cost`, `ranges` per the umbrella "Area + interface config model"
+- [ ] `internal/plugins/ospf/yang/ze-ospf-conf.yang` + config resolve (ospf-4) - the `areas/area` container already carries `area-type` (`normal`/`stub`/`nssa`), `no-summary`, `default-cost`, `ranges` per the umbrella "Area + interface config model"
   → Constraint: the area-type schema EXISTS (umbrella schema owner ospf-4); this spec adds only the NSSA translator-role leaf (`translate-role`: `candidate`/`always`/`never`, default `candidate`) and the NSSA default-originate leaf if not already present, and gives the existing leaves runtime meaning. Confirm during the audit whether ospf-4 already shipped these leaves; if so this spec adds none
 
 **Behavior to preserve:**
@@ -197,10 +197,10 @@ filters).
 | SPF external compute (ospf-8/10) | RFC 3101 §2.5 preference selects the external LSA before §16.4 cost; one winning `locrib.Path` | [ ] |
 
 ### Integration Points
-- `internal/component/ospf/lsdb/` - Type 7 originator (reuse the ospf-10 Type 5 body builder), E/N-bit option policy, stub/NSSA default injection + `no-summary` suppression (filter the ospf-9 summary originator), translator election + Type 7→5 translation (reuse the ospf-10 Type 5 originator).
-- `internal/component/ospf/spf/` - RFC 3101 §2.5 preference in the external route computation; stub/NSSA accept-filter (no Type 5 routes inside a stub/NSSA).
-- `internal/component/ospf/iface/` - E/N-bit Hello set-on-send and match-on-receive in the existing Hello validation.
-- `internal/component/ospf/yang/ze-ospf-conf.yang` - the NSSA `translate-role` leaf (and NSSA default-originate leaf) if not already shipped by ospf-4; the `area-type`/`no-summary`/`default-cost` leaves already exist (umbrella schema owner ospf-4).
+- `internal/plugins/ospf/lsdb/` - Type 7 originator (reuse the ospf-10 Type 5 body builder), E/N-bit option policy, stub/NSSA default injection + `no-summary` suppression (filter the ospf-9 summary originator), translator election + Type 7→5 translation (reuse the ospf-10 Type 5 originator).
+- `internal/plugins/ospf/spf/` - RFC 3101 §2.5 preference in the external route computation; stub/NSSA accept-filter (no Type 5 routes inside a stub/NSSA).
+- `internal/plugins/ospf/iface/` - E/N-bit Hello set-on-send and match-on-receive in the existing Hello validation.
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - the NSSA `translate-role` leaf (and NSSA default-originate leaf) if not already shipped by ospf-4; the `area-type`/`no-summary`/`default-cost` leaves already exist (umbrella schema owner ospf-4).
 - Prometheus: this spec OWNS and registers `ze_ospf_nssa_translations_total{area}` (per the umbrella canonical metrics table); ospf-13 only scrapes/asserts it. No other `ze_ospf_*` series are added here.
 - CLI: `show ip ospf database nssa-external` (Type 7) and the area-type/translator state in `show ip ospf` rendering are owned by ospf-13; this spec provides the snapshot data (translator identity, Type 7 inventory, translation count).
 
@@ -273,21 +273,21 @@ filters).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFStubEbitMismatch` | `internal/component/ospf/iface/hello_nssa_test.go` | stub interface clears the E-bit on send; a received E-bit-set Hello is dropped (`option-mismatch`), no adjacency | |
-| `TestOSPFNSSANbitMismatch` | `internal/component/ospf/iface/hello_nssa_test.go` | NSSA interface sets the N-bit (E-bit clear) on send; a mismatched-N-bit Hello is dropped, no adjacency | |
-| `TestOSPFStubFloodFilter` | `internal/component/ospf/lsdb/area_type_test.go` | Type 4 and Type 5 LSAs are rejected on flood-in and not accepted from a stub/NSSA area; self Router-LSA clears the E-bit | |
-| `TestOSPFStubDefaultInjection` | `internal/component/ospf/lsdb/area_type_test.go` | ABR originates exactly one Type 3 `0.0.0.0/0` at `default-cost` into a stub area | |
-| `TestOSPFTotallyStubbyOnlyDefault` | `internal/component/ospf/lsdb/area_type_test.go` | `no-summary` suppresses all Type 3 except the injected default | |
-| `TestOSPFType7Origination` | `internal/component/ospf/lsdb/nssa_test.go` | NSSA ASBR redistributed route → Type 7 (body = Type 5 body, P-bit set, non-zero FA) flooded only within the NSSA; round-trips through the ospf-2 codec | |
-| `TestOSPFType7FloodScope` | `internal/component/ospf/lsdb/nssa_test.go` | Type 7 is flooded within the NSSA and never leaves it (no Type 7 into the backbone or other areas) | |
-| `TestOSPFNSSATranslatorElection` | `internal/component/ospf/lsdb/nssa_translate_test.go` | among candidate ABRs the highest Router ID translate-capable one is elected; `always`/`never` roles honoured | |
-| `TestOSPFNSSATranslatorStability` | `internal/component/ospf/lsdb/nssa_translate_test.go` | election is sticky; a transient current-translator outage within the stability interval does not re-elect | |
-| `TestOSPFNSSATranslation` | `internal/component/ospf/lsdb/nssa_translate_test.go` | translator re-originates a Type 5 with P cleared, Adv Router = translator, FA/metric/E-bit/tag preserved; counter increments; non-translator does not translate | |
-| `TestOSPFNSSATranslationPreservesFA` | `internal/component/ospf/lsdb/nssa_translate_test.go` | the translated Type 5 carries the source Type 7's non-zero Forwarding Address; a zero-FA source Type 7 is skipped | |
-| `TestOSPFNSSATranslationWithdraw` | `internal/component/ospf/lsdb/nssa_translate_test.go` | on candidacy loss or source-Type 7 withdraw, the translated Type 5 is MaxAge-purged | |
-| `TestOSPFNSSAPbitNotTranslated` | `internal/component/ospf/lsdb/nssa_translate_test.go` | a P=0 Type 7 (and an ABR-originated NSSA default) is not translated to Type 5 | |
-| `TestOSPFNSSAPreference` | `internal/component/ospf/spf/external_nssa_test.go` | external route selection prefers Type 7 P=1 > Type 5 > Type 7 P=0 (RFC 3101 §2.5), then §16.4 cost; one winning route | |
-| `TestOSPFNSSADefaultOriginate` | `internal/component/ospf/lsdb/nssa_test.go` | NSSA ABR originates a Type 7 default; totally-NSSA suppresses Type 3 except the default | |
+| `TestOSPFStubEbitMismatch` | `internal/plugins/ospf/iface/hello_nssa_test.go` | stub interface clears the E-bit on send; a received E-bit-set Hello is dropped (`option-mismatch`), no adjacency | |
+| `TestOSPFNSSANbitMismatch` | `internal/plugins/ospf/iface/hello_nssa_test.go` | NSSA interface sets the N-bit (E-bit clear) on send; a mismatched-N-bit Hello is dropped, no adjacency | |
+| `TestOSPFStubFloodFilter` | `internal/plugins/ospf/lsdb/area_type_test.go` | Type 4 and Type 5 LSAs are rejected on flood-in and not accepted from a stub/NSSA area; self Router-LSA clears the E-bit | |
+| `TestOSPFStubDefaultInjection` | `internal/plugins/ospf/lsdb/area_type_test.go` | ABR originates exactly one Type 3 `0.0.0.0/0` at `default-cost` into a stub area | |
+| `TestOSPFTotallyStubbyOnlyDefault` | `internal/plugins/ospf/lsdb/area_type_test.go` | `no-summary` suppresses all Type 3 except the injected default | |
+| `TestOSPFType7Origination` | `internal/plugins/ospf/lsdb/nssa_test.go` | NSSA ASBR redistributed route → Type 7 (body = Type 5 body, P-bit set, non-zero FA) flooded only within the NSSA; round-trips through the ospf-2 codec | |
+| `TestOSPFType7FloodScope` | `internal/plugins/ospf/lsdb/nssa_test.go` | Type 7 is flooded within the NSSA and never leaves it (no Type 7 into the backbone or other areas) | |
+| `TestOSPFNSSATranslatorElection` | `internal/plugins/ospf/lsdb/nssa_translate_test.go` | among candidate ABRs the highest Router ID translate-capable one is elected; `always`/`never` roles honoured | |
+| `TestOSPFNSSATranslatorStability` | `internal/plugins/ospf/lsdb/nssa_translate_test.go` | election is sticky; a transient current-translator outage within the stability interval does not re-elect | |
+| `TestOSPFNSSATranslation` | `internal/plugins/ospf/lsdb/nssa_translate_test.go` | translator re-originates a Type 5 with P cleared, Adv Router = translator, FA/metric/E-bit/tag preserved; counter increments; non-translator does not translate | |
+| `TestOSPFNSSATranslationPreservesFA` | `internal/plugins/ospf/lsdb/nssa_translate_test.go` | the translated Type 5 carries the source Type 7's non-zero Forwarding Address; a zero-FA source Type 7 is skipped | |
+| `TestOSPFNSSATranslationWithdraw` | `internal/plugins/ospf/lsdb/nssa_translate_test.go` | on candidacy loss or source-Type 7 withdraw, the translated Type 5 is MaxAge-purged | |
+| `TestOSPFNSSAPbitNotTranslated` | `internal/plugins/ospf/lsdb/nssa_translate_test.go` | a P=0 Type 7 (and an ABR-originated NSSA default) is not translated to Type 5 | |
+| `TestOSPFNSSAPreference` | `internal/plugins/ospf/spf/external_nssa_test.go` | external route selection prefers Type 7 P=1 > Type 5 > Type 7 P=0 (RFC 3101 §2.5), then §16.4 cost; one winning route | |
+| `TestOSPFNSSADefaultOriginate` | `internal/plugins/ospf/lsdb/nssa_test.go` | NSSA ABR originates a Type 7 default; totally-NSSA suppresses Type 3 except the default | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -306,21 +306,21 @@ filters).
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| (owned by ospf-13) | `test/interop/scenarios/` | FRR `ospfd` | `ospf-stub-frr` and `ospf-nssa-frr` validate stub default injection, Type 7 origination, translator election, and Type 7→5 translation against FRR; mandatory, owned by ospf-13 per the umbrella "Test + interop wiring" | |
+| (owned by ospf-13) | `test/interop/scenarios/` | FRR `ospfd` | `ospf-stub-nssa-frr` validates stub default injection, Type 7 origination, translator election, and Type 7→5 translation against FRR; mandatory, owned by ospf-13 per the umbrella "Test + interop wiring" | |
 
 ### Future (if deferring any tests)
-- FRR interop for stub/NSSA is owned by ospf-13 (`ospf-stub-frr`, `ospf-nssa-frr`); this spec proves stub/NSSA behaviour with Ze-to-Ze unit + functional tests. Live raw-IP/multicast multi-router flows run as QEMU integration tests (`ai/rules/qemu-testing.md`), not plain `.ci`.
+- FRR interop for stub/NSSA is owned by ospf-13 (`ospf-stub-nssa-frr`); this spec proves stub/NSSA behaviour with Ze-to-Ze unit + functional tests. Live raw-IP/multicast multi-router flows run as QEMU integration tests (`ai/rules/qemu-testing.md`), not plain `.ci`.
 
 ## Files to Modify
-- `internal/component/ospf/lsdb/` - add the Type 7 originator (reuse the ospf-10 Type 5 body builder), the E/N-bit option policy for self Router-LSA / area interfaces, the stub/NSSA default injection + `no-summary` Type 3 suppression (filter the ospf-9 summary originator), and the translator election + Type 7→5 translation (reuse the ospf-10 Type 5 originator)
-- `internal/component/ospf/spf/` - add the RFC 3101 §2.5 Type 7/Type 5 preference into the external route computation and the stub/NSSA accept-filter (no Type 5 routes computed inside a stub/NSSA)
-- `internal/component/ospf/iface/` - add the E-bit (stub+NSSA) / N-bit (NSSA) set-on-send and match-on-receive into the existing Hello validation
-- `internal/component/ospf/yang/ze-ospf-conf.yang` - add the NSSA `translate-role` leaf (`candidate`/`always`/`never`, default `candidate`) and the NSSA default-originate leaf IF ospf-4 did not already ship them (the `area-type`/`no-summary`/`default-cost`/`ranges` leaves already exist; confirm in the audit). Every added leaf gets full native YANG constraints (`enumeration`, `range`) plus a `CompleteFn`
+- `internal/plugins/ospf/lsdb/` - add the Type 7 originator (reuse the ospf-10 Type 5 body builder), the E/N-bit option policy for self Router-LSA / area interfaces, the stub/NSSA default injection + `no-summary` Type 3 suppression (filter the ospf-9 summary originator), and the translator election + Type 7→5 translation (reuse the ospf-10 Type 5 originator)
+- `internal/plugins/ospf/spf/` - add the RFC 3101 §2.5 Type 7/Type 5 preference into the external route computation and the stub/NSSA accept-filter (no Type 5 routes computed inside a stub/NSSA)
+- `internal/plugins/ospf/iface/` - add the E-bit (stub+NSSA) / N-bit (NSSA) set-on-send and match-on-receive into the existing Hello validation
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - add the NSSA `translate-role` leaf (`candidate`/`always`/`never`, default `candidate`), `stability-interval` leaf (`range "0..65535"`, default 40 seconds), and the NSSA default-originate leaf IF ospf-4 did not already ship them (the `area-type`/`no-summary`/`default-cost`/`ranges` leaves already exist; confirm in the audit). Every added leaf gets full native YANG constraints (`enumeration`, `range`) plus a `CompleteFn` where native enum completion is insufficient
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | Maybe | `ze-ospf-conf.yang`: NSSA `translate-role` + NSSA default-originate leaves IF not already in ospf-4 (`area-type`/`no-summary`/`default-cost` already exist) |
+| YANG schema (new config) | Maybe | `ze-ospf-conf.yang`: NSSA `translate-role`, `stability-interval`, and NSSA default-originate leaves IF not already in ospf-4 (`area-type`/`no-summary`/`default-cost` already exist) |
 | YANG validation constraints | Yes (if leaves added) | `enumeration` for `translate-role`; `range` for `default-cost`/`stability-interval`; reuse `ze-types.yang` |
 | YANG custom validators | Maybe | `CompleteFn` for `translate-role` enum tab-completion if a custom validator is needed beyond the native enum |
 | CLI commands/flags | Yes | `show ip ospf database nssa-external` (Type 7) + translator/area-type state in `show ip ospf`; RPCs registered + rendered in ospf-13; this spec provides the snapshot data |
@@ -353,12 +353,12 @@ filters).
 | 17 | Existing docs show examples for this area? | No | grep at completion |
 
 ## Files to Create
-- `internal/component/ospf/lsdb/area_type.go` - stub/NSSA flood-acceptance filter (drop Type 4/5 in/out), self Router-LSA E-bit policy, stub Type 3 default injection at `default-cost`, `no-summary` Type 3 suppression
-- `internal/component/ospf/lsdb/nssa.go` - Type 7 NSSA-LSA origination (reuse the ospf-10 Type 5 body builder; set P-bit + non-zero FA), Type 7 flood scope (within the NSSA only), NSSA Type 7 default origination
-- `internal/component/ospf/lsdb/nssa_translate.go` - RFC 3101 §3.5 translator election (highest Router ID candidate, sticky, `stability-interval` hysteresis) + §3.6 Type 7→Type 5 translation (clear P, set Adv Router, preserve FA/metric/tag, reset LS Age, recompute Fletcher, flood AS-wide via the ospf-10 Type 5 originator); owns + registers `ze_ospf_nssa_translations_total{area}`
-- `internal/component/ospf/spf/external_nssa.go` - RFC 3101 §2.5 Type 7/Type 5 external preference, layered on the ospf-10 §16.4 external route computation, and the stub/NSSA accept-filter
-- `internal/component/ospf/iface/hello_nssa.go` - E-bit (stub+NSSA) / N-bit (NSSA) set-on-send and match-on-receive helpers used by the ospf-5 Hello path
-- `internal/component/ospf/lsdb/area_type_test.go`, `internal/component/ospf/lsdb/nssa_test.go`, `internal/component/ospf/lsdb/nssa_translate_test.go`, `internal/component/ospf/spf/external_nssa_test.go`, `internal/component/ospf/iface/hello_nssa_test.go` - unit tests from the TDD plan
+- `internal/plugins/ospf/lsdb/area_type.go` - stub/NSSA flood-acceptance filter (drop Type 4/5 in/out), self Router-LSA E-bit policy, stub Type 3 default injection at `default-cost`, `no-summary` Type 3 suppression
+- `internal/plugins/ospf/lsdb/nssa.go` - Type 7 NSSA-LSA origination (reuse the ospf-10 Type 5 body builder; set P-bit + non-zero FA), Type 7 flood scope (within the NSSA only), NSSA Type 7 default origination
+- `internal/plugins/ospf/lsdb/nssa_translate.go` - RFC 3101 §3.5 translator election (highest Router ID candidate, sticky, `stability-interval` hysteresis) + §3.6 Type 7→Type 5 translation (clear P, set Adv Router, preserve FA/metric/tag, reset LS Age, recompute Fletcher, flood AS-wide via the ospf-10 Type 5 originator); owns + registers `ze_ospf_nssa_translations_total{area}`
+- `internal/plugins/ospf/spf/external_nssa.go` - RFC 3101 §2.5 Type 7/Type 5 external preference, layered on the ospf-10 §16.4 external route computation, and the stub/NSSA accept-filter
+- `internal/plugins/ospf/iface/hello_nssa.go` - E-bit (stub+NSSA) / N-bit (NSSA) set-on-send and match-on-receive helpers used by the ospf-5 Hello path
+- `internal/plugins/ospf/lsdb/area_type_test.go`, `internal/plugins/ospf/lsdb/nssa_test.go`, `internal/plugins/ospf/lsdb/nssa_translate_test.go`, `internal/plugins/ospf/spf/external_nssa_test.go`, `internal/plugins/ospf/iface/hello_nssa_test.go` - unit tests from the TDD plan
 - `test/ospf/ospf-stub.ci` - stub + totally-stubby end-to-end (default injection, Type 5 absent, no-summary)
 - `test/ospf/ospf-nssa.ci` - NSSA end-to-end (Type 7 origination, single-translator election, Type 7→5 translation, §2.5 preference, NSSA default)
 
@@ -421,16 +421,16 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | CLI grammar | `show ip ospf database nssa-external` action before identifier (owned by ospf-13) |
 | YANG validation | `translate-role` native `enumeration`; `default-cost`/`stability-interval` `range`; no bare `type string` |
 | Prometheus counters | `ze_ospf_nssa_translations_total{area}` defined, registered here, scraped in ospf-13; no other `ze_ospf_*` added |
-| Rule: plugin-self-containment | all stub/NSSA policy/election/translation under `internal/component/ospf/`; no NSSA spelling in generic packages |
+| Rule: plugin-self-containment | all stub/NSSA policy/election/translation under `internal/plugins/ospf/`; no NSSA spelling in generic packages |
 | Rule: memory-architecture | translated LSA bytes copied (not aliased); area runtime + translator identity value-typed |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Stub/NSSA policy package | `ls internal/component/ospf/lsdb/area_type.go internal/component/ospf/lsdb/nssa.go` |
-| Translator election + translation | `grep -rn 'translat' internal/component/ospf/lsdb/nssa_translate.go` |
-| §2.5 external preference | `grep -rn 'P-bit\|Type 7\|3101' internal/component/ospf/spf/external_nssa.go` |
-| NSSA translations metric | `grep -rn 'ze_ospf_nssa_translations_total' internal/component/ospf/` |
+| Stub/NSSA policy package | `ls internal/plugins/ospf/lsdb/area_type.go internal/plugins/ospf/lsdb/nssa.go` |
+| Translator election + translation | `grep -rn 'translat' internal/plugins/ospf/lsdb/nssa_translate.go` |
+| §2.5 external preference | `grep -rn 'P-bit\|Type 7\|3101' internal/plugins/ospf/spf/external_nssa.go` |
+| NSSA translations metric | `grep -rn 'ze_ospf_nssa_translations_total' internal/plugins/ospf/` |
 | Functional tests | `ls test/ospf/ospf-stub.ci test/ospf/ospf-nssa.ci` |
 | No duplicate Type 5 in a multi-ABR NSSA | `ospf-nssa.ci` dual-ABR step asserts a single Type 5 |
 
@@ -467,7 +467,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |---------|-----------|---------------|--------|
 
 ## Design Insights
-<!-- LIVE — write IMMEDIATELY when you learn something -->
+<!-- LIVE, write IMMEDIATELY when you learn something -->
 
 ## Core Insight
 <!-- Optional: the single most important design revelation from this work. -->
@@ -484,7 +484,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Known Limitations
 - IPv4 only (OSPFv2; OSPFv3 NSSA is the separate v3 umbrella).
 - Translator role is per-area `candidate`/`always`/`never`; per-prefix translation policy and Type 7 address-range aggregation on translation (RFC 3101 §3.1 ranges beyond LS-ID collision handling) are not in v1.
-- FRR `ospf-stub-frr` / `ospf-nssa-frr` interop is owned by ospf-13; this spec proves behaviour Ze-to-Ze.
+- FRR `ospf-stub-nssa-frr` interop is owned by ospf-13; this spec proves behaviour Ze-to-Ze.
 - Virtual links through an NSSA/stub transit area are out of scope (umbrella out-of-scope: virtual links).
 
 ## RFC Documentation
@@ -547,18 +547,18 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code:
 | One translator (highest Router ID, sticky), no duplicate Type 5 | unit + functional | `TestOSPFNSSATranslatorElection`, `TestOSPFNSSATranslatorStability`, `ospf-nssa.ci` (dual-ABR step) |
 | Type 7→5 translation preserves FA, clears P, sets Adv Router | unit | `TestOSPFNSSATranslation`, `TestOSPFNSSATranslationPreservesFA` |
 | RFC 3101 §2.5 external preference | unit + functional | `TestOSPFNSSAPreference`, `ospf-nssa.ci` (preference step) |
-| `ze_ospf_nssa_translations_total{area}` increments | unit + interop | counter assertion in `TestOSPFNSSATranslation`; scrape in `ospf-nssa-frr` (ospf-13) |
-| FRR interop (stub + NSSA) | interop (owned by ospf-13) | `ospf-stub-frr`, `ospf-nssa-frr` |
+| `ze_ospf_nssa_translations_total{area}` increments | unit + interop | counter assertion in `TestOSPFNSSATranslation`; scrape in `ospf-stub-nssa-frr` (ospf-13) |
+| FRR interop (stub + NSSA) | interop (owned by ospf-13) | `ospf-stub-nssa-frr` |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -598,7 +598,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code:
 - [ ] Wiring Test table complete - every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled - 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`internal/component/ospf/lsdb/`, `spf/`, `iface/`)
+- [ ] Feature code integrated (`internal/plugins/ospf/lsdb/`, `spf/`, `iface/`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented
@@ -626,8 +626,8 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code:
 - [ ] Interop tests for protocol features (or N/A with justification - owned by ospf-13)
 - [ ] Goal Validation table filled with concrete evidence
 
-### Completion (BLOCKING — before ANY commit)
-- [ ] Critical Review passes — all 6 checks in `ai/rules/quality.md` documented pass in spec
+### Completion (BLOCKING, before ANY commit)
+- [ ] Critical Review passes, all 6 checks in `ai/rules/quality.md` documented pass in spec
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
@@ -640,4 +640,4 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code:
 - `plan/spec-ospf-10-as-external-asbr.md` - Type 5 origination + §16.4 external computation + redistribution consumer (dependency; Type 7 origination + translation + §2.5 preference reuse it)
 - `plan/spec-ospf-7-lsdb-flooding.md` - the per-area LSDB + §13 flooding the area-type policy gates
 - `plan/spec-ospf-12-auth.md` - authentication (sibling, independent of area type)
-- `plan/spec-ospf-13-cli-diag-interop.md` - renders `show ip ospf database nssa-external` + translator state, scrapes `ze_ospf_nssa_translations_total`, FRR `ospf-stub-frr` / `ospf-nssa-frr` interop
+- `plan/spec-ospf-13-cli-diag-interop.md` - renders `show ip ospf database nssa-external` + translator state, scrapes `ze_ospf_nssa_translations_total`, FRR `ospf-stub-nssa-frr` interop

@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-ospf-8-spf-rib.md |
+| Depends | spec-ospf-8-spf-rib.md, spec-ospf-9-inter-area-abr.md |
 | Phase | - |
 | Updated | 2026-06-20 |
 
@@ -15,7 +15,7 @@
 3. `plan/spec-ospf-0-umbrella.md` `## Shared Contracts (canonical)` - "Route install vs redistribution", "Redistribution source", "LSA inventory" (Type 5), "Route preference / path types"; Architecture rows (`redistribute/`, `spf/`); the ospf-10 Metrics rows; the ospf-10 Child-Specs / Dependency rows
 4. `docs/research/ospf-implementation-guide.md` §6d (AS-External route computation, lines 412-422), §6e (ABR/ASBR, lines 424-437), trap #7 (E1 vs E2 ordering, lines 1472-1474)
 5. `plan/spec-ospf-8-spf-rib.md` - dependency: SPF, route table with path types, and the Loc-RIB FIB-install path (`locrib.Path`, AdminDistance 110) must already exist; this spec adds the external path-type computation and the redistribution wiring on top
-6. `plan/spec-isis-11-redistribution.md` - the IS-IS sibling: the `redistevents` producer + `configredist` source/consumer registration pattern OSPF copies verbatim (single source name, `sync.Once mustRegister`, consumer at `OnStarted`)
+6. `plan/learned/936-isis-11-redistribution.md` - the IS-IS sibling: the `redistevents` producer + `configredist` source/consumer registration pattern OSPF copies verbatim (single source name, `sync.Once mustRegister`, consumer at `OnStarted`)
 7. `internal/core/redistevents/events.go` - `RouteChangeBatch`, `RegisterProtocol`, `RegisterProducer`, `Producers()`, `ProtocolName`
 8. `internal/component/config/redistribute/{registry.go,consumer.go}` - `RouteSource` / `RegisterSource`; `RedistConsumer` interface / `RegisterConsumer` / `RouteEntry`
 
@@ -67,8 +67,8 @@ RFC 2328 §16.4 and §12.4.4:
   `redistevents` + `configredist` framework, identical in shape to isis-11; it
   NEVER installs to the kernel (that is ospf-8's Loc-RIB path).
 
-Package: `internal/component/ospf/redistribute/` (producer + source + consumer)
-and `internal/component/ospf/spf/` (the §16.4 external computation, the
+Package: `internal/plugins/ospf/redistribute/` (producer + source + consumer)
+and `internal/plugins/ospf/spf/` (the §16.4 external computation, the
 `ase`/external stage of SPF, extending the ospf-8 SPF). Depends on ospf-8 (SPF,
 the route table with path types, and the Loc-RIB install path must exist; this
 spec adds the external path type and the redistribution read/write paths).
@@ -87,17 +87,17 @@ spec adds the external path type and the redistribution read/write paths).
   -> Decision: follow the §16.4 algorithm: resolve ASBR vertex, compute E1/E2 cost by metric type, redirect to a non-zero forwarding address (re-resolved through the route table), install path-type external-1/external-2 with the route tag
   -> Constraint: trap #7 -- E1 always wins over E2 regardless of metric; a comparison using metric as primary key and type as tiebreaker is WRONG. Path type is the primary key, cost the secondary
   -> Constraint: §6e -- an ASBR sets the E flag in its Router-LSA; ABR and ASBR flags are independent; `default-information originate` originates a Type 5 for `0.0.0.0/0`
-- [ ] `plan/spec-isis-11-redistribution.md` - the sibling redistribution pattern (verbatim mirror)
+- [ ] `plan/learned/936-isis-11-redistribution.md` - the sibling redistribution pattern (verbatim mirror)
   -> Decision: producer wiring has four mandatory parts (`RegisterProtocol`, `RegisterProducer`, typed `events.Register[*RouteChangeBatch]` handle, EMIT on SPF change); single source name; consumer at `OnStarted`; source via `sync.Once`
   -> Constraint: `RegisterProducer` is mandatory -- registering only the config `RouteSource` does NOT put OSPF in `redistevents.Producers()`, so the orchestrator never subscribes and no OSPF route reaches BGP
 - [ ] `plan/spec-ospf-8-spf-rib.md` - dependency (SPF, route table with path types, Loc-RIB install)
   -> Constraint: the external stage runs AFTER intra-area (§16.1) and inter-area (§16.2/§16.3, ospf-9) so the ASBR and forwarding-address lookups resolve against an already-built route table; reuse the ospf-8 `locrib.Path` install seam unchanged (no second FIB path)
 - [ ] `ai/rules/plugin-self-containment.md`, `ai/rules/registration-dispatch.md` - self-contained component, registration not switch
-  -> Constraint: all OSPF redistribution code lives under `internal/component/ospf/redistribute/`; no `ospf` spelling appears in the generic `config/redistribute` or `core/redistevents` packages
+  -> Constraint: all OSPF redistribution code lives under `internal/plugins/ospf/redistribute/`; no `ospf` spelling appears in the generic `config/redistribute` or `core/redistevents` packages
 - [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md`, `ai/patterns/config-option.md` - YANG vs env, kebab-case
   -> Constraint: `redistribute` wiring and `default-information originate` are YANG leaves in `ze-ospf-conf.yang` (schema owner ospf-4), kebab-case; the `redistribute` source/destination name is `ospf`
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` - OSPF v2: §12.4.4 (AS-External-LSA origination), §16.4 (external route computation), §16.4.1 (E1/E2 examples), §3.6 (Type 5 not flooded into stub)
   -> Constraint: §16.4 -- E1 cost = X + Y (distance to ASBR/FA + advertised metric), E2 cost = advertised metric, E2 tie-break by the cost to the forwarding address; type-1 always preferred over type-2; both rank below internal (intra/inter) routes
   -> Constraint: §12.4.4 -- Forwarding Address `0.0.0.0` directs traffic to the advertising ASBR; the E-bit (high bit of the metric field) selects metric type; the External Route Tag is opaque to OSPF and carried unchanged
@@ -120,9 +120,9 @@ spec adds the external path type and the redistribution read/write paths).
   -> Constraint: register a SINGLE `RouteSource{Name: "ospf", Protocol: "ospf", Description: "OSPF SPF routes"}` in a `sync.Once mustRegister` that logs on error, exactly like BGP `RegisterBGPSources` / IS-IS `RegisterISISSources`
 - [ ] `internal/component/config/redistribute/consumer.go` - `RedistConsumer` (`Name() string`, `InjectRoute(ctx, family.Family, RouteEntry)`, `WithdrawRoute(ctx, family.Family, prefix string)`); `RegisterConsumer` (one per protocol, re-register rejected); `RouteEntry{Prefix, NextHop}` value-typed
   -> Constraint: implement and register a `RedistConsumer` named `ospf` at `OnStarted`; `InjectRoute`/`WithdrawRoute` MUST log on failure (never `_, _, _ =`); idempotent re-register across SDK reconnect (use the `ReregisterConsumer` pattern from isis-11 if a plain register conflicts)
-- [ ] `internal/component/isis/redistribute/{events/events.go,source.go,consumer.go}` - the sibling implementation OSPF mirrors (single source, `sync.Once`, producer emit on SPF change, consumer translates `RouteEntry` to a reachability advertisement)
+- [ ] `internal/plugins/isis/redistribute/{events/events.go,source.go,consumer.go}` - the sibling implementation OSPF mirrors (single source, `sync.Once`, producer emit on SPF change, consumer translates `RouteEntry` to a reachability advertisement)
   -> Constraint: the OSPF consumer translates `RouteEntry` into a **Type 5 AS-External-LSA** (not an IS-IS TLV); the producer emit reads the ospf-8 SPF output
-- [ ] `internal/component/ospf/spf/` (ospf-8 output) - the route table with path types and the `locrib.Path` install seam
+- [ ] `internal/plugins/ospf/spf/` (ospf-8 output) - the route table with path types and the `locrib.Path` install seam
   -> Constraint: the §16.4 external stage runs after intra/inter; reuse the existing install seam; do NOT add a second FIB path
 - [ ] `internal/component/config/redistribute/yang/ze-redistribute-conf.yang` - `destination` is a free-form `list` keyed by `protocol` (runtime-validated, no validator on the key); `import.source` carries `ze:validate "redistribute-source"`
   -> Constraint: no generic-redistribute YANG change is needed for `destination ospf`; `ospf` becomes a valid source purely by `RegisterSource`. The `default-information originate` and `redistribute` ENROLMENT leaves live under the `ospf` container (`ze-ospf-conf.yang`, schema owner ospf-4)
@@ -167,10 +167,10 @@ spec adds the external path type and the redistribution read/write paths).
 | Config tree <-> consumer / default-origination | `destination ospf { import <source> }`, `default-information originate` parsed, dispatched at runtime | [ ] (`test/ospf/ospf-redist-bgp.ci`) |
 
 ### Integration Points
-- New package `internal/component/ospf/redistribute/` (`events/events.go`, `source.go`, `consumer.go`)
+- New package `internal/plugins/ospf/redistribute/` (`events/events.go`, `source.go`, `consumer.go`)
 - `RegisterSource` (registry.go), `RegisterProducer` (redistevents), `RegisterConsumer` (consumer.go) in the generic frameworks (registration only; no generic-package OSPF spelling)
 - OSPF Type 5 origination + AS-wide store (this spec) feeding ospf-7 flooding
-- OSPF SPF external stage in `internal/component/ospf/spf/` extending the ospf-8 SPF and reusing its `locrib.Path` install seam
+- OSPF SPF external stage in `internal/plugins/ospf/spf/` extending the ospf-8 SPF and reusing its `locrib.Path` install seam
 - OSPF Router-LSA E-bit origination (ospf-7 origination hook) and `default-information originate`
 - `redistribute` YANG validator / completion (source names) -- no generic schema change, registry-driven; `ospf` container leaves owned by ospf-4
 
@@ -248,25 +248,25 @@ Every AC has at least one exact named test below (AC mapping in the rightmost co
 ### Unit Tests
 | Test | File | Validates | Covers AC | Status |
 |------|------|-----------|-----------|--------|
-| `TestOSPFProducerRegistered` | `internal/component/ospf/redistribute/events/events_test.go` | producer wiring: `RegisterProtocol("ospf")` + `RegisterProducer(id)` put OSPF in `redistevents.Producers()`; `ProtocolIDOf("ospf")` resolves; registering only the `RouteSource` does NOT add it to `Producers()` | AC-14 | |
-| `TestOSPFRegisterSource` | `internal/component/ospf/redistribute/source_test.go` | single source `ospf` (Protocol `ospf`) registered; idempotent; `LookupSource` finds it; no per-area names | AC-1 | |
-| `TestOSPFRedistSourceToBGP` | `internal/component/ospf/redistribute/source_test.go` | the `ospf` source emits a `RouteChangeBatch` (`Protocol` = the ospf ProtocolID) reaching the BGP consumer; BOTH an intra-area and an inter-area route are exported (single source) | AC-1, AC-2 | |
-| `TestOSPFRedistSourceWithdrawToBGP` | `internal/component/ospf/redistribute/source_test.go` | SPF-removed route emits an `ActionRemove` `RouteChangeBatch`; route withdrawn from BGP | AC-7 | |
-| `TestOSPFRedistConsumerConnected` | `internal/component/ospf/redistribute/consumer_test.go` | `InjectRoute` for `connected` originates a Type 5 AS-External-LSA with the default metric/metric-type; node becomes ASBR (E-bit, `ze_ospf_asbr`=1) | AC-3 | |
-| `TestOSPFRedistConsumerStatic` | `internal/component/ospf/redistribute/consumer_test.go` | `InjectRoute` for `static` originates a Type 5 | AC-4 | |
-| `TestOSPFRedistConsumerBGP` | `internal/component/ospf/redistribute/consumer_test.go` | `InjectRoute` for `bgp` originates a Type 5 | AC-4 | |
-| `TestOSPFRedistConsumerWithdraw` | `internal/component/ospf/redistribute/consumer_test.go` | `WithdrawRoute` MaxAge-purges the Type 5 (LS Age 3600, flood, drop); `ze_ospf_redist_withdrawn_total{source}` bumps | AC-5 | |
-| `TestOSPFRedistConsumerName` | `internal/component/ospf/redistribute/consumer_test.go` | `Name()` returns `ospf`; registered once | AC-3, AC-4 | |
-| `TestOSPFASBRBitClearedOnEmpty` | `internal/component/ospf/redistribute/consumer_test.go` | withdrawing the last external clears the Router-LSA E-bit, re-originates the Router-LSA, and `ze_ospf_asbr` returns to 0 | AC-6 | |
-| `TestOSPFRedistConsumerLogsFailure` | `internal/component/ospf/redistribute/consumer_test.go` | Type 5 origination failure is logged, not swallowed (regression guard) | AC-3..AC-5 | |
-| `TestOSPFRedistSelfImportRejected` | `internal/component/ospf/redistribute/consumer_test.go` | `destination ospf { import ospf }` is a no-op (origin `ospf` == importing `ospf`) | AC-13 | |
-| `TestOSPFExternalE1PreferredOverE2` | `internal/component/ospf/spf/external_test.go` | for the same prefix, a high-cost E1 wins over a low-cost E2 (trap #7: path type is the primary key) | AC-8 | |
-| `TestOSPFExternalE1Cost` | `internal/component/ospf/spf/external_test.go` | E1 cost = distance-to-ASBR + advertised metric; unreachable ASBR -> LSA skipped (no route) | AC-9 | |
-| `TestOSPFExternalE2Cost` | `internal/component/ospf/spf/external_test.go` | E2 cost = advertised metric only; tie-broken by the cost to the forwarding address | AC-10 | |
-| `TestOSPFExternalForwardingAddress` | `internal/component/ospf/spf/external_test.go` | FA `0.0.0.0` -> nexthop via the ASBR; non-zero FA used as the nexthop target and re-resolved; unreachable non-zero FA -> LSA skipped | AC-10 | |
-| `TestOSPFExternalBelowInternal` | `internal/component/ospf/spf/external_test.go` | for the same prefix, an intra/inter-area route is preferred over any external; one winning `locrib.Path` (AdminDistance 110) | AC-11 | |
-| `TestOSPFDefaultInformationOriginate` | `internal/component/ospf/redistribute/consumer_test.go` | conditional: Type 5 `0.0.0.0/0` only when a RIB default exists; `always`: unconditional; node becomes ASBR | AC-12 | |
-| `TestOSPFRedistRegistrationOrder` | `internal/component/ospf/redistribute/source_test.go` | registration-order tolerance: producer registered before AND after the consumer/orchestrator both deliver routes | AC-1 | |
+| `TestOSPFProducerRegistered` | `internal/plugins/ospf/redistribute/events/events_test.go` | producer wiring: `RegisterProtocol("ospf")` + `RegisterProducer(id)` put OSPF in `redistevents.Producers()`; `ProtocolIDOf("ospf")` resolves; registering only the `RouteSource` does NOT add it to `Producers()` | AC-14 | |
+| `TestOSPFRegisterSource` | `internal/plugins/ospf/redistribute/source_test.go` | single source `ospf` (Protocol `ospf`) registered; idempotent; `LookupSource` finds it; no per-area names | AC-1 | |
+| `TestOSPFRedistSourceToBGP` | `internal/plugins/ospf/redistribute/source_test.go` | the `ospf` source emits a `RouteChangeBatch` (`Protocol` = the ospf ProtocolID) reaching the BGP consumer; BOTH an intra-area and an inter-area route are exported (single source) | AC-1, AC-2 | |
+| `TestOSPFRedistSourceWithdrawToBGP` | `internal/plugins/ospf/redistribute/source_test.go` | SPF-removed route emits an `ActionRemove` `RouteChangeBatch`; route withdrawn from BGP | AC-7 | |
+| `TestOSPFRedistConsumerConnected` | `internal/plugins/ospf/redistribute/consumer_test.go` | `InjectRoute` for `connected` originates a Type 5 AS-External-LSA with the default metric/metric-type; node becomes ASBR (E-bit, `ze_ospf_asbr`=1) | AC-3 | |
+| `TestOSPFRedistConsumerStatic` | `internal/plugins/ospf/redistribute/consumer_test.go` | `InjectRoute` for `static` originates a Type 5 | AC-4 | |
+| `TestOSPFRedistConsumerBGP` | `internal/plugins/ospf/redistribute/consumer_test.go` | `InjectRoute` for `bgp` originates a Type 5 | AC-4 | |
+| `TestOSPFRedistConsumerWithdraw` | `internal/plugins/ospf/redistribute/consumer_test.go` | `WithdrawRoute` MaxAge-purges the Type 5 (LS Age 3600, flood, drop); `ze_ospf_redist_withdrawn_total{source}` bumps | AC-5 | |
+| `TestOSPFRedistConsumerName` | `internal/plugins/ospf/redistribute/consumer_test.go` | `Name()` returns `ospf`; registered once | AC-3, AC-4 | |
+| `TestOSPFASBRBitClearedOnEmpty` | `internal/plugins/ospf/redistribute/consumer_test.go` | withdrawing the last external clears the Router-LSA E-bit, re-originates the Router-LSA, and `ze_ospf_asbr` returns to 0 | AC-6 | |
+| `TestOSPFRedistConsumerLogsFailure` | `internal/plugins/ospf/redistribute/consumer_test.go` | Type 5 origination failure is logged, not swallowed (regression guard) | AC-3..AC-5 | |
+| `TestOSPFRedistSelfImportRejected` | `internal/plugins/ospf/redistribute/consumer_test.go` | `destination ospf { import ospf }` is a no-op (origin `ospf` == importing `ospf`) | AC-13 | |
+| `TestOSPFExternalE1PreferredOverE2` | `internal/plugins/ospf/spf/external_test.go` | for the same prefix, a high-cost E1 wins over a low-cost E2 (trap #7: path type is the primary key) | AC-8 | |
+| `TestOSPFExternalE1Cost` | `internal/plugins/ospf/spf/external_test.go` | E1 cost = distance-to-ASBR + advertised metric; unreachable ASBR -> LSA skipped (no route) | AC-9 | |
+| `TestOSPFExternalE2Cost` | `internal/plugins/ospf/spf/external_test.go` | E2 cost = advertised metric only; tie-broken by the cost to the forwarding address | AC-10 | |
+| `TestOSPFExternalForwardingAddress` | `internal/plugins/ospf/spf/external_test.go` | FA `0.0.0.0` -> nexthop via the ASBR; non-zero FA used as the nexthop target and re-resolved; unreachable non-zero FA -> LSA skipped | AC-10 | |
+| `TestOSPFExternalBelowInternal` | `internal/plugins/ospf/spf/external_test.go` | for the same prefix, an intra/inter-area route is preferred over any external; one winning `locrib.Path` (AdminDistance 110) | AC-11 | |
+| `TestOSPFDefaultInformationOriginate` | `internal/plugins/ospf/redistribute/consumer_test.go` | conditional: Type 5 `0.0.0.0/0` only when a RIB default exists; `always`: unconditional; node becomes ASBR | AC-12 | |
+| `TestOSPFRedistRegistrationOrder` | `internal/plugins/ospf/redistribute/source_test.go` | registration-order tolerance: producer registered before AND after the consumer/orchestrator both deliver routes | AC-1 | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -299,9 +299,9 @@ redistribution scenario inputs; ospf-13 runs them under Linux/QEMU.
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files -->
-- `internal/component/ospf/register.go` - call `RegisterConsumer` (idempotent / `Reregister`) at `OnStarted` and `RegisterSource(RouteSource{Name: "ospf", Protocol: "ospf", Description: ...})` (`sync.Once mustRegister`, at init for `ze config validate`); import the new `redistribute/events` package so its producer registration runs and OSPF appears in `redistevents.Producers()`
-- `internal/component/ospf/spf/...` - add the AS-External (§16.4) computation stage (E1/E2 cost, forwarding-address resolution, path-type ordering) after intra/inter; publish the winning `locrib.Path` via the existing ospf-8 install seam (no second FIB path)
-- `internal/component/ospf/lsdb/...` - Type 5 AS-External-LSA origination + the AS-wide store (umbrella: Type 5 lives AS-wide, not per-area); MaxAge-purge on withdraw; Router-LSA E-bit set/clear hook (ASBR status)
+- `internal/plugins/ospf/register.go` - call `RegisterConsumer` (idempotent / `Reregister`) at `OnStarted` and `RegisterSource(RouteSource{Name: "ospf", Protocol: "ospf", Description: ...})` (`sync.Once mustRegister`, at init for `ze config validate`); import the new `redistribute/events` package so its producer registration runs and OSPF appears in `redistevents.Producers()`
+- `internal/plugins/ospf/spf/...` - add the AS-External (§16.4) computation stage (E1/E2 cost, forwarding-address resolution, path-type ordering) after intra/inter; publish the winning `locrib.Path` via the existing ospf-8 install seam (no second FIB path)
+- `internal/plugins/ospf/lsdb/...` - Type 5 AS-External-LSA origination + the AS-wide store (umbrella: Type 5 lives AS-wide, not per-area); MaxAge-purge on withdraw; Router-LSA E-bit set/clear hook (ASBR status)
 - `internal/component/config/redistribute/...` - NO source/consumer code change expected; only confirm a registration call site. Modify ONLY if a registration hook or validator wiring is missing
 - `docs/guide/ospf.md`, `docs/guide/configuration.md`, `docs/comparison.md` - OSPF redistribution + `default-information originate` rows (also tracked in ospf-13)
 
@@ -341,14 +341,14 @@ redistribution scenario inputs; ospf-13 runs them under Linux/QEMU.
 | 17 | Existing docs show examples for this area? | No | verify `redistribute` examples at completion |
 
 ## Files to Create
-- `internal/component/ospf/redistribute/events/events.go` - the `redistevents` PRODUCER wiring (mirrors `internal/component/isis/redistribute/events/events.go`): `Namespace = "ospf"`, `ProtocolID = redistevents.RegisterProtocol(Namespace)`, `redistevents.RegisterProducer(ProtocolID)`, typed handle `RouteChange = events.Register[*redistevents.RouteChangeBatch](Namespace, redistevents.EventType)`. Without this file no OSPF route reaches the orchestrator
-- `internal/component/ospf/redistribute/events/events_test.go` - `TestOSPFProducerRegistered`
-- `internal/component/ospf/redistribute/source.go` - `RegisterSource(RouteSource{Name: "ospf", Protocol: "ospf", Description: ...})` (`sync.Once mustRegister`) + the producer read that EMITS `RouteChangeBatch` on the typed handle for ospf-8 SPF route changes
-- `internal/component/ospf/redistribute/source_test.go` - `TestOSPFRegisterSource`, `TestOSPFRedistSourceToBGP`, `TestOSPFRedistSourceWithdrawToBGP`, `TestOSPFRedistRegistrationOrder`
-- `internal/component/ospf/redistribute/consumer.go` - `RedistConsumer` impl (Name `ospf`, `InjectRoute`, `WithdrawRoute`) translating `RouteEntry` into a Type 5 AS-External-LSA; ASBR E-bit set/clear; MaxAge-purge on withdraw; `default-information originate`
-- `internal/component/ospf/redistribute/consumer_test.go` - `TestOSPFRedistConsumerConnected/Static/BGP/Withdraw/Name/LogsFailure`, `TestOSPFASBRBitClearedOnEmpty`, `TestOSPFRedistSelfImportRejected`, `TestOSPFDefaultInformationOriginate`
-- `internal/component/ospf/spf/external.go` - the §16.4 AS-External route computation (E1/E2 cost, forwarding-address resolution, path-type ordering), publishing the winning `locrib.Path` via the ospf-8 seam
-- `internal/component/ospf/spf/external_test.go` - `TestOSPFExternalE1PreferredOverE2`, `TestOSPFExternalE1Cost`, `TestOSPFExternalE2Cost`, `TestOSPFExternalForwardingAddress`, `TestOSPFExternalBelowInternal`
+- `internal/plugins/ospf/redistribute/events/events.go` - the `redistevents` PRODUCER wiring (mirrors `internal/plugins/isis/redistribute/events/events.go`): `Namespace = "ospf"`, `ProtocolID = redistevents.RegisterProtocol(Namespace)`, `redistevents.RegisterProducer(ProtocolID)`, typed handle `RouteChange = events.Register[*redistevents.RouteChangeBatch](Namespace, redistevents.EventType)`. Without this file no OSPF route reaches the orchestrator
+- `internal/plugins/ospf/redistribute/events/events_test.go` - `TestOSPFProducerRegistered`
+- `internal/plugins/ospf/redistribute/source.go` - `RegisterSource(RouteSource{Name: "ospf", Protocol: "ospf", Description: ...})` (`sync.Once mustRegister`) + the producer read that EMITS `RouteChangeBatch` on the typed handle for ospf-8 SPF route changes
+- `internal/plugins/ospf/redistribute/source_test.go` - `TestOSPFRegisterSource`, `TestOSPFRedistSourceToBGP`, `TestOSPFRedistSourceWithdrawToBGP`, `TestOSPFRedistRegistrationOrder`
+- `internal/plugins/ospf/redistribute/consumer.go` - `RedistConsumer` impl (Name `ospf`, `InjectRoute`, `WithdrawRoute`) translating `RouteEntry` into a Type 5 AS-External-LSA; ASBR E-bit set/clear; MaxAge-purge on withdraw; `default-information originate`
+- `internal/plugins/ospf/redistribute/consumer_test.go` - `TestOSPFRedistConsumerConnected/Static/BGP/Withdraw/Name/LogsFailure`, `TestOSPFASBRBitClearedOnEmpty`, `TestOSPFRedistSelfImportRejected`, `TestOSPFDefaultInformationOriginate`
+- `internal/plugins/ospf/spf/external.go` - the §16.4 AS-External route computation (E1/E2 cost, forwarding-address resolution, path-type ordering), publishing the winning `locrib.Path` via the ospf-8 seam
+- `internal/plugins/ospf/spf/external_test.go` - `TestOSPFExternalE1PreferredOverE2`, `TestOSPFExternalE1Cost`, `TestOSPFExternalE2Cost`, `TestOSPFExternalForwardingAddress`, `TestOSPFExternalBelowInternal`
 - `test/ospf/ospf-redist-bgp.ci` - functional test: OSPF route into BGP and connected/static/BGP routes into Type 5 LSAs; `default-information originate`; self-import no-op
 
 ## Implementation Steps
@@ -406,19 +406,19 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Doctor checks | none new |
 | YANG validation | `default-information` metric/metric-type/route-tag have native constraints; `ospf` validates via the source registry |
 | Prometheus counters | exactly the four owned series defined and registered here (none from other owners) |
-| Rule: plugin-self-containment | all OSPF redistribution code under `internal/component/ospf/redistribute/` (+ the SPF external stage under `spf/`) |
+| Rule: plugin-self-containment | all OSPF redistribution code under `internal/plugins/ospf/redistribute/` (+ the SPF external stage under `spf/`) |
 | Rule: no silent error discard | Inject/Withdraw and Type 5 origination log every failure |
 | Rule: stub/NSSA boundary | this spec floods Type 5 AS-wide via ospf-7; the stub/NSSA scope filter and Type 7 stay with ospf-11 (no scope-filter code here) |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| OSPF redistevents producer registered | `grep -rn 'RegisterProtocol\|RegisterProducer' internal/component/ospf/redistribute/events/`; `TestOSPFProducerRegistered` asserts OSPF in `redistevents.Producers()` |
-| OSPF redistribute source registered | `grep -r 'RegisterSource' internal/component/ospf/redistribute/`; source in `SourceNames` test |
-| OSPF redistribute consumer registered | `grep -r 'RegisterConsumer' internal/component/ospf/`; consumer in `ConsumerNames` test |
-| Type 5 origination + §16.4 external computation | `ls internal/component/ospf/spf/external.go`; `go test ./internal/component/ospf/spf/ -run External` PASS |
-| Source + consumer files | `ls internal/component/ospf/redistribute/{source,consumer}.go` |
-| Owned metrics registered | `grep -rn 'ze_ospf_asbr\|ze_ospf_external_lsas\|ze_ospf_redist_injected_total\|ze_ospf_redist_withdrawn_total' internal/component/ospf/` |
+| OSPF redistevents producer registered | `grep -rn 'RegisterProtocol\|RegisterProducer' internal/plugins/ospf/redistribute/events/`; `TestOSPFProducerRegistered` asserts OSPF in `redistevents.Producers()` |
+| OSPF redistribute source registered | `grep -r 'RegisterSource' internal/plugins/ospf/redistribute/`; source in `SourceNames` test |
+| OSPF redistribute consumer registered | `grep -r 'RegisterConsumer' internal/plugins/ospf/`; consumer in `ConsumerNames` test |
+| Type 5 origination + §16.4 external computation | `ls internal/plugins/ospf/spf/external.go`; `go test ./internal/plugins/ospf/spf/ -run External` PASS |
+| Source + consumer files | `ls internal/plugins/ospf/redistribute/{source,consumer}.go` |
+| Owned metrics registered | `grep -rn 'ze_ospf_asbr\|ze_ospf_external_lsas\|ze_ospf_redist_injected_total\|ze_ospf_redist_withdrawn_total' internal/plugins/ospf/` |
 | Functional test | `ls test/ospf/ospf-redist-bgp.ci` |
 | Import/export paths proven | run `ospf-redist-bgp.ci`; assert OSPF route in BGP and connected/static/BGP routes as Type 5 LSAs |
 
@@ -543,17 +543,17 @@ the E-bit metric-type encoding; the 24-bit metric range; the opaque route tag.
 | connected/static/BGP into OSPF as Type 5 | unit + functional config test | `TestOSPFRedistConsumerConnected/Static/BGP`, `test/ospf/ospf-redist-bgp.ci` |
 | RFC 2328 §16.4 external computation (E1/E2, forwarding address) | unit test | `TestOSPFExternalE1PreferredOverE2`, `TestOSPFExternalE1Cost`, `TestOSPFExternalE2Cost`, `TestOSPFExternalForwardingAddress`, `TestOSPFExternalBelowInternal` |
 | ASBR status + `default-information originate` | unit test | `TestOSPFASBRBitClearedOnEmpty`, `TestOSPFDefaultInformationOriginate` |
-| FRR accepts/computes the externals | interop test (owned by ospf-13) | `ospf-redist-frr` scenario; execution Linux/QEMU-pending |
+| FRR accepts/computes the externals and redistribution | interop test (owned by ospf-13) | `ospf-redist-frr` scenario; execution Linux/QEMU-pending |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -595,7 +595,7 @@ the E-bit metric-type encoding; the 24-bit metric range; the opaque route tag.
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`internal/component/ospf/redistribute/`, `internal/component/ospf/spf/external.go`)
+- [ ] Feature code integrated (`internal/plugins/ospf/redistribute/`, `internal/plugins/ospf/spf/external.go`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented
@@ -638,4 +638,4 @@ the E-bit metric-type encoding; the 24-bit metric range; the opaque route tag.
 - `plan/spec-ospf-8-spf-rib.md` -- dependency; SPF, the route table with path types, and the Loc-RIB FIB-install path must exist first; this spec adds the external path type and reuses the install seam
 - `plan/spec-ospf-9-inter-area-abr.md` -- sibling; Type 4 ASBR-summaries (so other areas reach this ASBR) and the inter-area route table the §16.4 ASBR lookup consults
 - `plan/spec-ospf-11-stub-nssa.md` -- sibling; owns Type 5 suppression in stub/NSSA areas and NSSA Type 7 origination + Type 7 -> Type 5 translation; this spec coordinates (floods Type 5 AS-wide via ospf-7) but does not implement the scope filter
-- `plan/spec-isis-11-redistribution.md` -- the IS-IS sibling whose `redistevents` producer + `configredist` source/consumer pattern this spec mirrors verbatim
+- `plan/learned/936-isis-11-redistribution.md` -- the IS-IS sibling whose `redistevents` producer + `configredist` source/consumer pattern this spec mirrors verbatim

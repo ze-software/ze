@@ -13,16 +13,16 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/spec-ospf-0-umbrella.md` - umbrella scope (this is row ospf-3); Shared Contracts "Frame addressing + transport" and "Packet receive dispatcher", the canonical Metrics table, and the "Existing Foundation" RSVP-TE raw-IP row
-4. `internal/component/rsvpte/transport_linux.go` - the proven `AF_INET SOCK_RAW` raw-IP transport (proto 46) this transport is modelled on; kernel builds the outgoing IP header, the receive path strips the IPv4 header via the IHL field
-5. `internal/component/rsvpte/doctor_linux.go` - the raw-socket doctor probe pattern (open+close, `CAP_NET_RAW`)
+4. `internal/plugins/rsvpte/transport_linux.go` - the proven `AF_INET SOCK_RAW` raw-IP transport (proto 46) this transport is modelled on; kernel builds the outgoing IP header, the receive path strips the IPv4 header via the IHL field
+5. `internal/plugins/rsvpte/doctor_linux.go` - the raw-socket doctor probe pattern (open+close, `CAP_NET_RAW`)
 6. `internal/plugins/iface/netlink/monitor_linux.go`, `internal/component/iface/events/events.go` - interface up/down subscription that drives circuit open/close
 7. `docs/research/ospf-implementation-guide.md` sec 2 (Protocol and Addressing, lines 83-97), sec 7 (Network Types and Interface Model, lines 470-518), sec 9 (Concurrency and I/O Model, lines 548-591)
 
 ## Task
 
-Implement the raw IP transport for OSPFv2 in `internal/component/ospf/transport/`,
+Implement the raw IP transport for OSPFv2 in `internal/plugins/ospf/transport/`,
 modelled on the proven RSVP-TE `AF_INET SOCK_RAW` socket pattern
-(`internal/component/rsvpte/transport_linux.go`, proto 46). OSPF runs directly
+(`internal/plugins/rsvpte/transport_linux.go`, proto 46). OSPF runs directly
 over IPv4 with IP protocol number 89 (`docs/research/ospf-implementation-guide.md`
 sec 2). This is NOT a new low-level capability: per `plan/spec-ospf-0-umbrella.md`
 "Existing Foundation", the raw-IP socket already exists in-tree (RSVP-TE) and the
@@ -58,11 +58,11 @@ v1 ships only the Linux backend. Per-interface RX and TX goroutines drive each
 enabled interface; received datagrams are dispatched by the receiving ifindex.
 The transport subscribes to the iface EventBus and opens an interface on link up,
 closes it and signals teardown on link down (mirroring the IS-IS sibling
-`plan/spec-isis-3-l2-transport.md`).
+`plan/learned/929-isis-3-l2-transport.md`).
 
 The raw socket requires `CAP_NET_RAW`. A registered doctor check
 `doctor-ospf-raw-socket` (per `ai/rules/doctor-checks.md`, modelled on
-`internal/component/rsvpte/doctor_linux.go`) opens and immediately closes an
+`internal/plugins/rsvpte/doctor_linux.go`) opens and immediately closes an
 `AF_INET SOCK_RAW` proto-89 socket before the daemon starts; its `doctor-*` code
 is registered in `internal/core/diagnostic/codes.go`. This transport OWNS the
 four `ze_ospf_packets_*` / `ze_ospf_sockets_open` Prometheus series from the
@@ -76,13 +76,13 @@ plain `.ci` covers only the user-visible doctor output.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `internal/component/rsvpte/transport_linux.go` - `openRawTransport`, `Send`, `readLoop`, `stripIPv4Header` (lines 35-127); the `AF_INET SOCK_RAW` proto-number model
+- [ ] `internal/plugins/rsvpte/transport_linux.go` - `openRawTransport`, `Send`, `readLoop`, `stripIPv4Header` (lines 35-127); the `AF_INET SOCK_RAW` proto-number model
   -> Constraint: `unix.Socket(AF_INET, SOCK_RAW, 89)`; kernel builds the outgoing IP header (`IP_HDRINCL` off); a send supplies only the OSPF payload; on receive strip the IPv4 header via IHL (`stripIPv4Header`) and deliver `(src, payload)`; `CAP_NET_RAW` required
   -> Decision: RSVP-TE binds the socket to the local router-id address for deterministic source selection; OSPF instead selects the source per-interface (`IP_MULTICAST_IF` / per-interface socket) so multicast leaves the right link, and learns the receiving ifindex on RX
-- [ ] `internal/component/rsvpte/doctor_linux.go` - `rsvpRawSocketAvailable` (lines 13-22); open+close raw-socket probe
+- [ ] `internal/plugins/rsvpte/doctor_linux.go` - `rsvpRawSocketAvailable` (lines 13-22); open+close raw-socket probe
   -> Constraint: model `doctor-ospf-raw-socket` on this: open `AF_INET SOCK_RAW` proto 89, close immediately, EPERM (no `CAP_NET_RAW`) -> false
 - [ ] `internal/plugins/iface/netlink/monitor_linux.go` (lines 72-87) + `internal/component/iface/events/events.go`
-  -> Constraint: subscribe to iface events; `EventUp`/`EventDown` drive per-interface open/close, multicast (re)join/leave, and engine teardown; the EventBus handler must not block on I/O (bounded queue + periodic rescan backstop, as in `plan/spec-isis-3-l2-transport.md`)
+  -> Constraint: subscribe to iface events; `EventUp`/`EventDown` drive per-interface open/close, multicast (re)join/leave, and engine teardown; the EventBus handler must not block on I/O (bounded queue + periodic rescan backstop, as in `plan/learned/929-isis-3-l2-transport.md`)
 - [ ] `docs/research/ospf-implementation-guide.md` sec 2 "Protocol and Addressing" (lines 83-97)
   -> Constraint: IP protocol 89; destination is `224.0.0.5` (all routers), `224.0.0.6` (DR/BDR senders to DROther), or unicast (some retransmits / DD on P2P); IP TTL 1 (link-local), so packets cannot be routed off the link
 - [ ] `docs/research/ospf-implementation-guide.md` sec 7 "Network Types and Interface Model" (lines 470-518)
@@ -94,9 +94,9 @@ plain `.ci` covers only the user-visible doctor output.
 - [ ] `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md`
   -> Constraint: the received payload is a view into the receive buffer (copied out before queueing, as RSVP-TE does); send writes into a caller-supplied / reused buffer; no per-datagram allocation on the hot path beyond the one queue copy
 - [ ] `ai/rules/plugin-self-containment.md`, `ai/rules/registration-dispatch.md`
-  -> Constraint: all transport code + the doctor check live under `internal/component/ospf/transport/`; the transport holds no protocol `Type` switch (dispatch is ospf-4)
+  -> Constraint: all transport code + the doctor check live under `internal/plugins/ospf/transport/`; the transport holds no protocol `Type` switch (dispatch is ospf-4)
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` - OSPF Version 2 base: §D.3 (addressing), the AllSPFRouters/AllDRouters multicast groups, IP protocol 89, TTL 1
   -> Constraint: send to `224.0.0.5` (AllSPFRouters) from all routers and `224.0.0.6` (AllDRouters) only as DR/BDR; TTL 1; the transport carries the OSPF packet as the raw IP payload (kernel builds the IP header)
 
@@ -110,9 +110,9 @@ plain `.ci` covers only the user-visible doctor output.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/component/rsvpte/transport_linux.go` - the only `AF_INET SOCK_RAW` proto-number user in Ze; opens proto 46, kernel builds the IP header, `stripIPv4Header` strips on receive, unicast only, binds to the local router-id address
+- [ ] `internal/plugins/rsvpte/transport_linux.go` - the only `AF_INET SOCK_RAW` proto-number user in Ze; opens proto 46, kernel builds the IP header, `stripIPv4Header` strips on receive, unicast only, binds to the local router-id address
   -> Constraint: reuse the socket open / IP-header-strip shape verbatim (proto 89 instead of 46); do NOT reuse the single-address bind (OSPF is per-interface multicast, not a single unicast source) and ADD multicast membership + multicast socket options
-- [ ] `internal/component/rsvpte/doctor_linux.go` - `rsvpRawSocketAvailable` open+close probe returning false on EPERM
+- [ ] `internal/plugins/rsvpte/doctor_linux.go` - `rsvpRawSocketAvailable` open+close probe returning false on EPERM
   -> Constraint: model `doctor-ospf-raw-socket` on this exactly, proto 89
 - [ ] `internal/component/iface/events/events.go` - interface event namespace and `EventUp`/`EventDown` constants
   -> Constraint: drive per-interface lifecycle from these events, not from a transport-private poll loop; bounded worker queue + periodic rescan backstop (the IS-IS sibling pattern)
@@ -125,7 +125,7 @@ plain `.ci` covers only the user-visible doctor output.
 - Existing doctor checks and `internal/core/diagnostic/codes.go` entries unchanged; a new `doctor-ospf-raw-socket` code is appended alongside `doctor-rsvpte-rawsock-unavailable` and `doctor-isis-raw-socket`.
 
 **Behavior to change:**
-- New package `internal/component/ospf/transport/` with a backend interface, a Linux `AF_INET SOCK_RAW` proto-89 backend, and a non-Linux stub.
+- New package `internal/plugins/ospf/transport/` with a backend interface, a Linux `AF_INET SOCK_RAW` proto-89 backend, and a non-Linux stub.
 - New `doctor-ospf-raw-socket` diagnostic code and a registered doctor check.
 - The four `ze_ospf_packets_*` / `ze_ospf_sockets_open` Prometheus series registered here.
 
@@ -153,8 +153,8 @@ plain `.ci` covers only the user-visible doctor output.
 | transport <-> doctor | `doctor-ospf-raw-socket` check probes raw-socket open / `CAP_NET_RAW` | [ ] |
 
 ### Integration Points
-- New package `internal/component/ospf/transport/` (backend interface, Linux backend, non-Linux stub, multicast constants, doctor check, metrics).
-- Consumes `internal/component/ospf/types` (spec-ospf-1) where a destination selector or address needs typed values.
+- New package `internal/plugins/ospf/transport/` (backend interface, Linux backend, non-Linux stub, multicast constants, doctor check, metrics).
+- Consumes `internal/plugins/ospf/types` (spec-ospf-1) where a destination selector or address needs typed values.
 - Subscribes to `internal/component/iface/events` for link up/down.
 - Registers a doctor check (`internal/core/diagnostic/codes.go` + owning-package registration).
 - Provides the send/receive primitive that the packet receive dispatcher (ospf-4 `instance.go`) and the runtime specs (ospf-5 Hello, ospf-6 DD/LS Request, ospf-7 LS Update/LS Ack flooding) build on.
@@ -170,7 +170,7 @@ plain `.ci` covers only the user-visible doctor output.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | RSVP-TE's `AF_INET SOCK_RAW` pattern (kernel builds the IP header, IHL strip on receive) generalises to OSPF proto 89 with IP multicast membership added | `internal/component/rsvpte/transport_linux.go:35-127` | transport needs a different socket mechanism (e.g. `IP_HDRINCL`, `IP_PKTINFO` for ifindex, per-interface fan-out) | QEMU veth multicast send/recv (`TestOSPFTransportVethMulticastRoundTrip`) | unvalidated |
+| A-1 | RSVP-TE's `AF_INET SOCK_RAW` pattern (kernel builds the IP header, IHL strip on receive) generalises to OSPF proto 89 with IP multicast membership added | `internal/plugins/rsvpte/transport_linux.go:35-127` | transport needs a different socket mechanism (e.g. `IP_HDRINCL`, `IP_PKTINFO` for ifindex, per-interface fan-out) | QEMU veth multicast send/recv (`TestOSPFTransportVethMulticastRoundTrip`) | unvalidated |
 | A-2 | IP multicast receive on a raw `AF_INET SOCK_RAW` socket works on a Linux veth/bridge with per-interface `IP_ADD_MEMBERSHIP` (`ip_mreqn`/ifindex) and no promiscuous mode | `docs/research/ospf-implementation-guide.md` sec 9; umbrella assumption A-4; RSVP-TE precedent is unicast-only so this is unverified | need `IP_MULTICAST_ALL` tuning, `PACKET`-level membership, or promiscuous mode | QEMU two-veth functional multicast receive (`TestOSPFTransportVethMulticastRoundTrip`) | unvalidated (mirrors umbrella A-4) |
 | A-3 | The receiving ifindex is recoverable on a raw IPv4 socket (via `IP_PKTINFO`/`recvmsg` or a per-interface bound socket) so RX can dispatch by interface | `docs/research/ospf-implementation-guide.md` sec 9 per-interface model; RSVP-TE uses a single socket and does not need ifindex | RX cannot attribute a datagram to an interface; need a socket-per-interface model | QEMU veth round-trip asserting the receiving ifindex | unvalidated |
 | A-4 | `IP_MULTICAST_TTL` = 1 + `IP_MULTICAST_IF` make multicast leave the intended interface with link-local scope, and `IP_MULTICAST_LOOP` off suppresses local self-receipt | RFC 2328 §D.3 TTL 1; `docs/research/ospf-implementation-guide.md` sec 2 | packets routed off-link, leave the wrong interface, or the router receives its own Hellos | QEMU veth test: peer receives, sender does not loop back | unvalidated |
@@ -227,18 +227,18 @@ plain `.ci` covers only the user-visible doctor output.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestStripIPv4Header` | `internal/component/ospf/transport/transport_test.go` | strips the IPv4 header via the IHL nibble, returns the OSPF payload + source; rejects a short datagram and an IHL overrun without panic | |
-| `TestMulticastGroupConstants` | `internal/component/ospf/transport/multicast_test.go` | `AllSPFRouters` = `224.0.0.5`, `AllDRouters` = `224.0.0.6`; bytes exact | |
-| `TestSendDoesNotAlterPayload` | `internal/component/ospf/transport/transport_test.go` | the transport adds no IP header and no padding; the final OSPF packet is sent byte-for-byte (fake backend captures the payload) | |
-| `TestSocketOptionsMulticast` | `internal/component/ospf/transport/transport_test.go` | on open, the backend requests `IP_MULTICAST_TTL` = 1, `IP_MULTICAST_IF` = the interface, `IP_MULTICAST_LOOP` off (asserted via a fake/recording backend) | |
-| `TestJoinLeaveAllDRouters` | `internal/component/ospf/transport/transport_test.go` | a DR/BDR signal joins `224.0.0.6` on the interface; a role-loss/teardown signal leaves it; idempotent join/leave | |
-| `TestOSPFTransportOpenOnLinkUp` | `internal/component/ospf/transport/transport_test.go` | `interface/up` opens the interface, sets options, joins `224.0.0.5`, starts RX/TX (wiring) | |
-| `TestOSPFTransportSendMulticast` | `internal/component/ospf/transport/transport_test.go` | engine packet to `224.0.0.5` -> backend `Sendto` with the right destination (wiring) | |
-| `TestOSPFTransportCloseOnLinkDown` | `internal/component/ospf/transport/transport_test.go` | `interface/down` leaves groups, closes the socket, signals teardown, no leak (wiring) | |
-| `TestOSPFTransportReceiveDispatchByIfindex` | `internal/component/ospf/transport/transport_test.go` | a received datagram is delivered with the receiving ifindex (fake backend injects ifindex) | |
-| `TestOSPFDoctorRawSocketUnavailable` | `internal/component/ospf/transport/doctor_test.go` | the check fires when OSPF is configured and the raw socket cannot be opened; emits `doctor-ospf-raw-socket` | |
-| `TestOSPFDoctorCodeRegistered` | `internal/component/ospf/transport/doctor_test.go` | `doctor-ospf-raw-socket` is registered in `internal/core/diagnostic/codes.go` and explainable | |
-| `TestOSPFTransportMetricsSeries` | `internal/component/ospf/transport/metrics_test.go` | exactly the four umbrella-owned series register: `ze_ospf_packets_sent_total`, `ze_ospf_packets_received_total`, `ze_ospf_packets_dropped_total`, `ze_ospf_sockets_open` | |
+| `TestStripIPv4Header` | `internal/plugins/ospf/transport/transport_test.go` | strips the IPv4 header via the IHL nibble, returns the OSPF payload + source; rejects a short datagram and an IHL overrun without panic | |
+| `TestMulticastGroupConstants` | `internal/plugins/ospf/transport/multicast_test.go` | `AllSPFRouters` = `224.0.0.5`, `AllDRouters` = `224.0.0.6`; bytes exact | |
+| `TestSendDoesNotAlterPayload` | `internal/plugins/ospf/transport/transport_test.go` | the transport adds no IP header and no padding; the final OSPF packet is sent byte-for-byte (fake backend captures the payload) | |
+| `TestSocketOptionsMulticast` | `internal/plugins/ospf/transport/transport_test.go` | on open, the backend requests `IP_MULTICAST_TTL` = 1, `IP_MULTICAST_IF` = the interface, `IP_MULTICAST_LOOP` off (asserted via a fake/recording backend) | |
+| `TestJoinLeaveAllDRouters` | `internal/plugins/ospf/transport/transport_test.go` | a DR/BDR signal joins `224.0.0.6` on the interface; a role-loss/teardown signal leaves it; idempotent join/leave | |
+| `TestOSPFTransportOpenOnLinkUp` | `internal/plugins/ospf/transport/transport_test.go` | `interface/up` opens the interface, sets options, joins `224.0.0.5`, starts RX/TX (wiring) | |
+| `TestOSPFTransportSendMulticast` | `internal/plugins/ospf/transport/transport_test.go` | engine packet to `224.0.0.5` -> backend `Sendto` with the right destination (wiring) | |
+| `TestOSPFTransportCloseOnLinkDown` | `internal/plugins/ospf/transport/transport_test.go` | `interface/down` leaves groups, closes the socket, signals teardown, no leak (wiring) | |
+| `TestOSPFTransportReceiveDispatchByIfindex` | `internal/plugins/ospf/transport/transport_test.go` | a received datagram is delivered with the receiving ifindex (fake backend injects ifindex) | |
+| `TestOSPFDoctorRawSocketUnavailable` | `internal/plugins/ospf/transport/doctor_test.go` | the check fires when OSPF is configured and the raw socket cannot be opened; emits `doctor-ospf-raw-socket` | |
+| `TestOSPFDoctorCodeRegistered` | `internal/plugins/ospf/transport/doctor_test.go` | `doctor-ospf-raw-socket` is registered in `internal/core/diagnostic/codes.go` and explainable | |
+| `TestOSPFTransportMetricsSeries` | `internal/plugins/ospf/transport/metrics_test.go` | exactly the four umbrella-owned series register: `ze_ospf_packets_sent_total`, `ze_ospf_packets_received_total`, `ze_ospf_packets_dropped_total`, `ze_ospf_sockets_open` | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -262,9 +262,9 @@ integration test (see QEMU Integration Tests below), NOT by a `.ci` file
 ### QEMU Integration Tests (MANDATORY for linux-only code -- `ai/rules/qemu-testing.md`)
 | Test | File | Build tags | End-User Scenario | Status |
 |------|------|------------|-------------------|--------|
-| `TestOSPFTransportVethMulticastRoundTrip` | `internal/component/ospf/transport/transport_integration_linux_test.go` | `integration && linux` | open the transport on a veth pair in a netns, join `224.0.0.5` on both, send a packet to `224.0.0.5` on one, receive it on the peer with the correct ifindex and source; the sender does not loop back (validates A-1, A-2, A-3, A-4) | |
-| `TestOSPFTransportAllDRoutersReceive` | `internal/component/ospf/transport/transport_integration_linux_test.go` | `integration && linux` | after a DR/BDR join of `224.0.0.6`, a packet sent to `224.0.0.6` is received; after leave, it is not (validates A-5) | |
-| `TestOSPFTransportRawSocketCap` | `internal/component/ospf/transport/transport_integration_linux_test.go` | `integration && linux` | raw `AF_INET SOCK_RAW` proto-89 open succeeds under `CAP_NET_RAW`; `t.Skip` when the capability is absent (validates A-6) | |
+| `TestOSPFTransportVethMulticastRoundTrip` | `internal/plugins/ospf/transport/transport_integration_linux_test.go` | `integration && linux` | open the transport on a veth pair in a netns, join `224.0.0.5` on both, send a packet to `224.0.0.5` on one, receive it on the peer with the correct ifindex and source; the sender does not loop back (validates A-1, A-2, A-3, A-4) | |
+| `TestOSPFTransportAllDRoutersReceive` | `internal/plugins/ospf/transport/transport_integration_linux_test.go` | `integration && linux` | after a DR/BDR join of `224.0.0.6`, a packet sent to `224.0.0.6` is received; after leave, it is not (validates A-5) | |
+| `TestOSPFTransportRawSocketCap` | `internal/plugins/ospf/transport/transport_integration_linux_test.go` | `integration && linux` | raw `AF_INET SOCK_RAW` proto-89 open succeeds under `CAP_NET_RAW`; `t.Skip` when the capability is absent (validates A-6) | |
 
 Because `transport_integration_linux_test.go` carries the
 `//go:build integration && linux` tag, the `ze-qemu-integration-test` Makefile
@@ -273,11 +273,11 @@ exact tag by a `grep` over `internal/`/`cmd/` (`mk/test-integration.mk`), so no
 Makefile edit is needed and a new tagged package cannot be silently omitted. The
 QEMU all-tests evidence script `scripts/evidence/qemu-all-tests.sh`, however,
 HARDCODES its integration-test package list and does NOT derive from tags, so the
-`internal/component/ospf/transport/...` package MUST be added there explicitly
+`internal/plugins/ospf/transport/...` package MUST be added there explicitly
 (Files to Modify) or these tests will be silently skipped in the all-tests
 evidence run. The tests use a veth pair in a network namespace (`t.Skip` when
 `CAP_NET_ADMIN`/`CAP_NET_RAW` are missing), exactly as the IS-IS sibling
-(`plan/spec-isis-3-l2-transport.md`) does.
+(`plan/learned/929-isis-3-l2-transport.md`) does.
 
 ### Interop Tests (MANDATORY for protocol features)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -296,7 +296,7 @@ ospf-13; this is not a deferral of this spec's own acceptance criteria.
 ## Files to Modify
 - `internal/core/diagnostic/codes.go` - add the `doctor-ospf-raw-socket` code (title, description, examples), alongside the existing `doctor-rsvpte-rawsock-unavailable` and `doctor-isis-raw-socket`. ospf-3 OWNS this code; ospf-13 surfaces but must not re-register it
 - `internal/component/iface/events/events.go` - no change expected; consume `EventUp`/`EventDown` (read-only)
-- `scripts/evidence/qemu-all-tests.sh` - add `./internal/component/ospf/transport/...` to the hardcoded integration-tests package list; this script does not derive packages from build tags (unlike `ze-qemu-integration-test`), so without this edit the transport integration tests are skipped in the all-tests evidence
+- `scripts/evidence/qemu-all-tests.sh` - add `./internal/plugins/ospf/transport/...` to the hardcoded integration-tests package list; this script does not derive packages from build tags (unlike `ze-qemu-integration-test`), so without this edit the transport integration tests are skipped in the all-tests evidence
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -320,7 +320,7 @@ ospf-13; this is not a deferral of this spec's own acceptance criteria.
 | 2 | Config syntax changed? | No | config owned by ospf-4 |
 | 3 | CLI command added/changed? | No | owned by ospf-13 |
 | 4 | API/RPC added/changed? | No | none in this spec |
-| 5 | Plugin added/changed? | No | component, not plugin |
+| 5 | Plugin added/changed? | Yes | edge plugin under `internal/plugins/ospf/`; user-facing docs owned by ospf-13 |
 | 6 | Has a user guide page? | No | `docs/guide/ospf.md` owned by ospf-13 |
 | 7 | Wire format changed? | Yes | `docs/architecture/wire/ospf.md` (IP proto 89 transport, `224.0.0.5`/`224.0.0.6` multicast, TTL 1, IP-header strip) |
 | 8 | Plugin SDK/protocol changed? | No | none |
@@ -335,20 +335,20 @@ ospf-13; this is not a deferral of this spec's own acceptance criteria.
 | 17 | Existing docs show examples for this area? | No | grep at completion |
 
 ## Files to Create
-- `internal/component/ospf/transport/transport.go` - the `Backend` interface (open/close per interface, send `(packet, destination selector)`, receive `(ifindex, src, payload)`, join/leave `224.0.0.6` on DR/BDR change), the `Transport` orchestrator (per-interface registry, iface EventBus subscription with a bounded worker queue + periodic rescan backstop, send fan-out, receive fan-in), and the platform-neutral `stripIPv4Header` (IHL strip). The transport does NOT parse the OSPF `Type` and does NOT alter the payload
-- `internal/component/ospf/transport/multicast.go` - `AllSPFRouters` (`224.0.0.5`) / `AllDRouters` (`224.0.0.6`) constants and the destination-selector type (multicast group or unicast address)
-- `internal/component/ospf/transport/backend_linux.go` - `//go:build linux` `AF_INET SOCK_RAW` proto-89 backend: socket open, `IP_MULTICAST_TTL` = 1, `IP_MULTICAST_IF`, `IP_MULTICAST_LOOP` off, `IP_ADD_MEMBERSHIP`/`IP_DROP_MEMBERSHIP` via `ip_mreqn`/ifindex, `Recvfrom`/`recvmsg` RX with ifindex recovery, `Sendto` TX, `SO_RCVTIMEO` for stop-signal wakeups
-- `internal/component/ospf/transport/backend_other.go` - `//go:build !linux` stub returning a not-supported error so non-Linux builds compile and config/unit tests run
-- `internal/component/ospf/transport/doctor.go` - platform-neutral doctor check body (fires when OSPF is configured and the raw socket is unavailable), modelled on the RSVP-TE / IS-IS split
-- `internal/component/ospf/transport/doctor_linux.go` - `//go:build linux` raw-socket probe (`AF_INET SOCK_RAW` proto 89 open+close; EPERM -> unavailable), modelled on `internal/component/rsvpte/doctor_linux.go`
-- `internal/component/ospf/transport/doctor_other.go` - `//go:build !linux` probe stub
-- `internal/component/ospf/transport/register.go` - doctor-check registration from `init()` via `diagnostic.RegisterDoctorCheck`
-- `internal/component/ospf/transport/metrics.go` - the four transport-owned series (`ze_ospf_packets_sent_total`, `ze_ospf_packets_received_total`, `ze_ospf_packets_dropped_total`, `ze_ospf_sockets_open`)
-- `internal/component/ospf/transport/transport_test.go` - strip, send-does-not-alter, socket-options, join/leave, wiring (open/send/close), receive-by-ifindex, boundary tests
-- `internal/component/ospf/transport/multicast_test.go` - multicast group constants byte-exact
-- `internal/component/ospf/transport/doctor_test.go` - doctor check + registration unit tests
-- `internal/component/ospf/transport/metrics_test.go` - exact-series registration test
-- `internal/component/ospf/transport/transport_integration_linux_test.go` - `//go:build integration && linux` QEMU veth multicast round-trip + AllDRouters receive + `CAP_NET_RAW` capability probe (the raw IP / multicast path lives here, NOT in a `.ci` file)
+- `internal/plugins/ospf/transport/transport.go` - the `Backend` interface (open/close per interface, send `(packet, destination selector)`, receive `(ifindex, src, payload)`, join/leave `224.0.0.6` on DR/BDR change), the `Transport` orchestrator (per-interface registry, iface EventBus subscription with a bounded worker queue + periodic rescan backstop, send fan-out, receive fan-in), and the platform-neutral `stripIPv4Header` (IHL strip). The transport does NOT parse the OSPF `Type` and does NOT alter the payload
+- `internal/plugins/ospf/transport/multicast.go` - `AllSPFRouters` (`224.0.0.5`) / `AllDRouters` (`224.0.0.6`) constants and the destination-selector type (multicast group or unicast address)
+- `internal/plugins/ospf/transport/backend_linux.go` - `//go:build linux` `AF_INET SOCK_RAW` proto-89 backend: socket open, `IP_MULTICAST_TTL` = 1, `IP_MULTICAST_IF`, `IP_MULTICAST_LOOP` off, `IP_ADD_MEMBERSHIP`/`IP_DROP_MEMBERSHIP` via `ip_mreqn`/ifindex, `Recvfrom`/`recvmsg` RX with ifindex recovery, `Sendto` TX, `SO_RCVTIMEO` for stop-signal wakeups
+- `internal/plugins/ospf/transport/backend_other.go` - `//go:build !linux` stub returning a not-supported error so non-Linux builds compile and config/unit tests run
+- `internal/plugins/ospf/transport/doctor.go` - platform-neutral doctor check body (fires when OSPF is configured and the raw socket is unavailable), modelled on the RSVP-TE / IS-IS split
+- `internal/plugins/ospf/transport/doctor_linux.go` - `//go:build linux` raw-socket probe (`AF_INET SOCK_RAW` proto 89 open+close; EPERM -> unavailable), modelled on `internal/plugins/rsvpte/doctor_linux.go`
+- `internal/plugins/ospf/transport/doctor_other.go` - `//go:build !linux` probe stub
+- `internal/plugins/ospf/transport/register.go` - doctor-check registration from `init()` via `diagnostic.RegisterDoctorCheck`
+- `internal/plugins/ospf/transport/metrics.go` - the four transport-owned series (`ze_ospf_packets_sent_total`, `ze_ospf_packets_received_total`, `ze_ospf_packets_dropped_total`, `ze_ospf_sockets_open`)
+- `internal/plugins/ospf/transport/transport_test.go` - strip, send-does-not-alter, socket-options, join/leave, wiring (open/send/close), receive-by-ifindex, boundary tests
+- `internal/plugins/ospf/transport/multicast_test.go` - multicast group constants byte-exact
+- `internal/plugins/ospf/transport/doctor_test.go` - doctor check + registration unit tests
+- `internal/plugins/ospf/transport/metrics_test.go` - exact-series registration test
+- `internal/plugins/ospf/transport/transport_integration_linux_test.go` - `//go:build integration && linux` QEMU veth multicast round-trip + AllDRouters receive + `CAP_NET_RAW` capability probe (the raw IP / multicast path lives here, NOT in a `.ci` file)
 - `test/ospf/ospf-doctor-raw-socket.ci` - functional doctor-check test (user-visible `ze doctor --json` / `ze explain` output only)
 
 ## Implementation Steps
@@ -371,7 +371,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- define the `Backend` interface, destination-selector type, and per-interface registry; subscribe to the iface EventBus; write failing wiring tests
    - Tests: `TestOSPFTransportOpenOnLinkUp`, `TestOSPFTransportCloseOnLinkDown`, `TestOSPFTransportSendMulticast`
-   - Files: `internal/component/ospf/transport/transport.go`, `multicast.go`, `backend_other.go` stub
+   - Files: `internal/plugins/ospf/transport/transport.go`, `multicast.go`, `backend_other.go` stub
    - Verify: `interface/up`/`interface/down` reach the transport; backend methods are stubs so wiring tests fail on missing I/O
 2. **Phase: IP-header strip + send-does-not-alter** -- platform-neutral `stripIPv4Header` (IHL) and the send path that adds no IP header and no padding
    - Tests: `TestStripIPv4Header`, `TestSendDoesNotAlterPayload`, `TestMulticastGroupConstants`, boundary tests
@@ -407,17 +407,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | YANG validation | n/a (config owned by ospf-4) |
 | Prometheus counters | exactly the four umbrella series defined and registered here; names match the canonical table |
 | Rule: qemu-testing | the Linux backend has an `integration && linux` QEMU test; no hardware-only skip |
-| Rule: plugin-self-containment | all transport code + the doctor check under `internal/component/ospf/transport/` |
+| Rule: plugin-self-containment | all transport code + the doctor check under `internal/plugins/ospf/transport/` |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Transport package | `ls internal/component/ospf/transport/` |
-| Linux backend + non-linux stub | `ls internal/component/ospf/transport/backend_linux.go internal/component/ospf/transport/backend_other.go` |
+| Transport package | `ls internal/plugins/ospf/transport/` |
+| Linux backend + non-linux stub | `ls internal/plugins/ospf/transport/backend_linux.go internal/plugins/ospf/transport/backend_other.go` |
 | Doctor code registered | `grep doctor-ospf-raw-socket internal/core/diagnostic/codes.go` |
-| Four metric series owned here | `grep -E 'ze_ospf_packets_(sent|received|dropped)_total|ze_ospf_sockets_open' internal/component/ospf/transport/metrics.go` |
+| Four metric series owned here | `grep -E 'ze_ospf_packets_(sent|received|dropped)_total|ze_ospf_sockets_open' internal/plugins/ospf/transport/metrics.go` |
 | Functional test (user-visible) | `ls test/ospf/ospf-doctor-raw-socket.ci` |
-| QEMU integration test (raw IP / multicast) | `ls internal/component/ospf/transport/transport_integration_linux_test.go`; auto-derived into `ze-qemu-integration-test` via its `integration && linux` build tag (`ZE_QEMU_INTEGRATION_PKGS` in `mk/test-integration.mk`); `grep ospf/transport scripts/evidence/qemu-all-tests.sh` confirms the explicit add to the hardcoded all-tests list |
+| QEMU integration test (raw IP / multicast) | `ls internal/plugins/ospf/transport/transport_integration_linux_test.go`; auto-derived into `ze-qemu-integration-test` via its `integration && linux` build tag (`ZE_QEMU_INTEGRATION_PKGS` in `mk/test-integration.mk`); `grep ospf/transport scripts/evidence/qemu-all-tests.sh` confirms the explicit add to the hardcoded all-tests list |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -546,10 +546,10 @@ AllDRouters (`224.0.0.6`) multicast groups and which routers join each, IP TTL 1
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -590,7 +590,7 @@ AllDRouters (`224.0.0.6`) multicast groups and which routers join each, IP TTL 1
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] `make ze-qemu-integration-test` passes (linux backend)
-- [ ] Feature code integrated (`internal/component/ospf/transport/`)
+- [ ] Feature code integrated (`internal/plugins/ospf/transport/`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Critical Review passes

@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-ospf-3-ip-transport.md |
+| Depends | spec-ospf-2-wire.md, spec-ospf-3-ip-transport.md |
 | Phase | - |
 | Updated | 2026-06-20 |
 
@@ -13,20 +13,20 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/spec-ospf-0-umbrella.md` - authoritative scope (this child is row ospf-4); Shared Contracts "Area + interface config model", "Authentication config model", "Packet receive dispatcher", "Command + API YANG"
-4. `internal/component/ldp/register.go` and `internal/component/isis/register.go` - closest registration + SDK lifecycle templates
-5. `internal/component/isis/yang/` (embed.go, register.go, ze-isis-conf.yang) - generated YANG glue pattern OSPF copies
+4. `internal/plugins/ldp/register.go` and `internal/plugins/isis/register.go` - closest registration + SDK lifecycle templates
+5. `internal/plugins/isis/yang/` (embed.go, register.go, ze-isis-conf.yang) - generated YANG glue pattern OSPF copies
 6. `internal/component/config/validators_register.go` (`RegisterValidators`) - where the central ValidateFns live (cycle-break; CompleteFns stay component-owned)
 7. `internal/component/config/yang_schema.go` lines 203-231 - `ze-*-conf.yang` discovery/merge; `make generate` updates `internal/component/plugin/all/all.go`
 8. `docs/research/ospf-implementation-guide.md` section 10 (Configuration Shape, lines 591-769) and section 11 (Plugin Model and Code Organisation, lines 773-856)
 
 ## Task
 
-Create the `internal/component/ospf/` component and register it so a top-level
+Create the `internal/plugins/ospf/` edge plugin and register it so a top-level
 `ospf { ... }` config block reaches a running OSPFv2 engine. This is the **wiring
 backbone** of the OSPF spec set (the mandatory first runtime spec to implement):
 the integration skeleton that every runtime child (ISM, NSM, LSDB/flooding, SPF,
 inter-area ABR, AS-external ASBR, stub/NSSA, auth, CLI) depends on. After this
-spec, Ze has an OSPF component that registers, accepts and validates the `ospf`
+spec, Ze has an OSPF edge plugin that registers, accepts and validates the `ospf`
 config subtree, resolves it to typed Go structs, applies YANG defaults, and
 starts an engine that opens the raw IP socket via the spec-ospf-3 transport,
 enrols its configured interfaces, and then does nothing else yet. The runtime
@@ -35,8 +35,8 @@ flooding, SPF, route install) is delivered by the sibling specs
 (`spec-ospf-5-interface-ism` and later); here the goroutines those specs fill are
 stubs and the packet receive dispatcher routes to stub handlers.
 
-Concretely this spec delivers, modelled on `internal/component/ldp/register.go`
-and `internal/component/isis/register.go`:
+Concretely this spec delivers, modelled on `internal/plugins/ldp/register.go`
+and `internal/plugins/isis/register.go`:
 
 - A `registry.Registration` in `init()` with `Name "ospf"`, a description,
   `Features "yang"`, `YANG` set to the embedded `ze-ospf-conf.yang`,
@@ -53,7 +53,7 @@ and `internal/component/isis/register.go`:
   `show ip ospf` commands, stubbed here), then `p.Run(ctx,
   sdk.Registration{WantsConfig:["ospf"], Commands:[...]})` with a clean shutdown
   that leaves multicast groups, closes the socket, and stops goroutines.
-- `internal/component/ospf/yang/ze-ospf-conf.yang`: a top-level `container ospf`
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang`: a top-level `container ospf`
   with `ze:config-root "ospf"` and maximally-validated leaves per
   `ai/patterns/config-option.md` (the leaf table is in the TDD section below):
   router-id, reference-bandwidth, maximum-paths (ECMP cap 8), SPF timers,
@@ -74,8 +74,8 @@ and `internal/component/isis/register.go`:
   `Type` field, that ospf-5/6/7 register handlers against; spec-ospf-3 delivers
   `(ifindex, src, payload)` to it and holds no protocol switch (per Shared
   Contracts "Packet receive dispatcher", owner ospf-4).
-- `make generate` discovering the new `internal/component/ospf` and
-  `internal/component/ospf/yang` packages and adding them to
+- `make generate` discovering the new `internal/plugins/ospf` and
+  `internal/plugins/ospf/yang` packages and adding them to
   `internal/component/plugin/all/all.go` (generated, never hand-edited),
   including the generated `yang/register.go` and `yang/embed.go` glue.
 
@@ -87,33 +87,33 @@ the component is up.
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `internal/component/ldp/register.go`, `internal/component/isis/register.go` - closest registration + SDK lifecycle templates
+- [ ] `internal/plugins/ldp/register.go`, `internal/plugins/isis/register.go` - closest registration + SDK lifecycle templates
   -> Decision: model `init()` registration and `runOSPFEngine` directly on the LDP/IS-IS `register*`/`run*Engine` pairs (registry.Registration fields, OnConfigVerify/OnConfigure/OnConfigApply/OnStarted/OnExecuteCommand, `p.Run`, clean shutdown)
   -> Constraint: registration not switch dispatch (`ai/rules/registration-dispatch.md`): OSPF registers; core discovers it through the registry, never imports it directly
-- [ ] `internal/component/isis/yang/` (embed.go, register.go, ze-isis-conf.yang) - generated YANG glue pattern
+- [ ] `internal/plugins/isis/yang/` (embed.go, register.go, ze-isis-conf.yang) - generated YANG glue pattern
   -> Constraint: `yang/register.go` and `yang/embed.go` are `// Code generated ... DO NOT EDIT.`; they are produced by `scripts/codegen/yang_glue.go` via `make generate`, never hand-written
 - [ ] `docs/research/ospf-implementation-guide.md` section 10 (Configuration Shape, lines 591-769) - the first-pass YANG shape and the configuration decisions
   -> Decision: per-interface area binding (not FRR `network <prefix> area`); ECMP default-on cap 8; per-interface auth with `inherit`; no TOS routing; no virtual links in v1
   -> Constraint: the leaf set and defaults (hello 10, dead 40, priority 1, reference-bandwidth, SPF timers) come from §10; this spec validates them maximally and resolves them to typed structs
-- [ ] `docs/research/ospf-implementation-guide.md` section 11 (Plugin Model and Code Organisation, lines 773-856) - the `internal/component/ospf/` file layout and integration points
+- [ ] `docs/research/ospf-implementation-guide.md` section 11 (Plugin Model and Code Organisation, lines 773-856) - the `internal/plugins/ospf/` file layout and integration points
   -> Constraint: this spec creates `register.go` / `config.go` / `instance.go` / `area.go` / `events.go` / `yang/`; the per-packet-type codec, ISM, NSM, LSDB, SPF directories are stubs or created by siblings
-- [ ] `plan/spec-isis-0-umbrella.md`, `plan/spec-isis-4-component-config.md` - the sibling IS-IS umbrella + wiring-backbone child; OSPF copies the component/config/sysrib/redistribution conventions verbatim
+- [ ] `plan/learned/926-isis-0-umbrella.md`, `plan/learned/930-isis-4-component-config.md` - the sibling IS-IS umbrella + wiring-backbone child; OSPF copies the component/config/sysrib/redistribution conventions verbatim
   -> Constraint: copy the component registration, the central-ValidateFn cycle-break, the test-suite registration, and the metrics-table conventions; do NOT couple OSPF to IS-IS code
 - [ ] `ai/patterns/config-option.md` - YANG leaf + module registration + validator pattern
   -> Constraint: native validation maximised (`range`/`length`/`pattern`/`enumeration`); custom `ze:validate` + `ValidateFn` + `CompleteFn` only where native is insufficient (router-id, area-id)
 - [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - YANG vs env var, kebab-case naming
   -> Constraint: OSPF config is YANG (no env vars), top-level `ospf` container, kebab-case leaves, Go struct fields are PascalCase of the leaf
 - [ ] `ai/rules/wiring-completeness.md`, `ai/rules/plugin-self-containment.md` - reachability and self-containment
-  -> Constraint: every exported symbol has a non-test caller; all OSPF schema/help/commands live under `internal/component/ospf/`; no `ospf` spelling in generic/central packages except generated `all.go` and the central ValidateFn cycle-break
+  -> Constraint: every exported symbol has a non-test caller; all OSPF schema/help/commands live under `internal/plugins/ospf/`; no `ospf` spelling in generic/central packages except generated `all.go` and the central ValidateFn cycle-break
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` - OSPF Version 2 base standard (created during ospf-2/5/6/7/8; referenced in `RFCs`)
   -> Constraint: the interface-parameter set (Hello/Router-Dead/Rxmt/InfTransDelay intervals, Router Priority, interface Cost) and area structure constrain the config leaves and defaults
 - [ ] `rfc/short/rfc9129.md` - YANG Data Model for OSPF (created by ospf-4; informs the schema shape)
   -> Constraint: per-interface area binding and the area/interface container hierarchy follow RFC 9129, not FRR's `network` matching
 
 **Key insights:**
-- OSPF is a component (`internal/component/ospf/`), not a plugin dir; engine-owning protocols (BGP, LDP, RSVP-TE, IS-IS) live in `component/`
+- OSPF is a component (`internal/plugins/ospf/`), not a plugin dir; engine-owning protocols (BGP, LDP, RSVP-TE, IS-IS) live in `component/`
 - The component is registered exactly like LDP/IS-IS; the only OSPF-specific config concern is the router-id / area-id custom validators with `CompleteFn`
 - `make generate` auto-wires `all.go` and the `yang/` glue; hand-editing generated files is forbidden
 - This spec wires a skeleton: config in, engine up, raw socket open, interfaces enrolled, nothing else; runtime lives in sibling specs
@@ -121,13 +121,13 @@ the component is up.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] No `internal/component/ospf/` directory and no `ospf` registry entry exist today
+- [ ] No `internal/plugins/ospf/` directory and no `ospf` registry entry exist today
   -> Constraint: this spec creates the directory, the registration, and the YANG module from scratch
 - [ ] No top-level `ospf` config container exists; `internal/component/config/yang_schema.go` only merges `-conf` modules that are registered, and none is `ze-ospf-conf`
   -> Constraint: the `ospf` container only appears once `ze-ospf-conf.yang` is registered via generated glue and `make generate` runs
 - [ ] `internal/component/plugin/all/all.go` is generated and does not import an `ospf` package
   -> Constraint: never hand-edit `all.go`; `make generate` adds the import after the package exists
-- [ ] `internal/plugins/sysrib/yang/ze-rib-conf.yang` already carries an `ospf` admin-distance leaf (default 110); `sysrib.go` `adminDist` map already has `"ospf": 110`
+- [ ] `internal/component/sysrib/yang/ze-rib-conf.yang` already carries an `ospf` admin-distance leaf (default 110); `sysrib.go` `adminDist` map already has `"ospf": 110`
   -> Constraint: this spec adds NO sysrib leaf; the admin distance already exists (umbrella Existing Foundation). FIB install (ospf-8) reuses it
 - [ ] LDP / IS-IS demonstrate the full pattern: `register*` builds `registry.Registration`, `run*Engine` wires the SDK callbacks and `p.Run`; the IS-IS sibling put its NET/system-id ValidateFns in the central config package (cycle-break) while keeping CompleteFns component-owned
   -> Constraint: OSPF mirrors this pattern; differences are config shape (router-id/area/per-interface enrolment) and raw-socket open + multicast join (via ospf-3) instead of UDP/TCP discovery
@@ -139,10 +139,10 @@ the component is up.
 - The existing `ospf` sysrib admin-distance leaf and `adminDist` entry are untouched
 
 **Behavior to change:**
-- New top-level `ospf` config container and `internal/component/ospf/` component
+- New top-level `ospf` config container and `internal/plugins/ospf/` component
 - A new OSPF event namespace registered for neighbor up/down, SPF run, LSDB change
 - `instance.go` owns a new packet-type receive dispatcher (keyed by the common-header Type) that ospf-5/6/7 register handlers against
-- `make generate` adds `internal/component/ospf` and `internal/component/ospf/yang` to `all.go`
+- `make generate` adds `internal/plugins/ospf` and `internal/plugins/ospf/yang` to `all.go`
 - A new `test/ospf` functional-test suite registered in `internal/test/cli/register.go` and `mk/test-functional.mk`
 
 ## Data Flow (MANDATORY)
@@ -171,7 +171,7 @@ the component is up.
 | Schema <-> loader | `ze-ospf-conf.yang` `-conf` suffix auto-merge in `yang_schema.go` | [ ] |
 
 ### Integration Points
-- New component `internal/component/ospf/` (register.go, config.go, events.go, instance.go, area.go) plus `yang/`
+- New component `internal/plugins/ospf/` (register.go, config.go, events.go, instance.go, area.go) plus `yang/`
 - `instance.go` packet-type receive dispatcher (keyed by the common-header Type) that ospf-5/6/7 register handlers against; spec-ospf-3 delivers `(ifindex, src, payload)` to it and holds no protocol switch
 - `ze-ospf-conf.yang` registered through generated `yang/register.go`
 - `internal/component/plugin/all/all.go` regenerated by `make generate` to import the new packages
@@ -247,16 +247,16 @@ the component is up.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFConfigResolve` | `internal/component/ospf/config_test.go` | Full `ospf` subtree (areas/area, interfaces/interface, ranges/range) parses to typed structs with YANG defaults applied | |
-| `TestOSPFConfigDefaults` | `internal/component/ospf/config_test.go` | Omitted leaves resolve to YANG defaults (reference-bandwidth, maximum-paths 8, hello-interval 10, dead-interval 40, priority 1, retransmit-interval 5, transmit-delay 1, area-type normal, SPF delay/hold defaults) | |
-| `TestOSPFConfigValidate` | `internal/component/ospf/config_test.go` | Router-id resolves (configured or derived); interface bound to an undeclared area rejected; engine-required fields present | |
+| `TestOSPFConfigResolve` | `internal/plugins/ospf/config_test.go` | Full `ospf` subtree (areas/area, interfaces/interface, ranges/range) parses to typed structs with YANG defaults applied | |
+| `TestOSPFConfigDefaults` | `internal/plugins/ospf/config_test.go` | Omitted leaves resolve to YANG defaults (reference-bandwidth, maximum-paths 8, hello-interval 10, dead-interval 40, priority 1, retransmit-interval 5, transmit-delay 1, area-type normal, SPF delay/hold defaults) | |
+| `TestOSPFConfigValidate` | `internal/plugins/ospf/config_test.go` | Router-id resolves (configured or derived); interface bound to an undeclared area rejected; engine-required fields present | |
 | `TestOSPFRouterIDValidator` | `internal/component/config/validators_ospf_test.go` | `ospf-router-id` validator accepts dotted-quads, rejects non-dotted-quad/out-of-range octets; `CompleteFn` returns guidance | |
 | `TestOSPFAreaIDValidator` | `internal/component/config/validators_ospf_test.go` | `ospf-area-id` validator accepts dotted-quad and integer forms, rejects malformed; `CompleteFn` returns guidance (`0.0.0.0`) | |
-| `TestOSPFComponentStart` | `internal/component/ospf/instance_test.go` | Registration present; `runOSPFEngine` reaches `OnStarted`; raw socket opens on a stub backend; an enabled interface is enrolled (multicast join recorded); component in inventory | |
-| `TestOSPFConfigApplyReconcile` | `internal/component/ospf/instance_test.go` | `OnConfigApply` reconciles only the changed interface (journal diff), no full restart, no spurious multicast leave/join on unrelated interfaces | |
-| `TestOSPFEventNamespace` | `internal/component/ospf/events_test.go` | `events.RegisterNamespace` registers neighbor up/down, SPF-run, and LSDB-change types without collision | |
-| `TestOSPFPacketDispatch` | `internal/component/ospf/instance_test.go` | The packet-type dispatcher routes each common-header Type (1 Hello, 2 DD, 3 LS Request, 4 LS Update, 5 LS Ack) to its registered handler; unknown/short/wrong-version packets are dropped, not panicked | |
-| `TestOSPFInterfaceEnrolment` | `internal/component/ospf/config_test.go` | Only enabled interfaces bound to a declared area enrol; passive interfaces are enrolled-but-silent (originate, no Hellos); disabled interfaces are skipped | |
+| `TestOSPFComponentStart` | `internal/plugins/ospf/instance_test.go` | Registration present; `runOSPFEngine` reaches `OnStarted`; raw socket opens on a stub backend; an enabled interface is enrolled (multicast join recorded); component in inventory | |
+| `TestOSPFConfigApplyReconcile` | `internal/plugins/ospf/instance_test.go` | `OnConfigApply` reconciles only the changed interface (journal diff), no full restart, no spurious multicast leave/join on unrelated interfaces | |
+| `TestOSPFEventNamespace` | `internal/plugins/ospf/events_test.go` | `events.RegisterNamespace` registers neighbor up/down, SPF-run, and LSDB-change types without collision | |
+| `TestOSPFPacketDispatch` | `internal/plugins/ospf/instance_test.go` | The packet-type dispatcher routes each common-header Type (1 Hello, 2 DD, 3 LS Request, 4 LS Update, 5 LS Ack) to its registered handler; unknown/short/wrong-version packets are dropped, not panicked | |
+| `TestOSPFInterfaceEnrolment` | `internal/plugins/ospf/config_test.go` | Only enabled interfaces bound to a declared area enrol; passive interfaces are enrolled-but-silent (originate, no Hellos); disabled interfaces are skipped | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -304,6 +304,8 @@ per-interface auth with `inherit`, no TOS, no virtual links.
 | `areas/area/area-type` | leaf enumeration | enum `normal` / `stub` / `nssa` | `normal` | Area type (semantics ospf-11) |
 | `areas/area/no-summary` | leaf boolean | - | `false` | Totally-stubby / totally-NSSA: suppress Type 3 summaries (ospf-11) |
 | `areas/area/default-cost` | leaf uint32 | `range "0..16777215"` | `1` | Cost of the default the ABR injects into a stub/NSSA area (ospf-11) |
+| `areas/area/authentication` | container | - | - | Area-level authentication default used by interfaces whose auth mode is `inherit` (ospf-12) |
+| `areas/area/authentication/key-chain` | leaf string | leafref/name into `key-chains` | - | Area key chain inherited by interfaces in this area unless overridden |
 | `areas/area/ranges` | container | - | - | Address ranges for inter-area summarisation |
 | `areas/area/ranges/range` | list (key `prefix`) | - | - | A summarised range (semantics ospf-9) |
 | `areas/area/ranges/range/prefix` | leaf string | key, `type ze-types:ip-prefix` (CIDR) | - | The aggregate prefix, e.g. `10.0.0.0/16` |
@@ -329,8 +331,8 @@ per-interface auth with `inherit`, no TOS, no virtual links.
 | `key-chains` | list (key `name`) | - | - | Named authentication key chains for hitless rotation (semantics ospf-12) |
 | `key-chains/name` | leaf string | key, `length "1..63"` | - | Key-chain name referenced by per-interface auth |
 | `key-chains/key` | list (key `key-id`) | - | - | Keys in this chain |
-| `key-chains/key/key-id` | leaf uint8 | key, `range "0..255"` | - | Key identifier carried in the AuType 2 auth field |
-| `key-chains/key/algorithm` | leaf enumeration | enum `simple` / `md5` / `hmac-sha-1` / `hmac-sha-256` / `hmac-sha-384` / `hmac-sha-512` | `md5` | Authentication algorithm (AuType 1 simple, AuType 2 crypto / RFC 7474 trailer) |
+| `key-chains/key/key-id` | leaf uint32 | key, `range "0..4294967295"` | - | Key identifier; AuType 2 send path rejects values above 255, AuType 3 uses the full 32-bit field |
+| `key-chains/key/algorithm` | leaf enumeration | enum `simple` / `md5` / `hmac-sha-1` / `hmac-sha-256` / `hmac-sha-384` / `hmac-sha-512` | `md5` | Authentication algorithm (AuType 1 simple, AuType 2 crypto, or AuType 3 RFC 7474 trailer) |
 | `key-chains/key/secret` | leaf string | `length "1..255"`, `ze:sensitive` ($9$-encoded) | - | The shared secret, masked and `$9$`-encoded at rest |
 | `key-chains/key/send-lifetime` | container | optional start/end timestamps | - | When this key may be used to sign (hitless rotation) |
 | `key-chains/key/accept-lifetime` | container | optional start/end timestamps | - | When this key is accepted on receive (hitless rotation) |
@@ -370,15 +372,19 @@ Interop is therefore N/A for ospf-4.
 - Runtime behaviour tests (Hello exchange, adjacency Full, LSDB sync, SPF, FIB install) belong to siblings ospf-5/6/7/8 and are not deferred here; this spec only proves the skeleton starts, opens the socket, and enrols interfaces.
 
 ## Files to Modify
-- `internal/component/plugin/all/all.go` - regenerated by `make generate` to import `internal/component/ospf` and `internal/component/ospf/yang` (generated, never hand-edited)
+- `internal/component/plugin/all/all.go` - regenerated by `make generate` to import `internal/plugins/ospf` and `internal/plugins/ospf/yang` (generated, never hand-edited)
 - `internal/component/config/validators_register.go` - register the central `ospf-router-id` and `ospf-area-id` ValidateFns (cycle-break; the component cannot be imported by `config`). The component owns the matching CompleteFns via `configyang.RegisterCompleteFn`
 - `internal/test/cli/register.go` - register the new `test/ospf` functional-test suite via `registerCIRoot("ospf", "ospf", "ospf", "<description>", 0)` so `bin/ze-test ospf --all` resolves; ospf-4 establishes the suite, later specs add `.ci` cases
 - `mk/test-functional.mk` - add a `ze-ospf-test` individual target (`@$(SUITE_RUN) bin/ze-test ospf --all`), add `ospf` to the `all_suites` / `run_suite` list and the `.PHONY` declarations so the suite runs under `make ze-functional-test`
+- `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` - document the new `ospf` config block, per-interface area binding, area auth inheritance, and validation failures
+- `docs/guide/plugins.md`, `docs/plugin-overview.md`, `docs/guide/status.md` - document the new OSPF edge plugin, lifecycle/status row, and removal/self-containment surface
+- `docs/functional-tests.md` - document the new `test/ospf/` suite and `ze-ospf-test` target
+- `docs/architecture/core-design.md` - add OSPF to the edge-plugin protocol list, not the component/platform list
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | Yes | `internal/component/ospf/yang/ze-ospf-conf.yang` (top-level `ospf`, `ze:config-root`) |
+| YANG schema (new config) | Yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` (top-level `ospf`, `ze:config-root`) |
 | YANG validation constraints | Yes | `range`/`pattern`/`enumeration` on every numeric/enum/id leaf (cost, priority, intervals, maximum-paths, area-type, metric-type) per the leaf table |
 | YANG custom validators | Yes | `ospf-router-id` and `ospf-area-id` validators with `CompleteFn`; ValidateFns registered centrally in `validators_register.go` (cycle-break), CompleteFns registered from the component |
 | CLI commands/flags | No | `show ip ospf neighbor/interface/database/route/border-routers/spf` dispatched in `OnExecuteCommand` but stubbed; real grammar in spec-ospf-13-cli-diag-interop |
@@ -397,14 +403,14 @@ Interop is therefore N/A for ospf-4.
 | 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` (new `ospf` block) |
 | 3 | CLI command added/changed? | No | Commands stubbed; documented in spec-ospf-13 |
 | 4 | API/RPC added/changed? | No | Stubbed RPC; documented in spec-ospf-13 |
-| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`, `docs/plugin-overview.md` (new `ospf` component) |
+| 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`, `docs/plugin-overview.md` (new `ospf` edge plugin) |
 | 6 | Has a user guide page? | No | `docs/guide/ospf.md` is created by spec-ospf-13 when the feature is usable |
 | 7 | Wire format changed? | No | No wire format in this spec |
 | 8 | Plugin SDK/protocol changed? | No | Uses the existing SDK lifecycle unchanged |
 | 9 | RFC behavior implemented? | No | Config wiring only; RFC behaviour in siblings |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md` (new `test/ospf/` directory) |
 | 11 | Affects daemon comparison? | No | Deferred to spec-ospf-13 |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` (new `ospf` component) |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` (new `ospf` edge plugin) |
 | 13 | Route metadata keys added/changed? | No | None in this spec |
 | 14 | Prometheus counters added/changed? | No | Registry wired here; the `ze_ospf_*` series are registered per-owner by runtime siblings, not centrally and not by ospf-13 |
 | 15 | Registered plugin/event/command/capability changed? | Yes | `docs/plugin-overview.md`, `docs/guide/status.md` (new component, new event namespace) |
@@ -412,14 +418,14 @@ Interop is therefore N/A for ospf-4.
 | 17 | Existing docs show examples for this area? | No | Grep at completion; verify the `ospf` block example against the YANG |
 
 ## Files to Create
-- `internal/component/ospf/register.go` - `init()` registration (`registry.Registration`) + `runOSPFEngine` SDK lifecycle; registers the event namespace, the router-id/area-id CompleteFns, and (if added) the config-sanity diagnostic codes
-- `internal/component/ospf/config.go` - typed config structs (instance + per-area + per-interface + ranges + key-chains), parse from the `ospf` JSON subtree, YANG-default application, router-id resolution/derivation, and the cross-check that every interface binds a declared area
-- `internal/component/ospf/events.go` - `events.RegisterNamespace` + OSPF event types (neighbor up/down, SPF run, LSDB change)
-- `internal/component/ospf/instance.go` - top-level OSPF instance: router-id, area map, AS-external store placeholder, timers, goroutine lifecycle, the packet-type receive dispatcher (keyed by the common-header Type, routing Hello to ISM / DD,LS Request to NSM / LS Update,LS Ack to LSDB/flooding; handlers register at startup, stubs here), raw-socket open + per-interface enrol via spec-ospf-3, clean shutdown (multicast leave, socket close), journal-based reconcile
-- `internal/component/ospf/area.go` - per-area state scaffolding: area-id, area-type, the interface set, an LSDB placeholder, and the SPF-trigger handle (filled by ospf-7/8); instance holds the `map[AreaID]*area`
-- `internal/component/ospf/yang/ze-ospf-conf.yang` - config schema (top-level `ospf`, `ze:config-root`, validated leaves per the leaf table). The `yang/` directory is the home for all OSPF YANG modules: this spec creates only `internal/component/ospf/yang/ze-ospf-conf.yang`. The command module `internal/component/ospf/yang/ze-ospf-cmd.yang` (CLI command ownership; show binds `ze-show:ospf-*`, clear binds `ze-clear:ospf-*`, modelled on `internal/plugins/ldp-cmd/yang/ze-ldp-cmd.yang` and the IS-IS `ze-isis-cmd.yang`) lives in the same directory but is owned and authored by spec-ospf-13-cli-diag-interop per Shared Contracts "Command + API YANG"; this spec does NOT define the cmd schema. No per-component api yang file is created: by design the show/clear RPCs register in Go via the central `ze-show` / `ze-clear` namespaces (LDP/IS-IS style)
-- `internal/component/ospf/yang/register.go` - generated glue (`configyang.RegisterModule`), produced by `make generate`
-- `internal/component/ospf/yang/embed.go` - generated `//go:embed ze-ospf-conf.yang` var, produced by `make generate`
+- `internal/plugins/ospf/register.go` - `init()` registration (`registry.Registration`) + `runOSPFEngine` SDK lifecycle; registers the event namespace, the router-id/area-id CompleteFns, and (if added) the config-sanity diagnostic codes
+- `internal/plugins/ospf/config.go` - typed config structs (instance + per-area + per-interface + ranges + key-chains), parse from the `ospf` JSON subtree, YANG-default application, router-id resolution/derivation, and the cross-check that every interface binds a declared area
+- `internal/plugins/ospf/events.go` - `events.RegisterNamespace` + OSPF event types (neighbor up/down, SPF run, LSDB change)
+- `internal/plugins/ospf/instance.go` - top-level OSPF instance: router-id, area map, AS-external store placeholder, timers, goroutine lifecycle, the packet-type receive dispatcher (keyed by the common-header Type, routing Hello to ISM / DD,LS Request to NSM / LS Update,LS Ack to LSDB/flooding; handlers register at startup, stubs here), raw-socket open + per-interface enrol via spec-ospf-3, clean shutdown (multicast leave, socket close), journal-based reconcile
+- `internal/plugins/ospf/area.go` - per-area state scaffolding: area-id, area-type, the interface set, an LSDB placeholder, and the SPF-trigger handle (filled by ospf-7/8); instance holds the `map[AreaID]*area`
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - config schema (top-level `ospf`, `ze:config-root`, validated leaves per the leaf table). The `yang/` directory is the home for all OSPF YANG modules: this spec creates only `internal/plugins/ospf/yang/ze-ospf-conf.yang`. The command module `internal/plugins/ospf/yang/ze-ospf-cmd.yang` (CLI command ownership; show binds `ze-show:ospf-*`, clear binds `ze-clear:ospf-*`, modelled on `internal/plugins/ldp-cmd/yang/ze-ldp-cmd.yang` and the IS-IS `ze-isis-cmd.yang`) lives in the same directory but is owned and authored by spec-ospf-13-cli-diag-interop per Shared Contracts "Command + API YANG"; this spec does NOT define the cmd schema. No per-component api yang file is created: by design the show/clear RPCs register in Go via the central `ze-show` / `ze-clear` namespaces (LDP/IS-IS style)
+- `internal/plugins/ospf/yang/register.go` - generated glue (`configyang.RegisterModule`), produced by `make generate`
+- `internal/plugins/ospf/yang/embed.go` - generated `//go:embed ze-ospf-conf.yang` var, produced by `make generate`
 - `internal/component/config/validators_ospf_test.go` - tests for the central `ospf-router-id` / `ospf-area-id` ValidateFns (cycle-break, IS-IS precedent)
 - `test/ospf/ospf-config.ci` - functional test: valid `ospf` config validates and the component starts; bad router-id and undeclared-area binding rejected
 
@@ -441,25 +447,25 @@ Interop is therefore N/A for ospf-4.
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: Wiring (MANDATORY FIRST)** - register the OSPF component, write the failing wiring test
-   - Tests: `TestOSPFComponentStart`
-   - Files: `internal/component/ospf/register.go` (stub `runOSPFEngine` with empty `OnStarted`), `internal/component/ospf/yang/ze-ospf-conf.yang` (minimal: `ospf` container + `router-id` + `areas/area` + `interfaces/interface`), run `make generate` for `yang/register.go`, `yang/embed.go`, and `all.go`
-   - Verify: registration present, component in inventory, `runOSPFEngine` reachable; the wiring test fails because socket open / interface enrol is still a stub
+1. **Phase: Wiring (MANDATORY FIRST)** - register the OSPF edge plugin, write the failing wiring test
+   - Tests: `TestOSPFPluginStart`
+   - Files: `internal/plugins/ospf/register.go` (stub `runOSPFEngine` with empty `OnStarted`), `internal/plugins/ospf/yang/ze-ospf-conf.yang` (minimal: `ospf` container + `router-id` + `areas/area` + `interfaces/interface`), run `make generate` for `yang/register.go`, `yang/embed.go`, and `all.go`
+   - Verify: registration present, plugin inventory includes OSPF, `runOSPFEngine` reachable; the wiring test fails because socket open / interface enrol is still a stub
 2. **Phase: YANG schema + validators** - full leaf table, router-id and area-id validators
    - Tests: `TestOSPFRouterIDValidator`, `TestOSPFAreaIDValidator`, boundary tests for cost/priority/intervals/maximum-paths/range-cost
-   - Files: `internal/component/ospf/yang/ze-ospf-conf.yang`, `internal/component/config/validators_register.go` (central ValidateFns), CompleteFn registration in `register.go`
+   - Files: `internal/plugins/ospf/yang/ze-ospf-conf.yang`, `internal/component/config/validators_register.go` (central ValidateFns), CompleteFn registration in `register.go`
    - Verify: native validation rejects out-of-range/enum/pattern violations; custom validators reject bad router-id/area-id and offer `CompleteFn`
 3. **Phase: Config resolution** - typed structs, defaults, router-id derivation, undeclared-area cross-check
    - Tests: `TestOSPFConfigResolve`, `TestOSPFConfigDefaults`, `TestOSPFConfigValidate`, `TestOSPFInterfaceEnrolment`
-   - Files: `internal/component/ospf/config.go`, `internal/component/ospf/area.go`
+   - Files: `internal/plugins/ospf/config.go`, `internal/plugins/ospf/area.go`
    - Verify: full subtree resolves with defaults; router-id resolves or derives; interface bound to an undeclared area rejected; only enabled interfaces bound to a declared area enrol
 4. **Phase: Events** - OSPF event namespace
    - Tests: `TestOSPFEventNamespace`
-   - Files: `internal/component/ospf/events.go`
+   - Files: `internal/plugins/ospf/events.go`
    - Verify: namespace + neighbor up/down + SPF-run + LSDB-change types register without collision
 5. **Phase: Lifecycle + socket + enrol + packet dispatcher** - `OnConfigVerify`/`OnConfigure`/`OnConfigApply`/`OnStarted`/`OnExecuteCommand`, raw socket open + per-interface enrol via ospf-3, the packet-type receive dispatcher (keyed by the common-header Type, with stub handlers; ospf-3 delivers `(ifindex, src, payload)` to it and holds no protocol switch), journal reconcile, clean shutdown
    - Tests: `TestOSPFComponentStart` (now passes), `TestOSPFConfigApplyReconcile`, `TestOSPFPacketDispatch`
-   - Files: `internal/component/ospf/instance.go`, `internal/component/ospf/register.go`
+   - Files: `internal/plugins/ospf/instance.go`, `internal/plugins/ospf/register.go`
    - Verify: engine opens the socket and enrols enabled interfaces; the dispatcher routes packet types to the right (stub) handler and drops unknown/short/wrong-version packets; reload reconciles one interface; shutdown leaves multicast groups and closes the socket
 6. **Functional test + suite registration** - register the `test/ospf` suite in `internal/test/cli/register.go` and `mk/test-functional.mk`; write `test/ospf/ospf-config.ci`: valid config validates and starts; bad router-id and undeclared-area binding rejected; confirm `make ze-ospf-test` runs it
 7. **Full verification** - `make ze-verify`
@@ -481,9 +487,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| OSPF component directory | `ls internal/component/ospf/` |
-| YANG module | `ls internal/component/ospf/yang/ze-ospf-conf.yang` |
-| Generated glue | `ls internal/component/ospf/yang/register.go internal/component/ospf/yang/embed.go` |
+| OSPF edge plugin directory | `ls internal/plugins/ospf/` |
+| YANG module | `ls internal/plugins/ospf/yang/ze-ospf-conf.yang` |
+| Generated glue | `ls internal/plugins/ospf/yang/register.go internal/plugins/ospf/yang/embed.go` |
 | `all.go` wired | `grep ospf internal/component/plugin/all/all.go` |
 | Central ValidateFns | `grep ospf-router-id internal/component/config/validators_register.go` |
 | Functional test | `ls test/ospf/ospf-config.ci` |
@@ -601,10 +607,10 @@ intervals).
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -644,7 +650,7 @@ intervals).
 - [ ] Wiring Test table complete - every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled - 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`internal/component/ospf/`)
+- [ ] Feature code integrated (`internal/plugins/ospf/`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented

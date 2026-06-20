@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-ospf-5-interface-ism.md, spec-ospf-7-lsdb-flooding.md, spec-ospf-8-spf-rib.md |
+| Depends | spec-ospf-1-types.md, spec-ospf-2-wire.md, spec-ospf-3-ip-transport.md, spec-ospf-4-component-config.md, spec-ospf-5-interface-ism.md, spec-ospf-6-neighbor-nsm.md, spec-ospf-7-lsdb-flooding.md, spec-ospf-8-spf-rib.md, spec-ospf-9-inter-area-abr.md, spec-ospf-10-as-external-asbr.md, spec-ospf-11-stub-nssa.md, spec-ospf-12-auth.md |
 | Phase | - |
 | Updated | 2026-06-20 |
 
@@ -13,8 +13,8 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/spec-ospf-0-umbrella.md` - the OSPF umbrella; this child supplies the goal-validation interop evidence and asserts the full canonical `ze_ospf_*` metric set. Read "Shared Contracts": "Command + API YANG", "Metrics (canonical)", "Test + interop wiring", and the ospf-13 Child Specs / Dependency rows
-4. `internal/component/isis/cmd_show.go` and `internal/component/ldp/cmd_show.go` - `pluginserver.RegisterRPCs` + `ForwardToPlugin` proxy pattern (the exact model for `show ip ospf ...`)
-5. `plan/spec-isis-13-cli-diag-interop.md` - the sibling IS-IS presentation/diagnostic/interop child; OSPF copies its structure (show proxy, metrics-assert, doctor surface, FRR interop, web SSE) with the OSPF noun set
+4. `internal/plugins/isis/cmd_show.go` and `internal/plugins/ldp/cmd_show.go` - `pluginserver.RegisterRPCs` + `ForwardToPlugin` proxy pattern (the exact model for `show ip ospf ...`)
+5. `plan/learned/937-isis-13-cli-diag-interop.md` - the sibling IS-IS presentation/diagnostic/interop child; OSPF copies its structure (show proxy, metrics-assert, doctor surface, FRR interop, web SSE) with the OSPF noun set
 6. `ai/rules/cli-grammar.md`, `ai/rules/pipe-completeness.md`, `ai/rules/doctor-checks.md`, `ai/rules/interop-and-goal-validation.md`
 7. Sibling engine specs: `spec-ospf-5-interface-ism.md` (interface + DR/BDR snapshot), `spec-ospf-7-lsdb-flooding.md` (LSDB snapshot, max-metric origination), `spec-ospf-8-spf-rib.md` (SPF/route snapshot, SPF log)
 
@@ -35,7 +35,7 @@ Concretely, this child delivers:
 - **CLI show/clear commands** registered the LDP/IS-IS way:
   `pluginserver.RegisterRPCs` with `ze-show:ospf-*` / `ze-clear:ospf-*` wire
   methods whose handlers proxy fixed plugin commands to the engine via the
-  dispatcher (model `internal/component/isis/cmd_show.go`). Commands:
+  dispatcher (model `internal/plugins/isis/cmd_show.go`). Commands:
   `show ip ospf` (process summary: router-id, areas, ABR/ASBR status, SPF
   stats), `show ip ospf neighbor`, `show ip ospf interface`,
   `show ip ospf database` (plus per-LSA-type subviews
@@ -86,10 +86,10 @@ define and must not reach around them into engine internals.
 - [ ] `plan/spec-ospf-0-umbrella.md` "Shared Contracts" - "Command + API YANG", "Metrics (canonical)", "Test + interop wiring"; the ospf-13 Child Specs / Dependency rows
   → Decision: ship ONE command YANG `ze-ospf-cmd.yang` binding the CENTRAL `ze-show:ospf-*` / `ze-clear:ospf-*` namespaces (no `ze-ospf-api.yang`); register the RPCs in Go via `pluginserver.RegisterRPCs`, LDP/IS-IS style
   → Constraint: ospf-13 registers NO metric series; it scrapes/asserts the FULL canonical `ze_ospf_*` set from the umbrella Metrics table (each series owned by ospf-3/5/6/7/8/9/10/11/12). Never coin a bare `ospf_*` name
-- [ ] `internal/component/isis/cmd_show.go`, `internal/component/ldp/cmd_show.go` - `pluginserver.RegisterRPCs` + `ForwardToPlugin` proxy; the show command is a thin proxy to a fixed engine command
-  → Decision: implement `internal/component/ospf/cmd_show.go` identically: one `RPCRegistration` per `ze-show:ospf-<noun>` / `ze-clear:ospf-<action>` wire method, each forwarding a fixed `show ip ospf <noun>` / `clear ip ospf <action>` command through `Dispatcher().ForwardToPlugin` (NOT `Dispatch`, which re-matches the builtin and recurses)
+- [ ] `internal/plugins/isis/cmd_show.go`, `internal/plugins/ldp/cmd_show.go` - `pluginserver.RegisterRPCs` + `ForwardToPlugin` proxy; the show command is a thin proxy to a fixed engine command
+  → Decision: implement `internal/plugins/ospf/cmd_show.go` identically: one `RPCRegistration` per `ze-show:ospf-<noun>` / `ze-clear:ospf-<action>` wire method, each forwarding a fixed `show ip ospf <noun>` / `clear ip ospf <action>` command through `Dispatcher().ForwardToPlugin` (NOT `Dispatch`, which re-matches the builtin and recurses)
   → Constraint: the show handlers carry no protocol logic; the engine `OnExecuteCommand` produces the JSON, the proxy relays it unchanged so removing the component removes the command, its schema, and the handlers together (plugin-self-containment)
-- [ ] `plan/spec-isis-13-cli-diag-interop.md` - the IS-IS sibling presentation/diagnostic/interop child
+- [ ] `plan/learned/937-isis-13-cli-diag-interop.md` - the IS-IS sibling presentation/diagnostic/interop child
   → Constraint: copy its structure (show proxy, metrics-assert-only test, config-sanity doctor + surfaced raw-socket check, web neighbour/database SSE, six FRR scenarios, two-commit closure); substitute the OSPF noun set and the `ze_ospf_*` / `doctor-ospf-*` names
 - [ ] `ai/rules/cli-grammar.md` - keywords before values; action before identifier
   → Constraint: `show ip ospf database router` (action keyword, a per-LSA-type subview, not a free value); `clear ip ospf process|neighbor|counters` are runtime actions (verb form allowed, not YANG-tree mutations); any selector (e.g. a neighbour router-id filter) must be typed, never a bare positional
@@ -118,9 +118,9 @@ define and must not reach around them into engine internals.
 
 **Source files read:** (must read BEFORE writing this spec)
 <!-- Same rule: never tick [ ] to [x]. Write → Constraint: annotations instead. -->
-- [ ] `internal/component/isis/cmd_show.go` - existing protocol component proxies `show isis <noun>` to the engine via `ForwardToPlugin`
-  → Constraint: OSPF mirrors this file structure exactly under `internal/component/ospf/cmd_show.go`, substituting the `show ip ospf` noun set and the `ze-show:ospf-*` / `ze-clear:ospf-*` tokens
-- [ ] `internal/component/isis/codes.go` + `register.go` - doctor codes owned in the component (the IS-IS deviation that became the pattern), prefix `doctor-<component>-<condition>`, explainable via `ze explain`
+- [ ] `internal/plugins/isis/cmd_show.go` - existing protocol component proxies `show isis <noun>` to the engine via `ForwardToPlugin`
+  → Constraint: OSPF mirrors this file structure exactly under `internal/plugins/ospf/cmd_show.go`, substituting the `show ip ospf` noun set and the `ze-show:ospf-*` / `ze-clear:ospf-*` tokens
+- [ ] `internal/plugins/isis/codes.go` + `register.go` - doctor codes owned in the component (the IS-IS deviation that became the pattern), prefix `doctor-<component>-<condition>`, explainable via `ze explain`
   → Constraint: this child registers ONLY `doctor-ospf-router-id-missing` and `doctor-ospf-interface-area-unbound` (config-sanity), owned in the component. `doctor-ospf-raw-socket` (code + check) is OWNED and registered by ospf-3 (`transport/doctor_linux.go`); ospf-13 must NOT re-register it (double registration), it only surfaces all `doctor-ospf-*` results in `ze doctor` / `ze explain`
 - [ ] sibling engine specs (ospf-5/7/8) define interface/neighbour/LSDB/SPF/route snapshot APIs consumed here
   → Constraint: this child reads those snapshots; it does not add engine state. The max-metric Router-LSA origination is ospf-7; ospf-13 reads the active stub-router state for the `show ip ospf` summary
@@ -170,13 +170,13 @@ define and must not reach around them into engine internals.
 | Ze ↔ FRR | real OSPF packets over the interop Linux link | [ ] |
 
 ### Integration Points
-- `internal/component/ospf/yang/ze-ospf-cmd.yang` - the ONE owner command YANG for the show/clear surface (show binds `ze-show:ospf-*`, clear binds `ze-clear:ospf-*`; no `ze-ospf-api.yang`), enforced by `scripts/checks/command_ownership.go`
-- `internal/component/ospf/cmd_show.go` - new RPC registrations (model: isis/ldp)
-- `internal/component/ospf/` engine `OnExecuteCommand` - handles `show ip ospf <noun>` / `clear ip ospf <action>` (snapshot rendering lives near the engine, siblings)
-- `internal/component/ospf/yang/ze-ospf-conf.yang` (owned by ospf-4) - extended here with the `max-metric router-lsa` leaves (RFC 6987)
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` - the ONE owner command YANG for the show/clear surface (show binds `ze-show:ospf-*`, clear binds `ze-clear:ospf-*`; no `ze-ospf-api.yang`), enforced by `scripts/checks/command_ownership.go`
+- `internal/plugins/ospf/cmd_show.go` - new RPC registrations (model: isis/ldp)
+- `internal/plugins/ospf/` engine `OnExecuteCommand` - handles `show ip ospf <noun>` / `clear ip ospf <action>` (snapshot rendering lives near the engine, siblings)
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` (owned by ospf-4) - extended here with the `max-metric router-lsa` leaves (RFC 6987)
 - `internal/component/web` - OSPF neighbour/database pages + SSE (existing web patterns)
 - `internal/core/metrics` (telemetry) - assertion only; the series are registered by the owning specs
-- `internal/component/ospf/codes.go` + OSPF doctor check function - readiness checks
+- `internal/plugins/ospf/codes.go` + OSPF doctor check function - readiness checks
 - `test/interop/scenarios/ospf-*-frr/` - interop harness
 
 ### Architectural Verification
@@ -193,7 +193,7 @@ define and must not reach around them into engine internals.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The engine exposes read-only interface/neighbour/LSDB/SPF/route snapshot APIs for the renderer | umbrella Child Specs ospf-5/7/8; LDP/IS-IS precedent | Renderer must be co-designed with the engine spec; add snapshot APIs there | `show ip ospf neighbor` returns engine data (Wiring Test) | unvalidated |
-| A-2 | The `ForwardToPlugin` proxy pattern fits OSPF unchanged (engine produces JSON via `OnExecuteCommand`) | `internal/component/isis/cmd_show.go`, `ldp/cmd_show.go` | Need a custom handler that queries snapshots directly | `ospf-show.ci` exercises the proxy path | unvalidated |
+| A-2 | The `ForwardToPlugin` proxy pattern fits OSPF unchanged (engine produces JSON via `OnExecuteCommand`) | `internal/plugins/isis/cmd_show.go`, `ldp/cmd_show.go` | Need a custom handler that queries snapshots directly | `ospf-show.ci` exercises the proxy path | unvalidated |
 | A-3 | Existing web SSE infra can host two new OSPF pages without engine changes | `internal/component/web` IS-IS/LDP view precedent | Need new web plumbing in this child | web functional/`.et` test renders live neighbour page | unvalidated |
 | A-4 | Every canonical `ze_ospf_*` series is registered by its owning spec, so ospf-13 only asserts the scrape | umbrella "Metrics (canonical)" table; IS-IS metrics-assert precedent | A series is missing/misowned → route the fix to the owning spec, not register here | `TestOSPFMetricsRegistered` lists every series with exact labels | unvalidated |
 | A-5 | The ospf-3 raw-socket doctor check is already registered by its owner and can be surfaced by `ze doctor --json` here without re-registration | ospf-3 doctor ownership; decision table below | If missing, fix ownership in ospf-3, not by duplicating the code here | `ze doctor --json` emits `doctor-ospf-raw-socket` | unvalidated |
@@ -261,8 +261,8 @@ define and must not reach around them into engine internals.
 | 5 | Runs `show ip ospf interface` / `border-routers` / `spf` | CLI → proxy → respective engine snapshot → render | `test/ospf/ospf-show.ci` |
 | 6 | Runs `clear ip ospf process` | CLI → engine runtime action → SPF re-runs, adjacencies re-form | `test/ospf/ospf-show.ci` |
 | 7 | Configures `max-metric router-lsa always` and checks `show ip ospf` | config → engine stub-router state (ospf-7) → `show ip ospf` reflection | `test/ospf/ospf-show.ci` |
-| 8 | Opens the OSPF web neighbour/database page | web route → SSE → snapshot stream → live update | web `.et`/functional test |
-| 9 | Scrapes Prometheus | scraper → telemetry registry → `ze_ospf_*` series | metrics functional test (scrape assertion) |
+| 8 | Opens the OSPF web neighbour/database page | web route → SSE → snapshot stream → live update | `test/web/ospf-neighbor-database.wb` |
+| 9 | Scrapes Prometheus | scraper → telemetry registry → `ze_ospf_*` series | `test/ospf/ospf-metrics.ci` |
 | 10 | Runs `ze doctor` on a node missing `CAP_NET_RAW` | doctor runner → OSPF check → `doctor-ospf-raw-socket` | `test/ospf/ospf-doctor.ci` |
 | 11 | Meshes a Ze node with an FRR router (P2P/broadcast/multi-area/stub-NSSA/auth/convergence) | full protocol over the wire | `test/interop/scenarios/ospf-*-frr/check.py` |
 
@@ -273,20 +273,20 @@ define and must not reach around them into engine internals.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFShowSummaryRender` | `internal/component/ospf/cmd_show_test.go` | process-summary snapshot → JSON/table render (router-id, areas, ABR/ASBR, SPF, stub-router state) | |
-| `TestOSPFShowNeighborRender` | `internal/component/ospf/cmd_show_test.go` | neighbour snapshot → render (router-id, state, DR/BDR, priority, dead time) | |
-| `TestOSPFShowInterfaceRender` | `internal/component/ospf/cmd_show_test.go` | interface snapshot → render (area, network-type, cost, state, DR/BDR) | |
-| `TestOSPFShowDatabaseRender` | `internal/component/ospf/cmd_show_test.go` | LSDB snapshot → base render + per-LS-type filter (1/2/3/4/5/7) | |
-| `TestOSPFShowRouteRender` | `internal/component/ospf/cmd_show_test.go` | route snapshot → render with path type / cost / nexthop / area | |
-| `TestOSPFShowBorderRoutersRender` | `internal/component/ospf/cmd_show_test.go` | ABR/ASBR route snapshot → render | |
-| `TestOSPFShowSPFRender` | `internal/component/ospf/cmd_show_test.go` | SPF-log entries render | |
-| `TestOSPFShowProxyArgsRejected` | `internal/component/ospf/cmd_show_test.go` | extra/unknown args rejected (matches the ldp/isis proxy contract) | |
-| `TestOSPFMaxMetricReflected` | `internal/component/ospf/cmd_show_test.go` | configured `max-metric router-lsa` is reflected in the process summary render | |
-| `TestOSPFMetricsRegistered` | `internal/component/ospf/metrics_test.go` | every series in the umbrella "Metrics (canonical)" table is registered with its exact name and labels; none bare `ospf_*`; ospf-13 registers none itself (two-way guard) | |
-| `TestOSPFDoctorRawSocketCheck` | `internal/component/ospf/doctor_test.go` | the ospf-3 raw-socket check / `doctor-ospf-raw-socket` code is surfaced here (not re-registered) | |
-| `TestOSPFDoctorConfigSanity` | `internal/component/ospf/doctor_test.go` | router-id-missing / interface-area-unbound emit their codes; clean config emits none; fires only when `ospf` configured | |
-| `TestOSPFCmdSchemaOwnsShowOSPF` | `internal/component/ospf/yang/cmd_schema_test.go` | owner-presence: `ze-ospf-cmd.yang` declares the `ze:command "ze-show:ospf-*"` show tokens (plugin-self-containment both-halves invariant) | |
-| `TestOSPFCmdSchemaOwnsClearOSPF` | `internal/component/ospf/yang/cmd_schema_test.go` | owner-presence: `ze-ospf-cmd.yang` declares the `ze:command "ze-clear:ospf-*"` clear tokens | |
+| `TestOSPFShowSummaryRender` | `internal/plugins/ospf/cmd_show_test.go` | process-summary snapshot → JSON/table render (router-id, areas, ABR/ASBR, SPF, stub-router state) | |
+| `TestOSPFShowNeighborRender` | `internal/plugins/ospf/cmd_show_test.go` | neighbour snapshot → render (router-id, state, DR/BDR, priority, dead time) | |
+| `TestOSPFShowInterfaceRender` | `internal/plugins/ospf/cmd_show_test.go` | interface snapshot → render (area, network-type, cost, state, DR/BDR) | |
+| `TestOSPFShowDatabaseRender` | `internal/plugins/ospf/cmd_show_test.go` | LSDB snapshot → base render + per-LS-type filter (1/2/3/4/5/7) | |
+| `TestOSPFShowRouteRender` | `internal/plugins/ospf/cmd_show_test.go` | route snapshot → render with path type / cost / nexthop / area | |
+| `TestOSPFShowBorderRoutersRender` | `internal/plugins/ospf/cmd_show_test.go` | ABR/ASBR route snapshot → render | |
+| `TestOSPFShowSPFRender` | `internal/plugins/ospf/cmd_show_test.go` | SPF-log entries render | |
+| `TestOSPFShowProxyArgsRejected` | `internal/plugins/ospf/cmd_show_test.go` | extra/unknown args rejected (matches the ldp/isis proxy contract) | |
+| `TestOSPFMaxMetricReflected` | `internal/plugins/ospf/cmd_show_test.go` | configured `max-metric router-lsa` is reflected in the process summary render | |
+| `TestOSPFMetricsRegistered` | `internal/plugins/ospf/metrics_test.go` | every series in the umbrella "Metrics (canonical)" table is registered with its exact name and labels; none bare `ospf_*`; ospf-13 registers none itself (two-way guard) | |
+| `TestOSPFDoctorRawSocketCheck` | `internal/plugins/ospf/doctor_test.go` | the ospf-3 raw-socket check / `doctor-ospf-raw-socket` code is surfaced here (not re-registered) | |
+| `TestOSPFDoctorConfigSanity` | `internal/plugins/ospf/doctor_test.go` | router-id-missing / interface-area-unbound emit their codes; clean config emits none; fires only when `ospf` configured | |
+| `TestOSPFCmdSchemaOwnsShowOSPF` | `internal/plugins/ospf/yang/cmd_schema_test.go` | owner-presence: `ze-ospf-cmd.yang` declares the `ze:command "ze-show:ospf-*"` show tokens (plugin-self-containment both-halves invariant) | |
+| `TestOSPFCmdSchemaOwnsClearOSPF` | `internal/plugins/ospf/yang/cmd_schema_test.go` | owner-presence: `ze-ospf-cmd.yang` declares the `ze:command "ze-clear:ospf-*"` clear tokens | |
 | `TestShowSchemaHasNoMigratedOwnerCommands` (extend) | `internal/component/cmd/show/yang/self_containment_test.go` | central-guard: the `ze-show:ospf-*` tokens are absent from the central show schema | |
 | `TestClearOwnerRemovalLeavesNoResidue` (extend) | `internal/component/cmd/clear/yang/self_containment_test.go` | central-guard: the `ze-clear:ospf-*` tokens are absent from the central clear schema (the ACTUAL test name in that file) | |
 
@@ -311,12 +311,14 @@ QEMU integration tests (`ai/rules/qemu-testing.md`), not plain `.ci`.
 |------|----------|-------------------|--------|
 | `ospf-show` | `test/ospf/ospf-show.ci` | each `show ip ospf <noun>` renders engine data; per-LSA-type database subviews filter; pipes work; `clear ip ospf` acts; `max-metric` reflected | |
 | `ospf-doctor` | `test/ospf/ospf-doctor.ci` | `ze doctor --json` flags missing `CAP_NET_RAW` and bad config (router-id / interface-area) | |
+| `ospf-metrics` | `test/ospf/ospf-metrics.ci` | metrics scrape exposes every canonical `ze_ospf_*` series with exact labels and no bare `ospf_*` | |
+| `ospf-web` | `test/web/ospf-neighbor-database.wb` | web neighbour/database pages render and update from the OSPF snapshot/SSE path | |
 
 ### Interop Tests (MANDATORY for protocol features)
 <!-- This table is the umbrella's goal-validation evidence; it is fully populated. -->
 Interop against FRR `ospfd` is MANDATORY per `ai/rules/interop-and-goal-validation.md`
 and the umbrella "Test + interop wiring" row: it is not optional and not deferrable.
-The six scenarios below are the full mandatory set. All six DEPEND on FRR ospfd
+The seven scenarios below are the full mandatory set. All seven DEPEND on FRR ospfd
 runner support: `test/interop/daemons` must be set to `ospfd=yes` and `interop.py`
 must mount that shared daemons file plus the scenario `frr.conf` so a live FRR
 ospfd actually starts. Creating the scenario directories alone does NOT launch
@@ -328,6 +330,7 @@ ospfd; see Files to Modify (AC-21).
 | `ospf-broadcast-frr` | `test/interop/scenarios/ospf-broadcast-frr/` | FRR ospfd | Broadcast DR/BDR election + Network-LSA + route convergence | |
 | `ospf-multiarea-frr` | `test/interop/scenarios/ospf-multiarea-frr/` | FRR ospfd | Inter-area: area-1 prefix appears as Type 3 in area 0 across the ABR; reachable | |
 | `ospf-stub-nssa-frr` | `test/interop/scenarios/ospf-stub-nssa-frr/` | FRR ospfd | Stub default injection (no Type 5) + NSSA Type 7 origination + Type 7→5 translation | |
+| `ospf-redist-frr` | `test/interop/scenarios/ospf-redist-frr/` | FRR ospfd | OSPF route redistribution to BGP and connected/static/BGP import as Type 5 AS-External-LSAs | |
 | `ospf-auth-frr` | `test/interop/scenarios/ospf-auth-frr/` | FRR ospfd | MD5 / HMAC auth: correct key forms adjacency, wrong key rejected | |
 | `ospf-convergence-frr` | `test/interop/scenarios/ospf-convergence-frr/` | FRR ospfd | Link down → reconverge; SPF re-runs; stale routes withdrawn | |
 
@@ -336,24 +339,26 @@ ospfd; see Files to Modify (AC-21).
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files -->
-- `internal/component/ospf/yang/ze-ospf-conf.yang` - add the `max-metric router-lsa` leaves (RFC 6987): a container with `administrative` (always) boolean, `on-startup` (boolean + `duration` 5..86400 s) and `on-shutdown` (boolean + `duration` 5..86400 s). The schema module itself is created by ospf-4; this child adds these leaves. Origination is wired in ospf-7; this child only adds the leaves and reflects them in `show ip ospf`
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - add the `max-metric router-lsa` leaves (RFC 6987): a container with `administrative` (always) boolean, `on-startup` (boolean + `duration` 5..86400 s) and `on-shutdown` (boolean + `duration` 5..86400 s). The schema module itself is created by ospf-4; this child adds these leaves. Origination is wired in ospf-7; this child only adds the leaves and reflects them in `show ip ospf`
 - `internal/component/cmd/show/yang/self_containment_test.go` - add the OSPF show tokens to the banned-token map in `TestShowSchemaHasNoMigratedOwnerCommands` (`ze-show:ospf`, `ze-show:ospf-neighbor`, `ze-show:ospf-interface`, `ze-show:ospf-database`, `ze-show:ospf-route`, `ze-show:ospf-border-routers`, `ze-show:ospf-spf`), so a `show ip ospf ...` command can never drift back into the central show schema (the central-guard half of `ai/rules/plugin-self-containment.md`, both-halves invariant)
 - `internal/component/cmd/clear/yang/self_containment_test.go` - add the OSPF clear tokens to the banned-token map in `TestClearOwnerRemovalLeavesNoResidue` (the ACTUAL test name in that file): add `"ze-clear:ospf-process"`, `"ze-clear:ospf-neighbor"`, `"ze-clear:ospf-counters"`, so `clear ip ospf ...` can never drift into the central clear schema
-- `internal/component/ospf/` engine command dispatch (`OnExecuteCommand`) - handle `show ip ospf <noun>` / `clear ip ospf <action>` against sibling snapshots (the per-LSA-type database filter, the process summary incl. stub-router state, the three clear actions)
-- `internal/component/web` - register the OSPF neighbour/database routes and SSE handlers (existing web component patterns)
+- `internal/plugins/ospf/instance.go` - `OnExecuteCommand` handles `show ip ospf <noun>` / `clear ip ospf <action>` against sibling snapshots (per-LSA-type database filter, process summary incl. stub-router state, clear actions)
+- `internal/plugins/ospf/cmd_show.go` - proxy RPC registrations for fixed `ze-show:ospf-*` and `ze-clear:ospf-*` methods
+- `internal/component/web/handler_ospf.go`, `internal/component/web/page_ospf.go`, `internal/component/web/handler_ospf_test.go` - register the OSPF neighbour/database routes and SSE handlers (existing web component patterns)
 - `test/interop/daemons` - set `ospfd=yes`. This shared daemons file is mounted read-only into the FRR container at `/etc/frr/daemons` by `interop.py`; FRR will NOT start `ospfd` while this is `no`, so merely creating the scenario dirs is insufficient
 - `test/interop/interop.py` - ensure the interop runner actually launches FRR `ospfd` for the OSPF scenarios: confirm the per-scenario `frr.conf` (which carries the `router ospf` config) is mounted alongside the now-`ospfd=yes` daemons file; confirm the FRR container has the capabilities OSPF needs (`NET_ADMIN`/`NET_RAW` over the link); and if a multicast-capable bridge/veth link is required for OSPF frames (proto 89, `224.0.0.5`/`224.0.0.6`), extend the runner to provide it (links to A-6). The deliverable is that running an `ospf-*-frr` scenario starts a live FRR ospfd that reaches adjacency Full with Ze, not just that the scenario files exist
 - `docs/features.md`, `docs/comparison.md`, `docs/guide/command-reference.md`, `docs/functional-tests.md`, `docs/plugin-development/metrics.md` - OSPF CLI / feature / comparison / functional-test / metrics rows
+- `docs/guide/configuration.md`, `docs/architecture/api/commands.md`, `docs/plugin-overview.md`, `docs/guide/status.md` - OSPF config, central show/clear RPC surface, edge-plugin overview, and status/diagnostic docs
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| Command/CLI YANG (show/clear command tree) | NEEDED | `internal/component/ospf/yang/ze-ospf-cmd.yang`: TWO separate augment statements because show and clear are distinct command-tree roots. (1) SHOW augment of `/clishowcmd:show` (import `ze-cli-show-cmd { prefix clishowcmd; }`) for `show ip ospf` (summary) + `neighbor/interface/database[ router\|network\|summary\|asbr-summary\|external\|nssa-external]/route/border-routers/spf`, each node `config false` with `ze:command "ze-show:ospf-<noun>"` (central SHOW namespace, model `ze-isis-cmd.yang` / `ze-ldp-cmd.yang`). (2) CLEAR augment of `/cliclearcmd:clear` (import `ze-cli-clear-cmd { prefix cliclearcmd; }`) for `clear ip ospf process/neighbor/counters`, each node `config false` with `ze:command "ze-clear:ospf-<action>"` (central CLEAR namespace, model the iface/ike/isis clears). Both verbs use a CENTRAL command namespace; there is NO per-component `ze-ospf-api.yang`. `clear` is its own root, NOT a child of `clishowcmd:show`. `scripts/checks/command_ownership.go` enforces that the owner ships this command YANG; `cmd_show.go` registration alone is insufficient |
+| Command/CLI YANG (show/clear command tree) | NEEDED | `internal/plugins/ospf/yang/ze-ospf-cmd.yang`: TWO separate augment statements because show and clear are distinct command-tree roots. (1) SHOW augment of `/clishowcmd:show` (import `ze-cli-show-cmd { prefix clishowcmd; }`) for `show ip ospf` (summary) + `neighbor/interface/database[ router\|network\|summary\|asbr-summary\|external\|nssa-external]/route/border-routers/spf`, each node `config false` with `ze:command "ze-show:ospf-<noun>"` (central SHOW namespace, model `ze-isis-cmd.yang` / `ze-ldp-cmd.yang`). (2) CLEAR augment of `/cliclearcmd:clear` (import `ze-cli-clear-cmd { prefix cliclearcmd; }`) for `clear ip ospf process/neighbor/counters`, each node `config false` with `ze:command "ze-clear:ospf-<action>"` (central CLEAR namespace, model the iface/ike/isis clears). Both verbs use a CENTRAL command namespace; there is NO per-component `ze-ospf-api.yang`. `clear` is its own root, NOT a child of `clishowcmd:show`. `scripts/checks/command_ownership.go` enforces that the owner ships this command YANG; `cmd_show.go` registration alone is insufficient |
 | API/RPC YANG (RPC/query schema) | No | NO `ze-ospf-api.yang`. Both the show methods (`ze-show:ospf-*`) and the clear actions (`ze-clear:ospf-*`) are RPCs in CENTRAL namespaces, registered in Go via `pluginserver.RegisterRPCs` in `cmd_show.go` (model: IS-IS/LDP, which ship no api YANG for `ze-show:*`) |
-| YANG config schema (new config) | Yes (small) | `internal/component/ospf/yang/ze-ospf-conf.yang` (module owned by ospf-4): add the `max-metric router-lsa` leaves (RFC 6987). No other config leaves are added by this child |
+| YANG config schema (new config) | Yes (small) | `internal/plugins/ospf/yang/ze-ospf-conf.yang` (module owned by ospf-4): add the `max-metric router-lsa` leaves (RFC 6987). No other config leaves are added by this child |
 | YANG validation constraints | Yes | the `on-startup`/`on-shutdown` duration leaves carry `range "5..86400"` (RFC 6987); the `administrative` flag is boolean; the LSA-type and clear-action tokens are closed keyword sets in the command YANG |
 | YANG custom validators | No | the new config leaves are native-typed (boolean + ranged uint); no custom validator needed here |
-| CLI commands/flags | Yes | `internal/component/ospf/cmd_show.go`: `show ip ospf [neighbor\|interface\|database[ <lsa-type>]\|route\|border-routers\|spf]`, `clear ip ospf process/neighbor/counters` |
+| CLI commands/flags | Yes | `internal/plugins/ospf/cmd_show.go`: `show ip ospf [neighbor\|interface\|database[ <lsa-type>]\|route\|border-routers\|spf]`, `clear ip ospf process/neighbor/counters` |
 | CLI grammar (action before identifier) | Yes | `ai/rules/cli-grammar.md`: the LSA-type subview keyword and `database` are action keywords; `clear ip ospf <action>` is verb-form runtime action; any filter selector is typed |
 | Editor autocomplete | Yes | closed noun/LSA-type/action set surfaced through the command registration so completion offers them |
 | Functional test for new RPC/API | Yes | `test/ospf/ospf-show.ci`, `test/ospf/ospf-doctor.ci` |
@@ -384,22 +389,23 @@ ospfd; see Files to Modify (AC-21).
 | 17 | Existing docs show examples for this area? | No | grep at completion; update any stale OSPF examples |
 
 ## Files to Create
-- `internal/component/ospf/yang/ze-ospf-cmd.yang` - CLI command tree with TWO separate augment statements, one per command-tree root. (1) SHOW augment: `augment "/clishowcmd:show"` (import `ze-cli-show-cmd { prefix clishowcmd; }`, model `internal/component/isis/yang/ze-isis-cmd.yang`) for `show ip ospf` (summary) + `neighbor/interface/database[ <lsa-type>]/route/border-routers/spf`, each node `config false` with `ze:command "ze-show:ospf-<noun>"`. (2) CLEAR augment: `augment "/cliclearcmd:clear"` (import `ze-cli-clear-cmd { prefix cliclearcmd; }`) for `clear ip ospf process/neighbor/counters`, each node `config false` with `ze:command "ze-clear:ospf-<action>"`. `clear` is a SEPARATE command-tree root, distinct from `clishowcmd:show`; clear nodes MUST NOT hang off the show root. Both verbs bind into CENTRAL command namespaces; there is NO per-component api YANG module (no ze-ospf-api). Required because `scripts/checks/command_ownership.go` enforces owner command YANG for these show/clear verbs; `internal/component/ospf/cmd_show.go` RPC registration alone does not satisfy the gate
-- `internal/component/ospf/cmd_show.go` - `pluginserver.RegisterRPCs` for the show methods `ze-show:ospf-*` AND the clear actions `ze-clear:ospf-process/neighbor/counters`; proxy handlers forwarding via `Dispatcher().ForwardToPlugin` (model: IS-IS/LDP; never re-`Dispatch`). No per-component api YANG module is created
-- `internal/component/ospf/yang/cmd_schema_test.go` - the OWNER-presence half of the `ai/rules/plugin-self-containment.md` both-halves invariant: `TestOSPFCmdSchemaOwnsShowOSPF` asserts `ze-ospf-cmd.yang` declares the `ze:command "ze-show:ospf-*"` show tokens, and `TestOSPFCmdSchemaOwnsClearOSPF` asserts it declares the `ze:command "ze-clear:ospf-*"` clear tokens (mirrors `internal/component/isis/yang/cmd_schema_test.go`). The matching central-guard halves are added to the show/clear self-containment test files (Files to Modify)
-- `internal/component/ospf/cmd_show_test.go` - render/format + proxy-arg unit tests (`TestOSPFShow*Render`, `TestOSPFShowProxyArgsRejected`, `TestOSPFMaxMetricReflected`)
-- `internal/component/ospf/metrics_test.go` - `TestOSPFMetricsRegistered`: ospf-13 owns NO metric series (per the umbrella "Metrics (canonical)" table, every `ze_ospf_*` series is owned and registered by its producing spec: ospf-3/5/6/7/8/9/10/11/12). This child does NOT centrally register metrics; it only ASSERTS (via a scrape) that the full canonical set is present with correct labels, in both directions (every canonical series present + no unexpected `ze_ospf_*`). Do NOT add a central metrics registry source file here (no component-root metrics.go, by design)
-- `internal/component/ospf/doctor.go` - config-sanity checks ONLY (`doctor-ospf-router-id-missing`, `doctor-ospf-interface-area-unbound`); the raw-socket/`CAP_NET_RAW` check lives in ospf-3's `internal/component/ospf/transport/doctor_linux.go` and is surfaced, not duplicated, here
-- `internal/component/ospf/codes.go` - code metadata for the two config-sanity codes, owned in the component (the IS-IS pattern; core `diagnostic/codes.go` carries only a guard comment, no registration)
-- `internal/component/ospf/doctor_test.go` - doctor check unit tests (`TestOSPFDoctorConfigSanity`, `TestOSPFDoctorRawSocketCheck` surface assertion)
+- `internal/plugins/ospf/yang/ze-ospf-cmd.yang` - CLI command tree with TWO separate augment statements, one per command-tree root. (1) SHOW augment: `augment "/clishowcmd:show"` (import `ze-cli-show-cmd { prefix clishowcmd; }`, model `internal/plugins/isis/yang/ze-isis-cmd.yang`) for `show ip ospf` (summary) + `neighbor/interface/database[ <lsa-type>]/route/border-routers/spf`, each node `config false` with `ze:command "ze-show:ospf-<noun>"`. (2) CLEAR augment: `augment "/cliclearcmd:clear"` (import `ze-cli-clear-cmd { prefix cliclearcmd; }`) for `clear ip ospf process/neighbor/counters`, each node `config false` with `ze:command "ze-clear:ospf-<action>"`. `clear` is a SEPARATE command-tree root, distinct from `clishowcmd:show`; clear nodes MUST NOT hang off the show root. Both verbs bind into CENTRAL command namespaces; there is NO per-component api YANG module (no ze-ospf-api). Required because `scripts/checks/command_ownership.go` enforces owner command YANG for these show/clear verbs; `internal/plugins/ospf/cmd_show.go` RPC registration alone does not satisfy the gate
+- `internal/plugins/ospf/cmd_show.go` - `pluginserver.RegisterRPCs` for the show methods `ze-show:ospf-*` AND the clear actions `ze-clear:ospf-process/neighbor/counters`; proxy handlers forwarding via `Dispatcher().ForwardToPlugin` (model: IS-IS/LDP; never re-`Dispatch`). No per-component api YANG module is created
+- `internal/plugins/ospf/yang/cmd_schema_test.go` - the OWNER-presence half of the `ai/rules/plugin-self-containment.md` both-halves invariant: `TestOSPFCmdSchemaOwnsShowOSPF` asserts `ze-ospf-cmd.yang` declares the `ze:command "ze-show:ospf-*"` show tokens, and `TestOSPFCmdSchemaOwnsClearOSPF` asserts it declares the `ze:command "ze-clear:ospf-*"` clear tokens (mirrors `internal/plugins/isis/yang/cmd_schema_test.go`). The matching central-guard halves are added to the show/clear self-containment test files (Files to Modify)
+- `internal/plugins/ospf/cmd_show_test.go` - render/format + proxy-arg unit tests (`TestOSPFShow*Render`, `TestOSPFShowProxyArgsRejected`, `TestOSPFMaxMetricReflected`)
+- `internal/plugins/ospf/metrics_test.go` - `TestOSPFMetricsRegistered`: ospf-13 owns NO metric series (per the umbrella "Metrics (canonical)" table, every `ze_ospf_*` series is owned and registered by its producing spec: ospf-3/5/6/7/8/9/10/11/12). This child does NOT centrally register metrics; it only ASSERTS (via a scrape) that the full canonical set is present with correct labels, in both directions (every canonical series present + no unexpected `ze_ospf_*`). Do NOT add a central metrics registry source file here (no component-root metrics.go, by design)
+- `internal/plugins/ospf/doctor.go` - config-sanity checks ONLY (`doctor-ospf-router-id-missing`, `doctor-ospf-interface-area-unbound`); the raw-socket/`CAP_NET_RAW` check lives in ospf-3's `internal/plugins/ospf/transport/doctor_linux.go` and is surfaced, not duplicated, here
+- `internal/plugins/ospf/codes.go` - code metadata for the two config-sanity codes, owned in the component (the IS-IS pattern; core `diagnostic/codes.go` carries only a guard comment, no registration)
+- `internal/plugins/ospf/doctor_test.go` - doctor check unit tests (`TestOSPFDoctorConfigSanity`, `TestOSPFDoctorRawSocketCheck` surface assertion)
 - `internal/component/web/handler_ospf.go`, `internal/component/web/page_ospf.go`, `internal/component/web/handler_ospf_test.go` - OSPF neighbour + database views (templates/handlers/SSE per the existing web layout, model `handler_isis.go`/`page_isis.go`)
 - `test/ospf/ospf-show.ci` - show/clear functional test (all nouns, per-LSA-type subviews, pipes, clear actions, max-metric reflection)
 - `test/ospf/ospf-doctor.ci` - doctor functional test (`ze doctor --json` raw-socket explain + config-sanity)
-- The six interop scenario dirs below DEPEND on the FRR ospfd runner support in Files to Modify (`test/interop/daemons` set to `ospfd=yes`, `interop.py` launching FRR ospfd); the dirs alone do not start ospfd
+- The seven interop scenario dirs below DEPEND on the FRR ospfd runner support in Files to Modify (`test/interop/daemons` set to `ospfd=yes`, `interop.py` launching FRR ospfd); the dirs alone do not start ospfd
 - `test/interop/scenarios/ospf-p2p-frr/{ze.conf,frr.conf,check.py}`
 - `test/interop/scenarios/ospf-broadcast-frr/{ze.conf,frr.conf,check.py}`
 - `test/interop/scenarios/ospf-multiarea-frr/{ze.conf,frr.conf,check.py}`
 - `test/interop/scenarios/ospf-stub-nssa-frr/{ze.conf,frr.conf,check.py}`
+- `test/interop/scenarios/ospf-redist-frr/{ze.conf,frr.conf,check.py}`
 - `test/interop/scenarios/ospf-auth-frr/{ze.conf,frr.conf,check.py}`
 - `test/interop/scenarios/ospf-convergence-frr/{ze.conf,frr.conf,check.py}`
 - `docs/guide/ospf.md` - OSPF user guide (config + show/clear + troubleshooting)
@@ -426,7 +432,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Wiring (MANDATORY FIRST)** - register `ze-show:ospf-*` / `ze-clear:ospf-*` RPCs and a failing functional test
    - Tests: `test/ospf/ospf-show.ci` (fails: handlers return stubbed empty data)
-   - Files: `internal/component/ospf/cmd_show.go`, `internal/component/ospf/yang/ze-ospf-cmd.yang`
+   - Files: `internal/plugins/ospf/cmd_show.go`, `internal/plugins/ospf/yang/ze-ospf-cmd.yang`
    - Verify: `show ip ospf neighbor` reaches the engine command but returns empty until snapshots wired; command-ownership check passes
 2. **Phase: Show renderers** - render each snapshot (summary, neighbor, interface, database[+per-LSA-type], route, border-routers, spf)
    - Tests: `TestOSPFShow*Render`, `TestOSPFShowProxyArgsRejected`
@@ -434,7 +440,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: each command renders sibling snapshot data; the per-LSA-type filter narrows the database; pipes pass
 3. **Phase: max-metric config + reflection** - add the `max-metric router-lsa` leaves to `ze-ospf-conf.yang`; reflect active stub-router state in `show ip ospf`
    - Tests: `TestOSPFMaxMetricReflected`, boundary test on the duration leaves
-   - Files: `internal/component/ospf/yang/ze-ospf-conf.yang`, summary renderer (origination is ospf-7)
+   - Files: `internal/plugins/ospf/yang/ze-ospf-conf.yang`, summary renderer (origination is ospf-7)
    - Verify: config validates with the duration range; `show ip ospf` reports the active state
 4. **Phase: Clear actions** - `clear ip ospf process/neighbor/counters`
    - Tests: `ospf-show.ci` clear assertions
@@ -442,17 +448,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: SPF re-runs / adjacencies re-form / counters reset; grammar is verb-form runtime action
 5. **Phase: Metrics (assert only)** - confirm the full canonical `ze_ospf_*` set is registered by its per-owner specs (ospf-3/5/6/7/8/9/10/11/12 per the umbrella table); ospf-13 registers NONE itself
    - Tests: `TestOSPFMetricsRegistered` (two-way guard), metrics scrape assertion in the functional test
-   - Files: `internal/component/ospf/metrics_test.go` (assertion only; no `metrics.go` registry)
+   - Files: `internal/plugins/ospf/metrics_test.go` (assertion only; no `metrics.go` registry)
    - Verify: scrape lists every canonical series with its labels; no series registered centrally here
 6. **Phase: Doctor** - config-sanity checks here (register `doctor-ospf-router-id-missing` / `doctor-ospf-interface-area-unbound`); the raw-socket check + `doctor-ospf-raw-socket` code come from ospf-3 and are only surfaced
    - Tests: `TestOSPFDoctorConfigSanity`, `TestOSPFDoctorRawSocketCheck`, `test/ospf/ospf-doctor.ci`
-   - Files: `internal/component/ospf/doctor.go`, `internal/component/ospf/codes.go`
+   - Files: `internal/plugins/ospf/doctor.go`, `internal/plugins/ospf/codes.go`
    - Verify: config-sanity checks fire only when `ospf` configured; raw-socket code (from ospf-3) and the two new codes are explainable via `ze explain`; no double registration
 7. **Phase: Web** - OSPF neighbour + database pages with SSE
-   - Tests: web `.et`/functional test for live update
+   - Tests: `test/web/ospf-neighbor-database.wb`
    - Files: `internal/component/web/handler_ospf.go`, `page_ospf.go`, `handler_ospf_test.go`
    - Verify: pages render and update live; no goroutine leak on disconnect
-8. **Phase: Interop** - FRR ospfd runner support, then the six FRR scenarios
+8. **Phase: Interop** - FRR ospfd runner support, then the seven FRR scenarios
    - Tests: `test/interop/scenarios/ospf-*-frr/check.py`
    - Files: `test/interop/daemons` (set `ospfd=yes`), `test/interop/interop.py` (launch FRR ospfd; provide a multicast-capable link if needed, A-6), then `ze.conf`, `frr.conf`, `check.py` per scenario
    - Verify: a live FRR ospfd starts and reaches adjacency Full (AC-21); each scenario asserts its specific behaviour and stability
@@ -472,13 +478,13 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Pipe completeness | every show command routes through `ApplyPipes`; `\| resolve`/`\| origin` apply on data (`ai/rules/pipe-completeness.md`) |
 | Doctor checks | check gates on `ospf` config present; codes registered + explainable; unit + functional tests; raw-socket surfaced not re-registered (`ai/rules/doctor-checks.md`) |
 | Prometheus counters | full canonical `ze_ospf_*` set asserted present with names + labels; none bare `ospf_*`; ospf-13 registers none |
-| Rule: plugin-self-containment | all OSPF show/clear/metrics-assert/doctor code under `internal/component/ospf/`; removing the component removes them |
+| Rule: plugin-self-containment | all OSPF show/clear/metrics-assert/doctor code under `internal/plugins/ospf/`; removing the component removes them |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Command YANG (single, no api yang) | `ls internal/component/ospf/yang/ze-ospf-cmd.yang`; `grep -L ze-ospf-api internal/component/ospf/yang/*.yang` (no api module); `make ze-command-ownership-check` passes |
-| `cmd_show.go` with all show/clear RPCs | `ls internal/component/ospf/cmd_show.go`; grep `ze-show:ospf-` and `ze-clear:ospf-` |
+| Command YANG (single, no api yang) | `ls internal/plugins/ospf/yang/ze-ospf-cmd.yang`; `grep -L ze-ospf-api internal/plugins/ospf/yang/*.yang` (no api module); `make ze-command-ownership-check` passes |
+| `cmd_show.go` with all show/clear RPCs | `ls internal/plugins/ospf/cmd_show.go`; grep `ze-show:ospf-` and `ze-clear:ospf-` |
 | max-metric config + reflection | grep `max-metric` in `ze-ospf-conf.yang`; `TestOSPFMaxMetricReflected` PASS; `ospf-show.ci` asserts the summary field |
 | Show functional test | `ls test/ospf/ospf-show.ci` |
 | Doctor functional test + codes | `ls test/ospf/ospf-doctor.ci`; grep `doctor-ospf-` in the component `codes.go` |
@@ -623,10 +629,10 @@ this child references them, it does not re-implement them.
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -668,7 +674,7 @@ this child references them, it does not re-implement them.
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`internal/component/ospf/`, web, metrics-assert, doctor)
+- [ ] Feature code integrated (`internal/plugins/ospf/`, web, metrics-assert, doctor)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented

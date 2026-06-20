@@ -14,11 +14,11 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/spec-ospf-0-umbrella.md` - `## Shared Contracts`: "Route install vs redistribution" (single `AdminDistance` 110 on `locrib.Path`; intra<inter<E1<E2 resolved INSIDE OSPF SPF; ECMP committed, default cap 8; the sysrib path-group expansion into `BestChangeEntry.ECMPPaths` ALREADY EXISTS, added by IS-IS, and OSPF reuses it with NO sysrib code), "Next-hop derivation for SPF", "Route preference / path types", "LSA header + body layout", "Metrics (canonical)" (this spec OWNS `ze_ospf_spf_runs_total{area}`, `ze_ospf_spf_duration_seconds{area}`, `ze_ospf_routes_installed{type}`), the ospf-8 Child Specs / Dependency rows, the Wiring Test row `TestOSPFSPFRoute` + `test/ospf/ospf-route-install.ci`
 4. `docs/research/ospf-implementation-guide.md` §6a (intra-area SPF, two-phase Dijkstra, two-way check), §6b (SPF throttling), §6g (route installation), traps #5 (Network-LSA LS ID = DR interface address) and #6 (two-way check)
-5. `plan/spec-isis-9-spf-rib.md` - the IS-IS sibling (SPF + Loc-RIB install + ECMP); OSPF reuses the SAME Loc-RIB insertion / sysrib path-group infra, copied verbatim, but shares no code (network vertices vs pseudo-nodes; LSA vs LSP keys)
+5. `plan/learned/934-isis-9-spf-rib.md` - the IS-IS sibling (SPF + Loc-RIB install + ECMP); OSPF reuses the SAME Loc-RIB insertion / sysrib path-group infra, copied verbatim, but shares no code (network vertices vs pseudo-nodes; LSA vs LSP keys)
 6. `internal/core/rib/locrib/manager.go` (`InsertForward` ~155, `Remove` ~256) + `candidate.go` - `Path{Source, Instance, NextHop, AdminDistance, Metric}` (NO path-type field) and best-path selection (the install target)
 7. `internal/component/bgp/plugins/rib/rib_bestchange.go` (~813) - `r.locRIB.InsertForward(fam, pfx, locrib.Path{...})`, the install pattern to mirror
-8. `internal/plugins/sysrib/sysrib.go` (`ecmpCollect` / `BestChangeEntry.ECMPPaths` ~464/513/598/645/791/1001) - the EXISTING path-group ECMP expansion OSPF reuses; sysrib keys `s.routes[key]` by protocol STRING and admin distance via `effectivePriority`
-9. `internal/plugins/sysrib/yang/ze-rib-conf.yang` - the EXISTING `ospf` admin-distance leaf (default 110); no new leaves here
+8. `internal/component/sysrib/sysrib.go` (`ecmpCollect` / `BestChangeEntry.ECMPPaths` ~464/513/598/645/791/1001) - the EXISTING path-group ECMP expansion OSPF reuses; sysrib keys `s.routes[key]` by protocol STRING and admin distance via `effectivePriority`
+9. `internal/component/sysrib/yang/ze-rib-conf.yang` - the EXISTING `ospf` admin-distance leaf (default 110); no new leaves here
 
 ## Task
 
@@ -70,7 +70,7 @@ per prefix, because `locrib.Path` has no path-type field. Install the SPF result
 by INSERTING routes into the unified Loc-RIB, exactly as BGP does
 (`internal/component/bgp/plugins/rib/rib_bestchange.go:813`
 `r.locRIB.InsertForward(fam, pfx, locrib.Path{...})`) and IS-IS does
-(`internal/component/isis/spf/install.go`). Per umbrella Shared Contracts "Route
+(`internal/plugins/isis/spf/install.go`). Per umbrella Shared Contracts "Route
 install vs redistribution" this is the FIB-install path, NOT `redistevents`:
 `redistevents` feeds the redistribute-orchestrator (redistribution to BGP) and is
 owned by ospf-10, never the FIB-install path. For each SPF prefix, SPF builds a
@@ -81,7 +81,7 @@ applies admin distance through `effectivePriority`, recomputes the system best,
 and fibkernel programs the kernel route marked `RTPROT_ZE`.
 
 The sysrib path-group ECMP expansion into `BestChangeEntry.ECMPPaths` ALREADY
-EXISTS (added by IS-IS, `internal/plugins/sysrib/sysrib.go`,
+EXISTS (added by IS-IS, `internal/component/sysrib/sysrib.go`,
 `sysrib_ecmp_pathgroup_test.go`). OSPF reuses it for free: equal-cost OSPF
 next-hops reach the kernel as a multipath route with NO sysrib or locrib code in
 this spec. The `ospf` admin-distance leaf in `ze-rib-conf.yang` ALSO already
@@ -92,7 +92,7 @@ interface, path-type) and `show ip ospf spf` (per-area SPF run state: last run,
 duration, node count, throttle timers); the full reference rendering is owned by
 ospf-13, which only scrapes/asserts the metrics this spec registers.
 
-Package: `internal/component/ospf/spf/`, which both computes intra-area SPF and
+Package: `internal/plugins/ospf/spf/`, which both computes intra-area SPF and
 inserts the resulting `locrib.Path` values into the Loc-RIB. Inter-area (ospf-9),
 external (ospf-10), and stub/NSSA (ospf-11) route computation extend this package
 behind the route-table and install seams created here.
@@ -112,16 +112,16 @@ behind the route-table and install seams created here.
   → Constraint: a Network-LSA's LS ID is the DR's INTERFACE ADDRESS on the segment, not the prefix; SPF looks it up by the interface address from the Router-LSA transit-link descriptor (the network mask is in the LSA body). Manufacture a one-way LSDB (A mentions B, B does not mention A) and verify SPF installs no route through the broken adjacency
 - [ ] `internal/component/bgp/plugins/rib/rib_bestchange.go` (~813) - the install pattern to mirror
   → Constraint: BGP mirrors its best path into the shared Loc-RIB via `r.locRIB.InsertForward(fam, pfx, locrib.Path{Source, Instance, NextHop, AdminDistance, Metric}, forward)`; OSPF install copies this exactly, NOT a redistevents emit
-- [ ] `internal/component/isis/spf/install.go` + `internal/component/isis/spf/route.go` - the IS-IS sibling install + route-table pattern to mirror
+- [ ] `internal/plugins/isis/spf/install.go` + `internal/plugins/isis/spf/route.go` - the IS-IS sibling install + route-table pattern to mirror
   → Constraint: one `locrib.Path` per equal-cost next-hop (distinct `Instance`), `InsertForward` on add/change, `loc.Remove` on loss; preference (L1-over-L2 for IS-IS; intra<inter<E1<E2 for OSPF) resolved inside the protocol before one Path is published; ProtocolID registered once at startup
 - [ ] `internal/core/rib/locrib/manager.go` (`InsertForward` ~155, `Remove` ~256) + `candidate.go` - cross-protocol best path (the install target)
   → Constraint: Loc-RIB selects lower AdminDistance first, then lower Metric, then first-seen (stable); OSPF supplies `Source`/`Instance`/`NextHop`/`AdminDistance`/`Metric`; value-typed, no cross-boundary pointers; `Path` has no path-type field, so OSPF resolves intra<inter<E1<E2 internally and publishes one Path per prefix
-- [ ] `internal/plugins/sysrib/sysrib.go` (`ecmpCollect`, `BestChangeEntry.ECMPPaths` ~464/513/598/645/791/1001, `effectivePriority`) - sysrib consumes the Loc-RIB and expands path-groups
+- [ ] `internal/component/sysrib/sysrib.go` (`ecmpCollect`, `BestChangeEntry.ECMPPaths` ~464/513/598/645/791/1001, `effectivePriority`) - sysrib consumes the Loc-RIB and expands path-groups
   → Constraint: the path-group ECMP expansion into `BestChangeEntry.ECMPPaths` ALREADY EXISTS (added by IS-IS); OSPF reuses it with NO sysrib change. sysrib keys `s.routes[key]` by protocol STRING and admin distance comes from `effectivePriority` -> `rib.admin-distance.*`; `redistevents` is NOT used on this path
-- [ ] `internal/plugins/sysrib/yang/ze-rib-conf.yang` - the existing `ospf` admin-distance leaf (default 110)
+- [ ] `internal/component/sysrib/yang/ze-rib-conf.yang` - the existing `ospf` admin-distance leaf (default 110)
   → Constraint: the `ospf` leaf already exists; this spec uses it as-is and adds NO admin-distance leaves (`locrib.Path` has no path-type field, so per-path-type distance vs other protocols is future work)
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` - OSPF Version 2: §16.1 intra-area SPF (two-stage Dijkstra, two-way check, §16.1.1 next-hop), §11 routing-table-entry preference (intra < inter < E1 < E2)
   → Constraint: §16.1 stage 1 over router + transit vertices with the two-way check; stage 2 attaches Router-LSA stub links; §16.1.1 next-hop is the next-hop router's interface address on the transit network (Router-LSA Link Data) or the P2P neighbour's interface address; §11 preference resolved before install
 
@@ -140,11 +140,11 @@ behind the route-table and install seams created here.
   → Constraint: OSPF INSTALLS by building `locrib.Path` and inserting it; with no path-type field, per-path-type admin distance is not possible, so OSPF sets a single `AdminDistance` (110) and resolves intra<inter<E1<E2 inside its route table; see A-3
 - [ ] `internal/component/bgp/plugins/rib/rib_bestchange.go` (~813) - the install pattern: `r.locRIB.InsertForward(fam, pfx, locrib.Path{Source: bgpProtocolID, Instance: pathID, NextHop, AdminDistance, Metric}, forward)`
   → Constraint: copy this exact insertion shape; `Source` = OSPF ProtocolID, `Instance` distinguishes the ECMP next-hop; NO redistevents emit on the install path
-- [ ] `internal/component/isis/spf/install.go` + `route.go` - the IS-IS sibling: one `locrib.Path` per equal-cost next-hop, `InsertForward` on add/change, `loc.Remove` on loss, ProtocolID registered once, preference resolved in the route table before publishing one Path
+- [ ] `internal/plugins/isis/spf/install.go` + `route.go` - the IS-IS sibling: one `locrib.Path` per equal-cost next-hop, `InsertForward` on add/change, `loc.Remove` on loss, ProtocolID registered once, preference resolved in the route table before publishing one Path
   → Constraint: OSPF mirrors this above-the-wire pattern but shares NO code (OSPF has network vertices for transit LANs; IS-IS uses pseudo-node LSPs; LSA vs LSP lookup keys and metric semantics differ - umbrella §11)
-- [ ] `internal/plugins/sysrib/sysrib.go` (`ecmpCollect`, `BestChangeEntry.ECMPPaths` ~464/513/598/645/791/1001, `effectivePriority`, `s.routes[key]` by protocol string) - sysrib consumes the Loc-RIB and EXPANDS path-groups into `BestChangeEntry.ECMPPaths`
+- [ ] `internal/component/sysrib/sysrib.go` (`ecmpCollect`, `BestChangeEntry.ECMPPaths` ~464/513/598/645/791/1001, `effectivePriority`, `s.routes[key]` by protocol string) - sysrib consumes the Loc-RIB and EXPANDS path-groups into `BestChangeEntry.ECMPPaths`
   → Constraint: the path-group ECMP expansion ALREADY EXISTS (added by IS-IS); OSPF reuses it with NO change; admin distance via `effectivePriority` -> `rib.admin-distance.ospf`; `redistevents` is NOT on this path
-- [ ] `internal/plugins/sysrib/yang/ze-rib-conf.yang` - `rib.admin-distance` container; has an `ospf` leaf (default 110) used as-is; NO new leaves here
+- [ ] `internal/component/sysrib/yang/ze-rib-conf.yang` - `rib.admin-distance` container; has an `ospf` leaf (default 110) used as-is; NO new leaves here
 - [ ] `internal/plugins/fib/kernel/backend_linux.go` + `internal/core/rtproto/rtproto.go` - kernel routes are tagged `RTPROT_ZE` (`rtproto.FIBKernel`); the FIB programming path is protocol-agnostic
 
 **Behavior to preserve:**
@@ -156,7 +156,7 @@ behind the route-table and install seams created here.
 - `redistevents` and the redistribute-orchestrator are not touched here; redistribution to BGP is ospf-10.
 
 **Behavior to change:**
-- New `internal/component/ospf/spf/` package that computes intra-area SPF and INSERTS the resulting `locrib.Path` values into the Loc-RIB.
+- New `internal/plugins/ospf/spf/` package that computes intra-area SPF and INSERTS the resulting `locrib.Path` values into the Loc-RIB.
 - OSPF becomes a Loc-RIB source identified by its registered ProtocolID; it sets a single `AdminDistance` (110) on each Path (no path-type field on `locrib.Path`).
 - A per-area SPF route table with a path-type marker (intra-area only here; inter-area/E1/E2 added by ospf-9/10), resolving intra<inter<E1<E2 internally before publishing one Path per prefix.
 - An exponential-back-off SPF throttle triggered on LSDB change.
@@ -186,7 +186,7 @@ behind the route-table and install seams created here.
 | sys-rib ↔ kernel | existing best-change -> fibkernel netlink (`RTPROT_ZE`) | [ ] |
 
 ### Integration Points
-- New package `internal/component/ospf/spf/` (graph build, two-stage Dijkstra, next-hop derivation, route table, diff, Loc-RIB insertion).
+- New package `internal/plugins/ospf/spf/` (graph build, two-stage Dijkstra, next-hop derivation, route table, diff, Loc-RIB insertion).
 - Loc-RIB insertion via `InsertForward` (mirror BGP `rib_bestchange.go:813`, IS-IS `spf/install.go`); OSPF is a new Loc-RIB source, not a redistevents producer.
 - The existing `rib.admin-distance.ospf` leaf in `ze-rib-conf.yang` (no schema change here).
 - The EXISTING sysrib/locrib path-group ECMP expansion into `BestChangeEntry.ECMPPaths` (added by IS-IS); reused unchanged.
@@ -205,7 +205,7 @@ behind the route-table and install seams created here.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The synced LSDB (ospf-7) exposes a per-area read API and change notification sufficient to build the SPF graph (Router-LSA link records, Network-LSA attached-routers, by `(Type, LS ID, Adv Router)` key) without re-parsing raw bytes more than once per run | ospf-7 LSDB design; umbrella "LSA header + body layout" | SPF must add its own parsed-topology cache | `TestOSPFGraphBuild` on a hand-built LSDB | unvalidated |
-| A-2 | FIB install is via Loc-RIB insertion (`locrib.Path` + `InsertForward`), not redistevents; ECMP reuses the EXISTING sysrib/locrib path-group expansion into `BestChangeEntry.ECMPPaths` (added by IS-IS) with NO sysrib code | `internal/component/bgp/plugins/rib/rib_bestchange.go:813`, `internal/plugins/sysrib/sysrib.go` `ecmpCollect`; umbrella ECMP note + A-2 | If the existing expansion does not generalise to a second IGP, ECMP install fails | `test/ospf/ospf-route-install.ci` end-to-end to kernel with multiple next-hops | unvalidated |
+| A-2 | FIB install is via Loc-RIB insertion (`locrib.Path` + `InsertForward`), not redistevents; ECMP reuses the EXISTING sysrib/locrib path-group expansion into `BestChangeEntry.ECMPPaths` (added by IS-IS) with NO sysrib code | `internal/component/bgp/plugins/rib/rib_bestchange.go:813`, `internal/component/sysrib/sysrib.go` `ecmpCollect`; umbrella ECMP note + A-2 | If the existing expansion does not generalise to a second IGP, ECMP install fails | `test/ospf/ospf-route-install.ci` end-to-end to kernel with multiple next-hops | unvalidated |
 | A-3 | A single OSPF admin distance (110) on `locrib.Path.AdminDistance` (existing `rib.admin-distance.ospf` leaf) plus Loc-RIB best-path (AdminDistance then Metric) expresses cross-protocol arbitration; intra<inter<E1<E2 is resolved inside the OSPF route table before publishing one Path (`locrib.Path` has no path-type field) | `internal/core/rib/locrib/candidate.go`, `ze-rib-conf.yang`; umbrella A-3 | Per-path-type distance vs OTHER protocols needs a path-type field on `locrib.Path` | multi-source functional test + intra-area route test | unvalidated |
 | A-3b | Per-path-type admin distance vs other protocols (intra-area vs external at different distances against static/BGP) is NOT implementable in v1 and is deferred as future work | `internal/core/rib/locrib/candidate.go` has no path-type field | A deployment needing distinct per-path-type distances would add a path-type field to `locrib.Path` and per-type leaves to `ze-rib-conf.yang` | future spec when the field is added | deferred (future work) |
 | A-4 | The Network-LSA can be located during the SPT walk by the DR interface address taken from the Router-LSA transit-link descriptor (LS ID = DR interface address, trap #5), keyed `(Type 2, LS ID, Adv Router)` in the LSDB | RFC 2328 §16.1; guide trap #5 | SPF drops transit-LAN topology | `TestOSPFTransitNetworkSPF` (LAN with a Network-LSA) | unvalidated |
@@ -259,18 +259,18 @@ behind the route-table and install seams created here.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFGraphBuild` | `internal/component/ospf/spf/graph_test.go` | router vertices + link records from Router-LSAs; transit-network vertices from Network-LSAs keyed by DR interface address; stub links recorded for stage 2 | |
-| `TestOSPFSPFShortestPath` | `internal/component/ospf/spf/spf_test.go` | two-stage Dijkstra on a hand-built LSDB matches hand-computed metric/next-hop for every prefix | |
-| `TestOSPFTwoWayCheck` | `internal/component/ospf/spf/spf_test.go` | a one-way LSDB (A lists B, B does not list A) installs no route through the broken adjacency (trap #6) | |
-| `TestOSPFTransitNetworkSPF` | `internal/component/ospf/spf/spf_test.go` | a LAN Network-LSA (LS ID = DR interface address) is found by the Router-LSA transit-link address; all routers behind the LAN reached (trap #5) | |
-| `TestOSPFNextHop` | `internal/component/ospf/spf/spf_test.go` | transit-network next-hop = next-hop router's Router-LSA Link Data; P2P next-hop = neighbour interface address; parent next-hops copied (not replaced) on an equal-cost tie (§16.1.1) | |
-| `TestOSPFSPFECMP` | `internal/component/ospf/spf/spf_test.go` | equal-cost parent merge yields multiple next-hops, capped at 8 | |
-| `TestOSPFStubAttach` | `internal/component/ospf/spf/spf_test.go` | stage 2 attaches Router-LSA stub links at tree-distance + stub cost, retaining the router vertex next-hop set | |
-| `TestOSPFRouteTablePreference` | `internal/component/ospf/spf/route_test.go` | intra-area path-type marker set; intra < inter < E1 < E2 resolution publishes one winning result per prefix (intra-area only present here) | |
-| `TestOSPFRouteDiff` | `internal/component/ospf/spf/route_test.go` | add/change/remove deltas computed correctly between runs | |
-| `TestOSPFSPFThrottle` | `internal/component/ospf/spf/spf_test.go` | exponential back-off: a burst coalesces to one run per area; hold doubles per consecutive trigger, caps at max-hold, resets after a quiet window | |
-| `TestOSPFInstallPath` | `internal/component/ospf/spf/install_test.go` | SPF result -> `locrib.Path{Source=OSPF, Instance, NextHop, AdminDistance 110, Metric}` with one Path per ECMP next-hop -> `InsertForward`; `loc.Remove` on loss/shrink | |
-| `TestOSPFSPFRoute` | `internal/component/ospf/spf/install_test.go` | LSDB change -> SPF -> Loc-RIB insertion (wiring) | |
+| `TestOSPFGraphBuild` | `internal/plugins/ospf/spf/graph_test.go` | router vertices + link records from Router-LSAs; transit-network vertices from Network-LSAs keyed by DR interface address; stub links recorded for stage 2 | |
+| `TestOSPFSPFShortestPath` | `internal/plugins/ospf/spf/spf_test.go` | two-stage Dijkstra on a hand-built LSDB matches hand-computed metric/next-hop for every prefix | |
+| `TestOSPFTwoWayCheck` | `internal/plugins/ospf/spf/spf_test.go` | a one-way LSDB (A lists B, B does not list A) installs no route through the broken adjacency (trap #6) | |
+| `TestOSPFTransitNetworkSPF` | `internal/plugins/ospf/spf/spf_test.go` | a LAN Network-LSA (LS ID = DR interface address) is found by the Router-LSA transit-link address; all routers behind the LAN reached (trap #5) | |
+| `TestOSPFNextHop` | `internal/plugins/ospf/spf/spf_test.go` | transit-network next-hop = next-hop router's Router-LSA Link Data; P2P next-hop = neighbour interface address; parent next-hops copied (not replaced) on an equal-cost tie (§16.1.1) | |
+| `TestOSPFSPFECMP` | `internal/plugins/ospf/spf/spf_test.go` | equal-cost parent merge yields multiple next-hops, capped at 8 | |
+| `TestOSPFStubAttach` | `internal/plugins/ospf/spf/spf_test.go` | stage 2 attaches Router-LSA stub links at tree-distance + stub cost, retaining the router vertex next-hop set | |
+| `TestOSPFRouteTablePreference` | `internal/plugins/ospf/spf/route_test.go` | intra-area path-type marker set; intra < inter < E1 < E2 resolution publishes one winning result per prefix (intra-area only present here) | |
+| `TestOSPFRouteDiff` | `internal/plugins/ospf/spf/route_test.go` | add/change/remove deltas computed correctly between runs | |
+| `TestOSPFSPFThrottle` | `internal/plugins/ospf/spf/spf_test.go` | exponential back-off: a burst coalesces to one run per area; hold doubles per consecutive trigger, caps at max-hold, resets after a quiet window | |
+| `TestOSPFInstallPath` | `internal/plugins/ospf/spf/install_test.go` | SPF result -> `locrib.Path{Source=OSPF, Instance, NextHop, AdminDistance 110, Metric}` with one Path per ECMP next-hop -> `InsertForward`; `loc.Remove` on loss/shrink | |
+| `TestOSPFSPFRoute` | `internal/plugins/ospf/spf/install_test.go` | LSDB change -> SPF -> Loc-RIB insertion (wiring) | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -297,9 +297,9 @@ behind the route-table and install seams created here.
 - FRR interop for SPF/convergence is owned by spec-ospf-13 (`ospf-p2p-frr`, `ospf-broadcast-frr`); this spec proves intra-area SPF + install with Ze-to-Ze functional tests. Inter-area (ospf-9), external (ospf-10), and stub/NSSA (ospf-11) route computation extend this package and carry their own tests.
 
 ## Files to Modify
-- NOTE: NO change to `internal/plugins/sysrib/sysrib.go` or `internal/core/rib/locrib/` - the `BestChangeEntry.ECMPPaths` path-group expansion ALREADY EXISTS (added by IS-IS) and is reused unchanged.
-- NOTE: NO change to `internal/plugins/sysrib/yang/ze-rib-conf.yang` - the existing `ospf` admin-distance leaf (default 110) is used and no per-path-type leaves are added (`locrib.Path` has no path-type field, so per-type distance is not implementable in v1).
-- `internal/component/ospf/instance.go` (or `area.go`) - wire the SPF Computer to the per-area LSDB change notification (the `triggerSPF` arming point); held by ospf-4's scaffolding
+- NOTE: NO change to `internal/component/sysrib/sysrib.go` or `internal/core/rib/locrib/` - the `BestChangeEntry.ECMPPaths` path-group expansion ALREADY EXISTS (added by IS-IS) and is reused unchanged.
+- NOTE: NO change to `internal/component/sysrib/yang/ze-rib-conf.yang` - the existing `ospf` admin-distance leaf (default 110) is used and no per-path-type leaves are added (`locrib.Path` has no path-type field, so per-type distance is not implementable in v1).
+- `internal/plugins/ospf/instance.go` (or `area.go`) - wire the SPF Computer to the per-area LSDB change notification (the `triggerSPF` arming point); held by ospf-4's scaffolding
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -337,16 +337,16 @@ behind the route-table and install seams created here.
 | 17 | Existing docs show examples for this area? | No | grep at completion |
 
 ## Files to Create
-- `internal/component/ospf/spf/graph.go` - per-area graph build from the LSDB: router vertices + link records from Router-LSAs; transit-network vertices from Network-LSAs keyed by DR interface address (trap #5); stub links recorded for stage 2
-- `internal/component/ospf/spf/spf.go` - the RFC 2328 §16.1 two-stage Dijkstra: stage 1 over router + transit vertices with the two-way check (trap #6) and §16.1.1 next-hop derivation + parent inheritance + equal-cost merge (ECMP, cap 8); stage 2 stub attach
-- `internal/component/ospf/spf/route.go` - per-area route table with path-type marker, intra<inter<E1<E2 internal resolution (intra-area only here), diff against the installed set, `show ip ospf route` snapshot
-- `internal/component/ospf/spf/computer.go` - exponential-back-off SPF throttle / debounce orchestration; owns and registers `ze_ospf_spf_runs_total{area}`, `ze_ospf_spf_duration_seconds{area}`; `show ip ospf spf` run-state snapshot
-- `internal/component/ospf/spf/install.go` - build `locrib.Path{Source = OSPF ProtocolID, Instance (per ECMP next-hop), NextHop, AdminDistance (single 110), Metric}` per (prefix, next-hop) and call `locRIB.InsertForward` on add/change, `loc.Remove` on loss/shrink (mirror BGP `rib_bestchange.go:813`, IS-IS `spf/install.go`); register the OSPF ProtocolID once at startup; owns and registers `ze_ospf_routes_installed{type}`; preference already resolved in `route.go` so one result set per prefix is published
-- `internal/component/ospf/spf/graph_test.go`, `spf_test.go`, `route_test.go`, `install_test.go` - unit tests (install_test asserts the inserted `locrib.Path` and the forward-remove)
+- `internal/plugins/ospf/spf/graph.go` - per-area graph build from the LSDB: router vertices + link records from Router-LSAs; transit-network vertices from Network-LSAs keyed by DR interface address (trap #5); stub links recorded for stage 2
+- `internal/plugins/ospf/spf/spf.go` - the RFC 2328 §16.1 two-stage Dijkstra: stage 1 over router + transit vertices with the two-way check (trap #6) and §16.1.1 next-hop derivation + parent inheritance + equal-cost merge (ECMP, cap 8); stage 2 stub attach
+- `internal/plugins/ospf/spf/route.go` - per-area route table with path-type marker, intra<inter<E1<E2 internal resolution (intra-area only here), diff against the installed set, `show ip ospf route` snapshot
+- `internal/plugins/ospf/spf/computer.go` - exponential-back-off SPF throttle / debounce orchestration; owns and registers `ze_ospf_spf_runs_total{area}`, `ze_ospf_spf_duration_seconds{area}`; `show ip ospf spf` run-state snapshot
+- `internal/plugins/ospf/spf/install.go` - build `locrib.Path{Source = OSPF ProtocolID, Instance (per ECMP next-hop), NextHop, AdminDistance (single 110), Metric}` per (prefix, next-hop) and call `locRIB.InsertForward` on add/change, `loc.Remove` on loss/shrink (mirror BGP `rib_bestchange.go:813`, IS-IS `spf/install.go`); register the OSPF ProtocolID once at startup; owns and registers `ze_ospf_routes_installed{type}`; preference already resolved in `route.go` so one result set per prefix is published
+- `internal/plugins/ospf/spf/graph_test.go`, `spf_test.go`, `route_test.go`, `install_test.go` - unit tests (install_test asserts the inserted `locrib.Path` and the forward-remove)
 - `test/ospf/ospf-route-install.ci` - end-to-end route install (add, ECMP, withdraw)
 - `test/ospf/ospf-redist-arbitration.ci` - admin-distance arbitration against static/BGP
 
-Note: `internal/component/ospf/redistribute/` (the `redistevents` producer + `RedistConsumer`) is owned by spec-ospf-10, NOT this spec. This spec installs to the FIB only via Loc-RIB insertion. Inter-area (ospf-9), external (ospf-10), and stub/NSSA (ospf-11) route computation extend this package behind the route-table and install seams.
+Note: `internal/plugins/ospf/redistribute/` (the `redistevents` producer + `RedistConsumer`) is owned by spec-ospf-10, NOT this spec. This spec installs to the FIB only via Loc-RIB insertion. Inter-area (ospf-9), external (ospf-10), and stub/NSSA (ospf-11) route computation extend this package behind the route-table and install seams.
 
 ## Implementation Steps
 
@@ -368,7 +368,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Wiring (MANDATORY FIRST)** - register the OSPF ProtocolID, wire the Loc-RIB insertion stub, and write the failing route-install test
    - Tests: `TestOSPFSPFRoute`, `test/ospf/ospf-route-install.ci` (fails: no SPF result yet)
-   - Files: `internal/component/ospf/spf/install.go` (register the OSPF ProtocolID, hold the Loc-RIB handle, `InsertForward` entry point), an SPF entry-point stub in `spf/spf.go`; arm the trigger from `instance.go`/`area.go`
+   - Files: `internal/plugins/ospf/spf/install.go` (register the OSPF ProtocolID, hold the Loc-RIB handle, `InsertForward` entry point), an SPF entry-point stub in `spf/spf.go`; arm the trigger from `instance.go`/`area.go`
    - Verify: the OSPF ProtocolID registers, the Loc-RIB handle is held, the wiring test fails because SPF returns no routes (no redistevents anywhere)
 2. **Phase: Graph build** - vertices and edges from the LSDB
    - Tests: `TestOSPFGraphBuild`
@@ -388,7 +388,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: burst coalesces to one run per area; hold backs off and resets; `locrib.Path` inserted with Source=OSPF; route appears in kernel as `RTPROT_ZE`; ECMP installs multiple next-hops via the EXISTING path-group expansion; adjacency loss removes
 6. **Phase: Arbitration + ECMP reuse verification** - cross-protocol selection and the reused intra-protocol path-group expansion
    - Tests: `test/ospf/ospf-redist-arbitration.ci`, `TestOSPFInstallPath` (ECMP)
-   - Files: none in sysrib/locrib (reuse the EXISTING `BestChangeEntry.ECMPPaths` expansion and the existing `ospf` admin-distance leaf, default 110); only `internal/component/ospf/spf/install.go`
+   - Files: none in sysrib/locrib (reuse the EXISTING `BestChangeEntry.ECMPPaths` expansion and the existing `ospf` admin-distance leaf, default 110); only `internal/plugins/ospf/spf/install.go`
    - Verify: OSPF at 110 (single admin distance) loses to lower-admin-distance sources and wins when raised; intra<inter<E1<E2 holds (resolved inside SPF); intra-protocol ECMP installs multiple next-hops in the kernel via `BestChangeEntry.ECMPPaths`; existing single-Path sources (static, connected, BGP, IS-IS) unaffected (no sysrib change)
 7. **Phase: snapshot + metrics** - `show ip ospf route` / `show ip ospf spf` snapshots and SPF metrics
    - Files: `spf/route.go` (route snapshot), `spf/computer.go` (run-state snapshot); the `ze_ospf_spf_runs_total`/`ze_ospf_spf_duration_seconds`/`ze_ospf_routes_installed` series are registered HERE (per-owner); ospf-13 only renders/scrape-asserts them
@@ -406,16 +406,16 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | Two-stage Dijkstra matches hand-computed paths; two-way check (trap #6) rejects one-way links; Network-LSA looked up by DR interface address (trap #5); next-hop per §16.1.1 (parent inheritance copied on tie) |
 | Naming | admin-distance leaf `ospf` (single, existing, 110); Loc-RIB `Source` = OSPF ProtocolID; CLI `show ip ospf route` / `spf`; metrics `ze_ospf_spf_runs_total`/`_duration_seconds`/`ze_ospf_routes_installed` (exact owned names only) |
 | Data flow | Routes flow LSDB -> SPF -> Loc-RIB insertion (`InsertForward`) -> sysrib `OnChange` -> fibkernel; no bypass; no second FIB path; no redistevents on the install path; no sysrib/locrib code added |
-| Rule: plugin-self-containment | All SPF/route/install/snapshot code under `internal/component/ospf/spf/` |
+| Rule: plugin-self-containment | All SPF/route/install/snapshot code under `internal/plugins/ospf/spf/` |
 | Rule: memory-architecture | `locrib.Path` value-typed; no cross-boundary pointers in the inserted Path |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| SPF package | `ls internal/component/ospf/spf/` |
-| Two-stage Dijkstra + two-way check | `grep -rn 'two-way\|twoWay\|transit' internal/component/ospf/spf/` |
-| Loc-RIB insertion | `grep -r 'InsertForward' internal/component/ospf/spf/` |
-| ECMP reuse (no sysrib change) | `git diff --name-only` shows NO `internal/plugins/sysrib/` or `internal/core/rib/locrib/` files |
+| SPF package | `ls internal/plugins/ospf/spf/` |
+| Two-stage Dijkstra + two-way check | `grep -rn 'two-way\|twoWay\|transit' internal/plugins/ospf/spf/` |
+| Loc-RIB insertion | `grep -r 'InsertForward' internal/plugins/ospf/spf/` |
+| ECMP reuse (no sysrib change) | `git diff --name-only` shows NO `internal/component/sysrib/` or `internal/core/rib/locrib/` files |
 | Functional tests | `ls test/ospf/ospf-route-install.ci test/ospf/ospf-redist-arbitration.ci` |
 | Kernel route tagged RTPROT_ZE | functional test asserts OSPF source in kernel FIB |
 
@@ -495,16 +495,16 @@ route-table resolution.
 ## Implementation Summary
 
 ### What Was Implemented
-- (To be filled during implementation.)
+- Pending: no implementation has run for this design spec; fill with observed implementation evidence during /ze-implement.
 
 ### Bugs Found/Fixed
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ### Documentation Updates
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ### Deviations from Plan
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ## Implementation Audit
 
@@ -546,10 +546,10 @@ route-table resolution.
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -589,7 +589,7 @@ route-table resolution.
 - [ ] Wiring Test table complete - every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled - 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`internal/component/ospf/spf/`, including `spf/install.go` Loc-RIB insertion)
+- [ ] Feature code integrated (`internal/plugins/ospf/spf/`, including `spf/install.go` Loc-RIB insertion)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Critical Review passes

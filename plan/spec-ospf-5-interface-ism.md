@@ -16,7 +16,7 @@
 4. `docs/research/ospf-implementation-guide.md` - sec 5a (Interface State Machine, lines ~247-270), sec 5b (DR/BDR election, lines ~272-290), sec 7 (Network Types and Interface Model, lines ~470-514), sec 13 traps 11 (Hello E-bit mismatch in stub areas) and 12 (DR stickiness on join, lines ~1488-1495)
 5. `plan/spec-ospf-2-wire.md` - Hello packet + common-header codec (Network Mask, HelloInterval, RouterDeadInterval, Options, Router Priority, Designated Router, Backup Designated Router, neighbour list) consumed here
 6. `plan/spec-ospf-4-component-config.md` - component, config-resolved interface structs, packet receive dispatcher, events namespace, instance/area scaffolding
-7. `plan/spec-isis-5-adjacency.md` - the IS-IS sibling (circuit + adjacency FSM); OSPF mirrors the per-interface-runtime + FSM split, the snapshot-API pattern, and the dispatcher-registration pattern, but ISM and NSM are SEPARATE machines (ospf-6 owns the NSM)
+7. `plan/learned/931-isis-5-adjacency.md` - the IS-IS sibling (circuit + adjacency FSM); OSPF mirrors the per-interface-runtime + FSM split, the snapshot-API pattern, and the dispatcher-registration pattern, but ISM and NSM are SEPARATE machines (ospf-6 owns the NSM)
 
 ## Task
 
@@ -84,9 +84,9 @@ receive/send path).
 - [ ] `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md` - zero-copy, no-alloc hot path
   -> Constraint: parse only the Hello fields the ISM/election need (Network Mask, HelloInterval, RouterDeadInterval, Options, Router Priority, DR, BDR, neighbour list) via the ospf-2 codec; Hello encode is buffer-first `WriteTo(buf, off) int`; the election runs over value-typed neighbour snapshots, not per-packet allocation
 - [ ] `ai/rules/plugin-self-containment.md` - self-contained component
-  -> Constraint: interface, ISM, and election code live under `internal/component/ospf/iface/`; the `show ip ospf interface` snapshot is produced here and rendered by ospf-13
+  -> Constraint: interface, ISM, and election code live under `internal/plugins/ospf/iface/`; the `show ip ospf interface` snapshot is produced here and rendered by ospf-13
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` §7.1-§7.3, §9.1-§9.5, §10.5 (created by ospf-2; this spec adds the ISM/election sections via `/ze-rfc`)
   -> Constraint: §9.1 the eight interface states; §9.2 the interface events; §9.3 the state x event transition table; §9.4 the two-step DR/BDR election with the sticky rule and priority-0 ineligibility; §9.5 sending Hellos (destination, fields); §10.5 receiving Hellos (validation: Network Mask on broadcast, HelloInterval, RouterDeadInterval, Options E-bit, Area ID via the dispatcher)
   -> Constraint: §9.5.1 a router whose priority is 0 still sends Hellos and is heard, but is never elected DR/BDR; the DR/BDR fields in its Hello reflect what it has elected, not a self-claim
@@ -105,13 +105,13 @@ receive/send path).
 **Source files read:** (architecture survey; this child reads ospf-2 and ospf-4 outputs)
 - [ ] Ze has no OSPF interface machinery; nothing runs an OSPF ISM or DR election today
   -> Constraint: this is entirely new; nothing to preserve in the OSPF namespace
-- [ ] `internal/component/ospf/transport/` (ospf-3) exposes a per-interface RX/TX path and the AllSPFRouters/AllDRouters multicast join/leave
+- [ ] `internal/plugins/ospf/transport/` (ospf-3) exposes a per-interface RX/TX path and the AllSPFRouters/AllDRouters multicast join/leave
   -> Constraint: the interface runtime consumes that path; it does not open raw sockets or join multicast groups itself -- it signals DR/BDR state so ospf-3 joins/leaves 224.0.0.6
-- [ ] `internal/component/ospf/instance.go` (ospf-4) owns the packet receive dispatcher keyed by the common-header Type field (Shared Contracts "Packet receive dispatcher")
+- [ ] `internal/plugins/ospf/instance.go` (ospf-4) owns the packet receive dispatcher keyed by the common-header Type field (Shared Contracts "Packet receive dispatcher")
   -> Constraint: this spec registers a Hello (Type 1) handler with the ospf-4 dispatcher; the transport holds no protocol switch and the interface does not classify packet types itself; the dispatcher has already validated version == 2, Area ID, checksum, and auth before handing the Hello over
-- [ ] `internal/component/ospf/packet/` (ospf-2) decodes the common header and the Hello body and encodes Hellos buffer-first
+- [ ] `internal/plugins/ospf/packet/` (ospf-2) decodes the common header and the Hello body and encodes Hellos buffer-first
   -> Constraint: the ISM/election call the codec; they do not parse bytes inline
-- [ ] `internal/component/ospf/` events namespace (ospf-4) defines the event types this spec emits (ISM state change, DR change)
+- [ ] `internal/plugins/ospf/` events namespace (ospf-4) defines the event types this spec emits (ISM state change, DR change)
   -> Constraint: emit ISM/DR changes through that namespace, not a new ad hoc channel
 
 **Behavior to preserve:**
@@ -120,7 +120,7 @@ receive/send path).
 - Other protocols (BGP, LDP, IS-IS) untouched
 
 **Behavior to change:**
-- New `internal/component/ospf/iface/` package (interface runtime + ISM + Hello + DR/BDR election + ISM-level neighbour list)
+- New `internal/plugins/ospf/iface/` package (interface runtime + ISM + Hello + DR/BDR election + ISM-level neighbour list)
 - The component starts an OSPF interface per enabled interface and tears it down on interface-down events from the iface EventBus
 - New OSPF ISM state-change and DR-change events are emitted (consumed by ospf-6 NSM AdjOK? and ospf-7 Network-LSA origination)
 
@@ -155,7 +155,7 @@ receive/send path).
 | Interface <-> CLI | interface-table snapshot API consumed by ospf-13 `show ip ospf interface` | [ ] |
 
 ### Integration Points
-- New `internal/component/ospf/iface/` (per-interface RX/TX/timers; ISM FSM; DR/BDR election; ISM-level neighbour list and snapshot API)
+- New `internal/plugins/ospf/iface/` (per-interface RX/TX/timers; ISM FSM; DR/BDR election; ISM-level neighbour list and snapshot API)
 - ospf-4 `instance.go` starts/stops interfaces, owns the events namespace, and owns the packet receive dispatcher this spec registers a Hello handler with
 - ospf-3 transport supplies the RX/TX path, the iface up/down subscription, and the AllSPFRouters/AllDRouters multicast membership (this spec only signals DR/BDR so ospf-3 (re)joins/leaves 224.0.0.6)
 - ospf-2 codec supplies Hello encode/decode
@@ -244,33 +244,33 @@ receive/send path).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFISMBroadcastUpToWaiting` | `internal/component/ospf/iface/ism_test.go` | InterfaceUp on a broadcast, non-zero-priority interface -> Waiting + Wait timer armed | |
-| `TestOSPFISMP2PUpToPointToPoint` | `internal/component/ospf/iface/ism_test.go` | InterfaceUp on a point-to-point interface -> Point-to-Point, no election | |
-| `TestOSPFISMWaitTimerElects` | `internal/component/ospf/iface/ism_test.go` | WaitTimer -> election -> DR/Backup/DROther (fake clock) | |
-| `TestOSPFISMBackupSeenShortCircuit` | `internal/component/ospf/iface/ism_test.go` | a Hello declaring a DR/BDR while Waiting raises BackupSeen and elects before the Wait timer | |
-| `TestOSPFISMNeighborChangeReElects` | `internal/component/ospf/iface/ism_test.go` | a neighbour entering/leaving 2-Way in DR/Backup/DROther re-runs the election | |
-| `TestOSPFISMLoopback` | `internal/component/ospf/iface/ism_test.go` | LoopInd -> Loopback (no Hellos, no election); UnloopInd returns toward Down/Up | |
-| `TestOSPFISMInterfaceDown` | `internal/component/ospf/iface/ism_test.go` | InterfaceDown -> Down, neighbours torn down, `ze_ospf_interface_up` = 0 | |
-| `TestOSPFISMTransitionTable` | `internal/component/ospf/iface/ism_test.go` | the full state x event table (8 states x events) drives the documented next state | |
-| `TestOSPFDRElectionTwoNodes` | `internal/component/ospf/iface/election_test.go` | two eligible routers -> one DR, one BDR; both agree; Router ID tie-break | |
-| `TestOSPFDRElectionSticky` | `internal/component/ospf/iface/election_test.go` | a router already advertising itself as DR is not displaced | |
-| `TestOSPFDRElectionHigherPriorityJoinsNoDisplace` | `internal/component/ospf/iface/election_test.go` | a higher-priority joiner does NOT take DR from the sitting DR (trap 12) | |
-| `TestOSPFDRElectionPriorityZeroIneligible` | `internal/component/ospf/iface/election_test.go` | a priority-0 router is heard/listed but never elected DR or BDR | |
-| `TestOSPFDRElectionBDRPromotedOnDRLoss` | `internal/component/ospf/iface/election_test.go` | DR lost -> BDR promoted to DR, BDR re-elected from the remaining set | |
-| `TestOSPFDRElectionCountsMetric` | `internal/component/ospf/iface/election_test.go` | a (DR,BDR) change increments `ze_ospf_dr_elections_total{interface}`; an unchanged result does not | |
-| `TestOSPFHelloDecodeElectionFields` | `internal/component/ospf/iface/hello_test.go` | priority, declared DR, declared BDR, neighbour list decoded from the received Hello drive the neighbour record | |
-| `TestOSPFHelloTwoWayDetection` | `internal/component/ospf/iface/hello_test.go` | our Router ID echoed in the neighbour list -> 2-Way; absent -> 1-Way | |
-| `TestOSPFHelloOriginationFields` | `internal/component/ospf/iface/hello_test.go` | originated Hello carries Network Mask, HelloInterval, RouterDeadInterval, Options, priority, elected DR/BDR, heard Router IDs | |
-| `TestOSPFHelloEbitSetNormalClearStub` | `internal/component/ospf/iface/hello_test.go` | E-bit set on a normal-area interface, clear on stub/NSSA; N-bit set on NSSA (trap 11) | |
-| `TestOSPFHelloMismatchNetworkMask` | `internal/component/ospf/iface/hello_test.go` | Network-Mask mismatch on broadcast -> drop, no neighbour | |
-| `TestOSPFHelloMismatchHelloInterval` | `internal/component/ospf/iface/hello_test.go` | HelloInterval mismatch -> drop, no neighbour | |
-| `TestOSPFHelloMismatchDeadInterval` | `internal/component/ospf/iface/hello_test.go` | RouterDeadInterval mismatch -> drop, no neighbour | |
-| `TestOSPFHelloEbitMismatchDropped` | `internal/component/ospf/iface/hello_test.go` | Options E-bit disagreement (stub area) -> drop, no neighbour (trap 11) | |
-| `TestOSPFHelloPeriodicSend` | `internal/component/ospf/iface/hello_test.go` | Hello timer emits a Hello at HelloInterval to AllSPFRouters (fake clock) | |
-| `TestOSPFPassiveInterfaceNoHello` | `internal/component/ospf/iface/hello_test.go` | a passive interface sends no Hello and runs no election but keeps a record | |
-| `TestOSPFNeighborInactivityReElection` | `internal/component/ospf/iface/neighbor_test.go` | RouterDeadInterval with no Hello -> neighbour removed, NeighborChange, election re-runs | |
-| `TestOSPFNeighborTableLANKeying` | `internal/component/ospf/iface/neighbor_test.go` | three LAN neighbours keyed by Router ID; one neighbour per point-to-point interface | |
-| `TestOSPFInterfaceSnapshot` | `internal/component/ospf/iface/snapshot_test.go` | snapshot returns area, state, network type, cost, priority, DR, BDR, timers, neighbour count | |
+| `TestOSPFISMBroadcastUpToWaiting` | `internal/plugins/ospf/iface/ism_test.go` | InterfaceUp on a broadcast, non-zero-priority interface -> Waiting + Wait timer armed | |
+| `TestOSPFISMP2PUpToPointToPoint` | `internal/plugins/ospf/iface/ism_test.go` | InterfaceUp on a point-to-point interface -> Point-to-Point, no election | |
+| `TestOSPFISMWaitTimerElects` | `internal/plugins/ospf/iface/ism_test.go` | WaitTimer -> election -> DR/Backup/DROther (fake clock) | |
+| `TestOSPFISMBackupSeenShortCircuit` | `internal/plugins/ospf/iface/ism_test.go` | a Hello declaring a DR/BDR while Waiting raises BackupSeen and elects before the Wait timer | |
+| `TestOSPFISMNeighborChangeReElects` | `internal/plugins/ospf/iface/ism_test.go` | a neighbour entering/leaving 2-Way in DR/Backup/DROther re-runs the election | |
+| `TestOSPFISMLoopback` | `internal/plugins/ospf/iface/ism_test.go` | LoopInd -> Loopback (no Hellos, no election); UnloopInd returns toward Down/Up | |
+| `TestOSPFISMInterfaceDown` | `internal/plugins/ospf/iface/ism_test.go` | InterfaceDown -> Down, neighbours torn down, `ze_ospf_interface_up` = 0 | |
+| `TestOSPFISMTransitionTable` | `internal/plugins/ospf/iface/ism_test.go` | the full state x event table (8 states x events) drives the documented next state | |
+| `TestOSPFDRElectionTwoNodes` | `internal/plugins/ospf/iface/election_test.go` | two eligible routers -> one DR, one BDR; both agree; Router ID tie-break | |
+| `TestOSPFDRElectionSticky` | `internal/plugins/ospf/iface/election_test.go` | a router already advertising itself as DR is not displaced | |
+| `TestOSPFDRElectionHigherPriorityJoinsNoDisplace` | `internal/plugins/ospf/iface/election_test.go` | a higher-priority joiner does NOT take DR from the sitting DR (trap 12) | |
+| `TestOSPFDRElectionPriorityZeroIneligible` | `internal/plugins/ospf/iface/election_test.go` | a priority-0 router is heard/listed but never elected DR or BDR | |
+| `TestOSPFDRElectionBDRPromotedOnDRLoss` | `internal/plugins/ospf/iface/election_test.go` | DR lost -> BDR promoted to DR, BDR re-elected from the remaining set | |
+| `TestOSPFDRElectionCountsMetric` | `internal/plugins/ospf/iface/election_test.go` | a (DR,BDR) change increments `ze_ospf_dr_elections_total{interface}`; an unchanged result does not | |
+| `TestOSPFHelloDecodeElectionFields` | `internal/plugins/ospf/iface/hello_test.go` | priority, declared DR, declared BDR, neighbour list decoded from the received Hello drive the neighbour record | |
+| `TestOSPFHelloTwoWayDetection` | `internal/plugins/ospf/iface/hello_test.go` | our Router ID echoed in the neighbour list -> 2-Way; absent -> 1-Way | |
+| `TestOSPFHelloOriginationFields` | `internal/plugins/ospf/iface/hello_test.go` | originated Hello carries Network Mask, HelloInterval, RouterDeadInterval, Options, priority, elected DR/BDR, heard Router IDs | |
+| `TestOSPFHelloEbitSetNormalClearStub` | `internal/plugins/ospf/iface/hello_test.go` | E-bit set on a normal-area interface, clear on stub/NSSA; N-bit set on NSSA (trap 11) | |
+| `TestOSPFHelloMismatchNetworkMask` | `internal/plugins/ospf/iface/hello_test.go` | Network-Mask mismatch on broadcast -> drop, no neighbour | |
+| `TestOSPFHelloMismatchHelloInterval` | `internal/plugins/ospf/iface/hello_test.go` | HelloInterval mismatch -> drop, no neighbour | |
+| `TestOSPFHelloMismatchDeadInterval` | `internal/plugins/ospf/iface/hello_test.go` | RouterDeadInterval mismatch -> drop, no neighbour | |
+| `TestOSPFHelloEbitMismatchDropped` | `internal/plugins/ospf/iface/hello_test.go` | Options E-bit disagreement (stub area) -> drop, no neighbour (trap 11) | |
+| `TestOSPFHelloPeriodicSend` | `internal/plugins/ospf/iface/hello_test.go` | Hello timer emits a Hello at HelloInterval to AllSPFRouters (fake clock) | |
+| `TestOSPFPassiveInterfaceNoHello` | `internal/plugins/ospf/iface/hello_test.go` | a passive interface sends no Hello and runs no election but keeps a record | |
+| `TestOSPFNeighborInactivityReElection` | `internal/plugins/ospf/iface/neighbor_test.go` | RouterDeadInterval with no Hello -> neighbour removed, NeighborChange, election re-runs | |
+| `TestOSPFNeighborTableLANKeying` | `internal/plugins/ospf/iface/neighbor_test.go` | three LAN neighbours keyed by Router ID; one neighbour per point-to-point interface | |
+| `TestOSPFInterfaceSnapshot` | `internal/plugins/ospf/iface/snapshot_test.go` | snapshot returns area, state, network type, cost, priority, DR, BDR, timers, neighbour count | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -299,8 +299,8 @@ receive/send path).
 
 ## Files to Modify
 <!-- MUST include feature code, not only test files -->
-- `internal/component/ospf/instance.go` (ospf-4) - start an OSPF interface per enabled interface; register a Hello (Type 1) handler with the ospf-4 packet receive dispatcher; subscribe interfaces to iface up/down; expose the interface snapshot for ospf-13
-- `internal/component/ospf/events.go` (ospf-4) - add ISM state-change and DR-change event payloads if not already present (consumed by ospf-6 NSM AdjOK? and ospf-7 Network-LSA origination)
+- `internal/plugins/ospf/instance.go` (ospf-4) - start an OSPF interface per enabled interface; register a Hello (Type 1) handler with the ospf-4 packet receive dispatcher; subscribe interfaces to iface up/down; expose the interface snapshot for ospf-13
+- `internal/plugins/ospf/events.go` (ospf-4) - add ISM state-change and DR-change event payloads if not already present (consumed by ospf-6 NSM AdjOK? and ospf-7 Network-LSA origination)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -337,17 +337,17 @@ receive/send path).
 | 17 | Existing docs show examples for this area? | No | grep at completion |
 
 ## Files to Create
-- `internal/component/ospf/iface/iface.go` - OSPF interface runtime: per-interface RX (Hello handler) / TX (Hello sender) over the ospf-3 path, timer wiring (Hello timer, Wait timer, neighbour inactivity timers), network-type gate
-- `internal/component/ospf/iface/ism.go` - the Interface State Machine: 8 states (Down/Loopback/Waiting/Point-to-Point/DROther/Backup/DR), the state x event transition table (InterfaceUp/WaitTimer/BackupSeen/NeighborChange/LoopInd/UnloopInd/InterfaceDown), `ze_ospf_interface_up` gauge
-- `internal/component/ospf/iface/ism_test.go` - ISM transition unit tests with mocked events and a fake clock
-- `internal/component/ospf/iface/election.go` - RFC 2328 §9.4 two-step DR/BDR election (BDR then DR, sticky rule, priority-0 ineligibility, Router ID tie-break), `ze_ospf_dr_elections_total` counter
-- `internal/component/ospf/iface/election_test.go` - election unit tests (two-node, sticky, higher-priority join, priority-0, BDR promotion, metric)
-- `internal/component/ospf/iface/hello.go` - Hello build (Network Mask, HelloInterval, RouterDeadInterval, Options E/N-bit per area type, priority, elected DR/BDR, heard Router IDs) and Hello receive validation (§10.5)
-- `internal/component/ospf/iface/hello_test.go` - Hello origination, E/N-bit, two-way detection, and §10.5 mismatch-drop tests
-- `internal/component/ospf/iface/neighbor.go` - ISM-level per-interface neighbour list (record: Router ID, state hint, advertised priority, declared DR/BDR, inactivity timer), keying, NeighborChange raising
-- `internal/component/ospf/iface/neighbor_test.go` - neighbour keying, inactivity-driven re-election, two-way state tests
-- `internal/component/ospf/iface/snapshot.go` - interface-table snapshot API for ospf-13 `show ip ospf interface`
-- `internal/component/ospf/iface/snapshot_test.go` - snapshot field tests
+- `internal/plugins/ospf/iface/iface.go` - OSPF interface runtime: per-interface RX (Hello handler) / TX (Hello sender) over the ospf-3 path, timer wiring (Hello timer, Wait timer, neighbour inactivity timers), network-type gate
+- `internal/plugins/ospf/iface/ism.go` - the Interface State Machine: 8 states (Down/Loopback/Waiting/Point-to-Point/DROther/Backup/DR), the state x event transition table (InterfaceUp/WaitTimer/BackupSeen/NeighborChange/LoopInd/UnloopInd/InterfaceDown), `ze_ospf_interface_up` gauge
+- `internal/plugins/ospf/iface/ism_test.go` - ISM transition unit tests with mocked events and a fake clock
+- `internal/plugins/ospf/iface/election.go` - RFC 2328 §9.4 two-step DR/BDR election (BDR then DR, sticky rule, priority-0 ineligibility, Router ID tie-break), `ze_ospf_dr_elections_total` counter
+- `internal/plugins/ospf/iface/election_test.go` - election unit tests (two-node, sticky, higher-priority join, priority-0, BDR promotion, metric)
+- `internal/plugins/ospf/iface/hello.go` - Hello build (Network Mask, HelloInterval, RouterDeadInterval, Options E/N-bit per area type, priority, elected DR/BDR, heard Router IDs) and Hello receive validation (§10.5)
+- `internal/plugins/ospf/iface/hello_test.go` - Hello origination, E/N-bit, two-way detection, and §10.5 mismatch-drop tests
+- `internal/plugins/ospf/iface/neighbor.go` - ISM-level per-interface neighbour list (record: Router ID, state hint, advertised priority, declared DR/BDR, inactivity timer), keying, NeighborChange raising
+- `internal/plugins/ospf/iface/neighbor_test.go` - neighbour keying, inactivity-driven re-election, two-way state tests
+- `internal/plugins/ospf/iface/snapshot.go` - interface-table snapshot API for ospf-13 `show ip ospf interface`
+- `internal/plugins/ospf/iface/snapshot_test.go` - snapshot field tests
 - `test/ospf/ospf-interface.ci` - functional test: two nodes elect a DR/BDR, `show ip ospf interface` lists the state, link-down re-elects; a point-to-point pair reaches Point-to-Point
 
 ## Implementation Steps
@@ -408,17 +408,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Doctor checks | n/a here (transport owns `CAP_NET_RAW` in ospf-3) |
 | YANG validation | priority 0..255 / hello-interval / dead-interval ranges enforced in ospf-4 and respected here |
 | Prometheus counters | `ze_ospf_interface_up` set on every ISM transition; `ze_ospf_dr_elections_total` incremented only on a (DR,BDR) change; no other OSPF series touched |
-| Rule: plugin-self-containment | interface/ISM/election/snapshot code lives under `internal/component/ospf/iface/` |
+| Rule: plugin-self-containment | interface/ISM/election/snapshot code lives under `internal/plugins/ospf/iface/` |
 | Rule: no premature NSM/LSDB coupling | the full NSM (Down..Full, DD, LS Request) stays in ospf-6; Network-LSA origination stays in ospf-7; this spec only emits the events they consume |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| iface package | `ls internal/component/ospf/iface/iface.go internal/component/ospf/iface/ism.go internal/component/ospf/iface/election.go internal/component/ospf/iface/hello.go internal/component/ospf/iface/neighbor.go internal/component/ospf/iface/snapshot.go` |
+| iface package | `ls internal/plugins/ospf/iface/iface.go internal/plugins/ospf/iface/ism.go internal/plugins/ospf/iface/election.go internal/plugins/ospf/iface/hello.go internal/plugins/ospf/iface/neighbor.go internal/plugins/ospf/iface/snapshot.go` |
 | Functional test | `ls test/ospf/ospf-interface.ci` |
-| ISM transitions | `go test ./internal/component/ospf/iface/ -run TestOSPFISM` |
-| DR election | `go test ./internal/component/ospf/iface/ -run TestOSPFDRElection` |
-| Two-node DR/BDR | `go test ./internal/component/ospf/... -run TestOSPFDRElectionTwoNodes` |
+| ISM transitions | `go test ./internal/plugins/ospf/iface/ -run TestOSPFISM` |
+| DR election | `go test ./internal/plugins/ospf/iface/ -run TestOSPFDRElection` |
+| Two-node DR/BDR | `go test ./internal/plugins/ospf/... -run TestOSPFDRElectionTwoNodes` |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -545,10 +545,10 @@ MUST document: the eight states, the state transitions, the election (two-step, 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |

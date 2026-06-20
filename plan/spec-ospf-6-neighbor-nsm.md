@@ -16,7 +16,7 @@
 4. `docs/research/ospf-implementation-guide.md` §5c (Neighbor State Machine, lines ~291-321), §5d (Database Synchronisation ExStart->Exchange->Loading->Full, lines ~323-337), §5e (flooding receive procedure, only the LS Request/LS Update interaction this spec drains), trap #4 (MTU Mismatch in DD, lines ~1454-1458)
 5. `plan/spec-ospf-5-interface-ism.md` - ISM, DR/BDR identity, Hello receive that drives HelloReceived / 2-WayReceived / 1-WayReceived and the NeighborChange (AdjOK?) trigger
 6. `plan/spec-ospf-2-wire.md` - DD / LS Request / LS Update packet codec (I/M/MS flags, DD sequence, interface MTU field, LSA-header lists) consumed here
-7. `plan/spec-isis-5-adjacency.md` - the sibling IS-IS adjacency FSM (state machine + per-circuit neighbour table structure) OSPF mirrors above the wire
+7. `plan/learned/931-isis-5-adjacency.md` - the sibling IS-IS adjacency FSM (state machine + per-circuit neighbour table structure) OSPF mirrors above the wire
 
 ## Task
 
@@ -80,9 +80,9 @@ list (the synchronisation list) and its drain to Full.
 - [ ] `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md` - zero-copy, no-alloc hot path
   -> Constraint: the LS Request list stores LSA keys `(Type, LS ID, Advertising Router)` plus the requested freshness, not copies of LSA bodies; the DD LSA-header list is read from the codec without copying bodies
 - [ ] `ai/rules/plugin-self-containment.md`, `ai/rules/registration-dispatch.md` - self-contained component, registration not switch
-  -> Constraint: neighbour and NSM code live under `internal/component/ospf/neighbor/`; the DD/LS Request handlers register with the spec-ospf-4 dispatcher; the `show ip ospf neighbor` snapshot is produced here and rendered by spec-ospf-13
+  -> Constraint: neighbour and NSM code live under `internal/plugins/ospf/neighbor/`; the DD/LS Request handlers register with the spec-ospf-4 dispatcher; the `show ip ospf neighbor` snapshot is produced here and rendered by spec-ospf-13
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` - OSPF Version 2 (created by spec-ospf-2 via `/ze-rfc`)
   -> Constraint: §10.1 states; §10.2 event-driven transitions; §10.3 the state x event table; §10.4 `should_adj`; §10.6 DD packet (I/M/MS bits, interface MTU, DD sequence, options); §10.8 ExStart/Exchange; §10.9 Loading; §10.10 an explanatory example
   -> Constraint: §10.5 the DD-received handling, including the duplicate-DD detection on the slave (re-send the last DD) and master (drop the duplicate); §10.7 the LS-Request-received handling (BadLSReq if the requested LSA is not in our LSDB)
@@ -101,13 +101,13 @@ list (the synchronisation list) and its drain to Full.
 **Source files read:** (architecture survey; this child consumes spec-ospf-2/4/5 outputs)
 - [ ] Ze has no OSPF neighbour machinery; nothing forms OSPF adjacencies today
   -> Constraint: this is entirely new; nothing to preserve in the OSPF namespace
-- [ ] `internal/component/ospf/instance.go` (spec-ospf-4) owns the packet receive dispatcher keyed by the common-header Type (Shared Contracts "Packet receive dispatcher", owner ospf-4)
+- [ ] `internal/plugins/ospf/instance.go` (spec-ospf-4) owns the packet receive dispatcher keyed by the common-header Type (Shared Contracts "Packet receive dispatcher", owner ospf-4)
   -> Constraint: this spec registers DD (Type 2), LS Request (Type 3), and LS Update (Type 4, for the Loading drain) handlers with the spec-ospf-4 dispatcher; the transport holds no protocol switch and the NSM does not classify packet types itself
-- [ ] `internal/component/ospf/iface/` (spec-ospf-5) owns the ISM, Hello receive/validation, and DR/BDR election
+- [ ] `internal/plugins/ospf/iface/` (spec-ospf-5) owns the ISM, Hello receive/validation, and DR/BDR election
   -> Constraint: the ISM creates/destroys neighbour records and fires HelloReceived / 2-WayReceived / 1-WayReceived / NeighborChange(AdjOK?) on the NSM; the NSM does not parse Hellos itself and does not run DR election
-- [ ] `internal/component/ospf/packet/` (spec-ospf-2) decodes DD (I/M/MS, MTU, DD sequence, options, LSA-header list), LS Request, and LS Update
+- [ ] `internal/plugins/ospf/packet/` (spec-ospf-2) decodes DD (I/M/MS, MTU, DD sequence, options, LSA-header list), LS Request, and LS Update
   -> Constraint: the NSM calls the codec; it does not index raw bytes inline
-- [ ] `internal/component/ospf/events.go` (spec-ospf-4) defines the event namespace this spec emits adjacency up/down through
+- [ ] `internal/plugins/ospf/events.go` (spec-ospf-4) defines the event namespace this spec emits adjacency up/down through
   -> Constraint: emit adjacency-up (reached Full) / adjacency-down through that namespace, consumed by spec-ospf-7 (LSDB origination triggers) and spec-ospf-13 (display)
 
 **Behavior to preserve:**
@@ -116,7 +116,7 @@ list (the synchronisation list) and its drain to Full.
 - Other protocols (BGP, LDP, IS-IS) untouched
 
 **Behavior to change:**
-- New `internal/component/ospf/neighbor/` package (neighbour record, NSM, DD exchange, LS Request list)
+- New `internal/plugins/ospf/neighbor/` package (neighbour record, NSM, DD exchange, LS Request list)
 - spec-ospf-5 ISM gains the hook to create a neighbour and fire HelloReceived / 2-WayReceived / 1-WayReceived / AdjOK? on it (the ISM/NSM coupling lives at the spec-ospf-5 boundary; this spec supplies the NSM the ISM drives)
 - New OSPF adjacency-up (Full) / adjacency-down events are emitted (consumed by spec-ospf-7 origination and spec-ospf-13 display)
 
@@ -148,7 +148,7 @@ list (the synchronisation list) and its drain to Full.
 | NSM <-> CLI | neighbour-table snapshot API consumed by spec-ospf-13 `show ip ospf neighbor` | [ ] |
 
 ### Integration Points
-- New `internal/component/ospf/neighbor/` (neighbour record, NSM, DD exchange driver, LS Request list, per-interface neighbour table)
+- New `internal/plugins/ospf/neighbor/` (neighbour record, NSM, DD exchange driver, LS Request list, per-interface neighbour table)
 - spec-ospf-4 instance owns the packet receive dispatcher this spec registers DD/LS Request/LS Update handlers with, and the events namespace
 - spec-ospf-5 ISM creates/destroys neighbour records, fires the Hello-derived events and AdjOK?, and supplies DR/BDR identity
 - spec-ospf-2 codec supplies DD/LS Request/LS Update encode/decode
@@ -233,24 +233,25 @@ list (the synchronisation list) and its drain to Full.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFNSMDownToInit` | `internal/component/ospf/neighbor/nsm_test.go` | HelloReceived from a new neighbour -> Init; InactivityTimer armed | |
-| `TestOSPFNSMTwoWayReceived` | `internal/component/ospf/neighbor/nsm_test.go` | our Router ID in the Hello -> 2-Way; absent -> 1-WayReceived back to Init | |
-| `TestOSPFShouldAdjPointToPoint` | `internal/component/ospf/neighbor/nsm_test.go` | `should_adj` always yes on point-to-point | |
-| `TestOSPFShouldAdjBroadcast` | `internal/component/ospf/neighbor/nsm_test.go` | broadcast: yes only if we or the neighbour is DR/BDR; DROther<->DROther stays 2-Way | |
-| `TestOSPFDDNegotiation` | `internal/component/ospf/neighbor/dd_test.go` | ExStart master/slave by Router-ID compare (both orderings); NegotiationDone -> Exchange; I/M/MS handling | |
-| `TestOSPFDDMTUMismatch` | `internal/component/ospf/neighbor/dd_test.go` | DD with advertised MTU > ours rejected; neighbour held at ExStart | |
-| `TestOSPFDDMTUIgnore` | `internal/component/ospf/neighbor/dd_test.go` | same oversized MTU with `mtu-ignore` -> exchange proceeds | |
-| `TestOSPFDuplicateDD` | `internal/component/ospf/neighbor/dd_test.go` | §10.5 duplicate-DD: slave re-sends its last DD, master drops the duplicate (no SeqNumberMismatch) | |
-| `TestOSPFLSRequestListPopulated` | `internal/component/ospf/neighbor/lsreq_test.go` | DD header absent/newer vs the (fake) LSDB -> added to the LS Request list (§13.1 freshness); present-and-not-newer skipped | |
-| `TestOSPFLoadingDrainToFull` | `internal/component/ospf/neighbor/lsreq_test.go` | LS Updates remove satisfied entries; empty list -> LoadingDone -> Full | |
-| `TestOSPFExchangeDoneEmptyToFull` | `internal/component/ospf/neighbor/nsm_test.go` | ExchangeDone with an empty request list -> Full directly (skips Loading) | |
-| `TestOSPFBadLSReqRestart` | `internal/component/ospf/neighbor/lsreq_test.go` | LS Request for an LSA we lack -> BadLSReq -> ExStart, request list cleared | |
-| `TestOSPFSeqNumberMismatchRestart` | `internal/component/ospf/neighbor/dd_test.go` | DD sequence/flag inconsistency -> SeqNumberMismatch -> ExStart, partial exchange discarded | |
-| `TestOSPFAdjOKDropsToTwoWay` | `internal/component/ospf/neighbor/nsm_test.go` | AdjOK? after a DR/BDR change flips `should_adj` to no -> Full/Exchange/Loading -> 2-Way, request list cleared | |
-| `TestOSPFInactivityTimerKills` | `internal/component/ospf/neighbor/nsm_test.go` | InactivityTimer expiry (fake clock) -> Down; adjacency-down emitted | |
-| `TestOSPFKillNbr` | `internal/component/ospf/neighbor/nsm_test.go` | KillNbr / LLDown -> Down unconditionally; adjacency-down emitted | |
-| `TestOSPFNeighborTableKeying` | `internal/component/ospf/neighbor/table_test.go` | neighbours keyed per (interface, Router ID); two on one LAN keyed distinctly | |
-| `TestOSPFNeighborSnapshot` | `internal/component/ospf/neighbor/table_test.go` | snapshot returns Router ID, state, DR/BDR, dead-time, address, interface | |
+| `TestOSPFNSMDownToInit` | `internal/plugins/ospf/neighbor/nsm_test.go` | HelloReceived from a new neighbour -> Init; InactivityTimer armed | |
+| `TestOSPFNSMDownToFull` | `internal/plugins/ospf/neighbor/nsm_test.go` | complete Down -> Init -> 2-Way -> ExStart -> Exchange -> Loading -> Full happy path, used by the wiring test | |
+| `TestOSPFNSMTwoWayReceived` | `internal/plugins/ospf/neighbor/nsm_test.go` | our Router ID in the Hello -> 2-Way; absent -> 1-WayReceived back to Init | |
+| `TestOSPFShouldAdjPointToPoint` | `internal/plugins/ospf/neighbor/nsm_test.go` | `should_adj` always yes on point-to-point | |
+| `TestOSPFShouldAdjBroadcast` | `internal/plugins/ospf/neighbor/nsm_test.go` | broadcast: yes only if we or the neighbour is DR/BDR; DROther<->DROther stays 2-Way | |
+| `TestOSPFDDNegotiation` | `internal/plugins/ospf/neighbor/dd_test.go` | ExStart master/slave by Router-ID compare (both orderings); NegotiationDone -> Exchange; I/M/MS handling | |
+| `TestOSPFDDMTUMismatch` | `internal/plugins/ospf/neighbor/dd_test.go` | DD with advertised MTU > ours rejected; neighbour held at ExStart | |
+| `TestOSPFDDMTUIgnore` | `internal/plugins/ospf/neighbor/dd_test.go` | same oversized MTU with `mtu-ignore` -> exchange proceeds | |
+| `TestOSPFDuplicateDD` | `internal/plugins/ospf/neighbor/dd_test.go` | §10.5 duplicate-DD: slave re-sends its last DD, master drops the duplicate (no SeqNumberMismatch) | |
+| `TestOSPFLSRequestListPopulated` | `internal/plugins/ospf/neighbor/lsreq_test.go` | DD header absent/newer vs the (fake) LSDB -> added to the LS Request list (§13.1 freshness); present-and-not-newer skipped | |
+| `TestOSPFLoadingDrainToFull` | `internal/plugins/ospf/neighbor/lsreq_test.go` | LS Updates remove satisfied entries; empty list -> LoadingDone -> Full | |
+| `TestOSPFExchangeDoneEmptyToFull` | `internal/plugins/ospf/neighbor/nsm_test.go` | ExchangeDone with an empty request list -> Full directly (skips Loading) | |
+| `TestOSPFBadLSReqRestart` | `internal/plugins/ospf/neighbor/lsreq_test.go` | LS Request for an LSA we lack -> BadLSReq -> ExStart, request list cleared | |
+| `TestOSPFSeqNumberMismatchRestart` | `internal/plugins/ospf/neighbor/dd_test.go` | DD sequence/flag inconsistency -> SeqNumberMismatch -> ExStart, partial exchange discarded | |
+| `TestOSPFAdjOKDropsToTwoWay` | `internal/plugins/ospf/neighbor/nsm_test.go` | AdjOK? after a DR/BDR change flips `should_adj` to no -> Full/Exchange/Loading -> 2-Way, request list cleared | |
+| `TestOSPFInactivityTimerKills` | `internal/plugins/ospf/neighbor/nsm_test.go` | InactivityTimer expiry (fake clock) -> Down; adjacency-down emitted | |
+| `TestOSPFKillNbr` | `internal/plugins/ospf/neighbor/nsm_test.go` | KillNbr / LLDown -> Down unconditionally; adjacency-down emitted | |
+| `TestOSPFNeighborTableKeying` | `internal/plugins/ospf/neighbor/table_test.go` | neighbours keyed per (interface, Router ID); two on one LAN keyed distinctly | |
+| `TestOSPFNeighborSnapshot` | `internal/plugins/ospf/neighbor/table_test.go` | snapshot returns Router ID, state, DR/BDR, dead-time, address, interface | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -278,9 +279,9 @@ list (the synchronisation list) and its drain to Full.
 
 ## Files to Modify
 <!-- MUST include feature code, not only test files -->
-- `internal/component/ospf/instance.go` (spec-ospf-4) - register the DD (Type 2), LS Request (Type 3), and LS Update (Type 4) handlers with the packet receive dispatcher; expose the neighbour snapshot for spec-ospf-13
-- `internal/component/ospf/iface/` (spec-ospf-5) - the ISM creates/destroys neighbour records and fires HelloReceived / 2-WayReceived / 1-WayReceived / AdjOK? / KillNbr / LLDown on the NSM; supply DR/BDR identity for `should_adj` (coupling at the ISM/NSM boundary; the NSM is supplied here)
-- `internal/component/ospf/events.go` (spec-ospf-4) - add adjacency-up (Full) / adjacency-down event payloads if not already present
+- `internal/plugins/ospf/instance.go` (spec-ospf-4) - register the DD (Type 2), LS Request (Type 3), and LS Update (Type 4) handlers with the packet receive dispatcher; expose the neighbour snapshot for spec-ospf-13
+- `internal/plugins/ospf/iface/` (spec-ospf-5) - the ISM creates/destroys neighbour records and fires HelloReceived / 2-WayReceived / 1-WayReceived / AdjOK? / KillNbr / LLDown on the NSM; supply DR/BDR identity for `should_adj` (coupling at the ISM/NSM boundary; the NSM is supplied here)
+- `internal/plugins/ospf/events.go` (spec-ospf-4) - add adjacency-up (Full) / adjacency-down event payloads if not already present
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -317,16 +318,16 @@ list (the synchronisation list) and its drain to Full.
 | 17 | Existing docs show examples for this area? | No | grep at completion |
 
 ## Files to Create
-- `internal/component/ospf/neighbor/neighbor.go` - neighbour record (Router ID, state, neighbour-reported DR/BDR + priority, neighbour interface address, InactivityTimer expiry, DD sequence, master/slave role, options)
-- `internal/component/ospf/neighbor/nsm.go` - the Down/Attempt/Init/2-Way/ExStart/Exchange/Loading/Full state machine: the state x event transition table, `should_adj` (§10.4), HelloReceived/2-WayReceived/1-WayReceived/Start/NegotiationDone/ExchangeDone/LoadingDone/AdjOK?/SeqNumberMismatch/BadLSReq/KillNbr/InactivityTimer/LLDown handling, InactivityTimer arm/reset
-- `internal/component/ospf/neighbor/nsm_test.go` - NSM transition unit tests with synthetic events and a fake clock
-- `internal/component/ospf/neighbor/dd.go` - Database Description exchange driver: ExStart master/slave negotiation (I/M/MS, DD sequence), the MTU check (`mtu-ignore`), Exchange DD send/receive, §10.5 duplicate-DD handling, ExchangeDone detection
-- `internal/component/ospf/neighbor/dd_test.go` - DD negotiation / MTU / duplicate / SeqNumberMismatch tests
-- `internal/component/ospf/neighbor/lsreq.go` - the per-neighbour LS Request list: population from DD-described headers (§13.1 freshness vs the LSDB), drain on LS Update, BadLSReq on a missing-LSA request, LoadingDone detection
-- `internal/component/ospf/neighbor/lsreq_test.go` - LS Request list population, drain, and BadLSReq tests (fake LSDB)
-- `internal/component/ospf/neighbor/table.go` - per-interface neighbour table, per-(interface, Router ID) keying, snapshot API for spec-ospf-13
-- `internal/component/ospf/neighbor/table_test.go` - table keying and snapshot tests
-- `internal/component/ospf/adjacency_full_test.go` - two-engine wiring: both neighbours reach Full on an in-memory point-to-point circuit (`TestOSPFAdjacencyFull`)
+- `internal/plugins/ospf/neighbor/neighbor.go` - neighbour record (Router ID, state, neighbour-reported DR/BDR + priority, neighbour interface address, InactivityTimer expiry, DD sequence, master/slave role, options)
+- `internal/plugins/ospf/neighbor/nsm.go` - the Down/Attempt/Init/2-Way/ExStart/Exchange/Loading/Full state machine: the state x event transition table, `should_adj` (§10.4), HelloReceived/2-WayReceived/1-WayReceived/Start/NegotiationDone/ExchangeDone/LoadingDone/AdjOK?/SeqNumberMismatch/BadLSReq/KillNbr/InactivityTimer/LLDown handling, InactivityTimer arm/reset
+- `internal/plugins/ospf/neighbor/nsm_test.go` - NSM transition unit tests with synthetic events and a fake clock
+- `internal/plugins/ospf/neighbor/dd.go` - Database Description exchange driver: ExStart master/slave negotiation (I/M/MS, DD sequence), the MTU check (`mtu-ignore`), Exchange DD send/receive, §10.5 duplicate-DD handling, ExchangeDone detection
+- `internal/plugins/ospf/neighbor/dd_test.go` - DD negotiation / MTU / duplicate / SeqNumberMismatch tests
+- `internal/plugins/ospf/neighbor/lsreq.go` - the per-neighbour LS Request list: population from DD-described headers (§13.1 freshness vs the LSDB), drain on LS Update, BadLSReq on a missing-LSA request, LoadingDone detection
+- `internal/plugins/ospf/neighbor/lsreq_test.go` - LS Request list population, drain, and BadLSReq tests (fake LSDB)
+- `internal/plugins/ospf/neighbor/table.go` - per-interface neighbour table, per-(interface, Router ID) keying, snapshot API for spec-ospf-13
+- `internal/plugins/ospf/neighbor/table_test.go` - table keying and snapshot tests
+- `internal/plugins/ospf/adjacency_full_test.go` - two-engine wiring: both neighbours reach Full on an in-memory point-to-point circuit (`TestOSPFAdjacencyFull`)
 - `test/ospf/ospf-neighbor.ci` - functional test: two engines reach Full, `show ip ospf neighbor` lists the neighbour, link-down tears it down
 
 ## Implementation Steps
@@ -387,17 +388,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Doctor checks | n/a here (transport owns `CAP_NET_RAW` in spec-ospf-3) |
 | YANG validation | `mtu-ignore` / `dead-interval` / `priority` enforced in spec-ospf-4 and respected here |
 | Prometheus counters | `ze_ospf_neighbors` / `ze_ospf_adjacencies_full` / `ze_ospf_nsm_events_total` defined, registered, and updated on transitions/events (exact umbrella names only) |
-| Rule: plugin-self-containment | neighbour/NSM code and the snapshot API live under `internal/component/ospf/` |
+| Rule: plugin-self-containment | neighbour/NSM code and the snapshot API live under `internal/plugins/ospf/` |
 | Rule: no premature LSDB coupling | the LS Request list compares against an LSDB interface (ospf-7); flooding/retransmit lists stay in ospf-7 |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| neighbor package | `ls internal/component/ospf/neighbor/neighbor.go internal/component/ospf/neighbor/nsm.go internal/component/ospf/neighbor/dd.go internal/component/ospf/neighbor/lsreq.go internal/component/ospf/neighbor/table.go` |
+| neighbor package | `ls internal/plugins/ospf/neighbor/neighbor.go internal/plugins/ospf/neighbor/nsm.go internal/plugins/ospf/neighbor/dd.go internal/plugins/ospf/neighbor/lsreq.go internal/plugins/ospf/neighbor/table.go` |
 | Functional test | `ls test/ospf/ospf-neighbor.ci` |
-| NSM transitions | `go test ./internal/component/ospf/neighbor/ -run TestOSPFNSM` |
-| Two-engine Full | `go test ./internal/component/ospf/... -run TestOSPFAdjacencyFull` |
-| Metrics owned here | `grep -R "ze_ospf_neighbors\|ze_ospf_adjacencies_full\|ze_ospf_nsm_events_total" internal/component/ospf/` |
+| NSM transitions | `go test ./internal/plugins/ospf/neighbor/ -run TestOSPFNSM` |
+| Two-engine Full | `go test ./internal/plugins/ospf/... -run TestOSPFAdjacencyFull` |
+| Metrics owned here | `grep -R "ze_ospf_neighbors\|ze_ospf_adjacencies_full\|ze_ospf_nsm_events_total" internal/plugins/ospf/` |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -525,10 +526,10 @@ MUST document: the state transitions, the `should_adj` predicate, the MTU-check 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -570,7 +571,7 @@ MUST document: the state transitions, the `should_adj` predicate, the MTU-check 
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`internal/component/ospf/neighbor/`)
+- [ ] Feature code integrated (`internal/plugins/ospf/neighbor/`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented

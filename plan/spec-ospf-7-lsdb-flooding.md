@@ -14,18 +14,18 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `plan/spec-ospf-0-umbrella.md` - Shared Contracts (LSA inventory, LSA header + body layout, Metrics table row "ospf-7"), Design Principles (lazy/buffer-first LSDB, per-area LSDB), Architecture (`lsdb/`)
 4. `docs/research/ospf-implementation-guide.md` sec 3 (LSDB layout, MaxAge/MaxAgeDiff/LSRefreshTime, purge), sec 5e (flooding §13, retransmission, acknowledgement), and traps 1/2/3/13/14
-5. `plan/spec-isis-6-lsdb.md` + `plan/spec-isis-7-flooding.md` - the IS-IS LSDB + flooding siblings; this spec combines their patterns (lazy raw-bytes store, origination by regeneration, freshness-driven flag pump, purge retention) for OSPF
+5. `plan/learned/932-isis-6-lsdb.md` + `plan/learned/933-isis-7-flooding.md` - the IS-IS LSDB + flooding siblings; this spec combines their patterns (lazy raw-bytes store, origination by regeneration, freshness-driven flag pump, purge retention) for OSPF
 6. `plan/spec-ospf-2-wire.md` - LSA header + body codec, Fletcher-16 LSA checksum, LS Update / LS Ack packet codec
 7. `plan/spec-ospf-6-neighbor-nsm.md` - the neighbour FSM that gates flooding (Full neighbours get the retransmit list; LS Request drain produces the first LS Updates)
 
 ## Task
 
 Implement the per-area Link-State Database (LSDB), self-LSA origination, and the
-RFC 2328 §13 flooding procedure for OSPFv2 in the `internal/component/ospf/lsdb/`
+RFC 2328 §13 flooding procedure for OSPFv2 in the `internal/plugins/ospf/lsdb/`
 package. This is phase 7 of the OSPF spec set (`plan/spec-ospf-0-umbrella.md`).
 The LSDB is the in-memory record of every Link-State Advertisement known to the
 node. Following the umbrella Design Principle "Lazy / buffer-first LSDB" and the
-IS-IS sibling (`plan/spec-isis-6-lsdb.md`), each LSA is stored as its on-wire
+IS-IS sibling (`plan/learned/932-isis-6-lsdb.md`), each LSA is stored as its on-wire
 byte slice plus a thin parsed metadata header (LSAKey = (LS Type, Link State ID,
 Advertising Router), LS Sequence Number, LS Age, LS Checksum, Length); the LSA
 body is parsed only when SPF (ospf-8) or the CLI needs it. Per the umbrella
@@ -94,11 +94,11 @@ packet receive dispatcher (LS Update type 4, LS Ack type 5). It exposes a
 - [ ] `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md` - zero-copy, lazy parse, no-alloc encode
   → Constraint: LSA encode is `WriteTo(buf, off) int` into a pooled buffer; never `buildLSA() []byte`; the Fletcher checksum is backfilled at its fixed header offset after the body is written; flood re-transmits the stored raw LSA bytes (with LS Age incremented per §13.3 InfTransDelay) rather than re-encoding
 - [ ] `ai/rules/plugin-self-containment.md`, `ai/rules/registration-dispatch.md` - self-contained component, registration not switch
-  → Constraint: all LSDB / origination / flooding / aging code stays under `internal/component/ospf/lsdb/`; LS Update / LS Ack handlers register with the ospf-4 packet receive dispatcher rather than holding a packet-type switch
+  → Constraint: all LSDB / origination / flooding / aging code stays under `internal/plugins/ospf/lsdb/`; LS Update / LS Ack handlers register with the ospf-4 packet receive dispatcher rather than holding a packet-type switch
 - [ ] `plan/spec-ospf-0-umbrella.md` - Shared Contracts (LSA inventory, LSA header + body layout, Metrics canonical), Design Principles, Architecture (`lsdb/`)
-  → Constraint: package is `internal/component/ospf/lsdb/`; per-area LSDBs plus one AS-wide Type 5 store; the LSA header / body layout in the umbrella is authoritative; this spec owns exactly the eight `ze_ospf_lsdb_*` / `ze_ospf_lsa_*` / `ze_ospf_lsupdates_*` / `ze_ospf_lsacks_sent_total` / `ze_ospf_retransmissions_total` metric rows and no others
+  → Constraint: package is `internal/plugins/ospf/lsdb/`; per-area LSDBs plus one AS-wide Type 5 store; the LSA header / body layout in the umbrella is authoritative; this spec owns exactly the eight `ze_ospf_lsdb_*` / `ze_ospf_lsa_*` / `ze_ospf_lsupdates_*` / `ze_ospf_lsacks_sent_total` / `ze_ospf_retransmissions_total` metric rows and no others
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` - OSPF Version 2 base: §12 LSA header, §13 flooding (incl. §13.1 freshness, §13.3 flood-out, §13.5 ack Table 19, §13.7 self-originated), §14 aging (MaxAge/MaxAgeDiff/LSRefreshTime), §12.1.6 LSInfinity, MinLSArrival, MinLSInterval, InitialSequenceNumber, MaxSequenceNumber
   → Constraint: §13.1 a received LSA is more recent if (a) higher LS sequence number; else (b) higher LS checksum; else (c) if exactly one has age MaxAge that one is more recent; else (d) if ages differ by more than MaxAgeDiff the smaller LS age is more recent; else the two are functionally equivalent
   → Constraint: §13.4 a self-originated LSA received with a higher sequence than ours forces us to re-originate at one greater (or, if we no longer wish to originate it, flush via MaxAge); §13.7 self-originated MaxAge LSAs are flushed
@@ -118,7 +118,7 @@ packet receive dispatcher (LS Update type 4, LS Ack type 5). It exposes a
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (architecture survey; ospf-1..ospf-6 are sibling specs feeding this one)
-- [ ] Ze has no OSPF protocol; there is no LSDB, no LSA origination, and no flooding today. The closest in-tree precedent is the IS-IS LSDB (`internal/component/isis/lsdb/`) — a lazy raw-bytes store with origination by regeneration, a 1 s aging tick, zero-age purge retention, and a flag-driven flood pump
+- [ ] Ze has no OSPF protocol; there is no LSDB, no LSA origination, and no flooding today. The closest in-tree precedent is the IS-IS LSDB (`internal/plugins/isis/lsdb/`) — a lazy raw-bytes store with origination by regeneration, a 1 s aging tick, zero-age purge retention, and a flag-driven flood pump
   → Constraint: this package is created wholesale; it copies the IS-IS LSDB/flooding above-the-wire patterns but shares no code (OSPF has network vertices / Network-LSAs, per-neighbour retransmit lists, and a different freshness rule)
 - [ ] `internal/component/bgp/wireu/wire_update.go` - BGP `WireUpdate` lazy/zero-copy model: raw bytes held, fields parsed on demand
   → Constraint: mirror it for the LSDB entry — store raw LSA bytes, parse the body lazily; never eager-parse into structs
@@ -131,7 +131,7 @@ packet receive dispatcher (LS Update type 4, LS Ack type 5). It exposes a
 - The ospf-2 LSA / packet codec and ospf-1 Fletcher checksum are consumed, not reimplemented
 
 **Behavior to change:**
-- None pre-existing. New `internal/component/ospf/lsdb/` package: per-area + AS-wide LSDB store, Router/Network-LSA origination (incl. RFC 6987 max-metric), the §13 flooding procedure (retransmit lists, delayed/direct acks, MinLSArrival/MinLSInterval), the MaxAge aging walker + purge retention, LSRefresh, sequence wraparound, and the `show ip ospf database` snapshot
+- None pre-existing. New `internal/plugins/ospf/lsdb/` package: per-area + AS-wide LSDB store, Router/Network-LSA origination (incl. RFC 6987 max-metric), the §13 flooding procedure (retransmit lists, delayed/direct acks, MinLSArrival/MinLSInterval), the MaxAge aging walker + purge retention, LSRefresh, sequence wraparound, and the `show ip ospf database` snapshot
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
@@ -165,10 +165,10 @@ packet receive dispatcher (LS Update type 4, LS Ack type 5). It exposes a
 | LSDB ↔ CLI (ospf-13) | `show ip ospf database` snapshot | [ ] |
 
 ### Integration Points
-- `internal/component/ospf/lsdb/lsdb.go` - the per-area + AS-wide store, freshness compare, snapshot (new)
-- `internal/component/ospf/lsdb/origination.go` - Router-LSA / Network-LSA build, sequence assignment, max-metric (new)
-- `internal/component/ospf/lsdb/flooding.go` - §13 receive + flood-out + retransmit + ack (new)
-- `internal/component/ospf/lsdb/aging.go` - MaxAge walker, purge retention, LSRefresh, wraparound (new)
+- `internal/plugins/ospf/lsdb/lsdb.go` - the per-area + AS-wide store, freshness compare, snapshot (new)
+- `internal/plugins/ospf/lsdb/origination.go` - Router-LSA / Network-LSA build, sequence assignment, max-metric (new)
+- `internal/plugins/ospf/lsdb/flooding.go` - §13 receive + flood-out + retransmit + ack (new)
+- `internal/plugins/ospf/lsdb/aging.go` - MaxAge walker, purge retention, LSRefresh, wraparound (new)
 - ospf-4 packet receive dispatcher - LS Update / LS Ack handlers register here
 - ospf-5 interface + DR state - read for origination
 - ospf-6 neighbour FSM + retransmit-list scope + LS Request list - drives flooding
@@ -254,25 +254,25 @@ packet receive dispatcher (LS Update type 4, LS Ack type 5). It exposes a
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFLSDBStoreRetrieve` | `internal/component/ospf/lsdb/lsdb_test.go` | insert an LSA, retrieve raw bytes + metadata by LSAKey; per-area isolation; Type 5 in the AS-wide store | |
-| `TestOSPFFreshnessCompareMatrix` | `internal/component/ospf/lsdb/lsdb_test.go` | all five §13.1 outcomes: higher sequence, equal sequence + higher checksum, the MaxAge rule, within MaxAgeDiff the lower age, else functionally equivalent | |
-| `TestOSPFLSDBStoreVerbatim` | `internal/component/ospf/lsdb/lsdb_test.go` | stored bytes for a received LSA round-trip byte-for-byte (re-flood verbatim except LS Age); single owned copy (buffer alias-safe) | |
-| `TestOSPFOriginateRouterLSA` | `internal/component/ospf/lsdb/origination_test.go` | Router-LSA built from a fake interface/neighbour table with the correct V/E/B flags, P2P / transit-via-DR / stub-network link records, valid InitialSequenceNumber + Fletcher checksum | |
-| `TestOSPFOriginateNetworkLSA` | `internal/component/ospf/lsdb/origination_test.go` | Network-LSA originated when this router is DR, carrying the network mask and the Router IDs of all fully-adjacent attached routers including self; flushed when DR status is lost | |
-| `TestOSPFOriginateOnAdjacencyFull` | `internal/component/ospf/lsdb/origination_test.go` | adjacency Full triggers Router/Network-LSA origination, install, and retransmit-list queueing | |
-| `TestOSPFOriginateReorigOnChange` | `internal/component/ospf/lsdb/origination_test.go` | cost/neighbour/DR change increments the sequence and recomputes the checksum; MinLSInterval rate-limits re-origination | |
-| `TestOSPFOriginateMaxMetric` | `internal/component/ospf/lsdb/origination_test.go` | RFC 6987 max-metric sets non-stub link metrics to LSInfinity (0xFFFF); stub-network metrics keep their cost | |
-| `TestOSPFOriginateSelfReceivedHigherSeq` | `internal/component/ospf/lsdb/origination_test.go` | §13.4: a self-originated LSA received at a higher sequence forces re-origination at one greater (or flush) | |
-| `TestOSPFSequenceWraparound` | `internal/component/ospf/lsdb/aging_test.go` | at MaxSequenceNumber: flush via MaxAge, then re-originate at InitialSequenceNumber once acked | |
-| `TestOSPFFloodOutOtherInterfaces` | `internal/component/ospf/lsdb/flooding_test.go` | a newer LSA is queued on every Full neighbour's retransmit list except the receiving interface; DR/BDR → AllSPFRouters, DROther → AllDRouters; P2P → AllSPFRouters | |
-| `TestOSPFAckDecisionTable` | `internal/component/ospf/lsdb/flooding_test.go` | §13.5 Table 19: DR-sourced/BDR → delay; duplicate on retransmit list → direct; re-flooded-back → suppress (implicit); else → delay | |
-| `TestOSPFRetransmitTimer` | `internal/component/ospf/lsdb/flooding_test.go` | RxmtInterval resends unacked LSAs (raw bytes, LS Age re-incremented); LS Ack removes them; neighbour leaving Full empties the list | |
-| `TestOSPFMinLSArrivalReject` | `internal/component/ospf/lsdb/flooding_test.go` | a second instance arriving within MinLSArrival (1 s) is not accepted | |
-| `TestOSPFStubAreaDropsType5` | `internal/component/ospf/lsdb/flooding_test.go` | a Type 5 received on a stub/NSSA area interface is dropped, not installed, not re-flooded | |
-| `TestOSPFLSDBAgeDecrement` | `internal/component/ospf/lsdb/aging_test.go` | the 1 s walker increments every LSA's LS Age (monotonic-delta based) | |
-| `TestOSPFLSDBAgeToPurge` | `internal/component/ospf/lsdb/aging_test.go` | LS Age MaxAge → purge flooded + retained; deleted only after all neighbours ack or leave Full (trap #3) | |
-| `TestOSPFLSRefresh` | `internal/component/ospf/lsdb/aging_test.go` | a self-LSA at LSRefreshTime is re-originated (next sequence, fresh checksum, age reset, re-flood) | |
-| `TestOSPFLSDBSnapshot` | `internal/component/ospf/lsdb/lsdb_test.go` | snapshot returns per-area + AS-wide LSAs with type/LSID/advrtr/sequence/age/checksum/length grouped by type | |
+| `TestOSPFLSDBStoreRetrieve` | `internal/plugins/ospf/lsdb/lsdb_test.go` | insert an LSA, retrieve raw bytes + metadata by LSAKey; per-area isolation; Type 5 in the AS-wide store | |
+| `TestOSPFFreshnessCompareMatrix` | `internal/plugins/ospf/lsdb/lsdb_test.go` | all five §13.1 outcomes: higher sequence, equal sequence + higher checksum, the MaxAge rule, within MaxAgeDiff the lower age, else functionally equivalent | |
+| `TestOSPFLSDBStoreVerbatim` | `internal/plugins/ospf/lsdb/lsdb_test.go` | stored bytes for a received LSA round-trip byte-for-byte (re-flood verbatim except LS Age); single owned copy (buffer alias-safe) | |
+| `TestOSPFOriginateRouterLSA` | `internal/plugins/ospf/lsdb/origination_test.go` | Router-LSA built from a fake interface/neighbour table with the correct V/E/B flags, P2P / transit-via-DR / stub-network link records, valid InitialSequenceNumber + Fletcher checksum | |
+| `TestOSPFOriginateNetworkLSA` | `internal/plugins/ospf/lsdb/origination_test.go` | Network-LSA originated when this router is DR, carrying the network mask and the Router IDs of all fully-adjacent attached routers including self; flushed when DR status is lost | |
+| `TestOSPFOriginateOnAdjacencyFull` | `internal/plugins/ospf/lsdb/origination_test.go` | adjacency Full triggers Router/Network-LSA origination, install, and retransmit-list queueing | |
+| `TestOSPFOriginateReorigOnChange` | `internal/plugins/ospf/lsdb/origination_test.go` | cost/neighbour/DR change increments the sequence and recomputes the checksum; MinLSInterval rate-limits re-origination | |
+| `TestOSPFOriginateMaxMetric` | `internal/plugins/ospf/lsdb/origination_test.go` | RFC 6987 max-metric sets non-stub link metrics to LSInfinity (0xFFFF); stub-network metrics keep their cost | |
+| `TestOSPFOriginateSelfReceivedHigherSeq` | `internal/plugins/ospf/lsdb/origination_test.go` | §13.4: a self-originated LSA received at a higher sequence forces re-origination at one greater (or flush) | |
+| `TestOSPFSequenceWraparound` | `internal/plugins/ospf/lsdb/aging_test.go` | at MaxSequenceNumber: flush via MaxAge, then re-originate at InitialSequenceNumber once acked | |
+| `TestOSPFFloodOutOtherInterfaces` | `internal/plugins/ospf/lsdb/flooding_test.go` | a newer LSA is queued on every Full neighbour's retransmit list except the receiving interface; DR/BDR → AllSPFRouters, DROther → AllDRouters; P2P → AllSPFRouters | |
+| `TestOSPFAckDecisionTable` | `internal/plugins/ospf/lsdb/flooding_test.go` | §13.5 Table 19: DR-sourced/BDR → delay; duplicate on retransmit list → direct; re-flooded-back → suppress (implicit); else → delay | |
+| `TestOSPFRetransmitTimer` | `internal/plugins/ospf/lsdb/flooding_test.go` | RxmtInterval resends unacked LSAs (raw bytes, LS Age re-incremented); LS Ack removes them; neighbour leaving Full empties the list | |
+| `TestOSPFMinLSArrivalReject` | `internal/plugins/ospf/lsdb/flooding_test.go` | a second instance arriving within MinLSArrival (1 s) is not accepted | |
+| `TestOSPFStubAreaDropsType5` | `internal/plugins/ospf/lsdb/flooding_test.go` | a Type 5 received on a stub/NSSA area interface is dropped, not installed, not re-flooded | |
+| `TestOSPFLSDBAgeDecrement` | `internal/plugins/ospf/lsdb/aging_test.go` | the 1 s walker increments every LSA's LS Age (monotonic-delta based) | |
+| `TestOSPFLSDBAgeToPurge` | `internal/plugins/ospf/lsdb/aging_test.go` | LS Age MaxAge → purge flooded + retained; deleted only after all neighbours ack or leave Full (trap #3) | |
+| `TestOSPFLSRefresh` | `internal/plugins/ospf/lsdb/aging_test.go` | a self-LSA at LSRefreshTime is re-originated (next sequence, fresh checksum, age reset, re-flood) | |
+| `TestOSPFLSDBSnapshot` | `internal/plugins/ospf/lsdb/lsdb_test.go` | snapshot returns per-area + AS-wide LSAs with type/LSID/advrtr/sequence/age/checksum/length grouped by type | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -303,7 +303,7 @@ packet receive dispatcher (LS Update type 4, LS Ack type 5). It exposes a
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `ospf-p2p-frr` (umbrella, owned by ospf-13) | `test/interop/scenarios/` | FRR ospfd | FRR accepts our originated Router/Network-LSAs (valid sequence/checksum/flags) and we install + flood FRR's; LSDBs converge | |
-| `ospf-broadcast-dr-frr` (umbrella, owned by ospf-13) | `test/interop/scenarios/` | FRR ospfd | Network-LSA origination as DR and §13.5 delayed-ack to the multicast address against a real stack | |
+| `ospf-broadcast-frr` (umbrella, owned by ospf-13) | `test/interop/scenarios/` | FRR ospfd | Network-LSA origination as DR and §13.5 delayed-ack to the multicast address against a real stack | |
 
 ### Future (if deferring any tests)
 - Summary (Type 3/4), AS-External (Type 5), and NSSA (Type 7) origination tests land with ospf-9 / ospf-10 / ospf-11; this spec covers Router (Type 1) and Network (Type 2) origination plus the generic flood/age/purge that those types reuse.
@@ -311,9 +311,9 @@ packet receive dispatcher (LS Update type 4, LS Ack type 5). It exposes a
 
 ## Files to Modify
 <!-- This spec is almost entirely new-file. Modifications are limited to wiring created by ospf-4/5/6. -->
-- `internal/component/ospf/instance.go` (created by ospf-4) - construct the per-area LSDB + AS-wide Type 5 store, start the 1 s aging / refresh timer goroutine, register the LS Update / LS Ack handlers with the packet receive dispatcher, and pass the LSDB handle to areas/interfaces
-- `internal/component/ospf/area.go` (created by ospf-4) - hold the area's LSDB handle and the self-LSA re-origination trigger
-- `internal/component/ospf/events.go` (created by ospf-4) - subscribe origination to interface/neighbour/cost-change and DR-election events
+- `internal/plugins/ospf/instance.go` (created by ospf-4) - construct the per-area LSDB + AS-wide Type 5 store, start the 1 s aging / refresh timer goroutine, register the LS Update / LS Ack handlers with the packet receive dispatcher, and pass the LSDB handle to areas/interfaces
+- `internal/plugins/ospf/area.go` (created by ospf-4) - hold the area's LSDB handle and the self-LSA re-origination trigger
+- `internal/plugins/ospf/events.go` (created by ospf-4) - subscribe origination to interface/neighbour/cost-change and DR-election events
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -352,15 +352,15 @@ packet receive dispatcher (LS Update type 4, LS Ack type 5). It exposes a
 | 17 | Existing docs show examples for this area? | No | grep at completion |
 
 ## Files to Create
-- `internal/component/ospf/lsdb/lsdb.go` - the LSDB store: per-area type tables + one AS-wide Type 5 table keyed by LSAKey, insert/lookup/delete, the §13.1 freshness compare, MinLSArrival gate, snapshot API
-- `internal/component/ospf/lsdb/entry.go` - the per-LSA entry: raw bytes + parsed metadata (LSAKey, sequence, monotonic origination timestamp / derived LS Age, checksum, length), purged-state marker, lazy body accessors
-- `internal/component/ospf/lsdb/origination.go` - Router-LSA build (link records + V/E/B flags) and Network-LSA build (as DR), sequence assignment/increment, §13.4 self-received handling, RFC 6987 max-metric, MinLSInterval rate limit
-- `internal/component/ospf/lsdb/flooding.go` - the §13 receive procedure (freshness-driven install/replace/send-back), flood-out other interfaces, per-neighbour retransmit lists + RxmtInterval, §13.5 Table 19 ack decision (implicit/direct/delayed), LS Ack receive
-- `internal/component/ospf/lsdb/aging.go` - the 1 s MaxAge walker, purge retention until all-acked, LSRefresh at LSRefreshTime, sequence wraparound flush-and-re-originate
-- `internal/component/ospf/lsdb/lsdb_test.go` - store/retrieve, freshness matrix, verbatim storage, snapshot
-- `internal/component/ospf/lsdb/origination_test.go` - Router/Network-LSA origination, re-orig on change, max-metric, self-received-higher-seq
-- `internal/component/ospf/lsdb/flooding_test.go` - flood-out, ack decision, retransmit, MinLSArrival, stub-area Type 5 drop
-- `internal/component/ospf/lsdb/aging_test.go` - age decrement, age-to-purge retention, LSRefresh, wraparound
+- `internal/plugins/ospf/lsdb/lsdb.go` - the LSDB store: per-area type tables + one AS-wide Type 5 table keyed by LSAKey, insert/lookup/delete, the §13.1 freshness compare, MinLSArrival gate, snapshot API
+- `internal/plugins/ospf/lsdb/entry.go` - the per-LSA entry: raw bytes + parsed metadata (LSAKey, sequence, monotonic origination timestamp / derived LS Age, checksum, length), purged-state marker, lazy body accessors
+- `internal/plugins/ospf/lsdb/origination.go` - Router-LSA build (link records + V/E/B flags) and Network-LSA build (as DR), sequence assignment/increment, §13.4 self-received handling, RFC 6987 max-metric, MinLSInterval rate limit
+- `internal/plugins/ospf/lsdb/flooding.go` - the §13 receive procedure (freshness-driven install/replace/send-back), flood-out other interfaces, per-neighbour retransmit lists + RxmtInterval, §13.5 Table 19 ack decision (implicit/direct/delayed), LS Ack receive
+- `internal/plugins/ospf/lsdb/aging.go` - the 1 s MaxAge walker, purge retention until all-acked, LSRefresh at LSRefreshTime, sequence wraparound flush-and-re-originate
+- `internal/plugins/ospf/lsdb/lsdb_test.go` - store/retrieve, freshness matrix, verbatim storage, snapshot
+- `internal/plugins/ospf/lsdb/origination_test.go` - Router/Network-LSA origination, re-orig on change, max-metric, self-received-higher-seq
+- `internal/plugins/ospf/lsdb/flooding_test.go` - flood-out, ack decision, retransmit, MinLSArrival, stub-area Type 5 drop
+- `internal/plugins/ospf/lsdb/aging_test.go` - age decrement, age-to-purge retention, LSRefresh, wraparound
 - `test/ospf/ospf-flooding.ci` - functional flood + retransmit/ack + purge over a three-node line
 
 ## Implementation Steps
@@ -383,7 +383,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Wiring (MANDATORY FIRST)** - LSDB skeleton + LS Update / LS Ack handler registration with the ospf-4 dispatcher + an origination trigger reachable from adjacency Full
    - Tests: `TestOSPFOriginateOnAdjacencyFull` (fails: origination is a stub), `TestOSPFLSDBStoreRetrieve`
-   - Files: `internal/component/ospf/lsdb/lsdb.go` (struct + insert/lookup stubs), `entry.go`, handler registration in `internal/component/ospf/instance.go`, origination hook in `events.go`
+   - Files: `internal/plugins/ospf/lsdb/lsdb.go` (struct + insert/lookup stubs), `entry.go`, handler registration in `internal/plugins/ospf/instance.go`, origination hook in `events.go`
    - Verify: an adjacency-Full event reaches the origination entry point; LS Update / LS Ack handlers are reachable from the dispatcher; the wiring test fails only because origination/compare return stubs
 2. **Phase: Store + freshness + snapshot** - the database core
    - Tests: `TestOSPFLSDBStoreRetrieve`, `TestOSPFFreshnessCompareMatrix`, `TestOSPFLSDBStoreVerbatim`, `TestOSPFLSDBSnapshot`
@@ -420,17 +420,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | YANG validation | n/a (no new leaf; timer/max-metric leaves owned by ospf-4 / ospf-13) |
 | Prometheus counters | the eight owned series registered HERE (per-owner) with the exact umbrella names; ospf-13 only scrapes/asserts |
 | Rule: buffer-first | LSA encode is `WriteTo(buf, off) int`; Fletcher backfilled at the fixed offset; flood re-transmits stored raw bytes (only LS Age adjusted); no `buildLSA() []byte`, no per-LSA alloc on the retransmit timer |
-| Rule: plugin-self-containment | all LSDB / origination / flooding / aging code under `internal/component/ospf/lsdb/`; no OSPF spelling in generic packages, no flooding spelling in ospf-2/ospf-3 |
+| Rule: plugin-self-containment | all LSDB / origination / flooding / aging code under `internal/plugins/ospf/lsdb/`; no OSPF spelling in generic packages, no flooding spelling in ospf-2/ospf-3 |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| LSDB store + entry | `ls internal/component/ospf/lsdb/lsdb.go internal/component/ospf/lsdb/entry.go` |
-| Origination + flooding + aging | `ls internal/component/ospf/lsdb/origination.go internal/component/ospf/lsdb/flooding.go internal/component/ospf/lsdb/aging.go` |
-| Unit tests pass | `go test ./internal/component/ospf/lsdb/...` |
-| Freshness + ack + purge + wraparound covered | `go test -run 'Freshness|AckDecision|AgeToPurge|Wraparound' ./internal/component/ospf/lsdb/` |
+| LSDB store + entry | `ls internal/plugins/ospf/lsdb/lsdb.go internal/plugins/ospf/lsdb/entry.go` |
+| Origination + flooding + aging | `ls internal/plugins/ospf/lsdb/origination.go internal/plugins/ospf/lsdb/flooding.go internal/plugins/ospf/lsdb/aging.go` |
+| Unit tests pass | `go test ./internal/plugins/ospf/lsdb/...` |
+| Freshness + ack + purge + wraparound covered | `go test -run 'Freshness|AckDecision|AgeToPurge|Wraparound' ./internal/plugins/ospf/lsdb/` |
 | Functional flood test | `ls test/ospf/ospf-flooding.ci` and run via the .ci runner |
-| Snapshot API consumed by ospf-13 | `grep -r 'Snapshot' internal/component/ospf/` |
+| Snapshot API consumed by ospf-13 | `grep -r 'Snapshot' internal/plugins/ospf/` |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -556,10 +556,10 @@ MUST document: the §13.1 freshness comparison decision (sequence → checksum �
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -601,7 +601,7 @@ MUST document: the §13.1 freshness comparison decision (sequence → checksum �
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`internal/component/ospf/lsdb/`, instance/area wiring)
+- [ ] Feature code integrated (`internal/plugins/ospf/lsdb/`, instance/area wiring)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented

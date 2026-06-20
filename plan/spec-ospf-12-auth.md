@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-ospf-2-wire.md, spec-ospf-4-component-config.md, spec-ospf-5-interface-ism.md, spec-ospf-6-neighbor-nsm.md |
+| Depends | spec-ospf-2-wire.md, spec-ospf-3-ip-transport.md, spec-ospf-4-component-config.md, spec-ospf-5-interface-ism.md, spec-ospf-6-neighbor-nsm.md, spec-ospf-7-lsdb-flooding.md |
 | Phase | - |
 | Updated | 2026-06-20 |
 
@@ -17,7 +17,7 @@
 5. `plan/spec-ospf-5-interface-ism.md`, `plan/spec-ospf-6-neighbor-nsm.md` - the Hello (ISM) and DD/LS Request (NSM) packet paths this spec signs on send and verifies on receive
 6. `docs/research/ospf-implementation-guide.md` sec 8 (Authentication, lines ~518-545) and sec 13 trap #10 (Authentication with Zeroed Checksum, lines ~1484-1487)
 7. `internal/component/config/secret/secret.go` - Ze `$9$` reversible sensitive-value encoding
-8. `internal/component/isis/auth_keystore.go`, `internal/component/isis/packet/auth_sign.go`, `auth_verify.go` - the IS-IS sibling pattern (key store + per-PDU verify/sign) OSPF mirrors
+8. `internal/plugins/isis/auth_keystore.go`, `internal/plugins/isis/packet/auth_sign.go`, `auth_verify.go` - the IS-IS sibling pattern (key store + per-PDU verify/sign) OSPF mirrors
 
 ## Task
 
@@ -137,7 +137,7 @@ anti-replay state, and no failure accounting.
   -> Constraint: store key material `$9$`-encoded like PPPoE/WireGuard/IS-IS; decode only in memory at sign/verify time
 - [ ] `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md` - zero-copy, no-alloc hot path
   -> Constraint: verify reads the received raw bytes in place; sign writes the digest into the encode buffer after the packet body; no per-packet plaintext-key allocation churn
-- [ ] `internal/component/isis/auth_keystore.go`, `internal/component/isis/packet/auth_sign.go`, `auth_verify.go` - the IS-IS sibling (key store + per-PDU verify/sign over raw bytes)
+- [ ] `internal/plugins/isis/auth_keystore.go`, `internal/plugins/isis/packet/auth_sign.go`, `auth_verify.go` - the IS-IS sibling (key store + per-PDU verify/sign over raw bytes)
   -> Constraint: copy the structure (runtime-free codec helpers in `packet`, key store in the component, constant-time compare, `$9$` decode in memory); do NOT couple OSPF to IS-IS code -- different framing (header AuType vs TLV 10, appended digest vs in-TLV digest)
 
 ### RFC Summaries (MUST for protocol work)
@@ -158,13 +158,13 @@ anti-replay state, and no failure accounting.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/ospf/packet/` (common-header codec from ospf-2) - encodes/decodes the 24-byte common header including AuType and the 8-byte Authentication field, and can emit a packet with a zeroed Checksum for AuType 2, but never computes or checks a digest or password
+- [ ] `internal/plugins/ospf/packet/` (common-header codec from ospf-2) - encodes/decodes the 24-byte common header including AuType and the 8-byte Authentication field, and can emit a packet with a zeroed Checksum for AuType 2, but never computes or checks a digest or password
   -> Constraint: reuse the ospf-2 common-header codec and the zero-Checksum encode path; do not add a second header encoder
 - [ ] `internal/component/config/secret/secret.go` - `$9$` Encode/Decode/IsEncoded for sensitive leaves
   -> Constraint: key store decodes `$9$` to plaintext only in memory when deriving HMAC/MD5 keys
 - [ ] `plan/spec-ospf-5-interface-ism.md` (Hello path), `plan/spec-ospf-6-neighbor-nsm.md` (DD/LS Request path), the ospf-4 instance dispatcher and the ospf-3 transmit path - where packets are built (TX) and consumed (RX) today with no auth hook
   -> Constraint: add a single verify step on the ospf-4 receive dispatcher (before it routes by Type to ISM/NSM/LSDB) and a single sign step on the ospf-3 transmit path (the digest is in place before the frame is handed to the raw IP transport)
-- [ ] `internal/component/isis/auth_keystore.go` + `internal/component/isis/packet/auth_sign.go`/`auth_verify.go` - the IS-IS key store + sign/verify backend this spec mirrors
+- [ ] `internal/plugins/isis/auth_keystore.go` + `internal/plugins/isis/packet/auth_sign.go`/`auth_verify.go` - the IS-IS key store + sign/verify backend this spec mirrors
   -> Constraint: same shape; OSPF differs in framing (header AuType, appended digest, sequence number) and has no purge concept
 
 **Behavior to preserve:**
@@ -189,9 +189,9 @@ anti-replay state, and no failure accounting.
 
 ### Transformation Path
 1. **Key config -> store:** config resolve builds per-interface key chains (resolving area `inherit`); `$9$` secrets are decoded to derive MD5/HMAC keys held only in memory; one active key is selected per interface for signing (send lifetime) and all currently valid keys are retained for verify (accept lifetime). The interface auth scheme (AuType) is derived from the active key's algorithm
-2. **Packet send -> sign:** select the active key for the egress interface. For AuType 1, write the 8-byte cleartext password into the Authentication field and let ospf-2 compute the normal checksum. For AuType 2 (MD5 or HMAC-SHA), write Reserved=0, Key ID, Auth Data Length = digest length, and the next Cryptographic Sequence Number into the 8-byte field; leave the Checksum field zero; compute the digest over the common header + body (with the digest region filled with Apad for HMAC-SHA per RFC 5709, or the key appended for MD5 per RFC 2328 Appendix D); append the digest after the body; Packet Length stays header+body (excludes the digest)
-3. **Packet receive -> verify:** on the ospf-4 dispatcher, before routing by Type, read the AuType. AuType 0 with auth configured is rejected. AuType 1 compares the 8-byte password constant-time. AuType 2 reads Key ID, Auth Data Length, and Cryptographic Sequence Number; selects the matching key from the interface chain; checks the sequence number is not less than the last accepted for that (neighbour, key-id) (anti-replay); recomputes the digest over the header+body with the same Apad/key construction and constant-time-compares against the appended Auth-Data-Length bytes
-4. **verify -> accept/reject:** a match accepts the packet (and, for AuType 2, updates the last-accepted sequence number for that neighbour/key) and lets it proceed to ISM/NSM/LSDB. A mismatch (wrong AuType, missing/short digest, unknown key-id, replayed sequence, or digest/password mismatch) rejects and drops the packet and increments `ze_ospf_auth_failures_total{interface,reason}` with the corresponding `reason`
+2. **Packet send -> sign:** select the active key for the egress interface. For AuType 1, write the 8-byte cleartext password into the Authentication field and let ospf-2 compute the normal checksum. For AuType 2, write Reserved=0, Key ID, Auth Data Length = digest length, and the next 32-bit Cryptographic Sequence Number into the 8-byte field; leave the Checksum field zero; compute the digest over the common header + body (with the digest region filled with Apad for HMAC-SHA per RFC 5709, or the key appended for MD5 per RFC 2328 Appendix D); append the digest after the body; Packet Length stays header+body (excludes the digest). For AuType 3, write Reserved(24)=0, 32-bit Key ID, and Auth Data Length in the 8-byte field; append the 64-bit Cryptographic Sequence Number before the HMAC-SHA digest; leave the Checksum field zero and exclude the appended sequence number and digest from Packet Length.
+3. **Packet receive -> verify:** on the ospf-4 dispatcher, before routing by Type, read the AuType. AuType 0 with auth configured is rejected. AuType 1 compares the 8-byte password constant-time. AuType 2 reads Key ID, Auth Data Length, and 32-bit Cryptographic Sequence Number; AuType 3 reads the 32-bit Key ID and Auth Data Length from the field and the 64-bit sequence number from the trailer. The verifier selects the matching key from the interface chain, checks the sequence number is not less than the last accepted for that (neighbour, key-id), recomputes the digest with the same MD5/RFC 5709 construction, and constant-time-compares against the appended Auth-Data-Length bytes.
+4. **verify -> accept/reject:** a match accepts the packet (and, for AuType 2 or 3, updates the last-accepted sequence number for that neighbour/key) and lets it proceed to ISM/NSM/LSDB. A mismatch (wrong AuType, missing/short digest or sequence trailer, unknown key-id, replayed sequence, or digest/password mismatch) rejects and drops the packet and increments `ze_ospf_auth_failures_total{interface,reason}` with the corresponding `reason`
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -204,7 +204,7 @@ anti-replay state, and no failure accounting.
 | reject <-> metrics | increment `ze_ospf_auth_failures_total{interface,reason}` (owned and registered here; surfaced in ospf-13) | [ ] |
 
 ### Integration Points
-- `internal/component/ospf/packet/auth_verify.go` - verify/sign helpers over packet bytes, using the existing ospf-2 common-header codec; runtime-free
+- `internal/plugins/ospf/packet/auth_verify.go` - verify/sign helpers over packet bytes, using the existing ospf-2 common-header codec; runtime-free
 - Key store in the component (resolved from YANG, holds per-interface chains + active key per interface, area `inherit` resolved)
 - RX dispatch hook (ospf-4 instance dispatcher) calls verify before routing by Type
 - TX sign hook (ospf-3 transmit path) calls sign during/after encode, before the frame reaches the raw IP transport
@@ -249,16 +249,17 @@ DD/LS Request packets that this spec signs and verifies are built and consumed.
 | R-6 | Unauthenticated packet accepted when auth is configured (downgrade) | AuType 0 packet forms adjacency under configured auth | when a chain is configured, an AuType mismatch (including AuType 0) is a verify failure |
 | R-7 | Replay: a captured AuType-2 packet is re-sent to disrupt or spoof | duplicate/old packets accepted | track the per-(neighbour, key-id) last-accepted Cryptographic Sequence Number and reject any smaller value; anti-replay unit test |
 | R-8 | Sequence counter resets on restart and peers reject the lower value | adjacencies fail to re-form after a restart with auth | seed the send counter from a monotonic/time source so it never regresses across a restart; document the limitation |
-| R-9 | RFC 7474 HMAC-SHA and RFC 2328 MD5 share AuType 2; a mismatched algorithm between peers fails silently | one-way adjacency with no obvious error | the active key's algorithm sets Auth Data Length; a receiver whose chain has no matching key-id/length rejects and increments the counter with `reason="algo-mismatch"` or `reason="unknown-keyid"` |
+| R-9 | RFC 5709 HMAC-SHA under AuType 2 and RFC 7474 AuType 3 share algorithms but not framing | one-way adjacency with no obvious error | the active key's mode selects AuType 2 versus AuType 3 explicitly; the receiver validates both the AuType and Auth Data Length before key lookup and increments the counter with `reason="autype-mismatch"`, `reason="algo-mismatch"`, or `reason="unknown-keyid"` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
 | `ospf` config with a per-interface key chain (or area `inherit`) | -> | key store built; active key + AuType selected per interface | `TestOSPFAuthKeyStore` |
-| Packet received with wrong/no key under configured auth | -> | verify fails; adjacency does NOT reach Full; `ze_ospf_auth_failures_total` increments | `TestOSPFAuthReject` |
-| Packet received with the correct key | -> | verify passes; the packet proceeds to ISM/NSM | `TestOSPFAuthReject` (positive case) |
-| AuType 2 packet signed on send | -> | 8-byte field = Key ID + Auth Data Length + Crypto Seq; Checksum zero; digest appended after body | `TestOSPFAuthSignCrypto` |
+| Packet received with wrong/no key under configured auth | -> | verify fails; adjacency does NOT reach Full; `ze_ospf_auth_failures_total` increments | `TestOSPFAuthWrongKeyRejected` |
+| Packet received with the correct key | -> | verify passes; the packet proceeds to ISM/NSM | `TestOSPFAuthSignVerifyHMACSHA` (positive case) |
+| AuType 2 packet signed on send | -> | 8-byte field = Key ID + Auth Data Length + Crypto Seq; Checksum zero; digest appended after body | `TestOSPFAuthCryptoFieldLayout`, `TestOSPFAuthDigestAppendedExcludedFromLength` |
+| AuType 3 packet signed on send | -> | 8-byte field = 24-bit reserved + 32-bit Key ID + Auth Data Length; 64-bit sequence precedes digest; Checksum zero | `TestOSPFAuthType3FieldLayout`, `TestOSPFAuthType3SequenceTrailer` |
 | Replayed AuType 2 packet (sequence <= last accepted) | -> | rejected as replay; not processed; counter increments | `TestOSPFAuthReplay` |
 | `test/ospf/ospf-auth.ci` | -> | wrong key rejected, correct key forms adjacency, keys `$9$`-encoded, end to end | `ospf-auth` functional test |
 
@@ -272,10 +273,10 @@ DD/LS Request packets that this spec signs and verifies are built and consumed.
 | AC-4 | Key rotation: operator adds a new active key while the old key is still valid | No adjacency drop; packets signed with either currently valid key are accepted during the overlap window |
 | AC-5 | AuType 1 (Simple) configured | The 8-byte Authentication field carries the cleartext password; match accepted (constant-time), mismatch rejected (sanity only, not security); the packet Checksum is computed normally |
 | AC-6 | AuType 2 MD5 (RFC 2328 Appendix D) configured | Sign and verify succeed for all 5 packet types; the 8-byte field = Reserved 0 + Key ID + Auth Data Length 16 + Crypto Seq; the 16-byte MD5 digest is appended after the body; the Checksum field is zero; wrong key rejected |
-| AC-7 | RFC 7474 HMAC-SHA (SHA-1/256/384/512, RFC 5709) configured | Sign and verify succeed for all 5 packet types; Auth Data Length = 20/32/48/64; the digest is appended after the body; the Apad construction per RFC 5709 is used; the Checksum field is zero; wrong key rejected |
-| AC-8 | Any AuType 2 packet on the wire | The common-header Checksum is zero (never backfilled); Packet Length covers header+body only (excludes the appended digest); the receiver reads the trailing Auth-Data-Length bytes as the digest |
-| AC-9 | AuType 2 packet whose Cryptographic Sequence Number is less than the last accepted for that neighbour/key-id | Packet rejected as a replay; `ze_ospf_auth_failures_total{interface,reason="replay"}` increments; the last-accepted sequence is unchanged |
-| AC-10 | AuType 2 packet whose sequence is greater-or-equal to the last accepted, with a valid digest | Packet accepted; the last-accepted sequence for that neighbour/key-id is updated |
+| AC-7 | AuType 3 RFC 7474 HMAC-SHA (SHA-1/256/384/512, RFC 5709) configured | Sign and verify succeed for all 5 packet types; 8-byte field carries 24-bit reserved + 32-bit Key ID + Auth Data Length; 64-bit sequence number is appended before the digest; Auth Data Length = 20/32/48/64; Apad construction per RFC 5709 is used; the Checksum field is zero; wrong key rejected |
+| AC-8 | Any AuType 2 or AuType 3 cryptographic packet on the wire | The common-header Checksum is zero (never backfilled); Packet Length covers header+body only; the receiver reads the trailing digest for AuType 2 and the trailing 64-bit sequence plus digest for AuType 3 |
+| AC-9 | AuType 2 or AuType 3 packet whose Cryptographic Sequence Number is less than the last accepted for that neighbour/key-id | Packet rejected as a replay; `ze_ospf_auth_failures_total{interface,reason="replay"}` increments; the last-accepted sequence is unchanged |
+| AC-10 | AuType 2 or AuType 3 packet whose sequence is greater-or-equal to the last accepted, with a valid digest | Packet accepted; the last-accepted sequence for that neighbour/key-id is updated |
 | AC-11 | Per-interface key vs area `inherit` | An interface with an explicit chain uses it; an interface set to `inherit` uses the area-level chain; the resolved chain signs and verifies |
 | AC-12 | All 5 packet types (Hello, DD, LS Request, LS Update, LS Ack) under configured auth | Each type is signed on send and verified on receive; no type is left unauthenticated when a chain is configured |
 | AC-13 | Key material in config | Stored `$9$`-encoded; never shown as plaintext in `show configuration`, logs, or web |
@@ -285,8 +286,8 @@ DD/LS Request packets that this spec signs and verifies are built and consumed.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Configures an HMAC-SHA-256 key chain on an interface and the adjacency forms with an authenticated peer | config -> key store -> sign on TX / verify on RX dispatch -> adjacency Full | `TestOSPFAuthReject` (positive), `test/ospf/ospf-auth.ci` |
-| 2 | Configures a wrong key and the adjacency fails to form | config -> key store -> verify fails on RX dispatch -> adjacency stalls, counter increments | `TestOSPFAuthReject`, `test/ospf/ospf-auth.ci` |
+| 1 | Configures an HMAC-SHA-256 key chain on an interface and the adjacency forms with an authenticated peer | config -> key store -> sign on TX / verify on RX dispatch -> adjacency Full | `TestOSPFAuthSignVerifyHMACSHA`, `test/ospf/ospf-auth.ci` |
+| 2 | Configures a wrong key and the adjacency fails to form | config -> key store -> verify fails on RX dispatch -> adjacency stalls, counter increments | `TestOSPFAuthWrongKeyRejected`, `test/ospf/ospf-auth.ci` |
 | 3 | Rotates the key with no outage by adding a new active key during an overlap window | config reload -> key store updates chain -> both keys accepted on RX -> no flap | `TestOSPFAuthRotation`, `test/ospf/ospf-auth.ci` |
 | 4 | Sets an interface to `inherit` and it picks up the area-level key chain | config resolve -> area chain bound to the interface -> sign/verify with the inherited key | `TestOSPFAuthInherit`, `test/ospf/ospf-auth.ci` |
 | 5 | Meshes with an FRR router using OSPF MD5 / HMAC-SHA authentication | full signed protocol over the wire | `test/interop/scenarios/ospf-auth-frr` (authored and run under spec-ospf-13) |
@@ -297,25 +298,28 @@ DD/LS Request packets that this spec signs and verifies are built and consumed.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFAuthSignVerifySimple` | `internal/component/ospf/packet/auth_verify_test.go` | AuType 1 8-byte password sign/verify per packet type; normal checksum kept | |
-| `TestOSPFAuthSignVerifyMD5` | `internal/component/ospf/packet/auth_verify_test.go` | AuType 2 MD5 (RFC 2328 Appendix D) sign/verify per packet type; 16-byte appended digest | |
-| `TestOSPFAuthSignVerifyHMACSHA` | `internal/component/ospf/packet/auth_verify_test.go` | RFC 7474 HMAC-SHA-1/256/384/512 sign/verify per packet type; Apad construction (RFC 5709) | |
-| `TestOSPFAuthCryptoFieldLayout` | `internal/component/ospf/packet/auth_verify_test.go` | AuType 2 8-byte field = Reserved 0 + Key ID + Auth Data Length + Crypto Seq round-trips | |
-| `TestOSPFAuthZeroedChecksum` | `internal/component/ospf/packet/auth_verify_test.go` | trap #10: AuType 2 output has Checksum == 0; digest computed over the zeroed-checksum packet | |
-| `TestOSPFAuthDigestAppendedExcludedFromLength` | `internal/component/ospf/packet/auth_verify_test.go` | Packet Length covers header+body only; the digest is the trailing Auth-Data-Length bytes | |
-| `TestOSPFAuthWrongKeyRejected` | `internal/component/ospf/packet/auth_verify_test.go` | mismatched digest/password rejected per packet type | |
-| `TestOSPFAuthConstantTimeCompare` | `internal/component/ospf/packet/auth_verify_test.go` | verify uses constant-time compare (no `bytes.Equal`/`==` on digest or password) | |
-| `TestOSPFAuthReplay` | `internal/component/ospf/auth_keystore_test.go` | sequence < last accepted rejected; >= accepted updates the last-accepted value | |
-| `TestOSPFAuthKeyStore` | `internal/component/ospf/auth_keystore_test.go` | per-interface chains; active key + AuType selection | |
-| `TestOSPFAuthInherit` | `internal/component/ospf/auth_keystore_test.go` | area `inherit` resolves to the area-level chain at config time | |
-| `TestOSPFAuthRotation` | `internal/component/ospf/auth_keystore_test.go` | overlap window accepts old and new key | |
-| `TestOSPFAuthSecretEncoding` | `internal/component/ospf/auth_keystore_test.go` | `$9$`-encoded leaf decodes to the derived key; plaintext never retained | |
+| `TestOSPFAuthSignVerifySimple` | `internal/plugins/ospf/packet/auth_verify_test.go` | AuType 1 8-byte password sign/verify per packet type; normal checksum kept | |
+| `TestOSPFAuthSignVerifyMD5` | `internal/plugins/ospf/packet/auth_verify_test.go` | AuType 2 MD5 (RFC 2328 Appendix D) sign/verify per packet type; 16-byte appended digest | |
+| `TestOSPFAuthSignVerifyHMACSHA` | `internal/plugins/ospf/packet/auth_verify_test.go` | AuType 2 RFC 5709 HMAC-SHA-1/256/384/512 sign/verify per packet type; Apad construction | |
+| `TestOSPFAuthType3FieldLayout` | `internal/plugins/ospf/packet/auth_verify_test.go` | AuType 3 RFC 7474 8-byte field: 24-bit reserved, 32-bit Key ID, Auth Data Length | |
+| `TestOSPFAuthType3SequenceTrailer` | `internal/plugins/ospf/packet/auth_verify_test.go` | AuType 3 64-bit sequence number appended before digest; replay state uses the 64-bit value | |
+| `TestOSPFAuthCryptoFieldLayout` | `internal/plugins/ospf/packet/auth_verify_test.go` | AuType 2 8-byte field = Reserved 0 + Key ID + Auth Data Length + Crypto Seq round-trips | |
+| `TestOSPFAuthZeroedChecksum` | `internal/plugins/ospf/packet/auth_verify_test.go` | trap #10: AuType 2 output has Checksum == 0; digest computed over the zeroed-checksum packet | |
+| `TestOSPFAuthDigestAppendedExcludedFromLength` | `internal/plugins/ospf/packet/auth_verify_test.go` | Packet Length covers header+body only; the digest is the trailing Auth-Data-Length bytes | |
+| `TestOSPFAuthWrongKeyRejected` | `internal/plugins/ospf/packet/auth_verify_test.go` | mismatched digest/password rejected per packet type | |
+| `TestOSPFAuthConstantTimeCompare` | `internal/plugins/ospf/packet/auth_verify_test.go` | verify uses constant-time compare (no `bytes.Equal`/`==` on digest or password) | |
+| `TestOSPFAuthReplay` | `internal/plugins/ospf/auth_keystore_test.go` | sequence < last accepted rejected; >= accepted updates the last-accepted value | |
+| `TestOSPFAuthKeyStore` | `internal/plugins/ospf/auth_keystore_test.go` | per-interface chains; active key + AuType selection | |
+| `TestOSPFAuthInherit` | `internal/plugins/ospf/auth_keystore_test.go` | area `inherit` resolves to the area-level chain at config time | |
+| `TestOSPFAuthRotation` | `internal/plugins/ospf/auth_keystore_test.go` | overlap window accepts old and new key | |
+| `TestOSPFAuthSecretEncoding` | `internal/plugins/ospf/auth_keystore_test.go` | `$9$`-encoded leaf decodes to the derived key; plaintext never retained | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | Simple password length | 1..8 bytes (8-byte Authentication field) | 8 | 0 (empty) | 9 |
 | Key ID (AuType 2) | 0..255 (1 byte) | 255 | n/a | 256 |
+| Key ID (AuType 3) | 0..4294967295 (32-bit) | 4294967295 | n/a | wraps to 0 |
 | Auth Data Length (AuType 2) | 16 (MD5), 20/32/48/64 (HMAC-SHA) | 64 | 15 | 65 |
 | Cryptographic Sequence Number | 0..0xFFFFFFFF (32-bit, non-decreasing) | 0xFFFFFFFF | n/a | wraps to 0 (replay edge) |
 | Digest length MD5 | 16 bytes | 16 | <16 | >16 |
@@ -335,18 +339,20 @@ DD/LS Request packets that this spec signs and verifies are built and consumed.
 - None planned. The interop scenario `ospf-auth-frr` is authored and run under spec-ospf-13 (the interop harness and FRR scenarios live there); the wire/crypto contract it exercises is fully specified here. Raw-IP / multicast on-wire auth tests are Linux-only and run as QEMU integration tests per `ai/rules/qemu-testing.md`.
 
 ## Files to Modify
-- `internal/component/ospf/packet/` - reuse the existing ospf-2 common-header codec (no wire-struct change); add the verify/sign helpers alongside
-- `internal/component/ospf/yang/ze-ospf-conf.yang` - auth leaves (coordinated with spec-ospf-4; ospf-4 owns the schema, this spec specifies the auth subtree shape)
-- Hello TX/RX path (spec-ospf-5) and DD/LS Request/LS Update/LS Ack TX/RX paths (spec-ospf-6/ospf-7) - reached through the shared ospf-4 dispatcher verify hook and the ospf-3 transmit sign hook (no per-handler edits)
-- `internal/component/ospf/instance.go` (ospf-4 dispatcher) - verify chokepoint before Type routing
-- `internal/component/ospf/config.go` (or `instance.go`) - build the key store from resolved config
-- `internal/component/ospf/neighbor/` (ospf-6) - per-neighbour Cryptographic Sequence Number state for anti-replay
+- `internal/plugins/ospf/packet/` - reuse the existing ospf-2 common-header codec (no wire-struct change); add the verify/sign helpers alongside
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - auth leaves (coordinated with spec-ospf-4; ospf-4 owns the schema, this spec specifies the auth subtree shape)
+- `internal/plugins/ospf/iface/hello.go` - Hello TX/RX uses the shared verify/sign hooks
+- `internal/plugins/ospf/neighbor/dd.go`, `internal/plugins/ospf/neighbor/lsreq.go` - DD and LS Request TX/RX use the shared verify/sign hooks
+- `internal/plugins/ospf/lsdb/lsupdate.go`, `internal/plugins/ospf/lsdb/lsack.go` - LS Update and LS Ack TX/RX use the shared verify/sign hooks
+- `internal/plugins/ospf/instance.go` (ospf-4 dispatcher) - verify chokepoint before Type routing
+- `internal/plugins/ospf/config.go` (or `instance.go`) - build the key store from resolved config
+- `internal/plugins/ospf/neighbor/` (ospf-6) - per-neighbour Cryptographic Sequence Number state for anti-replay
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | Yes | `internal/component/ospf/yang/ze-ospf-conf.yang` auth leaves (per-interface key chain, area `inherit`, key-id, algorithm enum, `$9$` secret, send/accept lifetimes) -- coordinated with spec-ospf-4 |
-| YANG validation constraints | Yes | algorithm `enumeration` (simple/md5/hmac-sha-1/hmac-sha-256/hmac-sha-384/hmac-sha-512); key-id `range 0..255`; secret `length` and `$9$` pattern; `inherit` enum/boolean on the interface `authentication` leaf |
+| YANG schema (new config) | Yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` auth leaves (per-interface key chain, area `inherit`, key-id, algorithm enum, `$9$` secret, send/accept lifetimes) -- coordinated with spec-ospf-4 |
+| YANG validation constraints | Yes | algorithm `enumeration` (simple/md5/hmac-sha-1/hmac-sha-256/hmac-sha-384/hmac-sha-512); key-id `range 0..4294967295` with AuType 2 rejecting values above 255 on send; secret `length` and `$9$` pattern; area-level key-chain leaf; `inherit` enum/boolean on the interface `authentication` leaf |
 | YANG custom validators | Yes | secret leaf accepts `$9$`-encoded or plaintext (auto-encode on commit) via the shared `ze:sensitive` marker + `CompleteFn`; reuse the PPPoE/WireGuard/IS-IS secret-leaf pattern |
 | CLI commands/flags | Yes | auth state surfaced via `show ip ospf interface` / `show ip ospf neighbor` (auth type, key-id, last-failure); `ze_ospf_auth_failures_total` is owned/registered HERE and only scraped/surfaced by ospf-13 |
 | CLI grammar (action before identifier) | Yes | `ai/rules/cli-grammar.md` |
@@ -378,15 +384,15 @@ DD/LS Request packets that this spec signs and verifies are built and consumed.
 | 17 | Existing docs show examples for this area? | No | verify `docs/guide/ospf.md` auth examples against YANG at completion |
 
 ## Files to Create
-- `internal/component/ospf/packet/auth_verify.go` - verify-on-receive and sign-on-send helpers over packet bytes, using the existing ospf-2 common-header codec; AuType 1 (Simple), AuType 2 MD5 (RFC 2328 Appendix D), RFC 7474 HMAC-SHA (RFC 5709 Apad/algorithms); constant-time compare; AuType-2 zeroed-checksum + appended-digest framing; Packet-Length-excludes-digest handling
-- `internal/component/ospf/packet/auth_verify_test.go` - per-algorithm per-packet-type sign/verify, AuType-2 field layout, zeroed-checksum, appended-digest boundary, wrong-key, constant-time, boundary tests
-- `internal/component/ospf/auth_keystore.go` - key store: per-interface chains with area `inherit` resolution, active-key + AuType selection, `$9$` decode to derive MD5/HMAC keys, rotation overlap window, per-neighbour Cryptographic Sequence Number anti-replay state
-- `internal/component/ospf/auth_keystore_test.go` - key store, `inherit`, rotation, replay, secret-encoding tests
-- `internal/component/ospf/auth_wiring.go` - engine glue: build the store on config apply/reload, install the verify chokepoint on the ospf-4 dispatcher and the sign step on the ospf-3 transmit path, increment the failure counter at the reject site
+- `internal/plugins/ospf/packet/auth_verify.go` - verify-on-receive and sign-on-send helpers over packet bytes, using the existing ospf-2 common-header codec; AuType 1 (Simple), AuType 2 MD5/HMAC-SHA (RFC 2328 Appendix D and RFC 5709), and AuType 3 RFC 7474 extended-sequence HMAC-SHA; constant-time compare; zeroed-checksum + appended-digest framing; Packet-Length-excludes-digest handling
+- `internal/plugins/ospf/packet/auth_verify_test.go` - per-algorithm per-packet-type sign/verify, AuType-2 field layout, AuType-3 field and sequence-trailer layout, zeroed-checksum, appended-digest boundary, wrong-key, constant-time, boundary tests
+- `internal/plugins/ospf/auth_keystore.go` - key store: per-interface chains with area `inherit` resolution, active-key + AuType selection, `$9$` decode to derive MD5/HMAC keys, rotation overlap window, per-neighbour Cryptographic Sequence Number anti-replay state for AuType 2 and 64-bit AuType 3
+- `internal/plugins/ospf/auth_keystore_test.go` - key store, `inherit`, rotation, replay, secret-encoding tests
+- `internal/plugins/ospf/auth_wiring.go` - engine glue: build the store on config apply/reload, install the verify chokepoint on the ospf-4 dispatcher and the sign step on the ospf-3 transmit path, increment the failure counter at the reject site
 - `test/ospf/ospf-auth.ci` - functional test (wrong/no key rejected, correct key forms adjacency, area `inherit`, hitless rotation, `$9$` rendering)
 - `rfc/short/rfc5709.md` - OSPFv2 HMAC-SHA Cryptographic Authentication summary
 - `rfc/short/rfc7474.md` - Security Extensions for OSPFv2 (auth trailer) summary
-- YANG auth leaves: authored in `internal/component/ospf/yang/ze-ospf-conf.yang`, coordinated with spec-ospf-4 (ospf-4 owns the module; this spec contributes the auth subtree)
+- YANG auth leaves: authored in `internal/plugins/ospf/yang/ze-ospf-conf.yang`, coordinated with spec-ospf-4 (ospf-4 owns the module; this spec contributes the auth subtree)
 
 ## Implementation Steps
 
@@ -407,8 +413,8 @@ DD/LS Request packets that this spec signs and verifies are built and consumed.
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- key store skeleton + verify/sign hook points; failing wiring tests
-   - Tests: `TestOSPFAuthKeyStore`, `TestOSPFAuthReject` (initially failing)
-   - Files: `internal/component/ospf/auth_keystore.go`, `internal/component/ospf/packet/auth_verify.go` (stubs), `auth_wiring.go` hook points on the ospf-4 dispatcher and ospf-3 transmit path
+   - Tests: `TestOSPFAuthKeyStore`, `TestOSPFAuthWrongKeyRejected` (initially failing)
+   - Files: `internal/plugins/ospf/auth_keystore.go`, `internal/plugins/ospf/packet/auth_verify.go` (stubs), `auth_wiring.go` hook points on the ospf-4 dispatcher and ospf-3 transmit path
    - Verify: hooks are reachable from config and the packet RX/TX paths; tests fail because verify/sign are stubs
 2. **Phase: Verify/sign codec (AuType 1 Simple)** -- 8-byte cleartext password over the ospf-2 common-header field; normal checksum kept
    - Tests: `TestOSPFAuthSignVerifySimple`, `TestOSPFAuthWrongKeyRejected` (password case)
@@ -418,49 +424,53 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Tests: `TestOSPFAuthSignVerifyMD5`, `TestOSPFAuthCryptoFieldLayout`, `TestOSPFAuthZeroedChecksum`, `TestOSPFAuthDigestAppendedExcludedFromLength`, `TestOSPFAuthConstantTimeCompare`
    - Files: `auth_verify.go`
    - Verify: per-packet-type sign/verify; Checksum==0 on output; digest appended and excluded from Packet Length; `hmac.Equal` used
-4. **Phase: RFC 7474 HMAC-SHA trailer (RFC 5709 algorithms)** -- SHA-1/256/384/512, Apad construction, Auth Data Length = digest length
+4. **Phase: AuType 2 RFC 5709 HMAC-SHA** - SHA-1/256/384/512, Apad construction, Auth Data Length = digest length, same 8-byte AuType 2 field as MD5
    - Tests: `TestOSPFAuthSignVerifyHMACSHA`
    - Files: `auth_verify.go`
    - Verify: per-algorithm sign/verify; Apad fill on sign and verify; Auth Data Length matches the algorithm output length
-5. **Phase: Anti-replay (Cryptographic Sequence Number)** -- per-neighbour send counter (monotonic seed) + per-(neighbour, key-id) last-accepted receive value
-   - Tests: `TestOSPFAuthReplay`
-   - Files: `auth_keystore.go`, `internal/component/ospf/neighbor/` state
+5. **Phase: AuType 3 RFC 7474 extended sequence auth** - 24-bit reserved + 32-bit Key ID + Auth Data Length field, 64-bit sequence trailer before the HMAC-SHA digest
+   - Tests: `TestOSPFAuthType3FieldLayout`, `TestOSPFAuthType3SequenceTrailer`, `TestOSPFAuthSignVerifyHMACSHA`
+   - Files: `auth_verify.go`, `auth_keystore.go`
+   - Verify: field layout is RFC 7474, the appended sequence number is covered by the digest, replay state uses the 64-bit value, and Packet Length excludes the sequence number and digest
+6. **Phase: Anti-replay (Cryptographic Sequence Number)** - per-neighbour send counter (monotonic seed) + per-(neighbour, key-id) last-accepted receive value for 32-bit AuType 2 and 64-bit AuType 3
+   - Tests: `TestOSPFAuthReplay`, `TestOSPFAuthType3SequenceTrailer`
+   - Files: `auth_keystore.go`, `internal/plugins/ospf/neighbor/` state
    - Verify: sequence < last accepted rejected as replay; >= accepted updates the last-accepted value; the send counter never regresses
-6. **Phase: Key store + `inherit` + rotation + secrets** -- per-interface chains, area `inherit` resolution, active-key/AuType selection, `$9$` decode, overlap window
+7. **Phase: Key store + `inherit` + rotation + secrets** -- per-interface chains, area `inherit` resolution, active-key/AuType selection, `$9$` decode, overlap window
    - Tests: `TestOSPFAuthKeyStore`, `TestOSPFAuthInherit`, `TestOSPFAuthRotation`, `TestOSPFAuthSecretEncoding`
    - Files: `auth_keystore.go`, config resolve, YANG auth leaves
    - Verify: `inherit` resolves to the area chain; rotation accepts both keys; keys stored `$9$`-encoded; plaintext not retained
-7. **Phase: Wire hooks live** -- verify on the ospf-4 RX dispatcher before Type routing, sign on the ospf-3 TX path for all 5 packet types; counter increment on reject with the right `reason`
-   - Tests: `TestOSPFAuthReject` passes (positive and negative); `TestOSPFAuthSignCrypto`
+8. **Phase: Wire hooks live** - verify on the ospf-4 RX dispatcher before Type routing, sign on the ospf-3 TX path for all 5 packet types; counter increment on reject with the right `reason`
+   - Tests: `TestOSPFAuthWrongKeyRejected` passes (positive and negative); `TestOSPFAuthCryptoFieldLayout`, `TestOSPFAuthType3FieldLayout`
    - Files: `auth_wiring.go`, ospf-4 dispatcher, ospf-3 transmit path
    - Verify: wrong/no key fails adjacency; correct key forms it; rejects increment `ze_ospf_auth_failures_total` with the correct `reason`
-8. **Functional test** -- `test/ospf/ospf-auth.ci`
-9. **RFC refs** -- `// RFC 2328 Appendix D` / `// RFC 5709 Section X.Y` / `// RFC 7474 Section X.Y` comments at enforcing code
-10. **Full verification** -- `make ze-verify`
-11. **Complete spec** -- learned summary, delete spec
+9. **Functional test** -- `test/ospf/ospf-auth.ci`
+10. **RFC refs** -- `// RFC 2328 Appendix D` / `// RFC 5709 Section X.Y` / `// RFC 7474 Section X.Y` comments at enforcing code
+11. **Full verification** -- `make ze-verify`
+12. **Complete spec** -- learned summary, delete spec
 
 ### Critical Review Checklist (/implement stage 6)
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-1..AC-14 has implementation with file:line |
-| Feature completeness | All five packet types (Hello/DD/LS Request/LS Update/LS Ack) and all schemes (Simple, MD5, HMAC-SHA family) sign and verify; no packet type left unauthenticated when a chain is configured |
-| Correctness | AuType 2 8-byte field = Reserved 0 + Key ID + Auth Data Length + Crypto Seq; MD5 digest 16 bytes appended; HMAC-SHA digest 20/32/48/64 appended with Apad (RFC 5709); Checksum zero for AuType 2 (trap #10); Packet Length excludes the digest; sequence-number anti-replay; matches RFC 2328 §D/Appendix D, RFC 5709, RFC 7474 |
+| Feature completeness | All five packet types (Hello/DD/LS Request/LS Update/LS Ack) and all schemes (Simple, MD5, AuType 2 HMAC-SHA family, AuType 3 RFC 7474 HMAC-SHA family) sign and verify; no packet type left unauthenticated when a chain is configured |
+| Correctness | AuType 2 8-byte field = Reserved 0 + Key ID + Auth Data Length + Crypto Seq; MD5 digest 16 bytes appended; RFC 5709 HMAC-SHA digest 20/32/48/64 appended with Apad; AuType 3 8-byte field = 24-bit reserved + 32-bit Key ID + Auth Data Length plus 64-bit sequence trailer before the digest; Checksum zero for cryptographic auth; Packet Length excludes the digest and AuType 3 sequence trailer; sequence-number anti-replay; matches RFC 2328 Appendix D, RFC 5709, RFC 7474 |
 | Naming | YANG kebab-case auth leaves; algorithm enum values match RFC names; `$9$` secret leaf like PPPoE/WireGuard/IS-IS |
 | Data flow | RX bytes -> verify (ospf-4 dispatcher) -> Type routing; TX encode -> sign (ospf-3) -> transport; no bypass of verify when a chain is configured |
 | CLI grammar | Any auth state surfaced through existing `show ip ospf` commands follows action-before-identifier |
-| YANG validation | Algorithm `enumeration`; key-id `range 0..255`; secret `length`/pattern; `inherit` constrained; no bare `type string` |
+| YANG validation | Algorithm `enumeration`; key-id `range 0..4294967295` with AuType 2 send rejection above 255; secret `length`/pattern; `inherit` constrained; no bare `type string` |
 | Rule: security | Constant-time compare on every verify; no decoded key in logs or snapshots; downgrade (AuType mismatch under configured auth) rejected; replay rejected via the sequence number |
 | Rule: no-duplication | Reuse the ospf-2 common-header codec and the ospf-2 checksum; no second auth encoder; do not share IS-IS auth code (different framing) |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Verify/sign helpers | `ls internal/component/ospf/packet/auth_verify.go` |
-| Key store | `ls internal/component/ospf/auth_keystore.go` |
-| Engine glue | `ls internal/component/ospf/auth_wiring.go` |
+| Verify/sign helpers | `ls internal/plugins/ospf/packet/auth_verify.go` |
+| Key store | `ls internal/plugins/ospf/auth_keystore.go` |
+| Engine glue | `ls internal/plugins/ospf/auth_wiring.go` |
 | Functional test | `ls test/ospf/ospf-auth.ci` |
 | RFC summaries | `ls rfc/short/rfc5709.md rfc/short/rfc7474.md` |
-| Constant-time compare | `grep -n 'hmac.Equal\|subtle.ConstantTimeCompare' internal/component/ospf/packet/auth_verify.go` |
+| Constant-time compare | `grep -n 'hmac.Equal\|subtle.ConstantTimeCompare' internal/plugins/ospf/packet/auth_verify.go` |
 | Zeroed-checksum framing | `TestOSPFAuthZeroedChecksum`, `TestOSPFAuthDigestAppendedExcludedFromLength` pass |
 
 ### Security Review Checklist (/implement stage 11)
@@ -500,7 +510,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |---------|-----------|---------------|--------|
 
 ## Design Insights
-<!-- LIVE — write IMMEDIATELY when you learn something -->
+<!-- LIVE, write IMMEDIATELY when you learn something -->
 <!-- Route at completion: subsystem → arch doc, process → rules, knowledge → memory.md -->
 - OSPF authentication is "a crypto backend plus a key store wired into two shared hook points" (verify on the ospf-4 RX dispatcher, sign on the ospf-3 TX path) -- the same shape as the IS-IS sibling, but with header-AuType framing, an appended digest, and a Cryptographic Sequence Number for anti-replay instead of TLV 10 and authenticated purges.
 - The single highest interop risk is the AuType-2 framing: zeroed checksum (trap #10), the appended digest, and Packet Length excluding the digest. Pin each in a dedicated test and an RFC comment at the codec.
@@ -541,7 +551,7 @@ MUST document: the AuType 2 8-byte field structure (Reserved 0, Key ID, Auth Dat
 - [List actual changes made]
 
 ### Bugs Found/Fixed
-- [Any bugs discovered — add test for each]
+- [Any bugs discovered, add test for each]
 
 ### Documentation Updates
 - [Docs updated, with source anchors named, or "None" with grep evidence]
@@ -582,11 +592,11 @@ MUST document: the AuType 2 8-byte field structure (Reserved 0, Key ID, Auth Dat
 <!-- MANDATORY: Maps each stated goal to concrete proof it was achieved. -->
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Wrong/no key rejected | unit test | `TestOSPFAuthReject`, `TestOSPFAuthWrongKeyRejected` |
-| Correct key forms adjacency, packets processed | unit + functional test | `TestOSPFAuthReject` (positive), `test/ospf/ospf-auth.ci` |
-| Sign/verify all schemes + all 5 packet types | unit test | `TestOSPFAuthSignVerifySimple`, `...MD5`, `...HMACSHA` |
-| AuType 2 framing (zeroed checksum, appended digest, length) | unit test | `TestOSPFAuthZeroedChecksum`, `TestOSPFAuthDigestAppendedExcludedFromLength`, `TestOSPFAuthCryptoFieldLayout` |
-| Anti-replay via Cryptographic Sequence Number | unit test | `TestOSPFAuthReplay` |
+| Wrong/no key rejected | unit test | `TestOSPFAuthWrongKeyRejected` |
+| Correct key forms adjacency, packets processed | unit + functional test | `TestOSPFAuthSignVerifyHMACSHA` (positive), `test/ospf/ospf-auth.ci` |
+| Sign/verify all schemes + all 5 packet types | unit test | `TestOSPFAuthSignVerifySimple`, `TestOSPFAuthSignVerifyMD5`, `TestOSPFAuthSignVerifyHMACSHA`, `TestOSPFAuthType3FieldLayout`, `TestOSPFAuthType3SequenceTrailer` |
+| AuType 2 and 3 framing (zeroed checksum, appended digest, sequence trailer, length) | unit test | `TestOSPFAuthZeroedChecksum`, `TestOSPFAuthDigestAppendedExcludedFromLength`, `TestOSPFAuthCryptoFieldLayout`, `TestOSPFAuthType3FieldLayout`, `TestOSPFAuthType3SequenceTrailer` |
+| Anti-replay via Cryptographic Sequence Number | unit test | `TestOSPFAuthReplay`, `TestOSPFAuthType3SequenceTrailer` |
 | Area `inherit` + hitless rotation | unit + functional test | `TestOSPFAuthInherit`, `TestOSPFAuthRotation`, `test/ospf/ospf-auth.ci` |
 | Keys `$9$`-encoded, never plaintext | unit test | `TestOSPFAuthSecretEncoding` |
 | FRR MD5/HMAC-SHA interop on the wire | interop test (Linux-pending) | `test/interop/scenarios/ospf-auth-frr` (authored and run under spec-ospf-13) |
@@ -599,10 +609,10 @@ MUST document: the AuType 2 8-byte field structure (Reserved 0, Key ID, Auth Dat
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [what /ze-review reported] | file:line | fixed in <commit/line> / deferred (id) / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- [short bullet per BLOCKER/ISSUE, naming the file and change]
+- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -641,17 +651,17 @@ MUST document: the AuType 2 8-byte field structure (Reserved 0, Key ID, Auth Dat
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-14 all demonstrated
 - [ ] End-to-End User Stories: every story has a working path and a passing test
-- [ ] Wiring Test table complete — every row has a concrete test name, none deferred
-- [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
+- [ ] Wiring Test table complete, every row has a concrete test name, none deferred
+- [ ] `/ze-review` gate clean (Review Gate section filled, 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`internal/component/ospf/`)
+- [ ] Feature code integrated (`internal/plugins/ospf/`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented
-- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md` — no failures)
+- [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`, no failures)
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`); broken ones in Mistake Log; surviving risks copied to Executive Summary
 
-### Quality Gates (SHOULD pass — defer with user approval)
+### Quality Gates (SHOULD pass, defer with user approval)
 - [ ] RFC constraint comments added (RFC 2328 Appendix D / RFC 5709 / RFC 7474)
 - [ ] Implementation Audit complete
 - [ ] Mistake Log escalation reviewed
@@ -672,8 +682,8 @@ MUST document: the AuType 2 8-byte field structure (Reserved 0, Key ID, Auth Dat
 - [ ] Interop tests for protocol features (`ospf-auth-frr` under spec-ospf-13)
 - [ ] Goal Validation table filled with concrete evidence
 
-### Completion (BLOCKING — before ANY commit)
-- [ ] Critical Review passes — all 6 checks in `ai/rules/quality.md` documented pass in spec. A single failure = work is not complete.
+### Completion (BLOCKING, before ANY commit)
+- [ ] Critical Review passes, all 6 checks in `ai/rules/quality.md` documented pass in spec. A single failure = work is not complete.
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)

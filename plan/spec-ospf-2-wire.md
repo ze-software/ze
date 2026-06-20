@@ -20,8 +20,8 @@
 ## Task
 
 Implement the OSPFv2 packet and LSA wire codec as a pure, self-contained package
-(`internal/component/ospf/packet/`) that depends only on the domain types and
-checksum algorithms from `spec-ospf-1-types.md` (`internal/component/ospf/types`).
+(`internal/plugins/ospf/packet/`) that depends only on the domain types and
+checksum algorithms from `spec-ospf-1-types.md` (`internal/plugins/ospf/types`).
 This child is the protocol's serialization boundary: it parses received datagrams
 (after ospf-3 has stripped the IP header) into packet/LSA views and serializes
 packet/LSA structs back to bytes. It contains no runtime, no sockets, no timers,
@@ -78,7 +78,7 @@ zeroed Checksum field (so ospf-12 can sign over it).
 - [ ] `ai/rules/no-sprintf-alloc.md` - no `fmt`/`+`/`.String()` concatenation on the wire path
   -> Constraint: any human-readable rendering (CLI decode) uses `textbuf.Buffer` / `AppendTo`, never `fmt.Sprintf`
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` - OSPF Version 2 base; Appendix A (packet and LSA formats)
   -> Constraint: §A.3.1 common header (Version 2, Type 1..5, Packet Length, Router ID, Area ID, Checksum, AuType, 8-byte Authentication); §A.3.2 Hello; §A.3.3 Database Description (I/M/MS flag bits, MTU, DD sequence); §A.3.4 LS Request (12-byte triples); §A.3.5 LS Update (4-byte count + LSAs); §A.3.6 LS Ack (LSA headers); §A.4.1 LSA header; §A.4.2 Router; §A.4.3 Network; §A.4.4 Summary 3/4; §A.4.5 AS-External; §12.1.6/§12.1.7 sequence/checksum
   -> Constraint: the LS Sequence Number is a SIGNED 32-bit integer, InitialSequenceNumber 0x80000001, MaxSequenceNumber 0x7FFFFFFF; the codec reads and writes the raw 4 bytes and does not normalise (freshness compare is ospf-7)
@@ -102,22 +102,22 @@ zeroed Checksum field (so ospf-12 can sign over it).
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (architecture survey for this child; types come from ospf-1)
-- [ ] Ze has no OSPF packet/LSA codec today; `internal/component/ospf/packet/` does not exist
+- [ ] Ze has no OSPF packet/LSA codec today; `internal/plugins/ospf/packet/` does not exist
   -> Constraint: this is entirely new; nothing to preserve inside the package
-- [ ] `internal/component/rsvpte/transport_linux.go` shows the proto-based raw-IP receive path: the kernel delivers the full datagram and the consumer strips the IP header by IHL before handing the payload up
+- [ ] `internal/plugins/rsvpte/transport_linux.go` shows the proto-based raw-IP receive path: the kernel delivers the full datagram and the consumer strips the IP header by IHL before handing the payload up
   -> Constraint: ospf-3 (not this codec) strips the IP header; this codec is handed the OSPF payload starting at the common header. Do NOT parse IP headers here
-- [ ] `internal/component/isis/packet/` (isis-2) is the sibling codec: lazy views, buffer-first `WriteTo`, Fletcher checksum, opaque-TLV passthrough, fuzz targets, `ze` decode CLI
+- [ ] `internal/plugins/isis/packet/` (isis-2) is the sibling codec: lazy views, buffer-first `WriteTo`, Fletcher checksum, opaque-TLV passthrough, fuzz targets, `ze` decode CLI
   -> Constraint: mirror the structure and conventions; do NOT import or couple to the IS-IS codec (different protocol, different framing). The shared Fletcher algorithm lives in ospf-1 (and is logically the same as IS-IS's) but is consumed, not imported across protocols
-- [ ] `internal/component/ospf/types` (spec-ospf-1) provides RouterID, AreaID, LSAKey, LSSequenceNumber, LSAge, Metric, Options with parse/format/compare, plus `Fletcher16` (LSA) and the IP one's-complement checksum
+- [ ] `internal/plugins/ospf/types` (spec-ospf-1) provides RouterID, AreaID, LSAKey, LSSequenceNumber, LSAge, Metric, Options with parse/format/compare, plus `Fletcher16` (LSA) and the IP one's-complement checksum
   -> Constraint: this codec consumes those types and both checksum functions; it must not redefine them. Packet/LSA structs hold typed fields where a domain type exists
 
 **Behavior to preserve:**
 - RSVP-TE raw-socket code unchanged (this codec adds no transport)
 - IS-IS codec independent and unchanged (no cross-protocol coupling)
-- `internal/component/ospf/types` public API (from ospf-1) is consumed as-is; this spec adds no types to that package
+- `internal/plugins/ospf/types` public API (from ospf-1) is consumed as-is; this spec adds no types to that package
 
 **Behavior to change:**
-- New package `internal/component/ospf/packet/` with packet and LSA codecs
+- New package `internal/plugins/ospf/packet/` with packet and LSA codecs
 - New `ze` decode surface (CLI) able to decode an OSPF packet from hex/pcap bytes (wiring proof; full CLI polish is ospf-13)
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
@@ -142,10 +142,10 @@ zeroed Checksum field (so ospf-12 can sign over it).
 | packet <-> ospf-12 auth | the 8-byte Authentication field round-trips for AuType 0/1/2; a packet can be written with a zeroed Checksum for AuType 2 signing | [ ] |
 
 ### Integration Points
-- `internal/component/ospf/types` (ospf-1) - typed fields inside packet/LSA structs; `Fletcher16` (LSA) and the IP one's-complement checksum (packet)
-- `internal/component/ospf/transport` (ospf-3) - hands stripped OSPF payload bytes to the decoder, takes encoded bytes for sending (consumer, not built here)
-- `internal/component/ospf/lsdb` (ospf-7) - stores raw LSA bytes + parsed metadata (LSAKey, sequence, age, checksum) obtained from this codec; re-floods unknown LSA types verbatim; refreshes the Fletcher checksum on re-origination
-- `internal/component/ospf/packet` (AuType field) <-> `spec-ospf-12-auth` - structural auth-field codec only; verify/sign and the RFC 7474 trailer are ospf-12
+- `internal/plugins/ospf/types` (ospf-1) - typed fields inside packet/LSA structs; `Fletcher16` (LSA) and the IP one's-complement checksum (packet)
+- `internal/plugins/ospf/transport` (ospf-3) - hands stripped OSPF payload bytes to the decoder, takes encoded bytes for sending (consumer, not built here)
+- `internal/plugins/ospf/lsdb` (ospf-7) - stores raw LSA bytes + parsed metadata (LSAKey, sequence, age, checksum) obtained from this codec; re-floods unknown LSA types verbatim; refreshes the Fletcher checksum on re-origination
+- `internal/plugins/ospf/packet` (AuType field) <-> `spec-ospf-12-auth` - structural auth-field codec only; verify/sign and the RFC 7474 trailer are ospf-12
 - `ze` decode CLI (ospf-13 polish) - human-readable rendering via `AppendTo`
 
 ### Architectural Verification
@@ -225,26 +225,26 @@ zeroed Checksum field (so ospf-12 can sign over it).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFPacketTypeConstants` | `internal/component/ospf/packet/header_test.go` | the 5 packet Type bytes (1 Hello, 2 DD, 3 LS Request, 4 LS Update, 5 LS Ack) and Version == 2 | |
-| `TestOSPFHeaderRoundTrip` | `internal/component/ospf/packet/header_test.go` | 24-byte common header encode/decode for all 5 types; rejects Version != 2 and a Packet Length exceeding the slice | |
-| `TestOSPFHeaderAuTypeField` | `internal/component/ospf/packet/header_test.go` | AuType 0/1/2 and the 8-byte Authentication field round-trip; AuType 2 decomposes into Key ID + Auth Data Length + Cryptographic Sequence Number | |
-| `TestOSPFHelloRoundTrip` | `internal/component/ospf/packet/hello_test.go` | network mask, hello-interval, options, priority, dead-interval, DR, BDR, and the neighbour list (0, 1, N entries) | |
-| `TestOSPFDDRoundTrip` | `internal/component/ospf/packet/dbdesc_test.go` | interface MTU, options, I/M/MS flags (all 8 combinations), DD sequence, list of 20-byte LSA headers | |
-| `TestOSPFLSReqRoundTrip` | `internal/component/ospf/packet/lsreq_test.go` | list of 12-byte (LS Type, LS ID, Advertising Router) triples (0, 1, N) | |
-| `TestOSPFLSUpdateRoundTrip` | `internal/component/ospf/packet/lsupdate_test.go` | 4-byte LSA count + N LSAs; iteration driven by LSA Length; consumed == Packet Length | |
-| `TestOSPFLSAckRoundTrip` | `internal/component/ospf/packet/lsack_test.go` | list of 20-byte LSA headers (0, 1, N) | |
-| `TestOSPFPacketChecksum` | `internal/component/ospf/packet/checksum_test.go` | RFC 1071 over the packet minus the 8-byte auth field, Checksum zeroed; verify(encode)==true | |
-| `TestOSPFPacketChecksumExcludesAuth` | `internal/component/ospf/packet/checksum_test.go` | flipping bytes in the 8-byte auth field does NOT change the packet checksum; flipping any other byte does | |
-| `TestOSPFPacketChecksumZeroForAuType2` | `internal/component/ospf/packet/checksum_test.go` | encoding with AuType 2 leaves the Checksum field zero (trap #10, R-6) | |
-| `TestOSPFLSAHeaderRoundTrip` | `internal/component/ospf/packet/lsa_test.go` | 20-byte LSA header (age, options, type, LS ID, advertising router, signed sequence, checksum, length) | |
-| `TestOSPFLSAChecksum` | `internal/component/ospf/packet/checksum_test.go` | Fletcher-16 over the LSA minus LS Age; verify(encode)==true; Length includes the 20-byte header | |
-| `TestOSPFLSAChecksumExcludesAge` | `internal/component/ospf/packet/checksum_test.go` | flipping LS Age does NOT change the Fletcher checksum; flipping any covered byte does | |
-| `TestOSPFRouterLSARoundTrip` | `internal/component/ospf/packet/lsa_router_test.go` | V/E/B flags + link records p2p/transit/stub/virtual; #TOS 0; 16-bit metric boundary (65535) | |
-| `TestOSPFNetworkLSARoundTrip` | `internal/component/ospf/packet/lsa_network_test.go` | network mask + attached-router list incl. DR; LS ID (DR iface addr) preserved verbatim (trap #5, R-4) | |
-| `TestOSPFSummaryLSARoundTrip` | `internal/component/ospf/packet/lsa_summary_test.go` | Type 3 + Type 4; mask (0.0.0.0 for Type 4) + TOS 0 + 24-bit metric boundary (16777215) | |
-| `TestOSPFExternalLSARoundTrip` | `internal/component/ospf/packet/lsa_external_test.go` | Type 5 + Type 7; mask + E-bit (E1/E2) + 24-bit metric + forwarding address + route tag; Type 7 P-bit in Options | |
-| `TestOSPFUnknownLSAPassthrough` | `internal/component/ospf/packet/lsa_opaque_test.go` | unknown LSA type (9/10/11) decode then re-encode is byte-identical (Length-driven) | |
-| `TestOSPFLSAIteratorTruncated` | `internal/component/ospf/packet/lsupdate_test.go` | iterator stops cleanly on a truncated LSA / bad Length, no panic | |
+| `TestOSPFPacketTypeConstants` | `internal/plugins/ospf/packet/header_test.go` | the 5 packet Type bytes (1 Hello, 2 DD, 3 LS Request, 4 LS Update, 5 LS Ack) and Version == 2 | |
+| `TestOSPFHeaderRoundTrip` | `internal/plugins/ospf/packet/header_test.go` | 24-byte common header encode/decode for all 5 types; rejects Version != 2 and a Packet Length exceeding the slice | |
+| `TestOSPFHeaderAuTypeField` | `internal/plugins/ospf/packet/header_test.go` | AuType 0/1/2 and the 8-byte Authentication field round-trip; AuType 2 decomposes into Key ID + Auth Data Length + Cryptographic Sequence Number | |
+| `TestOSPFHelloRoundTrip` | `internal/plugins/ospf/packet/hello_test.go` | network mask, hello-interval, options, priority, dead-interval, DR, BDR, and the neighbour list (0, 1, N entries) | |
+| `TestOSPFDDRoundTrip` | `internal/plugins/ospf/packet/dbdesc_test.go` | interface MTU, options, I/M/MS flags (all 8 combinations), DD sequence, list of 20-byte LSA headers | |
+| `TestOSPFLSReqRoundTrip` | `internal/plugins/ospf/packet/lsreq_test.go` | list of 12-byte (LS Type, LS ID, Advertising Router) triples (0, 1, N) | |
+| `TestOSPFLSUpdateRoundTrip` | `internal/plugins/ospf/packet/lsupdate_test.go` | 4-byte LSA count + N LSAs; iteration driven by LSA Length; consumed == Packet Length | |
+| `TestOSPFLSAckRoundTrip` | `internal/plugins/ospf/packet/lsack_test.go` | list of 20-byte LSA headers (0, 1, N) | |
+| `TestOSPFPacketChecksum` | `internal/plugins/ospf/packet/checksum_test.go` | RFC 1071 over the packet minus the 8-byte auth field, Checksum zeroed; verify(encode)==true | |
+| `TestOSPFPacketChecksumExcludesAuth` | `internal/plugins/ospf/packet/checksum_test.go` | flipping bytes in the 8-byte auth field does NOT change the packet checksum; flipping any other byte does | |
+| `TestOSPFPacketChecksumZeroForAuType2` | `internal/plugins/ospf/packet/checksum_test.go` | encoding with AuType 2 leaves the Checksum field zero (trap #10, R-6) | |
+| `TestOSPFLSAHeaderRoundTrip` | `internal/plugins/ospf/packet/lsa_test.go` | 20-byte LSA header (age, options, type, LS ID, advertising router, signed sequence, checksum, length) | |
+| `TestOSPFLSAChecksum` | `internal/plugins/ospf/packet/checksum_test.go` | Fletcher-16 over the LSA minus LS Age; verify(encode)==true; Length includes the 20-byte header | |
+| `TestOSPFLSAChecksumExcludesAge` | `internal/plugins/ospf/packet/checksum_test.go` | flipping LS Age does NOT change the Fletcher checksum; flipping any covered byte does | |
+| `TestOSPFRouterLSARoundTrip` | `internal/plugins/ospf/packet/lsa_router_test.go` | V/E/B flags + link records p2p/transit/stub/virtual; #TOS 0; 16-bit metric boundary (65535) | |
+| `TestOSPFNetworkLSARoundTrip` | `internal/plugins/ospf/packet/lsa_network_test.go` | network mask + attached-router list incl. DR; LS ID (DR iface addr) preserved verbatim (trap #5, R-4) | |
+| `TestOSPFSummaryLSARoundTrip` | `internal/plugins/ospf/packet/lsa_summary_test.go` | Type 3 + Type 4; mask (0.0.0.0 for Type 4) + TOS 0 + 24-bit metric boundary (16777215) | |
+| `TestOSPFExternalLSARoundTrip` | `internal/plugins/ospf/packet/lsa_external_test.go` | Type 5 + Type 7; mask + E-bit (E1/E2) + 24-bit metric + forwarding address + route tag; Type 7 P-bit in Options | |
+| `TestOSPFUnknownLSAPassthrough` | `internal/plugins/ospf/packet/lsa_opaque_test.go` | unknown LSA type (9/10/11) decode then re-encode is byte-identical (Length-driven) | |
+| `TestOSPFLSAIteratorTruncated` | `internal/plugins/ospf/packet/lsupdate_test.go` | iterator stops cleanly on a truncated LSA / bad Length, no panic | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -288,9 +288,9 @@ ospf-2 itself does decode-vector + fuzz.
 ### Fuzz Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `FuzzOSPFDecodePacket` | `internal/component/ospf/packet/fuzz_test.go` | decoder never panics on arbitrary bytes; bound checks before every slice | |
-| `FuzzOSPFLSAIterator` | `internal/component/ospf/packet/fuzz_test.go` | LSA iteration over arbitrary LS Update bytes terminates without panic | |
-| `FuzzOSPFRoundTrip` | `internal/component/ospf/packet/fuzz_test.go` | decode-then-encode of a valid corpus is stable (no byte drift) | |
+| `FuzzOSPFDecodePacket` | `internal/plugins/ospf/packet/fuzz_test.go` | decoder never panics on arbitrary bytes; bound checks before every slice | |
+| `FuzzOSPFLSAIterator` | `internal/plugins/ospf/packet/fuzz_test.go` | LSA iteration over arbitrary LS Update bytes terminates without panic | |
+| `FuzzOSPFRoundTrip` | `internal/plugins/ospf/packet/fuzz_test.go` | decode-then-encode of a valid corpus is stable (no byte drift) | |
 
 ### Future (if deferring any tests)
 - Opaque LSA types 9/10/11 are passthrough-only in v1 (decode-as-opaque + verbatim re-encode); per-TLV parsing of opaque bodies (TE / SR / Router Information) is a future framework, not this codec
@@ -335,33 +335,33 @@ ospf-2 itself does decode-vector + fuzz.
 | 17 | Existing docs show examples for this area? | No | grep `docs/architecture/wire/` at completion |
 
 ## Files to Create
-- `internal/component/ospf/packet/header.go` - common 24-byte header encode/decode + packet Type constants + Version validation + packet dispatch + AuType field framing
-- `internal/component/ospf/packet/hello.go` - Hello body codec (mask, intervals, options, priority, DR, BDR, neighbour list)
-- `internal/component/ospf/packet/dbdesc.go` - Database Description body codec (MTU, options, I/M/MS flags, DD sequence, LSA-header list)
-- `internal/component/ospf/packet/lsreq.go` - Link State Request body codec (12-byte triples)
-- `internal/component/ospf/packet/lsupdate.go` - Link State Update body codec (count + LSAs) + `LSAIterator` (Length-driven)
-- `internal/component/ospf/packet/lsack.go` - Link State Acknowledgment body codec (LSA-header list)
-- `internal/component/ospf/packet/lsa.go` - 20-byte LSA common header encode/decode + LS Type constants + per-type dispatch
-- `internal/component/ospf/packet/lsa_router.go` - Type 1 Router-LSA body codec (V/E/B flags + 12-byte link records)
-- `internal/component/ospf/packet/lsa_network.go` - Type 2 Network-LSA body codec (mask + attached-router list); LS ID preserved verbatim
-- `internal/component/ospf/packet/lsa_summary.go` - Type 3/4 Summary-LSA body codec (mask + TOS + 24-bit metric)
-- `internal/component/ospf/packet/lsa_external.go` - Type 5 AS-External + Type 7 NSSA body codec (mask + E-bit/24-bit metric + forwarding address + route tag)
-- `internal/component/ospf/packet/lsa_opaque.go` - unknown LSA-type opaque span retention + verbatim re-serialization (Length-driven)
-- `internal/component/ospf/packet/checksum.go` - packet RFC 1071 application (covered range excludes the 8-byte auth field) + LSA Fletcher-16 application (covered range excludes LS Age) + verify helpers (algorithms imported from ospf-1)
-- `internal/component/ospf/packet/header_test.go` - common header + Type constant + AuType field tests
-- `internal/component/ospf/packet/hello_test.go` - Hello round-trip tests
-- `internal/component/ospf/packet/dbdesc_test.go` - DD round-trip + I/M/MS flag tests
-- `internal/component/ospf/packet/lsreq_test.go` - LS Request round-trip tests
-- `internal/component/ospf/packet/lsupdate_test.go` - LS Update round-trip + iterator-truncation tests
-- `internal/component/ospf/packet/lsack_test.go` - LS Ack round-trip tests
-- `internal/component/ospf/packet/lsa_test.go` - LSA header round-trip tests
-- `internal/component/ospf/packet/lsa_router_test.go` - Router-LSA round-trip + metric boundary tests
-- `internal/component/ospf/packet/lsa_network_test.go` - Network-LSA round-trip + LS ID preservation tests
-- `internal/component/ospf/packet/lsa_summary_test.go` - Summary-LSA round-trip + 24-bit metric boundary tests
-- `internal/component/ospf/packet/lsa_external_test.go` - External/NSSA round-trip + E1/E2 + P-bit tests
-- `internal/component/ospf/packet/lsa_opaque_test.go` - unknown-LSA passthrough test
-- `internal/component/ospf/packet/checksum_test.go` - both checksum covered-range + vector + corruption tests
-- `internal/component/ospf/packet/fuzz_test.go` - decode/iterator/round-trip fuzz targets
+- `internal/plugins/ospf/packet/header.go` - common 24-byte header encode/decode + packet Type constants + Version validation + packet dispatch + AuType field framing
+- `internal/plugins/ospf/packet/hello.go` - Hello body codec (mask, intervals, options, priority, DR, BDR, neighbour list)
+- `internal/plugins/ospf/packet/dbdesc.go` - Database Description body codec (MTU, options, I/M/MS flags, DD sequence, LSA-header list)
+- `internal/plugins/ospf/packet/lsreq.go` - Link State Request body codec (12-byte triples)
+- `internal/plugins/ospf/packet/lsupdate.go` - Link State Update body codec (count + LSAs) + `LSAIterator` (Length-driven)
+- `internal/plugins/ospf/packet/lsack.go` - Link State Acknowledgment body codec (LSA-header list)
+- `internal/plugins/ospf/packet/lsa.go` - 20-byte LSA common header encode/decode + LS Type constants + per-type dispatch
+- `internal/plugins/ospf/packet/lsa_router.go` - Type 1 Router-LSA body codec (V/E/B flags + 12-byte link records)
+- `internal/plugins/ospf/packet/lsa_network.go` - Type 2 Network-LSA body codec (mask + attached-router list); LS ID preserved verbatim
+- `internal/plugins/ospf/packet/lsa_summary.go` - Type 3/4 Summary-LSA body codec (mask + TOS + 24-bit metric)
+- `internal/plugins/ospf/packet/lsa_external.go` - Type 5 AS-External + Type 7 NSSA body codec (mask + E-bit/24-bit metric + forwarding address + route tag)
+- `internal/plugins/ospf/packet/lsa_opaque.go` - unknown LSA-type opaque span retention + verbatim re-serialization (Length-driven)
+- `internal/plugins/ospf/packet/checksum.go` - packet RFC 1071 application (covered range excludes the 8-byte auth field) + LSA Fletcher-16 application (covered range excludes LS Age) + verify helpers (algorithms imported from ospf-1)
+- `internal/plugins/ospf/packet/header_test.go` - common header + Type constant + AuType field tests
+- `internal/plugins/ospf/packet/hello_test.go` - Hello round-trip tests
+- `internal/plugins/ospf/packet/dbdesc_test.go` - DD round-trip + I/M/MS flag tests
+- `internal/plugins/ospf/packet/lsreq_test.go` - LS Request round-trip tests
+- `internal/plugins/ospf/packet/lsupdate_test.go` - LS Update round-trip + iterator-truncation tests
+- `internal/plugins/ospf/packet/lsack_test.go` - LS Ack round-trip tests
+- `internal/plugins/ospf/packet/lsa_test.go` - LSA header round-trip tests
+- `internal/plugins/ospf/packet/lsa_router_test.go` - Router-LSA round-trip + metric boundary tests
+- `internal/plugins/ospf/packet/lsa_network_test.go` - Network-LSA round-trip + LS ID preservation tests
+- `internal/plugins/ospf/packet/lsa_summary_test.go` - Summary-LSA round-trip + 24-bit metric boundary tests
+- `internal/plugins/ospf/packet/lsa_external_test.go` - External/NSSA round-trip + E1/E2 + P-bit tests
+- `internal/plugins/ospf/packet/lsa_opaque_test.go` - unknown-LSA passthrough test
+- `internal/plugins/ospf/packet/checksum_test.go` - both checksum covered-range + vector + corruption tests
+- `internal/plugins/ospf/packet/fuzz_test.go` - decode/iterator/round-trip fuzz targets
 - `test/ospf-wire/ospf-packet-1.ci` - `ze` decode functional test for a captured OSPF Hello
 - `test/ospf-wire/ospf-lsupdate-frr.ci` - `ze` decode of a real FRR LS Update capture
 - `test/ospf-wire/ospf-truncated.ci` - truncated-input error-path test (AC-17)
@@ -386,15 +386,15 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- common header parse + packet dispatch skeleton + failing wiring tests
    - Tests: `TestOSPFPacketTypeConstants`, `TestOSPFHeaderRoundTrip`, `test/ospf-wire/ospf-packet-1.ci` (failing)
-   - Files: `internal/component/ospf/packet/header.go`
+   - Files: `internal/plugins/ospf/packet/header.go`
    - Verify: a packet's common header parses, validates Version == 2 and Packet Length, and dispatches; bodies are stubs; wiring test fails because bodies are not implemented
 2. **Phase: Both checksum applications** -- isolate the highest-risk item first
    - Tests: `TestOSPFPacketChecksum`, `TestOSPFPacketChecksumExcludesAuth`, `TestOSPFPacketChecksumZeroForAuType2`, `TestOSPFLSAChecksum`, `TestOSPFLSAChecksumExcludesAge`
-   - Files: `internal/component/ospf/packet/checksum.go`
+   - Files: `internal/plugins/ospf/packet/checksum.go`
    - Verify: packet RFC 1071 over the right covered range (auth field excluded), Checksum zeroed during compute, left zero for AuType 2; LSA Fletcher over the right covered range (LS Age excluded); both `Verify(encode(x))` properties hold; corruption detected
 3. **Phase: LSA common header + opaque passthrough** -- 20-byte header + Length-driven opaque retention
    - Tests: `TestOSPFLSAHeaderRoundTrip`, `TestOSPFUnknownLSAPassthrough`, `TestOSPFLSAIteratorTruncated`
-   - Files: `internal/component/ospf/packet/lsa.go`, `lsa_opaque.go`
+   - Files: `internal/plugins/ospf/packet/lsa.go`, `lsa_opaque.go`
    - Verify: LSA header round-trips; unknown LSA type re-encodes byte-identical; iteration never panics on a bad Length
 4. **Phase: LSA bodies** -- Router (1), Network (2), Summary (3/4), External (5) / NSSA (7)
    - Tests: `TestOSPFRouterLSARoundTrip`, `TestOSPFNetworkLSARoundTrip`, `TestOSPFSummaryLSARoundTrip`, `TestOSPFExternalLSARoundTrip` + metric boundary tests + Network-LSA LS ID preservation + Type 7 P-bit
@@ -406,7 +406,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify: every packet round-trips; DD I/M/MS bit positions pinned; LS Update LSA iteration consumes exactly Packet Length; AuType field round-trips; wiring test `test/ospf-wire/ospf-packet-1.ci` passes
 6. **Phase: Fuzz** -- decode/iterator/round-trip fuzz targets
    - Tests: `FuzzOSPFDecodePacket`, `FuzzOSPFLSAIterator`, `FuzzOSPFRoundTrip`
-   - Files: `internal/component/ospf/packet/fuzz_test.go`
+   - Files: `internal/plugins/ospf/packet/fuzz_test.go`
    - Verify: short fuzz run finds no panic; bound checks confirmed
 7. **Functional + real-capture tests** -- `ospf-packet-1.ci` (Hello), `ospf-lsupdate-frr.ci` (real FRR LS Update; both checksums verify), `ospf-truncated.ci` (error path)
 8. **RFC refs** -- add `// RFC 2328 Section A.X` (and RFC 905 / RFC 1071 / RFC 3101) comments above enforcing code
@@ -431,12 +431,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| packet package | `ls internal/component/ospf/packet/` |
-| all 5 packet codecs | `grep -l 'func Decode' internal/component/ospf/packet/{hello,dbdesc,lsreq,lsupdate,lsack}.go` |
-| all in-scope LSA codecs | `grep -l 'func Decode' internal/component/ospf/packet/lsa_{router,network,summary,external}.go` |
-| both checksums + vectors | `go test ./internal/component/ospf/packet/ -run TestOSPF.*Checksum` |
-| unknown-LSA passthrough | `go test ./internal/component/ospf/packet/ -run TestOSPFUnknownLSAPassthrough` |
-| fuzz targets | `go test ./internal/component/ospf/packet/ -run Fuzz -fuzztime=10s` |
+| packet package | `ls internal/plugins/ospf/packet/` |
+| all 5 packet codecs | `grep -l 'func Decode' internal/plugins/ospf/packet/{hello,dbdesc,lsreq,lsupdate,lsack}.go` |
+| all in-scope LSA codecs | `grep -l 'func Decode' internal/plugins/ospf/packet/lsa_{router,network,summary,external}.go` |
+| both checksums + vectors | `go test ./internal/plugins/ospf/packet/ -run TestOSPF.*Checksum` |
+| unknown-LSA passthrough | `go test ./internal/plugins/ospf/packet/ -run TestOSPFUnknownLSAPassthrough` |
+| fuzz targets | `go test ./internal/plugins/ospf/packet/ -run Fuzz -fuzztime=10s` |
 | functional + real-capture tests | `ls test/ospf-wire/ospf-packet-1.ci test/ospf-wire/ospf-lsupdate-frr.ci` |
 
 ### Security Review Checklist (/implement stage 11)
@@ -519,16 +519,16 @@ the Type 7 P-bit in the Options field (RFC 3101 §2.4).
 ## Implementation Summary
 
 ### What Was Implemented
-- (To be filled during implementation.)
+- Pending: no implementation has run for this design spec; fill with observed implementation evidence during /ze-implement.
 
 ### Bugs Found/Fixed
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ### Documentation Updates
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ### Deviations from Plan
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ## Implementation Audit
 
@@ -571,10 +571,10 @@ the Type 7 P-bit in the Options field (RFC 3101 §2.4).
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | (run `/ze-review` at implementation) | file:line | fixed / deferred / acknowledged |
+| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
 
 ### Fixes applied
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -614,7 +614,7 @@ the Type 7 P-bit in the Options field (RFC 3101 §2.4).
 - [ ] Wiring Test table complete - every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled - 0 BLOCKER, 0 ISSUE)
 - [ ] `make ze-test` passes (lint + all ze tests)
-- [ ] Feature code integrated (`internal/component/ospf/packet/`)
+- [ ] Feature code integrated (`internal/plugins/ospf/packet/`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Architecture docs and guides updated where changed behavior is documented

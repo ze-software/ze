@@ -13,13 +13,13 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
 3. `docs/research/ospf-implementation-guide.md` -- clean-room OSPF protocol + architecture guide (1900 lines): packet/LSA codec, ISM/NSM, DR election, flooding (§13), SPF (§16), areas/ABR/ASBR, NSSA, auth, concurrency model, phased order, ze package layout
-4. `plan/spec-isis-0-umbrella.md` -- the sibling IS-IS umbrella; OSPF reuses the SAME route-install / redistribution / component / sysrib infra and the SAME spec-set conventions. Read it for the patterns OSPF copies verbatim
-5. `internal/component/rsvpte/transport_linux.go` -- the in-tree `AF_INET SOCK_RAW` raw-IP transport on an IP protocol number (proto 46). OSPF's transport (proto 89) is this pattern plus IP multicast group membership
-6. `internal/component/ldp/register.go` -- closest component template (protocol engine + SDK lifecycle: RunEngine / OnConfigure / OnStarted / OnExecuteCommand)
+4. `plan/learned/926-isis-0-umbrella.md` -- the sibling IS-IS umbrella; OSPF reuses the SAME route-install / redistribution / edge-plugin / sysrib infra and the SAME spec-set conventions. Read it for the patterns OSPF copies verbatim
+5. `internal/plugins/rsvpte/transport_linux.go` -- the in-tree `AF_INET SOCK_RAW` raw-IP transport on an IP protocol number (proto 46). OSPF's transport (proto 89) is this pattern plus IP multicast group membership
+6. `internal/plugins/ldp/register.go` -- closest edge-plugin template (protocol engine + SDK lifecycle: RunEngine / OnConfigure / OnStarted / OnExecuteCommand)
 7. `internal/core/rib/locrib/candidate.go` -- unified cross-protocol Loc-RIB and best-path selection (the FIB-install path: SPF -> `locrib.Path` -> sysrib `OnChange` -> fibkernel). The sysrib path-group ECMP expansion (`BestChangeEntry.ECMPPaths`) ALREADY EXISTS (added by IS-IS); OSPF reuses it
 8. `internal/core/redistevents/events.go` -- route-change producer payload (the REDISTRIBUTION path to BGP, NOT the FIB-install path)
 9. Child specs: `plan/spec-ospf-1-types.md` through `plan/spec-ospf-13-cli-diag-interop.md`
-10. `plan/spec-ospfv3-0-umbrella.md` -- the deferred OSPFv3 (RFC 5340) skeleton; v3 is a SEPARATE component, not part of this set
+10. `plan/spec-ospfv3-0-umbrella.md` -- the deferred OSPFv3 (RFC 5340) follow-up; v3 is a separate edge plugin, not part of this set
 
 ## Task
 
@@ -40,14 +40,14 @@ already distilled in `docs/research/ospf-implementation-guide.md`. OSPF runs
 AllDRouters (`224.0.0.6`) multicast groups, not over TCP/UDP. Unlike IS-IS
 (which needed a brand-new raw Layer-2 transport), OSPF's transport is a known
 in-tree pattern: RSVP-TE already opens an `AF_INET SOCK_RAW` socket on an IP
-protocol number (`internal/component/rsvpte/transport_linux.go`, proto 46); OSPF
+protocol number (`internal/plugins/rsvpte/transport_linux.go`, proto 46); OSPF
 is that pattern on proto 89 plus IP multicast group membership.
 
 ### Target scope (decided with user, 2026-06-20)
 
 | Lever | Decision | Effect on the set |
 |-------|----------|-------------------|
-| Protocol version | **OSPFv2 only** | OSPFv3 (RFC 5340) is a SEPARATE component and a SEPARATE future umbrella (`spec-ospfv3-0-umbrella.md`, skeleton). The guide is emphatic: do NOT unify v2/v3 (FRR ships two daemons). The LSA registries and wire encodings differ enough that sharing leaks detail into both |
+| Protocol version | **OSPFv2 only** | OSPFv3 (RFC 5340) is a separate edge plugin and separate follow-up umbrella (`spec-ospfv3-0-umbrella.md`). The guide is emphatic: do NOT unify v2/v3 (FRR ships two daemons). The LSA registries and wire encodings differ enough that sharing leaks detail into both |
 | Area hierarchy | **Full: multi-area + ABR + stub + NSSA up front** | Backbone + non-backbone areas, ABR Type 3/4 summaries with area ranges (ospf-9), stub-area filtering + default injection and NSSA Type 7 + translator election + Type 7->5 translation (ospf-11) all in scope |
 | Network types | **Broadcast (DR/BDR) + point-to-point together** | LAN broadcast with DR/BDR election and Network-LSAs is in scope (ospf-5), alongside point-to-point. NBMA and point-to-multipoint are out of scope (future) |
 | Authentication | **In v1** | AuType 0 (Null) / 1 (Simple) / 2 (Cryptographic: RFC 2328 MD5 + RFC 5709 HMAC-SHA) / 3 (RFC 7474 Cryptographic with Extended Sequence Numbers) in the common-header codec (ospf-2); key management and per-packet verify/sign as a dedicated child (ospf-12) |
@@ -61,7 +61,7 @@ is that pattern on proto 89 plus IP multicast group membership.
 | FRRouting `ospfd` | Feature-complete C reference | ~80 files; monolithic packet codec (`ospf_packet.c`) + monolithic LSA codec (`ospf_lsa.c`); per-file route subsystems (`ospf_ia.c`, `ospf_asbr.c`, `ospf_ase.c`, `ospf_abr.c`). Study for edge cases and route-computation split |
 | BIRD `proto/ospf` | Compact Go-friendly reference | 18 files; one file per packet type (`hello.c`, `dbdes.c`, `lsreq.c`, `lsupd.c`, `lsack.c`); SPF + inter-area + external + NSSA all in `rt.c`. Study the per-packet-type file split and the single-LSDB-with-domain-filter idea |
 
-The sibling IS-IS implementation (`internal/component/isis/`) is the closest
+The sibling IS-IS implementation (`internal/plugins/isis/`) is the closest
 in-tree precedent for everything ABOVE the wire (component, config,
 adjacency-style FSM, lazy LSDB, SPF -> Loc-RIB install, redistribution). OSPF
 copies those patterns; it does NOT share code with IS-IS (guide §11 "Why not
@@ -72,18 +72,18 @@ pseudo-node LSPs; LSA vs LSP lookup keys differ; metric semantics differ).
 
 | Capability Ze already has | Location (file:line) | How OSPF uses it |
 |---------------------------|----------------------|------------------|
-| Raw IP socket on an IP protocol number (`AF_INET SOCK_RAW`), kernel builds the IP header, strip-IP-header-on-receive | `internal/component/rsvpte/transport_linux.go:24-127` | Direct model for the OSPF transport (proto 89). OSPF ADDS: IP multicast group membership (`224.0.0.5`/`224.0.0.6`) per enabled interface, TTL=1, per-interface source binding |
-| Raw-socket doctor check pattern (open+close, `CAP_NET_RAW`) | `internal/component/rsvpte/doctor_linux.go:14`, `internal/component/isis/transport/doctor_linux.go` | Model for the `doctor-ospf-raw-socket` check |
+| Raw IP socket on an IP protocol number (`AF_INET SOCK_RAW`), kernel builds the IP header, strip-IP-header-on-receive | `internal/plugins/rsvpte/transport_linux.go:24-127` | Direct model for the OSPF transport (proto 89). OSPF ADDS: IP multicast group membership (`224.0.0.5`/`224.0.0.6`) per enabled interface, TTL=1, per-interface source binding |
+| Raw-socket doctor check pattern (open+close, `CAP_NET_RAW`) | `internal/plugins/rsvpte/doctor_linux.go:14`, `internal/plugins/isis/transport/doctor_linux.go` | Model for the `doctor-ospf-raw-socket` check |
 | Interface up/down + address add/remove EventBus subscription | `internal/plugins/iface/netlink/monitor_linux.go:72-87`; `internal/component/iface/events` | Drive ISM Up/Down, multicast (re)join, neighbour teardown, and Router-LSA re-origination on link/address change |
-| Unified Loc-RIB insertion (the FIB-install path) | `internal/core/rib/locrib/`; IS-IS example `internal/component/isis/spf/install.go`; BGP example `internal/component/bgp/plugins/rib/rib_bestchange.go:813` (`InsertForward`) | OSPF INSTALLS routes here via `locrib.Path{Source = OSPF ProtocolID, Instance, NextHop, AdminDistance, Metric}` (one Path per ECMP nexthop, distinct `Instance`); sysrib consumes `loc.OnChange` and programs the kernel |
-| sysrib Loc-RIB path-group ECMP expansion into `BestChangeEntry.ECMPPaths` | `internal/plugins/sysrib/sysrib.go`; `internal/plugins/sysrib/sysrib_ecmp_pathgroup_test.go` | **ALREADY EXISTS** (added by IS-IS, isis-9). OSPF reuses it for free: equal-cost OSPF nexthops reach the kernel without any new sysrib work |
-| Admin-distance config per protocol | `internal/plugins/sysrib/yang/ze-rib-conf.yang:42` (leaf `ospf`); `sysrib.go` `adminDist` map (`"ospf": 110`) | **The `ospf` admin-distance leaf already exists** (default 110). OSPF sets `AdminDistance` = 110 on `locrib.Path`. No new sysrib leaves |
-| Redistribution producer payload (pooled, value-typed) | `internal/core/redistevents/events.go:36-122`; IS-IS example `internal/component/isis/redistribute/`; orchestrator `internal/component/bgp/plugins/redistribute_egress/redistribute.go` | Used ONLY for redistribution to other protocols; NOT the FIB-install path. OSPF registers as a source `ospf` (-> BGP) and a `RedistConsumer` (connected/static/BGP -> Type 5 AS-External LSAs) |
+| Unified Loc-RIB insertion (the FIB-install path) | `internal/core/rib/locrib/`; IS-IS example `internal/plugins/isis/spf/install.go`; BGP example `internal/component/bgp/plugins/rib/rib_bestchange.go:813` (`InsertForward`) | OSPF INSTALLS routes here via `locrib.Path{Source = OSPF ProtocolID, Instance, NextHop, AdminDistance, Metric}` (one Path per ECMP nexthop, distinct `Instance`); sysrib consumes `loc.OnChange` and programs the kernel |
+| sysrib Loc-RIB path-group ECMP expansion into `BestChangeEntry.ECMPPaths` | `internal/component/sysrib/sysrib.go`; `internal/component/sysrib/sysrib_ecmp_pathgroup_test.go` | **ALREADY EXISTS** (added by IS-IS, isis-9). OSPF reuses it for free: equal-cost OSPF nexthops reach the kernel without any new sysrib work |
+| Admin-distance config per protocol | `internal/component/sysrib/yang/ze-rib-conf.yang:42` (leaf `ospf`); `sysrib.go` `adminDist` map (`"ospf": 110`) | **The `ospf` admin-distance leaf already exists** (default 110). OSPF sets `AdminDistance` = 110 on `locrib.Path`. No new sysrib leaves |
+| Redistribution producer payload (pooled, value-typed) | `internal/core/redistevents/events.go:36-122`; IS-IS example `internal/plugins/isis/redistribute/`; orchestrator `internal/component/bgp/plugins/redistribute_egress/redistribute.go` | Used ONLY for redistribution to other protocols; NOT the FIB-install path. OSPF registers as a source `ospf` (-> BGP) and a `RedistConsumer` (connected/static/BGP -> Type 5 AS-External LSAs) |
 | Redistribution source + consumer registries | `internal/component/config/redistribute/registry.go`, `consumer.go` | OSPF registers source + consumer exactly like IS-IS (isis-11) |
-| Component registration + SDK lifecycle | `internal/component/ldp/register.go`, `internal/component/isis/register.go`; `registry.Registration` | OSPF component skeleton (RunEngine, OnConfigure/OnStarted/OnExecuteCommand) |
+| Component registration + SDK lifecycle | `internal/plugins/ldp/register.go`, `internal/plugins/isis/register.go`; `registry.Registration` | OSPF component skeleton (RunEngine, OnConfigure/OnStarted/OnExecuteCommand) |
 | YANG module discovery/merge (`ze-*-conf.yang`) | `internal/component/config/yang_schema.go:203-231`; `internal/component/config/yang/loader.go` | `ze-ospf-conf.yang` auto-merged at init; `make generate` wires `all/all.go` |
 | Custom config validators with `CompleteFn` | `internal/component/config/validators.go`, `validators_register.go` (IS-IS NET/system-id validators) | OSPF router-id (dotted-quad) and area-id validators |
-| CLI show registration (central `ze-show`/`ze-clear`) | `internal/component/ldp/cmd_show.go`, `internal/component/isis/cmd_show.go`; `pluginserver.RegisterRPCs` | `show ip ospf neighbor/interface/database/route/border-routers/spf` |
+| CLI show registration (central `ze-show`/`ze-clear`) | `internal/plugins/ldp/cmd_show.go`, `internal/plugins/isis/cmd_show.go`; `pluginserver.RegisterRPCs` | `show ip ospf neighbor/interface/database/route/border-routers/spf` |
 | Doctor checks, metrics, web SSE | `ai/rules/doctor-checks.md`, `internal/core/metrics`, `internal/component/web` | `CAP_NET_RAW` check, OSPF counters, neighbour/database views |
 
 **OSPF introduces NO genuinely new low-level capability.** The raw-IP transport
@@ -104,7 +104,7 @@ SPF with the two-way check, and multi-area ABR/ASBR/NSSA route computation.
 | Lazy / buffer-first LSDB | Store received LSAs as raw bytes plus parsed metadata (LSA key, sequence, age, checksum); parse the body on demand. Matches Ze's zero-copy philosophy (`ai/rules/buffer-first.md`) and lets unknown opaque LSAs re-flood verbatim |
 | IP transport modelled on RSVP-TE | Reuse the proven `AF_INET SOCK_RAW` pattern; isolate the raw-socket backend behind an interface so a future BSD/VPP backend can drop in. ADD only multicast membership |
 | Install via Loc-RIB insertion | OSPF does not invent route installation: SPF results are INSERTED into the Loc-RIB (`locrib.Path`, like IS-IS `spf/install.go` and BGP `rib_bestchange.go:813`); sysrib + fibkernel arbitrate and program the kernel. `redistevents` is a SEPARATE path used only for redistribution to BGP (ospf-10), never for FIB install |
-| Component, not plugin dir | Lives in `internal/component/ospf/` like BGP/LDP/RSVP-TE/IS-IS (engine-owning protocols), not `internal/plugins/` |
+| Edge plugin, not component dir | Lives in `internal/plugins/ospf/` like LDP, RSVP-TE, and IS-IS. OSPF is a config-driven protocol engine with no reverse dependencies, so `ai/rules/module-tiers.md` places it in `internal/plugins/`, not `internal/component/` |
 | Per-interface goroutine split | RX / TX / timers per interface; ISM and NSM as independent event-driven engines; LSDB guarded by a single writer; SPF debounced and event-driven (guide §9 recommended model) |
 | One file per packet type, one file per LSA-type family | Group the codec by packet type (`hello`, `dbdesc`, `lsreq`, `lsupdate`, `lsack`) and by LSA-type family (`lsa_router`, `lsa_network`, `lsa_summary`, `lsa_external`), the BIRD-style middle path between FRR's two monoliths and a file-per-field scatter |
 | Per-area LSDB | Each area keeps its own LSDB (FRR model); Type 5 AS-External LSAs live in an AS-wide store shared across areas. Simpler than BIRD's single-LSDB-with-domain-filter for a first pass |
@@ -135,7 +135,7 @@ SPF with the two-way check, and multi-area ABR/ASBR/NSSA route computation.
 
 | Area | Reason |
 |------|--------|
-| OSPFv3 (RFC 5340, IPv6) | Separate component + separate umbrella (`spec-ospfv3-0-umbrella.md`). Different wire format and LSA registry; guide §15 says do NOT unify |
+| OSPFv3 (RFC 5340, IPv6) | Separate edge plugin + separate follow-up umbrella (`spec-ospfv3-0-umbrella.md`). Different wire format and LSA registry; guide §15 says do NOT unify |
 | Opaque-LSA framework (RFC 5250) and consumers (TE RFC 3630, Router Information RFC 7770, Extended Link/Prefix RFC 7684) | Plumbing is a SHOULD; consumers are large extensions on a stable base. Future umbrella |
 | Segment Routing (RFC 8665), TI-LFA / LFA (RFC 5286) | Depend on opaque framework + stable base. Future |
 | Virtual links (RFC 2328 §15) | Advanced backbone-repair feature; add once the backbone is solid (guide §10 decision) |
@@ -151,7 +151,7 @@ Modelled on guide §11 and the IS-IS component layout.
 
 | Path | Concern | Spec |
 |------|---------|------|
-| `internal/component/ospf/register.go` | component registration + RunEngine + SDK lifecycle | ospf-4 |
+| `internal/plugins/ospf/register.go` | component registration + RunEngine + SDK lifecycle | ospf-4 |
 | `config.go` | config parse/resolve from YANG tree | ospf-4 |
 | `instance.go` | top-level OSPF instance: router-id, area map, AS-external store, timers, goroutine lifecycle, packet receive dispatcher | ospf-4 |
 | `area.go` | per-area state: LSDB, interface set, SPF trigger | ospf-4 / ospf-8 |
@@ -283,16 +283,16 @@ assigned rows.
 | 1 | `spec-ospf-1-types.md` | Domain types (RouterID, AreaID, LSAKey, LSSequenceNumber, LSAge incl. MaxAge/DoNotAge, Metric, Options) with parse/format/compare/serialize; Fletcher-16 (LSA) and IP one's-complement (packet) checksums with RFC 905 / RFC 1071 vector tests; no I/O | - |
 | 2 | `spec-ospf-2-wire.md` | Codec for the 24-byte common header (AuType 0/1/2/3), the 5 packet types (Hello, DD, LS Request, LS Update, LS Ack), the 20-byte LSA header, and LSA bodies (Router 1, Network 2, Summary 3/4, AS-External 5, NSSA 7); round-trip + fuzz; real-capture decode | `spec-ospf-1-types.md` |
 | 3 | `spec-ospf-3-ip-transport.md` | Raw IP transport: `AF_INET SOCK_RAW` proto 89 behind an interface, IP multicast membership (`224.0.0.5`/`224.0.0.6`) per enabled interface, TTL=1, per-interface RX/TX goroutines, IP-header strip, `CAP_NET_RAW` doctor check | `spec-ospf-1-types.md` |
-| 4 | `spec-ospf-4-component-config.md` | **Wiring backbone (MANDATORY first to implement)**: `internal/component/ospf/` registration, `ze-ospf-conf.yang` (router-id, areas/area-type/ranges, per-interface area/network-type/cost/timers/priority/passive/auth refs), config resolve to typed structs, instance/area/interface scaffolding, packet receive dispatcher, OnConfigure/OnConfigApply/OnStarted, `make generate`, `all/all.go` | `spec-ospf-3-ip-transport.md` |
+| 4 | `spec-ospf-4-component-config.md` | **Wiring backbone (MANDATORY before runtime specs)**: `internal/plugins/ospf/` registration, `ze-ospf-conf.yang` (router-id, areas/area-type/ranges/auth defaults, per-interface area/network-type/cost/timers/priority/passive/auth refs), config resolve to typed structs, instance/area/interface scaffolding, packet receive dispatcher using the ospf-2 common-header codec, OnConfigure/OnConfigApply/OnStarted, `make generate`, `all/all.go` | `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md` |
 | 5 | `spec-ospf-5-interface-ism.md` | Interface State Machine (Down/Loopback/Waiting/Point-to-Point/DROther/Backup/DR) + events, Hello send/receive + header validation, DR/BDR election (RFC 2328 §9.4 incl. sticky rule), Wait timer; `show ip ospf interface` | `spec-ospf-2-wire.md`, `spec-ospf-4-component-config.md` |
 | 6 | `spec-ospf-6-neighbor-nsm.md` | Neighbor State Machine (Down/Attempt/Init/2-Way/ExStart/Exchange/Loading/Full) + events, DD master/slave negotiation (I/M/MS bits, DD sequence, MTU check), LS Request list population + drain, adjacency formation rules; `show ip ospf neighbor` | `spec-ospf-5-interface-ism.md` |
 | 7 | `spec-ospf-7-lsdb-flooding.md` | Per-area LSDB (lazy raw bytes + metadata), self-LSA origination (Router-LSA from interfaces/neighbours, Network-LSA as DR), the §13 flooding procedure (freshness compare §13.1, retransmit lists, delayed acks, MinLSArrival/MinLSInterval), MaxAge walker + purge, LSRefresh, sequence wraparound, stub-router (max-metric) origination; `show ip ospf database` | `spec-ospf-6-neighbor-nsm.md` |
 | 8 | `spec-ospf-8-spf-rib.md` | **SPF + FIB install**: intra-area two-stage Dijkstra (§16.1) over Router/Network-LSAs with the two-way check, ECMP equal-cost parent merge, SPF throttle (exponential back-off), route table with path types, INSERT into Loc-RIB with `AdminDistance` = 110 -> sysrib `OnChange` -> fibkernel (reusing the existing ECMP path-group expansion); `show ip ospf route`, `show ip ospf spf` | `spec-ospf-7-lsdb-flooding.md` |
 | 9 | `spec-ospf-9-inter-area-abr.md` | ABR detection, Type 3 (network) and Type 4 (ASBR) Summary-LSA origination into each attached area, inter-area route computation (§16.2 from summaries, §16.3 ABR examines backbone summaries), area ranges (aggregate / not-advertise), backbone-attachment rule; `show ip ospf border-routers` | `spec-ospf-8-spf-rib.md` |
-| 10 | `spec-ospf-10-as-external-asbr.md` | ASBR: Type 5 AS-External-LSA origination on redistributed routes, external route computation (§16.4) with E1/E2 + forwarding-address resolution, `default-information originate`; register OSPF as redistribution source `ospf` (-> BGP) and `RedistConsumer` (connected/static/BGP -> Type 5); `redistribute` YANG wiring | `spec-ospf-8-spf-rib.md` |
+| 10 | `spec-ospf-10-as-external-asbr.md` | ASBR: Type 5 AS-External-LSA origination on redistributed routes, external route computation (§16.4) with E1/E2 + forwarding-address resolution after the ospf-9 inter-area route table exists, `default-information originate`; register OSPF as redistribution source `ospf` (-> BGP) and `RedistConsumer` (connected/static/BGP -> Type 5); `redistribute` YANG wiring | `spec-ospf-8-spf-rib.md`, `spec-ospf-9-inter-area-abr.md` |
 | 11 | `spec-ospf-11-stub-nssa.md` | Stub areas (suppress Type 4/5 in the area, ABR injects a Type 3 default; totally-stubby `no-summary`), NSSA (RFC 3101): Type 7 origination + flooding within the NSSA, translator election (§3.5, highest Router ID ABR with the P-bit), Type 7 -> Type 5 translation onto the backbone, NSSA default handling | `spec-ospf-9-inter-area-abr.md`, `spec-ospf-10-as-external-asbr.md` |
-| 12 | `spec-ospf-12-auth.md` | Authentication: AuType 1 (Simple), AuType 2 (Cryptographic: RFC 2328 MD5 + RFC 5709 HMAC-SHA), and AuType 3 (RFC 7474 Cryptographic with Extended Sequence Numbers), per-interface key chains with area `inherit`, verify-on-receive / sign-on-send for all 5 packet types, key rotation, packet-checksum-zeroed handling | `spec-ospf-2-wire.md`, `spec-ospf-4-component-config.md`, `spec-ospf-5-interface-ism.md`, `spec-ospf-6-neighbor-nsm.md` |
-| 13 | `spec-ospf-13-cli-diag-interop.md` | CLI completeness (`show ip ospf` + subcommands, `clear ip ospf`), web neighbour/database views, Prometheus metrics scrape/assert, doctor checks, max-metric config, FRR `ospfd` interop scenarios (P2P, broadcast/DR, multi-area, stub, NSSA, redistribution, auth, convergence) | `spec-ospf-5-interface-ism.md`, `spec-ospf-7-lsdb-flooding.md`, `spec-ospf-8-spf-rib.md` |
+| 12 | `spec-ospf-12-auth.md` | Authentication: AuType 1 (Simple), AuType 2 (Cryptographic: RFC 2328 MD5 + RFC 5709 HMAC-SHA), and AuType 3 (RFC 7474 Cryptographic with Extended Sequence Numbers), per-interface key chains with area `inherit`, verify-on-receive / sign-on-send for all 5 packet types including LS Update/Ack, key rotation, packet-checksum-zeroed handling | `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md`, `spec-ospf-4-component-config.md`, `spec-ospf-5-interface-ism.md`, `spec-ospf-6-neighbor-nsm.md`, `spec-ospf-7-lsdb-flooding.md` |
+| 13 | `spec-ospf-13-cli-diag-interop.md` | CLI completeness (`show ip ospf` + subcommands, `clear ip ospf`), web neighbour/database views, Prometheus metrics scrape/assert, doctor checks, max-metric config, FRR `ospfd` interop scenarios (P2P, broadcast/DR, multi-area, redistribution, stub/NSSA, auth, convergence) | `spec-ospf-1-types.md`, `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md`, `spec-ospf-4-component-config.md`, `spec-ospf-5-interface-ism.md`, `spec-ospf-6-neighbor-nsm.md`, `spec-ospf-7-lsdb-flooding.md`, `spec-ospf-8-spf-rib.md`, `spec-ospf-9-inter-area-abr.md`, `spec-ospf-10-as-external-asbr.md`, `spec-ospf-11-stub-nssa.md`, `spec-ospf-12-auth.md` |
 
 ## Dependency Graph
 
@@ -301,16 +301,16 @@ assigned rows.
 | `spec-ospf-1-types.md` | - |
 | `spec-ospf-2-wire.md` | `spec-ospf-1-types.md` |
 | `spec-ospf-3-ip-transport.md` | `spec-ospf-1-types.md` |
-| `spec-ospf-4-component-config.md` (wiring backbone) | `spec-ospf-3-ip-transport.md` |
+| `spec-ospf-4-component-config.md` (wiring backbone) | `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md` |
 | `spec-ospf-5-interface-ism.md` | `spec-ospf-2-wire.md`, `spec-ospf-4-component-config.md` |
 | `spec-ospf-6-neighbor-nsm.md` | `spec-ospf-5-interface-ism.md` |
 | `spec-ospf-7-lsdb-flooding.md` | `spec-ospf-6-neighbor-nsm.md` |
 | `spec-ospf-8-spf-rib.md` | `spec-ospf-7-lsdb-flooding.md` |
 | `spec-ospf-9-inter-area-abr.md` | `spec-ospf-8-spf-rib.md` |
-| `spec-ospf-10-as-external-asbr.md` | `spec-ospf-8-spf-rib.md` |
+| `spec-ospf-10-as-external-asbr.md` | `spec-ospf-8-spf-rib.md`, `spec-ospf-9-inter-area-abr.md` |
 | `spec-ospf-11-stub-nssa.md` | `spec-ospf-9-inter-area-abr.md`, `spec-ospf-10-as-external-asbr.md` |
-| `spec-ospf-12-auth.md` | `spec-ospf-2-wire.md`, `spec-ospf-4-component-config.md`, `spec-ospf-5-interface-ism.md`, `spec-ospf-6-neighbor-nsm.md` |
-| `spec-ospf-13-cli-diag-interop.md` | `spec-ospf-5-interface-ism.md`, `spec-ospf-7-lsdb-flooding.md`, `spec-ospf-8-spf-rib.md` |
+| `spec-ospf-12-auth.md` | `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md`, `spec-ospf-4-component-config.md`, `spec-ospf-5-interface-ism.md`, `spec-ospf-6-neighbor-nsm.md`, `spec-ospf-7-lsdb-flooding.md` |
+| `spec-ospf-13-cli-diag-interop.md` | `spec-ospf-1-types.md`, `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md`, `spec-ospf-4-component-config.md`, `spec-ospf-5-interface-ism.md`, `spec-ospf-6-neighbor-nsm.md`, `spec-ospf-7-lsdb-flooding.md`, `spec-ospf-8-spf-rib.md`, `spec-ospf-9-inter-area-abr.md`, `spec-ospf-10-as-external-asbr.md`, `spec-ospf-11-stub-nssa.md`, `spec-ospf-12-auth.md` |
 
 `spec-ospf-1-types.md`, `spec-ospf-2-wire.md`, `spec-ospf-3-ip-transport.md` are
 parallelisable foundations. `spec-ospf-4-component-config.md` is the integration
@@ -343,9 +343,9 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 | Question | Decision | Rationale |
 |----------|----------|-----------|
 | Native vs wrap FRR/bird? | Native Go | Consistent with native BGP/IKEv2/IS-IS; no subprocess on the gokrazy appliance; Ze owns the protocol. FRR/BIRD are clean-room references only |
-| Component dir vs plugin dir? | `internal/component/ospf/` | Engine-owning protocols (BGP, LDP, RSVP-TE, IS-IS) live in `component/`; only domain-policy plugins live in `internal/plugins/` |
+| Edge plugin dir vs component dir? | `internal/plugins/ospf/` | Module-tier rule: engines with no feature depending on them are edge plugins. LDP, RSVP-TE, and IS-IS are in `internal/plugins/`; BGP/sysrib stay in `internal/component/` because other features depend on them |
 | Share an SPF/LSDB engine with IS-IS? | No (v1) | Guide §11: OSPF has network vertices for transit LANs, IS-IS uses pseudo-node LSPs; LSA vs LSP keys and metric semantics differ. A shared abstraction leaks detail into both. Refactor later if the duplication proves mechanical |
-| OSPFv2 + OSPFv3 in one component? | No | Guide §15: FRR ships two daemons; the LSA registries and wire formats differ enough that unification is net-negative. OSPFv3 is a separate component + umbrella |
+| OSPFv2 + OSPFv3 in one plugin? | No | Guide §15: FRR ships two daemons; the LSA registries and wire formats differ enough that unification is net-negative. OSPFv3 is a separate edge plugin + umbrella |
 | Transport? | `AF_INET SOCK_RAW` proto 89 + IP multicast, behind an interface | Reuse the RSVP-TE raw-IP pattern; add multicast membership; isolate so a BSD/VPP backend can be added later |
 | LSDB storage model? | Lazy raw-bytes + metadata, per-area | Matches Ze buffer-first philosophy; per-area LSDBs are the FRR model and simpler than BIRD's single-LSDB-with-domain-filter for a first pass |
 | Route installation mechanism? | Loc-RIB insertion (`locrib.Path`), NOT redistevents | The FIB-install path is Loc-RIB -> sysrib `OnChange` -> fibkernel, exactly as IS-IS and BGP. redistevents feeds the redistribute-orchestrator (redistribution to BGP), a different concern (ospf-10). Admin distance 110 on `locrib.Path.AdminDistance` (config `rib.admin-distance.ospf`, the EXISTING leaf) |
@@ -361,34 +361,35 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 - [ ] `docs/research/ospf-implementation-guide.md` - protocol, packets, LSAs, ISM/NSM, DR election, flooding (§13), SPF (§16), areas/ABR/ASBR/NSSA, auth, checksum traps, concurrency, phased order, ze layout
   -> Decision: follow the phased order (§16); adopt the per-packet-type + per-LSA-family file split (BIRD middle path between FRR's monoliths)
   -> Constraint: two distinct checksums (packet IP one's-complement excluding the auth field; LSA Fletcher-16 excluding LS Age); the §13.4 hard traps (Fletcher, sequence compare, MaxAge retention, MTU mismatch, Network-LSA LS ID, two-way check, E1/E2 ordering, ABR acceptance, NSSA translator election, zeroed-checksum auth, sticky DR)
-- [ ] `plan/spec-isis-0-umbrella.md` - the sibling IS-IS umbrella; OSPF reuses the SAME route-install / redistribution / component / sysrib infra
-  -> Constraint: copy the Loc-RIB install, redistribution source/consumer, component registration, and metrics-table conventions verbatim; do NOT couple OSPF to IS-IS code
-- [ ] `docs/architecture/core-design.md` - component registration, event bus, lifecycle
+- [ ] `plan/learned/926-isis-0-umbrella.md` - the sibling IS-IS umbrella; OSPF reuses the SAME route-install / redistribution / edge-plugin / sysrib infra
+  -> Constraint: copy the Loc-RIB install, redistribution source/consumer, plugin lifecycle, and metrics-table conventions verbatim; do NOT couple OSPF to IS-IS code
+- [ ] `docs/architecture/core-design.md` - plugin registration, event bus, lifecycle
   -> Constraint: OSPF registers like LDP/RSVP-TE/IS-IS; runtime via SDK OnConfigure/OnStarted/OnExecuteCommand
 - [ ] `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md` - zero-copy, lazy parse, no-alloc hot path
   -> Constraint: LSDB stores raw LSA bytes; body parse on demand; encode is buffer-first `WriteTo(buf, off) int`
-- [ ] `ai/rules/plugin-self-containment.md`, `ai/rules/registration-dispatch.md` - self-contained component, registration not switch
-  -> Constraint: all OSPF commands/schema/help/doctor live under `internal/component/ospf/`
+- [ ] `ai/rules/plugin-self-containment.md`, `ai/rules/registration-dispatch.md` - self-contained plugin, registration not switch
+  -> Constraint: all OSPF commands/schema/help/doctor live under `internal/plugins/ospf/`
 - [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - YANG vs env var, kebab-case
   -> Constraint: OSPF config is YANG (`ze-ospf-conf.yang`), top-level `ospf` container, kebab-case leaves
 
-### RFC Summaries (MUST for protocol work; created via `/ze-rfc` at implementation time)
+### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` - OSPF Version 2 (base): packets, LSAs, ISM/NSM, DR election, §13 flooding, §16 SPF/inter-area/external, stub areas, AuType 0/1/2
 - [ ] `rfc/short/rfc905.md` - Fletcher-16 checksum (Annex B)
 - [ ] `rfc/short/rfc1071.md` - Internet (IP) one's-complement checksum
 - [ ] `rfc/short/rfc3101.md` - NSSA (Type 7, translator election, P-bit)
 - [ ] `rfc/short/rfc5709.md`, `rfc/short/rfc7474.md` - HMAC-SHA auth + auth trailer
+- [ ] `rfc/short/rfc6987.md` - Stub Router Advertisement / max-metric Router-LSA (ospf-7 origination, ospf-13 config + CLI)
 
 **Key insights:**
 - OSPF runs over IP (proto 89), multicast `224.0.0.5` (AllSPFRouters) / `224.0.0.6` (AllDRouters), TTL 1; needs `CAP_NET_RAW`. The transport is the in-tree RSVP-TE raw-IP pattern PLUS multicast membership -- no new low-level capability
 - FIB install = Loc-RIB insertion (`locrib.Path`) -> sysrib -> fibkernel (like IS-IS/BGP); redistevents is redistribution-to-BGP only. SPF decides what to insert. The sysrib ECMP path-group expansion already exists
 - Two distinct checksums and the §13.4 hard traps are where correctness risk concentrates; test them against RFC vectors and FRR wire output early
-- Multi-area / ABR / stub / NSSA and authentication are all in v1 scope; OSPFv3 is a separate component (deferred)
+- Multi-area / ABR / stub / NSSA and authentication are all in v1 scope; OSPFv3 is a separate edge plugin (deferred)
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (architecture survey; per-child specs read their own targets)
-- [ ] Ze has no OSPF protocol. The closest in-tree artefacts are RSVP-TE's raw-IP transport (`internal/component/rsvpte/transport_linux.go`, the proto-89 model) and the IS-IS component (`internal/component/isis/`, the above-the-wire pattern source)
+- [ ] Ze has no OSPF protocol. The closest in-tree artefacts are RSVP-TE's raw-IP transport (`internal/plugins/rsvpte/transport_linux.go`, the proto-89 model) and the IS-IS component (`internal/plugins/isis/`, the above-the-wire pattern source)
   -> Constraint: OSPF builds a new component; it copies IS-IS's above-the-wire patterns but shares no code
 - [ ] FIB install path is Loc-RIB insertion -> `sysrib` `OnChange` -> `fibkernel`; the ECMP path-group expansion (`BestChangeEntry.ECMPPaths`) already exists; `redistevents` feeds the redistribute-orchestrator and is redistribution-only
   -> Constraint: OSPF inserts `locrib.Path` with `AdminDistance` 110; OSPF resolves intra/inter/E1/E2 preference internally before publishing one Path per prefix
@@ -401,7 +402,7 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 - RSVP-TE raw-socket code unchanged (OSPF adds a sibling transport, does not refactor RSVP-TE in place unless a shared raw-IP helper is extracted cleanly)
 
 **Behavior to change:**
-- New top-level `ospf` config container and `internal/component/ospf/` component
+- New top-level `ospf` config container and `internal/plugins/ospf/` component
 - A new redistribution source/consumer pair for OSPF
 - No sysrib changes (admin-distance leaf and ECMP expansion already present)
 
@@ -432,7 +433,7 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 | Config tree <-> engine | SDK OnConfigure/OnConfigApply (JSON subtree) | [ ] |
 
 ### Integration Points
-- New component `internal/component/ospf/` (ospf-4)
+- New component `internal/plugins/ospf/` (ospf-4)
 - Loc-RIB insertion for FIB install (ospf-8); redistevents producer + redistribute source/consumer (ospf-10)
 - sysrib admin-distance (existing `ospf` leaf) + existing ECMP expansion
 - iface EventBus link/address up/down (ospf-3, ospf-5, ospf-7)
@@ -512,7 +513,7 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (per child) | `internal/component/ospf/...` | see child specs ospf-1..ospf-13 | |
+| (per child) | `internal/plugins/ospf/...` | see child specs ospf-1..ospf-13 | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -556,7 +557,7 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new config) | Yes | `internal/component/ospf/yang/ze-ospf-conf.yang` |
+| YANG schema (new config) | Yes | `internal/plugins/ospf/yang/ze-ospf-conf.yang` |
 | YANG validation constraints | Yes | range/pattern/enum on every leaf (router-id/area-id dotted-quad pattern, area-type enum, network-type enum, interval ranges, priority range) |
 | YANG custom validators | Yes | router-id / area-id validators with `CompleteFn` |
 | CLI commands/flags | Yes | `show ip ospf [neighbor\|interface\|database\|route\|border-routers\|spf]`, `clear ip ospf` |
@@ -589,14 +590,14 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 | 17 | Existing docs show examples for this area? | No | grep at completion |
 
 ## Files to Create
-- `internal/component/ospf/` - the OSPF component (subpackages per architecture layout)
-- `internal/component/ospf/yang/ze-ospf-conf.yang` - config schema
+- `internal/plugins/ospf/` - the OSPF edge plugin (subpackages per architecture layout)
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - config schema
 - `test/ospf/*.ci` - functional tests
 - `test/interop/scenarios/ospf-*-frr/` - interop scenarios
-- `rfc/short/rfc{2328,905,1071,3101,5709,7474,6987,5250,9129}.md` - standard summaries (via `/ze-rfc` at implementation time)
+- (none) OSPFv2 RFC summaries already exist under `rfc/short/`; update them only for source-verified errata
 - `docs/guide/ospf.md`, `docs/architecture/wire/ospf.md` - user + wire docs
 - `plan/spec-ospf-1-*.md` .. `plan/spec-ospf-13-*.md` - child specs
-- `plan/spec-ospfv3-0-umbrella.md` - the deferred OSPFv3 skeleton umbrella
+- `plan/spec-ospfv3-0-umbrella.md` - the deferred OSPFv3 follow-up umbrella
 
 ## Implementation Steps
 
@@ -618,13 +619,13 @@ implementing; keep the umbrella pointed-to but do not implement the umbrella
 directly.
 
 1. **Phase: Foundations (parallel)** - ospf-1 (types+checksums), ospf-2 (wire), ospf-3 (IP transport)
-2. **Phase: Wiring backbone** - ospf-4 (component/config/scaffolding); MANDATORY before runtime specs
+2. **Phase: Wiring backbone** - ospf-4 (plugin/config/scaffolding); MANDATORY before runtime specs and depends on both wire and transport
 3. **Phase: Interface + adjacency** - ospf-5 (ISM/Hello/DR election), ospf-6 (NSM/DD)
 4. **Phase: LSDB + flooding** - ospf-7
 5. **Phase: SPF + sys-rib** - ospf-8 (delivers the core goal: kernel routes from OSPF)
-6. **Phase: Multi-area + external** - ospf-9 (inter-area/ABR), ospf-10 (AS-external/ASBR/redistribution)
-7. **Phase: Stub/NSSA + auth** - ospf-11, ospf-12 (independent)
-8. **Phase: CLI/diag/interop** - ospf-13
+6. **Phase: Multi-area then external** - ospf-9 (inter-area/ABR) before ospf-10 (AS-external/ASBR/redistribution)
+7. **Phase: Auth and area policy** - ospf-12 after ospf-7; ospf-11 after ospf-9/10
+8. **Phase: CLI/diag/interop** - ospf-13 after ospf-1 through ospf-12
 9. **Full verification + interop** - `make ze-verify` + FRR scenarios
 
 ### Critical Review Checklist (/implement stage 6)
@@ -634,13 +635,13 @@ directly.
 | Correctness | Wire matches RFC 2328/3101; both checksums correct (covered ranges); the §13.4 traps handled |
 | Naming | YANG kebab-case; CLI `show ip ospf <noun>`; admin-distance key `ospf` (single, existing) |
 | Data flow | FIB install flows OSPF SPF -> Loc-RIB insertion (`locrib.Path`) -> sysrib `OnChange` -> fibkernel (NOT `redistevents`); redistribution flows OSPF -> `redistevents` -> orchestrator -> BGP consumer (never the FIB); no bypass and no conflation |
-| Rule: plugin-self-containment | All OSPF schema/help/doctor/commands under `internal/component/ospf/` |
+| Rule: plugin-self-containment | All OSPF schema/help/doctor/commands under `internal/plugins/ospf/` |
 
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Umbrella + 13 child specs + v3 skeleton | `ls plan/spec-ospf-*.md plan/spec-ospfv3-0-umbrella.md` |
-| OSPF component | `ls internal/component/ospf/` |
+| Umbrella + 13 child specs + v3 follow-up | `ls plan/spec-ospf-*.md plan/spec-ospfv3-0-umbrella.md` |
+| OSPF edge plugin | `ls internal/plugins/ospf/` |
 | Functional + interop tests | `ls test/ospf/ test/interop/scenarios/ospf-*` |
 | RFC summaries | `ls rfc/short/rfc2328.md` and siblings |
 
@@ -702,7 +703,7 @@ traps against RFC vectors and FRR wire output early.
 ## Known Limitations
 - v1 ships broadcast + point-to-point network types only (NBMA/P2MP future)
 - Opaque-LSA framework, TE, SR, virtual links, GR, BFD, demand circuits, multi-instance, L3VPN DN bit, SNMP MIB are out of scope (future)
-- OSPFv3 (IPv6) is a separate component (`spec-ospfv3-0-umbrella.md`)
+- OSPFv3 (IPv6) is a separate edge plugin (`spec-ospfv3-0-umbrella.md`)
 
 ## RFC Documentation
 Add `// RFC 2328 Section X.Y: "<quoted requirement>"` (and RFC 3101/5709/7474/6987 as applicable) above enforcing code in each child.
@@ -710,32 +711,32 @@ Add `// RFC 2328 Section X.Y: "<quoted requirement>"` (and RFC 3101/5709/7474/69
 ## Implementation Summary
 
 ### What Was Implemented
-- (To be filled as children are implemented.)
+- Pending: fill as child specs are implemented and verified.
 
 ### Bugs Found/Fixed
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ### Documentation Updates
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ### Deviations from Plan
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Native OSPFv2 link-state IGP (RFC 2328 + RFC 3101 + RFC 5709/7474) | (pending) | `internal/component/ospf/` | spec set authored; implementation pending |
-| Mesh over OSPF (adjacency, broadcast + P2P) | (pending) | `internal/component/ospf/iface`, `neighbor` | |
-| Compute shortest paths | (pending) | `internal/component/ospf/spf` | |
-| Keep sys-rib updated so the kernel FIB forwards | (pending) | `internal/component/ospf/spf/install` | |
-| Interoperate with BGP via redistribution (both directions) | (pending) | `internal/component/ospf/redistribute` | |
-| Multi-area + ABR + stub + NSSA | (pending) | `internal/component/ospf/spf` (ia/ase/nssa) | |
-| Authentication in v1 (AuType 1/2 + HMAC-SHA trailer) | (pending) | `internal/component/ospf/packet/auth` | |
-| Raw IP transport (proto 89 + multicast) | (pending) | `internal/component/ospf/transport` | |
-| Component registration + YANG config + lifecycle | (pending) | `internal/component/ospf/register.go`, `config.go`, `yang/` | |
-| 13 child specs in dependency order + v3 skeleton | Done | `plan/spec-ospf-1-*.md` .. `plan/spec-ospf-13-*.md`, `plan/spec-ospfv3-0-umbrella.md` | spec-set authoring deliverable |
+| Native OSPFv2 link-state IGP (RFC 2328 + RFC 3101 + RFC 5709/7474) | (pending) | `internal/plugins/ospf/` | spec set authored; implementation pending |
+| Mesh over OSPF (adjacency, broadcast + P2P) | (pending) | `internal/plugins/ospf/iface`, `neighbor` | |
+| Compute shortest paths | (pending) | `internal/plugins/ospf/spf` | |
+| Keep sys-rib updated so the kernel FIB forwards | (pending) | `internal/plugins/ospf/spf/install` | |
+| Interoperate with BGP via redistribution (both directions) | (pending) | `internal/plugins/ospf/redistribute` | |
+| Multi-area + ABR + stub + NSSA | (pending) | `internal/plugins/ospf/spf` (ia/ase/nssa) | |
+| Authentication in v1 (AuType 1/2 + HMAC-SHA trailer) | (pending) | `internal/plugins/ospf/packet/auth` | |
+| Raw IP transport (proto 89 + multicast) | (pending) | `internal/plugins/ospf/transport` | |
+| Plugin registration + YANG config + lifecycle | (pending) | `internal/plugins/ospf/register.go`, `config.go`, `yang/` | |
+| 13 child specs in dependency order + v3 follow-up | Done | `plan/spec-ospf-1-*.md` .. `plan/spec-ospf-13-*.md`, `plan/spec-ospfv3-0-umbrella.md` | spec-set authoring deliverable |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -745,18 +746,18 @@ Add `// RFC 2328 Section X.Y: "<quoted requirement>"` (and RFC 3101/5709/7474/69
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| (per child) | (pending) | `internal/component/ospf/...`, `test/ospf/...` | |
+| (per child) | (pending) | `internal/plugins/ospf/...`, `test/ospf/...` | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
 | `plan/spec-ospf-1-*.md` .. `plan/spec-ospf-13-*.md` | (filled by authoring) | spec set |
-| `plan/spec-ospfv3-0-umbrella.md` | (filled by authoring) | v3 skeleton |
-| `internal/component/ospf/` | (pending) | implementation |
+| `plan/spec-ospfv3-0-umbrella.md` | (filled by authoring) | v3 follow-up |
+| `internal/plugins/ospf/` | (pending) | implementation |
 
 ### Audit Summary
 - **Total items:** spec-set authoring (this deliverable) + downstream implementation
-- **Done:** spec set authored (umbrella + 13 children + v3 skeleton)
+- **Done:** spec set authored (umbrella + 13 children + v3 follow-up)
 - **Partial:** 0
 - **Skipped:** 0
 - **Changed:** implementation is downstream work, tracked per child
@@ -773,10 +774,10 @@ Add `// RFC 2328 Section X.Y: "<quoted requirement>"` (and RFC 3101/5709/7474/69
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | (to run) | `/ze-review` on the spec set | `plan/spec-ospf-*.md` | run during authoring review |
+| - | pending | `/ze-review` on the spec set has not run after these amendments | `plan/spec-ospf-*.md` | run before implementation begins |
 
 ### Fixes applied
-- (To be filled.)
+- Pending: fill after implementation or review produces concrete evidence.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
@@ -819,13 +820,13 @@ Add `// RFC 2328 Section X.Y: "<quoted requirement>"` (and RFC 3101/5709/7474/69
 
 ### Goal Gates (MUST pass)
 - [ ] All 13 child specs written and cross-referenced
-- [ ] v3 skeleton umbrella written
+- [ ] v3 follow-up umbrella written
 - [ ] AC-1..AC-11 demonstrated across children (downstream)
 - [ ] End-to-End User Stories each have a working path + passing test (downstream)
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
 - [ ] `make ze-test` passes (downstream)
-- [ ] Feature code integrated (`internal/component/ospf/`) (downstream)
+- [ ] Feature code integrated (`internal/plugins/ospf/`) (downstream)
 - [ ] Integration completeness proven end-to-end (downstream)
 - [ ] Documentation Update Checklist answered with source evidence (downstream)
 - [ ] Critical Review passes
