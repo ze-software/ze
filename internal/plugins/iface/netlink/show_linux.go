@@ -84,6 +84,7 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 	}
 	info := iface.InterfaceInfo{
 		Name:    attrs.Name,
+		OsName:  attrs.Name,
 		Index:   attrs.Index,
 		Type:    link.Type(),
 		State:   state,
@@ -92,6 +93,11 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 	}
 	if len(attrs.HardwareAddr) > 0 {
 		info.MAC = attrs.HardwareAddr.String()
+	}
+	// PermHWAddr is the factory/permanent address (IFLA_PERM_ADDRESS); empty
+	// for virtual kinds and for NICs whose driver does not report one.
+	if len(attrs.PermHWAddr) > 0 {
+		info.PermanentMAC = attrs.PermHWAddr.String()
 	}
 	if vlan, ok := link.(*netlink.Vlan); ok {
 		info.VlanID = vlan.VlanId

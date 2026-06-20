@@ -465,6 +465,12 @@ ze interface addr del <name> unit <id> <cidr>      # Remove IP address
 ze interface migrate ...           # Make-before-break migration (requires daemon)
 ```
 
+**`show interface detail <name>`** (and the standalone `ze interface show <name>`)
+shows the OS device name (`OS Name`) alongside the configured name, and the NIC's
+permanent/factory MAC (`Perm MAC`) alongside the operational MAC, so overriding an
+interface's MAC does not hide the device's stable hardware identity.
+<!-- source: internal/component/iface/cli/show.go -- showOne / formatInterfaceDetail -->
+
 **`show interface type <type>`** is case-insensitive; unknown types reject
 with the sorted list of types actually present on the system. Empty-Type
 interfaces are hidden from both the response and the valid-types list.

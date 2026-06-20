@@ -44,7 +44,8 @@ func BuildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProto
 	}
 
 	var rows []WorkbenchTableRow
-	for _, info := range infos {
+	for i := range infos {
+		info := &infos[i]
 		if filterIface != "" && info.Name != filterIface {
 			continue
 		}

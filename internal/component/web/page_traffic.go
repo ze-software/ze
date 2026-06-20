@@ -56,7 +56,8 @@ func BuildTrafficTableData(infos []iface.InterfaceInfo) WorkbenchTableData {
 func buildTrafficRows(infos []iface.InterfaceInfo) []WorkbenchTableRow {
 	// Build sortable traffic rows.
 	tRows := make([]TrafficRow, 0, len(infos))
-	for _, info := range infos {
+	for i := range infos {
+		info := &infos[i]
 		tr := TrafficRow{Interface: info.Name}
 		if info.Stats != nil {
 			tr.RxBytes = info.Stats.RxBytes

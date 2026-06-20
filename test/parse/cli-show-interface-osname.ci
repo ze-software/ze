@@ -1,0 +1,11 @@
+# Test: `ze interface show <name>` surfaces the os-name field (and permanent MAC)
+# VALIDATES: spec-iface-resolve-1-model AC-2 -- os-name visible in show interface
+# PREVENTS: OsName/PermanentMAC added to InterfaceInfo but not rendered by the
+#           `ze interface show <name>` detail formatter (showOne in cli/show.go)
+# NOTE: reads the loopback via netlink, so linux-only (skipped on darwin). os-name
+#       is always present (= the kernel device name); the permanent MAC is empty
+#       for loopback (no factory address), so os-name is the field asserted here.
+option=skip-os:value=darwin
+cmd=foreground:seq=1:exec=ze interface show lo
+expect=exit:code=0
+expect=stdout:contains=OS Name

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-iface-resolve-0-umbrella |
-| Phase | 1 (model/state foundation) |
+| Phase | 1/4 (model/state foundation) |
 | Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
@@ -20,17 +20,22 @@
 Lay the data/state foundation for logical-name → device resolution, WITHOUT yet building the
 resolver algorithm (sub-spec 2) or migrating any consumer (sub-specs 3-7). Specifically:
 
-1. **Read the permanent MAC** (`IFLA_PERM_ADDRESS`) and store it on `InterfaceInfo` as a new
-   `PermanentMAC` field, distinct from the operational `MAC`.
-2. **Promote `os-name`** from a hidden discovery-only leaf to a real (still optional) binding
-   selector: it defaults to the interface `name`; when set, it names the OS device this logical
-   interface maps to.
-3. **Surface both** in `show interface`: logical name, os-name, operational MAC, permanent MAC.
-4. **Confirm + guard** the existing `mac` optional+unique model (regression guard; do NOT make it
-   required).
+1. **Read the permanent MAC** (`IFLA_PERM_ADDRESS` via `netlink.LinkAttrs.PermHWAddr`) and store it
+   on `InterfaceInfo` as a new `PermanentMAC` field, distinct from the operational `MAC`.
+2. **Surface `os-name` in `show interface`** as a visible `InterfaceInfo.OsName` field (the OS/kernel
+   device name). Today it equals `Name`; once the resolver (sub-spec 2) maps an operator-chosen
+   logical name to a kernel device, `Name` carries the logical name and `OsName` keeps the kernel
+   device so `show interface` shows both sides of the mapping.
+3. **Surface the permanent MAC** in `show interface` (`show interface name <x> detail` serializes the
+   whole `InterfaceInfo`, so the new fields appear with no formatter change).
+4. **Guard** the existing `mac` optional+unique model (regression guard against 523's documented
+   linter-revert gotcha; do NOT make mac required).
 
-This sub-spec changes no resolution behavior — every consumer still resolves as today. It only
-exposes the state the resolver (sub-spec 2) and consumers will use.
+**Scope boundary (decided this session):** os-name as a *resolution selector* — un-hiding the config
+`os-name` leaf, default-to-name, and using it to bind a logical name to a kernel device — is
+**dormant until a consumer exists**, so it moves to **sub-spec 2** (the resolver). This sub-spec only
+makes os-name *visible* in `show interface` and reads the permanent MAC. No resolution behavior
+changes; every consumer still resolves as today.
 
 ## Required Reading
 
@@ -103,8 +108,8 @@ exposes the state the resolver (sub-spec 2) and consumers will use.
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | vishvananda/netlink exposes `Attrs().PermHWAddr` | netlink v1.3.1 `link.go:58` has `PermHWAddr net.HardwareAddr` | n/a — confirmed available | grep of module cache | confirmed |
-| A-2 | Un-hiding `os-name` does not break existing `.ci`/editor expectations | os-name is currently hidden, absent from output | show/editor `.ci` diffs; gate the new column | run iface `.ci` after change | unvalidated |
-| A-3 | Virtual/created kinds have empty permaddr; that is acceptable (blank in show) | veth/bridge/tunnel have no factory MAC | show must render blank, not error | unit test on a dummy iface | unvalidated |
+| A-2 | Adding `OsName`/`PermanentMAC` (both `omitempty`) to `InterfaceInfo` is additive and breaks no existing show consumer | new struct fields with `omitempty` emit no JSON key when empty | netlink package tests pass in linux (Docker) | confirmed |
+| A-3 | Virtual/created kinds have empty permaddr; that is acceptable (blank in show) | veth/bridge/tunnel have no factory MAC | `TestLinkToInfoNoPermanentMAC` asserts empty `PermanentMAC` for a device with no `PermHWAddr` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -117,35 +122,31 @@ exposes the state the resolver (sub-spec 2) and consumers will use.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `show interface <name>` | → | `GetInterface` → `InterfaceInfo.PermanentMAC` → formatter | `test/iface/iface-permaddr-show.ci` |
-| config `interface x { os-name eth0 }` | → | config parse → iface model stores os-name | `test/iface/iface-osname-config.ci` |
+| `ze interface show <name>` | → | `GetInterface` → `linkToInfo` (PermHWAddr) → `showOne` renders `OS Name:`/`Perm MAC:` | `test/parse/cli-show-interface-osname.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `GetInterface` on a physical NIC | `InterfaceInfo.PermanentMAC` populated from `IFLA_PERM_ADDRESS`, distinct field from `MAC` |
-| AC-2 | `show interface <name>` | output shows logical name, os-name, operational MAC, and permanent MAC |
-| AC-3 | NIC configured with `mac { address … }` override | `PermanentMAC` != operational `MAC`; the permaddr is unchanged by the override |
-| AC-4 | config `interface uplink { os-name eth0 }` then re-read | os-name stored as `eth0`; when omitted, os-name defaults to the interface name |
-| AC-5 | two interfaces with identical `mac/address`; and one interface with no mac | duplicate rejected (unique); no-mac accepted (not required) — regression guard |
+| AC-1 | `linkToInfo`/`GetInterface` on a link with a permanent address | `InterfaceInfo.PermanentMAC` populated from `Attrs().PermHWAddr` (`IFLA_PERM_ADDRESS`), a field distinct from `MAC` (`TestLinkToInfoPermanentMAC`) |
+| AC-2 | `show interface name <x> detail` | serialized output includes `os-name` and `permanent-mac-address` alongside `mac-address` (no formatter change — the detail view returns the whole struct) |
+| AC-3 | link with `PermHWAddr` set + a different operational `HardwareAddr`; and a virtual link with neither | permaddr distinct from the operational MAC override; empty `PermanentMAC` for the virtual kind (`TestLinkToInfoPermanentMAC` / `TestLinkToInfoNoPermanentMAC`) |
+| AC-4 | the embedded `ze-iface-conf.yang` | `unique "mac/address"` retained on ethernet/veth/bridge and no `ze:required` on mac — optional+unique guard (`TestMacBindingUniqueRetained`) |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | `show interface eth0` to see its permanent vs current MAC | GetInterface → permaddr read → show | `test/iface/iface-permaddr-show.ci` |
-| 2 | binds `interface uplink { os-name eth0 }` | config parse → model stores os-name | `test/iface/iface-osname-config.ci` |
+| 1 | `ze interface show eth0` to see its os-name + permanent vs current MAC | GetInterface → linkToInfo (PermHWAddr) → showOne renders | `test/parse/cli-show-interface-osname.ci` |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPermanentMACRead` | `internal/plugins/iface/netlink/show_linux_test.go` | permaddr read into InterfaceInfo | |
-| `TestPermanentMACDistinctFromOverride` | `internal/plugins/iface/netlink/manage_linux_test.go` | permaddr stable after mac override | |
-| `TestOsNameDefaultsToName` | `internal/component/iface/config_test.go` | os-name defaults to name when omitted | |
-| `TestMacOptionalUniqueRegression` | `internal/component/iface/config_test.go` | mac stays optional + unique | |
+| `TestLinkToInfoPermanentMAC` | `internal/plugins/iface/netlink/show_linux_test.go` | permaddr + os-name read into InterfaceInfo; distinct from operational MAC | PASS (linux/Docker) |
+| `TestLinkToInfoNoPermanentMAC` | `internal/plugins/iface/netlink/show_linux_test.go` | empty permaddr for a virtual kind | PASS (linux/Docker) |
+| `TestMacBindingUniqueRetained` | `internal/component/iface/yang/mac_binding_test.go` | mac stays optional + unique | PASS (host) |
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -155,57 +156,53 @@ exposes the state the resolver (sub-spec 2) and consumers will use.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `iface-permaddr-show` | `test/iface/iface-permaddr-show.ci` | show interface displays permanent + current MAC | |
-| `iface-osname-config` | `test/iface/iface-osname-config.ci` | os-name binding parses and round-trips | |
+| `cli-show-interface-osname` | `test/parse/cli-show-interface-osname.ci` | `ze interface show lo` renders `OS Name:` | PASS (QEMU) |
 
 ### Interop Tests
 N/A — no wire-protocol behavior; this is local interface state only.
 
 ## Files to Modify
 - `internal/component/iface/iface.go` - add `PermanentMAC` to `InterfaceInfo`
-- `internal/plugins/iface/netlink/show_linux.go` - populate `PermanentMAC` from `Attrs().PermHWAddr`
-- `internal/component/iface/yang/ze-iface-conf.yang` - un-hide + document `os-name`; keep mac unique
-- `internal/component/iface/cmd/show_interface.go` - render os-name + permanent MAC
-- `internal/component/iface/config*.go` - os-name default-to-name handling
+- `internal/component/iface/iface.go` - add `OsName` + `PermanentMAC` fields to `InterfaceInfo`
+- `internal/plugins/iface/netlink/show_linux.go` - `linkToInfo` populates both from `Attrs()` (`PermHWAddr`)
+- `internal/plugins/iface/netlink/show_linux_test.go` - add permaddr/os-name unit tests
+- `internal/component/iface/cli/show.go` - `showOne` renders `OS Name:` and `Perm MAC:` lines via a new host-testable `formatInterfaceDetail` (text formatter previously omitted them; only `--json` showed them)
+- `internal/component/iface/cli/show_test.go` - `TestFormatInterfaceDetail` / `…NoPermMAC` (covers the Perm MAC render path loopback can't)
+- `internal/component/iface/health.go`, `internal/component/web/page_interfaces.go`, `internal/component/web/page_ip_addresses.go`, `internal/component/web/page_traffic.go` - range `[]InterfaceInfo` by index (the struct grew 152→184 B, crossing gocritic `rangeValCopy` threshold 160; `/ze-review`-caught cascade in unchanged web code)
+- `docs/guide/command-reference.md` - note that `show interface detail` / `ze interface show` exposes `OS Name` + `Perm MAC` (source-anchored)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (os-name visibility) | [ ] | `ze-iface-conf.yang` |
-| YANG validation constraints | [ ] | os-name reuses iface-name validation semantics |
-| CLI show output | [ ] | iface `cmd/` show formatter |
-| Functional test for show | [ ] | `test/iface/*.ci` |
+| YANG schema | No | additive runtime field; no config-leaf change in this sub-spec |
+| CLI show output | Yes (automatic) | `show interface name <x> detail` returns the whole struct; no formatter change |
+| Functional test for show | Yes | `test/parse/cli-show-interface-osname.ci` |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | [ ] | `docs/features.md` (permanent MAC in show) |
-| 2 | Config syntax changed? | [ ] | `docs/guide/configuration.md` (os-name binding) |
-| 6 | Has a user guide page? | [ ] | `docs/guide/` interface page |
-| 17 | Existing docs show iface examples? | [ ] | verify show-interface examples |
+| 1 | New user-facing feature? | No | additive fields to existing `show interface detail` output, not a new feature; no interface feature row in `docs/features.md` (grep) |
+| 2 | Config syntax changed? | No | no config-leaf change (os-name leaf untouched; resolution is sub-spec 2) |
+| 4 | API/RPC changed? | No | `ze-show:interface-detail` response gains two `omitempty` fields; additive, no doc field-table exists to update (grep) |
 
 ## Files to Create
-- `test/iface/iface-permaddr-show.ci` - show permaddr functional test
-- `test/iface/iface-osname-config.ci` - os-name binding functional test
+- `internal/component/iface/yang/mac_binding_test.go` - mac optional+unique invariant guard
+- `test/parse/cli-show-interface-osname.ci` - show-interface os-name visibility (QEMU/CI)
 
 ## Implementation Steps
 
 ### Implementation Phases
-1. **Phase: Wiring (MANDATORY FIRST)** — add `PermanentMAC` field + failing `iface-permaddr-show.ci`
-   - Tests: `iface-permaddr-show`
-   - Files: `iface.go`, show formatter
-   - Verify: field exists, show renders it (empty), functional test fails on missing permaddr value
-2. **Phase: permaddr read** — read `IFLA_PERM_ADDRESS` in the netlink backend
-   - Tests: `TestPermanentMACRead`, `TestPermanentMACDistinctFromOverride`
-   - Files: `show_linux.go`, `show_other.go`, `manage_linux.go`
-   - Verify: permaddr populated; stable under override
-3. **Phase: os-name selector** — un-hide + default-to-name + config storage
-   - Tests: `TestOsNameDefaultsToName`, `iface-osname-config`
-   - Files: `ze-iface-conf.yang`, `config*.go`
-   - Verify: os-name parses, defaults, round-trips
-4. **Phase: mac regression guard** — `TestMacOptionalUniqueRegression`
-5. **Full verification** → `make ze-verify`
-6. **Complete spec** → audit + learned summary; two commits
+1. **Phase: fields + populate** — add `OsName`+`PermanentMAC` to `InterfaceInfo`; `linkToInfo` sets `OsName=attrs.Name`, `PermanentMAC=attrs.PermHWAddr`
+   - Files: `iface.go`, `show_linux.go`
+   - Verify: host vet + `GOOS=linux` vet clean
+2. **Phase: unit tests** — `TestLinkToInfoPermanentMAC`, `TestLinkToInfoNoPermanentMAC`
+   - Files: `show_linux_test.go`
+   - Verify: PASS in linux (`make ze-linux-test`)
+3. **Phase: mac guard** — `TestMacBindingUniqueRetained`
+   - Files: `yang/mac_binding_test.go`
+   - Verify: PASS (host)
+4. **Phase: functional test** — `test/parse/cli-show-interface-osname.ci` (os-name in show; QEMU/CI)
+5. **Complete spec** → audit + learned summary (949); two commits
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -223,7 +220,7 @@ N/A — no wire-protocol behavior; this is local interface state only.
 | `PermanentMAC` field | `grep PermanentMAC internal/component/iface/iface.go` |
 | permaddr read | `grep -i PERM_ADDRESS\|PermHWAddr internal/plugins/iface/netlink/` |
 | os-name visible | YANG: `os-name` no longer `ze:hidden` |
-| show output | run `test/iface/iface-permaddr-show.ci` |
+| show output renders OS Name | `cli-show-interface-osname.ci` PASS in QEMU |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -251,8 +248,8 @@ N/A — no wire-protocol behavior; this is local interface state only.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Single `os-name` field serves both discovered + intended binding | separate `match/os-name` leaf | one field is simpler; the discovered value IS the intended binding by default |
-| Add `PermanentMAC` to `InterfaceInfo` (additive) | new struct | additive, cross-boundary-safe, minimal churn |
+| `OsName` is a runtime `InterfaceInfo` field (= kernel device name) for show visibility | un-hide the config `os-name` leaf now | the config leaf is dormant (read by nothing); exposing an inert binding knob is speculative — os-name *resolution* moves to sub-spec 2 |
+| Add `OsName`/`PermanentMAC` to `InterfaceInfo` (additive, `omitempty`) | new struct | additive, cross-boundary-safe, minimal churn; auto-surfaces in `show interface detail` |
 | No resolution change in this sub-spec | wire resolver here too | keeps the foundation reviewable; resolver is sub-spec 2 |
 
 ## Known Limitations
@@ -262,15 +259,16 @@ N/A — no wire-protocol behavior; this is local interface state only.
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| permanent MAC readable + shown | functional test | `test/iface/iface-permaddr-show.ci` |
-| os-name as optional binding selector | functional test | `test/iface/iface-osname-config.ci` |
+| permanent MAC readable, distinct from operational MAC | unit test (linux) | `TestLinkToInfoPermanentMAC` PASS via `make ze-linux-test` (Docker: `ok ... iface/netlink 0.010s`) |
+| os-name visible in `show interface` | functional (QEMU) | `test/parse/cli-show-interface-osname.ci` **PASS in QEMU** (`ze interface show lo` renders `OS Name:`; `PASS 48 cli-show-interface-osname`); `TestLinkToInfoPermanentMAC` asserts `OsName` populated |
+| mac stays optional + unique | host test | `TestMacBindingUniqueRetained` PASS (host) |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [from /ze-review] | file:line | fixed / deferred / acknowledged |
+| 1 | NOTE | `OsName == Name` until the resolver (sub-spec 2) makes `Name` logical; transitional redundancy, documented on the field | `iface.go` InterfaceInfo | acknowledged (intentional foundation) |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -281,14 +279,30 @@ N/A — no wire-protocol behavior; this is local interface state only.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/iface/iface.go` | yes | `OsName` + `PermanentMAC` fields added |
+| `internal/plugins/iface/netlink/show_linux.go` | yes | `linkToInfo` populates both from `Attrs()` |
+| `internal/component/iface/cli/show.go` | yes | `showOne` renders `OS Name:` / `Perm MAC:` (QEMU-verified) |
+| `internal/plugins/iface/netlink/show_linux_test.go` | yes | `TestLinkToInfoPermanentMAC` / `TestLinkToInfoNoPermanentMAC` |
+| `internal/component/iface/yang/mac_binding_test.go` | yes | `TestMacBindingUniqueRetained` |
+| `test/parse/cli-show-interface-osname.ci` | yes | functional (QEMU PASS) |
+| `internal/component/iface/cli/show_test.go` | yes | `TestFormatInterfaceDetail` (Perm MAC render, host PASS) |
+| `internal/component/iface/health.go` + `web/page_{interfaces,ip_addresses,traffic}.go` | yes | rangeValCopy cascade fixed (web lint 0 issues) |
+| `docs/guide/command-reference.md` | yes | os-name / Perm MAC note (source-anchored) |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | `PermanentMAC` from `PermHWAddr`, distinct from `MAC` | `TestLinkToInfoPermanentMAC` PASS (Docker linux: `ok iface/netlink 0.010s`) |
+| AC-2 | `ze interface show <name>` renders os-name (+ perm MAC) | `cli-show-interface-osname.ci` **PASS in QEMU** (`PASS 48 cli-show-interface-osname`); `showOne` prints `OS Name:` / `Perm MAC:` |
+| AC-3 | distinct from override; empty for virtual | `TestLinkToInfoPermanentMAC` + `TestLinkToInfoNoPermanentMAC` PASS |
+| AC-4 | mac optional + unique | `TestMacBindingUniqueRetained` PASS (host) |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | `PermHWAddr` in vishvananda/netlink v1.3.1 `link.go:58` |
+| A-2 | confirmed | `omitempty` fields are additive; netlink package tests pass in linux |
+| A-3 | confirmed | `TestLinkToInfoNoPermanentMAC` (empty permaddr for a device with no `PermHWAddr`) |
 
 ## Checklist
 

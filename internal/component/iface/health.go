@@ -43,8 +43,8 @@ func CheckAllInterfaceErrors() int {
 		return 0
 	}
 	names := make([]string, len(ifaces))
-	for i, iface := range ifaces {
-		names[i] = iface.Name
+	for i := range ifaces {
+		names[i] = ifaces[i].Name
 	}
 	return CheckInterfaceErrors(names)
 }

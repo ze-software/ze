@@ -109,26 +109,7 @@ func showOne(name string, jsonOut bool) int {
 		return encodeJSON(info)
 	}
 
-	fmt.Printf("Name:       %s\n", info.Name)
-	fmt.Printf("Index:      %d\n", info.Index)
-	if info.Type != "" {
-		fmt.Printf("Type:       %s\n", info.Type)
-	}
-	fmt.Printf("State:      %s\n", info.State)
-	fmt.Printf("MTU:        %d\n", info.MTU)
-	if info.MAC != "" {
-		fmt.Printf("MAC:        %s\n", info.MAC)
-	}
-	if info.VlanID != 0 {
-		fmt.Printf("VLAN ID:    %d\n", info.VlanID)
-	}
-
-	if len(info.Addresses) > 0 {
-		fmt.Println("Addresses:")
-		for _, a := range info.Addresses {
-			fmt.Printf("  %s/%d (%s)\n", a.Address, a.PrefixLength, a.Family)
-		}
-	}
+	fmt.Fprint(os.Stdout, formatInterfaceDetail(info)) //nolint:errcheck // CLI output
 
 	if info.Type == "xfrm" {
 		showXFRMDetail(name)
@@ -143,6 +124,40 @@ func showOne(name string, jsonOut bool) int {
 	}
 
 	return 0
+}
+
+// formatInterfaceDetail renders the human-readable detail block for an
+// interface (everything except the netlink-backed XFRM and statistics
+// sections). Split out from showOne so the rendering -- including the OS-name
+// and permanent-MAC lines -- is unit-testable without a netlink backend.
+func formatInterfaceDetail(info *ifacepkg.InterfaceInfo) string {
+	var b textbuf.Buffer
+	b.Str("Name:       ").Str(info.Name).Byte('\n')
+	if info.OsName != "" {
+		b.Str("OS Name:    ").Str(info.OsName).Byte('\n')
+	}
+	b.Str("Index:      ").Int(int64(info.Index)).Byte('\n')
+	if info.Type != "" {
+		b.Str("Type:       ").Str(info.Type).Byte('\n')
+	}
+	b.Str("State:      ").Str(info.State).Byte('\n')
+	b.Str("MTU:        ").Int(int64(info.MTU)).Byte('\n')
+	if info.MAC != "" {
+		b.Str("MAC:        ").Str(info.MAC).Byte('\n')
+	}
+	if info.PermanentMAC != "" {
+		b.Str("Perm MAC:   ").Str(info.PermanentMAC).Byte('\n')
+	}
+	if info.VlanID != 0 {
+		b.Str("VLAN ID:    ").Int(int64(info.VlanID)).Byte('\n')
+	}
+	if len(info.Addresses) > 0 {
+		b.Str("Addresses:\n")
+		for _, a := range info.Addresses {
+			b.Str("  ").Str(a.Address).Byte('/').Int(int64(a.PrefixLength)).Str(" (").Str(a.Family).Str(")\n")
+		}
+	}
+	return b.String()
 }
 
 func showXFRMDetail(name string) {

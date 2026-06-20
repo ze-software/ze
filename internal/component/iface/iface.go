@@ -102,17 +102,27 @@ type DHCPPayload struct {
 // InterfaceInfo describes an OS network interface for display.
 type InterfaceInfo struct {
 	plugin.DataMarker
-	Name        string          `json:"name"`
-	Index       int             `json:"index"`
-	Type        string          `json:"type"`
-	State       string          `json:"state"`
-	MTU         int             `json:"mtu"`
-	MAC         string          `json:"mac-address,omitempty"`
-	Addresses   []AddrInfo      `json:"addresses,omitempty"`
-	Stats       *InterfaceStats `json:"stats,omitempty"`
-	ParentIndex int             `json:"parent-index,omitempty"`
-	VlanID      int             `json:"vlan-id,omitempty"`
-	Promisc     bool            `json:"promiscuous,omitempty"`
+	Name string `json:"name"`
+	// OsName is the OS/kernel device name. Today it equals Name; once a
+	// resolver maps an operator-chosen logical name to a kernel device
+	// (iface-resolve-2), Name carries the logical name and OsName keeps the
+	// kernel device, so `show interface` shows both sides of the mapping.
+	OsName string `json:"os-name,omitempty"`
+	Index  int    `json:"index"`
+	Type   string `json:"type"`
+	State  string `json:"state"`
+	MTU    int    `json:"mtu"`
+	MAC    string `json:"mac-address,omitempty"`
+	// PermanentMAC is the NIC's factory/permanent hardware address
+	// (IFLA_PERM_ADDRESS), distinct from the operational MAC which an
+	// operator may override. Empty for virtual/created kinds that have no
+	// permanent address.
+	PermanentMAC string          `json:"permanent-mac-address,omitempty"`
+	Addresses    []AddrInfo      `json:"addresses,omitempty"`
+	Stats        *InterfaceStats `json:"stats,omitempty"`
+	ParentIndex  int             `json:"parent-index,omitempty"`
+	VlanID       int             `json:"vlan-id,omitempty"`
+	Promisc      bool            `json:"promiscuous,omitempty"`
 	// 802.1p QoS maps reported by the kernel for VLAN sub-interfaces
 	// (IEEE 802.1Q PCP, 0-7). nil when unconfigured.
 	IngressQoSMap map[uint32]uint32 `json:"ingress-qos-map,omitempty"` // received PCP -> internal priority

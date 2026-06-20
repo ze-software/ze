@@ -3,6 +3,7 @@
 package ifacenetlink
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,6 +86,48 @@ func TestLinkToInfoVLANQoSMaps(t *testing.T) {
 	bareInfo := linkToInfo(bare)
 	assert.Nil(t, bareInfo.IngressQoSMap)
 	assert.Nil(t, bareInfo.EgressQoSMap)
+}
+
+// TestLinkToInfoPermanentMAC verifies the factory/permanent MAC
+// (IFLA_PERM_ADDRESS) is read into PermanentMAC as a field distinct from the
+// operational MAC, and that OsName carries the kernel device name.
+//
+// VALIDATES: spec-iface-resolve-1-model AC-1/AC-3 -- permaddr read, distinct
+// from an operational override; os-name visible.
+// PREVENTS: a MAC override erasing the only stable physical-device identity.
+func TestLinkToInfoPermanentMAC(t *testing.T) {
+	perm, err := net.ParseMAC("aa:bb:cc:dd:ee:ff")
+	require.NoError(t, err)
+	oper, err := net.ParseMAC("02:00:00:00:00:01")
+	require.NoError(t, err)
+
+	dev := &netlink.Device{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:         "eth0",
+			Index:        3,
+			MTU:          1500,
+			HardwareAddr: oper,
+			PermHWAddr:   perm,
+		},
+	}
+	info := linkToInfo(dev)
+	assert.Equal(t, "eth0", info.Name)
+	assert.Equal(t, "eth0", info.OsName, "os-name must be visible in show interface")
+	assert.Equal(t, "02:00:00:00:00:01", info.MAC, "operational MAC")
+	assert.Equal(t, "aa:bb:cc:dd:ee:ff", info.PermanentMAC, "permanent MAC")
+	assert.NotEqual(t, info.MAC, info.PermanentMAC, "override must not erase the permanent identity")
+}
+
+// TestLinkToInfoNoPermanentMAC verifies a virtual/created kind with no factory
+// address reports an empty PermanentMAC (no JSON key emitted) while still
+// exposing OsName.
+//
+// VALIDATES: spec-iface-resolve-1-model A-3 -- created kinds have empty permaddr.
+func TestLinkToInfoNoPermanentMAC(t *testing.T) {
+	dev := &netlink.Device{LinkAttrs: netlink.LinkAttrs{Name: "veth0", Index: 9, MTU: 1500}}
+	info := linkToInfo(dev)
+	assert.Empty(t, info.PermanentMAC, "virtual kinds have no permanent MAC")
+	assert.Equal(t, "veth0", info.OsName)
 }
 
 // TestParseLinkSpeedDuplex covers the sysfs value handling for the flow-export

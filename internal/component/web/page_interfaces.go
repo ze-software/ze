@@ -188,14 +188,15 @@ func mergeInterfaceInfos(runtime, configured []iface.InterfaceInfo) []iface.Inte
 
 	usedRuntime := make([]bool, len(runtime))
 	infos := make([]iface.InterfaceInfo, 0, len(configured)+len(runtime))
-	for _, cfg := range configured {
-		info := cfg
+	for i := range configured {
+		cfg := &configured[i]
+		info := *cfg
 		if idx, ok := byName[cfg.Name]; ok {
-			info = mergeConfiguredRuntime(cfg, runtime[idx])
+			info = mergeConfiguredRuntime(*cfg, runtime[idx])
 			usedRuntime[idx] = true
 		} else if cfg.MAC != "" {
 			if idx, ok := byMAC[strings.ToLower(cfg.MAC)]; ok {
-				info = mergeConfiguredRuntime(cfg, runtime[idx])
+				info = mergeConfiguredRuntime(*cfg, runtime[idx])
 				info.Name = cfg.Name
 				usedRuntime[idx] = true
 			}
@@ -277,8 +278,8 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 	}
 
 	var rows []WorkbenchTableRow
-	for _, info := range infos {
-		info = normalizeInterfaceInfo(info)
+	for i := range infos {
+		info := normalizeInterfaceInfo(infos[i])
 		if filterType != "" && !matchesTypeFilter(info, filterType) {
 			continue
 		}
@@ -551,9 +552,10 @@ func handleInterfaceDetailContent(renderer *Renderer, name string, viewTree *con
 }
 
 func configuredInterfaceByName(viewTree *config.Tree, name string) *iface.InterfaceInfo {
-	for _, info := range collectConfiguredInterfaces(viewTree) {
-		if info.Name == name {
-			found := info
+	infos := collectConfiguredInterfaces(viewTree)
+	for i := range infos {
+		if infos[i].Name == name {
+			found := infos[i]
 			return &found
 		}
 	}
