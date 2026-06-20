@@ -27,6 +27,8 @@ var (
 	errNoProcessspawnerSetCallSetprocessspawner = errors.New("no ProcessSpawner set — call SetProcessSpawner before Start")
 	errSpawnerDidNotProduceAValid               = errors.New("spawner did not produce a valid ProcessManager")
 	errFamilyDeclarationMissingName             = errors.New("family declaration missing name")
+
+	startupRegistrationMu sync.Mutex
 )
 
 // Family mode constants (mirrored from root registration.go — unexported, not cross-package accessible).
@@ -349,12 +351,11 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 
 	logger().Debug("plugin startup tiers computed", "tiers", tiers)
 
-	// Collect ALL processes for async handler startup after all tiers.
 	var allProcesses []*process.Process
+	var phaseErr error
 
 	// Step (c): For each tier, create a coordinator and run the 5-stage handshake.
 	for tierIdx, tierNames := range tiers {
-		// Build process slice for this tier by looking up names in PM.
 		tierProcs := make([]*process.Process, 0, len(tierNames))
 		for _, name := range tierNames {
 			proc := pm.GetProcess(name)
@@ -369,12 +370,10 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 			continue
 		}
 
-		// Assign tier-local indices for coordinator barrier synchronization.
 		for i, proc := range tierProcs {
 			proc.SetIndex(i)
 		}
 
-		// Create coordinator for this tier.
 		newCoord := plugin.NewStartupCoordinator(len(tierProcs))
 		newCoord.SetStartTime(time.Now())
 		s.coordinatorMu.Lock()
@@ -383,7 +382,6 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 
 		logger().Debug("starting tier handshake", "tier", tierIdx, "plugins", tierNames)
 
-		// Launch handshake goroutines for this tier's processes.
 		var procWg sync.WaitGroup
 		for _, proc := range tierProcs {
 			procWg.Add(1)
@@ -395,16 +393,37 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 		procWg.Wait()
 
 		allProcesses = append(allProcesses, tierProcs...)
+		for _, proc := range tierProcs {
+			if proc.Stage() >= plugin.StageRunning {
+				continue
+			}
+			err := fmt.Errorf("plugin %s failed during startup at stage %s", proc.Name(), proc.Stage())
+			if phaseErr == nil {
+				phaseErr = err
+			}
+			logger().Error("plugin startup failed", "plugin", proc.Name(), "stage", proc.Stage(), "error", err)
+			s.rollbackStartupProcess(proc)
+		}
 
 		logger().Debug("tier handshake complete", "tier", tierIdx)
+		if phaseErr != nil {
+			break
+		}
 	}
 
-	// Step (d): After ALL tiers complete, start async handlers for ALL processes.
-	// Tracked in wg so Server.Wait() blocks until all handlers exit.
+	if phaseErr != nil {
+		s.rollbackNonRunningStartupProcesses(pm, plugins)
+	}
+
 	s.coordinatorMu.Lock()
 	s.coordinator = nil
 	s.coordinatorMu.Unlock()
+
+	// Step (d): Start async handlers only for processes that committed.
 	for _, proc := range allProcesses {
+		if proc.Stage() < plugin.StageRunning {
+			continue
+		}
 		s.wg.Add(1)
 		go func(p *process.Process) {
 			defer s.wg.Done()
@@ -412,7 +431,75 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 		}(proc)
 	}
 
-	return nil
+	return phaseErr
+}
+
+func (s *Server) unmarkPluginLoaded(name string) {
+	s.loadedPluginsMu.Lock()
+	delete(s.loadedPlugins, name)
+	s.loadedPluginsMu.Unlock()
+}
+
+func (s *Server) rememberPluginFamilies(name string, regs []family.FamilyRegistration) {
+	if len(regs) == 0 {
+		return
+	}
+	s.runtimeFamiliesMu.Lock()
+	if s.runtimeFamilies == nil {
+		s.runtimeFamilies = make(map[string][]family.FamilyRegistration)
+	}
+	s.runtimeFamilies[name] = append(s.runtimeFamilies[name], regs...)
+	s.runtimeFamiliesMu.Unlock()
+}
+
+func (s *Server) removePluginFamilies(name string) {
+	s.runtimeFamiliesMu.Lock()
+	regs := append([]family.FamilyRegistration(nil), s.runtimeFamilies[name]...)
+	delete(s.runtimeFamilies, name)
+	s.runtimeFamiliesMu.Unlock()
+	family.UnregisterFamilyBatch(regs)
+}
+
+func (s *Server) rollbackStartupProcess(proc *process.Process) {
+	if s.registry != nil {
+		s.registry.Unregister(proc.Name())
+	}
+	if s.capInjector != nil {
+		s.capInjector.RemovePluginCapabilities(proc.Name())
+	}
+	s.removePluginFamilies(proc.Name())
+	if s.dispatcher != nil {
+		s.dispatcher.Registry().UnregisterAll(proc)
+		s.dispatcher.Pending().CancelAll(proc)
+	}
+	if s.subscriptions != nil {
+		s.subscriptions.ClearProcess(proc)
+	}
+	if proc.IsCacheConsumer() && s.reactor != nil {
+		s.reactor.UnregisterCacheConsumer(proc.Name())
+	}
+	runProcessCleanupHooks(proc.Name())
+	proc.Stop()
+	if pm := s.procManager.Load(); pm != nil {
+		pm.RemoveProcess(proc.Name())
+	}
+	s.unmarkPluginLoaded(proc.Name())
+}
+
+func (s *Server) rollbackNonRunningStartupProcesses(pm *process.ProcessManager, plugins []plugin.PluginConfig) {
+	for _, cfg := range plugins {
+		proc := pm.GetProcess(cfg.Name)
+		if proc == nil {
+			s.unmarkPluginLoaded(cfg.Name)
+			continue
+		}
+		if proc.Stage() >= plugin.StageRunning {
+			continue
+		}
+		logger().Error("plugin startup failed before tier handshake completed",
+			"plugin", proc.Name(), "stage", proc.Stage())
+		s.rollbackStartupProcess(proc)
+	}
 }
 
 // handleProcessStartupRPC handles the 5-stage plugin startup via YANG RPC protocol.
@@ -507,24 +594,30 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		}
 	}
 
-	// Register with registry
+	// Register with registry, then register declared runtime families. If
+	// family registration fails, roll back the plugin registry rows so the
+	// failed declaration is invisible to later startup phases.
+	startupRegistrationMu.Lock()
 	if err := s.registry.Register(reg); err != nil {
+		startupRegistrationMu.Unlock()
 		if sendErr := conn.SendError(s.ctx, req.ID, "registration conflict: "+err.Error()); sendErr != nil {
 			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
 		return
 	}
-
-	// Register declared families with the nlri registry so Family.String() and
-	// LookupFamily() work for families introduced by external plugins at runtime.
-	if err := registerPluginFamilies(regInput.Families); err != nil {
+	addedFamilies, err := registerPluginFamilies(regInput.Families)
+	if err != nil {
+		s.registry.Unregister(reg.Name)
+		startupRegistrationMu.Unlock()
 		if sendErr := conn.SendError(s.ctx, req.ID, "family registration conflict: "+err.Error()); sendErr != nil {
 			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		s.handlePluginConflict(proc, reg.Name, "plugin family registration conflict", err)
 		return
 	}
+	s.rememberPluginFamilies(reg.Name, addedFamilies)
+	startupRegistrationMu.Unlock()
 
 	// Register proxy enrichers for declared show enrichers.
 	if len(regInput.Enrichers) > 0 {
@@ -718,9 +811,13 @@ func (s *Server) deliverConfigRPC(proc *process.Process) {
 
 	if err := conn.SendConfigure(s.ctx, sections); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
-		// Plugins with FatalOnConfigError cause ze to exit on config failure
-		// (e.g., BGP with invalid address family). Other plugin config failures
-		// are non-fatal; the plugin exits but ze continues operating.
+		s.coordinatorMu.Lock()
+		coord := s.coordinator
+		s.coordinatorMu.Unlock()
+		if coord != nil {
+			coord.PluginFailed(proc.Index(), fmt.Sprintf("configure failed: %v", err))
+		}
+		proc.Stop()
 		if registry.IsFatalOnConfigError(proc.Name()) {
 			s.startupErr = fmt.Errorf("%s: %w", proc.Name(), err)
 		}
@@ -781,14 +878,15 @@ func ExtractConfigSubtree(configTree map[string]any, path string) any {
 //
 // Re-registration with identical values is a no-op. Conflicting AFI or SAFI
 // names return an error, which propagates as a registration failure.
-func registerPluginFamilies(families []rpc.FamilyDecl) error {
+func registerPluginFamilies(families []rpc.FamilyDecl) ([]family.FamilyRegistration, error) {
+	registrations := make([]family.FamilyRegistration, 0, len(families))
 	for _, fam := range families {
 		if fam.Name == "" {
-			return errFamilyDeclarationMissingName
+			return nil, errFamilyDeclarationMissingName
 		}
 		parts := strings.SplitN(fam.Name, "/", 2)
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return fmt.Errorf("invalid family name %q (expected afi/safi)", fam.Name)
+			return nil, fmt.Errorf("invalid family name %q (expected afi/safi)", fam.Name)
 		}
 		// Older plugins don't send AFI/SAFI numbers. If both are unset, the
 		// family must already be registered by an internal plugin's init -- skip.
@@ -796,14 +894,17 @@ func registerPluginFamilies(families []rpc.FamilyDecl) error {
 			if _, ok := family.LookupFamily(fam.Name); ok {
 				continue
 			}
-			return fmt.Errorf("family %q: plugin sent AFI=0 SAFI=0 and family is not pre-registered", fam.Name)
+			return nil, fmt.Errorf("family %q: plugin sent AFI=0 SAFI=0 and family is not pre-registered", fam.Name)
 		}
-		afiStr, safiStr := parts[0], parts[1]
-		if _, err := family.RegisterFamily(family.AFI(fam.AFI), family.SAFI(fam.SAFI), afiStr, safiStr); err != nil {
-			return fmt.Errorf("family %q: %w", fam.Name, err)
-		}
+		registrations = append(registrations, family.FamilyRegistration{
+			AFI: family.AFI(fam.AFI), SAFI: family.SAFI(fam.SAFI), AFIName: parts[0], SAFIName: parts[1],
+		})
 	}
-	return nil
+	added, err := family.RegisterFamilyBatch(registrations)
+	if err != nil {
+		return nil, fmt.Errorf("family registration: %w", err)
+	}
+	return added, nil
 }
 
 // registrationFromRPC converts DeclareRegistrationInput (RPC types) to PluginRegistration (engine types).

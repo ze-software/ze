@@ -46,18 +46,20 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	nextHop := req.NextHop
 	isIPv6 := req.IsIPv6
 	var (
-		distinguisher uint32
-		color         uint32
-		endpoint      string
-		preference    uint32
-		hasPref       bool
-		bsidMPLS      uint32
-		hasBSID       bool
-		bsidSRv6      netip.Addr
-		hasSRv6BSID   bool
-		segLists      []srpSegmentList
-		policyName    string
-		candPathName  string
+		distinguisher    uint32
+		color            uint32
+		hasDistinguisher bool
+		hasColor         bool
+		endpoint         string
+		preference       uint32
+		hasPref          bool
+		bsidMPLS         uint32
+		hasBSID          bool
+		bsidSRv6         netip.Addr
+		hasSRv6BSID      bool
+		segLists         []srpSegmentList
+		policyName       string
+		candPathName     string
 	)
 
 	i := 0
@@ -73,6 +75,7 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 				return registry.PluginRoute{}, fmt.Errorf("invalid distinguisher: %w", err)
 			}
 			distinguisher = uint32(v)
+			hasDistinguisher = true
 			i += 2
 
 		case "color":
@@ -84,6 +87,7 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 				return registry.PluginRoute{}, fmt.Errorf("invalid color: %w", err)
 			}
 			color = uint32(v)
+			hasColor = true
 			i += 2
 
 		case "endpoint":
@@ -156,7 +160,7 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 		}
 	}
 
-	if endpoint == "" {
+	if !hasDistinguisher || !hasColor || endpoint == "" {
 		return registry.PluginRoute{}, errSRPolicyMissingFields
 	}
 
@@ -168,6 +172,9 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	afi := family.AFIIPv4
 	if isIPv6 {
 		afi = family.AFIIPv6
+	}
+	if err := validateSRPolicyEndpoint(afi, ep); err != nil {
+		return registry.PluginRoute{}, err
 	}
 
 	nlri := New(afi, distinguisher, color, ep).Bytes()

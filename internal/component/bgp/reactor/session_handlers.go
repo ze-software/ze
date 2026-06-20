@@ -118,9 +118,15 @@ func (s *Session) handleOpen(body []byte) error {
 	// Parse capabilities from both OPENs for negotiation.
 	var localCaps, peerCaps []capability.Capability
 	if localOpen != nil {
-		localCaps = capability.ParseFromOptionalParams(localOpen.OptionalParams)
+		localCaps, err = capability.ParseFromOptionalParams(localOpen.OptionalParams)
+		if err != nil {
+			return fmt.Errorf("parse local OPEN capabilities: %w", err)
+		}
 	}
-	peerCaps = capability.ParseFromOptionalParams(open.OptionalParams)
+	peerCaps, err = capability.ParseFromOptionalParams(open.OptionalParams)
+	if err != nil {
+		return s.rejectOpenCapabilityError(err)
+	}
 
 	// Negotiate capabilities.
 	s.negotiateWith(localCaps, peerCaps)
@@ -174,6 +180,26 @@ func (s *Session) handleOpen(body []byte) error {
 	s.timers.ResetHoldTimer()
 
 	return nil
+}
+
+func (s *Session) rejectOpenCapabilityError(err error) error {
+	s.mu.RLock()
+	conn := s.conn
+	s.mu.RUnlock()
+
+	subcode := message.NotifyOpenUnsupportedOptParam
+	data := []byte(nil)
+	if errors.Is(err, capability.ErrInvalidLength) {
+		subcode = message.NotifyOpenUnsupportedCapability
+		// RFC 5492 Section 5: Unsupported Capability NOTIFICATION data
+		// MUST list the capability TLV that caused the notification.
+		data = capability.ErrorData(err)
+	}
+
+	s.logNotifyErr(conn, message.NotifyOpenMessage, subcode, data)
+	s.logFSMEvent(fsm.EventBGPOpenMsgErr)
+	s.closeConn()
+	return fmt.Errorf("%w: parse peer OPEN capabilities: %w", ErrInvalidMessage, err)
 }
 
 // handleKeepalive processes a received KEEPALIVE message.
@@ -253,6 +279,39 @@ func (s *Session) handleNotification(body []byte) error {
 	return fmt.Errorf("%w: %s", ErrNotificationRecv, notif.String())
 }
 
+func (s *Session) validateRouteRefreshLength(body, notificationData []byte) error {
+	// RFC 7313 Section 5: "If the length... is not 4, then the BGP speaker
+	// MUST send a NOTIFICATION message with Error Code 'ROUTE-REFRESH Message
+	// Error' and subcode 'Invalid Message Length'."
+	if len(body) == 4 {
+		return nil
+	}
+
+	s.mu.RLock()
+	conn := s.conn
+	s.mu.RUnlock()
+
+	if notificationData == nil {
+		notificationData = routeRefreshNotificationData(body)
+	}
+	s.logNotifyErr(conn,
+		message.NotifyRouteRefresh,
+		message.NotifyRouteRefreshInvalidLength,
+		notificationData,
+	)
+	s.logFSMEvent(fsm.EventBGPHeaderErr)
+	s.closeConn()
+	return fmt.Errorf("%w: ROUTE-REFRESH invalid length %d", ErrInvalidMessage, len(body))
+}
+
+func routeRefreshNotificationData(body []byte) []byte {
+	data := make([]byte, message.HeaderLen+len(body))
+	header := message.Header{Length: uint16(len(data)), Type: message.TypeROUTEREFRESH} //nolint:gosec // received BGP message length is uint16-bounded.
+	header.WriteTo(data, 0)
+	copy(data[message.HeaderLen:], body)
+	return data
+}
+
 // handleRouteRefresh processes a received ROUTE-REFRESH message.
 // RFC 2918 Section 3: "A BGP speaker that is willing to receive the
 // ROUTE-REFRESH message from its peer SHOULD advertise the Route Refresh
@@ -261,25 +320,11 @@ func (s *Session) handleNotification(body []byte) error {
 // that were not advertised in the OPEN message.
 // RFC 7313: Enhanced Route Refresh with BoRR/EoRR markers.
 func (s *Session) handleRouteRefresh(body []byte) error {
+	if err := s.validateRouteRefreshLength(body, nil); err != nil {
+		return err
+	}
 	if s.onRefreshRecv != nil {
 		s.onRefreshRecv()
-	}
-	// RFC 7313 Section 5: "If the length... is not 4, then the BGP speaker
-	// MUST send a NOTIFICATION message with Error Code 'ROUTE-REFRESH Message Error'
-	// and subcode 'Invalid Message Length'."
-	if len(body) != 4 {
-		s.mu.RLock()
-		conn := s.conn
-		s.mu.RUnlock()
-
-		s.logNotifyErr(conn,
-			message.NotifyRouteRefresh,
-			message.NotifyRouteRefreshInvalidLength,
-			body,
-		)
-		s.logFSMEvent(fsm.EventBGPHeaderErr)
-		s.closeConn()
-		return fmt.Errorf("%w: ROUTE-REFRESH invalid length %d", ErrInvalidMessage, len(body))
 	}
 
 	rr, err := message.UnpackRouteRefresh(body)

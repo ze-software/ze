@@ -24,6 +24,21 @@ import (
 func newOpenSentSession(t *testing.T) *Session {
 	t.Helper()
 
+	session, client := newOpenSentSessionWithClient(t)
+	go func() {
+		buf := make([]byte, 65536)
+		for {
+			if _, readErr := client.Read(buf); readErr != nil {
+				return
+			}
+		}
+	}()
+	return session
+}
+
+func newOpenSentSessionWithClient(t *testing.T) (*Session, net.Conn) {
+	t.Helper()
+
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
 	settings.ReceiveHoldTime = 90 * time.Second
@@ -41,22 +56,12 @@ func newOpenSentSession(t *testing.T) *Session {
 	_ = acceptWithReader(t, session, server, client)
 	require.Equal(t, fsm.StateOpenSent, session.State())
 
-	// Drain goroutine absorbs any NOTIFICATION/KEEPALIVE the handler sends.
-	go func() {
-		buf := make([]byte, 65536)
-		for {
-			if _, readErr := client.Read(buf); readErr != nil {
-				return
-			}
-		}
-	}()
-
 	t.Cleanup(func() {
 		client.Close() //nolint:errcheck // test cleanup
 		server.Close() //nolint:errcheck // test cleanup
 	})
 
-	return session
+	return session, client
 }
 
 // validOpenBody returns a minimal valid OPEN body (version 4, AS 65002, hold 90, ID 1.2.3.2, no opts).
@@ -68,6 +73,51 @@ func validOpenBody() []byte {
 		0x01, 0x02, 0x03, 0x02, // BGP Identifier = 1.2.3.2
 		0x00, // OptParamLen = 0
 	}
+}
+
+// TestOpenRejectsMalformedKnownCapability verifies OPEN capability parsing rejects
+// known zero-length capabilities with non-zero payload lengths.
+//
+// VALIDATES: AC-1 malformed known capabilities reject OPEN before negotiation.
+//
+// PREVENTS: Session establishment with malformed Route Refresh capability data.
+func TestOpenRejectsMalformedKnownCapability(t *testing.T) {
+	s, client := newOpenSentSessionWithClient(t)
+
+	body := []byte{
+		0x04,       // Version 4
+		0xFD, 0xEA, // MyAS = 65002
+		0x00, 0x5A, // HoldTime = 90
+		0x01, 0x02, 0x03, 0x02, // BGP Identifier = 1.2.3.2
+		0x05,       // OptParamLen = 5
+		0x02, 0x03, // Optional Parameter type=Capabilities, len=3
+		byte(capability.CodeRouteRefresh), 0x01, 0x00, // Route Refresh must be length 0
+	}
+
+	notifCh := make(chan []byte, 1)
+	go func() {
+		buf := make([]byte, 4096)
+		n, _ := client.Read(buf)
+		notifCh <- append([]byte(nil), buf[:n]...)
+	}()
+
+	err := s.handleOpen(body)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrInvalidMessage)
+	assert.Nil(t, s.negotiated)
+	assert.NotEqual(t, fsm.StateEstablished, s.State())
+
+	var notif []byte
+	select {
+	case notif = <-notifCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for OPEN NOTIFICATION")
+	}
+	require.GreaterOrEqual(t, len(notif), message.HeaderLen+5)
+	assert.Equal(t, byte(message.TypeNOTIFICATION), notif[18])
+	assert.Equal(t, byte(message.NotifyOpenMessage), notif[message.HeaderLen])
+	assert.Equal(t, message.NotifyOpenUnsupportedCapability, notif[message.HeaderLen+1])
+	assert.Equal(t, []byte{byte(capability.CodeRouteRefresh), 0x01, 0x00}, notif[message.HeaderLen+2:])
 }
 
 // TestHandleOpen_InvalidVersion verifies OPEN with BGP version != 4.

@@ -218,8 +218,16 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		}
 	}
 
-	// Notify callback for all message types BEFORE type-specific validation.
-	// Plugins see raw messages including ones that may fail validation (e.g., bad OPEN).
+	// Validate rejectable ROUTE-REFRESH wire shape before callback delivery.
+	// RFC 7313 Section 5 requires invalid body lengths to produce a
+	// ROUTE-REFRESH Message Error; malformed peer input must not reach plugins.
+	if hdr.Type == message.TypeROUTEREFRESH {
+		if err := s.validateRouteRefreshLength(body, routeRefreshNotificationData(body)); err != nil {
+			return err, false
+		}
+	}
+
+	// Notify callback after pre-delivery validation for rejectable messages.
 	// Callback returns true if it took ownership of buf (e.g., cached it).
 	var kept bool
 	if s.onMessageReceived != nil {

@@ -8,7 +8,10 @@
 
 package filterapi
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 // noopIngress is a stub ingress filter for registration tests.
 func noopIngress(_ PeerFilterInfo, _ []byte, _ map[string]any) (bool, []byte) { return true, nil }
@@ -34,6 +37,27 @@ func TestModAccumulator_LazyAlloc(t *testing.T) {
 	mods.Op(35, AttrModSet, []byte{0x00, 0x00, 0x00, 0x64})
 	if mods.Len() != 1 {
 		t.Fatalf("after Op, Len() = %d, want 1", mods.Len())
+	}
+}
+
+// VALIDATES: OpCopy stores stack-owned bytes in accumulator-owned storage.
+// PREVENTS: AttrOp.Buf pointing at caller scratch that is mutated or goes out of scope.
+func TestModAccumulator_OpCopyOwnsBuffer(t *testing.T) {
+	var mods ModAccumulator
+	src := []byte{0x20, 0x01, 0x0d, 0xb8}
+	mods.OpCopy(14, AttrModSet, src)
+	src[0] = 0xff
+
+	ops := mods.Ops()
+	if len(ops) != 1 {
+		t.Fatalf("Ops() len = %d, want 1", len(ops))
+	}
+	if bytes.Equal(ops[0].Buf, src) {
+		t.Fatal("OpCopy retained caller buffer")
+	}
+	want := []byte{0x20, 0x01, 0x0d, 0xb8}
+	if !bytes.Equal(ops[0].Buf, want) {
+		t.Fatalf("OpCopy Buf = %x, want %x", ops[0].Buf, want)
 	}
 }
 

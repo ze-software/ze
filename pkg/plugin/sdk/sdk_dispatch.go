@@ -114,6 +114,70 @@ func (p *Plugin) getCallback(method string) callbackHandler {
 	return p.callbacks[method]
 }
 
+func bridgeCallbackPanicError(any) error {
+	return fmt.Errorf("%w: bridge callback panic", rpc.ErrBridgeFailed)
+}
+
+func (p *Plugin) failBridgeCallbacks(err error) {
+	if p.bridge == nil {
+		return
+	}
+	p.bridge.FailCallbacks(err)
+	callbackCh := p.bridge.CallbackCh()
+	executeCommandCh := p.bridge.ExecuteCommandRequests()
+	for callbackCh != nil || executeCommandCh != nil {
+		select {
+		case cb, ok := <-callbackCh:
+			if !ok {
+				callbackCh = nil
+				continue
+			}
+			cb.Result <- rpc.BridgeCallbackResult{Err: err}
+		case req, ok := <-executeCommandCh:
+			if !ok {
+				executeCommandCh = nil
+				continue
+			}
+			req.Result <- rpc.ExecuteCommandResult{Err: err}
+		default:
+			return
+		}
+	}
+}
+
+func (p *Plugin) handleBridgeCallback(cb rpc.BridgeCallback) (stop bool, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = bridgeCallbackPanicError(r)
+			cb.Result <- rpc.BridgeCallbackResult{Err: err}
+			p.failBridgeCallbacks(err)
+			stop = true
+		}
+	}()
+
+	handler := p.getCallback(cb.Method)
+	if handler == nil {
+		cb.Result <- rpc.BridgeCallbackResult{Err: fmt.Errorf("unknown method: %s", cb.Method)}
+		return false, nil
+	}
+	result, callErr := handler(cb.Params)
+	cb.Result <- rpc.BridgeCallbackResult{Data: result, Err: callErr}
+	return cb.Method == callbackBye, nil
+}
+
+func (p *Plugin) handleBridgeExecuteCommand(req rpc.ExecuteCommandRequest) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = bridgeCallbackPanicError(r)
+			req.Result <- rpc.ExecuteCommandResult{Err: err}
+			p.failBridgeCallbacks(err)
+		}
+	}()
+	output, callErr := p.bridge.RunExecuteCommand(req)
+	req.Result <- rpc.ExecuteCommandResult{Output: output, Err: callErr}
+	return nil
+}
+
 // bridgeEventLoop handles runtime callbacks for internal plugins after pipe shutdown.
 // Reads from bridge callback channels instead of engineMux.Requests().
 // Callbacks are processed serially (same guarantee as the pipe event loop).
@@ -124,14 +188,11 @@ func (p *Plugin) bridgeEventLoop(ctx context.Context) error {
 			if !ok {
 				return nil // Bridge closed (shutdown).
 			}
-			handler := p.getCallback(cb.Method)
-			if handler == nil {
-				cb.Result <- rpc.BridgeCallbackResult{Err: fmt.Errorf("unknown method: %s", cb.Method)}
-				continue
+			stop, err := p.handleBridgeCallback(cb)
+			if err != nil {
+				return err
 			}
-			result, err := handler(cb.Params)
-			cb.Result <- rpc.BridgeCallbackResult{Data: result, Err: err}
-			if cb.Method == callbackBye {
+			if stop {
 				return nil
 			}
 
@@ -139,8 +200,9 @@ func (p *Plugin) bridgeEventLoop(ctx context.Context) error {
 			if !ok {
 				return nil // Bridge closed (shutdown).
 			}
-			output, err := p.bridge.RunExecuteCommand(req)
-			req.Result <- rpc.ExecuteCommandResult{Output: output, Err: err}
+			if err := p.handleBridgeExecuteCommand(req); err != nil {
+				return err
+			}
 
 		case <-ctx.Done():
 			return nil

@@ -217,6 +217,38 @@ func TestCapabilityConflictAtInjection(t *testing.T) {
 	assert.Contains(t, err.Error(), "73")
 }
 
+// TestCapabilityInjectorConflictIsAtomic verifies a multi-capability batch does
+// not retain earlier capabilities when a later capability conflicts.
+//
+// VALIDATES: AC-2, capability injection is all-or-nothing for one plugin declaration.
+// PREVENTS: Failed plugin startup leaving a partially injected OPEN capability.
+func TestCapabilityInjectorConflictIsAtomic(t *testing.T) {
+	injector := NewCapabilityInjector()
+	require.NoError(t, injector.AddPluginCapabilities(&PluginCapabilities{
+		PluginName: "existing",
+		Capabilities: []PluginCapability{
+			{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: base64.StdEncoding.EncodeToString([]byte("host"))},
+		},
+		Done: true,
+	}))
+
+	err := injector.AddPluginCapabilities(&PluginCapabilities{
+		PluginName: "candidate",
+		Capabilities: []PluginCapability{
+			{Code: 74, Encoding: rpc.CapEncodingHex, Payload: "cafe"},
+			{Code: 73, Encoding: rpc.CapEncodingBase64, Payload: base64.StdEncoding.EncodeToString([]byte("conflict"))},
+		},
+		Done: true,
+	})
+	require.Error(t, err)
+
+	all := injector.AllCapabilities()
+	require.Len(t, all, 1)
+	assert.Equal(t, uint8(73), all[0].Code)
+	assert.Equal(t, "existing", all[0].Plugin)
+	assert.NotContains(t, injector.GetCapabilitiesForPeer("192.0.2.1"), InjectedCapability{Code: 74, Value: []byte{0xca, 0xfe}, Plugin: "candidate"})
+}
+
 // TestNoCapabilities verifies plugins with no capabilities work.
 //
 // VALIDATES: Plugin with empty capabilities works correctly.

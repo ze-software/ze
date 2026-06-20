@@ -218,6 +218,31 @@ func (r *PluginRegistry) Register(reg *PluginRegistration) error {
 	return nil
 }
 
+// Unregister removes all registry rows owned by a plugin. It is intentionally
+// owner-scoped so startup rollback cannot remove another plugin's commands,
+// decode families, or capability claims.
+func (r *PluginRegistry) Unregister(pluginName string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	delete(r.plugins, pluginName)
+	for key, owner := range r.commands {
+		if owner == pluginName {
+			delete(r.commands, key)
+		}
+	}
+	for key, owner := range r.families {
+		if owner == pluginName {
+			delete(r.families, key)
+		}
+	}
+	for code, owner := range r.capabilities {
+		if owner == pluginName {
+			delete(r.capabilities, code)
+		}
+	}
+}
+
 // LookupFamily finds which plugin registered to decode a family.
 // Returns empty string if no plugin registered for the family.
 // Family string is normalized to lowercase for lookup.
@@ -332,49 +357,110 @@ func NewCapabilityInjector() *CapabilityInjector {
 
 // AddPluginCapabilities adds capabilities from a plugin, checking for conflicts.
 // Capabilities with Peers list are stored per-peer; others are stored globally.
+// The batch is atomic: decode and conflict validation happen before any map or
+// slice is mutated.
 func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) error {
 	ci.mu.Lock()
 	defer ci.mu.Unlock()
 
+	addedGlobals := make(map[uint8]string)
+	addedPeers := make(map[string]map[uint8]string)
+	pending := make([]InjectedCapability, 0, len(caps.Capabilities))
+
 	for _, cap := range caps.Capabilities {
-		// Decode payload
 		value, err := DecodeCapabilityPayload(cap)
 		if err != nil {
 			return err
 		}
 
 		if len(cap.Peers) == 0 {
-			// Global capability - applies to all peers
 			if existing, ok := ci.globalByCode[cap.Code]; ok {
 				return fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
 			}
-			ci.globalCaps = append(ci.globalCaps, InjectedCapability{
+			if existing, ok := addedGlobals[cap.Code]; ok {
+				return fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
+			}
+			addedGlobals[cap.Code] = caps.PluginName
+			pending = append(pending, InjectedCapability{
 				Code:   cap.Code,
 				Value:  value,
 				Plugin: caps.PluginName,
 			})
-			ci.globalByCode[cap.Code] = caps.PluginName
-		} else {
-			// Per-peer capability - add to each specified peer
-			for _, peerAddr := range cap.Peers {
-				if ci.peerByCode[peerAddr] == nil {
-					ci.peerByCode[peerAddr] = make(map[uint8]string)
-				}
-				if existing, ok := ci.peerByCode[peerAddr][cap.Code]; ok {
+			continue
+		}
+
+		for _, peerAddr := range cap.Peers {
+			if peerCodes := ci.peerByCode[peerAddr]; peerCodes != nil {
+				if existing, ok := peerCodes[cap.Code]; ok {
 					return fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
 						cap.Code, peerAddr, existing)
 				}
-				ci.peerCaps[peerAddr] = append(ci.peerCaps[peerAddr], InjectedCapability{
-					Code:     cap.Code,
-					Value:    value,
-					Plugin:   caps.PluginName,
-					PeerAddr: peerAddr,
-				})
-				ci.peerByCode[peerAddr][cap.Code] = caps.PluginName
 			}
+			if addedPeers[peerAddr] == nil {
+				addedPeers[peerAddr] = make(map[uint8]string)
+			}
+			if existing, ok := addedPeers[peerAddr][cap.Code]; ok {
+				return fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
+					cap.Code, peerAddr, existing)
+			}
+			addedPeers[peerAddr][cap.Code] = caps.PluginName
+			pending = append(pending, InjectedCapability{
+				Code:     cap.Code,
+				Value:    value,
+				Plugin:   caps.PluginName,
+				PeerAddr: peerAddr,
+			})
 		}
 	}
+
+	for _, cap := range pending {
+		if cap.PeerAddr == "" {
+			ci.globalCaps = append(ci.globalCaps, cap)
+			ci.globalByCode[cap.Code] = cap.Plugin
+			continue
+		}
+		ci.peerCaps[cap.PeerAddr] = append(ci.peerCaps[cap.PeerAddr], cap)
+		if ci.peerByCode[cap.PeerAddr] == nil {
+			ci.peerByCode[cap.PeerAddr] = make(map[uint8]string)
+		}
+		ci.peerByCode[cap.PeerAddr][cap.Code] = cap.Plugin
+	}
 	return nil
+}
+
+// RemovePluginCapabilities removes all injected capabilities owned by a plugin.
+func (ci *CapabilityInjector) RemovePluginCapabilities(pluginName string) {
+	ci.mu.Lock()
+	defer ci.mu.Unlock()
+
+	globalCaps := ci.globalCaps[:0]
+	for _, cap := range ci.globalCaps {
+		if cap.Plugin == pluginName {
+			delete(ci.globalByCode, cap.Code)
+			continue
+		}
+		globalCaps = append(globalCaps, cap)
+	}
+	ci.globalCaps = globalCaps
+
+	for peerAddr, caps := range ci.peerCaps {
+		kept := caps[:0]
+		for _, cap := range caps {
+			if cap.Plugin == pluginName {
+				if peerCodes := ci.peerByCode[peerAddr]; peerCodes != nil {
+					delete(peerCodes, cap.Code)
+				}
+				continue
+			}
+			kept = append(kept, cap)
+		}
+		if len(kept) == 0 {
+			delete(ci.peerCaps, peerAddr)
+			delete(ci.peerByCode, peerAddr)
+			continue
+		}
+		ci.peerCaps[peerAddr] = kept
+	}
 }
 
 // AllCapabilities returns all stored capabilities (global + all per-peer).

@@ -27,8 +27,11 @@ var structuredEventPool = sync.Pool{
 // signal ready. Once ready, the engine calls DeliverEvents directly (bypassing
 // SendDeliverBatch) and the plugin calls DispatchRPC directly (bypassing
 // engineMux.CallRPC).
-// ErrBridgeClosed is returned by SendCallback when the callback channel is closed.
+// ErrBridgeClosed is returned by callback senders when callback channels are closed.
 var ErrBridgeClosed = errors.New("bridge closed")
+
+// ErrBridgeFailed is returned by callback senders after the plugin callback loop failed.
+var ErrBridgeFailed = errors.New("bridge failed")
 
 // BridgeCallback is an engine->plugin callback delivered through the bridge channel.
 // The engine pushes these; the plugin's bridge event loop drains them serially.
@@ -70,6 +73,9 @@ type DirectBridge struct {
 	hasBatchValidate    atomic.Bool                // set atomically when batchValidate is written
 	callbackCh          chan BridgeCallback        // Engine->plugin callbacks (replaces pipe after startup)
 	closeOnce           sync.Once                  // Guards callbackCh close (Stop may be called multiple times)
+	failed              atomic.Bool                // Set after callback loop failure; callers fail fast.
+	failureMu           sync.RWMutex               // Guards failureErr, read only after failed is set.
+	failureErr          error                      // First callback loop failure reported to later callers.
 	ready               atomic.Bool
 }
 
@@ -93,10 +99,17 @@ func (b *DirectBridge) CallbackCh() <-chan BridgeCallback {
 // Used by PluginConn methods that do not have a typed bridge callback.
 // Returns ErrBridgeClosed if the callback channel was closed during shutdown.
 func (b *DirectBridge) SendCallback(ctx context.Context, method string, params json.RawMessage) (result json.RawMessage, err error) {
+	if failErr := b.callbackFailure(); failErr != nil {
+		return nil, failErr
+	}
 	// Sending on a closed channel panics. CloseCallbacks may race with this
 	// send during shutdown (context canceled but select picks the send arm).
 	defer func() {
 		if r := recover(); r != nil {
+			if failErr := b.callbackFailure(); failErr != nil {
+				err = failErr
+				return
+			}
 			err = ErrBridgeClosed
 		}
 	}()
@@ -116,6 +129,36 @@ func (b *DirectBridge) SendCallback(ctx context.Context, method string, params j
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// FailCallbacks marks the callback bridge failed and closes callback channels.
+// Safe to call multiple times; the first error is retained for future callers.
+func (b *DirectBridge) FailCallbacks(err error) {
+	if err == nil {
+		err = ErrBridgeFailed
+	}
+	b.failureMu.Lock()
+	if b.failureErr == nil {
+		b.failureErr = err
+	}
+	b.failureMu.Unlock()
+	if b.failed.CompareAndSwap(false, true) {
+		b.ready.Store(false)
+	}
+	b.CloseCallbacks()
+}
+
+func (b *DirectBridge) callbackFailure() error {
+	if !b.failed.Load() {
+		return nil
+	}
+	b.failureMu.RLock()
+	err := b.failureErr
+	b.failureMu.RUnlock()
+	if err == nil {
+		return ErrBridgeFailed
+	}
+	return err
 }
 
 // CloseCallbacks closes the callback channels, signaling the plugin's bridge
@@ -301,8 +344,16 @@ func (b *DirectBridge) SetExecuteCommand(fn ExecuteCommandHandler) {
 // loop and waits for the result. It preserves callback-loop serialization and
 // caller cancellation while avoiding JSON marshaling for the request.
 func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command string, args []string, peer string) (out *ExecuteCommandOutput, err error) {
+	if failErr := b.callbackFailure(); failErr != nil {
+		return nil, failErr
+	}
 	defer func() {
 		if r := recover(); r != nil {
+			if failErr := b.callbackFailure(); failErr != nil {
+				out = nil
+				err = failErr
+				return
+			}
 			out = nil
 			err = ErrBridgeClosed
 		}

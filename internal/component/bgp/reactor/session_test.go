@@ -2212,6 +2212,107 @@ func setupEstablishedSession(t *testing.T) (*Session, net.Conn, func()) {
 	return session, client, cleanup
 }
 
+// TestRouteRefreshInvalidLengthNotDelivered verifies malformed ROUTE-REFRESH
+// bodies are rejected before receive callbacks observe them.
+//
+// VALIDATES: AC-4 invalid ROUTE-REFRESH body length sends NOTIFICATION and closes.
+//
+// PREVENTS: Malformed peer input reaching plugin/API receive callbacks before RFC 7313 validation.
+func TestRouteRefreshInvalidLengthNotDelivered(t *testing.T) {
+	tests := []struct {
+		name string
+		body []byte
+	}{
+		{"too_short", []byte{0x00, 0x01, 0x00}},
+		{"too_long", []byte{0x00, 0x01, 0x00, 0x01, 0xFF}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			session, client, cleanup := setupEstablishedSession(t)
+			defer cleanup()
+
+			var messageCallbacks int
+			var refreshCallbacks int
+			session.onMessageReceived = func(_ netip.Addr, msgType message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any) bool {
+				if msgType == message.TypeROUTEREFRESH {
+					messageCallbacks++
+				}
+				return false
+			}
+			session.onRefreshRecv = func() {
+				refreshCallbacks++
+			}
+
+			rrMsg := buildRouteRefreshMsg(tt.body)
+			notifCh := make(chan []byte, 1)
+			go func() {
+				_, _ = client.Write(rrMsg)
+				buf := make([]byte, 4096)
+				n, _ := client.Read(buf)
+				notifCh <- append([]byte(nil), buf[:n]...)
+			}()
+
+			err := session.ReadAndProcess()
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrInvalidMessage)
+			assert.Equal(t, 0, messageCallbacks, "invalid ROUTE-REFRESH must not reach onMessageReceived")
+			assert.Equal(t, 0, refreshCallbacks, "invalid ROUTE-REFRESH must not reach onRefreshRecv")
+
+			var notif []byte
+			select {
+			case notif = <-notifCh:
+			case <-time.After(2 * time.Second):
+				t.Fatal("timed out waiting for ROUTE-REFRESH NOTIFICATION")
+			}
+			require.GreaterOrEqual(t, len(notif), message.HeaderLen+2)
+			assert.Equal(t, byte(message.TypeNOTIFICATION), notif[18])
+			assert.Equal(t, byte(message.NotifyRouteRefresh), notif[message.HeaderLen])
+			assert.Equal(t, message.NotifyRouteRefreshInvalidLength, notif[message.HeaderLen+1])
+			assert.Equal(t, rrMsg, notif[message.HeaderLen+2:], "RFC 7313 notification data must contain the complete ROUTE-REFRESH message")
+		})
+	}
+}
+
+// TestRouteRefreshValidLengthDelivered verifies valid ROUTE-REFRESH bodies
+// still reach receive callbacks after pre-delivery validation.
+//
+// VALIDATES: AC-5 valid ROUTE-REFRESH is delivered to callback/event consumers.
+//
+// PREVENTS: Over-tight validation from dropping valid Route Refresh, BoRR, or EoRR messages.
+func TestRouteRefreshValidLengthDelivered(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+
+	var messageCallbacks int
+	var refreshCallbacks int
+	session.onMessageReceived = func(_ netip.Addr, msgType message.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any) bool {
+		if msgType == message.TypeROUTEREFRESH {
+			messageCallbacks++
+			assert.Equal(t, []byte{0x00, 0x01, 0x00, 0x01}, raw)
+		}
+		return false
+	}
+	session.onRefreshRecv = func() {
+		refreshCallbacks++
+	}
+
+	rrMsg := buildRouteRefreshMsg([]byte{
+		0x00, 0x01, // AFI = 1 (IPv4)
+		0x00, // Subtype = 0 (normal)
+		0x01, // SAFI = 1 (Unicast)
+	})
+	go func() {
+		_, _ = client.Write(rrMsg)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err)
+	assert.Equal(t, 1, messageCallbacks)
+	assert.Equal(t, 1, refreshCallbacks)
+	assert.Equal(t, fsm.StateEstablished, session.State())
+}
+
 // TestHandleRouteRefreshNormal verifies normal ROUTE-REFRESH (subtype 0) handling.
 //
 // RFC 2918: Normal route refresh request triggers re-advertisement.
@@ -2359,9 +2460,9 @@ func TestHandleRouteRefreshReserved(t *testing.T) {
 // VALIDATES: ROUTE-REFRESH with body length != 4 triggers NOTIFICATION 7/1.
 // PREVENTS: Processing malformed ROUTE-REFRESH messages.
 //
-// Note: Cases where total message length < 23 bytes are caught by header validation
-// (tested separately), not by handleRouteRefresh. Here we test only body lengths
-// that pass header validation but fail in handleRouteRefresh.
+// Additional too-short receive-path coverage lives in
+// TestRouteRefreshInvalidLengthNotDelivered above; this test exercises larger
+// malformed bodies that still fit in the read buffer.
 func TestHandleRouteRefreshBadLen(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -34,7 +34,9 @@ func TestRegisterPluginFamiliesAddsToNLRIRegistry(t *testing.T) {
 	families := []rpc.FamilyDecl{
 		{Name: testName, Mode: "both", AFI: 1, SAFI: uint8(testSAFI)},
 	}
-	require.NoError(t, registerPluginFamilies(families))
+	added, err := registerPluginFamilies(families)
+	require.NoError(t, err)
+	t.Cleanup(func() { family.UnregisterFamilyBatch(added) })
 
 	// Verify the family is now in the nlri registry.
 	f, ok := family.LookupFamily(testName)
@@ -62,7 +64,7 @@ func TestRegisterPluginFamiliesRejectsInvalidName(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := registerPluginFamilies(tc.families)
+			_, err := registerPluginFamilies(tc.families)
 			require.Error(t, err)
 		})
 	}
@@ -76,8 +78,12 @@ func TestRegisterPluginFamiliesNoOpOnSameValues(t *testing.T) {
 	families := []rpc.FamilyDecl{
 		{Name: "ipv4/test-runtime-200", Mode: "both", AFI: 1, SAFI: uint8(testSAFI)},
 	}
-	require.NoError(t, registerPluginFamilies(families))
+	added, err := registerPluginFamilies(families)
+	require.NoError(t, err)
+	t.Cleanup(func() { family.UnregisterFamilyBatch(added) })
 
 	// Re-register the same family -- should be no-op.
-	require.NoError(t, registerPluginFamilies(families))
+	added, err = registerPluginFamilies(families)
+	require.NoError(t, err)
+	assert.Empty(t, added)
 }

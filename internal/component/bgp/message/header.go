@@ -118,11 +118,12 @@ func ParseHeader(data []byte) (Header, error) {
 // RFC 4271 Section 6.1 - Returns Message Header Error / Bad Message Length if invalid.
 //
 // Per-type requirements:
-// - OPEN: >= 29 octets (RFC 4271 Section 4.2)
-// - UPDATE: >= 23 octets (RFC 4271 Section 4.3)
-// - NOTIFICATION: >= 21 octets (RFC 4271 Section 4.5)
-// - KEEPALIVE: == 19 octets exactly (RFC 4271 Section 4.4)
-// - ROUTE-REFRESH: >= 23 octets (RFC 2918)
+//   - OPEN: >= 29 octets (RFC 4271 Section 4.2)
+//   - UPDATE: >= 23 octets (RFC 4271 Section 4.3)
+//   - NOTIFICATION: >= 21 octets (RFC 4271 Section 4.5)
+//   - KEEPALIVE: == 19 octets exactly (RFC 4271 Section 4.4)
+//   - ROUTE-REFRESH: >= 19 octets here; RFC 7313 body length validation
+//     returns ROUTE-REFRESH Message Error / Invalid Message Length.
 //
 // Note: For upper bound validation, use ValidateLengthWithMax after capability negotiation.
 func (h Header) ValidateLength() error {
@@ -140,7 +141,11 @@ func (h Header) ValidateLength() error {
 		minLen = KeepaliveLen
 		exactLen = true // KEEPALIVE must be exactly 19 octets
 	case TypeROUTEREFRESH:
-		minLen = MinRouteRefreshLen
+		// RFC 7313 Section 5 assigns malformed ROUTE-REFRESH body length to
+		// ROUTE-REFRESH Message Error / Invalid Message Length, not Message
+		// Header Error. Keep header validation to the common BGP header floor;
+		// session receive validation checks the exact 4-octet body before delivery.
+		minLen = HeaderLen
 	default:
 		// Unknown message type - only basic length check (>= 19)
 		minLen = HeaderLen

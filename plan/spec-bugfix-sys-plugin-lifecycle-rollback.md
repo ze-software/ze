@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-19 |
+| Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
 
@@ -109,9 +109,9 @@ Fix plugin lifecycle rollback defects found by SYS-001 and SYS-002. Plugin start
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | Registry state can be snapshotted or transactionally validated for plugin startup tests | existing registry Snapshot/Restore patterns and test reset helpers | fix needs a narrower rollback API | unit tests around plugin registry, capability injector, and family registry | unvalidated |
-| A-2 | Auto-loaded plugin names are sufficient to stop failed reload additions | `autoLoadForNewConfigPaths` returns plugin names | cleanup also needs dependency names or roots | failed reload test with `fib-kernel` and dependency plugin | unvalidated |
-| A-3 | Startup stage failure should abort the phase for config-root and explicit plugin startup | exact-or-reject plugin lifecycle rule | some optional plugin failures should remain warnings | tests for optional dependency and explicit plugin failure paths | unvalidated |
+| A-1 | Registry state can be snapshotted or transactionally validated for plugin startup tests | existing registry Snapshot/Restore patterns and test reset helpers | fix needs a narrower rollback API | rollback tests and `family.RegisterFamilyBatch` | confirmed |
+| A-2 | Auto-loaded plugin names are sufficient to stop failed reload additions | `autoLoadForNewConfigPaths` returns plugin names | cleanup also needs dependency names or roots | `TestReloadFailureStopsAutoLoadedPluginByName` | confirmed |
+| A-3 | Startup stage failure should abort the phase for config-root and explicit plugin startup | exact-or-reject plugin lifecycle rule | some optional plugin failures should remain warnings | startup failure and optional dependency tests | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -299,7 +299,7 @@ A plugin that did not reach ready must be indistinguishable from a plugin that w
 
 ## Known Limitations
 
-- This spec does not implement the fix. It defines the regression tests and source changes required.
+- Implemented in plugin startup, registration, family registry, capability injection, and reload cleanup.
 
 ## RFC Documentation
 
@@ -308,9 +308,9 @@ N/A.
 ## Implementation Summary
 
 ### What Was Implemented
-- Fix spec only. Production code is unchanged.
-- The spec captures SYS-001 and SYS-002 from `plan/review-bug-review-plugin-engine-system.md`.
-- Regression expectations cover plugin startup rollback, capability atomicity, and failed reload autoload cleanup.
+- Plugin startup now returns pre-ready stage failures, starts runtime handlers only for committed processes, and rolls back failed plugin registry, family, capability, command, subscription, cache-consumer, and process state.
+- Capability injection and runtime family registration are atomic, with owner-scoped rollback for later startup failures.
+- Reload failure stops auto-loaded plugin names directly, while optional dependency absence still succeeds.
 
 ### Bugs Found/Fixed
 - SYS-001 and SYS-002 documented for implementation.
@@ -334,26 +334,26 @@ N/A.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1..AC-6 | planned | acceptance criteria table | to be satisfied by implementation owner |
+| AC-1..AC-5 | done | `TestPluginStartupRollsBackPartialRegistration`, `TestPluginStartupRollsBackFamiliesAfterLaterStageFailure`, `TestCapabilityInjectorConflictIsAtomic`, `TestReloadFailureStopsAutoLoadedPluginByName` | startup and reload rollback paths covered |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| startup rollback tests | planned | `internal/component/plugin/server` | not run by review program |
-| capability atomicity tests | planned | `internal/component/plugin` | not run by review program |
-| reload cleanup tests | planned | `internal/component/plugin/server` | not run by review program |
+| startup rollback tests | done | `internal/component/plugin/server/startup_test.go` | passing |
+| capability atomicity tests | done | `internal/component/plugin/capability_injection_test.go` | passing |
+| reload cleanup tests | done | `internal/component/plugin/server/reload_test.go` | passing |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| plugin startup, registration, family, reload files | planned | implementation targets only |
+| plugin startup, registration, family, reload files | done | implementation targets updated |
 
 ### Audit Summary
 - Total items: 2 accepted findings converted to one fix spec.
-- Done: fix spec created.
-- Partial: implementation pending by design.
-- Skipped: no production code changes in review program.
-- Changed: new spec file.
+- Done: lifecycle rollback implementation and regression tests.
+- Partial: none.
+- Skipped: no approved scope reduction.
+- Changed: plugin lifecycle, family registry, capability registry, reload cleanup, DirectBridge typed panic coverage, tests, and docs.
 
 ## Goal Validation
 | Goal (from Task section) | Evidence Type | Concrete Evidence |

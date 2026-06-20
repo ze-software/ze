@@ -141,7 +141,7 @@ func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcASN4, dstASN4 bool) (*wire
 		return nil, fmt.Errorf("EBGP wire rewrite: %w", err)
 	}
 
-	wu := wireu.NewWireUpdate(dst.Buf[:n], u.WireUpdate.SourceCtxID())
+	wu := wireu.NewWireUpdate(dst.Buf[:n], fwdContextIDWithASN4(u.WireUpdate.SourceCtxID(), dstASN4))
 	wu.SetMessageID(u.WireUpdate.MessageID())
 	wu.SetSourceID(u.WireUpdate.SourceID())
 

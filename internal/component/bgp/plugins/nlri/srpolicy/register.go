@@ -32,6 +32,8 @@ func init() {
 		Features:                   "nlri",
 		Families:                   []string{"ipv4/sr-policy", "ipv6/sr-policy"},
 		InProcessNLRIDecoder:       DecodeNLRIHex,
+		InProcessNLRIEncoder:       EncodeNLRIHex,
+		InProcessRouteEncoder:      EncodeRoute,
 		InProcessConfigRouteParser: parseConfigRoute,
 		RunEngine:                  func(net.Conn) int { return 0 },
 		CLIHandler:                 func([]string) int { return 0 },

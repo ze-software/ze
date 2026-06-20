@@ -358,3 +358,58 @@ func TestApplyNextHopMod_IPv6EmitsOnlyMPReach(t *testing.T) {
 	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 S3.3: PrefixSID suppress")
 	assert.Equal(t, filterapi.AttrModSuppress, ops[1].Action)
 }
+
+// TestApplyNextHopModIPv6LinkLocalBytes verifies that IPv6 next-hop self with a
+// link-local address emits the RFC 2545 global plus link-local 32-byte value.
+//
+// VALIDATES: AC-1, IPv6 link-local next-hop value is global IPv6 followed by link-local IPv6.
+// PREVENTS: Forwarding IPv6 next-hop-self routes with only half of the required next-hop value.
+func TestApplyNextHopModIPv6LinkLocalBytes(t *testing.T) {
+	t.Parallel()
+
+	globalAddr := netip.MustParseAddr("2001:db8::1")
+	linkLocalAddr := netip.MustParseAddr("fe80::1")
+	dest := &PeerSettings{
+		NextHopMode:  NextHopSelf,
+		LocalAddress: globalAddr,
+		LinkLocal:    linkLocalAddr,
+	}
+	var mods filterapi.ModAccumulator
+	applyNextHopMod(dest, &mods)
+
+	ops := mods.Ops()
+	require.Len(t, ops, 2, "IPv6 link-local emits MP_REACH op + PrefixSID suppress")
+	require.Equal(t, uint8(14), ops[0].Code, "op is MP_REACH_NLRI")
+	require.Len(t, ops[0].Buf, 32, "RFC 2545 global plus link-local next-hop is 32 bytes")
+
+	global := globalAddr.As16()
+	linkLocal := linkLocalAddr.As16()
+	assert.Equal(t, global[:], ops[0].Buf[:16], "first half is global IPv6 next-hop")
+	assert.Equal(t, linkLocal[:], ops[0].Buf[16:], "second half is link-local IPv6 next-hop")
+	assert.Equal(t, uint8(40), ops[1].Code, "RFC 9252 S3.3: PrefixSID suppress")
+	assert.Equal(t, filterapi.AttrModSuppress, ops[1].Action)
+}
+
+// TestApplyNextHopModIPv6LinkLocalNoAlloc verifies that the fixed-size
+// global plus link-local value does not allocate after accumulator storage is warm.
+//
+// VALIDATES: AC-2 and AC-4, IPv6 link-local next-hop construction uses caller-owned storage.
+// PREVENTS: Reintroducing per-forward heap allocation for fixed-size next-hop bytes.
+func TestApplyNextHopModIPv6LinkLocalNoAlloc(t *testing.T) {
+
+	dest := &PeerSettings{
+		NextHopMode:  NextHopSelf,
+		LocalAddress: netip.MustParseAddr("2001:db8::1"),
+		LinkLocal:    netip.MustParseAddr("fe80::1"),
+	}
+	var mods filterapi.ModAccumulator
+	mods.Op(0, filterapi.AttrModSuppress, nil)
+	mods.Op(0, filterapi.AttrModSuppress, nil)
+	mods.Reset()
+
+	allocs := testing.AllocsPerRun(1000, func() {
+		mods.Reset()
+		applyNextHopMod(dest, &mods)
+	})
+	assert.Equal(t, 0.0, allocs, "next-hop value construction should not allocate")
+}

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-19 |
+| Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
 
@@ -93,8 +93,8 @@ Fix SYS-003. A panic in an internal plugin DirectBridge callback must not leave 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | SDK can recover per callback and write the result without corrupting bridge state | `bridgeEventLoop` owns the callback result channel | panic still leaks or double-sends | DirectBridge panic unit test | unvalidated |
-| A-2 | Prompt error is preferable to waiting for context timeout | SYS-003 impact | callers may rely on timeout semantics | existing callback tests and review | unvalidated |
+| A-1 | SDK can recover per callback and write the result without corrupting bridge state | `bridgeEventLoop` owns the callback result channel | panic still leaks or double-sends | `TestDirectBridgeCallbackPanicReturnsPromptError`, `TestDirectBridgeTypedCallbackPanicReturnsPromptError` | confirmed |
+| A-2 | Prompt error is preferable to waiting for context timeout | SYS-003 impact | callers may rely on timeout semantics | post-panic fail-fast and normal callback tests | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -269,7 +269,7 @@ Fast paths must fail at least as clearly as the slow path they replace.
 
 ## Known Limitations
 
-- This spec does not implement the fix.
+- Implemented in DirectBridge and SDK bridge dispatch; no remaining limitation for this bugfix.
 
 ## RFC Documentation
 
@@ -278,9 +278,8 @@ N/A.
 ## Implementation Summary
 
 ### What Was Implemented
-- Fix spec only. Production code is unchanged.
-- The spec captures SYS-003 from `plan/review-bug-review-plugin-engine-system.md`.
-- Regression expectations cover DirectBridge callback panic recovery, prompt non-timeout error return, and cleanup semantics.
+- DirectBridge callback panics now send an `ErrBridgeFailed`-wrapped error to the waiting caller, fail the bridge, close callback channels, and make later callbacks fail fast.
+- Tests cover generic callback panic, typed callback panic, post-panic fail-fast behavior, normal callbacks, and unknown methods.
 
 ### Bugs Found/Fixed
 - SYS-003 documented for implementation.
@@ -303,28 +302,28 @@ N/A.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1..AC-5 | planned | acceptance criteria table | to be satisfied by implementation owner |
+| AC-1..AC-4 | done | `TestDirectBridgeCallbackPanicReturnsPromptError`, `TestDirectBridgeTypedCallbackPanicReturnsPromptError`, `TestDirectBridgeCallbackAfterPanicFailsFast` | panic returns prompt error, bridge fails fast after panic |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| DirectBridge panic returns error | planned | `pkg/plugin/sdk` or `pkg/plugin/rpc` | not run by review program |
-| DirectBridge cleanup after panic | planned | bridge/process tests | not run by review program |
-| normal callback behavior | planned | bridge tests | not run by review program |
+| DirectBridge panic returns error | done | `pkg/plugin/sdk` | passing |
+| DirectBridge cleanup after panic | done | `pkg/plugin/sdk` and `pkg/plugin/rpc` | passing |
+| normal callback behavior | done | existing bridge and SDK tests | covered by `go test ./pkg/plugin/...` |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `pkg/plugin/sdk/sdk_dispatch.go` | planned | implementation target |
-| `pkg/plugin/rpc/bridge.go` | planned | implementation target if bridge close/error semantics change |
-| `internal/component/plugin/process/process.go` | planned | cleanup integration target if needed |
+| `pkg/plugin/sdk/sdk_dispatch.go` | done | panic recovery and callback draining implemented |
+| `pkg/plugin/rpc/bridge.go` | done | bridge failure state and fail-fast errors implemented |
+| `internal/component/plugin/process/process.go` | unchanged | no process change needed after bridge-layer fix |
 
 ### Audit Summary
 - Total items: 1 accepted finding converted to a fix spec.
-- Done: fix spec created.
-- Partial: implementation pending by design.
-- Skipped: no production code changes in review program.
-- Changed: new spec file.
+- Done: DirectBridge panic handling and regression tests.
+- Partial: none.
+- Skipped: no approved scope reduction.
+- Changed: DirectBridge state, SDK bridge dispatch, tests, and process protocol docs.
 
 ## Goal Validation
 | Goal (from Task section) | Evidence Type | Concrete Evidence |

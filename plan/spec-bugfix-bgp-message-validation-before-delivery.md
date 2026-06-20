@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-19 |
+| Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
 
@@ -103,8 +103,8 @@ Fix BENG-001 and BENG-003. BGP input validation must reject malformed known capa
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | OPEN negotiation can distinguish malformed known capability from unknown capability | RFC 5492 and parser code | malformed known caps remain ignored | session OPEN tests | unvalidated |
-| A-2 | Route-refresh validation can run before callback without breaking valid refresh consumers | BENG-003 receive path | valid refresh events stop flowing | valid refresh regression test | unvalidated |
+| A-1 | OPEN negotiation can distinguish malformed known capability from unknown capability | RFC 5492 and parser code | malformed known caps remain ignored | `TestOpenRejectsMalformedKnownCapability`, `TestOptionalParamPreservesUnknownCapability` | confirmed |
+| A-2 | Route-refresh validation can run before callback without breaking valid refresh consumers | BENG-003 receive path | valid refresh events stop flowing | `TestRouteRefreshInvalidLengthNotDelivered`, `TestRouteRefreshValidLengthDelivered` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -289,7 +289,7 @@ Unknown is ignorable; malformed known protocol is not.
 
 ## Known Limitations
 
-- This spec does not implement the fix.
+- Implemented in capability parsing and BGP receive validation; no remaining limitation for this bugfix.
 
 ## RFC Documentation
 
@@ -298,9 +298,9 @@ Add RFC comments above each enforced length/error rule during implementation.
 ## Implementation Summary
 
 ### What Was Implemented
-- Fix spec only. Production code is unchanged.
-- The spec captures BENG-001 and BENG-003 from `plan/review-bug-review-bgp-engine.md`.
-- Regression expectations cover malformed capability OPEN rejection and ROUTE-REFRESH validation before callback delivery.
+- Known zero-length capabilities now reject non-zero payloads, and Type 2 optional parameter TLV errors propagate to OPEN rejection.
+- ROUTE-REFRESH exact-length validation now happens before callback delivery.
+- Tests cover malformed known capabilities, truncated TLVs, unknown capabilities, invalid refresh non-delivery, and valid refresh delivery.
 
 ### Bugs Found/Fixed
 - BENG-001 and BENG-003 documented for implementation.
@@ -324,28 +324,28 @@ Add RFC comments above each enforced length/error rule during implementation.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1..AC-6 | planned | acceptance criteria table | to be satisfied by implementation owner |
+| AC-1..AC-5 | done | capability, message, and reactor validation tests | malformed OPEN and ROUTE-REFRESH input rejected before delivery |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| capability parser malformed lengths | planned | `internal/component/bgp/capability` | not run by review program |
-| session OPEN malformed capability rejection | planned | `internal/component/bgp/reactor` | not run by review program |
-| ROUTE-REFRESH validation before delivery | planned | `internal/component/bgp/reactor` | not run by review program |
+| capability parser malformed lengths | done | `internal/component/bgp/capability` | passing |
+| session OPEN malformed capability rejection | done | `internal/component/bgp/reactor` | passing |
+| ROUTE-REFRESH validation before delivery | done | `internal/component/bgp/reactor` | passing |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `internal/component/bgp/capability/capability.go` | planned | implementation target |
-| `internal/component/bgp/reactor/session_read.go` | planned | implementation target |
-| `internal/component/bgp/reactor/session_handlers.go` | planned | implementation target |
+| `internal/component/bgp/capability/capability.go` | done | parser returns errors for malformed known capabilities and truncated TLVs |
+| `internal/component/bgp/reactor/session_read.go` | done | session input propagates validation errors before callback delivery |
+| `internal/component/bgp/reactor/session_handlers.go` | done | ROUTE-REFRESH validation handles bad length before callback delivery |
 
 ### Audit Summary
 - Total items: 2 accepted findings converted to one fix spec.
-- Done: fix spec created.
-- Partial: implementation pending by design.
-- Skipped: no production code changes in review program.
-- Changed: new spec file.
+- Done: receive validation implementation and regression tests.
+- Partial: none.
+- Skipped: no approved scope reduction.
+- Changed: capability parser, message length validation, session receive handlers, CLI OPEN decode, and tests.
 
 ## Goal Validation
 | Goal (from Task section) | Evidence Type | Concrete Evidence |

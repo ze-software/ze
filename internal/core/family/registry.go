@@ -67,6 +67,16 @@ type familyRegistration struct {
 	safiName string
 }
 
+// FamilyRegistration describes one runtime family registration request.
+// RegisterFamilyBatch uses this value type so callers can validate and commit
+// a plugin's declared families as one atomic batch.
+type FamilyRegistration struct {
+	AFI      AFI
+	SAFI     SAFI
+	AFIName  string
+	SAFIName string
+}
+
 var (
 	// writeMu serializes concurrent RegisterFamily calls. Readers never take it
 	// -- they read the current state snapshot via state.Load().
@@ -175,6 +185,111 @@ func RegisterFamily(afi AFI, safi SAFI, afiName, safiName string) (Family, error
 
 	state.Store(next)
 	return f, nil
+}
+
+// RegisterFamilyBatch registers a set of families atomically. Either every
+// non-duplicate family becomes visible in one snapshot, or none of them do.
+// It returns the registrations that were newly added so callers can roll them
+// back if a later startup stage fails.
+func RegisterFamilyBatch(reqs []FamilyRegistration) ([]FamilyRegistration, error) {
+	writeMu.Lock()
+	defer writeMu.Unlock()
+
+	cur := state.Load()
+	next := &registry{
+		afiNames:     maps.Clone(cur.afiNames),
+		safiNames:    maps.Clone(cur.safiNames),
+		familyByName: maps.Clone(cur.familyByName),
+		afiByName:    maps.Clone(cur.afiByName),
+		safiByName:   maps.Clone(cur.safiByName),
+	}
+	nextRegistrations := append([]familyRegistration(nil), registrations...)
+	added := make([]FamilyRegistration, 0, len(reqs))
+
+	for _, req := range reqs {
+		if req.AFIName == "" || req.SAFIName == "" {
+			return nil, fmt.Errorf("%w: AFI %d SAFI %d", ErrEmptyName, req.AFI, req.SAFI)
+		}
+		if existing, ok := next.afiNames[req.AFI]; ok && existing != req.AFIName {
+			return nil, fmt.Errorf("%w: AFI %d is %q, got %q", ErrAFIConflict, req.AFI, existing, req.AFIName)
+		}
+		if existing, ok := next.safiNames[req.SAFI]; ok && existing != req.SAFIName {
+			return nil, fmt.Errorf("%w: SAFI %d is %q, got %q", ErrSAFIConflict, req.SAFI, existing, req.SAFIName)
+		}
+
+		f := Family{AFI: req.AFI, SAFI: req.SAFI}
+		var tb textbuf.Buffer
+		canonical := tb.Str(req.AFIName).Byte('/').Str(req.SAFIName).String()
+		if _, ok := next.familyByName[canonical]; ok {
+			continue
+		}
+
+		next.afiNames[req.AFI] = req.AFIName
+		next.safiNames[req.SAFI] = req.SAFIName
+		next.familyByName[canonical] = f
+		next.afiByName[req.AFIName] = req.AFI
+		next.safiByName[req.SAFIName] = req.SAFI
+		nextRegistrations = append(nextRegistrations, familyRegistration{
+			afi: req.AFI, safi: req.SAFI, afiName: req.AFIName, safiName: req.SAFIName,
+		})
+		added = append(added, req)
+	}
+
+	if len(added) == 0 {
+		return nil, nil
+	}
+	next.pack, next.idx = buildPack(nextRegistrations)
+	registrations = nextRegistrations
+	state.Store(next)
+	return added, nil
+}
+
+// UnregisterFamilyBatch removes registrations previously returned by
+// RegisterFamilyBatch. It is intended for startup rollback of dynamic plugin
+// family declarations.
+func UnregisterFamilyBatch(reqs []FamilyRegistration) {
+	if len(reqs) == 0 {
+		return
+	}
+	writeMu.Lock()
+	defer writeMu.Unlock()
+
+	remove := make(map[FamilyRegistration]struct{}, len(reqs))
+	for _, req := range reqs {
+		remove[req] = struct{}{}
+	}
+
+	filtered := make([]familyRegistration, 0, len(registrations))
+	changed := false
+	for _, reg := range registrations {
+		req := FamilyRegistration{AFI: reg.afi, SAFI: reg.safi, AFIName: reg.afiName, SAFIName: reg.safiName}
+		if _, ok := remove[req]; ok {
+			changed = true
+			continue
+		}
+		filtered = append(filtered, reg)
+	}
+	if !changed {
+		return
+	}
+	registrations = filtered
+	state.Store(registryFromRegistrations(filtered))
+}
+
+func registryFromRegistrations(regs []familyRegistration) *registry {
+	next := newEmptyState()
+	for _, reg := range regs {
+		f := Family{AFI: reg.afi, SAFI: reg.safi}
+		var tb textbuf.Buffer
+		canonical := tb.Str(reg.afiName).Byte('/').Str(reg.safiName).String()
+		next.afiNames[reg.afi] = reg.afiName
+		next.safiNames[reg.safi] = reg.safiName
+		next.familyByName[canonical] = f
+		next.afiByName[reg.afiName] = reg.afi
+		next.safiByName[reg.safiName] = reg.safi
+	}
+	next.pack, next.idx = buildPack(regs)
+	return next
 }
 
 // MustRegister wraps RegisterFamily and panics on error. Use from package init()

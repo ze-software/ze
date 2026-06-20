@@ -272,7 +272,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		logger().Warn("config reload: transaction failed", "error", err)
 		if len(autoLoaded) > 0 {
 			logger().Info("config reload: stopping auto-loaded plugins after failed transaction", "plugins", autoLoaded)
-			s.autoStopForRemovedConfigPaths(autoLoaded)
+			s.autoStopPluginNames(autoLoaded)
 		}
 		return err
 	}

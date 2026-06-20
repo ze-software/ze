@@ -301,7 +301,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 					"id", updateID, "localAS", localAS, "secondaryAS", secondaryAS, "asn4", asn4, "err", err)
 				return nil, false
 			}
-			wire := wireu.NewWireUpdate(dst.Buf[:n], baseWire.SourceCtxID())
+			wire := wireu.NewWireUpdate(dst.Buf[:n], fwdContextIDWithASN4(baseWire.SourceCtxID(), asn4))
 			wire.SetMessageID(baseWire.MessageID())
 			wire.SetSourceID(baseWire.SourceID())
 			return wire, true
@@ -374,7 +374,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
 			return nil, false
 		}
-		wire := wireu.NewWireUpdate(dst.Buf[:n], update.WireUpdate.SourceCtxID())
+		wire := wireu.NewWireUpdate(dst.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), asn4))
 		wire.SetMessageID(update.WireUpdate.MessageID())
 		wire.SetSourceID(update.WireUpdate.SourceID())
 		// dst (pool buffer) intentionally not returned: it backs wire for this call's lifetime.
@@ -565,7 +565,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 					ReturnReadBuffer(buf)
 					continue
 				}
-				peerWire = wireu.NewWireUpdate(buf.Buf[:n], peerBaseWire.SourceCtxID())
+				peerWire = wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(peerBaseWire.SourceCtxID(), false))
 				peerWire.SetMessageID(peerBaseWire.MessageID())
 				peerWire.SetSourceID(peerBaseWire.SourceID())
 			} else {
@@ -587,7 +587,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 						rsTranscodeFailed = true
 						continue
 					}
-					wire := wireu.NewWireUpdate(buf.Buf[:n], update.WireUpdate.SourceCtxID())
+					wire := wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), false))
 					wire.SetMessageID(update.WireUpdate.MessageID())
 					wire.SetSourceID(update.WireUpdate.SourceID())
 					rsTranscodeWire = wire
@@ -816,12 +816,13 @@ func applyNextHopMod(dest *PeerSettings, mods *filterapi.ModAccumulator) {
 		// half of the next-hop so downstream peers on the same link can still
 		// reach us.
 		if dest.LinkLocal.IsValid() && dest.LinkLocal.Is6() {
-			nh := make([]byte, 32) // pool-fallback: escapes via ModAccumulator
+			var nh [32]byte
 			global := local.As16()
 			ll := dest.LinkLocal.As16()
 			copy(nh[:16], global[:])
 			copy(nh[16:], ll[:])
-			mods.Op(14, filterapi.AttrModSet, nh)
+			mods.OpCopy(14, filterapi.AttrModSet, nh[:])
+			mods.Op(40, filterapi.AttrModSuppress, nil)
 			return
 		}
 		nh := local.As16()

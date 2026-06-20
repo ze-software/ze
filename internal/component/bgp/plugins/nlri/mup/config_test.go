@@ -145,3 +145,56 @@ func TestParseConfigRoute_Attrs(t *testing.T) {
 		}
 	}
 }
+
+// TestEncodeMUPRejectsUnknownAndDanglingToken verifies the in-process MUP NLRI
+// encoder rejects unrecognized keys and keys missing a value.
+//
+// VALIDATES: MUP encode-nlri input is exact-or-reject for unknown and dangling
+// tokens.
+// PREVENTS: RPC/update-text MUP NLRI encoding silently dropping operator typos.
+func TestEncodeMUPRejectsUnknownAndDanglingToken(t *testing.T) {
+	cases := map[string]struct {
+		args []string
+		want string
+	}{
+		"unknown": {
+			args: strings.Fields("route-type mup-isd rd 100:100 prefix 10.0.0.0/24 bogus value"),
+			want: "bogus",
+		},
+		"dangling": {
+			args: strings.Fields("route-type mup-isd rd 100:100 prefix 10.0.0.0/24 endpoint"),
+			want: "endpoint",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := EncodeNLRIHex("ipv4/mup", tc.args)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("EncodeNLRIHex error = %v, want token %q", err, tc.want)
+			}
+		})
+	}
+}
+
+// TestMUPConfigRejectsUnknownAndDanglingToken verifies the config route parser
+// applies the same strict token-pair semantics before building NLRI bytes.
+//
+// VALIDATES: MUP config route content rejects unknown and dangling family tokens.
+// PREVENTS: static MUP config silently advertising a route after dropping a typo.
+func TestMUPConfigRejectsUnknownAndDanglingToken(t *testing.T) {
+	cases := map[string]struct {
+		content string
+		want    string
+	}{
+		"unknown":  {content: "mup-isd 10.0.0.0/24 rd 100:100 bogus value", want: "bogus"},
+		"dangling": {content: "mup-isd 10.0.0.0/24 rd", want: "rd"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := parseConfigRoute(registry.ConfigRouteRequest{Content: strings.Fields(tc.content)})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("parseConfigRoute error = %v, want token %q", err, tc.want)
+			}
+		})
+	}
+}

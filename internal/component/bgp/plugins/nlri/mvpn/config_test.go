@@ -81,6 +81,37 @@ func TestParseConfigRoute_MVPNInvalidInput(t *testing.T) {
 	}
 }
 
+// TestMVPNConfigRejectsUnknownAndDanglingToken verifies MVPN config route content
+// rejects unrecognized keys and keys missing a value.
+//
+// VALIDATES: MVPN config parser uses strict key/value token handling for family
+// fields.
+// PREVENTS: static MVPN config silently dropping an operator typo before sending
+// a different route.
+func TestMVPNConfigRejectsUnknownAndDanglingToken(t *testing.T) {
+	cases := map[string]struct {
+		content string
+		want    string
+	}{
+		"unknown": {
+			content: "shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000 bogus value",
+			want:    "bogus",
+		},
+		"dangling": {
+			content: "shared-join rp 10.99.199.1 group",
+			want:    "group",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := parseConfigRoute(registry.ConfigRouteRequest{Content: strings.Fields(tc.content)})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("parseConfigRoute error = %v, want token %q", err, tc.want)
+			}
+		})
+	}
+}
+
 // TestRDStringToBytes verifies RFC 4364 Route Distinguisher string encoding.
 //
 // VALIDATES: Type 0 (ASN<=65535:NN) and Type 1 (IP:NN) wire forms.

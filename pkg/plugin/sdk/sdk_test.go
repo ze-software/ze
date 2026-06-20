@@ -3,6 +3,7 @@ package sdk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"testing"
@@ -1950,6 +1951,113 @@ func newBridgedTestPair(t *testing.T) (*Plugin, *engineSide, *rpc.DirectBridge) 
 	t.Cleanup(func() { engineMux.Close() }) //nolint:errcheck // test cleanup
 
 	return p, &engineSide{mux: engineMux}, bridge
+}
+
+// TestDirectBridgeCallbackPanicReturnsPromptError verifies that a bridged
+// callback panic is reported to the waiting engine caller without waiting for
+// context timeout.
+//
+// VALIDATES: AC-1, bridge-mode plugin callback panic returns a non-timeout error promptly.
+// PREVENTS: DirectBridge callback panics leaving SendCallback blocked until context deadline.
+func TestDirectBridgeCallbackPanicReturnsPromptError(t *testing.T) {
+	t.Parallel()
+
+	p, _, bridge := newBridgedTestPair(t)
+	p.OnEvent(func(string) error {
+		panic("bridge boom")
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	t.Cleanup(cancel)
+	loopDone := make(chan error, 1)
+	go func() {
+		loopDone <- p.bridgeEventLoop(ctx)
+	}()
+
+	_, err := bridge.SendCallback(ctx, callbackDeliverEvent, json.RawMessage(`{"event":"x"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bridge callback panic")
+	assert.False(t, errors.Is(err, context.DeadlineExceeded), "panic must not wait for caller timeout")
+
+	select {
+	case loopErr := <-loopDone:
+		require.Error(t, loopErr)
+		assert.Contains(t, loopErr.Error(), "bridge callback panic")
+	case <-time.After(time.Second):
+		t.Fatal("bridge event loop did not exit after callback panic")
+	}
+}
+
+// TestDirectBridgeCallbackAfterPanicFailsFast verifies that a bridge whose
+// callback loop panicked is no longer usable for later callbacks.
+//
+// VALIDATES: AC-2, callback panic marks the bridge failed so later callbacks fail fast.
+// PREVENTS: DirectBridge callers reusing stale callback state after plugin callback panic.
+func TestDirectBridgeCallbackAfterPanicFailsFast(t *testing.T) {
+	t.Parallel()
+
+	p, _, bridge := newBridgedTestPair(t)
+	p.OnEvent(func(string) error {
+		panic("bridge boom")
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	t.Cleanup(cancel)
+	loopDone := make(chan error, 1)
+	go func() {
+		loopDone <- p.bridgeEventLoop(ctx)
+	}()
+
+	_, err := bridge.SendCallback(ctx, callbackDeliverEvent, json.RawMessage(`{"event":"x"}`))
+	require.Error(t, err)
+
+	select {
+	case <-loopDone:
+	case <-time.After(time.Second):
+		t.Fatal("bridge event loop did not exit after callback panic")
+	}
+
+	fastCtx, fastCancel := context.WithTimeout(context.Background(), time.Second)
+	defer fastCancel()
+	start := time.Now()
+	_, err = bridge.SendCallback(fastCtx, callbackDeliverEvent, json.RawMessage(`{"event":"y"}`))
+	require.ErrorIs(t, err, rpc.ErrBridgeFailed)
+	assert.Less(t, time.Since(start), 100*time.Millisecond, "failed bridge callback should not wait for context timeout")
+}
+
+// TestDirectBridgeTypedCallbackPanicReturnsPromptError verifies typed callback
+// wrappers get the same bridge panic recovery as the event callback path.
+//
+// VALIDATES: AC-3, typed bridge callback panic returns a non-timeout error promptly.
+// PREVENTS: OnConfigApply panics leaving SendCallback blocked until context deadline.
+func TestDirectBridgeTypedCallbackPanicReturnsPromptError(t *testing.T) {
+	t.Parallel()
+
+	p, _, bridge := newBridgedTestPair(t)
+	p.OnConfigApply(func([]ConfigDiffSection) error {
+		panic("typed bridge boom")
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	t.Cleanup(cancel)
+	loopDone := make(chan error, 1)
+	go func() {
+		loopDone <- p.bridgeEventLoop(ctx)
+	}()
+
+	params := json.RawMessage(`{"sections":[]}`)
+	_, err := bridge.SendCallback(ctx, callbackConfigApply, params)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bridge callback panic")
+	assert.False(t, errors.Is(err, context.DeadlineExceeded), "typed panic must not wait for caller timeout")
+
+	select {
+	case loopErr := <-loopDone:
+		require.Error(t, loopErr)
+		assert.Contains(t, loopErr.Error(), "bridge callback panic")
+	case <-time.After(time.Second):
+		t.Fatal("bridge event loop did not exit after typed callback panic")
+	}
 }
 
 // TestCallEngineRawDirect verifies callEngineRaw dispatches through bridge.

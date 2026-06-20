@@ -20,6 +20,7 @@ package capability
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
@@ -28,8 +29,27 @@ import (
 
 // Errors.
 var (
-	ErrShortRead = errors.New("capability: short read")
+	ErrShortRead     = errors.New("capability: short read")
+	ErrInvalidLength = errors.New("capability: invalid length")
 )
+
+type parseErrorWithData struct {
+	err  error
+	data []byte
+}
+
+func (e *parseErrorWithData) Error() string { return e.err.Error() }
+
+func (e *parseErrorWithData) Unwrap() error { return e.err }
+
+// ErrorData returns the offending capability TLV carried by a parse error.
+func ErrorData(err error) []byte {
+	var withData *parseErrorWithData
+	if !errors.As(err, &withData) {
+		return nil
+	}
+	return append([]byte(nil), withData.data...)
+}
 
 // Code represents a BGP capability code.
 //
@@ -163,7 +183,7 @@ func Parse(data []byte) ([]Capability, error) {
 	offset := 0
 
 	for offset < len(data) {
-		// RFC 5492 Section 4: Capability Code (1 octet) + Capability Length (1 octet)
+		tlvStart := offset
 		if offset+2 > len(data) {
 			return nil, ErrShortRead
 		}
@@ -174,7 +194,7 @@ func Parse(data []byte) ([]Capability, error) {
 
 		// RFC 5492 Section 4: Capability Value is variable-length
 		if offset+length > len(data) {
-			return nil, ErrShortRead
+			return nil, &parseErrorWithData{err: ErrShortRead, data: append([]byte(nil), data[tlvStart:]...)}
 		}
 
 		capData := data[offset : offset+length]
@@ -182,7 +202,7 @@ func Parse(data []byte) ([]Capability, error) {
 
 		cap, err := parseCapability(code, capData)
 		if err != nil {
-			return nil, err
+			return nil, &parseErrorWithData{err: err, data: append([]byte(nil), data[tlvStart:offset]...)}
 		}
 		caps = append(caps, cap)
 	}
@@ -201,11 +221,11 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 	case CodeASN4:
 		return parseASN4(data)
 	case CodeRouteRefresh:
-		return &RouteRefresh{}, nil
+		return parseZeroLengthCapability(code, data, &RouteRefresh{})
 	case CodeExtendedMessage:
-		return &ExtendedMessage{}, nil
+		return parseZeroLengthCapability(code, data, &ExtendedMessage{})
 	case CodeEnhancedRouteRefresh:
-		return &EnhancedRouteRefresh{}, nil
+		return parseZeroLengthCapability(code, data, &EnhancedRouteRefresh{})
 	case CodeExtendedNextHop:
 		return parseExtendedNextHop(data)
 	case CodeAddPath:
@@ -220,6 +240,16 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		// We preserve raw data for debugging/logging purposes.
 		return &Unknown{code: code, Data: append([]byte{}, data...)}, nil
 	}
+}
+
+func parseZeroLengthCapability(code Code, data []byte, cap Capability) (Capability, error) {
+	// RFC 2918 Section 2, RFC 8654 Section 3, and RFC 7313 Section 3.1
+	// define these known capabilities with Capability Length 0. Unknown
+	// capabilities remain ignorable, but malformed known capability TLVs do not.
+	if len(data) != 0 {
+		return nil, fmt.Errorf("%w for %s: got %d, want 0", ErrInvalidLength, code, len(data))
+	}
+	return cap, nil
 }
 
 // Unknown represents an unrecognized capability.
@@ -814,13 +844,13 @@ func parsePathsLimit(data []byte) (*PathsLimit, error) {
 // ParseFromOptionalParams extracts capabilities from OPEN optional parameters.
 // RFC 5492 Section 4: Optional Parameters contain type-length-value triples.
 // Type 2 indicates the Capabilities Optional Parameter.
-func ParseFromOptionalParams(optParams []byte) []Capability {
+func ParseFromOptionalParams(optParams []byte) ([]Capability, error) {
 	var caps []Capability
 	offset := 0
 
 	for offset < len(optParams) {
 		if offset+2 > len(optParams) {
-			break
+			return nil, ErrShortRead
 		}
 
 		paramType := optParams[offset]       //nolint:gosec // G602 false positive: offset+2 bounds-checked above
@@ -828,18 +858,21 @@ func ParseFromOptionalParams(optParams []byte) []Capability {
 		offset += 2
 
 		if offset+paramLen > len(optParams) {
-			break
+			return nil, ErrShortRead
 		}
 
-		// RFC 5492: Capability parameter type is 2
+		// RFC 5492 Section 4: Capability Optional Parameter value is a sequence
+		// of capability TLVs. Malformed Type 2 TLVs are protocol errors, not
+		// unknown capabilities to ignore.
 		if paramType == 2 {
 			parsed, err := Parse(optParams[offset : offset+paramLen])
-			if err == nil {
-				caps = append(caps, parsed...)
+			if err != nil {
+				return nil, err
 			}
+			caps = append(caps, parsed...)
 		}
 		offset += paramLen
 	}
 
-	return caps
+	return caps, nil
 }

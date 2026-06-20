@@ -150,6 +150,8 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 				return "", fmt.Errorf("invalid path-id: %w", err)
 			}
 			pathID = uint32(v) //nolint:gosec // validated by ParseUint with bitSize 32
+		default:
+			return "", fmt.Errorf("unknown labeled unicast keyword: %s", args[i])
 		}
 	}
 

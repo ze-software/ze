@@ -22,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
@@ -73,10 +74,12 @@ type Server struct {
 	monitors          *MonitorManager         // CLI monitor subscriptions
 
 	// Plugin registration protocol
-	coordinator   *plugin.StartupCoordinator // Stage synchronization
-	coordinatorMu sync.Mutex                 // Protects coordinator reads/writes
-	registry      *plugin.PluginRegistry     // Command/capability registry
-	capInjector   *plugin.CapabilityInjector // Capability injection for OPEN
+	coordinator       *plugin.StartupCoordinator             // Stage synchronization
+	coordinatorMu     sync.Mutex                             // Protects coordinator reads/writes
+	registry          *plugin.PluginRegistry                 // Command/capability registry
+	capInjector       *plugin.CapabilityInjector             // Capability injection for OPEN
+	runtimeFamilies   map[string][]family.FamilyRegistration // dynamic families committed by each plugin
+	runtimeFamiliesMu sync.Mutex
 
 	eventRing *EventRing // Global event history ring (diag-2)
 
@@ -164,6 +167,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		eventRing:         NewEventRing(defaultEventRingCapacity),
 		startupDone:       make(chan struct{}),
 		loadedPlugins:     make(map[string]bool),
+		runtimeFamilies:   make(map[string][]family.FamilyRegistration),
 	}
 
 	// Register plugin-declared event and send types before any subscriptions.

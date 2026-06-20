@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-19 |
+| Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
 
@@ -94,9 +94,9 @@ Fix BPLUG-002. SR-Policy is a registered NLRI family with decode and config pars
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | Existing config parser grammar is acceptable for canonical encode | source already builds SR-Policy route content | define explicit encode grammar and conversion | CLI tests | unvalidated |
-| A-2 | NLRI-only encoder can share route parser key fields without tunnel attributes | registry has separate NLRI and route encoder concepts | register only route encoder if NLRI-only grammar is not meaningful | unit tests and review | unvalidated |
-| A-3 | ExaBGP compatibility fixture bytes are suitable expected output references | existing fixture encodes SR-Policy | derive expected bytes from RFC 9830 fields | encode tests | unvalidated |
+| A-1 | Existing config parser grammar is acceptable for canonical encode | source already builds SR-Policy route content | define explicit encode grammar and conversion | SR-Policy encode unit tests and encode fixtures | confirmed |
+| A-2 | NLRI-only encoder can share route parser key fields without tunnel attributes | registry has separate NLRI and route encoder concepts | register only route encoder if NLRI-only grammar is not meaningful | `TestSRPolicyNLRIEncoderRegistered` | confirmed |
+| A-3 | ExaBGP compatibility fixture bytes are suitable expected output references | existing fixture encodes SR-Policy | derive expected bytes from RFC 9830 fields | SR-Policy IPv4/IPv6 encode tests | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -218,13 +218,13 @@ SR-Policy encode support belongs in the SR-Policy family chain, not in a CLI fal
 
 ## Known Limitations
 
-- This spec does not implement the fix.
-- Decode-only encode gaps for BGP-LS, RTC, and MVPN remain not promoted without product decision.
+- SR-Policy canonical encode is implemented for IPv4 and IPv6 through the owner package.
+- Decode-only encode gaps for BGP-LS, RTC, and MVPN remain outside this SR-Policy bugfix.
 
 ## Implementation Summary
 
 ### What Was Implemented
-- Fix spec only. Production code is unchanged.
+- SR-Policy now registers owner-package NLRI and route encoders, reusing the existing config route parser for route bytes and adding canonical encode fixtures.
 
 ### Bugs Found/Fixed
 - BPLUG-002 documented for implementation.
@@ -245,24 +245,24 @@ SR-Policy encode support belongs in the SR-Policy family chain, not in a CLI fal
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1..AC-5 | Planned | tests listed above | To be satisfied by implementation owner |
+| AC-1..AC-5 | Done | SR-Policy unit tests and `test/encode/bgp-srpolicy-{1,2}.ci` | Canonical encode succeeds; invalid input rejects |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| SR-Policy registry and encode tests | Planned | owner package and `test/encode` | Not run by review program |
+| SR-Policy registry and encode tests | Done | owner package and `test/encode` | `go test` owner package and `make ze-encode-test` passed |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| SR-Policy register/config/encode files | Planned | implementation targets |
+| SR-Policy register/config/encode files | Done | implementation targets updated |
 
 ### Audit Summary
 - Total items: 1 accepted finding converted to a fix spec.
-- Done: fix spec created.
-- Partial: implementation pending by design.
-- Skipped: no production code changes in review program.
-- Changed: new spec file.
+- Done: SR-Policy encode implementation and tests.
+- Partial: none for SR-Policy encode.
+- Skipped: no approved scope reduction.
+- Changed: SR-Policy owner package and encode fixtures.
 
 ## Goal Validation
 

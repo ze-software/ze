@@ -664,12 +664,15 @@ to the dispatch or event loop code. See `rules/plugin-design.md` "SDK Is Generic
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop, getCallback -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- initCallbackDefaults, On* methods -->
 
-**Shutdown:** `Process.Stop()` cancels the context and calls `bridge.CloseCallbacks()`
-(guarded by `sync.Once`), closing the callback channel. The `bridgeEventLoop` exits
-on channel close. `SendCallback` recovers from send-on-closed-channel panics and
-returns `ErrBridgeClosed`.
+**Shutdown and callback failure:** `Process.Stop()` cancels the context and calls
+`bridge.CloseCallbacks()` (guarded by `sync.Once`), closing callback channels. The
+`bridgeEventLoop` exits on channel close. `SendCallback` recovers from send-on-closed-channel
+panics and returns `ErrBridgeClosed`. If a DirectBridge callback panics, the SDK sends
+an `ErrBridgeFailed`-wrapped error to the waiting caller, marks callbacks failed, closes
+callback channels, and later `SendCallback` / `ExecuteCommand` calls fail fast.
 <!-- source: internal/component/plugin/process/process.go -- Stop -->
-<!-- source: pkg/plugin/rpc/bridge.go -- SendCallback, CloseCallbacks, ErrBridgeClosed -->
+<!-- source: pkg/plugin/rpc/bridge.go -- SendCallback, CloseCallbacks, FailCallbacks, ErrBridgeClosed, ErrBridgeFailed -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- bridgeEventLoop panic recovery -->
 
 **Files:**
 
@@ -750,13 +753,14 @@ runtime alongside families registered by internal plugins at init.
 **Runtime family registration:**
 <!-- source: internal/component/plugin/server/startup.go -- registerPluginFamilies -->
 
-After the plugin completes Stage 1, the engine calls `registerPluginFamilies`
-which forwards each `FamilyDecl` into `family.RegisterFamily(afi, safi, afiStr,
-safiStr)`. This is the same path internal plugins take at init via
-`family.MustRegister`. After registration, `Family.String()` and
-`family.LookupFamily()` return the plugin's family for the rest of the engine's
-lifetime. Re-registration with identical values is a no-op; conflicting AFI or
-SAFI names abort plugin startup.
+After the plugin completes Stage 1, the engine calls `registerPluginFamilies`,
+which validates the whole `FamilyDecl` batch and commits it through
+`family.RegisterFamilyBatch`. This is the runtime equivalent of internal plugins
+calling `family.MustRegister` at init. The server records the families actually
+added for that plugin and removes them if a later startup stage fails before the
+plugin reaches ready. After committed startup, `Family.String()` and
+`family.LookupFamily()` return the plugin's family. Re-registration with
+identical values is a no-op; conflicting AFI or SAFI names abort plugin startup.
 
 **Registry conflict detection:**
 - Only ONE plugin can register for a family+mode combination

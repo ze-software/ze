@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // mockReloadReactor implements the GetConfigTree/SetConfigTree subset of ReactorLifecycle.
@@ -404,6 +405,158 @@ func TestReloadConfigAutoLoadDependencyFailureFailsClosed(t *testing.T) {
 	assert.Contains(t, err.Error(), "config-path auto-load")
 	assert.Contains(t, err.Error(), "missing-dep")
 	assert.Nil(t, reactor.setTree, "failed auto-load must not update running config")
+}
+
+// TestReloadFailureStopsAutoLoadedPluginByName verifies failed reload cleanup
+// uses plugin names returned by auto-load, not config roots.
+//
+// VALIDATES: AC-4, failed reload stops fib-kernel even though its config root is fib/kernel.
+// PREVENTS: Rejected config reloads leaving auto-loaded plugin processes running.
+func TestReloadFailureStopsAutoLoadedPluginByName(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "fib-kernel"
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        pluginName,
+		Description: "test fib kernel owner",
+		ConfigRoots: []string{"fib/kernel"},
+		RunEngine: func(conn net.Conn) int {
+			p := sdk.NewWithConn(pluginName, conn)
+			err := p.Run(context.Background(), sdk.Registration{WantsConfig: []string{"fib/kernel"}})
+			if err != nil {
+				return 1
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	}))
+
+	reactor := &mockReloadReactor{tree: map[string]any{"other": map[string]any{"enabled": false}}}
+	serverCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	s, err := NewServer(&ServerConfig{}, reactor)
+	require.NoError(t, err)
+	s.ctx, s.cancel = context.WithCancel(serverCtx)
+	t.Cleanup(s.cancel)
+
+	pm := process.NewProcessManager(nil)
+	require.NoError(t, pm.StartWithContext(s.ctx))
+	engineEnd, pluginEnd := net.Pipe()
+	t.Cleanup(func() {
+		engineEnd.Close() //nolint:errcheck // test cleanup
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+	})
+	rejector := process.NewProcess(plugin.PluginConfig{Name: "reload-rejector"})
+	rejector.SetRegistration(&plugin.PluginRegistration{WantsConfigRoots: []string{"other"}})
+	rejector.SetConn(ipc.NewPluginConn(engineEnd, engineEnd))
+	rejector.SetRunning(true)
+	pm.AddProcess("reload-rejector", rejector)
+	(&mockPluginResponder{
+		pluginConn: ipc.NewPluginConn(pluginEnd, pluginEnd),
+		pluginName: "reload-rejector",
+		verifyResp: &rpc.ConfigVerifyOutput{Status: plugin.StatusError, Error: "reject other"},
+	}).start(s.ctx)
+	s.procManager.Store(pm)
+
+	spawner := &lifecycleTestSpawner{ctx: s.ctx, pm: pm}
+	s.SetProcessSpawner(spawner)
+
+	newTree := map[string]any{
+		"fib":   map[string]any{"kernel": map[string]any{"enabled": true}},
+		"other": map[string]any{"enabled": true},
+	}
+	err = s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reject other")
+	require.NotNil(t, spawner.pm)
+	assert.Nil(t, spawner.pm.GetProcess(pluginName), "failed reload must stop auto-loaded plugin by plugin name")
+	assert.Nil(t, reactor.setTree, "failed reload must not update running config")
+}
+
+// TestReloadFailureKeepsPreExistingDependency verifies failed reload cleanup
+// restores only processes started by that reload.
+//
+// VALIDATES: AC-4, dependencies that predate a rejected reload remain running.
+// PREVENTS: failed auto-load rollback stopping an unrelated pre-existing dependency.
+func TestReloadFailureKeepsPreExistingDependency(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const depName = "reload-existing-dependency"
+	const pluginName = "reload-dependent-owner"
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        depName,
+		Description: "pre-existing dependency",
+		RunEngine: func(conn net.Conn) int {
+			p := sdk.NewWithConn(depName, conn)
+			if err := p.Run(context.Background(), sdk.Registration{}); err != nil {
+				return 1
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	}))
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:         pluginName,
+		Description:  "test config owner with dependency",
+		ConfigRoots:  []string{"fib/kernel"},
+		Dependencies: []string{depName},
+		RunEngine: func(conn net.Conn) int {
+			p := sdk.NewWithConn(pluginName, conn)
+			err := p.Run(context.Background(), sdk.Registration{WantsConfig: []string{"fib/kernel"}})
+			if err != nil {
+				return 1
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	}))
+
+	reactor := &mockReloadReactor{tree: map[string]any{"other": map[string]any{"enabled": false}}}
+	serverCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	s, err := NewServer(&ServerConfig{}, reactor)
+	require.NoError(t, err)
+	s.ctx, s.cancel = context.WithCancel(serverCtx)
+	t.Cleanup(s.cancel)
+
+	pm := process.NewProcessManager(nil)
+	require.NoError(t, pm.StartWithContext(s.ctx))
+	depProc := process.NewProcess(plugin.PluginConfig{Name: depName})
+	depProc.SetRunning(true)
+	pm.AddProcess(depName, depProc)
+
+	engineEnd, pluginEnd := net.Pipe()
+	t.Cleanup(func() {
+		engineEnd.Close() //nolint:errcheck // test cleanup
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+	})
+	rejector := process.NewProcess(plugin.PluginConfig{Name: "reload-rejector"})
+	rejector.SetRegistration(&plugin.PluginRegistration{WantsConfigRoots: []string{"other"}})
+	rejector.SetConn(ipc.NewPluginConn(engineEnd, engineEnd))
+	rejector.SetRunning(true)
+	pm.AddProcess("reload-rejector", rejector)
+	(&mockPluginResponder{
+		pluginConn: ipc.NewPluginConn(pluginEnd, pluginEnd),
+		pluginName: "reload-rejector",
+		verifyResp: &rpc.ConfigVerifyOutput{Status: plugin.StatusError, Error: "reject other"},
+	}).start(s.ctx)
+	s.procManager.Store(pm)
+
+	spawner := &lifecycleTestSpawner{ctx: s.ctx, pm: pm}
+	s.SetProcessSpawner(spawner)
+
+	newTree := map[string]any{
+		"fib":   map[string]any{"kernel": map[string]any{"enabled": true}},
+		"other": map[string]any{"enabled": true},
+	}
+	err = s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err)
+	assert.Nil(t, spawner.pm.GetProcess(pluginName), "failed reload must stop newly auto-loaded plugin")
+	assert.NotNil(t, spawner.pm.GetProcess(depName), "failed reload must keep pre-existing dependency")
 }
 
 // TestReloadConfigVerifyFails verifies that verify error aborts apply.

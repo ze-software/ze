@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-19 |
+| Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
 
@@ -73,6 +73,7 @@ Fix BENG-004. If BGP reactor startup fails after listeners, subscriptions, cache
 | startup orchestration -> listener resources | `startMultiListeners`, listener handles | [ ] failure test observes `Stop` on started listener |
 | startup orchestration -> cache scanner | `recentUpdates.Start` or equivalent loop | [ ] failure test observes scanner exits or `Stop` called |
 | startup orchestration -> plugin server factory | `startAPIServer` | [ ] injected failure preserves wrapped error |
+| startup orchestration -> EventBus subscriptions | `SubscribeInterfaceEvents` / `releaseEventSubscriptions` | [ ] failure test observes zero active subscriptions |
 
 ### Architectural Verification
 - [ ] No bypassed layer: startup failures return through reactor lifecycle code, not package-level globals.
@@ -85,8 +86,8 @@ Fix BENG-004. If BGP reactor startup fails after listeners, subscriptions, cache
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | Cache scanner shutdown can be observed through existing Stop or context cancellation | BENG-004 source read | add a test seam for cache scanner lifecycle | startup failure test | unvalidated |
-| A-2 | Plugin server creation can be injected without global mutation leaking across tests | constructor currently called directly | add narrow factory field reset by tests | unit test cleanup | unvalidated |
+| A-1 | Cache scanner shutdown can be observed through existing Stop or context cancellation | BENG-004 source read | add a test seam for cache scanner lifecycle | `TestStartWithContextCleansUpAfterAPIServerFailure` | confirmed |
+| A-2 | Plugin server creation can be injected without global mutation leaking across tests | constructor currently called directly | add narrow factory field reset by tests | `Reactor.pluginServerMaker` seam in startup tests | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -101,6 +102,7 @@ Fix BENG-004. If BGP reactor startup fails after listeners, subscriptions, cache
 |-------------|----|--------------|------|
 | `StartWithContext` with plugin server creation failure after listeners start | -> | abort cleanup path | `TestStartWithContextCleansUpAfterAPIServerFailure` |
 | `Stop` after failed startup | -> | idempotent cleanup | `TestStopAfterFailedStartupIsSafe` |
+| `StartWithContext` failure after `SubscribeInterfaceEvents` | -> | `abortStartup` -> `releaseEventSubscriptions` | `TestStartWithContextReleasesEventSubscriptionsOnFailure` |
 
 ## Acceptance Criteria
 
@@ -110,6 +112,7 @@ Fix BENG-004. If BGP reactor startup fails after listeners, subscriptions, cache
 | AC-2 | cache scanner or reactor context started before the failure | scanner exits or explicit stop is called before test completes |
 | AC-3 | caller invokes `Stop` after failed startup | no panic, no double close, no stale listener |
 | AC-4 | successful startup path | unchanged resource startup order and running state |
+| AC-5 | EventBus subscriptions registered before the failure | `abortStartup` unsubscribes every handler; no `(interface, addr-*)` subscription remains on the bus after `StartWithContext` returns an error |
 
 ## TDD Test Plan
 
@@ -118,6 +121,7 @@ Fix BENG-004. If BGP reactor startup fails after listeners, subscriptions, cache
 |------|------|-----------|--------|
 | `TestStartWithContextCleansUpAfterAPIServerFailure` | `internal/component/bgp/reactor/reactor_startup_test.go` | AC-1, AC-2 | |
 | `TestStopAfterFailedStartupIsSafe` | same | AC-3 | |
+| `TestStartWithContextReleasesEventSubscriptionsOnFailure` | same | AC-5 | |
 | existing successful startup test | existing reactor tests | AC-4 | |
 
 ### Boundary Tests
@@ -203,12 +207,13 @@ Every post-resource startup error must behave like a failed transaction: preserv
 
 ## Known Limitations
 
-- This spec does not implement the fix.
+- Implemented in `internal/component/bgp/reactor/reactor.go`; no remaining limitation for this bugfix.
 
 ## Implementation Summary
 
 ### What Was Implemented
-- Fix spec only. Production code is unchanged.
+- `StartWithContext` now routes late listener, multi-listener, and API startup failures through `abortStartup`, which cleans listeners, API resources, signal handlers, cache scanner, context state, and EventBus subscriptions.
+- `abortStartup` and `cleanup` share `releaseEventSubscriptions` (reactor.go:1215), which unsubscribes every `SubscribeInterfaceEvents` handler. The bus `unregister` is non-blocking and idempotent (handlers are copied under the bus lock and invoked outside it), so releasing under `r.mu` in `abortStartup` cannot deadlock. This closes the originally-missed Task/Security-Review requirement that no event subscription remain after a failed startup.
 
 ### Bugs Found/Fixed
 - BENG-004 documented for implementation.
@@ -229,24 +234,24 @@ Every post-resource startup error must behave like a failed transaction: preserv
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1..AC-4 | Planned | tests listed above | To be satisfied by implementation spec owner |
+| AC-1..AC-5 | Done | startup cleanup tests in `internal/component/bgp/reactor` | Late failure cleanup, Stop-after-failure safety, and EventBus subscription release covered |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| Startup cleanup tests | Planned | `internal/component/bgp/reactor` | Not run by review program |
+| Startup cleanup tests | Done | `internal/component/bgp/reactor/reactor_startup_test.go` | Passing |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `internal/component/bgp/reactor/reactor.go` | Planned | implementation target |
+| `internal/component/bgp/reactor/reactor.go` | Done | implementation target updated |
 
 ### Audit Summary
 - Total items: 1 accepted finding converted to a fix spec.
-- Done: fix spec created.
-- Partial: implementation pending by design.
-- Skipped: no production code changes in review program.
-- Changed: new spec file.
+- Done: startup cleanup implementation and tests.
+- Partial: none.
+- Skipped: no approved scope reduction.
+- Changed: BGP reactor startup cleanup and tests.
 
 ## Goal Validation
 

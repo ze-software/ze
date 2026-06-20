@@ -120,6 +120,8 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 				return "", errIpv6RequiresValue
 			}
 			spec.IsIPv6 = args[i] == "true"
+		default:
+			return "", fmt.Errorf("unknown MUP keyword: %s", args[i])
 		}
 	}
 

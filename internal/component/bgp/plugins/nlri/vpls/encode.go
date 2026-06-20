@@ -93,6 +93,8 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 				return "", fmt.Errorf("invalid label: %w", err)
 			}
 			labelBase = uint32(v) //nolint:gosec // validated by ParseUint with bitSize 32
+		default:
+			return "", fmt.Errorf("unknown VPLS keyword: %s", args[i])
 		}
 	}
 
@@ -149,6 +151,9 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 // Format: rd <rd> ve-block-offset <n> ve-block-size <n> label <n> next-hop <addr>.
 func parseVPLSArgs(args []string) (bgptypes.VPLSRoute, error) {
 	var route bgptypes.VPLSRoute
+	if len(args)%2 != 0 {
+		return route, fmt.Errorf("missing value for %s", args[len(args)-1])
+	}
 
 	for i := 0; i < len(args)-1; i += 2 {
 		key := strings.ToLower(args[i])

@@ -56,8 +56,12 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 
 	var source, group, rdStr string
 	var sourceAS uint32
-	for i := 1; i+1 < len(req.Content); i += 2 {
-		key, val := req.Content[i], req.Content[i+1]
+	for i := 1; i < len(req.Content); i += 2 {
+		key := req.Content[i]
+		if i+1 >= len(req.Content) {
+			return registry.PluginRoute{}, fmt.Errorf("missing value for %s", key)
+		}
+		val := req.Content[i+1]
 		switch key {
 		case "rp", "source":
 			source = val
@@ -71,6 +75,8 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 				return registry.PluginRoute{}, fmt.Errorf("mvpn source-as %q: %w", val, err)
 			}
 			sourceAS = uint32(n)
+		default:
+			return registry.PluginRoute{}, fmt.Errorf("unknown MVPN keyword: %s", key)
 		}
 	}
 

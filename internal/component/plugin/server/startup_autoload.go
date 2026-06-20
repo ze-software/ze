@@ -222,6 +222,11 @@ func (s *Server) autoLoadForNewConfigPaths(_ context.Context, newTree map[string
 		if s.reactor != nil {
 			s.reactor.AddAPIProcessCount(-len(plugins))
 		}
+		started := make([]string, len(plugins))
+		for i, p := range plugins {
+			started[i] = p.Name
+		}
+		s.autoStopPluginNames(started)
 		return nil, fmt.Errorf("config-path auto-load startup: %w", err)
 	}
 
@@ -321,6 +326,28 @@ func (s *Server) autoStopForRemovedConfigPaths(removedRoots []string) {
 	// remaining running plugin declares it in Dependencies.
 	if len(stoppedSet) > 0 {
 		s.stopOrphanedDependencies(pm, stoppedSet)
+	}
+}
+
+// autoStopPluginNames stops the exact plugin processes that a failed reload
+// auto-loaded. Unlike autoStopForRemovedConfigPaths, the input is already a
+// plugin name list, not config roots such as "fib/kernel".
+func (s *Server) autoStopPluginNames(pluginNames []string) {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return
+	}
+
+	for _, name := range pluginNames {
+		if s.hasConfiguredPlugin(name) {
+			continue
+		}
+		proc := pm.GetProcess(name)
+		if proc == nil {
+			continue
+		}
+		logger().Info("config reload: stopping auto-loaded plugin", "plugin", name)
+		s.rollbackStartupProcess(proc)
 	}
 }
 

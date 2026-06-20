@@ -141,6 +141,72 @@ func TestParseUnknownCapability(t *testing.T) {
 	assert.Equal(t, []byte{0xAB, 0xCD}, unknown.Data)
 }
 
+// TestParseRejectsMalformedKnownCapabilityLength verifies zero-length known
+// capabilities reject non-zero payloads.
+//
+// VALIDATES: AC-1 malformed Route Refresh, Extended Message, and Enhanced Route Refresh capabilities fail.
+//
+// PREVENTS: Negotiating malformed known capabilities that should be rejected before OPEN acceptance.
+func TestParseRejectsMalformedKnownCapabilityLength(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		code Code
+	}{
+		{"route_refresh", CodeRouteRefresh},
+		{"extended_message", CodeExtendedMessage},
+		{"enhanced_route_refresh", CodeEnhancedRouteRefresh},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := Parse([]byte{byte(tt.code), 0x01, 0x00})
+			require.ErrorIs(t, err, ErrInvalidLength)
+		})
+	}
+}
+
+// TestOptionalParamRejectsTruncatedCapabilityTLV verifies Type 2 parameter TLV
+// parsing propagates malformed inner capability errors.
+//
+// VALIDATES: AC-2 truncated capability TLVs return an error.
+//
+// PREVENTS: Silently dropping malformed Type 2 optional parameters during OPEN parsing.
+func TestOptionalParamRejectsTruncatedCapabilityTLV(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParseFromOptionalParams([]byte{
+		0x02, 0x04, // Optional Parameter type=Capabilities, len=4
+		0x01, 0x04, // Capability code=Multiprotocol, len=4, value truncated
+	})
+	require.ErrorIs(t, err, ErrShortRead)
+}
+
+// TestOptionalParamPreservesUnknownCapability verifies unknown capabilities
+// remain syntactically parsed and available to the caller.
+//
+// VALIDATES: AC-3 syntactically valid unknown capabilities are preserved.
+//
+// PREVENTS: Treating ignorable unknown capabilities as malformed OPEN input.
+func TestOptionalParamPreservesUnknownCapability(t *testing.T) {
+	t.Parallel()
+
+	caps, err := ParseFromOptionalParams([]byte{
+		0x02, 0x04, // Optional Parameter type=Capabilities, len=4
+		0xFE, 0x02, 0xAB, 0xCD, // Unknown capability code 254, len=2
+	})
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+
+	unknown, ok := caps[0].(*Unknown)
+	require.True(t, ok)
+	assert.Equal(t, Code(254), unknown.Code())
+	assert.Equal(t, []byte{0xAB, 0xCD}, unknown.Data)
+}
+
 // TestAddPathCapability verifies ADD-PATH parsing and packing (RFC 7911).
 //
 // VALIDATES: ADD-PATH capability handling for path diversity.

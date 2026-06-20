@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-19 |
+| Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
 
@@ -105,8 +105,8 @@ Fix BENG-002. Oversized BGP UPDATE forwarding must not split raw source-context 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | Existing parsed update splitter can encode destination ADD-PATH state correctly | `message.Splitter` and `addPathForUpdate` path | new writer needed | ADD-PATH mismatch unit test | unvalidated |
-| A-2 | One parse per source wire can be cached across destination peers | existing `fwdParseCache` | performance regression | allocation and benchmark comparison | unvalidated |
+| A-1 | Existing parsed update splitter can encode destination ADD-PATH state correctly | `message.Splitter` and `addPathForUpdate` path | new writer needed | `TestForwardSplitConvertsAddPathContext` | confirmed |
+| A-2 | One parse per source wire can be cached across destination peers | existing `fwdParseCache` | performance regression | `buildFwdBody` still reuses `fwdParseCache` for parsed source UPDATE | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -284,7 +284,7 @@ Context conversion comes before chunking unless source and destination ContextID
 
 ## Known Limitations
 
-- This spec does not implement the fix.
+- Implemented in `internal/component/bgp/reactor/forward_body.go`; no remaining limitation for this bugfix.
 
 ## RFC Documentation
 
@@ -293,9 +293,8 @@ Add RFC comments for size, ADD-PATH, and ASN4 enforcement changed by the fix.
 ## Implementation Summary
 
 ### What Was Implemented
-- Fix spec only. Production code is unchanged.
-- The spec captures BENG-002 from `plan/review-bug-review-bgp-engine.md`.
-- Regression expectations cover destination-context conversion before oversized splitting across slow, DirectBridge, and RS inline paths.
+- `buildFwdBody` now preserves same-context raw split, but parses and converts source/destination context mismatches before oversized splitting.
+- Tests cover ADD-PATH mismatch, ASN4 mismatch, and same-context raw split.
 
 ### Bugs Found/Fixed
 - BENG-002 documented for implementation.
@@ -319,28 +318,28 @@ Add RFC comments for size, ADD-PATH, and ASN4 enforcement changed by the fix.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1..AC-5 | planned | acceptance criteria table | to be satisfied by implementation owner |
+| AC-1..AC-5 | done | `TestForwardSplitConvertsAddPathContext`, `TestForwardSplitConvertsASN4Context`, `TestForwardSplitSameContextKeepsRawSplit` | destination-context split and same-context raw path covered |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| ADD-PATH context mismatch split | planned | `internal/component/bgp/reactor` | not run by review program |
-| ASN4 context mismatch split | planned | `internal/component/bgp/reactor` | not run by review program |
-| same-context raw split preservation | planned | `internal/component/bgp/reactor` | not run by review program |
+| ADD-PATH context mismatch split | done | `internal/component/bgp/reactor` | passing |
+| ASN4 context mismatch split | done | `internal/component/bgp/reactor` | passing |
+| same-context raw split preservation | done | `internal/component/bgp/reactor` | passing |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `internal/component/bgp/reactor/forward_body.go` | planned | implementation target |
-| `internal/component/bgp/reactor/forward_body_test.go` | planned | test target |
-| `internal/component/bgp/message` splitter helpers | possible | only if destination-context split needs helper change |
+| `internal/component/bgp/reactor/forward_body.go` | done | destination-context split path implemented |
+| `internal/component/bgp/reactor/forward_body_test.go` | done | regression tests added |
+| `internal/component/bgp/message` splitter helpers | unchanged | existing splitter sufficed |
 
 ### Audit Summary
 - Total items: 1 accepted finding converted to a fix spec.
-- Done: fix spec created.
-- Partial: implementation pending by design.
-- Skipped: no production code changes in review program.
-- Changed: new spec file.
+- Done: forwarding context split implementation and regression tests.
+- Partial: none.
+- Skipped: no approved scope reduction.
+- Changed: BGP reactor forwarding code and tests.
 
 ## Goal Validation
 | Goal (from Task section) | Evidence Type | Concrete Evidence |

@@ -349,10 +349,13 @@ func TestValidateMessageLength(t *testing.T) {
 		{"KEEPALIVE too long", TypeKEEPALIVE, 20, true},
 		{"KEEPALIVE way too long", TypeKEEPALIVE, 100, true},
 
-		// ROUTE-REFRESH: minimum 23 (RFC 2918: 4 bytes after header)
-		{"ROUTE-REFRESH at minimum", TypeROUTEREFRESH, 23, false},
-		{"ROUTE-REFRESH above minimum", TypeROUTEREFRESH, 30, false},
-		{"ROUTE-REFRESH below minimum", TypeROUTEREFRESH, 22, true},
+		// ROUTE-REFRESH: header floor only. RFC 7313 exact body length errors
+		// are emitted by receive-path validation as ROUTE-REFRESH Message Error.
+		{"ROUTE-REFRESH header only", TypeROUTEREFRESH, 19, false},
+		{"ROUTE-REFRESH below body length", TypeROUTEREFRESH, 22, false},
+		{"ROUTE-REFRESH at exact body length", TypeROUTEREFRESH, 23, false},
+		{"ROUTE-REFRESH above body length", TypeROUTEREFRESH, 30, false},
+		{"ROUTE-REFRESH below header", TypeROUTEREFRESH, 18, true},
 
 		// Unknown type: only basic length check
 		{"Unknown type", MessageType(99), 19, false},

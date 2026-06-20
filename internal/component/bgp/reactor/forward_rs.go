@@ -201,7 +201,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
 			return nil, false
 		}
-		wire := wireu.NewWireUpdate(buf.Buf[:n], update.WireUpdate.SourceCtxID())
+		wire := wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), asn4))
 		wire.SetMessageID(update.WireUpdate.MessageID())
 		wire.SetSourceID(update.WireUpdate.SourceID())
 		ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
@@ -374,7 +374,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 					rsTranscodeFailed = true
 					continue
 				}
-				wire := wireu.NewWireUpdate(buf.Buf[:n], update.WireUpdate.SourceCtxID())
+				wire := wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), false))
 				wire.SetMessageID(update.WireUpdate.MessageID())
 				wire.SetSourceID(update.WireUpdate.SourceID())
 				rsTranscodeWire = wire

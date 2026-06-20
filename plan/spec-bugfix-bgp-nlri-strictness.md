@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-19 |
+| Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
 
@@ -92,8 +92,8 @@ Fix BPLUG-001. BGP NLRI family encode and config parsers must reject unknown key
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | Token grammars are key/value pairs for all affected paths | source loops advance by pairs | handle family-specific positional grammar separately | unit tests from valid fixtures | unvalidated |
-| A-2 | Unknown tokens should always be errors, not extension passthrough | Ze exact-or-reject rules | document an explicit extension namespace | review gate | unvalidated |
+| A-1 | Token grammars are key/value pairs for all affected paths | source loops advance by pairs | handle family-specific positional grammar separately | owner-package valid and invalid parser tests | confirmed |
+| A-2 | Unknown tokens should always be errors, not extension passthrough | Ze exact-or-reject rules | document an explicit extension namespace | review and strictness tests | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -218,13 +218,13 @@ Every runtime route token is operator data. Unknown operator data must be reject
 
 ## Known Limitations
 
-- This spec does not implement the fix.
+- NLRI strict token validation is implemented for the affected labeled, MUP, MVPN, and VPLS parser paths.
 - Decode-only family encode completeness is tracked separately and not included here.
 
 ## Implementation Summary
 
 ### What Was Implemented
-- Fix spec only. Production code is unchanged.
+- Labeled, MUP, MVPN, and VPLS owner parsers now reject unknown and dangling tokens with errors naming the offending token.
 
 ### Bugs Found/Fixed
 - BPLUG-001 documented for implementation.
@@ -245,24 +245,24 @@ Every runtime route token is operator data. Unknown operator data must be reject
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1..AC-6 | Planned | tests listed above | To be satisfied by implementation owner |
+| AC-1..AC-6 | Done | owner-package strictness tests | Invalid input rejects; valid fixtures unchanged |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| affected family strictness tests | Planned | owner packages | Not run by review program |
+| affected family strictness tests | Done | owner packages | `go test` owner packages passed |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| affected NLRI parser files | Planned | implementation targets |
+| affected NLRI parser files | Done | implementation targets updated |
 
 ### Audit Summary
 - Total items: 1 accepted finding converted to a fix spec.
-- Done: fix spec created.
-- Partial: implementation pending by design.
-- Skipped: no production code changes in review program.
-- Changed: new spec file.
+- Done: NLRI strictness implementation and tests.
+- Partial: none for listed parser paths.
+- Skipped: no approved scope reduction.
+- Changed: labeled, MUP, MVPN, and VPLS owner parsers and tests.
 
 ## Goal Validation
 

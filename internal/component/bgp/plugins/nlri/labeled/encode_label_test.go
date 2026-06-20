@@ -20,3 +20,18 @@ func TestEncodeRoutePreservesLabelStack(t *testing.T) {
 	assert.Equal(t, byte(0x48), nlriBytes[0],
 		"NLRI must encode both labels (0x48 bit-length), not just the first (0x30)")
 }
+
+// TestEncodeLabeledRejectsUnknownToken verifies the in-process labeled unicast
+// encoder rejects operator tokens outside its key/value grammar.
+//
+// VALIDATES: unknown labeled unicast NLRI encode keys return an error naming the
+// offending token.
+// PREVENTS: typos in encode-nlri RPC or update-text paths being silently ignored.
+func TestEncodeLabeledRejectsUnknownToken(t *testing.T) {
+	_, err := EncodeNLRIHex("ipv4/mpls-label", []string{
+		"prefix", "10.0.0.0/24",
+		"label", "100",
+		"bogus", "value",
+	})
+	require.ErrorContains(t, err, "bogus")
+}

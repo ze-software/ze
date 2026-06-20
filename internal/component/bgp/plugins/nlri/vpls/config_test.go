@@ -67,3 +67,45 @@ func TestParseConfigRoute_VPLS(t *testing.T) {
 		}
 	}
 }
+
+// TestEncodeVPLSRejectsUnknownAndDanglingToken verifies the in-process VPLS NLRI
+// encoder rejects unrecognized keys and keys missing a value.
+//
+// VALIDATES: VPLS encode-nlri input is exact-or-reject for unknown and dangling
+// family tokens.
+// PREVENTS: RPC/update-text VPLS NLRI encoding silently dropping operator typos.
+func TestEncodeVPLSRejectsUnknownAndDanglingToken(t *testing.T) {
+	cases := map[string]struct {
+		args []string
+		want string
+	}{
+		"unknown": {
+			args: strings.Fields("rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label 100 bogus value"),
+			want: "bogus",
+		},
+		"dangling": {
+			args: strings.Fields("rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label"),
+			want: "label",
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := EncodeNLRIHex(familyVPLS, tc.args)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("EncodeNLRIHex error = %v, want token %q", err, tc.want)
+			}
+		})
+	}
+}
+
+// TestVPLSRouteParserRejectsDanglingToken verifies the owner route-command parser
+// does not ignore a final key without a value.
+//
+// VALIDATES: VPLS canonical route encoding parser rejects dangling route tokens.
+// PREVENTS: `ze bgp encode -f l2vpn/vpls` silently dropping a final typo.
+func TestVPLSRouteParserRejectsDanglingToken(t *testing.T) {
+	_, err := parseVPLSArgs(strings.Fields("rd 1:1 ve-block-offset 0 ve-block-size 10 label"))
+	if err == nil || !strings.Contains(err.Error(), "label") {
+		t.Fatalf("parseVPLSArgs error = %v, want label", err)
+	}
+}

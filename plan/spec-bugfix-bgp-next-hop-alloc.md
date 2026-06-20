@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | done |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-06-19 |
+| Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
 
@@ -84,8 +84,8 @@ Fix BENG-005 if allocation evidence confirms the escape. IPv6 link-local `next-h
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | The `make([]byte, 32)` escapes in the current code | source passes slice to accumulator | if compiler keeps it stack, only a small cleanup may be needed | `AllocsPerRun` or `-gcflags=-m` | unvalidated |
-| A-2 | `ModAccumulator` can copy from caller-owned storage without broad API changes | accumulator already centralizes mod values | add a narrow `OpCopy` helper | unit test and code review | unvalidated |
+| A-1 | The `make([]byte, 32)` escapes in the current code | source passes slice to accumulator | if compiler keeps it stack, only a small cleanup may be needed | failing `AllocsPerRun` before fix, passing no-alloc test after fix | confirmed |
+| A-2 | `ModAccumulator` can copy from caller-owned storage without broad API changes | accumulator already centralizes mod values | add a narrow `OpCopy` helper | `TestModAccumulator_OpCopyOwnsBuffer`, next-hop no-alloc test | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation |
@@ -202,13 +202,13 @@ Constructing fixed-size BGP next-hop bytes should be stack or pool based, never 
 
 ## Known Limitations
 
-- This spec does not implement the fix.
-- BENG-005 is a performance finding. If allocation proof contradicts the source-level suspicion, update the final status before code changes.
+- Implemented. Allocation evidence confirmed the source-level suspicion before the fix.
+- The legacy helper now copies the 32-byte value into accumulator-owned inline storage.
 
 ## Implementation Summary
 
 ### What Was Implemented
-- Fix spec only. Production code is unchanged.
+- Added `ModAccumulator.OpCopy` and changed IPv6 global plus link-local next-hop-self construction to stack bytes copied into accumulator-owned storage.
 
 ### Bugs Found/Fixed
 - BENG-005 documented as an accepted allocation investigation and fix target.
@@ -229,24 +229,24 @@ Constructing fixed-size BGP next-hop bytes should be stack or pool based, never 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1..AC-4 | Planned | tests listed above | To be satisfied by implementation owner |
+| AC-1..AC-4 | Done | `TestApplyNextHopModIPv6LinkLocalBytes`, `TestApplyNextHopModIPv6LinkLocalNoAlloc`, focused reactor tests | 32-byte value correct and zero allocations after accumulator warm-up |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| next-hop byte and allocation tests | Planned | `internal/component/bgp/reactor` | Not run by review program |
+| next-hop byte and allocation tests | Done | `internal/component/bgp/reactor/filter_delta_handlers_test.go` | Passing |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `internal/component/bgp/reactor/reactor_api_forward.go` | Planned | implementation target |
+| `internal/component/bgp/reactor/reactor_api_forward.go` | Done | implementation target updated |
 
 ### Audit Summary
 - Total items: 1 plausible finding accepted into an allocation-confirming fix spec.
-- Done: fix spec created.
-- Partial: code implementation pending by design.
-- Skipped: no production code changes in review program.
-- Changed: new spec file.
+- Done: allocation fix and byte/alloc regression tests.
+- Partial: none.
+- Skipped: no approved scope reduction.
+- Changed: `filterapi.ModAccumulator`, next-hop helper, and tests.
 
 ## Goal Validation
 

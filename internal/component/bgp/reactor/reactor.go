@@ -62,6 +62,8 @@ import (
 
 var errServerNotReady = errors.New("server not ready")
 
+type pluginServerFactory func(*pluginserver.ServerConfig, plugin.ReactorLifecycle) (*pluginserver.Server, error)
+
 // Reactor env var registrations (ze.fwd.*, ze.buf.*, ze.cache.safety.valve,
 // ze.metrics.interval) are centralized in
 // internal/component/config/environment.go.
@@ -215,11 +217,12 @@ type Reactor struct {
 	config *Config
 
 	// Injectable abstractions for simulation.
-	clock           clock.Clock
-	dialer          network.Dialer
-	listenerFactory network.ListenerFactory
-	metricsRegistry metrics.Registry // injected by caller; nil when metrics not enabled
-	rmetrics        *reactorMetrics  // cached metric references (nil when registry not set)
+	clock             clock.Clock
+	dialer            network.Dialer
+	listenerFactory   network.ListenerFactory
+	pluginServerMaker pluginServerFactory
+	metricsRegistry   metrics.Registry // injected by caller; nil when metrics not enabled
+	rmetrics          *reactorMetrics  // cached metric references (nil when registry not set)
 
 	peers           map[netip.AddrPort]*Peer // keyed by netip.AddrPort (zero-alloc lookup)
 	peerGeneration  atomic.Uint64            // incremented on peer add/remove; used by ForwardUpdatesDirect batch cache
@@ -351,13 +354,14 @@ func New(config *Config) *Reactor {
 	initFwdWriteDeadline()
 
 	r := &Reactor{
-		config:          config,
-		clock:           clock.RealClock{},
-		dialer:          &network.RealDialer{},
-		listenerFactory: network.RealListenerFactory{},
-		peers:           make(map[netip.AddrPort]*Peer),
-		listeners:       make(map[string]*Listener),
-		recentUpdates:   NewRecentUpdateCache(maxEntries),
+		config:            config,
+		clock:             clock.RealClock{},
+		dialer:            &network.RealDialer{},
+		listenerFactory:   network.RealListenerFactory{},
+		pluginServerMaker: pluginserver.NewServer,
+		peers:             make(map[netip.AddrPort]*Peer),
+		listeners:         make(map[string]*Listener),
+		recentUpdates:     NewRecentUpdateCache(maxEntries),
 		fwdPool: newFwdPool(fwdBatchHandler, fwdPoolConfig{
 			chanSize:   fwdChanSize,
 			batchLimit: fwdBatchLimit,
@@ -955,16 +959,18 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		}
 		r.listener.SetHandler(r.handleConnection)
 		if err := r.listener.StartWithContext(r.ctx); err != nil {
-			r.cancel()
+			r.abortStartup()
 			return err
 		}
 	}
 
 	if err := r.startMultiListeners(); err != nil {
+		r.abortStartup()
 		return err
 	}
 
 	if err := r.startAPIServer(); err != nil {
+		r.abortStartup()
 		return err
 	}
 
@@ -1095,7 +1101,6 @@ func (r *Reactor) startMultiListeners() error {
 
 	for _, spec := range specs {
 		if err := r.startListenerForAddressPort(spec.addr, spec.port, spec.peerKey); err != nil {
-			r.abortStartup()
 			return err
 		}
 	}
@@ -1130,8 +1135,12 @@ func (r *Reactor) startAPIServer() error {
 				apiConfig.Plugins[i].WorkDir = r.config.ConfigDir
 			}
 		}
+		maker := r.pluginServerMaker
+		if maker == nil {
+			maker = pluginserver.NewServer
+		}
 		var serverErr error
-		r.api, serverErr = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
+		r.api, serverErr = maker(apiConfig, &reactorAPIAdapter{r})
 		if serverErr != nil {
 			return fmt.Errorf("create plugin server: %w", serverErr)
 		}
@@ -1154,7 +1163,6 @@ func (r *Reactor) startAPIServer() error {
 
 	if !r.externalServer {
 		if err := r.api.StartWithContext(r.ctx); err != nil {
-			r.abortStartup()
 			return err
 		}
 	}
@@ -1197,14 +1205,57 @@ func (r *Reactor) startSignalHandler() {
 	r.signals.StartWithContext(r.ctx)
 }
 
-// abortStartup tears down listeners and cancels the context on startup failure.
+// releaseEventSubscriptions unsubscribes every EventBus handler registered by
+// SubscribeInterfaceEvents and clears the slice. The bus unregister func only
+// deletes the handler from the subscriber map under the bus's own lock and
+// never waits for an in-flight handler (dispatch copies handlers and releases
+// the bus lock before invoking them), so this is safe to call whether or not
+// r.mu is held and idempotent across repeated calls. cleanup() calls it before
+// acquiring r.mu; abortStartup() calls it while holding r.mu.
+func (r *Reactor) releaseEventSubscriptions() {
+	for _, unsub := range r.eventBusUnsubs {
+		unsub()
+	}
+	r.eventBusUnsubs = nil
+}
+
+// abortStartup tears down provisional resources on startup failure.
 // Caller MUST hold r.mu.
 func (r *Reactor) abortStartup() {
+	// Drop EventBus subscriptions first so no interface event handler is
+	// dispatched against the half-torn-down reactor. SubscribeInterfaceEvents
+	// runs before any abort-guarded failure, so a failed startup that does not
+	// release these would leak the (interface, addr-*) handlers on the bus.
+	r.releaseEventSubscriptions()
+	if r.api != nil && !r.externalServer {
+		r.api.Stop()
+		waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = r.api.Wait(waitCtx)
+		cancel()
+		r.api = nil
+	}
+	if r.signals != nil {
+		r.signals.Stop()
+		waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = r.signals.Wait(waitCtx)
+		cancel()
+		r.signals = nil
+	}
 	r.stopAllListeners()
 	if r.listener != nil {
-		r.listener.Stop()
+		listener := r.listener
+		listener.Stop()
+		waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = listener.Wait(waitCtx)
+		cancel()
+		r.listener = nil
 	}
-	r.cancel()
+	r.recentUpdates.Stop()
+	if r.cancel != nil {
+		r.cancel()
+		r.cancel = nil
+	}
+	r.running = false
 }
 
 // Stop signals the reactor to stop.
@@ -1400,10 +1451,7 @@ func (r *Reactor) cleanup() {
 	// run synchronously inside the publisher's goroutine and may acquire
 	// r.mu.RLock() (e.g., onInterfaceAddrAdded). Unsubscribing first prevents
 	// any new dispatch from racing with the cleanup write lock.
-	for _, unsub := range r.eventBusUnsubs {
-		unsub()
-	}
-	r.eventBusUnsubs = nil
+	r.releaseEventSubscriptions()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()

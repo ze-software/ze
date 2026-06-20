@@ -55,20 +55,24 @@ type IngressFilterFunc func(source PeerFilterInfo, payload []byte, meta map[stri
 // Returns false to suppress the route for this destination peer.
 type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte, meta map[string]any, mods *ModAccumulator) bool
 
+const modAccumulatorInlineBytes = 64
+
 // ModAccumulator collects per-peer route modifications from egress filters.
 // NOT safe for concurrent use. Each peer iteration gets a fresh instance.
 type ModAccumulator struct {
-	ops      []AttrOp
-	withdraw bool // convert announce to withdrawal for this peer
+	ops       []AttrOp
+	withdraw  bool // convert announce to withdrawal for this peer
+	inline    [modAccumulatorInlineBytes]byte
+	inlineOff int
 }
 
 // Len returns the number of accumulated modifications (excluding withdraw flag).
 func (a *ModAccumulator) Len() int { return len(a.ops) }
 
-// Reset clears all accumulated modifications for reuse.
 func (a *ModAccumulator) Reset() {
 	a.ops = a.ops[:0]
 	a.withdraw = false
+	a.inlineOff = 0
 }
 
 // Op accumulates an attribute modification operation.
@@ -78,6 +82,26 @@ func (a *ModAccumulator) Reset() {
 // receives all ops for a given code at once during the progressive build.
 func (a *ModAccumulator) Op(code, action uint8, buf []byte) {
 	a.ops = append(a.ops, AttrOp{Code: code, Action: action, Buf: buf})
+}
+
+// OpCopy accumulates an attribute modification after copying buf into
+// accumulator-owned storage. Use it when the source buffer is stack-owned or
+// otherwise shorter-lived than the accumulator.
+func (a *ModAccumulator) OpCopy(code, action uint8, buf []byte) {
+	if len(buf) == 0 {
+		a.Op(code, action, nil)
+		return
+	}
+	if len(buf) <= len(a.inline)-a.inlineOff {
+		start := a.inlineOff
+		a.inlineOff += len(buf)
+		copy(a.inline[start:a.inlineOff], buf)
+		a.Op(code, action, a.inline[start:a.inlineOff])
+		return
+	}
+	copied := make([]byte, len(buf))
+	copy(copied, buf)
+	a.Op(code, action, copied)
 }
 
 // Ops returns the accumulated attribute modification operations.

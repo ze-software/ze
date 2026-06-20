@@ -106,11 +106,17 @@ func mupArgsFromContent(content []string) ([]string, error) {
 	}
 
 	// Remaining key-value pairs.
-	for i := 2; i+1 < len(content); i += 2 {
-		key, val := content[i], content[i+1]
+	for i := 2; i < len(content); i += 2 {
+		key := content[i]
+		if i+1 >= len(content) {
+			return nil, fmt.Errorf("missing value for %s", key)
+		}
+		val := content[i+1]
 		switch key {
 		case "rd", "teid", "qfi", "endpoint", "source":
 			args = append(args, key, val)
+		default:
+			return nil, fmt.Errorf("unknown MUP keyword: %s", key)
 		}
 	}
 
