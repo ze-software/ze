@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         kmod \
         zstd \
         patch \
+        python3 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
