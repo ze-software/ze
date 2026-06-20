@@ -188,7 +188,7 @@ if [ "$PROFILE" = "hardware-kms" ]; then
 fi
 
 if [ "$PROFILE" = "runtime" ]; then
-    for opt in CONFIG_MODULES CONFIG_PPP CONFIG_PPPOL2TP CONFIG_L2TP CONFIG_L2TP_V3 \
+    for opt in CONFIG_MODULES CONFIG_PPP CONFIG_PPPOL2TP CONFIG_PPPOE CONFIG_L2TP CONFIG_L2TP_V3 \
                CONFIG_DEVTMPFS_MOUNT CONFIG_BLK_DEV_INITRD \
                CONFIG_VIRTIO_NET; do
         require_yes "$opt" "required for runtime profile"

@@ -27,7 +27,7 @@ endif
 ze-release-evidence-preflight:
 	@missing=0; advisory=0; \
 	if command -v docker >/dev/null 2>&1; then \
-		echo "ok: docker (interop, ipsec-interop, l2tp-interop, perf, vpp-deployment, live)"; \
+		echo "ok: docker (interop, ipsec-interop, l2tp-interop, pppoe-interop, perf, vpp-deployment, live)"; \
 	else \
 		echo "MISSING: docker (required for interop, perf, deployment, live categories)"; \
 		missing=1; \
@@ -152,6 +152,7 @@ ze-release-evidence: ze-release-evidence-preflight bin/ze bin/ze-test
 	run_if_docker interop $(MAKE) --no-print-directory ze-interop-test; \
 	run_if_docker ipsec-interop $(MAKE) --no-print-directory ze-ipsec-interop-test; \
 	run_if_docker l2tp-interop $(MAKE) --no-print-directory ze-deployment-l2tp-ppp-docker-test; \
+	run_if_docker pppoe-interop $(MAKE) --no-print-directory ze-deployment-pppoe-accel-docker-test; \
 	run_category functional-extra $(MAKE) --no-print-directory ze-functional-extra-evidence; \
 	run_if_docker perf $(MAKE) --no-print-directory ze-perf-gate; \
 	run_if_qemu qemu $(MAKE) --no-print-directory ze-qemu-integration-test; \
@@ -174,6 +175,7 @@ ze-release-evidence: ze-release-evidence-preflight bin/ze bin/ze-test
 				interop) printf "  make ze-interop-test\n" ;; \
 				ipsec-interop) printf "  make ze-ipsec-interop-test\n" ;; \
 				l2tp-interop) printf "  make ze-deployment-l2tp-ppp-docker-test\n" ;; \
+				pppoe-interop) printf "  make ze-deployment-pppoe-accel-docker-test\n" ;; \
 				functional-extra) printf "  make ze-functional-extra-evidence\n" ;; \
 				perf) printf "  make ze-perf-gate\n" ;; \
 				qemu) printf "  make ze-qemu-integration-test\n" ;; \

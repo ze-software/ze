@@ -1,0 +1,23 @@
+# Ze PPPoE-client image for the accel-ppp interop lab.
+# Privileged container shares the host kernel for PPPoE (pppox) and /dev/ppp.
+
+FROM golang:1.26-alpine AS builder
+
+RUN apk add --no-cache git
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+
+RUN CGO_ENABLED=0 go build -o /ze ./cmd/ze
+
+FROM alpine:3.21
+
+# iproute2: ip link/addr; ppp: /dev/ppp device support; kmod: modprobe;
+# iputils: ping for the dataplane check.
+RUN apk add --no-cache tini iproute2 kmod ppp iputils
+
+COPY --from=builder /ze /usr/local/bin/ze
+
+ENTRYPOINT ["tini", "--", "ze"]

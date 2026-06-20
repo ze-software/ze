@@ -463,6 +463,7 @@ help-test:
 	@echo "    ze-qemu-shell             Persistent QEMU VM for interactive debugging (run in background)"
 	@echo "    ze-qemu-integration-test  Integration tests in QEMU Alpine VM"
 	@echo "    ze-qemu-l2tp-ppp-test     L2TP PPP/NCP in QEMU with gokrazy kernel"
+	@echo "    ze-qemu-pppoe-accel-test  PPPoE client vs accel-ppp AC in QEMU"
 	@echo "    ze-qemu-ldp-frr-test      LDP interop against FRR ldpd in QEMU"
 	@echo "    ze-qemu-isis-frr-test     IS-IS interop against FRR isisd in QEMU"
 	@echo ""

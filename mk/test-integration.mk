@@ -20,8 +20,9 @@
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test
 .PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
+.PHONY: ze-deployment-pppoe-accel-docker-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -105,6 +106,10 @@ ze-deployment-l2tp-ppp-test:
 ze-deployment-l2tp-ppp-docker-test:
 	@echo "Running L2TP PPP/NCP peer-isolated Docker lab (requires Docker host PPPoL2TP kernel support)..."
 	python3 test/l2tp-interop/run.py
+
+ze-deployment-pppoe-accel-docker-test:
+	@echo "Running PPPoE client-vs-accel-ppp Docker lab (requires Docker host PPPoE kernel support)..."
+	python3 test/pppoe-interop/run.py
 
 ze-deployment-gokrazy-l2tp-ppp-test:
 	@echo "Running gokrazy appliance L2TP PPP/NCP deployment test (requires Linux root + QEMU + xl2tpd + pppd + PPPoL2TP support)..."
@@ -273,4 +278,18 @@ ze-qemu-l2tp-ppp-test:
 		--kernel tmp/kernel/vmlinuz \
 		--packages "xl2tpd ppp iproute2 iputils-ping nftables kmod python3" \
 		--run 'python3 scripts/evidence/effective-l2tp-ppp.py' \
+		--timeout 600
+
+# QEMU sibling of test/pppoe-interop/ (the Docker lab). Runs Ze's PPPoE client
+# against a real accel-ppp AC in two netns inside the runtime kernel (which has
+# CONFIG_PPPOE built in). accel-ppp is installed from Alpine community.
+# `make ze-kernel` builds and stages the kernel to tmp/kernel/vmlinuz, and
+# rebuilds when runtime.config changes so CONFIG_PPPOE is picked up.
+ze-qemu-pppoe-accel-test:
+	@test -f tmp/kernel/vmlinuz || { echo "error: tmp/kernel/vmlinuz not found (run: make ze-kernel GOKRAZY_ARCH=arm64)"; exit 1; }
+	@echo "Running PPPoE client-vs-accel-ppp test in QEMU Linux VM with runtime kernel..."
+	python3 scripts/evidence/qemu-run.py \
+		--kernel tmp/kernel/vmlinuz \
+		--packages "accel-ppp ppp iproute2 iputils-ping kmod python3" \
+		--run 'python3 scripts/evidence/effective-pppoe-accel.py' \
 		--timeout 600

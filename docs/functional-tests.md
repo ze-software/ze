@@ -97,6 +97,18 @@ a live PPP session. The lab requires Docker and the host kernel (or Docker VM
 kernel) to have PPPoL2TP support; it refuses to run if `/dev/ppp`, `ip l2tp`,
 or the `l2tp_ppp`/`pppol2tp` module is missing. Run individual scenarios with
 `python3 test/l2tp-interop/run.py <scenario-name>`.
+
+`make ze-deployment-pppoe-accel-docker-test` runs the inverse-role PPPoE lab:
+Ze as a PPPoE **client** (`pppoe-client` interface kind) against a real
+[accel-ppp](https://accel-ppp.org/) access concentrator (the Alpine `accel-ppp`
+package). It proves PADI/PADO/PADR/PADS discovery, LCP, CHAP-MD5 auth, IPCP
+address assignment, the kernel `pppN` interface, dataplane ping to the AC
+gateway, accel-ppp's session view, and teardown. It is the only test exercising
+Ze as the PPPoE client (the `test/pppoe/*.ci` tests run Ze as the server). The
+Docker form needs host-kernel `/dev/ppp` + `pppoe`; on macOS or any host without
+it, `make ze-qemu-pppoe-accel-test` runs the same proof in a QEMU netns
+(`scripts/evidence/effective-pppoe-accel.py`) using the runtime kernel built by
+`make ze-kernel`. See `docs/architecture/testing/pppoe-interop.md`.
 <!-- source: internal/test/cli/register.go -- subcommand registry -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
 <!-- source: Makefile -- ze-linux-test -->
