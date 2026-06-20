@@ -85,6 +85,7 @@ Registration, SDK, event flow, lifecycle, hook integration.
 - [830](plan/learned/830-typed-inter-plugin-dispatch.md) -- Typed exact-command inter-plugin dispatch: `DispatchCommandArgs` over rebuilt strings, `CommandArgsAuthorizer` over canonical fallback, command/args boundary pinned by tests
 - [858](plan/learned/858-typed-peer-selector.md) -- Typed peer selector: BGPReactor takes `*selector.Selector` not string; SDK `*Sel` variants for DirectBridge; `SoftClearPeer` fixed for name/ASN; GR stays string at args boundary
 - [922](plan/learned/922-cross-plugin-switch-audit.md) -- Cross-plugin switch audit: most are correct Go (backend lowering has no virtual-dispatch alt); only producer-owned re-derivation is a smell -> hoist as a method on the producer's type (`RouteAction.Verb()`, `Path.IsEBGP`, `AddPathMode.Label()`); 3 dup-hidden bugs fixed; `ze-validate` undercounts a typed enum reached only via its constants (fixed in validate.py)
+- [938](plan/learned/938-bug-review-0-umbrella.md) -- Review-only bug campaign pattern: generated aggregator inventory first, child reports by owner, accepted findings routed to TDD-ready fix specs, closure must include spec audits and fix-spec audit sections before final report claims artifact completion
 
 ## Configuration
 
