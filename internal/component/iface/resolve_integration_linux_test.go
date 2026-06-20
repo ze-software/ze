@@ -29,8 +29,8 @@ func TestResolveRemapsLogicalNameToOSDevice(t *testing.T) {
 
 		// Map logical "uplink" -> kernel "zeosdev0" (as an iface config os-name
 		// selector would via setResolverConfig).
-		globalResolver.setMapping(map[string]string{"uplink": osDev})
-		t.Cleanup(func() { globalResolver.setMapping(nil) })
+		globalResolver.setMapping(map[string]string{"uplink": osDev}, nil)
+		t.Cleanup(func() { globalResolver.setMapping(nil, nil) })
 
 		b, err := Resolve("uplink")
 		if err != nil {
@@ -80,8 +80,8 @@ func TestAddressesRemapAndClassify(t *testing.T) {
 			t.Fatalf("add v6: %v", err)
 		}
 
-		globalResolver.setMapping(map[string]string{"core": osDev})
-		t.Cleanup(func() { globalResolver.setMapping(nil) })
+		globalResolver.setMapping(map[string]string{"core": osDev}, nil)
+		t.Cleanup(func() { globalResolver.setMapping(nil, nil) })
 
 		addrs, err := Addresses("core")
 		if err != nil {
@@ -104,6 +104,56 @@ func TestAddressesRemapAndClassify(t *testing.T) {
 		}
 		if !sawV4 || !sawV6Global {
 			t.Errorf("missing classified addresses: v4=%v v6global=%v", sawV4, sawV6Global)
+		}
+	})
+}
+
+// TestResolveByMACBindsToDevice proves iface.Resolve binds a logical name to a
+// real kernel device selected by its hardware MAC, not by name, against the
+// real netlink backend. Virtual devices report no permanent MAC (confirmed via
+// `ethtool -P` on dummy/veth/eth0 in CI), so this exercises the current-MAC
+// fallback end-to-end; the permanent-MAC preference itself is unit-tested with
+// a stub backend (TestResolveByPermMACPrefersPermanentOverCurrent) because CI
+// hosts expose no permanent-address NICs.
+func TestResolveByMACBindsToDevice(t *testing.T) {
+	withNetNS(t, func() {
+		const osDev = "zemacdev0"
+		const wantMAC = "02:00:00:00:be:ef"
+		createDummyForTest(t, osDev)
+		// Set the MAC before bringing the device up (a down device accepts the
+		// change unconditionally). Dummy has no permanent MAC, so this becomes
+		// the device's only hardware identity.
+		if err := SetMACAddress(osDev, wantMAC); err != nil {
+			t.Fatalf("set mac on %s: %v", osDev, err)
+		}
+		if err := SetAdminUp(osDev); err != nil {
+			t.Fatalf("up %s: %v", osDev, err)
+		}
+
+		// Match logical "uplink" by the device MAC (uppercase to prove
+		// normalization), with NO os-name mapping for it.
+		globalResolver.setMapping(nil, map[string]string{"uplink": "02:00:00:00:BE:EF"})
+		t.Cleanup(func() { globalResolver.setMapping(nil, nil) })
+
+		b, err := Resolve("uplink")
+		if err != nil {
+			t.Fatalf("Resolve(uplink) by MAC: %v", err)
+		}
+		if b.OsName != osDev {
+			t.Errorf("OsName = %q, want %q (bound by MAC, not name)", b.OsName, osDev)
+		}
+		info, err := GetInterface(osDev)
+		if err != nil {
+			t.Fatalf("GetInterface(%s): %v", osDev, err)
+		}
+		if b.Ifindex == 0 || b.Ifindex != info.Index {
+			t.Errorf("Ifindex = %d, want real %d", b.Ifindex, info.Index)
+		}
+
+		// A MAC no device carries is a deferred binding, not a stale hit.
+		globalResolver.setMapping(nil, map[string]string{"ghost": "de:ad:be:ef:00:99"})
+		if _, err := Resolve("ghost"); err == nil {
+			t.Error("Resolve(ghost) must fail when no device carries the MAC")
 		}
 	})
 }

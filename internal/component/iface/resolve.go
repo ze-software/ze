@@ -7,7 +7,10 @@ package iface
 
 import (
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/netip"
+	"strings"
 	"sync"
 
 	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
@@ -36,8 +39,18 @@ type resolver struct {
 	nextSubID int
 	osNames   map[string]string   // logical -> os (only entries that override)
 	logicalOf map[string][]string // os -> logical names bound to it
-	bound     bool
-	unsub     []func()
+	// permMACs maps a logical name to the normalized MAC its mac/match selector
+	// binds to; permMACOf is the reverse (MAC -> logical names) so a device
+	// event can reach the names that select it. Both empty when no mac/match
+	// selector is configured (the common case).
+	permMACs  map[string]string
+	permMACOf map[string][]string
+	// boundOS records the kernel device each logical name last resolved to. It
+	// outlives a cache invalidation so a down/delete event for a device whose
+	// MAC can no longer be read still reaches the mac/match binding it backed.
+	boundOS map[string]string
+	bound   bool
+	unsub   []func()
 }
 
 var globalResolver = &resolver{
@@ -74,12 +87,11 @@ func (r *resolver) resolve(name string) (Binding, error) {
 	}
 	r.mu.Unlock()
 
-	osName := r.effectiveOSName(name)
-	info, err := GetInterface(osName)
+	info, err := r.osDeviceFor(name)
 	if err != nil {
 		return Binding{}, err
 	}
-	b := bindingFromInfo(osName, info)
+	b := bindingFromInfo(info.OsName, info)
 
 	r.mu.Lock()
 	r.cache[name] = b
@@ -88,25 +100,113 @@ func (r *resolver) resolve(name string) (Binding, error) {
 }
 
 func (r *resolver) addresses(name string) ([]AddrInfo, error) {
-	osName := r.effectiveOSName(name)
-	info, err := GetInterface(osName)
+	info, err := r.osDeviceFor(name)
 	if err != nil {
 		return nil, err
 	}
 	return classifyAddresses(info.Addresses), nil
 }
 
-// effectiveOSName translates a logical interface name to its OS device name:
-// the configured os-name override when present, otherwise the logical name
-// itself (so every name == os-name config resolves unchanged).
-func (r *resolver) effectiveOSName(name string) string {
+// osDeviceFor resolves a logical name to its kernel device InterfaceInfo. The
+// mac/match selector wins when set: the resolver scans every interface and
+// binds to the one carrying the configured hardware MAC (matchByMAC). Without a
+// MAC selector the os-name selector (or the logical name itself) is looked up
+// directly. On success it records the resolved kernel device so a later down
+// event for it can reach this logical name. The backend call runs outside the
+// lock; only the small map reads/writes are locked.
+func (r *resolver) osDeviceFor(name string) (*InterfaceInfo, error) {
 	r.mu.Lock()
+	wantMAC := r.permMACs[name]
 	osn := r.osNames[name]
 	r.mu.Unlock()
-	if osn != "" {
-		return osn
+
+	if wantMAC != "" {
+		info, err := r.matchByMAC(name, wantMAC)
+		if err != nil {
+			return nil, err
+		}
+		r.recordBinding(name, info.OsName)
+		return info, nil
 	}
-	return name
+
+	osName := osn
+	if osName == "" {
+		osName = name
+	}
+	info, err := GetInterface(osName)
+	if err != nil {
+		return nil, err
+	}
+	r.recordBinding(name, info.OsName)
+	return info, nil
+}
+
+// matchByMAC returns the interface whose hardware MAC equals want. It matches
+// the permanent (factory) MAC when the device reports one -- so the binding
+// survives an operational MAC override on a real NIC -- and falls back to the
+// current MAC for the virtual kinds that report no permanent address. When
+// several devices match (a kernel anomaly) the lowest ifindex wins, for
+// determinism.
+func (r *resolver) matchByMAC(name, want string) (*InterfaceInfo, error) {
+	target := normalizeMAC(want)
+	infos, err := ListInterfaces()
+	if err != nil {
+		return nil, err
+	}
+	var best *InterfaceInfo
+	for i := range infos {
+		if normalizeMAC(deviceMatchMAC(&infos[i])) != target {
+			continue
+		}
+		if best == nil || infos[i].Index < best.Index {
+			c := infos[i]
+			best = &c
+		}
+	}
+	if best == nil {
+		return nil, fmt.Errorf("iface: no device with MAC %s for logical interface %q", target, name)
+	}
+	return best, nil
+}
+
+// deviceMatchMAC returns the MAC the resolver matches a device on: its permanent
+// (factory) address when present, else its current address.
+func deviceMatchMAC(info *InterfaceInfo) string {
+	if info.PermanentMAC != "" {
+		return info.PermanentMAC
+	}
+	return info.MAC
+}
+
+// normalizeMAC canonicalizes a MAC string for comparison (lower-case,
+// colon-separated) via net.ParseMAC. An empty string stays empty; an
+// unparseable value falls back to a trimmed lower-case copy so a garbage
+// selector never collides with a real address by coincidence.
+func normalizeMAC(s string) string {
+	if s == "" {
+		return ""
+	}
+	if hw, err := net.ParseMAC(s); err == nil {
+		return hw.String()
+	}
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+// recordBinding remembers the kernel device a logical name currently resolves
+// to. The reverse lookup (boundOS) lets a down/delete event for that device
+// reach the logical name even after GetInterface can no longer report its MAC
+// (the device is gone) -- the only way a deferred-then-bound mac/match selector
+// learns it lost its device.
+func (r *resolver) recordBinding(name, osDevice string) {
+	if osDevice == "" {
+		return
+	}
+	r.mu.Lock()
+	if r.boundOS == nil {
+		r.boundOS = make(map[string]string)
+	}
+	r.boundOS[name] = osDevice
+	r.mu.Unlock()
 }
 
 // bindingFromInfo builds a value Binding from an InterfaceInfo resolved for the
@@ -175,9 +275,22 @@ func (r *resolver) subscribe(name string) (<-chan LinkEvent, func()) {
 // channel, so there is no send-on-closed race); a full channel drops the event
 // (the consumer recovers on the next event or a re-Resolve).
 func (r *resolver) onLinkEvent(kernelName string, kind LinkEventKind, index int) {
+	// For an up/appeared event, learn the device's hardware MAC so a deferred
+	// mac/match binding can attach to a freshly appeared device. Done outside
+	// the lock (a backend call) and only when mac/match selectors exist, so the
+	// common path pays nothing. On a down event the device may already be gone
+	// (GetInterface would fail); the boundOS reverse map carries the last-known
+	// binding for that case instead.
+	var devMatchMAC string
+	if kind != LinkDown && r.hasPermMACMatches() {
+		if info, err := GetInterface(kernelName); err == nil {
+			devMatchMAC = deviceMatchMAC(info)
+		}
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, logical := range r.logicalsForLocked(kernelName) {
+	for _, logical := range r.logicalsForLocked(kernelName, devMatchMAC) {
 		delete(r.cache, logical)
 		ev := LinkEvent{Name: logical, Kind: kind, Index: index}
 		for _, c := range r.subs[logical] {
@@ -191,30 +304,74 @@ func (r *resolver) onLinkEvent(kernelName string, kind LinkEventKind, index int)
 	}
 }
 
-// logicalsForLocked returns every logical name that resolves to kernelName:
-// kernelName itself (the default mapping) plus any names whose os-name selector
-// points at it. Caller holds r.mu.
-func (r *resolver) logicalsForLocked(kernelName string) []string {
-	out := []string{kernelName}
+// hasPermMACMatches reports whether any mac/match selector is configured, so
+// onLinkEvent can skip the per-event backend MAC lookup in the common case.
+func (r *resolver) hasPermMACMatches() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.permMACs) > 0
+}
+
+// logicalsForLocked returns every logical name a monitor event for kernelName
+// must reach: kernelName itself (the default identity mapping), names whose
+// os-name selector points at it, names whose mac/match binding last resolved to
+// it (so a down event invalidates them even though the device's MAC is no
+// longer readable), and -- when devMatchMAC is known (an up/appeared event) --
+// names whose mac/match selector equals the device's hardware MAC, so a freshly
+// appeared device reaches a previously-deferred binding. Caller holds r.mu.
+func (r *resolver) logicalsForLocked(kernelName, devMatchMAC string) []string {
+	seen := make(map[string]struct{})
+	var out []string
+	add := func(ln string) {
+		if _, ok := seen[ln]; ok {
+			return
+		}
+		seen[ln] = struct{}{}
+		out = append(out, ln)
+	}
+	add(kernelName)
 	for _, ln := range r.logicalOf[kernelName] {
-		if ln != kernelName {
-			out = append(out, ln)
+		add(ln)
+	}
+	for ln, dev := range r.boundOS {
+		if dev == kernelName {
+			add(ln)
+		}
+	}
+	if devMatchMAC != "" {
+		for _, ln := range r.permMACOf[normalizeMAC(devMatchMAC)] {
+			add(ln)
 		}
 	}
 	return out
 }
 
-// setMapping publishes the logical<->os-name mapping after a config apply and
-// drops the cache (a config change can move a binding).
-func (r *resolver) setMapping(logicalToOS map[string]string) {
+// setMapping publishes the logical<->os-name and logical<->match-MAC selector
+// maps after a config apply and drops the per-name cache and learned bindings
+// (a config change can move any binding). The match-MAC values are normalized
+// once here so the hot lookups compare canonical forms.
+func (r *resolver) setMapping(logicalToOS, logicalToMAC map[string]string) {
 	rev := make(map[string][]string, len(logicalToOS))
 	for ln, osn := range logicalToOS {
 		rev[osn] = append(rev[osn], ln)
 	}
+	macs := make(map[string]string, len(logicalToMAC))
+	macRev := make(map[string][]string, len(logicalToMAC))
+	for ln, mac := range logicalToMAC {
+		n := normalizeMAC(mac)
+		if n == "" {
+			continue
+		}
+		macs[ln] = n
+		macRev[n] = append(macRev[n], ln)
+	}
 	r.mu.Lock()
 	r.osNames = logicalToOS
 	r.logicalOf = rev
+	r.permMACs = macs
+	r.permMACOf = macRev
 	r.cache = make(map[string]Binding)
+	r.boundOS = make(map[string]string)
 	r.mu.Unlock()
 }
 
@@ -270,7 +427,7 @@ func decodeLinkEvent(p any) (string, int, bool) {
 // setResolverConfig publishes the iface config's os-name mapping to the shared
 // resolver. Called from the iface component's config-apply path.
 func setResolverConfig(cfg *ifaceConfig) {
-	globalResolver.setMapping(cfg.osNameMap())
+	globalResolver.setMapping(cfg.osNameMap(), cfg.permMACMap())
 }
 
 // bindResolverEvents wires the shared resolver to the event bus. Called from

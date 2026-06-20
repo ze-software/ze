@@ -140,7 +140,7 @@ func TestResolveByOsName(t *testing.T) {
 		"eth0": {Name: "eth0", OsName: "eth0", Index: 9, MTU: 1500, State: "up"},
 	}})
 	r := freshResolver()
-	r.setMapping(map[string]string{"uplink": "eth0"})
+	r.setMapping(map[string]string{"uplink": "eth0"}, nil)
 
 	b, err := r.resolve("uplink")
 	if err != nil {
@@ -179,7 +179,7 @@ func TestAddressesScopeSplit(t *testing.T) {
 // a late-appearing interface, including across an os-name mapping (AC-4).
 func TestSubscribeAppeared(t *testing.T) {
 	r := freshResolver()
-	r.setMapping(map[string]string{"uplink": "eth0"})
+	r.setMapping(map[string]string{"uplink": "eth0"}, nil)
 
 	ch, cancel := r.subscribe("uplink")
 	defer cancel()
@@ -270,7 +270,7 @@ func TestNoNetlinkLeakInAPI(t *testing.T) {
 // confirms the same event invalidates the cache entry for the logical name.
 func TestBindEventsDeliversRemappedEvent(t *testing.T) {
 	r := freshResolver()
-	r.setMapping(map[string]string{"uplink": "eth0"})
+	r.setMapping(map[string]string{"uplink": "eth0"}, nil)
 
 	bus := newEmitBus()
 	r.bindEvents(bus)
@@ -311,7 +311,7 @@ func TestPublicResolveWiring(t *testing.T) {
 	withResolveBackend(t, &resolveStubBackend{ifaces: map[string]*InterfaceInfo{
 		"lo": {Name: "lo", OsName: "lo", Index: 1, MTU: 65536, State: "up"},
 	}})
-	globalResolver.setMapping(nil)
+	globalResolver.setMapping(nil, nil)
 	globalResolver.mu.Lock()
 	globalResolver.cache = make(map[string]Binding)
 	globalResolver.mu.Unlock()
@@ -322,5 +322,191 @@ func TestPublicResolveWiring(t *testing.T) {
 	}
 	if b.Ifindex != 1 {
 		t.Errorf("public Resolve returned wrong binding: %+v", b)
+	}
+}
+
+// VALIDATES: the mac/match selector -- binding a logical interface to a kernel
+// device by its hardware MAC rather than by name. The resolver matches the
+// permanent (factory) MAC when the device reports one (so the binding survives
+// an operational MAC override) and falls back to the current MAC for the
+// virtual kinds that report none. Covers resolution (case-insensitive),
+// precedence over os-name, the permanent-over-current preference, the
+// absent/deferred case, and the event path (a freshly appeared device attaches;
+// a down device invalidates via the last-known binding).
+// PREVENTS: a mac/match binding that resolves by name, that an operational MAC
+// override silently steals, or that never fires an event for the device it
+// selected.
+
+// macStub builds a stub backend whose ListInterfaces/GetInterface serve the
+// given interfaces by name, so the mac-scan + match path is host-testable.
+func macStub(ifaces ...*InterfaceInfo) *resolveStubBackend {
+	m := make(map[string]*InterfaceInfo, len(ifaces))
+	for _, i := range ifaces {
+		m[i.Name] = i
+	}
+	return &resolveStubBackend{ifaces: m}
+}
+
+// TestResolveByPermMAC verifies a mac/match selector binds to the device that
+// carries that permanent MAC, regardless of device name, case-insensitively.
+func TestResolveByPermMAC(t *testing.T) {
+	withResolveBackend(t, macStub(
+		&InterfaceInfo{Name: "eth0", OsName: "eth0", Index: 9, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:dd:ee:01"},
+		&InterfaceInfo{Name: "eth1", OsName: "eth1", Index: 10, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:dd:ee:02"},
+	))
+	r := freshResolver()
+	// An uppercase config value must normalize and still match eth1.
+	r.setMapping(nil, map[string]string{"uplink": "AA:BB:CC:DD:EE:02"})
+
+	b, err := r.resolve("uplink")
+	if err != nil {
+		t.Fatalf("resolve uplink: %v", err)
+	}
+	if b.Ifindex != 10 || b.OsName != "eth1" {
+		t.Errorf("mac/match bound wrong device: %+v (want eth1/10)", b)
+	}
+}
+
+// TestResolveByPermMACPrefersPermanentOverCurrent verifies the selector matches
+// the permanent MAC, not the (possibly overridden) current MAC, when a device
+// reports a permanent address. Matching the overridden current value must NOT
+// bind -- that is the whole point of keying on the factory address.
+func TestResolveByPermMACPrefersPermanentOverCurrent(t *testing.T) {
+	withResolveBackend(t, macStub(
+		&InterfaceInfo{Name: "eth0", OsName: "eth0", Index: 7, MTU: 1500, State: "up",
+			PermanentMAC: "aa:bb:cc:dd:ee:ff", MAC: "02:00:00:00:00:99"},
+	))
+	r := freshResolver()
+	r.setMapping(nil, map[string]string{
+		"perm": "aa:bb:cc:dd:ee:ff", // permanent -> binds
+		"oper": "02:00:00:00:00:99", // overridden current -> must NOT bind
+	})
+
+	if b, err := r.resolve("perm"); err != nil || b.Ifindex != 7 {
+		t.Errorf("match on permanent MAC must bind eth0: b=%+v err=%v", b, err)
+	}
+	if _, err := r.resolve("oper"); err == nil {
+		t.Error("match on an overridden current MAC must not bind a device that has a permanent MAC")
+	}
+}
+
+// TestResolveByPermMACFallsBackToCurrent verifies a virtual device (no permanent
+// MAC) is matched by its current MAC -- the only hardware identity it has.
+func TestResolveByPermMACFallsBackToCurrent(t *testing.T) {
+	withResolveBackend(t, macStub(
+		&InterfaceInfo{Name: "veth9", OsName: "veth9", Index: 12, MTU: 1500, State: "up", MAC: "02:00:00:00:00:0c"},
+	))
+	r := freshResolver()
+	r.setMapping(nil, map[string]string{"lab": "02:00:00:00:00:0c"})
+
+	b, err := r.resolve("lab")
+	if err != nil {
+		t.Fatalf("resolve lab: %v", err)
+	}
+	if b.Ifindex != 12 || b.OsName != "veth9" {
+		t.Errorf("current-MAC fallback bound wrong device: %+v", b)
+	}
+}
+
+// TestResolveByPermMACPrecedence verifies a name with BOTH os-name and mac/match
+// binds by MAC: the selector takes precedence over os-name.
+func TestResolveByPermMACPrecedence(t *testing.T) {
+	withResolveBackend(t, macStub(
+		&InterfaceInfo{Name: "eth0", OsName: "eth0", Index: 3, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:00:00:01"},
+		&InterfaceInfo{Name: "eth1", OsName: "eth1", Index: 4, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:00:00:02"},
+	))
+	r := freshResolver()
+	r.setMapping(
+		map[string]string{"uplink": "eth0"},              // os-name -> eth0
+		map[string]string{"uplink": "aa:bb:cc:00:00:02"}, // mac/match -> eth1 (wins)
+	)
+
+	b, err := r.resolve("uplink")
+	if err != nil {
+		t.Fatalf("resolve uplink: %v", err)
+	}
+	if b.Ifindex != 4 || b.OsName != "eth1" {
+		t.Errorf("mac/match must take precedence over os-name: %+v (want eth1/4)", b)
+	}
+}
+
+// TestResolveByPermMACAbsent verifies an unmatched MAC is a deferred binding:
+// Resolve returns not-found and caches nothing.
+func TestResolveByPermMACAbsent(t *testing.T) {
+	withResolveBackend(t, macStub(
+		&InterfaceInfo{Name: "eth0", OsName: "eth0", Index: 1, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:00:00:01"},
+	))
+	r := freshResolver()
+	r.setMapping(nil, map[string]string{"uplink": "de:ad:be:ef:00:01"})
+
+	if _, err := r.resolve("uplink"); err == nil {
+		t.Fatal("absent mac/match device must return not-found, not a binding")
+	}
+	r.mu.Lock()
+	_, cached := r.cache["uplink"]
+	r.mu.Unlock()
+	if cached {
+		t.Error("absent mac/match binding must not be cached")
+	}
+}
+
+// TestSubscribePermMACAppeared verifies a subscriber on a mac/match logical name
+// is notified when the matching kernel device appears, even though the device
+// name differs. The resolver learns the device MAC from the up event and routes
+// by it.
+func TestSubscribePermMACAppeared(t *testing.T) {
+	withResolveBackend(t, macStub(
+		&InterfaceInfo{Name: "eth5", OsName: "eth5", Index: 5, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:dd:ee:05"},
+	))
+	r := freshResolver()
+	r.setMapping(nil, map[string]string{"uplink": "aa:bb:cc:dd:ee:05"})
+
+	ch, cancel := r.subscribe("uplink")
+	defer cancel()
+
+	r.onLinkEvent("eth5", LinkAppeared, 5)
+
+	select {
+	case ev := <-ch:
+		if ev.Name != "uplink" || ev.Kind != LinkAppeared || ev.Index != 5 {
+			t.Errorf("unexpected event: %+v", ev)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("no appeared event delivered to mac/match subscriber")
+	}
+}
+
+// TestPermMACDownInvalidatesBoundDevice verifies that once a mac/match name has
+// resolved to a device, a down event for that device invalidates the cache and
+// notifies the subscriber via the last-known binding -- the device's MAC is no
+// longer readable once it is gone.
+func TestPermMACDownInvalidatesBoundDevice(t *testing.T) {
+	stub := macStub(
+		&InterfaceInfo{Name: "eth5", OsName: "eth5", Index: 5, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:dd:ee:05"},
+	)
+	withResolveBackend(t, stub)
+	r := freshResolver()
+	r.setMapping(nil, map[string]string{"uplink": "aa:bb:cc:dd:ee:05"})
+
+	if _, err := r.resolve("uplink"); err != nil {
+		t.Fatalf("initial resolve: %v", err)
+	}
+	ch, cancel := r.subscribe("uplink")
+	defer cancel()
+
+	// Device removed: the monitor reports a down event (RTM_DELLINK -> down).
+	delete(stub.ifaces, "eth5")
+	r.onLinkEvent("eth5", LinkDown, 5)
+
+	select {
+	case ev := <-ch:
+		if ev.Name != "uplink" || ev.Kind != LinkDown {
+			t.Errorf("unexpected event: %+v", ev)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("down event for the bound device must reach the mac/match subscriber")
+	}
+	if _, err := r.resolve("uplink"); err == nil {
+		t.Fatal("after the device is gone, resolve must not serve a stale binding")
 	}
 }

@@ -78,6 +78,27 @@ func (c *ifaceConfig) osNameMap() map[string]string {
 	return out
 }
 
+// permMACMap returns the logical-name -> match-MAC selector for every ethernet
+// entry that sets mac/match. Same scope as osNameMap: ethernet is the matched
+// physical kind, so only it can be bound to a pre-existing kernel device by its
+// hardware MAC. The resolver matches the device's permanent (factory) MAC when
+// it reports one and falls back to the current MAC otherwise, so the value is
+// passed through verbatim (normalization happens in the resolver). Entries
+// without mac/match are omitted.
+func (c *ifaceConfig) permMACMap() map[string]string {
+	if c == nil {
+		return nil
+	}
+	out := make(map[string]string)
+	for i := range c.Ethernet {
+		e := &c.Ethernet[i]
+		if e.MatchMAC != "" {
+			out[e.Name] = e.MatchMAC
+		}
+	}
+	return out
+}
+
 // tunnelEntry represents a configured tunnel interface. The Spec carries
 // the encapsulation kind plus per-kind parameters; the embedded ifaceEntry
 // carries the shared physical and unit fields (mtu, mac, addresses).
@@ -122,6 +143,7 @@ type pppoeClientEntry struct {
 type ifaceEntry struct {
 	Name       string
 	OSName     string // os-name selector: kernel device this logical name maps to (empty = name itself)
+	MatchMAC   string // mac/match selector: bind to the kernel device carrying this MAC (empty = no MAC match)
 	MTU        int
 	MACAddress string
 	Disable    bool
@@ -833,6 +855,9 @@ func parseIfaceEntry(name string, m map[string]any) (ifaceEntry, error) {
 		if mac, ok := macC["address"].(string); ok {
 			entry.MACAddress = mac
 		}
+		if match, ok := macC["match"].(string); ok {
+			entry.MatchMAC = match
+		}
 	}
 	if _, ok := m["disable"]; ok {
 		entry.Disable = true
@@ -926,6 +951,27 @@ func parseUnits(m map[string]any, parentCoS string) ([]unitEntry, error) {
 		units = append(units, u)
 	}
 	return units, nil
+}
+
+// validateUniqueMatchMAC rejects two ethernet interfaces that select the same
+// kernel device by mac/match: both would bind to one NIC, an ambiguous config
+// the YANG `unique "mac/match"` documents but the schema validator does not
+// enforce on its own. MACs are compared in canonical form so "AA:.." and
+// "aa:.." collide.
+func validateUniqueMatchMAC(cfg *ifaceConfig) error {
+	seen := make(map[string]string)
+	for i := range cfg.Ethernet {
+		e := &cfg.Ethernet[i]
+		if e.MatchMAC == "" {
+			continue
+		}
+		key := normalizeMAC(e.MatchMAC)
+		if prev, dup := seen[key]; dup {
+			return fmt.Errorf("ethernet %q and %q both match MAC %s; a hardware MAC selects at most one device", prev, e.Name, key)
+		}
+		seen[key] = e.Name
+	}
+	return nil
 }
 
 // validateVPPQoSMaps checks that all QoS maps in the config are compatible

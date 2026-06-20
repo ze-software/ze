@@ -844,24 +844,55 @@ logical name. A shared resolver in the `iface` component maps the logical name t
 kernel device via the `os-name` selector (defaulting to the name itself) and serves the
 ifindex, MAC, MTU, and addresses, so operator-facing names are decoupled from kernel
 device names. IS-IS, for example, resolves `isis { interface uplink { } }` to kernel
-device `eth0` through this resolver.
+device `eth0` through this resolver. The device can also be selected by its hardware MAC
+instead of by name (see [Binding by Hardware MAC](#binding-by-hardware-mac-macmatch)).
 
 The `os-name` selector applies to **ethernet** interfaces, the kind Ze matches against
 pre-existing kernel devices. Created kinds (dummy, veth, bridge, tunnels, wireguard,
 xfrm) are made by Ze under their logical name, so `os-name` is ignored on them and the
 logical name is always the kernel device name.
 
-<!-- source: internal/component/iface/resolve.go -- Resolve, Addresses, effectiveOSName -->
+<!-- source: internal/component/iface/resolve.go -- Resolve, Addresses, osDeviceFor -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf os-name -->
+
+### Binding by Hardware MAC (`mac/match`)
+
+Names and OS device names can change between boots (NIC reordering, slot moves). To pin a
+logical interface to a physical NIC regardless of the name the kernel gives it, select the
+device by its hardware MAC with `mac { match }`:
+
+```
+interface {
+    ethernet uplink {
+        mac {
+            match a0:36:9f:12:34:56;   # bind "uplink" to the NIC with this MAC
+        }
+    }
+}
+```
+
+The resolver scans every interface and binds `uplink` to the one carrying that MAC. It
+matches the device's **permanent (factory) address** (`IFLA_PERM_ADDRESS`) when the NIC
+reports one, so the binding **survives an operational MAC override** (`mac { address }`) on
+the very same interface; for virtual devices that report no permanent address it matches
+the current address instead. When no device carries the MAC the binding **defers** until
+the device appears (the resolver fires a link event then). `mac/match` **takes precedence
+over `os-name`** and, like `os-name`, applies to **ethernet** only.
+
+<!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->
 
 ### MAC Address Binding
 
-For ethernet, veth, and bridge interfaces, the MAC address (`mac { address }`) is optional:
-omit it to keep the hardware-assigned MAC, or set it to override the address. When set it
-must be unique within each type. Names are descriptive labels chosen by the operator;
-when a MAC is set it ties the named config entry to a specific hardware address.
+For ethernet, veth, and bridge interfaces, the MAC container carries two independent
+leaves. `mac { address }` **overrides** the operational MAC (omit it to keep the
+hardware-assigned one); when set it must be unique within each type. `mac { match }`
+**selects** the kernel device by its hardware MAC (see above). The two are independent: a
+NIC can be matched by its permanent MAC and have its operational MAC overridden at the same
+time. Names are descriptive labels chosen by the operator; `mac { address }` ties the named
+config entry to a specific operational hardware address.
 
-<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique "mac/address" -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique "mac/address", container mac -->
 
 ### Discovery During Init
 

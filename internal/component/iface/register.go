@@ -182,6 +182,9 @@ func parseAndVerifyIfaceSections(sections []sdk.ConfigSection) (*ifaceConfig, er
 	if cfg.Backend == "" {
 		return nil, errInterfaceNoBackendConfiguredAndNo
 	}
+	if err := validateUniqueMatchMAC(cfg); err != nil {
+		return nil, fmt.Errorf("interface config: %w", err)
+	}
 	if cfg.Backend == vppBackendName {
 		if err := validateVPPQoSMaps(cfg); err != nil {
 			return nil, err

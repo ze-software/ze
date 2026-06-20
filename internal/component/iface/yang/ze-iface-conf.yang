@@ -58,14 +58,39 @@ module ze-iface-conf {
         uses interface-common;
 
         container mac {
-            description "Override the kernel-assigned MAC address. Applied at interface creation time.";
+            description "Hardware MAC settings: override the operational address
+                         (address) and/or select the kernel device by its MAC
+                         (match). The two are independent: a NIC can be matched
+                         by its permanent (factory) MAC AND have its operational
+                         MAC overridden at the same time.";
             leaf address {
                 type string {
                     pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
                 }
                 ze:validate "mac-address";
-                description "Explicit MAC address in colon-separated hex (e.g., 02:42:ac:11:00:02).
-                             When omitted, the kernel assigns a MAC automatically.";
+                description "Override the kernel-assigned MAC address with this
+                             explicit colon-separated hex value (e.g.,
+                             02:42:ac:11:00:02). Applied at interface creation
+                             time. When omitted, the kernel assigns a MAC
+                             automatically.";
+            }
+            leaf match {
+                type string {
+                    pattern '[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}';
+                }
+                ze:validate "mac-address";
+                description "Bind this logical interface to the kernel device
+                             that carries this hardware MAC, instead of binding
+                             by name. The resolver matches the device's PERMANENT
+                             (factory) address (IFLA_PERM_ADDRESS) when it reports
+                             one, so the binding survives an operational MAC
+                             override; for virtual devices that report no
+                             permanent address it matches the current address.
+                             Takes precedence over os-name. Applies to ethernet
+                             (the matched physical kind) only; the Ze-created
+                             kinds (dummy/veth/bridge/...) are identified by the
+                             name Ze assigns. When the matching device is absent
+                             the binding defers until it appears.";
             }
         }
 
@@ -509,6 +534,7 @@ module ze-iface-conf {
         list ethernet {
             key "name";
             unique "mac/address";
+            unique "mac/match";
             description "Physical or virtual Ethernet interface. Ze manages the interface's
                          addresses, MTU, offload settings, and units. The interface must already
                          exist in the OS (ze does not create physical interfaces).";

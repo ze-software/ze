@@ -1,0 +1,74 @@
+# Test: an ethernet interface binds to a kernel device by its hardware MAC via
+# the iface mac/match selector (spec-iface-resolve-3-macmatch).
+#
+# VALIDATES: a config that selects an ethernet interface's kernel device by its
+#            permanent/hardware MAC (mac { match ... }) -- alongside an
+#            operational MAC override (mac { address ... }) on a second
+#            interface -- validates through the iface schema. This is the
+#            config-surface proof of MAC-based binding; live resolution to the
+#            real device is proven by the QEMU integration test
+#            (iface TestResolveByMACBindsToDevice, routed through iface.Resolve).
+# PREVENTS:  a regression where mac/match is not accepted on an ethernet
+#            interface (the leaf parsed by nothing), or the MAC pattern/validator
+#            is not wired so a malformed address is silently accepted.
+#
+# PLATFORM: the `interface { backend netlink }` block is linux-only; skip on
+# darwin per rules/os-specific-tests.md.
+option=skip-os:value=darwin
+
+# --- Valid: bind `uplink` by MAC; override `wan`'s operational MAC. ------------
+stdin=mac-match:terminator=EOF_OK
+interface {
+	backend netlink
+	ethernet uplink {
+		mac {
+			match aa:bb:cc:dd:ee:ff
+		}
+	}
+	ethernet wan {
+		mac {
+			address 02:00:00:00:00:01
+		}
+	}
+}
+EOF_OK
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=mac-match
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid: a malformed match MAC is rejected by the pattern/validator. ------
+stdin=mac-bad:terminator=EOF_BAD
+interface {
+	backend netlink
+	ethernet uplink {
+		mac {
+			match not-a-mac
+		}
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=mac-bad
+expect=exit:code=1
+
+# --- Invalid: two interfaces selecting the same MAC is an ambiguous binding. ---
+stdin=mac-dup:terminator=EOF_DUP
+interface {
+	backend netlink
+	ethernet uplink {
+		mac {
+			match aa:bb:cc:dd:ee:ff
+		}
+	}
+	ethernet wan {
+		mac {
+			match aa:bb:cc:dd:ee:ff
+		}
+	}
+}
+EOF_DUP
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=mac-dup
+expect=exit:code=1
+expect=stdout:contains=both match MAC
