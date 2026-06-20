@@ -16,6 +16,7 @@ import (
 	"github.com/packetcap/go-pcap/filter"
 	"golang.org/x/net/bpf"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -31,9 +32,16 @@ func HandleCaptureInterface(_ *pluginserver.CommandContext, args []string) (*plu
 
 	var tb textbuf.Buffer
 
-	ifc, lookupErr := net.InterfaceByName(ca.iface)
-	if lookupErr != nil {
+	// Resolve the logical interface name to its kernel device via the shared
+	// iface resolver (honoring os-name / mac-match), then fetch the *net.Interface
+	// the AF_PACKET capture socket needs.
+	binding, rerr := iface.Resolve(ca.iface)
+	if rerr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: tb.Str("interface not found: ").Str(ca.iface).String()}, nil
+	}
+	ifc, lookupErr := net.InterfaceByName(binding.OsName)
+	if lookupErr != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: tb.Reset().Str("interface not found: ").Str(ca.iface).String()}, nil
 	}
 
 	if _, loaded := activeCaptures.LoadOrStore(ca.iface, true); loaded {

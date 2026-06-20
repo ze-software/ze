@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/version"
@@ -188,22 +189,18 @@ func runImageServerPlugin(conn net.Conn) int {
 	return 0
 }
 
+// resolveInterfaceIPv4 returns the first IPv4 address of the logical interface,
+// resolved through the shared iface resolver so the image server bind address
+// honors the os-name / mac-match selectors instead of assuming name == kernel
+// device.
 func resolveInterfaceIPv4(ifaceName string) (string, error) {
-	iface, err := net.InterfaceByName(ifaceName)
+	addrs, err := iface.Addresses(ifaceName)
 	if err != nil {
 		return "", fmt.Errorf("interface %q: %w", ifaceName, err)
 	}
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return "", fmt.Errorf("interface %q addrs: %w", ifaceName, err)
-	}
 	for _, a := range addrs {
-		ipNet, ok := a.(*net.IPNet)
-		if !ok {
-			continue
-		}
-		if ipv4 := ipNet.IP.To4(); ipv4 != nil {
-			return ipv4.String(), nil
+		if a.Family == "ipv4" {
+			return a.Address, nil
 		}
 	}
 	return "", fmt.Errorf("interface %q: no IPv4 address", ifaceName)

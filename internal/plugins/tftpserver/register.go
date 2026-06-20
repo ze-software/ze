@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	tftpyang "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver/yang"
@@ -88,11 +89,20 @@ func runTFTPServerPlugin(conn net.Conn) int {
 
 		sem = make(chan struct{}, cfg.MaxTransfers)
 
-		for _, iface := range cfg.ListenInterfaces {
-			ln, err := listenTFTP(iface)
+		for _, ifName := range cfg.ListenInterfaces {
+			// Resolve the logical name to its kernel device so SO_BINDTODEVICE
+			// binds the right interface when name != os device (os-name /
+			// mac-match selectors).
+			b, rerr := iface.Resolve(ifName)
+			if rerr != nil {
+				log.Error("tftpserver: resolve interface failed",
+					"interface", ifName, "error", rerr)
+				continue
+			}
+			ln, err := listenTFTP(b.OsName)
 			if err != nil {
 				log.Error("tftpserver: listen failed",
-					"interface", iface, "error", err)
+					"interface", ifName, "error", err)
 				continue
 			}
 			listeners = append(listeners, ln)
