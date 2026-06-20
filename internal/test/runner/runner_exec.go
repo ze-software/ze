@@ -18,7 +18,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
@@ -375,6 +374,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	var peerOutputs []peerOutput
 	var clientStdout, clientStderr strings.Builder
 
+	// Exit error of the last awaited quick-exit ze command (see awaitQuickZe),
+	// fed into the expect=exit check when there is no daemon fgProc to wait on.
+	var lastQuickZeErr error
+	quickZeRan := false
+
 	// Track temp files for cleanup after loop (avoid defer in loop)
 	var tmpFilesToClean []string
 	defer func() {
@@ -502,8 +506,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				var tmpFile *os.File
 				var err error
 				if rec.TmpfsTempDir != "" {
-					// Write config to tmpfs dir so relative plugin paths work
-					configPath := filepath.Join(rec.TmpfsTempDir, "ze-bgp.conf")
+					// Write config to tmpfs dir so relative plugin paths work. The
+					// filename is per-command (seq) so that two `ze ... -` steps in one
+					// test (e.g. a valid then an invalid `ze config validate -`) do not
+					// race on a shared file: foreground ze commands are not awaited
+					// before the next starts, so a fixed name let a later step's config
+					// overwrite an earlier step's before ze read it.
+					configPath := filepath.Join(rec.TmpfsTempDir, textbuf.StrIntStr("ze-config-", int64(cmd.Seq), ".conf"))
 					tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
 				} else {
 					configDir, mkdirErr := os.MkdirTemp("", "ze-config-*")
@@ -587,44 +596,32 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			proc.Stdin = strings.NewReader(string(stdinContent))
 		}
 
+		// A foreground quick-exit ze subcommand (see quickExitZeVerbs) is awaited
+		// in the switch below so sequential steps do not race. It writes to its
+		// own buffers, folded into the shared client buffers only after Wait()
+		// (see awaitQuickZe).
+		quickZe := cmd.Mode == modeForeground && binName == "ze" && isQuickExitZeCommand(args)
+		var quickStdout, quickStderr strings.Builder
+
 		// Capture output: each ze-peer gets its own syncWriter/stderr
 		// so WaitFor works independently per process.
-		if strings.Contains(execStr, "ze-peer") {
-			po := peerOutput{
-				stdout: newSyncWriter(),
-				stderr: &strings.Builder{},
-			}
+		switch {
+		case strings.Contains(execStr, "ze-peer"):
+			po := peerOutput{stdout: newSyncWriter(), stderr: &strings.Builder{}}
 			peerOutputs = append(peerOutputs, po)
 			proc.Stdout = po.stdout
 			proc.Stderr = po.stderr
-		} else {
+		case quickZe:
+			proc.Stdout = &quickStdout
+			proc.Stderr = &quickStderr
+		default:
 			proc.Stdout = &clientStdout
 			proc.Stderr = &clientStderr
 		}
 
-		// Start the process. Retry on ETXTBSY which occurs when a concurrent
-		// fork+exec in another test goroutine holds a write-open fd to the
-		// script between fork and execve (see https://go.dev/issue/22315).
+		// Start the process, retrying on ETXTBSY (see startWithETXTBSYRetry).
 		var startErr error
-		for attempt := range 3 {
-			if attempt > 0 {
-				time.Sleep(10 * time.Millisecond)
-				// Go 1.25+ marks Cmd as started even on failure (go.dev/issue/77075),
-				// so Start cannot be retried on the same Cmd. Create a fresh one.
-				old := proc
-				proc = exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
-				proc.Env = old.Env
-				proc.Dir = old.Dir
-				proc.Stdin = old.Stdin
-				proc.Stdout = old.Stdout
-				proc.Stderr = old.Stderr
-			}
-			startErr = proc.Start()
-			if startErr == nil || !errors.Is(startErr, syscall.ETXTBSY) {
-				break
-			}
-		}
-		if startErr != nil {
+		if proc, startErr = startWithETXTBSYRetry(testCtx, binPath, args, proc); startErr != nil {
 			rec.Error = fmt.Errorf("start %s: %w", binName, startErr)
 			return false
 		}
@@ -659,6 +656,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				rec.Error = fmt.Errorf("setup script %s: %w", binName, err)
 				return false
 			}
+			continue // Already finished, don't track for cleanup
+		case quickZe:
+			// Foreground quick-exit ze: await completion so the next command does
+			// not start (and race on the client buffers) before this one finishes.
+			lastQuickZeErr = awaitQuickZe(proc, &quickStdout, &quickStderr, &clientStdout, &clientStderr)
+			quickZeRan = true
 			continue // Already finished, don't track for cleanup
 		default:
 			// Foreground daemon (ze): start but don't wait - we wait for peer instead
@@ -748,10 +751,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// exec.CommandContext auto-kills on context cancellation (Go 1.20+).
 	var err error
 
-	if rec.ExpectExitCode != nil && fgProc != nil {
+	switch {
+	case rec.ExpectExitCode != nil && fgProc != nil:
 		// Testing exit code: wait for foreground process
 		err = fgProc.Wait()
-	} else {
+	case rec.ExpectExitCode != nil && quickZeRan:
+		// Exit-code test with no daemon fgProc: the exit code comes from the last
+		// awaited quick-exit ze command (e.g. isis-config's `ze config validate -`
+		// steps, already Wait()ed in the loop).
+		err = lastQuickZeErr
+	default:
 		// Wait for all peer processes (each validates its own messages).
 		// Daemons run until killed below. Collect all errors so no peer
 		// failure is silently lost.

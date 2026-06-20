@@ -1,6 +1,91 @@
+// VALIDATES: the orchestrated .ci runner awaits foreground quick-exit ze
+//            subcommands (config/show/format/...) but not daemons (`ze -`,
+//            web servers, hub/start/cli/monitor), via isQuickExitZeCommand.
+// PREVENTS: (1) the race where two un-awaited quick-exit ze steps share the
+//            client stdout/stderr buffers and a later step clobbers an earlier
+//            step's output (isis-config, format-operators); (2) the inverse
+//            regression where a daemon (e.g. `ze --web ... --insecure-web`) is
+//            mis-classified as quick-exit and awaited, hanging the loop forever.
+
 package runner
 
 import "testing"
+
+// TestFirstZeSubcommand checks that the ze verb is found past leading flags and
+// that the daemon "read config from stdin" sentinel "-" is not treated as a verb.
+func TestFirstZeSubcommand(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"plain verb", []string{"config", "validate", "-"}, "config"},
+		{"leading flags skipped", []string{"-d", "--color", "doctor", "x.conf"}, "doctor"},
+		{"bare dash is not a verb", []string{"-"}, ""},
+		{"dash then nothing", []string{"--debug", "-"}, ""},
+		{"isis-decode verb", []string{"isis-decode"}, "isis-decode"},
+		{"empty args", nil, ""},
+		{"web daemon", []string{"--web", "8080", "x.conf"}, "8080"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := firstZeSubcommand(c.args); got != c.want {
+				t.Fatalf("firstZeSubcommand(%q) = %q, want %q", c.args, got, c.want)
+			}
+		})
+	}
+}
+
+// TestIsQuickExitZeCommand verifies that quick-exit ze subcommands (awaited in
+// the loop) are distinguished from daemon invocations (started, not awaited).
+// The quick cases mirror real .ci command shapes across the isis/parse/ui
+// suites; the daemon cases mirror the config-file invocations used by
+// ldp/rsvpte/static/reload (`ze -`, `ze x.conf`) plus the explicit daemon verbs
+// so a future edit cannot silently start awaiting a daemon (which would hang).
+func TestIsQuickExitZeCommand(t *testing.T) {
+	quick := [][]string{
+		{"config", "validate", "-"},
+		{"show", "bgp", "peer", "list"},
+		{"explain", "doctor-isis-net-missing"},
+		{"doctor", "--json", "isis-mismatch.conf"}, // .conf is an arg to a verb, not the daemon config
+		{"isis-decode"},
+		{"schema", "tree"},
+		{"version"},
+		{"completion", "bash"},
+		{"bgp", "decode", "deadbeef"}, // offline bgp tool, not a daemon
+		{"format", "json"},            // 14-step format-operators race source
+		{"debug"},                     // ze debug help
+		{"env"},
+		{"run", "help"}, // run help is quick-exit, unlike a run daemon
+		{"interface", "list"},
+		{"-d", "config", "validate", "-"}, // leading flag, still quick
+	}
+	for _, a := range quick {
+		if !isQuickExitZeCommand(a) {
+			t.Errorf("isQuickExitZeCommand(%q) = false, want true", a)
+		}
+	}
+
+	daemon := [][]string{
+		{"-"},                                  // ze -  (config from stdin)
+		{"x.conf"},                             // ze config-file
+		{"ze-bgp.conf"},                        // bare config filename used by reload tests
+		{"hub.conf"},                           // config file named hub.conf, not the hub verb
+		{"--plugin", "ze.bgp-adj-rib-in", "-"}, // config from stdin with plugins
+		{"--web", "8080", "x.conf"},            // web daemon with a config file
+		{"--web", "8081", "--insecure-web"},    // web-server daemon, no config file (web-tool-decode)
+		{"--pprof", "127.0.0.1:9000", "-"},     // pprof + config from stdin
+		{"hub"},                                // explicit daemon verb
+		{"start"},                              // explicit daemon verb
+		{"cli"},                                // interactive, blocks on stdin
+		{"monitor", "bgp"},                     // continuous streaming
+	}
+	for _, a := range daemon {
+		if isQuickExitZeCommand(a) {
+			t.Errorf("isQuickExitZeCommand(%q) = true, want false", a)
+		}
+	}
+}
 
 func TestSyncWriterCapsOutput(t *testing.T) {
 	sw := &syncWriter{pattern: "needle"}

@@ -154,6 +154,99 @@ func zeDaemonShouldForceFileStorage(args []string) bool {
 	return zeDaemonConfigArgIndex(args) >= 0 && !zeDaemonUsesWeb(args)
 }
 
+// zeDaemonVerbs are the ze subcommands that start a long-running or blocking
+// process (they run until the runner kills them), as opposed to the many
+// offline/one-shot subcommands (config, show, bgp decode, format, doctor,
+// explain, ...) that run to completion and exit. Config-file and web-server
+// invocations (`ze -`, `ze x.conf`, `ze --web 8080 ...`) are also daemons; those
+// are detected structurally (zeDaemonConfigArgIndex / zeDaemonUsesWeb) rather
+// than by verb. cli/monitor block on stdin or stream continuously.
+var zeDaemonVerbs = map[string]bool{
+	"hub":     true,
+	"start":   true,
+	"cli":     true,
+	"monitor": true,
+}
+
+// firstZeSubcommand returns the first non-flag token in a ze argument list (the
+// subcommand verb), skipping leading option flags. A bare "-" is the daemon
+// "read config from stdin" sentinel, not a verb, so it is treated as a flag and
+// produces an empty result. Returns "" when no verb is present.
+func firstZeSubcommand(args []string) string {
+	for _, arg := range args {
+		if arg == "-" || strings.HasPrefix(arg, "-") {
+			continue
+		}
+		return arg
+	}
+	return ""
+}
+
+// isQuickExitZeCommand reports whether a foreground ze invocation is a
+// quick-exit (non-daemon) subcommand that must be AWAITED before the next
+// command in the same test starts. Two un-awaited quick-exit ze steps in one
+// .ci file (e.g. a valid then an invalid `ze config validate -`, or the 14
+// `ze format ...` steps in format-operators) otherwise run concurrently and
+// race on the shared client stdout/stderr buffers, so a later step's output
+// clobbers (or loses) an earlier step's and the per-test expect=stdout/stderr
+// check sees the wrong text.
+//
+// The classification is by exclusion, so it covers every offline subcommand
+// without enumerating them: a foreground ze is quick-exit unless it is a daemon.
+// It is a daemon when it carries a config-file argument (zeDaemonConfigArgIndex
+// >= 0: `ze -`, `ze x.conf`, `ze --plugin ... -`), runs a web server
+// (zeDaemonUsesWeb: `ze --web 8080 --insecure-web`, with HTTP checks polling
+// it), or names an explicit daemon verb (zeDaemonVerbs: hub/start/cli/monitor).
+// Daemons are NOT awaited here: they are synchronized via a ze-peer, readiness
+// file, or HTTP wait and torn down at the end of the run. Mis-classifying a
+// daemon as quick-exit would block the loop forever, so the daemon guards come
+// first.
+func isQuickExitZeCommand(args []string) bool {
+	if zeDaemonConfigArgIndex(args) >= 0 || zeDaemonUsesWeb(args) {
+		return false
+	}
+	return !zeDaemonVerbs[firstZeSubcommand(args)]
+}
+
+// startWithETXTBSYRetry starts proc, retrying on ETXTBSY -- which occurs when a
+// concurrent fork+exec in another test goroutine holds a write-open fd to the
+// binary between fork and execve (https://go.dev/issue/22315). Go 1.25+ marks a
+// Cmd as started even on failure (https://go.dev/issue/77075), so a fresh Cmd is
+// created for each retry; the (possibly recreated) proc is returned along with
+// the final start error.
+func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, proc *exec.Cmd) (*exec.Cmd, error) {
+	var startErr error
+	for attempt := range 3 {
+		if attempt > 0 {
+			time.Sleep(10 * time.Millisecond)
+			old := proc
+			proc = exec.CommandContext(ctx, binPath, args...) //nolint:gosec // test runner
+			proc.Env = old.Env
+			proc.Dir = old.Dir
+			proc.Stdin = old.Stdin
+			proc.Stdout = old.Stdout
+			proc.Stderr = old.Stderr
+		}
+		startErr = proc.Start()
+		if startErr == nil || !errors.Is(startErr, syscall.ETXTBSY) {
+			break
+		}
+	}
+	return proc, startErr
+}
+
+// awaitQuickZe waits for a foreground quick-exit ze command to finish, then
+// folds its isolated stdout/stderr into the shared client buffers in start
+// order. Because the fold happens only after Wait() returns, sequential
+// quick-exit steps never write the shared builders concurrently. It returns the
+// command's exit error for the expect=exit check.
+func awaitQuickZe(proc *exec.Cmd, quickStdout, quickStderr, clientStdout, clientStderr *strings.Builder) error {
+	waitErr := proc.Wait()
+	clientStdout.WriteString(quickStdout.String())
+	clientStderr.WriteString(quickStderr.String())
+	return waitErr
+}
+
 // terminateGracefully sends SIGTERM to a process and waits for it to exit.
 // If it doesn't exit within timeout, it is forcefully killed.
 func terminateGracefully(cmd *exec.Cmd, timeout time.Duration) {
