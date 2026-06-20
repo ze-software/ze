@@ -9,10 +9,15 @@ KVER ?= 7.0.11
 PROFILE := runtime
 BUILDER ?= docker
 JOBS ?=
-OUT := build
 IMG := ze-runtime-kernel-builder
 REPO_ROOT := $(shell git -C $(dir $(lastword $(MAKEFILE_LIST))) rev-parse --show-toplevel)
 BUILDER_DIR := $(REPO_ROOT)/tools/kernel-builder
+# Build output lives under the repo scratch tree (tmp/ is gitignored, so the
+# ~400MB artifacts never pollute git status). OUT is absolute because make
+# targets run with CWD=gokrazy/kernel and Docker needs a real bind-mount path;
+# OUT_REL is the repo-relative form qemu-build.py requires (it rejects abs/..).
+OUT     := $(REPO_ROOT)/tmp/kernel/build
+OUT_REL := tmp/kernel/build
 PATCH_DEPS := $(wildcard patches/*.patch)
 
 ifeq ($(ARCH),amd64)
@@ -50,7 +55,7 @@ ifeq ($(BUILDER),docker)
 		$(if $(JOBS),-e JOBS=$(JOBS),) \
 		-v "$(BUILDER_DIR):/builder:ro" \
 		-v "$(CURDIR):/src:ro" \
-		-v "$(CURDIR)/$(OUT):/out" \
+		-v "$(OUT):/out" \
 		$(IMG) sh /builder/build.sh
 else ifeq ($(BUILDER),qemu)
 	mkdir -p $(OUT)
@@ -59,7 +64,7 @@ else ifeq ($(BUILDER),qemu)
 		--profile $(PROFILE) \
 		--version $(KVER) \
 		--src-dir gokrazy/kernel \
-		--out-dir gokrazy/kernel/$(OUT) \
+		--out-dir $(OUT_REL) \
 		--builder-dir tools/kernel-builder \
 		--modules yes \
 		--patches-dir gokrazy/kernel/patches \

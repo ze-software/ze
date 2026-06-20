@@ -15,7 +15,8 @@ version=$(cd gokrazy/ze/builddir/github.com/rtr7/kernel && GOMODCACHE="$repo/gok
 modcache="$repo/gokrazy/modcache/github.com/rtr7/kernel@$version"
 backup_dir="$repo/gokrazy/modcache/.ze-pinned-kernel"
 orig_backup="${backup_dir}.orig-test"
-orig_build="$repo/gokrazy/kernel/build.orig-test"
+# Backup lives outside tmp/kernel: ze-kernel-clean does `rm -rf tmp/kernel`.
+orig_build="$repo/tmp/kernel-build.orig-test"
 
 cleanup() {
 	set +e
@@ -24,9 +25,10 @@ cleanup() {
 	if [ -d "$orig_backup" ]; then
 		mv "$orig_backup" "$backup_dir"
 	fi
-	rm -rf "$repo/gokrazy/kernel/build"
+	rm -rf "$repo/tmp/kernel/build"
 	if [ -d "$orig_build" ]; then
-		mv "$orig_build" "$repo/gokrazy/kernel/build"
+		mkdir -p "$repo/tmp/kernel"
+		mv "$orig_build" "$repo/tmp/kernel/build"
 	fi
 }
 trap cleanup EXIT
@@ -35,9 +37,9 @@ if [ -d "$backup_dir" ]; then
 	rm -rf "$orig_backup"
 	mv "$backup_dir" "$orig_backup"
 fi
-if [ -d "$repo/gokrazy/kernel/build" ]; then
+if [ -d "$repo/tmp/kernel/build" ]; then
 	rm -rf "$orig_build"
-	mv "$repo/gokrazy/kernel/build" "$orig_build"
+	mv "$repo/tmp/kernel/build" "$orig_build"
 fi
 mkdir -p "$work/fakebin"
 

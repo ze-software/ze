@@ -50,7 +50,7 @@ check_contains runtime-docker "$runtime_docker" "sh /builder/build.sh"
 runtime_qemu=$(make -n -B -C gokrazy/kernel BUILDER=qemu ARCH=arm64 2>&1)
 check_contains runtime-qemu "$runtime_qemu" "tools/kernel-builder/qemu-build.py"
 check_contains runtime-qemu "$runtime_qemu" "--src-dir gokrazy/kernel"
-check_contains runtime-qemu "$runtime_qemu" "--out-dir gokrazy/kernel/build"
+check_contains runtime-qemu "$runtime_qemu" "--out-dir tmp/kernel/build"
 check_contains runtime-qemu "$runtime_qemu" "--builder-dir tools/kernel-builder"
 check_contains runtime-qemu "$runtime_qemu" "--modules yes"
 check_contains runtime-qemu "$runtime_qemu" "--patches-dir gokrazy/kernel/patches"

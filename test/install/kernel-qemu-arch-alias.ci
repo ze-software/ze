@@ -15,7 +15,7 @@ if python3 tools/kernel-builder/qemu-build.py \
 	--profile runtime \
 	--version 7.0.11 \
 	--src-dir ../bad \
-	--out-dir gokrazy/kernel/build \
+	--out-dir tmp/kernel/build \
 	--builder-dir tools/kernel-builder \
 	--modules yes \
 	--patches-dir gokrazy/kernel/patches >stdout 2>stderr; then

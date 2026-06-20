@@ -46,7 +46,7 @@ paths = [
     Path('gokrazy/kernel/patches/series'),
     Path('gokrazy/kernel/patches/0001-nct6683.patch'),
 ]
-out = Path('gokrazy/kernel/build/vmlinuz')
+out = Path('tmp/kernel/build/vmlinuz')
 out.parent.mkdir(parents=True, exist_ok=True)
 existed = out.exists()
 mtime = out.stat().st_mtime_ns if existed else 0
@@ -77,7 +77,7 @@ expect_status() {
 
 touch -t 202601010000 tools/kernel-builder/Dockerfile tools/kernel-builder/build.sh tools/kernel-builder/qemu-build.py \
 	gokrazy/kernel/kernel.config gokrazy/kernel/runtime.config gokrazy/kernel/patches/series gokrazy/kernel/patches/0001-nct6683.patch
-touch -t 202601010100 gokrazy/kernel/build/vmlinuz
+touch -t 202601010100 tmp/kernel/build/vmlinuz
 expect_status 0 make -q -C gokrazy/kernel BUILDER=docker
 expect_status 0 make -q -C gokrazy/kernel BUILDER=qemu
 

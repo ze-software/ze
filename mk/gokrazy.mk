@@ -159,7 +159,7 @@ KERNEL_BUILDER        ?= docker
 KERNEL_MODULE_VERSION := $(shell cd gokrazy/ze/builddir/$(KERNEL_MODULE) 2>/dev/null && $(GO) list -m -f '{{.Version}}' $(KERNEL_MODULE) 2>/dev/null)
 KERNEL_MODCACHE_DIR   := $(GOKRAZY_DIR)/modcache/$(KERNEL_MODULE)@$(KERNEL_MODULE_VERSION)
 KERNEL_PINNED_BACKUP  := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
-KERNEL_BUILD_DIR      := gokrazy/kernel/build
+KERNEL_BUILD_DIR      := tmp/kernel/build
 
 ze-kernel:
 	@case "$(KERNEL_ARCH)" in amd64|arm64) : ;; *) echo "error: unsupported KERNEL_ARCH=$(KERNEL_ARCH) (expected amd64 or arm64)"; exit 1 ;; esac
