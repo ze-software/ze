@@ -26,10 +26,6 @@ func sendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 	return errNotLinux
 }
 
-func resolveInterface(name string) (ifindex int, hwaddr [EthALen]byte, mtu int, err error) {
-	return 0, hwaddr, 0, errNotLinux
-}
-
 func pppoeCreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error) {
 	return -1, errNotLinux
 }
@@ -44,7 +40,6 @@ func ReadDiscoveryFrame(fd int, buf []byte) (int, int, error) { return readDisco
 func SendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 	return sendDiscoveryFrame(fd, ifindex, frame)
 }
-func ResolveInterface(name string) (int, [EthALen]byte, int, error) { return resolveInterface(name) }
 func PPPoECreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error) {
 	return pppoeCreate(ifname, sid, remoteMAC)
 }

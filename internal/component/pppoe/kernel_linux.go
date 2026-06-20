@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"time"
-	"unsafe"
 
 	"golang.org/x/sys/unix"
 )
@@ -89,42 +88,6 @@ func sendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 	return unix.Sendto(fd, frame, 0, sa)
 }
 
-// resolveInterface looks up an interface by name and returns its
-// index, hardware address, and MTU.
-func resolveInterface(name string) (ifindex int, hwaddr [EthALen]byte, mtu int, err error) {
-	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, 0)
-	if err != nil {
-		return 0, hwaddr, 0, fmt.Errorf("pppoe: socket for ioctl(%s): %w", name, err)
-	}
-	defer unix.Close(fd) //nolint:errcheck // helper socket
-
-	ifr, err := unix.NewIfreq(name)
-	if err != nil {
-		return 0, hwaddr, 0, fmt.Errorf("pppoe: ifreq(%s): %w", name, err)
-	}
-
-	if err := unix.IoctlIfreq(fd, unix.SIOCGIFINDEX, ifr); err != nil {
-		return 0, hwaddr, 0, fmt.Errorf("pppoe: SIOCGIFINDEX(%s): %w", name, err)
-	}
-	ifindex = int(ifr.Uint32())
-
-	if err := unix.IoctlIfreq(fd, unix.SIOCGIFHWADDR, ifr); err != nil {
-		return 0, hwaddr, 0, fmt.Errorf("pppoe: SIOCGIFHWADDR(%s): %w", name, err)
-	}
-	// SIOCGIFHWADDR returns a sockaddr{sa_family(2), sa_data(14)}.
-	// Ifreq has no hwaddr accessor (upstream TODO). Read the raw union:
-	// skip IFNAMSIZ (16) name to reach ifru, then 2 for sa_family.
-	ifrUnion := (*[24]byte)(unsafe.Add(unsafe.Pointer(ifr), unix.IFNAMSIZ)) //nolint:gosec // ioctl data layout
-	copy(hwaddr[:], ifrUnion[2:2+EthALen])
-
-	if err := unix.IoctlIfreq(fd, unix.SIOCGIFMTU, ifr); err != nil {
-		return 0, hwaddr, 0, fmt.Errorf("pppoe: SIOCGIFMTU(%s): %w", name, err)
-	}
-	mtu = int(ifr.Uint32())
-
-	return ifindex, hwaddr, mtu, nil
-}
-
 // pppoeCreate creates a PPPoE session socket (AF_PPPOX + PX_PROTO_OE)
 // and connects it to the subscriber.
 // RFC 2516 Section 4: after PADS, the kernel handles session framing.
@@ -194,9 +157,6 @@ func ReadDiscoveryFrame(fd int, buf []byte) (int, int, error) { return readDisco
 func SendDiscoveryFrame(fd, ifindex int, frame []byte) error {
 	return sendDiscoveryFrame(fd, ifindex, frame)
 }
-
-// ResolveInterface looks up an interface by name.
-func ResolveInterface(name string) (int, [EthALen]byte, int, error) { return resolveInterface(name) }
 
 // PPPoECreate creates a PPPoE session socket.
 func PPPoECreate(ifname string, sid uint16, remoteMAC [EthALen]byte) (int, error) {

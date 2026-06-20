@@ -4,7 +4,6 @@ package ldp
 import (
 	"context"
 	"log/slog"
-	"net"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -12,22 +11,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
-// VALIDATES: waitForInterface returns immediately for an interface that exists.
-func TestWaitForInterfaceFound(t *testing.T) {
-	ifaces, err := net.Interfaces()
-	if err != nil || len(ifaces) == 0 {
-		t.Skip("no interfaces available")
-	}
-	name := ifaces[0].Name
-
-	ifi := waitForInterface(context.Background(), slogutil.DiscardLogger(), name, time.Second)
-	if ifi == nil {
-		t.Fatalf("waitForInterface(%q) returned nil for an existing interface", name)
-	}
-	if ifi.Name != name {
-		t.Errorf("got interface %q, want %q", ifi.Name, name)
-	}
-}
+// test-relax: TestWaitForInterfaceFound moved to resolve_integration_linux_test.go
+// (TestWaitForInterfaceFoundResolves). waitForInterface now resolves through the
+// shared iface resolver, which needs the netlink backend (Linux-only), so the
+// "interface found" path is no longer host-testable; the integration test
+// replaces that coverage against a real device. The cancellation and warn-once
+// paths below stay host tests: an absent interface fails to resolve whether or
+// not a backend is loaded, so their behavior is unchanged.
 
 // VALIDATES: waitForInterface returns nil (does not block forever) when the
 // context is canceled before a missing interface appears -- the retry loop is

@@ -8,13 +8,18 @@
 // FEC "address prefix"). These are advertised downstream-unsolicited once a
 // session is operational, and each gets an egress pop entry in the kernel FIB.
 //
-// The engine runs as a separate plugin process, so it reads connected prefixes
-// from the OS interface table directly rather than the in-process iface component.
+// LDP runs in-process (a goroutine sharing the daemon's iface backend), so it
+// resolves the configured interfaces it advertises FECs for through the shared
+// iface resolver (honoring the os-name / mac-match selectors). The all-interfaces
+// reachability scan still reads the OS table directly, as it is a system-wide
+// query rather than a single configured-name resolution.
 package ldp
 
 import (
 	"net"
 	"net/netip"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
 // localFECs returns the FECs this LSR originates: the LSR-ID as a host route
@@ -52,11 +57,18 @@ func prefixFromIPNet(n *net.IPNet) (netip.Prefix, bool) {
 	if !ok {
 		return netip.Prefix{}, false
 	}
+	ones, _ := n.Mask.Size()
+	return advertisablePrefix(addr, ones)
+}
+
+// advertisablePrefix normalizes addr/ones to a masked prefix and reports whether
+// it may be advertised as a FEC: loopback, link-local, unspecified and multicast
+// addresses are excluded (RFC 5036 Section 1.3 address prefixes).
+func advertisablePrefix(addr netip.Addr, ones int) (netip.Prefix, bool) {
 	addr = addr.Unmap()
 	if addr.IsLoopback() || addr.IsLinkLocalUnicast() || addr.IsUnspecified() || addr.IsMulticast() {
 		return netip.Prefix{}, false
 	}
-	ones, _ := n.Mask.Size()
 	return netip.PrefixFrom(addr, ones).Masked(), true
 }
 
@@ -109,21 +121,17 @@ func pickNextHop(transport netip.Addr, peerAddrs []netip.Addr, localPrefixes []n
 // interfacePrefixes returns the advertisable connected prefixes of the named
 // interface. A missing interface or read error returns the error to the caller.
 func interfacePrefixes(name string) ([]netip.Prefix, error) {
-	iff, err := net.InterfaceByName(name)
-	if err != nil {
-		return nil, err
-	}
-	addrs, err := iff.Addrs()
+	addrs, err := iface.Addresses(name)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]netip.Prefix, 0, len(addrs))
 	for _, a := range addrs {
-		ipNet, ok := a.(*net.IPNet)
-		if !ok {
+		addr, perr := netip.ParseAddr(a.Address)
+		if perr != nil {
 			continue
 		}
-		if p, ok := prefixFromIPNet(ipNet); ok {
+		if p, ok := advertisablePrefix(addr, a.PrefixLength); ok {
 			out = append(out, p)
 		}
 	}

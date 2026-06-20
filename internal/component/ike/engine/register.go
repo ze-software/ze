@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/dataplane"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/eap"
 	"codeberg.org/thomas-mangin/ze/internal/component/ike/transport"
@@ -486,18 +487,18 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 	}
 }
 
+// resolveInterfaceAddr returns the first IPv4 address of the logical interface,
+// resolved through the shared iface resolver so the IKE bind/listen address
+// honors the os-name / mac-match selectors instead of assuming name == kernel
+// device.
 func resolveInterfaceAddr(name string) string {
-	iface, err := net.InterfaceByName(name)
+	addrs, err := iface.Addresses(name)
 	if err != nil {
 		return ""
 	}
-	addrs, err := iface.Addrs()
-	if err != nil || len(addrs) == 0 {
-		return ""
-	}
 	for _, a := range addrs {
-		if ipNet, ok := a.(*net.IPNet); ok && ipNet.IP.To4() != nil {
-			return ipNet.IP.String()
+		if a.Family == "ipv4" {
+			return a.Address
 		}
 	}
 	return ""

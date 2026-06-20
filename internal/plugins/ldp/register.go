@@ -26,6 +26,7 @@ import (
 
 	"golang.org/x/net/ipv4"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/events"
@@ -482,16 +483,25 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 // that is not yet present.
 const ldpInterfaceRetry = 5 * time.Second
 
-// waitForInterface resolves ifName, retrying every retry interval until it appears
-// or ctx is canceled (returns nil on cancellation). This lets LDP recover when a
-// configured interface comes up after the engine starts. The "not available"
+// waitForInterface resolves the logical name ifName, retrying until it appears
+// or ctx is canceled (returns nil on cancellation). It translates the logical
+// name to its kernel device through the shared iface resolver (honoring the
+// os-name / mac-match selectors), then fetches the real *net.Interface the
+// stdlib multicast calls need. iface.Subscribe wakes it the moment the device
+// appears, so LDP recovers promptly when a configured interface comes up after
+// the engine starts; the retry timer is a bootstrap fallback in case an event
+// is missed (the resolver drops events on a full channel). The "not available"
 // warning is logged once, then demoted to debug, so a permanently-misconfigured
 // interface name does not spam the log every retry.
 func waitForInterface(ctx context.Context, log *slog.Logger, ifName string, retry time.Duration) *net.Interface {
+	events, cancelSub := iface.Subscribe(ifName)
+	defer cancelSub()
 	warned := false
 	for {
-		if ifi, err := net.InterfaceByName(ifName); err == nil {
-			return ifi
+		if b, err := iface.Resolve(ifName); err == nil {
+			if ifi, ierr := net.InterfaceByName(b.OsName); ierr == nil {
+				return ifi
+			}
 		}
 		if !warned {
 			log.Warn("ldp: discovery interface not available, retrying", "interface", ifName, "retry", retry)
@@ -504,6 +514,8 @@ func waitForInterface(ctx context.Context, log *slog.Logger, ifName string, retr
 		case <-ctx.Done():
 			timer.Stop()
 			return nil
+		case <-events:
+			timer.Stop()
 		case <-timer.C:
 		}
 	}
