@@ -60,13 +60,13 @@ Ze is a **Network OS** in Go with its own BGP implementation and interface confi
 **Components** (`internal/component/`) are independent unless they explicitly depend on each other; `config`, `command`, and `plugin` are infrastructure components nearly everything uses.
 
 <!-- BEGIN GENERATED: arch-components (scripts/dev/arch_map.py; make ze-regen) -->
-50 directories under `internal/component/`:
+51 directories under `internal/component/`:
 
 aaa, api, audit, authz, bfd, bgp, cli, cmd, command, config, debug, diag,
 doctor, engine, firewall, flowexport, gnmi, gokrazy, host, hub, iface, ike,
-ipsec, l2tp, ldp, lg, managed, mcp, mpls, mrt, ping, pki, plugin, ppp, pppoe,
-pppoeclient, radius, resolve, rsvpte, ssh, storage, subscriber, support,
-tacacs, telemetry, traceroute, traffic, update, vpp, web
+ipsec, isis, l2tp, ldp, lg, managed, mcp, mpls, mrt, ping, pki, plugin, ppp,
+pppoe, pppoeclient, radius, resolve, rsvpte, ssh, storage, subscriber,
+support, tacacs, telemetry, traceroute, traffic, update, vpp, web
 <!-- END GENERATED: arch-components -->
 
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
@@ -88,9 +88,9 @@ systemd, tftpserver, traceroute-cmd, traffic, traffic-cmd, update-cmd
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.
 
 <!-- BEGIN GENERATED: arch-bgp-plugins (scripts/dev/arch_map.py; make ze-regen) -->
-29 directories under `internal/component/bgp/plugins/`:
+30 directories under `internal/component/bgp/plugins/`:
 
-adj_rib_in, aigp, bmp, cmd, filter_aspath, filter_aspath_length,
+adj_rib_in, aigp, bmp, capa, cmd, filter_aspath, filter_aspath_length,
 filter_community, filter_community_match, filter_irr, filter_modify,
 filter_prefix, filter_remove_private_as, gr, healthcheck, hostname, llnh,
 nlri, persist, redistribute_egress, redistribute_ingress, rib, role,
@@ -151,6 +151,7 @@ means "no rule applies".
 | Touch wire encoding, allocate memory, or build strings | `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md`, `ai/rules/no-sprintf-alloc.md` -- load-bearing divergence from standard Go |
 | Add a YANG leaf, env var, or config option | `ai/rules/config-surface.md` (YANG vs env var decision), `ai/rules/config-naming.md` (naming), `ai/patterns/config-option.md` (structural template) |
 | Add or move a plugin's command, schema, help, or doctor check | `ai/rules/plugin-self-containment.md` -- remove the plugin and ALL its features vanish; no plugin spelling in generic/central packages |
+| Create a new package (pick internal/core vs component vs plugins) | `ai/rules/module-tiers.md` -- tier = dependency direction; a misplaced config-driven engine fails `make ze-tier-check` |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/tdd.md`, `ai/rules/functional-test-gate.md`, `ai/rules/interop-and-goal-validation.md` |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` -- implement missing behavior at the source; never weaken the test |

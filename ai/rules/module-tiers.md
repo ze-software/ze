@@ -1,0 +1,94 @@
+# Module Tiers (core / component / plugin)
+
+**When:** creating a new package under `internal/`, or deciding whether something
+belongs in `internal/core/`, `internal/component/`, or `internal/plugins/`.
+
+**Where a Go package lives under `internal/` is decided by dependency direction,
+not by size or age. Three tiers, two mechanical axes. New code MUST land in the
+correct tier; an engine in the wrong tier fails `make ze-verify`.**
+
+This generalizes `ai/rules/plugin-self-containment.md` (the "delete the folder"
+test) into a placement rule that code can audit.
+
+## The Three Tiers
+
+| Tier | Home | What it is | Examples |
+|------|------|------------|----------|
+| **core / infra** | `internal/core/` | A library you cannot "run as a plugin." Foundational; no config-driven lifecycle. | family, events, metrics, diagnostic, bufpool |
+| **component** | `internal/component/` | A platform plugin: other plugins/components depend on it or plug into it. | bgp, iface, firewall, traffic, vpp |
+| **plugin (edge)** | `internal/plugins/` | An edge plugin: a config-driven engine that nothing else depends on. | ntp, static, dhcpserver, l2tp-auth-* |
+
+## The Two Axes
+
+| Axis | Mechanical test |
+|------|-----------------|
+| **A. Is it a config-driven engine?** | does it call `sdk.NewWithConn(`? |
+| **B. Does a feature depend on it?** | does any `.go` file under `internal/component/` or `internal/plugins/` (excluding its own subtree, the generated composition root, `cmd/ze` dispatch, `internal/core`, `internal/chaos`, `internal/test`, and `_test.go`) import it? |
+
+Decision:
+
+- **not an engine** → it is **core** infra. It belongs in `internal/core/`. (Today
+  many libraries still sit under `internal/component/`; moving them is deferred —
+  see "Scope of enforcement".)
+- **engine + a feature depends on it** → **component** (`internal/component/`).
+  It is a platform other plugins build on. BGP is the archetype: its sub-plugins
+  and other code plug into it.
+- **engine + nothing depends on it** → **edge plugin** (`internal/plugins/`).
+  IS-IS, LDP, RSVP-TE are edge protocols: they consume services (iface, the RIB)
+  but nothing consumes them.
+
+The RIB stays **component** because edge protocols install routes through it.
+
+## Authoring rule (read before creating a package)
+
+Decide the tier by the two axes BEFORE you pick a directory:
+
+1. Pure library, no `sdk.NewWithConn`, no plugin lifecycle → `internal/core/<x>`.
+2. Engine that other plugins will depend on → `internal/component/<x>`.
+3. Engine that is a self-contained leaf feature → `internal/plugins/<x>`.
+
+A **sub-plugin of an existing subsystem** (e.g. a BGP capability or NLRI codec)
+goes under that subsystem's own plugin namespace (`internal/component/bgp/plugins/<x>`),
+not at the top level. Those nested namespaces are listed in the generator's
+`pluginDirs` (`scripts/codegen/plugin_imports.go`).
+
+## Scope of enforcement (Path C)
+
+Only the **engine-placement** rule is enforced today, because it is the only part
+that is fully mechanical:
+
+> A config-driven engine (`sdk.NewWithConn`) at a top-level subsystem MUST be in
+> `internal/component/` if a feature depends on it, else in `internal/plugins/`.
+
+The **core vs component-vs-host** distinction for non-engine libraries is REPORTED
+by `scripts/dev/dep_audit.py` (advisory) but NOT gated, because it cannot yet be
+decided mechanically (see `plan/spec-tiers-0-umbrella.md`, "Phase 5 Hardening
+Analysis": BGP fuses a codec library with its engine, registration has several
+forms, and host-services need judgment). There is **no permanent allowlist**.
+
+## The gate
+
+`scripts/dev/dep_audit.py --check` enforces the engine rule and runs in
+`make ze-verify` (target `ze-tier-check`). It:
+
+- parses `pluginDirs` from `scripts/codegen/plugin_imports.go` to exclude nested
+  sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
+- fails (exit 2) on any **new** misplaced engine, naming the dir and its required
+  tier, pointing here;
+- fails on a **stale** baseline entry (one no longer misplaced), forcing cleanup.
+
+### Migration baseline (transitional, NOT an allowlist)
+
+`scripts/dev/tier_migration_baseline.txt` holds the engines that are currently in
+the wrong tier and scheduled to move (child specs `spec-tiers-2`/`-3`). Each row is
+annotated with the child spec that removes it. The gate fails on new violations and
+on stale entries, so the file can only shrink. **An empty baseline = full
+engine-placement enforcement with zero exceptions.** Regenerate after a move with
+`scripts/dev/dep_audit.py --write-baseline`.
+
+## Related
+
+- `ai/rules/plugin-self-containment.md` — the delete-the-folder invariant.
+- `ai/rules/plugin-design.md` — registration patterns, Proximity Principle.
+- `scripts/dev/dep_audit.py` — the reverse-dependency report + the placement gate.
+- `plan/spec-tiers-0-umbrella.md` — the taxonomy, the reorg plan, the hardening analysis.

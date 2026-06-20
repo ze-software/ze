@@ -6,6 +6,7 @@
 |------|-----------|------|
 | Understand the modular core | `ai/patterns/registration.md` | `docs/architecture/core-design.md` |
 | Keep a plugin self-contained (removal test) | `ai/rules/plugin-self-containment.md` | Remove the plugin and ALL its features vanish; other plugins and core keep working |
+| Choose internal/core vs internal/component vs internal/plugins for a new package | `ai/rules/module-tiers.md` | Tier = dependency direction; engine placement gated by `make ze-tier-check` (`scripts/dev/dep_audit.py --check`) |
 | Test linux-only code (QEMU) | `ai/rules/qemu-testing.md` | `ai/rules/testing.md` (Linux-Only Tests section) |
 | Fix a failing test, gate, demo, or user-visible problem | `ai/rules/no-workarounds-for-missing-behavior.md` | Implement the missing behavior at the source, never route around it |
 | Modify wire encoding | `ai/rules/buffer-first.md` | `docs/architecture/buffer-architecture.md` |

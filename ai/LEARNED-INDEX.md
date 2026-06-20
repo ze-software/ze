@@ -31,6 +31,7 @@ System boundaries, component design, lifecycle patterns, subsystem separation.
 - [762](plan/learned/762-rs-dynamic-peers.md) -- IXP route server: dynamic peer groups from prefix ranges, RS-client transparent AS-path (RFC 7947), community-based selective forwarding, connection-time peer creation bypassing parsePeerFromTree
 - [763](plan/learned/763-backend-aware-completion.md) -- ze:backend extended from commit-time validation to completion-time filtering: config completer reads entry.Exts, command tree stores Backend on Node, backends derived from config tree not component imports
 - [912](plan/learned/912-irr-prefix-store.md) -- Shared IRR PrefixStore in resolve/irr/store subpackage: per-entry zefs keys (meta/irr/{name}), cross-process sharing via disk not a struct, subpackage breaks the peeringdb import cycle (no interface needed), read-first Open (write lock only to migrate)
+- [945](plan/learned/945-tiers-1-rule-and-audit.md) -- Module tiers (core/component/plugin) decided by dependency direction, made auditable: `ai/rules/module-tiers.md` + `dep_audit.py --check` engine gate (`make ze-tier-check`); transitional migration baseline (not an allowlist); gate must reuse the generator's pluginDirs (engine-package granularity excludes nested sub-plugins)
 
 ## Wire/Encoding
 

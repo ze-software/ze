@@ -1,0 +1,14 @@
+# Tier migration baseline -- TRANSITIONAL, not a permanent allowlist.
+# Each row is a misplaced engine scheduled to move; the gate FAILS on a NEW
+# misplacement and on a STALE entry (one no longer misplaced). An empty file
+# means full engine-placement enforcement with zero exceptions.
+# See ai/rules/module-tiers.md and plan/spec-tiers-0-umbrella.md.
+# columns: <current-dir>\t<expected-area>\t<resolving-child-spec>
+internal/component/flowexport	internal/plugins	spec-tiers-2
+internal/component/isis	internal/plugins	spec-tiers-2
+internal/component/ldp	internal/plugins	spec-tiers-2
+internal/component/mrt	internal/plugins	spec-tiers-2
+internal/component/rsvpte	internal/plugins	spec-tiers-2
+internal/plugins/bfd	internal/component	spec-tiers-3
+internal/plugins/sysctl	internal/component	spec-tiers-3
+internal/plugins/sysrib	internal/component	spec-tiers-3

@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 75 rules
+Total: 76 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -55,6 +55,7 @@ Total: 75 rules
 | JSON Format | All JSON output MUST follow these conventions. | `ai/rules/json-format.md` |
 | Lint Gate | Run before claiming implementation work is complete. | `ai/rules/lint-gate.md` |
 | Memory Architecture | Conceptual model for Ze's memory management. Ties together `buffer-first.md`, `no-sprintf-alloc.md`, and `design-principles.md` into a coherent picture. Read this before making any allocation or... | `ai/rules/memory-architecture.md` |
+| Module Tiers (core / component / plugin) | creating a new package under `internal/`, or deciding whether something belongs in `internal/core/`, `internal/component/`, or `internal/plugins/`. | `ai/rules/module-tiers.md` |
 | Naming | "Ze" = "The" with a French accent. Use "ze" where "the" works grammatically. | `ai/rules/naming.md` |
 | Never Destroy Uncommitted Work | Never delete, revert, or overwrite files holding uncommitted work the user wrote or requested without explicit permission. Never leave a file undeleted solely because deletion requires permission;... | `ai/rules/never-destroy-work.md` |
 | Don't Ask, Do | Never use phrases like "would you like me to", "want me to", "shall I", or "I can" before completing work. Finish the task first, then report what was done. The user delegated the work; asking for... | `ai/rules/no-asking.md` |

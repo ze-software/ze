@@ -28,6 +28,19 @@ continue to work.
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin registration -->
 <!-- source: internal/component/plugin/registry/registry.go -- Registration struct -->
 
+### Module tiers (where a package lives)
+
+Because components and plugins register the same way, the directory a package lives
+in is decided by **dependency direction**, not by the registration mechanism:
+`internal/core/` for libraries (not config-driven engines), `internal/component/`
+for platform plugins that other plugins depend on (BGP, iface, the RIB),
+`internal/plugins/` for edge plugins nothing depends on (NTP, static, IS-IS). A
+config-driven engine (`sdk.NewWithConn`) in the wrong tier fails the
+`make ze-tier-check` gate. Full rule and the audit tool:
+[`ai/rules/module-tiers.md`](../ai/rules/module-tiers.md).
+<!-- source: ai/rules/module-tiers.md -- tier taxonomy and the engine-placement gate -->
+<!-- source: scripts/dev/dep_audit.py -- dep audit report + Path C --check gate -->
+
 ## Invocation Modes
 
 | Mode | Syntax | Transport |
