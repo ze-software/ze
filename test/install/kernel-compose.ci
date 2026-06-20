@@ -41,7 +41,6 @@ for opt in \
 	CONFIG_PPPOL2TP \
 	CONFIG_L2TP \
 	CONFIG_L2TP_V3 \
-	CONFIG_L2TP_NETLINK \
 	CONFIG_DEVTMPFS_MOUNT \
 	CONFIG_BLK_DEV_INITRD \
 	CONFIG_VIRTIO_NET \
@@ -64,6 +63,11 @@ for opt in \
 	require_enabled "$opt"
 done
 
+# test-relax: CONFIG_L2TP_NETLINK moved from require_enabled to require_absent.
+# It was removed as a standalone Kconfig symbol in kernel 7.0 (netlink is always
+# built with L2TP; see gokrazy/kernel/runtime.config line 98), so requiring it
+# enabled is wrong for the 7.0.11 target. Asserting it absent matches the other
+# removed-in-newer-kernel options below. Coverage is preserved, not dropped.
 for opt in \
 	CONFIG_NF_NAT_IPV4 \
 	CONFIG_NF_NAT_MASQUERADE_IPV4 \
@@ -72,7 +76,8 @@ for opt in \
 	CONFIG_NFT_CHAIN_ROUTE_IPV4 \
 	CONFIG_NFT_CHAIN_ROUTE_IPV6 \
 	CONFIG_USB_DEVICEFS \
-	CONFIG_FB_SIMPLE; do
+	CONFIG_FB_SIMPLE \
+	CONFIG_L2TP_NETLINK; do
 	require_absent "$opt"
 done
 
