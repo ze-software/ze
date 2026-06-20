@@ -79,7 +79,11 @@ bgp {
 \t\t\t}
 \t\t\trouter-id 10.0.0.1
 \t\t\tfamily {
-\t\t\t\tipv4/unicast
+\t\t\t\tipv4/unicast {
+\t\t\t\t\tprefix {
+\t\t\t\t\t\tmaximum 10000
+\t\t\t\t\t}
+\t\t\t\t}
 \t\t\t}
 \t\t}
 \t}
