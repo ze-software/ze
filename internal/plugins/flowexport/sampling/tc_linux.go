@@ -8,21 +8,32 @@ import (
 	"errors"
 	"fmt"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
+
+// resolveIfaceIndex maps a logical interface name to its kernel ifindex via the
+// shared iface resolver, honoring the os-name / mac-match selectors so sampling
+// attaches to the right device even when the logical name differs from it.
+func resolveIfaceIndex(ifaceName string) (int, error) {
+	b, err := iface.Resolve(ifaceName)
+	if err != nil {
+		return 0, fmt.Errorf("sampling: interface %q not found: %w", ifaceName, err)
+	}
+	return b.Ifindex, nil
+}
 
 // SetupSampling installs a tc sample action on the named interface.
 // It creates or reuses the clsact qdisc and adds a MatchAll filter
 // at priority 100 with SampleAction. Mirror filters at priority 1
 // are not affected.
 func SetupSampling(ifaceName string, rate, group, truncSize uint32) error {
-	link, err := netlink.LinkByName(ifaceName)
+	linkIndex, err := resolveIfaceIndex(ifaceName)
 	if err != nil {
-		return fmt.Errorf("sampling: interface %q not found: %w", ifaceName, err)
+		return err
 	}
-
-	linkIndex := link.Attrs().Index
 
 	qdisc := &netlink.Clsact{
 		QdiscAttrs: netlink.QdiscAttrs{
@@ -69,12 +80,10 @@ func SetupSampling(ifaceName string, rate, group, truncSize uint32) error {
 // interface. The clsact qdisc is left in place because mirror filters
 // at priority 1 may still be active.
 func RemoveSampling(ifaceName string) error {
-	link, err := netlink.LinkByName(ifaceName)
+	linkIndex, err := resolveIfaceIndex(ifaceName)
 	if err != nil {
-		return fmt.Errorf("sampling: interface %q not found: %w", ifaceName, err)
+		return err
 	}
-
-	linkIndex := link.Attrs().Index
 
 	filter := &netlink.MatchAll{
 		FilterAttrs: netlink.FilterAttrs{

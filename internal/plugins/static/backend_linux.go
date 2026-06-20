@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/core/rtproto"
 
 	"github.com/vishvananda/netlink"
@@ -83,6 +84,19 @@ func (b *netlinkStaticBackend) listRoutes() ([]installedStaticRoute, error) {
 	return result, nil
 }
 
+// resolveNexthopIndex maps a logical nexthop interface name to its kernel
+// ifindex through the shared iface resolver, so a static route's nexthop honors
+// the os-name / mac-match selectors instead of assuming name == kernel device.
+// For the common case (name == kernel device) the resolver returns the same
+// index a direct LinkByName would, so existing configs are unaffected.
+func resolveNexthopIndex(name string) (int, error) {
+	b, err := iface.Resolve(name)
+	if err != nil {
+		return 0, fmt.Errorf("interface %q: %w", name, err)
+	}
+	return b.Ifindex, nil
+}
+
 func (b *netlinkStaticBackend) close() error {
 	if b.handle != nil {
 		b.handle.Close()
@@ -119,11 +133,11 @@ func (b *netlinkStaticBackend) buildRoute(r staticRoute) (*netlink.Route, error)
 			route.Gw = nh.Address.AsSlice()
 		}
 		if nh.Interface != "" {
-			link, err := b.handle.LinkByName(nh.Interface)
+			idx, err := resolveNexthopIndex(nh.Interface)
 			if err != nil {
-				return nil, fmt.Errorf("interface %q: %w", nh.Interface, err)
+				return nil, err
 			}
-			route.LinkIndex = link.Attrs().Index
+			route.LinkIndex = idx
 		}
 		return route, nil
 	}
@@ -137,11 +151,11 @@ func (b *netlinkStaticBackend) buildRoute(r staticRoute) (*netlink.Route, error)
 			nhi.Gw = nh.Address.AsSlice()
 		}
 		if nh.Interface != "" {
-			link, err := b.handle.LinkByName(nh.Interface)
+			idx, err := resolveNexthopIndex(nh.Interface)
 			if err != nil {
-				return nil, fmt.Errorf("interface %q: %w", nh.Interface, err)
+				return nil, err
 			}
-			nhi.LinkIndex = link.Attrs().Index
+			nhi.LinkIndex = idx
 		}
 		multipath = append(multipath, nhi)
 	}

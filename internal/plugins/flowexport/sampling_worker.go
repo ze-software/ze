@@ -5,10 +5,10 @@
 package flowexport
 
 import (
-	"net"
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/flowexport/sampling"
 )
 
@@ -61,8 +61,8 @@ func (w *samplingWorker) Start() {
 				"interface", c.Interface, "error", err)
 			continue
 		}
-		if iface, err := net.InterfaceByName(c.Interface); err == nil {
-			w.idxToName[uint32(iface.Index)] = c.Interface
+		if b, err := iface.Resolve(c.Interface); err == nil {
+			w.idxToName[uint32(b.Ifindex)] = c.Interface //nolint:gosec // ifindex is a small positive kernel value
 		}
 		log.Info("flow-export: packet sampling enabled",
 			"interface", c.Interface, "rate", c.Rate, "group", c.Group)
