@@ -234,14 +234,34 @@ func (c *Circuit) fireEvents(tr adjacency.Transition, snap adjacency.NeighborSna
 // The full IIH is built (origination TLVs + TLV 8 padding to the MTU) BEFORE any
 // authentication; the transport frames the final bytes without padding.
 func (c *Circuit) SendHello() error {
-	mtu, ok := c.sender.InterfaceMTU(c.name)
+	ifMTU, ok := c.sender.InterfaceMTU(c.name)
 	if !ok {
-		mtu = 0 // no MTU known: send unpadded (still valid)
+		ifMTU = 0 // no MTU known: send unpadded (still valid)
 	}
+	// The interface MTU bounds the 802.3 frame PAYLOAD (LLC header + IS-IS PDU),
+	// not the IS-IS PDU alone (ISO/IEC 10589 clause 8.2.3 / mtu.go: a frame filling
+	// a link is FrameHeaderLen + (MTU - LLCHeaderLen)). The Padding TLV is sized on
+	// the PDU, so the pad target is MTU - LLCHeaderLen; padding to the full MTU
+	// makes the framed Hello (LLC + PDU) exceed the link MTU and the kernel rejects
+	// the send (EMSGSIZE), which silently kills every Hello on a real socket while
+	// the smaller LSP/CSNP frames still flow -- the interop adjacency never forms.
+	mtu := padMTU(ifMTU)
 	if c.kind == adjacency.KindP2P {
 		return c.sendP2PHello(mtu)
 	}
 	return c.sendLANHellos(mtu)
+}
+
+// padMTU converts the interface (L2 frame-payload) MTU into the maximum IS-IS PDU
+// length that fits in one frame: MTU minus the LLC header the transport prepends.
+// A zero or sub-LLC MTU yields 0 so padHello leaves the PDU unpadded (still a
+// valid, shorter Hello). Keeping the subtraction here -- where the transport
+// framing overhead is known -- lets padHello stay a pure "pad to N bytes" helper.
+func padMTU(ifMTU int) int {
+	if ifMTU <= transport.LLCHeaderLen {
+		return 0
+	}
+	return ifMTU - transport.LLCHeaderLen
 }
 
 // sendLANHellos sends one padded LAN IIH per configured level.

@@ -220,13 +220,16 @@ func (c *Circuit) buildP2PHello(state packet.AdjThreeWayState, neighborID types.
 const iihPDULengthOffset = packet.CommonHeaderLen + 1 + 6 + 2
 
 // padHello appends Padding TLVs (8) to an already-built IIH so the final PDU
-// reaches the interface MTU (ISO/IEC 10589 clause 8.2.3 MTU-mismatch detection),
-// and patches the PDU Length field to cover the padding. Padding is added here,
+// reaches the pad target (ISO/IEC 10589 clause 8.2.3 MTU-mismatch detection), and
+// patches the PDU Length field to cover the padding. Padding is added here,
 // during construction, BEFORE authentication, so the spec-isis-10 digest covers
-// it (RFC 5304 signs padded Hellos). The transport frames the result and MUST
-// NOT pad further. mtu is the interface MTU (the L2 payload size); a single
-// Padding TLV carries at most MaxTLVValueLen value octets, so multiple TLV 8s
-// are emitted to fill a large MTU.
+// it (RFC 5304 signs padded Hellos). The transport frames the result and MUST NOT
+// pad further. mtu here is the PDU-length budget the caller derives from the
+// interface MTU (MTU minus the LLC header the transport prepends; see padMTU),
+// NOT the raw interface MTU: the IS-IS PDU plus the LLC header must fit the link
+// MTU, so padding the PDU to the full MTU would make the framed Hello exceed it. A
+// single Padding TLV carries at most MaxTLVValueLen value octets, so multiple TLV
+// 8s are emitted to fill a large MTU.
 //
 // padHello returns the padded PDU. When the PDU already meets or exceeds the
 // MTU, or there is not enough room for even a 2-octet empty Padding TLV, it

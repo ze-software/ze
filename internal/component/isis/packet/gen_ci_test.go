@@ -11,7 +11,7 @@ import (
 // codec change alters the bytes, this test fails alongside the .ci. The PDU is
 // a captured-style Hello carrying TLV 1 (area 49.0001), TLV 129 (IPv4 NLPID),
 // and TLV 6 (one neighbor SNPA).
-const ciFixtureHex = "831c01060f01000003000000000001001e002d4000000000000002010104034900018101cc0606001122334455"
+const ciFixtureHex = "831b01060f01000003000000000001001e002c40000000000002010104034900018101cc0606001122334455"
 
 // VALIDATES: Story 1 wiring -- the captured IS-IS Hello fixture used by the
 // functional test decodes through DecodePDU into the expected LAN L1 IIH with

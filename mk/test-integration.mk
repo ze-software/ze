@@ -21,7 +21,7 @@
 .PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-ldp-frr-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -239,6 +239,12 @@ ze-qemu-ldp-frr-test:
 	python3 scripts/evidence/qemu-run.py \
 		--packages "frr iproute2 kmod" \
 		--run 'go test -tags integration -count=1 -timeout 150s -run TestLDPInteropFRR ./internal/component/ldp/...'
+
+ze-qemu-isis-frr-test:
+	@echo "Running IS-IS interop test against FRR isisd in QEMU Linux VM (installs frr)..."
+	python3 scripts/evidence/qemu-run.py \
+		--packages "frr iproute2 kmod tcpdump" \
+		--run 'go test -tags integration -count=1 -timeout 180s -run TestISISInteropFRR ./internal/component/isis/...'
 
 ze-install-qemu-test:
 	@echo "Running full installer-chain QEMU evidence (builds initrd + image, boots installer, verifies SSH login)..."

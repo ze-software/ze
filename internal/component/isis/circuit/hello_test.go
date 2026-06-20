@@ -220,18 +220,29 @@ func TestISISAreaAddressesTLVManyAreasNoPanic(t *testing.T) {
 	}
 }
 
-// TestISISHelloPaddedToMTU: the constructed Hello is padded to the interface MTU
-// with Padding TLV 8 before being handed to the transport (AC-11).
+// TestISISHelloPaddedToMTU: the constructed Hello is padded so the FRAMED Hello
+// (LLC header + IS-IS PDU) fills the interface MTU exactly (AC-11). The PDU itself
+// is padded to MTU - LLCHeaderLen, NOT to the raw MTU: the transport prepends an
+// LLC header, so a PDU padded to the full MTU yields an oversized frame the kernel
+// rejects (EMSGSIZE), silently dropping every Hello on a real socket. This test
+// pins the correct, frame-aware pad target so that interop regression cannot
+// return (it was a real ze bug found against FRR isisd).
 func TestISISHelloPaddedToMTU(t *testing.T) {
 	const mtu = 1497
+	const wantPDU = mtu - transport.LLCHeaderLen // LLC + PDU must fit the link MTU
 	s := &fakeSender{mtu: mtu}
 	c := lanCircuit(t, s)
 	if err := c.SendHello(); err != nil {
 		t.Fatal(err)
 	}
 	last := s.sent[len(s.sent)-1]
-	if len(last.pdu) != mtu {
-		t.Fatalf("padded PDU length = %d, want %d (padded to MTU)", len(last.pdu), mtu)
+	if len(last.pdu) != wantPDU {
+		t.Fatalf("padded PDU length = %d, want %d (MTU %d minus LLC header %d)", len(last.pdu), wantPDU, mtu, transport.LLCHeaderLen)
+	}
+	// The framed Hello (LLC header + PDU) must not exceed the interface MTU, or the
+	// kernel rejects the send on a real socket.
+	if framed := transport.LLCHeaderLen + len(last.pdu); framed > mtu {
+		t.Fatalf("framed Hello (LLC %d + PDU %d = %d) exceeds MTU %d", transport.LLCHeaderLen, len(last.pdu), framed, mtu)
 	}
 	// The PDU must still decode (padding is well-formed TLV 8s) and carry at
 	// least one Padding TLV.

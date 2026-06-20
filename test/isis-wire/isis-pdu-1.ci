@@ -10,7 +10,7 @@
 # TLV 1 (area), TLV 129 (IPv4 NLPID 0xcc), and TLV 6 (one neighbor SNPA). It is
 # pinned in internal/component/isis/packet (TestISISCIFixtureDecodes) so the
 # fixture and the codec cannot drift.
-stdin=payload:hex=831c01060f01000003000000000001001e002d4000000000000002010104034900018101cc0606001122334455
+stdin=payload:hex=831b01060f01000003000000000001001e002c40000000000002010104034900018101cc0606001122334455
 cmd=foreground:seq=1:exec=ze isis-decode:stdin=payload
 expect=exit:code=0
 expect=stdout:contains="type":"l1-lan-hello"

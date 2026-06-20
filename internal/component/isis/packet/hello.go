@@ -21,8 +21,12 @@ const (
 // the TLVs). All assume the 6-octet System ID (Ze fixes ID length at 6).
 const (
 	// lanHelloFixedLen: circuit type (1) + System ID (6) + holding time (2) +
-	// PDU length (2) + priority (1) + reserved (1) + LAN ID (SourceID, 7).
-	lanHelloFixedLen = 1 + types.SystemIDLen + types.LifetimeLen + 2 + 1 + 1 + types.SourceIDLen
+	// PDU length (2) + priority (1) + LAN ID (SourceID, 7). ISO/IEC 10589 clause
+	// 9.5: Priority is a single octet whose high bit is reserved (masked off); there
+	// is NO separate reserved octet between Priority and the LAN ID. With the
+	// 6-octet System ID this fixed part is 19 octets, so the full IIH fixed header
+	// (common header 8 + 19) is 27 -- the value FRR isisd validates against.
+	lanHelloFixedLen = 1 + types.SystemIDLen + types.LifetimeLen + 2 + 1 + types.SourceIDLen
 
 	// p2pHelloFixedLen: circuit type (1) + System ID (6) + holding time (2) +
 	// PDU length (2) + local circuit ID (1).
@@ -68,9 +72,12 @@ func (h *LANHello) WriteTo(buf []byte, off int) int {
 	off += h.HoldingTime.WriteTo(buf, off)
 	pduLenPos := off // skip the 2-octet PDU Length; backfill after TLVs
 	off += 2
+	// ISO/IEC 10589 clause 9.5: Priority is one octet whose high bit is reserved
+	// (sent zero via the mask). There is NO separate reserved octet after it -- the
+	// LAN ID follows immediately. Emitting an extra reserved byte here made ze's IIH
+	// fixed header 28 octets, which a strict peer (FRR isisd: "Expected fixed header
+	// length = 27 but got 28") rejects, so no adjacency forms.
 	buf[off] = h.Priority & MaxDISPriority
-	off++
-	buf[off] = 0x00 // reserved
 	off++
 	off += h.LANID.WriteTo(buf, off)
 	off = writeTLVs(buf, off, h.TLVs)
@@ -102,9 +109,10 @@ func DecodeLANHello(pt PDUType, body []byte) (LANHello, error) {
 	off += types.LifetimeLen
 	pduLen := int(body[off])<<8 | int(body[off+1])
 	off += 2
+	// ISO/IEC 10589 clause 9.5: Priority is one octet (high bit reserved, masked);
+	// the LAN ID follows immediately with no separate reserved octet.
 	h.Priority = body[off] & MaxDISPriority
 	off++
-	off++ // reserved
 	lanID, _ := types.SourceIDFromBytes(body[off : off+types.SourceIDLen])
 	h.LANID = lanID
 	off += types.SourceIDLen

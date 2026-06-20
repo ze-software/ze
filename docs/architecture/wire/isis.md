@@ -98,7 +98,7 @@ length, rejects an unknown PDU type, and returns the body offset
 
 | PDU | Fixed fields after the common header |
 |-----|--------------------------------------|
-| LAN IIH | circuit type (1), System ID (6), holding time (2), PDU length (2), priority (1, 0..127), reserved (1), LAN ID = SourceID (7), then TLVs |
+| LAN IIH | circuit type (1), System ID (6), holding time (2), PDU length (2), priority (1, high bit reserved, 0..127), LAN ID = SourceID (7), then TLVs (ISO/IEC 10589 clause 9.5: the priority octet's high bit IS the reserved bit -- there is no separate reserved octet, so the fixed header is 27, not 28) |
 | P2P IIH | circuit type (1), System ID (6), holding time (2), PDU length (2), local circuit ID (1), then TLVs |
 | LSP | PDU length (2), remaining lifetime (2), LSP ID (8), sequence number (4), checksum (2), type block (1), then TLVs |
 | CSNP | PDU length (2), Source ID (7), start LSP ID (8), end LSP ID (8), then TLVs (TLV 9) |
@@ -387,14 +387,14 @@ the `isis` component (`auth_keystore.go`, `auth_wiring.go`).
 ## Offline decode tool
 
 `ze isis-decode` reads one IS-IS PDU from stdin and prints a JSON view on
-stdout. It accepts both ASCII hex (a pasted/captured `831c...` string) and raw
+stdout. It accepts both ASCII hex (a pasted/captured `831b...` string) and raw
 PDU bytes (an IS-IS PDU starts with `0x83`, which is not an ASCII hex digit, so
 the two are unambiguous). This is a thin caller over `packet.DecodePDU` +
 `PDU.ToJSON` that proves the codec wires end-to-end; the running-daemon CLI
 surface (`show isis ...`) is owned by isis-13.
 
 ```
-$ printf '831c01060f...' | ze isis-decode --pretty
+$ printf '831b01060f...' | ze isis-decode --pretty
 { "type": "l1-lan-hello", "lan-hello": { "system-id": "0000.0000.0001", ... } }
 ```
 
