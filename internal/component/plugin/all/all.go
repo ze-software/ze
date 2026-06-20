@@ -258,6 +258,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/schema/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/doctor/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/firewall/plugins/irr"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/cmd"
