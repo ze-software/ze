@@ -14,7 +14,7 @@
 # (no rsvpd), so there is no live interop fixture. The make-before-break overlap
 # -- shared-explicit reservation style, new path up before old path torn -- is
 # unit-tested directly against the engine in
-# internal/component/rsvpte/reroute_test.go (TestEngineMakeBeforeBreak,
+# internal/plugins/rsvpte/reroute_test.go (TestEngineMakeBeforeBreak,
 # TestSetupTunnelEROChangeReroutes). This functional test covers the
 # always-available half: a tunnel + ERO config reaches the engine and the
 # tunnel/session show commands dispatch.

@@ -17,7 +17,7 @@
 # test asserts one of those two log lines appears, proving the wiring, exactly
 # as traffic/001-boot-apply.ci asserts the reactor log line rather than tc
 # qdisc state. The netlink Apply path itself is covered by the Linux unit tests
-# in internal/component/flowexport/sampling/*_linux_test.go.
+# in internal/plugins/flowexport/sampling/*_linux_test.go.
 
 tmpfs=wait.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3

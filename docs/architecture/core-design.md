@@ -1107,8 +1107,8 @@ Counter export is driven by the `iface` rate tracker's snapshot callback rather
 than its own poll loop, so it reuses the same 1s interface sampler. For BGP
 next-hop enrichment (`enrichment { bgp true }`) the component consumes the RIB
 best-change event so flow records can carry the destination prefix's next-hop.
-<!-- source: internal/component/flowexport/exporter.go -- Exporter, rate-snapshot callback consumer -->
-<!-- source: internal/component/flowexport/yang/ze-flowexport-conf.yang -- flow-export config surface -->
+<!-- source: internal/plugins/flowexport/exporter.go -- Exporter, rate-snapshot callback consumer -->
+<!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- flow-export config surface -->
 
 ### Sysctl
 

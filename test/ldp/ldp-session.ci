@@ -13,9 +13,9 @@
 #
 # Live peer-to-peer session establishment (AC-1 Hello on 224.0.0.2:646, AC-2 TCP
 # session, AC-3 Label Mapping) needs a mock LDP peer; the wire/session state
-# machine is unit-tested in internal/component/ldp/session_test.go and
-# internal/component/ldp/wire_test.go, and FRR interop is covered by
-# internal/component/ldp/frr_interop_integration_linux_test.go. This functional
+# machine is unit-tested in internal/plugins/ldp/session_test.go and
+# internal/plugins/ldp/wire_test.go, and FRR interop is covered by
+# internal/plugins/ldp/frr_interop_integration_linux_test.go. This functional
 # test exercises everything up to the point a peer is required: config parse ->
 # YANG -> component auto-load -> engine startup -> show command dispatch.
 

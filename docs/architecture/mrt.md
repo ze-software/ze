@@ -9,7 +9,7 @@ analysis tooling.
 | Package | Purpose |
 |---------|---------|
 | `internal/mrt` | Wire format library: types, encode, decode per RFC 6396/6397/8050 |
-| `internal/component/mrt` | Daemon component: bus subscription, periodic RIB dumps, update/state streams |
+| `internal/plugins/mrt` | Daemon component: bus subscription, periodic RIB dumps, update/state streams |
 | `internal/analyze` | Offline tools: parse, filter, statistics, inject, convert |
 
 ## Wire Format Library (`internal/mrt`)
@@ -34,7 +34,7 @@ Key encoder functions:
 Used by `internal/analyze` for offline parsing. Allocates freely (offline tool).
 Returns structured types from byte slices.
 
-## Daemon Component (`internal/component/mrt`)
+## Daemon Component (`internal/plugins/mrt`)
 
 Registers as a Ze component. Subscribes to:
 - BGP update events (for BGP4MP update stream)

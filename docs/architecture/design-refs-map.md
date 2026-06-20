@@ -64,19 +64,19 @@ add the annotation to the new files.
 | `internal/component/config/yang` | `// Design: docs/architecture/config/yang-config-design.md - YANG schema handling` |
 | `internal/component/engine` | `// Design: docs/architecture/system-architecture.md - engine supervisor` |
 | `internal/component/firewall` | `// Design: docs/guide/firewall.md - firewall component` |
-| `internal/component/flowexport` | `// Design: docs/guide/flow-export.md - flow export component` |
+| `internal/plugins/flowexport` | `// Design: docs/guide/flow-export.md - flow export component` |
 | `internal/component/gnmi` | `// Design: docs/guide/gnmi.md - gNMI service` |
 | `internal/component/hub` | `// Design: docs/architecture/hub-architecture.md - hub coordination` |
 | `internal/component/iface` | `// Design: docs/features/interfaces.md - interface component` |
 | `internal/component/ike` | `// Design: docs/config-reference.md - IKEv2 engine` |
 | `internal/component/ipsec` | `// Design: docs/config-reference.md - IPsec data model` |
 | `internal/component/l2tp` | `// Design: docs/guide/l2tp.md - L2TP subsystem` |
-| `internal/component/ldp` | `// Design: docs/guide/mpls.md - LDP component` |
+| `internal/plugins/ldp` | `// Design: docs/guide/mpls.md - LDP component` |
 | `internal/component/mcp` | `// Design: docs/guide/mcp/overview.md - MCP server` |
 | `internal/component/plugin` | `// Design: docs/architecture/api/process-protocol.md - plugin infrastructure` |
 | `internal/component/plugin/all` | `// Design: docs/architecture/api/architecture.md - plugin auto-registration` |
 | `internal/component/plugin/registry` | `// Design: docs/architecture/api/architecture.md - plugin registry` |
-| `internal/component/rsvpte` | `// Design: docs/guide/mpls.md - RSVP-TE component` |
+| `internal/plugins/rsvpte` | `// Design: docs/guide/mpls.md - RSVP-TE component` |
 | `internal/component/telemetry` | `// Design: docs/guide/monitoring.md - telemetry service` |
 | `internal/component/traffic` | `// Design: docs/guide/traffic-control.md - traffic control component` |
 | `internal/component/vpp` | `// Design: docs/guide/vpp.md - VPP lifecycle` |

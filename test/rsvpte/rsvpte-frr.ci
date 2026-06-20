@@ -12,7 +12,7 @@
 # The local-repair data plane (the 2-label backup swap), the PathErr Notify, and
 # the head-end re-optimization are signaling behaviors needing the raw-IP
 # transport and a peer LSR; they are proven by the ze-to-ze fabric interop
-# (internal/component/rsvpte/interop_test.go, TestEngineZeToZeFRRLocalRepair) and
+# (internal/plugins/rsvpte/interop_test.go, TestEngineZeToZeFRRLocalRepair) and
 # the live-kernel 2-label swap (mplsentry_integration_linux_test.go,
 # TestMPLSIntegration_FacilityBackupSwap). This functional test covers the
 # always-available half: the FRR config reaches the engine and the show command

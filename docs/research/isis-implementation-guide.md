@@ -718,7 +718,7 @@ module isis {
 Assuming ze follows a plugin pattern, IS-IS should be located at:
 
 ```
-internal/component/isis/
+internal/plugins/isis/
 ├── isis.go                 # Main plugin entry point
 ├── config.go               # Configuration parsing / YANG integration
 ├── server.go               # Core IS-IS server orchestration
@@ -1164,7 +1164,7 @@ Build IS-IS in discrete phases. Each phase has defined test criteria.
 ### Package Layout
 
 ```
-internal/component/isis/
+internal/plugins/isis/
 ├── isis.go                  # Plugin entry point, interface to ze
 ├── config.go                # Config parsing, YANG integration
 ├── types/

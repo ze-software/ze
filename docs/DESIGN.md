@@ -402,10 +402,10 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 <!-- source: internal/plugins/dhcpserver/register.go -- dhcpserver plugin -->
 <!-- source: internal/plugins/tftpserver/register.go -- tftpserver plugin -->
 <!-- source: internal/plugins/imageserver/register.go -- imageserver plugin -->
-<!-- source: internal/component/flowexport/register.go -- flow-export plugin -->
-<!-- source: internal/component/ldp/register.go -- ldp plugin -->
-<!-- source: internal/component/rsvpte/register.go -- rsvp-te plugin -->
-<!-- source: internal/component/isis/register.go -- isis plugin -->
+<!-- source: internal/plugins/flowexport/register.go -- flow-export plugin -->
+<!-- source: internal/plugins/ldp/register.go -- ldp plugin -->
+<!-- source: internal/plugins/rsvpte/register.go -- rsvp-te plugin -->
+<!-- source: internal/plugins/isis/register.go -- isis plugin -->
 <!-- source: internal/component/ike/engine/register.go -- ike plugin -->
 
 ---

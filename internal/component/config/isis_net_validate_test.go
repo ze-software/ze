@@ -16,7 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	// Register ze-isis-conf so ValidateTreeAllModules can find the isis section
 	// (the live binary registers it via the generated all.go blank import).
-	_ "codeberg.org/thomas-mangin/ze/internal/component/isis/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/yang"
 )
 
 func TestISISNetLeafListCustomValidatorApplied(t *testing.T) {

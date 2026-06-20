@@ -632,7 +632,7 @@ Inspect LSP, interface, tunnel, and protection state with the component's
 current status.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unit/mpls/enable -->
-<!-- source: internal/component/rsvpte/yang/ze-rsvp-te-conf.yang -- rsvp-te -->
+<!-- source: internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang -- rsvp-te -->
 
 ## IS-IS
 
@@ -698,7 +698,7 @@ See [`docs/guide/isis.md`](isis.md) for the full authentication behaviour.
 Adjacency, LSDB, SPF, and route install are delivered by the runtime IS-IS
 feature set; this release wires the component, config, and circuits.
 
-<!-- source: internal/component/isis/yang/ze-isis-conf.yang -- isis config root -->
+<!-- source: internal/plugins/isis/yang/ze-isis-conf.yang -- isis config root -->
 
 ## PKI Certificate Store
 
@@ -1443,8 +1443,8 @@ metrics use the `ze_flowexport_*` prefix.
 **Note:** these protocols are unencrypted UDP. Run flow export over a dedicated
 management VLAN. Per-flow records are IPv4-only; sampling requires Linux with
 `CAP_NET_ADMIN` and the kernel `psample` module.
-<!-- source: internal/component/flowexport/yang/ze-flowexport-conf.yang -- flow-export container -->
-<!-- source: internal/component/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
+<!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- flow-export container -->
+<!-- source: internal/plugins/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
 
 ## Environment Block
 

@@ -501,8 +501,8 @@ Each entry reports `name`, `address`, `port`, `protocol`, `datagrams-sent`,
 omitted before the first poll). JSON by default; full pipe operators supported.
 See the [Flow Export guide](flow-export.md).
 
-<!-- source: internal/component/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
-<!-- source: internal/component/flowexport/exporter.go -- Exporter.Status -->
+<!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
+<!-- source: internal/plugins/flowexport/exporter.go -- Exporter.Status -->
 
 ### show ip
 
@@ -573,8 +573,8 @@ transit LSP with its armed bypass, the protection `mode` (`facility`), whether
 `node-protection` is requested, and whether local protection is `available` and
 `in-use`. `show rsvp-te lsp` is an alias for `show rsvp-te session`.
 
-<!-- source: internal/component/rsvpte/cmd_show.go -- show rsvp-te RPC proxies -->
-<!-- source: internal/component/rsvpte/show_data.go -- show rsvp-te data builders -->
+<!-- source: internal/plugins/rsvpte/cmd_show.go -- show rsvp-te RPC proxies -->
+<!-- source: internal/plugins/rsvpte/show_data.go -- show rsvp-te data builders -->
 
 ### show isis
 
@@ -597,9 +597,9 @@ ze show isis spf-log                    # Recent SPF runs: timestamp, level, tri
 The neighbour and database views are also available in the web UI at `/isis`
 and `/isis/database`, with live updates over SSE.
 
-<!-- source: internal/component/isis/cmd_show.go -- ze-show:isis-* RPC proxies -->
-<!-- source: internal/component/isis/show.go -- hostname/interface/spf-log render -->
-<!-- source: internal/component/isis/yang/ze-isis-cmd.yang -- show/clear command tree -->
+<!-- source: internal/plugins/isis/cmd_show.go -- ze-show:isis-* RPC proxies -->
+<!-- source: internal/plugins/isis/show.go -- hostname/interface/spf-log render -->
+<!-- source: internal/plugins/isis/yang/ze-isis-cmd.yang -- show/clear command tree -->
 
 ### clear isis
 
@@ -617,8 +617,8 @@ circuit is not closed. `clear isis counters` clears the SPF-run history surfaced
 by `show isis spf-log`; the monotonic Prometheus series are process counters and
 are not reset (resetting them mid-process breaks `rate()`).
 
-<!-- source: internal/component/isis/cmd_show.go -- ze-clear:isis-* RPC proxies -->
-<!-- source: internal/component/isis/show.go -- clearAdjacencies/clearCounters -->
+<!-- source: internal/plugins/isis/cmd_show.go -- ze-clear:isis-* RPC proxies -->
+<!-- source: internal/plugins/isis/show.go -- clearAdjacencies/clearCounters -->
 
 ### IS-IS (Offline Tools)
 
@@ -645,8 +645,8 @@ echo 831b0100... | ze isis-decode --pretty
 Exit code is 0 on a successful parse, 1 on unreadable input, oversized input, or
 a malformed PDU; stderr carries the reason.
 
-<!-- source: internal/component/isis/cli/decode.go -- cmdDecode, toWire -->
-<!-- source: internal/component/isis/cli/register.go -- isis-decode root verb -->
+<!-- source: internal/plugins/isis/cli/decode.go -- cmdDecode, toWire -->
+<!-- source: internal/plugins/isis/cli/register.go -- isis-decode root verb -->
 
 ### show pki
 

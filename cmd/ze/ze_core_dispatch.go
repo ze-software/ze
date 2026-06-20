@@ -37,10 +37,10 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/iface/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/sysctl/cli"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/isis/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/cli"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/yang/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"

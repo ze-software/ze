@@ -231,7 +231,7 @@ endif
 # Exclusions: ldp runs in ze-qemu-ldp-frr-test (needs FRR in the VM).
 # firewall/vpp is added explicitly: its fakeOps tests are linux-tagged but not
 # integration-tagged, and still need a linux GOOS to compile.
-ZE_QEMU_INTEGRATION_PKGS = $(shell grep -rl --include='*.go' '^//go:build integration && linux' internal/ cmd/ 2>/dev/null | sed 's|/[^/]*$$||' | sort -u | grep -v '^internal/component/ldp$$' | sed 's|^|./|')
+ZE_QEMU_INTEGRATION_PKGS = $(shell grep -rl --include='*.go' '^//go:build integration && linux' internal/ cmd/ 2>/dev/null | sed 's|/[^/]*$$||' | sort -u | grep -v '^internal/plugins/ldp$$' | sed 's|^|./|')
 
 ze-qemu-integration-test:
 	@echo "Running integration tests in QEMU Linux VM (requires qemu + internet for first run)..."
@@ -243,13 +243,13 @@ ze-qemu-ldp-frr-test:
 	@echo "Running LDP interop test against FRR ldpd in QEMU Linux VM (installs frr)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "frr iproute2 kmod" \
-		--run 'go test -tags integration -count=1 -timeout 150s -run TestLDPInteropFRR ./internal/component/ldp/...'
+		--run 'go test -tags integration -count=1 -timeout 150s -run TestLDPInteropFRR ./internal/plugins/ldp/...'
 
 ze-qemu-isis-frr-test:
 	@echo "Running IS-IS interop test against FRR isisd in QEMU Linux VM (installs frr)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "frr iproute2 kmod tcpdump" \
-		--run 'go test -tags integration -count=1 -timeout 180s -run TestISISInteropFRR ./internal/component/isis/...'
+		--run 'go test -tags integration -count=1 -timeout 180s -run TestISISInteropFRR ./internal/plugins/isis/...'
 
 ze-install-qemu-test:
 	@echo "Running full installer-chain QEMU evidence (builds initrd + image, boots installer, verifies SSH login)..."

@@ -17,7 +17,7 @@
 # FRR counterpart (FRR ships no rsvpd), so there is NO live interop fixture by
 # design. The signaling state machine -- PATH/RESV exchange, label push, ingress
 # and egress roles -- is unit-tested end to end in
-# internal/component/rsvpte/engine_test.go (TestEngineEgressPathToResv,
+# internal/plugins/rsvpte/engine_test.go (TestEngineEgressPathToResv,
 # TestEngineIngressResvToUp, TestEngineTransitForwarding). On hosts without
 # CAP_NET_RAW (or on darwin) the transport stays closed so no PATH is sent, but
 # setupTunnel still installs the configured tunnel's ingress LSP; this test

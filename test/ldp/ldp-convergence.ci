@@ -12,14 +12,14 @@
 # AC-5 (neighbor down / label withdrawal) and AC-6 (keepalive hold-time expiry)
 # require a mock LDP peer that establishes then drops a session. That timer and
 # teardown behavior is unit-tested without the network:
-#   - adjacency hold-time expiry: internal/component/ldp/discovery_test.go
+#   - adjacency hold-time expiry: internal/plugins/ldp/discovery_test.go
 #     (TestAdjacencyExpired, TestAdjacencyTableExpireSweep,
 #      TestAdjacencyTableDefaultHoldTime)
 #   - keepalive negotiation / operational transition:
-#     internal/component/ldp/session_test.go
+#     internal/plugins/ldp/session_test.go
 #     (TestSessionKeepaliveNegotiation, TestSessionProcessMessagesFiresOperational)
 # Live FRR interop (real Hello/keepalive on the wire) lives in
-# internal/component/ldp/frr_interop_integration_linux_test.go. This functional
+# internal/plugins/ldp/frr_interop_integration_linux_test.go. This functional
 # test covers the single-daemon half: config -> engine -> show, with no peer.
 
 tmpfs=ldp-converge.run:mode=755:terminator=EOF_RUN

@@ -42,7 +42,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/l2tp"
 	"codeberg.org/thomas-mangin/ze/internal/component/managed"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
-	mrtcomp "codeberg.org/thomas-mangin/ze/internal/component/mrt"
 	zepki "codeberg.org/thomas-mangin/ze/internal/component/pki"
 	zePlugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
@@ -58,6 +57,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/reboot"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	mrtcomp "codeberg.org/thomas-mangin/ze/internal/plugins/mrt"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 

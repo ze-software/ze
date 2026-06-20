@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/unix"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 

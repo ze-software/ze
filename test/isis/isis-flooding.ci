@@ -12,7 +12,7 @@
 #            the offline decode path.
 #
 # The fixtures below are PINNED to the codec by
-# internal/component/isis/packet/flood_ci_test.go (TestISISFloodCIFixtures): if a
+# internal/plugins/isis/packet/flood_ci_test.go (TestISISFloodCIFixtures): if a
 # codec/encoder change alters the bytes, that Go test fails alongside this .ci, so
 # the functional fixture and the build path cannot drift.
 #
@@ -22,7 +22,7 @@
 # veth and is proven by:
 #   - the in-memory engine wiring tests (run on any host, including darwin):
 #     TestISISLSDBSync (three-node line), TestISISFloodSRMTimer,
-#     TestISISCSNPGapRequest, TestISISPSNPAck (internal/component/isis), and the
+#     TestISISCSNPGapRequest, TestISISPSNPAck (internal/plugins/isis), and the
 #     lsdb-package unit tests (TestFreshnessCompareMatrix, TestSRMDrivenSend,
 #     TestCSNPGapRequestPending, TestPSNPRequestAndAck, ...); and
 #   - the QEMU integration tests + the FRR interop scenarios isis-p2p-frr /

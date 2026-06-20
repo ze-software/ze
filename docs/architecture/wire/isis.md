@@ -14,10 +14,10 @@ serialization layer only: the common header, all nine PDU types, the core TLVs,
 the ISO 8473 Fletcher checksum, and opaque unknown-TLV passthrough. It contains
 no runtime, sockets, timers, LSDB, or FSM; those live in later children
 (isis-3 transport, isis-5 adjacency, isis-6 LSDB, isis-7 flooding). All codec
-code lives in `internal/component/isis/packet/`, depending only on the domain
-types in `internal/component/isis/types` (isis-1).
+code lives in `internal/plugins/isis/packet/`, depending only on the domain
+types in `internal/plugins/isis/types` (isis-1).
 
-<!-- source: internal/component/isis/packet/doc.go — package overview -->
+<!-- source: internal/plugins/isis/packet/doc.go — package overview -->
 
 ## Layering
 
@@ -25,7 +25,7 @@ types in `internal/component/isis/types` (isis-1).
 types (leaf)  <-  packet (this codec)  <-  runtime (transport, circuit, lsdb, spf)
 ```
 
-`packet` imports only `internal/component/isis/types` (plus the Go standard
+`packet` imports only `internal/plugins/isis/types` (plus the Go standard
 library and `internal/core/textbuf` for display). It MUST NOT import the
 runtime, nor BGP-LS (which carries link-state topology inside BGP NLRI and is a
 separate codepath).
@@ -205,7 +205,7 @@ BGP travel the redistribute orchestrator, not the wire encoding.
 
 ## LSP origination, aging, and fragmentation (isis-6)
 
-The LSDB (`internal/component/isis/lsdb/`) stores every LSP per Ze's
+The LSDB (`internal/plugins/isis/lsdb/`) stores every LSP per Ze's
 buffer-first model: the verbatim PDU bytes (a single owned copy, never an alias
 of the receive buffer) plus parsed freshness metadata (LSP ID, sequence,
 remaining lifetime, checksum, overload). TLVs are parsed lazily, so an LSP
@@ -265,7 +265,7 @@ the flooding child (isis-7) drives them and performs the transmission.
 
 ### Reliable flooding and SNP synchronisation (isis-7)
 
-The flooding child (`internal/component/isis/lsdb/flooding.go`, `snp.go`) is the
+The flooding child (`internal/plugins/isis/lsdb/flooding.go`, `snp.go`) is the
 flag-to-wire pump. It owns no LSDB storage: it consumes the freshness compare and
 the SRM/SSN flag API of isis-6 and drives them over the isis-3 transport. LSP,
 CSNP, and PSNP PDUs arrive via the isis-4 PDU receive dispatcher (keyed by the

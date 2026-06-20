@@ -154,13 +154,13 @@ integration_pkgs=(
 	./internal/plugins/tftpserver/...
 	./internal/plugins/dhcpserver/...
 )
-if [ -d ./internal/component/isis/transport ]; then
-	integration_pkgs+=(./internal/component/isis/transport/...)
+if [ -d ./internal/plugins/isis/transport ]; then
+	integration_pkgs+=(./internal/plugins/isis/transport/...)
 fi
 # IS-IS adjacency integration test (spec-isis-5): two engines reach Up over a
 # real veth pair. The root isis package carries the integration-tagged test.
-if [ -d ./internal/component/isis ]; then
-	integration_pkgs+=(./internal/component/isis)
+if [ -d ./internal/plugins/isis ]; then
+	integration_pkgs+=(./internal/plugins/isis)
 fi
 run_check "integration tests (-tags integration)" \
 	go test -tags integration -count=1 -timeout 120s "${integration_pkgs[@]}"

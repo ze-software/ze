@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | ready |
 | Depends | - |
-| Phase | 0/4 (umbrella: rule + audit gate are Phase 0; moves are child specs) |
+| Phase | 2/4 (Phase 1 rule+gate done; Phase 2 edge-out done; tiers-3/4 pending) |
 | Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
@@ -189,6 +189,42 @@ its directory location.
 | 3 | `spec-tiers-3-platform-in.md` | Move `sysrib, bfd, sysctl` plugins->component via the tool; update importers, generator, docs. | med | Phase 1 audit |
 | 4 | `spec-tiers-4-borderline.md` | Decide + move `ike`, `mrt` per-case. | med | Phase 1 audit |
 | 5 (FUTURE, Path B) | `spec-tiers-5-preconditions-*` (own umbrella) | Structural work to extend enforcement beyond engines: extract bgp/iface/vpp/ike codec subpackages to `internal/core/` (un-fuse library+engine, blocker B-2); unify plugin-registration discovery so the gate reuses the generator (blocker B-1); decide a home for framework/host - a 4th `internal/host/` tier or fold to core (blocker B-3); then separate config leaf primitives from orchestration and move true leaf infra to `internal/core/`. Only after this can the gate enforce core/composition with no allowlist. | high | Phases 1-4; deferred, not scheduled now |
+
+## Phase 2 (edge-out) -- COMPLETE (2026-06-20)
+
+Performed directly via `scripts/dev/migrate_module.py` (learned summary
+`plan/learned/947-tiers-2-edge-out.md`). Moved set = the migration baseline's
+tiers-2 rows: **`isis, ldp, rsvpte, flowexport, mrt`** `component/` -> `plugins/`.
+
+-> Decision: the moved set is `mrt`, NOT `mpls` (the early prose/AC-6 said mpls).
+`mpls` has no `sdk.NewWithConn`, so the engine gate never tracked it; it is a
+forwarding helper and stays in `internal/component/`. `mrt` IS an `sdk.NewWithConn`
+engine with no feature dependency (its only importer, `cmd/ze/hub`, is non-feature),
+so the gate placed it in `plugins/`. This supersedes the "mrt borderline -> tiers-4"
+line in the Findings/Child-Spec tables and the "mpls" token in AC-6.
+
+-> Constraint: `rpcRoot` did NOT need widening. The four RPC-bearing roots
+(isis/ldp/rsvpte/flowexport carry `RegisterRPCs` in their *root* package) are
+re-discovered by `discoverPlugins` once under the `internal/plugins` whole-tree
+pluginDir, so the RPC registration survives the move (proven by an `all.go`
+blank-import set-diff: 0 dropped).
+
+Results:
+- `all.go` registration set preserved (0 dropped). 3 additions, all benign:
+  `mrt` (promoted from hub-only registration to a first-class plugin), and
+  `isis/cli` + `isis/transport` (cosmetic -- both already ran `init()` before).
+- Migration baseline shrank 8 -> 3 (only `bfd, sysctl, sysrib` -> tiers-3 remain);
+  `dep_audit.py --check` green.
+- `go build ./...`, moved-package unit tests, generator `--check`, and
+  golangci-lint (moved trees + importers) all pass. Stale path references fixed
+  across `.go/.sh/.mk/.ci/.yang/docs/rfc`; `arch_map.py` + `code_to_docs.py`
+  regenerated. `plan/` specs left for their owners.
+- Excluded from the migration commit: `mk/test-integration.mk` and
+  `docs/functional-tests.md` (carried concurrent uncommitted user work); their
+  path fixes remain on disk for the owner to commit.
+
+Remaining: tiers-3 (platform-in: `bfd, sysctl, sysrib` plugins -> component),
+tiers-4 (borderline `ike`), tiers-5 (Path B preconditions).
 
 ## Open Design Decision (resolve at child-spec time)
 

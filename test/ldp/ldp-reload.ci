@@ -14,7 +14,7 @@
 # by the discovery manager. That add/remove reconcile -- starting discovery on a
 # newly-added interface and stopping it on a removed one without restarting the
 # engine -- is unit-tested directly in
-# internal/component/ldp/discovery_manager_test.go
+# internal/plugins/ldp/discovery_manager_test.go
 # (TestDiscoveryManagerReconcileStartsAndStops,
 #  TestDiscoveryManagerNoInterfacesFallsBack), driven through the same
 # reconcile() entry point that OnConfigure calls on a live reload. This

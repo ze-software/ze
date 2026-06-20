@@ -139,8 +139,8 @@ The `show` forms proxy to the plugin commands through the dispatcher.
 `ze_rsvpte_admission_denied_total`, `ze_rsvpte_local_repairs_total`,
 `ze_rsvpte_protected_lsps`, `ze_rsvpte_bypass_lsps`.
 
-<!-- source: internal/component/rsvpte/engine.go -- signaling engine -->
-<!-- source: internal/component/rsvpte/admission.go -- bandwidth admission -->
-<!-- source: internal/component/rsvpte/reroute.go -- make-before-break -->
-<!-- source: internal/component/rsvpte/frr.go -- RFC 4090 fast reroute -->
-<!-- source: internal/component/rsvpte/yang/ze-rsvp-te-conf.yang -- config schema -->
+<!-- source: internal/plugins/rsvpte/engine.go -- signaling engine -->
+<!-- source: internal/plugins/rsvpte/admission.go -- bandwidth admission -->
+<!-- source: internal/plugins/rsvpte/reroute.go -- make-before-break -->
+<!-- source: internal/plugins/rsvpte/frr.go -- RFC 4090 fast reroute -->
+<!-- source: internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang -- config schema -->

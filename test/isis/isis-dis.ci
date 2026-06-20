@@ -13,7 +13,7 @@
 #            member, or advertises a non-zero member metric.
 #
 # The fixture below is PINNED to the codec by
-# internal/component/isis/packet/pseudonode_ci_test.go
+# internal/plugins/isis/packet/pseudonode_ci_test.go
 # (TestISISPseudonodeCIFixtureDecodes): if a codec/encoder change alters the
 # bytes, that Go test fails alongside this .ci, so the functional fixture and the
 # build path cannot drift.
@@ -29,8 +29,8 @@
 #     TestISISDISReElectOnLoss (DIS loss re-elects), TestISISDISYieldPurgesPseudonode
 #     (a higher-priority join transfers the role and the old DIS purges), and the
 #     pure-logic election + pseudo-node unit tests
-#     (internal/component/isis/circuit/dis_test.go,
-#     internal/component/isis/lsdb/pseudonode_test.go); and
+#     (internal/plugins/isis/circuit/dis_test.go,
+#     internal/plugins/isis/lsdb/pseudonode_test.go); and
 #   - the QEMU integration tests + the FRR interop scenario isis-lan-dis-frr
 #     (owned by spec-isis-13).
 # This functional test exercises the pseudo-node LSP wire format only: hex PDU ->

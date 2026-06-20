@@ -91,8 +91,8 @@ IS-IS default (FRR also offers RFC 5120 Multi-Topology, which Ze does not yet
 implement).
 
 <!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer -->
-<!-- source: internal/component/isis/redistribute/source.go -- isis source + producer emit -->
-<!-- source: internal/component/isis/redistribute/consumer.go -- isis consumer (TLV 135) -->
+<!-- source: internal/plugins/isis/redistribute/source.go -- isis source + producer emit -->
+<!-- source: internal/plugins/isis/redistribute/consumer.go -- isis consumer (TLV 135) -->
 <!-- source: internal/core/redistevents/events.go -- producer-shared payload -->
 
 ## Policy & Route Manipulation

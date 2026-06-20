@@ -26,7 +26,7 @@
 # connected/static/BGP prefix appearing as a TLV 135 entry in an IS-IS LSP and in a
 # peer's RIB (AC-3/AC-4/AC-5/AC-6) -- needs raw L2 (AF_PACKET) on a Linux veth and
 # is covered by:
-#   - the unit tests in internal/component/isis/redistribute (producer emit ->
+#   - the unit tests in internal/plugins/isis/redistribute (producer emit ->
 #     redistevents batch -> orchestrator dispatch shape; consumer InjectRoute ->
 #     TLV 135 PrefixInfo; WithdrawRoute removal; up/down bit; self-import rejection;
 #     metric boundary), and

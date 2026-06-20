@@ -10,7 +10,7 @@
 #            explainable) or the config-sanity check never fires on a bad config.
 #
 # The net-missing firing path and the raw-socket firing path are covered by the
-# doctor unit tests (internal/component/isis/doctor_test.go) and isis-3's
+# doctor unit tests (internal/plugins/isis/doctor_test.go) and isis-3's
 # transport doctor test; here we assert the user-visible explain surface for all
 # three codes plus the system-id-mismatch doctor run (which parses cleanly
 # because the config carries a valid NET).

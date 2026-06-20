@@ -15,10 +15,10 @@
 # signaled LSP (raw-IP transport + peer), and RSVP-TE has no FRR counterpart
 # (no rsvpd), so there is no live interop fixture. The admission arithmetic --
 # reserve up to the limit, deny beyond it, release on teardown -- is unit-tested
-# directly in internal/component/rsvpte/admission_test.go
+# directly in internal/plugins/rsvpte/admission_test.go
 # (TestRSVPAdmissionDenied, TestRSVPAdmissionExactLimit,
 #  TestRSVPAdmissionReserveAndRelease) and the engine-level PathErr in
-# internal/component/rsvpte/engine_test.go (TestEngineAdmissionDeniedPathErr).
+# internal/plugins/rsvpte/engine_test.go (TestEngineAdmissionDeniedPathErr).
 # This functional test covers the always-available half: config -> admission
 # state visible via show.
 

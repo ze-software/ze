@@ -303,7 +303,7 @@ are IS-IS-specific. The priority-queue primitive (`lib/skiplist.c`) is
 the generic part, and that is what gets promoted to shared.
 
 For ze: the equivalent question is "what goes in `pkg/ze/...` or a
-shared internal helper package, vs what stays in `internal/component/isis/`".
+shared internal helper package, vs what stays in `internal/plugins/isis/`".
 Generic primitives (priority queue, red-black tree, Fletcher) either
 reuse standard library or get a shared home outside the component.
 IS-IS-specific types (System ID, LSP ID, TLV codec) stay inside the
@@ -335,7 +335,7 @@ patterns. This is meant to complement (not replace) the bio-rd guide's
 section 15.
 
 ```
-internal/component/isis/
+internal/plugins/isis/
 ├── isis.go              # Component registration, plugin entry point
 ├── daemon.go            # Top-level Daemon, VRF binding (FRR's isisd.c role)
 ├── area.go              # Area struct and lifecycle

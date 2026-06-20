@@ -15,7 +15,7 @@ Last updated: 2026-06-07
 
 | Implementation | Language | Source Location |
 |----------------|----------|----------------|
-| **Ze** | Go | `internal/mrt/`, `internal/component/mrt/`, `internal/analyze/` |
+| **Ze** | Go | `internal/mrt/`, `internal/plugins/mrt/`, `internal/analyze/` |
 | FRRouting (FRR) | C | `~/Code/github.com/FRRouting/frr/` |
 | BIRD 3 | C | `~/Code/gitlab.nic.cz/labs/bird/` |
 | OpenBGPD | C | `~/Code/github.com/openbgpd-portable/openbgpd-portable/` |
@@ -266,7 +266,7 @@ Ze's MRT support spans three packages:
 |---------|--------|-------------|
 | `internal/mrt/` | Complete | Encode + decode all RFC 6396/6397/8050 types. BGP message deep decode (attributes, AS path, prefixes, communities). File writer with strftime rotation. File reader with gz/bz2 decompression. 16 round-trip tests + 18 BGP parse tests. |
 | `internal/analyze/` | Complete | `statistics` (type/subtype/AFI/peer counts, timestamp range, BGP message types). `filter` (peer-ip, peer-asn, prefix, type, timestamp range, writes filtered MRT). `inject` (opens BGP session, sends TABLE_DUMP_V2/BGP4MP UPDATEs). `replay` (BGP4MP replay preserving timing, configurable speed). `convert pcap` (BGP4MP to pcap, IPv4). `convert json` (record headers as JSON). `show` (human-readable dump). `routes` (prefix table extraction as JSON). |
-| `internal/component/mrt/` | Complete | YANG config (`ze-mrt-conf.yang`). Reactor MessageObserver for raw wire bytes. Async non-blocking writes (4096-record channel). Periodic TABLE_DUMP_V2 via cross-plugin RIB bridge (snapshot-under-lock). Per-peer and direction filtering. On-demand CLI dump (`request mrt dump-rib`). Extended timestamps. Add-path aware. State change recording. |
+| `internal/plugins/mrt/` | Complete | YANG config (`ze-mrt-conf.yang`). Reactor MessageObserver for raw wire bytes. Async non-blocking writes (4096-record channel). Periodic TABLE_DUMP_V2 via cross-plugin RIB bridge (snapshot-under-lock). Per-peer and direction filtering. On-demand CLI dump (`request mrt dump-rib`). Extended timestamps. Add-path aware. State change recording. |
 
 ## RFCs Covered
 
