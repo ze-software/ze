@@ -18,25 +18,17 @@
 package transport
 
 import (
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	ifaceevents "codeberg.org/thomas-mangin/ze/internal/component/iface/events"
-	"codeberg.org/thomas-mangin/ze/internal/core/events"
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
-
-// ifaceEventQueueDepth bounds the worker queue of iface up/down events. It is
-// generously sized so a burst of link flaps does not overflow it and silently
-// drop an `interface/up` (which would strand a circuit closed); the periodic
-// rescan (rescanInterval) is the backstop if it ever does overflow.
-const ifaceEventQueueDepth = 256
 
 // rescanInterval is how often the fallback rescan re-attempts opening circuits
 // for enabled-but-closed interfaces, so a dropped `interface/up` event recovers
@@ -117,9 +109,20 @@ type Transport struct {
 	onDown     func(ifindex int, name string)
 	onMismatch func(name string, localMTU, neighborMTU int)
 
-	// teardown holds cleanup funcs (EventBus unsubscribe + worker-channel close)
+	// subscribe returns a per-interface link-event channel from the iface
+	// resolver. It defaults to iface.Subscribe and is overridable in tests so
+	// the event path can be driven without a live resolver.
+	subscribe func(name string) (<-chan iface.LinkEvent, func())
+	// ifaceSubs holds the resolver-subscription cancel funcs keyed by interface
+	// name so DisableInterface and Close release them (no goroutine leak).
+	ifaceSubs map[string]func()
+	// eventsWired is true once SubscribeIfaceEvents has run, gating per-interface
+	// subscriptions created by EnableInterface.
+	eventsWired bool
+
+	// teardown holds cleanup funcs (resolver-unsubscribe + rescan stop)
 	// registered by SubscribeIfaceEvents. Close runs them before waiting on wg so
-	// the subscription worker goroutine exits and wg.Wait does not deadlock.
+	// the per-interface reader goroutines exit and wg.Wait does not deadlock.
 	teardown []func()
 
 	metrics *transportMetrics
@@ -131,11 +134,13 @@ type Transport struct {
 // tests.
 func New(backend Backend) *Transport {
 	return &Transport{
-		backend:  backend,
-		enabled:  make(map[string]Level),
-		circuits: make(map[string]*circuit),
-		deliver:  make(chan RawFrame, 256),
-		metrics:  nopTransportMetrics(),
+		backend:   backend,
+		enabled:   make(map[string]Level),
+		circuits:  make(map[string]*circuit),
+		ifaceSubs: make(map[string]func()),
+		subscribe: iface.Subscribe,
+		deliver:   make(chan RawFrame, 256),
+		metrics:   nopTransportMetrics(),
 	}
 }
 
@@ -157,16 +162,28 @@ func (t *Transport) SetMetrics(reg metrics.Registry) {
 // SendPDUBothLevels covers an L1L2 circuit.
 func (t *Transport) EnableInterface(name string, level Level) {
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	t.enabled[name] = level
+	wired := t.eventsWired
+	t.mu.Unlock()
+	// If the event path is already wired, subscribe this interface now so a
+	// later link event reaches it. If not, SubscribeIfaceEvents will subscribe
+	// every enabled interface when it runs.
+	if wired {
+		t.subscribeIface(name)
+	}
 }
 
-// DisableInterface removes an interface from the enabled set and closes any open
-// circuit on it.
+// DisableInterface removes an interface from the enabled set, cancels its
+// resolver subscription, and closes any open circuit on it.
 func (t *Transport) DisableInterface(name string) {
 	t.mu.Lock()
 	delete(t.enabled, name)
+	cancel := t.ifaceSubs[name]
+	delete(t.ifaceSubs, name)
 	t.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 	if err := t.HandleLinkDown(name); err != nil {
 		logger().Warn("isis/transport: close on disable", "interface", name, "err", err)
 	}
@@ -194,28 +211,50 @@ func (t *Transport) OnMTUMismatch(fn func(name string, localMTU, neighborMTU int
 // PDU type; the dispatcher (isis-4 server.go) does.
 func (t *Transport) Receive() <-chan RawFrame { return t.deliver }
 
-// linkEvent is an iface up/down event queued for the worker. up=false means
-// down.
-type linkEvent struct {
-	name string
-	up   bool
+// subscribeIface starts a resolver subscription for one interface and runs a
+// goroutine that opens or closes its circuit on appeared/up/down. The resolver
+// delivers events under the LOGICAL interface name even when an os-name selector
+// maps it to a different kernel device, so HandleLinkUp/Down receive the name
+// t.enabled is keyed by. The reader goroutine -- not an EventBus handler -- does
+// the socket I/O, which it may legitimately block on (the resolver fan-out is
+// non-blocking and drops on a full channel; the rescan backstop recovers a
+// dropped up). Idempotent: a duplicate subscription is canceled immediately.
+func (t *Transport) subscribeIface(name string) {
+	ch, cancel := t.subscribe(name)
+	t.mu.Lock()
+	if _, dup := t.ifaceSubs[name]; dup || !t.eventsWired {
+		t.mu.Unlock()
+		cancel()
+		return
+	}
+	t.ifaceSubs[name] = cancel
+	t.mu.Unlock()
+
+	t.wg.Go(func() {
+		for ev := range ch {
+			var err error
+			if ev.Kind == iface.LinkDown {
+				err = t.HandleLinkDown(ev.Name)
+			} else {
+				err = t.HandleLinkUp(ev.Name)
+			}
+			if err != nil {
+				logger().Warn("isis/transport: iface event handling",
+					"interface", ev.Name, "kind", string(ev.Kind), "err", err)
+			}
+		}
+	})
 }
 
-// ifacePayload is the JSON shape of an iface up/down event (monitor_linux.go
-// stateEventPayload / linkEventPayload). Only the name is needed here.
-type ifacePayload struct {
-	Name string `json:"name"`
-}
-
-// SubscribeIfaceEvents wires the iface EventBus so `interface/up` opens a
-// circuit and `interface/down` closes it for each IS-IS-enabled interface. The
-// EventBus handler MUST NOT block on I/O (pkg/ze/eventbus.go), so it only
-// enqueues the interface name; a worker goroutine performs the socket open/close
-// (which is I/O). A periodic rescan (rescanInterval) is the backstop: if a burst
-// of flaps overflows the bounded queue and an `interface/up` is dropped, the
-// rescan re-opens the stranded circuit without operator action. Returns an
-// unsubscribe function. Called by the IS-IS component (isis-4) at startup with
-// the engine EventBus.
+// SubscribeIfaceEvents wires the iface resolver so an interface appearing or
+// going up opens its circuit and a down event closes it, for each IS-IS-enabled
+// interface. A periodic rescan (rescanInterval) is the backstop: if a burst of
+// flaps overflows a resolver subscription's bounded channel and an up event is
+// dropped, the rescan re-opens the stranded circuit without operator action.
+// Returns an unsubscribe function. Called by the IS-IS component (isis-4) at
+// startup. eb is the availability gate: a nil bus means no monitor is running,
+// so there are no link events to wire (the resolver's own event source is the
+// iface component, wired separately).
 func (t *Transport) SubscribeIfaceEvents(eb ze.EventBus) func() {
 	return t.subscribeIfaceEventsWithRescan(eb, rescanInterval)
 }
@@ -228,47 +267,22 @@ func (t *Transport) subscribeIfaceEventsWithRescan(eb ze.EventBus, interval time
 	if eb == nil {
 		return func() {}
 	}
-	work := make(chan linkEvent, ifaceEventQueueDepth)
-	t.wg.Go(func() {
-		for ev := range work {
-			var err error
-			if ev.up {
-				err = t.HandleLinkUp(ev.name)
-			} else {
-				err = t.HandleLinkDown(ev.name)
-			}
-			if err != nil {
-				logger().Warn("isis/transport: iface event handling", "interface", ev.name, "up", ev.up, "err", err)
-			}
-		}
-	})
+	t.mu.Lock()
+	t.eventsWired = true
+	names := make([]string, 0, len(t.enabled))
+	for n := range t.enabled {
+		names = append(names, n)
+	}
+	t.mu.Unlock()
 
-	enqueue := func(name string, up bool) {
-		if name == "" {
-			return
-		}
-		select {
-		case work <- linkEvent{name: name, up: up}:
-		default: // worker backed up; the periodic rescan recovers a dropped up-event
-			logger().Warn("isis/transport: iface event queue full, dropping", "interface", name, "up", up)
-		}
+	// Subscribe every already-enabled interface; EnableInterface handles any
+	// enabled after this point.
+	for _, n := range names {
+		t.subscribeIface(n)
 	}
 
-	unUp := eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventUp, events.AsString(func(data string) {
-		var p ifacePayload
-		if json.Unmarshal([]byte(data), &p) == nil {
-			enqueue(p.Name, true)
-		}
-	}))
-	unDown := eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDown, events.AsString(func(data string) {
-		var p ifacePayload
-		if json.Unmarshal([]byte(data), &p) == nil {
-			enqueue(p.Name, false)
-		}
-	}))
-
 	// Periodic rescan backstop: re-open any enabled-but-closed circuit so a
-	// dropped `interface/up` self-heals. stopRescan is closed by cleanup.
+	// dropped up event self-heals. stopRescan is closed by cleanup.
 	stopRescan := make(chan struct{})
 	if interval > 0 {
 		t.wg.Go(func() {
@@ -288,10 +302,20 @@ func (t *Transport) subscribeIfaceEventsWithRescan(eb ze.EventBus, interval time
 	var once sync.Once
 	cleanup := func() {
 		once.Do(func() {
-			unUp()
-			unDown()
+			t.mu.Lock()
+			t.eventsWired = false
+			cancels := make([]func(), 0, len(t.ifaceSubs))
+			for n, c := range t.ifaceSubs {
+				cancels = append(cancels, c)
+				delete(t.ifaceSubs, n)
+			}
+			t.mu.Unlock()
+			// Cancel each subscription: closing its channel ends the reader
+			// goroutine so wg.Wait does not deadlock.
+			for _, c := range cancels {
+				c()
+			}
 			close(stopRescan)
-			close(work)
 		})
 	}
 	t.mu.Lock()

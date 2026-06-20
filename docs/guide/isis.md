@@ -9,6 +9,16 @@ user-facing behaviour; the wire format is documented in
 <!-- This page is the shared IS-IS user guide. Each child spec adds its section;
      keep sections in feature order. -->
 
+> **Interface names are logical.** `interface <name>` in an `isis { }` block refers to
+> the Ze *logical* interface name, not necessarily the kernel device name. By default
+> the logical name equals the kernel device, but an interface configured with an
+> `os-name` selector binds a logical name to a different kernel device; IS-IS resolves
+> the name to its kernel device through the shared iface resolver. See
+> [Logical Name and the `os-name` Selector](configuration.md#logical-name-and-the-os-name-selector).
+
+<!-- source: internal/plugins/isis/circuits.go -- interfaceIPv4/interfaceIPv6LinkLocal via iface.Addresses -->
+<!-- source: internal/plugins/isis/transport/backend_linux.go -- resolveInterface via iface.Resolve -->
+
 ## Broadcast LANs: DIS election and pseudo-nodes
 
 On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh

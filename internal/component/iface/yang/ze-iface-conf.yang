@@ -30,9 +30,15 @@ module ze-iface-conf {
         }
 
         leaf os-name {
-            ze:hidden "true";
             type string;
-            description "Original OS interface name at discovery time";
+            description
+                "OS/kernel device this logical interface name binds to. When
+                 omitted, the logical name is used as the OS device name, so
+                 every interface whose name already matches its kernel device
+                 resolves unchanged. Set it to alias a human-readable interface
+                 name to a different kernel device; the iface resolver maps the
+                 logical name to this OS device (ze init records the discovered
+                 OS name here).";
         }
 
         leaf disable {

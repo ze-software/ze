@@ -56,6 +56,28 @@ type ifaceConfig struct {
 	previousManaged map[string]bool // runtime-only: names Ze managed before this apply
 }
 
+// osNameMap returns the logical-name -> os-name overrides for every ethernet
+// entry that sets the os-name selector. Ethernet is the matched physical kind:
+// it binds to a pre-existing kernel device, so an operator may alias a logical
+// name to a different OS device name. Created kinds (dummy/veth/bridge/tunnel/
+// wireguard/xfrm) are created by Ze under the logical name, so they are never
+// aliased here. Entries without os-name are omitted; the resolver defaults
+// them to the logical name (so every name == os-name config resolves
+// unchanged).
+func (c *ifaceConfig) osNameMap() map[string]string {
+	if c == nil {
+		return nil
+	}
+	out := make(map[string]string)
+	for i := range c.Ethernet {
+		e := &c.Ethernet[i]
+		if e.OSName != "" && e.OSName != e.Name {
+			out[e.Name] = e.OSName
+		}
+	}
+	return out
+}
+
 // tunnelEntry represents a configured tunnel interface. The Spec carries
 // the encapsulation kind plus per-kind parameters; the embedded ifaceEntry
 // carries the shared physical and unit fields (mtu, mac, addresses).
@@ -99,6 +121,7 @@ type pppoeClientEntry struct {
 // ifaceEntry represents a configured interface (ethernet or dummy).
 type ifaceEntry struct {
 	Name       string
+	OSName     string // os-name selector: kernel device this logical name maps to (empty = name itself)
 	MTU        int
 	MACAddress string
 	Disable    bool
@@ -799,6 +822,9 @@ func parseIfaceEntry(name string, m map[string]any) (ifaceEntry, error) {
 	entry := ifaceEntry{Name: name}
 	if m == nil {
 		return entry, nil
+	}
+	if osn, ok := m["os-name"].(string); ok {
+		entry.OSName = osn
 	}
 	if mtu, ok := m["mtu"].(string); ok {
 		entry.MTU, _ = strconv.Atoi(mtu)

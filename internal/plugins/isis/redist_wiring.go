@@ -18,9 +18,9 @@
 package isis
 
 import (
-	"net"
 	"net/netip"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/lsdb"
 	isisredistribute "codeberg.org/thomas-mangin/ze/internal/plugins/isis/redistribute"
 )
@@ -167,35 +167,25 @@ func (e *engine) refreshConnectedPrefixes() {
 }
 
 // interfaceIPv4Prefixes returns the named interface's connected IPv4 prefixes
-// (network-masked), queried from the OS (the standard library, no Ze coupling). A
+// (network-masked), resolved via the iface resolver (logical-name aware). A
 // missing interface or read error yields an empty slice (the interface advertises
 // no connected prefix). IPv6 (TLV 236) is owned by isis-12, so only IPv4 prefixes
 // are returned here.
 func interfaceIPv4Prefixes(name string) []netip.Prefix {
-	iface, err := net.InterfaceByName(name)
-	if err != nil {
-		return nil
-	}
-	addrs, err := iface.Addrs()
+	addrs, err := iface.Addresses(name)
 	if err != nil {
 		return nil
 	}
 	out := make([]netip.Prefix, 0, len(addrs))
 	for _, a := range addrs {
-		ipnet, ok := a.(*net.IPNet)
-		if !ok {
+		if a.Family != familyIPv4 {
 			continue
 		}
-		v4 := ipnet.IP.To4()
-		if v4 == nil {
+		addr, perr := netip.ParseAddr(a.Address)
+		if perr != nil || !addr.Is4() {
 			continue
 		}
-		addr, ok := netip.AddrFromSlice(v4)
-		if !ok {
-			continue
-		}
-		ones, _ := ipnet.Mask.Size()
-		p := netip.PrefixFrom(addr, ones)
+		p := netip.PrefixFrom(addr, a.PrefixLength)
 		if !p.IsValid() {
 			continue
 		}

@@ -27,6 +27,9 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink" // register the netlink iface backend so iface.Resolve works
 )
 
 const (
@@ -100,6 +103,13 @@ func withVethPair(t *testing.T, mtuA, mtuB int, fn func()) {
 		if uerr := netlink.LinkSetUp(link); uerr != nil {
 			t.Fatalf("up %q: %v", name, uerr)
 		}
+	}
+
+	// OpenCircuit now resolves the interface through the iface resolver, which
+	// needs the netlink backend loaded (as it always is in production). Load it
+	// inside the netns so iface.Resolve finds the veths created above.
+	if err := iface.LoadBackend("netlink"); err != nil {
+		t.Fatalf("load iface backend: %v", err)
 	}
 
 	fn()

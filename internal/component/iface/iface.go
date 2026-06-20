@@ -134,6 +134,60 @@ type AddrInfo struct {
 	Address      string `json:"address"`
 	PrefixLength int    `json:"prefix-length"`
 	Family       string `json:"family"`
+	// LinkLocal is true for an IPv6 link-local (fe80::/10) address. It is set
+	// by the resolver's Addresses() classifier so consumers (IS-IS) can split
+	// v6 link-local from v6 global without re-parsing each address. Always
+	// false for IPv4. Omitted from JSON when false.
+	LinkLocal bool `json:"link-local,omitempty"`
+}
+
+// Binding is the value snapshot the resolver returns from Resolve. It is a
+// pure value type -- it carries NO netlink.Link or *net.Interface -- so a
+// consumer that holds a logical interface name (IS-IS, PPPoE, ...) gets the
+// ifindex/MAC/MTU it needs without coupling to the netlink backend
+// (rules/plugin-design.md cross-boundary value types). It carries exactly
+// what the old per-consumer ioctl wrappers produced (Ifindex, OperMAC, MTU)
+// plus the os-name / permanent-MAC / state the resolver now owns.
+type Binding struct {
+	// Ifindex is the kernel interface index of the resolved OS device.
+	Ifindex int
+	// OsName is the kernel device name the logical name resolved to via the
+	// os-name selector (defaulting to the logical name itself).
+	OsName string
+	// OperMAC is the current (operational) hardware address, which an operator
+	// may have overridden.
+	OperMAC string
+	// PermMAC is the permanent/factory hardware address (IFLA_PERM_ADDRESS),
+	// empty for virtual/created kinds that have none.
+	PermMAC string
+	// MTU is the device MTU.
+	MTU int
+	// State is the operational state ("up", "down", ...).
+	State string
+}
+
+// LinkEventKind classifies a resolver LinkEvent.
+type LinkEventKind string
+
+const (
+	// LinkAppeared signals the subscribed interface was created (first seen).
+	LinkAppeared LinkEventKind = "appeared"
+	// LinkUp signals the subscribed interface transitioned to up.
+	LinkUp LinkEventKind = "up"
+	// LinkDown signals the subscribed interface went down or was removed
+	// (RTM_DELLINK arrives from the monitor as a down event).
+	LinkDown LinkEventKind = "down"
+)
+
+// LinkEvent is delivered on a Subscribe channel when the link state of the
+// subscribed logical name changes. It lets async consumers (IS-IS circuit
+// lifecycle, LDP, DHCP) react to an interface appearing or going up/down
+// instead of polling. Name is the logical name the consumer subscribed with,
+// even when an os-name selector maps it to a different kernel device.
+type LinkEvent struct {
+	Name  string
+	Kind  LinkEventKind
+	Index int
 }
 
 // RouteInfo describes a routing table entry. Used by ListRoutes for

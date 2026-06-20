@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | spec-iface-resolve-0-umbrella, spec-iface-resolve-1-model |
-| Phase | 2 (resolver) |
+| Phase | 1/4 (wiring) |
 | Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
@@ -274,15 +274,31 @@ N/A — internal resolver API; no wire-protocol behavior. (Proven end-to-end by 
 | goroutine leak | Subscribe cancel path (R-2) |
 | 3 fix attempts fail | STOP, report, ask user |
 
+## Scope Merge (user-approved)
+
+This unit MERGED sub-spec 3 (IS-IS migration) into sub-spec 2, because the repo
+wiring gate (`ze-verify-wiring-docs`) rejects exported symbols with no production
+caller, so the resolver API cannot land alone. The user chose "Merge IS-IS
+migration in" and "Migrate IS-IS event path too". Delivered here: `Resolve` /
+`Addresses` / `Subscribe` + cache + os-name translation; the `os-name` selector
+config (un-hidden leaf + `parseIfaceEntry` + `osNameMap`); and the full IS-IS
+migration (transport `resolveInterface` -> `iface.Resolve`; 5 address helpers ->
+`iface.Addresses`; the transport link-event path -> per-circuit `iface.Subscribe`).
+
 ## Mistake Log
 
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| Monitor emits a `TopicDeleted` event (AC-5 / R-6 wording) | RTM_DELLINK maps to `EventDown`, not a distinct deleted event; events live under `ifaceevents.Namespace` (`created`/`up`/`down`), not the `iface.Topic*` constants | Reading `monitor_linux.go` `handleLinkUpdate` (L204-213) | Cache invalidation hooks `EventDown` (covers delete); the resolver decodes `EventCreated`/`EventUp`/`EventDown` |
+| Monitor delivers the typed Go payload struct | Monitor marshals to JSON and emits the **string**; in-process subscribers get a JSON string | Reading `monitor_linux.go` `emit` | `decodeLinkEvent` json-unmarshals the string into `{name,index}` |
+| The `os-name` leaf is parsed into the runtime config | The leaf was `ze:hidden` and parsed by **nothing** (dormant, written only by `ze init`); `ifaceConfig`/`ifaceEntry` had no `OSName` field | Grepping config.go for os-name | Added `ifaceEntry.OSName` + `parseIfaceEntry` read + un-hid the YANG leaf so the selector is real |
+| IS-IS integration tests would pass unchanged | `OpenCircuit`/address helpers now call `iface.Resolve`/`Addresses`, which need the iface backend loaded; the integration tests never loaded it | Tracing `startRealEngine` / transport `withVethPair` | Load `iface.LoadBackend("netlink")` in the integration helpers (mirrors production) |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
+| Keep IS-IS event path on the raw EventBus, translate kernel->logical | Leaves `iface.Subscribe` unwired (wiring gate BLOCKER) and a kernel-name-keyed handler misses os-name-remapped circuits | Per-circuit `iface.Subscribe` with a reader goroutine into the existing rescan-backed lifecycle |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
@@ -299,19 +315,34 @@ N/A — internal resolver API; no wire-protocol behavior. (Proven end-to-end by 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| shared resolver covering all external needs | unit tests | `resolve_test.go` AC-1..AC-7 |
-| async consumers stop polling | functional test | `test/iface/iface-resolver-events.ci` |
+| shared resolver covering all external needs (value Binding, no netlink leak) | host unit tests | `resolve_test.go` AC-1..AC-7 + `TestResolveByOsName` (all PASS on darwin host) |
+| logical name resolves to a DIFFERENT real kernel device (the core decoupling) | QEMU integration | `TestResolveRemapsLogicalNameToOSDevice` PASS (logical "uplink" -> real dummy `zeosdev0`) |
+| address list reproduces IS-IS v4 / v6-LL / v6-global split on a real iface | QEMU integration | `TestAddressesRemapAndClassify` PASS |
+| IS-IS references the logical name end-to-end (proof consumer) | QEMU integration | `TestISISAdjacencyUpVeth` + `TestISISTransportRawSocketCap` PASS, routed through `iface.Resolve` |
+| IS-IS event path is logical-name aware (circuit open/close) | host unit | `TestISISTransportEventOpensAndCloses` + `TestISISTransportLateEnableSubscribes` PASS |
+| os-name selector config surface | host unit + `.ci` | `TestParseIfaceEntryOSName`, `TestOSNameMapSkipsIdentityAndAbsent`; `test/isis/isis-logical-name.ci` |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | BLOCKER / ISSUE / NOTE | [from /ze-review] | file:line | fixed / deferred / acknowledged |
+| 1 | BLOCKER | Resolver API would land with no production caller (wiring gate) | new exported symbols | fixed -- merged IS-IS migration so `Resolve`/`Addresses`/`Subscribe` all have IS-IS callers; `ze-verify-wiring-docs` "all references valid" |
+| 2 | ISSUE | IS-IS integration tests resolve via `iface.Resolve` but never load the iface backend | adjacency/transport integration helpers | fixed -- `iface.LoadBackend("netlink")` in the shared helpers; QEMU PASS |
+| 3 | ISSUE | Spec assumed a `TopicDeleted` event and typed payloads | resolve.go event handling | fixed -- invalidate on `EventDown`, decode JSON-string payloads |
+| 4 | NOTE | Pre-existing `docs/DESIGN.md` plugin/family drift blocks the gate (not from this diff) | docs/DESIGN.md | fixed incidentally to keep the gate green |
+
+### Run 2 (/ze-review)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | NOTE | os-name-remapped *event* path not covered end-to-end (pieces unit-tested) | resolve.go bindEvents | fixed -- added `TestBindEventsDeliversRemappedEvent` (bus -> JSON decode -> remap -> subscriber + cache invalidation) |
+| 2 | NOTE | os-name silently ignored on non-ethernet kinds | osNameMap | fixed -- documented ethernet-only scope in configuration.md |
+| 3 | NOTE | Pre-existing HandleLinkUp/Down disable-race; pre-existing `ze-validate` unwired transport/iface symbols surfaced by touching the files | transport | acknowledged -- pre-existing, not introduced by this diff |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` pass: 0 BLOCKER, 0 ISSUE in this diff; 2 actionable NOTEs fixed, pre-existing items acknowledged
+- [x] IS-IS filter semantics preserved (QEMU adjacency PASS), no goroutine leak (Close teardown + reader-goroutine channel-close), empty-MAC / absent-device / os-name-identity handled
+- [x] test-relaxation audit: 1 documented relaxation (transport_test.go) confirmed valid (event source moved EventBus -> resolver; replaced coverage)
 
 ## Pre-Commit Verification
 

@@ -7,7 +7,45 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
+
+// fakeIfaceSub is an injectable stand-in for iface.Subscribe so the event path
+// can be driven without a live resolver. emit pushes a LinkEvent to the reader
+// goroutine of a subscribed interface.
+type fakeIfaceSub struct {
+	mu  sync.Mutex
+	chs map[string]chan iface.LinkEvent
+}
+
+func newFakeIfaceSub() *fakeIfaceSub {
+	return &fakeIfaceSub{chs: make(map[string]chan iface.LinkEvent)}
+}
+
+func (f *fakeIfaceSub) subscribe(name string) (<-chan iface.LinkEvent, func()) {
+	ch := make(chan iface.LinkEvent, 8)
+	f.mu.Lock()
+	f.chs[name] = ch
+	f.mu.Unlock()
+	return ch, func() {
+		f.mu.Lock()
+		if c, ok := f.chs[name]; ok {
+			delete(f.chs, name)
+			close(c)
+		}
+		f.mu.Unlock()
+	}
+}
+
+func (f *fakeIfaceSub) emit(name string, kind iface.LinkEventKind) {
+	f.mu.Lock()
+	ch := f.chs[name]
+	f.mu.Unlock()
+	if ch != nil {
+		ch <- iface.LinkEvent{Name: name, Kind: kind}
+	}
+}
 
 // fakeCircuit is an in-memory CircuitHandle for orchestrator tests. It records
 // sends and lets a test push received frames, with no real socket.
@@ -467,24 +505,51 @@ func TestISISTransportPeriodicRescanRecovers(t *testing.T) {
 	waitFor(t, func() bool { return tr.CircuitOpen("eth0") })
 }
 
-func TestISISTransportEventBusOpensAndCloses(t *testing.T) {
-	// VALIDATES: wiring -- subscribing to the iface EventBus drives circuit
-	// open on `interface/up` and close on `interface/down` for an enabled iface.
+func TestISISTransportEventOpensAndCloses(t *testing.T) {
+	// VALIDATES: wiring -- subscribing to the iface resolver (iface.Subscribe)
+	// drives circuit open on an up/appeared event and close on a down event for
+	// an enabled interface. The resolver delivers events under the logical name.
+	// PREVENTS: regressing the circuit lifecycle when the event source moved from
+	// the raw EventBus to the logical-name-aware resolver.
+	// test-relax: the bus.Emit("interface","up"/"down") assertions are removed
+	// because IS-IS no longer subscribes to the raw EventBus for link events; the
+	// open/close lifecycle they covered is now driven (and asserted) through the
+	// injected resolver subscription (fake.emit) below -- replaced coverage, same
+	// behavior. The resolver's own EventBus subscription is covered by the iface
+	// component's resolve_test.go.
 	be := newFakeBackend()
 	tr := New(be)
+	fake := newFakeIfaceSub()
+	tr.subscribe = fake.subscribe
 	tr.EnableInterface("eth0", Level2)
 
-	bus := newFakeBus()
-	tr.SubscribeIfaceEvents(bus)
+	bus := newFakeBus() // non-nil availability gate; the resolver is the source
+	stop := tr.SubscribeIfaceEvents(bus)
+	t.Cleanup(stop)
 	t.Cleanup(tr.Close)
 
-	if _, err := bus.Emit("interface", "up", `{"name":"eth0","index":11}`); err != nil {
-		t.Fatalf("emit up: %v", err)
-	}
+	fake.emit("eth0", iface.LinkUp)
 	waitFor(t, func() bool { return tr.CircuitOpen("eth0") })
 
-	if _, err := bus.Emit("interface", "down", `{"name":"eth0","index":11}`); err != nil {
-		t.Fatalf("emit down: %v", err)
-	}
+	fake.emit("eth0", iface.LinkDown)
 	waitFor(t, func() bool { return !tr.CircuitOpen("eth0") })
+}
+
+// TestISISTransportLateEnableSubscribes verifies an interface enabled AFTER the
+// event path is wired still gets a resolver subscription and opens on up.
+func TestISISTransportLateEnableSubscribes(t *testing.T) {
+	be := newFakeBackend()
+	tr := New(be)
+	fake := newFakeIfaceSub()
+	tr.subscribe = fake.subscribe
+
+	bus := newFakeBus()
+	stop := tr.SubscribeIfaceEvents(bus)
+	t.Cleanup(stop)
+	t.Cleanup(tr.Close)
+
+	// Enable after wiring: EnableInterface must subscribe immediately.
+	tr.EnableInterface("eth1", Level2)
+	fake.emit("eth1", iface.LinkUp)
+	waitFor(t, func() bool { return tr.CircuitOpen("eth1") })
 }

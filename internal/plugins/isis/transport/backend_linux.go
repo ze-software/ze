@@ -23,11 +23,13 @@ package transport
 import (
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"time"
-	"unsafe"
 
 	"golang.org/x/sys/unix"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
 // rcvTimeout bounds a blocking Recvfrom so the RX goroutine wakes to check its
@@ -243,38 +245,28 @@ func joinMulticast(fd, ifindex int, mac [MACLen]byte) error {
 	return unix.SetsockoptPacketMreq(fd, unix.SOL_PACKET, unix.PACKET_ADD_MEMBERSHIP, &mreq)
 }
 
-// resolveInterface looks up an interface by name and returns its index, MAC, and
-// MTU via ioctl, mirroring internal/component/pppoe/kernel_linux.go.
+// resolveInterface resolves a logical IS-IS interface name to its kernel index,
+// operational MAC, and MTU via the shared iface resolver. The resolver
+// translates the logical name to its OS device through the os-name selector, so
+// IS-IS no longer resolves the kernel device itself (and no longer duplicates
+// the SIOCGIF* ioctl wrapper): the name it is given is the logical interface
+// name, which may differ from the kernel device name.
 func resolveInterface(name string) (ifindex int, hwaddr [MACLen]byte, mtu int, err error) {
-	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, 0)
-	if err != nil {
-		return 0, hwaddr, 0, fmt.Errorf("isis/transport: socket for ioctl(%s): %w", name, err)
+	b, rerr := iface.Resolve(name)
+	if rerr != nil {
+		return 0, hwaddr, 0, fmt.Errorf("isis/transport: resolve %s: %w", name, rerr)
 	}
-	defer closeFD(fd)
-
-	ifr, err := unix.NewIfreq(name)
-	if err != nil {
-		return 0, hwaddr, 0, fmt.Errorf("isis/transport: ifreq(%s): %w", name, err)
+	if b.OperMAC != "" {
+		mac, perr := net.ParseMAC(b.OperMAC)
+		if perr != nil {
+			return 0, hwaddr, 0, fmt.Errorf("isis/transport: parse MAC %q for %s: %w", b.OperMAC, name, perr)
+		}
+		if len(mac) != MACLen {
+			return 0, hwaddr, 0, fmt.Errorf("isis/transport: %s MAC has %d bytes, want %d", name, len(mac), MACLen)
+		}
+		copy(hwaddr[:], mac)
 	}
-	if ierr := unix.IoctlIfreq(fd, unix.SIOCGIFINDEX, ifr); ierr != nil {
-		return 0, hwaddr, 0, fmt.Errorf("isis/transport: SIOCGIFINDEX(%s): %w", name, ierr)
-	}
-	ifindex = int(ifr.Uint32())
-
-	if ierr := unix.IoctlIfreq(fd, unix.SIOCGIFHWADDR, ifr); ierr != nil {
-		return 0, hwaddr, 0, fmt.Errorf("isis/transport: SIOCGIFHWADDR(%s): %w", name, ierr)
-	}
-	// SIOCGIFHWADDR returns sockaddr{sa_family(2), sa_data(14)}; Ifreq has no
-	// hwaddr accessor, so read the raw union past IFNAMSIZ and the 2-byte family.
-	ifrUnion := (*[24]byte)(unsafe.Add(unsafe.Pointer(ifr), unix.IFNAMSIZ)) //nolint:gosec // ioctl data layout
-	copy(hwaddr[:], ifrUnion[2:2+MACLen])
-
-	if ierr := unix.IoctlIfreq(fd, unix.SIOCGIFMTU, ifr); ierr != nil {
-		return 0, hwaddr, 0, fmt.Errorf("isis/transport: SIOCGIFMTU(%s): %w", name, ierr)
-	}
-	mtu = int(ifr.Uint32())
-
-	return ifindex, hwaddr, mtu, nil
+	return b.Ifindex, hwaddr, b.MTU, nil
 }
 
 func closeFD(fd int) {

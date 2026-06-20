@@ -38,8 +38,8 @@ correctness for speed of implementation.
 <!-- source: internal/component/bgp/attrpool/pool.go -- per-attribute-type dedup pools -->
 <!-- source: internal/component/bgp/context/registry.go -- ContextID for zero-copy decisions -->
 
-**Broad protocol coverage.** 21 address families (IPv4/IPv6 unicast, multicast, VPN,
-FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC), 13 capabilities
+**Broad protocol coverage.** 23 address families (IPv4/IPv6 unicast, multicast, VPN,
+FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC, SR-Policy), 13 capabilities
 (Multiprotocol Extensions, ASN4, ADD-PATH, Extended Message, Extended Next Hop,
 Graceful Restart, Long-Lived Graceful Restart, Route Refresh, Enhanced Route Refresh,
 BGP Role, Hostname, Software Version, Link-Local Next Hop), 65 registered plugins,
@@ -330,11 +330,14 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-nlri-labeled` | MPLS labeled NLRI encode/decode |
 | `bgp-nlri-mvpn` | Multicast VPN NLRI decode |
 | `bgp-nlri-rtc` | Route Target Constraint NLRI decode |
+| `bgp-nlri-srpolicy` | SR-Policy NLRI encode/decode (SAFI 73, RFC 9830) |
+| `bgp-capa` | Core BGP capability decoding (multiprotocol, asn4, add-path, paths-limit, extended-nexthop, extended-message) |
 | `bgp-filter-aspath` | AS-path filter (regex + exact match) |
 | `bgp-filter-aspath-length` | Named AS-path length filter by hop count |
 | `bgp-filter-remove-private-as` | AS-path action filter that removes RFC 6996 Private Use ASNs |
 | `bgp-filter-prefix` | Prefix-list filter |
 | `bgp-filter-irr` | IRR-based prefix-list filter for eBGP peers |
+| `firewall-irr` | IRR-based prefix-list filtering for firewall rules |
 | `bgp-filter-modify` | Attribute modification filter (set LP, prepend, communities) |
 | `bgp-filter-community-match` | Community match filter |
 | `bgp-healthcheck` | Link/target health-dependent route withdrawal |
@@ -348,6 +351,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `sysctl` | Kernel sysctl tuning |
 | `sysrib` | System RIB (route table management) |
 | `kernel` | Redistribute externally installed kernel routes into BGP |
+| `mrt` | MRT routing information export (RFC 6396) |
 | `fib-kernel` | FIB route installation via netlink |
 | `fib-p4` | FIB route installation via P4 backend |
 | `fib-vpp` | FIB route installation via VPP binary API |

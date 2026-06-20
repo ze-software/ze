@@ -824,6 +824,36 @@ config entry and the physical (or virtual) hardware.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ethernet, veth, bridge, dummy, loopback definitions -->
 
+### Logical Name and the `os-name` Selector
+
+An interface `name` is a logical, human-readable handle chosen by the operator. By
+default the logical name is also used as the OS/kernel device name, so every interface
+whose name already matches its kernel device resolves unchanged. To alias a logical name
+to a *different* kernel device, set the `os-name` selector on an ethernet interface:
+
+```
+interface {
+    ethernet uplink {
+        os-name eth0;   # logical "uplink" binds to kernel device eth0
+    }
+}
+```
+
+Every subsystem that takes an interface (IS-IS, routing, and others) refers to the
+logical name. A shared resolver in the `iface` component maps the logical name to its
+kernel device via the `os-name` selector (defaulting to the name itself) and serves the
+ifindex, MAC, MTU, and addresses, so operator-facing names are decoupled from kernel
+device names. IS-IS, for example, resolves `isis { interface uplink { } }` to kernel
+device `eth0` through this resolver.
+
+The `os-name` selector applies to **ethernet** interfaces, the kind Ze matches against
+pre-existing kernel devices. Created kinds (dummy, veth, bridge, tunnels, wireguard,
+xfrm) are made by Ze under their logical name, so `os-name` is ignored on them and the
+logical name is always the kernel device name.
+
+<!-- source: internal/component/iface/resolve.go -- Resolve, Addresses, effectiveOSName -->
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf os-name -->
+
 ### MAC Address Binding
 
 For ethernet, veth, and bridge interfaces, the MAC address (`mac { address }`) is optional:
@@ -837,8 +867,9 @@ when a MAC is set it ties the named config entry to a specific hardware address.
 
 Running `ze init` discovers OS interfaces via netlink (Linux) or stdlib (other platforms)
 and writes initial config to `ze.conf`. Each discovered interface gets an entry named
-after its OS name, with `mac { address }` populated and an `os-name` hidden field preserving
-the original OS name. Loopback appears as an empty `loopback { }` container.
+after its OS name, with `mac { address }` populated and the `os-name` selector recording
+the original OS device name (so renaming the config entry still maps back to the kernel
+device). Loopback appears as an empty `loopback { }` container.
 
 <!-- source: internal/plugins/init/main.go -- generateInterfaceConfig -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->

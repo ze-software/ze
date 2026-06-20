@@ -371,6 +371,11 @@ func runEngine(conn net.Conn) int {
 			return joinApplyErrors("interface config", errs)
 		}
 		activeCfg.Store(cfg)
+		// Publish the logical<->os-name mapping to the shared resolver so
+		// consumers (IS-IS, ...) that call iface.Resolve translate a logical
+		// name to its kernel device. Done on every apply so a config change
+		// re-points the binding.
+		setResolverConfig(cfg)
 		log.Info("interface config applied")
 
 		eb := GetEventBus()
@@ -378,6 +383,10 @@ func runEngine(conn net.Conn) int {
 			log.Warn("interface plugin: no event bus configured, monitor will not start")
 			return nil
 		}
+
+		// Bind the shared resolver to the event bus so monitor link events
+		// invalidate its cache and drive iface.Subscribe consumers. Idempotent.
+		bindResolverEvents(eb)
 
 		if err := b.StartMonitor(eb); err != nil {
 			if errors.Is(err, ErrBackendNotReady) {

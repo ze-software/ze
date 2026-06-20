@@ -15,11 +15,11 @@
 package isis
 
 import (
-	"net"
 	"net/netip"
 	"slices"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/adjacency"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/circuit"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/types"
@@ -316,29 +316,30 @@ func advertisesIPv6(ic InterfaceConfig) bool {
 // TLV 240. A future spec may assign IDs explicitly.
 func localCircuitID(ifindex int) uint8 { return uint8(ifindex) }
 
+// AddrInfo.Family values returned by the iface resolver, used by the
+// interface-address helpers below to split v4 / v6.
+const (
+	familyIPv4 = "ipv4"
+	familyIPv6 = "ipv6"
+)
+
 // interfaceIPv4 returns the interface's primary IPv4 address for TLV 132
-// origination, queried from the OS (the standard library, no Ze coupling). It
-// returns an invalid address when the interface has no IPv4 or cannot be read;
-// the Hello then omits TLV 132. The per-interface config carries no address
-// today, so the OS is the source of truth for the interface address.
+// origination, resolved via the iface resolver (which maps the logical IS-IS
+// interface name to its OS device). It returns an invalid address when the
+// interface has no IPv4 or cannot be read; the Hello then omits TLV 132. The
+// per-interface config carries no address today, so the OS is the source of
+// truth for the interface address.
 func interfaceIPv4(ic InterfaceConfig) netip.Addr {
-	iface, err := net.InterfaceByName(ic.Name)
-	if err != nil {
-		return netip.Addr{}
-	}
-	addrs, err := iface.Addrs()
+	addrs, err := iface.Addresses(ic.Name)
 	if err != nil {
 		return netip.Addr{}
 	}
 	for _, a := range addrs {
-		ipnet, ok := a.(*net.IPNet)
-		if !ok {
+		if a.Family != familyIPv4 {
 			continue
 		}
-		if v4 := ipnet.IP.To4(); v4 != nil {
-			if addr, ok := netip.AddrFromSlice(v4); ok {
-				return addr
-			}
+		if addr, perr := netip.ParseAddr(a.Address); perr == nil && addr.Is4() {
+			return addr
 		}
 	}
 	return netip.Addr{}
@@ -346,35 +347,23 @@ func interfaceIPv4(ic InterfaceConfig) netip.Addr {
 
 // interfaceIPv6LinkLocal returns the interface's IPv6 LINK-LOCAL address (fe80::)
 // for TLV 232 origination in the IIH (RFC 5308 sec 3: a Hello carries only
-// link-local addresses), queried from the OS. It returns an invalid address when
-// the interface has no IPv6 link-local address or cannot be read; the IIH then
+// link-local addresses), resolved via the iface resolver. It returns an invalid
+// address when the interface has no IPv6 link-local address or cannot be read; the IIH then
 // omits TLV 232 (isis-12). The link-local address is the IPv6 SPF next-hop a
 // neighbor advertises to us.
 func interfaceIPv6LinkLocal(ic InterfaceConfig) netip.Addr {
 	if !advertisesIPv6(ic) {
 		return netip.Addr{}
 	}
-	iface, err := net.InterfaceByName(ic.Name)
-	if err != nil {
-		return netip.Addr{}
-	}
-	addrs, err := iface.Addrs()
+	addrs, err := iface.Addresses(ic.Name)
 	if err != nil {
 		return netip.Addr{}
 	}
 	for _, a := range addrs {
-		ipnet, ok := a.(*net.IPNet)
-		if !ok {
+		if a.Family != familyIPv6 || !a.LinkLocal {
 			continue
 		}
-		if ipnet.IP.To4() != nil {
-			continue // IPv4
-		}
-		addr, ok := netip.AddrFromSlice(ipnet.IP)
-		if !ok || !addr.Is6() {
-			continue
-		}
-		if addr.IsLinkLocalUnicast() {
+		if addr, perr := netip.ParseAddr(a.Address); perr == nil && addr.Is6() {
 			return addr.WithZone("") // strip any scope; the ifindex is carried separately
 		}
 	}
@@ -387,32 +376,20 @@ func interfaceIPv6LinkLocal(ic InterfaceConfig) netip.Addr {
 // be advertised in TLV 236). A missing interface or read error yields an empty
 // slice. Mirrors interfaceIPv4Prefixes for IPv6.
 func interfaceIPv6Prefixes(name string) []netip.Prefix {
-	iface, err := net.InterfaceByName(name)
-	if err != nil {
-		return nil
-	}
-	addrs, err := iface.Addrs()
+	addrs, err := iface.Addresses(name)
 	if err != nil {
 		return nil
 	}
 	out := make([]netip.Prefix, 0, len(addrs))
 	for _, a := range addrs {
-		ipnet, ok := a.(*net.IPNet)
-		if !ok {
-			continue
-		}
-		if ipnet.IP.To4() != nil {
-			continue // IPv4
-		}
-		addr, ok := netip.AddrFromSlice(ipnet.IP)
-		if !ok || !addr.Is6() {
-			continue
-		}
-		if addr.IsLinkLocalUnicast() {
+		if a.Family != familyIPv6 || a.LinkLocal {
 			continue // RFC 5308 sec 2: no link-local prefixes in TLV 236
 		}
-		ones, _ := ipnet.Mask.Size()
-		p := netip.PrefixFrom(addr.WithZone(""), ones)
+		addr, perr := netip.ParseAddr(a.Address)
+		if perr != nil || !addr.Is6() {
+			continue
+		}
+		p := netip.PrefixFrom(addr.WithZone(""), a.PrefixLength)
 		if !p.IsValid() {
 			continue
 		}
@@ -426,25 +403,17 @@ func interfaceIPv6Prefixes(name string) []netip.Prefix {
 // non-link-local addresses). Mirrors interfaceIPv6LinkLocal but for the LSP
 // scope. A missing interface or read error yields an empty slice.
 func interfaceIPv6NonLinkLocal(name string) []netip.Addr {
-	iface, err := net.InterfaceByName(name)
-	if err != nil {
-		return nil
-	}
-	addrs, err := iface.Addrs()
+	addrs, err := iface.Addresses(name)
 	if err != nil {
 		return nil
 	}
 	out := make([]netip.Addr, 0, len(addrs))
 	for _, a := range addrs {
-		ipnet, ok := a.(*net.IPNet)
-		if !ok {
+		if a.Family != familyIPv6 || a.LinkLocal {
 			continue
 		}
-		if ipnet.IP.To4() != nil {
-			continue
-		}
-		addr, ok := netip.AddrFromSlice(ipnet.IP)
-		if !ok || !addr.Is6() || addr.IsLinkLocalUnicast() {
+		addr, perr := netip.ParseAddr(a.Address)
+		if perr != nil || !addr.Is6() {
 			continue
 		}
 		out = append(out, addr.WithZone(""))

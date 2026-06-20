@@ -1,0 +1,39 @@
+# Test: IS-IS references a LOGICAL interface name decoupled from the kernel
+# device via the iface os-name selector (spec-iface-resolve-2 + IS-IS migration).
+#
+# VALIDATES: a config that names an ethernet interface `uplink` bound to kernel
+#            device `eth0` via the os-name selector, and runs IS-IS on the
+#            logical name `uplink`, validates through both the iface and isis
+#            schemas. This is the config-surface proof of the logical-name
+#            decoupling; live resolution to the real kernel device is proven by
+#            the QEMU integration tests (iface TestResolveRemapsLogicalNameToOSDevice
+#            and isis TestISISAdjacencyUpVeth, both routed through iface.Resolve).
+# PREVENTS:  a regression where os-name is not accepted on an ethernet interface
+#            (the selector was hidden/dormant before this unit), or IS-IS rejects
+#            an interface name that is not itself a kernel device name.
+#
+# PLATFORM: the `interface { backend netlink }` block is linux-only; skip on
+# darwin per rules/os-specific-tests.md.
+option=skip-os:value=darwin
+
+# --- Valid: logical name `uplink` -> kernel `eth0`, IS-IS on `uplink`. --------
+stdin=isis-logical:terminator=EOF_OK
+interface {
+	backend netlink
+	ethernet uplink {
+		os-name eth0
+	}
+}
+isis {
+	net 49.0001.0000.0000.0001.00
+	level l1-l2
+	interface uplink {
+		circuit-type point-to-point
+		level l1-l2
+	}
+}
+EOF_OK
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=isis-logical
+expect=exit:code=0
+expect=stdout:contains=configuration valid

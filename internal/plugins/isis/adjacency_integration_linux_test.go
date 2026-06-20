@@ -25,6 +25,8 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/iface/netlink" // register the netlink iface backend so iface.Resolve works
 	"codeberg.org/thomas-mangin/ze/internal/plugins/isis/transport"
 )
 
@@ -92,6 +94,12 @@ func withVethPair(t *testing.T, fn func()) {
 // CAP_NET_RAW is unavailable.
 func startRealEngine(t *testing.T, ifaceName, jsonCfg string) *engine {
 	t.Helper()
+	// IS-IS now resolves its interfaces through the iface resolver, which needs
+	// the netlink backend loaded (as it always is in production). Load it so
+	// OpenCircuit -> iface.Resolve finds the real device.
+	if err := iface.LoadBackend("netlink"); err != nil {
+		t.Fatalf("load iface backend: %v", err)
+	}
 	cfg, err := parseISISConfig(sec(jsonCfg))
 	if err != nil {
 		t.Fatalf("parseISISConfig: %v", err)
