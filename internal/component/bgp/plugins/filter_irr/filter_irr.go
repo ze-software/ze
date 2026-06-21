@@ -22,6 +22,23 @@ import (
 
 var errFilterIrrInvalidBgpConfigJson = errors.New("filter-irr: invalid bgp config JSON")
 
+const (
+	// perASNRefreshTimeout bounds a single ASN's IRR resolution on the periodic
+	// and manual ("update bgp irr ...") refresh paths, where no startup barrier
+	// is waiting.
+	perASNRefreshTimeout = 30 * time.Second
+
+	// firstResolveWait bounds how long handleFilterUpdate blocks an IRR-filtered
+	// UPDATE that arrives before the ASN's first background resolution has
+	// finished. It closes the startup-resolution race (the UPDATE waits for the
+	// list instead of getting a spurious "no-prefix-list" reject) without ever
+	// gating ze startup: configure returns immediately and only this one filtered
+	// UPDATE waits. It is comfortably above a typical IRR round-trip yet short
+	// enough that a genuinely-unreachable IRR server fails the UPDATE closed
+	// promptly rather than hanging the route's processing.
+	firstResolveWait = 5 * time.Second
+)
+
 var logger = slogutil.LazyLogger("bgp.filter.irr")
 
 type irrMetrics struct {
@@ -50,6 +67,46 @@ type asnState struct {
 	v4Count   int
 	v6Count   int
 	peerAddrs []string
+
+	// firstDone is closed exactly once, by signalFirstResolved, when this ASN's
+	// FIRST resolution attempt completes (whether it succeeded, failed, or found
+	// nothing). A filter UPDATE that arrives while list is still nil waits on
+	// this channel (bounded) before deciding -- so the spurious "no-prefix-list"
+	// reject of the startup-resolution race becomes a short wait, while a
+	// genuinely-empty list after resolution still fails closed. closeOnce guards
+	// the close so the periodic and manual refreshes that re-resolve the same ASN
+	// never close it twice.
+	firstDone chan struct{}
+	closeOnce sync.Once
+}
+
+// newASNState builds an enrolled ASN's state with its first-resolution signal
+// armed (open). Every ASN the configure path enrolls goes through here so
+// handleFilterUpdate always has a non-nil channel to wait on.
+func newASNState(asn uint32, asSet string) *asnState {
+	return &asnState{asn: asn, asSet: asSet, firstDone: make(chan struct{})}
+}
+
+// signalFirstResolved closes firstDone the first time the ASN's resolution
+// completes; later refreshes are no-ops. Safe when firstDone is nil (test
+// states constructed as literals): the close is simply skipped.
+func (st *asnState) signalFirstResolved() {
+	if st == nil || st.firstDone == nil {
+		return
+	}
+	st.closeOnce.Do(func() { close(st.firstDone) })
+}
+
+// isClosed reports whether ch has been closed, without blocking. Used to skip
+// the first-resolution wait in the steady state (the common case once the first
+// resolution finished long ago).
+func isClosed(ch chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
 }
 
 type irrPlugin struct {
@@ -135,7 +192,7 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 		}
 		st, exists := newByASN[peer.RemoteASN]
 		if !exists {
-			st = &asnState{asn: peer.RemoteASN, asSet: peer.ASSet}
+			st = newASNState(peer.RemoteASN, peer.ASSet)
 			newByASN[peer.RemoteASN] = st
 		}
 		st.peerAddrs = append(st.peerAddrs, peer.PeerAddr)
@@ -160,6 +217,12 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 		if newSt.asSet == "" && oldSt.asSet != "" {
 			newSt.asSet = oldSt.asSet
 		}
+		// A reconfigure that carries over a resolved list has already cleared the
+		// first-resolution window for this ASN: a filter UPDATE must not wait for
+		// the upcoming re-resolution. Arm the new state as already-resolved.
+		if newSt.list != nil {
+			newSt.signalFirstResolved()
+		}
 	}
 	plug.byASN = newByASN
 	plug.prefixStore = ps
@@ -173,10 +236,53 @@ func (plug *irrPlugin) handleConfigure(bgpCfg map[string]any) {
 
 	plug.loadFromStore()
 
-	go plug.refreshAll()
+	// Resolve every enrolled ASN ONCE in the background, NOT inline. configure
+	// runs inside the plugin startup handshake, gated by the engine's stage
+	// barrier; a synchronous first resolution here would make ze startup depend
+	// on reaching the IRR server (default RADB), so an unreachable or slow IRR
+	// server would fail the configure stage and bring the whole BGP plugin set
+	// down -- even for a config that has BGP peers but no IRR import filter.
+	// Startup must never depend on external IRR reachability, so the first
+	// resolution is detached. The startup-resolution race (an UPDATE arriving for
+	// an IRR-filtered peer before this finishes) is closed at the filter layer:
+	// handleFilterUpdate waits (bounded) on each ASN's firstDone signal, which
+	// refreshAll closes per ASN below. The periodic refreshLoop keeps the list
+	// fresh thereafter.
+	go plug.initialResolve()
+
 	go plug.refreshLoop(cfg.RefreshInterval, refreshStop)
 
 	logger().Debug("configured", "peers", len(cfg.Peers), "asns", len(newByASN), "server", cfg.Server)
+}
+
+// initialResolve performs the first background resolution of every enrolled
+// ASN. It runs detached from the configure path (so startup never blocks on IRR
+// network I/O) and, unlike refreshAll, does NOT honor the refreshing CAS guard:
+// it must always do the work, because each ASN's firstDone signal (which
+// handleFilterUpdate waits on) is only closed by a completed resolution attempt.
+// signalFirstResolved is also called as a backstop for every enrolled ASN, so an
+// ASN whose live state vanished mid-refresh (e.g. a concurrent reconfigure) can
+// never leave a filter UPDATE blocked for the full wait timeout.
+func (plug *irrPlugin) initialResolve() {
+	plug.mu.RLock()
+	asns := make([]uint32, 0, len(plug.byASN))
+	for asn := range plug.byASN {
+		asns = append(asns, asn)
+	}
+	plug.mu.RUnlock()
+
+	for _, asn := range asns {
+		plug.refreshASN(asn)
+	}
+
+	// Backstop: refreshASN signals firstDone on its own completion paths, but a
+	// reconfigure between the snapshot above and now may have replaced the state;
+	// signal whatever is live so no ASN is left with an open firstDone.
+	plug.mu.RLock()
+	for _, st := range plug.byASN {
+		st.signalFirstResolved()
+	}
+	plug.mu.RUnlock()
 }
 
 func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
@@ -189,10 +295,36 @@ func (plug *irrPlugin) handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.Filter
 	plug.mu.RLock()
 	st := plug.byASN[asn]
 	var list *irrPrefixList
+	var firstDone chan struct{}
 	if st != nil {
 		list = st.list
+		firstDone = st.firstDone
 	}
 	plug.mu.RUnlock()
+
+	// Startup-resolution race: the first IRR resolution runs in the background
+	// (configure never blocks on IRR network I/O), so the first UPDATE for an
+	// IRR-filtered peer can arrive before that resolution has produced a
+	// prefix-list -- or while only a stale cached list (loaded from the store) is
+	// present. Until the first NETWORK resolution completes (firstDone closed),
+	// wait (bounded) for it instead of evaluating against nothing or against stale
+	// data; the background refresh closes firstDone on completion and re-reads the
+	// now-fresh list below. On timeout (IRR slow/unreachable) we fall through with
+	// whatever list we have -- the cached fallback if any, else the unchanged
+	// fail-closed reject. This blocks only this one IRR-filtered UPDATE; peers
+	// without an IRR import never reach here, and startup is never gated.
+	if firstDone != nil && !isClosed(firstDone) {
+		select {
+		case <-firstDone:
+		case <-time.After(firstResolveWait):
+		case <-plug.stopCh:
+		}
+		plug.mu.RLock()
+		if st = plug.byASN[asn]; st != nil {
+			list = st.list
+		}
+		plug.mu.RUnlock()
+	}
 
 	if list == nil || len(list.entries) == 0 {
 		logger().Info("irr filter reject", "filter", in.Filter, "peer", in.Peer, "reason", "no-prefix-list")
@@ -305,6 +437,17 @@ func (plug *irrPlugin) refreshAllNow() {
 }
 
 func (plug *irrPlugin) refreshASN(asn uint32) {
+	ctx, cancel := context.WithTimeout(context.Background(), perASNRefreshTimeout)
+	defer cancel()
+	plug.refreshASNCtx(ctx, asn)
+}
+
+// refreshASNCtx is refreshASN with a caller-supplied deadline. Every completion
+// path signals the live ASN state's firstDone so handleFilterUpdate's bounded
+// wait is released as soon as the first resolution attempt finishes -- whether
+// it succeeded, failed, or could not run (no store). periodic and manual
+// refreshes use the per-ASN timeout via refreshASN.
+func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 	plug.mu.RLock()
 	st := plug.byASN[asn]
 	ps := plug.prefixStore
@@ -314,11 +457,11 @@ func (plug *irrPlugin) refreshASN(asn uint32) {
 	}
 	plug.mu.RUnlock()
 	if st == nil || ps == nil {
+		// No live state, or no store to resolve against: the first-resolution
+		// attempt is over for this ASN (it will fail closed). Release any waiter.
+		st.signalFirstResolved()
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	// The shared store owns AS-SET discovery (PeeringDB), the IRR query, and
 	// zefs persistence. The ASN is the stable identity/key; the configured (or
@@ -342,6 +485,7 @@ func (plug *irrPlugin) refreshASN(asn uint32) {
 	}
 	if err != nil {
 		st.lastErr = err.Error()
+		st.signalFirstResolved()
 		plug.mu.Unlock()
 		logger().Warn("irr: lookup failed", "asn", asn, "as-set", asSet, "error", err)
 		incRefreshOutcome("error")
@@ -354,6 +498,7 @@ func (plug *irrPlugin) refreshASN(asn uint32) {
 	st.lastErr = ""
 	st.v4Count = len(pl.IPv4)
 	st.v6Count = len(pl.IPv6)
+	st.signalFirstResolved()
 	plug.lastRefresh = now
 	plug.mu.Unlock()
 

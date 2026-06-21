@@ -52,6 +52,12 @@ func (plug *irrPlugin) loadFromStore() {
 		if st.asSet == "" && entry.ASSet != "" {
 			st.asSet = entry.ASSet
 		}
+		// A cache hit gives this ASN a usable prefix-list as a FALLBACK, but it is
+		// not a completed network resolution: firstDone stays open so the first
+		// filter UPDATE still waits (bounded) for the fresh resolution and only
+		// falls back to this cached list if the IRR server is slow/unreachable.
+		// This keeps the cached data from being stale-but-authoritative for the
+		// first UPDATE while still serving it when the network is down.
 		logger().Info("irr: loaded from store", "asn", asn, "v4", len(pl.IPv4), "v6", len(pl.IPv6))
 	}
 }

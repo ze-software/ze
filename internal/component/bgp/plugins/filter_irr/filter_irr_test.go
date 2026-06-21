@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/irr/store"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve/peeringdb"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // VALIDATES: AC-5 -- concurrent filter evaluation during refresh sees consistent state.
@@ -438,6 +439,119 @@ func TestFilterIRRUsesStore(t *testing.T) {
 	}
 	if plug.prefixStore.Get("AS65001") == nil {
 		t.Error("store has no entry for AS65001 after refresh")
+	}
+}
+
+// VALIDATES: an IRR-filtered UPDATE that arrives BEFORE the first background
+// resolution has populated the prefix-list waits on the ASN's firstDone signal
+// (rather than rejecting with "no-prefix-list") and is then filtered on its
+// merits once the background resolution completes. This is the startup-resolution
+// race the filter-layer wait closes: configure resolves IRR asynchronously, so
+// the very first UPDATE for a configured-IRR peer can race the resolution.
+// PREVENTS: a configured-IRR peer's first UPDATE being spuriously rejected during
+// the background-resolution window.
+func TestFilterWaitsForFirstResolution(t *testing.T) {
+	addr := fakeIRRv4(t, map[string]string{"AS-TEST": "10.0.0.0/24"})
+	plug := &irrPlugin{
+		// firstDone armed (open) and list nil: exactly the state configure leaves
+		// an enrolled ASN in before the detached resolution runs.
+		byASN:       map[uint32]*asnState{65001: newASNState(65001, "AS-TEST")},
+		prefixStore: store.New(irr.NewIRR(addr), nil, ""),
+		stopCh:      make(chan struct{}),
+	}
+
+	// Detach the first resolution, exactly as handleConfigure now does. A short
+	// delay makes the filter UPDATE below genuinely arrive while the list is still
+	// nil, so it must exercise the bounded firstDone wait rather than reading a
+	// pre-populated list.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		plug.initialResolve()
+	}()
+
+	// The filter UPDATE blocks on firstDone (bounded by firstResolveWait), then
+	// re-reads the now-populated list and accepts the in-list prefix.
+	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
+		Filter: "bgp-filter-irr:65001",
+		Peer:   "127.0.0.1",
+		Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+	})
+	if out.Action == sdk.FilterReject {
+		st := plug.byASN[65001]
+		t.Fatalf("in-list prefix rejected while/after first resolution (list=%v lastErr=%q); want accept after wait",
+			st.list, st.lastErr)
+	}
+	if out.Action != sdk.FilterAccept {
+		t.Errorf("action = %v, want FilterAccept", out.Action)
+	}
+}
+
+// VALIDATES: the firstDone wait does NOT turn a genuinely-empty resolution into
+// an indefinite hang. When the first resolution completes but yields nothing
+// (IRR unreachable, no cached data), it closes firstDone with an empty list; the
+// filter's re-check then falls through to the unchanged fail-closed reject.
+// PREVENTS: regressing the fail-closed semantics for a configured-IRR peer whose
+// IRR legitimately resolves to no prefixes.
+func TestFilterFailClosedAfterEmptyResolution(t *testing.T) {
+	plug := &irrPlugin{
+		// IRR endpoint refused: resolution fails, no list is populated, firstDone
+		// is closed by the failed attempt.
+		byASN:       map[uint32]*asnState{65002: newASNState(65002, "AS-NONE")},
+		prefixStore: store.New(irr.NewIRR("127.0.0.1:1"), nil, ""),
+		stopCh:      make(chan struct{}),
+	}
+
+	// First resolution completes (failing) and closes firstDone, so the filter's
+	// wait returns immediately and re-checks the still-empty list.
+	plug.initialResolve()
+
+	out := plug.handleFilterUpdate(&sdk.FilterUpdateInput{
+		Filter: "bgp-filter-irr:65002",
+		Peer:   "127.0.0.1",
+		Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+	})
+	if out.Action != sdk.FilterReject {
+		t.Errorf("action = %v, want FilterReject (fail-closed on empty list)", out.Action)
+	}
+}
+
+// VALIDATES: the firstDone wait is bounded -- an IRR-filtered UPDATE whose ASN
+// resolution never completes (firstDone never closed, e.g. resolution still in
+// flight far longer than firstResolveWait) is not blocked forever; it falls
+// through to the fail-closed reject once the wait elapses. Uses a deliberately
+// short stub by closing stopCh, which also releases the wait, but the key
+// property under test is that handleFilterUpdate returns rather than hanging.
+func TestFilterWaitIsBounded(t *testing.T) {
+	plug := &irrPlugin{
+		// firstDone armed and never closed; list stays nil (no resolution runs).
+		byASN:  map[uint32]*asnState{65003: newASNState(65003, "AS-SLOW")},
+		stopCh: make(chan struct{}),
+	}
+
+	// Release the wait promptly via stopCh so the test stays fast while still
+	// proving handleFilterUpdate returns (does not block on a never-closed
+	// firstDone) and fails closed when no list ever materializes.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		close(plug.stopCh)
+	}()
+
+	done := make(chan *sdk.FilterUpdateOutput, 1)
+	go func() {
+		done <- plug.handleFilterUpdate(&sdk.FilterUpdateInput{
+			Filter: "bgp-filter-irr:65003",
+			Peer:   "127.0.0.1",
+			Update: "ipv4/unicast announce nlri ipv4/unicast add 10.0.0.0/24",
+		})
+	}()
+
+	select {
+	case out := <-done:
+		if out.Action != sdk.FilterReject {
+			t.Errorf("action = %v, want FilterReject (fail-closed, no list resolved)", out.Action)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("handleFilterUpdate did not return; firstDone wait is not bounded")
 	}
 }
 
