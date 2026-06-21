@@ -15,10 +15,26 @@ import (
 
 	"github.com/vishvananda/netlink"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/traffic"
 )
 
 var errNoRootQdiscFound = errors.New("no root qdisc found")
+
+// resolveOSName translates a logical interface name to its kernel device via the
+// shared iface resolver, so tc operations honor the os-name / mac-match
+// selectors. Best-effort: if no backend is loaded or the device is absent, the
+// name passes through unchanged (identical to pre-resolver behavior). Resolving
+// at the backend's logic methods -- not inside the tcOps kernel adapter -- keeps
+// the snapshot map and the kernel link keyed consistently on the os device name
+// (ensureSnapshot keys by link.Attrs().Name), so RestoreOriginal finds the
+// snapshot Apply stored even when the logical name differs from the os device.
+func resolveOSName(name string) string {
+	if b, err := iface.Resolve(name); err == nil && b.OsName != "" {
+		return b.OsName
+	}
+	return name
+}
 
 // backend implements traffic.Backend using vishvananda/netlink tc API.
 type backend struct {
@@ -70,7 +86,7 @@ func (b *backend) Apply(ctx context.Context, desired map[string]traffic.Interfac
 
 	for _, name := range sortedDesiredNames(desired) {
 		qos := desired[name]
-		link, err := b.ops.linkByName(name)
+		link, err := b.ops.linkByName(resolveOSName(name))
 		if err != nil {
 			return fmt.Errorf("trafficnetlink: interface %q: %w", name, err)
 		}
@@ -195,6 +211,15 @@ func (b *backend) RestoreOriginal(ctx context.Context, ifaceName string) error {
 }
 
 func (b *backend) restoreOriginalLocked(ifaceName string) error {
+	// Resolve to the os device so the snapshot lookup (Apply stores snapshots
+	// keyed by os via ensureSnapshot's link.Attrs().Name) and the kernel link
+	// agree even when the caller passes a logical name. Idempotent when
+	// ifaceName is already an os device. If the device is gone, resolution
+	// fails and falls back to the logical name; the os-keyed snapshot is then
+	// not found and restore is a correct no-op -- a removed device has no tc
+	// state to restore, and ensureSnapshot re-validates (and replaces on a
+	// bootID change) any stale snapshot when the device returns.
+	ifaceName = resolveOSName(ifaceName)
 	snap, ok := b.snapshots[ifaceName]
 	if !ok {
 		return nil
@@ -230,7 +255,7 @@ func (b *backend) saveSnapshots() error {
 
 // ListQdiscs returns current tc state for an interface.
 func (b *backend) ListQdiscs(ifaceName string) (traffic.InterfaceQoS, error) {
-	link, err := b.ops.linkByName(ifaceName)
+	link, err := b.ops.linkByName(resolveOSName(ifaceName))
 	if err != nil {
 		return traffic.InterfaceQoS{}, fmt.Errorf("trafficnetlink: interface %q: %w", ifaceName, err)
 	}

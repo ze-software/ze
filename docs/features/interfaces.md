@@ -204,6 +204,21 @@ debugging and internal binding after the user renames the config entry.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- os-name hidden leaf in interface-common grouping -->
 
+Operator-facing interface operations resolve the logical name to its kernel
+device through the shared resolver before touching the kernel, so a configured
+name that differs from the OS device (via the `os-name` or `mac/match` selector)
+is honored uniformly: the `iface` CLI ops (set MTU, add/remove address, admin
+up/down, bridge, mirror, ...), the DHCP client socket binding, and the
+routing/protocol consumers all act on the bound kernel device. The dispatch
+layer performs this translation for the by-name backend ops, leaving
+`GetInterface`/`ListInterfaces` raw because the resolver is built on them. A
+checks gate (`make ze-iface-resolution-check`) keeps new consumers from
+resolving the kernel directly instead of through the resolver.
+
+<!-- source: internal/component/iface/dispatch.go -- resolveOS translation in the by-name dispatch ops -->
+<!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
+<!-- source: scripts/checks/iface_resolution.go -- no-direct-resolution guard -->
+
 A MAC address validator (`ze:validate "mac-address"`) provides format checking (colon-separated
 hex octets) and live OS autocomplete. The `CompleteFn` calls `DiscoverInterfaces` on each
 tab press, returning MAC addresses from currently active OS interfaces.

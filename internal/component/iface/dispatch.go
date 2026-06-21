@@ -7,8 +7,6 @@ package iface
 import (
 	"errors"
 	"net/netip"
-
-	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 var errIfaceNoBackendLoaded = errors.New("iface: no backend loaded")
@@ -22,7 +20,34 @@ func backendOrErr() (Backend, error) {
 	return b, nil
 }
 
-// Package-level functions that delegate to the active backend.
+// resolveOS translates a logical interface name to its kernel device name via
+// the shared resolver, so the by-name dispatch ops below honor the os-name /
+// mac-match selectors instead of assuming name == kernel device. It is
+// best-effort: when no backend is loaded or the device is absent (resolution
+// fails), it returns the name unchanged, so the backend call produces exactly
+// the error it would have produced without translation -- behavior is identical
+// to before whenever resolution is unavailable, and only redirects when a
+// binding is known. The name "" (ResetCounters uses it to mean "every
+// interface") never resolves and passes through untouched.
+//
+// GetInterface / ListInterfaces are deliberately NOT routed through here: the
+// resolver is built on them (resolve.go osDeviceFor), so translating them would
+// recurse. The Create* ops are also raw -- a created device's name IS its
+// kernel name.
+func resolveOS(name string) string {
+	if name == "" {
+		return ""
+	}
+	if b, err := Resolve(name); err == nil && b.OsName != "" {
+		return b.OsName
+	}
+	return name
+}
+
+// Package-level functions that delegate to the active backend. By-name
+// mutation/query ops translate the logical name to its kernel device via
+// resolveOS first; Create* / GetInterface / ListInterfaces stay raw (see
+// resolveOS).
 
 func CreateDummy(name string) error {
 	b, err := backendOrErr()
@@ -50,28 +75,28 @@ func CreateVLAN(parent string, vid int) error {
 	if err != nil {
 		return err
 	}
-	return b.CreateVLAN(VLANSpec{Parent: parent, VLANID: vid})
+	return b.CreateVLAN(VLANSpec{Parent: resolveOS(parent), VLANID: vid})
 }
 func DeleteInterface(name string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.DeleteInterface(name)
+	return b.DeleteInterface(resolveOS(name))
 }
 func AddAddress(iface, cidr string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.AddAddress(iface, cidr)
+	return b.AddAddress(resolveOS(iface), cidr)
 }
 func RemoveAddress(iface, cidr string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.RemoveAddress(iface, cidr)
+	return b.RemoveAddress(resolveOS(iface), cidr)
 }
 
 func AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
@@ -79,7 +104,7 @@ func AddRoute(ifaceName, destCIDR, gateway string, metric int) error {
 	if err != nil {
 		return err
 	}
-	return b.AddRoute(ifaceName, destCIDR, gateway, metric)
+	return b.AddRoute(resolveOS(ifaceName), destCIDR, gateway, metric)
 }
 
 func RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error {
@@ -87,7 +112,7 @@ func RemoveRoute(ifaceName, destCIDR, gateway string, metric int) error {
 	if err != nil {
 		return err
 	}
-	return b.RemoveRoute(ifaceName, destCIDR, gateway, metric)
+	return b.RemoveRoute(resolveOS(ifaceName), destCIDR, gateway, metric)
 }
 
 func ListRoutes(ifaceName, destCIDR string) ([]RouteInfo, error) {
@@ -95,7 +120,7 @@ func ListRoutes(ifaceName, destCIDR string) ([]RouteInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return b.ListRoutes(ifaceName, destCIDR)
+	return b.ListRoutes(resolveOS(ifaceName), destCIDR)
 }
 
 // ListNeighbors returns the kernel neighbor table via the active backend.
@@ -142,7 +167,7 @@ func ResetCounters(name string) error {
 	if err != nil {
 		return err
 	}
-	return resetCountersViaBackend(b, name)
+	return resetCountersViaBackend(b, resolveOS(name))
 }
 
 func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft int) error {
@@ -150,7 +175,7 @@ func ReplaceAddressWithLifetime(ifaceName, cidr string, validLft, preferredLft i
 	if err != nil {
 		return err
 	}
-	return b.ReplaceAddressWithLifetime(ifaceName, cidr, validLft, preferredLft)
+	return b.ReplaceAddressWithLifetime(resolveOS(ifaceName), cidr, validLft, preferredLft)
 }
 
 func SetAdminUp(iface string) error {
@@ -158,28 +183,28 @@ func SetAdminUp(iface string) error {
 	if err != nil {
 		return err
 	}
-	return b.SetAdminUp(iface)
+	return b.SetAdminUp(resolveOS(iface))
 }
 func SetAdminDown(iface string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.SetAdminDown(iface)
+	return b.SetAdminDown(resolveOS(iface))
 }
 func SetMTU(iface string, mtu int) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.SetMTU(iface, mtu)
+	return b.SetMTU(resolveOS(iface), mtu)
 }
 func SetMACAddress(iface, mac string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.SetMACAddress(iface, mac)
+	return b.SetMACAddress(resolveOS(iface), mac)
 }
 
 func GetMACAddress(iface string) (string, error) {
@@ -187,7 +212,7 @@ func GetMACAddress(iface string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return b.GetMACAddress(iface)
+	return b.GetMACAddress(resolveOS(iface))
 }
 
 func GetStats(iface string) (*InterfaceStats, error) {
@@ -195,11 +220,15 @@ func GetStats(iface string) (*InterfaceStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	s, err := b.GetStats(iface)
+	// Resolve once and key the baseline on the kernel device name, so a clear
+	// (ResetCounters) and a subsequent read agree on the key regardless of the
+	// selector (both resolve the logical name to the same os device).
+	osName := resolveOS(iface)
+	s, err := b.GetStats(osName)
 	if err != nil {
 		return nil, err
 	}
-	baselines.applyBaseline(iface, s)
+	baselines.applyBaseline(osName, s)
 	return s, nil
 }
 
@@ -212,7 +241,7 @@ func LinkSpeedDuplex(name string) (int, string) {
 	if b == nil {
 		return 0, ""
 	}
-	return b.LinkSpeedDuplex(name)
+	return b.LinkSpeedDuplex(resolveOS(name))
 }
 
 func ListInterfaces() ([]InterfaceInfo, error) {
@@ -250,21 +279,21 @@ func BridgeAddPort(bridge, port string) error {
 	if err != nil {
 		return err
 	}
-	return b.BridgeAddPort(bridge, port)
+	return b.BridgeAddPort(resolveOS(bridge), resolveOS(port))
 }
 func BridgeDelPort(port string) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.BridgeDelPort(port)
+	return b.BridgeDelPort(resolveOS(port))
 }
 func BridgeSetSTP(bridge string, on bool) error {
 	b, err := backendOrErr()
 	if err != nil {
 		return err
 	}
-	return b.BridgeSetSTP(bridge, on)
+	return b.BridgeSetSTP(resolveOS(bridge), on)
 }
 
 func SetupMirror(src, dst string, ingress, egress bool) error {
@@ -272,7 +301,7 @@ func SetupMirror(src, dst string, ingress, egress bool) error {
 	if err != nil {
 		return err
 	}
-	return b.SetupMirror(src, dst, ingress, egress)
+	return b.SetupMirror(resolveOS(src), resolveOS(dst), ingress, egress)
 }
 
 func RemoveMirror(src string) error {
@@ -280,7 +309,7 @@ func RemoveMirror(src string) error {
 	if err != nil {
 		return err
 	}
-	return b.RemoveMirror(src)
+	return b.RemoveMirror(resolveOS(src))
 }
 
 func GetXFRMInfo(name string) (XFRMInfo, error) {
@@ -288,7 +317,7 @@ func GetXFRMInfo(name string) (XFRMInfo, error) {
 	if err != nil {
 		return XFRMInfo{}, err
 	}
-	return b.GetXFRMInfo(name)
+	return b.GetXFRMInfo(resolveOS(name))
 }
 
 // ListRates returns the current rate data for all interfaces.
@@ -309,29 +338,4 @@ func GetRate(name string) (InterfaceRate, bool) {
 		return InterfaceRate{}, false
 	}
 	return t.get(name)
-}
-
-// Monitor wraps the backend's monitoring capability.
-type Monitor struct {
-	backend  Backend
-	eventBus ze.EventBus
-}
-
-// NewMonitor creates a monitor via the active backend.
-func NewMonitor(eb ze.EventBus) (*Monitor, error) {
-	b, err := backendOrErr()
-	if err != nil {
-		return nil, err
-	}
-	return &Monitor{backend: b, eventBus: eb}, nil
-}
-
-// Start begins monitoring via the backend.
-func (m *Monitor) Start() error {
-	return m.backend.StartMonitor(m.eventBus)
-}
-
-// Stop halts monitoring via the backend.
-func (m *Monitor) Stop() {
-	m.backend.StopMonitor()
 }

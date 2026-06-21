@@ -56,19 +56,33 @@ func waitForMonitorPayload(t *testing.T, bus *collectingBus, eventType string, m
 	return monitorTestPayload{}
 }
 
+// startTestMonitor starts the active backend's link monitor for the test and
+// stops it on cleanup. It replaces the former iface.Monitor wrapper, which was
+// removed as dead production code: production starts the monitor via
+// Backend.StartMonitor directly (register.go / config_apply.go), so the wrapper
+// existed only for these tests. The same start error the wrapper asserted is
+// asserted here.
+func startTestMonitor(t *testing.T, bus *collectingBus) {
+	t.Helper()
+	b := GetBackend()
+	if b == nil {
+		t.Fatal("no iface backend loaded")
+	}
+	if err := b.StartMonitor(bus); err != nil {
+		t.Fatalf("StartMonitor: %v", err)
+	}
+	t.Cleanup(func() { b.StopMonitor() })
+}
+
 func TestIntegrationMonitorLinkCreated(t *testing.T) {
 	// VALIDATES: Monitor emits (interface, created) when a link appears.
 	// PREVENTS: Monitor not detecting new interfaces via netlink.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		mon, err := NewMonitor(bus)
-		if err != nil {
-			t.Fatalf("NewMonitor: %v", err)
-		}
-		if err := mon.Start(); err != nil {
-			t.Fatalf("Start: %v", err)
-		}
-		t.Cleanup(func() { mon.Stop() })
+		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
+		// the iface.Monitor wrapper was removed as dead production code and the
+		// helper asserts the same StartMonitor error against the backend directly.
+		startTestMonitor(t, bus)
 
 		// Give the monitor time to subscribe to netlink.
 		time.Sleep(200 * time.Millisecond)
@@ -88,14 +102,10 @@ func TestIntegrationMonitorAddrAdded(t *testing.T) {
 	// PREVENTS: Address events lost or wrong family reported.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		mon, err := NewMonitor(bus)
-		if err != nil {
-			t.Fatalf("NewMonitor: %v", err)
-		}
-		if err := mon.Start(); err != nil {
-			t.Fatalf("Start: %v", err)
-		}
-		t.Cleanup(func() { mon.Stop() })
+		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
+		// the iface.Monitor wrapper was removed as dead production code and the
+		// helper asserts the same StartMonitor error against the backend directly.
+		startTestMonitor(t, bus)
 
 		time.Sleep(200 * time.Millisecond)
 
@@ -124,14 +134,10 @@ func TestIntegrationMonitorAddrRemoved(t *testing.T) {
 	// PREVENTS: Removal events lost, leaving stale state.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		mon, err := NewMonitor(bus)
-		if err != nil {
-			t.Fatalf("NewMonitor: %v", err)
-		}
-		if err := mon.Start(); err != nil {
-			t.Fatalf("Start: %v", err)
-		}
-		t.Cleanup(func() { mon.Stop() })
+		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
+		// the iface.Monitor wrapper was removed as dead production code and the
+		// helper asserts the same StartMonitor error against the backend directly.
+		startTestMonitor(t, bus)
 
 		time.Sleep(200 * time.Millisecond)
 
@@ -163,14 +169,10 @@ func TestIntegrationMonitorLinkDeleted(t *testing.T) {
 	// PREVENTS: Deletion events lost, leaving stale tracking state.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		mon, err := NewMonitor(bus)
-		if err != nil {
-			t.Fatalf("NewMonitor: %v", err)
-		}
-		if err := mon.Start(); err != nil {
-			t.Fatalf("Start: %v", err)
-		}
-		t.Cleanup(func() { mon.Stop() })
+		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
+		// the iface.Monitor wrapper was removed as dead production code and the
+		// helper asserts the same StartMonitor error against the backend directly.
+		startTestMonitor(t, bus)
 
 		time.Sleep(200 * time.Millisecond)
 
@@ -199,14 +201,10 @@ func TestIntegrationMonitorLinkUpDown(t *testing.T) {
 	// PREVENTS: State change events not emitted for admin up/down transitions.
 	withNetNS(t, func() {
 		bus := &collectingBus{}
-		mon, err := NewMonitor(bus)
-		if err != nil {
-			t.Fatalf("NewMonitor: %v", err)
-		}
-		if err := mon.Start(); err != nil {
-			t.Fatalf("Start: %v", err)
-		}
-		t.Cleanup(func() { mon.Stop() })
+		// test-relax: NewMonitor/Start assertions moved into startTestMonitor;
+		// the iface.Monitor wrapper was removed as dead production code and the
+		// helper asserts the same StartMonitor error against the backend directly.
+		startTestMonitor(t, bus)
 
 		time.Sleep(200 * time.Millisecond)
 

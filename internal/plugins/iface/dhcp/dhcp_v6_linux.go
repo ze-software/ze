@@ -6,7 +6,6 @@
 package ifacedhcp
 
 import (
-	"net"
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv6"
@@ -22,7 +21,7 @@ func (c *DHCPClient) runV6() {
 	logger := loggerPtr.Load()
 
 	for !c.stopped() {
-		_, err := net.InterfaceByName(c.ifaceName)
+		binding, err := iface.Resolve(c.ifaceName)
 		if err != nil {
 			logger.Warn("iface dhcp v6: interface lookup failed",
 				"iface", c.ifaceName, "err", err)
@@ -32,7 +31,10 @@ func (c *DHCPClient) runV6() {
 			continue
 		}
 
-		client, err := nclient6.New(c.ifaceName)
+		// Bind the DHCPv6 client socket to the resolved kernel device, so a
+		// logical name that differs from its os device (os-name / mac-match
+		// selectors) still binds to the right interface.
+		client, err := nclient6.New(binding.OsName)
 		if err != nil {
 			logger.Warn("iface dhcp v6: client creation failed",
 				"iface", c.ifaceName, "err", err)
