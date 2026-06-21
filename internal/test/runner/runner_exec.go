@@ -507,12 +507,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				var err error
 				if rec.TmpfsTempDir != "" {
 					// Write config to tmpfs dir so relative plugin paths work. The
-					// filename is per-command (seq) so that two `ze ... -` steps in one
-					// test (e.g. a valid then an invalid `ze config validate -`) do not
-					// race on a shared file: foreground ze commands are not awaited
-					// before the next starts, so a fixed name let a later step's config
-					// overwrite an earlier step's before ze read it.
-					configPath := filepath.Join(rec.TmpfsTempDir, textbuf.StrIntStr("ze-config-", int64(cmd.Seq), ".conf"))
+					// filename is fixed (ze-bgp.conf) so tests that rewrite the daemon
+					// config (action=rewrite:dest=ze-bgp.conf), restart a second `ze -`
+					// against the same file, or assert on rollback/ze-bgp-*.conf
+					// versions all address the file the daemon actually reads. The race
+					// between two un-awaited `ze config validate -` steps that once
+					// motivated a per-seq filename is now prevented by awaitQuickZe,
+					// which serializes quick-exit ze commands with isolated buffers.
+					configPath := filepath.Join(rec.TmpfsTempDir, "ze-bgp.conf")
 					tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
 				} else {
 					configDir, mkdirErr := os.MkdirTemp("", "ze-config-*")
