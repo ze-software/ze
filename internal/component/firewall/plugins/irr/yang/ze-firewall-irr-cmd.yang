@@ -14,7 +14,10 @@ module ze-firewall-irr-cmd {
 
         container firewall {
             config false;
-            description "Firewall tables, chains, rules, counters, and IRR state";
+            // Repeat the canonical description owned by ze-firewall-cmd.yang
+            // verbatim so the command-tree merge does not warn on a mismatch.
+            // This module only attaches the `irr` subtree to the shared node.
+            description "Firewall rules and groups (nftables)";
 
             container irr {
                 config false;
