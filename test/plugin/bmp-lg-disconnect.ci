@@ -17,6 +17,7 @@ tmpfs=bmp-disconnect.run:mode=755:terminator=EOF_RUN
 import json
 import socket
 import struct
+import sys
 import time
 from ze_api import API, result_text_data
 
@@ -102,8 +103,8 @@ def main():
     parsed = json.loads(data) if isinstance(data, str) else data
     rib_in = parsed.get('adj-rib-in', {})
     if not rib_in:
-        print(f'FAIL: no routes before disconnect, got: {data}', flush=True)
-        import sys; sys.exit(1)
+        print(f'FAIL: no routes before disconnect, got: {data}', file=sys.stderr, flush=True)
+        sys.exit(1)
 
     # Disconnect (TCP close triggers withdraw-router)
     sock.close()
@@ -115,10 +116,10 @@ def main():
     parsed = json.loads(data) if isinstance(data, str) else data
     rib_in = parsed.get('adj-rib-in', {})
     if rib_in:
-        print(f'FAIL: routes still present after disconnect: {data}', flush=True)
-        import sys; sys.exit(1)
+        print(f'FAIL: routes still present after disconnect: {data}', file=sys.stderr, flush=True)
+        sys.exit(1)
 
-    print('PASS: BMP routes withdrawn after session disconnect', flush=True)
+    print('PASS: BMP routes withdrawn after session disconnect', file=sys.stderr, flush=True)
 
     time.sleep(0.5)
     dispatch(api, 'request shutdown')
@@ -180,4 +181,4 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 expect=exit:code=0
 expect=stderr:pattern=bmp: session ended
-expect=stdout:pattern=PASS: BMP routes withdrawn
+expect=stderr:pattern=PASS: BMP routes withdrawn

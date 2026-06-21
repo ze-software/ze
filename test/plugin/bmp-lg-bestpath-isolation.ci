@@ -17,6 +17,7 @@ tmpfs=bmp-bestpath.run:mode=755:terminator=EOF_RUN
 import json
 import socket
 import struct
+import sys
 import time
 from ze_api import API, result_text_data
 
@@ -103,8 +104,8 @@ def main():
     parsed = json.loads(data) if isinstance(data, str) else data
     rib_in = parsed.get('adj-rib-in', {})
     if not rib_in:
-        print(f'FAIL: no BMP routes found', flush=True)
-        import sys; sys.exit(1)
+        print('FAIL: no BMP routes found', file=sys.stderr, flush=True)
+        sys.exit(1)
 
     # Verify bgp rib show does NOT include BMP routes
     result = dispatch(api, 'show bgp rib')
@@ -114,8 +115,8 @@ def main():
     for peer, routes in bgp_rib.items():
         for route in routes:
             if '10.0.0.0' in route.get('prefix', ''):
-                print(f'FAIL: BMP route leaked into bgp rib show', flush=True)
-                import sys; sys.exit(1)
+                print('FAIL: BMP route leaked into bgp rib show', file=sys.stderr, flush=True)
+                sys.exit(1)
 
     # Verify best-path does NOT include BMP route
     result = dispatch(api, 'show bgp rib best')
@@ -124,10 +125,10 @@ def main():
     best = parsed.get('best', {})
     for prefix_data in best.values() if isinstance(best, dict) else []:
         if isinstance(prefix_data, dict) and '10.0.0.0' in str(prefix_data):
-            print(f'FAIL: BMP route appeared in best-path', flush=True)
-            import sys; sys.exit(1)
+            print('FAIL: BMP route appeared in best-path', file=sys.stderr, flush=True)
+            sys.exit(1)
 
-    print('PASS: BMP routes isolated from best-path selection', flush=True)
+    print('PASS: BMP routes isolated from best-path selection', file=sys.stderr, flush=True)
     sock.close()
 
     time.sleep(0.5)
@@ -189,4 +190,4 @@ EOF_PEER
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 expect=exit:code=0
-expect=stdout:pattern=PASS: BMP routes isolated
+expect=stderr:pattern=PASS: BMP routes isolated

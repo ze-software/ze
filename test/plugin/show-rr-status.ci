@@ -37,16 +37,16 @@ def main():
     result = dispatch(api, 'show rr status')
     status = result.get('status')
     if status != 'done':
-        print(f'FAIL: show rr status status={status} data={result.get("data")}', flush=True)
+        print(f'FAIL: show rr status status={status} data={result.get("data")}', file=sys.stderr, flush=True)
         sys.exit(1)
 
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     if not isinstance(parsed, dict) or not parsed.get('running'):
-        print(f'FAIL: expected {{"running":true}}, got: {data}', flush=True)
+        print(f'FAIL: expected {{"running":true}}, got: {data}', file=sys.stderr, flush=True)
         sys.exit(1)
 
-    print('PASS: show rr status returned running=true', flush=True)
+    print('PASS: show rr status returned running=true', file=sys.stderr, flush=True)
 
     # Drain any pending callbacks (e.g. post-startup) queued during the
     # first dispatch, so the second dispatch-command RPC does not race
@@ -56,17 +56,17 @@ def main():
     result = dispatch(api, 'show rr peers')
     status = result.get('status')
     if status != 'done':
-        print(f'FAIL: show rr peers status={status} data={result.get("data")}', flush=True)
+        print(f'FAIL: show rr peers status={status} data={result.get("data")}', file=sys.stderr, flush=True)
         sys.exit(1)
 
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     peers = parsed.get('peers', []) if isinstance(parsed, dict) else parsed
     if not isinstance(peers, list):
-        print(f'FAIL: expected peer list, got: {data}', flush=True)
+        print(f'FAIL: expected peer list, got: {data}', file=sys.stderr, flush=True)
         sys.exit(1)
 
-    print(f'PASS: show rr peers returned {len(peers)} peer(s)', flush=True)
+    print(f'PASS: show rr peers returned {len(peers)} peer(s)', file=sys.stderr, flush=True)
 
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
@@ -118,5 +118,5 @@ EOF_PEER
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze --plugin ze.bgp-rr -:stdin=ze-bgp
 expect=exit:code=0
-expect=stdout:pattern=PASS: show rr status
-expect=stdout:pattern=PASS: show rr peers
+expect=stderr:pattern=PASS: show rr status
+expect=stderr:pattern=PASS: show rr peers

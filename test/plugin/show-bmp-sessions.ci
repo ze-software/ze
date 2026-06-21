@@ -17,6 +17,7 @@ tmpfs=bmp-sessions.run:mode=755:terminator=EOF_RUN
 import json
 import socket
 import struct
+import sys
 import time
 from ze_api import API, result_text_data
 
@@ -78,32 +79,32 @@ def main():
     result = dispatch(api, 'show bmp sessions')
     status = result.get('status')
     if status != 'done':
-        print(f'FAIL: show bmp sessions status={status}', flush=True)
-        import sys; sys.exit(1)
+        print(f'FAIL: show bmp sessions status={status}', file=sys.stderr, flush=True)
+        sys.exit(1)
 
     data = result_text_data(result, '{}')
     parsed = json.loads(data) if isinstance(data, str) else data
     sessions = parsed.get('sessions', []) if isinstance(parsed, dict) else parsed
     if not isinstance(sessions, list) or len(sessions) == 0:
-        print(f'FAIL: expected non-empty session list, got: {data}', flush=True)
-        import sys; sys.exit(1)
+        print(f'FAIL: expected non-empty session list, got: {data}', file=sys.stderr, flush=True)
+        sys.exit(1)
 
     session = sessions[0]
     if 'sys-name' not in session and 'sys_name' not in session and 'sysName' not in session:
-        print(f'FAIL: session missing sys-name field: {session}', flush=True)
-        import sys; sys.exit(1)
+        print(f'FAIL: session missing sys-name field: {session}', file=sys.stderr, flush=True)
+        sys.exit(1)
 
-    print(f'PASS: show bmp sessions returned {len(sessions)} session(s)', flush=True)
+    print(f'PASS: show bmp sessions returned {len(sessions)} session(s)', file=sys.stderr, flush=True)
 
     api.read_line(timeout=0.1)
 
     result = dispatch(api, 'show bmp collectors')
     status = result.get('status')
     if status != 'done':
-        print(f'FAIL: show bmp collectors status={status}', flush=True)
-        import sys; sys.exit(1)
+        print(f'FAIL: show bmp collectors status={status}', file=sys.stderr, flush=True)
+        sys.exit(1)
 
-    print('PASS: show bmp collectors returned valid response', flush=True)
+    print('PASS: show bmp collectors returned valid response', file=sys.stderr, flush=True)
 
     sock.close()
     time.sleep(0.5)
@@ -167,5 +168,5 @@ cmd=foreground:seq=2:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
 expect=exit:code=0
 expect=stderr:pattern=bmp: receiver listening
 expect=stderr:pattern=bmp: session started
-expect=stdout:pattern=PASS: show bmp sessions
-expect=stdout:pattern=PASS: show bmp collectors
+expect=stderr:pattern=PASS: show bmp sessions
+expect=stderr:pattern=PASS: show bmp collectors
