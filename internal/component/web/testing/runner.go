@@ -432,12 +432,20 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	} else {
 		browser = NewBrowser(baseURL)
 	}
-	browser.Close()
 	// Free this test's browser session when it finishes. Sessions are keyed per
 	// test (unique nick), so without a per-test close they accumulate in the
 	// shared agent-browser daemon for the whole suite -- 80+ live pages that
 	// starve later tests of resources and surface as flaky empty snapshots. The
 	// suite-end sweep is a backstop, not a substitute.
+	//
+	// There is deliberately NO leading Close() here. A close immediately followed
+	// by the first Open() on the same session makes agent-browser tear down and
+	// relaunch that session's daemon back-to-back; under concurrency the relaunch
+	// races the navigation and the page ends up stuck on about:blank ("(empty
+	// page)" in snapshots). The session nick is unique per test, so the context is
+	// already pristine -- the first Open() navigates a clean page with no prior
+	// close needed. (Verified: with the leading close, ~10/12 concurrent opens
+	// landed on about:blank; without it, 12/12 navigated correctly.)
 	defer browser.Close()
 
 	var (
