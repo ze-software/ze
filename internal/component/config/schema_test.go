@@ -214,3 +214,68 @@ func TestSchemaDefault(t *testing.T) {
 	require.True(t, ok, "expected LeafNode")
 	require.Equal(t, "false", groupUpdatesNode.Default)
 }
+
+// TestMergeListNodePreservesBackend verifies that merging two definitions of
+// the same list under a shared container preserves a ze:backend annotation that
+// only one definition carries, regardless of merge order. This is the exact
+// shape of the ze-cos-conf / ze-iface-conf collision on interface/bridge: the
+// cos overlay (visited first, no backend annotation) must NOT erase the iface
+// backend matrix, or the commit-time feature gate silently accepts bridge/veth
+// under backend vpp.
+//
+// VALIDATES: an absent dst.Backend adopts src.Backend during container merge.
+//
+// PREVENTS: a backend-gated feature (bridge, veth) losing its gate when a
+// second module contributes the same list to the interface container.
+func TestMergeListNodePreservesBackend(t *testing.T) {
+	// Overlay container (sorts first, like ze-cos-conf): bridge list with NO
+	// backend annotation.
+	overlay := Container(
+		Field("bridge", List(TypeString, Field("name", Leaf(TypeString)))),
+	)
+
+	// Canonical container (like ze-iface-conf): bridge list WITH the netlink
+	// backend matrix.
+	canonicalBridge := List(TypeString, Field("name", Leaf(TypeString)))
+	canonicalBridge.Backend = []string{"netlink"}
+	canonical := Container(Field("bridge", canonicalBridge))
+
+	schema := NewSchema()
+	schema.Define("interface", overlay)   // visited first -> becomes dst
+	schema.Define("interface", canonical) // merged in -> src carries backend
+
+	iface, ok := schema.Get("interface").(*ContainerNode)
+	require.True(t, ok, "expected interface ContainerNode")
+	bridge, ok := iface.Get("bridge").(*ListNode)
+	require.True(t, ok, "expected bridge ListNode")
+	require.Equal(t, []string{"netlink"}, bridge.Backend,
+		"merged bridge must keep the netlink backend annotation from the canonical module")
+}
+
+// TestMergeListNodeDoesNotWidenBackend verifies that when dst already carries a
+// backend annotation, a later annotation-free src merge does NOT clear it and a
+// different src annotation does NOT silently widen it (first annotation wins).
+//
+// VALIDATES: dst.Backend is only filled when empty; a populated dst is kept.
+//
+// PREVENTS: an overlay module accidentally widening or clearing a feature gate.
+func TestMergeListNodeDoesNotWidenBackend(t *testing.T) {
+	canonicalBridge := List(TypeString, Field("name", Leaf(TypeString)))
+	canonicalBridge.Backend = []string{"netlink"}
+	canonical := Container(Field("bridge", canonicalBridge))
+
+	overlay := Container(
+		Field("bridge", List(TypeString, Field("name", Leaf(TypeString)))),
+	)
+
+	schema := NewSchema()
+	schema.Define("interface", canonical) // visited first -> dst has [netlink]
+	schema.Define("interface", overlay)   // src has no annotation
+
+	iface, ok := schema.Get("interface").(*ContainerNode)
+	require.True(t, ok, "expected interface ContainerNode")
+	bridge, ok := iface.Get("bridge").(*ListNode)
+	require.True(t, ok, "expected bridge ListNode")
+	require.Equal(t, []string{"netlink"}, bridge.Backend,
+		"populated dst backend must survive an annotation-free overlay merge")
+}

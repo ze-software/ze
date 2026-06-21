@@ -274,14 +274,30 @@ func mergeContainer(dst, src *ContainerNode) {
 // mergeNode dispatches on node kind to recurse where structural merge is
 // possible. Leaf collisions keep the first registration -- matches the prior
 // behavior where a re-defined leaf was silently ignored.
+//
+// The ze:backend annotation is the exception to "first registration wins": it
+// is a feature-support property, not a structural one. When two modules
+// contribute the same list/container to a shared parent (e.g. ze-cos-conf and
+// ze-iface-conf both define interface/bridge for their own leaves), only one
+// of them carries the backend matrix. Whichever module the build visits first
+// (modules are sorted by name, so ze-cos-conf precedes ze-iface-conf) becomes
+// dst; if dst happens to be the annotation-free overlay, dropping the annotation
+// silently disables the backend feature gate for that node. To stay
+// merge-order-independent, an absent dst.Backend adopts src.Backend.
 func mergeNode(dst, src Node) {
 	switch d := dst.(type) {
 	case *ContainerNode:
 		if s, ok := src.(*ContainerNode); ok {
+			if len(d.Backend) == 0 && len(s.Backend) > 0 {
+				d.Backend = s.Backend
+			}
 			mergeContainer(d, s)
 		}
 	case *ListNode:
 		if s, ok := src.(*ListNode); ok {
+			if len(d.Backend) == 0 && len(s.Backend) > 0 {
+				d.Backend = s.Backend
+			}
 			for _, childName := range s.order {
 				if _, dup := d.children[childName]; dup {
 					mergeNode(d.children[childName], s.children[childName])
