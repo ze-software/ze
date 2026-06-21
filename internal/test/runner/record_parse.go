@@ -219,6 +219,15 @@ generateDecoded:
 		}
 	}
 
+	// ZE_QEMU_LINUX_ONLY mode (the `ze-qemu-needs-linux-test` tight loop) runs
+	// ONLY tests marked option=needs-linux: every other test is skipped so the
+	// QEMU VM spends its time on the Linux-only surface, not re-running tests
+	// that already pass natively. Applied after all options are parsed so the
+	// needs-linux flag is final. Never overrides an existing skip reason.
+	if r.SkipReason == "" && !r.NeedsLinux && os.Getenv("ZE_QEMU_LINUX_ONLY") == "1" {
+		r.SkipReason = "ZE_QEMU_LINUX_ONLY (not option=needs-linux)"
+	}
+
 	return r, nil
 }
 
@@ -353,6 +362,22 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 				r.SkipReason = tb.Str("skip-os=").Str(value).Str(" (current GOOS=").Str(runtime.GOOS).Byte(')').String()
 				return nil
 			}
+		}
+
+	case "needs-linux":
+		// Marks a .ci test that requires a real Linux kernel (netlink interface
+		// management, nftables, kernel sockets, ...) and therefore cannot pass
+		// natively on a non-Linux host. On such a host the test is SKIPPED with
+		// a reason pointing at the QEMU runner; inside the QEMU Alpine VM
+		// (GOOS=linux, via `make ze-qemu-needs-linux-test`) the directive is
+		// inert and the test runs normally. This is how Linux-only functional
+		// tests are validated automatically via QEMU instead of failing
+		// natively. See ai/rules/qemu-testing.md "Linux-only functional tests".
+		r.NeedsLinux = true
+		if runtime.GOOS != "linux" {
+			var tb textbuf.Buffer
+			r.SkipReason = tb.Str("needs-linux (run via make ze-qemu-needs-linux-test; current GOOS=").Str(runtime.GOOS).Byte(')').String()
+			return nil
 		}
 
 	case "skip-env":

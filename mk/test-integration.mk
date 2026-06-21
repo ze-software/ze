@@ -22,7 +22,7 @@
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -174,6 +174,28 @@ ze-qemu-all-test:
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--timeout 3600 \
 		--run 'ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="$(ZE_QEMU_SKIP_SUITES)" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
+
+# Tight loop: run ONLY the Linux-only functional tests (option=needs-linux) in a
+# single QEMU Linux VM. These tests SKIP natively on darwin (so `make ze-verify`
+# stays green and fast) and are validated here instead. ZE_QEMU_LINUX_ONLY=1
+# flips the runner to skip every test that is NOT marked needs-linux, so the VM
+# spends its time only on the Linux-only surface -- one VM boot, all the
+# Linux-only tests, never one VM per test. See ai/rules/qemu-testing.md.
+#
+# web is skipped (browser-driven, not a kernel-feature surface); every other
+# suite runs so a needs-linux test in any of them (plugin, firewall, l2tp, ...)
+# is exercised.
+ze-qemu-needs-linux-test:
+	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
+	@mkdir -p bin
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core zetest ze_distro $(ZE_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
+	@echo "Running ONLY option=needs-linux tests in QEMU Linux VM (ZE_QEMU_LINUX_ONLY=1)..."
+	python3 scripts/evidence/qemu-run.py \
+		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
+		--timeout 1800 \
+		--run 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="web" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
 
 # Debug specific functional tests in the QEMU VM with verbose output.
 #

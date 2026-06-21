@@ -162,6 +162,12 @@ type Record struct {
 	// platforms). Set at parse time and persists across Activate() calls.
 	SkipReason string
 
+	// NeedsLinux is set when the test carries option=needs-linux: it requires a
+	// real Linux kernel and is validated in the QEMU Alpine VM. Used by the
+	// ZE_QEMU_LINUX_ONLY filter (the `ze-qemu-needs-linux-test` tight loop) to
+	// run ONLY these tests and skip everything else.
+	NeedsLinux bool
+
 	// ParseFailed marks a .ci file that could not be parsed at discovery time.
 	// Discover records the file as a permanent failure (State=StateFail, Error
 	// set) and continues, so one unparseable file fails loudly without aborting

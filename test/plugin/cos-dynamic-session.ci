@@ -9,6 +9,7 @@
 # This test verifies the wiring that makes that lifecycle possible: profiles load
 # from config, the plugin starts, and the show command returns correct data.
 
+option=needs-linux
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1

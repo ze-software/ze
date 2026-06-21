@@ -16,6 +16,53 @@ reason to skip tests. Virtual substitutes exist for every kernel feature ze uses
 | Any new linux-only package | Package added to `ze-qemu-integration-test` Makefile target |
 | Docker interop lab needing host-kernel features (l2tp, pppoe, ...) | A netns `effective-<feature>.py` + `ze-qemu-<feature>-test` target -- the Docker lab cannot run in the Alpine VM (see "Interop Labs" below) |
 
+## Linux-only functional (`.ci`) tests run via QEMU, never natively
+
+**BLOCKING:** A functional `.ci` test that boots a daemon (or runs `ze`) which
+exercises a real Linux kernel feature -- netlink interface/VLAN/veth creation,
+nftables, kernel sockets, L2TP/PPPoE kernel modules -- MUST be marked
+`option=needs-linux`. Such a test cannot pass natively on darwin and must be
+validated automatically inside the QEMU Alpine VM instead.
+
+```
+option=needs-linux
+```
+
+How it behaves (`internal/test/runner/record_parse.go`, the `needs-linux`
+option):
+
+- On a non-Linux host (`GOOS != linux`): the runner sets `SkipReason` and the
+  test reports **SKIP**, never FAIL. Native `make ze-verify` / `make
+  ze-functional-test` on darwin stays green without running the unsupported
+  test.
+- Inside the QEMU Alpine VM (`GOOS == linux`): the directive is inert, so the
+  same `.ci` test runs for real against the Linux kernel.
+
+Two QEMU entry points run these tests, both **one VM for all of them** (never
+one VM per test):
+
+- `make ze-qemu-needs-linux-test` -- the tight loop. Sets `ZE_QEMU_LINUX_ONLY=1`,
+  which flips the runner to skip every test that is NOT `needs-linux`, so the VM
+  spends its whole boot only on the Linux-only surface. Use this while iterating
+  on a Linux-only feature.
+- `make ze-qemu-all-test` -- the full pass. Runs every functional suite in the
+  VM, so `needs-linux` tests are exercised alongside everything else.
+
+No per-test wiring is needed for either -- the suites are the same as the native
+runner, so the QEMU pass discovers `needs-linux` tests automatically.
+
+Decision rule:
+
+| The `.ci` test ... | Use |
+|--------------------|-----|
+| Only validates config (`ze config validate -`), parses, or runs offline `ze show`/`ze env` | nothing (runs natively on every OS) |
+| Boots a daemon that **applies** Linux-only config (interface/VLAN, firewall, L2TP kernel) | `option=needs-linux` |
+| Needs to skip only on a specific non-Linux OS for an unrelated reason | `option=skip-os:value=darwin` |
+
+Do NOT use `skip-os:value=darwin` as a substitute for `needs-linux`: `skip-os`
+says "do not run here", whereas `needs-linux` documents intent ("this is a
+Linux-only test, validated in QEMU") and keeps the test in the QEMU suite.
+
 ## How to Write a QEMU Integration Test
 
 ### 1. File naming and build tags

@@ -8,6 +8,7 @@
 # infrastructure is wired. The actual CoA packet handling requires a
 # RADIUS CoA listener which is exercised in QEMU integration tests.
 
+option=needs-linux
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1

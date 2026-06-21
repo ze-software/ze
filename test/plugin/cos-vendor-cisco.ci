@@ -35,3 +35,4 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
 expect=stdout:contains=configuration valid
+option=needs-linux
