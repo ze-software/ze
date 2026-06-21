@@ -9,7 +9,18 @@ tmpfs=decode-hex.form:encoding=base64:terminator=EOF_HEX
 aGV4PUZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGMDAyRjAyMDAwMDAwMTg0MDAxMDEwMDQwMDIwMDQwMDMwNDY1MDE2NTAxNDAwNTA0MDAwMDAwNjQwMDE4YWMxMDAxMDA=
 EOF_HEX
 
-cmd=foreground:seq=1:exec=ze --web $PORT2 --insecure-web:timeout=20s
+tmpfs=web-only-start.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+# Web-only mode requires blob storage: the silent bare-`--web` web-only fallback
+# was removed in 7323da866 (add --web-only flag), so seed storage with `ze init`,
+# then start the standalone web UI. This still exercises the in-process BGP
+# decode path with no daemon, exactly as AC-8 intends.
+set -e
+printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ze init >/dev/null 2>&1
+exec ze start --web $PORT2 --web-only --insecure-web
+EOF_SH
+
+cmd=foreground:seq=1:exec=./web-only-start.sh:timeout=20s
 
 http=wait:seq=1:url=https://127.0.0.1:$PORT2/show/:status=200:insecure-tls=true:timeout=15s
 http=post:seq=2:url=https://127.0.0.1:$PORT2/show/tools/bgp-decode/:status=200:sendfile=decode-hex.form:content-type=application/x-www-form-urlencoded:insecure-tls=true:contains=origin

@@ -1,6 +1,6 @@
-# Test: ze debug enable with invalid subsystem shows error and valid list
-# VALIDATES: AC-9 of spec-debug-flags.md
-cmd=foreground:seq=1:exec=ze debug enable nonexistent.bogus
+# Test: ze debug with a malformed subsystem shows error and valid list
+# VALIDATES: invalid-subsystem help (toggle grammar, see 891-granular-debug)
+cmd=foreground:seq=1:exec=ze debug bgp/bad
 expect=exit:code=1
 expect=stderr:contains=unknown subsystem
 expect=stderr:contains=valid subsystems

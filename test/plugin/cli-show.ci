@@ -5,6 +5,6 @@
 cmd=foreground:seq=1:exec=ze show help
 expect=exit:code=0
 expect=stderr:contains=ze show
-expect=stderr:contains=read-only
+expect=stderr:contains=Read-only
 expect=stderr:contains=Commands
 expect=stderr:not-contains=Returns audit log entries
