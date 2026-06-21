@@ -141,7 +141,7 @@ func TestMigratedDaemonCommandsLiveInOwners(t *testing.T) {
 			t.Errorf("%s still defines %q; the ping feature is owned by %s", c.file, c.symbol, pingOwner)
 		}
 	}
-	diagPath := filepath.Join(root, "cmd/ze/diag/diag.go")
+	diagPath := filepath.Join(root, "cmd", "ze", "diag", "diag.go")
 	if _, err := os.Stat(diagPath); err == nil {
 		body, readErr := os.ReadFile(diagPath)
 		if readErr != nil {

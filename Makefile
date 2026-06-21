@@ -3,7 +3,7 @@
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test
 .PHONY: ze-test ze-verify ze-verify-changed ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp
-.PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check
+.PHONY: _ze-verify-impl _ze-verify-changed-impl ze-tier-check ze-iface-resolution-check
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
 .PHONY: ze-plugin-imports-check ze-yang-glue-check ze-regen ze-regen-check
@@ -228,19 +228,26 @@ ZE_VERIFY_LOG ?= tmp/ze-verify.log
 ze-verify:
 	@scripts/dev/verify-lock.sh ze-verify env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify
 
-_ze-verify-impl: ze-lint ze-tier-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
+_ze-verify-impl: ze-lint ze-tier-check ze-iface-resolution-check ze-verify-wiring-docs ze-vet-evidence ze-unit-test-cached ze-unit-test-race-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
 
 ze-verify-changed:
 	@scripts/dev/verify-lock.sh ze-verify-changed env ZE_VERIFY_MAKE="$(MAKE)" $(GO) run ./scripts/status/verify_run.go ze-verify-changed
 
-_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
+_ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check ze-verify-wiring-docs ze-unit-test-changed ze-functional-test ze-exabgp-test
 	@echo "Ze verification (changed) passed"
 
 # Module-tier placement gate (ai/rules/module-tiers.md): a config-driven engine
 # must live in internal/component/ if a feature depends on it, else internal/plugins/.
 ze-tier-check:
 	@python3 scripts/dev/dep_audit.py --check
+
+# No-direct-resolution gate (plan/spec-iface-resolve-0-umbrella.md AC-U1,
+# sub-spec 7): interface consumers must resolve logical names via the shared
+# iface resolver, not the kernel directly. scripts/checks/iface_resolution.go
+# owns the allowlist of legitimate direct-resolution sites.
+ze-iface-resolution-check:
+	@$(GO) run scripts/checks/iface_resolution.go
 
 ze-validate:
 	@python3 scripts/dev/validate.py --root .
