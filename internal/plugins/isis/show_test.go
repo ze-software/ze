@@ -25,7 +25,7 @@ import (
 // TestISISShowHostnameRender: the local node's configured hostname appears in
 // the `show isis hostname` view, mapped to its own System ID and flagged local.
 func TestISISShowHostnameRender(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","hostname":"ze-router","interface":{"eth0":{"circuit-type":"point-to-point"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","hostname":"ze-router","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point"}}}}}`)
 	defer eng.shutdown()
 
 	rows := eng.hostnameSnapshot()
@@ -57,7 +57,7 @@ func TestISISShowHostnameRender(t *testing.T) {
 // TestISISShowHostnameSkipsNoTLV137: a node config with no hostname leaf
 // originates no TLV 137, so the local node is omitted from the hostname view.
 func TestISISShowHostnameSkipsNoTLV137(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point"}}}}}`)
 	defer eng.shutdown()
 	own := eng.cfg.SystemID.String()
 	for _, r := range eng.hostnameSnapshot() {
@@ -71,7 +71,7 @@ func TestISISShowHostnameSkipsNoTLV137(t *testing.T) {
 // appear, with the passive flag and parameters carried through; auth-configured
 // circuits report Authenticated.
 func TestISISShowInterfaceRender(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point","metric":"42","hello-interval":"3"},"lo":{"passive":"true"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point","metric":"42","hello-interval":"3"},"lo":{"passive":"true"}}}}}`)
 	defer eng.shutdown()
 
 	rows := eng.interfaceSnapshot()
@@ -108,7 +108,7 @@ func TestISISShowInterfaceRender(t *testing.T) {
 // TestISISShowSPFLogRender: after the engine triggers SPF, the spf-log view
 // carries the run with the lsdb-change trigger.
 func TestISISShowSPFLogRender(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point"}}}}}`)
 	defer eng.shutdown()
 	// Force a synchronous SPF run via the engine trigger path (sets the tag) then
 	// a direct Run on the Computer to record deterministically.
@@ -130,7 +130,7 @@ func TestISISShowSPFLogRender(t *testing.T) {
 // TestISISClearAdjacencies: clearing drops adjacency records; on a started engine
 // with no neighbors it returns 0 without error.
 func TestISISClearAdjacencies(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point"}}}}}`)
 	defer eng.shutdown()
 	if n := eng.clearAdjacencies(); n != 0 {
 		t.Errorf("clearAdjacencies on a fresh engine = %d, want 0", n)
@@ -139,7 +139,7 @@ func TestISISClearAdjacencies(t *testing.T) {
 
 // TestISISClearCounters: clearing counters empties the SPF-run history.
 func TestISISClearCounters(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point"}}}}}`)
 	defer eng.shutdown()
 	eng.spf.SetSPFLogTrigger("lsdb-change")
 	eng.spf.Run()

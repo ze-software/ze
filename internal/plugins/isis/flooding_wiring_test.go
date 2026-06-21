@@ -200,9 +200,9 @@ func TestISISLSDBSync(t *testing.T) {
 	beC := newMultiBackend()
 	beC.addLink("eth0", wBC, 30, 0x0c)
 
-	const cfgA = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}`
-	const cfgB = `{"isis":{"net":"49.0001.0000.0000.0002.00","level":"l1","interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"},"eth1":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}`
-	const cfgC = `{"isis":{"net":"49.0001.0000.0000.0003.00","level":"l1","interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}`
+	const cfgA = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}}`
+	const cfgB = `{"isis":{"net":"49.0001.0000.0000.0002.00","level":"l1","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"},"eth1":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}}`
+	const cfgC = `{"isis":{"net":"49.0001.0000.0000.0003.00","level":"l1","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}}`
 
 	engA := startEngineMulti(t, beA, cfgA)
 	engB := startEngineMulti(t, beB, cfgB)
@@ -246,8 +246,8 @@ func TestISISFloodSRMTimer(t *testing.T) {
 	beB := newMultiBackend()
 	beB.addLink("eth0", w, 20, 0x0b)
 
-	const cfgA = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}`
-	const cfgB = `{"isis":{"net":"49.0001.0000.0000.0002.00","level":"l1","interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}`
+	const cfgA = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}}`
+	const cfgB = `{"isis":{"net":"49.0001.0000.0000.0002.00","level":"l1","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}}`
 
 	engA := startEngineMulti(t, beA, cfgA)
 	engB := startEngineMulti(t, beB, cfgB)
@@ -304,7 +304,7 @@ func TestISISCSNPGapRequest(t *testing.T) {
 	w := newRelWire()
 	be := newMultiBackend()
 	be.addLink("eth0", w, 10, 0x0a)
-	const cfg = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}`
+	const cfg = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}}`
 	eng := startEngineMulti(t, be, cfg)
 	defer eng.shutdown()
 
@@ -333,7 +333,7 @@ func TestISISPSNPAck(t *testing.T) {
 	w := newRelWire()
 	be := newMultiBackend()
 	be.addLink("eth0", w, 10, 0x0a)
-	const cfg = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}`
+	const cfg = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}}`
 	eng := startEngineMulti(t, be, cfg)
 	defer eng.shutdown()
 
@@ -437,7 +437,7 @@ func TestISISReceivedLSPBadChecksumDropped(t *testing.T) {
 	w := newRelWire()
 	be := newMultiBackend()
 	be.addLink("eth0", w, 10, 0x0a)
-	const cfg = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}`
+	const cfg = `{"isis":{"net":"49.0001.0000.0000.0001.00","level":"l1","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"point-to-point"}}}}}`
 	// Wire metrics BEFORE the engine starts (production order) so the scrape sees
 	// the bad-checksum counter without racing the engine's running goroutines.
 	reg := metrics.NewPrometheusRegistry()

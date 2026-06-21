@@ -119,8 +119,8 @@ func startEngine(t *testing.T, w *wire, ifindex int, mac byte, jsonCfg string) *
 // adjacency that reaches Up on both sides via the LAN three-way check.
 func TestISISAdjacencyUp(t *testing.T) {
 	w := newWire()
-	const cfgA = `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"hello-interval":"1","level":"l1"}}}}`
-	const cfgB = `{"isis":{"net":"49.0001.0000.0000.0002.00","interface":{"eth0":{"hello-interval":"1","level":"l1"}}}}`
+	const cfgA = `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1"}}}}}`
+	const cfgB = `{"isis":{"net":"49.0001.0000.0000.0002.00","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1"}}}}}`
 
 	engA := startEngine(t, w, 10, 0x0a, cfgA)
 	engB := startEngine(t, w, 20, 0x0b, cfgB)

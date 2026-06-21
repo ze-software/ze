@@ -34,9 +34,11 @@ DIS:
 
 ```
 isis {
-  interface eth0 {
-    circuit-type broadcast
-    priority 100        # prefer this router as the LAN DIS
+  interfaces {
+    interface eth0 {
+      circuit-type broadcast
+      priority 100        # prefer this router as the LAN DIS
+    }
   }
 }
 ```
@@ -97,15 +99,17 @@ isis {
   }
   level-1 { auth-key-chain area-key }     # L1 LSP/CSNP/PSNP: the area key
   level-2 { auth-key-chain domain-key }   # L2 LSP/CSNP/PSNP: the domain key
-  interface eth0 {
-    level-1 { auth-key-chain iih-key }    # IIH (Hellos) on this circuit, per level
-    level-2 { auth-key-chain iih-key }
+  interfaces {
+    interface eth0 {
+      level-1 { auth-key-chain iih-key }    # IIH (Hellos) on this circuit, per level
+      level-2 { auth-key-chain iih-key }
+    }
   }
 }
 ```
 
 **Per-PDU-class keys.** Hellos (IIH) authenticate with the **per-interface** chain
-referenced under `interface/<name>/level-N/auth-key-chain` (the Link Level
+referenced under `interfaces/interface/<name>/level-N/auth-key-chain` (the Link Level
 Authentication string); LSPs and the CSNP/PSNP sequence-number PDUs authenticate
 with the **per-level** chain — the *area* key for Level 1 and the *domain* key for
 Level 2. The two are independent, so an IIH key never accepts an LSP and vice
@@ -195,9 +199,11 @@ IPv6 reachability:
 isis {
   net 49.0001.0000.0000.0001.00
   level l1-l2
-  interface eth0 {
-    address-family ipv4-unicast { }
-    address-family ipv6-unicast { }   # enable IPv6 on this circuit
+  interfaces {
+    interface eth0 {
+      address-family ipv4-unicast { }
+      address-family ipv6-unicast { }   # enable IPv6 on this circuit
+    }
   }
 }
 ```

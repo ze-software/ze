@@ -119,8 +119,8 @@ func startRealEngine(t *testing.T, ifaceName, jsonCfg string) *engine {
 // L1 adjacency that reaches Up over real Layer 2.
 func TestISISAdjacencyUpVeth(t *testing.T) {
 	withVethPair(t, func() {
-		const cfgA = `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"zeisisadj0":{"hello-interval":"1","level":"l1"}}}}`
-		const cfgB = `{"isis":{"net":"49.0001.0000.0000.0002.00","interface":{"zeisisadj1":{"hello-interval":"1","level":"l1"}}}}`
+		const cfgA = `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"zeisisadj0":{"hello-interval":"1","level":"l1"}}}}}`
+		const cfgB = `{"isis":{"net":"49.0001.0000.0000.0002.00","interfaces":{"interface":{"zeisisadj1":{"hello-interval":"1","level":"l1"}}}}}`
 
 		engA := startRealEngine(t, vethA, cfgA)
 		engB := startRealEngine(t, vethB, cfgB)

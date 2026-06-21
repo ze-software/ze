@@ -4,11 +4,13 @@
 // Config flows file -> YANG schema -> validated tree -> the SDK delivers the
 // `isis` subtree as a root-wrapped JSON ConfigSection ({"isis": {...}}). Every
 // leaf is rendered as a JSON string by Tree.ToMap (so "10", not 10), keyed lists
-// (interface, key-chains) render as a key->entry map, and a single-element
-// leaf-list (net) renders as a bare scalar while a multi-element one renders as a
-// []any. This file parses that shape into typed Go structs, applies the YANG
-// defaults, and validates the required fields (at least one NET; a derivable
-// System ID).
+// (the `interface` list nested under the `interfaces` container, and key-chains)
+// render as a key->entry map, and a single-element leaf-list (net) renders as a
+// bare scalar while a multi-element one renders as a []any. The interface list is
+// wrapped in an `interfaces` container, mirroring the OSPF config shape
+// (ze-ospf-conf.yang). This file parses that shape into typed Go structs, applies
+// the YANG defaults, and validates the required fields (at least one NET; a
+// derivable System ID).
 
 package isis
 
@@ -376,8 +378,10 @@ func applyTree(cfg *Config, tree map[string]any) error {
 	cfg.Overload = configBool(tree["overload"], false)
 	cfg.Hostname = configString(tree["hostname"])
 
-	for _, entry := range keyedList(tree["interface"], false) {
-		cfg.Interfaces = append(cfg.Interfaces, parseInterface(entry))
+	if interfaces, ok := tree["interfaces"].(map[string]any); ok {
+		for _, entry := range keyedList(interfaces["interface"], false) {
+			cfg.Interfaces = append(cfg.Interfaces, parseInterface(entry))
+		}
 	}
 	for _, entry := range keyedList(tree["key-chains"], false) {
 		cfg.KeyChains = append(cfg.KeyChains, parseKeyChain(entry))

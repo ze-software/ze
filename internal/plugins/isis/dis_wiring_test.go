@@ -43,8 +43,8 @@ func startLANNode(t *testing.T, w *relWire, ifindex int, mac, sysOctet byte, pri
 	be := newMultiBackend()
 	be.addLink("eth0", w, ifindex, mac)
 	netHex := "49.0001.0000.0000.000" + string(rune('0'+sysOctet)) + ".00"
-	cfg := `{"isis":{"net":"` + netHex + `","level":"l1","interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"broadcast","priority":"` +
-		itoa(priority) + `"}}}}`
+	cfg := `{"isis":{"net":"` + netHex + `","level":"l1","interfaces":{"interface":{"eth0":{"hello-interval":"1","level":"l1","circuit-type":"broadcast","priority":"` +
+		itoa(priority) + `"}}}}}`
 	eng := startEngineMulti(t, be, cfg)
 	return lanNode{eng: eng, sys: eng.cfg.SystemID}
 }

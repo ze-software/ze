@@ -27,9 +27,11 @@ interface {
 isis {
 	net 49.0001.0000.0000.0001.00
 	level l1-l2
-	interface uplink {
-		circuit-type point-to-point
-		level l1-l2
+	interfaces {
+		interface uplink {
+			circuit-type point-to-point
+			level l1-l2
+		}
 	}
 }
 EOF_OK

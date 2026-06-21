@@ -71,93 +71,96 @@ module ze-isis-conf {
             description "Dynamic hostname to advertise (RFC 5301).";
         }
 
-        list interface {
-            key "name";
-            description "Per-interface IS-IS configuration.";
+        container interfaces {
+            description "IS-IS-enabled interfaces.";
+            list interface {
+                key "name";
+                description "Per-interface IS-IS configuration.";
 
-            leaf name {
-                type string;
-                description "Interface name.";
-            }
-            leaf enabled {
-                type boolean;
-                default true;
-                description "IS-IS enabled on this interface.";
-            }
-            leaf passive {
-                type boolean;
-                default false;
-                description "Advertise the interface but form no adjacencies.";
-            }
-            leaf circuit-type {
-                type enumeration {
-                    enum broadcast { description "LAN broadcast circuit (DIS election)."; }
-                    enum point-to-point { description "Point-to-point circuit."; }
+                leaf name {
+                    type string;
+                    description "Interface name.";
                 }
-                default "broadcast";
-                description "Circuit type.";
-            }
-            leaf level {
-                type enumeration {
-                    enum l1;
-                    enum l2;
-                    enum l1-l2;
+                leaf enabled {
+                    type boolean;
+                    default true;
+                    description "IS-IS enabled on this interface.";
                 }
-                default "l1-l2";
-                description "Per-interface level override.";
-            }
-            // RFC 5305: wide metric, 24-bit (TLV 22) / 32-bit (TLV 135). The
-            // per-interface circuit metric is bounded to the 24-bit wide range.
-            leaf metric {
-                type uint32 { range "1..16777215"; }
-                default 10;
-                description "Wide metric (RFC 5305).";
-            }
-            leaf hello-interval {
-                type uint16 { range "1..65535"; }
-                default 10;
-                units seconds;
-                description "Hello interval.";
-            }
-            leaf hold-multiplier {
-                type uint8 { range "1..255"; }
-                default 3;
-                description "Hold time = hello-interval * hold-multiplier.";
-            }
-            leaf priority {
-                type uint8 { range "0..127"; }
-                default 64;
-                description "DIS election priority (broadcast circuits).";
-            }
-
-            container level-1 {
-                description "Level-1 per-interface overrides.";
-                leaf metric { type uint32 { range "1..16777215"; } description "L1 wide metric override."; }
-                leaf hello-interval { type uint16 { range "1..65535"; } units seconds; description "L1 hello-interval override."; }
-                leaf hold-multiplier { type uint8 { range "1..255"; } description "L1 hold-multiplier override."; }
-                leaf priority { type uint8 { range "0..127"; } description "L1 DIS priority override."; }
-                leaf auth-key-chain { type string; description "L1 per-interface (IIH) key-chain reference."; }
-            }
-            container level-2 {
-                description "Level-2 per-interface overrides.";
-                leaf metric { type uint32 { range "1..16777215"; } description "L2 wide metric override."; }
-                leaf hello-interval { type uint16 { range "1..65535"; } units seconds; description "L2 hello-interval override."; }
-                leaf hold-multiplier { type uint8 { range "1..255"; } description "L2 hold-multiplier override."; }
-                leaf priority { type uint8 { range "0..127"; } description "L2 DIS priority override."; }
-                leaf auth-key-chain { type string; description "L2 per-interface (IIH) key-chain reference."; }
-            }
-
-            list address-family {
-                key "af";
-                description
-                    "Per-interface address families on this circuit (single-topology;
-                     both ride the shared SPF tree).";
-                leaf af {
+                leaf passive {
+                    type boolean;
+                    default false;
+                    description "Advertise the interface but form no adjacencies.";
+                }
+                leaf circuit-type {
                     type enumeration {
-                        enum ipv4-unicast { description "IPv4 unicast."; }
-                        enum ipv6-unicast { description "IPv6 unicast."; }
+                        enum broadcast { description "LAN broadcast circuit (DIS election)."; }
+                        enum point-to-point { description "Point-to-point circuit."; }
                     }
-                    description "Address family key.";
+                    default "broadcast";
+                    description "Circuit type.";
+                }
+                leaf level {
+                    type enumeration {
+                        enum l1;
+                        enum l2;
+                        enum l1-l2;
+                    }
+                    default "l1-l2";
+                    description "Per-interface level override.";
+                }
+                // RFC 5305: wide metric, 24-bit (TLV 22) / 32-bit (TLV 135). The
+                // per-interface circuit metric is bounded to the 24-bit wide range.
+                leaf metric {
+                    type uint32 { range "1..16777215"; }
+                    default 10;
+                    description "Wide metric (RFC 5305).";
+                }
+                leaf hello-interval {
+                    type uint16 { range "1..65535"; }
+                    default 10;
+                    units seconds;
+                    description "Hello interval.";
+                }
+                leaf hold-multiplier {
+                    type uint8 { range "1..255"; }
+                    default 3;
+                    description "Hold time = hello-interval * hold-multiplier.";
+                }
+                leaf priority {
+                    type uint8 { range "0..127"; }
+                    default 64;
+                    description "DIS election priority (broadcast circuits).";
+                }
+
+                container level-1 {
+                    description "Level-1 per-interface overrides.";
+                    leaf metric { type uint32 { range "1..16777215"; } description "L1 wide metric override."; }
+                    leaf hello-interval { type uint16 { range "1..65535"; } units seconds; description "L1 hello-interval override."; }
+                    leaf hold-multiplier { type uint8 { range "1..255"; } description "L1 hold-multiplier override."; }
+                    leaf priority { type uint8 { range "0..127"; } description "L1 DIS priority override."; }
+                    leaf auth-key-chain { type string; description "L1 per-interface (IIH) key-chain reference."; }
+                }
+                container level-2 {
+                    description "Level-2 per-interface overrides.";
+                    leaf metric { type uint32 { range "1..16777215"; } description "L2 wide metric override."; }
+                    leaf hello-interval { type uint16 { range "1..65535"; } units seconds; description "L2 hello-interval override."; }
+                    leaf hold-multiplier { type uint8 { range "1..255"; } description "L2 hold-multiplier override."; }
+                    leaf priority { type uint8 { range "0..127"; } description "L2 DIS priority override."; }
+                    leaf auth-key-chain { type string; description "L2 per-interface (IIH) key-chain reference."; }
+                }
+
+                list address-family {
+                    key "af";
+                    description
+                        "Per-interface address families on this circuit (single-topology;
+                         both ride the shared SPF tree).";
+                    leaf af {
+                        type enumeration {
+                            enum ipv4-unicast { description "IPv4 unicast."; }
+                            enum ipv6-unicast { description "IPv6 unicast."; }
+                        }
+                        description "Address family key.";
+                    }
                 }
             }
         }

@@ -68,13 +68,15 @@ isis {
 	level-2 {
 		auth-key-chain domain-key
 	}
-	interface eth0 {
-		circuit-type point-to-point
-		level-1 {
-			auth-key-chain iih-key
-		}
-		level-2 {
-			auth-key-chain iih-key
+	interfaces {
+		interface eth0 {
+			circuit-type point-to-point
+			level-1 {
+				auth-key-chain iih-key
+			}
+			level-2 {
+				auth-key-chain iih-key
+			}
 		}
 	}
 }

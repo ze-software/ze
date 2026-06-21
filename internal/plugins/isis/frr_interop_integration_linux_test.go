@@ -186,7 +186,7 @@ func dumpZeAdjacencies(e *engine) string {
 func TestISISInteropFRR(t *testing.T) {
 	startISISFRRPeer(t)
 
-	cfgZe := fmt.Sprintf(`{"isis":{"net":%q,"interface":{%q:{"hello-interval":"1","level":"l1"}}}}`, zeISISNet, zeISISVeth)
+	cfgZe := fmt.Sprintf(`{"isis":{"net":%q,"interfaces":{"interface":{%q:{"hello-interval":"1","level":"l1"}}}}}`, zeISISNet, zeISISVeth)
 	eng := startRealEngine(t, zeISISVeth, cfgZe)
 	defer eng.shutdown()
 

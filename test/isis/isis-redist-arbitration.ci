@@ -35,9 +35,11 @@ stdin=isis-ad-valid:terminator=EOF_VALID
 isis {
 	net 49.0001.0000.0000.0001.00
 	level l1-l2
-	interface eth0 {
-		metric 10
-		level l1-l2
+	interfaces {
+		interface eth0 {
+			metric 10
+			level l1-l2
+		}
 	}
 }
 EOF_VALID

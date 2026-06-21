@@ -68,7 +68,7 @@ func p2pHelloPDU(t *testing.T, sys types.SystemID, area types.AreaID) []byte {
 }
 
 func TestISISEngineOriginateOnAdjacencyUp(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point","metric":"15"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point","metric":"15"}}}}}`)
 	defer eng.shutdown()
 
 	node := eng.cfg.SystemID
@@ -148,7 +148,7 @@ func TestISISEngineOriginateOnAdjacencyUp(t *testing.T) {
 }
 
 func TestISISEngineConnectedPrefixOrigination(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"metric":"10"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"metric":"10"}}}}}`)
 	defer eng.shutdown()
 
 	// Inject a connected prefix at L2 (the path isis-11 will use) and re-originate.
@@ -199,7 +199,7 @@ func TestISISEngineConnectedPrefixOrigination(t *testing.T) {
 // up/down bit SET, an L1-derived prefix lands in the L2 LSP with the bit CLEAR,
 // and a re-apply of the SAME set does NOT bump the sequence (the fixpoint).
 func TestISISEngineLeakOrigination(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"metric":"10"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"metric":"10"}}}}}`)
 	defer eng.shutdown()
 
 	node := eng.cfg.SystemID
@@ -294,7 +294,7 @@ func mustFrag0(t *testing.T, eng *engine, node types.SystemID, level lsdb.Level)
 }
 
 func TestISISEngineDatabaseSnapshot(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","hostname":"snap-node","interface":{"eth0":{}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","hostname":"snap-node","interfaces":{"interface":{"eth0":{}}}}}`)
 	defer eng.shutdown()
 
 	rows := eng.databaseSnapshot()
@@ -357,7 +357,7 @@ func TestISISEngineOriginateCoalescesNoChange(t *testing.T) {
 	// A point-to-point circuit with no neighbor: the origination input is stable
 	// (no DIS, no adjacency churn), so repeated originate() calls have identical
 	// input.
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point","metric":"10"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point","metric":"10"}}}}}`)
 	defer eng.shutdown()
 	node := eng.cfg.SystemID
 
@@ -441,7 +441,7 @@ func ownLifetime(eng *engine, node types.SystemID, level lsdb.Level) uint16 {
 // sleep. A point-to-point circuit with no neighbor keeps the origination input
 // stable, so the ONLY reason to re-originate is the elapsed refresh interval.
 func TestISISEngineRefreshDueReoriginates(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point","metric":"10"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point","metric":"10"}}}}}`)
 	defer eng.shutdown()
 	node := eng.cfg.SystemID
 
@@ -502,7 +502,7 @@ func TestISISEngineRefreshDueReoriginates(t *testing.T) {
 // sequence every second (the refresh fires only at lsp-refresh-interval, not every
 // tick). This is the complement of TestISISEngineRefreshDueReoriginates.
 func TestISISEngineRefreshNotDueNoReorigination(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point","metric":"10"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point","metric":"10"}}}}}`)
 	defer eng.shutdown()
 	node := eng.cfg.SystemID
 
@@ -532,7 +532,7 @@ func TestISISEngineRefreshNotDueNoReorigination(t *testing.T) {
 // and originate's per-level coalescing then re-stamps L1 while leaving the fresh L2
 // untouched (so a refresh does not gratuitously re-flood every level).
 func TestISISEngineRefreshDuePerLevel(t *testing.T) {
-	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{"circuit-type":"point-to-point","metric":"10"}}}}`)
+	eng := startedEngine(t, `{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{"circuit-type":"point-to-point","metric":"10"}}}}}`)
 	defer eng.shutdown()
 	node := eng.cfg.SystemID
 

@@ -154,7 +154,7 @@ func waitGoroutinesAtMost(want int) int {
 // the test exercises only the per-circuit hello+sweep goroutine.
 func engineForCircuitLifecycle(t *testing.T) (*engine, *countingBackend) {
 	t.Helper()
-	cfg, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interface":{"eth0":{}}}}`))
+	cfg, err := parseISISConfig(sec(`{"isis":{"net":"49.0001.0000.0000.0001.00","interfaces":{"interface":{"eth0":{}}}}}`))
 	if err != nil {
 		t.Fatalf("parseISISConfig: %v", err)
 	}
