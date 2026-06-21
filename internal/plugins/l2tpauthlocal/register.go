@@ -151,10 +151,26 @@ func parseUsersFromTree(tree map[string]any) (map[string]userEntry, error) {
 
 	entries, ok := userList.([]any)
 	if !ok {
-		if single, ok2 := userList.(map[string]any); ok2 {
+		single, ok2 := userList.(map[string]any)
+		if !ok2 {
+			return nil, fmt.Errorf("%s: invalid user list type %T", Name, userList)
+		}
+		// A keyed `user <name> { ... }` list lowers to a map keyed by the user
+		// name: {"alice": {"password": ...}, "bob": {...}}. The name is the map
+		// key, not a field. A single entry that carries an explicit "name" field
+		// (e.g. an array element delivered bare) is handled as one entry below.
+		if _, hasNameField := single["name"]; hasNameField {
 			entries = []any{single}
 		} else {
-			return nil, fmt.Errorf("%s: invalid user list type %T", Name, userList)
+			for name, val := range single {
+				m, ok := val.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("%s: invalid user entry type %T for %q", Name, val, name)
+				}
+				pw, _ := m["password"].(string)
+				users[name] = userEntry{Name: name, secret: pw}
+			}
+			return users, nil
 		}
 	}
 

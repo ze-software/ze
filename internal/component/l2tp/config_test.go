@@ -579,7 +579,11 @@ func TestConfig_ReauthIntervalBoundary(t *testing.T) {
 	}{
 		{"disabled", "0", 0, false},
 		{"floor", "5", 5 * time.Second, false},
+		{"just-above-floor", "6", 6 * time.Second, false},
+		{"just-below-max", "86399", 86399 * time.Second, false},
 		{"maximum", "86400", 86400 * time.Second, false},
+		{"above-max", "86401", 0, true},
+		{"far-above-max", "100000", 0, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -597,12 +601,13 @@ environment {
 		}
 	}
 }`
-			tree := loadTree(t, src)
-			p, err := l2tp.ExtractParameters(tree)
+			res, err := zeconfig.LoadConfig(src, "test.conf", nil)
 			if tc.wantErr {
-				require.Error(t, err)
+				require.Error(t, err, "reauth-interval=%s must be rejected by YANG range 0|5..86400", tc.value)
 				return
 			}
+			require.NoError(t, err)
+			p, err := l2tp.ExtractParameters(res.Tree)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expect, p.ReauthInterval)
 		})
