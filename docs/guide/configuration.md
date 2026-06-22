@@ -648,18 +648,16 @@ isis {
     level l1-l2
     lsp-lifetime 1200
     hostname r1
-    interfaces {
-        interface eth0 {
-            circuit-type point-to-point
-            metric 10
-            hello-interval 10
-            hold-multiplier 3
-            priority 64
-            address-family ipv4-unicast { }
-        }
-        interface eth1 {
-            passive true
-        }
+    interface eth0 {
+        circuit-type point-to-point
+        metric 10
+        hello-interval 10
+        hold-multiplier 3
+        priority 64
+        address-family ipv4-unicast { }
+    }
+    interface eth1 {
+        passive true
     }
 }
 ```
@@ -688,10 +686,8 @@ isis {
         key 1 { algorithm hmac-sha-256  secret ... }
     }
     level-1 { auth-key-chain area-key }       # L1 LSP/CSNP/PSNP
-    interfaces {
-        interface eth0 {
-            level-1 { auth-key-chain iih-key }    # L1 Hellos on this circuit
-        }
+    interface eth0 {
+        level-1 { auth-key-chain iih-key }    # L1 Hellos on this circuit
     }
 }
 ```

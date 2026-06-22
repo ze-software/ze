@@ -35,7 +35,9 @@ VM_MEMORY_MAX = 12288
 VM_MEMORY_FRACTION = 4
 BOOT_TIMEOUT = 120
 BUILD_TIMEOUT = 14400
-DEFAULT_LINUX_VERSION = "7.0.11"
+# The kernel version has a single source of truth: internal/appliance/kernel.version.
+# Callers (the build Makefiles and `ze appliance kernel`) always pass --version or
+# set LINUX_VERSION, so this tool carries no default of its own.
 
 BUILD_PACKAGES = (
     "build-base bc bison flex elfutils-dev openssl-dev "
@@ -574,8 +576,10 @@ def main() -> int:
     )
     parser.add_argument(
         "--version",
-        default=os.environ.get("LINUX_VERSION", DEFAULT_LINUX_VERSION),
-        help=f"Linux kernel version (default: {DEFAULT_LINUX_VERSION})",
+        default=os.environ.get("LINUX_VERSION"),
+        required="LINUX_VERSION" not in os.environ,
+        help="Linux kernel version (required; or set LINUX_VERSION). "
+        "Canonical: internal/appliance/kernel.version",
     )
     parser.add_argument(
         "--jobs",

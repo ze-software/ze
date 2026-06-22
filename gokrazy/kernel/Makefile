@@ -5,7 +5,9 @@
 # selects the runtime config fragments and build environment.
 
 ARCH ?= amd64
-KVER ?= 7.0.11
+# Single source of truth for the kernel version: internal/appliance/kernel.version
+# (also embedded into `ze appliance kernel`). Bump the kernel by editing that file.
+KVER ?= $(shell cat $(dir $(lastword $(MAKEFILE_LIST)))../../internal/appliance/kernel.version)
 PROFILE := runtime
 BUILDER ?= docker
 JOBS ?=

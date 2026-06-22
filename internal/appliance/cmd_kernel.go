@@ -4,12 +4,14 @@ package appliance
 
 import (
 	"context"
+	_ "embed" // for go:embed kernel.version
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"io"
@@ -20,8 +22,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
+// kernelVersionFile holds the single source of truth for the Linux kernel
+// version Ze builds. The build entrypoints (mk/gokrazy.mk, gokrazy/kernel/Makefile,
+// tools/installer-kernel/Makefile) read the same file; tools/kernel-builder's
+// build.sh and qemu-build.py require the version from their caller. Bump the
+// kernel by editing internal/appliance/kernel.version only.
+//
+//go:embed kernel.version
+var kernelVersionFile string
+
+// defaultKernelVersion is the trimmed contents of kernel.version.
+var defaultKernelVersion = strings.TrimSpace(kernelVersionFile)
+
 const (
-	defaultKernelVersion     = "7.0.11"
 	kernelURLKey             = "ze.appliance.kernel.url"
 	kernelBuilderDir         = "tools/kernel-builder"
 	kernelInstallerConfigDir = "tools/installer-kernel"

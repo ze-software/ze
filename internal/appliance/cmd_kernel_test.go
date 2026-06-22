@@ -67,7 +67,7 @@ func TestKernelResolvesCache(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	version := "7.0.11"
+	version := "7.1.1"
 	arch := archAMD64
 	cached := kernelCachePath(version, arch+"-"+ProfileQEMU)
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
@@ -91,7 +91,7 @@ func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	version := "7.0.11"
+	version := "7.1.1"
 	content := []byte("cached-hardware-kernel")
 	cached := kernelCachePath(version, archAMD64+"-"+ProfileHardware)
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
@@ -129,7 +129,7 @@ func TestKernelDownloadsAndCaches(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL)
 	env.ResetCache()
 
-	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestKernelDownloadChecksumMismatch(t *testing.T) {
 
 	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
 
-	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	_, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
 	if err == nil {
 		t.Fatal("expected error from checksum mismatch + no QEMU fallback")
 	}
@@ -179,7 +179,7 @@ func TestKernelFallsBackToQEMU(t *testing.T) {
 		return os.WriteFile(destPath, []byte("qemu-built-kernel"), 0o644)
 	})
 
-	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestKernelFailsWithoutBuilders(t *testing.T) {
 	setTestDockerCheck(t, func() error { return errors.New("docker not found") })
 	setTestQEMUCheck(t, func() error { return errors.New("qemu not found") })
 
-	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	_, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
 	if err == nil {
 		t.Fatal("expected error when both download and builders fail")
 	}
@@ -257,7 +257,7 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 		return os.WriteFile(destPath, []byte("built-kernel"), 0o644)
 	})
 
-	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -411,7 +411,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 	}
 
 	variant1 := kernelCacheVariant(archAMD64, ProfileQEMU)
-	cached1 := kernelCachePath("7.0.11", variant1)
+	cached1 := kernelCachePath("7.1.1", variant1)
 	if err := os.MkdirAll(filepath.Dir(cached1), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -419,7 +419,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel before config change: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		return os.WriteFile(destPath, []byte("kernel-v2"), 0o644)
 	})
 
-	got2, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	got2, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel after config change: %v", err)
 	}
@@ -524,7 +524,7 @@ func TestKernelEnvURL(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL+"/custom-base")
 	env.ResetCache()
 
-	_, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	_, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -666,7 +666,7 @@ func TestKernelFallsBackToDocker(t *testing.T) {
 	})
 	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
 
-	got, err := resolveKernel("7.0.11", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -742,7 +742,7 @@ fi
 	t.Setenv("ZE_DOCKER_LOG", logPath)
 
 	destPath := filepath.Join(dir, "cache", kernelFileName)
-	if err := defaultDockerBuild("7.0.11", archAMD64, ProfileQEMU, destPath); err != nil {
+	if err := defaultDockerBuild("7.1.1", archAMD64, ProfileQEMU, destPath); err != nil {
 		t.Fatalf("defaultDockerBuild: %v", err)
 	}
 	if _, err := os.Stat(destPath); err != nil {
@@ -813,7 +813,7 @@ fi
 	t.Setenv("ZE_PYTHON_LOG", logPath)
 
 	destPath := filepath.Join(dir, "cache", kernelFileName)
-	if err := defaultQEMUBuild("7.0.11", archARM64, ProfileHardware, destPath); err != nil {
+	if err := defaultQEMUBuild("7.1.1", archARM64, ProfileHardware, destPath); err != nil {
 		t.Fatalf("defaultQEMUBuild: %v", err)
 	}
 	if _, err := os.Stat(destPath); err != nil {

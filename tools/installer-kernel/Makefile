@@ -24,7 +24,9 @@
 # keeping multiple kernels side by side.
 
 ARCH ?= arm64
-LINUX_VERSION ?= 7.0.11
+# Single source of truth for the kernel version: internal/appliance/kernel.version
+# (also embedded into `ze appliance kernel`). Bump the kernel by editing that file.
+LINUX_VERSION ?= $(shell cat $(dir $(lastword $(MAKEFILE_LIST)))../../internal/appliance/kernel.version)
 PROFILE ?= qemu
 BUILDER ?= qemu
 JOBS ?=

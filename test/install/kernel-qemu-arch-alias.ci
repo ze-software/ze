@@ -13,7 +13,7 @@ cd "$repo"
 if python3 tools/kernel-builder/qemu-build.py \
 	--arch aarch64 \
 	--profile runtime \
-	--version 7.0.11 \
+	--version 7.1.1 \
 	--src-dir ../bad \
 	--out-dir tmp/kernel/build \
 	--builder-dir tools/kernel-builder \

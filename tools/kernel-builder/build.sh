@@ -2,7 +2,8 @@
 # Build a Ze kernel inside Docker, QEMU, or any Linux build environment.
 #
 # Inputs (env):
-#   LINUX_VERSION  - kernel version to build (default: 7.0.11)
+#   LINUX_VERSION  - kernel version to build (required; canonical source of truth
+#                    is internal/appliance/kernel.version, passed in by the caller)
 #   ARCH           - target arch: arm64|amd64|x86_64 (default: arm64)
 #   PROFILE        - config profile: qemu|hardware|hardware-kms|runtime (default: qemu)
 #   JOBS           - parallel make jobs (default: nproc)
@@ -12,7 +13,7 @@
 #   PATCHES_DIR    - optional directory with a series file and patches
 set -eu
 
-LINUX_VERSION="${LINUX_VERSION:-7.0.11}"
+LINUX_VERSION="${LINUX_VERSION:?must be set by the caller (canonical: internal/appliance/kernel.version)}"
 ARCH="${ARCH:-arm64}"
 PROFILE="${PROFILE:-qemu}"
 JOBS="${JOBS:-$(nproc)}"

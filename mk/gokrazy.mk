@@ -152,7 +152,9 @@ ze-gokrazy-run:
 # ---------------------------------------------------------------------------
 # Custom kernel build (overrides the rtr7/kernel pin used by ze-gokrazy)
 # ---------------------------------------------------------------------------
-KVER                  ?= 7.0.11
+# Single source of truth for the kernel version: internal/appliance/kernel.version
+# (also embedded into `ze appliance kernel`). Bump the kernel by editing that file.
+KVER                  ?= $(shell cat $(dir $(lastword $(MAKEFILE_LIST)))../internal/appliance/kernel.version)
 KERNEL_MODULE         := github.com/rtr7/kernel
 KERNEL_ARCH           ?= $(GOKRAZY_ARCH)
 KERNEL_BUILDER        ?= docker
