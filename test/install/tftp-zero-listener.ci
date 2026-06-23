@@ -1,0 +1,42 @@
+# Test: the TFTP server reports a clear error and does NOT claim "started" when
+# no interface binds -- the install-path silent-failure class.
+# VALIDATES: the tftpserver zero-listener guard: a bind failure on every
+#            configured interface yields "no interfaces bound" instead of a
+#            false "tftpserver: started".
+# PREVENTS: regression of the silent bind-failure that left the install servers
+#           logging "started" while serving nothing (the original PXE failure).
+#
+# Mechanism: listen-interface names a device that does not exist. On Linux
+# SO_BINDTODEVICE rejects the bind, so every interface fails and the guard fires.
+# INFO logging is enabled so a regressed "started" line would appear (and trip
+# the reject).
+#
+# needs-linux: other platforms ignore the interface and bind the port globally
+# (no SO_BINDTODEVICE), so the failure cannot be forced portably; the unit-level
+# bindDeviceFor coverage applies on every platform.
+option=needs-linux
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import time
+time.sleep(2.0)
+EOF_PY
+
+stdin=ze-tftp:terminator=EOF_CONF
+service {
+    tftp-server {
+        enabled true
+        listen-interface ze-no-such-iface0
+        root-directory /var/lib/tftp
+        max-transfers 10
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.tftpserver:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-tftp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=no interfaces bound
+reject=stderr:pattern=tftpserver: started

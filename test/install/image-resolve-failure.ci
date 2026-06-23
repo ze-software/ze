@@ -1,0 +1,40 @@
+# Test: the image server reports a clear error and does NOT claim "started" when
+# its listen interface cannot be resolved -- the install-path silent-failure class.
+# VALIDATES: imageserver binds honestly: a listen-interface that resolves to no
+#            address yields "resolve interface failed" instead of a false
+#            "imageserver: started".
+# PREVENTS: regression of the silent failure where the image server returned
+#           before ListenAndServe yet appeared to have started (the original PXE
+#           failure where the target could not fetch the image).
+#
+# Mechanism: listen-interface names a device that does not exist. resolveInterfaceIPv4
+# falls back to a direct net.InterfaceByName lookup (no iface backend in this
+# service-only config), which fails for a non-existent device on every platform,
+# so this test needs no platform gating. INFO logging is enabled so a regressed
+# "started" line would appear (and trip the reject).
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import time
+time.sleep(2.0)
+EOF_PY
+
+stdin=ze-image:terminator=EOF_CONF
+service {
+    image-server {
+        enabled true
+        listen-interface ze-no-such-iface0
+        listen-port 18080
+        image-directory /var/lib/ze/install/images
+        boot-directory /var/lib/ze/install/boot
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.imageserver:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-image
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=imageserver: resolve interface failed
+reject=stderr:pattern=imageserver: started

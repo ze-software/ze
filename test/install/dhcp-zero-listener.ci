@@ -1,0 +1,50 @@
+# Test: the DHCP server reports a clear error and does NOT claim "started" when
+# no interface binds -- the install-path silent-failure class.
+# VALIDATES: startListeners zero-listener guard (dhcpserver/register.go): a bind
+#            failure on every configured interface yields "no interfaces bound"
+#            instead of a false "dhcpserver: started".
+# PREVENTS: regression of the silent bind-failure that left the install servers
+#           logging "started" while serving nothing.
+#
+# Mechanism: listen-interface names a device that does not exist. On Linux
+# SO_BINDTODEVICE rejects the bind, so every interface fails and the zero-listener
+# guard fires. Config verify only parses structure, so the config is accepted and
+# the failure surfaces at the engine's bind step. INFO logging is enabled so a
+# regressed "started" line would appear (and trip the reject).
+#
+# needs-linux: other platforms ignore the interface and bind the port globally
+# (no SO_BINDTODEVICE), so the failure cannot be forced portably; the unit test
+# TestStartListenersGuardsZeroBind covers the guard on every platform.
+option=needs-linux
+
+tmpfs=wait.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+import time
+time.sleep(2.0)
+EOF_PY
+
+stdin=ze-dhcp:terminator=EOF_CONF
+service {
+    dhcp-server {
+        enabled true
+        listen-interface ze-no-such-iface0
+        shared-network install {
+            subnet 198.19.255.0/24 {
+                range pool1 {
+                    start 198.19.255.100
+                    stop 198.19.255.200
+                }
+                default-router 198.19.255.1
+            }
+        }
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.dhcpserver:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-dhcp
+cmd=foreground:seq=2:exec=python3 wait.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=no interfaces bound
+reject=stderr:pattern=dhcpserver: started
