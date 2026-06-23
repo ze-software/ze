@@ -72,7 +72,7 @@ Last updated: 2026-05-30
 ## Cross-Protocol Redistribute
 
 Ze advertises locally-originated routes from non-BGP protocols (connected,
-static, L2TP, IS-IS; future OSPF) into BGP via the
+static, L2TP, IS-IS, OSPF) into BGP via the
 `redistribute-orchestrator` plugin. Operators enable it per-destination and per-source via
 `redistribute { destination <proto> { import <source> { family [...]; } } }`. The same config block
 also drives the intra-BGP `IngressFilter` ACL when the source is `ibgp` /
@@ -89,6 +89,27 @@ the up/down bit (RFC 2966) is set only on a down-level leak. IS-IS is dual-stack
 0x8E), and IPv6 redistribution works the same way — matching FRR's single-topology
 IS-IS default (FRR also offers RFC 5120 Multi-Topology, which Ze does not yet
 implement).
+
+OSPFv2 meshes with BGP in both directions like IS-IS: it installs intra-area,
+inter-area ABR, and AS-external SPF routes into the kernel through the same shared
+Loc-RIB -> sysrib -> fibkernel pipeline, exports OSPF routes into BGP
+(`import ospf`), and injects connected/static/BGP routes as Type 5 AS-External
+LSAs (`destination ospf`). `default-information originate` advertises a Type 5
+default. Unlike IS-IS TLV 135, OSPF externals carry an explicit metric type:
+type 1 (E1) adds the internal cost to the ASBR, type 2 (E2) keeps the advertised
+metric, and E1 always wins over E2. Ze also implements stub, totally-stubby, and
+NSSA areas (RFC 3101) with Type 7 origination, highest-Router-ID translator
+election, Type 7 to Type 5 translation, and the §2.5 preference -- matching the
+FRR/bird NSSA feature set. Per-interface authentication covers simple password,
+keyed-MD5 (RFC 2328), HMAC-SHA (RFC 5709), and the RFC 7474 extended-sequence
+variant, with key chains for hitless rotation and sequence-number replay
+protection.
+<!-- source: internal/plugins/ospf/packet/auth_verify.go -- Sign, Verify -->
+<!-- source: internal/plugins/ospf/spf/install.go -- Installer Apply -->
+<!-- source: internal/plugins/ospf/spf/computer.go -- Computer Run -->
+<!-- source: internal/plugins/ospf/spf/interarea.go -- ComputeInterArea -->
+<!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal E1/E2 -->
+<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute -->
 
 <!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer -->
 <!-- source: internal/plugins/isis/redistribute/source.go -- isis source + producer emit -->
