@@ -524,6 +524,15 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	srv.Handle("GET /isis/database", authWrap(isisHandlers.HandleISISDatabase()))
 	srv.Handle("GET /isis/database/stream", authWrap(isisHandlers.HandleISISDatabaseSSE()))
 
+	// OSPF neighbor + database live views, reached through the same CommandDispatcher
+	// the CLI uses (spec-ospf-13 AC-11).
+	ospfHandlers := &zeweb.OSPFHandlers{Renderer: renderer, Dispatch: dispatch}
+	srv.Handle("GET /ospf", authWrap(ospfHandlers.HandleOSPFNeighbors()))
+	srv.Handle("GET /ospf/neighbors", authWrap(ospfHandlers.HandleOSPFNeighbors()))
+	srv.Handle("GET /ospf/neighbors/stream", authWrap(ospfHandlers.HandleOSPFNeighborsSSE()))
+	srv.Handle("GET /ospf/database", authWrap(ospfHandlers.HandleOSPFDatabase()))
+	srv.Handle("GET /ospf/database/stream", authWrap(ospfHandlers.HandleOSPFDatabaseSSE()))
+
 	// Portal: iframe wrapper for embedded services (gokrazy, etc.).
 	if env.IsEnabled("ze.gokrazy.enabled") {
 		srv.Handle("/gokrazy/", authWrap(zegokrazy.Handler(env.Get("ze.gokrazy.socket"))))

@@ -11,44 +11,8 @@
 
 package web
 
-import (
-	"errors"
-	"html/template"
-
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
-)
+import "errors"
 
 // errISISDispatchUnavailable is returned when the IS-IS web handlers have no
 // CommandDispatcher wired (the engine command path is unavailable).
 var errISISDispatchUnavailable = errors.New("isis: command dispatch not available")
-
-// isisPageHTML renders the IS-IS view shell. title is the page heading,
-// streamPath the SSE endpoint, eventName the SSE event the script listens for,
-// and initialJSON the snapshot embedded so the page renders before the first
-// push. Every interpolated value is HTML-escaped.
-func isisPageHTML(title, streamPath, eventName, initialJSON string) string {
-	t := template.HTMLEscapeString(title)
-	path := template.JSEscapeString(streamPath)
-	evt := template.JSEscapeString(eventName)
-	initial := template.HTMLEscapeString(initialJSON)
-
-	var tb textbuf.Buffer
-	return tb.
-		Str("<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\n").
-		Str("<title>").Str(t).Str("</title>\n").
-		Str("</head><body>\n").
-		Str("<h1>").Str(t).Str("</h1>\n").
-		Str("<pre id=\"isis-data\">").Str(initial).Str("</pre>\n").
-		Str("<script>\n").
-		Str("(function(){\n").
-		Str("  var es = new EventSource(\"").Str(path).Str("\");\n").
-		Str("  es.addEventListener(\"").Str(evt).Str("\", function(e){\n").
-		Str("    var el = document.getElementById(\"isis-data\");\n").
-		Str("    el.textContent = e.data;\n").
-		Str("  });\n").
-		Str("  window.addEventListener(\"beforeunload\", function(){ es.close(); });\n").
-		Str("})();\n").
-		Str("</script>\n").
-		Str("</body></html>\n").
-		String()
-}
