@@ -2,11 +2,95 @@ package dhcpserver
 
 import (
 	"bytes"
+	"errors"
 	"log/slog"
 	"net"
 	"strings"
 	"testing"
 )
+
+// TestStartListenersGuardsZeroBind pins the silent-failure class fixed across
+// the server plugins: when every interface fails to bind, startListeners must
+// report it and return nil, and must NOT log a false "dhcpserver: started".
+func TestStartListenersGuardsZeroBind(t *testing.T) {
+	orig := dhcpListen
+	t.Cleanup(func() { dhcpListen = orig })
+	dhcpListen = func(string) (*net.UDPConn, error) { return nil, errors.New("bind refused") }
+
+	log, buf := captureLogger()
+	got := startListeners(serverConfig{ListenInterfaces: []string{"enp2s0"}}, nil, log)
+	if got != nil {
+		t.Fatalf("expected nil listeners when all binds fail, got %d", len(got))
+	}
+	out := buf.String()
+	if !strings.Contains(out, "no interfaces bound") {
+		t.Errorf("missing zero-listener error in: %s", out)
+	}
+	if strings.Contains(out, "dhcpserver: started") {
+		t.Errorf("must not log a false \"started\" with zero listeners: %s", out)
+	}
+}
+
+// ephemeralUDP returns a real loopback UDP socket (closed on cleanup) so the
+// dhcpListen stub can model a successful bind. serveMulti reads from it and
+// exits silently when it is closed (register.go), so no packets and no log
+// writes race the assertions.
+func ephemeralUDP(t *testing.T) *net.UDPConn {
+	t.Helper()
+	c, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0})
+	if err != nil {
+		t.Fatalf("ephemeral udp: %v", err)
+	}
+	t.Cleanup(func() { _ = c.Close() })
+	return c
+}
+
+// TestStartListenersReportsBoundCount covers the success path: every interface
+// binds, so startListeners returns them all and logs "started" with the count.
+func TestStartListenersReportsBoundCount(t *testing.T) {
+	orig := dhcpListen
+	t.Cleanup(func() { dhcpListen = orig })
+	dhcpListen = func(string) (*net.UDPConn, error) { return ephemeralUDP(t), nil }
+
+	log, buf := captureLogger()
+	got := startListeners(serverConfig{ListenInterfaces: []string{"eth0", "eth1"}}, nil, log)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 listeners, got %d", len(got))
+	}
+	out := buf.String()
+	if !strings.Contains(out, "dhcpserver: started") || !strings.Contains(out, "listeners=2") {
+		t.Errorf("expected started log with listeners=2, got: %s", out)
+	}
+}
+
+// TestStartListenersPartialBind covers the partial path: one interface binds,
+// another fails. startListeners returns only the bound listener, logs the
+// failure, and still reports "started" because at least one bound.
+func TestStartListenersPartialBind(t *testing.T) {
+	orig := dhcpListen
+	t.Cleanup(func() { dhcpListen = orig })
+	calls := 0
+	dhcpListen = func(string) (*net.UDPConn, error) {
+		calls++
+		if calls == 1 {
+			return ephemeralUDP(t), nil
+		}
+		return nil, errors.New("second interface down")
+	}
+
+	log, buf := captureLogger()
+	got := startListeners(serverConfig{ListenInterfaces: []string{"eth0", "eth1"}}, nil, log)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 listener, got %d", len(got))
+	}
+	out := buf.String()
+	if !strings.Contains(out, "listen failed") {
+		t.Errorf("expected a listen-failed log for the down interface: %s", out)
+	}
+	if !strings.Contains(out, "dhcpserver: started") || !strings.Contains(out, "listeners=1") {
+		t.Errorf("expected started log with listeners=1, got: %s", out)
+	}
+}
 
 func captureLogger() (*slog.Logger, *bytes.Buffer) {
 	var buf bytes.Buffer

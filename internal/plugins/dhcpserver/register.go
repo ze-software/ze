@@ -103,20 +103,7 @@ func runDHCPServerPlugin(conn net.Conn) int {
 			}
 		}
 
-		for _, iface := range cfg.ListenInterfaces {
-			ln, err := listenDHCP(iface)
-			if err != nil {
-				log.Error("dhcpserver: listen failed",
-					"interface", iface, "error", err)
-				continue
-			}
-			listeners = append(listeners, ln)
-			go serveMulti(ln, handlers, log)
-		}
-
-		log.Info("dhcpserver: started",
-			"shared-networks", len(cfg.SharedNetworks),
-			"interfaces", cfg.ListenInterfaces)
+		listeners = startListeners(cfg, handlers, log)
 	}
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
@@ -159,6 +146,39 @@ func closeLogged(c closer, log *slog.Logger, what string) {
 	if err := c.Close(); err != nil {
 		log.Debug("dhcpserver: close failed", "what", what, "error", err)
 	}
+}
+
+// dhcpListen is the per-interface listener factory (a var so tests can stub the
+// bind without privileges or a real interface).
+var dhcpListen = listenDHCP
+
+// startListeners binds a DHCP listener on each configured interface and starts
+// serving. It returns the bound listeners, or nil when none bound -- so the
+// caller never logs a false "started" for a server with zero listeners (the
+// same silent-failure class fixed in tftpserver/imageserver).
+func startListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger) []*net.UDPConn {
+	var listeners []*net.UDPConn
+	for _, iface := range cfg.ListenInterfaces {
+		ln, err := dhcpListen(iface)
+		if err != nil {
+			log.Error("dhcpserver: listen failed", "interface", iface, "error", err)
+			continue
+		}
+		listeners = append(listeners, ln)
+		go serveMulti(ln, handlers, log)
+	}
+
+	if len(listeners) == 0 {
+		log.Error("dhcpserver: no interfaces bound; server not serving",
+			"interfaces", cfg.ListenInterfaces)
+		return nil
+	}
+
+	log.Info("dhcpserver: started",
+		"shared-networks", len(cfg.SharedNetworks),
+		"interfaces", cfg.ListenInterfaces,
+		"listeners", len(listeners))
+	return listeners
 }
 
 func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
