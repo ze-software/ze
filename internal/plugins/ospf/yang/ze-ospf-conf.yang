@@ -1,0 +1,322 @@
+module ze-ospf-conf {
+    namespace "urn:ze:ospf:conf";
+    prefix ospfconf;
+    import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
+
+    description
+        "Native OSPFv2 link-state IGP configuration (RFC 2328, RFC 9129 shape).
+         Presence of the ospf container enables the component.";
+    revision 2026-06-20 { description "Initial revision (spec-ospf-4)."; }
+
+    container ospf {
+        description "OSPFv2 routing instance configuration.";
+        ze:config-root "ospf";
+
+        // RFC 2328 Appendix C.1: Router ID is a 32-bit AS-unique identifier.
+        // When unset, Ze derives it from the highest loopback IPv4 address, then
+        // the highest interface IPv4 address.
+        leaf router-id {
+            type string {
+                pattern "([0-9]{1,3}\\.){3}[0-9]{1,3}";
+            }
+            ze:validate "ospf-router-id";
+            description "OSPF Router ID in dotted-quad form; derived when omitted.";
+        }
+
+        leaf reference-bandwidth {
+            type uint32 { range "1..4294967"; }
+            default 100000;
+            units Mbps;
+            description "Auto-cost reference bandwidth in Mbps.";
+        }
+
+        leaf maximum-paths {
+            type uint8 { range "1..32"; }
+            default 8;
+            description "Maximum ECMP paths per prefix.";
+        }
+
+        container default-information {
+            description "Default-route origination as an AS-external LSA.";
+            leaf originate { type boolean; default false; description "Originate a default Type 5 LSA."; }
+            leaf always { type boolean; default false; description "Originate even without a default in the RIB."; }
+            leaf metric { type uint32 { range "0..16777215"; } default 1; description "Default LSA metric."; }
+            leaf metric-type {
+                type enumeration {
+                    enum type-1;
+                    enum type-2;
+                }
+                default "type-2";
+                description "External metric type for the default route.";
+            }
+        }
+
+        container timers {
+            description "SPF and LSA throttle timers.";
+            leaf spf-delay-ms { type uint32 { range "0..600000"; } default 50; units ms; description "Initial SPF delay."; }
+            leaf spf-hold-ms { type uint32 { range "0..600000"; } default 200; units ms; description "SPF hold floor."; }
+            leaf spf-max-hold-ms { type uint32 { range "0..600000"; } default 5000; units ms; description "SPF max hold."; }
+            leaf min-ls-interval-ms { type uint32 { range "0..600000"; } default 5000; units ms; description "Minimum interval between LSA reoriginations."; }
+            leaf min-ls-arrival-ms { type uint32 { range "0..600000"; } default 1000; units ms; description "Minimum arrival interval for accepting a new LSA instance."; }
+        }
+
+        container max-metric {
+            description "RFC 6987 stub router: originate the Router-LSA with MaxLinkMetric so transit traffic avoids this router.";
+            container router-lsa {
+                leaf always { type boolean; default false; description "Always advertise as a stub router."; }
+                leaf on-startup { type uint32 { range "0..86400"; } units seconds; description "Advertise as a stub router for N seconds after startup (0 disables)."; }
+                leaf on-shutdown { type uint32 { range "0..86400"; } units seconds; description "Advertise as a stub router for N seconds during a graceful shutdown (0 disables)."; }
+            }
+        }
+
+        list redistribute {
+            key "source";
+            description "Route sources redistributed as AS-external LSAs.";
+            leaf source {
+                type enumeration {
+                    enum connected;
+                    enum static;
+                    enum kernel;
+                    enum bgp;
+                    enum isis;
+                }
+                description "Route source to import.";
+            }
+            leaf metric { type uint32 { range "0..16777215"; } default 20; description "Injected metric."; }
+            leaf metric-type {
+                type enumeration {
+                    enum type-1;
+                    enum type-2;
+                }
+                default "type-2";
+                description "External metric type.";
+            }
+            leaf tag { type uint32; default 0; description "External route tag."; }
+        }
+
+        container areas {
+            description "OSPF areas.";
+            list area {
+                key "area-id";
+                description "Per-area configuration.";
+                leaf area-id {
+                    type string {
+                        pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
+                    }
+                    ze:validate "ospf-area-id";
+                    description "Area identifier as uint32 or dotted quad; 0.0.0.0 is the backbone.";
+                }
+                leaf area-type {
+                    type enumeration {
+                        enum normal;
+                        enum stub;
+                        enum nssa;
+                    }
+                    default "normal";
+                    description "Area type; semantics land in the stub/NSSA spec.";
+                }
+                leaf no-summary { type boolean; default false; description "Suppress Type 3 summaries in totally-stubby or totally-NSSA areas."; }
+                leaf default-cost { type uint32 { range "0..16777215"; } default 1; description "Default summary metric for stub/NSSA areas."; }
+                container nssa {
+                    description "NSSA-specific configuration (applies when area-type is nssa).";
+                    leaf translate-role {
+                        type enumeration {
+                            enum candidate;
+                            enum always;
+                            enum never;
+                        }
+                        default "candidate";
+                        description "Type 7 to Type 5 translator role: candidate (elect by highest router-id), always (force translate), never (do not translate).";
+                    }
+                    leaf stability-interval {
+                        type uint16 { range "0..65535"; }
+                        units seconds;
+                        default 40;
+                        description "Hysteresis before a newly elected translator stops translating after losing the role (RFC 3101 section 3.5).";
+                    }
+                    leaf default-originate { type boolean; default false; description "Originate a Type 7 default route (0.0.0.0/0) into the NSSA."; }
+                }
+                container authentication {
+                    description "Area-level authentication defaults.";
+                    leaf key-chain { type string { length "1..63"; } description "Default key chain inherited by interfaces."; }
+                }
+                container ranges {
+                    description "Inter-area summary ranges.";
+                    list range {
+                        key "prefix";
+                        description "One area summary range.";
+                        leaf prefix { type zt:prefix-ipv4; description "IPv4 aggregate prefix, for example 10.0.0.0/16."; }
+                        leaf advertise {
+                            type enumeration {
+                                enum advertise;
+                                enum not-advertise;
+                            }
+                            default "advertise";
+                            description "Advertise the aggregate or suppress specifics.";
+                        }
+                        leaf cost { type uint32 { range "0..16777215"; } description "Override cost for the aggregate Type 3 LSA."; }
+                    }
+                }
+            }
+        }
+
+        container interfaces {
+            description "OSPF-enabled interfaces.";
+            list interface {
+                key "name";
+                description "Per-interface OSPF configuration.";
+                leaf name { type string { length "1..255"; } description "Interface name."; }
+                leaf area {
+                    type string {
+                        pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
+                    }
+                    ze:validate "ospf-area-id";
+                    description "Declared area this interface belongs to.";
+                }
+                leaf enabled { type boolean; default true; description "OSPF enabled on this interface."; }
+                leaf network-type {
+                    type enumeration {
+                        enum broadcast;
+                        enum point-to-point;
+                        enum loopback;
+                    }
+                    default "broadcast";
+                    description "Interface network type.";
+                }
+                leaf cost { type uint16 { range "1..65535"; } description "Interface output cost."; }
+                leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval."; }
+                leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval."; }
+                leaf priority { type uint8 { range "0..255"; } default 1; description "DR/BDR election priority; 0 means ineligible."; }
+                leaf passive { type boolean; default false; description "Advertise the interface but form no adjacency."; }
+                leaf mtu-ignore { type boolean; default false; description "Skip DD MTU mismatch rejection."; }
+                leaf retransmit-interval { type uint16 { range "1..65535"; } default 5; units seconds; description "LSA retransmit interval."; }
+                leaf transmit-delay { type uint16 { range "1..3600"; } default 1; units seconds; description "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0)."; }
+                container authentication {
+                    description "Per-interface authentication settings.";
+                    leaf mode {
+                        type enumeration {
+                            enum inherit;
+                            enum none;
+                            enum simple;
+                            enum md5;
+                            enum hmac-sha-1;
+                            enum hmac-sha-256;
+                            enum hmac-sha-384;
+                            enum hmac-sha-512;
+                        }
+                        default "inherit";
+                        description "Authentication mode; inherit uses the area default.";
+                    }
+                    leaf key-chain { type string { length "1..63"; } description "Key chain reference."; }
+                }
+            }
+        }
+
+        list key-chains {
+            key "name";
+            description "Named authentication key chains for hitless rotation.";
+            leaf name { type string { length "1..63"; } description "Key-chain name."; }
+            leaf extended-sequence { type boolean; default false; description "Use RFC 7474 AuType 3 (extended 64-bit cryptographic sequence numbers) instead of AuType 2; applies to the HMAC-SHA algorithms."; }
+            list key {
+                key "key-id";
+                description "Keys in this chain.";
+                leaf key-id { type uint32; description "Key identifier."; }
+                leaf algorithm {
+                    type enumeration {
+                        enum simple;
+                        enum md5;
+                        enum hmac-sha-1;
+                        enum hmac-sha-256;
+                        enum hmac-sha-384;
+                        enum hmac-sha-512;
+                    }
+                    default "md5";
+                    description "Authentication algorithm.";
+                }
+                leaf secret {
+                    type string { length "1..255"; }
+                    ze:sensitive;
+                    description "Shared secret, masked and $9$-encoded at rest.";
+                }
+                container send-lifetime {
+                    description "When this key may be used to sign.";
+                    leaf start { type string { length "1..64"; } description "RFC3339 start timestamp."; }
+                    leaf end { type string { length "1..64"; } description "RFC3339 end timestamp."; }
+                }
+                container accept-lifetime {
+                    description "When this key is accepted on receive.";
+                    leaf start { type string { length "1..64"; } description "RFC3339 start timestamp."; }
+                    leaf end { type string { length "1..64"; } description "RFC3339 end timestamp."; }
+                }
+            }
+        }
+
+        container address-family {
+            description
+                "Additional OSPF address families. The IPv6 (OSPFv3, RFC 5340) family runs as a
+                 second engine instance over the ospfv3 transport (ff02::5/6), sharing the
+                 FSM/flooding/SPF machinery with the IPv4 family.";
+            container ipv6 {
+                description "OSPFv3 (IPv6) address family; presence enables the v6 instance.";
+                leaf instance-id {
+                    type uint8 { range "0..255"; }
+                    default 0;
+                    description "OSPFv3 Instance ID for per-interface demultiplexing (RFC 5340 section 2.5).";
+                }
+                container areas {
+                    description "OSPFv3 areas.";
+                    list area {
+                        key "area-id";
+                        description "Per-area OSPFv3 configuration.";
+                        leaf area-id {
+                            type string {
+                                pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
+                            }
+                            ze:validate "ospf-area-id";
+                            description "Area identifier as uint32 or dotted quad; 0.0.0.0 is the backbone.";
+                        }
+                        leaf area-type {
+                            type enumeration {
+                                enum normal;
+                                enum stub;
+                                enum nssa;
+                            }
+                            default "normal";
+                            description "Area type.";
+                        }
+                    }
+                }
+                container interfaces {
+                    description "OSPFv3-enabled interfaces.";
+                    list interface {
+                        key "name";
+                        description "Per-interface OSPFv3 configuration.";
+                        leaf name { type string { length "1..255"; } description "Interface name."; }
+                        leaf area {
+                            type string {
+                                pattern "([0-9]{1,10}|([0-9]{1,3}\\.){3}[0-9]{1,3})";
+                            }
+                            ze:validate "ospf-area-id";
+                            description "Declared area this interface belongs to.";
+                        }
+                        leaf enabled { type boolean; default true; description "OSPFv3 enabled on this interface."; }
+                        leaf network-type {
+                            type enumeration {
+                                enum broadcast;
+                                enum point-to-point;
+                            }
+                            default "broadcast";
+                            description "Interface network type.";
+                        }
+                        leaf cost { type uint16 { range "1..65535"; } description "Interface output cost."; }
+                        leaf hello-interval { type uint16 { range "1..65535"; } default 10; units seconds; description "Hello interval."; }
+                        leaf dead-interval { type uint16 { range "1..65535"; } default 40; units seconds; description "Router-dead interval."; }
+                        leaf priority { type uint8 { range "0..255"; } default 1; description "DR/BDR election priority; 0 means ineligible."; }
+                        leaf passive { type boolean; default false; description "Advertise the interface but form no adjacency."; }
+                    }
+                }
+            }
+        }
+    }
+}

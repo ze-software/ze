@@ -1,0 +1,33 @@
+# Test: OSPFv2 ABR inter-area routing.
+#
+# VALIDATES: spec-ospf-9-inter-area-abr -- ABR detection, Router-LSA B-bit,
+# Type 3/4 Summary-LSA origination, area ranges, inter-area route computation,
+# backbone-only ABR acceptance, summary withdrawal, and border-router snapshots.
+# PREVENTS: regressions where multi-area OSPF stores summaries but never
+# computes inter-area routes, loops by accepting non-backbone summaries on an
+# ABR, or forgets to flush stale Summary-LSAs.
+#
+# Live FRR/QEMU kernel convergence remains owned by spec-ospf-13.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf ./internal/plugins/ospf/lsdb -run TestOSPF(ABRDetection|ABRBitSet|Type3Origination|SummaryFlood|Type4Origination|BackboneType4ReOrigination|SummaryLSIDCollision|AreaRangeAggregate|AreaRangeNotAdvertise|SummaryWithdraw|SummaryFlushesInactiveArea|InterAreaRoute|InterAreaInstallsViaLocRIB|InterAreaPreference|InterAreaLSInfinityDropped|ABRBackboneOnlyAcceptance|Type4RouteToASBR|BorderRouterSnapshot|TransitNetworkRoute|TransitNetworkSummary)$ -count=1:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=TestOSPFABRDetection
+expect=stdout:contains=TestOSPFABRBitSet
+expect=stdout:contains=TestOSPFType3Origination
+expect=stdout:contains=TestOSPFSummaryFlood
+expect=stdout:contains=TestOSPFType4Origination
+expect=stdout:contains=TestOSPFBackboneType4ReOrigination
+expect=stdout:contains=TestOSPFSummaryLSIDCollision
+expect=stdout:contains=TestOSPFAreaRangeAggregate
+expect=stdout:contains=TestOSPFAreaRangeNotAdvertise
+expect=stdout:contains=TestOSPFSummaryWithdraw
+expect=stdout:contains=TestOSPFSummaryFlushesInactiveArea
+expect=stdout:contains=TestOSPFInterAreaRoute
+expect=stdout:contains=TestOSPFInterAreaInstallsViaLocRIB
+expect=stdout:contains=TestOSPFInterAreaPreference
+expect=stdout:contains=TestOSPFInterAreaLSInfinityDropped
+expect=stdout:contains=TestOSPFABRBackboneOnlyAcceptance
+expect=stdout:contains=TestOSPFType4RouteToASBR
+expect=stdout:contains=TestOSPFBorderRouterSnapshot
+expect=stdout:contains=TestOSPFTransitNetworkRoute
+expect=stdout:contains=TestOSPFTransitNetworkSummary

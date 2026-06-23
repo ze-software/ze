@@ -1,0 +1,43 @@
+# Test: OSPFv2 interface ISM config wiring (spec-ospf-5 interface ISM).
+#
+# VALIDATES: OSPF interface-level config leaves used by the ISM are accepted by
+# the config path for broadcast, point-to-point, loopback, and passive interfaces.
+# PREVENTS: regressions where the OSPF interface model added by spec-4 stops
+# accepting the network-type / timer / priority fields that spec-5 consumes.
+
+stdin=ospf-interfaces:terminator=EOF_INTERFACES
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type broadcast
+			hello-interval 10
+			dead-interval 40
+			priority 1
+		}
+		interface eth1 {
+			area 0.0.0.0
+			network-type point-to-point
+			hello-interval 5
+			dead-interval 20
+			priority 0
+		}
+		interface lo0 {
+			area 0.0.0.0
+			network-type loopback
+		}
+		interface passive0 {
+			area 0.0.0.0
+			passive true
+		}
+	}
+}
+EOF_INTERFACES
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-interfaces
+expect=exit:code=0
+expect=stdout:contains=configuration valid

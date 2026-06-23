@@ -849,7 +849,7 @@ func (s *sysRIB) run(ctx context.Context) {
 				if g.Best < 0 || g.Best >= len(g.Paths) {
 					return true
 				}
-				s.replayPath(fam, pfx, g.Paths[g.Best])
+				s.replayPath(fam, pfx, g.Paths[g.Best], g.ECMPNextHops(g.Paths[g.Best]))
 				return true
 			})
 		}
@@ -1078,13 +1078,16 @@ func changeToBatch(c locrib.Change) *incomingBatch {
 
 // replayPath seeds sysrib with an already-present best from locrib at startup.
 // Runs the change through processEvent as a synthetic Add so admin-distance
-// overrides and downstream emission work the same as any live change.
-func (s *sysRIB) replayPath(fam family.Family, pfx netip.Prefix, p locrib.Path) {
+// overrides and downstream emission work the same as any live change. ECMP is
+// supplied from the PathGroup snapshot so pre-existing multipath groups do not
+// collapse to the primary next-hop on replay.
+func (s *sysRIB) replayPath(fam family.Family, pfx netip.Prefix, p locrib.Path, ecmp []netip.Addr) {
 	batch := changeToBatch(locrib.Change{
 		Family: fam,
 		Prefix: pfx,
 		Kind:   locrib.ChangeAdd,
 		Best:   p,
+		ECMP:   ecmp,
 	})
 	if batch == nil {
 		return

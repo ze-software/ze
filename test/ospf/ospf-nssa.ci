@@ -1,0 +1,90 @@
+# Test: OSPFv2 NSSA area config surface (spec-ospf-11).
+#
+# VALIDATES: spec-ospf-11-stub-nssa -- an `area-type nssa` area with the `nssa { translate
+# -role / stability-interval / default-originate }` leaves validates through the OSPF YANG
+# schema; the translate-role enumeration and the stability-interval uint16 range are
+# enforced natively.
+# PREVENTS: regressions where the NSSA leaves are unwired, the translate-role accepts a
+# bogus value, or the stability-interval is not range-checked.
+
+# --- Valid: NSSA with translate-role / stability-interval / default-originate. -
+stdin=ospf-nssa-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+		area 0.0.0.9 {
+			area-type nssa
+			no-summary true
+			default-cost 30
+			nssa {
+				translate-role always
+				stability-interval 120
+				default-originate true
+			}
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+		interface eth1 {
+			area 0.0.0.9
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-nssa-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid translate-role: native enumeration rejects unknown values. -------
+stdin=ospf-nssa-badrole:terminator=EOF_BADROLE
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.9 {
+			area-type nssa
+			nssa {
+				translate-role maybe
+			}
+		}
+	}
+	interfaces {
+		interface eth1 {
+			area 0.0.0.9
+		}
+	}
+}
+EOF_BADROLE
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-nssa-badrole
+expect=exit:code=1
+expect=stdout:contains=translate-role
+
+# --- Boundary: stability-interval is a uint16 (0..65535). ---------------------
+stdin=ospf-nssa-badstab:terminator=EOF_BADSTAB
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.9 {
+			area-type nssa
+			nssa {
+				stability-interval 70000
+			}
+		}
+	}
+	interfaces {
+		interface eth1 {
+			area 0.0.0.9
+		}
+	}
+}
+EOF_BADSTAB
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-nssa-badstab
+expect=exit:code=1
+expect=stdout:contains=stability-interval

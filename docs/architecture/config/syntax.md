@@ -5,9 +5,9 @@
 | Concept | Description |
 |---------|-------------|
 | **Style** | JUNOS-like: `{}` blocks, `;` terminators, `#` comments |
-| **Top-Level** | `environment`, `plugin`, `bgp` |
+| **Top-Level** | `environment`, `plugin`, `bgp`, `ospf` |
 | **BGP Block** | `bgp { group <name> { peer <ip> { ... } } }` - wraps all BGP config |
-| **Groups** | `group <name> { ... peer <ip> { } }` - named peer groups with shared defaults |
+| **OSPF Block** | `ospf { areas { area <id> { ... } } interfaces { interface <name> { area <id> } } }` - native OSPFv2 config root |
 | **Inheritance** | 3 levels: bgp globals, group defaults, peer overrides (deep-merge for containers) |
 | **Schema** | YANG-driven: parser dispatches by node type (leaf, container, list, leaf-list) |
 | **Migration** | `ze config migrate` converts ExaBGP syntax to ze-native |
@@ -246,6 +246,42 @@ plugin {
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- list process, leaf run, leaf encoding -->
 
 **Timeout semantics:** During startup, all plugins synchronize at each stage. The timeout controls how long this plugin waits for all plugins to complete each stage. With multiple plugins, use the same timeout for all, or set the longest timeout on all plugins to avoid fast plugins timing out while waiting for slow ones.
+
+### ospf
+
+Top-level native OSPFv2 configuration. The `ospf` container is a YANG config
+root and auto-loads the OSPF edge plugin. Interfaces bind to areas explicitly by
+setting `interfaces/interface/area`; Ze does not use FRR-style `network <prefix>
+area <id>` matching. `network-type` accepts `broadcast`, `point-to-point`, and
+`loopback`; passive and loopback records do not open raw sockets. The NSM
+consumes `mtu-ignore`, `retransmit-interval`, `transmit-delay`, and dead timers
+from the same interface list.
+
+```
+ospf {
+    router-id 10.0.0.1
+    areas {
+        area 0.0.0.0 { area-type normal; }
+    }
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+            network-type point-to-point
+            mtu-ignore true
+        }
+        interface lo0 {
+            area 0.0.0.0
+            network-type loopback
+        }
+    }
+}
+```
+
+`router-id` uses `ze:validate "ospf-router-id"`. `area-id` and interface `area`
+use `ze:validate "ospf-area-id"` and are checked again by the in-process config
+verifier so an interface cannot reference an undeclared area.
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- ospf container, area and interface lists -->
+<!-- source: internal/plugins/ospf/register.go -- InProcessConfigVerifier -->
 
 ### Peer Groups
 

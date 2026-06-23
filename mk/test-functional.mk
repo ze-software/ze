@@ -1,7 +1,7 @@
 # Functional tests: .ci-based suites run via bin/ze-test
 #
 # Quick reference:
-#   make ze-functional-test    All 13 gating suites
+#   make ze-functional-test    All 17 gating suites
 #   make ze-encode-test        Encoding only
 #   make ze-plugin-test        Plugin behavior only
 #   make ze-decode-test        Wire decoding only
@@ -14,18 +14,20 @@
 #   make ze-l2tp-test          L2TP only
 #   make ze-firewall-test      Firewall only
 #   make ze-policy-test        Policy routing only
+#   make ze-ospf-test          OSPF config/doctor tests
 #   make ze-static-test        Static routes (release evidence only)
 #   make ze-traffic-test       Traffic control (release evidence only)
 #   make ze-flow-export-test   Flow export sFlow/NetFlow/IPFIX (release evidence only)
 #   make ze-vpp-test           VPP stub (release evidence only)
 #   make ze-l2tp-wire-test     L2TP wire-level (release evidence only)
 #   make ze-isis-wire-test     IS-IS wire-level decode (release evidence only)
+#   make ze-ospf-wire-test     OSPFv2 wire-level decode (release evidence only)
 
 .PHONY: ze-functional-test
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test
 .PHONY: ze-ui-test ze-editor-test ze-web-test ze-managed-test
 .PHONY: ze-l2tp-test ze-firewall-test ze-policy-test
-.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-isis-test
+.PHONY: ze-static-test ze-traffic-test ze-flow-export-test ze-vpp-test ze-l2tp-wire-test ze-isis-wire-test ze-ospf-wire-test ze-isis-test ze-ospf-test
 
 # Per-suite wall-clock cap. A stuck subprocess that holds an output pipe open
 # can make ze-test's own cmd.Wait() block indefinitely after SIGKILL; `timeout`
@@ -41,15 +43,15 @@ SUITE_RUN = timeout --kill-after=$(ZE_SUITE_KILL_AFTER) $(ZE_SUITE_TIMEOUT)
 
 # Run ze functional tests (all types, continue on failure to show all results)
 # Release evidence matrix: encode, plugin, parse, decode, reload, ui, editor,
-# managed, l2tp, firewall, policy, web, install. Suites not in this list
-# (static, traffic, flow-export, vpp, l2tp-wire, chaos-web) have runners but
-# platform deps or infra.
+# managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, web, install. Suites
+# not in this list (static, traffic, flow-export, vpp, l2tp-wire, isis-wire,
+# ospf-wire, chaos-web) have runners but platform deps or infra.
 # ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
 ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	@failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
-	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis web install"; \
+	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf web install"; \
 	suite_total=0; \
 	for suite in $$all_suites; do \
 		case ",$(ZE_SKIP_SUITES)," in *,$$suite,*) ;; *) suite_total=$$((suite_total + 1));; esac; \
@@ -77,6 +79,7 @@ ze-functional-test: bin/ze bin/ze-stripped bin/ze-test
 	run_suite ldp $(SUITE_RUN) bin/ze-test ldp --all; \
 	run_suite rsvpte $(SUITE_RUN) bin/ze-test rsvpte --all; \
 	run_suite isis $(SUITE_RUN) bin/ze-test isis --all; \
+	run_suite ospf $(SUITE_RUN) bin/ze-test ospf --all; \
 	run_suite web $(SUITE_RUN) bin/ze-test web --all; \
 	run_suite install $(SUITE_RUN) bin/ze-test install --all; \
 	if [ -n "$$skipped_names" ]; then \
@@ -163,5 +166,11 @@ ze-l2tp-wire-test: bin/ze-test
 ze-isis-wire-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test isis-wire --all
 
+ze-ospf-wire-test: bin/ze-test
+	@$(SUITE_RUN) bin/ze-test ospf-wire --all
+
 ze-isis-test: bin/ze-test
 	@$(SUITE_RUN) bin/ze-test isis --all
+
+ze-ospf-test: bin/ze-test
+	@$(SUITE_RUN) bin/ze-test ospf --all

@@ -139,6 +139,12 @@ type AddrInfo struct {
 	// v6 link-local from v6 global without re-parsing each address. Always
 	// false for IPv4. Omitted from JSON when false.
 	LinkLocal bool `json:"link-local,omitempty"`
+	// Tentative is true while an IPv6 address is still completing Duplicate
+	// Address Detection (kernel IFA_F_TENTATIVE). OSPFv3 prefers a DAD-complete
+	// link-local over a tentative one as its source (falling back to a tentative
+	// address only when the interface has no other link-local).
+	// Always false for IPv4. Omitted from JSON when false.
+	Tentative bool `json:"tentative,omitempty"`
 }
 
 // Binding is the value snapshot the resolver returns from Resolve. It is a

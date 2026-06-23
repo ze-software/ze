@@ -50,7 +50,7 @@ func ValidateContent(input, path string) error {
 var yangSectionsToValidate = []string{
 	"interface", "sysctl", "fib", "plugin", "web", "ssh", "dns",
 	"telemetry", "looking-glass", "mcp", "managed", "vpp",
-	"vpn", "pki", "l2tp", "isis",
+	"vpn", "pki", "l2tp", "isis", "ospf",
 }
 
 // validationResult holds validation results with structured diagnostics.

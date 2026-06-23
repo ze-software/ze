@@ -1,0 +1,9 @@
+# OSPFv2 wire decode: truncated input is rejected
+# VALIDATES: spec-ospf-2-wire AC-17 -- `ze ospf-decode` exits non-zero and
+#            reports a decode error when the hex blob is too short for the common
+#            header.
+# PREVENTS: malformed packet input panicking or silently succeeding.
+stdin=payload:hex=02
+cmd=foreground:seq=1:exec=ze ospf-decode:stdin=payload
+expect=exit:code=1
+expect=stderr:contains=error: decode packet

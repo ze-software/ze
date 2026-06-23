@@ -157,6 +157,78 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_isis_frames_received_total` | CounterVec | interface | isis (transport) |
 | `ze_isis_frames_dropped_total` | CounterVec | interface, reason | isis (transport) |
 | `ze_isis_sockets_open` | Gauge | | isis (transport) |
+| `ze_ospf_packets_sent_total` | CounterVec | interface, type | ospf, ospfv3 (transport) |
+| `ze_ospf_packets_received_total` | CounterVec | interface, type | ospf, ospfv3 (transport) |
+| `ze_ospf_packets_dropped_total` | CounterVec | interface, reason | ospf, ospfv3 (transport) |
+| `ze_ospf_sockets_open` | Gauge | | ospf, ospfv3 (transport) |
+| `ze_ospf_interface_up` | GaugeVec | area, interface | ospf (iface) |
+| `ze_ospf_dr_elections_total` | CounterVec | interface | ospf (iface) |
+| `ze_ospf_neighbors` | GaugeVec | area, interface, state | ospf (neighbor) |
+| `ze_ospf_adjacencies_full` | GaugeVec | area | ospf (neighbor) |
+| `ze_ospf_nsm_events_total` | CounterVec | event | ospf (neighbor) |
+| `ze_ospf_lsdb_lsas` | GaugeVec | area, type | ospf (lsdb) |
+| `ze_ospf_lsa_originations_total` | CounterVec | type | ospf (lsdb) |
+| `ze_ospf_lsa_refreshes_total` | CounterVec | type | ospf (lsdb) |
+| `ze_ospf_lsa_purges_total` | CounterVec | type | ospf (lsdb) |
+| `ze_ospf_lsupdates_sent_total` | CounterVec | interface | ospf (lsdb) |
+| `ze_ospf_lsupdates_received_total` | CounterVec | interface | ospf (lsdb) |
+| `ze_ospf_lsacks_sent_total` | CounterVec | interface | ospf (lsdb) |
+| `ze_ospf_retransmissions_total` | CounterVec | area | ospf (lsdb) |
+| `ze_ospf_spf_runs_total` | CounterVec | area | ospf (spf) |
+| `ze_ospf_spf_duration_seconds` | HistogramVec | area | ospf (spf) |
+| `ze_ospf_routes_installed` | GaugeVec | type | ospf (spf) |
+| `ze_ospf_abr` | Gauge | | ospf (spf) |
+| `ze_ospf_summary_lsas` | GaugeVec | area | ospf (spf) |
+| `ze_ospf_asbr` | Gauge | | ospf (engine) |
+| `ze_ospf_external_lsas` | Gauge | | ospf (engine) |
+| `ze_ospf_redist_injected_total` | CounterVec | source | ospf (redistribute) |
+| `ze_ospf_redist_withdrawn_total` | CounterVec | source | ospf (redistribute) |
+| `ze_ospf_nssa_translations_total` | CounterVec | area | ospf (engine) |
+| `ze_ospf_auth_failures_total` | CounterVec | interface, reason | ospf (engine) |
+
+<!-- source: internal/plugins/ospf/spf/computer.go -- SetMetrics -->
+<!-- source: internal/plugins/ospf/spf/install.go -- SetMetrics and publishCounts -->
+
+`ze_ospf_packets_dropped_total` counts transport drops before packet dispatch or
+after a failed send. The Linux receive path currently emits reason
+`malformed-ipv4` when a raw datagram is too short for an IPv4 header or its IHL
+overruns the received bytes; `SendPacket` emits reason `send-error` when the
+backend transmit call fails.
+<!-- source: internal/plugins/ospf/transport/backend_linux.go -- deliverDatagram -->
+<!-- source: internal/plugins/ospf/transport/transport.go -- SendPacket -->
+
+The two `ospf (iface)` series track the OSPFv2 Interface State Machine:
+`ze_ospf_interface_up{area,interface}` is 1 for active point-to-point or
+broadcast interfaces and 0 for Down, passive, or loopback records;
+`ze_ospf_dr_elections_total{interface}` increments when a broadcast interface's
+elected DR or BDR changes. The three `ospf (neighbor)` series track the Neighbor
+State Machine: `ze_ospf_neighbors{area,interface,state}` gauges neighbours by
+NSM state, `ze_ospf_adjacencies_full{area}` gauges Full adjacencies, and
+`ze_ospf_nsm_events_total{event}` counts state-machine events.
+
+The eight `ospf (lsdb)` series track the RFC 2328 Section 13 flooding and
+Section 14 aging machinery: `ze_ospf_lsdb_lsas{area,type}` gauges current LSDB
+entries, `ze_ospf_lsa_originations_total{type}`,
+`ze_ospf_lsa_refreshes_total{type}`, and `ze_ospf_lsa_purges_total{type}` count
+self-LSA lifecycle events, `ze_ospf_lsupdates_sent_total{interface}` and
+`ze_ospf_lsupdates_received_total{interface}` count flooding packets,
+`ze_ospf_lsacks_sent_total{interface}` counts explicit acknowledgements, and
+`ze_ospf_retransmissions_total{area}` counts retransmit-list resends.
+<!-- source: internal/plugins/ospf/lsdb/lsdb.go -- SetMetrics -->
+<!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, RetransmitTick, sendAck -->
+<!-- source: internal/plugins/ospf/instance.go -- setMetrics -->
+<!-- source: internal/plugins/ospf/iface/iface.go -- setUpLocked, runElectionLocked -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- setStateLocked, recordEventLocked -->
+
+The five `ospf (spf)` series track route computation and install state:
+`ze_ospf_spf_runs_total{area}` and `ze_ospf_spf_duration_seconds{area}` report
+SPF scheduling and runtime, `ze_ospf_routes_installed{type}` reports the current
+Loc-RIB-owned route count by OSPF path type, `ze_ospf_abr` is 1 only while this
+router has an active backbone attachment and at least one other active area, and
+`ze_ospf_summary_lsas{area}` reports current self-originated Summary-LSA count by
+area.
+<!-- source: internal/plugins/ospf/spf/computer.go -- SetMetrics and Run -->
+<!-- source: internal/plugins/ospf/spf/install.go -- SetMetrics and publishCounts -->
 
 The two `isis (dis)` series are the Designated IS / pseudo-node metrics (broadcast
 LANs): `ze_isis_dis_elections_total` counts DIS elections that changed the elected
@@ -195,6 +267,15 @@ The four `isis (transport)` series track the raw Layer-2 socket I/O:
 per circuit, `ze_isis_frames_dropped_total{interface,reason}` counts frames
 dropped on receive by reason, and `ze_isis_sockets_open` gauges the number of
 open IS-IS raw L2 sockets process-wide (unlabelled, a single process-level gauge).
+
+The four `ospf (transport)` series track raw IPv4 protocol 89 socket I/O:
+`ze_ospf_packets_sent_total{interface,type}` and
+`ze_ospf_packets_received_total{interface,type}` count OSPF packets transmitted
+and received per interface, `ze_ospf_packets_dropped_total{interface,reason}`
+counts receive rejects and send failures, and `ze_ospf_sockets_open` gauges open
+OSPF raw sockets process-wide. The `ospf (iface)` and `ospf (neighbor)` series
+track interface state, DR/BDR election changes, NSM states, Full adjacencies,
+and NSM events.
 
 Dual-stack IPv6 (RFC 5308) adds **no new IS-IS series**: it sets `afi=ipv6` on the
 labelled series above and on the SPF route-install gauge

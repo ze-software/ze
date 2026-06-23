@@ -1,0 +1,158 @@
+# Test: OSPFv2 passive and loopback interface records are visible at runtime.
+#
+# VALIDATES: the daemon starts OSPF with interfaces that do not require raw
+# sockets, and `show ip ospf interface | json` exposes the ISM snapshot path.
+# PREVENTS: regressions where passive or loopback records are parsed but never
+# created in the runtime interface table consumed by later OSPF specs.
+#
+# PLATFORM: skipped on darwin because the interface dependency has no default
+# backend there; Linux CI covers the daemon bridge.
+option=skip-os:value=darwin
+
+stdin=ospf-runtime:terminator=EOF_RUNTIME
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface lo0 {
+			area 0.0.0.0
+			network-type loopback
+		}
+		interface passive0 {
+			area 0.0.0.0
+			passive true
+		}
+	}
+}
+EOF_RUNTIME
+
+tmpfs=ospf-runtime.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert runtime OSPF interface rows through daemon command dispatch."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_json_data, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def require_iface(rows, name, network_type=None, passive=None):
+    by_name = {row.get('name'): row for row in rows if isinstance(row, dict)}
+    row = by_name.get(name)
+    if row is None:
+        runtime_fail(f"show ip ospf interface: missing {name!r} in {rows!r}")
+    if network_type is not None and row.get('network_type') != network_type:
+        runtime_fail(
+            f"{name}: network_type = {row.get('network_type')!r}, "
+            f"want {network_type!r}")
+    if passive is not None and bool(row.get('passive')) != passive:
+        runtime_fail(f"{name}: passive = {row.get('passive')!r}, want {passive!r}")
+    if row.get('state') != 'down':
+        runtime_fail(f"{name}: state = {row.get('state')!r}, want 'down'")
+    return row
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    result = dispatch(api, 'show ip ospf interface')
+    if result.get('status') != 'done':
+        runtime_fail(
+            f"show ip ospf interface: expected done, got status={result.get('status')} "
+            f"data={result_text_data(result)[:200]}")
+    rows = result_json_data(result, None)
+    if not isinstance(rows, list):
+        runtime_fail(f"show ip ospf interface: expected list, got {rows!r}")
+
+    require_iface(rows, 'lo0', network_type='loopback', passive=False)
+    require_iface(rows, 'passive0', passive=True)
+    print('OK: OSPF runtime interface table includes passive and loopback rows',
+          file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external ospf-runtime {
+		run ./ospf-runtime.run
+		encoder json
+	}
+}
+
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface lo0 {
+			area 0.0.0.0
+			network-type loopback
+		}
+		interface passive0 {
+			area 0.0.0.0
+			passive true
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process ospf-runtime {
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OSPF runtime interface table includes passive and loopback rows
+reject=stderr:pattern=engine idle
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

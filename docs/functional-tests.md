@@ -2,7 +2,7 @@
 
 ## Overview
 
-Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, LDP, RSVP-TE, IS-IS, web UI, and install flows.
+Functional tests exercise release-gate behavior across BGP wire encoding and decoding, plugin behavior, config parsing, reloads, UI/editor flows, managed config, L2TP, firewall, policy routing, LDP, RSVP-TE, IS-IS, OSPF, web UI, and install flows.
 
 > For how the runner schedules and executes tests (the three execution engines, concurrency, reporting) and the web `.wb` test format, see [`architecture/testing/runner-architecture.md`](architecture/testing/runner-architecture.md).
 
@@ -31,8 +31,8 @@ top-level stage failures, and write:
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 
-The functional test target runs 16 suites: encode, plugin, parse, decode, reload,
-ui, editor, managed, l2tp, firewall, policy, ldp, rsvpte, isis, web, install.
+The functional test target runs 17 suites: encode, plugin, parse, decode, reload,
+ui, editor, managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, web, install.
 
 `make ze-validate` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired
@@ -55,14 +55,17 @@ must be run manually:
 | Flow export | `bin/ze-test flow-export --all` | Requires Linux packet-sampling support for release evidence |
 | VPP | `bin/ze-test vpp --all` | Requires Python VPP stub setup |
 | L2TP wire | `bin/ze-test l2tp-wire --all` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
+| OSPFv2 wire | `bin/ze-test ospf-wire --all` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
+| IS-IS wire | `bin/ze-test isis-wire --all` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
 | BGP interop | `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds |
 | Chaos web | `bin/ze-test bgp chaos-web --all` | Chaos dashboard scenarios live under the BGP runner |
 
 These suites also have `make` targets: `make ze-static-test`,
-`make ze-traffic-test`, `make ze-flow-export-test`, `make ze-vpp-test`, and
-`make ze-l2tp-wire-test`. Chaos web is available through
+`make ze-traffic-test`, `make ze-flow-export-test`, `make ze-vpp-test`,
+`make ze-l2tp-wire-test`, `make ze-isis-wire-test`, and `make ze-ospf-wire-test`.
+Chaos web is available through
 `make ze-chaos-web-test` and is also included in `make ze-chaos-test`.
-<!-- source: mk/test-functional.mk -- non-gated functional targets -->
+<!-- source: mk/test-functional.mk -- non-gated functional targets and ze-functional-test suite list -->
 
 Linux-tagged Go unit tests are separate from the functional suites. From a
 non-Linux workstation, use `make ze-linux-test`; it runs the default Linux-only
@@ -176,6 +179,9 @@ and name, plus periodic progress while tests are still running.
 | Flow export | `ze-test flow-export` | `test/flow-export/*.ci` | Exercises sFlow, NetFlow, and IPFIX export behavior. |
 | VPP | `ze-test vpp` | `test/vpp/*.ci` | Runs stub-backed VPP scenarios and checks the stub request log. |
 | L2TP wire | `ze-test l2tp-wire` | `test/l2tp-wire/*.ci` | Exercises L2TP wire-level encode/decode and malformed-packet handling. |
+| IS-IS wire | `ze-test isis-wire` | `test/isis-wire/*.ci` | Exercises IS-IS wire-level decode and malformed-PDU handling. |
+| OSPFv2 wire | `ze-test ospf-wire` | `test/ospf-wire/*.ci` | Exercises OSPFv2 packet/LSA wire-level decode and malformed-packet handling. |
+| OSPF | `ze-test ospf` | `test/ospf/*.ci` | Exercises release-gate OSPF config validation, interface ISM config leaves including passive and loopback records, NSM config leaves including `mtu-ignore`, LSDB flooding/retransmit/purge logic, SPF route installation via Loc-RIB/sysrib ECMP membership updates, inter-area ABR Type 3/4 summary origination, area ranges, summary withdraw, border-router snapshots, daemon route snapshot wiring, admin-distance arbitration, and raw-socket doctor diagnostics while later child specs add redistribution and interop scenarios. |
 | Chaos | `ze-test bgp chaos` | `test/chaos/*.ci` | Runs Ze plus chaos peers end-to-end through the BGP `.ci` runner. |
 | Chaos web | `ze-test bgp chaos-web` | `test/chaos-web/*.ci` | Runs chaos dashboard HTTP endpoint checks through the BGP `.ci` runner. |
 | ExaBGP compatibility | `ze-test exabgp` | `test/exabgp-compat/encoding/*.ci` | Runs the ExaBGP compatibility fixtures through the Go `ze-test` runner, starts the mock BGP peer, runs the ExaBGP wrapper client, and checks the expected wire output. |
@@ -608,6 +614,22 @@ suite is separate (`test/isis-wire/`, `make ze-isis-wire-test`).
 <!-- source: test/isis/isis-auth.ci -- authentication config-surface evidence -->
 <!-- source: test/isis/isis-ipv6.ci -- dual-stack IPv6 SPF/install wiring evidence -->
 <!-- source: mk/test-functional.mk -- ze-isis-test -->
+
+The OSPF FRR interop scenarios exercise the unified OSPF engine against a live FRR
+`ospfd`/`ospf6d` over the shared Docker bridge. The OSPFv3 set proves a P2P and a broadcast
+(DR/BDR + Network-LSA + Link-LSA) adjacency, ABR inter-area summary install
+(`ospf-v6-multiarea-frr`: FRR installs Ze's area-1 prefix `2001:db8:a1::/64` as an inter-area
+route), stub-area ABR default origination (`ospf-v6-stub-frr`: FRR installs the Ze-originated
+`::/0`, no Type-5 leak), broadcast DR route install (`ospf-v6-broadcast-frr`), and ASBR
+redistribution into AS-External / NSSA Type-7. Route assertions on the shared LAN use a
+passive dummy interface carrying a unique global prefix that exists only on Ze, since a
+segment prefix connected on both sides cannot be asserted as a route. They run under the
+Linux Docker interop harness only (raw IPv6 proto 89 over `ff02::5`), not on darwin.
+<!-- source: test/interop/scenarios/ospf-v6-multiarea-frr/check.py -- v6 inter-area route install -->
+<!-- source: test/interop/scenarios/ospf-v6-stub-frr/check.py -- v6 stub ABR default + no Type-5 leak -->
+<!-- source: test/interop/scenarios/ospf-v6-broadcast-frr/check.py -- v6 DR-advertised route install -->
+<!-- source: test/interop/interop.py -- FRROSPF6 has_inter_area_prefix_lsa/has_as_external_lsa helpers -->
+<!-- source: internal/plugins/ospf/origination_v6_stub.go -- v6 stub default origination (v6ApplyAreaTypePolicy) -->
 
 ---
 

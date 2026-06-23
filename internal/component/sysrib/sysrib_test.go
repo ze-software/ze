@@ -645,6 +645,233 @@ func TestSysRIBConsumesLocRIB(t *testing.T) {
 	<-done
 }
 
+// TestSysRIBConsumesLocRIBECMPMembership validates that a Loc-RIB ECMP
+// membership-only update reaches sysrib and is emitted as a changed multipath
+// set even when the primary next-hop stays stable.
+//
+// VALIDATES: Loc-RIB Change.ECMP -> changeToBatch -> sysrib recomputeBest ->
+// BestChangeEntry.ECMPPaths for OSPF-shaped one-Path-per-next-hop sources.
+// PREVENTS: OSPF/IS-IS ECMP routes installing only the first next-hop because
+// later equal-cost sibling inserts did not change the primary best Path.
+func TestSysRIBConsumesLocRIBECMPMembership(t *testing.T) {
+	redistevents.ResetForTest()
+	ospfID := redistevents.RegisterProtocol("ospf")
+
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+
+	loc := locrib.NewRIB()
+	SetLocRIB(loc)
+	t.Cleanup(func() { SetLocRIB(nil) })
+
+	s := newSysRIB()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() { s.run(ctx); close(done) }()
+
+	pfx := netip.MustParsePrefix("10.60.0.0/24")
+	nh1 := netip.MustParseAddr("192.0.2.1")
+	nh2 := netip.MustParseAddr("192.0.2.2")
+	path := func(instance uint32, nh netip.Addr) locrib.Path {
+		return locrib.Path{Source: ospfID, Instance: instance, NextHop: nh, AdminDistance: 110, Metric: 20}
+	}
+
+	loc.Insert(family.IPv4Unicast, pfx, path(0, nh1))
+	waitFor(t, 500*time.Millisecond, func() bool {
+		for _, e := range captureSysribEvents(bus) {
+			batch, ok := e.Payload.(*sysribevents.BestChangeBatch)
+			if !ok {
+				continue
+			}
+			for _, c := range batch.Changes {
+				if c.Action == bgptypes.RouteActionAdd && c.Prefix == pfx && c.NextHop == nh1 && c.Protocol == "ospf" {
+					return true
+				}
+			}
+		}
+		return false
+	})
+
+	seen := len(captureSysribEvents(bus))
+	loc.Insert(family.IPv4Unicast, pfx, path(1, nh2))
+	waitFor(t, 500*time.Millisecond, func() bool {
+		events := captureSysribEvents(bus)
+		for _, e := range events[seen:] {
+			batch, ok := e.Payload.(*sysribevents.BestChangeBatch)
+			if !ok {
+				continue
+			}
+			for _, c := range batch.Changes {
+				if c.Action == bgptypes.RouteActionUpdate && c.Prefix == pfx && c.NextHop == nh1 &&
+					len(c.ECMPPaths) == 1 && c.ECMPPaths[0].NextHop == nh2 {
+					return true
+				}
+			}
+		}
+		return false
+	})
+
+	seen = len(captureSysribEvents(bus))
+	loc.Remove(family.IPv4Unicast, pfx, ospfID, 1)
+	waitFor(t, 500*time.Millisecond, func() bool {
+		events := captureSysribEvents(bus)
+		for _, e := range events[seen:] {
+			batch, ok := e.Payload.(*sysribevents.BestChangeBatch)
+			if !ok {
+				continue
+			}
+			for _, c := range batch.Changes {
+				if c.Action == bgptypes.RouteActionUpdate && c.Prefix == pfx && c.NextHop == nh1 && len(c.ECMPPaths) == 0 {
+					return true
+				}
+			}
+		}
+		return false
+	})
+
+	cancel()
+	<-done
+}
+
+// TestSysRIBReplaysLocRIBECMPMembership validates the startup snapshot path:
+// routes inserted before sysrib subscribes still carry Loc-RIB ECMP siblings.
+//
+// VALIDATES: Loc-RIB PathGroup replay -> Change.ECMP -> sysrib ECMPPaths.
+// PREVENTS: OSPF/IS-IS ECMP routes that already exist at sysrib startup
+// collapsing to only the primary next-hop until a later membership change.
+func TestSysRIBReplaysLocRIBECMPMembership(t *testing.T) {
+	redistevents.ResetForTest()
+	ospfID := redistevents.RegisterProtocol("ospf")
+
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+
+	loc := locrib.NewRIB()
+	SetLocRIB(loc)
+	t.Cleanup(func() { SetLocRIB(nil) })
+
+	pfx := netip.MustParsePrefix("10.61.0.0/24")
+	nh1 := netip.MustParseAddr("192.0.2.1")
+	nh2 := netip.MustParseAddr("192.0.2.2")
+	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{Source: ospfID, Instance: 0, NextHop: nh1, AdminDistance: 110, Metric: 20})
+	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{Source: ospfID, Instance: 1, NextHop: nh2, AdminDistance: 110, Metric: 20})
+
+	s := newSysRIB()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() { s.run(ctx); close(done) }()
+
+	waitForSysribBest(t, bus, 0, pfx, bgptypes.RouteActionAdd, "ospf", nh1, []netip.Addr{nh2})
+
+	cancel()
+	<-done
+}
+
+// TestSysRIBOSPFLocRIBAdminDistanceArbitration drives static and OSPF through
+// the shared Loc-RIB into sysrib, validating that the lower administrative
+// distance source wins and that OSPF wins once the competing source is raised
+// above distance 110.
+//
+// VALIDATES: OSPF's Loc-RIB Path{AdminDistance:110} participates in the real
+// Loc-RIB -> sysrib arbitration path used by fibkernel, not the redistevents
+// redistribution path.
+// PREVENTS: OSPF route installation bypassing sysrib or ignoring lower-distance
+// static/BGP sources.
+func TestSysRIBOSPFLocRIBAdminDistanceArbitration(t *testing.T) {
+	redistevents.ResetForTest()
+	staticID := redistevents.RegisterProtocol("static")
+	ospfID := redistevents.RegisterProtocol("ospf")
+
+	bus := newTestEventBus()
+	setEventBus(bus)
+	t.Cleanup(clearEventBus)
+
+	loc := locrib.NewRIB()
+	SetLocRIB(loc)
+	t.Cleanup(func() { SetLocRIB(nil) })
+
+	s := newSysRIB()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() { s.run(ctx); close(done) }()
+
+	pfx := netip.MustParsePrefix("10.61.0.0/24")
+	ospfNH := netip.MustParseAddr("192.0.2.10")
+	staticNH := netip.MustParseAddr("192.0.2.20")
+	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{
+		Source:        ospfID,
+		Instance:      0,
+		NextHop:       ospfNH,
+		AdminDistance: 110,
+		Metric:        10,
+	})
+	waitForSysribBest(t, bus, 0, pfx, bgptypes.RouteActionAdd, "ospf", ospfNH, nil)
+
+	seen := len(captureSysribEvents(bus))
+	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{
+		Source:        staticID,
+		Instance:      0,
+		NextHop:       staticNH,
+		AdminDistance: 1,
+		Metric:        1,
+	})
+	waitForSysribBest(t, bus, seen, pfx, bgptypes.RouteActionUpdate, "static", staticNH, nil)
+
+	seen = len(captureSysribEvents(bus))
+	loc.Insert(family.IPv4Unicast, pfx, locrib.Path{
+		Source:        staticID,
+		Instance:      0,
+		NextHop:       staticNH,
+		AdminDistance: 200,
+		Metric:        1,
+	})
+	waitForSysribBest(t, bus, seen, pfx, bgptypes.RouteActionUpdate, "ospf", ospfNH, nil)
+
+	cancel()
+	<-done
+}
+
+func waitForSysribBest(t *testing.T, bus *testEventBus, start int, pfx netip.Prefix, action bgptypes.RouteAction, protocol string, nextHop netip.Addr, ecmp []netip.Addr) {
+	t.Helper()
+	waitFor(t, 500*time.Millisecond, func() bool {
+		events := captureSysribEvents(bus)
+		for _, e := range events[start:] {
+			batch, ok := e.Payload.(*sysribevents.BestChangeBatch)
+			if !ok {
+				continue
+			}
+			for i := range batch.Changes {
+				c := &batch.Changes[i]
+				if c.Action != action || c.Prefix != pfx || c.Protocol != protocol || c.NextHop != nextHop {
+					continue
+				}
+				if ecmp == nil {
+					return true
+				}
+				if len(c.ECMPPaths) != len(ecmp) {
+					continue
+				}
+				have := make([]netip.Addr, 0, len(c.ECMPPaths))
+				for _, path := range c.ECMPPaths {
+					have = append(have, path.NextHop)
+				}
+				if assert.ObjectsAreEqualValues(ecmp, have) {
+					return true
+				}
+			}
+		}
+		return false
+	})
+}
+
 // waitFor polls cond until it returns true or timeout elapses.
 func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
 	t.Helper()

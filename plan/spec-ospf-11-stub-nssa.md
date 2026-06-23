@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | spec-ospf-9-inter-area-abr.md, spec-ospf-10-as-external-asbr.md |
-| Phase | - |
-| Updated | 2026-06-20 |
+| Phase | 10/10 |
+| Updated | 2026-06-21 |
 
 ## Post-Compaction Recovery
 
@@ -486,6 +486,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - Translator role is per-area `candidate`/`always`/`never`; per-prefix translation policy and Type 7 address-range aggregation on translation (RFC 3101 §3.1 ranges beyond LS-ID collision handling) are not in v1.
 - FRR `ospf-stub-nssa-frr` interop is owned by ospf-13; this spec proves behaviour Ze-to-Ze.
 - Virtual links through an NSSA/stub transit area are out of scope (umbrella out-of-scope: virtual links).
+- A translated Type 5 and a self-redistributed Type 5 share the one AS-wide LSA key. RFC 3101 §3.6 is enforced (the translator skips a network it already redistributes, and never purges a redistribute-owned key -- `redistExternals`), so the blackhole the review caught (B1) cannot occur. A sub-second stale-body transient can still happen if a redistribute event and a translation tick race on the same network; the next reconciliation converges and no route is dropped. (Review-Gate fix.)
+- NSSA Type 7 routes with a zero Forwarding Address resolve only when the advertising ASBR is reachable as a border router; the §16.4 resolution does not yet map an intra-NSSA ASBR Router ID to a next-hop for a zero-FA Type 7 (the common translation case uses a non-zero FA).
+- Two ABRs both configured `translate-role always` will each translate, injecting a duplicate Type 5 (RFC 3101-acknowledged operator footgun). The election guarantees a single translator only among `candidate` ABRs; `always` is an explicit override.
+- The Type 7 Forwarding Address is this router's live NSSA interface address. If that interface has no usable IPv4 at origination time the FA is zero, so the Type 7 is advertised with P=0 (not translatable) and is not re-originated until the next redistribute event; configure an address before redistributing into an NSSA.
 
 ## RFC Documentation
 
@@ -500,16 +504,25 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code:
 ## Implementation Summary
 
 ### What Was Implemented
-- [filled at implementation time]
+- Config: YANG `nssa` container (`translate-role` enum, `stability-interval` uint16, `default-originate` bool) + parse/validate (`config.go` `validNSSATranslateRole`).
+- Stub: `spf/area_type.go applyAreaTypePolicy` (Type 3 default at `default-cost`, no-summary Type 3 suppression, Type 4 drop), threaded through `SummaryInput.Policies` / `Computer.areaPolicies` / `configureSPF`. Flood filter `lsdb/flooding.go` (`shouldDropByArea` + `eligibleInterface` drop Type 4/5 in stub/NSSA, Type 7 NSSA-only). N-bit Hello check `iface/iface.go`.
+- NSSA: `lsdb/nssa.go` (`OriginateNSSA`/`PurgeNSSA`/`SelfNSSACount` Type 7 originator); engine `redist_wiring.go externalScope` + Type 7 origination on redistribute (P-bit rule); `nssa.go` (`applyNSSADefaults`, `electNSSATranslator`, `nssaABRs`, `translateNSSA`, `translatorEffective` stability grace, `applyTranslations`); `ze_ospf_nssa_translations_total{area}`.
+- §2.5 preference: `spf/external.go` (`externalCand.pref`, Type 7 candidates in `ComputeExternal`, `betterExternal`) + `spf/external_nssa.go` (pref constants).
+- Wired: `reconcile` + the 1s retransmit tick call `applyNSSADefaults` + `translateNSSA`; serialized by `nssaMu`.
 
 ### Bugs Found/Fixed
-- [filled at implementation time]
+- NSSA reconciliation runs from two goroutines (reconcile + retransmit tick); added `nssaMu` to serialize `translateNSSA`/`applyNSSADefaults` (lost-update on `e.translations`/`e.translatorState`).
+- `OriginateNSSA` re-origination short-circuit also checks the P-bit (body-compare alone misses a `candidate`->`always` P-bit toggle on an unchanged body).
+- `instance.go` crossed the 1000-line hard cap; extracted `dispatcher` to `dispatcher.go`.
 
 ### Documentation Updates
-- [filled at implementation time]
+- `docs/guide/ospf.md` (stub/NSSA section), `docs/guide/configuration.md` (area-type + nssa config + example), `docs/features.md` (stub/NSSA row), `docs/comparison.md` (NSSA paragraph), `docs/plugin-development/metrics.md` (`ze_ospf_nssa_translations_total` + backfilled the missing spec-10 OSPF metrics), `docs/comparison.html` regenerated. `make ze-doc-test` PASS.
 
 ### Deviations from Plan
-- [filled at implementation time]
+- The stub Type 3 default injection + no-summary policy lives in `spf/area_type.go` (where the desired-summary set is computed), NOT `lsdb/area_type.go` as the plan mapped it; tests accordingly in `spf/area_type_test.go`.
+- The translator election / translation / NSSA-default logic is engine-level (`internal/plugins/ospf/nssa.go`, package `ospf`), not `lsdb/nssa_translate.go`; tests in `internal/plugins/ospf/nssa_test.go`.
+- AC-2 N-bit check extends the existing `validateHelloLocked` rather than a new `iface/hello_nssa.go` helper file (the file holds only the tests).
+- The §2.5 preference dimension lives on `externalCand`/`betterExternal` in `spf/external.go`; `spf/external_nssa.go` holds the preference constants + doc.
 
 ## Implementation Audit
 
@@ -552,17 +565,26 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code:
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (initial -- independent adversarial review agent on the stub/NSSA diff)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
-
-### Fixes applied
-- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
+| B1 | BLOCKER | Translation and redistribution share the `(Type5, network, self)` LSA key with no coordination; the translator could translate (clobber) a network it redistributes, and a peer's Type 7 withdrawal could MaxAge-purge the redistributed Type 5 AS-wide (blackhole) | `nssa.go applyTranslations`, `redist_wiring.go` | Added `redistExternals` claim set: the translator skips a network it redistributes (RFC 3101 §3.6) and never purges a redistribute-owned key. Test `TestEngineNSSATranslationSkipsRedistributed` |
+| - | NOTE | Two `translate-role always` ABRs both translate (duplicate Type 5) | `nssa.go electNSSATranslator` | RFC-acknowledged footgun; documented Known Limitation (AC-6 covers `candidate` only) |
+| - | NOTE | Zero-FA Type 7 origination is addressing-order-dependent (no re-trigger when the address appears) | `redist_wiring.go externalScope` | Documented Known Limitation |
+| - | clean | Concurrency (`nssaMu`, lock order), election self-handling, stability grace, §2.5 preference (trap #7 confined within pref class), flood-filter receive/send symmetry | -- | confirmed correct by the review |
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | clean | B1 fix re-verified: blackhole eliminated, no memory race; a sub-second stale-body transient remains (documented), no route dropped | -- | `go test -race ./internal/plugins/ospf/...` EXIT 0; `make ze-lint-changed` 0; `make ze-ospf-test` 14/14; `make ze-doc-test` PASS |
+
+### Run 3 (re-verification 2026-06-22 -- independent agent audit of all 11 ACs + bug-class hunt)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | ISSUE | NSSA translation swallowed `ErrExternalStoreFull` and still bumped `ze_ospf_nssa_translations_total` + recorded a phantom `translations` entry (store-full sibling of the ospf-10 finding) | `nssa.go applyTranslations` | FIXED: propagate the error, skip the count + record so a later tick re-attempts and counts it once the store frees. Regression `TestOSPFNSSATranslationStoreFull` (lowers `lsdb.MaxASExternalLSAs`) |
+| 2 | ISSUE | AC-7 translation test asserted only the forwarding address, not the preserved metric/tag nor the cleared P-bit | `nssa_test.go TestOSPFNSSATranslation` | STRENGTHENED: now asserts metric + metric-type + route tag preserved and the P-bit (OptionNP) cleared on the translated Type 5 |
+| 3 | MINOR | drop reason is `options-e`/`options-n` (E vs N distinguished), not the spec's generic `option-mismatch` | `iface/iface.go` | RECORDED: the code is richer than the spec name; the `option-mismatch` references (AC-1, R-2, data-flow) describe the generic behavior. No code change; no metric/test depends on the literal. |
+| 4 | NOTE | `test/ospf/ospf-{nssa,stub}.ci` are config-validation-only; Wiring Test / User Stories / Deliverables overstate that they prove runtime translation/election/preference (no dual-ABR step exists) | `test/ospf/*.ci` | RECORDED: those behaviors ARE unit-covered (see AC table); FRR `ospf-stub-nssa-frr` covers adjacency + ABR Type 7 default + no-Type-5-leak (not translation/election/preference). The `.ci` rows are config-surface coverage; runtime proof is unit-level. |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE

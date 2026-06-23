@@ -42,6 +42,14 @@ SOURCE_ANCHOR_LINE_RE = re.compile(r"<!--\s*source:\s*\S+\.go:\d+\s")
 AC_ROW_RE = re.compile(r"^\|\s*(AC-\d+)\s*\|([^|]*)\|([^|]*)\|([^|]*)\|")
 EXPORTED_FUNC_RE = re.compile(r"^func\s+(?:\([^)]*\)\s*)?([A-Z][A-Za-z0-9_]*)\s*\(")
 EXPORTED_TYPE_RE = re.compile(r"^type\s+([A-Z][A-Za-z0-9_]*)\b")
+# A method declaration with a receiver; recvtype is the (possibly pointer, possibly
+# generic) receiver type name. Used to detect a method on an UNEXPORTED receiver type,
+# which cannot be named from another package and is reachable only via an interface.
+FUNC_RECV_RE = re.compile(
+    r"^func\s+\(\s*\w+\s+\*?(?P<recvtype>[A-Za-z_][A-Za-z0-9_]*)(?:\[[^\]]*\])?\s*\)\s*[A-Z]"
+)
+EXPORTED_IFACE_RE = re.compile(r"^type\s+[A-Z][A-Za-z0-9_]*\s+interface\s*\{")
+IFACE_METHOD_RE = re.compile(r"^\s*([A-Z][A-Za-z0-9_]*)\s*\(")
 SPEC_STATUS_RE = re.compile(r"^\|\s*Status\s*\|\s*(\S+)\s*\|", re.MULTILINE)
 
 CLI_PATHS = (
@@ -276,6 +284,43 @@ def _type_used_as_field_in_pkg(root: Path, pkg_dir: str, type_name: str) -> bool
     return False
 
 
+def _pkg_exported_interface_methods(root: Path, pkg_dir: str) -> set[str]:
+    """Method names declared by exported interfaces in pkg_dir's non-test files.
+
+    A method that satisfies an exported interface is reached through interface dispatch
+    (e.g. a pluggable transport backend), which the bare-name cross-package grep cannot
+    see. Combined with an UNEXPORTED receiver type -- unnameable from another package --
+    such a method is wired through the interface, not dead, so flagging it is a false
+    positive (the interface-seam case).
+    """
+    names: set[str] = set()
+    pkg_path = root / pkg_dir
+    if not pkg_path.is_dir():
+        return names
+    for go_file in sorted(pkg_path.glob("*.go")):
+        if go_file.name.endswith("_test.go"):
+            continue
+        try:
+            content = go_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        depth = 0  # brace nesting while inside an exported interface body
+        in_iface = False
+        for line in content.splitlines():
+            if not in_iface:
+                if EXPORTED_IFACE_RE.match(line):
+                    depth = line.count("{") - line.count("}")
+                    in_iface = depth > 0
+                continue
+            mm = IFACE_METHOD_RE.match(line)
+            if mm:
+                names.add(mm.group(1))
+            depth += line.count("{") - line.count("}")
+            if depth <= 0:
+                in_iface = False
+    return names
+
+
 def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
     go_files = [
         f
@@ -300,7 +345,11 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
         for line_num, line in enumerate(content.splitlines(), 1):
             m = EXPORTED_FUNC_RE.match(line)
             if m:
-                symbols.append((go_file, line_num, m.group(1), pkg_dir, "func"))
+                rm = FUNC_RECV_RE.match(line)
+                kind = "func"
+                if rm and rm.group("recvtype")[:1].islower():
+                    kind = "method_unexported"
+                symbols.append((go_file, line_num, m.group(1), pkg_dir, kind))
                 continue
             m = EXPORTED_TYPE_RE.match(line)
             if m:
@@ -334,6 +383,17 @@ def check_cross_package_wiring(root: Path, changed: list[str]) -> list[Finding]:
                 for const in _exported_consts_of_type(root, pkg_dir, sym)
             )
             or _type_used_as_field_in_pkg(root, pkg_dir, sym)
+        ):
+            continue
+
+        # Interface-seam case: a method on an UNEXPORTED receiver type cannot be named
+        # from another package, so it has no cross-package caller by construction. When
+        # its name matches an exported interface method declared in the same package, it
+        # is reached through interface dispatch (e.g. a pluggable transport backend an
+        # external package or test implements) -- the grep sees the interface, not the
+        # concrete method. Flagging it is a false positive.
+        if kind == "method_unexported" and sym in _pkg_exported_interface_methods(
+            root, pkg_dir
         ):
             continue
 

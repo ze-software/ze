@@ -41,7 +41,7 @@ All families decode. Most encode. Use `ze --plugins` to see the current state.
 
 ### Plugins
 
-The current binary reports 65 registered plugins covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP helpers, firewall, traffic control, VPP, NTP, sysctl, FIB backends, route redistribution, and TACACS+ AAA. The plugin lifecycle uses a 5-stage handshake, newline-framed YANG RPC IPC, and DirectBridge for internal hot paths. Plugins can be written in any language.
+The current binary reports 97 registered plugins and schemas covering protocol features, all address families, BFD, BMP, route filters, L2TP/PPP helpers, OSPF config wiring, firewall, traffic control, VPP, NTP, sysctl, FIB backends, route redistribution, and TACACS+ AAA. The plugin lifecycle uses a 5-stage handshake, newline-framed YANG RPC IPC, and DirectBridge for internal hot paths. Plugins can be written in any language.
 <!-- source: internal/component/plugin/all/all.go -- generated plugin imports -->
 
 | Plugin | Status |
@@ -58,6 +58,9 @@ The current binary reports 65 registered plugins covering protocol features, all
 | bgp-persist | Working -- route persistence across restarts |
 | bgp-watchdog | Working -- deferred route announcement |
 | All NLRI plugins (9) | Working -- decode and encode for their families |
+| ospf | Partial -- config schema, validators, event namespace, raw-socket enrolment skeleton |
+<!-- source: internal/plugins/ospf/register.go -- OSPF registry entry and lifecycle -->
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- OSPF config schema -->
 <!-- source: internal/component/bgp/plugins/ -- all plugin register.go files -->
 
 ### Infrastructure
@@ -141,8 +144,8 @@ Nothing is stable yet. Expect changes in:
 
 ### Choose another routing suite if you need
 
-- **Mature OSPF/IS-IS** -- not implemented in Ze today
-- **Production-proven router functionality** -- Ze has FIB, static, connected, kernel, MPLS, LDP, RSVP-TE, firewall, interface, and VPP code in tree, but it remains pre-release
+- **Mature OSPF/IS-IS** -- OSPF has config wiring and transport skeleton only, and full cross-vendor routing behavior is still being built.
+- **Production-proven router functionality** -- Ze has FIB, static, connected, kernel, MPLS, LDP, RSVP-TE, firewall, interface, OSPF config wiring, and VPP code in tree, but it remains pre-release
 
 ## For the Brave
 

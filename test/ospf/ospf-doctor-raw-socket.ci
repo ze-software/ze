@@ -1,0 +1,10 @@
+# Test: ze explain surfaces the OSPF raw-socket doctor diagnostic metadata
+# VALIDATES: spec-ospf-3 AC-7, the doctor-ospf-raw-socket code is registered
+# and explainable. The registered doctor-check execution path is covered by
+# internal/plugins/ospf/transport/doctor_test.go until OSPF config lands in
+# spec-ospf-4. The raw send/receive path itself is proven by QEMU integration.
+
+cmd=foreground:seq=1:exec=ze explain doctor-ospf-raw-socket
+expect=exit:code=0
+expect=stdout:contains=doctor-ospf-raw-socket
+expect=stdout:contains=CAP_NET_RAW

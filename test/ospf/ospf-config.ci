@@ -1,0 +1,173 @@
+# Test: OSPFv2 top-level config validation (spec-ospf-4 component/config wiring).
+#
+# VALIDATES: spec-ospf-4-component-config -- a top-level `ospf { ... }` block
+# reaches the OSPF YANG schema and in-process config verifier. A valid config
+# validates, an invalid router-id is rejected by the ospf-router-id validator,
+# an interface bound to an undeclared area is rejected before runtime state
+# changes, and an IPv6 area range is rejected for OSPFv2.
+# PREVENTS: a regression where the `ospf` config root is not wired, native YANG
+# validation skips OSPF leaves, accepts OSPFv3-only prefixes in OSPFv2, or the
+# cross-area semantic verifier is absent.
+
+# --- Valid config: the ospf block validates through YANG and verifier. --------
+stdin=ospf-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	reference-bandwidth 100000
+	maximum-paths 8
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type point-to-point
+			hello-interval 10
+			dead-interval 40
+			priority 1
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid router-id: custom validator rejects non-dotted-quad text. --------
+stdin=ospf-bad-router-id:terminator=EOF_BAD_RID
+ospf {
+	router-id router-1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+EOF_BAD_RID
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-bad-router-id
+expect=stdout:contains=router-id
+
+# --- Invalid area binding: verifier rejects undeclared interface area. --------
+stdin=ospf-bad-area:terminator=EOF_BAD_AREA
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 1.1.1.1
+		}
+	}
+}
+EOF_BAD_AREA
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-bad-area
+expect=exit:code=1
+expect=stdout:contains=undeclared area
+
+# --- Invalid area range: OSPFv2 ranges must be IPv4 prefixes. ----------------
+stdin=ospf-bad-ipv6-range:terminator=EOF_BAD_RANGE
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			ranges {
+				range 2001:db8::/32 { }
+			}
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+EOF_BAD_RANGE
+
+cmd=foreground:seq=4:exec=ze config validate -:stdin=ospf-bad-ipv6-range
+expect=exit:code=1
+expect=stdout:contains=range
+
+# --- Invalid interface cost 0: RFC 2328 App C.3 forbids a zero output cost. ----
+# The YANG range (1..65535) rejects 0 before the semantic verifier; either way
+# validation MUST fail with exit 1.
+stdin=ospf-bad-cost-zero:terminator=EOF_BAD_COST
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			cost 0
+		}
+	}
+}
+EOF_BAD_COST
+
+cmd=foreground:seq=5:exec=ze config validate -:stdin=ospf-bad-cost-zero
+expect=exit:code=1
+expect=stdout:contains=invalid value for cost
+
+# --- Invalid interface transmit-delay 0: RFC 2328 InfTransDelay must be > 0. ---
+# The YANG range (1..3600) rejects 0 before the semantic verifier; either way
+# validation MUST fail with exit 1.
+stdin=ospf-bad-transmit-delay-zero:terminator=EOF_BAD_TXDELAY
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			transmit-delay 0
+		}
+	}
+}
+EOF_BAD_TXDELAY
+
+cmd=foreground:seq=6:exec=ze config validate -:stdin=ospf-bad-transmit-delay-zero
+expect=exit:code=1
+expect=stdout:contains=invalid value for transmit-delay
+
+# --- Invalid AuType 2 key-id 256: a non-extended-sequence key id must fit one octet. ---
+# Without extended-sequence the key chain is RFC 5709 AuType 2, whose on-wire Key ID
+# is a single octet, so a key-id above 255 cannot be represented and is rejected.
+stdin=ospf-bad-keyid-wide:terminator=EOF_BAD_KEYID
+ospf {
+	router-id 10.0.0.1
+	key-chains kc1 {
+		key 256 {
+			algorithm hmac-sha-256
+			secret myverysecretkey
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+EOF_BAD_KEYID
+
+cmd=foreground:seq=7:exec=ze config validate -:stdin=ospf-bad-keyid-wide
+expect=exit:code=1
+expect=stdout:contains=AuType 2 key-id must be 0..255

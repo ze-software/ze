@@ -1,0 +1,56 @@
+// Design: plan/spec-ospf-11-stub-nssa.md -- stub/NSSA Summary-LSA origination policy.
+// RFC: rfc/short/rfc2328.md -- sec 3.6 stub areas (Type 3 default, no Type 4/5)
+
+package spf
+
+import "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+
+// Area-type policy strings (mirrors the lsdb AreaType* constants and the config enum).
+const (
+	AreaTypeNormal = "normal"
+	AreaTypeStub   = "stub"
+	AreaTypeNSSA   = "nssa"
+)
+
+// AreaSummaryPolicy carries the per-destination-area stub/NSSA origination policy the
+// ABR applies on top of the normal Type 3/4 desired set.
+type AreaSummaryPolicy struct {
+	Type        string // normal | stub | nssa
+	NoSummary   bool   // totally-stubby / totally-NSSA: suppress Type 3 except the default
+	DefaultCost uint32 // metric for the injected Type 3 default (stub only)
+}
+
+func (p AreaSummaryPolicy) isStubOrNSSA() bool {
+	return p.Type == AreaTypeStub || p.Type == AreaTypeNSSA
+}
+
+// applyAreaTypePolicy rewrites the desired Type 3/4 set for a stub/NSSA destination
+// area (RFC 2328 sec 3.6): Type 4 ASBR-Summaries are never injected into a stub/NSSA
+// area; a totally-stubby/NSSA area (no-summary) suppresses every Type 3 except the
+// injected default; a stub area always gets exactly one Type 3 default (0.0.0.0/0) at
+// default-cost. An NSSA default is a Type 7 (handled by the NSSA originator), so this
+// injects a Type 3 default for stub areas only. A normal area is returned unchanged.
+func applyAreaTypePolicy(desired []summaryDesired, p AreaSummaryPolicy) []summaryDesired {
+	if !p.isStubOrNSSA() {
+		return desired
+	}
+	out := make([]summaryDesired, 0, len(desired)+1)
+	for _, d := range desired {
+		if d.Type == types.LSTypeSummaryASBR {
+			continue // stub/NSSA: no Type 4
+		}
+		if p.NoSummary && d.Type == types.LSTypeSummaryNetwork {
+			continue // totally-stubby/NSSA: suppress inter-area Type 3
+		}
+		out = append(out, d)
+	}
+	if p.Type == AreaTypeStub {
+		out = append(out, summaryDesired{
+			Type:   types.LSTypeSummaryNetwork,
+			LSID:   types.LinkStateID([4]byte{}),
+			Mask:   [4]byte{},
+			Metric: p.DefaultCost,
+		})
+	}
+	return out
+}

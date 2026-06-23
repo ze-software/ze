@@ -1627,7 +1627,7 @@ Beyond the MIB, FRR exposes statistics and `show` commands via VTY (the legacy C
 
 ## 15. OSPFv3 (RFC 5340) Considerations
 
-OSPFv3 is a separate protocol on the wire but shares the high-level architecture (areas, LSAs, DR/BDR, SPF) with OSPFv2. FRR splits it into a second daemon (`ospf6d`) rather than cohabiting a single binary, and the split is sensible: the wire format and LSA registry are different enough that unifying them would produce more pain than gain.
+OSPFv3 is a separate protocol on the wire but shares the high-level architecture (areas, LSAs, DR/BDR, SPF) with OSPFv2. FRR splits it into a second daemon (`ospf6d`); **Ze instead runs a single address-family-aware OSPF engine** (decided 2026-06-22, superseding the two-daemon recommendation that follows). The engine machinery (ISM, NSM, LSDB, flooding, SPF, lifecycle, reconcile, and redistribution policy) is shared; the wire codec, transport, and prefix strategy are the pluggable address-family seams. The OSPFv2 wire/transport stay in `internal/plugins/ospf/{packet,transport}`; the OSPFv3 wire/transport live in `internal/plugins/ospfv3/{types,packet,transport}` and are consumed by the same engine through address-family-neutral interfaces. See "Recommendation for ze" below for the updated boundary.
 
 The main differences:
 
@@ -1664,11 +1664,18 @@ The defined types are:
 
 **Authentication.** OSPFv3 originally relied on IPsec (RFC 4552), which is brittle. RFC 7166 adds an Authentication Trailer that mirrors OSPFv2's RFC 7474, with HMAC-SHA-1/256/384/512. FRR's ospf6d implements RFC 7166.
 
-### Recommendation for ze
+### Recommendation for ze (REVISED 2026-06-22: unified address-family-aware engine)
 
-Start with OSPFv2 only. The wire format, state machines, and SPF are intricate enough on their own. Once ospfv2 is correct and deployed, add OSPFv3 as a separate component (`internal/component/ospfv3/` or similar). Most of the SPF, LSDB, and state machine code cannot be cleanly shared because the LSA types and encodings are different, but the patterns are identical and the second implementation will go faster than the first.
+The original recommendation here was to follow FRR and keep OSPFv3 a fully separate component. That is **superseded**. OSPFv2 shipped first (specs ospf-1..14), and the OSPFv3 wire codec + transport were then built as separate leaf modules (`internal/plugins/ospfv3/{types,packet,transport}`, specs ospfv3-1..3). The decision is now to **unify the engine**: the mature `internal/plugins/ospf` engine (ISM, NSM, LSDB, flooding, SPF, inter-area, NSSA, auth orchestration, lifecycle, reconcile) becomes the single OSPF engine and drives BOTH address families.
 
-Do **not** design a grand unified "OSPF" component that tries to abstract over v2 and v3. FRR tried; it split into two daemons instead. Follow suit.
+Rationale: RFC 5340 keeps the state-machine algorithms (flooding, DR/BDR, areas, SPF traversal) identical to OSPFv2, but changes both the wire/transport and the prefix model. Two parallel engines would duplicate intricate state-machine/LSDB/SPF logic; one engine with the version-specific edges factored out shares that logic once.
+
+The boundary:
+- **Shared (the engine):** ISM, NSM, LSDB management, flooding, SPF traversal, route install, area/inter-area/NSSA policy, config/reconcile lifecycle, and the shared `ze_ospf_*` metrics. The 32-bit Router ID and Area ID are address-family-neutral identifiers and stay shared.
+- **Version-specific and pluggable:** the wire codec (packet + LSA encode/decode/checksum: `ospf/packet` for IPv4, `ospfv3/packet` for IPv6), the transport (raw socket + multicast: `ospf/transport` on `224.0.0.5/6`, `ospfv3/transport` on `ff02::5/6`), and the prefix strategy (OSPFv2 prefixes in Router/Network/Summary/External LSAs; OSPFv3 prefixes in Intra-Area-Prefix, Link, AS-External, and NSSA LSAs). The engine consumes these through address-family-neutral interfaces.
+- **Config/CLI:** one top-level `ospf { }` container with an `address-family ipv6` sub-section feeding the IPv6 instance; status and metrics are unified under "OSPF".
+
+The OSPFv3 wire/transport modules keep their leaf isolation: the `ospfv3/types` import-guard still forbids importing the engine, and the dependency direction is engine -> v6 codec/transport, never the reverse. The protocol-difference notes above remain accurate; only the component-boundary recommendation changed.
 
 ---
 

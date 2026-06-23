@@ -1,0 +1,109 @@
+# Test: OSPFv2 redistribution + default-information config surface (spec-ospf-10).
+#
+# VALIDATES: spec-ospf-10-as-external-asbr -- the `ospf` container's redistribution
+# enrolment leaves (`redistribute { <source> { metric/metric-type/tag } }` and
+# `default-information { originate/always/metric/metric-type }`) validate; the generic
+# orchestrator config `redistribute { destination bgp { import ospf } destination ospf
+# { import connected/static/bgp } }` validates (ospf registered as both a source and a
+# consumer); OSPF self-import (`destination ospf { import ospf }`) validates as a
+# runtime no-op; the AS-External metric is bounded to the 24-bit field.
+# PREVENTS: regressions where `ospf` is not a registered redistribution source/consumer,
+# the default-information / redistribute leaves are unwired, self-import is rejected
+# instead of being a no-op, or the 24-bit metric range is not enforced.
+
+# --- Valid: ospf redistribution leaves + generic orchestrator wiring. ----------
+stdin=ospf-redist-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	default-information {
+		originate true
+		always true
+		metric 100
+		metric-type type-1
+	}
+	redistribute {
+		connected {
+			metric 30
+			metric-type type-1
+			tag 7
+		}
+		static {
+		}
+		bgp {
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+redistribute {
+	destination bgp {
+		import ospf
+	}
+	destination ospf {
+		import connected
+		import static
+		import bgp
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-redist-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Self-import is a runtime no-op: it still validates at the config layer. ----
+stdin=ospf-redist-self:terminator=EOF_SELF
+ospf {
+	router-id 10.0.0.2
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+redistribute {
+	destination ospf {
+		import ospf
+		import connected
+	}
+}
+EOF_SELF
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-redist-self
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Boundary: default-information metric is a 24-bit field (0..16777215). ------
+stdin=ospf-redist-badmetric:terminator=EOF_BAD
+ospf {
+	router-id 10.0.0.3
+	default-information {
+		originate true
+		metric 16777216
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=3:exec=ze config validate -:stdin=ospf-redist-badmetric
+expect=exit:code=1
+expect=stdout:contains=range 0..16777215

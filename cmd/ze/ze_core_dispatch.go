@@ -41,6 +41,8 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/yang/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
@@ -72,6 +74,10 @@ var (
 	errAuthRejected           = errors.New("auth rejected")
 	errHubReturnedEmptyConfig = errors.New("hub returned empty config")
 )
+
+// cmdHelp is the root "help" command name, used both when normalizing the
+// -h/--help flags to the help verb and when registering the handler.
+const cmdHelp = "help"
 
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.storage.blob", Type: "bool", Default: "true", Description: "Use blob storage (false = filesystem)"})
@@ -352,7 +358,18 @@ func zeDispatch(args []string) int {
 
 	switch arg {
 	case "-h", "--help": //nolint:goconst // consistent pattern across cmd files
-		arg = "help"
+		arg = cmdHelp
+	}
+
+	// `ze run` was removed (Phase 6: cmd/ze/run): every verb now dispatches
+	// directly. Keep a deprecation stub so callers of the old wrapper get
+	// migration hints instead of a bare "unknown command: run".
+	if arg == "run" {
+		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
+		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")
+		fmt.Fprintf(os.Stderr, "hint: use 'ze set/delete/update <command>' for mutations\n")
+		fmt.Fprintf(os.Stderr, "hint: run 'ze help' for available verbs\n")
+		return 1
 	}
 
 	rctx := newZeRuntimeContext()

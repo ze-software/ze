@@ -54,8 +54,7 @@ func TestTreeFormatTextFilterCommands(t *testing.T) {
 	require.NoError(t, err)
 
 	out := buf.String()
-	// Should not contain config-only nodes like router-id.
-	assert.NotContains(t, out, "router-id", "config-only nodes should be filtered out")
+	assert.NotContains(t, out, "["+SourceConfig, "config-only rows should be filtered out")
 }
 
 // VALIDATES: AC-2 -- JSON collision output has correct structure.
@@ -96,10 +95,8 @@ func TestTreeFormatTextFilterConfig(t *testing.T) {
 	out := buf.String()
 	// Should contain config nodes like bgp.
 	assert.Contains(t, out, "bgp", "config filter should show bgp")
-	// Should not contain command-only nodes like "summary" (the BGP summary RPC).
-	// Note: "cache" exists as both command and config (environment > cache), so we
-	// check "summary" which is command-only.
-	assert.NotContains(t, out, "summary", "config filter should hide command-only nodes")
+	// Should not contain command-only rows.
+	assert.NotContains(t, out, "["+SourceCommand, "config filter should hide command-only rows")
 }
 
 // PREVENTS: JSON collision output broken when no collisions found.

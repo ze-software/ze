@@ -1,0 +1,67 @@
+# Test: OSPFv2 authentication config surface (spec-ospf-12).
+#
+# VALIDATES: spec-ospf-12-auth -- a `key-chains` block with an algorithm, a `$9$`-able
+# secret, and `extended-sequence` (RFC 7474 AuType 3) validates; an area `authentication
+# { key-chain }` default and a per-interface `authentication { mode inherit }` validate;
+# the algorithm enumeration rejects an unknown value.
+# PREVENTS: regressions where the auth leaves are unwired, the algorithm enum accepts a
+# bogus value, or the extended-sequence / inherit leaves are missing.
+
+# --- Valid: key chain (HMAC-SHA-256, extended-sequence) inherited by an interface. ---
+stdin=ospf-auth-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	key-chains kc1 {
+		extended-sequence true
+		key 1 {
+			algorithm hmac-sha-256
+			secret myverysecretkey
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+			authentication {
+				key-chain kc1
+			}
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			authentication {
+				mode inherit
+			}
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-auth-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Invalid algorithm: the native enumeration rejects unknown values. ---------
+stdin=ospf-auth-badalgo:terminator=EOF_BAD
+ospf {
+	router-id 10.0.0.1
+	key-chains kc1 {
+		key 1 {
+			algorithm hmac-sha-999
+			secret x
+		}
+	}
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-auth-badalgo
+expect=exit:code=1
+expect=stdout:contains=algorithm

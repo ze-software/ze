@@ -18,6 +18,7 @@ var (
 	KeySSHAuthorizedKeys     = MustRegister(KeyEntry{Pattern: "meta/ssh/authorized-keys", Description: "SSH authorized public keys"})
 	KeyInstanceAdminDisabled = MustRegister(KeyEntry{Pattern: "meta/instance/admin-disabled", Description: "Admin login disabled (RADIUS-only)"})
 	KeyGRMarker              = MustRegister(KeyEntry{Pattern: "meta/bgp/gr-marker", Description: "Graceful restart marker (8-byte expiry)"})
+	KeyOSPFAuthBootCount     = MustRegister(KeyEntry{Pattern: "meta/ospf/auth/boot-count", Description: "OSPFv2 cryptographic-auth boot count (4-byte, RFC 7474 monotonic high word)"})
 	KeyHistoryMax            = MustRegister(KeyEntry{Pattern: "meta/history/max", Description: "Maximum history entries per mode"})
 	KeyHistory               = MustRegister(KeyEntry{Pattern: "meta/history/{username}/{mode}", Description: "Per-user command history"})
 	KeyConfigActive          = MustRegister(KeyEntry{Pattern: "meta/config/active", Description: "Active config version pointer"})

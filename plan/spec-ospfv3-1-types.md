@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-ospfv3-0-umbrella.md |
 | Phase | follow-up 1/13 |
-| Updated | 2026-06-20 |
+| Updated | 2026-06-21 |
 
 ## Post-Compaction Recovery
 

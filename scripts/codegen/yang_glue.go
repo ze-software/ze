@@ -277,6 +277,8 @@ var acronyms = map[string]string{
 	"mpls":       "MPLS",
 	"mrt":        "MRT",
 	"ntp":        "NTP",
+	"ospf":       "OSPF",
+	"ospfv3":     "OSPFv3",
 	"pki":        "PKI",
 	"poolstats":  "PoolStats",
 	"pppoe":      "PPPoE",

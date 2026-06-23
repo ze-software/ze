@@ -13,6 +13,7 @@ func TestClearOwnerRemovalLeavesNoResidue(t *testing.T) {
 		`"ze-l2tp-api:`:                 "L2TP clear -> internal/component/cmd/l2tp (already owned)",
 		`"ze-clear:isis-adjacency"`:     "IS-IS adjacency clear -> internal/plugins/isis/yang",
 		`"ze-clear:isis-counters"`:      "IS-IS counters clear -> internal/plugins/isis/yang",
+		`"ze-clear:ospf-`:               "OSPF clear -> internal/plugins/ospf/yang",
 	}
 	for token, owner := range banned {
 		if strings.Contains(ZeCliClearCmdYANG, token) {

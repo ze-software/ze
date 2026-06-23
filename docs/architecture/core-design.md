@@ -73,6 +73,32 @@ flowchart TB
 - **ConfigProvider** is the config authority. Populated from YANG-parsed tree via `SetRoot()`. Subsystems and plugins read from it.
 - **PluginManager** owns process lifecycle (spawn/stop via `ProcessSpawner`). Server calls `SpawnMore()` for auto-loaded plugins.
 - **Protocol-agnostic plugin loading** -- Protocols register with `ConfigRoots` (e.g., BGP uses `["bgp"]`). If the config block is present, the protocol auto-loads; if not, ze runs without it. Protocols can be added or removed at runtime via config reload (SIGHUP). The Coordinator provides reactor-optional operation via named reactor slots (`RegisterReactor`/`Reactor`), returning `ErrNoReactor` for protocol-specific queries when no reactor is present. BGP integrates via `SetReactor` for `ReactorLifecycle` delegation; other protocols use `RegisterReactor` with their own interfaces.
+- **OSPF edge plugin** registers `ConfigRoots ["ospf"]`, embeds
+  `ze-ospf-conf.yang`, and runs the SDK lifecycle through
+  `runOSPFEngine`. The component owns OSPFv2 config parsing, area/interface
+  validation, event namespace registration, packet dispatch, the Interface State
+  Machine, Neighbor State Machine, LSDB flooding/aging, intra-area SPF, ABR
+  Summary-LSA origination, and inter-area route computation. SPF reads the LSDB,
+  resolves next-hops, inserts `locrib.Path` values into the shared Loc-RIB, and
+  lets sysrib/fibkernel own kernel FIB programming. Later OSPF children fill
+  redistribution, auth, and rendered CLI state.
+<!-- source: internal/plugins/ospf/register.go -- registerOSPF and runOSPFEngine -->
+<!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig and validateConfig -->
+<!-- source: internal/plugins/ospf/iface/iface.go -- Interface, ReceiveHello, runElectionLocked -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello, HandleDBDesc -->
+<!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB, Install, Snapshot, SetOnChange -->
+<!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, ReceiveAck -->
+<!-- source: internal/plugins/ospf/spf_wiring.go -- initSPF and triggerSPF -->
+<!-- source: internal/plugins/ospf/spf/computer.go -- Computer Run -->
+<!-- source: internal/plugins/ospf/spf/install.go -- Installer Apply -->
+<!-- source: internal/plugins/ospf/spf/interarea.go -- ComputeInterArea -->
+<!-- source: internal/plugins/ospf/spf/summary.go -- OriginateSummaries -->
+- **OSPF raw IPv4 transport** uses per-interface Linux `AF_INET/SOCK_RAW` sockets for protocol 89, opened through the shared iface resolver so logical names, `os-name`, and MAC selectors bind to the intended kernel device. The receive socket joins `224.0.0.5` (`AllSPFRouters`) at startup; the ISM asks the transport to join or leave `224.0.0.6` (`AllDRouters`) when this router becomes or stops being DR or BDR. The transmit socket owns TTL 1, per-interface source selection, and multicast loop suppression, so the engine sees only raw OSPF payload bytes plus source and interface identity.
+<!-- source: internal/plugins/ospf/transport/backend_linux.go -- OpenInterface, readLoop, Send -->
+<!-- source: internal/plugins/ospf/transport/transport.go -- Transport, RawPacket, StripIPv4Header -->
+- **OSPFv3 raw IPv6 transport** is the IPv6 transport leaf (`internal/plugins/ospfv3/transport`) consumed by the unified OSPF engine, running IPv6 protocol 89 over one `golang.org/x/net/ipv6.PacketConn` per interface. Unlike the OSPFv2 IPv4 transport there is no IP header to strip: the destination group, receiving ifindex, and hop limit come from the IPv6 control message, and the source is the interface link-local. It joins `ff02::5` always and `ff02::6` as DR/BDR, sends with hop limit 1, and finalizes the address-bound IPv6 checksum on transmit (binding the link-local source so the on-wire source matches the pseudo-header). It is the first raw IPv6 proto-number multicast transport in Ze.
+<!-- source: internal/plugins/ospfv3/transport/backend_linux.go -- OpenInterface, setupSocket, Send -->
+<!-- source: internal/plugins/ospfv3/transport/transport.go -- Transport, RawPacket, SendPacket, rxLoop -->
 - **EventDispatcher** handles plugin data delivery (format negotiation, DirectBridge with `StructuredEvent`, cache counts). Internal plugins receive `*rpc.StructuredEvent` via DirectBridge (no JSON round-trip); external plugins receive formatted JSON text. Called directly by reactor -- not via Bus.
 - **Plugin Server** handles 5-stage handshake, subscriptions, command dispatch. Uses PluginManager for process creation.
 - **Five-phase plugin startup** -- Phase 1: config-path plugins (BGP, iface, fib via ConfigRoots). Phase 2: explicit plugins (from config `plugin { }` block). Phase 3: unclaimed families. Phase 4: custom event types. Phase 5: custom send types. Each phase uses tier-ordered handshake based on Dependencies.

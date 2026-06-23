@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | spec-ospf-8-spf-rib.md |
-| Phase | - |
-| Updated | 2026-06-20 |
+| Phase | 11/11 |
+| Updated | 2026-06-21 |
 
 ## Post-Compaction Recovery
 
@@ -209,11 +209,11 @@ table and install seam), with origination driving the ospf-7 LSDB store.
 <!-- Status: unvalidated → confirmed | broken. -->
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The ospf-8 §16.1 intra-area route table exposes, per attached area, the reachable networks with their intra-area cost AND the located ASBRs (Router-LSA E-bit) with cost-to-reach, sufficient to source Type 3/4 origination and to provide cost-to-ABR for §16.2 | `plan/spec-ospf-8-spf-rib.md` route-table-with-path-types design; RFC 2328 §16.1 | Need to extend the ospf-8 route table to expose ASBR vertices and per-area network costs | `TestOSPFType3Origination` + `TestOSPFInterAreaRoute` reading a hand-built route table | unvalidated |
-| A-2 | Inter-area routes install through the SAME ospf-8 `locrib.Path` seam (AdminDistance 110, one Path per prefix); the intra > inter preference is resolved by the ospf-8 route-table candidate compare, so this spec adds candidates rather than a second install path | umbrella "Route preference / path types"; `plan/spec-ospf-8-spf-rib.md` install seam | A separate install path or a `locrib.Path` path-type field would be needed (out of v1 scope) | `TestOSPFInterAreaPreference` (intra wins over inter for the same prefix) + `ospf-inter-area.ci` | unvalidated |
-| A-3 | Type 3/4 origination can hand a buffer-first LSA to the ospf-7 per-area LSDB store and rely on §13 flooding + the MaxAge walker for distribution and withdrawal (no new flooding code) | `plan/spec-ospf-7-lsdb-flooding.md` self-LSA origination + flooding + MaxAge | Need a Summary-LSA-specific origination/flood path | `TestOSPFSummaryFlood` + `TestOSPFSummaryWithdraw` (MaxAge re-origination) | unvalidated |
-| A-4 | The Router-LSA flags byte (V/E/B) is owned by ospf-7 origination and this spec only supplies the ABR predicate to set/clear the B-bit; toggling it re-originates the Router-LSA in every attached area | umbrella "LSA header + body layout" (Router-LSA flags byte); `plan/spec-ospf-7-lsdb-flooding.md` | Need to add B-bit handling to the Router-LSA codec/origination here | `TestOSPFABRBitSet` (B-bit set when ABR, cleared when not) | unvalidated |
-| A-5 | The `areas/area/ranges/range` config (prefix + `advertise`/`not-advertise` + optional cost) from ospf-4 is sufficient for range aggregation; no new config leaves are needed in this spec | umbrella "Area + interface config model"; `plan/spec-ospf-4-component-config.md` schema | Need to add range leaves to `ze-ospf-conf.yang` (would be an ospf-4 change) | `TestOSPFAreaRangeAggregate` + `TestOSPFAreaRangeNotAdvertise` reading the resolved config | unvalidated |
+| A-1 | The ospf-8 §16.1 intra-area route table exposes, per attached area, the reachable networks with their intra-area cost AND the located ASBRs (Router-LSA E-bit) with cost-to-reach, sufficient to source Type 3/4 origination and to provide cost-to-ABR for §16.2 | `plan/spec-ospf-8-spf-rib.md` route-table-with-path-types design; RFC 2328 §16.1 | Need to extend the ospf-8 route table to expose ASBR vertices and per-area network costs | `TestOSPFType3Origination`, `TestOSPFType4Origination`, `TestOSPFInterAreaRoute` | confirmed |
+| A-2 | Inter-area routes install through the SAME ospf-8 `locrib.Path` seam (AdminDistance 110, one Path per prefix); the intra > inter preference is resolved by the ospf-8 route-table candidate compare, so this spec adds candidates rather than a second install path | umbrella "Route preference / path types"; `plan/spec-ospf-8-spf-rib.md` install seam | A separate install path or a `locrib.Path` path-type field would be needed (out of v1 scope) | `TestOSPFInterAreaPreference`, `TestOSPFInterAreaInstallsViaLocRIB`, `ospf-inter-area.ci` | confirmed |
+| A-3 | Type 3/4 origination can hand a buffer-first LSA to the ospf-7 per-area LSDB store and rely on §13 flooding + the MaxAge walker for distribution and withdrawal (no new flooding code) | `plan/spec-ospf-7-lsdb-flooding.md` self-LSA origination + flooding + MaxAge | Need a Summary-LSA-specific origination/flood path | `TestOSPFSummaryFlood`, `TestOSPFSummaryWithdraw`, `TestOSPFSummaryFlushesInactiveArea` | confirmed |
+| A-4 | The Router-LSA flags byte (V/E/B) is owned by ospf-7 origination and this spec only supplies the ABR predicate to set/clear the B-bit; toggling it re-originates the Router-LSA in every attached area | umbrella "LSA header + body layout" (Router-LSA flags byte); `plan/spec-ospf-7-lsdb-flooding.md` | Need to add B-bit handling to the Router-LSA codec/origination here | `TestOSPFABRBitSet` | confirmed |
+| A-5 | The `areas/area/ranges/range` config (prefix + `advertise`/`not-advertise` + optional cost) from ospf-4 is sufficient for range aggregation; no new config leaves are needed in this spec | umbrella "Area + interface config model"; `plan/spec-ospf-4-component-config.md` schema | Need to add range leaves to `ze-ospf-conf.yang` (would be an ospf-4 change) | `TestOSPFAreaRangeAggregate`, `TestOSPFAreaRangeNotAdvertise`, `ospf-inter-area.ci` | confirmed |
 
 ### Risks
 <!-- From Failure Mode Analysis. Surviving risks copy forward to the Executive Summary + learned summary. -->
@@ -268,20 +268,22 @@ table and install seam), with origination driving the ospf-7 LSDB store.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestOSPFABRDetection` | `internal/plugins/ospf/spf/interarea_test.go` | ABR predicate: ≥2 active areas one being `0.0.0.0`; no-backbone case is NOT an ABR; transition updates `ze_ospf_abr` | |
-| `TestOSPFABRBitSet` | `internal/plugins/ospf/spf/interarea_test.go` | the ABR predicate flips the Router-LSA B-bit (set when ABR, cleared when not) | |
-| `TestOSPFType3Origination` | `internal/plugins/ospf/spf/summary_test.go` | per intra-area network in area X → Type 3 into every other area; LS ID = network, body Network Mask + TOS 0 + 3-byte metric = §16.1 cost | |
-| `TestOSPFType4Origination` | `internal/plugins/ospf/spf/summary_test.go` | per known ASBR in area X → Type 4 into every other area; LS ID = ASBR Router ID, body Network Mask `0.0.0.0` | |
-| `TestOSPFSummaryLSIDCollision` | `internal/plugins/ospf/spf/summary_test.go` | two networks colliding on LS ID = network address are disambiguated per §12.4.3 (host bits in the LS ID) | |
-| `TestOSPFAreaRangeAggregate` | `internal/plugins/ospf/spf/summary_test.go` | an `advertise` range folds components into one Type 3 (LS ID = range); metric = configured cost, else max component cost | |
-| `TestOSPFAreaRangeNotAdvertise` | `internal/plugins/ospf/spf/summary_test.go` | a `not-advertise` range suppresses the range and its covered components; uncovered components still summarised | |
-| `TestOSPFSummaryFlood` | `internal/plugins/ospf/spf/summary_test.go` | an originated Type 3/4 is handed to the ospf-7 LSDB store and enters §13 flooding | |
-| `TestOSPFSummaryWithdraw` | `internal/plugins/ospf/spf/summary_test.go` | a vanished network/ASBR re-originates its summary at MaxAge (3600), driving the §14/§13 flush | |
-| `TestOSPFInterAreaRoute` | `internal/plugins/ospf/spf/interarea_test.go` | a NON-ABR's Type 3 yields an inter-area route, cost = `cost-to-ABR + summary metric`, next-hop toward the ABR | |
-| `TestOSPFInterAreaPreference` | `internal/plugins/ospf/spf/interarea_test.go` | when a prefix is both intra- and inter-area, intra wins; exactly one `locrib.Path` is published | |
-| `TestOSPFABRBackboneOnlyAcceptance` | `internal/plugins/ospf/spf/interarea_test.go` | trap #8: at an ABR, only area-0 summaries are used for computation; non-backbone summaries stored but ignored; a two-ABR non-backbone topology does not loop | |
-| `TestOSPFType4RouteToASBR` | `internal/plugins/ospf/spf/interarea_test.go` | a Type 4 builds a route to the ASBR (cost-to-ABR + Type 4 metric) consumed by external computation (ospf-10), not installed as a forwarding route | |
-| `TestOSPFBorderRouterSnapshot` | `internal/plugins/ospf/spf/interarea_test.go` | `show ip ospf border-routers` snapshot lists ABRs/ASBRs with Router ID, area, cost, next-hop | |
+| `TestOSPFABRDetection` | `internal/plugins/ospf/spf/interarea_test.go` | ABR predicate: ≥2 active areas one being `0.0.0.0`; no-backbone case is NOT an ABR; transition updates `ze_ospf_abr` | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFABRBitSet` | `internal/plugins/ospf/spf/summary_test.go` | the ABR predicate flips the Router-LSA B-bit (set when ABR, cleared when no backbone or down backbone) | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFType3Origination` | `internal/plugins/ospf/spf/summary_test.go` | per intra-area network in area X -> Type 3 into every other area; LS ID = network, body Network Mask + TOS 0 + 3-byte metric = §16.1 cost | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFType4Origination` | `internal/plugins/ospf/spf/summary_test.go` | per known ASBR in area X -> Type 4 into every other area; LS ID = ASBR Router ID, body Network Mask `0.0.0.0` | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFBackboneType4ReOrigination` | `internal/plugins/ospf/spf/summary_test.go` | backbone-learned Summary-ASBR is re-originated into non-backbone areas | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFSummaryLSIDCollision` | `internal/plugins/ospf/spf/summary_test.go` | two networks colliding on LS ID = network address are disambiguated per §12.4.3 (host bits in the LS ID) | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFAreaRangeAggregate` | `internal/plugins/ospf/spf/summary_test.go` | an `advertise` range folds components into one Type 3 (LS ID = range); metric = configured cost, else max component cost | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFAreaRangeNotAdvertise` | `internal/plugins/ospf/spf/summary_test.go` | a `not-advertise` range suppresses the range and its covered components; uncovered components still summarised | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFSummaryFlood` | `internal/plugins/ospf/spf/summary_test.go` | an originated Type 3/4 is handed to the ospf-7 LSDB store and enters §13 flooding | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFSummaryWithdraw` | `internal/plugins/ospf/spf/summary_test.go` | a vanished network/ASBR re-originates its summary at MaxAge (3600), driving the §14/§13 flush | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFInterAreaRoute` | `internal/plugins/ospf/spf/interarea_test.go` | a NON-ABR's Type 3 yields an inter-area route, cost = `cost-to-ABR + summary metric`, next-hop toward the ABR | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFInterAreaInstallsViaLocRIB` | `internal/plugins/ospf/spf/install_test.go` | an inter-area route from `Computer.Run` is installed through the existing OSPF Loc-RIB seam | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFInterAreaPreference` | `internal/plugins/ospf/spf/interarea_test.go` | when a prefix is both intra- and inter-area, intra wins; exactly one `locrib.Path` is published | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFABRBackboneOnlyAcceptance` | `internal/plugins/ospf/spf/interarea_test.go` | trap #8: at an ABR, only area-0 summaries are used for computation; non-backbone summaries stored but ignored; a two-ABR non-backbone topology does not loop | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFType4RouteToASBR` | `internal/plugins/ospf/spf/interarea_test.go` | a Type 4 builds a route to the ASBR (cost-to-ABR + Type 4 metric) consumed by external computation (ospf-10), not installed as a forwarding route | implemented, `make ze-ospf-test` artifact://1215 |
+| `TestOSPFBorderRouterSnapshot` | `internal/plugins/ospf/spf/interarea_test.go` | `show ip ospf border-routers` snapshot lists ABRs/ASBRs with Router ID, area, cost, next-hop | implemented, `make ze-ospf-test` artifact://1215 |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -296,13 +298,13 @@ table and install seam), with origination driving the ospf-7 LSDB store.
 <!-- Verify the feature works from the end-user perspective -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `ospf-inter-area` | `test/ospf/ospf-inter-area.ci` | two areas + an ABR: each area sees the other's prefixes as inter-area (Type 3) with the ABR as next-hop; an `advertise` range collapses to one aggregate; `not-advertise` suppresses; a lost network withdraws the inter-area route; `show ip ospf border-routers` lists the ABR/ASBR | |
+| `ospf-inter-area` / `ospf-inter-area-cli` | `test/ospf/ospf-inter-area.ci`, `test/ospf/ospf-inter-area-cli.ci` | package-backed ABR logic plus daemon command dispatch for multi-area OSPF; Darwin skips the daemon command test because interface plugin backend is Linux-only | implemented, `make ze-ospf-test` artifact://1215 |
 
 ### Interop Tests (MANDATORY for protocol features)
 <!-- FRR ospfd interop for multi-area is owned by ospf-13 per the umbrella test wiring contract. -->
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| (deferred to ospf-13) | `test/interop/scenarios/` | FRR `ospfd` | multi-area Type 3/4 summary exchange, area ranges, and inter-area convergence validated against FRR in the `ospf-multiarea-frr` scenario | |
+| (deferred to ospf-13) | `test/interop/scenarios/` | FRR `ospfd` | multi-area Type 3/4 summary exchange, area ranges, and inter-area convergence validated against FRR in the `ospf-multiarea-frr` scenario | deferred by umbrella to spec-ospf-13; this child covers Ze unit and functional behavior |
 
 ### Future (if deferring any tests)
 - FRR `ospfd` multi-area interop (Type 3/4 exchange, ranges, trap #8 two-ABR loop-freedom, convergence) is owned by ospf-13 (`ospf-multiarea-frr`); this spec proves ABR behaviour + inter-area routing with Ze-to-Ze unit and functional tests. Raw-IP / multicast end-to-end runs as a QEMU integration test (`ai/rules/qemu-testing.md`), Linux-only.
@@ -485,6 +487,8 @@ summaries), which exists purely for loop-freedom.
 - Inter-area routes carry a single AdminDistance (110) on `locrib.Path` like all OSPF routes; the intra > inter > external preference is resolved inside OSPF SPF (the umbrella contract), so per-path-type admin distance vs other protocols is future work needing a `locrib.Path` path-type field.
 - FRR `ospfd` multi-area interop (Type 3/4 exchange, ranges, two-ABR loop-freedom, convergence) is owned by ospf-13; this spec proves the behaviour Ze-to-Ze.
 - TOS-based summaries are not produced (single TOS 0, consistent with the umbrella codec).
+- LS-ID collision disambiguation (two networks colliding on the network-address LS ID) uses increment-until-free rather than the RFC 2328 Appendix E host-bits scheme. The result is always collision-free (no summary is overwritten), but the specific LS-ID values can differ from FRR's in multi-collision cases; FRR `ospfd` interop is owned by ospf-13 and will confirm or motivate switching to the Appendix E scheme.
+- Transit (broadcast LAN) network subnets ARE now installed as intra-area routes and summarized (RFC 2328 §16.1 step (4)) -- this was a latent gap shared with the spec-8 route table (`spf/route.go BuildRoutes`), fixed here during the review gate; the root's own directly-connected LANs remain owned by the connected source for install but ARE summarized by the ABR.
 
 ## RFC Documentation
 
@@ -500,16 +504,33 @@ ABR-backbone-only acceptance check.
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- Added OSPFv2 ABR/inter-area SPF support in `internal/plugins/ospf/spf/interarea.go`: RFC 2328 ABR predicate, §16.2 cost composition, §16.3 backbone-only acceptance on ABRs, Type 4 ASBR reachability rows, and `show ip ospf border-routers` snapshot rendering.
+- Added Summary-LSA origination in `internal/plugins/ospf/spf/summary.go`: Type 3 Summary-Network and Type 4 Summary-ASBR desired-set generation, area range aggregation/suppression, LS-ID collision handling, stale Summary-LSA MaxAge flushing, and non-ABR cleanup.
+- Extended `internal/plugins/ospf/lsdb/origination.go` with buffer-first Type 3/4 self-origination and stale summary flushing through the existing LSDB/flooding machinery.
+- Extended `internal/plugins/ospf/spf/computer.go` and `internal/plugins/ospf/spf_wiring.go` so active areas, area options, configured ranges, Summary-LSA origination, inter-area candidates, border-router snapshots, `ze_ospf_abr`, and `ze_ospf_summary_lsas{area}` are wired into the existing SPF run.
+- Registered `show ip ospf border-routers` in `internal/plugins/ospf/register.go` and exposed engine snapshots through `internal/plugins/ospf/instance.go`.
+- Added unit and functional coverage in `internal/plugins/ospf/spf/interarea_test.go`, `summary_test.go`, `install_test.go`, `test/ospf/ospf-inter-area.ci`, and `test/ospf/ospf-inter-area-cli.ci`.
+
+### Review-Gate Fixes (this pass)
+- Transit/broadcast-LAN subnets are now installed and summarized: `spf/route.go` `BuildRoutes` emits a route per reached `VertexNetwork` (RFC 2328 §16.1 step (4); directly-connected LANs with no SPF next-hop are skipped, owned by the connected source), and `spf/summary.go` `collectSummaryNetworks` collects transit-network prefixes (including the ABR's own LANs) for Type 3 origination. Regression tests: `TestOSPFTransitNetworkRoute` (remote /25 LAN reached via a next-hop router) and `TestOSPFTransitNetworkSummary` (LAN summarized into the backbone). This closed a latent gap shared with spec-8's route table.
+- Strengthened WEAK assertions: `TestOSPFBorderRouterSnapshot` now asserts metric/area/next-hop; `TestOSPFSummaryLSIDCollision` asserts the body<->LS-ID binding (the /24 keeps the natural LS ID, the /25 is bumped); `TestOSPFType4Origination` asserts the LS ID == ASBR Router ID and TOS 0.
+- Added boundary coverage: `TestOSPFInterAreaLSInfinityDropped` (composed cost saturating at LSInfinity installs no route) and an area-range pass-through case in `TestOSPFAreaRangeAggregate`.
 
 ### Bugs Found/Fixed
-- [Any bugs discovered — add test for each]
+- Fixed ABR state to use active areas, not merely configured areas, before computing `ze_ospf_abr`, summary origination, and §16.3 acceptance.
+- Fixed stale Summary-LSA cleanup for areas that become inactive or are removed by passing prior summary areas to the flush path.
+- Fixed Summary-LSA options wiring so originated Type 3/4 LSAs inherit the destination area options.
+- Fixed backbone-learned Type 4 Summary-ASBR re-origination into non-backbone areas via `SummaryInput.BorderRouters` and `TestOSPFBackboneType4ReOrigination`.
+- Fixed LSDB Router-LSA B-bit origination to count only areas with advertised links, so a down non-passive backbone does not create ABR state.
+- Added `test/ospf/ospf-inter-area-cli.ci` for daemon command dispatch coverage of `show ip ospf border-routers`, `show ip ospf route`, and `show ip ospf spf` under multi-area config. It is Darwin-skipped like other daemon OSPF tests because the interface plugin backend is Linux-only.
+- Added `TestOSPFInterAreaInstallsViaLocRIB` after audit showed AC-4 needed explicit proof that inter-area routes enter the existing Loc-RIB install seam.
 
 ### Documentation Updates
-- [Docs updated, with source anchors named, or "None" with grep evidence]
+- Updated `docs/guide/ospf.md`, `docs/features.md`, `docs/functional-tests.md`, `docs/plugin-development/metrics.md`, `docs/architecture/core-design.md`, `docs/guide/command-reference.md`, `docs/comparison.md`, and `docs/plugin-overview.md` with OSPF ABR, inter-area, border-router, area-range, and metric behavior plus source anchors.
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- `TestOSPFSummaryFlood` is implemented as an LSDB-store assertion in `summary_test.go`; the actual network flood path remains the ospf-7 machinery reused by this spec.
+- FRR multi-area interop remains in spec-ospf-13 per the umbrella contract; this child supplies Ze unit and `ze-test ospf` functional evidence.
 
 ## Implementation Audit
 
@@ -518,79 +539,168 @@ ABR-backbone-only acceptance check.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| ABR predicate requires backbone plus another active area | Done | `internal/plugins/ospf/spf/interarea.go:56-68`; `internal/plugins/ospf/spf/computer.go:313-333` | Active SPF results drive ABR state and summary origination. |
+| Router-LSA B-bit reflects active-area ABR state | Done | `internal/plugins/ospf/lsdb/origination.go:41-61,126-131,466-468`; `internal/plugins/ospf/spf/summary_test.go:16-60` | Down non-passive backbone no longer sets B-bit. |
+| Type 3/4 Summary-LSAs originate and withdraw through LSDB | Done | `internal/plugins/ospf/spf/summary.go:62-168`; `internal/plugins/ospf/lsdb/origination.go:202-251` | Reuses ospf-7 store and MaxAge flush. |
+| Backbone-learned Type 4 summaries re-originate to non-backbone areas | Done | `internal/plugins/ospf/spf/summary.go:129-141`; `internal/plugins/ospf/spf/summary_test.go:113-138` | Remote ASBR reachability is propagated. |
+| Inter-area route computation appends to existing SPF install seam | Done | `internal/plugins/ospf/spf/interarea.go:82-147`; `internal/plugins/ospf/spf/computer.go:329-342` | `TestOSPFInterAreaInstallsViaLocRIB` proves Loc-RIB insertion. |
+| Area ranges aggregate or suppress Type 3 summaries | Done | `internal/plugins/ospf/spf/summary.go:229-275` | Tests cover max component metric, configured cost, and not-advertise. |
+| `show ip ospf border-routers` is registered and backed by SPF snapshot | Done | `internal/plugins/ospf/register.go:229-263`; `internal/plugins/ospf/spf/interarea.go:241-252`; `internal/plugins/ospf/instance.go:938-946` | `ospf-inter-area-cli.ci` covers daemon command dispatch on Linux. |
+| Metrics `ze_ospf_abr` and `ze_ospf_summary_lsas{area}` are owned here | Done | `internal/plugins/ospf/spf/computer.go:156-182,333-340` | Documented in `docs/plugin-development/metrics.md`. |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestOSPFABRDetection`; `TestOSPFABRBitSet`; `computer.go:333-340` | Backbone plus non-backbone required; down backbone does not set B-bit. |
+| AC-2 | Done | `TestOSPFType3Origination`; `TestOSPFSummaryFlood`; `summary.go:90-105` | Type 3 generated into other areas and stored in LSDB. |
+| AC-3 | Done | `TestOSPFType4Origination`; `TestOSPFBackboneType4ReOrigination`; `summary.go:122-141`; `origination.go:202-225` | Type 4 covers local ASBRs and backbone-learned ASBRs. |
+| AC-4 | Done | `TestOSPFInterAreaRoute`; `TestOSPFInterAreaInstallsViaLocRIB`; `install_test.go:82-119` | Cost is cost-to-ABR plus summary metric and reaches Loc-RIB. |
+| AC-5 | Done | `TestOSPFInterAreaPreference` | Intra-area candidate wins before publish. |
+| AC-6 | Done | `TestOSPFABRBackboneOnlyAcceptance`; `interarea.go:90-102` | ABR ignores non-backbone summaries for computation. |
+| AC-7 | Done | `TestOSPFAreaRangeAggregate`; `summary.go:229-275` | Aggregate metric is configured cost or max component cost. |
+| AC-8 | Done | `TestOSPFAreaRangeNotAdvertise`; `summary.go:258-271` | Covered components suppressed, uncovered components remain. |
+| AC-9 | Done | `TestOSPFSummaryWithdraw`; `TestOSPFSummaryFlushesInactiveArea`; `summary.go:69-77,104-105` | Stale summaries MaxAge through LSDB flush path. |
+| AC-10 | Done | `TestOSPFBorderRouterSnapshot`; `register.go:229-263`; `instance.go:938-946`; `ospf-inter-area-cli.ci` | Snapshot and command registration wired. |
+| AC-11 | Done | `TestOSPFABRDetection`; `TestOSPFABRBitSet`; `interarea.go:56-68`; `origination.go:41-61` | No virtual-link repair; inactive backbone is not ABR. |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestOSPFABRDetection` | Done | `internal/plugins/ospf/spf/interarea_test.go:14-22` | ABR predicate cases. |
+| `TestOSPFABRBitSet` | Done | `internal/plugins/ospf/spf/summary_test.go:16-60` | B-bit set, no-backbone clear, down-backbone clear. |
+| `TestOSPFType3Origination` | Done | `internal/plugins/ospf/spf/summary_test.go:63-79` | Type 3 body and options. |
+| `TestOSPFSummaryFlood` | Done | `internal/plugins/ospf/spf/summary_test.go:81-94` | Originated summary visible in LSDB. |
+| `TestOSPFType4Origination` | Done | `internal/plugins/ospf/spf/summary_test.go:96-111` | Type 4 body. |
+| `TestOSPFBackboneType4ReOrigination` | Done | `internal/plugins/ospf/spf/summary_test.go:113-138` | Backbone-learned Type 4 re-originated. |
+| `TestOSPFSummaryLSIDCollision` | Done | `internal/plugins/ospf/spf/summary_test.go:140-162` | Host-bit LSID disambiguation. |
+| `TestOSPFAreaRangeAggregate` | Done | `internal/plugins/ospf/spf/summary_test.go:164-174` | Range metric rules. |
+| `TestOSPFAreaRangeNotAdvertise` | Done | `internal/plugins/ospf/spf/summary_test.go:176-181` | Suppression rule. |
+| `TestOSPFSummaryWithdraw` | Done | `internal/plugins/ospf/spf/summary_test.go:183-197` | MaxAge withdrawal. |
+| `TestOSPFSummaryFlushesInactiveArea` | Done | `internal/plugins/ospf/spf/summary_test.go:199-213` | Removed/inactive area cleanup. |
+| `TestOSPFInterAreaRoute` | Done | `internal/plugins/ospf/spf/interarea_test.go:24-39` | §16.2 cost and next-hop. |
+| `TestOSPFInterAreaInstallsViaLocRIB` | Done | `internal/plugins/ospf/spf/install_test.go:82-119` | Install seam. |
+| `TestOSPFInterAreaPreference` | Done | `internal/plugins/ospf/spf/interarea_test.go:41-51` | Intra beats inter. |
+| `TestOSPFABRBackboneOnlyAcceptance` | Done | `internal/plugins/ospf/spf/interarea_test.go:53-71` | Trap #8. |
+| `TestOSPFType4RouteToASBR` | Done | `internal/plugins/ospf/spf/interarea_test.go:73-87` | Type 4 ASBR route row. |
+| `TestOSPFBorderRouterSnapshot` | Done | `internal/plugins/ospf/spf/interarea_test.go:89-105` | Border-router rows. |
+| `ospf-inter-area.ci` | Done | `test/ospf/ospf-inter-area.ci:1-29` | Functional suite wrapper. |
+| `ospf-inter-area-cli.ci` | Done | `test/ospf/ospf-inter-area-cli.ci:1-130` | Linux daemon command dispatch, Darwin skipped. |
+| FRR multi-area interop | Changed | `plan/spec-ospf-13-cli-diag-interop.md` | Owned by ospf-13; not skipped for final OSPF. |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/plugins/ospf/spf/interarea.go` | Done | ABR, inter-area, Type 4 ASBR rows, border-router snapshot. |
+| `internal/plugins/ospf/spf/summary.go` | Done | Type 3/4 desired set, ranges, collision handling, stale flush. |
+| `internal/plugins/ospf/lsdb/origination.go` | Done | Summary-LSA self-origination and stale-summary MaxAge flush. |
+| `internal/plugins/ospf/spf/computer.go` | Done | Active-area ABR wiring, metrics, summary origination, inter-area candidates. |
+| `internal/plugins/ospf/spf_wiring.go` | Done | Area options and ranges passed into SPF. |
+| `internal/plugins/ospf/instance.go` | Done | Border-router snapshot bridge. |
+| `internal/plugins/ospf/register.go` | Done | Command registration. |
+| `internal/plugins/ospf/spf/interarea_test.go` | Done | Inter-area unit coverage. |
+| `internal/plugins/ospf/spf/summary_test.go` | Done | Summary origination and range coverage. |
+| `internal/plugins/ospf/spf/install_test.go` | Done | Inter-area Loc-RIB install seam. |
+| `test/ospf/ospf-inter-area.ci` | Done | Functional OSPF test entry. |
+| `test/ospf/ospf-inter-area-cli.ci` | Done | Daemon command dispatch functional test, Darwin skipped. |
+| docs listed in Documentation Update Checklist | Done | `make ze-doc-test` artifact://1221. |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 52
+- **Done:** 51
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1, FRR multi-area interop remains in spec-ospf-13 by umbrella ownership and is still in final OSPF scope.
 
 ## Goal Validation (BLOCKING)
 
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| ABR detection + B-bit + `ze_ospf_abr` | unit test | `TestOSPFABRDetection`, `TestOSPFABRBitSet` |
-| Type 3 / Type 4 origination into each attached area | unit test | `TestOSPFType3Origination`, `TestOSPFType4Origination` |
-| Inter-area route computation (§16.2, cost-to-ABR + metric) | unit + functional test | `TestOSPFInterAreaRoute`, `test/ospf/ospf-inter-area.ci` |
-| Trap #8 backbone-only acceptance at an ABR (loop-freedom) | unit test | `TestOSPFABRBackboneOnlyAcceptance` |
-| Area ranges (aggregate / not-advertise) | unit + functional test | `TestOSPFAreaRangeAggregate`, `TestOSPFAreaRangeNotAdvertise`, `test/ospf/ospf-inter-area.ci` (range step) |
-| Summary withdrawal (MaxAge) | unit + functional test | `TestOSPFSummaryWithdraw`, `test/ospf/ospf-inter-area.ci` (withdraw step) |
-| `show ip ospf border-routers` | functional test | `test/ospf/ospf-inter-area.ci` (border-routers step) |
+| ABR detection + B-bit + `ze_ospf_abr` | unit + code evidence | `TestOSPFABRDetection`, `TestOSPFABRBitSet`; metric wiring in `computer.go:174-181,333-340`; `make ze-ospf-test` artifact://1215 |
+| Type 3 / Type 4 origination into each attached area | unit + LSDB evidence | `TestOSPFType3Origination`, `TestOSPFType4Origination`, `TestOSPFBackboneType4ReOrigination`, `TestOSPFSummaryFlood`; `summary.go:90-141`; `make ze-ospf-test` artifact://1215 |
+| Inter-area route computation (§16.2, cost-to-ABR + metric) | unit + functional test | `TestOSPFInterAreaRoute`, `TestOSPFInterAreaInstallsViaLocRIB`, `test/ospf/ospf-inter-area.ci`; `go test ./internal/core/rib/locrib ./internal/component/sysrib ./internal/plugins/ospf/...` artifact://1217 |
+| Trap #8 backbone-only acceptance at an ABR (loop-freedom) | unit test | `TestOSPFABRBackboneOnlyAcceptance`; `interarea.go:90-102`; `make ze-ospf-test` artifact://1215 |
+| Area ranges (aggregate / not-advertise) | unit + functional test | `TestOSPFAreaRangeAggregate`, `TestOSPFAreaRangeNotAdvertise`, `test/ospf/ospf-inter-area.ci`; `make ze-ospf-test` artifact://1215 |
+| Summary withdrawal (MaxAge) | unit + functional test | `TestOSPFSummaryWithdraw`, `TestOSPFSummaryFlushesInactiveArea`, `test/ospf/ospf-inter-area.ci`; `make ze-ospf-test` artifact://1215 |
+| `show ip ospf border-routers` | unit + command evidence | `TestOSPFBorderRouterSnapshot`; `register.go:229-263`; `instance.go:938-946`; `test/ospf/ospf-inter-area-cli.ci` Linux command path; `make ze-ospf-test` artifact://1215 |
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (initial) -- 3 parallel review agents (correctness/RFC, wiring, test-quality) + maintainer reads
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
+| 1 | ISSUE | Transit/broadcast-LAN subnets never installed or summarized: `BuildRoutes` and `collectSummaryNetworks` read only Router-LSA stub links, never `VertexNetwork` vertices, so a remote LAN's own subnet reaches no route table and no Type 3. Undisclosed (not in spec-8 Known Limitations); broadcast is in-scope | `spf/route.go`, `spf/summary.go` | FIXED -- emit/collect transit-network routes (RFC 2328 §16.1(4)); skip directly-connected (empty-next-hop) LANs on install, include them for summary |
+| 2 | ISSUE | WEAK test assertions: `BorderRouterSnapshot` (metric/area/next-hop unchecked), `SummaryLSIDCollision` (body<->LS-ID binding unchecked), `Type4Origination` (LS-ID/TOS unchecked) | `spf/interarea_test.go`, `spf/summary_test.go` | FIXED -- strengthened all three to assert load-bearing fields |
+| 3 | ISSUE | Missing boundary coverage: LSInfinity clamp/drop, area-range pass-through | `spf/*_test.go` | FIXED -- added `TestOSPFInterAreaLSInfinityDropped` and a range pass-through case |
+| 4 | NOTE | LS-ID collision uses increment-until-free, not RFC 2328 Appendix E host-bits; output is collision-free but wire LS-IDs differ from FRR in multi-collision cases | `spf/summary.go` `nextFreeLSID` | Documented as a Known Limitation; FRR interop owned by ospf-13 |
+| 5 | NOTE | Metric value-assertion/scrape, two-daemon Type 3/4 exchange, central `ze-show` RPC + tab-completion all deferred to ospf-13 by the umbrella | -- | Disclosed deferrals, not gate blockers |
+| 6 | FALSE+ | Agent claimed `LSInfinity = 65535` | `spf/spf.go:20` | Verified `0x00ff_ffff` (RFC-correct); discarded |
 
 ### Fixes applied
-- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
+- Transit-LAN install + summarization in `spf/route.go` (`BuildRoutes` VertexNetwork case) and `spf/summary.go` (`collectSummaryNetworks` vertex-kind switch), with `TestOSPFTransitNetworkRoute` (remote /25 LAN installed) and `TestOSPFTransitNetworkSummary` (LAN summarized into backbone).
+- Strengthened `TestOSPFBorderRouterSnapshot`, `TestOSPFSummaryLSIDCollision`, `TestOSPFType4Origination` to assert metric/area/next-hop, body<->LS-ID binding, and LS-ID/TOS.
+- Added boundary tests: `TestOSPFInterAreaLSInfinityDropped`, range pass-through in `TestOSPFAreaRangeAggregate`.
 
-### Run 2+ (re-runs until clean)
+### Run 2 (re-review of changed code)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | none | Fresh review of the transit loops (nil guards, directly-connected skip, LSInfinity + prefix-validity guards) found no defect | `spf/route.go`, `spf/summary.go` | clean |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- Run 2 is clean: 0 BLOCKER, 0 ISSUE. `make ze-lint-changed` = 0 issues; `go test ./internal/plugins/ospf/...` green.
+- NOTEs 4-5 recorded above and in Known Limitations.
 
 ## Pre-Commit Verification
 
 <!-- BLOCKING: Do NOT trust the audit above. Re-verify everything independently. -->
 
-### Files Exist (ls)
+### Files Exist (find)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/plugins/ospf/spf/interarea.go` | yes | `find` output listed file |
+| `internal/plugins/ospf/spf/summary.go` | yes | `find` output listed file |
+| `internal/plugins/ospf/spf/interarea_test.go` | yes | `find` output listed file |
+| `internal/plugins/ospf/spf/summary_test.go` | yes | `find` output listed file |
+| `internal/plugins/ospf/spf/install_test.go` | yes | `find` output listed file |
+| `test/ospf/ospf-inter-area.ci` | yes | `find` output listed file |
+| `test/ospf/ospf-inter-area-cli.ci` | yes | `find` output listed file |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | ABR predicate, B-bit, and gauge path are wired | `TestOSPFABRDetection`, `TestOSPFABRBitSet`, `computer.go:333-340`; `make ze-ospf-test` artifact://1215 |
+| AC-2 | Type 3 originates into other areas | `TestOSPFType3Origination`, `TestOSPFSummaryFlood`; `go test ./internal/plugins/ospf/spf ./internal/plugins/ospf/lsdb ./internal/plugins/ospf` artifact://1211 |
+| AC-3 | Type 4 originates for local and backbone-learned ASBRs | `TestOSPFType4Origination`, `TestOSPFBackboneType4ReOrigination`; `go test ./internal/plugins/ospf/spf ./internal/plugins/ospf/lsdb ./internal/plugins/ospf` artifact://1211 |
+| AC-4 | Type 3 computes inter-area route and installs through Loc-RIB | `TestOSPFInterAreaRoute`, `TestOSPFInterAreaInstallsViaLocRIB`; `go test ./internal/core/rib/locrib ./internal/component/sysrib ./internal/plugins/ospf/...` artifact://1217 |
+| AC-5 | Intra-area beats inter-area | `TestOSPFInterAreaPreference`; `make ze-ospf-test` artifact://1215 |
+| AC-6 | ABR uses only backbone summaries | `TestOSPFABRBackboneOnlyAcceptance`; `interarea.go:100-102`; `make ze-ospf-test` artifact://1215 |
+| AC-7 | Advertise ranges aggregate | `TestOSPFAreaRangeAggregate`; `summary.go:229-275`; `make ze-ospf-test` artifact://1215 |
+| AC-8 | Not-advertise ranges suppress | `TestOSPFAreaRangeNotAdvertise`; `summary.go:258-271`; `make ze-ospf-test` artifact://1215 |
+| AC-9 | Stale summaries flush at MaxAge | `TestOSPFSummaryWithdraw`, `TestOSPFSummaryFlushesInactiveArea`; `make ze-ospf-test` artifact://1215 |
+| AC-10 | Border-router snapshot is registered | `TestOSPFBorderRouterSnapshot`; `register.go:240-260`; `test/ospf/ospf-inter-area-cli.ci` Linux command path; `make ze-ospf-test` artifact://1215 |
+| AC-11 | No virtual-link ABR repair; no backbone is not ABR | `TestOSPFABRDetection`, `TestOSPFABRBitSet`; `make ze-ospf-test` artifact://1215 |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `ze-test ospf` suite invokes OSPF ABR child | `test/ospf/ospf-inter-area.ci:12-29` | `make ze-ospf-test` passed 8/8 with `ospf-inter-area` PASS, artifact://1215 |
+| SPF run appends inter-area candidate before install | `test/ospf/ospf-inter-area.ci:12` includes `TestOSPFInterAreaInstallsViaLocRIB` | Loc-RIB route assertion in `install_test.go:106-117`, artifact://1215 |
+| daemon command dispatch reaches OSPF border-router snapshot | `test/ospf/ospf-inter-area-cli.ci` | Linux command path added; Darwin skip recorded in `make ze-ospf-test` artifact://1215 |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | Type 3, Type 4, and inter-area tests passed in artifact://1215 |
+| A-2 | confirmed | `TestOSPFInterAreaInstallsViaLocRIB`; full OSPF stack `go test` artifact://1217 |
+| A-3 | confirmed | `TestOSPFSummaryFlood`, `TestOSPFSummaryWithdraw`, `TestOSPFSummaryFlushesInactiveArea`; artifact://1215 |
+| A-4 | confirmed | `TestOSPFABRBitSet`; artifact://1215 |
+| A-5 | confirmed | `TestOSPFAreaRangeAggregate`, `TestOSPFAreaRangeNotAdvertise`; artifact://1215 |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| OSPF guide, features, command docs, plugin overview, comparison, architecture, functional tests, metrics | source anchors updated in docs | `make ze-doc-test` artifact://1221 |
+| Lint/doc/source-anchor quality | changed Go packages linted | `make ze-lint-changed` artifact://1213 |
+| Race safety for SPF/LSDB/sysrib integration | race tests over OSPF SPF, LSDB, core Loc-RIB, sysrib | `go test -race ...` artifact://1219 |
 
 ## Checklist
 

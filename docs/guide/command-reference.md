@@ -538,6 +538,17 @@ ospf/isis/rip/eigrp/babel) and as a decimal string otherwise. Connected
 routes have an empty `nexthop`; the `source` field carries the
 preferred-source IP when the kernel reports one.
 
+**`show ip ospf route`** returns the OSPF SPF route table: area, prefix,
+metric, path type, advertising router, and equal-cost next-hop set. **`show ip
+ospf spf`** returns per-area SPF run state: last run time, duration, node count,
+pending state, and current throttle delay. **`show ip ospf border-routers`**
+returns reachable ABRs and ASBRs with area, metric, and next-hop set.
+
+<!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ip ospf route/spf/border-routers -->
+<!-- source: internal/plugins/ospf/spf/route.go -- RouteSnapshotEntry -->
+<!-- source: internal/plugins/ospf/spf/interarea.go -- BorderRouterSnapshotEntry -->
+<!-- source: internal/plugins/ospf/spf/computer.go -- spfSnapshotEntry and BorderRouterSnapshot -->
+
 <!-- source: internal/component/iface/cmd/show_ip.go -- handleShowArp, handleShowIPRoute -->
 <!-- source: internal/plugins/iface/netlink/neighbor_linux.go -- ListNeighbors -->
 <!-- source: internal/plugins/iface/netlink/route_linux.go -- ListKernelRoutes -->

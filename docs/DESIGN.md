@@ -14,8 +14,8 @@ A plugin-first, wire-first Network OS in Go, built for programmability and perfo
 **Component architecture.** Ze is a generic engine with a hub/bus, config provider,
 plugin manager, and registered subsystems. BGP was the first subsystem, but the
 current tree also contains interface management, firewall, traffic control, FIB,
-VPP, L2TP/PPP, PPPoE, IPsec/IKE, LDP, RSVP-TE, telemetry, web, API, gNMI, MCP,
-storage, audit, and diagnostics components. The goal is to lower the barrier to
+VPP, L2TP/PPP, PPPoE, IPsec/IKE, LDP, RSVP-TE, OSPF config wiring, telemetry,
+web, API, gNMI, MCP, storage, audit, and diagnostics components. The goal is to lower the barrier to
 network development: anyone can write a plugin in any language -- Go, Python,
 Rust, or anything that reads lines and writes lines -- without understanding the
 engine internals.
@@ -42,7 +42,7 @@ correctness for speed of implementation.
 FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC, SR-Policy), 13 capabilities
 (Multiprotocol Extensions, ASN4, ADD-PATH, Extended Message, Extended Next Hop,
 Graceful Restart, Long-Lived Graceful Restart, Route Refresh, Enhanced Route Refresh,
-BGP Role, Hostname, Software Version, Link-Local Next Hop), 65 registered plugins,
+BGP Role, Hostname, Software Version, Link-Local Next Hop), 97 registered plugins,
 and BGP path attribute support including AIGP. RFC 8203 Administrative Shutdown
 Communication provides graceful teardown with human-readable messages. Encode,
 decode, and round-trip paths share the same wire representation.
@@ -62,10 +62,10 @@ fault injection.
 
 ## Non-Goals
 
-**Full routing suite.** OSPF and IS-IS are not implemented in the current tree.
-LDP, RSVP-TE, MPLS FIB programming, BFD, static routes, connected routes, kernel
-route redistribution, and FIB backends exist, but Ze is still pre-release and the
-feature inventory is the authority for support status.
+**Full routing suite.** OSPF has config, raw IPv4 transport, Interface State
+Machine wiring, Neighbor State Machine database-exchange scaffolding, and LSDB flooding/aging, while OSPF SPF and route installation are still being built. LDP, RSVP-TE, MPLS
+FIB programming, BFD, static routes, connected routes, kernel route redistribution,
+and FIB backends exist, but Ze is still pre-release and the feature inventory is the authority for support status.
 
 **Backwards compatibility with itself.** Ze has never been released. No users, no compat
 code, no shims, no fallbacks. If something needs to change, it changes.
@@ -377,6 +377,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `ldp` | Label Distribution Protocol for MPLS label distribution (RFC 5036) |
 | `rsvp-te` | RSVP-TE signaling for MPLS traffic-engineered LSPs (RFC 3209) |
 | `isis` | Native IS-IS link-state IGP over Layer 2 (ISO/IEC 10589, RFC 1195/5305/5308) |
+| `ospf` | Native OSPFv2 config root, validators, event namespace, raw IPv4 transport, Interface State Machine, Neighbor State Machine, and LSDB flooding |
 | `ike` | IKEv2 engine for native IPsec VPN |
 
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin -->
@@ -410,6 +411,8 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 <!-- source: internal/plugins/ldp/register.go -- ldp plugin -->
 <!-- source: internal/plugins/rsvpte/register.go -- rsvp-te plugin -->
 <!-- source: internal/plugins/isis/register.go -- isis plugin -->
+<!-- source: internal/plugins/ospf/register.go -- ospf plugin -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello, HandleDBDesc -->
 <!-- source: internal/component/ike/engine/register.go -- ike plugin -->
 
 ---
@@ -770,7 +773,7 @@ entry points is not a substitute.
 BGP daemons. Ze establishes real sessions with FRR, BIRD, and GoBGP in containers and
 verifies correct behavior: session establishment, route exchange, graceful restart,
 route refresh, next-hop handling, BFD failover, ECMP, SRv6, and remove-private-as policy.
-49 interop scenarios run across multiple implementations, written in Python with
+61 interop scenarios run across multiple implementations, written in Python with
 automated container orchestration. Interop correctness is measured by real peers,
 not unit tests alone.
 

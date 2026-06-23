@@ -27,8 +27,9 @@ const (
 	ChangeAdd ChangeKind = 1
 
 	// ChangeUpdate fires when a prefix already had a valid best but the best
-	// identity changed (different source/instance/next-hop/metric). Best
-	// carries the new path.
+	// identity changed (different source/instance/next-hop/metric) or the best
+	// stayed stable while its ECMP sibling set changed. Best carries the
+	// selected path.
 	ChangeUpdate ChangeKind = 2
 
 	// ChangeRemove fires when the last valid path for a prefix goes away.

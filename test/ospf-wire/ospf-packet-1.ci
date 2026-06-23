@@ -1,0 +1,19 @@
+# OSPFv2 wire decode: Hello packet
+# VALIDATES: spec-ospf-2-wire Story 1 -- `ze ospf-decode` parses a hex OSPF
+#            payload on stdin and emits JSON with common header, checksum, and
+#            Hello fields.
+# PREVENTS: silent regressions in common-header parse, packet dispatch, or Hello
+#           fixed-field decoding reaching the offline decode command.
+stdin=payload:hex=020100300a00000100000000949300000000000000000000ffffff00000a4201000000280a0000010a0000020a000003
+cmd=foreground:seq=1:exec=ze ospf-decode:stdin=payload
+expect=exit:code=0
+expect=stdout:contains="type":"hello"
+expect=stdout:contains="router-id":"10.0.0.1"
+expect=stdout:contains="area-id":"0.0.0.0"
+expect=stdout:contains="checksum-valid":true
+expect=stdout:contains="network-mask":"255.255.255.0"
+expect=stdout:contains="hello-interval":10
+expect=stdout:contains="dead-interval":40
+expect=stdout:contains="dr":"10.0.0.1"
+expect=stdout:contains="bdr":"10.0.0.2"
+expect=stdout:contains="10.0.0.3"

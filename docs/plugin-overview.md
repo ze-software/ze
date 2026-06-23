@@ -10,8 +10,8 @@ Most runtime features beyond the core engine are registered components or plugin
 Plugins handle RIB storage, route reflection, graceful restart, RPKI validation,
 NLRI encoding, FIB programming, route redistribution, DHCP/PXE helpers, L2TP
 helpers, and backend integrations. Components such as interface, firewall,
-traffic, VPP, LDP, RSVP-TE, IS-IS, and flow export also register through the same
-plugin registry when they need config-driven lifecycle or IPC. The engine discovers them
+traffic, VPP, LDP, RSVP-TE, IS-IS, OSPF, and flow export also register through
+the same plugin registry when they need config-driven lifecycle or IPC. The engine discovers them
 through registries and never imports implementation packages directly.
 <!-- source: internal/component/plugin/registry/registry.go -- plugin registry -->
 <!-- source: internal/component/plugin/all/all.go -- plugin blank imports -->
@@ -34,12 +34,19 @@ Because components and plugins register the same way, the directory a package li
 in is decided by **dependency direction**, not by the registration mechanism:
 `internal/core/` for libraries (not config-driven engines), `internal/component/`
 for platform plugins that other plugins depend on (BGP, iface, the RIB),
-`internal/plugins/` for edge plugins nothing depends on (NTP, static, IS-IS). A
-config-driven engine (`sdk.NewWithConn`) in the wrong tier fails the
+`internal/plugins/` for edge plugins nothing depends on (NTP, static, IS-IS,
+OSPF). A config-driven engine (`sdk.NewWithConn`) in the wrong tier fails the
 `make ze-tier-check` gate. Full rule and the audit tool:
 [`ai/rules/module-tiers.md`](../ai/rules/module-tiers.md).
 <!-- source: ai/rules/module-tiers.md -- tier taxonomy and the engine-placement gate -->
 <!-- source: scripts/dev/dep_audit.py -- dep audit report + Path C --check gate -->
+<!-- source: internal/plugins/ospf/register.go -- OSPF edge plugin registration -->
+
+OSPF is also a Loc-RIB source named `ospf`: SPF inserts one path per equal-cost
+next-hop for intra-area and inter-area candidates, then leaves sysrib/fibkernel as
+the only kernel FIB owner.
+<!-- source: internal/plugins/ospf/spf/install.go -- ProtocolID and Installer Apply -->
+<!-- source: internal/plugins/ospf/spf/interarea.go -- ComputeInterArea -->
 
 ## Invocation Modes
 

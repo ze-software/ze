@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-ospf-2-wire.md, spec-ospf-3-ip-transport.md |
-| Phase | - |
+| Phase | 5/5 |
 | Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
@@ -104,7 +104,7 @@ the component is up.
 - [ ] `ai/rules/config-surface.md`, `ai/rules/config-naming.md` - YANG vs env var, kebab-case naming
   -> Constraint: OSPF config is YANG (no env vars), top-level `ospf` container, kebab-case leaves, Go struct fields are PascalCase of the leaf
 - [ ] `ai/rules/wiring-completeness.md`, `ai/rules/plugin-self-containment.md` - reachability and self-containment
-  -> Constraint: every exported symbol has a non-test caller; all OSPF schema/help/commands live under `internal/plugins/ospf/`; no `ospf` spelling in generic/central packages except generated `all.go` and the central ValidateFn cycle-break
+  -> Constraint: every exported symbol has a non-test caller; all OSPF schema/help/commands live under `internal/plugins/ospf/`; no `ospf` spelling in generic/central packages except generated `all.go`, plugin inventory snapshots, the central ValidateFn cycle-break, and the static `ze config validate` section allow-list
 
 ### RFC Summaries (MUST for protocol work; existing, read before implementation)
 - [ ] `rfc/short/rfc2328.md` - OSPF Version 2 base standard (created during ospf-2/5/6/7/8; referenced in `RFCs`)
@@ -113,8 +113,8 @@ the component is up.
   -> Constraint: per-interface area binding and the area/interface container hierarchy follow RFC 9129, not FRR's `network` matching
 
 **Key insights:**
-- OSPF is a component (`internal/plugins/ospf/`), not a plugin dir; engine-owning protocols (BGP, LDP, RSVP-TE, IS-IS) live in `component/`
-- The component is registered exactly like LDP/IS-IS; the only OSPF-specific config concern is the router-id / area-id custom validators with `CompleteFn`
+- OSPF is an edge plugin under `internal/plugins/ospf/`, matching the user contract and the existing IS-IS/LDP runtime shape: registration in the plugin registry, self-contained YANG/config/runtime files, no direct import from core
+- The component is registered exactly like LDP/IS-IS; the only central config concerns are the router-id / area-id custom validators and the `ze config validate` section allow-list
 - `make generate` auto-wires `all.go` and the `yang/` glue; hand-editing generated files is forbidden
 - This spec wires a skeleton: config in, engine up, raw socket open, interfaces enrolled, nothing else; runtime lives in sibling specs
 
@@ -190,12 +190,12 @@ the component is up.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | `make generate` discovers a new `component/ospf` + `yang` package automatically | LDP/IS-IS precedent; `yang_schema.go` 203-231; umbrella A-5 | Manual `all.go` edit needed (forbidden) | build + `grep ospf all.go` after `make generate` | unvalidated |
-| A-2 | The SDK ConfigSection JSON for the `ospf` subtree carries every leaf shape the typed parse expects (nested `areas/area`, `interfaces/interface`, `ranges/range`) | LDP/IS-IS read their subtrees the same way | Parse misses nested containers (area list, interface list, range list) | `TestOSPFConfigResolve` against a full config | unvalidated |
-| A-3 | spec-ospf-3 exposes a transport `Open`/per-interface enrol/`Close` API the engine can call from `OnStarted` | umbrella architecture (transport behind an interface; RSVP-TE raw-IP precedent) | Wiring stub cannot open the socket/enrol; ospf-4 blocked on ospf-3 API shape | `TestOSPFComponentStart` opening over a STUB transport backend (no real raw socket -- the real socket round-trip is ospf-3's QEMU integration test); this unit test depends only on the ospf-3 transport interface | unvalidated |
-| A-4 | A top-level `ospf` container with `ze:config-root "ospf"` and `ConfigRoots:["ospf"]` routes the subtree to the engine | LDP/IS-IS use top-level `ldp`/`isis` + matching `ConfigRoots` | Config never reaches `OnConfigVerify`; validate passes vacuously | `test/ospf/ospf-config.ci` exercising validate + start | unvalidated |
-| A-5 | The router-id can always be resolved (configured dotted-quad, else derived from a loopback/highest interface address per RFC 2328 §C.1) | guide §10 ("if omitted, derive from a loopback"); RFC 2328 | Need an explicit required router-id leaf with no derivation | `TestOSPFConfigValidate` router-id-omitted derivation case | unvalidated |
-| A-6 | The central config package can host the router-id/area-id ValidateFns without importing `ospf` (IS-IS cycle-break precedent) | IS-IS put its NET/system-id ValidateFns in `validators_register.go`; component keeps CompleteFns | ValidateFn must live in the component, forcing a different registration path | build with no import cycle; `TestOSPFRouterIDValidator` in the config package | unvalidated |
+| A-1 | `make generate` discovers a new `internal/plugins/ospf` + `yang` package automatically | LDP/IS-IS precedent; `yang_schema.go` 203-231; umbrella A-5 | Manual `all.go` edit needed (forbidden) | `make generate`; `internal/component/plugin/all/all.go` imports `internal/plugins/ospf/yang` and `internal/plugins/ospf` | confirmed |
+| A-2 | The SDK ConfigSection JSON for the `ospf` subtree carries every leaf shape the typed parse expects (nested `areas/area`, `interfaces/interface`, `ranges/range`) | LDP/IS-IS read their subtrees the same way | Parse misses nested containers (area list, interface list, range list) | `TestOSPFConfigResolve` parses full root-wrapped `ospf` JSON | confirmed |
+| A-3 | spec-ospf-3 exposes a transport `Open`/per-interface enrol/`Close` API the engine can call from `OnStarted` | umbrella architecture (transport behind an interface; RSVP-TE raw-IP precedent) | Wiring stub cannot open the socket/enrol; ospf-4 blocked on ospf-3 API shape | `TestOSPFComponentStart` uses `transport.New` with a stub backend; `TestOSPFCarrierFlapRestoresRunningInterface` covers link flap restore | confirmed |
+| A-4 | A top-level `ospf` container with `ze:config-root "ospf"` and `ConfigRoots:["ospf"]` routes the subtree to the engine | LDP/IS-IS use top-level `ldp`/`isis` + matching `ConfigRoots` | Config never reaches `OnConfigVerify`; validate passes vacuously | `test/ospf/ospf-config.ci` via `make ze-ospf-test`; `internal/component/config/cli/cmd_validate.go` includes `ospf` | confirmed |
+| A-5 | The router-id can always be resolved (configured dotted-quad, else derived from a loopback/highest interface address per RFC 2328 §C.1) | guide §10 ("if omitted, derive from a loopback"); RFC 2328 | Need an explicit required router-id leaf with no derivation | `TestOSPFConfigValidate` covers configured, derived, and underivable router-id cases | confirmed |
+| A-6 | The central config package can host the router-id/area-id ValidateFns without importing `ospf` (IS-IS cycle-break precedent) | IS-IS put its NET/system-id ValidateFns in `validators_register.go`; component keeps CompleteFns | ValidateFn must live in the component, forcing a different registration path | `go test ./internal/component/config`; `TestOSPFRouterIDValidator`; `TestOSPFAreaIDValidator` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -556,91 +556,211 @@ intervals).
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- Added the self-contained OSPFv2 edge plugin under `internal/plugins/ospf/`: registry entry, SDK lifecycle, config parser, area/interface model, event namespace, engine skeleton, reconcile journal, packet dispatcher, and stub show-command snapshots.
+- Added `internal/plugins/ospf/yang/ze-ospf-conf.yang` and regenerated YANG glue plus `internal/component/plugin/all/all.go`.
+- Added central OSPF validators in `internal/component/config`, editor completion hooks in `register.go`, and `ze config validate` coverage for the new top-level `ospf` section.
+- Registered the `test/ospf` suite in `internal/test/cli/register.go`, `mk/test-functional.mk`, and the Makefile help/gating text.
+- Updated user, architecture, plugin, status, and functional-test docs with source anchors.
 
 ### Bugs Found/Fixed
-- [Any bugs discovered - add test for each]
+- `ze config validate` initially skipped OSPF because the validator command uses a static section allow-list. Fixed at `internal/component/config/cli/cmd_validate.go` and covered by `test/ospf/ospf-config.ci`.
+- The first `.ci` invalid-area fixture used unsupported inline block syntax and failed in the parser before semantic validation. Fixed the fixture to exercise undeclared-area validation.
+- Plugin inventory snapshots missed the new OSPF plugin and YANG provider. Fixed `internal/component/plugin/all/all_test.go` and covered by `go test ./internal/component/plugin/all`.
+- The dispatcher accepted packets for any declared area, not the receiving interface's area. Fixed `dispatcher.areaOK` to include `ifindex` and covered by `TestOSPFPacketDispatchAreaFilter`.
+- Link-up after link-down reopened the transport socket but did not restore engine running state. Added transport `OnInterfaceUp` and covered by `TestOSPFCarrierFlapRestoresRunningInterface`.
+- Reload-added interfaces opened a transport handle without starting the receive goroutine when OSPF initially had no active interfaces. Moved receive-loop startup into `openInterface` and covered by `TestOSPFReconcileAddedInterfaceStartsReceiveLoop`.
+- OSPFv2 area ranges accepted IPv6 prefixes through `zt:ip-prefix`. Changed the YANG leaf to `zt:prefix-ipv4`, added parser-side IPv4 enforcement, and covered by `TestOSPFConfigValidate`.
+- A slow `HandleLinkUp` could publish a socket after the interface was disabled. Rechecked `enabled` under the transport lock before publishing and covered by `TestOSPFTransportDoesNotPublishDisabledInterfaceAfterSlowOpen`.
+- Duplicate canonical Area IDs such as `area 0` and `area 0.0.0.0` overwrote one another in area state. Added `ErrDuplicateArea` validation and covered by `TestOSPFConfigValidate`.
+- `ospf-router-id` accepted `0.0.0.0` in the custom validator while the config verifier rejected the zero router ID later. Rejected unspecified router IDs in the validator and covered by `TestOSPFRouterIDValidator`.
+- OSPF could derive router-id before the interface component loaded its backend. Added the `interface` dependency and covered it in `TestOSPFComponentStart`.
+- `docs/architecture/core-design.md` claimed every receive socket joined `224.0.0.6`. Corrected the source-anchored claim: startup joins `224.0.0.5`; DR handling joins `224.0.0.6` later.
 
 ### Documentation Updates
-- [Docs updated, with source anchors named, or "None" with grep evidence]
-- [If docs were changed: `make ze-doc-test` result]
+- `docs/guide/configuration.md`: OSPFv2 config section, accepted example, per-interface area binding, router-id derivation, ranges.
+- `docs/architecture/config/syntax.md`: top-level `ospf` syntax and validator notes.
+- `docs/guide/plugins.md` and `docs/plugin-overview.md`: OSPF plugin inventory and config-driven loading notes.
+- `docs/guide/status.md`, `docs/functional-tests.md`, `docs/architecture/core-design.md`, `docs/DESIGN.md`: OSPF status, functional suite count, architecture flow, and source anchors.
+- `make ze-doc-test` passed after doc updates.
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- Added `internal/component/config/cli/cmd_validate.go` because `ze config validate` has a static section allow-list. Without this, OSPF config validation would be silently skipped.
+- Added `internal/component/plugin/all/all_test.go` snapshot updates because generated OSPF imports intentionally change plugin/YANG inventory.
+- Kept `show ip ospf ...` as SDK command stubs only. The YANG command surface and real output remain owned by spec-ospf-13 as planned.
+- `make ze-validate` is not clean yet because it reports staged OSPF exports from specs 1-3 and existing central config validators with no non-test cross-package callers. This spec reduced new export noise but cannot consume all later-child APIs without violating the dependency order.
+- `python3 scripts/dev/audit-test-relaxation.py` reports two pre-existing deleted tests in unrelated L2TP/UI files: `test/l2tp/reauth-interval-clamp.ci` and `test/ui/cli-env-reauth-interval.ci`. OSPF work did not touch them.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| OSPF registry entry with `ConfigRoots ["ospf"]`, YANG, dependencies, lifecycle callbacks | done | `internal/plugins/ospf/register.go` | Mirrors IS-IS/LDP registration shape |
+| SDK lifecycle parse, configure, apply, start, command dispatch, shutdown | done | `internal/plugins/ospf/register.go`, `internal/plugins/ospf/instance.go` | Show commands are intentional stubs for spec-13 |
+| YANG config surface with validators and defaults | done | `internal/plugins/ospf/yang/ze-ospf-conf.yang`, `internal/component/config/validators.go` | Native ranges/enums plus OSPF router/area validators |
+| Typed config resolution and undeclared-area validation | done | `internal/plugins/ospf/config.go` | `TestOSPFConfigResolve`, `TestOSPFConfigValidate` |
+| Event namespace | done | `internal/plugins/ospf/events.go` | `TestOSPFEventNamespace` |
+| Packet dispatcher owned by OSPF, not transport | done | `internal/plugins/ospf/instance.go` | Checks version, checksum, packet type, and receiving interface area |
+| Generated plugin/YANG imports | done | `internal/component/plugin/all/all.go` | Generated by `make generate`; snapshots updated |
+| Functional suite | done | `test/ospf/ospf-config.ci`, `internal/test/cli/register.go`, `mk/test-functional.mk` | `make ze-ospf-test` passes |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | done | `TestOSPFComponentStart`; `go test ./internal/plugins/ospf/...` | Registry, engine start, stub backend socket open, interface enrol |
+| AC-2 | done | `TestOSPFConfigResolve`, `TestOSPFConfigDefaults` | Full subtree plus defaults |
+| AC-3 | done | `TestOSPFConfigValidate` | Underivable router-id rejected; derivation case accepted |
+| AC-4 | done | `test/ospf/ospf-config.ci`; `TestOSPFRouterIDValidator` | Bad router-id rejected |
+| AC-5 | done | `TestOSPFConfigBoundaries`; YANG enum in `ze-ospf-conf.yang` | Invalid `area-type` rejected |
+| AC-6 | done | `TestOSPFConfigBoundaries`; YANG range in `ze-ospf-conf.yang` | Cost lower/upper bounds rejected |
+| AC-7 | done | `TestOSPFComponentStart`; `TestRegisteredPluginNames` | OSPF in registry and plugin snapshot |
+| AC-8 | done | `TestOSPFConfigApplyReconcile` | Metric-only reload does not close or reopen interfaces |
+| AC-9 | done | `TestOSPFConfigValidate` | Router ID derivation from loopback/highest address |
+| AC-10 | done | `routerIDCompletions`, `areaIDCompletions`; config validator tests | Completion hooks return guidance values |
+| AC-11 | done | `test/ospf/ospf-config.ci`; `TestOSPFConfigValidate` | Undeclared-area interface rejected |
+| AC-12 | done | `make ze-ospf-test` | `ospf-doctor-raw-socket` and `ospf-config` pass |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestOSPFConfigResolve` | done | `internal/plugins/ospf/config_test.go` | Full subtree |
+| `TestOSPFConfigDefaults` | done | `internal/plugins/ospf/config_test.go` | Defaults |
+| `TestOSPFConfigValidate` | done | `internal/plugins/ospf/config_test.go` | Router-id derivation and undeclared area |
+| `TestOSPFConfigBoundaries` | done | `internal/plugins/ospf/config_test.go` | Numeric and enum boundaries |
+| `TestOSPFInterfaceEnrolment` | done | `internal/plugins/ospf/config_test.go` | Enabled/passive/disabled enrolment |
+| `TestOSPFRouterIDValidator` | done | `internal/component/config/validators_ospf_test.go` | Router-id validator |
+| `TestOSPFAreaIDValidator` | done | `internal/component/config/validators_ospf_test.go` | Area-id validator |
+| `TestOSPFComponentStart` | done | `internal/plugins/ospf/instance_test.go` | Registration and start |
+| `TestOSPFConfigApplyReconcile` | done | `internal/plugins/ospf/instance_test.go` | Journal reconcile |
+| `TestOSPFCarrierFlapRestoresRunningInterface` | done | `internal/plugins/ospf/instance_test.go` | Link flap regression |
+| `TestOSPFReconcileAddedInterfaceStartsReceiveLoop` | done | `internal/plugins/ospf/instance_test.go` | Reload-added interface dispatch regression |
+| `TestOSPFPacketDispatch` | done | `internal/plugins/ospf/instance_test.go` | Packet type dispatch and malformed drops |
+| `TestOSPFPacketDispatchAreaFilter` | done | `internal/plugins/ospf/instance_test.go` | Receiving-interface area guard |
+| `TestOSPFTransportDoesNotPublishDisabledInterfaceAfterSlowOpen` | done | `internal/plugins/ospf/transport/transport_test.go` | Slow-open disable race regression |
+| `TestOSPFEventNamespace` | done | `internal/plugins/ospf/events_test.go` | Events |
+| `ospf-config` | done | `test/ospf/ospf-config.ci` | Valid config, bad router-id, undeclared area, and IPv6 OSPFv2 range rejection |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/plugins/ospf/register.go` | created | Registration and SDK lifecycle |
+| `internal/plugins/ospf/config.go` | created | Typed config parser |
+| `internal/plugins/ospf/area.go` | created | Area scaffold |
+| `internal/plugins/ospf/instance.go` | created | Engine skeleton, reconcile, dispatcher |
+| `internal/plugins/ospf/events.go` | created | Event namespace |
+| `internal/plugins/ospf/yang/ze-ospf-conf.yang` | created | Config model |
+| `internal/plugins/ospf/yang/embed.go`, `register.go` | generated | `make generate` |
+| `internal/component/plugin/all/all.go` | generated | `make generate` |
+| `internal/component/config/validators_ospf_test.go` | created | Validator tests |
+| `test/ospf/ospf-config.ci` | created | Functional config test |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 36 tracked requirements, ACs, tests, and files.
+- **Done:** 36.
+- **Partial:** 0.
+- **Skipped:** 0.
+- **Changed:** 4 documented in Deviations.
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| `ospf { ... }` reaches a running engine that opens the socket and enrols interfaces | wiring test (unit, -race) | `TestOSPFComponentStart` |
-| Config accepted and validated; bad router-id and undeclared-area binding rejected | functional test | `test/ospf/ospf-config.ci` |
-| Component in plugin inventory; `make generate` wires `all.go` | inventory + grep | `ze plugin` lists `ospf`; `grep ospf internal/component/plugin/all/all.go` |
-| Typed config resolution with YANG defaults | unit test (-race) | `TestOSPFConfigResolve` + `TestOSPFConfigDefaults` |
-| Interop / on-the-wire validation | interop | N/A for ospf-4 by design (no wire protocol); covered by ospf-5/8/13 |
+| `ospf { ... }` reaches a running engine that opens the socket and enrols interfaces | unit and race tests | `TestOSPFComponentStart`; `go test -race ./internal/plugins/ospf ./internal/plugins/ospf/transport ./internal/component/config` |
+| Config accepted and validated; bad router-id and undeclared-area binding rejected | functional test | `test/ospf/ospf-config.ci`; `make ze-ospf-test` |
+| Component in plugin inventory; `make generate` wires `all.go` | inventory + generated import | `TestRegisteredPluginNames`; `TestYANGSchemaProviders`; `internal/component/plugin/all/all.go` imports OSPF |
+| Typed config resolution with YANG defaults | unit and race tests | `TestOSPFConfigResolve`; `TestOSPFConfigDefaults`; `go test -race ./internal/plugins/ospf ./internal/plugins/ospf/transport ./internal/component/config` |
+| Packet receive dispatcher enforces OSPFv2 validation before runtime handlers | unit tests | `TestOSPFPacketDispatch`; `TestOSPFPacketDispatchAreaFilter` |
+| Config reload reconciles rather than restarts all interfaces | unit tests | `TestOSPFConfigApplyReconcile`; `TestOSPFReconcileAddedInterfaceStartsReceiveLoop`; `TestOSPFCarrierFlapRestoresRunningInterface` |
+| Interop / on-the-wire validation | not applicable to this child | This child opens transport and dispatches stubs only; wire interop belongs to ospf-5/8/13 |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
+| 1 | blocker | Plugin inventory snapshots omitted OSPF | `internal/component/plugin/all/all_test.go` | Added OSPF plugin and YANG provider snapshots |
+| 2 | issue | Dispatcher accepted any declared area, not receiving-interface area | `internal/plugins/ospf/instance.go` | Added `(ifindex, area)` guard and regression test |
+| 3 | issue | Link-up after link-down did not restore engine running state | `internal/plugins/ospf/instance.go`, `transport/transport.go` | Added `OnInterfaceUp` and regression test |
+| 4 | note | Doc claimed every socket joined AllDRouters | `docs/architecture/core-design.md` | Corrected source-anchored doc |
 
-### Fixes applied
-- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
-
-### Run 2+ (re-runs until clean)
+### Run 2
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | issue | Reload-added interface opened without starting receive loop | `internal/plugins/ospf/instance.go` | Started receive loop in `openInterface`; added regression test |
+| 2 | issue | OSPFv2 ranges accepted IPv6 prefixes | `internal/plugins/ospf/yang/ze-ospf-conf.yang`, `config.go` | Switched to `zt:prefix-ipv4`; parser rejects IPv6; functional invalid range case added |
+| 3 | issue | Slow link-up could publish a disabled socket | `internal/plugins/ospf/transport/transport.go` | Rechecked enabled state under lock; added regression test |
+| 4 | issue | Canonical duplicate area IDs overwrote state | `internal/plugins/ospf/config.go` | Added duplicate area validation |
+
+### Run 3
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | blocker | New packages must be included with generated `all.go` imports | commit packaging | Recorded for final commit helper file list |
+| 2 | issue | `0.0.0.0` router-id passed the custom validator but failed verifier | `internal/component/config/validators.go` | Validator rejects unspecified router IDs |
+
+### Run 4
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | issue | OSPF could derive router-id before iface backend loaded | `internal/plugins/ospf/register.go` | Added `interface` dependency and assertion |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `OSPF4Review5` returned zero findings.
+- [x] All review findings fixed or recorded for final commit packaging.
 
 ## Pre-Commit Verification
 
-### Files Exist (ls)
+### Files Exist
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/plugins/ospf/register.go` | yes | OSPF registry and SDK lifecycle |
+| `internal/plugins/ospf/config.go` | yes | Typed parser and validation |
+| `internal/plugins/ospf/area.go` | yes | Area scaffold |
+| `internal/plugins/ospf/instance.go` | yes | Engine skeleton, reconcile, dispatcher |
+| `internal/plugins/ospf/events.go` | yes | Event namespace |
+| `internal/plugins/ospf/yang/ze-ospf-conf.yang` | yes | Config YANG |
+| `internal/component/config/validators_ospf_test.go` | yes | OSPF validator tests |
+| `test/ospf/ospf-config.ci` | yes | Functional config test |
+| `plan/learned/958-ospf-4-component-config.md` | yes | Learned summary |
 
-### AC Verified (grep/test)
+### AC Verified
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1..AC-12 | OSPF config/root/lifecycle/validation/reconcile/suite all work | `go test ./internal/plugins/ospf/... ./internal/component/config ./internal/component/config/cli ./internal/component/plugin/all ./internal/test/cli`; `make ze-ospf-test`; `go test -race ./internal/plugins/ospf ./internal/plugins/ospf/transport ./internal/component/config` |
 
-### Wiring Verified (end-to-end)
+### Wiring Verified
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `ze config validate -` with valid OSPF config | `test/ospf/ospf-config.ci` | `make ze-ospf-test` passed |
+| `ze config validate -` with bad router-id | `test/ospf/ospf-config.ci` | rejected |
+| `ze config validate -` with undeclared area | `test/ospf/ospf-config.ci` | rejected |
+| `ze config validate -` with IPv6 OSPFv2 range | `test/ospf/ospf-config.ci` | rejected |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | `make generate`; generated `all.go` imports OSPF |
+| A-2 | confirmed | `TestOSPFConfigResolve` |
+| A-3 | confirmed | `TestOSPFComponentStart`; `TestOSPFCarrierFlapRestoresRunningInterface` |
+| A-4 | confirmed | `test/ospf/ospf-config.ci`; `make ze-ospf-test` |
+| A-5 | confirmed | `TestOSPFConfigValidate` |
+| A-6 | confirmed | `go test ./internal/component/config` |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| Config syntax and examples | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md`, `test/ospf/ospf-config.ci` | yes |
+| Plugin inventory and status | `docs/guide/plugins.md`, `docs/plugin-overview.md`, `docs/guide/status.md` | yes |
+| Architecture source anchors | `docs/architecture/core-design.md`, `docs/DESIGN.md` | yes |
+| Functional suite count and OSPF suite | `docs/functional-tests.md`, `Makefile`, `mk/test-functional.mk` | yes |
+| Documentation gate | `make ze-doc-test` | passed |
+
+### Verification Notes
+- `go test ./internal/plugins/ospf/... ./internal/component/config ./internal/component/config/cli ./internal/component/plugin/all ./internal/test/cli` passed.
+- `make ze-ospf-test` passed.
+- `go test -race ./internal/plugins/ospf ./internal/plugins/ospf/transport ./internal/component/config` passed.
+- `make ze-lint-changed` passed.
+- `make ze-doc-test` passed.
+- `make ze-validate` still reports staged OSPF exports from earlier child packages and existing central validator exports.
+- `python3 scripts/dev/audit-test-relaxation.py` reports unrelated pre-existing deleted L2TP/UI tests.
+- `make ze-functional-test` reached the plugin suite and failed unrelated BMP/RR cases; OSPF suite passed separately.
 
 ## Checklist
 

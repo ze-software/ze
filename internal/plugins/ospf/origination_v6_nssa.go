@@ -1,0 +1,95 @@
+// Design: plan/spec-ospfv3-5-nssa-redist.md -- OSPFv3 NSSA Type-7 redistribution.
+// RFC: rfc/short/rfc3101.md (sec 2.3/2.4 P-bit and forwarding address), rfc/short/rfc5340.md (App A.4.8 NSSA-LSA)
+
+package ospf
+
+import (
+	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
+	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/packet"
+	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/types"
+)
+
+type nssaAttachmentV6 struct {
+	area  types.AreaID
+	fa    [16]byte
+	hasFA bool
+}
+
+func (e *engine) externalScopeV6() (nssas []nssaAttachmentV6, canType5 bool) {
+	e.mu.Lock()
+	cfg := e.cfg
+	running := make([]interfaceConfig, 0, len(e.running))
+	for _, ic := range e.running {
+		running = append(running, ic)
+	}
+	e.mu.Unlock()
+	attachedNormal := false
+	seen := make(map[types.AreaID]bool, len(running))
+	for _, ic := range running {
+		switch areaTypeFor(cfg, ic.AreaID) {
+		case areaTypeNSSA:
+			if !seen[ic.AreaID] {
+				seen[ic.AreaID] = true
+				fa, ok := interfaceIPv6ForwardingAddress(ic.Name)
+				nssas = append(nssas, nssaAttachmentV6{area: ic.AreaID, fa: fa, hasFA: ok})
+			}
+		case areaTypeStub:
+			// stub areas carry no externals
+		default:
+			attachedNormal = true
+		}
+	}
+	return nssas, attachedNormal || len(nssas) == 0
+}
+
+func v6NSSAKey(router types.RouterID, lsid types.LinkStateID) types.LSAKey {
+	return types.LSAKey{Type: types.LSType(ospfv3types.LSTypeNSSA), LinkStateID: lsid, AdvertisingRouter: router}
+}
+
+func (e *engine) v6OriginateNSSALSA(area types.AreaID, router types.RouterID, lsid types.LinkStateID, prefix ospfv3packet.Prefix, type2 bool, metric uint32, fa [16]byte, hasFA bool, tag uint32, propagate bool) bool {
+	if router == (types.RouterID{}) || area == types.BackboneArea {
+		return false
+	}
+	if fa == ([16]byte{}) {
+		hasFA = false
+	}
+	// RFC 3101 §2.3/§2.4, mapped to OSPFv3 by RFC 5340 App A.4.8: enforce the
+	// Type-7 P-bit at the origination boundary. The P-bit lives in PrefixOptions
+	// for OSPFv3, requires a non-zero Forwarding Address, and is cleared when a
+	// local Type-5 twin already advertises this LSID into the AS-wide store.
+	if propagate {
+		if !hasFA {
+			propagate = false
+		} else if lsa, ok := e.lsdb.LookupLSA(types.BackboneArea, v6ExternalKey(router, lsid)); ok && !lsa.Header.Age.IsMaxAge() {
+			propagate = false
+		}
+	}
+	bodyPrefix := prefix
+	if propagate {
+		bodyPrefix.Options |= ospfv3types.OptPrefixP
+	} else {
+		bodyPrefix.Options &^= ospfv3types.OptPrefixP
+	}
+	body := ospfv3packet.ExternalLSA{
+		ExternalType2:     type2,
+		Metric:            metric & packet.ExternalMetricMax,
+		Prefix:            bodyPrefix,
+		ForwardingAddr:    fa,
+		HasForwardingAddr: hasFA,
+		ExternalRouteTag:  tag,
+		HasRouteTag:       tag != 0,
+	}
+	bodyBytes := make([]byte, body.EncodedLen())
+	body.WriteTo(bodyBytes, 0)
+	key := v6NSSAKey(router, lsid)
+	id := lsid
+	b := body
+	_, ok := e.lsdb.OriginateSelf(area, key, bodyBytes, func(seq types.LSSequenceNumber, purge bool) packet.LSA {
+		return v6SelfLSA(ospfv3packet.LSA{
+			Header:   v6OriginHeader(ospfv3types.LSTypeNSSA, ospfv3types.LinkStateID(id), router, seq, purge),
+			External: &b,
+		})
+	})
+	return ok
+}

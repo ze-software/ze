@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-ospf-1-types.md |
-| Phase | - |
+| Phase | 8/10 |
 | Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
@@ -159,12 +159,12 @@ zeroed Checksum field (so ospf-12 can sign over it).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The RFC 1071 packet checksum over the whole packet MINUS the 8-byte Authentication field (Checksum zeroed) matches what FRR/BIRD compute | guide sec 2; RFC 1071 | every packet we send is rejected; interop fails | covered-range test + `VerifyChecksum(encode(x)) == true` property + real-capture decode | unvalidated |
-| A-2 | The Fletcher-16 covered range (from Options, excluding LS Age) yields a checksum that re-verifies to zero over the LSA | guide sec 2 + sec 13.1; RFC 905 | every LSA we originate is rejected; SPF on peers drops our vertices | RFC 905 vector tests (ospf-1) + `VerifyLSAChecksum(encode(x))` property | unvalidated |
-| A-3 | ospf-1 types expose parse/format/compare for RouterID, AreaID, LSAKey, LSSequenceNumber, LSAge, Metric, Options and BOTH checksum functions sufficient for codec fields | umbrella architecture (ospf-1 row) | codec must define helpers locally, duplicating ospf-1 | build against ospf-1; grep its exported API | unvalidated |
-| A-4 | All 5 packet types share the identical 24-byte common header and differ only in the body | guide sec 2; RFC 2328 §A.3.1 | header parse must branch per type before length is known | header round-trip test across all 5 types | unvalidated |
-| A-5 | Lazy views over the caller's slice are safe because the transport hands a stable buffer for the packet lifetime | buffer-first philosophy; ospf-3 owns the read buffer | views dangle when the transport recycles the buffer | document the lifetime contract; ospf-7 copies LSA bytes it retains | unvalidated |
-| A-6 | The Network-LSA LS ID (DR interface address) and all per-type LS IDs can be carried as an opaque 4-byte field without per-type reinterpretation in the codec | guide sec 3 + sec 13.5 trap #5 | the codec misreads the Network-LSA key, SPF drops half the topology | round-trip test asserting the LS ID bytes are preserved verbatim per LSA type | unvalidated |
+| A-1 | The RFC 1071 packet checksum over the whole packet MINUS the 8-byte Authentication field (Checksum zeroed) matches what FRR/BIRD compute | guide sec 2; RFC 1071 | every packet we send is rejected; interop fails | `TestOSPFPacketChecksum`, `TestOSPFPacketChecksumExcludesAuth`, `make ze-ospf-wire-test` real capture decode | partially-confirmed |
+| A-2 | The Fletcher-16 covered range (from Options, excluding LS Age) yields a checksum that re-verifies to zero over the LSA | guide sec 2 + sec 13.1; RFC 905 | every LSA we originate is rejected; SPF on peers drops our vertices | `TestFletcherRFC905Vectors`, `TestOSPFLSAChecksum`, `TestOSPFLSAChecksumExcludesAge`, real LS Update capture decode | confirmed |
+| A-3 | ospf-1 types expose parse/format/compare for RouterID, AreaID, LSAKey, LSSequenceNumber, LSAge, Metric, Options and BOTH checksum functions sufficient for codec fields | umbrella architecture (ospf-1 row) | codec must define helpers locally, duplicating ospf-1 | packet package builds against ospf-1; added `InternetChecksumPair` for auth-excluded packet checksum coverage | confirmed |
+| A-4 | All 5 packet types share the identical 24-byte common header and differ only in the body | guide sec 2; RFC 2328 §A.3.1 | header parse must branch per type before length is known | `TestOSPFHeaderRoundTrip`, `TestOSPFHelloRoundTrip`, `TestOSPFDDRoundTrip`, `TestOSPFLSReqRoundTrip`, `TestOSPFLSUpdateRoundTrip`, `TestOSPFLSAckRoundTrip` | confirmed |
+| A-5 | Lazy views over the caller's slice are safe because the transport hands a stable buffer for the packet lifetime | buffer-first philosophy; ospf-3 owns the read buffer | views dangle when the transport recycles the buffer | `doc.go` lifetime contract; `LSA.RawBytes`/`Body` retained as caller-owned views; ospf-7 still must copy retained LSAs | partially-confirmed |
+| A-6 | The Network-LSA LS ID (DR interface address) and all per-type LS IDs can be carried as an opaque 4-byte field without per-type reinterpretation in the codec | guide sec 3 + sec 13.5 trap #5 | the codec misreads the Network-LSA key, SPF drops half the topology | `TestOSPFNetworkLSARoundTrip` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -519,70 +519,125 @@ the Type 7 P-bit in the Options field (RFC 3101 §2.4).
 ## Implementation Summary
 
 ### What Was Implemented
-- Pending: no implementation has run for this design spec; fill with observed implementation evidence during /ze-implement.
+- Created `internal/plugins/ospf/packet/` as the OSPFv2 wire codec, matching the IS-IS package structure: `doc.go`, `header.go`, per-packet body files, per-LSA body files, checksum application, lazy LSA views, JSON rendering, and fuzz targets.
+- Added `internal/plugins/ospf/cli/` with the offline `ze ospf-decode` root command, mirroring `ze isis-decode`: stdin hex/raw input -> `packet.DecodePacket` -> stable JSON output.
+- Registered the OSPF wire test suite as `ze-test ospf-wire` and added `make ze-ospf-wire-test`.
+- Added `test/ospf-wire/` fixtures for Hello decode, LS Update decode from a public Wireshark capture, and truncated-input error handling.
+- Added `docs/architecture/wire/ospf.md` and updated `docs/functional-tests.md` / `Makefile` discovery text for the new OSPF wire suite.
 
 ### Bugs Found/Fixed
-- Pending: fill after implementation or review produces concrete evidence.
+- `ExternalLSA.WriteTo` initially wrote a 15-byte body by treating the E/TOS byte as part of the 24-bit metric. `TestOSPFExternalLSARoundTrip` failed with `LSA.WriteTo wrote 35, want 36`; fixed by writing E/TOS as one byte, metric as the following 3 bytes, forwarding address at offset 8, and route tag at offset 12.
+- The first LS Update `.ci` fixture was synthetic. Replaced it with the public Wireshark `ospf-ls-update-with-41-lsas.pcap` payload extracted from issue #6302 so the codec decodes a real capture.
+- Added `types.InternetChecksumPair` / `InternetChecksumPairValid` after packet checksum implementation exposed the non-contiguous OSPF coverage window (packet minus auth bytes 16..23). This keeps the algorithm in `ospf/types` and avoids allocating a temporary concatenated packet.
+- Fixed reviewer-found malformed LS Update allocation risk by validating the declared LSA count before allocating the `[]LSA`.
+- Fixed reviewer-found opaque passthrough drift by making decoded opaque LSAs keep `RawBytes` authoritative instead of setting a typed `Opaque` body.
 
 ### Documentation Updates
-- Pending: fill after implementation or review produces concrete evidence.
+- Added `docs/architecture/wire/ospf.md` documenting packet header validation, checksum ranges, LSA body coverage, opaque passthrough, and `ze ospf-decode`.
+- Updated `docs/functional-tests.md` with `ospf-wire` runner and `make ze-ospf-wire-test`.
+- Updated `Makefile` help and `mk/test-functional.mk` to expose `ze-ospf-wire-test`.
 
 ### Deviations from Plan
-- Pending: fill after implementation or review produces concrete evidence.
+- Added `internal/plugins/ospf/cli/` because the wiring acceptance criterion requires a runnable `ze ospf-decode` entry point, matching the IS-IS codec child.
+- Added `internal/plugins/ospf/packet/json.go` for the offline decode JSON view, matching `internal/plugins/isis/packet/json.go`.
+- Added `InternetChecksumPair` to `internal/plugins/ospf/types` so OSPF packet checksum application can exclude the 8-byte auth field without copying.
+- `test/ospf-wire/ospf-lsupdate-frr.ci` uses a public Wireshark LS Update capture. The filename follows the spec, but the source issue does not identify the originating daemon as FRR.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Pure packet/LSA codec under `internal/plugins/ospf/packet/` | implemented | `internal/plugins/ospf/packet/doc.go`, `header.go`, `lsa.go` | No runtime sockets, timers, LSDB, or FSM |
+| Depends on OSPF types/checksum algorithms, not IS-IS | implemented | `internal/plugins/ospf/packet/checksum.go`; `go list -deps ./internal/plugins/ospf/packet` | Dependency output includes `internal/plugins/ospf/types`; no `internal/plugins/isis` |
+| Common 24-byte OSPF header and 5 packet types | implemented | `header.go`, `hello.go`, `dbdesc.go`, `lsreq.go`, `lsupdate.go`, `lsack.go` | Decode dispatch and buffer-first encode |
+| LSA header plus Types 1,2,3,4,5,7 and opaque passthrough | implemented | `lsa.go`, `lsa_router.go`, `lsa_network.go`, `lsa_summary.go`, `lsa_external.go`, `lsa_opaque.go` | Opaque 9/10/11 raw-body passthrough |
+| Packet checksum and LSA checksum application | implemented | `packet/checksum.go`, `types/checksum.go` | Packet excludes auth; LSA excludes LS Age |
+| Offline `ze ospf-decode` wiring | implemented | `internal/plugins/ospf/cli/*.go`, `cmd/ze/ze_core_dispatch.go` | Functional suite passes |
+| Functional test suite | implemented | `test/ospf-wire/*.ci`, `internal/test/cli/register.go`, `mk/test-functional.mk` | `make ze-ospf-wire-test` passes 3/3 |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | implemented | `TestOSPFHeaderRoundTrip`, `TestOSPFHeaderRejectsBadVersionAndLength` | Version, type, Packet Length, Router ID, Area ID, AuType/Auth exposed |
+| AC-2 | implemented | `TestOSPFHelloRoundTrip`, `TestOSPFDDRoundTrip`, `TestOSPFLSReqRoundTrip`, `TestOSPFLSUpdateRoundTrip`, `TestOSPFLSAckRoundTrip` | All packet bodies round-trip |
+| AC-3 | implemented | `TestOSPFPacketChecksum`, `TestOSPFPacketChecksumExcludesAuth` | RFC 1071 excludes auth field |
+| AC-4 | implemented | `TestOSPFPacketChecksumZeroForAuType2`, `TestOSPFHeaderAuTypeField` | AuType 2 checksum stays zero; auth field framing exposed |
+| AC-5 | implemented | `TestOSPFLSAChecksum`, `TestOSPFLSAChecksumExcludesAge` | Fletcher over `lsa[2:]`; Length includes header |
+| AC-6 | implemented | `TestInternetChecksumPairMatchesConcatenatedWindow` in `ospf/types`, packet checksum tests, LSA checksum tests | Algorithms owned by `ospf/types`, applied by packet |
+| AC-7 | implemented | `TestOSPFRouterLSARoundTrip` | Flags plus p2p/transit/stub/virtual links, metric boundary |
+| AC-8 | implemented | `TestOSPFNetworkLSARoundTrip` | Network-LSA LS ID preserved verbatim |
+| AC-9 | implemented | `TestOSPFSummaryLSARoundTrip` | Types 3/4 and 24-bit metric max |
+| AC-10 | implemented | `TestOSPFExternalLSARoundTrip` | Type 5 E-bit, metric, forwarding address, route tag |
+| AC-11 | implemented | `TestOSPFExternalLSARoundTrip` | Type 7 uses Type 5 body and preserves Options N/P bit |
+| AC-12 | implemented | `TestOSPFLSUpdateRoundTrip` | Count and Length-driven LSA iteration |
+| AC-13 | implemented | `TestOSPFDDRoundTrip` | I/M/MS bits pinned across all 8 combinations |
+| AC-14 | implemented | `TestOSPFLSReqRoundTrip` | 12-byte request triples |
+| AC-15 | implemented | `TestOSPFLSAckRoundTrip` | Consecutive 20-byte LSA headers |
+| AC-16 | implemented | `TestOSPFUnknownLSAPassthrough` | Decode and re-encode is byte-identical |
+| AC-17 | implemented | `TestOSPFLSAIteratorTruncated`, `TestOSPFLSUpdateRejectsHugeCountBeforeAllocation`, `FuzzOSPFDecodePacket`, `FuzzOSPFLSAIterator`, `test/ospf-wire/ospf-truncated.ci` | No panic; typed error path; count bounded before allocation |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| Header and AuType tests | pass | `header_test.go` | Constants, header round-trip, bad version/length, AuType 2 field |
+| Packet body round-trip tests | pass | `packet_body_test.go` | Hello, DD, LSReq, LSUpdate, LSAck |
+| Checksum tests | pass | `checksum_test.go`, `types/checksum_test.go` | Packet auth exclusion, AuType2 zero, LSA age exclusion, two-segment RFC1071 |
+| LSA header/body tests | pass | `lsa_test.go` | Router, Network, Summary, External/NSSA, opaque, iterator truncation |
+| Fuzz targets | pass | `fuzz_test.go` | `FuzzOSPFDecodePacket`, `FuzzOSPFLSAIterator`, `FuzzOSPFRoundTrip` |
+| Functional fixtures | pass | `test/ospf-wire/*.ci` | Hello, public LS Update capture, truncated error |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/plugins/ospf/packet/*.go` | created | Includes one extra helper file `wire.go` and JSON view `json.go` |
+| `internal/plugins/ospf/packet/*_test.go` | created | Includes planned unit/fuzz coverage |
+| `internal/plugins/ospf/cli/*.go` | created | Offline decode command matching IS-IS |
+| `test/ospf-wire/*.ci` | created | Functional wire fixtures |
+| `docs/architecture/wire/ospf.md` | created | Wire codec architecture doc |
+| `docs/functional-tests.md`, `mk/test-functional.mk`, `Makefile`, `internal/test/cli/register.go`, `cmd/ze/ze_core_dispatch.go` | updated | Discovery, runner, and root command wiring |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 17 ACs, 7 task requirements, 6 test groups, 6 file groups.
+- **Done:** Codec, CLI wiring, docs, unit tests, fuzz targets, functional tests.
+- **Partial:** `make ze-validate` still reports exported OSPF packet/type APIs without cross-package non-test callers; later runtime children consume them. The LS Update capture is real but not proven FRR-originated by its source issue.
+- **Skipped:** none.
+- **Changed:** Added JSON/CLI files and `InternetChecksumPair` support to satisfy zero-copy checksum application and wiring proof.
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Round-trip every packet type | unit test | `TestOSPFHelloRoundTrip`, `TestOSPFDDRoundTrip`, `TestOSPFLSReqRoundTrip`, `TestOSPFLSUpdateRoundTrip`, `TestOSPFLSAckRoundTrip` (to be filled with pass output) |
-| Round-trip every LSA type | unit test | `TestOSPFRouterLSARoundTrip`, `TestOSPFNetworkLSARoundTrip`, `TestOSPFSummaryLSARoundTrip`, `TestOSPFExternalLSARoundTrip` (to be filled) |
-| Both checksums correct over the right covered range | unit test (vectors + covered-range) | `TestOSPFPacketChecksum*`, `TestOSPFLSAChecksum*` (to be filled) |
-| Unknown-LSA verbatim re-flood | unit test | `TestOSPFUnknownLSAPassthrough` (to be filled) |
-| Decoder never panics on arbitrary input | fuzz test | `FuzzOSPFDecodePacket`, `FuzzOSPFLSAIterator`, `FuzzOSPFRoundTrip` (to be filled) |
-| Decode a real capture | functional test | `test/ospf-wire/ospf-lsupdate-frr.ci` (to be filled) |
-| Codec wires end-to-end to the user | functional test | `test/ospf-wire/ospf-packet-1.ci` (to be filled) |
+| Round-trip every packet type | unit test | `go test ./internal/plugins/ospf/types ./internal/plugins/ospf/packet ./internal/plugins/ospf/cli ./internal/test/cli` passed; packet tests listed above |
+| Round-trip every LSA type | unit test | `TestOSPFRouterLSARoundTrip`, `TestOSPFNetworkLSARoundTrip`, `TestOSPFSummaryLSARoundTrip`, `TestOSPFExternalLSARoundTrip`, `TestOSPFUnknownLSAPassthrough` passed |
+| Both checksums correct over the right covered range | unit test | `TestOSPFPacketChecksum*`, `TestOSPFLSAChecksum*`, and `TestInternetChecksumPairMatchesConcatenatedWindow` passed |
+| Unknown-LSA verbatim re-flood | unit test | `TestOSPFUnknownLSAPassthrough` passed |
+| Decoder never panics on arbitrary input | fuzz test | `go test ./internal/plugins/ospf/packet -run '^$' -fuzz=FuzzOSPFDecodePacket -fuzztime=2s`, `FuzzOSPFLSAIterator`, and `FuzzOSPFRoundTrip` all passed |
+| Decode a real capture | functional test | `make ze-ospf-wire-test` passed 3/3 with `test/ospf-wire/ospf-lsupdate-frr.ci` using Wireshark `ospf-ls-update-with-41-lsas.pcap` payload |
+| Codec wires end-to-end to the user | functional test | `make ze-ospf-wire-test` passed 3/3; `test/ospf-wire/ospf-packet-1.ci` exercises `ze ospf-decode` Hello JSON output |
 
 ## Review Gate
 
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
+| 1 | NOTE | `make ze-validate` reports exported OSPF packet/type APIs with no cross-package non-test callers | `internal/plugins/ospf/packet/*.go`, `internal/plugins/ospf/types/*.go` | Expected until OSPF runtime children consume codec/type APIs; keep tracking across later children |
+| 2 | ISSUE | `DecodeLSUpdate` used the untrusted 32-bit LSA count as slice capacity before checking how many LSAs could fit in the declared body | `internal/plugins/ospf/packet/lsupdate.go` | Fixed by bounding count against `(len(body)-4)/20` before allocation and adding `TestOSPFLSUpdateRejectsHugeCountBeforeAllocation` |
+| 3 | ISSUE | Decoded opaque LSAs set `Opaque`, disabling the `RawBytes` copy branch and allowing checksum normalization instead of byte-for-byte passthrough | `internal/plugins/ospf/packet/lsa.go` | Fixed by leaving decoded opaque LSAs as raw views; JSON renders opaque from `Header.Type` + `Body`; test asserts `decoded.Opaque == nil` and byte equality |
+| 4 | PASS | `/ze-review` fix re-run found 0 BLOCKER / 0 ISSUE | `internal/plugins/ospf/packet/lsupdate.go`, `lsa.go`, tests | No further action |
 
 ### Fixes applied
-- Pending: fill after implementation or review produces concrete evidence.
+- Bounded LS Update count before allocation and added regression coverage for count `0xffffffff` with no LSA space.
+- Preserved decoded opaque LSAs as raw byte views so `LSA.WriteTo` copies `RawBytes` for re-flood passthrough.
+- Re-ran `go test ./internal/plugins/ospf/types ./internal/plugins/ospf/packet ./internal/plugins/ospf/cli ./internal/test/cli`, `make ze-ospf-wire-test`, and all three packet fuzz targets after the fixes; all passed.
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | PASS | Reviewer re-run confirmed LS Update count is bounded before allocation and decoded opaque LSAs copy `RawBytes` byte-for-byte | `internal/plugins/ospf/packet/lsupdate.go`, `lsa.go` | Continue to `spec-ospf-3-ip-transport.md`; exported API validation remains tracked for later runtime consumers |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [x] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [x] All NOTEs recorded above (or explicitly "none")
 
 ## Pre-Commit Verification
 

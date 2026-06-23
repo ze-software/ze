@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | spec-ospf-8-spf-rib.md, spec-ospf-9-inter-area-abr.md |
-| Phase | - |
-| Updated | 2026-06-20 |
+| Phase | 9/9 |
+| Updated | 2026-06-21 |
 
 ## Post-Compaction Recovery
 
@@ -484,6 +484,7 @@ redistribution wiring is a verbatim mirror of isis-11.
 - Route-map / policy-based redistribution filtering beyond source selection is out of scope (the existing flat evaluator governs source/family selection only).
 - NSSA Type 7 origination and Type 7 -> Type 5 translation route computation are owned by ospf-11; this spec computes Type 5 externals only. The stub/NSSA Type 5 scope filter lives in ospf-11/ospf-7.
 - Per-path-type admin distance vs other protocols (e.g. external OSPF vs eBGP) is not modelled: `locrib.Path` has no path-type field, so all OSPF routes carry AdminDistance 110 (umbrella contract); per-path-type distance is future work needing a `locrib.Path` protoType field.
+- `default-information originate` and a `redistribute`d `0.0.0.0/0` share the one Type 5 default LSA key (RFC 2328: one Type 5 per prefix per ASBR). The engine coordinates *presence* correctly (a withdraw from one intent never drops a default the other still wants, via `defaultInfoOriginated` + `redistDefaultInjected` under `defaultInfoMu`), but when both are active with DIFFERENT params the LSA carries the last writer's metric/type/tag until the surviving intent re-originates (next LSA refresh or config touch). Configuring both to advertise the default with different params is a misconfiguration; only brief param staleness, never a missing default, results.
 
 ## RFC Documentation
 
@@ -498,16 +499,30 @@ the E-bit metric-type encoding; the 24-bit metric range; the opaque route tag.
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- Type 5 AS-External-LSA origination + AS-wide store + Router-LSA E-bit (`lsdb/origination.go`: `OriginateExternal`/`PurgeExternal`/`SelfExternalCount`/`selfOriginatesExternal`).
+- §16.4 external route computation (`spf/external.go`: `ComputeExternal`, E1/E2 cost, forwarding-address resolution, trap #7 ordering), wired into `spf/computer.go Run()`.
+- Redistribution: producer (`redistribute/source.go` OSPF->BGP via `redistevents`) + consumer (`redistribute/consumer.go` connected/static/BGP->Type 5) + engine seam (`redist_wiring.go` `ExternalInjector`).
+- `default-information originate` (`default.go`): `always` unconditional / conditional on a non-OSPF Loc-RIB default, re-evaluated at config-apply (`reconcile`) and live via a Loc-RIB `OnChange` watcher (`watchDefaultRoute`).
+- Metrics `ze_ospf_asbr`, `ze_ospf_external_lsas`, `ze_ospf_redist_injected_total{source}`, `ze_ospf_redist_withdrawn_total{source}`.
 
 ### Bugs Found/Fixed
-- [Any bugs discovered -- add test for each]
+- **LSDB data race (real, pre-existing, surfaced by the new concurrent watcher).** `installOriginated` mutated the `*Entry` returned by `install()` (Header read + `markPurged`) after `install` released `d.mu`, racing `SelfExternalCount`'s RLock reader. Fixed: extracted `installLocked` so `installOriginated` holds `d.mu` across install + Header + markPurged (`lsdb/lsdb.go`, `lsdb/origination.go`). `go test -race` clean.
+- **`hasNonOSPFDefault` ranged a `Lookup` result's `Paths` off-lock** (the slice shares the RIB backing array). Fixed by adding `locrib.RIB.Inspect` (runs a callback under the shard RLock) and scanning inside it. (Review Run 1, ISSUE 1.)
+- **`default-information` vs redistributed `0.0.0.0/0` shared-key collision.** Added `redistDefaultInjected`/`defaultInfoOriginated` coordination so a withdraw never drops a default the other intent wants. (Review Run 1, ISSUE 2.)
+- **Non-atomic `applyDefaultInformation`** (reconcile vs watcher worker). Serialized by `defaultInfoMu`; cfg/flags re-read fresh inside the critical section. (Review Run 1, ISSUE 3.)
+- **Store-full Type 5 origination silently swallowed + miscounted (Review Run 3).** `InjectExternal` discarded `OriginateExternal`'s `(LSAHeader, bool)` and returned `nil`, so when the AS-external store hit `MaxASExternalLSAs` (16384) the LSA was dropped yet the consumer still bumped `ze_ospf_redist_injected_total`. Fixed at the right altitude: `installOriginated` logs every install-reject (covers Router/Network/Summary/External/NSSA uniformly); `OriginateExternal` now returns an `error` (`ErrExternalStoreFull`) that `InjectExternal` propagates, so the consumer's existing error path logs the failure and skips the counter. Regression: `TestOSPFOriginateExternalStoreFull`.
 
 ### Documentation Updates
-- [Docs updated, with source anchors named, or "None" with grep evidence]
+- `docs/guide/ospf.md` -- new "AS-External routes and redistribution" section (anchors: `external.go ComputeExternal`, `consumer.go`, `source.go`, `default.go`, `lsdb/origination.go`).
+- `docs/guide/configuration.md` -- updated the stale "later specs" line; added the `redistribute` + `default-information` config example (anchors: `ze-ospf-conf.yang`, `default.go`, `consumer.go`).
+- `docs/features.md` -- OSPFv2 row: ASBR/external/redistribute/default-information (anchors: `external.go`, `default.go`).
+- `docs/comparison.md` -- OSPF bidirectional redistribution like IS-IS + E1/E2 (anchors: `external.go`, `consumer.go`); regenerated `docs/comparison.html`.
+- `make ze-doc-test` PASS (all source anchors valid).
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- `TestOSPFDefaultInformationOriginate` lives in `internal/plugins/ospf/default_test.go` (package `ospf`), NOT `redistribute/consumer_test.go` as the TDD plan stated: `applyDefaultInformation` is an unexported engine method, so the test must be in package `ospf`. AC-12 is fully covered there.
+- AC-6 is covered by `TestOSPFASBRBitFromExternal` (`lsdb/origination_external_test.go`, set+clear) rather than the plan's `TestOSPFASBRBitClearedOnEmpty` name.
+- `default-information` conditional re-evaluation is driven by a live Loc-RIB `OnChange` watcher (added `watchDefaultRoute`), which the plan did not anticipate (it assumed config-apply + SPF-run evaluation only). The watcher is the correct mechanism and surfaced the LSDB race above.
 
 ## Implementation Audit
 
@@ -516,25 +531,54 @@ the E-bit metric-type encoding; the 24-bit metric range; the opaque route tag.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| ASBR status + Type 5 origination + E-bit | Done | `lsdb/origination.go` `OriginateExternal`/`PurgeExternal`/`SelfExternalCount`/`selfOriginatesExternal`; `redist_wiring.go` `InjectExternal`/`refreshExternalMetrics` | E-bit driven by `selfOriginatesExternal` on every `OriginateFromTopology`; `ze_ospf_asbr` gauge at `instance.go:355` |
+| AS-External route computation (§16.4) | Done | `spf/external.go` `ComputeExternal` (wired `spf/computer.go:366`), `betterExternal`, `resolveForwarding` | E1/E2 cost, FA resolution, trap #7 (path type primary via `route.go:41` `routeTypeRank`) |
+| `default-information originate` | Done | `default.go` `applyDefaultInformation` (reconcile `instance.go:564` + watcher `register.go:288`), `injectRedistDefault`/`withdrawRedistDefault` | `always` unconditional / conditional on non-OSPF Loc-RIB default |
+| Redistribution wiring (source + consumer) | Done | `redistribute/events/events.go` (`RegisterProducer` :53), `source.go` (`RegisterSource` :55), `consumer.go`; `register.go:279` `ReregisterConsumer` | single name `ospf`; `RegisterProtocol("ospf")` at `spf/install.go:18` |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestOSPFRedistSourceToBGP`, `test/ospf/ospf-redist-bgp.ci` | OSPF source -> BGP |
+| AC-2 | Done | `TestOSPFRedistSourceToBGP` (intra+inter) | single `ospf` source carries both |
+| AC-3 | Done | `TestOSPFRedistConsumerConnected`, `lsdb/origination_external_test.go` | Type 5 + E-bit + `ze_ospf_asbr`=1 |
+| AC-4 | Done | `TestOSPFRedistConsumerStatic`/`BGP` | static/bgp -> Type 5 |
+| AC-5 | Done | `TestOSPFRedistConsumerWithdraw`, `TestOSPFPurgeExternal` | MaxAge-purge (LS Age 3600) |
+| AC-6 | Done | `TestOSPFASBRBitFromExternal`, `origination_external_test.go` E-bit set+clear | E-bit cleared on last withdraw |
+| AC-7 | Done | `TestOSPFRedistSourceWithdrawToBGP` | ActionRemove withdraws from BGP |
+| AC-8 | Done | `TestOSPFExternalE1PreferredOverE2` | trap #7: `betterExternal` path-type primary (`external.go:188`) |
+| AC-9 | Done | `TestOSPFExternalE1Cost` | E1 = X+Y; unreachable ASBR skipped (`external.go:116`) |
+| AC-10 | Done | `TestOSPFExternalE2Cost`, `TestOSPFExternalForwardingAddress` | E2 metric-only + FA-dist tiebreak; FA rules + skip (`resolveForwarding`) |
+| AC-11 | Done | `TestOSPFExternalBelowInternal` | `routeTypeRank` intra<inter<E1<E2 |
+| AC-12 | Done | `TestOSPFDefaultInformationOriginate`, `TestOSPFDefaultInformationWatcher` | conditional + `always` |
+| AC-13 | Done | `TestOSPFRedistSelfImportRejected` | single name `ospf`; generic `ImportRule.Accept` rejects |
+| AC-14 | Done | `TestOSPFProducerRegistered` | `Producers()` contains OSPF; source-only insufficient |
+| AC-15 | Done | YANG `range 0..16777215` (`ze-ospf-conf.yang`), wire mask `ExternalMetricMax` (`lsa_external.go`), `clampMetric` (`spf/spf.go:216`) | no silent overflow; YANG is the hard guard |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| Unit (events/source/consumer/external/default) | Done -- ALL PASS `-race` | `redistribute/*_test.go`, `spf/external_test.go`, `default_test.go`, `lsdb/origination_external_test.go` | `go test -race ./internal/plugins/ospf/...` exit 0 |
+| `TestOSPFOriginateExternalStoreFull` (added Run 3) | Done -- PASS | `lsdb/origination_external_test.go` | regression guard for the store-full silent-discard fix |
+| Functional `ospf-redist-bgp` | Done -- 13/13 PASS | `test/ospf/ospf-redist-bgp.ci` | `make ze-ospf-test` |
+| Interop `ospf-redist-frr` | Deferred to ospf-13 (Linux/QEMU) | `test/interop/scenarios/` | scenario inputs here; execution owned by ospf-13 |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `redistribute/{events/events.go,source.go,consumer.go,redistribute.go}` | Done | exist + tested |
+| `spf/external.go` | Done | `ComputeExternal` wired `computer.go:366` |
+| `default.go` (engine) | Done | `applyDefaultInformation` + `watchDefaultRoute` |
+| `redist_wiring.go` (engine seam) | Done | `InjectExternal`/`WithdrawExternal` + store-full error propagation |
+| `lsdb/origination.go` (Type 5 + AS-wide store) | Done | `OriginateExternal` now returns `(LSAHeader, bool, error)` |
+| `test/ospf/ospf-redist-bgp.ci` | Done | 13/13 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 4 requirements, 15 ACs, 8 file groups, full TDD test set
+- **Done:** all of the above (verified `go test -race` exit 0, `make ze-ospf-test` 13/13, `make ze-lint-changed` 0 issues, `go vet` 0)
+- **Partial:** none
+- **Skipped:** none (FRR interop execution owned by ospf-13 per umbrella, not skipped here)
+- **Changed:** `OriginateExternal` signature `(LSAHeader, bool) -> (LSAHeader, bool, error)` (Run 3 fix); test/method placements per Deviations
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
@@ -542,22 +586,34 @@ the E-bit metric-type encoding; the 24-bit metric range; the opaque route tag.
 | OSPF routes into BGP | unit + functional config test | `TestOSPFRedistSourceToBGP`, `test/ospf/ospf-redist-bgp.ci`; live RIB via `ospf-redist-frr` (ospf-13, Linux/QEMU) |
 | connected/static/BGP into OSPF as Type 5 | unit + functional config test | `TestOSPFRedistConsumerConnected/Static/BGP`, `test/ospf/ospf-redist-bgp.ci` |
 | RFC 2328 §16.4 external computation (E1/E2, forwarding address) | unit test | `TestOSPFExternalE1PreferredOverE2`, `TestOSPFExternalE1Cost`, `TestOSPFExternalE2Cost`, `TestOSPFExternalForwardingAddress`, `TestOSPFExternalBelowInternal` |
-| ASBR status + `default-information originate` | unit test | `TestOSPFASBRBitClearedOnEmpty`, `TestOSPFDefaultInformationOriginate` |
+| ASBR status + `default-information originate` | unit test | `TestOSPFASBRBitFromExternal` (E-bit set+clear), `TestOSPFDefaultInformationOriginate`, `TestOSPFDefaultInformationWatcher` |
 | FRR accepts/computes the externals and redistribution | interop test (owned by ospf-13) | `ospf-redist-frr` scenario; execution Linux/QEMU-pending |
 
 ## Review Gate
 
-### Run 1 (initial)
+### Run 1 (initial -- independent review agent on the Phase 4 + LSDB-race diff)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
+| 1 | ISSUE | `hasNonOSPFDefault` ranged a `Lookup` result's `Paths` off-lock; the slice shares the RIB backing array, so an in-place `upsert` of `0.0.0.0/0` races the scan | `default.go hasNonOSPFDefault` | Added `locrib.RIB.Inspect` (callback under the shard RLock); scan inside it |
+| 2 | ISSUE | `default-information` and a redistributed `0.0.0.0/0` share one Type 5 key; the guard did not stop one intent's withdraw purging a default the other still wants | `default.go`, `redist_wiring.go` | Added `redistDefaultInjected`+`defaultInfoOriginated` coordination under `defaultInfoMu`; purge only when neither intent wants it |
+| 3 | ISSUE | `applyDefaultInformation` non-atomic across the reconcile caller and the watcher worker; a stale worker run could resurrect a config-disabled default | `default.go applyDefaultInformation` | Serialized by `defaultInfoMu`; cfg/flags re-read fresh inside the critical section |
+| - | clean | LSDB race fix (item B), re-origination loop-safety, shutdown/leak, `hasNonOSPFDefault` logic | -- | confirmed correct by the review |
 
 ### Fixes applied
-- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
+- ISSUE 1: `internal/core/rib/locrib/manager.go` `Inspect`; `default.go hasNonOSPFDefault` scans under the lock. Exerciser: `TestOSPFDefaultInformationConcurrent` (flaps `0.0.0.0/0` in place vs the scanner, `-race`).
+- ISSUE 2: `default.go injectRedistDefault`/`withdrawRedistDefault`, engine `redistDefaultInjected`; `redist_wiring.go` delegates the `0.0.0.0/0` case. Tests: `TestOSPFDefaultRouteSharedWithRedistribute` (redist withdraw keeps DI default; DI-off keeps redist default; both gone -> purged).
+- ISSUE 3: engine `defaultInfoMu` serializes `applyDefaultInformation` + the two helpers. Exerciser: `TestOSPFDefaultInformationConcurrent` (reconcile-style hammering, `-race`).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | clean | Second-pass review of the three fixes (lock-ordering/deadlock, Inspect, flag coordination): 0 BLOCKER, 0 ISSUE | -- | `go test -race ./internal/plugins/ospf/... ./internal/core/rib/locrib/...` EXIT 0; `make ze-lint-changed` 0 issues; `make ze-ospf-test` 9/9 |
+
+### Run 3 (fresh independent agent review at closure -- 1 ISSUE, fixed)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | ISSUE | Store-full Type 5 origination silently swallowed AND miscounted: `InjectExternal` discarded `OriginateExternal`'s result and returned `nil`, so when `installLocked` rejected at `MaxASExternalLSAs` the consumer still incremented `ze_ospf_redist_injected_total` and recorded the source (violates the spec's "Type 5 origination logs every failure"). | `redist_wiring.go:58`, `lsdb/origination.go OriginateExternal`, `consumer.go` | Fixed at source: `installOriginated` now logs every install-reject uniformly (all origination types); `OriginateExternal` returns `(LSAHeader, bool, error)` -> `InjectExternal` propagates -> the consumer's existing error path logs + skips the counter. Regression test `TestOSPFOriginateExternalStoreFull`. |
+| - | clean | Correctness re-verified independently: trap #7 (path-type primary), E1/E2 cost, FA resolution + `/0`-exclusion, ASBR E-bit set/clear, MaxAge-purge, self-import rejection, the LSDB-race fix, the `defaultInfoMu`/`Inspect` locking, and all 6 wiring points -- all PASS. | -- | `go test -race ./internal/plugins/ospf/...` exit 0; `go vet` 0; `make ze-lint-changed` 0 issues |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
@@ -570,22 +626,47 @@ the E-bit metric-type encoding; the 24-bit metric range; the opaque route tag.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `redistribute/{events/events.go,source.go,consumer.go,redistribute.go}` | Yes | `ls internal/plugins/ospf/redistribute/` |
+| `spf/external.go` | Yes | `ls`; `ComputeExternal` LSP line 48 |
+| `default.go`, `redist_wiring.go` (engine) | Yes | `ls internal/plugins/ospf/` |
+| `lsdb/origination.go` (Type 5 + AS-wide store) | Yes | `OriginateExternal` LSP line 260 |
+| `test/ospf/ospf-redist-bgp.ci` | Yes | `ls test/ospf/` |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-8 | E1 always beats E2 (trap #7) | `external.go:182` `betterExternal` compares `routeTypeRank` before `metric`; `route.go:41` E1=2 < E2=3; `TestOSPFExternalE1PreferredOverE2` PASS |
+| AC-10 | FA rules | `external.go:145` `resolveForwarding` (zero->ASBR; non-zero->LPM, skip if unreachable; `routeToAddr` excludes `/0`); `TestOSPFExternalForwardingAddress` PASS |
+| AC-11 | externals below internal | `route.go:41-54` `routeTypeRank` intra<inter<E1<E2; `TestOSPFExternalBelowInternal` PASS |
+| AC-15 | 24-bit metric, no overflow | `spf/spf.go:216` `clampMetric` (overflow-safe + LSInfinity cap); YANG `range 0..16777215` is the hard guard |
+| AC-3/AC-6 | ASBR E-bit set + clear | `origination_external_test.go` E-bit set+clear; `TestOSPFASBRBitFromExternal` PASS |
+| AC-14 | producer wiring | `events.go:53` `RegisterProducer`; `TestOSPFProducerRegistered` PASS |
+| all | full suite green | `go test -race ./internal/plugins/ospf/...` exit 0 (real run, not cached) |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `redistribute { destination bgp { import ospf } }` | `ospf-redist-bgp.ci` | Yes (13/13) |
+| `redistribute { destination ospf { import connected } }` -> Type 5 | `ospf-redist-bgp.ci` | Yes |
+| `default-information originate [always]` | `ospf-redist-bgp.ci` | Yes |
+| self-import (`destination ospf { import ospf }`) no-op | `ospf-redist-bgp.ci` | Yes |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | confirmed | `ospf-redist-bgp.ci` parses `destination ospf` + `import ospf`; no generic-redistribute YANG change |
+| A-2 | confirmed | `RouteEntry` has no metric; `externalParams` (`redist_wiring.go:155`) applies per-source config / defaults |
+| A-3 | confirmed | single `ospf` producer; `TestOSPFRedistSourceToBGP` exports both intra + inter |
+| A-4 | confirmed | `ReregisterConsumer` at OnStarted (`register.go:279`); functional test reaches the consumer |
+| A-5 | confirmed | external stage runs after intra/inter (`computer.go:359-366`); reuses the ospf-8 install seam |
+| A-6 | confirmed | YANG `range 0..16777215` + `clampMetric`; review NOTE: YANG is the hard guard, wire masks `ExternalMetricMax` |
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| `docs/guide/ospf.md` AS-External + redistribution section | anchors `external.go ComputeExternal`, `consumer.go`, `source.go`, `default.go`, `lsdb/origination.go` | Yes -- `make ze-doc-test` PASS (anchors still resolve after the Run 3 signature change) |
+| `docs/guide/configuration.md` `redistribute` + `default-information` | anchors `ze-ospf-conf.yang`, `default.go`, `consumer.go` | Yes |
+| `docs/features.md`, `docs/comparison.md`, `docs/plugin-development/metrics.md`, `docs/plugin-overview.md` | per Documentation Updates | Yes |
 
 ## Checklist
 

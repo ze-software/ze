@@ -281,6 +281,52 @@ func ISISSystemIDValidator() yang.CustomValidator {
 	}
 }
 
+// ospfRouterIDValidator validates the OSPFv2 Router ID dotted-quad form. It
+// lives in config, not the ospf component, to avoid an import cycle; the ospf
+// package registers the CompleteFn through yang.RegisterCompleteFn.
+func ospfRouterIDValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			addr, err := netip.ParseAddr(str)
+			if err != nil || !addr.Is4() || addr.IsUnspecified() {
+				return fmt.Errorf("%q is not a valid OSPF router-id for %s (expected non-zero dotted-quad IPv4)", str, path)
+			}
+			return nil
+		},
+	}
+}
+
+// ospfAreaIDValidator validates an OSPFv2 Area ID as either dotted quad or a
+// decimal uint32, matching the operator forms accepted by OSPF CLIs.
+func ospfAreaIDValidator() yang.CustomValidator {
+	return yang.CustomValidator{
+		ValidateFn: func(path string, value any) error {
+			str, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("expected string, got %T", value)
+			}
+			if str == "" {
+				return fmt.Errorf("empty OSPF area-id for %s", path)
+			}
+			if strings.Contains(str, ".") {
+				addr, err := netip.ParseAddr(str)
+				if err != nil || !addr.Is4() {
+					return fmt.Errorf("%q is not a valid OSPF area-id for %s (expected dotted-quad IPv4 or uint32)", str, path)
+				}
+				return nil
+			}
+			if _, err := strconv.ParseUint(str, 10, 32); err != nil {
+				return fmt.Errorf("%q is not a valid OSPF area-id for %s (expected dotted-quad IPv4 or uint32)", str, path)
+			}
+			return nil
+		},
+	}
+}
+
 // IPv4AddressValidator returns a validator that accepts valid IPv4 addresses.
 func IPv4AddressValidator() yang.CustomValidator {
 	return yang.CustomValidator{

@@ -10,8 +10,11 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o /ze ./cmd/ze
-RUN CGO_ENABLED=0 go build -o /ze-test ./cmd/ze-test
+# ze and ze-test are both cmd/ze selected by build tag (Makefile: bin/ze uses ze_core,
+# bin/ze-test uses ze_test). The daemon personality (ze_core_dispatch.go) and the test
+# runner (ze_test_register.go) are tag-gated, so an untagged build has neither.
+RUN CGO_ENABLED=0 go build -tags ze_core -o /ze ./cmd/ze
+RUN CGO_ENABLED=0 go build -tags ze_test -o /ze-test ./cmd/ze
 
 FROM alpine:3.21
 

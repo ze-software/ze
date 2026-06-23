@@ -1,0 +1,11 @@
+# Test: OSPFv2 LSDB flooding, retransmit, and purge.
+#
+# VALIDATES: the OSPFv2 LSDB stores raw LSAs, floods newer LSAs to other
+# interfaces, retransmits until LS Ack, applies MinLSArrival, drops Type 5 in
+# stub areas, and retains MaxAge purges until acknowledged.
+# PREVENTS: regressions where OSPF adjacencies reach Full but LSAs never move
+# through the RFC 2328 Section 13 flooding path.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf -run TestOSPFFloodingFunctional -count=1:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=TestOSPFFloodingFunctional

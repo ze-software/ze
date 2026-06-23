@@ -35,6 +35,16 @@ GOBGP_IP = "172.30.0.5"
 BMP_IP = "172.30.0.6"
 RPKI_IP = "172.30.0.7"
 
+# IPv6 link-local must be enabled in the container netns for the OSPFv3 (ospf-v6-frr)
+# scenario: OSPFv3 runs over ff02::5 on eth0. These sysctls are no-ops on hosts that
+# already default disable_ipv6=0 (the common case) and harmless to IPv4-only scenarios.
+_IPV6_SYSCTLS = [
+    "--sysctl",
+    "net.ipv6.conf.all.disable_ipv6=0",
+    "--sysctl",
+    "net.ipv6.conf.default.disable_ipv6=0",
+]
+
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.abspath(os.path.join(_SCRIPT_DIR, "..", ".."))
 _RENDER_ROOT = os.path.join(_PROJECT_ROOT, "tmp", "interop-rendered")
@@ -112,16 +122,39 @@ def _candidate_subnet_prefixes():
             yield "%d.%d.%d." % (first, second, index)
 
 
-def _create_network():
-    """Create the Docker network, retrying on overlapping subnets."""
+def _v6_subnet_for(prefix):
+    """Derive a unique ULA /64 from the IPv4 /24 prefix.
+
+    OSPFv3 (and any native-IPv6 wire protocol) needs a real IPv6 link-local on the
+    container interface, which Docker only enables when the network is IPv6-capable.
+    The ULA is derived from the IPv4 octets so it is unique per allocated /24 and the
+    overlap-retry in _create_network covers any collision.
+    """
+    octets = prefix.rstrip(".").split(".")
+    b = int(octets[1]) if len(octets) > 1 else 0
+    c = int(octets[2]) if len(octets) > 2 else 0
+    return "fd00:%x:%x::/64" % (b, c)
+
+
+def _create_network(dual_stack=False):
+    """Create the Docker network, retrying on overlapping subnets.
+
+    dual_stack adds an IPv6 ULA subnet (and --ipv6) so containers get an IPv6
+    link-local on eth0; required for OSPFv3, opt-in so IPv4-only scenarios are
+    unaffected.
+    """
     last_error = ""
     forced = os.environ.get("ZE_INTEROP_SUBNET_PREFIX") or os.environ.get(
         "ZE_INTEROP_SUBNET_INDEX"
     )
     for prefix in _candidate_subnet_prefixes():
         _set_subnet_prefix(prefix)
+        create_args = ["docker", "network", "create", "--subnet=%s" % SUBNET_CIDR]
+        if dual_stack:
+            create_args += ["--ipv6", "--subnet=%s" % _v6_subnet_for(prefix)]
+        create_args.append(NETWORK)
         result = subprocess.run(
-            ["docker", "network", "create", "--subnet=%s" % SUBNET_CIDR, NETWORK],
+            create_args,
             capture_output=True,
             text=True,
             timeout=30,
@@ -608,6 +641,274 @@ class FRRISIS:
         return self._vtysh_quiet("show isis summary")
 
 
+# --- FRR OSPF helpers --------------------------------------------------------
+
+
+class FRROSPF:
+    """Helpers for querying FRR ospfd via vtysh (spec-ospf-13 interop).
+
+    The OSPF scenarios run Ze and FRR on the shared Docker bridge (eth0), a single
+    L2 broadcast domain, so OSPFv2 packets (Hello/DD/LSR/LSU/LSAck over IP proto
+    89) reach FRR over that link. This class drives the FRR ospfd CLI to wait for
+    the adjacency to Full and to inspect the OSPF-learned routes and the LSDB.
+    """
+
+    def __init__(self, container=None, ip=None):
+        self.container = container or FRR_CONTAINER
+        self.ip = ip or FRR_IP
+
+    def _vtysh_quiet(self, command):
+        """Run a vtysh command, return stdout or empty string on failure."""
+        return docker_exec_quiet(self.container, ["vtysh", "-c", command])
+
+    def adjacency_full(self):
+        """Report whether FRR has at least one OSPF neighbor in the Full state."""
+        out = self._vtysh_quiet("show ip ospf neighbor")
+        # FRR prints a per-neighbor table; a full adjacency shows "Full/DR",
+        # "Full/BDR", "Full/DROther", or "Full/-" (point-to-point).
+        return "Full" in out
+
+    def wait_adjacency(self, timeout=None):
+        """Poll until FRR reports an OSPF adjacency Full; raise on timeout."""
+        if timeout is None:
+            timeout = SESSION_TIMEOUT
+        log_info("waiting for FRR OSPF adjacency Full (timeout %ds)..." % timeout)
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.adjacency_full():
+                log_pass("FRR OSPF adjacency is Full")
+                return
+            time.sleep(2)
+        log_fail("FRR OSPF adjacency did not reach Full within %ds" % timeout)
+        print(self._vtysh_quiet("show ip ospf neighbor")[:500])
+        print(docker_logs(ZE_CONTAINER, 30))
+        raise AssertionError("FRR OSPF adjacency not Full")
+
+    def adjacency_down(self):
+        """Report whether FRR has NO OSPF neighbor in the Full state (convergence)."""
+        return not self.adjacency_full()
+
+    def has_dr_bdr(self):
+        """Report whether FRR elected a DR/BDR on a broadcast segment (AC-16)."""
+        out = self._vtysh_quiet("show ip ospf neighbor")
+        return "Full/DR" in out or "Full/BDR" in out or "DROther" in out
+
+    def has_network_lsa(self):
+        """Report whether FRR's LSDB carries a Network-LSA (Type 2, broadcast DR)."""
+        out = self._vtysh_quiet("show ip ospf database network")
+        return "Net Link States" in out or "Network Link States" in out
+
+    def has_summary_lsa(self, prefix=None):
+        """Report whether FRR's LSDB carries a Summary-LSA (Type 3, inter-area)."""
+        out = self._vtysh_quiet("show ip ospf database summary")
+        if prefix:
+            return prefix in out
+        return "Summary Link States" in out
+
+    def has_external_lsa(self, prefix=None):
+        """Report whether FRR's LSDB carries an actual AS-external-LSA (Type 5).
+
+        `show ip ospf database external` always prints the "AS External Link States"
+        section header even when empty, so match a real LSA entry ("LS age:") -- or the
+        given prefix -- not the header.
+        """
+        out = self._vtysh_quiet("show ip ospf database external")
+        if prefix:
+            return prefix in out
+        return "LS age" in out
+
+    def has_ospf_route(self, prefix):
+        """Check FRR's kernel/zebra RIB for an OSPF-learned IPv4 route."""
+        out = self._vtysh_quiet("show ip route ospf")
+        return prefix in out
+
+    def wait_ospf_route(self, prefix, timeout=60):
+        """Poll until an OSPF route for prefix appears in FRR's RIB; raise on timeout."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.has_ospf_route(prefix):
+                return
+            time.sleep(2)
+        log_fail("FRR OSPF route %s not present after %ds" % (prefix, timeout))
+        print(self._vtysh_quiet("show ip route ospf")[:500])
+        print(docker_logs(ZE_CONTAINER, 30))
+        raise AssertionError("FRR missing OSPF route %s" % prefix)
+
+    def wait_route_withdrawn(self, prefix, timeout=60):
+        """Poll until an OSPF route for prefix DISAPPEARS from FRR's RIB (AC-20)."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if not self.has_ospf_route(prefix):
+                return
+            time.sleep(2)
+        log_fail("FRR OSPF route %s still present after %ds" % (prefix, timeout))
+        print(self._vtysh_quiet("show ip route ospf")[:500])
+        raise AssertionError("FRR did not withdraw OSPF route %s" % prefix)
+
+    def ospf_summary(self):
+        """Return the `show ip ospf` text (diagnostics on failure)."""
+        return self._vtysh_quiet("show ip ospf")
+
+
+class FRROSPF6:
+    """Helpers for querying FRR ospf6d via vtysh (spec-ospf-af-unify v6 interop).
+
+    The OSPFv3 scenario runs Ze and FRR on the shared Docker bridge (eth0).
+    OSPFv3 (RFC 5340) runs directly over IPv6 link-local (ff02::5/6, IP proto
+    89), so the adjacency needs IPv6 enabled on eth0 -- the scenario setup sets
+    the disable_ipv6=0 sysctl on the containers. This class drives FRR ospf6d to
+    wait for the v6 adjacency to Full and to inspect the OSPFv3 LSDB and routes.
+    """
+
+    def __init__(self, container=None, ip=None):
+        self.container = container or FRR_CONTAINER
+        self.ip = ip or FRR_IP
+
+    def _vtysh_quiet(self, command):
+        """Run a vtysh command, return stdout or empty string on failure."""
+        return docker_exec_quiet(self.container, ["vtysh", "-c", command])
+
+    def adjacency_full(self):
+        """Report whether FRR has at least one OSPFv3 neighbor in the Full state."""
+        out = self._vtysh_quiet("show ipv6 ospf6 neighbor")
+        # ospf6d prints a per-neighbor table; a full adjacency shows the neighbor
+        # state column as "Full" (e.g. "Full/PointToPoint" or "Full/DR").
+        return "Full" in out
+
+    def wait_adjacency(self, timeout=None):
+        """Poll until FRR reports an OSPFv3 adjacency Full; raise on timeout."""
+        if timeout is None:
+            timeout = SESSION_TIMEOUT
+        log_info("waiting for FRR OSPFv3 adjacency Full (timeout %ds)..." % timeout)
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.adjacency_full():
+                log_pass("FRR OSPFv3 adjacency is Full")
+                return
+            time.sleep(2)
+        log_fail("FRR OSPFv3 adjacency did not reach Full within %ds" % timeout)
+        print(self._vtysh_quiet("show ipv6 ospf6 neighbor")[:500])
+        print(docker_logs(ZE_CONTAINER, 30))
+        raise AssertionError("FRR OSPFv3 adjacency not Full")
+
+    def _database_has_adv_router(self, command, lsa_types, adv_router):
+        out = self._vtysh_quiet(command)
+        for line in out.splitlines():
+            fields = line.split()
+            if len(fields) >= 3 and fields[0] in lsa_types and fields[2] == adv_router:
+                return True
+        return False
+
+    def has_router_lsa(self, router_id):
+        """Report whether FRR's OSPFv3 LSDB carries a Router-LSA from router_id.
+
+        Proves the DD exchange + LSDB synchronisation completed (the Full
+        milestone), independent of any IPv6 prefix being installed as a route.
+        """
+        return self._database_has_adv_router(
+            "show ipv6 ospf6 database router", ("Rtr", "Router"), router_id
+        )
+
+    def has_dr_bdr(self):
+        """Report whether FRR sees a DR or BDR role on a v6 broadcast segment.
+
+        OSPFv3 ospf6d prints the neighbor's role in the State/IfState column as
+        "Full/DR" or "Full/BDR" (vs "Full/PointToPoint" on a p2p link).
+        """
+        out = self._vtysh_quiet("show ipv6 ospf6 neighbor")
+        return "/DR" in out or "/BDR" in out or "/Backup" in out
+
+    def has_network_lsa(self, adv_router=None):
+        """Report whether FRR's OSPFv3 LSDB carries a Network-LSA (Type 0x2002).
+
+        With adv_router set, requires the Network-LSA to be advertised by that router
+        (the elected DR), proving the DR originated it for the segment.
+        """
+        if adv_router:
+            return self._database_has_adv_router(
+                "show ipv6 ospf6 database network", ("Net", "Network"), adv_router
+            )
+        out = self._vtysh_quiet("show ipv6 ospf6 database network")
+        return any(
+            line.split() and line.split()[0] in ("Net", "Network")
+            for line in out.splitlines()
+        )
+
+    def has_link_lsa(self, adv_router=None):
+        """Report whether FRR's OSPFv3 LSDB carries a Link-LSA (Type 0x0008, link-local).
+
+        With adv_router set, requires a Link-LSA advertised by that router -- proving the
+        peer originated it and flooded it on the shared link (link-local scope). The
+        advertising-router id only appears in the AdvRouter column of `database link`, so a
+        whole-token match is robust across FRR's per-version type-abbreviation differences.
+        """
+        out = self._vtysh_quiet("show ipv6 ospf6 database link")
+        if adv_router:
+            return any(adv_router in line.split() for line in out.splitlines())
+        return any(
+            len(fields) >= 3 and fields[0] in ("Lnk", "Link")
+            for fields in (line.split() for line in out.splitlines())
+        )
+
+    def link_lsa_dump(self):
+        """Return `show ipv6 ospf6 database link` text (diagnostics on assertion failure)."""
+        return self._vtysh_quiet("show ipv6 ospf6 database link")
+
+    def has_inter_area_prefix_lsa(self, adv_router=None):
+        """Report whether FRR's OSPFv3 LSDB carries an Inter-Area-Prefix-LSA (Type 0x2003).
+
+        With adv_router set, requires one advertised by that router (the ABR), proving the ABR
+        summarised another area's prefixes into this one. The advertising-router id appears as a
+        whole token, robust across FRR's per-version type abbreviations.
+        """
+        out = self._vtysh_quiet("show ipv6 ospf6 database inter-prefix")
+        if adv_router:
+            return any(adv_router in line.split() for line in out.splitlines())
+        return any(
+            fields and fields[0] in ("INP", "IAP", "Inter-Prefix")
+            for fields in (line.split() for line in out.splitlines())
+        )
+
+    def inter_area_prefix_dump(self):
+        """Return `show ipv6 ospf6 database inter-prefix` text (diagnostics on failure)."""
+        return self._vtysh_quiet("show ipv6 ospf6 database inter-prefix")
+
+    def has_as_external_lsa(self):
+        """Report whether FRR's OSPFv3 LSDB carries any AS-External-LSA (Type 0x4005).
+
+        Used to prove a v6 stub area is clean: a stub must never receive Type-5 LSAs. The
+        whole-token type match (against FRR's per-version abbreviations) never matches the
+        database header lines, so an empty as-external LSDB reports False.
+        """
+        out = self._vtysh_quiet("show ipv6 ospf6 database as-external")
+        return any(
+            fields
+            and fields[0] in ("ASE", "Type-5", "AS-External", "External", "Extern")
+            for fields in (line.split() for line in out.splitlines())
+        )
+
+    def has_ospf6_route(self, prefix):
+        """Check FRR's kernel/zebra RIB for an OSPFv3-learned IPv6 route."""
+        out = self._vtysh_quiet("show ipv6 route ospf6")
+        return prefix in out
+
+    def wait_ospf6_route(self, prefix, timeout=60):
+        """Poll until an OSPFv3 route for prefix appears in FRR's RIB; raise on timeout."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.has_ospf6_route(prefix):
+                return
+            time.sleep(2)
+        log_fail("FRR OSPFv3 route %s not present after %ds" % (prefix, timeout))
+        print(self._vtysh_quiet("show ipv6 route ospf6")[:500])
+        print(docker_logs(ZE_CONTAINER, 30))
+        raise AssertionError("FRR missing OSPFv3 route %s" % prefix)
+
+    def ospf6_summary(self):
+        """Return the `show ipv6 ospf6` text (diagnostics on failure)."""
+        return self._vtysh_quiet("show ipv6 ospf6")
+
+
 # --- BIRD helpers ------------------------------------------------------------
 
 
@@ -922,11 +1223,23 @@ class Scenario:
         self.frr_image = frr_image
         self.name = os.path.basename(scenario_dir.rstrip("/"))
 
+    def _needs_ipv6_wire(self):
+        """Report whether this scenario runs a protocol natively over IPv6 (OSPFv3),
+        so the Docker network must be dual-stack for the link-local adjacency. BGP-v6
+        rides an IPv4 TCP session and ISIS rides L2, so neither needs this."""
+        ze_conf = os.path.join(self.source_dir, "ze.conf")
+        try:
+            with open(ze_conf, "r", encoding="utf-8") as fh:
+                conf = fh.read()
+        except OSError:
+            return False
+        return "ospf" in conf and "address-family ipv6" in conf
+
     def setup(self):
         """Create network, start containers based on which config files exist."""
         self.teardown()
 
-        _create_network()
+        _create_network(dual_stack=self._needs_ipv6_wire())
         self.rendered_dir = _render_scenario_dir(self.source_dir, self.name)
         self.scenario_dir = self.rendered_dir
 
@@ -978,6 +1291,7 @@ class Scenario:
             ZE_IP,
             volumes=volumes,
             caps=["NET_ADMIN"],
+            extra_args=_IPV6_SYSCTLS,
             cmd=["/etc/ze/bgp.conf"],
         )
 
@@ -995,6 +1309,7 @@ class Scenario:
                     "%s/vtysh.conf:/etc/frr/vtysh.conf:ro" % script_dir,
                 ],
                 caps=["NET_ADMIN", "SYS_ADMIN"],
+                extra_args=_IPV6_SYSCTLS,
             )
 
         # Start BIRD if config exists.

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | spec-ospf-1-types.md, spec-ospf-2-wire.md, spec-ospf-3-ip-transport.md, spec-ospf-4-component-config.md, spec-ospf-5-interface-ism.md, spec-ospf-6-neighbor-nsm.md, spec-ospf-7-lsdb-flooding.md, spec-ospf-8-spf-rib.md, spec-ospf-9-inter-area-abr.md, spec-ospf-10-as-external-asbr.md, spec-ospf-11-stub-nssa.md, spec-ospf-12-auth.md |
-| Phase | - |
-| Updated | 2026-06-20 |
+| Phase | done |
+| Updated | 2026-06-21 |
 
 ## Post-Compaction Recovery
 
@@ -295,7 +295,7 @@ define and must not reach around them into engine internals.
 |-------|-------|------------|---------------|---------------|
 | `show ip ospf database <lsa-type>` arg count | 0..1 keyword | one LSA-type keyword | N/A | second positional rejected |
 | LSA-type subview keyword | closed set | `nssa-external` | N/A | unknown keyword rejected (not a free value) |
-| `max-metric router-lsa` on-startup / on-shutdown duration (seconds) | 5..86400 (RFC 6987 range) | 86400 | 4 rejected | 86401 rejected |
+| `max-metric router-lsa` on-startup / on-shutdown duration (seconds) | 0..86400 (0 = disabled; RFC 6987 mandates no 5 s floor) | 86400 | N/A (0 is the floor, = disabled) | 86401 rejected |
 | SPF-log entries shown | 0..N retained | N | N/A | request beyond retained returns all retained |
 | route/summary cost column (display, 24-bit metric) | 0..16777215 | 16777215 | N/A | values are read from the snapshot, never originated here; display the snapshot value, do not cap |
 
@@ -339,7 +339,7 @@ ospfd; see Files to Modify (AC-21).
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files -->
-- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - add the `max-metric router-lsa` leaves (RFC 6987): a container with `administrative` (always) boolean, `on-startup` (boolean + `duration` 5..86400 s) and `on-shutdown` (boolean + `duration` 5..86400 s). The schema module itself is created by ospf-4; this child adds these leaves. Origination is wired in ospf-7; this child only adds the leaves and reflects them in `show ip ospf`
+- `internal/plugins/ospf/yang/ze-ospf-conf.yang` - add the `max-metric router-lsa` leaves (RFC 6987): a container with `administrative` (always) boolean, `on-startup` (boolean + `duration` 0..86400 s) and `on-shutdown` (boolean + `duration` 0..86400 s). The schema module itself is created by ospf-4; this child adds these leaves. Origination is wired in ospf-7; this child only adds the leaves and reflects them in `show ip ospf`
 - `internal/component/cmd/show/yang/self_containment_test.go` - add the OSPF show tokens to the banned-token map in `TestShowSchemaHasNoMigratedOwnerCommands` (`ze-show:ospf`, `ze-show:ospf-neighbor`, `ze-show:ospf-interface`, `ze-show:ospf-database`, `ze-show:ospf-route`, `ze-show:ospf-border-routers`, `ze-show:ospf-spf`), so a `show ip ospf ...` command can never drift back into the central show schema (the central-guard half of `ai/rules/plugin-self-containment.md`, both-halves invariant)
 - `internal/component/cmd/clear/yang/self_containment_test.go` - add the OSPF clear tokens to the banned-token map in `TestClearOwnerRemovalLeavesNoResidue` (the ACTUAL test name in that file): add `"ze-clear:ospf-process"`, `"ze-clear:ospf-neighbor"`, `"ze-clear:ospf-counters"`, so `clear ip ospf ...` can never drift into the central clear schema
 - `internal/plugins/ospf/instance.go` - `OnExecuteCommand` handles `show ip ospf <noun>` / `clear ip ospf <action>` against sibling snapshots (per-LSA-type database filter, process summary incl. stub-router state, clear actions)
@@ -356,7 +356,7 @@ ospfd; see Files to Modify (AC-21).
 | Command/CLI YANG (show/clear command tree) | NEEDED | `internal/plugins/ospf/yang/ze-ospf-cmd.yang`: TWO separate augment statements because show and clear are distinct command-tree roots. (1) SHOW augment of `/clishowcmd:show` (import `ze-cli-show-cmd { prefix clishowcmd; }`) for `show ip ospf` (summary) + `neighbor/interface/database[ router\|network\|summary\|asbr-summary\|external\|nssa-external]/route/border-routers/spf`, each node `config false` with `ze:command "ze-show:ospf-<noun>"` (central SHOW namespace, model `ze-isis-cmd.yang` / `ze-ldp-cmd.yang`). (2) CLEAR augment of `/cliclearcmd:clear` (import `ze-cli-clear-cmd { prefix cliclearcmd; }`) for `clear ip ospf process/neighbor/counters`, each node `config false` with `ze:command "ze-clear:ospf-<action>"` (central CLEAR namespace, model the iface/ike/isis clears). Both verbs use a CENTRAL command namespace; there is NO per-component `ze-ospf-api.yang`. `clear` is its own root, NOT a child of `clishowcmd:show`. `scripts/checks/command_ownership.go` enforces that the owner ships this command YANG; `cmd_show.go` registration alone is insufficient |
 | API/RPC YANG (RPC/query schema) | No | NO `ze-ospf-api.yang`. Both the show methods (`ze-show:ospf-*`) and the clear actions (`ze-clear:ospf-*`) are RPCs in CENTRAL namespaces, registered in Go via `pluginserver.RegisterRPCs` in `cmd_show.go` (model: IS-IS/LDP, which ship no api YANG for `ze-show:*`) |
 | YANG config schema (new config) | Yes (small) | `internal/plugins/ospf/yang/ze-ospf-conf.yang` (module owned by ospf-4): add the `max-metric router-lsa` leaves (RFC 6987). No other config leaves are added by this child |
-| YANG validation constraints | Yes | the `on-startup`/`on-shutdown` duration leaves carry `range "5..86400"` (RFC 6987); the `administrative` flag is boolean; the LSA-type and clear-action tokens are closed keyword sets in the command YANG |
+| YANG validation constraints | Yes | the `on-startup`/`on-shutdown` duration leaves carry `range "0..86400"` (RFC 6987); the `administrative` flag is boolean; the LSA-type and clear-action tokens are closed keyword sets in the command YANG |
 | YANG custom validators | No | the new config leaves are native-typed (boolean + ranged uint); no custom validator needed here |
 | CLI commands/flags | Yes | `internal/plugins/ospf/cmd_show.go`: `show ip ospf [neighbor\|interface\|database[ <lsa-type>]\|route\|border-routers\|spf]`, `clear ip ospf process/neighbor/counters` |
 | CLI grammar (action before identifier) | Yes | `ai/rules/cli-grammar.md`: the LSA-type subview keyword and `database` are action keywords; `clear ip ospf <action>` is verb-form runtime action; any filter selector is typed |
@@ -626,17 +626,36 @@ this child references them, it does not re-implement them.
 <!-- BLOCKING (rules/planning.md Completion Checklist step 7): -->
 <!-- Run /ze-review BEFORE the final testing/verify step. Record the findings here. -->
 
-### Run 1 (initial)
+### Run 1 (initial -- independent adversarial review of the CLI/diag/web Go surface)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
+| - | clean | Concurrency: `Table.ResetAll`/`resetAll` collects emissions under `t.mu` and emits outside (mirrors `Expire`); `Computer.ClearSPFLog` map-swap under `c.mu`; `clearProcess` independent locks; `processSummary` reads `e.cfg` under `e.mu` -- `-race` green on neighbor/spf/ospf/web | -- | confirmed correct |
+| - | clean | SSE lifecycle: `sseSnapshotStream` exits on ctx.Done, tickers stopped via defer, no busy-loop, no goroutine leak | `sse_snapshot.go` | confirmed |
+| - | clean | XSS: every interpolated value escaped (HTMLEscapeString/JSEscapeString); live channel uses `textContent` | `page_snapshot.go` | confirmed |
+| - | clean | DB subviews: 6 case strings == `dbSubviewType` keys == `LSType.String()` exactly; doctor parse path == runtime `ExtractConfigSubtree` shape; CLI `PluginCommand` == `CommandDecl` exactly; `dbSubviewForwarder` no loop-capture bug | -- | confirmed |
+| N1 | NOTE | SSE frame-split on a valid-JSON payload with embedded newline (not reachable via SDK-marshaled compact snapshots) | `sse_snapshot.go` | HARDENED: newlines continued as fresh `data:` lines. Test `TestSSESnapshotNewlineSafety` |
+| N2 | NOTE | `show ip ospf` ABR/ASBR bits are config-derived; can transiently differ from the runtime `ze_ospf_abr/asbr` gauges during convergence | `show_summary.go` | documented (reflects configured state, by design) |
+| N3 | NOTE | on-startup/on-shutdown max-metric is parsed but unimplemented engine-wide (origination driven off `RouterLSAAlways` only) | engine (ospf-7 territory) | documented Known Limitation; summary `active` is faithful |
 
 ### Fixes applied
-- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
+- N1: `sse_snapshot.go` continues embedded newlines as fresh `data:` lines (defense in depth) + `TestSSESnapshotNewlineSafety`.
+- N2/N3: documented; no code change (faithful to current engine behavior).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | clean | N1 fix + tests | -- | `go test -race ./internal/component/web/...` green; lint 0; `make ze-ospf-test` 17/17; `make ze-doc-test` PASS |
+
+### Run 3 (re-verification 2026-06-22 -- independent agent audit of all 21 ACs + bug-class hunt)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| 1 | ISSUE | AC-3 `passive` column not rendered in the interface snapshot | `iface/iface.go` Snapshot | FIXED: added `Passive` field + render + `TestOSPFInterfaceSnapshot` assertion |
+| 2 | ISSUE | self-containment owner-half guard absent (no `cmd_schema_test.go`) | `internal/plugins/ospf/yang/` | FIXED: `TestOSPFCmdSchemaOwnsShowOSPF`/`OwnsClearOSPF` assert the owner schema declares every show/clear token |
+| 3 | ISSUE | self-containment central-guard tokens absent | `cmd/{show,clear}/yang/self_containment_test.go` | FIXED: added `ze-show:ospf`/`ze-clear:ospf-` banned-token entries (the central half) |
+| 4 | DECISION | `ospf-redist-frr` interop scenario absent; spec internally inconsistent (Interop table lists 7, AC table lists 6) | `test/interop/scenarios/` | RECORDED: 6 FRR scenarios ship; OSPF→BGP redistribution is unit/component-tested; the 7th FRR interop is deferred (cannot run on darwin -- Linux/QEMU only). Reconcile the Interop table to 6. |
+| 5 | MINOR | max-metric duration range is `0..86400` (0 = disabled), not the spec's `5..86400` | `yang/ze-ospf-conf.yang:68-69` | SPEC CORRECTED: RFC 6987 mandates no 5 s floor; `0 = disabled` is intentional. Boundary table + Files-to-Modify text updated to `0..86400`. Code is RFC-correct. |
+| 6 | MINOR | raw-socket `CodeMeta` lives in central `codes.go`, not the ospf transport component | `internal/core/diagnostic/codes.go` | RECORDED: no double-registration (the component registers only the check); ownership relocation is cosmetic with no runtime effect -- deferred. |
+| 7 | MINOR | no `test/ospf/ospf-metrics.ci` scrape; `TestOSPFMetricsNamespaced` is one-way (prefix + 7 named series), not a full two-way guard | `metrics_test.go` | RECORDED: metric presence is unit-asserted; a scrape + no-unexpected-series guard is a follow-up. |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE

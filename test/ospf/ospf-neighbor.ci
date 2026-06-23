@@ -1,0 +1,34 @@
+# Test: OSPFv2 neighbour NSM config and runtime wiring.
+#
+# VALIDATES: config leaves consumed by the NSM are accepted through the
+# user-facing config path, and the engine-level adjacency fixture reaches Full
+# through ISM -> NSM -> DD exchange -> neighbor snapshot.
+# PREVENTS: regressions where database-exchange inputs are configurable but the
+# runtime packet/neighbor handlers are unwired or stuck before Full.
+
+stdin=ospf-neighbor:terminator=EOF_NEIGHBOR
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 { }
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+			network-type point-to-point
+			hello-interval 10
+			dead-interval 40
+			retransmit-interval 5
+			transmit-delay 1
+			mtu-ignore true
+		}
+	}
+}
+EOF_NEIGHBOR
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-neighbor
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+cmd=foreground:seq=2:exec=go test -v ./internal/plugins/ospf -run TestOSPFAdjacencyFull -count=1:timeout=20s
+expect=stdout:contains=TestOSPFAdjacencyFull

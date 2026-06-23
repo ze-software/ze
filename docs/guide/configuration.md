@@ -67,6 +67,239 @@ bgp {
 }
 ```
 
+## OSPF
+
+The top-level `ospf` block enables Ze's native OSPF engine. The root container
+configures OSPFv2 for IPv4; `ospf { address-family ipv6 { ... } }` enables the
+OSPFv3 IPv6 instance on the same engine. Interface and neighbor state, LSDB
+flooding, SPF, inter-area logic, NSSA policy, redistribution, and route
+installation are shared. The wire codec, raw transport, and prefix strategy are
+address-family specific.
+
+For IPv4, the engine opens active non-passive broadcast and point-to-point
+interfaces through the raw IPv4 transport. For IPv6, it uses the OSPFv3 raw IPv6
+transport (`ff02::5` / `ff02::6`) and the OSPFv3 prefix model
+(Intra-Area-Prefix, Link, AS-External, and NSSA LSAs). Both families install
+selected routes through the shared Loc-RIB -> sysrib -> fibkernel path.
+<!-- source: internal/plugins/ospf/register.go -- registerOSPF, runOSPFEngine -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Hello, HandleDBDesc, HandleLSUpdate -->
+<!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB, Summary -->
+<!-- source: internal/plugins/ospf/lsdb/flooding.go -- ReceiveUpdate, ReceiveAck -->
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- module ze-ospf-conf -->
+
+```
+ospf {
+    router-id 10.0.0.1
+    reference-bandwidth 100000
+    maximum-paths 8
+
+    areas {
+        area 0.0.0.0 {
+            area-type normal
+        }
+    }
+
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+            network-type point-to-point
+            hello-interval 10
+            dead-interval 40
+            priority 1
+        }
+        interface lo0 {
+            area 0.0.0.0
+            network-type loopback
+        }
+    }
+}
+```
+
+Area binding is per interface: `interfaces/interface/area` must reference a
+declared `areas/area`. `network-type` accepts `broadcast`, `point-to-point`, or
+`loopback`; loopback records send no Hellos and open no raw socket. The NSM
+consumes interface `mtu-ignore`, retransmit, transmit-delay, and dead-interval
+settings during DD exchange and inactivity tracking. `router-id` must be dotted
+quad when configured; if it is omitted, Ze derives one from the highest loopback
+IPv4 address, then the highest interface IPv4 address. Numeric leaves are
+range-checked by YANG, including `maximum-paths 1..32`, interface cost
+`1..65535`, priority `0..255`, and OSPF metrics `0..16777215`.
+<!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig, validateConfig, deriveRouterIDFromInterfaces -->
+
+The IPv6 address family mirrors the area and interface model under
+`address-family ipv6`. Presence of the `ipv6` container enables the OSPFv3
+instance; `instance-id` defaults to 0 and is used for RFC 5340 per-link
+demultiplexing.
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- address-family ipv6 -->
+<!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig, parseV6Config -->
+
+At the root IPv4 level, `area-type` selects `normal`, `stub`, or `nssa`. A stub
+or NSSA area sets `default-cost` (the injected default metric) and may set
+`no-summary true` for a totally-stubby/totally-NSSA area. An NSSA area takes an
+`nssa { ... }` block with `translate-role` (`candidate` electing by highest
+Router ID, `always`, or `never`), `stability-interval` (translator hysteresis in
+seconds, `0..65535`, default 40), and `default-originate` (originate a Type 7
+default into the NSSA). In `address-family ipv6`, the area entry currently
+selects only `area-type`.
+
+```
+ospf {
+    router-id 10.0.0.1
+    areas {
+        area 0.0.0.0 {
+            area-type normal
+        }
+        area 0.0.0.9 {
+            area-type nssa
+            no-summary true
+            default-cost 20
+            nssa {
+                translate-role candidate
+                stability-interval 40
+                default-originate true
+            }
+        }
+    }
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+        }
+        interface eth1 {
+            area 0.0.0.9
+        }
+    }
+}
+```
+
+```
+ospf {
+    router-id 172.30.0.2
+    address-family ipv6 {
+        instance-id 0
+        areas {
+            area 0.0.0.0 {
+                area-type normal
+            }
+            area 0.0.0.9 {
+                area-type nssa
+            }
+        }
+        interfaces {
+            interface eth0 {
+                area 0.0.0.0
+                network-type point-to-point
+            }
+            interface eth1 {
+                area 0.0.0.9
+                network-type point-to-point
+            }
+        }
+    }
+}
+```
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- area-type, no-summary, default-cost, nssa -->
+<!-- source: internal/plugins/ospf/config.go -- parseArea, validNSSATranslateRole -->
+
+Interface authentication uses named key chains. A `key-chains <name>` block holds one
+or more keys (each with an `algorithm`, a `$9$`-encoded `secret`, and optional send/
+accept lifetimes); `extended-sequence true` selects RFC 7474 AuType 3. Bind a chain to
+an interface directly, or set the interface `authentication { mode inherit }` and the
+chain bound to its area (`area { authentication { key-chain } }`) is used. `algorithm`
+is one of `simple`, `md5`, or `hmac-sha-1/256/384/512`; secrets are masked and
+`$9$`-encoded at rest, never shown in plaintext.
+
+```
+ospf {
+    router-id 10.0.0.1
+    key-chains core {
+        extended-sequence true
+        key 1 {
+            algorithm hmac-sha-256
+            secret $9$encoded
+        }
+    }
+    areas {
+        area 0.0.0.0 {
+            authentication {
+                key-chain core
+            }
+        }
+    }
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+            authentication {
+                mode inherit
+            }
+        }
+    }
+}
+```
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- key-chains, authentication, extended-sequence -->
+<!-- source: internal/plugins/ospf/auth_keystore.go -- configure, decodeSecret -->
+
+Redistribution and default-route origination make the router an ASBR. The `ospf`
+container sets the per-source external metric, metric-type (`type-1`/`type-2`),
+and route tag, and configures `default-information originate`. The shared
+top-level `redistribute` block enrols the actual route flow: `destination ospf`
+imports routes as OSPFv2 Type 5 LSAs for IPv4, OSPFv3 AS-External-LSAs for
+normal IPv6 areas, or OSPFv3 NSSA-LSAs for attached IPv6 NSSA areas.
+`destination bgp { import ospf }` exports OSPF routes. `import ospf` into OSPF
+itself is a runtime no-op (loop prevention).
+
+```
+ospf {
+    router-id 10.0.0.1
+
+    default-information {
+        originate true
+        always false
+        metric 10
+        metric-type type-2
+    }
+
+    redistribute {
+        connected {
+            metric 20
+            metric-type type-2
+            tag 100
+        }
+        static {
+        }
+    }
+
+    areas {
+        area 0.0.0.0 {
+        }
+    }
+    interfaces {
+        interface eth0 {
+            area 0.0.0.0
+        }
+    }
+}
+
+redistribute {
+    destination ospf {
+        import connected
+        import static
+        import bgp
+    }
+    destination bgp {
+        import ospf
+    }
+}
+```
+
+With `default-information originate` and `always false`, the Type 5 default
+(`0.0.0.0/0`) is advertised only while a non-OSPF default route exists in the
+RIB; `always true` advertises it unconditionally. The `redistribute` source list
+accepts `connected`, `static`, `kernel`, `bgp`, and `isis`; the
+`default-information` and per-source `metric` are bound to `0..16777215`.
+<!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- default-information, redistribute -->
+<!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation -->
+<!-- source: internal/plugins/ospf/redistribute/consumer.go -- Consumer InjectRoute -->
+
 ## Inheritance
 
 Configuration uses 3-level inheritance: BGP globals, group defaults, peer overrides.
@@ -648,16 +881,18 @@ isis {
     level l1-l2
     lsp-lifetime 1200
     hostname r1
-    interface eth0 {
-        circuit-type point-to-point
-        metric 10
-        hello-interval 10
-        hold-multiplier 3
-        priority 64
-        address-family ipv4-unicast { }
-    }
-    interface eth1 {
-        passive true
+    interfaces {
+        interface eth0 {
+            circuit-type point-to-point
+            metric 10
+            hello-interval 10
+            hold-multiplier 3
+            priority 64
+            address-family ipv4-unicast { }
+        }
+        interface eth1 {
+            passive true
+        }
     }
 }
 ```
@@ -686,8 +921,10 @@ isis {
         key 1 { algorithm hmac-sha-256  secret ... }
     }
     level-1 { auth-key-chain area-key }       # L1 LSP/CSNP/PSNP
-    interface eth0 {
-        level-1 { auth-key-chain iih-key }    # L1 Hellos on this circuit
+    interfaces {
+        interface eth0 {
+            level-1 { auth-key-chain iih-key }    # L1 Hellos on this circuit
+        }
     }
 }
 ```

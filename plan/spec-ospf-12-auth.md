@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | done |
 | Depends | spec-ospf-2-wire.md, spec-ospf-3-ip-transport.md, spec-ospf-4-component-config.md, spec-ospf-5-interface-ism.md, spec-ospf-6-neighbor-nsm.md, spec-ospf-7-lsdb-flooding.md |
-| Phase | - |
-| Updated | 2026-06-20 |
+| Phase | 12/12 |
+| Updated | 2026-06-21 |
 
 ## Post-Compaction Recovery
 
@@ -548,17 +548,22 @@ MUST document: the AuType 2 8-byte field structure (Reserved 0, Key ID, Auth Dat
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- `packet/auth_verify.go`: `Sign`/`Verify` for AuType 0/1/2/3 -- Simple password, RFC 2328 keyed-MD5, RFC 5709 HMAC-SHA-1/256/384/512 (Apad, Ko derivation), RFC 7474 AuType 3 (64-bit sequence trailer, 0x0001 protocol-id key suffix); `subtle.ConstantTimeCompare`/`hmac.Equal` on every verify; reuses the ospf-2 zero-checksum + auth-field-excluding framing. `packet/wire.go`: `readUint64`/`writeUint64`.
+- `auth_keystore.go`: per-interface chain resolution with area `inherit`, `$9$` decode (`secret.Decode` + plaintext fallback), active-key signing, accept-any-chain-key on receive (rotation), per-(interface,neighbour,key-id) non-decreasing-sequence anti-replay, AuType selection (`extended-sequence` -> AuType 3).
+- `auth_wiring.go`: `signPacket` (transport `SetSigner` hook -- rewrites AuType + checksum + auth field + digest), `verifyPacket` (dispatcher `authOK` chokepoint before handler routing), `ze_ospf_auth_failures_total{interface,reason}` increment.
+- `transport/transport.go`: `SetSigner` + signer applied in `SendPacket`. `dispatcher.go`: `authOK` gate after checksum/area, before the handler. `instance.go`: `auth` store + metric, `installAuthHooks`, `setConfig` calls `auth.configure`.
+- `ze-ospf-conf.yang` + `config.go`: `key-chains/extended-sequence` leaf (selects AuType 3).
 
 ### Bugs Found/Fixed
-- [Any bugs discovered, add test for each]
+- (Review-gate findings recorded in the Review Gate section.)
 
 ### Documentation Updates
-- [Docs updated, with source anchors named, or "None" with grep evidence]
-- [If docs were changed: `make ze-doc-test` result]
+- `docs/guide/ospf.md` (authentication section), `docs/guide/configuration.md` (key-chain config + example), `docs/features.md` (auth row + anchor), `docs/comparison.md` (auth paragraph), `docs/plugin-development/metrics.md` (`ze_ospf_auth_failures_total`), `docs/comparison.html` regenerated. `make ze-doc-test` PASS.
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- The verify/sign helpers expose `Sign(pkt, auType, key, seq)` / `Verify(wire, auType, key) (seq, ok)` operating on encoded packet bytes, rather than a per-packet-type API; the single transport signer + dispatcher verify chokepoints cover all five packet types without per-encoder changes.
+- AuType 3 is selected by a per-chain `extended-sequence` boolean (added to the YANG) since AuType 2 and 3 share the HMAC-SHA algorithm enum.
+- Boot-count NVRAM persistence is not implemented (the AuType 3 high-order word stays 0); intra-session replay is enforced, cross-reboot replay protection is best-effort (Known Limitation).
 
 ## Implementation Audit
 
@@ -606,17 +611,33 @@ MUST document: the AuType 2 8-byte field structure (Reserved 0, Key ID, Auth Dat
 <!-- BLOCKING (rules/planning.md Completion Checklist step 7): -->
 <!-- Run /ze-review BEFORE the final testing/verify step. Record the findings here. -->
 
-### Run 1 (initial)
+### Run 1 (initial -- independent security review agent on the auth diff)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
+| B1 | BLOCKER | Replay check accepted an EQUAL cryptographic sequence (`seq < last`); RFC 7474 §2 + AC-9 require strictly greater, so a captured packet with `seq == last` replayed through to the handlers | `auth_keystore.go verify` | Changed to `seq <= last`. Test `TestOSPFAuthReplay` (equal-seq case) |
+| I1 | ISSUE | Replay high-water mark was per-(interface,neighbor,key-id), not per packet type; RFC 7474 §2 requires per-type, else a reordered lower-sequence packet of another type is a false replay | `auth_keystore.go replayKey` | Added `pktType` to the slot. Test `TestOSPFAuthReplayPerType` |
+| N1 | NOTE | `extended-sequence` (AuType 3) with `md5`/`simple` is an RFC-undefined combination, previously unvalidated | `config.go validateConfig` | Reject via `ErrESNRequiresHMAC`. Test `TestOSPFAuthExtendedSequenceRequiresHMAC` |
+| - | clean | Crypto primitives (keyed-MD5 vs HMAC-SHA, Ko/Apad, AuType 3 seq+protocol-id, constant-time), bounds checks, downgrade resistance, the sign-hook checksum + buffer-aliasing, concurrency | -- | confirmed correct by the review |
 
 ### Fixes applied
-- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
+- B1: `auth_keystore.go` replay comparison `seq <= last` (RFC 7474 §2 strictly-greater).
+- I1: `replayKey` gains `pktType` (per-packet-type high-water mark).
+- N1: `validateConfig` rejects `extended-sequence` with a non-HMAC algorithm (`isHMACSHA`).
+- N3 (boot-count wrap / NVRAM) remains a documented Known Limitation (intra-session replay enforced).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | clean | B1/I1/N1 fixed + tested | -- | `go test -race ./internal/plugins/ospf/...` EXIT 0; `make ze-lint-changed` 0; `make ze-ospf-test` 12/12; `make ze-doc-test` PASS |
+
+### Run 3 (re-verification 2026-06-22 -- independent security agent audit of all 14 ACs + fail-open/swallow/replay/leak hunt)
+| # | Severity | Finding | Location | Action |
+|---|----------|---------|----------|--------|
+| - | clean | NO fail-open, NO silent-swallow, NO replay weakness, NO key leakage. AuType 0/1/2/3 reject paths, strictly-greater per-(iface,neighbor,key-id,type) replay, constant-time compare, zeroed-checksum/appended-digest framing, and exact-length trailer all confirmed correct | `auth_verify.go`, `auth_keystore.go` | confirmed by the audit |
+| 1 | ISSUE | the RX metric-increment + drop glue (`verifyPacket`) had no test -- the AC-1/2/9 "counter increments on reject" claim was unverified | `auth_wiring.go verifyPacket` | FIXED: `TestEngineVerifyPacketDropsAndCounts` drives the dispatcher chokepoint -- an unauthenticated packet on an authenticated interface is dropped AND `ze_ospf_auth_failures_total` increments; a signed packet passes and does not bump it |
+| 2 | ISSUE | a simple-password (AuType 1) secret > 8 octets was silently truncated (RFC 2328 App D fixes the auth field at 8 octets) | `config.go validateConfig` | FIXED (RFC-correct): reject > 8-octet simple passwords with `ErrSimplePasswordLen`; boundary test `TestSimplePasswordLengthBoundary` (8 accepted, 9 rejected) |
+| 3 | NOTE | `test/ospf/ospf-auth.ci` validates config surface only, not end-to-end adjacency/rotation/`$9$` rendering | `test/ospf/ospf-auth.ci` | RECORDED: behaviors are unit-covered; FRR `ospf-auth-frr` covers the e2e path (Linux/QEMU). |
+| 4 | MINOR | no test for an explicit per-interface key-chain overriding area `inherit`; no OSPF-level `$9$` secret-encoding test; per-interface `authentication.mode` algorithm values are dead config (auth activates via a key-chain only) | `auth_keystore.go`, `yang` | RECORDED as follow-ups; the `inherit` path + the shared `ze:sensitive` framework are covered elsewhere. |
 
 ### Final status
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE

@@ -53,9 +53,10 @@ func NewRIB() *RIB {
 }
 
 // OnChange registers fn to receive a Change every time the best path for a
-// prefix is added, updated, or removed. Handlers run synchronously under the
-// owning shard's write lock, so fn MUST NOT re-enter Insert/Remove on the
-// same RIB and should defer any heavy work to a goroutine. Returns a
+// prefix is added, updated, removed, or keeps the same best with changed ECMP
+// membership. Handlers run synchronously under the owning shard's write lock, so
+// fn MUST NOT re-enter Insert/Remove on the same RIB and should defer any heavy
+// work to a goroutine. Returns a
 // function that, when called, removes fn from every shard; further changes
 // after unsubscribe do not invoke fn.
 //
@@ -169,14 +170,19 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 	var prevBest Path
 	var hadBest bool
 	var newBest Path
-	// ecmp holds the intra-source equal-cost siblings of newBest, computed
-	// here while the PathGroup is in hand under sh.mu so consumers (sysrib)
-	// never re-look-up the RIB to recover an ECMP group. Nil for single-path
-	// groups; populated only when newBest is itself a multipath member.
+	// prevECMP/new ECMP hold the intra-source equal-cost siblings of the old and
+	// new best paths, computed while the PathGroup is in hand under sh.mu so
+	// consumers (sysrib) never re-look-up the RIB to recover an ECMP group. Nil
+	// for single-path groups; populated only when the selected best is itself a
+	// multipath member.
+	var prevECMP []netip.Addr
 	var ecmp []netip.Addr
 
 	if !sh.store.Modify(prefix, func(g *PathGroup) {
 		prevBest, hadBest = g.best()
+		if hadBest {
+			prevECMP = siblingNextHops(g, prevBest)
+		}
 		g.upsert(p)
 		newBest, _ = g.best()
 		ecmp = siblingNextHops(g, newBest)
@@ -191,19 +197,26 @@ func (r *RIB) insert(fam family.Family, prefix netip.Prefix, p Path, forward For
 
 	// p is valid (checked at entry) and upsert placed it into the group, so
 	// selectBest must return a non-negative index -- newHad is guaranteed
-	// true here. Three outcomes remain: new prefix (Add), best identity
-	// changed (Update), or best unchanged (no dispatch).
+	// true here. Four outcomes remain: new prefix (Add), best identity changed
+	// (Update), ECMP membership changed while the best stayed stable (Update
+	// without Forward), or no dispatch. changed keeps its long-standing API
+	// meaning: true only when the selected best Path changed.
 	var (
 		retBest Path
 		changed bool
 	)
+	bestChanged := hadBest && !prevBest.Equal(newBest)
+	ecmpChanged := hadBest && !equalNextHopSets(prevECMP, ecmp)
 	switch {
 	case !hadBest:
 		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeAdd, Best: newBest, Forward: forward, ECMP: ecmp})
 		retBest, changed = newBest, true
-	case !prevBest.Equal(newBest):
+	case bestChanged:
 		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, Forward: forward, ECMP: ecmp})
 		retBest, changed = newBest, true
+	case ecmpChanged:
+		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, ECMP: ecmp})
+		retBest = newBest
 	default:
 		retBest = newBest
 	}
@@ -248,6 +261,26 @@ func siblingNextHops(g *PathGroup, best Path) []netip.Addr {
 	return out
 }
 
+// ECMPNextHops returns the equal-cost sibling next-hops for best in this
+// PathGroup. It is the snapshot/replay counterpart to Change.ECMP, for consumers
+// that already hold a copied PathGroup and need the same ECMP membership data
+// without re-querying the RIB.
+func (g PathGroup) ECMPNextHops(best Path) []netip.Addr {
+	return siblingNextHops(&g, best)
+}
+
+func equalNextHopSets(a, b []netip.Addr) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for _, nh := range a {
+		if !slices.Contains(b, nh) {
+			return false
+		}
+	}
+	return true
+}
+
 // Remove deletes the Path matching (source, instance) at (fam, prefix).
 // Returns (best, changed) after the removal: best is the remaining best
 // Path (zero-value if none), changed reports whether the best differs from
@@ -274,14 +307,18 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 	var newHad bool
 	var removed bool
 	empty := false
-	// ecmp holds the intra-source equal-cost siblings of the post-removal
-	// newBest, captured here under sh.mu with g in hand so the synthesized
-	// fallback ChangeUpdate carries them without a re-lookup. Nil unless the
-	// surviving best is itself a multipath member.
+	// prevECMP/new ECMP hold the intra-source equal-cost siblings of the old and
+	// post-removal best paths, captured here under sh.mu with g in hand so the
+	// synthesized fallback ChangeUpdate carries membership changes without a
+	// re-lookup. Nil unless the selected best is itself a multipath member.
+	var prevECMP []netip.Addr
 	var ecmp []netip.Addr
 
 	sh.store.Modify(prefix, func(g *PathGroup) {
 		prevBest, hadBest = g.best()
+		if hadBest {
+			prevECMP = siblingNextHops(g, prevBest)
+		}
 		removed = g.remove(pathKey{source: source, instance: instance})
 		newBest, newHad = g.best()
 		if len(g.Paths) == 0 {
@@ -300,6 +337,7 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 	}
 	depth := sh.store.Len()
 	changed := !prevBest.Equal(newBest)
+	ecmpChanged := !equalNextHopSets(prevECMP, ecmp)
 
 	if !newHad {
 		if hadBest {
@@ -315,7 +353,7 @@ func (r *RIB) Remove(fam family.Family, prefix netip.Prefix, source redistevents
 		}
 		return Path{}, hadBest
 	}
-	if changed {
+	if changed || ecmpChanged {
 		sh.subs.dispatch(Change{Family: fam, Prefix: prefix, Kind: ChangeUpdate, Best: newBest, ECMP: ecmp})
 	}
 	sh.mu.Unlock()
@@ -344,6 +382,39 @@ func (r *RIB) Lookup(fam family.Family, prefix netip.Prefix) (PathGroup, bool) {
 	sh.mu.RUnlock()
 	recordLookup(fam.String(), shardIndex(prefix, len(fs.shards)))
 	return g, found
+}
+
+// Inspect runs fn under the shard read lock with the live PathGroup for (fam,
+// prefix). It returns true when the prefix exists (fn was called), false
+// otherwise. Because the lock is held for the duration of fn, fn may safely
+// range g.Paths; it MUST NOT retain g or g.Paths past the call, mutate the RIB,
+// or block. Use this instead of Lookup when inspecting Paths concurrently with
+// writers: Lookup returns a shallow PathGroup copy whose Paths slice shares the
+// stored backing array, so ranging it off-lock races an in-place upsert.
+func (r *RIB) Inspect(fam family.Family, prefix netip.Prefix, fn func(PathGroup)) bool {
+	if !prefix.IsValid() || fn == nil {
+		return false
+	}
+	r.famMu.RLock()
+	fs, ok := r.families[fam]
+	r.famMu.RUnlock()
+	if !ok {
+		return false
+	}
+	sh := fs.shardFor(prefix)
+	// fn is caller-supplied: hold the read lock for its duration but release it even if
+	// fn panics, so a panicking inspector cannot wedge the shard for every later reader.
+	found := func() bool {
+		sh.mu.RLock()
+		defer sh.mu.RUnlock()
+		g, ok := sh.store.Lookup(prefix)
+		if ok {
+			fn(g)
+		}
+		return ok
+	}()
+	recordLookup(fam.String(), shardIndex(prefix, len(fs.shards)))
+	return found
 }
 
 // Best returns the currently selected best Path for (fam, prefix).

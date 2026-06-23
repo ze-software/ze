@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 5/7 |
 | Updated | 2026-06-20 |
 
 ## Post-Compaction Recovery
@@ -89,7 +89,7 @@ OSPF child (notably `spec-ospf-7-lsdb-flooding.md` for the LSDB keyed on
   → Constraint: "Two distinct checksums" -- packet checksum is RFC 1071 IP one's-complement over the whole packet EXCLUDING the 8-byte Authentication field (bytes 16..23) with the Checksum field zeroed; LSA checksum is Fletcher-16 starting at the Options field (EXCLUDING LS Age) with the LS Checksum field treated as zero during the forward computation. This spec owns both ALGORITHMS; ospf-2 applies them
   → Constraint: "LSA header + body layout" -- the 20-byte LSA header is LS Age(2), Options(1), LS Type(1), Link State ID(4), Advertising Router(4), LS Sequence Number(4), LS Checksum(2), Length(2). `LSAKey` reads LS Type, Link State ID, Advertising Router from this header
   → Decision: `types` is a leaf package and MUST NOT import anything from the OSPF runtime (`packet`, `transport`, `iface`, `neighbor`, `lsdb`, `spf`, the component root) nor from IS-IS; it may import only the Go standard library (and Ze leaf helpers such as `internal/core/textbuf` for zero-alloc formatting)
-- [ ] `plan/learned/927-isis-1-types.md` - the sibling leaf-type spec; OSPF mirrors its leaf-package conventions, boundary-test rigour, and zero-alloc `String()` discipline
+- [ ] `plan/learned/927-isis-1-types.md` - the sibling leaf-type spec; OSPF mirrors its leaf-package conventions, boundary-test rigour, and allocation-light formatting discipline
   → Constraint: copy the conventions (value-typed fixed identifiers comparable with `==`; `Parse*` for strings, `*FromBytes` for wire; buffer-first `WriteTo(buf, off) int`; reserved/never-valid numeric values exposed via an explicit predicate). Do NOT couple OSPF to IS-IS code: the Fletcher covered range and the metric semantics differ
 - [ ] `ai/rules/buffer-first.md`, `ai/rules/memory-architecture.md` - zero-copy, no-alloc encode
   → Constraint: byte serialization is buffer-first: write into a caller-supplied buffer at an offset and return the byte count; do not allocate a fresh slice per call. The Fletcher and Internet checksum functions read a caller-supplied `[]byte` window and return a `uint16`, allocating nothing
@@ -119,9 +119,9 @@ OSPF child (notably `spec-ospf-7-lsdb-flooding.md` for the LSDB keyed on
 - [ ] `internal/plugins/isis/packet/checksum.go` - the existing in-tree Fletcher-16, over the IS-IS covered range (from byte 12); read to mirror the algorithm shape, NOT to share it
   → Constraint: OSPF needs its own Fletcher with the OSPF covered range (from the Options field, byte 2, excluding LS Age); do NOT import or reuse the IS-IS one (different covered range, different LSA header layout)
 - [ ] `internal/plugins/isis/types/` - the sibling leaf-type package created by `spec-isis-1-types.md`; read for the value-typed-identifier / `Parse*` / `*FromBytes` / buffer-first `WriteTo` conventions
-  → Constraint: mirror the conventions (fixed-array value identifiers, explicit reserved-value predicates, zero-alloc `String()`); do NOT import it (independent type domains)
+  → Constraint: mirror the conventions (fixed-array value identifiers, explicit reserved-value predicates, zero-alloc `AppendTo`, owned `String()` result allowed one allocation); do NOT import it (independent type domains)
 - [ ] `internal/core/textbuf` - allocation-light string building used elsewhere in Ze
-  → Constraint: reuse the established hex/append pattern for dotted-quad `String()` rather than inventing a new formatter; keep `String()`/`AppendTo` zero-alloc on the hot path
+  → Constraint: reuse the established append pattern for dotted-quad formatting rather than inventing a formatter that allocates on hot paths; keep `AppendTo` zero-alloc and `String()` at most one allocation for the returned owned string
 
 **Behavior to preserve:** (unless the user explicitly said to change)
 - Nothing exists to preserve in OSPF: there are no existing OSPF callers; this package introduces the API, it does not change one
@@ -175,11 +175,11 @@ OSPF child (notably `spec-ospf-7-lsdb-flooding.md` for the LSDB keyed on
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The nine types in guide §4 plus the two checksum algorithms are the complete leaf-type set needed by ospf-2 | `docs/research/ospf-implementation-guide.md` lines 217-239 + umbrella "Two distinct checksums" | ospf-2 discovers a missing type (e.g. `DDSequenceNumber`, `InterfaceID`) and must add it here | ospf-2 wire codec compiles against this package without adding new identifier/checksum types | unvalidated |
-| A-2 | A 4-byte array value type (`RouterID`/`AreaID`/`LinkStateID`) and a plain comparable `LSAKey` struct are acceptable Go map keys for the LSDB index | `ai/rules/go-standards.md` value-typed identifiers; guide §3 "per-area map keyed on this triple" | LSDB keying needs a different representation | ospf-7 LSDB uses `LSAKey` directly as a map key and compiles | unvalidated |
-| A-3 | OSPF needs its OWN Fletcher (covered range from the Options field, byte 2) and must NOT reuse the IS-IS Fletcher (covered range from byte 12) | umbrella "Separate from IS-IS" + `isis/packet/checksum.go` covered range | The covered ranges turn out identical and one implementation suffices | RFC 905 Annex B vector test passes over the OSPF window; an IS-IS-range Fletcher fails the OSPF vector | unvalidated |
-| A-4 | `Metric` as a 16-bit interface output cost is the right leaf type; the 24-bit Summary/External LSA-body metric is decoded inline by ospf-2 (not a separate leaf type) | guide §4 "typically 16 bits for link cost, 24 bits for LSA metrics"; umbrella LSA body layout | ospf-9/ospf-10 need a dedicated 24-bit metric leaf type | ospf-2 encodes the 24-bit Summary/External metric inline against a 3-byte helper, or escalates to add a leaf type here | unvalidated |
-| A-5 | `LSSequenceNumber` signed-comparison freshness (§13.2) is fully expressible in the leaf type; the runtime only supplies the LS Age / checksum tiebreak inputs | guide §13.2; RFC 2328 §13.1 | The full §13.1 freshness needs runtime context the leaf type cannot model | ospf-7 freshness decision is implemented with `LSSequenceNumber.Newer` + a documented LS-Age/checksum tiebreak helper, no re-implementation | unvalidated |
+| A-1 | The nine types in guide §4 plus the two checksum algorithms are the complete leaf-type set needed by ospf-2 | `docs/research/ospf-implementation-guide.md` lines 217-239 + umbrella "Two distinct checksums" | ospf-2 discovers a missing type (e.g. `DDSequenceNumber`, `InterfaceID`) and must add it here | ospf-2 wire codec compiles against this package without adding new identifier/checksum types | pending downstream ospf-2 |
+| A-2 | A 4-byte array value type (`RouterID`/`AreaID`/`LinkStateID`) and a plain comparable `LSAKey` struct are acceptable Go map keys for the LSDB index | `ai/rules/go-standards.md` value-typed identifiers; guide §3 "per-area map keyed on this triple" | LSDB keying needs a different representation | `TestLSAKeyFromHeader` map-key assertion and `TestFixedIdentifierBytesReturnCopies`; ospf-7 still proves direct LSDB use | partially-confirmed |
+| A-3 | OSPF needs its OWN Fletcher (covered range from the Options field, byte 2) and must NOT reuse the IS-IS Fletcher (covered range from byte 12) | umbrella "Separate from IS-IS" + `isis/packet/checksum.go` covered range | The covered ranges turn out identical and one implementation suffices | `TestFletcherRFC905Vectors` and `TestFletcherIgnoresLSAge`; `go list -deps ./internal/plugins/ospf/types` shows no IS-IS dependency | confirmed |
+| A-4 | `Metric` as a 16-bit interface output cost is the right leaf type; the 24-bit Summary/External LSA-body metric is decoded inline by ospf-2 (not a separate leaf type) | guide §4 "typically 16 bits for link cost, 24 bits for LSA metrics"; umbrella LSA body layout | ospf-9/ospf-10 need a dedicated 24-bit metric leaf type | ospf-2 encodes the 24-bit Summary/External metric inline against a 3-byte helper, or escalates to add a leaf type here | pending downstream ospf-2 |
+| A-5 | `LSSequenceNumber` signed-comparison freshness (§13.2) is fully expressible in the leaf type; the runtime only supplies the LS Age / checksum tiebreak inputs | guide §13.2; RFC 2328 §13.1 | The full §13.1 freshness needs runtime context the leaf type cannot model | `TestLSSequenceFreshness` and `TestLSSequenceWraparound`; ospf-7 still proves runtime tiebreak use | partially-confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -189,7 +189,7 @@ OSPF child (notably `spec-ospf-7-lsdb-flooding.md` for the LSDB keyed on
 | R-3 | `LSSequenceNumber` compared as unsigned / "higher is newer", losing updates at wraparound (`0x80000001` vs `0x7FFFFFFF`) | ospf-7 origination/flap tests fail or loop | implement the §13.2 signed freshness compare; boundary test `0x80000001` (oldest) vs `0x7FFFFFFF` (newest) and `0x7FFFFFFF` vs `0x7FFFFFFF`; `0x80000000` reserved, never produced |
 | R-4 | `LSAge` DoNotAge bit (0x8000) not masked, so a frozen LSA reads as age >= 32768 and is mistaken for a purge | a DoNotAge LSA is purged spuriously in ospf-7 | mask the low 15 bits for the age; expose `DoNotAge()` and `IsMaxAge()` distinctly; boundary tests at 3600, 0x8000, 0x8000|3600 |
 | R-5 | `LSAKey` accidentally includes sequence/age/checksum in equality, so a refreshed LSA is treated as a different LSA and the LSDB grows unbounded | ospf-7 LSDB has duplicate keys per LSA | `LSAKey` is exactly `(LSType, LinkStateID, AdvertisingRouter)`; an explicit test that two headers differing only in sequence/age/checksum yield the SAME key |
-| R-6 | `String()` allocates per call on a hot path (CLI list, log, `show ip ospf database`) | benchmark allocation in ospf-13 | buffer-first dotted-quad append per `ai/rules/no-sprintf-alloc.md`, with a bench guarding zero-alloc |
+| R-6 | dotted-quad formatting allocates per component on a hot path (CLI list, log, `show ip ospf database`) | benchmark allocation in ospf-13 | buffer-first dotted-quad `AppendTo` per `ai/rules/no-sprintf-alloc.md`, with a test guarding `AppendTo` zero-alloc and `String()` <= 1 allocation for the owned result |
 | R-7 | `AreaID` integer form (`area 0`) and dotted-quad form (`area 0.0.0.0`) parse to different values | config round-trip mismatch; backbone not recognised | a single `ParseAreaID` accepts both forms and normalises; test `0` == `0.0.0.0` == backbone |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -267,7 +267,7 @@ OSPF child (notably `spec-ospf-7-lsdb-flooding.md` for the LSDB keyed on
 | `TestFletcherIgnoresLSAge` | `internal/plugins/ospf/types/checksum_test.go` | flipping an LS-Age byte does NOT change the Fletcher result (covered-range boundary, R-1) | |
 | `TestInternetChecksumRFC1071Vectors` | `internal/plugins/ospf/types/checksum_test.go` | RFC 1071 one's-complement over the packet window (Auth excluded, Checksum zeroed); re-sum yields 0xFFFF (R-2) | |
 | `TestChecksumNoAlloc` | `internal/plugins/ospf/types/checksum_test.go` | both checksum functions allocate 0 and do not mutate the input window (`testing.AllocsPerRun`) | |
-| `TestStringNoAlloc` | `internal/plugins/ospf/types/format_test.go` | dotted-quad `String()`/`AppendTo` for `RouterID`/`AreaID`/`LinkStateID` is zero-alloc | |
+| `TestStringNoAlloc` | `internal/plugins/ospf/types/format_test.go` | dotted-quad `AppendTo` for `RouterID`/`AreaID`/`LinkStateID` is zero-alloc; `String()` returns an owned string with <=1 allocation, matching `plan/learned/927-isis-1-types.md` | |
 | `TestParseRejectsMalformed` | `internal/plugins/ospf/types/parse_test.go` | wrong octet count, out-of-range octets (> 255), bad separators, empty all error | |
 | `TestWriteToRoundTrip` | `internal/plugins/ospf/types/serialize_test.go` | `WriteTo(buf, off)` for every type reproduces the `*FromBytes` octets and returns the correct count | |
 
@@ -367,7 +367,7 @@ OSPF child (notably `spec-ospf-7-lsdb-flooding.md` for the LSDB keyed on
 - `internal/plugins/ospf/types/metric_test.go` - Metric range + default-cost tests
 - `internal/plugins/ospf/types/options_test.go` - Options bit-field tests
 - `internal/plugins/ospf/types/checksum_test.go` - Fletcher RFC 905 + Internet RFC 1071 vector + no-alloc + covered-range tests
-- `internal/plugins/ospf/types/format_test.go` - zero-alloc `String()` assertions
+- `internal/plugins/ospf/types/format_test.go` - zero-alloc `AppendTo` and bounded `String()` allocation assertions
 - `internal/plugins/ospf/types/parse_test.go` - malformed-input rejection tests
 - `internal/plugins/ospf/types/serialize_test.go` - `WriteTo(buf, off)` round-trip tests
 
@@ -410,7 +410,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 5. **Phase: Robustness and allocation** - malformed-input rejection and zero-alloc formatting + serialize
    - Tests: `TestParseRejectsMalformed`, `TestStringNoAlloc`, `TestWriteToRoundTrip`
    - Files: `format.go`, `serialize_test.go`, `parse_test.go`
-   - Verify: every malformed input errors; `String()` zero-alloc per `testing.AllocsPerRun`; every type `WriteTo` round-trips
+   - Verify: every malformed input errors; `AppendTo` is zero-alloc and `String()` is <=1 allocation per `testing.AllocsPerRun`; every type `WriteTo` round-trips
 6. **Full verification** - `make ze-lint-changed && make ze-unit-test`
 7. **Complete spec** - fill audit tables, write learned summary to `plan/learned/NNN-ospf-1-types.md`; TWO commits (code+spec+learned, then `git rm` spec)
 
@@ -422,7 +422,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Correctness | `LSAKey` excludes version fields; `LSSequenceNumber` §13.2 signed freshness (0x7FFFFFFF newest, 0x80000001 oldest, 0x80000000 reserved); `LSAge` DoNotAge 0x8000 masked, `MaxAge` 3600 distinct; Fletcher covered range from Options (LS Age excluded); Internet checksum excludes Auth, zeroes Checksum |
 | Naming | Exported `RouterID`/`AreaID`/`LinkStateID`/`LSType`/`LSAKey`/`LSSequenceNumber`/`LSAge`/`Metric`/`Options`; `FletcherChecksum`/`InternetChecksum`; constructors `Parse*` (string) and `*FromBytes` / `LSAKeyFromHeader` (wire) |
 | Data flow | Leaf package: zero imports from OSPF runtime, IS-IS, or BGP-LS; serialize is buffer-first `WriteTo(buf, off) int`; checksum reads a caller window without mutation |
-| Rule: buffer-first / no-sprintf-alloc | `String()` zero-alloc; serialize writes into caller buffer; checksum allocates nothing |
+| Rule: buffer-first / no-sprintf-alloc | `AppendTo` zero-alloc; `String()` bounded to the owned-result allocation; serialize writes into caller buffer; checksum allocates nothing |
 | Rule: go-standards | Fixed identifiers and `LSAKey` are comparable value types usable as map keys; no `net.IP`-slice comparison |
 | Rule: no-layering | OSPF Fletcher is a fresh implementation; the IS-IS Fletcher is NOT imported or modified |
 
@@ -508,16 +508,24 @@ RFC 1071).
 ## Implementation Summary
 
 ### What Was Implemented
-- [Filled at implementation time]
+- Created `internal/plugins/ospf/types/` as an IS-IS-consistent leaf package: one file per type, `Parse*`, `*FromBytes`, `Bytes`, `WriteTo`, `AppendTo`, `String`, `Equal` where applicable, plus `Compare`/`Less` for `LSAKey`.
+- Implemented `RouterID`, `AreaID`, `LinkStateID`, `LSType`, `LSAKey`, `LSSequenceNumber`, `LSAge`, `Metric`, `Options`.
+- Implemented independent OSPF Fletcher-16 and RFC 1071 Internet checksum algorithms; no IS-IS import.
+- Added package-local unit tests with `VALIDATES` / `PREVENTS` comments. TDD evidence: initial stub `go test ./internal/plugins/ospf/types` failed; final `go test ./internal/plugins/ospf/types` passed (`ok ... 0.346s`).
 
 ### Bugs Found/Fixed
-- [Filled at implementation time]
+- Corrected the RFC 1071 unit vector to model a zeroed checksum field before storing the generated checksum, so `InternetChecksumValid` proves the all-ones verification path rather than replacing arbitrary payload bytes.
+- Added `InternetChecksumPair` / `InternetChecksumPairValid` when `spec-ospf-2-wire.md` exposed the packet checksum's two-segment coverage window (before auth field + after auth field). This keeps RFC 1071 ownership in the leaf type package without allocating a temporary packet copy.
+- Fixed an edit ordering mistake while adding IS-IS-style `Bytes` accessors; `go test ./internal/plugins/ospf/types` confirmed the package compiles after correction.
 
 ### Documentation Updates
-- [Filled at implementation time]
+- No user-facing docs updated in this child: config, CLI, wire-format, and guide docs are owned by ospf-2/4/13 per the Documentation Update Checklist.
+- Updated this spec to reflect the IS-IS formatting convention: `AppendTo` is zero-alloc on hot paths; `String()` returns an owned string and is bounded to the result allocation.
 
 ### Deviations from Plan
-- [Filled at implementation time]
+- Added `Bytes()` accessors and `TestFixedIdentifierBytesReturnCopies` to match `internal/plugins/isis/types/SystemID` conventions.
+- Interpreted the original "zero-alloc String()" wording through `plan/learned/927-isis-1-types.md`: hot paths use zero-alloc `AppendTo`; `String()` is allowed the owned-result allocation.
+- Added `InternetChecksumPair` / `InternetChecksumPairValid` as a downstream-driven extension for the OSPF packet checksum coverage window.
 
 ## Implementation Audit
 
@@ -526,36 +534,74 @@ RFC 1071).
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Pure OSPFv2 leaf package under `internal/plugins/ospf/types/` | implemented | `internal/plugins/ospf/types/doc.go` | Leaf constraint documented; no runtime imports |
+| Nine OSPF domain value types | implemented | `routerid.go`, `areaid.go`, `linkstateid.go`, `lstype.go`, `lsakey.go`, `sequence.go`, `lsage.go`, `metric.go`, `options.go` | Mirrors IS-IS one-type-per-file shape |
+| Parse / wire constructors / format / serialize | implemented | package tests `*_test.go` | `Parse*`, `*FromBytes`, `WriteTo`, `AppendTo`, `String` |
+| Comparable LSDB keys | implemented | `lsakey.go`, `lsakey_test.go`, `accessors_test.go` | `LSAKey` is a plain comparable struct |
+| Two checksum algorithms | implemented | `checksum.go`, `checksum_test.go` | OSPF-owned Fletcher and Internet checksum, plus two-segment packet coverage helper |
+| No IS-IS or runtime dependency | implemented | `go list -deps ./internal/plugins/ospf/types` | Output: stdlib plus `codeberg.org/.../ospf/types` only |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | implemented | `TestRouterIDParseFormatRoundTrip` | String, bytes, and `WriteTo` round-trip |
+| AC-2 | implemented | `TestRouterIDFromBytesRejectsWrongLength`, `TestAreaIDFromBytesRejectsWrongLength`, `TestLinkStateIDFromBytesRejectsWrongLength`, `TestLSAKeyFromHeaderRejectsWrongLength`, byte constructor tests | Exact-length checks before indexing |
+| AC-3 | implemented | `TestAreaIDIntegerAndDottedForms` | `0` equals `0.0.0.0`; max uint32 checked |
+| AC-4 | implemented | `TestLSAKeyFromHeader`, `TestLSAKeyEqualityExcludesVersion` | Sequence/age/checksum/length excluded |
+| AC-5 | implemented | `TestLSSequenceFreshness` | `0x7fffffff` newer than `0x80000001`; reserved predicate |
+| AC-6 | implemented | `TestLSSequenceWraparound` | `NextChecked` wraps to `InitialSequenceNumber`, never reserved |
+| AC-7 | implemented | `TestLSAgeBitsAndMaxAge`, `TestLSAgeAddSaturates`, `TestLSAgeBytesRoundTrip` | DoNotAge bit masked; MaxAge saturated |
+| AC-8 | implemented | `TestMetricRangeAndCost`, `TestDefaultMetric` | 1..65535 and default-cost helper |
+| AC-9 | implemented | `TestOptionsBits` | E/MC/N-P/L/DC/O/DN set, clear, string, wire |
+| AC-10 | implemented | `TestFletcherRFC905Vectors`, `TestFletcherIgnoresLSAge` | OSPF range starts at Options, excludes LS Age |
+| AC-11 | implemented | `TestInternetChecksumRFC1071Vectors`, `TestInternetChecksumOddLength` | All-ones verify path and odd-length pad |
+| AC-12 | implemented | `TestWriteToRoundTrip` plus per-type round-trip tests | Big-endian writes at non-zero offsets |
+| AC-13 | implemented | `TestLSAKeyFromHeader`, `TestFixedIdentifierBytesReturnCopies` | Comparable map key and copied byte accessors |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| `TestRouterIDParseFormatRoundTrip` | pass | `routerid_test.go` | AC-1 |
+| `TestAreaIDIntegerAndDottedForms` | pass | `areaid_test.go` | AC-3 |
+| `TestLinkStateIDRoundTrip` | pass | `linkstateid_test.go` | AC-12 |
+| `TestLSAKeyFromHeader` / `TestLSAKeyEqualityExcludesVersion` / `TestLSAKeyOrder` | pass | `lsakey_test.go` | AC-4, AC-13 |
+| `TestLSTypeKnownValues` | pass | `lstype_test.go` | In-scope and opaque recognised |
+| `TestLSSequenceFreshness` / `TestLSSequenceWraparound` | pass | `sequence_test.go` | AC-5, AC-6 |
+| `TestLSAgeBitsAndMaxAge` / `TestLSAgeAddSaturates` | pass | `lsage_test.go` | AC-7 |
+| `TestMetricRangeAndCost` / `TestDefaultMetric` | pass | `metric_test.go` | AC-8 |
+| `TestOptionsBits` | pass | `options_test.go` | AC-9 |
+| `TestFletcherRFC905Vectors` / `TestFletcherIgnoresLSAge` | pass | `checksum_test.go` | AC-10 |
+| `TestInternetChecksumRFC1071Vectors` / `TestInternetChecksumOddLength` | pass | `checksum_test.go` | AC-11 |
+| `TestInternetChecksumPairMatchesConcatenatedWindow` | pass | `checksum_test.go` | Downstream packet checksum auth-field exclusion without temporary concatenation |
+| `TestChecksumNoAlloc` | pass | `checksum_test.go` | 0 allocations, no mutation |
+| `TestStringNoAlloc` | pass | `format_test.go` | `AppendTo` 0 allocations, `String()` <=1 |
+| `TestParseRejectsMalformed` | pass | `parse_test.go` | malformed printable values rejected |
+| `TestWriteToRoundTrip` | pass | `serialize_test.go` | AC-12 |
+| `TestFixedIdentifierBytesReturnCopies` | pass | `accessors_test.go` | Added for IS-IS consistency |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/plugins/ospf/types/{doc,format,routerid,areaid,linkstateid,lstype,lsakey,sequence,lsage,metric,options,checksum}.go` | created | Includes additional `Bytes()` accessors for IS-IS consistency |
+| `internal/plugins/ospf/types/*_test.go` | created | Includes all planned tests plus `accessors_test.go` |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 13 ACs, 6 task requirements, 16 test groups, 24 files.
+- **Done:** Type-level implementation, unit evidence, and initial consumption by `internal/plugins/ospf/packet`.
+- **Partial:** Some exported leaf APIs remain without cross-package non-test callers until later runtime children consume parsing, config, LSDB freshness, and SPF helpers; `make ze-validate` now reports those remaining symbols plus new packet APIs.
+- **Skipped:** none.
+- **Changed:** `String()` allocation wording corrected to match IS-IS conventions; added a two-segment RFC 1071 helper for packet auth exclusion.
 
 ## Goal Validation (BLOCKING)
 
 <!-- MANDATORY: Maps each stated goal to concrete proof it was achieved. -->
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| Nine OSPF domain types with parse/format/compare/serialize | unit test | [Filled at implementation: `go test ./internal/plugins/ospf/types/` PASS] |
-| Two checksum algorithms (Fletcher-16 LSA, Internet packet) vector-correct | unit test | [Filled at implementation: `TestFletcherRFC905Vectors`, `TestInternetChecksumRFC1071Vectors` PASS] |
-| Leaf package, no runtime / IS-IS / BGP-LS imports | dependency check | [Filled at implementation: `go list -deps` closure is stdlib + leaf helpers only] |
-| Consumed by the wire codec (downstream) | downstream build | [Filled at implementation: `grep -rln ospf/types internal/plugins/ospf/` shows importers incl. `packet/`] |
-| Round-trip fidelity (parse/format/bytes/serialize) | unit test | [Filled at implementation: per-type round-trip tests PASS] |
+| Nine OSPF domain types with parse/format/compare/serialize | unit test | `go test ./internal/plugins/ospf/types` passed: `ok codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types 0.346s`; type tests listed in Implementation Audit |
+| Two checksum algorithms (Fletcher-16 LSA, Internet packet) vector-correct | unit test | `TestFletcherRFC905Vectors`, `TestFletcherIgnoresLSAge`, `TestInternetChecksumRFC1071Vectors`, `TestInternetChecksumOddLength`, `TestInternetChecksumPairMatchesConcatenatedWindow`, `TestChecksumNoAlloc` passed |
+| Leaf package, no runtime / IS-IS / BGP-LS imports | dependency check | `go list -deps ./internal/plugins/ospf/types` output includes stdlib packages and `codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types`; no OSPF runtime, IS-IS, or BGP-LS packages |
+| Consumed by the wire codec (downstream) | downstream build | `internal/plugins/ospf/packet` imports `internal/plugins/ospf/types` for header fields, LSA fields, and checksum application; `go test ./internal/plugins/ospf/types ./internal/plugins/ospf/packet` passed |
+| Round-trip fidelity (parse/format/bytes/serialize) | unit test | `TestRouterIDParseFormatRoundTrip`, `TestAreaIDIntegerAndDottedForms`, `TestLinkStateIDRoundTrip`, `TestWriteToRoundTrip`, `TestFixedIdentifierBytesReturnCopies` passed |
 
 ## Review Gate
 
@@ -564,17 +610,22 @@ RFC 1071).
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-| - | pending | `/ze-review` not run yet for this design spec | this spec | run during implementation; record concrete findings here |
+| 1 | BLOCKER | `make ze-validate` reports exported OSPF leaf APIs have no cross-package non-test callers | `internal/plugins/ospf/types/*.go` | Expected until `spec-ospf-2-wire.md` consumes the package; keep spec open and continue to wire codec |
+| 2 | NOTE | `python3 scripts/dev/audit-test-relaxation.py` reports a documented relaxation in unrelated user-owned iface test work | `internal/component/iface/monitor_integration_linux_test.go` | Out of OSPF scope; do not touch |
+| 3 | ISSUE | `FletcherChecksum` accepted a full LSA while the documented API is the covered window starting at Options (`lsa[2:]`) | `internal/plugins/ospf/types/checksum.go` | Fixed by making `FletcherChecksum` / `FletcherVerify` accept the covered window and updating tests |
 
 ### Fixes applied
-- Pending: record concrete fixes after `/ze-review` reports BLOCKER or ISSUE findings.
+- Added IS-IS-style `Bytes()` accessors and tests after the user requested consistency with the IS-IS structure.
+- Corrected the Internet checksum test vector to place the generated checksum in a previously zeroed checksum field.
+- Fixed reviewer finding: `FletcherChecksum` and `FletcherVerify` now accept the covered LSA window beginning at the Options field; `TestFletcherRFC905Vectors` passes that `lsa[2:]` window and `go test ./internal/plugins/ospf/types` passed (`ok ... 0.372s`).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | PASS | Reviewer re-run found 0 BLOCKER / 0 ISSUE after the Fletcher covered-window fix | `internal/plugins/ospf/types/checksum.go`, tests | Continue to `spec-ospf-2-wire.md`; cross-package caller proof remains pending there |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
+- [ ] `/ze-review` gate clean: reviewer re-run is clean, but `make ze-validate` remains blocked on remaining OSPF exports until later runtime children consume all packet/type APIs
 - [ ] All NOTEs recorded above (or explicitly "none")
 
 ## Pre-Commit Verification

@@ -1,0 +1,118 @@
+// Design: plan/spec-ospf-af-unify.md -- interface address/identity helpers.
+//
+// These resolve an OSPF interface's live OS properties (IPv4 address, mask, MTU,
+// ifindex) through the iface component, the inputs the engine feeds into the iface
+// runtime config and LSA origination. They live apart from instance.go to keep that
+// file within the size budget.
+
+package ospf
+
+import (
+	"net/netip"
+
+	ifcomp "codeberg.org/thomas-mangin/ze/internal/component/iface"
+)
+
+const (
+	interfaceFamilyIPv4 = "ipv4"
+	interfaceFamilyIPv6 = "ipv6"
+)
+
+func interfaceNetworkMask(name string) [4]byte {
+	addrs, err := ifcomp.Addresses(name)
+	if err != nil {
+		return [4]byte{}
+	}
+	for _, addr := range addrs {
+		if addr.Family != interfaceFamilyIPv4 || addr.PrefixLength < 0 || addr.PrefixLength > 32 {
+			continue
+		}
+		return maskFromPrefixLength(addr.PrefixLength)
+	}
+	return [4]byte{}
+}
+
+func interfaceIPv4Address(name string) [4]byte {
+	addrs, err := ifcomp.Addresses(name)
+	if err != nil {
+		return [4]byte{}
+	}
+	for _, addr := range addrs {
+		if addr.Family != interfaceFamilyIPv4 {
+			continue
+		}
+		parsed, err := netip.ParseAddr(addr.Address)
+		if err == nil && parsed.Is4() {
+			return parsed.As4()
+		}
+	}
+	return [4]byte{}
+}
+
+func interfaceIPv6ForwardingAddress(name string) ([16]byte, bool) {
+	addrs, err := ifcomp.Addresses(name)
+	if err != nil {
+		return [16]byte{}, false
+	}
+	for _, addr := range addrs {
+		if addr.Family != interfaceFamilyIPv6 {
+			continue
+		}
+		parsed, err := netip.ParseAddr(addr.Address)
+		if err != nil || !parsed.Is6() || parsed.Is4In6() {
+			continue
+		}
+		if parsed.IsLinkLocalUnicast() || parsed.IsLoopback() || parsed.IsUnspecified() || parsed.IsMulticast() {
+			continue
+		}
+		return parsed.As16(), true
+	}
+	return [16]byte{}, false
+}
+
+func interfaceMTU(name string) uint16 {
+	infos, err := ifcomp.ListInterfaces()
+	if err != nil {
+		return 1500
+	}
+	for idx := range infos {
+		info := &infos[idx]
+		if info.Name != name && info.OsName != name {
+			continue
+		}
+		if info.MTU <= 0 || info.MTU > 65535 {
+			return 1500
+		}
+		return uint16(info.MTU)
+	}
+	return 1500
+}
+
+// interfaceIndex returns the OS ifindex for an interface, the value the engine uses as
+// the OSPFv3 Interface ID (RFC 5340 sec 3.4.3) in both the Hello and the Router-LSA so
+// the two agree. It returns 0 when the interface is not found (OSPFv2 ignores it).
+func interfaceIndex(name string) uint32 {
+	infos, err := ifcomp.ListInterfaces()
+	if err != nil {
+		return 0
+	}
+	for idx := range infos {
+		info := &infos[idx]
+		if info.Name != name && info.OsName != name {
+			continue
+		}
+		if info.Index > 0 {
+			return uint32(info.Index)
+		}
+		return 0
+	}
+	return 0
+}
+
+func maskFromPrefixLength(prefix int) [4]byte {
+	var mask uint32
+	if prefix > 0 {
+		mask = ^uint32(0) << uint(32-prefix)
+	}
+	return [4]byte{byte(mask >> 24), byte(mask >> 16), byte(mask >> 8), byte(mask)}
+}

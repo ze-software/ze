@@ -72,6 +72,15 @@ func TestAcceptLoopPreventionBGPSubSources(t *testing.T) {
 	}
 }
 
+func TestAcceptUmbrellaOriginSource(t *testing.T) {
+	route := RedistRoute{Origin: "bgp", Family: family.IPv6Unicast, Source: "ebgp"}
+
+	assert.True(t, (ImportRule{Source: "bgp"}).Accept(route, "ospf"))
+	assert.True(t, (ImportRule{Source: "ebgp"}).Accept(route, "ospf"))
+	assert.False(t, (ImportRule{Source: "ibgp"}).Accept(route, "ospf"))
+	assert.False(t, (ImportRule{Source: "bgp"}).Accept(route, "bgp"))
+}
+
 // TestAcceptSourceMismatch verifies routes are rejected when source doesn't match the rule.
 //
 // VALIDATES: Import rule only accepts routes from its configured source.

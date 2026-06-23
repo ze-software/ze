@@ -30,12 +30,12 @@ type ImportRule struct {
 // A route is rejected if:
 //   - its origin protocol matches the importing protocol (loop prevention)
 //   - its family is not in the allowed list (when families is non-empty)
-//   - its source does not match the rule's source
+//   - neither its specific source nor umbrella origin matches the rule's source
 func (r ImportRule) Accept(route RedistRoute, importingProtocol string) bool {
 	if route.Origin == importingProtocol {
 		return false
 	}
-	if route.Source != r.Source {
+	if route.Source != r.Source && route.Origin != r.Source {
 		return false
 	}
 	return len(r.Families) == 0 || slices.Contains(r.Families, route.Family)

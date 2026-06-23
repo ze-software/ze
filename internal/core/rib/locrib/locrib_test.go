@@ -291,6 +291,57 @@ func TestOnChangeCarriesECMPSiblings(t *testing.T) {
 	assert.Nil(t, changes[3].ECMP, "single surviving member must carry nil ECMP")
 }
 
+// TestOnChangeDispatchesECMPMembershipChanges validates that adding or removing
+// an equal-cost sibling emits ChangeUpdate even when the stable first-seen best
+// Path does not change.
+//
+// VALIDATES: Loc-RIB dispatches ECMP membership-only changes so sysrib receives
+// the final multipath set after protocols insert one Path per next-hop.
+// PREVENTS: OSPF/IS-IS ECMP collapsing to a single kernel next-hop because the
+// first Insert emitted a single-path Add and later equal-cost siblings were silent.
+func TestOnChangeDispatchesECMPMembershipChanges(t *testing.T) {
+	r := NewRIB()
+	var changes []Change
+	r.OnChange(func(c Change) { changes = append(changes, c) })
+
+	ecmpPfx := netip.MustParsePrefix("10.51.0.0/24")
+	nh1 := netip.MustParseAddr("10.0.1.1")
+	nh2 := netip.MustParseAddr("10.0.1.2")
+	nh3 := netip.MustParseAddr("10.0.1.3")
+	path := func(instance uint32, nh netip.Addr) Path {
+		return Path{Source: idOSPF, Instance: instance, NextHop: nh, AdminDistance: 115, Metric: 10}
+	}
+
+	r.Insert(famV4, ecmpPfx, path(0, nh1))
+	require.Len(t, changes, 1)
+	assert.Equal(t, ChangeAdd, changes[0].Kind)
+	assert.Nil(t, changes[0].ECMP)
+
+	r.Insert(famV4, ecmpPfx, path(1, nh2))
+	require.Len(t, changes, 2, "adding an equal-cost sibling must dispatch")
+	assert.Equal(t, ChangeUpdate, changes[1].Kind)
+	assert.Equal(t, nh1, changes[1].Best.NextHop, "first-seen best must stay stable")
+	assertECMPGroup(t, changes[1], nh1, nh2)
+
+	r.Insert(famV4, ecmpPfx, path(2, nh3))
+	require.Len(t, changes, 3, "adding another equal-cost sibling must dispatch")
+	assert.Equal(t, ChangeUpdate, changes[2].Kind)
+	assert.Equal(t, nh1, changes[2].Best.NextHop)
+	assert.ElementsMatch(t, []netip.Addr{nh2, nh3}, changes[2].ECMP)
+
+	r.Remove(famV4, ecmpPfx, idOSPF, 2)
+	require.Len(t, changes, 4, "removing a non-best equal-cost sibling must dispatch")
+	assert.Equal(t, ChangeUpdate, changes[3].Kind)
+	assert.Equal(t, nh1, changes[3].Best.NextHop)
+	assert.Equal(t, []netip.Addr{nh2}, changes[3].ECMP)
+
+	r.Remove(famV4, ecmpPfx, idOSPF, 1)
+	require.Len(t, changes, 5, "shrinking to a single best must dispatch")
+	assert.Equal(t, ChangeUpdate, changes[4].Kind)
+	assert.Equal(t, nh1, changes[4].Best.NextHop)
+	assert.Nil(t, changes[4].ECMP)
+}
+
 // assertECMPGroup asserts that c describes a two-member equal-cost group over
 // {a, b}: Best.NextHop is one of them, ECMP holds exactly the other, and ECMP
 // never contains Best.NextHop. Order-independent so it does not depend on the

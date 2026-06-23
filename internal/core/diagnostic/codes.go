@@ -291,6 +291,18 @@ var builtinCodes = []CodeMeta{
 		Description: "IS-IS is configured but a raw AF_PACKET/SOCK_RAW socket cannot be opened. IS-IS runs directly over IEEE 802.3 frames (ISO/IEC 10589), so it needs CAP_NET_RAW or root; without it IS-IS cannot send or receive IIH/LSP/CSNP/PSNP PDUs and forms no adjacencies.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-isis-raw-socket"},
 	},
+	{
+		Code:        "doctor-ospf-raw-socket",
+		Title:       "OSPF raw IP socket unavailable",
+		Description: "OSPF is configured but a raw IP socket for protocol 89 (RFC 2328) cannot be opened. This requires CAP_NET_RAW or root; without it OSPF cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-ospf-raw-socket"},
+	},
+	{
+		Code:        "doctor-ospfv3-raw-socket",
+		Title:       "OSPFv3 raw IPv6 socket unavailable",
+		Description: "OSPFv3 is configured but a raw IPv6 socket for protocol 89 (RFC 5340) cannot be opened. This requires CAP_NET_RAW or root; without it OSPFv3 cannot send or receive Hello, DD, LS Request, LS Update, or LS Ack packets.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-ospfv3-raw-socket"},
+	},
 	// doctor-isis-net-missing and doctor-isis-system-id-mismatch are NOT listed
 	// here: they are owned and registered by the IS-IS component
 	// (internal/plugins/isis/codes.go init() via diagnostic.Register), so

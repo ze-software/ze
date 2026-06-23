@@ -1,0 +1,12 @@
+# Test: OSPFv2 Loc-RIB and sysrib admin-distance arbitration.
+#
+# VALIDATES: spec-ospf-8-spf-rib -- OSPF publishes admin distance 110 into the
+# Loc-RIB, sysrib consumes the Loc-RIB best-change path, a lower-distance static
+# source wins, and OSPF wins once the competing source is raised above 110.
+# PREVENTS: regressions where OSPF bypasses Loc-RIB/sysrib best-path selection,
+# uses redistevents for FIB install, or ignores cross-protocol admin distance.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/component/sysrib ./internal/plugins/ospf/spf -run TestSysRIBOSPFLocRIBAdminDistanceArbitration$|TestOSPFRedistArbitrationFunctional$ -count=1:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=TestSysRIBOSPFLocRIBAdminDistanceArbitration
+expect=stdout:contains=TestOSPFRedistArbitrationFunctional

@@ -16,14 +16,18 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 | Monitor only (no RIB) | None | Ze runs without plugins -- peers connect, events fire, no routes stored |
 | Interface-aware BGP | `iface` + `bgp-rib` | React to OS interface changes -- start/stop BGP listeners when addresses appear/disappear |
 | Static routes | (auto-loaded) | Config-driven static routes with ECMP, weighted load balancing, BFD failover. [Guide](static-routes.md) |
+| OSPFv2 edge plugin | (auto-loaded) | `ospf {}` starts the native OSPFv2 edge plugin, validates router-id/area/interface config, opens raw IPv4 sockets for active links, runs the Interface and Neighbor State Machines, and handles LSDB flooding |
 
 NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically when you configure the corresponding address family. You don't need to declare them.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->
 
 ## Config-Driven Loading
 
-BGP itself is a config-driven plugin. If your config has a `bgp { }` section, BGP loads automatically. If it doesn't, ze starts without BGP (useful for interface-only or FIB-only deployments). You can add or remove `bgp { }` at runtime via config reload (SIGHUP) and BGP will start or stop dynamically. The same mechanism works for `interface { }` and other top-level config sections.
+BGP itself is a config-driven plugin. If your config has a `bgp { }` section, BGP loads automatically. If it doesn't, ze starts without BGP (useful for interface-only or FIB-only deployments). Native OSPFv2 follows the same pattern: an `ospf { }` section auto-loads the `ospf` edge plugin through `ConfigRoots ["ospf"]`.
 <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins, autoLoadForNewConfigPaths -->
+<!-- source: internal/plugins/ospf/register.go -- registerOSPF ConfigRoots -->
+<!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello, HandleDBDesc -->
+<!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB -->
 
 ## Loading Plugins
 

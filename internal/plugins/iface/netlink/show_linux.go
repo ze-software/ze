@@ -149,6 +149,10 @@ func parseLinkSpeedDuplex(speedRaw, duplexRaw string) (int, string) {
 	return speed, duplex
 }
 
+// ifaFlagTentative is the kernel IFA_F_TENTATIVE address flag: the IPv6 address is still
+// completing Duplicate Address Detection and is not yet a usable source.
+const ifaFlagTentative = 0x40
+
 func addrList(link netlink.Link) []iface.AddrInfo {
 	addrs, err := netlink.AddrList(link, netlink.FAMILY_ALL)
 	if err != nil {
@@ -166,6 +170,8 @@ func addrList(link netlink.Link) []iface.AddrInfo {
 			Address:      a.IP.String(),
 			PrefixLength: ones,
 			Family:       fam,
+			// Surface IFA_F_TENTATIVE so OSPFv3 can prefer a DAD-complete link-local source.
+			Tentative: a.Flags&ifaFlagTentative != 0,
 		})
 	}
 	return result

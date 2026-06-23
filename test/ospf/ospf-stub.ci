@@ -1,0 +1,58 @@
+# Test: OSPFv2 stub / totally-stubby area config surface (spec-ospf-11).
+#
+# VALIDATES: spec-ospf-11-stub-nssa -- a `area-type stub` area with `default-cost` and
+# `no-summary` (totally-stubby) validates through the OSPF YANG schema and verifier; the
+# default-cost is bounded to the 24-bit Summary-LSA metric range.
+# PREVENTS: regressions where the stub area-type / no-summary / default-cost leaves are
+# unwired, or default-cost is not range-checked.
+
+# --- Valid: stub + totally-stubby (no-summary) with a default-cost. ------------
+stdin=ospf-stub-valid:terminator=EOF_VALID
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+			area-type normal
+		}
+		area 0.0.0.7 {
+			area-type stub
+			no-summary true
+			default-cost 25
+		}
+	}
+	interfaces {
+		interface eth0 {
+			area 0.0.0.0
+		}
+		interface eth1 {
+			area 0.0.0.7
+		}
+	}
+}
+EOF_VALID
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=ospf-stub-valid
+expect=exit:code=0
+expect=stdout:contains=configuration valid
+
+# --- Boundary: default-cost is a 24-bit metric (0..16777215). -----------------
+stdin=ospf-stub-badcost:terminator=EOF_BAD
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.7 {
+			area-type stub
+			default-cost 16777216
+		}
+	}
+	interfaces {
+		interface eth1 {
+			area 0.0.0.7
+		}
+	}
+}
+EOF_BAD
+
+cmd=foreground:seq=2:exec=ze config validate -:stdin=ospf-stub-badcost
+expect=exit:code=1
+expect=stdout:contains=range 0..16777215

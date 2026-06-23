@@ -1,0 +1,23 @@
+# Test: OSPFv2 SPF route installation.
+#
+# VALIDATES: spec-ospf-8-spf-rib -- hand-built OSPF LSDB input reaches the SPF
+# route table and inserts one Loc-RIB path per OSPF next-hop with Source=ospf,
+# admin distance 110, ECMP instances, sysrib ECMP membership updates, and
+# withdraw on loss.
+# PREVENTS: regressions that compute SPF but bypass the Loc-RIB install path,
+# regressions where Loc-RIB suppresses ECMP membership-only updates before
+# sysrib/fibkernel can see them, and OSPF ECMP collapsing to one next-hop.
+#
+# Live multi-node kernel assertions (remote prefix as RTPROT_ZE, ECMP multipath,
+# and withdrawal after neighbor loss) require Linux raw sockets/veth and are
+# owned by the OSPF FRR/QEMU interop scenarios in spec-ospf-13, matching the
+# IS-IS SPF/RIB test split. `ospf-route-daemon.ci` covers the daemon wiring half.
+
+cmd=foreground:seq=1:exec=go test -v ./internal/plugins/ospf/spf ./internal/core/rib/locrib ./internal/component/sysrib -run TestOSPF(SPFRoute|InstallPath|SPFECMP)$|TestOnChangeDispatchesECMPMembershipChanges$|TestSysRIBConsumesLocRIBECMPMembership$|TestSysRIBReplaysLocRIBECMPMembership$ -count=1:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=TestOSPFSPFRoute
+expect=stdout:contains=TestOSPFInstallPath
+expect=stdout:contains=TestOSPFSPFECMP
+expect=stdout:contains=TestOnChangeDispatchesECMPMembershipChanges
+expect=stdout:contains=TestSysRIBConsumesLocRIBECMPMembership
+expect=stdout:contains=TestSysRIBReplaysLocRIBECMPMembership
