@@ -92,26 +92,36 @@ func runTFTPServerPlugin(conn net.Conn) int {
 		for _, ifName := range cfg.ListenInterfaces {
 			// Resolve the logical name to its kernel device so SO_BINDTODEVICE
 			// binds the right interface when name != os device (os-name /
-			// mac-match selectors).
-			b, rerr := iface.Resolve(ifName)
+			// mac-match selectors). Best-effort: when no iface backend is
+			// loaded -- the install/provision path configures the interface
+			// directly via netlink without starting the iface component --
+			// bindDeviceFor returns the name verbatim, which is the kernel
+			// device in that case.
+			device, rerr := bindDeviceFor(ifName)
 			if rerr != nil {
-				log.Error("tftpserver: resolve interface failed",
-					"interface", ifName, "error", rerr)
-				continue
+				log.Debug("tftpserver: iface backend unavailable, binding by name",
+					"interface", ifName, "device", device, "error", rerr)
 			}
-			ln, err := listenTFTP(b.OsName)
+			ln, err := listenTFTP(device)
 			if err != nil {
 				log.Error("tftpserver: listen failed",
-					"interface", ifName, "error", err)
+					"interface", ifName, "device", device, "error", err)
 				continue
 			}
 			listeners = append(listeners, ln)
 			go serve(ln, cfg.RootDirectory, sem, log)
 		}
 
+		if len(listeners) == 0 {
+			log.Error("tftpserver: no interfaces bound; server not serving",
+				"interfaces", cfg.ListenInterfaces)
+			return
+		}
+
 		log.Info("tftpserver: started",
 			"root-directory", cfg.RootDirectory,
 			"interfaces", cfg.ListenInterfaces,
+			"listeners", len(listeners),
 			"max-transfers", cfg.MaxTransfers)
 	}
 
@@ -155,4 +165,18 @@ func closeLogged(c closer, log *slog.Logger, what string) {
 	if err := c.Close(); err != nil {
 		log.Debug("tftpserver: close failed", "what", what, "error", err)
 	}
+}
+
+// bindDeviceFor resolves a logical interface name to its kernel device for
+// SO_BINDTODEVICE. It is best-effort, mirroring iface.resolveOS: when the iface
+// backend is not loaded -- the install/provision path configures the interface
+// directly via netlink without starting the iface component -- it returns the
+// name verbatim (and the resolve error, so the caller can log the fallback).
+// The returned name is the kernel device in that case.
+func bindDeviceFor(ifName string) (string, error) {
+	b, err := iface.Resolve(ifName)
+	if err == nil && b.OsName != "" {
+		return b.OsName, nil
+	}
+	return ifName, err
 }

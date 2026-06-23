@@ -3,6 +3,7 @@
 package imageserver
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -142,17 +143,30 @@ func runImageServerPlugin(conn net.Conn) int {
 			MaxHeaderBytes:    1 << 16,
 		}
 
+		// Bind synchronously so a failed bind is reported honestly. The old
+		// code logged "started" inside the serve goroutine and only reported a
+		// bind failure afterwards, which masked the install-path failure where
+		// the server never came up at all.
+		var lc net.ListenConfig
+		ln, lerr := lc.Listen(context.Background(), "tcp", addr)
+		if lerr != nil {
+			log.Error("imageserver: listen failed", "addr", addr, "error", lerr)
+			stopServer()
+			return
+		}
+
 		logAvailableFiles(log, "image-directory", cfg.ImageDirectory)
 		logAvailableFiles(log, "boot-directory", cfg.BootDirectory)
 		logServedImage(log, cfg.ImageDirectory)
 
+		log.Info("imageserver: started",
+			"addr", ln.Addr().String(),
+			"image-directory", cfg.ImageDirectory,
+			"boot-directory", cfg.BootDirectory)
+
 		go func() {
-			log.Info("imageserver: started",
-				"addr", addr,
-				"image-directory", cfg.ImageDirectory,
-				"boot-directory", cfg.BootDirectory)
-			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Error("imageserver: listen failed", "error", err)
+			if err := httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
+				log.Error("imageserver: serve error", "error", err)
 			}
 		}()
 	}
@@ -196,11 +210,39 @@ func runImageServerPlugin(conn net.Conn) int {
 func resolveInterfaceIPv4(ifaceName string) (string, error) {
 	addrs, err := iface.Addresses(ifaceName)
 	if err != nil {
-		return "", fmt.Errorf("interface %q: %w", ifaceName, err)
+		// The iface backend may not be loaded -- the install/provision path
+		// configures the interface directly via netlink without starting the
+		// iface component. Fall back to a direct kernel lookup by the
+		// configured name, which is the os device in that case.
+		return interfaceIPv4Direct(ifaceName)
 	}
 	for _, a := range addrs {
 		if a.Family == "ipv4" {
 			return a.Address, nil
+		}
+	}
+	return "", fmt.Errorf("interface %q: no IPv4 address", ifaceName)
+}
+
+// interfaceIPv4Direct returns the first IPv4 address of the named kernel
+// interface via the standard library, bypassing the iface resolver. Used as a
+// fallback when no iface backend is loaded (see resolveInterfaceIPv4).
+func interfaceIPv4Direct(ifaceName string) (string, error) {
+	ni, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return "", fmt.Errorf("interface %q: %w", ifaceName, err)
+	}
+	addrs, err := ni.Addrs()
+	if err != nil {
+		return "", fmt.Errorf("interface %q: %w", ifaceName, err)
+	}
+	for _, a := range addrs {
+		ipNet, ok := a.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		if ip4 := ipNet.IP.To4(); ip4 != nil {
+			return ip4.String(), nil
 		}
 	}
 	return "", fmt.Errorf("interface %q: no IPv4 address", ifaceName)

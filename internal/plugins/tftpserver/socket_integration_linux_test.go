@@ -186,3 +186,39 @@ func TestListenTFTPDeviceFilter(t *testing.T) {
 		t.Fatalf("expected no response from device-bound socket over lo, got %d bytes", len(got))
 	}
 }
+
+// TestTFTPServerBindsViaResolveWithoutBackend pins the install-path fix at the
+// plugin's actual bind path: bindDeviceFor returns the configured name (no
+// iface backend is loaded in the test binary, as in `ze-setup install remote`)
+// and listenTFTP binds it for a real RRQ transfer. The pre-fix code logged a
+// resolve error and dropped the listener, leaving the TFTP server with none.
+func TestTFTPServerBindsViaResolveWithoutBackend(t *testing.T) {
+	device, _ := bindDeviceFor("lo")
+	if device != "lo" {
+		t.Fatalf("bindDeviceFor(%q) = %q, want \"lo\"", "lo", device)
+	}
+
+	conn, err := listenTFTP(device)
+	if err != nil {
+		// test-relax: same root/port-69 prerequisite skip as the other two
+		// integration tests in this file; not a coverage drop. Under QEMU
+		// (ai/rules/qemu-testing.md) the bind succeeds and the body runs.
+		t.Skipf("cannot bind %s:69 (needs root): %v", device, err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	dir := t.TempDir()
+	want := makeTestFile(t, dir, "boot.bin", 600)
+
+	sem := make(chan struct{}, 4)
+	go serve(conn, dir, sem, slogutil.DiscardLogger())
+
+	srv := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 69}
+	got, err := tftpFetch(t, srv, "boot.bin")
+	if err != nil {
+		t.Fatalf("fetch via no-backend bind path: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("transferred bytes mismatch: got %d bytes, want %d", len(got), len(want))
+	}
+}

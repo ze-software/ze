@@ -3,11 +3,79 @@ package imageserver
 import (
 	"bytes"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// firstIPv4Interface returns an interface name that has an IPv4 address and
+// that address. Loopback (127.0.0.1) qualifies, so this is deterministic on
+// normal hosts; it skips only when the host has no IPv4 at all.
+func firstIPv4Interface(t *testing.T) (string, string) {
+	t.Helper()
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		t.Fatalf("net.Interfaces: %v", err)
+	}
+	for _, ni := range ifaces {
+		addrs, addrErr := ni.Addrs()
+		if addrErr != nil {
+			continue
+		}
+		for _, a := range addrs {
+			ipNet, ok := a.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			if ip4 := ipNet.IP.To4(); ip4 != nil {
+				return ni.Name, ip4.String()
+			}
+		}
+	}
+	// test-relax: environmental guard, not a coverage drop -- interfaceIPv4Direct
+	// is a kernel-IPv4 lookup, so a host with zero IPv4 addresses cannot exercise
+	// it. Loopback (127.0.0.1) satisfies this on every normal host.
+	t.Skip("no interface with an IPv4 address on this host")
+	return "", ""
+}
+
+// TestInterfaceIPv4Direct verifies the stdlib fallback resolves a real
+// interface's IPv4 without any iface backend.
+func TestInterfaceIPv4Direct(t *testing.T) {
+	name, want := firstIPv4Interface(t)
+	got, err := interfaceIPv4Direct(name)
+	if err != nil {
+		t.Fatalf("interfaceIPv4Direct(%q): %v", name, err)
+	}
+	if got != want {
+		t.Errorf("interfaceIPv4Direct(%q) = %q, want %q", name, got, want)
+	}
+}
+
+// TestResolveInterfaceIPv4FallsBackWithoutBackend pins the install/provision
+// fix: with no iface backend loaded (the `ze-setup install remote` scenario),
+// resolveInterfaceIPv4 must fall back to a direct kernel lookup instead of
+// failing with "no backend loaded".
+func TestResolveInterfaceIPv4FallsBackWithoutBackend(t *testing.T) {
+	name, want := firstIPv4Interface(t)
+	got, err := resolveInterfaceIPv4(name)
+	if err != nil {
+		t.Fatalf("resolveInterfaceIPv4(%q) fell through without backend: %v", name, err)
+	}
+	if got != want {
+		t.Errorf("resolveInterfaceIPv4(%q) = %q, want %q", name, got, want)
+	}
+}
+
+// TestInterfaceIPv4DirectUnknown reports an error (not a panic) for a name that
+// has no kernel device.
+func TestInterfaceIPv4DirectUnknown(t *testing.T) {
+	if _, err := interfaceIPv4Direct("ze-nonexistent-iface0"); err == nil {
+		t.Fatal("expected error for nonexistent interface, got nil")
+	}
+}
 
 func captureServerLog() (*slog.Logger, *bytes.Buffer) {
 	var buf bytes.Buffer
