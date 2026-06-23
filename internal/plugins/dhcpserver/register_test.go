@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strings"
 	"testing"
 )
@@ -108,7 +109,7 @@ func TestLogExchangePXEOffer(t *testing.T) {
 	}
 
 	log, buf := captureLogger()
-	logExchange(log, req, resp)
+	logExchange(log, req, resp, nil)
 	out := buf.String()
 
 	for _, want := range []string{"OFFER", mac.String(), "bootfile"} {
@@ -123,7 +124,7 @@ func TestLogExchangeNoReply(t *testing.T) {
 	req := buildPXEDiscover(mac, 0x1, pxeArchUEFIx64)
 
 	log, buf := captureLogger()
-	logExchange(log, req, nil)
+	logExchange(log, req, nil, nil)
 	out := buf.String()
 
 	if !strings.Contains(out, "no reply") || !strings.Contains(out, mac.String()) {
@@ -131,9 +132,31 @@ func TestLogExchangeNoReply(t *testing.T) {
 	}
 }
 
+// TestLogExchangeForeignServerID pins the diagnostic that explains a PXE install
+// which boots but then stalls: the booted kernel's ip=dhcp REQUEST selected a
+// competing DHCP server on the segment, so we stay silent. The log must name the
+// foreign server-id and ours so the operator can spot the second server.
+func TestLogExchangeForeignServerID(t *testing.T) {
+	mac := net.HardwareAddr{0x60, 0xbe, 0xb4, 0x20, 0xe8, 0xd5}
+	// SELECTING REQUEST that selected a different server (192.168.1.1), asking
+	// for an address (198.19.255.2) that happens to be inside our subnet.
+	req := buildRequest(mac, 0x99, netip.MustParseAddr("198.19.255.2"), netip.MustParseAddr("192.168.1.1"))
+	ours := []netip.Addr{netip.MustParseAddr("198.19.255.1")}
+
+	log, buf := captureLogger()
+	logExchange(log, req, nil, ours)
+	out := buf.String()
+
+	for _, want := range []string{"another DHCP server", "192.168.1.1", "198.19.255.1", mac.String()} {
+		if !strings.Contains(out, want) {
+			t.Errorf("log %q missing %q", out, want)
+		}
+	}
+}
+
 func TestLogExchangeShortPacketIgnored(t *testing.T) {
 	log, buf := captureLogger()
-	logExchange(log, []byte{1, 2, 3}, nil)
+	logExchange(log, []byte{1, 2, 3}, nil, nil)
 	if buf.Len() != 0 {
 		t.Errorf("expected no log for a runt packet, got %q", buf.String())
 	}

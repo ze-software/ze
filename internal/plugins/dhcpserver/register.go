@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"slices"
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -182,6 +183,11 @@ func startListeners(cfg serverConfig, handlers []*dhcpHandler, log *slog.Logger)
 }
 
 func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
+	serverIPs := make([]netip.Addr, 0, len(handlers))
+	for _, h := range handlers {
+		serverIPs = append(serverIPs, h.serverIP)
+	}
+
 	buf := make([]byte, 1500)
 	for {
 		n, _, err := conn.ReadFromUDP(buf)
@@ -199,7 +205,7 @@ func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
 			}
 		}
 
-		logExchange(log, pkt, resp)
+		logExchange(log, pkt, resp, serverIPs)
 
 		if resp == nil {
 			continue
@@ -215,7 +221,7 @@ func serveMulti(conn *net.UDPConn, handlers []*dhcpHandler, log *slog.Logger) {
 // logExchange surfaces each DHCP request/reply at info so a provisioning
 // operator can watch address assignment and PXE bootfile selection live.
 // Errors and unanswered control packets stay quieter (debug/info).
-func logExchange(log *slog.Logger, req, resp []byte) {
+func logExchange(log *slog.Logger, req, resp []byte, serverIPs []netip.Addr) {
 	if len(req) < minPacketLen {
 		return
 	}
@@ -224,9 +230,29 @@ func logExchange(log *slog.Logger, req, resp []byte) {
 
 	if resp == nil {
 		switch reqType {
-		case msgDiscover, msgRequest:
-			log.Info("dhcpserver: no reply (no free address or not our subnet)",
-				"request", msgTypeName(reqType), "mac", mac.String())
+		case msgRequest:
+			// A REQUEST goes unanswered only when it is not addressed to us:
+			// either the client selected a different DHCP server (its option 54
+			// server-id is not ours) or its requested address is outside our
+			// subnet. Surfacing the server-id makes a competing DHCP server on
+			// the provisioning segment diagnosable from this log alone -- a
+			// booted kernel's ip=dhcp racing a second server is the classic
+			// cause of an install that PXE-boots but then cannot reach us.
+			sid := parseOptionAddr(req, optServerID)
+			if sid.IsValid() && !slices.Contains(serverIPs, sid) {
+				reqIP := parseOptionAddr(req, optRequestedIP)
+				log.Info("dhcpserver: no reply to REQUEST (client selected another DHCP server)",
+					"mac", mac.String(),
+					"selected-server-id", sid.String(),
+					"our-server-ids", serverIPs,
+					"requested-ip", reqIP.String())
+			} else {
+				log.Info("dhcpserver: no reply to REQUEST (not for our subnet)",
+					"mac", mac.String())
+			}
+		case msgDiscover:
+			log.Info("dhcpserver: no reply to DISCOVER (no free address)",
+				"mac", mac.String())
 		default:
 			log.Debug("dhcpserver: received", "request", msgTypeName(reqType), "mac", mac.String())
 		}
