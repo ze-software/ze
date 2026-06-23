@@ -21,46 +21,37 @@ const (
 	probeTimeout   = 2 * time.Second
 )
 
-// ensureNetwork checks for an existing default route. If absent (kernel
-// ip=dhcp raced with NIC link-up), brings up all NICs, waits for carrier,
-// and runs udhcpc. Then probes the install server until reachable.
-func ensureNetwork(server, port string, maxProbe int) error {
-	if hasDefaultRoute() {
-		slog.Info("network: default route present")
-	} else {
-		slog.Info("network: no default route, trying userspace DHCP")
-		if err := fallbackDHCP(); err != nil {
-			return fmt.Errorf("network setup: %w", err)
-		}
-	}
+// bringUpAllNICs is the network fallback (a package var so tests can stub it).
+// It brings every NIC up and runs DHCP so the install NIC gets an address even
+// when the kernel's ip=dhcp configured a different one.
+var bringUpAllNICs = fallbackDHCP
 
+// ensureNetwork makes the install server reachable. Reachability -- not the
+// mere presence of a default route -- is the signal that matters: on a
+// dual-homed target the kernel's ip=dhcp can configure the wrong NIC (e.g. a
+// corporate LAN port) and install a default route that does not reach the
+// install server. So probe the server first; only if it is unreachable do we
+// bring up all NICs and DHCP, then probe again over the install NIC's
+// directly-connected route.
+func ensureNetwork(server, port string, maxProbe int) error {
 	var tb textbuf.Buffer
 	probeURL := tb.Str("http://").Str(server).Byte(':').Str(port).Byte('/').String()
+
 	if maxProbe <= 0 {
 		slog.Info("network: ze.wait=0, skipping server probe")
 		return nil
 	}
-	return waitForServer(probeURL, maxProbe)
-}
 
-func hasDefaultRoute() bool {
-	data, err := os.ReadFile("/proc/net/route")
-	if err != nil {
-		return false
+	if probeServer(probeURL) {
+		slog.Info("network: install server reachable")
+		return nil
 	}
-	for line := range strings.SplitSeq(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-		if fields[0] == "Iface" {
-			continue
-		}
-		if fields[1] == "00000000" {
-			return true
-		}
+
+	slog.Info("network: install server unreachable, bringing up all NICs")
+	if err := bringUpAllNICs(); err != nil {
+		return fmt.Errorf("network setup: %w", err)
 	}
-	return false
+	return waitForServer(probeURL, maxProbe)
 }
 
 func fallbackDHCP() error {
@@ -103,6 +94,11 @@ func fallbackDHCP() error {
 		return fmt.Errorf("no NIC carrier detected after %ds", carrierWaitMax)
 	}
 
+	// DHCP every NIC with carrier, not just the first to answer: on a
+	// dual-homed target the install network may be a different NIC than the one
+	// the kernel already leased, and we need an address on it to reach the
+	// install server over its directly-connected route.
+	leased := false
 	for _, entry := range entries {
 		name := entry.Name()
 		if name == "lo" {
@@ -110,29 +106,39 @@ func fallbackDHCP() error {
 		}
 		if runCmd("udhcpc", "-i", name, "-t", "5", "-n", "-q") == nil {
 			slog.Info("network: got DHCP lease", "interface", name)
-			return nil
+			leased = true
 		}
 	}
 
-	return fmt.Errorf("no interface got a DHCP lease")
+	if !leased {
+		return fmt.Errorf("no interface got a DHCP lease")
+	}
+	return nil
+}
+
+// probeServer reports whether the install server answers one HTTP request. It
+// is a package var so tests can drive ensureNetwork without real networking.
+var probeServer = func(url string) bool {
+	client := &http.Client{Timeout: probeTimeout}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
+	if err != nil {
+		return false
+	}
+	resp, doErr := client.Do(req)
+	if doErr != nil {
+		return false
+	}
+	resp.Body.Close() //nolint:errcheck // probe only
+	return true
 }
 
 func waitForServer(url string, maxAttempts int) error {
 	slog.Info("network: probing server", "url", url)
-	client := &http.Client{Timeout: probeTimeout}
-
 	for attempt := range maxAttempts {
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
-		if err != nil {
-			continue
-		}
-		resp, doErr := client.Do(req)
-		if doErr == nil {
-			resp.Body.Close() //nolint:errcheck // probe only
+		if probeServer(url) {
 			slog.Info("network: server reachable", "attempt", attempt+1)
 			return nil
 		}
-
 		if attempt == 0 || attempt%10 == 0 {
 			slog.Info("network: waiting for server", "attempt", attempt+1, "max", maxAttempts)
 		}
