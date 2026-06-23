@@ -4,11 +4,13 @@ package imageserver
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -50,6 +52,52 @@ func newMux(cfg imageConfig, zefsPath, serverAddr string) *http.ServeMux {
 		mux.HandleFunc("/install/database.zefs", logRequest(h.serveZefs))
 	}
 	return mux
+}
+
+// Large downloads (the multi-GB image especially) stream for a long time.
+// progressWriter wraps the response writer so an operator watching the install
+// sees the transfer move -- start, periodic progress, and a final throughput
+// line -- instead of silence followed by a single status line at the end.
+// Vars (not consts) so tests can lower the threshold.
+var (
+	progressThreshold int64 = 8 << 20 // only files at least this big get progress logging
+	progressInterval        = 3 * time.Second
+)
+
+type progressWriter struct {
+	http.ResponseWriter
+	log     *slog.Logger
+	file    string
+	remote  string
+	total   int64
+	written int64
+	start   time.Time
+	lastLog time.Time
+}
+
+func (p *progressWriter) Write(b []byte) (int, error) {
+	n, err := p.ResponseWriter.Write(b)
+	p.written += int64(n)
+	if now := time.Now(); now.Sub(p.lastLog) >= progressInterval {
+		p.lastLog = now
+		p.emit("imageserver: sending")
+	}
+	return n, err
+}
+
+// emit logs one progress line with cumulative throughput and percent complete.
+func (p *progressWriter) emit(msg string) {
+	mbps := 0
+	if elapsed := time.Since(p.start).Seconds(); elapsed > 0 {
+		mbps = int(float64(p.written) / elapsed / (1 << 20))
+	}
+	pct := 0
+	if p.total > 0 {
+		pct = int(p.written * 100 / p.total)
+	}
+	p.log.Info(msg,
+		"file", p.file, "remote", p.remote,
+		"sent", p.written, "total", p.total, "percent", pct, "mbps", mbps)
 }
 
 type statusRecorder struct {
@@ -212,5 +260,23 @@ func (h *imageHandler) serveFromDir(w http.ResponseWriter, r *http.Request, dir,
 		return
 	}
 
-	http.ServeFile(w, r, filepath.Join(dir, cleaned))
+	full := filepath.Join(dir, cleaned)
+
+	// Log progress for large, full-GET downloads (the install image especially).
+	// Range requests are left to plain ServeFile so the logged total stays
+	// meaningful; the on-device installer fetches the image with a single GET.
+	if info, statErr := os.Stat(full); statErr == nil && info.Size() >= progressThreshold &&
+		r.Method == http.MethodGet && r.Header.Get("Range") == "" {
+		log := loggerPtr.Load()
+		pw := &progressWriter{
+			ResponseWriter: w, log: log, file: name, remote: r.RemoteAddr,
+			total: info.Size(), start: time.Now(), lastLog: time.Now(),
+		}
+		log.Info("imageserver: sending", "file", name, "remote", r.RemoteAddr, "total", info.Size())
+		http.ServeFile(pw, r, full)
+		pw.emit("imageserver: sent")
+		return
+	}
+
+	http.ServeFile(w, r, full)
 }
