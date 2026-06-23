@@ -194,6 +194,27 @@ When the override is active:
 - Do not claim tests, lint, `ze-verify`, integrations, or behavior were
   verified if they were skipped.
 
+### Known-Red Full Verify: Scope to Changed (BLOCKING)
+
+When `make ze-verify` is known-red from failures this session did not cause --
+pre-existing reds, or a separate session is actively clearing the global suite --
+do NOT rerun full `ze-verify` before committing. Rerunning re-surfaces other
+sessions' noise that is not your regression and blocks progress. Gate the commit
+on changed scope only:
+
+- `make ze-lint-changed`
+- the touched packages' `go test` (or `make ze-verify-changed`)
+- `make ze-doc-test` / `make ze-validate` when those surfaces changed
+- a QEMU run for any linux-only runtime code touched
+
+Then prepare the user-run commit script listing ONLY this session's files
+explicitly in `commit_helper.py create --file ...`, so the commit never pulls in
+another session's working-tree edits; exclude other sessions' files when
+reviewing `git diff`. This applies only when the global red is not yours -- a red
+caused by your own change must be fixed, not scoped around. Activate it only on an
+explicit owner direction (e.g. "another session is clearing ze-verify, check only
+what we changed"), never inferred from a red suite alone.
+
 ### Concurrent Verify Runs (BLOCKING)
 
 One `make ze-verify*` (or `ze-chaos-verify`) at a time repo-wide --

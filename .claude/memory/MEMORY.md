@@ -34,6 +34,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - feedback_memory_is_in_repo -> derivable from project structure
 - feedback_no_em_dashes -> ~/.claude/CLAUDE.md global rule
 - feedback_no_taskoutput_polling -> ai/rules/git-safety.md (verify section)
+- feedback_scope_verify_to_changed -> ai/rules/git-safety.md (Known-Red Full Verify: Scope to Changed)
 - feedback_parallel_sessions_no_stash -> CLAUDE.md + ai/rules/git-safety.md
 - feedback_read_before_overwrite -> ai/rules/never-destroy-work.md
 - feedback_workflow_cycle -> /ze-implement and /ze-review skill definitions
