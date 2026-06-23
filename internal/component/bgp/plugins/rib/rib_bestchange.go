@@ -19,6 +19,7 @@ import (
 	ribevents "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/events"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	bgpredist "codeberg.org/thomas-mangin/ze/internal/component/bgp/redistribute"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/rib/locrib"
@@ -1215,4 +1216,5 @@ func publishBestChanges(changes []bestChangeEntry, fam family.Family) {
 	if _, err := ribevents.BestChange.Emit(eb, batch); err != nil {
 		logger().Warn("best-change emit failed", "error", err)
 	}
+	bgpredist.EmitBestChange(eb, batch)
 }

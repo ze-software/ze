@@ -119,11 +119,10 @@ func run(ctx context.Context) {
 		return
 	}
 
-	// Snapshot: consumers registered after this point won't be skipped
-	// as producers. The evaluator's loop prevention handles correctness;
-	// this is an optimization to avoid subscribing to own-protocol events.
+	// Snapshot consumer protocol IDs so a producer batch is not dispatched back to
+	// the same protocol's consumer. Other consumers still receive that producer,
+	// e.g. BGP best-path changes redistributed into OSPF.
 	skipIDs := consumerProtocolIDs()
-
 	unsubs := subscribe(ctx, bus, skipIDs)
 	defer func() {
 		for _, u := range unsubs {
@@ -141,9 +140,6 @@ func subscribe(ctx context.Context, bus ze.EventBus, skipIDs map[redistevents.Pr
 	prods := redistevents.Producers()
 	out := make([]func(), 0, len(prods))
 	for _, id := range prods {
-		if skipIDs[id] {
-			continue
-		}
 		name := redistevents.ProtocolName(id)
 		if name == "" {
 			logger().Warn(Name+": producer with no name", "id", id)
@@ -170,17 +166,14 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 		logger().Warn(tb.Reset().Str(Name).Str(": batch with unspecified protocol").Slice())
 		return
 	}
-	if skipIDs[b.Protocol] {
-		if m := getMetrics(); m != nil {
-			m.filteredProtocolTotal.Inc()
-		}
-		return
-	}
 
 	name := redistevents.ProtocolName(b.Protocol)
 	if name == "" {
 		logger().Warn(Name+": batch from unregistered ProtocolID", "id", b.Protocol)
 		return
+	}
+	if skipIDs[b.Protocol] {
+		logger().Debug(Name+": source protocol has a consumer; skipping only that consumer", "source", name)
 	}
 
 	ev := configredist.Global()
@@ -206,6 +199,12 @@ func handleBatch(ctx context.Context, skipIDs map[redistevents.ProtocolID]bool, 
 		consumer, ok := configredist.LookupConsumer(cname)
 		if !ok {
 			logger().Warn(Name+": consumer not found", "consumer", cname)
+			continue
+		}
+		if id, ok := redistevents.ProtocolIDOf(cname); ok && id == b.Protocol {
+			if m := getMetrics(); m != nil {
+				m.filteredProtocolTotal.Inc()
+			}
 			continue
 		}
 		if !ev.Accept(route, cname) {

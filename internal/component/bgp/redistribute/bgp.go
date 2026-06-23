@@ -11,6 +11,10 @@ import (
 
 var bgpSourcesOnce sync.Once
 
+func init() {
+	RegisterBGPSources()
+}
+
 // RegisterBGPSources registers BGP-specific redistribute sources (bgp, ibgp, ebgp).
 // Safe to call multiple times (uses sync.Once).
 func RegisterBGPSources() {

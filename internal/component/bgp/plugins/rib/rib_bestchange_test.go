@@ -66,6 +66,15 @@ func (b *testEventBus) Subscribe(namespace, eventType string, handler func(any))
 	return func() {}
 }
 
+func (b *testEventBus) firstEvent() *testEvent {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if len(b.events) == 0 {
+		return nil
+	}
+	return &b.events[0]
+}
+
 func (b *testEventBus) lastEvent() *testEvent {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -136,7 +145,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 	// Publish and verify the EventBus event.
 	publishBestChanges([]bestChangeEntry{change}, fam)
 
-	evt := bus.lastEvent()
+	evt := bus.firstEvent()
 	require.NotNil(t, evt)
 	assert.Equal(t, "bgp-rib", evt.Namespace)
 	assert.Equal(t, ribevents.EventBestChange, evt.EventType)
@@ -736,9 +745,9 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	require.Len(t, changes, 3, "should have 3 withdraw changes")
 	publishBestChanges(changes, fam)
 
-	// Verify single event with 3 withdrawals.
-	assert.Equal(t, 1, bus.eventCount(), "should be a single batch event")
-	evt := bus.lastEvent()
+	// Verify one best-change batch plus one generic redistribution batch.
+	assert.Equal(t, 2, bus.eventCount(), "should emit best-change and redistribution batches")
+	evt := bus.firstEvent()
 	require.NotNil(t, evt)
 
 	batchPtr, ok := evt.Payload.(*bestChangeBatch)

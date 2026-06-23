@@ -311,8 +311,8 @@ func TestHandleBatchReloadApplies(t *testing.T) {
 	assert.Len(t, consumer.snapshotInjected(), 1, "second call should be accepted after reload")
 }
 
-// VALIDATES: Batches whose protocol matches a consumer are dropped.
-// PREVENTS: Consumer-sourced batches being re-dispatched, creating a loop.
+// VALIDATES: Batches whose protocol matches a consumer are skipped for that consumer.
+// PREVENTS: Consumer-sourced batches being re-dispatched to the same protocol, creating a loop.
 func TestHandleBatchConsumerSourceSkipped(t *testing.T) {
 	resetState(t)
 
@@ -326,6 +326,27 @@ func TestHandleBatchConsumerSourceSkipped(t *testing.T) {
 	handleBatch(context.Background(), skipIDs(bgpID), addBatch(bgpID, afiIPv4, "10.0.0.1/32", ""))
 
 	assert.Empty(t, consumer.snapshotInjected())
+}
+
+func TestHandleBatchConsumerSourceDispatchesToOtherConsumers(t *testing.T) {
+	resetState(t)
+
+	bgpID := redistevents.RegisterProtocol("bgp")
+	configredist.SetGlobal(configredist.NewEvaluator([]configredist.ImportRule{
+		{Source: "bgp", Families: []family.Family{family.IPv6Unicast}},
+	}))
+
+	bgpConsumer := registerBGPConsumer(t)
+	ospfConsumer := &stubConsumer{name: "ospf"}
+	require.NoError(t, configredist.RegisterConsumer(ospfConsumer))
+
+	handleBatch(context.Background(), skipIDs(bgpID), addBatch(bgpID, afiIPv6, "2001:db8:5e5::/48", "fd00:1e::4"))
+
+	assert.Empty(t, bgpConsumer.snapshotInjected(), "BGP consumer must not receive its own source")
+	inj := ospfConsumer.snapshotInjected()
+	require.Len(t, inj, 1, "non-BGP consumers should receive BGP source batches")
+	assert.Equal(t, "2001:db8:5e5::/48", inj[0].entry.Prefix)
+	assert.Equal(t, "bgp", inj[0].entry.Source)
 }
 
 // VALIDATES: Defense-in-depth -- batch with an unregistered ProtocolID is dropped.
@@ -345,9 +366,9 @@ func TestHandleBatchUnknownProtocol(t *testing.T) {
 	assert.Empty(t, consumer.snapshotInjected())
 }
 
-// VALIDATES: subscribe() skips consumer protocol IDs.
-// PREVENTS: Consumer wiring up its own protocol's events back into itself.
-func TestSubscribeSkipsConsumerProtocol(t *testing.T) {
+// VALIDATES: subscribe() listens to every producer; same-protocol loop prevention is per-consumer.
+// PREVENTS: a source such as BGP being skipped globally, which would block BGP -> OSPF redistribution.
+func TestSubscribeIncludesConsumerProtocolProducer(t *testing.T) {
 	resetState(t)
 
 	bgpID := redistevents.RegisterProtocol("bgp")
@@ -364,7 +385,7 @@ func TestSubscribeSkipsConsumerProtocol(t *testing.T) {
 		}
 	}()
 
-	require.Len(t, unsubs, 1, "only fakeredist should be subscribed (BGP skipped)")
+	require.Len(t, unsubs, 2, "both BGP and fakeredist producers should be subscribed")
 }
 
 // VALIDATES: subscribe() builds a typed handle per producer; emit is delivered.
