@@ -165,6 +165,7 @@ def classify(area: str, root: str, module: str, edges: dict, engines: set) -> li
 DISABLEABLE = {
     # gated package (repo-relative) -> required //go:build tag
     "internal/component/lg": "ze_lg",
+    "internal/component/ssh": "ze_ssh",
 }
 
 

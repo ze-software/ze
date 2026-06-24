@@ -73,7 +73,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoe/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/storage/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/sysctl/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/sysrib/yang"

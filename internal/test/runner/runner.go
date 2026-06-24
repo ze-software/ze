@@ -46,7 +46,7 @@ func TestBuildTags() string {
 	tags := strings.FieldsFunc(env.Get("ze.tags"), func(r rune) bool {
 		return r == ',' || r == ' ' || r == '\t' || r == '\n'
 	})
-	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup", "ze_lg")
+	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup", "ze_lg", "ze_ssh")
 	return textbuf.Join(tags, ",")
 }
 

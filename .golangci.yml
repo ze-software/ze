@@ -11,6 +11,7 @@ run:
   build-tags:
     - ze_core
     - ze_lg
+    - ze_ssh
 
 linters:
   exclusions:

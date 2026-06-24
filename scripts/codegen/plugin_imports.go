@@ -159,7 +159,8 @@ const rpcRoot = "internal/component"
 // without that tag drops the package entirely (per-feature compile-out).
 // See plan/spec-feature-gate-0-umbrella.md.
 var featureTags = map[string]string{
-	"internal/component/lg/yang": "ze_lg",
+	"internal/component/lg/yang":  "ze_lg",
+	"internal/component/ssh/yang": "ze_ssh",
 }
 
 // tagFor returns the build tag gating importPath, or "" if it is universal.

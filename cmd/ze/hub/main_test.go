@@ -64,6 +64,12 @@ func TestRunMissingConfig(t *testing.T) {
 // VALIDATES: Ephemeral SSH starts for any config type and writes address file.
 // PREVENTS: "command executor not ready" when config edit runs operational commands.
 func TestEphemeralDaemonStartsSSH(t *testing.T) {
+	// test-relax: ssh is compile-out-able (//go:build ze_ssh). Under the default
+	// ze_core unit build ssh is absent, so the ephemeral ssh daemon cannot start;
+	// the ze_ssh build (TestBuildTags) runs this test fully. Not weakened coverage.
+	if sshBuildStandalone == nil {
+		t.Skip("ssh compiled out (ze_ssh off): ephemeral ssh daemon is unavailable")
+	}
 	addrFile := filepath.Join(t.TempDir(), "ephemeral-ssh.addr")
 	require.NoError(t, env.Set("ze.ssh.ephemeral", addrFile))
 	defer func() { require.NoError(t, env.Set("ze.ssh.ephemeral", "")) }()

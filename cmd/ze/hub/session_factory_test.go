@@ -1,3 +1,5 @@
+//go:build ze_ssh
+
 package hub
 
 import (

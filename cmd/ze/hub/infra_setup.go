@@ -5,11 +5,7 @@ package hub
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"io"
 	"log/slog"
-	"os"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
@@ -17,15 +13,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
-	"codeberg.org/thomas-mangin/ze/internal/component/cli/contract"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
-
-var errNoCommandProvided = errors.New("no command provided")
 
 // buildAAABundle composes the AAA bundle through the pluggable backend
 // registry. The hub does not import any backend package by name: every
@@ -79,15 +70,16 @@ func setupInfraHook(recorder audit.Recorder, reloadFn func() error) {
 	})
 }
 
-// infraSetup creates SSH server, wires authorization, command executors,
-// monitor factory, and login warnings on the reactor's post-start callback.
-// Returns the SSH server (nil if SSH was not configured or failed to start).
-func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloadFn func() error) *zessh.Server {
+// infraSetup builds the always-on infra (AAA bundle, authorization, accounting,
+// reboot/GR marker) and, when ssh is compiled in, builds + wires the ssh server
+// through the seam (ssh_infra.go). Returns the ssh server handle (nil if ssh is
+// not configured, failed to start, or compiled out).
+func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloadFn func() error) sshServer {
 	log := slogutil.Logger("hub.infra")
 	r := params.Reactor
 
-	// Convert plain SSH config to ssh.Config and create server.
-	var sshSrv *zessh.Server
+	// ssh server handle; built via the seam below (nil when ssh is compiled out).
+	var sshSrv sshServer
 	sshCfg := params.SSHConfig
 	hasSSHConfig := sshCfg.HasConfig
 
@@ -140,40 +132,20 @@ func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloa
 	registerAAAAccountingProvider(bundle)
 	swapAAABundle(bundle, log)
 
-	if hasSSHConfig && bundle != nil {
-		cfg := zessh.Config{
-			Listen:        sshCfg.Listen,
-			ListenAddrs:   sshCfg.ListenAddrs,
-			HostKeyPath:   sshCfg.HostKeyPath,
-			HostCertPath:  sshCfg.HostCertPath,
-			IdleTimeout:   sshCfg.IdleTimeout,
-			MaxSessions:   sshCfg.MaxSessions,
+	// Build the ssh server through the compile-out seam (ssh_infra.go). When
+	// ssh is compiled out (ze_ssh off) sshBuild is nil and ssh is skipped; the
+	// AAA/authz/accounting work above still runs for MCP/API.
+	if hasSSHConfig && bundle != nil && sshBuild != nil {
+		sshSrv = sshBuild(&sshBuildInputs{
+			Config:        sshCfg,
 			Users:         users,
 			Authenticator: bundle.Authenticator,
-			AuditRecorder: recorder,
-		}
-		cfg.ConfigDir = params.ConfigDir
-		if cfg.ConfigDir == "" {
-			cfg.ConfigDir = coreenv.Get("ze.config.dir")
-		}
-		cfg.Storage = bgpconfig.ResolveSSHStorage(params.Store, params.ConfigDir)
-		cfg.ConfigPath = params.ConfigPath
-
-		srv, sshErr := zessh.NewServer(cfg)
-		if sshErr != nil {
-			log.Warn("SSH server config error", "error", sshErr)
-		} else if startErr := srv.Start(context.Background(), nil, nil); startErr != nil {
-			log.Warn("SSH server failed to start", "error", startErr)
-		} else {
-			log.Info("SSH server listening", "address", srv.Address())
-			sshSrv = srv
-			sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, params, recorder, reloadFn))
-			if ephemeralFile != "" {
-				if writeErr := os.WriteFile(ephemeralFile, []byte(srv.Address()), 0o600); writeErr != nil {
-					log.Warn("failed to write ephemeral SSH address", "error", writeErr)
-				}
-			}
-		}
+			Recorder:      recorder,
+			EphemeralFile: ephemeralFile,
+			Params:        params,
+			ReloadFn:      reloadFn,
+			Log:           log,
+		})
 	}
 
 	authzStore := params.AuthzStore
@@ -223,90 +195,11 @@ func infraSetup(params bgpconfig.InfraHookParams, recorder audit.Recorder, reloa
 				log.Info("AAA accounting enabled")
 			}
 
-			if sshSrv != nil {
-				apiServer := params.APIServer()
-				sshSrv.SetExecutorFactory(func(username, remoteAddr string) zessh.CommandExecutor {
-					return func(input string) (string, error) {
-						ctx := &pluginserver.CommandContext{
-							Server:     apiServer,
-							Username:   username,
-							RemoteAddr: remoteAddr,
-						}
-						resp, err := d.Dispatch(ctx, input)
-						if err != nil {
-							return "", err
-						}
-						if resp == nil {
-							return "", nil
-						}
-						return params.FormatResponseData(resp.Data), nil
-					}
-				})
-				sshSrv.SetStreamingExecutorFactory(func(username, remoteAddr string) zessh.StreamingExecutor {
-					return func(ctx context.Context, w io.Writer, args []string) error {
-						if len(args) == 0 {
-							return errNoCommandProvided
-						}
-						input := args[0]
-						cmdCtx := &pluginserver.CommandContext{
-							Server:     apiServer,
-							Username:   username,
-							RemoteAddr: remoteAddr,
-						}
-						// Streaming commands are currently monitor-style read-only commands.
-						// They still must pass through the same AAA authorizer/accountant as
-						// normal SSH commands; future write-capable streaming commands need
-						// explicit registry metadata instead of this read-only default.
-						if !d.IsAuthorized(cmdCtx, input, true) {
-							return pluginserver.ErrUnauthorized
-						}
-						handler, handlerArgs := pluginserver.GetStreamingHandlerForCommand(input)
-						if handler == nil {
-							return fmt.Errorf("unknown streaming command: %q", input)
-						}
-						defer d.BeginAccounting(cmdCtx, input)()
-						return handler(ctx, apiServer, w, username, handlerArgs)
-					}
-				})
-				sshSrv.SetMonitorFactory(func(ctx context.Context, args []string) (*contract.MonitorSession, error) {
-					opts, err := pluginserver.ParseEventMonitorArgs(args)
-					if err != nil {
-						return nil, err
-					}
-					subs := pluginserver.BuildEventMonitorSubscriptions(opts)
-					id := fmt.Sprintf("tui-monitor-%d", time.Now().UnixNano())
-					client := pluginserver.NewMonitorClient(ctx, id, subs, 64)
-					apiServer.Monitors().Add(client)
-					cancel := func() {
-						apiServer.Monitors().Remove(id)
-					}
-					return &contract.MonitorSession{
-						EventChan:  client.EventChan,
-						Cancel:     cancel,
-						FormatFunc: pluginserver.MonitorEventFormatter(),
-					}, nil
-				})
-				sshSrv.SetPluginProtocolFunc(func(ctx context.Context, reader io.ReadCloser, writer io.WriteCloser) error {
-					return apiServer.HandleAdHocPluginSession(reader, writer)
-				})
-				sshSrv.SetShutdownFunc(func() { r.Stop() })
-				sshSrv.SetRestartFunc(func() {
-					writeGRMarker()
-					r.Stop()
-				})
-				sshSrv.SetRebootFunc(func() {
-					writeGRMarker()
-					rebootRequested.Store(true)
-					r.Stop()
-				})
-				rl := apiServer.Reactor()
-				sshSrv.SetLoginWarnings(func() []contract.LoginWarning {
-					bw := params.CollectLoginWarnings(rl)
-					warnings := make([]contract.LoginWarning, len(bw))
-					for i, w := range bw {
-						warnings[i] = contract.LoginWarning{Message: w.Message, Command: w.Command}
-					}
-					return warnings
+			if sshSrv != nil && sshWirePostStart != nil {
+				sshWirePostStart(sshSrv, &sshWireInputs{
+					Reactor:       r,
+					Params:        params,
+					WriteGRMarker: writeGRMarker,
 				})
 				log.Info("SSH command executor wired")
 			}

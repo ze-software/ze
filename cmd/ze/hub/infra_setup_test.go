@@ -1,3 +1,5 @@
+//go:build ze_ssh
+
 package hub
 
 import (
@@ -10,6 +12,7 @@ import (
 
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
+	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
@@ -39,6 +42,8 @@ func TestInfraSetupWiresSessionModelFactory(t *testing.T) {
 
 	sshSrv := infraSetup(params, nil, nil)
 	require.NotNil(t, sshSrv, "infraSetup should return a running SSH server")
-	assert.True(t, sshSrv.HasSessionModelFactory(),
+	srv, ok := sshSrv.(*zessh.Server)
+	require.True(t, ok, "infraSetup should return a *zessh.Server when ssh is compiled in")
+	assert.True(t, srv.HasSessionModelFactory(),
 		"session model factory must be set for interactive SSH sessions to work")
 }

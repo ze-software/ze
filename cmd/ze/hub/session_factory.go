@@ -1,5 +1,10 @@
 // Design: docs/architecture/hub-architecture.md -- SSH session model factory
-// Related: infra_setup.go -- wires the factory into the SSH server
+// Related: service_ssh.go -- builds the factory into the SSH server (via the seam)
+//
+// Compiled only under //go:build ze_ssh: the interactive ssh session model is
+// ssh-only and dropped from the binary when ssh is compiled out.
+
+//go:build ze_ssh
 
 package hub
 

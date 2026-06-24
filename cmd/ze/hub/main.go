@@ -50,7 +50,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/pppoe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoeclient"
 	resolvecmd "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
-	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
@@ -714,76 +713,49 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			HasConfig: true,
 		}
 	}
-	if sshCfg.HasConfig && !hasBGPBlock {
-		cfg := zessh.Config{
-			Listen:        sshCfg.Listen,
-			ListenAddrs:   sshCfg.ListenAddrs,
-			HostKeyPath:   sshCfg.HostKeyPath,
-			HostCertPath:  sshCfg.HostCertPath,
-			IdleTimeout:   sshCfg.IdleTimeout,
-			MaxSessions:   sshCfg.MaxSessions,
-			Users:         sshCfg.Users,
-			AuditRecorder: auditLog,
-		}
+	// Start ssh through the compile-out seam (ssh_infra.go). The AAA bundle is
+	// built always-on (it may also serve MCP/API); only the resolved
+	// authenticator crosses the seam. When ssh is compiled out (ze_ssh off)
+	// sshBuildStandalone is nil and ssh is skipped.
+	if sshCfg.HasConfig && !hasBGPBlock && sshBuildStandalone != nil {
+		users := sshCfg.Users
 		if zefsUsers, err := loadZefsUsers(); err == nil {
-			cfg.Users = mergeAuthUsers(zefsUsers, cfg.Users)
+			users = mergeAuthUsers(zefsUsers, users)
+		}
+		configDir := loadResult.ConfigDir
+		if configDir == "" {
+			configDir = env.Get("ze.config.dir")
+		}
+		inputs := &sshStandaloneInputs{
+			Config:        sshCfg,
+			Users:         users,
+			Recorder:      auditLog,
+			ConfigDir:     configDir,
+			Storage:       bgpconfig.ResolveSSHStorage(store, configDir),
+			ConfigPath:    configPath,
+			EphemeralFile: ephemeralFile,
+			Dispatch:      sshDispatch,
+			ReloadFn:      reloadAfterCommit,
+			Log:           slogutil.Logger("hub.ssh"),
 		}
 
-		// Build the AAA bundle via the registry (local + any enabled remote backends).
-		// swapAAABundle installs it as the live bundle so closeAAABundle (deferred
-		// at the top of runYANGConfig) drains backend workers on process exit.
+		// Build the AAA bundle via the registry (local + any enabled remote
+		// backends). swapAAABundle installs it as the live bundle so
+		// closeAAABundle (deferred at the top of runYANGConfig) drains backend
+		// workers on process exit.
 		aaaLog := slogutil.Logger("hub.aaa")
-		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, cfg.Users, bgpconfig.ExtractAuthzStore(loadResult.Tree), aaaLog)
+		aaaBundle, aaaErr := buildAAABundle(loadResult.Tree, users, bgpconfig.ExtractAuthzStore(loadResult.Tree), aaaLog)
 		if aaaErr != nil {
 			aaaLog.Warn("AAA backend build failed; SSH authenticator not set", "error", aaaErr)
 			registerAAAAccountingProvider(nil)
 		} else {
 			registerAAAAccountingProvider(aaaBundle)
-			cfg.Authenticator = aaaBundle.Authenticator
+			inputs.Authenticator = aaaBundle.Authenticator
 			swapAAABundle(aaaBundle, aaaLog)
 		}
 
-		cfg.ConfigDir = loadResult.ConfigDir
-		if cfg.ConfigDir == "" {
-			cfg.ConfigDir = env.Get("ze.config.dir")
-		}
-		cfg.Storage = bgpconfig.ResolveSSHStorage(store, cfg.ConfigDir)
-		cfg.ConfigPath = configPath
-
-		sshSrv, sshErr := zessh.NewServer(cfg)
-		if sshErr != nil {
-			slog.Warn("SSH server config error", "error", sshErr)
-		} else {
-			// Wire session model factory so interactive SSH sessions work.
-			// reloadAfterCommit is in scope here (no-BGP path starts SSH
-			// after the reload closure is built), so commits propagate to
-			// the running daemons.
-			sshSrv.SetSessionModelFactory(buildSessionModelFactory(sshSrv, bgpconfig.InfraHookParams{
-				ConfigPath: configPath,
-				Store:      cfg.Storage,
-			}, auditLog, reloadAfterCommit))
-			// Wire executor factory for non-interactive exec commands
-			// (e.g., config edit's "run show traceroute" via SSH exec).
-			sshSrv.SetExecutorFactory(func(username, remoteAddr string) zessh.CommandExecutor {
-				return func(input string) (string, error) {
-					return sshDispatch(input, username, remoteAddr)
-				}
-			})
-			if startErr := sshSrv.Start(context.Background(), nil, nil); startErr != nil {
-				slog.Warn("SSH server failed to start", "error", startErr)
-			} else {
-				slog.Info("SSH server listening", "address", sshSrv.Address())
-				if ephemeralFile != "" {
-					if writeErr := os.WriteFile(ephemeralFile, []byte(sshSrv.Address()), 0o600); writeErr != nil {
-						slog.Warn("failed to write ephemeral SSH address", "error", writeErr)
-					}
-				}
-				defer func() {
-					shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
-					defer shutdownCancel()
-					_ = sshSrv.Stop(shutdownCtx)
-				}()
-			}
+		if stop := sshBuildStandalone(inputs); stop != nil {
+			defer stop()
 		}
 	}
 

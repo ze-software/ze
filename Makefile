@@ -30,11 +30,13 @@ ZE_TAGFLAG := -tags $(ZE_TAGS)
 endif
 
 # Default-on per-feature compile-out tags. A service guarded by //go:build
-# ze_<feature> is compiled into ze / ze-appliance iff its tag is listed here;
-# omit one (or build ze-stripped, which has none) for a smaller, hardened
-# binary. Add a new feature's tag here when it becomes default-on.
+# ze_<feature> is compiled into ze / ze-appliance iff its tag is listed here.
+# ze-stripped keeps only ze_ssh (the base operator management plane) and drops
+# the rest; a fully hardened build with no ssh either is `go build -tags ze_core`
+# (bare) -- the no-ssh path proven by TestBuildTag_SSH_Absent + a go-tool-nm
+# symbol check. Add a new feature's tag here when it becomes default-on.
 # See plan/spec-feature-gate-0-umbrella.md.
-ZE_FEATURES := ze_lg
+ZE_FEATURES := ze_lg ze_ssh
 
 # Version: YY.MM.DD from current date, injected via ldflags.
 ZE_VERSION := $(shell date +%y.%m.%d)
@@ -103,7 +105,7 @@ ze-setup-bin:
 
 ze-stripped:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
+	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
 
 chaos:
 	@mkdir -p bin
@@ -139,7 +141,7 @@ bin/ze-setup: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 bin/ze-stripped: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-stripped..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
+	$(GO) build -tags 'ze_core ze_ssh $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-stripped ./cmd/ze
 bin/ze-test: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p bin

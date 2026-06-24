@@ -80,18 +80,27 @@ is reached ONLY through build-tag-gated registration. A direct functional `impor
 from always-on (untagged) code pins the package into every binary and defeats the
 compile-out; only a blank/gated registration import can be dropped by a build tag.
 
-The pilot is looking-glass: its server (`internal/component/lg`) is reached only
-from `cmd/ze/hub/service_lg.go` + `register_lg.go` (`//go:build ze_lg`) through the
-service construction registry, and its YANG schema is gated into a generated
-`all_ze_lg.go` by `plugin_imports.go`. `make ze` / `ze-appliance` pass the
-default-on feature tags (`ZE_FEATURES` in the Makefile); `ze-stripped` omits them
-for a smaller, hardened binary. See `plan/spec-feature-gate-0-umbrella.md`.
+Two shapes exist. **Listener services** (looking-glass: `ze_lg`) plug into the
+construction registry (`cmd/ze/hub/service_registry.go`): a gated
+`service_<x>.go` + `register_<x>.go` register a factory the hub iterates.
+**ssh** (`ze_ssh`) does NOT fit that registry -- it is built inside the shared
+daemon-startup path (`infraSetup` + the no-`bgp{}` path), interleaved with
+always-on AAA/authorization/accounting, and carries an interactive session
+model. So ssh uses a dedicated **seam** (`ssh_infra.go`: nil-able `sshBuild`/
+`sshWirePostStart`/`sshBuildStandalone` vars set by a gated `register_ssh.go`);
+always-on code calls the seam without importing `internal/component/ssh`. Both
+shapes gate their YANG schema into a generated `all_ze_<feature>.go` via
+`plugin_imports.go`. `make ze` / `ze-appliance` pass the default-on feature tags
+(`ZE_FEATURES` in the Makefile); `ze-stripped` omits them for a smaller, hardened
+binary. See `plan/spec-feature-gate-0-umbrella.md`.
 
 **Rule:** a compile-out-able feature (gated by `//go:build ze_<feature>`) MUST NOT
-be directly imported by always-on code. Reach it through the service construction
-registry (`cmd/ze/hub/service_registry.go`) or another gated file. `dep_audit.py`
+be directly imported by always-on code. Reach it through the construction
+registry or a seam (`ssh_infra.go`-style) in another gated file. `dep_audit.py`
 enumerates these features (`DISABLEABLE`); the gate flags any always-on, non-test
-importer.
+importer. A new feature's tag goes in four places: `ZE_FEATURES` (Makefile),
+`TestBuildTags()` (`internal/test/runner/runner.go`), `.golangci.yml` build-tags,
+and `featureTags` (`plugin_imports.go`, if it has a YANG schema).
 
 ## The gate
 
