@@ -113,6 +113,7 @@ func TestRegisteredPluginNames(t *testing.T) {
 		"sysctl",
 		"tftpserver",
 		"traffic",
+		"traffic-usage",
 		"vpp",
 	}
 
@@ -401,6 +402,7 @@ func TestRegisteredWireMethods(t *testing.T) {
 		"ze-show:tcp-check",
 		"ze-show:traceroute",
 		"ze-show:traffic",
+		"ze-show:traffic-usage",
 		"ze-show:uptime",
 		"ze-show:version",
 		"ze-show:vpn-ipsec-peer",
@@ -508,6 +510,7 @@ func TestYANGSchemaProviders(t *testing.T) {
 		"sysctl",
 		"tftpserver",
 		"traffic",
+		"traffic-usage",
 		"vpp",
 	}
 

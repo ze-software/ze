@@ -22,7 +22,7 @@
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
 .PHONY: ze-docker-evidence ze-deployment-preflight
-.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
+.PHONY: ze-qemu-integration-test ze-qemu-l2tp-ppp-test ze-qemu-pppoe-accel-test ze-qemu-ldp-frr-test ze-qemu-isis-frr-test ze-qemu-traffic-usage-test ze-install-qemu-test ze-install-iso-qemu-test ze-qemu-all-test ze-qemu-needs-linux-test
 
 # ─── Interop ────────────────────────────────────────────────────────────────
 
@@ -314,4 +314,18 @@ ze-qemu-pppoe-accel-test:
 		--kernel tmp/kernel/vmlinuz \
 		--packages "accel-ppp ppp iproute2 iputils-ping kmod python3" \
 		--run 'python3 scripts/evidence/effective-pppoe-accel.py' \
+		--timeout 600
+
+# Exercises the traffic-usage eBPF TCX programs against ze's own runtime kernel
+# (built from runtime.config with CONFIG_BPF_SYSCALL/CONFIG_BPF_JIT/CONFIG_VETH).
+# Loads the pure-Go programs, attaches them to a veth pair, injects frames via
+# AF_PACKET, asserts the maps, and scrapes /metrics. Validates the kernel
+# additions end-to-end, not just on the stock Alpine kernel.
+ze-qemu-traffic-usage-test:
+	@test -f tmp/kernel/vmlinuz || { echo "error: tmp/kernel/vmlinuz not found (run: make ze-kernel GOKRAZY_ARCH=arm64)"; exit 1; }
+	@echo "Running traffic-usage eBPF TCX test in QEMU Linux VM with the runtime kernel..."
+	python3 scripts/evidence/qemu-run.py \
+		--kernel tmp/kernel/vmlinuz \
+		--packages "iproute2 kmod" \
+		--run 'go test -tags integration -count=1 -timeout 180s -run "TestProgram_|TestAttachTCX_CountsTraffic|TestMetricsScrape" ./internal/plugins/trafficusage/...' \
 		--timeout 600

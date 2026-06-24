@@ -182,6 +182,7 @@ plugin list. The groups below mirror the current registrations in
 | `firewall` | Firewall management via nftables |
 | `flowspec-firewall` | BGP FlowSpec to nftables bridge |
 | `flow-export` | sFlow, NetFlow v9, and IPFIX export |
+| `traffic-usage` | eBPF TCX per-port/protocol (and opt-in per-IP) byte accounting |
 | `traffic` | Traffic control (TC qdisc/class) |
 | `interface` | Interface management via netlink or VPP |
 | `iface-dhcp` | DHCP client for interface address assignment |

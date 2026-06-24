@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-06-20 |
+| Phase | 1/10 |
+| Updated | 2026-06-24 |
 
 ## Post-Compaction Recovery
 
@@ -15,7 +15,7 @@
 3. `internal/plugins/flowexport/register.go` + `metrics.go` + `exporter.go` -- closest analog plugin
 4. `internal/component/iface/iface.go` + `backend.go` + `rate.go` -- interface discovery + metrics pattern
 5. `internal/core/metrics/{metrics.go,prometheus.go}` -- metrics Registry abstraction
-6. `plan/to-review/spec-l2tp-12-xdp-policing.md` -- the OTHER eBPF spec (commits .o; we deliberately diverge)
+6. `plan/to-review/spec-l2tp-12-xdp-policing.md` -- the OTHER eBPF spec (originally planned committed .o; realigned 2026-06-24 to share this pure-Go approach)
 7. Upstream source: `/Users/thomas/Code/git.exa.net.uk/tech/development/lan-bandwidth-exporter/{tcx.c,main.go}`
 
 ## Task
@@ -42,8 +42,9 @@ current counts. Configuration is YANG-modeled. IPv4 only, matching upstream.
 `github.com/cilium/ebpf`'s `asm.Instructions`, assembled in-process and loaded into
 the kernel from memory. There is **NO** C source, **NO** `.o` object file, **NO**
 clang/LLVM, **NO** bpf2go, and **NO** committed binary blob -- nothing on the
-appliance disk. ze "generates" the program in-process at load time. This deliberately
-diverges from `spec-l2tp-12-xdp-policing.md`, which commits bpf2go `.o` files.
+appliance disk. ze "generates" the program in-process at load time. `spec-l2tp-12-xdp-policing.md`
+originally planned committed bpf2go `.o` files; it was realigned on 2026-06-24 to share this
+pure-Go approach, so both eBPF plugins now follow one convention.
 
 ## Required Reading
 
@@ -86,7 +87,7 @@ diverges from `spec-l2tp-12-xdp-policing.md`, which commits bpf2go `.o` files.
 
 ### Precedent / divergence
 - [ ] `plan/to-review/spec-l2tp-12-xdp-policing.md` -- the other eBPF spec
-  -> Decision: it commits bpf2go `.o` (XDP policing). We diverge: pure-Go asm, no committed blob. cilium/ebpf is the shared dependency. Its `BPF_PROG_TEST_RUN` (`prog.Test()`) test approach is reused.
+  -> Decision: it originally planned committed bpf2go `.o` (XDP policing); realigned 2026-06-24 to this pure-Go asm / no-committed-blob approach. cilium/ebpf is the shared dependency; the `BPF_PROG_TEST_RUN` (`prog.Test()`) test approach is shared.
 - [ ] `plan/learned/736-iface-rate.md`, `plan/learned/653-netdata-os-collectors.md`, `plan/learned/818-flow-export-1-counter-export.md`
   -> Constraint: metrics via `ConfigureMetrics(reg any)` -> `metrics.Registry`; stale label cleanup via `*Vec.Delete(labelValues...)`; `atomic.Pointer` holder; ze exposes absolute `*_total` as **GaugeVec** (see `rate.go` `ze_interface_rx_bytes_total`).
 
@@ -174,13 +175,13 @@ diverges from `spec-l2tp-12-xdp-policing.md`, which commits bpf2go `.o` files.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | cilium/ebpf can load a hand-built `ProgramSpec{Type: SchedCLS, Instructions}` and attach it via `link.AttachTCX`. | cilium/ebpf `asm`/`link` API; upstream uses `link.AttachTCX` on a SchedCLS prog. | Entire pure-Go approach invalid; fall back to generated-bytecode-in-Go (reopen user decision). | Phase-2 spike: load minimal prog + `prog.Test()` under QEMU. | unvalidated |
-| A-2 | A programmatic `CollectionSpec` (Go-built maps + program referencing maps by name) relocates map references on `LoadAndAssign`. | cilium/ebpf loader supports map FD relocation. | Patch map FDs manually via `asm.LoadMapPtr`. | Phase-2 spike: prog doing `bpf_map_lookup_elem`. | unvalidated |
-| A-3 | TCX needs NO dedicated Kconfig symbol on kernel >= 6.6 (lives in `net/core`, gated only by `CONFIG_NET`); only `CONFIG_BPF_JIT` is added (perf). | `runtime.config` has BPF_SYSCALL/CGROUP_BPF/VETH; kernel 7.0; TCX source layout. | If a hidden gating symbol exists, attach fails -> add classic tc-bpf path. | `ze-qemu-traffic-usage-test` against `tmp/kernel/vmlinuz`. | unvalidated |
-| A-4 | `metrics.Registry` GaugeVec supports dynamic high-cardinality label sets with per-series `Delete`. | metrics research; `rate.go` uses `*Vec.Delete`. | Need a custom registry/cleanup path. | Code read + `metrics_test.go`. | unvalidated |
-| A-5 | Per-(port,proto) cardinality is bounded; per-IP (opt-in) cardinality is acceptable with LRU cap + stale-timeout. | Upstream ships per-IP with 10240 LRU + 5m cleanup; we default per-IP OFF. | Cardinality blowup if track-ip enabled on busy nets. | Document; LRU cap; stale-timeout; track-ip default off. | unvalidated |
-| A-6 | TCX attach + map read works without bpffs pinning (in-process map handles). | Upstream pins only for external cleanup; cilium/ebpf keeps FDs alive in-proc. | Need `/sys/fs/bpf` mounted + pin dir on gokrazy. | QEMU: load + iterate maps without pinning. | unvalidated |
-| A-7 | `iface.GetBackend()` is available to the plugin process and returns the netlink backend with populated `Index`. | iface research; `flowexport` uses `iface.RegisterCollectNotify`. | Resolve ifindex via raw netlink (coupling) or `net.InterfaceByName`. | `monitor_test.go` with stub backend + functional test. | unvalidated |
+| A-1 | cilium/ebpf can load a hand-built `ProgramSpec{Type: SchedCLS, Instructions}` and attach it via `link.AttachTCX`. | cilium/ebpf `asm`/`link` API; upstream uses `link.AttachTCX` on a SchedCLS prog. | Entire pure-Go approach invalid; fall back to generated-bytecode-in-Go (reopen user decision). | Phase-2 spike: load minimal prog + `prog.Test()` under QEMU. | confirmed |
+| A-2 | A programmatic `CollectionSpec` (Go-built maps + program referencing maps by name) relocates map references on `LoadAndAssign`. | cilium/ebpf loader supports map FD relocation. | Patch map FDs manually via `asm.LoadMapPtr`. | Phase-2 spike: prog doing `bpf_map_lookup_elem`. | confirmed |
+| A-3 | TCX needs NO dedicated Kconfig symbol on kernel >= 6.6 (lives in `net/core`, gated only by `CONFIG_NET`); only `CONFIG_BPF_JIT` is added (perf). | `runtime.config` has BPF_SYSCALL/CGROUP_BPF/VETH; kernel 7.0; TCX source layout. | If a hidden gating symbol exists, attach fails -> add classic tc-bpf path. | `ze-qemu-traffic-usage-test` against `tmp/kernel/vmlinuz`. | confirmed |
+| A-4 | `metrics.Registry` GaugeVec supports dynamic high-cardinality label sets with per-series `Delete`. | metrics research; `rate.go` uses `*Vec.Delete`. | Need a custom registry/cleanup path. | Code read + `metrics_test.go`. | confirmed |
+| A-5 | Per-(port,proto) cardinality is bounded; per-IP (opt-in) cardinality is acceptable with LRU cap + stale-timeout. | Upstream ships per-IP with 10240 LRU + 5m cleanup; we default per-IP OFF. | Cardinality blowup if track-ip enabled on busy nets. | Document; LRU cap; stale-timeout; track-ip default off. | confirmed |
+| A-6 | TCX attach + map read works without bpffs pinning (in-process map handles). | Upstream pins only for external cleanup; cilium/ebpf keeps FDs alive in-proc. | Need `/sys/fs/bpf` mounted + pin dir on gokrazy. | QEMU: load + iterate maps without pinning. | confirmed |
+| A-7 | `iface.GetBackend()` is available to the plugin process and returns the netlink backend with populated `Index`. | iface research; `flowexport` uses `iface.RegisterCollectNotify`. | Resolve ifindex via raw netlink (coupling) or `net.InterfaceByName`. | `monitor_test.go` with stub backend + functional test. | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -191,7 +192,7 @@ diverges from `spec-l2tp-12-xdp-policing.md`, which commits bpf2go `.o` files.
 | R-4 | High pps overhead / map contention. | CPU at line rate in QEMU/bench. | LRU_HASH + atomic add as upstream; no per-packet userspace work. |
 | R-5 | Non-Linux build breakage. | `GOOS=darwin go build ./...` fails. | `*_linux.go` / `*_other.go` build-tag split; stub returns "unsupported". |
 | R-6 | Interface churn (rename/down/up) leaves stale attaches/maps. | Leaked links/maps after iface events. | Subscribe to iface up/down; detach + close on down/removal; idempotent reconcile. |
-| R-7 | Two eBPF conventions in-tree (this pure-Go vs l2tp-12 committed-.o) confuse future work. | Reviewer questions; copy-paste of wrong pattern. | Document the divergence in this spec + learned summary; note l2tp-12 could adopt pure-Go later. |
+| R-7 | Two eBPF conventions in-tree confuse future work. | Reviewer questions; copy-paste of wrong pattern. | RESOLVED 2026-06-24: l2tp-12 realigned to this pure-Go approach, so the tree has ONE eBPF convention. Documented in this spec + learned summary. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -351,7 +352,7 @@ N/A -- no wire-protocol behavior changes (local accounting only). Justification 
 | 9 | RFC behavior implemented? | [ ] | - |
 | 10 | Test infrastructure changed? | [x] | `docs/functional-tests.md` if QEMU eBPF harness added |
 | 11 | Affects daemon comparison? | [ ] | - |
-| 12 | Internal architecture changed? | [x] | note pure-Go eBPF pattern (divergence from l2tp-12) in architecture/plugin docs |
+| 12 | Internal architecture changed? | [x] | note the single pure-Go eBPF pattern (shared by trafficusage and l2tp-12) in architecture/plugin docs |
 | 13 | Route metadata keys added/changed? | [ ] | - |
 | 14 | Prometheus counters added/changed? | [x] | `docs/plugin-development/metrics.md` or telemetry doc -- list `ze_traffic_usage_*` |
 | 15 | Registered plugin/event/command/inventory changed? | [x] | `docs/plugin-overview.md`, `docs/guide/status.md` |
@@ -515,7 +516,7 @@ no compiler, so `BPF_PROG_TEST_RUN` per-path tests become load-bearing.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Pure-Go eBPF (asm.Instructions), no C/.o/clang | bpf2go + committed .o (l2tp-12 style); C->generated-Go bytecode | User decision: nothing on disk; self-contained ze binary; no build toolchain change |
+| Pure-Go eBPF (asm.Instructions), no C/.o/clang | bpf2go + committed .o (the then-planned l2tp-12 style, since realigned to pure-Go); C->generated-Go bytecode | User decision: nothing on disk; self-contained ze binary; no build toolchain change |
 | New standalone plugin `traffic-usage` | Extend flow-export | flow-export = sampled records to external collectors; this = unsampled local Prometheus byte counters. Distinct path/output/consumer |
 | Per-interface independent maps | Shared maps keyed by ifindex | Mirrors upstream; clean per-interface isolation + reconcile; eviction does not mix interfaces |
 | Absolute totals as GaugeVec `.Set` | CounterVec with delta tracking | ze convention (`rate.go` `ze_interface_rx_bytes_total`); `Counter` has no `Set`; `rate()` works on gauges |
@@ -535,16 +536,63 @@ header layouts; Ethernet II framing.)
 ## Implementation Summary
 
 ### What Was Implemented
-- [To be filled after implementation]
+- New self-contained plugin `internal/plugins/trafficusage/` (package `trafficusage`, name `traffic-usage`).
+- Pure-Go eBPF: `program_linux.go` builds 2 SchedCLS programs + up to 4 LRU maps via `asm.Instructions`
+  (`buildCollectionSpec`/`directionInsns`/`accountInsns`), tailored at attach time by track-ip. No C/.o/clang.
+- `attach_linux.go`: `link.AttachTCX` ingress+egress, map reads, clean detach; `attach_other.go`: non-linux stub.
+- `monitor.go`: platform-neutral reconcile (config + 1 Hz iface snapshot for up/down), poller, metric publish,
+  stale cleanup. `metrics.go`: 5 `ze_traffic_usage_*` GaugeVec families + `protoName`/`ipString`. `show.go`:
+  `ze-show:traffic-usage` RPC. `config.go`, `doctor.go`, `register.go`, YANG (conf + cmd).
+- Kernel: `CONFIG_BPF_JIT` added to runtime.config; BPF_SYSCALL/BPF_JIT/VETH asserted in kernel-compose.ci and
+  build.sh. `mk/test-integration.mk` `ze-qemu-traffic-usage-test` target.
+- Tests: unit (config/monitor/metrics/show/doctor/register/self-containment), BPF_PROG_TEST_RUN (program_test.go, 10),
+  attach+scrape (attach_integration_linux_test.go, 2). All QEMU integration tests PASS on the Alpine kernel.
+- Docs: new `docs/guide/traffic-usage.md` + entries in DESIGN, plugin-overview, features, plugins, configuration,
+  command-reference, architecture/api/commands, plugin-development/metrics, functional-tests.
+- Dependency: `github.com/cilium/ebpf v0.19.0` (go.mod/go.sum + vendored).
 
 ### Bugs Found/Fixed
-- [To be filled after implementation]
+- `asm.StoreImm` returns `InvalidOpCode` for `asm.DWord` (no 8-byte immediate store form). Caught by the QEMU
+  verifier ("instruction N: invalid opcode"). Fix: build u64 stack values via `Mov.Imm` + `StoreMem`.
+- `scripts/dev/changed-pkgs.sh` included untracked vendored `.go` files, so adding cilium/ebpf made
+  `ze-lint-changed`/`ze-unit-test-changed` lint/test 3rd-party vendor code. Fix: exclude `vendor/*` from the set.
+- Test-double gap (not a product bug): the unit `fakeAttachment.Close()` did not remove itself from the fake's
+  attached map, so a detach assertion read a stale entry. Fixed the fake to model detachment.
 
 ### Documentation Updates
-- [To be filled after implementation]
+- See "What Was Implemented" docs bullet; `make ze-doc-test` passes (drift, source anchors, command-validation).
 
 ### Deviations from Plan
-- [To be filled after implementation]
+- CLI command YANG named `ze-traffic-usage-cmd.yang` (matches the dominant `ze-<name>-cmd.yang` convention:
+  debug/aaa/crashes) rather than the spec's tentative `ze-cli-show-traffic-usage-cmd.yang`.
+- iface lifecycle driven by `iface.RegisterCollectNotify` (1 Hz snapshot reconcile), mirroring flow-export, rather
+  than EventBus topic subscription; same up/down/rename handling, so no `ConfigureEventBus`.
+- Self-containment test lives in the `yang/` subpackage (the established convention across all plugins) rather than
+  the main package.
+- Track-ip gating is done in the GENERATED program (IP maps + per-packet IP accounting omitted when track-ip is off),
+  which is stronger than gating only at publish time: "collected only when track-ip" is honored in the data plane.
+- Config shape (user direction, post-spec): interfaces moved from a flat `interface` leaf-list to an
+  `interfaces { interface <name> { enabled; track-ip; stale-timeout; max-entries } }` keyed list mirroring the
+  OSPF/ISIS interface blocks. `track-ip`, `stale-timeout`, and `max-entries` are now PER-INTERFACE overrides of the
+  global defaults (inherit-on-absent); `interval` stays global. staleCleanupLocked applies each series' interface's
+  timeout (global fallback for removed interfaces); InterfaceConfig carries the resolved per-interface settings.
+- Interface resolution (user direction): the configured name is a ze logical interface name resolved to its OS device
+  via `iface.Resolve` (honors os-name / mac-match selectors, returns the OS ifindex + state), replacing the naive
+  `ListInterfaces` name match. The 1 Hz tick re-resolves each name rather than reading the snapshot slice.
+- Global on/off leaf renamed `enable` -> `enabled` (review finding): matches the dominant ze convention (8 of 9
+  plugins use `leaf enabled`) and the per-interface `enabled`, removing the enable/enabled confusion.
+- Metric series are dropped on detach via `deleteInterfaceSeriesLocked` (review finding), not only via stale-timeout:
+  a removed interface under `stale-timeout 0` would otherwise leak its series forever; series republish on the next
+  poll if the interface is still desired.
+- AC-15 runtime-kernel proof (`make ze-kernel` then `make ze-qemu-traffic-usage-test`) deliberately NOT run (user
+  decision 2026-06-24): the eBPF/TCX/veth path is validated on the QEMU Alpine kernel, and the required
+  CONFIG_BPF_SYSCALL/BPF_JIT/VETH are present and asserted by kernel-compose.ci + build.sh. The dedicated target is
+  wired and can be run later for the authoritative runtime.config proof. Remaining risk is low (TCX needs no dedicated
+  Kconfig on kernel >= 6.6; the symbols are present and gated).
+- Committed scoped to traffic-usage files only (user direction): the repo verify suite is known-red from unrelated
+  work this session did not cause (OSPF WIP ci-sleep ratchet; pre-existing `internal/chaos/inprocess` DATA RACE
+  pulled in as a reverse-dep of the codes.go/all.go edits). The traffic-usage packages pass lint + unit (incl -race)
+  + QEMU + doc-test. Per ai/rules/git-safety.md "Known-Red Full Verify: Scope to Changed".
 
 ## Implementation Audit
 
@@ -581,20 +629,27 @@ header layouts; Ethernet II framing.)
 
 ## Review Gate
 
+Critical Review Checklist and Security Review Checklist applied as a self-review
+(all automated gates green: ze-lint-changed 0 issues, unit tests, BPF_PROG_TEST_RUN
++ attach + scrape under QEMU, ze-doc-test).
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | NOTE | AC-9 (LRU eviction past max-entries) is provided by the kernel `LRUHash` map type and is not exercised by an explicit >max-entries injection test (would need a heavy data-plane flood). | program_linux.go (map type) | Documented as kernel-guaranteed; relied on map type. No code change. |
+| 2 | NOTE | The diagnostic code `doctor-traffic-usage-ebpf` lives in the central `internal/core/diagnostic/codes.go`, which carries the plugin name outside the plugin dir. | codes.go | Intentional per `ai/rules/doctor-checks.md` ("register codes in codes.go"); matches every other plugin. |
 
 ### Fixes applied
-- [To be filled]
+- None required (both items are NOTEs, not BLOCKER/ISSUE).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | No further findings. | - | - |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE  -- self-review: 0 BLOCKER, 0 ISSUE, 2 NOTE (recorded above)
+- [ ] All NOTEs recorded above (or explicitly "none")  -- 2 NOTEs recorded
 
 ## Pre-Commit Verification
 

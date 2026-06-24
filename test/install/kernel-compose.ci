@@ -59,7 +59,10 @@ for opt in \
 	CONFIG_MACVLAN \
 	CONFIG_IPV6 \
 	CONFIG_SQUASHFS \
-	CONFIG_FUSE_FS; do
+	CONFIG_FUSE_FS \
+	CONFIG_BPF_SYSCALL \
+	CONFIG_BPF_JIT \
+	CONFIG_VETH; do
 	require_enabled "$opt"
 done
 

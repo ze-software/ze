@@ -191,7 +191,8 @@ fi
 if [ "$PROFILE" = "runtime" ]; then
     for opt in CONFIG_MODULES CONFIG_PPP CONFIG_PPPOL2TP CONFIG_PPPOE CONFIG_L2TP CONFIG_L2TP_V3 \
                CONFIG_DEVTMPFS_MOUNT CONFIG_BLK_DEV_INITRD \
-               CONFIG_VIRTIO_NET; do
+               CONFIG_VIRTIO_NET \
+               CONFIG_BPF_SYSCALL CONFIG_BPF_JIT CONFIG_VETH; do
         require_yes "$opt" "required for runtime profile"
     done
 fi

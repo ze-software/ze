@@ -1,0 +1,25 @@
+module ze-traffic-usage-cmd {
+    namespace "urn:ze:traffic-usage:cmd";
+    prefix trafficusagecmd;
+    import ze-extensions { prefix ze; }
+    description "show traffic-usage command tree. Owned by the traffic-usage plugin so that removing the plugin removes the command node together with its handler. See ai/rules/plugin-self-containment.md.";
+    revision 2026-06-24 { description "Initial: show traffic-usage displays per-interface eBPF byte counters."; }
+
+    container show {
+        config false;
+        description "Read-only commands to inspect system, protocol, and network state";
+
+        container traffic-usage {
+            config false;
+            ze:command "ze-show:traffic-usage";
+            description "Show per-interface traffic byte counters captured by eBPF TCX.
+Per destination/source port and protocol counters are always present; per-IP
+top-talker counters appear when track-ip is enabled. Without arguments, lists
+all monitored interfaces. With 'name <interface>', shows that one interface.";
+            leaf name {
+                type string;
+                description "Interface name (used with 'name <interface>')";
+            }
+        }
+    }
+}

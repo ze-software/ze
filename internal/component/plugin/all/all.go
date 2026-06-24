@@ -135,6 +135,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traceroute-cmd/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic-cmd/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/trafficusage/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/update-cmd/yang"
 
 	// Plugin packages — plugin + schema registration.
@@ -235,6 +236,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/tftpserver"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/netlink"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/traffic/vpp"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/trafficusage"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/update-cmd/cmd"
 
 	// Event namespace packages -- events.RegisterNamespace registration.

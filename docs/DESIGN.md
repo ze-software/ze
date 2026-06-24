@@ -374,6 +374,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `policy-routes` | Policy-based routing |
 | `vpp` | VPP lifecycle and telemetry management |
 | `flow-export` | sFlow, NetFlow v9, and IPFIX counter export |
+| `traffic-usage` | eBPF TCX per-(port,protocol) and opt-in per-IP byte accounting (pure-Go programs) |
 | `ldp` | Label Distribution Protocol for MPLS label distribution (RFC 5036) |
 | `rsvp-te` | RSVP-TE signaling for MPLS traffic-engineered LSPs (RFC 3209) |
 | `isis` | Native IS-IS link-state IGP over Layer 2 (ISO/IEC 10589, RFC 1195/5305/5308) |

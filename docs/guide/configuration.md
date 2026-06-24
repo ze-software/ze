@@ -1745,6 +1745,48 @@ management VLAN. Per-flow records are IPv4-only; sampling requires Linux with
 <!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- flow-export container -->
 <!-- source: internal/plugins/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
 
+## Traffic Usage
+
+Account per-(port, protocol) and, optionally, per-IP byte totals on selected
+interfaces using eBPF programs attached via TCX. Configured under a single
+`traffic-usage { }` section. The plugin loads only when this section is present
+and is Linux only (no-op elsewhere). See the
+[Traffic Usage guide](traffic-usage.md) for the full reference.
+
+```
+traffic-usage {
+    enabled true
+    interfaces {             // keyed list, like ospf/isis; names are ze
+        interface eth0 {     // interface names, resolved to the OS device
+        }
+        interface wan {
+            track-ip false   // per-interface override of the global default
+            max-entries 65536 // ... and a larger top-talker map for the WAN
+        }
+    }
+    interval 1000            // map poll interval ms (global), default 1000, 100..3600000
+    track-ip true            // global default, inherited per interface
+    max-entries 10240        // global default per-map LRU capacity
+}
+```
+
+`stale-timeout` (default 300000 ms; 0 disables) removes metric series unseen for
+that long, bounding `/metrics` cardinality. `track-ip`, `stale-timeout`, and
+`max-entries` are global defaults; any interface may override them under its own
+`interface { }` block, inheriting the global value when unset. See the
+[Traffic Usage guide](traffic-usage.md) for the full reference.
+
+**Operational:** `show traffic-usage [name <interface>]` reports per-interface
+ingress/egress port totals (and per-IP totals when `track-ip` is on) plus map
+fill levels. Prometheus metrics use the `ze_traffic_usage_*` prefix.
+
+**Note:** accounting is IPv4 only and monitoring only (never drops or modifies
+traffic). TCX requires Linux >= 6.6 with `CAP_BPF` and `CAP_NET_ADMIN`; a
+`ze doctor` check (`doctor-traffic-usage-ebpf`) warns when enabled but eBPF/TCX
+is unavailable.
+<!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage -->
+<!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage RPC -->
+
 ## Environment Block
 
 Global settings outside BGP:

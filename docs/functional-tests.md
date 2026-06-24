@@ -1513,6 +1513,18 @@ subsequent runs reuse the cache (~30s boot + test time).
 See [testing/qemu-integration.md](architecture/testing/qemu-integration.md) for
 details on how to write QEMU integration tests and add new packages.
 
+The `trafficusage` eBPF/TCX tests in `internal/plugins/trafficusage/`
+(`//go:build integration && linux`) are auto-discovered by
+`make ze-qemu-integration-test` on the Alpine kernel: `program_test.go` runs the
+pure-Go eBPF programs through `BPF_PROG_TEST_RUN`, and
+`attach_integration_linux_test.go` attaches them to a veth pair, injects packets
+with AF_PACKET, and scrapes `/metrics`. A dedicated
+`make ze-qemu-traffic-usage-test` runs the same tests against Ze's own runtime
+kernel (`tmp/kernel/vmlinuz`, built by `make ze-kernel`), which carries the
+required `CONFIG_BPF_SYSCALL`, `CONFIG_BPF_JIT`, and `CONFIG_VETH`.
+<!-- source: internal/plugins/trafficusage/program_test.go -- BPF_PROG_TEST_RUN eBPF program tests -->
+<!-- source: internal/plugins/trafficusage/attach_integration_linux_test.go -- veth + AF_PACKET + /metrics scrape -->
+
 ### Deployment Evidence
 
 ```bash
@@ -1572,6 +1584,8 @@ Additional dataplane integration packages:
 | `internal/plugins/firewall/nft/integration_linux_test.go` | nft table ownership, same-instance cleanup, restart reapply preservation | 2 tests |
 | `internal/plugins/traffic/netlink/integration_linux_test.go` | real tc qdisc snapshot, persisted restore after backend restart | 1 test |
 | `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` | VLAN QoS wire-level: egress PCP on wire, ingress PCP classification, DSCP-to-PCP full chain | 3 tests |
+| `internal/plugins/trafficusage/program_test.go` | Pure-Go eBPF programs via BPF_PROG_TEST_RUN: per-IP and per-(port, protocol) byte accounting, ICMP port-0, non-IPv4/truncated pass-through, accumulation | 10 tests |
+| `internal/plugins/trafficusage/attach_integration_linux_test.go` | Real TCX attach on a veth pair, AF_PACKET frame injection, clean Stop detach, `ze_traffic_usage_*` `/metrics` scrape | 2 tests |
 
 ### Shared Helpers
 

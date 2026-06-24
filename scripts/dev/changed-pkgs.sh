@@ -50,6 +50,10 @@ changed_dirs=$(
 		sort -u |
 		while IFS= read -r file; do
 			[ -n "$file" ] || continue
+			# Never lint/test vendored third-party code: adding a new dependency
+			# makes `go mod vendor` write many untracked files, but they are not
+			# ours to verify (the full ze-lint/ze-unit-test skip vendor too).
+			case "$file" in vendor/*) continue ;; esac
 			dir=$(dirname "$file")
 			[ -d "$dir" ] && printf './%s\n' "$dir"
 		done |

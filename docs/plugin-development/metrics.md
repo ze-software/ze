@@ -185,6 +185,13 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_ospf_redist_withdrawn_total` | CounterVec | source | ospf (redistribute) |
 | `ze_ospf_nssa_translations_total` | CounterVec | area | ospf (engine) |
 | `ze_ospf_auth_failures_total` | CounterVec | interface, reason | ospf (engine) |
+| `ze_traffic_usage_ingress_port_bytes_total` | GaugeVec | interface, dst_port, protocol | traffic-usage |
+| `ze_traffic_usage_egress_port_bytes_total` | GaugeVec | interface, src_port, protocol | traffic-usage |
+| `ze_traffic_usage_ingress_bytes_total` | GaugeVec | interface, src_ip | traffic-usage (track-ip) |
+| `ze_traffic_usage_egress_bytes_total` | GaugeVec | interface, dst_ip | traffic-usage (track-ip) |
+| `ze_traffic_usage_map_entries` | GaugeVec | interface, map | traffic-usage |
+
+<!-- source: internal/plugins/trafficusage/metrics.go -- BindMetrics -->
 
 <!-- source: internal/plugins/ospf/spf/computer.go -- SetMetrics -->
 <!-- source: internal/plugins/ospf/spf/install.go -- SetMetrics and publishCounts -->

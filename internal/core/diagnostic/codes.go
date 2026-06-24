@@ -356,6 +356,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-radius-unreachable"},
 	},
 	{
+		Code:        "doctor-traffic-usage-ebpf",
+		Title:       "traffic-usage eBPF unavailable",
+		Description: "The traffic-usage plugin is enabled but the kernel cannot load or attach its eBPF TCX programs (missing CAP_BPF/CAP_NET_ADMIN, no TCX support, or a non-Linux build). Byte accounting will not run.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-traffic-usage-ebpf"},
+	},
+	{
 		Code:        "doctor-bfd-port",
 		Title:       "BFD control port unavailable",
 		Description: "BFD is configured but the UDP control port could not be bound.",

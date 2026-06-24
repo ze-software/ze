@@ -1,0 +1,30 @@
+# Test: traffic-usage config parses and validates through the real YANG parser
+# Validates: the full traffic-usage { enabled; interfaces { interface <name> {
+#   enabled; track-ip; stale-timeout; max-entries } }; interval; stale-timeout;
+#   track-ip; max-entries } surface is accepted, including per-interface overrides
+#   of the global defaults (plugin loads with valid YANG). The interfaces block
+#   mirrors the OSPF/ISIS keyed-list shape. Complements
+#   test/plugin/traffic-usage-config.ci (command surface) and the QEMU
+#   integration tests (runtime data path).
+stdin=config:terminator=EOF_CONF
+traffic-usage {
+	enabled true
+	interfaces {
+		interface eth0 {
+		}
+		interface eth1 {
+			track-ip false
+			stale-timeout 60000
+			max-entries 1024
+		}
+	}
+	interval 1000
+	stale-timeout 300000
+	track-ip true
+	max-entries 10240
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

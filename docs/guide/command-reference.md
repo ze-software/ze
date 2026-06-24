@@ -510,6 +510,23 @@ See the [Flow Export guide](flow-export.md).
 <!-- source: internal/plugins/flowexport/cmd_show.go -- handleShowFlowExport, ze-show:flow-export -->
 <!-- source: internal/plugins/flowexport/exporter.go -- Exporter.Status -->
 
+### show traffic-usage
+
+Per-interface eBPF byte accounting for the `traffic-usage` plugin (TCX
+per-port/protocol, and per-IP when `track-ip` is enabled). Returns
+`{"status": "not-configured"}` when no `traffic-usage { }` section is present.
+
+```
+ze show traffic-usage                 # All monitored interfaces
+ze show traffic-usage name <interface># One interface by name
+```
+
+Each entry reports `ingress-ports`, `egress-ports`, `map-entries`, and (only
+when `track-ip` is enabled) `ingress-ips` and `egress-ips`. JSON by default;
+full pipe operators supported. See the [Traffic Usage guide](traffic-usage.md).
+
+<!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-show:traffic-usage -->
+
 ### show ip
 
 Kernel routing and neighbor tables. Both commands dispatch through the

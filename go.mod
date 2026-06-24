@@ -34,7 +34,9 @@ require (
 )
 
 require (
+	github.com/cilium/ebpf v0.19.0
 	github.com/gokrazy/tools v0.0.0-20260406155313-5861e2403dc8
+	github.com/gokrazy/updater v0.0.0-20250705135802-db129c40879c
 	github.com/openconfig/gnmi v0.14.1
 	github.com/sivchari/gomu v0.2.1
 )
@@ -44,7 +46,6 @@ require (
 	github.com/donovanhide/eventsource v0.0.0-20210830082556-c59027999da0 // indirect
 	github.com/gokrazy/gokapi v0.0.0-20251205165548-0927bab199d4 // indirect
 	github.com/gokrazy/internal v0.0.0-20251208203110-3c1aa9087c82 // indirect
-	github.com/gokrazy/updater v0.0.0-20250705135802-db129c40879c // indirect
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -77,7 +78,6 @@ require (
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/josharian/native v1.1.0 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/lunixbochs/struc v0.0.0-20200521075829-a4cb8d33dbbe // indirect
 	github.com/mattn/go-runewidth v0.0.21 // indirect
