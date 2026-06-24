@@ -5,18 +5,28 @@
 | Status | ready |
 | Depends | spec-l2tp-8c-shaper |
 | Phase | - |
-| Updated | 2026-04-23 |
+| Updated | 2026-06-24 |
+
+> **2026-06-24 revision:** the eBPF strategy was realigned to match the shipped
+> `trafficusage` plugin: the XDP program is assembled in pure Go as
+> `asm.Instructions` and loaded in-memory via `ebpf.NewCollection`. No C source,
+> no `bpf2go`, no committed `.o` blob, no clang in the build, no bpffs pinning.
+> See `plan/learned/977-traffic-usage.md` for the precedent.
 
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` -- workflow rules
-3. `internal/plugins/l2tpshaper/` -- reference plugin (same EventBus pattern)
-4. `internal/component/l2tp/events/events.go` -- SessionUp/Down/RateChange events
-5. `internal/component/l2tp/kernel_linux.go` -- kernelWorker pattern
-6. `internal/component/l2tp/listener.go` -- UDP socket and SocketFD()
-7. `internal/component/l2tp/subsystem.go` -- subsystem Start wiring
+3. `internal/plugins/l2tpshaper/` -- reference plugin (same EventBus/lifecycle pattern)
+4. `internal/plugins/trafficusage/program_linux.go` -- eBPF program reference: pure-Go `asm.Instructions`, `buildCollectionSpec`, no C/bpf2go
+5. `internal/plugins/trafficusage/attach_linux.go` -- eBPF load/attach reference: `ebpf.NewCollection`, `link.Attach*`, no bpffs pinning, `Close()` releases links+collection
+6. `internal/plugins/trafficusage/attach_other.go` -- non-Linux stub attacher shape
+7. `internal/plugins/trafficusage/program_test.go` -- `BPF_PROG_TEST_RUN` (`prog.Test()`) test reference
+8. `internal/component/l2tp/events/events.go` -- SessionUp/Down/RateChange events
+9. `internal/component/l2tp/kernel_linux.go` -- kernelWorker pattern
+10. `internal/component/l2tp/listener.go` -- UDP socket and SocketFD()
+11. `internal/component/l2tp/subsystem.go` -- subsystem Start wiring
 
 ## Task
 
@@ -26,6 +36,12 @@ per-session token bucket rate limiter to incoming L2TP data packets (T=0).
 Control packets (T=1) and non-L2TP traffic always pass. A Go-side plugin
 (`l2tp-policing`) manages the eBPF program lifecycle and BPF map entries,
 subscribing to the same EventBus events as the existing l2tp-shaper.
+
+The XDP program is assembled in pure Go as `asm.Instructions` and loaded
+in-memory, following the shipped `trafficusage` plugin: no C source, no
+`bpf2go`, no committed `.o` blob, no clang toolchain, no bpffs pinning. The
+plugin owns the full eBPF lifecycle in-process; on stop the links are detached
+and the collection closed, so nothing persists on disk.
 
 This complements the existing l2tp-shaper plugin (spec-l2tp-8c): the shaper
 applies TC qdiscs on pppN interfaces for egress/download shaping; this spec
@@ -41,8 +57,9 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 | Map key = (tunnel_id, session_id) | 4-byte key without peer IP. Kernel L2TP module validates source address. Simpler map, no event payload changes. |
 | Hierarchical token bucket | Two-level policing per session: an overall line bucket (total upload rate) and a priority sub-bucket (EF/CS6/CS7 cap). Every packet deducts from the line bucket. EF/CS6/CS7 packets additionally deduct from the priority bucket. BE packets only check the line bucket. EF passes only when both buckets have tokens; BE passes when the line bucket has tokens. No separate BE bucket needed: BE is implicitly capped at (line rate minus priority usage). |
 | Per-subscriber rates from RADIUS | Rates come from RADIUS Access-Accept and CoA, not static config. `SessionRateChangePayload` extended with `PriorityRate` field. YANG config provides `default-rate` and `default-priority-rate` as fallbacks when RADIUS omits rates. Line rate = `UploadRate` from RADIUS. Priority rate = `PriorityRate` from RADIUS (vendor-specific attribute). |
-| Committed eBPF bytecode | bpf2go generates Go bindings from C source at `go generate` time. Generated `.o` files committed to repo (common practice: cilium, Cloudflare). Developers only need clang when modifying the C source. |
-| cilium/ebpf dependency | Standard Go eBPF library. Provides bpf2go, program loading, map operations, XDP attach. |
+| Pure-Go eBPF program (no C/bpf2go/blob) | The XDP program is hand-assembled as `asm.Instructions` in a Go `buildCollectionSpec()` and loaded in-memory via `ebpf.NewCollection`. No C source, no `bpf2go`, no committed `.o`, no clang in the build, no bpffs pinning. Matches the shipped `trafficusage` plugin (`program_linux.go` / `attach_linux.go`); keeps the `ze` binary self-contained and the program fully auditable as Go source. Supersedes the original "committed bpf2go `.o`" plan. |
+| asm complexity is accepted, not free | `trafficusage` only counts bytes; this program is a hierarchical token bucket with `bpf_spin_lock`, `bpf_ktime_get_ns` refill, DSCP classification and conditional drop. Hand-written asm for that logic is materially harder to write and verifier-clean than C. Mitigation: keep the program flat (no loops), build it from small named helpers, and lean on `BPF_PROG_TEST_RUN` to lock behavior. If the asm proves unmaintainable in implementation, that is an escalation to the user (Failure Routing), not a silent fallback to bpf2go. |
+| cilium/ebpf dependency | Standard Go eBPF library, already vendored (`go.mod`: `github.com/cilium/ebpf v0.19.0`, added by `trafficusage`). Used for `asm.Instructions`, `MapSpec`/`ProgramSpec`/`CollectionSpec`, in-memory program loading, map operations, and XDP attach via `link.AttachXDP`. `bpf2go` is NOT used. |
 | Map size 4096 | Deployment scale: hundreds to ~1000 sessions per device, 10-100 Gbps uplinks. 4096 max entries provides headroom. |
 
 ### Alternatives Considered
@@ -52,6 +69,8 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 | TC/BPF on uplink NIC | Runs after sk_buff allocation. Slower than XDP for high-throughput policing. Ze already uses TC on pppN via l2tp-shaper. |
 | Socket-level BPF (SO_ATTACH_BPF) | Fragile interaction with kernel L2TP module's `encap_recv` callback on the same socket. |
 | Per-CPU token bucket | Rate accuracy depends on traffic distribution across CPUs. At 1 Gbps per session, a single CPU-pinned flow would see rate/num_cpus instead of the configured rate. |
+| bpf2go + committed `.o` (C source) | Original plan; rejected on 2026-06-24 to match `trafficusage`. Commits an opaque binary blob to the repo, requires clang/LLVM in the dev loop, and leaves two eBPF mental models in the tree. The C is more readable for token-bucket logic (acknowledged in the design decisions), but consistency and a self-contained binary won. May be revisited only if the pure-Go asm proves unmaintainable, via user escalation. |
+| bpffs pinning (`/sys/fs/bpf/...`) | Not needed: the plugin owns the full lifecycle in one process. Links and the collection are held on the plugin struct and released on stop. Matches `trafficusage`; diverges from upstream pin-per-iface designs. |
 
 ## Required Reading
 
@@ -76,7 +95,7 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 - l2tp-shaper plugin is the structural template: same EventBus events, same YANG pattern, same lifecycle
 - XDP program attaches to NIC by ifindex, not to the L2TP socket
 - Kernel L2TP module and XDP coexist: XDP runs first (NIC driver level), passes packets to kernel stack where L2TP module intercepts them
-- cilium/ebpf bpf2go generates Go type-safe bindings from C at `go generate` time
+- The XDP program is pure-Go `asm.Instructions`, loaded in-memory via `ebpf.NewCollection` (the `trafficusage` pattern); no C, no bpf2go, no `.o` blob, no clang, no pinning
 - Deployments: ~1000 sessions, 10-100 Gbps uplinks, 1 Gbps per FTTP subscriber
 
 ## Current Behavior (MANDATORY)
@@ -175,7 +194,7 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Plugin configured with valid interface name | XDP program loaded and attached; `link.XDP` succeeds |
+| AC-1 | Plugin configured with valid interface name | `ebpf.NewCollection(buildCollectionSpec(...))` loads the in-memory program and `link.AttachXDP` attaches it; no `.o` read from disk, nothing pinned |
 | AC-2 | L2TP BE data packet, line bucket has tokens | XDP_PASS; deduct from line bucket; pass counter incremented |
 | AC-3 | L2TP BE data packet, line bucket exhausted | XDP_DROP; drop counter incremented |
 | AC-4 | L2TP control packet (T=1) for any tunnel | XDP_PASS always; no map lookup performed |
@@ -224,29 +243,31 @@ adds ingress/upload policing at the NIC level before kernel L2TP processing.
 ### eBPF Program Tests (BPF_PROG_TEST_RUN, Linux 5.10+)
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXDP_BE_WithinLineRate` | `internal/plugins/l2tppolicing/xdp_test.go` | BE packet, line bucket has tokens: XDP_PASS, line tokens deducted | |
-| `TestXDP_BE_OverLineRate` | `internal/plugins/l2tppolicing/xdp_test.go` | BE packet, line bucket exhausted: XDP_DROP | |
-| `TestXDP_EF_BothBucketsHaveTokens` | `internal/plugins/l2tppolicing/xdp_test.go` | EF packet, both buckets have tokens: XDP_PASS, both deducted | |
-| `TestXDP_EF_PrioBucketExhausted` | `internal/plugins/l2tppolicing/xdp_test.go` | EF packet, priority exhausted but line has tokens: XDP_DROP | |
-| `TestXDP_EF_LineBucketExhausted` | `internal/plugins/l2tppolicing/xdp_test.go` | EF packet, line exhausted but priority has tokens: XDP_DROP | |
-| `TestXDP_BE_DoesNotConsumePrioBucket` | `internal/plugins/l2tppolicing/xdp_test.go` | BE traffic deducts from line only; priority bucket unchanged | |
-| `TestXDP_L2TPControl` | `internal/plugins/l2tppolicing/xdp_test.go` | L2TP control packet (T=1) always returns XDP_PASS | |
-| `TestXDP_NonL2TP` | `internal/plugins/l2tppolicing/xdp_test.go` | Non-UDP or non-port-1701 packet returns XDP_PASS | |
-| `TestXDP_TruncatedPacket` | `internal/plugins/l2tppolicing/xdp_test.go` | Packet too short for L2TP header returns XDP_PASS (fail-open) | |
-| `TestXDP_UnknownSession` | `internal/plugins/l2tppolicing/xdp_test.go` | L2TP data for session not in map returns XDP_PASS | |
-| `TestXDP_TokenRefill` | `internal/plugins/l2tppolicing/xdp_test.go` | After time passes, both buckets refill and previously-dropped packets pass | |
+| `TestXDP_BE_WithinLineRate` | `internal/plugins/l2tppolicing/program_test.go` | BE packet, line bucket has tokens: XDP_PASS, line tokens deducted | |
+| `TestXDP_BE_OverLineRate` | `internal/plugins/l2tppolicing/program_test.go` | BE packet, line bucket exhausted: XDP_DROP | |
+| `TestXDP_EF_BothBucketsHaveTokens` | `internal/plugins/l2tppolicing/program_test.go` | EF packet, both buckets have tokens: XDP_PASS, both deducted | |
+| `TestXDP_EF_PrioBucketExhausted` | `internal/plugins/l2tppolicing/program_test.go` | EF packet, priority exhausted but line has tokens: XDP_DROP | |
+| `TestXDP_EF_LineBucketExhausted` | `internal/plugins/l2tppolicing/program_test.go` | EF packet, line exhausted but priority has tokens: XDP_DROP | |
+| `TestXDP_BE_DoesNotConsumePrioBucket` | `internal/plugins/l2tppolicing/program_test.go` | BE traffic deducts from line only; priority bucket unchanged | |
+| `TestXDP_L2TPControl` | `internal/plugins/l2tppolicing/program_test.go` | L2TP control packet (T=1) always returns XDP_PASS | |
+| `TestXDP_NonL2TP` | `internal/plugins/l2tppolicing/program_test.go` | Non-UDP or non-port-1701 packet returns XDP_PASS | |
+| `TestXDP_TruncatedPacket` | `internal/plugins/l2tppolicing/program_test.go` | Packet too short for L2TP header returns XDP_PASS (fail-open) | |
+| `TestXDP_UnknownSession` | `internal/plugins/l2tppolicing/program_test.go` | L2TP data for session not in map returns XDP_PASS | |
+| `TestXDP_TokenRefill` | `internal/plugins/l2tppolicing/program_test.go` | After time passes, both buckets refill and previously-dropped packets pass | |
 
 These tests use `BPF_PROG_TEST_RUN` (via cilium/ebpf's `prog.Test()`) to feed
 crafted raw packets into the loaded XDP program and assert the return action.
-They require Linux 5.10+ and CAP_BPF. Guarded by `//go:build linux` and
-skipped with `t.Skip` when `BPF_PROG_TEST_RUN` is unavailable.
+Because the program is pure-Go `asm.Instructions` with no compiler step,
+`BPF_PROG_TEST_RUN` is the only way to validate the bytecode -- mirror
+`trafficusage/program_test.go`. They require Linux 5.10+ and CAP_BPF. Guarded
+by `//go:build linux` and skipped with `t.Skip` when `BPF_PROG_TEST_RUN` is
+unavailable.
 
 ### Future (if deferring any tests)
 - Integration test with real L2TP traffic (requires veth + XDP, kernel 5.8+)
 
 ## Files to Modify
-- `go.mod` -- add `github.com/cilium/ebpf` dependency
-- `go.sum` -- updated by `go mod tidy`
+- `go.mod` / `go.sum` -- `github.com/cilium/ebpf` is ALREADY present (v0.19.0, added by `trafficusage`); no new dependency expected. Confirm during audit; only touch if a newer minor is required.
 - `internal/component/l2tp/events/events.go` -- add `PriorityRate uint64` field to `SessionRateChangePayload`
 - `internal/plugins/l2tpauthradius/` -- parse vendor-specific RADIUS attribute for priority rate; populate `PriorityRate` in `SessionRateChangePayload`
 
@@ -281,18 +302,14 @@ skipped with `t.Skip` when `BPF_PROG_TEST_RUN` is unavailable.
 - `internal/plugins/l2tppolicing/config.go` -- parsePolicingConfig from YANG sections
 - `internal/plugins/l2tppolicing/config_test.go` -- config parsing tests
 - `internal/plugins/l2tppolicing/policing_test.go` -- EventBus handler tests
-- `internal/plugins/l2tppolicing/xdp_linux.go` -- XDP program loading, attach/detach, map operations (Linux-only)
-- `internal/plugins/l2tppolicing/xdp_other.go` -- stub for non-Linux (returns "not supported")
-- `internal/plugins/l2tppolicing/bpf/policing.c` -- eBPF XDP program (C source)
-- `internal/plugins/l2tppolicing/bpf/policing_bpfel.go` -- bpf2go generated (committed)
-- `internal/plugins/l2tppolicing/bpf/policing_bpfel.o` -- bpf2go generated bytecode (committed)
-- `internal/plugins/l2tppolicing/bpf/policing_bpfeb.go` -- bpf2go generated (big-endian, committed)
-- `internal/plugins/l2tppolicing/bpf/policing_bpfeb.o` -- bpf2go generated bytecode (big-endian, committed)
-- `internal/plugins/l2tppolicing/bpf/gen.go` -- `//go:generate` directive for bpf2go
+- `internal/plugins/l2tppolicing/program_linux.go` -- XDP token-bucket program assembled in pure Go (`asm.Instructions`): `buildCollectionSpec()`, BPF `MapSpec`s, the policing `ProgramSpec`. No C, no bpf2go. (Linux-only) -- mirrors `trafficusage/program_linux.go`
+- `internal/plugins/l2tppolicing/attach_linux.go` -- load via `ebpf.NewCollection(buildCollectionSpec(...))`, attach/detach via `link.AttachXDP`, BPF map CRUD; links + collection held on the attachment struct; `Close()` detaches and closes them; NO bpffs pinning. (Linux-only) -- mirrors `trafficusage/attach_linux.go`
+- `internal/plugins/l2tppolicing/attach_other.go` -- non-Linux stub attacher: `Attach` returns "supported on Linux only", plugin degrades to a clean no-op -- mirrors `trafficusage/attach_other.go`
 - `internal/plugins/l2tppolicing/yang/ze-l2tp-policing-conf.yang` -- YANG module
 - `internal/plugins/l2tppolicing/yang/embed.go` -- `//go:embed` for YANG
 - `internal/plugins/l2tppolicing/yang/register.go` -- YANG module registration
-- `internal/plugins/l2tppolicing/xdp_test.go` -- BPF_PROG_TEST_RUN tests for XDP program (Linux 5.10+)
+- `internal/plugins/l2tppolicing/program_test.go` -- `BPF_PROG_TEST_RUN` tests for the XDP program (Linux 5.10+); skips without CAP_BPF -- mirrors `trafficusage/program_test.go`
+- `internal/plugins/l2tppolicing/attach_integration_linux_test.go` -- real-attach integration test (veth + `link.AttachXDP` + map CRUD), runs under QEMU per `ai/rules/qemu-testing.md` -- mirrors `trafficusage/attach_integration_linux_test.go`
 - `test/plugin/l2tp-policing-config.ci` -- functional test
 
 ## Implementation Steps
@@ -329,15 +346,15 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `register.go`, `policing.go`, `policing_test.go`
    - Verify: tests fail -> implement -> tests pass
 
-3. **Phase: eBPF C program + XDP tests** -- XDP token bucket program, BPF maps, bpf2go generation, BPF_PROG_TEST_RUN tests
+3. **Phase: pure-Go eBPF program + PROG_TEST_RUN tests** -- assemble the XDP token-bucket program as `asm.Instructions`, build `MapSpec`s and the `CollectionSpec`, validate with `BPF_PROG_TEST_RUN`. No C, no bpf2go, no `go generate`.
    - Tests: `TestXDP_BE_WithinLineRate`, `TestXDP_BE_OverLineRate`, `TestXDP_EF_BothBucketsHaveTokens`, `TestXDP_EF_PrioBucketExhausted`, `TestXDP_EF_LineBucketExhausted`, `TestXDP_BE_DoesNotConsumePrioBucket`, `TestXDP_L2TPControl`, `TestXDP_NonL2TP`, `TestXDP_TruncatedPacket`, `TestXDP_UnknownSession`, `TestXDP_TokenRefill`
-   - Files: `bpf/policing.c`, `bpf/gen.go`, `xdp_test.go`, run `go generate`
-   - Verify: generated files compile, `go build` succeeds, XDP tests pass on Linux 5.10+
+   - Files: `program_linux.go` (`buildCollectionSpec`, program builder), `program_test.go`
+   - Verify: `go build` succeeds, `ebpf.NewCollection` loads the spec, PROG_TEST_RUN tests pass on Linux 5.10+ (skip without CAP_BPF)
 
-4. **Phase: XDP attach/detach** -- Linux-specific program loading, NIC attachment, map operations
-   - Tests: AC-1 (program loads), AC-9 (program detaches on stop), AC-11 (graceful failure)
-   - Files: `xdp_linux.go`, `xdp_other.go`
-   - Verify: build tags correct, non-Linux stub compiles
+4. **Phase: XDP attach/detach** -- Linux-specific in-memory load (`ebpf.NewCollection`), NIC attachment (`link.AttachXDP`), map operations, lifecycle (`Close()` detaches + closes; no pinning)
+   - Tests: AC-1 (program loads + attaches), AC-9 (program detaches on stop), AC-11 (graceful failure); `attach_integration_linux_test.go` under QEMU
+   - Files: `attach_linux.go`, `attach_other.go`, `attach_integration_linux_test.go`
+   - Verify: build tags correct, non-Linux stub compiles, real attach succeeds under QEMU
 
 5. **Phase: wire everything** -- connect config -> XDP load -> EventBus -> map CRUD -> metrics
    - Tests: end-to-end plugin lifecycle
@@ -354,9 +371,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `test/plugin/l2tp-policing-config.ci`, `docs/guide/l2tp.md`, `docs/guide/plugins.md`
    - Verify: `make ze-functional-test` passes
 
-8. **Phase: go.mod + make generate** -- add cilium/ebpf dependency, update all.go
-   - Files: `go.mod`, `go.sum`, `internal/component/plugin/all/all.go`
-   - Verify: `go mod tidy`, `make generate`, `make ze-lint` all pass
+8. **Phase: make generate** -- update all.go (blank import). cilium/ebpf is already in `go.mod` (added by `trafficusage`); do NOT add it again.
+   - Files: `internal/component/plugin/all/all.go` (and `go.mod`/`go.sum` only if a newer minor is genuinely required)
+   - Verify: `make generate`, `make ze-lint` pass; `git diff go.mod` is empty unless a version bump was justified
 
 9. **Full verification** -- `make ze-verify`
 10. **Complete spec** -- Fill audit tables, write learned summary
@@ -382,7 +399,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |-------------|---------------------|
 | Plugin compiles on Linux and non-Linux | `GOOS=linux go build ./internal/plugins/l2tppolicing/` and `GOOS=darwin go build ./internal/plugins/l2tppolicing/` |
 | YANG schema registered | `grep l2tp-policing internal/component/plugin/all/all.go` |
-| eBPF bytecode committed | `ls internal/plugins/l2tppolicing/bpf/policing_bpfel.o` |
+| No committed eBPF blob; program is pure Go | `test ! -e internal/plugins/l2tppolicing/bpf` (no C/blob dir) and `! grep -rqE 'bpf2go\|//go:generate' internal/plugins/l2tppolicing` -- program lives in `program_linux.go` as `asm.Instructions` |
+| Program loads in-memory | PROG_TEST_RUN tests in `program_test.go` pass (they call `ebpf.NewCollection`) |
 | Functional test exists | `ls test/plugin/l2tp-policing-config.ci` |
 | Docs updated | `grep -l policing docs/guide/l2tp.md` |
 
@@ -409,8 +427,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Functional test fails | Check AC; if AC wrong -> DESIGN; if AC correct -> IMPLEMENT |
 | Audit finds missing AC | Back to relevant phase and implement |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
-| eBPF verifier rejects program | Simplify C code; add explicit bounds checks; reduce loop complexity |
-| bpf2go generation fails | Check clang version (>= 11), BTF support, kernel headers |
+| eBPF verifier rejects program | Add explicit bounds checks before every packet read; keep the program flat (no loops); re-check register liveness across the spinlock section. If the `asm.Instructions` approach becomes unmaintainable for the token-bucket logic, STOP and escalate to the user (do NOT silently fall back to bpf2go/C). |
 
 ## Mistake Log
 
