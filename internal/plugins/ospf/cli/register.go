@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-2-wire.md -- register the offline `ospf-decode` root verb
+// Design: plan/learned/956-ospf-2-wire.md -- register the offline `ospf-decode` root verb
 
 package cli
 

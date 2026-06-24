@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-8-spf-rib.md -- OSPF route install via Loc-RIB insertion.
+// Design: plan/learned/962-ospf-8-spf-rib.md -- OSPF route install via Loc-RIB insertion.
 // OSPF does not program the FIB directly. SPF inserts locrib.Path values into the
 // shared Loc-RIB, sysrib arbitrates, and fibkernel programs RTPROT_ZE routes.
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- formatting allocation tests
+// Design: plan/learned/955-ospf-1-types.md -- formatting allocation tests
 
 package types
 

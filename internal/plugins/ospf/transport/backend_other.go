@@ -1,6 +1,6 @@
 //go:build !linux
 
-// Design: plan/spec-ospf-3-ip-transport.md -- non-Linux backend stub
+// Design: plan/learned/957-ospf-3-ip-transport.md -- non-Linux backend stub
 
 package transport
 

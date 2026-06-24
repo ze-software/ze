@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- Options bit-field tests
+// Design: plan/learned/955-ospf-1-types.md -- Options bit-field tests
 
 package types
 

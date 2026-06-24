@@ -1,4 +1,4 @@
-// Design: plan/spec-ospfv3-2-wire.md -- shared OSPFv3 codec test fixtures.
+// Design: plan/learned/969-ospfv3-2-wire.md -- shared OSPFv3 codec test fixtures.
 
 package packet
 

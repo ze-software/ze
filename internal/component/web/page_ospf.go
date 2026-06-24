@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-13-cli-diag-interop.md -- OSPF web page shell + SSE script.
+// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- OSPF web page shell + SSE script.
 // Related: handler_ospf.go -- the handlers that call ospfPageHTML
 //
 // The OSPF neighbor/database pages are a dependency-light HTML shell: a heading, a <pre>

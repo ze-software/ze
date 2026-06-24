@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-8-spf-rib.md -- RFC 2328 intra-area SPF.
+// Design: plan/learned/962-ospf-8-spf-rib.md -- RFC 2328 intra-area SPF.
 // RFC 2328 Section 16.1: stage 1 runs Dijkstra over router and transit-network
 // vertices with a two-way check; stage 2 attaches stub networks to reached
 // router vertices.

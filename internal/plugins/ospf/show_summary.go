@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-13-cli-diag-interop.md -- `show ip ospf` process summary.
+// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- `show ip ospf` process summary.
 // The summary reflects configured state (router-id, areas, ABR/ASBR role, stub-router);
 // origination of the max-metric Router-LSA itself is owned by ospf-7.
 

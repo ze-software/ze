@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-13-cli-diag-interop.md -- OSPF config-sanity doctor checks.
+// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- OSPF config-sanity doctor checks.
 // Related: config.go -- parseOSPFConfig the check reuses to resolve router-id + areas.
 // Related: transport -- the SEPARATE raw-socket check (ospf-3 owns doctor-ospf-raw-socket).
 //

@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-12-auth.md -- OSPFv2 authentication key store.
+// Design: plan/learned/966-ospf-12-auth.md -- OSPFv2 authentication key store.
 // Related: internal/plugins/ospf/packet -- the Sign/Verify crypto backend.
 // RFC: rfc/short/rfc2328.md (App D), rfc/short/rfc5709.md, rfc/short/rfc7474.md
 

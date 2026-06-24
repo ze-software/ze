@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-2-wire.md -- shared test fixtures
+// Design: plan/learned/956-ospf-2-wire.md -- shared test fixtures
 
 package packet
 

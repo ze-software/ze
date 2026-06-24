@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- LSSequenceNumber freshness and wrap boundaries
+// Design: plan/learned/955-ospf-1-types.md -- LSSequenceNumber freshness and wrap boundaries
 
 package types
 

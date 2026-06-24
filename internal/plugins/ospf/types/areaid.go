@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- AreaID 4-byte scalar area identifier
+// Design: plan/learned/955-ospf-1-types.md -- AreaID 4-byte scalar area identifier
 // Related: format.go -- dotted-quad and integer parse helpers
 
 package types

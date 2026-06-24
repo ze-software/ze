@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-2-wire.md -- offline OSPFv2 packet decode CLI
+// Design: plan/learned/956-ospf-2-wire.md -- offline OSPFv2 packet decode CLI
 
 package cli
 

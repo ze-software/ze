@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- LSAge DoNotAge, MaxAge, and saturating arithmetic
+// Design: plan/learned/955-ospf-1-types.md -- LSAge DoNotAge, MaxAge, and saturating arithmetic
 
 package types
 

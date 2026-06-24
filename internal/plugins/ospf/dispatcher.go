@@ -1,5 +1,5 @@
-// Design: plan/spec-ospf-4-component-config.md -- OSPF packet dispatcher
-// Design: plan/spec-ospf-af-unify.md -- Phase 2: header decode + checksum verify go
+// Design: plan/learned/958-ospf-4-component-config.md -- OSPF packet dispatcher
+// Design: plan/learned/972-ospf-af-unify.md -- Phase 2: header decode + checksum verify go
 // through the Codec seam (neutral Header/PacketType), so the dispatcher is shared by
 // the IPv4 and IPv6 families and only the codec differs.
 // Related: instance.go -- the engine that registers handlers and owns the dispatcher

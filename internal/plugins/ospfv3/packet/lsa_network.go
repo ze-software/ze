@@ -1,4 +1,4 @@
-// Design: plan/spec-ospfv3-2-wire.md -- OSPFv3 Network-LSA body codec.
+// Design: plan/learned/969-ospfv3-2-wire.md -- OSPFv3 Network-LSA body codec.
 // RFC: rfc/short/rfc5340.md (§A.4.4 Network-LSA)
 
 package packet

@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-2-wire.md -- Hello packet body codec
+// Design: plan/learned/956-ospf-2-wire.md -- Hello packet body codec
 // RFC 2328 Appendix A.3.2: Hello packet.
 
 package packet

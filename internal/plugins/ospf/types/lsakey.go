@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- LSAKey LSDB identity tuple
+// Design: plan/learned/955-ospf-1-types.md -- LSAKey LSDB identity tuple
 // Related: lstype.go -- LS type discriminator
 // Related: linkstateid.go -- Link State ID component
 // Related: routerid.go -- Advertising Router component

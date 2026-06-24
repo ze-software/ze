@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-4-component-config.md -- OSPFv2 event bus types
+// Design: plan/learned/958-ospf-4-component-config.md -- OSPFv2 event bus types
 // Related: register.go -- registers the namespace and wires the EventBus
 package ospf
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-4-component-config.md -- OSPF event namespace tests
+// Design: plan/learned/958-ospf-4-component-config.md -- OSPF event namespace tests
 //
 // VALIDATES: OSPF event namespace registers neighbor, interface, SPF, and LSDB
 // change event types without collision.

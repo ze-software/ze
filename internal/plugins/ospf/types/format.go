@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- shared dotted-quad format and parse helpers
+// Design: plan/learned/955-ospf-1-types.md -- shared dotted-quad format and parse helpers
 // Related: routerid.go -- fixed-width Router ID parsing
 // Related: areaid.go -- Area ID dotted and integer parsing
 // Related: linkstateid.go -- Link State ID parsing

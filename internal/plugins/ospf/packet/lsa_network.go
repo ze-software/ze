@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-2-wire.md -- Network-LSA body codec
+// Design: plan/learned/956-ospf-2-wire.md -- Network-LSA body codec
 // RFC 2328 Appendix A.4.3: Network-LSA. The Link State ID is the DR interface
 // address and is preserved by the common LSA header, not reinterpreted here.
 

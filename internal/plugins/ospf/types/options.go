@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- OSPF Options bit field
+// Design: plan/learned/955-ospf-1-types.md -- OSPF Options bit field
 // Related: lstype.go -- LSA headers carry Options next to LS type
 
 package types

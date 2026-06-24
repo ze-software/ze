@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/spec-ospf-3-ip-transport.md -- Linux AF_INET/SOCK_RAW backend
+// Design: plan/learned/957-ospf-3-ip-transport.md -- Linux AF_INET/SOCK_RAW backend
 
 package transport
 

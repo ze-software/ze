@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- OSPFv2 LSA type discriminator
+// Design: plan/learned/955-ospf-1-types.md -- OSPFv2 LSA type discriminator
 // Related: lsakey.go -- LSType is the first field of LSAKey
 
 package types

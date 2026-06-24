@@ -1,6 +1,6 @@
 //go:build linux
 
-// Design: plan/spec-ospf-3-ip-transport.md -- Linux raw-socket probe
+// Design: plan/learned/957-ospf-3-ip-transport.md -- Linux raw-socket probe
 
 package transport
 

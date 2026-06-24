@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- OSPF checksum algorithm vectors and boundaries
+// Design: plan/learned/955-ospf-1-types.md -- OSPF checksum algorithm vectors and boundaries
 
 package types
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-af-unify.md -- OSPFv3 link-local-scope LSDB (Link-LSA store)
+// Design: plan/learned/972-ospf-af-unify.md -- OSPFv3 link-local-scope LSDB (Link-LSA store)
 // RFC: rfc/short/rfc5340.md (sec 4.4.3.8 Link-LSA, link-local flooding scope)
 
 package lsdb

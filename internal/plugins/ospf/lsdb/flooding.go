@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-7-lsdb-flooding.md -- RFC 2328 Section 13 flooding.
+// Design: plan/learned/961-ospf-7-lsdb-flooding.md -- RFC 2328 Section 13 flooding.
 // RFC 2328 Section 13.3: flood out eligible interfaces and retransmit until acked.
 
 package lsdb

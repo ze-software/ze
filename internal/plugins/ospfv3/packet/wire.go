@@ -1,4 +1,4 @@
-// Design: plan/spec-ospfv3-2-wire.md -- shared fixed-width big-endian wire helpers.
+// Design: plan/learned/969-ospfv3-2-wire.md -- shared fixed-width big-endian wire helpers.
 // RFC: rfc/short/rfc5340.md (all OSPFv3 wire fields are big-endian)
 
 package packet

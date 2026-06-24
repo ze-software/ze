@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- malformed dotted-quad and integer rejection
+// Design: plan/learned/955-ospf-1-types.md -- malformed dotted-quad and integer rejection
 
 package types
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ospfv3-3-ipv6-transport.md -- raw IPv6 socket readiness doctor check
+// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- raw IPv6 socket readiness doctor check
 // RFC: rfc/short/rfc5340.md (§2.9 raw IPv6 proto 89 needs CAP_NET_RAW)
 
 package transport

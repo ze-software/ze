@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-2-wire.md -- offline decode JSON rendering
+// Design: plan/learned/956-ospf-2-wire.md -- offline decode JSON rendering
 
 package packet
 

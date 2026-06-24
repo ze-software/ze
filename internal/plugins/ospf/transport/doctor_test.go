@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-3-ip-transport.md -- OSPF raw-socket doctor tests
+// Design: plan/learned/957-ospf-3-ip-transport.md -- OSPF raw-socket doctor tests
 
 package transport
 

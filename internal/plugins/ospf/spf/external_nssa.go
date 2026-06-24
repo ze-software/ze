@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-11-stub-nssa.md -- RFC 3101 sec 2.5 Type 7/Type 5 preference.
+// Design: plan/learned/965-ospf-11-stub-nssa.md -- RFC 3101 sec 2.5 Type 7/Type 5 preference.
 // RFC: rfc/short/rfc3101.md -- sec 2.5 (Type 7 P=1 > Type 5 > Type 7 P=0)
 
 package spf

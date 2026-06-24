@@ -1,4 +1,4 @@
-// Design: plan/spec-ospfv3-1-types.md -- LSType (with embedded flooding scope) + LSAKey.
+// Design: plan/learned/968-ospfv3-1-types.md -- LSType (with embedded flooding scope) + LSAKey.
 // RFC: rfc/short/rfc5340.md (§A.4.2.1 LS type, U/S2/S1 bits and function codes)
 //
 // OSPFv3 widens the LS Type to 16 bits and embeds the flooding scope: the top bit is the

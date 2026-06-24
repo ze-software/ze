@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-3-ip-transport.md -- transport orchestrator tests
+// Design: plan/learned/957-ospf-3-ip-transport.md -- transport orchestrator tests
 
 package transport
 

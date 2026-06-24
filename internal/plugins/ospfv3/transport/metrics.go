@@ -1,4 +1,4 @@
-// Design: plan/spec-ospfv3-3-ipv6-transport.md -- OSPFv3 transport metrics
+// Design: plan/learned/970-ospfv3-3-ipv6-transport.md -- OSPFv3 transport metrics
 
 package transport
 

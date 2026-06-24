@@ -1,4 +1,4 @@
-// Design: plan/spec-ospfv3-2-wire.md -- OSPFv3 Link State Update packet body codec.
+// Design: plan/learned/969-ospfv3-2-wire.md -- OSPFv3 Link State Update packet body codec.
 // RFC: rfc/short/rfc5340.md (§A.3.5 Link State Update packet)
 
 package packet

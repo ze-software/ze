@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-2-wire.md -- common OSPFv2 packet header and dispatch
+// Design: plan/learned/956-ospf-2-wire.md -- common OSPFv2 packet header and dispatch
 // RFC 2328 Appendix A.3.1: OSPF packet header.
 
 package packet

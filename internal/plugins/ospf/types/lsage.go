@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- LSAge value and aging helpers
+// Design: plan/learned/955-ospf-1-types.md -- LSAge value and aging helpers
 // Related: sequence.go -- sequence and age jointly feed freshness decisions
 
 package types

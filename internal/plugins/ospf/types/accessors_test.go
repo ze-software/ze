@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- fixed identifier accessor tests mirroring ISIS types
+// Design: plan/learned/955-ospf-1-types.md -- fixed identifier accessor tests mirroring ISIS types
 
 package types
 

@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-2-wire.md -- checksum covered-range tests
+// Design: plan/learned/956-ospf-2-wire.md -- checksum covered-range tests
 
 package packet
 

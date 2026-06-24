@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-4-component-config.md -- per-area state scaffolding
+// Design: plan/learned/958-ospf-4-component-config.md -- per-area state scaffolding
 // Related: config.go -- areaConfig and interfaceConfig inputs
 package ospf
 

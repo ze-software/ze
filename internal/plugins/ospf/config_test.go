@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-4-component-config.md -- config resolution unit tests
+// Design: plan/learned/958-ospf-4-component-config.md -- config resolution unit tests
 //
 // VALIDATES: the `ospf` config subtree (root-wrapped JSON, string leaves,
 // keyed lists) resolves into typed structs with defaults, derives router-id

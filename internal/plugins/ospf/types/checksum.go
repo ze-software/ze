@@ -1,4 +1,4 @@
-// Design: plan/spec-ospf-1-types.md -- OSPFv2 Fletcher and Internet checksums
+// Design: plan/learned/955-ospf-1-types.md -- OSPFv2 Fletcher and Internet checksums
 // Related: lsakey.go -- LSA header offsets include the LS checksum field
 
 package types
