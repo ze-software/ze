@@ -153,6 +153,83 @@ def classify(area: str, root: str, module: str, edges: dict, engines: set) -> li
 
 
 # ---------------------------------------------------------------------------
+# Disableable-feature direct-import audit (feature-gate compile-out)
+# ---------------------------------------------------------------------------
+#
+# A compile-out-able feature (guarded by //go:build ze_<feature>) must be reached
+# ONLY through build-tag-gated registration. A direct functional import from
+# always-on (untagged) code pins the package into every binary, defeating the
+# compile-out. This audit flags any non-test, out-of-tree file that imports a
+# disableable package without the gating build tag.
+# See plan/spec-feature-gate-0-umbrella.md and ai/rules/module-tiers.md.
+DISABLEABLE = {
+    # gated package (repo-relative) -> required //go:build tag
+    "internal/component/lg": "ze_lg",
+}
+
+
+def _tag_required(constraint: str, tag: str) -> bool:
+    """True if a //go:build constraint string positively requires tag."""
+    if re.search(r"!\s*" + re.escape(tag) + r"\b", constraint):
+        return False
+    return re.search(r"\b" + re.escape(tag) + r"\b", constraint) is not None
+
+
+def file_requires_tag(root: str, rel: str, tag: str) -> bool:
+    """True if file rel carries a //go:build constraint requiring tag."""
+    try:
+        txt = open(os.path.join(root, rel), encoding="utf-8", errors="ignore").read()
+    except OSError:
+        return False
+    for line in txt.splitlines():
+        s = line.strip()
+        if s.startswith("//go:build"):
+            return _tag_required(s[len("//go:build") :], tag)
+        if s and not s.startswith("//"):
+            return False  # reached code before any build constraint
+    return False
+
+
+def disableable_violations(
+    root: str, module: str, edges: dict, disableable=None
+) -> list:
+    """Always-on files that directly import a disableable feature package."""
+    if disableable is None:
+        disableable = DISABLEABLE
+    out = []
+    for pkg, tag in sorted(disableable.items()):
+        import_path = module + "/" + pkg
+        own_prefix = pkg + "/"
+        for imp in sorted(edges.get(import_path, ())):
+            if imp.startswith(own_prefix):
+                continue  # the feature's own tree
+            if imp.endswith("_test.go"):
+                continue  # tests may import the package directly
+            if not file_requires_tag(root, imp, tag):
+                out.append((imp, pkg, tag))
+    return out
+
+
+def disableable_gate(root: str, module: str, edges: dict) -> int:
+    viol = disableable_violations(root, module, edges)
+    if not viol:
+        return 0
+    print(
+        "FAIL: disableable feature(s) imported by always-on code -- breaks compile-out:",
+        file=sys.stderr,
+    )
+    for imp, pkg, tag in viol:
+        print(f"  {imp} imports {pkg} without //go:build {tag}", file=sys.stderr)
+    print(
+        "  Rule: a compile-out-able feature is reached ONLY via build-tag-gated "
+        "registration (ai/rules/module-tiers.md). Gate the importer with "
+        "//go:build <tag> or route it through the service construction registry.",
+        file=sys.stderr,
+    )
+    return 2
+
+
+# ---------------------------------------------------------------------------
 # Path C engine-placement gate
 # ---------------------------------------------------------------------------
 
@@ -318,6 +395,13 @@ def write_baseline(root: str, mis: dict) -> None:
 
 
 def run_gate(root: str, module: str, edges: dict) -> int:
+    """Combined --check gate: engine placement (Path C) + disableable imports."""
+    engine_rc = engine_placement_gate(root, module, edges)
+    dis_rc = disableable_gate(root, module, edges)
+    return engine_rc or dis_rc
+
+
+def engine_placement_gate(root: str, module: str, edges: dict) -> int:
     mis = engine_misplacements(root, module, edges)
     baseline = read_baseline(root)
     current = set(mis)
@@ -500,6 +584,37 @@ def selftest() -> int:
         assert rows["sharedlib"]["external"], (
             "shared lib should have an external importer"
         )
+
+        # --- disableable-feature direct-import audit (feature-gate compile-out) ---
+        w(root, "internal/component/widget/w.go", "package widget\n")
+        # gated importer (correct): reaches widget only behind its build tag
+        w(
+            root,
+            "cmd/app/svc_widget.go",
+            f'//go:build ze_widget\n\npackage app\nimport _ "{mod}/internal/component/widget"\n',
+        )
+        # always-on importer (violation): imports widget with no build tag
+        w(
+            root,
+            "internal/app/use.go",
+            f'package app\nimport _ "{mod}/internal/component/widget"\n',
+        )
+        # test importer (allowed: tests don't affect the production binary)
+        w(
+            root,
+            "internal/app/use_test.go",
+            f'package app\nimport _ "{mod}/internal/component/widget"\n',
+        )
+        dis_edges = collect_edges(root, mod)
+        dmap = {"internal/component/widget": "ze_widget"}
+        dfiles = {v[0] for v in disableable_violations(root, mod, dis_edges, dmap)}
+        assert "internal/app/use.go" in dfiles, (
+            "always-on direct import of a disableable feature not flagged"
+        )
+        assert "cmd/app/svc_widget.go" not in dfiles, (
+            "build-tag-gated importer wrongly flagged"
+        )
+        assert "internal/app/use_test.go" not in dfiles, "test importer wrongly flagged"
 
         assert _quiet_gate(root, mod, edges) == 2, "empty baseline should fail (new)"
         write_baseline(root, mis)

@@ -68,7 +68,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ike/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ipsec/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/lg/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pki/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/yang"

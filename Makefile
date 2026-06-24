@@ -29,6 +29,13 @@ ifneq ($(ZE_TAGS),)
 ZE_TAGFLAG := -tags $(ZE_TAGS)
 endif
 
+# Default-on per-feature compile-out tags. A service guarded by //go:build
+# ze_<feature> is compiled into ze / ze-appliance iff its tag is listed here;
+# omit one (or build ze-stripped, which has none) for a smaller, hardened
+# binary. Add a new feature's tag here when it becomes default-on.
+# See plan/spec-feature-gate-0-umbrella.md.
+ZE_FEATURES := ze_lg
+
 # Version: YY.MM.DD from current date, injected via ldflags.
 ZE_VERSION := $(shell date +%y.%m.%d)
 ZE_BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -84,11 +91,11 @@ docs/comparison.html: docs/comparison.md scripts/codegen/comparison_html.go
 
 ze:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_distro $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 ze-appliance:
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_appliance $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
+	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
 
 ze-setup-bin:
 	@mkdir -p bin
@@ -117,12 +124,12 @@ perf:
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_distro $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -tags 'ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 bin/ze-appliance: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-appliance..."
 	@mkdir -p bin
-	$(GO) build -tags 'ze_core ze_appliance $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
+	$(GO) build -tags 'ze_core ze_appliance $(ZE_FEATURES) $(ZE_TAGS)' -ldflags "$(ZE_LDFLAGS)" -o bin/ze-appliance ./cmd/ze
 
 bin/ze-setup: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-setup..."

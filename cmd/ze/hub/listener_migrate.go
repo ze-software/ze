@@ -12,7 +12,6 @@ import (
 	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
 	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -56,8 +55,10 @@ func NewListenerMigrator(web *zeweb.WebServer) *ListenerMigrator {
 // SetWeb updates the web server reference.
 func (m *ListenerMigrator) SetWeb(web *zeweb.WebServer) { m.web = web }
 
-// SetLG updates the looking glass server reference.
-func (m *ListenerMigrator) SetLG(s *lg.LGServer) { m.lg = s }
+// SetLG updates the looking glass server reference. Takes Reconfigurable (not
+// *lg.LGServer) so always-on code never imports the lg package: lg is built
+// through the construction registry and may be compiled out (//go:build ze_lg).
+func (m *ListenerMigrator) SetLG(s Reconfigurable) { m.lg = s }
 
 // SetMCP updates the MCP server reference.
 func (m *ListenerMigrator) SetMCP(s *MCPServerHandle) { m.mcp = s }

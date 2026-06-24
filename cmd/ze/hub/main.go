@@ -787,16 +787,28 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	if len(lgAddrs) > 0 {
-		lgDispatch := func(cmd string) (string, error) { return webDispatch(cmd, "", "") }
-		if lgSrv := startLGServer(store, lgAddrs, lgTLS, lgDispatch, resolvers); lgSrv != nil {
-			lm.SetLG(lgSrv)
-			defer func() {
-				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer shutdownCancel()
-				_ = lgSrv.Shutdown(shutdownCtx)
-			}()
-		}
+	// Build optional, compile-out-able services through the construction
+	// registry. With a feature's ze_<feature> tag off, its factory is not
+	// registered and the service is silently skipped. Looking-glass (ze_lg) is
+	// the pilot; its listen binding (lgAddrs/lgTLS) is resolved above.
+	builtServices := buildServices(ServiceDeps{
+		Store:     store,
+		Resolvers: resolvers,
+		Dispatch:  webDispatch,
+		LGAddrs:   lgAddrs,
+		LGTLS:     lgTLS,
+	})
+	for _, svc := range builtServices {
+		registerBuiltService(lm, svc)
+	}
+	if len(builtServices) > 0 {
+		defer func() {
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer shutdownCancel()
+			for _, svc := range builtServices {
+				_ = svc.Shutdown(shutdownCtx)
+			}
+		}()
 	}
 
 	var mcpSrv *MCPServerHandle

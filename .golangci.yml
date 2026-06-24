@@ -3,8 +3,14 @@ version: "2"
 
 run:
   timeout: 10m
+  # Lint the feature-rich shipped build (ze + ze-appliance feature set): ze_core
+  # plus every default-on per-feature compile-out tag. This gives the
+  # //go:build ze_<feature> registration + factory files real lint coverage and
+  # prevents their registry callers (e.g. registerService) from being reported
+  # as unused. Add a new feature's tag here when it becomes default-on.
   build-tags:
     - ze_core
+    - ze_lg
 
 linters:
   exclusions:

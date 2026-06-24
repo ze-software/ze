@@ -27,7 +27,6 @@ import (
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	zegnmi "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
 	zegokrazy "codeberg.org/thomas-mangin/ze/internal/component/gokrazy"
-	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -665,84 +664,6 @@ func resolveConfigPath(store storage.Storage) string {
 		}
 	}
 	return "ze.conf"
-}
-
-// startLGServer creates and starts the looking glass HTTP server.
-// Returns the server on success, nil on failure (logged, non-fatal).
-// Every entry in listenAddrs becomes a bound listener on the same
-// *http.Server; Shutdown closes all of them.
-func startLGServer(store storage.Storage, listenAddrs []string, useTLS bool, dispatch lg.CommandDispatcher, resolvers *resolve.Resolvers) *lg.LGServer {
-	if len(listenAddrs) == 0 {
-		return nil
-	}
-	cfg := lg.LGConfig{
-		ListenAddrs: listenAddrs,
-		TLS:         useTLS,
-		Dispatch:    dispatch,
-		DecorateASN: func(asn string) string {
-			if resolvers == nil || resolvers.Cymru == nil {
-				return ""
-			}
-			name, _ := resolvers.Cymru.LookupASNName(context.Background(), parseASNForDecorator(asn))
-			return name
-		},
-	}
-
-	// When TLS is enabled, load or generate cert from blob storage. The SAN
-	// hint is derived from the first endpoint; GenerateWebCertWithAddr
-	// already fans out to all interface IPs when the host is 0.0.0.0.
-	if useTLS {
-		if !storage.IsBlobStorage(store) {
-			fmt.Fprintf(os.Stderr, "error: looking glass TLS requires blob storage (run ze init first)\n")
-			return nil
-		}
-		certStore := &blobCertStore{store: store}
-		certPEM, keyPEM, err := zeweb.LoadOrGenerateCert(certStore, listenAddrs[0])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: looking glass TLS cert: %v\n", err)
-			return nil
-		}
-		cfg.CertPEM = certPEM
-		cfg.KeyPEM = keyPEM
-	}
-
-	srv, err := lg.NewLGServer(cfg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: looking glass disabled: %v\n", err)
-		return nil
-	}
-
-	// Component startup goroutine (one-time, same pattern as startWebServer).
-	serveLG(srv)
-
-	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer readyCancel()
-	if waitErr := srv.WaitReady(readyCtx); waitErr != nil {
-		fmt.Fprintf(os.Stderr, "warning: looking glass server failed to start: %v\n", waitErr)
-		_ = srv.Shutdown(context.Background())
-		return nil
-	}
-
-	scheme := "http"
-	if cfg.TLS {
-		scheme = "https"
-	}
-	for _, addr := range srv.Addresses() {
-		fmt.Fprintf(os.Stderr, "looking glass listening on %s://%s/\n", scheme, addr)
-	}
-	return srv
-}
-
-// serveLG runs the LG server's ListenAndServe in a background goroutine.
-// This is a one-time component startup, not a per-event goroutine.
-func serveLG(srv *lg.LGServer) {
-	go serveLGBlocking(srv)
-}
-
-func serveLGBlocking(srv *lg.LGServer) {
-	if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
-		slogutil.Logger("lg.server").Error("looking glass server error", "error", serveErr)
-	}
 }
 
 // serveGNMI runs the gNMI server's Serve in a background goroutine.

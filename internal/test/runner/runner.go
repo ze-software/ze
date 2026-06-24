@@ -38,12 +38,15 @@ const TestPluginBuildTag = "zetest"
 // TestBuildTags returns ZE_TAGS plus the tags for functional test builds.
 // ze_core + ze_distro provide the full ze command surface. ze_setup adds
 // the provision plugin (install remote) and appliance tooling. zetest adds
-// test-only plugins on top.
+// test-only plugins on top. The default-on per-feature compile-out tags
+// (ze_lg, ...) must be listed here too so the functional-test ze binary can
+// exercise those services -- this mirrors ZE_FEATURES in the Makefile (add a
+// new feature's tag in both places). See plan/spec-feature-gate-0-umbrella.md.
 func TestBuildTags() string {
 	tags := strings.FieldsFunc(env.Get("ze.tags"), func(r rune) bool {
 		return r == ',' || r == ' ' || r == '\t' || r == '\n'
 	})
-	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup")
+	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup", "ze_lg")
 	return textbuf.Join(tags, ",")
 }
 

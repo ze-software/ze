@@ -316,22 +316,6 @@ func stopBackend() {
 	}
 }
 
-// parseASNForDecorator converts an ASN string to uint32 for the Cymru resolver.
-// Returns 0 on parse failure (Cymru handles ASN 0 gracefully).
-func parseASNForDecorator(asn string) uint32 {
-	var n uint64
-	for _, c := range asn {
-		if c < '0' || c > '9' {
-			return 0
-		}
-		n = n*10 + uint64(c-'0')
-		if n > 4294967295 {
-			return 0
-		}
-	}
-	return uint32(n)
-}
-
 // startStandaloneTelemetry starts the Prometheus metrics server when
 // telemetry{} is configured but bgp{} is absent. Mirrors the startup
 // logic in loader_create.go but without requiring a reactor.

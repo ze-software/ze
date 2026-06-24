@@ -72,16 +72,39 @@ not the plugin signal: BGP fuses a codec library with its engine (B-2) and
 host-services need a tier decision (B-3) -- see `plan/spec-tiers-0-umbrella.md`
 "Phase 5 Hardening Analysis". There is **no permanent allowlist**.
 
+## Disable-ability (compile-out)
+
+Axis B also decides whether a feature can be **compiled out** of the binary. A
+feature is compile-out-able exactly when nothing always-compiled depends on it: it
+is reached ONLY through build-tag-gated registration. A direct functional `import`
+from always-on (untagged) code pins the package into every binary and defeats the
+compile-out; only a blank/gated registration import can be dropped by a build tag.
+
+The pilot is looking-glass: its server (`internal/component/lg`) is reached only
+from `cmd/ze/hub/service_lg.go` + `register_lg.go` (`//go:build ze_lg`) through the
+service construction registry, and its YANG schema is gated into a generated
+`all_ze_lg.go` by `plugin_imports.go`. `make ze` / `ze-appliance` pass the
+default-on feature tags (`ZE_FEATURES` in the Makefile); `ze-stripped` omits them
+for a smaller, hardened binary. See `plan/spec-feature-gate-0-umbrella.md`.
+
+**Rule:** a compile-out-able feature (gated by `//go:build ze_<feature>`) MUST NOT
+be directly imported by always-on code. Reach it through the service construction
+registry (`cmd/ze/hub/service_registry.go`) or another gated file. `dep_audit.py`
+enumerates these features (`DISABLEABLE`); the gate flags any always-on, non-test
+importer.
+
 ## The gate
 
-`scripts/dev/dep_audit.py --check` enforces the engine rule and runs in
-`make ze-verify` (target `ze-tier-check`). It:
+`scripts/dev/dep_audit.py --check` enforces the engine-placement rule AND the
+disable-ability rule, and runs in `make ze-verify` (target `ze-tier-check`). It:
 
 - parses `pluginDirs` from `scripts/codegen/plugin_imports.go` to exclude nested
   sub-plugin namespaces (so `bgp/plugins/*` are never flagged);
 - fails (exit 2) on any **new** misplaced engine, naming the dir and its required
   tier, pointing here;
-- fails on a **stale** baseline entry (one no longer misplaced), forcing cleanup.
+- fails on a **stale** baseline entry (one no longer misplaced), forcing cleanup;
+- fails (exit 2) if a `DISABLEABLE` feature is imported by always-on (untagged,
+  non-test) code, naming the file and the build tag it needs.
 
 ### Migration baseline (transitional, NOT an allowlist)
 
