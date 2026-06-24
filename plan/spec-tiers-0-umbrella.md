@@ -337,6 +337,38 @@ Findings table's "1 (web UI page only)" undercounted; there are 2 feature consum
 Remaining: tiers-5 (Path B preconditions) -- accepted in full, sequenced as its own
 child specs (B-1 unify discovery, B-3 host tier, B-2 library extraction, config split).
 
+## tiers-5 Progress (Path B preconditions)
+
+### B-1 -- unify plugin discovery -- DONE (2026-06-24)
+
+The advisory tier classification in `scripts/dev/dep_audit.py` no longer guesses
+"is this a plugin?" from a registration grep (the probe's 65-false-positive class).
+It now reads the **composition roots** -- the generated `all.go` AND `cmd/ze`
+dispatch (via `is_registration_importer`) -- so a subsystem is "wired" iff a
+composition root blank-imports it. This catches every plugin shape (registry.Register,
+RegisterRPCs, RegisterBackend, doctor checks, and `*-cmd` verb providers wired only
+through dispatch) without a per-mechanism heuristic.
+
+-> Decision: the "wired" signal is `len(registration) > 0`, NOT an all.go-only parse.
+An early all.go-only version mis-classified the dispatch-wired command plugins
+(`completion`, `passwd`, `signal`, `skills`, `init`, `exabgp`, ...) as core
+candidates; folding in `cmd/ze` dispatch (already recognized by
+`is_registration_importer`) fixed it -- plugins-area core candidates dropped 10 -> 1
+(only `ifacenetlink`, a genuine registration=0/external=0 leaf, remains).
+
+-> Constraint: this improves only the ADVISORY (core/composition is still NOT gated --
+Path C). Full enforcement stays blocked by B-2 (BGP fuses codec+engine) and B-3 (host
+tier). The enforced engine gate is unchanged.
+
+Results: new fields `is_registered`/`is_engine`/`core_candidate` on each advisory row;
+the report sections are REGISTERED PLUGINS / CORE CANDIDATES / SHARED LIBRARIES;
+`dep_audit.py --selftest` gained B-1 fixtures and is now wired into `make ze-tier-check`
+(it ran the gate's `--check` only before, never its own tests); `ai/rules/module-tiers.md`
+updated. ruff clean; selftest + gate green.
+
+Remaining: B-3 (host-tier decision -- the Open Design Decision below), B-2 (extract
+bgp/iface/vpp/ike library subpkgs to core), config leaf/orchestration split.
+
 ## Open Design Decision (resolve at child-spec time)
 
 **Where does non-engine infra live, and how far does "core" extend?**

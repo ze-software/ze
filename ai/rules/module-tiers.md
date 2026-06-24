@@ -61,10 +61,16 @@ that is fully mechanical:
 > `internal/component/` if a feature depends on it, else in `internal/plugins/`.
 
 The **core vs component-vs-host** distinction for non-engine libraries is REPORTED
-by `scripts/dev/dep_audit.py` (advisory) but NOT gated, because it cannot yet be
-decided mechanically (see `plan/spec-tiers-0-umbrella.md`, "Phase 5 Hardening
-Analysis": BGP fuses a codec library with its engine, registration has several
-forms, and host-services need judgment). There is **no permanent allowlist**.
+by `scripts/dev/dep_audit.py` (advisory) but NOT gated. The "is this wired as a
+plugin?" half of that distinction is now mechanical: the advisory reads the
+composition roots (the generated `all.go` plus `cmd/ze` dispatch) to tell a wired
+plugin from a genuine core candidate, so every plugin shape -- `*-cmd` verb
+providers, doctor checks, `RegisterBackend`, `RegisterRPCs` -- is recognized without
+a per-mechanism registration grep that used to mis-send `*-cmd` dirs to core
+(umbrella blocker B-1). What still blocks *enforcing* core/composition is structural,
+not the plugin signal: BGP fuses a codec library with its engine (B-2) and
+host-services need a tier decision (B-3) -- see `plan/spec-tiers-0-umbrella.md`
+"Phase 5 Hardening Analysis". There is **no permanent allowlist**.
 
 ## The gate
 

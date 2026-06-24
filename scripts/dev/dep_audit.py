@@ -101,13 +101,14 @@ def collect_edges(root: str, module: str) -> dict:
     return edges
 
 
-def classify(area: str, root: str, module: str, edges: dict) -> list:
+def classify(area: str, root: str, module: str, edges: dict, engines: set) -> list:
     base = module + "/" + area
     area_dir = os.path.join(root, area)
     out = []
     for top in sorted(os.listdir(area_dir)):
         if not os.path.isdir(os.path.join(area_dir, top)):
             continue
+        subsystem = area + "/" + top
         pkg_prefix = base + "/" + top
         own_rel_prefix = os.path.join(area, top) + os.sep
         external, registration, tests = set(), set(), set()
@@ -123,6 +124,15 @@ def classify(area: str, root: str, module: str, edges: dict) -> list:
                     registration.add(imp)
                 else:
                     external.add(imp)
+        # "wired" = blank-imported by a composition root (the generated all.go OR
+        # cmd/ze dispatch), per is_registration_importer. This is the authoritative
+        # "the build treats this subsystem as a plugin/command" signal -- it reuses
+        # the generator's output (all.go) plus the dispatch root, instead of a
+        # per-mechanism registration grep that mis-sends *-cmd dirs to core
+        # (umbrella blocker B-1). It catches every shape: registry.Register,
+        # RegisterRPCs, RegisterBackend, doctor checks, and *-cmd verb providers.
+        is_registered = len(registration) > 0
+        is_engine = subsystem in engines
         out.append(
             {
                 "name": top,
@@ -130,6 +140,13 @@ def classify(area: str, root: str, module: str, edges: dict) -> list:
                 "registration": sorted(registration),
                 "tests": sorted(tests),
                 "is_candidate": len(external) == 0,
+                "is_registered": is_registered,
+                "is_engine": is_engine,
+                # a genuine internal/core candidate: a leaf nothing depends on that
+                # no composition root wires and that is not a config-driven engine.
+                "core_candidate": len(external) == 0
+                and not is_registered
+                and not is_engine,
             }
         )
     return out
@@ -202,6 +219,22 @@ def find_engine_dirs(root: str, nested_ns: list) -> list:
                     engines.append(rel)
                     break
     return sorted(engines)
+
+
+def top_subsystem(rel: str) -> str:
+    """Map any package path under the two areas to its top-level subsystem dir,
+    e.g. internal/component/ike/engine -> internal/component/ike, and
+    internal/plugins/log/cmd -> internal/plugins/log."""
+    return "/".join(rel.split("/")[:3])
+
+
+def engine_subsystems(root: str) -> set:
+    """Top-level subsystems containing an sdk.NewWithConn engine (nested sub-plugin
+    namespaces from the generator's pluginDirs excluded), used only to LABEL the
+    advisory tiers -- the enforced gate uses find_engine_dirs directly."""
+    plugin_dirs = parse_plugin_dirs(root)
+    nested_ns = nested_namespaces(plugin_dirs)
+    return {top_subsystem(e) for e in find_engine_dirs(root, nested_ns)}
 
 
 def engine_depended(engine_rel: str, module: str, edges: dict) -> bool:
@@ -400,6 +433,31 @@ def selftest() -> int:
             "internal/plugins/platformx/r.go",
             "package platformx\nfunc R(){ sdk.NewWithConn() }\n",
         )
+        # --- classify / B-1 fixtures: "wired" via a composition root, not an engine ---
+        # command plugin wired ONLY via cmd/ze dispatch (the *-cmd shape the all.go-only
+        # signal used to mis-send to core) -> must classify as a registered plugin.
+        w(root, "internal/plugins/cmdverb/r.go", "package cmdverb\n")
+        w(
+            root,
+            "cmd/ze/ze_core_dispatch.go",
+            f'package main\nimport _ "{mod}/internal/plugins/cmdverb"\n',
+        )
+        # plugin wired via the generated composition root (all.go) -> registered plugin.
+        w(root, "internal/plugins/genverb/r.go", "package genverb\n")
+        w(
+            root,
+            "internal/component/plugin/all/all.go",
+            f'package all\nimport _ "{mod}/internal/plugins/genverb"\n',
+        )
+        # genuine leaf: no composition root wires it, nothing imports it, not an engine.
+        w(root, "internal/plugins/leaflib/lib.go", "package leaflib\n")
+        # shared library: a feature imports it -> has an external importer (not a candidate).
+        w(root, "internal/plugins/sharedlib/lib.go", "package sharedlib\n")
+        w(
+            root,
+            "internal/plugins/edge1/use.go",
+            f'package edge1\nimport _ "{mod}/internal/plugins/sharedlib"\n',
+        )
 
         edges = collect_edges(root, mod)
         mis = engine_misplacements(root, mod, edges)
@@ -415,6 +473,33 @@ def selftest() -> int:
             "depended component engine wrongly flagged"
         )
         assert "internal/plugins/edge1" not in mis, "edge plugin wrongly flagged"
+
+        # --- classify / B-1: wired-vs-core determination from composition roots ---
+        engines = engine_subsystems(root)
+        rows = {
+            r["name"]: r
+            for r in classify("internal/plugins", root, mod, edges, engines)
+        }
+        assert rows["cmdverb"]["is_registered"], (
+            "dispatch-wired *-cmd not seen as wired"
+        )
+        assert not rows["cmdverb"]["core_candidate"], (
+            "wired *-cmd mis-sent to core (B-1)"
+        )
+        assert rows["genverb"]["is_registered"], "all.go-wired plugin not seen as wired"
+        assert not rows["genverb"]["core_candidate"], (
+            "all.go-wired plugin mis-sent to core"
+        )
+        assert rows["leaflib"]["core_candidate"], "genuine leaf not a core candidate"
+        assert not rows["leaflib"]["is_registered"], (
+            "unwired leaf wrongly seen as wired"
+        )
+        assert not rows["sharedlib"]["core_candidate"], (
+            "depended lib wrongly a core candidate"
+        )
+        assert rows["sharedlib"]["external"], (
+            "shared lib should have an external importer"
+        )
 
         assert _quiet_gate(root, mod, edges) == 2, "empty baseline should fail (new)"
         write_baseline(root, mis)
@@ -451,35 +536,50 @@ def main() -> int:
     module = module_path(root)
     edges = collect_edges(root, module)
 
-    report = {area: classify(area, root, module, edges) for area in areas}
+    engines = engine_subsystems(root)
+    report = {area: classify(area, root, module, edges, engines) for area in areas}
 
     if as_json:
         if cands_only:
             report = {
-                a: [r for r in rs if r["is_candidate"]] for a, rs in report.items()
+                a: [r for r in rs if r["core_candidate"]] for a, rs in report.items()
             }
         print(json.dumps({"module": module, "areas": report}, indent=2))
         return 0
 
     for area, rows in report.items():
-        cands = [r for r in rows if r["is_candidate"]]
-        others = sorted(
-            (r for r in rows if not r["is_candidate"]),
+        plugins = [r for r in rows if r["is_registered"]]
+        core_cands = [r for r in rows if r["core_candidate"]]
+        shared = sorted(
+            (r for r in rows if not r["is_registered"] and not r["core_candidate"]),
             key=lambda r: -len(r["external"]),
         )
         print("\n" + "=" * 78)
         print("AREA:", area)
         print("=" * 78)
-        print(f"\n-- PLUGIN CANDIDATES (0 external importers): {len(cands)} --")
-        for r in cands:
+        print(
+            f"\n-- REGISTERED PLUGINS (wired by the generator / all.go): "
+            f"{len(plugins)} --"
+        )
+        for r in plugins:
+            eng = "engine" if r["is_engine"] else "  -   "
+            print(f"  {r['name']:24s} {eng}  external={len(r['external'])}")
+        print(
+            f"\n-- CORE CANDIDATES (0 external, not registered, not an engine): "
+            f"{len(core_cands)} --"
+        )
+        for r in core_cands:
             print(
                 f"  {r['name']:24s} registration={len(r['registration'])} "
                 f"tests={len(r['tests'])}"
             )
         if cands_only:
             continue
-        print(f"\n-- HAS EXTERNAL IMPORTERS (core/shared): {len(others)} --")
-        for r in others:
+        print(
+            f"\n-- SHARED LIBRARIES (external importers, not a registered plugin): "
+            f"{len(shared)} --"
+        )
+        for r in shared:
             print(f"  {r['name']:24s} external={len(r['external'])}")
             for s in r["external"][:6]:
                 print(f"        <- {s}")

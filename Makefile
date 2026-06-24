@@ -239,7 +239,10 @@ _ze-verify-changed-impl: ze-lint-changed ze-tier-check ze-iface-resolution-check
 
 # Module-tier placement gate (ai/rules/module-tiers.md): a config-driven engine
 # must live in internal/component/ if a feature depends on it, else internal/plugins/.
+# --selftest runs the gate's own isolated fixtures (engine placement + the B-1
+# wired-vs-core classification) before checking the live tree.
 ze-tier-check:
+	@python3 scripts/dev/dep_audit.py --selftest
 	@python3 scripts/dev/dep_audit.py --check
 
 # No-direct-resolution gate (plan/spec-iface-resolve-0-umbrella.md AC-U1,
