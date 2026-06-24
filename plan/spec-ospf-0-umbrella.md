@@ -19,7 +19,7 @@
 7. `internal/core/rib/locrib/candidate.go` -- unified cross-protocol Loc-RIB and best-path selection (the FIB-install path: SPF -> `locrib.Path` -> sysrib `OnChange` -> fibkernel). The sysrib path-group ECMP expansion (`BestChangeEntry.ECMPPaths`) ALREADY EXISTS (added by IS-IS); OSPF reuses it
 8. `internal/core/redistevents/events.go` -- route-change producer payload (the REDISTRIBUTION path to BGP, NOT the FIB-install path)
 9. Child specs: `plan/spec-ospf-1-types.md` through `plan/spec-ospf-13-cli-diag-interop.md`
-10. `plan/spec-ospfv3-0-umbrella.md` -- the deferred OSPFv3 (RFC 5340) follow-up; v3 is a separate edge plugin, not part of this set
+10. OSPFv3 (RFC 5340, IPv6): originally planned as a separate edge plugin, but DELIVERED unified as the IPv6 address family of the one `ospf` engine (af-unify, `plan/learned/972-ospf-af-unify.md`). The old `spec-ospfv3-0-umbrella.md` was retired; OSPFv3 is NOT a separate plugin. Extension follow-ups for both address families: `plan/spec-ospf-ext-0-umbrella.md`
 
 ## Task
 
@@ -47,11 +47,11 @@ is that pattern on proto 89 plus IP multicast group membership.
 
 | Lever | Decision | Effect on the set |
 |-------|----------|-------------------|
-| Protocol version | **OSPFv2 only** | OSPFv3 (RFC 5340) is a separate edge plugin and separate follow-up umbrella (`spec-ospfv3-0-umbrella.md`). The guide is emphatic: do NOT unify v2/v3 (FRR ships two daemons). The LSA registries and wire encodings differ enough that sharing leaks detail into both |
+| Protocol version | **OSPFv2 first; OSPFv3 followed** | This set delivered OSPFv2 (IPv4). OSPFv3 (RFC 5340, IPv6) was originally scoped as a separate edge plugin, but was DELIVERED unified as the IPv6 address family of the one `ospf` engine (af-unify, `plan/learned/972-ospf-af-unify.md`): the FSM / flooding / DR / SPF / LSDB machinery is AF-neutral and shared; only the wire / LSA / prefix codec is AF-specific (the `_v6` seams + the `internal/plugins/ospf/v3/` leaves). Like `bgp` spanning address families, there is no separate `ospfv3` |
 | Area hierarchy | **Full: multi-area + ABR + stub + NSSA up front** | Backbone + non-backbone areas, ABR Type 3/4 summaries with area ranges (ospf-9), stub-area filtering + default injection and NSSA Type 7 + translator election + Type 7->5 translation (ospf-11) all in scope |
 | Network types | **Broadcast (DR/BDR) + point-to-point together** | LAN broadcast with DR/BDR election and Network-LSAs is in scope (ospf-5), alongside point-to-point. NBMA and point-to-multipoint are out of scope (future) |
 | Authentication | **In v1** | AuType 0 (Null) / 1 (Simple) / 2 (Cryptographic: RFC 2328 MD5 + RFC 5709 HMAC-SHA) / 3 (RFC 7474 Cryptographic with Extended Sequence Numbers) in the common-header codec (ospf-2); key management and per-packet verify/sign as a dedicated child (ospf-12) |
-| Address family | **IPv4 only** | OSPFv2 is IPv4-only by definition. IPv6 is OSPFv3, deferred to the v3 umbrella |
+| Address family | **IPv4 (this set); IPv6 followed** | OSPFv2 is IPv4 by definition; the IPv6 address family (OSPFv3) was delivered in the SAME unified `ospf` engine via af-unify (`plan/learned/972-ospf-af-unify.md`), not a separate plugin |
 
 ### Reference implementations
 
@@ -345,7 +345,7 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 | Native vs wrap FRR/bird? | Native Go | Consistent with native BGP/IKEv2/IS-IS; no subprocess on the gokrazy appliance; Ze owns the protocol. FRR/BIRD are clean-room references only |
 | Edge plugin dir vs component dir? | `internal/plugins/ospf/` | Module-tier rule: engines with no feature depending on them are edge plugins. LDP, RSVP-TE, and IS-IS are in `internal/plugins/`; BGP/sysrib stay in `internal/component/` because other features depend on them |
 | Share an SPF/LSDB engine with IS-IS? | No (v1) | Guide §11: OSPF has network vertices for transit LANs, IS-IS uses pseudo-node LSPs; LSA vs LSP keys and metric semantics differ. A shared abstraction leaks detail into both. Refactor later if the duplication proves mechanical |
-| OSPFv2 + OSPFv3 in one plugin? | No | Guide §15: FRR ships two daemons; the LSA registries and wire formats differ enough that unification is net-negative. OSPFv3 is a separate edge plugin + umbrella |
+| OSPFv2 + OSPFv3 in one plugin? | Initially No; **REVERSED to Yes** | Originally split per guide §15 (FRR's two daemons). Later unified: ONE `ospf` engine with address-family seams (af-unify, `plan/learned/972-ospf-af-unify.md`) -- the FSM / flooding / DR / SPF / LSDB are AF-neutral; only the wire / LSA codec is AF-specific (the `_v6` seams + `internal/plugins/ospf/v3/` leaves). Net-positive: no v2/v3 drift |
 | Transport? | `AF_INET SOCK_RAW` proto 89 + IP multicast, behind an interface | Reuse the RSVP-TE raw-IP pattern; add multicast membership; isolate so a BSD/VPP backend can be added later |
 | LSDB storage model? | Lazy raw-bytes + metadata, per-area | Matches Ze buffer-first philosophy; per-area LSDBs are the FRR model and simpler than BIRD's single-LSDB-with-domain-filter for a first pass |
 | Route installation mechanism? | Loc-RIB insertion (`locrib.Path`), NOT redistevents | The FIB-install path is Loc-RIB -> sysrib `OnChange` -> fibkernel, exactly as IS-IS and BGP. redistevents feeds the redistribute-orchestrator (redistribution to BGP), a different concern (ospf-10). Admin distance 110 on `locrib.Path.AdminDistance` (config `rib.admin-distance.ospf`, the EXISTING leaf) |
@@ -384,7 +384,7 @@ time for the RFCs whose normative detail the code must enforce (RFC 2328 first).
 - OSPF runs over IP (proto 89), multicast `224.0.0.5` (AllSPFRouters) / `224.0.0.6` (AllDRouters), TTL 1; needs `CAP_NET_RAW`. The transport is the in-tree RSVP-TE raw-IP pattern PLUS multicast membership -- no new low-level capability
 - FIB install = Loc-RIB insertion (`locrib.Path`) -> sysrib -> fibkernel (like IS-IS/BGP); redistevents is redistribution-to-BGP only. SPF decides what to insert. The sysrib ECMP path-group expansion already exists
 - Two distinct checksums and the §13.4 hard traps are where correctness risk concentrates; test them against RFC vectors and FRR wire output early
-- Multi-area / ABR / stub / NSSA and authentication are all in v1 scope; OSPFv3 is a separate edge plugin (deferred)
+- Multi-area / ABR / stub / NSSA and authentication are all in v1 scope; OSPFv3 (IPv6) was later delivered as the IPv6 address family of this same `ospf` engine (af-unify, `plan/learned/972-ospf-af-unify.md`), not a separate plugin
 
 ## Current Behavior (MANDATORY)
 
@@ -703,7 +703,7 @@ traps against RFC vectors and FRR wire output early.
 ## Known Limitations
 - v1 ships broadcast + point-to-point network types only (NBMA/P2MP future)
 - Opaque-LSA framework, TE, SR, virtual links, GR, BFD, demand circuits, multi-instance, L3VPN DN bit, SNMP MIB are out of scope (future)
-- OSPFv3 (IPv6) is a separate edge plugin (`spec-ospfv3-0-umbrella.md`)
+- OSPFv3 (IPv6) was delivered as the IPv6 address family of the one `ospf` engine (af-unify, `plan/learned/972-ospf-af-unify.md`); it is NOT a separate plugin. The retired `spec-ospfv3-0-umbrella.md` is superseded by this base umbrella; OSPF extension follow-ups for both address families are coordinated by `plan/spec-ospf-ext-0-umbrella.md`
 
 ## RFC Documentation
 Add `// RFC 2328 Section X.Y: "<quoted requirement>"` (and RFC 3101/5709/7474/6987 as applicable) above enforcing code in each child.

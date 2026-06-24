@@ -85,7 +85,7 @@ protocol surface.
 | RSVP-TE IGP sync | Explicitly excluded by the task; only LDP sync here |
 | TE link cost manipulation | RFC 5443 §4 forbids raising the TE cost; Ze originates no TE LSA today (that is ext-2), so there is nothing to suppress -- only the IP link cost is touched |
 | LDP End-of-LIB (RFC 5919) | The deterministic condition-3 signal is not implemented in the LDP plugin; this spec uses the hold-down-timer estimation only (RFC 5443 §2 fallback). End-of-LIB is a future LDP enhancement |
-| OSPFv3 LDP-sync | OSPFv3 (`internal/plugins/ospfv3` / the `v3/` codec) is not in scope; this spec is OSPFv2-only. The state machine is written so an OSPFv3 follow-up can reuse it |
+| IPv6-family LDP-sync detail | The IPv6 address family (v6 code in `internal/plugins/ospf/v3/`, not a separate plugin) is not elaborated here; this spec targets the IPv4 address family. The state machine is AF-neutral, so the IPv6 half reuses it on the shared interface model |
 | IS-IS LDP-sync (RFC 5443 §2 IS-IS half) | The `isis` plugin is a separate consumer of the same RFCs; not this spec |
 | Targeted-LDP-over-TE-tunnel sync (RFC 5443 §4) | No TE tunnels in Ze; future work |
 | Sync without support at the far end (RFC 6138 Appendix B) | "for further study"; not implemented |
