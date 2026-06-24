@@ -14,8 +14,8 @@ import (
 	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/packet"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/types"
+	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
+	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
 )
 
 // translatorGrace is the per-NSSA translator-stability state (RFC 3101 §3.5): active

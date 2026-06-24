@@ -11,7 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
-	ospfv3transport "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/transport"
+	ospfv3transport "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/transport"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 

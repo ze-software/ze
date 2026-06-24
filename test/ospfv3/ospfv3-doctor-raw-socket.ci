@@ -1,7 +1,7 @@
 # Test: ze explain surfaces the OSPFv3 raw-socket doctor diagnostic metadata
 # VALIDATES: spec-ospfv3-3 AC-7, AC-15, the doctor-ospfv3-raw-socket code is
 # registered and explainable. The registered doctor-check execution path is
-# covered by internal/plugins/ospfv3/transport/doctor_test.go until OSPFv3 config
+# covered by internal/plugins/ospf/v3/transport/doctor_test.go until OSPFv3 config
 # lands in spec-ospfv3-4. The raw IPv6 send/receive path itself is proven by the
 # QEMU integration test transport_integration_linux_test.go.
 

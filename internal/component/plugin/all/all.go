@@ -228,7 +228,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/transport"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/transport"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/policyroute"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/routingtable"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/rsvpte"

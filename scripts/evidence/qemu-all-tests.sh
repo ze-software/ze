@@ -160,8 +160,8 @@ fi
 if [ -d ./internal/plugins/ospf/transport ]; then
 	integration_pkgs+=(./internal/plugins/ospf/transport/...)
 fi
-if [ -d ./internal/plugins/ospfv3/transport ]; then
-	integration_pkgs+=(./internal/plugins/ospfv3/transport/...)
+if [ -d ./internal/plugins/ospf/v3/transport ]; then
+	integration_pkgs+=(./internal/plugins/ospf/v3/transport/...)
 fi
 # IS-IS adjacency integration test (spec-isis-5): two engines reach Up over a
 # real veth pair. The root isis package carries the integration-tagged test.

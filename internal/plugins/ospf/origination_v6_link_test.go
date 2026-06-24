@@ -8,8 +8,8 @@ import (
 	ospflsdb "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/lsdb"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/packet"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/packet"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/types"
+	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
+	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
 )
 
 type ospfRawSend struct {

@@ -72,7 +72,7 @@ traceroute, traffic, update, vpp, web
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
 <!-- BEGIN GENERATED: arch-system-plugins (scripts/dev/arch_map.py; make ze-regen) -->
-66 directories under `internal/plugins/`:
+68 directories under `internal/plugins/`:
 
 aaa-cmd, completion, config-archive-cmd, config-cli, config-schema,
 config-storage, config-yang, connect, connected, cos, crashes, debug,
@@ -80,10 +80,10 @@ dhcpserver, diag, env, exabgp, explain, fib, firewall, flowexport,
 flowexport-cmd, flowspec-firewall, gnmi-cmd, host, host-cmd, iface,
 ifacenetlink, imageserver, init, isis, kernel, l2tp-cmd, l2tpauthlocal,
 l2tpauthradius, l2tppool, l2tpshaper, ldp, ldp-cmd, local, log, meta,
-mpls-cmd, mrt, ntp, passwd, ping-cmd, pki-cmd, policyroute, pppoe-cmd,
+mpls-cmd, mrt, ntp, ospf, passwd, ping-cmd, pki-cmd, policyroute, pppoe-cmd,
 provision, resolve-cmd, routingtable, rsvpte, rsvpte-cmd, signal, skills,
 static, storage-cmd, subscriber-cmd, support, systemd, tftpserver,
-traceroute-cmd, traffic, traffic-cmd, update-cmd
+traceroute-cmd, traffic, traffic-cmd, trafficusage, update-cmd
 <!-- END GENERATED: arch-system-plugins -->
 
 **BGP plugins** (`internal/component/bgp/plugins/`) extend the BGP engine: RIB, route server, graceful restart, NLRI codecs, filters, RPKI, BMP.

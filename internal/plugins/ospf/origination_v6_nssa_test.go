@@ -13,8 +13,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
-	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/packet"
-	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospfv3/types"
+	ospfv3packet "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/packet"
+	ospfv3types "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/v3/types"
 )
 
 func newV6RedistEngine(t *testing.T, cfgJSON string) (*engine, types.RouterID) {

@@ -5,7 +5,7 @@ Ze includes an experimental native OSPF engine under the `ospf` config root. The
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- ospf config root -->
 <!-- source: internal/plugins/ospf/codec_v6.go -- v6Codec -->
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6Strategy -->
-<!-- source: internal/plugins/ospfv3/transport/transport.go -- Transport -->
+<!-- source: internal/plugins/ospf/v3/transport/transport.go -- Transport -->
 
 SPF builds one graph per area from Router-LSAs and Network-LSAs, enforces the RFC 2328 two-way check, derives next-hops from Router-LSA link data, merges equal-cost next-hops, and inserts one `locrib.Path` per next-hop with OSPF admin distance 110. The kernel FIB path is Loc-RIB -> sysrib -> fibkernel, not redistribution events.
 <!-- source: internal/plugins/ospf/spf/graph.go -- BuildGraph -->

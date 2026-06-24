@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | 3/4 (Phase 1 rule+gate done; Phase 2 edge-out done; Phase 3 platform-in done; tiers-4/5 pending) |
-| Updated | 2026-06-20 |
+| Phase | 4/6 (Phase 1 rule+gate done; Phase 2 edge-out done; Phase 3 platform-in done; Phase 4 ospf-in + ike decision IN PROGRESS; tiers-5 Path B accepted in full) |
+| Updated | 2026-06-24 |
 
 ## Post-Compaction Recovery
 
@@ -187,7 +187,7 @@ its directory location.
 | 1 | `spec-tiers-1-rule-and-audit.md` | Document the taxonomy in `ai/rules/module-tiers.md`; add to `ai/rules/INDEX.md` + CLAUDE.md Before-You table; extend `dep_audit.py` with **Path C**: `--check` enforces ONLY the engine rule (engine -> component if depended, else plugins), exit 2 on an engine misplacement; core/composition/host printed as advisory, NOT enforced; **no allowlist**. Add Go test gate `TestEnginePlacement`; wire into `make ze-verify`. **No moves.** | low | self (audit over current tree records the 8 engine mismatches as the worklist) |
 | 2 | `spec-tiers-2-edge-out.md` | Move `isis, ldp, rsvpte, flowexport, mpls` component->plugins via the Python migration tool; update generator `pluginDirs`/`rpcRoot`; regenerate `all.go`; update docs/inventory. | low-med | Phase 1 audit |
 | 3 | `spec-tiers-3-platform-in.md` | Move `sysrib, bfd, sysctl` plugins->component via the tool; update importers, generator, docs. | med | Phase 1 audit |
-| 4 | `spec-tiers-4-borderline.md` | Decide + move `ike`, `mrt` per-case. | med | Phase 1 audit |
+| 4 | `spec-tiers-4-borderline.md` | Decide + move `ike`, `mrt` per-case. **DONE (Phase 4, 2026-06-24):** `mrt` moved to plugins in Phase 2; `ike` stays component (2 feature deps). Also absorbed the post-Phase-3 `ospf` gate regression (nested `ospfv3` -> `ospf/v3`). | med | Phase 1 audit |
 | 5 (FUTURE, Path B) | `spec-tiers-5-preconditions-*` (own umbrella) | Structural work to extend enforcement beyond engines: extract bgp/iface/vpp/ike codec subpackages to `internal/core/` (un-fuse library+engine, blocker B-2); unify plugin-registration discovery so the gate reuses the generator (blocker B-1); decide a home for framework/host - a 4th `internal/host/` tier or fold to core (blocker B-3); then separate config leaf primitives from orchestration and move true leaf infra to `internal/core/`. Only after this can the gate enforce core/composition with no allowlist. | high | Phases 1-4; deferred, not scheduled now |
 
 ## Phase 2 (edge-out) -- COMPLETE (2026-06-20)
@@ -279,6 +279,63 @@ independently of this migration.
 
 Remaining: tiers-4 (borderline `ike`), tiers-5 (Path B preconditions / the infra
 core-vs-host classification in the Open Design Decision + Phase 5 analysis below).
+
+## Phase 4 (ospf-in regression + ike borderline) -- COMPLETE (2026-06-24)
+
+Two items closed here: a NEW engine misplacement the Phase-1 gate caught after
+Phase 3, and the tiers-4 `ike` borderline.
+
+### OSPF: gate regression resolved by nesting the v6 leaves (NOT a tier move)
+
+After Phase 3 the OSPF/OSPFv3 feature landed (`plan/learned/955-975`). The Phase-1
+gate then went RED: `internal/plugins/ospf` (an `sdk.NewWithConn` engine) was flagged
+to move to `internal/component/`, because something under `internal/plugins/` imported
+the `ospf` engine subtree -- specifically `internal/plugins/ospfv3/transport` imported
+`internal/plugins/ospf/wire` (`RawPacket`).
+
+-> Decision: this is NOT a real platform dependency. `ospfv3` is not a peer plugin --
+no `sdk.NewWithConn`, no top-level files; it is three leaf library packages (`types`,
+`packet`, `transport`) plus one doctor-check registration, all consumed by the single
+unified `ospf` engine (learned `972-ospf-af-unify`). OSPF is ONE edge plugin whose code
+was split across two top-level dirs by history. The fix is to make the OSPF plugin
+self-contained (plugin-self-containment), NOT to relabel it a component.
+
+-> Resolution: nested `internal/plugins/ospfv3/{types,packet,transport}` ->
+`internal/plugins/ospf/v3/{...}` via a deterministic relocation (FS move +
+boundary-safe quoted-path rewrite over .go/.ci/.sh/.md; plan/ historical specs and the
+generated `ai/` index skipped). The back-edge `ospf/v3/transport -> ospf/wire` is now
+INTERNAL to the ospf tree, so axis B finds no external feature depending on `ospf`; it
+correctly stays an edge plugin in `internal/plugins/`.
+
+-> Constraint: the two import-guard tests (`ospf/v3/{packet,types}/imports_test.go`)
+forbid imports by SUBSTRING and assumed the top-level-sibling layout; nesting made
+`packet`'s legitimate `ospf/v3/types` import match the forbidden `internal/plugins/ospf/`
+prefix. Both guards were rewritten for the nested layout (the codec may import ONLY the
+`ospf/v3/types` leaf; the types leaf imports only stdlib). This preserves 972's
+discipline -- 972 chose separate guarded leaf packages + a one-way engine->leaf
+dependency, NOT a top-level location, so nesting does not reverse it.
+
+Results:
+- `dep_audit.py --check`: GREEN (engine placement clean, baseline empty).
+- `go build ./...` green; `all.go` registration set preserved (the lone
+  `ospfv3/transport` doctor blank-import is now `ospf/v3/transport`; 0 dropped/added).
+- `ospf` engine + `ospf/v3/{packet,transport,types}` unit tests + both rewritten guards
+  pass. `ai/INSTRUCTIONS.md` arch lists regenerated (`ospfv3` dropped from the top-level
+  `internal/plugins/` enumeration); `ai/CODE-TO-DOCS.md` doc index regenerated.
+- 102 path rewrites across 65 files (Go + docs + `.ci` + evidence script). `plan/`
+  learned summaries and `ai/LEARNED-INDEX.md` left as historical records.
+
+### ike: stays in `internal/component/` (no move)
+
+`ike` is an `sdk.NewWithConn("ike")` engine and TWO features depend on it:
+`internal/component/web/page_vpn_ipsec.go` (the VPN/IPsec UI) and
+`internal/component/cmd/clear/doc.go` (the `clear` CLI). Per the engine rule (axis B)
+an engine a feature depends on is a `component`; the gate does not flag it. The tiers-4
+borderline therefore resolves to **no move** -- ike is correctly a component. (The
+Findings table's "1 (web UI page only)" undercounted; there are 2 feature consumers.)
+
+Remaining: tiers-5 (Path B preconditions) -- accepted in full, sequenced as its own
+child specs (B-1 unify discovery, B-3 host tier, B-2 library extraction, config split).
 
 ## Open Design Decision (resolve at child-spec time)
 
