@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +42,24 @@ func TestDiscoverExaBGPSuiteAssignsNumericIDsInDisplayOrder(t *testing.T) {
 	}
 }
 
+func TestDiscoverExaBGPSuiteParsesSerialOption(t *testing.T) {
+	base := t.TempDir()
+	writeExaBGPFixture(t, base, "watchdog", "conf-watchdog.conf", 1, "option=serial")
+
+	suite, err := discoverExaBGPSuite(base)
+	if err != nil {
+		t.Fatalf("discover ExaBGP suite: %v", err)
+	}
+
+	test := suite.byNick["1"]
+	if test == nil {
+		t.Fatal("missing metadata for nick 1")
+	}
+	if !test.serial {
+		t.Fatal("serial option was not parsed")
+	}
+}
+
 func TestParseExaBGPCIRejectsMissingConfig(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "test", "exabgp-compat")
@@ -58,7 +77,7 @@ func TestParseExaBGPCIRejectsMissingConfig(t *testing.T) {
 	}
 }
 
-func writeExaBGPFixture(t *testing.T, base, name, config string, tcpConnections int) {
+func writeExaBGPFixture(t *testing.T, base, name, config string, tcpConnections int, options ...string) {
 	t.Helper()
 	root := filepath.Join(base, "test", "exabgp-compat")
 	if err := os.MkdirAll(filepath.Join(root, "encoding"), 0o755); err != nil {
@@ -70,7 +89,7 @@ func writeExaBGPFixture(t *testing.T, base, name, config string, tcpConnections 
 	if err := os.WriteFile(filepath.Join(root, "etc", config), []byte("neighbor 127.0.0.1 { }\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	content := "option=file:" + config + "\noption=tcp_connections:" + strconv.Itoa(tcpConnections) + "\n"
+	content := "option=file:" + config + "\noption=tcp_connections:" + strconv.Itoa(tcpConnections) + "\n" + strings.Join(options, "\n")
 	if err := os.WriteFile(filepath.Join(root, "encoding", name+".ci"), []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}

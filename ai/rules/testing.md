@@ -59,7 +59,7 @@ All groups run with `-race`. Use the group matching your change during iteration
 | `make ze-verify` | Pre-commit gate: lint, changed-file wiring/doc/inventory, vet evidence, two-pass unit, functional, and ExaBGP |
 | `make ze-verify-changed` | Changed-package lint/test plus wiring/doc/inventory, functional, and ExaBGP |
 | `make ze-verify-wiring-docs` | Changed-file-aware wiring, documentation, command, and inventory gate |
-| `make ze-unit-test` | All unit tests with `-race` (full recompile, ~5 min) |
+| `make ze-unit-test` | All unit tests with `-race` under default-on feature tags, plus bare `ze_core` compile-out checks (~5 min) |
 | `make ze-functional-test` | All 13 functional test suites |
 | `make ze-lint` | 26 linters |
 | `make ze-ci` | lint + unit + build |
@@ -132,6 +132,9 @@ problem to fix before merging, not a deferral to log.
 
 1. **Lint** (full or changed-only depending on target)
 2. **Cached full pass** (`go test` without `-race`): Go caches results by source hash.
+   The pass uses `ze_core` plus the default-on feature tags from `feature-gates.txt`,
+   matching the shipped `make ze` feature set. It also runs the bare `ze_core`
+   hub compile-out checks so absent-feature tests still execute.
    When nothing changed, this completes in under 1 second. Catches logic regressions
    across the entire codebase.
 3. **Race pass on changed groups only** (`go test -race` on component groups containing

@@ -57,6 +57,7 @@ type exabgpTestEntry struct {
 	configs        []string
 	ciFile         string
 	tcpConnections int
+	serial         bool
 }
 
 type exabgpSuite struct {
@@ -301,6 +302,10 @@ func parseExaBGPCI(root string, rec *runner.Record, ciFile string) (*exabgpTestE
 			}
 			test.tcpConnections = count
 		}
+		if line == "option=serial" {
+			test.serial = true
+			continue
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
@@ -356,42 +361,61 @@ func runExaBGPSelected(ctx context.Context, suite *exabgpSuite, cli exabgpCLI) b
 		}
 	}()
 
-	sem := make(chan struct{}, parallel)
-	var wg sync.WaitGroup
-	var okMu sync.Mutex
+	var parallelTests []*exabgpTestEntry
+	var serialTests []*exabgpTestEntry
 	allOK := true
-
 	for _, rec := range selected {
 		test := suite.byNick[rec.Nick]
 		if test == nil {
 			rec.State = runner.StateFail
 			rec.Error = errors.New("missing ExaBGP test metadata")
-			okMu.Lock()
 			allOK = false
-			okMu.Unlock()
 			continue
 		}
-		wg.Add(1)
-		go func(t *exabgpTestEntry) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			passed, detail := runOneExaBGPTest(ctx, t, cli)
-			if !passed {
-				okMu.Lock()
-				allOK = false
-				okMu.Unlock()
-				if !cli.quiet {
-					printExaBGPFailure(t, detail)
-				}
-			} else if cli.verbose && !cli.quiet {
-				printExaBGPOutput(t, detail)
-			}
-			display.TestFinished(t.record.Nick, t.record.State, t.record.Duration)
-		}(test)
+		if test.serial {
+			serialTests = append(serialTests, test)
+			continue
+		}
+		parallelTests = append(parallelTests, test)
 	}
-	wg.Wait()
+
+	var okMu sync.Mutex
+	runBatch := func(tests []*exabgpTestEntry, limit int) {
+		if len(tests) == 0 {
+			return
+		}
+		if limit <= 0 || limit > len(tests) {
+			limit = len(tests)
+		}
+		sem := make(chan struct{}, limit)
+		var wg sync.WaitGroup
+		for _, test := range tests {
+			wg.Add(1)
+			go func(t *exabgpTestEntry) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+
+				passed, detail := runOneExaBGPTest(ctx, t, cli)
+				if !passed {
+					okMu.Lock()
+					allOK = false
+					okMu.Unlock()
+					if !cli.quiet {
+						printExaBGPFailure(t, detail)
+					}
+				} else if cli.verbose && !cli.quiet {
+					printExaBGPOutput(t, detail)
+				}
+				display.TestFinished(t.record.Nick, t.record.State, t.record.Duration)
+			}(test)
+		}
+		wg.Wait()
+	}
+
+	runBatch(parallelTests, parallel)
+	runBatch(serialTests, 1)
+
 	close(statusDone)
 	display.Newline()
 	display.Summary()

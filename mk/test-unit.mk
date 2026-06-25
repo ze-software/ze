@@ -12,6 +12,8 @@
 .PHONY: ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed
 .PHONY: ze-test-bgp ze-test-core ze-test-plugins ze-test-config ze-test-cli ze-test-rest
 
+ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed ze-test-rest: $(TMP_SENTINEL)
+
 # Component groups for scoped testing (ze-test-<group>).
 # "rest" = everything in ZE_PACKAGES not covered by a named group.
 ZE_GROUP_BGP     = ./internal/component/bgp/...
@@ -26,12 +28,14 @@ ZE_GROUP_REST    = $$(go list ./... | grep -v /cmd/ze-chaos \
 	| grep -v '^codeberg.org/thomas-mangin/ze/internal/component/config' \
 	| grep -v '^codeberg.org/thomas-mangin/ze/internal/component/cli')
 
-# Run ze unit tests with race detector (excludes chaos packages)
+# Run ze unit tests with race detector (default-on features plus bare-core compile-out checks).
 ze-unit-test:
 	@echo "Running ze unit tests..."
 	$(GO_TEST) -race $(ZE_PACKAGES)
+	@echo "Unit tests: bare ze_core compile-out checks..."
+	$(GO_TEST_CORE) -race ./cmd/ze/hub
 
-# Run ze unit tests with coverage
+# Run ze unit tests with coverage.
 ze-unit-test-cover:
 	@echo "Running ze unit tests with coverage..."
 	$(GO_TEST) -race -coverprofile=coverage.out $(ZE_PACKAGES)
@@ -43,6 +47,8 @@ ze-unit-test-cover:
 ze-unit-test-cached:
 	@echo "Unit tests: full pass (cacheable, no -race)..."
 	$(GO_TEST) $(ZE_PACKAGES)
+	@echo "Unit tests: bare ze_core compile-out checks..."
+	$(GO_TEST_CORE) ./cmd/ze/hub
 
 # Race pass: -race only on component groups with changed .go files.
 # Unmapped packages are included individually, never as a full sweep.
@@ -53,6 +59,8 @@ ze-unit-test-race-changed:
 	else \
 		echo "Unit tests: -race on changed groups: $$groups"; \
 		$(GO_TEST) -race $$groups; \
+		echo "Unit tests: bare ze_core compile-out checks..."; \
+		$(GO_TEST_CORE) -race ./cmd/ze/hub; \
 	fi
 
 # ─── Component-group unit tests ─────────────────────────────────────────────

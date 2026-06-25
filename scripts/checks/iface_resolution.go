@@ -42,15 +42,16 @@ import (
 // the point -- it forces the author to either migrate to the resolver or
 // justify a new exemption here.
 var allowlist = map[string]string{
-	"internal/component/iface/": "the shared resolver and dispatch -- the single owner of logical-name -> device resolution that every other consumer calls instead of the kernel.",
-	"internal/plugins/iface/netlink/": "the netlink backend -- the single kernel owner the resolver and dispatch delegate to; LinkByName here IS the resolved kernel call.",
-	"internal/plugins/traffic/netlink/": "the tc kernel adapter; the traffic backend resolves logical->os in its Apply/RestoreOriginal/ListQdiscs methods (resolveOSName) before this adapter runs, so it only ever sees os device names.",
-	"internal/plugins/fib/kernel/mplsentry_linux.go": "resolves the literal \"lo\" loopback device, not a config-sourced name.",
-	"internal/plugins/provision/": "one-shot bootstrap CLI (ze provision) run at PXE/DHCP provisioning time; no iface backend is loaded and no logical-name config mapping exists yet, so --interface is a raw kernel device.",
+	"internal/component/iface/":                            "the shared resolver and dispatch -- the single owner of logical-name -> device resolution that every other consumer calls instead of the kernel.",
+	"internal/plugins/iface/netlink/":                      "the netlink backend -- the single kernel owner the resolver and dispatch delegate to; LinkByName here IS the resolved kernel call.",
+	"internal/plugins/traffic/netlink/":                    "the tc kernel adapter; the traffic backend resolves logical->os in its Apply/RestoreOriginal/ListQdiscs methods (resolveOSName) before this adapter runs, so it only ever sees os device names.",
+	"internal/plugins/fib/kernel/mplsentry_linux.go":       "resolves the literal \"lo\" loopback device, not a config-sourced name.",
+	"internal/plugins/provision/":                          "one-shot bootstrap CLI (ze provision) run at PXE/DHCP provisioning time; no iface backend is loaded and no logical-name config mapping exists yet, so --interface is a raw kernel device.",
+	"internal/plugins/imageserver/register.go":             "install/provision image server resolves through iface.Addresses first; when no iface backend is loaded it falls back to the configured raw kernel name, matching the pre-iface bootstrap path.",
 	"internal/plugins/diag/cmd/capture_interface_linux.go": "post-resolution: net.InterfaceByName(binding.OsName) after iface.Resolve, to obtain the *net.Interface the AF_PACKET capture socket needs.",
-	"internal/plugins/ldp/register.go": "post-resolution: net.InterfaceByName(b.OsName) after iface.Resolve, to obtain the *net.Interface the multicast socket needs.",
-	"internal/component/doctor/": "one-shot root CLI (ze doctor) with no iface backend loaded; a resolver call would error on every check. Honors no selectors by design.",
-	"internal/component/ppp/": "pppN device names are kernel-assigned per session (created/point-to-point kinds), never config-sourced logical names, so no selector applies (umbrella assumption A-5).",
+	"internal/plugins/ldp/register.go":                     "post-resolution: net.InterfaceByName(b.OsName) after iface.Resolve, to obtain the *net.Interface the multicast socket needs.",
+	"internal/component/doctor/":                           "one-shot root CLI (ze doctor) with no iface backend loaded; a resolver call would error on every check. Honors no selectors by design.",
+	"internal/component/ppp/":                              "pppN device names are kernel-assigned per session (created/point-to-point kinds), never config-sourced logical names, so no selector applies (umbrella assumption A-5).",
 }
 
 // patterns match a direct kernel name->device resolution CALL. The trailing '('

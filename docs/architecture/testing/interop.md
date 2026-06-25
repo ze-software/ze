@@ -198,10 +198,12 @@ compares encoded output byte-for-byte using a Python harness.
 ### What It Tests
 
 The harness runs Ze with ExaBGP-derived configurations and compares the wire bytes Ze
-produces against known-good ExaBGP output. 38 test cases are defined as `.ci` files in
+produces against known-good ExaBGP output. 42 test cases are defined as `.ci` files in
 `test/exabgp-compat/encoding/`. These `.ci` files use a format specific to the ExaBGP
-compat harness (`option=file:`, `1:cmd:`, `1:raw:`, `1:json:` lines), not the
-[standard `.ci` format](ci-format.md) used by Ze's functional tests.
+compat harness (`option=file:`, `option=serial`, `1:cmd:`, `1:raw:`, `1:json:` lines),
+not the [standard `.ci` format](ci-format.md) used by Ze's functional tests.
+`option=serial` marks process-driven fixtures that must not overlap other ExaBGP
+harness instances; the runner executes those after the parallel batch.
 
 Coverage includes:
 

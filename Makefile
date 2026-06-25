@@ -15,6 +15,15 @@ export GOCACHE := $(CURDIR)/tmp/go-cache
 export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 export CGO_ENABLED := 0
 
+# Keep project scratch Go files out of module package discovery. The file target
+# is intentionally local and only created when missing, so hand-edited tmp/go.mod
+# files are never overwritten.
+TMP_SENTINEL := $(CURDIR)/tmp/go.mod
+
+$(TMP_SENTINEL):
+	@mkdir -p $(dir $@)
+	@printf '%s\n' '// Sentinel module: marks tmp/ as a nested module so go list ./... skips scratch files.' 'module ze-tmp-scratch' '' 'go 1.25' > $@
+
 # Go compiler: override with GO=tinygo for smaller binaries
 # TinyGo finds go via PATH, so we prepend Go 1.26 when GO=tinygo
 GO ?= go
@@ -47,9 +56,16 @@ ZE_BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
 
 # CPU limit: leave 3 cores free (minimum 1). Used as GOMAXPROCS for tests so
-# parallel stages do not starve the system.
+# parallel stages do not starve the system. Unit tests exercise the shipped
+# default-on feature set; GO_TEST_CORE runs bare ze_core compile-out checks.
 GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); [ $$p -lt 1 ] && p=1; echo $$p)
-GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags ze_core
+# GO_TEST_CORE runs only ./cmd/ze/hub, so every absent-feature compile-out test
+# (//go:build !ze_lg / !ze_ssh / !ze_web) MUST live under cmd/ze/hub. A negated
+# feature-gate test placed elsewhere would be silently skipped by both passes.
+GO_TEST_TAGS = ze_core $(ZE_FEATURES) $(ZE_TAGS)
+GO_TEST_CORE_TAGS = ze_core $(ZE_TAGS)
+GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags '$(GO_TEST_TAGS)'
+GO_TEST_CORE = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags '$(GO_TEST_CORE_TAGS)'
 ZE_EXABGP_TIMEOUT ?= 180
 ZE_LINUX_GO_IMAGE ?= golang:1.26-alpine
 ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp
@@ -224,11 +240,13 @@ ze-lint-changed:
 	echo "Linting changed packages: $$pkgs"; \
 	golangci-lint run $$pkgs
 
-ze-unit-test-changed:
+ze-unit-test-changed: $(TMP_SENTINEL)
 	@pkgs=$$(scripts/dev/changed-pkgs.sh); \
 	if [ -z "$$pkgs" ]; then echo "No changed Go packages to test"; exit 0; fi; \
 	echo "Testing changed packages: $$pkgs"; \
 	$(GO_TEST) -race $$pkgs
+	@echo "Unit tests: bare ze_core compile-out checks..."
+	$(GO_TEST_CORE) -race ./cmd/ze/hub
 
 # ─── Composite verification targets ────────────────────────────────────────
 

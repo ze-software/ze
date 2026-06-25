@@ -1481,6 +1481,8 @@ def parse_cmdline():
         # Skip config file declarations (handled by functional test runner)
         if message.strip().startswith('option=file:'):
             continue
+        if message.strip() == 'option=serial':
+            continue
         if message.strip() == 'option=bind:ipv6':
             options['ipv6'] = True
             continue
