@@ -1307,6 +1307,11 @@ if needsAPIWait {
 
 Ze implements a gNMI (gRPC Network Management Interface) server as an independent component (`internal/component/gnmi/`). gNMI provides industry-standard YANG-modeled device management, making Ze addressable by the same tooling used for Cisco, Juniper, and Arista devices (gnmic, Ansible, controllers).
 
+The gNMI transport is default-on but compile-out-able behind `ze_gnmi`. The hub reaches it through `gnmi_infra.go`; with the tag absent, the service hook is nil and the generated plugin imports drop `internal/component/gnmi`, `internal/component/gnmi/yang`, and `internal/plugins/gnmi-cmd/yang`, so `show gnmi` and `environment { gnmi {} }` are absent rather than partially registered.
+<!-- source: feature-gates.txt -- ze_gnmi -->
+<!-- source: cmd/ze/hub/gnmi_infra.go -- gnmiBuild, gnmiReloadNotify -->
+<!-- source: internal/component/plugin/all/all_ze_gnmi.go -- gated gNMI imports -->
+
 The gNMI server runs on a separate port (default 9339) with independent TLS and auth configuration. It supports Capabilities, Get, Set, and Subscribe (ONCE + STREAM) RPCs. Set operations use segment-based config paths through `ConfigSessionManager.SetSegments`/`DeleteSegments` to preserve IP addresses in list keys (Ze's dot-separated `splitPath` would break on IPs).
 
 Configuration is YANG-modeled under `environment { gnmi { enabled; token; tls { cert; key; } server <name> { ip; port; } } }` with env var overrides (`ze.gnmi.enabled`, `ze.gnmi.listen`, `ze.gnmi.token`, `ze.gnmi.tls.cert`, `ze.gnmi.tls.key`).
@@ -1315,7 +1320,8 @@ Subscribe STREAM delivers change notifications from both gNMI Set operations and
 
 Prometheus counters: `ze_gnmi_requests_total{rpc}`, `ze_gnmi_subscribe_active`, `ze_gnmi_errors_total{rpc,code}`.
 
-CLI: `show gnmi` returns server status (enabled, listen address, auth, TLS, active subscribers).
+CLI: when `ze_gnmi` is compiled in, `show gnmi` returns server status (enabled, listen address, auth, TLS, active subscribers).
+<!-- source: internal/component/gnmi/show.go -- handleShowGNMI -->
 
 ## Files
 

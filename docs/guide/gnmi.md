@@ -2,6 +2,12 @@
 
 Ze includes a gNMI (gRPC Network Management Interface) server that exposes YANG-modeled configuration over the industry-standard gNMI protocol. This allows management by tools like gnmic, Ansible, and network controllers that speak gNMI.
 
+Build flavor: gNMI is compiled into default `make ze` and `ze-appliance` builds through `ze_gnmi`. Minimal `ze_core` and `ze-stripped` builds omit the gNMI server, config schema, and `show gnmi`; custom minimal builds that need gNMI must include `-tags "ze_core ze_gnmi"`.
+<!-- source: feature-gates.txt -- ze_gnmi -->
+<!-- source: Makefile -- ZE_FEATURES, ze-stripped -->
+<!-- source: cmd/ze/hub/gnmi_infra.go -- gnmiBuild -->
+<!-- source: internal/component/plugin/all/all_ze_gnmi.go -- gated gNMI imports -->
+
 ## Enabling gNMI
 
 gNMI is disabled by default. Enable it via environment variables or YANG config.
@@ -63,11 +69,13 @@ TLS certificates are loaded once at startup. Certificate rotation requires resta
 
 ## CLI Status
 
-Check gNMI server status from the SSH CLI:
+Check gNMI server status from the SSH CLI when `ze_gnmi` is compiled in:
 
     show gnmi
 
 Returns JSON with: enabled, listen address, token configured, TLS configured, and active subscriber count.
+<!-- source: internal/component/gnmi/show.go -- handleShowGNMI -->
+<!-- source: internal/component/plugin/all/all_ze_gnmi.go -- gated gNMI RPC import -->
 
 ## Prometheus Metrics
 

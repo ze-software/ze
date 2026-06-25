@@ -3,7 +3,7 @@
 How to add or change a **compile-out-able feature**: a subsystem that can be
 dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag,
 for a smaller binary and a smaller attack surface (looking-glass `ze_lg`, ssh
-`ze_ssh`, web `ze_web`, ...).
+`ze_ssh`, web `ze_web`, gNMI `ze_gnmi`, ...).
 
 Read this before touching `feature-gates.txt`, `cmd/ze/hub/service_registry.go`,
 a `register_<x>.go` / `service_<x>.go` file, an `*_infra.go` seam, the
@@ -31,21 +31,26 @@ always-on home FIRST** (`internal/core/*` leaf), then gate the feature. This is
 
 ## `feature-gates.txt` is the single source of truth
 
-The repo-root file `feature-gates.txt` declares every gate, one line per feature:
+The repo-root file `feature-gates.txt` declares every gated package. Most
+features need one line; features with owned sidecar packages use the same tag on
+additional lines:
 
 ```
-ze_web   internal/component/web
+ze_gnmi  internal/component/gnmi
+ze_gnmi  internal/plugins/gnmi-cmd
 ```
 
-`<build-tag>` then `<gated-package>`. Tags are `ze_<feature>` by convention; the
-gated YANG schema package is `<pkg>/yang` by convention. **Every other consumer
-DERIVES from this file** — do NOT hand-edit a parallel list:
+`<build-tag>` then `<gated-package>`. Tags are `ze_<feature>` by convention.
+The generator gates both `<pkg>` and `<pkg>/yang` when those packages are
+discovered. The direct package covers RPC/registration side effects, and the
+YANG package covers config or command schema. **Every other consumer
+DERIVES from this file**. Do NOT hand-edit a parallel list:
 
 | Consumer | Derives | Mechanism |
 |----------|---------|-----------|
 | `Makefile` `ZE_FEATURES` | default-on tags for `ze` / `ze-appliance` | `$(shell awk ...)` |
 | `internal/test/runner` `TestBuildTags` | tags for the functional-test `ze` | reads the file |
-| `scripts/codegen/plugin_imports.go` `featureTags` | gates `<pkg>/yang` into `all_<tag>.go` | `loadFeatureTags` |
+| `scripts/codegen/plugin_imports.go` `featureTags` | gates `<pkg>` and `<pkg>/yang` into `all_<tag>.go` | `loadFeatureTags` |
 | `scripts/dev/dep_audit.py` `DISABLEABLE` | no always-on import of `<pkg>` | `load_feature_gates` |
 
 The ONE consumer that cannot self-derive is `.golangci.yml` `build-tags` (static
@@ -54,12 +59,14 @@ drift and tells you exactly which tag to add.
 
 ## Procedure: add a feature gate
 
-1. **Extract first.** Grep for always-on importers of the feature package
-   (`grep -rl <module>/internal/component/<x>`). Move every non-lifecycle helper
-   they use to an always-on `internal/core/*` leaf. Re-grep until only the hub's
-   gated construction remains.
+1. **Extract first.** Search for always-on importers of the feature package
+   (`<module>/internal/component/<x>`). Move every non-lifecycle helper they use
+   to an always-on `internal/core/*` leaf. Re-check until only gated construction
+   remains.
 2. **Pick the shape** (see below): construction registry, or a seam.
-3. **Add ONE line** to `feature-gates.txt`: `ze_<x>   internal/component/<x>`.
+3. **Add lines** to `feature-gates.txt` for every owned package that must vanish:
+   the main package (`ze_<x> internal/component/<x>`) plus sidecars such as
+   command-schema packages under `internal/plugins/<x>-cmd`.
 4. **Create the gated files** for your shape (`service_<x>.go` + `register_<x>.go`,
    or an `*_infra.go` seam + gated registration). All carry `//go:build ze_<x>`.
    Feature-only helpers live INSIDE a gated file, or a no-feature build flags them
@@ -71,8 +78,9 @@ drift and tells you exactly which tag to add.
    `_absent_test.go` (`//go:build !ze_<x>`); an absent test asserts via
    `go tool nm` that zero feature symbols are linked.
 
-That is the whole list. Steps 3 and 5 are the only manual declarations; the
-Makefile, the runner, the generator, and dep_audit all follow from step 3.
+That is the whole list. Step 3 is the only manifest declaration point; step 5 is
+the only static non-deriving consumer. The Makefile, the runner, the generator,
+and dep_audit all follow from step 3.
 
 ## Two registration shapes
 
@@ -89,13 +97,15 @@ any always-on signature** — widen always-on handles to `Reconfigurable` (as
 standalone mode) goes through a nil-able seam var set from the gated
 registration, never a direct always-on import.
 
-**Seam (ssh).** ssh does NOT fit the listener registry: it is built inside the
-shared daemon-startup path, interleaved with always-on AAA/authz/accounting, and
-owns an interactive session. It uses a dedicated seam (`ssh_infra.go`: nil-able
-`sshBuild` / `sshWirePostStart` / `sshBuildStandalone` vars set by a gated
-`register_ssh.go`). Always-on code calls the seam if non-nil; with the tag off the
-vars stay nil and the feature is skipped. Use a seam ONLY when the registry
-genuinely does not fit; prefer the registry.
+**Seam (ssh, gNMI).** Use a seam when the listener registry genuinely cannot
+express the construction shape. ssh is built inside shared daemon startup,
+interleaved with always-on AAA/authz/accounting, and owns an interactive session,
+so it uses `ssh_infra.go` (`sshBuild` / `sshWirePostStart` /
+`sshBuildStandalone`). gNMI has richer constructor dependencies, a reload
+notification hook, and no listener live-migration contract, so it uses
+`gnmi_infra.go` (`gnmiBuild` / `gnmiReloadNotify`). Always-on code calls the seam
+if non-nil; with the tag off the vars stay nil and the feature is skipped. Use a
+seam ONLY when the registry genuinely does not fit; prefer the registry.
 
 ## Banned
 

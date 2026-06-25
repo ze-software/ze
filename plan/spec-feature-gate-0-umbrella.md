@@ -272,7 +272,14 @@ leaf (runtime disable exists; this adds compile-time removal).
 - `cmd/ze/hub/service_registry_test.go`
 - `cmd/ze/build_tag_ssh_test.go`
 - `test/parse/ssh-absent-config.ci`
-- child specs `spec-feature-gate-1-ssh.md` (pilot), then `-2-web`, `-3-gnmi`, etc.
+- child specs (real numbering; pilot pivoted to lg, ssh became child 2):
+  - `spec-feature-gate-1-lg.md` -- DONE (learned 980), `spec-feature-gate-2-ssh.md` -- DONE (learned 981)
+  - `spec-feature-gate-3-web.md` -- ready (registry; Phase 1 extracts cert/TLS to internal/core/selfcert)
+  - `spec-feature-gate-4-gnmi.md` -- ready (dedicated seam; two blank imports + reload-notify coupling)
+  - `spec-feature-gate-5-mcp.md` -- ready (registry; MCPServerHandle already Reconfigurable)
+  - `spec-feature-gate-6-api.md` -- ready (seam; rest+grpc combined ze_api; parent api stays always-on)
+  - `spec-feature-gate-7-monitoring.md` -- ready (gate metrics exporter only; registry stays always-on; recommend last)
+  - `spec-feature-gate-8-protocols.md` -- ready (per-protocol; B-2 dependency CONDITIONAL on A-1 codec-consumer grep)
 
 ## Implementation Steps
 

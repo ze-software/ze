@@ -19,6 +19,7 @@ run:
     - ze_lg
     - ze_ssh
     - ze_web
+    - ze_gnmi
 
 linters:
   exclusions:

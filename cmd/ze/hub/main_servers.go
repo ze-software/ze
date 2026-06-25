@@ -5,26 +5,22 @@
 package hub
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	yangloader "codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	zegnmi "codeberg.org/thomas-mangin/ze/internal/component/gnmi"
 	zemcp "codeberg.org/thomas-mangin/ze/internal/component/mcp"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
-	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -215,26 +211,4 @@ func resolveConfigPath(store storage.Storage) string {
 		}
 	}
 	return "ze.conf"
-}
-
-// serveGNMI runs the gNMI server's Serve in a background goroutine.
-// This is a one-time component startup, not a per-event goroutine.
-func serveGNMI(ctx context.Context, srv *zegnmi.Server) {
-	if serveErr := srv.Serve(ctx); serveErr != nil {
-		slogutil.Logger("gnmi.server").Error("gNMI server error", "error", serveErr)
-	}
-}
-
-// waitForGNMIBind polls until the gNMI server has a bound address or ctx expires.
-func waitForGNMIBind(ctx context.Context, srv *zegnmi.Server) bool {
-	for {
-		if addr := srv.Address(); addr != "" {
-			return true
-		}
-		select {
-		case <-ctx.Done():
-			return false
-		case <-time.After(10 * time.Millisecond):
-		}
-	}
 }

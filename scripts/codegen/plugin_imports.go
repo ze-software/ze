@@ -173,10 +173,11 @@ const featureGatesManifest = "feature-gates.txt"
 var featureTags map[string]string
 
 // loadFeatureTags reads the feature-gate manifest ("<tag> <pkg>" per line) and
-// returns the gated-schema map the generator needs: <pkg>/yang -> tag. The YANG
-// schema package gated by a feature is <pkg>/yang by convention; a feature
-// without a yang package simply never matches (discoverSchemaPackages emits no
-// import for it), so deriving the suffix for every entry is safe.
+// returns the import-suffix map the generator needs: <pkg> -> tag and
+// <pkg>/yang -> tag. The direct package entry gates RPC/registration imports
+// (gNMI's show command); the YANG entry gates config schema imports. A feature
+// without one of those packages simply never matches the corresponding
+// discovery list, so deriving both suffixes for every entry is safe.
 func loadFeatureTags(root string) (map[string]string, error) {
 	f, err := os.Open(filepath.Join(root, featureGatesManifest))
 	if err != nil {
@@ -196,6 +197,7 @@ func loadFeatureTags(root string) (map[string]string, error) {
 			return nil, fmt.Errorf("%s: malformed line %q (want \"<tag> <pkg>\")", featureGatesManifest, line)
 		}
 		tag, pkg := fields[0], fields[1]
+		tags[pkg] = tag
 		tags[path.Join(pkg, "yang")] = tag
 	}
 	if err := scanner.Err(); err != nil {
