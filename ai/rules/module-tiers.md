@@ -80,10 +80,13 @@ is reached ONLY through build-tag-gated registration. A direct functional `impor
 from always-on (untagged) code pins the package into every binary and defeats the
 compile-out; only a blank/gated registration import can be dropped by a build tag.
 
-Two shapes exist. **Listener services** (looking-glass: `ze_lg`) plug into the
-construction registry (`cmd/ze/hub/service_registry.go`): a gated
-`service_<x>.go` + `register_<x>.go` register a factory the hub iterates.
-**ssh** (`ze_ssh`) does NOT fit that registry -- it is built inside the shared
+Two shapes exist. **Listener services** (looking-glass: `ze_lg`, web:
+`ze_web`) plug into the construction registry
+(`cmd/ze/hub/service_registry.go`): a gated `service_<x>.go` +
+`register_<x>.go` register a factory and any listener-migrator wiring the hub
+iterates. Web also has a nil-able standalone seam (`web_infra.go`) for
+`ze start --web` so the always-on CLI path does not import `internal/component/web`.
+**ssh** (`ze_ssh`) does NOT fit that registry: it is built inside the shared
 daemon-startup path (`infraSetup` + the no-`bgp{}` path), interleaved with
 always-on AAA/authorization/accounting, and carries an interactive session
 model. So ssh uses a dedicated **seam** (`ssh_infra.go`: nil-able `sshBuild`/
@@ -98,9 +101,12 @@ binary. See `plan/spec-feature-gate-0-umbrella.md`.
 be directly imported by always-on code. Reach it through the construction
 registry or a seam (`ssh_infra.go`-style) in another gated file. `dep_audit.py`
 enumerates these features (`DISABLEABLE`); the gate flags any always-on, non-test
-importer. A new feature's tag goes in four places: `ZE_FEATURES` (Makefile),
-`TestBuildTags()` (`internal/test/runner/runner.go`), `.golangci.yml` build-tags,
-and `featureTags` (`plugin_imports.go`, if it has a YANG schema).
+importer. A new gate is declared in ONE place: a `<tag> <pkg>` line in the
+repo-root `feature-gates.txt` manifest. `ZE_FEATURES` (Makefile), `TestBuildTags()`
+(`internal/test/runner`), `featureTags` (`plugin_imports.go`), and `DISABLEABLE`
+(`dep_audit.py`) all DERIVE from it; only `.golangci.yml` build-tags is edited by
+hand (static YAML), and `dep_audit.py --check` fails on its drift. Full procedure
+and the two registration shapes: `ai/rules/feature-gate-registration.md`.
 
 ## The gate
 

@@ -7,11 +7,18 @@ run:
   # plus every default-on per-feature compile-out tag. This gives the
   # //go:build ze_<feature> registration + factory files real lint coverage and
   # prevents their registry callers (e.g. registerService) from being reported
-  # as unused. Add a new feature's tag here when it becomes default-on.
+  # as unused.
+  #
+  # This list is static YAML (golangci-lint cannot read feature-gates.txt), so it
+  # is the ONE feature-gate consumer that does not self-derive. It MUST equal
+  # ze_core + every gate tag in feature-gates.txt; `dep_audit.py --check` fails on
+  # drift. When you add a gate to feature-gates.txt, add its tag here too.
+  # See ai/rules/feature-gate-registration.md.
   build-tags:
     - ze_core
     - ze_lg
     - ze_ssh
+    - ze_web
 
 linters:
   exclusions:

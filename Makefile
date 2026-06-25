@@ -34,9 +34,12 @@ endif
 # ze-stripped keeps only ze_ssh (the base operator management plane) and drops
 # the rest; a fully hardened build with no ssh either is `go build -tags ze_core`
 # (bare) -- the no-ssh path proven by TestBuildTag_SSH_Absent + a go-tool-nm
-# symbol check. Add a new feature's tag here when it becomes default-on.
-# See plan/spec-feature-gate-0-umbrella.md.
-ZE_FEATURES := ze_lg ze_ssh
+# symbol check.
+#
+# DERIVED from feature-gates.txt -- the single source of truth shared with the
+# generator, dep_audit.py, and the test runner. Add a gate by adding one line
+# there, NOT here. See ai/rules/feature-gate-registration.md.
+ZE_FEATURES := $(shell awk '$$1 ~ /^ze_/ {print $$1}' $(CURDIR)/feature-gates.txt | sort -u)
 
 # Version: YY.MM.DD from current date, injected via ldflags.
 ZE_VERSION := $(shell date +%y.%m.%d)

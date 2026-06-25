@@ -1,4 +1,4 @@
-// Design: docs/architecture/cli/plugin-modes.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
 //
 // Build-tag-gated registration of the looking-glass service factory. Compiled
 // only under //go:build ze_lg; absent the tag this init() does not exist, so
@@ -9,5 +9,7 @@
 package hub
 
 func init() {
-	registerService("looking-glass", buildLGService)
+	registerService("looking-glass", buildLGService, func(lm *ListenerMigrator, svc Service) {
+		lm.SetLG(svc)
+	})
 }

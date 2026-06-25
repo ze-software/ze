@@ -20,6 +20,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
+	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
 )
 
 // setupTestServer creates a running HTTPS server with auth middleware, login
@@ -32,7 +33,7 @@ func setupTestServer(t *testing.T) (baseURL string, client *http.Client, cleanup
 	t.Helper()
 
 	// Generate self-signed cert for the test server.
-	certPEM, keyPEM, err := GenerateWebCert()
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithAddr("")
 	require.NoError(t, err, "GenerateWebCert must succeed")
 
 	// Create test user with bcrypt hash at MinCost for speed.

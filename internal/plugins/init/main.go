@@ -20,8 +20,8 @@ import (
 	"golang.org/x/term"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
-	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
 	sshclient "codeberg.org/thomas-mangin/ze/internal/core/ssh/client"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 
@@ -298,7 +298,7 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool, webCer
 		if webCertName != "" {
 			extraNames = []string{webCertName}
 		}
-		certPEM, keyPEM, certErr := zeweb.GenerateWebCertWithNames(webCertAddr, extraNames, 0)
+		certPEM, keyPEM, certErr := selfcert.GenerateWebCertWithNames(webCertAddr, extraNames, 0)
 		if certErr != nil {
 			fmt.Fprintf(os.Stderr, "error: generate TLS certificate: %v\n", certErr)
 			cleanupTmp()

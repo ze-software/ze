@@ -50,14 +50,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/pppoe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/pppoeclient"
 	resolvecmd "codeberg.org/thomas-mangin/ze/internal/component/resolve/cmd"
-	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/reboot"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	mrtcomp "codeberg.org/thomas-mangin/ze/internal/plugins/mrt"
-	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 var (
@@ -86,52 +84,10 @@ var PeerLifecycleCallback registry.PeerLifecycleCallback
 // Used when ze start --web is called without a config.
 // listenAddr overrides the default "0.0.0.0:3443" when non-empty.
 func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
-	resolvers := newResolvers(&system.SystemConfig{DNSTimeout: 5, DNSCacheSize: 10000, DNSCacheTTL: 86400})
-	defer resolvers.Close()
-	if resolvers.DNS != nil {
-		command.SetPTRResolver(resolvers.DNS)
+	if webBuildStandalone == nil {
+		return webNotCompiledIn()
 	}
-	if resolvers.Cymru != nil {
-		command.SetOriginResolver(cymruOriginAdapter{resolvers.Cymru})
-	}
-
-	var listenAddrs []string
-	if listenAddr != "" {
-		listenAddrs = []string{listenAddr}
-	}
-	ring := pluginserver.NewEventRing(128)
-	ring.Append("web", "server.started")
-	dispatch := webOnlyDispatcher(ring)
-	auditLog, auditErr := openAuditLog("")
-	if auditErr != nil {
-		fmt.Fprintf(os.Stderr, "error: audit log: %v\n", auditErr)
-		return 1
-	}
-	showCmd.RegisterAuditProvider(auditLog.Query)
-	// Web-only mode runs before any config is loaded, so there are no
-	// config-file users; only the zefs power user authenticates here.
-	webSrv, broker, _ := startWebServer(store, "", listenAddrs, insecureWeb, dispatch, resolvers, nil, auditLog, nil, nil)
-	if webSrv == nil {
-		return 1
-	}
-	wireEventRingToBroker(ring, broker)
-
-	sigCh := make(chan os.Signal, 2) //nolint:mnd // buffer 2: graceful + force
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	fmt.Println("Ze web running. Press Ctrl+C to stop.")
-	<-sigCh
-	fmt.Println("\nShutting down (Ctrl+C again to force)...")
-
-	// Second signal forces immediate exit (lifecycle goroutine, not hot path).
-	go forceExitOnSignal(sigCh)
-
-	broker.Close()
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer shutdownCancel()
-	_ = webSrv.Shutdown(shutdownCtx)
-
-	return 0
+	return webBuildStandalone(store, listenAddr, insecureWeb)
 }
 
 // forceExitOnSignal waits for a second signal and exits immediately.
@@ -549,6 +505,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// backbone. The standalone bus in internal/component/bus/ is gone.
 	eng := engine.NewEngine(apiServer, configProvider, pm)
 
+	var webPortalServices []webPortalService
+
 	// L2TP subsystem (phase 3 scaffolding). ExtractParameters returns a
 	// zero-value struct when the config tree has no `environment { l2tp {} }`
 	// block; we only register with the engine when the operator actually
@@ -564,7 +522,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			fmt.Fprintf(os.Stderr, "error: register l2tp subsystem: %v\n", regErr)
 			return 1
 		}
-		zeweb.RegisterPortalService(zeweb.PortalService{Key: "l2tp", Title: "L2TP Sessions", Path: "/l2tp"})
+		webPortalServices = append(webPortalServices, webPortalService{Key: "l2tp", Title: "L2TP Sessions", Path: "/l2tp"})
 	}
 
 	// PPPoE subsystem. ExtractParameters returns defaults when the config
@@ -667,29 +625,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// (registered before this closure could exist).
 	sessionReloadHolder.Store(&reloadAfterCommit)
 
-	var webEditorMgr *zeweb.EditorManager
-	if webEnabled && storage.IsBlobStorage(store) {
-		if len(webAddrs) == 0 {
-			webAddrs = []string{"0.0.0.0:3443"}
-		}
-		// Config-file users authenticate on the web UI alongside the power user.
-		webConfigUsers := bgpconfig.ExtractSSHConfig(loadResult.Tree).Users
-		if webSrv, broker, editorMgr := startWebServer(store, configPath, webAddrs, insecureWeb, webDispatch, resolvers, liveAAABundleAuthorizer{}, auditLog, reloadAfterCommit, webConfigUsers); webSrv != nil {
-			webEditorMgr = editorMgr
-			lm.SetWeb(webSrv)
-			if ring := apiServer.EventRing(); ring != nil {
-				ring.Append("web", "server.started")
-				wireEventRingToBroker(ring, broker)
-			}
-			defer func() {
-				broker.Close()
-				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer shutdownCancel()
-				_ = webSrv.Shutdown(shutdownCtx)
-			}()
-		}
-	}
-
 	// Start SSH server directly when config has ssh {} block AND no bgp {} block.
 	// When bgp {} is present, the BGP plugin's infra hook owns SSH startup so it
 	// can wire the command executor factory in the reactor's post-start callback.
@@ -764,11 +699,21 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// registered and the service is silently skipped. Looking-glass (ze_lg) is
 	// the pilot; its listen binding (lgAddrs/lgTLS) is resolved above.
 	builtServices := buildServices(ServiceDeps{
-		Store:     store,
-		Resolvers: resolvers,
-		Dispatch:  webDispatch,
-		LGAddrs:   lgAddrs,
-		LGTLS:     lgTLS,
+		Store:             store,
+		ConfigPath:        configPath,
+		Resolvers:         resolvers,
+		Dispatch:          webDispatch,
+		LGAddrs:           lgAddrs,
+		LGTLS:             lgTLS,
+		WebEnabled:        webEnabled,
+		WebAddrs:          webAddrs,
+		InsecureWeb:       insecureWeb,
+		Authorizer:        liveAAABundleAuthorizer{},
+		Recorder:          auditLog,
+		CommitHook:        reloadAfterCommit,
+		ConfigUsers:       sshCfg.Users,
+		EventRing:         apiServer.EventRing(),
+		WebPortalServices: webPortalServices,
 	})
 	for _, svc := range builtServices {
 		registerBuiltService(lm, svc)
@@ -839,9 +784,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	defer managedCancel()
 	if managedClient != nil && storage.IsBlobStorage(store) {
 		wireManagedCommit(managedClient, store, configPath, reloadAfterCommit, auditLog)
-	}
-	if webEditorMgr != nil {
-		webEditorMgr.SetCommitHook(reloadAfterCommit)
 	}
 	if apiCfgOK {
 		var apiUsers []authz.UserConfig
@@ -1100,18 +1042,6 @@ func waitLoop(sigCh <-chan os.Signal, reloadCh chan<- os.Signal, doneCh <-chan s
 			return
 		}
 	}
-}
-
-func (s *blobCertStore) ReadCert() ([]byte, error) { return s.store.ReadFile(zefs.KeyWebCert.Pattern) }
-func (s *blobCertStore) ReadKey() ([]byte, error)  { return s.store.ReadFile(zefs.KeyWebKey.Pattern) }
-func (s *blobCertStore) WriteCert(data []byte) error {
-	return s.store.WriteFile(zefs.KeyWebCert.Pattern, data, 0o600)
-}
-func (s *blobCertStore) WriteKey(data []byte) error {
-	return s.store.WriteFile(zefs.KeyWebKey.Pattern, data, 0o600)
-}
-func (s *blobCertStore) Exists() bool {
-	return s.store.Exists(zefs.KeyWebCert.Pattern) && s.store.Exists(zefs.KeyWebKey.Pattern)
 }
 
 // runOrchestratorWithData parses hub config and runs the orchestrator.

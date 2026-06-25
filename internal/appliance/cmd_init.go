@@ -16,8 +16,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
-	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -293,7 +293,7 @@ func writeTLSSecrets(baseDir, name string, cfg *applianceConfig, certFile, keyFi
 		extraNames = []string{cfg.TLS.CertName}
 	}
 	listenAddr := cfg.SSH.Host
-	certPEM, keyPEM, err := zeweb.GenerateWebCertWithNames(listenAddr, extraNames, validity)
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithNames(listenAddr, extraNames, validity)
 	if err != nil {
 		return fmt.Errorf("generate TLS certificate: %w", err)
 	}

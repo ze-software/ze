@@ -1,4 +1,4 @@
-// Design: docs/architecture/cli/plugin-modes.md -- ze_lg absent (compile-out) validation
+// Design: ai/rules/feature-gate-registration.md -- ze_lg absent (compile-out) validation
 //
 //go:build !ze_lg
 

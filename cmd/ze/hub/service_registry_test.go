@@ -2,8 +2,8 @@ package hub
 
 // VALIDATES: the service construction registry (registerService / buildServices
 // / registerBuiltService) builds registered factories, skips unconfigured ones
-// (nil service), skips factories that error, and routes looking-glass into the
-// listener migrator.
+// (nil service), skips factories that error, and routes services into the
+// listener migrator through per-service registration hooks.
 // PREVENTS: a feature-gate regression where an optional service is silently not
 // built, or where one service's build error aborts startup of the others.
 
@@ -49,9 +49,9 @@ func TestServiceRegistry_BuildsRegisteredFactory(t *testing.T) {
 	withCleanRegistry(t)
 
 	want := &fakeService{name: "fake", addrs: []string{"127.0.0.1:1"}}
-	registerService("fake", func(ServiceDeps) (Service, error) { return want, nil })
+	registerService("fake", func(ServiceDeps) (Service, error) { return want, nil }, nil)
 	// A factory that returns (nil, nil) means "not configured" and is skipped.
-	registerService("unconfigured", func(ServiceDeps) (Service, error) { return nil, nil }) //nolint:nilnil // models the not-configured skip path
+	registerService("unconfigured", func(ServiceDeps) (Service, error) { return nil, nil }, nil) //nolint:nilnil // models the not-configured skip path
 
 	got := buildServices(ServiceDeps{})
 	if len(got) != 1 {
@@ -71,9 +71,9 @@ func TestServiceRegistry_AbsentFeatureNoOp(t *testing.T) {
 
 func TestServiceRegistry_BuildErrorSkipped(t *testing.T) {
 	withCleanRegistry(t)
-	registerService("boom", func(ServiceDeps) (Service, error) { return nil, errors.New("boom") })
+	registerService("boom", func(ServiceDeps) (Service, error) { return nil, errors.New("boom") }, nil)
 	ok := &fakeService{name: "ok"}
-	registerService("ok", func(ServiceDeps) (Service, error) { return ok, nil })
+	registerService("ok", func(ServiceDeps) (Service, error) { return ok, nil }, nil)
 
 	got := buildServices(ServiceDeps{})
 	if len(got) != 1 || got[0].Name() != "ok" {
@@ -81,12 +81,21 @@ func TestServiceRegistry_BuildErrorSkipped(t *testing.T) {
 	}
 }
 
-func TestRegisterBuiltService_RoutesLGToMigrator(t *testing.T) {
+func TestRegisterBuiltService_UsesRegisteredMigratorHook(t *testing.T) {
+	withCleanRegistry(t)
 	lm := NewListenerMigrator(nil)
-	registerBuiltService(lm, &fakeService{name: "looking-glass", addrs: []string{"0.0.0.0:8443"}})
-	if lm.lg == nil {
-		t.Fatal("looking-glass service was not wired into the listener migrator")
+	want := &fakeService{name: "fake", addrs: []string{"0.0.0.0:8443"}}
+	registerService("fake", func(ServiceDeps) (Service, error) { return want, nil }, func(lm *ListenerMigrator, svc Service) {
+		lm.SetLG(svc)
+	})
+
+	built := buildServices(ServiceDeps{})
+	if len(built) != 1 {
+		t.Fatalf("buildServices: want 1 built service, got %d", len(built))
 	}
-	// A service with an unrecognized name is ignored (no panic, no slot set).
-	registerBuiltService(lm, &fakeService{name: "unknown"})
+	registerBuiltService(lm, built[0])
+	if lm.lg != want {
+		t.Fatal("registered service hook was not used to wire the listener migrator")
+	}
+	registerBuiltService(lm, builtService{Service: &fakeService{name: "unknown"}})
 }

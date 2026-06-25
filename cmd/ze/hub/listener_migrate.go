@@ -12,7 +12,6 @@ import (
 	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
 	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -45,7 +44,7 @@ type ListenerMigrator struct {
 }
 
 // NewListenerMigrator creates a migrator. Pass nil for services that are not running.
-func NewListenerMigrator(web *zeweb.WebServer) *ListenerMigrator {
+func NewListenerMigrator(web Reconfigurable) *ListenerMigrator {
 	return &ListenerMigrator{
 		web:    web,
 		logger: slogutil.Logger("hub.listener"),
@@ -53,7 +52,7 @@ func NewListenerMigrator(web *zeweb.WebServer) *ListenerMigrator {
 }
 
 // SetWeb updates the web server reference.
-func (m *ListenerMigrator) SetWeb(web *zeweb.WebServer) { m.web = web }
+func (m *ListenerMigrator) SetWeb(web Reconfigurable) { m.web = web }
 
 // SetLG updates the looking glass server reference. Takes Reconfigurable (not
 // *lg.LGServer) so always-on code never imports the lg package: lg is built
@@ -170,7 +169,7 @@ func (m *ListenerMigrator) rollbackAppliedListeners(ctx context.Context, applied
 
 func (m *ListenerMigrator) buildChange(name string, srv Reconfigurable, newAddrs []string) (serviceChange, bool) {
 	oldAddrs := srv.Addresses()
-	_, add, remove := zeweb.ListenerDiff(oldAddrs, newAddrs)
+	_, add, remove := listenerDiff(oldAddrs, newAddrs)
 	if len(add) == 0 && len(remove) == 0 {
 		return serviceChange{}, false
 	}
@@ -182,6 +181,30 @@ func (m *ListenerMigrator) buildChange(name string, srv Reconfigurable, newAddrs
 		add:     add,
 		remove:  remove,
 	}, true
+}
+
+func listenerDiff(oldAddrs, newAddrs []string) (keep, add, remove []string) {
+	oldSet := make(map[string]struct{}, len(oldAddrs))
+	for _, a := range oldAddrs {
+		oldSet[a] = struct{}{}
+	}
+	newSet := make(map[string]struct{}, len(newAddrs))
+	for _, a := range newAddrs {
+		newSet[a] = struct{}{}
+	}
+	for _, a := range newAddrs {
+		if _, exists := oldSet[a]; exists {
+			keep = append(keep, a)
+		} else {
+			add = append(add, a)
+		}
+	}
+	for _, a := range oldAddrs {
+		if _, exists := newSet[a]; !exists {
+			remove = append(remove, a)
+		}
+	}
+	return keep, add, remove
 }
 
 func apiListenToAddrs(configs []zeconfig.APIListenConfig) []string {

@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 76 rules
+Total: 77 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -38,6 +38,7 @@ Total: 76 rules
 | Prefer Typed Numeric Over String | Hot paths use typed numeric identity (enum, registered ID, bitset, packed integer), not strings. Across component/engine seams the rule holds plus pointer restrictions... | `ai/rules/enum-over-string.md` |
 | Error Messages | Every error, log line, and failure output you write must let a human or an agent see what failed, why, and what to do next, without opening the source. The error is the corrective signal: if it does... | `ai/rules/error-messages.md` |
 | Exact Or Reject | If the implementation cannot deliver EXACTLY what the operator's config asks for, `ze config verify` / `ze config commit` MUST fail with a clear error. Silent approximation, truncation, or... | `ai/rules/exact-or-reject.md` |
+| Feature-Gate Registration (compile-out-able features) | How to add or change a compile-out-able feature: a subsystem that can be dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag, for a smaller binary and a smaller attack... | `ai/rules/feature-gate-registration.md` |
 | File Modularity | Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility. | `ai/rules/file-modularity.md` |
 | Friction Reporting | During research, implementation, review, or verification, if you encounter a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort, report it immediately... | `ai/rules/friction-reporting.md` |
 | Functional Test Gate | Every user-facing behavior MUST have a functional test that exercises it through a user entry point. Unit tests (`_test.go`) prove internal logic. Functional tests (`.ci`, `.et`) prove the feature... | `ai/rules/functional-test-gate.md` |

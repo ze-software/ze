@@ -35,19 +35,77 @@ const binNameZePeer = "ze-peer"
 // TestPluginBuildTag enables internal/test/plugins for functional-test DUTs.
 const TestPluginBuildTag = "zetest"
 
+// featureGatesFile is the feature-gate manifest (repo-relative): the single
+// source of truth for compile-out-able features, shared with the Makefile,
+// the generator, and dep_audit.py. See ai/rules/feature-gate-registration.md.
+const featureGatesFile = "feature-gates.txt"
+
 // TestBuildTags returns ZE_TAGS plus the tags for functional test builds.
 // ze_core + ze_distro provide the full ze command surface. ze_setup adds
 // the provision plugin (install remote) and appliance tooling. zetest adds
 // test-only plugins on top. The default-on per-feature compile-out tags
-// (ze_lg, ...) must be listed here too so the functional-test ze binary can
-// exercise those services -- this mirrors ZE_FEATURES in the Makefile (add a
-// new feature's tag in both places). See plan/spec-feature-gate-0-umbrella.md.
+// (ze_lg, ze_ssh, ze_web, ...) are read from feature-gates.txt so the
+// functional-test ze binary exercises the same feature set as `make ze`
+// (ZE_FEATURES) without a hand-maintained list. See plan/spec-feature-gate-0-umbrella.md.
 func TestBuildTags() string {
 	tags := strings.FieldsFunc(env.Get("ze.tags"), func(r rune) bool {
 		return r == ',' || r == ' ' || r == '\t' || r == '\n'
 	})
-	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup", "ze_lg", "ze_ssh")
+	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup")
+	tags = append(tags, featureGateTags()...)
 	return textbuf.Join(tags, ",")
+}
+
+// featureGateTags reads the default-on feature tags from feature-gates.txt (the
+// first column of each non-comment line), deduplicated. Mirrors ZE_FEATURES in
+// the Makefile. Returns nil if the manifest cannot be read (the build would then
+// fail loudly on the first feature schema, the same signal as before).
+func featureGateTags() []string {
+	root, ok := findRepoRoot()
+	if !ok {
+		logger().Warn("feature-gate manifest not found; functional-test ze may lack feature tags", "file", featureGatesFile)
+		return nil
+	}
+	data, err := os.ReadFile(filepath.Join(root, featureGatesFile)) //nolint:gosec // fixed manifest filename under the discovered repo root
+	if err != nil {
+		logger().Warn("feature-gate manifest unreadable; functional-test ze may lack feature tags", "file", featureGatesFile, "error", err)
+		return nil
+	}
+	var tags []string
+	seen := make(map[string]bool)
+	for line := range strings.SplitSeq(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) == 0 || seen[fields[0]] {
+			continue
+		}
+		seen[fields[0]] = true
+		tags = append(tags, fields[0])
+	}
+	return tags
+}
+
+// findRepoRoot walks up from the working directory to the module root (the dir
+// holding go.mod). Test binaries run inside the module, so this resolves the
+// repo root regardless of which package the calling test lives in.
+func findRepoRoot() (string, bool) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", false
+	}
+	for {
+		if _, statErr := os.Stat(filepath.Join(dir, "go.mod")); statErr == nil {
+			return dir, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
 }
 
 // RunOptions configures test execution.

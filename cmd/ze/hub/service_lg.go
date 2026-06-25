@@ -1,4 +1,4 @@
-// Design: docs/architecture/cli/plugin-modes.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
 //
 // Looking-glass (lg) service factory: the feature-gate pilot. This file (with
 // register_lg.go) is the ONLY place always-on-buildable code reaches the
@@ -24,7 +24,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
-	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
+	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -73,7 +73,7 @@ func buildLGService(deps ServiceDeps) (Service, error) {
 			return nil, errors.New("looking glass TLS requires blob storage (run ze init first)")
 		}
 		certStore := &blobCertStore{store: deps.Store}
-		certPEM, keyPEM, err := zeweb.LoadOrGenerateCert(certStore, deps.LGAddrs[0])
+		certPEM, keyPEM, err := selfcert.LoadOrGenerateCert(certStore, deps.LGAddrs[0])
 		if err != nil {
 			return nil, fmt.Errorf("looking glass TLS cert: %w", err)
 		}

@@ -11,6 +11,49 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+func TestListenerDiff_MigratorLocal(t *testing.T) {
+	tests := []struct {
+		name       string
+		old, new   []string
+		wantKeep   []string
+		wantAdd    []string
+		wantRemove []string
+	}{
+		{
+			name:     "no change",
+			old:      []string{"127.0.0.1:3443"},
+			new:      []string{"127.0.0.1:3443"},
+			wantKeep: []string{"127.0.0.1:3443"},
+		},
+		{
+			name:       "add and remove",
+			old:        []string{"127.0.0.1:3443", "127.0.0.1:9443"},
+			new:        []string{"127.0.0.1:3443", "127.0.0.1:8443"},
+			wantKeep:   []string{"127.0.0.1:3443"},
+			wantAdd:    []string{"127.0.0.1:8443"},
+			wantRemove: []string{"127.0.0.1:9443"},
+		},
+		{
+			name:       "complete replace",
+			old:        []string{"127.0.0.1:3443"},
+			new:        []string{"127.0.0.1:8443"},
+			wantAdd:    []string{"127.0.0.1:8443"},
+			wantRemove: []string{"127.0.0.1:3443"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// VALIDATES: listenerDiff keeps listener migration independent from internal/component/web.
+			// PREVENTS: always-on hub listener reload pinning the web package into ze_core builds.
+			keep, add, remove := listenerDiff(tt.old, tt.new)
+			assert.Equal(t, tt.wantKeep, keep, "keep")
+			assert.Equal(t, tt.wantAdd, add, "add")
+			assert.Equal(t, tt.wantRemove, remove, "remove")
+		})
+	}
+}
+
 type recordingReconfigurable struct {
 	addrs []string
 	fail  error

@@ -1,3 +1,5 @@
+//go:build ze_web
+
 package hub
 
 import (

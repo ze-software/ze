@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,7 +58,7 @@ func httpsGet(t *testing.T, url string) (int, string) {
 // PREVENTS: Regression where a multi-listener binder silently serves only the
 // first endpoint.
 func TestWebServer_MultiListener(t *testing.T) {
-	certPEM, keyPEM, err := GenerateWebCert()
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithAddr("")
 	require.NoError(t, err)
 
 	srv, err := NewWebServer(WebConfig{
@@ -126,7 +128,7 @@ func TestWebServer_MultiListener(t *testing.T) {
 // VALIDATES: AC-15 (fail-fast on partial bind).
 // PREVENTS: Silently ending up with N-1 listeners live after a bind failure.
 func TestWebServer_BindFailureClosesPartialListeners(t *testing.T) {
-	certPEM, keyPEM, err := GenerateWebCert()
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithAddr("")
 	require.NoError(t, err)
 
 	// Grab a port that is guaranteed to be in use by binding it ourselves.
@@ -159,7 +161,7 @@ func TestWebServer_BindFailureClosesPartialListeners(t *testing.T) {
 // VALIDATES: AC-9 (self-signed cert generated).
 // PREVENTS: invalid or unparseable certificate material.
 func TestGenerateWebCert(t *testing.T) {
-	certPEM, keyPEM, err := GenerateWebCert()
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithAddr("")
 	require.NoError(t, err)
 	require.NotEmpty(t, certPEM, "certPEM must not be empty")
 	require.NotEmpty(t, keyPEM, "keyPEM must not be empty")
@@ -237,7 +239,7 @@ func TestGenerateWebCertWithAddr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			certPEM, _, err := GenerateWebCertWithAddr(tt.addr)
+			certPEM, _, err := selfcert.GenerateWebCertWithAddr(tt.addr)
 			require.NoError(t, err)
 
 			block, _ := pem.Decode(certPEM)
@@ -311,7 +313,7 @@ func TestGenerateWebCertWithNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			certPEM, _, err := GenerateWebCertWithNames(tt.listenAddr, tt.extraNames, 0)
+			certPEM, _, err := selfcert.GenerateWebCertWithNames(tt.listenAddr, tt.extraNames, 0)
 			require.NoError(t, err)
 
 			block, _ := pem.Decode(certPEM)
@@ -342,7 +344,7 @@ func TestGenerateWebCertWithNames(t *testing.T) {
 // VALIDATES: cert is valid for any local IP when listening on all interfaces.
 // PREVENTS: TLS errors when accessing ze via a non-loopback IP (e.g., 10.x.x.x).
 func TestGenerateWebCertWithAddr_UnspecifiedIncludesInterfaceIPs(t *testing.T) {
-	certPEM, _, err := GenerateWebCertWithAddr("0.0.0.0:8443")
+	certPEM, _, err := selfcert.GenerateWebCertWithAddr("0.0.0.0:8443")
 	require.NoError(t, err)
 
 	block, _ := pem.Decode(certPEM)
@@ -369,10 +371,10 @@ func TestGenerateWebCertWithAddr_UnspecifiedIncludesInterfaceIPs(t *testing.T) {
 // VALIDATES: TLS works with generated cert.
 // PREVENTS: misconfigured TLS settings, missing certificates.
 func TestNewTLSConfig(t *testing.T) {
-	certPEM, keyPEM, err := GenerateWebCert()
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithAddr("")
 	require.NoError(t, err)
 
-	tlsCfg, err := NewTLSConfig(certPEM, keyPEM)
+	tlsCfg, err := selfcert.NewTLSConfig(certPEM, keyPEM)
 	require.NoError(t, err)
 	require.NotNil(t, tlsCfg)
 
@@ -411,7 +413,7 @@ func TestNewTLSConfigInvalidPEM(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewTLSConfig(tt.certPEM, tt.keyPEM)
+			_, err := selfcert.NewTLSConfig(tt.certPEM, tt.keyPEM)
 			assert.Error(t, err, "NewTLSConfig must reject invalid PEM data")
 		})
 	}
@@ -421,7 +423,7 @@ func TestNewTLSConfigInvalidPEM(t *testing.T) {
 // with missing required fields.
 // PREVENTS: server creation with no listen address or TLS material.
 func TestNewWebServerRequiresFields(t *testing.T) {
-	certPEM, keyPEM, err := GenerateWebCert()
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithAddr("")
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -515,7 +517,7 @@ func (m *mockCertStore) Exists() bool {
 func TestLoadOrGenerateCert_GenerateNew(t *testing.T) {
 	store := &mockCertStore{exists: false}
 
-	certPEM, keyPEM, err := LoadOrGenerateCert(store, "127.0.0.1:8443")
+	certPEM, keyPEM, err := selfcert.LoadOrGenerateCert(store, "127.0.0.1:8443")
 	require.NoError(t, err)
 	require.NotEmpty(t, certPEM, "certPEM must not be empty")
 	require.NotEmpty(t, keyPEM, "keyPEM must not be empty")
@@ -548,7 +550,7 @@ func TestLoadOrGenerateCert_GenerateNew(t *testing.T) {
 // PREVENTS: Regenerating certs when store already has valid material.
 func TestLoadOrGenerateCert_LoadExisting(t *testing.T) {
 	// Pre-generate valid cert material to store.
-	origCert, origKey, err := GenerateWebCert()
+	origCert, origKey, err := selfcert.GenerateWebCertWithAddr("")
 	require.NoError(t, err)
 
 	store := &mockCertStore{
@@ -557,7 +559,7 @@ func TestLoadOrGenerateCert_LoadExisting(t *testing.T) {
 		keyData:  origKey,
 	}
 
-	certPEM, keyPEM, err := LoadOrGenerateCert(store, "127.0.0.1:8443")
+	certPEM, keyPEM, err := selfcert.LoadOrGenerateCert(store, "127.0.0.1:8443")
 	require.NoError(t, err)
 
 	// Verify ReadCert and ReadKey were called (loading from store).
@@ -579,7 +581,7 @@ func TestLoadOrGenerateCert_LoadExisting(t *testing.T) {
 // starts it, waits for ready, and returns it with a cleanup function.
 func newTestServer(t *testing.T, n int) *WebServer {
 	t.Helper()
-	certPEM, keyPEM, err := GenerateWebCert()
+	certPEM, keyPEM, err := selfcert.GenerateWebCertWithAddr("")
 	require.NoError(t, err)
 
 	addrs := make([]string, n)
@@ -676,7 +678,7 @@ func TestListenerDiffKeepAddRemove(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			keep, add, remove := ListenerDiff(tt.old, tt.new)
+			keep, add, remove := webListenerDiff(tt.old, tt.new)
 			assert.Equal(t, tt.wantKeep, keep, "keep")
 			assert.Equal(t, tt.wantAdd, add, "add")
 			assert.Equal(t, tt.wantRemove, remove, "remove")

@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
+	"codeberg.org/thomas-mangin/ze/internal/core/selfcert"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
@@ -89,7 +89,7 @@ func runReplaceCert(args []string) int {
 	if cfg.TLS.CertName != "" {
 		extraNames = []string{cfg.TLS.CertName}
 	}
-	certPEM, keyPEM, genErr := zeweb.GenerateWebCertWithNames(cfg.SSH.Host, extraNames, validity)
+	certPEM, keyPEM, genErr := selfcert.GenerateWebCertWithNames(cfg.SSH.Host, extraNames, validity)
 	if genErr != nil {
 		fmt.Fprintf(os.Stderr, "error: generate certificate: %v\n", genErr)
 		return exitError

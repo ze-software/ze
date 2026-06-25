@@ -1,4 +1,4 @@
-// Design: docs/architecture/cli/plugin-modes.md -- compile-out-able services (feature-gate)
+// Design: ai/rules/feature-gate-registration.md -- compile-out-able services (feature-gate)
 //
 // Construction registry for optional, compile-out-able daemon services. A
 // feature registers a ServiceFactory from an init() guarded by its
@@ -17,7 +17,11 @@ package hub
 import (
 	"context"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
+	"codeberg.org/thomas-mangin/ze/internal/component/audit"
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/resolve"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -38,16 +42,28 @@ type Service interface {
 // hub and handed in. The struct grows as services are converted; it never
 // imports a service package.
 type ServiceDeps struct {
-	Store     storage.Storage
-	Resolvers *resolve.Resolvers
+	Store      storage.Storage
+	ConfigPath string
+	Resolvers  *resolve.Resolvers
 	// Dispatch is the generic command surface (server dispatcher); a service
 	// adapts it to its own narrower dispatcher type internally.
 	Dispatch func(command, username, remoteAddr string) (string, error)
 
-	// Looking-glass resolved binding (pilot). Other services add their own
-	// resolved-binding fields here as they are converted.
+	// Looking-glass resolved binding (pilot).
 	LGAddrs []string
 	LGTLS   bool
+
+	// Web resolved bindings. These stay generic: no internal/component/web type
+	// crosses the always-on registry boundary.
+	WebEnabled        bool
+	WebAddrs          []string
+	InsecureWeb       bool
+	Authorizer        aaa.Authorizer
+	Recorder          audit.Recorder
+	CommitHook        func() error
+	ConfigUsers       []authz.UserConfig
+	EventRing         *pluginserver.EventRing
+	WebPortalServices []webPortalService
 }
 
 // ServiceFactory builds (and starts) one service from deps. It returns a nil
@@ -55,9 +71,17 @@ type ServiceDeps struct {
 // A non-nil error means the build failed unexpectedly; the hub logs and skips.
 type ServiceFactory func(deps ServiceDeps) (Service, error)
 
+type serviceMigratorWire func(*ListenerMigrator, Service)
+
 type namedFactory struct {
-	name    string
-	factory ServiceFactory
+	name         string
+	factory      ServiceFactory
+	wireMigrator serviceMigratorWire
+}
+
+type builtService struct {
+	Service
+	wireMigrator serviceMigratorWire
 }
 
 // serviceFactories is appended to by registerService from build-tag-gated
@@ -66,16 +90,18 @@ var serviceFactories []namedFactory
 
 // registerService records a factory under name. Called from a
 // //go:build ze_<feature> init(); absent that tag, the call is not compiled.
-func registerService(name string, f ServiceFactory) {
-	serviceFactories = append(serviceFactories, namedFactory{name: name, factory: f})
+// The registration owns any listener-migrator wiring, so the always-on registry
+// does not grow a switch over every optional service.
+func registerService(name string, f ServiceFactory, wireMigrator serviceMigratorWire) {
+	serviceFactories = append(serviceFactories, namedFactory{name: name, factory: f, wireMigrator: wireMigrator})
 }
 
 // buildServices builds every registered service. Factories returning a nil
 // Service (not configured) are skipped; build errors are logged and skipped,
 // matching the prior best-effort service startup.
-func buildServices(deps ServiceDeps) []Service {
+func buildServices(deps ServiceDeps) []builtService {
 	logger := slogutil.Logger("hub.services")
-	var built []Service
+	var built []builtService
 	for _, nf := range serviceFactories {
 		svc, err := nf.factory(deps)
 		if err != nil {
@@ -85,18 +111,15 @@ func buildServices(deps ServiceDeps) []Service {
 		if svc == nil {
 			continue
 		}
-		built = append(built, svc)
+		built = append(built, builtService{Service: svc, wireMigrator: nf.wireMigrator})
 	}
 	return built
 }
 
-// registerBuiltService wires a built service into the ListenerMigrator so it
-// participates in graceful listener migration on config reload. As services are
-// converted to the registry, add a case here.
-func registerBuiltService(lm *ListenerMigrator, svc Service) {
-	// As services are converted to the registry, route each to its migrator
-	// slot. Pilot: looking-glass only.
-	if svc.Name() == "looking-glass" {
-		lm.SetLG(svc)
+// registerBuiltService wires a built service into the ListenerMigrator through
+// the hook supplied by that service's build-tag-gated registration.
+func registerBuiltService(lm *ListenerMigrator, svc builtService) {
+	if svc.wireMigrator != nil {
+		svc.wireMigrator(lm, svc.Service)
 	}
 }

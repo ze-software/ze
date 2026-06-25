@@ -80,7 +80,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp/yang"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/web/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/aaa-cmd/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/config-archive-cmd/yang"

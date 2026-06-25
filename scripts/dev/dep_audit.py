@@ -161,12 +161,41 @@ def classify(area: str, root: str, module: str, edges: dict, engines: set) -> li
 # always-on (untagged) code pins the package into every binary, defeating the
 # compile-out. This audit flags any non-test, out-of-tree file that imports a
 # disableable package without the gating build tag.
-# See plan/spec-feature-gate-0-umbrella.md and ai/rules/module-tiers.md.
-DISABLEABLE = {
-    # gated package (repo-relative) -> required //go:build tag
-    "internal/component/lg": "ze_lg",
-    "internal/component/ssh": "ze_ssh",
-}
+#
+# The disableable set is NOT hand-maintained here: it is loaded from the
+# feature-gate manifest (feature-gates.txt), the single source of truth shared
+# with the generator, the Makefile, and the test runner. Add a gate by adding
+# one line to that file. See plan/spec-feature-gate-0-umbrella.md,
+# ai/rules/feature-gate-registration.md, and ai/rules/module-tiers.md.
+FEATURE_GATES_MANIFEST = "feature-gates.txt"
+GOLANGCI = ".golangci.yml"
+# Non-feature build tags that legitimately appear in .golangci.yml build-tags
+# alongside the per-feature gate tags (the lint build is ze_core + every gate).
+GOLANGCI_BASE_TAGS = {"ze_core"}
+
+
+def load_feature_gates(root: str) -> dict:
+    """Parse feature-gates.txt -> {gated-package: build-tag}.
+
+    Lines are "<tag> <pkg>"; '#' comments and blanks are ignored. This is the
+    DISABLEABLE map: the package each //go:build ze_<tag> guards.
+    """
+    path = os.path.join(root, FEATURE_GATES_MANIFEST)
+    gates = {}
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) < 2:
+                raise SystemExit(
+                    f"{FEATURE_GATES_MANIFEST}: malformed line {line!r} "
+                    "(want '<tag> <pkg>')"
+                )
+            tag, pkg = parts[0], parts[1]
+            gates[pkg] = tag
+    return gates
 
 
 def _tag_required(constraint: str, tag: str) -> bool:
@@ -196,7 +225,7 @@ def disableable_violations(
 ) -> list:
     """Always-on files that directly import a disableable feature package."""
     if disableable is None:
-        disableable = DISABLEABLE
+        disableable = load_feature_gates(root)
     out = []
     for pkg, tag in sorted(disableable.items()):
         import_path = module + "/" + pkg
@@ -225,6 +254,70 @@ def disableable_gate(root: str, module: str, edges: dict) -> int:
         "  Rule: a compile-out-able feature is reached ONLY via build-tag-gated "
         "registration (ai/rules/module-tiers.md). Gate the importer with "
         "//go:build <tag> or route it through the service construction registry.",
+        file=sys.stderr,
+    )
+    return 2
+
+
+def parse_golangci_build_tags(root: str) -> set:
+    """Read the `build-tags:` list from .golangci.yml (no YAML dependency).
+
+    Captures the `- <tag>` items under the `build-tags:` key and stops at the
+    next non-list line, mirroring the file's simple two-space-indented layout.
+    """
+    path = os.path.join(root, GOLANGCI)
+    tags = set()
+    capturing = False
+    item_re = re.compile(r"^\s*-\s*(\S+)\s*$")
+    with open(path, encoding="utf-8") as fh:
+        for raw in fh:
+            # Strip any inline "# ..." comment (YAML allows them); build tags are
+            # Go identifiers and never contain '#', so this is lossless.
+            line = raw.split("#", 1)[0]
+            if re.match(r"^\s*build-tags:\s*$", line):
+                capturing = True
+                continue
+            if not capturing:
+                continue
+            m = item_re.match(line)
+            if m:
+                tags.add(m.group(1))
+                continue
+            if line.strip() == "":
+                continue  # blank or comment-only line inside the list
+            break  # reached the next key; the build-tags list is done
+    return tags
+
+
+def golangci_drift_gate(root: str) -> int:
+    """.golangci.yml build-tags is static YAML (it cannot read the manifest), so
+    this catches drift: its feature tags MUST equal the manifest's gate tags.
+
+    This is the one consumer that does not derive automatically; every other
+    consumer reads feature-gates.txt directly. Keeping the lint build's tag set
+    in lock-step ensures the //go:build ze_<feature> files get lint coverage.
+    """
+    manifest_tags = set(load_feature_gates(root).values())
+    golangci_tags = parse_golangci_build_tags(root)
+    golangci_features = golangci_tags - GOLANGCI_BASE_TAGS
+    if golangci_features == manifest_tags:
+        return 0
+    missing = manifest_tags - golangci_features
+    extra = golangci_features - manifest_tags
+    print(
+        f"FAIL: {GOLANGCI} build-tags drifted from {FEATURE_GATES_MANIFEST}:",
+        file=sys.stderr,
+    )
+    if missing:
+        print(f"  add to {GOLANGCI} build-tags: {sorted(missing)}", file=sys.stderr)
+    if extra:
+        print(
+            f"  remove from {GOLANGCI} build-tags (no such gate): {sorted(extra)}",
+            file=sys.stderr,
+        )
+    print(
+        f"  build-tags must be {sorted(GOLANGCI_BASE_TAGS)} + every gate tag in "
+        f"{FEATURE_GATES_MANIFEST}.",
         file=sys.stderr,
     )
     return 2
@@ -396,10 +489,12 @@ def write_baseline(root: str, mis: dict) -> None:
 
 
 def run_gate(root: str, module: str, edges: dict) -> int:
-    """Combined --check gate: engine placement (Path C) + disableable imports."""
+    """Combined --check gate: engine placement (Path C) + disableable imports +
+    .golangci.yml manifest drift."""
     engine_rc = engine_placement_gate(root, module, edges)
     dis_rc = disableable_gate(root, module, edges)
-    return engine_rc or dis_rc
+    golangci_rc = golangci_drift_gate(root)
+    return engine_rc or dis_rc or golangci_rc
 
 
 def engine_placement_gate(root: str, module: str, edges: dict) -> int:
@@ -617,12 +712,63 @@ def selftest() -> int:
         )
         assert "internal/app/use_test.go" not in dfiles, "test importer wrongly flagged"
 
+        # feature-gate manifest + lint build-tags fixtures so the full --check
+        # gate (run_gate) below exercises only engine placement: no gates declared
+        # here, and build-tags carry the base tag only, so the disableable and
+        # golangci drift gates are both clean.
+        w(root, FEATURE_GATES_MANIFEST, "# no gates in this fixture\n")
+        w(root, GOLANGCI, "run:\n  build-tags:\n    - ze_core\nlinters: {}\n")
+
         assert _quiet_gate(root, mod, edges) == 2, "empty baseline should fail (new)"
         write_baseline(root, mis)
         assert _quiet_gate(root, mod, edges) == 0, "matching baseline should pass"
         with open(os.path.join(root, BASELINE), "a", encoding="utf-8") as fh:
             fh.write("internal/component/gone\tinternal/plugins\tspec-tiers-2\n")
         assert _quiet_gate(root, mod, edges) == 2, "stale baseline entry should fail"
+
+    # --- feature-gate manifest loader + .golangci.yml drift gate (isolated) ---
+    import contextlib
+    import io
+
+    with tempfile.TemporaryDirectory() as mroot:
+        w(
+            mroot,
+            FEATURE_GATES_MANIFEST,
+            "# header comment\n"
+            "ze_alpha   internal/component/alpha\n"
+            "ze_beta    internal/component/beta\n",
+        )
+        gates = load_feature_gates(mroot)
+        assert gates == {
+            "internal/component/alpha": "ze_alpha",
+            "internal/component/beta": "ze_beta",
+        }, f"manifest parse {gates}"
+
+        # build-tags matching the manifest (+ base tag) -> no drift. An inline
+        # comment and a comment-only line inside the list must be tolerated.
+        w(
+            mroot,
+            GOLANGCI,
+            "run:\n  build-tags:\n    - ze_core  # base tag\n    # the gates:\n"
+            "    - ze_alpha\n    - ze_beta\n"
+            "linters:\n  default: none\n",
+        )
+        assert parse_golangci_build_tags(mroot) == {"ze_core", "ze_alpha", "ze_beta"}, (
+            "golangci build-tags parse (with inline/standalone comments)"
+        )
+        assert golangci_drift_gate(mroot) == 0, "matching golangci should pass"
+
+        # a manifest gate missing from build-tags -> drift fail (exit 2)
+        w(
+            mroot,
+            GOLANGCI,
+            "run:\n  build-tags:\n    - ze_core\n    - ze_alpha\n"
+            "linters:\n  default: none\n",
+        )
+        with contextlib.redirect_stderr(io.StringIO()):
+            assert golangci_drift_gate(mroot) == 2, (
+                "gate missing from golangci build-tags should fail"
+            )
 
     print("dep_audit selftest OK")
     return 0

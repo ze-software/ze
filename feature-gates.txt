@@ -1,0 +1,29 @@
+# Feature-gate manifest -- SINGLE SOURCE OF TRUTH for compile-out-able features.
+#
+# One line per gated feature:  <build-tag>   <gated-package>
+#
+# A feature guarded by //go:build <build-tag> is reached ONLY through gated
+# registration (the construction registry in cmd/ze/hub/service_registry.go, or
+# an ssh_infra.go-style seam). Nothing always-on (untagged, non-test) imports
+# <gated-package>; that is what lets the linker drop it when the tag is off.
+#
+# THIS FILE IS THE ONE PLACE A GATE IS DECLARED. Every consumer DERIVES from it,
+# so adding a gate is a one-line edit here -- not the old five-place hand-wiring:
+#   - Makefile ZE_FEATURES                      default-on tags for ze / ze-appliance
+#   - internal/test/runner TestBuildTags        tags for the functional-test ze binary
+#   - scripts/codegen/plugin_imports.go         featureTags: gates <pkg>/yang into all_<tag>.go
+#   - scripts/dev/dep_audit.py DISABLEABLE      no always-on import of <pkg>
+# The one consumer that cannot compute its own value (.golangci.yml build-tags is
+# static YAML) is drift-checked by `dep_audit.py --check`.
+#
+# To add a feature gate: add ONE line below, create register_<tag>.go +
+# service_<tag>.go (listener service) or a gated seam (ssh shape), run
+# `make generate`. Full procedure: ai/rules/feature-gate-registration.md.
+#
+# Lines are "<tag> <pkg>"; '#' comments and blank lines are ignored. The schema
+# package gated by the generator is <pkg>/yang by convention.
+#
+# columns: <build-tag>   <gated-package>
+ze_lg    internal/component/lg
+ze_ssh   internal/component/ssh
+ze_web   internal/component/web
