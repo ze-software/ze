@@ -11,12 +11,12 @@ repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
 cd "$repo"
 
 grep -q '^CONFIG_KERNEL_ZSTD=y$' gokrazy/kernel/kernel.config
-grep -q '^    make ARCH="\$KERNEL_ARCH" INSTALL_MOD_PATH="\${OUT_DIR}" modules_install$' tools/kernel-builder/build.sh
+grep -q 'INSTALL_MOD_PATH={out_dir}' tools/kernel-builder/build.py
 
 grep -q '^[[:space:]]*kmod[[:space:]]*\\$' tools/kernel-builder/Dockerfile
 grep -q '^[[:space:]]*zstd[[:space:]]*\\$' tools/kernel-builder/Dockerfile
 
-grep -q 'patch kmod zstd"$' tools/kernel-builder/qemu-build.py
+grep -q 'patch kmod zstd python3"$' tools/kernel-builder/qemu-build.py
 
 echo OK
 EOF_SH

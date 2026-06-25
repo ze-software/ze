@@ -37,11 +37,11 @@ endif
 all: $(OUT)/vmlinuz
 
 ifeq ($(BUILDER),docker)
-$(OUT)/vmlinuz: kernel.config runtime.config patches/series $(PATCH_DEPS) $(BUILDER_DIR)/build.sh $(BUILDER_DIR)/Dockerfile
+$(OUT)/vmlinuz: kernel.config kernel.require runtime.config runtime.require patches/series $(PATCH_DEPS) $(BUILDER_DIR)/build.py $(BUILDER_DIR)/Dockerfile
 else ifeq ($(BUILDER),qemu)
-$(OUT)/vmlinuz: kernel.config runtime.config patches/series $(PATCH_DEPS) $(BUILDER_DIR)/build.sh $(BUILDER_DIR)/qemu-build.py
+$(OUT)/vmlinuz: kernel.config kernel.require runtime.config runtime.require patches/series $(PATCH_DEPS) $(BUILDER_DIR)/build.py $(BUILDER_DIR)/qemu-build.py
 else
-$(OUT)/vmlinuz: kernel.config runtime.config patches/series $(PATCH_DEPS) $(BUILDER_DIR)/build.sh
+$(OUT)/vmlinuz: kernel.config kernel.require runtime.config runtime.require patches/series $(PATCH_DEPS) $(BUILDER_DIR)/build.py
 endif
 ifeq ($(BUILDER),docker)
 	docker build --platform $(DOCKER_PLATFORM) -t $(IMG) $(BUILDER_DIR)
@@ -58,7 +58,7 @@ ifeq ($(BUILDER),docker)
 		-v "$(BUILDER_DIR):/builder:ro" \
 		-v "$(CURDIR):/src:ro" \
 		-v "$(OUT):/out" \
-		$(IMG) sh /builder/build.sh
+		$(IMG) python3 /builder/build.py
 else ifeq ($(BUILDER),qemu)
 	mkdir -p $(OUT)
 	python3 $(BUILDER_DIR)/qemu-build.py \

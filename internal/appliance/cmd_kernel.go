@@ -25,7 +25,7 @@ import (
 // kernelVersionFile holds the single source of truth for the Linux kernel
 // version Ze builds. The build entrypoints (mk/gokrazy.mk, gokrazy/kernel/Makefile,
 // tools/installer-kernel/Makefile) read the same file; tools/kernel-builder's
-// build.sh and qemu-build.py require the version from their caller. Bump the
+// build.py and qemu-build.py require the version from their caller. Bump the
 // kernel by editing internal/appliance/kernel.version only.
 //
 //go:embed kernel.version
@@ -71,7 +71,7 @@ func init() {
 func runKernel(args []string) int {
 	fs := flag.NewFlagSet("appliance kernel", flag.ContinueOnError)
 	archFlag := fs.String("arch", "", "Target architecture: amd64 or arm64 (default: from appliance config or host)")
-	profileFlag := fs.String("profile", "", "Kernel profile: qemu, hardware, or hardware-kms (default: from appliance config or qemu)")
+	profileFlag := fs.String("profile", "", "Kernel profile token (default: from appliance config or qemu)")
 	builderFlag := fs.String("builder", "", "Build backend: docker or qemu (default: docker if available, else qemu)")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
 
@@ -83,7 +83,7 @@ func runKernel(args []string) int {
 			Sections: []helpfmt.HelpSection{
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
 					{Name: "--arch <arch>", Desc: "Target architecture: amd64 or arm64 (default: from appliance config or host)"},
-					{Name: "--profile <profile>", Desc: "Kernel profile: qemu, hardware, or hardware-kms (default: from appliance config or qemu)"},
+					{Name: "--profile <profile>", Desc: "Kernel profile token (default: from appliance config or qemu)"},
 					{Name: "--builder <backend>", Desc: "Build backend: docker or qemu (default: docker if available, else qemu)"},
 					{Name: "--version <ver>", Desc: func() string {
 						var tb textbuf.Buffer
@@ -127,15 +127,15 @@ func runKernel(args []string) int {
 		arch = runtime.GOARCH
 	}
 	if profile == "" {
-		profile = ProfileQEMU
+		profile = defaultKernelProfile
 	}
 
 	if arch != archAMD64 && arch != archARM64 {
 		cliErrorf("arch %q must be amd64 or arm64", arch)
 		return exitError
 	}
-	if profile != ProfileQEMU && profile != ProfileHardware && profile != ProfileHardwareKMS {
-		cliErrorf("profile %q must be qemu, hardware, or hardware-kms", profile)
+	if err := validateKernelProfileName(profile); err != nil {
+		cliErrorf("%v", err)
 		return exitError
 	}
 	if builder != "" && builder != builderDocker && builder != builderQEMU {
@@ -154,7 +154,11 @@ func runKernel(args []string) int {
 }
 
 func resolveKernel(version, arch, profile, builder string) (string, error) {
-	cached := kernelCachePath(version, kernelCacheVariant(arch, profile))
+	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
+	if err != nil {
+		return "", err
+	}
+	cached := kernelCachePath(version, kernelCacheVariantFor(arch, resolved))
 	toolsDst := filepath.Join(kernelInstallerOutputDir, kernelFileName)
 
 	if _, err := os.Stat(cached); err == nil {
@@ -226,6 +230,10 @@ func defaultDockerCheck() error {
 }
 
 func defaultDockerBuild(version, arch, profile, destPath string) error {
+	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
+	if err != nil {
+		return err
+	}
 	builderDir, err := filepath.Abs(kernelBuilderDir)
 	if err != nil {
 		return fmt.Errorf("resolve builder directory: %w", err)
@@ -285,7 +293,10 @@ func defaultDockerBuild(version, arch, profile, destPath string) error {
 			"-e", "FIRMWARE_DIR=/firmware",
 		)
 	}
-	dockerArgs = append(dockerArgs, kernelDockerImage, "sh", "/builder/build.sh")
+	dockerArgs = append(dockerArgs, kernelDockerImage, "python3", "/builder/build.py")
+	for _, fragment := range resolved.Fragments {
+		dockerArgs = append(dockerArgs, "--fragment", tb.Reset().Str("/src/").Str(filepath.Base(fragment)).String())
+	}
 	runCmd := exec.CommandContext(buildCtx, builderDocker, dockerArgs...) //nolint:gosec // controlled args
 	runCmd.Stdout = os.Stdout
 	runCmd.Stderr = os.Stdout
@@ -296,6 +307,9 @@ func defaultDockerBuild(version, arch, profile, destPath string) error {
 	builtKernel := filepath.Join(outDir, kernelFileName)
 	if _, err := os.Stat(builtKernel); err != nil {
 		return fmt.Errorf("kernel not produced at %s", builtKernel)
+	}
+	if err := enforceKernelRequirements(resolved, filepath.Join(outDir, "config")); err != nil {
+		return err
 	}
 
 	return copyToToolsPath(builtKernel, destPath)
@@ -325,6 +339,10 @@ func defaultQEMUCheck() error {
 }
 
 func defaultQEMUBuild(version, arch, profile, destPath string) error {
+	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
+	if err != nil {
+		return err
+	}
 	scriptPath, err := filepath.Abs(filepath.Join(kernelBuilderDir, "qemu-build.py"))
 	if err != nil {
 		return fmt.Errorf("resolve build script path: %w", err)
@@ -352,6 +370,9 @@ func defaultQEMUBuild(version, arch, profile, destPath string) error {
 		"--src-dir", kernelInstallerConfigDir,
 		"--out-dir", kernelInstallerOutputDir,
 	}
+	for _, fragment := range resolved.Fragments {
+		qemuArgs = append(qemuArgs, "--fragment", fragment)
+	}
 	if fwDir != "" {
 		qemuArgs = append(qemuArgs, "--firmware-dir", fwDir)
 	}
@@ -366,15 +387,18 @@ func defaultQEMUBuild(version, arch, profile, destPath string) error {
 	if _, err := os.Stat(builtKernel); err != nil {
 		return fmt.Errorf("kernel not produced at %s", builtKernel)
 	}
+	if err := enforceKernelRequirements(resolved, filepath.Join(kernelInstallerOutputDir, "config")); err != nil {
+		return err
+	}
 
 	return copyToToolsPath(builtKernel, destPath)
 }
 
 func ensureFirmware(profile string) (string, error) {
-	if profile != ProfileHardwareKMS {
+	if profile != hardwareKMSProfile {
 		return "", nil
 	}
-	fwDir := filepath.Join(ResolveCacheDir(), firmwareCacheDir)
+	fwDir := filepath.Join(resolveCacheDir(), firmwareCacheDir)
 	for _, blob := range i915FirmwareBlobs {
 		dest := filepath.Join(fwDir, blob)
 		if _, err := os.Stat(dest); err == nil {

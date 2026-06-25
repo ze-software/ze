@@ -3,7 +3,7 @@
 
 Replaces the Docker-based build. Downloads Alpine virt ISO, boots QEMU
 with virtio-9p file sharing, installs build dependencies, and runs
-build.sh inside the VM. The built kernel lands in build/ on the host
+build.py inside the VM. The built kernel lands in build/ on the host
 via the 9p mount.
 
 Usage:
@@ -41,7 +41,7 @@ BUILD_TIMEOUT = 14400
 
 BUILD_PACKAGES = (
     "build-base bc bison flex elfutils-dev openssl-dev "
-    "linux-headers perl wget xz diffutils findutils cpio patch kmod zstd"
+    "linux-headers perl wget xz diffutils findutils cpio patch kmod zstd python3"
 )
 
 
@@ -91,9 +91,13 @@ def validate_arch(value: str) -> str:
 
 
 def validate_profile(value: str) -> str:
-    if value not in ("qemu", "hardware", "hardware-kms", "runtime"):
+    if (
+        not value
+        or value[0] not in "abcdefghijklmnopqrstuvwxyz0123456789"
+        or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789-" for ch in value)
+    ):
         raise SystemExit(
-            f"--profile must be qemu, hardware, hardware-kms, or runtime: {value}"
+            f"--profile must match ^[a-z0-9][a-z0-9-]*$: {value}"
         )
     return value
 
@@ -383,6 +387,7 @@ def _run_build(
     modules: str,
     patches_dir: str,
     firmware_dir: str,
+    fragments: list[str],
 ) -> int:
     ssh_port = find_free_port()
     cc_dir = ccache_dir()
@@ -495,20 +500,34 @@ def _run_build(
         out_vm = f"/workspace/{out_dir}"
         builder_vm = f"/workspace/{builder_dir}"
         build_env = (
-            f"CCACHE_DIR=/ccache CCACHE_MAXSIZE=5G "
-            f"PATH=/usr/lib/ccache/bin:$PATH "
-            f"LINUX_VERSION={version} ARCH={target_arch} "
-            f"PROFILE={profile} MODULES={modules} "
-            f"SRC_DIR={src_vm} "
-            f"OUT_DIR={out_vm}"
+            "CCACHE_DIR=/ccache CCACHE_MAXSIZE=5G "
+            "PATH=/usr/lib/ccache/bin:$PATH"
         )
+        build_args = [
+            "python3",
+            f"{builder_vm}/build.py",
+            "--version",
+            version,
+            "--arch",
+            target_arch,
+            "--profile",
+            profile,
+            "--src-dir",
+            src_vm,
+            "--out-dir",
+            out_vm,
+            "--modules",
+            modules,
+        ]
+        for fragment in fragments:
+            build_args.extend(["--fragment", f"/workspace/{fragment}"])
         if patches_dir:
-            build_env += f" PATCHES_DIR=/workspace/{patches_dir}"
+            build_args.extend(["--patches-dir", f"/workspace/{patches_dir}"])
         if firmware_dir:
-            build_env += " FIRMWARE_DIR=/firmware"
+            build_args.extend(["--firmware-dir", "/firmware"])
         if jobs:
-            build_env += f" JOBS={jobs}"
-        build_cmd = f"{build_env} sh {builder_vm}/build.sh"
+            build_args.extend(["--jobs", jobs])
+        build_cmd = build_env + " " + " ".join(_shell_quote(arg) for arg in build_args)
 
         full_cmd = f"sh -c {_shell_quote(setup + ' && ' + build_cmd)}"
 
@@ -572,7 +591,7 @@ def main() -> int:
     parser.add_argument(
         "--profile",
         default=os.environ.get("PROFILE", "qemu"),
-        help="Kernel profile: qemu, hardware, hardware-kms, or runtime",
+        help="Kernel profile token (default: qemu)",
     )
     parser.add_argument(
         "--version",
@@ -599,7 +618,7 @@ def main() -> int:
     parser.add_argument(
         "--builder-dir",
         default=os.environ.get("BUILDER_DIR", "tools/kernel-builder"),
-        help="Repo-relative directory containing build.sh",
+        help="Repo-relative directory containing build.py",
     )
     parser.add_argument(
         "--modules",
@@ -617,6 +636,12 @@ def main() -> int:
         default="",
         help="Host-absolute path to firmware directory for kernel embedding",
     )
+    parser.add_argument(
+        "--fragment",
+        action="append",
+        default=[],
+        help="Repo-relative config fragment path; repeat to pass Go-resolved order",
+    )
     args = parser.parse_args()
 
     root = repo_root()
@@ -630,6 +655,7 @@ def main() -> int:
     patches_dir = ""
     if args.patches_dir:
         patches_dir = repo_relative(args.patches_dir, "--patches-dir")
+    fragments = [repo_relative(fragment, "--fragment") for fragment in args.fragment]
     qemu = qemu_binary(arch)
     if shutil.which(qemu) is None:
         raise SystemExit(f"missing: {qemu} (install: brew install qemu)")
@@ -647,6 +673,7 @@ def main() -> int:
         args.modules,
         patches_dir,
         args.firmware_dir,
+        fragments,
     )
 
 

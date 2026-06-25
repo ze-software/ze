@@ -154,10 +154,10 @@ The pattern (do all four in the same change):
    image built the peer from source, switch it to the Alpine package so both paths
    use the same build -- `accel-ppp`, `frr`, and `xl2tpd` are all in Alpine community.
 3. **Runtime kernel for kernel modules**: if the feature needs a module absent from
-   the stock Alpine VM kernel, run with `--kernel tmp/kernel/vmlinuz` and add the
-   `CONFIG_*` to `gokrazy/kernel/runtime.config` plus its `require_yes` check in
-   `tools/kernel-builder/build.sh`. PPPoE added `CONFIG_PPPOE` there exactly as L2TP
-   added `CONFIG_PPPOL2TP`. `make ze-kernel` builds and stages the kernel to
+   the stock Alpine VM kernel, run with `--kernel tmp/kernel/vmlinuz`, add the
+   `CONFIG_*` to `gokrazy/kernel/runtime.config`, and add the symbol to
+   `gokrazy/kernel/runtime.require`. PPPoE added `CONFIG_PPPOE` there exactly as
+   L2TP added `CONFIG_PPPOL2TP`. `make ze-kernel` builds and stages the kernel to
    `tmp/kernel/vmlinuz` (gitignored scratch) and rebuilds when `runtime.config`
    changes, so the new module is picked up.
 4. **`ze-qemu-<feature>-test` target** in `mk/test-integration.mk` calling

@@ -45,7 +45,7 @@ check_contains runtime-docker "$runtime_docker" "SRC_DIR=/src"
 check_contains runtime-docker "$runtime_docker" "OUT_DIR=/out"
 check_contains runtime-docker "$runtime_docker" "MODULES=yes"
 check_contains runtime-docker "$runtime_docker" "PATCHES_DIR=/src/patches"
-check_contains runtime-docker "$runtime_docker" "sh /builder/build.sh"
+check_contains runtime-docker "$runtime_docker" "python3 /builder/build.py"
 
 runtime_qemu=$(make -n -B -C gokrazy/kernel BUILDER=qemu ARCH=arm64 2>&1)
 check_contains runtime-qemu "$runtime_qemu" "tools/kernel-builder/qemu-build.py"
@@ -61,7 +61,7 @@ check_contains installer-docker "$installer_docker" "../kernel-builder"
 check_contains installer-docker "$installer_docker" ":/builder:ro"
 check_contains installer-docker "$installer_docker" "SRC_DIR=/src"
 check_contains installer-docker "$installer_docker" "OUT_DIR=/out"
-check_contains installer-docker "$installer_docker" "sh /builder/build.sh"
+check_contains installer-docker "$installer_docker" "python3 /builder/build.py"
 check_not_contains installer-docker "$installer_docker" "MODULES=yes"
 check_not_contains installer-docker "$installer_docker" "PATCHES_DIR"
 

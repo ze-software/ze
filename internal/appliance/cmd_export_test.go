@@ -19,7 +19,7 @@ func setupExportTestAppliance(t *testing.T, dir, name string) {
 	}
 
 	cfg := DefaultConfig(name)
-	if err := SaveConfig(filepath.Join(appDir, configFileName), &cfg); err != nil {
+	if err := saveConfig(filepath.Join(appDir, configFileName), &cfg); err != nil {
 		t.Fatal(err)
 	}
 

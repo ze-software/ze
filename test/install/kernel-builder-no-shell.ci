@@ -1,0 +1,64 @@
+# Test: shared kernel builder is a Python recipe, not a project shell script.
+
+option=timeout:value=20s
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+cd "$repo"
+
+[ -x tools/kernel-builder/build.py ]
+[ ! -e tools/kernel-builder/build.sh ]
+if find tools/kernel-builder -maxdepth 1 -name '*.sh' | grep -q .; then
+	echo 'unexpected shell script in tools/kernel-builder' >&2
+	exit 1
+fi
+python3 - <<'PY'
+import ast
+import importlib.util
+import tempfile
+from pathlib import Path
+for path in (Path('tools/kernel-builder/build.py'), Path('tools/kernel-builder/qemu-build.py')):
+    tree = ast.parse(path.read_text(), filename=str(path))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.keyword) and node.arg == 'shell':
+            raise SystemExit(f'{path}: subprocess shell argument is forbidden')
+
+spec = importlib.util.spec_from_file_location("kernel_build", "tools/kernel-builder/build.py")
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    fragment = root / "custom.config"
+    manifest = root / "custom.require"
+    build_tree = root / "tree"
+    build_tree.mkdir()
+    fragment.write_text("CONFIG_REQUIRED=y\n")
+    manifest.write_text("CONFIG_REQUIRED\nCONFIG_EQUALS=y\n")
+    (build_tree / ".config").write_text("CONFIG_REQUIRED=y\nCONFIG_EQUALS=y\n")
+    module.enforce_required_symbols(build_tree, "custom", [fragment])
+    (build_tree / ".config").write_text("CONFIG_REQUIRED=m\nCONFIG_EQUALS=y\n")
+    try:
+        module.enforce_required_symbols(build_tree, "custom", [fragment])
+    except SystemExit as exc:
+        if exc.code != 2:
+            raise
+    else:
+        raise SystemExit("missing required symbol did not fail")
+    try:
+        module.embed_firmware(build_tree, "hardware-kms", None)
+    except SystemExit as exc:
+        if exc.code != 2:
+            raise
+    else:
+        raise SystemExit("hardware-kms without firmware did not fail")
+PY
+
+echo OK
+EOF_SH
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=0
+expect=stdout:contains=OK

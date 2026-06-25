@@ -300,11 +300,17 @@ func resolveISOInput(name string, opts isoOptions) (isoBuildInput, error) {
 	if kernelPath == "" {
 		profile := cfg.Image.KernelProfile
 		if profile == "" {
-			profile = ProfileQEMU
+			profile = defaultKernelProfile
 		}
 		if p := isoKernelCachePath(cfg.Image.Arch, profile); p != "" {
 			kernelPath = p
 		} else {
+			if _, err := resolveKernelProfile(kernelInstallerConfigDir, profile); err != nil {
+				return isoBuildInput{}, err
+			}
+			if !installerKernelBuildMatches(cfg.Image.Arch, profile) {
+				return isoBuildInput{}, fmt.Errorf("installer kernel for profile %q not found; run ze appliance kernel --profile %s or pass --kernel", profile, profile)
+			}
 			kernelPath = filepath.Join("tools", "installer-kernel", "build", "Image")
 		}
 	}
@@ -387,13 +393,40 @@ func isoKernelCachePath(arch, profile string) string {
 	return ""
 }
 
+func installerKernelBuildMatches(arch, profile string) bool {
+	data, err := os.ReadFile(filepath.Join(kernelInstallerOutputDir, ".variant")) //nolint:gosec // local build metadata
+	if err != nil {
+		return false
+	}
+	var tb textbuf.Buffer
+	prefix := tb.Str(arch).Byte('-').Str(profile).Byte('-').Str(defaultKernelVersion).Byte('-').String()
+	return strings.HasPrefix(strings.TrimSpace(string(data)), prefix)
+}
+
+func installerKernelFallbackPath(arch string, profiles []string) string {
+	path := filepath.Join("tools", "installer-kernel", "build", "Image")
+	for _, profile := range profiles {
+		if installerKernelBuildMatches(arch, profile) {
+			if _, err := os.Stat(path); err == nil {
+				return path
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
 func defaultISOKernelPath() string {
-	for _, profile := range []string{ProfileQEMU, ProfileHardware, ProfileHardwareKMS} {
+	profiles, err := registeredKernelProfiles(kernelInstallerConfigDir)
+	if err != nil {
+		return ""
+	}
+	for _, profile := range profiles {
 		if p := isoKernelCachePath(runtime.GOARCH, profile); p != "" {
 			return p
 		}
 	}
-	return filepath.Join("tools", "installer-kernel", "build", "Image")
+	return installerKernelFallbackPath(runtime.GOARCH, profiles)
 }
 
 // arm64 Image: magic 0x644d5241 at offset 56 ("ARM\x64" little-endian).

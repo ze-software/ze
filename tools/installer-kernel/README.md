@@ -73,14 +73,19 @@ Output: `build/Image` (the kernel) and `build/config` (the resolved config).
 If you want to keep both architectures side by side, copy or rename the kernel
 after each build and pass it back to `ze appliance iso --kernel ...`.
 
-The build script lives in `../kernel-builder/build.sh` and is shared with the
-runtime gokrazy kernel build. It can also be used directly inside any Linux
-environment (VM, container, bare metal) by setting `SRC_DIR` and `OUT_DIR`:
+The build recipe lives in `../kernel-builder/build.py` and is shared with the
+runtime gokrazy kernel build. `ze appliance kernel` resolves the profile
+registry (`<name>.config` + `<name>.require`, with optional one-level
+`# ze-base:` layering), passes the resolved fragments to the builder, then
+enforces the required symbols from Go. See `PROFILES.md` for profile authoring.
+The recipe can also be used directly inside any Linux environment (VM, container, bare metal):
 
 ```sh
-SRC_DIR=/path/to/tools/installer-kernel OUT_DIR=/path/to/output sh ../kernel-builder/build.sh
+python3 ../kernel-builder/build.py --src-dir /path/to/tools/installer-kernel --out-dir /path/to/output --fragment /path/to/tools/installer-kernel/kernel.config --fragment /path/to/tools/installer-kernel/qemu.config
 ```
-<!-- source: tools/kernel-builder/build.sh -- profile dispatch -->
+<!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
+<!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
+<!-- source: tools/kernel-builder/build.py -- main -->
 
 ## Use with the QEMU install test
 

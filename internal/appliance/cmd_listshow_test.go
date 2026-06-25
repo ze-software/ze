@@ -93,7 +93,7 @@ func TestShowManagedExplanation(t *testing.T) {
 
 	cfg, _ := LoadConfig(ConfigPath(dir, "mgd"))
 	cfg.Managed = true
-	SaveConfig(ConfigPath(dir, "mgd"), cfg) //nolint:errcheck // test
+	saveConfig(ConfigPath(dir, "mgd"), cfg) //nolint:errcheck // test
 
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()

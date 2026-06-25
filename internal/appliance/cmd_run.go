@@ -88,7 +88,7 @@ func findLatestImage(dir, name string) string {
 	return filepath.Join(appDir, latest)
 }
 
-func launchQEMU(cfg *ApplianceConfig, imgPath string) int {
+func launchQEMU(cfg *applianceConfig, imgPath string) int {
 	qemuBin, qemuArgs := buildQEMUCommand(cfg, imgPath)
 
 	if _, err := exec.LookPath(qemuBin); err != nil {
@@ -120,7 +120,7 @@ func launchQEMU(cfg *ApplianceConfig, imgPath string) int {
 	return exitOK
 }
 
-func buildQEMUCommand(cfg *ApplianceConfig, imgPath string) (string, []string) {
+func buildQEMUCommand(cfg *applianceConfig, imgPath string) (string, []string) {
 	var tb textbuf.Buffer
 	var hostfwds []string
 	if cfg.QEMU.WebPort != 0 {

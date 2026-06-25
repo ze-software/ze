@@ -83,7 +83,7 @@ func runInit(args []string) int {
 		defer pw.Close() //nolint:errcheck // prompt tty close
 	}
 
-	var cfg ApplianceConfig
+	var cfg applianceConfig
 	if *configFile != "" {
 		loaded, err := LoadConfig(*configFile)
 		if err != nil {
@@ -185,7 +185,7 @@ func runInit(args []string) int {
 		}
 	}
 
-	if err := SaveConfig(ConfigPath(dir, name), &cfg); err != nil {
+	if err := saveConfig(ConfigPath(dir, name), &cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
@@ -201,7 +201,7 @@ func secretFilePath(baseDir, name, file string) string {
 	return tb.Str(SecretsDir(baseDir, name)).Byte('/').Str(file).String()
 }
 
-func promptConfig(cfg *ApplianceConfig, r io.Reader, w io.Writer) error {
+func promptConfig(cfg *applianceConfig, r io.Reader, w io.Writer) error {
 	if !isTerminal(os.Stdin) {
 		return nil
 	}
@@ -233,7 +233,7 @@ func prompt(scanner *bufio.Scanner, w io.Writer, text string) string {
 	return ""
 }
 
-func readPasswordValue(_ *ApplianceConfig, pw io.Writer) string {
+func readPasswordValue(_ *applianceConfig, pw io.Writer) string {
 	if envPass := env.Get(sshPasswordKey); envPass != "" {
 		fmt.Fprintf(os.Stderr, "WARNING: password from environment variable\n")
 		return envPass
@@ -267,7 +267,7 @@ func readPassphraseForInit(pw io.Writer) []byte {
 	return pass
 }
 
-func writeTLSSecrets(baseDir, name string, cfg *ApplianceConfig, certFile, keyFile string, passphrase []byte) error {
+func writeTLSSecrets(baseDir, name string, cfg *applianceConfig, certFile, keyFile string, passphrase []byte) error {
 	var tb textbuf.Buffer
 	certPath := tb.Str(TLSDir(baseDir, name)).Str("/cert.pem").String()
 	keyPath := tb.Reset().Str(TLSDir(baseDir, name)).Str("/key.pem").String()
@@ -484,7 +484,7 @@ func initOneFromBatch(dir string, entry batchEntry, password string, passphrase 
 		}
 	}
 
-	if err := SaveConfig(ConfigPath(dir, name), &cfg); err != nil {
+	if err := saveConfig(ConfigPath(dir, name), &cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s: %v\n", name, err)
 		return exitError
 	}

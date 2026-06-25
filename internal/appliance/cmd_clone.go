@@ -42,7 +42,7 @@ func runClone(args []string) int {
 		return exitError
 	}
 
-	if err := SaveConfig(ConfigPath(dir, dst), &dstCfg); err != nil {
+	if err := saveConfig(ConfigPath(dir, dst), &dstCfg); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}

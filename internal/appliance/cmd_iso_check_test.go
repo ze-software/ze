@@ -32,6 +32,36 @@ func TestIsoCheckAllReady(t *testing.T) {
 	}
 }
 
+func TestIsoCheckRejectsStaleDefaultKernelFallback(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	writeInstallerKernelRegistry(t)
+	kernelPath := filepath.Join(root, "tools", "installer-kernel", "build", "Image")
+	if err := os.MkdirAll(filepath.Dir(kernelPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(kernelPath, []byte("k"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeIsoTestFile(t, filepath.Join(root, "tools", "installer-kernel", "build", ".variant"), archAMD64+"-custom-"+defaultKernelVersion+"-docker")
+	initrdPath := filepath.Join(root, "tools", "installer-initrd", "build", "initrd.img.gz")
+	if err := os.MkdirAll(filepath.Dir(initrdPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeIsoTestFile(t, initrdPath, "default-initrd")
+
+	oldLookPath := isoLookPathFn
+	isoLookPathFn = func(name string) (string, error) { return "/usr/bin/" + name, nil }
+	t.Cleanup(func() { isoLookPathFn = oldLookPath })
+
+	code := checkISOPrerequisites(isoOptions{
+		initrdPath: initrdPath,
+	})
+	if code != exitError {
+		t.Errorf("checkISOPrerequisites = %d, want %d", code, exitError)
+	}
+}
+
 func TestIsoCheckMissing(t *testing.T) {
 	oldLookPath := isoLookPathFn
 	isoLookPathFn = func(name string) (string, error) { return "", exec.ErrNotFound }

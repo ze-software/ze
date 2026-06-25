@@ -55,6 +55,32 @@ func setTestQEMUBuild(t *testing.T, fn func(string, string, string, string) erro
 	t.Cleanup(func() { kernelQEMUBuildFn = old })
 }
 
+func writeInstallerKernelRegistry(t *testing.T) {
+	t.Helper()
+	configDir := kernelInstallerConfigDir
+	builderDir := kernelBuilderDir
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(builderDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		filepath.Join(configDir, "kernel.config"):    "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n",
+		filepath.Join(configDir, "kernel.require"):   "CONFIG_IP_PNP_DHCP\nCONFIG_EXT4_FS\nCONFIG_BLK_DEV_INITRD\nCONFIG_DEVTMPFS_MOUNT\n",
+		filepath.Join(configDir, "qemu.config"):      "CONFIG_VIRTIO_NET=y\nCONFIG_VIRTIO_BLK=y\n",
+		filepath.Join(configDir, "qemu.require"):     "CONFIG_VIRTIO_NET\nCONFIG_VIRTIO_BLK\n",
+		filepath.Join(configDir, "hardware.config"):  "CONFIG_EFI=y\nCONFIG_EFI_STUB=y\nCONFIG_FB_EFI=y\nCONFIG_FRAMEBUFFER_CONSOLE=y\nCONFIG_E1000E=y\nCONFIG_IGB=y\nCONFIG_IGC=y\nCONFIG_R8169=y\nCONFIG_SATA_AHCI=y\nCONFIG_BLK_DEV_NVME=y\nCONFIG_BLK_DEV_LOOP=y\nCONFIG_VFAT_FS=y\nCONFIG_EXFAT_FS=y\n",
+		filepath.Join(configDir, "hardware.require"): "CONFIG_EFI\nCONFIG_EFI_STUB\nCONFIG_FB_EFI\nCONFIG_FRAMEBUFFER_CONSOLE\nCONFIG_E1000E\nCONFIG_IGB\nCONFIG_IGC\nCONFIG_R8169\nCONFIG_SATA_AHCI\nCONFIG_BLK_DEV_NVME\nCONFIG_BLK_DEV_LOOP\nCONFIG_VFAT_FS\nCONFIG_EXFAT_FS\n",
+		filepath.Join(builderDir, "build.py"):        "#!/usr/bin/env python3\n",
+	}
+	for path, content := range files {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestRunDispatchesKernel(t *testing.T) {
 	table := dispatchTable()
 	if _, ok := table["kernel"]; !ok {
@@ -64,12 +90,13 @@ func TestRunDispatchesKernel(t *testing.T) {
 
 func TestKernelResolvesCache(t *testing.T) {
 	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	version := "7.1.1"
 	arch := archAMD64
-	cached := kernelCachePath(version, arch+"-"+ProfileQEMU)
+	cached := kernelCachePath(version, kernelCacheVariant(arch, defaultKernelProfile))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +104,7 @@ func TestKernelResolvesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel(version, arch, ProfileQEMU, "")
+	got, err := resolveKernel(version, arch, defaultKernelProfile, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -88,12 +115,13 @@ func TestKernelResolvesCache(t *testing.T) {
 
 func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
 	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	version := "7.1.1"
 	content := []byte("cached-hardware-kernel")
-	cached := kernelCachePath(version, archAMD64+"-"+ProfileHardware)
+	cached := kernelCachePath(version, kernelCacheVariant(archAMD64, "hardware"))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +129,7 @@ func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := resolveKernel(version, archAMD64, ProfileHardware, ""); err != nil {
+	if _, err := resolveKernel(version, archAMD64, "hardware", ""); err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
 
@@ -117,6 +145,7 @@ func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
 
 func TestKernelDownloadsAndCaches(t *testing.T) {
 	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -129,7 +158,7 @@ func TestKernelDownloadsAndCaches(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL)
 	env.ResetCache()
 
-	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -146,6 +175,8 @@ func TestKernelDownloadsAndCaches(t *testing.T) {
 }
 
 func TestKernelDownloadChecksumMismatch(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -158,7 +189,7 @@ func TestKernelDownloadChecksumMismatch(t *testing.T) {
 
 	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
 
-	_, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
+	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
 	if err == nil {
 		t.Fatal("expected error from checksum mismatch + no QEMU fallback")
 	}
@@ -166,6 +197,7 @@ func TestKernelDownloadChecksumMismatch(t *testing.T) {
 
 func TestKernelFallsBackToQEMU(t *testing.T) {
 	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -179,7 +211,7 @@ func TestKernelFallsBackToQEMU(t *testing.T) {
 		return os.WriteFile(destPath, []byte("qemu-built-kernel"), 0o644)
 	})
 
-	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -193,6 +225,8 @@ func TestKernelFallsBackToQEMU(t *testing.T) {
 }
 
 func TestKernelFailsWithoutBuilders(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -200,7 +234,7 @@ func TestKernelFailsWithoutBuilders(t *testing.T) {
 	setTestDockerCheck(t, func() error { return errors.New("docker not found") })
 	setTestQEMUCheck(t, func() error { return errors.New("qemu not found") })
 
-	_, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
+	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
 	if err == nil {
 		t.Fatal("expected error when both download and builders fail")
 	}
@@ -224,11 +258,13 @@ func TestKernelProfileFlag(t *testing.T) {
 }
 
 func TestKernelVersionFlag(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	version := "6.12.9"
-	cached := kernelCachePath(version, archAMD64+"-"+ProfileQEMU)
+	cached := kernelCachePath(version, kernelCacheVariant(archAMD64, defaultKernelProfile))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -244,6 +280,7 @@ func TestKernelVersionFlag(t *testing.T) {
 
 func TestKernelCopiesToToolsPath(t *testing.T) {
 	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -257,7 +294,7 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 		return os.WriteFile(destPath, []byte("built-kernel"), 0o644)
 	})
 
-	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -267,6 +304,8 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 }
 
 func TestKernelReadsArchFromAppliance(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -289,7 +328,7 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cached := kernelCachePath(defaultKernelVersion, archAMD64+"-"+ProfileQEMU)
+	cached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(archAMD64, defaultKernelProfile))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +339,7 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 	// Pre-cache at the host arch too, so exit code alone can't prove the config was read.
 	// If runKernel ignores the config and falls back to runtime.GOARCH, it would find this
 	// cache entry and succeed -- but the output path would not contain "amd64".
-	hostCached := kernelCachePath(defaultKernelVersion, runtime.GOARCH+"-"+ProfileQEMU)
+	hostCached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(runtime.GOARCH, defaultKernelProfile))
 	if hostCached != cached {
 		if err := os.MkdirAll(filepath.Dir(hostCached), 0o755); err != nil {
 			t.Fatal(err)
@@ -334,6 +373,8 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 }
 
 func TestKernelReadsProfileFromAppliance(t *testing.T) {
+	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -343,7 +384,7 @@ func TestKernelReadsProfileFromAppliance(t *testing.T) {
 	defer func() { baseDir = oldBase }()
 
 	cfg := DefaultConfig("hwapp")
-	cfg.Image.KernelProfile = ProfileHardware
+	cfg.Image.KernelProfile = "hardware"
 	appPath := filepath.Join(appDir, "hwapp")
 	if err := os.MkdirAll(appPath, 0o755); err != nil {
 		t.Fatal(err)
@@ -356,7 +397,7 @@ func TestKernelReadsProfileFromAppliance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cached := kernelCachePath(defaultKernelVersion, archAMD64+"-"+ProfileHardware)
+	cached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(archAMD64, "hardware"))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -389,28 +430,16 @@ func TestKernelReadsProfileFromAppliance(t *testing.T) {
 func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	configDir := filepath.Join(dir, kernelInstallerConfigDir)
-	builderDir := filepath.Join(dir, kernelBuilderDir)
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(builderDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_A=y\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(configDir, "qemu.config"), []byte("CONFIG_B=y\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(builderDir, "build.sh"), []byte("#!/bin/sh\nmake\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_IGC=y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	variant1 := kernelCacheVariant(archAMD64, ProfileQEMU)
+	variant1 := kernelCacheVariant(archAMD64, defaultKernelProfile)
 	cached1 := kernelCachePath("7.1.1", variant1)
 	if err := os.MkdirAll(filepath.Dir(cached1), 0o755); err != nil {
 		t.Fatal(err)
@@ -419,7 +448,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
 	if err != nil {
 		t.Fatalf("resolveKernel before config change: %v", err)
 	}
@@ -427,11 +456,11 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatalf("expected cache hit at %q, got %q", cached1, got)
 	}
 
-	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_A=y\nCONFIG_IGC=y\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_IGC=y\nCONFIG_ICE=y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	variant2 := kernelCacheVariant(archAMD64, ProfileQEMU)
+	variant2 := kernelCacheVariant(archAMD64, defaultKernelProfile)
 	if variant1 == variant2 {
 		t.Fatal("config change did not change cache variant")
 	}
@@ -445,7 +474,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		return os.WriteFile(destPath, []byte("kernel-v2"), 0o644)
 	})
 
-	got2, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
+	got2, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
 	if err != nil {
 		t.Fatalf("resolveKernel after config change: %v", err)
 	}
@@ -462,43 +491,32 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 	}
 }
 
-func TestKernelBuildScriptInvalidatesCache(t *testing.T) {
+func TestKernelBuildPyInvalidatesCache(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	writeInstallerKernelRegistry(t)
 
-	configDir := filepath.Join(dir, kernelInstallerConfigDir)
 	builderDir := filepath.Join(dir, kernelBuilderDir)
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(builderDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_A=y\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(configDir, "qemu.config"), []byte("CONFIG_B=y\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(builderDir, "build.sh"), []byte("#!/bin/sh\nmake\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(builderDir, "build.py"), []byte("#!/usr/bin/env python3\nprint('v1')\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	variant1 := kernelCacheVariant(archAMD64, ProfileQEMU)
+	variant1 := kernelCacheVariant(archAMD64, defaultKernelProfile)
 
-	if err := os.WriteFile(filepath.Join(builderDir, "build.sh"), []byte("#!/bin/sh\nmake -j$(nproc)\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(builderDir, "build.py"), []byte("#!/usr/bin/env python3\nprint('v2')\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	variant2 := kernelCacheVariant(archAMD64, ProfileQEMU)
+	variant2 := kernelCacheVariant(archAMD64, defaultKernelProfile)
 	if variant1 == variant2 {
-		t.Fatal("build.sh change did not change cache variant")
+		t.Fatal("build.py change did not change cache variant")
 	}
 }
 
 func TestKernelEnvURL(t *testing.T) {
 	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -524,7 +542,7 @@ func TestKernelEnvURL(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL+"/custom-base")
 	env.ResetCache()
 
-	_, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
+	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -653,6 +671,7 @@ func TestKernelBuilderFlag(t *testing.T) {
 
 func TestKernelFallsBackToDocker(t *testing.T) {
 	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
@@ -666,7 +685,7 @@ func TestKernelFallsBackToDocker(t *testing.T) {
 	})
 	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
 
-	got, err := resolveKernel("7.1.1", archAMD64, ProfileQEMU, "")
+	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -682,9 +701,10 @@ func TestKernelFallsBackToDocker(t *testing.T) {
 func TestDockerBuildMountsSharedBuilder(t *testing.T) {
 	// VALIDATES: AC-15 expects Docker build/run to use the shared builder with
 	// target platform and separate builder/config/output mounts.
-	// PREVENTS: silently continuing to run tools/installer-kernel/build.sh.
+	// PREVENTS: silently continuing to run the old shell builder.
 	dir := t.TempDir()
 	t.Chdir(dir)
+	writeInstallerKernelRegistry(t)
 
 	builderDir := filepath.Join(dir, kernelBuilderDir)
 	configDir := filepath.Join(dir, kernelInstallerConfigDir)
@@ -700,10 +720,8 @@ func TestDockerBuildMountsSharedBuilder(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, content := range map[string]string{
-		"Dockerfile":    "FROM scratch\n",
-		"build.sh":      "#!/bin/sh\n",
-		"kernel.config": "CONFIG_A=y\n",
-		"qemu.config":   "CONFIG_B=y\n",
+		"Dockerfile": "FROM scratch\n",
+		"build.py":   "#!/usr/bin/env python3\n",
 	} {
 		base := builderDir
 		if strings.HasSuffix(name, ".config") {
@@ -728,7 +746,14 @@ if [ "$1" = run ]; then
 					out=${arg%:/out}
 					mkdir -p "$out"
 					printf kernel > "$out/Image"
-					;;
+					cat > "$out/config" <<'EOF_CONFIG'
+CONFIG_IP_PNP_DHCP=y
+CONFIG_EXT4_FS=y
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_VIRTIO_NET=y
+CONFIG_VIRTIO_BLK=y
+EOF_CONFIG
 			esac
 		fi
 		prev=$arg
@@ -742,11 +767,18 @@ fi
 	t.Setenv("ZE_DOCKER_LOG", logPath)
 
 	destPath := filepath.Join(dir, "cache", kernelFileName)
-	if err := defaultDockerBuild("7.1.1", archAMD64, ProfileQEMU, destPath); err != nil {
+	if err := defaultDockerBuild("7.1.1", archAMD64, defaultKernelProfile, destPath); err != nil {
 		t.Fatalf("defaultDockerBuild: %v", err)
 	}
 	if _, err := os.Stat(destPath); err != nil {
 		t.Fatalf("cache image not written: %v", err)
+	}
+	data, err := os.ReadFile(destPath)
+	if err != nil {
+		t.Fatalf("read cache image: %v", err)
+	}
+	if string(data) != "kernel" {
+		t.Fatalf("cache image = %q, want kernel", data)
 	}
 
 	logData, err := os.ReadFile(logPath)
@@ -760,10 +792,17 @@ fi
 		builderDir + ":/builder:ro",
 		configDir + ":/src:ro",
 		outputDir + ":/out",
-		"sh /builder/build.sh",
+		"python3 /builder/build.py",
+		"--fragment /src/kernel.config",
+		"--fragment /src/qemu.config",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("docker log missing %q\nlog:\n%s", want, log)
+		}
+	}
+	for _, forbidden := range []string{"/builder/build.sh", "--modules", "--patches-dir"} {
+		if strings.Contains(log, forbidden) {
+			t.Fatalf("docker log unexpectedly contains %q\nlog:\n%s", forbidden, log)
 		}
 	}
 }
@@ -774,6 +813,7 @@ func TestQEMUBuildPassesBuilderDir(t *testing.T) {
 	// PREVENTS: qemu-build.py hardcoding tools/installer-kernel paths.
 	dir := t.TempDir()
 	t.Chdir(dir)
+	writeInstallerKernelRegistry(t)
 
 	builderDir := filepath.Join(dir, kernelBuilderDir)
 	outputDir := filepath.Join(dir, kernelInstallerOutputDir)
@@ -804,6 +844,25 @@ done
 if [ -n "$out" ]; then
 	mkdir -p "$out"
 	printf kernel > "$out/Image"
+	cat > "$out/config" <<'EOF_CONFIG'
+CONFIG_IP_PNP_DHCP=y
+CONFIG_EXT4_FS=y
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_EFI=y
+CONFIG_EFI_STUB=y
+CONFIG_FB_EFI=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+CONFIG_E1000E=y
+CONFIG_IGB=y
+CONFIG_IGC=y
+CONFIG_R8169=y
+CONFIG_SATA_AHCI=y
+CONFIG_BLK_DEV_NVME=y
+CONFIG_BLK_DEV_LOOP=y
+CONFIG_VFAT_FS=y
+CONFIG_EXFAT_FS=y
+EOF_CONFIG
 fi
 `
 	if err := os.WriteFile(pythonPath, []byte(pythonScript), 0o755); err != nil {
@@ -813,11 +872,18 @@ fi
 	t.Setenv("ZE_PYTHON_LOG", logPath)
 
 	destPath := filepath.Join(dir, "cache", kernelFileName)
-	if err := defaultQEMUBuild("7.1.1", archARM64, ProfileHardware, destPath); err != nil {
+	if err := defaultQEMUBuild("7.1.1", archARM64, "hardware", destPath); err != nil {
 		t.Fatalf("defaultQEMUBuild: %v", err)
 	}
 	if _, err := os.Stat(destPath); err != nil {
 		t.Fatalf("cache image not written: %v", err)
+	}
+	data, err := os.ReadFile(destPath)
+	if err != nil {
+		t.Fatalf("read cache image: %v", err)
+	}
+	if string(data) != "kernel" {
+		t.Fatalf("cache image = %q, want kernel", data)
 	}
 
 	logData, err := os.ReadFile(logPath)
@@ -830,6 +896,8 @@ fi
 		"--builder-dir " + kernelBuilderDir,
 		"--src-dir " + kernelInstallerConfigDir,
 		"--out-dir " + kernelInstallerOutputDir,
+		"--fragment " + filepath.Join(kernelInstallerConfigDir, "kernel.config"),
+		"--fragment " + filepath.Join(kernelInstallerConfigDir, "hardware.config"),
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("python log missing %q\nlog:\n%s", want, log)

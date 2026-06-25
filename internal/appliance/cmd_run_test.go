@@ -14,7 +14,7 @@ func findArg(args []string, flag string) string {
 }
 
 func TestBuildQEMUCommandUsesConfiguredPorts(t *testing.T) {
-	cfg := &ApplianceConfig{
+	cfg := &applianceConfig{
 		SSH:   SSHConfig{Host: "0.0.0.0", Port: "8822"},
 		Web:   WebConfig{Enabled: true, Host: "0.0.0.0", Port: "9443"},
 		Image: ImageConfig{Arch: archAMD64},

@@ -28,7 +28,7 @@ func TestBuildUsesGokBuildFn(t *testing.T) {
 
 	t.Setenv("GOARCH", archAMD64)
 
-	cfg := &ApplianceConfig{}
+	cfg := &applianceConfig{}
 	cfg.Image.Arch = archARM64
 	cfg.Image.SizeBytes = 1073741824
 
@@ -98,10 +98,10 @@ func TestBuildNoGokBinaryCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := &ApplianceConfig{}
+	cfg := &applianceConfig{}
 	cfg.Identity.Name = "test-app"
 	cfg.Image.SizeBytes = 1073741824
-	if err := SaveConfig(ConfigPath(dir, "test-app"), cfg); err != nil {
+	if err := saveConfig(ConfigPath(dir, "test-app"), cfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -132,7 +132,7 @@ func TestBuildGokFailure(t *testing.T) {
 	}
 	defer func() { gokBuildFn = old }()
 
-	cfg := &ApplianceConfig{}
+	cfg := &applianceConfig{}
 	cfg.Image.SizeBytes = 1073741824
 
 	code := runGokBuild(cfg, "/tmp/test.img")

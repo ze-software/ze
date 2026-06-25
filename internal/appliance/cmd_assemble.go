@@ -70,7 +70,7 @@ func runAssemble(args []string) int {
 	return exitOK
 }
 
-func assembleZeFS(baseDir, name string, cfg *ApplianceConfig, passphrase []byte, dbPath string) int {
+func assembleZeFS(baseDir, name string, cfg *applianceConfig, passphrase []byte, dbPath string) int {
 	passwordHash, err := ReadSecret(secretFilePath(baseDir, name, "password.hash"), passphrase)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read password hash: %v\n", err)
@@ -158,7 +158,7 @@ func assembleZeFS(baseDir, name string, cfg *ApplianceConfig, passphrase []byte,
 	return exitOK
 }
 
-func resolveSeedConfig(baseDir, name string, cfg *ApplianceConfig) (string, error) {
+func resolveSeedConfig(baseDir, name string, cfg *applianceConfig) (string, error) {
 	appDir := AppliancePath(baseDir, name)
 	var base, overlay string
 
@@ -204,7 +204,7 @@ func resolveSeedConfig(baseDir, name string, cfg *ApplianceConfig) (string, erro
 	return appendListenerOverrides(seed, cfg), nil
 }
 
-func appendListenerOverrides(seed string, cfg *ApplianceConfig) string {
+func appendListenerOverrides(seed string, cfg *applianceConfig) string {
 	var tb textbuf.Buffer
 	tb.Str(seed)
 	if cfg.SSH.Host != "" {

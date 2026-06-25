@@ -106,7 +106,7 @@ func TestAssembleConfigLayering(t *testing.T) {
 
 	cfg, _ := LoadConfig(ConfigPath(dir, "layered"))
 	cfg.ConfigBase = "../_shared/ze.conf"
-	SaveConfig(ConfigPath(dir, "layered"), cfg) //nolint:errcheck // test
+	saveConfig(ConfigPath(dir, "layered"), cfg) //nolint:errcheck // test
 
 	code := runAssemble([]string{"--keep", "layered"})
 	if code != exitOK {
@@ -238,7 +238,7 @@ func TestAssembleSeedConfigIncludesSSHPort(t *testing.T) {
 	cfg, _ := LoadConfig(ConfigPath(dir, "sshport"))
 	cfg.SSH.Host = "0.0.0.0"
 	cfg.SSH.Port = "8822"
-	SaveConfig(ConfigPath(dir, "sshport"), cfg) //nolint:errcheck // test
+	saveConfig(ConfigPath(dir, "sshport"), cfg) //nolint:errcheck // test
 
 	code := runAssemble([]string{"--keep", "sshport"})
 	if code != exitOK {
@@ -273,7 +273,7 @@ func TestAssembleSeedConfigIncludesWebPort(t *testing.T) {
 	cfg.Web.Enabled = true
 	cfg.Web.Host = "0.0.0.0"
 	cfg.Web.Port = "9443"
-	SaveConfig(ConfigPath(dir, "webport"), cfg) //nolint:errcheck // test
+	saveConfig(ConfigPath(dir, "webport"), cfg) //nolint:errcheck // test
 
 	code := runAssemble([]string{"--keep", "webport"})
 	if code != exitOK {

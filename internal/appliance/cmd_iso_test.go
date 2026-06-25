@@ -39,7 +39,7 @@ func setupIsoTestAppliance(t *testing.T) string {
 	return appDir
 }
 
-func rewriteIsoTestConfig(t *testing.T, appDir string, modify func(*ApplianceConfig)) {
+func rewriteIsoTestConfig(t *testing.T, appDir string, modify func(*applianceConfig)) {
 	t.Helper()
 	cfg := DefaultConfig(isoTestApplianceName)
 	modify(&cfg)
@@ -274,7 +274,7 @@ func TestIsoBuildsArm64BootArtifacts(t *testing.T) {
 	// VALIDATES: appliance ISO supports arm64 images by selecting the arm64 UEFI GRUB target.
 	// PREVENTS: emitting x86 boot assets for arm64 appliances built on macOS hosts.
 	appDir := setupIsoTestAppliance(t)
-	rewriteIsoTestConfig(t, appDir, func(cfg *ApplianceConfig) {
+	rewriteIsoTestConfig(t, appDir, func(cfg *applianceConfig) {
 		cfg.Image.Arch = archARM64
 	})
 	img := filepath.Join(appDir, "ze-20260101-000000.img")
@@ -314,7 +314,7 @@ func TestIsoRejectsKernelArchMismatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			appDir := setupIsoTestAppliance(t)
 			if tc.configArch != archAMD64 {
-				rewriteIsoTestConfig(t, appDir, func(cfg *ApplianceConfig) {
+				rewriteIsoTestConfig(t, appDir, func(cfg *applianceConfig) {
 					cfg.Image.Arch = tc.configArch
 				})
 			}
@@ -347,6 +347,7 @@ func TestIsoRejectsKernelArchMismatch(t *testing.T) {
 func TestIsoUsesDefaultKernelAndInitrdArtifactPaths(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
+	writeInstallerKernelRegistry(t)
 	kernelPath := filepath.Join(root, "tools", "installer-kernel", "build", "Image")
 	initrdPath := filepath.Join(root, "tools", "installer-initrd", "build", "initrd.img.gz")
 	if err := os.MkdirAll(filepath.Dir(kernelPath), 0o755); err != nil {
@@ -356,6 +357,7 @@ func TestIsoUsesDefaultKernelAndInitrdArtifactPaths(t *testing.T) {
 		t.Fatalf("mkdir initrd dir: %v", err)
 	}
 	writeIsoTestKernelAny(t, kernelPath)
+	writeIsoTestFile(t, filepath.Join(root, "tools", "installer-kernel", "build", ".variant"), archAMD64+"-"+defaultKernelProfile+"-"+defaultKernelVersion+"-docker")
 	writeIsoTestFile(t, initrdPath, "default-initrd")
 
 	appDir := setupIsoTestAppliance(t)
@@ -377,6 +379,46 @@ func TestIsoUsesDefaultKernelAndInitrdArtifactPaths(t *testing.T) {
 	}
 	if got := string(mustReadFile(t, filepath.Join(stage, "boot", "initrd.img.gz"))); got != "default-initrd" {
 		t.Fatalf("staged initrd = %q, want default-initrd", got)
+	}
+}
+
+func TestIsoRejectsStaleFallbackForCustomProfile(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	writeInstallerKernelRegistry(t)
+	if err := os.WriteFile(filepath.Join(root, kernelInstallerConfigDir, "custom.config"), []byte("CONFIG_CUSTOM=y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, kernelInstallerConfigDir, "custom.require"), []byte("CONFIG_CUSTOM\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	kernelPath := filepath.Join(root, "tools", "installer-kernel", "build", "Image")
+	initrdPath := filepath.Join(root, "tools", "installer-initrd", "build", "initrd.img.gz")
+	if err := os.MkdirAll(filepath.Dir(kernelPath), 0o755); err != nil {
+		t.Fatalf("mkdir kernel dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(initrdPath), 0o755); err != nil {
+		t.Fatalf("mkdir initrd dir: %v", err)
+	}
+	writeIsoTestKernelAny(t, kernelPath)
+	writeIsoTestFile(t, filepath.Join(root, "tools", "installer-kernel", "build", ".variant"), archAMD64+"-"+defaultKernelProfile+"-"+defaultKernelVersion+"-docker")
+	writeIsoTestFile(t, initrdPath, "default-initrd")
+
+	appDir := setupIsoTestAppliance(t)
+	rewriteIsoTestConfig(t, appDir, func(cfg *applianceConfig) {
+		cfg.Image.KernelProfile = "custom"
+	})
+	img := filepath.Join(appDir, "ze-20260101-000000.img")
+	writeIsoTestFile(t, img, "image")
+	writeIsoTestChecksum(t, img)
+	_, _, calls := setupIsoBuilderTest(t)
+
+	code := runIso([]string{"--keep-staging", isoTestApplianceName})
+	if code == exitOK {
+		t.Fatal("runIso accepted stale fallback kernel for custom profile")
+	}
+	if len(*calls) != 0 {
+		t.Fatalf("builder calls = %d, want 0", len(*calls))
 	}
 }
 func TestIsoUsesLatestImageByDefault(t *testing.T) {

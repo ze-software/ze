@@ -1,4 +1,4 @@
-// Design: plan/learned/675-appliance-1-builder.md — ApplianceConfig struct and validation
+// Design: plan/learned/675-appliance-1-builder.md — appliance config structs and validation
 
 package appliance
 
@@ -62,7 +62,7 @@ type QEMUConfig struct {
 	GokrazyPort int `json:"gokrazy-port"`
 }
 
-type ApplianceConfig struct {
+type applianceConfig struct {
 	Identity    IdentityConfig    `json:"identity"`
 	Credentials CredentialsConfig `json:"credentials"`
 	SSH         SSHConfig         `json:"ssh"`
@@ -80,16 +80,12 @@ const (
 	archAMD64       = "amd64"
 	archARM64       = "arm64"
 	defaultUsername = "admin"
-
-	ProfileQEMU        = "qemu"
-	ProfileHardware    = "hardware"
-	ProfileHardwareKMS = "hardware-kms"
 )
 
 var validNameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 
-func DefaultConfig(name string) ApplianceConfig {
-	return ApplianceConfig{
+func DefaultConfig(name string) applianceConfig {
+	return applianceConfig{
 		Identity: IdentityConfig{
 			Name:     name,
 			Hostname: name,
@@ -116,7 +112,7 @@ func DefaultConfig(name string) ApplianceConfig {
 		Image: ImageConfig{
 			Arch:          archAMD64,
 			SizeBytes:     2 * 1024 * 1024 * 1024, // 2 GiB
-			KernelProfile: ProfileQEMU,
+			KernelProfile: defaultKernelProfile,
 		},
 		QEMU: QEMUConfig{
 			SSHPort:     2222,
@@ -131,7 +127,7 @@ const (
 	maxImageSize int64 = 64 * 1024 * 1024 * 1024
 )
 
-func (c *ApplianceConfig) Validate() error {
+func (c *applianceConfig) Validate() error {
 	if c.Identity.Name == "" {
 		return errIdentityNameIsRequired
 	}
@@ -162,8 +158,10 @@ func (c *ApplianceConfig) Validate() error {
 	if c.Image.Arch != archAMD64 && c.Image.Arch != archARM64 {
 		return fmt.Errorf("image.arch %q: must be amd64 or arm64", c.Image.Arch)
 	}
-	if c.Image.KernelProfile != "" && c.Image.KernelProfile != ProfileQEMU && c.Image.KernelProfile != ProfileHardware && c.Image.KernelProfile != ProfileHardwareKMS {
-		return fmt.Errorf("image.kernel-profile %q: must be qemu, hardware, or hardware-kms", c.Image.KernelProfile)
+	if c.Image.KernelProfile != "" {
+		if err := validateKernelProfileName(c.Image.KernelProfile); err != nil {
+			return fmt.Errorf("image.kernel-profile %q: must match %s", c.Image.KernelProfile, validKernelProfileRe.String())
+		}
 	}
 	if c.QEMU.SSHPort != 0 {
 		if c.QEMU.SSHPort < 1024 || c.QEMU.SSHPort > 65535 {
@@ -187,12 +185,12 @@ func validatePort(field, value string) error {
 	return nil
 }
 
-func LoadConfig(path string) (*ApplianceConfig, error) {
+func LoadConfig(path string) (*applianceConfig, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // user-provided path
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
-	var cfg ApplianceConfig
+	var cfg applianceConfig
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&cfg); err != nil {
@@ -201,7 +199,7 @@ func LoadConfig(path string) (*ApplianceConfig, error) {
 	return &cfg, nil
 }
 
-func SaveConfig(path string, cfg *ApplianceConfig) error {
+func saveConfig(path string, cfg *applianceConfig) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)

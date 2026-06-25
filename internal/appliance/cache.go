@@ -42,7 +42,7 @@ func defaultHTTPGet(url string) (*http.Response, error) {
 	return http.DefaultClient.Do(req) //nolint:bodyclose // caller closes
 }
 
-func ResolveCacheDir() string {
+func resolveCacheDir() string {
 	cacheHome := os.Getenv("XDG_CACHE_HOME")
 	if cacheHome != "" {
 		return filepath.Join(cacheHome, cacheSubdir)
@@ -56,7 +56,7 @@ func ResolveCacheDir() string {
 
 func kernelCachePath(version, variant string) string {
 	var tb textbuf.Buffer
-	return filepath.Join(ResolveCacheDir(), kernelCacheDir, tb.Str(version).Byte('-').Str(variant).String(), kernelFileName)
+	return filepath.Join(resolveCacheDir(), kernelCacheDir, tb.Str(version).Byte('-').Str(variant).String(), kernelFileName)
 }
 
 func cacheFileHash(dir string, names []string) (string, bool) {
@@ -71,20 +71,37 @@ func cacheFileHash(dir string, names []string) (string, bool) {
 	return hex.EncodeToString(h.Sum(nil))[:8], true
 }
 
+func cacheFileHashPaths(paths []string) (string, bool) {
+	h := sha256.New()
+	for _, path := range paths {
+		data, err := os.ReadFile(path) //nolint:gosec // paths come from validated kernel profile registry
+		if err != nil {
+			return "", false
+		}
+		h.Write(data)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:8], true
+}
+
 func kernelCacheVariant(arch, profile string) string {
+	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
+	if err != nil {
+		var tb textbuf.Buffer
+		return tb.Str(arch).Byte('-').Str(profile).String()
+	}
+	return kernelCacheVariantFor(arch, resolved)
+}
+
+func kernelCacheVariantFor(arch string, profile kernelProfileResolution) string {
 	var tb textbuf.Buffer
-	var configInputs []string
-	if profile == ProfileHardwareKMS {
-		configInputs = []string{"kernel.config", "hardware.config", "hardware-kms.config"}
-	} else {
-		configInputs = []string{"kernel.config", tb.Str(profile).Str(".config").String()}
-	}
-	configHash, configOK := cacheFileHash(kernelInstallerConfigDir, configInputs)
-	builderHash, builderOK := cacheFileHash(kernelBuilderDir, []string{"build.sh"})
+	configInputs := append([]string{}, profile.Fragments...)
+	configInputs = append(configInputs, profile.Manifests...)
+	configHash, configOK := cacheFileHashPaths(configInputs)
+	builderHash, builderOK := cacheFileHash(kernelBuilderDir, []string{"build.py"})
 	if !configOK || !builderOK {
-		return tb.Reset().Str(arch).Byte('-').Str(profile).String()
+		return tb.Str(arch).Byte('-').Str(profile.Name).String()
 	}
-	return tb.Reset().Str(arch).Byte('-').Str(profile).Byte('-').Str(configHash).Byte('-').Str(builderHash).String()
+	return tb.Str(arch).Byte('-').Str(profile.Name).Byte('-').Str(configHash).Byte('-').Str(builderHash).String()
 }
 
 func initrdCacheVariant(version string) string {
@@ -98,7 +115,7 @@ func initrdCacheVariant(version string) string {
 
 //nolint:unparam // version names the cache namespace and mirrors kernelCachePath.
 func initrdCachePath(version string) string {
-	return filepath.Join(ResolveCacheDir(), initrdCacheDir, initrdCacheVariant(version), initrdFileName)
+	return filepath.Join(resolveCacheDir(), initrdCacheDir, initrdCacheVariant(version), initrdFileName)
 }
 
 func downloadAndVerify(artifactURL, checksumURL, destPath string) error {

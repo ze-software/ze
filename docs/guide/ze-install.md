@@ -721,16 +721,19 @@ Set `image.kernel-profile` to `"hardware"` in `appliance.json` so
 `ze appliance kernel <name>` picks it up automatically. The CLI selects Docker
 first, then the shared QEMU backend, unless `--builder` forces one path.
 
-`tools/kernel-builder/build.sh` verifies the required options resolved to `=y`
-before building and fails loudly if any did not. The installer Makefile keeps
-its config fragments in `tools/installer-kernel/` and delegates Docker/QEMU
-execution to `tools/kernel-builder/`. The QEMU path is
-`tools/kernel-builder/qemu-build.py`, which validates repo-relative builder,
-source, and output paths before booting the VM. Output is `build/Image` (the
-kernel) and `build/config` (the resolved config). See
-`tools/installer-kernel/README.md` for the full rationale and driver lists.
-<!-- source: internal/appliance/cmd_kernel.go -- runKernel, selectBuilder -->
-<!-- source: tools/kernel-builder/build.sh -- require_yes -->
+`ze appliance kernel` resolves the open profile registry in Go, passes the
+resolved fragments to `tools/kernel-builder/build.py`, reads the emitted
+`build/config`, and fails loudly if any required symbol is not `=y`. The
+installer Makefile keeps its config fragments and `.require` manifests in
+`tools/installer-kernel/` and delegates Docker/QEMU execution to
+`tools/kernel-builder/`. The QEMU path is `tools/kernel-builder/qemu-build.py`,
+which validates repo-relative builder, source, and output paths before booting
+the VM. Output is `build/Image` (the kernel) and `build/config` (the resolved
+config). See `tools/installer-kernel/README.md` for the full rationale and
+driver lists.
+<!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
+<!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
+<!-- source: tools/kernel-builder/build.py -- main -->
 <!-- source: tools/kernel-builder/qemu-build.py -- repo_relative, main -->
 <!-- source: tools/installer-kernel/Makefile -- all -->
 

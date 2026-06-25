@@ -54,7 +54,25 @@ done
 [ -n "$out" ]
 mkdir -p "$out"
 printf 'qemu-installer-kernel\n' > "$out/Image"
-printf 'CONFIG_QEMU=y\n' > "$out/config"
+cat > "$out/config" <<'EOF_CONFIG'
+CONFIG_IP_PNP_DHCP=y
+CONFIG_EXT4_FS=y
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_EFI=y
+CONFIG_EFI_STUB=y
+CONFIG_FB_EFI=y
+CONFIG_FRAMEBUFFER_CONSOLE=y
+CONFIG_E1000E=y
+CONFIG_IGB=y
+CONFIG_IGC=y
+CONFIG_R8169=y
+CONFIG_SATA_AHCI=y
+CONFIG_BLK_DEV_NVME=y
+CONFIG_BLK_DEV_LOOP=y
+CONFIG_VFAT_FS=y
+CONFIG_EXFAT_FS=y
+EOF_CONFIG
 EOF_PY
 chmod +x "$work/fakebin/python3"
 
@@ -66,7 +84,7 @@ ze appliance kernel --arch arm64 --profile hardware --builder qemu >"$work/stdou
 grep -q 'building kernel with qemu' "$work/stdout"
 grep -q 'kernel ready:' "$work/stdout"
 [ "$(cat tools/installer-kernel/build/Image)" = 'qemu-installer-kernel' ]
-[ "$(cat tools/installer-kernel/build/config)" = 'CONFIG_QEMU=y' ]
+grep -q '^CONFIG_EFI=y$' tools/installer-kernel/build/config
 cache_image=$(find "$work/cache" -path '*/installer-kernel/*/Image' -print | head -n 1)
 [ -n "$cache_image" ]
 [ "$(cat "$cache_image")" = 'qemu-installer-kernel' ]
@@ -74,6 +92,8 @@ grep -q -- 'tools/kernel-builder/qemu-build.py' "$work/python.log"
 grep -q -- '--builder-dir tools/kernel-builder' "$work/python.log"
 grep -q -- '--src-dir tools/installer-kernel' "$work/python.log"
 grep -q -- '--out-dir tools/installer-kernel/build' "$work/python.log"
+grep -q -- '--fragment tools/installer-kernel/kernel.config' "$work/python.log"
+grep -q -- '--fragment tools/installer-kernel/hardware.config' "$work/python.log"
 
 echo OK
 EOF_SH

@@ -233,7 +233,7 @@ func runGokInProcess(args []string) error {
 	}.Execute(ctx)
 }
 
-func runGokBuild(cfg *ApplianceConfig, imgPath string) int {
+func runGokBuild(cfg *applianceConfig, imgPath string) int {
 	fmt.Fprintf(os.Stderr, "building gokrazy image...\n")
 
 	// gok resolves modules from the repo-local gokrazy/modcache, so relative

@@ -12,19 +12,19 @@ func TestResolveCacheDir(t *testing.T) {
 	if err != nil {
 		t.Skip("cannot determine home dir")
 	}
-	got := ResolveCacheDir()
+	got := resolveCacheDir()
 	want := filepath.Join(home, ".cache", cacheSubdir)
 	if got != want {
-		t.Errorf("ResolveCacheDir() = %q, want %q", got, want)
+		t.Errorf("resolveCacheDir() = %q, want %q", got, want)
 	}
 }
 
 func TestResolveCacheDirCustom(t *testing.T) {
 	custom := filepath.Join(t.TempDir(), "custom-cache")
 	t.Setenv("XDG_CACHE_HOME", custom)
-	got := ResolveCacheDir()
+	got := resolveCacheDir()
 	want := filepath.Join(custom, cacheSubdir)
 	if got != want {
-		t.Errorf("ResolveCacheDir() = %q, want %q", got, want)
+		t.Errorf("resolveCacheDir() = %q, want %q", got, want)
 	}
 }

@@ -80,9 +80,9 @@ make ze-gokrazy-run GOKRAZY_ARCH=arm64 GOKRAZY_QEMU_ACCEL=hvf
 `make ze-kernel` delegates to `gokrazy/kernel/Makefile`, which defaults to the
 Docker backend (`KERNEL_BUILDER=docker`) and can be forced to the shared QEMU
 backend with `KERNEL_BUILDER=qemu`. The runtime build uses
-`tools/kernel-builder/build.sh` with the tracked
-`gokrazy/kernel/kernel.config` + `runtime.config` fragments, emits `vmlinuz`,
-`lib/modules/`, and DTBs, then overlays those artifacts into the gitignored
+`tools/kernel-builder/build.py` with the tracked
+`gokrazy/kernel/kernel.config` + `runtime.config` fragments and matching
+`.require` manifests, emits `vmlinuz`, `lib/modules/`, and DTBs, then overlays
 module-cache copy used by `make ze-gokrazy`. The first overlay backs up the
 pinned cache. Use
 `make ze-kernel-clean` to restore it.

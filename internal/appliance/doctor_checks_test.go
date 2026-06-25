@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/diagnostic"
-	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 func TestApplianceDoctorChecksRegistered(t *testing.T) {
@@ -32,10 +31,11 @@ func TestApplianceDoctorChecksRegistered(t *testing.T) {
 
 func TestDoctorKernelPresent(t *testing.T) {
 	cacheDir := t.TempDir()
+	t.Chdir(t.TempDir())
+	writeInstallerKernelRegistry(t)
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	var tb textbuf.Buffer
-	cached := kernelCachePath(defaultKernelVersion, tb.Str(archAMD64).Byte('-').Str(ProfileQEMU).String())
+	cached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(archAMD64, defaultKernelProfile))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -46,6 +46,53 @@ func TestDoctorKernelPresent(t *testing.T) {
 	diags := checkKernelArtifact(diagnostic.DoctorCheckContext{})
 	if len(diags) != 0 {
 		t.Errorf("expected no diagnostics when kernel present, got %d", len(diags))
+	}
+}
+
+func TestDoctorKernelRejectsStaleFallback(t *testing.T) {
+	cacheDir := t.TempDir()
+	root := t.TempDir()
+	t.Chdir(root)
+	writeInstallerKernelRegistry(t)
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+
+	kernelPath := filepath.Join(root, "tools", "installer-kernel", "build", "Image")
+	if err := os.MkdirAll(filepath.Dir(kernelPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(kernelPath, []byte("k"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeIsoTestFile(t, filepath.Join(root, "tools", "installer-kernel", "build", ".variant"), archAMD64+"-custom-"+defaultKernelVersion+"-docker")
+
+	diags := checkKernelArtifact(diagnostic.DoctorCheckContext{})
+	if len(diags) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d", len(diags))
+	}
+	if diags[0].Code != "doctor-appliance-kernel" {
+		t.Errorf("code = %q, want doctor-appliance-kernel", diags[0].Code)
+	}
+}
+
+func TestDoctorKernelRejectsVariantWithoutImage(t *testing.T) {
+	cacheDir := t.TempDir()
+	root := t.TempDir()
+	t.Chdir(root)
+	writeInstallerKernelRegistry(t)
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+
+	buildDir := filepath.Join(root, "tools", "installer-kernel", "build")
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeIsoTestFile(t, filepath.Join(buildDir, ".variant"), archAMD64+"-"+defaultKernelProfile+"-"+defaultKernelVersion+"-docker")
+
+	diags := checkKernelArtifact(diagnostic.DoctorCheckContext{})
+	if len(diags) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d", len(diags))
+	}
+	if diags[0].Code != "doctor-appliance-kernel" {
+		t.Errorf("code = %q, want doctor-appliance-kernel", diags[0].Code)
 	}
 }
 

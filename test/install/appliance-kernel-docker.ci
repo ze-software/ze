@@ -52,7 +52,14 @@ if [ "$1" = run ]; then
 					out=${arg%:/out}
 					mkdir -p "$out"
 					printf 'docker-installer-kernel\n' > "$out/Image"
-					printf 'CONFIG_FAKE=y\n' > "$out/config"
+					cat > "$out/config" <<'EOF_CONFIG'
+CONFIG_IP_PNP_DHCP=y
+CONFIG_EXT4_FS=y
+CONFIG_BLK_DEV_INITRD=y
+CONFIG_DEVTMPFS_MOUNT=y
+CONFIG_VIRTIO_NET=y
+CONFIG_VIRTIO_BLK=y
+EOF_CONFIG
 					;;
 			esac
 		fi
@@ -70,7 +77,7 @@ ze appliance kernel --arch amd64 --profile qemu --builder docker >"$work/stdout"
 grep -q 'building kernel with docker' "$work/stdout"
 grep -q 'kernel ready:' "$work/stdout"
 [ "$(cat tools/installer-kernel/build/Image)" = 'docker-installer-kernel' ]
-[ "$(cat tools/installer-kernel/build/config)" = 'CONFIG_FAKE=y' ]
+grep -q '^CONFIG_VIRTIO_NET=y$' tools/installer-kernel/build/config
 cache_image=$(find "$work/cache" -path '*/installer-kernel/*/Image' -print | head -n 1)
 [ -n "$cache_image" ]
 [ "$(cat "$cache_image")" = 'docker-installer-kernel' ]
@@ -78,7 +85,9 @@ grep -q -- '--platform linux/amd64' "$work/docker.log"
 grep -q -- '/builder:ro' "$work/docker.log"
 grep -q -- '/src:ro' "$work/docker.log"
 grep -q -- '/out' "$work/docker.log"
-grep -q -- 'sh /builder/build.sh' "$work/docker.log"
+grep -q -- 'python3 /builder/build.py' "$work/docker.log"
+grep -q -- '--fragment /src/kernel.config' "$work/docker.log"
+grep -q -- '--fragment /src/qemu.config' "$work/docker.log"
 
 echo OK
 EOF_SH

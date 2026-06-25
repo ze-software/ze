@@ -39,10 +39,12 @@ from pathlib import Path
 import json, os, sys
 paths = [
     Path('tools/kernel-builder/Dockerfile'),
-    Path('tools/kernel-builder/build.sh'),
+    Path('tools/kernel-builder/build.py'),
     Path('tools/kernel-builder/qemu-build.py'),
     Path('gokrazy/kernel/kernel.config'),
+    Path('gokrazy/kernel/kernel.require'),
     Path('gokrazy/kernel/runtime.config'),
+    Path('gokrazy/kernel/runtime.require'),
     Path('gokrazy/kernel/patches/series'),
     Path('gokrazy/kernel/patches/0001-nct6683.patch'),
 ]
@@ -75,8 +77,8 @@ expect_status() {
 	fi
 }
 
-touch -t 202601010000 tools/kernel-builder/Dockerfile tools/kernel-builder/build.sh tools/kernel-builder/qemu-build.py \
-	gokrazy/kernel/kernel.config gokrazy/kernel/runtime.config gokrazy/kernel/patches/series gokrazy/kernel/patches/0001-nct6683.patch
+touch -t 202601010000 tools/kernel-builder/Dockerfile tools/kernel-builder/build.py tools/kernel-builder/qemu-build.py \
+	gokrazy/kernel/kernel.config gokrazy/kernel/kernel.require gokrazy/kernel/runtime.config gokrazy/kernel/runtime.require gokrazy/kernel/patches/series gokrazy/kernel/patches/0001-nct6683.patch
 touch -t 202601010100 tmp/kernel/build/vmlinuz
 expect_status 0 make -q -C gokrazy/kernel BUILDER=docker
 expect_status 0 make -q -C gokrazy/kernel BUILDER=qemu

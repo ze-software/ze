@@ -67,7 +67,7 @@ func TestConfigMarshalRoundtrip(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 
-	var restored ApplianceConfig
+	var restored applianceConfig
 	if err := json.Unmarshal(data, &restored); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -98,110 +98,114 @@ func TestConfigMarshalRoundtrip(t *testing.T) {
 func TestConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		modify  func(*ApplianceConfig)
+		modify  func(*applianceConfig)
 		wantErr string
 	}{
 		{
 			name:   "valid defaults",
-			modify: func(_ *ApplianceConfig) {},
+			modify: func(_ *applianceConfig) {},
 		},
 		{
 			name:    "empty name",
-			modify:  func(c *ApplianceConfig) { c.Identity.Name = "" },
+			modify:  func(c *applianceConfig) { c.Identity.Name = "" },
 			wantErr: "identity.name is required",
 		},
 		{
 			name:    "name with path traversal",
-			modify:  func(c *ApplianceConfig) { c.Identity.Name = "../evil" },
+			modify:  func(c *applianceConfig) { c.Identity.Name = "../evil" },
 			wantErr: "identity.name",
 		},
 		{
 			name:    "name with slash",
-			modify:  func(c *ApplianceConfig) { c.Identity.Name = "foo/bar" },
+			modify:  func(c *applianceConfig) { c.Identity.Name = "foo/bar" },
 			wantErr: "identity.name",
 		},
 		{
 			name:    "port zero",
-			modify:  func(c *ApplianceConfig) { c.SSH.Port = "0" },
+			modify:  func(c *applianceConfig) { c.SSH.Port = "0" },
 			wantErr: "ssh.port 0: must be 1-65535",
 		},
 		{
 			name:    "port too high",
-			modify:  func(c *ApplianceConfig) { c.SSH.Port = "65536" },
+			modify:  func(c *applianceConfig) { c.SSH.Port = "65536" },
 			wantErr: "ssh.port 65536: must be 1-65535",
 		},
 		{
 			name:    "port last valid",
-			modify:  func(c *ApplianceConfig) { c.SSH.Port = "65535" },
+			modify:  func(c *applianceConfig) { c.SSH.Port = "65535" },
 			wantErr: "",
 		},
 		{
 			name:    "port not a number",
-			modify:  func(c *ApplianceConfig) { c.SSH.Port = "abc" },
+			modify:  func(c *applianceConfig) { c.SSH.Port = "abc" },
 			wantErr: "not a valid port number",
 		},
 		{
 			name:    "image too small",
-			modify:  func(c *ApplianceConfig) { c.Image.SizeBytes = 536870911 },
+			modify:  func(c *applianceConfig) { c.Image.SizeBytes = 536870911 },
 			wantErr: "minimum is",
 		},
 		{
 			name:    "image at minimum",
-			modify:  func(c *ApplianceConfig) { c.Image.SizeBytes = 512 * 1024 * 1024 },
+			modify:  func(c *applianceConfig) { c.Image.SizeBytes = 512 * 1024 * 1024 },
 			wantErr: "",
 		},
 		{
 			name:    "validity zero",
-			modify:  func(c *ApplianceConfig) { c.TLS.ValidityYears = 0 },
+			modify:  func(c *applianceConfig) { c.TLS.ValidityYears = 0 },
 			wantErr: "minimum is 1",
 		},
 		{
 			name:    "validity too high",
-			modify:  func(c *ApplianceConfig) { c.TLS.ValidityYears = 26 },
+			modify:  func(c *applianceConfig) { c.TLS.ValidityYears = 26 },
 			wantErr: "maximum is 25",
 		},
 		{
 			name:    "bad arch",
-			modify:  func(c *ApplianceConfig) { c.Image.Arch = "mips" },
+			modify:  func(c *applianceConfig) { c.Image.Arch = "mips" },
 			wantErr: "must be amd64 or arm64",
 		},
 		{
 			name:   "arm64 valid",
-			modify: func(c *ApplianceConfig) { c.Image.Arch = "arm64" },
+			modify: func(c *applianceConfig) { c.Image.Arch = "arm64" },
 		},
 		{
 			name:   "kernel profile qemu valid",
-			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = ProfileQEMU },
+			modify: func(c *applianceConfig) { c.Image.KernelProfile = defaultKernelProfile },
 		},
 		{
 			name:   "kernel profile hardware valid",
-			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = ProfileHardware },
+			modify: func(c *applianceConfig) { c.Image.KernelProfile = "hardware" },
 		},
 		{
 			name:   "kernel profile hardware-kms valid",
-			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = ProfileHardwareKMS },
+			modify: func(c *applianceConfig) { c.Image.KernelProfile = hardwareKMSProfile },
 		},
 		{
 			name:   "kernel profile empty valid",
-			modify: func(c *ApplianceConfig) { c.Image.KernelProfile = "" },
+			modify: func(c *applianceConfig) { c.Image.KernelProfile = "" },
+		},
+		{
+			name:   "kernel profile custom token valid",
+			modify: func(c *applianceConfig) { c.Image.KernelProfile = "bare-metal" },
 		},
 		{
 			name:    "kernel profile invalid",
-			modify:  func(c *ApplianceConfig) { c.Image.KernelProfile = "bare-metal" },
-			wantErr: "must be qemu, hardware, or hardware-kms",
+			modify:  func(c *applianceConfig) { c.Image.KernelProfile = "../bad" },
+			wantErr: "must match",
 		},
 		{
 			name:    "qemu port below 1024",
-			modify:  func(c *ApplianceConfig) { c.QEMU.SSHPort = 1023 },
+			modify:  func(c *applianceConfig) { c.QEMU.SSHPort = 1023 },
 			wantErr: "must be 1024-65535",
 		},
 		{
 			name:   "name at max length",
-			modify: func(c *ApplianceConfig) { c.Identity.Name = strings.Repeat("a", maxNameLen) },
+			modify: func(c *applianceConfig) { c.Identity.Name = strings.Repeat("a", maxNameLen) },
 		},
 		{
 			name:    "name exceeds max length",
-			modify:  func(c *ApplianceConfig) { c.Identity.Name = strings.Repeat("a", maxNameLen+1) },
+			modify:  func(c *applianceConfig) { c.Identity.Name = strings.Repeat("a", maxNameLen+1) },
 			wantErr: "maximum length",
 		},
 		// config-base path validation deferred to assemble time (needs resolved appliance dir)
@@ -236,7 +240,7 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 	original := DefaultConfig("roundtrip")
 	original.Managed = true
 
-	if err := SaveConfig(path, &original); err != nil {
+	if err := saveConfig(path, &original); err != nil {
 		t.Fatalf("save: %v", err)
 	}
 
