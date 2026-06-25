@@ -275,7 +275,7 @@ leaf (runtime disable exists; this adds compile-time removal).
 - child specs (real numbering; pilot pivoted to lg, ssh became child 2):
   - `spec-feature-gate-1-lg.md` -- DONE (learned 980), `spec-feature-gate-2-ssh.md` -- DONE (learned 981)
   - `spec-feature-gate-3-web.md` -- ready (registry; Phase 1 extracts cert/TLS to internal/core/selfcert)
-  - `spec-feature-gate-4-gnmi.md` -- ready (dedicated seam; two blank imports + reload-notify coupling)
+  - `spec-feature-gate-4-gnmi.md` -- DONE (learned 986; dedicated seam, three owned blank imports + reload-notify coupling)
   - `spec-feature-gate-5-mcp.md` -- ready (registry; MCPServerHandle already Reconfigurable)
   - `spec-feature-gate-6-api.md` -- ready (seam; rest+grpc combined ze_api; parent api stays always-on)
   - `spec-feature-gate-7-monitoring.md` -- ready (gate metrics exporter only; registry stays always-on; recommend last)
