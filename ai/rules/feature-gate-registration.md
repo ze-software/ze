@@ -4,7 +4,8 @@ How to add or change a **compile-out-able feature**: a subsystem that can be
 dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag,
 for a smaller binary and a smaller attack surface (looking-glass `ze_lg`, ssh
 `ze_ssh`, web `ze_web`, gNMI `ze_gnmi`, MCP `ze_mcp`, REST API `ze_rest`, gRPC
-API `ze_grpc`, Prometheus exporter `ze_telemetry`, ...).
+API `ze_grpc`, Prometheus exporter `ze_telemetry`, routing protocols `ze_isis` /
+`ze_ldp` / `ze_ospf` / `ze_rsvpte`, ...).
 
 Read this before touching `feature-gates.txt`, `cmd/ze/hub/service_registry.go`,
 a `register_<x>.go` / `service_<x>.go` file, an `*_infra.go` seam, the
@@ -120,6 +121,35 @@ same always-on leaf so dependents keep working when the exporter is gated --
 gate only the part nothing always-on imports (the HTTP exporter), never the
 collection API. A core leaf may hold a nil-able hook var set by a gated
 component init; `make ze-tier-check` stays green (a value, not an import).
+
+**Plugin compile-out (routing protocols).** When the feature is already a
+self-registering plugin discovered by the generator (`register.go` -> `plugin/all`),
+there is NO new `register_<x>.go` or seam: gating is purely *blank-import
+partitioning*. List each owned dir as its own `feature-gates.txt` line under the
+shared tag -- a protocol spans several discovered dirs (engine + `transport` +
+`cli` + the `*-cmd` command schema), e.g.:
+
+```
+ze_ospf  internal/plugins/ospf
+ze_ospf  internal/plugins/ospf/cli
+ze_ospf  internal/plugins/ospf/transport
+ze_ospf  internal/plugins/ospf/v3/transport
+```
+
+The plugin's `.go` files are NOT source-tagged; `make generate` moves their blank
+imports into `all_<tag>.go` and dead-code elimination drops the unreferenced
+packages when the tag is off (A-1: nothing always-on imports a protocol). Mind the
+**two composition roots**: the generated `all.go` AND the hand-written
+`cmd/ze/ze_core_dispatch.go` (CLI). Protocols with a programmatic `cli` package
+(isis, ospf) move their dispatch-root CLI blank import into a per-protocol gated
+companion `cmd/ze/dispatch_<proto>.go` (`//go:build ze_core && ze_<proto>`); miss
+that root and the package stays linked. Routing protocols are also the first gated
+packages that are `sdk.NewWithConn` *engines* and multi-package features whose
+sub-packages import each other, so `dep_audit.py` (a) counts the generated
+`all_<tag>.go` as a registration importer (an engine's blank import there is not a
+"feature depends on it" tier violation) and (b) skips same-tag importers in the
+disableable check (the engine importing its own `transport` sub-package is
+intra-feature -- dropped together, not an always-on pin).
 
 ## Banned
 

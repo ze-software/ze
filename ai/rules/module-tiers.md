@@ -34,8 +34,13 @@ Decision:
   It is a platform other plugins build on. BGP is the archetype: its sub-plugins
   and other code plug into it.
 - **engine + nothing depends on it** → **edge plugin** (`internal/plugins/`).
-  IS-IS, LDP, RSVP-TE are edge protocols: they consume services (iface, the RIB)
-  but nothing consumes them.
+  IS-IS, OSPF, LDP, RSVP-TE are edge protocols: they consume services (iface, the
+  RIB) but nothing consumes them. A *gated* edge engine's blank import in the
+  generated `all_<tag>.go` (or a `cmd/ze` dispatch companion) is a registration
+  import, NOT a dependency, so it does not promote the engine to a component:
+  `dep_audit.py` treats those composition-root files as registration importers
+  (spec-feature-gate-8 -- the protocols are the first gated `sdk.NewWithConn`
+  engines).
 
 The RIB stays **component** because edge protocols install routes through it.
 

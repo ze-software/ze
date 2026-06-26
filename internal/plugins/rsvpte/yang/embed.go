@@ -4,5 +4,8 @@ package yang
 
 import _ "embed"
 
+//go:embed ze-rsvp-te-cmd.yang
+var ZeRSVPTECmdYANG string
+
 //go:embed ze-rsvp-te-conf.yang
 var ZeRSVPTEConfYANG string

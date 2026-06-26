@@ -74,6 +74,19 @@ def is_registration_importer(rel: str) -> bool:
     """True for files that only blank-import for side-effect registration."""
     if rel.endswith("/all/all.go"):
         return True
+    # Per-feature compile-out files generated next to all.go (all_<tag>.go,
+    # //go:build <tag>) are the same registration composition root, just gated
+    # behind a build tag. They MUST count as registration importers, or a gated
+    # ENGINE's blank import moving from all.go into all_<tag>.go reads as a
+    # feature dependency (spec-feature-gate-8: the routing protocols are the
+    # first gated packages that are also sdk.NewWithConn engines).
+    parent, _, base = rel.rpartition("/")
+    if (
+        parent.endswith("/plugin/all")
+        and base.startswith("all_")
+        and base.endswith(".go")
+    ):
+        return True
     if rel.startswith("cmd/ze/") and ("dispatch" in rel or rel.endswith("_imports.go")):
         return True
     return False
@@ -234,6 +247,23 @@ def file_requires_tag(root: str, rel: str, tag: str) -> bool:
     return False
 
 
+def _same_feature_importer(imp: str, tag: str, disableable: dict) -> bool:
+    """True if file imp lives inside ANY package gated by the same tag.
+
+    Such an importer belongs to the same feature: it is dropped together with the
+    imported package when the tag is off, so it cannot pin that package into a
+    no-tag build (it is not an always-on pin). This generalises the old
+    own-subtree skip to multi-package features -- a routing protocol's engine,
+    transport, and cli sub-packages all share one tag and freely import each
+    other (spec-feature-gate-8). The gate still independently verifies each gated
+    package has no truly always-on (untagged, cross-feature) importer.
+    """
+    for other_pkg, other_tag in disableable.items():
+        if other_tag == tag and (imp == other_pkg or imp.startswith(other_pkg + "/")):
+            return True
+    return False
+
+
 def disableable_violations(
     root: str, module: str, edges: dict, disableable=None
 ) -> list:
@@ -243,10 +273,9 @@ def disableable_violations(
     out = []
     for pkg, tag in sorted(disableable.items()):
         import_path = module + "/" + pkg
-        own_prefix = pkg + "/"
         for imp in sorted(edges.get(import_path, ())):
-            if imp.startswith(own_prefix):
-                continue  # the feature's own tree
+            if _same_feature_importer(imp, tag, disableable):
+                continue  # same feature (same tag) -- dropped together, not a pin
             if imp.endswith("_test.go"):
                 continue  # tests may import the package directly
             if any(imp.startswith(p) for p in DISABLEABLE_NONPROD_PREFIXES):

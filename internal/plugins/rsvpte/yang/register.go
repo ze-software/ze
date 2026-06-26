@@ -7,5 +7,6 @@ import (
 )
 
 func init() {
+	configyang.RegisterModule("ze-rsvp-te-cmd.yang", ZeRSVPTECmdYANG)
 	configyang.RegisterModule("ze-rsvp-te-conf.yang", ZeRSVPTEConfYANG)
 }

@@ -37,3 +37,12 @@ ze_rest  internal/component/api/rest
 ze_grpc  internal/component/api/grpc
 ze_telemetry  internal/component/telemetry/exporter
 ze_telemetry  internal/component/telemetry/collector
+ze_isis    internal/plugins/isis
+ze_isis    internal/plugins/isis/cli
+ze_isis    internal/plugins/isis/transport
+ze_ldp     internal/plugins/ldp
+ze_ospf    internal/plugins/ospf
+ze_ospf    internal/plugins/ospf/cli
+ze_ospf    internal/plugins/ospf/transport
+ze_ospf    internal/plugins/ospf/v3/transport
+ze_rsvpte  internal/plugins/rsvpte

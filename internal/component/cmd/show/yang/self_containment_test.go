@@ -51,8 +51,8 @@ func TestShowSchemaHasNoBGPPluginCommands(t *testing.T) {
 func TestShowSchemaHasNoMigratedOwnerCommands(t *testing.T) {
 	banned := map[string]string{
 		`"ze-show:flow-export"`:           "flow export -> internal/plugins/flowexport-cmd/yang",
-		`"ze-show:rsvp-te-`:               "RSVP-TE -> internal/plugins/rsvpte-cmd/yang",
-		`"ze-show:ldp-`:                   "LDP -> internal/plugins/ldp-cmd/yang",
+		`"ze-show:rsvp-te-`:               "RSVP-TE -> internal/plugins/rsvpte/yang",
+		`"ze-show:ldp-`:                   "LDP -> internal/plugins/ldp/yang",
 		`"ze-show:isis-`:                  "IS-IS -> internal/plugins/isis/yang",
 		`"ze-show:ospf`:                   "OSPF -> internal/plugins/ospf/yang",
 		`"ze-show:policy-routes"`:         "policy routing -> internal/plugins/policyroute/yang",

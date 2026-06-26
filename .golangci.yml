@@ -24,6 +24,10 @@ run:
     - ze_rest
     - ze_grpc
     - ze_telemetry
+    - ze_isis
+    - ze_ldp
+    - ze_ospf
+    - ze_rsvpte
 
 linters:
   exclusions:

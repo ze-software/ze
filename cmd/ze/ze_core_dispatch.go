@@ -40,9 +40,12 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/l2tp/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/resolve/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/tacacs/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/isis/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/cli"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/ospf/transport"
+
+	// Routing-protocol CLI registration is gated per protocol in this same
+	// dispatch composition root; see dispatch_isis.go / dispatch_ospf.go
+	// (//go:build ze_core && ze_<proto>). With a protocol's tag off, its CLI
+	// imports drop from BOTH this root and the generated all.go, so the package
+	// unlinks (the two-composition-root reality this spec exists to handle).
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/yang/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
