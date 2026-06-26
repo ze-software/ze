@@ -418,6 +418,12 @@ func (r *L2TPReactor) handle(pkt rxPacket) {
 		}
 	}
 
+	// Withdraw subscriber routes for sessions a peer-initiated event just
+	// tore down (incoming StopCCN clears the tunnel's sessions; CDN clears
+	// one; tie-breaker losses discard a tunnel). Without this the redistribute
+	// source keeps the /32 injected after the session is gone.
+	r.notifyRouteObserverDown(teardownEvents)
+
 	// Phase 5: enqueue kernel events after releasing the lock.
 	r.enqueueKernelEvents(setupEvents, teardownEvents)
 
@@ -530,6 +536,11 @@ func (r *L2TPReactor) handleTick(tr tickReq) {
 			r.logger.Warn("l2tp: tunnel-down emit failed", "error", err)
 		}
 	}
+
+	// Withdraw subscriber routes for sessions this tick-driven teardown just
+	// cleared (retransmit limit exhausted -> StopCCN). reapTeardowns belong
+	// to tunnels closed in an earlier tick/packet and already withdrawn then.
+	r.notifyRouteObserverDown(tickTeardowns)
 
 	// Phase 5: enqueue kernel teardown events after releasing the lock.
 	r.enqueueKernelEvents(nil, append(reapTeardowns, tickTeardowns...))

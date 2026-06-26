@@ -16,8 +16,15 @@ import (
 // kernel setup and for pending kernel teardowns. Clears the flags and
 // drains the teardown list. Caller MUST hold tunnelsMu.
 func (r *L2TPReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSetupEvent, []kernelTeardownEvent) {
+	// Drain teardowns first, unconditionally: the route observer must learn
+	// of torn sessions even when no kernel worker is present (non-Linux,
+	// tests). Subscriber-route withdrawal is independent of kernel-resource
+	// teardown, so this must not be gated on r.kernelWorker.
+	teardowns := tunnel.pendingKernelTeardowns
+	tunnel.pendingKernelTeardowns = nil
+
 	if r.kernelWorker == nil {
-		return nil, nil
+		return nil, teardowns
 	}
 
 	var setups []kernelSetupEvent
@@ -51,9 +58,6 @@ func (r *L2TPReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSet
 			proxyLastRecvLCPConfReq:    sess.proxyLastRecvLCPConfReq,
 		})
 	}
-
-	teardowns := tunnel.pendingKernelTeardowns
-	tunnel.pendingKernelTeardowns = nil
 
 	return setups, teardowns
 }
@@ -231,6 +235,27 @@ func (r *L2TPReactor) handlePPPEvent(ev ppp.Event) {
 		}
 	}
 	r.enqueueKernelEvents(nil, teardowns)
+}
+
+// notifyRouteObserverDown withdraws subscriber routes for the sessions in
+// a batch of kernel-teardown events. clearSessions / removeSession queue
+// one event per established session torn down by a peer-initiated event
+// (incoming StopCCN or CDN, a retransmit timeout, or a tie-breaker loss),
+// so these events are exactly the sessions whose /32 or /128 must be
+// withdrawn. The operator teardown paths (teardown.go) and the PPP-event
+// path notify the observer directly; this covers the peer-driven reactor
+// paths (handle, handleTick), which previously left routes injected after
+// the session was gone. OnSessionDown is idempotent, so a session with no
+// route record is a cheap no-op.
+//
+// Caller MUST NOT hold tunnelsMu (OnSessionDown takes the observer lock).
+func (r *L2TPReactor) notifyRouteObserverDown(events []kernelTeardownEvent) {
+	if r.routeObserver == nil {
+		return
+	}
+	for _, e := range events {
+		r.routeObserver.OnSessionDown(e.localTID, e.localSID)
+	}
 }
 
 // handleSessionIPAssigned records the NCP-negotiated peer IP on the

@@ -1124,6 +1124,81 @@ func buildStopCCN(t *testing.T, destTID, ns, nr, peerAssignedTID, resultCode uin
 	return pkt
 }
 
+// recordingRouteObserver is a RouteObserver test double that records every
+// OnSessionDown call, so a teardown test can assert the subscriber route was
+// withdrawn.
+type recordingRouteObserver struct {
+	mu   sync.Mutex
+	down [][2]uint16
+}
+
+func (o *recordingRouteObserver) OnSessionIPUp(uint16, uint16, string, netip.Addr) {}
+
+func (o *recordingRouteObserver) OnSessionDown(tunnelID, sessionID uint16) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.down = append(o.down, [2]uint16{tunnelID, sessionID})
+}
+
+func (o *recordingRouteObserver) downs() [][2]uint16 {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	out := make([][2]uint16, len(o.down))
+	copy(out, o.down)
+	return out
+}
+
+// VALIDATES: a peer-initiated tunnel teardown (HELLO exhaustion -> StopCCN)
+// withdraws subscriber routes for the tunnel's established sessions via
+// RouteObserver.OnSessionDown, matching the operator and PPP-event paths.
+//
+// PREVENTS: regression of the L2TP boot-evidence failure "subscriber route
+// withdraw was not observed during teardown" -- the reactor's peer paths
+// (handle, handleTick) previously skipped OnSessionDown, leaving the /32
+// injected after the session was gone.
+func TestPeerTeardownWithdrawsSubscriberRoute(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	helloInterval := 60 * time.Second
+	ln, r, _, stop := buildLogReactorWithClock(t, &now, helloInterval, "")
+	defer stop()
+
+	spy := &recordingRouteObserver{}
+	r.SetRouteObserver(spy)
+
+	client, localTID := driveToEstablished(t, ln, "")
+	defer client.Close()
+
+	// Attach an established session so the teardown has a route to withdraw.
+	const sid uint16 = 0x4242
+	r.tunnelsMu.Lock()
+	tunnel := r.tunnelsByLocalID[localTID]
+	tunnel.sessions = map[uint16]*L2TPSession{
+		sid: {localSID: sid, remoteSID: 0x4243, state: L2TPSessionEstablished, createdAt: now},
+	}
+	tunnel.lastActivity = now.Add(-70 * time.Second)
+	r.tunnelsMu.Unlock()
+
+	// First tick sends a HELLO; the peer stays silent.
+	now = now.Add(65 * time.Second)
+	r.handleTick(tickReq{tunnelID: localTID})
+
+	// Exhaust retransmits so the engine returns TeardownRequired and the
+	// reactor tears the tunnel down with a StopCCN.
+	retransmitTimeout := DefaultRTimeout
+	for range DefaultMaxRetransmit + 1 {
+		now = now.Add(retransmitTimeout + time.Second)
+		retransmitTimeout *= 2
+		if retransmitTimeout > DefaultRTimeoutCap {
+			retransmitTimeout = DefaultRTimeoutCap
+		}
+		r.handleTick(tickReq{tunnelID: localTID})
+	}
+
+	downs := spy.downs()
+	require.Len(t, downs, 1, "peer teardown must withdraw exactly one session route")
+	require.Equal(t, [2]uint16{localTID, sid}, downs[0])
+}
+
 // TestTunnelFSM_HelloOnSilence -- AC-12.
 //
 // VALIDATES: AC-12 -- when HelloInterval elapses without peer activity,
