@@ -35,8 +35,8 @@ func TestOSPFNeighborsJSON(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.HandleOSPFNeighbors()(rec, req)
 
-	if got != "show ip ospf neighbor" {
-		t.Errorf("dispatched %q, want 'show ip ospf neighbor'", got)
+	if got != "show ospf neighbor" {
+		t.Errorf("dispatched %q, want 'show ospf neighbor'", got)
 	}
 	if rec.Code != 200 {
 		t.Fatalf("status = %d, want 200", rec.Code)
@@ -53,8 +53,8 @@ func TestOSPFDatabaseJSON(t *testing.T) {
 	rec := httptest.NewRecorder()
 	h.HandleOSPFDatabase()(rec, req)
 
-	if got != "show ip ospf database" {
-		t.Errorf("dispatched %q, want 'show ip ospf database'", got)
+	if got != "show ospf database" {
+		t.Errorf("dispatched %q, want 'show ospf database'", got)
 	}
 	if !strings.Contains(rec.Body.String(), "0.0.0.0") {
 		t.Errorf("body missing LSDB data: %q", rec.Body.String())

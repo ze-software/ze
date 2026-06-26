@@ -98,7 +98,7 @@ func TestLSTypeNSSA(t *testing.T) {
 // filters use, including Link-LSA (0x0008), NSSA-LSA (0x2007), AS-External
 // (0x4005), and Intra-Area-Prefix (0x2009).
 // PREVENTS: OSPFv3 LSDB snapshots showing every v3 LSA as "unknown" and making
-// `show ip ospf database <type>` miss v3 entries.
+// `show ospf database <type>` miss v3 entries.
 func TestLSTypeStringOSPFv3(t *testing.T) {
 	tests := []struct {
 		typ  LSType

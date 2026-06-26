@@ -47,7 +47,7 @@ type BorderRouterEntry struct {
 	NextHops []NextHop
 }
 
-// BorderRouterSnapshotEntry is one `show ip ospf border-routers` row.
+// BorderRouterSnapshotEntry is one `show ospf border-routers` row.
 type BorderRouterSnapshotEntry struct {
 	RouterID string             `json:"router_id"`
 	Area     string             `json:"area"`

@@ -24,7 +24,7 @@ func init() {
 
 func handleRouteLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
-		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show ip route lookup <destination-ip>"}, nil
+		return &plugin.Response{Status: plugin.StatusError, Error: "usage: show route lookup <destination-ip>"}, nil
 	}
 	dest, err := netip.ParseAddr(args[0])
 	if err != nil {

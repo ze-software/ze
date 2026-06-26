@@ -6,7 +6,7 @@
 // label-imposition (push) routes, which are ordinary IP routes carrying an MPLS
 // label encap (keyed by FEC prefix, e.g. a BGP labeled-unicast or LDP/RSVP-TE
 // ingress). Reading the kernel directly (rather than a daemon's in-memory view)
-// reports the authoritative dataplane state, matching how `show kernel-routes`
+// reports the authoritative dataplane state, matching how `show route`
 // works for IP. The kernel reader is platform-specific: forwarding_linux.go /
 // forwarding_other.go.
 package mpls

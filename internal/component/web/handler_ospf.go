@@ -2,8 +2,8 @@
 // Related: snapshot_views.go -- the generic read-only live-view implementation wrapped here.
 //
 // The OSPF engine runs as a managed plugin subprocess, so the web layer reaches it the
-// same way the CLI does: through the CommandDispatcher, which forwards `show ip ospf
-// neighbor` / `show ip ospf database` to the engine. This adapter just configures the
+// same way the CLI does: through the CommandDispatcher, which forwards `show ospf
+// neighbor` / `show ospf database` to the engine. This adapter just configures the
 // generic snapshot views with the OSPF command names, titles, and stream paths.
 
 package web //nolint:dupl // parallel per-protocol web adapter mirroring handler_isis.go; the shared logic is in snapshot_views.go, this file is only OSPF naming + the public API used by main_servers.go.
@@ -24,8 +24,8 @@ type OSPFHandlers struct {
 }
 
 var (
-	ospfNeighborView = viewSpec{command: "show ip ospf neighbor", title: "OSPF Neighbors", streamPath: "/ospf/neighbors/stream", eventName: "neighbors"}
-	ospfDatabaseView = viewSpec{command: "show ip ospf database", title: "OSPF Database", streamPath: "/ospf/database/stream", eventName: "database"}
+	ospfNeighborView = viewSpec{command: "show ospf neighbor", title: "OSPF Neighbors", streamPath: "/ospf/neighbors/stream", eventName: "neighbors"}
+	ospfDatabaseView = viewSpec{command: "show ospf database", title: "OSPF Database", streamPath: "/ospf/database/stream", eventName: "database"}
 )
 
 // views builds the generic snapshot handler configured for OSPF.

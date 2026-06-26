@@ -841,7 +841,7 @@ internal/component/ospf/
 - **`iface` component.** Subscribe to interface up/down, address add/remove, MTU change. On up, if configured, bring the ISM from Down to Waiting or Point-to-Point. On down, tear down every neighbour on the interface and flush its retransmit lists.
 - **`sysrib` component.** On SPF completion, compute the diff from the previous routing table and push adds/deletes. OSPF routes carry path type (intra, inter, external-1, external-2), metric, and an ECMP nexthop set.
 - **`config` component.** YANG schema registration, config parse, and config-change handler.
-- **`cli` component.** Command registration for the operational `show ip ospf ...` family and debug toggles.
+- **`cli` component.** Command registration for the operational `show ospf ...` family and debug toggles.
 - **`bus` / event stream** (if used). Publish adjacency state changes and SPF events for other subsystems to consume; consume interface and address events.
 
 ### Plugin Registration
@@ -1417,7 +1417,7 @@ ze's functional test runner should spin up a pair of instances connected via an 
 
 The gold standard is interop with FRR itself. Set up a Linux network namespace running FRR ospfd and a matching namespace running ze. Verify:
 - Adjacency forms and goes Full with each of the major network types.
-- LSDBs converge (every LSA in FRR's `show ip ospf database` is in ze's database and vice versa, with matching sequence numbers).
+- LSDBs converge (every LSA in FRR's `show ip ospf database` is in ze's `show ospf database` and vice versa, with matching sequence numbers).
 - Routing tables converge.
 - Failures recover correctly on both sides.
 
@@ -1599,7 +1599,7 @@ Beyond the MIB, FRR exposes statistics and `show` commands via VTY (the legacy C
 - AS-external route computation with E1/E2 semantics and forwarding address.
 - Stub areas (RFC 2328 §3.6).
 - Route installation into `sysrib`.
-- YANG configuration and `show ip ospf` CLI.
+- YANG configuration and `show ospf` CLI.
 
 **SHOULD:**
 - NSSA (RFC 3101) with Type 7, translator election, and the P-bit priority ordering (§6f).
@@ -1822,7 +1822,7 @@ Build OSPFv2 in phases. Each phase has a clear test gate before moving on.
 
 **Deliverables.**
 - YANG module complete.
-- `show ip ospf`, `show ip ospf neighbor`, `show ip ospf interface`, `show ip ospf database`, `show ip ospf route`, `show ip ospf border-routers`, `show ip ospf spf`.
+- `show ospf`, `show ospf neighbor`, `show ospf interface`, `show ospf database`, `show ospf route`, `show ospf border-routers`, `show ospf spf`.
 - Debug toggles and logging.
 - Counters (adjacency count, LSA counts per type, packet RX/TX per type, SPF runs, auth failures).
 
@@ -1836,7 +1836,7 @@ Build OSPFv2 in phases. Each phase has a clear test gate before moving on.
 - `.ci` tests with a Linux namespace running FRR ospfd and a matching namespace running ze.
 - Coverage: P2P, broadcast, multi-area, stub, NSSA, redistribution, authentication, failover.
 
-**Test gate.** Every scenario converges with FRR as the peer. `tcpdump` captures match expected format. `show ip ospf database` on both sides agrees.
+**Test gate.** Every scenario converges with FRR as the peer. `tcpdump` captures match expected format. The link-state databases agree (ze `show ospf database` vs FRR `show ip ospf database`).
 
 ### Phase 14+ — Extensions (optional)
 

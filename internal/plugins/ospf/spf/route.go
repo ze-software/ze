@@ -299,7 +299,7 @@ func IndexByPrefix(routes []RouteEntry) map[netip.Prefix]RouteEntry {
 	return m
 }
 
-// RouteSnapshotEntry is one `show ip ospf route` row.
+// RouteSnapshotEntry is one `show ospf route` row.
 type RouteSnapshotEntry struct {
 	Area     string             `json:"area"`
 	Prefix   string             `json:"prefix"`

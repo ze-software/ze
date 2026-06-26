@@ -3,12 +3,17 @@ module ze-ospf-cmd {
     prefix ospfcmd;
     import ze-extensions { prefix ze; }
     description
-        "show ip ospf ... command tree. Owned by the ospf component so removing it
+        "show ospf ... command tree. Owned by the ospf component so removing it
          removes these command nodes together with the handlers in
          internal/plugins/ospf/cmd_show.go. The show subtree container-merges onto
-         the generic show verb root and the shared `ip` container; the wire methods
-         bind into the CENTRAL ze-show namespace (Go-registered RPCs, the LDP/IS-IS
-         model). See ai/rules/plugin-self-containment.md.";
+         the generic show verb root; the wire methods bind into the CENTRAL ze-show
+         namespace (Go-registered RPCs, the LDP/IS-IS model). Commands are
+         object-rooted (no shared `ip` container); see
+         docs/architecture/cli/command-namespacing.md and
+         ai/rules/plugin-self-containment.md.";
+    revision 2026-06-26 {
+        description "Object-rooted: dropped the show/clear `ip` container so the tree is show ospf ... / clear ospf ... (was show ip ospf ...).";
+    }
     revision 2026-06-21 {
         description "Initial revision: show ip ospf neighbor/interface/database/route/border-routers/spf (spec-ospf-13).";
     }
@@ -17,93 +22,88 @@ module ze-ospf-cmd {
         config false;
         description "Read-only commands to inspect system, protocol, and network state";
 
-        container ip {
+        container ospf {
             config false;
-            description "IP neighbors (ARP/ND) and kernel routing table";
+            ze:command "ze-show:ospf";
+            description "OSPFv2 process summary: router-id, areas, ABR/ASBR status, and stub-router (max-metric) state (RFC 2328).";
 
-            container ospf {
+            container neighbor {
                 config false;
-                ze:command "ze-show:ospf";
-                description "OSPFv2 process summary: router-id, areas, ABR/ASBR status, and stub-router (max-metric) state (RFC 2328).";
-
-                container neighbor {
-                    config false;
-                    ze:command "ze-show:ospf-neighbor";
-                    description "Show OSPF neighbors.
+                ze:command "ze-show:ospf-neighbor";
+                description "Show OSPF neighbors.
 Returns each neighbor's router-id, interface, adjacency state, DR/BDR,
 priority, dead time, and address.";
-                }
+            }
 
-                container interface {
-                    config false;
-                    ze:command "ze-show:ospf-interface";
-                    description "Show OSPF-enabled interfaces.
+            container interface {
+                config false;
+                ze:command "ze-show:ospf-interface";
+                description "Show OSPF-enabled interfaces.
 Returns area, network-type, cost, ISM state, DR/BDR, hello/dead
 intervals, priority, and passive flag per interface.";
-                }
+            }
 
-                container database {
-                    config false;
-                    ze:command "ze-show:ospf-database";
-                    description "Show the OSPF link-state database.
+            container database {
+                config false;
+                ze:command "ze-show:ospf-database";
+                description "Show the OSPF link-state database.
 Lists each LSA with its LS Type, Link State ID, Advertising Router,
 sequence number, age, and checksum.";
 
-                    container router {
-                        config false;
-                        ze:command "ze-show:ospf-database-router";
-                        description "Show only Router-LSAs (Type 1).";
-                    }
-                    container network {
-                        config false;
-                        ze:command "ze-show:ospf-database-network";
-                        description "Show only Network-LSAs (Type 2).";
-                    }
-                    container summary {
-                        config false;
-                        ze:command "ze-show:ospf-database-summary";
-                        description "Show only Summary-LSAs (Type 3, inter-area network).";
-                    }
-                    container asbr-summary {
-                        config false;
-                        ze:command "ze-show:ospf-database-asbr-summary";
-                        description "Show only ASBR-Summary-LSAs (Type 4).";
-                    }
-                    container external {
-                        config false;
-                        ze:command "ze-show:ospf-database-external";
-                        description "Show only AS-external-LSAs (Type 5).";
-                    }
-                    container nssa-external {
-                        config false;
-                        ze:command "ze-show:ospf-database-nssa-external";
-                        description "Show only NSSA-external-LSAs (Type 7, RFC 3101).";
-                    }
-                }
-
-                container route {
+                container router {
                     config false;
-                    ze:command "ze-show:ospf-route";
-                    description "Show OSPF-computed routes.
+                    ze:command "ze-show:ospf-database-router";
+                    description "Show only Router-LSAs (Type 1).";
+                }
+                container network {
+                    config false;
+                    ze:command "ze-show:ospf-database-network";
+                    description "Show only Network-LSAs (Type 2).";
+                }
+                container summary {
+                    config false;
+                    ze:command "ze-show:ospf-database-summary";
+                    description "Show only Summary-LSAs (Type 3, inter-area network).";
+                }
+                container asbr-summary {
+                    config false;
+                    ze:command "ze-show:ospf-database-asbr-summary";
+                    description "Show only ASBR-Summary-LSAs (Type 4).";
+                }
+                container external {
+                    config false;
+                    ze:command "ze-show:ospf-database-external";
+                    description "Show only AS-external-LSAs (Type 5).";
+                }
+                container nssa-external {
+                    config false;
+                    ze:command "ze-show:ospf-database-nssa-external";
+                    description "Show only NSSA-external-LSAs (Type 7, RFC 3101).";
+                }
+            }
+
+            container route {
+                config false;
+                ze:command "ze-show:ospf-route";
+                description "Show OSPF-computed routes.
 Lists each prefix with its path type (intra/inter/external-1/2), cost,
 next-hops, and area.";
-                }
+            }
 
-                container border-routers {
-                    config false;
-                    ze:command "ze-show:ospf-border-routers";
-                    description "Show routes to OSPF area-border and AS-boundary routers.
+            container border-routers {
+                config false;
+                ze:command "ze-show:ospf-border-routers";
+                description "Show routes to OSPF area-border and AS-boundary routers.
 Lists each reachable ABR/ASBR with its router-id, cost, next-hops, and
 area.";
-                }
+            }
 
-                container spf {
-                    config false;
-                    ze:command "ze-show:ospf-spf";
-                    description "Show recent OSPF SPF runs.
+            container spf {
+                config false;
+                ze:command "ze-show:ospf-spf";
+                description "Show recent OSPF SPF runs.
 Returns the most recent per-area SPF runs with their timestamp,
 duration, node count, and pending state.";
-                }
             }
         }
     }
@@ -111,36 +111,31 @@ duration, node count, and pending state.";
     container clear {
         config false;
 
-        container ip {
+        container ospf {
             config false;
-            description "Reset IPv4 routing-protocol runtime state without reconfiguring.";
+            description "Reset OSPF runtime state without reconfiguring.";
 
-            container ospf {
+            container process {
                 config false;
-                description "Reset OSPF runtime state without reconfiguring.";
-
-                container process {
-                    config false;
-                    ze:command "ze-clear:ospf-process";
-                    description "Full OSPF reset: tear down every adjacency and re-run SPF.
-Usage: clear ip ospf process. Adjacencies re-form from the next Hello;
+                ze:command "ze-clear:ospf-process";
+                description "Full OSPF reset: tear down every adjacency and re-run SPF.
+Usage: clear ospf process. Adjacencies re-form from the next Hello;
 the configuration is unchanged.";
-                }
+            }
 
-                container neighbor {
-                    config false;
-                    ze:command "ze-clear:ospf-neighbor";
-                    description "Tear down every OSPF adjacency so neighbors re-form.
-Usage: clear ip ospf neighbor. Adjacencies re-learn from the next Hello.";
-                }
+            container neighbor {
+                config false;
+                ze:command "ze-clear:ospf-neighbor";
+                description "Tear down every OSPF adjacency so neighbors re-form.
+Usage: clear ospf neighbor. Adjacencies re-learn from the next Hello.";
+            }
 
-                container counters {
-                    config false;
-                    ze:command "ze-clear:ospf-counters";
-                    description "Reset the OSPF SPF-run history.
-Usage: clear ip ospf counters. Monotonic Prometheus series are not reset;
+            container counters {
+                config false;
+                ze:command "ze-clear:ospf-counters";
+                description "Reset the OSPF SPF-run history.
+Usage: clear ospf counters. Monotonic Prometheus series are not reset;
 the SPF-run log is cleared.";
-                }
             }
         }
     }

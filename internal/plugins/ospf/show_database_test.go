@@ -25,12 +25,12 @@ func TestDatabaseSubviewFilter(t *testing.T) {
 
 func TestDatabaseSubviewMapCovers6Types(t *testing.T) {
 	want := map[string]string{
-		"show ip ospf database router":        "router",
-		"show ip ospf database network":       "network",
-		"show ip ospf database summary":       "summary-network",
-		"show ip ospf database asbr-summary":  "summary-asbr",
-		"show ip ospf database external":      "as-external",
-		"show ip ospf database nssa-external": "nssa",
+		"show ospf database router":        "router",
+		"show ospf database network":       "network",
+		"show ospf database summary":       "summary-network",
+		"show ospf database asbr-summary":  "summary-asbr",
+		"show ospf database external":      "as-external",
+		"show ospf database nssa-external": "nssa",
 	}
 	assert.Equal(t, want, dbSubviewType)
 }

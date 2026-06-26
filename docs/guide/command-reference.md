@@ -527,46 +527,48 @@ full pipe operators supported. See the [Traffic Usage guide](traffic-usage.md).
 
 <!-- source: internal/plugins/trafficusage/show.go -- handleShowTrafficUsage, ze-show:traffic-usage -->
 
-### show ip
+### show route / show neighbor
 
-Kernel routing and neighbor tables. Both commands dispatch through the
-iface backend; on the netlink backend they read the live kernel state,
-on VPP they reject under exact-or-reject since the kernel FIB/ARP table
-is not the authoritative forwarding source there.
+Kernel routing and neighbor tables. These commands are object-rooted (no
+`ip` namespace); they dispatch through the iface backend; on the netlink
+backend they read the live kernel state, on VPP they reject under
+exact-or-reject since the kernel FIB/ARP table is not the authoritative
+forwarding source there.
 
 ```
-ze show ip arp                         # Kernel neighbor table (IPv4 ARP + IPv6 ND)
-ze show ip arp --family ipv4           # IPv4 only
-ze show ip arp --family ipv6           # IPv6 only
-ze show ip route                       # Full kernel routing table (all protocols)
-ze show ip route <cidr>                # Filter to an exact CIDR match
-ze show ip route default                # Default route(s) (0.0.0.0/0, ::/0)
+ze show neighbor                       # Kernel neighbor table (IPv4 ARP + IPv6 ND)
+ze show neighbor ipv4                  # IPv4 only (alias: ze show arp)
+ze show neighbor ipv6                  # IPv6 only (ND)
+ze show route                          # Full kernel routing table (all protocols)
+ze show route <cidr>                   # Filter to an exact CIDR match
+ze show route default                  # Default route(s) (0.0.0.0/0, ::/0)
 ```
 
-**`show ip arp`** returns per-entry `address`, `mac-address`, `device`,
-`family`, and `state` (reachable, stale, delay, probe, failed,
-permanent, noarp, incomplete). Unresolved entries (no IP) are skipped.
-FAILED and INCOMPLETE entries are kept with an empty MAC so operators
-can diagnose neighbor discovery problems.
+**`show neighbor`** (IPv4-only shortcut: **`show arp`**) returns per-entry
+`address`, `mac-address`, `device`, `family`, and `state` (reachable,
+stale, delay, probe, failed, permanent, noarp, incomplete). Unresolved
+entries (no IP) are skipped. FAILED and INCOMPLETE entries are kept with
+an empty MAC so operators can diagnose neighbor discovery problems.
 
-**`show ip route`** renders the `protocol` field by name for well-known
+**`show route`** renders the `protocol` field by name for well-known
 values (kernel, static, bgp, ra, dhcp, zebra, ze for RTPROT_ZE=250, plus
 ospf/isis/rip/eigrp/babel) and as a decimal string otherwise. Connected
 routes have an empty `nexthop`; the `source` field carries the
 preferred-source IP when the kernel reports one.
 
-**`show ip ospf route`** returns the OSPF SPF route table: area, prefix,
-metric, path type, advertising router, and equal-cost next-hop set. **`show ip
-ospf spf`** returns per-area SPF run state: last run time, duration, node count,
-pending state, and current throttle delay. **`show ip ospf border-routers`**
+**`show ospf route`** returns the OSPF SPF route table: area, prefix,
+metric, path type, advertising router, and equal-cost next-hop set. **`show ospf
+spf`** returns per-area SPF run state: last run time, duration, node count,
+pending state, and current throttle delay. **`show ospf border-routers`**
 returns reachable ABRs and ASBRs with area, metric, and next-hop set.
 
-<!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ip ospf route/spf/border-routers -->
+<!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
 <!-- source: internal/plugins/ospf/spf/route.go -- RouteSnapshotEntry -->
 <!-- source: internal/plugins/ospf/spf/interarea.go -- BorderRouterSnapshotEntry -->
 <!-- source: internal/plugins/ospf/spf/computer.go -- spfSnapshotEntry and BorderRouterSnapshot -->
 
-<!-- source: internal/component/iface/cmd/show_ip.go -- handleShowArp, handleShowIPRoute -->
+<!-- source: internal/component/iface/cmd/show_neighbor.go -- handleShowNeighbor, handleShowArp -->
+<!-- source: internal/component/iface/cmd/show_route.go -- handleShowRoute -->
 <!-- source: internal/plugins/iface/netlink/neighbor_linux.go -- ListNeighbors -->
 <!-- source: internal/plugins/iface/netlink/route_linux.go -- ListKernelRoutes -->
 

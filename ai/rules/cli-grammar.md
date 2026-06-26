@@ -161,6 +161,38 @@ the YANG tree needs a `name` container under `interface`, then `detail`
 under that selector. Filter forms like `show interface type <type>` need a
 `type` container that consumes the typed selector value.
 
+## No Flag Syntax in YANG (Filters Are Keyword Grammar)
+
+YANG schemas describe command structure and semantics, not CLI presentation.
+`--flag` syntax MUST NOT appear anywhere in a `.yang` file: not in a
+`description`, not in a `//` comment, not in examples.
+
+A **filter** (address family, row limit, VRF, table, ...) is grammar, so it is a
+YANG keyword selector, never a flag:
+
+- Model it as a container or leaf the command consumes as `keyword value`
+  (`... arp family ipv6`, `... route limit 50`). It is then visible to
+  completion and RPC dispatch, which are built from the YANG tree.
+- A `description` states what the leaf MEANS. It never prescribes a CLI spelling
+  ("Filter by address family", not "Filter with `--family`"; not "as a positional
+  argument" either).
+
+The `--flag` form (`--json`, `--socket`, `--limit`) is a presentation artifact of
+the offline `cmd/ze/` Go flag tooling (`flag.NewFlagSet`) and belongs ONLY there,
+never in the YANG layer. A `--flag` baked into a YANG description is documentation
+lying about structure: it is invisible to completion and dispatch, and it couples
+the shared model to one front-end.
+
+Rationale and the vendor namespacing logic behind family-as-filter (Cisco `ip`
+vs Nokia `router` vs Juniper `show route`):
+`docs/architecture/cli/command-namespacing.md`.
+
+Mechanical check (must return nothing):
+
+```
+grep -rnE '\-\-[a-z]' internal --include='*.yang' | grep -vE 'urn:|http|xml'
+```
+
 ## Applies To
 
 All CLI commands: online (RPC handlers via YANG dispatch) and offline

@@ -28,7 +28,7 @@
 
 | Feature kind | Read first | Then read | Cross-cutting |
 |---|---|---|---|
-| CLI command | `ai/patterns/cli-command.md` | `ai/rules/cli-grammar.md`, `ai/rules/pipe-completeness.md` | `ai/rules/derive-not-hardcode.md` if it lists things |
+| CLI command | `ai/patterns/cli-command.md` | `ai/rules/cli-grammar.md`, `ai/rules/pipe-completeness.md`, `docs/architecture/cli/command-namespacing.md` (rooting + filters-not-flags) | `ai/rules/derive-not-hardcode.md` if it lists things |
 | Web page/endpoint | `ai/patterns/web-endpoint.md` | `docs/architecture/web-interface.md`, `docs/architecture/web-components.md` | SSE: `docs/architecture/web-components.md` SSE section |
 | Plugin | `ai/patterns/plugin.md` | `ai/rules/plugin-design.md`, `ai/rules/goroutine-lifecycle.md` | `ai/rules/naming.md` for registered names |
 | Config option | `ai/patterns/config-option.md` | `ai/rules/config-design.md` (listener pattern if network endpoint) | `ai/rules/config-surface.md` (YANG vs env var), `ai/rules/config-naming.md` (naming), `ai/rules/go-standards.md` env var section |

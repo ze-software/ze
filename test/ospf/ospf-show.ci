@@ -1,6 +1,6 @@
 # Test: OSPFv2 show / clear command dispatch through the daemon.
 #
-# VALIDATES: spec-ospf-13 -- `show ip ospf` process summary (AC-1) reports router-id,
+# VALIDATES: spec-ospf-13 -- `show ospf` process summary (AC-1) reports router-id,
 # ABR status and stub-router (max-metric) state (AC-10); the six show lists dispatch
 # (AC-2..7); the six database subviews filter by LS type (AC-4); the three clear actions
 # return a clearResult (AC-9).
@@ -63,42 +63,42 @@ def main():
 
     # AC-1 / AC-10: process summary reflects router-id, ABR (two attached areas) and the
     # configured stub-router (max-metric router-lsa always).
-    summary = assert_dict(api, 'show ip ospf')
+    summary = assert_dict(api, 'show ospf')
     if summary.get('router-id') != '10.0.0.1':
-        runtime_fail(f"show ip ospf: router-id = {summary.get('router-id')!r}")
+        runtime_fail(f"show ospf: router-id = {summary.get('router-id')!r}")
     if not summary.get('abr'):
-        runtime_fail(f"show ip ospf: expected abr=true for two areas, got {summary!r}")
+        runtime_fail(f"show ospf: expected abr=true for two areas, got {summary!r}")
     stub = summary.get('stub-router') or {}
     if not stub.get('always') or not stub.get('active'):
-        runtime_fail(f"show ip ospf: expected stub-router always/active, got {stub!r}")
+        runtime_fail(f"show ospf: expected stub-router always/active, got {stub!r}")
 
     # AC-2..7: the six show lists dispatch.
     for cmd in (
-        'show ip ospf neighbor',
-        'show ip ospf interface',
-        'show ip ospf database',
-        'show ip ospf route',
-        'show ip ospf border-routers',
-        'show ip ospf spf',
+        'show ospf neighbor',
+        'show ospf interface',
+        'show ospf database',
+        'show ospf route',
+        'show ospf border-routers',
+        'show ospf spf',
     ):
         assert_list(api, cmd)
 
     # AC-4: the six per-LS-type database subviews dispatch.
     for cmd in (
-        'show ip ospf database router',
-        'show ip ospf database network',
-        'show ip ospf database summary',
-        'show ip ospf database asbr-summary',
-        'show ip ospf database external',
-        'show ip ospf database nssa-external',
+        'show ospf database router',
+        'show ospf database network',
+        'show ospf database summary',
+        'show ospf database asbr-summary',
+        'show ospf database external',
+        'show ospf database nssa-external',
     ):
         assert_list(api, cmd)
 
     # AC-9: the three clear actions return a clearResult.
     for cmd in (
-        'clear ip ospf process',
-        'clear ip ospf neighbor',
-        'clear ip ospf counters',
+        'clear ospf process',
+        'clear ospf neighbor',
+        'clear ospf counters',
     ):
         res = assert_dict(api, cmd)
         if res.get('action') != cmd:

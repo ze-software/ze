@@ -249,7 +249,7 @@ monitor system netlink link
 ### 11. Kernel Route Missing
 
 ```
-show kernel-routes
+show route
 show system sockets
 monitor system netlink route
 ```

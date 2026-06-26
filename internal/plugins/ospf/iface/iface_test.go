@@ -480,7 +480,7 @@ func TestOSPFInterfaceSnapshot(t *testing.T) {
 		t.Fatalf("default interface snapshot must not be passive: %+v", snap)
 	}
 
-	// AC-3: `show ip ospf interface` must surface the passive flag, so the Snapshot the
+	// AC-3: `show ospf interface` must surface the passive flag, so the Snapshot the
 	// renderer consumes carries it.
 	pcfg := baseConfig(t)
 	pcfg.Passive = true

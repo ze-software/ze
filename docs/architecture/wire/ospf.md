@@ -105,7 +105,7 @@ purge retention and LSRefreshTime refresh for self-originated LSAs.
 ## Offline decode tool
 
 `ze ospf-decode` reads ASCII hex or raw bytes from stdin and emits JSON for one
-OSPFv2 packet. It is a codec wiring proof, not the final `show ip ospf` runtime
+OSPFv2 packet. It is a codec wiring proof, not the final `show ospf` runtime
 CLI.
 
 Functional fixtures live in `test/ospf-wire/` and run with:

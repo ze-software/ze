@@ -1,4 +1,4 @@
-// VALIDATES: spec-ospf-13 AC-1/AC-10 -- the `show ip ospf` process summary reports
+// VALIDATES: spec-ospf-13 AC-1/AC-10 -- the `show ospf` process summary reports
 // router-id, ABR status (multi-area incl. backbone), ASBR status (redistribution), the
 // area list, and the active stub-router (max-metric) state.
 // PREVENTS: a summary that misreports ABR/ASBR or omits the stub-router reflection.

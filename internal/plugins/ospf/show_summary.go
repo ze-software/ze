@@ -1,4 +1,4 @@
-// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- `show ip ospf` process summary.
+// Design: plan/learned/967-ospf-13-cli-diag-interop.md -- `show ospf` process summary.
 // The summary reflects configured state (router-id, areas, ABR/ASBR role, stub-router);
 // origination of the max-metric Router-LSA itself is owned by ospf-7.
 
@@ -9,7 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/ospf/types"
 )
 
-// processSummaryView is the `show ip ospf` payload.
+// processSummaryView is the `show ospf` payload.
 type processSummaryView struct {
 	RouterID   string            `json:"router-id"`
 	ABR        bool              `json:"abr"`
@@ -35,7 +35,7 @@ type stubRouterView struct {
 	Active     bool   `json:"active"`
 }
 
-// processSummary renders the `show ip ospf` process summary from the resolved config.
+// processSummary renders the `show ospf` process summary from the resolved config.
 func (e *engine) processSummary() processSummaryView {
 	e.mu.Lock()
 	defer e.mu.Unlock()

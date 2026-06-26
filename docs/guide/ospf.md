@@ -73,24 +73,24 @@ For cryptographic auth the OSPF common-header Checksum is zero (the appended dig
 Keys are organised as named chains for hitless rotation: a chain holds multiple keys, the first is used to sign, and any chain key is accepted on receive during an overlap window. A chain is bound per interface, or an interface set to `authentication { mode inherit }` uses the area-level default chain. Secrets are stored `$9$`-encoded and never appear in plaintext in `show configuration` or backups.
 <!-- source: internal/plugins/ospf/auth_keystore.go -- configure, inherit resolution, decodeSecret -->
 
-Operational state is available through the `show ip ospf` command tree:
+Operational state is available through the `show ospf` command tree:
 
 ```text
-show ip ospf
-show ip ospf neighbor
-show ip ospf interface
-show ip ospf database [router|network|summary|asbr-summary|external|nssa-external]
-show ip ospf route
-show ip ospf spf
-show ip ospf border-routers
+show ospf
+show ospf neighbor
+show ospf interface
+show ospf database [router|network|summary|asbr-summary|external|nssa-external]
+show ospf route
+show ospf spf
+show ospf border-routers
 ```
 
-`show ip ospf` is the process summary (router-id, ABR/ASBR status, areas, and the active stub-router / max-metric state). `show ip ospf database` lists every LSA; the per-type subviews filter to one LS Type (1/2/3/4/5/7). `show ip ospf route` reports area, prefix, metric, route type, origin router, and next-hop set. `show ip ospf spf` reports per-area last run, duration, node count, pending state, and current throttle delay. `show ip ospf border-routers` reports reachable ABRs and ASBRs with their area, metric, and next-hop set.
-<!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ip ospf route/spf/border-routers -->
+`show ospf` is the process summary (router-id, ABR/ASBR status, areas, and the active stub-router / max-metric state). `show ospf database` lists every LSA; the per-type subviews filter to one LS Type (1/2/3/4/5/7). `show ospf route` reports area, prefix, metric, route type, origin router, and next-hop set. `show ospf spf` reports per-area last run, duration, node count, pending state, and current throttle delay. `show ospf border-routers` reports reachable ABRs and ASBRs with their area, metric, and next-hop set.
+<!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
 <!-- source: internal/plugins/ospf/cmd_show.go -- ze-show:ospf-* RPC proxies -->
 <!-- source: internal/plugins/ospf/show_summary.go -- processSummary -->
 
-The runtime can be reset without reconfiguring via `clear ip ospf process` (tear down adjacencies and re-run SPF), `clear ip ospf neighbor` (re-form adjacencies), and `clear ip ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.
+The runtime can be reset without reconfiguring via `clear ospf process` (tear down adjacencies and re-run SPF), `clear ospf neighbor` (re-form adjacencies), and `clear ospf counters` (reset the SPF-run log). The neighbor and database views are also available in the web UI at `/ospf` and `/ospf/database`, with live updates over SSE.
 <!-- source: internal/plugins/ospf/clear.go -- clearProcess/clearNeighbors/clearCounters -->
 <!-- source: internal/component/web/handler_ospf.go -- OSPF neighbor/database web views -->
 <!-- source: internal/plugins/ospf/spf/computer.go -- SPFSnapshot -->

@@ -6,7 +6,7 @@
 #   1. vpp_stub on a per-test Unix socket with ip_route_lookup_v2 handler.
 #   2. ze-peer on a dynamic port (sends a BGP UPDATE so ze has a session).
 #   3. ze with vpp.external=true. Once the session is up, the driver
-#      issues `show ip route lookup 10.20.0.1` via dispatch-command
+#      issues `show route lookup 10.20.0.1` via dispatch-command
 #      through a test plugin, and verifies the response contains
 #      prefix=10.20.0.0/24 from the stub's canned reply.
 #
@@ -23,7 +23,7 @@ EOF_PEER
 
 tmpfs=lookup-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Test plugin: waits for post-startup, then dispatches show ip route lookup."""
+"""Test plugin: waits for post-startup, then dispatches show route lookup."""
 import json
 import sys
 import time
@@ -51,7 +51,7 @@ def main():
     time.sleep(2.0)
 
     try:
-        result = dispatch(api, 'show ip route lookup 10.20.0.1')
+        result = dispatch(api, 'show route lookup 10.20.0.1')
         status = result.get('status')
         data = result.get('data')
 

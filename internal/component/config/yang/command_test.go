@@ -1084,9 +1084,9 @@ func TestArgDefsPopulated(t *testing.T) {
 	loader := NewLoader()
 	require.NoError(t, loader.LoadEmbedded())
 
-	// Load all real -cmd YANG modules. The show ip/neighbors/kernel-routes
-	// subtree is owned by the iface component (it reads the kernel tables
-	// through the iface backend), the show ping node is owned by the dedicated
+	// Load all real -cmd YANG modules. The show route/neighbor/arp subtree
+	// is owned by the iface component (it reads the kernel tables through the
+	// iface backend), the show ping node is owned by the dedicated
 	// ping feature module, the show traceroute / show probe-round nodes are
 	// owned by the dedicated traceroute feature module, and the show dns
 	// lookup/cache nodes are owned by the resolve component, so those command
@@ -1128,9 +1128,8 @@ func TestArgDefsPopulated(t *testing.T) {
 		"show capture":                 4, // protocol, tunnel-id, count, peer
 		"show capture raw":             4, // action, protocol, format, count
 		"show capture interface":       6, // iface, count, duration, snap-len, format, protocol
-		"show ip arp":                  1, // family
-		"show ip route":                2, // prefix, limit
-		"show neighbors":               1, // family
+		"show route":                   2, // prefix, limit
+		"show neighbor":                1, // family
 		"show crashes":                 1, // name
 		"set system file-descriptors":  1, // limit
 		"request log level":            2, // logger, level

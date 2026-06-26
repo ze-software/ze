@@ -1,5 +1,5 @@
 // VALIDATES: spec-ospf-13 plugin-self-containment (owner half) -- the OSPF command schema
-// owned by this component declares every `show ip ospf ...` and `clear ip ospf ...` command
+// owned by this component declares every `show ospf ...` and `clear ospf ...` command
 // token. The central show/clear schemas assert the SAME tokens are ABSENT (the central-guard
 // half, in internal/component/cmd/{show,clear}/yang/self_containment_test.go), so removing the
 // OSPF plugin removes the whole subtree with no dangling, handler-less CLI node.

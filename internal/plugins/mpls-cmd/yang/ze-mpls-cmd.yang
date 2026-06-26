@@ -17,7 +17,7 @@ module ze-mpls-cmd {
                 ze:command "ze-show:mpls-forwarding";
                 description "Show MPLS forwarding entries installed in the kernel.
 Each entry shows the incoming label, swap/push/pop operation, and
-outgoing next-hop. Use --limit N for large tables. Linux only.";
+outgoing next-hop. Accepts a row limit for large tables. Linux only.";
             }
         }
     }

@@ -1,5 +1,5 @@
 // VALIDATES: spec-ospf-13 AC-9 -- Computer.ClearSPFLog empties the per-area SPF run
-// history shown by `show ip ospf spf` (clear ip ospf counters) without disturbing the
+// history shown by `show ospf spf` (clear ospf counters) without disturbing the
 // computed routes.
 // PREVENTS: a counters-clear that leaves stale run history or that drops installed routes.
 package spf

@@ -1,7 +1,7 @@
 # Test: OSPFv2 route daemon wiring.
 #
 # VALIDATES: spec-ospf-8-spf-rib -- the real OSPF plugin boots with a top-level
-# `ospf { ... }` config, `show ip ospf route` is wired, and no route is fabricated
+# `ospf { ... }` config, `show ospf route` is wired, and no route is fabricated
 # when the node has no adjacency.
 # PREVENTS: unwired route snapshot handlers and phantom SPF routes with no peer.
 
@@ -11,7 +11,7 @@ option=skip-os:value=darwin
 
 tmpfs=ospf-route.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Assert `show ip ospf route` is empty with no adjacency (no phantom routes)."""
+"""Assert `show ospf route` is empty with no adjacency (no phantom routes)."""
 
 import sys
 
@@ -35,18 +35,18 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    r = dispatch(api, 'show ip ospf route')
+    r = dispatch(api, 'show ospf route')
     if r.get('status') != 'done':
         runtime_fail(
-            f"show ip ospf route: expected done, got status={r.get('status')} "
+            f"show ospf route: expected done, got status={r.get('status')} "
             f"data={result_text_data(r)[:200]}")
     routes = result_json_data(r, None)
     if routes is None:
         routes = []
     if not isinstance(routes, list):
-        runtime_fail(f"show ip ospf route: expected list, got {routes!r}")
+        runtime_fail(f"show ospf route: expected list, got {routes!r}")
     if routes:
-        runtime_fail(f"show ip ospf route: expected empty list (no peer), got {routes!r}")
+        runtime_fail(f"show ospf route: expected empty list (no peer), got {routes!r}")
 
     print('OK: OSPF route table empty with no adjacency (SPF wired, no phantom routes)',
           file=sys.stderr)

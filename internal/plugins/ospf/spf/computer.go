@@ -86,7 +86,7 @@ type Config struct {
 	Strategy AFPrefixStrategy
 }
 
-// spfState is one area's most recent run state for `show ip ospf spf`.
+// spfState is one area's most recent run state for `show ospf spf`.
 type spfState struct {
 	Area            types.AreaID
 	LastRun         time.Time
@@ -403,7 +403,7 @@ func (c *Computer) Routes() []RouteEntry {
 	return append([]RouteEntry(nil), c.last...)
 }
 
-// Snapshot returns the `show ip ospf route` snapshot.
+// Snapshot returns the `show ospf route` snapshot.
 func (c *Computer) Snapshot() []RouteSnapshotEntry {
 	c.mu.Lock()
 	routes := append([]RouteEntry(nil), c.last...)
@@ -411,7 +411,7 @@ func (c *Computer) Snapshot() []RouteSnapshotEntry {
 	return Snapshot(routes)
 }
 
-// BorderRouterSnapshot returns the `show ip ospf border-routers` snapshot.
+// BorderRouterSnapshot returns the `show ospf border-routers` snapshot.
 func (c *Computer) BorderRouterSnapshot() []BorderRouterSnapshotEntry {
 	c.mu.Lock()
 	rows := append([]BorderRouterEntry(nil), c.lastBorder...)
@@ -419,7 +419,7 @@ func (c *Computer) BorderRouterSnapshot() []BorderRouterSnapshotEntry {
 	return BorderRouterSnapshot(rows)
 }
 
-// ClearSPFLog resets the per-area SPF run history shown by `show ip ospf spf` (clear ip
+// ClearSPFLog resets the per-area SPF run history shown by `show ospf spf` (clear ip
 // ospf counters). The monotonic Prometheus run counter (mRuns) is deliberately NOT reset;
 // only the displayed last-run timestamp/duration/node-count history is cleared.
 func (c *Computer) ClearSPFLog() {
@@ -428,7 +428,7 @@ func (c *Computer) ClearSPFLog() {
 	c.mu.Unlock()
 }
 
-// SPFSnapshot returns the `show ip ospf spf` snapshot.
+// SPFSnapshot returns the `show ospf spf` snapshot.
 func (c *Computer) SPFSnapshot() []spfSnapshotEntry {
 	c.mu.Lock()
 	states := make([]spfState, 0, len(c.state))
@@ -459,7 +459,7 @@ func (c *Computer) Stop() {
 	c.runWG.Wait()
 }
 
-// spfSnapshotEntry is one `show ip ospf spf` row.
+// spfSnapshotEntry is one `show ospf spf` row.
 type spfSnapshotEntry struct {
 	Area            string  `json:"area"`
 	LastRun         string  `json:"last_run,omitempty"`

@@ -330,30 +330,30 @@ func runOSPFEngine(conn net.Conn) int {
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		const statusDone = "done"
 		switch command {
-		case "show ip ospf":
+		case "show ospf":
 			return statusDone, eng.processSummary(), nil
-		case "show ip ospf neighbor":
+		case "show ospf neighbor":
 			return statusDone, eng.neighborSnapshot(), nil
-		case "show ip ospf interface":
+		case "show ospf interface":
 			return statusDone, eng.interfaceSnapshot(), nil
-		case "show ip ospf database":
+		case "show ospf database":
 			return statusDone, eng.databaseSnapshot(), nil
-		case "show ip ospf database router", "show ip ospf database network", "show ip ospf database summary",
-			"show ip ospf database asbr-summary", "show ip ospf database external", "show ip ospf database nssa-external":
+		case "show ospf database router", "show ospf database network", "show ospf database summary",
+			"show ospf database asbr-summary", "show ospf database external", "show ospf database nssa-external":
 			return statusDone, eng.databaseSnapshotByType(dbSubviewType[command]), nil
-		case "show ip ospf route":
+		case "show ospf route":
 			return statusDone, eng.routeSnapshot(), nil
-		case "show ip ospf border-routers":
+		case "show ospf border-routers":
 			return statusDone, eng.borderRouterSnapshot(), nil
-		case "show ip ospf spf":
+		case "show ospf spf":
 			return statusDone, eng.spfSnapshot(), nil
-		case "clear ip ospf process":
-			return statusDone, clearResult{Action: "clear ip ospf process", Cleared: eng.clearProcess()}, nil
-		case "clear ip ospf neighbor":
-			return statusDone, clearResult{Action: "clear ip ospf neighbor", Cleared: eng.clearNeighbors()}, nil
-		case "clear ip ospf counters":
+		case "clear ospf process":
+			return statusDone, clearResult{Action: "clear ospf process", Cleared: eng.clearProcess()}, nil
+		case "clear ospf neighbor":
+			return statusDone, clearResult{Action: "clear ospf neighbor", Cleared: eng.clearNeighbors()}, nil
+		case "clear ospf counters":
 			eng.clearCounters()
-			return statusDone, clearResult{Action: "clear ip ospf counters", Cleared: 0}, nil
+			return statusDone, clearResult{Action: "clear ospf counters", Cleared: 0}, nil
 		default:
 			return "error", "", fmt.Errorf("unknown command: %s", command)
 		}
@@ -366,22 +366,22 @@ func runOSPFEngine(conn net.Conn) int {
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show ip ospf"},
-			{Name: "show ip ospf neighbor"},
-			{Name: "show ip ospf interface"},
-			{Name: "show ip ospf database"},
-			{Name: "show ip ospf database router"},
-			{Name: "show ip ospf database network"},
-			{Name: "show ip ospf database summary"},
-			{Name: "show ip ospf database asbr-summary"},
-			{Name: "show ip ospf database external"},
-			{Name: "show ip ospf database nssa-external"},
-			{Name: "show ip ospf route"},
-			{Name: "show ip ospf border-routers"},
-			{Name: "show ip ospf spf"},
-			{Name: "clear ip ospf process"},
-			{Name: "clear ip ospf neighbor"},
-			{Name: "clear ip ospf counters"},
+			{Name: "show ospf"},
+			{Name: "show ospf neighbor"},
+			{Name: "show ospf interface"},
+			{Name: "show ospf database"},
+			{Name: "show ospf database router"},
+			{Name: "show ospf database network"},
+			{Name: "show ospf database summary"},
+			{Name: "show ospf database asbr-summary"},
+			{Name: "show ospf database external"},
+			{Name: "show ospf database nssa-external"},
+			{Name: "show ospf route"},
+			{Name: "show ospf border-routers"},
+			{Name: "show ospf spf"},
+			{Name: "clear ospf process"},
+			{Name: "clear ospf neighbor"},
+			{Name: "clear ospf counters"},
 		},
 	})
 	if err != nil {

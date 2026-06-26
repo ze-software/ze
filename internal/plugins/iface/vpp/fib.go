@@ -30,7 +30,7 @@ const (
 // decimal string so operators still see the disambiguating tag.
 //
 // Names are deliberately aligned with the netlink backend's protocol column
-// (bgp, static, dhcp, ra, ...) so an operator inspecting `show ip routes`
+// (bgp, static, dhcp, ra, ...) so an operator inspecting `show route`
 // sees the same vocabulary on either backend.
 var vppFibSrcNames = map[uint8]string{
 	0:  "special",

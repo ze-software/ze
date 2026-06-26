@@ -78,10 +78,10 @@ produce continuously-updating output.
 | Group | start, end (batching) |
 | Monitor | monitor bgp (TUI dashboard), monitor event (live event streaming), monitor system netlink (kernel events) |
 | Subscribe | request subscribe, request unsubscribe (event filtering) |
-| OSPF | show ip ospf neighbor, interface, database, route, border-routers, spf |
+| OSPF | show ospf neighbor, interface, database, route, border-routers, spf |
 | Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
-<!-- source: internal/plugins/ospf/register.go -- sdk.CommandDecl show ip ospf commands -->
+<!-- source: internal/plugins/ospf/register.go -- sdk.CommandDecl show ospf commands -->
 
 ---
 

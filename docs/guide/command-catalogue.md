@@ -164,13 +164,13 @@ internal; kernel / VPP FIB view is not yet exposed.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| IPv4 routing table | `show ip route` | `show route` | `show router route-table` | `show ip route` | `show ip route` | `show ip route` | shipped | nl+vpp-if | Kernel FIB view via netlink RouteList; VPP rejects (kernel FIB not authoritative under VPP). Covers IPv4+IPv6 in one call. `--limit N` caps response (default 100 000 rows). |
+| IPv4 routing table | `show ip route` | `show route` | `show router route-table` | `show ip route` | `show ip route` | `show route` | shipped | nl+vpp-if | Kernel FIB view via netlink RouteList; VPP rejects (kernel FIB not authoritative under VPP). Covers IPv4+IPv6 in one call. `--limit N` caps response (default 100 000 rows). |
 | IPv6 routing table | `show ipv6 route` | `show route table inet6.0` | `show router route-table ipv6` | `show ipv6 route` | `show ipv6 route` | | planned | nl+vpp-fib | |
-| Route for prefix | `show ip route <prefix>` | `show route <prefix>` | `show router route-table <prefix>` | `show ip route <prefix>` | `show ip route <prefix>` | `show ip route <prefix>` | shipped | nl+vpp-if | Exact-match filter; `default` matches 0.0.0.0/0 and ::/0; invalid CIDRs reject |
+| Route for prefix | `show ip route <prefix>` | `show route <prefix>` | `show router route-table <prefix>` | `show ip route <prefix>` | `show ip route <prefix>` | `show route <prefix>` | shipped | nl+vpp-if | Exact-match filter; `default` matches 0.0.0.0/0 and ::/0; invalid CIDRs reject |
 | Route by protocol | `show ip route bgp` / `static` / `connected` | `show route protocol <proto>` | `show router route-table protocol bgp` | `show ip route bgp` | `show ip route bgp` | | planned | nl+vpp-fib | RTPROT filter |
 | Route summary counts | `show ip route summary` | `show route summary` | `show router route-table summary` | `show ip route summary` | `show ip route summary` | | planned | nl+vpp-fib | |
 | FIB (forwarding) table | ~ | `show route forwarding-table` | `show router fib` | `show ip route vrf` (close) | `show fib` | | planned | nl+vpp-fib | Separates RIB from FIB |
-| Static routes installed | `show ip route static` | `show route protocol static` | `show router static-route` | `show ip route static` | `show ip route static` | `show ip route static` | planned | nl+vpp-fib | Requires RTPROT filter on `show ip route`. Static route plugin programs routes with RTPROT_ZE=250. |
+| Static routes installed | `show ip route static` | `show route protocol static` | `show router static-route` | `show ip route static` | `show ip route static` | `show route static` | planned | nl+vpp-fib | Requires RTPROT filter on `show route`. Static route plugin programs routes with RTPROT_ZE=250. |
 | Static route config | `show protocols static` | `show configuration protocols static` | `show router static-route` | `show running-config section static` | `show running-config static` | `show static` | shipped | static | JSON output: configured routes with prefix, next-hops, weights, BFD active status. |
 | VRF route table | `show ip route vrf <name>` | `show route table <vrf>.inet.0` | `show router <vrf> route-table` | `show ip route vrf <name>` | `show ip route vrf <name>` | | scope | - | VRF not yet shipped |
 | Kernel-programmed (by ze) | ~ | - | - | - | `show ip route bgp` | fib-kernel `showInstalled` | shipped | nl | |
@@ -211,8 +211,8 @@ ARP (v4) and NDP (v6) neighbor cache inspection and manipulation.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| IPv4 ARP table | `show ip arp` | `show arp` | `show router arp` | `show arp` | `show arp` | `show ip arp` | shipped | nl+vpp-if | Returns IPv4 ARP + IPv6 ND; `--family ipv4\|ipv6` narrows; unknown positional args reject. VPP rejects pending ip_neighbor_dump wiring. |
-| IPv6 neighbor table | `show ipv6 neighbors` | `show ipv6 neighbors` | `show router neighbor` | `show ipv6 neighbors` | `show ipv6 neighbors` | | planned | nl+vpp-nbr | |
+| IPv4 ARP table | `show ip arp` | `show arp` | `show router arp` | `show arp` | `show arp` | `show arp` | shipped | nl+vpp-if | `show arp` is the IPv4 view (alias for `show neighbor ipv4`); `show neighbor` returns IPv4 ARP + IPv6 ND, narrow with `show neighbor ipv4\|ipv6`; unknown positional args reject. VPP rejects pending ip_neighbor_dump wiring. |
+| IPv6 neighbor table | `show ipv6 neighbors` | `show ipv6 neighbors` | `show router neighbor` | `show ipv6 neighbors` | `show ipv6 neighbors` | `show neighbor ipv6` | shipped | nl+vpp-if | IPv6 ND entries; `show neighbor` covers both families. VPP rejects pending ip_neighbor_dump wiring. |
 | ARP flush per entry | `force arp interface <i> address <ip>` | `clear arp hostname <ip>` | `clear router arp <ip>` | `clear arp <ip>` | `clear arp <ip>` | | planned | nl+vpp-nbr | |
 | ARP flush all | `clear arp` | `clear arp` | `clear router arp` | `clear arp` | `clear arp` | | planned | nl+vpp-nbr | |
 | IPv6 ND flush | `force ipv6-nd interface <i>` | `clear ipv6 neighbor` | `clear router neighbor` | `clear ipv6 neighbor` | `clear ipv6 neighbor` | | planned | nl+vpp-nbr | |
@@ -256,7 +256,7 @@ subsystem lands.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| OSPFv2 | `show ip ospf` | `show ospf *` | `show router ospf *` | `show ip ospf` | `show ip ospf` | | scope | - | No OSPF subsystem |
+| OSPFv2 | `show ip ospf` | `show ospf *` | `show router ospf *` | `show ip ospf` | `show ip ospf` | `show ospf *` | shipped | ospf | Native OSPFv2/v3 engine; object-rooted `show ospf ...` / `clear ospf ...`. See guide/ospf.md. |
 | OSPFv3 | `show ipv6 ospfv3` | `show ospf3 *` | `show router ospf3 *` | `show ipv6 ospf` | `show ipv6 ospf` | | scope | - | |
 | IS-IS | `show ip isis` | `show isis *` | `show router isis *` | `show isis` | `show isis` | | scope | - | |
 | RIP | `show ip rip` | `show rip *` | - | `show ip rip` | `show ip rip` | | scope | - | |

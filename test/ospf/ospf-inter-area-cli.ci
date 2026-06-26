@@ -48,11 +48,11 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=5.0)
 
-    assert_list(api, 'show ip ospf border-routers')
-    assert_list(api, 'show ip ospf route')
-    spf = assert_list(api, 'show ip ospf spf')
+    assert_list(api, 'show ospf border-routers')
+    assert_list(api, 'show ospf route')
+    spf = assert_list(api, 'show ospf spf')
     if len(spf) < 2:
-        runtime_fail(f"show ip ospf spf: expected two configured areas, got {spf!r}")
+        runtime_fail(f"show ospf spf: expected two configured areas, got {spf!r}")
     print('OK: OSPF inter-area CLI dispatch OK', file=sys.stderr)
 
     dispatch(api, 'request shutdown')

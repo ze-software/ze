@@ -538,7 +538,7 @@ type LinkSnapshot struct {
 	LSAs      []LSASnapshot `json:"lsas"`
 }
 
-// LSASnapshot is the thin metadata rendered by show ip ospf database.
+// LSASnapshot is the thin metadata rendered by show ospf database.
 type LSASnapshot struct {
 	Type              string `json:"type"`
 	LinkStateID       string `json:"link_state_id"`
