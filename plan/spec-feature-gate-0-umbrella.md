@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
-| Depends | plan/spec-tiers-0-umbrella.md (B-2 codec extraction unblocks protocol compile-out) |
-| Phase | 0 (umbrella ready; next: /ze-implement the ssh pilot = child 1) |
-| Updated | 2026-06-24 |
+| Status | done |
+| Depends | none outstanding. B-2 codec extraction turned out NOT required -- child 8 (A-1) proved no always-on code imports a protocol codec, so protocols gate whole |
+| Phase | complete -- children 1-8 done (learned 980/981/984/986/987/989/990/995); pattern proven across all 3 gating shapes |
+| Updated | 2026-06-26 |
 
 ## Post-Compaction Recovery
 
@@ -274,12 +274,14 @@ leaf (runtime disable exists; this adds compile-time removal).
 - `test/parse/ssh-absent-config.ci`
 - child specs (real numbering; pilot pivoted to lg, ssh became child 2):
   - `spec-feature-gate-1-lg.md` -- DONE (learned 980), `spec-feature-gate-2-ssh.md` -- DONE (learned 981)
-  - `spec-feature-gate-3-web.md` -- ready (registry; Phase 1 extracts cert/TLS to internal/core/selfcert)
+  - `spec-feature-gate-3-web.md` -- DONE (learned 984; registry; cert/TLS extracted to internal/core/selfcert)
   - `spec-feature-gate-4-gnmi.md` -- DONE (learned 986; dedicated seam, three owned blank imports + reload-notify coupling)
-  - `spec-feature-gate-5-mcp.md` -- ready (registry; MCPServerHandle already Reconfigurable)
-  - `spec-feature-gate-6-api.md` -- ready (seam; rest+grpc combined ze_api; parent api stays always-on)
-  - `spec-feature-gate-7-monitoring.md` -- ready (gate metrics exporter only; registry stays always-on; recommend last)
-  - `spec-feature-gate-8-protocols.md` -- ready (per-protocol; B-2 dependency CONDITIONAL on A-1 codec-consumer grep)
+  - `spec-feature-gate-5-mcp.md` -- DONE (learned 987; registry + neutral command-metadata extraction)
+  - `spec-feature-gate-6-api.md` -- DONE (learned 989; PER-ENCODING ze_rest + ze_grpc seams, not combined)
+  - `spec-feature-gate-7-monitoring.md` -- DONE (learned 990; FIRST core-level seam; collection API stays always-on)
+  - `spec-feature-gate-8-protocols.md` -- DONE (learned 995; per-protocol plugin partition; A-1 proved B-2 NOT needed)
+  - Plus `spec-feature-gate-manifest-ssot.md` -- DONE (learned 983; single-source feature-gates.txt)
+  - ALL CHILDREN COMPLETE -- the umbrella is fully delivered.
 
 ## Implementation Steps
 
@@ -350,40 +352,57 @@ to "sever every direct import of X from always-on code, then gate its registrati
 | Reuse `ze.Subsystem` | new service lifecycle | lifecycle already exists (452); only construction needs indirection |
 
 ## Known Limitations
-- The umbrella delivers the registry + ssh pilot + audit rule + generator gating.
-  web/gnmi/mcp/lg/monitoring and protocol compile-out are child specs.
-- Protocol compile-out depends on tiers B-2 (codec/engine un-fusing).
-- Per-feature granularity is a deliberate cost (build-tag test matrix, R-1).
+- RESOLVED: all child compile-out (lg/ssh/web/gnmi/mcp/rest/grpc/telemetry + isis/ldp/
+  ospf/rsvpte) is delivered. The umbrella delivered the registry + pilots + audit rule
+  + generator gating + the single-source manifest; children generalized it.
+- RESOLVED: protocol compile-out did NOT need tiers B-2 -- child 8 (A-1) proved no
+  always-on code imports a protocol codec, so each protocol gates whole.
+- Per-feature granularity is a deliberate cost (build-tag test matrix, R-1); mitigated
+  by one present/absent pair per feature (no cross-product), absent tests living in
+  cmd/ze/hub so GO_TEST_CORE exercises every compile-out.
 
 ## Goal Validation (BLOCKING)
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
 | ssh compile-out-able via `ze_ssh` | build-tag test + binary symbol check | `TestBuildTag_SSH_Absent` passes; `go tool nm` shows no ssh symbols in minimal build |
-| daemon builds services via registry | unit test | `TestServiceRegistry_BuildsSSH` |
-| disableable features have no direct always-on import | audit | `dep_audit.py` selftest + clean run over the ssh-converted tree |
+| daemon builds services via registry | unit test | construction registry in `cmd/ze/hub`; lg/web/mcp ride it |
+| disableable features have no direct always-on import | audit | `dep_audit.py --check` + `--selftest` clean over the whole gated set |
+| ALL services compile-out-able (AC-8) | build-tag tests + nm | every feature has present/absent tests in cmd/ze/hub; ze_lg/ze_ssh/ze_web/ze_gnmi/ze_mcp/ze_rest/ze_grpc/ze_telemetry each drop to 0 symbols when off |
+| ALL protocols compile-out-able (AC-8) | build-tag tests + nm | ze_isis/ze_ldp/ze_ospf/ze_rsvpte each drop to 0 symbols in bare ze_core; full build links all four (learned 995) |
+| single source of truth for gates | manifest + derived consumers | `feature-gates.txt`; Makefile/runner/generator/dep_audit derive; .golangci.yml drift-gated (learned 983) |
 
 ## Review Gate
-### Run 1 (initial)
+### Run 1 (umbrella closure -- each child carried its own /ze-review at implementation)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
-|   | | (run /ze-review before implementation closure) | | |
+| - | NONE | Each child spec (1-8) passed its own review gate before closure; the umbrella adds no new code beyond what the children committed | per-child | closed |
 
 ### Final status
-- [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
-- [ ] All NOTEs recorded above (or explicitly "none")
+- [ ] each child passed its review gate; the umbrella is a coordination doc with no residual code
+- [ ] NOTEs: none at the umbrella level (child-level NOTEs recorded in their learned summaries)
 
 ## Pre-Commit Verification
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `feature-gates.txt` | yes | single-source manifest, 14 gated packages across 12 tags |
+| `internal/component/plugin/all/all_ze_*.go` | yes | 12 generated gated groups (lg/ssh/web/gnmi/mcp/rest/grpc/telemetry/isis/ldp/ospf/rsvpte) |
+| `plan/learned/{980,981,983,984,986,987,989,990,995}-*.md` | yes | one learned summary per child + the manifest SSOT |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | construction registry, no direct New* import | hub iterates the registry; lg/web/mcp via it (learned 980/984/987) |
+| AC-2/3 | ssh on/off | `TestBuildTag_SSH_{Present,Absent}`; nm 0 ssh symbols when off (learned 981) |
+| AC-4/5 | no-feature config safe; conflict detection intact | absent tests reject `<feature> {}` with clean "unknown"; no panic |
+| AC-6 | generator emits gated groups; `--check` | `plugin_imports.go --check` exit 0; 12 gated groups |
+| AC-7 | audit flags always-on import of a disableable | `dep_audit.py --check` (now ENFORCED, not advisory) + `--selftest` clean |
+| AC-8 | every child feature independently compile-out-able | present/absent tests for all 8 features + protocols; nm per-feature symbol drop |
 
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| (umbrella A-N) | resolved across children | each child spec resolved its own assumptions; R-5 (protocols need B-2) proved FALSE by child 8 A-1 |
 
 ## Checklist
 ### Goal Gates (MUST pass)
