@@ -262,10 +262,9 @@ The Go SDK (`pkg/plugin/sdk`) provides:
 | Method | Purpose |
 |--------|---------|
 | `Run(ctx, Registration)` | Execute 5-stage startup + event loop. Returns `nil` on clean shutdown |
-| `Close()` | Close connections and listeners. Safe to call multiple times |
-| `Listeners()` | Access listen sockets received via fd passing during startup |
+| `Close()` | Close connections. Safe to call multiple times |
 
-<!-- source: pkg/plugin/sdk/sdk.go -- Run, Close, Listeners -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Run, Close -->
 
 ### Complete Example
 

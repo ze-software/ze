@@ -75,7 +75,6 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `wants-validate-open` | `bool` | Whether plugin wants OPEN validation callbacks |
 | `cache-consumer` | `bool` | Whether plugin consumes cached events |
 | `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
-| `connection-handlers` | `[]ConnectionHandlerDecl` | Listen sockets to receive via fd passing |
 
 **Wire example:**
 
