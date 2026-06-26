@@ -104,6 +104,14 @@ ze-plugin-imports-check:
 ze-yang-glue-check:
 	@go run scripts/codegen/yang_glue.go --check
 
+# Regenerate plugin/all registry snapshots (testdata/*.snapshot) from the live
+# registry after adding or removing a plugin. ze-unit-test fails with a clear
+# "unexpected/missing" message and points here, so the lists never silently
+# drift from all.go. Review the diff before committing.
+ze-plugin-snapshot:
+	@$(GO_TEST) -run 'TestRegisteredPluginNames|TestRegisteredWireMethods|TestYANGSchemaProviders' -update ./internal/component/plugin/all/
+	@echo "Updated internal/component/plugin/all/testdata/*.snapshot"
+
 build: generate bin/ze bin/ze-appliance bin/ze-setup bin/ze-stripped bin/ze-test bin/ze-chaos bin/ze-perf bin/ze-analyze docs/comparison.html
 	@echo "All binaries built"
 

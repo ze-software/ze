@@ -2,10 +2,14 @@ package all
 
 import (
 	"context"
+	"flag"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -35,88 +39,50 @@ func assertSnapshot(t *testing.T, label string, got, expected []string) {
 	}
 }
 
+// test-relax: the three registry snapshots below moved from hand-maintained
+// `expected := []string{...}` literals to golden files in testdata/. The
+// assertSnapshot comparison is unchanged; only the source of `expected` moved,
+// and -update regenerates it from the live registry so it can never drift from
+// all.go. See plan/learned/999-generated-registry-snapshot.md.
+var updateSnapshot = flag.Bool("update", false,
+	"rewrite plugin/all registry snapshots in testdata/ from the live registry")
+
+// snapshot compares got to testdata/<name>.snapshot, or rewrites that golden
+// file when -update is set. Regenerate after adding a plugin with:
+//
+//	go test -tags '<ze_core + features>' -update ./internal/component/plugin/all/
+func snapshot(t *testing.T, name string, got []string) {
+	t.Helper()
+	path := filepath.Join("testdata", name+".snapshot")
+	if *updateSnapshot {
+		var b strings.Builder
+		for _, s := range got {
+			b.WriteString(s)
+			b.WriteByte('\n')
+		}
+		if err := os.WriteFile(path, []byte(b.String()), 0o600); err != nil {
+			t.Fatalf("write snapshot %s: %v", path, err)
+		}
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read snapshot %s (regenerate: go test -tags '...' -update ./...): %v", path, err)
+	}
+	var expected []string
+	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
+		if e := strings.TrimSpace(line); e != "" {
+			expected = append(expected, e)
+		}
+	}
+	assertSnapshot(t, name, got, expected)
+}
+
 // TestRegisteredPluginNames snapshots the full set of registered plugin names.
 //
 // VALIDATES: Every expected plugin is registered after init().
 // PREVENTS: Silent removal of a plugin (deleted register.go, dropped import).
 func TestRegisteredPluginNames(t *testing.T) {
-	expected := []string{
-		"bfd",
-		"bgp",
-		"bgp-adj-rib-in",
-		"bgp-aigp",
-		"bgp-bmp",
-		"bgp-capa",
-		"bgp-filter-aspath",
-		"bgp-filter-aspath-length",
-		"bgp-filter-community",
-		"bgp-filter-community-match",
-		"bgp-filter-irr",
-		"bgp-filter-modify",
-		"bgp-filter-prefix",
-		"bgp-filter-remove-private-as",
-		"bgp-gr",
-		"bgp-healthcheck",
-		"bgp-hostname",
-		"bgp-llnh",
-		"bgp-nlri-evpn",
-		"bgp-nlri-flowspec",
-		"bgp-nlri-labeled",
-		"bgp-nlri-ls",
-		"bgp-nlri-mup",
-		"bgp-nlri-mvpn",
-		"bgp-nlri-rtc",
-		"bgp-nlri-srpolicy",
-		"bgp-nlri-vpls",
-		"bgp-nlri-vpn",
-		"bgp-persist",
-		"bgp-redistribute",
-		"bgp-rib",
-		"bgp-role",
-		"bgp-route-refresh",
-		"bgp-rpki",
-		"bgp-rpki-decorator",
-		"bgp-rr",
-		"bgp-rs",
-		"bgp-softver",
-		"bgp-watchdog",
-		"connected",
-		"cos",
-		"dhcpserver",
-		"fib-kernel",
-		"fib-p4",
-		"fib-vpp",
-		"firewall",
-		"firewall-irr",
-		"flow-export",
-		"flowspec-firewall",
-		"geodns",
-		"ike",
-		"imageserver",
-		"interface",
-		"isis",
-		"kernel",
-		"l2tp-auth-local",
-		"l2tp-auth-radius",
-		"l2tp-pool",
-		"l2tp-shaper",
-		"ldp",
-		"loop",
-		"mrt",
-		"ntp",
-		"ospf",
-		"policy-routes",
-		"redistribute-orchestrator",
-		"rib",
-		"routing-table",
-		"rsvp-te",
-		"static",
-		"sysctl",
-		"tftpserver",
-		"traffic",
-		"traffic-usage",
-		"vpp",
-	}
 
 	names := registry.Names()
 	sort.Strings(names)
@@ -132,7 +98,7 @@ func TestRegisteredPluginNames(t *testing.T) {
 		}
 	}
 
-	assertSnapshot(t, "plugin", filtered, expected)
+	snapshot(t, "plugins", filtered)
 }
 
 // TestFilterTypeMappings snapshots the registered filter types.
@@ -168,281 +134,6 @@ func TestFilterTypeMappings(t *testing.T) {
 // VALIDATES: Every expected CLI/API command is registered after init().
 // PREVENTS: Silent removal of a user-facing command (deleted handler, dropped register).
 func TestRegisteredWireMethods(t *testing.T) {
-	expected := []string{
-		"ze-bfd-api:show-profile",
-		"ze-bfd-api:show-session",
-		"ze-bfd-api:show-sessions",
-		"ze-bgp:cache-expire",
-		"ze-bgp:cache-forward",
-		"ze-bgp:cache-list",
-		"ze-bgp:cache-release",
-		"ze-bgp:cache-retain",
-		"ze-bgp:command-complete",
-		"ze-bgp:command-help",
-		"ze-bgp:command-list",
-		"ze-bgp:commit",
-		"ze-bgp:event-list",
-		"ze-bgp:help",
-		"ze-bgp:log-levels",
-		"ze-bgp:log-recent",
-		"ze-bgp:log-set",
-		"ze-bgp:metrics-list",
-		"ze-bgp:metrics-values",
-		"ze-bgp:monitor",
-		"ze-bgp:peer-borr",
-		"ze-bgp:peer-capabilities",
-		"ze-bgp:peer-clear-soft",
-		"ze-bgp:peer-detail",
-		"ze-bgp:peer-eorr",
-		"ze-bgp:peer-flush",
-		"ze-bgp:peer-history",
-		"ze-bgp:peer-list",
-		"ze-bgp:peer-pause",
-		"ze-bgp:peer-raw",
-		"ze-bgp:peer-refresh",
-		"ze-bgp:peer-resume",
-		"ze-bgp:peer-rib",
-		"ze-bgp:peer-statistics",
-		"ze-bgp:peer-teardown",
-		"ze-bgp:peer-update",
-		"ze-bgp:plugin-ack",
-		"ze-bgp:plugin-encoding",
-		"ze-bgp:plugin-format",
-		"ze-bgp:pool-stats",
-		"ze-bgp:subscribe",
-		"ze-bgp:summary",
-		"ze-bgp:unsubscribe",
-		"ze-clear:dns-cache",
-		"ze-clear:interface-counters",
-		"ze-clear:isis-adjacency",
-		"ze-clear:isis-counters",
-		"ze-clear:ospf-counters",
-		"ze-clear:ospf-neighbor",
-		"ze-clear:ospf-process",
-		"ze-clear:vpn-ipsec-sa",
-		"ze-config-archive:trigger",
-		"ze-debug:debug-state",
-		"ze-delete:bgp-peer",
-		"ze-editor:mode-command",
-		"ze-editor:mode-edit",
-		"ze-event:monitor",
-		"ze-iface:interface-addr-add",
-		"ze-iface:interface-addr-del",
-		"ze-iface:interface-create-bridge",
-		"ze-iface:interface-create-dummy",
-		"ze-iface:interface-create-veth",
-		"ze-iface:interface-delete",
-		"ze-iface:interface-down",
-		"ze-iface:interface-mac",
-		"ze-iface:interface-migrate",
-		"ze-iface:interface-mtu",
-		"ze-iface:interface-unit-add",
-		"ze-iface:interface-unit-del",
-		"ze-iface:interface-up",
-		"ze-l2tp-api:config",
-		"ze-l2tp-api:cqm",
-		"ze-l2tp-api:echo",
-		"ze-l2tp-api:listeners",
-		"ze-l2tp-api:observer",
-		"ze-l2tp-api:reliable",
-		"ze-l2tp-api:session",
-		"ze-l2tp-api:session-history",
-		"ze-l2tp-api:session-teardown",
-		"ze-l2tp-api:session-teardown-all",
-		"ze-l2tp-api:session-traffic",
-		"ze-l2tp-api:sessions",
-		"ze-l2tp-api:statistics",
-		"ze-l2tp-api:summary",
-		"ze-l2tp-api:tunnel",
-		"ze-l2tp-api:tunnel-history",
-		"ze-l2tp-api:tunnel-teardown",
-		"ze-l2tp-api:tunnel-teardown-all",
-		"ze-l2tp-api:tunnels",
-		"ze-monitor:interface-rate",
-		"ze-monitor:ping",
-		"ze-monitor:system-netlink",
-		"ze-monitor:traceroute",
-		"ze-monitor:vpn-ipsec",
-		"ze-plugin:command-complete",
-		"ze-plugin:command-help",
-		"ze-plugin:command-list",
-		"ze-plugin:help",
-		"ze-plugin:session-bye",
-		"ze-plugin:session-peer-ready",
-		"ze-plugin:session-ping",
-		"ze-plugin:session-ready",
-		"ze-pppoe-api:interfaces",
-		"ze-pppoe-api:session",
-		"ze-pppoe-api:sessions",
-		"ze-pppoe-api:statistics",
-		"ze-pppoe-api:summary",
-		"ze-resolve:cymru-asn-name",
-		"ze-resolve:dns-a",
-		"ze-resolve:dns-aaaa",
-		"ze-resolve:dns-ptr",
-		"ze-resolve:dns-txt",
-		"ze-resolve:irr-expand",
-		"ze-resolve:irr-prefix",
-		"ze-resolve:peeringdb-as-set",
-		"ze-resolve:peeringdb-max-prefix",
-		"ze-resolve:ping",
-		"ze-resolve:traceroute",
-		"ze-rib-api:best",
-		"ze-rib-api:best-status",
-		"ze-rib-api:clear-in",
-		"ze-rib-api:clear-out",
-		"ze-rib-api:inject",
-		"ze-rib-api:routes",
-		"ze-rib-api:rpf",
-		"ze-rib-api:status",
-		"ze-rib-api:withdraw",
-		"ze-set:system-file-descriptors",
-		"ze-show:aaa-accounting",
-		"ze-show:audit",
-		"ze-show:bgp-health",
-		"ze-show:bmp-collectors",
-		"ze-show:bmp-peers",
-		"ze-show:bmp-rib",
-		"ze-show:bmp-sessions",
-		"ze-show:capture",
-		"ze-show:capture-interface",
-		"ze-show:capture-raw",
-		"ze-show:crashes",
-		"ze-show:dns-cache",
-		"ze-show:dns-lookup",
-		"ze-show:doctor",
-		"ze-show:errors",
-		"ze-show:event-namespaces",
-		"ze-show:event-recent",
-		"ze-show:firewall-group",
-		"ze-show:firewall-irr-prefix",
-		"ze-show:firewall-irr-status",
-		"ze-show:firewall-ruleset",
-		"ze-show:flow-export",
-		"ze-show:geodns",
-		"ze-show:gnmi",
-		"ze-show:health",
-		"ze-show:host-all",
-		"ze-show:host-cpu",
-		"ze-show:host-dmi",
-		"ze-show:host-kernel",
-		"ze-show:host-memory",
-		"ze-show:host-nic",
-		"ze-show:host-platform",
-		"ze-show:host-storage",
-		"ze-show:host-thermal",
-		"ze-show:irr-check",
-		"ze-show:irr-prefix",
-		"ze-show:irr-status",
-		"ze-show:interface",
-		"ze-show:interface-counters",
-		"ze-show:interface-detail",
-		"ze-show:interface-scan",
-		"ze-show:ip-arp",
-		"ze-show:ip-route",
-		"ze-show:ospf",
-		"ze-show:ospf-border-routers",
-		"ze-show:ospf-database",
-		"ze-show:ospf-database-asbr-summary",
-		"ze-show:ospf-database-external",
-		"ze-show:ospf-database-network",
-		"ze-show:ospf-database-nssa-external",
-		"ze-show:ospf-database-router",
-		"ze-show:ospf-database-summary",
-		"ze-show:ospf-interface",
-		"ze-show:ospf-neighbor",
-		"ze-show:ospf-route",
-		"ze-show:ospf-spf",
-		"ze-show:isis-database",
-		"ze-show:isis-database-detail",
-		"ze-show:isis-hostname",
-		"ze-show:isis-interface",
-		"ze-show:isis-neighbor",
-		"ze-show:isis-route",
-		"ze-show:isis-route-ipv6",
-		"ze-show:isis-spf-log",
-		"ze-show:kernel-routes",
-		"ze-show:l2tp-health",
-		"ze-show:ldp-binding",
-		"ze-show:ldp-neighbor",
-		"ze-show:metrics-query",
-		"ze-show:mpls-forwarding",
-		"ze-show:neighbors",
-		"ze-show:ping",
-		"ze-show:pki-certificate",
-		"ze-show:pki-certificates",
-		"ze-show:policy-chain",
-		"ze-show:policy-list",
-		"ze-show:policy-routes",
-		"ze-show:policy-test",
-		"ze-show:probe-round",
-		"ze-show:route-lookup",
-		"ze-show:rr-peers",
-		"ze-show:rr-status",
-		"ze-show:rsvp-te-fast-reroute",
-		"ze-show:rsvp-te-interface",
-		"ze-show:rsvp-te-lsp",
-		"ze-show:rsvp-te-tunnel",
-		"ze-show:static",
-		"ze-show:storage-smart",
-		"ze-show:system-conntrack",
-		"ze-show:system-cpu",
-		"ze-show:system-date",
-		"ze-show:system-file-descriptors",
-		"ze-show:system-goroutines",
-		"ze-show:system-kernel-log",
-		"ze-show:system-memory",
-		"ze-show:system-memory-map",
-		"ze-show:system-ntp",
-		"ze-show:system-ntp-peers",
-		"ze-show:system-platform",
-		"ze-show:system-profile",
-		"ze-show:system-sockets",
-		"ze-show:system-subsystem-list",
-		"ze-show:system-update",
-		"ze-show:system-update-history",
-		"ze-show:tcp-check",
-		"ze-show:traceroute",
-		"ze-show:traffic",
-		"ze-show:traffic-usage",
-		"ze-show:uptime",
-		"ze-show:version",
-		"ze-show:vpn-ipsec-peer",
-		"ze-show:vpn-ipsec-sa",
-		"ze-show:vpn-ipsec-status",
-		"ze-show:vpp-runtime",
-		"ze-show:vpp-trace-clear",
-		"ze-show:vpp-trace-show",
-		"ze-show:vpp-trace-start",
-		"ze-show:warnings",
-		"ze-subscriber-api:detail",
-		"ze-subscriber-api:summary",
-		"ze-system:command-complete",
-		"ze-system:command-help",
-		"ze-system:command-list",
-		"ze-system:daemon-quit",
-		"ze-system:daemon-reboot",
-		"ze-system:daemon-reload",
-		"ze-system:daemon-shutdown",
-		"ze-system:daemon-status",
-		"ze-system:dispatch",
-		"ze-system:help",
-		"ze-system:subsystem-list",
-		"ze-system:version-api",
-		"ze-system:version-software",
-		"ze-update:bgp-peer-prefix",
-		"ze-update:firewall-irr-all",
-		"ze-update:firewall-irr-as-set",
-		"ze-update:firewall-irr-asn",
-		"ze-update:irr-all",
-		"ze-update:irr-as-set",
-		"ze-update:irr-asn",
-		"ze-update:system-firmware-apply",
-		"ze-update:system-firmware-check",
-		"ze-update:system-firmware-download",
-		"ze-update:system-firmware-restart",
-		"ze-update:system-firmware-rollback",
-	}
 
 	rpcs := pluginserver.AllBuiltinRPCs()
 	var methods []string
@@ -451,7 +142,7 @@ func TestRegisteredWireMethods(t *testing.T) {
 	}
 	sort.Strings(methods)
 
-	assertSnapshot(t, "wire method", methods, expected)
+	snapshot(t, "wire-methods", methods)
 }
 
 // TestYANGSchemaProviders snapshots the set of plugins that provide YANG schemas.
@@ -459,63 +150,6 @@ func TestRegisteredWireMethods(t *testing.T) {
 // VALIDATES: Every expected plugin provides a YANG schema.
 // PREVENTS: Silent removal of configuration surface (deleted YANG field).
 func TestYANGSchemaProviders(t *testing.T) {
-	expected := []string{
-		"bfd",
-		"bgp",
-		"bgp-adj-rib-in",
-		"bgp-bmp",
-		"bgp-filter-aspath",
-		"bgp-filter-aspath-length",
-		"bgp-filter-community",
-		"bgp-filter-community-match",
-		"bgp-filter-irr",
-		"bgp-filter-modify",
-		"bgp-filter-prefix",
-		"bgp-filter-remove-private-as",
-		"bgp-gr",
-		"bgp-healthcheck",
-		"bgp-hostname",
-		"bgp-llnh",
-		"bgp-rib",
-		"bgp-role",
-		"bgp-route-refresh",
-		"bgp-rpki",
-		"bgp-rpki-decorator",
-		"bgp-rs",
-		"bgp-softver",
-		"connected",
-		"cos",
-		"dhcpserver",
-		"fib-kernel",
-		"fib-p4",
-		"fib-vpp",
-		"firewall",
-		"firewall-irr",
-		"flow-export",
-		"geodns",
-		"imageserver",
-		"interface",
-		"isis",
-		"kernel",
-		"l2tp-auth-local",
-		"l2tp-auth-radius",
-		"l2tp-pool",
-		"l2tp-shaper",
-		"ldp",
-		"mrt",
-		"ntp",
-		"ospf",
-		"policy-routes",
-		"rib",
-		"routing-table",
-		"rsvp-te",
-		"static",
-		"sysctl",
-		"tftpserver",
-		"traffic",
-		"traffic-usage",
-		"vpp",
-	}
 
 	schemas := registry.YANGSchemas()
 	var names []string
@@ -524,7 +158,7 @@ func TestYANGSchemaProviders(t *testing.T) {
 	}
 	sort.Strings(names)
 
-	assertSnapshot(t, "YANG provider", names, expected)
+	snapshot(t, "yang-providers", names)
 }
 
 // TestGeneratedPluginImportsCurrent verifies that the generated blank-import
