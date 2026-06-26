@@ -77,17 +77,21 @@ make ze-gokrazy GOKRAZY_ARCH=arm64 USER=admin PASS=secret
 make ze-gokrazy-run GOKRAZY_ARCH=arm64 GOKRAZY_QEMU_ACCEL=hvf
 ```
 
-`make ze-kernel` delegates to `gokrazy/kernel/Makefile`, which defaults to the
-Docker backend (`KERNEL_BUILDER=docker`) and can be forced to the shared QEMU
-backend with `KERNEL_BUILDER=qemu`. The runtime build uses
-`tools/kernel-builder/build.py` with the tracked
-`gokrazy/kernel/kernel.config` + `runtime.config` fragments and matching
-`.require` manifests, emits `vmlinuz`, `lib/modules/`, and DTBs, then overlays
-module-cache copy used by `make ze-gokrazy`. The first overlay backs up the
-pinned cache. Use
-`make ze-kernel-clean` to restore it.
+`make ze-kernel` delegates to `gokrazy/kernel/Makefile`, which calls the single
+shared driver `tools/kernel-builder/run.py`. The driver reads the kernel version
+from `internal/appliance/kernel.version`, selects the Docker backend by default
+(or the QEMU backend with `KERNEL_BUILDER=qemu`), resolves the tracked
+`gokrazy/kernel/kernel.config` + `runtime.config` fragments (plus the shared
+`# ze-include: efi-console` console fragment) and matching `.require` manifests,
+and emits `vmlinuz`, `lib/modules/`, and DTBs. `make ze-kernel` then assembles
+those into an out-of-tree kernel package (`tmp/kernel/pkg`, a copy of the pinned
+`rtr7/kernel` module with our artifacts overlaid) and points `gok` at it via a
+`go.mod` `replace`. The pinned module cache is never mutated in place and there
+is no backup to restore; `make ze-kernel-clean` drops the `replace` and removes
+`tmp/kernel`.
 <!-- source: mk/gokrazy.mk -- ze-kernel -->
 <!-- source: gokrazy/kernel/Makefile -- all -->
+<!-- source: tools/kernel-builder/run.py -- main -->
 
 On a Linux runner with QEMU, `xl2tpd`, `pppd`, `/dev/ppp`, and PPPoL2TP kernel
 support, the deployment proof target builds an L2TP-enabled appliance image and
@@ -500,18 +504,24 @@ artifacts automatically:
     bin/ze-setup appliance kernel prod                # reads arch/profile from appliance config
     bin/ze-setup appliance kernel --profile hardware prod   # explicit hardware profile
     bin/ze-setup appliance kernel --builder qemu --arch arm64 prod
+    bin/ze-setup appliance kernel --target runtime    # build the verified runtime kernel tree
     bin/ze-setup appliance initrd                    # download or build initrd
     bin/ze-setup appliance iso lab                   # build ISO
 
-`ze appliance kernel` tries three tiers in order: XDG cache hit, download from a
-release server, and local build. The local build defaults to Docker when
-available and falls back to the shared QEMU backend (`tools/kernel-builder/qemu-build.py`);
-use `--builder docker` or `--builder qemu` to force one path. Downloaded
-artifacts are cached under `$XDG_CACHE_HOME/ze/` (default `~/.cache/ze/`) and
-also copied to `tools/installer-kernel/build/` and `tools/installer-initrd/build/`
-so `ze appliance iso` finds them without extra flags.
-<!-- source: internal/appliance/cmd_kernel.go -- runKernel, selectBuilder -->
-<!-- source: tools/kernel-builder/qemu-build.py -- main -->
+`ze appliance kernel` defaults to `--target installer` (the monolithic PXE
+`Image`); `--target runtime` builds the gokrazy runtime kernel tree (modules +
+`vmlinuz`) from `gokrazy/kernel/` with the runtime requirement floor enforced.
+The command reports the target it built (`kernel ready: ... (target=installer,
+profile=qemu, version=7.1.1)`). The installer target tries three tiers in order:
+XDG cache hit, download from a release server, and local build. Every build runs
+through the shared driver `tools/kernel-builder/run.py`, which selects Docker
+when available and falls back to QEMU; use `--builder docker` or `--builder qemu`
+to force one path. Downloaded artifacts are cached under `$XDG_CACHE_HOME/ze/`
+(default `~/.cache/ze/`) and also copied to `tools/installer-kernel/build/` and
+`tools/installer-initrd/build/` so `ze appliance iso` finds them without extra
+flags.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel, kernelTargetFor -->
+<!-- source: tools/kernel-builder/run.py -- main -->
 
 `ze appliance initrd` uses the same cache/download/build pattern for the initrd
 artifact.

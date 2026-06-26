@@ -152,56 +152,75 @@ ze-gokrazy-run:
 # ---------------------------------------------------------------------------
 # Custom kernel build (overrides the rtr7/kernel pin used by ze-gokrazy)
 # ---------------------------------------------------------------------------
-# Single source of truth for the kernel version: internal/appliance/kernel.version
-# (also embedded into `ze appliance kernel`). Bump the kernel by editing that file.
-KVER                  ?= $(shell cat $(dir $(lastword $(MAKEFILE_LIST)))../internal/appliance/kernel.version)
+# The runtime kernel is built out-of-tree (tmp/kernel/build via run.py, which
+# reads internal/appliance/kernel.version), then assembled into an out-of-tree
+# kernel PACKAGE (tmp/kernel/pkg: a copy of the pinned rtr7/kernel module with
+# our vmlinuz/modules/DTBs/overlays). gok is pointed at it with a go.mod
+# `replace github.com/rtr7/kernel => tmp/kernel/pkg`. The pinned module cache is
+# NEVER mutated in place and there is no .ze-pinned-kernel backup; ze-kernel-clean
+# drops the replace and removes tmp/kernel. gok resolves the kernel dir via
+# `go list -mod=mod`, which honours the replace.
 KERNEL_MODULE         := github.com/rtr7/kernel
 KERNEL_ARCH           ?= $(GOKRAZY_ARCH)
 KERNEL_BUILDER        ?= docker
 KERNEL_MODULE_VERSION := $(shell cd gokrazy/ze/builddir/$(KERNEL_MODULE) 2>/dev/null && $(GO) list -m -f '{{.Version}}' $(KERNEL_MODULE) 2>/dev/null)
 KERNEL_MODCACHE_DIR   := $(GOKRAZY_DIR)/modcache/$(KERNEL_MODULE)@$(KERNEL_MODULE_VERSION)
-KERNEL_PINNED_BACKUP  := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
 KERNEL_BUILD_DIR      := tmp/kernel/build
+KERNEL_PKG_DIR        := tmp/kernel/pkg
+KERNEL_BUILDDIR_GOMOD := gokrazy/ze/builddir/$(KERNEL_MODULE)/go.mod
+# The replace path is stored relative to the go.mod's own directory
+# (gokrazy/ze/builddir/github.com/rtr7/kernel, six levels below the repo root)
+# so it is machine-independent: an absolute $(CURDIR) path would leak a
+# developer's home directory into the tracked go.mod if accidentally committed.
+KERNEL_PKG_REPLACE    := ../../../../../../$(KERNEL_PKG_DIR)
+# Legacy in-place-mutation backup from the pre-consolidation flow. The new flow
+# never creates this; ze-kernel-clean restores from it once to migrate users
+# whose modcache was overlaid by the old ze-kernel.
+KERNEL_PINNED_BACKUP  := $(GOKRAZY_DIR)/modcache/.ze-pinned-kernel
 
 ze-kernel:
 	@case "$(KERNEL_ARCH)" in amd64|arm64) : ;; *) echo "error: unsupported KERNEL_ARCH=$(KERNEL_ARCH) (expected amd64 or arm64)"; exit 1 ;; esac
-	@echo "--- Building runtime kernel ($(KVER), $(KERNEL_ARCH), builder=$(KERNEL_BUILDER)) ---"
-	@$(MAKE) -C gokrazy/kernel BUILDER=$(KERNEL_BUILDER) ARCH=$(KERNEL_ARCH) KVER=$(KVER)
+	@echo "--- Building runtime kernel ($(KERNEL_ARCH), builder=$(KERNEL_BUILDER)) ---"
+	@$(MAKE) -C gokrazy/kernel BUILDER=$(KERNEL_BUILDER) ARCH=$(KERNEL_ARCH)
 	@echo "--- Staging test kernel to tmp/kernel/vmlinuz (QEMU evidence: ze-qemu-l2tp-ppp-test, ze-qemu-pppoe-accel-test) ---"
 	@mkdir -p tmp/kernel
 	@cp "$(KERNEL_BUILD_DIR)/vmlinuz" tmp/kernel/vmlinuz
-	@echo "--- Installing custom kernel into gokrazy module cache ---"
-	@test -n "$(KERNEL_MODULE_VERSION)" || { echo "error: could not resolve pinned $(KERNEL_MODULE) version"; exit 1; }
+	@echo "--- Assembling out-of-tree kernel package ($(KERNEL_PKG_DIR)) ---"
+	@test -n "$(KERNEL_MODULE_VERSION)" || { echo "error: could not resolve pinned $(KERNEL_MODULE) version (run: make ze-gokrazy-deps)"; exit 1; }
 	@test -d "$(KERNEL_MODCACHE_DIR)" || { echo "error: $(KERNEL_MODCACHE_DIR) not found (run: make ze-gokrazy-deps)"; exit 1; }
 	@test -f "$(KERNEL_BUILD_DIR)/vmlinuz" || { echo "error: $(KERNEL_BUILD_DIR)/vmlinuz not found"; exit 1; }
 	@test -d "$(KERNEL_BUILD_DIR)/lib/modules" || { echo "error: $(KERNEL_BUILD_DIR)/lib/modules not found"; exit 1; }
-	@if [ ! -d "$(KERNEL_PINNED_BACKUP)" ]; then \
-		echo "--- Backing up pinned kernel module cache ---"; \
-		cp -R "$(KERNEL_MODCACHE_DIR)" "$(KERNEL_PINNED_BACKUP)"; \
-	fi
-	@cp "$(KERNEL_BUILD_DIR)/vmlinuz" "$(KERNEL_MODCACHE_DIR)/vmlinuz"
-	@mkdir -p "$(KERNEL_MODCACHE_DIR)/lib"
-	@rm -rf "$(KERNEL_MODCACHE_DIR)/lib/modules"
-	@cp -R "$(KERNEL_BUILD_DIR)/lib/modules" "$(KERNEL_MODCACHE_DIR)/lib/"
-	@rm -f "$(KERNEL_MODCACHE_DIR)"/*.dtb
-	@cp "$(KERNEL_BUILD_DIR)"/*.dtb "$(KERNEL_MODCACHE_DIR)"/ 2>/dev/null || true
+	@rm -rf "$(KERNEL_PKG_DIR)"
+	@mkdir -p "$(KERNEL_PKG_DIR)"
+	@cp -R "$(KERNEL_MODCACHE_DIR)/." "$(KERNEL_PKG_DIR)/"
+	@chmod -R u+w "$(KERNEL_PKG_DIR)"
+	@cp "$(KERNEL_BUILD_DIR)/vmlinuz" "$(KERNEL_PKG_DIR)/vmlinuz"
+	@mkdir -p "$(KERNEL_PKG_DIR)/lib"
+	@rm -rf "$(KERNEL_PKG_DIR)/lib/modules"
+	@cp -R "$(KERNEL_BUILD_DIR)/lib/modules" "$(KERNEL_PKG_DIR)/lib/"
+	@rm -f "$(KERNEL_PKG_DIR)"/*.dtb
+	@cp "$(KERNEL_BUILD_DIR)"/*.dtb "$(KERNEL_PKG_DIR)"/ 2>/dev/null || true
 	@if [ -d "$(KERNEL_BUILD_DIR)/overlays" ]; then \
-		rm -rf "$(KERNEL_MODCACHE_DIR)/overlays"; \
-		cp -R "$(KERNEL_BUILD_DIR)/overlays" "$(KERNEL_MODCACHE_DIR)/"; \
+		rm -rf "$(KERNEL_PKG_DIR)/overlays"; \
+		cp -R "$(KERNEL_BUILD_DIR)/overlays" "$(KERNEL_PKG_DIR)/"; \
 	fi
+	@echo "--- Pointing gok at the out-of-tree kernel (go.mod replace; pinned modcache untouched) ---"
+	@$(GO) mod edit -replace=$(KERNEL_MODULE)=$(KERNEL_PKG_REPLACE) $(KERNEL_BUILDDIR_GOMOD)
 	@echo ""
-	@module_version=""; for d in $(KERNEL_BUILD_DIR)/lib/modules/*; do [ -d "$$d" ] || continue; module_version="$${d##*/}"; break; done; echo "Custom kernel: $$module_version"
-	@echo "Next: make ze-gokrazy USER=... PASS=..."
+	@module_version=""; for d in $(KERNEL_PKG_DIR)/lib/modules/*; do [ -d "$$d" ] || continue; module_version="$${d##*/}"; break; done; echo "Custom kernel: $$module_version (out-of-tree at $(KERNEL_PKG_DIR))"
+	@echo "Next: make ze-gokrazy USER=... PASS=...   (then: make ze-kernel-clean to revert the replace)"
 
 ze-kernel-clean:
 	@$(MAKE) -C gokrazy/kernel clean
+	@if grep -q 'replace $(KERNEL_MODULE) ' $(KERNEL_BUILDDIR_GOMOD) 2>/dev/null; then \
+		echo "--- Dropping out-of-tree kernel replace ---"; \
+		$(GO) mod edit -dropreplace=$(KERNEL_MODULE) $(KERNEL_BUILDDIR_GOMOD); \
+	fi
 	@if [ -d "$(KERNEL_PINNED_BACKUP)" ]; then \
-		echo "--- Restoring pinned kernel module cache ---"; \
+		echo "--- Migrating: restoring pinned modcache from legacy .ze-pinned-kernel and removing it ---"; \
 		rm -rf "$(KERNEL_MODCACHE_DIR)"; \
 		cp -R "$(KERNEL_PINNED_BACKUP)" "$(KERNEL_MODCACHE_DIR)"; \
 		rm -rf "$(KERNEL_PINNED_BACKUP)"; \
-	else \
-		echo "warning: no pinned kernel backup found; run make ze-gokrazy-deps to refresh the module cache if needed"; \
 	fi
 	@rm -rf tmp/kernel
 	@echo "ze-gokrazy will now use the pinned rtr7/kernel."

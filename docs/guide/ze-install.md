@@ -269,10 +269,12 @@ download pre-built artifacts from the release server when available, falling
 back to a local QEMU VM build (kernel) or make build (initrd). Cached artifacts
 are stored under `$XDG_CACHE_HOME/ze/` (default `~/.cache/ze/`).
 
-For arm64 targets or a specific kernel version:
+For arm64 targets (the kernel version is single-sourced in
+`internal/appliance/kernel.version`; `--version` only overrides it and must be a
+kernel >= 7):
 
 ```bash
-ze appliance kernel --arch arm64 --version 6.12.9
+ze appliance kernel --arch arm64
 ze appliance iso --kernel tools/installer-kernel/build/Image prod
 ```
 

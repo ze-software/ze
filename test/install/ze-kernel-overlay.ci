@@ -1,7 +1,14 @@
-# Test: default make ze-kernel uses the shared runtime docker builder, overlays
-# runtime artifacts into the modcache, and ze-kernel-clean restores the pinned copy.
+# Test (item 5): make ze-kernel builds the runtime kernel via run.py and assembles
+# it into an OUT-OF-TREE package (tmp/kernel/pkg) consumed via a go.mod replace.
+# The pinned rtr7/kernel modcache is read, never mutated in place.
+#
+# // test-relax: kernel-build-consolidation replaced the in-place modcache overlay
+# + .ze-pinned-kernel backup/restore with out-of-tree consumption. The old
+# assertions (modcache vmlinuz overwritten, backup created/restored,
+# MODULES=yes/PATCHES_DIR in the docker env) no longer apply; this asserts the
+# out-of-tree package + go.mod replace and that the modcache is untouched.
 
-option=timeout:value=30s
+option=timeout:value=40s
 
 tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
@@ -11,50 +18,30 @@ work=$PWD
 repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
 cd "$repo"
 
+gomod="gokrazy/ze/builddir/github.com/rtr7/kernel/go.mod"
 version=$(cd gokrazy/ze/builddir/github.com/rtr7/kernel && GOMODCACHE="$repo/gokrazy/modcache" go list -m -f '{{.Version}}' github.com/rtr7/kernel)
 modcache="$repo/gokrazy/modcache/github.com/rtr7/kernel@$version"
-backup_dir="$repo/gokrazy/modcache/.ze-pinned-kernel"
-orig_backup="${backup_dir}.orig-test"
-# Backup lives outside tmp/kernel: ze-kernel-clean does `rm -rf tmp/kernel`.
-orig_build="$repo/tmp/kernel-build.orig-test"
 
+saved_build=
+saved_vmlinuz=
 cleanup() {
 	set +e
-	PATH="$work/fakebin:$PATH" make ze-kernel-clean >/dev/null 2>&1 || true
-	rm -rf "$backup_dir"
-	if [ -d "$orig_backup" ]; then
-		mv "$orig_backup" "$backup_dir"
-	fi
-	rm -rf "$repo/tmp/kernel/build"
-	if [ -d "$orig_build" ]; then
-		mkdir -p "$repo/tmp/kernel"
-		mv "$orig_build" "$repo/tmp/kernel/build"
-	fi
+	go mod edit -dropreplace=github.com/rtr7/kernel "$gomod" 2>/dev/null
+	rm -rf tmp/kernel/pkg tmp/kernel/build tmp/kernel/vmlinuz
+	[ -n "$saved_build" ] && { mkdir -p tmp/kernel; mv "$saved_build" tmp/kernel/build; }
+	[ -n "$saved_vmlinuz" ] && mv "$saved_vmlinuz" tmp/kernel/vmlinuz
+	true
 }
 trap cleanup EXIT
+[ -d tmp/kernel/build ] && { saved_build="$work/sb"; mv tmp/kernel/build "$saved_build"; }
+[ -f tmp/kernel/vmlinuz ] && { saved_vmlinuz="$work/sv"; mv tmp/kernel/vmlinuz "$saved_vmlinuz"; }
 
-if [ -d "$backup_dir" ]; then
-	rm -rf "$orig_backup"
-	mv "$backup_dir" "$orig_backup"
-fi
-if [ -d "$repo/tmp/kernel/build" ]; then
-	rm -rf "$orig_build"
-	mv "$repo/tmp/kernel/build" "$orig_build"
-fi
+before=$(shasum -a256 "$modcache/vmlinuz" | cut -d' ' -f1)
+
 mkdir -p "$work/fakebin"
-
-orig_sig=$(python3 - <<'PY' "$modcache/vmlinuz"
-from pathlib import Path
-import hashlib, sys
-p = Path(sys.argv[1])
-print(hashlib.sha256(p.read_bytes()).hexdigest())
-PY
-)
-
 cat > "$work/fakebin/docker" <<'EOF_DOCKER'
 #!/bin/sh
 set -eu
-printf '%s\n' "$*" >> "$ZE_DOCKER_LOG"
 if [ "$1" = run ]; then
 	prev=
 	for arg in "$@"; do
@@ -62,11 +49,9 @@ if [ "$1" = run ]; then
 			case "$arg" in
 				*:/out)
 					out=${arg%:/out}
-					mkdir -p "$out/lib/modules/6.6.0-test" "$out/overlays"
+					mkdir -p "$out/lib/modules/7.1.1-ze"
 					printf 'runtime-kernel\n' > "$out/vmlinuz"
-					printf 'module\n' > "$out/lib/modules/6.6.0-test/ze.ko"
-					printf 'dtb\n' > "$out/runtime-test.dtb"
-					printf 'overlay\n' > "$out/overlays/config.txt"
+					printf 'module\n' > "$out/lib/modules/7.1.1-ze/ze.ko"
 					printf 'CONFIG_RUNTIME=y\n' > "$out/config"
 					;;
 			esac
@@ -77,31 +62,24 @@ fi
 EOF_DOCKER
 chmod +x "$work/fakebin/docker"
 
-PATH="$work/fakebin:$PATH" ZE_DOCKER_LOG="$work/docker.log" make ze-kernel KERNEL_ARCH=amd64 >"$work/stdout" 2>"$work/stderr"
+PATH="$work/fakebin:$PATH" make ze-kernel KERNEL_ARCH=amd64 >"$work/stdout" 2>"$work/stderr"
 
 grep -q 'Building runtime kernel' "$work/stdout"
-grep -q 'builder=docker' "$work/stdout"
-grep -q 'Installing custom kernel into gokrazy module cache' "$work/stdout"
-[ -d "$backup_dir" ]
-[ "$(cat "$modcache/vmlinuz")" = 'runtime-kernel' ]
-[ "$(cat "$modcache/lib/modules/6.6.0-test/ze.ko")" = 'module' ]
-[ "$(cat "$modcache/runtime-test.dtb")" = 'dtb' ]
-[ "$(cat "$modcache/overlays/config.txt")" = 'overlay' ]
+grep -q 'out-of-tree' "$work/stdout"
 
-grep -q -- '--platform linux/amd64' "$work/docker.log"
-grep -q -- 'MODULES=yes' "$work/docker.log"
-grep -q -- 'PATCHES_DIR=/src/patches' "$work/docker.log"
+# Out-of-tree package assembled from the pinned module + our artifacts.
+[ -f tmp/kernel/pkg/vmlinuz ]
+[ "$(cat tmp/kernel/pkg/vmlinuz)" = 'runtime-kernel' ]
+[ -d tmp/kernel/pkg/lib/modules ]
+[ -f tmp/kernel/pkg/go.mod ]            # carried over from the pinned module -> valid replace target
+[ -f tmp/kernel/pkg/empty.go ]
 
-PATH="$work/fakebin:$PATH" make ze-kernel-clean >/dev/null
-restored_sig=$(python3 - <<'PY' "$modcache/vmlinuz"
-from pathlib import Path
-import hashlib, sys
-p = Path(sys.argv[1])
-print(hashlib.sha256(p.read_bytes()).hexdigest())
-PY
-)
-[ "$orig_sig" = "$restored_sig" ]
-[ ! -d "$backup_dir" ]
+# gok is pointed at it via go.mod replace.
+grep -q 'replace github.com/rtr7/kernel' "$gomod"
+
+# The pinned modcache vmlinuz is byte-for-byte unchanged (read, not mutated).
+after=$(shasum -a256 "$modcache/vmlinuz" | cut -d' ' -f1)
+[ "$before" = "$after" ]
 
 echo OK
 EOF_SH

@@ -16,6 +16,11 @@ const (
 	hardwareKMSProfile   = "hardware-kms"
 	kernelConfigName     = "kernel.config"
 	kernelRequireName    = "kernel.require"
+	// kernelCommonDir holds shared config fragments pulled in by a
+	// `# ze-include: <name>` directive. It mirrors tools/kernel-builder/run.py's
+	// COMMON_DIR_REL; the cross-language fixture asserts both resolvers expand an
+	// include to the same fragment set.
+	kernelCommonDir = "tools/kernel-builder/common"
 )
 
 var validKernelProfileRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
@@ -88,12 +93,81 @@ func resolveKernelProfile(srcDir, profile string) (kernelProfileResolution, erro
 	fragments = append(fragments, profileConfig)
 	manifests = append(manifests, profileRequire)
 
+	includes, err := collectKernelIncludes(fragments)
+	if err != nil {
+		return kernelProfileResolution{}, fmt.Errorf("kernel profile %q: %w", profile, err)
+	}
+	for _, inc := range includes {
+		if err := validateKernelProfileName(inc); err != nil {
+			return kernelProfileResolution{}, fmt.Errorf("kernel profile %q include %q: %w", profile, inc, err)
+		}
+		incConfig := filepath.Join(kernelCommonDir, inc+".config")
+		incRequire := filepath.Join(kernelCommonDir, inc+".require")
+		if err := requireFile(incConfig, "shared include config fragment"); err != nil {
+			return kernelProfileResolution{}, fmt.Errorf("kernel profile %q include %q: missing shared fragment %s: %w", profile, inc, incConfig, err)
+		}
+		if err := requireFile(incRequire, "shared include require manifest"); err != nil {
+			return kernelProfileResolution{}, fmt.Errorf("kernel profile %q include %q: missing shared require manifest %s: %w", profile, inc, incRequire, err)
+		}
+		nested, err := readKernelProfileIncludes(incConfig)
+		if err != nil {
+			return kernelProfileResolution{}, fmt.Errorf("kernel profile %q include %q: %w", profile, inc, err)
+		}
+		if len(nested) > 0 {
+			return kernelProfileResolution{}, fmt.Errorf("kernel profile %q include %q declares ze-include %v; nested includes are not supported (one level only)", profile, inc, nested)
+		}
+		fragments = append(fragments, incConfig)
+		manifests = append(manifests, incRequire)
+	}
+
 	return kernelProfileResolution{
 		Name:      profile,
 		SourceDir: srcDir,
 		Fragments: fragments,
 		Manifests: manifests,
 	}, nil
+}
+
+// collectKernelIncludes scans fragments (in resolution order) for
+// `# ze-include: <name>` directives, returning the shared fragment names once
+// each in first-seen order. This mirrors run.py's include expansion so the Go
+// verified path and the python make path resolve identically.
+func collectKernelIncludes(fragments []string) ([]string, error) {
+	var includes []string
+	seen := make(map[string]bool)
+	for _, fragment := range fragments {
+		names, err := readKernelProfileIncludes(fragment)
+		if err != nil {
+			return nil, err
+		}
+		for _, name := range names {
+			if !seen[name] {
+				seen[name] = true
+				includes = append(includes, name)
+			}
+		}
+	}
+	return includes, nil
+}
+
+func readKernelProfileIncludes(path string) ([]string, error) {
+	data, err := os.ReadFile(path) //nolint:gosec // fragment paths are built from validated tokens
+	if err != nil {
+		return nil, fmt.Errorf("read config fragment %s: %w", path, err)
+	}
+	var includes []string
+	for lineNo, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "# ze-include:") {
+			continue
+		}
+		value := strings.TrimSpace(strings.TrimPrefix(line, "# ze-include:"))
+		if value == "" {
+			return nil, fmt.Errorf("%s:%d empty ze-include value", path, lineNo+1)
+		}
+		includes = append(includes, value)
+	}
+	return includes, nil
 }
 
 func registeredKernelProfiles(srcDir string) ([]string, error) {

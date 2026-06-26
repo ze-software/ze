@@ -18,16 +18,17 @@ import (
 )
 
 const (
-	cacheSubdir      = "ze"
-	kernelCacheDir   = "installer-kernel"
-	initrdCacheDir   = "installer-initrd"
-	kernelFileName   = "Image"
-	initrdFileName   = "initrd.img.gz"
-	checksumSuffix   = ".sha256"
-	downloadTimeout  = 10 * time.Minute
-	cacheDirPerm     = 0o755
-	checksumHexLen   = 64
-	minArtifactBytes = 1
+	cacheSubdir           = "ze"
+	kernelCacheDir        = "installer-kernel"
+	runtimeKernelCacheDir = "runtime-kernel"
+	initrdCacheDir        = "installer-initrd"
+	kernelFileName        = "Image"
+	initrdFileName        = "initrd.img.gz"
+	checksumSuffix        = ".sha256"
+	downloadTimeout       = 10 * time.Minute
+	cacheDirPerm          = 0o755
+	checksumHexLen        = 64
+	minArtifactBytes      = 1
 )
 
 var httpGetFn = defaultHTTPGet
@@ -59,6 +60,14 @@ func kernelCachePath(version, variant string) string {
 	return filepath.Join(resolveCacheDir(), kernelCacheDir, tb.Str(version).Byte('-').Str(variant).String(), kernelFileName)
 }
 
+// kernelTreeCachePath returns the runtime kernel's cache DIRECTORY. The runtime
+// artifact is a tree (vmlinuz + lib/modules + DTBs + overlays), so unlike the
+// single-file installer cache the path is the directory itself.
+func kernelTreeCachePath(version, variant string) string {
+	var tb textbuf.Buffer
+	return filepath.Join(resolveCacheDir(), runtimeKernelCacheDir, tb.Str(version).Byte('-').Str(variant).String())
+}
+
 func cacheFileHash(dir string, names []string) (string, bool) {
 	h := sha256.New()
 	for _, name := range names {
@@ -87,21 +96,26 @@ func kernelCacheVariant(arch, profile string) string {
 	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
 	if err != nil {
 		var tb textbuf.Buffer
-		return tb.Str(arch).Byte('-').Str(profile).String()
+		return tb.Str(kernelTargetInstaller).Byte('-').Str(arch).Byte('-').Str(profile).String()
 	}
-	return kernelCacheVariantFor(arch, resolved)
+	return kernelCacheVariantFor(kernelTargetInstaller, arch, resolved)
 }
 
-func kernelCacheVariantFor(arch string, profile kernelProfileResolution) string {
+// kernelCacheVariantFor keys the cache by target so installer (single-file
+// Image) and runtime (vmlinuz tree) artifacts never collide, and by the config
+// + builder-script hashes so profile/fragment/builder changes invalidate stale
+// artifacts. The resolved Fragments already include any # ze-include shared
+// fragment, so editing the shared fragment invalidates the cache too.
+func kernelCacheVariantFor(target, arch string, profile kernelProfileResolution) string {
 	var tb textbuf.Buffer
 	configInputs := append([]string{}, profile.Fragments...)
 	configInputs = append(configInputs, profile.Manifests...)
 	configHash, configOK := cacheFileHashPaths(configInputs)
-	builderHash, builderOK := cacheFileHash(kernelBuilderDir, []string{"build.py"})
+	builderHash, builderOK := cacheFileHash(kernelBuilderDir, []string{"build.py", "run.py", "ksource.py"})
 	if !configOK || !builderOK {
-		return tb.Str(arch).Byte('-').Str(profile.Name).String()
+		return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).String()
 	}
-	return tb.Str(arch).Byte('-').Str(profile.Name).Byte('-').Str(configHash).Byte('-').Str(builderHash).String()
+	return tb.Str(target).Byte('-').Str(arch).Byte('-').Str(profile.Name).Byte('-').Str(configHash).Byte('-').Str(builderHash).String()
 }
 
 func initrdCacheVariant(version string) string {
@@ -245,4 +259,73 @@ func copyToToolsPath(src, dst string) error {
 		return fmt.Errorf("move %s to %s: %w", tmpPath, dst, err)
 	}
 	return nil
+}
+
+// copyTree copies a directory tree (the runtime kernel: vmlinuz + lib/modules +
+// DTBs + overlays) from src to dst, replacing dst. Directories, regular files,
+// and symlinks are preserved (matching the `cp -R` Make path); other special
+// files (devices, sockets) are skipped.
+func copyTree(src, dst string) error {
+	if err := os.RemoveAll(dst); err != nil {
+		return fmt.Errorf("clear %s: %w", dst, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), cacheDirPerm); err != nil {
+		return fmt.Errorf("create directory %s: %w", filepath.Dir(dst), err)
+	}
+	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			return os.MkdirAll(target, info.Mode().Perm())
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			link, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(target), cacheDirPerm); err != nil {
+				return err
+			}
+			os.Remove(target) //nolint:errcheck // best-effort replace
+			return os.Symlink(link, target)
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		return copyRegularFile(path, target)
+	})
+}
+
+func copyRegularFile(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	in, err := os.Open(src) //nolint:gosec // controlled source tree
+	if err != nil {
+		return err
+	}
+	defer in.Close() //nolint:errcheck // read-only
+	if err := os.MkdirAll(filepath.Dir(dst), cacheDirPerm); err != nil {
+		return err
+	}
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm()) //nolint:gosec // controlled dest tree
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close() //nolint:errcheck // cleanup
+		return err
+	}
+	return out.Close()
 }

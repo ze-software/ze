@@ -13,11 +13,17 @@ import (
 const (
 	defaultTFTPDir = "/var/lib/ze/install/tftp"
 	defaultBootDir = "/var/lib/ze/install/boot"
+	// stagedKernelName is the boot-directory filename the PXE kernel is staged
+	// as. It must stay "vmlinuz" so iPXE/GRUB configs and the appliance build
+	// pipeline find it; this is the provision package's own constant, distinct
+	// from the appliance build-output name "Image" (internal/appliance/cache.go).
+	stagedKernelName = "vmlinuz"
+	stagedInitrdName = "initrd.img.gz"
 )
 
 var ipxeBinaries = []string{"ipxe.pxe", "ipxe.efi"}
 
-var bootArtifactNames = []string{"vmlinuz", "initrd.img.gz"}
+var bootArtifactNames = []string{stagedKernelName, stagedInitrdName}
 
 type stagingConfig struct {
 	KernelPath string
@@ -50,12 +56,12 @@ func stageArtifacts(cfg stagingConfig) error {
 	}
 
 	if cfg.KernelPath != "" {
-		if err := copyFileIfRegular(cfg.KernelPath, filepath.Join(bd, "vmlinuz")); err != nil {
+		if err := copyFileIfRegular(cfg.KernelPath, filepath.Join(bd, stagedKernelName)); err != nil {
 			return fmt.Errorf("stage kernel: %w", err)
 		}
 	}
 	if cfg.InitrdPath != "" {
-		if err := copyFileIfRegular(cfg.InitrdPath, filepath.Join(bd, "initrd.img.gz")); err != nil {
+		if err := copyFileIfRegular(cfg.InitrdPath, filepath.Join(bd, stagedInitrdName)); err != nil {
 			return fmt.Errorf("stage initrd: %w", err)
 		}
 	}

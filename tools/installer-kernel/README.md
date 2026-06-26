@@ -66,18 +66,23 @@ make PROFILE=hardware-kms ARCH=amd64  # real hardware + i915 KMS, x86_64
 make BUILDER=docker PROFILE=hardware-kms ARCH=amd64  # docker + hardware-kms
 make PROFILE=hardware ARCH=amd64      # real hardware, headless, x86_64
 make ARCH=amd64                       # qemu profile, x86_64
-make LINUX_VERSION=6.12.9             # pin a different kernel
 ```
 
-Output: `build/Image` (the kernel) and `build/config` (the resolved config).
-If you want to keep both architectures side by side, copy or rename the kernel
-after each build and pass it back to `ze appliance iso --kernel ...`.
+The kernel version is single-sourced in `internal/appliance/kernel.version` and
+read by the driver; the Makefile no longer takes a version variable.
 
-The build recipe lives in `../kernel-builder/build.py` and is shared with the
-runtime gokrazy kernel build. `ze appliance kernel` resolves the profile
-registry (`<name>.config` + `<name>.require`, with optional one-level
-`# ze-base:` layering), passes the resolved fragments to the builder, then
-enforces the required symbols from Go. See `PROFILES.md` for profile authoring.
+Output: `build/Image` (the kernel), `build/config` (the resolved config), and
+`build/kernel.version` (a provenance sidecar recording what was built). If you
+want to keep both architectures side by side, copy or rename the kernel after
+each build and pass it back to `ze appliance iso --kernel ...`.
+
+The Makefile calls the single shared driver `../kernel-builder/run.py` (the same
+driver the runtime gokrazy kernel build uses), which selects Docker or QEMU and
+invokes `build.py`. `ze appliance kernel` resolves the profile registry
+(`<name>.config` + `<name>.require`, with optional one-level `# ze-base:`
+layering and `# ze-include:` shared fragments), passes the resolved fragments to
+the builder, then enforces the required symbols from Go. See `PROFILES.md` for
+profile authoring.
 The recipe can also be used directly inside any Linux environment (VM, container, bare metal):
 
 ```sh

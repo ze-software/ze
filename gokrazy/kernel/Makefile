@@ -1,79 +1,44 @@
 # Build the Ze runtime kernel package artifacts for gokrazy.
 #
-# Produces build/vmlinuz, build/config, build/lib/modules/, and arm64 DTBs.
-# The shared builder lives in ../../tools/kernel-builder; this Makefile only
-# selects the runtime config fragments and build environment.
+# Produces build/vmlinuz, build/config, build/lib/modules/, and arm64 DTBs via
+# the shared driver tools/kernel-builder/run.py (docker or qemu). This Makefile
+# only selects the runtime config fragments and build environment; run.py owns
+# the kernel version (internal/appliance/kernel.version), the arch->platform
+# map, fragment resolution, and the container/VM invocation.
 
 ARCH ?= amd64
-# Single source of truth for the kernel version: internal/appliance/kernel.version
-# (also embedded into `ze appliance kernel`). Bump the kernel by editing that file.
-KVER ?= $(shell cat $(dir $(lastword $(MAKEFILE_LIST)))../../internal/appliance/kernel.version)
 PROFILE := runtime
 BUILDER ?= docker
 JOBS ?=
-IMG := ze-runtime-kernel-builder
 REPO_ROOT := $(shell git -C $(dir $(lastword $(MAKEFILE_LIST))) rev-parse --show-toplevel)
 BUILDER_DIR := $(REPO_ROOT)/tools/kernel-builder
+RUN := $(BUILDER_DIR)/run.py
 # Build output lives under the repo scratch tree (tmp/ is gitignored, so the
-# ~400MB artifacts never pollute git status). OUT is absolute because make
-# targets run with CWD=gokrazy/kernel and Docker needs a real bind-mount path;
-# OUT_REL is the repo-relative form qemu-build.py requires (it rejects abs/..).
+# ~400MB artifacts never pollute git status). OUT is absolute for the test
+# assertions; OUT_REL is the repo-relative form run.py requires.
 OUT     := $(REPO_ROOT)/tmp/kernel/build
 OUT_REL := tmp/kernel/build
 PATCH_DEPS := $(wildcard patches/*.patch)
-
-ifeq ($(ARCH),amd64)
-DOCKER_PLATFORM := linux/amd64
-else ifeq ($(ARCH),x86_64)
-DOCKER_PLATFORM := linux/amd64
-else ifeq ($(ARCH),arm64)
-DOCKER_PLATFORM := linux/arm64
-else
-$(error unsupported ARCH=$(ARCH) (expected amd64 or arm64))
-endif
+COMMON_DEPS := $(wildcard $(BUILDER_DIR)/common/*.config) $(wildcard $(BUILDER_DIR)/common/*.require)
 
 .PHONY: all clean
 
 all: $(OUT)/vmlinuz
 
-ifeq ($(BUILDER),docker)
-$(OUT)/vmlinuz: kernel.config kernel.require runtime.config runtime.require patches/series $(PATCH_DEPS) $(BUILDER_DIR)/build.py $(BUILDER_DIR)/Dockerfile
-else ifeq ($(BUILDER),qemu)
-$(OUT)/vmlinuz: kernel.config kernel.require runtime.config runtime.require patches/series $(PATCH_DEPS) $(BUILDER_DIR)/build.py $(BUILDER_DIR)/qemu-build.py
-else
-$(OUT)/vmlinuz: kernel.config kernel.require runtime.config runtime.require patches/series $(PATCH_DEPS) $(BUILDER_DIR)/build.py
-endif
-ifeq ($(BUILDER),docker)
-	docker build --platform $(DOCKER_PLATFORM) -t $(IMG) $(BUILDER_DIR)
+$(OUT)/vmlinuz: kernel.config kernel.require runtime.config runtime.require patches/series $(PATCH_DEPS) $(RUN) $(BUILDER_DIR)/build.py $(BUILDER_DIR)/ksource.py $(BUILDER_DIR)/qemu-build.py $(BUILDER_DIR)/Dockerfile $(COMMON_DEPS)
 	mkdir -p $(OUT)
-	docker run --rm --platform $(DOCKER_PLATFORM) \
-		-e LINUX_VERSION=$(KVER) \
-		-e ARCH=$(ARCH) \
-		-e PROFILE=$(PROFILE) \
-		-e SRC_DIR=/src \
-		-e OUT_DIR=/out \
-		-e MODULES=yes \
-		-e PATCHES_DIR=/src/patches \
-		$(if $(JOBS),-e JOBS=$(JOBS),) \
-		-v "$(BUILDER_DIR):/builder:ro" \
-		-v "$(CURDIR):/src:ro" \
-		-v "$(OUT):/out" \
-		$(IMG) python3 /builder/build.py
-else ifeq ($(BUILDER),qemu)
-	mkdir -p $(OUT)
-	python3 $(BUILDER_DIR)/qemu-build.py \
+	python3 $(RUN) \
+		--target runtime \
 		--arch $(ARCH) \
 		--profile $(PROFILE) \
-		--version $(KVER) \
+		--builder $(BUILDER) \
 		--src-dir gokrazy/kernel \
 		--out-dir $(OUT_REL) \
 		--builder-dir tools/kernel-builder \
-		--modules yes \
+		--common-dir tools/kernel-builder/common \
 		--patches-dir gokrazy/kernel/patches \
+		--modules yes \
 		$(if $(JOBS),--jobs $(JOBS),)
-else
-	$(error unsupported BUILDER=$(BUILDER) (expected docker or qemu))
-endif
 	@test -f $(OUT)/vmlinuz
 	@test -d $(OUT)/lib/modules
 

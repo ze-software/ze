@@ -12,7 +12,8 @@ import tarfile
 import urllib.request
 from pathlib import Path
 
-KERNEL_URL = "https://cdn.kernel.org/pub/linux/kernel"
+import ksource
+
 DEFAULT_WORK_DIR = Path("/build")
 DEFAULT_BUILD_DIR = Path("/tmp/kbuild")
 HARDWARE_KMS_PROFILE = "hardware-kms"
@@ -31,7 +32,7 @@ def validate_version(value: str) -> str:
         or value.endswith(".")
         or any(ch not in "0123456789." for ch in value)
     ):
-        fatal(f"unsupported LINUX_VERSION={value} (expected digits and dots)")
+        fatal(f"unsupported KERNEL_VERSION={value} (expected digits and dots)")
     major = int(value.split(".", 1)[0])
     if major < 7:
         fatal("kernel >= 7.0 required (L2TP_NETLINK removed, serial 8250 deps changed)")
@@ -128,7 +129,9 @@ def required_symbols_for_fragments(fragments: list[Path]) -> list[str]:
             if line.endswith("=y"):
                 line = line.removesuffix("=y")
             elif "=" in line:
-                fatal(f"{manifest}:{line_no} require entries must be CONFIG_SYMBOL or CONFIG_SYMBOL=y")
+                fatal(
+                    f"{manifest}:{line_no} require entries must be CONFIG_SYMBOL or CONFIG_SYMBOL=y"
+                )
             if not line.startswith("CONFIG_") or any(ch in line for ch in "/\\"):
                 fatal(f"{manifest}:{line_no} invalid required symbol {line!r}")
             if line not in seen:
@@ -137,7 +140,9 @@ def required_symbols_for_fragments(fragments: list[Path]) -> list[str]:
     return symbols
 
 
-def enforce_required_symbols(build_tree: Path, profile: str, fragments: list[Path]) -> None:
+def enforce_required_symbols(
+    build_tree: Path, profile: str, fragments: list[Path]
+) -> None:
     config = build_tree / ".config"
     require_file(config, "resolved kernel config")
     required = required_symbols_for_fragments(fragments)
@@ -150,7 +155,9 @@ def enforce_required_symbols(build_tree: Path, profile: str, fragments: list[Pat
             enabled.add(key)
     for symbol in required:
         if symbol not in enabled:
-            fatal(f"kernel profile {profile}: {symbol} did not resolve to =y in {config}")
+            fatal(
+                f"kernel profile {profile}: {symbol} did not resolve to =y in {config}"
+            )
 
 
 def safe_extract(tar: tarfile.TarFile, dest: Path) -> None:
@@ -163,14 +170,13 @@ def safe_extract(tar: tarfile.TarFile, dest: Path) -> None:
 
 
 def download_tarball(version: str, work_dir: Path) -> Path:
-    series = f"v{version.split('.', 1)[0]}.x"
-    tarball = f"linux-{version}.tar.xz"
+    tarball = ksource.tarball_name(version)
     path = work_dir / tarball
     if path.is_file():
         print(f">>> using pre-downloaded {tarball}")
         return path
 
-    url = f"{KERNEL_URL}/{series}/{tarball}"
+    url = ksource.tarball_url(version)
     tmp = path.with_suffix(path.suffix + ".part")
     print(f">>> downloading linux {version}")
     try:
@@ -236,18 +242,26 @@ def run_make(build_tree: Path, *args: str) -> None:
     subprocess.run(["make", *args], cwd=build_tree, check=True)
 
 
-def merge_config(build_tree: Path, kernel_arch: str, arch: str, profile: str, fragments: list[Path]) -> None:
+def merge_config(
+    build_tree: Path, kernel_arch: str, arch: str, profile: str, fragments: list[Path]
+) -> None:
     print(f">>> configuring (defconfig + resolved {profile} profile) for {arch}")
     run_make(build_tree, f"ARCH={kernel_arch}", "defconfig")
     merge = build_tree / "scripts/kconfig/merge_config.sh"
-    subprocess.run([str(merge), "-m", ".config", *[str(p) for p in fragments]], cwd=build_tree, check=True)
+    subprocess.run(
+        [str(merge), "-m", ".config", *[str(p) for p in fragments]],
+        cwd=build_tree,
+        check=True,
+    )
 
 
 def embed_firmware(build_tree: Path, profile: str, firmware_dir: Path | None) -> None:
     if profile != HARDWARE_KMS_PROFILE:
         return
     if firmware_dir is None:
-        fatal(f"profile {HARDWARE_KMS_PROFILE} requires --firmware-dir with {I915_FIRMWARE}")
+        fatal(
+            f"profile {HARDWARE_KMS_PROFILE} requires --firmware-dir with {I915_FIRMWARE}"
+        )
     blob = firmware_dir / I915_FIRMWARE
     require_file(blob, "firmware")
     print(f">>> embedding firmware from {firmware_dir}")
@@ -257,7 +271,9 @@ def embed_firmware(build_tree: Path, profile: str, firmware_dir: Path | None) ->
         config.write(f'CONFIG_EXTRA_FIRMWARE_DIR="{firmware_dir}"\n')
 
 
-def build_kernel(build_tree: Path, kernel_arch: str, make_target: str, jobs: str, modules: str) -> None:
+def build_kernel(
+    build_tree: Path, kernel_arch: str, make_target: str, jobs: str, modules: str
+) -> None:
     print(f">>> building {make_target} with -j{jobs} (modules={modules})")
     if modules == "yes":
         run_make(build_tree, f"ARCH={kernel_arch}", f"-j{jobs}", make_target, "modules")
@@ -265,9 +281,16 @@ def build_kernel(build_tree: Path, kernel_arch: str, make_target: str, jobs: str
         run_make(build_tree, f"ARCH={kernel_arch}", f"-j{jobs}", make_target)
 
 
-def copy_runtime_outputs(build_tree: Path, image_path: str, out_dir: Path, kernel_arch: str) -> None:
+def copy_runtime_outputs(
+    build_tree: Path, image_path: str, out_dir: Path, kernel_arch: str
+) -> None:
     shutil.copy2(build_tree / image_path, out_dir / "vmlinuz")
-    run_make(build_tree, f"ARCH={kernel_arch}", f"INSTALL_MOD_PATH={out_dir}", "modules_install")
+    run_make(
+        build_tree,
+        f"ARCH={kernel_arch}",
+        f"INSTALL_MOD_PATH={out_dir}",
+        "modules_install",
+    )
     modules_dir = out_dir / "lib/modules"
     if modules_dir.is_dir():
         for name in ("build", "source"):
@@ -308,8 +331,14 @@ def copy_installer_outputs(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build a Ze kernel from config fragments.")
-    parser.add_argument("--version", default=os.environ.get("LINUX_VERSION"), required="LINUX_VERSION" not in os.environ)
+    parser = argparse.ArgumentParser(
+        description="Build a Ze kernel from config fragments."
+    )
+    parser.add_argument(
+        "--version",
+        default=os.environ.get("KERNEL_VERSION"),
+        required="KERNEL_VERSION" not in os.environ,
+    )
     parser.add_argument("--arch", default=os.environ.get("ARCH", "arm64"))
     parser.add_argument("--profile", default=os.environ.get("PROFILE", "qemu"))
     parser.add_argument("--jobs", default=os.environ.get("JOBS", ""))
@@ -345,7 +374,9 @@ def main() -> int:
     build_dir = Path(os.environ.get("BUILD_DIR", str(DEFAULT_BUILD_DIR)))
     work_dir.mkdir(parents=True, exist_ok=True)
     tarball = download_tarball(version, work_dir)
-    build_tree = restore_or_extract_tree(version, profile, modules, patches_dir, work_dir, build_dir, tarball)
+    build_tree = restore_or_extract_tree(
+        version, profile, modules, patches_dir, work_dir, build_dir, tarball
+    )
     apply_patches(build_tree, patches_dir)
     merge_config(build_tree, kernel_arch, args.arch, profile, fragments)
     embed_firmware(build_tree, profile, firmware_dir)
@@ -358,7 +389,17 @@ def main() -> int:
     if modules == "yes":
         copy_runtime_outputs(build_tree, image_path, out_dir, kernel_arch)
     else:
-        copy_installer_outputs(build_tree, image_path, out_dir, work_dir, build_dir, version, profile, modules, patches_dir)
+        copy_installer_outputs(
+            build_tree,
+            image_path,
+            out_dir,
+            work_dir,
+            build_dir,
+            version,
+            profile,
+            modules,
+            patches_dir,
+        )
     return 0
 
 

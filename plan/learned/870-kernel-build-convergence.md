@@ -57,3 +57,15 @@ The runtime gokrazy kernel and the installer kernel had diverged into two build 
 - `test/install/kernel-wiring.ci`
 - `test/install/ze-kernel-overlay.ci`
 - `plan/spec-kernel-build-convergence.md`
+
+## Correction (kernel-build-consolidation)
+The `build.sh` referenced above (Decisions, and the Files entries
+`tools/kernel-builder/build.sh` / `tools/installer-kernel/build.sh`) was
+superseded by `tools/kernel-builder/build.py` in install-11; there is no longer
+a `build.sh`. The consolidation that followed also added a single driver
+`tools/kernel-builder/run.py` (docker/qemu selection + arch->platform map +
+the single build-time `kernel.version` reader), a shared `# ze-include` config
+fragment (`tools/kernel-builder/common/efi-console.config`), and removed the
+in-place pinned-modcache backup/restore (`gokrazy/modcache/.ze-pinned-kernel`)
+in favour of out-of-tree runtime-kernel consumption. The original decisions
+above are preserved as the historical record.

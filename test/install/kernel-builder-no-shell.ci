@@ -17,14 +17,24 @@ fi
 python3 - <<'PY'
 import ast
 import importlib.util
+import sys
 import tempfile
 from pathlib import Path
-for path in (Path('tools/kernel-builder/build.py'), Path('tools/kernel-builder/qemu-build.py')):
+# run.py is the single driver and must also be shell-free (R-5).
+for path in (
+    Path('tools/kernel-builder/build.py'),
+    Path('tools/kernel-builder/qemu-build.py'),
+    Path('tools/kernel-builder/run.py'),
+    Path('tools/kernel-builder/ksource.py'),
+):
     tree = ast.parse(path.read_text(), filename=str(path))
     for node in ast.walk(tree):
         if isinstance(node, ast.keyword) and node.arg == 'shell':
             raise SystemExit(f'{path}: subprocess shell argument is forbidden')
 
+# build.py imports its sibling ksource module, so the builder dir must be on
+# the path before importing it out of tree.
+sys.path.insert(0, "tools/kernel-builder")
 spec = importlib.util.spec_from_file_location("kernel_build", "tools/kernel-builder/build.py")
 module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None

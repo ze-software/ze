@@ -96,6 +96,102 @@ func TestResolveProfileFragments(t *testing.T) {
 	}
 }
 
+func TestResolveSharedInclude(t *testing.T) {
+	// VALIDATES: AC-3/AC-4/AC-5 expect `# ze-include: <name>` to pull a shared fragment
+	// from the common dir exactly once, and resolution to FAIL when the shared fragment is
+	// missing; a profile without the directive must not get it.
+	// PREVENTS: the shared efi-console subset silently dropping out of a kernel.
+	dir := t.TempDir()
+	t.Chdir(dir)
+	// srcDir and kernelCommonDir are both repo-relative in production; keep them
+	// relative here so the resolved fragment paths are consistent.
+	regAbs := filepath.Join(dir, "reg")
+	commonAbs := filepath.Join(dir, kernelCommonDir)
+	if err := os.MkdirAll(regAbs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(commonAbs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeKernelProfileFile(t, regAbs, "kernel", "CONFIG_BASE=y\n", "CONFIG_BASE\n")
+	writeKernelProfileFile(t, regAbs, "runtime", "# ze-include: efi-console\nCONFIG_RT=y\n", "CONFIG_RT\n")
+	writeKernelProfileFile(t, regAbs, "qemu", "CONFIG_Q=y\n", "CONFIG_Q\n")
+	writeKernelProfileFile(t, commonAbs, "efi-console", "CONFIG_SHARED=y\n", "# no required symbols\n")
+
+	got, err := resolveKernelProfile("reg", "runtime")
+	if err != nil {
+		t.Fatalf("resolveKernelProfile(runtime): %v", err)
+	}
+	incConfig := filepath.Join(kernelCommonDir, "efi-console.config")
+	if got.Fragments[len(got.Fragments)-1] != incConfig {
+		t.Fatalf("fragments = %#v, want %s appended last", got.Fragments, incConfig)
+	}
+	incRequire := filepath.Join(kernelCommonDir, "efi-console.require")
+	if got.Manifests[len(got.Manifests)-1] != incRequire {
+		t.Fatalf("manifests = %#v, want %s appended last", got.Manifests, incRequire)
+	}
+
+	// AC-5: a profile without the directive must NOT get the shared fragment.
+	qemu, err := resolveKernelProfile("reg", "qemu")
+	if err != nil {
+		t.Fatalf("resolveKernelProfile(qemu): %v", err)
+	}
+	for _, f := range qemu.Fragments {
+		if strings.Contains(f, "efi-console") {
+			t.Fatalf("qemu unexpectedly includes shared fragment: %#v", qemu.Fragments)
+		}
+	}
+
+	// Deduplication: an include in both base and profile is added once.
+	writeKernelProfileFile(t, regAbs, "kernel", "# ze-include: efi-console\nCONFIG_BASE=y\n", "CONFIG_BASE\n")
+	dedup, err := resolveKernelProfile("reg", "runtime")
+	if err != nil {
+		t.Fatalf("resolveKernelProfile(runtime) after dup include: %v", err)
+	}
+	count := 0
+	for _, f := range dedup.Fragments {
+		if f == incConfig {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("shared fragment appears %d times, want 1: %#v", count, dedup.Fragments)
+	}
+
+	// AC-4: deleting the shared fragment makes resolution FAIL at include-resolution.
+	if err := os.Remove(incConfig); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolveKernelProfile("reg", "runtime"); err == nil {
+		t.Fatal("expected resolution to fail when shared fragment is missing")
+	}
+}
+
+func TestResolveNestedIncludeRejected(t *testing.T) {
+	// VALIDATES: a shared fragment that itself declares # ze-include is rejected
+	// loudly (one level only), instead of the nested include being silently ignored.
+	dir := t.TempDir()
+	t.Chdir(dir)
+	regAbs := filepath.Join(dir, "reg")
+	commonAbs := filepath.Join(dir, kernelCommonDir)
+	if err := os.MkdirAll(regAbs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(commonAbs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeKernelProfileFile(t, regAbs, "kernel", "CONFIG_BASE=y\n", "CONFIG_BASE\n")
+	writeKernelProfileFile(t, regAbs, "runtime", "# ze-include: efi-console\nCONFIG_RT=y\n", "CONFIG_RT\n")
+	// The shared fragment itself declares a (nested) include.
+	writeKernelProfileFile(t, commonAbs, "efi-console", "# ze-include: more\nCONFIG_SHARED=y\n", "# none\n")
+	writeKernelProfileFile(t, commonAbs, "more", "CONFIG_MORE=y\n", "# none\n")
+
+	_, err := resolveKernelProfile("reg", "runtime")
+	if err == nil || !strings.Contains(err.Error(), "nested includes are not supported") {
+		t.Fatalf("nested include error = %v, want 'nested includes are not supported'", err)
+	}
+}
+
 func TestResolveProfileRequiresManifest(t *testing.T) {
 	// VALIDATES: AC-4 expects a .config without matching .require to fail resolution.
 	// PREVENTS: unverified custom profiles entering the kernel build path.

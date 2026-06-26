@@ -34,7 +34,9 @@ cleanup() {
 	fi
 }
 trap cleanup EXIT
-cat "$base" "$runtime" > "$combined"
+# The runtime profile pulls in the shared efi-console fragment via # ze-include,
+# so the composed view must include it (DRM_SIMPLEDRM / X86_SYSFB live there now).
+cat "$base" "$runtime" tools/kernel-builder/common/efi-console.config > "$combined"
 
 require_enabled() {
 	opt=$1
@@ -116,6 +118,9 @@ cat > tools/installer-kernel/compose-fixture.config <<'EOF_CONFIG'
 CONFIG_COMPOSE_FIXTURE=y
 EOF_CONFIG
 printf 'CONFIG_COMPOSE_FIXTURE\n' > tools/installer-kernel/compose-fixture.require
+# // test-relax: run.py passes the profile to build.py as `--profile <name>` rather
+# than the old `-e PROFILE=<name>` docker env, so the fake docker detects it from
+# the --profile argument now.
 cat > "$work/fakebin/docker" <<'EOF_DOCKER'
 #!/bin/sh
 set -eu
@@ -123,10 +128,8 @@ if [ "$1" = run ]; then
 	prev=
 	profile=qemu
 	for arg in "$@"; do
-		if [ "$prev" = -e ]; then
-			case "$arg" in
-				PROFILE=*) profile=${arg#PROFILE=} ;;
-			esac
+		if [ "$prev" = --profile ]; then
+			profile=$arg
 		fi
 		if [ "$prev" = -v ]; then
 			case "$arg" in

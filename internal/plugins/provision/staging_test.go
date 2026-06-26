@@ -67,6 +67,36 @@ func TestProvisionStaging(t *testing.T) {
 	}
 }
 
+func TestStagedKernelNameConstant(t *testing.T) {
+	t.Parallel()
+	// VALIDATES: AC-12 expects the staged kernel filename to be one package-local
+	// constant, wired into both the staging copy and the bootArtifactNames slice.
+	// PREVENTS: the bare "vmlinuz" literal drifting between the copy and the validator.
+	if stagedKernelName != "vmlinuz" {
+		t.Fatalf("stagedKernelName = %q, want vmlinuz (gok/staging boot-artifact name must not change)", stagedKernelName)
+	}
+	if bootArtifactNames[0] != stagedKernelName {
+		t.Errorf("bootArtifactNames[0] = %q, want it sourced from stagedKernelName %q", bootArtifactNames[0], stagedKernelName)
+	}
+	if bootArtifactNames[1] != stagedInitrdName {
+		t.Errorf("bootArtifactNames[1] = %q, want it sourced from stagedInitrdName %q", bootArtifactNames[1], stagedInitrdName)
+	}
+
+	// The staged file lands under the constant name.
+	srcDir := t.TempDir()
+	kernelPath := filepath.Join(srcDir, "Image")
+	if err := os.WriteFile(kernelPath, []byte("K"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bd := filepath.Join(t.TempDir(), "boot")
+	if err := stageArtifacts(stagingConfig{KernelPath: kernelPath, BootDir: bd, TFTPDir: filepath.Join(t.TempDir(), "tftp")}); err != nil {
+		t.Fatalf("stageArtifacts: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(bd, stagedKernelName)); err != nil {
+		t.Errorf("kernel not staged as %q: %v", stagedKernelName, err)
+	}
+}
+
 func TestProvisionStagingMissing(t *testing.T) {
 	t.Parallel()
 

@@ -546,22 +546,31 @@ Real failures exit non-zero.
 
 | File | What it verifies |
 |------|------------------|
-| `appliance-kernel-auto-docker.ci` | `ze appliance kernel` without `--builder` prefers Docker over an available QEMU backend and writes the installer artifact into both `tools/installer-kernel/build/` and the XDG cache |
-| `appliance-kernel-auto-qemu.ci` | `ze appliance kernel` without `--builder` falls back to QEMU when Docker is unavailable and still writes the installer artifact into both `tools/installer-kernel/build/` and the XDG cache |
-| `appliance-kernel-docker.ci` | `ze appliance kernel --builder docker` reaches the shared builder, writes `tools/installer-kernel/build/{Image,config}`, and stores the same artifact under the XDG installer-kernel cache |
-| `appliance-kernel-qemu.ci` | `ze appliance kernel --builder qemu` reaches `tools/kernel-builder/qemu-build.py`, passes explicit builder/src/out dirs, writes `tools/installer-kernel/build/{Image,config}`, and stores the same artifact under the XDG installer-kernel cache |
+| `appliance-kernel-auto-docker.ci` | `ze appliance kernel` without `--builder` delegates to `run.py`, which prefers Docker, and writes the installer artifact into both `tools/installer-kernel/build/` and the XDG cache |
+| `appliance-kernel-auto-qemu.ci` | `run.py`'s `select_builder` implements the docker-first / qemu-fallback auto-selection (moved out of Go) |
+| `appliance-kernel-docker.ci` | `ze appliance kernel --builder docker` delegates to `run.py`, which drives Docker → `build.py` with the resolved `--fragment` list, writes `tools/installer-kernel/build/{Image,config,kernel.version}`, and stores the same artifact under the XDG cache |
+| `appliance-kernel-qemu.ci` | `ze appliance kernel --builder qemu` delegates to `run.py`, which selects QEMU and invokes `qemu-build.py` with the resolved fragments (including the shared `efi-console` fragment for the hardware profile) |
+| `appliance-kernel-runtime.ci` | `ze appliance kernel --target runtime` resolves the runtime registry, enforces the runtime floor, and caches the runtime TREE (vmlinuz + lib/modules) under a `target=runtime` cache dir |
 | `appliance-push-image-escape.ci` | `ze appliance push` rejects `--image` candidates that escape the appliance directory before network or TLS work |
 | `appliance-iso-default-paths.ci` | `ze appliance iso` succeeds with default kernel/initrd artifact paths and stages those files into the installer tree |
 | `appliance-iso-arm64.ci` | `ze appliance iso` emits arm64 UEFI staging assets and arm64 kernel console settings when `image.arch=arm64` |
 | `initrd-flow.ci` | Shell tests for cmdline parsing, disk selection, ISO media discovery, and checksum-protected image writes |
-| `kernel-compose.ci` | Runtime `gokrazy/kernel/{kernel.config,runtime.config}` fragments keep required built-in options and exclude removed Kconfig symbols before any real build runs |
+| `kernel-builder-single-driver.ci` | A single shared driver (`tools/kernel-builder/run.py`) replaces the docker/qemu invocation; no Makefile or Go file invokes docker/qemu/build.py directly (AC-1) |
+| `kernel-arch-mapping-single.ci` | The arch → docker platform mapping appears exactly once, in `run.py` (AC-2) |
+| `kernel-shared-fragment.ci` | The six shared console symbols are single-sourced in `common/efi-console.config` and pulled into runtime + hardware via `# ze-include`, absent from qemu; the python resolver expands it (AC-3/AC-5) |
+| `kernel-compose.ci` | Runtime fragments (base + runtime + the shared `efi-console` fragment) keep required built-in options and exclude removed Kconfig symbols before any real build runs |
 | `kernel-qemu-arch-alias.ci` | `tools/kernel-builder/qemu-build.py` accepts `aarch64` as an alias for `arm64` and continues to later path validation |
 | `kernel-builder-packages.ci` | Shared runtime builder package lists include host tools needed for `CONFIG_KERNEL_ZSTD=y` images and `modules_install` output (`zstd`, `kmod`) in both Docker and QEMU backends |
-| `kernel-runtime-deps.ci` | `gokrazy/kernel/Makefile` treats builder scripts, Dockerfile, and tracked patches as rebuild inputs for runtime kernel artifacts |
-| `kernel-wiring.ci` | Installer and runtime Makefiles delegate Docker/QEMU builds to `tools/kernel-builder/` with the expected mounts, env vars, and repo-relative path flags |
+| `kernel-builder-no-shell.ci` | `build.py`/`qemu-build.py`/`run.py`/`ksource.py` use no `shell=` subprocess argument; `enforce_required_symbols` + `embed_firmware` behave |
+| `kernel-runtime-deps.ci` | `gokrazy/kernel/Makefile` treats the builder scripts (incl. `run.py`, `ksource.py`), the shared fragment, Dockerfile, and tracked patches as rebuild inputs |
+| `kernel-tarball-dedup.ci` | The `cdn.kernel.org` URL + `vN.x` series construction lives only in `ksource.py`, imported by both `build.py` and `qemu-build.py` (AC-11) |
+| `kernel-version-single-reader.ci` | No Makefile reads `kernel.version`; one variable name (`KERNEL_VERSION`) at the builder env boundary; `run.py` self-locates the version file (AC-14/AC-15) |
+| `kernel-version-provenance.ci` | Every build emits a `build/kernel.version` provenance sidecar; a malformed or pre-7 version is rejected before any build (AC-16/AC-17) |
+| `kernel-wiring.ci` | Installer and runtime Makefiles delegate the build to `tools/kernel-builder/run.py` (no inline docker/qemu) |
+| `ze-kernel-no-modcache-mutation.ci` | `make ze-kernel` consumes the runtime kernel out-of-tree via a go.mod replace and never mutates the pinned modcache or creates `.ze-pinned-kernel` (AC-9/AC-10) |
 | `qemu-full.ci` | PXE installer path writes the image, injects ZeFS, boots the written disk, and authenticates |
 | `qemu-iso.ci` | Appliance ISO path writes the embedded image unchanged, skips PXE ZeFS injection, powers off safely, boots the written disk, and authenticates |
-| `ze-kernel-overlay.ci` | Default `make ze-kernel` uses the docker runtime builder, overlays `vmlinuz`, modules, DTBs, and overlays into the gokrazy kernel modcache, and `make ze-kernel-clean` restores the pinned copy |
+| `ze-kernel-overlay.ci` | `make ze-kernel` builds the runtime kernel via `run.py` and assembles it into an out-of-tree package (`tmp/kernel/pkg`) consumed via a go.mod replace, with the pinned modcache untouched |
 
 Run the install suite with `bin/ze-test install --all`. For exhaustive QEMU
 entry points, use `make ze-install-qemu-test` for PXE and
@@ -575,7 +584,12 @@ entry points, use `make ze-install-qemu-test` for PXE and
 <!-- source: test/install/kernel-qemu-arch-alias.ci -- qemu arch alias validation -->
 <!-- source: test/install/kernel-runtime-deps.ci -- runtime makefile dependency coverage -->
 <!-- source: test/install/kernel-wiring.ci -- shared builder delegation -->
-<!-- source: test/install/ze-kernel-overlay.ci -- ze-kernel default docker overlay and restore -->
+<!-- source: test/install/kernel-builder-single-driver.ci -- single run.py driver -->
+<!-- source: test/install/kernel-shared-fragment.ci -- ze-include shared fragment -->
+<!-- source: test/install/appliance-kernel-runtime.ci -- runtime verified path -->
+<!-- source: test/install/kernel-version-provenance.ci -- provenance sidecar + version validation -->
+<!-- source: test/install/ze-kernel-no-modcache-mutation.ci -- out-of-tree consumption -->
+<!-- source: test/install/ze-kernel-overlay.ci -- ze-kernel out-of-tree package + go.mod replace -->
 <!-- source: mk/test-integration.mk -- ze-install-qemu-test, ze-install-iso-qemu-test -->
 
 ### IS-IS Tests (`test/isis/`)
@@ -1693,6 +1707,8 @@ appliance route inject/withdraw logs.
 | Unknown field | `test/parse/l2tp-unknown-field.ci` | Unknown key rejected with suggestion |
 | Max sessions | `test/parse/l2tp-max-sessions.ci` | `max-sessions` value accepted |
 | Auth policy | `test/parse/l2tp-auth-policy.ci` | `auth-method` and `allow-no-auth` values accepted |
+| Hello retries | `test/parse/l2tp-hello-retries-parse.ci` | `hello-retries` (dead-peer threshold) accepted |
+| Hello retries range | `test/parse/l2tp-hello-retries-range.ci` | `hello-retries 256` rejected (uint8 range) |
 
 <!-- source: internal/test/cli/register.go -- l2tpCmd runner dispatch -->
 <!-- source: internal/test/runner/record_parse.go -- .ci discovery and directive parsing -->

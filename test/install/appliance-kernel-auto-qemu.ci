@@ -1,5 +1,11 @@
-# Test: ze appliance kernel without --builder falls back to QEMU when Docker is
-# unavailable but QEMU prerequisites are present.
+# Test: run.py owns the docker-first / qemu-fallback builder auto-selection that Go
+# used to do. When docker is unavailable, the auto path selects qemu; when docker
+# is available, it selects docker.
+#
+# // test-relax: kernel-build-consolidation moved builder auto-selection out of Go
+# (selectBuilder) into tools/kernel-builder/run.py. The old test faked Go's
+# docker/qemu *CheckFn; this asserts run.py's select_builder directly, which is
+# where the docker-first/qemu-fallback behaviour now lives.
 
 option=timeout:value=20s
 
@@ -7,103 +13,43 @@ tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
 set -eu
 
-work=$PWD
-ze_bin=$(command -v ze)
-repo=$(CDPATH= cd -- "$(dirname -- "$ze_bin")/.." && pwd)
+repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
 cd "$repo"
 
-orig_image=
-orig_config=
-cleanup() {
-	set +e
-	if [ -n "$orig_image" ]; then
-		cp "$orig_image" tools/installer-kernel/build/Image
-	else
-		rm -f tools/installer-kernel/build/Image
-	fi
-	if [ -n "$orig_config" ]; then
-		cp "$orig_config" tools/installer-kernel/build/config
-	else
-		rm -f tools/installer-kernel/build/config
-	fi
-}
-trap cleanup EXIT
+python3 - <<'PY'
+import sys
+sys.path.insert(0, "tools/kernel-builder")
+import run
 
-mkdir -p "$work/fakebin" "$work/cache" tools/installer-kernel/build
-if [ -f tools/installer-kernel/build/Image ]; then
-	orig_image="$work/original-image"
-	cp tools/installer-kernel/build/Image "$orig_image"
-fi
-if [ -f tools/installer-kernel/build/config ]; then
-	orig_config="$work/original-config"
-	cp tools/installer-kernel/build/config "$orig_config"
-fi
-rm -f tools/installer-kernel/build/Image tools/installer-kernel/build/config
+# Auto-select with docker available -> docker (docker-first).
+run.docker_available = lambda: True
+run.qemu_available = lambda arch: True
+assert run.select_builder("", "arm64") == "docker", "auto should prefer docker"
 
-cat > "$work/fakebin/python3" <<'EOF_PY'
-#!/bin/sh
-set -eu
-PATH=/bin:/usr/bin
-printf '%s\n' "$*" >> "$ZE_PYTHON_LOG"
-out=
-prev=
-for arg in "$@"; do
-	if [ "$prev" = '--out-dir' ]; then
-		out=$arg
-	fi
-	prev=$arg
-done
-[ -n "$out" ]
-mkdir -p "$out"
-printf 'qemu-installer-kernel\n' > "$out/Image"
-cat > "$out/config" <<'EOF_CONFIG'
-CONFIG_IP_PNP_DHCP=y
-CONFIG_EXT4_FS=y
-CONFIG_BLK_DEV_INITRD=y
-CONFIG_DEVTMPFS_MOUNT=y
-CONFIG_EFI=y
-CONFIG_EFI_STUB=y
-CONFIG_FB_EFI=y
-CONFIG_FRAMEBUFFER_CONSOLE=y
-CONFIG_E1000E=y
-CONFIG_IGB=y
-CONFIG_IGC=y
-CONFIG_R8169=y
-CONFIG_SATA_AHCI=y
-CONFIG_BLK_DEV_NVME=y
-CONFIG_BLK_DEV_LOOP=y
-CONFIG_VFAT_FS=y
-CONFIG_EXFAT_FS=y
-EOF_CONFIG
-EOF_PY
-chmod +x "$work/fakebin/python3"
+# Auto-select with docker unavailable, qemu available -> qemu fallback.
+run.docker_available = lambda: False
+run.qemu_available = lambda arch: True
+assert run.select_builder("", "arm64") == "qemu", "auto should fall back to qemu"
 
-cat > "$work/fakebin/qemu-system-aarch64" <<'EOF_QEMU'
-#!/bin/sh
-exit 0
-EOF_QEMU
-chmod +x "$work/fakebin/qemu-system-aarch64"
+# Explicit qemu honoured.
+assert run.select_builder("qemu", "arm64") == "qemu"
+# Explicit docker honoured.
+run.docker_available = lambda: True
+assert run.select_builder("docker", "amd64") == "docker"
 
-PATH="$work/fakebin" \
-XDG_CACHE_HOME="$work/cache" \
-ZE_PYTHON_LOG="$work/python.log" \
-"$ze_bin" appliance kernel --arch arm64 --profile hardware >"$work/stdout" 2>"$work/stderr"
+# No builder available -> fatal (SystemExit 2).
+run.docker_available = lambda: False
+run.qemu_available = lambda arch: False
+try:
+    run.select_builder("", "arm64")
+    raise SystemExit("expected no-builder failure")
+except SystemExit as e:
+    if e.code != 2:
+        raise
+print("PYOK")
+PY
 
-grep -q 'building kernel with qemu' "$work/stdout"
-grep -q 'kernel ready:' "$work/stdout"
-[ "$(cat tools/installer-kernel/build/Image)" = 'qemu-installer-kernel' ]
-grep -q '^CONFIG_EFI=y$' tools/installer-kernel/build/config
-cache_image=$(find "$work/cache" -path '*/installer-kernel/*/Image' -print | head -n 1)
-[ -n "$cache_image" ]
-[ "$(cat "$cache_image")" = 'qemu-installer-kernel' ]
-grep -q -- 'tools/kernel-builder/qemu-build.py' "$work/python.log"
-grep -q -- '--builder-dir tools/kernel-builder' "$work/python.log"
-grep -q -- '--src-dir tools/installer-kernel' "$work/python.log"
-grep -q -- '--out-dir tools/installer-kernel/build' "$work/python.log"
-grep -q -- '--fragment tools/installer-kernel/kernel.config' "$work/python.log"
-grep -q -- '--fragment tools/installer-kernel/hardware.config' "$work/python.log"
-
-echo OK
+printf 'OK\n'
 EOF_SH
 
 cmd=foreground:seq=1:exec=sh run.sh

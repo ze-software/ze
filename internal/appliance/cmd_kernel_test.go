@@ -18,6 +18,25 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
+// test-relax: kernel-build-consolidation collapsed Go-side builder selection
+// (selectBuilder, defaultDockerBuild, defaultQEMUBuild, dockerPlatform, the
+// docker/qemu *CheckFn/*BuildFn seams) into the single tools/kernel-builder/run.py
+// driver. The tests that exercised that removed Go logic (TestSelectBuilder*,
+// TestKernelFallsBackToDocker/QEMU, TestKernelFailsWithoutBuilders,
+// TestDockerBuildMountsSharedBuilder, TestQEMUBuildPassesBuilderDir) are gone;
+// builder selection is now covered by run.py and the appliance-kernel-*.ci
+// functional tests, and the Go->run.py argv contract by TestRunBuilderArgvDocker
+// and TestRunBuilderArgvRuntime below.
+
+// fakeInstallerConfig covers every symbol in the test installer registry
+// manifests plus the universal floor, so a fake build's emitted config passes
+// enforcement for any installer profile.
+const fakeInstallerConfig = "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n" +
+	"CONFIG_VIRTIO_NET=y\nCONFIG_VIRTIO_BLK=y\n" +
+	"CONFIG_EFI=y\nCONFIG_EFI_STUB=y\nCONFIG_FB_EFI=y\nCONFIG_FRAMEBUFFER_CONSOLE=y\n" +
+	"CONFIG_E1000E=y\nCONFIG_IGB=y\nCONFIG_IGC=y\nCONFIG_R8169=y\nCONFIG_SATA_AHCI=y\n" +
+	"CONFIG_BLK_DEV_NVME=y\nCONFIG_BLK_DEV_LOOP=y\nCONFIG_VFAT_FS=y\nCONFIG_EXFAT_FS=y\n"
+
 func kernelTestServer(t *testing.T, content []byte, checksumHex string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -41,18 +60,26 @@ func setTestHTTP(t *testing.T, fn func(string) (*http.Response, error)) {
 	t.Cleanup(func() { httpGetFn = old })
 }
 
-func setTestQEMUCheck(t *testing.T, fn func() error) {
+// setTestKernelBuild substitutes the shared-driver invocation so unit tests
+// exercise resolveKernel without docker or qemu.
+func setTestKernelBuild(t *testing.T, fn func(kernelBuildSpec) error) {
 	t.Helper()
-	old := kernelQEMUCheckFn
-	kernelQEMUCheckFn = fn
-	t.Cleanup(func() { kernelQEMUCheckFn = old })
+	old := kernelBuildFn
+	kernelBuildFn = fn
+	t.Cleanup(func() { kernelBuildFn = old })
 }
 
-func setTestQEMUBuild(t *testing.T, fn func(string, string, string, string) error) {
-	t.Helper()
-	old := kernelQEMUBuildFn
-	kernelQEMUBuildFn = fn
-	t.Cleanup(func() { kernelQEMUBuildFn = old })
+// fakeInstallerBuild writes an installer Image + config that passes enforcement.
+func fakeInstallerBuild(content string) func(kernelBuildSpec) error {
+	return func(spec kernelBuildSpec) error {
+		if err := os.MkdirAll(spec.outDir, 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(spec.outDir, "Image"), []byte(content), 0o644); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(spec.outDir, "config"), []byte(fakeInstallerConfig), 0o644)
+	}
 }
 
 func writeInstallerKernelRegistry(t *testing.T) {
@@ -73,12 +100,55 @@ func writeInstallerKernelRegistry(t *testing.T) {
 		filepath.Join(configDir, "hardware.config"):  "CONFIG_EFI=y\nCONFIG_EFI_STUB=y\nCONFIG_FB_EFI=y\nCONFIG_FRAMEBUFFER_CONSOLE=y\nCONFIG_E1000E=y\nCONFIG_IGB=y\nCONFIG_IGC=y\nCONFIG_R8169=y\nCONFIG_SATA_AHCI=y\nCONFIG_BLK_DEV_NVME=y\nCONFIG_BLK_DEV_LOOP=y\nCONFIG_VFAT_FS=y\nCONFIG_EXFAT_FS=y\n",
 		filepath.Join(configDir, "hardware.require"): "CONFIG_EFI\nCONFIG_EFI_STUB\nCONFIG_FB_EFI\nCONFIG_FRAMEBUFFER_CONSOLE\nCONFIG_E1000E\nCONFIG_IGB\nCONFIG_IGC\nCONFIG_R8169\nCONFIG_SATA_AHCI\nCONFIG_BLK_DEV_NVME\nCONFIG_BLK_DEV_LOOP\nCONFIG_VFAT_FS\nCONFIG_EXFAT_FS\n",
 		filepath.Join(builderDir, "build.py"):        "#!/usr/bin/env python3\n",
+		filepath.Join(builderDir, "run.py"):          "#!/usr/bin/env python3\n",
+		filepath.Join(builderDir, "ksource.py"):      "#!/usr/bin/env python3\n",
 	}
 	for path, content := range files {
 		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
+}
+
+// writeRuntimeKernelRegistry lays down a minimal runtime registry under
+// gokrazy/kernel so resolveKernel(runtime) resolves and enforces.
+func writeRuntimeKernelRegistry(t *testing.T) {
+	t.Helper()
+	dir := runtimeKernelConfigDir
+	if err := os.MkdirAll(filepath.Join(dir, "patches"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(kernelBuilderDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		filepath.Join(dir, "kernel.config"):         "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n",
+		filepath.Join(dir, "kernel.require"):        "CONFIG_IP_PNP_DHCP\nCONFIG_EXT4_FS\nCONFIG_BLK_DEV_INITRD\nCONFIG_DEVTMPFS_MOUNT\n",
+		filepath.Join(dir, "runtime.config"):        "CONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_PPPOE=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\n",
+		filepath.Join(dir, "runtime.require"):       "CONFIG_MODULES\nCONFIG_VETH\n",
+		filepath.Join(kernelBuilderDir, "build.py"): "#!/usr/bin/env python3\n",
+	}
+	for path, content := range files {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+const fakeRuntimeConfig = "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n" +
+	"CONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_PPPOE=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\n"
+
+func fakeRuntimeBuild(spec kernelBuildSpec) error {
+	if err := os.MkdirAll(filepath.Join(spec.outDir, "lib", "modules", "7.1.1-ze"), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(spec.outDir, "vmlinuz"), []byte("runtime-vmlinuz"), 0o644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(spec.outDir, "lib", "modules", "7.1.1-ze", "modules.dep"), []byte(""), 0o644); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(spec.outDir, "config"), []byte(fakeRuntimeConfig), 0o644)
 }
 
 func TestRunDispatchesKernel(t *testing.T) {
@@ -104,7 +174,7 @@ func TestKernelResolvesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel(version, arch, defaultKernelProfile, "")
+	got, err := resolveKernel(version, arch, defaultKernelProfile, "", kernelTargetInstaller)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -129,7 +199,7 @@ func TestKernelCacheHitCopiesToToolsPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := resolveKernel(version, archAMD64, "hardware", ""); err != nil {
+	if _, err := resolveKernel(version, archAMD64, "hardware", "", kernelTargetInstaller); err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
 
@@ -158,7 +228,7 @@ func TestKernelDownloadsAndCaches(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL)
 	env.ResetCache()
 
-	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
+	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -187,59 +257,11 @@ func TestKernelDownloadChecksumMismatch(t *testing.T) {
 	setTestHTTP(t, srv.Client().Get)
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL)
 
-	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
+	setTestKernelBuild(t, func(kernelBuildSpec) error { return errors.New("no builder available") })
 
-	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
+	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller)
 	if err == nil {
-		t.Fatal("expected error from checksum mismatch + no QEMU fallback")
-	}
-}
-
-func TestKernelFallsBackToQEMU(t *testing.T) {
-	t.Chdir(t.TempDir())
-	writeInstallerKernelRegistry(t)
-	cacheDir := t.TempDir()
-	t.Setenv("XDG_CACHE_HOME", cacheDir)
-
-	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
-	setTestDockerCheck(t, func() error { return errors.New("no docker") })
-	setTestQEMUCheck(t, func() error { return nil })
-	setTestQEMUBuild(t, func(version, arch, profile, destPath string) error {
-		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-			return err
-		}
-		return os.WriteFile(destPath, []byte("qemu-built-kernel"), 0o644)
-	})
-
-	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
-	if err != nil {
-		t.Fatalf("resolveKernel: %v", err)
-	}
-	data, err := os.ReadFile(got)
-	if err != nil {
-		t.Fatalf("read: %v", err)
-	}
-	if string(data) != "qemu-built-kernel" {
-		t.Errorf("content = %q, want qemu-built-kernel", data)
-	}
-}
-
-func TestKernelFailsWithoutBuilders(t *testing.T) {
-	t.Chdir(t.TempDir())
-	writeInstallerKernelRegistry(t)
-	cacheDir := t.TempDir()
-	t.Setenv("XDG_CACHE_HOME", cacheDir)
-
-	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
-	setTestDockerCheck(t, func() error { return errors.New("docker not found") })
-	setTestQEMUCheck(t, func() error { return errors.New("qemu not found") })
-
-	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
-	if err == nil {
-		t.Fatal("expected error when both download and builders fail")
-	}
-	if !strings.Contains(err.Error(), "no builder available") {
-		t.Errorf("error should mention no builder available, got: %v", err)
+		t.Fatal("expected error from checksum mismatch + failed build fallback")
 	}
 }
 
@@ -257,24 +279,38 @@ func TestKernelProfileFlag(t *testing.T) {
 	}
 }
 
+func TestKernelBuilderFlag(t *testing.T) {
+	code := runKernel([]string{"--builder", "invalid"})
+	if code != exitError {
+		t.Errorf("runKernel(--builder invalid) = %d, want %d", code, exitError)
+	}
+}
+
+func TestKernelTargetFlag(t *testing.T) {
+	code := runKernel([]string{"--target", "bogus"})
+	if code != exitError {
+		t.Errorf("runKernel(--target bogus) = %d, want %d", code, exitError)
+	}
+}
+
 func TestKernelVersionFlag(t *testing.T) {
 	t.Chdir(t.TempDir())
 	writeInstallerKernelRegistry(t)
 	cacheDir := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
-	version := "6.12.9"
+	version := "7.0.5"
 	cached := kernelCachePath(version, kernelCacheVariant(archAMD64, defaultKernelProfile))
 	if err := os.MkdirAll(filepath.Dir(cached), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(cached, []byte("kernel-6.12.9"), 0o644); err != nil {
+	if err := os.WriteFile(cached, []byte("kernel-7.0.5"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	code := runKernel([]string{"--version", version, "--arch", archAMD64})
 	if code != exitOK {
-		t.Errorf("runKernel(--version 6.12.9) = %d, want %d", code, exitOK)
+		t.Errorf("runKernel(--version 7.0.5) = %d, want %d", code, exitOK)
 	}
 }
 
@@ -285,21 +321,18 @@ func TestKernelCopiesToToolsPath(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("no network") })
-	setTestDockerCheck(t, func() error { return errors.New("no docker") })
-	setTestQEMUCheck(t, func() error { return nil })
-	setTestQEMUBuild(t, func(version, arch, profile, destPath string) error {
-		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-			return err
-		}
-		return os.WriteFile(destPath, []byte("built-kernel"), 0o644)
-	})
+	setTestKernelBuild(t, fakeInstallerBuild("built-kernel"))
 
-	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
+	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
 	if _, err := os.Stat(got); err != nil {
 		t.Errorf("cached kernel not at %q: %v", got, err)
+	}
+	toolsPath := filepath.Join(kernelInstallerOutputDir, kernelFileName)
+	if _, err := os.Stat(toolsPath); err != nil {
+		t.Errorf("tools path %q not written: %v", toolsPath, err)
 	}
 }
 
@@ -336,9 +369,6 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Pre-cache at the host arch too, so exit code alone can't prove the config was read.
-	// If runKernel ignores the config and falls back to runtime.GOARCH, it would find this
-	// cache entry and succeed -- but the output path would not contain "amd64".
 	hostCached := kernelCachePath(defaultKernelVersion, kernelCacheVariant(runtime.GOARCH, defaultKernelProfile))
 	if hostCached != cached {
 		if err := os.MkdirAll(filepath.Dir(hostCached), 0o755); err != nil {
@@ -366,7 +396,9 @@ func TestKernelReadsArchFromAppliance(t *testing.T) {
 	n, _ := r.Read(buf)
 	output := string(buf[:n])
 
-	want := defaultKernelVersion + "-" + archAMD64
+	// The cache variant embeds the target then the arch; amd64 (from the
+	// appliance config) must win over the host arch.
+	want := kernelTargetInstaller + "-" + archAMD64
 	if !strings.Contains(output, want) {
 		t.Fatalf("expected output to contain %q, got %q", want, output)
 	}
@@ -425,6 +457,9 @@ func TestKernelReadsProfileFromAppliance(t *testing.T) {
 	if !strings.Contains(output, "profile=hardware") {
 		t.Errorf("expected output to mention profile=hardware, got %q", output)
 	}
+	if !strings.Contains(output, "target=installer") {
+		t.Errorf("expected output to mention target=installer, got %q", output)
+	}
 }
 
 func TestKernelConfigHashInvalidatesCache(t *testing.T) {
@@ -448,7 +483,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
+	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller)
 	if err != nil {
 		t.Fatalf("resolveKernel before config change: %v", err)
 	}
@@ -465,16 +500,10 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatal("config change did not change cache variant")
 	}
 
-	setTestDockerCheck(t, func() error { return errors.New("no docker") })
-	setTestQEMUCheck(t, func() error { return nil })
-	setTestQEMUBuild(t, func(version, arch, profile, destPath string) error {
-		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-			return err
-		}
-		return os.WriteFile(destPath, []byte("kernel-v2"), 0o644)
-	})
+	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("no network") })
+	setTestKernelBuild(t, fakeInstallerBuild("kernel-v2"))
 
-	got2, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
+	got2, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller)
 	if err != nil {
 		t.Fatalf("resolveKernel after config change: %v", err)
 	}
@@ -542,7 +571,7 @@ func TestKernelEnvURL(t *testing.T) {
 	t.Setenv("ZE_APPLIANCE_KERNEL_URL", srv.URL+"/custom-base")
 	env.ResetCache()
 
-	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
+	_, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "", kernelTargetInstaller)
 	if err != nil {
 		t.Fatalf("resolveKernel: %v", err)
 	}
@@ -551,339 +580,90 @@ func TestKernelEnvURL(t *testing.T) {
 	}
 }
 
-func setTestDockerCheck(t *testing.T, fn func() error) {
-	t.Helper()
-	old := kernelDockerCheckFn
-	kernelDockerCheckFn = fn
-	t.Cleanup(func() { kernelDockerCheckFn = old })
-}
-
-func setTestDockerBuild(t *testing.T, fn func(string, string, string, string) error) {
-	t.Helper()
-	old := kernelDockerBuildFn
-	kernelDockerBuildFn = fn
-	t.Cleanup(func() { kernelDockerBuildFn = old })
-}
-
-func TestSelectBuilderExplicitDocker(t *testing.T) {
-	setTestDockerCheck(t, func() error { return nil })
-	setTestDockerBuild(t, func(_, _, _, _ string) error { return nil })
-
-	fn, name, err := selectBuilder(builderDocker)
+func TestTargetSelectsRegistryDir(t *testing.T) {
+	// VALIDATES: --target runtime resolves gokrazy/kernel, default installer resolves tools/installer-kernel.
+	// PREVENTS: the runtime verified path silently building from the installer registry.
+	installer, err := kernelTargetFor(kernelTargetInstaller)
 	if err != nil {
-		t.Fatalf("selectBuilder(docker): %v", err)
+		t.Fatal(err)
 	}
-	if name != builderDocker {
-		t.Errorf("name = %q, want %q", name, builderDocker)
+	if installer.configDir != kernelInstallerConfigDir || installer.isTree || installer.modules != "no" {
+		t.Errorf("installer target = %+v", installer)
 	}
-	if fn == nil {
-		t.Fatal("build function is nil")
-	}
-}
-
-func TestSelectBuilderExplicitDockerUnavailable(t *testing.T) {
-	setTestDockerCheck(t, func() error { return errors.New("docker not found") })
-
-	_, _, err := selectBuilder(builderDocker)
-	if err == nil {
-		t.Fatal("expected error when docker requested but unavailable")
-	}
-	if !strings.Contains(err.Error(), "docker builder requested but not available") {
-		t.Errorf("unexpected error: %v", err)
-	}
-}
-
-func TestSelectBuilderExplicitQEMU(t *testing.T) {
-	setTestQEMUCheck(t, func() error { return nil })
-	setTestQEMUBuild(t, func(_, _, _, _ string) error { return nil })
-
-	fn, name, err := selectBuilder(builderQEMU)
+	rt, err := kernelTargetFor(kernelTargetRuntime)
 	if err != nil {
-		t.Fatalf("selectBuilder(qemu): %v", err)
+		t.Fatal(err)
 	}
-	if name != builderQEMU {
-		t.Errorf("name = %q, want %q", name, builderQEMU)
+	if rt.configDir != runtimeKernelConfigDir || !rt.isTree || rt.modules != "yes" || rt.defaultProfile != runtimeKernelProfile {
+		t.Errorf("runtime target = %+v", rt)
 	}
-	if fn == nil {
-		t.Fatal("build function is nil")
-	}
-}
-
-func TestSelectBuilderExplicitQEMUUnavailable(t *testing.T) {
-	setTestQEMUCheck(t, func() error { return errors.New("qemu not found") })
-
-	_, _, err := selectBuilder(builderQEMU)
-	if err == nil {
-		t.Fatal("expected error when qemu requested but unavailable")
-	}
-	if !strings.Contains(err.Error(), "qemu builder requested but not available") {
-		t.Errorf("unexpected error: %v", err)
+	if _, err := kernelTargetFor("bogus"); err == nil {
+		t.Error("kernelTargetFor(bogus) should error")
 	}
 }
 
-func TestSelectBuilderAutoDocker(t *testing.T) {
-	setTestDockerCheck(t, func() error { return nil })
-	setTestDockerBuild(t, func(_, _, _, _ string) error { return nil })
-	setTestQEMUCheck(t, func() error { return nil })
-
-	_, name, err := selectBuilder("")
-	if err != nil {
-		t.Fatalf("selectBuilder auto: %v", err)
+func TestCacheVariantIncludesTarget(t *testing.T) {
+	// VALIDATES: AC-6/R-6 expect installer and runtime artifacts to get distinct cache variants.
+	// PREVENTS: a runtime tree overwriting an installer Image (or vice versa) in the cache.
+	resolved := kernelProfileResolution{Name: "qemu"}
+	installer := kernelCacheVariantFor(kernelTargetInstaller, archAMD64, resolved)
+	rt := kernelCacheVariantFor(kernelTargetRuntime, archAMD64, resolved)
+	if installer == rt {
+		t.Fatalf("installer and runtime variants collide: %q", installer)
 	}
-	if name != builderDocker {
-		t.Errorf("auto-select should prefer docker, got %q", name)
+	if !strings.HasPrefix(installer, kernelTargetInstaller+"-") {
+		t.Errorf("installer variant = %q, want %s- prefix", installer, kernelTargetInstaller)
 	}
-}
-
-func TestSelectBuilderAutoFallsBackToQEMU(t *testing.T) {
-	setTestDockerCheck(t, func() error { return errors.New("no docker") })
-	setTestQEMUCheck(t, func() error { return nil })
-	setTestQEMUBuild(t, func(_, _, _, _ string) error { return nil })
-
-	_, name, err := selectBuilder("")
-	if err != nil {
-		t.Fatalf("selectBuilder auto fallback: %v", err)
-	}
-	if name != builderQEMU {
-		t.Errorf("auto-select should fall back to qemu, got %q", name)
+	if !strings.HasPrefix(rt, kernelTargetRuntime+"-") {
+		t.Errorf("runtime variant = %q, want %s- prefix", rt, kernelTargetRuntime)
 	}
 }
 
-func TestSelectBuilderAutoNoneAvailable(t *testing.T) {
-	setTestDockerCheck(t, func() error { return errors.New("no docker") })
-	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
-
-	_, _, err := selectBuilder("")
-	if err == nil {
-		t.Fatal("expected error when no builder available")
+func TestVersionValidatedAtEmbed(t *testing.T) {
+	// VALIDATES: AC-16 expects the embedded kernel.version to be format-validated in the command path.
+	// PREVENTS: a malformed or pre-7 kernel.version reaching a download or build.
+	if err := validateKernelVersionString(defaultKernelVersion); err != nil {
+		t.Fatalf("embedded kernel.version %q is invalid: %v", defaultKernelVersion, err)
 	}
-	if !strings.Contains(err.Error(), "no builder available") {
-		t.Errorf("unexpected error: %v", err)
-	}
-}
-
-func TestKernelBuilderFlag(t *testing.T) {
-	code := runKernel([]string{"--builder", "invalid"})
-	if code != exitError {
-		t.Errorf("runKernel(--builder invalid) = %d, want %d", code, exitError)
-	}
-}
-
-func TestKernelFallsBackToDocker(t *testing.T) {
-	t.Chdir(t.TempDir())
-	writeInstallerKernelRegistry(t)
-	cacheDir := t.TempDir()
-	t.Setenv("XDG_CACHE_HOME", cacheDir)
-
-	setTestHTTP(t, func(url string) (*http.Response, error) { return nil, errors.New("network error") })
-	setTestDockerCheck(t, func() error { return nil })
-	setTestDockerBuild(t, func(version, arch, profile, destPath string) error {
-		if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-			return err
+	// Note: "7..1" (empty middle component) is accepted by build.py's
+	// validate_version too, so the two readers stay consistent by accepting it.
+	for _, bad := range []string{"", "7.x", "6.12.9", ".1.1", "abc"} {
+		if err := validateKernelVersionString(bad); err == nil {
+			t.Errorf("validateKernelVersionString(%q) = nil, want error", bad)
 		}
-		return os.WriteFile(destPath, []byte("docker-built-kernel"), 0o644)
-	})
-	setTestQEMUCheck(t, func() error { return errors.New("no qemu") })
-
-	got, err := resolveKernel("7.1.1", archAMD64, defaultKernelProfile, "")
-	if err != nil {
-		t.Fatalf("resolveKernel: %v", err)
 	}
-	data, err := os.ReadFile(got)
-	if err != nil {
-		t.Fatalf("read: %v", err)
-	}
-	if string(data) != "docker-built-kernel" {
-		t.Errorf("content = %q, want docker-built-kernel", data)
+	// The command path rejects a malformed --version before any build.
+	if code := runKernel([]string{"--version", "6.0.0"}); code != exitError {
+		t.Errorf("runKernel(--version 6.0.0) = %d, want %d", code, exitError)
 	}
 }
 
-func TestDockerBuildMountsSharedBuilder(t *testing.T) {
-	// VALIDATES: AC-15 expects Docker build/run to use the shared builder with
-	// target platform and separate builder/config/output mounts.
-	// PREVENTS: silently continuing to run the old shell builder.
+func TestRunBuilderArgvDocker(t *testing.T) {
+	// VALIDATES: AC-1 expects Go to invoke the shared run.py driver (no inline docker/qemu argv).
+	// PREVENTS: silently reintroducing inline docker build/run or the arch->platform map in Go.
 	dir := t.TempDir()
 	t.Chdir(dir)
 	writeInstallerKernelRegistry(t)
 
-	builderDir := filepath.Join(dir, kernelBuilderDir)
-	configDir := filepath.Join(dir, kernelInstallerConfigDir)
-	outputDir := filepath.Join(dir, kernelInstallerOutputDir)
 	fakeBin := filepath.Join(dir, "fakebin")
-	if err := os.MkdirAll(builderDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for name, content := range map[string]string{
-		"Dockerfile": "FROM scratch\n",
-		"build.py":   "#!/usr/bin/env python3\n",
-	} {
-		base := builderDir
-		if strings.HasSuffix(name, ".config") {
-			base = configDir
-		}
-		if err := os.WriteFile(filepath.Join(base, name), []byte(content), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	logPath := filepath.Join(dir, "docker.log")
-	dockerPath := filepath.Join(fakeBin, "docker")
-	dockerScript := `#!/bin/sh
-set -eu
-printf '%s\n' "$*" >> "$ZE_DOCKER_LOG"
-if [ "$1" = run ]; then
-	prev=
-	for arg in "$@"; do
-		if [ "$prev" = "-v" ]; then
-			case "$arg" in
-				*:/out)
-					out=${arg%:/out}
-					mkdir -p "$out"
-					printf kernel > "$out/Image"
-					cat > "$out/config" <<'EOF_CONFIG'
-CONFIG_IP_PNP_DHCP=y
-CONFIG_EXT4_FS=y
-CONFIG_BLK_DEV_INITRD=y
-CONFIG_DEVTMPFS_MOUNT=y
-CONFIG_VIRTIO_NET=y
-CONFIG_VIRTIO_BLK=y
-EOF_CONFIG
-			esac
-		fi
-		prev=$arg
-	done
-fi
-`
-	if err := os.WriteFile(dockerPath, []byte(dockerScript), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("ZE_DOCKER_LOG", logPath)
-
-	destPath := filepath.Join(dir, "cache", kernelFileName)
-	if err := defaultDockerBuild("7.1.1", archAMD64, defaultKernelProfile, destPath); err != nil {
-		t.Fatalf("defaultDockerBuild: %v", err)
-	}
-	if _, err := os.Stat(destPath); err != nil {
-		t.Fatalf("cache image not written: %v", err)
-	}
-	data, err := os.ReadFile(destPath)
-	if err != nil {
-		t.Fatalf("read cache image: %v", err)
-	}
-	if string(data) != "kernel" {
-		t.Fatalf("cache image = %q, want kernel", data)
-	}
-
-	logData, err := os.ReadFile(logPath)
-	if err != nil {
-		t.Fatalf("read docker log: %v", err)
-	}
-	log := string(logData)
-	for _, want := range []string{
-		"build --platform linux/amd64 -t " + kernelDockerImage + " " + builderDir,
-		"run --rm --platform linux/amd64",
-		builderDir + ":/builder:ro",
-		configDir + ":/src:ro",
-		outputDir + ":/out",
-		"python3 /builder/build.py",
-		"--fragment /src/kernel.config",
-		"--fragment /src/qemu.config",
-	} {
-		if !strings.Contains(log, want) {
-			t.Fatalf("docker log missing %q\nlog:\n%s", want, log)
-		}
-	}
-	for _, forbidden := range []string{"/builder/build.sh", "--modules", "--patches-dir"} {
-		if strings.Contains(log, forbidden) {
-			t.Fatalf("docker log unexpectedly contains %q\nlog:\n%s", forbidden, log)
-		}
-	}
-}
-
-func TestQEMUBuildPassesBuilderDir(t *testing.T) {
-	// VALIDATES: AC-15 expects installer QEMU builds to call shared qemu-build.py
-	// with explicit builder, source, and output dirs, but no runtime modules flags.
-	// PREVENTS: qemu-build.py hardcoding tools/installer-kernel paths.
-	dir := t.TempDir()
-	t.Chdir(dir)
-	writeInstallerKernelRegistry(t)
-
-	builderDir := filepath.Join(dir, kernelBuilderDir)
-	outputDir := filepath.Join(dir, kernelInstallerOutputDir)
-	fakeBin := filepath.Join(dir, "fakebin")
-	if err := os.MkdirAll(builderDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(builderDir, "qemu-build.py"), []byte("#!/usr/bin/env python3\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
 	logPath := filepath.Join(dir, "python.log")
-	pythonPath := filepath.Join(fakeBin, "python3")
-	pythonScript := `#!/bin/sh
-set -eu
-printf '%s\n' "$*" >> "$ZE_PYTHON_LOG"
-out=
-prev=
-for arg in "$@"; do
-	if [ "$prev" = "--out-dir" ]; then
-		out=$arg
-	fi
-	prev=$arg
-done
-if [ -n "$out" ]; then
-	mkdir -p "$out"
-	printf kernel > "$out/Image"
-	cat > "$out/config" <<'EOF_CONFIG'
-CONFIG_IP_PNP_DHCP=y
-CONFIG_EXT4_FS=y
-CONFIG_BLK_DEV_INITRD=y
-CONFIG_DEVTMPFS_MOUNT=y
-CONFIG_EFI=y
-CONFIG_EFI_STUB=y
-CONFIG_FB_EFI=y
-CONFIG_FRAMEBUFFER_CONSOLE=y
-CONFIG_E1000E=y
-CONFIG_IGB=y
-CONFIG_IGC=y
-CONFIG_R8169=y
-CONFIG_SATA_AHCI=y
-CONFIG_BLK_DEV_NVME=y
-CONFIG_BLK_DEV_LOOP=y
-CONFIG_VFAT_FS=y
-CONFIG_EXFAT_FS=y
-EOF_CONFIG
-fi
-`
-	if err := os.WriteFile(pythonPath, []byte(pythonScript), 0o755); err != nil {
+	pythonScript := "#!/bin/sh\nprintf '%s ' \"$@\" >> \"$ZE_PYTHON_LOG\"\nprintf '\\n' >> \"$ZE_PYTHON_LOG\"\n"
+	if err := os.WriteFile(filepath.Join(fakeBin, "python3"), []byte(pythonScript), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("ZE_PYTHON_LOG", logPath)
 
-	destPath := filepath.Join(dir, "cache", kernelFileName)
-	if err := defaultQEMUBuild("7.1.1", archARM64, "hardware", destPath); err != nil {
-		t.Fatalf("defaultQEMUBuild: %v", err)
-	}
-	if _, err := os.Stat(destPath); err != nil {
-		t.Fatalf("cache image not written: %v", err)
-	}
-	data, err := os.ReadFile(destPath)
+	err := defaultKernelBuild(kernelBuildSpec{
+		version: "7.1.1", arch: archAMD64, profile: defaultKernelProfile, builder: builderDocker,
+		target: kernelTargetInstaller, srcDir: kernelInstallerConfigDir, outDir: kernelInstallerOutputDir,
+		modules: "no",
+	})
 	if err != nil {
-		t.Fatalf("read cache image: %v", err)
-	}
-	if string(data) != "kernel" {
-		t.Fatalf("cache image = %q, want kernel", data)
+		t.Fatalf("defaultKernelBuild: %v", err)
 	}
 
 	logData, err := os.ReadFile(logPath)
@@ -892,21 +672,177 @@ fi
 	}
 	log := string(logData)
 	for _, want := range []string{
-		filepath.Join(builderDir, "qemu-build.py"),
-		"--builder-dir " + kernelBuilderDir,
-		"--src-dir " + kernelInstallerConfigDir,
-		"--out-dir " + kernelInstallerOutputDir,
-		"--fragment " + filepath.Join(kernelInstallerConfigDir, "kernel.config"),
-		"--fragment " + filepath.Join(kernelInstallerConfigDir, "hardware.config"),
+		filepath.Join(kernelBuilderDir, runPyName),
+		"--target installer",
+		"--arch amd64",
+		"--profile qemu",
+		"--src-dir tools/installer-kernel",
+		"--out-dir tools/installer-kernel/build",
+		"--builder-dir tools/kernel-builder",
+		"--common-dir tools/kernel-builder/common",
+		"--modules no",
+		"--version 7.1.1",
+		"--builder docker",
 	} {
 		if !strings.Contains(log, want) {
-			t.Fatalf("python log missing %q\nlog:\n%s", want, log)
+			t.Fatalf("run.py argv missing %q\nlog:\n%s", want, log)
 		}
 	}
-	for _, forbidden := range []string{"--modules", "--patches-dir"} {
+	for _, forbidden := range []string{"docker run", "docker build", "--platform", "run --rm", "build.sh"} {
 		if strings.Contains(log, forbidden) {
-			t.Fatalf("python log unexpectedly contains %q\nlog:\n%s", forbidden, log)
+			t.Fatalf("run.py argv unexpectedly contains inline-builder token %q\nlog:\n%s", forbidden, log)
 		}
 	}
-	_ = outputDir
+}
+
+func TestRunBuilderArgvRuntime(t *testing.T) {
+	// VALIDATES: AC-6 expects the runtime target to invoke run.py with --target runtime,
+	// --modules yes, and the gokrazy patches dir.
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeRuntimeKernelRegistry(t)
+
+	fakeBin := filepath.Join(dir, "fakebin")
+	if err := os.MkdirAll(fakeBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(dir, "python.log")
+	pythonScript := "#!/bin/sh\nprintf '%s ' \"$@\" >> \"$ZE_PYTHON_LOG\"\nprintf '\\n' >> \"$ZE_PYTHON_LOG\"\n"
+	if err := os.WriteFile(filepath.Join(fakeBin, "python3"), []byte(pythonScript), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("ZE_PYTHON_LOG", logPath)
+
+	err := defaultKernelBuild(kernelBuildSpec{
+		version: "7.1.1", arch: archAMD64, profile: runtimeKernelProfile, builder: builderQEMU,
+		target: kernelTargetRuntime, srcDir: runtimeKernelConfigDir, outDir: runtimeKernelOutputDir,
+		modules: "yes", patches: runtimeKernelPatchesDir,
+	})
+	if err != nil {
+		t.Fatalf("defaultKernelBuild runtime: %v", err)
+	}
+	logData, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read python log: %v", err)
+	}
+	log := string(logData)
+	for _, want := range []string{
+		"--target runtime",
+		"--modules yes",
+		"--src-dir gokrazy/kernel",
+		"--out-dir tmp/kernel/build",
+		"--patches-dir gokrazy/kernel/patches",
+		"--builder qemu",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("runtime run.py argv missing %q\nlog:\n%s", want, log)
+		}
+	}
+}
+
+func TestRuntimeKernelBuildsTree(t *testing.T) {
+	// VALIDATES: AC-6 expects --target runtime to enforce the runtime floor and cache the
+	// vmlinuz tree under a target=runtime cache dir, distinct from the installer Image cache.
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeRuntimeKernelRegistry(t)
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+
+	setTestKernelBuild(t, fakeRuntimeBuild)
+
+	got, err := resolveKernel("7.1.1", archAMD64, runtimeKernelProfile, "", kernelTargetRuntime)
+	if err != nil {
+		t.Fatalf("resolveKernel runtime: %v", err)
+	}
+	info, err := os.Stat(got)
+	if err != nil || !info.IsDir() {
+		t.Fatalf("runtime artifact %q is not a directory: %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(got, "vmlinuz")); err != nil {
+		t.Errorf("cached runtime tree missing vmlinuz: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(got, "lib", "modules")); err != nil {
+		t.Errorf("cached runtime tree missing lib/modules: %v", err)
+	}
+	if !strings.Contains(got, runtimeKernelCacheDir) {
+		t.Errorf("runtime cache path %q not under %s", got, runtimeKernelCacheDir)
+	}
+}
+
+func TestRuntimeTargetIgnoresApplianceProfile(t *testing.T) {
+	// VALIDATES: ze appliance kernel --target runtime <name> must NOT inherit the
+	// appliance's installer KernelProfile (which defaults to "qemu"); the runtime
+	// kernel is a single global "runtime" profile. Without the target gate this
+	// resolves gokrazy/kernel/qemu.config (absent) and fails confusingly.
+	t.Chdir(t.TempDir())
+	writeRuntimeKernelRegistry(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	appDir := t.TempDir()
+	oldBase := baseDir
+	baseDir = appDir
+	defer func() { baseDir = oldBase }()
+
+	cfg := DefaultConfig("rtapp") // DefaultConfig sets KernelProfile = "qemu"
+	cfg.Image.Arch = archAMD64
+	appPath := filepath.Join(appDir, "rtapp")
+	if err := os.MkdirAll(appPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfgData, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(appPath, "appliance.json"), cfgData, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	setTestKernelBuild(t, fakeRuntimeBuild)
+
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	code := runKernel([]string{"--target", "runtime", "rtapp"})
+	w.Close() //nolint:errcheck // test pipe
+	os.Stdout = old
+
+	if code != exitOK {
+		t.Fatalf("runKernel(--target runtime rtapp) = %d, want %d (runtime must ignore the appliance qemu profile)", code, exitOK)
+	}
+	buf := make([]byte, 4096)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
+	if !strings.Contains(output, "profile=runtime") {
+		t.Errorf("expected profile=runtime, got %q", output)
+	}
+	if !strings.Contains(output, "target=runtime") {
+		t.Errorf("expected target=runtime, got %q", output)
+	}
+}
+
+func TestRuntimeKernelFloorRejectsMissing(t *testing.T) {
+	// VALIDATES: AC-8 expects a runtime build missing a floor symbol to fail enforcement.
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeRuntimeKernelRegistry(t)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+
+	setTestKernelBuild(t, func(spec kernelBuildSpec) error {
+		if err := os.MkdirAll(filepath.Join(spec.outDir, "lib", "modules"), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(spec.outDir, "vmlinuz"), []byte("x"), 0o644); err != nil {
+			return err
+		}
+		// Missing CONFIG_PPPOE: floor must reject.
+		cfg := "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_MODULES=y\nCONFIG_PPP=y\nCONFIG_L2TP=y\nCONFIG_PPPOL2TP=y\nCONFIG_L2TP_V3=y\nCONFIG_VETH=y\n"
+		return os.WriteFile(filepath.Join(spec.outDir, "config"), []byte(cfg), 0o644)
+	})
+
+	_, err := resolveKernel("7.1.1", archAMD64, runtimeKernelProfile, "", kernelTargetRuntime)
+	if err == nil || !strings.Contains(err.Error(), "CONFIG_PPPOE") {
+		t.Fatalf("runtime floor error = %v, want CONFIG_PPPOE", err)
+	}
 }

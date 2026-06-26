@@ -1,4 +1,6 @@
 // Design: plan/learned/856-install-10-iso-prerequisites.md — installer kernel download/build
+// Design: plan/learned/982-install-11-hw-kernel-profiles.md — installer kernel profile registry
+// Design: kernel-build-consolidation — single run.py driver, runtime verified path, --target
 
 package appliance
 
@@ -7,6 +9,8 @@ import (
 	_ "embed" // for go:embed kernel.version
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,18 +18,14 @@ import (
 	"strings"
 	"time"
 
-	"io"
-	"net/http"
-
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
 
 // kernelVersionFile holds the single source of truth for the Linux kernel
-// version Ze builds. The build entrypoints (mk/gokrazy.mk, gokrazy/kernel/Makefile,
-// tools/installer-kernel/Makefile) read the same file; tools/kernel-builder's
-// build.py and qemu-build.py require the version from their caller. Bump the
+// version Ze builds. The build-time reader is tools/kernel-builder/run.py (it
+// self-locates this file); this //go:embed is the compile-time reader. Bump the
 // kernel by editing internal/appliance/kernel.version only.
 //
 //go:embed kernel.version
@@ -39,12 +39,20 @@ const (
 	kernelBuilderDir         = "tools/kernel-builder"
 	kernelInstallerConfigDir = "tools/installer-kernel"
 	kernelInstallerOutputDir = "tools/installer-kernel/build"
+	runtimeKernelConfigDir   = "gokrazy/kernel"
+	runtimeKernelOutputDir   = "tmp/kernel/build"
+	runtimeKernelPatchesDir  = "gokrazy/kernel/patches"
+	runtimeKernelArtifact    = "vmlinuz"
 	kernelBuildTimeout       = 120 * time.Minute
-	kernelDockerImage        = "ze-installer-kernel-builder"
 	builderDocker            = "docker"
 	builderQEMU              = "qemu"
 	firmwareCacheDir         = "firmware"
 	firmwareBaseURL          = "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain"
+	kernelTargetInstaller    = "installer"
+	kernelTargetRuntime      = "runtime"
+	defaultKernelTarget      = kernelTargetInstaller
+	runtimeKernelProfile     = "runtime"
+	runPyName                = "run.py"
 )
 
 var i915FirmwareBlobs = []string{
@@ -57,33 +65,127 @@ var _ = env.MustRegister(env.EnvEntry{
 	Description: "Base URL for pre-built installer kernel downloads",
 })
 
-var (
-	kernelQEMUCheckFn   = defaultQEMUCheck
-	kernelQEMUBuildFn   = defaultQEMUBuild
-	kernelDockerCheckFn = defaultDockerCheck
-	kernelDockerBuildFn = defaultDockerBuild
-)
+// kernelBuildFn invokes the shared driver. It is a package var so unit tests can
+// substitute a fake build without docker or qemu.
+var kernelBuildFn = defaultKernelBuild
 
 func init() {
 	cmdKernel = runKernel
 }
 
+// kernelTargetDesc captures the per-target build parameters. The installer emits
+// a single Image; the runtime emits a tree (vmlinuz + lib/modules + DTBs).
+type kernelTargetDesc struct {
+	name           string
+	configDir      string
+	outputDir      string
+	modules        string
+	patchesDir     string
+	artifact       string
+	defaultProfile string
+	floor          []string
+	isTree         bool
+	allowDownload  bool
+}
+
+// kernelTestOutputDirEnv lets a test relocate the build output dir so parallel
+// `ze appliance kernel` runs don't race on the shared tools/installer-kernel/build
+// (Go writes it via run.py and reads its config back for enforcement). Unset in
+// production, where the hardcoded per-target dirs are used.
+const kernelTestOutputDirEnv = "ZE_KERNEL_TEST_OUTPUT_DIR"
+
+func kernelOutputDir(def string) string {
+	if v := os.Getenv(kernelTestOutputDirEnv); v != "" {
+		return v
+	}
+	return def
+}
+
+func kernelTargetFor(target string) (kernelTargetDesc, error) {
+	switch target {
+	case kernelTargetInstaller:
+		return kernelTargetDesc{
+			name:           kernelTargetInstaller,
+			configDir:      kernelInstallerConfigDir,
+			outputDir:      kernelOutputDir(kernelInstallerOutputDir),
+			modules:        "no",
+			patchesDir:     "",
+			artifact:       kernelFileName,
+			defaultProfile: defaultKernelProfile,
+			floor:          universalKernelRequirements,
+			isTree:         false,
+			allowDownload:  true,
+		}, nil
+	case kernelTargetRuntime:
+		return kernelTargetDesc{
+			name:           kernelTargetRuntime,
+			configDir:      runtimeKernelConfigDir,
+			outputDir:      kernelOutputDir(runtimeKernelOutputDir),
+			modules:        "yes",
+			patchesDir:     runtimeKernelPatchesDir,
+			artifact:       runtimeKernelArtifact,
+			defaultProfile: runtimeKernelProfile,
+			floor:          runtimeKernelRequirements,
+			isTree:         true,
+			allowDownload:  false,
+		}, nil
+	default:
+		return kernelTargetDesc{}, fmt.Errorf("target %q must be %s or %s", target, kernelTargetInstaller, kernelTargetRuntime)
+	}
+}
+
+// validateKernelVersionString mirrors tools/kernel-builder/build.py's
+// validate_version: the embedded version is checked in the command path (not
+// package init, which would panic every `ze` invocation) so a malformed
+// kernel.version fails fast before any download or build.
+func validateKernelVersionString(version string) error {
+	if version == "" || strings.HasPrefix(version, ".") || strings.HasSuffix(version, ".") {
+		return fmt.Errorf("kernel version %q must be a non-empty N.N.N string", version)
+	}
+	for _, ch := range version {
+		if (ch < '0' || ch > '9') && ch != '.' {
+			return fmt.Errorf("kernel version %q must contain only digits and dots", version)
+		}
+	}
+	major, _, _ := strings.Cut(version, ".")
+	if !majorAtLeast(major, 7) {
+		return fmt.Errorf("kernel version %q: major must be >= 7 (L2TP_NETLINK removed, serial 8250 deps changed)", version)
+	}
+	return nil
+}
+
+func majorAtLeast(major string, min int) bool {
+	if major == "" {
+		return false
+	}
+	n := 0
+	for _, ch := range major {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+		n = n*10 + int(ch-'0')
+	}
+	return n >= min
+}
+
 func runKernel(args []string) int {
 	fs := flag.NewFlagSet("appliance kernel", flag.ContinueOnError)
 	archFlag := fs.String("arch", "", "Target architecture: amd64 or arm64 (default: from appliance config or host)")
-	profileFlag := fs.String("profile", "", "Kernel profile token (default: from appliance config or qemu)")
+	profileFlag := fs.String("profile", "", "Kernel profile token (default: from appliance config or target default)")
 	builderFlag := fs.String("builder", "", "Build backend: docker or qemu (default: docker if available, else qemu)")
+	targetFlag := fs.String("target", defaultKernelTarget, "Kernel target: installer (default) or runtime")
 	versionFlag := fs.String("version", defaultKernelVersion, "Linux kernel version")
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
 			Command: "ze appliance kernel",
-			Summary: "Download or build the installer kernel",
+			Summary: "Download or build a Ze kernel (installer or runtime target)",
 			Usage:   []string{"ze appliance kernel [options] [<name>]"},
 			Sections: []helpfmt.HelpSection{
 				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--target <target>", Desc: "Kernel target: installer (default, monolithic PXE Image) or runtime (modules + vmlinuz tree for the gokrazy appliance)"},
 					{Name: "--arch <arch>", Desc: "Target architecture: amd64 or arm64 (default: from appliance config or host)"},
-					{Name: "--profile <profile>", Desc: "Kernel profile token (default: from appliance config or qemu)"},
+					{Name: "--profile <profile>", Desc: "Kernel profile token (default: from appliance config or the target default: qemu for installer, runtime for runtime)"},
 					{Name: "--builder <backend>", Desc: "Build backend: docker or qemu (default: docker if available, else qemu)"},
 					{Name: "--version <ver>", Desc: func() string {
 						var tb textbuf.Buffer
@@ -94,14 +196,21 @@ func runKernel(args []string) int {
 			Examples: []string{
 				"ze appliance kernel prod",
 				"ze appliance kernel --profile hardware prod",
+				"ze appliance kernel --target runtime",
 				"ze appliance kernel --builder docker --arch amd64",
-				"ze appliance kernel --version 6.12.9 prod",
 			},
 		}
 		p.WriteErr()
 	}
 
 	if err := fs.Parse(args); err != nil {
+		return exitError
+	}
+
+	target := *targetFlag
+	td, err := kernelTargetFor(target)
+	if err != nil {
+		cliErrorf("%v", err)
 		return exitError
 	}
 
@@ -119,7 +228,11 @@ func runKernel(args []string) int {
 		if arch == "" {
 			arch = cfg.Image.Arch
 		}
-		if profile == "" && cfg.Image.KernelProfile != "" {
+		// The appliance KernelProfile is installer-oriented (qemu/hardware/...).
+		// The runtime kernel is a single global profile (runtime), so only the
+		// installer target inherits the per-appliance profile; a runtime build
+		// with an appliance name must not pick up the installer "qemu" default.
+		if target == kernelTargetInstaller && profile == "" && cfg.Image.KernelProfile != "" {
 			profile = cfg.Image.KernelProfile
 		}
 	}
@@ -127,7 +240,7 @@ func runKernel(args []string) int {
 		arch = runtime.GOARCH
 	}
 	if profile == "" {
-		profile = defaultKernelProfile
+		profile = td.defaultProfile
 	}
 
 	if arch != archAMD64 && arch != archARM64 {
@@ -142,24 +255,40 @@ func runKernel(args []string) int {
 		cliErrorf("builder %q must be docker or qemu", builder)
 		return exitError
 	}
+	if err := validateKernelVersionString(*versionFlag); err != nil {
+		cliErrorf("%v", err)
+		return exitError
+	}
 
-	path, err := resolveKernel(*versionFlag, arch, profile, builder)
+	path, err := resolveKernel(*versionFlag, arch, profile, builder, target)
 	if err != nil {
 		cliErrorf("%v", err)
 		return exitError
 	}
 
-	fmt.Fprintf(os.Stdout, "kernel ready: %s (profile=%s)\n", path, profile) //nolint:errcheck // CLI output
+	fmt.Fprintf(os.Stdout, "kernel ready: %s (target=%s, profile=%s, version=%s)\n", path, target, profile, *versionFlag) //nolint:errcheck // CLI output
 	return exitOK
 }
 
-func resolveKernel(version, arch, profile, builder string) (string, error) {
-	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
+func resolveKernel(version, arch, profile, builder, target string) (string, error) {
+	td, err := kernelTargetFor(target)
 	if err != nil {
 		return "", err
 	}
-	cached := kernelCachePath(version, kernelCacheVariantFor(arch, resolved))
-	toolsDst := filepath.Join(kernelInstallerOutputDir, kernelFileName)
+	resolved, err := resolveKernelProfile(td.configDir, profile)
+	if err != nil {
+		return "", err
+	}
+	variant := kernelCacheVariantFor(target, arch, resolved)
+	if td.isTree {
+		return resolveRuntimeKernel(version, arch, profile, builder, td, resolved, variant)
+	}
+	return resolveInstallerKernel(version, arch, profile, builder, td, resolved, variant)
+}
+
+func resolveInstallerKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant string) (string, error) {
+	cached := kernelCachePath(version, variant)
+	toolsDst := filepath.Join(td.outputDir, td.artifact)
 
 	if _, err := os.Stat(cached); err == nil {
 		if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
@@ -168,230 +297,157 @@ func resolveKernel(version, arch, profile, builder string) (string, error) {
 		return cached, nil
 	}
 
-	if baseURL := env.Get(kernelURLKey); baseURL != "" {
-		var tb textbuf.Buffer
-		artifactURL := tb.Str(baseURL).Byte('/').Str(version).Byte('-').Str(arch).Byte('-').Str(profile).Byte('/').Str(kernelFileName).String()
-		checksumURL := tb.Reset().Str(artifactURL).Str(checksumSuffix).String()
-		if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
-			if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
-				fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
+	if td.allowDownload {
+		if baseURL := env.Get(kernelURLKey); baseURL != "" {
+			var tb textbuf.Buffer
+			artifactURL := tb.Str(baseURL).Byte('/').Str(version).Byte('-').Str(arch).Byte('-').Str(profile).Byte('/').Str(td.artifact).String()
+			checksumURL := tb.Reset().Str(artifactURL).Str(checksumSuffix).String()
+			if err := downloadAndVerify(artifactURL, checksumURL, cached); err == nil {
+				if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
+					fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
+				}
+				return cached, nil
+			} else {
+				fmt.Fprintf(os.Stdout, "warning: download from %s failed: %v; falling back to local build\n", baseURL, err) //nolint:errcheck // CLI warning
 			}
-			return cached, nil
-		} else {
-			fmt.Fprintf(os.Stdout, "warning: download from %s failed: %v; falling back to local build\n", baseURL, err) //nolint:errcheck // CLI warning
 		}
 	}
 
-	buildFn, buildName, err := selectBuilder(builder)
-	if err != nil {
+	if err := buildKernelArtifact(version, arch, profile, builder, td); err != nil {
 		return "", err
 	}
-	fmt.Fprintf(os.Stdout, "building kernel with %s...\n", buildName) //nolint:errcheck // CLI output
 
-	if err := buildFn(version, arch, profile, cached); err != nil {
-		return "", fmt.Errorf("%s kernel build: %w", buildName, err)
+	builtKernel := filepath.Join(td.outputDir, td.artifact)
+	if _, err := os.Stat(builtKernel); err != nil {
+		return "", fmt.Errorf("kernel not produced at %s", builtKernel)
 	}
-
-	if cpErr := copyToToolsPath(cached, toolsDst); cpErr != nil {
-		fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, cpErr) //nolint:errcheck // CLI warning
+	if err := enforceKernelRequirements(resolved, filepath.Join(td.outputDir, "config"), td.floor); err != nil {
+		return "", err
 	}
-
+	if err := copyToToolsPath(builtKernel, cached); err != nil {
+		return "", err
+	}
+	if err := copyToToolsPath(cached, toolsDst); err != nil {
+		fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, err) //nolint:errcheck // CLI warning
+	}
 	return cached, nil
 }
 
-func selectBuilder(builder string) (func(string, string, string, string) error, string, error) {
-	switch builder {
-	case builderDocker:
-		if err := kernelDockerCheckFn(); err != nil {
-			return nil, "", fmt.Errorf("docker builder requested but not available: %w", err)
+func resolveRuntimeKernel(version, arch, profile, builder string, td kernelTargetDesc, resolved kernelProfileResolution, variant string) (string, error) {
+	cachedDir := kernelTreeCachePath(version, variant)
+	cachedKernel := filepath.Join(cachedDir, td.artifact)
+
+	if _, err := os.Stat(cachedKernel); err == nil {
+		if cpErr := copyTree(cachedDir, td.outputDir); cpErr != nil {
+			fmt.Fprintf(os.Stdout, "warning: copy tree to %s: %v\n", td.outputDir, cpErr) //nolint:errcheck // CLI warning
 		}
-		return kernelDockerBuildFn, builderDocker, nil
-	case builderQEMU:
-		if err := kernelQEMUCheckFn(); err != nil {
-			return nil, "", fmt.Errorf("qemu builder requested but not available: %w", err)
-		}
-		return kernelQEMUBuildFn, builderQEMU, nil
-	default:
-		if kernelDockerCheckFn() == nil {
-			return kernelDockerBuildFn, builderDocker, nil
-		}
-		if kernelQEMUCheckFn() == nil {
-			return kernelQEMUBuildFn, builderQEMU, nil
-		}
-		return nil, "", fmt.Errorf("no builder available; install docker or qemu (brew install qemu)")
+		return cachedDir, nil
 	}
+
+	if err := buildKernelArtifact(version, arch, profile, builder, td); err != nil {
+		return "", err
+	}
+
+	builtKernel := filepath.Join(td.outputDir, td.artifact)
+	if _, err := os.Stat(builtKernel); err != nil {
+		return "", fmt.Errorf("runtime kernel not produced at %s", builtKernel)
+	}
+	modulesDir := filepath.Join(td.outputDir, "lib", "modules")
+	if _, err := os.Stat(modulesDir); err != nil {
+		return "", fmt.Errorf("runtime kernel modules not produced at %s", modulesDir)
+	}
+	if err := enforceKernelRequirements(resolved, filepath.Join(td.outputDir, "config"), td.floor); err != nil {
+		return "", err
+	}
+	if err := copyTree(td.outputDir, cachedDir); err != nil {
+		return "", fmt.Errorf("cache runtime kernel tree: %w", err)
+	}
+	return cachedDir, nil
 }
 
-func defaultDockerCheck() error {
-	if _, err := exec.LookPath(builderDocker); err != nil {
-		return fmt.Errorf("docker not found")
-	}
-	return nil
-}
-
-func defaultDockerBuild(version, arch, profile, destPath string) error {
-	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
-	if err != nil {
-		return err
-	}
-	builderDir, err := filepath.Abs(kernelBuilderDir)
-	if err != nil {
-		return fmt.Errorf("resolve builder directory: %w", err)
-	}
-	configDir, err := filepath.Abs(kernelInstallerConfigDir)
-	if err != nil {
-		return fmt.Errorf("resolve installer config directory: %w", err)
-	}
-	outDir, err := filepath.Abs(kernelInstallerOutputDir)
-	if err != nil {
-		return fmt.Errorf("resolve installer output directory: %w", err)
-	}
-	platform, err := dockerPlatform(arch)
-	if err != nil {
-		return err
-	}
+// buildKernelArtifact resolves the firmware dir then invokes the shared driver.
+func buildKernelArtifact(version, arch, profile, builder string, td kernelTargetDesc) error {
 	fwDir, err := ensureFirmware(profile)
 	if err != nil {
 		return err
-	}
-
-	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
-		return fmt.Errorf("create cache directory: %w", err)
-	}
-	if err := os.MkdirAll(outDir, cacheDirPerm); err != nil {
-		return fmt.Errorf("create output directory: %w", err)
-	}
-
-	buildCtx, buildCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
-	defer buildCancel()
-
-	buildCmd := exec.CommandContext(buildCtx, builderDocker, "build", "--platform", platform, "-t", kernelDockerImage, builderDir) //nolint:gosec // controlled args
-	buildCmd.Stdout = os.Stdout
-	buildCmd.Stderr = os.Stdout
-	if err := buildCmd.Run(); err != nil {
-		return fmt.Errorf("docker build: %w", err)
-	}
-
-	var tb textbuf.Buffer
-	dockerArgs := []string{"run", "--rm", "--platform", platform,
-		"-e", tb.Str("LINUX_VERSION=").Str(version).String(),
-		"-e", tb.Reset().Str("ARCH=").Str(arch).String(),
-		"-e", tb.Reset().Str("PROFILE=").Str(profile).String(),
-		"-e", "SRC_DIR=/src",
-		"-e", "OUT_DIR=/out",
-		"-v", tb.Reset().Str(builderDir).Str(":/builder:ro").String(),
-		"-v", tb.Reset().Str(configDir).Str(":/src:ro").String(),
-		"-v", tb.Reset().Str(outDir).Str(":/out").String(),
 	}
 	if fwDir != "" {
 		absFW, absErr := filepath.Abs(fwDir)
 		if absErr != nil {
 			return fmt.Errorf("resolve firmware directory: %w", absErr)
 		}
-		dockerArgs = append(dockerArgs,
-			"-v", tb.Reset().Str(absFW).Str(":/firmware:ro").String(),
-			"-e", "FIRMWARE_DIR=/firmware",
-		)
+		fwDir = absFW
 	}
-	dockerArgs = append(dockerArgs, kernelDockerImage, "python3", "/builder/build.py")
-	for _, fragment := range resolved.Fragments {
-		dockerArgs = append(dockerArgs, "--fragment", tb.Reset().Str("/src/").Str(filepath.Base(fragment)).String())
-	}
-	runCmd := exec.CommandContext(buildCtx, builderDocker, dockerArgs...) //nolint:gosec // controlled args
-	runCmd.Stdout = os.Stdout
-	runCmd.Stderr = os.Stdout
-	if err := runCmd.Run(); err != nil {
-		return fmt.Errorf("docker run: %w", err)
-	}
-
-	builtKernel := filepath.Join(outDir, kernelFileName)
-	if _, err := os.Stat(builtKernel); err != nil {
-		return fmt.Errorf("kernel not produced at %s", builtKernel)
-	}
-	if err := enforceKernelRequirements(resolved, filepath.Join(outDir, "config")); err != nil {
-		return err
-	}
-
-	return copyToToolsPath(builtKernel, destPath)
+	fmt.Fprintf(os.Stdout, "building %s kernel via %s...\n", td.name, runPyName) //nolint:errcheck // CLI output
+	return kernelBuildFn(kernelBuildSpec{
+		version:  version,
+		arch:     arch,
+		profile:  profile,
+		builder:  builder,
+		target:   td.name,
+		srcDir:   td.configDir,
+		outDir:   td.outputDir,
+		modules:  td.modules,
+		patches:  td.patchesDir,
+		firmware: fwDir,
+	})
 }
 
-func dockerPlatform(arch string) (string, error) {
-	switch arch {
-	case archAMD64:
-		return "linux/amd64", nil
-	case archARM64:
-		return "linux/arm64", nil
-	default:
-		return "", fmt.Errorf("arch %q must be amd64 or arm64", arch)
-	}
+// kernelBuildSpec is the request handed to the shared driver tools/kernel-builder/run.py.
+type kernelBuildSpec struct {
+	version  string
+	arch     string
+	profile  string
+	builder  string
+	target   string
+	srcDir   string
+	outDir   string
+	modules  string
+	patches  string
+	firmware string
 }
 
-func defaultQEMUCheck() error {
-	if _, err := exec.LookPath("python3"); err != nil {
-		return fmt.Errorf("python3 not found; required for QEMU kernel build")
-	}
-	for _, bin := range []string{"qemu-system-aarch64", "qemu-system-x86_64"} {
-		if _, err := exec.LookPath(bin); err == nil {
-			return nil
-		}
-	}
-	return fmt.Errorf("QEMU not found; install with: brew install qemu")
-}
-
-func defaultQEMUBuild(version, arch, profile, destPath string) error {
-	resolved, err := resolveKernelProfile(kernelInstallerConfigDir, profile)
-	if err != nil {
-		return err
-	}
-	scriptPath, err := filepath.Abs(filepath.Join(kernelBuilderDir, "qemu-build.py"))
-	if err != nil {
-		return fmt.Errorf("resolve build script path: %w", err)
-	}
-	fwDir, err := ensureFirmware(profile)
-	if err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(filepath.Dir(destPath), cacheDirPerm); err != nil {
-		return fmt.Errorf("create cache directory: %w", err)
-	}
-	if err := os.MkdirAll(kernelInstallerOutputDir, cacheDirPerm); err != nil {
+func defaultKernelBuild(spec kernelBuildSpec) error {
+	if err := os.MkdirAll(spec.outDir, cacheDirPerm); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
+	}
+	scriptPath, err := filepath.Abs(filepath.Join(kernelBuilderDir, runPyName))
+	if err != nil {
+		return fmt.Errorf("resolve run.py path: %w", err)
+	}
+
+	args := []string{
+		scriptPath,
+		"--target", spec.target,
+		"--arch", spec.arch,
+		"--profile", spec.profile,
+		"--src-dir", spec.srcDir,
+		"--out-dir", spec.outDir,
+		"--builder-dir", kernelBuilderDir,
+		"--common-dir", kernelCommonDir,
+		"--modules", spec.modules,
+		"--version", spec.version,
+	}
+	if spec.builder != "" {
+		args = append(args, "--builder", spec.builder)
+	}
+	if spec.patches != "" {
+		args = append(args, "--patches-dir", spec.patches)
+	}
+	if spec.firmware != "" {
+		args = append(args, "--firmware-dir", spec.firmware)
 	}
 
 	buildCtx, buildCancel := context.WithTimeout(context.Background(), kernelBuildTimeout)
 	defer buildCancel()
 
-	qemuArgs := []string{scriptPath,
-		"--arch", arch,
-		"--profile", profile,
-		"--version", version,
-		"--builder-dir", kernelBuilderDir,
-		"--src-dir", kernelInstallerConfigDir,
-		"--out-dir", kernelInstallerOutputDir,
-	}
-	for _, fragment := range resolved.Fragments {
-		qemuArgs = append(qemuArgs, "--fragment", fragment)
-	}
-	if fwDir != "" {
-		qemuArgs = append(qemuArgs, "--firmware-dir", fwDir)
-	}
-	cmd := exec.CommandContext(buildCtx, "python3", qemuArgs...) //nolint:gosec // controlled args
+	cmd := exec.CommandContext(buildCtx, "python3", args...) //nolint:gosec // controlled args, list form, no shell
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stdout
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("qemu-build.py: %w", err)
+		return fmt.Errorf("%s: %w", runPyName, err)
 	}
-
-	builtKernel := filepath.Join(kernelInstallerOutputDir, kernelFileName)
-	if _, err := os.Stat(builtKernel); err != nil {
-		return fmt.Errorf("kernel not produced at %s", builtKernel)
-	}
-	if err := enforceKernelRequirements(resolved, filepath.Join(kernelInstallerOutputDir, "config")); err != nil {
-		return err
-	}
-
-	return copyToToolsPath(builtKernel, destPath)
+	return nil
 }
 
 func ensureFirmware(profile string) (string, error) {

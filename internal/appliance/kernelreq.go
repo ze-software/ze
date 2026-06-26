@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+// universalKernelRequirements is the installer floor: the busybox initrd has no
+// modules, so kernel-level DHCP autoconfig, ext4, and the initrd/devtmpfs mount
+// must be built in regardless of profile.
 var universalKernelRequirements = []string{
 	"CONFIG_IP_PNP_DHCP",
 	"CONFIG_EXT4_FS",
@@ -16,7 +19,21 @@ var universalKernelRequirements = []string{
 	"CONFIG_DEVTMPFS_MOUNT",
 }
 
-func enforceKernelRequirements(profile kernelProfileResolution, configPath string) error {
+// runtimeKernelRequirements is the runtime floor, giving the runtime kernel the
+// same Go-verified guarantee 982 gave the installer. It is intentionally partly
+// redundant with gokrazy/kernel/runtime.require so the verified path has a floor
+// independent of the editable manifest: modules support plus the L2TP/PPP/PPPoE
+// set the ze-qemu evidence tests boot on.
+var runtimeKernelRequirements = []string{
+	"CONFIG_MODULES",
+	"CONFIG_PPP",
+	"CONFIG_PPPOE",
+	"CONFIG_L2TP",
+	"CONFIG_PPPOL2TP",
+	"CONFIG_L2TP_V3",
+}
+
+func enforceKernelRequirements(profile kernelProfileResolution, configPath string, floor []string) error {
 	enabled, set, err := readKernelConfig(configPath)
 	if err != nil {
 		return err
@@ -25,7 +42,7 @@ func enforceKernelRequirements(profile kernelProfileResolution, configPath strin
 	if err != nil {
 		return err
 	}
-	required = append(required, universalKernelRequirements...)
+	required = append(required, floor...)
 
 	seen := make(map[string]bool, len(required))
 	for _, symbol := range required {

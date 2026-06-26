@@ -1,0 +1,56 @@
+# Test (AC-9/AC-10): make ze-kernel consumes the runtime kernel out-of-tree via a
+# go.mod replace and never mutates the pinned rtr7/kernel modcache in place nor
+# creates a .ze-pinned-kernel backup. ze-kernel-clean drops the replace rather
+# than restoring a mutated modcache.
+
+option=timeout:value=30s
+
+tmpfs=run.sh:terminator=EOF_SH
+#!/bin/sh
+set -eu
+
+repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
+cd "$repo"
+
+dry=$(make -n ze-kernel KERNEL_ARCH=amd64 2>&1)
+
+# Out-of-tree consumption via go.mod replace, assembled under tmp/kernel/pkg.
+# The replace path MUST be relative (../...) so an accidental commit of the
+# builddir go.mod does not leak a machine-specific absolute path.
+case "$dry" in
+	*"mod edit -replace=github.com/rtr7/kernel=../"*) : ;;
+	*) echo "ze-kernel does not consume the kernel via a relative go.mod replace" >&2; printf '%s\n' "$dry" >&2; exit 1 ;;
+esac
+case "$dry" in
+	*"mod edit -replace=github.com/rtr7/kernel=/"*) echo "ze-kernel uses an absolute (machine-specific) replace path" >&2; exit 1 ;;
+	*) : ;;
+esac
+case "$dry" in
+	*"tmp/kernel/pkg"*) : ;;
+	*) echo "ze-kernel does not assemble the out-of-tree package" >&2; exit 1 ;;
+esac
+
+# No legacy backup, and no in-place write of our kernel INTO the modcache entry.
+case "$dry" in
+	*".ze-pinned-kernel"*) echo "ze-kernel still references the legacy .ze-pinned-kernel backup" >&2; exit 1 ;;
+	*) : ;;
+esac
+if printf '%s\n' "$dry" | grep -Eq 'cp[^\n]*modcache/github.com/rtr7/kernel@[^ ]*/(vmlinuz|lib)'; then
+	echo "ze-kernel mutates the pinned modcache in place" >&2
+	printf '%s\n' "$dry" >&2
+	exit 1
+fi
+
+# ze-kernel-clean drops the replace (no modcache restore as the primary action).
+cleandry=$(make -n ze-kernel-clean 2>&1)
+case "$cleandry" in
+	*"mod edit -dropreplace=github.com/rtr7/kernel"*) : ;;
+	*) echo "ze-kernel-clean does not drop the out-of-tree replace" >&2; printf '%s\n' "$cleandry" >&2; exit 1 ;;
+esac
+
+printf 'OK\n'
+EOF_SH
+
+cmd=foreground:seq=1:exec=sh run.sh
+expect=exit:code=0
+expect=stdout:contains=OK

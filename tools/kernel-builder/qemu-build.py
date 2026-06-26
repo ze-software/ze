@@ -10,7 +10,7 @@ Usage:
     python3 qemu-build.py                                # arm64, qemu profile
     python3 qemu-build.py --arch amd64                   # x86_64, qemu profile
     python3 qemu-build.py --profile hardware             # arm64, hardware profile
-    LINUX_VERSION=6.12.9 python3 qemu-build.py           # pin kernel version
+    KERNEL_VERSION=6.12.9 python3 qemu-build.py          # pin kernel version
 
 Prerequisites: qemu (brew install qemu), python3, curl.
 """
@@ -27,6 +27,12 @@ import sys
 import time
 from pathlib import Path
 
+# Avoid __pycache__ write contention when many qemu-build.py processes run
+# concurrently under the parallel functional-test suite.
+sys.dont_write_bytecode = True
+
+import ksource  # noqa: E402
+
 ALPINE_VERSION = "3.21"
 ALPINE_MINOR = "3"
 
@@ -35,9 +41,9 @@ VM_MEMORY_MAX = 12288
 VM_MEMORY_FRACTION = 4
 BOOT_TIMEOUT = 120
 BUILD_TIMEOUT = 14400
-# The kernel version has a single source of truth: internal/appliance/kernel.version.
-# Callers (the build Makefiles and `ze appliance kernel`) always pass --version or
-# set LINUX_VERSION, so this tool carries no default of its own.
+# The kernel version has a single source of truth: internal/appliance/kernel.version,
+# read once by tools/kernel-builder/run.py. run.py always passes --version, so this
+# tool carries no default of its own.
 
 BUILD_PACKAGES = (
     "build-base bc bison flex elfutils-dev openssl-dev "
@@ -96,9 +102,7 @@ def validate_profile(value: str) -> str:
         or value[0] not in "abcdefghijklmnopqrstuvwxyz0123456789"
         or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789-" for ch in value)
     ):
-        raise SystemExit(
-            f"--profile must match ^[a-z0-9][a-z0-9-]*$: {value}"
-        )
+        raise SystemExit(f"--profile must match ^[a-z0-9][a-z0-9-]*$: {value}")
     return value
 
 
@@ -500,8 +504,7 @@ def _run_build(
         out_vm = f"/workspace/{out_dir}"
         builder_vm = f"/workspace/{builder_dir}"
         build_env = (
-            "CCACHE_DIR=/ccache CCACHE_MAXSIZE=5G "
-            "PATH=/usr/lib/ccache/bin:$PATH"
+            "CCACHE_DIR=/ccache CCACHE_MAXSIZE=5G PATH=/usr/lib/ccache/bin:$PATH"
         )
         build_args = [
             "python3",
@@ -531,11 +534,10 @@ def _run_build(
 
         full_cmd = f"sh -c {_shell_quote(setup + ' && ' + build_cmd)}"
 
-        series = f"v{version.split('.')[0]}.x"
-        tarball = f"linux-{version}.tar.xz"
+        tarball = ksource.tarball_name(version)
         tarball_path = bd_dir / tarball
         if not tarball_path.is_file():
-            url = f"https://cdn.kernel.org/pub/linux/kernel/{series}/{tarball}"
+            url = ksource.tarball_url(version)
             print(
                 f"  downloading {tarball} on host...",
                 file=sys.stderr,
@@ -595,9 +597,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--version",
-        default=os.environ.get("LINUX_VERSION"),
-        required="LINUX_VERSION" not in os.environ,
-        help="Linux kernel version (required; or set LINUX_VERSION). "
+        default=os.environ.get("KERNEL_VERSION"),
+        required="KERNEL_VERSION" not in os.environ,
+        help="Linux kernel version (required; or set KERNEL_VERSION). "
         "Canonical: internal/appliance/kernel.version",
     )
     parser.add_argument(

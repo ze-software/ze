@@ -1,5 +1,11 @@
 # Kernel builder wiring: runtime and installer Makefiles must delegate to the
-# shared tools/kernel-builder backends without running an actual kernel build.
+# shared tools/kernel-builder/run.py driver without running an actual kernel build.
+#
+# // test-relax: kernel-build-consolidation moved the build invocation from inline
+# docker/qemu branches in each Makefile to the single run.py driver. The old
+# assertions on `docker run`, `--platform`, `-e SRC_DIR`/`PATCHES_DIR`, and the
+# Makefile choosing qemu-build.py no longer apply; this asserts the equivalent
+# run.py delegation (the spec's "rewrites, not edits" note).
 
 option=timeout:value=20s
 
@@ -10,68 +16,35 @@ set -eu
 repo=$(CDPATH= cd -- "$(dirname -- "$(command -v ze)")/.." && pwd)
 cd "$repo"
 
-check_contains() {
-	name=$1
-	text=$2
-	needle=$3
-	case "$text" in
-		*"$needle"*) : ;;
-		*)
-			echo "$name: missing $needle" >&2
-			printf '%s\n' "$text" >&2
-			exit 1
-			;;
+check() {
+	case "$2" in
+		*"$3"*) : ;;
+		*) echo "$1: missing $3" >&2; printf '%s\n' "$2" >&2; exit 1 ;;
 	esac
 }
-
-check_not_contains() {
-	name=$1
-	text=$2
-	needle=$3
-	case "$text" in
-		*"$needle"*)
-			echo "$name: unexpected $needle" >&2
-			printf '%s\n' "$text" >&2
-			exit 1
-			;;
+nope() {
+	case "$2" in
+		*"$3"*) echo "$1: unexpected $3" >&2; printf '%s\n' "$2" >&2; exit 1 ;;
 		*) : ;;
 	esac
 }
 
-runtime_docker=$(make -n -B -C gokrazy/kernel BUILDER=docker ARCH=amd64 2>&1)
-check_contains runtime-docker "$runtime_docker" "--platform linux/amd64"
-check_contains runtime-docker "$runtime_docker" "tools/kernel-builder"
-check_contains runtime-docker "$runtime_docker" "SRC_DIR=/src"
-check_contains runtime-docker "$runtime_docker" "OUT_DIR=/out"
-check_contains runtime-docker "$runtime_docker" "MODULES=yes"
-check_contains runtime-docker "$runtime_docker" "PATCHES_DIR=/src/patches"
-check_contains runtime-docker "$runtime_docker" "python3 /builder/build.py"
+rt=$(make -n -B -C gokrazy/kernel BUILDER=docker ARCH=amd64 2>&1)
+check runtime "$rt" "tools/kernel-builder/run.py"
+check runtime "$rt" "--target runtime"
+check runtime "$rt" "--modules yes"
+check runtime "$rt" "--patches-dir gokrazy/kernel/patches"
+check runtime "$rt" "--common-dir tools/kernel-builder/common"
+nope runtime "$rt" "docker run"
+nope runtime "$rt" "--platform"
 
-runtime_qemu=$(make -n -B -C gokrazy/kernel BUILDER=qemu ARCH=arm64 2>&1)
-check_contains runtime-qemu "$runtime_qemu" "tools/kernel-builder/qemu-build.py"
-check_contains runtime-qemu "$runtime_qemu" "--src-dir gokrazy/kernel"
-check_contains runtime-qemu "$runtime_qemu" "--out-dir tmp/kernel/build"
-check_contains runtime-qemu "$runtime_qemu" "--builder-dir tools/kernel-builder"
-check_contains runtime-qemu "$runtime_qemu" "--modules yes"
-check_contains runtime-qemu "$runtime_qemu" "--patches-dir gokrazy/kernel/patches"
-
-installer_docker=$(make -n -B -C tools/installer-kernel BUILDER=docker ARCH=amd64 PROFILE=qemu 2>&1)
-check_contains installer-docker "$installer_docker" "--platform linux/amd64"
-check_contains installer-docker "$installer_docker" "../kernel-builder"
-check_contains installer-docker "$installer_docker" ":/builder:ro"
-check_contains installer-docker "$installer_docker" "SRC_DIR=/src"
-check_contains installer-docker "$installer_docker" "OUT_DIR=/out"
-check_contains installer-docker "$installer_docker" "python3 /builder/build.py"
-check_not_contains installer-docker "$installer_docker" "MODULES=yes"
-check_not_contains installer-docker "$installer_docker" "PATCHES_DIR"
-
-installer_qemu=$(make -n -B -C tools/installer-kernel BUILDER=qemu ARCH=arm64 PROFILE=hardware 2>&1)
-check_contains installer-qemu "$installer_qemu" "../kernel-builder/qemu-build.py"
-check_contains installer-qemu "$installer_qemu" "--src-dir tools/installer-kernel"
-check_contains installer-qemu "$installer_qemu" "--out-dir tools/installer-kernel/build"
-check_contains installer-qemu "$installer_qemu" "--builder-dir tools/kernel-builder"
-check_not_contains installer-qemu "$installer_qemu" "--modules yes"
-check_not_contains installer-qemu "$installer_qemu" "--patches-dir"
+inst=$(make -n -B -C tools/installer-kernel BUILDER=qemu ARCH=arm64 PROFILE=hardware 2>&1)
+check installer "$inst" "../kernel-builder/run.py"
+check installer "$inst" "--target installer"
+check installer "$inst" "--profile hardware"
+check installer "$inst" "--common-dir tools/kernel-builder/common"
+nope installer "$inst" "docker run"
+nope installer "$inst" "--modules yes"
 
 printf 'OK\n'
 EOF_SH

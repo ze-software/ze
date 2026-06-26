@@ -41,6 +41,10 @@ paths = [
     Path('tools/kernel-builder/Dockerfile'),
     Path('tools/kernel-builder/build.py'),
     Path('tools/kernel-builder/qemu-build.py'),
+    Path('tools/kernel-builder/run.py'),
+    Path('tools/kernel-builder/ksource.py'),
+    Path('tools/kernel-builder/common/efi-console.config'),
+    Path('tools/kernel-builder/common/efi-console.require'),
     Path('gokrazy/kernel/kernel.config'),
     Path('gokrazy/kernel/kernel.require'),
     Path('gokrazy/kernel/runtime.config'),
@@ -78,6 +82,8 @@ expect_status() {
 }
 
 touch -t 202601010000 tools/kernel-builder/Dockerfile tools/kernel-builder/build.py tools/kernel-builder/qemu-build.py \
+	tools/kernel-builder/run.py tools/kernel-builder/ksource.py \
+	tools/kernel-builder/common/efi-console.config tools/kernel-builder/common/efi-console.require \
 	gokrazy/kernel/kernel.config gokrazy/kernel/kernel.require gokrazy/kernel/runtime.config gokrazy/kernel/runtime.require gokrazy/kernel/patches/series gokrazy/kernel/patches/0001-nct6683.patch
 touch -t 202601010100 tmp/kernel/build/vmlinuz
 expect_status 0 make -q -C gokrazy/kernel BUILDER=docker
@@ -87,6 +93,14 @@ touch -t 202601010200 tools/kernel-builder/Dockerfile
 expect_status 1 make -q -C gokrazy/kernel BUILDER=docker
 
 touch -t 202601010000 tools/kernel-builder/Dockerfile
+touch -t 202601010200 tools/kernel-builder/run.py
+expect_status 1 make -q -C gokrazy/kernel BUILDER=docker
+
+touch -t 202601010000 tools/kernel-builder/run.py
+touch -t 202601010200 tools/kernel-builder/common/efi-console.config
+expect_status 1 make -q -C gokrazy/kernel BUILDER=docker
+
+touch -t 202601010000 tools/kernel-builder/common/efi-console.config
 touch -t 202601010200 tools/kernel-builder/qemu-build.py
 expect_status 1 make -q -C gokrazy/kernel BUILDER=qemu
 
