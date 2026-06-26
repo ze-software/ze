@@ -164,7 +164,7 @@ internal; kernel / VPP FIB view is not yet exposed.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| IPv4 routing table | `show ip route` | `show route` | `show router route-table` | `show ip route` | `show ip route` | `show route` | shipped | nl+vpp-if | Kernel FIB view via netlink RouteList; VPP rejects (kernel FIB not authoritative under VPP). Covers IPv4+IPv6 in one call. `--limit N` caps response (default 100 000 rows). |
+| IPv4 routing table | `show ip route` | `show route` | `show router route-table` | `show ip route` | `show ip route` | `show route` | shipped | nl+vpp-if | Kernel FIB view via netlink RouteList; VPP rejects (kernel FIB not authoritative under VPP). Covers IPv4+IPv6 in one call. `limit N` caps response (default 100 000 rows). |
 | IPv6 routing table | `show ipv6 route` | `show route table inet6.0` | `show router route-table ipv6` | `show ipv6 route` | `show ipv6 route` | | planned | nl+vpp-fib | |
 | Route for prefix | `show ip route <prefix>` | `show route <prefix>` | `show router route-table <prefix>` | `show ip route <prefix>` | `show ip route <prefix>` | `show route <prefix>` | shipped | nl+vpp-if | Exact-match filter; `default` matches 0.0.0.0/0 and ::/0; invalid CIDRs reject |
 | Route by protocol | `show ip route bgp` / `static` / `connected` | `show route protocol <proto>` | `show router route-table protocol bgp` | `show ip route bgp` | `show ip route bgp` | | planned | nl+vpp-fib | RTPROT filter |

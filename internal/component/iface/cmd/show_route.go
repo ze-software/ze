@@ -47,7 +47,7 @@ func init() {
 // returning an empty result. "default" is accepted as a synonym for the
 // 0.0.0.0/0 / ::/0 entries.
 func handleShowRoute(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	return dumpKernelRoutes(args, "usage: show route [<cidr>|default] [--limit N]", defaultRouteLimit)
+	return dumpKernelRoutes(args, "usage: show route [<cidr>|default] [limit N]", defaultRouteLimit)
 }
 
 // dumpKernelRoutes implements the shared argument parsing + truncation
@@ -60,13 +60,13 @@ func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Re
 	limit := defaultLimit
 	for i := 0; i < len(args); i++ {
 		switch {
-		case args[i] == "--limit":
+		case args[i] == "limit":
 			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Error: "--limit requires a value"}, nil
+				return &plugin.Response{Status: plugin.StatusError, Error: "limit requires a value"}, nil
 			}
 			n, parseErr := strconv.Atoi(args[i+1])
 			if parseErr != nil || n <= 0 {
-				msg := tb.Str("invalid --limit ").Str(strconv.Quote(args[i+1])).Str(": must be a positive integer").String()
+				msg := tb.Str("invalid limit ").Str(strconv.Quote(args[i+1])).Str(": must be a positive integer").String()
 				return &plugin.Response{Status: plugin.StatusError, Error: msg}, nil //nolint:nilerr // operational error via Response
 			}
 			limit = n
@@ -74,7 +74,7 @@ func dumpKernelRoutes(args []string, usage string, defaultLimit int) (*plugin.Re
 		case strings.HasPrefix(args[i], "--"):
 			return &plugin.Response{
 				Status: plugin.StatusError,
-				Error:  tb.Reset().Str("unknown flag ").Str(strconv.Quote(args[i])).Str("; ").Str(usage).String(),
+				Error:  tb.Reset().Str("unknown flag ").Str(strconv.Quote(args[i])).Str("; use 'limit N' (no dashes); ").Str(usage).String(),
 			}, nil
 		default:
 			if filter != "" {

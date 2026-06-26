@@ -7,6 +7,8 @@
 package cmd
 
 import (
+	"strings"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -27,10 +29,10 @@ func init() {
 }
 
 // parseNeighborFamily maps a user family token (ipv4/ipv6/any/all) to an
-// iface.NeighborFamily. The bool is false for an unrecognized token so the
-// caller can produce a usage error.
+// iface.NeighborFamily. Matching is case-insensitive. The bool is false for an
+// unrecognized token so the caller can produce a usage error.
 func parseNeighborFamily(s string) (int, bool) {
-	switch s {
+	switch strings.ToLower(s) {
 	case "ipv4":
 		return iface.NeighborFamilyIPv4, true
 	case "ipv6":

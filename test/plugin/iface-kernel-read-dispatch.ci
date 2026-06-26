@@ -1,0 +1,142 @@
+# Test: object-rooted kernel-read commands dispatch through the daemon.
+#
+# VALIDATES: `show route`, `show neighbor`, `show arp` are wired (reach their
+# iface handlers, not "unknown command"); family parsing is case-insensitive
+# (`show neighbor IPV6` is accepted, `show neighbor bogus` rejected); the route
+# filter is the `limit N` keyword, and the retired `--limit` flag is rejected.
+# PREVENTS: a rename that leaves a command unregistered, a case-sensitivity
+# regression in the family filter, or `--limit` lingering as a flag.
+#
+# Backend-free by design: no `interface {}` block, so the netlink backend is not
+# loaded and the live reads return a graceful "no backend" error. The grammar
+# checks (unknown family, --limit, invalid limit, too many args) validate before
+# the backend, so they are deterministic on every OS -- no QEMU needed.
+
+tmpfs=iface-kernel-read.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert show route/neighbor/arp dispatch and grammar through the daemon."""
+
+import sys
+
+from ze_api import API, runtime_fail, result_text_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+
+def assert_wired(api, command):
+    # Reaches its handler: status done (backend present) or a graceful handler
+    # error, but never "unknown command" (which means unregistered).
+    result = dispatch(api, command)
+    msg = result_text_data(result, '')
+    if result.get('status') != 'done' and 'unknown command' in msg.lower():
+        runtime_fail(f"{command}: not wired -- {msg[:160]}")
+
+
+def assert_error_contains(api, command, needle):
+    result = dispatch(api, command)
+    if result.get('status') == 'done':
+        runtime_fail(f"{command}: expected an error, got done")
+    msg = result_text_data(result, '')
+    if needle not in msg:
+        runtime_fail(f"{command}: expected error containing {needle!r}, got {msg[:160]}")
+
+
+def assert_not_contains(api, command, needle):
+    msg = result_text_data(dispatch(api, command), '')
+    if needle in msg:
+        runtime_fail(f"{command}: must not contain {needle!r}, got {msg[:160]}")
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    api.wait_for_post_startup(timeout=5.0)
+
+    try:
+        # Wiring: the object-rooted reads dispatch to their handlers.
+        for cmd in (
+            'show route',
+            'show neighbor',
+            'show arp',
+            'show neighbor ipv4',
+            'show neighbor ipv6',
+        ):
+            assert_wired(api, cmd)
+
+        # Family parsing is case-insensitive: uppercase accepted (not rejected as
+        # unknown family); an unknown token is rejected; a second arg rejects.
+        assert_not_contains(api, 'show neighbor IPV6', 'unknown family')
+        assert_error_contains(api, 'show neighbor bogus', 'unknown family')
+        assert_error_contains(api, 'show neighbor ipv4 extra', 'too many arguments')
+
+        # Route filter is the `limit N` keyword, not a flag.
+        assert_not_contains(api, 'show route limit 5', 'unknown flag')
+        assert_error_contains(api, 'show route --limit 5', 'unknown flag')
+        assert_error_contains(api, 'show route limit abc', 'invalid limit')
+
+        print('OK iface kernel-read dispatch verified', file=sys.stderr)
+    finally:
+        dispatch(api, 'request shutdown')
+        api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external iface-kernel-read-test {
+		run ./iface-kernel-read.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		process iface-kernel-read-test {
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OK iface kernel-read dispatch verified
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

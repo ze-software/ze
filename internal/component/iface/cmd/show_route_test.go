@@ -79,14 +79,14 @@ func TestHandleShowRoute_InvalidPrefixRejects(t *testing.T) {
 	}
 }
 
-// TestHandleShowRoute_LimitParsing verifies --limit is parsed and rejects
-// non-positive or non-numeric values.
+// TestHandleShowRoute_LimitParsing verifies the `limit` keyword is parsed and
+// rejects non-positive or non-numeric values.
 func TestHandleShowRoute_LimitParsing(t *testing.T) {
 	bad := [][]string{
-		{"--limit"},        // missing value
-		{"--limit", "0"},   // zero
-		{"--limit", "-5"},  // negative
-		{"--limit", "abc"}, // not a number
+		{"limit"},        // missing value
+		{"limit", "0"},   // zero
+		{"limit", "-5"},  // negative
+		{"limit", "abc"}, // not a number
 	}
 	for _, args := range bad {
 		resp, err := handleShowRoute(nil, args)
@@ -94,4 +94,15 @@ func TestHandleShowRoute_LimitParsing(t *testing.T) {
 		require.NotNil(t, resp)
 		assert.Equal(t, plugin.StatusError, resp.Status, "args=%v should reject", args)
 	}
+}
+
+// TestHandleShowRoute_RejectsDashLimitFlag verifies the retired `--limit` flag
+// form is rejected (filters are keyword grammar, not flags); the operator is
+// pointed at the `limit N` keyword.
+func TestHandleShowRoute_RejectsDashLimitFlag(t *testing.T) {
+	resp, err := handleShowRoute(nil, []string{"--limit", "50"})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Error, "unknown flag")
 }
