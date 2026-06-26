@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aihelp"
 	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 )
 
@@ -274,6 +275,16 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 		}
 		return TextResult(result)
 	},
+	// ze_reference returns the full machine-readable AI reference, assembled
+	// from the same source as `ze help ai --json` (internal/component/aihelp),
+	// so an MCP client can discover this instance's capabilities on connect.
+	"ze_reference": func(_ *server, _ json.RawMessage) map[string]any {
+		data, err := json.MarshalIndent(aihelp.Build(), "", "  ")
+		if err != nil {
+			return ErrResult("could not marshal AI reference")
+		}
+		return TextResult(string(data))
+	},
 }
 
 // handcraftedNames returns the set of tool names from handcrafted tools.
@@ -444,6 +455,14 @@ var handcraftedTools = []map[string]any{
 					"description": "The ze command to execute (e.g., 'peer list', 'show bgp summary'). Optional only when the client supports elicitation.",
 				},
 			},
+		},
+	},
+	{
+		"name":        "ze_reference",
+		"description": "Full machine-readable reference for this ze daemon: CLI commands, daemon API endpoints (ze-show:*, ze-set:*, ...) with dispatch keys, loaded plugins, address families, and config services. Call this first to discover what this instance can do. Returns the same JSON as 'ze help ai --json'.",
+		"inputSchema": map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
 		},
 	},
 }

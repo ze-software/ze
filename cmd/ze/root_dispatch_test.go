@@ -5,6 +5,7 @@ package main
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/aihelp"
 	"codeberg.org/thomas-mangin/ze/internal/component/command/registry"
 )
 
@@ -123,19 +124,19 @@ func TestHelpAIUsesOwnerRegistry(t *testing.T) {
 	}, registry.Meta{Description: desc, Mode: "offline", Subs: "alpha, beta"})
 
 	found := false
-	for _, c := range cliSubcommands() {
-		if c.cmd == name {
+	for _, c := range aihelp.CLISubcommands() {
+		if c.Name == name {
 			found = true
-			if c.desc != desc {
-				t.Errorf("help desc = %q, want %q", c.desc, desc)
+			if c.Description != desc {
+				t.Errorf("help desc = %q, want %q", c.Description, desc)
 			}
-			if c.subs != "alpha, beta" {
-				t.Errorf("help subs = %q, want %q", c.subs, "alpha, beta")
+			if c.Subs != "alpha, beta" {
+				t.Errorf("help subs = %q, want %q", c.Subs, "alpha, beta")
 			}
 			break
 		}
 	}
 	if !found {
-		t.Errorf("owner-backed root %q absent from cliSubcommands(); help is not registry-derived", name)
+		t.Errorf("owner-backed root %q absent from aihelp.CLISubcommands(); help is not registry-derived", name)
 	}
 }

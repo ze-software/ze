@@ -17,6 +17,7 @@ The MCP server exposes typed tools with structured parameters, so AI assistants 
 | `ze_peer_control` | Teardown, pause, resume, flush peers |
 | `ze_execute` | Run **any** CLI command -- full daemon control |
 | `ze_commands` | List all available daemon commands |
+| `ze_reference` | Full machine-readable reference for this daemon (commands, RPC endpoints, dispatch keys, plugins, families, services); same JSON as `ze help ai --json`. Call first to discover capabilities. |
 
 Additional tools are auto-generated from the command registry at runtime.
 Every registered YANG command and plugin command appears as a typed MCP tool

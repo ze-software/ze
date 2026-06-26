@@ -159,8 +159,8 @@ code changes.
 
 Run `tools/list` against a live daemon to see the current tool inventory.
 
-A small set of handcrafted tools (`ze_execute`, `ze_commands`) provide
-escape-hatch and discovery capabilities alongside the generated tools.
+A small set of handcrafted tools (`ze_execute`, `ze_commands`, `ze_reference`)
+provide escape-hatch and discovery capabilities alongside the generated tools.
 
 ### ze_execute
 
@@ -173,6 +173,18 @@ Run any command the CLI supports. Use `ze_commands` to discover available comman
 ### ze_commands
 
 No parameters. Returns the list of all registered daemon commands.
+
+### ze_reference
+
+No parameters. Returns the full machine-readable reference for this daemon
+(CLI commands, daemon API endpoints with dispatch keys, plugins, address
+families, config services) as JSON. This is the same data as `ze help ai --json`,
+assembled from `internal/component/aihelp` so the CLI and MCP never diverge.
+An MCP client sees this tool in `tools/list` on connect, so it can discover the
+instance's capabilities without out-of-band documentation.
+
+<!-- source: internal/component/mcp/handler.go -- ze_reference handcrafted tool -->
+<!-- source: internal/component/aihelp/aihelp.go -- Build assembles the reference -->
 
 ## AI Help Reference
 

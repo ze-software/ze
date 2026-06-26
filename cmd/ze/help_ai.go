@@ -12,16 +12,12 @@ import (
 	"sort"
 	"strings"
 
-	gyang "github.com/openconfig/goyang/pkg/yang"
-
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
+	"codeberg.org/thomas-mangin/ze/internal/component/aihelp"
 	cli "codeberg.org/thomas-mangin/ze/internal/component/cli/client"
-	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	cmdregistry "codeberg.org/thomas-mangin/ze/internal/component/command/registry"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/family"
 	"codeberg.org/thomas-mangin/ze/internal/core/textbuf"
 )
@@ -122,7 +118,7 @@ func printSummary() {
 		}
 	}
 
-	schemaReg := buildAISchemaRegistry()
+	schemaReg := aihelp.SchemaRegistry()
 	rpcCount := len(schemaReg.ListRPCs(""))
 	builtinCount := len(pluginserver.AllBuiltinRPCs())
 
@@ -137,14 +133,6 @@ func printSummary() {
 	fmt.Println("  CLI:     ze cli")
 	fmt.Println("  Show:    ze show <command>")
 	fmt.Println("  Help:    ze help ai all")
-}
-
-// cliCmd describes a CLI subcommand for the help output.
-type cliCmd struct {
-	cmd  string
-	mode string // "offline", "daemon", or "setup"
-	desc string
-	subs string
 }
 
 func printCLICommands() {
@@ -168,68 +156,18 @@ func printCLICommands() {
 
 	// CLI tree. The subcommand list is static text that matches the dispatcher
 	// in cmd/ze/main.go. It changes rarely and is verified by functional tests.
-	cmds := cliSubcommands()
+	cmds := aihelp.CLISubcommands()
 	for _, c := range cmds {
-		fmt.Printf("  ze %-14s [%-7s] %s\n", c.cmd, c.mode, c.desc)
-		if c.subs != "" {
-			fmt.Printf("    %s\n", c.subs)
+		var tb textbuf.Buffer
+		tb.Str("  ze ").PadRight(c.Name, 14).Str(" [").PadRight(c.Mode, 7).Str("] ").Str(c.Description)
+		fmt.Println(tb.Slice())
+		if c.Subs != "" {
+			tb.Reset()
+			tb.Str("    ").Str(c.Subs)
+			fmt.Println(tb.Slice())
 		}
 	}
 	fmt.Println()
-}
-
-// cliSubcommands returns the CLI subcommand tree.
-//
-// Two dynamic sources, no static list:
-//  1. YANG verb tree (show, set, del, update, route-refresh, ...).
-//     These are the daemon-side dispatch verbs.
-//  2. cmdutil.ListRootCommands(): top-level `ze <name>` subcommands
-//     registered at startup from cmd/ze/main.go.
-//
-// Verb commands that also appear as root commands (duplicates) are
-// de-duplicated: the root-command metadata wins because it carries a
-// richer description and sub-path hint.
-func cliSubcommands() []cliCmd {
-	seen := map[string]bool{}
-	var cmds []cliCmd
-
-	yangTree := cli.YANGCommandTree()
-	if yangTree != nil {
-		for _, name := range sortedChildren(yangTree) {
-			child := yangTree.Children[name]
-			desc := child.Description
-			if desc == "" {
-				var tb textbuf.Buffer
-				desc = tb.Str(name).Str(" commands").String()
-			}
-			mode := "daemon"
-			if command.IsReadOnlyVerb(name) {
-				mode = "read-only"
-			}
-			var tb textbuf.Buffer
-			cmds = append(cmds, cliCmd{name, mode, desc, tb.Str("ze ").Str(name).Str(" help").String()})
-			seen[name] = true
-		}
-	}
-
-	for _, rc := range cmdregistry.ListRoot() {
-		if seen[rc.Name] {
-			continue // YANG verb already covered the slot
-		}
-		cmds = append(cmds, cliCmd{rc.Name, rc.Meta.Mode, rc.Meta.Description, rc.Meta.ResolveSubs()})
-	}
-
-	return cmds
-}
-
-// sortedChildren returns sorted child names of a command node.
-func sortedChildren(node *command.Node) []string {
-	names := make([]string, 0, len(node.Children))
-	for name := range node.Children {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
 }
 
 func printAPICommands() {
@@ -239,7 +177,7 @@ func printAPICommands() {
 	fmt.Println()
 
 	wireToPath := cli.WireToPath()
-	schemaReg := buildAISchemaRegistry()
+	schemaReg := aihelp.SchemaRegistry()
 
 	rpcs := schemaReg.ListRPCs("")
 	sort.Slice(rpcs, func(i, j int) bool {
@@ -440,6 +378,8 @@ func printMCPTools() {
 	fmt.Println()
 	fmt.Println("  ze_commands         List all available daemon commands")
 	fmt.Println()
+	fmt.Println("  ze_reference        Full AI reference for this daemon (same as 'ze help ai --json')")
+	fmt.Println()
 	fmt.Println("  Run tools/list against a live daemon to see the full tool inventory.")
 	fmt.Println()
 	fmt.Println("  JSON-RPC Example:")
@@ -504,21 +444,6 @@ func printRIBPipeline() {
 	fmt.Println()
 }
 
-// serviceInfo describes a service extracted from YANG environment containers.
-type serviceInfo struct {
-	name        string // container name (e.g., "web", "looking-glass")
-	description string // from YANG description
-	leaves      []serviceLeaf
-	envVars     []string // registered ze.* env vars for this service
-}
-
-type serviceLeaf struct {
-	name        string
-	typ         string
-	defVal      string
-	description string
-}
-
 // printServices generates the Services section from YANG conf modules.
 // It walks all registered YANG modules looking for environment containers,
 // extracts leaves with their types and defaults, and matches env vars.
@@ -529,7 +454,7 @@ func printServices() {
 	fmt.Println("  Enable via config block or CLI flag. Web UI requires ze init (blob storage).")
 	fmt.Println()
 
-	services := extractServices()
+	services := aihelp.Services()
 	if len(services) == 0 {
 		fmt.Println("  (no services found)")
 		fmt.Println()
@@ -543,171 +468,56 @@ func printServices() {
 	}
 
 	for _, svc := range services {
-		desc := svc.description
+		desc := svc.Description
 		if desc == "" {
-			desc = svc.name
+			desc = svc.Name
 		}
-		fmt.Printf("  %s: %s\n", svc.name, desc)
+		var tb textbuf.Buffer
+		tb.Str("  ").Str(svc.Name).Str(": ").Str(desc)
+		fmt.Println(tb.Slice())
 
-		if flag, ok := cliFlags[svc.name]; ok {
-			fmt.Printf("    CLI flag:  %s\n", flag)
+		if flag, ok := cliFlags[svc.Name]; ok {
+			tb.Reset()
+			tb.Str("    CLI flag:  ").Str(flag)
+			fmt.Println(tb.Slice())
 		}
 
 		// Config syntax from leaves.
-		fmt.Printf("    Config:    environment { %s {", svc.name)
-		for _, leaf := range svc.leaves {
-			if leaf.defVal != "" {
-				fmt.Printf(" %s %s;", leaf.name, leaf.defVal)
+		tb.Reset()
+		tb.Str("    Config:    environment { ").Str(svc.Name).Str(" {")
+		for _, leaf := range svc.Leaves {
+			if leaf.Default != "" {
+				tb.Byte(' ').Str(leaf.Name).Byte(' ').Str(leaf.Default).Byte(';')
 			}
 		}
-		fmt.Println(" } }")
+		tb.Str(" } }")
+		fmt.Println(tb.Slice())
 
 		// Leaf details.
-		for _, leaf := range svc.leaves {
+		for _, leaf := range svc.Leaves {
 			def := ""
-			if leaf.defVal != "" {
-				var tb textbuf.Buffer
-				def = tb.Str(" (default: ").Str(leaf.defVal).Byte(')').String()
+			if leaf.Default != "" {
+				var dtb textbuf.Buffer
+				def = dtb.Str(" (default: ").Str(leaf.Default).Byte(')').String()
 			}
-			desc := leaf.description
+			desc := leaf.Description
 			if desc == "" {
-				desc = leaf.typ
+				desc = leaf.Type
 			}
-			fmt.Printf("    %-20s %s%s\n", leaf.name, desc, def)
+			tb.Reset()
+			tb.Str("    ").PadRight(leaf.Name, 20).Byte(' ').Str(desc).Str(def)
+			fmt.Println(tb.Slice())
 		}
 
 		// Env vars.
-		if len(svc.envVars) > 0 {
-			fmt.Printf("    Env vars:  %s\n", textbuf.Join(svc.envVars, ", "))
+		if len(svc.EnvVars) > 0 {
+			tb.Reset()
+			tb.Str("    Env vars:  ").Str(textbuf.Join(svc.EnvVars, ", "))
+			fmt.Println(tb.Slice())
 		}
 
 		fmt.Println()
 	}
-}
-
-// extractServices walks registered YANG conf modules for environment containers.
-func extractServices() []serviceInfo {
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		return nil
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		return nil
-	}
-	if err := loader.Resolve(); err != nil {
-		return nil
-	}
-
-	// Build env var groups keyed by second segment: "ze.web.listen" -> "web", "ze.looking-glass.listen" -> "looking-glass".
-	envByPrefix := make(map[string][]string)
-	for _, e := range env.Entries() {
-		parts := strings.SplitN(e.Key, ".", 3) //nolint:mnd // ze.<group>.<leaf>
-		if len(parts) >= 2 {
-			envByPrefix[parts[1]] = append(envByPrefix[parts[1]], e.Key)
-		}
-	}
-
-	// Map YANG service container names to env prefixes.
-	// Most match directly (web->web, mcp->mcp, ssh->ssh).
-	// Abbreviations are found by checking leaf names against env var leaf names.
-	matchEnvVars := func(svcName string, leafNames []string) []string {
-		// Direct match first.
-		if vars, ok := envByPrefix[svcName]; ok {
-			return vars
-		}
-		// Try matching by leaf name overlap: find the env prefix whose leaves
-		// best overlap with the YANG container's leaves.
-		leafSet := make(map[string]bool, len(leafNames))
-		for _, n := range leafNames {
-			leafSet[n] = true
-		}
-		var bestPrefix string
-		var bestCount int
-		for prefix, vars := range envByPrefix {
-			count := 0
-			for _, v := range vars {
-				parts := strings.SplitN(v, ".", 3)        //nolint:mnd // ze.<group>.<leaf>
-				if len(parts) == 3 && leafSet[parts[2]] { //nolint:mnd // ze.<group>.<leaf>
-					count++
-				}
-			}
-			if count > bestCount {
-				bestCount = count
-				bestPrefix = prefix
-			}
-		}
-		if bestCount > 0 {
-			return envByPrefix[bestPrefix]
-		}
-		return nil
-	}
-
-	var services []serviceInfo
-
-	for _, mod := range yang.Modules() {
-		// Only look at conf modules.
-		if !strings.HasSuffix(mod.Name, "-conf.yang") {
-			continue
-		}
-		modName := strings.TrimSuffix(mod.Name, ".yang")
-		entry := loader.GetEntry(modName)
-		if entry == nil || entry.Dir == nil {
-			continue
-		}
-
-		// Find "environment" container.
-		envEntry, ok := entry.Dir["environment"]
-		if !ok || envEntry.Dir == nil {
-			continue
-		}
-
-		// Each child of environment is a service.
-		for svcName, svcEntry := range envEntry.Dir {
-			if svcEntry.Kind != gyang.DirectoryEntry {
-				continue
-			}
-
-			svc := serviceInfo{
-				name:        svcName,
-				description: svcEntry.Description,
-			}
-
-			// Extract leaves.
-			leafNames := make([]string, 0, len(svcEntry.Dir))
-			for name := range svcEntry.Dir {
-				leafNames = append(leafNames, name)
-			}
-			sort.Strings(leafNames)
-
-			for _, leafName := range leafNames {
-				child := svcEntry.Dir[leafName]
-				leaf := serviceLeaf{
-					name:        leafName,
-					description: child.Description,
-				}
-				if child.Type != nil {
-					leaf.typ = child.Type.Name
-				}
-				if len(child.Default) > 0 {
-					leaf.defVal = child.Default[0]
-				}
-				svc.leaves = append(svc.leaves, leaf)
-			}
-
-			// Match env vars by leaf name overlap.
-			svc.envVars = matchEnvVars(svcName, leafNames)
-			sort.Strings(svc.envVars)
-
-			services = append(services, svc)
-		}
-	}
-
-	// Sort by name for stable output.
-	sort.Slice(services, func(i, j int) bool {
-		return services[i].name < services[j].name
-	})
-
-	return services
 }
 
 func printRecipes() {
@@ -786,115 +596,12 @@ func printMinimalConfig() {
 	fmt.Println()
 }
 
-// buildAISchemaRegistry builds a schema registry with YANG RPC metadata.
-func buildAISchemaRegistry() *pluginserver.SchemaRegistry {
-	schemaReg := pluginserver.NewSchemaRegistry()
-
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: load embedded YANG: %v\n", err)
-		return schemaReg
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: load registered YANG: %v\n", err)
-	}
-	if err := loader.Resolve(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: resolve YANG: %v\n", err)
-	}
-
-	for _, name := range loader.APIModuleNames() {
-		rpcs := yang.ExtractRPCs(loader, name)
-		_ = schemaReg.RegisterRPCs(name, rpcs)
-	}
-
-	return schemaReg
-}
-
-type aiHelpJSON struct {
-	Commands     []aiHelpCommand   `json:"commands"`
-	RPCs         []aiHelpRPC       `json:"rpcs"`
-	DispatchKeys map[string]string `json:"dispatch-keys"`
-	Plugins      []aiHelpPlugin    `json:"plugins"`
-	Families     []string          `json:"families"`
-	Services     []aiHelpService   `json:"services"`
-}
-
-type aiHelpCommand struct {
-	Name        string `json:"name"`
-	Mode        string `json:"mode"`
-	Description string `json:"description"`
-	Subs        string `json:"subs,omitempty"`
-}
-
-type aiHelpRPC struct {
-	WireMethod  string `json:"wire-method"`
-	Description string `json:"description,omitempty"`
-}
-
-type aiHelpPlugin struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Families    []string `json:"families,omitempty"`
-}
-
-type aiHelpService struct {
-	Name   string   `json:"name"`
-	Leaves []string `json:"leaves,omitempty"`
-}
-
+// printAIHelpJSON emits the machine-readable reference. The assembly lives in
+// internal/component/aihelp so the MCP ze_reference tool returns identical data.
 func printAIHelpJSON() {
-	result := aiHelpJSON{}
-
-	for _, c := range cliSubcommands() {
-		result.Commands = append(result.Commands, aiHelpCommand{
-			Name: c.cmd, Mode: c.mode, Description: c.desc, Subs: c.subs,
-		})
-	}
-
-	schemaReg := buildAISchemaRegistry()
-	for _, rpc := range schemaReg.ListRPCs("") {
-		result.RPCs = append(result.RPCs, aiHelpRPC{
-			WireMethod: rpc.WireMethod, Description: rpc.Description,
-		})
-	}
-	for _, brpc := range pluginserver.AllBuiltinRPCs() {
-		result.RPCs = append(result.RPCs, aiHelpRPC{
-			WireMethod: brpc.WireMethod,
-		})
-	}
-
-	result.DispatchKeys = cli.WireToPath()
-	if result.DispatchKeys == nil {
-		result.DispatchKeys = map[string]string{}
-	}
-
-	seen := make(map[string]bool)
-	for _, r := range registry.All() {
-		result.Plugins = append(result.Plugins, aiHelpPlugin{
-			Name: r.Name, Description: r.Description, Families: r.Families,
-		})
-		for _, f := range r.Families {
-			if !seen[f] {
-				seen[f] = true
-				result.Families = append(result.Families, f)
-			}
-		}
-	}
-	sort.Strings(result.Families)
-
-	for _, svc := range extractServices() {
-		leafNames := make([]string, len(svc.leaves))
-		for i, l := range svc.leaves {
-			leafNames[i] = l.name
-		}
-		result.Services = append(result.Services, aiHelpService{
-			Name: svc.name, Leaves: leafNames,
-		})
-	}
-
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	if err := enc.Encode(result); err != nil {
+	if err := enc.Encode(aihelp.Build()); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
 }

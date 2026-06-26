@@ -1,0 +1,44 @@
+# ze-reference-mcp - the ze_reference MCP tool returns the AI reference over HTTP.
+# Proves the tool appears in tools/list (wait-tool) and that tools/call returns
+# the reference JSON through a live daemon -- the MCP-side single source of truth
+# shared with `ze help ai --json` (internal/component/aihelp).
+
+stdin=mcp:terminator=EOF_MCP
+wait-tool ze_reference
+@ze_reference {}
+EOF_MCP
+
+# Single peer so the daemon has a valid config; it need not connect. The
+# reference comes from registries populated at init(), not from a BGP session.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=dispatch-keys
+expect=stdout:contains=wire-method
+expect=stdout:contains=ze-show:
