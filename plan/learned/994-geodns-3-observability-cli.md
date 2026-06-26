@@ -40,17 +40,17 @@ owned by the geodns plugin so the "delete the folder" self-containment invariant
 - The RPC handler's `(*plugin.Response, error)` signature forces an always-nil error
   (`unparam`) -- `//nolint:unparam` with the reason is the accepted resolution.
 - `resp.Data` is the `plugin.ResponseData` interface; assert to `plugin.Map` to index.
-- `test/plugin/*.ci` run under the `bgp plugin` suite. The `show` full-path .ci is
-  DEFERRED: the observer-dispatch pattern (`_call_engine('ze-plugin-engine:dispatch-command')`)
-  HANGS and never returns -- a pre-existing, repo-wide harness defect proven against the
-  known-good `show-system-ntp.ci` via marker files. The observer never reaches its
-  assertions, so these tests pass on the peer exchange + clean exit alone (a false pass).
-  A second gap compounds it: `runtime_fail` writes its `ZE-OBSERVER-FAIL` sentinel to
-  ze's log, which the runner routes to syslog (`ze.log.backend=syslog`), but
-  `checkObserverSentinel` scans only the client stderr. `show geodns` is meanwhile
-  verified by the `show_test.go` unit test (asserts the `listeners` field via
-  `handleShowGeoDNS`); the `.ci` (with `reject=syslog:pattern=ZE-OBSERVER-FAIL`) will
-  validate once the harness hang is fixed.
+- `test/plugin/*.ci` observer tests dispatch through `dispatch-command`, and the command
+  string MUST be the full CLI path INCLUDING the `show` prefix (`show geodns`, not
+  `geodns`). Without `show`, `Dispatcher.Dispatch` fails `matchBuiltinTokens`, falls
+  through to `dispatchPlugin` -> `routeToProcess`, and the call BLOCKS instead of
+  returning -- the observer never reaches its assertions, so the test passes on the peer
+  exchange + clean exit alone (a silent false pass). This bit `show-system-ntp.ci`
+  (dispatched `system ntp`; fixed to `show system ntp`) and this plugin's first cut.
+  With the correct command the observer's `runtime_fail` sentinel reaches the runner
+  (no syslog directive -> `ze.log.backend` stays stderr -> `checkObserverSentinel` sees
+  it), so a failing assertion fails the test (proven by a guaranteed-fail probe).
+  `show geodns` is also covered by the `show_test.go` unit test. See [[996-observer-dispatch-show-prefix]].
 
 ## Files
 

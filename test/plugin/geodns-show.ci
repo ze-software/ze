@@ -1,6 +1,13 @@
-# Test: show system ntp returns NTP sync status
-# Exercises: dispatch-command -> ze-show:system-ntp -> handleShowSystemNTP
-# Verifies: AC-1/AC-3 - returns JSON with enabled field
+# Test: show geodns returns GeoDNS server status.
+# Exercises: dispatch-command -> ze-show:geodns -> handleShowGeoDNS
+# Verifies: spec-geodns-3 AC-1 - returns JSON with enabled + listeners fields
+# from the live resolver snapshot the geodns engine published on configure.
+#
+# The observer dispatches the FULL CLI path "show geodns" (NOT "geodns"): a bare
+# plugin-command name falls through to routeToProcess and blocks, so the observer
+# would never reach its assertions (a silent false pass). See learned 996.
+# Restoring the real test // test-relax: replaces experiment scaffolding added
+# while root-causing the dispatch hang; the genuine assertions are below.
 
 # ze-peer: accepts connection
 stdin=peer:terminator=EOF_PEER
@@ -10,7 +17,7 @@ option=asn:value=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-tmpfs=show-system-ntp-test.run:mode=755:terminator=EOF_RUN
+tmpfs=geodns-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
@@ -33,39 +40,24 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'show system ntp')
+        resp = dispatch(api, 'show geodns')
         status = resp.get('status')
-        if status is None:
-            runtime_fail(f'ntp: dispatch returned no status: {resp}')
         if status != 'done':
-            runtime_fail(f'ntp: status={status} data={resp.get("data")}')
+            runtime_fail(f'geodns: status={status} data={resp.get("data")}')
 
         data = result_text_data(resp)
         if isinstance(data, str) and data:
             data = json.loads(data)
-
         if not isinstance(data, dict):
-            runtime_fail(f'ntp: expected dict, got {type(data).__name__}')
+            runtime_fail(f'geodns: expected dict, got {type(data).__name__}')
         if 'enabled' not in data:
-            runtime_fail(f'ntp: missing "enabled" in {data}')
+            runtime_fail(f'geodns: missing "enabled" in {data}')
+        if data.get('enabled') is not True:
+            runtime_fail(f'geodns: expected enabled=true, got {data.get("enabled")}')
+        if 'listeners' not in data:
+            runtime_fail(f'geodns: missing "listeners" in {data}')
 
-        resp2 = dispatch(api, 'show system ntp peers')
-        status2 = resp2.get('status')
-        if status2 != 'done':
-            runtime_fail(f'ntp peers: status={status2} data={resp2.get("data")}')
-
-        data2 = result_text_data(resp2)
-        if isinstance(data2, str) and data2:
-            data2 = json.loads(data2)
-
-        if not isinstance(data2, dict):
-            runtime_fail(f'ntp peers: expected dict, got {type(data2).__name__}')
-        if 'peers' not in data2:
-            runtime_fail(f'ntp peers: missing "peers" in {data2}')
-        if 'count' not in data2:
-            runtime_fail(f'ntp peers: missing "count" in {data2}')
-
-        print(f'OK: ntp enabled={data["enabled"]} peers-count={data2["count"]}', file=sys.stderr)
+        print(f'OK: geodns enabled={data["enabled"]} listeners={data["listeners"]}', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
@@ -75,9 +67,29 @@ if __name__ == '__main__':
 EOF_RUN
 
 stdin=ze-bgp:terminator=EOF_CONF
+service {
+	geodns {
+		enabled true
+		listener loopback {
+			ip 127.0.0.1
+			port 5300
+		}
+		zone geodns.example.
+		nameserver 82.219.4.22
+		host-set external {
+			host proxy.geodns.example. {
+				address 10.0.0.2
+			}
+		}
+		source 0.0.0.0/0 {
+			host-set external
+		}
+	}
+}
+
 plugin {
-	external show-system-ntp-test {
-		run ./show-system-ntp-test.run
+	external geodns-show-test {
+		run ./geodns-show-test.run
 		encoder json
 	}
 }
@@ -114,7 +126,7 @@ bgp {
 			group-updates disable
 		}
 
-		process show-system-ntp-test {
+		process geodns-show-test {
 		}
 	}
 }
