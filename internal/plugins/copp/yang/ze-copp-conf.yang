@@ -1,0 +1,77 @@
+module ze-copp-conf {
+    namespace "urn:ze:copp:conf";
+    prefix copp;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Control-plane policing configuration for Ze.
+         Protects host-bound traffic to the BGP listen port
+         (TCP/179) from connection-flood DDoS by rate-limiting
+         new connections while exempting established sessions
+         and trusted sources.";
+
+    revision 2026-06-26 {
+        description "Initial revision.";
+    }
+
+    typedef rate-spec {
+        type string {
+            pattern '[0-9]+(bytes|kbytes|mbytes|gbytes)?/(second|minute|hour|day)';
+        }
+        description "Rate limit: packet-per-unit (10/second) or byte-per-unit (1mbytes/second).";
+    }
+
+    container control-plane-protection {
+        description "Control-plane policing configuration.";
+
+        container bgp {
+            presence "BGP control-plane policing enabled";
+            description "Rate-limit new TCP connections to the BGP listen port.";
+
+            leaf rate {
+                type rate-spec;
+                mandatory true;
+                description "Rate limit for new connections (e.g., 100/second).";
+            }
+
+            leaf burst {
+                type uint32;
+                description "Burst size (packets or bytes matching the rate unit).";
+            }
+
+            leaf-list protected-port {
+                type uint16 {
+                    range "1..65535";
+                }
+                description
+                    "TCP port(s) to protect. Defaults to 179 (BGP) when
+                     omitted. Set to a non-default value when the BGP
+                     listener uses an alternate port.";
+            }
+
+            leaf-list trusted-source {
+                type string;
+                ze:validate "ipv4-prefix|ipv6-prefix";
+                description
+                    "Source prefixes that bypass the rate limit.
+                     Typically the addresses of configured BGP peers.";
+            }
+
+            leaf over-limit-policy {
+                type enumeration {
+                    enum accept {
+                        description "Accept over-limit packets (safe default).";
+                    }
+                    enum drop {
+                        description "Drop over-limit packets.";
+                    }
+                }
+                default "accept";
+                description
+                    "Action for packets exceeding the rate limit.
+                     Default is accept to avoid lock-out risk.";
+            }
+        }
+    }
+}

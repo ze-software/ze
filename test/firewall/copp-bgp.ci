@@ -1,0 +1,53 @@
+# Test: CoPP installs an nft input chain with rate limit on tcp dport 179.
+# VALIDATES: spec-cp-survival-2-copp-port179 AC-1 -- CoPP config produces
+#            an nft input-hook chain with tcp dport 179 limit rate.
+# PREVENTS: CoPP config accepted but no nft chain programmed.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Wait for ze to apply CoPP, snapshot nft state, send SIGTERM."""
+import os
+import signal
+import subprocess
+import sys
+import time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
+    sys.exit(1)
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+
+out = subprocess.check_output(["nft", "list", "table", "inet", "ze_copp"], text=True)
+sys.stdout.write(out)
+
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+control-plane-protection {
+    bgp {
+        rate 100/second;
+        burst 20;
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.copp:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=copp table applied
+expect=stdout:contains=table inet ze_copp
+expect=stdout:contains=tcp dport 179
+expect=stdout:contains=limit rate

@@ -516,7 +516,7 @@ const (
 // bytes-per-unit value when Dimension==RateDimensionBytes.
 //
 // Callers MUST set Dimension to either RateDimensionPackets or
-// RateDimensionBytes. parseRateSpec does this for all
+// RateDimensionBytes. ParseRateSpec does this for all
 // operator-originated Limits; programmatic callers (tests, direct
 // constructors) must set it explicitly. The zero value
 // (rateDimensionUnspecified) is rejected at lowering so a silent

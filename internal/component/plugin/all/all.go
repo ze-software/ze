@@ -86,6 +86,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/config-storage/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/config-yang/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/connected/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/copp/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/cos/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/crashes/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/debug/yang"
@@ -181,6 +182,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/traffic/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/vpp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/connected"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/copp"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/cos"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/crashes/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/debug/cmd"
@@ -226,6 +228,7 @@ import (
 
 	// RPC command packages -- pluginserver.RegisterRPCs registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/aaa/cmd"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/aihelp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/cmd"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bmp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"

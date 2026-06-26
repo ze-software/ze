@@ -1,0 +1,69 @@
+# Test: CoPP trusted-source is accepted before the rate-limit term.
+# VALIDATES: spec-cp-survival-2-copp-port179 AC-3 -- trusted-source
+#            192.0.2.0/24 produces an accept term ordered before the
+#            limit term in the nft input chain.
+# PREVENTS: trusted peers rate-limited because term ordering is wrong.
+
+option=skip-os:value=darwin
+
+tmpfs=driver.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Wait for ze to apply CoPP with trusted-source, snapshot nft state."""
+import os
+import signal
+import subprocess
+import sys
+import time
+
+for _ in range(200):
+    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+        break
+    time.sleep(0.05)
+else:
+    print("ERROR: daemon.pid/ready never appeared", file=sys.stderr)
+    sys.exit(1)
+
+with open("daemon.pid") as f:
+    pid = int(f.read().strip())
+
+time.sleep(0.5)
+
+out = subprocess.check_output(["nft", "list", "table", "inet", "ze_copp"], text=True)
+sys.stdout.write(out)
+
+# Verify ordering: trusted accept appears before limit
+lines = out.splitlines()
+trusted_line = None
+limit_line = None
+for i, line in enumerate(lines):
+    if "192.0.2.0/24" in line and "accept" in line:
+        trusted_line = i
+    if "limit rate" in line:
+        limit_line = i
+if trusted_line is not None and limit_line is not None:
+    if trusted_line < limit_line:
+        print("ORDER_OK: trusted before limit", file=sys.stderr)
+    else:
+        print("ORDER_FAIL: trusted after limit", file=sys.stderr)
+        sys.exit(1)
+
+os.kill(pid, signal.SIGTERM)
+EOF_PY
+
+stdin=ze-bgp:terminator=EOF_CONF
+control-plane-protection {
+    bgp {
+        rate 50/second;
+        trusted-source 192.0.2.0/24;
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.copp:value=info
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=python3 driver.py:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=ORDER_OK
+expect=stdout:contains=192.0.2.0/24
+expect=stdout:contains=limit rate

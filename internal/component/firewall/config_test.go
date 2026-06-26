@@ -283,9 +283,9 @@ func TestParseRateSpecBytes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.spec, func(t *testing.T) {
-			lim, err := parseRateSpec(tt.spec)
+			lim, err := ParseRateSpec(tt.spec)
 			if err != nil {
-				t.Fatalf("parseRateSpec(%q): %v", tt.spec, err)
+				t.Fatalf("ParseRateSpec(%q): %v", tt.spec, err)
 			}
 			if lim.Rate != tt.wantRate {
 				t.Errorf("Rate = %d, want %d", lim.Rate, tt.wantRate)
@@ -303,9 +303,9 @@ func TestParseRateSpecBytes(t *testing.T) {
 // VALIDATES: gap-7 -- packet rate (plain `N/unit`) keeps Dimension=
 // RateDimensionPackets so lowerLimit picks LimitTypePkts, not PktBytes.
 func TestParseRateSpecPackets(t *testing.T) {
-	lim, err := parseRateSpec("10/second")
+	lim, err := ParseRateSpec("10/second")
 	if err != nil {
-		t.Fatalf("parseRateSpec: %v", err)
+		t.Fatalf("ParseRateSpec: %v", err)
 	}
 	if lim.Rate != 10 || lim.Unit != "second" || lim.Dimension != RateDimensionPackets {
 		t.Errorf("Limit = {%d %q Dim=%d}, want {10 second Packets=%d}",
@@ -327,7 +327,7 @@ func TestParseRateSpecInvalid(t *testing.T) {
 	}
 	for _, spec := range tests {
 		t.Run(spec, func(t *testing.T) {
-			if _, err := parseRateSpec(spec); err == nil {
+			if _, err := ParseRateSpec(spec); err == nil {
 				t.Fatalf("expected parse error for %q", spec)
 			}
 		})
@@ -554,24 +554,24 @@ func TestParseSetElementsOrdered(t *testing.T) {
 	}
 }
 
-// VALIDATES: review-9 -- parseRateSpec rejects rate = 0 via
+// VALIDATES: review-9 -- ParseRateSpec rejects rate = 0 via
 // ValidateRate. A zero rate would pass nftables into an invalid rule;
 // surfacing it offline is a better operator experience.
 func TestParseRateSpecZeroRejects(t *testing.T) {
-	if _, err := parseRateSpec("0/second"); err == nil {
+	if _, err := ParseRateSpec("0/second"); err == nil {
 		t.Fatal("expected rate-zero rejection")
 	}
-	if _, err := parseRateSpec("0mbytes/minute"); err == nil {
+	if _, err := ParseRateSpec("0mbytes/minute"); err == nil {
 		t.Fatal("expected rate-zero rejection for byte-rate form")
 	}
 }
 
-// VALIDATES: review-8 -- parseRateSpec rejects numeric prefixes
+// VALIDATES: review-8 -- ParseRateSpec rejects numeric prefixes
 // exceeding the 20-digit uint64 domain cap, so a multi-megabyte
 // digit string is rejected cheaply rather than walked in full.
 func TestParseRateSpecDigitCap(t *testing.T) {
 	big := strings.Repeat("9", 40) + "/second"
-	if _, err := parseRateSpec(big); err == nil {
+	if _, err := ParseRateSpec(big); err == nil {
 		t.Fatal("expected digit-cap rejection")
 	}
 }

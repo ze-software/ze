@@ -358,7 +358,7 @@ func parseThenBlock(m map[string]any) ([]Action, error) {
 
 	if lrMap, ok := m["limit-rate"].(map[string]any); ok {
 		rateStr, _ := lrMap["rate"].(string)
-		lim, err := parseRateSpec(rateStr)
+		lim, err := ParseRateSpec(rateStr)
 		if err != nil {
 			return nil, fmt.Errorf("limit rate: %w", err)
 		}
@@ -815,7 +815,7 @@ func parseDSCP(v string) (uint8, error) {
 // byteRateMultiplier encodes the {value-less} prefix multiplier for the
 // byte-rate family. Lookup is "" (plain "Nbytes" form = 1-byte units),
 // "k"/"m"/"g" for kibi/mebi/gibi. Keeping the multipliers here (not
-// inside parseRateSpec) lets the show formatter reverse the conversion
+// inside ParseRateSpec) lets the show formatter reverse the conversion
 // without duplicating the table.
 var byteRateMultiplier = map[string]uint64{
 	"bytes":  1,
@@ -830,7 +830,7 @@ var timeUnits = map[string]struct{}{
 	"second": {}, "minute": {}, "hour": {}, "day": {},
 }
 
-func parseRateSpec(v string) (Limit, error) {
+func ParseRateSpec(v string) (Limit, error) {
 	numStr, unit, ok := strings.Cut(v, "/")
 	if !ok {
 		return Limit{}, fmt.Errorf("invalid rate spec %q (expected N/unit)", v)

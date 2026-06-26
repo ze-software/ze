@@ -499,4 +499,10 @@ var builtinCodes = []CodeMeta{
 		Description: "The platform has no known random-seed persistence service. On gokrazy, randomd saves to /perm/random.seed; on systemd, systemd-random-seed.service saves to /var/lib/systemd/random-seed. Without seed persistence, early-boot entropy may be poor, weakening cryptographic operations like BGP TCP-AO or TLS key generation.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-random-seed"},
 	},
+	{
+		Code:        "doctor-copp-missing",
+		Title:       "CoPP input chain not active",
+		Description: "Control-plane policing (CoPP) for BGP is configured but the nftables input chain protecting TCP/179 may not be installed. Verify the firewall backend is running and the copp plugin started successfully.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-copp-missing"},
+	},
 }
