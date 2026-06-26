@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
-	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -65,11 +63,14 @@ func (m *ListenerMigrator) SetLG(s Reconfigurable) { m.lg = s }
 // (//go:build ze_mcp).
 func (m *ListenerMigrator) SetMCP(s Reconfigurable) { m.mcp = s }
 
-// SetREST updates the REST API server reference.
-func (m *ListenerMigrator) SetREST(s *rest.RESTServer) { m.rest = s }
+// SetREST updates the REST API server reference. Takes Reconfigurable (not
+// *rest.RESTServer) so always-on code never imports the api/rest package: the
+// API servers are built through the ze_api seam and may be compiled out.
+func (m *ListenerMigrator) SetREST(s Reconfigurable) { m.rest = s }
 
-// SetGRPC updates the gRPC API server reference.
-func (m *ListenerMigrator) SetGRPC(s *apigrpc.GRPCServer) { m.grpc = s }
+// SetGRPC updates the gRPC API server reference. Takes Reconfigurable (see
+// SetREST) so always-on code never imports the api/grpc package.
+func (m *ListenerMigrator) SetGRPC(s Reconfigurable) { m.grpc = s }
 
 // ReloadListeners extracts new listen configs from the config tree and
 // reconfigures running services. Returns nil if no listener changes are needed.

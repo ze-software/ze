@@ -10,31 +10,19 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/aaa"
 	"codeberg.org/thomas-mangin/ze/internal/component/api"
-	apigrpc "codeberg.org/thomas-mangin/ze/internal/component/api/grpc"
-	"codeberg.org/thomas-mangin/ze/internal/component/api/rest"
-	"codeberg.org/thomas-mangin/ze/internal/component/audit"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	zeconfigcmd "codeberg.org/thomas-mangin/ze/internal/component/config/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
 var errServerNotReady = errors.New("server not ready")
-
-// apiServers holds running API servers for shutdown.
-type apiServers struct {
-	rest *rest.RESTServer
-	grpc *apigrpc.GRPCServer
-}
 
 // apiHasNonLoopback reports whether any configured API listener binds to
 // an address other than loopback (127.0.0.0/8 or ::1).
@@ -59,122 +47,29 @@ func configValidationHook(configPath string) api.ConfigValidationHook {
 	}
 }
 
-// startAPIServers creates the shared API engine and starts REST and/or gRPC
-// servers based on the config. Explicit transport configuration fails closed:
-// construction and bind errors return to the caller instead of silently
-// disabling the requested API listener.
-func startAPIServers(cfg zeconfig.APIConfig, server *pluginserver.Server, store storage.Storage, configPath string, users []authz.UserConfig, authorizer aaa.Authorizer, reloadAfterCommit func() error, recorder audit.Recorder) (*apiServers, error) {
-	engine := buildAPIEngine(server)
+// buildAPIShared builds the API engine, config session manager, and
+// authenticator shared by the REST and gRPC transports. It uses only the parent
+// internal/component/api package and other always-on helpers, so it stays
+// always-on; the gated transport builders (service_rest.go / service_grpc.go)
+// construct their own server from the returned shared state. Starts the session
+// cleanup goroutine (tied to the server context). Called by the hub only when at
+// least one transport is compiled in.
+func buildAPIShared(in *apiBuildInputs) *apiShared {
+	engine := buildAPIEngine(in.Server)
 	sessions := api.NewConfigSessionManager(func() (api.ConfigEditor, error) {
-		ed, err := cli.NewEditorWithStorage(store, configPath)
+		ed, err := cli.NewEditorWithStorage(in.Store, in.ConfigPath)
 		if err != nil {
 			return nil, fmt.Errorf("create editor: %w", err)
 		}
 		return ed, nil
 	})
-	sessions.SetValidationHook(configValidationHook(configPath))
-	sessions.SetCommitHook(reloadAfterCommit)
-	go sessions.RunCleanup(server.Context())
-
-	authenticator := buildUserAuthenticator(users)
-
-	// Generate OpenAPI spec lazily so it captures all plugin commands
-	// (plugins may still be registering during startup).
-	var (
-		specOnce sync.Once
-		specData []byte
-	)
-	lazySpec := func() []byte {
-		specOnce.Do(func() {
-			cmds := engine.ListCommands(&api.ListCommandsRequest{})
-			var err error
-			specData, err = api.OpenAPISchema(cmds)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "warning: API OpenAPI generation failed: %v\n", err)
-				specData = []byte(`{"openapi":"3.1.0","info":{"title":"Ze API","version":"1.0.0"},"paths":{}}`)
-			}
-		})
-		return specData
-	}
-
-	var servers apiServers
-
-	// REST now accepts a slice of listen addresses; every YANG list entry
-	// becomes a bound listener on the same *http.Server. The slice is
-	// guaranteed non-empty when RESTOn is true (ExtractAPIConfig synthesizes
-	// a default entry when no YANG list entry is present).
-	if cfg.RESTOn && len(cfg.REST) > 0 {
-		addrs := make([]string, 0, len(cfg.REST))
-		for _, ep := range cfg.REST {
-			addrs = append(addrs, ep.Listen())
-		}
-		srv, restErr := rest.NewRESTServer(rest.RESTConfig{
-			ListenAddrs:   addrs,
-			Token:         cfg.Token,
-			Authenticator: authenticator,
-			Authorizer:    authorizer,
-			CORSOrigin:    cfg.RESTCORSOrigin,
-			AuditRecorder: recorder,
-		}, engine, sessions, lazySpec)
-		if restErr != nil {
-			return nil, fmt.Errorf("create REST API: %w", restErr)
-		}
-		restErrCh, startErr := srv.Start(server.Context())
-		if startErr != nil {
-			return nil, fmt.Errorf("start REST API: %w", startErr)
-		}
-		go logRESTServerErrors(restErrCh)
-		servers.rest = srv
-		for _, addr := range srv.Addresses() {
-			fmt.Fprintf(os.Stderr, "REST API server starting on http://%s/\n", addr)
-		}
-	}
-
-	if cfg.GRPCOn && len(cfg.GRPC) > 0 {
-		addrs := make([]string, 0, len(cfg.GRPC))
-		for _, ep := range cfg.GRPC {
-			addrs = append(addrs, ep.Listen())
-		}
-		srv, grpcErr := apigrpc.NewGRPCServer(apigrpc.GRPCConfig{
-			ListenAddrs:   addrs,
-			Token:         cfg.Token,
-			Authenticator: authenticator,
-			Authorizer:    authorizer,
-			TLSCert:       cfg.GRPCTLSCert,
-			TLSKey:        cfg.GRPCTLSKey,
-			AuditRecorder: recorder,
-		}, engine, sessions)
-		if grpcErr != nil {
-			servers.Shutdown(context.Background())
-			return nil, fmt.Errorf("create gRPC API: %w", grpcErr)
-		}
-		grpcErrCh, startErr := srv.Start(server.Context())
-		if startErr != nil {
-			servers.Shutdown(context.Background())
-			return nil, fmt.Errorf("start gRPC API: %w", startErr)
-		}
-		go logGRPCServerErrors(grpcErrCh)
-		servers.grpc = srv
-		for _, addr := range srv.Addresses() {
-			fmt.Fprintf(os.Stderr, "gRPC API server starting on %s\n", addr)
-		}
-	}
-
-	return &servers, nil
-}
-
-// Shutdown stops all running API servers.
-func (s *apiServers) Shutdown(ctx context.Context) {
-	if s == nil {
-		return
-	}
-	if s.rest != nil {
-		if err := s.rest.Shutdown(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: REST API shutdown: %v\n", err)
-		}
-	}
-	if s.grpc != nil {
-		s.grpc.Stop()
+	sessions.SetValidationHook(configValidationHook(in.ConfigPath))
+	sessions.SetCommitHook(in.ReloadHook)
+	go sessions.RunCleanup(in.Server.Context())
+	return &apiShared{
+		Engine:        engine,
+		Sessions:      sessions,
+		Authenticator: buildUserAuthenticator(in.Users),
 	}
 }
 
@@ -444,21 +339,5 @@ func apiCommandLister(s *pluginserver.Server) api.CommandSource {
 			}
 		}
 		return infos
-	}
-}
-
-// logRESTServerErrors logs runtime serving failures after startup already
-// bound every requested REST listener successfully.
-func logRESTServerErrors(errCh <-chan error) {
-	for err := range errCh {
-		fmt.Fprintf(os.Stderr, "warning: REST API server: %v\n", err)
-	}
-}
-
-// logGRPCServerErrors logs runtime serving failures after startup already
-// bound every requested gRPC listener successfully.
-func logGRPCServerErrors(errCh <-chan error) {
-	for err := range errCh {
-		fmt.Fprintf(os.Stderr, "warning: gRPC API server: %v\n", err)
 	}
 }

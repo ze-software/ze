@@ -4,6 +4,8 @@ import (
 	// Schema packages for YANG module registration needed by config tests.
 	// Import schemas directly (not plugin/all) to avoid import cycles
 	// with cmd packages that import plugin/server which imports config.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/api/grpc/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/api/rest/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/api/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/authz/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bfd/yang"

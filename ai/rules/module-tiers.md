@@ -92,9 +92,15 @@ Web also has a nil-able standalone seam (`web_infra.go`) for
 **Dedicated seams** cover services whose construction shape does not fit the
 registry: ssh (`ze_ssh`) uses `ssh_infra.go` for the shared startup and
 standalone paths; gNMI (`ze_gnmi`) uses `gnmi_infra.go` for rich constructor
-inputs plus the reload notification hook. Both shapes gate their direct package
-and YANG schema imports into generated `all_ze_<feature>.go` files via
-`plugin_imports.go`. `make ze` / `ze-appliance` pass the default-on feature tags
+inputs plus the reload notification hook; the REST/gRPC API uses `api_infra.go`
+with TWO independent hooks (`ze_rest` / `ze_grpc`) so an operator can ship
+gRPC-without-REST or vice-versa, sharing an always-on engine/session builder
+(`buildAPIShared`). The shared `api-server { token }` YANG base stays always-on
+and each transport's `rest{}`/`grpc{}` container is contributed by a gated YANG
+module (`api/rest/yang`, `api/grpc/yang`) via Ze's same-named-container merge, so
+a compiled-out transport's config block is rejected as unknown. Both shapes gate
+their direct package and YANG schema imports into generated `all_ze_<feature>.go`
+files via `plugin_imports.go`. `make ze` / `ze-appliance` pass the default-on feature tags
 (`ZE_FEATURES` in the Makefile); `ze-stripped` omits them for a smaller, hardened
 binary. See `plan/spec-feature-gate-0-umbrella.md`.
 

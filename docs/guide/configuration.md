@@ -1871,7 +1871,7 @@ Binder lifetime rules are uniform across every service:
 <!-- source: internal/core/metrics/server.go — metrics.Server.Start multi-listener bind-and-rollback -->
 <!-- source: internal/component/api/rest/server.go — RESTServer.ListenAndServe multi-listener bind-and-rollback -->
 <!-- source: internal/component/api/grpc/server.go — GRPCServer.Serve multi-listener bind-and-rollback -->
-<!-- source: cmd/ze/hub/mcp.go — startMCPServer multi-listener bind-and-rollback -->
+<!-- source: cmd/ze/hub/service_mcp.go — startMCPServer multi-listener bind-and-rollback (ze_mcp) -->
 
 #### Port Conflict Detection
 

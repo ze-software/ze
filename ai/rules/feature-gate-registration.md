@@ -3,7 +3,8 @@
 How to add or change a **compile-out-able feature**: a subsystem that can be
 dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag,
 for a smaller binary and a smaller attack surface (looking-glass `ze_lg`, ssh
-`ze_ssh`, web `ze_web`, gNMI `ze_gnmi`, MCP `ze_mcp`, ...).
+`ze_ssh`, web `ze_web`, gNMI `ze_gnmi`, MCP `ze_mcp`, REST API `ze_rest`, gRPC
+API `ze_grpc`, ...).
 
 Read this before touching `feature-gates.txt`, `cmd/ze/hub/service_registry.go`,
 a `register_<x>.go` / `service_<x>.go` file, an `*_infra.go` seam, the

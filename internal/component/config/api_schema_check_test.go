@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	_ "codeberg.org/thomas-mangin/ze/internal/component/api/grpc/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/api/rest/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/api/yang"
 )
 

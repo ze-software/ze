@@ -2,11 +2,20 @@ module ze-api-conf {
     namespace "urn:ze:api:conf";
     prefix api;
 
-    import ze-types { prefix zt; }
     import ze-extensions { prefix ze; }
 
-    description "API engine configuration for Ze (REST and gRPC transports)";
+    description "API engine base configuration for Ze (shared api-server parent).
+                 The REST and gRPC transports are compile-out-able: their config
+                 containers live in ze-rest-conf (ze_rest) and ze-grpc-conf
+                 (ze_grpc), which contribute rest{}/grpc{} into this api-server
+                 via Ze's same-named-container merge. With a transport compiled
+                 out its container is unregistered, so its config block is
+                 rejected as unknown.";
 
+    revision 2026-06-26 {
+        description "Split rest/grpc transports out for per-encoding compile-out
+                     (ze_rest / ze_grpc).";
+    }
     revision 2026-01-01 {
         description "Initial revision";
     }
@@ -15,7 +24,7 @@ module ze-api-conf {
         description "Environment settings for API transports";
 
         container api-server {
-            description "API engine settings";
+            description "API engine settings (shared parent for the REST/gRPC transports)";
 
             leaf token {
                 type string;
@@ -23,84 +32,6 @@ module ze-api-conf {
                 description "Bearer token for API authentication. When set, clients must send
                              Authorization: Bearer <token> header. Leave empty to allow
                              unauthenticated access.";
-            }
-
-            container rest {
-                description "REST/HTTP API transport. Plain HTTP listeners are restricted
-                             to loopback; expose remotely through a TLS terminator.";
-
-                leaf enabled {
-                    type boolean;
-                    default false;
-                    description "Enable REST API server";
-                }
-
-                list server {
-                    key "name";
-                    ze:listener;
-                    description "REST API listen endpoints";
-
-                    leaf name {
-                        type string;
-                        description "Server instance name";
-                    }
-
-                    uses zt:listener {
-                        refine ip {
-                            default "0.0.0.0";
-                        }
-                        refine port {
-                            default 8081;
-                        }
-                    }
-                }
-
-                leaf cors-origin {
-                    type string;
-                    description "CORS allowed origin (empty disables CORS headers)";
-                }
-            }
-
-            container grpc {
-                description "gRPC API transport. Authenticated non-loopback listeners
-                             require tls-cert and tls-key.";
-
-                leaf enabled {
-                    type boolean;
-                    default false;
-                    description "Enable gRPC API server";
-                }
-
-                list server {
-                    key "name";
-                    ze:listener;
-                    description "gRPC API listen endpoints";
-
-                    leaf name {
-                        type string;
-                        description "Server instance name";
-                    }
-
-                    uses zt:listener {
-                        refine ip {
-                            default "0.0.0.0";
-                        }
-                        refine port {
-                            default 50051;
-                        }
-                    }
-                }
-
-                leaf tls-cert {
-                    type string;
-                    description "Path to TLS certificate file for gRPC";
-                }
-
-                leaf tls-key {
-                    type string;
-                    ze:sensitive;
-                    description "Path to TLS private key file for gRPC";
-                }
             }
         }
     }

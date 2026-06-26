@@ -33,3 +33,5 @@ ze_web   internal/component/web
 ze_gnmi  internal/component/gnmi
 ze_gnmi  internal/plugins/gnmi-cmd
 ze_mcp   internal/component/mcp
+ze_rest  internal/component/api/rest
+ze_grpc  internal/component/api/grpc

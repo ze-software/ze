@@ -738,7 +738,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	// Start REST/gRPC API servers if configured (env > config file).
-	var apiSrvs *apiServers
+	var apiShutdowns []func(context.Context)
 	apiCfg, apiCfgOK := zeconfig.ExtractAPIConfig(loadResult.Tree)
 	if env.IsEnabled("ze.api-server.rest.enabled") && !apiCfg.RESTOn {
 		apiCfg.RESTOn = true
@@ -805,20 +805,47 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			return 1
 		}
 
-		var apiErr error
-		apiSrvs, apiErr = startAPIServers(apiCfg, apiServer, store, configPath, apiUsers, liveAAABundleAuthorizer{}, reloadAfterCommit, auditLog)
-		if apiErr != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
-			apiServer.Stop()
-			_ = eng.Stop(startCtx)
-			return 1
-		}
-		if apiSrvs != nil {
-			if apiSrvs.rest != nil {
-				lm.SetREST(apiSrvs.rest)
+		// Build REST and gRPC through their compile-out seams (service_rest.go /
+		// service_grpc.go). Each transport is independently gated (ze_rest /
+		// ze_grpc); with a transport off its hook is nil and it is skipped. The
+		// config resolution above and the shared engine/sessions stay always-on.
+		if restBuild != nil || grpcBuild != nil {
+			apiIn := &apiBuildInputs{
+				Config:     apiCfg,
+				Server:     apiServer,
+				Store:      store,
+				ConfigPath: configPath,
+				Users:      apiUsers,
+				Authorizer: liveAAABundleAuthorizer{},
+				ReloadHook: reloadAfterCommit,
+				Recorder:   auditLog,
 			}
-			if apiSrvs.grpc != nil {
-				lm.SetGRPC(apiSrvs.grpc)
+			shared := buildAPIShared(apiIn)
+			if restBuild != nil {
+				h, apiErr := restBuild(apiIn, shared)
+				if apiErr != nil {
+					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
+					apiServer.Stop()
+					_ = eng.Stop(startCtx)
+					return 1
+				}
+				if h.Server != nil {
+					lm.SetREST(h.Server)
+					apiShutdowns = append(apiShutdowns, h.Shutdown)
+				}
+			}
+			if grpcBuild != nil {
+				h, apiErr := grpcBuild(apiIn, shared)
+				if apiErr != nil {
+					fmt.Fprintf(os.Stderr, "error: %v\n", apiErr)
+					apiServer.Stop()
+					_ = eng.Stop(startCtx)
+					return 1
+				}
+				if h.Server != nil {
+					lm.SetGRPC(h.Server)
+					apiShutdowns = append(apiShutdowns, h.Shutdown)
+				}
 			}
 		}
 	}
@@ -913,9 +940,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		gnmiSrv.Stop()
 	}
 
-	if apiSrvs != nil {
+	if len(apiShutdowns) > 0 {
 		apiCtx, apiCancel := context.WithTimeout(context.Background(), 3*time.Second)
-		apiSrvs.Shutdown(apiCtx)
+		for _, sd := range apiShutdowns {
+			sd(apiCtx)
+		}
 		apiCancel()
 	}
 

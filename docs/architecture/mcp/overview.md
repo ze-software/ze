@@ -8,7 +8,7 @@ configured under `environment.mcp.server`.
 
 <!-- source: internal/component/mcp/handler.go — MCP component package layout -->
 <!-- source: internal/component/mcp/streamable.go — Streamable HTTP transport -->
-<!-- source: cmd/ze/hub/mcp.go — production mount point -->
+<!-- source: cmd/ze/hub/service_mcp.go — production mount point (ze_mcp) -->
 
 ## Protocol Profile
 
@@ -109,7 +109,7 @@ identity rate limiting so elicitation flows cannot starve one another.
 
 ## Mount Point
 
-<!-- source: cmd/ze/hub/mcp.go — startMCPServer -->
+<!-- source: cmd/ze/hub/service_mcp.go — startMCPServer (ze_mcp) -->
 
 `cmd/ze/hub/main.go` calls `startMCPServer(addrs, dispatch, commands, token)`
 when `environment.mcp.server` has at least one entry. Each listener address

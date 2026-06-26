@@ -21,6 +21,8 @@ run:
     - ze_web
     - ze_gnmi
     - ze_mcp
+    - ze_rest
+    - ze_grpc
 
 linters:
   exclusions:
